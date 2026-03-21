@@ -1,0 +1,136 @@
+/**
+ * Seed Data: Iconos Básicos Gratis
+ * 10 iconos estándar que se cargan por defecto en el Cofre de todos los usuarios
+ *
+ * Ejecutar: npm run seed:free-icons
+ */
+
+const BASIC_FREE_ICONS = [
+  {
+    unique_id: 'BASICS_PHONE-001',
+    collection: 'basics_free',
+    name: 'Teléfono',
+    icon_type: 'phone',
+    icon_svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>',
+    rarity: 'gratis',
+    price_cs: 0,
+    is_active: true,
+    is_default: true,
+    created_at: new Date(),
+  },
+  {
+    unique_id: 'BASICS_EMAIL-001',
+    collection: 'basics_free',
+    name: 'Email',
+    icon_type: 'email',
+    icon_svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>',
+    rarity: 'gratis',
+    price_cs: 0,
+    is_active: true,
+    is_default: true,
+    created_at: new Date(),
+  },
+  {
+    unique_id: 'BASICS_LINK-001',
+    collection: 'basics_free',
+    name: 'Enlace Web',
+    icon_type: 'link',
+    icon_svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>',
+    rarity: 'gratis',
+    price_cs: 0,
+    is_active: true,
+    is_default: true,
+    created_at: new Date(),
+  },
+  {
+    unique_id: 'BASICS_TEXT-001',
+    collection: 'basics_free',
+    name: 'Texto',
+    icon_type: 'text',
+    icon_svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2m0 2v14h14V5H5m2 4h10v2H7V9m0 4h10v2H7v-2z"/></svg>',
+    rarity: 'gratis',
+    price_cs: 0,
+    is_active: true,
+    is_default: true,
+    created_at: new Date(),
+  },
+  {
+    unique_id: 'BASICS_PDF-001',
+    collection: 'basics_free',
+    name: 'Documento PDF',
+    icon_type: 'pdf',
+    icon_svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M7,11H9V13H7V11M7,15H11V17H7V15M7,7H11V9H7V7Z"/></svg>',
+    rarity: 'gratis',
+    price_cs: 0,
+    is_active: true,
+    is_default: true,
+    created_at: new Date(),
+  },
+  {
+    unique_id: 'BASICS_LOCATION-001',
+    collection: 'basics_free',
+    name: 'Ubicación',
+    icon_type: 'location',
+    icon_svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>',
+    rarity: 'gratis',
+    price_cs: 0,
+    is_active: true,
+    is_default: true,
+    created_at: new Date(),
+  },
+  {
+    unique_id: 'BASICS_INSTAGRAM-001',
+    collection: 'basics_free',
+    name: 'Instagram',
+    icon_type: 'social_instagram',
+    icon_svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.057-1.645.069-4.849.069-3.204 0-3.584-.012-4.849-.069-3.259-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zM5.838 12a6.162 6.162 0 1 1 12.324 0 6.162 6.162 0 0 1-12.324 0zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm4.965-10.322a1.44 1.44 0 1 1 2.881.001 1.44 1.44 0 0 1-2.881-.001z"/></svg>',
+    rarity: 'gratis',
+    price_cs: 0,
+    is_active: true,
+    is_default: true,
+    created_at: new Date(),
+  },
+  {
+    unique_id: 'BASICS_WHATSAPP-001',
+    collection: 'basics_free',
+    name: 'WhatsApp',
+    icon_type: 'social_whatsapp',
+    icon_svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M17.6915026,13.4744748 C17.5953707,13.4744748 16.2689076,12.8599618 15.9729618,12.7523685 C15.6770164,12.6447753 15.5053282,12.7956242 15.4113037,12.9585388 C15.3172792,13.121453 14.8616207,13.8331957 14.7839885,13.9715605 C14.7063564,14.1099254 14.6213771,14.1148364 14.4389988,14.0203148 L14.4408664,14.0203148 C13.5650818,13.5865468 12.8275627,13.0236142 12.3004065,12.2559048 C12.1579526,12.0485341 12.3574607,12.0640973 12.3574607,12.0640973 C12.3574607,12.0640973 12.9950935,11.2907345 13.1004635,11.1206169 C13.205834,10.9504992 13.1534851,10.7767795 13.0636222,10.6726405 C12.9737593,10.5685015 12.3417178,9.32657606 12.1823545,8.98811017 C12.0229913,8.64964428 11.8619181,8.70524271 11.7426703,8.70077501 C11.6340126,8.69666908 11.5244123,8.69598313 11.4141705,8.69778265 C11.1739145,8.69619428 10.9923192,8.79514653 10.8566329,8.93312913 C10.0397267,9.80778097 9.6649485,10.9141097 9.83213188,12.1783526 C10.1930326,14.515006 11.5288047,16.5765445 13.4957652,17.7718895 C15.0799788,18.6258044 16.9171493,18.9710446 18.6556315,18.7326424 C19.5739264,18.6115925 20.4430837,18.2178268 21.1068283,17.6115598 C21.8049004,16.9773392 22.2571868,16.0867824 22.2571868,15.1309446 C22.2571868,15.0256024 22.2379275,14.9220099 22.1998769,14.8246953 C22.0693694,14.4877923 21.4783199,14.3578482 21.0057679,14.1521316 C20.5332159,13.946415 19.822765,13.6741268 19.5284516,13.5647921 C19.2341382,13.4554575 19.0624502,13.4744748 19.0624502,13.4744748 L17.6915026,13.4744748 Z M12,2 C6.48,2 2,6.48 2,12 C2,17.52 6.48,22 12,22 C17.52,22 22,17.52 22,12 C22,6.48 17.52,2 12,2 Z"/></svg>',
+    rarity: 'gratis',
+    price_cs: 0,
+    is_active: true,
+    is_default: true,
+    created_at: new Date(),
+  },
+  {
+    unique_id: 'BASICS_CALENDAR-001',
+    collection: 'basics_free',
+    name: 'Calendario',
+    icon_type: 'calendar',
+    icon_svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/></svg>',
+    rarity: 'gratis',
+    price_cs: 0,
+    is_active: true,
+    is_default: true,
+    created_at: new Date(),
+  },
+  {
+    unique_id: 'BASICS_HEART-001',
+    collection: 'basics_free',
+    name: 'Favorito / Wishlist',
+    icon_type: 'heart',
+    icon_svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>',
+    rarity: 'gratis',
+    price_cs: 0,
+    is_active: true,
+    is_default: true,
+    created_at: new Date(),
+  },
+];
+
+console.log('📦 Seed data de 10 iconos básicos listos para inserción.');
+console.log('Cantidad:', BASIC_FREE_ICONS.length);
+console.log('Colección:', 'basics_free');
+console.log('Todas con status: is_default=true, rarity=gratis, price_cs=0');
+
+export default BASIC_FREE_ICONS;
