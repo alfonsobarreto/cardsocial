@@ -33,7 +33,6 @@ import { hardLockCheck } from '@/services/biometricAuth';
 import LimitReachedModal from '@/components/LimitReachedModal';
 import { validateVaultItemCreation } from '@/services/limitService';
 import DullModeLock from '@/components/DullModeLock';
-import Pdf from 'react-native-pdf';
 
 interface Link {
   id: string;
@@ -807,13 +806,15 @@ const VaultScreen = () => {
                   <Image source={{ uri: viewerItem.value }} style={styles.viewerImage} resizeMode="contain" />
                 </ScrollView>
               ) : isPdfValue(viewerItem.value) ? (
-                <Pdf
-                  source={{ uri: viewerItem.value }}
-                  style={styles.viewerPdf}
-                  minScale={1}
-                  maxScale={3}
-                  trustAllCerts={false}
-                />
+                <View style={styles.viewerFallback}>
+                  <MaterialCommunityIcons name="file-pdf-box" color="#C5A065" size={54} />
+                  <Text style={styles.viewerFallbackText}>Vista previa de PDF no disponible</Text>
+                  <TouchableOpacity onPress={() => Linking.openURL(viewerItem.value)}>
+                    <Text style={styles.viewerPdfLink}>
+                      Abrir PDF externamente
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               ) : (
                 <View style={styles.viewerFallback}>
                   <MaterialCommunityIcons name="file-alert-outline" color="#C5A065" size={54} />
@@ -1244,6 +1245,11 @@ const styles = StyleSheet.create({
   viewerFallbackText: {
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  viewerPdfLink: {
+    color: '#C5A065',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   fabAddButton: {
     position: 'absolute',

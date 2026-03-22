@@ -14,7 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { getActiveUserId } from '@/services/authSession';
 import GoldenRingButton from './GoldenRingButton';
 import { purchaseBusinessCard } from '@/services/businessCardPaywallService';
-import Purchases from 'react-native-purchases';
+import Purchases from '@/services/purchasesStub';
 import { Platform } from 'react-native';
 
 const { width } = Dimensions.get('window');

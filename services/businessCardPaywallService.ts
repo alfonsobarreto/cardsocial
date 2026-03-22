@@ -8,7 +8,7 @@
  */
 
 // Servicios de terceros (RevenueCat, Firebase) se integran en tiempo de ejecución
-import Purchases from 'react-native-purchases';
+import Purchases from '@/services/purchasesStub';
 import { addCredits } from '@/services/creditsService';
 import { activateOrRenewBusinessLicense } from '@/services/businessLicenseService';
 
