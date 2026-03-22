@@ -5,6 +5,8 @@ import {
 } from 'react-native';
 import { updateCard } from '../services/api';
 
+const PUBLIC_BASE_URL = process.env.EXPO_PUBLIC_CARDS_BASE_URL || 'https://cardsocial.app/cards';
+
 const FIELD_LABELS = {
   name: 'Name', jobTitle: 'Job Title', company: 'Company',
   email: 'Email', phone: 'Phone', website: 'Website', bio: 'Bio',
@@ -16,7 +18,7 @@ const CardDetailScreen = ({ route, navigation }) => {
   const [form, setForm] = useState({ ...card });
 
   const handleShare = async () => {
-    const shareUrl = `https://cardsocial.app/cards/${card.slug}`;
+    const shareUrl = `${PUBLIC_BASE_URL}/${card.slug}`;
     try {
       await Share.share({ message: `Check out my digital card: ${shareUrl}`, url: shareUrl });
     } catch (_) {}

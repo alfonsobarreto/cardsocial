@@ -2,7 +2,16 @@ const CryptoJS = require('crypto-js');
 const { validationResult } = require('express-validator');
 const VaultItem = require('../models/VaultItem');
 
-const getKey = () => process.env.VAULT_ENCRYPTION_KEY || 'default_dev_key_32chars__________';
+const getKey = () => {
+  const key = process.env.VAULT_ENCRYPTION_KEY;
+  if (!key) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('VAULT_ENCRYPTION_KEY must be set in production');
+    }
+    return 'default_dev_key_32chars__________';
+  }
+  return key;
+};
 
 const encrypt = (plaintext) => {
   const iv = CryptoJS.lib.WordArray.random(16);

@@ -15,6 +15,8 @@ const VaultScreen = () => {
   const [viewData, setViewData] = useState(null);
   const [form, setForm] = useState({ label: '', category: 'other', data: '' });
 
+  const [showData, setShowData] = useState(false);
+
   const loadItems = useCallback(async () => {
     try {
       const res = await getVaultItems();
@@ -149,14 +151,19 @@ const VaultScreen = () => {
               </TouchableOpacity>
             ))}
           </View>
-          <TextInput
-            style={[styles.input, { height: 120 }]}
-            placeholder="Data (will be encrypted)"
-            value={form.data}
-            onChangeText={(v) => setForm((f) => ({ ...f, data: v }))}
-            multiline
-            secureTextEntry
-          />
+          <View style={styles.dataInputWrapper}>
+            <TextInput
+              style={[styles.input, { height: 120, flex: 1 }]}
+              placeholder="Data (will be encrypted)"
+              value={form.data}
+              onChangeText={(v) => setForm((f) => ({ ...f, data: v }))}
+              multiline
+              secureTextEntry={!showData}
+            />
+            <TouchableOpacity style={styles.showToggle} onPress={() => setShowData((s) => !s)}>
+              <Text style={styles.showToggleText}>{showData ? 'Hide' : 'Show'}</Text>
+            </TouchableOpacity>
+          </View>
           <TouchableOpacity style={styles.button} onPress={handleCreate}>
             <Text style={styles.buttonText}>Save to Vault</Text>
           </TouchableOpacity>
@@ -198,6 +205,9 @@ const styles = StyleSheet.create({
   catChipActive: { backgroundColor: '#6C63FF', borderColor: '#6C63FF' },
   catChipText: { fontSize: 12, color: '#555' },
   catChipTextActive: { color: '#fff' },
+  dataInputWrapper: { position: 'relative', marginBottom: 12 },
+  showToggle: { position: 'absolute', right: 12, top: 14 },
+  showToggleText: { color: '#6C63FF', fontWeight: '600', fontSize: 13 },
   button: { backgroundColor: '#6C63FF', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 8 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

@@ -46,8 +46,7 @@ const analyseText = async (text) => {
     }
     return { safe: true, reason: '' };
   } catch (err) {
-    console.error('Azure Content Safety error:', err.message);
-    // On API error, allow the content through but log the failure
+    console.error('Azure Content Safety error – content allowed through (requires manual review):', err.message);
     return { safe: true, reason: '' };
   }
 };
