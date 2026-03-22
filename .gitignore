@@ -32,8 +32,16 @@ yarn-error.*
 
 # local env files
 .env*.local
+frontend-admin/.env
 backend/.env
 backend/.env.*
+
+# deployment temp artifacts
+backend-deploy*.zip
+backend-deploy-staging/
+kudu-command.json
+token-request.json
+moderate-request.json
 
 # typescript
 *.tsbuildinfo

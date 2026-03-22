@@ -229,6 +229,35 @@
   font-weight: 700;
 }
 
+.infra-spend-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(197, 160, 101, 0.16);
+  border: 1px solid rgba(197, 160, 101, 0.45);
+  min-width: 155px;
+}
+
+.infra-spend-chip span {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  opacity: 0.9;
+}
+
+.infra-spend-chip strong {
+  font-size: 14px;
+  color: #fff;
+}
+
+.infra-spend-chip small {
+  font-size: 10px;
+  color: #c5a065;
+  letter-spacing: 0.3px;
+}
+
 .session-info {
   display: flex;
   align-items: center;

@@ -53,6 +53,7 @@ async function bootstrap() {
 
   const app = express();
   app.use(express.json({ limit: "2mb" }));
+  app.locals.db = db;
 
   const otpMailer = (env.smtpHost && env.smtpUser && env.smtpPass)
     ? nodemailer.createTransport({

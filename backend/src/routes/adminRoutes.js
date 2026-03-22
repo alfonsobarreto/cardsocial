@@ -27,6 +27,109 @@ const ADMIN_CREDS = {
   password_hash: process.env.ADMIN_PASS_HASH || '$2a$10$8LvWuFpd5OMnG.Q9X2yFy.5tpOy09fHPeHBx8hv1z3Z9q1Wk2hPg2', // 'admin@Card2026'
 };
 
+const PURCHASE_ORIGINS = ['apple_pay', 'subscription', 'direct_credits'];
+
+function toSafeFloat(value, fallback = 0) {
+  const parsed = Number.parseFloat(String(value ?? fallback));
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(0, parsed);
+}
+
+function monthKey(date = new Date()) {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
+
+function monthStartUtc(date = new Date()) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1, 0, 0, 0, 0));
+}
+
+function sixMonthsAgoUtc(date = new Date()) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() - 6, date.getUTCDate(), 0, 0, 0, 0));
+}
+
+async function fetchJsonCost(url, apiKey) {
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+      ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+      ...(apiKey ? { 'x-api-key': apiKey } : {}),
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Cost API failed: ${response.status}`);
+  }
+
+  const payload = await response.json().catch(() => ({}));
+  return toSafeFloat(
+    payload?.monthlyUsd
+      ?? payload?.monthly_usd
+      ?? payload?.totalUsd
+      ?? payload?.total_usd
+      ?? payload?.cost
+      ?? payload?.value,
+    0
+  );
+}
+
+async function resolveInfraCosts() {
+  const month = monthKey();
+  let source = 'mock';
+
+  let azure = toSafeFloat(process.env.AZURE_MONTHLY_COST_USD, 0);
+  let mongo = toSafeFloat(process.env.MONGO_MONTHLY_COST_USD, 0);
+
+  if (azure > 0 || mongo > 0) {
+    source = 'env';
+  }
+
+  const azureCostApi = String(process.env.AZURE_COST_API_URL || '').trim();
+  const mongoCostApi = String(process.env.MONGO_COST_API_URL || '').trim();
+  const azureCostApiKey = String(process.env.AZURE_COST_API_KEY || '').trim();
+  const mongoCostApiKey = String(process.env.MONGO_COST_API_KEY || '').trim();
+
+  if (azureCostApi) {
+    try {
+      const azureApiCost = await fetchJsonCost(azureCostApi, azureCostApiKey);
+      if (azureApiCost >= 0) {
+        azure = azureApiCost;
+        source = 'api';
+      }
+    } catch (_error) {
+      // Keep env/mock fallback.
+    }
+  }
+
+  if (mongoCostApi) {
+    try {
+      const mongoApiCost = await fetchJsonCost(mongoCostApi, mongoCostApiKey);
+      if (mongoApiCost >= 0) {
+        mongo = mongoApiCost;
+        source = 'api';
+      }
+    } catch (_error) {
+      // Keep env/mock fallback.
+    }
+  }
+
+  if (source === 'mock') {
+    const monthSeed = Number(month.slice(-2));
+    azure = Number((6.75 + monthSeed * 0.41).toFixed(2));
+    mongo = Number((4.2 + monthSeed * 0.27).toFixed(2));
+  }
+
+  return {
+    month,
+    source,
+    azure_usd: Number(azure.toFixed(2)),
+    mongo_usd: Number(mongo.toFixed(2)),
+    total_usd: Number((azure + mongo).toFixed(2)),
+  };
+}
+
 /**
  * 🔐 POST /api/admin/login
  * Authenticate admin and issue JWT
@@ -206,6 +309,166 @@ router.get('/stats', verifyAdminToken, async (req, res) => {
   } catch (error) {
     console.error('❌ Stats route error:', error);
     res.status(500).json({ error: error.message || 'Internal server error' });
+  }
+});
+
+/**
+ * 💵 GET /api/admin/billing-status
+ * Financial status with infra billing + CS audit metrics
+ */
+router.get('/billing-status', verifyAdminToken, async (req, res) => {
+  try {
+    const db = req.app.locals.db;
+    const cloudCosts = await resolveInfraCosts();
+
+    if (!db) {
+      return res.status(200).json({
+        success: true,
+        finance: {
+          cloudCosts,
+          csCentralBank: { emitted: 0, inChests: 0, returnedToAdmin: 0 },
+          transactionAudit: {
+            originCounts: { apple_pay: 0, subscription: 0, direct_credits: 0 },
+            unusedCreditsOverSixMonths: 0,
+            recent: [],
+          },
+          adminBalance: {
+            ownerUid: String(process.env.ADMIN_OWNER_UID || process.env.ADMIN_USER || 'admin_pochobs'),
+            myCreditsCS: 0,
+            qrsCreated: 0,
+            qrsCreatedThisMonth: 0,
+            monthlyInfraSpendUSD: cloudCosts.total_usd,
+          },
+        },
+      });
+    }
+
+    const usersCollection = db.collection('users');
+    const qrTokensCollection = db.collection('qr_tokens');
+    const txCollection = db.collection('cs_transactions');
+
+    const now = new Date();
+    const startOfMonth = monthStartUtc(now);
+    const sixMonthsAgo = sixMonthsAgoUtc(now);
+
+    const [creditsAgg = {}] = await usersCollection
+      .aggregate([
+        {
+          $group: {
+            _id: null,
+            inChests: { $sum: { $ifNull: ['$creditsBalance', 0] } },
+            totalEarned: { $sum: { $ifNull: ['$totalCreditsEarned', 0] } },
+            totalSpent: { $sum: { $ifNull: ['$totalCreditsSpent', 0] } },
+          },
+        },
+      ])
+      .toArray();
+
+    const returnedTxAgg = await txCollection
+      .aggregate([
+        { $match: { flow: 'return' } },
+        { $group: { _id: null, total: { $sum: { $ifNull: ['$amountCs', 0] } } } },
+      ])
+      .toArray();
+
+    const originRows = await txCollection
+      .aggregate([
+        { $match: { origin: { $in: PURCHASE_ORIGINS } } },
+        { $group: { _id: '$origin', total: { $sum: 1 } } },
+      ])
+      .toArray();
+
+    const originCounts = {
+      apple_pay: 0,
+      subscription: 0,
+      direct_credits: 0,
+    };
+
+    for (const row of originRows) {
+      const key = String(row?._id || '');
+      if (Object.prototype.hasOwnProperty.call(originCounts, key)) {
+        originCounts[key] = Number(row?.total || 0);
+      }
+    }
+
+    const inactiveCreditsUsers = await usersCollection.countDocuments({
+      creditsBalance: { $gt: 0 },
+      $or: [
+        { lastCreditActivityAt: { $lt: sixMonthsAgo } },
+        { lastUpdated: { $lt: sixMonthsAgo } },
+        { updatedAt: { $lt: sixMonthsAgo } },
+        { createdAt: { $lt: sixMonthsAgo } },
+      ],
+    });
+
+    const recentTx = await txCollection
+      .find(
+        {},
+        {
+          projection: {
+            _id: 0,
+            txId: 1,
+            userId: 1,
+            origin: 1,
+            flow: 1,
+            amountCs: 1,
+            reason: 1,
+            createdAt: 1,
+          },
+        }
+      )
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .toArray();
+
+    const adminOwnerUid = String(process.env.ADMIN_OWNER_UID || process.env.ADMIN_USER || 'admin_pochobs');
+
+    const adminUserDoc = await usersCollection.findOne(
+      {
+        $or: [{ uid: adminOwnerUid }, { nickname: adminOwnerUid }, { email: adminOwnerUid }],
+      },
+      { projection: { creditsBalance: 1 } }
+    );
+
+    const qrsCreated = await qrTokensCollection.countDocuments({ ownerUid: adminOwnerUid });
+    const qrsCreatedThisMonth = await qrTokensCollection.countDocuments({
+      ownerUid: adminOwnerUid,
+      $or: [{ createdAt: { $gte: startOfMonth } }, { created_at: { $gte: startOfMonth } }],
+    });
+
+    const inChests = Number(creditsAgg?.inChests || 0);
+    const emittedFromUsers = Number(creditsAgg?.totalEarned || 0);
+    const spentFromUsers = Number(creditsAgg?.totalSpent || 0);
+    const returnedFromTx = Number(returnedTxAgg[0]?.total || 0);
+    const returnedToAdmin = returnedFromTx > 0 ? returnedFromTx : spentFromUsers;
+    const emitted = Math.max(emittedFromUsers, inChests + returnedToAdmin);
+
+    return res.status(200).json({
+      success: true,
+      finance: {
+        cloudCosts,
+        csCentralBank: {
+          emitted,
+          inChests,
+          returnedToAdmin,
+        },
+        transactionAudit: {
+          originCounts,
+          unusedCreditsOverSixMonths: inactiveCreditsUsers,
+          recent: recentTx,
+        },
+        adminBalance: {
+          ownerUid: adminOwnerUid,
+          myCreditsCS: Number(adminUserDoc?.creditsBalance || 0),
+          qrsCreated,
+          qrsCreatedThisMonth,
+          monthlyInfraSpendUSD: cloudCosts.total_usd,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Admin billing-status route error:', error.message || error);
+    return res.status(500).json({ error: error.message || 'Internal server error' });
   }
 });
 

@@ -51,6 +51,16 @@ interface MarketStat {
   draft: number;
 }
 
+interface BillingStatusResponse {
+  success: boolean;
+  finance?: {
+    cloudCosts?: {
+      source?: string;
+      total_usd?: number;
+    };
+  };
+}
+
 export const AdminDashboard: React.FC = () => {
   const [state, setState] = useState<AdminState>({
     isAuthenticated: false,
@@ -72,6 +82,8 @@ export const AdminDashboard: React.FC = () => {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [assets, setAssets] = useState<MarketAsset[]>([]);
   const [stats, setStats] = useState<MarketStat[] | null>(null);
+  const [monthlySpendUsd, setMonthlySpendUsd] = useState(0);
+  const [billingSource, setBillingSource] = useState<'api' | 'env' | 'mock' | 'unknown'>('unknown');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sessionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -170,6 +182,7 @@ export const AdminDashboard: React.FC = () => {
       startSessionTimer(expiry);
       setMessage({ type: 'success', text: `✅ Bienvenido, ${loginForm.username}` });
       setLoginForm({ username: '', password: '' });
+      loadBillingStatus(data.token);
     } catch (error) {
       setMessage({ type: 'error', text: `❌ ${(error as Error).message}` });
     } finally {
@@ -178,7 +191,7 @@ export const AdminDashboard: React.FC = () => {
   };
 
   // ═════════════════════════════════════════════════
-  // Mint Asset Handler
+  // CARD-STUDIO Handler
   // ═════════════════════════════════════════════════
 
   const handleMintSubmit = async (e: React.FormEvent) => {
@@ -269,6 +282,42 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
+  const loadBillingStatus = async (tokenOverride?: string) => {
+    try {
+      const token = tokenOverride || state.token;
+      if (!token) return;
+
+      const response = await fetch(`${ADMIN_API}/billing-status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        throw new Error('Billing endpoint unavailable');
+      }
+
+      const data = (await response.json()) as BillingStatusResponse;
+      const totalUsd = Number(data?.finance?.cloudCosts?.total_usd || 0);
+      const source = String(data?.finance?.cloudCosts?.source || 'unknown').toLowerCase();
+      setMonthlySpendUsd(totalUsd);
+
+      if (source === 'api' || source === 'env' || source === 'mock') {
+        setBillingSource(source);
+      } else {
+        setBillingSource('unknown');
+      }
+    } catch (error) {
+      console.error('Failed to load billing status:', error);
+      setMonthlySpendUsd(0);
+      setBillingSource('unknown');
+    }
+  };
+
+  useEffect(() => {
+    if (state.isAuthenticated && state.token) {
+      loadBillingStatus();
+    }
+  }, [state.isAuthenticated, state.token]);
+
   // ═════════════════════════════════════════════════
   // UI: Login Page
   // ═════════════════════════════════════════════════
@@ -339,7 +388,10 @@ export const AdminDashboard: React.FC = () => {
         <div className="navbar-actions">
           <button
             className={`nav-btn ${state.currentPage === 'dashboard' ? 'active' : ''}`}
-            onClick={() => setState(prev => ({ ...prev, currentPage: 'dashboard' }))}
+            onClick={() => {
+              setState(prev => ({ ...prev, currentPage: 'dashboard' }));
+              loadBillingStatus();
+            }}
           >
             📊 Dashboard
           </button>
@@ -347,7 +399,7 @@ export const AdminDashboard: React.FC = () => {
             className={`nav-btn ${state.currentPage === 'mint' ? 'active' : ''}`}
             onClick={() => setState(prev => ({ ...prev, currentPage: 'mint' }))}
           >
-            🎨 Mint Asset
+            🎨 CARD-STUDIO
           </button>
           <button
             className={`nav-btn ${state.currentPage === 'stats' ? 'active' : ''}`}
@@ -358,6 +410,12 @@ export const AdminDashboard: React.FC = () => {
           >
             📈 Estadísticas
           </button>
+
+          <div className="infra-spend-chip">
+            <span>Gasto Mensual</span>
+            <strong>${monthlySpendUsd.toFixed(2)} USD</strong>
+            <small>{billingSource.toUpperCase()}</small>
+          </div>
 
           <div className="session-info">
             <span>👤 {state.username}</span>
@@ -405,10 +463,10 @@ export const AdminDashboard: React.FC = () => {
           </section>
         )}
 
-        {/* Mint Page */}
+        {/* CARD-STUDIO Page */}
         {state.currentPage === 'mint' && (
           <section className="page-section">
-            <h3>🎨 Crear Nuevo Asset</h3>
+            <h3>🎨 CARD-STUDIO · Crear Nuevo Asset</h3>
             <form onSubmit={handleMintSubmit} className="mint-form">
               <div className="form-row">
                 <div className="form-group">

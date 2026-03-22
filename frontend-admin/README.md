@@ -37,7 +37,7 @@ npm run build
 - Estadísticas de assets (total, published, drafts)
 - Acceso rápido a todas las secciones
 
-### 2. Mint Asset
+### 2. CARD-STUDIO
 - Interface para crear nuevos assets (Skins, Collectibles, Wallpapers, Fonts)
 - Carga de archivos:
   - Wallpaper vertical/horizontal
@@ -203,7 +203,7 @@ AZURE_CONTENT_SAFETY_KEY=your-key
 
 1. **Login**: Formulario con credenciales seguras
 2. **Dashboard**: Overview de assets y acciones rápidas
-3. **Mint Asset**: Form con carga de archivos
+3. **CARD-STUDIO**: Form con carga de archivos
 4. **Preview**: Canvas en tiempo real con composición
 5. **Publish**: Confirmación final y distribución
 
@@ -236,7 +236,7 @@ AZURE_CONTENT_SAFETY_KEY=your-key
 
 ### v1.0.0 (2026-03-21)
 - ✅ Login con JWT 30min expiry
-- ✅ Mint asset con file uploads
+- ✅ CARD-STUDIO con file uploads
 - ✅ Real-time preview renderer
 - ✅ Publish asset workflow
 - ✅ Statistics & analytics
