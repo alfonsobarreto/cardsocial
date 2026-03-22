@@ -86,6 +86,11 @@ async function bootstrap() {
     res.status(200).json({ ok: true, service: "moderation-backend" });
   });
 
+  // Azure warmup probe commonly targets '/'. Keep it lightweight and always 200.
+  app.get("/", (_req, res) => {
+    res.status(200).send("ok");
+  });
+
   app.post("/api/auth/token", gatewayKeyMiddleware, (req, res) => {
     try {
       const ownerUid = String(req.body?.ownerUid || "").trim();
