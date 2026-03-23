@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
+  Image,
   Keyboard,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -13,6 +14,7 @@ import {
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
+import ActivityIndicator from '@/components/BrandedSpinner';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Apple, Chrome, Github, Lock, Sparkles, User } from 'lucide-react-native';
@@ -214,7 +216,11 @@ export default function SignInScreen() {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.heroIconWrap}>
-              <Sparkles color="#C5A065" size={30} />
+              <Image
+                source={require('../assets/images/CS Icon Logo BG transparent.png')}
+                style={styles.heroLogo}
+                resizeMode="contain"
+              />
             </View>
             <Text style={styles.title}>{welcomeTitle}</Text>
             <Text style={styles.subtitle}>{tr('Inicia como prefieras, pero siempre con control total de tu identidad.', 'Sign in your way, always with full control of your identity.')}</Text>
@@ -267,7 +273,7 @@ export default function SignInScreen() {
             </View>
 
             <TouchableOpacity style={styles.primaryButton} onPress={handleSignIn} disabled={isSubmitting}>
-              {isSubmitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>{tr('Iniciar sesion', 'Sign In')}</Text>}
+              <Text style={styles.primaryButtonText}>{tr('Iniciar sesion', 'Sign In')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -305,6 +311,20 @@ export default function SignInScreen() {
             </TouchableOpacity>
           </ScrollView>
         </LinearGradient>
+
+        <Modal
+          visible={isSubmitting}
+          transparent
+          animationType="fade"
+          onRequestClose={() => {}}
+        >
+          <View style={styles.submitOverlay}>
+            <View style={styles.submitOverlayCard}>
+              <ActivityIndicator size={120} color="#1EA7FF" />
+              <Text style={styles.submitOverlayText}>{tr('Validando acceso seguro...', 'Validating secure access...')}</Text>
+            </View>
+          </View>
+        </Modal>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
   );
@@ -315,14 +335,25 @@ const styles = StyleSheet.create({
   gradient: { flex: 1 },
   content: { padding: 24, paddingTop: 54, paddingBottom: 36 },
   heroIconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: 'rgba(197, 160, 101, 0.15)',
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DCE9F2',
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
-    marginBottom: 14,
+    marginBottom: 16,
+    shadowColor: '#0A2540',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  heroLogo: {
+    width: 62,
+    height: 62,
   },
   title: {
     color: '#0A2540',
@@ -417,5 +448,31 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
     opacity: 0.85,
     fontWeight: '600',
+  },
+  submitOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(10, 37, 64, 0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 22,
+  },
+  submitOverlayCard: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    borderWidth: 1,
+    borderColor: '#CBE7F8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 28,
+    paddingHorizontal: 20,
+  },
+  submitOverlayText: {
+    marginTop: 14,
+    color: '#0A2540',
+    fontWeight: '700',
+    fontSize: 14,
+    textAlign: 'center',
   },
 });

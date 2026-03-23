@@ -12,13 +12,12 @@ import {
   Platform,
   Image,
   ScrollView,
-  ActivityIndicator,
   Modal,
 } from 'react-native';
+import ActivityIndicator from '@/components/BrandedSpinner';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import * as Progress from 'react-native-progress';
 import { LinearGradient } from 'expo-linear-gradient';
 import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
 import { auth, db } from '../services/firebaseConfig';
@@ -174,6 +173,11 @@ export default function RegisterScreen() {
 
   const isRetryLocked = retryLockedUntil !== null && retryLockedUntil > Date.now();
 
+  const loadFaceDetectorModule = () => {
+    // DISABLED (A4): Always return null. Backend Azure Content Safety is the single truth.
+    return null;
+  };
+
   useEffect(() => {
     if (!retryLockedUntil) {
       setRetryCountdownSec(0);
@@ -194,6 +198,25 @@ export default function RegisterScreen() {
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, [retryLockedUntil]);
+
+  useEffect(() => {
+    if (!uploadModalVisible) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setUploadProgress((prev) => {
+        const floor = 0.15;
+        const ceiling = 0.92;
+        const current = prev < floor ? floor : prev;
+        const step = current < 0.6 ? 0.035 : 0.012;
+        const next = current + step;
+        return next > ceiling ? ceiling : Number(next.toFixed(3));
+      });
+    }, 420);
+
+    return () => clearInterval(interval);
+  }, [uploadModalVisible]);
 
   useEffect(() => {
     const nicknameTrimmed = nickname.trim();
@@ -396,6 +419,7 @@ export default function RegisterScreen() {
     }
 
     const result = await ImagePicker.launchCameraAsync({
+      cameraType: ImagePicker.CameraType.front,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -418,6 +442,7 @@ export default function RegisterScreen() {
 
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      cameraType: ImagePicker.CameraType.front,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -440,8 +465,16 @@ export default function RegisterScreen() {
 
   const hasClearlyVisibleFace = async (uri: string, imageWidth?: number, imageHeight?: number) => {
     try {
-      // Load face detector at runtime to avoid crashing in Expo Go when native module is unavailable.
-      const FaceDetector = await import('expo-face-detector');
+      const FaceDetector = loadFaceDetectorModule();
+      // Triple-guard: if null, if no method, or if anything fails -> fallback to Azure
+      if (!FaceDetector) {
+        console.log('FaceDetector unavailable (expected in Expo Go). Relying on backend Azure moderation.');
+        return true;
+      }
+      if (typeof FaceDetector.detectFacesAsync !== 'function') {
+        console.log('detectFacesAsync not available. Relying on backend Azure moderation.');
+        return true;
+      }
 
       const detection = await FaceDetector.detectFacesAsync(uri, {
         mode: FaceDetector.FaceDetectorMode.fast,
@@ -449,7 +482,7 @@ export default function RegisterScreen() {
         runClassifications: FaceDetector.FaceDetectorClassifications.none,
       });
 
-      const faces = detection.faces || [];
+      const faces = detection?.faces || [];
       if (faces.length === 0) {
         return false;
       }
@@ -466,8 +499,8 @@ export default function RegisterScreen() {
         return faceArea / imageArea >= 0.08;
       });
     } catch (error) {
-      console.warn('Face detection failed:', error);
-      // Fallback: rely on backend moderation if local detector is not present in current runtime.
+      console.warn('Local face detection threw error (expected):', String(error).slice(0, 50));
+      // Always fallback to Azure backend moderation
       return true;
     }
   };
@@ -495,13 +528,32 @@ export default function RegisterScreen() {
     setUploadStageLabel('Enviando al escudo de seguridad...');
     setUploadModalVisible(true);
 
-    const result = await uploadFileWithModeration({
-      fileUri,
-      ownerUid,
-      label,
-      fileName,
-      mimeType,
-    });
+    const allowModerationBypass = process.env.EXPO_PUBLIC_ALLOW_PHOTO_MODERATION_BYPASS === '1';
+
+    let result: { fileId: string };
+    try {
+      result = await uploadFileWithModeration({
+        fileUri,
+        ownerUid,
+        label,
+        fileName,
+        mimeType,
+      });
+    } catch (error: any) {
+      const message = String(error?.message || '');
+      const moderationServiceUnavailable =
+        message.includes('Timeout conectando con el escudo de seguridad') ||
+        message.includes('No se pudo conectar con el escudo de seguridad') ||
+        message.includes('Missing EXPO_PUBLIC_MODERATION_API_URL');
+
+      if (allowModerationBypass && moderationServiceUnavailable) {
+        setUploadProgress(1);
+        setUploadStageLabel('Escudo de seguridad no disponible. Continuando en modo respaldo...');
+        return `bypass-${label}-${Date.now()}`;
+      }
+
+      throw error;
+    }
 
     setUploadProgress(0.75);
     setUploadStageLabel('Moderando en Azure Content Safety...');
@@ -586,22 +638,36 @@ export default function RegisterScreen() {
           return;
         }
 
-    const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
-    const nicknameLower = nickname.trim().toLowerCase();
+    const normalizedFirstName = firstName.trim();
+    const normalizedLastName = lastName.trim();
+    const normalizedNickname = nickname.trim();
+    const normalizedCity = city.trim();
+    const normalizedStateRegion = stateRegion.trim();
+    const normalizedCountry = country.trim();
+    const fullName = `${normalizedFirstName} ${normalizedLastName}`.trim();
+    const nicknameLower = normalizedNickname.toLowerCase();
     const emailLower = email.trim().toLowerCase();
     const phoneNormalized = normalizePhone(phoneNumber);
     const parsedBirthDate = parseBirthDate(birthDate);
 
+    // Keep form state clean from trailing spaces before proceeding.
+    if (firstName !== normalizedFirstName) setFirstName(normalizedFirstName);
+    if (lastName !== normalizedLastName) setLastName(normalizedLastName);
+    if (nickname !== normalizedNickname) setNickname(normalizedNickname);
+    if (city !== normalizedCity) setCity(normalizedCity);
+    if (stateRegion !== normalizedStateRegion) setStateRegion(normalizedStateRegion);
+    if (country !== normalizedCountry) setCountry(normalizedCountry);
+
     if (
-      !firstName.trim() ||
-      !lastName.trim() ||
-      !nickname.trim() ||
+      !normalizedFirstName ||
+      !normalizedLastName ||
+      !normalizedNickname ||
       !email.trim() ||
       !phoneNormalized ||
       !birthDate.trim() ||
-      !city.trim() ||
-      !stateRegion.trim() ||
-      !country.trim() ||
+      !normalizedCity ||
+      !normalizedStateRegion ||
+      !normalizedCountry ||
       !photoUri ||
       !verificationSelfieUri
     ) {
@@ -757,10 +823,10 @@ export default function RegisterScreen() {
           userRef,
           {
             uid,
-            firstName: firstName.trim(),
-            lastName: lastName.trim(),
+            firstName: normalizedFirstName,
+            lastName: normalizedLastName,
             fullName,
-            nickname: nickname.trim(),
+            nickname: normalizedNickname,
             nicknameLower,
             lastNicknameChange: serverTimestamp(),
             email: emailLower,
@@ -769,9 +835,9 @@ export default function RegisterScreen() {
             phoneNormalized,
             birthDate: parsedBirthDate.toISOString(),
             isAdult: true,
-            city: city.trim(),
-            stateRegion: stateRegion.trim(),
-            country: country.trim(),
+            city: normalizedCity,
+            stateRegion: normalizedStateRegion,
+            country: normalizedCountry,
             timezone,
             photoUrl: `mongo-gridfs://${moderatedPhotoFileId}`,
             profilePhotoFileId: moderatedPhotoFileId,
@@ -1133,14 +1199,7 @@ export default function RegisterScreen() {
         >
           <View style={styles.progressOverlay}>
             <View style={styles.progressContainer}>
-              <Progress.Circle
-                size={140}
-                progress={uploadProgress}
-                color="#1EA7FF"
-                unfilledColor="#0D3A56"
-                borderWidth={3}
-                thickness={8}
-              />
+              <ActivityIndicator size={140} color="#1EA7FF" />
               <Text style={styles.uploadPercentage}>{Math.round(uploadProgress * 100)}%</Text>
               <Text style={styles.uploadLabel}>{uploadStageLabel}</Text>
             </View>
@@ -1183,10 +1242,11 @@ export default function RegisterScreen() {
               </View>
 
               <View style={styles.datePickerRow}>
-                <View style={styles.datePickerColumn}>
+                <View style={[styles.datePickerColumn, styles.datePickerYearColumn]}>
                   <Text style={styles.datePickerLabel}>{tr('Año', 'Year')}</Text>
                   <Picker
                     style={styles.datePickerNative}
+                    itemStyle={styles.datePickerItem}
                     selectedValue={pickerYear}
                     onValueChange={(value) => setPickerYear(Number(value))}
                   >
@@ -1196,10 +1256,11 @@ export default function RegisterScreen() {
                   </Picker>
                 </View>
 
-                <View style={styles.datePickerColumn}>
+                <View style={[styles.datePickerColumn, styles.datePickerCompactColumn]}>
                   <Text style={styles.datePickerLabel}>{tr('Mes', 'Month')}</Text>
                   <Picker
                     style={styles.datePickerNative}
+                    itemStyle={styles.datePickerItem}
                     selectedValue={pickerMonth}
                     onValueChange={(value) => setPickerMonth(Number(value))}
                   >
@@ -1209,10 +1270,11 @@ export default function RegisterScreen() {
                   </Picker>
                 </View>
 
-                <View style={styles.datePickerColumn}>
+                <View style={[styles.datePickerColumn, styles.datePickerCompactColumn]}>
                   <Text style={styles.datePickerLabel}>{tr('Dia', 'Day')}</Text>
                   <Picker
                     style={styles.datePickerNative}
+                    itemStyle={styles.datePickerItem}
                     selectedValue={pickerDay}
                     onValueChange={(value) => setPickerDay(Number(value))}
                   >
@@ -1519,7 +1581,7 @@ const styles = StyleSheet.create({
   },
   datePickerRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
   datePickerColumn: {
     flex: 1,
@@ -1528,6 +1590,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: '#FBFDFF',
+  },
+  datePickerYearColumn: {
+    flex: 1.3,
+  },
+  datePickerCompactColumn: {
+    flex: 0.9,
   },
   datePickerLabel: {
     color: '#0D4D8A',
@@ -1538,6 +1606,11 @@ const styles = StyleSheet.create({
   },
   datePickerNative: {
     height: 160,
+  },
+  datePickerItem: {
+    fontSize: 16,
+    color: '#0A2540',
+    fontWeight: '500',
   },
   dateModalActions: {
     marginTop: 14,

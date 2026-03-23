@@ -34,7 +34,7 @@ async function getUploadJwtToken(baseUrl: string, ownerUid: string, gatewayKey: 
       headers: {
         'x-api-gateway-key': gatewayKey,
       },
-      timeout: 15000,
+      timeout: 30000,
     }
   );
 
@@ -80,6 +80,19 @@ export async function uploadFileWithModeration(params: {
       filename: response.data.filename,
     };
   } catch (error: any) {
+    const rawMessage = String(error?.message || '').toLowerCase();
+    if (error?.code === 'ECONNABORTED' || rawMessage.includes('timeout')) {
+      throw new Error(
+        'Timeout conectando con el escudo de seguridad (Azure). Verifica que el backend de moderacion este activo y accesible en EXPO_PUBLIC_MODERATION_API_URL.'
+      );
+    }
+
+    if (rawMessage.includes('network error') || rawMessage.includes('failed to fetch')) {
+      throw new Error(
+        'No se pudo conectar con el escudo de seguridad (Azure). Revisa red/LAN y la URL de EXPO_PUBLIC_MODERATION_API_URL.'
+      );
+    }
+
     const status = error?.response?.status;
     if (status === 403) {
       throw new ModerationRejectedError(

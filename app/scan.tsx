@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   StyleSheet,
   Text,
@@ -13,6 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { consumeDynamicQrToken } from '@/services/qrApi';
 import { getActiveUserId } from '@/services/authSession';
 import { useLanguage } from '@/services/language';
+import ActivityIndicator from '@/components/BrandedSpinner';
 
 type ParsedPayload = {
   token: string;

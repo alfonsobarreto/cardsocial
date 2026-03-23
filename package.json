@@ -8,6 +8,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "backend:start": "node backend/src/server.js",
+    "smoke:test": "node scripts/smoke-test-all.mjs",
     "backend:seed:house-ad": "node backend/src/scripts/seedHouseAdRotation.js",
     "backend:seed:house-ad:tomorrow": "node backend/src/scripts/seedHouseAdRotation.js --day-shift=1"
   },
