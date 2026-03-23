@@ -225,23 +225,9 @@ export default function SignInScreen() {
             <Text style={styles.title}>{welcomeTitle}</Text>
             <Text style={styles.subtitle}>{tr('Inicia como prefieras, pero siempre con control total de tu identidad.', 'Sign in your way, always with full control of your identity.')}</Text>
 
-            <Text style={styles.socialTitle}>{tr('Acceso instantaneo', 'Instant access')}</Text>
-            <View style={styles.socialGrid}>
-              <TouchableOpacity style={styles.socialButton} onPress={() => handleProviderSignIn('apple.com')}>
-                <Apple color="#0A2540" size={18} />
-                <Text style={styles.socialText}>Apple</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.socialButton} onPress={() => handleProviderSignIn('google.com')}>
-                <Chrome color="#0A2540" size={18} />
-                <Text style={styles.socialText}>Google</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.socialButton} onPress={() => handleProviderSignIn('github.com')}>
-                <Github color="#0A2540" size={18} />
-                <Text style={styles.socialText}>GitHub</Text>
-              </TouchableOpacity>
-            </View>
+            {/* Social login buttons hidden for MVP - only native username/password enabled */}
 
-            <Text style={styles.socialTitle}>{tr('O con usuario y contrasena', 'Or with username and password')}</Text>
+            <Text style={styles.socialTitle}>{tr('Inicia con usuario y contrasena', 'Sign in with username and password')}</Text>
 
             <View style={styles.inputWrap}>
               <User size={16} color="#4A4A4A" />

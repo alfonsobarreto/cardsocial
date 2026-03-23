@@ -946,21 +946,8 @@ export default function RegisterScreen() {
           >
           <Text style={styles.title}>{tr('Crea tu Identidad', 'Create your Identity')}</Text>
 
-          <Text style={styles.socialHelper}>{tr('Tambien puedes comenzar con Apple, Google o GitHub (acceso instantaneo)', 'You can also start with Apple, Google or GitHub (instant access)')}</Text>
-          <View style={styles.socialRow}>
-            <TouchableOpacity style={styles.socialButton} onPress={() => handleSocialBootstrap('apple.com')}>
-              <Apple color="#0A2540" size={16} />
-              <Text style={styles.socialButtonText}>Apple</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.socialButton} onPress={() => handleSocialBootstrap('google.com')}>
-              <Chrome color="#0A2540" size={16} />
-              <Text style={styles.socialButtonText}>Google</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.socialButton} onPress={() => handleSocialBootstrap('github.com')}>
-              <Github color="#0A2540" size={16} />
-              <Text style={styles.socialButtonText}>GitHub</Text>
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.socialHelper}>{tr('O puedes completar el formulario manualmente para mayor control sobre tu identidad.', 'Or you can complete the form manually for more control over your identity.')}</Text>
+          {/* Social login buttons hidden for MVP - only native registration enabled */}
           {socialProviderId ? (
             <Text style={styles.socialStateText}>
               {tr('Registro conectado con', 'Sign up connected with')} {getProviderLabel(socialProviderId)}. {tr('Debes completar el resto de campos obligatorios.', 'Complete the remaining required fields.')}
@@ -1200,7 +1187,6 @@ export default function RegisterScreen() {
           <View style={styles.progressOverlay}>
             <View style={styles.progressContainer}>
               <ActivityIndicator size={140} color="#1EA7FF" />
-              <Text style={styles.uploadPercentage}>{Math.round(uploadProgress * 100)}%</Text>
               <Text style={styles.uploadLabel}>{uploadStageLabel}</Text>
             </View>
           </View>
