@@ -15,87 +15,135 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Apple, Chrome, Github, Lock, Mail, Sparkles } from 'lucide-react-native';
+import { Apple, Chrome, Github, Lock, Sparkles, User } from 'lucide-react-native';
 import { sendEmailVerification, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { auth } from '@/services/firebaseConfig';
+import { auth, db } from '@/services/firebaseConfig';
+import { collection, getDocs, limit, query, where } from 'firebase/firestore';
 import { SocialProviderId } from '@/services/socialAuth';
 import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider } from '@/services/socialAuth';
 import { initiateAccountRecovery } from '@/services/accountRecoveryService';
-import { hardLockCheck } from '@/services/biometricAuth';
-import { getCachedCredentials, saveCachedCredentials } from '@/services/credentialVault';
+import { saveCachedCredentials } from '@/services/credentialVault';
+import { useLanguage } from '@/services/language';
 
 export default function SignInScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => (language === 'en' ? en : es);
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRecoveringPassword, setIsRecoveringPassword] = useState(false);
   const [isResendingVerification, setIsResendingVerification] = useState(false);
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState('');
-  const [biometricAutofillDone, setBiometricAutofillDone] = useState(false);
 
-  const welcomeTitle = useMemo(() => 'Card-Social, donde tus datos son solo tuyos', []);
+  const welcomeTitle = useMemo(
+    () => tr('Card-Social, donde tus datos son solo tuyos', 'Card-Social, your data stays yours'),
+    [language]
+  );
+
+  const resolveEmailFromUsername = async (rawUsername: string) => {
+    const normalizedUsername = rawUsername.trim().toLowerCase();
+    if (!normalizedUsername) {
+      return null;
+    }
+
+    const usersRef = collection(db, 'users');
+    const byNicknameLower = await getDocs(
+      query(usersRef, where('nicknameLower', '==', normalizedUsername), limit(1))
+    );
+
+    if (!byNicknameLower.empty) {
+      const userData = byNicknameLower.docs[0].data() as { email?: string; emailLower?: string };
+      return String(userData.emailLower || userData.email || '').trim().toLowerCase() || null;
+    }
+
+    const byNickname = await getDocs(
+      query(usersRef, where('nickname', '==', rawUsername.trim()), limit(1))
+    );
+    if (!byNickname.empty) {
+      const userData = byNickname.docs[0].data() as { email?: string; emailLower?: string };
+      return String(userData.emailLower || userData.email || '').trim().toLowerCase() || null;
+    }
+
+    return null;
+  };
 
   const handleSignIn = async () => {
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedUsername = username.trim();
     const normalizedPassword = password;
 
     if (!normalizedPassword) {
-      Alert.alert('Falta contraseña', 'Ingresa tu contraseña para continuar.');
+      Alert.alert(tr('Falta contrasena', 'Password required'), tr('Ingresa tu contrasena para continuar.', 'Enter your password to continue.'));
       return;
     }
 
     setIsSubmitting(true);
     try {
-      if (!normalizedEmail) {
-        Alert.alert('Falta email', 'Ingresa tu email para iniciar sesión.');
+      if (!normalizedUsername) {
+        Alert.alert(tr('Falta usuario', 'Username required'), tr('Ingresa tu usuario para iniciar sesion.', 'Enter your username to sign in.'));
         return;
       }
 
-      const credential = await signInWithEmailAndPassword(auth, normalizedEmail, normalizedPassword);
+      const resolvedEmail = await resolveEmailFromUsername(normalizedUsername);
+      if (!resolvedEmail) {
+        Alert.alert(tr('Usuario no encontrado', 'Username not found'), tr('No encontramos una cuenta con ese usuario.', 'We could not find an account with that username.'));
+        return;
+      }
+
+      const credential = await signInWithEmailAndPassword(auth, resolvedEmail, normalizedPassword);
 
       if (!credential.user.emailVerified) {
-        setPendingVerificationEmail(normalizedEmail);
+        setPendingVerificationEmail(resolvedEmail);
         Alert.alert(
-          'Verificación pendiente',
-          'Revisa tu correo y confirma el enlace de verificación antes de iniciar sesión. Si no lo recibiste, usa el botón para reenviarlo.'
+          tr('Verificacion pendiente', 'Verification pending'),
+          tr(
+            'Revisa tu correo y confirma el enlace de verificacion antes de iniciar sesion. Si no lo recibiste, usa el boton para reenviarlo.',
+            'Check your inbox and confirm your verification link before signing in. If you did not receive it, use the resend button.'
+          )
         );
         return;
       }
 
-      await saveCachedCredentials(normalizedEmail, normalizedPassword);
+      await saveCachedCredentials(resolvedEmail, normalizedPassword);
 
       router.replace('/(tabs)/vault');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'No se pudo iniciar sesión.';
-      Alert.alert('Error de acceso', message);
+      const message = error instanceof Error ? error.message : tr('No se pudo iniciar sesion.', 'Could not sign in.');
+      Alert.alert(tr('Error de acceso', 'Access error'), message);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleForgotPassword = async () => {
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail) {
-      Alert.alert('Email requerido', 'Escribe tu email para enviarte el enlace de recuperación.');
+    const normalizedUsername = username.trim();
+    if (!normalizedUsername) {
+      Alert.alert(tr('Usuario requerido', 'Username required'), tr('Escribe tu usuario para enviarte el enlace de recuperacion.', 'Enter your username to receive a recovery link.'));
+      return;
+    }
+
+    const resolvedEmail = await resolveEmailFromUsername(normalizedUsername);
+    if (!resolvedEmail) {
+      Alert.alert(tr('Usuario no encontrado', 'Username not found'), tr('No encontramos una cuenta con ese usuario.', 'We could not find an account with that username.'));
       return;
     }
 
     setIsRecoveringPassword(true);
     try {
-      const response = await initiateAccountRecovery(normalizedEmail);
-      Alert.alert(response.success ? 'Recuperación enviada' : 'No se pudo iniciar recuperación', response.message);
+      const response = await initiateAccountRecovery(resolvedEmail);
+      Alert.alert(response.success ? tr('Recuperacion enviada', 'Recovery email sent') : tr('No se pudo iniciar recuperacion', 'Could not start recovery'), response.message);
     } finally {
       setIsRecoveringPassword(false);
     }
   };
 
   const handleResendVerificationEmail = async () => {
-    const normalizedEmail = (pendingVerificationEmail || email).trim().toLowerCase();
+    const normalizedUsername = username.trim();
+    const normalizedEmail = pendingVerificationEmail || (await resolveEmailFromUsername(normalizedUsername)) || '';
     const normalizedPassword = password;
 
     if (!normalizedEmail) {
-      Alert.alert('Email requerido', 'Escribe tu email para reenviar verificación.');
+      Alert.alert(tr('Usuario requerido', 'Username required'), tr('Escribe tu usuario para reenviar verificacion.', 'Enter your username to resend verification.'));
       return;
     }
 
@@ -104,7 +152,7 @@ export default function SignInScreen() {
       let user = auth.currentUser;
       if (!user || String(user.email || '').trim().toLowerCase() !== normalizedEmail) {
         if (!normalizedPassword) {
-          Alert.alert('Contraseña requerida', 'Ingresa tu contraseña para reenviar el email de verificación.');
+          Alert.alert(tr('Contrasena requerida', 'Password required'), tr('Ingresa tu contrasena para reenviar el email de verificacion.', 'Enter your password to resend verification email.'));
           return;
         }
         const credential = await signInWithEmailAndPassword(auth, normalizedEmail, normalizedPassword);
@@ -113,17 +161,17 @@ export default function SignInScreen() {
 
       await user.reload().catch(() => null);
       if (user.emailVerified) {
-        Alert.alert('Cuenta verificada', 'Tu correo ya está verificado. Ya puedes iniciar sesión.');
+        Alert.alert(tr('Cuenta verificada', 'Account verified'), tr('Tu correo ya esta verificado. Ya puedes iniciar sesion.', 'Your email is already verified. You can now sign in.'));
         setPendingVerificationEmail('');
         return;
       }
 
       await sendEmailVerification(user);
       await signOut(auth).catch(() => null);
-      Alert.alert('Email reenviado', 'Te enviamos un nuevo enlace de verificación. Revisa también spam/promociones.');
+      Alert.alert(tr('Email reenviado', 'Verification resent'), tr('Te enviamos un nuevo enlace de verificacion. Revisa tambien spam/promociones.', 'A new verification link was sent. Check spam/promotions too.'));
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'No se pudo reenviar el email de verificación.';
-      Alert.alert('Reenvío no disponible', message);
+      const message = error instanceof Error ? error.message : tr('No se pudo reenviar el email de verificacion.', 'Could not resend verification email.');
+      Alert.alert(tr('Reenvio no disponible', 'Resend unavailable'), message);
     } finally {
       setIsResendingVerification(false);
     }
@@ -137,40 +185,22 @@ export default function SignInScreen() {
 
       if (!resolvedEmail) {
         Alert.alert(
-          'Email requerido',
-          `Tu cuenta de ${getProviderLabel(providerId)} no devolvió email. Usa otro método.`
+          tr('Email requerido', 'Email required'),
+          tr(
+            `Tu cuenta de ${getProviderLabel(providerId)} no devolvio email. Usa otro metodo.`,
+            `Your ${getProviderLabel(providerId)} account did not provide an email. Use another method.`
+          )
         );
         return;
       }
 
       router.replace('/(tabs)/vault');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'No se pudo iniciar sesión con proveedor.';
-      Alert.alert('Acceso social no disponible', message);
+      const message = error instanceof Error ? error.message : tr('No se pudo iniciar sesion con proveedor.', 'Could not sign in with provider.');
+      Alert.alert(tr('Acceso social no disponible', 'Social sign-in unavailable'), message);
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleBiometricAutofill = async () => {
-    if (biometricAutofillDone) {
-      return;
-    }
-
-    const unlocked = await hardLockCheck('autocompletar tus credenciales de acceso');
-    if (!unlocked) {
-      return;
-    }
-
-    const cached = await getCachedCredentials();
-    if (!cached) {
-      Alert.alert('Sin datos guardados', 'Aún no hay credenciales guardadas para autocompletar.');
-      return;
-    }
-
-    setEmail(cached.email);
-    setPassword(cached.password);
-    setBiometricAutofillDone(true);
   };
 
   return (
@@ -187,9 +217,9 @@ export default function SignInScreen() {
               <Sparkles color="#C5A065" size={30} />
             </View>
             <Text style={styles.title}>{welcomeTitle}</Text>
-            <Text style={styles.subtitle}>Inicia como prefieras, pero siempre con control total de tu identidad.</Text>
+            <Text style={styles.subtitle}>{tr('Inicia como prefieras, pero siempre con control total de tu identidad.', 'Sign in your way, always with full control of your identity.')}</Text>
 
-            <Text style={styles.socialTitle}>Acceso instantáneo</Text>
+            <Text style={styles.socialTitle}>{tr('Acceso instantaneo', 'Instant access')}</Text>
             <View style={styles.socialGrid}>
               <TouchableOpacity style={styles.socialButton} onPress={() => handleProviderSignIn('apple.com')}>
                 <Apple color="#0A2540" size={18} />
@@ -205,20 +235,20 @@ export default function SignInScreen() {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.socialTitle}>O con email y contraseña</Text>
+            <Text style={styles.socialTitle}>{tr('O con usuario y contrasena', 'Or with username and password')}</Text>
 
             <View style={styles.inputWrap}>
-              <Mail size={16} color="#4A4A4A" />
+              <User size={16} color="#4A4A4A" />
               <TextInput
                 style={styles.input}
-                placeholder="correo@ejemplo.com"
-                keyboardType="email-address"
+                placeholder={tr('Usuario', 'Username')}
+                keyboardType="default"
                 autoCapitalize="none"
-                value={email}
-                onChangeText={setEmail}
-                onFocus={() => {
-                  void handleBiometricAutofill();
-                }}
+                autoComplete="off"
+                textContentType="none"
+                importantForAutofill="no"
+                value={username}
+                onChangeText={setUsername}
               />
             </View>
 
@@ -226,18 +256,18 @@ export default function SignInScreen() {
               <Lock size={16} color="#4A4A4A" />
               <TextInput
                 style={styles.input}
-                placeholder="Contraseña"
+                placeholder={tr('Contrasena', 'Password')}
                 secureTextEntry
+                autoComplete="off"
+                textContentType="none"
+                importantForAutofill="no"
                 value={password}
                 onChangeText={setPassword}
-                onFocus={() => {
-                  void handleBiometricAutofill();
-                }}
               />
             </View>
 
             <TouchableOpacity style={styles.primaryButton} onPress={handleSignIn} disabled={isSubmitting}>
-              {isSubmitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>Iniciar sesión</Text>}
+              {isSubmitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>{tr('Iniciar sesion', 'Sign In')}</Text>}
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -250,11 +280,11 @@ export default function SignInScreen() {
               {isRecoveringPassword ? (
                 <ActivityIndicator size="small" color="#0A2540" />
               ) : (
-                <Text style={styles.secondaryLink}>Olvidé mi contraseña</Text>
+                <Text style={styles.secondaryLink}>{tr('Olvide mi contrasena', 'Forgot my password')}</Text>
               )}
             </TouchableOpacity>
 
-            {(pendingVerificationEmail || email.trim()) ? (
+            {(pendingVerificationEmail || username.trim()) ? (
               <TouchableOpacity
                 onPress={() => {
                   void handleResendVerificationEmail();
@@ -265,13 +295,13 @@ export default function SignInScreen() {
                 {isResendingVerification ? (
                   <ActivityIndicator size="small" color="#0A2540" />
                 ) : (
-                  <Text style={styles.secondaryLink}>Reenviar email de verificación</Text>
+                  <Text style={styles.secondaryLink}>{tr('Reenviar email de verificacion', 'Resend verification email')}</Text>
                 )}
               </TouchableOpacity>
             ) : null}
 
             <TouchableOpacity onPress={() => router.push('/register')} style={styles.footerLinkWrap}>
-              <Text style={styles.footerLink}>¿No tienes cuenta? Crear cuenta</Text>
+              <Text style={styles.footerLink}>{tr('No tengo cuenta / Sign up', "Don't have an account? Sign up")}</Text>
             </TouchableOpacity>
           </ScrollView>
         </LinearGradient>

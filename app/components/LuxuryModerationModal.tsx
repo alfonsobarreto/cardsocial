@@ -3,6 +3,7 @@ import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useLanguage } from '@/services/language';
 
 type LuxuryModerationModalProps = {
   visible: boolean;
@@ -32,6 +33,8 @@ export default function LuxuryModerationModal({
   retryCountdownSec = 0,
   lockMessage,
 }: LuxuryModerationModalProps) {
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => language === 'en' ? en : es;
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
@@ -47,14 +50,14 @@ export default function LuxuryModerationModal({
                 <MaterialCommunityIcons name="shield-crown" size={30} color="#0D4D8A" />
               </View>
 
-              <Text style={styles.title}>{title}</Text>
+              <Text style={styles.title}>{tr(title, title)}</Text>
               <Text style={styles.message}>{message}</Text>
 
               {retryLocked ? (
                 <View style={styles.lockPanel}>
                   <Text style={styles.lockText}>
                     {lockMessage ||
-                      'Estamos cuidando la integridad de la comunidad. Por favor, espera un momento antes de intentar de nuevo'}
+                      tr('Estamos cuidando la integridad de la comunidad. Por favor, espera un momento antes de intentar de nuevo', 'We are protecting the integrity of the community. Please wait before trying again')}
                   </Text>
                   <Text style={styles.countdown}>{formatCountdown(retryCountdownSec)}</Text>
                 </View>
@@ -62,7 +65,7 @@ export default function LuxuryModerationModal({
 
               <View style={styles.actionsRow}>
                 <TouchableOpacity style={styles.secondaryButton} onPress={onClose}>
-                  <Text style={styles.secondaryButtonText}>Cerrar</Text>
+                  <Text style={styles.secondaryButtonText}>{tr('Cerrar', 'Close')}</Text>
                 </TouchableOpacity>
 
                 {onRetry ? (
@@ -71,7 +74,7 @@ export default function LuxuryModerationModal({
                     onPress={onRetry}
                     disabled={retryLocked}
                   >
-                    <Text style={styles.primaryButtonText}>Reintentar</Text>
+                    <Text style={styles.primaryButtonText}>{tr('Reintentar', 'Retry')}</Text>
                   </TouchableOpacity>
                 ) : null}
               </View>

@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { consumeDynamicQrToken } from '@/services/qrApi';
 import { getActiveUserId } from '@/services/authSession';
+import { useLanguage } from '@/services/language';
 
 type ParsedPayload = {
   token: string;
@@ -42,6 +43,8 @@ function parseQrToken(data: string): ParsedPayload | null {
 
 export default function ScanScreen() {
   const router = useRouter();
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => language === 'en' ? en : es;
   const [permission, requestPermission] = useCameraPermissions();
   const [processing, setProcessing] = useState(false);
   const [scanLocked, setScanLocked] = useState(false);
@@ -57,7 +60,7 @@ export default function ScanScreen() {
 
     const parsed = parseQrToken(data);
     if (!parsed?.token) {
-      Alert.alert('QR inválido', 'Este QR no pertenece a Card-Social o está corrupto.');
+      Alert.alert(tr('QR inválido', 'Invalid QR'), tr('Este QR no pertenece a Card-Social o está corrupto.', 'This QR does not belong to Card-Social or is corrupted.'));
       return;
     }
 
@@ -67,7 +70,7 @@ export default function ScanScreen() {
     try {
       const receiverUid = await getActiveUserId();
       if (!receiverUid) {
-        throw new Error('No se pudo validar tu sesión actual.');
+        throw new Error(tr('No se pudo validar tu sesión actual.', 'Could not validate your current session.'));
       }
 
       const result = await consumeDynamicQrToken({
@@ -76,10 +79,10 @@ export default function ScanScreen() {
       });
 
       if (!result.shareGranted) {
-        throw new Error('No se pudo crear el permiso de acceso a la tarjeta.');
+        throw new Error(tr('No se pudo crear el permiso de acceso a la tarjeta.', 'Could not create card access permission.'));
       }
 
-      Alert.alert('Tarjeta agregada', 'Conexión segura creada correctamente.', [
+      Alert.alert(tr('Tarjeta agregada', 'Card added'), tr('Conexión segura creada correctamente.', 'Secure connection created successfully.'), [
         {
           text: 'OK',
           onPress: () => {
@@ -88,7 +91,7 @@ export default function ScanScreen() {
         },
       ]);
     } catch (error: any) {
-      Alert.alert('No se pudo escanear', error?.message || 'El token expiró o ya fue usado.');
+      Alert.alert(tr('No se pudo escanear', 'Could not scan'), error?.message || tr('El token expiró o ya fue usado.', 'Token expired or already used.'));
       setScanLocked(false);
     } finally {
       setProcessing(false);
@@ -106,13 +109,13 @@ export default function ScanScreen() {
   if (!permission.granted) {
     return (
       <LinearGradient colors={['#EAF7FF', '#CDEFFF']} style={styles.centerScreen}>
-        <Text style={styles.title}>Permiso de cámara requerido</Text>
-        <Text style={styles.subtitle}>Necesitamos acceso para escanear tu nueva tarjeta.</Text>
+        <Text style={styles.title}>{tr('Permiso de cámara requerido', 'Camera permission required')}</Text>
+        <Text style={styles.subtitle}>{tr('Necesitamos acceso para escanear tu nueva tarjeta.', 'We need access to scan your new card.')}</Text>
         <TouchableOpacity style={styles.primaryBtn} onPress={requestPermission}>
-          <Text style={styles.primaryBtnText}>Permitir cámara</Text>
+          <Text style={styles.primaryBtnText}>{tr('Permitir cámara', 'Allow camera')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.back()}>
-          <Text style={styles.secondaryBtnText}>Volver</Text>
+          <Text style={styles.secondaryBtnText}>{tr('Volver', 'Back')}</Text>
         </TouchableOpacity>
       </LinearGradient>
     );
@@ -131,8 +134,8 @@ export default function ScanScreen() {
 
       <LinearGradient colors={['rgba(10,37,64,0.74)', 'rgba(10,37,64,0.35)', 'rgba(10,37,64,0.74)']} style={styles.overlay}>
         <View style={styles.topPanel}>
-          <Text style={styles.overlayTitle}>Escanear Nueva Tarjeta</Text>
-          <Text style={styles.overlaySubtitle}>Apunta el QR dentro del marco</Text>
+          <Text style={styles.overlayTitle}>{tr('Escanear Nueva Tarjeta', 'Scan New Card')}</Text>
+          <Text style={styles.overlaySubtitle}>{tr('Apunta el QR dentro del marco', 'Point the QR within the frame')}</Text>
         </View>
 
         <View style={styles.frameWrap}>
@@ -142,7 +145,7 @@ export default function ScanScreen() {
         <View style={styles.bottomPanel}>
           {processing ? <ActivityIndicator size="small" color="#1EA7FF" /> : null}
           <TouchableOpacity style={styles.secondaryBtnGlass} onPress={() => router.back()}>
-            <Text style={styles.secondaryBtnGlassText}>Cancelar</Text>
+            <Text style={styles.secondaryBtnGlassText}>{tr('Cancelar', 'Cancel')}</Text>
           </TouchableOpacity>
         </View>
       </LinearGradient>

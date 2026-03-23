@@ -6,10 +6,21 @@ import { auth, db } from '@/services/firebaseConfig';
 import { authenticateWithBiometric, checkBiometricAvailability, hardLockCheck } from '@/services/biometricAuth';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { LanguageProvider, useLanguage } from '@/services/language';
 
 export default function RootLayout() {
+  return (
+    <LanguageProvider>
+      <RootNavigator />
+    </LanguageProvider>
+  );
+}
+
+function RootNavigator() {
   const router = useRouter();
   const segments = useSegments();
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => (language === 'en' ? en : es);
   const lastAppState = useRef(AppState.currentState);
   const biometricPromptShownForUid = useRef<string | null>(null);
 
@@ -30,7 +41,10 @@ export default function RootLayout() {
       const refreshedUser = auth.currentUser;
       if (!refreshedUser?.emailVerified) {
         await signOut(auth).catch(() => null);
-        Alert.alert('Email no verificado', 'Debes verificar tu correo antes de entrar al panel privado.');
+        Alert.alert(
+          tr('Email no verificado', 'Email not verified'),
+          tr('Debes verificar tu correo antes de entrar al panel privado.', 'You must verify your email before entering the private dashboard.')
+        );
         router.replace('/signin' as never);
       }
     };
@@ -96,11 +110,11 @@ export default function RootLayout() {
       }
 
       Alert.alert(
-        'Protección biométrica',
-        'Activa FaceID/TouchID para proteger tu Búnker y Tarjetas de Negocio.',
+        tr('Protección biométrica', 'Biometric protection'),
+        tr('Activa FaceID/TouchID para proteger tu Búnker y Tarjetas de Negocio.', 'Enable FaceID/TouchID to protect your Vault and Business Cards.'),
         [
           {
-            text: 'Ahora no',
+            text: tr('Ahora no', 'Not now'),
             style: 'cancel',
             onPress: async () => {
               await updateDoc(userRef, {
@@ -110,9 +124,12 @@ export default function RootLayout() {
             },
           },
           {
-            text: 'Activar',
+            text: tr('Activar', 'Enable'),
             onPress: async () => {
-              const ok = await authenticateWithBiometric('Activa protección biométrica en Card-Social', true);
+              const ok = await authenticateWithBiometric(
+                tr('Activa protección biométrica en Card-Social', 'Enable biometric protection in Card-Social'),
+                true
+              );
               await updateDoc(userRef, {
                 biometricEnabled: ok,
                 biometricPreferenceAsked: true,
@@ -124,16 +141,16 @@ export default function RootLayout() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [tr]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Stack>
         {/* Forzamos a que la primera pantalla sea el Index (Bienvenida) */}
         <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="signin" options={{ title: 'Iniciar sesión' }} />
-        <Stack.Screen name="register" options={{ title: 'Registro' }} />
-        <Stack.Screen name="scan" options={{ title: 'Escanear Tarjeta', headerShown: false }} />
+        <Stack.Screen name="signin" options={{ title: language === 'en' ? 'Sign In' : 'Iniciar sesion' }} />
+        <Stack.Screen name="register" options={{ title: language === 'en' ? 'Sign Up' : 'Registro' }} />
+        <Stack.Screen name="scan" options={{ title: language === 'en' ? 'Scan Card' : 'Escanear Tarjeta', headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
     </GestureHandlerRootView>

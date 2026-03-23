@@ -23,6 +23,7 @@ import { getMyStoryState, getStoriesHouseAd, listReceivedContacts, listSmartCard
 import { hardLockCheck } from '@/services/biometricAuth';
 import { getPremiumStoryCost, purchasePremiumStoryWithCredits } from '@/services/creditsService';
 import { hasActiveBusinessLicense } from '@/services/businessLicenseService';
+import { useLanguage } from '@/services/language';
 
 type StoryState = 'none' | 'normal' | 'vip';
 type StoryDuration = '24h' | '7d' | '30d';
@@ -140,6 +141,8 @@ function getStoriesStorageKey(ownerUid: string) {
 }
 
 export default function StoriesPage() {
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => language === 'en' ? en : es;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [state, setState] = useState<StoryState>('none');
@@ -387,10 +390,10 @@ export default function StoriesPage() {
       setExpiresAt(response.expiresAt);
 
       if (nextState === 'vip') {
-        Alert.alert('Story VIP activada', 'Tu Story premium estara visible por 7 dias.');
+        Alert.alert(tr('Story VIP activada', 'VIP Story activated'), tr('Tu Story premium estara visible por 7 dias.', 'Your premium Story will be visible for 7 days.'));
       }
     } catch (error: any) {
-      Alert.alert('No se pudo actualizar Story', error?.message || 'Intenta de nuevo.');
+      Alert.alert(tr('No se pudo actualizar Story', 'Could not update Story'), error?.message || tr('Intenta de nuevo.', 'Try again.'));
     } finally {
       setSaving(false);
     }
@@ -399,7 +402,7 @@ export default function StoriesPage() {
   const pickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permiso requerido', 'Necesitamos acceso a galeria para agregar imagen.');
+      Alert.alert(tr('Permiso requerido', 'Permission required'), tr('Necesitamos acceso a galeria para agregar imagen.', 'We need gallery access to add image.'));
       return;
     }
 
@@ -421,7 +424,7 @@ export default function StoriesPage() {
   const pickVideo = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permiso requerido', 'Necesitamos acceso a galeria para agregar video.');
+      Alert.alert(tr('Permiso requerido', 'Permission required'), tr('Necesitamos acceso a galeria para agregar video.', 'We need gallery access to add video.'));
       return;
     }
 
@@ -462,15 +465,15 @@ export default function StoriesPage() {
         throw new Error('No se pudo validar sesion.');
       }
       if (!selectedCard) {
-        Alert.alert('Tarjeta requerida', 'Selecciona la tarjeta emisora para la historia.');
+        Alert.alert(tr('Tarjeta requerida', 'Card required'), tr('Selecciona la tarjeta emisora para la historia.', 'Select the source card for the story.'));
         return;
       }
       if (!selectedMediaUri) {
-        Alert.alert('Contenido requerido', 'Debes agregar imagen o documento.');
+        Alert.alert(tr('Contenido requerido', 'Content required'), tr('Debes agregar imagen o documento.', 'You must add image or document.'));
         return;
       }
       if (!selectedCtaItem) {
-        Alert.alert('CTA requerido', 'Selecciona un CTA de los datos de esa tarjeta.');
+        Alert.alert(tr('CTA requerido', 'CTA required'), tr('Selecciona un CTA de los datos de esa tarjeta.', 'Select a CTA from that card data.'));
         return;
       }
 
@@ -538,11 +541,11 @@ export default function StoriesPage() {
             setLocalStories(revertedStories);
             await AsyncStorage.setItem(getStoriesStorageKey(ownerUid), JSON.stringify(revertedStories));
             const required = getPremiumStoryCost(selectedDuration);
-            Alert.alert('Créditos insuficientes', `Necesitas ${required} CS para publicar esta Story Premium.`);
+            Alert.alert(tr('Créditos insuficientes', 'Insufficient credits'), tr(`Necesitas ${required} CS para publicar esta Story Premium.`, `You need ${required} CS to publish this Premium Story.`));
             return;
           }
         } catch (creditError: any) {
-          Alert.alert('Error de créditos', creditError?.message || 'No se pudo procesar los créditos.');
+          Alert.alert(tr('Error de créditos', 'Credits error'), creditError?.message || tr('No se pudo procesar los créditos.', 'Could not process credits.'));
           return;
         }
       }
@@ -564,19 +567,19 @@ export default function StoriesPage() {
 
       await loadStoriesHub();
     } catch (error: any) {
-      Alert.alert('No se pudo publicar', error?.message || 'Intenta nuevamente.');
+      Alert.alert(tr('No se pudo publicar', 'Could not publish'), error?.message || tr('Intenta nuevamente.', 'Try again.'));
     }
   };
 
   const openStoryViewer = (item: GridStoryItem) => {
     if (item.storyState === 'none') {
-      Alert.alert('Sin Story activa', 'Este perfil no tiene una historia activa en este momento.');
+      Alert.alert(tr('Sin Story activa', 'No active Story'), tr('Este perfil no tiene una historia activa en este momento.', 'This profile has no active story at this moment.'));
       return;
     }
 
     const startIndex = viewerFeed.findIndex((feedItem) => feedItem.kind === 'story' && feedItem.uid === item.uid);
     if (startIndex < 0) {
-      Alert.alert('Sin Story sincronizada', 'Este perfil tiene Story activa, pero aun no cargo contenido en cache local.');
+      Alert.alert(tr('Sin Story sincronizada', 'Story not synced'), tr('Este perfil tiene Story activa, pero aun no cargo contenido en cache local.', 'This profile has an active Story, but content not yet cached locally.'));
       return;
     }
 
@@ -586,7 +589,7 @@ export default function StoriesPage() {
 
   const openCta = async (story: LocalStory | null) => {
     if (!story) {
-      Alert.alert('CTA no disponible', 'Esta historia no comparte CTA directo en este demo.');
+      Alert.alert(tr('CTA no disponible', 'CTA not available'), tr('Esta historia no comparte CTA directo en este demo.', 'This story does not share direct CTA in this demo.'));
       return;
     }
 
@@ -619,7 +622,7 @@ export default function StoriesPage() {
       }
       Alert.alert('CTA disponible', `${story.ctaTitle}: ${raw}`);
     } catch {
-      Alert.alert('No se pudo abrir CTA', 'Revisa que el dato del CTA sea valido.');
+      Alert.alert(tr('No se pudo abrir CTA', 'Could not open CTA'), tr('Revisa que el dato del CTA sea valido.', 'Check that the CTA data is valid.'));
     }
   };
 

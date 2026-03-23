@@ -56,6 +56,7 @@ import {
   type FontTier,
 } from '@/services/fontLibraryService';
 import { doc, getDoc } from 'firebase/firestore';
+import { useLanguage } from '@/services/language';
 
 const VAULT_STORAGE_KEY = 'vault_data';
 const SMART_CARDS_STORAGE_KEY = 'smart_cards';
@@ -119,6 +120,8 @@ export default function CardsFactoryScreen() {
   const isLandscape = width > height;
   const isDark = useColorScheme() === 'dark';
   const router = useRouter();
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => language === 'en' ? en : es;
   const [vaultItems, setVaultItems] = useState<VaultItem[]>([]);
   const [smartCards, setSmartCards] = useState<SmartCard[]>([]);
   const [selectedCard, setSelectedCard] = useState<SmartCard | null>(null);
@@ -458,7 +461,7 @@ export default function CardsFactoryScreen() {
     try {
       const userId = await getActiveUserId();
       if (!userId) {
-        Alert.alert('Error', 'No se pudo validar tu sesión.');
+        Alert.alert(tr('Error', 'Error'), tr('No se pudo validar tu sesión.', 'Could not validate your session.'));
         return;
       }
 
@@ -478,7 +481,7 @@ export default function CardsFactoryScreen() {
       setFactoryVisible(true);
     } catch (error) {
       console.error('Error validating card creation:', error);
-      Alert.alert('Error', 'No se pudo validar disponibilidad.');
+      Alert.alert(tr('Error', 'Error'), tr('No se pudo validar disponibilidad.', 'Could not validate availability.'));
     }
   };
 
@@ -571,14 +574,30 @@ export default function CardsFactoryScreen() {
 
   const handleSaveCard = async () => {
     if (!cardName.trim()) {
-      Alert.alert('Nombre requerido', 'Dale un nombre a tu Smart Card.');
+      Alert.alert(tr('Nombre requerido', 'Name required'), tr('Dale un nombre a tu Smart Card.', 'Give your Smart Card a name.'));
+      return;
+    }
+
+    const normalizedCardName = cardName.trim().toLowerCase();
+    const duplicatedName = smartCards.some((card) => {
+      if (selectedCard && card.id === selectedCard.id) {
+        return false;
+      }
+      return String(card.name || '').trim().toLowerCase() === normalizedCardName;
+    });
+
+    if (duplicatedName) {
+      Alert.alert(
+        tr('Nombre duplicado', 'Duplicate name'),
+        tr('Ya tienes una tarjeta con ese nombre. Usa un nombre distinto.', 'You already have a card with that name. Use a different name.')
+      );
       return;
     }
 
     const normalizedItemIds = selectedItemIds.slice(0, MAX_CARD_SLOTS);
 
     if (normalizedItemIds.length === 0) {
-      Alert.alert('Sin datos', 'Selecciona al menos un dato del Vault para tu tarjeta.');
+      Alert.alert(tr('Sin datos', 'No data'), tr('Selecciona al menos un dato del Vault para tu tarjeta.', 'Select at least one Vault item for your card.'));
       return;
     }
 
@@ -801,7 +820,7 @@ export default function CardsFactoryScreen() {
         )
       );
     } catch (error: any) {
-      Alert.alert('Error', error?.message || 'No se pudo cargar la lista de suscriptores.');
+      Alert.alert(tr('Error', 'Error'), error?.message || tr('No se pudo cargar la lista de suscriptores.', 'Could not load subscribers list.'));
       setSubscribers([]);
     } finally {
       setSubscribersLoading(false);
@@ -838,7 +857,7 @@ export default function CardsFactoryScreen() {
         )
       );
     } catch (error: any) {
-      Alert.alert('No se pudo eliminar', error?.message || 'La revocacion fallo.');
+      Alert.alert(tr('No se pudo eliminar', 'Could not delete'), error?.message || tr('La revocacion fallo.', 'Revocation failed.'));
     }
   };
 
@@ -866,7 +885,7 @@ export default function CardsFactoryScreen() {
         );
       }
     } catch (error: any) {
-      Alert.alert('No se pudo bloquear', error?.message || 'El bloqueo no se pudo completar.');
+      Alert.alert(tr('No se pudo bloquear', 'Could not block'), error?.message || tr('El bloqueo no se pudo completar.', 'Block could not be completed.'));
     }
   };
 
@@ -898,7 +917,7 @@ export default function CardsFactoryScreen() {
       setQrWindowMs(visibleWindowMs);
       setQrVisible(true);
     } catch (error: any) {
-      Alert.alert('Error de QR', error?.message || 'No se pudo emitir el QR dinámico.');
+      Alert.alert(tr('Error de QR', 'QR error'), error?.message || tr('No se pudo emitir el QR dinámico.', 'Could not issue dynamic QR.'));
     } finally {
       setIssuingQr(false);
     }
@@ -906,7 +925,7 @@ export default function CardsFactoryScreen() {
 
   const createFirstDynamicQr = async () => {
     if (vaultItems.length === 0) {
-      Alert.alert('Vault vacío', 'Agrega al menos un dato en Vault para generar tu primer QR dinámico.');
+      Alert.alert(tr('Vault vacío', 'Empty Vault'), tr('Agrega al menos un dato en Vault para generar tu primer QR dinámico.', 'Add at least one Vault item to generate your first dynamic QR.'));
       return;
     }
 
@@ -966,7 +985,7 @@ export default function CardsFactoryScreen() {
       );
     } catch (error) {
       console.error('Error upgrading:', error);
-      Alert.alert('Error', 'No se pudo completar la compra.');
+      Alert.alert(tr('Error', 'Error'), tr('No se pudo completar la compra.', 'Purchase could not be completed.'));
     }
   };
 
@@ -1070,7 +1089,7 @@ export default function CardsFactoryScreen() {
               const target = `googlegmail://co?to=${encodeURIComponent(String(item.value || ''))}`;
               const canOpen = await Linking.canOpenURL(target);
               if (!canOpen) {
-                Alert.alert('App no disponible', 'Gmail no está instalado en este dispositivo.');
+                Alert.alert(tr('App no disponible', 'App not available'), tr('Gmail no está instalado en este dispositivo.', 'Gmail is not installed on this device.'));
                 return;
               }
               await Linking.openURL(target);
@@ -1082,7 +1101,7 @@ export default function CardsFactoryScreen() {
               const target = `ms-outlook://compose?to=${encodeURIComponent(String(item.value || ''))}`;
               const canOpen = await Linking.canOpenURL(target);
               if (!canOpen) {
-                Alert.alert('App no disponible', 'Outlook no está instalado en este dispositivo.');
+                Alert.alert(tr('App no disponible', 'App not available'), tr('Outlook no está instalado en este dispositivo.', 'Outlook is not installed on this device.'));
                 return;
               }
               await Linking.openURL(target);
@@ -1106,9 +1125,9 @@ export default function CardsFactoryScreen() {
         await Linking.openURL(String(item.value));
         return;
       }
-      Alert.alert('Documento protegido', 'Este dato solo se puede visualizar por el visor seguro de Card-Social.');
+      Alert.alert(tr('Documento protegido', 'Protected document'), tr('Este dato solo se puede visualizar por el visor seguro de Card-Social.', 'This data can only be viewed through Card-Social secure viewer.'));
     } catch {
-      Alert.alert('No se pudo abrir', 'El dispositivo no pudo abrir este dato en app nativa.');
+      Alert.alert(tr('No se pudo abrir', 'Could not open'), tr('El dispositivo no pudo abrir este dato en app nativa.', 'Device could not open this data in native app.'));
     }
   };
 
@@ -1119,7 +1138,7 @@ export default function CardsFactoryScreen() {
 
     try {
       if (item.type === 'Teléfono') {
-        Alert.alert('No disponible', 'Los teléfonos no se abren en navegador por política Ghost-Link.');
+        Alert.alert(tr('No disponible', 'Not available'), tr('Los teléfonos no se abren en navegador por política Ghost-Link.', 'Phones cannot be opened in browser per Ghost-Link policy.'));
         return;
       }
       if (item.type === 'Enlaces') {
@@ -1130,9 +1149,9 @@ export default function CardsFactoryScreen() {
         await Linking.openURL(String(item.value));
         return;
       }
-      Alert.alert('No disponible', 'Este dato no tiene ruta de navegador directa.');
+      Alert.alert(tr('No disponible', 'Not available'), tr('Este dato no tiene ruta de navegador directa.', 'This data has no direct browser route.'));
     } catch {
-      Alert.alert('Error', 'No se pudo abrir en navegador.');
+      Alert.alert(tr('Error', 'Error'), tr('No se pudo abrir en navegador.', 'Could not open in browser.'));
     }
   };
 

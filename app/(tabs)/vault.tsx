@@ -33,7 +33,14 @@ import { hardLockCheck } from '@/services/biometricAuth';
 import LimitReachedModal from '@/components/LimitReachedModal';
 import { validateVaultItemCreation } from '@/services/limitService';
 import DullModeLock from '@/components/DullModeLock';
-import Pdf from 'react-native-pdf';
+import { useLanguage } from '@/services/language';
+
+let PdfComponent: any = null;
+try {
+  PdfComponent = require('react-native-pdf').default;
+} catch {
+  PdfComponent = null;
+}
 
 interface Link {
   id: string;
@@ -52,6 +59,8 @@ const VAULT_STORAGE_KEY = 'vault_data';
 
 const VaultScreen = () => {
   const router = useRouter();
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => language === 'en' ? en : es;
   const [links, setLinks] = useState<Link[]>([]);
   const [formModalVisible, setFormModalVisible] = useState(false);
   const [editingData, setEditingData] = useState<Link | undefined>(undefined);
@@ -106,7 +115,7 @@ const VaultScreen = () => {
       setLinks(sortLinks(parsed));
     } catch (error) {
       console.error('Error loading vault data:', error);
-      Alert.alert('Error', 'No se pudo cargar el Vault');
+      Alert.alert(tr('Error', 'Error'), tr('No se pudo cargar el Vault', 'Could not load Vault'));
     }
   };
 
@@ -198,10 +207,10 @@ const VaultScreen = () => {
         console.warn('Cloud delete failed, kept local cache update:', cloudError);
       }
 
-      Alert.alert('✅ Eliminado', `"${link.title}" fue removido del Vault`);
+      Alert.alert(tr('✅ Eliminado', '✅ Deleted'), tr(`"${link.title}" fue removido del Vault`, `"${link.title}" was removed from Vault`));
     } catch (error) {
       console.error('Error deleting link:', error);
-      Alert.alert('❌ Error', 'No se pudo eliminar el elemento');
+      Alert.alert(tr('❌ Error', '❌ Error'), tr('No se pudo eliminar el elemento', 'Could not delete the element'));
     }
   };
 
@@ -248,7 +257,7 @@ const VaultScreen = () => {
       }
     } catch (error) {
       console.error('Error updating favorite:', error);
-      Alert.alert('❌ Error', 'No se pudo actualizar favorito');
+      Alert.alert(tr('❌ Error', '❌ Error'), tr('No se pudo actualizar favorito', 'Could not update favorite'));
     }
   };
 
@@ -327,7 +336,7 @@ const VaultScreen = () => {
   const openEmailComposerByClient = async (client: 'gmail' | 'outlook' | 'default', email: string) => {
     const normalizedEmail = String(email || '').trim();
     if (!normalizedEmail) {
-      Alert.alert('Correo inválido', 'No hay un correo válido para abrir.');
+      Alert.alert(tr('Correo inválido', 'Invalid email'), tr('No hay un correo válido para abrir.', 'No valid email to open.'));
       return;
     }
 
@@ -340,7 +349,7 @@ const VaultScreen = () => {
 
     const canOpen = await Linking.canOpenURL(target);
     if (!canOpen) {
-      Alert.alert('App no disponible', 'Ese cliente de correo no está instalado en este dispositivo.');
+      Alert.alert(tr('App no disponible', 'App not available'), tr('Ese cliente de correo no está instalado en este dispositivo.', 'That email client is not installed on this device.'));
       return;
     }
 
@@ -363,7 +372,7 @@ const VaultScreen = () => {
     }
 
     if (String(link.value || '').startsWith('mongo-gridfs://')) {
-      Alert.alert('Archivo protegido', 'Este archivo usa túnel seguro y requiere endpoint de descarga firmado para vista externa.');
+      Alert.alert(tr('Archivo protegido', 'Protected file'), tr('Este archivo usa túnel seguro y requiere endpoint de descarga firmado para vista externa.', 'This file uses secure tunnel and requires signed download endpoint for external viewing.'));
       return;
     }
 
@@ -377,7 +386,7 @@ const VaultScreen = () => {
     }
 
     if (viewerItem.value.startsWith('mongo-gridfs://')) {
-      Alert.alert('Descarga protegida', 'Falta endpoint de descarga firmada para archivos en túnel seguro.');
+      Alert.alert(tr('Descarga protegida', 'Protected download'), tr('Falta endpoint de descarga firmada para archivos en túnel seguro.', 'Missing signed download endpoint for secure tunnel files.'));
       return;
     }
 
@@ -397,10 +406,10 @@ const VaultScreen = () => {
         });
       }
 
-      Alert.alert('Descarga lista', 'Archivo preparado para guardar en tu dispositivo.');
+      Alert.alert(tr('Descarga lista', 'Download ready'), tr('Archivo preparado para guardar en tu dispositivo.', 'File ready to save to your device.'));
     } catch (error) {
       console.error('Download from viewer failed:', error);
-      Alert.alert('Error', 'No se pudo descargar el archivo.');
+      Alert.alert(tr('Error', 'Error'), tr('No se pudo descargar el archivo.', 'Could not download the file.'));
     } finally {
       setIsDownloadingViewerFile(false);
     }
@@ -412,7 +421,7 @@ const VaultScreen = () => {
       const normalizedType = normalizeType(link.type);
 
       if (!rawValue) {
-        Alert.alert('⚠️ Error', 'El dato está vacío');
+        Alert.alert(tr('⚠️ Error', '⚠️ Error'), tr('El dato está vacío', 'The data is empty'));
         return;
       }
 
@@ -462,7 +471,7 @@ const VaultScreen = () => {
       openTextValueModal(link);
     } catch (error) {
       console.error('Error running action:', error);
-      Alert.alert('❌ Error', 'No se pudo ejecutar la acción');
+      Alert.alert(tr('❌ Error', '❌ Error'), tr('No se pudo ejecutar la acción', 'Could not execute the action'));
     }
   };
 
@@ -659,7 +668,7 @@ const VaultScreen = () => {
 
       const userId = await getActiveUserId();
       if (!userId) {
-        Alert.alert('❌ Error', 'No se pudo identificar al usuario');
+        Alert.alert(tr('❌ Error', '❌ Error'), tr('No se pudo identificar al usuario', 'Could not identify user'));
         return;
       }
 
@@ -689,7 +698,7 @@ const VaultScreen = () => {
       setLimitReachedVisible(false);
     } catch (error) {
       console.error('Error triggering purchase flow:', error);
-      Alert.alert('Error', 'No se pudo completar la compra');
+      Alert.alert(tr('Error', 'Error'), tr('No se pudo completar la compra', 'Purchase could not be completed'));
     }
   };
 
@@ -807,13 +816,25 @@ const VaultScreen = () => {
                   <Image source={{ uri: viewerItem.value }} style={styles.viewerImage} resizeMode="contain" />
                 </ScrollView>
               ) : isPdfValue(viewerItem.value) ? (
-                <Pdf
-                  source={{ uri: viewerItem.value }}
-                  style={styles.viewerPdf}
-                  minScale={1}
-                  maxScale={3}
-                  trustAllCerts={false}
-                />
+                PdfComponent ? (
+                  <PdfComponent
+                    source={{ uri: viewerItem.value }}
+                    style={styles.viewerPdf}
+                    minScale={1}
+                    maxScale={3}
+                    trustAllCerts={false}
+                  />
+                ) : (
+                  <View style={styles.viewerFallback}>
+                    <MaterialCommunityIcons name="file-pdf-box" color="#C5A065" size={54} />
+                    <Text style={styles.viewerFallbackText}>
+                      {tr(
+                        'La previsualizacion PDF no esta disponible en Expo Go. Usa un development build para verla.',
+                        'PDF preview is not available in Expo Go. Use a development build to view it.'
+                      )}
+                    </Text>
+                  </View>
+                )
               ) : (
                 <View style={styles.viewerFallback}>
                   <MaterialCommunityIcons name="file-alert-outline" color="#C5A065" size={54} />
@@ -928,7 +949,7 @@ const VaultScreen = () => {
                     onPress={async () => {
                       await Clipboard.setStringAsync(String(activeTextItem?.value || ''));
                       triggerSuccessHaptic();
-                      Alert.alert('Copiado', 'El contenido fue copiado al portapapeles.');
+                      Alert.alert(tr('Copiado', 'Copied'), tr('El contenido fue copiado al portapapeles.', 'Content copied to clipboard.'));
                     }}
                   >
                     <MaterialCommunityIcons name="content-copy" color="#0A2540" size={16} />

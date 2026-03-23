@@ -7,12 +7,15 @@ import QRCode from 'react-native-qrcode-svg';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getActiveUserId } from '@/services/authSession';
 import { issueDynamicQrToken } from '@/services/qrApi';
+import { useLanguage } from '@/services/language';
 
 const DEFAULT_CARD_ID = 'default-social-card';
 const DEFAULT_TTL_SEC = 60;
 
 export default function ShareScreen() {
   const router = useRouter();
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => language === 'en' ? en : es;
   const [qrToken, setQrToken] = useState('');
   const [expiresAtMs, setExpiresAtMs] = useState(0);
   const [windowMs, setWindowMs] = useState(DEFAULT_TTL_SEC * 1000);
@@ -26,7 +29,7 @@ export default function ShareScreen() {
       setIssuing(true);
       const ownerUid = await getActiveUserId();
       if (!ownerUid) {
-        throw new Error('No se pudo validar tu sesión activa para emitir el QR.');
+        throw new Error(tr('No se pudo validar tu sesión activa para emitir el QR.', 'Could not validate your active session to issue the QR.'));
       }
 
       const issued = await issueDynamicQrToken({ ownerUid, cardId: DEFAULT_CARD_ID });
@@ -41,7 +44,7 @@ export default function ShareScreen() {
       setExpiresAtMs(nextExpiresAt);
       setWindowMs(nextWindowMs);
     } catch (error: any) {
-      Alert.alert('Error de QR', error?.message || 'No se pudo generar el QR dinámico.');
+      Alert.alert(tr('Error de QR', 'QR Error'), error?.message || tr('No se pudo generar el QR dinámico.', 'Could not generate the dynamic QR.'));
     } finally {
       setIssuing(false);
     }
@@ -108,8 +111,8 @@ export default function ShareScreen() {
   return (
     <LinearGradient colors={['#EAF7FF', '#CDEFFF', '#B8E7FF']} style={styles.container}>
       <View style={styles.card}>
-        <Text style={styles.title}>QR Bancario Dinamico</Text>
-        <Text style={styles.subtitle}>Caduca en 60 segundos por seguridad</Text>
+        <Text style={styles.title}>{tr('QR Bancario Dinamico', 'Banking Dynamic QR')}</Text>
+        <Text style={styles.subtitle}>{tr('Caduca en 60 segundos por seguridad', 'Expires in 60 seconds for security')}</Text>
 
         <View style={styles.countdownWrap}>
           <Text style={styles.countdownText}>{remainingSec}s</Text>
@@ -139,7 +142,7 @@ export default function ShareScreen() {
                   <BlurView intensity={90} tint="light" style={StyleSheet.absoluteFill} />
                   <TouchableOpacity style={styles.overlayRescueBtn} onPress={issueFreshQr} disabled={issuing}>
                     <MaterialCommunityIcons name="refresh" size={16} color="#FFFFFF" />
-                    <Text style={styles.overlayRescueBtnText}>Actualizar codigo</Text>
+                    <Text style={styles.overlayRescueBtnText}>{tr('Actualizar codigo', 'Refresh code')}</Text>
                   </TouchableOpacity>
                 </View>
               ) : null}
@@ -151,12 +154,12 @@ export default function ShareScreen() {
 
         <View style={styles.actionsRow}>
           <TouchableOpacity style={styles.ghostBtn} onPress={() => router.replace('/(tabs)/cards' as any)}>
-            <Text style={styles.ghostBtnText}>Ir a Tarjetas</Text>
+            <Text style={styles.ghostBtnText}>{tr('Ir a Tarjetas', 'Go to Cards')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.primaryBtn} onPress={issueFreshQr} disabled={issuing}>
             <MaterialCommunityIcons name="refresh" size={16} color="#FFFFFF" />
-            <Text style={styles.primaryBtnText}>Regenerar</Text>
+            <Text style={styles.primaryBtnText}>{tr('Regenerar', 'Regenerate')}</Text>
           </TouchableOpacity>
         </View>
       </View>

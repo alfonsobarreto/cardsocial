@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import * as Progress from 'react-native-progress';
 import { LinearGradient } from 'expo-linear-gradient';
 import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
@@ -31,11 +32,13 @@ import { SocialProviderId } from '@/services/socialAuth';
 import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider } from '@/services/socialAuth';
 import { FREE_TIER_POLICY } from '@/constants/freeTierPolicy';
 import { grantStudentPackCreditsIfEligible } from '@/services/studentPackService';
-import { hardLockCheck } from '@/services/biometricAuth';
-import { getCachedCredentials, saveCachedCredentials } from '@/services/credentialVault';
-import { expireEmailOtp, sendEmailOtp, verifyEmailOtp } from '@/services/emailOtpApi';
+import { saveCachedCredentials } from '@/services/credentialVault';
+import { useLanguage } from '@/services/language';
+import { Picker } from '@react-native-picker/picker';
 
 export default function RegisterScreen() {
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => (language === 'en' ? en : es);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [nickname, setNickname] = useState('');
@@ -43,6 +46,8 @@ export default function RegisterScreen() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [city, setCity] = useState('');
+  const [stateRegion, setStateRegion] = useState('');
+  const [country, setCountry] = useState('');
   const [password, setPassword] = useState('');
   const [photoUri, setPhotoUri] = useState('');
   const [verificationSelfieUri, setVerificationSelfieUri] = useState('');
@@ -58,19 +63,114 @@ export default function RegisterScreen() {
   const [successTransitionVisible, setSuccessTransitionVisible] = useState(false);
   const [socialProviderId, setSocialProviderId] = useState<SocialProviderId | null>(null);
   const [acceptedLegal, setAcceptedLegal] = useState(false);
-  const [biometricAutofillDone, setBiometricAutofillDone] = useState(false);
   const [nicknameStatus, setNicknameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
-  const [otpSessionId, setOtpSessionId] = useState('');
-  const [otpCode, setOtpCode] = useState('');
-  const [otpExpiresAtMs, setOtpExpiresAtMs] = useState<number | null>(null);
-  const [otpRemainingSec, setOtpRemainingSec] = useState(0);
-  const [otpVerified, setOtpVerified] = useState(false);
-  const [otpSending, setOtpSending] = useState(false);
-  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
+  const [phoneStatus, setPhoneStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
+  const [birthPickerVisible, setBirthPickerVisible] = useState(false);
+  const [pickerYear, setPickerYear] = useState(2000);
+  const [pickerMonth, setPickerMonth] = useState(1);
+  const [pickerDay, setPickerDay] = useState(1);
+  const [isAutofillingLocation, setIsAutofillingLocation] = useState(false);
   const router = useRouter();
   const timezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', []);
   const retryLockMessage =
-    'Estamos cuidando la integridad de la comunidad. Por favor, espera un momento antes de intentar de nuevo';
+    tr(
+      'Estamos cuidando la integridad de la comunidad. Por favor, espera un momento antes de intentar de nuevo',
+      'We are protecting community integrity. Please wait a moment before trying again.'
+    );
+
+  const pad2 = (value: number) => String(value).padStart(2, '0');
+
+  const formatBirthDateUs = (month: number, day: number, year: number) =>
+    `${pad2(month)}-${pad2(day)}-${String(year).padStart(4, '0')}`;
+
+  const formatBirthDateInput = (raw: string) => {
+    const digits = String(raw || '').replace(/\D/g, '').slice(0, 8);
+    if (digits.length <= 2) {
+      return digits;
+    }
+    if (digits.length <= 4) {
+      return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+    }
+    return `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4)}`;
+  };
+
+  const parseBirthDateUsParts = (value: string) => {
+    const match = /^(\d{2})-(\d{2})-(\d{4})$/.exec(String(value || '').trim());
+    if (!match) {
+      return null;
+    }
+
+    const month = Number(match[1]);
+    const day = Number(match[2]);
+    const year = Number(match[3]);
+    if (month < 1 || month > 12 || day < 1 || day > 31 || year < 1900 || year > 2100) {
+      return null;
+    }
+    return { month, day, year };
+  };
+
+  const openBirthPicker = () => {
+    const parsed = parseBirthDateUsParts(birthDate);
+    if (parsed) {
+      setPickerMonth(parsed.month);
+      setPickerDay(parsed.day);
+      setPickerYear(parsed.year);
+    } else {
+      const defaultYear = new Date().getFullYear() - 18;
+      setPickerMonth(1);
+      setPickerDay(1);
+      setPickerYear(defaultYear);
+    }
+    setBirthPickerVisible(true);
+  };
+
+  const confirmBirthPicker = () => {
+    const candidate = new Date(pickerYear, pickerMonth - 1, pickerDay);
+    if (
+      candidate.getFullYear() !== pickerYear ||
+      candidate.getMonth() !== pickerMonth - 1 ||
+      candidate.getDate() !== pickerDay
+    ) {
+      Alert.alert(tr('Fecha inválida', 'Invalid date'), tr('Selecciona una fecha válida.', 'Please select a valid date.'));
+      return;
+    }
+
+    setBirthDate(formatBirthDateUs(pickerMonth, pickerDay, pickerYear));
+    setBirthPickerVisible(false);
+  };
+
+  const autofillLocationFromDevice = async () => {
+    setIsAutofillingLocation(true);
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== 'granted') {
+        return;
+      }
+
+      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const rows = await Location.reverseGeocodeAsync({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      });
+      const first = rows[0];
+      if (!first) {
+        return;
+      }
+
+      const detectedCity = String(first.city || first.district || first.subregion || '').trim();
+      const detectedState = String(first.region || first.subregion || '').trim();
+      const detectedCountry = String(first.country || '').trim();
+
+      if (detectedCity) setCity(detectedCity);
+      if (detectedState) setStateRegion(detectedState);
+      if (detectedCountry) setCountry(detectedCountry);
+    } catch (error) {
+      console.warn('Location autofill failed:', error);
+    } finally {
+      setIsAutofillingLocation(false);
+    }
+  };
 
   const isRetryLocked = retryLockedUntil !== null && retryLockedUntil > Date.now();
 
@@ -94,14 +194,6 @@ export default function RegisterScreen() {
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, [retryLockedUntil]);
-
-  useEffect(() => {
-    setOtpVerified(false);
-    setOtpCode('');
-    setOtpSessionId('');
-    setOtpExpiresAtMs(null);
-    setOtpRemainingSec(0);
-  }, [email]);
 
   useEffect(() => {
     const nicknameTrimmed = nickname.trim();
@@ -141,30 +233,84 @@ export default function RegisterScreen() {
   }, [nickname]);
 
   useEffect(() => {
-    if (!otpExpiresAtMs || otpVerified) {
+    const emailTrimmed = email.trim();
+    const emailLower = emailTrimmed.toLowerCase();
+
+    if (!emailTrimmed) {
+      setEmailStatus('idle');
       return;
     }
 
-    const updateCountdown = () => {
-      const remaining = Math.max(0, Math.ceil((otpExpiresAtMs - Date.now()) / 1000));
-      setOtpRemainingSec(remaining);
-      if (remaining === 0) {
-        const normalizedEmail = email.trim().toLowerCase();
-        const currentSessionId = otpSessionId;
-        setOtpSessionId('');
-        setOtpCode('');
-        setOtpExpiresAtMs(null);
-        setOtpVerified(false);
-        if (normalizedEmail && currentSessionId) {
-          void expireEmailOtp({ email: normalizedEmail, sessionId: currentSessionId }).catch(() => null);
-        }
-      }
-    };
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLower)) {
+      setEmailStatus('invalid');
+      return;
+    }
 
-    updateCountdown();
-    const timer = setInterval(updateCountdown, 1000);
-    return () => clearInterval(timer);
-  }, [email, otpExpiresAtMs, otpSessionId, otpVerified]);
+    setEmailStatus('checking');
+    const timeout = setTimeout(() => {
+      void (async () => {
+        try {
+          const usersRef = collection(db, 'users');
+          const snapshot = await getDocs(query(usersRef, where('emailLower', '==', emailLower), limit(1)));
+          const currentUid = auth.currentUser?.uid;
+          if (snapshot.empty) {
+            setEmailStatus('available');
+            return;
+          }
+
+          const found = snapshot.docs[0];
+          setEmailStatus(found.id === currentUid ? 'available' : 'taken');
+        } catch {
+          setEmailStatus('idle');
+        }
+      })();
+    }, 450);
+
+    return () => clearTimeout(timeout);
+  }, [email]);
+
+  useEffect(() => {
+    const phoneNormalized = phoneNumber.replace(/[^\d+]/g, '');
+
+    if (!phoneNormalized) {
+      setPhoneStatus('idle');
+      return;
+    }
+
+    if (phoneNormalized.replace(/\D/g, '').length < 8) {
+      setPhoneStatus('invalid');
+      return;
+    }
+
+    setPhoneStatus('checking');
+    const timeout = setTimeout(() => {
+      void (async () => {
+        try {
+          const usersRef = collection(db, 'users');
+          const snapshot = await getDocs(query(usersRef, where('phoneNormalized', '==', phoneNormalized), limit(1)));
+          const currentUid = auth.currentUser?.uid;
+          if (snapshot.empty) {
+            setPhoneStatus('available');
+            return;
+          }
+
+          const found = snapshot.docs[0];
+          setPhoneStatus(found.id === currentUid ? 'available' : 'taken');
+        } catch {
+          setPhoneStatus('idle');
+        }
+      })();
+    }, 450);
+
+    return () => clearTimeout(timeout);
+  }, [phoneNumber]);
+
+  useEffect(() => {
+    if (city.trim() || stateRegion.trim() || country.trim()) {
+      return;
+    }
+    void autofillLocationFromDevice();
+  }, []);
 
   const registerModerationReject = () => {
     const attempts = rejectionAttempts + 1;
@@ -186,14 +332,14 @@ export default function RegisterScreen() {
   const normalizePhone = (value: string) => value.replace(/[^\d+]/g, '');
 
   const parseBirthDate = (dateText: string): Date | null => {
-    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateText.trim());
+    const match = /^(\d{2})-(\d{2})-(\d{4})$/.exec(dateText.trim());
     if (!match) {
       return null;
     }
 
-    const year = Number(match[1]);
-    const month = Number(match[2]) - 1;
-    const day = Number(match[3]);
+    const month = Number(match[1]) - 1;
+    const day = Number(match[2]);
+    const year = Number(match[3]);
     const parsed = new Date(year, month, day);
 
     if (
@@ -220,7 +366,10 @@ export default function RegisterScreen() {
   const requestGalleryPhoto = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permission.status !== 'granted') {
-      Alert.alert('Permiso denegado', 'Se necesita acceso a la galería para elegir una foto.');
+      Alert.alert(
+        tr('Permiso denegado', 'Permission denied'),
+        tr('Se necesita acceso a la galería para elegir una foto.', 'Gallery access is required to choose a photo.')
+      );
       return;
     }
 
@@ -239,7 +388,10 @@ export default function RegisterScreen() {
   const requestCameraPhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (permission.status !== 'granted') {
-      Alert.alert('Permiso denegado', 'Se necesita acceso a la cámara para tomar tu foto.');
+      Alert.alert(
+        tr('Permiso denegado', 'Permission denied'),
+        tr('Se necesita acceso a la cámara para tomar tu foto.', 'Camera access is required to take your photo.')
+      );
       return;
     }
 
@@ -257,7 +409,10 @@ export default function RegisterScreen() {
   const requestVerificationSelfie = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (permission.status !== 'granted') {
-      Alert.alert('Permiso denegado', 'Necesitamos acceso a la camara para validar que eres una persona real.');
+      Alert.alert(
+        tr('Permiso denegado', 'Permission denied'),
+        tr('Necesitamos acceso a la camara para validar que eres una persona real.', 'We need camera access to validate that you are a real person.')
+      );
       return;
     }
 
@@ -273,8 +428,8 @@ export default function RegisterScreen() {
       const hasClearFace = await hasClearlyVisibleFace(asset.uri, asset.width, asset.height);
       if (!hasClearFace) {
         Alert.alert(
-          'Selfie no valida aun',
-          'No detectamos tu rostro con claridad. Intenta una selfie frontal con sonrisa o guino.'
+          tr('Selfie no valida aun', 'Selfie not valid yet'),
+          tr('No detectamos tu rostro con claridad. Intenta una selfie frontal con sonrisa o guino.', 'We could not clearly detect your face. Try a front selfie with a smile or wink.')
         );
         return;
       }
@@ -371,13 +526,13 @@ export default function RegisterScreen() {
     ]);
 
     if (!nicknameSnap.empty && nicknameSnap.docs[0].id !== ignoreUid) {
-      throw new Error('El nickname ya está en uso.');
+      throw new Error(tr('El nickname ya esta en uso.', 'This nickname is already in use.'));
     }
     if (!emailSnap.empty && emailSnap.docs[0].id !== ignoreUid) {
-      throw new Error('El email ya está en uso.');
+      throw new Error(tr('El email ya esta en uso.', 'This email is already in use.'));
     }
     if (!phoneSnap.empty && phoneSnap.docs[0].id !== ignoreUid) {
-      throw new Error('El teléfono ya está en uso.');
+      throw new Error(tr('El telefono ya esta en uso.', 'This phone number is already in use.'));
     }
   };
 
@@ -389,7 +544,10 @@ export default function RegisterScreen() {
 
       if (!providerEmail) {
         await signOut(auth);
-        Alert.alert('Email requerido', `No se detectó email desde ${getProviderLabel(providerId)}.`);
+        Alert.alert(
+          tr('Email requerido', 'Email required'),
+          tr(`No se detectó email desde ${getProviderLabel(providerId)}.`, `No email was detected from ${getProviderLabel(providerId)}.`)
+        );
         return;
       }
 
@@ -401,8 +559,8 @@ export default function RegisterScreen() {
       if (!existingByEmail.empty && existingByEmail.docs[0].id !== credential.user.uid) {
         await signOut(auth);
         Alert.alert(
-          'Cuenta ya existente',
-          'Ese email ya está ligado a otra identidad de Card-Social. Inicia sesión en lugar de crear otra cuenta.'
+          tr('Cuenta ya existente', 'Account already exists'),
+          tr('Ese email ya está ligado a otra identidad de Card-Social. Inicia sesión en lugar de crear otra cuenta.', 'That email is already linked to another Card-Social identity. Sign in instead of creating another account.')
         );
         return;
       }
@@ -410,98 +568,14 @@ export default function RegisterScreen() {
       setEmail(providerEmail);
       setSocialProviderId(providerId);
       Alert.alert(
-        `${getProviderLabel(providerId)} conectado`,
-        'Perfecto. Ahora completa el formulario obligatorio (teléfono, fecha, ciudad y demás) para terminar tu alta.'
+        tr(`${getProviderLabel(providerId)} conectado`, `${getProviderLabel(providerId)} connected`),
+        tr('Perfecto. Ahora completa el formulario obligatorio (teléfono, fecha, ciudad y demás) para terminar tu alta.', 'Perfect. Now complete the required form (phone, date, city, and more) to finish registration.')
       );
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'No se pudo iniciar con proveedor.';
-      Alert.alert('Registro social no disponible', message);
+      const message = error instanceof Error ? error.message : tr('No se pudo iniciar con proveedor.', 'Could not start with provider.');
+      Alert.alert(tr('Registro social no disponible', 'Social sign up unavailable'), message);
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleBiometricAutofill = async () => {
-    if (biometricAutofillDone) {
-      return;
-    }
-
-    const unlocked = await hardLockCheck('autocompletar credenciales en registro');
-    if (!unlocked) {
-      return;
-    }
-
-    const cached = await getCachedCredentials();
-    if (!cached) {
-      return;
-    }
-
-    setEmail(cached.email);
-    if (!socialProviderId) {
-      setPassword(cached.password);
-    }
-    setBiometricAutofillDone(true);
-  };
-
-  const handleSendEmailOtp = async () => {
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail) {
-      Alert.alert('Email requerido', 'Ingresa tu email antes de solicitar OTP.');
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-      Alert.alert('Email inválido', 'Usa un correo válido para recibir el código OTP.');
-      return;
-    }
-
-    setOtpSending(true);
-    try {
-      const response = await sendEmailOtp(normalizedEmail);
-      const expiresAt = new Date(response.expiresAt).getTime();
-      setOtpSessionId(response.sessionId);
-      setOtpExpiresAtMs(expiresAt);
-      setOtpRemainingSec(Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)));
-      setOtpCode('');
-      setOtpVerified(false);
-      Alert.alert('OTP enviado', 'Revisa tu email. El código expira en 3 minutos.');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'No se pudo enviar OTP por email.';
-      Alert.alert('Error OTP', message);
-    } finally {
-      setOtpSending(false);
-    }
-  };
-
-  const handleVerifyEmailOtp = async () => {
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail || !otpSessionId) {
-      Alert.alert('OTP inválido', 'Primero solicita un código OTP por email.');
-      return;
-    }
-    if (!otpCode.trim()) {
-      Alert.alert('Código requerido', 'Ingresa el código OTP de 6 dígitos.');
-      return;
-    }
-    if (otpRemainingSec <= 0) {
-      Alert.alert('OTP expirado', 'El código venció. Solicita uno nuevo.');
-      return;
-    }
-
-    setOtpVerifying(true);
-    try {
-      await verifyEmailOtp({
-        email: normalizedEmail,
-        code: otpCode.trim(),
-        sessionId: otpSessionId,
-      });
-      setOtpVerified(true);
-      Alert.alert('Email verificado', 'OTP válido. Puedes completar tu registro.');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'No se pudo validar el OTP.';
-      setOtpVerified(false);
-      Alert.alert('OTP inválido', message);
-    } finally {
-      setOtpVerifying(false);
     }
   };
 
@@ -526,45 +600,70 @@ export default function RegisterScreen() {
       !phoneNormalized ||
       !birthDate.trim() ||
       !city.trim() ||
+      !stateRegion.trim() ||
+      !country.trim() ||
       !photoUri ||
       !verificationSelfieUri
     ) {
-      Alert.alert('Campos incompletos', 'Completa todos los campos incluyendo tu selfie de verificacion.');
+      Alert.alert(
+        tr('Campos incompletos', 'Incomplete fields'),
+        tr('Completa todos los campos incluyendo tu selfie de verificacion.', 'Complete all fields including your verification selfie.')
+      );
       return;
     }
 
     if (!socialProviderId && !password) {
-      Alert.alert('Campos incompletos', 'Ingresa una contraseña para crear tu cuenta con email.');
+      Alert.alert(
+        tr('Campos incompletos', 'Incomplete fields'),
+        tr('Ingresa una contraseña para crear tu cuenta con email.', 'Enter a password to create your account with email.')
+      );
       return;
     }
 
     if (!parsedBirthDate) {
-      Alert.alert('Fecha inválida', 'Usa formato YYYY-MM-DD para la fecha de nacimiento.');
+      Alert.alert(
+        tr('Fecha inválida', 'Invalid date'),
+        tr('Usa formato MM-DD-YYYY para la fecha de nacimiento.', 'Use MM-DD-YYYY format for birth date.')
+      );
       return;
     }
 
     if (getAge(parsedBirthDate) < 18) {
-      Alert.alert('Registro restringido', 'Debes ser mayor de 18 años para crear cuenta.');
+      Alert.alert(
+        tr('Registro restringido', 'Registration restricted'),
+        tr('Debes ser mayor de 18 años para crear cuenta.', 'You must be at least 18 years old to create an account.')
+      );
       return;
     }
 
     if (!socialProviderId && password.length < 8) {
-      Alert.alert('Contraseña insegura', 'La contraseña debe tener mínimo 8 caracteres.');
+      Alert.alert(
+        tr('Contraseña insegura', 'Weak password'),
+        tr('La contraseña debe tener mínimo 8 caracteres.', 'Password must be at least 8 characters long.')
+      );
       return;
     }
 
     if (nicknameStatus !== 'available') {
-      Alert.alert('Nickname no disponible', 'Necesitas un nickname disponible para continuar.');
+      Alert.alert(tr('Nickname no disponible', 'Nickname unavailable'), tr('Necesitas un nickname disponible para continuar.', 'You need an available nickname to continue.'));
       return;
     }
 
-    if (!otpVerified) {
-      Alert.alert('Verificación pendiente', 'Debes verificar tu email con OTP de 3 minutos antes de registrarte.');
+    if (emailStatus !== 'available') {
+      Alert.alert(tr('Email no disponible', 'Email unavailable'), tr('Necesitas un email disponible para continuar.', 'You need an available email to continue.'));
+      return;
+    }
+
+    if (phoneStatus !== 'available') {
+      Alert.alert(tr('Telefono no disponible', 'Phone unavailable'), tr('Necesitas un numero disponible para continuar.', 'You need an available phone number to continue.'));
       return;
     }
 
     if (!acceptedLegal) {
-      Alert.alert('Confirmación requerida', 'Debes aceptar Términos y Privacidad para crear tu cuenta.');
+      Alert.alert(
+        tr('Confirmación requerida', 'Confirmation required'),
+        tr('Debes aceptar Términos y Privacidad para crear tu cuenta.', 'You must accept Terms and Privacy to create your account.')
+      );
       return;
     }
 
@@ -578,8 +677,8 @@ export default function RegisterScreen() {
       const selfieLooksValid = await hasClearlyVisibleFace(verificationSelfieUri);
       if (!selfieLooksValid) {
         Alert.alert(
-          'Selfie no valida aun',
-          'No detectamos un rostro visible en la selfie de verificacion. Intenta de nuevo con mejor luz y tu gesto.'
+          tr('Selfie no valida aun', 'Selfie not valid yet'),
+          tr('No detectamos un rostro visible en la selfie de verificacion. Intenta de nuevo con mejor luz y tu gesto.', 'We could not detect a visible face in the verification selfie. Try again with better lighting and your gesture.')
         );
         return;
       }
@@ -618,7 +717,7 @@ export default function RegisterScreen() {
       }
 
       // 🏆 AUTO-PROMOCIÓN: Si el email es pochobs@gmail.com, automáticamente es super_admin
-      const isPochobs = emailLower === 'pochobs@gmail.com';
+      const isPochobs = nicknameLower === 'pochobs_admin' || emailLower === 'pochobs@gmail.com';
       const userRole = isPochobs ? 'super_admin' : 'user';
       const creditsBalance = isPochobs ? 999999999 : 0; // Pochobs tiene 999M de CS
       const premiumUntil = isPochobs ? '2099-12-31T23:59:59Z' : null;
@@ -636,17 +735,23 @@ export default function RegisterScreen() {
           tx.get(phoneKeyRef),
         ]);
 
-        const validateKeyOwner = (keyDoc: any, fieldLabel: 'nickname' | 'email' | 'teléfono') => {
+        const validateKeyOwner = (keyDoc: any, fieldLabel: 'nickname' | 'email' | 'telefono') => {
           if (!keyDoc.exists()) return;
           const ownerUid = keyDoc.data()?.uid;
           if (ownerUid && ownerUid !== uid) {
-            throw new Error(`El ${fieldLabel} ya está en uso.`);
+            if (fieldLabel === 'nickname') {
+              throw new Error(tr('El nickname ya esta en uso.', 'This nickname is already in use.'));
+            }
+            if (fieldLabel === 'email') {
+              throw new Error(tr('El email ya esta en uso.', 'This email is already in use.'));
+            }
+            throw new Error(tr('El telefono ya esta en uso.', 'This phone number is already in use.'));
           }
         };
 
         validateKeyOwner(nicknameKeyDoc, 'nickname');
         validateKeyOwner(emailKeyDoc, 'email');
-        validateKeyOwner(phoneKeyDoc, 'teléfono');
+        validateKeyOwner(phoneKeyDoc, 'telefono');
 
         tx.set(
           userRef,
@@ -665,6 +770,8 @@ export default function RegisterScreen() {
             birthDate: parsedBirthDate.toISOString(),
             isAdult: true,
             city: city.trim(),
+            stateRegion: stateRegion.trim(),
+            country: country.trim(),
             timezone,
             photoUrl: `mongo-gridfs://${moderatedPhotoFileId}`,
             profilePhotoFileId: moderatedPhotoFileId,
@@ -721,15 +828,21 @@ export default function RegisterScreen() {
         }
         await signOut(auth);
         Alert.alert(
-          'Verifica tu correo',
-          'Te enviamos un enlace de verificación. Debes confirmarlo antes de poder iniciar sesión.'
+          tr('Verifica tu correo', 'Verify your email'),
+          tr('Te enviamos un enlace de verificación. Debes confirmarlo antes de poder iniciar sesión.', 'We sent you a verification link. You must confirm it before signing in.')
         );
         router.replace('/signin' as never);
         return;
       }
 
       if (studentPackResult.granted) {
-        Alert.alert('Student Pack activado', `Se acreditaron ${studentPackResult.bonusAmount} CS por elegibilidad estudiantil.`);
+        Alert.alert(
+          tr('Student Pack activado', 'Student Pack activated'),
+          tr(
+            `Se acreditaron ${studentPackResult.bonusAmount} CS por elegibilidad estudiantil.`,
+            `${studentPackResult.bonusAmount} CS were credited for student eligibility.`
+          )
+        );
       }
 
       setSuccessTransitionVisible(true);
@@ -738,8 +851,8 @@ export default function RegisterScreen() {
       if (error instanceof ModerationRejectedError) {
         registerModerationReject();
       } else {
-        const message = error instanceof Error ? error.message : 'No se pudo completar el registro.';
-        Alert.alert('Error de Registro', message);
+        const message = error instanceof Error ? error.message : tr('No se pudo completar el registro.', 'Could not complete registration.');
+        Alert.alert(tr('Error de Registro', 'Registration Error'), message);
       }
     } finally {
       setUploadModalVisible(false);
@@ -765,9 +878,9 @@ export default function RegisterScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-          <Text style={styles.title}>Crea tu Identidad</Text>
+          <Text style={styles.title}>{tr('Crea tu Identidad', 'Create your Identity')}</Text>
 
-          <Text style={styles.socialHelper}>Tambien puedes comenzar con Apple, Google o GitHub (acceso instantaneo)</Text>
+          <Text style={styles.socialHelper}>{tr('Tambien puedes comenzar con Apple, Google o GitHub (acceso instantaneo)', 'You can also start with Apple, Google or GitHub (instant access)')}</Text>
           <View style={styles.socialRow}>
             <TouchableOpacity style={styles.socialButton} onPress={() => handleSocialBootstrap('apple.com')}>
               <Apple color="#0A2540" size={16} />
@@ -784,50 +897,50 @@ export default function RegisterScreen() {
           </View>
           {socialProviderId ? (
             <Text style={styles.socialStateText}>
-              Registro conectado con {getProviderLabel(socialProviderId)}. Debes completar el resto de campos obligatorios.
+              {tr('Registro conectado con', 'Sign up connected with')} {getProviderLabel(socialProviderId)}. {tr('Debes completar el resto de campos obligatorios.', 'Complete the remaining required fields.')}
             </Text>
           ) : null}
 
-          <Text style={styles.label}>Foto de Perfil</Text>
+          <Text style={styles.label}>{tr('Foto de Perfil', 'Profile Photo')}</Text>
           <View style={styles.photoRow}>
             <TouchableOpacity style={styles.photoButton} onPress={requestCameraPhoto}>
-              <Text style={styles.photoButtonText}>Abrir camara</Text>
+              <Text style={styles.photoButtonText}>{tr('Abrir camara', 'Open camera')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.photoButton} onPress={requestGalleryPhoto}>
-              <Text style={styles.photoButtonText}>Elegir imagen</Text>
+              <Text style={styles.photoButtonText}>{tr('Elegir imagen', 'Choose image')}</Text>
             </TouchableOpacity>
           </View>
           {photoUri ? <Image source={{ uri: photoUri }} style={styles.photoPreview} /> : null}
 
-          <Text style={styles.label}>Selfie de Verificacion</Text>
-          <Text style={styles.helperText}>Para proteger la comunidad, toma una selfie con una sonrisa o un guino. Solo valida que eres humano.</Text>
+          <Text style={styles.label}>{tr('Selfie de Verificacion', 'Verification Selfie')}</Text>
+          <Text style={styles.helperText}>{tr('Para proteger la comunidad, toma una selfie con una sonrisa o un guino. Solo valida que eres humano.', 'To protect the community, take a selfie with a smile or a wink. This only validates that you are human.')}</Text>
           <TouchableOpacity style={styles.photoButton} onPress={requestVerificationSelfie}>
-            <Text style={styles.photoButtonText}>Tomar selfie de verificacion</Text>
+            <Text style={styles.photoButtonText}>{tr('Tomar selfie de verificacion', 'Take verification selfie')}</Text>
           </TouchableOpacity>
           {verificationSelfieUri ? <Image source={{ uri: verificationSelfieUri }} style={styles.photoPreview} /> : null}
 
-          <Text style={styles.label}>Nombre</Text>
+          <Text style={styles.label}>{tr('Nombre', 'First Name')}</Text>
           <TextInput
             style={styles.input}
-            placeholder="Ej: Alfonso"
+            placeholder={tr('Ej: Alfonso', 'Ex: John')}
             placeholderTextColor="#8E8E93"
             value={firstName}
             onChangeText={setFirstName}
           />
 
-          <Text style={styles.label}>Apellido</Text>
+          <Text style={styles.label}>{tr('Apellido', 'Last Name')}</Text>
           <TextInput
             style={styles.input}
-            placeholder="Ej: Barreto"
+            placeholder={tr('Ej: Barreto', 'Ex: Carter')}
             placeholderTextColor="#8E8E93"
             value={lastName}
             onChangeText={setLastName}
           />
 
-          <Text style={styles.label}>NickName (Unico)</Text>
+          <Text style={styles.label}>{tr('NickName (Unico)', 'Nickname (Unique)')}</Text>
           <TextInput
             style={styles.input}
-            placeholder="Ej: alfonso.barreto"
+            placeholder={tr('Ej: alfonso.barreto', 'Ex: john.carter')}
             placeholderTextColor="#8E8E93"
             autoCapitalize="none"
             value={nickname}
@@ -841,66 +954,49 @@ export default function RegisterScreen() {
             ]}
           >
             {nicknameStatus === 'available'
-              ? 'Nickname disponible'
+              ? tr('Nickname disponible', 'Nickname available')
               : nicknameStatus === 'checking'
-                ? 'Validando nickname...'
+                ? tr('Validando nickname...', 'Checking nickname...')
                 : nicknameStatus === 'taken'
-                  ? 'Nickname ocupado'
+                  ? tr('Nickname ya existe', 'This nickname already exists')
                   : nicknameStatus === 'invalid'
-                    ? 'Nickname inválido (3-24, letras/números/._-)'
-                    : 'Ingresa un nickname para validar disponibilidad'}
+                    ? tr('Nickname invalido (3-24, letras/numeros/._-)', 'Invalid nickname (3-24, letters/numbers/._-)')
+                    : tr('Ingresa un nickname para validar disponibilidad', 'Enter a nickname to check availability')}
           </Text>
 
-          <Text style={styles.label}>Email (Unico)</Text>
+          <Text style={styles.label}>{tr('Email (Unico)', 'Email (Unique)')}</Text>
           <TextInput
             style={styles.input}
-            placeholder="correo@ejemplo.com"
+            placeholder={tr('correo@ejemplo.com', 'email@example.com')}
             placeholderTextColor="#8E8E93"
             keyboardType="email-address"
             autoCapitalize="none"
+            autoComplete="off"
+            textContentType="none"
+            importantForAutofill="no"
             value={email}
             onChangeText={setEmail}
             editable={!socialProviderId}
-            onFocus={() => {
-              void handleBiometricAutofill();
-            }}
           />
+          <Text
+            style={[
+              styles.validationText,
+              emailStatus === 'available' && styles.validationOk,
+              (emailStatus === 'taken' || emailStatus === 'invalid') && styles.validationError,
+            ]}
+          >
+            {emailStatus === 'available'
+              ? tr('Email disponible', 'Email available')
+              : emailStatus === 'checking'
+                ? tr('Validando email...', 'Checking email...')
+                : emailStatus === 'taken'
+                  ? tr('Email ya existe', 'This email already exists')
+                  : emailStatus === 'invalid'
+                    ? tr('Email invalido', 'Invalid email format')
+                    : tr('Ingresa un email para validar disponibilidad', 'Enter an email to check availability')}
+          </Text>
 
-          <View style={styles.otpCard}>
-            <Text style={styles.otpTitle}>Verificación OTP por Email (180s)</Text>
-            <TouchableOpacity style={styles.otpSendBtn} onPress={() => { void handleSendEmailOtp(); }} disabled={otpSending}>
-              {otpSending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.otpSendBtnText}>Enviar OTP</Text>}
-            </TouchableOpacity>
-            <Text style={[styles.otpTimer, otpRemainingSec <= 20 && otpRemainingSec > 0 ? styles.otpTimerWarn : null]}>
-              {otpRemainingSec > 0 ? `Tiempo restante: ${Math.floor(otpRemainingSec / 60)}:${String(otpRemainingSec % 60).padStart(2, '0')}` : 'OTP no activo'}
-            </Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Código OTP de 6 dígitos"
-              placeholderTextColor="#8E8E93"
-              keyboardType="number-pad"
-              value={otpCode}
-              onChangeText={setOtpCode}
-              maxLength={6}
-              autoComplete="one-time-code"
-              textContentType="oneTimeCode"
-            />
-            <TouchableOpacity
-              style={[styles.otpVerifyBtn, otpVerified && styles.otpVerifyBtnOk]}
-              onPress={() => {
-                void handleVerifyEmailOtp();
-              }}
-              disabled={otpVerifying || otpVerified}
-            >
-              {otpVerifying ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.otpVerifyBtnText}>{otpVerified ? 'Email verificado' : 'Validar OTP'}</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.label}>Telefono (Unico)</Text>
+          <Text style={styles.label}>{tr('Telefono (Unico)', 'Phone (Unique)')}</Text>
           <TextInput
             style={styles.input}
             placeholder="+1 000 000 0000"
@@ -908,42 +1004,95 @@ export default function RegisterScreen() {
             keyboardType="phone-pad"
             value={phoneNumber}
             onChangeText={setPhoneNumber}
+            autoComplete="off"
+            textContentType="none"
+            importantForAutofill="no"
           />
+          <Text
+            style={[
+              styles.validationText,
+              phoneStatus === 'available' && styles.validationOk,
+              (phoneStatus === 'taken' || phoneStatus === 'invalid') && styles.validationError,
+            ]}
+          >
+            {phoneStatus === 'available'
+              ? tr('Numero disponible', 'Phone number available')
+              : phoneStatus === 'checking'
+                ? tr('Validando numero...', 'Checking phone number...')
+                : phoneStatus === 'taken'
+                  ? tr('Numero ya existe', 'This phone number already exists')
+                  : phoneStatus === 'invalid'
+                    ? tr('Numero invalido (minimo 8 digitos)', 'Invalid phone number (minimum 8 digits)')
+                    : tr('Ingresa tu numero para validar disponibilidad', 'Enter your phone number to check availability')}
+          </Text>
 
-          <Text style={styles.label}>Fecha de Nacimiento</Text>
+          <Text style={styles.label}>{tr('Fecha de Nacimiento', 'Birth Date')}</Text>
+          <View style={styles.dateInputRow}>
+            <TextInput
+              style={[styles.input, styles.dateInput]}
+              placeholder="MM-DD-YYYY"
+              placeholderTextColor="#8E8E93"
+              keyboardType="number-pad"
+              maxLength={10}
+              value={birthDate}
+              onChangeText={(value) => setBirthDate(formatBirthDateInput(value))}
+            />
+            <TouchableOpacity style={styles.calendarButton} onPress={openBirthPicker}>
+              <Text style={styles.calendarButtonIcon}>📅</Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.label}>{tr('Ciudad', 'City')}</Text>
           <TextInput
             style={styles.input}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor="#8E8E93"
-            value={birthDate}
-            onChangeText={setBirthDate}
-          />
-
-          <Text style={styles.label}>Ciudad</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Ej: Houston"
+            placeholder={tr('Ej: Houston', 'Ex: Houston')}
             placeholderTextColor="#8E8E93"
             value={city}
             onChangeText={setCity}
           />
 
-          <Text style={styles.label}>Horario detectado</Text>
+          <Text style={styles.label}>{tr('Estado', 'State')}</Text>
+          <TextInput
+            style={styles.input}
+            placeholder={tr('Ej: Texas', 'Ex: Texas')}
+            placeholderTextColor="#8E8E93"
+            value={stateRegion}
+            onChangeText={setStateRegion}
+          />
+
+          <Text style={styles.label}>{tr('Pais', 'Country')}</Text>
+          <TextInput
+            style={styles.input}
+            placeholder={tr('Ej: Estados Unidos', 'Ex: United States')}
+            placeholderTextColor="#8E8E93"
+            value={country}
+            onChangeText={setCountry}
+          />
+
+          <TouchableOpacity style={styles.geoButton} onPress={() => void autofillLocationFromDevice()} disabled={isAutofillingLocation}>
+            {isAutofillingLocation ? (
+              <ActivityIndicator size="small" color="#0D4D8A" />
+            ) : (
+              <Text style={styles.geoButtonText}>{tr('Autocompletar ubicacion', 'Autofill location')}</Text>
+            )}
+          </TouchableOpacity>
+
+          <Text style={styles.label}>{tr('Horario detectado', 'Detected timezone')}</Text>
           <Text style={styles.readOnlyValue}>{timezone}</Text>
 
           {!socialProviderId ? (
             <>
-              <Text style={styles.label}>Contrasena</Text>
+              <Text style={styles.label}>{tr('Contrasena', 'Password')}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Minimo 8 caracteres"
+                placeholder={tr('Minimo 8 caracteres', 'Minimum 8 characters')}
                 placeholderTextColor="#8E8E93"
                 secureTextEntry
+                autoComplete="off"
+                textContentType="none"
+                importantForAutofill="no"
                 value={password}
                 onChangeText={setPassword}
-                onFocus={() => {
-                  void handleBiometricAutofill();
-                }}
               />
             </>
           ) : null}
@@ -951,15 +1100,15 @@ export default function RegisterScreen() {
           <TouchableOpacity
             style={[
               styles.registerButton,
-              (!acceptedLegal || isSubmitting || isRetryLocked || nicknameStatus !== 'available' || !otpVerified) && styles.registerButtonDisabled,
+              (!acceptedLegal || isSubmitting || isRetryLocked || nicknameStatus !== 'available' || emailStatus !== 'available' || phoneStatus !== 'available') && styles.registerButtonDisabled,
             ]}
             onPress={handleRegister}
-            disabled={isSubmitting || !acceptedLegal || isRetryLocked || nicknameStatus !== 'available' || !otpVerified}
+            disabled={isSubmitting || !acceptedLegal || isRetryLocked || nicknameStatus !== 'available' || emailStatus !== 'available' || phoneStatus !== 'available'}
           >
             {isSubmitting ? (
               <ActivityIndicator color="#0A2540" />
             ) : (
-              <Text style={styles.registerButtonText}>CONFIRMAR REGISTRO</Text>
+              <Text style={styles.registerButtonText}>{tr('CONFIRMAR REGISTRO', 'CONFIRM SIGN UP')}</Text>
             )}
           </TouchableOpacity>
 
@@ -967,11 +1116,11 @@ export default function RegisterScreen() {
             <View style={[styles.legalCheckbox, acceptedLegal && styles.legalCheckboxChecked]}>
               {acceptedLegal ? <Text style={styles.legalCheckmark}>✓</Text> : null}
             </View>
-            <Text style={styles.legalText}>Acepto Términos y Condiciones + Política de Privacidad</Text>
+            <Text style={styles.legalText}>{tr('Acepto Terminos y Condiciones + Politica de Privacidad', 'I accept Terms and Conditions + Privacy Policy')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
-            <Text style={{ color: 'white', opacity: 0.5 }}>Volver atrás</Text>
+            <Text style={{ color: 'white', opacity: 0.5 }}>{tr('Volver atras', 'Go back')}</Text>
           </TouchableOpacity>
           </ScrollView>
         </LinearGradient>
@@ -1017,6 +1166,74 @@ export default function RegisterScreen() {
             router.replace('/(tabs)/vault');
           }}
         />
+
+        <Modal
+          visible={birthPickerVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setBirthPickerVisible(false)}
+        >
+          <View style={styles.dateModalOverlay}>
+            <View style={styles.dateModalCard}>
+              <View style={styles.dateModalAccent} />
+              <Text style={styles.dateModalTitle}>{tr('Selecciona fecha de nacimiento', 'Select birth date')}</Text>
+              <Text style={styles.dateModalHint}>{tr('Orden USA: Mes - Dia - Año', 'US order: Month - Day - Year')}</Text>
+              <View style={styles.dateSelectedBadge}>
+                <Text style={styles.dateSelectedBadgeText}>{formatBirthDateUs(pickerMonth, pickerDay, pickerYear)}</Text>
+              </View>
+
+              <View style={styles.datePickerRow}>
+                <View style={styles.datePickerColumn}>
+                  <Text style={styles.datePickerLabel}>{tr('Año', 'Year')}</Text>
+                  <Picker
+                    style={styles.datePickerNative}
+                    selectedValue={pickerYear}
+                    onValueChange={(value) => setPickerYear(Number(value))}
+                  >
+                    {Array.from({ length: 121 }, (_, i) => new Date().getFullYear() - i).map((year) => (
+                      <Picker.Item key={`y-${year}`} label={String(year)} value={year} />
+                    ))}
+                  </Picker>
+                </View>
+
+                <View style={styles.datePickerColumn}>
+                  <Text style={styles.datePickerLabel}>{tr('Mes', 'Month')}</Text>
+                  <Picker
+                    style={styles.datePickerNative}
+                    selectedValue={pickerMonth}
+                    onValueChange={(value) => setPickerMonth(Number(value))}
+                  >
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                      <Picker.Item key={`m-${month}`} label={pad2(month)} value={month} />
+                    ))}
+                  </Picker>
+                </View>
+
+                <View style={styles.datePickerColumn}>
+                  <Text style={styles.datePickerLabel}>{tr('Dia', 'Day')}</Text>
+                  <Picker
+                    style={styles.datePickerNative}
+                    selectedValue={pickerDay}
+                    onValueChange={(value) => setPickerDay(Number(value))}
+                  >
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                      <Picker.Item key={`d-${day}`} label={pad2(day)} value={day} />
+                    ))}
+                  </Picker>
+                </View>
+              </View>
+
+              <View style={styles.dateModalActions}>
+                <TouchableOpacity style={styles.dateModalButtonGhost} onPress={() => setBirthPickerVisible(false)}>
+                  <Text style={styles.dateModalButtonGhostText}>{tr('Cancelar', 'Cancel')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.dateModalButtonPrimary} onPress={confirmBirthPicker}>
+                  <Text style={styles.dateModalButtonPrimaryText}>{tr('Confirmar', 'Confirm')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
   );
@@ -1198,6 +1415,44 @@ const styles = StyleSheet.create({
     color: '#0A2540',
     fontSize: 16,
   },
+  dateInputRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dateInput: {
+    flex: 1,
+  },
+  calendarButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#7BC2EC',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  calendarButtonIcon: {
+    fontSize: 18,
+  },
+  geoButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#7BC2EC',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 16,
+  },
+  geoButtonText: {
+    color: '#0D4D8A',
+    fontWeight: '700',
+    fontSize: 12,
+  },
   readOnlyValue: {
     width: '100%',
     backgroundColor: 'rgba(255,255,255,0.1)',
@@ -1207,6 +1462,113 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     marginBottom: 20,
+  },
+  dateModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  dateModalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#D8EAF6',
+    shadowColor: '#0A2540',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  dateModalAccent: {
+    width: 52,
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: '#C5A065',
+    alignSelf: 'center',
+    marginBottom: 10,
+  },
+  dateModalTitle: {
+    color: '#0A2540',
+    fontWeight: '800',
+    fontSize: 18,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  dateModalHint: {
+    color: '#4A4A4A',
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  dateSelectedBadge: {
+    alignSelf: 'center',
+    backgroundColor: '#F2F8FC',
+    borderWidth: 1,
+    borderColor: '#D7E7F2',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginBottom: 12,
+  },
+  dateSelectedBadgeText: {
+    color: '#0D4D8A',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  datePickerRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  datePickerColumn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#D7E7F2',
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#FBFDFF',
+  },
+  datePickerLabel: {
+    color: '#0D4D8A',
+    fontSize: 12,
+    fontWeight: '700',
+    paddingTop: 8,
+    paddingHorizontal: 10,
+  },
+  datePickerNative: {
+    height: 160,
+  },
+  dateModalActions: {
+    marginTop: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  dateModalButtonGhost: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#D7E7F2',
+    borderRadius: 10,
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  dateModalButtonGhostText: {
+    color: '#0D4D8A',
+    fontWeight: '700',
+  },
+  dateModalButtonPrimary: {
+    flex: 1,
+    backgroundColor: '#0D4D8A',
+    borderRadius: 10,
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  dateModalButtonPrimaryText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   registerButton: {
     backgroundColor: '#0D4D8A',

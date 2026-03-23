@@ -7,6 +7,7 @@ import { getActiveUserId } from '@/services/authSession';
 import { redeemQRGift } from '@/services/qrGiftService';
 import { ConfettiAnimation } from '../components/ConfettiAnimation';
 import { useRef } from 'react';
+import { useLanguage } from '@/services/language';
 
 interface ConfettiRef {
   trigger: () => void;
@@ -19,6 +20,8 @@ interface ConfettiRef {
 export default function RedeemScreen() {
   const router = useRouter();
   const { code } = useLocalSearchParams();
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => language === 'en' ? en : es;
   const [loading, setLoading] = useState(true);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,14 +39,14 @@ export default function RedeemScreen() {
       // Obtener usuario actual
       const userId = await getActiveUserId();
       if (!userId) {
-        setError('No se pudo identificar tu usuario. Por favor, inicia sesión.');
+        setError(tr('No se pudo identificar tu usuario. Por favor, inicia sesión.', 'Could not identify your user. Please sign in.'));
         setLoading(false);
         return;
       }
 
       // Validar código
       if (!code || typeof code !== 'string') {
-        setError('Código de regalo inválido');
+        setError(tr('Código de regalo inválido', 'Invalid gift code'));
         setLoading(false);
         return;
       }
@@ -67,7 +70,7 @@ export default function RedeemScreen() {
         }, 3000);
       }
     } catch (err: any) {
-      setError(err.message || 'No se pudo canjear el código. Intenta de nuevo.');
+      setError(err.message || tr('No se pudo canjear el código. Intenta de nuevo.', 'Could not redeem the code. Try again.'));
       setLoading(false);
     }
   };
@@ -77,7 +80,7 @@ export default function RedeemScreen() {
       <LinearGradient colors={['#0A2540', '#1A3D5C']} style={styles.container}>
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color="#C5A065" />
-          <Text style={styles.loadingText}>Validando regalo...</Text>
+          <Text style={styles.loadingText}>{tr('Validando regalo...', 'Validating gift...')}</Text>
         </View>
       </LinearGradient>
     );
@@ -88,7 +91,7 @@ export default function RedeemScreen() {
       <LinearGradient colors={['#0A2540', '#1A3D5C']} style={styles.container}>
         <View style={styles.centerContent}>
           <MaterialCommunityIcons name="alert-circle" size={60} color="#E74C3C" />
-          <Text style={styles.errorTitle}>❌ No se pudo canjear</Text>
+          <Text style={styles.errorTitle}>{tr('❌ No se pudo canjear', '❌ Could not redeem')}</Text>
           <Text style={styles.errorText}>{error}</Text>
         </View>
       </LinearGradient>
@@ -103,13 +106,13 @@ export default function RedeemScreen() {
         <View style={styles.centerContent}>
           <MaterialCommunityIcons name="gift" size={80} color="#C5A065" />
 
-          <Text style={styles.successTitle}>🎉 ¡Regalo Canjeado!</Text>
+          <Text style={styles.successTitle}>{tr('🎉 ¡Regalo Canjeado!', '🎉 Gift Redeemed!')}</Text>
 
           <View style={styles.rewardBox}>
             <View style={styles.rewardItem}>
               <MaterialCommunityIcons name="cash" size={24} color="#C5A065" />
               <Text style={styles.rewardValue}>{rewardDetails.credits}</Text>
-              <Text style={styles.rewardLabel}>Créditos</Text>
+              <Text style={styles.rewardLabel}>{tr('Créditos', 'Credits')}</Text>
             </View>
 
             <View style={styles.divider} />
@@ -117,22 +120,19 @@ export default function RedeemScreen() {
             <View style={styles.rewardItem}>
               <MaterialCommunityIcons name="crown" size={24} color="#C5A065" />
               <Text style={styles.rewardValue}>{rewardDetails.months}</Text>
-              <Text style={styles.rewardLabel}>Mes(es) Premium</Text>
+              <Text style={styles.rewardLabel}>{tr('Mes(es) Premium', 'Month(s) Premium')}</Text>
             </View>
           </View>
 
           <Text style={styles.successMessage}>
-            ¡Pochobs te ha regalado{' '}
-            <Text style={{ fontWeight: '700' }}>
-              {rewardDetails.credits} CS y {rewardDetails.months} mes{rewardDetails.months > 1 ? 'es' : ''} de Premium!
-            </Text>
+            {tr(`¡Pochobs te ha regalado ${rewardDetails.credits} CS y ${rewardDetails.months} mes${rewardDetails.months > 1 ? 'es' : ''} de Premium!`, `Pochobs has gifted you ${rewardDetails.credits} CS and ${rewardDetails.months} month${rewardDetails.months > 1 ? 's' : ''} of Premium!`)}
           </Text>
 
           <Text style={styles.thankYouText}>
-            Gracias por ser parte de la comunidad Card-Social 💙
+            {tr('Gracias por ser parte de la comunidad Card-Social 💙', 'Thank you for being part of the Card-Social community 💙')}
           </Text>
 
-          <Text style={styles.autoCloseText}>Cerrando en 3 segundos...</Text>
+          <Text style={styles.autoCloseText}>{tr('Cerrando en 3 segundos...', 'Closing in 3 seconds...')}</Text>
         </View>
       </LinearGradient>
     );

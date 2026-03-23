@@ -30,6 +30,7 @@ import { getActiveUserId } from '@/services/authSession';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import { fetchFaviconFromAzure } from '@/services/faviconApi';
 import { hardLockCheck } from '@/services/biometricAuth';
+import { useLanguage } from '@/services/language';
 import LuxuryModerationModal from './LuxuryModerationModal';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -141,6 +142,8 @@ const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2 MB
 const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024; // 20 MB
 
 const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingData?: Link }) => {
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => language === 'en' ? en : es;
   const [dataType, setDataType] = useState<DataType>('Enlaces');
   const [dataName, setDataName] = useState('');
   const [dataValue, setDataValue] = useState('');
@@ -355,7 +358,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permiso denegado', 'Se necesita acceso a fotos');
+        Alert.alert(tr('Permiso denegado', 'Permission denied'), tr('Se necesita acceso a fotos', 'Photo access needed'));
         return;
       }
 
@@ -370,7 +373,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         // Validar tamaño antes de comprimir
         const validation = await validateFileSize(file.uri);
         if (!validation.valid) {
-          Alert.alert('Archivo muy grande', validation.message || 'El archivo supera el límite permitido');
+          Alert.alert(tr('Archivo muy grande', 'File too large'), validation.message || tr('El archivo supera el límite permitido', 'File exceeds size limit'));
           setFileTypeModalVisible(false);
           return;
         }
@@ -381,7 +384,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       setFileTypeModalVisible(false);
     } catch (error) {
       console.error('Error picking photo:', error);
-      Alert.alert('Error', 'No se pudo seleccionar la foto');
+      Alert.alert(tr('Error', 'Error'), tr('No se pudo seleccionar la foto', 'Could not select photo'));
     }
   };
 
@@ -401,7 +404,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       const file = result.assets[0];
       const validation = await validateFileSize(file.uri);
       if (!validation.valid) {
-        Alert.alert('Archivo muy grande', validation.message || 'El archivo supera el limite permitido');
+        Alert.alert(tr('Archivo muy grande', 'File too large'), validation.message || tr('El archivo supera el limite permitido', 'File exceeds size limit'));
         setFileTypeModalVisible(false);
         return;
       }
@@ -410,7 +413,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       setFileTypeModalVisible(false);
     } catch (error) {
       console.error('Error picking document:', error);
-      Alert.alert('Error', 'No se pudo seleccionar el documento');
+      Alert.alert(tr('Error', 'Error'), tr('No se pudo seleccionar el documento', 'Could not select document'));
     }
   };
 
@@ -418,7 +421,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permiso denegado', 'Se necesita acceso a fotos para elegir un icono manual');
+        Alert.alert(tr('Permiso denegado', 'Permission denied'), tr('Se necesita acceso a fotos para elegir un icono manual', 'Photo access needed to select custom icon'));
         return;
       }
 
@@ -435,7 +438,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       }
     } catch (error) {
       console.error('Error picking manual icon:', error);
-      Alert.alert('Error', 'No se pudo seleccionar el icono manual');
+      Alert.alert(tr('Error', 'Error'), tr('No se pudo seleccionar el icono manual', 'Could not select custom icon'));
     }
   };
 
@@ -609,7 +612,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   // Save to Firestore (Create or Update)
   const handleCreate = async () => {
     if (!dataName.trim() || !dataValue.trim()) {
-      Alert.alert('❌ Error', 'Completa todos los campos');
+      Alert.alert(tr('❌ Error', '❌ Error'), tr('Completa todos los campos', 'Complete all fields'));
       return;
     }
 
@@ -631,7 +634,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       const userId = await getActiveUserId();
 
       if (!userId) {
-        Alert.alert('❌ Error', 'No se pudo identificar al usuario activo');
+        Alert.alert(tr('❌ Error', '❌ Error'), tr('No se pudo identificar al usuario activo', 'Could not identify active user'));
         return;
       }
 
@@ -704,14 +707,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       await AsyncStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(dataArray));
 
       Alert.alert(
-        '✅ Éxito',
+        tr('✅ Éxito', '✅ Success'),
         cloudSynced
           ? editingData?.id
-            ? 'Datos actualizados y sincronizados en la nube'
-            : 'Datos guardados y sincronizados en la nube'
+            ? tr('Datos actualizados y sincronizados en la nube', 'Data updated and synced to cloud')
+            : tr('Datos guardados y sincronizados en la nube', 'Data saved and synced to cloud')
           : editingData?.id
-            ? 'Datos actualizados en cache local (pendiente nube)'
-            : 'Datos guardados en cache local (pendiente nube)'
+            ? tr('Datos actualizados en cache local (pendiente nube)', 'Data updated in local cache (cloud pending)')
+            : tr('Datos guardados en cache local (pendiente nube)', 'Data saved in local cache (cloud pending)')
       );
       
       // Cerrar y refrescar automáticamente
@@ -721,7 +724,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       if (error instanceof ModerationRejectedError) {
         registerModerationReject();
       } else {
-        Alert.alert('❌ Error', 'No se pudieron guardar los datos');
+        Alert.alert(tr('❌ Error', '❌ Error'), tr('No se pudieron guardar los datos', 'Could not save data'));
       }
     } finally {
       setIsSaving(false);

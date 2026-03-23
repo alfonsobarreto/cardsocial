@@ -37,6 +37,7 @@ import {
   ExportBusinessQR,
   generatePermanentBusinessLink,
 } from '@/services/brandedQrService';
+import { useLanguage } from '@/services/language';
 
 interface BusinessCardFormData {
   businessName: string;
@@ -54,6 +55,8 @@ interface BusinessCardFormData {
 
 export default function CreateBusinessCardScreen() {
   const router = useRouter();
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => language === 'en' ? en : es;
   const [formData, setFormData] = useState<BusinessCardFormData>({
     businessName: '',
     ownerName: '',
@@ -111,36 +114,36 @@ export default function CreateBusinessCardScreen() {
    */
   const validateForm = (): boolean => {
     if (!formData.businessName.trim()) {
-      Alert.alert('Error', 'Nombre del negocio es requerido.');
+      Alert.alert(tr('Error', 'Error'), tr('Nombre del negocio es requerido.', 'Business name is required.'));
       return false;
     }
     if (!formData.ownerName.trim()) {
-      Alert.alert('Error', 'Nombre del propietario es requerido.');
+      Alert.alert(tr('Error', 'Error'), tr('Nombre del propietario es requerido.', 'Owner name is required.'));
       return false;
     }
     if (!formData.ownerEmail.trim()) {
-      Alert.alert('Error', 'Email es requerido.');
+      Alert.alert(tr('Error', 'Error'), tr('Email es requerido.', 'Email is required.'));
       return false;
     }
     if (!formData.ownerPhone.trim()) {
-      Alert.alert('Error', 'Teléfono es requerido.');
+      Alert.alert(tr('Error', 'Error'), tr('Teléfono es requerido.', 'Phone is required.'));
       return false;
     }
     const pitchWordCount = countWords(formData.elevatorPitch);
     if (pitchWordCount === 0 || pitchWordCount > 20) {
-      Alert.alert('Error', 'El Elevator Pitch debe tener entre 1 y 20 palabras.');
+      Alert.alert(tr('Error', 'Error'), tr('El Elevator Pitch debe tener entre 1 y 20 palabras.', 'Elevator Pitch must have between 1 and 20 words.'));
       return false;
     }
     if (formData.contractPdfUrl.trim() && !/\.pdf(\?.*)?$/i.test(formData.contractPdfUrl.trim())) {
-      Alert.alert('Error', 'El contrato debe ser un enlace PDF válido.');
+      Alert.alert(tr('Error', 'Error'), tr('El contrato debe ser un enlace PDF válido.', 'Contract must be a valid PDF link.'));
       return false;
     }
     if (!formData.kycDocumentUri) {
-      Alert.alert('Error', 'Foto de ID es requerida para validación KYC.');
+      Alert.alert(tr('Error', 'Error'), tr('Foto de ID es requerida para validación KYC.', 'ID photo is required for KYC validation.'));
       return false;
     }
     if (!formData.acceptedTerms) {
-      Alert.alert('Error', 'Debes aceptar el contrato ético antes de continuar.');
+      Alert.alert(tr('Error', 'Error'), tr('Debes aceptar el contrato ético antes de continuar.', 'You must accept the ethical contract to continue.'));
       return false;
     }
     return true;
@@ -201,7 +204,7 @@ export default function CreateBusinessCardScreen() {
     try {
       const userId = await getActiveUserId();
       if (!userId) {
-        Alert.alert('Error', 'Usuario no autenticado.');
+        Alert.alert(tr('Error', 'Error'), tr('Usuario no autenticado.', 'User not authenticated.'));
         setLoading(false);
         return;
       }
@@ -240,7 +243,7 @@ export default function CreateBusinessCardScreen() {
       // PASO 2: PROCESAR PAGO CON REVENUCAT
       const purchaseResult = await purchaseBusinessCard(platform, false, businessCardId, userId);
       if (!purchaseResult.success) {
-        Alert.alert('Error', `Error en la compra: ${purchaseResult.message}`);
+        Alert.alert(tr('Error', 'Error'), `${tr('Error en la compra: ', 'Purchase error: ')}${purchaseResult.message}`);
         setLoading(false);
         return;
       }
@@ -313,9 +316,9 @@ export default function CreateBusinessCardScreen() {
                 format: 'png',
               });
               if (result.success) {
-                Alert.alert('✅ Éxito', result.message);
+                Alert.alert(tr('✅ Éxito', '✅ Success'), result.message);
               } else {
-                Alert.alert('⚠️ Error', result.message);
+                Alert.alert(tr('⚠️ Error', '⚠️ Error'), result.message);
               }
               router.back();
             },
@@ -331,9 +334,9 @@ export default function CreateBusinessCardScreen() {
                 format: 'pdf',
               });
               if (result.success) {
-                Alert.alert('✅ Éxito', result.message);
+                Alert.alert(tr('✅ Éxito', '✅ Success'), result.message);
               } else {
-                Alert.alert('⚠️ Error', result.message);
+                Alert.alert(tr('⚠️ Error', '⚠️ Error'), result.message);
               }
               router.back();
             },
@@ -348,7 +351,7 @@ export default function CreateBusinessCardScreen() {
       );
     } catch (error: any) {
       console.error('Error creating business card:', error);
-      Alert.alert('Error', `Error creando tarjeta: ${error.message}`);
+      Alert.alert(tr('Error', 'Error'), tr(`Error creando tarjeta: ${error.message}`, `Error creating card: ${error.message}`));
     } finally {
       setLoading(false);
     }

@@ -35,6 +35,7 @@ import { db } from '@/services/firebaseConfig';
 import { BusinessCardSearchResult, GeoLocation } from '@/types/businessCard';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { hasActiveBusinessLicense } from '@/services/businessLicenseService';
+import { useLanguage } from '@/services/language';
 
 interface MyContact {
   id: string;
@@ -46,6 +47,8 @@ interface MyContact {
 export default function SearchScreen() {
   const router = useRouter();
   const isDark = useColorScheme() === 'dark';
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => language === 'en' ? en : es;
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState<BusinessCardSearchResult[]>([]);
   const [myContacts, setMyContacts] = useState<MyContact[]>([]);
@@ -131,10 +134,10 @@ export default function SearchScreen() {
         const location = await getCurrentLocation();
         if (location) {
           setUserLocation(location);
-          Alert.alert('✅ GPS Activado', 'Ahora buscaremos negocios cercanos');
+          Alert.alert(tr('✅ GPS Activado', '✅ GPS Activated'), tr('Ahora buscaremos negocios cercanos', 'Now we will search nearby businesses'));
         }
       } else {
-        Alert.alert('❌ Permiso Denegado', 'Sin GPS no puedo buscar negocios cercanos');
+        Alert.alert(tr('❌ Permiso Denegado', '❌ Permission Denied'), tr('Sin GPS no puedo buscar negocios cercanos', 'Without GPS I cannot search nearby businesses'));
       }
     } catch (error) {
       console.error('Error requesting location:', error);
@@ -143,7 +146,7 @@ export default function SearchScreen() {
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
-      Alert.alert('Error', 'Ingresa palabras clave para buscar');
+      Alert.alert(tr('Error', 'Error'), tr('Ingresa palabras clave para buscar', 'Enter keywords to search'));
       return;
     }
 
@@ -169,11 +172,11 @@ export default function SearchScreen() {
       setResults(searchResults);
 
       if (searchResults.length === 0) {
-        Alert.alert('Sin Resultados', 'No encontramos coincidencias con esa búsqueda');
+        Alert.alert(tr('Sin Resultados', 'No Results'), tr('No encontramos coincidencias con esa búsqueda', 'We found no matches for that search'));
       }
     } catch (error) {
       console.error('Error searching:', error);
-      Alert.alert('Error', 'Error en la búsqueda');
+      Alert.alert(tr('Error', 'Error'), tr('Error en la búsqueda', 'Search error'));
     } finally {
       setLoading(false);
     }
@@ -201,7 +204,7 @@ export default function SearchScreen() {
       }
 
       if (!location) {
-        Alert.alert('Error', 'No se pudo obtener tu ubicación');
+        Alert.alert(tr('Error', 'Error'), tr('No se pudo obtener tu ubicación', 'Could not get your location'));
         setLoading(false);
         return;
       }
@@ -222,7 +225,7 @@ export default function SearchScreen() {
       }
     } catch (error) {
       console.error('Error finding nearby:', error);
-      Alert.alert('Error', 'Error buscando negocios cercanos');
+      Alert.alert(tr('Error', 'Error'), tr('Error buscando negocios cercanos', 'Error searching nearby businesses'));
     } finally {
       setLoading(false);
     }
@@ -337,9 +340,9 @@ export default function SearchScreen() {
           format: 'png',
         });
 
-        Alert.alert('QR Exportado', result.message);
+        Alert.alert(tr('QR Exportado', 'QR Exported'), result.message);
       } catch (error: any) {
-        Alert.alert('Error', error?.message || 'No fue posible exportar el QR.');
+        Alert.alert(tr('Error', 'Error'), error?.message || tr('No fue posible exportar el QR.', 'Could not export QR.'));
       }
     };
 

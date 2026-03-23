@@ -26,6 +26,7 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
+import { useLanguage } from '@/services/language';
 import { blockRelationship, createCallLog, listReceivedContacts, removeRelationship } from '@/services/qrApi';
 import {
   getIncomingGhostLinkInvite,
@@ -96,6 +97,8 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 export default function ContactsPage() {
   const router = useRouter();
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => language === 'en' ? en : es;
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [metaMap, setMetaMap] = useState<Record<string, ContactMeta>>({});
   const [groupFavorites, setGroupFavorites] = useState<Record<string, boolean>>({});
@@ -535,7 +538,7 @@ export default function ContactsPage() {
         setSelectedContact(null);
       }
     } catch (error: any) {
-      Alert.alert('No se pudo eliminar', error?.message || 'Intenta de nuevo.');
+      Alert.alert(tr('No se pudo eliminar', 'Could not delete'), error?.message || tr('Intenta de nuevo.', 'Try again.'));
     }
   };
 
@@ -558,7 +561,7 @@ export default function ContactsPage() {
       setLongPressVisible(false);
       setLongPressContact(null);
     } catch (error: any) {
-      Alert.alert('No se pudo bloquear', error?.message || 'Intenta de nuevo.');
+      Alert.alert(tr('No se pudo bloquear', 'Could not block'), error?.message || tr('Intenta de nuevo.', 'Try again.'));
     }
   };
 
@@ -611,7 +614,7 @@ export default function ContactsPage() {
 
       const ownerUid = await getActiveUserId();
       if (!ownerUid) {
-        Alert.alert('Sesion requerida', 'No se pudo validar tu sesion para iniciar Ghost-Link.');
+        Alert.alert(tr('Sesion requerida', 'Session required'), tr('No se pudo validar tu sesion para iniciar Ghost-Link.', 'Could not validate your session to start Ghost-Link.'));
         return;
       }
 
@@ -663,7 +666,7 @@ export default function ContactsPage() {
       setGhostConfirmVisible(false);
       setGhostCallTarget(null);
     } catch (error: any) {
-      Alert.alert('No se pudo iniciar Ghost-Link', error?.message || 'Intenta de nuevo.');
+      Alert.alert(tr('No se pudo iniciar Ghost-Link', 'Could not start Ghost-Link'), error?.message || tr('Intenta de nuevo.', 'Try again.'));
     } finally {
       setGhostCallLoading(false);
     }
@@ -704,7 +707,7 @@ export default function ContactsPage() {
     setActiveGhostCall(null);
     setGhostCallMuted(false);
     setGhostCallSpeaker(false);
-    Alert.alert('Llamada finalizada', 'Ghost-Link se cerró. Tu numero real continuo oculto.');
+    Alert.alert(tr('Llamada finalizada', 'Call ended'), tr('Ghost-Link se cerró. Tu numero real continuo oculto.', 'Ghost-Link closed. Your real number remains hidden.'));
   };
 
   const rejectIncomingGhostCall = () => {
@@ -793,7 +796,7 @@ export default function ContactsPage() {
 
         setIncomingGhostCall(null);
       } catch (error: any) {
-        Alert.alert('No se pudo aceptar la llamada', error?.message || 'Intenta de nuevo.');
+        Alert.alert(tr('No se pudo aceptar la llamada', 'Could not accept call'), error?.message || tr('Intenta de nuevo.', 'Try again.'));
       }
     })();
   };

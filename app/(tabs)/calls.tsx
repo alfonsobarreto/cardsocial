@@ -40,6 +40,8 @@ const STORY_RING_VIP = '#C5A065';
 const QUICK_TAGS = ['Interesado', 'Llamar luego', 'Cerrado'];
 
 export default function CallsPage() {
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => language === 'en' ? en : es;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [ownerUid, setOwnerUid] = useState('');
@@ -90,7 +92,7 @@ export default function CallsPage() {
         }))
       );
     } catch (error: any) {
-      Alert.alert('No se pudo cargar Calls', error?.message || 'Intenta de nuevo.');
+      Alert.alert(tr('No se pudo cargar Calls', 'Could not load Calls'), error?.message || tr('Intenta de nuevo.', 'Try again.'));
     } finally {
       setLoading(false);
     }
@@ -112,7 +114,7 @@ export default function CallsPage() {
         setSelectedCall((prev) => (prev ? { ...prev, tags: [tag] } : prev));
       }
     } catch (error: any) {
-      Alert.alert('No se pudo guardar etiqueta', error?.message || 'Intenta otra vez.');
+      Alert.alert(tr('No se pudo guardar etiqueta', 'Could not save tag'), error?.message || tr('Intenta otra vez.', 'Try again.'));
     } finally {
       setSaving(false);
     }
@@ -155,7 +157,7 @@ export default function CallsPage() {
         );
       }
     } catch (error: any) {
-      Alert.alert('Nota de voz no guardada', error?.message || 'No se pudo adjuntar audio.');
+      Alert.alert(tr('Nota de voz no guardada', 'Voice note not saved'), error?.message || tr('No se pudo adjuntar audio.', 'Could not attach audio.'));
     } finally {
       setSaving(false);
     }
@@ -167,7 +169,7 @@ export default function CallsPage() {
         return;
       }
       if (!newPeerUid) {
-        Alert.alert('Contacto requerido', 'Selecciona un contacto para registrar la llamada.');
+        Alert.alert(tr('Contacto requerido', 'Contact required'), tr('Selecciona un contacto para registrar la llamada.', 'Select a contact to register the call.'));
         return;
       }
 
@@ -187,7 +189,7 @@ export default function CallsPage() {
       setNewPeerUid('');
       await loadData();
     } catch (error: any) {
-      Alert.alert('No se pudo registrar llamada', error?.message || 'Intenta nuevamente.');
+      Alert.alert(tr('No se pudo registrar llamada', 'Could not register call'), error?.message || tr('Intenta nuevamente.', 'Try again.'));
     } finally {
       setSaving(false);
     }
@@ -224,8 +226,8 @@ export default function CallsPage() {
         <View style={styles.rowMain}>
           <Text style={styles.nameText} numberOfLines={1}>{item.name}</Text>
           <Text style={styles.nickText} numberOfLines={1}>@{item.nickname}</Text>
-          <Text style={styles.cardHintText} numberOfLines={1}>{item.sourceCardName || contact?.cardName || 'Tarjeta de contacto'}</Text>
-          <Text style={styles.callChannelText}>Canal privado: Ghost-Link VoIP</Text>
+          <Text style={styles.cardHintText} numberOfLines={1}>{item.sourceCardName || contact?.cardName || tr('Tarjeta de contacto', 'Contact card')}</Text>
+          <Text style={styles.callChannelText}>{tr('Canal privado: Ghost-Link VoIP', 'Private channel: Ghost-Link VoIP')}</Text>
 
           <View style={styles.tagRow}>
             {QUICK_TAGS.map((tag) => {
@@ -285,7 +287,7 @@ export default function CallsPage() {
           onRefresh={() => {
             void loadData();
           }}
-          ListEmptyComponent={<Text style={styles.emptyText}>Aun no hay llamadas registradas.</Text>}
+          ListEmptyComponent={<Text style={styles.emptyText}>{tr('Aun no hay llamadas registradas.', 'No calls registered yet.')}</Text>}
         />
       )}
 
@@ -307,11 +309,11 @@ export default function CallsPage() {
 
             <Text style={styles.detailName}>{selectedCall?.name || ''}</Text>
             <Text style={styles.detailNick}>@{selectedCall?.nickname || ''}</Text>
-            <Text style={styles.detailCardName}>{selectedCall?.sourceCardName || selectedContact?.cardName || 'Tarjeta social'}</Text>
+            <Text style={styles.detailCardName}>{selectedCall?.sourceCardName || selectedContact?.cardName || tr('Tarjeta social', 'Social card')}</Text>
             <Text style={styles.detailStats}>
               Rating {Number(selectedContact?.ratingAvg || 0).toFixed(1)} | {selectedContact?.holdersCount || 0} poseedores
             </Text>
-            <Text style={styles.detailMeta}>Ultima nota de voz: {selectedCall?.voiceNoteName || 'Ninguna'}</Text>
+            <Text style={styles.detailMeta}>{tr('Ultima nota de voz:', 'Last voice note:')} {selectedCall?.voiceNoteName || tr('Ninguna', 'None')}</Text>
           </View>
         </View>
       </Modal>

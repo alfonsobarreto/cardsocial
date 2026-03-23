@@ -11,6 +11,8 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/services/firebaseConfig';
 import { FREE_TIER_POLICY } from '@/constants/freeTierPolicy';
 
+const PRIVILEGED_NICKNAMES = new Set(['pochobs_admin']);
+
 export interface LimitValidationResult {
   canCreate: boolean;
   currentCount: number;
@@ -46,6 +48,13 @@ export async function isPremiumUser(userId: string): Promise<boolean> {
     }
 
     const userData = querySnapshot.docs[0].data();
+    const nicknameLower = String(userData?.nicknameLower || '').trim().toLowerCase();
+    const role = String(userData?.role || '').trim().toLowerCase();
+
+    if (PRIVILEGED_NICKNAMES.has(nicknameLower) || role === 'super_admin') {
+      return true;
+    }
+
     return userData?.isPremium === true || userData?.subscriptionStatus === 'active';
   } catch (error) {
     console.error('Error validating premium status:', error);

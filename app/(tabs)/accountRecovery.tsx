@@ -15,10 +15,13 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { initiateAccountRecovery, checkRecoveryRequestStatus } from '@/services/accountRecoveryService';
+import { useLanguage } from '@/services/language';
 
 type RecoveryStep = 'method-select' | 'email-recovery' | 'ticket-status';
 
 export default function AccountRecoveryScreen({ onClose }: { onClose: () => void }) {
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => language === 'en' ? en : es;
   const [step, setStep] = useState<RecoveryStep>('method-select');
   const [email, setEmail] = useState('');
   const [ticketId, setTicketId] = useState('');
@@ -27,7 +30,7 @@ export default function AccountRecoveryScreen({ onClose }: { onClose: () => void
 
   const handleEmailRecovery = async () => {
     if (!email.trim()) {
-      Alert.alert('Error', 'Por favor ingresa tu email.');
+      Alert.alert(tr('Error', 'Error'), tr('Por favor ingresa tu email.', 'Please enter your email.'));
       return;
     }
 
@@ -36,16 +39,16 @@ export default function AccountRecoveryScreen({ onClose }: { onClose: () => void
     setLoading(false);
 
     if (result.success) {
-      Alert.alert('Éxito', result.message);
+      Alert.alert(tr('Éxito', 'Success'), result.message);
       setTimeout(() => onClose(), 2000);
     } else {
-      Alert.alert('Error', result.message);
+      Alert.alert(tr('Error', 'Error'), result.message);
     }
   };
 
   const handleCheckTicketStatus = async () => {
     if (!ticketId.trim()) {
-      Alert.alert('Error', 'Por favor ingresa tu ID de ticket.');
+      Alert.alert(tr('Error', 'Error'), tr('Por favor ingresa tu ID de ticket.', 'Please enter your ticket ID.'));
       return;
     }
 

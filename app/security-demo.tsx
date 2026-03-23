@@ -2,55 +2,63 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { hardLockCheck } from '@/services/biometricAuth';
+import { useLanguage } from '@/services/language';
 
 export default function SecurityDemoScreen() {
   const router = useRouter();
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => (language === 'en' ? en : es);
   const [lastResult, setLastResult] = useState<'pending' | 'allowed' | 'blocked'>('pending');
 
   const handleSecurityTest = async () => {
-    const allowed = await hardLockCheck('acceso a tu Boveda de datos');
+    const allowed = await hardLockCheck(tr('acceso a tu Boveda de datos', 'access to your data Vault'));
 
     if (allowed) {
       setLastResult('allowed');
-      Alert.alert('Acceso permitido', 'Autenticacion valida. El acceso al Vault se habilita.');
+      Alert.alert(
+        tr('Acceso permitido', 'Access granted'),
+        tr('Autenticacion valida. El acceso al Vault se habilita.', 'Valid authentication. Vault access has been enabled.')
+      );
       return;
     }
 
     setLastResult('blocked');
     Alert.alert(
-      'Acceso bloqueado',
-      'Sin FaceID/huella o sin PIN/contrasena del dispositivo, el Vault queda bloqueado.'
+      tr('Acceso bloqueado', 'Access blocked'),
+      tr('Sin FaceID/huella o sin PIN/contrasena del dispositivo, el Vault queda bloqueado.', 'Without FaceID/fingerprint or device PIN/password, the Vault remains locked.')
     );
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Demo de Seguridad</Text>
-      <Text style={styles.subtitle}>Hard Lock del Vault sin bypass</Text>
+      <Text style={styles.title}>{tr('Demo de Seguridad', 'Security Demo')}</Text>
+      <Text style={styles.subtitle}>{tr('Hard Lock del Vault sin bypass', 'Vault hard lock without bypass')}</Text>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Prueba de acceso</Text>
+        <Text style={styles.cardTitle}>{tr('Prueba de acceso', 'Access test')}</Text>
         <Text style={styles.bodyText}>
-          Esta prueba intenta abrir una accion protegida del Vault. Si cancelas FaceID/huella y PIN,
-          el sistema debe bloquear el acceso.
+          {tr(
+            'Esta prueba intenta abrir una accion protegida del Vault. Si cancelas FaceID/huella y PIN, el sistema debe bloquear el acceso.',
+            'This test tries to open a protected Vault action. If you cancel FaceID/fingerprint and PIN, the system must block access.'
+          )}
         </Text>
 
         <TouchableOpacity style={styles.primaryButton} onPress={handleSecurityTest}>
-          <Text style={styles.primaryButtonText}>Probar bloqueo del Vault</Text>
+          <Text style={styles.primaryButtonText}>{tr('Probar bloqueo del Vault', 'Test Vault lock')}</Text>
         </TouchableOpacity>
 
         <View style={styles.statusBox}>
-          <Text style={styles.statusLabel}>Ultimo resultado:</Text>
+          <Text style={styles.statusLabel}>{tr('Ultimo resultado:', 'Last result:')}</Text>
           <Text style={styles.statusValue}>
-            {lastResult === 'pending' && 'Pendiente'}
-            {lastResult === 'allowed' && 'Permitido'}
-            {lastResult === 'blocked' && 'Bloqueado'}
+            {lastResult === 'pending' && tr('Pendiente', 'Pending')}
+            {lastResult === 'allowed' && tr('Permitido', 'Allowed')}
+            {lastResult === 'blocked' && tr('Bloqueado', 'Blocked')}
           </Text>
         </View>
       </View>
 
       <TouchableOpacity style={styles.secondaryButton} onPress={() => router.back()}>
-        <Text style={styles.secondaryButtonText}>Volver</Text>
+        <Text style={styles.secondaryButtonText}>{tr('Volver', 'Back')}</Text>
       </TouchableOpacity>
     </View>
   );
