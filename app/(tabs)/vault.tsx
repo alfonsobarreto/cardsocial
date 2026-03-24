@@ -20,7 +20,6 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LongPressGestureHandler, State } from 'react-native-gesture-handler';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as Clipboard from 'expo-clipboard';
@@ -725,12 +724,10 @@ const VaultScreen = () => {
     }
   };
 
-  const handleIconLongPress = (event: any, link: Link) => {
-    if (event.nativeEvent.state === State.ACTIVE) {
-      Vibration.vibrate(45);
-      setContextMenuItem(link);
-      setContextMenuVisible(true);
-    }
+  const handleIconLongPress = (link: Link) => {
+    Vibration.vibrate(45);
+    setContextMenuItem(link);
+    setContextMenuVisible(true);
   };
 
   const openEditFromContextMenu = async () => {
@@ -761,21 +758,18 @@ const VaultScreen = () => {
           isDullMode && styles.cardDullMode,
         ]}
         onPress={() => handleCardAction(item)}
+        onLongPress={() => handleIconLongPress(item)}
+        delayLongPress={1500}
         activeOpacity={0.75}
       >
-        <LongPressGestureHandler
-          minDurationMs={1500}
-          onHandlerStateChange={(event) => handleIconLongPress(event, item)}
-        >
-          <View style={[styles.iconBox, { backgroundColor: vaultTheme.iconCircleBg }]}>
-            {renderIcon(item)}
-            {item.isFavorite ? (
-              <View style={styles.favoriteBadge}>
-                <MaterialCommunityIcons name="star" color={vaultTheme.iconColor} size={10} />
-              </View>
-            ) : null}
-          </View>
-        </LongPressGestureHandler>
+        <View style={[styles.iconBox, { backgroundColor: vaultTheme.iconCircleBg }]}>
+          {renderIcon(item)}
+          {item.isFavorite ? (
+            <View style={styles.favoriteBadge}>
+              <MaterialCommunityIcons name="star" color={vaultTheme.iconColor} size={10} />
+            </View>
+          ) : null}
+        </View>
 
         <Text style={[styles.gridTitle, { color: vaultTheme.primaryText }]} numberOfLines={2}>
           {item.title}
