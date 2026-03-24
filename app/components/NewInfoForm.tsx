@@ -1471,6 +1471,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                     style={[
                       styles.modalItem,
                       dataType === item && styles.modalItemActive,
+                      dataType === item && { backgroundColor: formTheme.selectedPillBg },
                     ]}
                     onPress={() => {
                       setDataType(item);
@@ -1482,12 +1483,13 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                       style={[
                         styles.modalItemText,
                         dataType === item && styles.modalItemTextActive,
+                        dataType === item && { color: formTheme.selectedPillText },
                       ]}
                     >
                       {item}
                     </Text>
                     {dataType === item && (
-                      <MaterialCommunityIcons name="check" color="#1EA7FF" size={20} />
+                      <MaterialCommunityIcons name="check" color={formTheme.selectedPillText} size={20} />
                     )}
                   </TouchableOpacity>
                 )}
@@ -1601,6 +1603,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                     style={[
                       styles.iconItem,
                       selectedIcon === item.id && styles.iconItemSelected,
+                      selectedIcon === item.id && { backgroundColor: formTheme.selectedPillBg, borderColor: formTheme.selectedPillBg },
                     ]}
                     onPress={() => {
                       setSelectedIcon(item.id);
@@ -1609,13 +1612,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                   >
                     <MaterialCommunityIcons
                       name={item.icon as any}
-                      color={selectedIcon === item.id ? '#0A1A2F' : '#002D4B'}
+                      color={selectedIcon === item.id ? formTheme.selectedPillText : formTheme.textPrimary}
                       size={36}
                     />
                     <Text
                       style={[
                         styles.iconLabel,
                         selectedIcon === item.id && styles.iconLabelSelected,
+                        selectedIcon === item.id && { color: formTheme.selectedPillText },
                       ]}
                       numberOfLines={1}
                     >
