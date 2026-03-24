@@ -79,8 +79,6 @@ const VaultScreen = () => {
   const [contextMenuItem, setContextMenuItem] = useState<Link | null>(null);
   const [textValueModalVisible, setTextValueModalVisible] = useState(false);
   const [activeTextItem, setActiveTextItem] = useState<Link | null>(null);
-  const [emailPickerVisible, setEmailPickerVisible] = useState(false);
-  const [activeEmailItem, setActiveEmailItem] = useState<Link | null>(null);
 
   const sortLinks = (items: Link[]) => {
     return [...items].sort((a, b) => {
@@ -339,30 +337,72 @@ const VaultScreen = () => {
     triggerSuccessHaptic();
   };
 
-  const openEmailComposerByClient = async (client: 'gmail' | 'outlook' | 'default', email: string) => {
+  const openNativeEmailComposer = async (email: string) => {
     const normalizedEmail = String(email || '').trim();
     if (!normalizedEmail) {
       Alert.alert(tr('Correo inválido', 'Invalid email'), tr('No hay un correo válido para abrir.', 'No valid email to open.'));
       return;
     }
 
-    const target =
-      client === 'gmail'
-        ? `googlegmail://co?to=${encodeURIComponent(normalizedEmail)}`
-        : client === 'outlook'
-          ? `ms-outlook://compose?to=${encodeURIComponent(normalizedEmail)}`
-          : `mailto:${normalizedEmail}`;
+    const encodedEmail = encodeURIComponent(normalizedEmail);
+    const tryOpen = async (primary: string, fallback?: string) => {
+      const canOpenPrimary = await Linking.canOpenURL(primary);
+      if (canOpenPrimary) {
+        await Linking.openURL(primary);
+        triggerSuccessHaptic();
+        return true;
+      }
 
-    const canOpen = await Linking.canOpenURL(target);
-    if (!canOpen) {
-      Alert.alert(tr('App no disponible', 'App not available'), tr('Ese cliente de correo no está instalado en este dispositivo.', 'That email client is not installed on this device.'));
+      if (fallback) {
+        const canOpenFallback = await Linking.canOpenURL(fallback);
+        if (canOpenFallback) {
+          await Linking.openURL(fallback);
+          triggerSuccessHaptic();
+          return true;
+        }
+      }
+
+      return false;
+    };
+
+    const mailtoTarget = `mailto:${normalizedEmail}`;
+
+    if (Platform.OS === 'ios') {
+      Alert.alert(
+        tr('Selecciona app de correo', 'Choose email app'),
+        tr('Elige desde qué app quieres enviar este correo.', 'Choose which app you want to use to send this email.'),
+        [
+          {
+            text: 'Mail',
+            onPress: () => {
+              void tryOpen(mailtoTarget);
+            },
+          },
+          {
+            text: 'Gmail',
+            onPress: () => {
+              void tryOpen(`googlegmail://co?to=${encodedEmail}`, mailtoTarget);
+            },
+          },
+          {
+            text: 'Outlook',
+            onPress: () => {
+              void tryOpen(`ms-outlook://compose?to=${encodedEmail}`, mailtoTarget);
+            },
+          },
+          {
+            text: tr('Cancelar', 'Cancel'),
+            style: 'cancel',
+          },
+        ]
+      );
       return;
     }
 
-    await Linking.openURL(target);
-    triggerSuccessHaptic();
-    setEmailPickerVisible(false);
-    setActiveEmailItem(null);
+    const opened = await tryOpen(mailtoTarget);
+    if (!opened) {
+      Alert.alert(tr('App no disponible', 'App not available'), tr('No hay una app de correo disponible en este dispositivo.', 'No email app is available on this device.'));
+    }
   };
 
   const openTextValueModal = (link: Link) => {
@@ -424,22 +464,20 @@ const VaultScreen = () => {
   const handleCardAction = async (link: Link) => {
     try {
       const rawValue = String(link.value || '').trim();
-      const normalizedType = normalizeType(link.type);
+      const normalizedType = normalizeType(link.type || (link as any).dataType || '');
 
       if (!rawValue) {
         Alert.alert(tr('⚠️ Error', '⚠️ Error'), tr('El dato está vacío', 'The data is empty'));
         return;
       }
 
-      if (normalizedType === 'enlaces' || isLikelyUrl(rawValue)) {
-        await openUrlWithNativeFallback(rawValue);
+      if (normalizedType === 'email' || isLikelyEmail(rawValue)) {
+        await openNativeEmailComposer(rawValue);
         return;
       }
 
-      if (normalizedType === 'email' || isLikelyEmail(rawValue)) {
-        setActiveEmailItem(link);
-        setEmailPickerVisible(true);
-        triggerSuccessHaptic();
+      if (normalizedType === 'enlaces' || isLikelyUrl(rawValue)) {
+        await openUrlWithNativeFallback(rawValue);
         return;
       }
 
@@ -976,62 +1014,6 @@ const VaultScreen = () => {
         </TouchableWithoutFeedback>
       </Modal>
 
-      <Modal
-        visible={emailPickerVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
-          setEmailPickerVisible(false);
-          setActiveEmailItem(null);
-        }}
-      >
-        <TouchableWithoutFeedback
-          onPress={() => {
-            setEmailPickerVisible(false);
-            setActiveEmailItem(null);
-          }}
-        >
-          <View style={styles.floatingOverlay}>
-            <TouchableWithoutFeedback>
-              <View style={styles.floatingModalCard}>
-                <Text style={styles.floatingModalTitle}>Selecciona app de correo</Text>
-                <Text style={styles.floatingModalBody}>{activeEmailItem?.value || ''}</Text>
-
-                <TouchableOpacity
-                  style={styles.emailClientButton}
-                  onPress={() => void openEmailComposerByClient('gmail', String(activeEmailItem?.value || ''))}
-                >
-                  <Text style={styles.emailClientText}>Gmail</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.emailClientButton}
-                  onPress={() => void openEmailComposerByClient('outlook', String(activeEmailItem?.value || ''))}
-                >
-                  <Text style={styles.emailClientText}>Outlook</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.emailClientButton}
-                  onPress={() => void openEmailComposerByClient('default', String(activeEmailItem?.value || ''))}
-                >
-                  <Text style={styles.emailClientText}>Mail por defecto</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.floatingCloseButton}
-                  onPress={() => {
-                    setEmailPickerVisible(false);
-                    setActiveEmailItem(null);
-                  }}
-                >
-                  <Text style={styles.floatingCloseText}>Cancelar</Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
     </View>
   );
 };
@@ -1048,7 +1030,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 36, // Increased padding for more space
     paddingBottom: 24, // Increased padding for more space
-    backgroundColor: '#0E253D',
+    backgroundColor: '#1EA7FF',
     borderBottomWidth: 1,
     borderBottomColor: '#D4AF37',
   },

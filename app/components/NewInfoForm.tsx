@@ -14,16 +14,15 @@ import {
   Platform,
   KeyboardAvoidingView,
   Alert,
-  ActivityIndicator as NativeActivityIndicator,
   Keyboard,
   Linking,
   PanResponder,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import * as Progress from 'react-native-progress';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '@/services/firebaseConfig';
 import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
@@ -58,6 +57,13 @@ interface Link {
   isFavorite: boolean;
   createdAt?: string;
   updatedAt?: string;
+}
+
+let PdfComponent: any = null;
+try {
+  PdfComponent = require('react-native-pdf').default;
+} catch {
+  PdfComponent = null;
 }
 
 // GALERÍA DE 10 ICONOS DORADOS (#1EA7FF) - Mismos para todos los tipos
@@ -162,6 +168,13 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const [isSaving, setIsSaving] = useState(false);
   const [fileTypeModalVisible, setFileTypeModalVisible] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
+  const [assetPreviewVisible, setAssetPreviewVisible] = useState(false);
+  const [pendingAsset, setPendingAsset] = useState<{
+    uri: string;
+    name: string;
+    mimeType: string;
+    source: 'camera' | 'gallery' | 'document';
+  } | null>(null);
   
   // Estados para progreso de upload
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -176,6 +189,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const retryLockMessage =
     'Estamos cuidando la integridad de la comunidad. Por favor, espera un momento antes de intentar de nuevo';
   const isRetryLocked = retryLockedUntil !== null && retryLockedUntil > Date.now();
+
+  const logAssetAudit = (stage: string, payload: Record<string, any>) => {
+    console.log('[ELITE_UPLOAD_AUDIT]', stage, JSON.stringify(payload));
+  };
 
   useEffect(() => {
     if (!retryLockedUntil) {
@@ -294,6 +311,17 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
   // Close modal
   const handleClose = () => {
+    setIconModalVisible(false);
+    setFileTypeModalVisible(false);
+    setAssetPreviewVisible(false);
+    setPendingAsset(null);
+    setFaviconSuggestionVisible(false);
+    setUploadModalVisible(false);
+    setIsUploading(false);
+    setUploadProgress(0);
+    setUploadStageLabel('Iniciando...');
+    setIsCompressing(false);
+
     // Reset form
     setDataName('');
     setDataValue('');
@@ -306,6 +334,38 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     
     // Call callback
     if (onClose) onClose();
+  };
+
+  const openAssetPreview = (asset: {
+    uri: string;
+    name: string;
+    mimeType: string;
+    source: 'camera' | 'gallery' | 'document';
+  }) => {
+    setPendingAsset(asset);
+    setAssetPreviewVisible(true);
+    setFileTypeModalVisible(false);
+  };
+
+  const confirmAssetPreview = () => {
+    if (!pendingAsset) return;
+    setDataValue(pendingAsset.uri);
+    if (!dataName.trim()) {
+      const baseName = pendingAsset.name.replace(/\.[^/.]+$/, '');
+      setDataName(baseName || 'Documento');
+    }
+    setAssetPreviewVisible(false);
+    setPendingAsset(null);
+  };
+
+  const retryAssetSelection = () => {
+    setDataValue('');
+    setUploadProgress(0);
+    setUploadStageLabel('Iniciando...');
+    setIsUploading(false);
+    setAssetPreviewVisible(false);
+    setPendingAsset(null);
+    setTimeout(() => setFileTypeModalVisible(true), 150);
   };
 
   // Validar tamaño del archivo
@@ -371,6 +431,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
       if (!result.canceled && result.assets.length > 0) {
         const file = result.assets[0];
+        logAssetAudit('PICK_GALLERY_RAW', {
+          dataType,
+          dataName,
+          uri: file.uri,
+          fileName: file.fileName || 'unknown',
+          mimeType: file.mimeType || 'unknown',
+          sizeBytes: file.fileSize || null,
+        });
         // Validar tamaño antes de comprimir
         const validation = await validateFileSize(file.uri);
         if (!validation.valid) {
@@ -380,7 +448,21 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         }
         // Comprimir imagen para mantener costos bajos en upload
         const compressedUri = await compressImage(file.uri);
-        setDataValue(compressedUri);
+        const info = await FileSystem.getInfoAsync(compressedUri, { size: true } as any).catch(() => null);
+        logAssetAudit('PICK_GALLERY_COMPRESSED', {
+          dataType,
+          dataName,
+          uri: compressedUri,
+          fileName: 'gallery-compressed.jpg',
+          mimeType: 'image/jpeg',
+          sizeBytes: (info as any)?.size || null,
+        });
+        openAssetPreview({
+          uri: compressedUri,
+          name: file.fileName || 'gallery-image.jpg',
+          mimeType: 'image/jpeg',
+          source: 'gallery',
+        });
       }
       setFileTypeModalVisible(false);
     } catch (error) {
@@ -403,6 +485,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       }
 
       const file = result.assets[0];
+      logAssetAudit('PICK_DOCUMENT_RAW', {
+        dataType,
+        dataName,
+        uri: file.uri,
+        fileName: file.name || 'unknown',
+        mimeType: file.mimeType || 'unknown',
+        sizeBytes: file.size || null,
+      });
       const validation = await validateFileSize(file.uri);
       if (!validation.valid) {
         Alert.alert(tr('Archivo muy grande', 'File too large'), validation.message || tr('El archivo supera el limite permitido', 'File exceeds size limit'));
@@ -410,7 +500,12 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         return;
       }
 
-      setDataValue(file.uri);
+      openAssetPreview({
+        uri: file.uri,
+        name: file.name || 'documento',
+        mimeType: file.mimeType || inferMimeType(file.uri),
+        source: 'document',
+      });
       setFileTypeModalVisible(false);
     } catch (error) {
       console.error('Error picking document:', error);
@@ -434,6 +529,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
       if (!result.canceled && result.assets.length > 0) {
         const file = result.assets[0];
+        logAssetAudit('PICK_CAMERA_RAW', {
+          dataType,
+          dataName,
+          uri: file.uri,
+          fileName: file.fileName || 'camera.jpg',
+          mimeType: file.mimeType || 'unknown',
+          sizeBytes: file.fileSize || null,
+        });
         const validation = await validateFileSize(file.uri);
         if (!validation.valid) {
           Alert.alert(tr('Archivo muy grande', 'File too large'), validation.message || tr('El archivo supera el límite permitido', 'File exceeds size limit'));
@@ -442,7 +545,21 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         }
 
         const compressedUri = await compressImage(file.uri);
-        setDataValue(compressedUri);
+        const info = await FileSystem.getInfoAsync(compressedUri, { size: true } as any).catch(() => null);
+        logAssetAudit('PICK_CAMERA_COMPRESSED', {
+          dataType,
+          dataName,
+          uri: compressedUri,
+          fileName: 'camera-compressed.jpg',
+          mimeType: 'image/jpeg',
+          sizeBytes: (info as any)?.size || null,
+        });
+        openAssetPreview({
+          uri: compressedUri,
+          name: file.fileName || 'camera-image.jpg',
+          mimeType: 'image/jpeg',
+          source: 'camera',
+        });
       }
       setFileTypeModalVisible(false);
     } catch (error) {
@@ -453,13 +570,17 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
   const createSwipeResponder = React.useCallback((onClose: () => void) => {
     return PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gesture) =>
-        gesture.dy > 6 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+        gesture.dy > 4 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 0.8,
+      onMoveShouldSetPanResponderCapture: (_, gesture) =>
+        gesture.dy > 4 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 0.8,
       onPanResponderRelease: (_, gesture) => {
-        if (gesture.dy > 42 || gesture.vy > 0.75) {
+        if (gesture.dy > 20 || gesture.vy > 0.35) {
           onClose();
         }
       },
+      onPanResponderTerminationRequest: () => true,
     });
   }, []);
 
@@ -582,11 +703,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     if (lowerUri.endsWith('.pdf')) return 'application/pdf';
     if (lowerUri.endsWith('.doc')) return 'application/msword';
     if (lowerUri.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    if (lowerUri.endsWith('.xls')) return 'application/vnd.ms-excel';
+    if (lowerUri.endsWith('.xlsx')) return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    if (lowerUri.endsWith('.txt')) return 'text/plain';
+    if (lowerUri.endsWith('.csv')) return 'text/csv';
     if (lowerUri.endsWith('.png')) return 'image/png';
     if (lowerUri.endsWith('.heic')) return 'image/heic';
-    if (lowerUri.endsWith('.webp')) return 'image/webp';
     if (lowerUri.endsWith('.jpg') || lowerUri.endsWith('.jpeg')) return 'image/jpeg';
-
+    if (lowerUri.endsWith('.webp')) return 'image/webp';
     if (dataType === 'Documento') return 'application/octet-stream';
     return 'image/jpeg';
   };
@@ -625,6 +749,15 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         label: fileLabel,
         fileName: inferFileName(fileUri),
         mimeType: inferMimeType(fileUri),
+      });
+      const fileInfo = await FileSystem.getInfoAsync(fileUri, { size: true } as any).catch(() => null);
+      logAssetAudit('UPLOAD_ATTEMPT', {
+        dataType,
+        dataName: fileLabel,
+        uri: fileUri,
+        fileName: inferFileName(fileUri),
+        mimeType: inferMimeType(fileUri),
+        sizeBytes: (fileInfo as any)?.size || null,
       });
 
       setUploadProgress(0.8);
@@ -724,9 +857,17 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         console.warn('Cloud sync failed, keeping local cache:', cloudError);
       }
 
-      // Obtener datos existentes
+      // Obtener datos existentes con fallback resiliente si hay cache corrupta.
       const existingData = await AsyncStorage.getItem(VAULT_STORAGE_KEY);
-      const dataArray = existingData ? JSON.parse(existingData) : [];
+      let dataArray: any[] = [];
+      if (existingData) {
+        try {
+          const parsed = JSON.parse(existingData);
+          dataArray = Array.isArray(parsed) ? parsed : [];
+        } catch {
+          dataArray = [];
+        }
+      }
       
       if (editingData?.id) {
         // ACTUALIZAR: reemplazar el elemento existente
@@ -883,7 +1024,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             {dataValue && (
               <View style={styles.previewContainer}>
                 <Text style={styles.previewLabel}>Vista Previa:</Text>
-                {isImageFile(dataName || dataValue) ? (
+                {isImageFile(dataValue) || isImageFile(dataName) ? (
                   <View style={styles.imagePreview}>
                     <Image 
                       source={{ uri: dataValue }} 
@@ -917,12 +1058,17 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.container} {...mainModalSwipeResponder.panHandlers}>
+        <View style={styles.container}>
         {/* Header with close button */}
-        <View style={styles.headerTop}>
-          <Text style={styles.titleMain}>
-            {editingData?.id ? 'EDITAR INFORMACIÓN' : 'NUEVA INFORMACIÓN'}
-          </Text>
+        <View style={styles.headerTop} {...mainModalSwipeResponder.panHandlers}>
+          <View style={styles.modalDragHandleWrap} {...mainModalSwipeResponder.panHandlers}>
+            <View style={styles.modalDragHandle} />
+          </View>
+          <View style={styles.titleDragZone} {...mainModalSwipeResponder.panHandlers}>
+            <Text style={styles.titleMain}>
+              {editingData?.id ? 'EDITAR INFORMACIÓN' : 'NUEVA INFORMACIÓN'}
+            </Text>
+          </View>
           <TouchableOpacity 
             onPress={handleClose}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -998,12 +1144,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             </View>
             <View style={styles.iconPreview}>
               {faviconLoading && dataType === 'Enlaces' ? (
-                <View style={styles.iconLoadingPreview}>
-                  <View style={styles.spinnerPriorityLayer}>
-                    <BrandedSpinner size={52} color="#D4AF37" />
+                <>
+                  <View style={styles.iconLoadingPreview}>
+                    <View style={styles.spinnerPriorityLayer}>
+                      <BrandedSpinner size={52} color="#D4AF37" />
+                    </View>
                   </View>
                   <Text style={styles.faviconLabel}>Buscando favicon en Azure...</Text>
-                </View>
+                </>
               ) : selectedIcon === 'favicon' && faviconUrl ? (
                 <Image source={{ uri: faviconUrl }} style={styles.faviconImg} />
               ) : selectedIcon ? (
@@ -1030,10 +1178,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             disabled={isSaving}
           >
             {isSaving ? (
-              <>
-                <NativeActivityIndicator size="small" color="#0A1A2F" />
-                <Text style={styles.createButtonText}>SUBIENDO...</Text>
-              </>
+              <Text style={styles.createButtonText}>GUARDANDO...</Text>
             ) : (
               <>
                 <MaterialCommunityIcons name="check-circle" color="#0A1A2F" size={24} />
@@ -1175,7 +1320,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           onRequestClose={() => setIconModalVisible(false)}
         >
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { maxHeight: SCREEN_HEIGHT * 0.85 }]} {...iconModalSwipeResponder.panHandlers}>
+            <View style={[styles.modalContent, { maxHeight: SCREEN_HEIGHT * 0.85 }]}>
+              <View style={styles.bottomSheetDragHandleWrap} {...iconModalSwipeResponder.panHandlers}>
+                <View style={styles.bottomSheetDragHandle} />
+              </View>
               <View style={styles.iconModalHeader}>
                 <Text style={styles.iconModalTitle}>Elige Icono - {dataType}</Text>
                 <TouchableOpacity onPress={() => setIconModalVisible(false)}>
@@ -1230,11 +1378,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           onRequestClose={() => setFileTypeModalVisible(false)}
         >
           <View style={styles.modalOverlay}>
-            <View style={styles.modalContent} {...fileTypeSwipeResponder.panHandlers}>
+            <View style={styles.modalContent}>
+              <View style={styles.bottomSheetDragHandleWrap} {...fileTypeSwipeResponder.panHandlers}>
+                <View style={styles.bottomSheetDragHandle} />
+              </View>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Carga Segura de Documento</Text>
                 <TouchableOpacity onPress={() => setFileTypeModalVisible(false)}>
-                  <MaterialCommunityIcons name="close" color="#1EA7FF" size={24} />
+                  <MaterialCommunityIcons name="close" color="#F1F1F1" size={24} />
                 </TouchableOpacity>
               </View>
               <TouchableOpacity
@@ -1242,7 +1393,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 onPress={handleTakePhoto}
                 disabled={isCompressing}
               >
-                <MaterialCommunityIcons name="camera" color="#1EA7FF" size={40} />
+                <MaterialCommunityIcons name="camera" color="#F1F1F1" size={40} />
                 <Text style={styles.fileTypeText}>Tomar Foto</Text>
                 <Text style={styles.fileTypeSubText}>Captura directa con cámara</Text>
               </TouchableOpacity>
@@ -1251,7 +1402,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 onPress={handlePickPhotos}
                 disabled={isCompressing}
               >
-                <MaterialCommunityIcons name="image-multiple" color="#1EA7FF" size={40} />
+                <MaterialCommunityIcons name="image-multiple" color="#F1F1F1" size={40} />
                 <Text style={styles.fileTypeText}>Elegir imagen</Text>
                 <Text style={styles.fileTypeSubText}>JPG, PNG o HEIC</Text>
               </TouchableOpacity>
@@ -1260,7 +1411,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 onPress={handlePickDocument}
                 disabled={isCompressing}
               >
-                <MaterialCommunityIcons name="file-document-outline" color="#1EA7FF" size={40} />
+                <MaterialCommunityIcons name="file-document-outline" color="#F1F1F1" size={40} />
                 <Text style={styles.fileTypeText}>Elegir documento</Text>
                 <Text style={styles.fileTypeSubText}>PDF y archivos visualizables</Text>
               </TouchableOpacity>
@@ -1268,29 +1419,37 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           </View>
         </Modal>
 
-        {/* MODAL: UPLOAD PROGRESS */}
         <Modal
-          visible={uploadModalVisible}
+          visible={assetPreviewVisible}
           transparent
           animationType="fade"
-          onRequestClose={() => {}}
+          onRequestClose={() => setAssetPreviewVisible(false)}
         >
-          <View style={styles.progressOverlay}>
-            <View style={styles.progressContainer}>
-              <Progress.Circle
-                size={140}
-                progress={uploadProgress}
-                color="#1EA7FF"
-                unfilledColor="#0D3A56"
-                borderWidth={3}
-                thickness={8}
-              />
-              <Text style={styles.uploadPercentage}>
-                {Math.round(uploadProgress * 100)}%
-              </Text>
-              <Text style={styles.uploadLabel}>
-                {uploadStageLabel}
-              </Text>
+          <View style={styles.assetPreviewOverlay}>
+            <View style={styles.assetPreviewCard}>
+              <Text style={styles.assetPreviewTitle}>Vista previa segura</Text>
+              <View style={styles.assetPreviewContent}>
+                {pendingAsset?.mimeType?.includes('pdf') ? (
+                  PdfComponent ? (
+                    <PdfComponent source={{ uri: pendingAsset.uri }} style={styles.assetPreviewPdf} />
+                  ) : (
+                    <View style={styles.assetPreviewFallback}>
+                      <MaterialCommunityIcons name="file-pdf-box" color="#F1F1F1" size={72} />
+                      <Text style={styles.assetPreviewFallbackText}>PDF listo para confirmar</Text>
+                    </View>
+                  )
+                ) : (
+                  <Image source={{ uri: pendingAsset?.uri || '' }} style={styles.assetPreviewImage} resizeMode="contain" />
+                )}
+              </View>
+              <View style={styles.assetPreviewActions}>
+                <TouchableOpacity style={styles.assetConfirmButton} onPress={confirmAssetPreview}>
+                  <Text style={styles.assetConfirmButtonText}>SI, CONFIRMAR</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.assetRetryButton} onPress={retryAssetSelection}>
+                  <Text style={styles.assetRetryButtonText}>NO, CARGAR DE NUEVO</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </Modal>
@@ -1326,6 +1485,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#0D3A56',
   },
+  modalDragHandleWrap: {
+    position: 'absolute',
+    top: 4,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 20,
+  },
+  modalDragHandle: {
+    width: 56,
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(212,175,55,0.55)',
+  },
   closeButton: {
     padding: 8,
     borderRadius: 8,
@@ -1336,6 +1509,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#D4AF37',
     marginTop: 20,
+  },
+  titleDragZone: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 54,
   },
   scrollView: {
     flex: 1,
@@ -1532,7 +1711,7 @@ const styles = StyleSheet.create({
   previewLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#1EA7FF',
+    color: '#F1F1F1',
     marginBottom: 10,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
@@ -1575,9 +1754,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(10,26,47,0.92)',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
   },
   spinnerPriorityLayer: {
+    width: 52,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
     zIndex: 1200,
     elevation: 14,
   },
@@ -1685,6 +1867,18 @@ const styles = StyleSheet.create({
     borderTopWidth: 3,
     borderTopColor: '#D4AF37',
   },
+  bottomSheetDragHandleWrap: {
+    width: '100%',
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 10,
+  },
+  bottomSheetDragHandle: {
+    width: 52,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: 'rgba(212,175,55,0.55)',
+  },
   iconModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1767,7 +1961,7 @@ const styles = StyleSheet.create({
   },
   fileTypeOption: {
     backgroundColor: '#0D3A56',
-    borderColor: '#1EA7FF',
+    borderColor: '#F1F1F1',
     borderWidth: 1.2,
     borderRadius: 12,
     padding: 24,
@@ -1783,9 +1977,100 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   fileTypeSubText: {
-    color: '#1EA7FF',
+    color: '#F1F1F1',
     fontSize: 12,
     marginTop: 4,
+  },
+  assetPreviewOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  assetPreviewCard: {
+    width: '100%',
+    maxWidth: 420,
+    maxHeight: '88%',
+    backgroundColor: '#0A1A2F',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#D4AF37',
+    padding: 14,
+  },
+  assetPreviewTitle: {
+    color: '#F1F1F1',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  assetPreviewContent: {
+    flex: 1,
+    minHeight: 360,
+    maxHeight: SCREEN_HEIGHT * 0.6,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#091526',
+    borderWidth: 1,
+    borderColor: 'rgba(241,241,241,0.25)',
+  },
+  assetPreviewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  assetPreviewPdf: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#091526',
+  },
+  assetPreviewFallback: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  assetPreviewFallbackText: {
+    color: '#F1F1F1',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  assetPreviewActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  assetConfirmButton: {
+    flex: 1,
+    backgroundColor: '#D4AF37',
+    borderRadius: 999,
+    minHeight: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  assetRetryButton: {
+    flex: 1,
+    backgroundColor: '#1E2F44',
+    borderWidth: 1,
+    borderColor: '#F1F1F1',
+    borderRadius: 999,
+    minHeight: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  assetConfirmButtonText: {
+    color: '#0A1A2F',
+    fontSize: 12,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  assetRetryButtonText: {
+    color: '#F1F1F1',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   // Progress Upload Styles
   progressOverlay: {
