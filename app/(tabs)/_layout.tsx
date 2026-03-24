@@ -396,19 +396,21 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
     >
       <Tabs
         screenOptions={{
-          tabBarActiveTintColor: '#0D4D8A',
-          tabBarInactiveTintColor: '#5D7A94',
+          tabBarActiveTintColor: '#54C1FB',
+          tabBarInactiveTintColor: '#F1F1F1',
           tabBarStyle: {
             backgroundColor: 'rgba(255,255,255,0.85)',
             height: 60,
             borderTopColor: 'rgba(13,77,138,0.18)',
           },
-          headerStyle: { backgroundColor: 'rgba(255,255,255,0.88)', height: 60 },
-          headerTintColor: '#0D4D8A',
+          headerStyle: { backgroundColor: '#0A1A2F', height: 90 },
+          headerTintColor: '#D4AF37',
           headerTitleAlign: 'center',
           headerTitle: () => (
             <View style={styles.headerBrandWrap}>
-              <Image source={require('../../assets/images/CS Icon Logo.png')} style={styles.headerLogo} />
+              <View style={styles.logoFrame}>
+                <Image source={require('../../assets/images/CS Icon Logo.png')} style={styles.headerLogo} />
+              </View>
               <Text style={styles.headerBrandText}>Card-Social</Text>
             </View>
           ),
@@ -420,7 +422,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
               }}
               style={styles.headerMenuButton}
             >
-              <MaterialCommunityIcons name="menu" size={24} color="#0D4D8A" />
+              <MaterialCommunityIcons name="menu" size={24} color="#D4AF37" />
             </TouchableOpacity>
           ),
         }}>
@@ -753,13 +755,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  logoFrame: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 999,
+    padding: 4,
+    borderWidth: 1.5,
+    borderColor: '#D4AF37',
+  },
   headerLogo: {
     width: 28,
     height: 28,
     borderRadius: 6,
   },
   headerBrandText: {
-    color: '#0D4D8A',
+    color: '#D4AF37',
     fontSize: 17,
     fontWeight: '700',
     letterSpacing: 0.4,
@@ -769,7 +778,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: 'rgba(13,77,138,0.12)',
+    backgroundColor: 'rgba(212,175,55,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },

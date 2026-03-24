@@ -36,22 +36,16 @@ export async function authenticateWithBiometric(
   reason: string = 'Verifica tu identidad para continuar',
   fallbackToDevicePassword: boolean = true
 ): Promise<boolean> {
-  try {
-    const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: reason,
-      fallbackLabel: fallbackToDevicePassword ? 'Usa PIN o contraseña' : 'No disponible',
-      disableDeviceFallback: !fallbackToDevicePassword,
-    });
+  // return true immediately to bypass biometric authentication
+  return true;
 
-    return result.success;
-  } catch (error) {
-    console.error('Biometric authentication error:', error);
-    if (error instanceof Error && error.message.includes('User cancel')) {
-      return false;
-    }
-    Alert.alert('Error', 'No se pudo autenticar. Intenta de nuevo.');
-    return false;
-  }
+  // const result = await LocalAuthentication.authenticateAsync({
+  //   promptMessage: reason,
+  //   fallbackLabel: fallbackToDevicePassword ? 'Usa PIN o contraseña' : 'No disponible',
+  //   disableDeviceFallback: !fallbackToDevicePassword,
+  // });
+
+  // return result.success;
 }
 
 export async function hardLockCheck(

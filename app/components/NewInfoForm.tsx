@@ -898,7 +898,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             style={styles.closeButton}
           >
-            <MaterialCommunityIcons name="close" color="#1EA7FF" size={28} />
+            <MaterialCommunityIcons name="close" color="#D4AF37" size={28} />
           </TouchableOpacity>
         </View>
 
@@ -970,7 +970,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               ) : selectedIcon ? (
                 <MaterialCommunityIcons
                   name={ICONS_BY_TYPE[dataType].find(i => i.id === selectedIcon)?.icon as any}
-                  color="#1EA7FF"
+                  color="#F1F1F1"
                   size={48}
                 />
               ) : (
@@ -996,12 +996,12 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           >
             {isSaving ? (
               <>
-                <ActivityIndicator size="small" color="#0A2540" />
+                <ActivityIndicator size="small" color="#0A1A2F" />
                 <Text style={styles.createButtonText}>SUBIENDO...</Text>
               </>
             ) : (
               <>
-                <MaterialCommunityIcons name="check-circle" color="#0A2540" size={24} />
+                <MaterialCommunityIcons name="check-circle" color="#0A1A2F" size={24} />
                 <Text style={styles.createButtonText}>
                   {editingData?.id ? 'ACTUALIZAR' : 'CREAR'}
                 </Text>
@@ -1137,10 +1137,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         >
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, { maxHeight: SCREEN_HEIGHT * 0.85 }]}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Elige Icono - {dataType}</Text>
+              <View style={styles.iconModalHeader}>
+                <Text style={styles.iconModalTitle}>Elige Icono - {dataType}</Text>
                 <TouchableOpacity onPress={() => setIconModalVisible(false)}>
-                  <MaterialCommunityIcons name="close" color="#1EA7FF" size={24} />
+                  <MaterialCommunityIcons name="close" color="#D4AF37" size={24} />
                 </TouchableOpacity>
               </View>
               <FlatList
@@ -1162,7 +1162,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                   >
                     <MaterialCommunityIcons
                       name={item.icon as any}
-                      color={selectedIcon === item.id ? '#0A2540' : '#1EA7FF'}
+                      color={selectedIcon === item.id ? '#0A1A2F' : '#F1F1F1'}
                       size={36}
                     />
                     <Text
@@ -1264,7 +1264,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A2540',
+    backgroundColor: '#0A1A2F',
   },
   headerTop: {
     flexDirection: 'row',
@@ -1283,7 +1283,7 @@ const styles = StyleSheet.create({
   titleMain: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#D4AF37',
   },
   scrollView: {
     flex: 1,
@@ -1298,9 +1298,9 @@ const styles = StyleSheet.create({
   stepLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#1EA7FF',
+    color: '#F1F1F1',
     marginBottom: 12,
-    letterSpacing: 0.8,
+    letterSpacing: 1,
     textTransform: 'uppercase',
   },
   stepHeader: {
@@ -1318,28 +1318,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 999,
-    borderWidth: 1.2,
-    borderColor: '#1EA7FF',
-    backgroundColor: '#1A3A52',
+    borderWidth: 0.8,
+    borderColor: '#D4AF37',
+    backgroundColor: '#0A1A2F',
   },
   typePillActive: {
-    backgroundColor: '#1EA7FF',
+    backgroundColor: '#54C1FB',
   },
   typePillDisabled: {
     opacity: 0.55,
   },
   typePillText: {
-    color: '#1EA7FF',
+    color: '#F1F1F1',
     fontSize: 13,
     fontWeight: '700',
   },
   typePillTextActive: {
-    color: '#0A2540',
+    color: '#0A1A2F',
   },
   dropdownButton: {
-    backgroundColor: '#1A3A52',
-    borderColor: '#1EA7FF',
-    borderWidth: 2,
+    backgroundColor: '#0A1A2F',
+    borderColor: '#D4AF37',
+    borderWidth: 0.8,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -1364,9 +1364,9 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   input: {
-    backgroundColor: '#1A3A52',
-    borderColor: '#1EA7FF',
-    borderWidth: 1.2,
+    backgroundColor: '#0A1A2F',
+    borderColor: '#D4AF37',
+    borderWidth: 0.8,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -1379,9 +1379,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   countryCodeButton: {
-    backgroundColor: '#1A3A52',
-    borderColor: '#1EA7FF',
-    borderWidth: 1.2,
+    backgroundColor: '#0A1A2F',
+    borderColor: '#D4AF37',
+    borderWidth: 0.8,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 12,
@@ -1397,7 +1397,7 @@ const styles = StyleSheet.create({
   faviconContainer: {
     marginTop: 12,
     padding: 12,
-    backgroundColor: '#1A3A52',
+    backgroundColor: '#0A1A2F',
     borderRadius: 10,
     alignItems: 'center',
   },
@@ -1413,9 +1413,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   useFaviconButton: {
-    backgroundColor: '#1A3A52',
-    borderColor: '#1EA7FF',
-    borderWidth: 1.2,
+    backgroundColor: '#0A1A2F',
+    borderColor: '#D4AF37',
+    borderWidth: 0.8,
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -1444,9 +1444,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   documentButton: {
-    backgroundColor: '#1A3A52',
-    borderColor: '#1EA7FF',
-    borderWidth: 1.2,
+    backgroundColor: '#0A1A2F',
+    borderColor: '#D4AF37',
+    borderWidth: 0.8,
     borderStyle: 'dashed',
     borderRadius: 10,
     paddingVertical: 24,
@@ -1461,10 +1461,10 @@ const styles = StyleSheet.create({
   previewContainer: {
     marginTop: 16,
     padding: 14,
-    backgroundColor: '#1A3A52',
+    backgroundColor: '#0A1A2F',
     borderRadius: 10,
-    borderColor: '#1EA7FF',
-    borderWidth: 1.2,
+    borderColor: '#D4AF37',
+    borderWidth: 0.8,
   },
   previewLabel: {
     fontSize: 11,
@@ -1497,16 +1497,14 @@ const styles = StyleSheet.create({
     maxWidth: 200,
   },
   iconPreview: {
-    backgroundColor: '#1A3A52',
-    borderColor: '#1EA7FF',
-    borderWidth: 1.2,
-    borderRadius: 10,
+    backgroundColor: '#0A1A2F',
+    borderRadius: 24,
     paddingVertical: 24,
     alignItems: 'center',
     gap: 12,
   },
   iconName: {
-    color: '#1EA7FF',
+    color: '#F1F1F1',
     fontSize: 13,
     fontWeight: '600',
   },
@@ -1534,7 +1532,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   createButton: {
-    backgroundColor: '#1EA7FF',
+    backgroundColor: '#D4AF37',
     paddingVertical: 16,
     borderRadius: 12,
     flexDirection: 'row',
@@ -1548,7 +1546,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#999',
   },
   createButtonText: {
-    color: '#0A2540',
+    color: '#0A1A2F',
     fontSize: 16,
     fontWeight: '700',
   },
@@ -1613,12 +1611,26 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   modalContent: {
-    backgroundColor: '#1A3A52',
+    backgroundColor: '#0A1A2F',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: SCREEN_HEIGHT * 0.65,
     borderTopWidth: 3,
-    borderTopColor: '#1EA7FF',
+    borderTopColor: '#D4AF37',
+  },
+  iconModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(212,175,55,0.3)',
+  },
+  iconModalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#D4AF37',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1660,29 +1672,30 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   iconItem: {
-    flex: 1,
+    width: 64,
+    height: 64,
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
     margin: 4,
     borderRadius: 10,
-    backgroundColor: '#0D3A56',
-    borderWidth: 1.5,
-    borderColor: 'transparent',
+    backgroundColor: '#0A1A2F',
+    borderWidth: 0.5,
+    borderColor: '#D4AF37',
   },
   iconItemSelected: {
-    backgroundColor: '#1EA7FF',
-    borderColor: '#1EA7FF',
+    backgroundColor: '#54C1FB',
+    borderColor: '#54C1FB',
   },
   iconLabel: {
     fontSize: 9,
-    color: '#1EA7FF',
+    color: '#F1F1F1',
     marginTop: 4,
     fontWeight: '500',
     textAlign: 'center',
   },
   iconLabelSelected: {
-    color: '#0A2540',
+    color: '#0A1A2F',
     fontWeight: '700',
   },
   fileTypeOption: {
@@ -1715,7 +1728,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   progressContainer: {
-    backgroundColor: '#1A3A52',
+    backgroundColor: '#0A1A2F',
     borderRadius: 20,
     padding: 40,
     alignItems: 'center',

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { ActivityIndicator as NativeActivityIndicator, ActivityIndicatorProps, Image, StyleProp, View, ViewStyle } from 'react-native';
+import { ActivityIndicator as NativeActivityIndicator, ActivityIndicatorProps, StyleProp, View, ViewStyle, Image } from 'react-native';
+import { Video } from 'expo-av';
 
 type SpinnerSize = ActivityIndicatorProps['size'];
 
@@ -26,7 +27,6 @@ export default function BrandedSpinner({ size = 'small', color = '#0A2540', styl
   const spinnerSources = useMemo(
     () => [
       require('../assets/images/Spinner/CS_spinner.gif'),
-      require('../assets/images/Spinner/Spinner.gif'),
     ],
     []
   );
@@ -38,7 +38,7 @@ export default function BrandedSpinner({ size = 'small', color = '#0A2540', styl
   }
 
   return (
-    <View style={[{ alignItems: 'center', justifyContent: 'center' }, style]}>
+    <View style={[{ justifyContent: 'center', alignItems: 'center' }, style]}>
       <Image
         source={spinnerSources[sourceIndex]}
         style={{ width: pixelSize, height: pixelSize }}

@@ -145,10 +145,31 @@ function RootNavigator() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <Stack>
+      <Stack
+        screenOptions={{
+          headerTitleContainerStyle: {
+            paddingTop: 15,
+            paddingHorizontal: 20,
+          },
+          headerLeftContainerStyle: {
+            paddingTop: 15,
+            paddingHorizontal: 20,
+          },
+          headerRightContainerStyle: {
+            paddingTop: 15,
+            paddingHorizontal: 20,
+          },
+        }}
+      >
         {/* Forzamos a que la primera pantalla sea el Index (Bienvenida) */}
         <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="signin" options={{ title: language === 'en' ? 'Sign In' : 'Iniciar sesion' }} />
+        <Stack.Screen 
+          name="signin" 
+          options={{ 
+            title: language === 'en' ? 'Sign In' : 'Iniciar sesion', 
+            headerStyle: { height: 98 } // Increased height by 40% from 70 to 98
+          }} 
+        />
         <Stack.Screen name="register" options={{ title: language === 'en' ? 'Sign Up' : 'Registro' }} />
         <Stack.Screen name="scan" options={{ title: language === 'en' ? 'Scan Card' : 'Escanear Tarjeta', headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

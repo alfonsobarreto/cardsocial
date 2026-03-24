@@ -127,13 +127,19 @@ const VaultScreen = () => {
   useFocusEffect(
     React.useCallback(() => {
       const verifyAccess = async () => {
-        const authenticated = await hardLockCheck('acceso a tu Bóveda de datos');
-        setIsVaultUnlocked(authenticated);
-        if (authenticated) {
-          await evaluateDullMode();
-          loadVaultData();
-          loadProfileMeta();
-        }
+        // const authenticated = await hardLockCheck('acceso a tu Bóveda de datos');
+        // setIsVaultUnlocked(authenticated);
+        // if (authenticated) {
+        //   await evaluateDullMode();
+        //   loadVaultData();
+        //   loadProfileMeta();
+        // }
+
+        // Bypass authentication and unlock vault directly
+        setIsVaultUnlocked(true);
+        await evaluateDullMode();
+        loadVaultData();
+        loadProfileMeta();
       };
       verifyAccess();
     }, [])
@@ -488,7 +494,7 @@ const VaultScreen = () => {
     return (
       <MaterialCommunityIcons
         name={link.icon as any}
-        color="#1EA7FF"
+        color="#F1F1F1"
         size={32}
       />
     );
@@ -705,7 +711,7 @@ const VaultScreen = () => {
   // Header vacío
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <MaterialCommunityIcons name="folder-outline" color="#1EA7FF" size={64} />
+      <MaterialCommunityIcons name="folder-outline" color="#F1F1F1" size={64} />
       <Text style={styles.emptyTitle}>Tu Vault está vacío</Text>
       <Text style={styles.emptySubtitle}>
         Toca el botón + para agregar tu primer dato
@@ -720,19 +726,21 @@ const VaultScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerCenterBlock}>
-          <Image source={require('../../assets/images/CS Icon Logo.png')} style={styles.headerLogo} />
+          <View style={styles.logoFrame}>
+            <Image source={require('../../assets/images/CS Icon Logo.png')} style={styles.headerLogo} />
+          </View>
           <View style={styles.headerUserRow}>
             <Text style={styles.headerSubtitle}>{profileDisplayName}</Text>
             {isUserVerified ? <VerificationBadge compact /> : null}
           </View>
-          <Text style={styles.vaultCounterLabel}>[{links.length}] / 50 DATOS UTILIZADOS</Text>
+          <Text style={styles.vaultCounterLabel}>[{links.length}] / Datos Ilimitados Utilizados</Text>
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${usageProgress * 100}%` }]} />
           </View>
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.scanButton} onPress={() => router.push('/scan' as any)}>
-            <MaterialCommunityIcons name="qrcode-scan" color="#0A2540" size={18} />
+            <MaterialCommunityIcons name="qrcode-scan" color="#0A1A2F" size={18} />
             <Text style={styles.scanButtonText}>Escanear Nueva Tarjeta</Text>
           </TouchableOpacity>
         </View>
@@ -755,7 +763,7 @@ const VaultScreen = () => {
         onPress={openCreateVaultItemForm}
         activeOpacity={0.85}
       >
-        <MaterialCommunityIcons name="plus" color="#0A2540" size={30} />
+        <MaterialCommunityIcons name="plus" color="#0A1A2F" size={30} />
       </TouchableOpacity>
 
       {/* Modal del formulario */}
@@ -1035,22 +1043,29 @@ const VaultScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A2540',
+    backgroundColor: '#0A1A2F',
   },
 
   // HEADER
   header: {
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 24,
-    paddingBottom: 16,
-    backgroundColor: '#0A2540',
+    paddingTop: 36, // Increased padding for more space
+    paddingBottom: 24, // Increased padding for more space
+    backgroundColor: '#0A1A2F',
     borderBottomWidth: 1,
-    borderBottomColor: '#1EA7FF',
+    borderBottomColor: '#D4AF37',
   },
   headerCenterBlock: {
     alignItems: 'center',
     width: '100%',
+  },
+  logoFrame: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 999,
+    padding: 4,
+    borderWidth: 1.5,
+    borderColor: '#D4AF37',
   },
   headerLogo: {
     width: 46,
@@ -1058,14 +1073,15 @@ const styles = StyleSheet.create({
     borderRadius: 23,
   },
   headerSubtitle: {
-    fontSize: 12,
-    color: '#1EA7FF',
+    fontSize: 18,
+    color: '#F1F1F1',
+    fontWeight: 'bold',
     marginTop: 4,
   },
   vaultCounterLabel: {
     marginTop: 6,
     fontSize: 12,
-    color: '#C5A065',
+    color: '#D4AF37',
     fontWeight: '700',
   },
   progressTrack: {
@@ -1074,13 +1090,13 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 999,
     marginTop: 8,
-    backgroundColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: 'rgba(241,241,241,0.1)',
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     borderRadius: 999,
-    backgroundColor: '#C5A065',
+    backgroundColor: '#54C1FB',
   },
   headerUserRow: {
     marginTop: 4,
@@ -1111,13 +1127,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#1EA7FF',
+    backgroundColor: '#54C1FB',
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
   scanButtonText: {
-    color: '#0A2540',
+    color: '#0A1A2F',
     fontSize: 11,
     fontWeight: '700',
   },
@@ -1138,13 +1154,17 @@ const styles = StyleSheet.create({
   gridCard: {
     alignItems: 'center',
     justifyContent: 'flex-start',
-    backgroundColor: 'rgba(197,160,101,0.08)',
-    minHeight: 132,
+    width: '100%',
+    aspectRatio: 1,
+    backgroundColor: 'rgba(28,91,185,0.1)',
     paddingHorizontal: 6,
     paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#1EA7FF',
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
   },
   cardDullMode: {
     backgroundColor: 'rgba(140,140,140,0.18)',
@@ -1153,10 +1173,8 @@ const styles = StyleSheet.create({
   iconBox: {
     width: 52,
     height: 52,
-    borderRadius: 26,
-    borderWidth: 1,
-    borderColor: '#1EA7FF',
-    backgroundColor: 'rgba(10,37,64,0.7)',
+    borderRadius: 999,
+    backgroundColor: '#0A1A2F',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1178,7 +1196,7 @@ const styles = StyleSheet.create({
   },
   gridTitle: {
     marginTop: 8,
-    color: '#FFFFFF',
+    color: '#F1F1F1',
     fontSize: 11,
     fontWeight: '700',
     textAlign: 'center',
@@ -1273,7 +1291,7 @@ const styles = StyleSheet.create({
     width: 62,
     height: 62,
     borderRadius: 31,
-    backgroundColor: '#C5A065',
+    backgroundColor: '#D4AF37',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
