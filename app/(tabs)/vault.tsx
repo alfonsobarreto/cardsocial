@@ -89,6 +89,8 @@ const VaultScreen = () => {
     floatingCopyText: isNight ? '#F1F7FF' : '#0A2540',
     floatingCloseBg: isNight ? '#1D4D6F' : '#E3F2FD',
     floatingCloseText: isNight ? '#F1F7FF' : '#002D4B',
+    selectedActionBg: isNight ? '#1C5BB9' : '#54C1FB',
+    selectedActionText: '#F0F4F8',
   };
   const [links, setLinks] = useState<Link[]>([]);
   const [formModalVisible, setFormModalVisible] = useState(false);
@@ -1082,15 +1084,15 @@ const VaultScreen = () => {
 
                 <View style={styles.floatingActionsRow}>
                   <TouchableOpacity
-                    style={[styles.floatingCopyButton, { backgroundColor: vaultTheme.floatingCopyBg }]}
+                    style={[styles.floatingCopyButton, { backgroundColor: vaultTheme.selectedActionBg }]}
                     onPress={async () => {
                       await Clipboard.setStringAsync(String(activeTextItem?.value || ''));
                       triggerSuccessHaptic();
                       Alert.alert(tr('Copiado', 'Copied'), tr('El contenido fue copiado al portapapeles.', 'Content copied to clipboard.'));
                     }}
                   >
-                    <MaterialCommunityIcons name="content-copy" color={vaultTheme.floatingCopyText} size={16} />
-                    <Text style={[styles.floatingCopyText, { color: vaultTheme.floatingCopyText }]}>Copiar</Text>
+                    <MaterialCommunityIcons name="content-copy" color={vaultTheme.selectedActionText} size={16} />
+                    <Text style={[styles.floatingCopyText, { color: vaultTheme.selectedActionText }]}>Copiar</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
