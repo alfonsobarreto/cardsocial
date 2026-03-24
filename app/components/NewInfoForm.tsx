@@ -1144,7 +1144,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               style={{ borderRadius: 10, padding: 4 }}
             >
               <TouchableOpacity
-                style={[styles.countryCodeButton, { borderWidth: 0 }]}
+                style={[styles.countryCodeButton, { borderWidth: 0, backgroundColor: formTheme.inputBg }]}
               onPress={() => setCountryModalVisible(true)}
             >
               <Text style={[styles.countryCodeText, { color: formTheme.inputText }]}>{countryCode}</Text>
@@ -1218,9 +1218,12 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               end={{ x: 1, y: 1 }}
               style={{ borderRadius: 10, padding: 4 }}
             >
-              <TouchableOpacity style={[styles.documentButton, { borderWidth: 0 }]} onPress={handlePickFile}>
-              <MaterialCommunityIcons name="image-plus" color="#002D4B" size={32} />
-              <Text style={styles.documentText}>
+              <TouchableOpacity
+                style={[styles.documentButton, { borderWidth: 0, backgroundColor: formTheme.inputBg }]}
+                onPress={handlePickFile}
+              >
+              <MaterialCommunityIcons name="image-plus" color={formTheme.textPrimary} size={32} />
+              <Text style={[styles.documentText, { color: formTheme.textPrimary }]}>
                 {dataValue ? 'Cambiar archivo' : 'Subir PDF o imagen'}
               </Text>
               </TouchableOpacity>
@@ -1229,8 +1232,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             
             {/* PREVIEW del documento/imagen seleccionado */}
             {dataValue && (
-              <View style={styles.previewContainer}>
-                <Text style={styles.previewLabel}>Vista Previa:</Text>
+              <View style={[styles.previewContainer, { backgroundColor: formTheme.inputBg }]}>
+                <Text style={[styles.previewLabel, { color: formTheme.textPrimary }]}>Vista Previa:</Text>
                 {isImageFile(dataValue) || isImageFile(dataName) ? (
                   <View style={styles.imagePreview}>
                     <Image 
@@ -1238,14 +1241,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                       style={styles.previewImage}
                       onError={() => console.log('Error loading image')}
                     />
-                    <Text style={styles.previewFileName} numberOfLines={1}>
+                    <Text style={[styles.previewFileName, { color: formTheme.textPrimary }]} numberOfLines={1}>
                       {dataName || 'Imagen seleccionada'}
                     </Text>
                   </View>
                 ) : (
                   <View style={styles.documentPreview}>
-                    <MaterialCommunityIcons name={getDocumentIcon(dataValue) as any} color="#002D4B" size={48} />
-                    <Text style={styles.previewFileName} numberOfLines={1}>
+                    <MaterialCommunityIcons name={getDocumentIcon(dataValue) as any} color={formTheme.textPrimary} size={48} />
+                    <Text style={[styles.previewFileName, { color: formTheme.textPrimary }]} numberOfLines={1}>
                       {dataName || 'Documento seleccionado'}
                     </Text>
                   </View>
@@ -1420,9 +1423,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 <MaterialCommunityIcons name="image-plus" color="#999" size={40} />
               )}
               <Text style={[styles.iconName, { color: formTheme.textPrimary }]}>
-                {selectedIcon === 'favicon'
-                  ? 'Favicon'
-                  : ICONS_BY_TYPE[dataType].find(i => i.id === selectedIcon)?.label || 'Sin icono'}
+                {dataValue?.trim() || dataName?.trim() || 'Sin data'}
               </Text>
             </View>
           </View>
@@ -1566,7 +1567,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                       setCountryModalVisible(false);
                     }}
                   >
-                    <Text style={styles.modalItemText}>
+                    <Text style={[styles.modalItemText, { color: isNight ? '#F0F4F8' : formTheme.textPrimary }]}>
                       {item.code} {item.country}
                     </Text>
                   </TouchableOpacity>
@@ -1628,16 +1629,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                       color={selectedIcon === item.id ? formTheme.selectedPillText : formTheme.textPrimary}
                       size={36}
                     />
-                    <Text
-                      style={[
-                        styles.iconLabel,
-                        selectedIcon === item.id && styles.iconLabelSelected,
-                        selectedIcon === item.id && { color: formTheme.selectedPillText },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {item.label}
-                    </Text>
                   </TouchableOpacity>
                 )}
               />

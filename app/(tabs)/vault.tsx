@@ -114,8 +114,13 @@ const VaultScreen = () => {
   const formSheetTranslateY = useRef(new Animated.Value(0)).current;
 
   const closeFormModal = () => {
+    formSheetTranslateY.stopAnimation();
+    formSheetTranslateY.setValue(0);
     setFormModalVisible(false);
     setEditingData(undefined);
+    setContextMenuVisible(false);
+    setTextValueModalVisible(false);
+    setActiveTextItem(null);
   };
 
   const formModalSwipeResponder = useRef(
@@ -909,7 +914,9 @@ const VaultScreen = () => {
                   editingData={editingData}
                   onClose={() => {
                     closeFormModal();
-                    loadVaultData();
+                    setTimeout(() => {
+                      void loadVaultData();
+                    }, 0);
                   }}
                 />
               </Animated.View>
