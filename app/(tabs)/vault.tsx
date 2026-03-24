@@ -892,37 +892,33 @@ const VaultScreen = () => {
         visible={formModalVisible}
         transparent
         animationType="slide"
+        onDismiss={() => {
+          formSheetTranslateY.stopAnimation();
+          formSheetTranslateY.setValue(0);
+        }}
         onRequestClose={() => {
           closeFormModal();
         }}
       >
-        <TouchableWithoutFeedback
-          onPress={() => {
-            closeFormModal();
-          }}
-        >
-          <View style={styles.formOverlay}>
-            <TouchableWithoutFeedback onPress={() => {}}>
-              <Animated.View
-                style={[styles.formSheet, { transform: [{ translateY: formSheetTranslateY }] }]}
-                {...formModalSwipeResponder.panHandlers}
-              >
-                <View style={styles.formDragHandleWrap}>
-                  <View style={styles.formDragHandle} />
-                </View>
-                <NewInfoForm
-                  editingData={editingData}
-                  onClose={() => {
-                    closeFormModal();
-                    setTimeout(() => {
-                      void loadVaultData();
-                    }, 0);
-                  }}
-                />
-              </Animated.View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
+        <View style={styles.formOverlay}>
+          <Animated.View
+            style={[styles.formSheet, { transform: [{ translateY: formSheetTranslateY }] }]}
+            {...formModalSwipeResponder.panHandlers}
+          >
+            <View style={styles.formDragHandleWrap}>
+              <View style={styles.formDragHandle} />
+            </View>
+            <NewInfoForm
+              editingData={editingData}
+              onClose={() => {
+                closeFormModal();
+                setTimeout(() => {
+                  void loadVaultData();
+                }, 0);
+              }}
+            />
+          </Animated.View>
+        </View>
       </Modal>
 
       <Modal

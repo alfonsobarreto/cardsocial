@@ -334,6 +334,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
   // Close modal
   const handleClose = () => {
+    setTypeModalVisible(false);
+    setCountryModalVisible(false);
     setIconModalVisible(false);
     setFileTypeModalVisible(false);
     setAssetPreviewVisible(false);
