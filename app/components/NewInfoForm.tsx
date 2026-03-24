@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -209,6 +209,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const [rejectionAttempts, setRejectionAttempts] = useState(0);
   const [retryLockedUntil, setRetryLockedUntil] = useState<number | null>(null);
   const [retryCountdownSec, setRetryCountdownSec] = useState(0);
+  const faviconLookupTokenRef = useRef(0);
+  const faviconLifecycleClosedRef = useRef(false);
   const retryLockMessage =
     'Estamos cuidando la integridad de la comunidad. Por favor, espera un momento antes de intentar de nuevo';
   const isRetryLocked = retryLockedUntil !== null && retryLockedUntil > Date.now();
@@ -284,12 +286,31 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     }
   }, [editingData]);
 
+  const closeFaviconSuggestion = ({ clearSuggestion = false }: { clearSuggestion?: boolean } = {}) => {
+    faviconLookupTokenRef.current += 1;
+    setFaviconLoading(false);
+    setFaviconSuggestionVisible(false);
+    if (clearSuggestion) {
+      setFaviconUrl('');
+      setLastFaviconDomain('');
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      faviconLifecycleClosedRef.current = true;
+      faviconLookupTokenRef.current += 1;
+    };
+  }, []);
+
   // Favicon fetching when URL changes (only if not editing with favicon already)
   useEffect(() => {
     const lookupFavicon = async () => {
       if (dataType !== 'Enlaces' || !dataValue.trim() || editingData?.id) {
         return;
       }
+
+      const lookupToken = ++faviconLookupTokenRef.current;
 
       try {
         const urlObj = new URL(dataValue.startsWith('http') ? dataValue : `https://${dataValue}`);
@@ -301,12 +322,21 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         setFaviconLoading(true);
         const fetchedIcon = await fetchFaviconFromAzure(dataValue);
 
+        if (faviconLifecycleClosedRef.current || lookupToken !== faviconLookupTokenRef.current) {
+          return;
+        }
+
         if (!fetchedIcon) {
           setFaviconLoading(false);
           return;
         }
 
         await Image.prefetch(fetchedIcon).catch(() => null);
+
+        if (faviconLifecycleClosedRef.current || lookupToken !== faviconLookupTokenRef.current) {
+          return;
+        }
+
         setLastFaviconDomain(domain);
         setFaviconUrl(fetchedIcon);
         setFaviconSuggestionVisible(true);
@@ -319,7 +349,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     };
 
     lookupFavicon();
-  }, [dataValue, dataType, selectedIcon, editingData?.id, lastFaviconDomain]);
+  }, [dataValue, dataType, editingData?.id, lastFaviconDomain]);
 
   // Reset icon and URL when data type changes (but NOT if we're editing)
   useEffect(() => {
@@ -327,7 +357,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       setSelectedIcon('1');
       setDataValue('');
       setFaviconUrl('');
-      setFaviconSuggestionVisible(false);
+      closeFaviconSuggestion();
       setLastFaviconDomain('');
     }
   }, [dataType, editingData?.id]);
@@ -340,7 +370,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setFileTypeModalVisible(false);
     setAssetPreviewVisible(false);
     setPendingAsset(null);
-    setFaviconSuggestionVisible(false);
+    closeFaviconSuggestion();
     setUploadModalVisible(false);
     setIsUploading(false);
     setUploadProgress(0);
@@ -354,7 +384,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setSelectedIcon('1');
     setCountryCode('+1');
     setFaviconUrl('');
-    setFaviconSuggestionVisible(false);
+    closeFaviconSuggestion();
     setLastFaviconDomain('');
     
     // Call callback
@@ -1511,18 +1541,28 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           visible={faviconSuggestionVisible}
           transparent
           animationType="fade"
-          onRequestClose={() => setFaviconSuggestionVisible(false)}
+          onRequestClose={() => closeFaviconSuggestion()}
         >
-          <View style={styles.faviconPopupOverlay}>
-            <View style={styles.faviconPopupCard}>
+          <TouchableWithoutFeedback onPress={() => closeFaviconSuggestion()}>
+            <View style={styles.faviconPopupOverlay}>
+              <TouchableWithoutFeedback onPress={() => {}}>
+                <View style={styles.faviconPopupCard}>
               <Text style={styles.faviconPopupTitle}>¿Usar este icono?</Text>
-              {faviconUrl ? <Image source={{ uri: faviconUrl }} style={styles.faviconPopupImage} /> : null}
+              <View style={styles.faviconPopupPreviewBox}>
+                {faviconLoading ? (
+                  <BrandedSpinner size={44} color="#D4AF37" />
+                ) : faviconUrl ? (
+                  <Image source={{ uri: faviconUrl }} style={styles.faviconPopupImage} />
+                ) : (
+                  <MaterialCommunityIcons name="web" color="#0A2540" size={36} />
+                )}
+              </View>
               <View style={styles.faviconPopupActions}>
                 <TouchableOpacity
                   style={[styles.faviconPopupButton, styles.faviconConfirmButton]}
                   onPress={() => {
                     setSelectedIcon('favicon');
-                    setFaviconSuggestionVisible(false);
+                    closeFaviconSuggestion();
                   }}
                 >
                   <Text style={styles.faviconConfirmButtonText}>SÍ, USAR</Text>
@@ -1530,15 +1570,16 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 <TouchableOpacity
                   style={[styles.faviconPopupButton, styles.faviconCancelButton]}
                   onPress={() => {
-                    setSelectedIcon('1');
-                    setFaviconSuggestionVisible(false);
+                    closeFaviconSuggestion();
                   }}
                 >
                   <Text style={styles.faviconCancelButtonText}>NO, CANCELAR</Text>
                 </TouchableOpacity>
               </View>
+                </View>
+              </TouchableWithoutFeedback>
             </View>
-          </View>
+          </TouchableWithoutFeedback>
         </Modal>
 
         {/* MODAL: COUNTRY CODE */}
@@ -2140,7 +2181,9 @@ const styles = StyleSheet.create({
     maxWidth: 320,
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
     alignItems: 'center',
   },
   faviconPopupTitle: {
@@ -2153,12 +2196,25 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 14,
+  },
+  faviconPopupPreviewBox: {
+    width: 96,
+    height: 96,
+    borderRadius: 18,
+    backgroundColor: '#F5F9FC',
+    borderWidth: 1,
+    borderColor: '#CFE6F8',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 16,
+    zIndex: 1,
   },
   faviconPopupActions: {
     width: '100%',
-    flexDirection: 'row',
-    gap: 8,
+    flexDirection: 'column',
+    gap: 10,
+    marginTop: 2,
+    zIndex: 2,
   },
   faviconPopupButton: {
     flex: 1,
