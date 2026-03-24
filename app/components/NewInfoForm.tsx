@@ -19,6 +19,7 @@ import {
   PanResponder,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as DocumentPicker from 'expo-document-picker';
@@ -33,6 +34,7 @@ import { ModerationRejectedError, uploadFileWithModeration } from '@/services/mo
 import { fetchFaviconFromAzure } from '@/services/faviconApi';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { useLanguage } from '@/services/language';
+import { useLookMode } from '@/services/lookMode';
 import LuxuryModerationModal from './LuxuryModerationModal';
 import BrandedSpinner from '@/components/BrandedSpinner';
 
@@ -153,7 +155,23 @@ const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024; // 20 MB
 
 const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingData?: Link }) => {
   const { language } = useLanguage();
+  const { resolvedMode } = useLookMode();
   const tr = (es: string, en: string) => language === 'en' ? en : es;
+  const isNight = resolvedMode === 'noche';
+  const formTheme = {
+    motherBg: isNight ? '#0A2540' : '#E3F2FD',
+    surfaceBg: isNight ? '#0A2540' : '#E3F2FD',
+    border: isNight ? '#D4AF37' : '#D4AF37',
+    textPrimary: isNight ? '#F0F4F8' : '#002D4B',
+    textSecondary: isNight ? '#B8D9F0' : '#7A8A97',
+    inputBg: isNight ? '#0D2E40' : '#E3F2FD',
+    inputText: isNight ? '#F0F4F8' : '#002D4B',
+    inputPlaceholder: isNight ? '#87A9C2' : '#666666',
+    selectedPillBg: '#54C1FB',
+    selectedPillText: '#F0F4F8',
+    iconPreviewCircleBg: isNight ? '#0B2234' : '#F0F4F8',
+    iconPreviewCircleBorder: isNight ? '#C5A065' : '#CFE6F8',
+  };
   const [dataType, setDataType] = useState<DataType>('Enlaces');
   const [dataName, setDataName] = useState('');
   const [dataValue, setDataValue] = useState('');
@@ -1089,9 +1107,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         return (
           <View>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderColor: formTheme.border }]}
               placeholder="https://example.com"
-              placeholderTextColor="#666"
+              placeholderTextColor={formTheme.inputPlaceholder}
               value={dataValue}
               onChangeText={setDataValue}
             />
@@ -1113,13 +1131,13 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               style={styles.countryCodeButton}
               onPress={() => setCountryModalVisible(true)}
             >
-              <Text style={styles.countryCodeText}>{countryCode}</Text>
+              <Text style={[styles.countryCodeText, { color: formTheme.inputText }]}>{countryCode}</Text>
               <MaterialCommunityIcons name="chevron-down" color="#1EA7FF" size={18} />
             </TouchableOpacity>
             <TextInput
-              style={[styles.input, { flex: 1 }]}
+              style={[styles.input, { flex: 1, backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderColor: formTheme.border }]}
               placeholder="123 456 7890"
-              placeholderTextColor="#666"
+              placeholderTextColor={formTheme.inputPlaceholder}
               value={dataValue}
               onChangeText={setDataValue}
               keyboardType="phone-pad"
@@ -1129,9 +1147,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       case 'Email':
         return (
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderColor: formTheme.border }]}
             placeholder="tu@email.com"
-            placeholderTextColor="#666"
+            placeholderTextColor={formTheme.inputPlaceholder}
             value={dataValue}
             onChangeText={setDataValue}
             keyboardType="email-address"
@@ -1141,9 +1159,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         return (
           <View>
             <TextInput
-              style={[styles.input, { minHeight: 100 }]}
+              style={[styles.input, { minHeight: 100, backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderColor: formTheme.border }]}
               placeholder="Escribe aquí..."
-              placeholderTextColor="#666"
+              placeholderTextColor={formTheme.inputPlaceholder}
               value={dataValue}
               onChangeText={setDataValue}
               multiline
@@ -1202,9 +1220,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: formTheme.motherBg }]}>
         {/* Header with close button */}
-        <View style={styles.headerTop} {...mainModalSwipeResponder.panHandlers}>
+        <View style={[styles.headerTop, { borderBottomColor: formTheme.border }]} {...mainModalSwipeResponder.panHandlers}>
           <View style={styles.modalDragHandleWrap} {...mainModalSwipeResponder.panHandlers}>
             <View style={styles.modalDragHandle} />
           </View>
@@ -1232,14 +1250,25 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         >
           {/* TIPO DE DATA */}
           <View style={styles.section}>
-            <Text style={styles.stepLabel}>TIPO DE DATO {editingData?.id && '(No editable)'}</Text>
+            <Text style={[styles.stepLabel, { color: formTheme.textPrimary }]}>TIPO DE DATO {editingData?.id && '(No editable)'}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typePillsRow} removeClippedSubviews={true} scrollEventThrottle={16}>
               {DATA_TYPE_OPTIONS.map((option) => {
                 const isActive = dataType === option.key;
                 return (
                   <TouchableOpacity
                     key={option.key}
-                    style={[styles.typePill, isActive && styles.typePillActive, editingData?.id && styles.typePillDisabled]}
+                    style={[
+                      styles.typePill,
+                      {
+                        backgroundColor: isActive ? formTheme.selectedPillBg : formTheme.surfaceBg,
+                        borderColor: formTheme.border,
+                        shadowColor: isActive ? '#54C1FB' : '#000',
+                        shadowOpacity: isActive ? 0.22 : 0,
+                        elevation: isActive ? 4 : 0,
+                      },
+                      isActive && styles.typePillActive,
+                      editingData?.id && styles.typePillDisabled,
+                    ]}
                     onPress={() => {
                       if (editingData?.id) return;
                       setDataType(option.key);
@@ -1247,23 +1276,30 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                     }}
                     disabled={!!editingData?.id}
                   >
-                    <Text style={[styles.typePillText, isActive && styles.typePillTextActive]}>{option.label}</Text>
+                    <Text
+                      style={[
+                        styles.typePillText,
+                        { color: isActive ? formTheme.selectedPillText : formTheme.textPrimary },
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
                   </TouchableOpacity>
                 );
               })}
             </ScrollView>
-            <Text style={styles.hint}>
+            <Text style={[styles.hint, { color: formTheme.textSecondary }]}>
               {editingData?.id ? 'Tipo no puede cambiar al editar' : 'Selector horizontal estilo pill'}
             </Text>
           </View>
 
           {/* NOMBRE DE DATA */}
           <View style={styles.section}>
-            <Text style={styles.stepLabel}>NOMBRE DE DATA</Text>
+            <Text style={[styles.stepLabel, { color: formTheme.textPrimary }]}>NOMBRE DE DATA</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderColor: formTheme.border }]}
               placeholder="Ej: Mi WhatsApp"
-              placeholderTextColor="#666"
+              placeholderTextColor={formTheme.inputPlaceholder}
               value={dataName}
               onChangeText={setDataName}
             />
@@ -1271,14 +1307,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
           {/* DATA */}
           <View style={styles.section}>
-            <Text style={styles.stepLabel}>DATA</Text>
+            <Text style={[styles.stepLabel, { color: formTheme.textPrimary }]}>DATA</Text>
             {renderDataField()}
           </View>
 
           {/* ICONO */}
           <View style={styles.section}>
             <View style={styles.stepHeader}>
-              <Text style={styles.stepLabel}>ICONO</Text>
+              <Text style={[styles.stepLabel, { color: formTheme.textPrimary }]}>ICONO</Text>
               <TouchableOpacity
                 style={styles.editIconBtn}
                 onPress={() => setIconModalVisible(true)}
@@ -1286,7 +1322,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 <MaterialCommunityIcons name="pencil" color="#0A2540" size={18} />
               </TouchableOpacity>
             </View>
-            <View style={styles.iconPreview}>
+            <View style={[styles.iconPreview, { backgroundColor: formTheme.surfaceBg }]}>
               {faviconLoading && dataType === 'Enlaces' ? (
                 <>
                   <View style={styles.iconLoadingPreview}>
@@ -1297,17 +1333,35 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                   <Text style={styles.faviconLabel}>Buscando favicon en Azure...</Text>
                 </>
               ) : selectedIcon === 'favicon' && faviconUrl ? (
-                <Image source={{ uri: faviconUrl }} style={styles.faviconImg} />
+                <LinearGradient
+                  colors={isNight ? ['#E8C547', '#C5A065', '#D4AF37'] : ['#00BFD9', '#00A0C6', '#0099CC']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.iconPreviewCircleGradient}
+                >
+                  <View style={[styles.iconPreviewCircleInner, { backgroundColor: formTheme.iconPreviewCircleBg }]}> 
+                    <Image source={{ uri: faviconUrl }} style={styles.faviconImg} />
+                  </View>
+                </LinearGradient>
               ) : selectedIcon ? (
-                <MaterialCommunityIcons
-                  name={ICONS_BY_TYPE[dataType].find(i => i.id === selectedIcon)?.icon as any}
-                  color="#002D4B"
-                  size={48}
-                />
+                <LinearGradient
+                  colors={isNight ? ['#E8C547', '#C5A065', '#D4AF37'] : ['#00BFD9', '#00A0C6', '#0099CC']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.iconPreviewCircleGradient}
+                >
+                  <View style={[styles.iconPreviewCircleInner, { backgroundColor: formTheme.iconPreviewCircleBg }]}> 
+                    <MaterialCommunityIcons
+                      name={ICONS_BY_TYPE[dataType].find(i => i.id === selectedIcon)?.icon as any}
+                      color={formTheme.textPrimary}
+                      size={48}
+                    />
+                  </View>
+                </LinearGradient>
               ) : (
                 <MaterialCommunityIcons name="image-plus" color="#999" size={40} />
               )}
-              <Text style={styles.iconName}>
+              <Text style={[styles.iconName, { color: formTheme.textPrimary }]}>
                 {selectedIcon === 'favicon'
                   ? 'Favicon'
                   : ICONS_BY_TYPE[dataType].find(i => i.id === selectedIcon)?.label || 'Sin icono'}
@@ -1342,9 +1396,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           onRequestClose={() => setTypeModalVisible(false)}
         >
           <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
+            <View style={[styles.modalContent, { backgroundColor: formTheme.surfaceBg, borderTopColor: formTheme.border }]}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Selecciona Tipo</Text>
+                <Text style={[styles.modalTitle, { color: formTheme.textPrimary }]}>Selecciona Tipo</Text>
                 <TouchableOpacity onPress={() => setTypeModalVisible(false)}>
                   <MaterialCommunityIcons name="close" color="#1EA7FF" size={24} />
                 </TouchableOpacity>
@@ -1426,9 +1480,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           onRequestClose={() => setCountryModalVisible(false)}
         >
           <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
+            <View style={[styles.modalContent, { backgroundColor: formTheme.surfaceBg, borderTopColor: formTheme.border }]}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>País</Text>
+                <Text style={[styles.modalTitle, { color: formTheme.textPrimary }]}>País</Text>
                 <TouchableOpacity onPress={() => setCountryModalVisible(false)}>
                   <MaterialCommunityIcons name="close" color="#1EA7FF" size={24} />
                 </TouchableOpacity>
@@ -1466,7 +1520,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           <TouchableWithoutFeedback onPress={() => setIconModalVisible(false)}>
           <View style={styles.modalOverlay}>
             <TouchableWithoutFeedback onPress={() => {}}>
-            <View style={[styles.modalContent, { maxHeight: SCREEN_HEIGHT * 0.85 }]}>
+            <View style={[styles.modalContent, { maxHeight: SCREEN_HEIGHT * 0.85, backgroundColor: formTheme.surfaceBg, borderTopColor: formTheme.border }]}>
               <View style={styles.bottomSheetDragHandleWrap} {...iconModalSwipeResponder.panHandlers}>
                 <View style={styles.bottomSheetDragHandle} />
               </View>
@@ -1528,7 +1582,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           <TouchableWithoutFeedback onPress={() => setFileTypeModalVisible(false)}>
             <View style={styles.modalOverlay}>
             <TouchableWithoutFeedback onPress={() => {}}>
-            <View style={styles.modalContent}>
+            <View style={[styles.modalContent, { backgroundColor: formTheme.surfaceBg, borderTopColor: formTheme.border }]}>
               <View style={styles.bottomSheetDragHandleWrap} {...fileTypeSwipeResponder.panHandlers}>
                 <View style={styles.bottomSheetDragHandle} />
               </View>
@@ -1744,7 +1798,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   typePillTextActive: {
-    color: '#0A1A2F',
+    color: '#F0F4F8',
+    fontWeight: '700',
   },
   dropdownButton: {
     backgroundColor: '#E3F2FD',
@@ -1923,6 +1978,29 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
     alignItems: 'center',
     gap: 12,
+  },
+  iconPreviewCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 1.8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconPreviewCircleGradient: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    padding: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconPreviewCircleInner: {
+    width: 116,
+    height: 116,
+    borderRadius: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   iconLoadingPreview: {
     width: 96,
