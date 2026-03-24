@@ -414,11 +414,15 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
           headerStyle: { backgroundColor: '#0A1A2F', height: 90 },
           headerTintColor: '#D4AF37',
           headerTitleAlign: 'center',
-          headerTitle: () => (
-            <View style={styles.headerBrandWrap}>
+          headerLeft: () => (
+            <View style={styles.headerLeftLogoWrap}>
               <View style={styles.logoFrame}>
                 <Image source={require('../../assets/images/CS Icon Logo.png')} style={styles.headerLogo} />
               </View>
+            </View>
+          ),
+          headerTitle: () => (
+            <View style={styles.headerBrandWrap}>
               <Text style={styles.headerBrandText}>Card-Social</Text>
             </View>
           ),
@@ -758,10 +762,13 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
 }
 
 const styles = StyleSheet.create({
+  headerLeftLogoWrap: {
+    marginLeft: 6,
+  },
   headerBrandWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
   },
   logoFrame: {
     backgroundColor: '#FFFFFF',

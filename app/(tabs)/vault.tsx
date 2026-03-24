@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,8 @@ import {
   ScrollView,
   ActivityIndicator,
   Vibration,
+  Animated,
+  PanResponder,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -79,6 +81,57 @@ const VaultScreen = () => {
   const [contextMenuItem, setContextMenuItem] = useState<Link | null>(null);
   const [textValueModalVisible, setTextValueModalVisible] = useState(false);
   const [activeTextItem, setActiveTextItem] = useState<Link | null>(null);
+  const formSheetTranslateY = useRef(new Animated.Value(0)).current;
+
+  const closeFormModal = () => {
+    setFormModalVisible(false);
+    setEditingData(undefined);
+  };
+
+  const formModalSwipeResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gesture) =>
+        Math.abs(gesture.dy) > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+      onPanResponderMove: (_, gesture) => {
+        if (gesture.dy > 0) {
+          formSheetTranslateY.setValue(gesture.dy);
+        }
+      },
+      onPanResponderRelease: (_, gesture) => {
+        if (gesture.dy > 120 || gesture.vy > 1.15) {
+          Animated.timing(formSheetTranslateY, {
+            toValue: SCREEN_HEIGHT,
+            duration: 170,
+            useNativeDriver: true,
+          }).start(() => {
+            formSheetTranslateY.setValue(0);
+            closeFormModal();
+          });
+          return;
+        }
+
+        Animated.spring(formSheetTranslateY, {
+          toValue: 0,
+          useNativeDriver: true,
+          bounciness: 0,
+        }).start();
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(formSheetTranslateY, {
+          toValue: 0,
+          useNativeDriver: true,
+          bounciness: 0,
+        }).start();
+      },
+    })
+  ).current;
+
+  useEffect(() => {
+    if (formModalVisible) {
+      formSheetTranslateY.setValue(0);
+    }
+  }, [formModalVisible, formSheetTranslateY]);
 
   const sortLinks = (items: Link[]) => {
     return [...items].sort((a, b) => {
@@ -264,8 +317,6 @@ const VaultScreen = () => {
       Alert.alert(tr('❌ Error', '❌ Error'), tr('No se pudo actualizar favorito', 'Could not update favorite'));
     }
   };
-
-  const sanitizePhone = (rawPhone: string) => rawPhone.replace(/[^\d+]/g, '');
 
   const normalizeType = (type: string) => String(type || '').trim().toLowerCase();
 
@@ -493,10 +544,9 @@ const VaultScreen = () => {
       }
 
       if (normalizedType === 'teléfono' || normalizedType === 'telefono') {
-        const phone = sanitizePhone(rawValue);
         Alert.alert(
           'Ghost-Link Activo',
-          `Card-Social protege el número (${phone || 'oculto'}). Usa Calls/Contacts para llamar sin exponerlo.`,
+          'Card-Social protege tu número. Usa Calls/Contacts para llamar sin exponer datos sensibles.',
           [
             {
               text: 'Ir a Calls',
@@ -532,7 +582,7 @@ const VaultScreen = () => {
     return (
       <MaterialCommunityIcons
         name={link.icon as any}
-        color="#F1F1F1"
+        color="#002D4B"
         size={32}
       />
     );
@@ -689,7 +739,7 @@ const VaultScreen = () => {
             {renderIcon(item)}
             {item.isFavorite ? (
               <View style={styles.favoriteBadge}>
-                <MaterialCommunityIcons name="star" color="#FFFFFF" size={10} />
+                <MaterialCommunityIcons name="star" color="#002D4B" size={10} />
               </View>
             ) : null}
           </View>
@@ -749,7 +799,7 @@ const VaultScreen = () => {
   // Header vacío
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <MaterialCommunityIcons name="folder-outline" color="#F1F1F1" size={64} />
+      <MaterialCommunityIcons name="folder-outline" color="#002D4B" size={64} />
       <Text style={styles.emptyTitle}>Tu Vault está vacío</Text>
       <Text style={styles.emptySubtitle}>
         Toca el botón + para agregar tu primer dato
@@ -764,14 +814,17 @@ const VaultScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerCenterBlock}>
-          <View style={styles.logoFrame}>
-            <Image source={require('../../assets/images/CS Icon Logo.png')} style={styles.headerLogo} />
-          </View>
-          <View style={styles.headerUserRow}>
+          <View style={styles.headerUserRowCentered}>
             <Text style={styles.headerSubtitle}>{profileDisplayName}</Text>
-            {isUserVerified ? <VerificationBadge compact /> : null}
+            {isUserVerified ? (
+              <View style={styles.headerVerificationWrap}>
+                <VerificationBadge compact />
+              </View>
+            ) : null}
           </View>
-          <Text style={styles.vaultCounterLabel}>[{links.length}] / Datos Ilimitados Utilizados</Text>
+          <Text style={styles.vaultCounterLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.62}>
+            [{links.length}] / Datos Ilimitados Utilizados
+          </Text>
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${usageProgress * 100}%` }]} />
           </View>
@@ -806,18 +859,34 @@ const VaultScreen = () => {
         transparent
         animationType="slide"
         onRequestClose={() => {
-          setFormModalVisible(false);
-          setEditingData(undefined);
+          closeFormModal();
         }}
       >
-        <NewInfoForm
-          editingData={editingData}
-          onClose={() => {
-            setFormModalVisible(false);
-            setEditingData(undefined);
-            loadVaultData();
+        <TouchableWithoutFeedback
+          onPress={() => {
+            closeFormModal();
           }}
-        />
+        >
+          <View style={styles.formOverlay}>
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <Animated.View
+                style={[styles.formSheet, { transform: [{ translateY: formSheetTranslateY }] }]}
+                {...formModalSwipeResponder.panHandlers}
+              >
+                <View style={styles.formDragHandleWrap}>
+                  <View style={styles.formDragHandle} />
+                </View>
+                <NewInfoForm
+                  editingData={editingData}
+                  onClose={() => {
+                    closeFormModal();
+                    loadVaultData();
+                  }}
+                />
+              </Animated.View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       <Modal
@@ -842,7 +911,7 @@ const VaultScreen = () => {
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.viewerCloseButton} onPress={() => setViewerVisible(false)}>
-              <MaterialCommunityIcons name="close" color="#FFFFFF" size={28} />
+              <MaterialCommunityIcons name="close" color="#002D4B" size={28} />
             </TouchableOpacity>
           </View>
 
@@ -1021,14 +1090,14 @@ const VaultScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0E253D',
+    backgroundColor: '#E3F2FD',
   },
 
   // HEADER
   header: {
-    alignItems: 'center',
+    alignItems: 'stretch',
     paddingHorizontal: 16,
-    paddingTop: 36, // Increased padding for more space
+    paddingTop: 18,
     paddingBottom: 24, // Increased padding for more space
     backgroundColor: '#1EA7FF',
     borderBottomWidth: 1,
@@ -1037,30 +1106,22 @@ const styles = StyleSheet.create({
   headerCenterBlock: {
     alignItems: 'center',
     width: '100%',
-  },
-  logoFrame: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 999,
-    padding: 4,
-    borderWidth: 1.5,
-    borderColor: '#D4AF37',
-  },
-  headerLogo: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    marginTop: 0,
   },
   headerSubtitle: {
-    fontSize: 18,
-    color: '#F1F1F1',
+    fontSize: 30,
+    color: '#002D4B',
     fontWeight: 'bold',
-    marginTop: 4,
+    marginTop: 2,
   },
   vaultCounterLabel: {
-    marginTop: 6,
-    fontSize: 12,
+    marginTop: 12,
+    width: '100%',
+    textAlign: 'center',
+    fontSize: 26,
+    lineHeight: 32,
     color: '#D4AF37',
-    fontWeight: '700',
+    fontWeight: '800',
   },
   progressTrack: {
     width: '100%',
@@ -1074,13 +1135,40 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     borderRadius: 999,
-    backgroundColor: '#54C1FB',
+    backgroundColor: '#E3F2FD',
   },
-  headerUserRow: {
-    marginTop: 4,
+  headerUserRowCentered: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    gap: 10,
+  },
+  headerVerificationWrap: {
+    transform: [{ scale: 1.24 }],
+  },
+  formOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.42)',
+    justifyContent: 'flex-end',
+  },
+  formSheet: {
+    height: SCREEN_HEIGHT * 0.94,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    overflow: 'hidden',
+  },
+  formDragHandleWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 10,
+    paddingBottom: 6,
+    backgroundColor: '#E3F2FD',
+  },
+  formDragHandle: {
+    width: 52,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: 'rgba(241,241,241,0.55)',
   },
   addButton: {
     width: 44,
@@ -1131,7 +1219,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 999,
-    backgroundColor: '#0A1A2F',
+    backgroundColor: '#E3F2FD',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1153,7 +1241,7 @@ const styles = StyleSheet.create({
   },
   gridTitle: {
     marginTop: 8,
-    color: '#F1F1F1',
+    color: '#002D4B',
     fontSize: 11,
     fontWeight: '700',
     textAlign: 'center',
@@ -1169,7 +1257,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#002D4B',
     marginTop: 16,
   },
   emptySubtitle: {
@@ -1238,7 +1326,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   viewerFallbackText: {
-    color: '#FFFFFF',
+    color: '#002D4B',
     fontWeight: '600',
   },
   fabAddButton: {
@@ -1281,7 +1369,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   contextMenuActionText: {
-    color: '#FFFFFF',
+    color: '#002D4B',
     fontWeight: '700',
     fontSize: 14,
   },
@@ -1344,12 +1432,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: '#0A2540',
+    backgroundColor: '#E3F2FD',
     alignSelf: 'flex-end',
     marginTop: 8,
   },
   floatingCloseText: {
-    color: '#FFFFFF',
+    color: '#002D4B',
     fontWeight: '700',
     fontSize: 12,
   },

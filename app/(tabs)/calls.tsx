@@ -16,6 +16,7 @@ import { BlurView } from 'expo-blur';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { getActiveUserId } from '@/services/authSession';
+import { useLanguage } from '@/services/language';
 import {
   type CallHistoryRow,
   createCallLog,

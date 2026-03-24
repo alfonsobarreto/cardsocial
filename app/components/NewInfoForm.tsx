@@ -23,6 +23,8 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
+import { PDFDocument } from 'pdf-lib';
+import { Buffer } from 'buffer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '@/services/firebaseConfig';
 import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
@@ -391,19 +393,114 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     }
   };
 
-  // Comprimir imagen a 3x3 pulgadas (72 DPI = 216x216px)
-  const compressImage = async (uri: string): Promise<string> => {
+  const getFileSizeInBytes = async (fileUri: string): Promise<number> => {
+    try {
+      const info = await FileSystem.getInfoAsync(fileUri, { size: true } as any);
+      if ((info as any)?.size) {
+        return Number((info as any).size);
+      }
+    } catch {
+      // Fallback to fetch below.
+    }
+
+    const response = await fetch(fileUri);
+    const blob = await response.blob();
+    return blob.size;
+  };
+
+  const isImageLikeAsset = (uri: string, mimeType?: string | null) => {
+    const mime = String(mimeType || '').toLowerCase();
+    if (mime.startsWith('image/')) return true;
+    return /\.(jpg|jpeg|png|webp|heic|bmp)$/i.test(String(uri || ''));
+  };
+
+  const isPdfAsset = (uri: string, mimeType?: string | null) => {
+    const mime = String(mimeType || '').toLowerCase();
+    return mime.includes('pdf') || /\.pdf(\?|$)/i.test(String(uri || ''));
+  };
+
+  // Optimiza imágenes automáticamente para cumplir límites de cliente/backend.
+  const optimizeImageForLimit = async (uri: string, maxBytes: number): Promise<{ uri: string; size: number }> => {
     try {
       setIsCompressing(true);
-      const manipResult = await ImageManipulator.manipulateAsync(
-        uri,
-        [{ resize: { width: 216, height: 216 } }],
-        { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG }
-      );
-      return manipResult.uri;
+
+      const initialSize = await getFileSizeInBytes(uri);
+      if (initialSize <= maxBytes) {
+        return { uri, size: initialSize };
+      }
+
+      let bestUri = uri;
+      let bestSize = initialSize;
+
+      const attempts = [
+        { width: 1920, compress: 0.72 },
+        { width: 1440, compress: 0.62 },
+        { width: 1080, compress: 0.52 },
+        { width: 840, compress: 0.45 },
+        { width: 640, compress: 0.38 },
+      ];
+
+      for (const attempt of attempts) {
+        const manipResult = await ImageManipulator.manipulateAsync(
+          bestUri,
+          [{ resize: { width: attempt.width } }],
+          { compress: attempt.compress, format: ImageManipulator.SaveFormat.JPEG }
+        );
+        const size = await getFileSizeInBytes(manipResult.uri);
+        bestUri = manipResult.uri;
+        bestSize = size;
+
+        if (size <= maxBytes) {
+          return { uri: bestUri, size: bestSize };
+        }
+      }
+
+      return { uri: bestUri, size: bestSize };
     } catch (error) {
       console.error('Error compressing image:', error);
-      return uri; // Retorna original si hay error
+      const size = await getFileSizeInBytes(uri).catch(() => Number.MAX_SAFE_INTEGER);
+      return { uri, size };
+    } finally {
+      setIsCompressing(false);
+    }
+  };
+
+  // Optimiza PDF re-guardando con object streams para reducir peso sin cambiar contenido visible.
+  const optimizePdfForLimit = async (uri: string, maxBytes: number): Promise<{ uri: string; size: number }> => {
+    try {
+      setIsCompressing(true);
+      const initialSize = await getFileSizeInBytes(uri);
+      if (initialSize <= maxBytes) {
+        return { uri, size: initialSize };
+      }
+
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      const sourceBytes = Uint8Array.from(Buffer.from(base64, 'base64'));
+      const pdfDoc = await PDFDocument.load(sourceBytes, {
+        ignoreEncryption: true,
+        updateMetadata: false,
+      });
+
+      const optimizedBytes = await pdfDoc.save({
+        useObjectStreams: true,
+        addDefaultPage: false,
+        updateFieldAppearances: false,
+      });
+
+      const optimizedBase64 = Buffer.from(optimizedBytes).toString('base64');
+      const optimizedUri = `${FileSystem.cacheDirectory || ''}optimized-${Date.now()}.pdf`;
+      await FileSystem.writeAsStringAsync(optimizedUri, optimizedBase64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      const optimizedSize = await getFileSizeInBytes(optimizedUri);
+      return { uri: optimizedUri, size: optimizedSize };
+    } catch (error) {
+      console.warn('PDF optimization failed, keeping original:', error);
+      const size = await getFileSizeInBytes(uri).catch(() => Number.MAX_SAFE_INTEGER);
+      return { uri, size };
     } finally {
       setIsCompressing(false);
     }
@@ -439,26 +536,26 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           mimeType: file.mimeType || 'unknown',
           sizeBytes: file.fileSize || null,
         });
-        // Validar tamaño antes de comprimir
-        const validation = await validateFileSize(file.uri);
-        if (!validation.valid) {
-          Alert.alert(tr('Archivo muy grande', 'File too large'), validation.message || tr('El archivo supera el límite permitido', 'File exceeds size limit'));
+        const optimized = await optimizeImageForLimit(file.uri, MAX_IMAGE_SIZE);
+        if (optimized.size > MAX_IMAGE_SIZE) {
+          Alert.alert(
+            tr('No se pudo optimizar', 'Could not optimize'),
+            tr('La imagen no pudo reducirse al límite seguro. Intenta otra foto o menor resolución.', 'The image could not be reduced to the secure size limit. Try another image or lower resolution.')
+          );
           setFileTypeModalVisible(false);
           return;
         }
-        // Comprimir imagen para mantener costos bajos en upload
-        const compressedUri = await compressImage(file.uri);
-        const info = await FileSystem.getInfoAsync(compressedUri, { size: true } as any).catch(() => null);
+
         logAssetAudit('PICK_GALLERY_COMPRESSED', {
           dataType,
           dataName,
-          uri: compressedUri,
+          uri: optimized.uri,
           fileName: 'gallery-compressed.jpg',
           mimeType: 'image/jpeg',
-          sizeBytes: (info as any)?.size || null,
+          sizeBytes: optimized.size,
         });
         openAssetPreview({
-          uri: compressedUri,
+          uri: optimized.uri,
           name: file.fileName || 'gallery-image.jpg',
           mimeType: 'image/jpeg',
           source: 'gallery',
@@ -493,18 +590,64 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         mimeType: file.mimeType || 'unknown',
         sizeBytes: file.size || null,
       });
-      const validation = await validateFileSize(file.uri);
-      if (!validation.valid) {
-        Alert.alert(tr('Archivo muy grande', 'File too large'), validation.message || tr('El archivo supera el limite permitido', 'File exceeds size limit'));
-        setFileTypeModalVisible(false);
-        return;
+      const isImageDoc = isImageLikeAsset(file.uri, file.mimeType);
+      let finalUri = file.uri;
+      let finalMime = file.mimeType || inferMimeType(file.uri);
+      let finalSize = await getFileSizeInBytes(file.uri);
+
+      if (isImageDoc) {
+        const optimized = await optimizeImageForLimit(file.uri, MAX_IMAGE_SIZE);
+        finalUri = optimized.uri;
+        finalSize = optimized.size;
+        finalMime = 'image/jpeg';
+
+        if (finalSize > MAX_IMAGE_SIZE) {
+          Alert.alert(
+            tr('No se pudo optimizar', 'Could not optimize'),
+            tr('No fue posible reducir la imagen al límite seguro. Prueba con otra captura.', 'Could not reduce the image to the secure limit. Try another capture.')
+          );
+          setFileTypeModalVisible(false);
+          return;
+        }
+      } else if (isPdfAsset(file.uri, file.mimeType)) {
+        const optimizedPdf = await optimizePdfForLimit(file.uri, MAX_IMAGE_SIZE);
+        finalUri = optimizedPdf.uri;
+        finalSize = optimizedPdf.size;
+        finalMime = 'application/pdf';
+
+        if (finalSize > MAX_DOCUMENT_SIZE) {
+          Alert.alert(
+            tr('PDF demasiado pesado', 'PDF too large'),
+            tr('El PDF excede el límite seguro incluso tras optimizar. Usa una versión más ligera.', 'The PDF exceeds the safe limit even after optimization. Use a lighter version.')
+          );
+          setFileTypeModalVisible(false);
+          return;
+        }
+      } else {
+        const validation = await validateFileSize(file.uri);
+        if (!validation.valid) {
+          Alert.alert(
+            tr('Archivo no soportado', 'Unsupported file'),
+            tr('Este formato no es compatible en esta carga segura. Usa imagen o PDF.', 'This format is not compatible in this secure upload. Use image or PDF.')
+          );
+          setFileTypeModalVisible(false);
+          return;
+        }
       }
 
       openAssetPreview({
-        uri: file.uri,
+        uri: finalUri,
         name: file.name || 'documento',
-        mimeType: file.mimeType || inferMimeType(file.uri),
+        mimeType: finalMime,
         source: 'document',
+      });
+      logAssetAudit('PICK_DOCUMENT_FINAL', {
+        dataType,
+        dataName,
+        uri: finalUri,
+        fileName: file.name || 'documento',
+        mimeType: finalMime,
+        sizeBytes: finalSize,
       });
       setFileTypeModalVisible(false);
     } catch (error) {
@@ -537,25 +680,26 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           mimeType: file.mimeType || 'unknown',
           sizeBytes: file.fileSize || null,
         });
-        const validation = await validateFileSize(file.uri);
-        if (!validation.valid) {
-          Alert.alert(tr('Archivo muy grande', 'File too large'), validation.message || tr('El archivo supera el límite permitido', 'File exceeds size limit'));
+        const optimized = await optimizeImageForLimit(file.uri, MAX_IMAGE_SIZE);
+        if (optimized.size > MAX_IMAGE_SIZE) {
+          Alert.alert(
+            tr('No se pudo optimizar', 'Could not optimize'),
+            tr('La foto no pudo reducirse al límite seguro. Intenta otra captura.', 'The photo could not be reduced to the secure size limit. Try another capture.')
+          );
           setFileTypeModalVisible(false);
           return;
         }
 
-        const compressedUri = await compressImage(file.uri);
-        const info = await FileSystem.getInfoAsync(compressedUri, { size: true } as any).catch(() => null);
         logAssetAudit('PICK_CAMERA_COMPRESSED', {
           dataType,
           dataName,
-          uri: compressedUri,
+          uri: optimized.uri,
           fileName: 'camera-compressed.jpg',
           mimeType: 'image/jpeg',
-          sizeBytes: (info as any)?.size || null,
+          sizeBytes: optimized.size,
         });
         openAssetPreview({
-          uri: compressedUri,
+          uri: optimized.uri,
           name: file.fileName || 'camera-image.jpg',
           mimeType: 'image/jpeg',
           source: 'camera',
@@ -1013,7 +1157,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         return (
           <View>
             <TouchableOpacity style={styles.documentButton} onPress={handlePickFile}>
-              <MaterialCommunityIcons name="image-plus" color="#F1F1F1" size={32} />
+              <MaterialCommunityIcons name="image-plus" color="#002D4B" size={32} />
               <Text style={styles.documentText}>
                 {dataValue ? 'Cambiar archivo' : 'Subir PDF o imagen'}
               </Text>
@@ -1037,7 +1181,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                   </View>
                 ) : (
                   <View style={styles.documentPreview}>
-                    <MaterialCommunityIcons name={getDocumentIcon(dataValue) as any} color="#F1F1F1" size={48} />
+                    <MaterialCommunityIcons name={getDocumentIcon(dataValue) as any} color="#002D4B" size={48} />
                     <Text style={styles.previewFileName} numberOfLines={1}>
                       {dataName || 'Documento seleccionado'}
                     </Text>
@@ -1157,7 +1301,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               ) : selectedIcon ? (
                 <MaterialCommunityIcons
                   name={ICONS_BY_TYPE[dataType].find(i => i.id === selectedIcon)?.icon as any}
-                  color="#F1F1F1"
+                  color="#002D4B"
                   size={48}
                 />
               ) : (
@@ -1319,7 +1463,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           animationType="slide"
           onRequestClose={() => setIconModalVisible(false)}
         >
+          <TouchableWithoutFeedback onPress={() => setIconModalVisible(false)}>
           <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback onPress={() => {}}>
             <View style={[styles.modalContent, { maxHeight: SCREEN_HEIGHT * 0.85 }]}>
               <View style={styles.bottomSheetDragHandleWrap} {...iconModalSwipeResponder.panHandlers}>
                 <View style={styles.bottomSheetDragHandle} />
@@ -1351,7 +1497,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                   >
                     <MaterialCommunityIcons
                       name={item.icon as any}
-                      color={selectedIcon === item.id ? '#0A1A2F' : '#F1F1F1'}
+                      color={selectedIcon === item.id ? '#0A1A2F' : '#002D4B'}
                       size={36}
                     />
                     <Text
@@ -1367,7 +1513,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 )}
               />
             </View>
+            </TouchableWithoutFeedback>
           </View>
+          </TouchableWithoutFeedback>
         </Modal>
 
         {/* MODAL: ELEGIR FOTOS O DOCUMENTOS */}
@@ -1377,7 +1525,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           animationType="slide"
           onRequestClose={() => setFileTypeModalVisible(false)}
         >
-          <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback onPress={() => setFileTypeModalVisible(false)}>
+            <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback onPress={() => {}}>
             <View style={styles.modalContent}>
               <View style={styles.bottomSheetDragHandleWrap} {...fileTypeSwipeResponder.panHandlers}>
                 <View style={styles.bottomSheetDragHandle} />
@@ -1385,15 +1535,21 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Carga Segura de Documento</Text>
                 <TouchableOpacity onPress={() => setFileTypeModalVisible(false)}>
-                  <MaterialCommunityIcons name="close" color="#F1F1F1" size={24} />
+                  <MaterialCommunityIcons name="close" color="#002D4B" size={24} />
                 </TouchableOpacity>
               </View>
+              <ScrollView
+                style={styles.fileTypeScroll}
+                contentContainerStyle={styles.fileTypeScrollContent}
+                keyboardDismissMode="on-drag"
+                showsVerticalScrollIndicator={false}
+              >
               <TouchableOpacity
                 style={styles.fileTypeOption}
                 onPress={handleTakePhoto}
                 disabled={isCompressing}
               >
-                <MaterialCommunityIcons name="camera" color="#F1F1F1" size={40} />
+                <MaterialCommunityIcons name="camera" color="#002D4B" size={30} />
                 <Text style={styles.fileTypeText}>Tomar Foto</Text>
                 <Text style={styles.fileTypeSubText}>Captura directa con cámara</Text>
               </TouchableOpacity>
@@ -1402,7 +1558,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 onPress={handlePickPhotos}
                 disabled={isCompressing}
               >
-                <MaterialCommunityIcons name="image-multiple" color="#F1F1F1" size={40} />
+                <MaterialCommunityIcons name="image-multiple" color="#002D4B" size={30} />
                 <Text style={styles.fileTypeText}>Elegir imagen</Text>
                 <Text style={styles.fileTypeSubText}>JPG, PNG o HEIC</Text>
               </TouchableOpacity>
@@ -1411,10 +1567,33 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 onPress={handlePickDocument}
                 disabled={isCompressing}
               >
-                <MaterialCommunityIcons name="file-document-outline" color="#F1F1F1" size={40} />
+                <MaterialCommunityIcons name="file-document-outline" color="#002D4B" size={30} />
                 <Text style={styles.fileTypeText}>Elegir documento</Text>
                 <Text style={styles.fileTypeSubText}>PDF y archivos visualizables</Text>
               </TouchableOpacity>
+              </ScrollView>
+            </View>
+            </TouchableWithoutFeedback>
+          </View>
+          </TouchableWithoutFeedback>
+        </Modal>
+
+        <Modal
+          visible={isCompressing || isSaving || isUploading}
+          transparent
+          animationType="fade"
+          onRequestClose={() => {}}
+        >
+          <View style={styles.compressOverlay}>
+            <View style={styles.compressCard}>
+              <BrandedSpinner size={56} color="#D4AF37" />
+              <Text style={styles.compressText}>
+                {isCompressing
+                  ? 'Optimizando archivo de forma segura...'
+                  : isUploading
+                    ? 'Subiendo archivo al escudo de seguridad...'
+                    : 'Guardando en Bunker seguro...'}
+              </Text>
             </View>
           </View>
         </Modal>
@@ -1434,7 +1613,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                     <PdfComponent source={{ uri: pendingAsset.uri }} style={styles.assetPreviewPdf} />
                   ) : (
                     <View style={styles.assetPreviewFallback}>
-                      <MaterialCommunityIcons name="file-pdf-box" color="#F1F1F1" size={72} />
+                      <MaterialCommunityIcons name="file-pdf-box" color="#002D4B" size={72} />
                       <Text style={styles.assetPreviewFallbackText}>PDF listo para confirmar</Text>
                     </View>
                   )
@@ -1444,10 +1623,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               </View>
               <View style={styles.assetPreviewActions}>
                 <TouchableOpacity style={styles.assetConfirmButton} onPress={confirmAssetPreview}>
-                  <Text style={styles.assetConfirmButtonText}>SI, CONFIRMAR</Text>
+                  <Text style={styles.assetConfirmButtonText}>SÍ, CONFIRMAR</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.assetRetryButton} onPress={retryAssetSelection}>
-                  <Text style={styles.assetRetryButtonText}>NO, CARGAR DE NUEVO</Text>
+                  <Text style={styles.assetRetryButtonText}>REINTENTAR</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1473,7 +1652,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A1A2F',
+    backgroundColor: '#E3F2FD',
   },
   headerTop: {
     flexDirection: 'row',
@@ -1529,7 +1708,7 @@ const styles = StyleSheet.create({
   stepLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#F1F1F1',
+    color: '#002D4B',
     marginBottom: 12,
     letterSpacing: 1,
     textTransform: 'uppercase',
@@ -1551,16 +1730,16 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 0.8,
     borderColor: '#D4AF37',
-    backgroundColor: '#0A1A2F',
+    backgroundColor: '#E3F2FD',
   },
   typePillActive: {
-    backgroundColor: '#54C1FB',
+    backgroundColor: '#E3F2FD',
   },
   typePillDisabled: {
     opacity: 0.55,
   },
   typePillText: {
-    color: '#F1F1F1',
+    color: '#002D4B',
     fontSize: 13,
     fontWeight: '700',
   },
@@ -1568,7 +1747,7 @@ const styles = StyleSheet.create({
     color: '#0A1A2F',
   },
   dropdownButton: {
-    backgroundColor: '#0A1A2F',
+    backgroundColor: '#E3F2FD',
     borderColor: '#D4AF37',
     borderWidth: 0.8,
     borderRadius: 12,
@@ -1584,7 +1763,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   dropdownText: {
-    color: '#FFFFFF',
+    color: '#002D4B',
     fontSize: 18,
     fontWeight: '700',
   },
@@ -1595,13 +1774,13 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   input: {
-    backgroundColor: '#0A1A2F',
+    backgroundColor: '#E3F2FD',
     borderColor: '#D4AF37',
     borderWidth: 0.8,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: '#FFFFFF',
+    color: '#002D4B',
     fontSize: 15,
     minHeight: 48,
   },
@@ -1610,7 +1789,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   countryCodeButton: {
-    backgroundColor: '#0A1A2F',
+    backgroundColor: '#E3F2FD',
     borderColor: '#D4AF37',
     borderWidth: 0.8,
     borderRadius: 10,
@@ -1621,21 +1800,21 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   countryCodeText: {
-    color: '#FFFFFF',
+    color: '#002D4B',
     fontSize: 14,
     fontWeight: '600',
   },
   faviconContainer: {
     marginTop: 12,
     padding: 12,
-    backgroundColor: '#0A1A2F',
+    backgroundColor: '#E3F2FD',
     borderRadius: 10,
     alignItems: 'center',
   },
   faviconLoadingContainer: {
     marginTop: 12,
     padding: 12,
-    backgroundColor: '#0A1A2F',
+    backgroundColor: '#E3F2FD',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#D4AF37',
@@ -1655,7 +1834,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   useFaviconButton: {
-    backgroundColor: '#0A1A2F',
+    backgroundColor: '#E3F2FD',
     borderColor: '#D4AF37',
     borderWidth: 0.8,
     borderRadius: 10,
@@ -1686,7 +1865,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   documentButton: {
-    backgroundColor: '#0A1A2F',
+    backgroundColor: '#E3F2FD',
     borderColor: '#D4AF37',
     borderWidth: 0.8,
     borderStyle: 'dashed',
@@ -1696,14 +1875,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   documentText: {
-    color: '#F1F1F1',
+    color: '#002D4B',
     fontSize: 14,
     fontWeight: '600',
   },
   previewContainer: {
     marginTop: 16,
     padding: 14,
-    backgroundColor: '#0A1A2F',
+    backgroundColor: '#E3F2FD',
     borderRadius: 10,
     borderColor: '#D4AF37',
     borderWidth: 0.8,
@@ -1711,7 +1890,7 @@ const styles = StyleSheet.create({
   previewLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#F1F1F1',
+    color: '#002D4B',
     marginBottom: 10,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
@@ -1724,7 +1903,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 8,
-    backgroundColor: '#0A2540',
+    backgroundColor: '#E3F2FD',
   },
   documentPreview: {
     alignItems: 'center',
@@ -1732,14 +1911,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   previewFileName: {
-    color: '#FFFFFF',
+    color: '#002D4B',
     fontSize: 12,
     fontWeight: '600',
     textAlign: 'center',
     maxWidth: 200,
   },
   iconPreview: {
-    backgroundColor: '#0A1A2F',
+    backgroundColor: '#E3F2FD',
     borderRadius: 24,
     paddingVertical: 24,
     alignItems: 'center',
@@ -1751,7 +1930,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     borderColor: '#D4AF37',
-    backgroundColor: 'rgba(10,26,47,0.92)',
+    backgroundColor: 'rgba(84,193,251,0.92)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1764,7 +1943,7 @@ const styles = StyleSheet.create({
     elevation: 14,
   },
   iconName: {
-    color: '#F1F1F1',
+    color: '#002D4B',
     fontSize: 13,
     fontWeight: '600',
   },
@@ -1860,7 +2039,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   modalContent: {
-    backgroundColor: '#0A1A2F',
+    backgroundColor: '#E3F2FD',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: SCREEN_HEIGHT * 0.65,
@@ -1905,7 +2084,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#002D4B',
   },
   modalItem: {
     paddingHorizontal: 20,
@@ -1920,7 +2099,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0D3A56',
   },
   modalItemText: {
-    color: '#FFFFFF',
+    color: '#002D4B',
     fontSize: 15,
     fontWeight: '500',
   },
@@ -1940,17 +2119,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     margin: 4,
     borderRadius: 10,
-    backgroundColor: '#0A1A2F',
+    backgroundColor: '#E3F2FD',
     borderWidth: 0.5,
     borderColor: '#D4AF37',
   },
   iconItemSelected: {
-    backgroundColor: '#54C1FB',
-    borderColor: '#54C1FB',
+    backgroundColor: '#E3F2FD',
+    borderColor: '#E3F2FD',
   },
   iconLabel: {
     fontSize: 9,
-    color: '#F1F1F1',
+    color: '#002D4B',
     marginTop: 4,
     fontWeight: '500',
     textAlign: 'center',
@@ -1964,22 +2143,58 @@ const styles = StyleSheet.create({
     borderColor: '#F1F1F1',
     borderWidth: 1.2,
     borderRadius: 12,
-    padding: 24,
+    minHeight: 104,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     marginHorizontal: 20,
-    marginVertical: 12,
+    marginVertical: 8,
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    gap: 4,
   },
   fileTypeText: {
-    color: '#FFFFFF',
-    fontSize: 18,
+    color: '#002D4B',
+    fontSize: 16,
     fontWeight: '700',
-    marginTop: 8,
+    marginTop: 6,
   },
   fileTypeSubText: {
-    color: '#F1F1F1',
-    fontSize: 12,
-    marginTop: 4,
+    color: '#002D4B',
+    fontSize: 11,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  fileTypeScroll: {
+    maxHeight: SCREEN_HEIGHT * 0.5,
+  },
+  fileTypeScrollContent: {
+    paddingBottom: 16,
+  },
+  compressOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  compressCard: {
+    width: '100%',
+    maxWidth: 340,
+    minHeight: 150,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#D4AF37',
+    backgroundColor: '#E3F2FD',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+    gap: 12,
+  },
+  compressText: {
+    color: '#002D4B',
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   assetPreviewOverlay: {
     flex: 1,
@@ -1992,14 +2207,14 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 420,
     maxHeight: '88%',
-    backgroundColor: '#0A1A2F',
+    backgroundColor: '#E3F2FD',
     borderRadius: 18,
     borderWidth: 1,
     borderColor: '#D4AF37',
     padding: 14,
   },
   assetPreviewTitle: {
-    color: '#F1F1F1',
+    color: '#002D4B',
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 10,
@@ -2031,7 +2246,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   assetPreviewFallbackText: {
-    color: '#F1F1F1',
+    color: '#002D4B',
     fontSize: 13,
     fontWeight: '600',
   },
@@ -2067,7 +2282,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   assetRetryButtonText: {
-    color: '#F1F1F1',
+    color: '#002D4B',
     fontSize: 12,
     fontWeight: '700',
     textAlign: 'center',
@@ -2080,7 +2295,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   progressContainer: {
-    backgroundColor: '#0A1A2F',
+    backgroundColor: '#E3F2FD',
     borderRadius: 20,
     padding: 40,
     alignItems: 'center',
@@ -2094,7 +2309,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   uploadLabel: {
-    color: '#FFFFFF',
+    color: '#002D4B',
     fontSize: 16,
     fontWeight: '600',
     marginTop: 12,

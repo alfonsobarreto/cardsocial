@@ -17,7 +17,7 @@ import {
 import ActivityIndicator from '@/components/BrandedSpinner';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Apple, Chrome, Github, Lock, Sparkles, User } from 'lucide-react-native';
+import { Apple, Chrome, Eye, EyeOff, Github, Lock, Sparkles, User } from 'lucide-react-native';
 import { sendEmailVerification, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth, db } from '@/services/firebaseConfig';
 import { collection, getDocs, limit, query, where } from 'firebase/firestore';
@@ -33,6 +33,7 @@ export default function SignInScreen() {
   const tr = (es: string, en: string) => (language === 'en' ? en : es);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRecoveringPassword, setIsRecoveringPassword] = useState(false);
   const [isResendingVerification, setIsResendingVerification] = useState(false);
@@ -249,13 +250,20 @@ export default function SignInScreen() {
               <TextInput
                 style={styles.input}
                 placeholder={tr('Contrasena', 'Password')}
-                secureTextEntry
+                secureTextEntry={!showPassword}
                 autoComplete="off"
                 textContentType="none"
                 importantForAutofill="no"
                 value={password}
                 onChangeText={setPassword}
               />
+              <TouchableOpacity
+                onPress={() => setShowPassword((prev) => !prev)}
+                style={styles.eyeButton}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                {showPassword ? <EyeOff size={18} color="#4A4A4A" /> : <Eye size={18} color="#4A4A4A" />}
+              </TouchableOpacity>
             </View>
 
             <TouchableOpacity style={styles.primaryButton} onPress={handleSignIn} disabled={isSubmitting}>
@@ -372,6 +380,13 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#0A2540',
     fontSize: 15,
+  },
+  eyeButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   primaryButton: {
     marginTop: 8,
