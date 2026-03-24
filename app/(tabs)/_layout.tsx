@@ -43,6 +43,8 @@ import Subscription from '@/components/Subscription';
 import { applyWelcomeBonus, initializeUserCredits } from '@/services/creditsService';
 import { isSuperAdmin } from '@/services/roleService';
 import IconStore from '@/components/IconStore';
+import { useLookMode } from '@/services/lookMode';
+import { requestLocationPermission } from '@/services/geolocationService';
 
 type BlockedUser = {
   uid: string;
@@ -64,6 +66,7 @@ type EditableProfile = {
 };
 
 export default function TabLayout({ children }: { children: React.ReactNode }) {
+  const { mode, resolvedMode, setMode, autoStatusText } = useLookMode();
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [activePanel, setActivePanel] = useState<'menu' | 'profile' | 'terms' | 'policy' | 'about' | 'privacy' | 'subscription' | 'icon_store'>('menu');
   const [creditsRefreshTrigger, setCreditsRefreshTrigger] = useState(0);
@@ -131,6 +134,19 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
       setActivePanel('menu');
       router.replace('/');
     }
+  };
+
+  const handleSelectAutoMode = async () => {
+    if (mode !== 'auto') {
+      const granted = await requestLocationPermission();
+      if (!granted) {
+        Alert.alert(
+          'Permiso de GPS no otorgado',
+          'Auto seguirá funcionando con precisión limitada (sin ubicación exacta).'
+        );
+      }
+    }
+    setMode('auto');
   };
 
   const loadBlockedUsers = async () => {
@@ -569,6 +585,36 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                       <Text style={styles.drawerItemText}>Configuración</Text>
                     </TouchableOpacity>
 
+                    <View style={styles.lookModeSection}>
+                      <View style={styles.lookModeHeaderRow}>
+                        <MaterialCommunityIcons name="theme-light-dark" size={18} color="#0D4D8A" />
+                        <Text style={styles.lookModeTitle}>Apariencia</Text>
+                      </View>
+                      <View style={styles.lookModeRow}>
+                        <TouchableOpacity
+                          style={[styles.lookModeButton, mode === 'dia' && styles.lookModeButtonActive]}
+                          onPress={() => setMode('dia')}
+                        >
+                          <Text style={[styles.lookModeButtonText, mode === 'dia' && styles.lookModeButtonTextActive]}>Dia</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.lookModeButton, mode === 'noche' && styles.lookModeButtonActive]}
+                          onPress={() => setMode('noche')}
+                        >
+                          <Text style={[styles.lookModeButtonText, mode === 'noche' && styles.lookModeButtonTextActive]}>Noche</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.lookModeButton, mode === 'auto' && styles.lookModeButtonActive]}
+                          onPress={handleSelectAutoMode}
+                        >
+                          <Text style={[styles.lookModeButtonText, mode === 'auto' && styles.lookModeButtonTextActive]}>Auto</Text>
+                        </TouchableOpacity>
+                      </View>
+                      {mode === 'auto' ? (
+                        <Text style={styles.lookModeHint}>{autoStatusText}. Resuelto: {resolvedMode}.</Text>
+                      ) : null}
+                    </View>
+
                     <TouchableOpacity style={styles.drawerItem}>
                       <MaterialCommunityIcons name="qrcode-scan" size={18} color="#0D4D8A" />
                       <Text style={styles.drawerItemText}>Mis QR (Próximamente)</Text>
@@ -856,6 +902,57 @@ const styles = StyleSheet.create({
     color: '#184B76',
     fontSize: 14,
     fontWeight: '500',
+  },
+  lookModeSection: {
+    marginTop: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(13,77,138,0.15)',
+    gap: 8,
+  },
+  lookModeHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  lookModeTitle: {
+    color: '#184B76',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  lookModeRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  lookModeButton: {
+    flex: 1,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(13,77,138,0.3)',
+    backgroundColor: 'rgba(255,255,255,0.65)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+  },
+  lookModeButtonActive: {
+    backgroundColor: '#0D4D8A',
+    borderColor: '#0D4D8A',
+  },
+  lookModeButtonText: {
+    color: '#0D4D8A',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  lookModeButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  lookModeHint: {
+    color: '#346489',
+    fontSize: 11,
+    fontStyle: 'italic',
   },
   legalScroll: {
     flex: 1,

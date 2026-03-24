@@ -36,6 +36,7 @@ import LimitReachedModal from '@/components/LimitReachedModal';
 import { validateVaultItemCreation } from '@/services/limitService';
 import DullModeLock from '@/components/DullModeLock';
 import { useLanguage } from '@/services/language';
+import { useLookMode } from '@/services/lookMode';
 
 let PdfComponent: any = null;
 try {
@@ -62,7 +63,34 @@ const VAULT_STORAGE_KEY = 'vault_data';
 const VaultScreen = () => {
   const router = useRouter();
   const { language } = useLanguage();
+  const { resolvedMode } = useLookMode();
   const tr = (es: string, en: string) => language === 'en' ? en : es;
+  const isNight = resolvedMode === 'noche';
+  const vaultTheme = {
+    motherBg: isNight ? '#0A2540' : '#E3F2FD',
+    primaryText: isNight ? '#FFFFFF' : '#002D4B',
+    iconColor: isNight ? '#FFFFFF' : '#002D4B',
+    headerDivider: '#D4AF37',
+    progressTrack: isNight ? 'rgba(255,255,255,0.18)' : 'rgba(0,45,75,0.18)',
+    progressFill: isNight ? '#1EA7FF' : '#54C1FB',
+    gridCardBg: isNight ? 'rgba(13,58,86,0.45)' : 'rgba(28,91,185,0.18)',
+    iconCircleBg: isNight ? '#0A1A2F' : '#E3F2FD',
+    gridCardBorder: isNight ? 'rgba(212,175,55,0.16)' : 'rgba(212,175,55,0.55)',
+    secondaryText: isNight ? '#8ED4FF' : '#1EA7FF',
+    viewerFallbackText: isNight ? '#F1F7FF' : '#002D4B',
+    contextMenuBg: isNight ? '#0F2A3D' : '#FFFFFF',
+    contextMenuBorder: isNight ? '#1EA7FF' : '#D4AF37',
+    contextMenuText: isNight ? '#F1F7FF' : '#002D4B',
+    contextDeleteDivider: isNight ? 'rgba(255,255,255,0.1)' : 'rgba(0,45,75,0.1)',
+    floatingCardBg: isNight ? '#12324A' : '#FFFFFF',
+    floatingCardBorder: isNight ? '#2B6A91' : '#D8EAF9',
+    floatingTitle: isNight ? '#F1F7FF' : '#0A2540',
+    floatingBody: isNight ? '#D4EAFB' : '#4A4A4A',
+    floatingCopyBg: isNight ? '#0E4466' : '#EAF7FF',
+    floatingCopyText: isNight ? '#F1F7FF' : '#0A2540',
+    floatingCloseBg: isNight ? '#1D4D6F' : '#E3F2FD',
+    floatingCloseText: isNight ? '#F1F7FF' : '#002D4B',
+  };
   const [links, setLinks] = useState<Link[]>([]);
   const [formModalVisible, setFormModalVisible] = useState(false);
   const [editingData, setEditingData] = useState<Link | undefined>(undefined);
@@ -582,7 +610,7 @@ const VaultScreen = () => {
     return (
       <MaterialCommunityIcons
         name={link.icon as any}
-        color="#002D4B"
+        color={vaultTheme.iconColor}
         size={32}
       />
     );
@@ -727,7 +755,11 @@ const VaultScreen = () => {
   const renderCard = ({ item }: { item: Link }) => (
     <View style={styles.gridCell}>
       <TouchableOpacity
-        style={[styles.gridCard, isDullMode && styles.cardDullMode]}
+        style={[
+          styles.gridCard,
+          { backgroundColor: vaultTheme.gridCardBg, borderColor: vaultTheme.gridCardBorder, borderWidth: 1 },
+          isDullMode && styles.cardDullMode,
+        ]}
         onPress={() => handleCardAction(item)}
         activeOpacity={0.75}
       >
@@ -735,17 +767,17 @@ const VaultScreen = () => {
           minDurationMs={1500}
           onHandlerStateChange={(event) => handleIconLongPress(event, item)}
         >
-          <View style={styles.iconBox}>
+          <View style={[styles.iconBox, { backgroundColor: vaultTheme.iconCircleBg }]}>
             {renderIcon(item)}
             {item.isFavorite ? (
               <View style={styles.favoriteBadge}>
-                <MaterialCommunityIcons name="star" color="#002D4B" size={10} />
+                <MaterialCommunityIcons name="star" color={vaultTheme.iconColor} size={10} />
               </View>
             ) : null}
           </View>
         </LongPressGestureHandler>
 
-        <Text style={styles.gridTitle} numberOfLines={2}>
+        <Text style={[styles.gridTitle, { color: vaultTheme.primaryText }]} numberOfLines={2}>
           {item.title}
         </Text>
       </TouchableOpacity>
@@ -799,9 +831,9 @@ const VaultScreen = () => {
   // Header vacío
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <MaterialCommunityIcons name="folder-outline" color="#002D4B" size={64} />
-      <Text style={styles.emptyTitle}>Tu Vault está vacío</Text>
-      <Text style={styles.emptySubtitle}>
+      <MaterialCommunityIcons name="folder-outline" color={vaultTheme.iconColor} size={64} />
+      <Text style={[styles.emptyTitle, { color: vaultTheme.primaryText }]}>Tu Vault está vacío</Text>
+      <Text style={[styles.emptySubtitle, { color: vaultTheme.secondaryText }]}>
         Toca el botón + para agregar tu primer dato
       </Text>
     </View>
@@ -810,12 +842,12 @@ const VaultScreen = () => {
   const usageProgress = Math.min(links.length / 50, 1);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: vaultTheme.motherBg }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: 'transparent', borderBottomColor: vaultTheme.headerDivider }]}>
         <View style={styles.headerCenterBlock}>
           <View style={styles.headerUserRowCentered}>
-            <Text style={styles.headerSubtitle}>{profileDisplayName}</Text>
+            <Text style={[styles.headerSubtitle, { color: vaultTheme.primaryText }]}>{profileDisplayName}</Text>
             {isUserVerified ? (
               <View style={styles.headerVerificationWrap}>
                 <VerificationBadge compact />
@@ -825,8 +857,8 @@ const VaultScreen = () => {
           <Text style={styles.vaultCounterLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.62}>
             [{links.length}] / Datos Ilimitados Utilizados
           </Text>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${usageProgress * 100}%` }]} />
+          <View style={[styles.progressTrack, { backgroundColor: vaultTheme.progressTrack }]}>
+            <View style={[styles.progressFill, { width: `${usageProgress * 100}%`, backgroundColor: vaultTheme.progressFill }]} />
           </View>
         </View>
       </View>
@@ -850,7 +882,7 @@ const VaultScreen = () => {
         onPress={openCreateVaultItemForm}
         activeOpacity={0.85}
       >
-        <MaterialCommunityIcons name="plus" color="#0A1A2F" size={30} />
+        <MaterialCommunityIcons name="plus" color={vaultTheme.iconColor} size={30} />
       </TouchableOpacity>
 
       {/* Modal del formulario */}
@@ -938,7 +970,7 @@ const VaultScreen = () => {
                 ) : (
                   <View style={styles.viewerFallback}>
                     <MaterialCommunityIcons name="file-pdf-box" color="#C5A065" size={54} />
-                    <Text style={styles.viewerFallbackText}>
+                    <Text style={[styles.viewerFallbackText, { color: vaultTheme.viewerFallbackText }]}>
                       {tr(
                         'La previsualizacion PDF no esta disponible en Expo Go. Usa un development build para verla.',
                         'PDF preview is not available in Expo Go. Use a development build to view it.'
@@ -949,7 +981,7 @@ const VaultScreen = () => {
               ) : (
                 <View style={styles.viewerFallback}>
                   <MaterialCommunityIcons name="file-alert-outline" color="#C5A065" size={54} />
-                  <Text style={styles.viewerFallbackText}>No se pudo previsualizar este archivo.</Text>
+                  <Text style={[styles.viewerFallbackText, { color: vaultTheme.viewerFallbackText }]}>No se pudo previsualizar este archivo.</Text>
                 </View>
               )
             ) : null}
@@ -974,7 +1006,7 @@ const VaultScreen = () => {
         <TouchableWithoutFeedback onPress={() => setContextMenuVisible(false)}>
           <View style={styles.contextOverlay}>
             <TouchableWithoutFeedback>
-              <View style={styles.contextMenuCard}>
+              <View style={[styles.contextMenuCard, { backgroundColor: vaultTheme.contextMenuBg, borderColor: vaultTheme.contextMenuBorder }]}>
                 <TouchableOpacity
                   style={styles.contextMenuAction}
                   onPress={async () => {
@@ -984,7 +1016,7 @@ const VaultScreen = () => {
                   }}
                 >
                   <MaterialCommunityIcons name="star" color="#C5A065" size={18} />
-                  <Text style={styles.contextMenuActionText}>Favorito</Text>
+                  <Text style={[styles.contextMenuActionText, { color: vaultTheme.contextMenuText }]}>Favorito</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -992,11 +1024,11 @@ const VaultScreen = () => {
                   onPress={openEditFromContextMenu}
                 >
                   <MaterialCommunityIcons name="pencil" color="#1EA7FF" size={18} />
-                  <Text style={styles.contextMenuActionText}>Editar</Text>
+                  <Text style={[styles.contextMenuActionText, { color: vaultTheme.contextMenuText }]}>Editar</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.contextMenuAction, styles.contextDeleteAction]}
+                  style={[styles.contextMenuAction, styles.contextDeleteAction, { borderTopColor: vaultTheme.contextDeleteDivider }]}
                   onPress={() => {
                     if (!contextMenuItem) return;
                     setContextMenuVisible(false);
@@ -1050,31 +1082,31 @@ const VaultScreen = () => {
         >
           <View style={styles.floatingOverlay}>
             <TouchableWithoutFeedback>
-              <View style={styles.floatingModalCard}>
-                <Text style={styles.floatingModalTitle}>{activeTextItem?.title || 'Dato'}</Text>
-                <Text style={styles.floatingModalBody}>{activeTextItem?.value || ''}</Text>
+              <View style={[styles.floatingModalCard, { backgroundColor: vaultTheme.floatingCardBg, borderColor: vaultTheme.floatingCardBorder }]}>
+                <Text style={[styles.floatingModalTitle, { color: vaultTheme.floatingTitle }]}>{activeTextItem?.title || 'Dato'}</Text>
+                <Text style={[styles.floatingModalBody, { color: vaultTheme.floatingBody }]}>{activeTextItem?.value || ''}</Text>
 
                 <View style={styles.floatingActionsRow}>
                   <TouchableOpacity
-                    style={styles.floatingCopyButton}
+                    style={[styles.floatingCopyButton, { backgroundColor: vaultTheme.floatingCopyBg }]}
                     onPress={async () => {
                       await Clipboard.setStringAsync(String(activeTextItem?.value || ''));
                       triggerSuccessHaptic();
                       Alert.alert(tr('Copiado', 'Copied'), tr('El contenido fue copiado al portapapeles.', 'Content copied to clipboard.'));
                     }}
                   >
-                    <MaterialCommunityIcons name="content-copy" color="#0A2540" size={16} />
-                    <Text style={styles.floatingCopyText}>Copiar</Text>
+                    <MaterialCommunityIcons name="content-copy" color={vaultTheme.floatingCopyText} size={16} />
+                    <Text style={[styles.floatingCopyText, { color: vaultTheme.floatingCopyText }]}>Copiar</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={styles.floatingCloseButton}
+                    style={[styles.floatingCloseButton, { backgroundColor: vaultTheme.floatingCloseBg }]}
                     onPress={() => {
                       setTextValueModalVisible(false);
                       setActiveTextItem(null);
                     }}
                   >
-                    <Text style={styles.floatingCloseText}>Cerrar</Text>
+                    <Text style={[styles.floatingCloseText, { color: vaultTheme.floatingCloseText }]}>Cerrar</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1375,7 +1407,7 @@ const styles = StyleSheet.create({
   },
   contextDeleteAction: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
+    borderTopColor: 'rgba(255,255,255,0.12)',
   },
   contextDeleteText: {
     color: '#FF6B6B',

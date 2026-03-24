@@ -7,11 +7,14 @@ import { authenticateWithBiometric, checkBiometricAvailability, hardLockCheck } 
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { LanguageProvider, useLanguage } from '@/services/language';
+import { LookModeProvider } from '@/services/lookMode';
 
 export default function RootLayout() {
   return (
     <LanguageProvider>
-      <RootNavigator />
+      <LookModeProvider>
+        <RootNavigator />
+      </LookModeProvider>
     </LanguageProvider>
   );
 }
