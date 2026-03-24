@@ -169,8 +169,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     inputPlaceholder: isNight ? '#87A9C2' : '#666666',
     selectedPillBg: '#54C1FB',
     selectedPillText: '#F0F4F8',
+    selectedBgInput: isNight ? '#1C5BB9' : '#54C1FB',
     iconPreviewCircleBg: isNight ? '#0B2234' : '#F0F4F8',
     iconPreviewCircleBorder: isNight ? '#C5A065' : '#CFE6F8',
+    gradientColors: isNight ? ['#E8C547', '#C5A065', '#D4AF37'] : ['#00BFD9', '#00A0C6', '#0099CC'],
   };
   const [dataType, setDataType] = useState<DataType>('Enlaces');
   const [dataName, setDataName] = useState('');
@@ -1106,13 +1108,20 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       case 'Enlaces':
         return (
           <View>
-            <TextInput
-              style={[styles.input, { backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderColor: formTheme.border }]}
+            <LinearGradient
+              colors={formTheme.gradientColors}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ borderRadius: 10, padding: 4 }}
+            >
+              <TextInput
+                style={[styles.input, { backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderWidth: 0 }]}
               placeholder="https://example.com"
               placeholderTextColor={formTheme.inputPlaceholder}
               value={dataValue}
               onChangeText={setDataValue}
-            />
+              />
+            </LinearGradient>
             {faviconUrl && (
               <View>
                 <View style={styles.faviconContainer}>
@@ -1127,45 +1136,73 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       case 'Teléfono':
         return (
           <View style={styles.phoneRow}>
-            <TouchableOpacity
-              style={styles.countryCodeButton}
+            <LinearGradient
+              colors={formTheme.gradientColors}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ borderRadius: 10, padding: 4 }}
+            >
+              <TouchableOpacity
+                style={[styles.countryCodeButton, { borderWidth: 0 }]}
               onPress={() => setCountryModalVisible(true)}
             >
               <Text style={[styles.countryCodeText, { color: formTheme.inputText }]}>{countryCode}</Text>
               <MaterialCommunityIcons name="chevron-down" color="#1EA7FF" size={18} />
-            </TouchableOpacity>
-            <TextInput
-              style={[styles.input, { flex: 1, backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderColor: formTheme.border }]}
+              </TouchableOpacity>
+            </LinearGradient>
+            <LinearGradient
+              colors={formTheme.gradientColors}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ borderRadius: 10, padding: 4, flex: 1 }}
+            >
+              <TextInput
+                style={[styles.input, { flex: 1, backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderWidth: 0 }]}
               placeholder="123 456 7890"
               placeholderTextColor={formTheme.inputPlaceholder}
               value={dataValue}
               onChangeText={setDataValue}
               keyboardType="phone-pad"
-            />
+              />
+            </LinearGradient>
           </View>
         );
       case 'Email':
         return (
-          <TextInput
-            style={[styles.input, { backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderColor: formTheme.border }]}
+          <LinearGradient
+            colors={formTheme.gradientColors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ borderRadius: 10, padding: 4 }}
+          >
+            <TextInput
+              style={[styles.input, { backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderWidth: 0 }]}
             placeholder="tu@email.com"
             placeholderTextColor={formTheme.inputPlaceholder}
             value={dataValue}
             onChangeText={setDataValue}
             keyboardType="email-address"
-          />
+            />
+          </LinearGradient>
         );
       case 'Texto Plain':
         return (
           <View>
-            <TextInput
-              style={[styles.input, { minHeight: 100, backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderColor: formTheme.border }]}
+            <LinearGradient
+              colors={formTheme.gradientColors}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ borderRadius: 10, padding: 4 }}
+            >
+              <TextInput
+                style={[styles.input, { minHeight: 100, backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderWidth: 0 }]}
               placeholder="Escribe aquí..."
               placeholderTextColor={formTheme.inputPlaceholder}
               value={dataValue}
               onChangeText={setDataValue}
               multiline
-            />
+              />
+            </LinearGradient>
             <Text style={styles.wordCount}>
               {dataValue.split(/\s+/).filter(w => w).length} / 200 palabras
             </Text>
@@ -1174,12 +1211,19 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       case 'Documento':
         return (
           <View>
-            <TouchableOpacity style={styles.documentButton} onPress={handlePickFile}>
+            <LinearGradient
+              colors={formTheme.gradientColors}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ borderRadius: 10, padding: 4 }}
+            >
+              <TouchableOpacity style={[styles.documentButton, { borderWidth: 0 }]} onPress={handlePickFile}>
               <MaterialCommunityIcons name="image-plus" color="#002D4B" size={32} />
               <Text style={styles.documentText}>
                 {dataValue ? 'Cambiar archivo' : 'Subir PDF o imagen'}
               </Text>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            </LinearGradient>
             <Text style={styles.wordCount}>Se aceptan PDF o imágenes para visor protegido del Búnker.</Text>
             
             {/* PREVIEW del documento/imagen seleccionado */}
@@ -1255,13 +1299,20 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               {DATA_TYPE_OPTIONS.map((option) => {
                 const isActive = dataType === option.key;
                 return (
-                  <TouchableOpacity
+                    <LinearGradient
+                      key={option.key}
+                      colors={formTheme.gradientColors}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={{ borderRadius: 999, padding: 4 }}
+                    >
+                      <TouchableOpacity
                     key={option.key}
                     style={[
                       styles.typePill,
                       {
                         backgroundColor: isActive ? formTheme.selectedPillBg : formTheme.surfaceBg,
-                        borderColor: formTheme.border,
+                          borderWidth: 0,
                         shadowColor: isActive ? '#54C1FB' : '#000',
                         shadowOpacity: isActive ? 0.22 : 0,
                         elevation: isActive ? 4 : 0,
@@ -1284,7 +1335,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                     >
                       {option.label}
                     </Text>
-                  </TouchableOpacity>
+                      </TouchableOpacity>
+                    </LinearGradient>
                 );
               })}
             </ScrollView>
@@ -1296,13 +1348,20 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           {/* NOMBRE DE DATA */}
           <View style={styles.section}>
             <Text style={[styles.stepLabel, { color: formTheme.textPrimary }]}>NOMBRE DE DATA</Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderColor: formTheme.border }]}
+              <LinearGradient
+                colors={formTheme.gradientColors}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{ borderRadius: 10, padding: 4 }}
+              >
+                <TextInput
+                  style={[styles.input, { backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderWidth: 0 }]}
               placeholder="Ej: Mi WhatsApp"
               placeholderTextColor={formTheme.inputPlaceholder}
               value={dataName}
               onChangeText={setDataName}
-            />
+                />
+              </LinearGradient>
           </View>
 
           {/* DATA */}
@@ -1334,7 +1393,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 </>
               ) : selectedIcon === 'favicon' && faviconUrl ? (
                 <LinearGradient
-                  colors={isNight ? ['#E8C547', '#C5A065', '#D4AF37'] : ['#00BFD9', '#00A0C6', '#0099CC']}
+                  colors={formTheme.gradientColors}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.iconPreviewCircleGradient}
@@ -1345,7 +1404,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 </LinearGradient>
               ) : selectedIcon ? (
                 <LinearGradient
-                  colors={isNight ? ['#E8C547', '#C5A065', '#D4AF37'] : ['#00BFD9', '#00A0C6', '#0099CC']}
+                  colors={formTheme.gradientColors}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.iconPreviewCircleGradient}
@@ -1782,7 +1841,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 999,
-    borderWidth: 0.8,
+    borderWidth: 4,
     borderColor: '#D4AF37',
     backgroundColor: '#E3F2FD',
   },
@@ -1804,7 +1863,7 @@ const styles = StyleSheet.create({
   dropdownButton: {
     backgroundColor: '#E3F2FD',
     borderColor: '#D4AF37',
-    borderWidth: 0.8,
+    borderWidth: 4,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -1831,7 +1890,7 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: '#E3F2FD',
     borderColor: '#D4AF37',
-    borderWidth: 0.8,
+    borderWidth: 4,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -1846,7 +1905,7 @@ const styles = StyleSheet.create({
   countryCodeButton: {
     backgroundColor: '#E3F2FD',
     borderColor: '#D4AF37',
-    borderWidth: 0.8,
+    borderWidth: 4,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 12,
@@ -1871,7 +1930,7 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: '#E3F2FD',
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: 4,
     borderColor: '#D4AF37',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1891,7 +1950,7 @@ const styles = StyleSheet.create({
   useFaviconButton: {
     backgroundColor: '#E3F2FD',
     borderColor: '#D4AF37',
-    borderWidth: 0.8,
+    borderWidth: 4,
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -1922,7 +1981,7 @@ const styles = StyleSheet.create({
   documentButton: {
     backgroundColor: '#E3F2FD',
     borderColor: '#D4AF37',
-    borderWidth: 0.8,
+    borderWidth: 4,
     borderStyle: 'dashed',
     borderRadius: 10,
     paddingVertical: 24,
@@ -1940,7 +1999,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E3F2FD',
     borderRadius: 10,
     borderColor: '#D4AF37',
-    borderWidth: 0.8,
+    borderWidth: 4,
   },
   previewLabel: {
     fontSize: 11,
@@ -1991,14 +2050,14 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    padding: 2,
+    padding: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
   iconPreviewCircleInner: {
-    width: 116,
-    height: 116,
-    borderRadius: 58,
+    width: 112,
+    height: 112,
+    borderRadius: 56,
     alignItems: 'center',
     justifyContent: 'center',
   },
