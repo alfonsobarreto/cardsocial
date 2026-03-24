@@ -169,6 +169,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     inputPlaceholder: isNight ? '#87A9C2' : '#666666',
     selectedPillBg: isNight ? '#1C5BB9' : '#54C1FB',
     selectedPillText: '#F0F4F8',
+    selectedPillGlow: isNight ? '#1C5BB9' : '#54C1FB',
     selectedBgInput: isNight ? '#1C5BB9' : '#54C1FB',
     iconPreviewCircleBg: isNight ? '#0B2234' : '#F0F4F8',
     iconPreviewCircleBorder: isNight ? '#C5A065' : '#CFE6F8',
@@ -1307,13 +1308,12 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                       style={{ borderRadius: 999, padding: 4 }}
                     >
                       <TouchableOpacity
-                    key={option.key}
                     style={[
                       styles.typePill,
                       {
                         backgroundColor: isActive ? formTheme.selectedPillBg : formTheme.surfaceBg,
                           borderWidth: 0,
-                        shadowColor: isActive ? '#54C1FB' : '#000',
+                          shadowColor: isActive ? formTheme.selectedPillGlow : '#000',
                         shadowOpacity: isActive ? 0.22 : 0,
                         elevation: isActive ? 4 : 0,
                       },
@@ -1471,7 +1471,13 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                     style={[
                       styles.modalItem,
                       dataType === item && styles.modalItemActive,
-                      dataType === item && { backgroundColor: formTheme.selectedPillBg },
+                      dataType === item && {
+                        backgroundColor: formTheme.selectedPillBg,
+                        shadowColor: formTheme.selectedPillGlow,
+                        shadowOpacity: 0.2,
+                        shadowRadius: 6,
+                        elevation: 3,
+                      },
                     ]}
                     onPress={() => {
                       setDataType(item);
@@ -1603,7 +1609,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                     style={[
                       styles.iconItem,
                       selectedIcon === item.id && styles.iconItemSelected,
-                      selectedIcon === item.id && { backgroundColor: formTheme.selectedPillBg, borderColor: formTheme.selectedPillBg },
+                      selectedIcon === item.id && {
+                        backgroundColor: formTheme.selectedPillBg,
+                        borderColor: formTheme.selectedPillBg,
+                        shadowColor: formTheme.selectedPillGlow,
+                        shadowOpacity: 0.2,
+                        shadowRadius: 6,
+                        elevation: 3,
+                      },
                     ]}
                     onPress={() => {
                       setSelectedIcon(item.id);

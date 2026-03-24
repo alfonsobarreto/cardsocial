@@ -91,6 +91,7 @@ const VaultScreen = () => {
     floatingCloseText: isNight ? '#F1F7FF' : '#002D4B',
     selectedActionBg: isNight ? '#1C5BB9' : '#54C1FB',
     selectedActionText: '#F0F4F8',
+    selectedActionGlow: isNight ? '#1C5BB9' : '#54C1FB',
   };
   const [links, setLinks] = useState<Link[]>([]);
   const [formModalVisible, setFormModalVisible] = useState(false);
@@ -1084,7 +1085,16 @@ const VaultScreen = () => {
 
                 <View style={styles.floatingActionsRow}>
                   <TouchableOpacity
-                    style={[styles.floatingCopyButton, { backgroundColor: vaultTheme.selectedActionBg }]}
+                    style={[
+                      styles.floatingCopyButton,
+                      {
+                        backgroundColor: vaultTheme.selectedActionBg,
+                        shadowColor: vaultTheme.selectedActionGlow,
+                        shadowOpacity: 0.2,
+                        shadowRadius: 6,
+                        elevation: 4,
+                      },
+                    ]}
                     onPress={async () => {
                       await Clipboard.setStringAsync(String(activeTextItem?.value || ''));
                       triggerSuccessHaptic();
