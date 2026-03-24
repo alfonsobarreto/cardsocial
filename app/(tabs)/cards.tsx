@@ -1468,9 +1468,15 @@ export default function CardsFactoryScreen() {
           <Text style={styles.headerTitle}>Smart Cards Factory</Text>
           <Text style={styles.headerSubtitle}>QR dinámico seguro: 60 segundos</Text>
         </View>
-        <TouchableOpacity style={[styles.createBtn, isDark && styles.createBtnDark]} onPress={openCreateFactory} activeOpacity={0.82}>
-          <MaterialCommunityIcons name="plus" size={22} color="#FFFFFF" />
-        </TouchableOpacity>
+        <View style={styles.headerActionsRow}>
+          <TouchableOpacity style={styles.scanBtn} onPress={() => router.push('/scan' as any)} activeOpacity={0.82}>
+            <MaterialCommunityIcons name="qrcode-scan" size={18} color="#0A1A2F" />
+            <Text style={styles.scanBtnText}>Escanear</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.createBtn, isDark && styles.createBtnDark]} onPress={openCreateFactory} activeOpacity={0.82}>
+            <MaterialCommunityIcons name="plus" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FlatList
@@ -2069,6 +2075,25 @@ const styles = StyleSheet.create({
     color: '#2F5A78',
     fontSize: 12,
     fontWeight: '600',
+  },
+  headerActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  scanBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#54C1FB',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    height: 40,
+  },
+  scanBtnText: {
+    color: '#0A1A2F',
+    fontSize: 12,
+    fontWeight: '700',
   },
   createBtn: {
     width: 44,

@@ -738,12 +738,6 @@ const VaultScreen = () => {
             <View style={[styles.progressFill, { width: `${usageProgress * 100}%` }]} />
           </View>
         </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.scanButton} onPress={() => router.push('/scan' as any)}>
-            <MaterialCommunityIcons name="qrcode-scan" color="#0A1A2F" size={18} />
-            <Text style={styles.scanButtonText}>Escanear Nueva Tarjeta</Text>
-          </TouchableOpacity>
-        </View>
       </View>
 
       {/* Lista de datos */}
@@ -752,6 +746,8 @@ const VaultScreen = () => {
         keyExtractor={(item) => item.id}
         renderItem={renderCard}
         numColumns={4}
+        removeClippedSubviews={true}
+        scrollEventThrottle={16}
         ListEmptyComponent={renderEmptyState}
         contentContainerStyle={styles.listContainer}
         scrollEnabled={true}
@@ -1043,7 +1039,7 @@ const VaultScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A1A2F',
+    backgroundColor: '#0E253D',
   },
 
   // HEADER
@@ -1052,7 +1048,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 36, // Increased padding for more space
     paddingBottom: 24, // Increased padding for more space
-    backgroundColor: '#0A1A2F',
+    backgroundColor: '#0E253D',
     borderBottomWidth: 1,
     borderBottomColor: '#D4AF37',
   },
@@ -1117,27 +1113,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  headerActions: {
-    marginTop: 12,
-    width: '100%',
-    alignItems: 'center',
-    gap: 8,
-  },
-  scanButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#54C1FB',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  scanButtonText: {
-    color: '#0A1A2F',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-
   // LISTA
   listContainer: {
     paddingHorizontal: 12,
@@ -1156,7 +1131,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     width: '100%',
     aspectRatio: 1,
-    backgroundColor: 'rgba(28,91,185,0.1)',
+    backgroundColor: 'rgba(28,91,185,0.18)',
     paddingHorizontal: 6,
     paddingVertical: 12,
     borderRadius: 20,

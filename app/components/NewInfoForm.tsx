@@ -14,9 +14,10 @@ import {
   Platform,
   KeyboardAvoidingView,
   Alert,
-  ActivityIndicator,
+  ActivityIndicator as NativeActivityIndicator,
   Keyboard,
   Linking,
+  PanResponder,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Progress from 'react-native-progress';
@@ -32,6 +33,7 @@ import { fetchFaviconFromAzure } from '@/services/faviconApi';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { useLanguage } from '@/services/language';
 import LuxuryModerationModal from './LuxuryModerationModal';
+import BrandedSpinner from '@/components/BrandedSpinner';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const VAULT_STORAGE_KEY = 'vault_data';
@@ -157,7 +159,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const [faviconSuggestionVisible, setFaviconSuggestionVisible] = useState(false);
   const [faviconLoading, setFaviconLoading] = useState(false);
   const [lastFaviconDomain, setLastFaviconDomain] = useState('');
-  const [customIconUri, setCustomIconUri] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [fileTypeModalVisible, setFileTypeModalVisible] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
@@ -226,7 +227,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       if (editingData.icon?.startsWith('http')) {
         setSelectedIcon('favicon');
         setFaviconUrl(editingData.icon);
-        setCustomIconUri(editingData.icon.includes('google.com/s2/favicons') ? '' : editingData.icon);
       } else {
         // Find icon by label/iconName in the correct type
         const iconsForType = ICONS_BY_TYPE[type];
@@ -260,17 +260,20 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
         setFaviconLoading(true);
         const fetchedIcon = await fetchFaviconFromAzure(dataValue);
-        setFaviconLoading(false);
 
         if (!fetchedIcon) {
+          setFaviconLoading(false);
           return;
         }
 
+        await Image.prefetch(fetchedIcon).catch(() => null);
         setLastFaviconDomain(domain);
         setFaviconUrl(fetchedIcon);
         setFaviconSuggestionVisible(true);
+        setFaviconLoading(false);
       } catch {
         setFaviconLoading(false);
+        setFaviconSuggestionVisible(false);
         setFaviconUrl('');
       }
     };
@@ -286,7 +289,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       setFaviconUrl('');
       setFaviconSuggestionVisible(false);
       setLastFaviconDomain('');
-      setCustomIconUri('');
     }
   }, [dataType, editingData?.id]);
 
@@ -301,7 +303,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setFaviconUrl('');
     setFaviconSuggestionVisible(false);
     setLastFaviconDomain('');
-    setCustomIconUri('');
     
     // Call callback
     if (onClose) onClose();
@@ -417,30 +418,65 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     }
   };
 
-  const handlePickManualIcon = async () => {
+  const handleTakePhoto = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(tr('Permiso denegado', 'Permission denied'), tr('Se necesita acceso a fotos para elegir un icono manual', 'Photo access needed to select custom icon'));
+        Alert.alert(tr('Permiso denegado', 'Permission denied'), tr('Se necesita acceso a la cámara', 'Camera access needed'));
         return;
       }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
+      const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.7,
+        allowsEditing: false,
+        quality: 0.8,
       });
 
       if (!result.canceled && result.assets.length > 0) {
-        setCustomIconUri(result.assets[0].uri);
-        setSelectedIcon('favicon');
+        const file = result.assets[0];
+        const validation = await validateFileSize(file.uri);
+        if (!validation.valid) {
+          Alert.alert(tr('Archivo muy grande', 'File too large'), validation.message || tr('El archivo supera el límite permitido', 'File exceeds size limit'));
+          setFileTypeModalVisible(false);
+          return;
+        }
+
+        const compressedUri = await compressImage(file.uri);
+        setDataValue(compressedUri);
       }
+      setFileTypeModalVisible(false);
     } catch (error) {
-      console.error('Error picking manual icon:', error);
-      Alert.alert(tr('Error', 'Error'), tr('No se pudo seleccionar el icono manual', 'Could not select custom icon'));
+      console.error('Error taking photo:', error);
+      Alert.alert(tr('Error', 'Error'), tr('No se pudo tomar la foto', 'Could not take photo'));
     }
   };
+
+  const createSwipeResponder = React.useCallback((onClose: () => void) => {
+    return PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gesture) =>
+        gesture.dy > 6 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+      onPanResponderRelease: (_, gesture) => {
+        if (gesture.dy > 42 || gesture.vy > 0.75) {
+          onClose();
+        }
+      },
+    });
+  }, []);
+
+  const mainModalSwipeResponder = React.useMemo(
+    () => createSwipeResponder(handleClose),
+    [createSwipeResponder]
+  );
+
+  const iconModalSwipeResponder = React.useMemo(
+    () => createSwipeResponder(() => setIconModalVisible(false)),
+    [createSwipeResponder]
+  );
+
+  const fileTypeSwipeResponder = React.useMemo(
+    () => createSwipeResponder(() => setFileTypeModalVisible(false)),
+    [createSwipeResponder]
+  );
 
   const syncVaultUpdateAcrossCards = async (userId: string, updatedItem: Link) => {
     try {
@@ -639,7 +675,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       }
 
       const iconData = selectedIcon === 'favicon' 
-        ? (customIconUri || faviconUrl)
+        ? faviconUrl
         : ICONS_BY_TYPE[dataType].find(i => i.id === selectedIcon)?.icon || 'file';
       
       const iconName = selectedIcon === 'favicon'
@@ -774,19 +810,13 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               value={dataValue}
               onChangeText={setDataValue}
             />
-            {faviconLoading ? (
-              <View style={styles.faviconContainer}>
-                <ActivityIndicator size="small" color="#1EA7FF" />
-                <Text style={styles.faviconLabel}>Buscando favicon en Azure...</Text>
-              </View>
-            ) : null}
             {faviconUrl && (
               <View>
                 <View style={styles.faviconContainer}>
                   <Image source={{ uri: faviconUrl }} style={styles.faviconImg} />
                   <Text style={styles.faviconLabel}>Favicon detectado</Text>
                 </View>
-                <Text style={styles.wordCount}>Si no te gusta este logo, usa icono manual.</Text>
+                <Text style={styles.wordCount}>Si quieres otro estilo, elige un icono de la galería oficial.</Text>
               </View>
             )}
           </View>
@@ -842,7 +872,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         return (
           <View>
             <TouchableOpacity style={styles.documentButton} onPress={handlePickFile}>
-              <MaterialCommunityIcons name="image-plus" color="#1EA7FF" size={32} />
+              <MaterialCommunityIcons name="image-plus" color="#F1F1F1" size={32} />
               <Text style={styles.documentText}>
                 {dataValue ? 'Cambiar archivo' : 'Subir PDF o imagen'}
               </Text>
@@ -866,7 +896,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                   </View>
                 ) : (
                   <View style={styles.documentPreview}>
-                    <MaterialCommunityIcons name={getDocumentIcon(dataValue) as any} color="#1EA7FF" size={48} />
+                    <MaterialCommunityIcons name={getDocumentIcon(dataValue) as any} color="#F1F1F1" size={48} />
                     <Text style={styles.previewFileName} numberOfLines={1}>
                       {dataName || 'Documento seleccionado'}
                     </Text>
@@ -887,7 +917,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.container}>
+        <View style={styles.container} {...mainModalSwipeResponder.panHandlers}>
         {/* Header with close button */}
         <View style={styles.headerTop}>
           <Text style={styles.titleMain}>
@@ -906,12 +936,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           keyboardDismissMode="on-drag"
+          removeClippedSubviews={true}
+          scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
         >
           {/* TIPO DE DATA */}
           <View style={styles.section}>
             <Text style={styles.stepLabel}>TIPO DE DATO {editingData?.id && '(No editable)'}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typePillsRow}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typePillsRow} removeClippedSubviews={true} scrollEventThrottle={16}>
               {DATA_TYPE_OPTIONS.map((option) => {
                 const isActive = dataType === option.key;
                 return (
@@ -965,8 +997,15 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               </TouchableOpacity>
             </View>
             <View style={styles.iconPreview}>
-              {selectedIcon === 'favicon' && (customIconUri || faviconUrl) ? (
-                <Image source={{ uri: customIconUri || faviconUrl }} style={styles.faviconImg} />
+              {faviconLoading && dataType === 'Enlaces' ? (
+                <View style={styles.iconLoadingPreview}>
+                  <View style={styles.spinnerPriorityLayer}>
+                    <BrandedSpinner size={52} color="#D4AF37" />
+                  </View>
+                  <Text style={styles.faviconLabel}>Buscando favicon en Azure...</Text>
+                </View>
+              ) : selectedIcon === 'favicon' && faviconUrl ? (
+                <Image source={{ uri: faviconUrl }} style={styles.faviconImg} />
               ) : selectedIcon ? (
                 <MaterialCommunityIcons
                   name={ICONS_BY_TYPE[dataType].find(i => i.id === selectedIcon)?.icon as any}
@@ -978,13 +1017,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               )}
               <Text style={styles.iconName}>
                 {selectedIcon === 'favicon'
-                  ? (customIconUri ? 'Icono manual' : 'Favicon')
+                  ? 'Favicon'
                   : ICONS_BY_TYPE[dataType].find(i => i.id === selectedIcon)?.label || 'Sin icono'}
               </Text>
-              <TouchableOpacity style={styles.manualIconButton} onPress={handlePickManualIcon}>
-                <MaterialCommunityIcons name="image-plus" color="#0A2540" size={18} />
-                <Text style={styles.manualIconButtonText}>Subir icono manual</Text>
-              </TouchableOpacity>
             </View>
           </View>
 
@@ -996,7 +1031,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           >
             {isSaving ? (
               <>
-                <ActivityIndicator size="small" color="#0A1A2F" />
+                <NativeActivityIndicator size="small" color="#0A1A2F" />
                 <Text style={styles.createButtonText}>SUBIENDO...</Text>
               </>
             ) : (
@@ -1028,6 +1063,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               <FlatList
                 data={['Enlaces', 'Teléfono', 'Email', 'Texto Plain', 'Documento'] as DataType[]}
                 keyExtractor={item => item}
+                removeClippedSubviews={true}
+                scrollEventThrottle={16}
                 renderItem={({ item }) => (
                   <TouchableOpacity
                     style={[
@@ -1110,6 +1147,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               <FlatList
                 data={COUNTRY_CODES}
                 keyExtractor={item => item.code}
+                removeClippedSubviews={true}
+                scrollEventThrottle={16}
                 renderItem={({ item }) => (
                   <TouchableOpacity
                     style={styles.modalItem}
@@ -1136,7 +1175,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           onRequestClose={() => setIconModalVisible(false)}
         >
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { maxHeight: SCREEN_HEIGHT * 0.85 }]}>
+            <View style={[styles.modalContent, { maxHeight: SCREEN_HEIGHT * 0.85 }]} {...iconModalSwipeResponder.panHandlers}>
               <View style={styles.iconModalHeader}>
                 <Text style={styles.iconModalTitle}>Elige Icono - {dataType}</Text>
                 <TouchableOpacity onPress={() => setIconModalVisible(false)}>
@@ -1148,6 +1187,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 keyExtractor={item => item.id}
                 numColumns={5}
                 scrollEnabled={true}
+                removeClippedSubviews={true}
+                scrollEventThrottle={16}
                 contentContainerStyle={styles.iconGrid}
                 renderItem={({ item }) => (
                   <TouchableOpacity
@@ -1189,13 +1230,22 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           onRequestClose={() => setFileTypeModalVisible(false)}
         >
           <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
+            <View style={styles.modalContent} {...fileTypeSwipeResponder.panHandlers}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Verificacion Humana</Text>
+                <Text style={styles.modalTitle}>Carga Segura de Documento</Text>
                 <TouchableOpacity onPress={() => setFileTypeModalVisible(false)}>
                   <MaterialCommunityIcons name="close" color="#1EA7FF" size={24} />
                 </TouchableOpacity>
               </View>
+              <TouchableOpacity
+                style={styles.fileTypeOption}
+                onPress={handleTakePhoto}
+                disabled={isCompressing}
+              >
+                <MaterialCommunityIcons name="camera" color="#1EA7FF" size={40} />
+                <Text style={styles.fileTypeText}>Tomar Foto</Text>
+                <Text style={styles.fileTypeSubText}>Captura directa con cámara</Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 style={styles.fileTypeOption}
                 onPress={handlePickPhotos}
@@ -1279,11 +1329,13 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: 8,
     borderRadius: 8,
+    marginTop: 20,
   },
   titleMain: {
     fontSize: 24,
     fontWeight: '700',
     color: '#D4AF37',
+    marginTop: 20,
   },
   scrollView: {
     flex: 1,
@@ -1401,6 +1453,17 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
   },
+  faviconLoadingContainer: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#0A1A2F',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#D4AF37',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
   faviconImg: {
     width: 48,
     height: 48,
@@ -1454,7 +1517,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   documentText: {
-    color: '#1EA7FF',
+    color: '#F1F1F1',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -1503,25 +1566,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
+  iconLoadingPreview: {
+    width: 96,
+    height: 96,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#D4AF37',
+    backgroundColor: 'rgba(10,26,47,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  spinnerPriorityLayer: {
+    zIndex: 1200,
+    elevation: 14,
+  },
   iconName: {
     color: '#F1F1F1',
     fontSize: 13,
     fontWeight: '600',
-  },
-  manualIconButton: {
-    marginTop: 8,
-    backgroundColor: '#C5A065',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  manualIconButtonText: {
-    color: '#0A2540',
-    fontWeight: '700',
-    fontSize: 12,
   },
   editIconBtn: {
     width: 36,
@@ -1562,6 +1625,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
+    zIndex: 2200,
+    elevation: 22,
   },
   faviconPopupCard: {
     width: '100%',
@@ -1592,16 +1657,18 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 999,
     paddingVertical: 10,
+    minHeight: 44,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   faviconConfirmButton: {
-    backgroundColor: '#C5A065',
+    backgroundColor: '#D4AF37',
   },
   faviconCancelButton: {
     backgroundColor: '#E9EEF2',
   },
   faviconConfirmButtonText: {
-    color: '#0A2540',
+    color: '#0A1A2F',
     fontSize: 12,
     fontWeight: '800',
   },
