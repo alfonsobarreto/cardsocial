@@ -167,7 +167,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     inputBg: isNight ? '#0D2E40' : '#E3F2FD',
     inputText: isNight ? '#F0F4F8' : '#002D4B',
     inputPlaceholder: isNight ? '#87A9C2' : '#666666',
-    selectedPillBg: '#54C1FB',
+    selectedPillBg: isNight ? '#1C5BB9' : '#54C1FB',
     selectedPillText: '#F0F4F8',
     selectedBgInput: isNight ? '#1C5BB9' : '#54C1FB',
     iconPreviewCircleBg: isNight ? '#0B2234' : '#F0F4F8',
@@ -1317,7 +1317,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                         shadowOpacity: isActive ? 0.22 : 0,
                         elevation: isActive ? 4 : 0,
                       },
-                      isActive && styles.typePillActive,
                       editingData?.id && styles.typePillDisabled,
                     ]}
                     onPress={() => {
