@@ -1,0 +1,26 @@
+{
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "^3.0.1",
+    "@react-navigation/native": "^7.2.0",
+    "expo-blur": "^55.0.10",
+    "expo-clipboard": "^55.0.9",
+    "expo-linear-gradient": "^55.0.9",
+    "expo-router": "^55.0.7",
+    "expo-sensors": "^55.0.9",
+    "expo-sharing": "^55.0.14",
+    "firebase": "^12.11.0",
+    "lucide-react": "^1.0.1",
+    "react-native": "^0.84.1",
+    "react-native-gesture-handler": "^2.30.0",
+    "react-native-keyboard-aware-scroll-view": "^0.9.5",
+    "react-native-modal": "^14.0.0-rc.1",
+    "react-native-qrcode-svg": "^6.3.21",
+    "react-native-vector-icons": "^10.3.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-native": "^0.72.8",
+    "@types/react-native-vector-icons": "^6.4.18",
+    "typescript": "^5.9.3"
+  }
+}
