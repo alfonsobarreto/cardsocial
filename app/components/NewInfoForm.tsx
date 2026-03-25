@@ -1004,6 +1004,33 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         return;
       }
 
+      // Leer cache local antes de guardar para validar colisiones de nombre.
+      const existingData = await AsyncStorage.getItem(VAULT_STORAGE_KEY);
+      let dataArray: any[] = [];
+      if (existingData) {
+        try {
+          const parsed = JSON.parse(existingData);
+          dataArray = Array.isArray(parsed) ? parsed : [];
+        } catch {
+          dataArray = [];
+        }
+      }
+
+      const normalizedTitle = dataName.trim().toLowerCase();
+      const duplicateByTitle = dataArray.find((item: any) => {
+        const sameId = editingData?.id && item?.id === editingData.id;
+        const title = String(item?.title || '').trim().toLowerCase();
+        return !sameId && title === normalizedTitle;
+      });
+
+      if (duplicateByTitle) {
+        Alert.alert(
+          tr('⚠️ Nombre duplicado', '⚠️ Duplicate name'),
+          tr('Ya existe un dato con ese nombre. Usa un nombre diferente.', 'A data item with that name already exists. Use a different name.'),
+        );
+        return;
+      }
+
       const iconData = selectedIcon === 'favicon' 
         ? faviconUrl
         : ICONS_BY_TYPE[dataType].find(i => i.id === selectedIcon)?.icon || 'file';
@@ -1032,7 +1059,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       
       const dataPayload = {
         id: uniqueId,
-        title: dataName,
+        title: dataName.trim(),
         type: dataType,
         value: finalValue,
         iconName: iconName,
@@ -1054,18 +1081,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         console.warn('Cloud sync failed, keeping local cache:', cloudError);
       }
 
-      // Obtener datos existentes con fallback resiliente si hay cache corrupta.
-      const existingData = await AsyncStorage.getItem(VAULT_STORAGE_KEY);
-      let dataArray: any[] = [];
-      if (existingData) {
-        try {
-          const parsed = JSON.parse(existingData);
-          dataArray = Array.isArray(parsed) ? parsed : [];
-        } catch {
-          dataArray = [];
-        }
-      }
-      
       if (editingData?.id) {
         // ACTUALIZAR: reemplazar el elemento existente
         const index = dataArray.findIndex((item: any) => item.id === editingData.id);
@@ -1568,7 +1583,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                   <Text style={styles.faviconConfirmButtonText}>SÍ, USAR</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.faviconPopupButton, styles.faviconCancelButton]}
+                  style={[styles.faviconPopupButton, styles.faviconCancelButton, styles.faviconPopupButtonSpacing]}
                   onPress={() => {
                     closeFaviconSuggestion();
                   }}
@@ -2181,6 +2196,7 @@ const styles = StyleSheet.create({
     maxWidth: 320,
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
+    overflow: 'hidden',
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 16,
@@ -2212,17 +2228,19 @@ const styles = StyleSheet.create({
   faviconPopupActions: {
     width: '100%',
     flexDirection: 'column',
-    gap: 10,
     marginTop: 2,
     zIndex: 2,
   },
   faviconPopupButton: {
-    flex: 1,
+    width: '100%',
     borderRadius: 999,
     paddingVertical: 10,
     minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  faviconPopupButtonSpacing: {
+    marginTop: 10,
   },
   faviconConfirmButton: {
     backgroundColor: '#D4AF37',
