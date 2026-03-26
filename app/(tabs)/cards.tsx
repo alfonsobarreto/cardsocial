@@ -6,7 +6,6 @@ import {
   Alert,
   FlatList,
   Image,
-  Linking,
   Modal,
   ScrollView,
   StyleSheet,
@@ -17,6 +16,8 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { ActionController } from '../../services/ActionController';
+import palette from '../theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -118,7 +119,9 @@ type EditSlot = {
 export default function CardsFactoryScreen() {
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
-  const isDark = useColorScheme() === 'dark';
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const cardsTheme = palette[isDark ? 'dark' : 'light'];
   const router = useRouter();
   const { language } = useLanguage();
   const tr = (es: string, en: string) => language === 'en' ? en : es;
@@ -143,6 +146,8 @@ export default function CardsFactoryScreen() {
   const [activeSlotIndex, setActiveSlotIndex] = useState<number | null>(null);
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewCard, setPreviewCard] = useState<SmartCard | null>(null);
+  // Estado para forzar orientación de la tarjeta en preview
+  const [previewLayout, setPreviewLayout] = useState<'vertical' | 'horizontal'>('vertical');
   const [dataPopoverVisible, setDataPopoverVisible] = useState(false);
   const [focusedDataItem, setFocusedDataItem] = useState<VaultItem | null>(null);
   const [focusedCertificate, setFocusedCertificate] = useState<VaultCollectibleCertificate | null>(null);
@@ -924,29 +929,28 @@ export default function CardsFactoryScreen() {
   };
 
   const createFirstDynamicQr = async () => {
-    if (vaultItems.length === 0) {
-      Alert.alert(tr('Vault vacío', 'Empty Vault'), tr('Agrega al menos un dato en Vault para generar tu primer QR dinámico.', 'Add at least one Vault item to generate your first dynamic QR.'));
-      return;
-    }
-
-    const baseItems = vaultItems.slice(0, 4).map((item) => item.id);
-    const nowIso = new Date().toISOString();
-    const firstCard: SmartCard = {
-      id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      name: 'Smart Card Inicial',
-      layout: 'vertical',
-      themeId: 'sky-glass',
-      isFavorite: false,
-      itemIds: baseItems,
-      holdersCount: 0,
-      ratingAvg: 5,
-      createdAt: nowIso,
-      updatedAt: nowIso,
-    };
-
-    const nextCards = [firstCard, ...smartCards];
-    await persistCards(nextCards);
-    await issueQrForCard(firstCard);
+    // [CUARENTENA] Lógica de QR dinámico deshabilitada temporalmente
+    // if (vaultItems.length === 0) {
+    //   Alert.alert(tr('Vault vacío', 'Empty Vault'), tr('Agrega al menos un dato en Vault para generar tu primer QR dinámico.', 'Add at least one Vault item to generate your first dynamic QR.'));
+    //   return;
+    // }
+    // const baseItems = vaultItems.slice(0, 4).map((item) => item.id);
+    // const nowIso = new Date().toISOString();
+    // const firstCard: SmartCard = {
+    //   id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    //   name: 'Smart Card Inicial',
+    //   layout: 'vertical',
+    //   themeId: 'sky-glass',
+    //   isFavorite: false,
+    //   itemIds: baseItems,
+    //   holdersCount: 0,
+    //   ratingAvg: 5,
+    //   createdAt: nowIso,
+    //   updatedAt: nowIso,
+    // };
+    // const nextCards = [firstCard, ...smartCards];
+    // await persistCards(nextCards);
+    // await issueQrForCard(firstCard);
   };
 
   const selectedCardItems = useMemo(() => {
@@ -1030,27 +1034,46 @@ export default function CardsFactoryScreen() {
 
   const openPreviewCard = (card: SmartCard) => {
     setPreviewCard(card);
+    // Detecta orientación actual
+    if (width > height) {
+      setPreviewLayout('horizontal');
+    } else {
+      setPreviewLayout('vertical');
+    }
     setPreviewVisible(true);
   };
 
-  const openDataPopover = async (item: VaultItem) => {
-    setFocusedDataItem(item);
-    setFocusedCertificate(null);
-
-    try {
-      const uid = await getActiveUserId();
-      if (uid) {
-        const cert = await findCollectibleCertificateByHint({
-          userId: uid,
-          hintText: `${item.title} ${item.iconName}`,
-        });
-        setFocusedCertificate(cert);
+  // Efecto para actualizar orientación en tiempo real mientras el modal está abierto
+  useEffect(() => {
+    if (!previewVisible) return;
+    const handleChange = () => {
+      if (window.innerWidth > window.innerHeight) {
+        setPreviewLayout('horizontal');
+      } else {
+        setPreviewLayout('vertical');
       }
-    } catch {
-      setFocusedCertificate(null);
-    }
+    };
+    window.addEventListener('resize', handleChange);
+    return () => window.removeEventListener('resize', handleChange);
+  }, [previewVisible]);
 
-    setDataPopoverVisible(true);
+  const openDataPopover = (item: VaultItem) => {
+    const type = String(item.type || '').toLowerCase();
+    const value = String(item.value || '').trim();
+    if (type.includes('email')) {
+      ActionController.ActionEmail({ value });
+    } else if (type.includes('tel')) {
+      ActionController.ActionTelefono({ value });
+    } else if (type.includes('enlace') || type.includes('link') || type.includes('web')) {
+      ActionController.ActionLink({ value, title: item.title });
+    } else if (type.includes('documento') || type.includes('pdf')) {
+      ActionController.ActionDocument({ value });
+    } else if (type.includes('texto')) {
+      ActionController.ActionText({ value });
+    } else {
+      Alert.alert('Dato', value);
+    }
+  };
   };
 
   const ensureWebUrl = (raw: string) => {
@@ -1155,7 +1178,10 @@ export default function CardsFactoryScreen() {
     }
   };
 
-  const renderVaultMiniIcon = (item: VaultItem, size = 20) => {
+  const renderVaultMiniIcon = (item: VaultItem | null | undefined, size = 20) => {
+    if (!item) {
+      return <MaterialCommunityIcons name="link-variant" size={size} color="#B0B0B0" />;
+    }
     if (item.icon?.startsWith('http')) {
       return <Image source={{ uri: item.icon }} style={{ width: size, height: size, borderRadius: size / 2 }} />;
     }
@@ -1457,24 +1483,22 @@ export default function CardsFactoryScreen() {
   }
 
   return (
-    <LinearGradient
-      colors={isDark ? ['#05070A', '#0C121A', '#151D28'] : ['#EAF7FF', '#CDEFFF', '#B8E7FF']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.container}
-    >
-      <View style={styles.headerRow}>
+    <View style={[styles.container, { backgroundColor: cardsTheme.background }]}> 
+      <View style={[styles.headerRow, { borderBottomColor: cardsTheme.divider }]}> 
         <View>
-          <Text style={styles.headerTitle}>Smart Cards Factory</Text>
-          <Text style={styles.headerSubtitle}>QR dinámico seguro: 60 segundos</Text>
+          <Text style={[styles.headerTitle, { color: cardsTheme.text }]}>Smart Cards Factory</Text>
+          <Text style={[styles.headerSubtitle, { color: cardsTheme.sectionLabel }]}>QR dinámico seguro: 60 segundos</Text>
         </View>
         <View style={styles.headerActionsRow}>
-          <TouchableOpacity style={styles.scanBtn} onPress={() => router.push('/scan' as any)} activeOpacity={0.82}>
-            <MaterialCommunityIcons name="qrcode-scan" size={18} color="#0A1A2F" />
-            <Text style={styles.scanBtnText}>Escanear</Text>
+          {/* [CUARENTENA] Botón de escanear deshabilitado */}
+          {/*
+          <TouchableOpacity style={[styles.scanBtn, { backgroundColor: cardsTheme.btnPrimary }]} onPress={() => router.push('/scan' as any)} activeOpacity={0.82}>
+            <MaterialCommunityIcons name="qrcode-scan" size={18} color={cardsTheme.btnPrimaryText} />
+            <Text style={[styles.scanBtnText, { color: cardsTheme.btnPrimaryText }]}>Escanear</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.createBtn, isDark && styles.createBtnDark]} onPress={openCreateFactory} activeOpacity={0.82}>
-            <MaterialCommunityIcons name="plus" size={22} color="#FFFFFF" />
+          */}
+          <TouchableOpacity style={[styles.createBtn, { backgroundColor: cardsTheme.fabBg, borderColor: cardsTheme.icon }]} onPress={openCreateFactory} activeOpacity={0.82}>
+            <MaterialCommunityIcons name="plus" size={22} color={cardsTheme.fabText} />
           </TouchableOpacity>
         </View>
       </View>
@@ -1496,25 +1520,28 @@ export default function CardsFactoryScreen() {
             <MaterialCommunityIcons name="credit-card-plus-outline" size={52} color="#0D4D8A" />
             <Text style={styles.emptyTitle}>Sin Smart Cards todavía</Text>
             <Text style={styles.emptyText}>Crea tu primera tarjeta dinámica con datos del Vault.</Text>
+            {/* [CUARENTENA] Botón de primer QR dinámico deshabilitado */}
+            {/*
             <TouchableOpacity style={styles.firstQrBtn} onPress={createFirstDynamicQr}>
               <MaterialCommunityIcons name="qrcode" size={18} color="#FFFFFF" />
               <Text style={styles.firstQrBtnText}>Generar primer QR dinámico</Text>
             </TouchableOpacity>
+            */}
           </View>
         }
       />
 
-      <TouchableOpacity style={styles.createFab} onPress={openCreateFactory} activeOpacity={0.82}>
-        <MaterialCommunityIcons name="plus" size={20} color="#FFFFFF" />
-        <Text style={styles.createFabText}>Crear</Text>
+      <TouchableOpacity style={[styles.createFab, { backgroundColor: cardsTheme.fabBg }]} onPress={openCreateFactory} activeOpacity={0.82}>
+        <MaterialCommunityIcons name="plus" size={20} color={cardsTheme.fabText} />
+        <Text style={[styles.createFabText, { color: cardsTheme.fabText }]}>Crear</Text>
       </TouchableOpacity>
 
       <Modal visible={factoryVisible} transparent animationType="slide" onRequestClose={() => setFactoryVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.factoryModal}>
-            <Text style={styles.factoryTitle}>{selectedCard ? 'Editar Smart Card' : 'Nueva Smart Card'}</Text>
+        <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}> 
+          <View style={[styles.factoryModal, { backgroundColor: cardsTheme.modalBg, borderColor: cardsTheme.modalBorder }]}> 
+            <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle }]}>{selectedCard ? 'Editar Smart Card' : 'Nueva Smart Card'}</Text>
 
-            <View style={styles.identityAutoRow}>
+            <View style={[styles.identityAutoRow, { backgroundColor: cardsTheme.inputBg, borderColor: cardsTheme.modalBorder }]}> 
               {ownerPhotoUrl ? (
                 <Image source={{ uri: ownerPhotoUrl }} style={styles.identityAvatar} />
               ) : (
@@ -1523,15 +1550,15 @@ export default function CardsFactoryScreen() {
                 </View>
               )}
               <View style={{ flex: 1 }}>
-                <Text style={styles.identityLabel}>Identidad automática</Text>
-                <Text style={styles.identityValue}>{ownerNickname || 'user'}</Text>
+                <Text style={[styles.identityLabel, { color: cardsTheme.sectionLabel } ]}>Identidad automática</Text>
+                <Text style={[styles.identityValue, { color: cardsTheme.text }]}>{ownerNickname || 'user'}</Text>
               </View>
             </View>
 
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: cardsTheme.inputBg, color: cardsTheme.inputText, borderColor: cardsTheme.modalBorder }]}
               placeholder="Nombre de tarjeta"
-              placeholderTextColor="#688AA5"
+              placeholderTextColor={cardsTheme.sectionLabel}
               value={cardName}
               onChangeText={setCardName}
             />
@@ -1541,17 +1568,17 @@ export default function CardsFactoryScreen() {
                 style={[styles.layoutBtn, layoutMode === 'vertical' && styles.layoutBtnActive]}
                 onPress={() => setLayoutMode('vertical')}
               >
-                <Text style={[styles.layoutText, layoutMode === 'vertical' && styles.layoutTextActive]}>Vertical</Text>
+                <Text style={[styles.layoutText, layoutMode === 'vertical' && styles.layoutTextActive, { color: layoutMode === 'vertical' ? cardsTheme.text : cardsTheme.sectionLabel }]}>Vertical</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.layoutBtn, layoutMode === 'horizontal' && styles.layoutBtnActive]}
                 onPress={() => setLayoutMode('horizontal')}
               >
-                <Text style={[styles.layoutText, layoutMode === 'horizontal' && styles.layoutTextActive]}>Horizontal</Text>
+                <Text style={[styles.layoutText, layoutMode === 'horizontal' && styles.layoutTextActive, { color: layoutMode === 'horizontal' ? cardsTheme.text : cardsTheme.sectionLabel }]}>Horizontal</Text>
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.sectionLabel}>Fondo visual premium</Text>
+            <Text style={[styles.sectionLabel, { color: cardsTheme.sectionLabel }]}>Fondo visual premium</Text>
             <View style={styles.themeRow}>
               {Object.entries(CARD_THEMES).map(([id, theme]) => {
                 const key = id as CardTheme;
@@ -1563,13 +1590,13 @@ export default function CardsFactoryScreen() {
                     onPress={() => setThemeId(key)}
                   >
                     <LinearGradient colors={theme.colors} style={styles.themeSwatch} />
-                    <Text style={[styles.themeLabel, active && styles.themeLabelActive]}>{theme.label}</Text>
+                    <Text style={[styles.themeLabel, { color: active ? cardsTheme.text : cardsTheme.sectionLabel }]}>{theme.label}</Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
 
-            <Text style={styles.sectionLabel}>Cambiar Fondo</Text>
+            <Text style={[styles.sectionLabel, { color: cardsTheme.sectionLabel }]}>Cambiar Fondo</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.wallpaperListRow}>
               <TouchableOpacity
                 style={[styles.wallpaperThumbBtn, !selectedWallpaper && styles.wallpaperThumbBtnActive]}
@@ -1604,7 +1631,7 @@ export default function CardsFactoryScreen() {
               )}
             </ScrollView>
 
-            <Text style={styles.sectionLabel}>Cambiar Fuente</Text>
+            <Text style={[styles.sectionLabel, { color: cardsTheme.sectionLabel }]}>Cambiar Fuente</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.wallpaperListRow}>
               <TouchableOpacity
                 style={[styles.wallpaperThumbBtn, !selectedFont && styles.wallpaperThumbBtnActive]}
@@ -1649,7 +1676,7 @@ export default function CardsFactoryScreen() {
             </ScrollView>
 
             <View style={styles.parallaxToggleRow}>
-              <Text style={styles.parallaxToggleLabel}>Parallax Wallpaper</Text>
+              <Text style={[styles.parallaxToggleLabel, { color: cardsTheme.sectionLabel }]}>Parallax Wallpaper</Text>
               <TouchableOpacity
                 style={[styles.parallaxToggleBtn, enableParallax && styles.parallaxToggleBtnActive]}
                 onPress={() => setEnableParallax((prev) => !prev)}
@@ -1661,7 +1688,7 @@ export default function CardsFactoryScreen() {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.sectionLabel}>Edit Choice (slots directos)</Text>
+            <Text style={[styles.sectionLabel, { color: cardsTheme.sectionLabel }]}>Edit Choice (slots directos)</Text>
             {renderWireframeCard({
               layout: layoutMode,
               slots: editSlots,
@@ -1670,7 +1697,7 @@ export default function CardsFactoryScreen() {
               wallpaperUrl: selectedWallpaper?.fullUrl,
             })}
 
-            <Text style={styles.sectionLabel}>Selecciona datos del Vault</Text>
+            <Text style={[styles.sectionLabel, { color: cardsTheme.sectionLabel }]}>Selecciona datos del Vault</Text>
             <FlatList
               data={vaultItems}
               keyExtractor={(item) => item.id}
@@ -1679,11 +1706,11 @@ export default function CardsFactoryScreen() {
             />
 
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.ghostBtn} onPress={() => setFactoryVisible(false)}>
-                <Text style={styles.ghostBtnText}>Cancelar</Text>
+              <TouchableOpacity style={[styles.ghostBtn, { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder }]} onPress={() => setFactoryVisible(false)}>
+                <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.saveBtn} onPress={handleSaveCard}>
-                <Text style={styles.saveBtnText}>Guardar</Text>
+              <TouchableOpacity style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary }]} onPress={handleSaveCard}>
+                <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>Guardar</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1699,10 +1726,10 @@ export default function CardsFactoryScreen() {
           setPreviewCard(null);
         }}
       >
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}> 
           <BlurView intensity={65} tint="light" style={StyleSheet.absoluteFill} />
           {previewCard ? (
-            <View style={styles.previewModalCard}>
+            <View style={[styles.previewModalCard, { backgroundColor: cardsTheme.modalBg, borderColor: cardsTheme.modalBorder, aspectRatio: previewLayout === 'vertical' ? 0.62 : 1.6, width: previewLayout === 'vertical' ? 320 : 420 }]}> 
               <LinearGradient
                 colors={CARD_THEMES[previewCard.themeId || 'sky-glass'].colors}
                 style={StyleSheet.absoluteFillObject}
@@ -1719,7 +1746,7 @@ export default function CardsFactoryScreen() {
                   resizeMode={getWallpaperResizeMode()}
                 />
               ) : null}
-              <AutoScaleText style={[styles.previewTitle, previewCard.fontFamily ? { fontFamily: previewCard.fontFamily } : null]}>{previewCard.name}</AutoScaleText>
+              <AutoScaleText style={[styles.previewTitle, { color: cardsTheme.modalTitle }, previewCard.fontFamily ? { fontFamily: previewCard.fontFamily } : null]}>{previewCard.name}</AutoScaleText>
               <View style={styles.previewMetaRow}>
                 <View style={styles.metricPill}>
                   <MaterialCommunityIcons name="account-group-outline" size={14} color="#0D4D8A" />
@@ -1738,22 +1765,22 @@ export default function CardsFactoryScreen() {
 
               <View style={styles.modalActions}>
                 <TouchableOpacity
-                  style={styles.ghostBtn}
+                  style={[styles.ghostBtn, { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder }]}
                   onPress={() => {
                     setPreviewVisible(false);
                     setPreviewCard(null);
                   }}
                 >
-                  <Text style={styles.ghostBtnText}>Cerrar</Text>
+                  <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>Cerrar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.saveBtn}
+                  style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary }]}
                   onPress={() => {
                     setPreviewVisible(false);
                     openEditFactory(previewCard);
                   }}
                 >
-                  <Text style={styles.saveBtnText}>Editar tarjeta</Text>
+                  <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>Editar tarjeta</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1770,10 +1797,10 @@ export default function CardsFactoryScreen() {
           setActiveSlotIndex(null);
         }}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.slotPickerCard}>
-            <Text style={styles.factoryTitle}>Elegir dato para slot</Text>
-            <Text style={styles.slotPickerSubtitle}>
+        <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}> 
+          <View style={[styles.slotPickerCard, { backgroundColor: cardsTheme.modalBg, borderColor: cardsTheme.modalBorder }]}> 
+            <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle }]}>Elegir dato para slot</Text>
+            <Text style={[styles.slotPickerSubtitle, { color: cardsTheme.modalSubtitle }]}> 
               Slot #{activeSlotIndex !== null ? activeSlotIndex + 1 : '-'}
             </Text>
 
@@ -1791,13 +1818,13 @@ export default function CardsFactoryScreen() {
             />
 
             <TouchableOpacity
-              style={styles.ghostBtn}
+              style={[styles.ghostBtn, { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder }]}
               onPress={() => {
                 setSlotPickerVisible(false);
                 setActiveSlotIndex(null);
               }}
             >
-              <Text style={styles.ghostBtnText}>Cerrar</Text>
+              <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>Cerrar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1813,17 +1840,17 @@ export default function CardsFactoryScreen() {
           setFocusedCertificate(null);
         }}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.dataPopoverCard}>
+        <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}> 
+          <View style={[styles.dataPopoverCard, { backgroundColor: cardsTheme.modalBg, borderColor: cardsTheme.modalBorder }]}> 
             <View style={styles.dataPopoverTop}>
               <View style={styles.previewIconBubble}>{renderVaultMiniIcon(focusedDataItem as VaultItem, 24)}</View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.dataPopoverTitle}>{focusedDataItem?.title || 'Dato'}</Text>
-                <Text style={styles.dataPopoverType}>{focusedDataItem?.type || 'Vault'}</Text>
+                <Text style={[styles.dataPopoverTitle, { color: cardsTheme.modalTitle }]}>{focusedDataItem?.title || 'Dato'}</Text>
+                <Text style={[styles.dataPopoverType, { color: cardsTheme.sectionLabel }]}>{focusedDataItem?.type || 'Vault'}</Text>
               </View>
             </View>
 
-            <Text style={styles.dataPopoverHint}>Valor protegido por Ghost-Link: solo acceso enrutado.</Text>
+            <Text style={[styles.dataPopoverHint, { color: cardsTheme.sectionLabel }]}>Valor protegido por Ghost-Link: solo acceso enrutado.</Text>
 
             {focusedCertificate ? (
               <View style={styles.authCertBox}>
@@ -1835,20 +1862,20 @@ export default function CardsFactoryScreen() {
 
             <View style={styles.modalActions}>
               <TouchableOpacity
-                style={styles.ghostBtn}
+                style={[styles.ghostBtn, { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder }]}
                 onPress={async () => {
                   await tryOpenInApp(focusedDataItem);
                 }}
               >
-                <Text style={styles.ghostBtnText}>Abrir en app</Text>
+                <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>Abrir en app</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.saveBtn}
+                style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary }]}
                 onPress={async () => {
                   await openInBrowser(focusedDataItem);
                 }}
               >
-                <Text style={styles.saveBtnText}>Ver en navegador</Text>
+                <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>Ver en navegador</Text>
               </TouchableOpacity>
             </View>
 
@@ -1860,7 +1887,7 @@ export default function CardsFactoryScreen() {
                 setFocusedCertificate(null);
               }}
             >
-              <Text style={styles.popoverCloseText}>Cerrar</Text>
+              <Text style={[styles.popoverCloseText, { color: cardsTheme.btnGhostText }]}>Cerrar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1876,17 +1903,17 @@ export default function CardsFactoryScreen() {
           setSubscribers([]);
         }}
       >
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}> 
           <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
-          <View style={styles.subscribersModalCard}>
-            <Text style={styles.factoryTitle}>Suscriptores de la tarjeta</Text>
-            <Text style={styles.subscribersSubtitle}>{subscribersCard?.name || 'Smart Card'}</Text>
+          <View style={[styles.subscribersModalCard, { backgroundColor: cardsTheme.modalBg, borderColor: cardsTheme.modalBorder }]}> 
+            <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle }]}>Suscriptores de la tarjeta</Text>
+            <Text style={[styles.subscribersSubtitle, { color: cardsTheme.modalSubtitle }]}>{subscribersCard?.name || 'Smart Card'}</Text>
 
             <ScrollView style={styles.subscribersList}>
               {subscribersLoading ? (
-                <Text style={styles.subscribersLoadingText}>Cargando suscriptores...</Text>
+                <Text style={[styles.subscribersLoadingText, { color: cardsTheme.sectionLabel }]}>Cargando suscriptores...</Text>
               ) : subscribers.length === 0 ? (
-                <Text style={styles.subscribersLoadingText}>Aun no hay personas con acceso a esta tarjeta.</Text>
+                <Text style={[styles.subscribersLoadingText, { color: cardsTheme.sectionLabel }]}>Aun no hay personas con acceso a esta tarjeta.</Text>
               ) : (
                 subscribers.map((row) => (
                   <View key={row.uid} style={styles.subscriberRow}>
@@ -1953,21 +1980,21 @@ export default function CardsFactoryScreen() {
             </ScrollView>
 
             <TouchableOpacity
-              style={styles.saveBtn}
+              style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary }]}
               onPress={() => {
                 setSubscribersVisible(false);
                 setSubscribersCard(null);
                 setSubscribers([]);
               }}
             >
-              <Text style={styles.saveBtnText}>Cerrar</Text>
+              <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>Cerrar</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
       <Modal visible={qrVisible} transparent animationType="fade" onRequestClose={() => setQrVisible(false)}>
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}> 
           <View style={styles.qrModal}>
             <Text style={styles.factoryTitle}>{selectedCard?.name || 'Smart Card'}</Text>
             <Text style={styles.qrSubtitle}>QR dinámico seguro con expiración de 60s</Text>
@@ -2049,7 +2076,7 @@ export default function CardsFactoryScreen() {
         onClose={() => setLimitReachedVisible(false)}
         onUpgradePress={handleUpgradePress}
       />
-    </LinearGradient>
+    </View>
   );
 }
 

@@ -1,0 +1,15 @@
+{
+  "optimizing": "Optimizing...",
+  "uploading": "Uploading...",
+  "upload_success": "File uploaded successfully!",
+  "upload_error": "Error uploading file.",
+  "retrying": "Retrying...",
+  "no_internet": "No internet connection. Retrying automatically...",
+  "error_large_file": "The file is too large. Try a smaller or compressed image.",
+  "error_corrupt_file": "The file is corrupted or could not be processed.",
+  "error_unsupported_format": "Unsupported file format.",
+  "error_network": "Network error. Please try again.",
+  "error_unknown": "An unknown error occurred.",
+  "connection_error": "Connection error. Check your internet.",
+  "retry": "Retry"
+}

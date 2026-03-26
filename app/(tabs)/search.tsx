@@ -238,12 +238,12 @@ export default function SearchScreen() {
   };
 
   const handleCreateBusinessCard = async () => {
-    // Hard Lock: Verificar biometría antes permitir crear tarjeta de negocio
-    const authenticated = await hardLockCheck('crear una tarjeta de negocio');
-    if (!authenticated) {
-      return;
-    }
-    router.push('/createBusinessCard');
+    // [CUARENTENA] Flujo de business card deshabilitado temporalmente
+    // const authenticated = await hardLockCheck('crear una tarjeta de negocio');
+    // if (!authenticated) {
+    //   return;
+    // }
+    // router.push('/createBusinessCard');
   };
 
   const renderHeader = () => (

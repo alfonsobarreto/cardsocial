@@ -1,29 +1,29 @@
+import { getActiveUserId } from '@/services/authSession';
+import { hardLockCheck } from '@/services/biometricAuth';
+import { hasActiveBusinessLicense } from '@/services/businessLicenseService';
+import { getPremiumStoryCost, purchasePremiumStoryWithCredits } from '@/services/creditsService';
+import { useLanguage } from '@/services/language';
+import { getMyStoryState, getStoriesHouseAd, listReceivedContacts, listSmartCardsFromDb, setMyStoryState, type HouseAdStory } from '@/services/qrApi';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { BlurView } from 'expo-blur';
+import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
   Image,
-  Linking,
   Modal,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import * as DocumentPicker from 'expo-document-picker';
-import { VideoView, useVideoPlayer } from 'expo-video';
-import { getActiveUserId } from '@/services/authSession';
-import { getMyStoryState, getStoriesHouseAd, listReceivedContacts, listSmartCardsFromDb, setMyStoryState, type HouseAdStory } from '@/services/qrApi';
-import { hardLockCheck } from '@/services/biometricAuth';
-import { getPremiumStoryCost, purchasePremiumStoryWithCredits } from '@/services/creditsService';
-import { hasActiveBusinessLicense } from '@/services/businessLicenseService';
-import { useLanguage } from '@/services/language';
+import { ActionController } from '../../services/ActionController';
 
 type StoryState = 'none' | 'normal' | 'vip';
 type StoryDuration = '24h' | '7d' | '30d';
@@ -592,37 +592,20 @@ export default function StoriesPage() {
       Alert.alert(tr('CTA no disponible', 'CTA not available'), tr('Esta historia no comparte CTA directo en este demo.', 'This story does not share direct CTA in this demo.'));
       return;
     }
-
-    const raw = String(story.ctaValue || '').trim();
-    const ctaType = String(story.ctaType || '').toLowerCase();
-    try {
-      if (story.ctaType === 'Teléfono') {
-        await Linking.openURL(`tel:${raw.replace(/\s+/g, '')}`);
-        return;
-      }
-      if (story.ctaType === 'Email') {
-        await Linking.openURL(`mailto:${raw}`);
-        return;
-      }
-      if (ctaType.includes('map') || ctaType.includes('maps')) {
-        const mapsUrl = raw.startsWith('http://') || raw.startsWith('https://')
-          ? raw
-          : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(raw)}`;
-        await Linking.openURL(mapsUrl);
-        return;
-      }
-      if (ctaType.includes('documento') || ctaType.includes('pdf') || raw.toLowerCase().endsWith('.pdf')) {
-        await Linking.openURL(raw);
-        return;
-      }
-      if (story.ctaType === 'Enlaces' || raw.startsWith('http://') || raw.startsWith('https://')) {
-        const url = raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
-        await Linking.openURL(url);
-        return;
-      }
-      Alert.alert('CTA disponible', `${story.ctaTitle}: ${raw}`);
-    } catch {
-      Alert.alert(tr('No se pudo abrir CTA', 'Could not open CTA'), tr('Revisa que el dato del CTA sea valido.', 'Check that the CTA data is valid.'));
+    const value = String(story.ctaValue || '').trim();
+    const type = String(story.ctaType || '').toLowerCase();
+    if (type.includes('email')) {
+      ActionController.ActionEmail({ value });
+    } else if (type.includes('tel')) {
+      ActionController.ActionTelefono({ value });
+    } else if (type.includes('enlace') || type.includes('link') || type.includes('web')) {
+      ActionController.ActionLink({ value, title: story.ctaTitle });
+    } else if (type.includes('documento') || type.includes('pdf')) {
+      ActionController.ActionDocument({ value });
+    } else if (type.includes('texto')) {
+      ActionController.ActionText({ value });
+    } else {
+      Alert.alert('CTA disponible', `${story.ctaTitle}: ${value}`);
     }
   };
 

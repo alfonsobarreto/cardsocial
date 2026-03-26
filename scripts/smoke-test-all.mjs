@@ -32,11 +32,9 @@ const firebaseConfig = {
   appId: getEnv('EXPO_PUBLIC_FIREBASE_APP_ID', '1:604587233093:web:76abc315ea9326b5fdf82c'),
 };
 
-const baseUrl = (
-  getEnv('EXPO_PUBLIC_MODERATION_API_URL') ||
-  getEnv('EXPO_PUBLIC_BACKEND_BASE_URL') ||
-  'https://card-social-api.azurewebsites.net'
-).replace(/\/+$/, '');
+
+// Hardcode para pruebas locales
+const baseUrl = 'http://localhost:5000'; // [FORZADO LOCALHOST]
 
 const gatewayKey = getEnv('EXPO_PUBLIC_MODERATION_GATEWAY_KEY', 'cardsocial_gateway_dev_2026_local');
 const testTimeoutMs = Number(getEnv('SMOKE_TIMEOUT_MS', '15000'));

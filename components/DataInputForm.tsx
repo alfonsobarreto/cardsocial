@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert, Image } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { Linking } from 'react-native';
-import { collection, addDoc } from 'firebase/firestore';
+import { addDoc, collection } from 'firebase/firestore';
+import { Globe, Instagram, Linkedin, Mail, MapPin, Phone } from 'lucide-react-native'; // Ensure correct imports
+import React, { useEffect, useState } from 'react';
+import { Alert, Button, Image, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActionController } from '../services/ActionController';
 import { db } from '../services/firebaseConfig';
-import { MapPin, Phone, Mail, Instagram, Linkedin, Globe } from 'lucide-react-native'; // Ensure correct imports
 
 const DataInputForm = () => {
   const [type, setType] = useState('');
@@ -68,35 +68,18 @@ const DataInputForm = () => {
   };
 
   const handleOpen = () => {
-    switch (type) {
-      case 'WhatsApp':
-        Linking.openURL(`https://wa.me/${value}`);
-        break;
-      case 'Instagram':
-        Linking.openURL(`instagram://user?username=${value}`).catch(() => {
-          Linking.openURL(`https://instagram.com/${value}`);
-        });
-        break;
-      case 'LinkedIn':
-        Linking.openURL(value);
-        break;
-      case 'Teléfono':
-        Alert.alert(
-          'Ghost-Link requerido',
-          'Las llamadas se inician solo con Ghost-Link VoIP dentro de Card-Social. La app de telefono nativa esta bloqueada.'
-        );
-        break;
-      case 'Email':
-        Linking.openURL(`mailto:${value}`);
-        break;
-      case 'Web Personal':
-        Linking.openURL(value);
-        break;
-      case 'Ubicación':
-        Linking.openURL(value);
-        break;
-      default:
-        Alert.alert('Error', 'Tipo de dato no soportado.');
+    if (type === 'Email') {
+      ActionController.ActionEmail({ value });
+    } else if (type === 'Teléfono') {
+      ActionController.ActionTelefono({ value });
+    } else if (type === 'Links' || type === 'Web Personal' || type === 'Enlaces') {
+      ActionController.ActionLink({ value, title: label });
+    } else if (type === 'Documento') {
+      ActionController.ActionDocument({ value });
+    } else if (type === 'Texto' || type === 'Texto Plain') {
+      ActionController.ActionText({ value });
+    } else {
+      Alert.alert('Error', 'Tipo de dato no soportado.');
     }
   };
 

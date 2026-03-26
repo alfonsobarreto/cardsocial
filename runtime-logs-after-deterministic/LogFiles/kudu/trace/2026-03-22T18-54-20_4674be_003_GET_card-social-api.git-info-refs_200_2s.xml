@@ -1,0 +1,18 @@
+<step title="Incoming Request" date="2026-03-22T18:54:20.853" instance="4674be" url="/card-social-api.git/info/refs?service=git-receive-pack" method="GET" type="request" pid="833,1,7" Accept="*/*" Host="card-social-api.scm.azurewebsites.net" User-Agent="git/2.53.0.windows.2" Accept-Encoding="deflate, gzip, br, zstd" Authorization="Bas..." Pragma="no-cache" X-ARR-LOG-ID="a2a4aec5-e9b8-4d59-857a-ad5c5bfb643a" CLIENT-IP="172.56.93.246:62198" X-SITE-DEPLOYMENT-ID="card-social-api" WAS-DEFAULT-HOSTNAME="card-social-api.scm.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/card-social-api.git/info/refs?service=git-receive-pack" X-Client-IP="172.56.93.246" X-Client-Port="62198" >
+  <step title="Cleanup Xml Logs" date="2026-03-22T18:54:20.865" >
+    <step title="Cleanup Infos" date="2026-03-22T18:54:20.921" totalFiles="302" totalCleanup="142" /><!-- duration: 77ms -->
+  </step><!-- duration: 152ms -->
+  <step title="InfoRefsService.Execute" date="2026-03-22T18:54:21.249" >
+    <step title="Executing external process" date="2026-03-22T18:54:21.346" type="process" path="git" arguments="rev-parse --git-dir" /><!-- duration: 622ms -->
+    <step title="Assuming git repository at /home/site/repository" date="2026-03-22T18:54:22.062" /><!-- duration: 20ms -->
+    <step title="InfoRefsService.SmartInfoRefs" date="2026-03-22T18:54:22.108" >
+      <step title="Executing external process" date="2026-03-22T18:54:22.176" type="process" path="git" arguments="rev-parse --git-dir" /><!-- duration: 66ms -->
+      <step title="Assuming git repository at /home/site/repository" date="2026-03-22T18:54:22.263" /><!-- duration: 17ms -->
+      <step title="GitExeServer.AdvertiseReceivePack" date="2026-03-22T18:54:22.300" >
+        <step title="Executing external process" date="2026-03-22T18:54:22.320" type="process" path="git" arguments="receive-pack --stateless-rpc --advertise-refs &quot;/home/site/repository&quot;" /><!-- duration: 275ms -->
+      </step><!-- duration: 334ms -->
+      <step title="Writing 218 bytes" date="2026-03-22T18:54:22.651" /><!-- duration: 19ms -->
+    </step><!-- duration: 581ms -->
+  </step><!-- duration: 1450ms -->
+  <step title="Outgoing response" date="2026-03-22T18:54:22.863" type="response" statusCode="200" statusText="OK" /><!-- duration: 17ms -->
+</step><!-- duration: 2046ms -->

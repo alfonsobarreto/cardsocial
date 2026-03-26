@@ -1,0 +1,5 @@
+<step title="Startup Request" date="2026-03-22T18:51:11.517" instance="4674be" url="/api/logs/docker" method="POST" type="request" pid="833,1,7" SCM_SCRIPT_GENERATOR_ARGS="--basic" ScmType="GitHubAction" SCM_DO_BUILD_DURING_DEPLOYMENT="false" >
+  <step title="Cleanup Xml Logs" date="2026-03-22T18:51:11.528" >
+    <step title="Cleanup Infos" date="2026-03-22T18:51:11.550" totalFiles="296" totalCleanup="136" /><!-- duration: 10ms -->
+  </step><!-- duration: 40ms -->
+</step><!-- duration: 57ms -->

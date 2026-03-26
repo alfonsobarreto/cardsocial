@@ -14,6 +14,8 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { db, storage } from '@/services/firebaseConfig';
+import { s3 } from './spacesClient';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
 
 export type WallpaperOrientation = 'vertical' | 'horizontal';
 export type WallpaperTier = 'free' | 'premium';
@@ -195,32 +197,35 @@ export async function uploadWallpaperAsAdmin(params: {
       ? normalized
       : `${normalized}.jpg`;
 
-    const fullAsset = await ImageManipulator.manipulateAsync(params.fileUri, [], {
-      compress: 0.88,
-      format: ImageManipulator.SaveFormat.JPEG,
-    });
-
-    const thumbAsset = await ImageManipulator.manipulateAsync(
-      params.fileUri,
-      [{ resize: { width: 320 } }],
-      { compress: 0.62, format: ImageManipulator.SaveFormat.JPEG }
-    );
-
-    const fullBlob = await (await fetch(fullAsset.uri)).blob();
-    const thumbBlob = await (await fetch(thumbAsset.uri)).blob();
+    // Obtener el buffer de la imagen
+    const response = await fetch(params.fileUri);
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
     const rarity = params.tier === 'premium' ? 'legendary' : 'common';
     const fullPath = `assets/wallpapers/${params.orientation}/${rarity}/full/${timestamp}-${finalName}`;
     const thumbPath = `assets/wallpapers/${params.orientation}/${rarity}/thumbs/${timestamp}-${finalName}`;
 
-    const fullRef = ref(storage, fullPath);
-    const thumbRef = ref(storage, thumbPath);
+    // Subir imagen completa
+    await s3.send(new PutObjectCommand({
+      Bucket: process.env.DO_SPACES_BUCKET,
+      Key: fullPath,
+      Body: buffer,
+      ContentType: 'image/jpeg',
+      ACL: 'public-read',
+    }));
 
-    await uploadBytes(fullRef, fullBlob, { contentType: 'image/jpeg' });
-    await uploadBytes(thumbRef, thumbBlob, { contentType: 'image/jpeg' });
+    // Subir thumbnail (puedes agregar lógica para generar el thumbnail si es necesario)
+    await s3.send(new PutObjectCommand({
+      Bucket: process.env.DO_SPACES_BUCKET,
+      Key: thumbPath,
+      Body: buffer, // Usa el mismo buffer o genera uno para el thumbnail
+      ContentType: 'image/jpeg',
+      ACL: 'public-read',
+    }));
 
-    const fullUrl = await getDownloadURL(fullRef);
-    const thumbnailUrl = await getDownloadURL(thumbRef);
+    const fullUrl = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${fullPath}`;
+    const thumbnailUrl = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${thumbPath}`;
 
     const docRef = await addDoc(collection(db, WALLPAPER_COLLECTION), {
       name: finalName.split('.')[0],

@@ -1,0 +1,16 @@
+<step title="Incoming Request" date="2026-03-22T18:45:40.950" instance="4674be" url="/api/publish?async=true&amp;deployer=GITHUB_ONE_DEPLOY&amp;type=zip&amp;message=%7B%22type%22%3A%22deployment%22%2C%22sha%22%3A%22f96b2b5f80992e585a22b36b0ed42226389adebf%22%2C%22repoName%22%3A%22alfonsobarreto%2Fcardsocial%22%2C%22actor%22%3A%22alfonsobarreto%22%2C%22slotName%22%3A%22Production%22%2C%22commitMessage%22%3A%22fix(api)%3A%20return%20200%20on%20root%20path%20for%20Azure%20warmup%20probe%22%7D" method="POST" type="request" pid="833,1,15" Host="card-social-api.scm.azurewebsites.net" User-Agent="GITHUBACTIONS_DeployWebAppToAzure_4adfed46b0c644f7ac2bb2f8f1a4793fc3a0fe216363857c40e1650e5041429c_v3.0.7" Authorization="Bea..." Content-Type="application/octet-stream" Cookie="ARRAffinity=4674be82b396abaf83d02ae5cb9797e3302ed577226c6d832720658f6837fffe; ARRAffinitySameSite=4674be82b396abaf83d02ae5cb9797e3302ed577226c6d832720658f6837fffe" Transfer-Encoding="chunked" X-ARR-LOG-ID="fefa2afa-853d-4d37-ade3-0fe73275bea8" CLIENT-IP="135.232.176.181:3120" X-SITE-DEPLOYMENT-ID="card-social-api" WAS-DEFAULT-HOSTNAME="card-social-api.scm.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/api/publish?async=true&amp;deployer=GITHUB_ONE_DEPLOY&amp;type=zip&amp;message=%7B%22type%22%3A%22deployment%22%2C%22sha%22%3A%22f96b2b5f80992e585a22b36b0ed42226389adebf%22%2C%22repoName%22%3A%22alfonsobarreto%2Fcardsocial%22%2C%22actor%22%3A%22alfonsobarreto%22%2C%22slotName%22%3A%22Production%22%2C%22commitMessage%22%3A%22fix(api)%3A%20return%20200%20on%20root%20path%20for%20Azure%20warmup%20probe%22%7D" X-Client-IP="135.232.176.181" X-Client-Port="3120" >
+  <step title="OneDeploy" date="2026-03-22T18:45:41.286" >
+    <step title="None repository commit" date="2026-03-22T18:45:41.309" >
+      <step title="Commit id: d98c2400-4b80-493c-8045-04a3df8cd878" date="2026-03-22T18:45:41.318" Message="N/A" AuthorName="N/A" AuthorEmail="N/A" /><!-- duration: 9ms -->
+    </step><!-- duration: 24ms -->
+    <step title="Starting PushDeployAsync" date="2026-03-22T18:45:41.340" /><!-- duration: 6ms -->
+    <step title="Writing artifact to /tmp/zipdeploy/5cf332d1-b510-4bfd-95be-6848ddd7f210.zip" date="2026-03-22T18:45:41.390" >
+      <step title="Writing multipart request body to /tmp/zipdeploy/5cf332d1-b510-4bfd-95be-6848ddd7f210.zip" date="2026-03-22T18:45:41.397" /><!-- duration: 11ms -->
+    </step><!-- duration: 243ms -->
+    <step title="Start deployment in the background" date="2026-03-22T18:45:41.651" >
+      <step title="Acquiring Deployment Lock" date="2026-03-22T18:45:41.690" /><!-- duration: 6ms -->
+      <step title="Acquired Deployment Lock" date="2026-03-22T18:45:41.751" /><!-- duration: 6ms -->
+    </step><!-- duration: 210ms -->
+  </step><!-- duration: 585ms -->
+  <step title="Outgoing response" date="2026-03-22T18:45:41.880" type="response" statusCode="202" statusText="Accepted" /><!-- duration: 8ms -->
+</step><!-- duration: 944ms -->

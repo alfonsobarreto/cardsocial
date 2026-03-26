@@ -272,29 +272,41 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
     }
 
     const nicknameChanged = nextNicknameLower !== profileData.nicknameLower;
-    const unlockDate = computeNicknameUnlockDate(profileData.lastNicknameChange);
-
-    if (nicknameChanged && unlockDate && Date.now() < unlockDate.getTime()) {
-      Alert.alert(
-        'Cambio bloqueado',
-        `No puedes cambiar tu nickname todavia. Podras modificarlo de nuevo el ${formatCooldownDate(unlockDate)}.`
-      );
-      return;
-    }
 
     try {
       setProfileSaving(true);
 
+      let nicknameChangeSuccess = true;
+      let backendNicknameError = '';
+
       if (nicknameChanged) {
-        const usersRef = collection(db, 'users');
-        const nicknameSnap = await getDocs(query(usersRef, where('nicknameLower', '==', nextNicknameLower), limit(1)));
-        const takenByAnother = nicknameSnap.docs.some((docSnap) => docSnap.id !== profileData.uid);
-        if (takenByAnother) {
-          Alert.alert('Nickname en uso', 'Ese nickname ya pertenece a otro usuario.');
-          return;
+        // Lógica robusta: llamar al endpoint backend
+        const response = await fetch(`/api/users/${profileData.uid}/nickname`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ nickname: nextNickname }),
+        });
+        if (!response.ok) {
+          nicknameChangeSuccess = false;
+          const data = await response.json().catch(() => ({}));
+          backendNicknameError = data?.error || 'No se pudo cambiar el nickname.';
         }
       }
 
+      if (nicknameChanged && !nicknameChangeSuccess) {
+        if (backendNicknameError.includes('cooldown')) {
+          Alert.alert('Cambio bloqueado', 'No puedes cambiar tu nickname todavía. Intenta más tarde.');
+        } else if (backendNicknameError.includes('taken')) {
+          Alert.alert('Nickname en uso', 'Ese nickname ya pertenece a otro usuario.');
+        } else {
+          Alert.alert('No se pudo cambiar el nickname', backendNicknameError);
+        }
+        return;
+      }
+
+      // Actualizar nombre y otros campos en Firestore (si cambiaron)
       const splitParts = nextFullName.split(/\s+/).filter(Boolean);
       const nextFirstName = splitParts[0] || profileData.firstName || '';
       const nextLastName = splitParts.slice(1).join(' ') || profileData.lastName || '';
@@ -305,13 +317,6 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
         lastName: nextLastName,
         updatedAt: serverTimestamp(),
       };
-
-      if (nicknameChanged) {
-        updates.nickname = nextNickname;
-        updates.nicknameLower = nextNicknameLower;
-        updates.lastNicknameChange = serverTimestamp();
-        updates.nicknameChangedAt = serverTimestamp();
-      }
 
       await updateDoc(doc(db, 'users', profileData.uid), updates);
 

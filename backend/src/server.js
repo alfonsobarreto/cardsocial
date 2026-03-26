@@ -1,6 +1,6 @@
 const express = require("express");
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
+const { sendAzureEmail } = require('./services/azureEmail');
 
 const { env, assertRequiredConfig } = require("./config");
 const { createAzureSafetyClient } = require("./services/azureSafety");
@@ -19,6 +19,39 @@ const {
 } = require("./middleware/strongAuth");
 
 async function bootstrap() {
+    // --- Action Token Model ---
+    const { createActionTokenModel } = require('./models/actionToken');
+    const actionTokenModel = createActionTokenModel(db);
+
+    // --- Endpoint: Reset Password Link ---
+    app.get('/reset-password', async (req, res) => {
+      const token = String(req.query.token || '').trim();
+      if (!token) {
+        return res.redirect('https://cardsocial.me/link-expired');
+      }
+      const found = await actionTokenModel.findValid(token, 'reset-password');
+      if (!found) {
+        return res.redirect('https://cardsocial.me/link-expired');
+      }
+      await actionTokenModel.markUsed(token);
+      // Redirige al frontend con el token para que el usuario pueda cambiar su contraseña
+      return res.redirect(`https://cardsocial.me/reset-password?token=${encodeURIComponent(token)}`);
+    });
+
+    // --- Endpoint: Email Verification Link ---
+    app.get('/verify-email', async (req, res) => {
+      const token = String(req.query.token || '').trim();
+      if (!token) {
+        return res.redirect('https://cardsocial.me/link-expired');
+      }
+      const found = await actionTokenModel.findValid(token, 'verify-email');
+      if (!found) {
+        return res.redirect('https://cardsocial.me/link-expired');
+      }
+      await actionTokenModel.markUsed(token);
+      // Aquí podrías marcar el email como verificado en la base de datos del usuario si lo deseas
+      return res.redirect('https://cardsocial.me/verify-success');
+    });
   assertRequiredConfig();
 
   const azureSafety = createAzureSafetyClient({
@@ -55,17 +88,21 @@ async function bootstrap() {
   app.use(express.json({ limit: "2mb" }));
   app.locals.db = db;
 
-  const otpMailer = (env.smtpHost && env.smtpUser && env.smtpPass)
-    ? nodemailer.createTransport({
-        host: env.smtpHost,
-        port: env.smtpPort,
-        secure: env.smtpSecure,
-        auth: {
-          user: env.smtpUser,
-          pass: env.smtpPass,
+  const otpMailer = (env.azureEmailConnectionString && env.emailFrom)
+    ? {
+        sendMail: async ({ from, to, subject, text, html }) => {
+          return sendAzureEmail({
+            from,
+            to,
+            subject,
+            text,
+            html,
+            connectionString: env.azureEmailConnectionString,
+          });
         },
-      })
+      }
     : null;
+  azureEmailConnectionString: process.env.AZURE_EMAIL_CONNECTION_STRING || "",
 
   const otpHash = (emailLower, code) => {
     return crypto
@@ -167,7 +204,7 @@ async function bootstrap() {
 
       const code = `${Math.floor(100000 + Math.random() * 900000)}`;
       const sessionId = crypto.randomBytes(16).toString('hex');
-      const expiresAt = new Date(Date.now() + 180 * 1000);
+      const expiresAt = new Date(Date.now() + 60 * 1000);
 
       await db.collection('email_otps').updateMany(
         { emailLower, status: 'active' },

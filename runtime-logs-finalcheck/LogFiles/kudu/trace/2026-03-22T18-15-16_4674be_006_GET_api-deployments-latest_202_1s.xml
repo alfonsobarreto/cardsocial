@@ -1,0 +1,8 @@
+<step title="Incoming Request" date="2026-03-22T18:15:16.776" instance="4674be" url="/api/deployments/latest?deployer=OneDeploy&amp;time=2026-03-22_18-15-16Z" method="GET" type="request" pid="833,1,19" Host="card-social-api.scm.azurewebsites.net" User-Agent="GITHUBACTIONS_DeployWebAppToAzure_4adfed46b0c644f7ac2bb2f8f1a4793fc3a0fe216363857c40e1650e5041429c_v3.0.7" Authorization="Bea..." Content-Type="application/json; charset=utf-8" Cookie="ARRAffinity=4674be82b396abaf83d02ae5cb9797e3302ed577226c6d832720658f6837fffe; ARRAffinitySameSite=4674be82b396abaf83d02ae5cb9797e3302ed577226c6d832720658f6837fffe" Content-Length="0" X-ARR-LOG-ID="013240c4-ccc6-41a5-8f8a-7fb8ed96200b" CLIENT-IP="40.76.117.228:3072" X-SITE-DEPLOYMENT-ID="card-social-api" WAS-DEFAULT-HOSTNAME="card-social-api.scm.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/api/deployments/latest?deployer=OneDeploy&amp;time=2026-03-22_18-15-16Z" X-Client-IP="40.76.117.228" X-Client-Port="3072" >
+  <step title="DeploymentService.GetResult" date="2026-03-22T18:15:16.790" >
+    <step title="DeploymentService.GetLatestDeployment" date="2026-03-22T18:15:16.794" >
+      <step title="DeploymentManager.GetResults" date="2026-03-22T18:15:16.802" /><!-- duration: 744ms -->
+    </step><!-- duration: 783ms -->
+  </step><!-- duration: 805ms -->
+  <step title="Outgoing response" date="2026-03-22T18:15:17.607" type="response" statusCode="202" statusText="Accepted" /><!-- duration: 10ms -->
+</step><!-- duration: 864ms -->

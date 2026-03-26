@@ -148,29 +148,14 @@ function RootNavigator() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <Stack
-        screenOptions={{
-          headerTitleContainerStyle: {
-            paddingTop: 15,
-            paddingHorizontal: 20,
-          },
-          headerLeftContainerStyle: {
-            paddingTop: 15,
-            paddingHorizontal: 20,
-          },
-          headerRightContainerStyle: {
-            paddingTop: 15,
-            paddingHorizontal: 20,
-          },
-        }}
-      >
+      <Stack>
         {/* Forzamos a que la primera pantalla sea el Index (Bienvenida) */}
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen 
           name="signin" 
           options={{ 
-            title: language === 'en' ? 'Sign In' : 'Iniciar sesion', 
-            headerStyle: { height: 98 } // Increased height by 40% from 70 to 98
+            title: language === 'en' ? 'Sign In' : 'Iniciar sesion',
+            headerStyle: { backgroundColor: '#fff' } // Puedes personalizar el color si quieres
           }} 
         />
         <Stack.Screen name="register" options={{ title: language === 'en' ? 'Sign Up' : 'Registro' }} />

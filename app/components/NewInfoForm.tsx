@@ -1,42 +1,41 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as ImageManipulator from 'expo-image-manipulator';
+import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  View,
+  Alert,
+  Dimensions,
+  FlatList,
+  Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  PanResponder,
+  Platform,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  ScrollView,
-  Modal,
-  StyleSheet,
-  Dimensions,
-  FlatList,
-  Image,
-  Platform,
-  KeyboardAvoidingView,
-  Alert,
-  Keyboard,
-  Linking,
-  PanResponder,
+  View
 } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import * as ImagePicker from 'expo-image-picker';
-import * as ImageManipulator from 'expo-image-manipulator';
-import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system/legacy';
-import { PDFDocument } from 'pdf-lib';
-import { Buffer } from 'buffer';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { db } from '@/services/firebaseConfig';
-import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
-import { getActiveUserId } from '@/services/authSession';
-import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
-import { fetchFaviconFromAzure } from '@/services/faviconApi';
-import { hardLockCheck } from '@/services/biometricAuth';
-import { useLanguage } from '@/services/language';
-import { useLookMode } from '@/services/lookMode';
-import LuxuryModerationModal from './LuxuryModerationModal';
+// import { PDFDocument } from 'pdf-lib'; // [SILENCIADO POR ERROR DE DEPENDENCIA]
 import BrandedSpinner from '@/components/BrandedSpinner';
+import { getActiveUserId } from '@/services/authSession';
+import { hardLockCheck } from '@/services/biometricAuth';
+import { fetchFaviconFromAzure } from '@/services/faviconApi';
+import { db } from '@/services/firebaseConfig';
+import { useLookMode } from '@/services/lookMode';
+import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Buffer } from 'buffer';
+import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
+import { useTranslation } from 'react-i18next';
+import LuxuryModerationModal from './LuxuryModerationModal';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const VAULT_STORAGE_KEY = 'vault_data';
@@ -154,9 +153,8 @@ const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2 MB
 const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024; // 20 MB
 
 const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingData?: Link }) => {
-  const { language } = useLanguage();
+  const { t } = useTranslation();
   const { resolvedMode } = useLookMode();
-  const tr = (es: string, en: string) => language === 'en' ? en : es;
   const isNight = resolvedMode === 'noche';
   const formTheme = {
     motherBg: isNight ? '#0A2540' : '#E3F2FD',
@@ -303,40 +301,41 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     };
   }, []);
 
-  // Favicon fetching when URL changes (only if not editing with favicon already)
+  // Favicon fetching with local cache and UI cleanup
+  const faviconCache = useRef({});
   useEffect(() => {
     const lookupFavicon = async () => {
       if (dataType !== 'Enlaces' || !dataValue.trim() || editingData?.id) {
         return;
       }
-
       const lookupToken = ++faviconLookupTokenRef.current;
-
       try {
         const urlObj = new URL(dataValue.startsWith('http') ? dataValue : `https://${dataValue}`);
         const domain = urlObj.hostname.toLowerCase();
         if (!domain || domain === lastFaviconDomain) {
           return;
         }
-
         setFaviconLoading(true);
+        if (faviconCache.current[domain]) {
+          setFaviconUrl(faviconCache.current[domain]);
+          setFaviconSuggestionVisible(true);
+          setFaviconLoading(false);
+          setLastFaviconDomain(domain);
+          return;
+        }
         const fetchedIcon = await fetchFaviconFromAzure(dataValue);
-
         if (faviconLifecycleClosedRef.current || lookupToken !== faviconLookupTokenRef.current) {
           return;
         }
-
         if (!fetchedIcon) {
           setFaviconLoading(false);
           return;
         }
-
         await Image.prefetch(fetchedIcon).catch(() => null);
-
         if (faviconLifecycleClosedRef.current || lookupToken !== faviconLookupTokenRef.current) {
           return;
         }
-
+        faviconCache.current[domain] = fetchedIcon;
         setLastFaviconDomain(domain);
         setFaviconUrl(fetchedIcon);
         setFaviconSuggestionVisible(true);
@@ -347,7 +346,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         setFaviconUrl('');
       }
     };
-
     lookupFavicon();
   }, [dataValue, dataType, editingData?.id, lastFaviconDomain]);
 
@@ -508,7 +506,18 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         }
       }
 
-      return { uri: bestUri, size: bestSize };
+      // Lógica de emergencia: último intento a 480px y calidad 0.2
+      const emergencyResult = await ImageManipulator.manipulateAsync(
+        bestUri,
+        [{ resize: { width: 480 } }],
+        { compress: 0.2, format: ImageManipulator.SaveFormat.JPEG }
+      );
+      const emergencySize = await getFileSizeInBytes(emergencyResult.uri);
+      if (emergencySize <= maxBytes) {
+        return { uri: emergencyResult.uri, size: emergencySize };
+      }
+      // Si aún así no baja, devolver el último intento (probablemente corrupto o imposible)
+      return { uri: emergencyResult.uri, size: emergencySize };
     } catch (error) {
       console.error('Error compressing image:', error);
       const size = await getFileSizeInBytes(uri).catch(() => Number.MAX_SAFE_INTEGER);
@@ -531,25 +540,28 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         encoding: FileSystem.EncodingType.Base64,
       });
       const sourceBytes = Uint8Array.from(Buffer.from(base64, 'base64'));
-      const pdfDoc = await PDFDocument.load(sourceBytes, {
-        ignoreEncryption: true,
-        updateMetadata: false,
-      });
-
-      const optimizedBytes = await pdfDoc.save({
-        useObjectStreams: true,
-        addDefaultPage: false,
-        updateFieldAppearances: false,
-      });
-
-      const optimizedBase64 = Buffer.from(optimizedBytes).toString('base64');
-      const optimizedUri = `${FileSystem.cacheDirectory || ''}optimized-${Date.now()}.pdf`;
-      await FileSystem.writeAsStringAsync(optimizedUri, optimizedBase64, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
-      const optimizedSize = await getFileSizeInBytes(optimizedUri);
-      return { uri: optimizedUri, size: optimizedSize };
+      // [SILENCIADO POR ERROR DE DEPENDENCIA]
+      // const pdfDoc = await PDFDocument.load(sourceBytes, {
+      //   ignoreEncryption: true,
+      //   updateMetadata: false,
+      // });
+      //
+      // const optimizedBytes = await pdfDoc.save({
+      //   useObjectStreams: true,
+      //   addDefaultPage: false,
+      //   updateFieldAppearances: false,
+      // });
+      //
+      // const optimizedBase64 = Buffer.from(optimizedBytes).toString('base64');
+      // const optimizedUri = `${FileSystem.cacheDirectory || ''}optimized-${Date.now()}.pdf`;
+      // await FileSystem.writeAsStringAsync(optimizedUri, optimizedBase64, {
+      //   encoding: FileSystem.EncodingType.Base64,
+      // });
+      //
+      // const optimizedSize = await getFileSizeInBytes(optimizedUri);
+      // return { uri: optimizedUri, size: optimizedSize };
+      // [FIN SILENCIADO]
+      return { uri, size: await getFileSizeInBytes(uri).catch(() => Number.MAX_SAFE_INTEGER) };
     } catch (error) {
       console.warn('PDF optimization failed, keeping original:', error);
       const size = await getFileSizeInBytes(uri).catch(() => Number.MAX_SAFE_INTEGER);
@@ -569,55 +581,54 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(tr('Permiso denegado', 'Permission denied'), tr('Se necesita acceso a fotos', 'Photo access needed'));
+        Alert.alert(t('Permiso denegado'), t('Se necesita acceso a fotos'));
         return;
       }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: false,
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets.length > 0) {
-        const file = result.assets[0];
-        logAssetAudit('PICK_GALLERY_RAW', {
-          dataType,
-          dataName,
-          uri: file.uri,
-          fileName: file.fileName || 'unknown',
-          mimeType: file.mimeType || 'unknown',
-          sizeBytes: file.fileSize || null,
+      setFileTypeModalVisible(false); // Cerrar modal antes de procesar
+      setTimeout(async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: false,
+          quality: 0.8,
         });
-        const optimized = await optimizeImageForLimit(file.uri, MAX_IMAGE_SIZE);
-        if (optimized.size > MAX_IMAGE_SIZE) {
-          Alert.alert(
-            tr('No se pudo optimizar', 'Could not optimize'),
-            tr('La imagen no pudo reducirse al límite seguro. Intenta otra foto o menor resolución.', 'The image could not be reduced to the secure size limit. Try another image or lower resolution.')
-          );
-          setFileTypeModalVisible(false);
-          return;
+        if (!result.canceled && result.assets.length > 0) {
+          const file = result.assets[0];
+          logAssetAudit('PICK_GALLERY_RAW', {
+            dataType,
+            dataName,
+            uri: file.uri,
+            fileName: file.fileName || 'unknown',
+            mimeType: file.mimeType || 'unknown',
+            sizeBytes: file.fileSize || null,
+          });
+          const optimized = await optimizeImageForLimit(file.uri, MAX_IMAGE_SIZE);
+          console.log('--- COMPRESIÓN REAL ---', optimized.size);
+          if (optimized.size > MAX_IMAGE_SIZE) {
+            Alert.alert(
+              t('No se pudo optimizar'),
+              t('La imagen no pudo reducirse al límite seguro. Intenta otra foto o menor resolución.')
+            );
+            return;
+          }
+          logAssetAudit('PICK_GALLERY_COMPRESSED', {
+            dataType,
+            dataName,
+            uri: optimized.uri,
+            fileName: 'gallery-compressed.jpg',
+            mimeType: 'image/jpeg',
+            sizeBytes: optimized.size,
+          });
+          openAssetPreview({
+            uri: optimized.uri,
+            name: file.fileName || 'gallery-image.jpg',
+            mimeType: 'image/jpeg',
+            source: 'gallery',
+          });
         }
-
-        logAssetAudit('PICK_GALLERY_COMPRESSED', {
-          dataType,
-          dataName,
-          uri: optimized.uri,
-          fileName: 'gallery-compressed.jpg',
-          mimeType: 'image/jpeg',
-          sizeBytes: optimized.size,
-        });
-        openAssetPreview({
-          uri: optimized.uri,
-          name: file.fileName || 'gallery-image.jpg',
-          mimeType: 'image/jpeg',
-          source: 'gallery',
-        });
-      }
-      setFileTypeModalVisible(false);
+      }, 200);
     } catch (error) {
       console.error('Error picking photo:', error);
-      Alert.alert(tr('Error', 'Error'), tr('No se pudo seleccionar la foto', 'Could not select photo'));
+      Alert.alert(t('Error'), t('No se pudo seleccionar la foto'));
     }
   };
 
@@ -650,28 +661,33 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
       if (isImageDoc) {
         const optimized = await optimizeImageForLimit(file.uri, MAX_IMAGE_SIZE);
+        console.log('--- COMPRESIÓN REAL ---', optimized.size);
         finalUri = optimized.uri;
         finalSize = optimized.size;
         finalMime = 'image/jpeg';
 
         if (finalSize > MAX_IMAGE_SIZE) {
           Alert.alert(
-            tr('No se pudo optimizar', 'Could not optimize'),
-            tr('No fue posible reducir la imagen al límite seguro. Prueba con otra captura.', 'Could not reduce the image to the secure limit. Try another capture.')
+            t('No se pudo optimizar'),
+            t('No fue posible reducir la imagen al límite seguro. Prueba con otra captura.')
           );
           setFileTypeModalVisible(false);
           return;
         }
+        // Permitir guardar imágenes como documentos: ajustar nombre si es necesario
+        if (dataType === 'Documento') {
+          file.name = file.name?.replace(/\.[^/.]+$/, '') + '.jpg';
+        }
       } else if (isPdfAsset(file.uri, file.mimeType)) {
-        const optimizedPdf = await optimizePdfForLimit(file.uri, MAX_IMAGE_SIZE);
+        const optimizedPdf = await optimizePdfForLimit(file.uri, MAX_DOCUMENT_SIZE);
         finalUri = optimizedPdf.uri;
         finalSize = optimizedPdf.size;
         finalMime = 'application/pdf';
 
         if (finalSize > MAX_DOCUMENT_SIZE) {
           Alert.alert(
-            tr('PDF demasiado pesado', 'PDF too large'),
-            tr('El PDF excede el límite seguro incluso tras optimizar. Usa una versión más ligera.', 'The PDF exceeds the safe limit even after optimization. Use a lighter version.')
+            t('PDF demasiado pesado'),
+            t('El PDF excede el límite seguro incluso tras optimizar. Usa una versión más ligera.')
           );
           setFileTypeModalVisible(false);
           return;
@@ -680,17 +696,26 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         const validation = await validateFileSize(file.uri);
         if (!validation.valid) {
           Alert.alert(
-            tr('Archivo no soportado', 'Unsupported file'),
-            tr('Este formato no es compatible en esta carga segura. Usa imagen o PDF.', 'This format is not compatible in this secure upload. Use image or PDF.')
+            t('Archivo no soportado'),
+            t('Este formato no es compatible en esta carga segura. Usa imagen o PDF.')
           );
           setFileTypeModalVisible(false);
           return;
         }
       }
 
+      // Asegurar nombre válido para imágenes en documentos
+      let assetName = file.name;
+      if (isImageDoc && dataType === 'Documento') {
+        if (!assetName || !assetName.endsWith('.jpg')) {
+          assetName = `documento-${Date.now()}.jpg`;
+        }
+      } else if (!assetName) {
+        assetName = 'documento';
+      }
       openAssetPreview({
         uri: finalUri,
-        name: file.name || 'documento',
+        name: assetName,
         mimeType: finalMime,
         source: 'document',
       });
@@ -705,7 +730,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       setFileTypeModalVisible(false);
     } catch (error) {
       console.error('Error picking document:', error);
-      Alert.alert(tr('Error', 'Error'), tr('No se pudo seleccionar el documento', 'Could not select document'));
+      Alert.alert(t('Error'), t('No se pudo seleccionar el documento'));
     }
   };
 
@@ -713,55 +738,54 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(tr('Permiso denegado', 'Permission denied'), tr('Se necesita acceso a la cámara', 'Camera access needed'));
+        Alert.alert(t('Permiso denegado'), t('Se necesita acceso a la cámara'));
         return;
       }
-
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: false,
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets.length > 0) {
-        const file = result.assets[0];
-        logAssetAudit('PICK_CAMERA_RAW', {
-          dataType,
-          dataName,
-          uri: file.uri,
-          fileName: file.fileName || 'camera.jpg',
-          mimeType: file.mimeType || 'unknown',
-          sizeBytes: file.fileSize || null,
+      setFileTypeModalVisible(false); // Cerrar modal antes de procesar
+      setTimeout(async () => {
+        const result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: false,
+          quality: 0.8,
         });
-        const optimized = await optimizeImageForLimit(file.uri, MAX_IMAGE_SIZE);
-        if (optimized.size > MAX_IMAGE_SIZE) {
-          Alert.alert(
-            tr('No se pudo optimizar', 'Could not optimize'),
-            tr('La foto no pudo reducirse al límite seguro. Intenta otra captura.', 'The photo could not be reduced to the secure size limit. Try another capture.')
-          );
-          setFileTypeModalVisible(false);
-          return;
+        if (!result.canceled && result.assets.length > 0) {
+          const file = result.assets[0];
+          logAssetAudit('PICK_CAMERA_RAW', {
+            dataType,
+            dataName,
+            uri: file.uri,
+            fileName: file.fileName || 'camera.jpg',
+            mimeType: file.mimeType || 'unknown',
+            sizeBytes: file.fileSize || null,
+          });
+          const optimized = await optimizeImageForLimit(file.uri, MAX_IMAGE_SIZE);
+          console.log('--- COMPRESIÓN REAL ---', optimized.size);
+          if (optimized.size > MAX_IMAGE_SIZE) {
+            Alert.alert(
+              t('No se pudo optimizar'),
+              t('La foto no pudo reducirse al límite seguro. Intenta otra captura.')
+            );
+            return;
+          }
+          logAssetAudit('PICK_CAMERA_COMPRESSED', {
+            dataType,
+            dataName,
+            uri: optimized.uri,
+            fileName: 'camera-compressed.jpg',
+            mimeType: 'image/jpeg',
+            sizeBytes: optimized.size,
+          });
+          openAssetPreview({
+            uri: optimized.uri,
+            name: file.fileName || 'camera-image.jpg',
+            mimeType: 'image/jpeg',
+            source: 'camera',
+          });
         }
-
-        logAssetAudit('PICK_CAMERA_COMPRESSED', {
-          dataType,
-          dataName,
-          uri: optimized.uri,
-          fileName: 'camera-compressed.jpg',
-          mimeType: 'image/jpeg',
-          sizeBytes: optimized.size,
-        });
-        openAssetPreview({
-          uri: optimized.uri,
-          name: file.fileName || 'camera-image.jpg',
-          mimeType: 'image/jpeg',
-          source: 'camera',
-        });
-      }
-      setFileTypeModalVisible(false);
+      }, 200);
     } catch (error) {
       console.error('Error taking photo:', error);
-      Alert.alert(tr('Error', 'Error'), tr('No se pudo tomar la foto', 'Could not take photo'));
+      Alert.alert(t('Error'), t('No se pudo tomar la foto'));
     }
   };
 
@@ -978,7 +1002,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   // Save to Firestore (Create or Update)
   const handleCreate = async () => {
     if (!dataName.trim() || !dataValue.trim()) {
-      Alert.alert(tr('❌ Error', '❌ Error'), tr('Completa todos los campos', 'Complete all fields'));
+      Alert.alert(t('❌ Error'), t('Completa todos los campos'));
       return;
     }
 
@@ -1000,7 +1024,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       const userId = await getActiveUserId();
 
       if (!userId) {
-        Alert.alert(tr('❌ Error', '❌ Error'), tr('No se pudo identificar al usuario activo', 'Could not identify active user'));
+        Alert.alert(t('❌ Error'), t('No se pudo identificar al usuario activo'));
         return;
       }
 
@@ -1025,8 +1049,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
       if (duplicateByTitle) {
         Alert.alert(
-          tr('⚠️ Nombre duplicado', '⚠️ Duplicate name'),
-          tr('Ya existe un dato con ese nombre. Usa un nombre diferente.', 'A data item with that name already exists. Use a different name.'),
+          t('⚠️ Nombre duplicado'),
+          t('Ya existe un dato con ese nombre. Usa un nombre diferente.'),
         );
         return;
       }
@@ -1096,14 +1120,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       await AsyncStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(dataArray));
 
       Alert.alert(
-        tr('✅ Éxito', '✅ Success'),
+        t('upload_success'),
         cloudSynced
           ? editingData?.id
-            ? tr('Datos actualizados y sincronizados en la nube', 'Data updated and synced to cloud')
-            : tr('Datos guardados y sincronizados en la nube', 'Data saved and synced to cloud')
+            ? t('data_updated_cloud')
+            : t('data_saved_cloud')
           : editingData?.id
-            ? tr('Datos actualizados en cache local (pendiente nube)', 'Data updated in local cache (cloud pending)')
-            : tr('Datos guardados en cache local (pendiente nube)', 'Data saved in local cache (cloud pending)')
+            ? t('data_updated_local')
+            : t('data_saved_local')
       );
       
       // Cerrar y refrescar automáticamente
@@ -1113,7 +1137,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       if (error instanceof ModerationRejectedError) {
         registerModerationReject();
       } else {
-        Alert.alert(tr('❌ Error', '❌ Error'), tr('No se pudieron guardar los datos', 'Could not save data'));
+        Alert.alert(t('upload_error'), t('could_not_save_data'));
       }
     } finally {
       setIsSaving(false);

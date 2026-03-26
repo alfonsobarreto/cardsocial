@@ -1,41 +1,41 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  Modal,
-  Alert,
-  Image,
-  Linking,
-  Dimensions,
-  Platform,
-  ScrollView,
-  ActivityIndicator,
-  Vibration,
-  Animated,
-  PanResponder,
-} from 'react-native';
+import DullModeLock from '@/components/DullModeLock';
+import LimitReachedModal from '@/components/LimitReachedModal';
+import VerificationBadge from '@/components/VerificationBadge';
+import { getActiveUserId } from '@/services/authSession';
+import { hardLockCheck } from '@/services/biometricAuth';
+import { db } from '@/services/firebaseConfig';
+import { useLanguage } from '@/services/language';
+import { validateVaultItemCreation } from '@/services/limitService';
+import { useLookMode } from '@/services/lookMode';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
-import * as Clipboard from 'expo-clipboard';
-import { db } from '@/services/firebaseConfig';
-import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
-import { getActiveUserId } from '@/services/authSession';
-import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import * as Clipboard from 'expo-clipboard';
+import * as FileSystem from 'expo-file-system/legacy';
+import { useRouter } from 'expo-router';
+import * as Sharing from 'expo-sharing';
+import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Dimensions,
+  FlatList,
+  Image,
+  Linking,
+  Modal,
+  PanResponder,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  Vibration,
+  View,
+} from 'react-native';
 import NewInfoForm from '../components/NewInfoForm';
-import VerificationBadge from '@/components/VerificationBadge';
-import { hardLockCheck } from '@/services/biometricAuth';
-import LimitReachedModal from '@/components/LimitReachedModal';
-import { validateVaultItemCreation } from '@/services/limitService';
-import DullModeLock from '@/components/DullModeLock';
-import { useLanguage } from '@/services/language';
-import { useLookMode } from '@/services/lookMode';
 
 let PdfComponent: any = null;
 try {
@@ -431,14 +431,13 @@ const VaultScreen = () => {
     }
 
     const encodedEmail = encodeURIComponent(normalizedEmail);
-    const tryOpen = async (primary: string, fallback?: string) => {
+    const tryOpen = async (primary: string, fallback?: string, fallback2?: string) => {
       const canOpenPrimary = await Linking.canOpenURL(primary);
       if (canOpenPrimary) {
         await Linking.openURL(primary);
         triggerSuccessHaptic();
         return true;
       }
-
       if (fallback) {
         const canOpenFallback = await Linking.canOpenURL(fallback);
         if (canOpenFallback) {
@@ -447,11 +446,21 @@ const VaultScreen = () => {
           return true;
         }
       }
-
+      if (fallback2) {
+        const canOpenFallback2 = await Linking.canOpenURL(fallback2);
+        if (canOpenFallback2) {
+          await Linking.openURL(fallback2);
+          triggerSuccessHaptic();
+          return true;
+        }
+      }
       return false;
     };
 
     const mailtoTarget = `mailto:${normalizedEmail}`;
+    const gmailTarget = `googlegmail://co?to=${encodedEmail}`;
+    const outlookTarget = `ms-outlook://compose?to=${encodedEmail}`;
+    const yahooTarget = `ymail://mail/compose?to=${encodedEmail}`;
 
     if (Platform.OS === 'ios') {
       Alert.alert(
@@ -467,13 +476,19 @@ const VaultScreen = () => {
           {
             text: 'Gmail',
             onPress: () => {
-              void tryOpen(`googlegmail://co?to=${encodedEmail}`, mailtoTarget);
+              void tryOpen(gmailTarget, mailtoTarget);
             },
           },
           {
             text: 'Outlook',
             onPress: () => {
-              void tryOpen(`ms-outlook://compose?to=${encodedEmail}`, mailtoTarget);
+              void tryOpen(outlookTarget, mailtoTarget);
+            },
+          },
+          {
+            text: 'Yahoo Mail',
+            onPress: () => {
+              void tryOpen(yahooTarget, mailtoTarget);
             },
           },
           {
@@ -485,7 +500,7 @@ const VaultScreen = () => {
       return;
     }
 
-    const opened = await tryOpen(mailtoTarget);
+    const opened = await tryOpen(gmailTarget, outlookTarget, mailtoTarget);
     if (!opened) {
       Alert.alert(tr('App no disponible', 'App not available'), tr('No hay una app de correo disponible en este dispositivo.', 'No email app is available on this device.'));
     }

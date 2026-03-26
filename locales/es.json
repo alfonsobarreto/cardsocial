@@ -1,0 +1,15 @@
+{
+  "optimizing": "Optimizando...",
+  "uploading": "Subiendo...",
+  "upload_success": "¡Archivo subido exitosamente!",
+  "upload_error": "Error al subir el archivo.",
+  "retrying": "Reintentando...",
+  "no_internet": "Sin conexión a internet. Reintentando automáticamente..."
+  "error_large_file": "El archivo es demasiado grande. Intenta con una imagen más pequeña o comprimida.",
+  "error_corrupt_file": "El archivo está dañado o no se pudo procesar.",
+  "error_unsupported_format": "Formato de archivo no soportado.",
+  "error_network": "Error de red. Intenta de nuevo.",
+  "error_unknown": "Ocurrió un error desconocido.",
+  "connection_error": "Error de conexión. Revisa tu internet.",
+  "retry": "Reintentar"
+}

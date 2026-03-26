@@ -1,0 +1,880 @@
+2026-03-21T22:29:38.0049196Z State: Starting, Action: EstablishingSiteNetworks, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: , DetailsLevel: INFO
+2026-03-21T22:29:40.6577540Z State: Starting, Action: StartingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: , DetailsLevel: INFO
+2026-03-21T22:29:40.6674058Z Container start method called.
+2026-03-21T22:29:40.6980700Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image 10.1.0.5:13209/appsvc/node:22-lts_20260115.4.tuxprod for card-social-api., DetailsLevel: INFO
+2026-03-21T22:29:40.7140416Z Establishing network.
+2026-03-21T22:29:40.7156215Z Pulling image: appsvc/node:22-lts_20260115.4.tuxprod.
+2026-03-21T22:29:41.0195144Z Container is starting.
+2026-03-21T22:29:41.0201702Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for card-social-api., DetailsLevel: INFO
+2026-03-21T22:29:41.0206899Z Establishing user namespace if not established already.
+2026-03-21T22:29:41.0213918Z Establishing network if not established already.
+2026-03-21T22:29:41.0276013Z Mounting volumes.
+2026-03-21T22:29:41.0389141Z Nested mountpoint 
+2026-03-21T22:29:41.1271697Z Nested mountpoint volatile/logs
+2026-03-21T22:29:41.1545685Z Nested mountpoint 
+2026-03-21T22:29:41.2729035Z Nested mountpoint 
+2026-03-21T22:29:41.3008300Z Nested mountpoint 
+2026-03-21T22:29:41.5888348Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for card-social-api. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-21T22:29:41.5890760Z Creating container.
+2026-03-21T22:29:41.5976668Z Creating pipes for streaming container io.
+2026-03-21T22:29:41.5986521Z Creating stdout named pipe at /podr/container/pipe/eaec37026d07_card-social-api/stdout_de15eb121f8c408ca7cc838d14218877.
+2026-03-21T22:29:41.6055877Z Successfully created stdout named pipe at: /podr/container/pipe/eaec37026d07_card-social-api/stdout_de15eb121f8c408ca7cc838d14218877.
+2026-03-21T22:29:41.6062784Z Opening named pipe /podr/container/pipe/eaec37026d07_card-social-api/stdout_de15eb121f8c408ca7cc838d14218877 for reading in non-blocking mode.
+2026-03-21T22:29:41.6064294Z Successfully opened named pipe: /podr/container/pipe/eaec37026d07_card-social-api/stdout_de15eb121f8c408ca7cc838d14218877.
+2026-03-21T22:29:41.6069128Z Successfully removed non-blocking flag from /podr/container/pipe/eaec37026d07_card-social-api/stdout_de15eb121f8c408ca7cc838d14218877.
+2026-03-21T22:29:41.6079283Z Creating stderr named pipe at /podr/container/pipe/eaec37026d07_card-social-api/stderr_9cec8b048aaf4a82bad4334f75c3a197.
+2026-03-21T22:29:41.6157002Z Successfully created stderr named pipe at: /podr/container/pipe/eaec37026d07_card-social-api/stderr_9cec8b048aaf4a82bad4334f75c3a197.
+2026-03-21T22:29:41.6164265Z Opening named pipe /podr/container/pipe/eaec37026d07_card-social-api/stderr_9cec8b048aaf4a82bad4334f75c3a197 for reading in non-blocking mode.
+2026-03-21T22:29:41.6166242Z Successfully opened named pipe: /podr/container/pipe/eaec37026d07_card-social-api/stderr_9cec8b048aaf4a82bad4334f75c3a197.
+2026-03-21T22:29:41.6171563Z Successfully removed non-blocking flag from /podr/container/pipe/eaec37026d07_card-social-api/stderr_9cec8b048aaf4a82bad4334f75c3a197.
+2026-03-21T22:29:41.6254286Z Creating container with image: appsvc/node:22-lts_20260115.4.tuxprod from registry: 10.1.0.5:13209 and fully qualified image name: 10.1.0.5:13209/appsvc/node:22-lts_20260115.4.tuxprod
+2026-03-21T22:29:43.5252794Z Starting container: eaec37026d07_card-social-api.
+2026-03-21T22:29:43.8954568Z Starting watchers and probes.
+2026-03-21T22:29:44.0285127Z Starting metrics collection.
+2026-03-21T22:29:44.0473157Z Container is running.
+2026-03-21T22:29:44.0474437Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T22:29:44.9544564Z Container start method finished after 4225 ms.
+2026-03-21T22:29:44.9553646Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T22:29:44.9761423Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-21T22:30:23.7429199Z Site startup probe succeeded after 38.5422658 seconds.
+2026-03-21T22:30:24.2363463Z State: Starting, Action: WarmUpProbeSucceeded, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site startup probe succeeded after 38.5422658 seconds., DetailsLevel: INFO
+2026-03-21T22:30:24.4215626Z Site started.
+2026-03-21T22:30:24.4224521Z State: Started, Action: None, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/21/2026 22:30:24 (UTC), DetailsLevel: INFO
+2026-03-21T22:30:24.8339686Z Site is running with patch version NODE 22.22.0
+2026-03-21T23:15:41.0507007Z State: Starting, Action: EstablishingSiteNetworks, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: , DetailsLevel: INFO
+2026-03-21T23:15:43.4153374Z State: Starting, Action: StartingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: , DetailsLevel: INFO
+2026-03-21T23:15:43.4207439Z Container start method called.
+2026-03-21T23:15:43.4220071Z State: Starting, Action: PullingImage, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pulling image 10.1.0.4:13209/appsvc/node:22-lts_20260115.4.tuxprod for card-social-api., DetailsLevel: INFO
+2026-03-21T23:15:43.4226039Z Establishing network.
+2026-03-21T23:15:43.4237368Z Pulling image: appsvc/node:22-lts_20260115.4.tuxprod.
+2026-03-21T23:16:07.6635920Z Container is starting.
+2026-03-21T23:16:07.6674993Z State: Starting, Action: MountingVolumes, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Mounting volumes for card-social-api., DetailsLevel: INFO
+2026-03-21T23:16:07.6684592Z Establishing user namespace if not established already.
+2026-03-21T23:16:07.6695080Z Establishing network if not established already.
+2026-03-21T23:16:07.6746230Z Mounting volumes.
+2026-03-21T23:16:07.6771409Z Nested mountpoint 
+2026-03-21T23:16:07.7331815Z Nested mountpoint volatile/logs
+2026-03-21T23:16:07.7629377Z Nested mountpoint 
+2026-03-21T23:16:07.7852432Z Nested mountpoint 
+2026-03-21T23:16:07.8504455Z Nested mountpoint 
+2026-03-21T23:16:08.4097013Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Finished pulling container image and mounting volumes for card-social-api. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-21T23:16:08.4105982Z Creating container.
+2026-03-21T23:16:08.4117490Z Creating pipes for streaming container io.
+2026-03-21T23:16:08.4186060Z Creating stdout named pipe at /podr/container/pipe/cb093e8ada60_card-social-api/stdout_0ee6d9301cb94eada3d568b002b834dd.
+2026-03-21T23:16:08.4257973Z Successfully created stdout named pipe at: /podr/container/pipe/cb093e8ada60_card-social-api/stdout_0ee6d9301cb94eada3d568b002b834dd.
+2026-03-21T23:16:08.4263095Z Opening named pipe /podr/container/pipe/cb093e8ada60_card-social-api/stdout_0ee6d9301cb94eada3d568b002b834dd for reading in non-blocking mode.
+2026-03-21T23:16:08.4273984Z Successfully opened named pipe: /podr/container/pipe/cb093e8ada60_card-social-api/stdout_0ee6d9301cb94eada3d568b002b834dd.
+2026-03-21T23:16:08.4283169Z Successfully removed non-blocking flag from /podr/container/pipe/cb093e8ada60_card-social-api/stdout_0ee6d9301cb94eada3d568b002b834dd.
+2026-03-21T23:16:08.4309717Z Creating stderr named pipe at /podr/container/pipe/cb093e8ada60_card-social-api/stderr_ac38d5c4f1c547ea95a0d741bfca10d6.
+2026-03-21T23:16:08.4322794Z Successfully created stderr named pipe at: /podr/container/pipe/cb093e8ada60_card-social-api/stderr_ac38d5c4f1c547ea95a0d741bfca10d6.
+2026-03-21T23:16:08.4391094Z Opening named pipe /podr/container/pipe/cb093e8ada60_card-social-api/stderr_ac38d5c4f1c547ea95a0d741bfca10d6 for reading in non-blocking mode.
+2026-03-21T23:16:08.4399931Z Successfully opened named pipe: /podr/container/pipe/cb093e8ada60_card-social-api/stderr_ac38d5c4f1c547ea95a0d741bfca10d6.
+2026-03-21T23:16:08.4409035Z Successfully removed non-blocking flag from /podr/container/pipe/cb093e8ada60_card-social-api/stderr_ac38d5c4f1c547ea95a0d741bfca10d6.
+2026-03-21T23:16:08.4501299Z Creating container with image: appsvc/node:22-lts_20260115.4.tuxprod from registry: 10.1.0.5:13209 and fully qualified image name: 10.1.0.5:13209/appsvc/node:22-lts_20260115.4.tuxprod
+2026-03-21T23:16:09.1922276Z Starting container: cb093e8ada60_card-social-api.
+2026-03-21T23:16:09.3272679Z Starting watchers and probes.
+2026-03-21T23:16:09.3384934Z Starting metrics collection.
+2026-03-21T23:16:09.3587064Z Container is running.
+2026-03-21T23:16:09.3588279Z State: Starting, Action: CreatingContainer, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:16:09.6125459Z Container start method finished after 26152 ms.
+2026-03-21T23:16:09.6873639Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:16:09.6883911Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-21T23:16:54.1041520Z Container has finished running with exit code: 1.
+2026-03-21T23:16:54.1436248Z Container is terminating. Grace period: 5 seconds.
+2026-03-21T23:16:54.1935481Z Stop and delete container. Retry count = 0
+2026-03-21T23:16:54.2086862Z Stopping container: cb093e8ada60_card-social-api.
+2026-03-21T23:16:54.3409850Z Deleting container: cb093e8ada60_card-social-api. Retry count = 0
+2026-03-21T23:16:55.3879927Z Container spec TerminationMessagePolicy  path 
+2026-03-21T23:16:55.4078435Z Container is terminated. Total time elapsed: 1256 ms.
+2026-03-21T23:16:55.4091405Z Site container: card-social-api terminated during site startup.
+2026-03-21T23:16:55.4498602Z State: Stopping, Action: CancellingStartup, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:16:55.6161885Z Site startup probe failed after 45.8870498 seconds.
+2026-03-21T23:16:55.9110925Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:16:55, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:16:55.9393965Z Failed to start site. Revert by stopping site.
+2026-03-21T23:16:56.0294985Z State: Stopping, Action: StoppingSite, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:16:55, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:16:56.0539693Z State: Stopping, Action: StoppingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:16:55, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:16:56.0562196Z Site: card-social-api stopped.
+2026-03-21T23:17:17.6114210Z State: Stopping, Action: StoppingSite, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/21/2026 22:30:24 (UTC), DetailsLevel: INFO
+2026-03-21T23:17:17.6299402Z State: Stopping, Action: StoppingSiteContainers, LastError: , LastErrorTimestamp: 01/01/0001 00:00:00, LastErrorDetails: , Details: Site started at 03/21/2026 22:30:24 (UTC), DetailsLevel: INFO
+2026-03-21T23:17:17.6305015Z Container is terminating. Grace period: 5 seconds.
+2026-03-21T23:17:17.9547543Z Stop and delete container. Retry count = 0
+2026-03-21T23:17:17.9549304Z Stopping container: eaec37026d07_card-social-api.
+2026-03-21T23:17:23.2497690Z Deleting container: eaec37026d07_card-social-api. Retry count = 0
+2026-03-21T23:17:23.7034656Z Container spec TerminationMessagePolicy  path 
+2026-03-21T23:17:23.7036375Z Container is terminated. Total time elapsed: 6072 ms.
+2026-03-21T23:17:23.7069815Z Site: card-social-api stopped.
+2026-03-21T23:20:00.7297357Z State: Starting, Action: EstablishingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:16:55, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:16:57 (UTC), DetailsLevel: ERR
+2026-03-21T23:20:06.7858096Z State: Starting, Action: StartingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:16:55, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:16:57 (UTC), DetailsLevel: ERR
+2026-03-21T23:20:06.7859893Z Container start method called.
+2026-03-21T23:20:06.7860447Z State: Starting, Action: PullingImage, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:16:55, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pulling image 10.1.0.4:13209/appsvc/node:22-lts_20260115.4.tuxprod for card-social-api., DetailsLevel: INFO
+2026-03-21T23:20:06.7946893Z Establishing network.
+2026-03-21T23:20:06.7949461Z Pulling image: appsvc/node:22-lts_20260115.4.tuxprod.
+2026-03-21T23:20:31.9645395Z Container is starting.
+2026-03-21T23:20:31.9651558Z State: Starting, Action: MountingVolumes, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:16:55, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Mounting volumes for card-social-api., DetailsLevel: INFO
+2026-03-21T23:20:31.9654160Z Establishing user namespace if not established already.
+2026-03-21T23:20:31.9656259Z Establishing network if not established already.
+2026-03-21T23:20:31.9667543Z Mounting volumes.
+2026-03-21T23:20:31.9670481Z Nested mountpoint 
+2026-03-21T23:20:32.0130426Z Nested mountpoint volatile/logs
+2026-03-21T23:20:32.0447987Z Nested mountpoint 
+2026-03-21T23:20:32.1321989Z Nested mountpoint 
+2026-03-21T23:20:32.2514969Z Nested mountpoint 
+2026-03-21T23:20:32.9733193Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:16:55, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Finished pulling container image and mounting volumes for card-social-api. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-21T23:20:33.0296616Z Creating container.
+2026-03-21T23:20:33.0299691Z Creating pipes for streaming container io.
+2026-03-21T23:20:33.0301016Z Creating stdout named pipe at /podr/container/pipe/c321da2de346_card-social-api/stdout_1b8e370fa1bc4686869be6df751b85d1.
+2026-03-21T23:20:33.0530332Z Successfully created stdout named pipe at: /podr/container/pipe/c321da2de346_card-social-api/stdout_1b8e370fa1bc4686869be6df751b85d1.
+2026-03-21T23:20:33.0531737Z Opening named pipe /podr/container/pipe/c321da2de346_card-social-api/stdout_1b8e370fa1bc4686869be6df751b85d1 for reading in non-blocking mode.
+2026-03-21T23:20:33.0533421Z Successfully opened named pipe: /podr/container/pipe/c321da2de346_card-social-api/stdout_1b8e370fa1bc4686869be6df751b85d1.
+2026-03-21T23:20:33.0534701Z Successfully removed non-blocking flag from /podr/container/pipe/c321da2de346_card-social-api/stdout_1b8e370fa1bc4686869be6df751b85d1.
+2026-03-21T23:20:33.0605880Z Creating stderr named pipe at /podr/container/pipe/c321da2de346_card-social-api/stderr_f8aa56b0b9ee4171a715210775f254f0.
+2026-03-21T23:20:33.0607882Z Successfully created stderr named pipe at: /podr/container/pipe/c321da2de346_card-social-api/stderr_f8aa56b0b9ee4171a715210775f254f0.
+2026-03-21T23:20:33.0609071Z Opening named pipe /podr/container/pipe/c321da2de346_card-social-api/stderr_f8aa56b0b9ee4171a715210775f254f0 for reading in non-blocking mode.
+2026-03-21T23:20:33.0628337Z Successfully opened named pipe: /podr/container/pipe/c321da2de346_card-social-api/stderr_f8aa56b0b9ee4171a715210775f254f0.
+2026-03-21T23:20:33.0631387Z Successfully removed non-blocking flag from /podr/container/pipe/c321da2de346_card-social-api/stderr_f8aa56b0b9ee4171a715210775f254f0.
+2026-03-21T23:20:33.1101651Z Creating container with image: appsvc/node:22-lts_20260115.4.tuxprod from registry: 10.1.0.5:13209 and fully qualified image name: 10.1.0.5:13209/appsvc/node:22-lts_20260115.4.tuxprod
+2026-03-21T23:20:34.0384891Z Starting container: c321da2de346_card-social-api.
+2026-03-21T23:20:34.1676823Z Starting watchers and probes.
+2026-03-21T23:20:34.1775578Z Starting metrics collection.
+2026-03-21T23:20:34.1781198Z Container is running.
+2026-03-21T23:20:34.1782936Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:16:55, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:20:34.4205996Z Container start method finished after 27634 ms.
+2026-03-21T23:20:34.4208365Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:16:55, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:20:34.4208653Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:16:55, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-21T23:21:15.2732152Z Container has finished running with exit code: 1.
+2026-03-21T23:21:15.2734833Z Container is terminating. Grace period: 5 seconds.
+2026-03-21T23:21:15.2899326Z Stop and delete container. Retry count = 0
+2026-03-21T23:21:15.2906479Z Stopping container: c321da2de346_card-social-api.
+2026-03-21T23:21:15.3519636Z Deleting container: c321da2de346_card-social-api. Retry count = 0
+2026-03-21T23:21:16.3127563Z Container spec TerminationMessagePolicy  path 
+2026-03-21T23:21:16.3214966Z Container is terminated. Total time elapsed: 1039 ms.
+2026-03-21T23:21:16.3221476Z Site container: card-social-api terminated during site startup.
+2026-03-21T23:21:16.3301173Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:16:55, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:21:16.3508414Z Site startup probe failed after 41.7612044 seconds.
+2026-03-21T23:21:16.6190547Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:21:16, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:21:16.6571047Z Failed to start site. Revert by stopping site.
+2026-03-21T23:21:16.6574656Z State: Stopping, Action: StoppingSite, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:21:16, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:21:16.7350203Z State: Stopping, Action: StoppingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:21:16, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:21:16.7350557Z Site: card-social-api stopped.
+2026-03-21T23:21:16.7436671Z State: Stopping, Action: UnmountingVolumes, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:21:16, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:21:17.1919418Z State: Stopping, Action: StoppingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:21:16, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:21:17.4914795Z State: Stopped, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:21:16, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:21:17 (UTC), DetailsLevel: ERR
+2026-03-21T23:21:17.6199588Z State: Stopped, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:21:16, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:21:17 (UTC), DetailsLevel: ERR
+2026-03-21T23:21:18.0705462Z State: Starting, Action: EstablishingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:21:16, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:21:17 (UTC), DetailsLevel: ERR
+2026-03-21T23:21:21.1637933Z State: Starting, Action: StartingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:21:16, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:21:17 (UTC), DetailsLevel: ERR
+2026-03-21T23:21:21.1639262Z Container start method called.
+2026-03-21T23:21:21.1639816Z State: Starting, Action: PullingImage, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:21:16, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pulling image 10.1.0.5:13209/appsvc/node:22-lts_20260115.4.tuxprod for card-social-api., DetailsLevel: INFO
+2026-03-21T23:21:21.1642851Z Establishing network.
+2026-03-21T23:21:21.2305037Z Pulling image: appsvc/node:22-lts_20260115.4.tuxprod.
+2026-03-21T23:21:43.9174414Z Container is starting.
+2026-03-21T23:21:43.9183005Z State: Starting, Action: MountingVolumes, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:21:16, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Mounting volumes for card-social-api., DetailsLevel: INFO
+2026-03-21T23:21:43.9185186Z Establishing user namespace if not established already.
+2026-03-21T23:21:43.9202608Z Establishing network if not established already.
+2026-03-21T23:21:43.9207833Z Mounting volumes.
+2026-03-21T23:21:43.9210062Z Nested mountpoint 
+2026-03-21T23:21:43.9887613Z Nested mountpoint volatile/logs
+2026-03-21T23:21:44.0094116Z Nested mountpoint 
+2026-03-21T23:21:44.0192585Z Nested mountpoint 
+2026-03-21T23:21:44.0689419Z Nested mountpoint 
+2026-03-21T23:21:44.4966929Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:21:16, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Finished pulling container image and mounting volumes for card-social-api. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-21T23:21:44.5158785Z Creating container.
+2026-03-21T23:21:44.5166839Z Creating pipes for streaming container io.
+2026-03-21T23:21:44.5351809Z Creating stdout named pipe at /podr/container/pipe/7ad0d62d344c_card-social-api/stdout_1042730413844d58bc1d443867498672.
+2026-03-21T23:21:44.5529460Z Successfully created stdout named pipe at: /podr/container/pipe/7ad0d62d344c_card-social-api/stdout_1042730413844d58bc1d443867498672.
+2026-03-21T23:21:44.5532386Z Opening named pipe /podr/container/pipe/7ad0d62d344c_card-social-api/stdout_1042730413844d58bc1d443867498672 for reading in non-blocking mode.
+2026-03-21T23:21:44.5533992Z Successfully opened named pipe: /podr/container/pipe/7ad0d62d344c_card-social-api/stdout_1042730413844d58bc1d443867498672.
+2026-03-21T23:21:44.5535071Z Successfully removed non-blocking flag from /podr/container/pipe/7ad0d62d344c_card-social-api/stdout_1042730413844d58bc1d443867498672.
+2026-03-21T23:21:44.5537160Z Creating stderr named pipe at /podr/container/pipe/7ad0d62d344c_card-social-api/stderr_c428243c3d9b47a1a83c6f639cb427d0.
+2026-03-21T23:21:44.5538782Z Successfully created stderr named pipe at: /podr/container/pipe/7ad0d62d344c_card-social-api/stderr_c428243c3d9b47a1a83c6f639cb427d0.
+2026-03-21T23:21:44.5539758Z Opening named pipe /podr/container/pipe/7ad0d62d344c_card-social-api/stderr_c428243c3d9b47a1a83c6f639cb427d0 for reading in non-blocking mode.
+2026-03-21T23:21:44.5541243Z Successfully opened named pipe: /podr/container/pipe/7ad0d62d344c_card-social-api/stderr_c428243c3d9b47a1a83c6f639cb427d0.
+2026-03-21T23:21:44.5542354Z Successfully removed non-blocking flag from /podr/container/pipe/7ad0d62d344c_card-social-api/stderr_c428243c3d9b47a1a83c6f639cb427d0.
+2026-03-21T23:21:44.5710586Z Creating container with image: appsvc/node:22-lts_20260115.4.tuxprod from registry: 10.1.0.5:13209 and fully qualified image name: 10.1.0.5:13209/appsvc/node:22-lts_20260115.4.tuxprod
+2026-03-21T23:21:45.0675973Z Starting container: 7ad0d62d344c_card-social-api.
+2026-03-21T23:21:45.1730504Z Starting watchers and probes.
+2026-03-21T23:21:45.1733927Z Starting metrics collection.
+2026-03-21T23:21:45.1735762Z Container is running.
+2026-03-21T23:21:45.1736735Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:21:16, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:21:45.4361082Z Container start method finished after 24233 ms.
+2026-03-21T23:21:45.4366912Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:21:16, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:21:45.4367768Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:21:16, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-21T23:22:44.9644886Z Container has finished running with exit code: 1.
+2026-03-21T23:22:44.9649314Z Container is terminating. Grace period: 5 seconds.
+2026-03-21T23:22:44.9727099Z Stop and delete container. Retry count = 0
+2026-03-21T23:22:44.9733440Z Stopping container: 7ad0d62d344c_card-social-api.
+2026-03-21T23:22:45.0813637Z Deleting container: 7ad0d62d344c_card-social-api. Retry count = 0
+2026-03-21T23:22:45.9725235Z Container spec TerminationMessagePolicy  path 
+2026-03-21T23:22:45.9743678Z Container is terminated. Total time elapsed: 1008 ms.
+2026-03-21T23:22:45.9803846Z Site container: card-social-api terminated during site startup.
+2026-03-21T23:22:45.9942434Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:21:16, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:22:46.0422737Z Site startup probe failed after 60.6004396 seconds.
+2026-03-21T23:22:46.2447722Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:22:46, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:22:46.2761119Z Failed to start site. Revert by stopping site.
+2026-03-21T23:22:46.2820568Z State: Stopping, Action: StoppingSite, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:22:46, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:22:46.2826228Z State: Stopping, Action: StoppingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:22:46, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:22:46.2826432Z Site: card-social-api stopped.
+2026-03-21T23:24:55.8824146Z State: Starting, Action: EstablishingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:22:46, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:23:47, DetailsLevel: WARN
+2026-03-21T23:24:59.9423157Z State: Starting, Action: StartingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:22:46, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:23:47, DetailsLevel: WARN
+2026-03-21T23:24:59.9749120Z Container start method called.
+2026-03-21T23:24:59.9750241Z State: Starting, Action: PullingImage, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:22:46, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pulling image 10.1.0.5:13209/appsvc/node:20-lts_20260115.4.tuxprod for card-social-api., DetailsLevel: INFO
+2026-03-21T23:24:59.9753140Z Establishing network.
+2026-03-21T23:24:59.9818904Z Pulling image: appsvc/node:20-lts_20260115.4.tuxprod.
+2026-03-21T23:25:00.4786343Z Container is starting.
+2026-03-21T23:25:00.4792898Z State: Starting, Action: MountingVolumes, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:22:46, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Mounting volumes for card-social-api., DetailsLevel: INFO
+2026-03-21T23:25:00.4971277Z Establishing user namespace if not established already.
+2026-03-21T23:25:00.4973651Z Establishing network if not established already.
+2026-03-21T23:25:00.5089880Z Mounting volumes.
+2026-03-21T23:25:00.5169619Z Nested mountpoint 
+2026-03-21T23:25:00.6051323Z Nested mountpoint volatile/logs
+2026-03-21T23:25:00.6247840Z Nested mountpoint 
+2026-03-21T23:25:00.6257107Z Nested mountpoint 
+2026-03-21T23:25:00.7256319Z Nested mountpoint 
+2026-03-21T23:25:01.4817002Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:22:46, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Finished pulling container image and mounting volumes for card-social-api. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-21T23:25:01.4818791Z Creating container.
+2026-03-21T23:25:01.4820055Z Creating pipes for streaming container io.
+2026-03-21T23:25:01.4821386Z Creating stdout named pipe at /podr/container/pipe/8ef517030501_card-social-api/stdout_7a68e1bc0fc84e46bf7a70bf59e4ae20.
+2026-03-21T23:25:01.4823553Z Successfully created stdout named pipe at: /podr/container/pipe/8ef517030501_card-social-api/stdout_7a68e1bc0fc84e46bf7a70bf59e4ae20.
+2026-03-21T23:25:01.4824658Z Opening named pipe /podr/container/pipe/8ef517030501_card-social-api/stdout_7a68e1bc0fc84e46bf7a70bf59e4ae20 for reading in non-blocking mode.
+2026-03-21T23:25:01.4825936Z Successfully opened named pipe: /podr/container/pipe/8ef517030501_card-social-api/stdout_7a68e1bc0fc84e46bf7a70bf59e4ae20.
+2026-03-21T23:25:01.4826927Z Successfully removed non-blocking flag from /podr/container/pipe/8ef517030501_card-social-api/stdout_7a68e1bc0fc84e46bf7a70bf59e4ae20.
+2026-03-21T23:25:01.5495620Z Creating stderr named pipe at /podr/container/pipe/8ef517030501_card-social-api/stderr_12137578db9146f3ac3aadcca6e2ebd3.
+2026-03-21T23:25:01.5497944Z Successfully created stderr named pipe at: /podr/container/pipe/8ef517030501_card-social-api/stderr_12137578db9146f3ac3aadcca6e2ebd3.
+2026-03-21T23:25:01.5499075Z Opening named pipe /podr/container/pipe/8ef517030501_card-social-api/stderr_12137578db9146f3ac3aadcca6e2ebd3 for reading in non-blocking mode.
+2026-03-21T23:25:01.5500486Z Successfully opened named pipe: /podr/container/pipe/8ef517030501_card-social-api/stderr_12137578db9146f3ac3aadcca6e2ebd3.
+2026-03-21T23:25:01.5501549Z Successfully removed non-blocking flag from /podr/container/pipe/8ef517030501_card-social-api/stderr_12137578db9146f3ac3aadcca6e2ebd3.
+2026-03-21T23:25:01.5822729Z Creating container with image: appsvc/node:20-lts_20260115.4.tuxprod from registry: 10.1.0.5:13209 and fully qualified image name: 10.1.0.5:13209/appsvc/node:20-lts_20260115.4.tuxprod
+2026-03-21T23:25:04.2710287Z Starting container: 8ef517030501_card-social-api.
+2026-03-21T23:25:04.3757176Z Starting watchers and probes.
+2026-03-21T23:25:04.3846865Z Starting metrics collection.
+2026-03-21T23:25:04.4143730Z Container is running.
+2026-03-21T23:25:04.4145601Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:22:46, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:25:04.7464878Z Container start method finished after 4771 ms.
+2026-03-21T23:25:04.7467041Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:22:46, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:25:04.7467353Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:22:46, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-21T23:25:54.3081747Z Container has finished running with exit code: 1.
+2026-03-21T23:25:54.3087652Z Container is terminating. Grace period: 5 seconds.
+2026-03-21T23:25:54.3184689Z Stop and delete container. Retry count = 0
+2026-03-21T23:25:54.3244548Z Stopping container: 8ef517030501_card-social-api.
+2026-03-21T23:25:54.4033680Z Deleting container: 8ef517030501_card-social-api. Retry count = 0
+2026-03-21T23:25:54.6618275Z Container spec TerminationMessagePolicy  path 
+2026-03-21T23:25:54.6619758Z Container is terminated. Total time elapsed: 353 ms.
+2026-03-21T23:25:54.6621123Z Site container: card-social-api terminated during site startup.
+2026-03-21T23:25:54.6622354Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:22:46, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:25:54.6972224Z Site startup probe failed after 49.9053735 seconds.
+2026-03-21T23:25:54.9354041Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:25:54, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:25:54.9435717Z Failed to start site. Revert by stopping site.
+2026-03-21T23:25:54.9437026Z State: Stopping, Action: StoppingSite, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:25:54, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:25:54.9439553Z State: Stopping, Action: StoppingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:25:54, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:25:54.9439925Z Site: card-social-api stopped.
+2026-03-21T23:25:54.9534434Z State: Stopping, Action: UnmountingVolumes, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:25:54, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:25:55.3791787Z State: Stopping, Action: StoppingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:25:54, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:25:55.8599548Z State: Stopped, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:25:54, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:25:55 (UTC), DetailsLevel: ERR
+2026-03-21T23:25:56.0986591Z State: Stopped, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:25:54, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:25:55 (UTC), DetailsLevel: ERR
+2026-03-21T23:25:56.2063548Z State: Starting, Action: EstablishingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:25:54, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:25:55 (UTC), DetailsLevel: ERR
+2026-03-21T23:25:58.8317187Z State: Starting, Action: StartingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:25:54, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:25:55 (UTC), DetailsLevel: ERR
+2026-03-21T23:25:58.8514022Z Container start method called.
+2026-03-21T23:25:58.8515134Z State: Starting, Action: PullingImage, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:25:54, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pulling image 10.1.0.5:13209/appsvc/node:20-lts_20260115.4.tuxprod for card-social-api., DetailsLevel: INFO
+2026-03-21T23:25:58.8519868Z Establishing network.
+2026-03-21T23:25:58.8603384Z Pulling image: appsvc/node:20-lts_20260115.4.tuxprod.
+2026-03-21T23:25:59.1019782Z Container is starting.
+2026-03-21T23:25:59.1186154Z State: Starting, Action: MountingVolumes, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:25:54, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Mounting volumes for card-social-api., DetailsLevel: INFO
+2026-03-21T23:25:59.1204826Z Establishing user namespace if not established already.
+2026-03-21T23:25:59.1206696Z Establishing network if not established already.
+2026-03-21T23:25:59.1209043Z Mounting volumes.
+2026-03-21T23:25:59.1210852Z Nested mountpoint 
+2026-03-21T23:25:59.2005443Z Nested mountpoint volatile/logs
+2026-03-21T23:25:59.2371681Z Nested mountpoint 
+2026-03-21T23:25:59.2768907Z Nested mountpoint 
+2026-03-21T23:25:59.2970201Z Nested mountpoint 
+2026-03-21T23:25:59.7592260Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:25:54, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Finished pulling container image and mounting volumes for card-social-api. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-21T23:25:59.7594806Z Creating container.
+2026-03-21T23:25:59.7596021Z Creating pipes for streaming container io.
+2026-03-21T23:25:59.7599444Z Creating stdout named pipe at /podr/container/pipe/3631b950317b_card-social-api/stdout_f8a9370be6d746a49cbb96b23d5d8c0c.
+2026-03-21T23:25:59.8188964Z Successfully created stdout named pipe at: /podr/container/pipe/3631b950317b_card-social-api/stdout_f8a9370be6d746a49cbb96b23d5d8c0c.
+2026-03-21T23:25:59.8191284Z Opening named pipe /podr/container/pipe/3631b950317b_card-social-api/stdout_f8a9370be6d746a49cbb96b23d5d8c0c for reading in non-blocking mode.
+2026-03-21T23:25:59.8192874Z Successfully opened named pipe: /podr/container/pipe/3631b950317b_card-social-api/stdout_f8a9370be6d746a49cbb96b23d5d8c0c.
+2026-03-21T23:25:59.8193970Z Successfully removed non-blocking flag from /podr/container/pipe/3631b950317b_card-social-api/stdout_f8a9370be6d746a49cbb96b23d5d8c0c.
+2026-03-21T23:25:59.8269459Z Creating stderr named pipe at /podr/container/pipe/3631b950317b_card-social-api/stderr_c998c640fdf94da1b1bb269045423db7.
+2026-03-21T23:25:59.8271685Z Successfully created stderr named pipe at: /podr/container/pipe/3631b950317b_card-social-api/stderr_c998c640fdf94da1b1bb269045423db7.
+2026-03-21T23:25:59.8272867Z Opening named pipe /podr/container/pipe/3631b950317b_card-social-api/stderr_c998c640fdf94da1b1bb269045423db7 for reading in non-blocking mode.
+2026-03-21T23:25:59.8274161Z Successfully opened named pipe: /podr/container/pipe/3631b950317b_card-social-api/stderr_c998c640fdf94da1b1bb269045423db7.
+2026-03-21T23:25:59.8275226Z Successfully removed non-blocking flag from /podr/container/pipe/3631b950317b_card-social-api/stderr_c998c640fdf94da1b1bb269045423db7.
+2026-03-21T23:25:59.8279746Z Creating container with image: appsvc/node:20-lts_20260115.4.tuxprod from registry: 10.1.0.5:13209 and fully qualified image name: 10.1.0.5:13209/appsvc/node:20-lts_20260115.4.tuxprod
+2026-03-21T23:26:00.3438687Z Starting container: 3631b950317b_card-social-api.
+2026-03-21T23:26:00.5001594Z Starting watchers and probes.
+2026-03-21T23:26:00.5009962Z Starting metrics collection.
+2026-03-21T23:26:00.5014396Z Container is running.
+2026-03-21T23:26:00.5024203Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:25:54, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:26:00.7257068Z Container start method finished after 1873 ms.
+2026-03-21T23:26:00.7423842Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:25:54, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:26:00.7425695Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:25:54, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-21T23:26:39.2430397Z Container has finished running with exit code: 1.
+2026-03-21T23:26:39.2434223Z Container is terminating. Grace period: 5 seconds.
+2026-03-21T23:26:39.2515176Z Stop and delete container. Retry count = 0
+2026-03-21T23:26:39.2516384Z Stopping container: 3631b950317b_card-social-api.
+2026-03-21T23:26:39.5707493Z Deleting container: 3631b950317b_card-social-api. Retry count = 0
+2026-03-21T23:26:40.1445458Z Container spec TerminationMessagePolicy  path 
+2026-03-21T23:26:40.1451145Z Container is terminated. Total time elapsed: 901 ms.
+2026-03-21T23:26:40.1454273Z Site container: card-social-api terminated during site startup.
+2026-03-21T23:26:40.1455476Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:25:54, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:26:40.1892853Z Site startup probe failed after 39.446057 seconds.
+2026-03-21T23:26:40.4881806Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:26:40, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:26:40.5548118Z Failed to start site. Revert by stopping site.
+2026-03-21T23:26:40.5553365Z State: Stopping, Action: StoppingSite, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:26:40, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:26:40.5618016Z State: Stopping, Action: StoppingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:26:40, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:26:40.5618320Z Site: card-social-api stopped.
+2026-03-21T23:27:07.1237156Z State: Starting, Action: EstablishingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:26:40, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:26:41 (UTC), DetailsLevel: WARN
+2026-03-21T23:27:16.0260391Z State: Starting, Action: StartingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:26:40, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:26:41 (UTC), DetailsLevel: WARN
+2026-03-21T23:27:16.0324562Z Container start method called.
+2026-03-21T23:27:16.0330850Z State: Starting, Action: PullingImage, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:26:40, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pulling image 10.1.0.4:13209/appsvc/node:20-lts_20260115.4.tuxprod for card-social-api., DetailsLevel: INFO
+2026-03-21T23:27:16.1505792Z Establishing network.
+2026-03-21T23:27:16.1985704Z Pulling image: appsvc/node:20-lts_20260115.4.tuxprod.
+2026-03-21T23:27:42.8867132Z Container is starting.
+2026-03-21T23:27:42.9352935Z State: Starting, Action: MountingVolumes, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:26:40, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Mounting volumes for card-social-api., DetailsLevel: INFO
+2026-03-21T23:27:42.9530112Z Establishing user namespace if not established already.
+2026-03-21T23:27:42.9533716Z Establishing network if not established already.
+2026-03-21T23:27:42.9535571Z Mounting volumes.
+2026-03-21T23:27:42.9537721Z Nested mountpoint 
+2026-03-21T23:27:43.0029709Z Nested mountpoint volatile/logs
+2026-03-21T23:27:43.0645450Z Nested mountpoint 
+2026-03-21T23:27:43.0857081Z Nested mountpoint 
+2026-03-21T23:27:43.1341433Z Nested mountpoint 
+2026-03-21T23:27:43.7215368Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:26:40, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Finished pulling container image and mounting volumes for card-social-api. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-21T23:27:43.7232179Z Creating container.
+2026-03-21T23:27:43.7396299Z Creating pipes for streaming container io.
+2026-03-21T23:27:43.7398196Z Creating stdout named pipe at /podr/container/pipe/0ace14b2cbe5_card-social-api/stdout_ba05084a65564a74b4237a0d94cbd4ee.
+2026-03-21T23:27:43.7408131Z Successfully created stdout named pipe at: /podr/container/pipe/0ace14b2cbe5_card-social-api/stdout_ba05084a65564a74b4237a0d94cbd4ee.
+2026-03-21T23:27:43.7410932Z Opening named pipe /podr/container/pipe/0ace14b2cbe5_card-social-api/stdout_ba05084a65564a74b4237a0d94cbd4ee for reading in non-blocking mode.
+2026-03-21T23:27:43.7416911Z Successfully opened named pipe: /podr/container/pipe/0ace14b2cbe5_card-social-api/stdout_ba05084a65564a74b4237a0d94cbd4ee.
+2026-03-21T23:27:43.7418975Z Successfully removed non-blocking flag from /podr/container/pipe/0ace14b2cbe5_card-social-api/stdout_ba05084a65564a74b4237a0d94cbd4ee.
+2026-03-21T23:27:43.7611139Z Creating stderr named pipe at /podr/container/pipe/0ace14b2cbe5_card-social-api/stderr_b8b1f849550247e2bac4eb7909e4510a.
+2026-03-21T23:27:43.7613381Z Successfully created stderr named pipe at: /podr/container/pipe/0ace14b2cbe5_card-social-api/stderr_b8b1f849550247e2bac4eb7909e4510a.
+2026-03-21T23:27:43.7614883Z Opening named pipe /podr/container/pipe/0ace14b2cbe5_card-social-api/stderr_b8b1f849550247e2bac4eb7909e4510a for reading in non-blocking mode.
+2026-03-21T23:27:43.7616273Z Successfully opened named pipe: /podr/container/pipe/0ace14b2cbe5_card-social-api/stderr_b8b1f849550247e2bac4eb7909e4510a.
+2026-03-21T23:27:43.7617510Z Successfully removed non-blocking flag from /podr/container/pipe/0ace14b2cbe5_card-social-api/stderr_b8b1f849550247e2bac4eb7909e4510a.
+2026-03-21T23:27:43.7619215Z Creating container with image: appsvc/node:20-lts_20260115.4.tuxprod from registry: 10.1.0.5:13209 and fully qualified image name: 10.1.0.5:13209/appsvc/node:20-lts_20260115.4.tuxprod
+2026-03-21T23:27:44.3523746Z Starting container: 0ace14b2cbe5_card-social-api.
+2026-03-21T23:27:44.4304104Z Starting watchers and probes.
+2026-03-21T23:27:44.4375088Z Starting metrics collection.
+2026-03-21T23:27:44.4386882Z Container is running.
+2026-03-21T23:27:44.4388887Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:26:40, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:27:44.5649361Z Container start method finished after 28532 ms.
+2026-03-21T23:27:44.5651807Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:26:40, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:27:44.5652116Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:26:40, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-21T23:28:34.2609215Z Container has finished running with exit code: 1.
+2026-03-21T23:28:34.2614584Z Container is terminating. Grace period: 5 seconds.
+2026-03-21T23:28:34.2687406Z Stop and delete container. Retry count = 0
+2026-03-21T23:28:34.2688746Z Stopping container: 0ace14b2cbe5_card-social-api.
+2026-03-21T23:28:34.3928862Z Deleting container: 0ace14b2cbe5_card-social-api. Retry count = 0
+2026-03-21T23:28:34.7886346Z Container spec TerminationMessagePolicy  path 
+2026-03-21T23:28:34.7980776Z Container is terminated. Total time elapsed: 534 ms.
+2026-03-21T23:28:34.8050867Z Site container: card-social-api terminated during site startup.
+2026-03-21T23:28:34.8055543Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:26:40, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:28:34.9014850Z Site startup probe failed after 50.2909943 seconds.
+2026-03-21T23:28:35.1975159Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:28:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:28:35.2463829Z Failed to start site. Revert by stopping site.
+2026-03-21T23:28:35.2473808Z State: Stopping, Action: StoppingSite, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:28:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:28:35.2544340Z State: Stopping, Action: StoppingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:28:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:28:35.2544714Z Site: card-social-api stopped.
+2026-03-21T23:28:35.2565864Z State: Stopping, Action: UnmountingVolumes, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:28:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:28:35.7747844Z State: Stopping, Action: StoppingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:28:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:28:36.1997874Z State: Stopped, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:28:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:28:36 (UTC), DetailsLevel: ERR
+2026-03-21T23:28:36.3912212Z State: Stopped, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:28:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:28:36 (UTC), DetailsLevel: ERR
+2026-03-21T23:28:50.5446336Z State: Starting, Action: EstablishingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:28:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:28:36 (UTC), DetailsLevel: ERR
+2026-03-21T23:28:53.9897586Z State: Starting, Action: StartingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:28:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:28:36 (UTC), DetailsLevel: ERR
+2026-03-21T23:28:53.9901568Z Container start method called.
+2026-03-21T23:28:53.9902237Z State: Starting, Action: PullingImage, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:28:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pulling image 10.1.0.5:13209/appsvc/node:20-lts_20260115.4.tuxprod for card-social-api., DetailsLevel: INFO
+2026-03-21T23:28:53.9903781Z Establishing network.
+2026-03-21T23:28:53.9905615Z Pulling image: appsvc/node:20-lts_20260115.4.tuxprod.
+2026-03-21T23:29:17.5216933Z Container is starting.
+2026-03-21T23:29:17.5223867Z State: Starting, Action: MountingVolumes, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:28:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Mounting volumes for card-social-api., DetailsLevel: INFO
+2026-03-21T23:29:17.5226647Z Establishing user namespace if not established already.
+2026-03-21T23:29:17.5227893Z Establishing network if not established already.
+2026-03-21T23:29:17.5229270Z Mounting volumes.
+2026-03-21T23:29:17.5426974Z Nested mountpoint 
+2026-03-21T23:29:17.5524964Z Nested mountpoint volatile/logs
+2026-03-21T23:29:17.6219826Z Nested mountpoint 
+2026-03-21T23:29:17.6228626Z Nested mountpoint 
+2026-03-21T23:29:17.6714829Z Nested mountpoint 
+2026-03-21T23:29:18.1287732Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:28:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Finished pulling container image and mounting volumes for card-social-api. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-21T23:29:18.1305099Z Creating container.
+2026-03-21T23:29:18.1309277Z Creating pipes for streaming container io.
+2026-03-21T23:29:18.1376332Z Creating stdout named pipe at /podr/container/pipe/04a46cae1c35_card-social-api/stdout_e50ce4da006d47d4bba2bbb22784ecf8.
+2026-03-21T23:29:18.1384522Z Successfully created stdout named pipe at: /podr/container/pipe/04a46cae1c35_card-social-api/stdout_e50ce4da006d47d4bba2bbb22784ecf8.
+2026-03-21T23:29:18.1392441Z Opening named pipe /podr/container/pipe/04a46cae1c35_card-social-api/stdout_e50ce4da006d47d4bba2bbb22784ecf8 for reading in non-blocking mode.
+2026-03-21T23:29:18.1468569Z Successfully opened named pipe: /podr/container/pipe/04a46cae1c35_card-social-api/stdout_e50ce4da006d47d4bba2bbb22784ecf8.
+2026-03-21T23:29:18.1474603Z Successfully removed non-blocking flag from /podr/container/pipe/04a46cae1c35_card-social-api/stdout_e50ce4da006d47d4bba2bbb22784ecf8.
+2026-03-21T23:29:18.1491199Z Creating stderr named pipe at /podr/container/pipe/04a46cae1c35_card-social-api/stderr_5a5509dee7714594aedcf83f660965e5.
+2026-03-21T23:29:18.1503498Z Successfully created stderr named pipe at: /podr/container/pipe/04a46cae1c35_card-social-api/stderr_5a5509dee7714594aedcf83f660965e5.
+2026-03-21T23:29:18.1588916Z Opening named pipe /podr/container/pipe/04a46cae1c35_card-social-api/stderr_5a5509dee7714594aedcf83f660965e5 for reading in non-blocking mode.
+2026-03-21T23:29:18.1594763Z Successfully opened named pipe: /podr/container/pipe/04a46cae1c35_card-social-api/stderr_5a5509dee7714594aedcf83f660965e5.
+2026-03-21T23:29:18.1597018Z Successfully removed non-blocking flag from /podr/container/pipe/04a46cae1c35_card-social-api/stderr_5a5509dee7714594aedcf83f660965e5.
+2026-03-21T23:29:18.1662327Z Creating container with image: appsvc/node:20-lts_20260115.4.tuxprod from registry: 10.1.0.5:13209 and fully qualified image name: 10.1.0.5:13209/appsvc/node:20-lts_20260115.4.tuxprod
+2026-03-21T23:29:18.8634930Z Starting container: 04a46cae1c35_card-social-api.
+2026-03-21T23:29:18.9376510Z Starting watchers and probes.
+2026-03-21T23:29:18.9475191Z Starting metrics collection.
+2026-03-21T23:29:18.9506004Z Container is running.
+2026-03-21T23:29:18.9668515Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:28:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:29:19.2985187Z Container start method finished after 25301 ms.
+2026-03-21T23:29:19.2996878Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:28:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:29:19.2997476Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:28:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-21T23:29:57.4647308Z Container has finished running with exit code: 1.
+2026-03-21T23:29:57.4659669Z Container is terminating. Grace period: 5 seconds.
+2026-03-21T23:29:57.4922910Z Stop and delete container. Retry count = 0
+2026-03-21T23:29:57.4924259Z Stopping container: 04a46cae1c35_card-social-api.
+2026-03-21T23:29:57.6320508Z Deleting container: 04a46cae1c35_card-social-api. Retry count = 0
+2026-03-21T23:29:57.9817291Z Container spec TerminationMessagePolicy  path 
+2026-03-21T23:29:57.9838200Z Container is terminated. Total time elapsed: 516 ms.
+2026-03-21T23:29:57.9844548Z Site container: card-social-api terminated during site startup.
+2026-03-21T23:29:57.9913129Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:28:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:29:58.1097687Z Site startup probe failed after 38.806569 seconds.
+2026-03-21T23:29:58.9040499Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:29:58, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:29:58.9305572Z Failed to start site. Revert by stopping site.
+2026-03-21T23:29:58.9307206Z State: Stopping, Action: StoppingSite, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:29:58, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:29:58.9309825Z State: Stopping, Action: StoppingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:29:58, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:29:58.9309972Z Site: card-social-api stopped.
+2026-03-21T23:29:58.9625637Z State: Stopping, Action: UnmountingVolumes, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:29:58, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:29:59.4351171Z State: Stopping, Action: StoppingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:29:58, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:29:59.7199802Z Site: card-social-api will be blocked for 1 minutes till 03/21/2026 23:30:59
+2026-03-21T23:29:59.7260324Z State: Blocked, Action: StoppingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:29:58, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site: card-social-api will be blocked for 1 minutes till 03/21/2026 23:30:59, DetailsLevel: WARN
+2026-03-21T23:29:59.7377352Z State: Stopped, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:29:58, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:29:59 (UTC), DetailsLevel: WARN
+2026-03-21T23:29:59.9407944Z State: Stopped, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:29:58, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:29:59 (UTC), DetailsLevel: WARN
+2026-03-21T23:30:00.2197708Z State: Blocked, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:29:58, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:30:59, DetailsLevel: WARN
+2026-03-21T23:30:00.2199249Z Start site prohibitted because the site is being blocked.
+2026-03-21T23:30:16.2378762Z State: Blocked, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:29:58, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:30:59, DetailsLevel: WARN
+2026-03-21T23:30:16.2379106Z Start site prohibitted because the site is being blocked.
+2026-03-21T23:30:59.7173501Z Site: card-social-api is unblocked.
+2026-03-21T23:33:39.2994088Z State: Starting, Action: EstablishingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:29:58, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:30:59, DetailsLevel: WARN
+2026-03-21T23:33:43.2156941Z State: Starting, Action: StartingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:29:58, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:30:59, DetailsLevel: WARN
+2026-03-21T23:33:43.2416493Z Container start method called.
+2026-03-21T23:33:43.2418335Z State: Starting, Action: PullingImage, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:29:58, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pulling image 10.1.0.5:13209/appsvc/node:20-lts_20260115.4.tuxprod for card-social-api., DetailsLevel: INFO
+2026-03-21T23:33:43.2422090Z Establishing network.
+2026-03-21T23:33:43.2515839Z Pulling image: appsvc/node:20-lts_20260115.4.tuxprod.
+2026-03-21T23:34:07.7678003Z Container is starting.
+2026-03-21T23:34:07.7687511Z State: Starting, Action: MountingVolumes, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:29:58, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Mounting volumes for card-social-api., DetailsLevel: INFO
+2026-03-21T23:34:07.7694402Z Establishing user namespace if not established already.
+2026-03-21T23:34:07.7704145Z Establishing network if not established already.
+2026-03-21T23:34:07.7710008Z Mounting volumes.
+2026-03-21T23:34:07.7780972Z Nested mountpoint 
+2026-03-21T23:34:07.8263985Z Nested mountpoint volatile/logs
+2026-03-21T23:34:07.8563149Z Nested mountpoint 
+2026-03-21T23:34:07.8665576Z Nested mountpoint 
+2026-03-21T23:34:07.9612131Z Nested mountpoint 
+2026-03-21T23:34:08.5037087Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:29:58, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Finished pulling container image and mounting volumes for card-social-api. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-21T23:34:08.5042908Z Creating container.
+2026-03-21T23:34:08.5048651Z Creating pipes for streaming container io.
+2026-03-21T23:34:08.5050544Z Creating stdout named pipe at /podr/container/pipe/4fb8c26bea3d_card-social-api/stdout_473126e007dd446990d89f5d623dbf3f.
+2026-03-21T23:34:08.5129035Z Successfully created stdout named pipe at: /podr/container/pipe/4fb8c26bea3d_card-social-api/stdout_473126e007dd446990d89f5d623dbf3f.
+2026-03-21T23:34:08.5131290Z Opening named pipe /podr/container/pipe/4fb8c26bea3d_card-social-api/stdout_473126e007dd446990d89f5d623dbf3f for reading in non-blocking mode.
+2026-03-21T23:34:08.5156602Z Successfully opened named pipe: /podr/container/pipe/4fb8c26bea3d_card-social-api/stdout_473126e007dd446990d89f5d623dbf3f.
+2026-03-21T23:34:08.5158671Z Successfully removed non-blocking flag from /podr/container/pipe/4fb8c26bea3d_card-social-api/stdout_473126e007dd446990d89f5d623dbf3f.
+2026-03-21T23:34:08.5245250Z Creating stderr named pipe at /podr/container/pipe/4fb8c26bea3d_card-social-api/stderr_08fb75150e5f4c7f9314685ab6f32c71.
+2026-03-21T23:34:08.5247374Z Successfully created stderr named pipe at: /podr/container/pipe/4fb8c26bea3d_card-social-api/stderr_08fb75150e5f4c7f9314685ab6f32c71.
+2026-03-21T23:34:08.5248459Z Opening named pipe /podr/container/pipe/4fb8c26bea3d_card-social-api/stderr_08fb75150e5f4c7f9314685ab6f32c71 for reading in non-blocking mode.
+2026-03-21T23:34:08.5249797Z Successfully opened named pipe: /podr/container/pipe/4fb8c26bea3d_card-social-api/stderr_08fb75150e5f4c7f9314685ab6f32c71.
+2026-03-21T23:34:08.5255754Z Successfully removed non-blocking flag from /podr/container/pipe/4fb8c26bea3d_card-social-api/stderr_08fb75150e5f4c7f9314685ab6f32c71.
+2026-03-21T23:34:08.5257828Z Creating container with image: appsvc/node:20-lts_20260115.4.tuxprod from registry: 10.1.0.5:13209 and fully qualified image name: 10.1.0.5:13209/appsvc/node:20-lts_20260115.4.tuxprod
+2026-03-21T23:34:09.2140489Z Starting container: 4fb8c26bea3d_card-social-api.
+2026-03-21T23:34:09.3025752Z Starting watchers and probes.
+2026-03-21T23:34:09.3052776Z Starting metrics collection.
+2026-03-21T23:34:09.3122272Z Container is running.
+2026-03-21T23:34:09.3129622Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:29:58, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:34:09.6698309Z Container start method finished after 26400 ms.
+2026-03-21T23:34:09.6719251Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:29:58, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:34:09.6819851Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:29:58, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-21T23:34:44.0887283Z Container has finished running with exit code: 1.
+2026-03-21T23:34:44.0956722Z Container is terminating. Grace period: 5 seconds.
+2026-03-21T23:34:44.0972240Z Stop and delete container. Retry count = 0
+2026-03-21T23:34:44.1059140Z Stopping container: 4fb8c26bea3d_card-social-api.
+2026-03-21T23:34:44.2122288Z Deleting container: 4fb8c26bea3d_card-social-api. Retry count = 0
+2026-03-21T23:34:44.5672659Z Container spec TerminationMessagePolicy  path 
+2026-03-21T23:34:44.5763964Z Container is terminated. Total time elapsed: 476 ms.
+2026-03-21T23:34:44.5768563Z Site container: card-social-api terminated during site startup.
+2026-03-21T23:34:44.5794000Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:29:58, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:34:44.6202430Z Site startup probe failed after 34.9197194 seconds.
+2026-03-21T23:34:44.9943462Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:34:44, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:34:45.0241437Z Failed to start site. Revert by stopping site.
+2026-03-21T23:34:45.0338956Z State: Stopping, Action: StoppingSite, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:34:44, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:34:45.0506037Z State: Stopping, Action: StoppingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:34:44, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:34:45.0506615Z Site: card-social-api stopped.
+2026-03-21T23:34:45.0625979Z State: Stopping, Action: UnmountingVolumes, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:34:44, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:34:45.5512955Z State: Stopping, Action: StoppingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:34:44, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:34:45.9255613Z Site: card-social-api will be blocked for 1 minutes till 03/21/2026 23:35:45
+2026-03-21T23:34:45.9259430Z State: Blocked, Action: StoppingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:34:44, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site: card-social-api will be blocked for 1 minutes till 03/21/2026 23:35:45, DetailsLevel: WARN
+2026-03-21T23:34:45.9262724Z State: Stopped, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:34:44, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:34:45 (UTC), DetailsLevel: WARN
+2026-03-21T23:34:46.0319487Z State: Stopped, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:34:44, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:34:45 (UTC), DetailsLevel: WARN
+2026-03-21T23:34:46.5217365Z State: Blocked, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:34:44, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:35:45, DetailsLevel: WARN
+2026-03-21T23:34:46.5695207Z Start site prohibitted because the site is being blocked.
+2026-03-21T23:35:19.2503444Z State: Blocked, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:34:44, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:35:45, DetailsLevel: WARN
+2026-03-21T23:35:19.2679953Z Start site prohibitted because the site is being blocked.
+2026-03-21T23:35:45.9226782Z Site: card-social-api is unblocked.
+2026-03-21T23:36:27.9568989Z State: Starting, Action: EstablishingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:34:44, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:35:45, DetailsLevel: WARN
+2026-03-21T23:36:31.0006864Z State: Starting, Action: StartingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:34:44, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:35:45, DetailsLevel: WARN
+2026-03-21T23:36:31.0008506Z Container start method called.
+2026-03-21T23:36:31.0009069Z State: Starting, Action: PullingImage, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:34:44, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pulling image 10.1.0.5:13209/appsvc/node:20-lts_20260115.4.tuxprod for card-social-api., DetailsLevel: INFO
+2026-03-21T23:36:31.0010305Z Establishing network.
+2026-03-21T23:36:31.0011935Z Pulling image: appsvc/node:20-lts_20260115.4.tuxprod.
+2026-03-21T23:36:52.5527097Z Container is starting.
+2026-03-21T23:36:52.5528758Z State: Starting, Action: MountingVolumes, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:34:44, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Mounting volumes for card-social-api., DetailsLevel: INFO
+2026-03-21T23:36:52.5530360Z Establishing user namespace if not established already.
+2026-03-21T23:36:52.5531901Z Establishing network if not established already.
+2026-03-21T23:36:52.5609828Z Mounting volumes.
+2026-03-21T23:36:52.5612784Z Nested mountpoint 
+2026-03-21T23:36:52.6221816Z Nested mountpoint volatile/logs
+2026-03-21T23:36:52.6406299Z Nested mountpoint 
+2026-03-21T23:36:52.6414010Z Nested mountpoint 
+2026-03-21T23:36:52.6603613Z Nested mountpoint 
+2026-03-21T23:36:53.0580914Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:34:44, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Finished pulling container image and mounting volumes for card-social-api. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-21T23:36:53.0586797Z Creating container.
+2026-03-21T23:36:53.0598159Z Creating pipes for streaming container io.
+2026-03-21T23:36:53.0860069Z Creating stdout named pipe at /podr/container/pipe/f517183dea01_card-social-api/stdout_f0ccb0337f1449e9b0ab405cf49ffcf4.
+2026-03-21T23:36:53.0866207Z Successfully created stdout named pipe at: /podr/container/pipe/f517183dea01_card-social-api/stdout_f0ccb0337f1449e9b0ab405cf49ffcf4.
+2026-03-21T23:36:53.0868050Z Opening named pipe /podr/container/pipe/f517183dea01_card-social-api/stdout_f0ccb0337f1449e9b0ab405cf49ffcf4 for reading in non-blocking mode.
+2026-03-21T23:36:53.0873174Z Successfully opened named pipe: /podr/container/pipe/f517183dea01_card-social-api/stdout_f0ccb0337f1449e9b0ab405cf49ffcf4.
+2026-03-21T23:36:53.0874550Z Successfully removed non-blocking flag from /podr/container/pipe/f517183dea01_card-social-api/stdout_f0ccb0337f1449e9b0ab405cf49ffcf4.
+2026-03-21T23:36:53.0877135Z Creating stderr named pipe at /podr/container/pipe/f517183dea01_card-social-api/stderr_b97e9c4d4bba418e9c775ed6aa565c9c.
+2026-03-21T23:36:53.0879002Z Successfully created stderr named pipe at: /podr/container/pipe/f517183dea01_card-social-api/stderr_b97e9c4d4bba418e9c775ed6aa565c9c.
+2026-03-21T23:36:53.0962395Z Opening named pipe /podr/container/pipe/f517183dea01_card-social-api/stderr_b97e9c4d4bba418e9c775ed6aa565c9c for reading in non-blocking mode.
+2026-03-21T23:36:53.0965177Z Successfully opened named pipe: /podr/container/pipe/f517183dea01_card-social-api/stderr_b97e9c4d4bba418e9c775ed6aa565c9c.
+2026-03-21T23:36:53.0966364Z Successfully removed non-blocking flag from /podr/container/pipe/f517183dea01_card-social-api/stderr_b97e9c4d4bba418e9c775ed6aa565c9c.
+2026-03-21T23:36:53.0968083Z Creating container with image: appsvc/node:20-lts_20260115.4.tuxprod from registry: 10.1.0.5:13209 and fully qualified image name: 10.1.0.5:13209/appsvc/node:20-lts_20260115.4.tuxprod
+2026-03-21T23:36:53.8850193Z Starting container: f517183dea01_card-social-api.
+2026-03-21T23:36:53.9535542Z Starting watchers and probes.
+2026-03-21T23:36:53.9623750Z Starting metrics collection.
+2026-03-21T23:36:53.9842328Z Container is running.
+2026-03-21T23:36:53.9851361Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:34:44, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:36:54.1862211Z Container start method finished after 23174 ms.
+2026-03-21T23:36:54.1872313Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:34:44, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:36:54.1884559Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:34:44, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-21T23:37:46.0752039Z Container has finished running with exit code: 1.
+2026-03-21T23:37:46.0757266Z Container is terminating. Grace period: 5 seconds.
+2026-03-21T23:37:46.0849752Z Stop and delete container. Retry count = 0
+2026-03-21T23:37:46.0855328Z Stopping container: f517183dea01_card-social-api.
+2026-03-21T23:37:46.1949786Z Deleting container: f517183dea01_card-social-api. Retry count = 0
+2026-03-21T23:37:46.5282059Z Container spec TerminationMessagePolicy  path 
+2026-03-21T23:37:46.5388499Z Container is terminated. Total time elapsed: 455 ms.
+2026-03-21T23:37:46.5411701Z Site container: card-social-api terminated during site startup.
+2026-03-21T23:37:46.5413106Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:34:44, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:37:46.7761818Z Site startup probe failed after 52.4569524 seconds.
+2026-03-21T23:37:46.9876353Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:37:46, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:37:47.0081444Z Failed to start site. Revert by stopping site.
+2026-03-21T23:37:47.0086317Z State: Stopping, Action: StoppingSite, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:37:46, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:37:47.0105304Z State: Stopping, Action: StoppingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:37:46, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:37:47.0105487Z Site: card-social-api stopped.
+2026-03-21T23:42:55.7707650Z State: Starting, Action: EstablishingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:37:46, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:39:47, DetailsLevel: WARN
+2026-03-21T23:42:59.2029279Z State: Starting, Action: StartingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:37:46, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:39:47, DetailsLevel: WARN
+2026-03-21T23:42:59.2031998Z Container start method called.
+2026-03-21T23:42:59.2032608Z State: Starting, Action: PullingImage, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:37:46, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pulling image 10.1.0.5:13209/appsvc/node:20-lts_20260115.4.tuxprod for card-social-api., DetailsLevel: INFO
+2026-03-21T23:42:59.2034070Z Establishing network.
+2026-03-21T23:42:59.2035684Z Pulling image: appsvc/node:20-lts_20260115.4.tuxprod.
+2026-03-21T23:42:59.4987946Z Container is starting.
+2026-03-21T23:42:59.4989069Z State: Starting, Action: MountingVolumes, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:37:46, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Mounting volumes for card-social-api., DetailsLevel: INFO
+2026-03-21T23:42:59.5256099Z Establishing user namespace if not established already.
+2026-03-21T23:42:59.5260368Z Establishing network if not established already.
+2026-03-21T23:42:59.5264218Z Mounting volumes.
+2026-03-21T23:42:59.5278729Z Nested mountpoint site/wwwroot
+2026-03-21T23:42:59.5542930Z Nested mountpoint volatile/logs
+2026-03-21T23:42:59.5841573Z Nested mountpoint 
+2026-03-21T23:42:59.5849622Z Nested mountpoint 
+2026-03-21T23:42:59.7986299Z Nested mountpoint 
+2026-03-21T23:42:59.8193994Z Nested mountpoint 
+2026-03-21T23:43:00.3172278Z Skipping optional volume mount 'Package' at /home/site/wwwroot.
+2026-03-21T23:43:00.5717503Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:37:46, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Finished pulling container image and mounting volumes for card-social-api. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-21T23:43:00.5723460Z Creating container.
+2026-03-21T23:43:00.5732028Z Creating pipes for streaming container io.
+2026-03-21T23:43:00.5803922Z Creating stdout named pipe at /podr/container/pipe/980b54cd6a04_card-social-api/stdout_ba1e2155949c43cd9725a3a28d485e57.
+2026-03-21T23:43:00.5815336Z Successfully created stdout named pipe at: /podr/container/pipe/980b54cd6a04_card-social-api/stdout_ba1e2155949c43cd9725a3a28d485e57.
+2026-03-21T23:43:00.5822050Z Opening named pipe /podr/container/pipe/980b54cd6a04_card-social-api/stdout_ba1e2155949c43cd9725a3a28d485e57 for reading in non-blocking mode.
+2026-03-21T23:43:00.5829952Z Successfully opened named pipe: /podr/container/pipe/980b54cd6a04_card-social-api/stdout_ba1e2155949c43cd9725a3a28d485e57.
+2026-03-21T23:43:00.5835930Z Successfully removed non-blocking flag from /podr/container/pipe/980b54cd6a04_card-social-api/stdout_ba1e2155949c43cd9725a3a28d485e57.
+2026-03-21T23:43:00.6309128Z Creating stderr named pipe at /podr/container/pipe/980b54cd6a04_card-social-api/stderr_58db0fb734c64e23bb37476c5a3eabbc.
+2026-03-21T23:43:00.6315787Z Successfully created stderr named pipe at: /podr/container/pipe/980b54cd6a04_card-social-api/stderr_58db0fb734c64e23bb37476c5a3eabbc.
+2026-03-21T23:43:00.6322727Z Opening named pipe /podr/container/pipe/980b54cd6a04_card-social-api/stderr_58db0fb734c64e23bb37476c5a3eabbc for reading in non-blocking mode.
+2026-03-21T23:43:00.6333586Z Successfully opened named pipe: /podr/container/pipe/980b54cd6a04_card-social-api/stderr_58db0fb734c64e23bb37476c5a3eabbc.
+2026-03-21T23:43:00.6524451Z Successfully removed non-blocking flag from /podr/container/pipe/980b54cd6a04_card-social-api/stderr_58db0fb734c64e23bb37476c5a3eabbc.
+2026-03-21T23:43:00.6707033Z Creating container with image: appsvc/node:20-lts_20260115.4.tuxprod from registry: 10.1.0.5:13209 and fully qualified image name: 10.1.0.5:13209/appsvc/node:20-lts_20260115.4.tuxprod
+2026-03-21T23:43:01.2319130Z Starting container: 980b54cd6a04_card-social-api.
+2026-03-21T23:43:01.2969788Z Starting watchers and probes.
+2026-03-21T23:43:01.2976598Z Starting metrics collection.
+2026-03-21T23:43:01.3063897Z Container is running.
+2026-03-21T23:43:01.3070435Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:37:46, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:43:01.7278212Z Container start method finished after 2524 ms.
+2026-03-21T23:43:01.7298603Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:37:46, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:43:01.7299548Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:37:46, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-21T23:43:46.8421940Z Container has finished running with exit code: 1.
+2026-03-21T23:43:46.8423559Z Container is terminating. Grace period: 5 seconds.
+2026-03-21T23:43:46.8436337Z Stop and delete container. Retry count = 0
+2026-03-21T23:43:46.8438535Z Stopping container: 980b54cd6a04_card-social-api.
+2026-03-21T23:43:46.9387742Z Deleting container: 980b54cd6a04_card-social-api. Retry count = 0
+2026-03-21T23:43:47.2506657Z Container spec TerminationMessagePolicy  path 
+2026-03-21T23:43:47.2523881Z Container is terminated. Total time elapsed: 408 ms.
+2026-03-21T23:43:47.2525171Z Site container: card-social-api terminated during site startup.
+2026-03-21T23:43:47.2526364Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:37:46, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:43:47.3870576Z Site startup probe failed after 45.6496669 seconds.
+2026-03-21T23:43:47.7062291Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:43:47, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:43:47.7162451Z Failed to start site. Revert by stopping site.
+2026-03-21T23:43:47.7163921Z State: Stopping, Action: StoppingSite, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:43:47, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:43:47.7166922Z State: Stopping, Action: StoppingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:43:47, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:43:47.7167114Z Site: card-social-api stopped.
+2026-03-21T23:43:47.7279937Z State: Stopping, Action: UnmountingVolumes, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:43:47, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:43:48.1077553Z State: Stopping, Action: StoppingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:43:47, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:43:48.6211610Z State: Stopped, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:43:47, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:43:48 (UTC), DetailsLevel: ERR
+2026-03-21T23:43:48.9104378Z State: Stopped, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:43:47, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:43:48 (UTC), DetailsLevel: ERR
+2026-03-21T23:43:59.0200870Z State: Starting, Action: EstablishingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:43:47, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:43:48 (UTC), DetailsLevel: ERR
+2026-03-21T23:44:01.4398417Z State: Starting, Action: StartingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:43:47, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:43:48 (UTC), DetailsLevel: ERR
+2026-03-21T23:44:01.4399772Z Container start method called.
+2026-03-21T23:44:01.4483805Z State: Starting, Action: PullingImage, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:43:47, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pulling image 10.1.0.5:13209/appsvc/node:20-lts_20260115.4.tuxprod for card-social-api., DetailsLevel: INFO
+2026-03-21T23:44:01.4492364Z Establishing network.
+2026-03-21T23:44:01.4575283Z Pulling image: appsvc/node:20-lts_20260115.4.tuxprod.
+2026-03-21T23:44:01.7915827Z Container is starting.
+2026-03-21T23:44:01.7916851Z State: Starting, Action: MountingVolumes, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:43:47, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Mounting volumes for card-social-api., DetailsLevel: INFO
+2026-03-21T23:44:01.7918458Z Establishing user namespace if not established already.
+2026-03-21T23:44:01.7926518Z Establishing network if not established already.
+2026-03-21T23:44:01.7928351Z Mounting volumes.
+2026-03-21T23:44:01.7930115Z Nested mountpoint site/wwwroot
+2026-03-21T23:44:01.8212273Z Nested mountpoint volatile/logs
+2026-03-21T23:44:01.8873466Z Nested mountpoint 
+2026-03-21T23:44:01.9669946Z Nested mountpoint 
+2026-03-21T23:44:02.0864742Z Nested mountpoint 
+2026-03-21T23:44:02.1023906Z Nested mountpoint 
+2026-03-21T23:44:02.7531374Z Skipping optional volume mount 'Package' at /home/site/wwwroot.
+2026-03-21T23:44:03.1137404Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:43:47, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Finished pulling container image and mounting volumes for card-social-api. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-21T23:44:03.1138959Z Creating container.
+2026-03-21T23:44:03.1140374Z Creating pipes for streaming container io.
+2026-03-21T23:44:03.1141560Z Creating stdout named pipe at /podr/container/pipe/4186383b4953_card-social-api/stdout_8460802b8de24d04a042feb0b7c58bdf.
+2026-03-21T23:44:03.1143961Z Successfully created stdout named pipe at: /podr/container/pipe/4186383b4953_card-social-api/stdout_8460802b8de24d04a042feb0b7c58bdf.
+2026-03-21T23:44:03.1145036Z Opening named pipe /podr/container/pipe/4186383b4953_card-social-api/stdout_8460802b8de24d04a042feb0b7c58bdf for reading in non-blocking mode.
+2026-03-21T23:44:03.1146291Z Successfully opened named pipe: /podr/container/pipe/4186383b4953_card-social-api/stdout_8460802b8de24d04a042feb0b7c58bdf.
+2026-03-21T23:44:03.1147260Z Successfully removed non-blocking flag from /podr/container/pipe/4186383b4953_card-social-api/stdout_8460802b8de24d04a042feb0b7c58bdf.
+2026-03-21T23:44:03.1810766Z Creating stderr named pipe at /podr/container/pipe/4186383b4953_card-social-api/stderr_4a9eacebba244c298d39bdda6add5952.
+2026-03-21T23:44:03.1813130Z Successfully created stderr named pipe at: /podr/container/pipe/4186383b4953_card-social-api/stderr_4a9eacebba244c298d39bdda6add5952.
+2026-03-21T23:44:03.1814460Z Opening named pipe /podr/container/pipe/4186383b4953_card-social-api/stderr_4a9eacebba244c298d39bdda6add5952 for reading in non-blocking mode.
+2026-03-21T23:44:03.1815739Z Successfully opened named pipe: /podr/container/pipe/4186383b4953_card-social-api/stderr_4a9eacebba244c298d39bdda6add5952.
+2026-03-21T23:44:03.1817022Z Successfully removed non-blocking flag from /podr/container/pipe/4186383b4953_card-social-api/stderr_4a9eacebba244c298d39bdda6add5952.
+2026-03-21T23:44:03.2012716Z Creating container with image: appsvc/node:20-lts_20260115.4.tuxprod from registry: 10.1.0.5:13209 and fully qualified image name: 10.1.0.5:13209/appsvc/node:20-lts_20260115.4.tuxprod
+2026-03-21T23:44:04.5492252Z Starting container: 4186383b4953_card-social-api.
+2026-03-21T23:44:04.7137433Z Starting watchers and probes.
+2026-03-21T23:44:04.7141033Z Starting metrics collection.
+2026-03-21T23:44:04.7142593Z Container is running.
+2026-03-21T23:44:04.7143773Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:43:47, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:44:05.2107039Z Container start method finished after 3770 ms.
+2026-03-21T23:44:05.2405494Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:43:47, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:44:05.2409959Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:43:47, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-21T23:44:38.1892916Z Container has finished running with exit code: 1.
+2026-03-21T23:44:38.1954813Z Container is terminating. Grace period: 5 seconds.
+2026-03-21T23:44:38.1958587Z Stop and delete container. Retry count = 0
+2026-03-21T23:44:38.1959665Z Stopping container: 4186383b4953_card-social-api.
+2026-03-21T23:44:38.3246690Z Deleting container: 4186383b4953_card-social-api. Retry count = 0
+2026-03-21T23:44:38.6262188Z Container spec TerminationMessagePolicy  path 
+2026-03-21T23:44:38.6270968Z Container is terminated. Total time elapsed: 430 ms.
+2026-03-21T23:44:38.6336504Z Site container: card-social-api terminated during site startup.
+2026-03-21T23:44:38.6337882Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:43:47, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:44:38.7123821Z Site startup probe failed after 33.4377747 seconds.
+2026-03-21T23:44:38.9972914Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:44:38, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:44:38.9985985Z Failed to start site. Revert by stopping site.
+2026-03-21T23:44:38.9987165Z State: Stopping, Action: StoppingSite, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:44:38, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:44:39.0251663Z State: Stopping, Action: StoppingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:44:38, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:44:39.0252003Z Site: card-social-api stopped.
+2026-03-21T23:44:39.0365812Z State: Stopping, Action: UnmountingVolumes, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:44:38, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:44:39.4435372Z State: Stopping, Action: StoppingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:44:38, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:44:40.0382786Z Site: card-social-api will be blocked for 1 minutes till 03/21/2026 23:45:40
+2026-03-21T23:44:40.0409163Z State: Blocked, Action: StoppingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:44:38, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site: card-social-api will be blocked for 1 minutes till 03/21/2026 23:45:40, DetailsLevel: WARN
+2026-03-21T23:44:40.0486362Z State: Stopped, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:44:38, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:44:40 (UTC), DetailsLevel: WARN
+2026-03-21T23:44:40.1786152Z State: Stopped, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:44:38, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:44:40 (UTC), DetailsLevel: WARN
+2026-03-21T23:44:40.5109904Z State: Blocked, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:44:38, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:45:40, DetailsLevel: WARN
+2026-03-21T23:44:40.5111021Z Start site prohibitted because the site is being blocked.
+2026-03-21T23:44:42.0929651Z State: Blocked, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:44:38, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:45:40, DetailsLevel: WARN
+2026-03-21T23:44:42.0930248Z Start site prohibitted because the site is being blocked.
+2026-03-21T23:44:50.4391886Z State: Blocked, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:44:38, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:45:40, DetailsLevel: WARN
+2026-03-21T23:44:50.4392347Z Start site prohibitted because the site is being blocked.
+2026-03-21T23:45:00.7057769Z State: Blocked, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:44:38, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:45:40, DetailsLevel: WARN
+2026-03-21T23:45:00.7058753Z Start site prohibitted because the site is being blocked.
+2026-03-21T23:45:11.0719828Z State: Blocked, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:44:38, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:45:40, DetailsLevel: WARN
+2026-03-21T23:45:11.0729401Z Start site prohibitted because the site is being blocked.
+2026-03-21T23:45:26.5459624Z State: Blocked, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:44:38, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:45:40, DetailsLevel: WARN
+2026-03-21T23:45:26.5460174Z Start site prohibitted because the site is being blocked.
+2026-03-21T23:45:40.0267720Z Site: card-social-api is unblocked.
+2026-03-21T23:45:41.1661628Z State: Starting, Action: EstablishingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:44:38, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:45:40, DetailsLevel: WARN
+2026-03-21T23:45:43.5617537Z State: Starting, Action: StartingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:44:38, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:45:40, DetailsLevel: WARN
+2026-03-21T23:45:43.5788120Z Container start method called.
+2026-03-21T23:45:43.5789761Z State: Starting, Action: PullingImage, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:44:38, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pulling image 10.1.0.5:13209/appsvc/node:20-lts_20260115.4.tuxprod for card-social-api., DetailsLevel: INFO
+2026-03-21T23:45:43.5799109Z Establishing network.
+2026-03-21T23:45:43.5809443Z Pulling image: appsvc/node:20-lts_20260115.4.tuxprod.
+2026-03-21T23:45:43.8114920Z Container is starting.
+2026-03-21T23:45:43.8115798Z State: Starting, Action: MountingVolumes, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:44:38, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Mounting volumes for card-social-api., DetailsLevel: INFO
+2026-03-21T23:45:43.8117205Z Establishing user namespace if not established already.
+2026-03-21T23:45:43.8118341Z Establishing network if not established already.
+2026-03-21T23:45:43.8119639Z Mounting volumes.
+2026-03-21T23:45:43.8216831Z Nested mountpoint site/wwwroot
+2026-03-21T23:45:43.8987993Z Nested mountpoint volatile/logs
+2026-03-21T23:45:43.9274112Z Nested mountpoint 
+2026-03-21T23:45:43.9380861Z Nested mountpoint 
+2026-03-21T23:45:44.0276882Z Nested mountpoint 
+2026-03-21T23:45:44.0579253Z Nested mountpoint 
+2026-03-21T23:45:44.4077274Z Skipping optional volume mount 'Package' at /home/site/wwwroot.
+2026-03-21T23:45:44.6580208Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:44:38, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Finished pulling container image and mounting volumes for card-social-api. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-21T23:45:44.6582665Z Creating container.
+2026-03-21T23:45:44.6584491Z Creating pipes for streaming container io.
+2026-03-21T23:45:44.6586270Z Creating stdout named pipe at /podr/container/pipe/6cb4a7ab4c73_card-social-api/stdout_5c0c68371c67411bb2850a34630e44b2.
+2026-03-21T23:45:44.6592797Z Successfully created stdout named pipe at: /podr/container/pipe/6cb4a7ab4c73_card-social-api/stdout_5c0c68371c67411bb2850a34630e44b2.
+2026-03-21T23:45:44.6594640Z Opening named pipe /podr/container/pipe/6cb4a7ab4c73_card-social-api/stdout_5c0c68371c67411bb2850a34630e44b2 for reading in non-blocking mode.
+2026-03-21T23:45:44.6596513Z Successfully opened named pipe: /podr/container/pipe/6cb4a7ab4c73_card-social-api/stdout_5c0c68371c67411bb2850a34630e44b2.
+2026-03-21T23:45:44.6597592Z Successfully removed non-blocking flag from /podr/container/pipe/6cb4a7ab4c73_card-social-api/stdout_5c0c68371c67411bb2850a34630e44b2.
+2026-03-21T23:45:44.7180371Z Creating stderr named pipe at /podr/container/pipe/6cb4a7ab4c73_card-social-api/stderr_b19a6809b2624cd8a03dd00dd9c9cc74.
+2026-03-21T23:45:44.7182841Z Successfully created stderr named pipe at: /podr/container/pipe/6cb4a7ab4c73_card-social-api/stderr_b19a6809b2624cd8a03dd00dd9c9cc74.
+2026-03-21T23:45:44.7183924Z Opening named pipe /podr/container/pipe/6cb4a7ab4c73_card-social-api/stderr_b19a6809b2624cd8a03dd00dd9c9cc74 for reading in non-blocking mode.
+2026-03-21T23:45:44.7185399Z Successfully opened named pipe: /podr/container/pipe/6cb4a7ab4c73_card-social-api/stderr_b19a6809b2624cd8a03dd00dd9c9cc74.
+2026-03-21T23:45:44.7186457Z Successfully removed non-blocking flag from /podr/container/pipe/6cb4a7ab4c73_card-social-api/stderr_b19a6809b2624cd8a03dd00dd9c9cc74.
+2026-03-21T23:45:44.7195391Z Creating container with image: appsvc/node:20-lts_20260115.4.tuxprod from registry: 10.1.0.5:13209 and fully qualified image name: 10.1.0.5:13209/appsvc/node:20-lts_20260115.4.tuxprod
+2026-03-21T23:45:46.3035708Z Starting container: 6cb4a7ab4c73_card-social-api.
+2026-03-21T23:45:46.3992720Z Starting watchers and probes.
+2026-03-21T23:45:46.4448168Z Starting metrics collection.
+2026-03-21T23:45:46.4530807Z Container is running.
+2026-03-21T23:45:46.5042542Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:44:38, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:45:46.9134602Z Container start method finished after 3334 ms.
+2026-03-21T23:45:46.9228937Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:44:38, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:45:46.9229895Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:44:38, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-21T23:46:24.4379249Z Container has finished running with exit code: 1.
+2026-03-21T23:46:24.4383121Z Container is terminating. Grace period: 5 seconds.
+2026-03-21T23:46:24.4386840Z Stop and delete container. Retry count = 0
+2026-03-21T23:46:24.4387954Z Stopping container: 6cb4a7ab4c73_card-social-api.
+2026-03-21T23:46:24.6248987Z Deleting container: 6cb4a7ab4c73_card-social-api. Retry count = 0
+2026-03-21T23:46:25.0529005Z Container spec TerminationMessagePolicy  path 
+2026-03-21T23:46:25.0530861Z Container is terminated. Total time elapsed: 614 ms.
+2026-03-21T23:46:25.0532190Z Site container: card-social-api terminated during site startup.
+2026-03-21T23:46:25.0615452Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:44:38, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:46:25.2006130Z Site startup probe failed after 38.2560351 seconds.
+2026-03-21T23:46:25.7081002Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:46:25, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:46:25.7292161Z Failed to start site. Revert by stopping site.
+2026-03-21T23:46:25.7294470Z State: Stopping, Action: StoppingSite, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:46:25, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:46:25.7300273Z State: Stopping, Action: StoppingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:46:25, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:46:25.7300665Z Site: card-social-api stopped.
+2026-03-21T23:46:25.7687135Z State: Stopping, Action: UnmountingVolumes, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:46:25, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:46:26.3652110Z State: Stopping, Action: StoppingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:46:25, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:46:26.8048541Z Site: card-social-api will be blocked for 1 minutes till 03/21/2026 23:47:26
+2026-03-21T23:46:26.8058146Z State: Blocked, Action: StoppingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:46:25, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site: card-social-api will be blocked for 1 minutes till 03/21/2026 23:47:26, DetailsLevel: WARN
+2026-03-21T23:46:26.8065782Z State: Stopped, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:46:25, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:46:26 (UTC), DetailsLevel: WARN
+2026-03-21T23:46:27.1266003Z State: Stopped, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:46:25, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:46:26 (UTC), DetailsLevel: WARN
+2026-03-21T23:46:33.1162556Z State: Blocked, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:46:25, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:47:26, DetailsLevel: WARN
+2026-03-21T23:46:33.1167289Z Start site prohibitted because the site is being blocked.
+2026-03-21T23:47:26.8054907Z Site: card-social-api is unblocked.
+2026-03-21T23:48:50.6792145Z State: Starting, Action: EstablishingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:46:25, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:47:26, DetailsLevel: WARN
+2026-03-21T23:48:53.5382934Z State: Starting, Action: StartingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:46:25, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:47:26, DetailsLevel: WARN
+2026-03-21T23:48:53.5384917Z Container start method called.
+2026-03-21T23:48:53.5385510Z State: Starting, Action: PullingImage, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:46:25, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pulling image 10.1.0.5:13209/appsvc/node:20-lts_20260115.4.tuxprod for card-social-api., DetailsLevel: INFO
+2026-03-21T23:48:53.5386754Z Establishing network.
+2026-03-21T23:48:53.5387996Z Pulling image: appsvc/node:20-lts_20260115.4.tuxprod.
+2026-03-21T23:48:53.8792484Z Container is starting.
+2026-03-21T23:48:53.8796019Z State: Starting, Action: MountingVolumes, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:46:25, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Mounting volumes for card-social-api., DetailsLevel: INFO
+2026-03-21T23:48:53.8807816Z Establishing user namespace if not established already.
+2026-03-21T23:48:53.8809298Z Establishing network if not established already.
+2026-03-21T23:48:53.8810583Z Mounting volumes.
+2026-03-21T23:48:53.8812440Z Nested mountpoint site/wwwroot
+2026-03-21T23:48:53.9007527Z Nested mountpoint volatile/logs
+2026-03-21T23:48:53.9305426Z Nested mountpoint 
+2026-03-21T23:48:53.9313296Z Nested mountpoint 
+2026-03-21T23:48:54.0477808Z Nested mountpoint 
+2026-03-21T23:48:54.1383578Z Nested mountpoint 
+2026-03-21T23:48:54.3434325Z Skipping optional volume mount 'Package' at /home/site/wwwroot.
+2026-03-21T23:48:54.5508934Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:46:25, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Finished pulling container image and mounting volumes for card-social-api. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-21T23:48:54.5510353Z Creating container.
+2026-03-21T23:48:54.5511411Z Creating pipes for streaming container io.
+2026-03-21T23:48:54.5512474Z Creating stdout named pipe at /podr/container/pipe/b922c1978ae3_card-social-api/stdout_478a927271394a468173b05c072d14ae.
+2026-03-21T23:48:54.5515894Z Successfully created stdout named pipe at: /podr/container/pipe/b922c1978ae3_card-social-api/stdout_478a927271394a468173b05c072d14ae.
+2026-03-21T23:48:54.5517024Z Opening named pipe /podr/container/pipe/b922c1978ae3_card-social-api/stdout_478a927271394a468173b05c072d14ae for reading in non-blocking mode.
+2026-03-21T23:48:54.5518513Z Successfully opened named pipe: /podr/container/pipe/b922c1978ae3_card-social-api/stdout_478a927271394a468173b05c072d14ae.
+2026-03-21T23:48:54.5519566Z Successfully removed non-blocking flag from /podr/container/pipe/b922c1978ae3_card-social-api/stdout_478a927271394a468173b05c072d14ae.
+2026-03-21T23:48:54.5614672Z Creating stderr named pipe at /podr/container/pipe/b922c1978ae3_card-social-api/stderr_382d48614a694580b88d03329c904e7b.
+2026-03-21T23:48:54.5687038Z Successfully created stderr named pipe at: /podr/container/pipe/b922c1978ae3_card-social-api/stderr_382d48614a694580b88d03329c904e7b.
+2026-03-21T23:48:54.5692246Z Opening named pipe /podr/container/pipe/b922c1978ae3_card-social-api/stderr_382d48614a694580b88d03329c904e7b for reading in non-blocking mode.
+2026-03-21T23:48:54.5701148Z Successfully opened named pipe: /podr/container/pipe/b922c1978ae3_card-social-api/stderr_382d48614a694580b88d03329c904e7b.
+2026-03-21T23:48:54.5709600Z Successfully removed non-blocking flag from /podr/container/pipe/b922c1978ae3_card-social-api/stderr_382d48614a694580b88d03329c904e7b.
+2026-03-21T23:48:54.5730528Z Creating container with image: appsvc/node:20-lts_20260115.4.tuxprod from registry: 10.1.0.5:13209 and fully qualified image name: 10.1.0.5:13209/appsvc/node:20-lts_20260115.4.tuxprod
+2026-03-21T23:48:55.0594942Z Starting container: b922c1978ae3_card-social-api.
+2026-03-21T23:48:55.1275052Z Starting watchers and probes.
+2026-03-21T23:48:55.1283930Z Starting metrics collection.
+2026-03-21T23:48:55.1289805Z Container is running.
+2026-03-21T23:48:55.1383173Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:46:25, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:48:55.3712964Z Container start method finished after 1832 ms.
+2026-03-21T23:48:55.4702588Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:46:25, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:48:55.4704582Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:46:25, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-21T23:49:35.0059897Z Container has finished running with exit code: 1.
+2026-03-21T23:49:35.0072525Z Container is terminating. Grace period: 5 seconds.
+2026-03-21T23:49:35.0429318Z Stop and delete container. Retry count = 0
+2026-03-21T23:49:35.0431619Z Stopping container: b922c1978ae3_card-social-api.
+2026-03-21T23:49:35.1192761Z Deleting container: b922c1978ae3_card-social-api. Retry count = 0
+2026-03-21T23:49:35.3587849Z Container spec TerminationMessagePolicy  path 
+2026-03-21T23:49:35.3701111Z Container is terminated. Total time elapsed: 362 ms.
+2026-03-21T23:49:35.3702592Z Site container: card-social-api terminated during site startup.
+2026-03-21T23:49:35.3703853Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:46:25, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:49:35.4630720Z Site startup probe failed after 39.9085014 seconds.
+2026-03-21T23:49:36.0076929Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:49:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:49:36.0183402Z Failed to start site. Revert by stopping site.
+2026-03-21T23:49:36.0187495Z State: Stopping, Action: StoppingSite, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:49:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:49:36.0190174Z State: Stopping, Action: StoppingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:49:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:49:36.0190374Z Site: card-social-api stopped.
+2026-03-21T23:49:36.0205127Z State: Stopping, Action: UnmountingVolumes, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:49:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:49:36.7510291Z State: Stopping, Action: StoppingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:49:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:49:37.0533552Z Site: card-social-api will be blocked for 2 minutes till 03/21/2026 23:51:37
+2026-03-21T23:49:37.0540283Z State: Blocked, Action: StoppingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:49:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site: card-social-api will be blocked for 2 minutes till 03/21/2026 23:51:37, DetailsLevel: WARN
+2026-03-21T23:49:37.0706015Z State: Stopped, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:49:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:49:37 (UTC), DetailsLevel: WARN
+2026-03-21T23:49:37.2188539Z State: Stopped, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:49:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site stopped at 03/21/2026 23:49:37 (UTC), DetailsLevel: WARN
+2026-03-21T23:49:37.8825932Z State: Blocked, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:49:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:51:37, DetailsLevel: WARN
+2026-03-21T23:49:37.8826976Z Start site prohibitted because the site is being blocked.
+2026-03-21T23:50:34.3465022Z State: Blocked, Action: None, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:49:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:51:37, DetailsLevel: WARN
+2026-03-21T23:50:34.3467063Z Start site prohibitted because the site is being blocked.
+2026-03-21T23:51:37.0542831Z Site: card-social-api is unblocked.
+2026-03-21T23:57:09.0927955Z State: Starting, Action: EstablishingSiteNetworks, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:49:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:51:37, DetailsLevel: WARN
+2026-03-21T23:57:13.3989552Z State: Starting, Action: StartingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:49:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site is blocked due to multiple, consecutive cold start failures. Site scheduled to be unblocked at 03/21/2026 23:51:37, DetailsLevel: WARN
+2026-03-21T23:57:13.3991088Z Container start method called.
+2026-03-21T23:57:13.3991638Z State: Starting, Action: PullingImage, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:49:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pulling image 10.1.0.5:13209/appsvc/node:20-lts_20260115.4.tuxprod for card-social-api., DetailsLevel: INFO
+2026-03-21T23:57:13.3992713Z Establishing network.
+2026-03-21T23:57:13.3994322Z Pulling image: appsvc/node:20-lts_20260115.4.tuxprod.
+2026-03-21T23:57:13.9537622Z Container is starting.
+2026-03-21T23:57:13.9538924Z State: Starting, Action: MountingVolumes, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:49:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Mounting volumes for card-social-api., DetailsLevel: INFO
+2026-03-21T23:57:13.9539937Z Establishing user namespace if not established already.
+2026-03-21T23:57:13.9541046Z Establishing network if not established already.
+2026-03-21T23:57:13.9542379Z Mounting volumes.
+2026-03-21T23:57:13.9634784Z Nested mountpoint site/wwwroot
+2026-03-21T23:57:13.9932596Z Nested mountpoint volatile/logs
+2026-03-21T23:57:14.0720565Z Nested mountpoint 
+2026-03-21T23:57:14.2450657Z Nested mountpoint 
+2026-03-21T23:57:14.7242306Z Nested mountpoint 
+2026-03-21T23:57:14.7919645Z Nested mountpoint 
+2026-03-21T23:57:16.2957219Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:49:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Finished pulling container image and mounting volumes for card-social-api. Allocatinng the rest of the container resources to finish container creation., DetailsLevel: INFO
+2026-03-21T23:57:16.2972168Z Creating container.
+2026-03-21T23:57:16.3621900Z Creating pipes for streaming container io.
+2026-03-21T23:57:16.3624311Z Creating stdout named pipe at /podr/container/pipe/eea68d1ff839_card-social-api/stdout_43f8b9b1fc9b476a8cb1fbef9c42388f.
+2026-03-21T23:57:16.3631584Z Successfully created stdout named pipe at: /podr/container/pipe/eea68d1ff839_card-social-api/stdout_43f8b9b1fc9b476a8cb1fbef9c42388f.
+2026-03-21T23:57:16.3632907Z Opening named pipe /podr/container/pipe/eea68d1ff839_card-social-api/stdout_43f8b9b1fc9b476a8cb1fbef9c42388f for reading in non-blocking mode.
+2026-03-21T23:57:16.3634277Z Successfully opened named pipe: /podr/container/pipe/eea68d1ff839_card-social-api/stdout_43f8b9b1fc9b476a8cb1fbef9c42388f.
+2026-03-21T23:57:16.3635441Z Successfully removed non-blocking flag from /podr/container/pipe/eea68d1ff839_card-social-api/stdout_43f8b9b1fc9b476a8cb1fbef9c42388f.
+2026-03-21T23:57:16.3639195Z Creating stderr named pipe at /podr/container/pipe/eea68d1ff839_card-social-api/stderr_99a32ad8ccfc40588c261b462caa9647.
+2026-03-21T23:57:16.3643823Z Successfully created stderr named pipe at: /podr/container/pipe/eea68d1ff839_card-social-api/stderr_99a32ad8ccfc40588c261b462caa9647.
+2026-03-21T23:57:16.3644995Z Opening named pipe /podr/container/pipe/eea68d1ff839_card-social-api/stderr_99a32ad8ccfc40588c261b462caa9647 for reading in non-blocking mode.
+2026-03-21T23:57:16.3646305Z Successfully opened named pipe: /podr/container/pipe/eea68d1ff839_card-social-api/stderr_99a32ad8ccfc40588c261b462caa9647.
+2026-03-21T23:57:16.3647284Z Successfully removed non-blocking flag from /podr/container/pipe/eea68d1ff839_card-social-api/stderr_99a32ad8ccfc40588c261b462caa9647.
+2026-03-21T23:57:16.3648842Z Creating container with image: appsvc/node:20-lts_20260115.4.tuxprod from registry: 10.1.0.5:13209 and fully qualified image name: 10.1.0.5:13209/appsvc/node:20-lts_20260115.4.tuxprod
+2026-03-21T23:57:18.1958547Z Starting container: eea68d1ff839_card-social-api.
+2026-03-21T23:57:18.3963033Z Starting watchers and probes.
+2026-03-21T23:57:18.4045999Z Starting metrics collection.
+2026-03-21T23:57:18.4061183Z Container is running.
+2026-03-21T23:57:18.4429571Z State: Starting, Action: CreatingContainer, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:49:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:57:18.8466607Z Container start method finished after 5438 ms.
+2026-03-21T23:57:18.8473385Z State: Starting, Action: InitiatingSiteWarmUpProbe, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:49:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Container card-social-api successfully created and is running., DetailsLevel: INFO
+2026-03-21T23:57:18.8581445Z State: Starting, Action: WaitingForSiteWarmUpProbeSuccess, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:49:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Pinging warmup path to ensure container is ready to receive requests., DetailsLevel: INFO
+2026-03-21T23:58:01.9759612Z Container has finished running with exit code: 1.
+2026-03-21T23:58:01.9762889Z Container is terminating. Grace period: 5 seconds.
+2026-03-21T23:58:01.9782727Z Stop and delete container. Retry count = 0
+2026-03-21T23:58:01.9784059Z Stopping container: eea68d1ff839_card-social-api.
+2026-03-21T23:58:02.2106734Z Deleting container: eea68d1ff839_card-social-api. Retry count = 0
+2026-03-21T23:58:02.6559087Z Container spec TerminationMessagePolicy  path 
+2026-03-21T23:58:02.6567702Z Container is terminated. Total time elapsed: 679 ms.
+2026-03-21T23:58:02.6577930Z Site container: card-social-api terminated during site startup.
+2026-03-21T23:58:02.6837929Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:49:35, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:58:02.7808064Z Site startup probe failed after 43.9034862 seconds.
+2026-03-21T23:58:03.5447692Z State: Stopping, Action: CancellingStartup, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:58:03, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:58:03.6045409Z Failed to start site. Revert by stopping site.
+2026-03-21T23:58:03.6052832Z State: Stopping, Action: StoppingSite, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:58:03, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:58:03.6057177Z State: Stopping, Action: StoppingSiteContainers, LastError: ContainerTimeout, LastErrorTimestamp: 03/21/2026 23:58:03, LastErrorDetails: Container did not start within expected time limit of 230s. Please inspect your container logs for more details., Details: Site container: card-social-api terminated during site startup. Cancelling site startup., DetailsLevel: ERR
+2026-03-21T23:58:03.6057377Z Site: card-social-api stopped.

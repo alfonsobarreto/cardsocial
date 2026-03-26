@@ -893,10 +893,13 @@ export default function ContactsPage() {
     <LinearGradient colors={['#EAF7FF', '#CDEFFF', '#B8E7FF']} style={styles.container}>
       <View style={styles.headerBar}>
         <Text style={styles.headerTitle}>Contactos Maestro</Text>
+        {/* [CUARENTENA] Botón de escanear deshabilitado */}
+        {/*
         <TouchableOpacity style={styles.scanBtn} onPress={() => router.push('/scan')}>
           <MaterialCommunityIcons name="qrcode-scan" size={17} color="#FFFFFF" />
           <Text style={styles.scanBtnText}>Agregar Contacto</Text>
         </TouchableOpacity>
+        */}
       </View>
 
       <View style={styles.toolbarRow}>

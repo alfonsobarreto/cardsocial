@@ -1,0 +1,4 @@
+<step title="Incoming Request" date="2026-03-22T02:08:10.584" instance="4674be" url="/dump" method="GET" type="request" pid="831,1,19" Host="card-social-api.scm.azurewebsites.net" User-Agent="AZURECLI/2.84.0 (MSI)" Accept-Encoding="identity" Authorization="Bea..." x-ms-client-request-id="f759180e-2593-11f1-b051-ea40909c870e" X-ARR-LOG-ID="f759180e-2593-11f1-b051-ea40909c870e" CLIENT-IP="172.56.93.246:51925" X-SITE-DEPLOYMENT-ID="card-social-api" WAS-DEFAULT-HOSTNAME="card-social-api.scm.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/dump" X-Client-IP="172.56.93.246" X-Client-Port="51925" >
+  <step title="Cleanup Xml Logs" date="2026-03-22T02:08:10.587" /><!-- duration: 10ms -->
+  <step title="Outgoing response" date="2026-03-22T02:08:13.194" type="response" statusCode="200" statusText="OK" /><!-- duration: 3ms -->
+</step><!-- duration: 2616ms -->

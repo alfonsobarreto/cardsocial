@@ -1,0 +1,19 @@
+<step title="Executing external process" date="2026-03-22T17:00:45.326" instance="4674be" type="process" path="kudu.exe" arguments="/home/site /opt/Kudu/msbuild" >
+  <step title="Cleanup Xml Logs" date="2026-03-22T17:00:45.461" >
+    <step title="Cleanup Infos" date="2026-03-22T17:00:45.698" totalFiles="263" totalCleanup="103" /><!-- duration: 97ms -->
+  </step><!-- duration: 509ms -->
+  <step title="Deployment timer started" date="2026-03-22T17:00:46.361" >
+    <step title="Executing external process" date="2026-03-22T17:00:46.662" type="process" path="git" arguments="log -n 1 master --" /><!-- duration: 1292ms -->
+    <step title="DeploymentManager.Deploy(id:23b69600b406f6b149c787e6be9d45daa25964ad)" date="2026-03-22T17:00:48.142" >
+      <step title="Collecting changeset information" date="2026-03-22T17:00:48.612" /><!-- duration: 3147ms -->
+      <step title="Updating to specific changeset" date="2026-03-22T17:00:51.877" >
+        <step title="Executing external process" date="2026-03-22T17:00:54.008" type="process" path="git" arguments="checkout master --force" /><!-- duration: 1577ms -->
+      </step><!-- duration: 3764ms -->
+      <step title="Updating submodules" date="2026-03-22T17:00:55.752" /><!-- duration: 882ms -->
+      <step title="Determining deployment builder" date="2026-03-22T17:00:58.459" >
+        <step title="Builder is CustomGeneratorCommandSiteBuilder" date="2026-03-22T17:00:58.679" /><!-- duration: 39ms -->
+      </step><!-- duration: 336ms -->
+      <step title="PreDeployment: context.CleanOutputPath False" date="2026-03-22T17:00:59.175" >
+        <step title="PreDeployment: context.OutputPath /home/site/wwwroot" date="2026-03-22T17:00:59.931" >
+          <step title="Building" date="2026-03-22T17:01:00.800" >
+            <step title="Executing external process" date="2026-03-22T17:01:03.091" type="process" path="starter.sh" arguments="/opt/Kudu/KuduConsole/Scripts/parallel_rsync.sh /home/site/repository /home/site/wwwroot 8 /tmp/ False True  " 
