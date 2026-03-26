@@ -1512,171 +1512,174 @@ export default function CardsFactoryScreen() {
       <Modal visible={factoryVisible} transparent animationType="slide" onRequestClose={() => setFactoryVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.factoryModal}>
-            <Text style={styles.factoryTitle}>{selectedCard ? 'Editar Smart Card' : 'Nueva Smart Card'}</Text>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.factoryScrollContent}
+            >
+              <Text style={styles.factoryTitle}>{selectedCard ? 'Editar Smart Card' : 'Nueva Smart Card'}</Text>
 
-            <View style={styles.identityAutoRow}>
-              {ownerPhotoUrl ? (
-                <Image source={{ uri: ownerPhotoUrl }} style={styles.identityAvatar} />
-              ) : (
-                <View style={styles.identityAvatarFallback}>
-                  <MaterialCommunityIcons name="account" size={16} color="#0D4D8A" />
+              <View style={styles.identityAutoRow}>
+                {ownerPhotoUrl ? (
+                  <Image source={{ uri: ownerPhotoUrl }} style={styles.identityAvatar} />
+                ) : (
+                  <View style={styles.identityAvatarFallback}>
+                    <MaterialCommunityIcons name="account" size={16} color="#0D4D8A" />
+                  </View>
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.identityLabel}>Identidad automática</Text>
+                  <Text style={styles.identityValue}>{ownerNickname || 'user'}</Text>
                 </View>
-              )}
-              <View style={{ flex: 1 }}>
-                <Text style={styles.identityLabel}>Identidad automática</Text>
-                <Text style={styles.identityValue}>{ownerNickname || 'user'}</Text>
               </View>
-            </View>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Nombre de tarjeta"
-              placeholderTextColor="#688AA5"
-              value={cardName}
-              onChangeText={setCardName}
-            />
+              <TextInput
+                style={styles.input}
+                placeholder="Nombre de tarjeta"
+                placeholderTextColor="#688AA5"
+                value={cardName}
+                onChangeText={setCardName}
+              />
 
-            <View style={styles.layoutSwitchRow}>
-              <TouchableOpacity
-                style={[styles.layoutBtn, layoutMode === 'vertical' && styles.layoutBtnActive]}
-                onPress={() => setLayoutMode('vertical')}
-              >
-                <Text style={[styles.layoutText, layoutMode === 'vertical' && styles.layoutTextActive]}>Vertical</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.layoutBtn, layoutMode === 'horizontal' && styles.layoutBtnActive]}
-                onPress={() => setLayoutMode('horizontal')}
-              >
-                <Text style={[styles.layoutText, layoutMode === 'horizontal' && styles.layoutTextActive]}>Horizontal</Text>
-              </TouchableOpacity>
-            </View>
+              <View style={styles.layoutSwitchRow}>
+                <TouchableOpacity
+                  style={[styles.layoutBtn, layoutMode === 'vertical' && styles.layoutBtnActive]}
+                  onPress={() => setLayoutMode('vertical')}
+                >
+                  <Text style={[styles.layoutText, layoutMode === 'vertical' && styles.layoutTextActive]}>Vertical</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.layoutBtn, layoutMode === 'horizontal' && styles.layoutBtnActive]}
+                  onPress={() => setLayoutMode('horizontal')}
+                >
+                  <Text style={[styles.layoutText, layoutMode === 'horizontal' && styles.layoutTextActive]}>Horizontal</Text>
+                </TouchableOpacity>
+              </View>
 
-            <Text style={styles.sectionLabel}>Fondo visual premium</Text>
-            <View style={styles.themeRow}>
-              {Object.entries(CARD_THEMES).map(([id, theme]) => {
-                const key = id as CardTheme;
-                const active = themeId === key;
-                return (
-                  <TouchableOpacity
-                    key={id}
-                    style={[styles.themeBtn, active && styles.themeBtnActive]}
-                    onPress={() => setThemeId(key)}
-                  >
-                    <LinearGradient colors={theme.colors} style={styles.themeSwatch} />
-                    <Text style={[styles.themeLabel, active && styles.themeLabelActive]}>{theme.label}</Text>
-                  </TouchableOpacity>
-                );
+              <Text style={styles.sectionLabel}>Fondo visual premium</Text>
+              <View style={styles.themeRow}>
+                {Object.entries(CARD_THEMES).map(([id, theme]) => {
+                  const key = id as CardTheme;
+                  const active = themeId === key;
+                  return (
+                    <TouchableOpacity
+                      key={id}
+                      style={[styles.themeBtn, active && styles.themeBtnActive]}
+                      onPress={() => setThemeId(key)}
+                    >
+                      <LinearGradient colors={theme.colors} style={styles.themeSwatch} />
+                      <Text style={[styles.themeLabel, active && styles.themeLabelActive]}>{theme.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Text style={styles.sectionLabel}>Cambiar Fondo</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.wallpaperListRow}>
+                <TouchableOpacity
+                  style={[styles.wallpaperThumbBtn, !selectedWallpaper && styles.wallpaperThumbBtnActive]}
+                  onPress={() => setSelectedWallpaper(null)}
+                >
+                  <LinearGradient colors={CARD_THEMES[themeId].colors} style={styles.wallpaperThumbImage} />
+                  <Text style={styles.wallpaperThumbLabel}>Solo tema</Text>
+                </TouchableOpacity>
+
+                {loadingWallpapers ? (
+                  <View style={styles.wallpaperLoadingBox}>
+                    <ActivityIndicator size="small" color="#0D4D8A" />
+                    <Text style={styles.wallpaperLoadingText}>Cargando fondos...</Text>
+                  </View>
+                ) : (
+                  wallpaperOptions.map((wall) => {
+                    const active = selectedWallpaper?.id === wall.id;
+                    return (
+                      <TouchableOpacity
+                        key={wall.id}
+                        style={[styles.wallpaperThumbBtn, active && styles.wallpaperThumbBtnActive]}
+                        onPress={() => pickWallpaperWithGate(wall)}
+                      >
+                        <Image source={{ uri: wall.thumbnailUrl }} style={styles.wallpaperThumbImage} resizeMode="cover" />
+                        <Text style={styles.wallpaperThumbLabel} numberOfLines={1}>{wall.name}</Text>
+                        {wall.tier === 'premium' ? (
+                          <MaterialCommunityIcons name="crown" size={12} color="#C5A065" style={styles.wallpaperCrownBadge} />
+                        ) : null}
+                      </TouchableOpacity>
+                    );
+                  })
+                )}
+              </ScrollView>
+
+              <Text style={styles.sectionLabel}>Cambiar Fuente</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.wallpaperListRow}>
+                <TouchableOpacity
+                  style={[styles.wallpaperThumbBtn, !selectedFont && styles.wallpaperThumbBtnActive]}
+                  onPress={() => {
+                    setSelectedFont(null);
+                    setResolvedFontFamily(null);
+                  }}
+                >
+                  <View style={[styles.wallpaperThumbImage, styles.fontThumbBase]}>
+                    <AutoScaleText style={styles.fontThumbText}>Aa</AutoScaleText>
+                  </View>
+                  <Text style={styles.wallpaperThumbLabel}>Sistema</Text>
+                </TouchableOpacity>
+
+                {loadingFonts ? (
+                  <View style={styles.wallpaperLoadingBox}>
+                    <ActivityIndicator size="small" color="#0D4D8A" />
+                    <Text style={styles.wallpaperLoadingText}>Cargando fuentes...</Text>
+                  </View>
+                ) : (
+                  fontOptions.map((font) => {
+                    const active = selectedFont?.id === font.id;
+                    return (
+                      <TouchableOpacity
+                        key={font.id}
+                        style={[styles.wallpaperThumbBtn, active && styles.wallpaperThumbBtnActive]}
+                        onPress={() => {
+                          void pickFontWithGate(font);
+                        }}
+                      >
+                        <View style={[styles.wallpaperThumbImage, styles.fontThumbBase]}>
+                          <AutoScaleText style={[styles.fontThumbText, resolvedFontFamily === font.family ? { fontFamily: resolvedFontFamily } : null]}>Aa</AutoScaleText>
+                        </View>
+                        <Text style={styles.wallpaperThumbLabel} numberOfLines={1}>{font.name}</Text>
+                        {font.tier === 'premium' ? (
+                          <MaterialCommunityIcons name="crown" size={12} color="#C5A065" style={styles.wallpaperCrownBadge} />
+                        ) : null}
+                      </TouchableOpacity>
+                    );
+                  })
+                )}
+              </ScrollView>
+
+              <View style={styles.parallaxToggleRow}>
+                <Text style={styles.parallaxToggleLabel}>Parallax Wallpaper</Text>
+                <TouchableOpacity
+                  style={[styles.parallaxToggleBtn, enableParallax && styles.parallaxToggleBtnActive]}
+                  onPress={() => setEnableParallax((prev) => !prev)}
+                >
+                  <MaterialCommunityIcons name={enableParallax ? 'motion-play' : 'motion-pause'} size={15} color={enableParallax ? '#FFFFFF' : '#0D4D8A'} />
+                  <Text style={[styles.parallaxToggleBtnText, enableParallax && styles.parallaxToggleBtnTextActive]}>
+                    {enableParallax ? 'ON' : 'OFF'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.sectionLabel}>Edit Choice (slots directos)</Text>
+              {renderWireframeCard({
+                layout: layoutMode,
+                slots: editSlots,
+                editable: true,
+                colors: CARD_THEMES[themeId].colors,
+                wallpaperUrl: selectedWallpaper?.fullUrl,
               })}
-            </View>
 
-            <Text style={styles.sectionLabel}>Cambiar Fondo</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.wallpaperListRow}>
-              <TouchableOpacity
-                style={[styles.wallpaperThumbBtn, !selectedWallpaper && styles.wallpaperThumbBtnActive]}
-                onPress={() => setSelectedWallpaper(null)}
-              >
-                <LinearGradient colors={CARD_THEMES[themeId].colors} style={styles.wallpaperThumbImage} />
-                <Text style={styles.wallpaperThumbLabel}>Solo tema</Text>
-              </TouchableOpacity>
-
-              {loadingWallpapers ? (
-                <View style={styles.wallpaperLoadingBox}>
-                  <ActivityIndicator size="small" color="#0D4D8A" />
-                  <Text style={styles.wallpaperLoadingText}>Cargando fondos...</Text>
-                </View>
-              ) : (
-                wallpaperOptions.map((wall) => {
-                  const active = selectedWallpaper?.id === wall.id;
-                  return (
-                    <TouchableOpacity
-                      key={wall.id}
-                      style={[styles.wallpaperThumbBtn, active && styles.wallpaperThumbBtnActive]}
-                      onPress={() => pickWallpaperWithGate(wall)}
-                    >
-                      <Image source={{ uri: wall.thumbnailUrl }} style={styles.wallpaperThumbImage} resizeMode="cover" />
-                      <Text style={styles.wallpaperThumbLabel} numberOfLines={1}>{wall.name}</Text>
-                      {wall.tier === 'premium' ? (
-                        <MaterialCommunityIcons name="crown" size={12} color="#C5A065" style={styles.wallpaperCrownBadge} />
-                      ) : null}
-                    </TouchableOpacity>
-                  );
-                })
-              )}
+              <Text style={styles.sectionLabel}>Selecciona datos del Vault</Text>
+              {vaultItems.map((item) => (
+                <React.Fragment key={item.id}>{renderVaultOption({ item })}</React.Fragment>
+              ))}
             </ScrollView>
-
-            <Text style={styles.sectionLabel}>Cambiar Fuente</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.wallpaperListRow}>
-              <TouchableOpacity
-                style={[styles.wallpaperThumbBtn, !selectedFont && styles.wallpaperThumbBtnActive]}
-                onPress={() => {
-                  setSelectedFont(null);
-                  setResolvedFontFamily(null);
-                }}
-              >
-                <View style={[styles.wallpaperThumbImage, styles.fontThumbBase]}>
-                  <AutoScaleText style={styles.fontThumbText}>Aa</AutoScaleText>
-                </View>
-                <Text style={styles.wallpaperThumbLabel}>Sistema</Text>
-              </TouchableOpacity>
-
-              {loadingFonts ? (
-                <View style={styles.wallpaperLoadingBox}>
-                  <ActivityIndicator size="small" color="#0D4D8A" />
-                  <Text style={styles.wallpaperLoadingText}>Cargando fuentes...</Text>
-                </View>
-              ) : (
-                fontOptions.map((font) => {
-                  const active = selectedFont?.id === font.id;
-                  return (
-                    <TouchableOpacity
-                      key={font.id}
-                      style={[styles.wallpaperThumbBtn, active && styles.wallpaperThumbBtnActive]}
-                      onPress={() => {
-                        void pickFontWithGate(font);
-                      }}
-                    >
-                      <View style={[styles.wallpaperThumbImage, styles.fontThumbBase]}>
-                        <AutoScaleText style={[styles.fontThumbText, resolvedFontFamily === font.family ? { fontFamily: resolvedFontFamily } : null]}>Aa</AutoScaleText>
-                      </View>
-                      <Text style={styles.wallpaperThumbLabel} numberOfLines={1}>{font.name}</Text>
-                      {font.tier === 'premium' ? (
-                        <MaterialCommunityIcons name="crown" size={12} color="#C5A065" style={styles.wallpaperCrownBadge} />
-                      ) : null}
-                    </TouchableOpacity>
-                  );
-                })
-              )}
-            </ScrollView>
-
-            <View style={styles.parallaxToggleRow}>
-              <Text style={styles.parallaxToggleLabel}>Parallax Wallpaper</Text>
-              <TouchableOpacity
-                style={[styles.parallaxToggleBtn, enableParallax && styles.parallaxToggleBtnActive]}
-                onPress={() => setEnableParallax((prev) => !prev)}
-              >
-                <MaterialCommunityIcons name={enableParallax ? 'motion-play' : 'motion-pause'} size={15} color={enableParallax ? '#FFFFFF' : '#0D4D8A'} />
-                <Text style={[styles.parallaxToggleBtnText, enableParallax && styles.parallaxToggleBtnTextActive]}>
-                  {enableParallax ? 'ON' : 'OFF'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.sectionLabel}>Edit Choice (slots directos)</Text>
-            {renderWireframeCard({
-              layout: layoutMode,
-              slots: editSlots,
-              editable: true,
-              colors: CARD_THEMES[themeId].colors,
-              wallpaperUrl: selectedWallpaper?.fullUrl,
-            })}
-
-            <Text style={styles.sectionLabel}>Selecciona datos del Vault</Text>
-            <FlatList
-              data={vaultItems}
-              keyExtractor={(item) => item.id}
-              renderItem={renderVaultOption}
-              style={styles.vaultList}
-            />
 
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.ghostBtn} onPress={() => setFactoryVisible(false)}>
@@ -2454,6 +2457,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#B8E7FF',
     padding: 16,
+    flexShrink: 1,
+  },
+  factoryScrollContent: {
+    paddingBottom: 4,
   },
   factoryTitle: {
     color: '#0D4D8A',
@@ -2669,9 +2676,6 @@ const styles = StyleSheet.create({
   },
   parallaxToggleBtnTextActive: {
     color: '#FFFFFF',
-  },
-  vaultList: {
-    maxHeight: 260,
   },
   vaultOption: {
     borderRadius: 10,
