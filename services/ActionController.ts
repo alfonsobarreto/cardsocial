@@ -26,8 +26,17 @@ export const ActionController = {
   },
 
   /**
-   * ActionEmail: Deep linking para iOS con googlegmail://, ms-outlook://, ymail:// y mailto:.
-   * En Android usa directamente mailto:.
+   * ActionEmail: Deep linking real para Gmail, Outlook, Yahoo y Apple Mail.
+   *
+   * MAPA DE ESQUEMAS (única fuente de verdad):
+   *   gmail   → googlegmail:///co?to=<email>
+   *   outlook → ms-outlook://compose?to=<email>
+   *   yahoo   → ymail://mail/compose?to=<email>
+   *
+   * En iOS: pre-chequea Linking.canOpenURL ANTES de mostrar botones.
+   *   - App instalada   → botón activo, abre directo.
+   *   - App no instalada → botón activo pero avisa y no redirige a Mail sin avisar.
+   * En Android: usa mailto: (el sistema presenta el chooser nativo).
    */
   async ActionEmail({ value }: { value: string }) {
     const email = String(value || '').trim();
@@ -35,26 +44,76 @@ export const ActionController = {
       Alert.alert('Correo inválido', 'No hay un correo válido para abrir.');
       return;
     }
+
     const encodedEmail = encodeURIComponent(email);
-    const gmail = `googlegmail://co?to=${encodedEmail}`;
-    const outlook = `ms-outlook://compose?to=${encodedEmail}`;
-    const yahoo = `ymail://mail/compose?to=${encodedEmail}`;
     const mailto = `mailto:${email}`;
-    if (Platform.OS === 'ios') {
-      Alert.alert(
-        'Selecciona app de correo',
-        email,
-        [
-          { text: 'Mail', onPress: () => Linking.openURL(mailto) },
-          { text: 'Gmail', onPress: () => Linking.canOpenURL(gmail).then(ok => ok ? Linking.openURL(gmail) : Linking.openURL(mailto)) },
-          { text: 'Outlook', onPress: () => Linking.canOpenURL(outlook).then(ok => ok ? Linking.openURL(outlook) : Linking.openURL(mailto)) },
-          { text: 'Yahoo', onPress: () => Linking.canOpenURL(yahoo).then(ok => ok ? Linking.openURL(yahoo) : Linking.openURL(mailto)) },
-          { text: 'Cancelar', style: 'cancel' },
-        ]
+
+    // ─── MAPA CENTRALIZADO DE ESQUEMAS ───────────────────────────────────────
+    const EMAIL_CLIENTS: Array<{ id: string; label: string; url: string }> = [
+      { id: 'gmail',   label: 'Gmail',   url: `googlegmail:///co?to=${encodedEmail}` },
+      { id: 'outlook', label: 'Outlook', url: `ms-outlook://compose?to=${encodedEmail}` },
+      { id: 'yahoo',   label: 'Yahoo',   url: `ymail://mail/compose?to=${encodedEmail}` },
+    ];
+    // ─────────────────────────────────────────────────────────────────────────
+
+    if (Platform.OS !== 'ios') {
+      // Android: el chooser del sistema maneja todo
+      await Linking.openURL(mailto).catch(() =>
+        Alert.alert('Error', 'No se pudo abrir la app de correo.')
       );
-    } else {
-      await Linking.openURL(mailto);
+      return;
     }
+
+    // iOS: pre-chequear disponibilidad ANTES de mostrar el Alert
+    const checked = await Promise.all(
+      EMAIL_CLIENTS.map(async (client) => ({
+        ...client,
+        available: await Linking.canOpenURL(client.url).catch(() => false),
+      }))
+    );
+
+    type AlertButton = { text: string; onPress?: () => void; style?: 'cancel' | 'default' | 'destructive' };
+    const buttons: AlertButton[] = [];
+
+    // Apple Mail — siempre disponible
+    buttons.push({
+      text: 'Apple Mail',
+      onPress: () => Linking.openURL(mailto).catch(() => null),
+    });
+
+    for (const client of checked) {
+      if (client.available) {
+        // App instalada → abre directo, fallback con aviso si falla
+        buttons.push({
+          text: client.label,
+          onPress: () => {
+            Linking.openURL(client.url).catch(() => {
+              Alert.alert(
+                `${client.label} no disponible`,
+                'No se pudo abrir la app. Usando Apple Mail como respaldo.',
+                [{ text: 'OK', onPress: () => Linking.openURL(mailto).catch(() => null) }]
+              );
+            });
+          },
+        });
+      } else {
+        // App NO instalada → botón informativo, sin redirigir a Mail a escondidas
+        buttons.push({
+          text: `${client.label} (no instalado)`,
+          onPress: () => {
+            Alert.alert(
+              `${client.label} no está instalado`,
+              'Instala la app para usarla como cliente de correo.',
+              [{ text: 'OK' }]
+            );
+          },
+        });
+      }
+    }
+
+    buttons.push({ text: 'Cancelar', style: 'cancel' });
+
+    Alert.alert('Selecciona app de correo', email, buttons);
   },
 
   /**
