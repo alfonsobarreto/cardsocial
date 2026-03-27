@@ -17,14 +17,14 @@ import { useLookMode } from '@/services/lookMode';
 import { findNearbyBusinesses, searchSocialMarket } from '@/services/searchService';
 import { BusinessCardSearchResult, GeoLocation } from '@/types/businessCard';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { collection, getDocs } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
     FlatList,
-    Image,
     Modal,
     Pressable,
     RefreshControl,
@@ -32,7 +32,7 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
@@ -50,6 +50,7 @@ export default function SearchScreen() {
   const { language } = useLanguage();
   const tr = (es: string, en: string) => language === 'en' ? en : es;
   const [searchQuery, setSearchQuery] = useState('');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [results, setResults] = useState<BusinessCardSearchResult[]>([]);
   const [myContacts, setMyContacts] = useState<MyContact[]>([]);
   const [loading, setLoading] = useState(false);
@@ -253,14 +254,20 @@ export default function SearchScreen() {
         <MaterialCommunityIcons name="magnify" size={20} color="#999" />
         <TextInput
           style={styles.searchInput}
-          placeholder="Busca: Nails, Hair, Cosmetología..."
+          placeholder={tr('Busca: Nails, Hair, Cosmetología...', 'Search: Nails, Hair, Cosmetology...')}
           value={searchQuery}
-          onChangeText={setSearchQuery}
+          onChangeText={(text) => {
+            setSearchQuery(text);
+            if (debounceRef.current) clearTimeout(debounceRef.current);
+            if (text.trim().length >= 2) {
+              debounceRef.current = setTimeout(() => { void handleSearch(); }, 400);
+            }
+          }}
           onSubmitEditing={handleSearch}
           placeholderTextColor="#999"
         />
         {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
+          <TouchableOpacity onPress={() => setSearchQuery('')} accessibilityLabel={tr('Limpiar búsqueda', 'Clear search')}>
             <MaterialCommunityIcons name="close" size={20} color="#999" />
           </TouchableOpacity>
         )}
@@ -368,9 +375,10 @@ export default function SearchScreen() {
         </View>
 
         {item.card.businessLogo ? (
-          <Image
+          <ExpoImage
             source={{ uri: item.card.businessLogo }}
             style={[styles.cardImage, !hasLicense && styles.dullCardImage]}
+            cachePolicy="disk"
           />
         ) : (
           <View style={[styles.cardImage, styles.cardImagePlaceholder, !hasLicense && styles.dullCardImage]}>

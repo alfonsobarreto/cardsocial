@@ -6,22 +6,23 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
-  Dimensions,
-  FlatList,
-  Image,
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  PanResponder,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View
+    Alert,
+    Dimensions,
+    FlatList,
+    Image,
+    InteractionManager,
+    Keyboard,
+    KeyboardAvoidingView,
+    Modal,
+    PanResponder,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View
 } from 'react-native';
 // import { PDFDocument } from 'pdf-lib'; // [SILENCIADO POR ERROR DE DEPENDENCIA]
 import BrandedSpinner from '@/components/BrandedSpinner';
@@ -29,13 +30,13 @@ import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { fetchFaviconFromAzure } from '@/services/faviconApi';
 import { db } from '@/services/firebaseConfig';
+import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Buffer } from 'buffer';
 import * as Haptics from 'expo-haptics';
 import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
-import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
 import CardStudioVault, { ICON_GALLERY } from './CardStudioVault';
 import FilePreviewModal from './FilePreviewModal';
@@ -46,12 +47,12 @@ const VAULT_STORAGE_KEY = 'vault_data';
 
 type DataType = 'Enlaces' | 'Teléfono' | 'Email' | 'Texto Plain' | 'Documento';
 
-const DATA_TYPE_OPTIONS: Array<{ key: DataType; label: string }> = [
-  { key: 'Enlaces', label: 'Enlace' },
-  { key: 'Email', label: 'Email' },
-  { key: 'Teléfono', label: 'Teléfono' },
-  { key: 'Texto Plain', label: 'Texto' },
-  { key: 'Documento', label: 'Documento' },
+const DATA_TYPE_OPTIONS: Array<{ key: DataType; label: string; labelEn: string }> = [
+  { key: 'Enlaces', label: 'Enlace', labelEn: 'Link' },
+  { key: 'Email', label: 'Email', labelEn: 'Email' },
+  { key: 'Teléfono', label: 'Teléfono', labelEn: 'Phone' },
+  { key: 'Texto Plain', label: 'Texto', labelEn: 'Text' },
+  { key: 'Documento', label: 'Documento', labelEn: 'Document' },
 ];
 
 interface Link {
@@ -76,7 +77,7 @@ try {
 // ICON_GALLERY viene de CardStudioVault — única fuente de verdad
 
 const COUNTRY_CODES = [
-  { code: '+1', country: 'USA' },
+  { code: '+1', country: 'USA / Canadá' },
   { code: '+34', country: 'España' },
   { code: '+52', country: 'México' },
   { code: '+44', country: 'UK' },
@@ -86,6 +87,31 @@ const COUNTRY_CODES = [
   { code: '+39', country: 'Italia' },
   { code: '+61', country: 'Australia' },
   { code: '+81', country: 'Japón' },
+  { code: '+57', country: 'Colombia' },
+  { code: '+54', country: 'Argentina' },
+  { code: '+56', country: 'Chile' },
+  { code: '+51', country: 'Perú' },
+  { code: '+58', country: 'Venezuela' },
+  { code: '+593', country: 'Ecuador' },
+  { code: '+591', country: 'Bolivia' },
+  { code: '+595', country: 'Paraguay' },
+  { code: '+598', country: 'Uruguay' },
+  { code: '+506', country: 'Costa Rica' },
+  { code: '+503', country: 'El Salvador' },
+  { code: '+502', country: 'Guatemala' },
+  { code: '+507', country: 'Panamá' },
+  { code: '+1-809', country: 'Rep. Dominicana' },
+  { code: '+91', country: 'India' },
+  { code: '+86', country: 'China' },
+  { code: '+82', country: 'Corea del Sur' },
+  { code: '+7', country: 'Rusia' },
+  { code: '+90', country: 'Turquía' },
+  { code: '+966', country: 'Arabia Saudita' },
+  { code: '+971', country: 'Emiratos Árabes' },
+  { code: '+234', country: 'Nigeria' },
+  { code: '+27', country: 'Sudáfrica' },
+  { code: '+63', country: 'Filipinas' },
+  { code: '+66', country: 'Tailandia' },
 ];
 
 // Tamaño máximo de archivos (en bytes)
@@ -93,8 +119,9 @@ const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2 MB
 const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024; // 20 MB
 
 const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingData?: Link }) => {
-  const { t } = useTranslation();
   const { resolvedMode } = useLookMode();
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => language === 'en' ? en : es;
   const isNight = resolvedMode === 'noche';
   const formTheme = {
     motherBg: isNight ? '#0A2540' : '#E3F2FD',
@@ -153,8 +180,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   // Tracks the last saved link id so background favicon updates can patch it silently
   const savedLinkIdRef = useRef<string | null>(null);
   const savedUserIdRef = useRef<string | null>(null);
-  const retryLockMessage =
-    'Estamos cuidando la integridad de la comunidad. Por favor, espera un momento antes de intentar de nuevo';
+  const retryLockMessage = tr(
+    'Estamos cuidando la integridad de la comunidad. Por favor, espera un momento antes de intentar de nuevo',
+    'We are protecting community integrity. Please wait a moment before trying again'
+  );
   const isRetryLocked = retryLockedUntil !== null && retryLockedUntil > Date.now();
 
   const logAssetAudit = (stage: string, payload: Record<string, any>) => {
@@ -193,9 +222,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     }
 
     setRejectionAttempts(attempts);
-    setModerationAlertMessage(
-      'Parece que tu sonrisa no se ve clara. Intenta de nuevo para asegurar tu acceso premium.'
-    );
+    setModerationAlertMessage(tr(
+      'Parece que tu sonrisa no se ve clara. Intenta de nuevo para asegurar tu acceso premium.',
+      'Your smile does not appear clear. Please try again to ensure your premium access.'
+    ));
     setModerationAlertVisible(true);
   };
 
@@ -374,15 +404,16 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   }, [dataValue, dataType, editingData?.id, lastFaviconDomain]);
 
   // Reset icon and URL when data type changes (but NOT if we're editing)
+  const prevDataTypeRef = useRef<DataType>(dataType);
   useEffect(() => {
-    if (!editingData?.id) {
-      setSelectedIcon('1');
-      setDataName('');
-      setDataValue('');
-      setFaviconUrl('');
-      closeFaviconSuggestion();
-      setLastFaviconDomain('');
-    }
+    if (editingData?.id) return;
+    if (prevDataTypeRef.current === dataType) return;
+    prevDataTypeRef.current = dataType;
+    setSelectedIcon('1');
+    setFaviconUrl('');
+    closeFaviconSuggestion();
+    setLastFaviconDomain('');
+    // Keep dataName and dataValue — user may have typed them intentionally
   }, [dataType, editingData?.id]);
 
   // ── Auto-detectar tipo al pegar un valor ──────────────────────────────────
@@ -428,7 +459,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setUploadModalVisible(false);
     setIsUploading(false);
     setUploadProgress(0);
-    setUploadStageLabel(t('upload_starting'));
+    setUploadStageLabel(tr('Iniciando...', 'Starting...'));
     setIsCompressing(false);
 
     // Reset form
@@ -462,7 +493,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setDataValue(pendingAsset.uri);
     if (!dataName.trim()) {
       const baseName = pendingAsset.name.replace(/\.[^/.]+$/, '');
-      setDataName(baseName || 'Documento');
+      setDataName(baseName || tr('Documento', 'Document'));
     }
     setAssetPreviewVisible(false);
     setPendingAsset(null);
@@ -471,7 +502,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const retryAssetSelection = () => {
     setDataValue('');
     setUploadProgress(0);
-    setUploadStageLabel(t('upload_starting'));
+    setUploadStageLabel(tr('Iniciando...', 'Starting...'));
     setIsUploading(false);
     setAssetPreviewVisible(false);
     setPendingAsset(null);
@@ -490,14 +521,17 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       if (fileSizeInBytes > maxSize) {
         return {
           valid: false,
-          message: `❌ Archivo muy grande (${(fileSizeInBytes / (1024 * 1024)).toFixed(2)} MB).\nMáximo: ${maxSizeInMB} MB`,
+          message: tr(
+            `❌ Archivo muy grande (${(fileSizeInBytes / (1024 * 1024)).toFixed(2)} MB).\nMáximo: ${maxSizeInMB} MB`,
+            `❌ File too large (${(fileSizeInBytes / (1024 * 1024)).toFixed(2)} MB).\nMax: ${maxSizeInMB} MB`
+          ),
         };
       }
 
       return { valid: true };
     } catch (error) {
       console.error('Error validating file size:', error);
-      return { valid: false, message: 'Error al validar tamaño del archivo' };
+      return { valid: false, message: tr('Error al validar tamaño del archivo', 'Error validating file size') };
     }
   };
 
@@ -618,7 +652,19 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       // const optimizedSize = await getFileSizeInBytes(optimizedUri);
       // return { uri: optimizedUri, size: optimizedSize };
       // [FIN SILENCIADO]
-      return { uri, size: await getFileSizeInBytes(uri).catch(() => Number.MAX_SAFE_INTEGER) };
+      // #30 Warn user that PDF optimization is unavailable
+      const currentSize = await getFileSizeInBytes(uri).catch(() => Number.MAX_SAFE_INTEGER);
+      if (currentSize > maxBytes) {
+        Toast.show({
+          type: 'info',
+          text1: tr('⚠️ PDF sin optimizar', '⚠️ PDF not optimized'),
+          text2: tr('La optimización de PDF no está disponible. Intenta con un archivo más ligero.', 'PDF optimization is unavailable. Try a lighter file.'),
+          position: 'bottom',
+          visibilityTime: 4000,
+          autoHide: true,
+        });
+      }
+      return { uri, size: currentSize };
     } catch (error) {
       console.warn('PDF optimization failed, keeping original:', error);
       const size = await getFileSizeInBytes(uri).catch(() => Number.MAX_SAFE_INTEGER);
@@ -638,18 +684,18 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(t('Permiso denegado'), t('Se necesita acceso a fotos'));
+        Alert.alert(tr('Permiso denegado', 'Permission denied'), tr('Se necesita acceso a fotos', 'Photo access required'));
         return;
       }
       setFileTypeModalVisible(false); // Cerrar modal antes de procesar
       Toast.show({
-        text1: t('Subiendo archivo...'),
+        text1: tr('Subiendo archivo...', 'Uploading file...'),
         type: 'info',
         position: 'bottom',
         visibilityTime: 4000,
         autoHide: true,
       });
-      setTimeout(async () => { // Mover lógica de compresión y subida a background
+      InteractionManager.runAfterInteractions(async () => { // Diferir hasta que la animación de cierre termine
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ['images'],
           allowsEditing: false,
@@ -669,8 +715,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           console.log('--- COMPRESIÓN REAL ---', optimized.size);
           if (optimized.size > MAX_IMAGE_SIZE) {
             Alert.alert(
-              t('No se pudo optimizar'),
-              t('La imagen no pudo reducirse al límite seguro. Intenta otra foto o menor resolución.')
+              tr('No se pudo optimizar', 'Could not optimize'),
+              tr('La imagen no pudo reducirse al límite seguro. Intenta otra foto o menor resolución.', 'The image could not be reduced to the safe limit. Try another photo or lower resolution.')
             );
             return;
           }
@@ -689,7 +735,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             source: 'gallery',
           });
         }
-      }, 0); // Ejecutar en background
+      }); // Diferido con InteractionManager
     } catch (error) {
       console.error('Error al seleccionar imagen:', error);
     }
@@ -731,8 +777,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
         if (finalSize > MAX_IMAGE_SIZE && dataType !== 'Documento') {
           Alert.alert(
-            t('No se pudo optimizar'),
-            t('No fue posible reducir la imagen al límite seguro. Prueba con otra captura.')
+            tr('No se pudo optimizar', 'Could not optimize'),
+            tr('No fue posible reducir la imagen al límite seguro. Prueba con otra captura.', 'Could not reduce image to safe limit. Try another capture.')
           );
           setFileTypeModalVisible(false);
           return;
@@ -749,8 +795,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
         if (finalSize > MAX_DOCUMENT_SIZE && dataType !== 'Documento') {
           Alert.alert(
-            t('PDF demasiado pesado'),
-            t('El PDF excede el límite seguro incluso tras optimizar. Usa una versión más ligera.')
+            tr('PDF demasiado pesado', 'PDF too large'),
+            tr('El PDF excede el límite seguro incluso tras optimizar. Usa una versión más ligera.', 'The PDF exceeds the safe limit even after optimization. Use a lighter version.')
           );
           setFileTypeModalVisible(false);
           return;
@@ -760,8 +806,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           const validation = await validateFileSize(file.uri);
           if (!validation.valid) {
             Alert.alert(
-              t('Archivo no soportado'),
-              t('Este formato no es compatible en esta carga segura. Usa imagen o PDF.')
+              tr('Archivo no soportado', 'Unsupported file'),
+              tr('Este formato no es compatible en esta carga segura. Usa imagen o PDF.', 'This format is not supported for secure upload. Use image or PDF.')
             );
             setFileTypeModalVisible(false);
             return;
@@ -795,7 +841,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       setFileTypeModalVisible(false);
     } catch (error) {
       console.error('Error picking document:', error);
-      Alert.alert(t('Error'), t('No se pudo seleccionar el documento'));
+      Alert.alert(tr('Error', 'Error'), tr('No se pudo seleccionar el documento', 'Could not select document'));
     }
   };
 
@@ -803,18 +849,18 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(t('Permiso denegado'), t('Se necesita acceso a la cámara'));
+        Alert.alert(tr('Permiso denegado', 'Permission denied'), tr('Se necesita acceso a la cámara', 'Camera access required'));
         return;
       }
       setFileTypeModalVisible(false); // Cerrar modal antes de procesar
       Toast.show({
-        text1: t('Subiendo archivo...'),
+        text1: tr('Subiendo archivo...', 'Uploading file...'),
         type: 'info',
         position: 'bottom',
         visibilityTime: 4000,
         autoHide: true,
       });
-      setTimeout(async () => {
+      InteractionManager.runAfterInteractions(async () => {
         const result = await ImagePicker.launchCameraAsync({
           mediaTypes: ['images'],
           allowsEditing: false,
@@ -834,8 +880,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           console.log('--- COMPRESIÓN REAL ---', optimized.size);
           if (optimized.size > MAX_IMAGE_SIZE && dataType !== 'Documento') {
             Alert.alert(
-              t('No se pudo optimizar'),
-              t('La foto no pudo reducirse al límite seguro. Intenta otra captura.')
+              tr('No se pudo optimizar', 'Could not optimize'),
+              tr('La foto no pudo reducirse al límite seguro. Intenta otra captura.', 'Photo could not be reduced to safe limit. Try another capture.')
             );
             return;
           }
@@ -854,10 +900,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             source: 'camera',
           });
         }
-      }, 200);
+      });
     } catch (error) {
       console.error('Error taking photo:', error);
-      Alert.alert(t('Error'), t('No se pudo tomar la foto'));
+      Alert.alert(tr('Error', 'Error'), tr('No se pudo tomar la foto', 'Could not take photo'));
     }
   };
 
@@ -1025,11 +1071,11 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       }
 
       setUploadProgress(0);
-      setUploadStageLabel(t('upload_preparing'));
+      setUploadStageLabel(tr('Preparando...', 'Preparing...'));
       setIsUploading(true);
       setUploadModalVisible(true);
       setUploadProgress(0.2);
-      setUploadStageLabel(t('upload_sending'));
+      setUploadStageLabel(tr('Enviando...', 'Sending...'));
 
       const uploadResult = await uploadFileWithModeration({
         fileUri,
@@ -1049,9 +1095,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       });
 
       setUploadProgress(0.8);
-      setUploadStageLabel(t('upload_moderating'));
+      setUploadStageLabel(tr('Moderando...', 'Moderating...'));
       setUploadProgress(1);
-      setUploadStageLabel(t('upload_approved'));
+      setUploadStageLabel(tr('Aprobado ✓', 'Approved ✓'));
 
       setTimeout(() => {
         setUploadModalVisible(false);
@@ -1069,12 +1115,37 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   // Save to Firestore (Create or Update)
   const handleCreate = async () => {
     if (!dataName.trim() || !dataValue.trim()) {
-      Alert.alert(t('❌ Error'), t('Completa todos los campos'));
+      Alert.alert('❌ Error', tr('Completa todos los campos', 'Fill in all fields'));
       return;
     }
 
+    // #16 Format validation per type
+    if (dataType === 'Email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dataValue.trim())) {
+      Alert.alert('❌ Error', tr('Introduce un email válido', 'Enter a valid email'));
+      return;
+    }
+    if (dataType === 'Teléfono' && dataValue.replace(/[^\d]/g, '').length < 7) {
+      Alert.alert('❌ Error', tr('El número debe tener al menos 7 dígitos', 'Number must have at least 7 digits'));
+      return;
+    }
+    if (dataType === 'Enlaces') {
+      let testUrl = dataValue.trim();
+      if (!/^https?:\/\//i.test(testUrl)) testUrl = 'https://' + testUrl;
+      if (!/^https?:\/\/[^\s]+\.[^\s]+/.test(testUrl)) {
+        Alert.alert('❌ Error', tr('Introduce una URL válida', 'Enter a valid URL'));
+        return;
+      }
+    }
+    if (dataType === 'Texto Plain') {
+      const wordCount = dataValue.split(/\s+/).filter(w => w).length;
+      if (wordCount > 200) {
+        Alert.alert('❌ Error', tr('Máximo 200 palabras permitidas', 'Maximum 200 words allowed'));
+        return;
+      }
+    }
+
     const biometricOk = await hardLockCheck(
-      editingData?.id ? 'actualizar un dato del Búnker' : 'crear un dato en el Búnker',
+      editingData?.id ? tr('actualizar un dato del Búnker', 'update a Vault item') : tr('crear un dato en el Búnker', 'create a Vault item'),
     );
     if (!biometricOk) {
       return;
@@ -1091,7 +1162,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       const userId = await getActiveUserId();
 
       if (!userId) {
-        Alert.alert(t('❌ Error'), t('No se pudo identificar al usuario activo'));
+        Alert.alert('❌ Error', tr('No se pudo identificar al usuario activo', 'Could not identify active user'));
         return;
       }
 
@@ -1116,8 +1187,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
       if (duplicateByTitle) {
         Alert.alert(
-          t('⚠️ Nombre duplicado'),
-          t('Ya existe un dato con ese nombre. Usa un nombre diferente.'),
+          tr('⚠️ Nombre duplicado', '⚠️ Duplicate name'),
+          tr('Ya existe un dato con ese nombre. Usa un nombre diferente.', 'An item with that name already exists. Use a different name.'),
         );
         return;
       }
@@ -1128,12 +1199,18 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       
       const iconName = selectedIcon === 'favicon'
         ? 'Favicon'
-        : ICON_GALLERY.find(i => i.id === selectedIcon)?.label || 'Sin nombre';
+        : ICON_GALLERY.find(i => i.id === selectedIcon)?.[language === 'en' ? 'labelEn' : 'label'] || tr('Sin nombre', 'No name');
 
+      // #21 Auto-prepend https:// for Enlaces
+      let preNormalized = dataValue;
+      if (dataType === 'Enlaces' && !/^https?:\/\//i.test(dataValue.trim())) {
+        preNormalized = 'https://' + dataValue.trim();
+      }
+      // #25 Phone formatting with country code
       const normalizedValue =
-        dataType === 'Teléfono' && !dataValue.startsWith('+')
-          ? `${countryCode}${dataValue}`
-          : dataValue;
+        dataType === 'Teléfono' && !preNormalized.startsWith('+')
+          ? `${countryCode} ${preNormalized.replace(/^\s+/, '')}`
+          : preNormalized;
 
       const shouldUploadFile =
         dataType === 'Documento' && normalizedValue.startsWith('file://');
@@ -1192,8 +1269,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Toast.show({
         type: 'success',
-        text1: '🛡️ ¡Dato guardado en el Búnker!',
-        text2: cloudSynced ? '✓ Sincronizado en la nube' : '✓ Guardado localmente',
+        text1: tr('🛡️ ¡Dato guardado en el Búnker!', '🛡️ Data saved to Vault!'),
+        text2: cloudSynced ? tr('✓ Sincronizado en la nube', '✓ Synced to cloud') : tr('✓ Guardado localmente', '✓ Saved locally'),
         position: 'bottom',
         visibilityTime: 3000,
         autoHide: true,
@@ -1204,14 +1281,21 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       if (error instanceof ModerationRejectedError) {
         Toast.show({
           type: 'error',
-          text1: '🚫 Contenido no permitido. Revisa las reglas.',
+          text1: tr('🚫 Contenido no permitido. Revisa las reglas.', '🚫 Content not allowed. Check the rules.'),
           position: 'bottom',
           visibilityTime: 3000,
           autoHide: true,
         });
         registerModerationReject();
       } else {
-        Alert.alert(t('upload_error'), t('could_not_save_data'));
+        Alert.alert(
+          tr('Error al subir', 'Upload error'),
+          tr('No se pudo guardar el dato. ¿Reintentar?', 'Could not save data. Retry?'),
+          [
+            { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+            { text: tr('Reintentar', 'Retry'), onPress: () => handleCreate() },
+          ]
+        );
       }
     } finally {
       setIsSaving(false);
@@ -1262,19 +1346,30 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             >
               <TextInput
                 style={[styles.input, { backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderWidth: 0 }]}
-              placeholder="https://example.com"
+              placeholder={(() => {
+                const n = dataName.trim().toLowerCase();
+                if (n.includes('instagram')) return tr('https://instagram.com/tu_usuario', 'https://instagram.com/your_user');
+                if (n.includes('linkedin')) return tr('https://linkedin.com/in/tu-perfil', 'https://linkedin.com/in/your-profile');
+                if (n.includes('facebook') || n.includes('fb')) return tr('https://facebook.com/tu_pagina', 'https://facebook.com/your_page');
+                if (n.includes('twitter') || n.includes(' x ')) return tr('https://x.com/tu_usuario', 'https://x.com/your_user');
+                if (n.includes('tiktok')) return tr('https://tiktok.com/@tu_usuario', 'https://tiktok.com/@your_user');
+                if (n.includes('youtube') || n.includes('yt')) return tr('https://youtube.com/@tu_canal', 'https://youtube.com/@your_channel');
+                return 'https://example.com';
+              })()}
               placeholderTextColor={formTheme.inputPlaceholder}
               value={dataValue}
               onChangeText={setDataValue}
+              autoCapitalize="none"
+              autoCorrect={false}
               />
             </LinearGradient>
             {faviconUrl && (
               <View>
                 <View style={styles.faviconContainer}>
                   <Image source={{ uri: faviconUrl }} style={styles.faviconImg} />
-                  <Text style={styles.faviconLabel}>Favicon detectado</Text>
+                  <Text style={styles.faviconLabel}>{tr('Favicon detectado', 'Favicon detected')}</Text>
                 </View>
-                <Text style={styles.wordCount}>Si quieres otro estilo, elige un icono de la galería oficial.</Text>
+                <Text style={styles.wordCount}>{tr('Si quieres otro estilo, elige un icono de la galería oficial.', 'Want a different style? Pick an icon from the official gallery.')}</Text>
               </View>
             )}
           </View>
@@ -1328,6 +1423,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             value={dataValue}
             onChangeText={setDataValue}
             keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+            autoCorrect={false}
             />
           </LinearGradient>
         );
@@ -1342,15 +1440,18 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             >
               <TextInput
                 style={[styles.input, { minHeight: 100, backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderWidth: 0 }]}
-              placeholder="Escribe aquí..."
+              placeholder={tr('Escribe aquí...', 'Write here...')}
               placeholderTextColor={formTheme.inputPlaceholder}
               value={dataValue}
-              onChangeText={setDataValue}
+              onChangeText={(text) => {
+                const words = text.split(/\s+/).filter(w => w).length;
+                if (words <= 200 || text.length < dataValue.length) setDataValue(text);
+              }}
               multiline
               />
             </LinearGradient>
-            <Text style={styles.wordCount}>
-              {dataValue.split(/\s+/).filter(w => w).length} / 200 palabras
+            <Text style={[styles.wordCount, dataValue.split(/\s+/).filter(w => w).length > 190 && { color: '#E53935' }]}>
+              {dataValue.split(/\s+/).filter(w => w).length} / 200 {tr('palabras', 'words')}
             </Text>
           </View>
         );
@@ -1374,19 +1475,19 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               />
               <Text style={[styles.documentText, { color: formTheme.textPrimary }]}>
                 {pendingAsset
-                  ? 'Ver Archivo Seleccionado'
+                  ? tr('Ver Archivo Seleccionado', 'View Selected File')
                   : dataValue
-                  ? 'Ver Archivo Guardado'
-                  : 'Subir PDF o imagen'}
+                  ? tr('Ver Archivo Guardado', 'View Saved File')
+                  : tr('Subir PDF o imagen', 'Upload PDF or image')}
               </Text>
               </TouchableOpacity>
             </LinearGradient>
-            <Text style={styles.wordCount}>Se aceptan PDF o imágenes para visor protegido del Búnker.</Text>
+            <Text style={styles.wordCount}>{tr('Se aceptan PDF o imágenes para visor protegido del Búnker.', 'PDF or images accepted for Vault protected viewer.')}</Text>
             
             {/* PREVIEW del documento/imagen seleccionado */}
             {dataValue && (
               <View style={[styles.previewContainer, { backgroundColor: formTheme.inputBg }]}>
-                <Text style={[styles.previewLabel, { color: formTheme.textPrimary }]}>Vista Previa:</Text>
+                <Text style={[styles.previewLabel, { color: formTheme.textPrimary }]}>{tr('Vista Previa:', 'Preview:')}</Text>
                 {isImageFile(dataValue) || isImageFile(dataName) ? (
                   <View style={styles.imagePreview}>
                     <Image 
@@ -1395,14 +1496,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                       onError={() => console.log('Error loading image')}
                     />
                     <Text style={[styles.previewFileName, { color: formTheme.textPrimary }]} numberOfLines={1}>
-                      {dataName || 'Imagen seleccionada'}
+                      {dataName || tr('Imagen seleccionada', 'Selected image')}
                     </Text>
                   </View>
                 ) : (
                   <View style={styles.documentPreview}>
                     <MaterialCommunityIcons name={getDocumentIcon(dataValue) as any} color={formTheme.textPrimary} size={48} />
                     <Text style={[styles.previewFileName, { color: formTheme.textPrimary }]} numberOfLines={1}>
-                      {dataName || 'Documento seleccionado'}
+                      {dataName || tr('Documento seleccionado', 'Selected document')}
                     </Text>
                   </View>
                 )}
@@ -1429,7 +1530,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           </View>
           <View style={styles.titleDragZone} {...mainModalSwipeResponder.panHandlers}>
             <Text style={styles.titleMain}>
-              {editingData?.id ? 'EDITAR INFORMACIÓN' : 'NUEVA INFORMACIÓN'}
+              {editingData?.id ? tr('EDITAR INFORMACIÓN', 'EDIT INFORMATION') : tr('NUEVA INFORMACIÓN', 'NEW INFORMATION')}
             </Text>
           </View>
           <TouchableOpacity 
@@ -1448,11 +1549,13 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           removeClippedSubviews={true}
           scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
+          bounces={false}
+          overScrollMode="never"
         >
           {/* TIPO DE DATA */}
           <View style={styles.section}>
-            <Text style={[styles.stepLabel, { color: formTheme.textPrimary }]}>TIPO DE DATO {editingData?.id && '(No editable)'}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typePillsRow} removeClippedSubviews={true} scrollEventThrottle={16}>
+            <Text style={[styles.stepLabel, { color: formTheme.textPrimary }]}>{tr('TIPO DE DATO', 'DATA TYPE')} {editingData?.id && tr('(No editable)', '(Read-only)')}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typePillsRow} removeClippedSubviews={true} scrollEventThrottle={16} bounces={false} overScrollMode="never">
               {DATA_TYPE_OPTIONS.map((option) => {
                 const isActive = dataType === option.key;
                 return (
@@ -1488,7 +1591,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                         { color: isActive ? formTheme.selectedPillText : formTheme.textPrimary },
                       ]}
                     >
-                      {option.label}
+                      {language === 'en' ? option.labelEn : option.label}
                     </Text>
                       </TouchableOpacity>
                     </LinearGradient>
@@ -1496,14 +1599,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               })}
             </ScrollView>
             <Text style={[styles.hint, { color: formTheme.textSecondary }]}>
-              {editingData?.id ? 'Tipo no puede cambiar al editar' : 'Selector horizontal estilo pill'}
+              {editingData?.id ? tr('Tipo no puede cambiar al editar', 'Type cannot change while editing') : tr('Selecciona el tipo de dato', 'Select data type')}
             </Text>
             {autoTypeSuggestion && !editingData?.id && (
               <TouchableOpacity
                 style={[styles.autoTypeBanner, { backgroundColor: formTheme.selectedPillBg }]}
                 onPress={() => {
+                  prevDataTypeRef.current = autoTypeSuggestion;
                   setDataType(autoTypeSuggestion);
-                  setDataValue('');
                   setAutoTypeSuggestion(null);
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
@@ -1511,7 +1614,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               >
                 <MaterialCommunityIcons name="swap-horizontal" color="#F0F4F8" size={16} />
                 <Text style={styles.autoTypeBannerText}>
-                  ¿Cambiar a {autoTypeSuggestion}?
+                  {tr(`¿Cambiar a ${autoTypeSuggestion}?`, `Switch to ${autoTypeSuggestion}?`)}
                 </Text>
                 <TouchableOpacity onPress={() => setAutoTypeSuggestion(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <MaterialCommunityIcons name="close" color="#F0F4F8" size={14} />
@@ -1522,7 +1625,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
           {/* NOMBRE DE DATA */}
           <View style={styles.section}>
-            <Text style={[styles.stepLabel, { color: formTheme.textPrimary }]}>NOMBRE DE DATA</Text>
+            <Text style={[styles.stepLabel, { color: formTheme.textPrimary }]}>{tr('NOMBRE DE DATA', 'DATA NAME')}</Text>
               <LinearGradient
                 colors={formTheme.gradientColors}
                 start={{ x: 0, y: 0 }}
@@ -1531,7 +1634,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               >
                 <TextInput
                   style={[styles.input, { backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderWidth: 0 }]}
-              placeholder="Ej: Mi WhatsApp"
+              placeholder={tr('Ej: Mi WhatsApp', 'Ex: My WhatsApp')}
               placeholderTextColor={formTheme.inputPlaceholder}
               value={dataName}
               onChangeText={setDataName}
@@ -1548,7 +1651,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           {/* ICONO */}
           <View style={styles.section}>
             <View style={styles.stepHeader}>
-              <Text style={[styles.stepLabel, { color: formTheme.textPrimary }]}>ICONO</Text>
+              <Text style={[styles.stepLabel, { color: formTheme.textPrimary }]}>{tr('ICONO', 'ICON')}</Text>
               <TouchableOpacity
                 style={styles.editIconBtn}
                 onPress={() => setIconModalVisible(true)}
@@ -1564,7 +1667,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                       <BrandedSpinner size={52} color="#D4AF37" />
                     </View>
                   </View>
-                  <Text style={styles.faviconLabel}>Buscando favicon en Azure...</Text>
+                  <Text style={styles.faviconLabel}>{tr('Buscando favicon en Azure...', 'Searching favicon on Azure...')}</Text>
                 </>
               ) : selectedIcon === 'favicon' && faviconUrl ? (
                 <LinearGradient
@@ -1596,7 +1699,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 <MaterialCommunityIcons name="image-plus" color="#999" size={40} />
               )}
               <Text style={[styles.iconName, { color: formTheme.textPrimary }]}>
-                {dataName?.trim() || 'Sin nombre'}
+                {dataName?.trim() || tr('Sin nombre', 'No name')}
               </Text>
             </View>
           </View>
@@ -1608,12 +1711,12 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             disabled={isSaving}
           >
             {isSaving ? (
-              <Text style={styles.createButtonText}>GUARDANDO...</Text>
+              <Text style={styles.createButtonText}>{tr('GUARDANDO...', 'SAVING...')}</Text>
             ) : (
               <>
                 <MaterialCommunityIcons name="check-circle" color="#0A1A2F" size={24} />
                 <Text style={styles.createButtonText}>
-                  {editingData?.id ? 'ACTUALIZAR' : 'CREAR'}
+                  {editingData?.id ? tr('ACTUALIZAR', 'UPDATE') : tr('CREAR', 'CREATE')}
                 </Text>
               </>
             )}
@@ -1630,7 +1733,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, { backgroundColor: formTheme.surfaceBg, borderTopColor: formTheme.border }]}>
               <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: formTheme.textPrimary }]}>Selecciona Tipo</Text>
+                <Text style={[styles.modalTitle, { color: formTheme.textPrimary }]}>{tr('Selecciona Tipo', 'Select Type')}</Text>
                 <TouchableOpacity onPress={() => setTypeModalVisible(false)}>
                   <MaterialCommunityIcons name="close" color="#1EA7FF" size={24} />
                 </TouchableOpacity>
@@ -1640,6 +1743,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 keyExtractor={item => item}
                 removeClippedSubviews={true}
                 scrollEventThrottle={16}
+                bounces={false}
+                overScrollMode="never"
                 renderItem={({ item }) => (
                   <TouchableOpacity
                     style={[
@@ -1688,7 +1793,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             <View style={styles.faviconPopupOverlay}>
               <TouchableWithoutFeedback onPress={() => {}}>
                 <View style={styles.faviconPopupCard}>
-              <Text style={styles.faviconPopupTitle}>¿Usar este icono?</Text>
+              <Text style={styles.faviconPopupTitle}>{tr('¿Usar este icono?', 'Use this icon?')}</Text>
               <View style={styles.faviconPopupPreviewBox}>
                 {faviconLoading ? (
                   <BrandedSpinner size={44} color="#D4AF37" />
@@ -1706,7 +1811,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                     closeFaviconSuggestion();
                   }}
                 >
-                  <Text style={styles.faviconConfirmButtonText}>SÍ, USAR</Text>
+                  <Text style={styles.faviconConfirmButtonText}>{tr('SÍ, USAR', 'YES, USE')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.faviconPopupButton, styles.faviconCancelButton, styles.faviconPopupButtonSpacing]}
@@ -1714,7 +1819,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                     closeFaviconSuggestion();
                   }}
                 >
-                  <Text style={styles.faviconCancelButtonText}>NO, CANCELAR</Text>
+                  <Text style={styles.faviconCancelButtonText}>{tr('NO, CANCELAR', 'NO, CANCEL')}</Text>
                 </TouchableOpacity>
               </View>
                 </View>
@@ -1733,7 +1838,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, { backgroundColor: formTheme.surfaceBg, borderTopColor: formTheme.border }]}>
               <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: formTheme.textPrimary }]}>País</Text>
+                <Text style={[styles.modalTitle, { color: formTheme.textPrimary }]}>{tr('País', 'Country')}</Text>
                 <TouchableOpacity onPress={() => setCountryModalVisible(false)}>
                   <MaterialCommunityIcons name="close" color={formTheme.textPrimary} size={24} />
                 </TouchableOpacity>
@@ -1743,6 +1848,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 keyExtractor={item => item.code}
                 removeClippedSubviews={true}
                 scrollEventThrottle={16}
+                bounces={false}
+                overScrollMode="never"
                 renderItem={({ item }) => (
                   <TouchableOpacity
                     style={styles.modalItem}
@@ -1785,7 +1892,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 <View style={styles.bottomSheetDragHandle} />
               </View>
               <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: formTheme.textPrimary }]}>Carga Segura de Documento</Text>
+                <Text style={[styles.modalTitle, { color: formTheme.textPrimary }]}>{tr('Carga Segura de Documento', 'Secure Document Upload')}</Text>
                 <TouchableOpacity onPress={() => setFileTypeModalVisible(false)}>
                   <MaterialCommunityIcons name="close" color={formTheme.textPrimary} size={24} />
                 </TouchableOpacity>
@@ -1795,6 +1902,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 contentContainerStyle={styles.fileTypeScrollContent}
                 keyboardDismissMode="on-drag"
                 showsVerticalScrollIndicator={false}
+                bounces={false}
+                overScrollMode="never"
               >
               <TouchableOpacity
                 style={[styles.fileTypeOption, { backgroundColor: formTheme.inputBg, borderColor: formTheme.border }]}
@@ -1802,8 +1911,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 disabled={isCompressing}
               >
                 <MaterialCommunityIcons name="camera" color={formTheme.textPrimary} size={30} />
-                <Text style={[styles.fileTypeText, { color: formTheme.textPrimary }]}>Tomar Foto</Text>
-                <Text style={[styles.fileTypeSubText, { color: formTheme.textSecondary }]}>Captura directa con cámara</Text>
+                <Text style={[styles.fileTypeText, { color: formTheme.textPrimary }]}>{tr('Tomar Foto', 'Take Photo')}</Text>
+                <Text style={[styles.fileTypeSubText, { color: formTheme.textSecondary }]}>{tr('Captura directa con cámara', 'Direct camera capture')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.fileTypeOption, { backgroundColor: formTheme.inputBg, borderColor: formTheme.border }]}
@@ -1811,8 +1920,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 disabled={isCompressing}
               >
                 <MaterialCommunityIcons name="image-multiple" color={formTheme.textPrimary} size={30} />
-                <Text style={[styles.fileTypeText, { color: formTheme.textPrimary }]}>Elegir imagen</Text>
-                <Text style={[styles.fileTypeSubText, { color: formTheme.textSecondary }]}>JPG, PNG o HEIC</Text>
+                <Text style={[styles.fileTypeText, { color: formTheme.textPrimary }]}>{tr('Elegir imagen', 'Choose image')}</Text>
+                <Text style={[styles.fileTypeSubText, { color: formTheme.textSecondary }]}>JPG, PNG {tr('o', 'or')} HEIC</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.fileTypeOption, { backgroundColor: formTheme.inputBg, borderColor: formTheme.border }]}
@@ -1820,8 +1929,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 disabled={isCompressing}
               >
                 <MaterialCommunityIcons name="file-document-outline" color={formTheme.textPrimary} size={30} />
-                <Text style={[styles.fileTypeText, { color: formTheme.textPrimary }]}>Elegir documento</Text>
-                <Text style={[styles.fileTypeSubText, { color: formTheme.textSecondary }]}>PDF y archivos visualizables</Text>
+                <Text style={[styles.fileTypeText, { color: formTheme.textPrimary }]}>{tr('Elegir documento', 'Choose document')}</Text>
+                <Text style={[styles.fileTypeSubText, { color: formTheme.textSecondary }]}>{tr('PDF y archivos visualizables', 'PDF and viewable files')}</Text>
               </TouchableOpacity>
               </ScrollView>
             </View>
@@ -1834,18 +1943,36 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           visible={isCompressing || isSaving || isUploading}
           transparent
           animationType="fade"
-          onRequestClose={() => {}}
+          onRequestClose={() => {
+            if (!isSaving) {
+              setIsCompressing(false);
+              setIsUploading(false);
+              setUploadModalVisible(false);
+            }
+          }}
         >
           <View style={styles.compressOverlay}>
             <View style={styles.compressCard}>
               <BrandedSpinner size={56} color="#D4AF37" />
               <Text style={styles.compressText}>
                 {isCompressing
-                  ? 'Optimizando archivo de forma segura...'
+                  ? tr('Optimizando archivo de forma segura...', 'Securely optimizing file...')
                   : isUploading
-                    ? 'Subiendo archivo al escudo de seguridad...'
-                    : 'Guardando en Bunker seguro...'}
+                    ? tr('Subiendo archivo al escudo de seguridad...', 'Uploading file to security shield...')
+                    : tr('Guardando en Bunker seguro...', 'Saving to secure Vault...')}
               </Text>
+              {!isSaving && (
+                <TouchableOpacity
+                  style={{ marginTop: 16, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: 'rgba(212,175,55,0.2)' }}
+                  onPress={() => {
+                    setIsCompressing(false);
+                    setIsUploading(false);
+                    setUploadModalVisible(false);
+                  }}
+                >
+                  <Text style={{ color: '#D4AF37', fontWeight: '700', fontSize: 14 }}>{tr('Cancelar', 'Cancel')}</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </Modal>
@@ -1863,7 +1990,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
         <LuxuryModerationModal
           visible={moderationAlertVisible}
-          title="Exclusividad de Seguridad"
+          title={tr('Exclusividad de Seguridad', 'Security Exclusivity')}
           message={moderationAlertMessage}
           onClose={() => setModerationAlertVisible(false)}
           onRetry={() => setModerationAlertVisible(false)}

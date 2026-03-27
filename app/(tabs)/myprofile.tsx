@@ -19,31 +19,32 @@ import { ModerationRejectedError, uploadFileWithModeration } from '@/services/mo
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
+import { Image as ExpoImage } from 'expo-image';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import {
-    EmailAuthProvider,
-    reauthenticateWithCredential,
-    updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updatePassword,
 } from 'firebase/auth';
-import { doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, serverTimestamp, updateDoc } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    ActionSheetIOS,
-    Alert,
-    Image,
-    Keyboard,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  ActionSheetIOS,
+  Alert,
+  InteractionManager,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View
 } from 'react-native';
 import palette from '../theme';
 
@@ -105,6 +106,7 @@ type UserProfile = {
   verificationStatus: string;
   authProvider: string;
   lastNicknameChange: string | null;
+  bio: string;
 };
 
 const NICKNAME_COOLDOWN_DAYS = 28;
@@ -160,6 +162,14 @@ export default function MyProfileScreen() {
   const [showNewPw, setShowNewPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
 
+  // Bio
+  const [editBio, setEditBio] = useState('');
+  const [savingBio, setSavingBio] = useState(false);
+
+  // Stats
+  const [statsCards, setStatsCards] = useState(0);
+  const [statsContacts, setStatsContacts] = useState(0);
+
   const scrollRef = useRef<ScrollView>(null);
 
   // ── Load profile ────────────────────────────────────────────────────────────
@@ -199,11 +209,21 @@ export default function MyProfileScreen() {
         verificationStatus: String(data.verificationStatus || 'unverified'),
         authProvider: String(data.authProvider || 'password'),
         lastNicknameChange,
+        bio: String(data.bio || ''),
       };
 
       setProfile(p);
       setEditName(p.fullName);
       setEditNickname(p.nickname);
+      setEditBio(p.bio);
+
+      // Load stats
+      try {
+        const cardsSnap = await getDocs(collection(db, 'users', uid, 'smartCards'));
+        setStatsCards(cardsSnap.size);
+        const contactsSnap = await getDocs(collection(db, 'users', uid, 'contacts'));
+        setStatsContacts(contactsSnap.size);
+      } catch { /* stats are non-critical */ }
     } catch (e: any) {
       Alert.alert(tr('Error', 'Error'), e?.message || 'No se pudo cargar el perfil.');
     } finally {
@@ -277,19 +297,21 @@ export default function MyProfileScreen() {
 
   const handlePhotoSelected = async (uri: string) => {
     if (!profile) return;
-    try {
-      setUploadingPhoto(true);
-      setLocalPhotoUri(uri);
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setUploadingPhoto(true);
+    setLocalPhotoUri(uri);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-      const optimized = await optimizePhoto(uri);
-      const result = await uploadFileWithModeration({
-        fileUri: optimized,
-        ownerUid: profile.uid,
-        label: 'profile_photo',
-        fileName: `profile_${profile.uid}_${Date.now()}.jpg`,
-        mimeType: 'image/jpeg',
-      });
+    // Defer heavy work (compress + upload) until UI animations settle
+    InteractionManager.runAfterInteractions(async () => {
+      try {
+        const optimized = await optimizePhoto(uri);
+        const result = await uploadFileWithModeration({
+          fileUri: optimized,
+          ownerUid: profile.uid,
+          label: 'profile_photo',
+          fileName: `profile_${profile.uid}_${Date.now()}.jpg`,
+          mimeType: 'image/jpeg',
+        });
 
       const newPhotoUrl = toRenderableImageUri(result.publicUrl);
 
@@ -322,6 +344,7 @@ export default function MyProfileScreen() {
     } finally {
       setUploadingPhoto(false);
     }
+    }); // InteractionManager
   };
 
   // ── Save full name ──────────────────────────────────────────────────────────
@@ -424,6 +447,24 @@ export default function MyProfileScreen() {
     }
   };
 
+  // ── Save bio ────────────────────────────────────────────────────────────────
+  const saveBio = async () => {
+    if (!profile) return;
+    const trimmed = editBio.trim().slice(0, 150);
+    setSavingBio(true);
+    try {
+      await updateDoc(doc(db, 'users', profile.uid), { bio: trimmed, updatedAt: serverTimestamp() });
+      setProfile((prev) => prev ? { ...prev, bio: trimmed } : prev);
+      setEditBio(trimmed);
+      try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {}
+      Alert.alert(tr('Listo', 'Done'), tr('Bio actualizada.', 'Bio updated.'));
+    } catch (e: any) {
+      Alert.alert(tr('Error', 'Error'), e?.message || 'No se pudo guardar.');
+    } finally {
+      setSavingBio(false);
+    }
+  };
+
   // ── Change password ─────────────────────────────────────────────────────────
   const changePassword = async () => {
     const user = auth.currentUser;
@@ -503,7 +544,7 @@ export default function MyProfileScreen() {
         >
           {/* Header */}
           <View style={[styles.header, { borderBottomColor: border }]}>
-            <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={tr('Volver', 'Go back')}>
               <MaterialCommunityIcons name="arrow-left" size={24} color={accent} />
             </TouchableOpacity>
             <Text style={[styles.headerTitle, { color: textPrimary }]}>{tr('Mi Perfil', 'My Profile')}</Text>
@@ -517,6 +558,8 @@ export default function MyProfileScreen() {
             keyboardDismissMode="on-drag"
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
+            bounces={false}
+            overScrollMode="never"
           >
 
             {/* ── Avatar ─────────────────────────────────────────────────────── */}
@@ -524,7 +567,7 @@ export default function MyProfileScreen() {
               <TouchableOpacity onPress={pickPhoto} disabled={uploadingPhoto} activeOpacity={0.8}>
                 <View style={[styles.avatarRing, { borderColor: accent }]}>
                   {displayPhoto ? (
-                    <Image source={{ uri: displayPhoto }} style={styles.avatarImg} />
+                    <ExpoImage source={{ uri: displayPhoto }} style={styles.avatarImg} cachePolicy="disk" transition={200} />
                   ) : (
                     <View style={[styles.avatarFallback, { backgroundColor: inputBg }]}>
                       <MaterialCommunityIcons name="account" size={56} color={accent} />
@@ -552,6 +595,47 @@ export default function MyProfileScreen() {
                   <Text style={[styles.verifiedText, { color: '#54C1FB' }]}>{tr('Verificado', 'Verified')}</Text>
                 </View>
               )}
+            </View>
+
+            {/* ── Stats row ──────────────────────────────────────────────────── */}
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={[styles.statValue, { color: textPrimary }]}>{statsCards}</Text>
+                <Text style={[styles.statLabel, { color: textSecondary }]}>{tr('Tarjetas', 'Cards')}</Text>
+              </View>
+              <View style={[styles.statDivider, { backgroundColor: border }]} />
+              <View style={styles.statItem}>
+                <Text style={[styles.statValue, { color: textPrimary }]}>{statsContacts}</Text>
+                <Text style={[styles.statLabel, { color: textSecondary }]}>{tr('Contactos', 'Contacts')}</Text>
+              </View>
+            </View>
+
+            {/* ── Bio ────────────────────────────────────────────────────────── */}
+            <View style={[styles.card, { backgroundColor: card, borderColor: border }]}>
+              <View style={styles.cardHeader}>
+                <MaterialCommunityIcons name="text-short" size={18} color={accent} />
+                <Text style={[styles.cardTitle, { color: textPrimary }]}>{tr('Bio', 'Bio')}</Text>
+                <Text style={[styles.bioCounter, { color: textSecondary }]}>{editBio.length}/150</Text>
+              </View>
+              <TextInput
+                style={[styles.bioInput, { backgroundColor: inputBg, color: textPrimary, borderColor: border }]}
+                value={editBio}
+                onChangeText={(t) => setEditBio(t.slice(0, 150))}
+                placeholder={tr('Cuéntale al mundo algo sobre ti…', 'Tell the world something about you…')}
+                placeholderTextColor={textSecondary}
+                multiline
+                maxLength={150}
+                textAlignVertical="top"
+                returnKeyType="default"
+              />
+              <TouchableOpacity
+                style={[styles.saveBtn, { backgroundColor: accent }, savingBio && styles.saveBtnDisabled]}
+                onPress={saveBio}
+                disabled={savingBio}
+                activeOpacity={0.82}
+              >
+                <Text style={styles.saveBtnText}>{savingBio ? tr('Guardando…', 'Saving…') : tr('Guardar bio', 'Save bio')}</Text>
+              </TouchableOpacity>
             </View>
 
             {/* ── Nombre completo ─────────────────────────────────────────────── */}
@@ -690,7 +774,7 @@ export default function MyProfileScreen() {
                         placeholder="••••••••"
                         placeholderTextColor={textSecondary}
                       />
-                      <TouchableOpacity onPress={() => setShowCurrentPw((s) => !s)}>
+                      <TouchableOpacity onPress={() => setShowCurrentPw((s) => !s)} accessibilityLabel={tr('Mostrar contraseña', 'Toggle password visibility')}>
                         <MaterialCommunityIcons name={showCurrentPw ? 'eye-off-outline' : 'eye-outline'} size={18} color={textSecondary} />
                       </TouchableOpacity>
                     </View>
@@ -705,7 +789,7 @@ export default function MyProfileScreen() {
                         placeholder="••••••••"
                         placeholderTextColor={textSecondary}
                       />
-                      <TouchableOpacity onPress={() => setShowNewPw((s) => !s)}>
+                      <TouchableOpacity onPress={() => setShowNewPw((s) => !s)} accessibilityLabel={tr('Mostrar contraseña', 'Toggle password visibility')}>
                         <MaterialCommunityIcons name={showNewPw ? 'eye-off-outline' : 'eye-outline'} size={18} color={textSecondary} />
                       </TouchableOpacity>
                     </View>
@@ -720,7 +804,7 @@ export default function MyProfileScreen() {
                         placeholder="••••••••"
                         placeholderTextColor={textSecondary}
                       />
-                      <TouchableOpacity onPress={() => setShowConfirmPw((s) => !s)}>
+                      <TouchableOpacity onPress={() => setShowConfirmPw((s) => !s)} accessibilityLabel={tr('Mostrar contraseña', 'Toggle password visibility')}>
                         <MaterialCommunityIcons name={showConfirmPw ? 'eye-off-outline' : 'eye-outline'} size={18} color={textSecondary} />
                       </TouchableOpacity>
                     </View>
@@ -969,5 +1053,43 @@ const styles = StyleSheet.create({
   pwInput: {
     flex: 1,
     fontSize: 15,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 24,
+    paddingVertical: 8,
+  },
+  statItem: {
+    alignItems: 'center',
+    gap: 2,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  statLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  statDivider: {
+    width: 1,
+    height: 28,
+    borderRadius: 1,
+  },
+  bioInput: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    minHeight: 72,
+    textAlignVertical: 'top',
+  },
+  bioCounter: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginLeft: 'auto',
   },
 });

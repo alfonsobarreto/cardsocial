@@ -14,28 +14,30 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
+import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  Dimensions,
-  FlatList,
-  Image,
-  InteractionManager,
-  Linking,
-  Modal,
-  PanResponder,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
+    ActivityIndicator,
+    Alert,
+    Animated,
+    Dimensions,
+    FlatList,
+    InteractionManager,
+    Linking,
+    Modal,
+    PanResponder,
+    Platform,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import NewInfoForm from '../components/NewInfoForm';
@@ -95,11 +97,23 @@ const VaultScreen = () => {
     selectedActionBg: isNight ? '#1C5BB9' : '#54C1FB',
     selectedActionText: '#F0F4F8',
     selectedActionGlow: isNight ? '#1C5BB9' : '#54C1FB',
+    searchBg: isNight ? '#0D2E40' : '#FFFFFF',
+    searchBorder: isNight ? 'rgba(212,175,55,0.25)' : 'rgba(0,45,75,0.15)',
+    searchText: isNight ? '#F0F4F8' : '#002D4B',
+    searchPlaceholder: isNight ? '#6B9BB8' : '#8A9DAD',
+    typeBadgeBg: isNight ? 'rgba(30,167,255,0.18)' : 'rgba(30,167,255,0.12)',
+    typeBadgeText: isNight ? '#8ED4FF' : '#1C5BB9',
+    phonePreviewBg: isNight ? '#0F2A3D' : '#FFFFFF',
+    phonePreviewBorder: isNight ? '#C5A065' : '#D4AF37',
   };
   const [links, setLinks] = useState<Link[]>([]);
   const [formModalVisible, setFormModalVisible] = useState(false);
   const [editingData, setEditingData] = useState<Link | undefined>(undefined);
   const [profileDisplayName, setProfileDisplayName] = useState('Usuario');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [phonePreviewVisible, setPhonePreviewVisible] = useState(false);
+  const [ownerPhotoUrl, setOwnerPhotoUrl] = useState<string | null>(null);
+  const [ownerRatingAvg, setOwnerRatingAvg] = useState(5);
   const [isUserVerified, setIsUserVerified] = useState(false);
   const [limitReachedVisible, setLimitReachedVisible] = useState(false);
   const [limitItemCount, setLimitItemCount] = useState(0);
@@ -110,6 +124,7 @@ const VaultScreen = () => {
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerItem, setViewerItem] = useState<Link | null>(null);
   const [isDownloadingViewerFile, setIsDownloadingViewerFile] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [contextMenuItem, setContextMenuItem] = useState<Link | null>(null);
   const [textValueModalVisible, setTextValueModalVisible] = useState(false);
@@ -227,23 +242,17 @@ const VaultScreen = () => {
   useFocusEffect(
     React.useCallback(() => {
       const verifyAccess = async () => {
-        // const authenticated = await hardLockCheck('acceso a tu Bóveda de datos');
-        // setIsVaultUnlocked(authenticated);
-        // if (authenticated) {
-        //   await evaluateDullMode();
-        //   loadVaultData();
-        //   loadProfileMeta();
-        // }
-
-        // Bypass authentication and unlock vault directly
-        setIsVaultUnlocked(true);
-        InteractionManager.runAfterInteractions(() => {
-          void (async () => {
-            await evaluateDullMode();
-            loadVaultData();
-            loadProfileMeta();
-          })();
-        });
+        const authenticated = await hardLockCheck(tr('acceso a tu Bóveda de datos', 'access to your Vault'));
+        setIsVaultUnlocked(authenticated);
+        if (authenticated) {
+          InteractionManager.runAfterInteractions(() => {
+            void (async () => {
+              await evaluateDullMode();
+              loadVaultData();
+              loadProfileMeta();
+            })();
+          });
+        }
       };
       verifyAccess();
     }, [])
@@ -291,6 +300,8 @@ const VaultScreen = () => {
       const verified = userData.verificationStatus === 'verified' || Boolean(userData.verificationSelfieFileId);
       setProfileDisplayName(displayName);
       setIsUserVerified(verified);
+      setOwnerPhotoUrl(userData.profilePhotoUrl || userData.photoUrl || null);
+      setOwnerRatingAvg(Number(userData.ratingAvg || 5));
     } catch (error) {
       console.warn('Could not load profile meta:', error);
     }
@@ -417,7 +428,11 @@ const VaultScreen = () => {
   };
 
   const triggerSuccessHaptic = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (_) {
+      // Silently ignore – Vibration/Haptics may not be available on all devices
+    }
   };
 
   const ensureWebUrl = (raw: string) => {
@@ -483,27 +498,14 @@ const VaultScreen = () => {
     }
 
     const encodedEmail = encodeURIComponent(normalizedEmail);
-    const tryOpen = async (primary: string, fallback?: string, fallback2?: string) => {
-      const canOpenPrimary = await Linking.canOpenURL(primary);
-      if (canOpenPrimary) {
-        await Linking.openURL(primary);
-        triggerSuccessHaptic();
-        return true;
-      }
-      if (fallback) {
-        const canOpenFallback = await Linking.canOpenURL(fallback);
-        if (canOpenFallback) {
-          await Linking.openURL(fallback);
+    const tryOpen = async (...urls: string[]) => {
+      for (const url of urls) {
+        try {
+          await Linking.openURL(url);
           triggerSuccessHaptic();
           return true;
-        }
-      }
-      if (fallback2) {
-        const canOpenFallback2 = await Linking.canOpenURL(fallback2);
-        if (canOpenFallback2) {
-          await Linking.openURL(fallback2);
-          triggerSuccessHaptic();
-          return true;
+        } catch (_) {
+          // This URL scheme failed – try the next one
         }
       }
       return false;
@@ -659,20 +661,7 @@ const VaultScreen = () => {
       }
 
       if (normalizedType === 'teléfono' || normalizedType === 'telefono') {
-        Alert.alert(
-          'Ghost-Link Activo',
-          'Card-Social protege tu número. Usa Calls/Contacts para llamar sin exponer datos sensibles.',
-          [
-            {
-              text: 'Ir a Calls',
-              onPress: () => router.push('/(tabs)/calls' as any),
-            },
-            {
-              text: 'Cerrar',
-              style: 'cancel',
-            },
-          ],
-        );
+        setPhonePreviewVisible(true);
         triggerSuccessHaptic();
         return;
       }
@@ -688,9 +677,11 @@ const VaultScreen = () => {
   const renderIcon = (link: Link) => {
     if (link.icon?.startsWith('http')) {
       return (
-        <Image
+        <ExpoImage
           source={{ uri: link.icon }}
           style={styles.favicon}
+          cachePolicy="disk"
+          transition={150}
         />
       );
     }
@@ -836,8 +827,28 @@ const VaultScreen = () => {
     setFormModalVisible(true);
   };
 
+  const TYPE_BADGE_MAP: Record<string, { icon: string; label: string; labelEn: string }> = {
+    'enlaces': { icon: 'link-variant', label: 'Enlace', labelEn: 'Link' },
+    'email': { icon: 'email-outline', label: 'Email', labelEn: 'Email' },
+    'teléfono': { icon: 'phone-lock', label: 'Teléfono', labelEn: 'Phone' },
+    'telefono': { icon: 'phone-lock', label: 'Teléfono', labelEn: 'Phone' },
+    'texto plain': { icon: 'text-short', label: 'Texto', labelEn: 'Text' },
+    'documento': { icon: 'file-document-outline', label: 'Doc', labelEn: 'Doc' },
+  };
+
+  const filteredLinks = useMemo(() => {
+    if (!searchQuery.trim()) return links;
+    const q = searchQuery.trim().toLowerCase();
+    return links.filter((l) =>
+      l.title.toLowerCase().includes(q) ||
+      String(l.type || '').toLowerCase().includes(q)
+    );
+  }, [links, searchQuery]);
+
   // Renderizar tarjeta en grid
-  const renderCard = ({ item }: { item: Link }) => (
+  const renderCard = ({ item }: { item: Link }) => {
+    const badge = TYPE_BADGE_MAP[normalizeType(item.type)];
+    return (
     <View style={styles.gridCell}>
       <TouchableOpacity
         style={[
@@ -846,8 +857,9 @@ const VaultScreen = () => {
         ]}
         onPress={() => handleCardAction(item)}
         onLongPress={() => handleIconLongPress(item)}
-        delayLongPress={800}
+        delayLongPress={450}
         activeOpacity={0.75}
+        accessibilityLabel={`${item.title}, ${badge?.label || item.type}`}
       >
         <View style={[
           styles.iconBox,
@@ -865,9 +877,16 @@ const VaultScreen = () => {
         <Text style={[styles.gridTitle, { color: vaultTheme.primaryText }]} numberOfLines={2}>
           {item.title}
         </Text>
+        {badge ? (
+          <View style={[styles.typeBadge, { backgroundColor: vaultTheme.typeBadgeBg }]}>
+            <MaterialCommunityIcons name={badge.icon as any} size={9} color={vaultTheme.typeBadgeText} />
+            <Text style={[styles.typeBadgeText, { color: vaultTheme.typeBadgeText }]}>{tr(badge.label, badge.labelEn)}</Text>
+          </View>
+        ) : null}
       </TouchableOpacity>
     </View>
-  );
+    );
+  };
 
   const openCreateVaultItemForm = async () => {
     try {
@@ -969,20 +988,57 @@ const VaultScreen = () => {
         </View>
       </View>
 
+      {/* Search bar (#5) */}
+      {links.length > 0 ? (
+        <View style={[styles.searchRow, { backgroundColor: vaultTheme.motherBg }]}>
+          <View style={[styles.searchInputWrap, { backgroundColor: vaultTheme.searchBg, borderColor: vaultTheme.searchBorder }]}>
+            <MaterialCommunityIcons name="magnify" size={18} color={vaultTheme.searchPlaceholder} />
+            <TextInput
+              style={[styles.searchInput, { color: vaultTheme.searchText }]}
+              placeholder={tr('Buscar en el Búnker...', 'Search Vault...')}
+              placeholderTextColor={vaultTheme.searchPlaceholder}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              returnKeyType="search"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {searchQuery.length > 0 ? (
+              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <MaterialCommunityIcons name="close-circle" size={16} color={vaultTheme.searchPlaceholder} />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
+
       {/* Lista de datos */}
       <FlatList
-        data={links}
+        data={filteredLinks}
         keyExtractor={(item) => item.id}
         renderItem={renderCard}
         numColumns={4}
         removeClippedSubviews={true}
         scrollEventThrottle={16}
+        keyboardDismissMode="on-drag"
         ListEmptyComponent={renderEmptyState}
         contentContainerStyle={styles.listContainer}
         scrollEnabled={true}
         showsVerticalScrollIndicator={false}
         bounces={false}
         overScrollMode="never"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={async () => {
+              setRefreshing(true);
+              await loadVaultData();
+              setRefreshing(false);
+            }}
+            tintColor="#C5A065"
+            colors={['#C5A065']}
+          />
+        }
       />
 
       <TouchableOpacity
@@ -1035,17 +1091,13 @@ const VaultScreen = () => {
       >
         <View style={styles.viewerOverlay}>
           <View style={styles.viewerTopBar}>
-            <TouchableOpacity
-              style={styles.viewerDownloadButton}
-              onPress={handleDownloadFromViewer}
-              disabled={isDownloadingViewerFile}
-            >
+<TouchableOpacity style={styles.viewerDownloadButton} onPress={handleDownloadFromViewer} disabled={isDownloadingViewerFile}>
               {isDownloadingViewerFile ? (
                 <ActivityIndicator size="small" color="#0A2540" />
               ) : (
                 <MaterialCommunityIcons name="download" color="#0A2540" size={18} />
               )}
-              <Text style={styles.viewerDownloadText}>Descargar</Text>
+              <Text style={styles.viewerDownloadText}>{tr('Descargar', 'Download')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.viewerCloseButton} onPress={() => setViewerVisible(false)}>
@@ -1057,14 +1109,22 @@ const VaultScreen = () => {
             {viewerItem ? (
               isImageValue(viewerItem.value) ? (
                 <ScrollView
-                  maximumZoomScale={4}
+                  maximumZoomScale={6}
                   minimumZoomScale={1}
                   contentContainerStyle={styles.viewerZoomContainer}
                   centerContent
                   bounces={false}
                   overScrollMode="never"
+                  bouncesZoom
                 >
-                  <Image source={{ uri: viewerItem.value }} style={styles.viewerImage} resizeMode="contain" />
+                  <ExpoImage
+                    source={{ uri: viewerItem.value }}
+                    style={styles.viewerImage}
+                    contentFit="contain"
+                    cachePolicy="disk"
+                    transition={200}
+                    accessibilityLabel={tr('Documento imagen', 'Document image')}
+                  />
                 </ScrollView>
               ) : isPdfValue(viewerItem.value) ? (
                 PdfComponent ? (
@@ -1089,7 +1149,7 @@ const VaultScreen = () => {
               ) : (
                 <View style={styles.viewerFallback}>
                   <MaterialCommunityIcons name="file-alert-outline" color="#C5A065" size={54} />
-                  <Text style={[styles.viewerFallbackText, { color: vaultTheme.viewerFallbackText }]}>No se pudo previsualizar este archivo.</Text>
+                  <Text style={[styles.viewerFallbackText, { color: vaultTheme.viewerFallbackText }]}>{tr('No se pudo previsualizar este archivo.', 'Could not preview this file.')}</Text>
                 </View>
               )
             ) : null}
@@ -1102,7 +1162,7 @@ const VaultScreen = () => {
         onClose={() => setDullModeLockVisible(false)}
         onRequestPremium={() => setDullModeLockVisible(false)}
         lockType="feature"
-        itemName="Edición del Búnker"
+        itemName={tr('Edición del Búnker', 'Vault Editing')}
       />
 
       <Modal
@@ -1124,7 +1184,7 @@ const VaultScreen = () => {
                   }}
                 >
                   <MaterialCommunityIcons name="star" color="#C5A065" size={18} />
-                  <Text style={[styles.contextMenuActionText, { color: vaultTheme.contextMenuText }]}>Favorito</Text>
+                  <Text style={[styles.contextMenuActionText, { color: vaultTheme.contextMenuText }]}>{tr('Favorito', 'Favorite')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -1132,7 +1192,7 @@ const VaultScreen = () => {
                   onPress={openEditFromContextMenu}
                 >
                   <MaterialCommunityIcons name="pencil" color="#1EA7FF" size={18} />
-                  <Text style={[styles.contextMenuActionText, { color: vaultTheme.contextMenuText }]}>Editar</Text>
+                  <Text style={[styles.contextMenuActionText, { color: vaultTheme.contextMenuText }]}>{tr('Editar', 'Edit')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -1141,12 +1201,12 @@ const VaultScreen = () => {
                     if (!contextMenuItem) return;
                     setContextMenuVisible(false);
                     Alert.alert(
-                      '⚠️ Confirmar',
-                      `¿Eliminar "${contextMenuItem.title}"?`,
+                      tr('⚠️ Confirmar', '⚠️ Confirm'),
+                      tr(`¿Eliminar "${contextMenuItem.title}"?`, `Delete "${contextMenuItem.title}"?`),
                       [
-                        { text: 'Cancelar', style: 'cancel' },
+                        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
                         {
-                          text: 'Eliminar',
+                          text: tr('Eliminar', 'Delete'),
                           style: 'destructive',
                           onPress: () => deleteLink(contextMenuItem),
                         },
@@ -1155,7 +1215,7 @@ const VaultScreen = () => {
                   }}
                 >
                   <MaterialCommunityIcons name="trash-can" color="#FF6B6B" size={18} />
-                  <Text style={[styles.contextMenuActionText, styles.contextDeleteText]}>Eliminar</Text>
+                  <Text style={[styles.contextMenuActionText, styles.contextDeleteText]}>{tr('Eliminar', 'Delete')}</Text>
                 </TouchableOpacity>
               </View>
             </TouchableWithoutFeedback>
@@ -1220,7 +1280,7 @@ const VaultScreen = () => {
                     }}
                   >
                     <MaterialCommunityIcons name="content-copy" color={vaultTheme.selectedActionText} size={16} />
-                    <Text style={[styles.floatingCopyText, { color: vaultTheme.selectedActionText }]}>Copiar</Text>
+                    <Text style={[styles.floatingCopyText, { color: vaultTheme.selectedActionText }]}>{tr('Copiar', 'Copy')}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -1230,7 +1290,66 @@ const VaultScreen = () => {
                       setActiveTextItem(null);
                     }}
                   >
-                    <Text style={[styles.floatingCloseText, { color: vaultTheme.floatingCloseText }]}>Cerrar</Text>
+                    <Text style={[styles.floatingCloseText, { color: vaultTheme.floatingCloseText }]}>{tr('Cerrar', 'Close')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Phone Privacy Preview Modal (#23) */}
+      <Modal
+        visible={phonePreviewVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPhonePreviewVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setPhonePreviewVisible(false)}>
+          <View style={styles.phonePreviewOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={[styles.phonePreviewCard, { backgroundColor: vaultTheme.phonePreviewBg, borderColor: vaultTheme.phonePreviewBorder }]}>
+                <Text style={[styles.phonePreviewLabel, { color: vaultTheme.secondaryText }]}>
+                  {tr('Así te ven cuando te llaman', 'How callers see you')}
+                </Text>
+
+                {ownerPhotoUrl ? (
+                  <ExpoImage source={{ uri: ownerPhotoUrl }} style={styles.phonePreviewAvatar} cachePolicy="disk" transition={150} />
+                ) : (
+                  <View style={[styles.phonePreviewAvatar, { backgroundColor: vaultTheme.iconCircleBg, alignItems: 'center', justifyContent: 'center' }]}>
+                    <MaterialCommunityIcons name="account" size={40} color={vaultTheme.iconColor} />
+                  </View>
+                )}
+
+                <Text style={[styles.phonePreviewName, { color: vaultTheme.primaryText }]}>{profileDisplayName}</Text>
+
+                <View style={styles.phonePreviewStarsRow}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <MaterialCommunityIcons
+                      key={star}
+                      name={star <= Math.round(ownerRatingAvg) ? 'star' : 'star-outline'}
+                      size={18}
+                      color="#C5A065"
+                    />
+                  ))}
+                  <Text style={[styles.phonePreviewRating, { color: vaultTheme.secondaryText }]}>{ownerRatingAvg.toFixed(1)}</Text>
+                </View>
+
+                <View style={styles.phonePreviewPrivacyBadge}>
+                  <MaterialCommunityIcons name="shield-lock" size={14} color="#C5A065" />
+                  <Text style={styles.phonePreviewPrivacyText}>
+                    {tr('Tu número siempre oculto vía Ghost-Link', 'Your number always hidden via Ghost-Link')}
+                  </Text>
+                </View>
+
+                <View style={styles.phonePreviewActions}>
+                  <TouchableOpacity style={styles.phonePreviewCallBtnDisabled} disabled activeOpacity={1}>
+                    <MaterialCommunityIcons name="phone" size={20} color="#999" />
+                    <Text style={styles.phonePreviewCallTextDisabled}>{tr('Llamar VoIP', 'VoIP Call')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.phonePreviewCloseBtn, { backgroundColor: vaultTheme.floatingCloseBg }]} onPress={() => setPhonePreviewVisible(false)}>
+                    <Text style={[styles.phonePreviewCloseText, { color: vaultTheme.floatingCloseText }]}>{tr('Cerrar', 'Close')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1315,13 +1434,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingTop: 10,
     paddingBottom: 6,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: 'transparent',
   },
   formDragHandle: {
     width: 52,
     height: 5,
     borderRadius: 999,
-    backgroundColor: 'rgba(241,241,241,0.55)',
+    backgroundColor: 'rgba(212,175,55,0.55)',
   },
   addButton: {
     width: 44,
@@ -1622,6 +1741,132 @@ const styles = StyleSheet.create({
   },
   emailClientText: {
     color: '#0A2540',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  // Search bar
+  searchRow: {
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 4,
+  },
+  searchInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    height: 40,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    paddingVertical: 0,
+  },
+  // Type badge
+  typeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  typeBadgeText: {
+    fontSize: 8,
+    fontWeight: '700',
+  },
+  // Phone Privacy Preview
+  phonePreviewOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  phonePreviewCard: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    padding: 24,
+    alignItems: 'center',
+  },
+  phonePreviewLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  phonePreviewAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginBottom: 12,
+  },
+  phonePreviewName: {
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  phonePreviewStarsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginBottom: 12,
+  },
+  phonePreviewRating: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginLeft: 6,
+  },
+  phonePreviewPrivacyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(197,160,101,0.12)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 20,
+  },
+  phonePreviewPrivacyText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#C5A065',
+  },
+  phonePreviewActions: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  phonePreviewCallBtnDisabled: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(150,150,150,0.15)',
+    opacity: 0.5,
+  },
+  phonePreviewCallTextDisabled: {
+    color: '#999',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  phonePreviewCloseBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  phonePreviewCloseText: {
     fontWeight: '700',
     fontSize: 13,
   },

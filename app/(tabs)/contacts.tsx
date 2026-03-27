@@ -1,11 +1,11 @@
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import {
-  getIncomingGhostLinkInvite,
-  respondGhostLinkInvite,
-  startGhostLinkVoipCall,
-  type GhostLinkCallStartResult,
-  type GhostLinkIncomingInvite,
+    getIncomingGhostLinkInvite,
+    respondGhostLinkInvite,
+    startGhostLinkVoipCall,
+    type GhostLinkCallStartResult,
+    type GhostLinkIncomingInvite,
 } from '@/services/ghostLinkVoip';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
@@ -14,27 +14,27 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { BlurView } from 'expo-blur';
+import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  AppState,
-  Easing,
-  FlatList,
-  Image,
-  LayoutAnimation,
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  UIManager,
-  View,
+    ActivityIndicator,
+    Alert,
+    Animated,
+    AppState,
+    Easing,
+    FlatList,
+    LayoutAnimation,
+    Modal,
+    Platform,
+    Pressable,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    UIManager,
+    View
 } from 'react-native';
 
 type Contact = {
@@ -871,7 +871,7 @@ export default function ContactsPage() {
           ]}
         >
           {row.photoUrl ? (
-            <Image source={{ uri: row.photoUrl }} style={styles.avatar} />
+            <ExpoImage source={{ uri: row.photoUrl }} style={styles.avatar} cachePolicy="disk" />
           ) : (
             <View style={[styles.avatarFallback, { backgroundColor: contactsTheme.avatarFallbackBg, borderColor: contactsTheme.avatarFallbackBorder }]}>
               <MaterialCommunityIcons name="account" size={18} color={contactsTheme.iconColor} />
@@ -1165,12 +1165,12 @@ export default function ContactsPage() {
               },
             ]}
           >
-            <TouchableOpacity style={[styles.closeBtn, { backgroundColor: contactsTheme.modalRowBg }]} onPress={closeFloatingCard}>
+            <TouchableOpacity style={[styles.closeBtn, { backgroundColor: contactsTheme.modalRowBg }]} onPress={closeFloatingCard} accessibilityLabel={tr('Cerrar', 'Close')}>
               <MaterialCommunityIcons name="close" size={20} color={contactsTheme.iconColor} />
             </TouchableOpacity>
 
             {selectedContact?.photoUrl ? (
-              <Image source={{ uri: selectedContact.photoUrl }} style={styles.modalAvatar} />
+              <ExpoImage source={{ uri: selectedContact.photoUrl }} style={styles.modalAvatar} cachePolicy="disk" />
             ) : (
               <View style={[styles.modalAvatarFallback, { backgroundColor: contactsTheme.avatarFallbackBg, borderColor: contactsTheme.avatarFallbackBorder }]}>
                 <MaterialCommunityIcons name="account" size={22} color={contactsTheme.iconColor} />
@@ -1205,7 +1205,7 @@ export default function ContactsPage() {
         <View style={styles.modalOverlay}>
           <View style={[styles.ghostConfirmCard, { backgroundColor: contactsTheme.modalBg, borderColor: contactsTheme.modalBorder }]}>
             {ghostCallTarget?.photoUrl ? (
-              <Image source={{ uri: ghostCallTarget.photoUrl }} style={styles.ghostAvatar} />
+              <ExpoImage source={{ uri: ghostCallTarget.photoUrl }} style={styles.ghostAvatar} cachePolicy="disk" />
             ) : (
               <View style={[styles.ghostAvatarFallback, { backgroundColor: contactsTheme.avatarFallbackBg, borderColor: contactsTheme.avatarFallbackBorder }]}>
                 <MaterialCommunityIcons name="account" size={18} color={contactsTheme.iconColor} />
@@ -1250,7 +1250,7 @@ export default function ContactsPage() {
           <LinearGradient colors={['#0A2540', '#0D4D8A']} style={styles.ghostActiveCallCard}>
             <Text style={styles.ghostActiveCallTitle}>{activeGhostCall?.direction === 'incoming' ? 'En llamada' : 'Llamando...'}</Text>
             {activeGhostCall?.peerPhotoUrl ? (
-              <Image source={{ uri: activeGhostCall.peerPhotoUrl }} style={styles.ghostActiveAvatar} />
+              <ExpoImage source={{ uri: activeGhostCall.peerPhotoUrl }} style={styles.ghostActiveAvatar} cachePolicy="disk" />
             ) : (
               <View style={styles.ghostActiveAvatarFallback}>
                 <MaterialCommunityIcons name="account" size={26} color="#0D4D8A" />
@@ -1314,7 +1314,7 @@ export default function ContactsPage() {
         <View style={styles.modalOverlay}>
           <View style={[styles.ghostIncomingCard, { backgroundColor: contactsTheme.modalBg, borderColor: contactsTheme.modalBorder }]}>
             {incomingGhostCall?.callerPhotoUrl ? (
-              <Image source={{ uri: incomingGhostCall.callerPhotoUrl }} style={styles.ghostIncomingAvatar} />
+              <ExpoImage source={{ uri: incomingGhostCall.callerPhotoUrl }} style={styles.ghostIncomingAvatar} cachePolicy="disk" />
             ) : (
               <View style={styles.ghostIncomingAvatarFallback}>
                 <MaterialCommunityIcons name="account" size={22} color="#0D4D8A" />

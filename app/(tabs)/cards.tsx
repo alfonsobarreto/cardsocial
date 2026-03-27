@@ -10,44 +10,46 @@ import { useLanguage } from '@/services/language';
 import { validateCardCreation } from '@/services/limitService';
 import { useLookMode } from '@/services/lookMode';
 import {
-  blockRelationship,
-  deleteSmartCardInDb,
-  issueDynamicQrToken,
-  listCardSubscribers,
-  listSmartCardsFromDb,
-  revokeCardSubscriber,
-  upsertSmartCardInDb,
+    blockRelationship,
+    deleteSmartCardInDb,
+    issueDynamicQrToken,
+    listCardSubscribers,
+    listSmartCardsFromDb,
+    revokeCardSubscriber,
+    upsertSmartCardInDb,
 } from '@/services/qrApi';
+import { getCardRowTheme } from '@/services/useActiveTheme';
 import { getWallpaperResizeMode, type WallpaperItem, type WallpaperTier } from '@/services/wallpaperService';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
+import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Gyroscope } from 'expo-sensors';
 import { doc, getDoc } from 'firebase/firestore';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
-  Animated,
-  AppState,
-  FlatList,
-  Image,
-  InteractionManager,
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  useWindowDimensions,
-  View
+    Alert,
+    Animated,
+    AppState,
+    FlatList,
+    InteractionManager,
+    Keyboard,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    useWindowDimensions,
+    View
 } from 'react-native';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import QRCode from 'react-native-qrcode-svg';
@@ -142,6 +144,8 @@ export default function CardsFactoryScreen() {
   const [selectedWallpaper, setSelectedWallpaper] = useState<WallpaperItem | null>(null);
   const [enableParallax, setEnableParallax] = useState(false);
   const [factoryVisible, setFactoryVisible] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [refreshingCards, setRefreshingCards] = useState(false);
   const [slotPickerVisible, setSlotPickerVisible] = useState(false);
   const [activeSlotIndex, setActiveSlotIndex] = useState<number | null>(null);
   const [previewVisible, setPreviewVisible] = useState(false);
@@ -171,6 +175,9 @@ export default function CardsFactoryScreen() {
   const [remainingSec, setRemainingSec] = useState(0);
   const [remainingMs, setRemainingMs] = useState(0);
   const [issuingQr, setIssuingQr] = useState(false);
+  const [cardSearchQuery, setCardSearchQuery] = useState('');
+  const [rotateHintVisible, setRotateHintVisible] = useState(false);
+  const rotateAnim = useRef(new Animated.Value(0)).current;
   const [ownerNickname, setOwnerNickname] = useState('');
   const [ownerDisplayName, setOwnerDisplayName] = useState('');
   const [ownerPhotoUrl, setOwnerPhotoUrl] = useState<string | null>(null);
@@ -366,7 +373,7 @@ export default function CardsFactoryScreen() {
     }
   };
 
-  const persistCards = async (nextCards: SmartCard[]) => {
+  const persistCards = async (nextCards: SmartCard[], changedCardIds?: string[]) => {
     setSmartCards(nextCards);
     await AsyncStorage.setItem(SMART_CARDS_STORAGE_KEY, JSON.stringify(nextCards));
 
@@ -376,7 +383,11 @@ export default function CardsFactoryScreen() {
         return;
       }
 
-      for (const card of nextCards) {
+      const cardsToSync = changedCardIds
+        ? nextCards.filter((c) => changedCardIds.includes(c.id))
+        : nextCards;
+
+      for (const card of cardsToSync) {
         await upsertSmartCardInDb({
           ownerUid,
           card: {
@@ -520,6 +531,8 @@ export default function CardsFactoryScreen() {
   };
 
   const handleSaveCard = async () => {
+    if (isSaving) return;
+
     if (!cardName.trim()) {
       Alert.alert(tr('Nombre requerido', 'Name required'), tr('Dale un nombre a tu Smart Card.', 'Give your Smart Card a name.'));
       return;
@@ -548,77 +561,83 @@ export default function CardsFactoryScreen() {
       return;
     }
 
-    const nowIso = new Date().toISOString();
+    setIsSaving(true);
 
-    if (selectedCard) {
-      const nextCards = smartCards.map((card) =>
-        card.id === selectedCard.id
-          ? {
-              ...card,
-              name: cardName.trim(),
-              layout: layoutMode,
-              themeId,
-              fontId: selectedFont?.id,
-              fontName: selectedFont?.name,
-              fontFamily: resolvedFontFamily || selectedFont?.family,
-              fontTier: selectedFont?.tier,
-              wallpaperId: selectedWallpaper?.id,
-              wallpaperUrl: selectedWallpaper?.fullUrl,
-              wallpaperThumbUrl: selectedWallpaper?.thumbnailUrl,
-              wallpaperTier: selectedWallpaper?.tier,
-              wallpaperPriceCredits: Number(selectedWallpaper?.priceCredits || 0),
-              enableParallax,
-              itemIds: normalizedItemIds,
-              updatedAt: nowIso,
-            }
-          : card
-      );
-      await persistCards(nextCards);
+    try {
+      const nowIso = new Date().toISOString();
+
+      if (selectedCard) {
+        const nextCards = smartCards.map((card) =>
+          card.id === selectedCard.id
+            ? {
+                ...card,
+                name: cardName.trim(),
+                layout: layoutMode,
+                themeId,
+                fontId: selectedFont?.id,
+                fontName: selectedFont?.name,
+                fontFamily: resolvedFontFamily || selectedFont?.family,
+                fontTier: selectedFont?.tier,
+                wallpaperId: selectedWallpaper?.id,
+                wallpaperUrl: selectedWallpaper?.fullUrl,
+                wallpaperThumbUrl: selectedWallpaper?.thumbnailUrl,
+                wallpaperTier: selectedWallpaper?.tier,
+                wallpaperPriceCredits: Number(selectedWallpaper?.priceCredits || 0),
+                enableParallax,
+                itemIds: normalizedItemIds,
+                updatedAt: nowIso,
+              }
+            : card
+        );
+        await persistCards(nextCards, [selectedCard.id]);
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Toast.show({
+          type: 'success',
+          text1: tr('Cambio exitoso', 'Change saved'),
+          text2: tr('La tarjeta se actualizo correctamente.', 'The card was updated successfully.'),
+          position: 'bottom',
+          visibilityTime: 2200,
+        });
+        setFactoryVisible(false);
+        return;
+      }
+
+      const newCard: SmartCard = {
+        id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        name: cardName.trim(),
+        layout: layoutMode,
+        themeId,
+        fontId: selectedFont?.id,
+        fontName: selectedFont?.name,
+        fontFamily: resolvedFontFamily || selectedFont?.family,
+        fontTier: selectedFont?.tier,
+        wallpaperId: selectedWallpaper?.id,
+        wallpaperUrl: selectedWallpaper?.fullUrl,
+        wallpaperThumbUrl: selectedWallpaper?.thumbnailUrl,
+        wallpaperTier: selectedWallpaper?.tier,
+        wallpaperPriceCredits: Number(selectedWallpaper?.priceCredits || 0),
+        enableParallax,
+        isFavorite: false,
+        itemIds: normalizedItemIds,
+        holdersCount: 0,
+        ratingAvg: 5,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      };
+
+      await persistCards([newCard, ...smartCards], [newCard.id]);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Toast.show({
         type: 'success',
         text1: tr('Cambio exitoso', 'Change saved'),
-        text2: tr('La tarjeta se actualizo correctamente.', 'The card was updated successfully.'),
+        text2: tr('La tarjeta se guardo correctamente.', 'The card was saved successfully.'),
         position: 'bottom',
         visibilityTime: 2200,
       });
-      InteractionManager.runAfterInteractions(() => setFactoryVisible(false));
-      return;
+      setFactoryVisible(false);
+    } finally {
+      setIsSaving(false);
     }
-
-    const newCard: SmartCard = {
-      id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      name: cardName.trim(),
-      layout: layoutMode,
-      themeId,
-      fontId: selectedFont?.id,
-      fontName: selectedFont?.name,
-      fontFamily: resolvedFontFamily || selectedFont?.family,
-      fontTier: selectedFont?.tier,
-      wallpaperId: selectedWallpaper?.id,
-      wallpaperUrl: selectedWallpaper?.fullUrl,
-      wallpaperThumbUrl: selectedWallpaper?.thumbnailUrl,
-      wallpaperTier: selectedWallpaper?.tier,
-      wallpaperPriceCredits: Number(selectedWallpaper?.priceCredits || 0),
-      enableParallax,
-      isFavorite: false,
-      itemIds: normalizedItemIds,
-      holdersCount: 0,
-      ratingAvg: 5,
-      createdAt: nowIso,
-      updatedAt: nowIso,
-    };
-
-    await persistCards([newCard, ...smartCards]);
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Toast.show({
-      type: 'success',
-      text1: tr('Cambio exitoso', 'Change saved'),
-      text2: tr('La tarjeta se guardo correctamente.', 'The card was saved successfully.'),
-      position: 'bottom',
-      visibilityTime: 2200,
-    });
-    InteractionManager.runAfterInteractions(() => setFactoryVisible(false));
   };
 
   const deleteCard = async (card: SmartCard) => {
@@ -711,6 +730,7 @@ export default function CardsFactoryScreen() {
     if (tempSelectedIds.includes(itemId)) {
       setTempSelectedIds((prev) => prev.filter((id) => id !== itemId));
       setDataSelectorLimitReached(false);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } else {
       if (tempSelectedIds.length >= MAX_CARD_SLOTS) {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -718,6 +738,7 @@ export default function CardsFactoryScreen() {
         return;
       }
       setTempSelectedIds((prev) => [...prev, itemId]);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   };
 
@@ -994,6 +1015,18 @@ export default function CardsFactoryScreen() {
     });
   }, [smartCards]);
 
+  const filteredCards = useMemo(() => {
+    const q = cardSearchQuery.trim().toLowerCase();
+    if (!q) return sortedCards;
+    return sortedCards.filter((card) => {
+      if (card.name.toLowerCase().includes(q)) return true;
+      const cardItems = vaultItems.filter((vi) => card.itemIds.includes(vi.id));
+      return cardItems.some(
+        (vi) => vi.title.toLowerCase().includes(q) || vi.value.toLowerCase().includes(q) || vi.iconName.toLowerCase().includes(q),
+      );
+    });
+  }, [sortedCards, cardSearchQuery, vaultItems]);
+
   const openPreviewCard = (card: SmartCard) => {
     setPreviewCard(card);
     // Detecta orientación actual
@@ -1113,7 +1146,7 @@ export default function CardsFactoryScreen() {
       return <MaterialCommunityIcons name="link-variant" size={size} color="#B0B0B0" />;
     }
     if (item.icon?.startsWith('http')) {
-      return <Image source={{ uri: item.icon }} style={{ width: size, height: size, borderRadius: size / 2 }} />;
+      return <ExpoImage source={{ uri: item.icon }} style={{ width: size, height: size, borderRadius: size / 2 }} cachePolicy="disk" />;
     }
     return <MaterialCommunityIcons name={(item.icon as any) || 'link-variant'} size={size} color="#0D4D8A" />;
   };
@@ -1147,7 +1180,7 @@ export default function CardsFactoryScreen() {
     return (
       <>
         {ownerPhotoUrl ? (
-          <Image source={{ uri: ownerPhotoUrl }} style={compact ? styles.wireAvatarSm : styles.wireAvatar} />
+          <ExpoImage source={{ uri: ownerPhotoUrl }} style={compact ? styles.wireAvatarSm : styles.wireAvatar} cachePolicy="disk" />
         ) : (
           <View style={compact ? styles.wireAvatarFallbackSm : styles.wireAvatarFallback}>
             <MaterialCommunityIcons name="account" size={compact ? 14 : 18} color="#0D4D8A" />
@@ -1209,11 +1242,11 @@ export default function CardsFactoryScreen() {
         {editable ? (
           <>
             {hasItem ? (
-              <TouchableOpacity style={styles.slotMinusBtn} onPress={() => removeSlotItem(slot.index)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+              <TouchableOpacity style={styles.slotMinusBtn} onPress={() => removeSlotItem(slot.index)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={tr('Quitar dato', 'Remove item')}>
                 <MaterialCommunityIcons name="minus" size={11} color="#FFFFFF" />
               </TouchableOpacity>
             ) : null}
-            <TouchableOpacity style={styles.slotPlusBtn} onPress={() => openSlotPicker(slot.index)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <TouchableOpacity style={styles.slotPlusBtn} onPress={() => openSlotPicker(slot.index)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={tr('Agregar dato', 'Add item')}>
               <MaterialCommunityIcons name="plus" size={11} color="#FFFFFF" />
             </TouchableOpacity>
           </>
@@ -1289,7 +1322,7 @@ export default function CardsFactoryScreen() {
 
   const renderCard = ({ item }: { item: SmartCard }) => {
     const refsCount = item.itemIds.length;
-    const theme = CARD_THEMES[item.themeId || 'sky-glass'];
+    const chestTheme = getCardRowTheme(item.themeId);
     const holders = item.holdersCount ?? 0;
     const rating = item.ratingAvg ?? 5;
 
@@ -1299,19 +1332,27 @@ export default function CardsFactoryScreen() {
         rightThreshold={24}
         renderRightActions={() => (
           <View style={styles.swipeActions}>
-            <TouchableOpacity style={styles.swipeEditBtn} onPress={() => openEditFactory(item)}>
+            <TouchableOpacity style={styles.swipeActionBtn} onPress={() => openEditFactory(item)} accessibilityLabel={tr('Editar tarjeta', 'Edit card')}>
               <MaterialCommunityIcons name="pencil" size={16} color="#FFFFFF" />
-              <Text style={styles.swipeActionText}>Editar</Text>
+              <Text style={styles.swipeActionText}>{tr('Editar', 'Edit')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.swipeDeleteBtn} onPress={() => deleteCard(item)}>
+            <TouchableOpacity style={[styles.swipeActionBtn, { backgroundColor: '#0D4D8A' }]} onPress={() => issueQrForCard(item)} disabled={issuingQr} accessibilityLabel={tr('Generar QR', 'Generate QR')}>
+              <MaterialCommunityIcons name="qrcode" size={16} color="#FFFFFF" />
+              <Text style={styles.swipeActionText}>QR</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.swipeActionBtn, { backgroundColor: '#C5A065' }]} onPress={() => toggleFavoriteCard(item)} accessibilityLabel={tr('Favorito', 'Favorite')}>
+              <MaterialCommunityIcons name={item.isFavorite ? 'star' : 'star-outline'} size={16} color="#FFFFFF" />
+              <Text style={styles.swipeActionText}>{item.isFavorite ? '★' : '☆'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.swipeDeleteBtn} onPress={() => deleteCard(item)} accessibilityLabel={tr('Eliminar tarjeta', 'Delete card')}>
               <MaterialCommunityIcons name="trash-can-outline" size={16} color="#FFFFFF" />
-              <Text style={styles.swipeActionText}>Eliminar</Text>
+              <Text style={styles.swipeActionText}>{tr('Eliminar', 'Delete')}</Text>
             </TouchableOpacity>
           </View>
         )}
       >
-        <View style={[styles.cardItem, isLandscape && styles.cardItemLandscape]}>
-          <LinearGradient colors={theme.colors} style={StyleSheet.absoluteFillObject} />
+        <View style={[styles.cardItem, isLandscape && styles.cardItemLandscape, { borderColor: chestTheme.borderColor, borderWidth: chestTheme.borderWidth }]}>
+          <LinearGradient colors={chestTheme.gradient} style={StyleSheet.absoluteFillObject} />
           {item.wallpaperUrl ? (
             <Animated.Image
               source={{ uri: item.wallpaperUrl }}
@@ -1330,31 +1371,15 @@ export default function CardsFactoryScreen() {
             onLongPress={() => handleCardLongPress(item)}
             delayLongPress={4000}
           >
-            <AutoScaleText style={[styles.cardTitle, item.fontFamily ? { fontFamily: item.fontFamily } : null]}>{item.name}</AutoScaleText>
-            <Text style={styles.cardMeta}>{item.layout.toUpperCase()} · {refsCount} refs</Text>
+            <AutoScaleText style={[styles.cardTitle, { color: chestTheme.titleColor }, item.fontFamily ? { fontFamily: item.fontFamily } : null]}>{item.name}</AutoScaleText>
+            <Text style={[styles.cardMeta, { color: chestTheme.metaColor }]}>{refsCount} refs</Text>
             <View style={styles.cardMetricRow}>
+              {renderRatingStars(rating)}
               <TouchableOpacity style={styles.metricPill} onPress={() => openSubscribersModal(item)}>
                 <MaterialCommunityIcons name="account-group-outline" size={13} color="#0D4D8A" />
                 <Text style={styles.metricPillText}>{holders}</Text>
               </TouchableOpacity>
-              {renderRatingStars(rating)}
             </View>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.cardIconBtn} onPress={() => openEditFactory(item)}>
-            <MaterialCommunityIcons name="pencil" size={18} color="#0D4D8A" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.cardIconBtn} onPress={() => issueQrForCard(item)} disabled={issuingQr}>
-            <MaterialCommunityIcons name="qrcode" size={18} color="#0D4D8A" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.cardIconBtn} onPress={() => toggleFavoriteCard(item)}>
-            <MaterialCommunityIcons
-              name={item.isFavorite ? 'star' : 'star-outline'}
-              size={18}
-              color={item.isFavorite ? '#C5A065' : '#0D4D8A'}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.cardIconBtn} onPress={() => deleteCard(item)}>
-            <MaterialCommunityIcons name="trash-can-outline" size={18} color="#0D4D8A" />
           </TouchableOpacity>
         </View>
       </Swipeable>
@@ -1396,8 +1421,8 @@ export default function CardsFactoryScreen() {
     <View style={[styles.container, { backgroundColor: cardsTheme.background }]}> 
       <View style={[styles.headerRow, { borderBottomColor: cardsTheme.divider }]}> 
         <View>
-          <Text style={[styles.headerTitle, { color: cardsTheme.text }]}>Smart Cards Factory</Text>
-          <Text style={[styles.headerSubtitle, { color: cardsTheme.sectionLabel }]}>QR dinámico seguro: 60 segundos</Text>
+          <Text style={[styles.headerTitle, { color: cardsTheme.text }]}>{tr('Mis Tarjetas', 'My Cards')}</Text>
+          <Text style={[styles.headerSubtitle, { color: cardsTheme.sectionLabel }]}>{smartCards.length} / 30 {tr('tarjetas', 'cards')}</Text>
         </View>
         <View style={styles.headerActionsRow}>
           {/* [CUARENTENA] Botón de escanear deshabilitado */}
@@ -1411,7 +1436,7 @@ export default function CardsFactoryScreen() {
       </View>
 
       <FlatList
-        data={sortedCards}
+        data={filteredCards}
         keyExtractor={(item) => item.id}
         renderItem={renderCard}
         horizontal={isLandscape}
@@ -1424,21 +1449,49 @@ export default function CardsFactoryScreen() {
         contentContainerStyle={[styles.cardsList, isLandscape && styles.cardsListLandscape]}
         bounces={false}
         overScrollMode="never"
+        keyboardDismissMode="on-drag"
+        refreshControl={
+          !isLandscape ? (
+            <RefreshControl
+              refreshing={refreshingCards}
+              onRefresh={async () => {
+                setRefreshingCards(true);
+                await loadSmartCards();
+                setRefreshingCards(false);
+              }}
+              tintColor="#C5A065"
+              colors={['#C5A065']}
+            />
+          ) : undefined
+        }
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
             <MaterialCommunityIcons name="credit-card-plus-outline" size={52} color="#0D4D8A" />
-            <Text style={styles.emptyTitle}>Sin Smart Cards todavía</Text>
-            <Text style={styles.emptyText}>Crea tu primera tarjeta dinámica con datos del Vault.</Text>
-            {/* [CUARENTENA] Botón de primer QR dinámico deshabilitado */}
-            {/*
-            <TouchableOpacity style={styles.firstQrBtn} onPress={createFirstDynamicQr}>
-              <MaterialCommunityIcons name="qrcode" size={18} color="#FFFFFF" />
-              <Text style={styles.firstQrBtnText}>Generar primer QR dinámico</Text>
-            </TouchableOpacity>
-            */}
+            <Text style={styles.emptyTitle}>{tr('Sin Smart Cards todavía', 'No Smart Cards yet')}</Text>
+            <Text style={styles.emptyText}>{tr('Crea tu primera tarjeta dinámica con datos del Vault.', 'Create your first dynamic card with Vault data.')}</Text>
           </View>
         }
       />
+
+      {/* Search bar — fixed above FAB */}
+      {smartCards.length > 0 && (
+        <View style={[styles.cardSearchWrap, { backgroundColor: cardsTheme.inputBg, borderColor: cardsTheme.divider }]}>
+          <MaterialCommunityIcons name="magnify" size={18} color={cardsTheme.sectionLabel} />
+          <TextInput
+            style={[styles.cardSearchInput, { color: cardsTheme.inputText }]}
+            placeholder={tr('Buscar en mis tarjetas...', 'Search my cards...')}
+            placeholderTextColor={cardsTheme.sectionLabel}
+            value={cardSearchQuery}
+            onChangeText={setCardSearchQuery}
+            returnKeyType="search"
+          />
+          {cardSearchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setCardSearchQuery('')} accessibilityLabel={tr('Limpiar', 'Clear')}>
+              <MaterialCommunityIcons name="close-circle" size={16} color={cardsTheme.sectionLabel} />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 
       <TouchableOpacity style={[styles.createFab, { backgroundColor: cardsTheme.fabBg }]} onPress={openCreateFactory} activeOpacity={0.82}>
         <MaterialCommunityIcons name="plus" size={20} color={cardsTheme.fabText} />
@@ -1460,6 +1513,7 @@ export default function CardsFactoryScreen() {
                     <TouchableOpacity
                       onPress={() => { Keyboard.dismiss(); InteractionManager.runAfterInteractions(() => setFactoryVisible(false)); }}
                       hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                      accessibilityLabel={tr('Cerrar', 'Close')}
                     >
                       <MaterialCommunityIcons name="close" size={22} color={cardsTheme.sectionLabel} />
                     </TouchableOpacity>
@@ -1468,7 +1522,7 @@ export default function CardsFactoryScreen() {
                   {/* Identity — read-only */}
                   <View style={[styles.identityAutoRow, { backgroundColor: cardsTheme.inputBg, borderColor: cardsTheme.modalBorder }]}>
                     {ownerPhotoUrl ? (
-                      <Image source={{ uri: ownerPhotoUrl }} style={styles.identityAvatarLg} />
+                      <ExpoImage source={{ uri: ownerPhotoUrl }} style={styles.identityAvatarLg} cachePolicy="disk" />
                     ) : (
                       <View style={styles.identityAvatarLgFallback}>
                         <MaterialCommunityIcons name="account" size={32} color="#0D4D8A" />
@@ -1522,25 +1576,51 @@ export default function CardsFactoryScreen() {
                     </TouchableOpacity>
                   </View>
 
-                  {/* Live preview — fills remaining height */}
+                  {/* Card preview — fills remaining height */}
                   <View style={styles.factoryPreviewWrap}>
                     <View style={[styles.factoryPreviewStage, { backgroundColor: isDark ? 'rgba(8,18,30,0.72)' : 'rgba(255,255,255,0.36)', borderColor: cardsTheme.modalBorder }] }>
                       <View style={styles.factoryPreviewHeaderRow}>
                         <Text style={[styles.factoryPreviewTitle, { color: cardsTheme.text }]}>{tr('Asi te veran', 'How they will see you')}</Text>
-                        <View style={[styles.factoryPreviewChip, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.8)', borderColor: cardsTheme.modalBorder }]}>
-                          <MaterialCommunityIcons name="flash-outline" size={12} color={cardsTheme.icon} />
-                          <Text style={[styles.factoryPreviewChipText, { color: cardsTheme.text }]}>{tr('Vista en vivo', 'Live preview')}</Text>
-                        </View>
+                        <TouchableOpacity
+                          style={[styles.factoryPreviewChip, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.8)', borderColor: cardsTheme.modalBorder }]}
+                          onPress={() => {
+                            setRotateHintVisible(true);
+                            rotateAnim.setValue(0);
+                            Animated.loop(
+                              Animated.sequence([
+                                Animated.timing(rotateAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+                                Animated.timing(rotateAnim, { toValue: 0, duration: 800, useNativeDriver: true }),
+                              ]),
+                              { iterations: 3 },
+                            ).start(() => {
+                              setTimeout(() => setRotateHintVisible(false), 600);
+                            });
+                          }}
+                          activeOpacity={0.7}
+                          accessibilityLabel={tr('Vista horizontal', 'Horizontal view')}
+                        >
+                          <MaterialCommunityIcons name="phone-rotate-landscape" size={13} color={cardsTheme.icon} />
+                          <Text style={[styles.factoryPreviewChipText, { color: cardsTheme.text }]}>{tr('Vista horizontal', 'Horizontal view')}</Text>
+                        </TouchableOpacity>
                       </View>
 
                       <View style={[styles.factoryPreviewCardFrame, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.15)' }]}>
-                        {renderWireframeCard({
-                          layout: layoutMode,
-                          slots: editSlots.filter((s) => s.item !== null),
-                          editable: false,
-                          colors: CARD_THEMES[themeId].colors,
-                          wallpaperUrl: selectedWallpaper?.fullUrl,
-                        })}
+                        {editSlots.filter((s) => s.item !== null).length === 0 ? (
+                          <View style={styles.factoryPreviewEmpty}>
+                            <MaterialCommunityIcons name="card-plus-outline" size={38} color={isDark ? 'rgba(184,231,255,0.3)' : 'rgba(13,77,138,0.18)'} />
+                            <Text style={[styles.factoryPreviewEmptyText, { color: cardsTheme.sectionLabel }]}>
+                              {tr('Agrega DATA para ver tu tarjeta aquí', 'Add DATA to see your card here')}
+                            </Text>
+                          </View>
+                        ) : (
+                          renderWireframeCard({
+                            layout: layoutMode,
+                            slots: editSlots.filter((s) => s.item !== null),
+                            editable: false,
+                            colors: CARD_THEMES[themeId].colors,
+                            wallpaperUrl: selectedWallpaper?.fullUrl,
+                          })
+                        )}
                       </View>
                     </View>
                   </View>
@@ -1553,8 +1633,8 @@ export default function CardsFactoryScreen() {
                     >
                       <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>{tr('Cancelar', 'Cancel')}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary }]} onPress={handleSaveCard}>
-                      <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>{tr('Guardar', 'Save')}</Text>
+                    <TouchableOpacity style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary, opacity: isSaving ? 0.5 : 1 }]} onPress={handleSaveCard} disabled={isSaving}>
+                      <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>{isSaving ? tr('Guardando…', 'Saving…') : tr('Guardar', 'Save')}</Text>
                     </TouchableOpacity>
                   </View>
 
@@ -1584,7 +1664,7 @@ export default function CardsFactoryScreen() {
                   {tempSelectedIds.length} / {MAX_CARD_SLOTS}
                 </Text>
               </View>
-              <TouchableOpacity onPress={cancelDataSelector} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+              <TouchableOpacity onPress={cancelDataSelector} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={tr('Cerrar', 'Close')}>
                 <MaterialCommunityIcons name="close" size={20} color={cardsTheme.sectionLabel} />
               </TouchableOpacity>
             </View>
@@ -1610,6 +1690,8 @@ export default function CardsFactoryScreen() {
                 data={vaultItems}
                 keyExtractor={(item) => item.id}
                 numColumns={3}
+                bounces={false}
+                overScrollMode="never"
                 renderItem={({ item }) => {
                   const isSelected = tempSelectedIds.includes(item.id);
                   return (
@@ -1823,6 +1905,8 @@ export default function CardsFactoryScreen() {
             <FlatList
               data={vaultItems}
               keyExtractor={(item) => item.id}
+              bounces={false}
+              overScrollMode="never"
               renderItem={({ item }) => (
                 <TouchableOpacity style={styles.slotPickerRow} onPress={() => assignVaultItemToSlot(item.id)}>
                   {renderVaultMiniIcon(item, 18)}
@@ -1909,6 +1993,24 @@ export default function CardsFactoryScreen() {
         </View>
       </Modal>
 
+      {/* Rotate phone hint overlay */}
+      <Modal visible={rotateHintVisible} transparent animationType="fade" onRequestClose={() => setRotateHintVisible(false)}>
+        <TouchableWithoutFeedback onPress={() => setRotateHintVisible(false)}>
+          <View style={styles.rotateHintOverlay}>
+            <Animated.View
+              style={{
+                transform: [{
+                  rotate: rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '90deg'] }),
+                }],
+              }}
+            >
+              <MaterialCommunityIcons name="cellphone" size={80} color="#FFFFFF" />
+            </Animated.View>
+            <Text style={styles.rotateHintText}>{tr('Gira tu celular para ver\nla vista horizontal', 'Rotate your phone to see\nthe horizontal view')}</Text>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
       <Modal
         visible={subscribersVisible}
         transparent
@@ -1922,75 +2024,74 @@ export default function CardsFactoryScreen() {
         <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}> 
           <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
           <View style={[styles.subscribersModalCard, { backgroundColor: cardsTheme.modalBg, borderColor: cardsTheme.modalBorder }]}> 
-            <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle }]}>Suscriptores de la tarjeta</Text>
+            <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle }]}>{tr('Personas con tu tarjeta', 'People with your card')}</Text>
             <Text style={[styles.subscribersSubtitle, { color: cardsTheme.modalSubtitle }]}>{subscribersCard?.name || 'Smart Card'}</Text>
 
             <ScrollView style={styles.subscribersList} bounces={false} overScrollMode="never">
               {subscribersLoading ? (
-                <Text style={[styles.subscribersLoadingText, { color: cardsTheme.sectionLabel }]}>Cargando suscriptores...</Text>
+                <Text style={[styles.subscribersLoadingText, { color: cardsTheme.sectionLabel }]}>{tr('Cargando...', 'Loading...')}</Text>
               ) : subscribers.length === 0 ? (
-                <Text style={[styles.subscribersLoadingText, { color: cardsTheme.sectionLabel }]}>Aun no hay personas con acceso a esta tarjeta.</Text>
+                <Text style={[styles.subscribersLoadingText, { color: cardsTheme.sectionLabel }]}>{tr('Aún no hay personas con acceso a esta tarjeta.', 'No one has access to this card yet.')}</Text>
               ) : (
                 subscribers.map((row) => (
-                  <View key={row.uid} style={styles.subscriberRow}>
-                    <View style={styles.subscriberIdentity}>
-                      {row.photoUrl ? (
-                        <Image source={{ uri: row.photoUrl }} style={styles.subscriberAvatar} />
-                      ) : (
-                        <View style={styles.subscriberAvatarFallback}>
-                          <MaterialCommunityIcons name="account" size={16} color="#0D4D8A" />
-                        </View>
-                      )}
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.subscriberName}>{row.name}</Text>
-                        <Text style={styles.subscriberUid}>{row.uid}</Text>
+                  <Swipeable
+                    key={row.uid}
+                    containerStyle={{ marginBottom: 6, borderRadius: 12, overflow: 'hidden' }}
+                    rightThreshold={20}
+                    renderRightActions={() => (
+                      <View style={{ flexDirection: 'row', alignItems: 'stretch' }}>
+                        <TouchableOpacity
+                          style={styles.subscriberSwipeRevoke}
+                          onPress={() => {
+                            Alert.alert(
+                              tr('Eliminar acceso', 'Remove access'),
+                              tr('Se revocará tu tarjeta de este usuario.', 'Your card will be revoked from this user.'),
+                              [
+                                { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+                                { text: tr('Eliminar', 'Remove'), style: 'destructive', onPress: () => handleRevokeSubscriber(row.uid) },
+                              ],
+                            );
+                          }}
+                        >
+                          <MaterialCommunityIcons name="card-remove-outline" size={16} color="#FFFFFF" />
+                          <Text style={styles.swipeActionText}>{tr('Quitar', 'Remove')}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.subscriberSwipeBlock}
+                          onPress={() => {
+                            Alert.alert(
+                              tr('Bloquear usuario', 'Block user'),
+                              tr('Se eliminarán todos los vínculos en ambas direcciones.', 'All share permissions will be removed bilaterally.'),
+                              [
+                                { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+                                { text: tr('Bloquear', 'Block'), style: 'destructive', onPress: () => handleBlockSubscriber(row.uid) },
+                              ],
+                            );
+                          }}
+                        >
+                          <MaterialCommunityIcons name="account-cancel-outline" size={16} color="#FFFFFF" />
+                          <Text style={styles.swipeActionText}>{tr('Bloquear', 'Block')}</Text>
+                        </TouchableOpacity>
                       </View>
-                      {row.isAmixes ? (
-                        <View style={styles.amixesBadge}>
-                          <MaterialCommunityIcons name="cards-heart-outline" size={12} color="#0A2540" />
-                          <Text style={styles.amixesBadgeText}>Tarjeta Amixes</Text>
+                    )}
+                  >
+                    <View style={[styles.subscriberRow, { backgroundColor: cardsTheme.inputBg }]}>
+                      <View style={styles.subscriberIdentity}>
+                        {row.photoUrl ? (
+                          <ExpoImage source={{ uri: row.photoUrl }} style={styles.subscriberAvatar} cachePolicy="disk" />
+                        ) : (
+                          <View style={styles.subscriberAvatarFallback}>
+                            <MaterialCommunityIcons name="account" size={16} color="#0D4D8A" />
+                          </View>
+                        )}
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.subscriberName}>{row.name}</Text>
+                          <Text style={styles.subscriberUid}>@{row.uid}</Text>
                         </View>
-                      ) : null}
+                        {renderRatingStars(5)}
+                      </View>
                     </View>
-
-                    <View style={styles.subscriberActions}>
-                      <TouchableOpacity
-                        style={styles.revokeBtn}
-                        onPress={() => {
-                          Alert.alert('Eliminar acceso', 'Se revocara al instante este permiso en la base de datos.', [
-                            { text: 'Cancelar', style: 'cancel' },
-                            {
-                              text: 'Eliminar',
-                              style: 'destructive',
-                              onPress: () => handleRevokeSubscriber(row.uid),
-                            },
-                          ]);
-                        }}
-                      >
-                        <Text style={styles.revokeBtnText}>Eliminar</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={styles.blockBtn}
-                        onPress={() => {
-                          Alert.alert(
-                            'Bloquear relacion',
-                            'Se eliminaran todos los vinculos de share_permissions en ambas direcciones.',
-                            [
-                              { text: 'Cancelar', style: 'cancel' },
-                              {
-                                text: 'Bloquear',
-                                style: 'destructive',
-                                onPress: () => handleBlockSubscriber(row.uid),
-                              },
-                            ]
-                          );
-                        }}
-                      >
-                        <Text style={styles.blockBtnText}>Bloquear</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
+                  </Swipeable>
                 ))
               )}
             </ScrollView>
@@ -2003,7 +2104,7 @@ export default function CardsFactoryScreen() {
                 setSubscribers([]);
               }}
             >
-              <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>Cerrar</Text>
+              <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>{tr('Cerrar', 'Close')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -2193,15 +2294,15 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     marginVertical: 6,
   },
-  swipeEditBtn: {
-    width: 90,
+  swipeActionBtn: {
+    width: 64,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0D4D8A',
+    backgroundColor: '#497499',
     gap: 4,
   },
   swipeDeleteBtn: {
-    width: 95,
+    width: 64,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#B7343A',
@@ -3054,6 +3155,18 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: 'rgba(255,255,255,0.15)',
   },
+  factoryPreviewEmpty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingHorizontal: 24,
+  },
+  factoryPreviewEmptyText: {
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   // ── DataSelector ───────────────────────────────────────────────────
   dataSelectorModal: {
     width: '100%',
@@ -3125,6 +3238,7 @@ const styles = StyleSheet.create({
   },
   selectorItemTileSelected: {
     borderColor: '#C5A065',
+    borderWidth: 2,
     backgroundColor: '#FFFBF0',
   },
   selectorCheckOverlay: {
@@ -3237,5 +3351,60 @@ const styles = StyleSheet.create({
     color: '#0A2540',
     fontSize: 14,
     fontWeight: '800',
+  },
+  cardSearchWrap: {
+    position: 'absolute',
+    left: 12,
+    right: 76,
+    bottom: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#B8E7FF',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    height: 42,
+    shadowColor: '#0A2540',
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+    zIndex: 10,
+  },
+  cardSearchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: '#0D4D8A',
+    paddingVertical: 0,
+  },
+  rotateHintOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(10, 37, 64, 0.88)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 24,
+  },
+  rotateHintText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  subscriberSwipeRevoke: {
+    width: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E88D3F',
+    gap: 4,
+  },
+  subscriberSwipeBlock: {
+    width: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#B7343A',
+    gap: 4,
   },
 });

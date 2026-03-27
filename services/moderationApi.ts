@@ -1,3 +1,4 @@
+import { retryWithBackoff } from '@/services/retryWithBackoff';
 import axios from 'axios';
 
 export class ModerationRejectedError extends Error {
@@ -52,14 +53,15 @@ export async function uploadFileWithModeration(params: {
   fileName: string;
   mimeType: string;
 }): Promise<{ fileId: string; filename: string; publicUrl: string | null }> {
-  const formData = new FormData();
-  formData.append('ownerUid', params.ownerUid);
-  formData.append('label', params.label);
-  formData.append('file', {
-    uri: params.fileUri,
-    name: params.fileName,
-    type: params.mimeType,
-  } as any);
+  return retryWithBackoff(async () => {
+    const formData = new FormData();
+    formData.append('ownerUid', params.ownerUid);
+    formData.append('label', params.label);
+    formData.append('file', {
+      uri: params.fileUri,
+      name: params.fileName,
+      type: params.mimeType,
+    } as any);
 
   try {
     const baseUrl = getApiBaseUrl();
@@ -72,7 +74,7 @@ export async function uploadFileWithModeration(params: {
         'x-api-gateway-key': gatewayKey,
         Authorization: `Bearer ${uploadToken}`,
       },
-      timeout: 60000,
+      timeout: 120000,
     });
 
     return {
@@ -104,4 +106,5 @@ export async function uploadFileWithModeration(params: {
 
     throw new Error(error?.response?.data?.error || error?.message || 'Upload request failed');
   }
+  }, { maxRetries: 2, baseDelayMs: 1500 });
 }

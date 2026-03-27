@@ -17,19 +17,19 @@ import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from '
 import { collection, doc, getDocs, limit, query, runTransaction, serverTimestamp, where } from 'firebase/firestore';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
-  Image,
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
+    Alert,
+    Image,
+    Keyboard,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
 } from 'react-native';
 import { auth, db } from '../services/firebaseConfig';
 import CircularPhotoCropper from './components/CircularPhotoCropper';
@@ -1002,6 +1002,8 @@ export default function RegisterScreen() {
             keyboardDismissMode="on-drag"
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
+            bounces={false}
+            overScrollMode="never"
           >
           <Text style={styles.title}>{tr('Crea tu Identidad', 'Create your Identity')}</Text>
 

@@ -16,19 +16,17 @@
 import { deductCredits, recordCreditTransaction } from '@/services/creditsService';
 import { db } from '@/services/firebaseConfig';
 import {
-  addDoc,
-  arrayUnion,
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  increment,
-  query,
-  serverTimestamp,
-  setDoc,
-  Timestamp,
-  updateDoc,
-  where,
+    addDoc,
+    arrayUnion,
+    collection,
+    doc,
+    getDoc,
+    getDocs,
+    increment,
+    serverTimestamp,
+    setDoc,
+    Timestamp,
+    updateDoc,
 } from 'firebase/firestore';
 
 export interface IconPack {
@@ -150,10 +148,32 @@ export async function getAvailableIconPacks(userId: string): Promise<IconPack[]>
     // Si es Premium, retornar TODOS los packs (están desbloqueados)
     if (isPremium) {
       const packsRef = collection(db, 'icon_packs');
-      const q = query(packsRef, where('isActive', '==', true));
-      const snapshot = await getDocs(q);
+      const snapshot = await getDocs(packsRef);
 
-      return snapshot.docs.map((doc) => {
+      return snapshot.docs
+        .filter((d) => d.data().isActive !== false)
+        .map((doc) => {
+          const row = {
+            id: doc.id,
+            ...doc.data(),
+            totalSales: doc.data().totalSales || 0,
+          } as IconPack;
+          return {
+            ...row,
+            max_supply: Number(row.max_supply ?? row.stockTotal ?? 0),
+            current_supply: Number(row.current_supply ?? row.stockRemaining ?? 0),
+            storeSection: row.storeSection || normalizeSection(row),
+          };
+        }) as IconPack[];
+    }
+
+    // Usuario GRATIS: leer todos y filtrar en cliente para evitar índice compuesto.
+    const packsRef = collection(db, 'icon_packs');
+    const snapshot = await getDocs(packsRef);
+
+    return snapshot.docs
+      .filter((d) => d.data().isActive !== false)
+      .map((doc) => {
         const row = {
           id: doc.id,
           ...doc.data(),
@@ -165,28 +185,7 @@ export async function getAvailableIconPacks(userId: string): Promise<IconPack[]>
           current_supply: Number(row.current_supply ?? row.stockRemaining ?? 0),
           storeSection: row.storeSection || normalizeSection(row),
         };
-      }) as IconPack[];
-    }
-
-    // Usuario GRATIS: leer activos y filtrar premium en cliente para evitar índice compuesto.
-    const packsRef = collection(db, 'icon_packs');
-    const q = query(packsRef, where('isActive', '==', true));
-    const snapshot = await getDocs(q);
-
-    return snapshot.docs
-      .map((doc) => {
-      const row = {
-        id: doc.id,
-        ...doc.data(),
-        totalSales: doc.data().totalSales || 0,
-      } as IconPack;
-      return {
-        ...row,
-        max_supply: Number(row.max_supply ?? row.stockTotal ?? 0),
-        current_supply: Number(row.current_supply ?? row.stockRemaining ?? 0),
-        storeSection: row.storeSection || normalizeSection(row),
-      };
-    })
+      })
       .filter((pack) => String(pack.category || '').toLowerCase() !== 'premium') as IconPack[];
   } catch (error) {
     console.error('Error getting available icon packs:', error);

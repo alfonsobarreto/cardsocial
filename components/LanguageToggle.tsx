@@ -1,10 +1,29 @@
-import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useLanguage } from '@/services/language';
+import * as Haptics from 'expo-haptics';
+import React, { useEffect, useRef } from 'react';
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
+const KNOB_LEFT = 3;
+const KNOB_RIGHT = 31; // 58 (track) - 24 (knob) - 3 (padding)
 
 export default function LanguageToggle() {
   const { language, setLanguage } = useLanguage();
   const isEnglish = language === 'en';
+  const knobAnim = useRef(new Animated.Value(isEnglish ? KNOB_LEFT : KNOB_RIGHT)).current;
+
+  useEffect(() => {
+    Animated.spring(knobAnim, {
+      toValue: isEnglish ? KNOB_LEFT : KNOB_RIGHT,
+      useNativeDriver: false,
+      friction: 7,
+      tension: 60,
+    }).start();
+  }, [isEnglish]);
+
+  const handleToggle = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setLanguage(isEnglish ? 'es' : 'en');
+  };
 
   return (
     <View style={styles.wrap}>
@@ -13,7 +32,7 @@ export default function LanguageToggle() {
       <TouchableOpacity
         style={styles.switch}
         activeOpacity={0.85}
-        onPress={() => setLanguage(isEnglish ? 'es' : 'en')}
+        onPress={handleToggle}
       >
         <View style={styles.track}>
           <View style={[styles.half, styles.usaHalf]}>
@@ -23,7 +42,7 @@ export default function LanguageToggle() {
             <Text style={styles.flagText}>🇪🇸</Text>
           </View>
         </View>
-        <View style={[styles.knob, isEnglish ? styles.knobLeft : styles.knobRight]} />
+        <Animated.View style={[styles.knob, { left: knobAnim }]} />
       </TouchableOpacity>
 
       <Text style={[styles.label, !isEnglish && styles.labelActive]}>ES</Text>
@@ -88,11 +107,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(13,77,138,0.45)',
     top: 3,
-  },
-  knobLeft: {
-    left: 3,
-  },
-  knobRight: {
-    right: 3,
   },
 });

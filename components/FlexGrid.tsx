@@ -1,12 +1,13 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
-  LayoutAnimation,
-  Platform,
-  StyleProp,
-  UIManager,
-  View,
-  ViewStyle,
-  StyleSheet,
+    Animated,
+    LayoutAnimation,
+    Platform,
+    StyleProp,
+    StyleSheet,
+    UIManager,
+    View,
+    ViewStyle,
 } from 'react-native';
 
 type GridScaleConfig = {
@@ -25,6 +26,37 @@ type FlexGridProps<T> = {
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+/** Animated cell: scale + fade entrance per item */
+function AnimatedCell({ children, widthPercent, scale }: { children: React.ReactNode; widthPercent: number; scale: number }) {
+  const anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(anim, {
+      toValue: 1,
+      friction: 7,
+      tension: 80,
+      useNativeDriver: true,
+    }).start();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <Animated.View
+      style={[
+        styles.cell,
+        {
+          width: `${widthPercent}%` as any,
+          opacity: anim,
+          transform: [
+            { scale: Animated.multiply(anim, scale) as any },
+          ],
+        },
+      ]}
+    >
+      {children}
+    </Animated.View>
+  );
 }
 
 function resolveGridScale(count: number): GridScaleConfig {
@@ -62,7 +94,11 @@ function FlexGrid<T>({ items, getKey, renderItem, style, animated = true }: Flex
     <View style={[styles.grid, style]}>
       {items.map((item, index) => {
         const key = getKey(item, index);
-        return (
+        return animated ? (
+          <AnimatedCell key={key} widthPercent={100 / gridUi.columns} scale={gridUi.scale}>
+            {renderItem(item, index, gridUi)}
+          </AnimatedCell>
+        ) : (
           <View
             key={key}
             style={[

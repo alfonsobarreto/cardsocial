@@ -1,12 +1,21 @@
 import { ConfettiAnimation, ConfettiAnimationRef } from '@/components/ConfettiAnimation';
 import { CreditsIndicator } from '@/components/CreditsIndicator';
 import IconStore from '@/components/IconStore';
+import LanguageToggle from '@/components/LanguageToggle';
 import Subscription from '@/components/Subscription';
+import ThemeChest from '@/components/ThemeChest';
 import { getActiveUserId } from '@/services/authSession';
 import { auth, db } from '@/services/firebaseConfig';
 import { requestLocationPermission } from '@/services/geolocationService';
+import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { listBlockedRelations, unblockRelationship } from '@/services/qrApi';
+import {
+    type RelationshipEntry,
+    type RelationshipStatus,
+    listRelationshipsByStatus,
+    removeRelationship as removeRelEntry
+} from '@/services/relationshipService';
 import { isSuperAdmin } from '@/services/roleService';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -15,32 +24,32 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Tabs, useRouter } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where
+    collection,
+    doc,
+    getDoc,
+    getDocs,
+    query,
+    serverTimestamp,
+    updateDoc,
+    where
 } from 'firebase/firestore';
 import { CreditCard, Database, Phone, PlayCircle, Search, Users } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
-  Image,
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
+    Alert,
+    Image,
+    Keyboard,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
 } from 'react-native';
 
 type BlockedUser = {
@@ -64,8 +73,10 @@ type EditableProfile = {
 
 export default function TabLayout({ children }: { children: React.ReactNode }) {
   const { mode, resolvedMode, setMode, autoStatusText } = useLookMode();
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => (language === 'en' ? en : es);
   const [drawerVisible, setDrawerVisible] = useState(false);
-  const [activePanel, setActivePanel] = useState<'menu' | 'profile' | 'terms' | 'policy' | 'about' | 'privacy' | 'subscription' | 'icon_store'>('menu');
+  const [activePanel, setActivePanel] = useState<'menu' | 'profile' | 'terms' | 'policy' | 'about' | 'privacy' | 'subscription' | 'icon_store' | 'blocked_users' | 'theme_chest'>('menu');
   const [creditsRefreshTrigger, setCreditsRefreshTrigger] = useState(0);
   const [welcomeBonusApplied, setWelcomeBonusApplied] = useState(false);
   const [userIsSuperAdmin, setUserIsSuperAdmin] = useState(false);
@@ -75,6 +86,10 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const confettiRef = useRef<ConfettiAnimationRef>(null);
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
   const [loadingBlocked, setLoadingBlocked] = useState(false);
+  type RelTab = 'muted' | 'restricted' | 'blocked';
+  const [relTab, setRelTab] = useState<RelTab>('blocked');
+  const [relEntries, setRelEntries] = useState<RelationshipEntry[]>([]);
+  const [loadingRel, setLoadingRel] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
@@ -84,45 +99,47 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   const panelTitle = useMemo(() => {
-    if (activePanel === 'profile') return 'Perfil';
-    if (activePanel === 'terms') return 'Términos y Condiciones';
-    if (activePanel === 'policy') return 'Política de Uso';
-    if (activePanel === 'about') return 'Acerca de Card-Social';
-    if (activePanel === 'privacy') return 'Privacidad';
-    if (activePanel === 'subscription') return 'Tienda del Búnker';
-    if (activePanel === 'icon_store') return '🎨 Tienda de Iconos';
-    return 'Menú';
-  }, [activePanel]);
+    if (activePanel === 'profile') return tr('Perfil', 'Profile');
+    if (activePanel === 'terms') return tr('Términos y Condiciones', 'Terms & Conditions');
+    if (activePanel === 'policy') return tr('Política de Uso', 'Usage Policy');
+    if (activePanel === 'about') return tr('Acerca de Card-Social', 'About Card-Social');
+    if (activePanel === 'privacy') return tr('Privacidad', 'Privacy');
+    if (activePanel === 'subscription') return tr('Tienda del Búnker', 'Vault Store');
+    if (activePanel === 'icon_store') return tr('🎨 Tienda de Iconos', '🎨 Icon Store');
+    if (activePanel === 'theme_chest') return tr('🏆 Cofre de Themes', '🏆 Theme Chest');
+    if (activePanel === 'blocked_users') return tr('Gestión de Relaciones', 'Relationship Manager');
+    return tr('Menú', 'Menu');
+  }, [activePanel, language]);
 
   const legalContent = useMemo(() => {
     if (activePanel === 'terms') {
       return [
-        'Card-Social funciona como una bóveda digital para compartir acceso, no para exponer datos sensibles.',
-        'Si un usuario decide abrir enlaces externos (wa.me, mailto, etc.), acepta que su información puede quedar visible fuera del ecosistema protegido.',
-        'El uso de llamadas y herramientas de contacto está prohibido para acoso, spam, fraude o suplantación de identidad.',
-        'Card-Social puede suspender cuentas con comportamiento abusivo y aplicar bloqueo permanente de dispositivo en casos graves.',
+        tr('Card-Social funciona como una bóveda digital para compartir acceso, no para exponer datos sensibles.', 'Card-Social works as a digital vault to share access, not to expose sensitive data.'),
+        tr('Si un usuario decide abrir enlaces externos (wa.me, mailto, etc.), acepta que su información puede quedar visible fuera del ecosistema protegido.', 'If a user opens external links (wa.me, mailto, etc.), they accept their information may be visible outside the protected ecosystem.'),
+        tr('El uso de llamadas y herramientas de contacto está prohibido para acoso, spam, fraude o suplantación de identidad.', 'Using calls and contact tools for harassment, spam, fraud, or identity theft is prohibited.'),
+        tr('Card-Social puede suspender cuentas con comportamiento abusivo y aplicar bloqueo permanente de dispositivo en casos graves.', 'Card-Social may suspend accounts with abusive behavior and apply permanent device blocks in severe cases.'),
       ];
     }
 
     if (activePanel === 'policy') {
       return [
-        'Todo archivo o selfie pasa por validación de seguridad con IA antes de guardarse en la nube.',
-        'Está prohibido subir contenido sexual explícito, gore, violencia extrema o material ilegal.',
-        'Intentos repetidos de contenido prohibido activan controles de seguridad, incluyendo bloqueo temporal de reintentos.',
-        'El sistema puede rechazar contenido que no cumpla estándares de seguridad y confianza de la comunidad.',
+        tr('Todo archivo o selfie pasa por validación de seguridad con IA antes de guardarse en la nube.', 'Every file or selfie goes through AI security validation before being saved to the cloud.'),
+        tr('Está prohibido subir contenido sexual explícito, gore, violencia extrema o material ilegal.', 'Uploading explicit sexual content, gore, extreme violence, or illegal material is prohibited.'),
+        tr('Intentos repetidos de contenido prohibido activan controles de seguridad, incluyendo bloqueo temporal de reintentos.', 'Repeated attempts with prohibited content trigger security controls, including temporary retry blocks.'),
+        tr('El sistema puede rechazar contenido que no cumpla estándares de seguridad y confianza de la comunidad.', 'The system may reject content that does not meet community security and trust standards.'),
       ];
     }
 
     if (activePanel === 'about') {
       return [
-        'Card-Social nació para devolver al usuario el control total de su información personal y profesional.',
-        'Nuestra misión es reemplazar el intercambio inseguro de datos por accesos inteligentes, verificados y actualizados en tiempo real.',
-        'Confianza, elegancia y simplicidad: esa es la base del diseño y de toda la experiencia de producto.',
+        tr('Card-Social nació para devolver al usuario el control total de su información personal y profesional.', 'Card-Social was born to give users full control of their personal and professional information.'),
+        tr('Nuestra misión es reemplazar el intercambio inseguro de datos por accesos inteligentes, verificados y actualizados en tiempo real.', 'Our mission is to replace insecure data exchange with smart, verified, real-time access.'),
+        tr('Confianza, elegancia y simplicidad: esa es la base del diseño y de toda la experiencia de producto.', 'Trust, elegance, and simplicity: that is the foundation of the design and the entire product experience.'),
       ];
     }
 
     return [];
-  }, [activePanel]);
+  }, [activePanel, language]);
 
   const handleSignOut = async () => {
     try {
@@ -143,8 +160,8 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
       const granted = await requestLocationPermission();
       if (!granted) {
         Alert.alert(
-          'Permiso de GPS no otorgado',
-          'Auto seguirá funcionando con precisión limitada (sin ubicación exacta).'
+          tr('Permiso de GPS no otorgado', 'GPS permission not granted'),
+          tr('Auto seguirá funcionando con precisión limitada (sin ubicación exacta).', 'Auto will keep working with limited precision (no exact location).')
         );
       }
     }
@@ -174,6 +191,47 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
     } finally {
       setLoadingBlocked(false);
     }
+  };
+
+  const loadRelEntries = async (tab: RelTab = relTab) => {
+    try {
+      setLoadingRel(true);
+      const ownerUid = await getActiveUserId();
+      if (!ownerUid) { setRelEntries([]); return; }
+      const entries = await listRelationshipsByStatus(ownerUid, tab as RelationshipStatus);
+      setRelEntries(entries);
+    } catch {
+      setRelEntries([]);
+    } finally {
+      setLoadingRel(false);
+    }
+  };
+
+  const handleRelRemove = async (entry: RelationshipEntry) => {
+    Alert.alert(
+      tr('Restaurar usuario', 'Restore user'),
+      tr(
+        `¿Quitar a ${entry.name} de ${entry.status === 'muted' ? 'silenciados' : entry.status === 'restricted' ? 'restringidos' : 'bloqueados'}?`,
+        `Remove ${entry.name} from ${entry.status}?`
+      ),
+      [
+        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+        {
+          text: tr('Restaurar', 'Restore'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const ownerUid = await getActiveUserId();
+              if (!ownerUid) return;
+              await removeRelEntry(ownerUid, entry.uid, entry.status);
+              setRelEntries((prev) => prev.filter((e) => e.uid !== entry.uid));
+            } catch (err: any) {
+              Alert.alert('Error', err?.message || tr('No se pudo restaurar.', 'Could not restore.'));
+            }
+          },
+        },
+      ]
+    );
   };
 
   const loadProfile = async () => {
@@ -238,7 +296,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   };
 
   const formatCooldownDate = (date: Date) => {
-    return new Intl.DateTimeFormat('es-MX', {
+    return new Intl.DateTimeFormat(language === 'en' ? 'en-US' : 'es-MX', {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
@@ -247,7 +305,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
 
   const openProfileEditor = () => {
     if (!profileData) {
-      Alert.alert('Perfil no disponible', 'No se pudo cargar tu perfil en este momento.');
+      Alert.alert(tr('Perfil no disponible', 'Profile unavailable'), tr('No se pudo cargar tu perfil en este momento.', 'Could not load your profile right now.'));
       return;
     }
     setEditFullName(profileData.fullName);
@@ -265,11 +323,11 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
     const nextNicknameLower = nextNickname.toLowerCase();
 
     if (!nextFullName) {
-      Alert.alert('Nombre requerido', 'Debes mantener un nombre visible en tu perfil.');
+      Alert.alert(tr('Nombre requerido', 'Name required'), tr('Debes mantener un nombre visible en tu perfil.', 'You must keep a visible name in your profile.'));
       return;
     }
     if (!nextNickname) {
-      Alert.alert('Nickname requerido', 'El nickname es obligatorio y unico.');
+      Alert.alert(tr('Nickname requerido', 'Nickname required'), tr('El nickname es obligatorio y unico.', 'Nickname is required and unique.'));
       return;
     }
 
@@ -283,7 +341,9 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
 
       if (nicknameChanged) {
         // Lógica robusta: llamar al endpoint backend
-        const response = await fetch(`/api/users/${profileData.uid}/nickname`, {
+        const apiBase =
+          (process.env.EXPO_PUBLIC_BACKEND_BASE_URL ?? process.env.EXPO_PUBLIC_MODERATION_API_URL ?? '').trim().replace(/\/+$/, '');
+        const response = await fetch(`${apiBase}/api/users/${profileData.uid}/nickname`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -293,17 +353,17 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
         if (!response.ok) {
           nicknameChangeSuccess = false;
           const data = await response.json().catch(() => ({}));
-          backendNicknameError = data?.error || 'No se pudo cambiar el nickname.';
+          backendNicknameError = data?.error || tr('No se pudo cambiar el nickname.', 'Could not change nickname.');
         }
       }
 
       if (nicknameChanged && !nicknameChangeSuccess) {
         if (backendNicknameError.includes('cooldown')) {
-          Alert.alert('Cambio bloqueado', 'No puedes cambiar tu nickname todavía. Intenta más tarde.');
+          Alert.alert(tr('Cambio bloqueado', 'Change blocked'), tr('No puedes cambiar tu nickname todavía. Intenta más tarde.', 'You cannot change your nickname yet. Try later.'));
         } else if (backendNicknameError.includes('taken')) {
-          Alert.alert('Nickname en uso', 'Ese nickname ya pertenece a otro usuario.');
+          Alert.alert(tr('Nickname en uso', 'Nickname taken'), tr('Ese nickname ya pertenece a otro usuario.', 'That nickname belongs to another user.'));
         } else {
-          Alert.alert('No se pudo cambiar el nickname', backendNicknameError);
+          Alert.alert(tr('No se pudo cambiar el nickname', 'Could not change nickname'), backendNicknameError);
         }
         return;
       }
@@ -342,9 +402,9 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
       }
 
       setProfileModalVisible(false);
-      Alert.alert('Perfil actualizado', 'Los cambios se guardaron correctamente.');
+      Alert.alert(tr('Perfil actualizado', 'Profile updated'), tr('Los cambios se guardaron correctamente.', 'Changes saved successfully.'));
     } catch (error: any) {
-      Alert.alert('No se pudo guardar', error?.message || 'Intenta nuevamente.');
+      Alert.alert(tr('No se pudo guardar', 'Could not save'), error?.message || tr('Intenta nuevamente.', 'Try again.'));
     } finally {
       setProfileSaving(false);
     }
@@ -354,13 +414,13 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
     try {
       const ownerUid = await getActiveUserId();
       if (!ownerUid) {
-        throw new Error('No se pudo validar tu sesión.');
+        throw new Error(tr('No se pudo validar tu sesión.', 'Could not validate your session.'));
       }
 
       await unblockRelationship({ ownerUid, targetUid });
       setBlockedUsers((prev) => prev.filter((row) => row.uid !== targetUid));
     } catch (error: any) {
-      Alert.alert('No se pudo desbloquear', error?.message || 'Inténtalo de nuevo.');
+      Alert.alert(tr('No se pudo desbloquear', 'Could not unblock'), error?.message || tr('Inténtalo de nuevo.', 'Try again.'));
     }
   };
 
@@ -429,17 +489,17 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
 
   const formatBlockedMonthYear = (isoDate: string | null) => {
     if (!isoDate) {
-      return 'Bloqueado: --';
+      return tr('Bloqueado: --', 'Blocked: --');
     }
     const parsed = new Date(isoDate);
     if (Number.isNaN(parsed.getTime())) {
-      return 'Bloqueado: --';
+      return tr('Bloqueado: --', 'Blocked: --');
     }
-    const formatted = new Intl.DateTimeFormat('en-US', {
+    const formatted = new Intl.DateTimeFormat(language === 'en' ? 'en-US' : 'es-MX', {
       month: 'short',
       year: 'numeric',
     }).format(parsed);
-    return `Bloqueado: ${formatted}`;
+    return tr(`Bloqueado: ${formatted}`, `Blocked: ${formatted}`);
   };
 
   return (
@@ -482,69 +542,87 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
             </View>
           ),
           headerRight: () => (
-            <TouchableOpacity
-              onPress={() => {
-                setActivePanel('menu');
-                setDrawerVisible(true);
-              }}
-              style={styles.headerMenuButton}
-            >
-              <MaterialCommunityIcons name="menu" size={24} color="#D4AF37" />
-              {/* Red badge — only visible when admin has pending reports */}
-              {userIsSuperAdmin && adminPendingReports > 0 ? (
-                <View style={styles.menuBadge}>
-                  <Text style={styles.menuBadgeText}>
-                    {adminPendingReports > 99 ? '99+' : adminPendingReports}
-                  </Text>
-                </View>
-              ) : null}
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginRight: 12 }}>
+              <LanguageToggle />
+              <TouchableOpacity
+                onPress={() => {
+                  setActivePanel('menu');
+                  setDrawerVisible(true);
+                }}
+                style={styles.headerMenuButton}
+                accessibilityLabel={tr('Abrir menú', 'Open menu')}
+              >
+                <MaterialCommunityIcons name="menu" size={24} color="#D4AF37" />
+                {/* Red badge — only visible when admin has pending reports */}
+                {userIsSuperAdmin && adminPendingReports > 0 ? (
+                  <View style={styles.menuBadge}>
+                    <Text style={styles.menuBadgeText}>
+                      {adminPendingReports > 99 ? '99+' : adminPendingReports}
+                    </Text>
+                  </View>
+                ) : null}
+              </TouchableOpacity>
+            </View>
           ),
         }}>
         <Tabs.Screen
           name="vault"
           options={{
-            title: 'Bóveda',
+            title: tr('Bóveda', 'Vault'),
             tabBarIcon: ({ color }) => <Database color={color} size={24} />,
           }}
         />
         <Tabs.Screen
           name="cards"
           options={{
-            title: 'Tarjetas',
+            title: tr('Tarjetas', 'Cards'),
             tabBarIcon: ({ color }) => <CreditCard color={color} size={24} />,
           }}
         />
         <Tabs.Screen
           name="contacts"
           options={{
-            title: 'Contactos',
+            title: tr('Contactos', 'Contacts'),
             tabBarIcon: ({ color }) => <Users color={color} size={24} />,
           }}
         />
         <Tabs.Screen
           name="search"
           options={{
-            title: 'Buscar',
+            title: tr('Buscar', 'Search'),
             tabBarIcon: ({ color }) => <Search color={color} size={24} />,
           }}
         />
         <Tabs.Screen
           name="stories"
           options={{
-            title: 'Historias',
+            title: tr('Historias', 'Stories'),
             tabBarIcon: ({ color }) => <PlayCircle color={color} size={24} />,
           }}
         />
         <Tabs.Screen
           name="calls"
           options={{
-            title: 'Llamadas',
+            title: tr('Llamadas', 'Calls'),
             tabBarIcon: ({ color }) => <Phone color={color} size={24} />,
           }}
         />
         <Tabs.Screen
           name="myprofile"
+          options={{
+            href: null,
+            headerShown: false,
+          }}
+        />
+        <Tabs.Screen
+          name="accountRecovery"
+          options={{
+            href: null,
+            headerShown: false,
+          }}
+        />
+        <Tabs.Screen
+          name="createBusinessCard"
           options={{
             href: null,
             headerShown: false,
@@ -570,7 +648,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
               <View style={styles.drawerInner}>
                 <View style={styles.drawerHeader}>
                   <Text style={styles.drawerTitle}>{panelTitle}</Text>
-                  <TouchableOpacity onPress={() => setDrawerVisible(false)}>
+                  <TouchableOpacity onPress={() => setDrawerVisible(false)} accessibilityLabel={tr('Cerrar menú', 'Close menu')}>
                     <MaterialCommunityIcons name="close" size={24} color="#0D4D8A" />
                   </TouchableOpacity>
                 </View>
@@ -593,14 +671,14 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                         color={adminPendingReports > 0 ? '#FF4444' : '#C5A065'}
                       />
                       <Text style={[styles.adminStatLabel, adminPendingReports > 0 && { color: '#FF4444' }]}>
-                        {adminPendingReports > 0 ? `${adminPendingReports} reportes` : 'Sin reportes'}
+                        {adminPendingReports > 0 ? `${adminPendingReports} ${tr('reportes', 'reports')}` : tr('Sin reportes', 'No reports')}
                       </Text>
                     </View>
                     {/* Total users */}
                     <View style={styles.adminStatChip}>
                       <MaterialCommunityIcons name="account-group-outline" size={14} color="#C5A065" />
                       <Text style={styles.adminStatLabel}>
-                        {adminTotalUsers !== null ? `${adminTotalUsers} usuarios` : '...'}
+                        {adminTotalUsers !== null ? `${adminTotalUsers} ${tr('usuarios', 'users')}` : '...'}
                       </Text>
                     </View>
                     {/* Revenue today */}
@@ -625,37 +703,42 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                       }}
                     >
                       <MaterialCommunityIcons name="account-circle-outline" size={18} color="#C5A065" />
-                      <Text style={[styles.drawerItemText, { color: '#C5A065', fontWeight: '700' }]}>Mi Perfil</Text>
+                      <Text style={[styles.drawerItemText, { color: '#C5A065', fontWeight: '700' }]}>{tr('Mi Perfil', 'My Profile')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('terms')}>
                       <MaterialCommunityIcons name="file-document-outline" size={18} color="#0D4D8A" />
-                      <Text style={styles.drawerItemText}>Términos y Condiciones</Text>
+                      <Text style={styles.drawerItemText}>{tr('Términos y Condiciones', 'Terms & Conditions')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('policy')}>
                       <MaterialCommunityIcons name="shield-lock-outline" size={18} color="#0D4D8A" />
-                      <Text style={styles.drawerItemText}>Política de Uso</Text>
+                      <Text style={styles.drawerItemText}>{tr('Política de Uso', 'Usage Policy')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('about')}>
                       <MaterialCommunityIcons name="information-outline" size={18} color="#0D4D8A" />
-                      <Text style={styles.drawerItemText}>Acerca de Card-Social</Text>
+                      <Text style={styles.drawerItemText}>{tr('Acerca de Card-Social', 'About Card-Social')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('privacy')}>
                       <MaterialCommunityIcons name="shield-account-outline" size={18} color="#0D4D8A" />
-                      <Text style={styles.drawerItemText}>Privacidad</Text>
+                      <Text style={styles.drawerItemText}>{tr('Privacidad', 'Privacy')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('subscription')}>
                       <MaterialCommunityIcons name="store" size={18} color="#C5A065" />
-                      <Text style={[styles.drawerItemText, { color: '#C5A065', fontWeight: '600' }]}>Tienda del Búnker</Text>
+                      <Text style={[styles.drawerItemText, { color: '#C5A065', fontWeight: '600' }]}>{tr('Tienda del Búnker', 'Vault Store')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('icon_store')}>
                       <MaterialCommunityIcons name="palette-outline" size={18} color="#0D4D8A" />
-                      <Text style={styles.drawerItemText}>🎨 Tienda de Iconos</Text>
+                      <Text style={styles.drawerItemText}>{tr('🎨 Tienda de Iconos', '🎨 Icon Store')}</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('theme_chest')}>
+                      <MaterialCommunityIcons name="treasure-chest" size={18} color="#C5A065" />
+                      <Text style={[styles.drawerItemText, { color: '#C5A065', fontWeight: '600' }]}>{tr('🏆 Cofre de Themes', '🏆 Theme Chest')}</Text>
                     </TouchableOpacity>
 
                     {userIsSuperAdmin && (
@@ -673,26 +756,31 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
 
                     <TouchableOpacity style={styles.drawerItem}>
                       <MaterialCommunityIcons name="cog-outline" size={18} color="#0D4D8A" />
-                      <Text style={styles.drawerItemText}>Configuración</Text>
+                      <Text style={styles.drawerItemText}>{tr('Configuración', 'Settings')}</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.drawerItem} onPress={() => { setActivePanel('blocked_users'); void loadRelEntries('blocked'); setRelTab('blocked'); }}>
+                      <MaterialCommunityIcons name="account-cancel-outline" size={18} color="#B7343A" />
+                      <Text style={[styles.drawerItemText, { color: '#B7343A' }]}>{tr('Gestión de Relaciones', 'Relationship Manager')}</Text>
                     </TouchableOpacity>
 
                     <View style={styles.lookModeSection}>
                       <View style={styles.lookModeHeaderRow}>
                         <MaterialCommunityIcons name="theme-light-dark" size={18} color="#0D4D8A" />
-                        <Text style={styles.lookModeTitle}>Apariencia</Text>
+                        <Text style={styles.lookModeTitle}>{tr('Apariencia', 'Appearance')}</Text>
                       </View>
                       <View style={styles.lookModeRow}>
                         <TouchableOpacity
                           style={[styles.lookModeButton, mode === 'dia' && styles.lookModeButtonActive]}
                           onPress={() => setMode('dia')}
                         >
-                          <Text style={[styles.lookModeButtonText, mode === 'dia' && styles.lookModeButtonTextActive]}>Dia</Text>
+                          <Text style={[styles.lookModeButtonText, mode === 'dia' && styles.lookModeButtonTextActive]}>{tr('Dia', 'Day')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={[styles.lookModeButton, mode === 'noche' && styles.lookModeButtonActive]}
                           onPress={() => setMode('noche')}
                         >
-                          <Text style={[styles.lookModeButtonText, mode === 'noche' && styles.lookModeButtonTextActive]}>Noche</Text>
+                          <Text style={[styles.lookModeButtonText, mode === 'noche' && styles.lookModeButtonTextActive]}>{tr('Noche', 'Night')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={[styles.lookModeButton, mode === 'auto' && styles.lookModeButtonActive]}
@@ -702,26 +790,26 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                         </TouchableOpacity>
                       </View>
                       {mode === 'auto' ? (
-                        <Text style={styles.lookModeHint}>{autoStatusText}. Resuelto: {resolvedMode}.</Text>
+                        <Text style={styles.lookModeHint}>{autoStatusText}. {tr('Resuelto', 'Resolved')}: {resolvedMode}.</Text>
                       ) : null}
                     </View>
 
                     <TouchableOpacity style={styles.drawerItem}>
                       <MaterialCommunityIcons name="qrcode-scan" size={18} color="#0D4D8A" />
-                      <Text style={styles.drawerItemText}>Mis QR (Próximamente)</Text>
+                      <Text style={styles.drawerItemText}>{tr('Mis QR (Próximamente)', 'My QR (Coming Soon)')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.drawerItem} onPress={handleSignOut}>
                       <MaterialCommunityIcons name="logout" size={18} color="#0D4D8A" />
-                      <Text style={styles.drawerItemText}>Cerrar Sesión</Text>
+                      <Text style={styles.drawerItemText}>{tr('Cerrar Sesión', 'Sign Out')}</Text>
                     </TouchableOpacity>
                   </View>
                 ) : activePanel === 'privacy' ? (
                   <ScrollView style={styles.legalScroll} contentContainerStyle={styles.legalContentWrap}>
                     {loadingBlocked ? (
-                      <Text style={styles.legalText}>Cargando bloqueados...</Text>
+                      <Text style={styles.legalText}>{tr('Cargando bloqueados...', 'Loading blocked users...')}</Text>
                     ) : blockedUsers.length === 0 ? (
-                      <Text style={styles.legalText}>No tienes usuarios bloqueados.</Text>
+                      <Text style={styles.legalText}>{tr('No tienes usuarios bloqueados.', 'No blocked users.')}</Text>
                     ) : (
                       blockedUsers.map((user) => (
                         <View key={user.uid} style={styles.blockedRow}>
@@ -742,17 +830,17 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                           <TouchableOpacity
                             style={styles.unblockBtn}
                             onPress={() => {
-                              Alert.alert('Desbloquear usuario', 'Al desbloquear, este contacto podra escanear tus QR nuevamente.', [
-                                { text: 'Cancelar', style: 'cancel' },
+                              Alert.alert(tr('Desbloquear usuario', 'Unblock user'), tr('Al desbloquear, este contacto podra escanear tus QR nuevamente.', 'By unblocking, this contact will be able to scan your QR again.'), [
+                                { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
                                 {
-                                  text: 'Desbloquear',
+                                  text: tr('Desbloquear', 'Unblock'),
                                   style: 'destructive',
                                   onPress: () => handleUnblock(user.uid),
                                 },
                               ]);
                             }}
                           >
-                            <Text style={styles.unblockBtnText}>Desbloquear</Text>
+                            <Text style={styles.unblockBtnText}>{tr('Desbloquear', 'Unblock')}</Text>
                           </TouchableOpacity>
                         </View>
                       ))
@@ -761,32 +849,32 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                 ) : activePanel === 'profile' ? (
                   <ScrollView style={styles.legalScroll} contentContainerStyle={styles.legalContentWrap}>
                     {profileLoading ? (
-                      <Text style={styles.legalText}>Cargando perfil...</Text>
+                      <Text style={styles.legalText}>{tr('Cargando perfil...', 'Loading profile...')}</Text>
                     ) : !profileData ? (
-                      <Text style={styles.legalText}>No se pudo cargar tu perfil.</Text>
+                      <Text style={styles.legalText}>{tr('No se pudo cargar tu perfil.', 'Could not load your profile.')}</Text>
                     ) : (
                       <>
                         <View style={styles.profileCard}>
-                          <Text style={styles.profileLabel}>Nombre</Text>
+                          <Text style={styles.profileLabel}>{tr('Nombre', 'Name')}</Text>
                           <Text style={styles.profileValue}>{profileData.fullName}</Text>
 
-                          <Text style={styles.profileLabel}>Nickname único</Text>
+                          <Text style={styles.profileLabel}>{tr('Nickname único', 'Unique Nickname')}</Text>
                           <Text style={styles.profileValue}>@{profileData.nickname}</Text>
 
-                          <Text style={styles.profileLabel}>Email (solo lectura)</Text>
-                          <Text style={styles.profileReadonly}>{profileData.email || 'No disponible'}</Text>
+                          <Text style={styles.profileLabel}>{tr('Email (solo lectura)', 'Email (read-only)')}</Text>
+                          <Text style={styles.profileReadonly}>{profileData.email || tr('No disponible', 'Not available')}</Text>
 
-                          <Text style={styles.profileLabel}>Celular (solo lectura)</Text>
-                          <Text style={styles.profileReadonly}>{profileData.phone || 'No disponible'}</Text>
+                          <Text style={styles.profileLabel}>{tr('Celular (solo lectura)', 'Phone (read-only)')}</Text>
+                          <Text style={styles.profileReadonly}>{profileData.phone || tr('No disponible', 'Not available')}</Text>
 
                           <Text style={styles.profileHint}>
-                            Puedes editar tu perfil excepto email y celular. El nickname solo se puede cambiar cada 4 semanas.
+                            {tr('Puedes editar tu perfil excepto email y celular. El nickname solo se puede cambiar cada 4 semanas.', 'You can edit your profile except email and phone. Nickname can only be changed every 4 weeks.')}
                           </Text>
                         </View>
 
                         <TouchableOpacity style={styles.editProfileBtn} onPress={openProfileEditor}>
                           <MaterialCommunityIcons name="pencil-outline" size={16} color="#FFFFFF" />
-                          <Text style={styles.editProfileBtnText}>Modificar perfil</Text>
+                          <Text style={styles.editProfileBtnText}>{tr('Modificar perfil', 'Edit Profile')}</Text>
                         </TouchableOpacity>
                       </>
                     )}
@@ -795,6 +883,79 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                   <Subscription onClose={() => setActivePanel('menu')} />
                 ) : activePanel === 'icon_store' ? (
                   <IconStore />
+                ) : activePanel === 'theme_chest' ? (
+                  <ThemeChest onNavigateToForge={() => setActivePanel('subscription')} />
+                ) : activePanel === 'blocked_users' ? (
+                  <View style={styles.legalScroll}>
+                    {/* ── 3-tab selector ──────────────────────────────────────── */}
+                    <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderColor: '#E0E0E0', marginBottom: 12 }}>
+                      {(['muted', 'restricted', 'blocked'] as RelTab[]).map((tab) => {
+                        const labels: Record<RelTab, [string, string]> = {
+                          muted: ['Silenciados', 'Muted'],
+                          restricted: ['Restringidos', 'Restricted'],
+                          blocked: ['Bloqueados', 'Blocked'],
+                        };
+                        const active = relTab === tab;
+                        return (
+                          <TouchableOpacity
+                            key={tab}
+                            onPress={() => { setRelTab(tab); void loadRelEntries(tab); }}
+                            style={{ flex: 1, alignItems: 'center', paddingVertical: 10, borderBottomWidth: active ? 2 : 0, borderColor: active ? '#0D4D8A' : 'transparent' }}
+                          >
+                            <Text style={{ fontSize: 13, fontWeight: active ? '700' : '500', color: active ? '#0D4D8A' : '#999' }}>
+                              {tr(labels[tab][0], labels[tab][1])}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+
+                    {/* ── List ────────────────────────────────────────────────── */}
+                    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 20 }}>
+                      {loadingRel ? (
+                        <Text style={{ color: '#0D4D8A', textAlign: 'center', marginTop: 24, fontSize: 14 }}>
+                          {tr('Cargando…', 'Loading…')}
+                        </Text>
+                      ) : relEntries.length === 0 ? (
+                        <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                          <MaterialCommunityIcons
+                            name={relTab === 'muted' ? 'volume-off' : relTab === 'restricted' ? 'eye-off-outline' : 'account-cancel-outline'}
+                            size={48}
+                            color="#B7343A"
+                          />
+                          <Text style={{ color: '#0D4D8A', fontSize: 14, fontWeight: '600', marginTop: 12, textAlign: 'center' }}>
+                            {tr(
+                              `No tienes usuarios ${relTab === 'muted' ? 'silenciados' : relTab === 'restricted' ? 'restringidos' : 'bloqueados'}.`,
+                              `No ${relTab} users.`
+                            )}
+                          </Text>
+                        </View>
+                      ) : (
+                        relEntries.map((entry) => (
+                          <View key={entry.uid} style={styles.blockedRow}>
+                            <View style={styles.blockedIdentity}>
+                              {entry.photoUrl ? (
+                                <Image source={{ uri: entry.photoUrl }} style={styles.blockedAvatar} />
+                              ) : (
+                                <View style={styles.blockedAvatarFallback}>
+                                  <MaterialCommunityIcons name="account" size={15} color="#0D4D8A" />
+                                </View>
+                              )}
+                              <View style={styles.blockedTextCol}>
+                                <Text style={styles.blockedName}>{entry.name}</Text>
+                                <Text style={styles.blockedDateText}>
+                                  {entry.status === 'muted' ? '🔇' : entry.status === 'restricted' ? '👁️‍🗨️' : '🚫'}
+                                </Text>
+                              </View>
+                            </View>
+                            <TouchableOpacity style={styles.unblockBtn} onPress={() => handleRelRemove(entry)}>
+                              <Text style={styles.unblockBtnText}>{tr('Restaurar', 'Restore')}</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ))
+                      )}
+                    </ScrollView>
+                  </View>
                 ) : (
                   <ScrollView style={styles.legalScroll} contentContainerStyle={styles.legalContentWrap}>
                     {legalContent.map((line, index) => (
@@ -809,7 +970,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                 {activePanel !== 'menu' ? (
                   <TouchableOpacity style={styles.backToMenuBtn} onPress={() => setActivePanel('menu')}>
                     <MaterialCommunityIcons name="arrow-left" size={16} color="#0D4D8A" />
-                    <Text style={styles.backToMenuText}>Volver al menú</Text>
+                    <Text style={styles.backToMenuText}>{tr('Volver al menú', 'Back to menu')}</Text>
                   </TouchableOpacity>
                 ) : null}
               </View>
@@ -831,23 +992,23 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
               style={styles.profileModalKeyboardWrap}
             >
               <View style={styles.profileModalCard}>
-                <Text style={styles.profileModalTitle}>Modificar Perfil</Text>
+                <Text style={styles.profileModalTitle}>{tr('Modificar Perfil', 'Edit Profile')}</Text>
 
                 <ScrollView
                   keyboardDismissMode="on-drag"
                   keyboardShouldPersistTaps="handled"
                   contentContainerStyle={styles.profileFormWrap}
                 >
-                  <Text style={styles.inputLabel}>Nombre visible</Text>
+                  <Text style={styles.inputLabel}>{tr('Nombre visible', 'Display Name')}</Text>
                   <TextInput
                     style={styles.profileInput}
                     value={editFullName}
                     onChangeText={setEditFullName}
-                    placeholder="Nombre completo"
+                    placeholder={tr('Nombre completo', 'Full name')}
                     placeholderTextColor="#7AA6C1"
                   />
 
-                  <Text style={styles.inputLabel}>Nickname único</Text>
+                  <Text style={styles.inputLabel}>{tr('Nickname único', 'Unique Nickname')}</Text>
                   <TextInput
                     style={styles.profileInput}
                     value={editNickname}
@@ -857,18 +1018,18 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                     placeholderTextColor="#7AA6C1"
                   />
 
-                  <Text style={styles.inputLabel}>Email (bloqueado)</Text>
+                  <Text style={styles.inputLabel}>{tr('Email (bloqueado)', 'Email (locked)')}</Text>
                   <View style={styles.profileReadOnlyInput}>
-                    <Text style={styles.profileReadOnlyText}>{profileData?.email || 'No disponible'}</Text>
+                    <Text style={styles.profileReadOnlyText}>{profileData?.email || tr('No disponible', 'Not available')}</Text>
                   </View>
 
-                  <Text style={styles.inputLabel}>Celular (bloqueado)</Text>
+                  <Text style={styles.inputLabel}>{tr('Celular (bloqueado)', 'Phone (locked)')}</Text>
                   <View style={styles.profileReadOnlyInput}>
-                    <Text style={styles.profileReadOnlyText}>{profileData?.phone || 'No disponible'}</Text>
+                    <Text style={styles.profileReadOnlyText}>{profileData?.phone || tr('No disponible', 'Not available')}</Text>
                   </View>
 
                   <Text style={styles.profileHint}>
-                    Regla activa: nickname no repetido globalmente y cambio permitido cada 4 semanas.
+                    {tr('Regla activa: nickname no repetido globalmente y cambio permitido cada 4 semanas.', 'Active rule: nickname must be globally unique and can only be changed every 4 weeks.')}
                   </Text>
                 </ScrollView>
 
@@ -878,7 +1039,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                     onPress={() => setProfileModalVisible(false)}
                     disabled={profileSaving}
                   >
-                    <Text style={styles.profileGhostBtnText}>Cancelar</Text>
+                    <Text style={styles.profileGhostBtnText}>{tr('Cancelar', 'Cancel')}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -886,7 +1047,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                     onPress={saveProfileChanges}
                     disabled={profileSaving}
                   >
-                    <Text style={styles.profileSaveBtnText}>{profileSaving ? 'Guardando...' : 'Guardar'}</Text>
+                    <Text style={styles.profileSaveBtnText}>{profileSaving ? tr('Guardando...', 'Saving...') : tr('Guardar', 'Save')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -926,7 +1087,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
   },
   headerMenuButton: {
-    marginRight: 14,
     width: 34,
     height: 34,
     borderRadius: 10,
@@ -991,6 +1151,7 @@ const styles = StyleSheet.create({
   },
   drawerShell: {
     width: '84%',
+    maxWidth: 360,
     overflow: 'hidden',
   },
   drawerGradientBorder: {

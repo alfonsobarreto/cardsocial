@@ -9,21 +9,23 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BlurView } from 'expo-blur';
 import * as DocumentPicker from 'expo-document-picker';
+import * as Haptics from 'expo-haptics';
+import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  Linking,
-  Modal,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Linking,
+    Modal,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { ActionController } from '../../services/ActionController';
 
@@ -704,10 +706,10 @@ export default function StoriesPage() {
     const ringStyle = item.storyState === 'vip' ? styles.ringVip : item.storyState === 'normal' ? styles.ringNormal : styles.ringIdle;
     const ringBgOverride = item.storyState === 'none' ? { backgroundColor: isNight ? 'rgba(10,37,64,0.64)' : 'rgba(255,255,255,0.64)' } : undefined;
     return (
-      <TouchableOpacity style={styles.gridItem} onPress={() => openStoryViewer(item)}>
+      <TouchableOpacity style={styles.gridItem} onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openStoryViewer(item); }}>
         <View style={[styles.gridAvatarRing, ringStyle, ringBgOverride]}>
           {item.photoUrl ? (
-            <Image source={{ uri: item.photoUrl }} style={styles.gridAvatar} />
+            <ExpoImage source={{ uri: item.photoUrl }} style={styles.gridAvatar} cachePolicy="disk" />
           ) : (
             <View style={[styles.gridAvatarFallback, { backgroundColor: storiesTheme.avatarFallbackBg, borderColor: storiesTheme.avatarFallbackBorder }]}>
               <MaterialCommunityIcons name="account" size={20} color={storiesTheme.iconColor} />
@@ -759,8 +761,18 @@ export default function StoriesPage() {
             keyExtractor={(item) => item.uid}
             numColumns={4}
             contentContainerStyle={styles.gridWrap}
+            bounces={false}
+            overScrollMode="never"
             renderItem={renderGridItem}
-            ListEmptyComponent={<Text style={[styles.emptyText, { color: storiesTheme.emptyText }]}>No hay historias activas en tu red.</Text>}
+            ListEmptyComponent={<Text style={[styles.emptyText, { color: storiesTheme.emptyText }]}>{tr('No hay historias activas en tu red.', 'No active stories in your network.')}</Text>}
+            refreshControl={
+              <RefreshControl
+                refreshing={loading}
+                onRefresh={() => { void loadStoriesHub(); }}
+                tintColor="#C5A065"
+                colors={['#C5A065']}
+              />
+            }
           />
 
           <TouchableOpacity
@@ -915,7 +927,7 @@ export default function StoriesPage() {
 
       <Modal visible={viewerVisible} transparent animationType="fade" onRequestClose={() => setViewerVisible(false)}>
         <View style={styles.viewerOverlay}>
-          <TouchableOpacity style={styles.viewerClose} onPress={() => setViewerVisible(false)}>
+          <TouchableOpacity style={styles.viewerClose} onPress={() => setViewerVisible(false)} accessibilityLabel={tr('Cerrar', 'Close')}>
             <MaterialCommunityIcons name="close" size={24} color="#FFFFFF" />
           </TouchableOpacity>
 
@@ -927,7 +939,7 @@ export default function StoriesPage() {
           {selectedViewerItem?.kind === 'ad' ? (
             <LinearGradient colors={['#0A2540', '#123B61', '#0E2D49']} style={styles.adPanel}>
               {selectedViewerItem.photoUrl ? (
-                <Image source={{ uri: selectedViewerItem.photoUrl }} style={styles.adPhoto} resizeMode="cover" />
+                <ExpoImage source={{ uri: selectedViewerItem.photoUrl }} style={styles.adPhoto} contentFit="cover" cachePolicy="disk" />
               ) : (
                 <MaterialCommunityIcons name="home-city-outline" size={68} color="#C5A065" />
               )}
@@ -941,7 +953,7 @@ export default function StoriesPage() {
               <Text style={styles.adBadge}>AD Slot interno</Text>
             </LinearGradient>
           ) : selectedViewerItem?.localStory?.storyType === 'image' ? (
-            <Image source={{ uri: selectedViewerItem.localStory.mediaUri }} style={styles.viewerImage} resizeMode="cover" />
+            <ExpoImage source={{ uri: selectedViewerItem.localStory.mediaUri }} style={styles.viewerImage} contentFit="cover" cachePolicy="disk" />
           ) : selectedViewerItem?.localStory?.storyType === 'video' ? (
             <StoryVideo uri={selectedViewerItem.localStory.mediaUri} />
           ) : (

@@ -6,12 +6,12 @@
  * Secciones premium vacías se muestran como colecciones futuras con badge 🔒.
  */
 
+import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import {
     Alert,
     Dimensions,
@@ -249,8 +249,9 @@ export default function CardStudioVault({
 }: CardStudioVaultProps) {
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
-  const { i18n } = useTranslation();
-  const isEN = i18n.language === 'en';
+  const { language } = useLanguage();
+  const isEN = language === 'en';
+  const tr = (es: string, en: string) => isEN ? en : es;
   const [storeModalVisible, setStoreModalVisible] = useState(false);
   const [recentIconIds, setRecentIconIds] = useState<string[]>([]);
   const sectionListRef = useRef<SectionList<IconItem[], IconSection>>(null);
@@ -356,12 +357,15 @@ export default function CardStudioVault({
 
   const handleLongPress = (item: IconItem) => {
     Alert.alert(
-      `Eliminar icono "${item.label}"`,
-      'Si lo eliminas, los datos del Búnker que usen este ícono quedarán con el ícono por defecto. ¿Deseas continuar?',
+      tr(`Eliminar icono "${item.label}"`, `Delete icon "${item.labelEn}"`),
+      tr(
+        'Si lo eliminas, los datos del B\u00fanker que usen este \u00edcono quedar\u00e1n con el \u00edcono por defecto. \u00bfDeseas continuar?',
+        'If you delete it, Vault items using this icon will revert to the default icon. Continue?'
+      ),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
         {
-          text: 'Eliminar',
+          text: tr('Eliminar', 'Delete'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -422,14 +426,20 @@ export default function CardStudioVault({
               ]}
               onPress={() => handleSelectIcon(item.id)}
               onLongPress={() => handleLongPress(item)}
-              delayLongPress={3000}
+              delayLongPress={1200}
               activeOpacity={0.75}
             >
               <MaterialCommunityIcons
                 name={item.icon as any}
                 color={active ? theme.selectedText : theme.textPrimary}
-                size={32}
+                size={28}
               />
+              <Text
+                style={[styles.iconLabel, { color: active ? theme.selectedText : theme.textSecondary }]}
+                numberOfLines={1}
+              >
+                {isEN ? item.labelEn : item.label}
+              </Text>
             </TouchableOpacity>
           );
         })}
@@ -505,7 +515,7 @@ export default function CardStudioVault({
                 </View>
 
                 <Text style={[styles.hint, { color: theme.textSecondary }]}>
-                  Mantén presionado 3s para eliminar un ícono
+                  {tr('Mantén presionado para eliminar un ícono', 'Long press to delete an icon')}
                 </Text>
 
                 {/* SectionList categorizado */}
@@ -555,13 +565,13 @@ export default function CardStudioVault({
                 <MaterialCommunityIcons name="store" color="#D4AF37" size={48} />
                 <Text style={styles.storeTitle}>Card-Studio</Text>
                 <Text style={styles.storeSubtitle}>
-                  Tienda Card-Studio: Temas y Coleccionables disponibles muy pronto.
+                  {tr('Tienda Card-Studio: Temas y Coleccionables disponibles muy pronto.', 'Card-Studio Store: Themes and Collectibles coming very soon.')}
                 </Text>
                 <TouchableOpacity
                   style={styles.storeCloseBtn}
                   onPress={() => setStoreModalVisible(false)}
                 >
-                  <Text style={styles.storeCloseBtnText}>Cerrar</Text>
+                  <Text style={styles.storeCloseBtnText}>{tr('Cerrar', 'Close')}</Text>
                 </TouchableOpacity>
               </View>
             </TouchableWithoutFeedback>

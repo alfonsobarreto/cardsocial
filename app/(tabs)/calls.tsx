@@ -2,28 +2,28 @@ import { getActiveUserId } from '@/services/authSession';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import {
-  type CallHistoryRow,
-  createCallLog,
-  listCallsHistory,
-  listReceivedContacts,
-  patchCallLogMeta,
+    type CallHistoryRow,
+    createCallLog,
+    listCallsHistory,
+    listReceivedContacts,
+    patchCallLogMeta,
 } from '@/services/qrApi';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import * as DocumentPicker from 'expo-document-picker';
+import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Modal,
+    Pressable,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 type ContactRow = {
@@ -236,7 +236,7 @@ export default function CallsPage() {
       >
         <View style={[styles.avatarRingBase, ringStyle]}>
           {item.photoUrl ? (
-            <Image source={{ uri: item.photoUrl }} style={styles.avatar} />
+            <ExpoImage source={{ uri: item.photoUrl }} style={styles.avatar} cachePolicy="disk" />
           ) : (
             <View style={[styles.avatarFallback, { backgroundColor: callsTheme.avatarFallbackBg }]}>
               <MaterialCommunityIcons name="account" size={18} color={callsTheme.iconColor} />
@@ -316,12 +316,12 @@ export default function CallsPage() {
         <View style={styles.modalOverlay}>
           <BlurView intensity={70} tint={isNight ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
           <View style={[styles.detailCard, { backgroundColor: isNight ? 'rgba(12,40,70,0.95)' : 'rgba(255,255,255,0.72)', borderColor: callsTheme.cardBorder }]}>
-            <TouchableOpacity style={[styles.closeBtn, { backgroundColor: isNight ? 'rgba(15,53,84,0.95)' : 'rgba(255,255,255,0.88)' }]} onPress={() => setDetailVisible(false)}>
+            <TouchableOpacity style={[styles.closeBtn, { backgroundColor: isNight ? 'rgba(15,53,84,0.95)' : 'rgba(255,255,255,0.88)' }]} onPress={() => setDetailVisible(false)} accessibilityLabel={tr('Cerrar', 'Close')}>
               <MaterialCommunityIcons name="close" size={20} color={callsTheme.iconColor} />
             </TouchableOpacity>
 
             {selectedCall?.photoUrl ? (
-              <Image source={{ uri: selectedCall.photoUrl }} style={styles.detailAvatar} />
+              <ExpoImage source={{ uri: selectedCall.photoUrl }} style={styles.detailAvatar} cachePolicy="disk" />
             ) : (
               <View style={[styles.detailAvatarFallback, { backgroundColor: callsTheme.avatarFallbackBg }]}>
                 <MaterialCommunityIcons name="account" size={20} color={callsTheme.iconColor} />

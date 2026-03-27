@@ -1,7 +1,9 @@
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { authenticateWithBiometric, checkBiometricAvailability, hardLockCheck } from '@/services/biometricAuth';
 import { auth, db } from '@/services/firebaseConfig';
 import { LanguageProvider, useLanguage } from '@/services/language';
 import { LookModeProvider } from '@/services/lookMode';
+import { NetworkProvider } from '@/services/NetworkProvider';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
@@ -12,11 +14,15 @@ import Toast from 'react-native-toast-message';
 
 export default function RootLayout() {
   return (
-    <LanguageProvider>
-      <LookModeProvider>
-        <RootNavigator />
-      </LookModeProvider>
-    </LanguageProvider>
+    <ErrorBoundary>
+      <LanguageProvider>
+        <LookModeProvider>
+          <NetworkProvider>
+            <RootNavigator />
+          </NetworkProvider>
+        </LookModeProvider>
+      </LanguageProvider>
+    </ErrorBoundary>
   );
 }
 
@@ -69,7 +75,7 @@ function RootNavigator() {
         return;
       }
 
-      const unlocked = await hardLockCheck('reanudar tu sesión');
+      const unlocked = await hardLockCheck(tr('reanudar tu sesión', 'resume your session'));
       if (!unlocked) {
         await signOut(auth);
         router.replace('/signin' as never);
