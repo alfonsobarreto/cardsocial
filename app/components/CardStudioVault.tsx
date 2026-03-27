@@ -356,15 +356,6 @@ export default function CardStudioVault({
                 color={active ? theme.selectedText : theme.textPrimary}
                 size={32}
               />
-              <Text
-                style={[
-                  styles.iconLabel,
-                  { color: active ? theme.selectedText : theme.textSecondary },
-                ]}
-                numberOfLines={1}
-              >
-                {isEN ? item.labelEn : item.label}
-              </Text>
             </TouchableOpacity>
           );
         })}
