@@ -22,6 +22,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { auth } from '@/services/firebaseConfig';
 import { signOut } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { getActiveUserId } from '@/services/authSession';
 import { listBlockedRelations, unblockRelationship } from '@/services/qrApi';
@@ -127,6 +128,8 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
+      // Borrar toda la memoria local del teléfono — cero fugas de privacidad
+      await AsyncStorage.clear();
     } catch {
       // Keep UX smooth even if session was already anonymous or expired.
     } finally {

@@ -315,15 +315,17 @@ export default function CardsFactoryScreen() {
 
   const loadSmartCards = async () => {
     // 1. Lectura optimista: mostrar cache local inmediatamente (cero latencia)
+    let cachedJson = '';
     try {
       const raw = await AsyncStorage.getItem(SMART_CARDS_STORAGE_KEY);
+      cachedJson = raw || '';
       const cached = raw ? (JSON.parse(raw) as SmartCard[]) : [];
       if (cached.length > 0) {
         setSmartCards(cached.map((card) => ({ ...card, isFavorite: Boolean(card.isFavorite) })));
       }
     } catch { /* ignora — la nube actualiza a continuación */ }
 
-    // 2. Refresco silencioso desde el backend en segundo plano
+    // 2. Refresco silencioso — actualiza estado solo si los datos cambiaron
     try {
       const ownerUid = await getActiveUserId();
       if (!ownerUid) return;
@@ -352,8 +354,11 @@ export default function CardsFactoryScreen() {
         updatedAt: card.updatedAt,
       }));
 
-      setSmartCards(mapped);
-      await AsyncStorage.setItem(SMART_CARDS_STORAGE_KEY, JSON.stringify(mapped));
+      const cloudJson = JSON.stringify(mapped);
+      if (cloudJson !== cachedJson) {
+        setSmartCards(mapped);
+        await AsyncStorage.setItem(SMART_CARDS_STORAGE_KEY, cloudJson);
+      }
     } catch {
       // Cache ya pintado — no hacer nada
     }

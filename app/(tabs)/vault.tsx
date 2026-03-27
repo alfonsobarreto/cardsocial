@@ -179,13 +179,15 @@ const VaultScreen = () => {
 
   const loadVaultData = async () => {
     // 1. Lectura optimista: mostrar cache local inmediatamente (cero latencia)
+    let cachedJson = '';
     try {
       const raw = await AsyncStorage.getItem(VAULT_STORAGE_KEY);
+      cachedJson = raw || '';
       const cached = raw ? (JSON.parse(raw) as Link[]) : [];
       if (cached.length > 0) setLinks(sortLinks(cached));
     } catch { /* ignora — la nube actualiza a continuación */ }
 
-    // 2. Refresco silencioso desde Firestore en segundo plano
+    // 2. Refresco silencioso — actualiza estado solo si los datos cambiaron
     try {
       const userId = await getActiveUserId();
       if (userId) {
@@ -195,8 +197,11 @@ const VaultScreen = () => {
           ...itemDoc.data(),
         })) as Link[];
 
-        await AsyncStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(cloudItems));
-        setLinks(sortLinks(cloudItems));
+        const cloudJson = JSON.stringify(cloudItems);
+        if (cloudJson !== cachedJson) {
+          await AsyncStorage.setItem(VAULT_STORAGE_KEY, cloudJson);
+          setLinks(sortLinks(cloudItems));
+        }
       }
     } catch (cloudError) {
       console.warn('Cloud read failed, keeping cached data:', cloudError);
