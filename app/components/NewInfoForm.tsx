@@ -261,11 +261,13 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           setLastFaviconDomain(domain);
           return;
         }
-        const fetchedIcon = await fetchFaviconFromAzure(dataValue);
+        const faviconTimeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000));
+        const fetchedIcon = await Promise.race([fetchFaviconFromAzure(dataValue), faviconTimeout]);
         if (faviconLifecycleClosedRef.current || lookupToken !== faviconLookupTokenRef.current) {
           return;
         }
         if (!fetchedIcon) {
+          // Timeout o sin favicon — liberar UI sin bloquear al usuario
           setFaviconLoading(false);
           return;
         }
@@ -1429,7 +1431,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 <MaterialCommunityIcons name="image-plus" color="#999" size={40} />
               )}
               <Text style={[styles.iconName, { color: formTheme.textPrimary }]}>
-                {dataValue?.trim() || dataName?.trim() || 'Sin data'}
+                {dataName?.trim() || 'Sin nombre'}
               </Text>
             </View>
           </View>
@@ -1784,7 +1786,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 120,
+    flexGrow: 1,
   },
   section: {
     marginBottom: 28,
