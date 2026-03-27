@@ -32,6 +32,7 @@ import {
   View,
 } from 'react-native';
 import { auth, db } from '../services/firebaseConfig';
+import CircularPhotoCropper from './components/CircularPhotoCropper';
 import LuxuryModerationModal from './components/LuxuryModerationModal';
 import PremiumSuccessTransition from './components/PremiumSuccessTransition';
 
@@ -95,6 +96,11 @@ export default function RegisterScreen() {
   const [country, setCountry] = useState('');
   const [password, setPassword] = useState('');
   const [photoUri, setPhotoUri] = useState('');
+  const [cropperVisible, setCropperVisible] = useState(false);
+  const [rawPhotoUri, setRawPhotoUri] = useState('');
+  const [rawPhotoWidth, setRawPhotoWidth] = useState(1080);
+  const [rawPhotoHeight, setRawPhotoHeight] = useState(1080);
+  const cropperRetryFnRef = React.useRef<() => void>(() => {});
   const [verificationSelfieUri, setVerificationSelfieUri] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
@@ -1017,6 +1023,23 @@ export default function RegisterScreen() {
             </TouchableOpacity>
           </View>
           {photoUri ? <Image source={{ uri: photoUri }} style={styles.photoPreview} /> : null}
+
+          {/* Circular photo cropper */}
+          <CircularPhotoCropper
+            visible={cropperVisible}
+            uri={rawPhotoUri}
+            imageWidth={rawPhotoWidth}
+            imageHeight={rawPhotoHeight}
+            onConfirm={(croppedUri) => {
+              setPhotoUri(croppedUri);
+              setCropperVisible(false);
+            }}
+            onChooseAgain={() => {
+              setCropperVisible(false);
+              setTimeout(() => cropperRetryFnRef.current?.(), 350);
+            }}
+            onClose={() => setCropperVisible(false)}
+          />
 
           <Text style={styles.label}>{tr('Selfie de Verificacion', 'Verification Selfie')}</Text>
           <Text style={styles.helperText}>{tr('Para proteger la comunidad, toma una selfie con una sonrisa o un guino. Solo valida que eres humano.', 'To protect the community, take a selfie with a smile or a wink. This only validates that you are human.')}</Text>

@@ -16,5 +16,14 @@
   "error_network": "Error de red. Intenta de nuevo.",
   "error_unknown": "Ocurrió un error desconocido.",
   "connection_error": "Error de conexión. Revisa tu internet.",
-  "retry": "Reintentar"
+  "retry": "Reintentar",
+  "preview_confirm_title_image": "Vista previa — Confirmación",
+  "preview_confirm_title_pdf": "Documento listo para confirmar",
+  "preview_confirm_subtitle": "Confirma tu archivo antes de subirlo al Búnker.",
+  "preview_choose_again": "Tomar / Elegir de Nuevo",
+  "preview_accept": "Aceptar",
+  "preview_pdf_ready": "documento listo",
+  "crop_title": "Ajusta tu foto de perfil",
+  "crop_hint": "Arrastra para mover · Pellizca para hacer zoom",
+  "crop_confirm": "Confirmar foto"
 }

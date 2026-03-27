@@ -15,10 +15,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Tabs, useRouter } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import {
+  collection,
   doc,
   getDoc,
+  getDocs,
+  query,
   serverTimestamp,
-  updateDoc
+  updateDoc,
+  where
 } from 'firebase/firestore';
 import { CreditCard, Database, Phone, PlayCircle, Search, Users } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -65,6 +69,9 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const [creditsRefreshTrigger, setCreditsRefreshTrigger] = useState(0);
   const [welcomeBonusApplied, setWelcomeBonusApplied] = useState(false);
   const [userIsSuperAdmin, setUserIsSuperAdmin] = useState(false);
+  const [adminPendingReports, setAdminPendingReports] = useState(0);
+  const [adminTotalUsers, setAdminTotalUsers] = useState<number | null>(null);
+  const [adminTodayRevenue, setAdminTodayRevenue] = useState<number | null>(null);
   const confettiRef = useRef<ConfettiAnimationRef>(null);
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
   const [loadingBlocked, setLoadingBlocked] = useState(false);
@@ -357,22 +364,54 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Check if user is super_admin when drawer opens
+  // Check super_admin + load admin quick-stats when drawer opens
   useEffect(() => {
-    const checkSuperAdmin = async () => {
+    const checkSuperAdminAndLoadStats = async () => {
       try {
         const uid = await getActiveUserId();
-        if (uid) {
-          const isSuperAdminUser = await isSuperAdmin(uid);
-          setUserIsSuperAdmin(isSuperAdminUser);
-        }
+        if (!uid) return;
+        const isSuperAdminUser = await isSuperAdmin(uid);
+        setUserIsSuperAdmin(isSuperAdminUser);
+        if (!isSuperAdminUser) return;
+
+        // ── Pending reports ────────────────────────────
+        try {
+          const reportsSnap = await getDocs(
+            query(collection(db, 'reports'), where('status', '==', 'pending'))
+          );
+          setAdminPendingReports(reportsSnap.size);
+        } catch { /* collection might not exist yet */ }
+
+        // ── Total users ────────────────────────────────
+        try {
+          const usersSnap = await getDocs(collection(db, 'users'));
+          setAdminTotalUsers(usersSnap.size);
+        } catch { /* ignore */ }
+
+        // ── Revenue today (sum of today's payment_events) ─
+        try {
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+          const revenueSnap = await getDocs(
+            query(
+              collection(db, 'payment_events'),
+              where('createdAt', '>=', todayStart),
+              where('status', '==', 'completed')
+            )
+          );
+          const total = revenueSnap.docs.reduce(
+            (acc, d) => acc + (Number(d.data().amountUSD) || 0),
+            0
+          );
+          setAdminTodayRevenue(total);
+        } catch { /* ignore */ }
       } catch (error) {
         console.error('Error checking super_admin status:', error);
       }
     };
 
     if (drawerVisible) {
-      checkSuperAdmin();
+      checkSuperAdminAndLoadStats();
     }
   }, [drawerVisible]);
 
@@ -451,6 +490,14 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
               style={styles.headerMenuButton}
             >
               <MaterialCommunityIcons name="menu" size={24} color="#D4AF37" />
+              {/* Red badge — only visible when admin has pending reports */}
+              {userIsSuperAdmin && adminPendingReports > 0 ? (
+                <View style={styles.menuBadge}>
+                  <Text style={styles.menuBadgeText}>
+                    {adminPendingReports > 99 ? '99+' : adminPendingReports}
+                  </Text>
+                </View>
+              ) : null}
             </TouchableOpacity>
           ),
         }}>
@@ -525,6 +572,37 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                 {activePanel === 'menu' && (
                   <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
                     <CreditsIndicator userId={auth.currentUser?.uid || ''} refreshTrigger={creditsRefreshTrigger} />
+                  </View>
+                )}
+
+                {/* ── Admin Quick-Stats Strip (solo super_admin) ── */}
+                {activePanel === 'menu' && userIsSuperAdmin && (
+                  <View style={styles.adminStatsStrip}>
+                    {/* Pending reports */}
+                    <View style={[styles.adminStatChip, adminPendingReports > 0 && styles.adminStatChipAlert]}>
+                      <MaterialCommunityIcons
+                        name="flag-outline"
+                        size={14}
+                        color={adminPendingReports > 0 ? '#FF4444' : '#C5A065'}
+                      />
+                      <Text style={[styles.adminStatLabel, adminPendingReports > 0 && { color: '#FF4444' }]}>
+                        {adminPendingReports > 0 ? `${adminPendingReports} reportes` : 'Sin reportes'}
+                      </Text>
+                    </View>
+                    {/* Total users */}
+                    <View style={styles.adminStatChip}>
+                      <MaterialCommunityIcons name="account-group-outline" size={14} color="#C5A065" />
+                      <Text style={styles.adminStatLabel}>
+                        {adminTotalUsers !== null ? `${adminTotalUsers} usuarios` : '...'}
+                      </Text>
+                    </View>
+                    {/* Revenue today */}
+                    <View style={styles.adminStatChip}>
+                      <MaterialCommunityIcons name="cash-multiple" size={14} color="#C5A065" />
+                      <Text style={styles.adminStatLabel}>
+                        {adminTodayRevenue !== null ? `$${adminTodayRevenue.toFixed(2)}` : '...'}
+                      </Text>
+                    </View>
                   </View>
                 )}
 
@@ -842,6 +920,53 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(212,175,55,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  menuBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#FF3B30',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#0A1A2F',
+  },
+  menuBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+    lineHeight: 12,
+  },
+  adminStatsStrip: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  adminStatChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(197,160,101,0.10)',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(197,160,101,0.25)',
+  },
+  adminStatChipAlert: {
+    backgroundColor: 'rgba(255,68,68,0.10)',
+    borderColor: 'rgba(255,68,68,0.35)',
+  },
+  adminStatLabel: {
+    color: '#C5A065',
+    fontSize: 11,
+    fontWeight: '600',
   },
   drawerOverlay: {
     flex: 1,

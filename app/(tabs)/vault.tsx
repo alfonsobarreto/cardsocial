@@ -1,7 +1,6 @@
 import DullModeLock from '@/components/DullModeLock';
 import LimitReachedModal from '@/components/LimitReachedModal';
 import VerificationBadge from '@/components/VerificationBadge';
-import { FREE_TIER_POLICY } from '@/constants/freeTierPolicy';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { db } from '@/services/firebaseConfig';
@@ -25,6 +24,7 @@ import {
   Dimensions,
   FlatList,
   Image,
+  InteractionManager,
   Linking,
   Modal,
   PanResponder,
@@ -36,6 +36,7 @@ import {
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import NewInfoForm from '../components/NewInfoForm';
 
 let PdfComponent: any = null;
@@ -206,6 +207,14 @@ const VaultScreen = () => {
       }
     } catch (cloudError) {
       console.warn('Cloud read failed, keeping cached data:', cloudError);
+      Toast.show({
+        type: 'error',
+        text1: tr('Sin conexión — mostrando datos locales', 'Offline — showing local data'),
+        text2: tr('Los cambios se sincronizarán al reconectar', 'Changes will sync when back online'),
+        position: 'bottom',
+        visibilityTime: 3000,
+        autoHide: true,
+      });
     }
   };
 
@@ -227,9 +236,13 @@ const VaultScreen = () => {
 
         // Bypass authentication and unlock vault directly
         setIsVaultUnlocked(true);
-        await evaluateDullMode();
-        loadVaultData();
-        loadProfileMeta();
+        InteractionManager.runAfterInteractions(() => {
+          void (async () => {
+            await evaluateDullMode();
+            loadVaultData();
+            loadProfileMeta();
+          })();
+        });
       };
       verifyAccess();
     }, [])
@@ -293,20 +306,37 @@ const VaultScreen = () => {
       const updated = links.filter((item) => item.id !== link.id);
       await saveVaultData(updated);
 
+      let cloudOk = false;
       try {
         const userId = await getActiveUserId();
         if (userId) {
           await deleteDoc(doc(db, 'users', userId, 'links', link.id));
           await syncVaultDeleteAcrossCards(userId, link.id);
+          cloudOk = true;
         }
       } catch (cloudError) {
         console.warn('Cloud delete failed, kept local cache update:', cloudError);
       }
 
-      Alert.alert(tr('✅ Eliminado', '✅ Deleted'), tr(`"${link.title}" fue removido del Vault`, `"${link.title}" was removed from Vault`));
+      Toast.show({
+        type: 'success',
+        text1: tr('🗑️ Eliminado del Búnker', '🗑️ Removed from Vault'),
+        text2: cloudOk
+          ? tr(`"${link.title}" sincronizado`, `"${link.title}" synced`)
+          : tr(`"${link.title}" eliminado localmente`, `"${link.title}" removed locally`),
+        position: 'bottom',
+        visibilityTime: 3000,
+        autoHide: true,
+      });
     } catch (error) {
       console.error('Error deleting link:', error);
-      Alert.alert(tr('❌ Error', '❌ Error'), tr('No se pudo eliminar el elemento', 'Could not delete the element'));
+      Toast.show({
+        type: 'error',
+        text1: tr('❌ No se pudo eliminar', '❌ Could not delete'),
+        position: 'bottom',
+        visibilityTime: 3000,
+        autoHide: true,
+      });
     }
   };
 
@@ -351,9 +381,26 @@ const VaultScreen = () => {
           await syncVaultUpdateAcrossCards(userId, updatedItem);
         }
       }
+
+      Toast.show({
+        type: 'success',
+        text1: nextFavorite
+          ? tr('⭐ Agregado a favoritos', '⭐ Added to favorites')
+          : tr('Favorito eliminado', 'Removed from favorites'),
+        text2: link.title,
+        position: 'bottom',
+        visibilityTime: 2000,
+        autoHide: true,
+      });
     } catch (error) {
       console.error('Error updating favorite:', error);
-      Alert.alert(tr('❌ Error', '❌ Error'), tr('No se pudo actualizar favorito', 'Could not update favorite'));
+      Toast.show({
+        type: 'error',
+        text1: tr('❌ No se pudo actualizar favorito', '❌ Could not update favorite'),
+        position: 'bottom',
+        visibilityTime: 3000,
+        autoHide: true,
+      });
     }
   };
 
@@ -557,10 +604,23 @@ const VaultScreen = () => {
         });
       }
 
-      Alert.alert(tr('Descarga lista', 'Download ready'), tr('Archivo preparado para guardar en tu dispositivo.', 'File ready to save to your device.'));
+      Toast.show({
+        type: 'success',
+        text1: tr('📥 Descarga lista', '📥 Download ready'),
+        text2: tr('Archivo preparado en tu dispositivo', 'File ready on your device'),
+        position: 'bottom',
+        visibilityTime: 3000,
+        autoHide: true,
+      });
     } catch (error) {
       console.error('Download from viewer failed:', error);
-      Alert.alert(tr('Error', 'Error'), tr('No se pudo descargar el archivo.', 'Could not download the file.'));
+      Toast.show({
+        type: 'error',
+        text1: tr('❌ No se pudo descargar', '❌ Download failed'),
+        position: 'bottom',
+        visibilityTime: 3000,
+        autoHide: true,
+      });
     } finally {
       setIsDownloadingViewerFile(false);
     }
@@ -878,7 +938,8 @@ const VaultScreen = () => {
     </View>
   );
 
-  const usageProgress = Math.min(links.length / 50, 1);
+  const isUnlimitedVault = limitMaxItems === Infinity;
+  const usageProgress = isUnlimitedVault ? 1 : Math.min(links.length / limitMaxItems, 1);
 
   return (
     <View style={[styles.container, { backgroundColor: vaultTheme.motherBg }]}>
@@ -894,11 +955,16 @@ const VaultScreen = () => {
             ) : null}
           </View>
           <Text style={styles.vaultCounterLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.62}>
-            {links.length} / {FREE_TIER_POLICY.vaultItems} {tr('datos', 'items')}
+            {isUnlimitedVault
+              ? `${links.length} / ∞ ${tr('datos', 'items')}`
+              : `${links.length} / ${limitMaxItems} ${tr('datos', 'items')}`}
           </Text>
-          <View style={[styles.progressTrack, { backgroundColor: vaultTheme.progressTrack }]}>
-            <View style={[styles.progressFill, { width: `${usageProgress * 100}%`, backgroundColor: vaultTheme.progressFill }]} />
-          </View>
+          {/* Barra de progreso: oculta para usuarios ilimitados */}
+          {!isUnlimitedVault ? (
+            <View style={[styles.progressTrack, { backgroundColor: vaultTheme.progressTrack }]}>
+              <View style={[styles.progressFill, { width: `${usageProgress * 100}%`, backgroundColor: vaultTheme.progressFill }]} />
+            </View>
+          ) : null}
         </View>
       </View>
 
@@ -914,6 +980,8 @@ const VaultScreen = () => {
         contentContainerStyle={styles.listContainer}
         scrollEnabled={true}
         showsVerticalScrollIndicator={false}
+        bounces={false}
+        overScrollMode="never"
       />
 
       <TouchableOpacity
@@ -992,6 +1060,8 @@ const VaultScreen = () => {
                   minimumZoomScale={1}
                   contentContainerStyle={styles.viewerZoomContainer}
                   centerContent
+                  bounces={false}
+                  overScrollMode="never"
                 >
                   <Image source={{ uri: viewerItem.value }} style={styles.viewerImage} resizeMode="contain" />
                 </ScrollView>
@@ -1138,7 +1208,14 @@ const VaultScreen = () => {
                     onPress={async () => {
                       await Clipboard.setStringAsync(String(activeTextItem?.value || ''));
                       triggerSuccessHaptic();
-                      Alert.alert(tr('Copiado', 'Copied'), tr('El contenido fue copiado al portapapeles.', 'Content copied to clipboard.'));
+                      Toast.show({
+                        type: 'success',
+                        text1: tr('📋 Copiado al portapapeles', '📋 Copied to clipboard'),
+                        text2: activeTextItem?.title,
+                        position: 'bottom',
+                        visibilityTime: 1500,
+                        autoHide: true,
+                      });
                     }}
                   >
                     <MaterialCommunityIcons name="content-copy" color={vaultTheme.selectedActionText} size={16} />

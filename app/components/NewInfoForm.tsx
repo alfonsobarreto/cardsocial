@@ -38,6 +38,7 @@ import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore'
 import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
 import CardStudioVault, { ICON_GALLERY } from './CardStudioVault';
+import FilePreviewModal from './FilePreviewModal';
 import LuxuryModerationModal from './LuxuryModerationModal';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -673,6 +674,20 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             );
             return;
           }
+          logAssetAudit('PICK_GALLERY_COMPRESSED', {
+            dataType,
+            dataName,
+            uri: optimized.uri,
+            fileName: file.fileName || 'gallery-image.jpg',
+            mimeType: 'image/jpeg',
+            sizeBytes: optimized.size,
+          });
+          openAssetPreview({
+            uri: optimized.uri,
+            name: file.fileName || 'gallery-image.jpg',
+            mimeType: file.mimeType || 'image/jpeg',
+            source: 'gallery',
+          });
         }
       }, 0); // Ejecutar en background
     } catch (error) {
@@ -1154,7 +1169,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         if (userId) {
           const cloudDocRef = doc(db, 'users', userId, 'links', uniqueId);
           await setDoc(cloudDocRef, dataPayload);
-          await syncVaultUpdateAcrossCards(userId, dataPayload as Link);
           cloudSynced = true;
         }
       } catch (cloudError) {
@@ -1176,22 +1190,25 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       await AsyncStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(dataArray));
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(
-        t('upload_success'),
-        cloudSynced
-          ? editingData?.id
-            ? t('data_updated_cloud')
-            : t('data_saved_cloud')
-          : editingData?.id
-            ? t('data_updated_local')
-            : t('data_saved_local')
-      );
-      
-      // Cerrar y refrescar automáticamente
+      Toast.show({
+        type: 'success',
+        text1: '🛡️ ¡Dato guardado en el Búnker!',
+        text2: cloudSynced ? '✓ Sincronizado en la nube' : '✓ Guardado localmente',
+        position: 'bottom',
+        visibilityTime: 3000,
+        autoHide: true,
+      });
       handleClose();
     } catch (error) {
       console.error('Error saving:', error);
       if (error instanceof ModerationRejectedError) {
+        Toast.show({
+          type: 'error',
+          text1: '🚫 Contenido no permitido. Revisa las reglas.',
+          position: 'bottom',
+          visibilityTime: 3000,
+          autoHide: true,
+        });
         registerModerationReject();
       } else {
         Alert.alert(t('upload_error'), t('could_not_save_data'));
@@ -1348,11 +1365,19 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             >
               <TouchableOpacity
                 style={[styles.documentButton, { borderWidth: 0, backgroundColor: formTheme.inputBg }]}
-                onPress={handlePickFile}
+                onPress={pendingAsset || dataValue ? () => setAssetPreviewVisible(true) : handlePickFile}
               >
-              <MaterialCommunityIcons name="image-plus" color={formTheme.textPrimary} size={32} />
+              <MaterialCommunityIcons
+                name={pendingAsset || dataValue ? 'eye' : 'image-plus'}
+                color={formTheme.textPrimary}
+                size={32}
+              />
               <Text style={[styles.documentText, { color: formTheme.textPrimary }]}>
-                {dataValue ? 'Cambiar archivo' : 'Subir PDF o imagen'}
+                {pendingAsset
+                  ? 'Ver Archivo Seleccionado'
+                  : dataValue
+                  ? 'Ver Archivo Guardado'
+                  : 'Subir PDF o imagen'}
               </Text>
               </TouchableOpacity>
             </LinearGradient>
@@ -1825,40 +1850,16 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           </View>
         </Modal>
 
-        <Modal
+        <FilePreviewModal
           visible={assetPreviewVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setAssetPreviewVisible(false)}
-        >
-          <View style={styles.assetPreviewOverlay}>
-            <View style={styles.assetPreviewCard}>
-              <Text style={styles.assetPreviewTitle}>Vista previa segura</Text>
-              <View style={styles.assetPreviewContent}>
-                {pendingAsset?.mimeType?.includes('pdf') ? (
-                  PdfComponent ? (
-                    <PdfComponent source={{ uri: pendingAsset.uri }} style={styles.assetPreviewPdf} />
-                  ) : (
-                    <View style={styles.assetPreviewFallback}>
-                      <MaterialCommunityIcons name="file-pdf-box" color="#002D4B" size={72} />
-                      <Text style={styles.assetPreviewFallbackText}>PDF listo para confirmar</Text>
-                    </View>
-                  )
-                ) : (
-                  <Image source={{ uri: pendingAsset?.uri || '' }} style={styles.assetPreviewImage} resizeMode="contain" />
-                )}
-              </View>
-              <View style={styles.assetPreviewActions}>
-                <TouchableOpacity style={styles.assetConfirmButton} onPress={confirmAssetPreview}>
-                  <Text style={styles.assetConfirmButtonText}>SÍ, CONFIRMAR</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.assetRetryButton} onPress={retryAssetSelection}>
-                  <Text style={styles.assetRetryButtonText}>REINTENTAR</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
+          asset={pendingAsset}
+          onAccept={confirmAssetPreview}
+          onChooseAgain={retryAssetSelection}
+          onClose={() => {
+            setAssetPreviewVisible(false);
+            setPendingAsset(null);
+          }}
+        />
 
         <LuxuryModerationModal
           visible={moderationAlertVisible}

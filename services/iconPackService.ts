@@ -5,28 +5,31 @@
  * Modelo de Negocio:
  * - Usuarios GRATIS: Compran packs de iconos con créditos CS
  * - Usuarios PREMIUM: Todos los packs desbloqueados automáticamente
- * - Pochobs (Admin): Crea y sube nuevos packs desde Admin Dashboard
+ * - Pochobs (super_admin): Crea packs, los reclama SIN costo de créditos.
+ *   EXCEPCIÓN: Si el pack es coleccionable/edición limitada, el supply
+ *   se decrementa igual (regla 99/100) — poseer el serial es parte del
+ *   valor del activo, no un bypass de la economía.
  * 
  * Conversión: 1 Pack ≈ 50-100 Créditos CS (configurable por Pochobs)
  */
 
-import {
-  doc,
-  getDoc,
-  setDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-  updateDoc,
-  increment,
-  arrayUnion,
-  serverTimestamp,
-  addDoc,
-  Timestamp,
-} from 'firebase/firestore';
-import { db } from '@/services/firebaseConfig';
 import { deductCredits, recordCreditTransaction } from '@/services/creditsService';
+import { db } from '@/services/firebaseConfig';
+import {
+    addDoc,
+    arrayUnion,
+    collection,
+    doc,
+    getDoc,
+    getDocs,
+    increment,
+    query,
+    serverTimestamp,
+    setDoc,
+    Timestamp,
+    updateDoc,
+    where,
+} from 'firebase/firestore';
 
 export interface IconPack {
   id: string;
@@ -247,6 +250,58 @@ export async function purchaseIconPack(userId: string, packId: string): Promise<
     if (isLimitedEdition && currentStock <= 0) {
       console.error('❌ Pack agotado');
       return false;
+    }
+
+    // ── super_admin bypass: reclama cualquier pack SIN costo de créditos.
+    // Los coleccionables siguen decrementando el supply (regla 99/100):
+    // poseer el serial #X/100 tiene valor — no se puede saltear eso.
+    const userDocForRole = await getDoc(doc(db, 'users', userId));
+    const isSuperAdminClaim =
+      String(userDocForRole.data()?.role || '') === 'super_admin' ||
+      String(userDocForRole.data()?.nicknameLower || '') === 'pochobs_admin';
+
+    if (isSuperAdminClaim) {
+      console.log('👑 super_admin claim: saltando deducción de créditos');
+      const adminPacksRef = doc(db, `users/${userId}/icon_packs/history`);
+      const adminPacksSnap = await getDoc(adminPacksRef);
+      const adminClaim: UserIconPack = {
+        packId,
+        packName: pack.name,
+        purchasedAt: Timestamp.now(),
+        creditsSpent: 0, // claimed gratis por super_admin
+      };
+      if (adminPacksSnap.exists()) {
+        await updateDoc(adminPacksRef, { purchases: arrayUnion(adminClaim) });
+      } else {
+        await setDoc(adminPacksRef, { purchases: [adminClaim], userId, createdAt: serverTimestamp() });
+      }
+      // Decrementar supply en coleccionables (regla 99/100 se mantiene)
+      await updateDoc(packRef, {
+        totalSales: increment(1),
+        ...(isLimitedEdition ? { stockRemaining: increment(-1), current_supply: increment(-1) } : {}),
+      });
+      if (Boolean(pack.isCollectible) || isLimitedEdition) {
+        const serialNumber = Math.max(1, (maxSupply || currentStock) - currentStock + 1);
+        const assetToken = `CS-ICON-${String(packId).slice(-3).toUpperCase()}-${String(serialNumber).padStart(3, '0')}`;
+        const total = maxSupply || currentStock || serialNumber;
+        const cert: CollectibleOwnership = {
+          ownershipId: `${packId}_${userId}_${Date.now()}`,
+          userId, packId, packName: pack.name, serialNumber, totalSupply: total,
+          assetToken,
+          certificateLabel: `Poseedor #${serialNumber}/${total} — Auténtico Pochobs Design`,
+          authenticityText: 'Auténtico Pochobs Design',
+          mintedAt: new Date().toISOString(),
+          tradable: true, marketStatus: 'held',
+        };
+        await setDoc(doc(db, 'users', userId, 'collectible_assets', cert.ownershipId), cert);
+        await setDoc(doc(db, 'users', userId, 'vault_certificates', cert.ownershipId), {
+          id: cert.ownershipId, title: `Certificado ${pack.name}`,
+          type: 'Collectible Certificate', value: cert.certificateLabel,
+          assetToken: cert.assetToken, packId, tradable: true, createdAt: cert.mintedAt,
+        });
+      }
+      console.log(`✅ Icon Pack (admin claim, 0 créditos): ${pack.name}`);
+      return true;
     }
 
     const costInCredits = pack.creditsPrice;

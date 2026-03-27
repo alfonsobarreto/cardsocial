@@ -45,6 +45,7 @@ import {
   AppState,
   FlatList,
   Image,
+  InteractionManager,
   Modal,
   ScrollView,
   StyleSheet,
@@ -182,8 +183,10 @@ export default function CardsFactoryScreen() {
           return;
         }
 
-        loadVaultItems();
-        loadSmartCards();
+        InteractionManager.runAfterInteractions(() => {
+          loadVaultItems();
+          loadSmartCards();
+        });
       };
 
       void verifyAccess();
@@ -639,7 +642,7 @@ export default function CardsFactoryScreen() {
           : card
       );
       await persistCards(nextCards);
-      setFactoryVisible(false);
+      InteractionManager.runAfterInteractions(() => setFactoryVisible(false));
       return;
     }
 
@@ -667,7 +670,7 @@ export default function CardsFactoryScreen() {
     };
 
     await persistCards([newCard, ...smartCards]);
-    setFactoryVisible(false);
+    InteractionManager.runAfterInteractions(() => setFactoryVisible(false));
   };
 
   const deleteCard = async (card: SmartCard) => {
@@ -1498,6 +1501,8 @@ export default function CardsFactoryScreen() {
         showsHorizontalScrollIndicator={false}
         key={isLandscape ? 'cards-landscape' : 'cards-portrait'}
         contentContainerStyle={[styles.cardsList, isLandscape && styles.cardsListLandscape]}
+        bounces={false}
+        overScrollMode="never"
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
             <MaterialCommunityIcons name="credit-card-plus-outline" size={52} color="#0D4D8A" />
@@ -1580,7 +1585,7 @@ export default function CardsFactoryScreen() {
             </View>
 
             <Text style={[styles.sectionLabel, { color: cardsTheme.sectionLabel }]}>Cambiar Fondo</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.wallpaperListRow}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.wallpaperListRow} bounces={false} overScrollMode="never">
               <TouchableOpacity
                 style={[styles.wallpaperThumbBtn, !selectedWallpaper && styles.wallpaperThumbBtnActive]}
                 onPress={() => setSelectedWallpaper(null)}
@@ -1615,7 +1620,7 @@ export default function CardsFactoryScreen() {
             </ScrollView>
 
             <Text style={[styles.sectionLabel, { color: cardsTheme.sectionLabel }]}>Cambiar Fuente</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.wallpaperListRow}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.wallpaperListRow} bounces={false} overScrollMode="never">
               <TouchableOpacity
                 style={[styles.wallpaperThumbBtn, !selectedFont && styles.wallpaperThumbBtnActive]}
                 onPress={() => {
@@ -1686,10 +1691,12 @@ export default function CardsFactoryScreen() {
               keyExtractor={(item) => item.id}
               renderItem={renderVaultOption}
               style={styles.vaultList}
+              bounces={false}
+              overScrollMode="never"
             />
 
             <View style={styles.modalActions}>
-              <TouchableOpacity style={[styles.ghostBtn, { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder }]} onPress={() => setFactoryVisible(false)}>
+              <TouchableOpacity style={[styles.ghostBtn, { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder }]} onPress={() => InteractionManager.runAfterInteractions(() => setFactoryVisible(false))}>
                 <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary }]} onPress={handleSaveCard}>
@@ -1892,7 +1899,7 @@ export default function CardsFactoryScreen() {
             <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle }]}>Suscriptores de la tarjeta</Text>
             <Text style={[styles.subscribersSubtitle, { color: cardsTheme.modalSubtitle }]}>{subscribersCard?.name || 'Smart Card'}</Text>
 
-            <ScrollView style={styles.subscribersList}>
+            <ScrollView style={styles.subscribersList} bounces={false} overScrollMode="never">
               {subscribersLoading ? (
                 <Text style={[styles.subscribersLoadingText, { color: cardsTheme.sectionLabel }]}>Cargando suscriptores...</Text>
               ) : subscribers.length === 0 ? (
@@ -2025,7 +2032,7 @@ export default function CardsFactoryScreen() {
             </View>
 
             <Text style={styles.qrRefsTitle}>Datos vinculados</Text>
-            <ScrollView style={styles.qrRefsList}>
+            <ScrollView style={styles.qrRefsList} bounces={false} overScrollMode="never">
               {selectedCardItems.map((item) => (
                 <Text key={item.id} style={styles.qrRefItem}>• {item.title} ({item.type})</Text>
               ))}

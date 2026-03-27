@@ -16,5 +16,14 @@
   "error_network": "Network error. Please try again.",
   "error_unknown": "An unknown error occurred.",
   "connection_error": "Connection error. Check your internet.",
-  "retry": "Retry"
+  "retry": "Retry",
+  "preview_confirm_title_image": "Preview — Confirm",
+  "preview_confirm_title_pdf": "Document ready to confirm",
+  "preview_confirm_subtitle": "Confirm your file before uploading to the Vault.",
+  "preview_choose_again": "Take / Choose Again",
+  "preview_accept": "Accept",
+  "preview_pdf_ready": "document ready",
+  "crop_title": "Adjust your profile photo",
+  "crop_hint": "Drag to move · Pinch to zoom",
+  "crop_confirm": "Confirm photo"
 }
