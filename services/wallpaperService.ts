@@ -1,17 +1,15 @@
+import { db, storage } from '@/services/firebaseConfig';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs
+} from 'firebase/firestore';
 import {
   getDownloadURL,
   listAll,
   ref,
 } from 'firebase/storage';
-import {
-  addDoc,
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  serverTimestamp,
-} from 'firebase/firestore';
-import { db, storage } from '@/services/firebaseConfig';
 
 export type WallpaperOrientation = 'vertical' | 'horizontal';
 export type WallpaperTier = 'free' | 'premium';

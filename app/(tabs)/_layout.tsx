@@ -1,9 +1,31 @@
-import { Tabs } from 'expo-router';
-import { Database, CreditCard, Users, Search, PlayCircle, Phone } from 'lucide-react-native';
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { ConfettiAnimation, ConfettiAnimationRef } from '@/components/ConfettiAnimation';
+import { CreditsIndicator } from '@/components/CreditsIndicator';
+import IconStore from '@/components/IconStore';
+import Subscription from '@/components/Subscription';
+import { getActiveUserId } from '@/services/authSession';
+import { auth, db } from '@/services/firebaseConfig';
+import { requestLocationPermission } from '@/services/geolocationService';
+import { useLookMode } from '@/services/lookMode';
+import { listBlockedRelations, unblockRelationship } from '@/services/qrApi';
+import { isSuperAdmin } from '@/services/roleService';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Tabs, useRouter } from 'expo-router';
+import { signOut } from 'firebase/auth';
+import {
+  doc,
+  getDoc,
+  serverTimestamp,
+  updateDoc
+} from 'firebase/firestore';
+import { CreditCard, Database, Phone, PlayCircle, Search, Users } from 'lucide-react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -14,38 +36,8 @@ import {
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  Keyboard,
   View,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { auth } from '@/services/firebaseConfig';
-import { signOut } from 'firebase/auth';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
-import { getActiveUserId } from '@/services/authSession';
-import { listBlockedRelations, unblockRelationship } from '@/services/qrApi';
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  limit,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where,
-} from 'firebase/firestore';
-import { db } from '@/services/firebaseConfig';
-import { CreditsIndicator } from '@/components/CreditsIndicator';
-import { ConfettiAnimation, ConfettiAnimationRef } from '@/components/ConfettiAnimation';
-import Subscription from '@/components/Subscription';
-import { applyWelcomeBonus, initializeUserCredits } from '@/services/creditsService';
-import { isSuperAdmin } from '@/services/roleService';
-import IconStore from '@/components/IconStore';
-import { useLookMode } from '@/services/lookMode';
-import { requestLocationPermission } from '@/services/geolocationService';
 
 type BlockedUser = {
   uid: string;
