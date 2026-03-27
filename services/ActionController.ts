@@ -146,4 +146,34 @@ export const ActionController = {
 
     Alert.alert('Documento', url || 'No hay documento disponible.');
   },
+
+  /**
+   * ActionImage: Similar to ActionDocument but for images.
+   * Closes the modal immediately and processes the image upload in the background.
+   */
+  async ActionImage({
+    value,
+    closeModal,
+    uploadCallback,
+  }: {
+    value: string;
+    closeModal?: () => void;
+    uploadCallback?: () => Promise<void>;
+  }) {
+    // Close the modal immediately
+    closeModal?.();
+
+    // Launch the upload process in the background
+    if (uploadCallback) {
+      setTimeout(() => {
+        uploadCallback().catch(() => {
+          // Silent error handling
+        });
+      }, 0);
+      return;
+    }
+
+    // If no uploadCallback, log the value for debugging
+    console.log('No uploadCallback provided for ActionImage:', value);
+  },
 };

@@ -35,6 +35,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Buffer } from 'buffer';
 import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
+import Toast from 'react-native-toast-message';
 import CardStudioVault, { ICON_GALLERY } from './CardStudioVault';
 import LuxuryModerationModal from './LuxuryModerationModal';
 
@@ -523,7 +524,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         return;
       }
       setFileTypeModalVisible(false); // Cerrar modal antes de procesar
-      setTimeout(async () => {
+      Toast.show({
+        text1: t('Subiendo archivo...'),
+        type: 'info',
+        position: 'bottom',
+        visibilityTime: 4000,
+        autoHide: true,
+      });
+      setTimeout(async () => { // Mover lógica de compresión y subida a background
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           allowsEditing: false,
@@ -548,25 +556,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             );
             return;
           }
-          logAssetAudit('PICK_GALLERY_COMPRESSED', {
-            dataType,
-            dataName,
-            uri: optimized.uri,
-            fileName: 'gallery-compressed.jpg',
-            mimeType: 'image/jpeg',
-            sizeBytes: optimized.size,
-          });
-          openAssetPreview({
-            uri: optimized.uri,
-            name: file.fileName || 'gallery-image.jpg',
-            mimeType: 'image/jpeg',
-            source: 'gallery',
-          });
         }
-      }, 200);
+      }, 0); // Ejecutar en background
     } catch (error) {
-      console.error('Error picking photo:', error);
-      Alert.alert(t('Error'), t('No se pudo seleccionar la foto'));
+      console.error('Error al seleccionar imagen:', error);
     }
   };
 
@@ -682,6 +675,13 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         return;
       }
       setFileTypeModalVisible(false); // Cerrar modal antes de procesar
+      Toast.show({
+        text1: t('Subiendo archivo...'),
+        type: 'info',
+        position: 'bottom',
+        visibilityTime: 4000,
+        autoHide: true,
+      });
       setTimeout(async () => {
         const result = await ImagePicker.launchCameraAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -1568,7 +1568,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: formTheme.textPrimary }]}>País</Text>
                 <TouchableOpacity onPress={() => setCountryModalVisible(false)}>
-                  <MaterialCommunityIcons name="close" color="#1EA7FF" size={24} />
+                  <MaterialCommunityIcons name="close" color={formTheme.textPrimary} size={24} />
                 </TouchableOpacity>
               </View>
               <FlatList
