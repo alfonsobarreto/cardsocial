@@ -77,7 +77,7 @@ const DataInputForm = () => {
     } else if (type === 'Documento') {
       ActionController.ActionDocument({ value });
     } else if (type === 'Texto' || type === 'Texto Plain') {
-      ActionController.ActionText({ value });
+      ActionController.ActionText({ value, title: label });
     } else {
       Alert.alert('Error', 'Tipo de dato no soportado.');
     }

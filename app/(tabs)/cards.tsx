@@ -1079,7 +1079,7 @@ export default function CardsFactoryScreen() {
         },
       });
     } else if (type.includes('texto')) {
-      ActionController.ActionText({ value });
+      ActionController.ActionText({ value, title: item.title });
     } else {
       Alert.alert('Dato', value);
     }

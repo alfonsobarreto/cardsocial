@@ -201,7 +201,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
-  const [uploadStageLabel, setUploadStageLabel] = useState('Iniciando...');
+  const [uploadStageLabel, setUploadStageLabel] = useState('');
   const [moderationAlertVisible, setModerationAlertVisible] = useState(false);
   const [moderationAlertMessage, setModerationAlertMessage] = useState('');
   const [rejectionAttempts, setRejectionAttempts] = useState(0);
@@ -353,6 +353,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   useEffect(() => {
     if (!editingData?.id) {
       setSelectedIcon('1');
+      setDataName('');
       setDataValue('');
       setFaviconUrl('');
       closeFaviconSuggestion();
@@ -372,7 +373,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setUploadModalVisible(false);
     setIsUploading(false);
     setUploadProgress(0);
-    setUploadStageLabel('Iniciando...');
+    setUploadStageLabel(t('upload_starting'));
     setIsCompressing(false);
 
     // Reset form
@@ -414,7 +415,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const retryAssetSelection = () => {
     setDataValue('');
     setUploadProgress(0);
-    setUploadStageLabel('Iniciando...');
+    setUploadStageLabel(t('upload_starting'));
     setIsUploading(false);
     setAssetPreviewVisible(false);
     setPendingAsset(null);
@@ -666,7 +667,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         finalSize = optimized.size;
         finalMime = 'image/jpeg';
 
-        if (finalSize > MAX_IMAGE_SIZE) {
+        if (finalSize > MAX_IMAGE_SIZE && dataType !== 'Documento') {
           Alert.alert(
             t('No se pudo optimizar'),
             t('No fue posible reducir la imagen al límite seguro. Prueba con otra captura.')
@@ -684,7 +685,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         finalSize = optimizedPdf.size;
         finalMime = 'application/pdf';
 
-        if (finalSize > MAX_DOCUMENT_SIZE) {
+        if (finalSize > MAX_DOCUMENT_SIZE && dataType !== 'Documento') {
           Alert.alert(
             t('PDF demasiado pesado'),
             t('El PDF excede el límite seguro incluso tras optimizar. Usa una versión más ligera.')
@@ -693,14 +694,16 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           return;
         }
       } else {
-        const validation = await validateFileSize(file.uri);
-        if (!validation.valid) {
-          Alert.alert(
-            t('Archivo no soportado'),
-            t('Este formato no es compatible en esta carga segura. Usa imagen o PDF.')
-          );
-          setFileTypeModalVisible(false);
-          return;
+        if (dataType !== 'Documento') {
+          const validation = await validateFileSize(file.uri);
+          if (!validation.valid) {
+            Alert.alert(
+              t('Archivo no soportado'),
+              t('Este formato no es compatible en esta carga segura. Usa imagen o PDF.')
+            );
+            setFileTypeModalVisible(false);
+            return;
+          }
         }
       }
 
@@ -760,7 +763,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           });
           const optimized = await optimizeImageForLimit(file.uri, MAX_IMAGE_SIZE);
           console.log('--- COMPRESIÓN REAL ---', optimized.size);
-          if (optimized.size > MAX_IMAGE_SIZE) {
+          if (optimized.size > MAX_IMAGE_SIZE && dataType !== 'Documento') {
             Alert.alert(
               t('No se pudo optimizar'),
               t('La foto no pudo reducirse al límite seguro. Intenta otra captura.')
@@ -958,11 +961,11 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       }
 
       setUploadProgress(0);
-      setUploadStageLabel('Preparando archivo...');
+      setUploadStageLabel(t('upload_preparing'));
       setIsUploading(true);
       setUploadModalVisible(true);
       setUploadProgress(0.2);
-      setUploadStageLabel('Enviando al escudo de seguridad...');
+      setUploadStageLabel(t('upload_sending'));
 
       const uploadResult = await uploadFileWithModeration({
         fileUri,
@@ -982,9 +985,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       });
 
       setUploadProgress(0.8);
-      setUploadStageLabel('Moderando en Azure Content Safety...');
+      setUploadStageLabel(t('upload_moderating'));
       setUploadProgress(1);
-      setUploadStageLabel('Contenido aprobado. Guardando...');
+      setUploadStageLabel(t('upload_approved'));
 
       setTimeout(() => {
         setUploadModalVisible(false);

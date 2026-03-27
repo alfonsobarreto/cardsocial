@@ -90,16 +90,16 @@ export const ActionController = {
 
   /**
    * ActionText: Modal flotante con el texto completo.
-   * Botones: Copiar texto y Cancelar.
+   * Encabezado = Nombre del Dato (title). Botones: Copiar y Cancelar.
    */
-  async ActionText({ value }: { value: string }) {
+  async ActionText({ value, title }: { value: string; title?: string }) {
     const text = String(value || '');
     Alert.alert(
-      'Texto',
+      title || 'Texto',
       text,
       [
         {
-          text: 'Copiar texto',
+          text: 'Copiar',
           onPress: async () => {
             await Clipboard.setStringAsync(text);
           },

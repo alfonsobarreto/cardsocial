@@ -608,7 +608,7 @@ export default function StoriesPage() {
     } else if (type.includes('documento') || type.includes('pdf')) {
       ActionController.ActionDocument({ value });
     } else if (type.includes('texto')) {
-      ActionController.ActionText({ value });
+      ActionController.ActionText({ value, title: story.ctaTitle });
     } else {
       Alert.alert('CTA disponible', `${story.ctaTitle}: ${value}`);
     }
