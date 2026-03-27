@@ -109,7 +109,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     selectedBgInput: isNight ? '#1C5BB9' : '#54C1FB',
     iconPreviewCircleBg: isNight ? '#0B2234' : '#F0F4F8',
     iconPreviewCircleBorder: isNight ? '#C5A065' : '#CFE6F8',
-    gradientColors: isNight ? ['#E8C547', '#C5A065', '#D4AF37'] : ['#00BFD9', '#00A0C6', '#0099CC'],
+    gradientColors: (isNight ? ['#E8C547', '#C5A065', '#D4AF37'] : ['#00BFD9', '#00A0C6', '#0099CC']) as readonly [string, string, ...string[]],
   };
   const [dataType, setDataType] = useState<DataType>('Enlaces');
   const [dataName, setDataName] = useState('');
@@ -240,7 +240,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   }, []);
 
   // Favicon fetching with local cache and UI cleanup
-  const faviconCache = useRef({});
+  const faviconCache = useRef<Record<string, string>>({});
   useEffect(() => {
     const lookupFavicon = async () => {
       if (dataType !== 'Enlaces' || !dataValue.trim() || editingData?.id) {
