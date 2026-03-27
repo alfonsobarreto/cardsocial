@@ -651,7 +651,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       });
       setTimeout(async () => { // Mover lógica de compresión y subida a background
         const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ['images'],
           allowsEditing: false,
           quality: 0.8,
         });
@@ -816,7 +816,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       });
       setTimeout(async () => {
         const result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ['images'],
           allowsEditing: false,
           quality: 0.8,
         });

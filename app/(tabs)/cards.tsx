@@ -1056,16 +1056,8 @@ export default function CardsFactoryScreen() {
   // Efecto para actualizar orientación en tiempo real mientras el modal está abierto
   useEffect(() => {
     if (!previewVisible) return;
-    const handleChange = () => {
-      if (window.innerWidth > window.innerHeight) {
-        setPreviewLayout('horizontal');
-      } else {
-        setPreviewLayout('vertical');
-      }
-    };
-    window.addEventListener('resize', handleChange);
-    return () => window.removeEventListener('resize', handleChange);
-  }, [previewVisible]);
+    setPreviewLayout(width > height ? 'horizontal' : 'vertical');
+  }, [previewVisible, width, height]);
 
   const openDataPopover = (item: VaultItem) => {
     const type = String(item.type || '').toLowerCase();

@@ -16,19 +16,19 @@
 import { deductCredits, recordCreditTransaction } from '@/services/creditsService';
 import { db } from '@/services/firebaseConfig';
 import {
-    addDoc,
-    arrayUnion,
-    collection,
-    doc,
-    getDoc,
-    getDocs,
-    increment,
-    query,
-    serverTimestamp,
-    setDoc,
-    Timestamp,
-    updateDoc,
-    where,
+  addDoc,
+  arrayUnion,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  increment,
+  query,
+  serverTimestamp,
+  setDoc,
+  Timestamp,
+  updateDoc,
+  where,
 } from 'firebase/firestore';
 
 export interface IconPack {
@@ -168,16 +168,13 @@ export async function getAvailableIconPacks(userId: string): Promise<IconPack[]>
       }) as IconPack[];
     }
 
-    // Usuario GRATIS: Retornar packs compatibles (no premium-only)
+    // Usuario GRATIS: leer activos y filtrar premium en cliente para evitar índice compuesto.
     const packsRef = collection(db, 'icon_packs');
-    const q = query(
-      packsRef,
-      where('isActive', '==', true),
-      where('category', '!=', 'premium'), // Excluir categoría exclusive premium
-    );
+    const q = query(packsRef, where('isActive', '==', true));
     const snapshot = await getDocs(q);
 
-    return snapshot.docs.map((doc) => {
+    return snapshot.docs
+      .map((doc) => {
       const row = {
         id: doc.id,
         ...doc.data(),
@@ -189,7 +186,8 @@ export async function getAvailableIconPacks(userId: string): Promise<IconPack[]>
         current_supply: Number(row.current_supply ?? row.stockRemaining ?? 0),
         storeSection: row.storeSection || normalizeSection(row),
       };
-    }) as IconPack[];
+    })
+      .filter((pack) => String(pack.category || '').toLowerCase() !== 'premium') as IconPack[];
   } catch (error) {
     console.error('Error getting available icon packs:', error);
     return [];

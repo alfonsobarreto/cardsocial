@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import {
     Alert,
     Dimensions,
+    InteractionManager,
     Modal,
     PanResponder,
     SectionList,
@@ -255,11 +256,14 @@ export default function CardStudioVault({
   const sectionListRef = useRef<SectionList<IconItem[], IconSection>>(null);
   const longPressTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({}); 
 
-  // Cargar recientes de AsyncStorage al montar
+  // Cargar recientes de AsyncStorage al montar — diferido para no bloquear la animación
   useEffect(() => {
-    AsyncStorage.getItem(RECENT_ICONS_KEY)
-      .then((raw) => { if (raw) setRecentIconIds(JSON.parse(raw)); })
-      .catch(() => {});
+    const task = InteractionManager.runAfterInteractions(() => {
+      AsyncStorage.getItem(RECENT_ICONS_KEY)
+        .then((raw) => { if (raw) setRecentIconIds(JSON.parse(raw)); })
+        .catch(() => {});
+    });
+    return () => task.cancel();
   }, []);
 
   // Secciones dinámicas — antepone "Recientes" si existen
@@ -309,13 +313,15 @@ export default function CardStudioVault({
   // Selección de ícono con haptic + recientes
   const handleSelectIcon = (iconId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setRecentIconIds((prev) => {
-      const next = [iconId, ...prev.filter((id) => id !== iconId)].slice(0, MAX_RECENTS);
-      AsyncStorage.setItem(RECENT_ICONS_KEY, JSON.stringify(next)).catch(() => {});
-      return next;
-    });
+    // Cerrar el modal de inmediato — la animación de slide-down no se bloquea
     onSelectIcon(iconId);
     onClose();
+    // Escribir recientes en AsyncStorage después de que termine la animación
+    InteractionManager.runAfterInteractions(() => {
+      const next = [iconId, ...recentIconIds.filter((id) => id !== iconId)].slice(0, MAX_RECENTS);
+      setRecentIconIds(next);
+      AsyncStorage.setItem(RECENT_ICONS_KEY, JSON.stringify(next)).catch(() => {});
+    });
   };
 
   const theme = {
@@ -469,7 +475,6 @@ export default function CardStudioVault({
       >
         <TouchableWithoutFeedback onPress={onClose}>
           <View style={styles.overlay}>
-            <TouchableWithoutFeedback onPress={() => {}}>
               <View
                 style={[
                   styles.sheet,
@@ -479,6 +484,7 @@ export default function CardStudioVault({
                     borderTopColor: theme.border,
                   },
                 ]}
+                onStartShouldSetResponder={() => true}
               >
                 {/* Drag handle */}
                 <View style={styles.dragHandleWrap} {...swipeResponder.panHandlers}>
@@ -503,6 +509,7 @@ export default function CardStudioVault({
                 </Text>
 
                 {/* SectionList categorizado */}
+                <View style={{ flex: 1 }}>
                 <SectionList
                   ref={sectionListRef}
                   sections={displaySections}
@@ -521,11 +528,15 @@ export default function CardStudioVault({
                   stickySectionHeadersEnabled
                   showsVerticalScrollIndicator={false}
                   contentContainerStyle={styles.listContent}
-                  removeClippedSubviews
                   scrollEventThrottle={16}
+                  windowSize={2}
+                  maxToRenderPerBatch={5}
+                  initialNumToRender={3}
+                  bounces={false}
+                  overScrollMode="never"
                 />
+                </View>
               </View>
-            </TouchableWithoutFeedback>
           </View>
         </TouchableWithoutFeedback>
       </Modal>

@@ -309,7 +309,7 @@ export default function IconStore() {
   }
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: isNight ? '#0A2540' : '#F8F9FA' }]} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[styles.container, { backgroundColor: isNight ? '#0A2540' : '#F8F9FA' }]} showsVerticalScrollIndicator={false} bounces={false} overScrollMode="never">
       {/* Header */}
       <LinearGradient
         colors={['#0A2540', '#1A4E7F']}

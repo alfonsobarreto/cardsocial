@@ -7,9 +7,9 @@
  * Las tarjetas de negocio usan licencia anual por tarjeta y no dependen de este tope.
  */
 
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '@/services/firebaseConfig';
 import { FREE_TIER_POLICY } from '@/constants/freeTierPolicy';
+import { db } from '@/services/firebaseConfig';
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 
 const PRIVILEGED_NICKNAMES = new Set(['pochobs_admin']);
 
@@ -39,15 +39,24 @@ const LIMITS = {
  */
 export async function isPremiumUser(userId: string): Promise<boolean> {
   try {
-    const usersRef = collection(db, 'users');
-    const q = query(usersRef, where('uid', '==', userId));
-    const querySnapshot = await getDocs(q);
+    // Ruta principal: documento directo por UID (patrón estándar del proyecto)
+    const directRef = doc(db, 'users', userId);
+    const directSnap = await getDoc(directRef);
 
-    if (querySnapshot.empty) {
-      return false; // Usuario no encontrado, asumir free
+    let userData: any = null;
+    if (directSnap.exists()) {
+      userData = directSnap.data();
+    } else {
+      // Fallback legacy: algunas instalaciones guardan uid como campo
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('uid', '==', userId));
+      const querySnapshot = await getDocs(q);
+      if (querySnapshot.empty) {
+        return false; // Usuario no encontrado, asumir free
+      }
+      userData = querySnapshot.docs[0].data();
     }
 
-    const userData = querySnapshot.docs[0].data();
     const nicknameLower = String(userData?.nicknameLower || '').trim().toLowerCase();
     const role = String(userData?.role || '').trim().toLowerCase();
 

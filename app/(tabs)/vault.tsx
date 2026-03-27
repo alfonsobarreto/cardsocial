@@ -1,6 +1,7 @@
 import DullModeLock from '@/components/DullModeLock';
 import LimitReachedModal from '@/components/LimitReachedModal';
 import VerificationBadge from '@/components/VerificationBadge';
+import { FREE_TIER_POLICY } from '@/constants/freeTierPolicy';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { db } from '@/services/firebaseConfig';
@@ -102,7 +103,7 @@ const VaultScreen = () => {
   const [isUserVerified, setIsUserVerified] = useState(false);
   const [limitReachedVisible, setLimitReachedVisible] = useState(false);
   const [limitItemCount, setLimitItemCount] = useState(0);
-  const [limitMaxItems, setLimitMaxItems] = useState(10);
+  const [limitMaxItems, setLimitMaxItems] = useState(FREE_TIER_POLICY.vaultItems);
   const [isVaultUnlocked, setIsVaultUnlocked] = useState(false);
   const [isDullMode, setIsDullMode] = useState(false);
   const [dullModeLockVisible, setDullModeLockVisible] = useState(false);
@@ -416,7 +417,7 @@ const VaultScreen = () => {
   };
 
   const triggerSuccessHaptic = () => {
-    Vibration.vibrate(18);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const ensureWebUrl = (raw: string) => {
@@ -956,7 +957,7 @@ const VaultScreen = () => {
           </View>
           <Text style={styles.vaultCounterLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.62}>
             {isUnlimitedVault
-              ? `${links.length} / ∞ ${tr('datos', 'items')}`
+              ? tr(`${links.length} / Ilimitados usados`, `${links.length} / Unlimited used`)
               : `${links.length} / ${limitMaxItems} ${tr('datos', 'items')}`}
           </Text>
           {/* Barra de progreso: oculta para usuarios ilimitados */}
