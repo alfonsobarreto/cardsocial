@@ -781,7 +781,6 @@ const VaultScreen = () => {
       <TouchableOpacity
         style={[
           styles.gridCard,
-          { backgroundColor: vaultTheme.gridCardBg, borderColor: vaultTheme.gridCardBorder, borderWidth: 1 },
           isDullMode && styles.cardDullMode,
         ]}
         onPress={() => handleCardAction(item)}
@@ -789,7 +788,11 @@ const VaultScreen = () => {
         delayLongPress={800}
         activeOpacity={0.75}
       >
-        <View style={[styles.iconBox, { backgroundColor: vaultTheme.iconCircleBg }]}>
+        <View style={[
+          styles.iconBox,
+          { backgroundColor: vaultTheme.iconCircleBg },
+          isDullMode && { backgroundColor: 'rgba(140,140,140,0.18)' },
+        ]}>
           {renderIcon(item)}
           {item.isFavorite ? (
             <View style={styles.favoriteBadge}>
@@ -1266,34 +1269,30 @@ const styles = StyleSheet.create({
   gridCell: {
     width: '25%',
     paddingHorizontal: 4,
-    paddingVertical: 6,
+    paddingVertical: 10,
   },
   gridCard: {
     alignItems: 'center',
     justifyContent: 'flex-start',
     width: '100%',
-    aspectRatio: 1,
-    backgroundColor: 'rgba(28,91,185,0.18)',
-    paddingHorizontal: 6,
-    paddingVertical: 12,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 8,
+    // Sin fondo ni borde — el ícono flota solo
+    backgroundColor: 'transparent',
   },
   cardDullMode: {
-    backgroundColor: 'rgba(140,140,140,0.18)',
-    borderColor: '#8C8C8C',
+    opacity: 0.45,
   },
   iconBox: {
-    width: 52,
-    height: 52,
+    width: 58,
+    height: 58,
     borderRadius: 999,
-    backgroundColor: '#E3F2FD',
     justifyContent: 'center',
     alignItems: 'center',
+    // Drop shadow flotante
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 6,
   },
   favoriteBadge: {
     position: 'absolute',
