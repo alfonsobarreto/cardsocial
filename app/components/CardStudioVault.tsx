@@ -10,17 +10,18 @@ import { useLookMode } from '@/services/lookMode';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
-  Alert,
-  Dimensions,
-  Modal,
-  PanResponder,
-  SectionList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
+    Alert,
+    Dimensions,
+    Modal,
+    PanResponder,
+    SectionList,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
 } from 'react-native';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -36,139 +37,161 @@ export type VaultDataType =
 
 export interface IconItem {
   id: string;
-  label: string;
+  label: string;    // Español
+  labelEn: string;  // English
   icon: string;
 }
 
 interface IconSection {
   title: string;
+  titleEn?: string;
   data: IconItem[][];   // SectionList rows — cada row es un array de hasta 5 items
   isEmpty?: boolean;
   isPremium?: boolean;
   emptyLabel?: string;
+  emptyLabelEn?: string;
 }
 
 // ─── SECCIONES CATEGORIZADAS ──────────────────────────────────────────────────
 const RAW_SECTIONS: Array<{
   title: string;
-  items?: Array<{ label: string; icon: string }>;
+  titleEn: string;
+  items?: Array<{ label: string; labelEn: string; icon: string }>;
   isEmpty?: boolean;
   isPremium?: boolean;
   emptyLabel?: string;
+  emptyLabelEn?: string;
 }> = [
   {
     title: 'Enlaces',
+    titleEn: 'Links',
     items: [
-      { label: 'LinkedIn',    icon: 'linkedin'        },
-      { label: 'Instagram',   icon: 'instagram'       },
-      { label: 'Facebook',    icon: 'facebook'        },
-      { label: 'WhatsApp',    icon: 'whatsapp'        },
-      { label: 'Twitter/X',   icon: 'twitter'         },
-      { label: 'TikTok',      icon: 'music-note'      },
-      { label: 'YouTube',     icon: 'youtube'         },
-      { label: 'Snapchat',    icon: 'snapchat'        },
-      { label: 'Web',         icon: 'web'             },
-      { label: 'Link',        icon: 'link-variant'    },
+      { label: 'LinkedIn',    labelEn: 'LinkedIn',    icon: 'linkedin'         },
+      { label: 'Instagram',   labelEn: 'Instagram',   icon: 'instagram'        },
+      { label: 'Facebook',    labelEn: 'Facebook',    icon: 'facebook'         },
+      { label: 'WhatsApp',    labelEn: 'WhatsApp',    icon: 'whatsapp'         },
+      { label: 'Twitter/X',   labelEn: 'Twitter/X',   icon: 'twitter'          },
+      { label: 'TikTok',      labelEn: 'TikTok',      icon: 'music-note'       },
+      { label: 'YouTube',     labelEn: 'YouTube',     icon: 'youtube'          },
+      { label: 'Snapchat',    labelEn: 'Snapchat',    icon: 'snapchat'         },
+      { label: 'Web',         labelEn: 'Web',         icon: 'web'              },
+      { label: 'Enlace',      labelEn: 'Link',        icon: 'link-variant'     },
     ],
   },
   {
     title: 'Teléfonos',
+    titleEn: 'Phones',
     items: [
-      { label: 'Apple',       icon: 'apple'           },
-      { label: 'Android',     icon: 'android'         },
-      { label: 'Teléfono',    icon: 'phone'           },
-      { label: 'Clásico',     icon: 'phone-classic'   },
-      { label: 'Celular',     icon: 'cellphone'       },
-      { label: 'WhatsApp',    icon: 'whatsapp'        },
-      { label: 'Tablet',      icon: 'tablet-cellphone'},
-      { label: 'Vibrar',      icon: 'vibrate'         },
-      { label: 'VoIP',        icon: 'phone-voip'      },
-      { label: 'Contactos',   icon: 'contacts'        },
+      { label: 'Apple',       labelEn: 'Apple',       icon: 'apple'            },
+      { label: 'Android',     labelEn: 'Android',     icon: 'android'          },
+      { label: 'Teléfono',    labelEn: 'Phone',       icon: 'phone'            },
+      { label: 'Clásico',     labelEn: 'Classic',     icon: 'phone-classic'    },
+      { label: 'Celular',     labelEn: 'Mobile',      icon: 'cellphone'        },
+      { label: 'WhatsApp',    labelEn: 'WhatsApp',    icon: 'whatsapp'         },
+      { label: 'Tablet',      labelEn: 'Tablet',      icon: 'tablet-cellphone' },
+      { label: 'Vibrar',      labelEn: 'Vibrate',     icon: 'vibrate'          },
+      { label: 'VoIP',        labelEn: 'VoIP',        icon: 'phone-voip'       },
+      { label: 'Contactos',   labelEn: 'Contacts',    icon: 'contacts'         },
     ],
   },
   {
     title: 'Emails',
+    titleEn: 'Emails',
     items: [
-      { label: 'Gmail',       icon: 'gmail'           },
-      { label: 'Email',       icon: 'email-outline'   },
-      { label: 'Abierto',     icon: 'email-open'      },
-      { label: 'Outlook',     icon: 'microsoft-outlook'},
-      { label: 'Yahoo',       icon: 'yahoo'           },
-      { label: 'Buzón',       icon: 'mailbox'         },
-      { label: 'Enviar',      icon: 'send'            },
-      { label: 'Sello',       icon: 'email-seal'      },
-      { label: 'Arroba',      icon: 'at'              },
-      { label: 'Alt Email',   icon: 'alternate-email' },
+      { label: 'Gmail',       labelEn: 'Gmail',       icon: 'gmail'             },
+      { label: 'Email',       labelEn: 'Email',       icon: 'email-outline'     },
+      { label: 'Abierto',     labelEn: 'Open',        icon: 'email-open'        },
+      { label: 'Outlook',     labelEn: 'Outlook',     icon: 'microsoft-outlook' },
+      { label: 'Yahoo',       labelEn: 'Yahoo',       icon: 'yahoo'             },
+      { label: 'Buzón',       labelEn: 'Mailbox',     icon: 'mailbox'           },
+      { label: 'Enviar',      labelEn: 'Send',        icon: 'send'              },
+      { label: 'Sello',       labelEn: 'Stamp',       icon: 'email-seal'        },
+      { label: 'Arroba',      labelEn: 'At Sign',     icon: 'at'                },
+      { label: 'Alt Email',   labelEn: 'Alt Email',   icon: 'alternate-email'   },
     ],
   },
   {
     title: 'Seguridad / Estilo',
+    titleEn: 'Security / Style',
     items: [
-      { label: 'Llave',       icon: 'key'             },
-      { label: 'Escudo',      icon: 'shield-check'    },
-      { label: 'Candado',     icon: 'lock'            },
-      { label: 'Carpeta',     icon: 'folder-lock'     },
-      { label: 'Ojo',         icon: 'eye-outline'     },
-      { label: 'Huella',      icon: 'fingerprint'     },
-      { label: 'Estrella',    icon: 'star'            },
-      { label: 'Diamante',    icon: 'diamond-stone'   },
-      { label: 'Corona',      icon: 'crown'           },
-      { label: 'Corazón',     icon: 'heart'           },
-      { label: 'Rayo',        icon: 'flash'           },
+      { label: 'Llave',       labelEn: 'Key',         icon: 'key'              },
+      { label: 'Escudo',      labelEn: 'Shield',      icon: 'shield-check'     },
+      { label: 'Candado',     labelEn: 'Lock',        icon: 'lock'             },
+      { label: 'Carpeta',     labelEn: 'Folder',      icon: 'folder-lock'      },
+      { label: 'Ojo',         labelEn: 'Eye',         icon: 'eye-outline'      },
+      { label: 'Huella',      labelEn: 'Fingerprint', icon: 'fingerprint'      },
+      { label: 'Estrella',    labelEn: 'Star',        icon: 'star'             },
+      { label: 'Diamante',    labelEn: 'Diamond',     icon: 'diamond-stone'    },
+      { label: 'Corona',      labelEn: 'Crown',       icon: 'crown'            },
+      { label: 'Corazón',     labelEn: 'Heart',       icon: 'heart'            },
+      { label: 'Rayo',        labelEn: 'Flash',       icon: 'flash'            },
     ],
   },
   {
     title: 'Documentos',
+    titleEn: 'Documents',
     items: [
-      { label: 'PDF',         icon: 'file-pdf-box'    },
-      { label: 'Imagen',      icon: 'file-image'      },
-      { label: 'Video',       icon: 'file-video'      },
-      { label: 'Word',        icon: 'file-word'       },
-      { label: 'Excel',       icon: 'file-excel'      },
-      { label: 'Doc',         icon: 'file-document'   },
-      { label: 'PPT',         icon: 'file-presentation'},
-      { label: 'Música',      icon: 'file-music'      },
-      { label: 'ZIP',         icon: 'zip-box'         },
-      { label: 'Carpeta',     icon: 'folder-zip'      },
+      { label: 'PDF',         labelEn: 'PDF',         icon: 'file-pdf-box'      },
+      { label: 'Imagen',      labelEn: 'Image',       icon: 'file-image'        },
+      { label: 'Video',       labelEn: 'Video',       icon: 'file-video'        },
+      { label: 'Word',        labelEn: 'Word',        icon: 'file-word'         },
+      { label: 'Excel',       labelEn: 'Excel',       icon: 'file-excel'        },
+      { label: 'Doc',         labelEn: 'Doc',         icon: 'file-document'     },
+      { label: 'PPT',         labelEn: 'PPT',         icon: 'file-presentation' },
+      { label: 'Música',      labelEn: 'Music',       icon: 'file-music'        },
+      { label: 'ZIP',         labelEn: 'ZIP',         icon: 'zip-box'           },
+      { label: 'Carpeta',     labelEn: 'Folder',      icon: 'folder-zip'        },
     ],
   },
   // ── Colección personal ────
   {
     title: 'Mis Iconos Personalizados',
+    titleEn: 'My Custom Icons',
     isEmpty: true,
     isPremium: false,
     emptyLabel: 'Próximamente: Sube tus propios iconos',
+    emptyLabelEn: 'Coming soon: Upload your own icons',
   },
   // ── Colecciones premium futuras ───
   {
     title: 'Luxury',
+    titleEn: 'Luxury',
     isEmpty: true,
     isPremium: true,
     emptyLabel: 'Colección Luxury — Próximamente',
+    emptyLabelEn: 'Luxury Collection — Coming soon',
   },
   {
     title: '3D',
+    titleEn: '3D',
     isEmpty: true,
     isPremium: true,
     emptyLabel: 'Iconos 3D — Próximamente',
+    emptyLabelEn: '3D Icons — Coming soon',
   },
   {
     title: 'GIF',
+    titleEn: 'GIF',
     isEmpty: true,
     isPremium: true,
     emptyLabel: 'Iconos Animados GIF — Próximamente',
+    emptyLabelEn: 'Animated GIF Icons — Coming soon',
   },
   {
     title: 'Coleccionables',
+    titleEn: 'Collectibles',
     isEmpty: true,
     isPremium: true,
     emptyLabel: 'Coleccionables — Próximamente',
+    emptyLabelEn: 'Collectibles — Coming soon',
   },
   {
     title: 'Themes',
+    titleEn: 'Themes',
     isEmpty: true,
     isPremium: true,
     emptyLabel: 'Temas Exclusivos — Próximamente',
+    emptyLabelEn: 'Exclusive Themes — Coming soon',
   },
 ];
 
@@ -178,21 +201,24 @@ const ICON_SECTIONS: IconSection[] = RAW_SECTIONS.map((sec) => {
   if (sec.isEmpty || !sec.items) {
     return {
       title: sec.title,
+      titleEn: sec.titleEn,
       data: [],
       isEmpty: true,
       isPremium: sec.isPremium,
       emptyLabel: sec.emptyLabel,
+      emptyLabelEn: sec.emptyLabelEn,
     };
   }
   const items: IconItem[] = sec.items.map((i) => ({
     id: String(_globalId++),
     label: i.label,
+    labelEn: i.labelEn,
     icon: i.icon,
   }));
   // Chunk into rows of 5
   const rows: IconItem[][] = [];
   for (let i = 0; i < items.length; i += 5) rows.push(items.slice(i, i + 5));
-  return { title: sec.title, data: rows };
+  return { title: sec.title, titleEn: sec.titleEn, data: rows };
 });
 
 // ─── ICON_GALLERY flat — compatibilidad con NewInfoForm y resto del app ───────
@@ -219,6 +245,8 @@ export default function CardStudioVault({
 }: CardStudioVaultProps) {
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
+  const { i18n } = useTranslation();
+  const isEN = i18n.language === 'en';
   const [storeModalVisible, setStoreModalVisible] = useState(false);
   const longPressTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
@@ -284,7 +312,7 @@ export default function CardStudioVault({
   const renderSectionHeader = ({ section }: { section: IconSection }) => (
     <View style={[styles.sectionHeader, { backgroundColor: theme.sectionHeaderBg }]}>
       <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
-        {section.title}
+        {isEN ? section.titleEn : section.title}
       </Text>
       {section.isPremium && (
         <View style={[styles.premiumBadge, { backgroundColor: theme.premiumBadgeBg }]}>
@@ -335,7 +363,7 @@ export default function CardStudioVault({
                 ]}
                 numberOfLines={1}
               >
-                {item.label}
+                {isEN ? item.labelEn : item.label}
               </Text>
             </TouchableOpacity>
           );
@@ -354,7 +382,7 @@ export default function CardStudioVault({
           size={28}
         />
         <Text style={[styles.emptyLabel, { color: theme.textSecondary }]}>
-          {section.emptyLabel}
+          {isEN ? (section.emptyLabelEn ?? section.emptyLabel) : section.emptyLabel}
         </Text>
       </View>
     );
