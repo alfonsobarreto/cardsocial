@@ -4,7 +4,7 @@ import LimitReachedModal from '@/components/LimitReachedModal';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { type VaultCollectibleCertificate } from '@/services/collectibleService';
-import { auth } from '@/services/firebaseConfig';
+import { auth, db } from '@/services/firebaseConfig';
 import { type CardFontItem, type FontTier } from '@/services/fontLibraryService';
 import { useLanguage } from '@/services/language';
 import { validateCardCreation } from '@/services/limitService';
@@ -27,6 +27,7 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Gyroscope } from 'expo-sensors';
+import { doc, getDoc } from 'firebase/firestore';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -63,6 +64,15 @@ const CARD_THEMES: Record<CardTheme, { label: string; colors: [string, string] }
   'sky-glass': { label: 'Sky Glass', colors: ['#EAF7FF', '#CDEFFF'] },
   'ocean-night': { label: 'Ocean Night', colors: ['#0A2540', '#1E4F7C'] },
   'ice-lux': { label: 'Ice Lux', colors: ['#F4FCFF', '#BFE8FF'] },
+};
+
+const toRenderableImageUri = (value: string | null | undefined): string | null => {
+  const uri = String(value || '').trim();
+  if (!uri) return null;
+  if (uri.startsWith('https://') || uri.startsWith('http://')) return uri;
+  if (uri.startsWith('file://')) return uri;
+  if (uri.startsWith('data:image/')) return uri;
+  return null;
 };
 
 type VaultItem = {
@@ -162,6 +172,7 @@ export default function CardsFactoryScreen() {
   const [remainingMs, setRemainingMs] = useState(0);
   const [issuingQr, setIssuingQr] = useState(false);
   const [ownerNickname, setOwnerNickname] = useState('');
+  const [ownerDisplayName, setOwnerDisplayName] = useState('');
   const [ownerPhotoUrl, setOwnerPhotoUrl] = useState<string | null>(null);
   const parallaxX = useRef(new Animated.Value(0)).current;
   const parallaxY = useRef(new Animated.Value(0)).current;
@@ -188,14 +199,33 @@ export default function CardsFactoryScreen() {
 
   useEffect(() => {
     const user = auth.currentUser;
-    if (user?.displayName) {
-      setOwnerNickname(user.displayName);
-    } else if (user?.email) {
-      setOwnerNickname(String(user.email).split('@')[0]);
-    } else if (user?.uid) {
-      setOwnerNickname(`user_${String(user.uid).slice(0, 6)}`);
+    if (user) {
+      const authFallback = user.displayName
+        ? user.displayName
+        : user.email
+        ? String(user.email).split('@')[0]
+        : `user_${String(user.uid).slice(0, 6)}`;
+      const loadProfile = async () => {
+        try {
+          const userSnap = await getDoc(doc(db, 'users', user.uid));
+          const userData = userSnap.data() as any;
+          if (userData) {
+            setOwnerDisplayName(userData.fullName || userData.firstName || authFallback);
+            setOwnerNickname(userData.nickname || userData.nicknameLower || authFallback);
+            setOwnerPhotoUrl(toRenderableImageUri(userData.photoUrl) || toRenderableImageUri(user.photoURL) || null);
+          } else {
+            setOwnerDisplayName(authFallback);
+            setOwnerNickname(authFallback);
+            setOwnerPhotoUrl(toRenderableImageUri(user.photoURL) || null);
+          }
+        } catch {
+          setOwnerDisplayName(authFallback);
+          setOwnerNickname(authFallback);
+          setOwnerPhotoUrl(toRenderableImageUri(user.photoURL) || null);
+        }
+      };
+      void loadProfile();
     }
-    setOwnerPhotoUrl(user?.photoURL || null);
 
     loadVaultItems();
     loadSmartCards();
@@ -1377,9 +1407,6 @@ export default function CardsFactoryScreen() {
             <Text style={[styles.scanBtnText, { color: cardsTheme.btnPrimaryText }]}>Escanear</Text>
           </TouchableOpacity>
           */}
-          <TouchableOpacity style={[styles.createBtn, { backgroundColor: cardsTheme.fabBg, borderColor: cardsTheme.icon }]} onPress={openCreateFactory} activeOpacity={0.82}>
-            <MaterialCommunityIcons name="plus" size={22} color={cardsTheme.fabText} />
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -1444,12 +1471,12 @@ export default function CardsFactoryScreen() {
                       <Image source={{ uri: ownerPhotoUrl }} style={styles.identityAvatarLg} />
                     ) : (
                       <View style={styles.identityAvatarLgFallback}>
-                        <MaterialCommunityIcons name="account" size={22} color="#0D4D8A" />
+                        <MaterialCommunityIcons name="account" size={32} color="#0D4D8A" />
                       </View>
                     )}
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.identityFullName, { color: cardsTheme.text }]} numberOfLines={1}>
-                        {ownerNickname || tr('Nombre Completo', 'Full Name')}
+                        {ownerDisplayName || tr('Nombre Completo', 'Full Name')}
                       </Text>
                       <Text style={[styles.identityHandle, { color: cardsTheme.sectionLabel }]} numberOfLines={1}>
                         @{String(ownerNickname || 'user').toLowerCase().replace(/\s+/g, '')}
@@ -1536,7 +1563,6 @@ export default function CardsFactoryScreen() {
             </View>
           </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
-      </Modal>
 
       {/* DataSelector — Vault mirror for bulk icon selection */}
       <Modal
@@ -1703,6 +1729,8 @@ export default function CardsFactoryScreen() {
 
           </View>
         </View>
+      </Modal>
+
       </Modal>
 
       <Modal
@@ -2917,16 +2945,16 @@ const styles = StyleSheet.create({
     paddingLeft: 2,
   },
   identityAvatarLg: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     borderWidth: 2,
     borderColor: '#C5A065',
   },
   identityAvatarLgFallback: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     borderWidth: 2,
     borderColor: '#C5A065',
     backgroundColor: '#EAF7FF',

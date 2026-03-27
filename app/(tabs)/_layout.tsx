@@ -543,6 +543,13 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
             tabBarIcon: ({ color }) => <Phone color={color} size={24} />,
           }}
         />
+        <Tabs.Screen
+          name="myprofile"
+          options={{
+            href: null,
+            headerShown: false,
+          }}
+        />
       </Tabs>
 
       <Modal
@@ -610,6 +617,17 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
 
                 {activePanel === 'menu' ? (
                   <View style={styles.drawerMenuList}>
+                    <TouchableOpacity
+                      style={[styles.drawerItem, styles.drawerItemHighlight]}
+                      onPress={() => {
+                        setDrawerVisible(false);
+                        router.push('/(tabs)/myprofile' as any);
+                      }}
+                    >
+                      <MaterialCommunityIcons name="account-circle-outline" size={18} color="#C5A065" />
+                      <Text style={[styles.drawerItemText, { color: '#C5A065', fontWeight: '700' }]}>Mi Perfil</Text>
+                    </TouchableOpacity>
+
                     <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('terms')}>
                       <MaterialCommunityIcons name="file-document-outline" size={18} color="#0D4D8A" />
                       <Text style={styles.drawerItemText}>Términos y Condiciones</Text>
@@ -628,11 +646,6 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                     <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('privacy')}>
                       <MaterialCommunityIcons name="shield-account-outline" size={18} color="#0D4D8A" />
                       <Text style={styles.drawerItemText}>Privacidad</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('profile')}>
-                      <MaterialCommunityIcons name="account-circle-outline" size={18} color="#0D4D8A" />
-                      <Text style={styles.drawerItemText}>Mi Perfil</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('subscription')}>
@@ -1017,6 +1030,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 10,
     backgroundColor: 'rgba(255,255,255,0.55)',
+  },
+  drawerItemHighlight: {
+    backgroundColor: 'rgba(197, 160, 101, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(197, 160, 101, 0.45)',
   },
   mintItem: {
     backgroundColor: 'rgba(197, 160, 101, 0.15)',
