@@ -4,13 +4,8 @@ import LimitReachedModal from '@/components/LimitReachedModal';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { type VaultCollectibleCertificate } from '@/services/collectibleService';
-import { auth, db } from '@/services/firebaseConfig';
-import {
-  getFontGallery,
-  loadDynamicFont,
-  type CardFontItem,
-  type FontTier,
-} from '@/services/fontLibraryService';
+import { auth } from '@/services/firebaseConfig';
+import { type CardFontItem, type FontTier } from '@/services/fontLibraryService';
 import { useLanguage } from '@/services/language';
 import { validateCardCreation } from '@/services/limitService';
 import { useLookMode } from '@/services/lookMode';
@@ -23,40 +18,39 @@ import {
   revokeCardSubscriber,
   upsertSmartCardInDb,
 } from '@/services/qrApi';
-import {
-  getAvailableWallpapers,
-  getWallpaperResizeMode,
-  type WallpaperItem,
-  type WallpaperTier,
-} from '@/services/wallpaperService';
+import { getWallpaperResizeMode, type WallpaperItem, type WallpaperTier } from '@/services/wallpaperService';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Gyroscope } from 'expo-sensors';
-import { doc, getDoc } from 'firebase/firestore';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Animated,
   AppState,
   FlatList,
   Image,
   InteractionManager,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   useWindowDimensions,
   View
 } from 'react-native';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import QRCode from 'react-native-qrcode-svg';
+import Toast from 'react-native-toast-message';
 import { ActionController } from '../../services/ActionController';
 import palette from '../theme';
 
@@ -133,13 +127,8 @@ export default function CardsFactoryScreen() {
   const [cardName, setCardName] = useState('');
   const [layoutMode, setLayoutMode] = useState<'vertical' | 'horizontal'>('vertical');
   const [themeId, setThemeId] = useState<CardTheme>('sky-glass');
-  const [fontOptions, setFontOptions] = useState<CardFontItem[]>([]);
-  const [loadingFonts, setLoadingFonts] = useState(false);
   const [selectedFont, setSelectedFont] = useState<CardFontItem | null>(null);
   const [resolvedFontFamily, setResolvedFontFamily] = useState<string | null>(null);
-  const [isPremiumUser, setIsPremiumUser] = useState(false);
-  const [wallpaperOptions, setWallpaperOptions] = useState<WallpaperItem[]>([]);
-  const [loadingWallpapers, setLoadingWallpapers] = useState(false);
   const [selectedWallpaper, setSelectedWallpaper] = useState<WallpaperItem | null>(null);
   const [enableParallax, setEnableParallax] = useState(false);
   const [factoryVisible, setFactoryVisible] = useState(false);
@@ -162,6 +151,10 @@ export default function CardsFactoryScreen() {
   const [limitCardCount, setLimitCardCount] = useState(0);
   const [limitMaxCards, setLimitMaxCards] = useState(5);
   const [isCardsUnlocked, setIsCardsUnlocked] = useState(false);
+  const [dataSelectorVisible, setDataSelectorVisible] = useState(false);
+  const [dataSelectorLimitReached, setDataSelectorLimitReached] = useState(false);
+  const [tempSelectedIds, setTempSelectedIds] = useState<string[]>([]);
+  const [themesPlaceholderVisible, setThemesPlaceholderVisible] = useState(false);
   const [qrToken, setQrToken] = useState('');
   const [qrExpiresAt, setQrExpiresAt] = useState<number>(0);
   const [qrWindowMs, setQrWindowMs] = useState(60000);
@@ -206,30 +199,6 @@ export default function CardsFactoryScreen() {
 
     loadVaultItems();
     loadSmartCards();
-  }, []);
-
-  useEffect(() => {
-    if (!factoryVisible) {
-      return;
-    }
-
-    void loadWallpaperOptions(layoutMode);
-    void loadFontOptions();
-  }, [factoryVisible, layoutMode]);
-
-  useEffect(() => {
-    if (!selectedFont?.fileUrl) {
-      return;
-    }
-
-    void (async () => {
-      const loaded = await loadDynamicFont(selectedFont);
-      setResolvedFontFamily(loaded);
-    })();
-  }, [selectedFont]);
-
-  useEffect(() => {
-    void loadUserPremiumStatus();
   }, []);
 
   useEffect(() => {
@@ -421,57 +390,6 @@ export default function CardsFactoryScreen() {
     setSelectedCard(null);
   };
 
-  const loadUserPremiumStatus = async () => {
-    try {
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) {
-        setIsPremiumUser(false);
-        return;
-      }
-      const userSnap = await getDoc(doc(db, 'users', ownerUid));
-      setIsPremiumUser(Boolean(userSnap.exists() && userSnap.data()?.isPremium));
-    } catch {
-      setIsPremiumUser(false);
-    }
-  };
-
-  const loadWallpaperOptions = async (layout: 'vertical' | 'horizontal') => {
-    try {
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) {
-        setWallpaperOptions([]);
-        return;
-      }
-
-      setLoadingWallpapers(true);
-      const orientation = layout === 'horizontal' ? 'horizontal' : 'vertical';
-      const rows = await getAvailableWallpapers(ownerUid, orientation);
-      setWallpaperOptions(rows);
-    } catch {
-      setWallpaperOptions([]);
-    } finally {
-      setLoadingWallpapers(false);
-    }
-  };
-
-  const loadFontOptions = async () => {
-    try {
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) {
-        setFontOptions([]);
-        return;
-      }
-
-      setLoadingFonts(true);
-      const rows = await getFontGallery(ownerUid);
-      setFontOptions(rows);
-    } catch {
-      setFontOptions([]);
-    } finally {
-      setLoadingFonts(false);
-    }
-  };
-
   const openCreateFactory = async () => {
     try {
       const userId = await getActiveUserId();
@@ -533,22 +451,6 @@ export default function CardsFactoryScreen() {
     );
     setSelectedItemIds(card.itemIds);
     setFactoryVisible(true);
-  };
-
-  const pickWallpaperWithGate = (wall: WallpaperItem) => {
-    setSelectedWallpaper(wall);
-  };
-
-  const pickFontWithGate = async (font: CardFontItem) => {
-    setSelectedFont(font);
-    const loadedFamily = await loadDynamicFont(font);
-    setResolvedFontFamily(loadedFamily);
-  };
-
-  const toggleItemSelection = (itemId: string) => {
-    setSelectedItemIds((prev) =>
-      prev.includes(itemId) ? prev.filter((id) => id !== itemId) : [...prev, itemId]
-    );
   };
 
   const MAX_CARD_SLOTS = 8;
@@ -642,6 +544,14 @@ export default function CardsFactoryScreen() {
           : card
       );
       await persistCards(nextCards);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Toast.show({
+        type: 'success',
+        text1: tr('Cambio exitoso', 'Change saved'),
+        text2: tr('La tarjeta se actualizo correctamente.', 'The card was updated successfully.'),
+        position: 'bottom',
+        visibilityTime: 2200,
+      });
       InteractionManager.runAfterInteractions(() => setFactoryVisible(false));
       return;
     }
@@ -670,6 +580,14 @@ export default function CardsFactoryScreen() {
     };
 
     await persistCards([newCard, ...smartCards]);
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Toast.show({
+      type: 'success',
+      text1: tr('Cambio exitoso', 'Change saved'),
+      text2: tr('La tarjeta se guardo correctamente.', 'The card was saved successfully.'),
+      position: 'bottom',
+      visibilityTime: 2200,
+    });
     InteractionManager.runAfterInteractions(() => setFactoryVisible(false));
   };
 
@@ -751,6 +669,35 @@ export default function CardsFactoryScreen() {
   const openAddDataFlowFromPreview = (card: SmartCard) => {
     const targetIndex = Math.min(card.itemIds.length, Math.max(0, MAX_CARD_SLOTS - 1));
     openEditOnSpecificSlot(card, targetIndex);
+  };
+
+  const openDataSelector = () => {
+    setTempSelectedIds([...selectedItemIds]);
+    setDataSelectorLimitReached(false);
+    setDataSelectorVisible(true);
+  };
+
+  const handleSelectorToggle = (itemId: string) => {
+    if (tempSelectedIds.includes(itemId)) {
+      setTempSelectedIds((prev) => prev.filter((id) => id !== itemId));
+      setDataSelectorLimitReached(false);
+    } else {
+      if (tempSelectedIds.length >= MAX_CARD_SLOTS) {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        setDataSelectorLimitReached(true);
+        return;
+      }
+      setTempSelectedIds((prev) => [...prev, itemId]);
+    }
+  };
+
+  const confirmDataSelector = () => {
+    setSelectedItemIds(tempSelectedIds.slice(0, MAX_CARD_SLOTS));
+    setDataSelectorVisible(false);
+  };
+
+  const cancelDataSelector = () => {
+    setDataSelectorVisible(false);
   };
 
   const handlePreviewIconLongPress = (slot: EditSlot) => {
@@ -936,31 +883,6 @@ export default function CardsFactoryScreen() {
     } finally {
       setIssuingQr(false);
     }
-  };
-
-  const createFirstDynamicQr = async () => {
-    // [CUARENTENA] Lógica de QR dinámico deshabilitada temporalmente
-    // if (vaultItems.length === 0) {
-    //   Alert.alert(tr('Vault vacío', 'Empty Vault'), tr('Agrega al menos un dato en Vault para generar tu primer QR dinámico.', 'Add at least one Vault item to generate your first dynamic QR.'));
-    //   return;
-    // }
-    // const baseItems = vaultItems.slice(0, 4).map((item) => item.id);
-    // const nowIso = new Date().toISOString();
-    // const firstCard: SmartCard = {
-    //   id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    //   name: 'Smart Card Inicial',
-    //   layout: 'vertical',
-    //   themeId: 'sky-glass',
-    //   isFavorite: false,
-    //   itemIds: baseItems,
-    //   holdersCount: 0,
-    //   ratingAvg: 5,
-    //   createdAt: nowIso,
-    //   updatedAt: nowIso,
-    // };
-    // const nextCards = [firstCard, ...smartCards];
-    // await persistCards(nextCards);
-    // await issueQrForCard(firstCard);
   };
 
   const selectedCardItems = useMemo(() => {
@@ -1183,7 +1105,7 @@ export default function CardsFactoryScreen() {
   };
 
   const renderIdentityBadge = (compact = false) => {
-    const holderCount = selectedCard?.holdersCount ?? previewCard?.holdersCount ?? 0;
+    const holderCount = selectedCard?.holdersCount ?? previewCard?.holdersCount ?? 100;
     const ratingAvg = selectedCard?.ratingAvg ?? previewCard?.ratingAvg ?? 5;
     const cardTitle = (
       selectedCard?.name
@@ -1205,7 +1127,8 @@ export default function CardsFactoryScreen() {
         <AutoScaleText style={compact ? styles.wireNickSm : styles.wireNick}>@{nickname}</AutoScaleText>
         <View style={styles.wireStatsRow}>
           <View style={styles.wireUsersPill}>
-            <Text style={styles.wireUsersPillText}>#{holderCount}</Text>
+            <MaterialCommunityIcons name="account-outline" size={compact ? 11 : 13} color="#0A2540" />
+            <Text style={styles.wireUsersPillText}>{holderCount}</Text>
           </View>
           {renderRatingStars(ratingAvg)}
         </View>
@@ -1331,27 +1254,6 @@ export default function CardsFactoryScreen() {
           />
         </View>
       </LinearGradient>
-    );
-  };
-
-  const renderVaultOption = ({ item }: { item: VaultItem }) => {
-    const selected = selectedItemIds.includes(item.id);
-    return (
-      <TouchableOpacity
-        style={[styles.vaultOption, selected && styles.vaultOptionSelected]}
-        onPress={() => toggleItemSelection(item.id)}
-      >
-        <View style={styles.vaultOptionLeft}>
-          {renderVaultMiniIcon(item, 18)}
-          <MaterialCommunityIcons
-            name={selected ? 'check-circle' : 'circle-outline'}
-            size={18}
-            color={selected ? '#0D4D8A' : '#5A87A6'}
-          />
-          <Text style={styles.vaultOptionTitle}>{item.title}</Text>
-        </View>
-        <Text style={styles.vaultOptionType}>{item.type}</Text>
-      </TouchableOpacity>
     );
   };
 
@@ -1516,185 +1418,289 @@ export default function CardsFactoryScreen() {
         <Text style={[styles.createFabText, { color: cardsTheme.fabText }]}>Crear</Text>
       </TouchableOpacity>
 
-      <Modal visible={factoryVisible} transparent animationType="slide" onRequestClose={() => setFactoryVisible(false)}>
-        <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}> 
-          <View style={[styles.factoryModal, { backgroundColor: cardsTheme.modalBg, borderColor: cardsTheme.modalBorder }]}> 
-            <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle }]}>{selectedCard ? 'Editar Smart Card' : 'Nueva Smart Card'}</Text>
+      <Modal visible={factoryVisible} transparent animationType="slide" onRequestClose={() => { Keyboard.dismiss(); InteractionManager.runAfterInteractions(() => setFactoryVisible(false)); }}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}>
+              <TouchableWithoutFeedback>
+                <View style={[styles.factoryModal, { backgroundColor: cardsTheme.modalBg, borderColor: cardsTheme.modalBorder }]}>
 
-            <View style={[styles.identityAutoRow, { backgroundColor: cardsTheme.inputBg, borderColor: cardsTheme.modalBorder }]}> 
-              {ownerPhotoUrl ? (
-                <Image source={{ uri: ownerPhotoUrl }} style={styles.identityAvatar} />
-              ) : (
-                <View style={styles.identityAvatarFallback}>
-                  <MaterialCommunityIcons name="account" size={16} color="#0D4D8A" />
-                </View>
-              )}
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.identityLabel, { color: cardsTheme.sectionLabel } ]}>Identidad automática</Text>
-                <Text style={[styles.identityValue, { color: cardsTheme.text }]}>{ownerNickname || 'user'}</Text>
-              </View>
-            </View>
-
-            <TextInput
-              style={[styles.input, { backgroundColor: cardsTheme.inputBg, color: cardsTheme.inputText, borderColor: cardsTheme.modalBorder }]}
-              placeholder="Nombre de tarjeta"
-              placeholderTextColor={cardsTheme.sectionLabel}
-              value={cardName}
-              onChangeText={setCardName}
-            />
-
-            <View style={styles.layoutSwitchRow}>
-              <TouchableOpacity
-                style={[styles.layoutBtn, layoutMode === 'vertical' && styles.layoutBtnActive]}
-                onPress={() => setLayoutMode('vertical')}
-              >
-                <Text style={[styles.layoutText, layoutMode === 'vertical' && styles.layoutTextActive, { color: layoutMode === 'vertical' ? cardsTheme.text : cardsTheme.sectionLabel }]}>Vertical</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.layoutBtn, layoutMode === 'horizontal' && styles.layoutBtnActive]}
-                onPress={() => setLayoutMode('horizontal')}
-              >
-                <Text style={[styles.layoutText, layoutMode === 'horizontal' && styles.layoutTextActive, { color: layoutMode === 'horizontal' ? cardsTheme.text : cardsTheme.sectionLabel }]}>Horizontal</Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={[styles.sectionLabel, { color: cardsTheme.sectionLabel }]}>Fondo visual premium</Text>
-            <View style={styles.themeRow}>
-              {Object.entries(CARD_THEMES).map(([id, theme]) => {
-                const key = id as CardTheme;
-                const active = themeId === key;
-                return (
-                  <TouchableOpacity
-                    key={id}
-                    style={[styles.themeBtn, active && styles.themeBtnActive]}
-                    onPress={() => setThemeId(key)}
-                  >
-                    <LinearGradient colors={theme.colors} style={styles.themeSwatch} />
-                    <Text style={[styles.themeLabel, { color: active ? cardsTheme.text : cardsTheme.sectionLabel }]}>{theme.label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <Text style={[styles.sectionLabel, { color: cardsTheme.sectionLabel }]}>Cambiar Fondo</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.wallpaperListRow} bounces={false} overScrollMode="never">
-              <TouchableOpacity
-                style={[styles.wallpaperThumbBtn, !selectedWallpaper && styles.wallpaperThumbBtnActive]}
-                onPress={() => setSelectedWallpaper(null)}
-              >
-                <LinearGradient colors={CARD_THEMES[themeId].colors} style={styles.wallpaperThumbImage} />
-                <Text style={styles.wallpaperThumbLabel}>Solo tema</Text>
-              </TouchableOpacity>
-
-              {loadingWallpapers ? (
-                <View style={styles.wallpaperLoadingBox}>
-                  <ActivityIndicator size="small" color="#0D4D8A" />
-                  <Text style={styles.wallpaperLoadingText}>Cargando fondos...</Text>
-                </View>
-              ) : (
-                wallpaperOptions.map((wall) => {
-                  const active = selectedWallpaper?.id === wall.id;
-                  return (
+                  {/* Header */}
+                  <View style={styles.factoryHeaderRow}>
+                    <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle, marginBottom: 0 }]}>
+                      {selectedCard ? tr('Editar Smart Card', 'Edit Smart Card') : tr('Nueva Smart Card', 'New Smart Card')}
+                    </Text>
                     <TouchableOpacity
-                      key={wall.id}
-                      style={[styles.wallpaperThumbBtn, active && styles.wallpaperThumbBtnActive]}
-                      onPress={() => pickWallpaperWithGate(wall)}
+                      onPress={() => { Keyboard.dismiss(); InteractionManager.runAfterInteractions(() => setFactoryVisible(false)); }}
+                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                     >
-                      <Image source={{ uri: wall.thumbnailUrl }} style={styles.wallpaperThumbImage} resizeMode="cover" />
-                      <Text style={styles.wallpaperThumbLabel} numberOfLines={1}>{wall.name}</Text>
-                      {wall.tier === 'premium' ? (
-                        <MaterialCommunityIcons name="crown" size={12} color="#C5A065" style={styles.wallpaperCrownBadge} />
-                      ) : null}
+                      <MaterialCommunityIcons name="close" size={22} color={cardsTheme.sectionLabel} />
                     </TouchableOpacity>
-                  );
-                })
-              )}
-            </ScrollView>
+                  </View>
 
-            <Text style={[styles.sectionLabel, { color: cardsTheme.sectionLabel }]}>Cambiar Fuente</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.wallpaperListRow} bounces={false} overScrollMode="never">
-              <TouchableOpacity
-                style={[styles.wallpaperThumbBtn, !selectedFont && styles.wallpaperThumbBtnActive]}
-                onPress={() => {
-                  setSelectedFont(null);
-                  setResolvedFontFamily(null);
-                }}
-              >
-                <View style={[styles.wallpaperThumbImage, styles.fontThumbBase]}>
-                  <AutoScaleText style={styles.fontThumbText}>Aa</AutoScaleText>
-                </View>
-                <Text style={styles.wallpaperThumbLabel}>Sistema</Text>
-              </TouchableOpacity>
-
-              {loadingFonts ? (
-                <View style={styles.wallpaperLoadingBox}>
-                  <ActivityIndicator size="small" color="#0D4D8A" />
-                  <Text style={styles.wallpaperLoadingText}>Cargando fuentes...</Text>
-                </View>
-              ) : (
-                fontOptions.map((font) => {
-                  const active = selectedFont?.id === font.id;
-                  return (
-                    <TouchableOpacity
-                      key={font.id}
-                      style={[styles.wallpaperThumbBtn, active && styles.wallpaperThumbBtnActive]}
-                      onPress={() => {
-                        void pickFontWithGate(font);
-                      }}
-                    >
-                      <View style={[styles.wallpaperThumbImage, styles.fontThumbBase]}>
-                        <AutoScaleText style={[styles.fontThumbText, resolvedFontFamily === font.family ? { fontFamily: resolvedFontFamily } : null]}>Aa</AutoScaleText>
+                  {/* Identity — read-only */}
+                  <View style={[styles.identityAutoRow, { backgroundColor: cardsTheme.inputBg, borderColor: cardsTheme.modalBorder }]}>
+                    {ownerPhotoUrl ? (
+                      <Image source={{ uri: ownerPhotoUrl }} style={styles.identityAvatarLg} />
+                    ) : (
+                      <View style={styles.identityAvatarLgFallback}>
+                        <MaterialCommunityIcons name="account" size={22} color="#0D4D8A" />
                       </View>
-                      <Text style={styles.wallpaperThumbLabel} numberOfLines={1}>{font.name}</Text>
-                      {font.tier === 'premium' ? (
-                        <MaterialCommunityIcons name="crown" size={12} color="#C5A065" style={styles.wallpaperCrownBadge} />
-                      ) : null}
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.identityFullName, { color: cardsTheme.text }]} numberOfLines={1}>
+                        {ownerNickname || tr('Nombre Completo', 'Full Name')}
+                      </Text>
+                      <Text style={[styles.identityHandle, { color: cardsTheme.sectionLabel }]} numberOfLines={1}>
+                        @{String(ownerNickname || 'user').toLowerCase().replace(/\s+/g, '')}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text style={[styles.factoryFieldLabel, { color: cardsTheme.sectionLabel }]}>{tr('Nombre de Tarjeta', 'Card Name')}</Text>
+
+                  {/* Card name input */}
+                  <TextInput
+                    style={[styles.input, { backgroundColor: cardsTheme.inputBg, color: cardsTheme.inputText, borderColor: cardsTheme.modalBorder }]}
+                    placeholder={tr('Nombre de Tarjeta', 'Card Name')}
+                    placeholderTextColor={cardsTheme.sectionLabel}
+                    value={cardName}
+                    onChangeText={setCardName}
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
+                  />
+
+                  {/* Action buttons: DATA + TEMAS */}
+                  <View style={styles.factoryActionRow}>
+                    <TouchableOpacity
+                      style={[styles.factoryActionBtn, { borderColor: cardsTheme.modalBorder, backgroundColor: cardsTheme.inputBg }]}
+                      onPress={openDataSelector}
+                      activeOpacity={0.82}
+                    >
+                      <MaterialCommunityIcons name="database-plus-outline" size={18} color={cardsTheme.icon} />
+                      <Text style={[styles.factoryActionBtnText, { color: cardsTheme.text }]}>{tr('Agregar DATA', 'Add DATA')}</Text>
+                      {selectedItemIds.length > 0 && (
+                        <View style={styles.factoryActionBadge}>
+                          <Text style={styles.factoryActionBadgeText}>{selectedItemIds.length}</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.factoryActionBtn, { borderColor: cardsTheme.modalBorder, backgroundColor: cardsTheme.inputBg }]}
+                      onPress={() => setThemesPlaceholderVisible(true)}
+                      activeOpacity={0.82}
+                    >
+                      <MaterialCommunityIcons name="palette-outline" size={18} color={cardsTheme.icon} />
+                      <Text style={[styles.factoryActionBtnText, { color: cardsTheme.text }]}>{tr('Agregar TEMAS', 'Add THEMES')}</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Live preview — fills remaining height */}
+                  <View style={styles.factoryPreviewWrap}>
+                    <View style={[styles.factoryPreviewStage, { backgroundColor: isDark ? 'rgba(8,18,30,0.72)' : 'rgba(255,255,255,0.36)', borderColor: cardsTheme.modalBorder }] }>
+                      <View style={styles.factoryPreviewHeaderRow}>
+                        <Text style={[styles.factoryPreviewTitle, { color: cardsTheme.text }]}>{tr('Asi te veran', 'How they will see you')}</Text>
+                        <View style={[styles.factoryPreviewChip, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.8)', borderColor: cardsTheme.modalBorder }]}>
+                          <MaterialCommunityIcons name="flash-outline" size={12} color={cardsTheme.icon} />
+                          <Text style={[styles.factoryPreviewChipText, { color: cardsTheme.text }]}>{tr('Vista en vivo', 'Live preview')}</Text>
+                        </View>
+                      </View>
+
+                      <View style={[styles.factoryPreviewCardFrame, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.15)' }]}>
+                        {renderWireframeCard({
+                          layout: layoutMode,
+                          slots: editSlots.filter((s) => s.item !== null),
+                          editable: false,
+                          colors: CARD_THEMES[themeId].colors,
+                          wallpaperUrl: selectedWallpaper?.fullUrl,
+                        })}
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Footer buttons */}
+                  <View style={styles.modalActions}>
+                    <TouchableOpacity
+                      style={[styles.ghostBtn, { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder }]}
+                      onPress={() => { Keyboard.dismiss(); InteractionManager.runAfterInteractions(() => setFactoryVisible(false)); }}
+                    >
+                      <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>{tr('Cancelar', 'Cancel')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary }]} onPress={handleSaveCard}>
+                      <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>{tr('Guardar', 'Save')}</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* DataSelector — Vault mirror for bulk icon selection */}
+      <Modal
+        visible={dataSelectorVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={cancelDataSelector}
+      >
+        <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}>
+          <View style={[styles.dataSelectorModal, { backgroundColor: cardsTheme.modalBg, borderColor: cardsTheme.modalBorder }]}>
+
+            {/* Header */}
+            <View style={styles.dataSelectorHeader}>
+              <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle, marginBottom: 0, fontSize: 17 }]}>
+                {tr('Selecciona datos', 'Select data')}
+              </Text>
+              <View style={styles.dataSelectorCounterWrap}>
+                <Text style={[styles.dataSelectorCounter, { color: tempSelectedIds.length >= MAX_CARD_SLOTS ? '#C44B55' : cardsTheme.icon }]}>
+                  {tempSelectedIds.length} / {MAX_CARD_SLOTS}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={cancelDataSelector} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                <MaterialCommunityIcons name="close" size={20} color={cardsTheme.sectionLabel} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Limit reached banner */}
+            {dataSelectorLimitReached && (
+              <View style={[styles.dataSelectorLimitBanner, { backgroundColor: isDark ? 'rgba(196,75,85,0.16)' : '#FFF2F3', borderColor: isDark ? 'rgba(229,164,168,0.35)' : '#E5A4A8' }]}>
+                <MaterialCommunityIcons name="alert-circle-outline" size={14} color="#C44B55" />
+                <Text style={styles.dataSelectorLimitText}>{tr(`Máximo ${MAX_CARD_SLOTS} iconos por tarjeta`, `Maximum ${MAX_CARD_SLOTS} icons per card`)}</Text>
+              </View>
+            )}
+
+            {/* Vault icon grid */}
+            {vaultItems.length === 0 ? (
+              <View style={styles.dataSelectorEmpty}>
+                <MaterialCommunityIcons name="database-off-outline" size={40} color={cardsTheme.sectionLabel} />
+                <Text style={[styles.dataSelectorEmptyText, { color: cardsTheme.sectionLabel }]}>
+                  {tr('Tu Vault está vacío.\nAgrega datos primero desde Bóveda.', 'Your Vault is empty.\nAdd data from Vault first.')}
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                data={vaultItems}
+                keyExtractor={(item) => item.id}
+                numColumns={3}
+                renderItem={({ item }) => {
+                  const isSelected = tempSelectedIds.includes(item.id);
+                  return (
+                    <TouchableOpacity
+                      style={[
+                        styles.selectorItemTile,
+                        { borderColor: isDark ? 'rgba(184,231,255,0.18)' : '#CFEFFF', backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#FFFFFF' },
+                        isSelected && [styles.selectorItemTileSelected, { backgroundColor: isDark ? 'rgba(197,160,101,0.14)' : '#FFFBF0' }],
+                      ]}
+                      onPress={() => handleSelectorToggle(item.id)}
+                      activeOpacity={0.75}
+                    >
+                      {isSelected && (
+                        <View style={styles.selectorCheckOverlay}>
+                          <MaterialCommunityIcons name="check-circle" size={17} color="#C5A065" />
+                        </View>
+                      )}
+                      <View style={[styles.selectorIconCircle, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#EAF7FF' }]}>
+                        {renderVaultMiniIcon(item, 26)}
+                      </View>
+                      <Text style={[styles.selectorItemTitle, { color: cardsTheme.text }]} numberOfLines={2}>
+                        {item.title}
+                      </Text>
+                      <Text style={[styles.selectorItemType, { color: cardsTheme.sectionLabel }]} numberOfLines={1}>
+                        {item.type}
+                      </Text>
                     </TouchableOpacity>
                   );
-                })
-              )}
-            </ScrollView>
+                }}
+                style={styles.selectorGrid}
+                bounces={false}
+                overScrollMode="never"
+              />
+            )}
 
-            <View style={styles.parallaxToggleRow}>
-              <Text style={[styles.parallaxToggleLabel, { color: cardsTheme.sectionLabel }]}>Parallax Wallpaper</Text>
+            {/* Floating upsell */}
+            <TouchableOpacity style={styles.dataSelectorUpsellBtn} activeOpacity={0.85}>
+              <MaterialCommunityIcons name="star-circle-outline" size={15} color="#0A2540" />
+              <Text style={styles.dataSelectorUpsellText}>{tr('Consigue tu coleccionable', 'Get your collectible')}</Text>
+            </TouchableOpacity>
+
+            {/* Footer */}
+            <View style={styles.modalActions}>
               <TouchableOpacity
-                style={[styles.parallaxToggleBtn, enableParallax && styles.parallaxToggleBtnActive]}
-                onPress={() => setEnableParallax((prev) => !prev)}
+                style={[styles.ghostBtn, { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder }]}
+                onPress={cancelDataSelector}
               >
-                <MaterialCommunityIcons name={enableParallax ? 'motion-play' : 'motion-pause'} size={15} color={enableParallax ? '#FFFFFF' : '#0D4D8A'} />
-                <Text style={[styles.parallaxToggleBtnText, enableParallax && styles.parallaxToggleBtnTextActive]}>
-                  {enableParallax ? 'ON' : 'OFF'}
+                <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>{tr('Cancelar', 'Cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary }]}
+                onPress={confirmDataSelector}
+              >
+                <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>
+                  {tr('Confirmar', 'Confirm')} ({tempSelectedIds.length})
                 </Text>
               </TouchableOpacity>
             </View>
 
-            <Text style={[styles.sectionLabel, { color: cardsTheme.sectionLabel }]}>Edit Choice (slots directos)</Text>
-            {renderWireframeCard({
-              layout: layoutMode,
-              slots: editSlots,
-              editable: true,
-              colors: CARD_THEMES[themeId].colors,
-              wallpaperUrl: selectedWallpaper?.fullUrl,
-            })}
+          </View>
+        </View>
+      </Modal>
 
-            <Text style={[styles.sectionLabel, { color: cardsTheme.sectionLabel }]}>Selecciona datos del Vault</Text>
-            <FlatList
-              data={vaultItems}
-              keyExtractor={(item) => item.id}
-              renderItem={renderVaultOption}
-              style={styles.vaultList}
-              bounces={false}
-              overScrollMode="never"
-            />
+      {/* ThemesPlaceholder */}
+      <Modal
+        visible={themesPlaceholderVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setThemesPlaceholderVisible(false)}
+      >
+        <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}>
+          <View style={[styles.themesPlaceholderModal, { backgroundColor: cardsTheme.modalBg, borderColor: cardsTheme.modalBorder }]}>
 
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={[styles.ghostBtn, { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder }]} onPress={() => InteractionManager.runAfterInteractions(() => setFactoryVisible(false))}>
-                <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary }]} onPress={handleSaveCard}>
-                <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>Guardar</Text>
+            <View style={styles.factoryHeaderRow}>
+              <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle, marginBottom: 0 }]}>
+                {tr('Temas de Tarjeta', 'Card Themes')}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setThemesPlaceholderVisible(false)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <MaterialCommunityIcons name="close" size={22} color={cardsTheme.sectionLabel} />
               </TouchableOpacity>
             </View>
+
+            <Text style={[styles.themesPlaceholderSubtitle, { color: cardsTheme.sectionLabel }]}>
+              {tr('Personaliza el look de tu tarjeta con themes exclusivos', 'Customize your card look with exclusive themes')}
+            </Text>
+
+            <View style={styles.themesPlaceholderGrid}>
+              {([
+                { name: 'Obsidian Pro', gradient: ['#1A1A2E', '#16213E'] },
+                { name: 'Rose Gold', gradient: ['#F7C7B5', '#E8A598'] },
+                { name: 'Neon Pulse', gradient: ['#0F3460', '#533483'] },
+              ] as { name: string; gradient: [string, string] }[]).map((theme) => (
+                <View key={theme.name} style={styles.themePlaceholderTile}>
+                  <LinearGradient colors={theme.gradient} style={styles.themePlaceholderSwatch} />
+                  <View style={styles.themePlaceholderLock}>
+                    <MaterialCommunityIcons name="lock-outline" size={18} color="#C5A065" />
+                  </View>
+                  <Text style={[styles.themePlaceholderName, { color: cardsTheme.text }]}>{theme.name}</Text>
+                </View>
+              ))}
+            </View>
+
+            <TouchableOpacity style={styles.themesUpsellBtn} activeOpacity={0.85}>
+              <MaterialCommunityIcons name="crown" size={16} color="#0A2540" />
+              <Text style={styles.themesUpsellText}>{tr('Consigue los mejores themes', 'Get the best themes')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.ghostBtn, { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder, marginTop: 10 }]}
+              onPress={() => setThemesPlaceholderVisible(false)}
+            >
+              <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>{tr('Cerrar', 'Close')}</Text>
+            </TouchableOpacity>
+
           </View>
         </View>
       </Modal>
@@ -2114,10 +2120,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  createBtnDark: {
-    backgroundColor: '#0F1722',
-    borderColor: '#C5A065',
-  },
   createFab: {
     position: 'absolute',
     right: 16,
@@ -2287,10 +2289,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#B8E7FF',
-    paddingHorizontal: 12,
-    paddingTop: 12,
-    paddingBottom: 10,
-    minHeight: 290,
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 12,
+    flex: 1,
   },
   wireVerticalIdentity: {
     alignItems: 'center',
@@ -2325,16 +2327,16 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   wireAvatar: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    width: 82,
+    height: 82,
+    borderRadius: 41,
     borderWidth: 2,
     borderColor: '#C5A065',
   },
   wireAvatarFallback: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    width: 82,
+    height: 82,
+    borderRadius: 41,
     borderWidth: 2,
     borderColor: '#C5A065',
     backgroundColor: '#FFFFFF',
@@ -2359,10 +2361,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   wireName: {
-    marginTop: 8,
+    marginTop: 10,
     color: '#0A2540',
     fontWeight: '800',
-    fontSize: 16,
+    fontSize: 18,
     textAlign: 'center',
   },
   wireNameSm: {
@@ -2373,10 +2375,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   wireNick: {
-    marginTop: 2,
+    marginTop: 3,
     color: '#4A4A4A',
     fontWeight: '600',
-    fontSize: 12,
+    fontSize: 13,
     textAlign: 'center',
   },
   wireNickSm: {
@@ -2393,11 +2395,14 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   wireUsersPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: '#AFCFE6',
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 7,
+    paddingHorizontal: 8,
     paddingVertical: 4,
   },
   wireUsersPillText: {
@@ -2457,30 +2462,32 @@ const styles = StyleSheet.create({
   },
   factoryModal: {
     width: '100%',
-    maxHeight: '88%',
+    height: '90%',
     backgroundColor: '#F2FBFF',
-    borderRadius: 16,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: '#B8E7FF',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 14,
   },
   factoryTitle: {
     color: '#0D4D8A',
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 10,
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 8,
   },
   identityAutoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     borderWidth: 1,
     borderColor: '#CDEFFF',
     backgroundColor: '#FFFFFF',
-    borderRadius: 11,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    marginBottom: 10,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
   },
   identityAvatar: {
     width: 34,
@@ -2509,213 +2516,17 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   input: {
-    borderRadius: 10,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#B8E7FF',
     backgroundColor: '#FFFFFF',
     color: '#0D4D8A',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 12,
-  },
-  layoutSwitchRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
-  },
-  layoutBtn: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#B8E7FF',
-    borderRadius: 10,
-    minHeight: 44,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  layoutBtnActive: {
-    backgroundColor: '#DFF3FF',
-    borderColor: '#0D4D8A',
-  },
-  layoutText: {
-    color: '#5A87A6',
-    fontWeight: '600',
-  },
-  layoutTextActive: {
-    color: '#0D4D8A',
-  },
-  sectionLabel: {
-    color: '#0D4D8A',
-    fontSize: 13,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  themeRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
-  },
-  themeBtn: {
-    flex: 1,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#B8E7FF',
-    backgroundColor: '#FFFFFF',
-    padding: 6,
-    alignItems: 'center',
-    minHeight: 44,
-  },
-  themeBtnActive: {
-    borderColor: '#0D4D8A',
-    backgroundColor: '#EAF7FF',
-  },
-  themeSwatch: {
-    width: '100%',
-    height: 24,
-    borderRadius: 8,
-    marginBottom: 4,
-  },
-  themeLabel: {
-    color: '#5A87A6',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  themeLabelActive: {
-    color: '#0D4D8A',
-  },
-  wallpaperListRow: {
-    gap: 10,
-    paddingBottom: 12,
-  },
-  wallpaperThumbBtn: {
-    width: 92,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#CFE4F3',
-    backgroundColor: '#FFFFFF',
-    padding: 6,
-    minHeight: 44,
-  },
-  wallpaperThumbBtnActive: {
-    borderColor: '#0D4D8A',
-    backgroundColor: '#EAF7FF',
-  },
-  wallpaperThumbImage: {
-    width: '100%',
-    height: 64,
-    borderRadius: 8,
-    backgroundColor: '#D9E8F5',
-  },
-  wallpaperThumbLabel: {
-    marginTop: 6,
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#2F5976',
-    textAlign: 'center',
-  },
-  wallpaperCrownBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-  },
-  fontThumbBase: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F3F8FC',
-  },
-  fontThumbText: {
-    color: '#0A2540',
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  wallpaperLoadingBox: {
-    width: 140,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#CFE4F3',
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 14,
     paddingVertical: 12,
-    gap: 6,
-  },
-  wallpaperLoadingText: {
-    fontSize: 11,
-    color: '#2F5976',
-    fontWeight: '600',
-  },
-  parallaxToggleRow: {
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  parallaxToggleLabel: {
-    color: '#0D4D8A',
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  parallaxToggleBtn: {
-    minWidth: 84,
-    borderRadius: 999,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#0D4D8A',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 6,
-    backgroundColor: '#FFFFFF',
-  },
-  parallaxToggleBtnActive: {
-    backgroundColor: '#0D4D8A',
-  },
-  parallaxToggleBtnText: {
-    color: '#0D4D8A',
-    fontWeight: '800',
-    fontSize: 11,
-  },
-  parallaxToggleBtnTextActive: {
-    color: '#FFFFFF',
-  },
-  vaultList: {
-    maxHeight: 260,
-  },
-  vaultOption: {
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#CFEFFF',
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    marginBottom: 8,
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  vaultOptionSelected: {
-    backgroundColor: '#EAF7FF',
-    borderColor: '#0D4D8A',
-  },
-  vaultOptionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-  },
-  vaultOptionTitle: {
-    color: '#0D4D8A',
-    fontSize: 13,
-    fontWeight: '600',
-    flex: 1,
-  },
-  vaultOptionType: {
-    color: '#4F7799',
-    fontSize: 11,
+    marginBottom: 10,
   },
   modalActions: {
-    marginTop: 12,
+    marginTop: 10,
     flexDirection: 'row',
     gap: 10,
   },
@@ -3090,5 +2901,313 @@ const styles = StyleSheet.create({
   slotPickerType: {
     color: '#4F7799',
     fontSize: 11,
+  },
+  // ── Factory redesign ───────────────────────────────────────────────
+  factoryHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  factoryFieldLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 6,
+    marginTop: 2,
+    paddingLeft: 2,
+  },
+  identityAvatarLg: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 2,
+    borderColor: '#C5A065',
+  },
+  identityAvatarLgFallback: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 2,
+    borderColor: '#C5A065',
+    backgroundColor: '#EAF7FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  identityFullName: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  identityHandle: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  factoryActionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  factoryActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    minHeight: 52,
+    paddingHorizontal: 8,
+    position: 'relative',
+  },
+  factoryActionBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  factoryActionBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#C5A065',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  factoryActionBadgeText: {
+    color: '#0A2540',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  factoryPreviewWrap: {
+    flex: 1,
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  factoryPreviewStage: {
+    flex: 1,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.36)',
+    borderWidth: 1,
+    borderColor: 'rgba(184,231,255,0.72)',
+    padding: 10,
+  },
+  factoryPreviewHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  factoryPreviewTitle: {
+    color: '#0A2540',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  factoryPreviewChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    borderWidth: 1,
+    borderColor: '#B8E7FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  factoryPreviewChipText: {
+    color: '#0A2540',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  factoryPreviewCardFrame: {
+    flex: 1,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  // ── DataSelector ───────────────────────────────────────────────────
+  dataSelectorModal: {
+    width: '100%',
+    maxHeight: '88%',
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
+  },
+  dataSelectorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    gap: 8,
+  },
+  dataSelectorCounterWrap: {
+    flex: 1,
+    alignItems: 'flex-end',
+    marginRight: 4,
+  },
+  dataSelectorCounter: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  dataSelectorLimitBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FFF2F3',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#E5A4A8',
+    marginBottom: 10,
+  },
+  dataSelectorLimitText: {
+    color: '#C44B55',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  dataSelectorEmpty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    gap: 10,
+  },
+  dataSelectorEmptyText: {
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  selectorGrid: {
+    maxHeight: 360,
+    marginBottom: 8,
+  },
+  selectorItemTile: {
+    flex: 1,
+    margin: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#CFEFFF',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    position: 'relative',
+    minHeight: 90,
+  },
+  selectorItemTileSelected: {
+    borderColor: '#C5A065',
+    backgroundColor: '#FFFBF0',
+  },
+  selectorCheckOverlay: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+  },
+  selectorIconCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#EAF7FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  selectorItemTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  selectorItemType: {
+    fontSize: 10,
+    textAlign: 'center',
+  },
+  dataSelectorUpsellBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 999,
+    backgroundColor: '#C5A065',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    marginBottom: 10,
+    alignSelf: 'center',
+    shadowColor: '#C5A065',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+  dataSelectorUpsellText: {
+    color: '#0A2540',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  // ── ThemesPlaceholder ──────────────────────────────────────────────
+  themesPlaceholderModal: {
+    width: '100%',
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+  },
+  themesPlaceholderSubtitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  themesPlaceholderGrid: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+  themePlaceholderTile: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    position: 'relative',
+    alignItems: 'center',
+  },
+  themePlaceholderSwatch: {
+    width: '100%',
+    height: 80,
+    borderRadius: 12,
+  },
+  themePlaceholderLock: {
+    position: 'absolute',
+    top: 28,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  themePlaceholderName: {
+    marginTop: 6,
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#0A2540',
+    textAlign: 'center',
+  },
+  themesUpsellBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 999,
+    backgroundColor: '#C5A065',
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    marginBottom: 10,
+    shadowColor: '#C5A065',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+  themesUpsellText: {
+    color: '#0A2540',
+    fontSize: 14,
+    fontWeight: '800',
   },
 });
