@@ -147,6 +147,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const [retryCountdownSec, setRetryCountdownSec] = useState(0);
   const faviconLookupTokenRef = useRef(0);
   const faviconLifecycleClosedRef = useRef(false);
+  // Tracks the last saved link id so background favicon updates can patch it silently
+  const savedLinkIdRef = useRef<string | null>(null);
+  const savedUserIdRef = useRef<string | null>(null);
   const retryLockMessage =
     'Estamos cuidando la integridad de la comunidad. Por favor, espera un momento antes de intentar de nuevo';
   const isRetryLocked = retryLockedUntil !== null && retryLockedUntil > Date.now();
@@ -241,6 +244,23 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
   // Favicon fetching with local cache and UI cleanup
   const faviconCache = useRef<Record<string, string>>({});
+
+  // ─── KNOWN DOMAINS → ICON_GALLERY id (no Azure call needed) ─────────────────
+  const KNOWN_DOMAIN_ICONS: Record<string, string> = {
+    'facebook.com':    '2',  // facebook
+    'fb.com':          '2',
+    'm.facebook.com':  '2',
+    'instagram.com':   '3',  // instagram
+    'linkedin.com':    '4',  // linkedin
+    'whatsapp.com':    '1',  // whatsapp
+    'wa.me':           '1',
+    'youtube.com':     '10', // video / play-circle
+    'youtu.be':        '10',
+    'maps.google.com': '6',  // map-marker
+    'goo.gl':          '6',
+    'maps.apple.com':  '6',
+  };
+
   useEffect(() => {
     const lookupFavicon = async () => {
       if (dataType !== 'Enlaces' || !dataValue.trim() || editingData?.id) {
@@ -249,11 +269,23 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       const lookupToken = ++faviconLookupTokenRef.current;
       try {
         const urlObj = new URL(dataValue.startsWith('http') ? dataValue : `https://${dataValue}`);
-        const domain = urlObj.hostname.toLowerCase();
+        const domain = urlObj.hostname.toLowerCase().replace(/^www\./, '');
         if (!domain || domain === lastFaviconDomain) {
           return;
         }
+
+        // 1️⃣ Known domain shortcut — use local icon, skip Azure entirely
+        const knownIconId = KNOWN_DOMAIN_ICONS[domain];
+        if (knownIconId) {
+          setSelectedIcon(knownIconId);
+          setFaviconLoading(false);
+          setLastFaviconDomain(domain);
+          return;
+        }
+
         setFaviconLoading(true);
+
+        // 2️⃣ Local cache hit
         if (faviconCache.current[domain]) {
           setFaviconUrl(faviconCache.current[domain]);
           setFaviconSuggestionVisible(true);
@@ -261,16 +293,44 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           setLastFaviconDomain(domain);
           return;
         }
+
+        // 3️⃣ Race Azure against 2s timeout
         const faviconTimeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000));
         const fetchedIcon = await Promise.race([fetchFaviconFromAzure(dataValue), faviconTimeout]);
+
         if (faviconLifecycleClosedRef.current || lookupToken !== faviconLookupTokenRef.current) {
           return;
         }
+
         if (!fetchedIcon) {
-          // Timeout o sin favicon — liberar UI sin bloquear al usuario
+          // ⏱ TIMEOUT — liberar UI + abrir galería automáticamente en 1s
           setFaviconLoading(false);
+          setTimeout(() => {
+            if (!faviconLifecycleClosedRef.current) {
+              setIconModalVisible(true);
+            }
+          }, 800);
+
+          // 🔄 Background retry: sigue buscando sin bloquear UI
+          fetchFaviconFromAzure(dataValue)
+            .then(async (bgIcon) => {
+              if (!bgIcon || faviconLifecycleClosedRef.current) return;
+              await Image.prefetch(bgIcon).catch(() => null);
+              faviconCache.current[domain] = bgIcon;
+              setLastFaviconDomain(domain);
+              setFaviconUrl(bgIcon);
+              setSelectedIcon('favicon');
+              setFaviconSuggestionVisible(true);
+              // Silent DB patch if item was already saved
+              if (savedLinkIdRef.current && savedUserIdRef.current) {
+                const cloudRef = doc(db, 'users', savedUserIdRef.current, 'links', savedLinkIdRef.current);
+                updateDoc(cloudRef, { icon: bgIcon, iconName: 'Favicon', updatedAt: new Date().toISOString() }).catch(() => null);
+              }
+            })
+            .catch(() => null);
           return;
         }
+
         await Image.prefetch(fetchedIcon).catch(() => null);
         if (faviconLifecycleClosedRef.current || lookupToken !== faviconLookupTokenRef.current) {
           return;
@@ -1029,6 +1089,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         createdAt: editingData?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
+
+      // Store saved IDs for silent background favicon update
+      savedLinkIdRef.current = uniqueId;
+      savedUserIdRef.current = userId;
 
       let cloudSynced = false;
       try {
