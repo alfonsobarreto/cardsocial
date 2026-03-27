@@ -1,39 +1,85 @@
+import ActivityIndicator from '@/components/BrandedSpinner';
+import { FREE_TIER_POLICY } from '@/constants/freeTierPolicy';
+import { saveCachedCredentials } from '@/services/credentialVault';
+import { createDefaultCards, createDefaultVaultData, initializeUserCredits } from '@/services/creditsService';
+import { useLanguage } from '@/services/language';
+import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
+import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, SocialProviderId } from '@/services/socialAuth';
+import { grantStudentPackCreditsIfEligible } from '@/services/studentPackService';
+import { Picker } from '@react-native-picker/picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as ImageManipulator from 'expo-image-manipulator';
+import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Location from 'expo-location';
+import { useRouter } from 'expo-router';
+import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
+import { collection, doc, getDocs, limit, query, runTransaction, serverTimestamp, where } from 'firebase/firestore';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
+  Alert,
+  Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
   StyleSheet,
+  Text,
   TextInput,
   TouchableOpacity,
-  Alert,
-  Keyboard,
   TouchableWithoutFeedback,
-  KeyboardAvoidingView,
-  Platform,
-  Image,
-  ScrollView,
-  Modal,
+  View,
 } from 'react-native';
-import ActivityIndicator from '@/components/BrandedSpinner';
-import { useRouter } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
-import * as Location from 'expo-location';
-import { LinearGradient } from 'expo-linear-gradient';
-import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
 import { auth, db } from '../services/firebaseConfig';
-import { collection, doc, getDocs, limit, query, runTransaction, serverTimestamp, where } from 'firebase/firestore';
-import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import LuxuryModerationModal from './components/LuxuryModerationModal';
 import PremiumSuccessTransition from './components/PremiumSuccessTransition';
-import { initializeUserCredits, createDefaultCards, createDefaultVaultData } from '@/services/creditsService';
-import { Apple, Chrome, Github } from 'lucide-react-native';
-import { SocialProviderId } from '@/services/socialAuth';
-import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider } from '@/services/socialAuth';
-import { FREE_TIER_POLICY } from '@/constants/freeTierPolicy';
-import { grantStudentPackCreditsIfEligible } from '@/services/studentPackService';
-import { saveCachedCredentials } from '@/services/credentialVault';
-import { useLanguage } from '@/services/language';
-import { Picker } from '@react-native-picker/picker';
+
+// ─── Photo optimization helpers (porta misma lógica que NewInfoForm/Vault) ────
+const MAX_PROFILE_PHOTO_BYTES = 2 * 1024 * 1024; // 2 MB
+
+async function getFileSizeForPhoto(uri: string): Promise<number> {
+  try {
+    const info = await FileSystem.getInfoAsync(uri, { size: true } as any);
+    if ((info as any)?.size) return Number((info as any).size);
+  } catch { /* fallback to fetch */ }
+  const blob = await fetch(uri).then((r) => r.blob());
+  return blob.size;
+}
+
+async function optimizePhotoForUpload(uri: string): Promise<string> {
+  const initialSize = await getFileSizeForPhoto(uri);
+  if (initialSize <= MAX_PROFILE_PHOTO_BYTES) return uri;
+
+  const attempts = [
+    { width: 1920, compress: 0.72 },
+    { width: 1440, compress: 0.62 },
+    { width: 1080, compress: 0.52 },
+    { width: 840, compress: 0.45 },
+    { width: 640, compress: 0.38 },
+  ];
+
+  let bestUri = uri;
+  for (const attempt of attempts) {
+    const result = await ImageManipulator.manipulateAsync(
+      bestUri,
+      [{ resize: { width: attempt.width } }],
+      { compress: attempt.compress, format: ImageManipulator.SaveFormat.JPEG }
+    );
+    const newSize = await getFileSizeForPhoto(result.uri);
+    bestUri = result.uri;
+    if (newSize <= MAX_PROFILE_PHOTO_BYTES) return bestUri;
+  }
+
+  // Modo emergencia: 480px calidad 0.2
+  const emergency = await ImageManipulator.manipulateAsync(
+    bestUri,
+    [{ resize: { width: 480 } }],
+    { compress: 0.2, format: ImageManipulator.SaveFormat.JPEG }
+  );
+  return emergency.uri;
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function RegisterScreen() {
   const { language } = useLanguage();
@@ -528,12 +574,19 @@ export default function RegisterScreen() {
     setUploadStageLabel('Enviando al escudo de seguridad...');
     setUploadModalVisible(true);
 
+    // Comprimir si es imagen y excede 2 MB (misma lógica que NewInfoForm/Vault)
+    let activeUri = fileUri;
+    if (mimeType.startsWith('image/')) {
+      setUploadStageLabel('Optimizando imagen...');
+      activeUri = await optimizePhotoForUpload(fileUri);
+    }
+
     const allowModerationBypass = process.env.EXPO_PUBLIC_ALLOW_PHOTO_MODERATION_BYPASS === '1';
 
     let result: { fileId: string; filename: string; publicUrl: string | null };
     try {
       result = await uploadFileWithModeration({
-        fileUri,
+        fileUri: activeUri,
         ownerUid,
         label,
         fileName,
