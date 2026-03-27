@@ -886,10 +886,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     fileUri: string,
     fileLabel: string,
     ownerUid: string
-  ): Promise<string> => {
+  ): Promise<{ fileId: string; publicUrl: string | null }> => {
     try {
       if (!fileUri.startsWith('file://')) {
-        return fileUri;
+        return { fileId: fileUri, publicUrl: null };
       }
 
       setUploadProgress(0);
@@ -926,7 +926,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         setIsUploading(false);
       }, 400);
 
-      return uploadResult.fileId;
+      return { fileId: uploadResult.fileId, publicUrl: uploadResult.publicUrl };
     } catch (error) {
       setUploadModalVisible(false);
       setIsUploading(false);
@@ -1009,8 +1009,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       let finalValue = normalizedValue;
 
       if (shouldUploadFile) {
-        const fileId = await uploadFileToModerationBackend(normalizedValue, dataName, userId);
-        finalValue = `mongo-gridfs://${fileId}`;
+        const { fileId, publicUrl: filePublicUrl } = await uploadFileToModerationBackend(normalizedValue, dataName, userId);
+        finalValue = filePublicUrl || `mongo-gridfs://${fileId}`;
       }
       
       // Crear ID único (timestamp + random)

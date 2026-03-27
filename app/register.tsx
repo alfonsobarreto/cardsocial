@@ -530,7 +530,7 @@ export default function RegisterScreen() {
 
     const allowModerationBypass = process.env.EXPO_PUBLIC_ALLOW_PHOTO_MODERATION_BYPASS === '1';
 
-    let result: { fileId: string };
+    let result: { fileId: string; filename: string; publicUrl: string | null };
     try {
       result = await uploadFileWithModeration({
         fileUri,
@@ -549,7 +549,7 @@ export default function RegisterScreen() {
       if (allowModerationBypass && moderationServiceUnavailable) {
         setUploadProgress(1);
         setUploadStageLabel('Escudo de seguridad no disponible. Continuando en modo respaldo...');
-        return `bypass-${label}-${Date.now()}`;
+        return { fileId: `bypass-${label}-${Date.now()}`, publicUrl: null };
       }
 
       throw error;
@@ -560,7 +560,7 @@ export default function RegisterScreen() {
     setUploadProgress(1);
     setUploadStageLabel('Contenido aprobado. Continuando...');
 
-    return result.fileId;
+    return { fileId: result.fileId, publicUrl: result.publicUrl };
   };
 
   const checkUniqueness = async (
@@ -752,7 +752,7 @@ export default function RegisterScreen() {
       const onboardingOwner = `onboarding-${nicknameLower || Date.now()}`;
 
       setUploadStageLabel('Validando foto de perfil...');
-      const moderatedPhotoFileId = await uploadWithSafety(
+      const { fileId: moderatedPhotoFileId, publicUrl: moderatedPhotoPublicUrl } = await uploadWithSafety(
         photoUri,
         'profile-photo',
         onboardingOwner,
@@ -763,7 +763,7 @@ export default function RegisterScreen() {
       setUploadProgress(0.25);
       setUploadProgress(0.25);
       setUploadStageLabel('Validando selfie de verificacion (sonrisa o guino)...');
-      const moderatedVerificationSelfieFileId = await uploadWithSafety(
+      const { fileId: moderatedVerificationSelfieFileId } = await uploadWithSafety(
         verificationSelfieUri,
         'verification-selfie',
         onboardingOwner,
@@ -839,7 +839,7 @@ export default function RegisterScreen() {
             stateRegion: normalizedStateRegion,
             country: normalizedCountry,
             timezone,
-            photoUrl: `mongo-gridfs://${moderatedPhotoFileId}`,
+            photoUrl: moderatedPhotoPublicUrl || `mongo-gridfs://${moderatedPhotoFileId}`,
             profilePhotoFileId: moderatedPhotoFileId,
             verificationSelfieFileId: moderatedVerificationSelfieFileId,
             verificationStatus: 'verified',
