@@ -1,9 +1,7 @@
-import { ImageManipulator } from 'expo-image-manipulator';
 import {
   getDownloadURL,
   listAll,
   ref,
-  uploadBytes,
 } from 'firebase/storage';
 import {
   addDoc,
@@ -14,8 +12,6 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { db, storage } from '@/services/firebaseConfig';
-import { s3 } from './spacesClient';
-import { PutObjectCommand } from '@aws-sdk/client-s3';
 
 export type WallpaperOrientation = 'vertical' | 'horizontal';
 export type WallpaperTier = 'free' | 'premium';
@@ -185,73 +181,65 @@ export async function uploadWallpaperAsAdmin(params: {
   priceCredits: number;
   userId: string;
 }): Promise<{ success: boolean; wallpaper?: WallpaperItem; error?: string }> {
+  // ─────────────────────────────────────────────────────────────────────────
+  // ARQUITECTURA: El upload va al backend (Node.js) que tiene las credenciales
+  // de DO Spaces en su .env. El frontend nunca toca S3 directamente.
+  // ─────────────────────────────────────────────────────────────────────────
   try {
-    const allowed = await isSuperAdmin(params.userId);
-    if (!allowed) {
-      return { success: false, error: 'Solo super_admin puede subir wallpapers' };
+    const backendUrl =
+      process.env.EXPO_PUBLIC_MODERATION_API_URL?.replace(/\/+$/, '') ||
+      process.env.EXPO_PUBLIC_BACKEND_BASE_URL?.replace(/\/+$/, '');
+
+    if (!backendUrl) {
+      return { success: false, error: 'EXPO_PUBLIC_MODERATION_API_URL no configurada' };
     }
 
-    const timestamp = Date.now();
-    const normalized = safeFile(params.fileName || `wallpaper-${timestamp}.jpg`);
-    const finalName = normalized.endsWith('.jpg') || normalized.endsWith('.jpeg') || normalized.endsWith('.png')
-      ? normalized
-      : `${normalized}.jpg`;
+    // Construir multipart/form-data
+    const formData = new FormData();
+    formData.append('collection', 'wallpapers');
+    formData.append('name', params.fileName);
+    formData.append('rarity', params.tier === 'premium' ? 'legendary' : 'common');
+    formData.append('price_cs', String(params.priceCredits));
+    formData.append('orientation', params.orientation);
+    formData.append('ownerUid', params.userId);
 
-    // Obtener el buffer de la imagen
-    const response = await fetch(params.fileUri);
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    // Adjuntar archivo en el campo correcto según orientación
+    const fieldName = params.orientation === 'vertical' ? 'wallpaper_vertical' : 'wallpaper_horizontal';
+    formData.append(fieldName, {
+      uri: params.fileUri,
+      name: params.fileName,
+      type: 'image/jpeg',
+    } as any);
 
-    const rarity = params.tier === 'premium' ? 'legendary' : 'common';
-    const fullPath = `assets/wallpapers/${params.orientation}/${rarity}/full/${timestamp}-${finalName}`;
-    const thumbPath = `assets/wallpapers/${params.orientation}/${rarity}/thumbs/${timestamp}-${finalName}`;
-
-    // Subir imagen completa
-    await s3.send(new PutObjectCommand({
-      Bucket: process.env.DO_SPACES_BUCKET,
-      Key: fullPath,
-      Body: buffer,
-      ContentType: 'image/jpeg',
-      ACL: 'public-read',
-    }));
-
-    // Subir thumbnail (puedes agregar lógica para generar el thumbnail si es necesario)
-    await s3.send(new PutObjectCommand({
-      Bucket: process.env.DO_SPACES_BUCKET,
-      Key: thumbPath,
-      Body: buffer, // Usa el mismo buffer o genera uno para el thumbnail
-      ContentType: 'image/jpeg',
-      ACL: 'public-read',
-    }));
-
-    const fullUrl = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${fullPath}`;
-    const thumbnailUrl = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${thumbPath}`;
-
-    const docRef = await addDoc(collection(db, WALLPAPER_COLLECTION), {
-      name: finalName.split('.')[0],
-      orientation: params.orientation,
-      tier: params.tier,
-      fullUrl,
-      thumbnailUrl,
-      fullPath,
-      thumbPath,
-      priceCredits: Math.max(0, Number(params.priceCredits || 0)),
-      isActive: true,
-      createdBy: params.userId,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+    const response = await fetch(`${backendUrl}/api/admin/mint_asset`, {
+      method: 'POST',
+      headers: {
+        'X-API-Key': process.env.EXPO_PUBLIC_MODERATION_GATEWAY_KEY || '',
+      },
+      body: formData,
     });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      return { success: false, error: err?.error || `Error ${response.status}` };
+    }
+
+    const data = await response.json();
+
+    // La respuesta del backend incluye las URLs de DO Spaces
+    const fullUrl: string = data?.image_url || data?.wallpaper_vertical || data?.wallpaper_horizontal || '';
+    const thumbnailUrl: string = data?.thumbnail_url || fullUrl;
 
     return {
       success: true,
       wallpaper: {
-        id: docRef.id,
-        name: finalName.split('.')[0],
+        id: data?.mint_id || String(Date.now()),
+        name: params.fileName,
         orientation: params.orientation,
         tier: params.tier,
         fullUrl,
         thumbnailUrl,
-        priceCredits: Math.max(0, Number(params.priceCredits || 0)),
+        priceCredits: params.priceCredits,
       },
     };
   } catch (error: any) {

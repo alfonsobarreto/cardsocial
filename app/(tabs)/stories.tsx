@@ -3,6 +3,7 @@ import { hardLockCheck } from '@/services/biometricAuth';
 import { hasActiveBusinessLicense } from '@/services/businessLicenseService';
 import { getPremiumStoryCost, purchasePremiumStoryWithCredits } from '@/services/creditsService';
 import { useLanguage } from '@/services/language';
+import { useLookMode } from '@/services/lookMode';
 import { getMyStoryState, getStoriesHouseAd, listReceivedContacts, listSmartCardsFromDb, setMyStoryState, type HouseAdStory } from '@/services/qrApi';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -144,6 +145,44 @@ function getStoriesStorageKey(ownerUid: string) {
 export default function StoriesPage() {
   const { language } = useLanguage();
   const tr = (es: string, en: string) => language === 'en' ? en : es;
+  const { resolvedMode } = useLookMode();
+  const isNight = resolvedMode === 'noche';
+  const storiesTheme = {
+    glowCardGradient: isNight
+      ? (['rgba(28,91,185,0.45)', 'rgba(21,68,139,0.30)', 'rgba(15,44,80,0.25)'] as const)
+      : (['rgba(126,215,255,0.45)', 'rgba(87,198,255,0.28)', 'rgba(47,175,234,0.24)'] as const),
+    glowInnerBg: isNight ? 'rgba(10,35,60,0.88)' : 'rgba(255,255,255,0.66)',
+    glowInnerBorder: isNight ? 'rgba(212,175,55,0.35)' : 'rgba(47,175,234,0.35)',
+    statusText: isNight ? '#F0F4F8' : '#0D4D8A',
+    expiryText: isNight ? '#87C8E8' : '#2E668C',
+    avatarFallbackBg: isNight ? '#0D2E40' : '#EAF7FF',
+    avatarFallbackBorder: isNight ? 'rgba(212,175,55,0.22)' : '#C7E8FF',
+    iconColor: isNight ? '#87C8E8' : '#0D4D8A',
+    gridCardName: isNight ? '#87C8E8' : '#0D4D8A',
+    emptyText: isNight ? '#87A9C2' : '#3A7093',
+    normalBtnBg: isNight ? 'rgba(46,204,113,0.12)' : '#EFFFF5',
+    normalBtnBorder: isNight ? 'rgba(46,204,113,0.35)' : '#B9EFD0',
+    offBtnBg: isNight ? 'rgba(10,37,64,0.60)' : '#FFFFFF',
+    offBtnBorder: isNight ? 'rgba(212,175,55,0.22)' : '#D5EAF7',
+    actionBtnText: isNight ? '#87C8E8' : '#0D4D8A',
+    createCardBg: isNight ? '#071A32' : '#F5FCFF',
+    createCardBorder: isNight ? 'rgba(212,175,55,0.22)' : 'rgba(13,77,138,0.18)',
+    modalTitle: isNight ? '#F0F4F8' : '#0D4D8A',
+    stepTitle: isNight ? '#87C8E8' : '#2E668C',
+    selectorBtnBg: isNight ? '#0D2E40' : '#FFFFFF',
+    selectorBtnBorder: isNight ? 'rgba(212,175,55,0.22)' : '#CFE8F7',
+    selectorBtnActiveBg: isNight ? 'rgba(28,91,185,0.35)' : '#EAF7FF',
+    selectorBtnActiveBorder: isNight ? '#1C5BB9' : '#0D4D8A',
+    selectorText: isNight ? '#87C8E8' : '#0D4D8A',
+    listOptionBg: isNight ? '#0D2E40' : '#FFFFFF',
+    listOptionBorder: isNight ? 'rgba(212,175,55,0.15)' : '#D6EBF8',
+    listOptionActiveBg: isNight ? 'rgba(28,91,185,0.35)' : '#EAF7FF',
+    listOptionActiveBorder: isNight ? '#1C5BB9' : '#0D4D8A',
+    cancelBtnBg: isNight ? '#0D2E40' : '#E5F2FA',
+    fileNameText: isNight ? '#87A9C2' : '#3E7395',
+    emptyCtaText: isNight ? '#87A9C2' : '#4F7D9B',
+    exposureHint: isNight ? '#7AB9D8' : '#5A7A90',
+  };
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [state, setState] = useState<StoryState>('none');
@@ -663,25 +702,26 @@ export default function StoriesPage() {
 
   const renderGridItem = ({ item }: { item: GridStoryItem }) => {
     const ringStyle = item.storyState === 'vip' ? styles.ringVip : item.storyState === 'normal' ? styles.ringNormal : styles.ringIdle;
+    const ringBgOverride = item.storyState === 'none' ? { backgroundColor: isNight ? 'rgba(10,37,64,0.64)' : 'rgba(255,255,255,0.64)' } : undefined;
     return (
       <TouchableOpacity style={styles.gridItem} onPress={() => openStoryViewer(item)}>
-        <View style={[styles.gridAvatarRing, ringStyle]}>
+        <View style={[styles.gridAvatarRing, ringStyle, ringBgOverride]}>
           {item.photoUrl ? (
             <Image source={{ uri: item.photoUrl }} style={styles.gridAvatar} />
           ) : (
-            <View style={styles.gridAvatarFallback}>
-              <MaterialCommunityIcons name="account" size={20} color="#0D4D8A" />
+            <View style={[styles.gridAvatarFallback, { backgroundColor: storiesTheme.avatarFallbackBg, borderColor: storiesTheme.avatarFallbackBorder }]}>
+              <MaterialCommunityIcons name="account" size={20} color={storiesTheme.iconColor} />
             </View>
           )}
         </View>
-        <Text style={styles.gridCardName} numberOfLines={1}>{item.cardName}</Text>
+        <Text style={[styles.gridCardName, { color: storiesTheme.gridCardName }]} numberOfLines={1}>{item.cardName}</Text>
       </TouchableOpacity>
     );
   };
 
   return (
     <LinearGradient
-      colors={['#EAF7FF', '#CDEFFF', '#B8E7FF']}
+      colors={isNight ? ['#071A32', '#0A2540', '#0F2C50'] : ['#EAF7FF', '#CDEFFF', '#B8E7FF']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.container}
@@ -698,19 +738,19 @@ export default function StoriesPage() {
       ) : (
         <>
           <LinearGradient
-            colors={['rgba(126,215,255,0.45)', 'rgba(87,198,255,0.28)', 'rgba(47,175,234,0.24)']}
+            colors={storiesTheme.glowCardGradient}
             style={styles.premiumGlowCard}
           >
-            <BlurView intensity={45} tint="light" style={styles.premiumGlowInner}>
+            <BlurView intensity={45} tint={isNight ? 'dark' : 'light'} style={styles.premiumGlowInner}>
               <View style={styles.statusRow}>
                 <MaterialCommunityIcons
                   name={state === 'vip' ? 'star-circle' : state === 'normal' ? 'checkbox-marked-circle-outline' : 'circle-off-outline'}
                   size={20}
                   color={state === 'vip' ? '#C5A065' : state === 'normal' ? '#2ECC71' : '#4B88AF'}
                 />
-                <Text style={styles.statusText}>{statusLabel}</Text>
+                <Text style={[styles.statusText, { color: storiesTheme.statusText }]}>{statusLabel}</Text>
               </View>
-              <Text style={styles.expiryText}>{expiryLabel}</Text>
+              <Text style={[styles.expiryText, { color: storiesTheme.expiryText }]}>{expiryLabel}</Text>
             </BlurView>
           </LinearGradient>
 
@@ -720,15 +760,15 @@ export default function StoriesPage() {
             numColumns={4}
             contentContainerStyle={styles.gridWrap}
             renderItem={renderGridItem}
-            ListEmptyComponent={<Text style={styles.emptyText}>No hay historias activas en tu red.</Text>}
+            ListEmptyComponent={<Text style={[styles.emptyText, { color: storiesTheme.emptyText }]}>No hay historias activas en tu red.</Text>}
           />
 
           <TouchableOpacity
-            style={[styles.actionBtn, styles.normalBtn]}
+            style={[styles.actionBtn, { backgroundColor: storiesTheme.normalBtnBg, borderColor: storiesTheme.normalBtnBorder }]}
             onPress={() => publishState('normal')}
             disabled={saving}
           >
-            <Text style={styles.actionBtnText}>Simular Story Normal Rapida</Text>
+            <Text style={[styles.actionBtnText, { color: storiesTheme.actionBtnText }]}>Simular Story Normal Rapida</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -736,15 +776,15 @@ export default function StoriesPage() {
             onPress={() => publishState('vip')}
             disabled={saving}
           >
-            <Text style={styles.actionBtnText}>Activar VIP Manual (7 dias)</Text>
+            <Text style={[styles.actionBtnText, { color: storiesTheme.actionBtnText }]}>Activar VIP Manual (7 dias)</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionBtn, styles.offBtn]}
+            style={[styles.actionBtn, { backgroundColor: storiesTheme.offBtnBg, borderColor: storiesTheme.offBtnBorder }]}
             onPress={() => publishState('none')}
             disabled={saving}
           >
-            <Text style={styles.actionBtnText}>Apagar Story Rapida</Text>
+            <Text style={[styles.actionBtnText, { color: storiesTheme.actionBtnText }]}>Apagar Story Rapida</Text>
           </TouchableOpacity>
         </>
       )}
@@ -756,28 +796,28 @@ export default function StoriesPage() {
 
       <Modal visible={createVisible} transparent animationType="slide" onRequestClose={() => setCreateVisible(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.createCard}>
-            <Text style={styles.modalTitle}>Crear Historia</Text>
+          <View style={[styles.createCard, { backgroundColor: storiesTheme.createCardBg, borderColor: storiesTheme.createCardBorder }]}>
+            <Text style={[styles.modalTitle, { color: storiesTheme.modalTitle }]}>Crear Historia</Text>
 
-            <Text style={styles.stepTitle}>1) Tipo de contenido</Text>
+            <Text style={[styles.stepTitle, { color: storiesTheme.stepTitle }]}>1) Tipo de contenido</Text>
             <View style={styles.rowWrap}>
               <TouchableOpacity
-                style={[styles.selectorBtn, selectedType === 'image' && styles.selectorBtnActive]}
+                style={[styles.selectorBtn, selectedType === 'image' && styles.selectorBtnActive, { backgroundColor: selectedType === 'image' ? storiesTheme.selectorBtnActiveBg : storiesTheme.selectorBtnBg, borderColor: selectedType === 'image' ? storiesTheme.selectorBtnActiveBorder : storiesTheme.selectorBtnBorder }]}
                 onPress={() => setSelectedType('image')}
               >
-                <Text style={styles.selectorText}>Imagen</Text>
+                <Text style={[styles.selectorText, { color: storiesTheme.selectorText }]}>Imagen</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.selectorBtn, selectedType === 'video' && styles.selectorBtnActive]}
+                style={[styles.selectorBtn, selectedType === 'video' && styles.selectorBtnActive, { backgroundColor: selectedType === 'video' ? storiesTheme.selectorBtnActiveBg : storiesTheme.selectorBtnBg, borderColor: selectedType === 'video' ? storiesTheme.selectorBtnActiveBorder : storiesTheme.selectorBtnBorder }]}
                 onPress={() => setSelectedType('video')}
               >
-                <Text style={styles.selectorText}>Video</Text>
+                <Text style={[styles.selectorText, { color: storiesTheme.selectorText }]}>Video</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.selectorBtn, selectedType === 'document' && styles.selectorBtnActive]}
+                style={[styles.selectorBtn, selectedType === 'document' && styles.selectorBtnActive, { backgroundColor: selectedType === 'document' ? storiesTheme.selectorBtnActiveBg : storiesTheme.selectorBtnBg, borderColor: selectedType === 'document' ? storiesTheme.selectorBtnActiveBorder : storiesTheme.selectorBtnBorder }]}
                 onPress={() => setSelectedType('document')}
               >
-                <Text style={styles.selectorText}>Documento</Text>
+                <Text style={[styles.selectorText, { color: storiesTheme.selectorText }]}>Documento</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.pickBtn}
@@ -794,68 +834,68 @@ export default function StoriesPage() {
                 <Text style={styles.pickBtnText}>Agregar</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.fileNameText}>{selectedMediaName || 'Sin archivo seleccionado'}</Text>
+            <Text style={[styles.fileNameText, { color: storiesTheme.fileNameText }]}>{selectedMediaName || 'Sin archivo seleccionado'}</Text>
 
-            <Text style={styles.stepTitle}>2) Tarjeta emisora</Text>
+            <Text style={[styles.stepTitle, { color: storiesTheme.stepTitle }]}>2) Tarjeta emisora</Text>
             <View style={styles.selectorListWrap}>
               {smartCards.map((card) => (
                 <TouchableOpacity
                   key={card.cardId}
-                  style={[styles.listOption, selectedCardId === card.cardId && styles.listOptionActive]}
+                  style={[styles.listOption, selectedCardId === card.cardId && styles.listOptionActive, { backgroundColor: selectedCardId === card.cardId ? storiesTheme.listOptionActiveBg : storiesTheme.listOptionBg, borderColor: selectedCardId === card.cardId ? storiesTheme.listOptionActiveBorder : storiesTheme.listOptionBorder }]}
                   onPress={() => {
                     setSelectedCardId(card.cardId);
                     setSelectedCtaItemId('');
                   }}
                 >
-                  <Text style={styles.listOptionText}>{card.name}</Text>
+                  <Text style={[styles.listOptionText, { color: storiesTheme.selectorText }]}>{card.name}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={styles.stepTitle}>3) CTA (icono/dato de la tarjeta)</Text>
+            <Text style={[styles.stepTitle, { color: storiesTheme.stepTitle }]}>3) CTA (icono/dato de la tarjeta)</Text>
             <View style={styles.selectorListWrap}>
               {cardCtaOptions.length === 0 ? (
-                <Text style={styles.emptyCtaText}>Selecciona una tarjeta para ver CTA disponibles.</Text>
+                <Text style={[styles.emptyCtaText, { color: storiesTheme.emptyCtaText }]}>Selecciona una tarjeta para ver CTA disponibles.</Text>
               ) : (
                 cardCtaOptions.map((item) => (
                   <TouchableOpacity
                     key={item.id}
-                    style={[styles.listOption, selectedCtaItemId === item.id && styles.listOptionActive]}
+                    style={[styles.listOption, selectedCtaItemId === item.id && styles.listOptionActive, { backgroundColor: selectedCtaItemId === item.id ? storiesTheme.listOptionActiveBg : storiesTheme.listOptionBg, borderColor: selectedCtaItemId === item.id ? storiesTheme.listOptionActiveBorder : storiesTheme.listOptionBorder }]}
                     onPress={() => setSelectedCtaItemId(item.id)}
                   >
-                    <Text style={styles.listOptionText}>{item.title}</Text>
+                    <Text style={[styles.listOptionText, { color: storiesTheme.selectorText }]}>{item.title}</Text>
                   </TouchableOpacity>
                 ))
               )}
             </View>
 
-            <Text style={styles.stepTitle}>4) Tiempo de historia</Text>
+            <Text style={[styles.stepTitle, { color: storiesTheme.stepTitle }]}>4) Tiempo de historia</Text>
             <View style={styles.rowWrap}>
               <TouchableOpacity
-                style={[styles.selectorBtn, selectedDuration === '24h' && styles.selectorBtnActive]}
+                style={[styles.selectorBtn, selectedDuration === '24h' && styles.selectorBtnActive, { backgroundColor: selectedDuration === '24h' ? storiesTheme.selectorBtnActiveBg : storiesTheme.selectorBtnBg, borderColor: selectedDuration === '24h' ? storiesTheme.selectorBtnActiveBorder : storiesTheme.selectorBtnBorder }]}
                 onPress={() => setSelectedDuration('24h')}
               >
-                <Text style={styles.selectorText}>24 horas (Gratis)</Text>
+                <Text style={[styles.selectorText, { color: storiesTheme.selectorText }]}>24 horas (Gratis)</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.selectorBtn, selectedDuration === '7d' && styles.selectorVipBtn]}
+                style={[styles.selectorBtn, selectedDuration === '7d' && styles.selectorVipBtn, { backgroundColor: selectedDuration === '7d' ? storiesTheme.selectorBtnActiveBg : storiesTheme.selectorBtnBg, borderColor: selectedDuration === '7d' ? storiesTheme.selectorBtnActiveBorder : storiesTheme.selectorBtnBorder }]}
                 onPress={() => setSelectedDuration('7d')}
               >
-                <Text style={styles.selectorText}>7 dias Premium ({getPremiumStoryCost('7d')} CS)</Text>
+                <Text style={[styles.selectorText, { color: storiesTheme.selectorText }]}>7 dias Premium ({getPremiumStoryCost('7d')} CS)</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.selectorBtn, selectedDuration === '30d' && styles.selectorVipBtn]}
+                style={[styles.selectorBtn, selectedDuration === '30d' && styles.selectorVipBtn, { backgroundColor: selectedDuration === '30d' ? storiesTheme.selectorBtnActiveBg : storiesTheme.selectorBtnBg, borderColor: selectedDuration === '30d' ? storiesTheme.selectorBtnActiveBorder : storiesTheme.selectorBtnBorder }]}
                 onPress={() => setSelectedDuration('30d')}
               >
-                <Text style={styles.selectorText}>30 dias Premium ({getPremiumStoryCost('30d')} CS)</Text>
+                <Text style={[styles.selectorText, { color: storiesTheme.selectorText }]}>30 dias Premium ({getPremiumStoryCost('30d')} CS)</Text>
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.exposureHintText}>Exposicion en carrusel: 30 segundos por historia.</Text>
+            <Text style={[styles.exposureHintText, { color: storiesTheme.exposureHint }]}>Exposicion en carrusel: 30 segundos por historia.</Text>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setCreateVisible(false)}>
-                <Text style={styles.cancelBtnText}>Cancelar</Text>
+              <TouchableOpacity style={[styles.cancelBtn, { backgroundColor: storiesTheme.cancelBtnBg }]} onPress={() => setCreateVisible(false)}>
+                <Text style={[styles.cancelBtnText, { color: storiesTheme.selectorText }]}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.publishBtn, !selectedCtaItem && styles.publishBtnDisabled]}

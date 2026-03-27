@@ -1,9 +1,27 @@
+import { getActiveUserId } from '@/services/authSession';
+import { hardLockCheck } from '@/services/biometricAuth';
+import {
+  getIncomingGhostLinkInvite,
+  respondGhostLinkInvite,
+  startGhostLinkVoipCall,
+  type GhostLinkCallStartResult,
+  type GhostLinkIncomingInvite,
+} from '@/services/ghostLinkVoip';
+import { useLanguage } from '@/services/language';
+import { useLookMode } from '@/services/lookMode';
+import { blockRelationship, createCallLog, listReceivedContacts, removeRelationship } from '@/services/qrApi';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AppState,
   ActivityIndicator,
   Alert,
   Animated,
+  AppState,
   Easing,
   FlatList,
   Image,
@@ -18,23 +36,6 @@ import {
   UIManager,
   View,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
-import { getActiveUserId } from '@/services/authSession';
-import { hardLockCheck } from '@/services/biometricAuth';
-import { useLanguage } from '@/services/language';
-import { blockRelationship, createCallLog, listReceivedContacts, removeRelationship } from '@/services/qrApi';
-import {
-  getIncomingGhostLinkInvite,
-  respondGhostLinkInvite,
-  startGhostLinkVoipCall,
-  type GhostLinkCallStartResult,
-  type GhostLinkIncomingInvite,
-} from '@/services/ghostLinkVoip';
 
 type Contact = {
   uid: string;
@@ -98,6 +99,31 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 export default function ContactsPage() {
   const router = useRouter();
   const { language } = useLanguage();
+  const { resolvedMode } = useLookMode();
+  const isNight = resolvedMode === 'noche';
+  const contactsTheme = {
+    cardBg: isNight ? 'rgba(12,40,70,0.88)' : 'rgba(255,255,255,0.82)',
+    cardBorder: isNight ? 'rgba(212,175,55,0.18)' : 'rgba(13,77,138,0.18)',
+    searchBg: isNight ? 'rgba(10,37,64,0.85)' : 'rgba(255,255,255,0.84)',
+    searchBorder: isNight ? 'rgba(212,175,55,0.22)' : 'rgba(13,77,138,0.22)',
+    searchText: isNight ? '#F0F4F8' : '#0A2540',
+    searchPlaceholder: isNight ? '#87A9C2' : '#5C87A5',
+    modalBg: isNight ? '#0D2E40' : '#F2FBFF',
+    modalBorder: isNight ? 'rgba(212,175,55,0.22)' : '#B8E7FF',
+    modalRowBg: isNight ? '#0F3554' : '#FFFFFF',
+    modalRowBorder: isNight ? 'rgba(212,175,55,0.15)' : '#D0EEFF',
+    textPrimary: isNight ? '#F0F4F8' : '#0D4D8A',
+    textSecondary: isNight ? '#87C8E8' : '#2E668C',
+    avatarFallbackBg: isNight ? '#0D2E40' : '#EAF7FF',
+    avatarFallbackBorder: isNight ? 'rgba(212,175,55,0.22)' : '#B8E7FF',
+    pillBg: isNight ? 'rgba(10,37,64,0.85)' : 'rgba(255,255,255,0.8)',
+    pillBorder: isNight ? 'rgba(212,175,55,0.22)' : 'rgba(13,77,138,0.2)',
+    pillText: isNight ? '#87C8E8' : '#0D4D8A',
+    filterPillBg: isNight ? 'rgba(10,37,64,0.72)' : 'rgba(255,255,255,0.72)',
+    utilBtnBg: isNight ? '#0D2E40' : '#FFFFFF',
+    utilBtnBorder: isNight ? '#D4AF37' : '#B8E7FF',
+    iconColor: isNight ? '#87C8E8' : '#0D4D8A',
+  };
   const tr = (es: string, en: string) => language === 'en' ? en : es;
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [metaMap, setMetaMap] = useState<Record<string, ContactMeta>>({});
@@ -818,7 +844,7 @@ export default function ContactsPage() {
     if (item.type === 'header') {
       return (
         <View style={styles.groupHeaderWrap}>
-          <Text style={styles.groupHeaderText}>{item.title}</Text>
+          <Text style={[styles.groupHeaderText, { color: contactsTheme.textPrimary }]}>{item.title}</Text>
         </View>
       );
     }
@@ -828,7 +854,7 @@ export default function ContactsPage() {
 
     return (
       <TouchableOpacity
-        style={styles.contactCard}
+        style={[styles.contactCard, { backgroundColor: contactsTheme.cardBg, borderColor: contactsTheme.cardBorder }]}
         onPress={() => openFloatingCard(row)}
         onLongPress={() => onLongPressRow(row)}
         delayLongPress={3000}
@@ -847,24 +873,24 @@ export default function ContactsPage() {
           {row.photoUrl ? (
             <Image source={{ uri: row.photoUrl }} style={styles.avatar} />
           ) : (
-            <View style={styles.avatarFallback}>
-              <MaterialCommunityIcons name="account" size={18} color="#0D4D8A" />
+            <View style={[styles.avatarFallback, { backgroundColor: contactsTheme.avatarFallbackBg, borderColor: contactsTheme.avatarFallbackBorder }]}>
+              <MaterialCommunityIcons name="account" size={18} color={contactsTheme.iconColor} />
             </View>
           )}
         </View>
 
         <View style={{ flex: 1 }}>
           <View style={styles.nameRow}>
-            <Text style={styles.contactName} numberOfLines={1}>{row.name}</Text>
-            <Text style={styles.contactNick} numberOfLines={1}>@{row.nickname}</Text>
+            <Text style={[styles.contactName, { color: contactsTheme.textPrimary }]} numberOfLines={1}>{row.name}</Text>
+            <Text style={[styles.contactNick, { color: contactsTheme.textSecondary }]} numberOfLines={1}>@{row.nickname}</Text>
           </View>
-          <Text style={styles.cardNameText} numberOfLines={1}>{row.cardName}</Text>
+          <Text style={[styles.cardNameText, { color: contactsTheme.textSecondary }]} numberOfLines={1}>{row.cardName}</Text>
           <View style={styles.metaRow}>
             {renderStars(row.ratingAvg)}
-            <Text style={[styles.ratingNumber, isAlert && styles.ratingNumberAlert]}>{Number(row.ratingAvg || 0).toFixed(1)}</Text>
-            <View style={styles.holdersPill}>
-              <MaterialCommunityIcons name="account-group-outline" size={12} color="#0D4D8A" />
-              <Text style={styles.holdersPillText}>{row.holdersCount}</Text>
+            <Text style={[styles.ratingNumber, isAlert && styles.ratingNumberAlert, { color: contactsTheme.textPrimary }]}>{Number(row.ratingAvg || 0).toFixed(1)}</Text>
+            <View style={[styles.holdersPill, { backgroundColor: contactsTheme.pillBg, borderColor: contactsTheme.pillBorder }]}>
+              <MaterialCommunityIcons name="account-group-outline" size={12} color={contactsTheme.iconColor} />
+              <Text style={[styles.holdersPillText, { color: contactsTheme.pillText }]}>{row.holdersCount}</Text>
             </View>
           </View>
         </View>
@@ -890,7 +916,7 @@ export default function ContactsPage() {
   };
 
   return (
-    <LinearGradient colors={['#EAF7FF', '#CDEFFF', '#B8E7FF']} style={styles.container}>
+    <LinearGradient colors={isNight ? ['#071A32', '#0A2540', '#0F2C50'] : ['#EAF7FF', '#CDEFFF', '#B8E7FF']} style={styles.container}>
       <View style={styles.headerBar}>
         <Text style={styles.headerTitle}>Contactos Maestro</Text>
         {/* [CUARENTENA] Botón de escanear deshabilitado */}
@@ -903,25 +929,25 @@ export default function ContactsPage() {
       </View>
 
       <View style={styles.toolbarRow}>
-        <View style={styles.searchWrap}>
-          <MaterialCommunityIcons name="magnify" size={17} color="#4A7898" />
+        <View style={[styles.searchWrap, { backgroundColor: contactsTheme.searchBg, borderColor: contactsTheme.searchBorder }]}>
+          <MaterialCommunityIcons name="magnify" size={17} color={contactsTheme.iconColor} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: contactsTheme.searchText }]}
             placeholder="Buscar por nombre, tarjeta o grupo"
-            placeholderTextColor="#5C87A5"
+            placeholderTextColor={contactsTheme.searchPlaceholder}
             value={searchValue}
             onChangeText={setSearchValue}
           />
         </View>
 
-        <TouchableOpacity style={styles.sortBtn} onPress={() => setSortVisible(true)} activeOpacity={0.86}>
-          <MaterialCommunityIcons name="sort" size={18} color="#0D4D8A" />
-          <Text style={styles.sortBtnText}>Sort</Text>
+        <TouchableOpacity style={[styles.sortBtn, { backgroundColor: contactsTheme.utilBtnBg, borderColor: contactsTheme.utilBtnBorder }]} onPress={() => setSortVisible(true)} activeOpacity={0.86}>
+          <MaterialCommunityIcons name="sort" size={18} color={contactsTheme.iconColor} />
+          <Text style={[styles.sortBtnText, { color: contactsTheme.textPrimary }]}>Sort</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.activeSortPillWrap}>
-        <Text style={styles.activeSortPill}>Filtro activo: {sortMode === 'name' ? 'Nombre' : sortMode === 'card' ? 'Nombre Tarjeta' : sortMode === 'date' ? 'Fecha' : 'Grupos'}</Text>
+        <Text style={[styles.activeSortPill, { color: contactsTheme.textPrimary, backgroundColor: contactsTheme.filterPillBg }]}>Filtro activo: {sortMode === 'name' ? 'Nombre' : sortMode === 'card' ? 'Nombre Tarjeta' : sortMode === 'date' ? 'Fecha' : 'Grupos'}</Text>
       </View>
 
       <Animated.View
@@ -952,15 +978,15 @@ export default function ContactsPage() {
             onRefresh={loadContacts}
             refreshing={loading}
             contentContainerStyle={styles.listContainer}
-            ListEmptyComponent={<Text style={styles.emptyText}>Aun no tienes contactos compartidos.</Text>}
+            ListEmptyComponent={<Text style={[styles.emptyText, { color: contactsTheme.textSecondary }]}>Aun no tienes contactos compartidos.</Text>}
           />
         )}
       </Animated.View>
 
       <Modal visible={sortVisible} transparent animationType="slide" onRequestClose={() => setSortVisible(false)}>
         <Pressable style={styles.modalOverlay} onPress={() => setSortVisible(false)}>
-          <Pressable style={styles.sortModalCard}>
-            <Text style={styles.sortModalTitle}>Ordenar contactos</Text>
+          <Pressable style={[styles.sortModalCard, { backgroundColor: contactsTheme.modalBg, borderColor: contactsTheme.modalBorder }]}>
+            <Text style={[styles.sortModalTitle, { color: contactsTheme.textPrimary }]}>Ordenar contactos</Text>
             {[
               { key: 'name', label: 'Nombre (A-Z, favoritos arriba)' },
               { key: 'card', label: 'Nombre de Tarjeta' },
@@ -969,15 +995,15 @@ export default function ContactsPage() {
             ].map((option) => (
               <TouchableOpacity
                 key={option.key}
-                style={[styles.sortOptionRow, sortMode === option.key && styles.sortOptionRowActive]}
+                style={[styles.sortOptionRow, sortMode === option.key && styles.sortOptionRowActive, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]}
                 onPress={() => {
                   LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                   setSortMode(option.key as SortMode);
                   setSortVisible(false);
                 }}
               >
-                <Text style={[styles.sortOptionText, sortMode === option.key && styles.sortOptionTextActive]}>{option.label}</Text>
-                {sortMode === option.key ? <MaterialCommunityIcons name="check-circle" size={17} color="#0D4D8A" /> : null}
+                <Text style={[styles.sortOptionText, sortMode === option.key && styles.sortOptionTextActive, { color: contactsTheme.textSecondary }]}>{option.label}</Text>
+                {sortMode === option.key ? <MaterialCommunityIcons name="check-circle" size={17} color={contactsTheme.iconColor} /> : null}
               </TouchableOpacity>
             ))}
           </Pressable>
@@ -986,10 +1012,10 @@ export default function ContactsPage() {
 
       <Modal visible={longPressVisible} transparent animationType="fade" onRequestClose={() => setLongPressVisible(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.actionModalCard}>
-            <Text style={styles.actionModalTitle}>{longPressContact?.name || 'Contacto'}</Text>
+          <View style={[styles.actionModalCard, { backgroundColor: contactsTheme.modalBg, borderColor: contactsTheme.modalBorder }]}>
+            <Text style={[styles.actionModalTitle, { color: contactsTheme.textPrimary }]}>{longPressContact?.name || 'Contacto'}</Text>
             <TouchableOpacity
-              style={styles.actionRow}
+              style={[styles.actionRow, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]}
               onPress={() => {
                 if (!longPressContact) {
                   return;
@@ -1001,21 +1027,21 @@ export default function ContactsPage() {
                 setLongPressVisible(false);
               }}
             >
-              <MaterialCommunityIcons name="star-outline" size={18} color="#0D4D8A" />
-              <Text style={styles.actionText}>Favorito / no favorito</Text>
+              <MaterialCommunityIcons name="star-outline" size={18} color={contactsTheme.iconColor} />
+              <Text style={[styles.actionText, { color: contactsTheme.textSecondary }]}>Favorito / no favorito</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.actionRow}
+              style={[styles.actionRow, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]}
               onPress={() => {
                 setLongPressVisible(false);
                 setGroupPickerVisible(true);
               }}
             >
-              <MaterialCommunityIcons name="folder-move-outline" size={18} color="#0D4D8A" />
-              <Text style={styles.actionText}>Mover a Grupo</Text>
+              <MaterialCommunityIcons name="folder-move-outline" size={18} color={contactsTheme.iconColor} />
+              <Text style={[styles.actionText, { color: contactsTheme.textSecondary }]}>Mover a Grupo</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.actionRow}
+              style={[styles.actionRow, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]}
               onPress={() => {
                 const uid = longPressContact?.uid;
                 if (!uid) {
@@ -1032,8 +1058,8 @@ export default function ContactsPage() {
                 ]);
               }}
             >
-              <MaterialCommunityIcons name="trash-can-outline" size={18} color="#0D4D8A" />
-              <Text style={styles.actionText}>Eliminar</Text>
+              <MaterialCommunityIcons name="trash-can-outline" size={18} color={contactsTheme.iconColor} />
+              <Text style={[styles.actionText, { color: contactsTheme.textSecondary }]}>Eliminar</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.actionRowDanger}
@@ -1061,12 +1087,12 @@ export default function ContactsPage() {
 
       <Modal visible={groupPickerVisible} transparent animationType="fade" onRequestClose={() => setGroupPickerVisible(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.groupPickerCard}>
-            <Text style={styles.sortModalTitle}>Selecciona Grupo</Text>
+          <View style={[styles.groupPickerCard, { backgroundColor: contactsTheme.modalBg, borderColor: contactsTheme.modalBorder }]}>
+            <Text style={[styles.sortModalTitle, { color: contactsTheme.textPrimary }]}>Selecciona Grupo</Text>
             {allGroups.map((groupName) => (
               <View key={groupName} style={styles.groupRowWrap}>
                 <TouchableOpacity
-                  style={[styles.sortOptionRow, styles.groupSelectRow]}
+                  style={[styles.sortOptionRow, styles.groupSelectRow, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]}
                   onPress={() => {
                     const uid = longPressContact?.uid;
                     if (!uid) {
@@ -1078,8 +1104,7 @@ export default function ContactsPage() {
                     }));
                     setGroupPickerVisible(false);
                   }}
-                >
-                  <Text style={styles.sortOptionText}>{groupName}</Text>
+                >                  <Text style={[styles.sortOptionText, { color: contactsTheme.textSecondary }]}>{groupName}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.groupFavBtn, Boolean(groupFavorites[groupName]) && styles.groupFavBtnActive]}
@@ -1098,9 +1123,9 @@ export default function ContactsPage() {
 
             <View style={styles.newGroupWrap}>
               <TextInput
-                style={styles.newGroupInput}
+                style={[styles.newGroupInput, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder, color: contactsTheme.searchText }]}
                 placeholder="Crear nuevo grupo"
-                placeholderTextColor="#5C87A5"
+                placeholderTextColor={contactsTheme.searchPlaceholder}
                 value={newGroupName}
                 onChangeText={setNewGroupName}
               />
@@ -1129,46 +1154,47 @@ export default function ContactsPage() {
 
       <Modal visible={floatingVisible} transparent animationType="none" onRequestClose={closeFloatingCard}>
         <View style={styles.modalOverlay}>
-          <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
+          <BlurView intensity={70} tint={isNight ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
           <Animated.View
             style={[
               styles.floatingCard,
+              { backgroundColor: contactsTheme.modalBg, borderColor: contactsTheme.modalBorder },
               {
                 opacity: cardOpacity,
                 transform: [{ scale: cardScale }],
               },
             ]}
           >
-            <TouchableOpacity style={styles.closeBtn} onPress={closeFloatingCard}>
-              <MaterialCommunityIcons name="close" size={20} color="#0D4D8A" />
+            <TouchableOpacity style={[styles.closeBtn, { backgroundColor: contactsTheme.modalRowBg }]} onPress={closeFloatingCard}>
+              <MaterialCommunityIcons name="close" size={20} color={contactsTheme.iconColor} />
             </TouchableOpacity>
 
             {selectedContact?.photoUrl ? (
               <Image source={{ uri: selectedContact.photoUrl }} style={styles.modalAvatar} />
             ) : (
-              <View style={styles.modalAvatarFallback}>
-                <MaterialCommunityIcons name="account" size={22} color="#0D4D8A" />
+              <View style={[styles.modalAvatarFallback, { backgroundColor: contactsTheme.avatarFallbackBg, borderColor: contactsTheme.avatarFallbackBorder }]}>
+                <MaterialCommunityIcons name="account" size={22} color={contactsTheme.iconColor} />
               </View>
             )}
-            <Text style={styles.modalName}>{selectedContact?.name || ''}</Text>
-            <Text style={styles.modalNick}>@{selectedContact?.nickname || ''}</Text>
-            <Text style={styles.modalCardName}>{selectedContact?.cardName || ''}</Text>
+            <Text style={[styles.modalName, { color: contactsTheme.textPrimary }]}>{selectedContact?.name || ''}</Text>
+            <Text style={[styles.modalNick, { color: contactsTheme.textSecondary }]}>@{selectedContact?.nickname || ''}</Text>
+            <Text style={[styles.modalCardName, { color: contactsTheme.textSecondary }]}>{selectedContact?.cardName || ''}</Text>
 
             <View style={styles.modalStatsRow}>
               {renderStars(Number(selectedContact?.ratingAvg || 0))}
-              <Text style={styles.modalRatingNumber}>{Number(selectedContact?.ratingAvg || 0).toFixed(1)}</Text>
-              <Text style={styles.modalHoldersText}>{selectedContact?.holdersCount || 0} poseedores</Text>
+              <Text style={[styles.modalRatingNumber, { color: contactsTheme.textPrimary }]}>{Number(selectedContact?.ratingAvg || 0).toFixed(1)}</Text>
+              <Text style={[styles.modalHoldersText, { color: contactsTheme.textSecondary }]}>{selectedContact?.holdersCount || 0} poseedores</Text>
             </View>
 
             <View style={styles.actionIconRow}>
-              <TouchableOpacity style={styles.actionIconBtn} onPress={() => selectedContact && openGhostLinkConfirm(selectedContact)}>
-                <MaterialCommunityIcons name="phone-outline" size={19} color="#0D4D8A" />
+              <TouchableOpacity style={[styles.actionIconBtn, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]} onPress={() => selectedContact && openGhostLinkConfirm(selectedContact)}>
+                <MaterialCommunityIcons name="phone-outline" size={19} color={contactsTheme.iconColor} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.actionIconBtn} onPress={() => openActionPicker({ key: 'chat', title: 'Mensaje' })}>
-                <MaterialCommunityIcons name="chat-outline" size={19} color="#0D4D8A" />
+              <TouchableOpacity style={[styles.actionIconBtn, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]} onPress={() => openActionPicker({ key: 'chat', title: 'Mensaje' })}>
+                <MaterialCommunityIcons name="chat-outline" size={19} color={contactsTheme.iconColor} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.actionIconBtn} onPress={() => openActionPicker({ key: 'browser', title: 'Abrir enlace' })}>
-                <MaterialCommunityIcons name="web" size={19} color="#0D4D8A" />
+              <TouchableOpacity style={[styles.actionIconBtn, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]} onPress={() => openActionPicker({ key: 'browser', title: 'Abrir enlace' })}>
+                <MaterialCommunityIcons name="web" size={19} color={contactsTheme.iconColor} />
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -1177,18 +1203,18 @@ export default function ContactsPage() {
 
       <Modal visible={ghostConfirmVisible} transparent animationType="fade" onRequestClose={closeGhostLinkConfirm}>
         <View style={styles.modalOverlay}>
-          <View style={styles.ghostConfirmCard}>
+          <View style={[styles.ghostConfirmCard, { backgroundColor: contactsTheme.modalBg, borderColor: contactsTheme.modalBorder }]}>
             {ghostCallTarget?.photoUrl ? (
               <Image source={{ uri: ghostCallTarget.photoUrl }} style={styles.ghostAvatar} />
             ) : (
-              <View style={styles.ghostAvatarFallback}>
-                <MaterialCommunityIcons name="account" size={18} color="#0D4D8A" />
+              <View style={[styles.ghostAvatarFallback, { backgroundColor: contactsTheme.avatarFallbackBg, borderColor: contactsTheme.avatarFallbackBorder }]}>
+                <MaterialCommunityIcons name="account" size={18} color={contactsTheme.iconColor} />
               </View>
             )}
-            <Text style={styles.ghostConfirmName}>{ghostCallTarget?.name || ''}</Text>
-            <Text style={styles.ghostConfirmNick}>@{ghostCallTarget?.nickname || ''}</Text>
-            <Text style={styles.ghostConfirmCardName}>{ghostCallTarget?.cardName || 'Tarjeta Social'}</Text>
-            <Text style={styles.ghostPrivacyText}>
+            <Text style={[styles.ghostConfirmName, { color: contactsTheme.textPrimary }]}>{ghostCallTarget?.name || ''}</Text>
+            <Text style={[styles.ghostConfirmNick, { color: contactsTheme.textSecondary }]}>@{ghostCallTarget?.nickname || ''}</Text>
+            <Text style={[styles.ghostConfirmCardName, { color: contactsTheme.textSecondary }]}>{ghostCallTarget?.cardName || 'Tarjeta Social'}</Text>
+            <Text style={[styles.ghostPrivacyText, { color: contactsTheme.textPrimary }]}>
               Llamada protegida por Card-Social. Tu numero es privado.
             </Text>
 
@@ -1286,7 +1312,7 @@ export default function ContactsPage() {
         onRequestClose={rejectIncomingGhostCall}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.ghostIncomingCard}>
+          <View style={[styles.ghostIncomingCard, { backgroundColor: contactsTheme.modalBg, borderColor: contactsTheme.modalBorder }]}>
             {incomingGhostCall?.callerPhotoUrl ? (
               <Image source={{ uri: incomingGhostCall.callerPhotoUrl }} style={styles.ghostIncomingAvatar} />
             ) : (
@@ -1314,18 +1340,18 @@ export default function ContactsPage() {
 
       <Modal visible={actionPickerVisible} transparent animationType="fade" onRequestClose={() => setActionPickerVisible(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.actionPickerCard}>
-            <Text style={styles.sortModalTitle}>{currentAction?.title || 'Accion'}</Text>
-            <TouchableOpacity style={styles.actionRow} onPress={() => performActionDestination('application')}>
-              <MaterialCommunityIcons name="apps" size={18} color="#0D4D8A" />
-              <Text style={styles.actionText}>Application</Text>
+          <View style={[styles.actionPickerCard, { backgroundColor: contactsTheme.modalBg, borderColor: contactsTheme.modalBorder }]}>
+            <Text style={[styles.sortModalTitle, { color: contactsTheme.textPrimary }]}>{currentAction?.title || 'Accion'}</Text>
+            <TouchableOpacity style={[styles.actionRow, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]} onPress={() => performActionDestination('application')}>
+              <MaterialCommunityIcons name="apps" size={18} color={contactsTheme.iconColor} />
+              <Text style={[styles.actionText, { color: contactsTheme.textSecondary }]}>Application</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionRow} onPress={() => performActionDestination('browser')}>
-              <MaterialCommunityIcons name="web" size={18} color="#0D4D8A" />
-              <Text style={styles.actionText}>Browser</Text>
+            <TouchableOpacity style={[styles.actionRow, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]} onPress={() => performActionDestination('browser')}>
+              <MaterialCommunityIcons name="web" size={18} color={contactsTheme.iconColor} />
+              <Text style={[styles.actionText, { color: contactsTheme.textSecondary }]}>Browser</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.cancelPickerBtn} onPress={() => setActionPickerVisible(false)}>
-              <Text style={styles.cancelPickerBtnText}>Cancelar</Text>
+            <TouchableOpacity style={[styles.cancelPickerBtn, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]} onPress={() => setActionPickerVisible(false)}>
+              <Text style={[styles.cancelPickerBtnText, { color: contactsTheme.textPrimary }]}>Cancelar</Text>
             </TouchableOpacity>
           </View>
         </View>

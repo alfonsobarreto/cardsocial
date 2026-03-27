@@ -35,6 +35,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Buffer } from 'buffer';
 import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
+import CardStudioVault, { ICON_GALLERY } from './CardStudioVault';
 import LuxuryModerationModal from './LuxuryModerationModal';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -69,71 +70,7 @@ try {
   PdfComponent = null;
 }
 
-// GALERÍA DE 10 ICONOS DORADOS (#1EA7FF) - Mismos para todos los tipos
-const ICONS_BY_TYPE = {
-  Enlaces: [
-    { id: '1', label: 'WhatsApp', icon: 'whatsapp' },
-    { id: '2', label: 'Facebook', icon: 'facebook' },
-    { id: '3', label: 'Instagram', icon: 'instagram' },
-    { id: '4', label: 'LinkedIn', icon: 'linkedin' },
-    { id: '5', label: 'Web', icon: 'web' },
-    { id: '6', label: 'Ubicación', icon: 'map-marker' },
-    { id: '7', label: 'Llamada', icon: 'phone' },
-    { id: '8', label: 'Email', icon: 'email' },
-    { id: '9', label: 'Documento', icon: 'file-document' },
-    { id: '10', label: 'Video', icon: 'play-circle' },
-  ],
-  Teléfono: [
-    { id: '1', label: 'WhatsApp', icon: 'whatsapp' },
-    { id: '2', label: 'Facebook', icon: 'facebook' },
-    { id: '3', label: 'Instagram', icon: 'instagram' },
-    { id: '4', label: 'LinkedIn', icon: 'linkedin' },
-    { id: '5', label: 'Web', icon: 'web' },
-    { id: '6', label: 'Ubicación', icon: 'map-marker' },
-    { id: '7', label: 'Llamada', icon: 'phone' },
-    { id: '8', label: 'Email', icon: 'email' },
-    { id: '9', label: 'Documento', icon: 'file-document' },
-    { id: '10', label: 'Video', icon: 'play-circle' },
-  ],
-  Email: [
-    { id: '1', label: 'WhatsApp', icon: 'whatsapp' },
-    { id: '2', label: 'Facebook', icon: 'facebook' },
-    { id: '3', label: 'Instagram', icon: 'instagram' },
-    { id: '4', label: 'LinkedIn', icon: 'linkedin' },
-    { id: '5', label: 'Web', icon: 'web' },
-    { id: '6', label: 'Ubicación', icon: 'map-marker' },
-    { id: '7', label: 'Llamada', icon: 'phone' },
-    { id: '8', label: 'Email', icon: 'email' },
-    { id: '9', label: 'Documento', icon: 'file-document' },
-    { id: '10', label: 'Video', icon: 'play-circle' },
-  ],
-  'Texto Plain': [
-    { id: '1', label: 'WhatsApp', icon: 'whatsapp' },
-    { id: '2', label: 'Facebook', icon: 'facebook' },
-    { id: '3', label: 'Instagram', icon: 'instagram' },
-    { id: '4', label: 'LinkedIn', icon: 'linkedin' },
-    { id: '5', label: 'Web', icon: 'web' },
-    { id: '6', label: 'Ubicación', icon: 'map-marker' },
-    { id: '7', label: 'Llamada', icon: 'phone' },
-    { id: '8', label: 'Email', icon: 'email' },
-    { id: '9', label: 'Documento', icon: 'file-document' },
-    { id: '10', label: 'Video', icon: 'play-circle' },
-  ],
-  Documento: [
-    { id: '1', label: 'WhatsApp', icon: 'whatsapp' },
-    { id: '2', label: 'Facebook', icon: 'facebook' },
-    { id: '3', label: 'Instagram', icon: 'instagram' },
-    { id: '4', label: 'LinkedIn', icon: 'linkedin' },
-    { id: '5', label: 'Web', icon: 'web' },
-    { id: '6', label: 'Ubicación', icon: 'map-marker' },
-    { id: '7', label: 'Llamada', icon: 'phone' },
-    { id: '8', label: 'Email', icon: 'email' },
-    { id: '9', label: 'Documento', icon: 'file-document' },
-    { id: '10', label: 'Video', icon: 'play-circle' },
-  ],
-};
-
-const ICON_GALLERY = ICONS_BY_TYPE.Enlaces;
+// ICON_GALLERY viene de CardStudioVault — única fuente de verdad
 
 const COUNTRY_CODES = [
   { code: '+1', country: 'USA' },
@@ -269,7 +206,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         setFaviconUrl(editingData.icon);
       } else {
         // Find icon by label/iconName in the correct type
-        const iconsForType = ICONS_BY_TYPE[type];
+        const iconsForType = ICON_GALLERY;
         if (iconsForType) {
           const iconIndex = iconsForType.findIndex(i => i.label === editingData.iconName);
           if (iconIndex >= 0) {
@@ -813,11 +750,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     [createSwipeResponder]
   );
 
-  const iconModalSwipeResponder = React.useMemo(
-    () => createSwipeResponder(() => setIconModalVisible(false)),
-    [createSwipeResponder]
-  );
-
   const fileTypeSwipeResponder = React.useMemo(
     () => createSwipeResponder(() => setFileTypeModalVisible(false)),
     [createSwipeResponder]
@@ -1060,11 +992,11 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
       const iconData = selectedIcon === 'favicon' 
         ? faviconUrl
-        : ICONS_BY_TYPE[dataType].find(i => i.id === selectedIcon)?.icon || 'file';
+        : ICON_GALLERY.find(i => i.id === selectedIcon)?.icon || 'file';
       
       const iconName = selectedIcon === 'favicon'
         ? 'Favicon'
-        : ICONS_BY_TYPE[dataType].find(i => i.id === selectedIcon)?.label || 'Sin nombre';
+        : ICON_GALLERY.find(i => i.id === selectedIcon)?.label || 'Sin nombre';
 
       const normalizedValue =
         dataType === 'Teléfono' && !dataValue.startsWith('+')
@@ -1487,7 +1419,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 >
                   <View style={[styles.iconPreviewCircleInner, { backgroundColor: formTheme.iconPreviewCircleBg }]}> 
                     <MaterialCommunityIcons
-                      name={ICONS_BY_TYPE[dataType].find(i => i.id === selectedIcon)?.icon as any}
+                      name={ICON_GALLERY.find(i => i.id === selectedIcon)?.icon as any}
                       color={formTheme.textPrimary}
                       size={48}
                     />
@@ -1662,66 +1594,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           </View>
         </Modal>
 
-        {/* MODAL: ICON GALLERY */}
-        <Modal
+        {/* MODAL: ICON GALLERY — CardStudioVault */}
+        <CardStudioVault
           visible={iconModalVisible}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setIconModalVisible(false)}
-        >
-          <TouchableWithoutFeedback onPress={() => setIconModalVisible(false)}>
-          <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback onPress={() => {}}>
-            <View style={[styles.modalContent, { maxHeight: SCREEN_HEIGHT * 0.85, backgroundColor: formTheme.surfaceBg, borderTopColor: formTheme.border }]}>
-              <View style={styles.bottomSheetDragHandleWrap} {...iconModalSwipeResponder.panHandlers}>
-                <View style={styles.bottomSheetDragHandle} />
-              </View>
-              <View style={styles.iconModalHeader}>
-                <Text style={styles.iconModalTitle}>Elige Icono - {dataType}</Text>
-                <TouchableOpacity onPress={() => setIconModalVisible(false)}>
-                  <MaterialCommunityIcons name="close" color="#D4AF37" size={24} />
-                </TouchableOpacity>
-              </View>
-              <FlatList
-                data={ICONS_BY_TYPE[dataType]}
-                keyExtractor={item => item.id}
-                numColumns={5}
-                scrollEnabled={true}
-                removeClippedSubviews={true}
-                scrollEventThrottle={16}
-                contentContainerStyle={styles.iconGrid}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={[
-                      styles.iconItem,
-                      selectedIcon === item.id && styles.iconItemSelected,
-                      selectedIcon === item.id && {
-                        backgroundColor: formTheme.selectedPillBg,
-                        borderColor: formTheme.selectedPillBg,
-                        shadowColor: formTheme.selectedPillGlow,
-                        shadowOpacity: 0.2,
-                        shadowRadius: 6,
-                        elevation: 3,
-                      },
-                    ]}
-                    onPress={() => {
-                      setSelectedIcon(item.id);
-                      setIconModalVisible(false);
-                    }}
-                  >
-                    <MaterialCommunityIcons
-                      name={item.icon as any}
-                      color={selectedIcon === item.id ? formTheme.selectedPillText : formTheme.textPrimary}
-                      size={36}
-                    />
-                  </TouchableOpacity>
-                )}
-              />
-            </View>
-            </TouchableWithoutFeedback>
-          </View>
-          </TouchableWithoutFeedback>
-        </Modal>
+          onClose={() => setIconModalVisible(false)}
+          onSelectIcon={setSelectedIcon}
+          dataType={dataType}
+          selectedIcon={selectedIcon}
+        />
 
         {/* MODAL: ELEGIR FOTOS O DOCUMENTOS */}
         <Modal
@@ -1738,9 +1618,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 <View style={styles.bottomSheetDragHandle} />
               </View>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Carga Segura de Documento</Text>
+                <Text style={[styles.modalTitle, { color: formTheme.textPrimary }]}>Carga Segura de Documento</Text>
                 <TouchableOpacity onPress={() => setFileTypeModalVisible(false)}>
-                  <MaterialCommunityIcons name="close" color="#002D4B" size={24} />
+                  <MaterialCommunityIcons name="close" color={formTheme.textPrimary} size={24} />
                 </TouchableOpacity>
               </View>
               <ScrollView
@@ -1750,31 +1630,31 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 showsVerticalScrollIndicator={false}
               >
               <TouchableOpacity
-                style={styles.fileTypeOption}
+                style={[styles.fileTypeOption, { backgroundColor: formTheme.inputBg, borderColor: formTheme.border }]}
                 onPress={handleTakePhoto}
                 disabled={isCompressing}
               >
-                <MaterialCommunityIcons name="camera" color="#002D4B" size={30} />
-                <Text style={styles.fileTypeText}>Tomar Foto</Text>
-                <Text style={styles.fileTypeSubText}>Captura directa con cámara</Text>
+                <MaterialCommunityIcons name="camera" color={formTheme.textPrimary} size={30} />
+                <Text style={[styles.fileTypeText, { color: formTheme.textPrimary }]}>Tomar Foto</Text>
+                <Text style={[styles.fileTypeSubText, { color: formTheme.textSecondary }]}>Captura directa con cámara</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.fileTypeOption}
+                style={[styles.fileTypeOption, { backgroundColor: formTheme.inputBg, borderColor: formTheme.border }]}
                 onPress={handlePickPhotos}
                 disabled={isCompressing}
               >
-                <MaterialCommunityIcons name="image-multiple" color="#002D4B" size={30} />
-                <Text style={styles.fileTypeText}>Elegir imagen</Text>
-                <Text style={styles.fileTypeSubText}>JPG, PNG o HEIC</Text>
+                <MaterialCommunityIcons name="image-multiple" color={formTheme.textPrimary} size={30} />
+                <Text style={[styles.fileTypeText, { color: formTheme.textPrimary }]}>Elegir imagen</Text>
+                <Text style={[styles.fileTypeSubText, { color: formTheme.textSecondary }]}>JPG, PNG o HEIC</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.fileTypeOption}
+                style={[styles.fileTypeOption, { backgroundColor: formTheme.inputBg, borderColor: formTheme.border }]}
                 onPress={handlePickDocument}
                 disabled={isCompressing}
               >
-                <MaterialCommunityIcons name="file-document-outline" color="#002D4B" size={30} />
-                <Text style={styles.fileTypeText}>Elegir documento</Text>
-                <Text style={styles.fileTypeSubText}>PDF y archivos visualizables</Text>
+                <MaterialCommunityIcons name="file-document-outline" color={formTheme.textPrimary} size={30} />
+                <Text style={[styles.fileTypeText, { color: formTheme.textPrimary }]}>Elegir documento</Text>
+                <Text style={[styles.fileTypeSubText, { color: formTheme.textSecondary }]}>PDF y archivos visualizables</Text>
               </TouchableOpacity>
               </ScrollView>
             </View>
@@ -1857,7 +1737,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#E3F2FD',
   },
   headerTop: {
     flexDirection: 'row',

@@ -1,3 +1,17 @@
+import { getActiveUserId } from '@/services/authSession';
+import { useLanguage } from '@/services/language';
+import { useLookMode } from '@/services/lookMode';
+import {
+  type CallHistoryRow,
+  createCallLog,
+  listCallsHistory,
+  listReceivedContacts,
+  patchCallLogMeta,
+} from '@/services/qrApi';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
+import * as DocumentPicker from 'expo-document-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -11,19 +25,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import * as DocumentPicker from 'expo-document-picker';
-import { getActiveUserId } from '@/services/authSession';
-import { useLanguage } from '@/services/language';
-import {
-  type CallHistoryRow,
-  createCallLog,
-  listCallsHistory,
-  listReceivedContacts,
-  patchCallLogMeta,
-} from '@/services/qrApi';
 
 type ContactRow = {
   uid: string;
@@ -43,6 +44,25 @@ const QUICK_TAGS = ['Interesado', 'Llamar luego', 'Cerrado'];
 export default function CallsPage() {
   const { language } = useLanguage();
   const tr = (es: string, en: string) => language === 'en' ? en : es;
+  const { resolvedMode } = useLookMode();
+  const isNight = resolvedMode === 'noche';
+  const callsTheme = {
+    cardBg: isNight ? 'rgba(12,40,70,0.90)' : 'rgba(255,255,255,0.92)',
+    cardBorder: isNight ? 'rgba(212,175,55,0.18)' : 'rgba(13,77,138,0.22)',
+    textPrimary: isNight ? '#F0F4F8' : '#0A2540',
+    textSecondary: isNight ? '#87C8E8' : '#2E678E',
+    textMuted: isNight ? '#7AB9D8' : '#4A4A4A',
+    textChannel: isNight ? '#7AB9D8' : '#4F7FA0',
+    avatarFallbackBg: isNight ? '#0D2E40' : '#E8F5FF',
+    pillBg: isNight ? 'rgba(10,37,64,0.85)' : '#F2FAFF',
+    pillBorder: isNight ? 'rgba(212,175,55,0.22)' : 'rgba(13,77,138,0.27)',
+    pillText: isNight ? '#87C8E8' : '#0D4D8A',
+    modalBg: isNight ? '#0D2E40' : '#FFFFFF',
+    modalBorder: isNight ? 'rgba(212,175,55,0.22)' : 'rgba(13,77,138,0.2)',
+    modalRowBg: isNight ? '#0F3554' : '#F4FAFF',
+    modalRowBorder: isNight ? 'rgba(212,175,55,0.15)' : 'rgba(13,77,138,0.22)',
+    iconColor: isNight ? '#87C8E8' : '#0D4D8A',
+  };
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [ownerUid, setOwnerUid] = useState('');
@@ -208,7 +228,7 @@ export default function CallsPage() {
     return (
       <TouchableOpacity
         activeOpacity={0.92}
-        style={styles.rowCard}
+        style={[styles.rowCard, { backgroundColor: callsTheme.cardBg, borderColor: callsTheme.cardBorder }]}
         onPress={() => {
           setSelectedCall(item);
           setDetailVisible(true);
@@ -218,17 +238,17 @@ export default function CallsPage() {
           {item.photoUrl ? (
             <Image source={{ uri: item.photoUrl }} style={styles.avatar} />
           ) : (
-            <View style={styles.avatarFallback}>
-              <MaterialCommunityIcons name="account" size={18} color="#0D4D8A" />
+            <View style={[styles.avatarFallback, { backgroundColor: callsTheme.avatarFallbackBg }]}>
+              <MaterialCommunityIcons name="account" size={18} color={callsTheme.iconColor} />
             </View>
           )}
         </View>
 
         <View style={styles.rowMain}>
-          <Text style={styles.nameText} numberOfLines={1}>{item.name}</Text>
-          <Text style={styles.nickText} numberOfLines={1}>@{item.nickname}</Text>
-          <Text style={styles.cardHintText} numberOfLines={1}>{item.sourceCardName || contact?.cardName || tr('Tarjeta de contacto', 'Contact card')}</Text>
-          <Text style={styles.callChannelText}>{tr('Canal privado: Ghost-Link VoIP', 'Private channel: Ghost-Link VoIP')}</Text>
+          <Text style={[styles.nameText, { color: callsTheme.textPrimary }]} numberOfLines={1}>{item.name}</Text>
+          <Text style={[styles.nickText, { color: callsTheme.textSecondary }]} numberOfLines={1}>@{item.nickname}</Text>
+          <Text style={[styles.cardHintText, { color: callsTheme.textMuted }]} numberOfLines={1}>{item.sourceCardName || contact?.cardName || tr('Tarjeta de contacto', 'Contact card')}</Text>
+          <Text style={[styles.callChannelText, { color: callsTheme.textChannel }]}>{tr('Canal privado: Ghost-Link VoIP', 'Private channel: Ghost-Link VoIP')}</Text>
 
           <View style={styles.tagRow}>
             {QUICK_TAGS.map((tag) => {
@@ -236,13 +256,13 @@ export default function CallsPage() {
               return (
                 <TouchableOpacity
                   key={`${item.callId}_${tag}`}
-                  style={[styles.tagChip, active && styles.tagChipActive]}
+                  style={[styles.tagChip, active && styles.tagChipActive, { backgroundColor: active ? undefined : callsTheme.pillBg, borderColor: active ? undefined : callsTheme.pillBorder }]}
                   onPress={() => {
                     void assignTag(item, tag);
                   }}
                   disabled={saving}
                 >
-                  <Text style={[styles.tagChipText, active && styles.tagChipTextActive]}>{tag}</Text>
+                  <Text style={[styles.tagChipText, active && styles.tagChipTextActive, { color: active ? undefined : callsTheme.pillText }]}>{tag}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -265,7 +285,7 @@ export default function CallsPage() {
   const selectedContact = selectedCall ? contactByUid.get(selectedCall.peerUid) || null : null;
 
   return (
-    <LinearGradient colors={['#F8FCFF', '#EAF7FF', '#DDF2FF']} style={styles.container}>
+    <LinearGradient colors={isNight ? ['#071A32', '#0A2540', '#0F2C50'] : ['#F8FCFF', '#EAF7FF', '#DDF2FF']} style={styles.container}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>Calls</Text>
         <TouchableOpacity style={styles.registerBtn} onPress={() => setRegisterVisible(true)}>
@@ -288,84 +308,84 @@ export default function CallsPage() {
           onRefresh={() => {
             void loadData();
           }}
-          ListEmptyComponent={<Text style={styles.emptyText}>{tr('Aun no hay llamadas registradas.', 'No calls registered yet.')}</Text>}
+          ListEmptyComponent={<Text style={[styles.emptyText, { color: callsTheme.textSecondary }]}>{tr('Aun no hay llamadas registradas.', 'No calls registered yet.')}</Text>}
         />
       )}
 
       <Modal visible={detailVisible} transparent animationType="fade" onRequestClose={() => setDetailVisible(false)}>
         <View style={styles.modalOverlay}>
-          <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
-          <View style={styles.detailCard}>
-            <TouchableOpacity style={styles.closeBtn} onPress={() => setDetailVisible(false)}>
-              <MaterialCommunityIcons name="close" size={20} color="#0D4D8A" />
+          <BlurView intensity={70} tint={isNight ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+          <View style={[styles.detailCard, { backgroundColor: isNight ? 'rgba(12,40,70,0.95)' : 'rgba(255,255,255,0.72)', borderColor: callsTheme.cardBorder }]}>
+            <TouchableOpacity style={[styles.closeBtn, { backgroundColor: isNight ? 'rgba(15,53,84,0.95)' : 'rgba(255,255,255,0.88)' }]} onPress={() => setDetailVisible(false)}>
+              <MaterialCommunityIcons name="close" size={20} color={callsTheme.iconColor} />
             </TouchableOpacity>
 
             {selectedCall?.photoUrl ? (
               <Image source={{ uri: selectedCall.photoUrl }} style={styles.detailAvatar} />
             ) : (
-              <View style={styles.detailAvatarFallback}>
-                <MaterialCommunityIcons name="account" size={20} color="#0D4D8A" />
+              <View style={[styles.detailAvatarFallback, { backgroundColor: callsTheme.avatarFallbackBg }]}>
+                <MaterialCommunityIcons name="account" size={20} color={callsTheme.iconColor} />
               </View>
             )}
 
-            <Text style={styles.detailName}>{selectedCall?.name || ''}</Text>
-            <Text style={styles.detailNick}>@{selectedCall?.nickname || ''}</Text>
-            <Text style={styles.detailCardName}>{selectedCall?.sourceCardName || selectedContact?.cardName || tr('Tarjeta social', 'Social card')}</Text>
-            <Text style={styles.detailStats}>
+            <Text style={[styles.detailName, { color: callsTheme.textPrimary }]}>{selectedCall?.name || ''}</Text>
+            <Text style={[styles.detailNick, { color: callsTheme.textSecondary }]}>@{selectedCall?.nickname || ''}</Text>
+            <Text style={[styles.detailCardName, { color: callsTheme.textMuted }]}>{selectedCall?.sourceCardName || selectedContact?.cardName || tr('Tarjeta social', 'Social card')}</Text>
+            <Text style={[styles.detailStats, { color: callsTheme.textPrimary }]}>
               Rating {Number(selectedContact?.ratingAvg || 0).toFixed(1)} | {selectedContact?.holdersCount || 0} poseedores
             </Text>
-            <Text style={styles.detailMeta}>{tr('Ultima nota de voz:', 'Last voice note:')} {selectedCall?.voiceNoteName || tr('Ninguna', 'None')}</Text>
+            <Text style={[styles.detailMeta, { color: callsTheme.textSecondary }]}>{tr('Ultima nota de voz:', 'Last voice note:')} {selectedCall?.voiceNoteName || tr('Ninguna', 'None')}</Text>
           </View>
         </View>
       </Modal>
 
       <Modal visible={registerVisible} transparent animationType="slide" onRequestClose={() => setRegisterVisible(false)}>
         <Pressable style={styles.modalOverlay} onPress={() => setRegisterVisible(false)}>
-          <Pressable style={styles.registerCard} onPress={(event) => event.stopPropagation()}>
-            <Text style={styles.registerTitle}>Registrar llamada</Text>
+          <Pressable style={[styles.registerCard, { backgroundColor: callsTheme.modalBg, borderColor: callsTheme.modalBorder }]} onPress={(event) => event.stopPropagation()}>
+            <Text style={[styles.registerTitle, { color: callsTheme.textPrimary }]}>Registrar llamada</Text>
 
-            <Text style={styles.registerStep}>Contacto</Text>
+            <Text style={[styles.registerStep, { color: callsTheme.iconColor }]}>Contacto</Text>
             <View style={styles.optionWrap}>
               {contacts.map((contact) => (
                 <TouchableOpacity
                   key={contact.uid}
-                  style={[styles.optionBtn, newPeerUid === contact.uid && styles.optionBtnActive]}
+                  style={[styles.optionBtn, newPeerUid === contact.uid && styles.optionBtnActive, { backgroundColor: newPeerUid === contact.uid ? undefined : callsTheme.modalRowBg, borderColor: callsTheme.modalRowBorder }]}
                   onPress={() => setNewPeerUid(contact.uid)}
                 >
-                  <Text style={styles.optionText}>{contact.name}</Text>
+                  <Text style={[styles.optionText, { color: newPeerUid === contact.uid ? '#FFFFFF' : callsTheme.iconColor }]}>{contact.name}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={styles.registerStep}>Direccion</Text>
+            <Text style={[styles.registerStep, { color: callsTheme.iconColor }]}>Direccion</Text>
             <View style={styles.inlineRow}>
               {(['incoming', 'outgoing', 'missed'] as const).map((direction) => (
                 <TouchableOpacity
                   key={direction}
-                  style={[styles.inlineBtn, newDirection === direction && styles.inlineBtnActive]}
+                  style={[styles.inlineBtn, newDirection === direction && styles.inlineBtnActive, { backgroundColor: newDirection === direction ? undefined : callsTheme.modalRowBg, borderColor: callsTheme.modalRowBorder }]}
                   onPress={() => setNewDirection(direction)}
                 >
-                  <Text style={styles.inlineBtnText}>{direction}</Text>
+                  <Text style={[styles.inlineBtnText, { color: newDirection === direction ? '#FFFFFF' : callsTheme.iconColor }]}>{direction}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={styles.registerStep}>Estado</Text>
+            <Text style={[styles.registerStep, { color: callsTheme.iconColor }]}>Estado</Text>
             <View style={styles.inlineRow}>
               {(['completed', 'missed', 'rejected'] as const).map((status) => (
                 <TouchableOpacity
                   key={status}
-                  style={[styles.inlineBtn, newStatus === status && styles.inlineBtnActive]}
+                  style={[styles.inlineBtn, newStatus === status && styles.inlineBtnActive, { backgroundColor: newStatus === status ? undefined : callsTheme.modalRowBg, borderColor: callsTheme.modalRowBorder }]}
                   onPress={() => setNewStatus(status)}
                 >
-                  <Text style={styles.inlineBtnText}>{status}</Text>
+                  <Text style={[styles.inlineBtnText, { color: newStatus === status ? '#FFFFFF' : callsTheme.iconColor }]}>{status}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             <View style={styles.footerBtns}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setRegisterVisible(false)}>
-                <Text style={styles.cancelBtnText}>Cancelar</Text>
+              <TouchableOpacity style={[styles.cancelBtn, { borderColor: callsTheme.modalRowBorder }]} onPress={() => setRegisterVisible(false)}>
+                <Text style={[styles.cancelBtnText, { color: callsTheme.iconColor }]}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.saveBtn} onPress={() => { void registerCall(); }} disabled={saving}>
                 <Text style={styles.saveBtnText}>Guardar</Text>

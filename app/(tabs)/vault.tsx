@@ -1146,7 +1146,6 @@ const VaultScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#E3F2FD',
   },
 
   // HEADER
@@ -1154,8 +1153,7 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     paddingHorizontal: 16,
     paddingTop: 18,
-    paddingBottom: 24, // Increased padding for more space
-    backgroundColor: '#1EA7FF',
+    paddingBottom: 24,
     borderBottomWidth: 1,
     borderBottomColor: '#D4AF37',
   },
@@ -1191,7 +1189,6 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     borderRadius: 999,
-    backgroundColor: '#E3F2FD',
   },
   headerUserRowCentered: {
     flexDirection: 'row',

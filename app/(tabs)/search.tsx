@@ -3,39 +3,38 @@
  * Búsqueda Fuzzy + Geolocalización + Business Cards
  */
 
-import React, { useState, useEffect } from 'react';
+import { getActiveUserId } from '@/services/authSession';
+import { ExportBusinessQR, generatePermanentBusinessLink } from '@/services/brandedQrService';
+import { hasActiveBusinessLicense } from '@/services/businessLicenseService';
+import { db } from '@/services/firebaseConfig';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  Pressable,
-  TouchableOpacity,
-  FlatList,
-  ActivityIndicator,
-  RefreshControl,
-  Alert,
-  Modal,
-  Image,
-  useColorScheme,
-} from 'react-native';
+    getCurrentLocation,
+    hasLocationPermission,
+    requestLocationPermission,
+} from '@/services/geolocationService';
+import { useLanguage } from '@/services/language';
+import { useLookMode } from '@/services/lookMode';
+import { findNearbyBusinesses, searchSocialMarket } from '@/services/searchService';
+import { BusinessCardSearchResult, GeoLocation } from '@/types/businessCard';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import QRCode from 'react-native-qrcode-svg';
-import { getActiveUserId } from '@/services/authSession';
-import { searchSocialMarket, findNearbyBusinesses } from '@/services/searchService';
-import { ExportBusinessQR, generatePermanentBusinessLink } from '@/services/brandedQrService';
-import {
-  getCurrentLocation,
-  hasLocationPermission,
-  requestLocationPermission,
-} from '@/services/geolocationService';
 import { collection, getDocs } from 'firebase/firestore';
-import { db } from '@/services/firebaseConfig';
-import { BusinessCardSearchResult, GeoLocation } from '@/types/businessCard';
-import { hardLockCheck } from '@/services/biometricAuth';
-import { hasActiveBusinessLicense } from '@/services/businessLicenseService';
-import { useLanguage } from '@/services/language';
+import React, { useEffect, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Image,
+    Modal,
+    Pressable,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
 
 interface MyContact {
   id: string;
@@ -46,7 +45,8 @@ interface MyContact {
 
 export default function SearchScreen() {
   const router = useRouter();
-  const isDark = useColorScheme() === 'dark';
+  const { resolvedMode } = useLookMode();
+  const isDark = resolvedMode === 'noche';
   const { language } = useLanguage();
   const tr = (es: string, en: string) => language === 'en' ? en : es;
   const [searchQuery, setSearchQuery] = useState('');

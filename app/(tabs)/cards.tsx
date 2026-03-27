@@ -13,6 +13,7 @@ import {
 } from '@/services/fontLibraryService';
 import { useLanguage } from '@/services/language';
 import { validateCardCreation } from '@/services/limitService';
+import { useLookMode } from '@/services/lookMode';
 import {
   blockRelationship,
   deleteSmartCardInDb,
@@ -50,7 +51,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  useColorScheme,
   useWindowDimensions,
   View
 } from 'react-native';
@@ -119,8 +119,8 @@ type EditSlot = {
 export default function CardsFactoryScreen() {
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { resolvedMode } = useLookMode();
+  const isDark = resolvedMode === 'noche';
   const cardsTheme = palette[isDark ? 'dark' : 'light'];
   const router = useRouter();
   const { language } = useLanguage();

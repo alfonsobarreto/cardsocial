@@ -11,25 +11,25 @@
  * - Loader durante transacción
  */
 
+import { getActiveUserId } from '@/services/authSession';
+import { getUserCreditsBalance } from '@/services/creditsService';
+import { getAvailableIconPacks, getUserPurchasedPacks, IconPack, purchaseIconPack } from '@/services/iconPackService';
+import { useLookMode } from '@/services/lookMode';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  Image,
-  StyleSheet,
   ActivityIndicator,
   Alert,
-  FlatList,
   Dimensions,
+  FlatList,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
-import { getAvailableIconPacks, purchaseIconPack, getUserPurchasedPacks } from '@/services/iconPackService';
-import { getUserCreditsBalance } from '@/services/creditsService';
-import { getActiveUserId } from '@/services/authSession';
-import { IconPack } from '@/services/iconPackService';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 32) / 2; // 2 columnas con padding
@@ -63,6 +63,8 @@ const IconPackCard: React.FC<IconStoreCardProps> = ({
   onPurchase,
   loading,
 }) => {
+  const { resolvedMode } = useLookMode();
+  const isNight = resolvedMode === 'noche';
   const isLimitedEdition = Boolean(pack.isLimitedEdition);
   const stockRemaining = Math.max(0, Number(pack.current_supply ?? pack.stockRemaining ?? 0));
   const stockMax = Math.max(stockRemaining, Number(pack.max_supply ?? pack.stockTotal ?? 0));
@@ -79,7 +81,7 @@ const IconPackCard: React.FC<IconStoreCardProps> = ({
 
   return (
     <LinearGradient
-      colors={['#F8F9FA', '#FFFFFF']}
+      colors={isNight ? ['#0F2C50', '#0A2540'] : ['#F8F9FA', '#FFFFFF']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.packCard}
@@ -189,6 +191,8 @@ const IconPackCard: React.FC<IconStoreCardProps> = ({
  * Icon Store Screen Principal
  */
 export default function IconStore() {
+  const { resolvedMode } = useLookMode();
+  const isNight = resolvedMode === 'noche';
   const [packs, setPacks] = useState<IconPack[]>([]);
   const [userPurchased, setUserPurchased] = useState<string[]>([]);
   const [userCredits, setUserCredits] = useState(0);
@@ -305,7 +309,7 @@ export default function IconStore() {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[styles.container, { backgroundColor: isNight ? '#0A2540' : '#F8F9FA' }]} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <LinearGradient
         colors={['#0A2540', '#1A4E7F']}
@@ -327,8 +331,8 @@ export default function IconStore() {
       </LinearGradient>
 
       {/* Info Banner */}
-      <View style={styles.infoBanner}>
-        <Ionicons name='sparkles-outline' size={20} color='#0A2540' />
+      <View style={[styles.infoBanner, { backgroundColor: isNight ? '#0F2C50' : undefined }]}>
+        <Ionicons name='sparkles-outline' size={20} color={isNight ? '#C5A065' : '#0A2540'} />
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={styles.infoBannerTitle}>Drops de Edición Limitada</Text>
           <Text style={styles.infoBannerText}>Cuando el stock llega a 0, el drop queda agotado automáticamente</Text>
