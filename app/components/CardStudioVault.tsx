@@ -9,7 +9,8 @@
 import { useLookMode } from '@/services/lookMode';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useRef, useState } from 'react';
+import * as Haptics from 'expo-haptics';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     Alert,
@@ -26,6 +27,8 @@ import {
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const VAULT_STORAGE_KEY = 'vault_data';
+const RECENT_ICONS_KEY = 'vault_recent_icon_ids';
+const MAX_RECENTS = 5;
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 export type VaultDataType =
@@ -248,7 +251,72 @@ export default function CardStudioVault({
   const { i18n } = useTranslation();
   const isEN = i18n.language === 'en';
   const [storeModalVisible, setStoreModalVisible] = useState(false);
-  const longPressTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const [recentIconIds, setRecentIconIds] = useState<string[]>([]);
+  const sectionListRef = useRef<SectionList<IconItem[], IconSection>>(null);
+  const longPressTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({}); 
+
+  // Cargar recientes de AsyncStorage al montar
+  useEffect(() => {
+    AsyncStorage.getItem(RECENT_ICONS_KEY)
+      .then((raw) => { if (raw) setRecentIconIds(JSON.parse(raw)); })
+      .catch(() => {});
+  }, []);
+
+  // Secciones dinámicas — antepone "Recientes" si existen
+  const displaySections = useMemo((): IconSection[] => {
+    if (recentIconIds.length === 0) return ICON_SECTIONS;
+    const recentItems = recentIconIds
+      .map((id) => ICON_GALLERY.find((i) => i.id === id))
+      .filter(Boolean) as IconItem[];
+    const recentRows: IconItem[][] = [];
+    for (let i = 0; i < recentItems.length; i += 5)
+      recentRows.push(recentItems.slice(i, i + 5));
+    const recentSection: IconSection = {
+      title: isEN ? 'Recent' : 'Recientes',
+      titleEn: 'Recent',
+      data: recentRows,
+    };
+    return [recentSection, ...ICON_SECTIONS];
+  }, [recentIconIds, isEN]);
+
+  // Auto-scroll a la sección del dataType cuando el modal se abre
+  useEffect(() => {
+    if (!visible) return;
+    const timer = setTimeout(() => {
+      const titleMap: Record<string, string> = {
+        'Enlaces': 'Enlaces',
+        'Teléfono': 'Teléfonos',
+        'Email': 'Emails',
+        'Documento': 'Documentos',
+        'Texto Plain': 'Documentos',
+      };
+      const target = titleMap[dataType];
+      if (!target) return;
+      const sectionIndex = displaySections.findIndex((s) => s.title === target);
+      if (sectionIndex < 0) return;
+      try {
+        sectionListRef.current?.scrollToLocation({
+          sectionIndex,
+          itemIndex: 0,
+          animated: true,
+          viewPosition: 0,
+        });
+      } catch { /* ignora si la sección aún no está renderizada */ }
+    }, 420);
+    return () => clearTimeout(timer);
+  }, [visible, dataType, displaySections]);
+
+  // Selección de ícono con haptic + recientes
+  const handleSelectIcon = (iconId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setRecentIconIds((prev) => {
+      const next = [iconId, ...prev.filter((id) => id !== iconId)].slice(0, MAX_RECENTS);
+      AsyncStorage.setItem(RECENT_ICONS_KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+    onSelectIcon(iconId);
+    onClose();
+  };
 
   const theme = {
     surfaceBg:        isNight ? '#0A2540' : '#E3F2FD',
@@ -346,7 +414,7 @@ export default function CardStudioVault({
                   elevation: 4,
                 },
               ]}
-              onPress={() => { onSelectIcon(item.id); onClose(); }}
+              onPress={() => handleSelectIcon(item.id)}
               onLongPress={() => handleLongPress(item)}
               delayLongPress={3000}
               activeOpacity={0.75}
@@ -436,7 +504,8 @@ export default function CardStudioVault({
 
                 {/* SectionList categorizado */}
                 <SectionList
-                  sections={ICON_SECTIONS}
+                  ref={sectionListRef}
+                  sections={displaySections}
                   keyExtractor={(row, idx) =>
                     Array.isArray(row) && row.length > 0 ? row[0].id : `empty-${idx}`
                   }

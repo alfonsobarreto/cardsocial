@@ -33,6 +33,7 @@ import { useLookMode } from '@/services/lookMode';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Buffer } from 'buffer';
+import * as Haptics from 'expo-haptics';
 import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
@@ -116,6 +117,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const [dataValue, setDataValue] = useState('');
   const [selectedIcon, setSelectedIcon] = useState('1');
   const [countryCode, setCountryCode] = useState('+1');
+  const [autoTypeSuggestion, setAutoTypeSuggestion] = useState<DataType | null>(null);
   
   const [typeModalVisible, setTypeModalVisible] = useState(false);
   const [countryModalVisible, setCountryModalVisible] = useState(false);
@@ -246,20 +248,41 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const faviconCache = useRef<Record<string, string>>({});
 
   // ─── KNOWN DOMAINS → ICON_GALLERY id (no Azure call needed) ─────────────────
+  // IDs basados en orden actual de RAW_SECTIONS: LinkedIn=1,Instagram=2,Facebook=3,
+  // WhatsApp=4,Twitter=5,TikTok=6,YouTube=7,Snapchat=8,Web=9,Link=10
   const KNOWN_DOMAIN_ICONS: Record<string, string> = {
-    'facebook.com':    '2',  // facebook
-    'fb.com':          '2',
-    'm.facebook.com':  '2',
-    'instagram.com':   '3',  // instagram
-    'linkedin.com':    '4',  // linkedin
-    'whatsapp.com':    '1',  // whatsapp
-    'wa.me':           '1',
-    'youtube.com':     '10', // video / play-circle
-    'youtu.be':        '10',
-    'maps.google.com': '6',  // map-marker
-    'goo.gl':          '6',
-    'maps.apple.com':  '6',
+    'facebook.com':    '3',  // facebook
+    'fb.com':          '3',
+    'm.facebook.com':  '3',
+    'instagram.com':   '2',  // instagram
+    'linkedin.com':    '1',  // linkedin
+    'whatsapp.com':    '4',  // whatsapp
+    'wa.me':           '4',
+    'youtube.com':     '7',  // youtube
+    'youtu.be':        '7',
+    'twitter.com':     '5',  // twitter/x
+    'x.com':           '5',
+    'tiktok.com':      '6',  // tiktok
+    'snapchat.com':    '8',  // snapchat
+    'maps.google.com': '9',  // web/map
+    'goo.gl':          '9',
+    'maps.apple.com':  '9',
   };
+
+  // ─── KNOWN NAMES → ICON_GALLERY id (sugerencia por nombre de data) ────────────
+  const KNOWN_NAME_ICONS: Array<{ keywords: string[]; iconId: string }> = [
+    { keywords: ['linkedin'],               iconId: '1'  },
+    { keywords: ['instagram'],              iconId: '2'  },
+    { keywords: ['facebook', 'fb'],         iconId: '3'  },
+    { keywords: ['whatsapp'],               iconId: '4'  },
+    { keywords: ['twitter', 'tweet', ' x '],iconId: '5'  },
+    { keywords: ['tiktok', 'tik tok'],      iconId: '6'  },
+    { keywords: ['youtube', ' yt '],        iconId: '7'  },
+    { keywords: ['snapchat', 'snap'],       iconId: '8'  },
+    { keywords: ['gmail'],                  iconId: '21' },
+    { keywords: ['outlook'],                iconId: '24' },
+    { keywords: ['yahoo'],                  iconId: '25' },
+  ];
 
   useEffect(() => {
     const lookupFavicon = async () => {
@@ -361,6 +384,37 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     }
   }, [dataType, editingData?.id]);
 
+  // ── Auto-detectar tipo al pegar un valor ──────────────────────────────────
+  useEffect(() => {
+    if (!dataValue.trim() || editingData?.id) return;
+    const v = dataValue.trim();
+    let detected: DataType | null = null;
+    if (/^(https?:\/\/|www\.)\S+/i.test(v)) {
+      detected = 'Enlaces';
+    } else if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+      detected = 'Email';
+    } else if (/^\+?\d[\d\s\-().]{6,}$/.test(v)) {
+      detected = 'Teléfono';
+    }
+    if (detected && detected !== dataType) {
+      setAutoTypeSuggestion(detected);
+    } else {
+      setAutoTypeSuggestion(null);
+    }
+  }, [dataValue]);                            // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Sugerir ícono por nombre de data (silencioso) ─────────────────────────
+  useEffect(() => {
+    if (!dataName.trim() || selectedIcon !== '1' || editingData?.id) return;
+    const nameLower = ` ${dataName.trim().toLowerCase()} `;
+    for (const entry of KNOWN_NAME_ICONS) {
+      if (entry.keywords.some((kw) => nameLower.includes(kw))) {
+        setSelectedIcon(entry.iconId);
+        return;
+      }
+    }
+  }, [dataName]);                             // eslint-disable-line react-hooks/exhaustive-deps
+
   // Close modal
   const handleClose = () => {
     setTypeModalVisible(false);
@@ -385,6 +439,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setFaviconUrl('');
     closeFaviconSuggestion();
     setLastFaviconDomain('');
+    setAutoTypeSuggestion(null);
     
     // Call callback
     if (onClose) onClose();
@@ -1120,6 +1175,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       // Guardar en AsyncStorage
       await AsyncStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(dataArray));
 
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(
         t('upload_success'),
         cloudSynced
@@ -1417,6 +1473,26 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             <Text style={[styles.hint, { color: formTheme.textSecondary }]}>
               {editingData?.id ? 'Tipo no puede cambiar al editar' : 'Selector horizontal estilo pill'}
             </Text>
+            {autoTypeSuggestion && !editingData?.id && (
+              <TouchableOpacity
+                style={[styles.autoTypeBanner, { backgroundColor: formTheme.selectedPillBg }]}
+                onPress={() => {
+                  setDataType(autoTypeSuggestion);
+                  setDataValue('');
+                  setAutoTypeSuggestion(null);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                activeOpacity={0.8}
+              >
+                <MaterialCommunityIcons name="swap-horizontal" color="#F0F4F8" size={16} />
+                <Text style={styles.autoTypeBannerText}>
+                  ¿Cambiar a {autoTypeSuggestion}?
+                </Text>
+                <TouchableOpacity onPress={() => setAutoTypeSuggestion(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <MaterialCommunityIcons name="close" color="#F0F4F8" size={14} />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* NOMBRE DE DATA */}
@@ -1874,6 +1950,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     paddingRight: 8,
+  },
+  autoTypeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+  },
+  autoTypeBannerText: {
+    color: '#F0F4F8',
+    fontSize: 13,
+    fontWeight: '700',
+    flex: 1,
   },
   typePill: {
     paddingHorizontal: 14,

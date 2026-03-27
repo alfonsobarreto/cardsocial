@@ -1,6 +1,7 @@
 import DullModeLock from '@/components/DullModeLock';
 import LimitReachedModal from '@/components/LimitReachedModal';
 import VerificationBadge from '@/components/VerificationBadge';
+import { FREE_TIER_POLICY } from '@/constants/freeTierPolicy';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { db } from '@/services/firebaseConfig';
@@ -12,6 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
@@ -32,7 +34,6 @@ import {
   Text,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  Vibration,
   View,
 } from 'react-native';
 import NewInfoForm from '../components/NewInfoForm';
@@ -751,7 +752,7 @@ const VaultScreen = () => {
   };
 
   const handleIconLongPress = (link: Link) => {
-    Vibration.vibrate(45);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     setContextMenuItem(link);
     setContextMenuVisible(true);
   };
@@ -785,7 +786,7 @@ const VaultScreen = () => {
         ]}
         onPress={() => handleCardAction(item)}
         onLongPress={() => handleIconLongPress(item)}
-        delayLongPress={1500}
+        delayLongPress={800}
         activeOpacity={0.75}
       >
         <View style={[styles.iconBox, { backgroundColor: vaultTheme.iconCircleBg }]}>
@@ -851,11 +852,26 @@ const VaultScreen = () => {
   // Header vacío
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <MaterialCommunityIcons name="folder-outline" color={vaultTheme.iconColor} size={64} />
-      <Text style={[styles.emptyTitle, { color: vaultTheme.primaryText }]}>Tu Vault está vacío</Text>
-      <Text style={[styles.emptySubtitle, { color: vaultTheme.secondaryText }]}>
-        Toca el botón + para agregar tu primer dato
+      <MaterialCommunityIcons name="safe" color="#D4AF37" size={72} />
+      <Text style={[styles.emptyTitle, { color: vaultTheme.primaryText }]}>
+        {tr('Tu Búnker está listo', 'Your Vault is ready')}
       </Text>
+      <Text style={[styles.emptySubtitle, { color: vaultTheme.secondaryText }]}>
+        {tr(
+          'Agrega tus datos: redes sociales, teléfonos, emails, documentos...',
+          'Add your data: social links, phones, emails, documents...'
+        )}
+      </Text>
+      <TouchableOpacity
+        style={styles.emptyCtaButton}
+        onPress={openCreateVaultItemForm}
+        activeOpacity={0.85}
+      >
+        <MaterialCommunityIcons name="plus" color="#0A1A2F" size={22} />
+        <Text style={styles.emptyCtaText}>
+          {tr('Agregar primer dato', 'Add first item')}
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -875,7 +891,7 @@ const VaultScreen = () => {
             ) : null}
           </View>
           <Text style={styles.vaultCounterLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.62}>
-            [{links.length}] / Datos Ilimitados Utilizados
+            {links.length} / {FREE_TIER_POLICY.vaultItems} {tr('datos', 'items')}
           </Text>
           <View style={[styles.progressTrack, { backgroundColor: vaultTheme.progressTrack }]}>
             <View style={[styles.progressFill, { width: `${usageProgress * 100}%`, backgroundColor: vaultTheme.progressFill }]} />
@@ -1315,6 +1331,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#002D4B',
     marginTop: 16,
+    textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 13,
@@ -1322,6 +1339,26 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
     maxWidth: '80%',
+  },
+  emptyCtaButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#D4AF37',
+    shadowColor: '#D4AF37',
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  emptyCtaText: {
+    color: '#0A1A2F',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   viewerOverlay: {
     flex: 1,
