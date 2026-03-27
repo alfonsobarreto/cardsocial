@@ -1,38 +1,17 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Animated,
-  AppState,
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  useColorScheme,
-  useWindowDimensions,
-  View,
-} from 'react-native';
-import { ActionController } from '../../services/ActionController';
-import palette from '../theme';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Gyroscope } from 'expo-sensors';
-import QRCode from 'react-native-qrcode-svg';
-import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
-import { useFocusEffect } from '@react-navigation/native';
-import { useRouter } from 'expo-router';
-import { auth, db } from '@/services/firebaseConfig';
+import AutoScaleText from '@/components/AutoScaleText';
+import FlexGrid from '@/components/FlexGrid';
+import LimitReachedModal from '@/components/LimitReachedModal';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
-import FlexGrid from '@/components/FlexGrid';
-import AutoScaleText from '@/components/AutoScaleText';
-import LimitReachedModal from '@/components/LimitReachedModal';
+import { type VaultCollectibleCertificate } from '@/services/collectibleService';
+import { auth, db } from '@/services/firebaseConfig';
+import {
+  getFontGallery,
+  loadDynamicFont,
+  type CardFontItem,
+  type FontTier,
+} from '@/services/fontLibraryService';
+import { useLanguage } from '@/services/language';
 import { validateCardCreation } from '@/services/limitService';
 import {
   blockRelationship,
@@ -43,21 +22,42 @@ import {
   revokeCardSubscriber,
   upsertSmartCardInDb,
 } from '@/services/qrApi';
-import { findCollectibleCertificateByHint, type VaultCollectibleCertificate } from '@/services/collectibleService';
 import {
   getAvailableWallpapers,
   getWallpaperResizeMode,
   type WallpaperItem,
   type WallpaperTier,
 } from '@/services/wallpaperService';
-import {
-  getFontGallery,
-  loadDynamicFont,
-  type CardFontItem,
-  type FontTier,
-} from '@/services/fontLibraryService';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import { Gyroscope } from 'expo-sensors';
 import { doc, getDoc } from 'firebase/firestore';
-import { useLanguage } from '@/services/language';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Animated,
+  AppState,
+  FlatList,
+  Image,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  useColorScheme,
+  useWindowDimensions,
+  View
+} from 'react-native';
+import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import QRCode from 'react-native-qrcode-svg';
+import { ActionController } from '../../services/ActionController';
+import palette from '../theme';
 
 const VAULT_STORAGE_KEY = 'vault_data';
 const SMART_CARDS_STORAGE_KEY = 'smart_cards';
@@ -1063,17 +1063,26 @@ export default function CardsFactoryScreen() {
     if (type.includes('email')) {
       ActionController.ActionEmail({ value });
     } else if (type.includes('tel')) {
-      ActionController.ActionTelefono({ value });
+      ActionController.ActionTelefono({
+        value,
+        userName: ownerNickname || 'este contacto',
+        cardName: selectedCard?.name ?? '',
+      });
     } else if (type.includes('enlace') || type.includes('link') || type.includes('web')) {
       ActionController.ActionLink({ value, title: item.title });
     } else if (type.includes('documento') || type.includes('pdf')) {
-      ActionController.ActionDocument({ value });
+      ActionController.ActionDocument({
+        value,
+        closeModal: () => {
+          setDataPopoverVisible(false);
+          setFocusedDataItem(null);
+        },
+      });
     } else if (type.includes('texto')) {
       ActionController.ActionText({ value });
     } else {
       Alert.alert('Dato', value);
     }
-  };
   };
 
   const ensureWebUrl = (raw: string) => {
@@ -1091,9 +1100,9 @@ export default function CardsFactoryScreen() {
     if (!item) {
       return;
     }
-
     try {
       if (item.type === 'Teléfono') {
+        // Ghost-Link: no expone el número, redirige a la pestaña Calls
         Alert.alert(
           'Ghost-Link Activo',
           'Para proteger el número real, las llamadas se hacen desde Calls/Contacts dentro de Card-Social.',
@@ -1105,47 +1114,15 @@ export default function CardsFactoryScreen() {
         return;
       }
       if (item.type === 'Email') {
-        Alert.alert('Elige tu app de correo', String(item.value || ''), [
-          {
-            text: 'Gmail',
-            onPress: async () => {
-              const target = `googlegmail://co?to=${encodeURIComponent(String(item.value || ''))}`;
-              const canOpen = await Linking.canOpenURL(target);
-              if (!canOpen) {
-                Alert.alert(tr('App no disponible', 'App not available'), tr('Gmail no está instalado en este dispositivo.', 'Gmail is not installed on this device.'));
-                return;
-              }
-              await Linking.openURL(target);
-            },
-          },
-          {
-            text: 'Outlook',
-            onPress: async () => {
-              const target = `ms-outlook://compose?to=${encodeURIComponent(String(item.value || ''))}`;
-              const canOpen = await Linking.canOpenURL(target);
-              if (!canOpen) {
-                Alert.alert(tr('App no disponible', 'App not available'), tr('Outlook no está instalado en este dispositivo.', 'Outlook is not installed on this device.'));
-                return;
-              }
-              await Linking.openURL(target);
-            },
-          },
-          {
-            text: 'Mail por defecto',
-            onPress: async () => {
-              await Linking.openURL(`mailto:${item.value}`);
-            },
-          },
-          { text: 'Cancelar', style: 'cancel' },
-        ]);
+        await ActionController.ActionEmail({ value: String(item.value || '') });
         return;
       }
       if (item.type === 'Enlaces') {
-        await Linking.openURL(ensureWebUrl(item.value));
+        await ActionController.ActionLink({ value: ensureWebUrl(item.value), title: item.title });
         return;
       }
-      if (item.type === 'Documento' && String(item.value || '').startsWith('http')) {
-        await Linking.openURL(String(item.value));
+      if (item.type === 'Documento') {
+        await ActionController.ActionDocument({ value: String(item.value || '') });
         return;
       }
       Alert.alert(tr('Documento protegido', 'Protected document'), tr('Este dato solo se puede visualizar por el visor seguro de Card-Social.', 'This data can only be viewed through Card-Social secure viewer.'));
@@ -1158,18 +1135,17 @@ export default function CardsFactoryScreen() {
     if (!item) {
       return;
     }
-
     try {
       if (item.type === 'Teléfono') {
         Alert.alert(tr('No disponible', 'Not available'), tr('Los teléfonos no se abren en navegador por política Ghost-Link.', 'Phones cannot be opened in browser per Ghost-Link policy.'));
         return;
       }
       if (item.type === 'Enlaces') {
-        await Linking.openURL(ensureWebUrl(item.value));
+        await ActionController.ActionLink({ value: ensureWebUrl(item.value), title: item.title });
         return;
       }
-      if (item.type === 'Documento' && String(item.value || '').startsWith('http')) {
-        await Linking.openURL(String(item.value));
+      if (item.type === 'Documento') {
+        await ActionController.ActionDocument({ value: String(item.value || '') });
         return;
       }
       Alert.alert(tr('No disponible', 'Not available'), tr('Este dato no tiene ruta de navegador directa.', 'This data has no direct browser route.'));

@@ -17,6 +17,7 @@ import {
   Alert,
   FlatList,
   Image,
+  Linking,
   Modal,
   StyleSheet,
   Text,
@@ -597,7 +598,11 @@ export default function StoriesPage() {
     if (type.includes('email')) {
       ActionController.ActionEmail({ value });
     } else if (type.includes('tel')) {
-      ActionController.ActionTelefono({ value });
+      ActionController.ActionTelefono({
+        value,
+        userName: story.cardName || 'este contacto',
+        cardName: story.ctaTitle || '',
+      });
     } else if (type.includes('enlace') || type.includes('link') || type.includes('web')) {
       ActionController.ActionLink({ value, title: story.ctaTitle });
     } else if (type.includes('documento') || type.includes('pdf')) {
