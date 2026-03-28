@@ -1,6 +1,6 @@
 import AutoScaleText from '@/components/AutoScaleText';
-import FlexGrid from '@/components/FlexGrid';
 import LimitReachedModal from '@/components/LimitReachedModal';
+import { CARD_THEMES as CHEST_THEMES, getThemeById, TIER_META, type CardTheme as ChestCardTheme, type ThemeTier } from '@/constants/themeChest';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { type VaultCollectibleCertificate } from '@/services/collectibleService';
@@ -36,6 +36,7 @@ import {
     Animated,
     AppState,
     FlatList,
+    Image,
     InteractionManager,
     Keyboard,
     KeyboardAvoidingView,
@@ -60,12 +61,11 @@ import palette from '../theme';
 const VAULT_STORAGE_KEY = 'vault_data';
 const SMART_CARDS_STORAGE_KEY = 'smart_cards';
 
-type CardTheme = 'sky-glass' | 'ocean-night' | 'ice-lux';
+type CardThemeId = string;
 
-const CARD_THEMES: Record<CardTheme, { label: string; colors: [string, string] }> = {
-  'sky-glass': { label: 'Sky Glass', colors: ['#EAF7FF', '#CDEFFF'] },
-  'ocean-night': { label: 'Ocean Night', colors: ['#0A2540', '#1E4F7C'] },
-  'ice-lux': { label: 'Ice Lux', colors: ['#F4FCFF', '#BFE8FF'] },
+/** Resolves a themeId to its full ChestCardTheme object. Falls back to the first theme. */
+const resolveTheme = (id: string | undefined): ChestCardTheme => {
+  return getThemeById(id || '') ?? CHEST_THEMES[0];
 };
 
 const toRenderableImageUri = (value: string | null | undefined): string | null => {
@@ -91,7 +91,7 @@ type SmartCard = {
   id: string;
   name: string;
   layout: 'vertical' | 'horizontal';
-  themeId?: CardTheme;
+  themeId?: string;
   fontId?: string;
   fontName?: string;
   fontFamily?: string;
@@ -138,7 +138,7 @@ export default function CardsFactoryScreen() {
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
   const [cardName, setCardName] = useState('');
   const [layoutMode, setLayoutMode] = useState<'vertical' | 'horizontal'>('vertical');
-  const [themeId, setThemeId] = useState<CardTheme>('sky-glass');
+  const [themeId, setThemeId] = useState<string>('deep_teal');
   const [selectedFont, setSelectedFont] = useState<CardFontItem | null>(null);
   const [resolvedFontFamily, setResolvedFontFamily] = useState<string | null>(null);
   const [selectedWallpaper, setSelectedWallpaper] = useState<WallpaperItem | null>(null);
@@ -178,6 +178,16 @@ export default function CardsFactoryScreen() {
   const [cardSearchQuery, setCardSearchQuery] = useState('');
   const [rotateHintVisible, setRotateHintVisible] = useState(false);
   const rotateAnim = useRef(new Animated.Value(0)).current;
+  // Vertical card responsive layout state
+  const [vertAvatarBoxH, setVertAvatarBoxH] = useState(0);
+  const [vertIconGridLayout, setVertIconGridLayout] = useState({ w: 0, h: 0 });
+  const [vertInfoBoxLayout, setVertInfoBoxLayout] = useState({ w: 0, h: 0 });
+  const [vertHeaderH, setVertHeaderH] = useState(0);
+  // Horizontal card responsive layout state
+  const [horizHeaderH, setHorizHeaderH] = useState(0);
+  const [horizAvatarBoxLayout, setHorizAvatarBoxLayout] = useState({ w: 0, h: 0 });
+  const [horizInfoBoxLayout, setHorizInfoBoxLayout] = useState({ w: 0, h: 0 });
+  const [horizIconGridLayout, setHorizIconGridLayout] = useState({ w: 0, h: 0 });
   const [ownerNickname, setOwnerNickname] = useState('');
   const [ownerDisplayName, setOwnerDisplayName] = useState('');
   const [ownerPhotoUrl, setOwnerPhotoUrl] = useState<string | null>(null);
@@ -344,7 +354,7 @@ export default function CardsFactoryScreen() {
         id: card.cardId,
         name: card.name,
         layout: card.layout,
-        themeId: (card.themeId as CardTheme) || 'sky-glass',
+        themeId: card.themeId || 'deep_teal',
         fontId: card.fontId,
         fontName: card.fontName,
         fontFamily: card.fontFamily,
@@ -423,7 +433,7 @@ export default function CardsFactoryScreen() {
     setCardName('');
     setSelectedItemIds([]);
     setLayoutMode('vertical');
-    setThemeId('sky-glass');
+    setThemeId('deep_teal');
     setSelectedWallpaper(null);
     setSelectedFont(null);
     setResolvedFontFamily(null);
@@ -463,7 +473,7 @@ export default function CardsFactoryScreen() {
     setSelectedCard(card);
     setCardName(card.name);
     setLayoutMode(card.layout);
-    setThemeId(card.themeId || 'sky-glass');
+    setThemeId(card.themeId || 'deep_teal');
     setEnableParallax(Boolean(card.enableParallax));
     setResolvedFontFamily(card.fontFamily || null);
     setSelectedFont(
@@ -572,7 +582,7 @@ export default function CardsFactoryScreen() {
             ? {
                 ...card,
                 name: cardName.trim(),
-                layout: layoutMode,
+                layout: 'vertical' as const,
                 themeId,
                 fontId: selectedFont?.id,
                 fontName: selectedFont?.name,
@@ -589,7 +599,7 @@ export default function CardsFactoryScreen() {
               }
             : card
         );
-        await persistCards(nextCards, [selectedCard.id]);
+        await persistCards(nextCards as SmartCard[], [selectedCard.id]);
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Toast.show({
           type: 'success',
@@ -605,7 +615,7 @@ export default function CardsFactoryScreen() {
       const newCard: SmartCard = {
         id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
         name: cardName.trim(),
-        layout: layoutMode,
+        layout: 'vertical',
         themeId,
         fontId: selectedFont?.id,
         fontName: selectedFont?.name,
@@ -721,7 +731,9 @@ export default function CardsFactoryScreen() {
   };
 
   const openDataSelector = () => {
-    setTempSelectedIds([...selectedItemIds]);
+    // Only carry over IDs that still exist in the vault — discard stale references
+    const validIds = selectedItemIds.filter((id) => vaultItems.some((vi) => vi.id === id));
+    setTempSelectedIds(validIds);
     setDataSelectorLimitReached(false);
     setDataSelectorVisible(true);
   };
@@ -1183,7 +1195,7 @@ export default function CardsFactoryScreen() {
           <ExpoImage source={{ uri: ownerPhotoUrl }} style={compact ? styles.wireAvatarSm : styles.wireAvatar} cachePolicy="disk" />
         ) : (
           <View style={compact ? styles.wireAvatarFallbackSm : styles.wireAvatarFallback}>
-            <MaterialCommunityIcons name="account" size={compact ? 14 : 18} color="#0D4D8A" />
+            <MaterialCommunityIcons name="account" size={compact ? 22 : 32} color="#0D4D8A" />
           </View>
         )}
         <AutoScaleText style={compact ? styles.wireNameSm : styles.wireName}>{cardTitle}</AutoScaleText>
@@ -1201,18 +1213,20 @@ export default function CardsFactoryScreen() {
 
   const renderSlotContent = (slot: EditSlot, ui: { size: number }, editable: boolean) => {
     const hasItem = Boolean(slot.item);
-    const bubbleSize = Math.max(40, Math.min(64, ui.size - 12));
+    // Responsive: bubble is ~14% of screen width, clamped loosely
+    const bubbleSize = Math.max(Math.round(width * 0.10), Math.min(Math.round(width * 0.18), ui.size - 8));
+    const iconSize = Math.round(bubbleSize * 0.48);
     const compactTitle = String(slot.item?.title || 'Agregar')
       .trim()
       .split(/\s+/)
       .slice(0, 2)
       .join(' ');
-    const labelFontSize = compactTitle.length > 14 ? 8 : 9;
+    const labelFontSize = Math.max(9, Math.round(bubbleSize * 0.15));
 
     return (
       <View style={[styles.slotTile, { minHeight: bubbleSize + 26 }]}>
         <TouchableOpacity
-          style={[styles.slotBubble, { width: bubbleSize, height: bubbleSize, borderRadius: bubbleSize / 2 }]}
+          style={[styles.slotBubble, { width: bubbleSize, height: bubbleSize, borderRadius: Math.min(14, bubbleSize / 4) }]}
           onPress={() => {
             if (editable) {
               openSlotPicker(slot.index);
@@ -1230,9 +1244,9 @@ export default function CardsFactoryScreen() {
           delayLongPress={650}
         >
           {slot.item ? (
-            renderVaultMiniIcon(slot.item, 24)
+            renderVaultMiniIcon(slot.item, iconSize)
           ) : (
-            <MaterialCommunityIcons name="plus" size={24} color="#4D7A97" />
+            <MaterialCommunityIcons name="plus" size={iconSize} color="#4D7A97" />
           )}
         </TouchableOpacity>
         <Text style={[styles.slotLabel, { width: bubbleSize, fontSize: labelFontSize }]} numberOfLines={2}>
@@ -1259,16 +1273,51 @@ export default function CardsFactoryScreen() {
     layout: 'vertical' | 'horizontal';
     slots: EditSlot[];
     editable: boolean;
-    colors: [string, string];
+    theme: ChestCardTheme;
     wallpaperUrl?: string;
   }) => {
-    const { layout, slots, editable, colors, wallpaperUrl } = params;
+    const { layout, slots, editable, theme, wallpaperUrl } = params;
     const dataSlots = slots.filter((slot) => slot.item !== null);
     const feed = editable ? slots : dataSlots;
+    const bg3 = theme.background; // 3-stop gradient
+    const bd = theme.border;
+    const titleStyle = theme.title;
+    const subStyle = theme.subtitle;
+    const iconMeta = theme.icon;
+    // Responsive sizes based on screen width
+    const avatarSize = Math.round(width * 0.24);   // ~24% of screen
+    const avatarRadius = Math.round(avatarSize * 0.18);
+    const iconFallbackSize = Math.round(avatarSize * 0.38);
 
     if (layout === 'horizontal') {
+      // Avatar: cuadrado toca top/bottom del su box (padding 8)
+      const H_PAD = 8;
+      const horizAvatarSide = horizAvatarBoxLayout.h > 0 ? horizAvatarBoxLayout.h - H_PAD * 2 : 0;
+      const horizAvatarRadius = horizAvatarSide > 0 ? Math.round(horizAvatarSide * 0.15) : 0;
+
+      // Font sizes proporcional al alto del info box
+      const hNameFontSize  = horizInfoBoxLayout.h > 0 ? Math.round(horizInfoBoxLayout.h * 0.28) : 18;
+      const hNickFontSize  = horizInfoBoxLayout.h > 0 ? Math.round(horizInfoBoxLayout.h * 0.18) : 12;
+      const hStatsFontSize = horizInfoBoxLayout.h > 0 ? Math.round(horizInfoBoxLayout.h * 0.12) : 10;
+
+      // Branding proporcional al alto del header
+      const hBrandFontSize = horizHeaderH > 0 ? Math.round(horizHeaderH * 0.45) : 13;
+      const hBrandLogoSize = horizHeaderH > 0 ? Math.round(horizHeaderH * 0.55) : 18;
+
+      // Iconos: Math.min(maxByWidth, maxByHeight) — todos iguales
+      const H_GAP = 8;
+      const hCount   = feed.length;
+      const hNumCols = 3;
+      const hNumRows = Math.ceil(hCount / hNumCols);
+      const hIconSize = horizIconGridLayout.w > 0 && horizIconGridLayout.h > 0
+        ? Math.floor(Math.min(
+            (horizIconGridLayout.w - H_GAP * (hNumCols + 1)) / hNumCols,
+            (horizIconGridLayout.h - H_GAP * (hNumRows + 1)) / hNumRows,
+          ))
+        : 0;
+
       return (
-        <LinearGradient colors={colors} style={styles.wireHorizontalCard}>
+        <LinearGradient colors={bg3} style={[styles.wireHorizCard, { borderColor: bd.color, borderWidth: bd.width }]}>
           {wallpaperUrl ? (
             <Animated.Image
               source={{ uri: wallpaperUrl }}
@@ -1281,21 +1330,106 @@ export default function CardsFactoryScreen() {
               resizeMode={getWallpaperResizeMode()}
             />
           ) : null}
-          <View style={styles.wireHorizontalLeft}>
-            <FlexGrid
-              items={feed}
-              getKey={(slot) => slot.id}
-              renderItem={(slot, _index, ui) => renderSlotContent(slot, ui, editable)}
-            />
+
+          {/* ── HEADER ─────────────────────────────────────────── */}
+          <View style={styles.horizHeader} onLayout={e => setHorizHeaderH(e.nativeEvent.layout.height)}>
+            <Image source={require('../../assets/images/CS Icon Logo.png')} style={{ width: hBrandLogoSize, height: hBrandLogoSize }} />
+            <Text style={[styles.horizBrandingText, { color: subStyle.color, fontSize: hBrandFontSize }]}>Card-Social</Text>
           </View>
 
-          <View style={styles.wireHorizontalRight}>{renderIdentityBadge(true)}</View>
+          {/* ── FILA MEDIA flex:3 — Avatar flex:1 | Info flex:3 ── */}
+          <View style={styles.horizMiddleRow}>
+            {/* Avatar box — flex:1 */}
+            <View
+              style={styles.horizAvatarBox}
+              onLayout={e => setHorizAvatarBoxLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+            >
+              {horizAvatarSide > 0 ? (
+                ownerPhotoUrl ? (
+                  <ExpoImage
+                    source={{ uri: ownerPhotoUrl }}
+                    style={{ width: horizAvatarSide, height: horizAvatarSide, borderRadius: horizAvatarRadius, borderWidth: bd.width, borderColor: bd.color }}
+                    cachePolicy="disk"
+                  />
+                ) : (
+                  <View style={{ width: horizAvatarSide, height: horizAvatarSide, borderRadius: horizAvatarRadius, borderWidth: bd.width, borderColor: bd.color, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }}>
+                    <MaterialCommunityIcons name="account" size={Math.round(horizAvatarSide * 0.5)} color={titleStyle.color} />
+                  </View>
+                )
+              ) : null}
+            </View>
+
+            {/* Info box — flex:3 */}
+            <View
+              style={styles.horizInfoBox}
+              onLayout={e => setHorizInfoBoxLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+            >
+              <Text style={[styles.horizName, { color: titleStyle.color, fontSize: hNameFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
+                {(selectedCard?.name || previewCard?.name || cardName || 'Nueva Tarjeta').trim()}
+              </Text>
+              <Text style={[styles.horizNick, { color: subStyle.color, fontSize: hNickFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
+                @{(ownerNickname || 'user').toLowerCase()}
+              </Text>
+              <View style={styles.wireStatsRow}>
+                <View style={[styles.wireUsersPill, { borderColor: bd.color }]}>
+                  <MaterialCommunityIcons name="account-outline" size={hStatsFontSize} color={titleStyle.color} />
+                  <Text style={[styles.wireUsersPillText, { color: titleStyle.color, fontSize: hStatsFontSize }]}>
+                    {selectedCard?.holdersCount ?? previewCard?.holdersCount ?? 0}
+                  </Text>
+                </View>
+                {renderRatingStars(selectedCard?.ratingAvg ?? previewCard?.ratingAvg ?? 5)}
+              </View>
+            </View>
+          </View>
+
+          {/* ── ICONOS flex:4 ───────────────────────────────────── */}
+          <View
+            style={styles.horizIconsBox}
+            onLayout={e => setHorizIconGridLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+          >
+            {hIconSize > 0 ? (
+              <View style={styles.horizIconsGrid}>
+                {feed.map((slot) => (
+                  <View key={slot.id} style={{ width: hIconSize, height: hIconSize, margin: H_GAP / 2 }}>
+                    {renderSlotContent(slot, { size: hIconSize }, editable)}
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </View>
         </LinearGradient>
       );
     }
 
+    // ── VERTICAL MODEL ─────────────────────────────────────────────
+    const AVATAR_PAD = 8;
+    const vertAvatarSide = vertAvatarBoxH > 0 ? vertAvatarBoxH - AVATAR_PAD * 2 : 0;
+    const vertAvatarRadius = vertAvatarSide > 0 ? Math.round(vertAvatarSide * 0.15) : 0;
+
+    // Font sizes scale from info box height — no fixed numbers
+    const nameFontSize  = vertInfoBoxLayout.h > 0 ? Math.round(vertInfoBoxLayout.h * 0.28) : 18;
+    const nickFontSize  = vertInfoBoxLayout.h > 0 ? Math.round(vertInfoBoxLayout.h * 0.18) : 12;
+    const statsFontSize = vertInfoBoxLayout.h > 0 ? Math.round(vertInfoBoxLayout.h * 0.12) : 10;
+    // Branding font scales from header height
+    const brandFontSize = vertHeaderH > 0 ? Math.round(vertHeaderH * 0.45) : 13;
+    const brandLogoSize = vertHeaderH > 0 ? Math.round(vertHeaderH * 0.55) : 18;
+
+    const ICON_GAP = 6;
+    const vertCount = feed.length;
+    const vertNumCols = 3; // always 3 columns horizontal
+    const vertNumRows = Math.ceil(vertCount / vertNumCols);
+    const vertIconCellSize =
+      vertIconGridLayout.w > 0 && vertIconGridLayout.h > 0
+        ? Math.floor(
+            Math.min(
+              (vertIconGridLayout.w - ICON_GAP * (vertNumCols + 1)) / vertNumCols,
+              (vertIconGridLayout.h - ICON_GAP * (vertNumRows + 1)) / vertNumRows,
+            ),
+          )
+        : 0;
+
     return (
-      <LinearGradient colors={colors} style={styles.wireVerticalCard}>
+      <LinearGradient colors={bg3} style={[styles.wireVerticalCard, { borderColor: bd.color, borderWidth: bd.width }]}>
         {wallpaperUrl ? (
           <Animated.Image
             source={{ uri: wallpaperUrl }}
@@ -1308,13 +1442,89 @@ export default function CardsFactoryScreen() {
             resizeMode={getWallpaperResizeMode()}
           />
         ) : null}
-        <View style={styles.wireVerticalIdentity}>{renderIdentityBadge(false)}</View>
-        <View style={styles.wireVerticalGrid}>
-          <FlexGrid
-            items={feed}
-            getKey={(slot) => slot.id}
-            renderItem={(slot, _index, ui) => renderSlotContent(slot, ui, editable)}
-          />
+
+        {/* ── HEADER ─────────────────────────────────────────────── */}
+        <View style={styles.vertHeader} onLayout={e => setVertHeaderH(e.nativeEvent.layout.height)}>
+          <Image source={require('../../assets/images/CS Icon Logo.png')} style={{ width: brandLogoSize, height: brandLogoSize }} />
+          <Text style={[styles.vertBrandingText, { color: subStyle.color, fontSize: brandFontSize }]}>Card-Social</Text>
+        </View>
+
+        {/* ── SECCIÓN TOP — flex: 1.5 ────────────────────────────── */}
+        <View style={styles.vertTop}>
+          {/* Avatar box — flex: 1 */}
+          <View
+            style={styles.vertAvatarBox}
+            onLayout={e => setVertAvatarBoxH(e.nativeEvent.layout.height)}
+          >
+            {vertAvatarSide > 0 ? (
+              ownerPhotoUrl ? (
+                <ExpoImage
+                  source={{ uri: ownerPhotoUrl }}
+                  style={{
+                    width: vertAvatarSide,
+                    height: vertAvatarSide,
+                    borderRadius: Math.round(vertAvatarSide * 0.22),
+                    borderWidth: bd.width + 1,
+                    borderColor: bd.color,
+                  }}
+                  cachePolicy="disk"
+                />
+              ) : (
+                <View style={{
+                  width: vertAvatarSide,
+                  height: vertAvatarSide,
+                  borderRadius: Math.round(vertAvatarSide * 0.22),
+                  borderWidth: bd.width + 1,
+                  borderColor: bd.color,
+                  backgroundColor: 'rgba(255,255,255,0.9)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  shadowColor: bd.color,
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.35,
+                  shadowRadius: 6,
+                  elevation: 5,
+                }}>
+                  <MaterialCommunityIcons name="account" size={Math.round(vertAvatarSide * 0.52)} color={titleStyle.color} />
+                </View>
+              )
+            ) : null}
+          </View>
+
+          {/* Info box — flex: 1 */}
+          <View style={styles.vertInfoBox} onLayout={e => setVertInfoBoxLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+            <Text style={[styles.vertName, { color: titleStyle.color, fontSize: nameFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
+              {(selectedCard?.name || previewCard?.name || cardName || 'Nueva Tarjeta').trim()}
+            </Text>
+            <Text style={[styles.vertNick, { color: subStyle.color, fontSize: nickFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
+              @{(ownerNickname || 'user').toLowerCase()}
+            </Text>
+            <View style={styles.wireStatsRow}>
+              <View style={[styles.wireUsersPill, { borderColor: bd.color }]}>
+                <MaterialCommunityIcons name="account-outline" size={statsFontSize} color={titleStyle.color} />
+                <Text style={[styles.wireUsersPillText, { color: titleStyle.color, fontSize: statsFontSize }]}>
+                  {selectedCard?.holdersCount ?? previewCard?.holdersCount ?? 0}
+                </Text>
+              </View>
+              {renderRatingStars(selectedCard?.ratingAvg ?? previewCard?.ratingAvg ?? 5)}
+            </View>
+          </View>
+        </View>
+
+        {/* ── SECCIÓN BOTTOM — flex: 3.5 — Iconos ───────────────── */}
+        <View
+          style={styles.vertIconsBox}
+          onLayout={e => setVertIconGridLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+        >
+          {vertIconCellSize > 0 ? (
+            <View style={styles.vertIconsGrid}>
+              {feed.map((slot) => (
+                <View key={slot.id} style={{ width: vertIconCellSize, height: vertIconCellSize, margin: ICON_GAP / 2 }}>
+                  {renderSlotContent(slot, { size: vertIconCellSize }, editable)}
+                </View>
+              ))}
+            </View>
+          ) : null}
         </View>
       </LinearGradient>
     );
@@ -1465,11 +1675,19 @@ export default function CardsFactoryScreen() {
           ) : undefined
         }
         ListEmptyComponent={
-          <View style={styles.emptyWrap}>
-            <MaterialCommunityIcons name="credit-card-plus-outline" size={52} color="#0D4D8A" />
-            <Text style={styles.emptyTitle}>{tr('Sin Smart Cards todavía', 'No Smart Cards yet')}</Text>
-            <Text style={styles.emptyText}>{tr('Crea tu primera tarjeta dinámica con datos del Vault.', 'Create your first dynamic card with Vault data.')}</Text>
-          </View>
+          cardSearchQuery.trim().length > 0 ? (
+            <View style={styles.emptyWrap}>
+              <MaterialCommunityIcons name="magnify-close" size={52} color="#0D4D8A" />
+              <Text style={styles.emptyTitle}>{tr('Sin resultados', 'No results')}</Text>
+              <Text style={styles.emptyText}>{tr(`No encontramos tarjetas con "${cardSearchQuery.trim()}"`, `No cards found matching "${cardSearchQuery.trim()}"`)}</Text>
+            </View>
+          ) : (
+            <View style={styles.emptyWrap}>
+              <MaterialCommunityIcons name="credit-card-plus-outline" size={52} color="#0D4D8A" />
+              <Text style={styles.emptyTitle}>{tr('Sin Smart Cards todavía', 'No Smart Cards yet')}</Text>
+              <Text style={styles.emptyText}>{tr('Crea tu primera tarjeta dinámica con datos del Vault.', 'Create your first dynamic card with Vault data.')}</Text>
+            </View>
+          )
         }
       />
 
@@ -1495,7 +1713,7 @@ export default function CardsFactoryScreen() {
 
       <TouchableOpacity style={[styles.createFab, { backgroundColor: cardsTheme.fabBg }]} onPress={openCreateFactory} activeOpacity={0.82}>
         <MaterialCommunityIcons name="plus" size={20} color={cardsTheme.fabText} />
-        <Text style={[styles.createFabText, { color: cardsTheme.fabText }]}>Crear</Text>
+        <Text style={[styles.createFabText, { color: cardsTheme.fabText }]}>{tr('Crear', 'Create')}</Text>
       </TouchableOpacity>
 
       <Modal visible={factoryVisible} transparent animationType="slide" onRequestClose={() => { Keyboard.dismiss(); InteractionManager.runAfterInteractions(() => setFactoryVisible(false)); }}>
@@ -1591,10 +1809,8 @@ export default function CardsFactoryScreen() {
                                 Animated.timing(rotateAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
                                 Animated.timing(rotateAnim, { toValue: 0, duration: 800, useNativeDriver: true }),
                               ]),
-                              { iterations: 3 },
-                            ).start(() => {
-                              setTimeout(() => setRotateHintVisible(false), 600);
-                            });
+                              { iterations: 2 },
+                            ).start(() => setTimeout(() => setRotateHintVisible(false), 400));
                           }}
                           activeOpacity={0.7}
                           accessibilityLabel={tr('Vista horizontal', 'Horizontal view')}
@@ -1614,10 +1830,10 @@ export default function CardsFactoryScreen() {
                           </View>
                         ) : (
                           renderWireframeCard({
-                            layout: layoutMode,
+                            layout: isLandscape ? 'horizontal' : 'vertical',
                             slots: editSlots.filter((s) => s.item !== null),
                             editable: false,
-                            colors: CARD_THEMES[themeId].colors,
+                            theme: resolveTheme(themeId),
                             wallpaperUrl: selectedWallpaper?.fullUrl,
                           })
                         )}
@@ -1722,8 +1938,6 @@ export default function CardsFactoryScreen() {
                   );
                 }}
                 style={styles.selectorGrid}
-                bounces={false}
-                overScrollMode="never"
               />
             )}
 
@@ -1755,62 +1969,78 @@ export default function CardsFactoryScreen() {
         </View>
       </Modal>
 
-      {/* ThemesPlaceholder */}
+      {/* ThemesPlaceholder — small centered popup, no overlay blur */}
       <Modal
         visible={themesPlaceholderVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setThemesPlaceholderVisible(false)}
       >
-        <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}>
-          <View style={[styles.themesPlaceholderModal, { backgroundColor: cardsTheme.modalBg, borderColor: cardsTheme.modalBorder }]}>
+        <TouchableWithoutFeedback onPress={() => setThemesPlaceholderVisible(false)}>
+          <View style={styles.themesPopupOverlay}>
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <View style={[styles.themesPopupBox, { backgroundColor: cardsTheme.modalBg, borderColor: cardsTheme.modalBorder }]}>
 
-            <View style={styles.factoryHeaderRow}>
-              <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle, marginBottom: 0 }]}>
-                {tr('Temas de Tarjeta', 'Card Themes')}
-              </Text>
-              <TouchableOpacity
-                onPress={() => setThemesPlaceholderVisible(false)}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              >
-                <MaterialCommunityIcons name="close" size={22} color={cardsTheme.sectionLabel} />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={[styles.themesPlaceholderSubtitle, { color: cardsTheme.sectionLabel }]}>
-              {tr('Personaliza el look de tu tarjeta con themes exclusivos', 'Customize your card look with exclusive themes')}
-            </Text>
-
-            <View style={styles.themesPlaceholderGrid}>
-              {([
-                { name: 'Obsidian Pro', gradient: ['#1A1A2E', '#16213E'] },
-                { name: 'Rose Gold', gradient: ['#F7C7B5', '#E8A598'] },
-                { name: 'Neon Pulse', gradient: ['#0F3460', '#533483'] },
-              ] as { name: string; gradient: [string, string] }[]).map((theme) => (
-                <View key={theme.name} style={styles.themePlaceholderTile}>
-                  <LinearGradient colors={theme.gradient} style={styles.themePlaceholderSwatch} />
-                  <View style={styles.themePlaceholderLock}>
-                    <MaterialCommunityIcons name="lock-outline" size={18} color="#C5A065" />
-                  </View>
-                  <Text style={[styles.themePlaceholderName, { color: cardsTheme.text }]}>{theme.name}</Text>
+                <View style={styles.factoryHeaderRow}>
+                  <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle, marginBottom: 0 }]}>
+                    {tr('Temas de Tarjeta', 'Card Themes')}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setThemesPlaceholderVisible(false)}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  >
+                    <MaterialCommunityIcons name="close" size={22} color={cardsTheme.sectionLabel} />
+                  </TouchableOpacity>
                 </View>
-              ))}
-            </View>
 
-            <TouchableOpacity style={styles.themesUpsellBtn} activeOpacity={0.85}>
-              <MaterialCommunityIcons name="crown" size={16} color="#0A2540" />
-              <Text style={styles.themesUpsellText}>{tr('Consigue los mejores themes', 'Get the best themes')}</Text>
-            </TouchableOpacity>
+                <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
+                {(['fresh', 'moderno', 'luxury'] as ThemeTier[]).map((tier) => {
+                  const meta = TIER_META[tier];
+                  const tierThemes = CHEST_THEMES.filter((t) => t.tier === tier);
+                  return (
+                    <View key={tier} style={{ marginBottom: 12 }}>
+                      <Text style={[styles.themeTierLabel, { color: cardsTheme.text }]}>{meta.emoji} {language === 'en' ? meta.label[1] : meta.label[0]}</Text>
+                      <View style={styles.themesPlaceholderGrid}>
+                        {tierThemes.map((t) => (
+                          <TouchableOpacity
+                            key={t.id}
+                            style={[styles.themePlaceholderTile, themeId === t.id && { borderWidth: 3, borderColor: '#C5A065', borderRadius: 14 }]}
+                            onPress={() => {
+                              setThemeId(t.id);
+                              void Haptics.selectionAsync();
+                            }}
+                            activeOpacity={0.75}
+                          >
+                            <LinearGradient colors={t.background} style={[styles.themePlaceholderSwatch, { borderColor: t.border.color, borderWidth: t.border.width, borderRadius: 12 }]} />
+                            <View style={styles.themePlaceholderIconRow}>
+                              <MaterialCommunityIcons name={t.icon.name as any} size={18} color={t.icon.color} />
+                              {t.locked ? <MaterialCommunityIcons name="lock-outline" size={12} color={t.border.color} /> : null}
+                            </View>
+                            <Text style={[styles.themePlaceholderName, { color: t.title.color }]} numberOfLines={1}>{t.name}</Text>
+                            {themeId === t.id ? (
+                              <View style={styles.themePlaceholderLock}>
+                                <MaterialCommunityIcons name="check-circle" size={20} color="#C5A065" />
+                              </View>
+                            ) : null}
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  );
+                })}
+                </ScrollView>
 
-            <TouchableOpacity
-              style={[styles.ghostBtn, { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder, marginTop: 10 }]}
-              onPress={() => setThemesPlaceholderVisible(false)}
-            >
-              <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>{tr('Cerrar', 'Close')}</Text>
-            </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary, marginTop: 12 }]}
+                  onPress={() => setThemesPlaceholderVisible(false)}
+                >
+                  <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>{tr('Aceptar', 'Accept')}</Text>
+                </TouchableOpacity>
 
+              </View>
+            </TouchableWithoutFeedback>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       </Modal>
@@ -1827,41 +2057,38 @@ export default function CardsFactoryScreen() {
         <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}> 
           <BlurView intensity={65} tint="light" style={StyleSheet.absoluteFill} />
           {previewCard ? (
-            <View style={[styles.previewModalCard, { backgroundColor: cardsTheme.modalBg, borderColor: cardsTheme.modalBorder, aspectRatio: previewLayout === 'vertical' ? 0.62 : 1.6, width: previewLayout === 'vertical' ? 320 : 420 }]}> 
-              <LinearGradient
-                colors={CARD_THEMES[previewCard.themeId || 'sky-glass'].colors}
-                style={StyleSheet.absoluteFillObject}
-              />
-              {previewCard.wallpaperUrl ? (
-                <Animated.Image
-                  source={{ uri: previewCard.wallpaperUrl }}
-                  style={[
-                    styles.wallpaperFill,
-                    previewCard.enableParallax
-                      ? { transform: [{ translateX: parallaxX }, { translateY: parallaxY }, { scale: 1.06 }] }
-                      : null,
-                  ]}
-                  resizeMode={getWallpaperResizeMode()}
+            <>
+            <View style={[styles.previewModalCard, { borderColor: resolveTheme(previewCard.themeId).border.color, borderWidth: resolveTheme(previewCard.themeId).border.width }]}> 
+              {/* Card content fills the top portion */}
+              <View style={{ flex: 1 }}>
+                <LinearGradient
+                  colors={resolveTheme(previewCard.themeId).background}
+                  style={StyleSheet.absoluteFillObject}
                 />
-              ) : null}
-              <AutoScaleText style={[styles.previewTitle, { color: cardsTheme.modalTitle }, previewCard.fontFamily ? { fontFamily: previewCard.fontFamily } : null]}>{previewCard.name}</AutoScaleText>
-              <View style={styles.previewMetaRow}>
-                <View style={styles.metricPill}>
-                  <MaterialCommunityIcons name="account-group-outline" size={14} color="#0D4D8A" />
-                  <Text style={styles.metricPillText}>{previewCard.holdersCount ?? 0}</Text>
-                </View>
-                {renderRatingStars(previewCard.ratingAvg ?? 5)}
+                {previewCard.wallpaperUrl ? (
+                  <Animated.Image
+                    source={{ uri: previewCard.wallpaperUrl }}
+                    style={[
+                      styles.wallpaperFill,
+                      previewCard.enableParallax
+                        ? { transform: [{ translateX: parallaxX }, { translateY: parallaxY }, { scale: 1.06 }] }
+                        : null,
+                    ]}
+                    resizeMode={getWallpaperResizeMode()}
+                  />
+                ) : null}
+
+                {renderWireframeCard({
+                  layout: previewLayout,
+                  slots: previewSlots,
+                  editable: false,
+                  theme: resolveTheme(previewCard.themeId),
+                  wallpaperUrl: previewCard.wallpaperUrl,
+                })}
               </View>
 
-              {renderWireframeCard({
-                layout: previewCard.layout,
-                slots: previewSlots,
-                editable: false,
-                colors: CARD_THEMES[previewCard.themeId || 'sky-glass'].colors,
-                wallpaperUrl: previewCard.wallpaperUrl,
-              })}
-
-              <View style={styles.modalActions}>
+              {/* Buttons always visible at bottom */}
+              <View style={[styles.modalActions, { backgroundColor: cardsTheme.modalBg, paddingVertical: 10, paddingHorizontal: 16 }]}>
                 <TouchableOpacity
                   style={[styles.ghostBtn, { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder }]}
                   onPress={() => {
@@ -1869,7 +2096,7 @@ export default function CardsFactoryScreen() {
                     setPreviewCard(null);
                   }}
                 >
-                  <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>Cerrar</Text>
+                  <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>{tr('Cerrar', 'Close')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary }]}
@@ -1878,10 +2105,11 @@ export default function CardsFactoryScreen() {
                     openEditFactory(previewCard);
                   }}
                 >
-                  <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>Editar tarjeta</Text>
+                  <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>{tr('Editar tarjeta', 'Edit card')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
+            </>
           ) : null}
         </View>
       </Modal>
@@ -2252,7 +2480,7 @@ const styles = StyleSheet.create({
   createFab: {
     position: 'absolute',
     right: 16,
-    bottom: 18,
+    bottom: 74,
     height: 48,
     borderRadius: 999,
     paddingHorizontal: 16,
@@ -2274,7 +2502,7 @@ const styles = StyleSheet.create({
   },
   cardsList: {
     paddingHorizontal: 12,
-    paddingBottom: 94,
+    paddingBottom: 130,
   },
   cardsListLandscape: {
     paddingHorizontal: 18,
@@ -2416,29 +2644,80 @@ const styles = StyleSheet.create({
   },
   wireVerticalCard: {
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#B8E7FF',
-    paddingHorizontal: 14,
-    paddingTop: 14,
-    paddingBottom: 12,
     flex: 1,
+    overflow: 'hidden',
+  },
+  // ── Vertical Model sections ─────────────────────────────────────
+  vertHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    gap: 6,
+  },
+  vertBrandingText: {
+    fontWeight: '700',
+    opacity: 0.85,
+  },
+  vertTop: {
+    flex: 2,
+    flexDirection: 'column',
+  },
+  vertAvatarBox: {
+    flex: 1,
+    padding: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  vertInfoBox: {
+    flex: 1,
+    padding: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    overflow: 'hidden',
+  },
+  vertName: {
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  vertNick: {
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  vertIconsBox: {
+    flex: 3,
+    padding: 8,
+  },
+  vertIconsGrid: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignContent: 'center',
+    justifyContent: 'center',
   },
   wireVerticalIdentity: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingBottom: 8,
+    gap: '4%',
+    paddingBottom: '3%',
+  },
+  wireVerticalAvatarCol: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  wireVerticalInfoCol: {
+    flex: 1,
+    justifyContent: 'center',
   },
   wireVerticalGrid: {
     flex: 1,
-    marginTop: 8,
+    marginTop: 4,
   },
   wireHorizontalCard: {
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#B8E7FF',
-    padding: 10,
-    minHeight: 220,
-    flexDirection: 'row',
-    gap: 10,
+    flex: 1,
+    overflow: 'hidden',
   },
   wireHorizontalLeft: {
     width: '60%',
@@ -2455,17 +2734,70 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 10,
   },
+  // ── Horizontal Model sections ───────────────────────────────────
+  wireHorizCard: {
+    flex: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  horizHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    gap: 6,
+  },
+  horizBrandingText: {
+    fontWeight: '700',
+    opacity: 0.85,
+  },
+  horizMiddleRow: {
+    flex: 3,
+    flexDirection: 'row',
+  },
+  horizAvatarBox: {
+    flex: 1,
+    padding: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  horizInfoBox: {
+    flex: 3,
+    padding: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  horizName: {
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  horizNick: {
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  horizIconsBox: {
+    flex: 4,
+    padding: 8,
+  },
+  horizIconsGrid: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignContent: 'center',
+    justifyContent: 'center',
+  },
   wireAvatar: {
-    width: 82,
-    height: 82,
-    borderRadius: 41,
+    width: 110,
+    height: 110,
+    borderRadius: 20,
     borderWidth: 2,
     borderColor: '#C5A065',
   },
   wireAvatarFallback: {
-    width: 82,
-    height: 82,
-    borderRadius: 41,
+    width: 110,
+    height: 110,
+    borderRadius: 20,
     borderWidth: 2,
     borderColor: '#C5A065',
     backgroundColor: '#FFFFFF',
@@ -2473,16 +2805,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   wireAvatarSm: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 72,
+    height: 72,
+    borderRadius: 14,
     borderWidth: 2,
     borderColor: '#C5A065',
   },
   wireAvatarFallbackSm: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 72,
+    height: 72,
+    borderRadius: 14,
     borderWidth: 2,
     borderColor: '#C5A065',
     backgroundColor: '#FFFFFF',
@@ -2490,31 +2822,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   wireName: {
-    marginTop: 10,
+    marginTop: 2,
     color: '#0A2540',
     fontWeight: '800',
-    fontSize: 18,
-    textAlign: 'center',
+    fontSize: 22,
+    textAlign: 'left',
   },
   wireNameSm: {
     marginTop: 7,
     color: '#0A2540',
     fontWeight: '800',
-    fontSize: 13,
+    fontSize: 15,
     textAlign: 'center',
   },
   wireNick: {
     marginTop: 3,
     color: '#4A4A4A',
     fontWeight: '600',
-    fontSize: 13,
-    textAlign: 'center',
+    fontSize: 15,
+    textAlign: 'left',
   },
   wireNickSm: {
     marginTop: 1,
     color: '#4A4A4A',
     fontWeight: '600',
-    fontSize: 10,
+    fontSize: 12,
     textAlign: 'center',
   },
   wireStatsRow: {
@@ -2555,9 +2887,9 @@ const styles = StyleSheet.create({
   slotLabel: {
     marginTop: 4,
     color: '#0A2540',
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '700',
-    maxWidth: 66,
+    maxWidth: 72,
     textAlign: 'center',
   },
   slotMinusBtn: {
@@ -2591,7 +2923,7 @@ const styles = StyleSheet.create({
   },
   factoryModal: {
     width: '100%',
-    height: '90%',
+    height: '98%',
     backgroundColor: '#F2FBFF',
     borderRadius: 22,
     borderWidth: 1,
@@ -2773,12 +3105,34 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   previewModalCard: {
-    width: '92%',
-    maxHeight: '90%',
+    width: '95%',
+    height: '95%',
+    maxWidth: 600,
     borderRadius: 18,
     borderWidth: 1,
     borderColor: '#CDEFFF',
-    padding: 16,
+    overflow: 'hidden',
+    flexDirection: 'column',
+  },
+  previewBrandingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
+  },
+  previewBrandingLogo: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+  },
+  previewBrandingText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   previewTitle: {
     color: '#0D4D8A',
@@ -2802,9 +3156,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   previewIconBubble: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.8)',
@@ -3288,6 +3642,24 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   // ── ThemesPlaceholder ──────────────────────────────────────────────
+  themesPopupOverlay: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  themesPopupBox: {
+    width: '85%',
+    maxWidth: 380,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 10,
+  },
   themesPlaceholderModal: {
     width: '100%',
     borderRadius: 16,
@@ -3300,22 +3672,36 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     textAlign: 'center',
   },
+  themeTierLabel: {
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 8,
+    marginTop: 2,
+  },
   themesPlaceholderGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
-    marginBottom: 16,
+    marginBottom: 4,
   },
   themePlaceholderTile: {
-    flex: 1,
+    width: '30%',
     borderRadius: 12,
-    overflow: 'hidden',
+    overflow: 'visible',
     position: 'relative',
     alignItems: 'center',
+    paddingBottom: 4,
   },
   themePlaceholderSwatch: {
     width: '100%',
-    height: 80,
+    height: 70,
     borderRadius: 12,
+  },
+  themePlaceholderIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
   },
   themePlaceholderLock: {
     position: 'absolute',
@@ -3355,7 +3741,7 @@ const styles = StyleSheet.create({
   cardSearchWrap: {
     position: 'absolute',
     left: 12,
-    right: 76,
+    right: 12,
     bottom: 18,
     flexDirection: 'row',
     alignItems: 'center',

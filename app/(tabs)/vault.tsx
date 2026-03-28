@@ -1073,10 +1073,13 @@ const VaultScreen = () => {
             <NewInfoForm
               editingData={editingData}
               onClose={() => {
-                closeFormModal();
-                setTimeout(() => {
-                  void loadVaultData();
-                }, 0);
+                // Allow inner modals (spinner) to fully unmount before closing outer modal
+                requestAnimationFrame(() => {
+                  closeFormModal();
+                  setTimeout(() => {
+                    void loadVaultData();
+                  }, 0);
+                });
               }}
             />
           </Animated.View>

@@ -449,6 +449,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
   // Close modal
   const handleClose = () => {
+    // Dismiss spinner FIRST to avoid nested-Modal ghost overlay on Android/iOS
+    setIsSaving(false);
     setTypeModalVisible(false);
     setCountryModalVisible(false);
     setIconModalVisible(false);

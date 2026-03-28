@@ -1,7 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
-export type AppLanguage = 'es' | 'en';
+export type AppLanguage = 'en' | 'es' | 'zh' | 'tl' | 'vi';
+
+export const SUPPORTED_LANGUAGES: { code: AppLanguage; flag: string; label: string }[] = [
+  { code: 'en', flag: '🇺🇸', label: 'English' },
+  { code: 'es', flag: '🇪🇸', label: 'Español' },
+  { code: 'zh', flag: '🇨🇳', label: '中文' },
+  { code: 'tl', flag: '🇵🇭', label: 'Tagalog' },
+  { code: 'vi', flag: '🇻🇳', label: 'Tiếng Việt' },
+];
 
 const LANGUAGE_STORAGE_KEY = 'card-social:app-language';
 
@@ -20,8 +28,8 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     void (async () => {
       try {
         const stored = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
-        if (stored === 'es' || stored === 'en') {
-          setLanguageState(stored);
+        if (stored && SUPPORTED_LANGUAGES.some((l) => l.code === stored)) {
+          setLanguageState(stored as AppLanguage);
         }
       } catch {
         // Ignore storage read failures and keep default language.
