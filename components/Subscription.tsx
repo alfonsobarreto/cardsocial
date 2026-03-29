@@ -1,33 +1,40 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-  Dimensions,
-} from 'react-native';
+import { getActiveUserId } from '@/services/authSession';
+import { purchaseBusinessCard } from '@/services/businessCardPaywallService';
+import { useLanguage } from '@/services/language';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getActiveUserId } from '@/services/authSession';
-import GoldenRingButton from './GoldenRingButton';
-import { purchaseBusinessCard } from '@/services/businessCardPaywallService';
+import React, { useEffect, useState } from 'react';
+import {
+    Alert,
+    Dimensions,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
+} from 'react-native';
 import Purchases from 'react-native-purchases';
-import { Platform } from 'react-native';
+import GoldenRingButton from './GoldenRingButton';
 
 const { width } = Dimensions.get('window');
+
+// Traducción local
+const useTr = () => {
+  const { language } = useLanguage();
+  return (es: string, en: string) => language === 'en' ? en : es;
+};
 
 interface SubscriptionProps {
   onClose?: () => void;
 }
 
 /**
- * Tienda del Búnker - Panel comercial
+ * Tienda del Búnker / Vault Store - Panel comercial
  * Muestra Base Gratis vs Licencia Anual por Tarjeta, packs de créditos y activación de negocio
  */
 const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
+  const tr = useTr();
   const [userId, setUserId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [subscribingPack, setSubscribingPack] = useState<string | null>(null);
@@ -131,7 +138,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
       {/* HEADER */}
       <LinearGradient colors={['#0A2540', '#1A3D5C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
         <MaterialCommunityIcons name="store" size={32} color="#C5A065" />
-        <Text style={styles.headerTitle}>Tienda del Búnker</Text>
+        <Text style={styles.headerTitle}>{tr('vault_store', 'vault_store')}</Text>
         <Text style={styles.headerSubtitle}>Créditos y Licencias Anuales por Tarjeta</Text>
       </LinearGradient>
 

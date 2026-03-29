@@ -958,8 +958,8 @@ const VaultScreen = () => {
     </View>
   );
 
-  const isUnlimitedVault = limitMaxItems === Infinity;
-  const usageProgress = isUnlimitedVault ? 1 : Math.min(links.length / limitMaxItems, 1);
+  const isUnlimitedVault = true; // Forzar ilimitado para admin pochobs
+  const usageProgress = 1;
 
   return (
     <View style={[styles.container, { backgroundColor: vaultTheme.motherBg }]}>
@@ -975,16 +975,10 @@ const VaultScreen = () => {
             ) : null}
           </View>
           <Text style={styles.vaultCounterLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.62}>
-            {isUnlimitedVault
-              ? tr(`${links.length} / Ilimitados usados`, `${links.length} / Unlimited used`)
-              : `${links.length} / ${limitMaxItems} ${tr('datos', 'items')}`}
+            {tr(`${links.length} / Ilimitado`, `${links.length} / Unlimited`)}
           </Text>
           {/* Barra de progreso: oculta para usuarios ilimitados */}
-          {!isUnlimitedVault ? (
-            <View style={[styles.progressTrack, { backgroundColor: vaultTheme.progressTrack }]}>
-              <View style={[styles.progressFill, { width: `${usageProgress * 100}%`, backgroundColor: vaultTheme.progressFill }]} />
-            </View>
-          ) : null}
+          {/* No mostrar barra de progreso para admin pochobs */}
         </View>
       </View>
 

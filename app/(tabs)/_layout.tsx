@@ -104,9 +104,9 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
     if (activePanel === 'policy') return tr('Política de Uso', 'Usage Policy');
     if (activePanel === 'about') return tr('Acerca de Card-Social', 'About Card-Social');
     if (activePanel === 'privacy') return tr('Privacidad', 'Privacy');
-    if (activePanel === 'subscription') return tr('Tienda del Búnker', 'Vault Store');
-    if (activePanel === 'icon_store') return tr('🎨 Tienda de Iconos', '🎨 Icon Store');
-    if (activePanel === 'theme_chest') return tr('🏆 Cofre de Themes', '🏆 Theme Chest');
+    if (activePanel === 'subscription') return tr('vault_store', 'vault_store');
+    if (activePanel === 'icon_store') return `🎨 ${tr('icon_store', 'icon_store')}`;
+    if (activePanel === 'theme_chest') return tr('🔒 Locker de Estilos', '🔒 Theme Locker');
     if (activePanel === 'blocked_users') return tr('Gestión de Relaciones', 'Relationship Manager');
     return tr('Menú', 'Menu');
   }, [activePanel, language]);
@@ -706,39 +706,44 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                       <Text style={[styles.drawerItemText, { color: '#C5A065', fontWeight: '700' }]}>{tr('Mi Perfil', 'My Profile')}</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('terms')}>
-                      <MaterialCommunityIcons name="file-document-outline" size={18} color="#0D4D8A" />
-                      <Text style={styles.drawerItemText}>{tr('Términos y Condiciones', 'Terms & Conditions')}</Text>
-                    </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('policy')}>
-                      <MaterialCommunityIcons name="shield-lock-outline" size={18} color="#0D4D8A" />
-                      <Text style={styles.drawerItemText}>{tr('Política de Uso', 'Usage Policy')}</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('about')}>
-                      <MaterialCommunityIcons name="information-outline" size={18} color="#0D4D8A" />
-                      <Text style={styles.drawerItemText}>{tr('Acerca de Card-Social', 'About Card-Social')}</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('privacy')}>
-                      <MaterialCommunityIcons name="shield-account-outline" size={18} color="#0D4D8A" />
-                      <Text style={styles.drawerItemText}>{tr('Privacidad', 'Privacy')}</Text>
-                    </TouchableOpacity>
+                    {/* Mostrar ítems legales solo si NO es super_admin */}
+                    {!userIsSuperAdmin && (
+                      <>
+                        <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('terms')}>
+                          <MaterialCommunityIcons name="file-document-outline" size={18} color="#0D4D8A" />
+                          <Text style={styles.drawerItemText}>{tr('Términos y Condiciones', 'Terms & Conditions')}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('policy')}>
+                          <MaterialCommunityIcons name="shield-lock-outline" size={18} color="#0D4D8A" />
+                          <Text style={styles.drawerItemText}>{tr('Política de Uso', 'Usage Policy')}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('about')}>
+                          <MaterialCommunityIcons name="information-outline" size={18} color="#0D4D8A" />
+                          <Text style={styles.drawerItemText}>{tr('Acerca de Card-Social', 'About Card-Social')}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('privacy')}>
+                          <MaterialCommunityIcons name="shield-account-outline" size={18} color="#0D4D8A" />
+                          <Text style={styles.drawerItemText}>{tr('Privacidad', 'Privacy')}</Text>
+                        </TouchableOpacity>
+                      </>
+                    )}
 
                     <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('subscription')}>
                       <MaterialCommunityIcons name="store" size={18} color="#C5A065" />
-                      <Text style={[styles.drawerItemText, { color: '#C5A065', fontWeight: '600' }]}>{tr('Tienda del Búnker', 'Vault Store')}</Text>
+                      <Text style={[styles.drawerItemText, { color: '#C5A065', fontWeight: '600' }]}>{tr('vault_store', 'vault_store')}</Text>
                     </TouchableOpacity>
+
 
                     <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('icon_store')}>
                       <MaterialCommunityIcons name="palette-outline" size={18} color="#0D4D8A" />
-                      <Text style={styles.drawerItemText}>{tr('🎨 Tienda de Iconos', '🎨 Icon Store')}</Text>
+                      <Text style={styles.drawerItemText}>{`🎨 ${tr('icon_store', 'icon_store')}`}</Text>
                     </TouchableOpacity>
+
 
                     <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('theme_chest')}>
                       <MaterialCommunityIcons name="treasure-chest" size={18} color="#C5A065" />
-                      <Text style={[styles.drawerItemText, { color: '#C5A065', fontWeight: '600' }]}>{tr('🏆 Cofre de Themes', '🏆 Theme Chest')}</Text>
+                      <Text style={[styles.drawerItemText, { color: '#C5A065', fontWeight: '600' }]}>{tr('🔒 Locker de Estilos', '🔒 Theme Locker')}</Text>
                     </TouchableOpacity>
 
                     {userIsSuperAdmin && (
@@ -754,10 +759,12 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                       </TouchableOpacity>
                     )}
 
+
                     <TouchableOpacity style={styles.drawerItem}>
                       <MaterialCommunityIcons name="cog-outline" size={18} color="#0D4D8A" />
                       <Text style={styles.drawerItemText}>{tr('Configuración', 'Settings')}</Text>
                     </TouchableOpacity>
+
 
                     <TouchableOpacity style={styles.drawerItem} onPress={() => { setActivePanel('blocked_users'); void loadRelEntries('blocked'); setRelTab('blocked'); }}>
                       <MaterialCommunityIcons name="account-cancel-outline" size={18} color="#B7343A" />
@@ -790,7 +797,21 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                         </TouchableOpacity>
                       </View>
                       {mode === 'auto' ? (
-                        <Text style={styles.lookModeHint}>{autoStatusText}. {tr('Resuelto', 'Resolved')}: {resolvedMode}.</Text>
+                        <Text style={styles.lookModeHint}>
+                          {(() => {
+                            if (mode === 'auto') {
+                              if (autoStatusText.includes('GPS')) return tr('auto_gps', 'auto_gps');
+                              if (autoStatusText.includes('ubicacion en cache')) return tr('auto_cached', 'auto_cached');
+                              if (autoStatusText.includes('cache sin red')) return tr('auto_cache_offline', 'auto_cache_offline');
+                              if (autoStatusText.includes('sin GPS')) return tr('auto_fallback', 'auto_fallback');
+                              return tr('auto_inactive', 'auto_inactive');
+                            }
+                            if (mode === 'dia') return tr('manual_day', 'manual_day');
+                            if (mode === 'noche') return tr('manual_night', 'manual_night');
+                            return '';
+                          })()}
+                          {mode === 'auto' ? `. ${tr('Resuelto', 'Resolved')}: ${tr(resolvedMode === 'noche' ? 'Noche' : 'Día', resolvedMode === 'noche' ? 'Night' : 'Day')}.` : ''}
+                        </Text>
                       ) : null}
                     </View>
 
@@ -806,45 +827,91 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                   </View>
                 ) : activePanel === 'privacy' ? (
                   <ScrollView style={styles.legalScroll} contentContainerStyle={styles.legalContentWrap}>
-                    {loadingBlocked ? (
-                      <Text style={styles.legalText}>{tr('Cargando bloqueados...', 'Loading blocked users...')}</Text>
-                    ) : blockedUsers.length === 0 ? (
-                      <Text style={styles.legalText}>{tr('No tienes usuarios bloqueados.', 'No blocked users.')}</Text>
-                    ) : (
-                      blockedUsers.map((user) => (
-                        <View key={user.uid} style={styles.blockedRow}>
-                          <View style={styles.blockedIdentity}>
-                            {user.photoUrl ? (
-                              <Image source={{ uri: user.photoUrl }} style={styles.blockedAvatar} />
-                            ) : (
-                              <View style={styles.blockedAvatarFallback}>
-                                <MaterialCommunityIcons name="account" size={15} color="#0D4D8A" />
-                              </View>
-                            )}
-                            <View style={styles.blockedTextCol}>
-                              <Text style={styles.blockedName}>{user.name}</Text>
-                              <Text style={styles.blockedDateText}>{formatBlockedMonthYear(user.createdAt)}</Text>
-                            </View>
-                          </View>
-
-                          <TouchableOpacity
-                            style={styles.unblockBtn}
-                            onPress={() => {
-                              Alert.alert(tr('Desbloquear usuario', 'Unblock user'), tr('Al desbloquear, este contacto podra escanear tus QR nuevamente.', 'By unblocking, this contact will be able to scan your QR again.'), [
-                                { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
-                                {
-                                  text: tr('Desbloquear', 'Unblock'),
-                                  style: 'destructive',
-                                  onPress: () => handleUnblock(user.uid),
-                                },
-                              ]);
-                            }}
-                          >
-                            <Text style={styles.unblockBtnText}>{tr('Desbloquear', 'Unblock')}</Text>
-                          </TouchableOpacity>
-                        </View>
-                      ))
-                    )}
+                    <Text style={styles.legalTitle}>{tr('Política de Privacidad', 'Privacy Policy')}</Text>
+                    <Text style={styles.legalText}>
+                      {tr(
+                        'Tus datos personales (nombre, email, teléfono) solo se usan para el funcionamiento de Card-Social. No compartimos tu información con terceros sin tu consentimiento. Puedes solicitar la eliminación de tu cuenta y datos en cualquier momento. También puedes descargar una copia de tus datos personales.',
+                        'Your personal data (name, email, phone) is only used for the operation of Card-Social. We do not share your information with third parties without your consent. You can request deletion of your account and data at any time. You can also download a copy of your personal data.'
+                      )}
+                    </Text>
+                    <TouchableOpacity
+                      style={[styles.editProfileBtn, { marginTop: 24, backgroundColor: '#0A2540' }]}
+                      onPress={() => {
+                        Alert.alert(
+                          tr('Descarga de datos', 'Download Data'),
+                          tr('Recibirás un archivo con tus datos personales próximamente.', 'You will receive a file with your personal data soon.')
+                        );
+                      }}
+                    >
+                      <MaterialCommunityIcons name="download" size={16} color="#FFFFFF" />
+                      <Text style={styles.editProfileBtnText}>{tr('Descargar mis datos', 'Download my data')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.editProfileBtn, { marginTop: 16, backgroundColor: '#B7343A' }]}
+                      onPress={async () => {
+                        // Primer mensaje
+                        Alert.alert(
+                          tr('Eliminar cuenta', 'Delete account'),
+                          tr('Estás eliminando tu cuenta, esto puede borrar para siempre tus datos. ¿Deseas continuar?', 'You are deleting your account, this may permanently erase your data. Continue?'),
+                          [
+                            { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+                            {
+                              text: tr('Aceptar', 'Accept'),
+                              style: 'destructive',
+                              onPress: async () => {
+                                // Segundo mensaje
+                                const now = new Date();
+                                const deadline = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+                                const deadlineStr = deadline.toLocaleDateString(language === 'en' ? 'en-US' : 'es-MX', { year: 'numeric', month: 'long', day: '2-digit' });
+                                Alert.alert(
+                                  tr('Confirmar eliminación', 'Confirm deletion'),
+                                  tr(
+                                    `¿Seguro? Pensamos en ti: tienes hasta 30 días para volver a iniciar sesión y no perderás tus datos. Fecha límite: ${deadlineStr}.`,
+                                    `Are you sure? You have up to 30 days to log in again and keep your data. Deadline: ${deadlineStr}.`
+                                  ),
+                                  [
+                                    { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+                                    {
+                                      text: tr('Aceptar', 'Accept'),
+                                      style: 'destructive',
+                                      onPress: async () => {
+                                        try {
+                                          const user = auth.currentUser;
+                                          if (user) {
+                                            const userId = user.uid;
+                                            // Marcar en Firestore como pendiente de eliminación
+                                            await updateDoc(doc(db, 'users', userId), {
+                                              pendingDeletion: true,
+                                              deletionRequestedAt: now,
+                                              deletionDeadline: deadline,
+                                            });
+                                            Alert.alert(
+                                              tr('Cuenta marcada para eliminación', 'Account marked for deletion'),
+                                              tr(
+                                                `Tu cuenta está marcada para eliminación. Si vuelves a iniciar sesión antes del ${deadlineStr}, tu cuenta será restaurada automáticamente.`,
+                                                `Your account is marked for deletion. If you log in again before ${deadlineStr}, your account will be automatically restored.`
+                                              )
+                                            );
+                                            setDrawerVisible(false);
+                                            setActivePanel('menu');
+                                            router.replace('/');
+                                          }
+                                        } catch (err) {
+                                          Alert.alert(tr('Error', 'Error'), tr('No se pudo marcar la cuenta para eliminación. Intenta nuevamente.', 'Could not mark account for deletion. Please try again.'));
+                                        }
+                                      },
+                                    },
+                                  ]
+                                );
+                              },
+                            },
+                          ]
+                        );
+                      }}
+                    >
+                      <MaterialCommunityIcons name="delete" size={16} color="#FFFFFF" />
+                      <Text style={styles.editProfileBtnText}>{tr('Eliminar mi cuenta', 'Delete my account')}</Text>
+                    </TouchableOpacity>
                   </ScrollView>
                 ) : activePanel === 'profile' ? (
                   <ScrollView style={styles.legalScroll} contentContainerStyle={styles.legalContentWrap}>

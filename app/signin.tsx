@@ -1,31 +1,30 @@
-import React, { useMemo, useState } from 'react';
-import {
-  Alert,
-  Image,
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
-} from 'react-native';
 import ActivityIndicator from '@/components/BrandedSpinner';
-import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Apple, Chrome, Eye, EyeOff, Github, Lock, Sparkles, User } from 'lucide-react-native';
-import { sendEmailVerification, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { auth, db } from '@/services/firebaseConfig';
-import { collection, getDocs, limit, query, where } from 'firebase/firestore';
-import { SocialProviderId } from '@/services/socialAuth';
-import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider } from '@/services/socialAuth';
 import { initiateAccountRecovery } from '@/services/accountRecoveryService';
 import { saveCachedCredentials } from '@/services/credentialVault';
+import { auth, db } from '@/services/firebaseConfig';
 import { useLanguage } from '@/services/language';
+import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, SocialProviderId } from '@/services/socialAuth';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import { sendEmailVerification, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { collection, getDocs, limit, query, where } from 'firebase/firestore';
+import { Eye, EyeOff, Lock, User } from 'lucide-react-native';
+import React, { useMemo, useState } from 'react';
+import {
+    Alert,
+    Image,
+    Keyboard,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
+} from 'react-native';
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -94,6 +93,44 @@ export default function SignInScreen() {
       }
 
       const credential = await signInWithEmailAndPassword(auth, resolvedEmail, normalizedPassword);
+
+      // --- SOFT DELETE RESTORE LOGIC ---
+      // Revisar si el usuario tiene pendingDeletion y si está dentro del periodo de gracia
+      try {
+        const userDocRef = (await import('firebase/firestore')).doc(db, 'users', credential.user.uid);
+        const userDocSnap = await (await import('firebase/firestore')).getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+          if (userData.pendingDeletion && userData.deletionDeadline) {
+            const now = Date.now();
+            const deadline = typeof userData.deletionDeadline === 'number' ? userData.deletionDeadline : new Date(userData.deletionDeadline).getTime();
+            if (now < deadline) {
+              // Restaurar cuenta: limpiar flags de borrado
+              await (await import('firebase/firestore')).updateDoc(userDocRef, {
+                pendingDeletion: false,
+                deletionRequestedAt: null,
+                deletionDeadline: null,
+              });
+              Alert.alert(
+                tr('Cuenta restaurada', 'Account restored'),
+                tr('Tu cuenta fue restaurada exitosamente. ¡Bienvenido de nuevo!', 'Your account has been successfully restored. Welcome back!')
+              );
+            } else {
+              // El periodo de gracia expiró, bloquear acceso
+              Alert.alert(
+                tr('Cuenta eliminada', 'Account deleted'),
+                tr('El periodo de restauración expiró. Tu cuenta ha sido eliminada permanentemente.', 'The restoration period has expired. Your account has been permanently deleted.')
+              );
+              await signOut(auth);
+              setIsSubmitting(false);
+              return;
+            }
+          }
+        }
+      } catch (restoreError) {
+        // Si hay error, continuar con el flujo normal
+      }
+      // --- END SOFT DELETE RESTORE LOGIC ---
 
       if (!credential.user.emailVerified) {
         setPendingVerificationEmail(resolvedEmail);

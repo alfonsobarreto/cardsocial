@@ -25,5 +25,14 @@
   "preview_pdf_ready": "documento listo",
   "crop_title": "Ajusta tu foto de perfil",
   "crop_hint": "Arrastra para mover · Pellizca para hacer zoom",
-  "crop_confirm": "Confirmar foto"
+  "crop_confirm": "Confirmar foto",
+  "auto_inactive": "Auto inactivo",
+  "auto_gps": "Auto activo con GPS",
+  "auto_cached": "Auto activo con ubicación en caché",
+  "auto_cache_offline": "Auto activo con caché sin red",
+  "auto_fallback": "Auto activo sin GPS (estimado local)",
+  "manual_day": "Modo manual: Día",
+  "manual_night": "Modo manual: Noche",
+  "icon_store": "Tienda de Iconos",
+  "vault_store": "Tienda del Búnker"
 }

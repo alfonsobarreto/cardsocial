@@ -3,10 +3,12 @@
  * Muestra el balance de créditos en el menú hamburguesa
  */
 
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+
 import { getUserCreditsBalance } from '@/services/creditsService';
+import { useLanguage } from '@/services/language';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 
 interface CreditsIndicatorProps {
   userId: string;
@@ -14,6 +16,8 @@ interface CreditsIndicatorProps {
 }
 
 export const CreditsIndicator: React.FC<CreditsIndicatorProps> = ({ userId, refreshTrigger }) => {
+  const { language } = useLanguage ? useLanguage() : { language: 'es' };
+  const tr = (es: string, en: string) => (language === 'en' ? en : es);
   const [creditsBalance, setCreditsBalance] = useState<number>(0);
   const [loading, setLoading] = useState(false);
 
@@ -29,7 +33,6 @@ export const CreditsIndicator: React.FC<CreditsIndicatorProps> = ({ userId, refr
         setLoading(false);
       }
     };
-
     fetchCredits();
   }, [userId, refreshTrigger]);
 
@@ -43,7 +46,7 @@ export const CreditsIndicator: React.FC<CreditsIndicatorProps> = ({ userId, refr
           style={styles.icon}
         />
         <View>
-          <Text style={styles.label}>Créditos CS</Text>
+          <Text style={styles.label}>{tr('Créditos CS', 'CS Credits')}</Text>
           <Text style={styles.balance}>{creditsBalance}</Text>
         </View>
       </View>

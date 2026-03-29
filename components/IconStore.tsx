@@ -1,5 +1,5 @@
 /**
- * Icon Store - Tienda de Iconos
+ * Icon Store - Tienda de Iconos / Icon Store
  * Los usuarios gratis compran packs de iconos con créditos CS
  * Los usuarios premium ven todos los packs como "Ya Desbloqueado"
  * 
@@ -14,24 +14,31 @@
 import { getActiveUserId } from '@/services/authSession';
 import { getUserCreditsBalance } from '@/services/creditsService';
 import { getAvailableIconPacks, getUserPurchasedPacks, IconPack, purchaseIconPack } from '@/services/iconPackService';
+import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Dimensions,
-  FlatList,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    FlatList,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
+
+// Traducción local
+const useTr = () => {
+  const { language } = useLanguage();
+  return (es: string, en: string) => language === 'en' ? en : es;
+};
 const CARD_WIDTH = (width - 32) / 2; // 2 columnas con padding
 
 interface IconStoreCardProps {
@@ -191,6 +198,7 @@ const IconPackCard: React.FC<IconStoreCardProps> = ({
  * Icon Store Screen Principal
  */
 export default function IconStore() {
+  const tr = useTr();
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
   const [packs, setPacks] = useState<IconPack[]>([]);
@@ -233,7 +241,7 @@ export default function IconStore() {
 
     } catch (error) {
       console.error('Error loading icon store:', error);
-      Alert.alert('Error', 'No se pudo cargar la tienda de iconos');
+      Alert.alert('Error', 'No se pudo cargar la tienda de iconos / Could not load icon store');
     } finally {
       setLoading(false);
     }
@@ -303,7 +311,7 @@ export default function IconStore() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size='large' color='#0A2540' />
-        <Text style={styles.loadingText}>Cargando tienda de iconos...</Text>
+        <Text style={styles.loadingText}>{tr('Cargando tienda de iconos...', 'Loading icon store...')}</Text>
       </View>
     );
   }
@@ -317,7 +325,7 @@ export default function IconStore() {
         end={{ x: 1, y: 1 }}
         style={styles.header}
       >
-        <Text style={styles.headerTitle}>🎨 Tienda de Iconos</Text>
+        <Text style={styles.headerTitle}>{`🎨 ${tr('icon_store', 'icon_store')}`}</Text>
         <Text style={styles.headerSubtitle}>Diseños exclusivos de Pochobs para tus tarjetas</Text>
 
         {/* Credits Display */}

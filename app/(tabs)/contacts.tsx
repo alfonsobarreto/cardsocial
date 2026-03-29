@@ -2224,7 +2224,7 @@ const styles = StyleSheet.create({
   },
   floatingScanButtonContainer: {
     position: 'absolute',
-    bottom: 80,
+    bottom: 16,
     right: 20,
     zIndex: 10,
   },

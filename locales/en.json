@@ -25,5 +25,14 @@
   "preview_pdf_ready": "document ready",
   "crop_title": "Adjust your profile photo",
   "crop_hint": "Drag to move · Pinch to zoom",
-  "crop_confirm": "Confirm photo"
+  "crop_confirm": "Confirm photo",
+  "auto_inactive": "Auto inactive",
+  "auto_gps": "Auto active with GPS",
+  "auto_cached": "Auto active with cached location",
+  "auto_cache_offline": "Auto active with cache offline",
+  "auto_fallback": "Auto active without GPS (local estimate)",
+  "manual_day": "Manual mode: Day",
+  "manual_night": "Manual mode: Night",
+  "icon_store": "Icon Store",
+  "vault_store": "Vault Store"
 }

@@ -3087,8 +3087,8 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   previewModalCard: {
-    width: '95%',
-    height: '95%',
+    width: '100%',
+    height: '70%',
     maxWidth: 600,
     borderRadius: 18,
     borderWidth: 1,

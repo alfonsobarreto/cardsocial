@@ -234,7 +234,7 @@ export default function ThemeChest({ onNavigateToForge }: Props) {
       {/* Header */}
       <View style={styles.header}>
         <MaterialCommunityIcons name="treasure-chest" size={24} color="#C5A065" />
-        <Text style={styles.headerTitle}>{tr('Cofre de Themes', 'Theme Chest')}</Text>
+        <Text style={styles.headerTitle}>{tr('Locker de Estilos', 'Theme Locker')}</Text>
       </View>
 
       <ScrollView
