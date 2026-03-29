@@ -12,50 +12,50 @@ function normalizeString(value, fallback = null) {
 }
 
 function createQrRoutes({ storage }) {
-    // Cambiar nickname con bloqueo de 30 días
-    router.put('/users/:uid/nickname', async (req, res) => {
-      try {
-        const db = await storage.connect();
-        const uid = String(req.params.uid || '').trim();
-        const newNickname = String(req.body?.nickname || '').trim();
-        if (!uid || !newNickname) {
-          return res.status(400).json({ ok: false, error: 'uid y nickname requeridos' });
-        }
-        // Buscar usuario
-        const user = await db.collection('users').findOne({ uid });
-        if (!user) {
-          return res.status(404).json({ ok: false, error: 'Usuario no encontrado' });
-        }
-        // Validar bloqueo de 30 días
-        const now = new Date();
-        const lastChange = user.lastUsernameChange ? new Date(user.lastUsernameChange) : null;
-        if (lastChange && (now - lastChange) < 30 * 24 * 60 * 60 * 1000) {
-          const nextAllowed = new Date(lastChange.getTime() + 30 * 24 * 60 * 60 * 1000);
-          return res.status(403).json({ ok: false, error: 'Solo puedes cambiar tu nombre de usuario cada 30 días', nextAllowed });
-        }
-        // Validar unicidad
-        const exists = await db.collection('users').findOne({ nicknameLower: newNickname.toLowerCase() });
-        if (exists && String(exists.uid) !== uid) {
-          return res.status(409).json({ ok: false, error: 'Ese nombre de usuario ya está en uso' });
-        }
-        // Actualizar nickname y lastUsernameChange
-        await db.collection('users').updateOne(
-          { uid },
-          {
-            $set: {
-              nickname: newNickname,
-              nicknameLower: newNickname.toLowerCase(),
-              lastUsernameChange: now,
-              updatedAt: now,
-            },
-          }
-        );
-        return res.status(200).json({ ok: true, nickname: newNickname, lastUsernameChange: now });
-      } catch (error) {
-        return res.status(500).json({ ok: false, error: error.message });
-      }
-    });
   const router = express.Router();
+  // Cambiar nickname con bloqueo de 30 días
+  router.put('/users/:uid/nickname', async (req, res) => {
+    try {
+      const db = await storage.connect();
+      const uid = String(req.params.uid || '').trim();
+      const newNickname = String(req.body?.nickname || '').trim();
+      if (!uid || !newNickname) {
+        return res.status(400).json({ ok: false, error: 'uid y nickname requeridos' });
+      }
+      // Buscar usuario
+      const user = await db.collection('users').findOne({ uid });
+      if (!user) {
+        return res.status(404).json({ ok: false, error: 'Usuario no encontrado' });
+      }
+      // Validar bloqueo de 30 días
+      const now = new Date();
+      const lastChange = user.lastUsernameChange ? new Date(user.lastUsernameChange) : null;
+      if (lastChange && (now - lastChange) < 30 * 24 * 60 * 60 * 1000) {
+        const nextAllowed = new Date(lastChange.getTime() + 30 * 24 * 60 * 60 * 1000);
+        return res.status(403).json({ ok: false, error: 'Solo puedes cambiar tu nombre de usuario cada 30 días', nextAllowed });
+      }
+      // Validar unicidad
+      const exists = await db.collection('users').findOne({ nicknameLower: newNickname.toLowerCase() });
+      if (exists && String(exists.uid) !== uid) {
+        return res.status(409).json({ ok: false, error: 'Ese nombre de usuario ya está en uso' });
+      }
+      // Actualizar nickname y lastUsernameChange
+      await db.collection('users').updateOne(
+        { uid },
+        {
+          $set: {
+            nickname: newNickname,
+            nicknameLower: newNickname.toLowerCase(),
+            lastUsernameChange: now,
+            updatedAt: now,
+          },
+        }
+      );
+      return res.status(200).json({ ok: true, nickname: newNickname, lastUsernameChange: now });
+    } catch (error) {
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+  });
 
   function buildRelationKey(uidA, uidB) {
     return [String(uidA || '').trim(), String(uidB || '').trim()].sort().join('::');
