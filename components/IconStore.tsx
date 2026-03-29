@@ -20,16 +20,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Dimensions,
-  FlatList,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    FlatList,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -326,7 +326,7 @@ export default function IconStore() {
         end={{ x: 1, y: 1 }}
         style={styles.header}
       >
-        <Text style={styles.headerTitle}>{`🎨 ${tr('Tienda de Iconos', 'Icon Store')}`}</Text>
+        <Text style={styles.headerTitle}>{`🎨 ${tr('Estudio de Tarjetas', 'Card Studio')}`}</Text>
         <Text style={styles.headerSubtitle}>{tr('Diseños exclusivos de Pochobs para tus tarjetas', 'Exclusive Pochobs designs for your cards')}</Text>
 
         {/* Credits Display */}

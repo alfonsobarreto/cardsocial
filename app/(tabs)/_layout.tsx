@@ -11,10 +11,10 @@ import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { listBlockedRelations, unblockRelationship } from '@/services/qrApi';
 import {
-    type RelationshipEntry,
-    type RelationshipStatus,
-    listRelationshipsByStatus,
-    removeRelationship as removeRelEntry
+  type RelationshipEntry,
+  type RelationshipStatus,
+  listRelationshipsByStatus,
+  removeRelationship as removeRelEntry
 } from '@/services/relationshipService';
 import { isSuperAdmin } from '@/services/roleService';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -24,32 +24,32 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Tabs, useRouter } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import {
-    collection,
-    doc,
-    getDoc,
-    getDocs,
-    query,
-    serverTimestamp,
-    updateDoc,
-    where
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where
 } from 'firebase/firestore';
 import { CreditCard, Database, Phone, PlayCircle, Search, Users } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Alert,
-    Image,
-    Keyboard,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  Alert,
+  Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from 'react-native';
 
 type BlockedUser = {
@@ -104,8 +104,8 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
     if (activePanel === 'policy') return tr('Política de Uso', 'Usage Policy');
     if (activePanel === 'about') return tr('Acerca de Card-Social', 'About Card-Social');
     if (activePanel === 'privacy') return tr('Privacidad', 'Privacy');
-    if (activePanel === 'subscription') return tr('vault_store', 'vault_store');
-    if (activePanel === 'icon_store') return `🎨 ${tr('icon_store', 'icon_store')}`;
+    if (activePanel === 'subscription') return tr('Suscripción', 'Subscription');
+    if (activePanel === 'icon_store') return `🎨 ${tr('Estudio de Tarjetas', 'Card Studio')}`;
     if (activePanel === 'theme_chest') return tr('🔒 Locker de Estilos', '🔒 Theme Locker');
     if (activePanel === 'blocked_users') return tr('Gestión de Relaciones', 'Relationship Manager');
     return tr('Menú', 'Menu');
@@ -694,7 +694,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                 <ConfettiAnimation ref={confettiRef} />
 
                 {activePanel === 'menu' ? (
-                  <View style={styles.drawerMenuList}>
+                  <ScrollView style={styles.drawerMenuList} contentContainerStyle={{ paddingBottom: 32 }}>
                     <TouchableOpacity
                       style={[styles.drawerItem, styles.drawerItemHighlight]}
                       onPress={() => {
@@ -703,40 +703,20 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                       }}
                     >
                       <MaterialCommunityIcons name="account-circle-outline" size={18} color="#C5A065" />
-                      <Text style={[styles.drawerItemText, { color: '#C5A065', fontWeight: '700' }]}>{tr('Mi Perfil', 'My Profile')}</Text>
+                      <Text style={[styles.drawerItemText, { color: '#C5A065', fontWeight: '700' }]}>{tr('Cuenta', 'Account')}</Text>
                     </TouchableOpacity>
 
 
-                    {/* Mostrar ítems legales solo si NO es super_admin */}
-                    {!userIsSuperAdmin && (
-                      <>
-                        <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('terms')}>
-                          <MaterialCommunityIcons name="file-document-outline" size={18} color="#0D4D8A" />
-                          <Text style={styles.drawerItemText}>{tr('Términos y Condiciones', 'Terms & Conditions')}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('policy')}>
-                          <MaterialCommunityIcons name="shield-lock-outline" size={18} color="#0D4D8A" />
-                          <Text style={styles.drawerItemText}>{tr('Política de Uso', 'Usage Policy')}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('about')}>
-                          <MaterialCommunityIcons name="information-outline" size={18} color="#0D4D8A" />
-                          <Text style={styles.drawerItemText}>{tr('Acerca de Card-Social', 'About Card-Social')}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('privacy')}>
-                          <MaterialCommunityIcons name="shield-account-outline" size={18} color="#0D4D8A" />
-                          <Text style={styles.drawerItemText}>{tr('Privacidad', 'Privacy')}</Text>
-                        </TouchableOpacity>
-                      </>
-                    )}
+
 
                     <TouchableOpacity style={styles.drawerItem} onPress={() => { setDrawerVisible(false); router.push('/vault_store'); }}>
                       <MaterialCommunityIcons name="store" size={18} color="#C5A065" />
-                      <Text style={[styles.drawerItemText, { color: '#C5A065', fontWeight: '600' }]}>{tr('vault_store', 'vault_store')}</Text>
+                      <Text style={[styles.drawerItemText, { color: '#C5A065', fontWeight: '600' }]}>{tr('Suscripción', 'Subscription')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.drawerItem} onPress={() => { setDrawerVisible(false); router.push('/icon_store'); }}>
                       <MaterialCommunityIcons name="palette-outline" size={18} color="#0D4D8A" />
-                      <Text style={styles.drawerItemText}>{`🎨 ${tr('icon_store', 'icon_store')}`}</Text>
+                      <Text style={styles.drawerItemText}>{`🎨 ${tr('Estudio de Tarjetas', 'Card Studio')}`}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.drawerItem} onPress={() => { setDrawerVisible(false); router.push('/theme_locker'); }}>
@@ -758,9 +738,27 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                     )}
 
 
-                    <TouchableOpacity style={styles.drawerItem}>
+                    <TouchableOpacity style={styles.drawerItem} onPress={() => { setDrawerVisible(false); router.push('/settings'); }}>
                       <MaterialCommunityIcons name="cog-outline" size={18} color="#0D4D8A" />
                       <Text style={styles.drawerItemText}>{tr('Configuración', 'Settings')}</Text>
+                    </TouchableOpacity>
+
+                    {/* Botones legales restaurados */}
+                    <TouchableOpacity style={styles.drawerItem} onPress={() => { setActivePanel('terms'); }}>
+                      <MaterialCommunityIcons name="file-document-outline" size={18} color="#0D4D8A" />
+                      <Text style={styles.drawerItemText}>{tr('Términos y Condiciones', 'Terms & Conditions')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.drawerItem} onPress={() => { setActivePanel('policy'); }}>
+                      <MaterialCommunityIcons name="shield-lock-outline" size={18} color="#0D4D8A" />
+                      <Text style={styles.drawerItemText}>{tr('Política de Uso', 'Usage Policy')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.drawerItem} onPress={() => { setActivePanel('about'); }}>
+                      <MaterialCommunityIcons name="information-outline" size={18} color="#0D4D8A" />
+                      <Text style={styles.drawerItemText}>{tr('Acerca de Card-Social', 'About Card-Social')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.drawerItem} onPress={() => { setActivePanel('privacy'); }}>
+                      <MaterialCommunityIcons name="shield-account-outline" size={18} color="#0D4D8A" />
+                      <Text style={styles.drawerItemText}>{tr('Privacidad', 'Privacy')}</Text>
                     </TouchableOpacity>
 
 
@@ -822,7 +820,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                       <MaterialCommunityIcons name="logout" size={18} color="#0D4D8A" />
                       <Text style={styles.drawerItemText}>{tr('Cerrar Sesión', 'Sign Out')}</Text>
                     </TouchableOpacity>
-                  </View>
+                  </ScrollView>
                 ) : activePanel === 'privacy' ? (
                   <ScrollView style={styles.legalScroll} contentContainerStyle={styles.legalContentWrap}>
                     <Text style={styles.legalTitle}>{tr('Política de Privacidad', 'Privacy Policy')}</Text>
@@ -913,13 +911,14 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                   </ScrollView>
                 ) : activePanel === 'profile' ? (
                   <ScrollView style={styles.legalScroll} contentContainerStyle={styles.legalContentWrap}>
-                    {profileLoading ? (
-                      <Text style={styles.legalText}>{tr('Cargando perfil...', 'Loading profile...')}</Text>
-                    ) : !profileData ? (
-                      <Text style={styles.legalText}>{tr('No se pudo cargar tu perfil.', 'Could not load your profile.')}</Text>
-                    ) : (
-                      <>
-                        <View style={styles.profileCard}>
+                              {profileLoading ? (
+                                <Text style={styles.legalText}>{tr('Cargando perfil...', 'Loading profile...')}</Text>
+                              ) : !profileData ? (
+                                <Text style={styles.legalText}>{tr('No se pudo cargar tu perfil.', 'Could not load your profile.')}</Text>
+                              ) : (
+                                <>
+                                  <View style={styles.profileCard}>
+                                                  {/* ...existing code... */}
                           <Text style={styles.profileLabel}>{tr('Nombre', 'Name')}</Text>
                           <Text style={styles.profileValue}>{profileData.fullName}</Text>
 

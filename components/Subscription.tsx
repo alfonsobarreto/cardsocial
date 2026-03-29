@@ -140,7 +140,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
       {/* HEADER */}
       <LinearGradient colors={['#0A2540', '#1A3D5C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
         <MaterialCommunityIcons name="store" size={32} color="#C5A065" />
-        <Text style={styles.headerTitle}>{tr('Tienda del Búnker', 'Vault Store')}</Text>
+        <Text style={styles.headerTitle}>{tr('Suscripción', 'Subscription')}</Text>
         <Text style={styles.headerSubtitle}>{tr('Créditos y Licencias Anuales por Tarjeta', 'Credits and Annual Licenses per Card')}</Text>
       </LinearGradient>
 

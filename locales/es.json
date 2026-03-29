@@ -33,6 +33,6 @@
   "auto_fallback": "Auto activo sin GPS (estimado local)",
   "manual_day": "Modo manual: Día",
   "manual_night": "Modo manual: Noche",
-  "icon_store": "Tienda de Iconos",
-  "vault_store": "Tienda del Búnker"
+  "icon_store": "Estudio de Tarjetas",
+  "vault_store": "Suscripción"
 }

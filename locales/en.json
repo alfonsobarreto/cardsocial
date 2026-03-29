@@ -33,6 +33,6 @@
   "auto_fallback": "Auto active without GPS (local estimate)",
   "manual_day": "Manual mode: Day",
   "manual_night": "Manual mode: Night",
-  "icon_store": "Icon Store",
-  "vault_store": "Vault Store"
+  "icon_store": "Card Studio",
+  "vault_store": "Subscription"
 }
