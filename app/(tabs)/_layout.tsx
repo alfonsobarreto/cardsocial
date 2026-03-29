@@ -143,9 +143,12 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
 
   const handleSignOut = async () => {
     try {
+      // Limpieza de memoria: elimina el flag de bloqueo biométrico y otras claves sensibles
+      try {
+        await AsyncStorage.removeItem('@app_lock_enabled');
+        // Ejemplo: await AsyncStorage.removeItem('OTRA_CLAVE_SENSIBLE');
+      } catch {}
       await signOut(auth);
-      // Borrar toda la memoria local del teléfono — cero fugas de privacidad
-      await AsyncStorage.clear();
     } catch {
       // Keep UX smooth even if session was already anonymous or expired.
     } finally {

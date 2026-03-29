@@ -1,16 +1,16 @@
+
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { authenticateWithBiometric, checkBiometricAvailability, hardLockCheck } from '@/services/biometricAuth';
-import { auth, db } from '@/services/firebaseConfig';
 import { LanguageProvider, useLanguage } from '@/services/language';
 import { LookModeProvider } from '@/services/lookMode';
 import { NetworkProvider } from '@/services/NetworkProvider';
-import { Stack, useRouter, useSegments } from 'expo-router';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { useEffect, useRef } from 'react';
-import { Alert, AppState } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as LocalAuthentication from 'expo-local-authentication';
+import { Stack } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, AppState, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Toast from 'react-native-toast-message';
+
 
 export default function RootLayout() {
   return (
@@ -26,133 +26,89 @@ export default function RootLayout() {
   );
 }
 
+
 function RootNavigator() {
-  const router = useRouter();
-  const segments = useSegments();
+  const [isLocked, setIsLocked] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const appState = useRef(AppState.currentState);
   const { language } = useLanguage();
   const tr = (es: string, en: string) => (language === 'en' ? en : es);
-  const lastAppState = useRef(AppState.currentState);
-  const biometricPromptShownForUid = useRef<string | null>(null);
 
-  useEffect(() => {
-    const inProtectedTabs = segments[0] === '(tabs)';
-    if (!inProtectedTabs) {
-      return;
-    }
-
-    const enforceGuard = async () => {
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        router.replace('/signin' as never);
-        return;
+  // Función para lanzar biometría
+  const handleBiometricAuth = async () => {
+    setIsLoading(true);
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: tr('Búnker Card-Social: Identidad requerida', 'Card-Social Bunker: Identity required'),
+        fallbackLabel: tr('Usar código', 'Use passcode'),
+      });
+      if (result.success) {
+        setIsLocked(false);
+      } else {
+        setIsLocked(true);
       }
+    } catch {
+      setIsLocked(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-      await currentUser.reload().catch(() => null);
-      const refreshedUser = auth.currentUser;
-      if (!refreshedUser?.emailVerified) {
-        await signOut(auth).catch(() => null);
-        Alert.alert(
-          tr('Email no verificado', 'Email not verified'),
-          tr('Debes verificar tu correo antes de entrar al panel privado.', 'You must verify your email before entering the private dashboard.')
-        );
-        router.replace('/signin' as never);
+  // Vigilante de AppState
+  useEffect(() => {
+    const checkLock = async () => {
+      const enabled = await AsyncStorage.getItem('@app_lock_enabled');
+      if (enabled === 'true') {
+        setIsLocked(true);
+        await handleBiometricAuth();
+      } else {
+        setIsLocked(false);
       }
     };
 
-    void enforceGuard();
-  }, [router, segments]);
+    // Al montar
+    checkLock();
 
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', async (nextState) => {
-      const wasBackground = lastAppState.current === 'background' || lastAppState.current === 'inactive';
-      lastAppState.current = nextState;
-
-      if (!wasBackground || nextState !== 'active') {
-        return;
+    // Al cambiar AppState
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (
+        (appState.current === 'background' || appState.current === 'inactive') &&
+        nextState === 'active'
+      ) {
+        checkLock();
       }
-
-      if (!auth.currentUser) {
-        return;
-      }
-
-      const unlocked = await hardLockCheck(tr('reanudar tu sesión', 'resume your session'));
-      if (!unlocked) {
-        await signOut(auth);
-        router.replace('/signin' as never);
-      }
+      appState.current = nextState;
     });
 
     return () => sub.remove();
-  }, [router]);
+  }, []);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        biometricPromptShownForUid.current = null;
-        return;
-      }
+  // UI de bloqueo
+  if (isLocked) {
+    return (
+      <View style={styles.lockScreen}>
+        <Image
+          source={require('@/assets/images/CSLogo.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        <Text style={styles.lockTitle}>{tr('Búnker Card-Social', 'Card-Social Bunker')}</Text>
+        <TouchableOpacity
+          style={styles.unlockButton}
+          onPress={handleBiometricAuth}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.unlockButtonText}>{tr('Desbloquear Búnker', 'Unlock Bunker')}</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
-      if (biometricPromptShownForUid.current === user.uid) {
-        return;
-      }
-
-      const userRef = doc(db, 'users', user.uid);
-      const userSnap = await getDoc(userRef);
-      if (!userSnap.exists()) {
-        return;
-      }
-
-      const userData = userSnap.data() as { biometricEnabled?: boolean; biometricPreferenceAsked?: boolean };
-      if (userData.biometricPreferenceAsked) {
-        biometricPromptShownForUid.current = user.uid;
-        return;
-      }
-
-      const biometric = await checkBiometricAvailability();
-      biometricPromptShownForUid.current = user.uid;
-
-      if (!biometric.available) {
-        await updateDoc(userRef, {
-          biometricEnabled: false,
-          biometricPreferenceAsked: true,
-        });
-        return;
-      }
-
-      Alert.alert(
-        tr('Protección biométrica', 'Biometric protection'),
-        tr('Activa FaceID/TouchID para proteger tu Búnker y Tarjetas de Negocio.', 'Enable FaceID/TouchID to protect your Vault and Business Cards.'),
-        [
-          {
-            text: tr('Ahora no', 'Not now'),
-            style: 'cancel',
-            onPress: async () => {
-              await updateDoc(userRef, {
-                biometricEnabled: false,
-                biometricPreferenceAsked: true,
-              });
-            },
-          },
-          {
-            text: tr('Activar', 'Enable'),
-            onPress: async () => {
-              const ok = await authenticateWithBiometric(
-                tr('Activa protección biométrica en Card-Social', 'Enable biometric protection in Card-Social'),
-                true
-              );
-              await updateDoc(userRef, {
-                biometricEnabled: ok,
-                biometricPreferenceAsked: true,
-              });
-            },
-          },
-        ]
-      );
-    });
-
-    return () => unsubscribe();
-  }, [tr]);
-
+  // UI normal
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Stack>
@@ -162,7 +118,7 @@ function RootNavigator() {
           name="signin" 
           options={{ 
             title: language === 'en' ? 'Sign In' : 'Iniciar sesion',
-            headerStyle: { backgroundColor: '#fff' } // Puedes personalizar el color si quieres
+            headerStyle: { backgroundColor: '#fff' }
           }} 
         />
         <Stack.Screen name="register" options={{ title: language === 'en' ? 'Sign Up' : 'Registro' }} />
@@ -173,3 +129,35 @@ function RootNavigator() {
     </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  lockScreen: {
+    flex: 1,
+    backgroundColor: '#0D4D8A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logo: {
+    width: 120,
+    height: 120,
+    marginBottom: 32,
+  },
+  lockTitle: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 32,
+  },
+  unlockButton: {
+    backgroundColor: '#1CB0F6',
+    paddingVertical: 18,
+    paddingHorizontal: 36,
+    borderRadius: 32,
+    marginTop: 12,
+  },
+  unlockButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+});

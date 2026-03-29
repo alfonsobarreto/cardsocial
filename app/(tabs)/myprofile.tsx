@@ -25,28 +25,61 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import {
-  EmailAuthProvider,
-  reauthenticateWithCredential,
-  updatePassword,
+    EmailAuthProvider,
+    reauthenticateWithCredential,
+    signOut,
+    updatePassword,
 } from 'firebase/auth';
 import { collection, doc, getDoc, getDocs, serverTimestamp, updateDoc } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActionSheetIOS,
-  Alert,
-  InteractionManager,
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View
+    ActionSheetIOS,
+    Alert,
+    InteractionManager,
+    Keyboard,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View
 } from 'react-native';
 import palette from '../theme';
+  // Zona de peligro: eliminar cuenta
+  const handleDeleteAccount = async () => {
+    Alert.alert(
+      tr('Confirmar Eliminación', 'Confirm Delete'),
+      tr(
+        'Tu cuenta será desactivada inmediatamente y eliminada de forma permanente en 30 días. Si inicias sesión antes, la eliminación se cancelará. ¿Deseas continuar?',
+        'Your account will be deactivated immediately and permanently deleted in 30 days. If you log in before then, deletion will be cancelled. Continue?'
+      ),
+      [
+        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+        {
+          text: tr('Sí, eliminar cuenta', 'Yes, delete account'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              if (!profile) throw new Error('No user');
+              const now = new Date();
+              const deadline = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+              await updateDoc(doc(db, 'users', profile.uid), {
+                pendingDeletion: true,
+                deletionRequestedAt: now,
+                deletionDeadline: deadline,
+              });
+              await signOut(auth);
+            } catch (e) {
+              Alert.alert(tr('Error', 'Error'), tr('No se pudo marcar la cuenta para eliminación.', 'Could not mark account for deletion.'));
+            }
+          },
+        },
+      ]
+    );
+  };
 
 // ─── Photo helpers ─────────────────────────────────────────────────────────────
 const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
@@ -844,6 +877,38 @@ export default function MyProfileScreen() {
             )}
 
             <View style={{ height: 60 }} />
+
+            {/* Zona de Peligro: Eliminar Cuenta */}
+            <View style={{
+              borderTopWidth: 1,
+              borderColor: '#B7343A33',
+              marginTop: 32,
+              paddingTop: 24,
+              alignItems: 'center',
+            }}>
+              <Text style={{ color: '#B7343A', fontWeight: 'bold', marginBottom: 10, fontSize: 15 }}>
+                {tr('Zona de Peligro', 'Danger Zone')}
+              </Text>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: '#B7343A',
+                  borderRadius: 10,
+                  paddingVertical: 14,
+                  paddingHorizontal: 32,
+                  marginTop: 4,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+                onPress={handleDeleteAccount}
+                activeOpacity={0.85}
+              >
+                <MaterialCommunityIcons name="delete" size={18} color="#fff" />
+                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 15 }}>
+                  {tr('Eliminar Cuenta', 'Delete Account')}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </ScrollView>
         </LinearGradient>
       </KeyboardAvoidingView>
