@@ -13,17 +13,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Alert,
-    Dimensions,
-    InteractionManager,
-    Modal,
-    PanResponder,
-    SectionList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  Alert,
+  Dimensions,
+  InteractionManager,
+  Modal,
+  PanResponder,
+  SectionList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from 'react-native';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -591,9 +591,15 @@ const styles = StyleSheet.create({
   },
   sheet: {
     borderTopWidth: 1.5,
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    paddingBottom: 24,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderRadius: 0,
+    paddingBottom: 0,
+    paddingHorizontal: 0,
+    zIndex: 3000,
+    elevation: 30,
+    width: '100%',
+    flex: 1,
   },
   dragHandleWrap: {
     alignItems: 'center',

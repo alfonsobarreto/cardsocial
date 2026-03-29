@@ -20,24 +20,24 @@ import * as Sharing from 'expo-sharing';
 import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    Dimensions,
-    FlatList,
-    InteractionManager,
-    Linking,
-    Modal,
-    PanResponder,
-    Platform,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Dimensions,
+  FlatList,
+  InteractionManager,
+  Linking,
+  Modal,
+  PanResponder,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import NewInfoForm from '../components/NewInfoForm';
@@ -117,7 +117,7 @@ const VaultScreen = () => {
   const [isUserVerified, setIsUserVerified] = useState(false);
   const [limitReachedVisible, setLimitReachedVisible] = useState(false);
   const [limitItemCount, setLimitItemCount] = useState(0);
-  const [limitMaxItems, setLimitMaxItems] = useState(FREE_TIER_POLICY.vaultItems);
+  const [limitMaxItems, setLimitMaxItems] = useState<number>(FREE_TIER_POLICY.vaultItems);
   const [isVaultUnlocked, setIsVaultUnlocked] = useState(false);
   const [isDullMode, setIsDullMode] = useState(false);
   const [dullModeLockVisible, setDullModeLockVisible] = useState(false);

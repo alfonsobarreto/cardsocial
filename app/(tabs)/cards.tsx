@@ -10,13 +10,13 @@ import { useLanguage } from '@/services/language';
 import { validateCardCreation } from '@/services/limitService';
 import { useLookMode } from '@/services/lookMode';
 import {
-    blockRelationship,
-    deleteSmartCardInDb,
-    issueDynamicQrToken,
-    listCardSubscribers,
-    listSmartCardsFromDb,
-    revokeCardSubscriber,
-    upsertSmartCardInDb,
+  blockRelationship,
+  deleteSmartCardInDb,
+  issueDynamicQrToken,
+  listCardSubscribers,
+  listSmartCardsFromDb,
+  revokeCardSubscriber,
+  upsertSmartCardInDb,
 } from '@/services/qrApi';
 import { getCardRowTheme } from '@/services/useActiveTheme';
 import { getWallpaperResizeMode, type WallpaperItem, type WallpaperTier } from '@/services/wallpaperService';
@@ -32,25 +32,25 @@ import { Gyroscope } from 'expo-sensors';
 import { doc, getDoc } from 'firebase/firestore';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Alert,
-    Animated,
-    AppState,
-    FlatList,
-    Image,
-    InteractionManager,
-    Keyboard,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    useWindowDimensions,
-    View
+  Alert,
+  Animated,
+  AppState,
+  FlatList,
+  Image,
+  InteractionManager,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  useWindowDimensions,
+  View
 } from 'react-native';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import QRCode from 'react-native-qrcode-svg';
@@ -1635,13 +1635,7 @@ export default function CardsFactoryScreen() {
           <Text style={[styles.headerSubtitle, { color: cardsTheme.sectionLabel }]}>{smartCards.length} / 30 {tr('tarjetas', 'cards')}</Text>
         </View>
         <View style={styles.headerActionsRow}>
-          {/* [CUARENTENA] Botón de escanear deshabilitado */}
-          {/*
-          <TouchableOpacity style={[styles.scanBtn, { backgroundColor: cardsTheme.btnPrimary }]} onPress={() => router.push('/scan' as any)} activeOpacity={0.82}>
-            <MaterialCommunityIcons name="qrcode-scan" size={18} color={cardsTheme.btnPrimaryText} />
-            <Text style={[styles.scanBtnText, { color: cardsTheme.btnPrimaryText }]}>Escanear</Text>
-          </TouchableOpacity>
-          */}
+          
         </View>
       </View>
 
@@ -2453,20 +2447,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  scanBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#54C1FB',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    height: 40,
-  },
-  scanBtnText: {
-    color: '#0A1A2F',
-    fontSize: 12,
-    fontWeight: '700',
-  },
+
+
   createBtn: {
     width: 44,
     height: 44,

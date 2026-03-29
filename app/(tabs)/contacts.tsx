@@ -1,11 +1,13 @@
+import ErrorBoundary from '@/components/ErrorBoundary';
+import FlexGrid from '@/components/FlexGrid';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import {
-    getIncomingGhostLinkInvite,
-    respondGhostLinkInvite,
-    startGhostLinkVoipCall,
-    type GhostLinkCallStartResult,
-    type GhostLinkIncomingInvite,
+  getIncomingGhostLinkInvite,
+  respondGhostLinkInvite,
+  startGhostLinkVoipCall,
+  type GhostLinkCallStartResult,
+  type GhostLinkIncomingInvite,
 } from '@/services/ghostLinkVoip';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
@@ -19,23 +21,23 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    AppState,
-    Easing,
-    FlatList,
-    LayoutAnimation,
-    Modal,
-    Platform,
-    Pressable,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    UIManager,
-    View
+  ActivityIndicator,
+  Alert,
+  Animated,
+  AppState,
+  Easing,
+  LayoutAnimation,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  UIManager,
+  View
 } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 
 type Contact = {
   uid: string;
@@ -47,13 +49,29 @@ type Contact = {
   holdersCount: number;
   addedAt: string | null;
   storyState?: 'none' | 'normal' | 'vip';
+  meta?: {
+    group: string;
+    isFavorite: boolean;
+    firstSeenAt: string;
+    storyState: 'none' | 'normal' | 'vip';
+  };
 };
+
+type ContactRow = { type: 'contact'; key: string; contact: Contact };
+type HeaderRow = { type: 'header'; key: string; title: string };
+type ContactListRow = ContactRow | HeaderRow;
 
 type ContactMeta = {
   group: string;
   isFavorite: boolean;
   firstSeenAt: string;
   storyState?: 'none' | 'normal' | 'vip';
+  icons?: Icon[]; // Add icons property to support icon search
+};
+
+type Icon = {
+  name: string;
+  url: string;
 };
 
 type SortMode = 'name' | 'card' | 'date' | 'groups';
@@ -96,7 +114,22 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
+
+import { Keyboard, TouchableWithoutFeedback } from 'react-native';
+
 export default function ContactsPage() {
+  return (
+    <ErrorBoundary>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <View style={{ flex: 1 }}>
+          <ContactsContent />
+        </View>
+      </TouchableWithoutFeedback>
+    </ErrorBoundary>
+  );
+}
+
+function ContactsContent() {
   const router = useRouter();
   const { language } = useLanguage();
   const { resolvedMode } = useLookMode();
@@ -405,7 +438,8 @@ export default function ContactsPage() {
           const byNick = row.nickname.toLowerCase().includes(q);
           const byCard = row.cardName.toLowerCase().includes(q);
           const byGroup = row.meta.group.toLowerCase().includes(q);
-          return byName || byNick || byCard || byGroup;
+          const byIcon = row.meta.icons?.some((icon) => icon.name.toLowerCase().includes(q) || icon.url.toLowerCase().includes(q));
+          return byName || byNick || byCard || byGroup || byIcon;
         })
       : withMeta;
 
@@ -840,7 +874,7 @@ export default function ContactsPage() {
     setLongPressVisible(true);
   };
 
-  const renderRow = ({ item }: { item: any }) => {
+  const renderRow = ({ item }: { item: { type: 'contact' | 'header'; key: string; title?: string; contact?: Contact } }) => {
     if (item.type === 'header') {
       return (
         <View style={styles.groupHeaderWrap}>
@@ -849,159 +883,223 @@ export default function ContactsPage() {
       );
     }
 
-    const row = item.contact;
+    const row = item.contact!;
     const isAlert = Number(row.ratingAvg || 0) <= RATING_ALERT;
 
     return (
-      <TouchableOpacity
-        style={[styles.contactCard, { backgroundColor: contactsTheme.cardBg, borderColor: contactsTheme.cardBorder }]}
-        onPress={() => openFloatingCard(row)}
-        onLongPress={() => onLongPressRow(row)}
-        delayLongPress={3000}
-        activeOpacity={0.9}
+      <Swipeable
+        renderRightActions={() => (
+          <View style={styles.swipeActionsContainer}>
+            <TouchableOpacity
+              style={styles.swipeActionButton}
+              onPress={() => handleDeleteContact(row.uid)}
+            >
+              <MaterialCommunityIcons name="trash-can-outline" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.swipeActionButton}
+              onPress={() => handleBlockContact(row.uid)}
+            >
+              <MaterialCommunityIcons name="block-helper" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        )}
       >
-        <View
-          style={[
-            styles.avatarRing,
-            row.storyState === 'vip' || row.meta.storyState === 'vip'
-              ? styles.avatarRingVip
-              : row.storyState === 'normal' || row.meta.storyState === 'normal'
-                ? styles.avatarRingNormal
-                : styles.avatarRingNone,
-          ]}
-        >
-          {row.photoUrl ? (
-            <ExpoImage source={{ uri: row.photoUrl }} style={styles.avatar} cachePolicy="disk" />
-          ) : (
-            <View style={[styles.avatarFallback, { backgroundColor: contactsTheme.avatarFallbackBg, borderColor: contactsTheme.avatarFallbackBorder }]}>
-              <MaterialCommunityIcons name="account" size={18} color={contactsTheme.iconColor} />
-            </View>
-          )}
-        </View>
-
-        <View style={{ flex: 1 }}>
-          <View style={styles.nameRow}>
-            <Text style={[styles.contactName, { color: contactsTheme.textPrimary }]} numberOfLines={1}>{row.name}</Text>
-            <Text style={[styles.contactNick, { color: contactsTheme.textSecondary }]} numberOfLines={1}>@{row.nickname}</Text>
-          </View>
-          <Text style={[styles.cardNameText, { color: contactsTheme.textSecondary }]} numberOfLines={1}>{row.cardName}</Text>
-          <View style={styles.metaRow}>
-            {renderStars(row.ratingAvg)}
-            <Text style={[styles.ratingNumber, isAlert && styles.ratingNumberAlert, { color: contactsTheme.textPrimary }]}>{Number(row.ratingAvg || 0).toFixed(1)}</Text>
-            <View style={[styles.holdersPill, { backgroundColor: contactsTheme.pillBg, borderColor: contactsTheme.pillBorder }]}>
-              <MaterialCommunityIcons name="account-group-outline" size={12} color={contactsTheme.iconColor} />
-              <Text style={[styles.holdersPillText, { color: contactsTheme.pillText }]}>{row.holdersCount}</Text>
-            </View>
-          </View>
-        </View>
-
         <TouchableOpacity
-          style={styles.rowTrashBtn}
-          activeOpacity={0.86}
-          onPress={() => {
-            Alert.alert('Eliminar contacto', 'Se eliminara esta relacion de tu lista.', [
-              { text: 'Cancelar', style: 'cancel' },
-              {
-                text: 'Eliminar',
-                style: 'destructive',
-                onPress: () => handleDeleteContact(row.uid),
-              },
-            ]);
-          }}
-        >
-          <MaterialCommunityIcons name="trash-can-outline" size={18} color="#FFFFFF" />
+          style={[styles.contactCard, { backgroundColor: contactsTheme.cardBg, borderColor: contactsTheme.cardBorder }]}>
+          <View
+            style={[
+              styles.avatarRing,
+              row.storyState === 'vip' || row.meta?.storyState === 'vip'
+                ? styles.avatarRingVip
+                : row.storyState === 'normal' || row.meta?.storyState === 'normal'
+                  ? styles.avatarRingNormal
+                  : styles.avatarRingNone,
+            ]}
+          >
+            {row.photoUrl ? (
+              <ExpoImage source={{ uri: row.photoUrl }} style={styles.avatar} cachePolicy="disk" />
+            ) : (
+              <View style={[styles.avatarFallback, { backgroundColor: contactsTheme.avatarFallbackBg, borderColor: contactsTheme.avatarFallbackBorder }]}>
+                <MaterialCommunityIcons name="account" size={18} color={contactsTheme.iconColor} />
+              </View>
+            )}
+          </View>
+
+          <View style={{ flex: 1 }}>
+            <View style={styles.nameRow}>
+              <Text style={[styles.contactName, { color: contactsTheme.textPrimary }]} numberOfLines={1}>{row.name}</Text>
+              <Text style={[styles.contactNick, { color: contactsTheme.textSecondary }]} numberOfLines={1}>@{row.nickname}</Text>
+            </View>
+            <Text style={[styles.cardNameText, { color: contactsTheme.textSecondary }]} numberOfLines={1}>{row.cardName}</Text>
+            <View style={styles.metaRow}>
+              {renderStars(row.ratingAvg)}
+              <Text style={[styles.ratingNumber, isAlert && styles.ratingNumberAlert, { color: contactsTheme.textPrimary }]}>{Number(row.ratingAvg || 0).toFixed(1)}</Text>
+              <View style={[styles.holdersPill, { backgroundColor: contactsTheme.pillBg, borderColor: contactsTheme.pillBorder }]}>
+                <MaterialCommunityIcons name="account-group-outline" size={12} color={contactsTheme.iconColor} />
+                <Text style={[styles.holdersPillText, { color: contactsTheme.pillText }]}>{row.holdersCount}</Text>
+              </View>
+            </View>
+          </View>
         </TouchableOpacity>
-      </TouchableOpacity>
+      </Swipeable>
     );
   };
 
+
   return (
     <LinearGradient colors={isNight ? ['#071A32', '#0A2540', '#0F2C50'] : ['#EAF7FF', '#CDEFFF', '#B8E7FF']} style={styles.container}>
+      {/* Header with title and Sort button */}
       <View style={styles.headerBar}>
-        <Text style={styles.headerTitle}>Contactos Maestro</Text>
-        {/* [CUARENTENA] Botón de escanear deshabilitado */}
-        {/*
-        <TouchableOpacity style={styles.scanBtn} onPress={() => router.push('/scan')}>
-          <MaterialCommunityIcons name="qrcode-scan" size={17} color="#FFFFFF" />
-          <Text style={styles.scanBtnText}>Agregar Contacto</Text>
+        <Text style={styles.headerTitle}>{tr('Mis Contactos', 'My Contacts')}</Text>
+        <TouchableOpacity
+          style={[styles.sortBtn, { backgroundColor: contactsTheme.utilBtnBg, borderColor: contactsTheme.utilBtnBorder }]} onPress={() => setSortVisible(true)} activeOpacity={0.86}>
+          <Text style={[styles.sortBtnText, { color: contactsTheme.textPrimary }]}>Sort</Text>
         </TouchableOpacity>
-        */}
       </View>
 
-      <View style={styles.toolbarRow}>
-        <View style={[styles.searchWrap, { backgroundColor: contactsTheme.searchBg, borderColor: contactsTheme.searchBorder }]}>
+      {/* Active sort pill */}
+      <View style={styles.activeSortPillWrap}>
+        <Text style={[styles.activeSortPill, { color: contactsTheme.textPrimary, backgroundColor: contactsTheme.filterPillBg }]}>Filtro activo: {sortMode === 'name' ? 'Nombre' : sortMode === 'card' ? 'Nombre Tarjeta' : sortMode === 'date' ? 'Fecha' : 'Grupos'}</Text>
+      </View>
+
+      {/* Scrollable contacts list */}
+      <View style={{ flex: 1, position: 'relative' }}>
+        <Animated.View
+          style={[
+            styles.listAnimatedWrap,
+            {
+              opacity: listEntrance,
+              transform: [
+                {
+                  translateY: listEntrance.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [12, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          {loading ? (
+            <View style={styles.centerWrap}>
+              <ActivityIndicator color="#0D4D8A" size="large" />
+            </View>
+          ) : (
+            <FlexGrid
+              items={rowsWithHeaders as ContactListRow[]}
+              getKey={(item) => item.key}
+              renderItem={(item: ContactListRow, _index, _ui) => {
+                if (item.type === 'header') {
+                  return (
+                    <View style={styles.groupHeaderWrap}>
+                      <Text style={[styles.groupHeaderText, { color: contactsTheme.textPrimary }]}>{item.title}</Text>
+                    </View>
+                  );
+                }
+                const row = item.contact;
+                const isAlert = Number(row.ratingAvg || 0) <= RATING_ALERT;
+                return (
+                  <Swipeable
+                    renderRightActions={() => (
+                      <View style={styles.swipeActionsContainer}>
+                        <TouchableOpacity
+                          style={styles.swipeActionButton}
+                          onPress={() => handleDeleteContact(row.uid)}
+                        >
+                          <MaterialCommunityIcons name="trash-can-outline" size={24} color="#FFFFFF" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.swipeActionButton}
+                          onPress={() => handleBlockContact(row.uid)}
+                        >
+                          <MaterialCommunityIcons name="block-helper" size={24} color="#FFFFFF" />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  >
+                    <TouchableOpacity
+                      style={[styles.contactCard, { backgroundColor: contactsTheme.cardBg, borderColor: contactsTheme.cardBorder }]}>
+                      <View
+                        style={[
+                          styles.avatarRing,
+                          row.storyState === 'vip' || row.meta?.storyState === 'vip'
+                            ? styles.avatarRingVip
+                            : row.storyState === 'normal' || row.meta?.storyState === 'normal'
+                              ? styles.avatarRingNormal
+                              : styles.avatarRingNone,
+                        ]}
+                      >
+                        {row.photoUrl ? (
+                          <ExpoImage source={{ uri: row.photoUrl }} style={styles.avatar} cachePolicy="disk" />
+                        ) : (
+                          <View style={[styles.avatarFallback, { backgroundColor: contactsTheme.avatarFallbackBg, borderColor: contactsTheme.avatarFallbackBorder }]}>
+                            <MaterialCommunityIcons name="account" size={18} color={contactsTheme.iconColor} />
+                          </View>
+                        )}
+                      </View>
+
+                      <View style={{ flex: 1 }}>
+                        <View style={styles.nameRow}>
+                          <Text style={[styles.contactName, { color: contactsTheme.textPrimary }]} numberOfLines={1}>{row.name}</Text>
+                          <Text style={[styles.contactNick, { color: contactsTheme.textSecondary }]} numberOfLines={1}>@{row.nickname}</Text>
+                        </View>
+                        <Text style={[styles.cardNameText, { color: contactsTheme.textSecondary }]} numberOfLines={1}>{row.cardName}</Text>
+                        <View style={styles.metaRow}>
+                          {renderStars(row.ratingAvg)}
+                          <Text style={[styles.ratingNumber, isAlert && styles.ratingNumberAlert, { color: contactsTheme.textPrimary }]}>{Number(row.ratingAvg || 0).toFixed(1)}</Text>
+                          <View style={[styles.holdersPill, { backgroundColor: contactsTheme.pillBg, borderColor: contactsTheme.pillBorder }]}>
+                            <MaterialCommunityIcons name="account-group-outline" size={12} color={contactsTheme.iconColor} />
+                            <Text style={[styles.holdersPillText, { color: contactsTheme.pillText }]}>{row.holdersCount}</Text>
+                          </View>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  </Swipeable>
+                );
+              }}
+            />
+          )}
+        </Animated.View>
+
+        {/* Floating Scan Button */}
+        <View style={styles.floatingScanButtonContainer} pointerEvents="box-none">
+          <TouchableOpacity
+            style={styles.floatingScanButton}
+            onPress={() => router.push('/scan' as any)}
+            activeOpacity={0.82}
+          >
+            <MaterialCommunityIcons name="qrcode-scan" size={28} color="#0A1A2F" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Search bar fixed at bottom above navbar */}
+      <View style={styles.bottomToolbar}>
+        <View style={[styles.searchWrap, { backgroundColor: contactsTheme.searchBg, borderColor: contactsTheme.searchBorder }]}> 
           <MaterialCommunityIcons name="magnify" size={17} color={contactsTheme.iconColor} />
           <TextInput
             style={[styles.searchInput, { color: contactsTheme.searchText }]}
-            placeholder="Buscar por nombre, tarjeta o grupo"
+            placeholder={tr('Buscar por nombre, tarjeta o grupo', 'Search by name, card, or group')}
             placeholderTextColor={contactsTheme.searchPlaceholder}
             value={searchValue}
             onChangeText={setSearchValue}
           />
         </View>
-
-        <TouchableOpacity style={[styles.sortBtn, { backgroundColor: contactsTheme.utilBtnBg, borderColor: contactsTheme.utilBtnBorder }]} onPress={() => setSortVisible(true)} activeOpacity={0.86}>
-          <MaterialCommunityIcons name="sort" size={18} color={contactsTheme.iconColor} />
-          <Text style={[styles.sortBtnText, { color: contactsTheme.textPrimary }]}>Sort</Text>
-        </TouchableOpacity>
       </View>
-
-      <View style={styles.activeSortPillWrap}>
-        <Text style={[styles.activeSortPill, { color: contactsTheme.textPrimary, backgroundColor: contactsTheme.filterPillBg }]}>Filtro activo: {sortMode === 'name' ? 'Nombre' : sortMode === 'card' ? 'Nombre Tarjeta' : sortMode === 'date' ? 'Fecha' : 'Grupos'}</Text>
-      </View>
-
-      <Animated.View
-        style={[
-          styles.listAnimatedWrap,
-          {
-            opacity: listEntrance,
-            transform: [
-              {
-                translateY: listEntrance.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [12, 0],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
-        {loading ? (
-          <View style={styles.centerWrap}>
-            <ActivityIndicator color="#0D4D8A" size="large" />
-          </View>
-        ) : (
-          <FlatList
-            data={rowsWithHeaders}
-            keyExtractor={(item) => item.key}
-            renderItem={renderRow}
-            onRefresh={loadContacts}
-            refreshing={loading}
-            contentContainerStyle={styles.listContainer}
-            ListEmptyComponent={<Text style={[styles.emptyText, { color: contactsTheme.textSecondary }]}>Aun no tienes contactos compartidos.</Text>}
-          />
-        )}
-      </Animated.View>
 
       <Modal visible={sortVisible} transparent animationType="slide" onRequestClose={() => setSortVisible(false)}>
         <Pressable style={styles.modalOverlay} onPress={() => setSortVisible(false)}>
           <Pressable style={[styles.sortModalCard, { backgroundColor: contactsTheme.modalBg, borderColor: contactsTheme.modalBorder }]}>
             <Text style={[styles.sortModalTitle, { color: contactsTheme.textPrimary }]}>Ordenar contactos</Text>
             {[
-              { key: 'name', label: 'Nombre (A-Z, favoritos arriba)' },
-              { key: 'card', label: 'Nombre de Tarjeta' },
-              { key: 'date', label: 'Fecha de agregado' },
-              { key: 'groups', label: 'Grupos' },
-            ].map((option) => (
+              { key: 'name', label: tr('Nombre (A-Z, favoritos arriba)', 'Name (A-Z, favorites first)') },
+              { key: 'card', label: tr('Nombre de Tarjeta', 'Card Name') },
+              { key: 'date', label: tr('Fecha de agregado', 'Date Added') },
+              { key: 'groups', label: tr('Grupos', 'Groups') }].map((option) => (
               <TouchableOpacity
                 key={option.key}
-                style={[styles.sortOptionRow, sortMode === option.key && styles.sortOptionRowActive, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]}
-                onPress={() => {
-                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                  setSortMode(option.key as SortMode);
-                  setSortVisible(false);
-                }}
-              >
+                style={[styles.sortOptionRow, sortMode === option.key && styles.sortOptionRowActive, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]}>
                 <Text style={[styles.sortOptionText, sortMode === option.key && styles.sortOptionTextActive, { color: contactsTheme.textSecondary }]}>{option.label}</Text>
                 {sortMode === option.key ? <MaterialCommunityIcons name="check-circle" size={17} color={contactsTheme.iconColor} /> : null}
               </TouchableOpacity>
@@ -1015,49 +1113,17 @@ export default function ContactsPage() {
           <View style={[styles.actionModalCard, { backgroundColor: contactsTheme.modalBg, borderColor: contactsTheme.modalBorder }]}>
             <Text style={[styles.actionModalTitle, { color: contactsTheme.textPrimary }]}>{longPressContact?.name || 'Contacto'}</Text>
             <TouchableOpacity
-              style={[styles.actionRow, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]}
-              onPress={() => {
-                if (!longPressContact) {
-                  return;
-                }
-                updateContactMeta(longPressContact.uid, (prev) => ({
-                  ...prev,
-                  isFavorite: !prev.isFavorite,
-                }));
-                setLongPressVisible(false);
-              }}
-            >
+              style={[styles.actionRow, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]}>
               <MaterialCommunityIcons name="star-outline" size={18} color={contactsTheme.iconColor} />
               <Text style={[styles.actionText, { color: contactsTheme.textSecondary }]}>Favorito / no favorito</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.actionRow, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]}
-              onPress={() => {
-                setLongPressVisible(false);
-                setGroupPickerVisible(true);
-              }}
-            >
+              style={[styles.actionRow, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]}>
               <MaterialCommunityIcons name="folder-move-outline" size={18} color={contactsTheme.iconColor} />
               <Text style={[styles.actionText, { color: contactsTheme.textSecondary }]}>Mover a Grupo</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.actionRow, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]}
-              onPress={() => {
-                const uid = longPressContact?.uid;
-                if (!uid) {
-                  return;
-                }
-                setLongPressVisible(false);
-                Alert.alert('Eliminar contacto', 'Se eliminara esta relacion de tu lista.', [
-                  { text: 'Cancelar', style: 'cancel' },
-                  {
-                    text: 'Eliminar',
-                    style: 'destructive',
-                    onPress: () => handleDeleteContact(uid),
-                  },
-                ]);
-              }}
-            >
+              style={[styles.actionRow, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]}>
               <MaterialCommunityIcons name="trash-can-outline" size={18} color={contactsTheme.iconColor} />
               <Text style={[styles.actionText, { color: contactsTheme.textSecondary }]}>Eliminar</Text>
             </TouchableOpacity>
@@ -1382,21 +1448,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    backgroundColor: '#54C1FB',
     borderRadius: 999,
-    backgroundColor: '#0A2540',
-    paddingHorizontal: 13,
-    paddingVertical: 8.5,
-    shadowColor: '#0A2540',
-    shadowOpacity: 0.12,
-    shadowRadius: 7,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
+    paddingHorizontal: 10,
+    height: 40,
   },
   scanBtnText: {
-    color: '#FFFFFF',
-    fontSize: 11.5,
-    fontWeight: '800',
-    letterSpacing: 0.2,
+    color: '#0A1A2F',
+    fontSize: 12,
+    fontWeight: '700',
   },
   toolbarRow: {
     marginTop: 12,
@@ -2161,5 +2221,46 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     fontSize: 16,
     letterSpacing: 0.2,
+  },
+  floatingScanButtonContainer: {
+    position: 'absolute',
+    bottom: 80,
+    right: 20,
+    zIndex: 10,
+  },
+  floatingScanButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#54C1FB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  swipeActionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  swipeActionButton: {
+    width: 64,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FF3B30',
+    marginLeft: 4,
+  },
+  bottomToolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderColor: '#eee',
   },
 });
