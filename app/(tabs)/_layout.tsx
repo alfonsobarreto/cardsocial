@@ -1549,4 +1549,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 13,
   },
+  legalTitle: {
+    color: '#0D4D8A',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
 });
