@@ -1116,6 +1116,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
   // Save to Firestore (Create or Update)
   const handleCreate = async () => {
+    console.log('[Vault] handleCreate: INICIO');
     if (!dataName.trim() || !dataValue.trim()) {
       Alert.alert('❌ Error', tr('Completa todos los campos', 'Fill in all fields'));
       return;
@@ -1150,25 +1151,24 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       editingData?.id ? tr('actualizar un dato del Búnker', 'update a Vault item') : tr('crear un dato en el Búnker', 'create a Vault item'),
     );
     if (!biometricOk) {
+      console.log('[Vault] handleCreate: hardLockCheck falló');
       return;
     }
-
     if (isRetryLocked) {
       setModerationAlertMessage(retryLockMessage);
       setModerationAlertVisible(true);
+      console.log('[Vault] handleCreate: isRetryLocked');
       return;
     }
-
     setIsSaving(true);
     try {
+      console.log('[Vault] handleCreate: getActiveUserId');
       const userId = await getActiveUserId();
-
       if (!userId) {
         Alert.alert('❌ Error', tr('No se pudo identificar al usuario activo', 'Could not identify active user'));
         return;
       }
-
-      // Leer cache local antes de guardar para validar colisiones de nombre.
+      console.log('[Vault] handleCreate: Leer cache local');
       const existingData = await AsyncStorage.getItem(VAULT_STORAGE_KEY);
       let dataArray: any[] = [];
       if (existingData) {
@@ -1246,14 +1246,15 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       let cloudSynced = false;
       try {
         if (userId) {
+          console.log('[Vault] handleCreate: setDoc Firestore');
           const cloudDocRef = doc(db, 'users', userId, 'links', uniqueId);
           await setDoc(cloudDocRef, dataPayload);
           cloudSynced = true;
+          console.log('[Vault] handleCreate: setDoc OK');
         }
       } catch (cloudError) {
-        console.warn('Cloud sync failed, keeping local cache:', cloudError);
+        console.warn('[Vault] Cloud sync failed, keeping local cache:', cloudError);
       }
-
       if (editingData?.id) {
         // ACTUALIZAR: reemplazar el elemento existente
         const index = dataArray.findIndex((item: any) => item.id === editingData.id);
@@ -1267,7 +1268,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       
       // Guardar en AsyncStorage
       await AsyncStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(dataArray));
-
+      console.log('[Vault] handleCreate: Después de AsyncStorage.setItem');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Toast.show({
         type: 'success',
@@ -1277,9 +1278,11 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         visibilityTime: 3000,
         autoHide: true,
       });
+      console.log('[Vault] handleCreate: Antes de handleClose');
       handleClose();
+      console.log('[Vault] handleCreate: FIN OK');
     } catch (error) {
-      console.error('Error saving:', error);
+      console.error('[Vault] handleCreate: Error saving:', error);
       if (error instanceof ModerationRejectedError) {
         Toast.show({
           type: 'error',
@@ -1387,10 +1390,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             >
               <TouchableOpacity
                 style={[styles.countryCodeButton, { borderWidth: 0, backgroundColor: formTheme.inputBg }]}
-              onPress={() => setCountryModalVisible(true)}
-            >
-              <Text style={[styles.countryCodeText, { color: formTheme.inputText }]}>{countryCode}</Text>
-              <MaterialCommunityIcons name="chevron-down" color="#1EA7FF" size={18} />
+                onPress={() => setCountryModalVisible(true)}
+              >
+                <Text style={[styles.countryCodeText, { color: formTheme.inputText }]}>{countryCode}</Text>
+                <MaterialCommunityIcons name="chevron-down" color="#1EA7FF" size={18} />
               </TouchableOpacity>
             </LinearGradient>
             <LinearGradient
@@ -1401,11 +1404,11 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             >
               <TextInput
                 style={[styles.input, { flex: 1, backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderWidth: 0 }]}
-              placeholder="123 456 7890"
-              placeholderTextColor={formTheme.inputPlaceholder}
-              value={dataValue}
-              onChangeText={setDataValue}
-              keyboardType="phone-pad"
+                placeholder="123 456 7890"
+                placeholderTextColor={formTheme.inputPlaceholder}
+                value={dataValue}
+                onChangeText={setDataValue}
+                keyboardType="phone-pad"
               />
             </LinearGradient>
           </View>
@@ -1420,14 +1423,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           >
             <TextInput
               style={[styles.input, { backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderWidth: 0 }]}
-            placeholder="tu@email.com"
-            placeholderTextColor={formTheme.inputPlaceholder}
-            value={dataValue}
-            onChangeText={setDataValue}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            autoCorrect={false}
+              placeholder="tu@email.com"
+              placeholderTextColor={formTheme.inputPlaceholder}
+              value={dataValue}
+              onChangeText={setDataValue}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              autoCorrect={false}
             />
           </LinearGradient>
         );
@@ -1442,14 +1445,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             >
               <TextInput
                 style={[styles.input, { minHeight: 100, backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderWidth: 0 }]}
-              placeholder={tr('Escribe aquí...', 'Write here...')}
-              placeholderTextColor={formTheme.inputPlaceholder}
-              value={dataValue}
-              onChangeText={(text) => {
-                const words = text.split(/\s+/).filter(w => w).length;
-                if (words <= 200 || text.length < dataValue.length) setDataValue(text);
-              }}
-              multiline
+                placeholder={tr('Escribe aquí...', 'Write here...')}
+                placeholderTextColor={formTheme.inputPlaceholder}
+                value={dataValue}
+                onChangeText={(text) => {
+                  const words = text.split(/\s+/).filter(w => w).length;
+                  if (words <= 200 || text.length < dataValue.length) setDataValue(text);
+                }}
+                multiline
               />
             </LinearGradient>
             <Text style={[styles.wordCount, dataValue.split(/\s+/).filter(w => w).length > 190 && { color: '#E53935' }]}>
