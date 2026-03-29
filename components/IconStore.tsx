@@ -20,16 +20,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    FlatList,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  FlatList,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -51,13 +51,14 @@ interface IconStoreCardProps {
 
 type StoreSection = 'featured' | 'newest' | 'most_popular' | 'collectible' | 'out_of_stock' | 'retail';
 
+// Las etiquetas de sección se traducen en el render
 const STORE_SECTIONS: Array<{ id: StoreSection; label: string }> = [
-  { id: 'featured', label: 'Featured' },
-  { id: 'newest', label: 'Newest' },
-  { id: 'most_popular', label: 'Most Popular' },
-  { id: 'collectible', label: 'Collectible' },
-  { id: 'out_of_stock', label: 'Out of Stock' },
-  { id: 'retail', label: 'Retail' },
+  { id: 'featured', label: 'Destacado' },
+  { id: 'newest', label: 'Nuevos' },
+  { id: 'most_popular', label: 'Populares' },
+  { id: 'collectible', label: 'Coleccionable' },
+  { id: 'out_of_stock', label: 'Agotados' },
+  { id: 'retail', label: 'Tienda' },
 ];
 
 /**
@@ -126,7 +127,7 @@ const IconPackCard: React.FC<IconStoreCardProps> = ({
         {/* Icon Count */}
         <View style={styles.iconCountBadge}>
           <Ionicons name='image-outline' size={14} color='#0A2540' />
-          <Text style={styles.iconCountText}>{pack.iconCount} iconos</Text>
+          <Text style={styles.iconCountText}>{pack.iconCount} {useTr()('iconos', 'icons')}</Text>
         </View>
 
         {isLimitedEdition && (
@@ -137,7 +138,7 @@ const IconPackCard: React.FC<IconStoreCardProps> = ({
               color={isSoldOut ? '#FFFFFF' : '#7C4D00'}
             />
             <Text style={[styles.stockText, isSoldOut && styles.stockTextSoldOut]}>
-              {isSoldOut ? 'Agotado' : `Solo quedan ${stockRemaining} de ${stockMax}`}
+              {isSoldOut ? useTr()('Agotado', 'Sold Out') : useTr()(`Solo quedan ${stockRemaining} de ${stockMax}`, `Only ${stockRemaining} left of ${stockMax}`)}
             </Text>
           </View>
         )}
@@ -146,14 +147,14 @@ const IconPackCard: React.FC<IconStoreCardProps> = ({
         {isOwned ? (
           <View style={styles.ownedBadge}>
             <Ionicons name='checkmark-circle' size={16} color='#2ECC71' />
-            <Text style={styles.ownedText}>Comprado</Text>
+            <Text style={styles.ownedText}>{useTr()('Comprado', 'Purchased')}</Text>
           </View>
         ) : (
           <View style={styles.priceContainer}>
             <Text style={styles.priceText}>{pack.creditsPrice} CS</Text>
             {!hasEnoughCredits && (
               <Text style={styles.insufficientText}>
-                Necesitas {pack.creditsPrice - userCredits} CS más
+                {useTr()('Necesitas', 'You need')} {pack.creditsPrice - userCredits} CS {useTr()('más', 'more')}
               </Text>
             )}
           </View>
@@ -175,7 +176,7 @@ const IconPackCard: React.FC<IconStoreCardProps> = ({
           ) : (
             <>
               <Ionicons name='cart-outline' size={16} color='#FFFFFF' />
-              <Text style={styles.purchaseButtonText}>Comprar</Text>
+              <Text style={styles.purchaseButtonText}>{useTr()('Comprar', 'Buy')}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -241,7 +242,7 @@ export default function IconStore() {
 
     } catch (error) {
       console.error('Error loading icon store:', error);
-      Alert.alert('Error', 'No se pudo cargar la tienda de iconos / Could not load icon store');
+      Alert.alert(tr('Error', 'Error'), tr('No se pudo cargar la tienda de iconos', 'Could not load icon store'));
     } finally {
       setLoading(false);
     }
@@ -256,9 +257,9 @@ export default function IconStore() {
       const success = await purchaseIconPack(userId, packId);
 
       if (success) {
-        Alert.alert('✅ ¡Éxito!', 'Pack de iconos desbloqueado. Ya puedes usarlo en tus tarjetas.', [
+        Alert.alert('✅ ' + tr('¡Éxito!', 'Success!'), tr('Pack de iconos desbloqueado. Ya puedes usarlo en tus tarjetas.', 'Icon pack unlocked. You can now use it in your cards.'), [
           {
-            text: 'Ir a Mi Bóveda',
+            text: tr('Ir a Mi Bóveda', 'Go to My Vault'),
             onPress: () => {
               // TODO: Navegar a Vault tab
             },
@@ -274,11 +275,11 @@ export default function IconStore() {
         const newCredits = await getUserCreditsBalance(userId);
         setUserCredits(newCredits);
       } else {
-        Alert.alert('⚠️ Error', 'No tienes suficientes créditos o la compra falló.');
+        Alert.alert('⚠️ ' + tr('Error', 'Error'), tr('No tienes suficientes créditos o la compra falló.', 'You do not have enough credits or the purchase failed.'));
       }
     } catch (error) {
       console.error('Purchase error:', error);
-      Alert.alert('Error', 'Hubo un error al comprar el pack.');
+      Alert.alert(tr('Error', 'Error'), tr('Hubo un error al comprar el pack.', 'There was an error purchasing the pack.'));
     } finally {
       setPurchasing(null);
     }
@@ -325,13 +326,13 @@ export default function IconStore() {
         end={{ x: 1, y: 1 }}
         style={styles.header}
       >
-        <Text style={styles.headerTitle}>{`🎨 ${tr('icon_store', 'icon_store')}`}</Text>
-        <Text style={styles.headerSubtitle}>Diseños exclusivos de Pochobs para tus tarjetas</Text>
+        <Text style={styles.headerTitle}>{`🎨 ${tr('Tienda de Iconos', 'Icon Store')}`}</Text>
+        <Text style={styles.headerSubtitle}>{tr('Diseños exclusivos de Pochobs para tus tarjetas', 'Exclusive Pochobs designs for your cards')}</Text>
 
         {/* Credits Display */}
         <View style={styles.creditsBar}>
           <Ionicons name='wallet-outline' size={20} color='#C5A065' />
-          <Text style={styles.creditsText}>{userCredits} Créditos CS</Text>
+          <Text style={styles.creditsText}>{userCredits} {tr('Créditos CS', 'CS Credits')}</Text>
           <TouchableOpacity style={styles.addCreditsButton}>
             <Ionicons name='add-circle-outline' size={18} color='#C5A065' />
           </TouchableOpacity>
@@ -339,11 +340,11 @@ export default function IconStore() {
       </LinearGradient>
 
       {/* Info Banner */}
-      <View style={[styles.infoBanner, { backgroundColor: isNight ? '#0F2C50' : undefined }]}>
+      <View style={[styles.infoBanner, { backgroundColor: isNight ? '#0F2C50' : undefined }]}> 
         <Ionicons name='sparkles-outline' size={20} color={isNight ? '#C5A065' : '#0A2540'} />
         <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={styles.infoBannerTitle}>Drops de Edición Limitada</Text>
-          <Text style={styles.infoBannerText}>Cuando el stock llega a 0, el drop queda agotado automáticamente</Text>
+          <Text style={styles.infoBannerTitle}>{tr('Drops de Edición Limitada', 'Limited Edition Drops')}</Text>
+          <Text style={styles.infoBannerText}>{tr('Cuando el stock llega a 0, el drop queda agotado automáticamente', 'When stock reaches 0, the drop is automatically sold out')}</Text>
         </View>
       </View>
 
@@ -355,7 +356,20 @@ export default function IconStore() {
             onPress={() => setSelectedSection(section.id)}
           >
             <Text style={[styles.sectionTabText, selectedSection === section.id && styles.sectionTabTextActive]}>
-              {section.label}
+              {tr(
+                section.label === 'Destacado' ? 'Destacado' :
+                section.label === 'Nuevos' ? 'Nuevos' :
+                section.label === 'Populares' ? 'Populares' :
+                section.label === 'Coleccionable' ? 'Coleccionable' :
+                section.label === 'Agotados' ? 'Agotados' :
+                section.label === 'Tienda' ? 'Tienda' : section.label,
+                section.label === 'Destacado' ? 'Featured' :
+                section.label === 'Nuevos' ? 'Newest' :
+                section.label === 'Populares' ? 'Most Popular' :
+                section.label === 'Coleccionable' ? 'Collectible' :
+                section.label === 'Agotados' ? 'Out of Stock' :
+                section.label === 'Tienda' ? 'Retail' : section.label
+              )}
             </Text>
           </TouchableOpacity>
         ))}
@@ -385,15 +399,15 @@ export default function IconStore() {
       {visiblePacks.length === 0 && (
         <View style={styles.emptyState}>
           <Ionicons name='search-outline' size={48} color='#CCC' />
-          <Text style={styles.emptyStateText}>No hay packs disponibles en este momento</Text>
-          <Text style={styles.emptyStateSubtext}>Vuelve pronto para nuevos diseños 🎨</Text>
+          <Text style={styles.emptyStateText}>{tr('No hay packs disponibles en este momento', 'No packs available at this time')}</Text>
+          <Text style={styles.emptyStateSubtext}>{tr('Vuelve pronto para nuevos diseños 🎨', 'Come back soon for new designs 🎨')}</Text>
         </View>
       )}
 
       {/* Footer */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          Consejo: los drops legendarios se compran por orden de llegada.
+          {tr('Consejo: los drops legendarios se compran por orden de llegada.', 'Tip: legendary drops are first come, first served.')}
         </Text>
       </View>
     </ScrollView>

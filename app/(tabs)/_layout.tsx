@@ -729,19 +729,17 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                       </>
                     )}
 
-                    <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('subscription')}>
+                    <TouchableOpacity style={styles.drawerItem} onPress={() => { setDrawerVisible(false); router.push('/vault_store'); }}>
                       <MaterialCommunityIcons name="store" size={18} color="#C5A065" />
                       <Text style={[styles.drawerItemText, { color: '#C5A065', fontWeight: '600' }]}>{tr('vault_store', 'vault_store')}</Text>
                     </TouchableOpacity>
 
-
-                    <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('icon_store')}>
+                    <TouchableOpacity style={styles.drawerItem} onPress={() => { setDrawerVisible(false); router.push('/icon_store'); }}>
                       <MaterialCommunityIcons name="palette-outline" size={18} color="#0D4D8A" />
                       <Text style={styles.drawerItemText}>{`🎨 ${tr('icon_store', 'icon_store')}`}</Text>
                     </TouchableOpacity>
 
-
-                    <TouchableOpacity style={styles.drawerItem} onPress={() => setActivePanel('theme_chest')}>
+                    <TouchableOpacity style={styles.drawerItem} onPress={() => { setDrawerVisible(false); router.push('/theme_locker'); }}>
                       <MaterialCommunityIcons name="treasure-chest" size={18} color="#C5A065" />
                       <Text style={[styles.drawerItemText, { color: '#C5A065', fontWeight: '600' }]}>{tr('🔒 Locker de Estilos', '🔒 Theme Locker')}</Text>
                     </TouchableOpacity>

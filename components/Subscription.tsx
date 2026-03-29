@@ -75,14 +75,14 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
       const purchaseResult = await Purchases.purchaseProduct(pack.productId);
       
       if (purchaseResult.customerInfo.entitlements.active[pack.productId]) {
-        Alert.alert('✅ ¡Éxito!', `Se acreditaron ${pack.credits} CS a tu cuenta`);
+        Alert.alert('✅ ' + tr('¡Éxito!', 'Success!'), tr('Se acreditaron', 'You received') + ` ${pack.credits} CS ` + tr('a tu cuenta', 'to your account'));
         // TODO: Call backend to add credits to user account
       }
     } catch (error: any) {
       if (error.userCancelled) {
         // User cancelled
       } else {
-        Alert.alert('Error', 'No se pudo procesar la compra');
+        Alert.alert(tr('Error', 'Error'), tr('No se pudo procesar la compra', 'Could not process purchase'));
         console.error('Purchase error:', error);
       }
     } finally {
@@ -104,15 +104,17 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
 
       if (result.success) {
         Alert.alert(
-          '✅ ¡Tarjeta de Negocio Activada!',
-          `Tu licencia anual quedó activa. Recibiste ${result.cashbackCredits || 1000} Monedas CS para gastar en tienda.`
+          '✅ ' + tr('¡Tarjeta de Negocio Activada!', 'Business Card Activated!'),
+          tr('Tu licencia anual quedó activa. Recibiste', 'Your annual license is now active. You received') +
+            ` ${result.cashbackCredits || 1000} ` +
+            tr('Monedas CS para gastar en tienda.', 'CS Coins to spend in the store.')
         );
       } else {
-        Alert.alert('Error', result.message);
+        Alert.alert(tr('Error', 'Error'), result.message);
       }
     } catch (error) {
       console.error('Business card purchase error:', error);
-      Alert.alert('Error', 'No se pudo procesar la compra');
+      Alert.alert(tr('Error', 'Error'), tr('No se pudo procesar la compra', 'Could not process purchase'));
     } finally {
       setUpgradeLoading(false);
     }
@@ -121,10 +123,10 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
   const handleRestorePurchases = async () => {
     try {
       await Purchases.restorePurchases();
-      Alert.alert('✅ Restaurado', 'Se han restaurado tus compras anteriores');
+      Alert.alert('✅ ' + tr('Restaurado', 'Restored'), tr('Se han restaurado tus compras anteriores', 'Your previous purchases have been restored'));
     } catch (error) {
       console.error('Restore purchases error:', error);
-      Alert.alert('Error', 'No se pudieron restaurar las compras');
+      Alert.alert(tr('Error', 'Error'), tr('No se pudieron restaurar las compras', 'Could not restore purchases'));
     }
   };
 
@@ -138,18 +140,18 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
       {/* HEADER */}
       <LinearGradient colors={['#0A2540', '#1A3D5C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
         <MaterialCommunityIcons name="store" size={32} color="#C5A065" />
-        <Text style={styles.headerTitle}>{tr('vault_store', 'vault_store')}</Text>
-        <Text style={styles.headerSubtitle}>Créditos y Licencias Anuales por Tarjeta</Text>
+        <Text style={styles.headerTitle}>{tr('Tienda del Búnker', 'Vault Store')}</Text>
+        <Text style={styles.headerSubtitle}>{tr('Créditos y Licencias Anuales por Tarjeta', 'Credits and Annual Licenses per Card')}</Text>
       </LinearGradient>
 
       {/* COMPARISON TABLE: Base Gratis vs Licencia Anual */}
       <View style={styles.tableSection}>
-        <Text style={styles.sectionTitle}>Compara tu Acceso</Text>
+        <Text style={styles.sectionTitle}>{tr('Compara tu Acceso', 'Compare your Access')}</Text>
 
         <View style={styles.comparisonTable}>
           {/* Header Row */}
           <View style={styles.tableRow}>
-            <View style={[styles.tableCell, { flex: 2 }]}>
+            <View style={[styles.tableCell, { flex: 2 }]}> 
               {/* Empty cell */}
             </View>
             <LinearGradient
@@ -158,7 +160,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
               end={{ x: 0, y: 1 }}
               style={[styles.tableCell, styles.tableCellFree]}
             >
-              <Text style={styles.tableCellHeader}>Gratuito</Text>
+              <Text style={styles.tableCellHeader}>{tr('Gratuito', 'Free')}</Text>
             </LinearGradient>
             <LinearGradient
               colors={['#C5A065', '#B8944C']}
@@ -166,22 +168,22 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
               end={{ x: 0, y: 1 }}
               style={[styles.tableCell, styles.tableCellPremium]}
             >
-              <Text style={[styles.tableCellHeader, { color: '#0A2540', fontWeight: 'bold' }]}>Licencia Anual</Text>
+              <Text style={[styles.tableCellHeader, { color: '#0A2540', fontWeight: 'bold' }]}>{tr('Licencia Anual', 'Annual License')}</Text>
             </LinearGradient>
           </View>
 
           {/* Feature Rows */}
           {[
-            { feature: 'Editor y Constructor', free: 'Completo', premium: 'Completo' },
-            { feature: 'Skins/Íconos comprados', free: 'Activos', premium: 'Activos' },
-            { feature: 'Stories CTA de Negocio', free: 'No', premium: 'Sí' },
-            { feature: 'Prioridad Social Market', free: 'No', premium: 'Sí' },
-            { feature: 'QR Branded + Descarga', free: 'No', premium: 'Sí' },
-            { feature: 'Cashback por Activación', free: '0 CS', premium: '1,000 CS' },
-            { feature: 'Modelo de Cobro', free: 'Sin suscripción global', premium: '$49.99/año por tarjeta' },
+            { feature: tr('Editor y Constructor', 'Editor & Builder'), free: tr('Completo', 'Full'), premium: tr('Completo', 'Full') },
+            { feature: tr('Skins/Íconos comprados', 'Purchased Skins/Icons'), free: tr('Activos', 'Active'), premium: tr('Activos', 'Active') },
+            { feature: tr('Stories CTA de Negocio', 'Business CTA Stories'), free: tr('No', 'No'), premium: tr('Sí', 'Yes') },
+            { feature: tr('Prioridad Social Market', 'Social Market Priority'), free: tr('No', 'No'), premium: tr('Sí', 'Yes') },
+            { feature: tr('QR Branded + Descarga', 'Branded QR + Download'), free: tr('No', 'No'), premium: tr('Sí', 'Yes') },
+            { feature: tr('Cashback por Activación', 'Activation Cashback'), free: '0 CS', premium: '1,000 CS' },
+            { feature: tr('Modelo de Cobro', 'Billing Model'), free: tr('Sin suscripción global', 'No global subscription'), premium: tr('$49.99/año por tarjeta', '$49.99/year per card') },
           ].map((row, idx) => (
             <View key={idx} style={[styles.tableRow, idx % 2 === 1 && styles.tableRowAlt]}>
-              <View style={[styles.tableCell, { flex: 2 }]}>
+              <View style={[styles.tableCell, { flex: 2 }]}> 
                 <Text style={styles.featureName}>{row.feature}</Text>
               </View>
               <View style={[styles.tableCell, styles.tableCellFree]}>
@@ -197,8 +199,8 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
 
       {/* CREDIT PACKS SECTION */}
       <View style={styles.creditsSection}>
-        <Text style={styles.sectionTitle}>Packs de Créditos</Text>
-        <Text style={styles.sectionSubtitle}>$1 USD = 10 CS • Úsalos en Stories VIP y más</Text>
+        <Text style={styles.sectionTitle}>{tr('Packs de Créditos', 'Credit Packs')}</Text>
+        <Text style={styles.sectionSubtitle}>{tr('$1 USD = 10 CS • Úsalos en Stories VIP y más', '$1 USD = 10 CS • Use them in VIP Stories and more')}</Text>
 
         <View style={styles.packGrid}>
           {creditPacks.map((pack) => (
@@ -216,19 +218,19 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
                   end={{ x: 1, y: 1 }}
                   style={styles.popularBadge}
                 >
-                  <Text style={styles.popularBadgeText}>POPULAR</Text>
+                  <Text style={styles.popularBadgeText}>{tr('POPULAR', 'POPULAR')}</Text>
                 </LinearGradient>
               )}
 
               <Text style={styles.packCredits}>{pack.credits}</Text>
-              <Text style={styles.packCreditsLabel}>Créditos</Text>
+              <Text style={styles.packCreditsLabel}>{tr('Créditos', 'Credits')}</Text>
 
               <View style={styles.packDivider} />
 
               <Text style={styles.packPrice}>{pack.displayPrice}</Text>
 
               <GoldenRingButton
-                label={subscribingPack === pack.id ? 'Comprando...' : 'Comprar'}
+                label={subscribingPack === pack.id ? tr('Comprando...', 'Purchasing...') : tr('Comprar', 'Buy')}
                 onPress={() => handleBuyCreditPack(pack)}
                 icon={subscribingPack === pack.id ? 'loading' : 'shopping-outline'}
                 disabled={subscribingPack !== null}
@@ -246,38 +248,38 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
           <View style={styles.businessHeader}>
             <MaterialCommunityIcons name="briefcase-check" size={28} color="#C5A065" />
             <View style={{ flex: 1 }}>
-              <Text style={styles.businessTitle}>Tarjeta de Negocio Anual</Text>
-              <Text style={styles.businessSubtitle}>Acceso prioritario a Social Market</Text>
+              <Text style={styles.businessTitle}>{tr('Tarjeta de Negocio Anual', 'Annual Business Card')}</Text>
+              <Text style={styles.businessSubtitle}>{tr('Acceso prioritario a Social Market', 'Priority access to Social Market')}</Text>
             </View>
           </View>
 
           <View style={styles.businessDetails}>
             <View style={styles.businessBenefit}>
               <MaterialCommunityIcons name="check-circle" size={16} color="#2ECC71" />
-              <Text style={styles.businessBenefitText}>Presencia en Social Market</Text>
+              <Text style={styles.businessBenefitText}>{tr('Presencia en Social Market', 'Presence in Social Market')}</Text>
             </View>
             <View style={styles.businessBenefit}>
               <MaterialCommunityIcons name="check-circle" size={16} color="#2ECC71" />
-              <Text style={styles.businessBenefitText}>Geolocalización automática</Text>
+              <Text style={styles.businessBenefitText}>{tr('Geolocalización automática', 'Automatic geolocation')}</Text>
             </View>
             <View style={styles.businessBenefit}>
               <MaterialCommunityIcons name="check-circle" size={16} color="#2ECC71" />
-              <Text style={styles.businessBenefitText}>Analytics y métricas</Text>
+              <Text style={styles.businessBenefitText}>{tr('Analytics y métricas', 'Analytics and metrics')}</Text>
             </View>
             <View style={styles.businessBenefit}>
               <MaterialCommunityIcons name="check-circle" size={16} color="#2ECC71" />
-              <Text style={styles.businessBenefitText}>Calificaciones de clientes</Text>
+              <Text style={styles.businessBenefitText}>{tr('Calificaciones de clientes', 'Customer ratings')}</Text>
             </View>
             <View style={styles.businessBenefit}>
               <MaterialCommunityIcons name="check-circle" size={16} color="#2ECC71" />
-              <Text style={styles.businessBenefitText}>Cashback inmediato: 1,000 Monedas CS</Text>
+              <Text style={styles.businessBenefitText}>{tr('Cashback inmediato: 1,000 Monedas CS', 'Instant cashback: 1,000 CS Coins')}</Text>
             </View>
           </View>
 
           <View style={styles.businessPricingContainer}>
             <View style={styles.businessPricingRow}>
-              <Text style={styles.businessPriceLabel}>Pago anual único:</Text>
-              <Text style={styles.businessPriceRegular}>${businessCardPriceAnnual.toFixed(2)}/año</Text>
+              <Text style={styles.businessPriceLabel}>{tr('Pago anual único:', 'One-time annual payment:')}</Text>
+              <Text style={styles.businessPriceRegular}>{`$${businessCardPriceAnnual.toFixed(2)}`}{tr('/año', '/year')}</Text>
             </View>
             <View
               style={[
@@ -285,7 +287,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
                 { backgroundColor: 'rgba(46, 204, 113, 0.2)', paddingVertical: 8, marginVertical: 8, borderRadius: 8 },
               ]}
             >
-              <Text style={styles.businessPriceLabel}>Retorno en CS:</Text>
+              <Text style={styles.businessPriceLabel}>{tr('Retorno en CS:', 'Return in CS:')}</Text>
               <Text
                 style={[
                   styles.businessPrice,
@@ -298,7 +300,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
           </View>
 
           <GoldenRingButton
-            label={upgradeLoading ? 'Comprando...' : 'Activar Negocio'}
+            label={upgradeLoading ? tr('Comprando...', 'Purchasing...') : tr('Activar Negocio', 'Activate Business')}
             onPress={handleUpgradeBusinessCard}
             icon={upgradeLoading ? 'loading' : 'badge-account'}
             disabled={upgradeLoading}
@@ -310,18 +312,18 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
 
       {/* LEGAL & RESTORE */}
       <View style={styles.legalSection}>
-        <Text style={styles.legalTitle}>Términos Comerciales</Text>
+        <Text style={styles.legalTitle}>{tr('Términos Comerciales', 'Commercial Terms')}</Text>
         <Text style={styles.legalText}>
-          • Cada tarjeta de negocio se licencia por 12 meses desde su activación.{"\n"}
-          • Los precios pueden variar según tu país y tipo de dispositivo.{'\n'}
-          • Al comprar, aceptas nuestros Términos y Condiciones.{'\n'}
-          • Los créditos no son reembolsables ni transferibles.{'\n'}
-          • Card-Social se reserva el derecho de cambiar precios con notificación previa.
+          • {tr('Cada tarjeta de negocio se licencia por 12 meses desde su activación.', 'Each business card is licensed for 12 months from activation.')} {'\n'}
+          • {tr('Los precios pueden variar según tu país y tipo de dispositivo.', 'Prices may vary depending on your country and device type.')} {'\n'}
+          • {tr('Al comprar, aceptas nuestros Términos y Condiciones.', 'By purchasing, you accept our Terms and Conditions.')} {'\n'}
+          • {tr('Los créditos no son reembolsables ni transferibles.', 'Credits are non-refundable and non-transferable.')} {'\n'}
+          • {tr('Card-Social se reserva el derecho de cambiar precios con notificación previa.', 'Card-Social reserves the right to change prices with prior notice.')}
         </Text>
 
         <TouchableOpacity style={styles.restoreButton} onPress={handleRestorePurchases}>
           <MaterialCommunityIcons name="history" size={18} color="#0A2540" />
-          <Text style={styles.restoreButtonText}>Restaurar Compras (Obligatorio Apple)</Text>
+          <Text style={styles.restoreButtonText}>{tr('Restaurar Compras (Obligatorio Apple)', 'Restore Purchases (Apple Required)')}</Text>
         </TouchableOpacity>
       </View>
 
