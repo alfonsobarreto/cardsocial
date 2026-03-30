@@ -349,39 +349,33 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         }
 
         // 3️⃣ Race Azure against 2s timeout
-        const faviconTimeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000));
-        const fetchedIcon = await Promise.race([fetchFaviconFromAzure(dataValue), faviconTimeout]);
+        // Timeout robusto de 3s
+        const faviconTimeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
+        let fetchedIcon: string | null = null;
+        try {
+          fetchedIcon = await Promise.race([
+            fetchFaviconFromAzure(dataValue),
+            faviconTimeout
+          ]);
+        } catch {
+          fetchedIcon = null;
+        }
 
         if (faviconLifecycleClosedRef.current || lookupToken !== faviconLookupTokenRef.current) {
           return;
         }
 
         if (!fetchedIcon) {
-          // ⏱ TIMEOUT — liberar UI + abrir galería automáticamente en 1s
+          // ⏱ TIMEOUT o error — fallback seguro
           setFaviconLoading(false);
+          setFaviconUrl('');
+          setSelectedIcon('link-variant');
+          setFaviconSuggestionVisible(false);
           setTimeout(() => {
             if (!faviconLifecycleClosedRef.current) {
               setIconModalVisible(true);
             }
           }, 800);
-
-          // 🔄 Background retry: sigue buscando sin bloquear UI
-          fetchFaviconFromAzure(dataValue)
-            .then(async (bgIcon) => {
-              if (!bgIcon || faviconLifecycleClosedRef.current) return;
-              await Image.prefetch(bgIcon).catch(() => null);
-              faviconCache.current[domain] = bgIcon;
-              setLastFaviconDomain(domain);
-              setFaviconUrl(bgIcon);
-              setSelectedIcon('favicon');
-              setFaviconSuggestionVisible(true);
-              // Silent DB patch if item was already saved
-              if (savedLinkIdRef.current && savedUserIdRef.current) {
-                const cloudRef = doc(db, 'users', savedUserIdRef.current, 'links', savedLinkIdRef.current);
-                updateDoc(cloudRef, { icon: bgIcon, iconName: 'Favicon', updatedAt: new Date().toISOString() }).catch(() => null);
-              }
-            })
-            .catch(() => null);
           return;
         }
 
@@ -1117,11 +1111,11 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   // Save to Firestore (Create or Update)
   const handleCreate = async () => {
     console.log('[Vault] handleCreate: INICIO');
+    console.log('[Vault] handleCreate: Antes de Validaciones Iniciales');
     if (!dataName.trim() || !dataValue.trim()) {
       Alert.alert('❌ Error', tr('Completa todos los campos', 'Fill in all fields'));
       return;
     }
-
     // #16 Format validation per type
     if (dataType === 'Email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dataValue.trim())) {
       Alert.alert('❌ Error', tr('Introduce un email válido', 'Enter a valid email'));
@@ -1146,7 +1140,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         return;
       }
     }
-
+    console.log('[Vault] handleCreate: Después de Validaciones Iniciales');
+    console.log('[Vault] handleCreate: Antes de Chequeo de Bloqueos/Biométrico');
     const biometricOk = await hardLockCheck(
       editingData?.id ? tr('actualizar un dato del Búnker', 'update a Vault item') : tr('crear un dato en el Búnker', 'create a Vault item'),
     );
@@ -1160,16 +1155,19 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       console.log('[Vault] handleCreate: isRetryLocked');
       return;
     }
+    console.log('[Vault] handleCreate: Después de Chequeo de Bloqueos/Biométrico');
     setIsSaving(true);
     try {
-      console.log('[Vault] handleCreate: getActiveUserId');
+      console.log('[Vault] handleCreate: Antes de getActiveUserId');
       const userId = await getActiveUserId();
+      console.log('[Vault] handleCreate: Después de getActiveUserId', userId);
       if (!userId) {
         Alert.alert('❌ Error', tr('No se pudo identificar al usuario activo', 'Could not identify active user'));
         return;
       }
-      console.log('[Vault] handleCreate: Leer cache local');
+      console.log('[Vault] handleCreate: Antes de AsyncStorage.getItem');
       const existingData = await AsyncStorage.getItem(VAULT_STORAGE_KEY);
+      console.log('[Vault] handleCreate: Después de AsyncStorage.getItem');
       let dataArray: any[] = [];
       if (existingData) {
         try {
@@ -1179,14 +1177,12 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           dataArray = [];
         }
       }
-
       const normalizedTitle = dataName.trim().toLowerCase();
       const duplicateByTitle = dataArray.find((item: any) => {
         const sameId = editingData?.id && item?.id === editingData.id;
         const title = String(item?.title || '').trim().toLowerCase();
         return !sameId && title === normalizedTitle;
       });
-
       if (duplicateByTitle) {
         Alert.alert(
           tr('⚠️ Nombre duplicado', '⚠️ Duplicate name'),
@@ -1194,15 +1190,13 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         );
         return;
       }
-
       const iconData = selectedIcon === 'favicon' 
         ? faviconUrl
         : ICON_GALLERY.find(i => i.id === selectedIcon)?.icon || 'file';
-      
+      // iconName ahora siempre es válido
       const iconName = selectedIcon === 'favicon'
         ? 'Favicon'
-        : ICON_GALLERY.find(i => i.id === selectedIcon)?.[language === 'en' ? 'labelEn' : 'label'] || tr('Sin nombre', 'No name');
-
+        : mappedIconName;
       // #21 Auto-prepend https:// for Enlaces
       let preNormalized = dataValue;
       if (dataType === 'Enlaces' && !/^https?:\/\//i.test(dataValue.trim())) {
@@ -1213,20 +1207,15 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         dataType === 'Teléfono' && !preNormalized.startsWith('+')
           ? `${countryCode} ${preNormalized.replace(/^\s+/, '')}`
           : preNormalized;
-
       const shouldUploadFile =
         dataType === 'Documento' && normalizedValue.startsWith('file://');
-
       let finalValue = normalizedValue;
-
       if (shouldUploadFile) {
         const { fileId, publicUrl: filePublicUrl } = await uploadFileToModerationBackend(normalizedValue, dataName, userId);
         finalValue = filePublicUrl || `mongo-gridfs://${fileId}`;
       }
-      
       // Crear ID único (timestamp + random)
       const uniqueId = editingData?.id || `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
       const dataPayload = {
         id: uniqueId,
         title: dataName.trim(),
@@ -1238,19 +1227,17 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         createdAt: editingData?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-
       // Store saved IDs for silent background favicon update
       savedLinkIdRef.current = uniqueId;
       savedUserIdRef.current = userId;
-
       let cloudSynced = false;
       try {
         if (userId) {
-          console.log('[Vault] handleCreate: setDoc Firestore');
+          console.log('[Vault] handleCreate: Antes de setDoc');
           const cloudDocRef = doc(db, 'users', userId, 'links', uniqueId);
           await setDoc(cloudDocRef, dataPayload);
           cloudSynced = true;
-          console.log('[Vault] handleCreate: setDoc OK');
+          console.log('[Vault] handleCreate: Después de setDoc');
         }
       } catch (cloudError) {
         console.warn('[Vault] Cloud sync failed, keeping local cache:', cloudError);
@@ -1265,8 +1252,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         // CREAR: agregar nuevo elemento
         dataArray.push(dataPayload);
       }
-      
-      // Guardar en AsyncStorage
+      console.log('[Vault] handleCreate: Antes de AsyncStorage.setItem');
       await AsyncStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(dataArray));
       console.log('[Vault] handleCreate: Después de AsyncStorage.setItem');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -1280,7 +1266,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       });
       console.log('[Vault] handleCreate: Antes de handleClose');
       handleClose();
-      console.log('[Vault] handleCreate: FIN OK');
+      console.log('[Vault] handleCreate: Después de handleClose');
     } catch (error) {
       console.error('[Vault] handleCreate: Error saving:', error);
       if (error instanceof ModerationRejectedError) {
@@ -1337,6 +1323,34 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     return iconMap[ext] || 'file-document';
   };
 
+  // Mapeo estricto de iconos válidos para MaterialCommunityIcons
+  let mappedIconName = '';
+  switch (dataType) {
+    case 'Email':
+      mappedIconName = 'email';
+      break;
+    case 'Documento':
+      mappedIconName = 'file-document';
+      break;
+    case 'Teléfono':
+      mappedIconName = 'phone';
+      break;
+    case 'Enlaces':
+      mappedIconName = 'link';
+      break;
+    case 'Texto Plain':
+      mappedIconName = 'text-box';
+      break;
+    default:
+      mappedIconName = 'file';
+  }
+  const iconData = selectedIcon === 'favicon' 
+    ? faviconUrl
+    : ICON_GALLERY.find(i => i.id === selectedIcon)?.icon || 'file';
+  // iconName ahora siempre es válido
+  const iconName = selectedIcon === 'favicon'
+    ? 'Favicon'
+    : mappedIconName;
   // Render dynamic field based on data type
   const renderDataField = () => {
     switch (dataType) {
@@ -1768,6 +1782,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                       setDataValue('');
                       setTypeModalVisible(false);
                     }}
+                    disabled={!!editingData?.id}
                   >
                     <Text
                       style={[

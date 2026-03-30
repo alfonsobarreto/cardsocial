@@ -249,6 +249,29 @@ export default function CardsFactoryScreen() {
   }, []);
 
   useEffect(() => {
+    // Parche de migración robusta de iconos corruptos
+    const migrateVaultIcons = async () => {
+      try {
+        const raw = await AsyncStorage.getItem(VAULT_STORAGE_KEY);
+        let parsed = raw ? (JSON.parse(raw) as any[]) : [];
+        // Migración de iconos viejos/corruptos
+        const itemsMigrated = parsed.map(item => {
+          if (item.iconName === 'alternate-email') return { ...item, iconName: 'email' };
+          if (item.iconName === 'file-presentation') return { ...item, iconName: 'file-document' };
+          // Fallback de seguridad: si no hay iconName o es inválido
+          if (!item.iconName || item.iconName.includes(' ') || item.iconName === '') {
+            return { ...item, iconName: 'link-variant' };
+          }
+          return item;
+        });
+        await AsyncStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(itemsMigrated));
+        setVaultItems(itemsMigrated);
+      } catch {}
+    };
+    migrateVaultIcons();
+  }, []);
+
+  useEffect(() => {
     if (!enableParallax) {
       Animated.spring(parallaxX, { toValue: 0, useNativeDriver: true }).start();
       Animated.spring(parallaxY, { toValue: 0, useNativeDriver: true }).start();
@@ -325,8 +348,18 @@ export default function CardsFactoryScreen() {
   const loadVaultItems = async () => {
     try {
       const raw = await AsyncStorage.getItem(VAULT_STORAGE_KEY);
-      const parsed = raw ? (JSON.parse(raw) as VaultItem[]) : [];
-      setVaultItems(parsed);
+      let parsed = raw ? (JSON.parse(raw) as VaultItem[]) : [];
+      // Migración de iconos viejos/corruptos
+      const itemsMigrated = parsed.map(item => {
+        if (item.iconName === 'alternate-email') return { ...item, iconName: 'email' };
+        if (item.iconName === 'file-presentation') return { ...item, iconName: 'file-document' };
+        if (!item.iconName || item.iconName.includes(' ') || item.iconName === '') {
+          return { ...item, iconName: 'link-variant' };
+        }
+        return item;
+      });
+      await AsyncStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(itemsMigrated));
+      setVaultItems(itemsMigrated);
     } catch {
       setVaultItems([]);
     }
@@ -384,11 +417,18 @@ export default function CardsFactoryScreen() {
   };
 
   const persistCards = async (nextCards: SmartCard[], changedCardIds?: string[]) => {
+    console.log('[Card] persistCards: INICIO');
     setSmartCards(nextCards);
+
+    console.log('[Card] persistCards: Antes de AsyncStorage.setItem');
     await AsyncStorage.setItem(SMART_CARDS_STORAGE_KEY, JSON.stringify(nextCards));
+    console.log('[Card] persistCards: Después de AsyncStorage.setItem');
 
     try {
+      console.log('[Card] persistCards: Antes de getActiveUserId');
       const ownerUid = await getActiveUserId();
+      console.log('[Card] persistCards: Después de getActiveUserId', ownerUid);
+
       if (!ownerUid) {
         return;
       }
@@ -398,6 +438,7 @@ export default function CardsFactoryScreen() {
         : nextCards;
 
       for (const card of cardsToSync) {
+        console.log('[Card] persistCards: Antes de upsertSmartCardInDb', card.id);
         await upsertSmartCardInDb({
           ownerUid,
           card: {
@@ -423,10 +464,13 @@ export default function CardsFactoryScreen() {
             ownerPhotoUrl,
           },
         });
+        console.log('[Card] persistCards: Después de upsertSmartCardInDb', card.id);
       }
-    } catch {
+    } catch (e) {
       // Keep local cache as fallback when backend is not reachable.
+      console.log('[Card] persistCards: ERROR', e);
     }
+    console.log('[Card] persistCards: FIN');
   };
 
   const resetFactory = () => {
@@ -719,28 +763,7 @@ export default function CardsFactoryScreen() {
   const openEditOnSpecificSlot = (card: SmartCard, slotIndex: number) => {
     setPreviewVisible(false);
     openEditFactory(card);
-    setTimeout(() => {
-      setActiveSlotIndex(slotIndex);
-      setSlotPickerVisible(true);
-    }, 220);
-  };
 
-  const openAddDataFlowFromPreview = (card: SmartCard) => {
-    const targetIndex = Math.min(card.itemIds.length, Math.max(0, MAX_CARD_SLOTS - 1));
-    openEditOnSpecificSlot(card, targetIndex);
-  };
-
-  const openDataSelector = () => {
-    // Only carry over IDs that still exist in the vault — discard stale references
-    const validIds = selectedItemIds.filter((id) => vaultItems.some((vi) => vi.id === id));
-    setTempSelectedIds(validIds);
-    setDataSelectorLimitReached(false);
-    setDataSelectorVisible(true);
-  };
-
-  const handleSelectorToggle = (itemId: string) => {
-    if (tempSelectedIds.includes(itemId)) {
-      setTempSelectedIds((prev) => prev.filter((id) => id !== itemId));
       setDataSelectorLimitReached(false);
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } else {
@@ -1160,7 +1183,11 @@ export default function CardsFactoryScreen() {
     if (item.icon?.startsWith('http')) {
       return <ExpoImage source={{ uri: item.icon }} style={{ width: size, height: size, borderRadius: size / 2 }} cachePolicy="disk" />;
     }
-    return <MaterialCommunityIcons name={(item.icon as any) || 'link-variant'} size={size} color="#0D4D8A" />;
+    // Solo validación local, nunca red ni lógica pesada
+    const iconName = (typeof item.iconName === 'string' && MaterialCommunityIcons.glyphMap[item.iconName])
+      ? item.iconName
+      : 'link-variant';
+    return <MaterialCommunityIcons name={iconName} size={size} color="#0D4D8A" />;
   };
 
   const renderRatingStars = (rating: number) => {
@@ -1891,7 +1918,7 @@ export default function CardsFactoryScreen() {
             {vaultItems.length === 0 ? (
               <View style={styles.dataSelectorEmpty}>
                 <MaterialCommunityIcons name="database-off-outline" size={40} color={cardsTheme.sectionLabel} />
-                <Text style={[styles.dataSelectorEmptyText, { color: cardsTheme.sectionLabel }]}>
+                <Text style={[styles.dataSelectorEmpty, { color: cardsTheme.sectionLabel }]}> 
                   {tr('Tu Vault está vacío.\nAgrega datos primero desde Bóveda.', 'Your Vault is empty.\nAdd data from Vault first.')}
                 </Text>
               </View>
@@ -1902,6 +1929,8 @@ export default function CardsFactoryScreen() {
                 numColumns={3}
                 bounces={false}
                 overScrollMode="never"
+                removeClippedSubviews={true}
+                initialNumToRender={10}
                 renderItem={({ item }) => {
                   const isSelected = tempSelectedIds.includes(item.id);
                   return (
@@ -3549,11 +3578,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 40,
     gap: 10,
-  },
-  dataSelectorEmptyText: {
-    fontSize: 13,
-    fontWeight: '600',
-    textAlign: 'center',
   },
   selectorGrid: {
     maxHeight: 360,

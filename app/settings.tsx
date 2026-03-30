@@ -113,7 +113,8 @@ export default function SettingsScreen() {
   const handleClearCache = async () => {
     setIsClearingCache(true);
     try {
-      const cacheDir = (FileSystem as any).cacheDirectory || FileSystem['cacheDirectory'];
+      // @ts-expect-error: Propiedad no tipada pero existe en runtime
+      const cacheDir = FileSystem.cacheDirectory;
       if (Platform.OS === 'web' || !cacheDir) {
         Alert.alert(
           'No disponible',
@@ -143,7 +144,8 @@ export default function SettingsScreen() {
       const userDoc = await getDoc(doc(db, 'users', uid));
       if (!userDoc.exists()) throw new Error('No data');
       const stringData = JSON.stringify(userDoc.data(), null, 2);
-      const fileUri = ((FileSystem as any).documentDirectory || FileSystem['documentDirectory']) + 'CardSocial_MisDatos.json';
+      // @ts-expect-error: Propiedad no tipada pero existe en runtime
+      const fileUri = FileSystem.documentDirectory + 'CardSocial_MisDatos.json';
       await FileSystem.writeAsStringAsync(fileUri, stringData);
       await Sharing.shareAsync(fileUri, { dialogTitle: 'Tus datos de Card-Social' });
     } catch (e) {

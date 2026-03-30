@@ -1,4 +1,4 @@
-
+import '../i18n';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { LanguageProvider, useLanguage } from '@/services/language';
 import { LookModeProvider } from '@/services/lookMode';
