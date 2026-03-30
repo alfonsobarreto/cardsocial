@@ -348,18 +348,8 @@ export default function CardsFactoryScreen() {
   const loadVaultItems = async () => {
     try {
       const raw = await AsyncStorage.getItem(VAULT_STORAGE_KEY);
-      let parsed = raw ? (JSON.parse(raw) as VaultItem[]) : [];
-      // Migración de iconos viejos/corruptos
-      const itemsMigrated = parsed.map(item => {
-        if (item.iconName === 'alternate-email') return { ...item, iconName: 'email' };
-        if (item.iconName === 'file-presentation') return { ...item, iconName: 'file-document' };
-        if (!item.iconName || item.iconName.includes(' ') || item.iconName === '') {
-          return { ...item, iconName: 'link-variant' };
-        }
-        return item;
-      });
-      await AsyncStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(itemsMigrated));
-      setVaultItems(itemsMigrated);
+      const parsed = raw ? (JSON.parse(raw) as VaultItem[]) : [];
+      setVaultItems(parsed);
     } catch {
       setVaultItems([]);
     }
@@ -763,7 +753,28 @@ export default function CardsFactoryScreen() {
   const openEditOnSpecificSlot = (card: SmartCard, slotIndex: number) => {
     setPreviewVisible(false);
     openEditFactory(card);
+    setTimeout(() => {
+      setActiveSlotIndex(slotIndex);
+      setSlotPickerVisible(true);
+    }, 220);
+  };
 
+  const openAddDataFlowFromPreview = (card: SmartCard) => {
+    const targetIndex = Math.min(card.itemIds.length, Math.max(0, MAX_CARD_SLOTS - 1));
+    openEditOnSpecificSlot(card, targetIndex);
+  };
+
+  const openDataSelector = () => {
+    // Only carry over IDs that still exist in the vault — discard stale references
+    const validIds = selectedItemIds.filter((id) => vaultItems.some((vi) => vi.id === id));
+    setTempSelectedIds(validIds);
+    setDataSelectorLimitReached(false);
+    setDataSelectorVisible(true);
+  };
+
+  const handleSelectorToggle = (itemId: string) => {
+    if (tempSelectedIds.includes(itemId)) {
+      setTempSelectedIds((prev) => prev.filter((id) => id !== itemId));
       setDataSelectorLimitReached(false);
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } else {
@@ -1177,17 +1188,19 @@ export default function CardsFactoryScreen() {
   };
 
   const renderVaultMiniIcon = (item: VaultItem | null | undefined, size = 20) => {
-    if (!item) {
-      return <MaterialCommunityIcons name="link-variant" size={size} color="#B0B0B0" />;
+    try {
+      if (!item) {
+        return <MaterialCommunityIcons name="link-variant" size={size} color="#B0B0B0" />;
+      }
+      if (item.icon?.startsWith('http')) {
+        return <ExpoImage source={{ uri: item.icon }} style={{ width: size, height: size, borderRadius: size / 2 }} cachePolicy="disk" />;
+      }
+      // Protección exacta para el nombre del icono
+      const safeIconName = (item.iconName && item.iconName.trim() !== "") ? item.iconName : "file-document-outline";
+      return <MaterialCommunityIcons name={safeIconName as any} size={size} color="#0D4D8A" />;
+    } catch {
+      return <MaterialCommunityIcons name={"file-document-outline" as any} size={size} color="#0D4D8A" />;
     }
-    if (item.icon?.startsWith('http')) {
-      return <ExpoImage source={{ uri: item.icon }} style={{ width: size, height: size, borderRadius: size / 2 }} cachePolicy="disk" />;
-    }
-    // Solo validación local, nunca red ni lógica pesada
-    const iconName = (typeof item.iconName === 'string' && MaterialCommunityIcons.glyphMap[item.iconName])
-      ? item.iconName
-      : 'link-variant';
-    return <MaterialCommunityIcons name={iconName} size={size} color="#0D4D8A" />;
   };
 
   const renderRatingStars = (rating: number) => {
@@ -1929,8 +1942,6 @@ export default function CardsFactoryScreen() {
                 numColumns={3}
                 bounces={false}
                 overScrollMode="never"
-                removeClippedSubviews={true}
-                initialNumToRender={10}
                 renderItem={({ item }) => {
                   const isSelected = tempSelectedIds.includes(item.id);
                   return (

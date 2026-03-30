@@ -975,9 +975,9 @@ const VaultScreen = () => {
             ) : null}
           </View>
           <Text style={styles.vaultCounterLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.62}>
-            {tr(`${links.length} / Ilimitado`, `${links.length} / Unlimited`)}
+            {tr(`${links.length} / 50`, `${links.length} / 50`)}
           </Text>
-          {/* Barra de progreso: oculta para usuarios ilimitados */}
+          {/* Barra de progreso: oculta para usuarios 50 */}
           {/* No mostrar barra de progreso para admin pochobs */}
         </View>
       </View>
