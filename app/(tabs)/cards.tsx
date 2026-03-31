@@ -999,6 +999,28 @@ export default function CardsFactoryScreen() {
     }
   };
 
+  const confirmAndIssueQrForCard = (card: SmartCard) => {
+    if (issuingQr) {
+      return;
+    }
+    Alert.alert(
+      tr('Crear QR', 'Create QR'),
+      tr(
+        `¿Deseas generar el QR de la tarjeta "${card.name}"?`,
+        `Do you want to generate the QR for card "${card.name}"?`
+      ),
+      [
+        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+        {
+          text: tr('Aceptar', 'Accept'),
+          onPress: () => {
+            void issueQrForCard(card);
+          },
+        },
+      ]
+    );
+  };
+
   const selectedCardItems = useMemo(() => {
     if (!selectedCard) {
       return [];
@@ -1598,18 +1620,30 @@ export default function CardsFactoryScreen() {
     const chestTheme = getCardRowTheme(item.themeId);
     const holders = item.holdersCount ?? 0;
     const rating = item.ratingAvg ?? 5;
+    let swipeableRef: any = null;
 
     return (
       <Swipeable
+        ref={(ref) => {
+          swipeableRef = ref;
+        }}
         containerStyle={[styles.swipeWrap, isLandscape && styles.swipeWrapLandscape]}
         rightThreshold={24}
+        leftThreshold={24}
+        renderLeftActions={() => <View style={styles.swipeLeftTriggerArea} />}
+        onSwipeableOpen={(direction) => {
+          if (direction === 'right') {
+            swipeableRef?.close?.();
+            confirmAndIssueQrForCard(item);
+          }
+        }}
         renderRightActions={() => (
           <View style={styles.swipeActions}>
             <TouchableOpacity style={styles.swipeActionBtn} onPress={() => openEditFactory(item)} accessibilityLabel={tr('Editar tarjeta', 'Edit card')}>
               <MaterialCommunityIcons name="pencil" size={16} color="#FFFFFF" />
               <Text style={styles.swipeActionText}>{tr('Editar', 'Edit')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.swipeActionBtn, { backgroundColor: '#0D4D8A' }]} onPress={() => issueQrForCard(item)} disabled={issuingQr} accessibilityLabel={tr('Generar QR', 'Generate QR')}>
+            <TouchableOpacity style={[styles.swipeActionBtn, { backgroundColor: '#0D4D8A' }]} onPress={() => confirmAndIssueQrForCard(item)} disabled={issuingQr} accessibilityLabel={tr('Generar QR', 'Generate QR')}>
               <MaterialCommunityIcons name="qrcode" size={16} color="#FFFFFF" />
               <Text style={styles.swipeActionText}>QR</Text>
             </TouchableOpacity>
@@ -2429,7 +2463,7 @@ export default function CardsFactoryScreen() {
                         style={styles.refreshOverlayBtn}
                         onPress={() => {
                           if (selectedCard) {
-                            issueQrForCard(selectedCard);
+                            confirmAndIssueQrForCard(selectedCard);
                           }
                         }}
                         disabled={issuingQr}
@@ -2455,7 +2489,7 @@ export default function CardsFactoryScreen() {
                 style={styles.ghostBtn}
                 onPress={() => {
                   if (selectedCard) {
-                    issueQrForCard(selectedCard);
+                    confirmAndIssueQrForCard(selectedCard);
                   }
                 }}
               >
@@ -2580,6 +2614,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#B7343A',
     gap: 4,
+  },
+  swipeLeftTriggerArea: {
+    width: 56,
+    marginVertical: 6,
   },
   swipeActionText: {
     color: '#FFFFFF',
