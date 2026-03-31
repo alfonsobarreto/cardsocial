@@ -1552,8 +1552,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.keyboardAvoiding}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
       >
         <View style={[styles.container, { backgroundColor: formTheme.motherBg }]}>
         {/* Header with close button */}
@@ -1578,8 +1579,11 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
-          keyboardDismissMode="on-drag"
-          removeClippedSubviews={true}
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+          contentInsetAdjustmentBehavior="automatic"
           scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
           bounces={false}
@@ -1754,6 +1758,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               </>
             )}
           </TouchableOpacity>
+          <View style={styles.saveButtonSpacer} />
         </ScrollView>
 
         {/* MODAL: TYPE SELECTOR */}
@@ -2039,6 +2044,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 };
 
 const styles = StyleSheet.create({
+  keyboardAvoiding: {
+    flex: 1,
+  },
   container: {
     flex: 1,
   },
@@ -2090,6 +2098,9 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 120,
     flexGrow: 1,
+  },
+  saveButtonSpacer: {
+    height: 28,
   },
   section: {
     marginBottom: 28,
