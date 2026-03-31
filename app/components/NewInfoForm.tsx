@@ -119,6 +119,8 @@ const COUNTRY_CODES = [
 // Tamaño máximo de archivos (en bytes)
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2 MB
 const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024; // 20 MB
+const PICKER_LAUNCH_TIMEOUT_MS = 14000;
+const PICKER_STALE_LOCK_MS = 20000;
 
 const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingData?: Link }) => {
   const { resolvedMode } = useLookMode();
@@ -186,6 +188,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const dismissedFaviconPromptDomainsRef = useRef<Set<string>>(new Set());
   const closeGenerationRef = useRef(0);
   const isPickingRef = useRef(false);
+  const pickerLockTimestampRef = useRef<number | null>(null);
+  const pickerWatchdogTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingTimeoutsRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const pendingInteractionTasksRef = useRef<Array<{ cancel?: () => void }>>([]);
   const isMountedRef = useRef(true);
@@ -229,6 +233,12 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const clearPendingAsyncWork = () => {
     closeGenerationRef.current += 1;
     faviconLookupTokenRef.current += 1;
+    if (pickerWatchdogTimeoutRef.current) {
+      clearTimeout(pickerWatchdogTimeoutRef.current);
+      pickerWatchdogTimeoutRef.current = null;
+    }
+    pickerLockTimestampRef.current = null;
+    isPickingRef.current = false;
     if (faviconPromptTimerRef.current) {
       clearTimeout(faviconPromptTimerRef.current);
       faviconPromptTimerRef.current = null;
@@ -885,6 +895,51 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     }
   };
 
+  const forceUnlockPicker = (reason: string) => {
+    if (pickerWatchdogTimeoutRef.current) {
+      clearTimeout(pickerWatchdogTimeoutRef.current);
+      pickerWatchdogTimeoutRef.current = null;
+    }
+    pickerLockTimestampRef.current = null;
+    isPickingRef.current = false;
+    setIsPicking(false);
+    logPickerTrace('PICKER_FORCE_UNLOCK', { reason });
+  };
+
+  const startPickerGuard = (source: string) => {
+    pickerLockTimestampRef.current = Date.now();
+    if (pickerWatchdogTimeoutRef.current) {
+      clearTimeout(pickerWatchdogTimeoutRef.current);
+    }
+    pickerWatchdogTimeoutRef.current = setTimeout(() => {
+      if (isPickingRef.current) {
+        forceUnlockPicker(`${source}_watchdog_timeout`);
+      }
+    }, PICKER_STALE_LOCK_MS);
+    logPickerTrace('PICKER_GUARD_START', { source, timeoutMs: PICKER_STALE_LOCK_MS });
+  };
+
+  const stopPickerGuard = (source: string) => {
+    if (pickerWatchdogTimeoutRef.current) {
+      clearTimeout(pickerWatchdogTimeoutRef.current);
+      pickerWatchdogTimeoutRef.current = null;
+    }
+    pickerLockTimestampRef.current = null;
+    logPickerTrace('PICKER_GUARD_STOP', { source });
+  };
+
+  const withPickerLaunchTimeout = async <T,>(source: string, task: Promise<T>, timeoutMessage: string) => {
+    try {
+      return await withTimeout(task, PICKER_LAUNCH_TIMEOUT_MS, timeoutMessage);
+    } catch (error) {
+      const message = String((error as any)?.message || '');
+      if (message === timeoutMessage) {
+        logPickerTrace(`${source}_LAUNCH_TIMEOUT`, { timeoutMs: PICKER_LAUNCH_TIMEOUT_MS });
+      }
+      throw error;
+    }
+  };
+
   // Abrir selector de Fotos o Documentos
   const handlePickFile = () => {
     logPickerTrace('OPEN_PICKER_SHEET_REQUEST', {
@@ -894,8 +949,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     });
 
     if (isPickingRef.current) {
-      logPickerTrace('OPEN_PICKER_SHEET_BLOCKED_REF_BUSY');
-      return;
+      const lockAgeMs = pickerLockTimestampRef.current ? Date.now() - pickerLockTimestampRef.current : null;
+      if (lockAgeMs === null || lockAgeMs > PICKER_STALE_LOCK_MS) {
+        logPickerTrace('OPEN_PICKER_SHEET_RECOVER_STALE_REF', { lockAgeMs });
+        forceUnlockPicker('open_sheet_stale_ref');
+      } else {
+        logPickerTrace('OPEN_PICKER_SHEET_BLOCKED_REF_BUSY', { lockAgeMs });
+        return;
+      }
     }
 
     // Recover from stale UI flag if ref is already free.
@@ -936,6 +997,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     }
     isPickingRef.current = true;
     setIsPicking(true);
+    startPickerGuard('pick_photos');
     logPickerTrace('PICK_PHOTOS_START');
     try {
       logPickerTrace('PICK_PHOTOS_REQUEST_PERMISSION');
@@ -958,11 +1020,15 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       const sessionToken = closeGenerationRef.current;
       if (isSessionClosed(sessionToken)) return;
       logPickerTrace('PICK_PHOTOS_LAUNCH_LIBRARY');
-      const result = await ImagePicker.launchImageLibraryAsync({
+      const result = await withPickerLaunchTimeout(
+        'PICK_PHOTOS_LIBRARY',
+        ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: false,
         quality: 0.8,
-      });
+        }),
+        tr('La galería tardó demasiado en responder. Reintenta.', 'Gallery took too long to respond. Please retry.')
+      );
       logPickerTrace('PICK_PHOTOS_LIBRARY_RESULT', {
         canceled: result.canceled,
         assetsCount: result.assets?.length ?? 0,
@@ -1016,6 +1082,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         tr('Intenta nuevamente o elige un archivo desde documentos.', 'Try again or choose a file from documents.')
       );
     } finally {
+      stopPickerGuard('pick_photos');
       isPickingRef.current = false;
       setIsPicking(false);
       logPickerTrace('PICK_PHOTOS_FINALLY_RELEASE');
@@ -1029,17 +1096,22 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     }
     isPickingRef.current = true;
     setIsPicking(true);
+    startPickerGuard('pick_document');
     logPickerTrace('PICK_DOCUMENT_START');
     try {
       setFileTypeModalVisible(false);
       logPickerTrace('PICK_DOCUMENT_SHEET_CLOSED_WAITING_FRAME');
       await waitForModalCloseFrame();
       logPickerTrace('PICK_DOCUMENT_LAUNCH');
-      const result = await DocumentPicker.getDocumentAsync({
+      const result = await withPickerLaunchTimeout(
+        'PICK_DOCUMENT',
+        DocumentPicker.getDocumentAsync({
         type: ['application/pdf', 'image/*'],
         multiple: false,
         copyToCacheDirectory: true,
-      });
+        }),
+        tr('El selector de documentos tardó demasiado en responder. Reintenta.', 'Document picker took too long to respond. Please retry.')
+      );
       logPickerTrace('PICK_DOCUMENT_RESULT', {
         canceled: result.canceled,
         assetsCount: result.assets?.length ?? 0,
@@ -1148,6 +1220,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       });
       Alert.alert(tr('Error', 'Error'), tr('No se pudo seleccionar el documento', 'Could not select document'));
     } finally {
+      stopPickerGuard('pick_document');
       isPickingRef.current = false;
       setIsPicking(false);
       logPickerTrace('PICK_DOCUMENT_FINALLY_RELEASE');
@@ -1161,6 +1234,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     }
     isPickingRef.current = true;
     setIsPicking(true);
+    startPickerGuard('pick_camera');
     logPickerTrace('PICK_CAMERA_START');
     try {
       logPickerTrace('PICK_CAMERA_REQUEST_PERMISSION');
@@ -1183,11 +1257,15 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       const sessionToken = closeGenerationRef.current;
       if (isSessionClosed(sessionToken)) return;
       logPickerTrace('PICK_CAMERA_LAUNCH');
-      const result = await ImagePicker.launchCameraAsync({
+      const result = await withPickerLaunchTimeout(
+        'PICK_CAMERA',
+        ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
         allowsEditing: false,
         quality: 0.8,
-      });
+        }),
+        tr('La cámara tardó demasiado en responder. Reintenta.', 'Camera took too long to respond. Please retry.')
+      );
       logPickerTrace('PICK_CAMERA_RESULT', {
         canceled: result.canceled,
         assetsCount: result.assets?.length ?? 0,
@@ -1240,6 +1318,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         tr('Cierra otras apps de cámara y vuelve a intentar.', 'Close other camera apps and try again.')
       );
     } finally {
+      stopPickerGuard('pick_camera');
       isPickingRef.current = false;
       setIsPicking(false);
       logPickerTrace('PICK_CAMERA_FINALLY_RELEASE');
