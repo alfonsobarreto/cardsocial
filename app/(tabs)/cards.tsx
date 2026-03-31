@@ -24,11 +24,13 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { BlurView } from 'expo-blur';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
 import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Gyroscope } from 'expo-sensors';
+import * as Sharing from 'expo-sharing';
 import { doc, getDoc } from 'firebase/firestore';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -59,6 +61,13 @@ import { ActionController } from '../../services/ActionController';
 import { sanitizeMaterialCommunityIconName } from '../components/iconNameValidation';
 import palette from '../theme';
 
+let PdfComponent: any = null;
+try {
+  PdfComponent = require('react-native-pdf').default;
+} catch {
+  PdfComponent = null;
+}
+
 const VAULT_STORAGE_KEY = 'vault_data';
 const SMART_CARDS_STORAGE_KEY = 'smart_cards';
 
@@ -78,6 +87,11 @@ const toRenderableImageUri = (value: string | null | undefined): string | null =
   return null;
 };
 
+const normalizeType = (type: string) => String(type || '').trim().toLowerCase();
+const isImageValue = (value: string) =>
+  /\.(jpg|jpeg|png|gif|webp|bmp|heic)(\?|$)/i.test(value) ||
+  (value.startsWith('file://') && !value.toLowerCase().endsWith('.pdf'));
+const isPdfValue = (value: string) => /\.pdf(\?|$)/i.test(value);
 const createSmartCardId = () => {
   const tsPart = Date.now().toString(36);
   const randA = Math.random().toString(36).slice(2, 10);
@@ -202,6 +216,9 @@ export default function CardsFactoryScreen() {
   const parallaxX = useRef(new Animated.Value(0)).current;
   const parallaxY = useRef(new Animated.Value(0)).current;
   const qrTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerItem, setViewerItem] = useState<VaultItem | null>(null);
+  const [isDownloadingViewerFile, setIsDownloadingViewerFile] = useState(false);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -1134,13 +1151,13 @@ export default function CardsFactoryScreen() {
     setPreviewLayout(width > height ? 'horizontal' : 'vertical');
   }, [previewVisible, width, height]);
 
-  const openDataPopover = (item: VaultItem) => {
+  const openDataPopover = async (item: VaultItem) => {
     const type = String(item.type || '').toLowerCase();
     const value = String(item.value || '').trim();
     if (type.includes('email')) {
-      ActionController.ActionEmail({ value });
+      await ActionController.ActionEmail({ value });
     } else if (type.includes('tel')) {
-      ActionController.ActionTelefono({
+      await ActionController.ActionTelefono({
         value,
         userName: ownerNickname || 'este contacto',
         cardName: selectedCard?.name ?? '',
@@ -1149,17 +1166,16 @@ export default function CardsFactoryScreen() {
         },
       });
     } else if (type.includes('enlace') || type.includes('link') || type.includes('web')) {
-      ActionController.ActionLink({ value, title: item.title });
-    } else if (type.includes('documento') || type.includes('pdf')) {
-      ActionController.ActionDocument({
-        value,
-        closeModal: () => {
-          setDataPopoverVisible(false);
-          setFocusedDataItem(null);
-        },
-      });
+      await ActionController.ActionLink({ value, title: item.title });
+    } else if (
+      type.includes('documento') ||
+      type.includes('pdf') ||
+      isPdfValue(value) ||
+      isImageValue(value)
+    ) {
+      await openDocumentViewer(item);
     } else if (type.includes('texto')) {
-      ActionController.ActionText({ value, title: item.title });
+      await ActionController.ActionText({ value, title: item.title });
     } else {
       Alert.alert('Dato', value);
     }
@@ -1202,7 +1218,7 @@ export default function CardsFactoryScreen() {
         return;
       }
       if (item.type === 'Documento') {
-        await ActionController.ActionDocument({ value: String(item.value || '') });
+        await openDocumentViewer(item);
         return;
       }
       Alert.alert(tr('Documento protegido', 'Protected document'), tr('Este dato solo se puede visualizar por el visor seguro de Card-Social.', 'This data can only be viewed through Card-Social secure viewer.'));
@@ -1225,7 +1241,7 @@ export default function CardsFactoryScreen() {
         return;
       }
       if (item.type === 'Documento') {
-        await ActionController.ActionDocument({ value: String(item.value || '') });
+        await openDocumentViewer(item);
         return;
       }
       Alert.alert(tr('No disponible', 'Not available'), tr('Este dato no tiene ruta de navegador directa.', 'This data has no direct browser route.'));
@@ -1251,6 +1267,81 @@ export default function CardsFactoryScreen() {
     } catch {
       return <MaterialCommunityIcons name={"help-circle" as any} size={size} color="#0D4D8A" />;
     }
+  };
+
+  const openDocumentViewer = async (item: VaultItem) => {
+    const biometricOk = await hardLockCheck('abrir visor seguro de documentos');
+    if (!biometricOk) {
+      return;
+    }
+
+    setDataPopoverVisible(false);
+    setFocusedCertificate(null);
+    setViewerItem(item);
+    setViewerVisible(true);
+  };
+
+  const handleDownloadFromViewer = async () => {
+    if (!viewerItem?.value) {
+      return;
+    }
+
+    try {
+      setIsDownloadingViewerFile(true);
+      const fileNameSafe = `${viewerItem.title || 'archivo'}-${Date.now()}`.replace(/[^a-zA-Z0-9-_]/g, '_');
+      const extension = isPdfValue(viewerItem.value) ? 'pdf' : 'jpg';
+      const targetUri = `${FileSystem.cacheDirectory}${fileNameSafe}.${extension}`;
+
+      await FileSystem.downloadAsync(viewerItem.value, targetUri);
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(targetUri, {
+          mimeType: isPdfValue(viewerItem.value) ? 'application/pdf' : 'image/jpeg',
+          dialogTitle: tr('Guardar archivo de Card-Social', 'Save Card-Social file'),
+        });
+      }
+
+      Toast.show({
+        type: 'success',
+        text1: tr('📥 Descarga lista', '📥 Download ready'),
+        text2: tr('Archivo preparado en tu dispositivo', 'File ready on your device'),
+        position: 'bottom',
+        visibilityTime: 3000,
+        autoHide: true,
+      });
+    } catch (error) {
+      console.error('Cards viewer download failed:', error);
+      Toast.show({
+        type: 'error',
+        text1: tr('❌ No se pudo descargar', '❌ Download failed'),
+        position: 'bottom',
+        visibilityTime: 3000,
+        autoHide: true,
+      });
+    } finally {
+      setIsDownloadingViewerFile(false);
+    }
+  };
+
+  const handleViewerLongPress = () => {
+    if (!viewerItem) return;
+    Alert.alert(
+      tr('Guardar archivo', 'Save file'),
+      tr(
+        'Mantén la privacidad: el archivo se exportará desde el visor seguro.',
+        'Keep privacy: the file will be exported from the secure viewer.'
+      ),
+      [
+        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+        {
+          text: tr('Guardar', 'Save'),
+          onPress: () => {
+            void handleDownloadFromViewer();
+          },
+        },
+      ]
+    );
   };
 
   const renderRatingStars = (rating: number) => {
@@ -2434,6 +2525,97 @@ export default function CardsFactoryScreen() {
         </View>
       </Modal>
 
+      <Modal
+        visible={viewerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setViewerVisible(false);
+          setViewerItem(null);
+        }}
+      >
+        <View style={styles.viewerOverlay}>
+          <View style={styles.viewerTopBar}>
+            <TouchableOpacity style={styles.viewerDownloadButton} onPress={handleDownloadFromViewer} disabled={isDownloadingViewerFile}>
+              {isDownloadingViewerFile ? (
+                <ActivityIndicator size="small" color="#0A2540" />
+              ) : (
+                <MaterialCommunityIcons name="download" color="#0A2540" size={18} />
+              )}
+              <Text style={styles.viewerDownloadText}>{tr('Descargar', 'Download')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.viewerCloseButton}
+              onPress={() => {
+                setViewerVisible(false);
+                setViewerItem(null);
+              }}
+            >
+              <MaterialCommunityIcons name="close" color="#002D4B" size={28} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.viewerBody}>
+            {viewerItem ? (
+              isImageValue(viewerItem.value) ? (
+                <TouchableWithoutFeedback onLongPress={handleViewerLongPress} delayLongPress={550}>
+                  <ScrollView
+                    maximumZoomScale={6}
+                    minimumZoomScale={1}
+                    contentContainerStyle={styles.viewerZoomContainer}
+                    centerContent
+                    bounces={false}
+                    overScrollMode="never"
+                    bouncesZoom
+                  >
+                    <ExpoImage
+                      source={{ uri: viewerItem.value }}
+                      style={styles.viewerImage}
+                      contentFit="contain"
+                      cachePolicy="disk"
+                      transition={200}
+                      accessibilityLabel={tr('Documento imagen', 'Document image')}
+                    />
+                  </ScrollView>
+                </TouchableWithoutFeedback>
+              ) : isPdfValue(viewerItem.value) ? (
+                PdfComponent ? (
+                  <TouchableWithoutFeedback onLongPress={handleViewerLongPress} delayLongPress={550}>
+                    <View style={styles.viewerPdfWrapper}>
+                      <PdfComponent
+                        source={{ uri: viewerItem.value }}
+                        style={styles.viewerPdf}
+                        minScale={1}
+                        maxScale={3}
+                        trustAllCerts={false}
+                      />
+                    </View>
+                  </TouchableWithoutFeedback>
+                ) : (
+                  <View style={styles.viewerFallback}>
+                    <MaterialCommunityIcons name="file-pdf-box" color="#C5A065" size={54} />
+                    <Text style={[styles.viewerFallbackText, { color: cardsTheme.sectionLabel }]}>
+                      {tr(
+                        'La previsualizacion PDF no esta disponible en Expo Go. Usa un development build para verla.',
+                        'PDF preview is not available in Expo Go. Use a development build to view it.'
+                      )}
+                    </Text>
+                  </View>
+                )
+              ) : (
+                <View style={styles.viewerFallback}>
+                  <MaterialCommunityIcons name="file-alert-outline" color="#C5A065" size={54} />
+                  <Text style={[styles.viewerFallbackText, { color: cardsTheme.sectionLabel }]}>
+                    {tr('No se pudo previsualizar este archivo.', 'Could not preview this file.')}
+                  </Text>
+                </View>
+              )
+            ) : null}
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={qrVisible} transparent animationType="fade" onRequestClose={() => setQrVisible(false)}>
         <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}> 
           <View style={styles.qrModal}>
@@ -3321,6 +3503,73 @@ const styles = StyleSheet.create({
     color: '#0D4D8A',
     fontWeight: '700',
     fontSize: 12,
+  },
+  viewerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.86)',
+  },
+  viewerTopBar: {
+    marginTop: Platform.OS === 'ios' ? 56 : 24,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    zIndex: 4,
+  },
+  viewerDownloadButton: {
+    minHeight: 38,
+    borderRadius: 999,
+    backgroundColor: '#D4AF37',
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  viewerDownloadText: {
+    color: '#0A2540',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  viewerCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.85)',
+  },
+  viewerBody: {
+    flex: 1,
+    marginTop: 14,
+  },
+  viewerZoomContainer: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewerImage: {
+    width: '100%',
+    height: '100%',
+    minHeight: 340,
+  },
+  viewerPdfWrapper: {
+    flex: 1,
+  },
+  viewerPdf: {
+    flex: 1,
+    backgroundColor: '#0E2236',
+  },
+  viewerFallback: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    gap: 12,
+  },
+  viewerFallbackText: {
+    textAlign: 'center',
+    fontSize: 13,
+    fontWeight: '600',
   },
   subscribersModalCard: {
     width: '92%',
