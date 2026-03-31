@@ -2017,39 +2017,38 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           animationType="fade"
           onRequestClose={() => closeFaviconSuggestion()}
         >
-            <TouchableWithoutFeedback onPress={() => closeFaviconSuggestion()}>
+          <TouchableWithoutFeedback onPress={() => closeFaviconSuggestion()}>
             <View style={styles.faviconPopupOverlay}>
               <TouchableWithoutFeedback onPress={() => {}}>
-                  <View style={styles.faviconPopupCard}>
-                    <Text style={styles.faviconPopupTitle}>{tr('¿Usar este icono?', 'Use this icon?')}</Text>
-                    <View style={styles.faviconPopupPreviewBox}>
-                      {faviconLoading ? (
-                        <BrandedSpinner size={44} color="#D4AF37" />
-                      ) : faviconUrl ? (
-                        <Image source={{ uri: faviconUrl }} style={styles.faviconPopupImage} />
-                      ) : (
-                        <MaterialCommunityIcons name="web" color="#0A2540" size={36} />
-                      )}
-                    </View>
-                    <View style={styles.faviconPopupActions}>
-                      <TouchableOpacity
-                        style={[styles.faviconPopupButton, styles.faviconConfirmButton]}
-                        onPress={() => {
-                          setSelectedIcon('favicon');
-                          closeFaviconSuggestion();
-                        }}
-                      >
-                        <Text style={styles.faviconConfirmButtonText}>{tr('SÍ, USAR', 'YES, USE')}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.faviconPopupButton, styles.faviconCancelButton, styles.faviconPopupButtonSpacing]}
-                        onPress={() => {
-                          closeFaviconSuggestion();
-                        }}
-                      >
-                        <Text style={styles.faviconCancelButtonText}>{tr('NO, CANCELAR', 'NO, CANCEL')}</Text>
-                      </TouchableOpacity>
-                    </View>
+                <View style={styles.faviconPopupCard}>
+                  <Text style={styles.faviconPopupTitle}>{tr('¿Usar este icono?', 'Use this icon?')}</Text>
+                  <View style={styles.faviconPopupPreviewBox}>
+                    {faviconLoading ? (
+                      <BrandedSpinner size={44} color="#D4AF37" />
+                    ) : faviconUrl ? (
+                      <Image source={{ uri: faviconUrl }} style={styles.faviconPopupImage} />
+                    ) : (
+                      <MaterialCommunityIcons name="web" color="#0A2540" size={36} />
+                    )}
+                  </View>
+                  <View style={styles.faviconPopupActions}>
+                    <TouchableOpacity
+                      style={[styles.faviconPopupButton, styles.faviconConfirmButton]}
+                      onPress={() => {
+                        setSelectedIcon('favicon');
+                        closeFaviconSuggestion();
+                      }}
+                    >
+                      <Text style={styles.faviconConfirmButtonText}>{tr('SÍ, USAR', 'YES, USE')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.faviconPopupButton, styles.faviconCancelButton, styles.faviconPopupButtonSpacing]}
+                      onPress={() => {
+                        closeFaviconSuggestion();
+                      }}
+                    >
+                      <Text style={styles.faviconCancelButtonText}>{tr('NO, CANCELAR', 'NO, CANCEL')}</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
               </TouchableWithoutFeedback>
