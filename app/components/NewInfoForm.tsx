@@ -11,6 +11,7 @@ import {
   Dimensions,
   FlatList,
   Image,
+  InteractionManager,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
