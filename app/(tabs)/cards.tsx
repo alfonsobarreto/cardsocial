@@ -1100,6 +1100,9 @@ export default function CardsFactoryScreen() {
         value,
         userName: ownerNickname || 'este contacto',
         cardName: selectedCard?.name ?? '',
+        onRequireVoipContext: () => {
+          router.push('/(tabs)/calls' as any);
+        },
       });
     } else if (type.includes('enlace') || type.includes('link') || type.includes('web')) {
       ActionController.ActionLink({ value, title: item.title });

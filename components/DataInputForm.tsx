@@ -71,7 +71,10 @@ const DataInputForm = () => {
     if (type === 'Email') {
       ActionController.ActionEmail({ value });
     } else if (type === 'Teléfono') {
-      ActionController.ActionTelefono({ value, userName: label || 'este contacto' });
+      ActionController.ActionTelefono({
+        value,
+        userName: label || 'este contacto',
+      });
     } else if (type === 'Links' || type === 'Web Personal' || type === 'Enlaces') {
       ActionController.ActionLink({ value, title: label });
     } else if (type === 'Documento') {

@@ -643,6 +643,7 @@ export default function StoriesPage() {
         value,
         userName: story.cardName || 'este contacto',
         cardName: story.ctaTitle || '',
+        fallbackToCallsTab: true,
       });
     } else if (type.includes('enlace') || type.includes('link') || type.includes('web')) {
       ActionController.ActionLink({ value, title: story.ctaTitle });

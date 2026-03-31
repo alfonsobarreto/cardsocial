@@ -1,6 +1,10 @@
 // ActionController.ts
 // Controlador central para acciones de iconos Card-Social
 import * as Clipboard from 'expo-clipboard';
+import { getActiveUserId } from '@/services/authSession';
+import { hardLockCheck } from '@/services/biometricAuth';
+import { startGhostLinkVoipCall } from '@/services/ghostLinkVoip';
+import { createCallLog } from '@/services/qrApi';
 import { Alert, Linking, Platform } from 'react-native';
 
 export const ActionController = {
@@ -118,33 +122,111 @@ export const ActionController = {
 
   /**
    * ActionTelefono: Modal flotante con nombre de usuario y tarjeta. NUNCA muestra el número real.
-   * Botones: Llamar VoIP y Cancelar.
+   * NUNCA abre el marcador nativo (tel:). Solo Ghost-Link VoIP o redirección interna.
    */
   async ActionTelefono({
     value,
     userName = 'este contacto',
     cardName,
+    targetUid,
+    sourceCardName,
+    sourceCardId = null,
+    onRequireVoipContext,
+    fallbackToCallsTab = false,
+    enforceGhostLinkOnly = false,
   }: {
     value: string;
     userName?: string;
     cardName?: string;
+    targetUid?: string | null;
+    sourceCardName?: string;
+    sourceCardId?: string | null;
+    onRequireVoipContext?: () => void | Promise<void>;
+    fallbackToCallsTab?: boolean;
+    enforceGhostLinkOnly?: boolean;
   }) {
     const tel = String(value || '').replace(/\s+/g, '');
     if (!/^\+?\d{7,15}$/.test(tel)) {
       Alert.alert('Teléfono inválido', 'No es un número válido para marcar.');
       return;
     }
-    Alert.alert(
-      `¿Deseas llamar a ${userName}?`,
-      cardName ?? undefined,
-      [
-        {
-          text: 'Llamar VoIP',
-          onPress: () => Linking.openURL(`tel:${tel}`).catch(() => Alert.alert('Error', 'No se pudo iniciar la llamada.')),
+
+    const normalizedTargetUid = String(targetUid || '').trim();
+    const resolvedSourceCardName = String(sourceCardName || cardName || 'Tarjeta Social').trim();
+
+    // Sin targetUid no existe ruta VoIP segura. El número queda como identificador interno.
+    if (!normalizedTargetUid) {
+      Alert.alert(
+        'Ghost-Link requerido',
+        'Este dato de teléfono permanece privado. Para llamar debes iniciar la sesión VoIP desde Contacts/Calls con un contacto validado.',
+        [
+          {
+            text: 'Ir a Calls',
+            onPress: () => {
+              if (onRequireVoipContext) {
+                void Promise.resolve(onRequireVoipContext());
+              }
+            },
+          },
+          { text: 'Cerrar', style: 'cancel' },
+        ]
+      );
+      if (fallbackToCallsTab && onRequireVoipContext) {
+        void Promise.resolve(onRequireVoipContext());
+      }
+      return;
+    }
+
+    const ownerUid = await getActiveUserId();
+    if (!ownerUid) {
+      Alert.alert('Sesión requerida', 'No se pudo validar tu sesión para iniciar Ghost-Link.');
+      return;
+    }
+
+    const authenticated = await hardLockCheck('iniciar llamada Ghost-Link');
+    if (!authenticated) {
+      return;
+    }
+
+    try {
+      await startGhostLinkVoipCall({
+        ownerUid,
+        targetUid: normalizedTargetUid,
+        card: {
+          sourceCardName: resolvedSourceCardName,
+          sourceCardId,
         },
-        { text: 'Cancelar', style: 'cancel' },
-      ]
-    );
+      });
+
+      await createCallLog({
+        ownerUid,
+        peerUid: normalizedTargetUid,
+        direction: 'outgoing',
+        status: 'completed',
+        durationSec: 0,
+        tags: ['Ghost-Link'],
+        sourceCardName: resolvedSourceCardName,
+        sourceCardId,
+        callChannel: 'ghost-link-voip',
+      });
+
+      Alert.alert(
+        'Ghost-Link en curso',
+        `Conectando con ${userName}. Tu número real permanece oculto.`
+      );
+    } catch (error: any) {
+      if (enforceGhostLinkOnly) {
+        Alert.alert(
+          'Ghost-Link obligatorio',
+          error?.message || 'No se pudo establecer llamada segura.'
+        );
+        return;
+      }
+      Alert.alert(
+        'No se pudo iniciar Ghost-Link',
+        error?.message || 'Intenta nuevamente.'
+      );
+    }
   },
 
   /**
