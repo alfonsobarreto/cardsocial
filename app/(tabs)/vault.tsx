@@ -1010,9 +1010,9 @@ const VaultScreen = () => {
       {/* Modal del formulario */}
       <Modal
         visible={formModalVisible}
-        transparent
+        transparent={false}
         animationType="slide"
-        presentationStyle="overFullScreen"
+        presentationStyle="fullScreen"
         hardwareAccelerated
         onDismiss={() => {
           formSheetTranslateY.stopAnimation();

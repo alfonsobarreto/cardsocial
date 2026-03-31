@@ -6,6 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  ActionSheetIOS,
   Alert,
   Dimensions,
   FlatList,
@@ -190,6 +191,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const isPickingRef = useRef(false);
   const pickerLockTimestampRef = useRef<number | null>(null);
   const pickerWatchdogTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fileTypeModalDismissResolverRef = useRef<((reason: string) => void) | null>(null);
   const pendingTimeoutsRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const pendingInteractionTasksRef = useRef<Array<{ cancel?: () => void }>>([]);
   const isMountedRef = useRef(true);
@@ -238,6 +240,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       pickerWatchdogTimeoutRef.current = null;
     }
     pickerLockTimestampRef.current = null;
+    fileTypeModalDismissResolverRef.current = null;
     isPickingRef.current = false;
     if (faviconPromptTimerRef.current) {
       clearTimeout(faviconPromptTimerRef.current);
@@ -965,6 +968,42 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       setIsPicking(false);
     }
 
+    if (Platform.OS === 'ios') {
+      logPickerTrace('OPEN_PICKER_IOS_ACTION_SHEET');
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: [
+            tr('Cancelar', 'Cancel'),
+            tr('Tomar foto', 'Take photo'),
+            tr('Elegir imagen', 'Choose image'),
+            tr('Elegir documento', 'Choose document'),
+          ],
+          cancelButtonIndex: 0,
+        },
+        (idx) => {
+          if (idx === 1) {
+            logPickerTrace('OPEN_PICKER_IOS_SELECT_CAMERA');
+            trackTimeout(() => {
+              void handleTakePhoto();
+            }, 180);
+          }
+          if (idx === 2) {
+            logPickerTrace('OPEN_PICKER_IOS_SELECT_PHOTOS');
+            trackTimeout(() => {
+              void handlePickPhotos();
+            }, 180);
+          }
+          if (idx === 3) {
+            logPickerTrace('OPEN_PICKER_IOS_SELECT_DOCUMENT');
+            trackTimeout(() => {
+              void handlePickDocument();
+            }, 180);
+          }
+        },
+      );
+      return;
+    }
+
     setFileTypeModalVisible(true);
     logPickerTrace('OPEN_PICKER_SHEET_VISIBLE');
   };
@@ -986,7 +1025,36 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
   const waitForModalCloseFrame = () =>
     new Promise<void>((resolve) => {
-      trackTimeout(() => resolve(), 140);
+      if (!fileTypeModalVisible) {
+        logPickerTrace('PICKER_SHEET_WAIT_SKIPPED_NOT_VISIBLE');
+        let interactionTask: { cancel?: () => void } | null = null;
+        interactionTask = InteractionManager.runAfterInteractions(() => {
+          untrackInteractionTask(interactionTask);
+          trackTimeout(() => resolve(), Platform.OS === 'ios' ? 120 : 60);
+        });
+        trackInteractionTask(interactionTask);
+        return;
+      }
+
+      let settled = false;
+      const settle = (reason: string) => {
+        if (settled) return;
+        settled = true;
+        if (fileTypeModalDismissResolverRef.current) {
+          fileTypeModalDismissResolverRef.current = null;
+        }
+        logPickerTrace('PICKER_SHEET_WAIT_RESOLVED', { reason });
+        let interactionTask: { cancel?: () => void } | null = null;
+        interactionTask = InteractionManager.runAfterInteractions(() => {
+          untrackInteractionTask(interactionTask);
+          trackTimeout(() => resolve(), Platform.OS === 'ios' ? 220 : 90);
+        });
+        trackInteractionTask(interactionTask);
+      };
+
+      fileTypeModalDismissResolverRef.current = settle;
+      setFileTypeModalVisible(false);
+      trackTimeout(() => settle('dismiss_timeout_fallback'), Platform.OS === 'ios' ? 1100 : 500);
     });
 
   // Seleccionar imagen del dispositivo
@@ -1007,7 +1075,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         Alert.alert(tr('Permiso denegado', 'Permission denied'), tr('Se necesita acceso a fotos', 'Photo access required'));
         return;
       }
-      setFileTypeModalVisible(false);
       logPickerTrace('PICK_PHOTOS_SHEET_CLOSED_WAITING_FRAME');
       await waitForModalCloseFrame();
       Toast.show({
@@ -1099,7 +1166,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     startPickerGuard('pick_document');
     logPickerTrace('PICK_DOCUMENT_START');
     try {
-      setFileTypeModalVisible(false);
       logPickerTrace('PICK_DOCUMENT_SHEET_CLOSED_WAITING_FRAME');
       await waitForModalCloseFrame();
       logPickerTrace('PICK_DOCUMENT_LAUNCH');
@@ -1244,7 +1310,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         Alert.alert(tr('Permiso denegado', 'Permission denied'), tr('Se necesita acceso a la cámara', 'Camera access required'));
         return;
       }
-      setFileTypeModalVisible(false);
       logPickerTrace('PICK_CAMERA_SHEET_CLOSED_WAITING_FRAME');
       await waitForModalCloseFrame();
       Toast.show({
@@ -2295,6 +2360,15 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           visible={fileTypeModalVisible}
           transparent
           animationType="slide"
+          presentationStyle="overFullScreen"
+          statusBarTranslucent
+          hardwareAccelerated
+          onDismiss={() => {
+            if (fileTypeModalDismissResolverRef.current) {
+              logPickerTrace('PICKER_SHEET_MODAL_ON_DISMISS');
+              fileTypeModalDismissResolverRef.current('modal_on_dismiss');
+            }
+          }}
           onRequestClose={closeFileTypeModal}
         >
           <TouchableWithoutFeedback onPress={closeFileTypeModal}>
