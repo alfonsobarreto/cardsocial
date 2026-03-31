@@ -19,10 +19,12 @@ import {
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 let PdfComponent: any = null;
-try {
-  PdfComponent = require('react-native-pdf').default;
-} catch {
-  PdfComponent = null;
+if (Platform.OS !== 'web') {
+  try {
+    PdfComponent = require('react-native-pdf').default;
+  } catch {
+    PdfComponent = null;
+  }
 }
 
 export type PendingAsset = {
