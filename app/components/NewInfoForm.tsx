@@ -10,7 +10,6 @@ import {
   Dimensions,
   FlatList,
   Image,
-  InteractionManager,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -33,7 +32,6 @@ import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Buffer } from 'buffer';
 import * as Haptics from 'expo-haptics';
 import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 import Toast from 'react-native-toast-message';
@@ -858,37 +856,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const optimizePdfForLimit = async (uri: string, maxBytes: number): Promise<{ uri: string; size: number }> => {
     try {
       setIsCompressing(true);
-      const initialSize = await getFileSizeInBytes(uri);
-      if (initialSize <= maxBytes) {
-        return { uri, size: initialSize };
-      }
-
-      const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      const sourceBytes = Uint8Array.from(Buffer.from(base64, 'base64'));
-      // [SILENCIADO POR ERROR DE DEPENDENCIA]
-      // const pdfDoc = await PDFDocument.load(sourceBytes, {
-      //   ignoreEncryption: true,
-      //   updateMetadata: false,
-      // });
-      //
-      // const optimizedBytes = await pdfDoc.save({
-      //   useObjectStreams: true,
-      //   addDefaultPage: false,
-      //   updateFieldAppearances: false,
-      // });
-      //
-      // const optimizedBase64 = Buffer.from(optimizedBytes).toString('base64');
-      // const optimizedUri = `${FileSystem.cacheDirectory || ''}optimized-${Date.now()}.pdf`;
-      // await FileSystem.writeAsStringAsync(optimizedUri, optimizedBase64, {
-      //   encoding: FileSystem.EncodingType.Base64,
-      // });
-      //
-      // const optimizedSize = await getFileSizeInBytes(optimizedUri);
-      // return { uri: optimizedUri, size: optimizedSize };
-      // [FIN SILENCIADO]
-      // #30 Warn user that PDF optimization is unavailable
+      // IMPORTANT: avoid loading huge PDFs in memory as base64 here.
+      // That path was causing freezes/crashes on physical iOS devices.
       const currentSize = await getFileSizeInBytes(uri).catch(() => Number.MAX_SAFE_INTEGER);
       if (currentSize > maxBytes) {
         Toast.show({
@@ -915,6 +884,11 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setFileTypeModalVisible(true);
   };
 
+  const waitForModalCloseFrame = () =>
+    new Promise<void>((resolve) => {
+      trackTimeout(() => resolve(), 140);
+    });
+
   // Seleccionar imagen del dispositivo
   const handlePickPhotos = async () => {
     try {
@@ -923,7 +897,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         Alert.alert(tr('Permiso denegado', 'Permission denied'), tr('Se necesita acceso a fotos', 'Photo access required'));
         return;
       }
-      setFileTypeModalVisible(false); // Cerrar modal antes de procesar
+      setFileTypeModalVisible(false);
+      await waitForModalCloseFrame();
       Toast.show({
         text1: tr('Subiendo archivo...', 'Uploading file...'),
         type: 'info',
@@ -932,59 +907,63 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         autoHide: true,
       });
       const sessionToken = closeGenerationRef.current;
-      const interactionTask: any = InteractionManager.runAfterInteractions(async () => { // Diferir hasta que la animación de cierre termine
-        untrackInteractionTask(interactionTask);
-        if (isSessionClosed(sessionToken)) return;
-        const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ['images'],
-          allowsEditing: false,
-          quality: 0.8,
+      if (isSessionClosed(sessionToken)) return;
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.8,
+      });
+      if (isSessionClosed(sessionToken)) return;
+      if (!result.canceled && result.assets.length > 0) {
+        const file = result.assets[0];
+        logAssetAudit('PICK_GALLERY_RAW', {
+          dataType,
+          dataName,
+          uri: file.uri,
+          fileName: file.fileName || 'unknown',
+          mimeType: file.mimeType || 'unknown',
+          sizeBytes: file.fileSize || null,
         });
+
+        const maxImageBytes = dataType === 'Documento' ? MAX_DOCUMENT_SIZE : MAX_IMAGE_SIZE;
+        const optimized = await optimizeImageForLimit(file.uri, maxImageBytes);
         if (isSessionClosed(sessionToken)) return;
-        if (!result.canceled && result.assets.length > 0) {
-          const file = result.assets[0];
-          logAssetAudit('PICK_GALLERY_RAW', {
-            dataType,
-            dataName,
-            uri: file.uri,
-            fileName: file.fileName || 'unknown',
-            mimeType: file.mimeType || 'unknown',
-            sizeBytes: file.fileSize || null,
-          });
-          const optimized = await optimizeImageForLimit(file.uri, MAX_IMAGE_SIZE);
-          if (isSessionClosed(sessionToken)) return;
-          console.log('--- COMPRESIÓN REAL ---', optimized.size);
-          if (optimized.size > MAX_IMAGE_SIZE) {
-            Alert.alert(
-              tr('No se pudo optimizar', 'Could not optimize'),
-              tr('La imagen no pudo reducirse al límite seguro. Intenta otra foto o menor resolución.', 'The image could not be reduced to the safe limit. Try another photo or lower resolution.')
-            );
-            return;
-          }
-          logAssetAudit('PICK_GALLERY_COMPRESSED', {
-            dataType,
-            dataName,
-            uri: optimized.uri,
-            fileName: file.fileName || 'gallery-image.jpg',
-            mimeType: 'image/jpeg',
-            sizeBytes: optimized.size,
-          });
-          openAssetPreview({
-            uri: optimized.uri,
-            name: file.fileName || 'gallery-image.jpg',
-            mimeType: file.mimeType || 'image/jpeg',
-            source: 'gallery',
-          });
+        console.log('--- COMPRESIÓN REAL ---', optimized.size);
+        if (optimized.size > maxImageBytes) {
+          Alert.alert(
+            tr('No se pudo optimizar', 'Could not optimize'),
+            tr('La imagen no pudo reducirse al límite seguro. Intenta otra foto o menor resolución.', 'The image could not be reduced to the safe limit. Try another photo or lower resolution.')
+          );
+          return;
         }
-      }); // Diferido con InteractionManager
-      trackInteractionTask(interactionTask);
+        logAssetAudit('PICK_GALLERY_COMPRESSED', {
+          dataType,
+          dataName,
+          uri: optimized.uri,
+          fileName: file.fileName || 'gallery-image.jpg',
+          mimeType: 'image/jpeg',
+          sizeBytes: optimized.size,
+        });
+        openAssetPreview({
+          uri: optimized.uri,
+          name: file.fileName || 'gallery-image.jpg',
+          mimeType: file.mimeType || 'image/jpeg',
+          source: 'gallery',
+        });
+      }
     } catch (error) {
       console.error('Error al seleccionar imagen:', error);
+      Alert.alert(
+        tr('No se pudo abrir la galería', 'Could not open gallery'),
+        tr('Intenta nuevamente o elige un archivo desde documentos.', 'Try again or choose a file from documents.')
+      );
     }
   };
 
   const handlePickDocument = async () => {
     try {
+      setFileTypeModalVisible(false);
+      await waitForModalCloseFrame();
       const result = await DocumentPicker.getDocumentAsync({
         type: ['application/pdf', 'image/*'],
         multiple: false,
@@ -992,11 +971,11 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       });
 
       if (result.canceled || !result.assets?.length) {
-        setFileTypeModalVisible(false);
         return;
       }
 
       const file = result.assets[0];
+      const incomingSize = Number(file.size || 0);
       logAssetAudit('PICK_DOCUMENT_RAW', {
         dataType,
         dataName,
@@ -1011,18 +990,18 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       let finalSize = await getFileSizeInBytes(file.uri);
 
       if (isImageDoc) {
-        const optimized = await optimizeImageForLimit(file.uri, MAX_IMAGE_SIZE);
+        const maxImageBytes = dataType === 'Documento' ? MAX_DOCUMENT_SIZE : MAX_IMAGE_SIZE;
+        const optimized = await optimizeImageForLimit(file.uri, maxImageBytes);
         console.log('--- COMPRESIÓN REAL ---', optimized.size);
         finalUri = optimized.uri;
         finalSize = optimized.size;
         finalMime = 'image/jpeg';
 
-        if (finalSize > MAX_IMAGE_SIZE && dataType !== 'Documento') {
+        if (finalSize > maxImageBytes) {
           Alert.alert(
             tr('No se pudo optimizar', 'Could not optimize'),
             tr('No fue posible reducir la imagen al límite seguro. Prueba con otra captura.', 'Could not reduce image to safe limit. Try another capture.')
           );
-          setFileTypeModalVisible(false);
           return;
         }
         // Permitir guardar imágenes como documentos: ajustar nombre si es necesario
@@ -1030,17 +1009,24 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           file.name = file.name?.replace(/\.[^/.]+$/, '') + '.jpg';
         }
       } else if (isPdfAsset(file.uri, file.mimeType)) {
+        if (incomingSize > MAX_DOCUMENT_SIZE) {
+          Alert.alert(
+            tr('PDF demasiado pesado', 'PDF too large'),
+            tr('El PDF supera 20 MB. Elige uno más ligero para evitar bloqueos.', 'The PDF exceeds 20 MB. Choose a lighter file to avoid freezes.')
+          );
+          return;
+        }
+
         const optimizedPdf = await optimizePdfForLimit(file.uri, MAX_DOCUMENT_SIZE);
         finalUri = optimizedPdf.uri;
         finalSize = optimizedPdf.size;
         finalMime = 'application/pdf';
 
-        if (finalSize > MAX_DOCUMENT_SIZE && dataType !== 'Documento') {
+        if (finalSize > MAX_DOCUMENT_SIZE) {
           Alert.alert(
             tr('PDF demasiado pesado', 'PDF too large'),
             tr('El PDF excede el límite seguro incluso tras optimizar. Usa una versión más ligera.', 'The PDF exceeds the safe limit even after optimization. Use a lighter version.')
           );
-          setFileTypeModalVisible(false);
           return;
         }
       } else {
@@ -1051,7 +1037,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               tr('Archivo no soportado', 'Unsupported file'),
               tr('Este formato no es compatible en esta carga segura. Usa imagen o PDF.', 'This format is not supported for secure upload. Use image or PDF.')
             );
-            setFileTypeModalVisible(false);
             return;
           }
         }
@@ -1080,7 +1065,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         mimeType: finalMime,
         sizeBytes: finalSize,
       });
-      setFileTypeModalVisible(false);
     } catch (error) {
       console.error('Error picking document:', error);
       Alert.alert(tr('Error', 'Error'), tr('No se pudo seleccionar el documento', 'Could not select document'));
@@ -1094,7 +1078,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         Alert.alert(tr('Permiso denegado', 'Permission denied'), tr('Se necesita acceso a la cámara', 'Camera access required'));
         return;
       }
-      setFileTypeModalVisible(false); // Cerrar modal antes de procesar
+      setFileTypeModalVisible(false);
+      await waitForModalCloseFrame();
       Toast.show({
         text1: tr('Subiendo archivo...', 'Uploading file...'),
         type: 'info',
@@ -1103,55 +1088,55 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         autoHide: true,
       });
       const sessionToken = closeGenerationRef.current;
-      const interactionTask: any = InteractionManager.runAfterInteractions(async () => {
-        untrackInteractionTask(interactionTask);
-        if (isSessionClosed(sessionToken)) return;
-        const result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ['images'],
-          allowsEditing: false,
-          quality: 0.8,
-        });
-        if (isSessionClosed(sessionToken)) return;
-        if (!result.canceled && result.assets.length > 0) {
-          const file = result.assets[0];
-          logAssetAudit('PICK_CAMERA_RAW', {
-            dataType,
-            dataName,
-            uri: file.uri,
-            fileName: file.fileName || 'camera.jpg',
-            mimeType: file.mimeType || 'unknown',
-            sizeBytes: file.fileSize || null,
-          });
-          const optimized = await optimizeImageForLimit(file.uri, MAX_IMAGE_SIZE);
-          if (isSessionClosed(sessionToken)) return;
-          console.log('--- COMPRESIÓN REAL ---', optimized.size);
-          if (optimized.size > MAX_IMAGE_SIZE && dataType !== 'Documento') {
-            Alert.alert(
-              tr('No se pudo optimizar', 'Could not optimize'),
-              tr('La foto no pudo reducirse al límite seguro. Intenta otra captura.', 'Photo could not be reduced to safe limit. Try another capture.')
-            );
-            return;
-          }
-          logAssetAudit('PICK_CAMERA_COMPRESSED', {
-            dataType,
-            dataName,
-            uri: optimized.uri,
-            fileName: 'camera-compressed.jpg',
-            mimeType: 'image/jpeg',
-            sizeBytes: optimized.size,
-          });
-          openAssetPreview({
-            uri: optimized.uri,
-            name: file.fileName || 'camera-image.jpg',
-            mimeType: 'image/jpeg',
-            source: 'camera',
-          });
-        }
+      if (isSessionClosed(sessionToken)) return;
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.8,
       });
-      trackInteractionTask(interactionTask);
+      if (isSessionClosed(sessionToken)) return;
+      if (!result.canceled && result.assets.length > 0) {
+        const file = result.assets[0];
+        logAssetAudit('PICK_CAMERA_RAW', {
+          dataType,
+          dataName,
+          uri: file.uri,
+          fileName: file.fileName || 'camera.jpg',
+          mimeType: file.mimeType || 'unknown',
+          sizeBytes: file.fileSize || null,
+        });
+        const maxImageBytes = dataType === 'Documento' ? MAX_DOCUMENT_SIZE : MAX_IMAGE_SIZE;
+        const optimized = await optimizeImageForLimit(file.uri, maxImageBytes);
+        if (isSessionClosed(sessionToken)) return;
+        console.log('--- COMPRESIÓN REAL ---', optimized.size);
+        if (optimized.size > maxImageBytes) {
+          Alert.alert(
+            tr('No se pudo optimizar', 'Could not optimize'),
+            tr('La foto no pudo reducirse al límite seguro. Intenta otra captura.', 'Photo could not be reduced to safe limit. Try another capture.')
+          );
+          return;
+        }
+        logAssetAudit('PICK_CAMERA_COMPRESSED', {
+          dataType,
+          dataName,
+          uri: optimized.uri,
+          fileName: 'camera-compressed.jpg',
+          mimeType: 'image/jpeg',
+          sizeBytes: optimized.size,
+        });
+        openAssetPreview({
+          uri: optimized.uri,
+          name: file.fileName || 'camera-image.jpg',
+          mimeType: 'image/jpeg',
+          source: 'camera',
+        });
+      }
     } catch (error) {
       console.error('Error taking photo:', error);
-      Alert.alert(tr('Error', 'Error'), tr('No se pudo tomar la foto', 'Could not take photo'));
+      Alert.alert(
+        tr('No se pudo abrir la cámara', 'Could not open camera'),
+        tr('Cierra otras apps de cámara y vuelve a intentar.', 'Close other camera apps and try again.')
+      );
     }
   };
 

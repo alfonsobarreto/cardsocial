@@ -8,9 +8,11 @@ import {
     Image,
     Modal,
     Platform,
+    ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
+    TouchableWithoutFeedback,
     View,
 } from 'react-native';
 
@@ -80,88 +82,105 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <View style={[styles.overlay, { backgroundColor: theme.overlayBg }]}>
-        {/* ── X close ─────────────────────────────────────── */}
-        <TouchableOpacity
-          style={[styles.closeBtn, { backgroundColor: theme.closeBtnBg }]}
-          onPress={onClose}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          activeOpacity={0.75}
-        >
-          <MaterialCommunityIcons name="close" color={theme.closeIconColor} size={26} />
-        </TouchableOpacity>
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={[styles.overlay, { backgroundColor: theme.overlayBg }]}>
+          <TouchableWithoutFeedback onPress={() => {}}>
+            <View style={styles.contentWrap}>
+              {/* ── X close ─────────────────────────────────────── */}
+              <TouchableOpacity
+                style={[styles.closeBtn, { backgroundColor: theme.closeBtnBg }]}
+                onPress={onClose}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                activeOpacity={0.75}
+              >
+                <MaterialCommunityIcons name="close" color={theme.closeIconColor} size={26} />
+              </TouchableOpacity>
 
-        {/* ── Preview area ─────────────────────────────────── */}
-        <View style={[styles.previewArea, { backgroundColor: theme.previewAreaBg }]}>
-          {isPdf ? (
-            /* PDF visual — icon + filename */
-            <View style={styles.pdfContainer}>
-              <MaterialCommunityIcons
-                name="file-pdf-box"
-                color="#D4AF37"
-                size={96}
-              />
-              <Text style={[styles.pdfFileName, { color: theme.pdfFileNameColor }]} numberOfLines={3}>
-                {fileName}
-              </Text>
-              <View style={[styles.pdfSnippet, { backgroundColor: theme.pdfSnippetBg }]}>
-                <Text style={[styles.pdfSnippetLine, { color: theme.pdfSnippetText }]}>
-                  {fileName.replace('.pdf', '')} — {t('preview_pdf_ready')}
+              {/* ── Preview area ─────────────────────────────────── */}
+              <View style={[styles.previewArea, { backgroundColor: theme.previewAreaBg }]}>
+                {isPdf ? (
+                  /* PDF visual — icon + filename */
+                  <View style={styles.pdfContainer}>
+                    <MaterialCommunityIcons
+                      name="file-pdf-box"
+                      color="#D4AF37"
+                      size={96}
+                    />
+                    <Text style={[styles.pdfFileName, { color: theme.pdfFileNameColor }]} numberOfLines={3}>
+                      {fileName}
+                    </Text>
+                    <View style={[styles.pdfSnippet, { backgroundColor: theme.pdfSnippetBg }]}>
+                      <Text style={[styles.pdfSnippetLine, { color: theme.pdfSnippetText }]}>
+                        {fileName.replace('.pdf', '')} — {t('preview_pdf_ready')}
+                      </Text>
+                      <View style={[styles.pdfSnippetDash, { backgroundColor: theme.pdfSnippetDash }]} />
+                      <View style={[styles.pdfSnippetDash, { backgroundColor: theme.pdfSnippetDash }]} />
+                    </View>
+                  </View>
+                ) : (
+                  /* Image preview with zoom */
+                  <ScrollView
+                    style={styles.imageScroll}
+                    contentContainerStyle={styles.imageScrollContent}
+                    maximumZoomScale={6}
+                    minimumZoomScale={1}
+                    bounces={false}
+                    bouncesZoom
+                    overScrollMode="never"
+                    centerContent
+                  >
+                    <Image
+                      source={{ uri: asset?.uri || '' }}
+                      style={styles.imagePreview}
+                      resizeMode="cover"
+                    />
+                  </ScrollView>
+                )}
+              </View>
+
+              {/* ── Bottom card ──────────────────────────────────── */}
+              <View style={[
+                styles.bottomCard,
+                { backgroundColor: theme.bottomCardBg, borderTopColor: theme.bottomCardBorder },
+              ]}>
+                <Text style={[styles.confirmTitle, { color: theme.titleColor }]}>
+                  {isPdf ? fileName : t('preview_confirm_title_image')}
                 </Text>
-                <View style={[styles.pdfSnippetDash, { backgroundColor: theme.pdfSnippetDash }]} />
-                <View style={[styles.pdfSnippetDash, { backgroundColor: theme.pdfSnippetDash }]} />
+                <Text style={[styles.confirmSubtitle, { color: theme.subtitleColor }]}>
+                  {t('preview_confirm_subtitle')}
+                </Text>
+
+                <View style={styles.actionsRow}>
+                  {/* Ghost button */}
+                  <TouchableOpacity
+                    style={[styles.ghostBtn, { borderColor: theme.ghostBorder }]}
+                    onPress={onChooseAgain}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.ghostBtnText, { color: theme.ghostText }]}>
+                      {t('preview_choose_again')}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Gold accept button */}
+                  <TouchableOpacity
+                    style={styles.acceptBtn}
+                    onPress={handleAccept}
+                    activeOpacity={0.85}
+                  >
+                    <MaterialCommunityIcons
+                      name="shield-check"
+                      color="#0A1A2F"
+                      size={18}
+                    />
+                    <Text style={styles.acceptBtnText}>{t('preview_accept')}</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
-          ) : (
-            /* Image preview */
-            <Image
-              source={{ uri: asset?.uri || '' }}
-              style={styles.imagePreview}
-              resizeMode="cover"
-            />
-          )}
+          </TouchableWithoutFeedback>
         </View>
-
-        {/* ── Bottom card ──────────────────────────────────── */}
-        <View style={[
-          styles.bottomCard,
-          { backgroundColor: theme.bottomCardBg, borderTopColor: theme.bottomCardBorder },
-        ]}>
-          <Text style={[styles.confirmTitle, { color: theme.titleColor }]}>
-            {isPdf ? fileName : t('preview_confirm_title_image')}
-          </Text>
-          <Text style={[styles.confirmSubtitle, { color: theme.subtitleColor }]}>
-            {t('preview_confirm_subtitle')}
-          </Text>
-
-          <View style={styles.actionsRow}>
-            {/* Ghost button */}
-            <TouchableOpacity
-              style={[styles.ghostBtn, { borderColor: theme.ghostBorder }]}
-              onPress={onChooseAgain}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.ghostBtnText, { color: theme.ghostText }]}>
-                {t('preview_choose_again')}
-              </Text>
-            </TouchableOpacity>
-
-            {/* Gold accept button */}
-            <TouchableOpacity
-              style={styles.acceptBtn}
-              onPress={handleAccept}
-              activeOpacity={0.85}
-            >
-              <MaterialCommunityIcons
-                name="shield-check"
-                color="#0A1A2F"
-                size={18}
-              />
-              <Text style={styles.acceptBtnText}>{t('preview_accept')}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 };
@@ -172,6 +191,9 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
+  },
+  contentWrap: {
+    flex: 1,
   },
 
   // ── Close button ──────────────────────────────────────────
@@ -203,6 +225,14 @@ const styles = StyleSheet.create({
     height: SCREEN_HEIGHT * 0.62,
     borderBottomLeftRadius: 18,
     borderBottomRightRadius: 18,
+  },
+  imageScroll: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT * 0.62,
+  },
+  imageScrollContent: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT * 0.62,
   },
   pdfContainer: {
     alignItems: 'center',

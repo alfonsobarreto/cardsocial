@@ -1066,33 +1066,49 @@ const VaultScreen = () => {
           <View style={styles.viewerBody}>
             {viewerItem ? (
               isImageValue(viewerItem.value) ? (
-                <ScrollView
-                  maximumZoomScale={6}
-                  minimumZoomScale={1}
-                  contentContainerStyle={styles.viewerZoomContainer}
-                  centerContent
-                  bounces={false}
-                  overScrollMode="never"
-                  bouncesZoom
+                <TouchableWithoutFeedback
+                  onLongPress={() => {
+                    void handleDownloadFromViewer();
+                  }}
+                  delayLongPress={550}
                 >
-                  <ExpoImage
-                    source={{ uri: viewerItem.value }}
-                    style={styles.viewerImage}
-                    contentFit="contain"
-                    cachePolicy="disk"
-                    transition={200}
-                    accessibilityLabel={tr('Documento imagen', 'Document image')}
-                  />
-                </ScrollView>
+                  <ScrollView
+                    maximumZoomScale={6}
+                    minimumZoomScale={1}
+                    contentContainerStyle={styles.viewerZoomContainer}
+                    centerContent
+                    bounces={false}
+                    overScrollMode="never"
+                    bouncesZoom
+                  >
+                    <ExpoImage
+                      source={{ uri: viewerItem.value }}
+                      style={styles.viewerImage}
+                      contentFit="contain"
+                      cachePolicy="disk"
+                      transition={200}
+                      accessibilityLabel={tr('Documento imagen', 'Document image')}
+                    />
+                  </ScrollView>
+                </TouchableWithoutFeedback>
               ) : isPdfValue(viewerItem.value) ? (
                 PdfComponent ? (
-                  <PdfComponent
-                    source={{ uri: viewerItem.value }}
-                    style={styles.viewerPdf}
-                    minScale={1}
-                    maxScale={3}
-                    trustAllCerts={false}
-                  />
+                  <TouchableWithoutFeedback
+                    onLongPress={() => {
+                      void handleDownloadFromViewer();
+                    }}
+                    delayLongPress={550}
+                  >
+                    <View style={styles.viewerPdfWrapper}>
+                      <PdfComponent
+                        source={{ uri: viewerItem.value }}
+                        style={styles.viewerPdf}
+                        minScale={1}
+                        maxScale={3}
+                        trustAllCerts={false}
+                      />
+                    </View>
+                  </TouchableWithoutFeedback>
                 ) : (
                   <View style={styles.viewerFallback}>
                     <MaterialCommunityIcons name="file-pdf-box" color="#C5A065" size={54} />
