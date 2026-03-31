@@ -18,6 +18,13 @@ import {
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+let PdfComponent: any = null;
+try {
+  PdfComponent = require('react-native-pdf').default;
+} catch {
+  PdfComponent = null;
+}
+
 export type PendingAsset = {
   uri: string;
   name: string;
@@ -68,6 +75,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
     false;
 
   const fileName = asset?.name || 'Archivo';
+  const hasAssetUri = Boolean(asset?.uri);
 
   const handleAccept = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -99,42 +107,62 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
               {/* ── Preview area ─────────────────────────────────── */}
               <View style={[styles.previewArea, { backgroundColor: theme.previewAreaBg }]}>
                 {isPdf ? (
-                  /* PDF visual — icon + filename */
-                  <View style={styles.pdfContainer}>
-                    <MaterialCommunityIcons
-                      name="file-pdf-box"
-                      color="#D4AF37"
-                      size={96}
-                    />
-                    <Text style={[styles.pdfFileName, { color: theme.pdfFileNameColor }]} numberOfLines={3}>
-                      {fileName}
-                    </Text>
-                    <View style={[styles.pdfSnippet, { backgroundColor: theme.pdfSnippetBg }]}>
-                      <Text style={[styles.pdfSnippetLine, { color: theme.pdfSnippetText }]}>
-                        {fileName.replace('.pdf', '')} — {t('preview_pdf_ready')}
-                      </Text>
-                      <View style={[styles.pdfSnippetDash, { backgroundColor: theme.pdfSnippetDash }]} />
-                      <View style={[styles.pdfSnippetDash, { backgroundColor: theme.pdfSnippetDash }]} />
+                  hasAssetUri && PdfComponent ? (
+                    <View style={styles.pdfPreviewWrap}>
+                      <PdfComponent
+                        source={{ uri: asset!.uri }}
+                        style={styles.pdfPreview}
+                        minScale={1}
+                        maxScale={3}
+                        trustAllCerts={false}
+                      />
                     </View>
-                  </View>
+                  ) : (
+                    <View style={styles.pdfContainer}>
+                      <MaterialCommunityIcons
+                        name="file-pdf-box"
+                        color="#D4AF37"
+                        size={96}
+                      />
+                      <Text style={[styles.pdfFileName, { color: theme.pdfFileNameColor }]} numberOfLines={3}>
+                        {fileName}
+                      </Text>
+                      <View style={[styles.pdfSnippet, { backgroundColor: theme.pdfSnippetBg }]}>
+                        <Text style={[styles.pdfSnippetLine, { color: theme.pdfSnippetText }]}>
+                          {fileName.replace('.pdf', '')} — {t('preview_pdf_ready')}
+                        </Text>
+                        <View style={[styles.pdfSnippetDash, { backgroundColor: theme.pdfSnippetDash }]} />
+                        <View style={[styles.pdfSnippetDash, { backgroundColor: theme.pdfSnippetDash }]} />
+                      </View>
+                    </View>
+                  )
                 ) : (
                   /* Image preview with zoom */
-                  <ScrollView
-                    style={styles.imageScroll}
-                    contentContainerStyle={styles.imageScrollContent}
-                    maximumZoomScale={6}
-                    minimumZoomScale={1}
-                    bounces={false}
-                    bouncesZoom
-                    overScrollMode="never"
-                    centerContent
-                  >
-                    <Image
-                      source={{ uri: asset?.uri || '' }}
-                      style={styles.imagePreview}
-                      resizeMode="cover"
-                    />
-                  </ScrollView>
+                  hasAssetUri ? (
+                    <ScrollView
+                      style={styles.imageScroll}
+                      contentContainerStyle={styles.imageScrollContent}
+                      maximumZoomScale={6}
+                      minimumZoomScale={1}
+                      bounces={false}
+                      bouncesZoom
+                      overScrollMode="never"
+                      centerContent
+                    >
+                      <Image
+                        source={{ uri: asset!.uri }}
+                        style={styles.imagePreview}
+                        resizeMode="cover"
+                      />
+                    </ScrollView>
+                  ) : (
+                    <View style={styles.pdfContainer}>
+                      <MaterialCommunityIcons name="file-alert-outline" color="#D4AF37" size={88} />
+                      <Text style={[styles.pdfFileName, { color: theme.pdfFileNameColor }]}>
+                        {t('preview_file_not_available')}
+                      </Text>
+                    </View>
+                  )
                 )}
               </View>
 
@@ -167,6 +195,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
                     style={styles.acceptBtn}
                     onPress={handleAccept}
                     activeOpacity={0.85}
+                    disabled={!hasAssetUri}
                   >
                     <MaterialCommunityIcons
                       name="shield-check"

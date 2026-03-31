@@ -738,7 +738,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   };
 
   const confirmAssetPreview = () => {
-    if (!pendingAsset) return;
+    if (!pendingAsset?.uri) return;
     setDataValue(pendingAsset.uri);
     if (!dataName.trim()) {
       const baseName = pendingAsset.name.replace(/\.[^/.]+$/, '');
@@ -758,7 +758,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setPendingAsset(null);
     trackTimeout(() => {
       if (!isSessionClosed(sessionToken)) {
-        setFileTypeModalVisible(true);
+        handlePickFile();
       }
     }, 150);
   };
@@ -1938,7 +1938,25 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             >
               <TouchableOpacity
                 style={[styles.documentButton, { borderWidth: 0, backgroundColor: formTheme.inputBg }]}
-                onPress={pendingAsset || dataValue ? () => setAssetPreviewVisible(true) : handlePickFile}
+                onPress={() => {
+                  if (pendingAsset?.uri) {
+                    setAssetPreviewVisible(true);
+                    return;
+                  }
+                  if (dataValue) {
+                    const mime = inferMimeType(dataValue);
+                    const name = dataName?.trim() || inferFileName(dataValue);
+                    setPendingAsset({
+                      uri: dataValue,
+                      name,
+                      mimeType: mime,
+                      source: 'document',
+                    });
+                    setAssetPreviewVisible(true);
+                    return;
+                  }
+                  handlePickFile();
+                }}
               >
               <MaterialCommunityIcons
                 name={pendingAsset || dataValue ? 'eye' : 'image-plus'}
@@ -1946,7 +1964,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 size={32}
               />
               <Text style={[styles.documentText, { color: formTheme.textPrimary }]}>
-                {pendingAsset
+                {pendingAsset?.uri
                   ? tr('Ver Archivo Seleccionado', 'View Selected File')
                   : dataValue
                   ? tr('Ver Archivo Guardado', 'View Saved File')
@@ -2019,15 +2037,15 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           key={editingData?.id ? `edit-${editingData.id}` : 'create'}
           style={styles.scrollView}
           contentContainerStyle={[styles.scrollContent, { flexGrow: 1 }]}
-          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="always"
           nestedScrollEnabled
           automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
           contentInsetAdjustmentBehavior="automatic"
           scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
-          bounces
-          overScrollMode="always"
+          bounces={false}
+          overScrollMode="never"
         >
           {/* TIPO DE DATA */}
           <View style={styles.section}>
