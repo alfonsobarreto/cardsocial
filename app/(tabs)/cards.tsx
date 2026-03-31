@@ -1828,7 +1828,29 @@ export default function CardsFactoryScreen() {
           <Text style={[styles.headerSubtitle, { color: cardsTheme.sectionLabel }]}>{smartCards.length} / 30 {tr('tarjetas', 'cards')}</Text>
         </View>
         <View style={styles.headerActionsRow}>
-          
+          <TouchableOpacity
+            onPress={() => router.push('/(tabs)/createBusinessCard' as any)}
+            activeOpacity={0.9}
+            style={styles.businessCtaWrap}
+            accessibilityRole="button"
+            accessibilityLabel={tr('Abrir Business Card', 'Open Business Card')}
+          >
+            <LinearGradient
+              colors={['#0A2540', '#153D63', '#C5A065']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.businessCta}
+            >
+              <View style={styles.businessCtaIcon}>
+                <MaterialCommunityIcons name="diamond-stone" size={14} color="#0A2540" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.businessCtaTitle}>{tr('Tarjeta de Negocio', 'Business Card')}</Text>
+                <Text style={styles.businessCtaSub}>{tr('Lujo', 'Luxury')}</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={16} color="#F7E7C6" />
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -2730,6 +2752,45 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  businessCtaWrap: {
+    borderRadius: 14,
+    shadowColor: '#0A2540',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  businessCta: {
+    minHeight: 48,
+    minWidth: 172,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  businessCtaIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 999,
+    backgroundColor: '#F7E7C6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  businessCtaTitle: {
+    color: '#F7E7C6',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  businessCtaSub: {
+    marginTop: 1,
+    color: '#E9D8B0',
+    fontSize: 10,
+    fontWeight: '700',
   },
 
 
