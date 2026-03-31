@@ -108,6 +108,7 @@ const VaultScreen = () => {
   };
   const [links, setLinks] = useState<Link[]>([]);
   const [formModalVisible, setFormModalVisible] = useState(false);
+  const [formRenderNonce, setFormRenderNonce] = useState(0);
   const [editingData, setEditingData] = useState<Link | undefined>(undefined);
   const [profileDisplayName, setProfileDisplayName] = useState('Usuario');
   const [searchQuery, setSearchQuery] = useState('');
@@ -785,6 +786,7 @@ const VaultScreen = () => {
 
     setContextMenuVisible(false);
     setEditingData(contextMenuItem);
+    setFormRenderNonce((prev) => prev + 1);
     setFormModalVisible(true);
   };
 
@@ -873,6 +875,7 @@ const VaultScreen = () => {
       }
 
       setEditingData(undefined);
+      setFormRenderNonce((prev) => prev + 1);
       setFormModalVisible(true);
     } catch (error) {
       console.error('Error validating vault item creation:', error);
@@ -1027,6 +1030,7 @@ const VaultScreen = () => {
               <View style={styles.formDragHandle} />
             </View>
             <NewInfoForm
+              key={`${formRenderNonce}-${editingData?.id ?? 'create'}`}
               editingData={editingData}
               onClose={() => {
                 closeFormModal();

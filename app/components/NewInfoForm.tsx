@@ -2061,19 +2061,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           </TouchableWithoutFeedback>
         </Modal>
 
-        <Modal
-          visible={isCompressing || isSaving || isUploading}
-          transparent
-          animationType="fade"
-          onRequestClose={() => {
-            if (!isSaving) {
-              setIsCompressing(false);
-              setIsUploading(false);
-              setUploadModalVisible(false);
-            }
-          }}
-        >
-          <View style={styles.compressOverlay}>
+        {(isCompressing || isSaving || isUploading || uploadModalVisible) && (
+          <View style={styles.compressOverlay} pointerEvents="auto">
             <View style={styles.compressCard}>
               <BrandedSpinner size={56} color="#D4AF37" />
               <Text style={styles.compressText}>
@@ -2097,7 +2086,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               )}
             </View>
           </View>
-        </Modal>
+        )}
 
         <FilePreviewModal
           visible={assetPreviewVisible}

@@ -257,6 +257,12 @@ export default function CardStudioVault({
   const sectionListRef = useRef<SectionList<IconItem[], IconSection>>(null);
   const longPressTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({}); 
 
+  useEffect(() => {
+    if (!visible && storeModalVisible) {
+      setStoreModalVisible(false);
+    }
+  }, [visible, storeModalVisible]);
+
   // Cargar recientes de AsyncStorage al montar — diferido para no bloquear la animación
   useEffect(() => {
     const task = InteractionManager.runAfterInteractions(() => {
