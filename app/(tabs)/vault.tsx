@@ -28,7 +28,6 @@ import {
   InteractionManager,
   Linking,
   Modal,
-  PanResponder,
   Platform,
   RefreshControl,
   ScrollView,
@@ -141,45 +140,6 @@ const VaultScreen = () => {
     setTextValueModalVisible(false);
     setActiveTextItem(null);
   };
-
-  const formModalSwipeResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gesture) =>
-        Math.abs(gesture.dy) > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
-      onPanResponderMove: (_, gesture) => {
-        if (gesture.dy > 0) {
-          formSheetTranslateY.setValue(gesture.dy);
-        }
-      },
-      onPanResponderRelease: (_, gesture) => {
-        if (gesture.dy > 120 || gesture.vy > 1.15) {
-          Animated.timing(formSheetTranslateY, {
-            toValue: SCREEN_HEIGHT,
-            duration: 170,
-            useNativeDriver: true,
-          }).start(() => {
-            formSheetTranslateY.setValue(0);
-            closeFormModal();
-          });
-          return;
-        }
-
-        Animated.spring(formSheetTranslateY, {
-          toValue: 0,
-          useNativeDriver: true,
-          bounciness: 0,
-        }).start();
-      },
-      onPanResponderTerminate: () => {
-        Animated.spring(formSheetTranslateY, {
-          toValue: 0,
-          useNativeDriver: true,
-          bounciness: 0,
-        }).start();
-      },
-    })
-  ).current;
 
   useEffect(() => {
     if (formModalVisible) {
@@ -1060,7 +1020,6 @@ const VaultScreen = () => {
         <View style={styles.formOverlay}>
           <Animated.View
             style={[styles.formSheet, { transform: [{ translateY: formSheetTranslateY }] }]}
-            {...formModalSwipeResponder.panHandlers}
           >
             <View style={styles.formDragHandleWrap}>
               <View style={styles.formDragHandle} />

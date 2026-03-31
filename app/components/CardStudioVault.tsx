@@ -18,7 +18,6 @@ import {
   Dimensions,
   InteractionManager,
   Modal,
-  PanResponder,
   SectionList,
   StyleSheet,
   Text,
@@ -340,22 +339,6 @@ export default function CardStudioVault({
     iconBorder:       isNight ? '#1A3A50' : '#C8E6F5',
   };
 
-  const swipeResponder = React.useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => false,
-        onMoveShouldSetPanResponder: (_, g) =>
-          g.dy > 4 && Math.abs(g.dy) > Math.abs(g.dx) * 0.8,
-        onMoveShouldSetPanResponderCapture: (_, g) =>
-          g.dy > 4 && Math.abs(g.dy) > Math.abs(g.dx) * 0.8,
-        onPanResponderRelease: (_, g) => {
-          if (g.dy > 20 || g.vy > 0.35) onClose();
-        },
-        onPanResponderTerminationRequest: () => true,
-      }),
-    [onClose]
-  );
-
   const handleLongPress = (item: IconItem) => {
     Alert.alert(
       tr(`Eliminar icono "${item.label}"`, `Delete icon "${item.labelEn}"`),
@@ -484,7 +467,7 @@ export default function CardStudioVault({
         animationType="slide"
         onRequestClose={onClose}
       >
-        <TouchableWithoutFeedback onPress={onClose}>
+        <TouchableWithoutFeedback onPress={() => {}}>
           <View style={styles.overlay}>
               <View
                 style={[
@@ -498,7 +481,7 @@ export default function CardStudioVault({
                 onStartShouldSetResponder={() => true}
               >
                 {/* Drag handle */}
-                <View style={styles.dragHandleWrap} {...swipeResponder.panHandlers}>
+                <View style={styles.dragHandleWrap}>
                   <View style={styles.dragHandle} />
                 </View>
 

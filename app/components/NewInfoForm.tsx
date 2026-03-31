@@ -14,7 +14,6 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Modal,
-  PanResponder,
   Platform,
   ScrollView,
   StyleSheet,
@@ -908,32 +907,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     }
   };
 
-  const createSwipeResponder = React.useCallback((onClose: () => void) => {
-    return PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gesture) =>
-        gesture.dy > 4 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 0.8,
-      onMoveShouldSetPanResponderCapture: (_, gesture) =>
-        gesture.dy > 4 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 0.8,
-      onPanResponderRelease: (_, gesture) => {
-        if (gesture.dy > 20 || gesture.vy > 0.35) {
-          onClose();
-        }
-      },
-      onPanResponderTerminationRequest: () => true,
-    });
-  }, []);
-
-  const mainModalSwipeResponder = React.useMemo(
-    () => createSwipeResponder(handleClose),
-    [createSwipeResponder]
-  );
-
-  const fileTypeSwipeResponder = React.useMemo(
-    () => createSwipeResponder(() => setFileTypeModalVisible(false)),
-    [createSwipeResponder]
-  );
-
   const syncVaultUpdateAcrossCards = async (userId: string, updatedItem: Link) => {
     try {
       const cardsSnapshot = await getDocs(collection(db, 'users', userId, 'cards'));
@@ -1553,16 +1526,16 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <KeyboardAvoidingView
         style={styles.keyboardAvoiding}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
       >
         <View style={[styles.container, { backgroundColor: formTheme.motherBg }]}>
         {/* Header with close button */}
-        <View style={[styles.headerTop, { borderBottomColor: formTheme.border }]} {...mainModalSwipeResponder.panHandlers}>
-          <View style={styles.modalDragHandleWrap} {...mainModalSwipeResponder.panHandlers}>
+        <View style={[styles.headerTop, { borderBottomColor: formTheme.border }]}>
+          <View style={styles.modalDragHandleWrap}>
             <View style={styles.modalDragHandle} />
           </View>
-          <View style={styles.titleDragZone} {...mainModalSwipeResponder.panHandlers}>
+          <View style={styles.titleDragZone}>
             <Text style={styles.titleMain}>
               {editingData?.id ? tr('EDITAR INFORMACIÓN', 'EDIT INFORMATION') : tr('NUEVA INFORMACIÓN', 'NEW INFORMATION')}
             </Text>
@@ -1578,7 +1551,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { flexGrow: 1 }]}
           keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           keyboardShouldPersistTaps="handled"
           nestedScrollEnabled
@@ -1927,7 +1900,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             <View style={styles.modalOverlay}>
             <TouchableWithoutFeedback onPress={() => {}}>
             <View style={[styles.modalContent, { backgroundColor: formTheme.surfaceBg, borderTopColor: formTheme.border }]}>
-              <View style={styles.bottomSheetDragHandleWrap} {...fileTypeSwipeResponder.panHandlers}>
+              <View style={styles.bottomSheetDragHandleWrap}>
                 <View style={styles.bottomSheetDragHandle} />
               </View>
               <View style={styles.modalHeader}>
