@@ -202,6 +202,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     console.log('[ELITE_UPLOAD_AUDIT]', stage, JSON.stringify(payload));
   };
 
+  const logPickerTrace = (stage: string, payload: Record<string, any> = {}) => {
+    console.log('[NEWINFO_PICKER_TRACE]', stage, JSON.stringify(payload));
+  };
+
   const trackTimeout = (callback: () => void, delayMs: number) => {
     const timeoutId = setTimeout(() => {
       pendingTimeoutsRef.current = pendingTimeoutsRef.current.filter((id) => id !== timeoutId);
@@ -883,17 +887,39 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
   // Abrir selector de Fotos o Documentos
   const handlePickFile = () => {
-    if (isPickingRef.current || isPicking) {
+    logPickerTrace('OPEN_PICKER_SHEET_REQUEST', {
+      isPickingState: isPicking,
+      isPickingRef: isPickingRef.current,
+      isCompressing,
+    });
+
+    if (isPickingRef.current) {
+      logPickerTrace('OPEN_PICKER_SHEET_BLOCKED_REF_BUSY');
       return;
     }
+
+    // Recover from stale UI flag if ref is already free.
+    if (isPicking) {
+      logPickerTrace('OPEN_PICKER_SHEET_RECOVER_STALE_STATE');
+      setIsPicking(false);
+    }
+
     setFileTypeModalVisible(true);
+    logPickerTrace('OPEN_PICKER_SHEET_VISIBLE');
   };
 
   const closeFileTypeModal = () => {
+    logPickerTrace('CLOSE_PICKER_SHEET_REQUEST', {
+      isPickingState: isPicking,
+      isPickingRef: isPickingRef.current,
+    });
     setFileTypeModalVisible(false);
     // If user just dismisses picker sheet, keep picker mutex unlocked for next try.
     if (!isPickingRef.current) {
       setIsPicking(false);
+      logPickerTrace('CLOSE_PICKER_SHEET_UNLOCKED');
+    } else {
+      logPickerTrace('CLOSE_PICKER_SHEET_KEEP_LOCK_ACTIVE');
     }
   };
 
@@ -905,17 +931,22 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   // Seleccionar imagen del dispositivo
   const handlePickPhotos = async () => {
     if (isPickingRef.current) {
+      logPickerTrace('PICK_PHOTOS_BLOCKED_ALREADY_PICKING');
       return;
     }
     isPickingRef.current = true;
     setIsPicking(true);
+    logPickerTrace('PICK_PHOTOS_START');
     try {
+      logPickerTrace('PICK_PHOTOS_REQUEST_PERMISSION');
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      logPickerTrace('PICK_PHOTOS_PERMISSION_RESULT', { status });
       if (status !== 'granted') {
         Alert.alert(tr('Permiso denegado', 'Permission denied'), tr('Se necesita acceso a fotos', 'Photo access required'));
         return;
       }
       setFileTypeModalVisible(false);
+      logPickerTrace('PICK_PHOTOS_SHEET_CLOSED_WAITING_FRAME');
       await waitForModalCloseFrame();
       Toast.show({
         text1: tr('Subiendo archivo...', 'Uploading file...'),
@@ -926,10 +957,15 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       });
       const sessionToken = closeGenerationRef.current;
       if (isSessionClosed(sessionToken)) return;
+      logPickerTrace('PICK_PHOTOS_LAUNCH_LIBRARY');
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: false,
         quality: 0.8,
+      });
+      logPickerTrace('PICK_PHOTOS_LIBRARY_RESULT', {
+        canceled: result.canceled,
+        assetsCount: result.assets?.length ?? 0,
       });
       if (isSessionClosed(sessionToken)) return;
       if (!result.canceled && result.assets.length > 0) {
@@ -971,6 +1007,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       }
     } catch (error) {
       console.error('Error al seleccionar imagen:', error);
+      logPickerTrace('PICK_PHOTOS_ERROR', {
+        message: String((error as any)?.message || ''),
+        code: String((error as any)?.code || ''),
+      });
       Alert.alert(
         tr('No se pudo abrir la galería', 'Could not open gallery'),
         tr('Intenta nuevamente o elige un archivo desde documentos.', 'Try again or choose a file from documents.')
@@ -978,22 +1018,31 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     } finally {
       isPickingRef.current = false;
       setIsPicking(false);
+      logPickerTrace('PICK_PHOTOS_FINALLY_RELEASE');
     }
   };
 
   const handlePickDocument = async () => {
     if (isPickingRef.current) {
+      logPickerTrace('PICK_DOCUMENT_BLOCKED_ALREADY_PICKING');
       return;
     }
     isPickingRef.current = true;
     setIsPicking(true);
+    logPickerTrace('PICK_DOCUMENT_START');
     try {
       setFileTypeModalVisible(false);
+      logPickerTrace('PICK_DOCUMENT_SHEET_CLOSED_WAITING_FRAME');
       await waitForModalCloseFrame();
+      logPickerTrace('PICK_DOCUMENT_LAUNCH');
       const result = await DocumentPicker.getDocumentAsync({
         type: ['application/pdf', 'image/*'],
         multiple: false,
         copyToCacheDirectory: true,
+      });
+      logPickerTrace('PICK_DOCUMENT_RESULT', {
+        canceled: result.canceled,
+        assetsCount: result.assets?.length ?? 0,
       });
 
       if (result.canceled || !result.assets?.length) {
@@ -1093,26 +1142,36 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       });
     } catch (error) {
       console.error('Error picking document:', error);
+      logPickerTrace('PICK_DOCUMENT_ERROR', {
+        message: String((error as any)?.message || ''),
+        code: String((error as any)?.code || ''),
+      });
       Alert.alert(tr('Error', 'Error'), tr('No se pudo seleccionar el documento', 'Could not select document'));
     } finally {
       isPickingRef.current = false;
       setIsPicking(false);
+      logPickerTrace('PICK_DOCUMENT_FINALLY_RELEASE');
     }
   };
 
   const handleTakePhoto = async () => {
     if (isPickingRef.current) {
+      logPickerTrace('PICK_CAMERA_BLOCKED_ALREADY_PICKING');
       return;
     }
     isPickingRef.current = true;
     setIsPicking(true);
+    logPickerTrace('PICK_CAMERA_START');
     try {
+      logPickerTrace('PICK_CAMERA_REQUEST_PERMISSION');
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      logPickerTrace('PICK_CAMERA_PERMISSION_RESULT', { status });
       if (status !== 'granted') {
         Alert.alert(tr('Permiso denegado', 'Permission denied'), tr('Se necesita acceso a la cámara', 'Camera access required'));
         return;
       }
       setFileTypeModalVisible(false);
+      logPickerTrace('PICK_CAMERA_SHEET_CLOSED_WAITING_FRAME');
       await waitForModalCloseFrame();
       Toast.show({
         text1: tr('Subiendo archivo...', 'Uploading file...'),
@@ -1123,10 +1182,15 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       });
       const sessionToken = closeGenerationRef.current;
       if (isSessionClosed(sessionToken)) return;
+      logPickerTrace('PICK_CAMERA_LAUNCH');
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
         allowsEditing: false,
         quality: 0.8,
+      });
+      logPickerTrace('PICK_CAMERA_RESULT', {
+        canceled: result.canceled,
+        assetsCount: result.assets?.length ?? 0,
       });
       if (isSessionClosed(sessionToken)) return;
       if (!result.canceled && result.assets.length > 0) {
@@ -1167,6 +1231,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       }
     } catch (error) {
       console.error('Error taking photo:', error);
+      logPickerTrace('PICK_CAMERA_ERROR', {
+        message: String((error as any)?.message || ''),
+        code: String((error as any)?.code || ''),
+      });
       Alert.alert(
         tr('No se pudo abrir la cámara', 'Could not open camera'),
         tr('Cierra otras apps de cámara y vuelve a intentar.', 'Close other camera apps and try again.')
@@ -1174,6 +1242,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     } finally {
       isPickingRef.current = false;
       setIsPicking(false);
+      logPickerTrace('PICK_CAMERA_FINALLY_RELEASE');
     }
   };
 
