@@ -1009,6 +1009,7 @@ const VaultScreen = () => {
         visible={formModalVisible}
         transparent
         animationType="slide"
+        presentationStyle="overFullScreen"
         onDismiss={() => {
           formSheetTranslateY.stopAnimation();
           formSheetTranslateY.setValue(0);

@@ -1553,14 +1553,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           style={styles.scrollView}
           contentContainerStyle={[styles.scrollContent, { flexGrow: 1 }]}
           keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
           nestedScrollEnabled
           automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
           contentInsetAdjustmentBehavior="automatic"
           scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
-          bounces={false}
-          overScrollMode="never"
+          bounces
+          overScrollMode="always"
         >
           {/* TIPO DE DATA */}
           <View style={styles.section}>

@@ -9,9 +9,14 @@ function getApiBaseUrl(): string {
 }
 
 function getGatewayKey(): string {
-  const key = process.env.EXPO_PUBLIC_MODERATION_GATEWAY_KEY?.trim();
+  const key =
+    process.env.EXPO_PUBLIC_MODERATION_GATEWAY_KEY?.trim() ||
+    process.env.EXPO_PUBLIC_API_GATEWAY_KEY?.trim() ||
+    process.env.EXPO_PUBLIC_GATEWAY_KEY?.trim();
   if (!key) {
-    throw new Error('Missing EXPO_PUBLIC_MODERATION_GATEWAY_KEY. Set it in your Expo environment.');
+    throw new Error(
+      'Missing gateway key. Set EXPO_PUBLIC_MODERATION_GATEWAY_KEY (or EXPO_PUBLIC_API_GATEWAY_KEY) in your Expo environment.'
+    );
   }
   return key;
 }
