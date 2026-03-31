@@ -28,7 +28,6 @@ import {
   InteractionManager,
   Linking,
   Modal,
-  PanResponder,
   Platform,
   RefreshControl,
   ScrollView,
@@ -109,6 +108,7 @@ const VaultScreen = () => {
   };
   const [links, setLinks] = useState<Link[]>([]);
   const [formModalVisible, setFormModalVisible] = useState(false);
+  const [formRenderNonce, setFormRenderNonce] = useState(0);
   const [editingData, setEditingData] = useState<Link | undefined>(undefined);
   const [profileDisplayName, setProfileDisplayName] = useState('Usuario');
   const [searchQuery, setSearchQuery] = useState('');
@@ -141,45 +141,6 @@ const VaultScreen = () => {
     setTextValueModalVisible(false);
     setActiveTextItem(null);
   };
-
-  const formModalSwipeResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gesture) =>
-        Math.abs(gesture.dy) > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
-      onPanResponderMove: (_, gesture) => {
-        if (gesture.dy > 0) {
-          formSheetTranslateY.setValue(gesture.dy);
-        }
-      },
-      onPanResponderRelease: (_, gesture) => {
-        if (gesture.dy > 120 || gesture.vy > 1.15) {
-          Animated.timing(formSheetTranslateY, {
-            toValue: SCREEN_HEIGHT,
-            duration: 170,
-            useNativeDriver: true,
-          }).start(() => {
-            formSheetTranslateY.setValue(0);
-            closeFormModal();
-          });
-          return;
-        }
-
-        Animated.spring(formSheetTranslateY, {
-          toValue: 0,
-          useNativeDriver: true,
-          bounciness: 0,
-        }).start();
-      },
-      onPanResponderTerminate: () => {
-        Animated.spring(formSheetTranslateY, {
-          toValue: 0,
-          useNativeDriver: true,
-          bounciness: 0,
-        }).start();
-      },
-    })
-  ).current;
 
   useEffect(() => {
     if (formModalVisible) {
@@ -825,6 +786,7 @@ const VaultScreen = () => {
 
     setContextMenuVisible(false);
     setEditingData(contextMenuItem);
+    setFormRenderNonce((prev) => prev + 1);
     setFormModalVisible(true);
   };
 
@@ -913,6 +875,7 @@ const VaultScreen = () => {
       }
 
       setEditingData(undefined);
+      setFormRenderNonce((prev) => prev + 1);
       setFormModalVisible(true);
     } catch (error) {
       console.error('Error validating vault item creation:', error);
@@ -1049,6 +1012,8 @@ const VaultScreen = () => {
         visible={formModalVisible}
         transparent
         animationType="slide"
+        presentationStyle="overFullScreen"
+        hardwareAccelerated
         onDismiss={() => {
           formSheetTranslateY.stopAnimation();
           formSheetTranslateY.setValue(0);
@@ -1060,21 +1025,16 @@ const VaultScreen = () => {
         <View style={styles.formOverlay}>
           <Animated.View
             style={[styles.formSheet, { transform: [{ translateY: formSheetTranslateY }] }]}
-            {...formModalSwipeResponder.panHandlers}
           >
             <View style={styles.formDragHandleWrap}>
               <View style={styles.formDragHandle} />
             </View>
             <NewInfoForm
+              key={`${formRenderNonce}-${editingData?.id ?? 'create'}`}
               editingData={editingData}
               onClose={() => {
-                // Allow inner modals (spinner) to fully unmount before closing outer modal
-                requestAnimationFrame(() => {
-                  closeFormModal();
-                  setTimeout(() => {
-                    void loadVaultData();
-                  }, 0);
-                });
+                closeFormModal();
+                void loadVaultData();
               }}
             />
           </Animated.View>
@@ -1106,33 +1066,49 @@ const VaultScreen = () => {
           <View style={styles.viewerBody}>
             {viewerItem ? (
               isImageValue(viewerItem.value) ? (
-                <ScrollView
-                  maximumZoomScale={6}
-                  minimumZoomScale={1}
-                  contentContainerStyle={styles.viewerZoomContainer}
-                  centerContent
-                  bounces={false}
-                  overScrollMode="never"
-                  bouncesZoom
+                <TouchableWithoutFeedback
+                  onLongPress={() => {
+                    void handleDownloadFromViewer();
+                  }}
+                  delayLongPress={550}
                 >
-                  <ExpoImage
-                    source={{ uri: viewerItem.value }}
-                    style={styles.viewerImage}
-                    contentFit="contain"
-                    cachePolicy="disk"
-                    transition={200}
-                    accessibilityLabel={tr('Documento imagen', 'Document image')}
-                  />
-                </ScrollView>
+                  <ScrollView
+                    maximumZoomScale={6}
+                    minimumZoomScale={1}
+                    contentContainerStyle={styles.viewerZoomContainer}
+                    centerContent
+                    bounces={false}
+                    overScrollMode="never"
+                    bouncesZoom
+                  >
+                    <ExpoImage
+                      source={{ uri: viewerItem.value }}
+                      style={styles.viewerImage}
+                      contentFit="contain"
+                      cachePolicy="disk"
+                      transition={200}
+                      accessibilityLabel={tr('Documento imagen', 'Document image')}
+                    />
+                  </ScrollView>
+                </TouchableWithoutFeedback>
               ) : isPdfValue(viewerItem.value) ? (
                 PdfComponent ? (
-                  <PdfComponent
-                    source={{ uri: viewerItem.value }}
-                    style={styles.viewerPdf}
-                    minScale={1}
-                    maxScale={3}
-                    trustAllCerts={false}
-                  />
+                  <TouchableWithoutFeedback
+                    onLongPress={() => {
+                      void handleDownloadFromViewer();
+                    }}
+                    delayLongPress={550}
+                  >
+                    <View style={styles.viewerPdfWrapper}>
+                      <PdfComponent
+                        source={{ uri: viewerItem.value }}
+                        style={styles.viewerPdf}
+                        minScale={1}
+                        maxScale={3}
+                        trustAllCerts={false}
+                      />
+                    </View>
+                  </TouchableWithoutFeedback>
                 ) : (
                   <View style={styles.viewerFallback}>
                     <MaterialCommunityIcons name="file-pdf-box" color="#C5A065" size={54} />

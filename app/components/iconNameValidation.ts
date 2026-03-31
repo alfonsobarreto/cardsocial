@@ -41,3 +41,4 @@ export const sanitizeMaterialIconName = normalizeMaterialIconName;
 export const sanitizeMaterialCommunityIconName = normalizeMaterialIconName;
 export const normalizeMaterialCommunityIconName = normalizeMaterialIconName;
 export const normalizeVaultIconName = normalizeMaterialIconName;
+export default normalizeMaterialIconName;
