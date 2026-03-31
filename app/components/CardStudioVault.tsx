@@ -12,6 +12,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { sanitizeMaterialIconName } from './iconNameValidation';
 import {
   Alert,
   Dimensions,
@@ -109,9 +110,9 @@ const RAW_SECTIONS: Array<{
       { label: 'Yahoo',       labelEn: 'Yahoo',       icon: 'yahoo'             },
       { label: 'Buzón',       labelEn: 'Mailbox',     icon: 'mailbox'           },
       { label: 'Enviar',      labelEn: 'Send',        icon: 'send'              },
-      { label: 'Sello',       labelEn: 'Stamp',       icon: 'email-seal'        },
+      { label: 'Sello',       labelEn: 'Stamp',       icon: 'certificate'       },
       { label: 'Arroba',      labelEn: 'At Sign',     icon: 'at'                },
-      { label: 'Alt Email',   labelEn: 'Alt Email',   icon: 'alternate-email'   },
+      { label: 'Alt Email',   labelEn: 'Alt Email',   icon: 'email'             },
     ],
   },
   {
@@ -141,7 +142,7 @@ const RAW_SECTIONS: Array<{
       { label: 'Word',        labelEn: 'Word',        icon: 'file-word'         },
       { label: 'Excel',       labelEn: 'Excel',       icon: 'file-excel'        },
       { label: 'Doc',         labelEn: 'Doc',         icon: 'file-document'     },
-      { label: 'PPT',         labelEn: 'PPT',         icon: 'file-powerpoint'   },
+      { label: 'PPT',         labelEn: 'PPT',         icon: 'presentation'      },
       { label: 'Música',      labelEn: 'Music',       icon: 'file-music'        },
       { label: 'ZIP',         labelEn: 'ZIP',         icon: 'zip-box'           },
       { label: 'Carpeta',     labelEn: 'Folder',      icon: 'folder-zip'        },
@@ -217,7 +218,7 @@ const ICON_SECTIONS: IconSection[] = RAW_SECTIONS.map((sec) => {
     id: String(_globalId++),
     label: i.label,
     labelEn: i.labelEn,
-    icon: i.icon,
+    icon: sanitizeMaterialIconName(i.icon),
   }));
   // Chunk into rows of 5
   const rows: IconItem[][] = [];
@@ -430,7 +431,7 @@ export default function CardStudioVault({
               activeOpacity={0.75}
             >
               <MaterialCommunityIcons
-                name={item.icon as any}
+                name={sanitizeMaterialIconName(item.icon) as any}
                 color={active ? theme.selectedText : theme.textPrimary}
                 size={28}
               />

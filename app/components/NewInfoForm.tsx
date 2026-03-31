@@ -40,6 +40,7 @@ import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore'
 import Toast from 'react-native-toast-message';
 import CardStudioVault, { ICON_GALLERY } from './CardStudioVault';
 import FilePreviewModal from './FilePreviewModal';
+import { sanitizeMaterialIconName } from './iconNameValidation';
 import LuxuryModerationModal from './LuxuryModerationModal';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -1195,9 +1196,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         );
         return;
       }
-      const iconData = selectedIcon === 'favicon' 
+      const iconData = selectedIcon === 'favicon'
         ? faviconUrl
-        : ICON_GALLERY.find(i => i.id === selectedIcon)?.icon || 'file';
+        : sanitizeMaterialIconName(ICON_GALLERY.find(i => i.id === selectedIcon)?.icon);
       // iconName ahora siempre es válido
       const iconName = selectedIcon === 'favicon'
         ? 'Favicon'
@@ -1357,9 +1358,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     default:
       mappedIconName = 'file';
   }
-  const iconData = selectedIcon === 'favicon' 
+  const iconData = selectedIcon === 'favicon'
     ? faviconUrl
-    : ICON_GALLERY.find(i => i.id === selectedIcon)?.icon || 'file';
+    : sanitizeMaterialIconName(ICON_GALLERY.find(i => i.id === selectedIcon)?.icon);
   // iconName ahora siempre es válido
   const iconName = selectedIcon === 'favicon'
     ? 'Favicon'
@@ -1721,7 +1722,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 >
                   <View style={[styles.iconPreviewCircleInner, { backgroundColor: formTheme.iconPreviewCircleBg }]}> 
                     <MaterialCommunityIcons
-                      name={(ICON_GALLERY.find(i => i.id === selectedIcon)?.icon || 'file-document') as any}
+                      name={sanitizeMaterialIconName(ICON_GALLERY.find(i => i.id === selectedIcon)?.icon) as any}
                       color={formTheme.textPrimary}
                       size={48}
                     />

@@ -41,6 +41,7 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import NewInfoForm from '../components/NewInfoForm';
+import { normalizeMaterialCommunityIconName } from '../components/iconNameValidation';
 
 let PdfComponent: any = null;
 try {
@@ -687,7 +688,7 @@ const VaultScreen = () => {
     }
     return (
       <MaterialCommunityIcons
-        name={link.icon as any}
+        name={normalizeMaterialCommunityIconName(link.icon, 'help-circle') as any}
         color={vaultTheme.iconColor}
         size={32}
       />

@@ -56,6 +56,7 @@ import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import QRCode from 'react-native-qrcode-svg';
 import Toast from 'react-native-toast-message';
 import { ActionController } from '../../services/ActionController';
+import { sanitizeMaterialCommunityIconName } from '../components/iconNameValidation';
 import palette from '../theme';
 
 const VAULT_STORAGE_KEY = 'vault_data';
@@ -258,11 +259,14 @@ export default function CardsFactoryScreen() {
         const itemsMigrated = parsed.map(item => {
           if (item.iconName === 'alternate-email') return { ...item, iconName: 'email' };
           if (item.iconName === 'file-presentation') return { ...item, iconName: 'file-document' };
+          if (item.iconName === 'Gmail') return { ...item, iconName: 'gmail' };
+          if (item.iconName === 'Stamp') return { ...item, iconName: 'certificate' };
+          if (item.iconName === 'Classic') return { ...item, iconName: 'card-text' };
           // Fallback de seguridad: si no hay iconName o es inválido
           if (!item.iconName || item.iconName.includes(' ') || item.iconName === '') {
             return { ...item, iconName: 'link-variant' };
           }
-          return item;
+          return { ...item, iconName: sanitizeMaterialCommunityIconName(item.iconName) };
         });
         await AsyncStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(itemsMigrated));
         setVaultItems(itemsMigrated);
@@ -1199,10 +1203,13 @@ export default function CardsFactoryScreen() {
         return <ExpoImage source={{ uri: item.icon }} style={{ width: size, height: size, borderRadius: size / 2 }} cachePolicy="disk" />;
       }
       // Protección exacta para el nombre del icono
-      const safeIconName = (item.iconName && item.iconName.trim() !== "") ? item.iconName : "file-document-outline";
+      const safeIconName =
+        item.iconName && item.iconName.trim() !== ''
+          ? sanitizeMaterialCommunityIconName(item.iconName)
+          : 'help-circle';
       return <MaterialCommunityIcons name={safeIconName as any} size={size} color="#0D4D8A" />;
     } catch {
-      return <MaterialCommunityIcons name={"file-document-outline" as any} size={size} color="#0D4D8A" />;
+      return <MaterialCommunityIcons name={"help-circle" as any} size={size} color="#0D4D8A" />;
     }
   };
 
