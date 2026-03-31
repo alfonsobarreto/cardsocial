@@ -16,6 +16,8 @@ import ActivityIndicator from '@/components/BrandedSpinner';
 
 type ParsedPayload = {
   token: string;
+  cardId: string | null;
+  exp: number | null;
 };
 
 function parseQrToken(data: string): ParsedPayload | null {
@@ -26,16 +28,16 @@ function parseQrToken(data: string): ParsedPayload | null {
 
   try {
     const parsed = JSON.parse(raw);
+    const kind = String(parsed?.kind || '').trim().toLowerCase();
     const token = String(parsed?.token || '').trim();
-    if (token) {
-      return { token };
+    const cardId = String(parsed?.cardId || '').trim();
+    const expRaw = Number(parsed?.exp);
+    const exp = Number.isFinite(expRaw) ? expRaw : null;
+    if (token && kind === 'cardsocial-qr-v1' && cardId) {
+      return { token, cardId, exp };
     }
   } catch {
     // If it is not JSON, we try plain token fallback below.
-  }
-
-  if (/^[a-f0-9]{48}$/i.test(raw)) {
-    return { token: raw };
   }
 
   return null;
@@ -59,8 +61,16 @@ export default function ScanScreen() {
     }
 
     const parsed = parseQrToken(data);
-    if (!parsed?.token) {
+    if (!parsed?.token || !parsed?.cardId) {
       Alert.alert(tr('QR inválido', 'Invalid QR'), tr('Este QR no pertenece a Card-Social o está corrupto.', 'This QR does not belong to Card-Social or is corrupted.'));
+      return;
+    }
+
+    if (parsed.exp && parsed.exp < Date.now()) {
+      Alert.alert(
+        tr('QR expirado', 'QR expired'),
+        tr('Este QR ya expiró. Pide al contacto generar uno nuevo.', 'This QR has expired. Ask your contact to generate a new one.')
+      );
       return;
     }
 
@@ -80,6 +90,15 @@ export default function ScanScreen() {
 
       if (!result.shareGranted) {
         throw new Error(tr('No se pudo crear el permiso de acceso a la tarjeta.', 'Could not create card access permission.'));
+      }
+
+      if (String(result.cardId || '').trim() !== parsed.cardId) {
+        throw new Error(
+          tr(
+            'No se pudo validar el acceso de la tarjeta escaneada.',
+            'Could not validate access for the scanned card.'
+          )
+        );
       }
 
       Alert.alert(tr('Tarjeta agregada', 'Card added'), tr('Conexión segura creada correctamente.', 'Secure connection created successfully.'), [

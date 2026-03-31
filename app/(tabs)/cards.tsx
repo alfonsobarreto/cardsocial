@@ -55,6 +55,7 @@ import {
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import QRCode from 'react-native-qrcode-svg';
 import Toast from 'react-native-toast-message';
+import { randomUUID } from 'expo-crypto';
 import { ActionController } from '../../services/ActionController';
 import { sanitizeMaterialCommunityIconName } from '../components/iconNameValidation';
 import palette from '../theme';
@@ -76,6 +77,18 @@ const toRenderableImageUri = (value: string | null | undefined): string | null =
   if (uri.startsWith('file://')) return uri;
   if (uri.startsWith('data:image/')) return uri;
   return null;
+};
+
+const createSmartCardId = () => {
+  try {
+    const generated = String(randomUUID() || '').trim();
+    if (generated) {
+      return generated;
+    }
+  } catch {
+    // Fallback for runtimes where UUID generation is unavailable.
+  }
+  return `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 };
 
 type VaultItem = {
@@ -651,7 +664,7 @@ export default function CardsFactoryScreen() {
       }
 
       const newCard: SmartCard = {
-        id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        id: createSmartCardId(),
         name: cardName.trim(),
         layout: 'vertical',
         themeId,

@@ -27,7 +27,7 @@ export default function RegisterScreen() {
       });
 
       Alert.alert('Registro exitoso', 'Usuario guardado correctamente.');
-      router.replace('/share');
+      router.replace('/(tabs)/cards');
     } catch (error) {
       Alert.alert('Error', 'No se pudo guardar el usuario. Intente nuevamente.');
       console.error('Firestore error:', error);
