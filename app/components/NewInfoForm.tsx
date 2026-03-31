@@ -180,6 +180,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const [retryCountdownSec, setRetryCountdownSec] = useState(0);
   const faviconLookupTokenRef = useRef(0);
   const faviconLifecycleClosedRef = useRef(false);
+  const closeGenerationRef = useRef(0);
+  const pendingTimeoutsRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
+  const pendingInteractionTasksRef = useRef<Array<{ cancel?: () => void }>>([]);
+  const isMountedRef = useRef(true);
   // Tracks the last saved link id so background favicon updates can patch it silently
   const savedLinkIdRef = useRef<string | null>(null);
   const savedUserIdRef = useRef<string | null>(null);
@@ -192,6 +196,46 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const logAssetAudit = (stage: string, payload: Record<string, any>) => {
     console.log('[ELITE_UPLOAD_AUDIT]', stage, JSON.stringify(payload));
   };
+
+  const trackTimeout = (callback: () => void, delayMs: number) => {
+    const timeoutId = setTimeout(() => {
+      pendingTimeoutsRef.current = pendingTimeoutsRef.current.filter((id) => id !== timeoutId);
+      callback();
+    }, delayMs);
+    pendingTimeoutsRef.current.push(timeoutId);
+    return timeoutId;
+  };
+
+  const trackInteractionTask = (task: { cancel?: () => void } | null | undefined) => {
+    if (task && typeof task.cancel === 'function') {
+      pendingInteractionTasksRef.current.push(task);
+    }
+  };
+
+  const untrackInteractionTask = (task: { cancel?: () => void } | null | undefined) => {
+    if (!task) return;
+    pendingInteractionTasksRef.current = pendingInteractionTasksRef.current.filter((entry) => entry !== task);
+  };
+
+  const clearPendingAsyncWork = () => {
+    closeGenerationRef.current += 1;
+    faviconLookupTokenRef.current += 1;
+    pendingTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+    pendingTimeoutsRef.current = [];
+    pendingInteractionTasksRef.current.forEach((task) => {
+      try {
+        task?.cancel?.();
+      } catch {
+        // Ignore cancellation errors from stale interaction tasks.
+      }
+    });
+    pendingInteractionTasksRef.current = [];
+  };
+
+  const isSessionClosed = (sessionToken: number) =>
+    !isMountedRef.current ||
+    faviconLifecycleClosedRef.current ||
+    sessionToken !== closeGenerationRef.current;
 
   useEffect(() => {
     if (!retryLockedUntil) {
@@ -272,9 +316,11 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   };
 
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
+      isMountedRef.current = false;
       faviconLifecycleClosedRef.current = true;
-      faviconLookupTokenRef.current += 1;
+      clearPendingAsyncWork();
     };
   }, []);
 
@@ -320,6 +366,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
   useEffect(() => {
     const lookupFavicon = async () => {
+      const sessionToken = closeGenerationRef.current;
       if (dataType !== 'Enlaces' || !dataValue.trim() || editingData?.id) {
         return;
       }
@@ -364,7 +411,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           fetchedIcon = null;
         }
 
-        if (faviconLifecycleClosedRef.current || lookupToken !== faviconLookupTokenRef.current) {
+        if (isSessionClosed(sessionToken) || lookupToken !== faviconLookupTokenRef.current) {
           return;
         }
 
@@ -375,8 +422,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           setSelectedIcon(LINK_FALLBACK_ICON_ID);
           setLastFaviconDomain(domain);
           setFaviconSuggestionVisible(false);
-          setTimeout(() => {
-            if (!faviconLifecycleClosedRef.current) {
+          trackTimeout(() => {
+            if (!isSessionClosed(sessionToken)) {
               setIconModalVisible(true);
             }
           }, 800);
@@ -384,7 +431,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         }
 
         await Image.prefetch(fetchedIcon).catch(() => null);
-        if (faviconLifecycleClosedRef.current || lookupToken !== faviconLookupTokenRef.current) {
+        if (isSessionClosed(sessionToken) || lookupToken !== faviconLookupTokenRef.current) {
           return;
         }
         faviconCache.current[domain] = fetchedIcon;
@@ -393,6 +440,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         setFaviconSuggestionVisible(true);
         setFaviconLoading(false);
       } catch {
+        if (isSessionClosed(sessionToken)) {
+          return;
+        }
         setFaviconLoading(false);
         setFaviconSuggestionVisible(false);
         setFaviconUrl('');
@@ -447,6 +497,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
   // Close modal
   const handleClose = () => {
+    clearPendingAsyncWork();
+    Keyboard.dismiss();
     // Dismiss spinner FIRST to avoid nested-Modal ghost overlay on Android/iOS
     setIsSaving(false);
     setTypeModalVisible(false);
@@ -456,11 +508,17 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setAssetPreviewVisible(false);
     setPendingAsset(null);
     closeFaviconSuggestion();
+    setFaviconLoading(false);
     setUploadModalVisible(false);
     setIsUploading(false);
     setUploadProgress(0);
     setUploadStageLabel(tr('Iniciando...', 'Starting...'));
     setIsCompressing(false);
+    setModerationAlertVisible(false);
+    setModerationAlertMessage('');
+    setRejectionAttempts(0);
+    setRetryLockedUntil(null);
+    setRetryCountdownSec(0);
 
     // Reset form
     setDataName('');
@@ -472,6 +530,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     closeFaviconSuggestion();
     setLastFaviconDomain('');
     setAutoTypeSuggestion(null);
+    savedLinkIdRef.current = null;
+    savedUserIdRef.current = null;
     
     // Call callback
     if (onClose) onClose();
@@ -500,13 +560,18 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   };
 
   const retryAssetSelection = () => {
+    const sessionToken = closeGenerationRef.current;
     setDataValue('');
     setUploadProgress(0);
     setUploadStageLabel(tr('Iniciando...', 'Starting...'));
     setIsUploading(false);
     setAssetPreviewVisible(false);
     setPendingAsset(null);
-    setTimeout(() => setFileTypeModalVisible(true), 150);
+    trackTimeout(() => {
+      if (!isSessionClosed(sessionToken)) {
+        setFileTypeModalVisible(true);
+      }
+    }, 150);
   };
 
   // Validar tamaño del archivo
@@ -695,12 +760,16 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         visibilityTime: 4000,
         autoHide: true,
       });
-      InteractionManager.runAfterInteractions(async () => { // Diferir hasta que la animación de cierre termine
+      const sessionToken = closeGenerationRef.current;
+      const interactionTask: any = InteractionManager.runAfterInteractions(async () => { // Diferir hasta que la animación de cierre termine
+        untrackInteractionTask(interactionTask);
+        if (isSessionClosed(sessionToken)) return;
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ['images'],
           allowsEditing: false,
           quality: 0.8,
         });
+        if (isSessionClosed(sessionToken)) return;
         if (!result.canceled && result.assets.length > 0) {
           const file = result.assets[0];
           logAssetAudit('PICK_GALLERY_RAW', {
@@ -712,6 +781,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             sizeBytes: file.fileSize || null,
           });
           const optimized = await optimizeImageForLimit(file.uri, MAX_IMAGE_SIZE);
+          if (isSessionClosed(sessionToken)) return;
           console.log('--- COMPRESIÓN REAL ---', optimized.size);
           if (optimized.size > MAX_IMAGE_SIZE) {
             Alert.alert(
@@ -736,6 +806,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           });
         }
       }); // Diferido con InteractionManager
+      trackInteractionTask(interactionTask);
     } catch (error) {
       console.error('Error al seleccionar imagen:', error);
     }
@@ -860,12 +931,16 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         visibilityTime: 4000,
         autoHide: true,
       });
-      InteractionManager.runAfterInteractions(async () => {
+      const sessionToken = closeGenerationRef.current;
+      const interactionTask: any = InteractionManager.runAfterInteractions(async () => {
+        untrackInteractionTask(interactionTask);
+        if (isSessionClosed(sessionToken)) return;
         const result = await ImagePicker.launchCameraAsync({
           mediaTypes: ['images'],
           allowsEditing: false,
           quality: 0.8,
         });
+        if (isSessionClosed(sessionToken)) return;
         if (!result.canceled && result.assets.length > 0) {
           const file = result.assets[0];
           logAssetAudit('PICK_CAMERA_RAW', {
@@ -877,6 +952,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             sizeBytes: file.fileSize || null,
           });
           const optimized = await optimizeImageForLimit(file.uri, MAX_IMAGE_SIZE);
+          if (isSessionClosed(sessionToken)) return;
           console.log('--- COMPRESIÓN REAL ---', optimized.size);
           if (optimized.size > MAX_IMAGE_SIZE && dataType !== 'Documento') {
             Alert.alert(
@@ -901,6 +977,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           });
         }
       });
+      trackInteractionTask(interactionTask);
     } catch (error) {
       console.error('Error taking photo:', error);
       Alert.alert(tr('Error', 'Error'), tr('No se pudo tomar la foto', 'Could not take photo'));
@@ -1043,6 +1120,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       if (!fileUri.startsWith('file://')) {
         return { fileId: fileUri, publicUrl: null };
       }
+      const sessionToken = closeGenerationRef.current;
 
       setUploadProgress(0);
       setUploadStageLabel(tr('Preparando...', 'Preparing...'));
@@ -1073,7 +1151,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       setUploadProgress(1);
       setUploadStageLabel(tr('Aprobado ✓', 'Approved ✓'));
 
-      setTimeout(() => {
+      trackTimeout(() => {
+        if (isSessionClosed(sessionToken)) return;
         setUploadModalVisible(false);
         setIsUploading(false);
       }, 400);
@@ -1135,6 +1214,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       return;
     }
     console.log('[Vault] handleCreate: Después de Chequeo de Bloqueos/Biométrico');
+    const saveSessionToken = closeGenerationRef.current;
     setIsSaving(true);
     try {
       console.log('[Vault] handleCreate: Antes de getActiveUserId');
@@ -1276,7 +1356,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         );
       }
     } finally {
-      setIsSaving(false);
+      if (!isSessionClosed(saveSessionToken)) {
+        setIsSaving(false);
+      }
     }
   };
 
