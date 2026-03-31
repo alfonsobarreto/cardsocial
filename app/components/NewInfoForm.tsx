@@ -159,6 +159,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const [faviconPromptDomain, setFaviconPromptDomain] = useState('');
   const [lastFaviconDomain, setLastFaviconDomain] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isPicking, setIsPicking] = useState(false);
   const [fileTypeModalVisible, setFileTypeModalVisible] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
   const [assetPreviewVisible, setAssetPreviewVisible] = useState(false);
@@ -184,6 +185,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const faviconPromptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dismissedFaviconPromptDomainsRef = useRef<Set<string>>(new Set());
   const closeGenerationRef = useRef(0);
+  const isPickingRef = useRef(false);
   const pendingTimeoutsRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const pendingInteractionTasksRef = useRef<Array<{ cancel?: () => void }>>([]);
   const isMountedRef = useRef(true);
@@ -881,7 +883,18 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
   // Abrir selector de Fotos o Documentos
   const handlePickFile = () => {
+    if (isPickingRef.current || isPicking) {
+      return;
+    }
     setFileTypeModalVisible(true);
+  };
+
+  const closeFileTypeModal = () => {
+    setFileTypeModalVisible(false);
+    // If user just dismisses picker sheet, keep picker mutex unlocked for next try.
+    if (!isPickingRef.current) {
+      setIsPicking(false);
+    }
   };
 
   const waitForModalCloseFrame = () =>
@@ -891,6 +904,11 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
   // Seleccionar imagen del dispositivo
   const handlePickPhotos = async () => {
+    if (isPickingRef.current) {
+      return;
+    }
+    isPickingRef.current = true;
+    setIsPicking(true);
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
@@ -957,10 +975,18 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         tr('No se pudo abrir la galería', 'Could not open gallery'),
         tr('Intenta nuevamente o elige un archivo desde documentos.', 'Try again or choose a file from documents.')
       );
+    } finally {
+      isPickingRef.current = false;
+      setIsPicking(false);
     }
   };
 
   const handlePickDocument = async () => {
+    if (isPickingRef.current) {
+      return;
+    }
+    isPickingRef.current = true;
+    setIsPicking(true);
     try {
       setFileTypeModalVisible(false);
       await waitForModalCloseFrame();
@@ -1068,10 +1094,18 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     } catch (error) {
       console.error('Error picking document:', error);
       Alert.alert(tr('Error', 'Error'), tr('No se pudo seleccionar el documento', 'Could not select document'));
+    } finally {
+      isPickingRef.current = false;
+      setIsPicking(false);
     }
   };
 
   const handleTakePhoto = async () => {
+    if (isPickingRef.current) {
+      return;
+    }
+    isPickingRef.current = true;
+    setIsPicking(true);
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
@@ -1137,6 +1171,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         tr('No se pudo abrir la cámara', 'Could not open camera'),
         tr('Cierra otras apps de cámara y vuelve a intentar.', 'Close other camera apps and try again.')
       );
+    } finally {
+      isPickingRef.current = false;
+      setIsPicking(false);
     }
   };
 
@@ -2110,9 +2147,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           visible={fileTypeModalVisible}
           transparent
           animationType="slide"
-          onRequestClose={() => setFileTypeModalVisible(false)}
+          onRequestClose={closeFileTypeModal}
         >
-          <TouchableWithoutFeedback onPress={() => setFileTypeModalVisible(false)}>
+          <TouchableWithoutFeedback onPress={closeFileTypeModal}>
             <View style={styles.modalOverlay}>
             <TouchableWithoutFeedback onPress={() => {}}>
             <View style={[styles.modalContent, { backgroundColor: formTheme.surfaceBg, borderTopColor: formTheme.border }]}>
@@ -2121,7 +2158,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               </View>
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: formTheme.textPrimary }]}>{tr('Carga Segura de Documento', 'Secure Document Upload')}</Text>
-                <TouchableOpacity onPress={() => setFileTypeModalVisible(false)}>
+                <TouchableOpacity onPress={closeFileTypeModal}>
                   <MaterialCommunityIcons name="close" color={formTheme.textPrimary} size={24} />
                 </TouchableOpacity>
               </View>
@@ -2136,7 +2173,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               <TouchableOpacity
                 style={[styles.fileTypeOption, { backgroundColor: formTheme.inputBg, borderColor: formTheme.border }]}
                 onPress={handleTakePhoto}
-                disabled={isCompressing}
+                disabled={isCompressing || isPicking}
               >
                 <MaterialCommunityIcons name="camera" color={formTheme.textPrimary} size={30} />
                 <Text style={[styles.fileTypeText, { color: formTheme.textPrimary }]}>{tr('Tomar Foto', 'Take Photo')}</Text>
@@ -2145,7 +2182,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               <TouchableOpacity
                 style={[styles.fileTypeOption, { backgroundColor: formTheme.inputBg, borderColor: formTheme.border }]}
                 onPress={handlePickPhotos}
-                disabled={isCompressing}
+                disabled={isCompressing || isPicking}
               >
                 <MaterialCommunityIcons name="image-multiple" color={formTheme.textPrimary} size={30} />
                 <Text style={[styles.fileTypeText, { color: formTheme.textPrimary }]}>{tr('Elegir imagen', 'Choose image')}</Text>
@@ -2154,7 +2191,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               <TouchableOpacity
                 style={[styles.fileTypeOption, { backgroundColor: formTheme.inputBg, borderColor: formTheme.border }]}
                 onPress={handlePickDocument}
-                disabled={isCompressing}
+                disabled={isCompressing || isPicking}
               >
                 <MaterialCommunityIcons name="file-document-outline" color={formTheme.textPrimary} size={30} />
                 <Text style={[styles.fileTypeText, { color: formTheme.textPrimary }]}>{tr('Elegir documento', 'Choose document')}</Text>
