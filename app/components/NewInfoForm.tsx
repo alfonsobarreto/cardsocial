@@ -44,6 +44,9 @@ import LuxuryModerationModal from './LuxuryModerationModal';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const VAULT_STORAGE_KEY = 'vault_data';
+const DEFAULT_ICON_ID = ICON_GALLERY[0]?.id ?? '1';
+const LINK_FALLBACK_ICON_ID =
+  ICON_GALLERY.find((icon) => icon.icon === 'link-variant')?.id ?? DEFAULT_ICON_ID;
 
 type DataType = 'Enlaces' | 'Teléfono' | 'Email' | 'Texto Plain' | 'Documento';
 
@@ -143,7 +146,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const [dataType, setDataType] = useState<DataType>('Enlaces');
   const [dataName, setDataName] = useState('');
   const [dataValue, setDataValue] = useState('');
-  const [selectedIcon, setSelectedIcon] = useState('1');
+  const [selectedIcon, setSelectedIcon] = useState(DEFAULT_ICON_ID);
   const [countryCode, setCountryCode] = useState('+1');
   const [autoTypeSuggestion, setAutoTypeSuggestion] = useState<DataType | null>(null);
   
@@ -249,10 +252,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           if (iconIndex >= 0) {
             setSelectedIcon((iconIndex + 1).toString());
           } else {
-            setSelectedIcon('1');
+            setSelectedIcon(DEFAULT_ICON_ID);
           }
         } else {
-          setSelectedIcon('1');
+          setSelectedIcon(DEFAULT_ICON_ID);
         }
       }
     }
@@ -369,7 +372,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           // ⏱ TIMEOUT o error — fallback seguro
           setFaviconLoading(false);
           setFaviconUrl('');
-          setSelectedIcon('link-variant');
+          setSelectedIcon(LINK_FALLBACK_ICON_ID);
+          setLastFaviconDomain(domain);
           setFaviconSuggestionVisible(false);
           setTimeout(() => {
             if (!faviconLifecycleClosedRef.current) {
@@ -403,7 +407,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     if (editingData?.id) return;
     if (prevDataTypeRef.current === dataType) return;
     prevDataTypeRef.current = dataType;
-    setSelectedIcon('1');
+    setSelectedIcon(DEFAULT_ICON_ID);
     setFaviconUrl('');
     closeFaviconSuggestion();
     setLastFaviconDomain('');
@@ -431,7 +435,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
   // ── Sugerir ícono por nombre de data (silencioso) ─────────────────────────
   useEffect(() => {
-    if (!dataName.trim() || selectedIcon !== '1' || editingData?.id) return;
+    if (!dataName.trim() || selectedIcon !== DEFAULT_ICON_ID || editingData?.id) return;
     const nameLower = ` ${dataName.trim().toLowerCase()} `;
     for (const entry of KNOWN_NAME_ICONS) {
       if (entry.keywords.some((kw) => nameLower.includes(kw))) {
@@ -462,7 +466,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setDataName('');
     setDataValue('');
     setDataType('Enlaces');
-    setSelectedIcon('1');
+    setSelectedIcon(DEFAULT_ICON_ID);
     setCountryCode('+1');
     setFaviconUrl('');
     closeFaviconSuggestion();
@@ -1110,6 +1114,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
   // Save to Firestore (Create or Update)
   const handleCreate = async () => {
+    if (isSaving) return;
     console.log('[Vault] handleCreate: INICIO');
     console.log('[Vault] handleCreate: Antes de Validaciones Iniciales');
     if (!dataName.trim() || !dataValue.trim()) {
@@ -1214,8 +1219,16 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         const { fileId, publicUrl: filePublicUrl } = await uploadFileToModerationBackend(normalizedValue, dataName, userId);
         finalValue = filePublicUrl || `mongo-gridfs://${fileId}`;
       }
-      // Crear ID único (timestamp + random)
-      const uniqueId = editingData?.id || `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      // Crear ID único evitando cualquier choque accidental local.
+      const existingIds = new Set(
+        dataArray.map((entry: any) => String(entry?.id || '')).filter(Boolean)
+      );
+      let uniqueId = editingData?.id;
+      if (!uniqueId) {
+        do {
+          uniqueId = `${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+        } while (existingIds.has(uniqueId));
+      }
       const dataPayload = {
         id: uniqueId,
         title: dataName.trim(),
@@ -1708,7 +1721,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 >
                   <View style={[styles.iconPreviewCircleInner, { backgroundColor: formTheme.iconPreviewCircleBg }]}> 
                     <MaterialCommunityIcons
-                      name={ICON_GALLERY.find(i => i.id === selectedIcon)?.icon as any}
+                      name={(ICON_GALLERY.find(i => i.id === selectedIcon)?.icon || 'file-document') as any}
                       color={formTheme.textPrimary}
                       size={48}
                     />

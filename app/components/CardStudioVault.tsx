@@ -141,7 +141,7 @@ const RAW_SECTIONS: Array<{
       { label: 'Word',        labelEn: 'Word',        icon: 'file-word'         },
       { label: 'Excel',       labelEn: 'Excel',       icon: 'file-excel'        },
       { label: 'Doc',         labelEn: 'Doc',         icon: 'file-document'     },
-      { label: 'PPT',         labelEn: 'PPT',         icon: 'file-presentation' },
+      { label: 'PPT',         labelEn: 'PPT',         icon: 'file-powerpoint'   },
       { label: 'Música',      labelEn: 'Music',       icon: 'file-music'        },
       { label: 'ZIP',         labelEn: 'ZIP',         icon: 'zip-box'           },
       { label: 'Carpeta',     labelEn: 'Folder',      icon: 'folder-zip'        },
