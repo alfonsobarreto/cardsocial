@@ -55,7 +55,6 @@ import {
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import QRCode from 'react-native-qrcode-svg';
 import Toast from 'react-native-toast-message';
-import { randomUUID } from 'expo-crypto';
 import { ActionController } from '../../services/ActionController';
 import { sanitizeMaterialCommunityIconName } from '../components/iconNameValidation';
 import palette from '../theme';
@@ -80,15 +79,10 @@ const toRenderableImageUri = (value: string | null | undefined): string | null =
 };
 
 const createSmartCardId = () => {
-  try {
-    const generated = String(randomUUID() || '').trim();
-    if (generated) {
-      return generated;
-    }
-  } catch {
-    // Fallback for runtimes where UUID generation is unavailable.
-  }
-  return `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  const tsPart = Date.now().toString(36);
+  const randA = Math.random().toString(36).slice(2, 10);
+  const randB = Math.random().toString(36).slice(2, 10);
+  return `card_${tsPart}_${randA}${randB}`;
 };
 
 type VaultItem = {
