@@ -1010,6 +1010,7 @@ const VaultScreen = () => {
         transparent
         animationType="slide"
         presentationStyle="overFullScreen"
+        hardwareAccelerated
         onDismiss={() => {
           formSheetTranslateY.stopAnimation();
           formSheetTranslateY.setValue(0);
@@ -1028,13 +1029,8 @@ const VaultScreen = () => {
             <NewInfoForm
               editingData={editingData}
               onClose={() => {
-                // Allow inner modals (spinner) to fully unmount before closing outer modal
-                requestAnimationFrame(() => {
-                  closeFormModal();
-                  setTimeout(() => {
-                    void loadVaultData();
-                  }, 0);
-                });
+                closeFormModal();
+                void loadVaultData();
               }}
             />
           </Animated.View>

@@ -1550,6 +1550,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         </View>
 
         <ScrollView
+          key={editingData?.id ? `edit-${editingData.id}` : 'create'}
           style={styles.scrollView}
           contentContainerStyle={[styles.scrollContent, { flexGrow: 1 }]}
           keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}

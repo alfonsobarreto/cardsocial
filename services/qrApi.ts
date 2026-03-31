@@ -15,7 +15,7 @@ function getGatewayKey(): string {
     process.env.EXPO_PUBLIC_GATEWAY_KEY?.trim();
   if (!key) {
     throw new Error(
-      'Missing gateway key. Set EXPO_PUBLIC_MODERATION_GATEWAY_KEY (or EXPO_PUBLIC_API_GATEWAY_KEY) in your Expo environment.'
+      'Missing gateway key. Set EXPO_PUBLIC_MODERATION_GATEWAY_KEY (or EXPO_PUBLIC_API_GATEWAY_KEY) in your Expo environment and restart Expo with -c.'
     );
   }
   return key;
