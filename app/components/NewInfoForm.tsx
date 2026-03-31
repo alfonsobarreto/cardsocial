@@ -157,6 +157,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const [faviconUrl, setFaviconUrl] = useState('');
   const [faviconSuggestionVisible, setFaviconSuggestionVisible] = useState(false);
   const [faviconLoading, setFaviconLoading] = useState(false);
+  const [faviconPromptVisible, setFaviconPromptVisible] = useState(false);
+  const [faviconPromptDomain, setFaviconPromptDomain] = useState('');
   const [lastFaviconDomain, setLastFaviconDomain] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [fileTypeModalVisible, setFileTypeModalVisible] = useState(false);
@@ -181,6 +183,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const [retryCountdownSec, setRetryCountdownSec] = useState(0);
   const faviconLookupTokenRef = useRef(0);
   const faviconLifecycleClosedRef = useRef(false);
+  const faviconPromptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dismissedFaviconPromptDomainsRef = useRef<Set<string>>(new Set());
   const closeGenerationRef = useRef(0);
   const pendingTimeoutsRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const pendingInteractionTasksRef = useRef<Array<{ cancel?: () => void }>>([]);
@@ -221,6 +225,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const clearPendingAsyncWork = () => {
     closeGenerationRef.current += 1;
     faviconLookupTokenRef.current += 1;
+    if (faviconPromptTimerRef.current) {
+      clearTimeout(faviconPromptTimerRef.current);
+      faviconPromptTimerRef.current = null;
+    }
     pendingTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
     pendingTimeoutsRef.current = [];
     pendingInteractionTasksRef.current.forEach((task) => {
@@ -377,92 +385,234 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     { keywords: ['yahoo'],                  iconId: '25' },
   ];
 
-  useEffect(() => {
-    const lookupFavicon = async () => {
-      const sessionToken = closeGenerationRef.current;
-      if (dataType !== 'Enlaces' || !dataValue.trim() || editingData?.id) {
-        return;
-      }
-      const lookupToken = ++faviconLookupTokenRef.current;
-      try {
-        const urlObj = new URL(dataValue.startsWith('http') ? dataValue : `https://${dataValue}`);
-        const domain = urlObj.hostname.toLowerCase().replace(/^www\./, '');
-        if (!domain || domain === lastFaviconDomain) {
-          return;
-        }
+  const extractDomainFromLink = (rawValue: string): string => {
+    const trimmed = String(rawValue || '').trim();
+    if (!trimmed) return '';
+    try {
+      const urlObj = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
+      return urlObj.hostname.toLowerCase().replace(/^www\./, '');
+    } catch {
+      return '';
+    }
+  };
 
-        // 1️⃣ Known domain shortcut — use local icon, skip Azure entirely
-        const knownIconId = KNOWN_DOMAIN_ICONS[domain];
-        if (knownIconId) {
-          setSelectedIcon(knownIconId);
-          setFaviconLoading(false);
-          setLastFaviconDomain(domain);
-          return;
-        }
+  const runFaviconLookup = async (domainOverride?: string) => {
+    const sessionToken = closeGenerationRef.current;
+    const sourceValue = dataValue.trim();
+    const domain = (domainOverride || extractDomainFromLink(sourceValue)).trim();
+    if (!domain || isSessionClosed(sessionToken)) return;
 
-        setFaviconLoading(true);
+    const lookupToken = ++faviconLookupTokenRef.current;
+    setFaviconLoading(true);
 
-        // 2️⃣ Local cache hit
-        if (faviconCache.current[domain]) {
-          setFaviconUrl(faviconCache.current[domain]);
-          setFaviconSuggestionVisible(true);
-          setFaviconLoading(false);
-          setLastFaviconDomain(domain);
-          return;
-        }
-
-        // 3️⃣ Race Azure against 2s timeout
-        // Timeout robusto de 3s
-        const faviconTimeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
-        let fetchedIcon: string | null = null;
-        try {
-          fetchedIcon = await Promise.race([
-            fetchFaviconFromAzure(dataValue),
-            faviconTimeout
-          ]);
-        } catch {
-          fetchedIcon = null;
-        }
-
-        if (isSessionClosed(sessionToken) || lookupToken !== faviconLookupTokenRef.current) {
-          return;
-        }
-
-        if (!fetchedIcon) {
-          // ⏱ TIMEOUT o error — fallback seguro
-          setFaviconLoading(false);
-          setFaviconUrl('');
-          setSelectedIcon(LINK_FALLBACK_ICON_ID);
-          setLastFaviconDomain(domain);
-          setFaviconSuggestionVisible(false);
-          trackTimeout(() => {
-            if (!isSessionClosed(sessionToken)) {
-              setIconModalVisible(true);
-            }
-          }, 800);
-          return;
-        }
-
-        await Image.prefetch(fetchedIcon).catch(() => null);
-        if (isSessionClosed(sessionToken) || lookupToken !== faviconLookupTokenRef.current) {
-          return;
-        }
-        faviconCache.current[domain] = fetchedIcon;
+    try {
+      if (faviconCache.current[domain]) {
+        if (isSessionClosed(sessionToken) || lookupToken !== faviconLookupTokenRef.current) return;
+        setFaviconUrl(faviconCache.current[domain]);
         setLastFaviconDomain(domain);
-        setFaviconUrl(fetchedIcon);
         setFaviconSuggestionVisible(true);
         setFaviconLoading(false);
+        return;
+      }
+
+      const faviconTimeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
+      let fetchedIcon: string | null = null;
+      try {
+        fetchedIcon = await Promise.race([fetchFaviconFromAzure(sourceValue), faviconTimeout]);
       } catch {
-        if (isSessionClosed(sessionToken)) {
-          return;
-        }
+        fetchedIcon = null;
+      }
+
+      if (isSessionClosed(sessionToken) || lookupToken !== faviconLookupTokenRef.current) {
+        return;
+      }
+
+      if (!fetchedIcon) {
         setFaviconLoading(false);
-        setFaviconSuggestionVisible(false);
         setFaviconUrl('');
+        setLastFaviconDomain(domain);
+        dismissedFaviconPromptDomainsRef.current.add(domain);
+        Alert.alert(
+          tr('Sin favicon disponible', 'No favicon available'),
+          tr(
+            'No encontramos favicon para este sitio.',
+            'We could not find a favicon for this site.'
+          ),
+          [
+            { text: 'OK', style: 'cancel' },
+            {
+              text: tr('Abrir Cofre de Iconos', 'Open Icon Vault'),
+              onPress: () => setIconModalVisible(true),
+            },
+          ]
+        );
+        return;
+      }
+
+      await Image.prefetch(fetchedIcon).catch(() => null);
+      if (isSessionClosed(sessionToken) || lookupToken !== faviconLookupTokenRef.current) {
+        return;
+      }
+
+      faviconCache.current[domain] = fetchedIcon;
+      setLastFaviconDomain(domain);
+      setFaviconUrl(fetchedIcon);
+      setFaviconSuggestionVisible(true);
+      setFaviconLoading(false);
+    } catch {
+      if (isSessionClosed(sessionToken)) return;
+      setFaviconLoading(false);
+      setFaviconSuggestionVisible(false);
+      setFaviconUrl('');
+    }
+  };
+
+  const scheduleFaviconPrompt = () => {
+    if (faviconPromptTimerRef.current) {
+      clearTimeout(faviconPromptTimerRef.current);
+      faviconPromptTimerRef.current = null;
+    }
+    if (editingData?.id || dataType !== 'Enlaces') return;
+    const domain = extractDomainFromLink(dataValue);
+    if (!domain) return;
+    if (
+      domain === lastFaviconDomain ||
+      dismissedFaviconPromptDomainsRef.current.has(domain) ||
+      faviconSuggestionVisible ||
+      faviconLoading
+    ) {
+      return;
+    }
+    faviconPromptTimerRef.current = setTimeout(() => {
+      if (!isMountedRef.current || faviconLifecycleClosedRef.current) return;
+      setFaviconPromptDomain(domain);
+      setFaviconPromptVisible(true);
+    }, 2000);
+  };
+
+  const getLinkPlaceholder = () => {
+    const n = dataName.trim().toLowerCase();
+    if (n.includes('instagram')) return tr('https://instagram.com/tu_usuario', 'https://instagram.com/your_user');
+    if (n.includes('linkedin')) return tr('https://linkedin.com/in/tu-perfil', 'https://linkedin.com/in/your-profile');
+    if (n.includes('facebook') || n.includes('fb')) return tr('https://facebook.com/tu_pagina', 'https://facebook.com/your_page');
+    if (n.includes('twitter') || n.includes(' x ')) return tr('https://x.com/tu_usuario', 'https://x.com/your_user');
+    if (n.includes('tiktok')) return tr('https://tiktok.com/@tu_usuario', 'https://tiktok.com/@your_user');
+    if (n.includes('youtube') || n.includes('yt')) return tr('https://youtube.com/@tu_canal', 'https://youtube.com/@your_channel');
+    return 'https://example.com';
+  };
+
+  const renderLinkField = () => (
+    <View>
+      <LinearGradient
+        colors={formTheme.gradientColors}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{ borderRadius: 10, padding: 4 }}
+      >
+        <TextInput
+          style={[styles.input, { backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderWidth: 0 }]}
+          placeholder={getLinkPlaceholder()}
+          placeholderTextColor={formTheme.inputPlaceholder}
+          value={dataValue}
+          onChangeText={(text) => {
+            setDataValue(text);
+            setFaviconPromptVisible(false);
+            setFaviconPromptDomain('');
+          }}
+          onBlur={() => scheduleFaviconPrompt()}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+      </LinearGradient>
+      {dataType === 'Enlaces' && faviconPromptVisible && !!faviconPromptDomain && !faviconLoading && (
+        <View style={styles.faviconPromptCard}>
+          <Text style={styles.faviconPromptTitle}>
+            {tr('¿Buscar favicon de esta web?', 'Find this website favicon?')}
+          </Text>
+          <Text style={styles.faviconPromptSubtitle}>
+            {faviconPromptDomain}
+          </Text>
+          <View style={styles.faviconPromptActions}>
+            <TouchableOpacity
+              style={[styles.faviconPromptBtn, styles.faviconPromptGhostBtn]}
+              onPress={() => {
+                dismissedFaviconPromptDomainsRef.current.add(faviconPromptDomain);
+                setFaviconPromptVisible(false);
+              }}
+            >
+              <Text style={styles.faviconPromptGhostBtnText}>{tr('No, gracias', 'No, thanks')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.faviconPromptBtn, styles.faviconPromptPrimaryBtn]}
+              onPress={() => {
+                const domain = faviconPromptDomain;
+                setFaviconPromptVisible(false);
+                void runFaviconLookup(domain);
+              }}
+            >
+              <Text style={styles.faviconPromptPrimaryBtnText}>{tr('Buscar favicon ahora', 'Find favicon now')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+      {faviconUrl && (
+        <View>
+          <View style={styles.faviconContainer}>
+            <Image source={{ uri: faviconUrl }} style={styles.faviconImg} />
+            <Text style={styles.faviconLabel}>{tr('Favicon detectado', 'Favicon detected')}</Text>
+          </View>
+          <Text style={styles.wordCount}>{tr('Si quieres otro estilo, elige un icono de la galería oficial.', 'Want a different style? Pick an icon from the official gallery.')}</Text>
+        </View>
+      )}
+    </View>
+  );
+
+  useEffect(() => {
+    if (faviconPromptTimerRef.current) {
+      clearTimeout(faviconPromptTimerRef.current);
+      faviconPromptTimerRef.current = null;
+    }
+
+    if (editingData?.id || dataType !== 'Enlaces') {
+      setFaviconPromptVisible(false);
+      setFaviconPromptDomain('');
+      return;
+    }
+
+    const domain = extractDomainFromLink(dataValue);
+    if (!domain) {
+      setFaviconPromptVisible(false);
+      setFaviconPromptDomain('');
+      return;
+    }
+
+    if (faviconPromptVisible && faviconPromptDomain && faviconPromptDomain !== domain) {
+      setFaviconPromptVisible(false);
+      setFaviconPromptDomain('');
+    }
+
+    if (
+      domain === lastFaviconDomain ||
+      dismissedFaviconPromptDomainsRef.current.has(domain) ||
+      faviconSuggestionVisible ||
+      faviconLoading
+    ) {
+      return;
+    }
+
+    faviconPromptTimerRef.current = setTimeout(() => {
+      if (!isMountedRef.current || faviconLifecycleClosedRef.current) return;
+      setFaviconPromptDomain(domain);
+      setFaviconPromptVisible(true);
+    }, 2000);
+
+    return () => {
+      if (faviconPromptTimerRef.current) {
+        clearTimeout(faviconPromptTimerRef.current);
+        faviconPromptTimerRef.current = null;
       }
     };
-    lookupFavicon();
-  }, [dataValue, dataType, editingData?.id, lastFaviconDomain]);
+  }, [dataValue, dataType, editingData?.id, faviconPromptVisible, faviconPromptDomain, faviconSuggestionVisible, faviconLoading, lastFaviconDomain]);
 
   // Reset icon and URL when data type changes (but NOT if we're editing)
   const prevDataTypeRef = useRef<DataType>(dataType);
@@ -473,6 +623,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setSelectedIcon(DEFAULT_ICON_ID);
     setFaviconUrl('');
     closeFaviconSuggestion();
+    setFaviconPromptVisible(false);
+    setFaviconPromptDomain('');
+    dismissedFaviconPromptDomainsRef.current.clear();
     setLastFaviconDomain('');
     // Keep dataName and dataValue — user may have typed them intentionally
   }, [dataType, editingData?.id]);
@@ -521,6 +674,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setAssetPreviewVisible(false);
     setPendingAsset(null);
     closeFaviconSuggestion();
+    setFaviconPromptVisible(false);
+    setFaviconPromptDomain('');
     setFaviconLoading(false);
     setUploadModalVisible(false);
     setIsUploading(false);
@@ -541,6 +696,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setCountryCode('+1');
     setFaviconUrl('');
     closeFaviconSuggestion();
+    setFaviconPromptVisible(false);
+    setFaviconPromptDomain('');
+    dismissedFaviconPromptDomainsRef.current.clear();
     setLastFaviconDomain('');
     setAutoTypeSuggestion(null);
     savedLinkIdRef.current = null;
@@ -1451,44 +1609,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const renderDataField = () => {
     switch (dataType) {
       case 'Enlaces':
-        return (
-          <View>
-            <LinearGradient
-              colors={formTheme.gradientColors}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={{ borderRadius: 10, padding: 4 }}
-            >
-              <TextInput
-                style={[styles.input, { backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderWidth: 0 }]}
-              placeholder={(() => {
-                const n = dataName.trim().toLowerCase();
-                if (n.includes('instagram')) return tr('https://instagram.com/tu_usuario', 'https://instagram.com/your_user');
-                if (n.includes('linkedin')) return tr('https://linkedin.com/in/tu-perfil', 'https://linkedin.com/in/your-profile');
-                if (n.includes('facebook') || n.includes('fb')) return tr('https://facebook.com/tu_pagina', 'https://facebook.com/your_page');
-                if (n.includes('twitter') || n.includes(' x ')) return tr('https://x.com/tu_usuario', 'https://x.com/your_user');
-                if (n.includes('tiktok')) return tr('https://tiktok.com/@tu_usuario', 'https://tiktok.com/@your_user');
-                if (n.includes('youtube') || n.includes('yt')) return tr('https://youtube.com/@tu_canal', 'https://youtube.com/@your_channel');
-                return 'https://example.com';
-              })()}
-              placeholderTextColor={formTheme.inputPlaceholder}
-              value={dataValue}
-              onChangeText={setDataValue}
-              autoCapitalize="none"
-              autoCorrect={false}
-              />
-            </LinearGradient>
-            {faviconUrl && (
-              <View>
-                <View style={styles.faviconContainer}>
-                  <Image source={{ uri: faviconUrl }} style={styles.faviconImg} />
-                  <Text style={styles.faviconLabel}>{tr('Favicon detectado', 'Favicon detected')}</Text>
-                </View>
-                <Text style={styles.wordCount}>{tr('Si quieres otro estilo, elige un icono de la galería oficial.', 'Want a different style? Pick an icon from the official gallery.')}</Text>
-              </View>
-            )}
-          </View>
-        );
+        return renderLinkField();
       case 'Teléfono':
         return (
           <View style={styles.phoneRow}>
@@ -1911,39 +2032,40 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           animationType="fade"
           onRequestClose={() => closeFaviconSuggestion()}
         >
-          <TouchableWithoutFeedback onPress={() => closeFaviconSuggestion()}>
+            <TouchableWithoutFeedback onPress={() => closeFaviconSuggestion()}>
             <View style={styles.faviconPopupOverlay}>
               <TouchableWithoutFeedback onPress={() => {}}>
-                <View style={styles.faviconPopupCard}>
-              <Text style={styles.faviconPopupTitle}>{tr('¿Usar este icono?', 'Use this icon?')}</Text>
-              <View style={styles.faviconPopupPreviewBox}>
-                {faviconLoading ? (
-                  <BrandedSpinner size={44} color="#D4AF37" />
-                ) : faviconUrl ? (
-                  <Image source={{ uri: faviconUrl }} style={styles.faviconPopupImage} />
-                ) : (
-                  <MaterialCommunityIcons name="web" color="#0A2540" size={36} />
-                )}
-              </View>
-              <View style={styles.faviconPopupActions}>
-                <TouchableOpacity
-                  style={[styles.faviconPopupButton, styles.faviconConfirmButton]}
-                  onPress={() => {
-                    setSelectedIcon('favicon');
-                    closeFaviconSuggestion();
-                  }}
-                >
-                  <Text style={styles.faviconConfirmButtonText}>{tr('SÍ, USAR', 'YES, USE')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.faviconPopupButton, styles.faviconCancelButton, styles.faviconPopupButtonSpacing]}
-                  onPress={() => {
-                    closeFaviconSuggestion();
-                  }}
-                >
-                  <Text style={styles.faviconCancelButtonText}>{tr('NO, CANCELAR', 'NO, CANCEL')}</Text>
-                </TouchableOpacity>
-              </View>
+                  <View style={styles.faviconPopupCard}>
+                    <Text style={styles.faviconPopupTitle}>{tr('¿Usar este icono?', 'Use this icon?')}</Text>
+                    <View style={styles.faviconPopupPreviewBox}>
+                      {faviconLoading ? (
+                        <BrandedSpinner size={44} color="#D4AF37" />
+                      ) : faviconUrl ? (
+                        <Image source={{ uri: faviconUrl }} style={styles.faviconPopupImage} />
+                      ) : (
+                        <MaterialCommunityIcons name="web" color="#0A2540" size={36} />
+                      )}
+                    </View>
+                    <View style={styles.faviconPopupActions}>
+                      <TouchableOpacity
+                        style={[styles.faviconPopupButton, styles.faviconConfirmButton]}
+                        onPress={() => {
+                          setSelectedIcon('favicon');
+                          closeFaviconSuggestion();
+                        }}
+                      >
+                        <Text style={styles.faviconConfirmButtonText}>{tr('SÍ, USAR', 'YES, USE')}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.faviconPopupButton, styles.faviconCancelButton, styles.faviconPopupButtonSpacing]}
+                        onPress={() => {
+                          closeFaviconSuggestion();
+                        }}
+                      >
+                        <Text style={styles.faviconCancelButtonText}>{tr('NO, CANCELAR', 'NO, CANCEL')}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 </View>
               </TouchableWithoutFeedback>
             </View>
@@ -2458,6 +2580,58 @@ const styles = StyleSheet.create({
     color: '#002D4B',
     fontSize: 13,
     fontWeight: '600',
+  },
+  faviconPromptCard: {
+    marginTop: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#D4AF37',
+    backgroundColor: 'rgba(212,175,55,0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  faviconPromptTitle: {
+    color: '#0A2540',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  faviconPromptSubtitle: {
+    color: '#1E567B',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  faviconPromptActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  faviconPromptBtn: {
+    flex: 1,
+    borderRadius: 999,
+    minHeight: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  faviconPromptPrimaryBtn: {
+    backgroundColor: '#D4AF37',
+  },
+  faviconPromptGhostBtn: {
+    backgroundColor: '#E9EEF2',
+    borderWidth: 1,
+    borderColor: '#CFE6F8',
+  },
+  faviconPromptPrimaryBtnText: {
+    color: '#0A1A2F',
+    fontSize: 12,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  faviconPromptGhostBtnText: {
+    color: '#0A2540',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   editIconBtn: {
     width: 36,
