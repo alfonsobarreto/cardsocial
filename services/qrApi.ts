@@ -5,7 +5,13 @@ function getApiBaseUrl(): string {
   if (!envUrl) {
     throw new Error('Missing EXPO_PUBLIC_MODERATION_API_URL. Set it in your Expo environment.');
   }
-  return envUrl.replace(/\/+$/, '');
+  const normalized = envUrl.replace(/\/+$/, '');
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(normalized)) {
+    throw new Error(
+      'EXPO_PUBLIC_MODERATION_API_URL no puede ser localhost en móvil físico. Usa IP LAN (ej. http://192.168.x.x:4000) o URL HTTPS pública.'
+    );
+  }
+  return normalized;
 }
 
 function getGatewayKey(): string {
@@ -21,20 +27,48 @@ function getGatewayKey(): string {
   return key;
 }
 
+function mapQrNetworkError(error: any, baseUrl: string): Error {
+  const message = String(error?.message || '');
+  const status = Number(error?.response?.status || 0);
+  const isNetwork =
+    error?.code === 'ERR_NETWORK' ||
+    /Network Error/i.test(message) ||
+    /Failed to fetch/i.test(message) ||
+    /timeout/i.test(message);
+
+  if (isNetwork) {
+    return new Error(
+      `No se pudo conectar con el backend QR (${baseUrl}). Verifica IP/puerto, misma red Wi-Fi y backend activo.`
+    );
+  }
+  if (status === 401) {
+    return new Error('La API key del gateway es inválida o no coincide con API_GATEWAY_KEY del backend.');
+  }
+  if (status === 403) {
+    return new Error('El token de seguridad no tiene permisos para QR. Revisa scope y backend.');
+  }
+  return error instanceof Error ? error : new Error(message || 'QR request failed');
+}
+
 async function getScopedJwtToken(ownerUid: string, scope: 'moderation.upload' | 'qr.access') {
   const baseUrl = getApiBaseUrl();
   const gatewayKey = getGatewayKey();
 
-  const response = await axios.post(
-    `${baseUrl}/api/auth/token`,
-    { ownerUid, scope },
-    {
-      headers: {
-        'x-api-gateway-key': gatewayKey,
-      },
-      timeout: 15000,
-    }
-  );
+  let response: any;
+  try {
+    response = await axios.post(
+      `${baseUrl}/api/auth/token`,
+      { ownerUid, scope },
+      {
+        headers: {
+          'x-api-gateway-key': gatewayKey,
+        },
+        timeout: 15000,
+      }
+    );
+  } catch (error: any) {
+    throw mapQrNetworkError(error, baseUrl);
+  }
 
   const token = String(response?.data?.token || '').trim();
   if (!token) {

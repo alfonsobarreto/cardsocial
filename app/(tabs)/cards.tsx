@@ -987,7 +987,18 @@ export default function CardsFactoryScreen() {
       setQrWindowMs(visibleWindowMs);
       setQrVisible(true);
     } catch (error: any) {
-      Alert.alert(tr('Error de QR', 'QR error'), error?.message || tr('No se pudo emitir el QR dinámico.', 'Could not issue dynamic QR.'));
+      const rawMessage = String(error?.message || '');
+      const likelyNetworkError =
+        /network error/i.test(rawMessage) ||
+        /failed to fetch/i.test(rawMessage) ||
+        /timeout/i.test(rawMessage);
+      const diagnosticMessage = likelyNetworkError
+        ? tr(
+            'No se pudo conectar al backend de QR.\n\nChecklist rápido:\n• EXPO_PUBLIC_MODERATION_API_URL con IP LAN (no localhost)\n• Backend activo en puerto 4000\n• Móvil y PC en la misma Wi‑Fi\n• EXPO_PUBLIC_MODERATION_GATEWAY_KEY igual a API_GATEWAY_KEY del backend',
+            'Could not connect to the QR backend.\n\nQuick checklist:\n• EXPO_PUBLIC_MODERATION_API_URL uses LAN IP (not localhost)\n• Backend is running on port 4000\n• Phone and PC are on the same Wi‑Fi\n• EXPO_PUBLIC_MODERATION_GATEWAY_KEY matches backend API_GATEWAY_KEY'
+          )
+        : rawMessage || tr('No se pudo emitir el QR dinámico.', 'Could not issue dynamic QR.');
+      Alert.alert(tr('Error de QR', 'QR error'), diagnosticMessage);
     } finally {
       setIssuingQr(false);
     }

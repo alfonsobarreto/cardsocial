@@ -47,6 +47,7 @@ const VAULT_STORAGE_KEY = 'vault_data';
 const DEFAULT_ICON_ID = ICON_GALLERY[0]?.id ?? '1';
 const LINK_FALLBACK_ICON_ID =
   ICON_GALLERY.find((icon) => icon.icon === 'link-variant')?.id ?? DEFAULT_ICON_ID;
+const CLOUD_SYNC_TIMEOUT_MS = 8000;
 
 type DataType = 'Enlaces' | 'Teléfono' | 'Email' | 'Texto Plain' | 'Documento';
 
@@ -236,6 +237,18 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     !isMountedRef.current ||
     faviconLifecycleClosedRef.current ||
     sessionToken !== closeGenerationRef.current;
+
+  const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+    });
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
+  };
 
   useEffect(() => {
     if (!retryLockedUntil) {
@@ -1297,18 +1310,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       // Store saved IDs for silent background favicon update
       savedLinkIdRef.current = uniqueId;
       savedUserIdRef.current = userId;
-      let cloudSynced = false;
-      try {
-        if (userId) {
-          console.log('[Vault] handleCreate: Antes de setDoc');
-          const cloudDocRef = doc(db, 'users', userId, 'links', uniqueId);
-          await setDoc(cloudDocRef, dataPayload);
-          cloudSynced = true;
-          console.log('[Vault] handleCreate: Después de setDoc');
-        }
-      } catch (cloudError) {
-        console.warn('[Vault] Cloud sync failed, keeping local cache:', cloudError);
-      }
       if (editingData?.id) {
         // ACTUALIZAR: reemplazar el elemento existente
         const index = dataArray.findIndex((item: any) => item.id === editingData.id);
@@ -1326,11 +1327,37 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       Toast.show({
         type: 'success',
         text1: tr('🛡️ ¡Dato guardado en el Búnker!', '🛡️ Data saved to Vault!'),
-        text2: cloudSynced ? tr('✓ Sincronizado en la nube', '✓ Synced to cloud') : tr('✓ Guardado localmente', '✓ Saved locally'),
+        text2: tr('✓ Guardado localmente', '✓ Saved locally'),
         position: 'bottom',
         visibilityTime: 3000,
         autoHide: true,
       });
+
+      // Sync cloud in background so UI never blocks the first/next creation flow.
+      if (userId) {
+        void (async () => {
+          try {
+            console.log('[Vault] handleCreate: Background cloud sync start');
+            const cloudDocRef = doc(db, 'users', userId, 'links', uniqueId!);
+            await withTimeout(
+              setDoc(cloudDocRef, dataPayload),
+              CLOUD_SYNC_TIMEOUT_MS,
+              'Cloud sync timeout'
+            );
+            console.log('[Vault] handleCreate: Background cloud sync done');
+            Toast.show({
+              type: 'success',
+              text1: tr('☁️ Sincronización completada', '☁️ Cloud sync completed'),
+              text2: tr('✓ Dato respaldado en la nube', '✓ Item backed up to cloud'),
+              position: 'bottom',
+              visibilityTime: 2200,
+              autoHide: true,
+            });
+          } catch (cloudError) {
+            console.warn('[Vault] Background cloud sync failed, local data kept:', cloudError);
+          }
+        })();
+      }
       console.log('[Vault] handleCreate: Antes de handleClose');
       handleClose();
       console.log('[Vault] handleCreate: Después de handleClose');
