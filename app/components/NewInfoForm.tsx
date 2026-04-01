@@ -72,10 +72,12 @@ interface Link {
 }
 
 let PdfComponent: any = null;
-try {
-  PdfComponent = require('react-native-pdf').default;
-} catch {
-  PdfComponent = null;
+if (Platform.OS !== 'web') {
+  try {
+    PdfComponent = require('react-native-pdf').default;
+  } catch {
+    PdfComponent = null;
+  }
 }
 
 // ICON_GALLERY viene de CardStudioVault — única fuente de verdad

@@ -62,10 +62,12 @@ import { sanitizeMaterialCommunityIconName } from '../components/iconNameValidat
 import palette from '../theme';
 
 let PdfComponent: any = null;
-try {
-  PdfComponent = require('react-native-pdf').default;
-} catch {
-  PdfComponent = null;
+if (Platform.OS !== 'web') {
+  try {
+    PdfComponent = require('react-native-pdf').default;
+  } catch {
+    PdfComponent = null;
+  }
 }
 
 const VAULT_STORAGE_KEY = 'vault_data';
