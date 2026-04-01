@@ -13,6 +13,7 @@ import {
   getDocs,
   arrayUnion,
 } from 'firebase/firestore';
+import { addCredits, deductCredits } from '@/services/creditsService';
 
 export interface QRGift {
   id: string;
@@ -63,9 +64,10 @@ export async function generateQRGift(
   // Calcular pool total
   const totalPool = creditsPerUse * maxUses;
 
-  // Verificar balance de Pochobs
+  // Verificar balance de Pochobs (wallet permanente para gifts administrativos)
   const userDoc = await getDoc(doc(db, 'users', pochobsUid));
-  const currentBalance = userDoc.data()?.creditsBalance || 0;
+  const currentBalance =
+    Number(userDoc.data()?.creditsIapPermanent ?? userDoc.data()?.creditsBalance ?? 0) || 0;
 
   if (currentBalance < totalPool) {
     throw new Error(`Saldo insuficiente. Tienes ${currentBalance} CS, necesitas ${totalPool}`);
@@ -97,10 +99,21 @@ export async function generateQRGift(
   // Guardar en Firestore
   await setDoc(doc(db, 'qr_gifts', giftId), qrGiftData);
 
-  // DEDUCCIÓN INMEDIATA del balance de Pochobs
-  await updateDoc(doc(db, 'users', pochobsUid), {
-    creditsBalance: increment(-totalPool),
-  });
+  // DEDUCCIÓN INMEDIATA del balance (wallet única por transacción: iap_permanent)
+  const deducted = await deductCredits(
+    pochobsUid,
+    totalPool,
+    `qr_gift_pool:${giftId}`,
+    {
+      source: 'iap_permanent',
+      allowAutoSelectSingleWallet: false,
+      linkedAssetKind: 'other',
+      linkedAssetId: giftId,
+    },
+  );
+  if (!deducted) {
+    throw new Error(`Saldo insuficiente en wallet permanente. Necesitas ${totalPool}`);
+  }
 
   // Registrar en Audit Log
   await setDoc(doc(db, 'admin_audit', `audit_${Date.now()}`), {
@@ -171,10 +184,19 @@ export async function redeemQRGift(giftId: string, userId: string): Promise<bool
 
     // Actualizar usuario
     await updateDoc(userRef, {
-      creditsBalance: increment(gift.creditsPerUse),
       premiumUntil: newPremiumUntil.toISOString(),
       subscriptionStatus: 'active',
     });
+    await addCredits(
+      userId,
+      gift.creditsPerUse,
+      `qr_gift_redeem:${giftId}`,
+      {
+        source: 'iap_permanent',
+        linkedAssetKind: 'other',
+        linkedAssetId: giftId,
+      },
+    );
 
     // Actualizar regalo: agregar usuario a redeemedUsers
     const newUsageCount = gift.usageCount + 1;

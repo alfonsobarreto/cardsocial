@@ -1,4 +1,5 @@
 import { db } from '@/services/firebaseConfig';
+import { reconcileBusinessRevocableCreditsForDull } from '@/services/creditsService';
 import type { BusinessCard, BusinessCardLifecycleState } from '@/types/businessCard';
 import { collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 
@@ -278,4 +279,60 @@ export async function migrateBusinessCardsLifecycleV1(options?: { ownerUid?: str
   }
 
   return { processed, migrated };
+}
+
+export async function transitionBusinessCardToDull(params: {
+  cardId: string;
+  ownerUid: string;
+  reason: 'trial_cancelled' | 'annual_expired' | 'renewal_failed';
+}): Promise<void> {
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const purgeAtIso = new Date(now.getTime() + BUSINESS_CARD_DULL_GRACE_DAYS * DAY_MS).toISOString();
+
+  await updateDoc(doc(db, 'businessCards', params.cardId), {
+    lifecycleVersion: 'v1',
+    lifecycleState: 'dull',
+    dullStartedAt: nowIso,
+    purgeAt: purgeAtIso,
+    isActive: false,
+    isPublishedToMarket: false,
+    lastUpdated: nowIso,
+    dullReason: params.reason,
+  });
+
+  await reconcileBusinessRevocableCreditsForDull({
+    userId: params.ownerUid,
+    businessCardId: params.cardId,
+    revoke: true,
+  });
+}
+
+export async function reactivateBusinessCardFromDull(params: {
+  cardId: string;
+  ownerUid: string;
+  annualContractStartedAt?: string;
+  annualContractEndsAt?: string;
+}): Promise<void> {
+  const now = new Date();
+  const startIso = params.annualContractStartedAt || now.toISOString();
+  const endIso = params.annualContractEndsAt || new Date(now.getTime() + BUSINESS_CARD_ANNUAL_DAYS * DAY_MS).toISOString();
+
+  await updateDoc(doc(db, 'businessCards', params.cardId), {
+    lifecycleVersion: 'v1',
+    lifecycleState: 'active_paid',
+    annualContractStartedAt: startIso,
+    annualContractEndsAt: endIso,
+    subscriptionExpires: endIso,
+    dullStartedAt: null,
+    purgeAt: null,
+    isActive: true,
+    lastUpdated: now.toISOString(),
+  });
+
+  await reconcileBusinessRevocableCreditsForDull({
+    userId: params.ownerUid,
+    businessCardId: params.cardId,
+    revoke: false,
+  });
 }

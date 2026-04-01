@@ -11,6 +11,7 @@
 import Purchases from 'react-native-purchases';
 import { addCredits } from '@/services/creditsService';
 import { activateOrRenewBusinessLicense } from '@/services/businessLicenseService';
+import { BUSINESS_CARD_PAYMENTS_QUARANTINED } from '@/services/businessCardLifecycleService';
 
 const BUSINESS_CARD_ANNUAL_PRICE_USD = 49.99;
 const BUSINESS_CARD_CASHBACK_CS = 1000;
@@ -250,9 +251,53 @@ export async function purchaseBusinessCard(
   cashbackCredits?: number;
 }> {
   try {
+    const pricing = calculatePriceWithPremiumDiscount(BUSINESS_CARD_ANNUAL_PRICE_USD, false);
+    if (BUSINESS_CARD_PAYMENTS_QUARANTINED) {
+      const purchaseId = `quarantine_${Date.now()}`;
+      let welcomeBonusApplied = false;
+      let cashbackCredits = 0;
+      if (userId) {
+        try {
+          cashbackCredits = BUSINESS_CARD_CASHBACK_CS;
+          await addCredits(
+            userId,
+            cashbackCredits,
+            'business_card_annual_cashback_quarantined',
+            {
+              source: 'subscription_revocable',
+              linkedBusinessCardId: cardId,
+              linkedAssetKind: 'other',
+              linkedAssetId: cardId,
+            },
+          );
+          await activateOrRenewBusinessLicense({
+            userId,
+            cardId,
+            purchaseId,
+            platform,
+            annualPriceUsd: pricing.finalPrice,
+            cashbackCreditsGranted: cashbackCredits,
+          });
+          welcomeBonusApplied = true;
+        } catch (quarantineBonusError) {
+          console.error('Error applying quarantined annual cashback:', quarantineBonusError);
+        }
+      }
+
+      return {
+        success: true,
+        purchaseId,
+        message: 'Compra simulada en cuarentena (sin cobro real).',
+        finalPrice: pricing.finalPrice,
+        discountPercentage: pricing.discountPercentage,
+        validatedPremium: isPremiumUser,
+        welcomeBonusApplied,
+        cashbackCredits,
+      };
+    }
+
     const validatedPremium = await getRealtimePremiumStatus();
     const productId = getBusinessCardProductId(platform, validatedPremium);
-    const pricing = calculatePriceWithPremiumDiscount(BUSINESS_CARD_ANNUAL_PRICE_USD, false);
 
     const purchaseResult = await Purchases.purchaseProduct(productId);
 
@@ -274,7 +319,17 @@ export async function purchaseBusinessCard(
     if (userId) {
       try {
         cashbackCredits = BUSINESS_CARD_CASHBACK_CS;
-        await addCredits(userId, cashbackCredits, 'business_card_annual_cashback');
+        await addCredits(
+          userId,
+          cashbackCredits,
+          'business_card_annual_cashback',
+          {
+            source: 'subscription_revocable',
+            linkedBusinessCardId: cardId,
+            linkedAssetKind: 'other',
+            linkedAssetId: cardId,
+          },
+        );
         await activateOrRenewBusinessLicense({
           userId,
           cardId,

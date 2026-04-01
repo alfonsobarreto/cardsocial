@@ -576,7 +576,12 @@ export default function StoriesPage() {
       // Deduct credits for premium durations
       if (selectedDuration === '7d' || selectedDuration === '30d') {
         try {
-          const creditDeducted = await purchasePremiumStoryWithCredits(ownerUid, selectedDuration);
+          const creditDeducted = await purchasePremiumStoryWithCredits(ownerUid, selectedDuration, {
+            allowAutoSelectSingleWallet: true,
+            linkedAssetKind: 'story',
+            linkedAssetId: `${selectedCard.cardId}_${now}`,
+            linkedBusinessCardId: selectedCard.cardId,
+          });
           if (!creditDeducted) {
             // Revert story if credit deduction failed
             const revertedStories = localStories.filter((s) => s.ownerUid !== ownerUid);

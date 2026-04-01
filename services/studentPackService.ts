@@ -55,10 +55,12 @@ export async function grantStudentPackCreditsIfEligible(params: {
     }
 
     const currentBalance = Number(creditsData.creditsBalance || 0);
+    const currentIapPermanent = Number(creditsData.creditsIapPermanent || 0);
     const currentEarned = Number(creditsData.totalCreditsEarned || 0);
 
     tx.update(creditsRef, {
       creditsBalance: currentBalance + STUDENT_PACK_BONUS_CS,
+      creditsIapPermanent: currentIapPermanent + STUDENT_PACK_BONUS_CS,
       totalCreditsEarned: currentEarned + STUDENT_PACK_BONUS_CS,
       lastUpdated: serverTimestamp(),
     });

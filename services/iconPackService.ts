@@ -13,7 +13,7 @@
  * Conversión: 1 Pack ≈ 50-100 Créditos CS (configurable por Pochobs)
  */
 
-import { deductCredits, recordCreditTransaction } from '@/services/creditsService';
+import { deductCredits } from '@/services/creditsService';
 import { db } from '@/services/firebaseConfig';
 import {
     addDoc,
@@ -59,6 +59,9 @@ export interface UserIconPack {
   packName: string;
   purchasedAt: Timestamp;
   creditsSpent: number;
+  paymentSource?: 'subscription_revocable' | 'iap_permanent' | 'admin_claim';
+  entitlementState?: 'active' | 'dull' | 'revoked';
+  linkedBusinessCardId?: string;
 }
 
 export interface CollectibleOwnership {
@@ -320,7 +323,17 @@ export async function purchaseIconPack(userId: string, packId: string): Promise<
     }
 
     // 3. Deducir créditos (usar el servicio existente)
-    const deductSuccess = await deductCredits(userId, costInCredits, `icon_pack_purchase:${packId}`);
+    const deductionReason = `icon_pack_purchase:${packId}`;
+    const deductSuccess = await deductCredits(
+      userId,
+      costInCredits,
+      deductionReason,
+      {
+        allowAutoSelectSingleWallet: true,
+        linkedAssetKind: 'icon_pack',
+        linkedAssetId: packId,
+      },
+    );
 
     if (!deductSuccess) {
       console.error('❌ Failed to deduct credits');
@@ -336,6 +349,9 @@ export async function purchaseIconPack(userId: string, packId: string): Promise<
       packName: pack.name,
       purchasedAt: Timestamp.now(),
       creditsSpent: costInCredits,
+      // The exact wallet source is persisted in credits transactions.
+      // Keep icon entitlement active by default; Business Dull flow can switch this to dull/revoked.
+      entitlementState: 'active',
     };
 
     if (userPacksSnap.exists()) {
@@ -391,14 +407,6 @@ export async function purchaseIconPack(userId: string, packId: string): Promise<
         createdAt: cert.mintedAt,
       });
     }
-
-    // 6. Registrar transacción
-    await recordCreditTransaction(
-      userId,
-      'spend',
-      costInCredits,
-      `icon_pack_purchase:${pack.name}`,
-    );
 
     console.log(`✅ Icon Pack comprado: ${pack.name} | Usuario: ${userId}`);
     return true;
