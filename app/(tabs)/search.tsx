@@ -425,6 +425,15 @@ export default function SearchScreen() {
               </View>
             )}
 
+            {!!item.approxLocationLabel && (
+              <View style={styles.stat}>
+                <MaterialCommunityIcons name="map-marker-radius-outline" size={14} color="#6C7A89" />
+                <Text style={[styles.statText, { color: palette.textSecondary }]} numberOfLines={1}>
+                  {item.approxLocationLabel}
+                </Text>
+              </View>
+            )}
+
             <View style={styles.stat}>
               <MaterialCommunityIcons name="check-circle" size={14} color="#2ECC71" />
               <Text style={[styles.statText, { color: palette.textSecondary }]}>Verificado</Text>

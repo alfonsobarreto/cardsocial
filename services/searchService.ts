@@ -97,6 +97,39 @@ function toRad(deg: number): number {
   return deg * (Math.PI / 180);
 }
 
+function toApproxDistanceLabel(distanceMiles: number): string {
+  if (!Number.isFinite(distanceMiles) || distanceMiles <= 0) {
+    return '';
+  }
+  if (distanceMiles < 1) {
+    return '<1 mi';
+  }
+  return `${distanceMiles.toFixed(1)} mi`;
+}
+
+function toPublicSectorLabel(card: BusinessCard): string {
+  const city = String(card.city || '').trim();
+  const postal = String(card.postalCode || '').trim();
+  if (city && postal) {
+    return `${city} · ${postal}`;
+  }
+  if (city) {
+    return city;
+  }
+  if (postal) {
+    return postal;
+  }
+  return 'Zona cercana';
+}
+
+function sanitizeBusinessCardForPublicSearch(card: BusinessCard, distanceMiles: number): BusinessCard {
+  const clone = { ...card } as BusinessCard;
+  // Never expose exact address in Social Market payload.
+  (clone as any).physicalAddress = '';
+  (clone as any).publicLocationHint = toPublicSectorLabel(card);
+  return clone;
+}
+
 /**
  * Social Market Search - Jerarquía:
  * 1. Mis Contactos (con match de keywords)
@@ -224,9 +257,12 @@ export async function searchSocialMarket(
         return a.distanceMiles - b.distanceMiles;
       })
       .forEach((match) => {
+        const safeCard = sanitizeBusinessCardForPublicSearch(match.card, match.distanceMiles);
         results.push({
-          card: match.card,
+          card: safeCard,
           distanceMiles: match.distanceMiles,
+          approxDistanceLabel: toApproxDistanceLabel(match.distanceMiles),
+          approxLocationLabel: (safeCard as any).publicLocationHint || toPublicSectorLabel(match.card),
           relevanceScore: match.relevanceScore * 100,
           matchedKeywords: match.matchedKeywords,
         });
@@ -279,8 +315,10 @@ export async function findNearbyBusinesses(
       .slice(0, limit_results);
 
     return withDistances.map((item) => ({
-      card: item.card,
+      card: sanitizeBusinessCardForPublicSearch(item.card, item.distanceMiles),
       distanceMiles: item.distanceMiles,
+      approxDistanceLabel: toApproxDistanceLabel(item.distanceMiles),
+      approxLocationLabel: toPublicSectorLabel(item.card),
       relevanceScore: 100 - (item.distanceMiles / radiusMiles) * 50, // Score basado en cercanía
       matchedKeywords: [],
     }));

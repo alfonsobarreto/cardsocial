@@ -79,6 +79,7 @@ export interface BusinessCard {
   viewCount: number;
   searchRankScore: number; // Algoritmo interno de relevancia
   distanceFromUser?: number; // Se calcula en búsqueda (millas)
+  publicLocationHint?: string; // Sector/ciudad aproximada para Social Market (sin dirección exacta)
 
   // Lifecycle v1 (Business Card Contract)
   lifecycleVersion?: 'v1';
@@ -111,6 +112,8 @@ export interface KYCValidation {
 export interface BusinessCardSearchResult {
   card: BusinessCard;
   distanceMiles: number;
+  approxDistanceLabel?: string;
+  approxLocationLabel?: string;
   relevanceScore: number; // 0-100, basado en keywords match
   matchedKeywords: string[];
 }
