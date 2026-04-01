@@ -43,10 +43,12 @@ import NewInfoForm from '../components/NewInfoForm';
 import { normalizeMaterialCommunityIconName } from '../components/iconNameValidation';
 
 let PdfComponent: any = null;
-try {
-  PdfComponent = require('react-native-pdf').default;
-} catch {
-  PdfComponent = null;
+if (Platform.OS !== 'web') {
+  try {
+    PdfComponent = require('react-native-pdf').default;
+  } catch {
+    PdfComponent = null;
+  }
 }
 
 interface Link {
