@@ -2,7 +2,10 @@ import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions';
 
 // Solo llama a initializeApp si no ha sido inicializado antes por otro archivo
-if (!admin.apps.length) {
+const hasAdminApp =
+  (Array.isArray(admin?.apps) && admin.apps.length > 0) ||
+  (typeof admin?.getApps === 'function' && admin.getApps().length > 0);
+if (!hasAdminApp && typeof admin?.initializeApp === 'function') {
   admin.initializeApp();
 }
 
@@ -14,7 +17,8 @@ function toMillis(value) {
   if (!value) {
     return null;
   }
-  if (value instanceof admin.firestore.Timestamp) {
+  const FirestoreTimestamp = admin?.firestore?.Timestamp;
+  if (FirestoreTimestamp && value instanceof FirestoreTimestamp) {
     return value.toMillis();
   }
   if (value instanceof Date) {
@@ -296,3 +300,10 @@ export const processBusinessCardLifecycleDaily = functions.pubsub
     );
     return null;
   });
+
+// Test hooks for local negative/edge-case validation.
+export const __testables = {
+  toMillis,
+  deriveLifecycleStateFromCard,
+  processBusinessCardsLifecycle,
+};
