@@ -56,6 +56,7 @@ import {
   View
 } from 'react-native';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import type { SwipeableMethods } from 'react-native-gesture-handler/lib/typescript/components/ReanimatedSwipeable/ReanimatedSwipeableProps';
 import QRCode from 'react-native-qrcode-svg';
 import Toast from 'react-native-toast-message';
 import { ActionController } from '../../services/ActionController';
@@ -201,7 +202,13 @@ export default function CardsFactoryScreen() {
   const [remainingMs, setRemainingMs] = useState(0);
   const [issuingQr, setIssuingQr] = useState(false);
   const [cardSearchQuery, setCardSearchQuery] = useState('');
-  const swipeableRefs = useRef<Record<string, any>>({});
+  const swipeableRefs = useRef<Record<string, React.RefObject<SwipeableMethods | null>>>({});
+  const getSwipeableRef = (cardId: string): React.RefObject<SwipeableMethods | null> => {
+    if (!swipeableRefs.current[cardId]) {
+      swipeableRefs.current[cardId] = { current: null };
+    }
+    return swipeableRefs.current[cardId];
+  };
   const [rotateHintVisible, setRotateHintVisible] = useState(false);
   const rotateAnim = useRef(new Animated.Value(0)).current;
   // Vertical card responsive layout state
@@ -1722,14 +1729,14 @@ export default function CardsFactoryScreen() {
     const rating = item.ratingAvg ?? 5;
     return (
       <Swipeable
-        ref={{ current: swipeableRefs.current[item.id] ?? null }}
+        ref={getSwipeableRef(item.id)}
         containerStyle={[styles.swipeWrap, isLandscape && styles.swipeWrapLandscape]}
         rightThreshold={24}
         leftThreshold={24}
         renderLeftActions={() => <View style={styles.swipeLeftTriggerArea} />}
         onSwipeableOpen={(direction) => {
           if (direction === 'right') {
-            swipeableRefs.current[item.id]?.close?.();
+            swipeableRefs.current[item.id]?.current?.close?.();
             confirmAndIssueQrForCard(item);
           }
         }}
