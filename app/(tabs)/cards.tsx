@@ -34,6 +34,7 @@ import * as Sharing from 'expo-sharing';
 import { doc, getDoc } from 'firebase/firestore';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   AppState,
@@ -200,6 +201,7 @@ export default function CardsFactoryScreen() {
   const [remainingMs, setRemainingMs] = useState(0);
   const [issuingQr, setIssuingQr] = useState(false);
   const [cardSearchQuery, setCardSearchQuery] = useState('');
+  const swipeableRefs = useRef<Record<string, any>>({});
   const [rotateHintVisible, setRotateHintVisible] = useState(false);
   const rotateAnim = useRef(new Animated.Value(0)).current;
   // Vertical card responsive layout state
@@ -1718,20 +1720,16 @@ export default function CardsFactoryScreen() {
     const chestTheme = getCardRowTheme(item.themeId);
     const holders = item.holdersCount ?? 0;
     const rating = item.ratingAvg ?? 5;
-    let swipeableRef: any = null;
-
     return (
       <Swipeable
-        ref={(ref) => {
-          swipeableRef = ref;
-        }}
+        ref={{ current: swipeableRefs.current[item.id] ?? null }}
         containerStyle={[styles.swipeWrap, isLandscape && styles.swipeWrapLandscape]}
         rightThreshold={24}
         leftThreshold={24}
         renderLeftActions={() => <View style={styles.swipeLeftTriggerArea} />}
         onSwipeableOpen={(direction) => {
           if (direction === 'right') {
-            swipeableRef?.close?.();
+            swipeableRefs.current[item.id]?.close?.();
             confirmAndIssueQrForCard(item);
           }
         }}
