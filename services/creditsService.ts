@@ -8,7 +8,7 @@
  * Zero-Balance: Nuevo usuario comienza con 0 CS
  */
 
-import { doc, getDoc, updateDoc, increment, serverTimestamp, setDoc, collection, addDoc } from 'firebase/firestore';
+import { doc, getDoc, getDocs, updateDoc, increment, serverTimestamp, setDoc, collection, addDoc, query, where } from 'firebase/firestore';
 import { db } from '@/services/firebaseConfig';
 
 export type CreditWalletSource = 'subscription_revocable' | 'iap_permanent';
