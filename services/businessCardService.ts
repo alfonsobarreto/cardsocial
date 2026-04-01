@@ -5,6 +5,10 @@
 
 import { db } from '@/services/firebaseConfig';
 import { collection, doc, setDoc, getDocs, query, where, updateDoc, increment } from 'firebase/firestore';
+import {
+  BUSINESS_CARD_PAYMENTS_QUARANTINED,
+  BUSINESS_CARD_TRIAL_DAYS,
+} from '@/services/businessCardLifecycleService';
 
 export interface BusinessCardCreateInput {
   ownerUid: string;
@@ -37,12 +41,35 @@ export async function createBusinessCard(
 }> {
   try {
     const cardId = `bcard_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const trialEndsIso = new Date(now.getTime() + BUSINESS_CARD_TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
     const businessCardRef = doc(db, 'businessCards', cardId);
 
     const searchWords = (data.elevatorPitchWords && data.elevatorPitchWords.length > 0)
       ? data.elevatorPitchWords.slice(0, 20)
       : (data.keywords || []).slice(0, 20);
+
+    const ownerCardsSnapshot = await getDocs(
+      query(
+        collection(db, 'businessCards'),
+        where('ownerUid', '==', data.ownerUid),
+        where('type', '==', 'business'),
+      ),
+    );
+    const ownerAlreadyUsedTrial = ownerCardsSnapshot.docs.some((row) => {
+      const card = row.data() as any;
+      return Boolean(
+        card?.trialConsumedOwner ||
+        card?.trialStartedAt ||
+        card?.trialEndsAt ||
+        card?.lifecycleState === 'trial_active' ||
+        card?.lifecycleState === 'active_paid' ||
+        card?.lifecycleState === 'dull' ||
+        card?.lifecycleState === 'purged',
+      );
+    });
 
     const businessCardData = {
       id: cardId,
@@ -79,10 +106,26 @@ export async function createBusinessCard(
       // Metadata
       isActive: true,
       isPublishedToMarket: false,
-      createdAt: new Date(),
+      createdAt: now,
       publishedAt: null,
       viewCount: 0,
       searchRankScore: 0,
+      // Lifecycle v1
+      lifecycleVersion: 'v1',
+      lifecycleState: ownerAlreadyUsedTrial ? 'draft' : 'trial_active',
+      paymentsQuarantined: BUSINESS_CARD_PAYMENTS_QUARANTINED,
+      autopayEnabled: true,
+      trialConsumedOwner: true,
+      trialStartedAt: ownerAlreadyUsedTrial ? null : nowIso,
+      trialEndsAt: ownerAlreadyUsedTrial ? null : trialEndsIso,
+      annualContractStartedAt: null,
+      annualContractEndsAt: null,
+      dullStartedAt: null,
+      purgeAt: null,
+      lastQrUpdate: nowIso,
+      nextQrUpdateAllowedAt: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      subscriptionExpires: null,
+      lastUpdated: nowIso,
     };
 
     await setDoc(businessCardRef, businessCardData);
@@ -90,7 +133,9 @@ export async function createBusinessCard(
     return {
       success: true,
       cardId,
-      message: 'Tarjeta de negocio creada. Espera validación KYC (24-48 horas).',
+      message: ownerAlreadyUsedTrial
+        ? 'Tarjeta de negocio creada. Requiere activación comercial para pasar a estado activo.'
+        : 'Tarjeta de negocio creada en modo trial. Completa validación KYC y método de pago.',
     };
   } catch (error: any) {
     return {

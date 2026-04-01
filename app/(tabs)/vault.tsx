@@ -221,28 +221,10 @@ const VaultScreen = () => {
   );
 
   const evaluateDullMode = async (): Promise<boolean> => {
-    try {
-      const userId = await getActiveUserId();
-      if (!userId) {
-        setIsDullMode(false);
-        return false;
-      }
-
-      const licensesSnapshot = await getDocs(collection(db, 'users', userId, 'business_card_licenses'));
-      const hasExpiredLicense = licensesSnapshot.docs.some((licenseDoc) => {
-        const row = licenseDoc.data() as any;
-        const isActive = row?.isActive !== false;
-        const expiresTs = Date.parse(String(row?.expiresAt || ''));
-        return isActive && Number.isFinite(expiresTs) && expiresTs <= Date.now();
-      });
-
-      setIsDullMode(hasExpiredLicense);
-      return hasExpiredLicense;
-    } catch (error) {
-      console.warn('Could not evaluate dull mode status:', error);
-      setIsDullMode(false);
-      return false;
-    }
+    // BusinessCard dull is card-scoped by contract (not global vault lock).
+    // Keep vault editable even if some business card is dull/expired.
+    setIsDullMode(false);
+    return false;
   };
 
   const loadProfileMeta = async () => {

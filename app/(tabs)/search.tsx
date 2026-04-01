@@ -5,6 +5,7 @@
 
 import { getActiveUserId } from '@/services/authSession';
 import { ExportBusinessQR, generatePermanentBusinessLink } from '@/services/brandedQrService';
+import { deriveBusinessCardLifecycleSnapshot } from '@/services/businessCardLifecycleService';
 import { hasActiveBusinessLicense } from '@/services/businessLicenseService';
 import { db } from '@/services/firebaseConfig';
 import {
@@ -58,6 +59,7 @@ export default function SearchScreen() {
   const [userLocation, setUserLocation] = useState<GeoLocation | null>(null);
   const [hasLocationAccess, setHasLocationAccess] = useState(false);
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const [cardLifecycleState, setCardLifecycleState] = useState<Record<string, string>>({});
   const [licenseStatus, setLicenseStatus] = useState<Record<string, boolean>>({});
 
   const palette = {
@@ -91,9 +93,14 @@ export default function SearchScreen() {
           return [result.card.id, active] as const;
         })
       );
+      const lifecycleEntries = results.map((result) => {
+        const lifecycle = deriveBusinessCardLifecycleSnapshot(result.card);
+        return [result.card.id, lifecycle.state] as const;
+      });
 
       if (!cancelled) {
         setLicenseStatus(Object.fromEntries(statuses));
+        setCardLifecycleState(Object.fromEntries(lifecycleEntries));
       }
     };
 
@@ -333,7 +340,10 @@ export default function SearchScreen() {
   );
 
   const renderResultCard = ({ item }: { item: BusinessCardSearchResult }) => {
-    const hasLicense = licenseStatus[item.card.id] ?? true;
+    const lifecycleState = cardLifecycleState[item.card.id] || deriveBusinessCardLifecycleSnapshot(item.card).state;
+    const hasLicense = licenseStatus[item.card.id] ?? (lifecycleState === 'trial_active' || lifecycleState === 'active_paid');
+    const isDull = lifecycleState === 'dull';
+    const canRenderQr = lifecycleState === 'trial_active' || lifecycleState === 'active_paid';
     const permanentLink = (item.card as any).permanent_business_link
       || generatePermanentBusinessLink(item.card.id, item.card.ownerUid || 'owner');
 
@@ -358,30 +368,37 @@ export default function SearchScreen() {
         style={({ pressed }) => [
           styles.resultCard,
           { backgroundColor: palette.surface, borderColor: palette.border },
-          !hasLicense && styles.dullCard,
+          isDull && styles.dullCard,
           pressed && styles.pressedCard,
         ]}
       >
-        <View style={[styles.floatingQrWrap, !hasLicense && styles.dullQrWrap]}>
-          <QRCode
-            value={permanentLink}
-            size={76}
-            color="#0A2540"
-            backgroundColor="#FFFFFF"
-            logo={item.card.businessLogo ? { uri: item.card.businessLogo } : undefined}
-            logoSize={16}
-            ecl="H"
-          />
+        <View style={[styles.floatingQrWrap, isDull && styles.dullQrWrap]}>
+          {canRenderQr ? (
+            <QRCode
+              value={permanentLink}
+              size={76}
+              color="#0A2540"
+              backgroundColor="#FFFFFF"
+              logo={item.card.businessLogo ? { uri: item.card.businessLogo } : undefined}
+              logoSize={16}
+              ecl="H"
+            />
+          ) : (
+            <View style={styles.dullQrMask}>
+              <MaterialCommunityIcons name="qrcode-remove" size={30} color="#4F5A68" />
+              <Text style={styles.dullQrMaskText}>QR OFF</Text>
+            </View>
+          )}
         </View>
 
         {item.card.businessLogo ? (
           <ExpoImage
             source={{ uri: item.card.businessLogo }}
-            style={[styles.cardImage, !hasLicense && styles.dullCardImage]}
+            style={[styles.cardImage, isDull && styles.dullCardImage]}
             cachePolicy="disk"
           />
         ) : (
-          <View style={[styles.cardImage, styles.cardImagePlaceholder, !hasLicense && styles.dullCardImage]}>
+          <View style={[styles.cardImage, styles.cardImagePlaceholder, isDull && styles.dullCardImage]}>
             <MaterialCommunityIcons name="store" size={40} color="#C5A065" />
           </View>
         )}
@@ -392,9 +409,9 @@ export default function SearchScreen() {
             {item.card.businessDescription}
           </Text>
 
-          {!hasLicense ? (
+          {isDull ? (
             <View style={styles.dullPill}>
-              <Text style={styles.dullPillText}>Dull Mode: anualidad pendiente</Text>
+              <Text style={styles.dullPillText}>{tr('Dull: inactiva (30 días)', 'Dull: inactive (30 days)')}</Text>
             </View>
           ) : null}
 
@@ -690,6 +707,23 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.16,
     shadowRadius: 5,
     elevation: 4,
+  },
+  dullQrMask: {
+    width: 76,
+    height: 76,
+    borderRadius: 10,
+    backgroundColor: '#D3D8DE',
+    borderWidth: 1,
+    borderColor: '#AAB4BF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  dullQrMaskText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#4F5A68',
+    letterSpacing: 0.5,
   },
   emptyState: {
     alignItems: 'center',

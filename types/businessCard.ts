@@ -3,6 +3,13 @@
  * Tarjeta de Negocio con validación KYC, geolocalización e integración Social Market
  */
 
+export type BusinessCardLifecycleState =
+  | 'draft'
+  | 'trial_active'
+  | 'active_paid'
+  | 'dull'
+  | 'purged';
+
 export interface BusinessCard {
   id: string;
   ownerUid: string;
@@ -72,6 +79,24 @@ export interface BusinessCard {
   viewCount: number;
   searchRankScore: number; // Algoritmo interno de relevancia
   distanceFromUser?: number; // Se calcula en búsqueda (millas)
+
+  // Lifecycle v1 (Business Card Contract)
+  lifecycleVersion?: 'v1';
+  lifecycleState?: BusinessCardLifecycleState;
+  paymentsQuarantined?: boolean;
+  autopayEnabled?: boolean;
+  trialConsumedOwner?: boolean;
+  trialStartedAt?: Date | string | null;
+  trialEndsAt?: Date | string | null;
+  annualContractStartedAt?: Date | string | null;
+  annualContractEndsAt?: Date | string | null;
+  dullStartedAt?: Date | string | null;
+  purgeAt?: Date | string | null;
+  lastQrUpdate?: Date | string | null;
+  nextQrUpdateAllowedAt?: Date | string | null;
+
+  // Compatibilidad legacy (se elimina al cerrar migración total)
+  subscriptionExpires?: Date | string | null;
 }
 
 export interface KYCValidation {

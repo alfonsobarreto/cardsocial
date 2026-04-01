@@ -6,6 +6,7 @@
 import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
 import { db } from '@/services/firebaseConfig';
 import { BusinessCard, BusinessCardSearchResult } from '@/types/businessCard';
+import { deriveBusinessCardLifecycleSnapshot } from '@/services/businessCardLifecycleService';
 
 /**
  * Link type (from Vault)
@@ -166,8 +167,8 @@ export async function searchSocialMarket(
     const businessMatches = nearbyCards.map((card) => {
       let totalScore = 0;
       let matchedKeywords: string[] = [];
-      const expiresTs = Date.parse(String((card as any).subscriptionExpires || ''));
-      const hasActiveAnnuality = Number.isFinite(expiresTs) && expiresTs > Date.now();
+      const lifecycleSnapshot = deriveBusinessCardLifecycleSnapshot(card);
+      const hasActiveAnnuality = lifecycleSnapshot.hasActiveAccess;
       const indexTerms = ((card as any).elevatorPitchWords as string[] | undefined)?.length
         ? ((card as any).elevatorPitchWords as string[])
         : (card.keywords || []);
