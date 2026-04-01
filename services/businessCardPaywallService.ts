@@ -11,7 +11,13 @@
 import Purchases from 'react-native-purchases';
 import { addCredits } from '@/services/creditsService';
 import { activateOrRenewBusinessLicense } from '@/services/businessLicenseService';
-import { BUSINESS_CARD_PAYMENTS_QUARANTINED } from '@/services/businessCardLifecycleService';
+import {
+  BUSINESS_CARD_PAYMENTS_QUARANTINED,
+  deriveBusinessCardLifecycleSnapshot,
+} from '@/services/businessCardLifecycleService';
+import { db } from '@/services/firebaseConfig';
+import type { BusinessCard } from '@/types/businessCard';
+import { doc, getDoc } from 'firebase/firestore';
 
 const BUSINESS_CARD_ANNUAL_PRICE_USD = 49.99;
 const BUSINESS_CARD_CASHBACK_CS = 1000;
@@ -158,6 +164,44 @@ export async function getRealtimePremiumStatus(): Promise<boolean> {
   }
 }
 
+export function isBusinessPurchaseConfirmed(purchaseResult: any, expectedProductId: string): boolean {
+  const customerInfo = purchaseResult?.customerInfo || {};
+  const activeEntitlements = customerInfo?.entitlements?.active || {};
+  const entitlementValues = Object.values(activeEntitlements || {}) as any[];
+  const entitlementContainsProduct = entitlementValues.some(
+    (entry) => String((entry as any)?.productIdentifier || '') === expectedProductId,
+  );
+
+  const activeSubscriptions = Array.isArray(customerInfo?.activeSubscriptions)
+    ? customerInfo.activeSubscriptions
+    : [];
+  const allPurchasedProductIdentifiers = Array.isArray(customerInfo?.allPurchasedProductIdentifiers)
+    ? customerInfo.allPurchasedProductIdentifiers
+    : [];
+
+  return Boolean(
+    entitlementContainsProduct
+    || activeSubscriptions.includes(expectedProductId)
+    || allPurchasedProductIdentifiers.includes(expectedProductId),
+  );
+}
+
+async function fetchBusinessCardForOwner(cardId: string, userId: string): Promise<Partial<BusinessCard> | null> {
+  const cardRef = doc(db, 'businessCards', cardId);
+  const cardSnap = await getDoc(cardRef);
+  if (!cardSnap.exists()) {
+    return null;
+  }
+  const card = cardSnap.data() as Partial<BusinessCard>;
+  if (String(card.type || '') !== 'business') {
+    return null;
+  }
+  if (String(card.ownerUid || '') !== userId) {
+    return null;
+  }
+  return card;
+}
+
 /**
  * Obtiene el estado de compra del usuario para Business Cards
  */
@@ -251,37 +295,53 @@ export async function purchaseBusinessCard(
   cashbackCredits?: number;
 }> {
   try {
+    if (!userId) {
+      return {
+        success: false,
+        message: 'Usuario requerido para compra / User required for purchase.',
+      };
+    }
+
+    const eligibility = await validateBusinessCardPurchaseEligibility(userId, isPremiumUser, cardId);
+    if (!eligibility.eligible) {
+      return {
+        success: false,
+        message: eligibility.reason || 'Compra no permitida / Purchase not allowed.',
+      };
+    }
+
+    // Global flag is the release gate for real charges.
+    // When switched off, real purchases are enabled without requiring per-card backfill.
+    const paymentsQuarantined = BUSINESS_CARD_PAYMENTS_QUARANTINED;
     const pricing = calculatePriceWithPremiumDiscount(BUSINESS_CARD_ANNUAL_PRICE_USD, false);
-    if (BUSINESS_CARD_PAYMENTS_QUARANTINED) {
+    if (paymentsQuarantined) {
       const purchaseId = `quarantine_${Date.now()}`;
       let welcomeBonusApplied = false;
       let cashbackCredits = 0;
-      if (userId) {
-        try {
-          cashbackCredits = BUSINESS_CARD_CASHBACK_CS;
-          await addCredits(
-            userId,
-            cashbackCredits,
-            'business_card_annual_cashback_quarantined',
-            {
-              source: 'subscription_revocable',
-              linkedBusinessCardId: cardId,
-              linkedAssetKind: 'other',
-              linkedAssetId: cardId,
-            },
-          );
-          await activateOrRenewBusinessLicense({
-            userId,
-            cardId,
-            purchaseId,
-            platform,
-            annualPriceUsd: pricing.finalPrice,
-            cashbackCreditsGranted: cashbackCredits,
-          });
-          welcomeBonusApplied = true;
-        } catch (quarantineBonusError) {
-          console.error('Error applying quarantined annual cashback:', quarantineBonusError);
-        }
+      try {
+        cashbackCredits = BUSINESS_CARD_CASHBACK_CS;
+        await addCredits(
+          userId,
+          cashbackCredits,
+          'business_card_annual_cashback_quarantined',
+          {
+            source: 'subscription_revocable',
+            linkedBusinessCardId: cardId,
+            linkedAssetKind: 'other',
+            linkedAssetId: cardId,
+          },
+        );
+        await activateOrRenewBusinessLicense({
+          userId,
+          cardId,
+          purchaseId,
+          platform,
+          annualPriceUsd: pricing.finalPrice,
+          cashbackCreditsGranted: cashbackCredits,
+        });
+        welcomeBonusApplied = true;
+      } catch (quarantineBonusError) {
+        console.error('Error applying quarantined annual cashback:', quarantineBonusError);
       }
 
       return {
@@ -300,6 +360,22 @@ export async function purchaseBusinessCard(
     const productId = getBusinessCardProductId(platform, validatedPremium);
 
     const purchaseResult = await Purchases.purchaseProduct(productId);
+    const activeEntitlements = (purchaseResult as any)?.customerInfo?.entitlements?.active || {};
+    const entitlementKeys = Object.keys(activeEntitlements);
+    const hasAnyEntitlement = entitlementKeys.length > 0;
+    const hasMatchingEntitlement = entitlementKeys.some((key) => String(key).includes('business'));
+    if (!hasAnyEntitlement && !hasMatchingEntitlement) {
+      return {
+        success: false,
+        message: 'Compra no confirmada por RevenueCat para licencia de negocio.',
+      };
+    }
+    if (!isBusinessPurchaseConfirmed(purchaseResult, productId)) {
+      return {
+        success: false,
+        message: 'Compra no confirmada por RevenueCat / Purchase not confirmed by RevenueCat.',
+      };
+    }
 
     const purchaseId =
       String((purchaseResult as any)?.customerInfo?.originalAppUserId || '') ||
@@ -372,19 +448,29 @@ export async function purchaseBusinessCard(
  */
 export async function validateBusinessCardPurchaseEligibility(
   userId: string,
-  isPremiumUser: boolean
-): Promise<{ eligible: boolean; reason?: string }> {
+  isPremiumUser: boolean,
+  cardId?: string,
+): Promise<{ eligible: boolean; reason?: string; card?: Partial<BusinessCard> }> {
   // Validaciones básicas
   if (!userId) {
-    return { eligible: false, reason: 'Usuario no autenticado' };
+    return { eligible: false, reason: 'Usuario no autenticado / User not authenticated.' };
   }
 
-  // Podría haber más validaciones:
-  // - Si el usuario ya tiene una tarjeta de negocio activa
-  // - Si está en "Dull Mode" (restricciones de cuenta)
-  // - Si su dispositivo está baneado
+  if (!cardId || !String(cardId).trim()) {
+    return { eligible: false, reason: 'Tarjeta inválida / Invalid business card.' };
+  }
 
-  return { eligible: true };
+  const card = await fetchBusinessCardForOwner(String(cardId), userId);
+  if (!card) {
+    return { eligible: false, reason: 'Tarjeta no encontrada o sin permiso / Card not found or unauthorized.' };
+  }
+
+  const lifecycle = deriveBusinessCardLifecycleSnapshot(card);
+  if (lifecycle.state === 'purged') {
+    return { eligible: false, reason: 'La tarjeta fue purgada y no puede reactivarse / Card has been purged and cannot be reactivated.', card };
+  }
+
+  return { eligible: true, card };
 }
 
 /**
