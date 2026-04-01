@@ -246,12 +246,7 @@ export default function SearchScreen() {
   };
 
   const handleCreateBusinessCard = async () => {
-    // [CUARENTENA] Flujo de business card deshabilitado temporalmente
-    // const authenticated = await hardLockCheck('crear una tarjeta de negocio');
-    // if (!authenticated) {
-    //   return;
-    // }
-    // router.push('/createBusinessCard');
+    router.push('/(tabs)/createBusinessCard');
   };
 
   const renderHeader = () => (
