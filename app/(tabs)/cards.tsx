@@ -34,6 +34,7 @@ import * as Sharing from 'expo-sharing';
 import { doc, getDoc } from 'firebase/firestore';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   AppState,
@@ -54,7 +55,7 @@ import {
   useWindowDimensions,
   View
 } from 'react-native';
-import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import QRCode from 'react-native-qrcode-svg';
 import Toast from 'react-native-toast-message';
 import { ActionController } from '../../services/ActionController';
@@ -1718,20 +1719,18 @@ export default function CardsFactoryScreen() {
     const chestTheme = getCardRowTheme(item.themeId);
     const holders = item.holdersCount ?? 0;
     const rating = item.ratingAvg ?? 5;
-    let swipeableRef: any = null;
+    const swipeableRef = React.createRef<SwipeableMethods>();
 
     return (
       <Swipeable
-        ref={(ref) => {
-          swipeableRef = ref;
-        }}
+        ref={swipeableRef}
         containerStyle={[styles.swipeWrap, isLandscape && styles.swipeWrapLandscape]}
         rightThreshold={24}
         leftThreshold={24}
         renderLeftActions={() => <View style={styles.swipeLeftTriggerArea} />}
         onSwipeableOpen={(direction) => {
           if (direction === 'right') {
-            swipeableRef?.close?.();
+            swipeableRef.current?.close();
             confirmAndIssueQrForCard(item);
           }
         }}
