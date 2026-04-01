@@ -1,14 +1,22 @@
 import { getActiveUserId } from '@/services/authSession';
 import { purchaseBusinessCard } from '@/services/businessCardPaywallService';
+import {
+  cancelBusinessCardSubscriptionNow,
+  listOwnedBusinessCardSubscriptions,
+  setBusinessCardAutopay,
+  type BusinessCardSubscriptionSummary,
+} from '@/services/businessCardSubscriptionService';
 import { useLanguage } from '@/services/language';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import {
+    ActivityIndicator,
     Alert,
     Dimensions,
     Platform,
     ScrollView,
+    Switch,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -19,12 +27,6 @@ import GoldenRingButton from './GoldenRingButton';
 
 const { width } = Dimensions.get('window');
 
-// Traducción local
-const useTr = () => {
-  const { language } = useLanguage();
-  return (es: string, en: string) => language === 'en' ? en : es;
-};
-
 interface SubscriptionProps {
   onClose?: () => void;
 }
@@ -34,11 +36,15 @@ interface SubscriptionProps {
  * Muestra Base Gratis vs Licencia Anual por Tarjeta, packs de créditos y activación de negocio
  */
 const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
-  const tr = useTr();
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => (language === 'en' ? en : es);
   const [userId, setUserId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [subscribingPack, setSubscribingPack] = useState<string | null>(null);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [businessSubscriptions, setBusinessSubscriptions] = useState<BusinessCardSubscriptionSummary[]>([]);
+  const [loadingBusinessSubscriptions, setLoadingBusinessSubscriptions] = useState(false);
+  const [processingCardActionId, setProcessingCardActionId] = useState<string | null>(null);
 
   // Credit packs: $1 = 10 CS
   const creditPacks = [
@@ -54,6 +60,13 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
     loadUserData();
   }, []);
 
+  useEffect(() => {
+    if (!userId) {
+      return;
+    }
+    void loadBusinessSubscriptionsByUser(userId);
+  }, [userId]);
+
   const loadUserData = async () => {
     try {
       const uid = await getActiveUserId();
@@ -65,6 +78,127 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatDateLabel = (iso: string | null) => {
+    if (!iso) {
+      return tr('No disponible', 'Unavailable');
+    }
+    const dt = new Date(iso);
+    if (Number.isNaN(dt.getTime())) {
+      return tr('No disponible', 'Unavailable');
+    }
+    return new Intl.DateTimeFormat(language === 'en' ? 'en-US' : 'es-MX', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }).format(dt);
+  };
+
+  const statusLabel = (state: BusinessCardSubscriptionSummary['lifecycleState']) => {
+    if (state === 'trial_active') return tr('Prueba activa', 'Trial active');
+    if (state === 'active_paid') return tr('Activa pagada', 'Paid active');
+    if (state === 'dull') return tr('Inactiva (Dull)', 'Inactive (Dull)');
+    if (state === 'purged') return tr('Eliminada (Purged)', 'Deleted (Purged)');
+    return tr('Borrador', 'Draft');
+  };
+
+  const loadBusinessSubscriptionsByUser = async (uid: string) => {
+    try {
+      setLoadingBusinessSubscriptions(true);
+      const rows = await listOwnedBusinessCardSubscriptions(uid);
+      setBusinessSubscriptions(rows);
+    } catch (error) {
+      console.error('Error loading business subscriptions:', error);
+      setBusinessSubscriptions([]);
+    } finally {
+      setLoadingBusinessSubscriptions(false);
+    }
+  };
+
+  const handleToggleAutopay = async (card: BusinessCardSubscriptionSummary, enabled: boolean) => {
+    if (!userId) {
+      return;
+    }
+    try {
+      setProcessingCardActionId(card.cardId);
+      const result = await setBusinessCardAutopay({
+        userId,
+        cardId: card.cardId,
+        enabled,
+      });
+      if (!result.success) {
+        Alert.alert(tr('Error', 'Error'), tr('No se pudo actualizar autopago.', 'Could not update autopay.'));
+      }
+      await loadBusinessSubscriptionsByUser(userId);
+    } catch (error) {
+      console.error('Error toggling autopay:', error);
+      Alert.alert(tr('Error', 'Error'), tr('No se pudo actualizar autopago.', 'Could not update autopay.'));
+    } finally {
+      setProcessingCardActionId(null);
+    }
+  };
+
+  const handleCancelBusinessCardNow = (card: BusinessCardSubscriptionSummary) => {
+    if (!userId) {
+      return;
+    }
+    Alert.alert(
+      tr('Cancelar suscripción', 'Cancel subscription'),
+      tr(
+        `¿Seguro que quieres cancelar ahora la tarjeta "${card.businessName}"? Pasará a modo Dull inmediatamente.`,
+        `Are you sure you want to cancel "${card.businessName}" now? It will switch to Dull mode immediately.`,
+      ),
+      [
+        { text: tr('No', 'No'), style: 'cancel' },
+        {
+          text: tr('Sí, continuar', 'Yes, continue'),
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              tr('Confirmación final', 'Final confirmation'),
+              tr(
+                'Esta acción es inmediata. La tarjeta quedará inactiva y se programará eliminación a 30 días si no se reactiva.',
+                'This action is immediate. The card becomes inactive and deletion is scheduled after 30 days if not reactivated.',
+              ),
+              [
+                { text: tr('Volver', 'Back'), style: 'cancel' },
+                {
+                  text: tr('Confirmar cancelar', 'Confirm cancel'),
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      setProcessingCardActionId(card.cardId);
+                      const result = await cancelBusinessCardSubscriptionNow({
+                        userId,
+                        cardId: card.cardId,
+                      });
+                      if (!result.success) {
+                        Alert.alert(tr('Error', 'Error'), tr('No se pudo cancelar.', 'Could not cancel.'));
+                      } else {
+                        Alert.alert(
+                          tr('Suscripción cancelada', 'Subscription cancelled'),
+                          tr(
+                            'La tarjeta entró en modo Dull desde este momento.',
+                            'The card has entered Dull mode immediately.',
+                          ),
+                        );
+                      }
+                      await loadBusinessSubscriptionsByUser(userId);
+                    } catch (error) {
+                      console.error('Error cancelling business subscription:', error);
+                      Alert.alert(tr('Error', 'Error'), tr('No se pudo cancelar.', 'Could not cancel.'));
+                    } finally {
+                      setProcessingCardActionId(null);
+                    }
+                  },
+                },
+              ],
+            );
+          },
+        },
+      ],
+    );
   };
 
   const handleBuyCreditPack = async (pack: typeof creditPacks[0]) => {
@@ -91,6 +225,20 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
   };
 
   const handleUpgradeBusinessCard = async () => {
+    if (!userId) {
+      return;
+    }
+    const targetCard = businessSubscriptions.find((card) => card.lifecycleState !== 'purged');
+    if (!targetCard) {
+      Alert.alert(
+        tr('Sin tarjeta de negocio', 'No business card found'),
+        tr(
+          'Primero crea una Business Card en Search > Crear Business Card para activar su anualidad.',
+          'Create a Business Card first in Search > Create Business Card to activate its annual license.',
+        ),
+      );
+      return;
+    }
     try {
       setUpgradeLoading(true);
       const platform = Platform.OS as 'ios' | 'android';
@@ -98,7 +246,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
       const result = await purchaseBusinessCard(
         platform,
         false,
-        `business_annual_${Date.now()}`,
+        targetCard.cardId,
         userId
       );
 
@@ -117,6 +265,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
       Alert.alert(tr('Error', 'Error'), tr('No se pudo procesar la compra', 'Could not process purchase'));
     } finally {
       setUpgradeLoading(false);
+      await loadBusinessSubscriptionsByUser(userId);
     }
   };
 
@@ -308,6 +457,131 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
             style={styles.businessButton}
           />
         </LinearGradient>
+      </View>
+
+      {/* BUSINESS CARD SUBSCRIPTIONS */}
+      <View style={styles.subscriptionSection}>
+        <View style={styles.subscriptionHeaderRow}>
+          <Text style={styles.sectionTitle}>{tr('Suscripciones por Tarjeta', 'Per-Card Subscriptions')}</Text>
+          <TouchableOpacity
+            style={styles.refreshSubsButton}
+            onPress={() => {
+              if (!userId) return;
+              void loadBusinessSubscriptionsByUser(userId);
+            }}
+            disabled={loadingBusinessSubscriptions}
+          >
+            <MaterialCommunityIcons name="refresh" size={16} color="#0A2540" />
+            <Text style={styles.refreshSubsButtonText}>{tr('Actualizar', 'Refresh')}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {loading || loadingBusinessSubscriptions ? (
+          <View style={styles.subscriptionLoadingBox}>
+            <ActivityIndicator size="small" color="#0A2540" />
+            <Text style={styles.subscriptionLoadingText}>
+              {tr('Cargando estado de suscripciones...', 'Loading subscription status...')}
+            </Text>
+          </View>
+        ) : businessSubscriptions.length === 0 ? (
+          <View style={styles.subscriptionEmptyBox}>
+            <MaterialCommunityIcons name="card-account-details-outline" size={24} color="#0A2540" />
+            <Text style={styles.subscriptionEmptyText}>
+              {tr(
+                'Aún no tienes Business Cards para administrar aquí.',
+                "You don't have Business Cards to manage here yet.",
+              )}
+            </Text>
+          </View>
+        ) : (
+          businessSubscriptions.map((card) => {
+            const isProcessing = processingCardActionId === card.cardId;
+            const disableAutopay = isProcessing || !card.hasActiveAccess;
+            const disableCancel = isProcessing || !card.canCancelNow;
+            const statusPillStyle =
+              card.lifecycleState === 'active_paid'
+                ? styles.statusPillActive
+                : card.lifecycleState === 'trial_active'
+                  ? styles.statusPillTrial
+                  : card.lifecycleState === 'dull'
+                    ? styles.statusPillDull
+                    : styles.statusPillDraft;
+
+            return (
+              <View
+                key={card.cardId}
+                style={[
+                  styles.subscriptionCard,
+                  card.lifecycleState === 'dull' && styles.subscriptionCardDull,
+                ]}
+              >
+                <View style={styles.subscriptionCardTopRow}>
+                  <Text style={styles.subscriptionCardTitle}>{card.businessName}</Text>
+                  <View style={[styles.statusPill, statusPillStyle]}>
+                    <Text style={styles.statusPillText}>{statusLabel(card.lifecycleState)}</Text>
+                  </View>
+                </View>
+
+                <Text style={styles.subscriptionMetaText}>
+                  {tr('Trial termina', 'Trial ends')}: {formatDateLabel(card.trialEndsAt)}
+                </Text>
+                <Text style={styles.subscriptionMetaText}>
+                  {tr('Contrato anual termina', 'Annual contract ends')}: {formatDateLabel(card.annualContractEndsAt)}
+                </Text>
+                <Text style={styles.subscriptionMetaText}>
+                  {tr('Purge programado', 'Scheduled purge')}: {formatDateLabel(card.purgeAt)}
+                </Text>
+
+                <View style={styles.autopayRow}>
+                  <View style={styles.autopayTextWrap}>
+                    <Text style={styles.autopayTitle}>{tr('Autopago activo', 'Autopay enabled')}</Text>
+                    <Text style={styles.autopayHint}>
+                      {tr(
+                        'Si lo apagas, no se renovará automáticamente al cierre del contrato.',
+                        "If disabled, it won't auto-renew when contract ends.",
+                      )}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={card.autopayEnabled}
+                    onValueChange={(enabled) => void handleToggleAutopay(card, enabled)}
+                    disabled={disableAutopay}
+                    trackColor={{ false: '#D8D8D8', true: '#C5A065' }}
+                    thumbColor={card.autopayEnabled ? '#0A2540' : '#F4F3F4'}
+                  />
+                </View>
+
+                <TouchableOpacity
+                  style={[
+                    styles.cancelNowButton,
+                    disableCancel && styles.cancelNowButtonDisabled,
+                  ]}
+                  onPress={() => handleCancelBusinessCardNow(card)}
+                  disabled={disableCancel}
+                >
+                  {isProcessing ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <MaterialCommunityIcons name="cancel" size={16} color="#FFFFFF" />
+                  )}
+                  <Text style={styles.cancelNowButtonText}>{tr('Cancelar ahora', 'Cancel now')}</Text>
+                </TouchableOpacity>
+
+                <Text style={styles.subscriptionQuarantineNote}>
+                  {card.paymentsQuarantined
+                    ? tr(
+                        'Pagos en cuarentena: la lógica está activa sin cobro real.',
+                        'Payments quarantined: logic active without real charge.',
+                      )
+                    : tr(
+                        'Pagos reales habilitados para esta tarjeta.',
+                        'Real payments enabled for this card.',
+                      )}
+                </Text>
+              </View>
+            );
+          })
+        )}
       </View>
 
       {/* LEGAL & RESTORE */}
@@ -561,6 +835,158 @@ const styles = StyleSheet.create({
   businessButton: {
     width: '100%',
     marginTop: 12,
+  },
+
+  // PER-CARD SUBSCRIPTIONS
+  subscriptionSection: {
+    paddingHorizontal: 16,
+    marginBottom: 24,
+  },
+  subscriptionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  refreshSubsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: '#E8F3FF',
+  },
+  refreshSubsButtonText: {
+    color: '#0A2540',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  subscriptionLoadingBox: {
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    gap: 8,
+  },
+  subscriptionLoadingText: {
+    color: '#0A2540',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  subscriptionEmptyBox: {
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    gap: 6,
+  },
+  subscriptionEmptyText: {
+    color: '#4A4A4A',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  subscriptionCard: {
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E1E7EF',
+    padding: 12,
+    marginBottom: 10,
+  },
+  subscriptionCardDull: {
+    backgroundColor: '#F3F4F6',
+    borderColor: '#D2D5DA',
+  },
+  subscriptionCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    gap: 8,
+  },
+  subscriptionCardTitle: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0A2540',
+  },
+  statusPill: {
+    borderRadius: 999,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  statusPillActive: {
+    backgroundColor: 'rgba(46, 204, 113, 0.2)',
+  },
+  statusPillTrial: {
+    backgroundColor: 'rgba(52, 152, 219, 0.2)',
+  },
+  statusPillDull: {
+    backgroundColor: 'rgba(149, 165, 166, 0.26)',
+  },
+  statusPillDraft: {
+    backgroundColor: 'rgba(243, 156, 18, 0.2)',
+  },
+  statusPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0A2540',
+  },
+  subscriptionMetaText: {
+    fontSize: 11,
+    color: '#556372',
+    marginBottom: 4,
+  },
+  autopayRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  autopayTextWrap: {
+    flex: 1,
+  },
+  autopayTitle: {
+    fontSize: 12,
+    color: '#0A2540',
+    fontWeight: '700',
+  },
+  autopayHint: {
+    fontSize: 11,
+    color: '#6A7480',
+    marginTop: 2,
+  },
+  cancelNowButton: {
+    marginTop: 10,
+    backgroundColor: '#B7343A',
+    borderRadius: 9,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  cancelNowButtonDisabled: {
+    backgroundColor: '#D8A7AA',
+  },
+  cancelNowButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  subscriptionQuarantineNote: {
+    marginTop: 8,
+    fontSize: 10,
+    color: '#6A7480',
   },
 
   // LEGAL
