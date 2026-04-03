@@ -3,6 +3,9 @@ import LimitReachedModal from '@/components/LimitReachedModal';
 import VerificationBadge from '@/components/VerificationBadge';
 import { FREE_TIER_POLICY } from '@/constants/freeTierPolicy';
 import { getActiveUserId } from '@/services/authSession';
+import { getSearchableStringsFromVaultLikeItem, orderByDeepSearchWithExpandedQuery } from '@/services/deepSearch';
+import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
+import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { db } from '@/services/firebaseConfig';
 import { useLanguage } from '@/services/language';
@@ -26,9 +29,11 @@ import {
   Dimensions,
   FlatList,
   InteractionManager,
+  Keyboard,
   Linking,
   Modal,
   Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -62,7 +67,6 @@ interface Link {
 }
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
-const VAULT_STORAGE_KEY = 'vault_data';
 
 const VaultScreen = () => {
   const router = useRouter();
@@ -158,10 +162,16 @@ const VaultScreen = () => {
   };
 
   const loadVaultData = async () => {
+    const userId = await getActiveUserId();
+    if (!userId) {
+      setLinks([]);
+      return;
+    }
+
     // 1. Lectura optimista: mostrar cache local inmediatamente (cero latencia)
     let cachedJson = '';
     try {
-      const raw = await AsyncStorage.getItem(VAULT_STORAGE_KEY);
+      const raw = await readVaultJsonWithLegacyMigration(userId);
       cachedJson = raw || '';
       const cached = raw ? (JSON.parse(raw) as Link[]) : [];
       if (cached.length > 0) setLinks(sortLinks(cached));
@@ -169,19 +179,16 @@ const VaultScreen = () => {
 
     // 2. Refresco silencioso — actualiza estado solo si los datos cambiaron
     try {
-      const userId = await getActiveUserId();
-      if (userId) {
-        const cloudSnapshot = await getDocs(collection(db, 'users', userId, 'links'));
-        const cloudItems = cloudSnapshot.docs.map((itemDoc) => ({
-          id: itemDoc.id,
-          ...itemDoc.data(),
-        })) as Link[];
+      const cloudSnapshot = await getDocs(collection(db, 'users', userId, 'links'));
+      const cloudItems = cloudSnapshot.docs.map((itemDoc) => ({
+        id: itemDoc.id,
+        ...itemDoc.data(),
+      })) as Link[];
 
-        const cloudJson = JSON.stringify(cloudItems);
-        if (cloudJson !== cachedJson) {
-          await AsyncStorage.setItem(VAULT_STORAGE_KEY, cloudJson);
-          setLinks(sortLinks(cloudItems));
-        }
+      const cloudJson = JSON.stringify(cloudItems);
+      if (cloudJson !== cachedJson) {
+        await AsyncStorage.setItem(vaultStorageKey(userId), cloudJson);
+        setLinks(sortLinks(cloudItems));
       }
     } catch (cloudError) {
       console.warn('Cloud read failed, keeping cached data:', cloudError);
@@ -197,7 +204,10 @@ const VaultScreen = () => {
   };
 
   const saveVaultData = async (items: Link[]) => {
-    await AsyncStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(items));
+    const uid = await getActiveUserId();
+    if (uid) {
+      await AsyncStorage.setItem(vaultStorageKey(uid), JSON.stringify(items));
+    }
     setLinks(sortLinks(items));
   };
 
@@ -800,11 +810,20 @@ const VaultScreen = () => {
   };
 
   const filteredLinks = useMemo(() => {
-    if (!searchQuery.trim()) return links;
-    const q = searchQuery.trim().toLowerCase();
-    return links.filter((l) =>
-      l.title.toLowerCase().includes(q) ||
-      String(l.type || '').toLowerCase().includes(q)
+    if (!searchQuery.trim()) {
+      return links;
+    }
+    const qRaw = searchQuery.trim();
+    const qExpanded = buildExpandedMarketQuery(qRaw) || qRaw;
+    return orderByDeepSearchWithExpandedQuery(links, qExpanded, (l) =>
+      getSearchableStringsFromVaultLikeItem({
+        id: l.id,
+        title: l.title,
+        type: l.type,
+        value: l.value,
+        iconName: l.iconName,
+        icon: l.icon,
+      }),
     );
   }, [links, searchQuery]);
 
@@ -896,8 +915,7 @@ const VaultScreen = () => {
     }
   };
 
-  // Header vacío
-  const renderEmptyState = () => (
+  const renderEmptyVaultOnboarding = () => (
     <View style={styles.emptyContainer}>
       <MaterialCommunityIcons name="safe" color="#D4AF37" size={72} />
       <Text style={[styles.emptyTitle, { color: vaultTheme.primaryText }]}>
@@ -921,6 +939,29 @@ const VaultScreen = () => {
       </TouchableOpacity>
     </View>
   );
+
+  const renderVaultListEmpty = () => {
+    if (links.length === 0) {
+      return renderEmptyVaultOnboarding();
+    }
+    if (searchQuery.trim()) {
+      return (
+        <Pressable onPress={Keyboard.dismiss} style={styles.emptyContainer}>
+          <MaterialCommunityIcons name="magnify" color={vaultTheme.searchPlaceholder} size={64} />
+          <Text style={[styles.emptyTitle, { color: vaultTheme.primaryText }]}>
+            {tr('Sin coincidencias', 'No matches')}
+          </Text>
+          <Text style={[styles.emptySubtitle, { color: vaultTheme.secondaryText }]}>
+            {tr(
+              'Prueba con otras palabras o sinónimos. También puedes revisar tu conexión.',
+              'Try different words or synonyms. You can also check your connection.',
+            )}
+          </Text>
+        </Pressable>
+      );
+    }
+    return renderEmptyVaultOnboarding();
+  };
 
   const isUnlimitedVault = true; // Forzar ilimitado para admin pochobs
   const usageProgress = 1;
@@ -953,16 +994,27 @@ const VaultScreen = () => {
             <MaterialCommunityIcons name="magnify" size={18} color={vaultTheme.searchPlaceholder} />
             <TextInput
               style={[styles.searchInput, { color: vaultTheme.searchText }]}
-              placeholder={tr('Buscar en el Búnker...', 'Search Vault...')}
+              placeholder={tr(
+                'Buscar en todo el dato (título, tipo, enlace, valor…)',
+                'Search all fields (title, type, link, value…)'
+              )}
               placeholderTextColor={vaultTheme.searchPlaceholder}
               value={searchQuery}
               onChangeText={setSearchQuery}
               returnKeyType="search"
+              onSubmitEditing={Keyboard.dismiss}
               autoCapitalize="none"
               autoCorrect={false}
             />
             {searchQuery.length > 0 ? (
-              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <TouchableOpacity
+                onPress={() => {
+                  Keyboard.dismiss();
+                  setSearchQuery('');
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel={tr('Limpiar búsqueda', 'Clear search')}
+              >
                 <MaterialCommunityIcons name="close-circle" size={16} color={vaultTheme.searchPlaceholder} />
               </TouchableOpacity>
             ) : null}
@@ -979,7 +1031,7 @@ const VaultScreen = () => {
         removeClippedSubviews={true}
         scrollEventThrottle={16}
         keyboardDismissMode="on-drag"
-        ListEmptyComponent={renderEmptyState}
+        ListEmptyComponent={renderVaultListEmpty}
         contentContainerStyle={styles.listContainer}
         scrollEnabled={true}
         showsVerticalScrollIndicator={false}

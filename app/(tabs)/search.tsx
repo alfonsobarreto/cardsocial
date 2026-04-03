@@ -1,47 +1,56 @@
 /**
- * Improved Search Screen with Social Market
- * Búsqueda Fuzzy + Geolocalización + Business Cards
+ * Mercado Social / Social Market: búsqueda con sinónimos, contactos recibidos y tarjetas de negocio.
  */
 
+import { ActionController } from '@/services/ActionController';
 import { getActiveUserId } from '@/services/authSession';
+import { hardLockCheck } from '@/services/biometricAuth';
 import { ExportBusinessQR, generatePermanentBusinessLink } from '@/services/brandedQrService';
 import { hasActiveBusinessLicense } from '@/services/businessLicenseService';
-import { db } from '@/services/firebaseConfig';
-import {
-    getCurrentLocation,
-    hasLocationPermission,
-    requestLocationPermission,
-} from '@/services/geolocationService';
+import { startGhostLinkVoipCall } from '@/services/ghostLinkVoip';
 import { useLanguage } from '@/services/language';
+import {
+    endSearchLocationSession,
+    getSearchSessionCoordinates,
+    getSearchSessionExpiresAt,
+    isSearchLocationSessionActive,
+    SEARCH_LOCATION_SESSION_MS,
+    startSearchLocationSession,
+    subscribeSearchLocationSession,
+} from '@/services/searchLocationSession';
 import { useLookMode } from '@/services/lookMode';
+import { createCallLog, listReceivedContacts } from '@/services/qrApi';
 import { findNearbyBusinesses, searchSocialMarket } from '@/services/searchService';
-import { BusinessCardSearchResult, GeoLocation } from '@/types/businessCard';
+import type { ReceivedContactForMarketSearch } from '@/services/searchService';
+import { BusinessCardSearchResult } from '@/types/businessCard';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { collection, getDocs } from 'firebase/firestore';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
-    FlatList,
+    Keyboard,
+    Linking,
     Modal,
     Pressable,
     RefreshControl,
+    SectionList,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
     View
 } from 'react-native';
+import { MEDIA_PLACEHOLDER } from '@/constants/mediaPlaceholders';
+import { extractEmailFromFacets, extractWhatsAppUrlFromFacets } from '@/services/receivedContactFacets';
 import QRCode from 'react-native-qrcode-svg';
 
-interface MyContact {
-  id: string;
-  title: string;
-  type: string;
-  value: string;
-}
+const CONTACT_META_STORAGE_KEY = 'contacts_meta_v2';
+const GROUP_DEFAULT = 'Random';
+
+type ContactMetaLite = { group?: string; icons?: Array<{ name: string; url: string }> };
 
 export default function SearchScreen() {
   const router = useRouter();
@@ -50,13 +59,17 @@ export default function SearchScreen() {
   const { language } = useLanguage();
   const tr = (es: string, en: string) => language === 'en' ? en : es;
   const [searchQuery, setSearchQuery] = useState('');
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [results, setResults] = useState<BusinessCardSearchResult[]>([]);
-  const [myContacts, setMyContacts] = useState<MyContact[]>([]);
+  const searchQueryRef = useRef(searchQuery);
+  searchQueryRef.current = searchQuery;
+  const [, setSessionTick] = useState(0);
+  const sessionWasActiveRef = useRef(false);
+  const [sectionContacts, setSectionContacts] = useState<BusinessCardSearchResult[]>([]);
+  const [sectionBusinesses, setSectionBusinesses] = useState<BusinessCardSearchResult[]>([]);
+  /** Orden del bloque Business Cards: distancia (Haversine) por defecto; estrellas filtra sin rating y ordena por rating. */
+  const [businessSortMode, setBusinessSortMode] = useState<'distance' | 'rating'>('distance');
+  const [, setReceivedContactsForMarket] = useState<ReceivedContactForMarketSearch[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [userLocation, setUserLocation] = useState<GeoLocation | null>(null);
-  const [hasLocationAccess, setHasLocationAccess] = useState(false);
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
   const [licenseStatus, setLicenseStatus] = useState<Record<string, boolean>>({});
 
@@ -71,25 +84,45 @@ export default function SearchScreen() {
     ctaAccent: '#C5A065',
   };
 
-  useEffect(() => {
-    loadMyContacts();
-    checkLocationPermission();
-  }, []);
+  const displaySectionBusinesses = useMemo(() => {
+    if (businessSortMode === 'distance') {
+      return sectionBusinesses;
+    }
+    const withRating = sectionBusinesses.filter((r) => Number(r.card.averageRating) > 0);
+    return [...withRating].sort((a, b) => {
+      const rb = Number(b.card.averageRating) || 0;
+      const ra = Number(a.card.averageRating) || 0;
+      if (rb !== ra) {
+        return rb - ra;
+      }
+      const da = a.distanceMiles ?? 1e9;
+      const db_ = b.distanceMiles ?? 1e9;
+      return da - db_;
+    });
+  }, [sectionBusinesses, businessSortMode]);
+
+  const allMarketRows = useMemo(
+    () => [...sectionContacts, ...sectionBusinesses],
+    [sectionContacts, sectionBusinesses],
+  );
 
   useEffect(() => {
     let cancelled = false;
 
     const loadLicenseStatus = async () => {
-      if (!results.length) {
+      const marketOnly = allMarketRows.filter(
+        (r) => r.rowSource === 'social_market' && r.card.ownerUid && r.card.ownerUid !== '__vault_local__',
+      );
+      if (!marketOnly.length) {
         setLicenseStatus({});
         return;
       }
 
       const statuses = await Promise.all(
-        results.map(async (result) => {
+        marketOnly.map(async (result) => {
           const active = await hasActiveBusinessLicense(result.card.ownerUid, result.card.id);
           return [result.card.id, active] as const;
-        })
+        }),
       );
 
       if (!cancelled) {
@@ -102,139 +135,256 @@ export default function SearchScreen() {
     return () => {
       cancelled = true;
     };
-  }, [results]);
+  }, [allMarketRows]);
 
-  const loadMyContacts = async () => {
-    try {
-      const userId = await getActiveUserId();
-      if (userId) {
-        const contactsSnapshot = await getDocs(
-          collection(db, 'users', userId, 'links')
-        );
-        const contacts = contactsSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as MyContact[];
-        setMyContacts(contacts);
-      }
-    } catch (error) {
-      console.error('Error loading contacts:', error);
+  const listSections = useMemo(() => {
+    const sections: { title: string; data: BusinessCardSearchResult[] }[] = [];
+    if (sectionContacts.length) {
+      sections.push({
+        title: tr('Mis Contactos', 'My Contacts'),
+        data: sectionContacts,
+      });
     }
-  };
+    if (displaySectionBusinesses.length) {
+      sections.push({
+        title: tr('Tarjetas de negocio', 'Business Cards'),
+        data: displaySectionBusinesses,
+      });
+    }
+    return sections;
+  }, [sectionContacts, displaySectionBusinesses, language]);
 
-  const checkLocationPermission = async () => {
-    const hasPermission = await hasLocationPermission();
-    setHasLocationAccess(hasPermission);
-  };
-
-  const handleLocationRequest = async () => {
+  const loadReceivedContactsForMarket = useCallback(async (): Promise<ReceivedContactForMarketSearch[]> => {
+    const empty: ReceivedContactForMarketSearch[] = [];
     try {
-      const granted = await requestLocationPermission();
-      if (granted) {
-        setHasLocationAccess(true);
-        const location = await getCurrentLocation();
-        if (location) {
-          setUserLocation(location);
-          Alert.alert(tr('✅ GPS Activado', '✅ GPS Activated'), tr('Ahora buscaremos negocios cercanos', 'Now we will search nearby businesses'));
+      const ownerUid = await getActiveUserId();
+      if (!ownerUid) {
+        setReceivedContactsForMarket(empty);
+        return empty;
+      }
+      let meta: Record<string, ContactMetaLite> = {};
+      try {
+        const raw = await AsyncStorage.getItem(CONTACT_META_STORAGE_KEY);
+        if (raw) {
+          meta = JSON.parse(raw) as Record<string, ContactMetaLite>;
         }
-      } else {
-        Alert.alert(tr('❌ Permiso Denegado', '❌ Permission Denied'), tr('Sin GPS no puedo buscar negocios cercanos', 'Without GPS I cannot search nearby businesses'));
+      } catch {
+        meta = {};
       }
+      const { contacts } = await listReceivedContacts({ ownerUid });
+      const merged: ReceivedContactForMarketSearch[] = contacts.map((c) => ({
+        uid: c.uid,
+        cardId: c.cardId,
+        name: c.name,
+        nickname: c.nickname,
+        cardName: c.cardName,
+        photoUrl: c.photoUrl,
+        ratingAvg: c.ratingAvg,
+        searchFacets: c.searchFacets || [],
+        metaGroup: meta[c.uid]?.group || GROUP_DEFAULT,
+        metaIcons: meta[c.uid]?.icons,
+      }));
+      setReceivedContactsForMarket(merged);
+      return merged;
     } catch (error) {
-      console.error('Error requesting location:', error);
+      console.error('Error loading received contacts for market:', error);
+      setReceivedContactsForMarket(empty);
+      return empty;
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadReceivedContactsForMarket();
+  }, [loadReceivedContactsForMarket]);
+
+  useEffect(() => {
+    const unsub = subscribeSearchLocationSession(() => {
+      const active = isSearchLocationSessionActive();
+      if (sessionWasActiveRef.current && !active) {
+        const q = searchQueryRef.current.trim();
+        if (q) {
+          void (async () => {
+            setLoading(true);
+            try {
+              const receivedRows = await loadReceivedContactsForMarket();
+              const { contacts, businesses } = await searchSocialMarket(
+                q,
+                receivedRows,
+                undefined,
+                undefined,
+                5,
+              );
+              setSectionContacts(contacts);
+              setSectionBusinesses(businesses);
+              setBusinessSortMode('distance');
+            } catch {
+              /* keep previous rows */
+            } finally {
+              setLoading(false);
+            }
+          })();
+        } else {
+          setSectionBusinesses([]);
+        }
+      }
+      sessionWasActiveRef.current = active;
+      setSessionTick((n) => n + 1);
+    });
+    sessionWasActiveRef.current = isSearchLocationSessionActive();
+    const id = setInterval(() => {
+      if (getSearchSessionExpiresAt()) {
+        setSessionTick((n) => n + 1);
+      }
+    }, 1000);
+    return () => {
+      unsub();
+      clearInterval(id);
+    };
+  }, [loadReceivedContactsForMarket]);
+
+  const openReceivedPrivateCall = async (item: BusinessCardSearchResult) => {
+    const targetUid = String(item.card.ownerUid || '').trim();
+    const sourceCardName = String(item.receivedContactCardName || item.card.businessName || 'Tarjeta Social').trim();
+    if (!targetUid) {
+      return;
+    }
+    const ownerUid = await getActiveUserId();
+    if (!ownerUid) {
+      Alert.alert(
+        tr('Sesión requerida', 'Session required'),
+        tr('Inicia sesión para usar Llamada privada.', 'Sign in to use Private call.'),
+      );
+      return;
+    }
+    const authenticated = await hardLockCheck('iniciar llamada Ghost-Link');
+    if (!authenticated) {
+      return;
+    }
+    try {
+      await startGhostLinkVoipCall({
+        ownerUid,
+        targetUid,
+        card: { sourceCardName, sourceCardId: null },
+      });
+      await createCallLog({
+        ownerUid,
+        peerUid: targetUid,
+        direction: 'outgoing',
+        status: 'completed',
+        durationSec: 0,
+        tags: ['Ghost-Link'],
+        sourceCardName,
+        sourceCardId: null,
+        callChannel: 'ghost-link-voip',
+      });
+      Alert.alert(
+        tr('Ghost-Link', 'Ghost-Link'),
+        tr('Conectando. Tu número real permanece oculto.', 'Connecting. Your real number stays hidden.'),
+      );
+    } catch (error: any) {
+      Alert.alert(
+        tr('No se pudo iniciar la llamada', 'Could not start call'),
+        error?.message || tr('Intenta de nuevo.', 'Try again.'),
+      );
     }
   };
 
+  const sessionMinutes = Math.round(SEARCH_LOCATION_SESSION_MS / 60000);
+
+  const performMarketSearch = async (latitude?: number, longitude?: number) => {
+    const q = searchQueryRef.current.trim();
+    if (!q) {
+      return;
+    }
+    setLoading(true);
+    try {
+      const receivedRows = await loadReceivedContactsForMarket();
+      const { contacts, businesses } = await searchSocialMarket(
+        q,
+        receivedRows,
+        latitude,
+        longitude,
+        5,
+      );
+      setSectionContacts(contacts);
+      setSectionBusinesses(businesses);
+      setBusinessSortMode('distance');
+    } catch (error) {
+      console.error('Error searching:', error);
+      Alert.alert(
+        tr('No se pudo completar la búsqueda', 'Search could not finish'),
+        tr(
+          'Revisa tu conexión a internet e inténtalo de nuevo. Si el fallo continúa, prueba más tarde.',
+          'Check your internet connection and try again. If it keeps failing, try again later.',
+        ),
+      );
+    } finally {
+      Keyboard.dismiss();
+      setLoading(false);
+    }
+  };
+
+  /** Cada Buscar fuerza nueva lectura GPS: startSearchLocationSession limpia sesión y getCurrentPositionAsync. */
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
       Alert.alert(tr('Error', 'Error'), tr('Ingresa palabras clave para buscar', 'Enter keywords to search'));
       return;
     }
+    const r = await startSearchLocationSession();
+    if (r.ok) {
+      await performMarketSearch(r.latitude, r.longitude);
+    } else {
+      await performMarketSearch(undefined, undefined);
+    }
+  };
 
+  /** Mismo flujo que Buscar (GPS primero); atajo en la barra de búsqueda. */
+  const handleSearchWithDistance = () => void handleSearch();
+
+  const runNearbyWithCoords = async (latitude: number, longitude: number) => {
     setLoading(true);
     try {
-      // Si no tenemos ubicación pero hay permiso, intentar obtenerla
-      let location = userLocation;
-      if (hasLocationAccess && !location) {
-        location = await getCurrentLocation();
-        if (location) setUserLocation(location);
-      }
-
-      const terms = searchQuery.split(' ').filter((t) => t.length > 0);
-
-      const searchResults = await searchSocialMarket(
-        terms,
-        myContacts as any, // Type casting - same structure, different interface
-        location?.latitude,
-        location?.longitude,
-        5 // radiusMiles
-      );
-
-      setResults(searchResults);
-
-      if (searchResults.length === 0) {
-        Alert.alert(tr('Sin Resultados', 'No Results'), tr('No encontramos coincidencias con esa búsqueda', 'We found no matches for that search'));
+      const nearby = await findNearbyBusinesses(latitude, longitude, 5);
+      setSectionContacts([]);
+      setSectionBusinesses(nearby);
+      setBusinessSortMode('distance');
+      if (nearby.length === 0) {
+        Alert.alert(
+          tr('Sin negocios cercanos', 'No nearby businesses'),
+          tr('No encontramos negocios en un radio de 5 millas.', 'We found no businesses within 5 miles.')
+        );
       }
     } catch (error) {
-      console.error('Error searching:', error);
-      Alert.alert(tr('Error', 'Error'), tr('Error en la búsqueda', 'Search error'));
+      console.error('Error finding nearby:', error);
+      Alert.alert(
+        tr('Error', 'Error'),
+        tr('Error buscando negocios cercanos', 'Error searching nearby businesses')
+      );
     } finally {
       setLoading(false);
     }
   };
 
   const handleNearby = async () => {
-    if (!hasLocationAccess) {
-      Alert.alert(
-        'GPS Requerido',
-        '¿Activar GPS para encontrar negocios cercanos?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Activar GPS', onPress: handleLocationRequest },
-        ]
-      );
+    const existing = getSearchSessionCoordinates();
+    if (existing) {
+      await runNearbyWithCoords(existing.latitude, existing.longitude);
       return;
     }
-
-    setLoading(true);
-    try {
-      let location = userLocation;
-      if (!location) {
-        location = await getCurrentLocation();
-        if (location) setUserLocation(location);
-      }
-
-      if (!location) {
-        Alert.alert(tr('Error', 'Error'), tr('No se pudo obtener tu ubicación', 'Could not get your location'));
-        setLoading(false);
-        return;
-      }
-
-      const nearby = await findNearbyBusinesses(
-        location.latitude,
-        location.longitude,
-        5 // 5 millas
+    const r = await startSearchLocationSession();
+    if (r.ok) {
+      await runNearbyWithCoords(r.latitude, r.longitude);
+    } else {
+      Alert.alert(
+        tr('Ubicación no disponible', 'Location unavailable'),
+        tr('Activa el permiso de ubicación para usar Cercanos.', 'Enable location permission to use Nearby.'),
       );
-
-      setResults(nearby);
-
-      if (nearby.length === 0) {
-        Alert.alert(
-          'Sin Negocios Cercanos',
-          'No encontramos negocios en un radio de 5 millas'
-        );
-      }
-    } catch (error) {
-      console.error('Error finding nearby:', error);
-      Alert.alert(tr('Error', 'Error'), tr('Error buscando negocios cercanos', 'Error searching nearby businesses'));
-    } finally {
-      setLoading(false);
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadMyContacts();
+    await loadReceivedContactsForMarket();
     setRefreshing(false);
   };
 
@@ -256,18 +406,28 @@ export default function SearchScreen() {
           style={styles.searchInput}
           placeholder={tr('Busca: Nails, Hair, Cosmetología...', 'Search: Nails, Hair, Cosmetology...')}
           value={searchQuery}
-          onChangeText={(text) => {
-            setSearchQuery(text);
-            if (debounceRef.current) clearTimeout(debounceRef.current);
-            if (text.trim().length >= 2) {
-              debounceRef.current = setTimeout(() => { void handleSearch(); }, 400);
-            }
-          }}
+          onChangeText={setSearchQuery}
           onSubmitEditing={handleSearch}
           placeholderTextColor="#999"
         />
+        {searchQuery.trim().length > 0 ? (
+          <TouchableOpacity
+            onPress={handleSearchWithDistance}
+            disabled={loading}
+            accessibilityRole="button"
+            accessibilityLabel={tr('Buscar (ubicación)', 'Search (location)')}
+          >
+            <MaterialCommunityIcons name="map-marker-radius" size={22} color={palette.ctaPrimary} />
+          </TouchableOpacity>
+        ) : null}
         {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')} accessibilityLabel={tr('Limpiar búsqueda', 'Clear search')}>
+          <TouchableOpacity
+            onPress={() => {
+              Keyboard.dismiss();
+              setSearchQuery('');
+            }}
+            accessibilityLabel={tr('Limpiar búsqueda', 'Clear search')}
+          >
             <MaterialCommunityIcons name="close" size={20} color="#999" />
           </TouchableOpacity>
         )}
@@ -281,7 +441,7 @@ export default function SearchScreen() {
           disabled={loading}
         >
           <MaterialCommunityIcons name="magnify" size={16} color="#FFF" />
-          <Text style={styles.actionButtonText}>Buscar</Text>
+          <Text style={styles.actionButtonText}>{tr('Buscar', 'Search')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -290,11 +450,11 @@ export default function SearchScreen() {
           disabled={loading}
         >
           <MaterialCommunityIcons
-            name={hasLocationAccess ? 'map-marker' : 'map-marker-outline'}
+            name={isSearchLocationSessionActive() ? 'map-marker' : 'map-marker-outline'}
             size={16}
             color="#FFF"
           />
-          <Text style={styles.actionButtonText}>Cercanos</Text>
+          <Text style={styles.actionButtonText}>{tr('Cercanos', 'Nearby')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -303,41 +463,132 @@ export default function SearchScreen() {
           disabled={loading}
         >
           <MaterialCommunityIcons name="plus-circle" size={16} color="#FFF" />
-          <Text style={styles.actionButtonText}>Crear</Text>
+          <Text style={styles.actionButtonText}>{tr('Crear', 'Create')}</Text>
         </TouchableOpacity>
       </View>
 
-      {/* GPS Status */}
-      {!hasLocationAccess && (
-        <Pressable
-          style={styles.gpsWarning}
-          onPress={handleLocationRequest}
-          accessibilityRole="button"
-        >
-          <MaterialCommunityIcons name="information" size={16} color="#FF6B6B" />
-          <Text style={styles.gpsWarningText}>Activa GPS para búsqueda por proximidad</Text>
-          <MaterialCommunityIcons name="chevron-right" size={16} color="#FF6B6B" />
-          </Pressable>
-      )}
+      {sectionBusinesses.length > 0 ? (
+        <View style={[styles.sortRow, { borderColor: palette.border, backgroundColor: palette.surfaceMuted }]}>
+          <MaterialCommunityIcons name="sort-variant" size={18} color={palette.textSecondary} />
+          <Text style={[styles.sortRowLabel, { color: palette.textSecondary }]}>
+            {tr('Orden · Tarjetas de negocio', 'Sort · Business Cards')}
+          </Text>
+          <TouchableOpacity
+            onPress={() => setBusinessSortMode('distance')}
+            style={[
+              styles.sortChip,
+              { borderColor: palette.border },
+              businessSortMode === 'distance' && { backgroundColor: palette.ctaPrimary, borderColor: palette.ctaPrimary },
+            ]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: businessSortMode === 'distance' }}
+          >
+            <Text
+              style={[
+                styles.sortChipText,
+                { color: businessSortMode === 'distance' ? '#FFFFFF' : palette.textPrimary },
+              ]}
+            >
+              {tr('Distancia', 'Distance')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setBusinessSortMode('rating')}
+            style={[
+              styles.sortChip,
+              { borderColor: palette.border },
+              businessSortMode === 'rating' && { backgroundColor: palette.ctaPrimary, borderColor: palette.ctaPrimary },
+            ]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: businessSortMode === 'rating' }}
+          >
+            <Text
+              style={[
+                styles.sortChipText,
+                { color: businessSortMode === 'rating' ? '#FFFFFF' : palette.textPrimary },
+              ]}
+            >
+              {tr('Estrellas', 'Stars')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
 
-      {/* Resultados Header */}
-      {results.length > 0 && (
+      {(() => {
+        const exp = getSearchSessionExpiresAt();
+        const remainingSec = exp ? Math.max(0, Math.ceil((exp - Date.now()) / 1000)) : 0;
+        const mm = Math.floor(remainingSec / 60);
+        const ss = remainingSec % 60;
+        const clock = `${mm}:${String(ss).padStart(2, '0')}`;
+        return exp ? (
+          <View style={[styles.sessionBanner, { borderColor: palette.border, backgroundColor: palette.surfaceMuted }]}>
+            <MaterialCommunityIcons name="map-marker-radius" size={20} color={palette.ctaAccent} />
+            <View style={styles.sessionBannerTextCol}>
+              <Text style={[styles.gpsInfoHeadline, { color: palette.textPrimary }]}>
+                {tr('Ubicación: solo al usar la app', 'Location: only while you use the app')}
+              </Text>
+              <Text style={[styles.sessionBannerText, { color: palette.textSecondary }]}>
+                {tr(
+                  `Activa para esta pantalla. Tiempo restante ${clock} (máx. ${sessionMinutes} min). Sin rastreo en segundo plano.`,
+                  `Active for this screen. Time left ${clock} (max ${sessionMinutes} min). No background tracking.`,
+                )}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => endSearchLocationSession()}
+              accessibilityRole="button"
+              accessibilityLabel={tr('Dejar de usar ubicación', 'Stop using location')}
+            >
+              <Text style={[styles.sessionBannerEnd, { color: palette.ctaPrimary }]}>{tr('Detener', 'Stop')}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={[styles.gpsInfo, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
+            <MaterialCommunityIcons name="shield-lock-outline" size={20} color={palette.ctaPrimary} />
+            <View style={styles.gpsInfoTextCol}>
+              <Text style={[styles.gpsInfoHeadline, { color: palette.textPrimary }]}>
+                {tr('Ubicación: solo al usar la app', 'Location: only while you use the app')}
+              </Text>
+              <Text style={[styles.gpsInfoText, { color: palette.textSecondary }]}>
+                {tr(
+                  `La búsqueda por texto no requiere GPS. Si usas el icono de ubicación o «Cercanos», compartes posición solo en primer plano; dejamos de usarla a los ${sessionMinutes} min. Puedes revocar el permiso en Ajustes.`,
+                  `Text search does not need GPS. If you use the location icon or «Nearby», you share position in the foreground only; we stop after ${sessionMinutes} min. You can revoke permission in Settings.`,
+                )}
+              </Text>
+            </View>
+          </View>
+        );
+      })()}
+
+      {allMarketRows.length > 0 ? (
         <View style={styles.resultHeader}>
-          <Text style={styles.resultTitle}>
-            {results.length} Resultado{results.length !== 1 ? 's' : ''} Encontrado
-            {results.length !== 1 ? 's' : ''}
+          <Text style={[styles.resultTitle, { color: palette.textPrimary }]}>
+            {allMarketRows.length}{' '}
+            {allMarketRows.length !== 1
+              ? tr('resultados', 'results')
+              : tr('resultado', 'result')}
           </Text>
         </View>
-      )}
+      ) : null}
     </View>
   );
 
   const renderResultCard = ({ item }: { item: BusinessCardSearchResult }) => {
+    const isMarketBusiness = item.rowSource === 'social_market';
     const hasLicense = licenseStatus[item.card.id] ?? true;
-    const permanentLink = (item.card as any).permanent_business_link
-      || generatePermanentBusinessLink(item.card.id, item.card.ownerUid || 'owner');
+    const dm = item.distanceMiles;
+    /** Sin NaN, sin ∞, sin 0.0 mi (solo distancia estrictamente positiva). */
+    const milesOk = typeof dm === 'number' && Number.isFinite(dm) && dm > 0;
+    const showMiles = item.showDistance === true && milesOk;
+    const permanentLink = !isMarketBusiness
+      ? 'https://cardsocial.app'
+      : (item.card as any).permanent_business_link ||
+        generatePermanentBusinessLink(item.card.id, item.card.ownerUid || 'owner');
 
     const handleExportBusinessQr = async () => {
+      if (!isMarketBusiness) {
+        return;
+      }
       try {
         const result = await ExportBusinessQR({
           businessId: item.card.id,
@@ -353,12 +604,139 @@ export default function SearchScreen() {
       }
     };
 
+    const milesLabel =
+      showMiles && milesOk
+        ? dm < 1
+          ? tr('<1 mi', '<1 mi')
+          : `${dm.toFixed(1)} ${tr('mi', 'mi')}`
+        : '';
+
+    const facets = item.receivedContactFacets ?? [];
+    const emailAddr = extractEmailFromFacets(facets);
+    const waUrl = extractWhatsAppUrlFromFacets(facets);
+
+    if (!isMarketBusiness) {
+      return (
+        <Pressable
+          style={({ pressed }) => [
+            styles.resultCard,
+            styles.resultCardReceived,
+            { backgroundColor: palette.surface, borderColor: palette.border },
+            pressed && styles.pressedCard,
+          ]}
+        >
+          <View style={styles.receivedCardColumn}>
+            <View style={styles.receivedTopRow}>
+              {item.card.businessLogo ? (
+                <ExpoImage
+                  source={{ uri: item.card.businessLogo }}
+                  style={styles.receivedAvatar}
+                  cachePolicy="disk"
+                />
+              ) : (
+                <View
+                  style={[
+                    styles.receivedAvatar,
+                    styles.cardImagePlaceholder,
+                    {
+                      backgroundColor: isDark ? MEDIA_PLACEHOLDER.personBgDark : MEDIA_PLACEHOLDER.personBgLight,
+                      borderWidth: 1,
+                      borderColor: isDark ? MEDIA_PLACEHOLDER.personBorderDark : MEDIA_PLACEHOLDER.personBorderLight,
+                    },
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name={MEDIA_PLACEHOLDER.personIconName}
+                    size={36}
+                    color={isDark ? MEDIA_PLACEHOLDER.personIconDark : MEDIA_PLACEHOLDER.personIconLight}
+                  />
+                </View>
+              )}
+              <View style={styles.cardContentFlat}>
+                <Text style={[styles.cardTitle, { color: palette.textPrimary }]}>{item.card.businessName}</Text>
+                <Text style={[styles.cardSubtitle, { color: palette.textSecondary }]} numberOfLines={2}>
+                  {item.card.businessDescription}
+                </Text>
+              </View>
+            </View>
+            <View style={[styles.contactHeroRow, { borderTopColor: palette.border }]}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.contactHeroBtn,
+                  styles.contactHeroBtnCall,
+                  !item.card.ownerUid && styles.contactHeroBtnDisabled,
+                  pressed && styles.pressedCta,
+                ]}
+                disabled={!item.card.ownerUid}
+                onPress={() => void openReceivedPrivateCall(item)}
+                accessibilityRole="button"
+                accessibilityLabel={tr('Llamada privada', 'Private call')}
+              >
+                <MaterialCommunityIcons name="phone-in-talk" size={26} color="#0A2540" />
+                <Text style={[styles.contactHeroLabel, { color: palette.textPrimary }]}>
+                  {tr('Llamada\nprivada', 'Private\ncall')}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.contactHeroBtn,
+                  styles.contactHeroBtnWa,
+                  !waUrl && styles.contactHeroBtnDisabled,
+                  pressed && styles.pressedCta,
+                ]}
+                onPress={() => {
+                  if (!waUrl) {
+                    Alert.alert(
+                      tr('WhatsApp', 'WhatsApp'),
+                      tr('No hay enlace de WhatsApp en la tarjeta compartida.', 'No WhatsApp link on this shared card.'),
+                    );
+                    return;
+                  }
+                  Linking.openURL(waUrl).catch(() =>
+                    Alert.alert(tr('Error', 'Error'), tr('No se pudo abrir WhatsApp.', 'Could not open WhatsApp.')),
+                  );
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={tr('WhatsApp', 'WhatsApp')}
+              >
+                <MaterialCommunityIcons name="whatsapp" size={26} color="#128C7E" />
+                <Text style={[styles.contactHeroLabel, { color: palette.textPrimary }]}>{tr('WhatsApp', 'WhatsApp')}</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.contactHeroBtn,
+                  styles.contactHeroBtnMail,
+                  !emailAddr && styles.contactHeroBtnDisabled,
+                  pressed && styles.pressedCta,
+                ]}
+                onPress={() => {
+                  if (!emailAddr) {
+                    Alert.alert(
+                      tr('Correo', 'Email'),
+                      tr('No hay correo en la tarjeta compartida.', 'No email on this shared card.'),
+                    );
+                    return;
+                  }
+                  void ActionController.ActionEmail({ value: emailAddr });
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={tr('Correo', 'Email')}
+              >
+                <MaterialCommunityIcons name="email-outline" size={26} color="#1EA7FF" />
+                <Text style={[styles.contactHeroLabel, { color: palette.textPrimary }]}>{tr('Correo', 'Email')}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Pressable>
+      );
+    }
+
     return (
       <Pressable
         style={({ pressed }) => [
           styles.resultCard,
           { backgroundColor: palette.surface, borderColor: palette.border },
-          !hasLicense && styles.dullCard,
+          !hasLicense && isMarketBusiness && styles.dullCard,
           pressed && styles.pressedCard,
         ]}
       >
@@ -377,50 +755,69 @@ export default function SearchScreen() {
         {item.card.businessLogo ? (
           <ExpoImage
             source={{ uri: item.card.businessLogo }}
-            style={[styles.cardImage, !hasLicense && styles.dullCardImage]}
+            style={[styles.cardImage, !hasLicense && isMarketBusiness && styles.dullCardImage]}
             cachePolicy="disk"
           />
         ) : (
-          <View style={[styles.cardImage, styles.cardImagePlaceholder, !hasLicense && styles.dullCardImage]}>
-            <MaterialCommunityIcons name="store" size={40} color="#C5A065" />
+          <View
+            style={[
+              styles.cardImage,
+              styles.cardImagePlaceholder,
+              !hasLicense && isMarketBusiness && styles.dullCardImage,
+              {
+                backgroundColor: isDark ? MEDIA_PLACEHOLDER.businessBgDark : MEDIA_PLACEHOLDER.businessBgLight,
+                borderWidth: 1,
+                borderColor: isDark ? MEDIA_PLACEHOLDER.businessBorderDark : MEDIA_PLACEHOLDER.businessBorderLight,
+              },
+            ]}
+          >
+            <MaterialCommunityIcons
+              name={MEDIA_PLACEHOLDER.businessIconName}
+              size={40}
+              color={isDark ? MEDIA_PLACEHOLDER.businessIconDark : MEDIA_PLACEHOLDER.businessIconLight}
+            />
           </View>
         )}
 
         <View style={styles.cardContent}>
           <Text style={[styles.cardTitle, { color: palette.textPrimary }]}>{item.card.businessName}</Text>
-          <Text style={[styles.cardSubtitle, { color: palette.textSecondary }]}> 
+          <Text style={[styles.cardSubtitle, { color: palette.textSecondary }]}>
             {item.card.businessDescription}
           </Text>
 
-          {!hasLicense ? (
+          {!hasLicense && isMarketBusiness ? (
             <View style={styles.dullPill}>
-              <Text style={styles.dullPillText}>Dull Mode: anualidad pendiente</Text>
+              <Text style={styles.dullPillText}>
+                {tr('Modo tenue: anualidad pendiente', 'Dull mode: subscription pending')}
+              </Text>
             </View>
           ) : null}
 
           <View style={styles.statsContainer}>
             <View style={styles.stat}>
               <MaterialCommunityIcons name="star" size={14} color="#C5A065" />
-              <Text style={[styles.statText, { color: palette.textSecondary }]}>{item.card.averageRating.toFixed(1)}</Text>
+              <Text style={[styles.statText, { color: palette.textSecondary }]}>
+                {(item.card.averageRating ?? 0).toFixed(1)}
+              </Text>
             </View>
 
-            {item.distanceMiles > 0 && (
+            {showMiles && milesLabel ? (
               <View style={styles.stat}>
                 <MaterialCommunityIcons name="map-marker" size={14} color="#1EA7FF" />
-                <Text style={[styles.statText, { color: palette.textSecondary }]}>
-                  {item.distanceMiles < 1 ? '<1 mi' : `${item.distanceMiles.toFixed(1)} mi`}
-                </Text>
+                <Text style={[styles.statText, { color: palette.textSecondary }]}>{milesLabel}</Text>
               </View>
-            )}
+            ) : null}
 
             <View style={styles.stat}>
               <MaterialCommunityIcons name="check-circle" size={14} color="#2ECC71" />
-              <Text style={[styles.statText, { color: palette.textSecondary }]}>Verificado</Text>
+              <Text style={[styles.statText, { color: palette.textSecondary }]}>
+                {tr('Verificado', 'Verified')}
+              </Text>
             </View>
           </View>
         </View>
 
-        <View style={[styles.ctaContainer, { borderLeftColor: palette.border }]}> 
+        <View style={[styles.ctaContainer, { borderLeftColor: palette.border }]}>
           <Pressable style={({ pressed }) => [styles.ctaButton, pressed && styles.pressedButton]}>
             <MaterialCommunityIcons name="phone" size={24} color="#1EA7FF" />
           </Pressable>
@@ -440,27 +837,55 @@ export default function SearchScreen() {
 
   return (
     <View style={[styles.wrapper, { backgroundColor: palette.background }]}> 
-      <FlatList
-        data={results}
+      <SectionList
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        sections={listSections}
+        keyExtractor={(item) => `${item.rowSource ?? 'm'}:${item.card.id}`}
         renderItem={renderResultCard}
-        keyExtractor={(item) => item.card.id}
+        renderSectionHeader={({ section: { title } }) => (
+          <View
+            style={[
+              styles.sectionHeader,
+              { backgroundColor: palette.surfaceMuted, borderBottomColor: palette.border },
+            ]}
+          >
+            <Text style={[styles.sectionHeaderText, { color: palette.textPrimary }]}>{title}</Text>
+          </View>
+        )}
         ListHeaderComponent={renderHeader}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        stickySectionHeadersEnabled={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListEmptyComponent={
-          !loading && results.length === 0 ? (
-            <View style={styles.emptyState}>
-              <MaterialCommunityIcons
-                name="magnify"
-                size={64}
-                color="#CCC"
-              />
-              <Text style={[styles.emptyTitle, { color: palette.textPrimary }]}>Busca algo...</Text>
-              <Text style={styles.emptySubtitle}>
-                Encuentra contactos o negocios cercanos
-              </Text>
-            </View>
+          !loading && listSections.length === 0 ? (
+            <Pressable onPress={Keyboard.dismiss} style={styles.emptyState}>
+              <MaterialCommunityIcons name="magnify" size={64} color="#CCC" />
+              {searchQuery.trim().length > 0 ? (
+                <>
+                  <Text style={[styles.emptyTitle, { color: palette.textPrimary }]}>
+                    {tr('Sin coincidencias', 'No matches')}
+                  </Text>
+                  <Text style={[styles.emptySubtitle, { color: palette.textSecondary }]}>
+                    {tr(
+                      'Prueba con otras palabras o sinónimos. También puedes revisar tu conexión.',
+                      'Try different words or synonyms. You can also check your connection.',
+                    )}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={[styles.emptyTitle, { color: palette.textPrimary }]}>
+                    {tr('Busca algo…', 'Search for something…')}
+                  </Text>
+                  <Text style={[styles.emptySubtitle, { color: palette.textSecondary }]}>
+                    {tr(
+                      'Tus tarjetas recibidas y el Mercado Social',
+                      'Your received cards and the Social Market',
+                    )}
+                  </Text>
+                </>
+              )}
+            </Pressable>
           ) : null
         }
       />
@@ -536,6 +961,32 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 12,
   },
+  sortRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  sortRowLabel: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  sortChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    backgroundColor: 'transparent',
+  },
+  sortChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
   gpsWarning: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -552,13 +1003,71 @@ const styles = StyleSheet.create({
     color: '#FF6B6B',
     fontWeight: '500',
   },
+  sessionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  sessionBannerTextCol: {
+    flex: 1,
+    gap: 2,
+  },
+  sessionBannerText: {
+    fontSize: 12,
+    fontWeight: '500',
+    lineHeight: 17,
+  },
+  gpsInfoTextCol: {
+    flex: 1,
+    gap: 4,
+  },
+  gpsInfoHeadline: {
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 18,
+  },
+  sessionBannerEnd: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  gpsInfo: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  gpsInfoText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '500',
+  },
   resultHeader: {
     paddingVertical: 8,
   },
   resultTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0A2540',
+  },
+  sectionHeader: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  sectionHeaderText: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
   },
   resultCard: {
     flexDirection: 'row',
@@ -575,6 +1084,69 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
     minHeight: 116,
+  },
+  resultCardReceived: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    minHeight: 0,
+  },
+  receivedCardColumn: {
+    width: '100%',
+  },
+  receivedTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 6,
+  },
+  receivedAvatar: {
+    width: 72,
+    height: 72,
+    borderRadius: 12,
+    backgroundColor: '#F5F5F5',
+  },
+  cardContentFlat: {
+    flex: 1,
+    paddingLeft: 12,
+    paddingRight: 8,
+    justifyContent: 'center',
+  },
+  contactHeroRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  contactHeroBtn: {
+    flex: 1,
+    minHeight: 78,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    gap: 4,
+  },
+  contactHeroBtnCall: {
+    backgroundColor: 'rgba(197, 160, 101, 0.22)',
+  },
+  contactHeroBtnWa: {
+    backgroundColor: 'rgba(37, 211, 102, 0.18)',
+  },
+  contactHeroBtnMail: {
+    backgroundColor: 'rgba(30, 167, 255, 0.16)',
+  },
+  contactHeroBtnDisabled: {
+    opacity: 0.38,
+  },
+  contactHeroLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    textAlign: 'center',
+    lineHeight: 13,
   },
   pressedCard: {
     opacity: 0.94,

@@ -5,6 +5,7 @@ import LanguageToggle from '@/components/LanguageToggle';
 import Subscription from '@/components/Subscription';
 import ThemeChest from '@/components/ThemeChest';
 import { getActiveUserId } from '@/services/authSession';
+import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { auth, db } from '@/services/firebaseConfig';
 import { requestLocationPermission } from '@/services/geolocationService';
 import { useLanguage } from '@/services/language';
@@ -143,11 +144,13 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
 
   const handleSignOut = async () => {
     try {
+      const signingOutUid = auth.currentUser?.uid ?? null;
       // Limpieza de memoria: elimina el flag de bloqueo biométrico y otras claves sensibles
       try {
         await AsyncStorage.removeItem('@app_lock_enabled');
         // Ejemplo: await AsyncStorage.removeItem('OTRA_CLAVE_SENSIBLE');
       } catch {}
+      await clearLocalCachesForSignOut(signingOutUid);
       await signOut(auth);
     } catch {
       // Keep UX smooth even if session was already anonymous or expired.
@@ -592,7 +595,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
         <Tabs.Screen
           name="search"
           options={{
-            title: tr('Buscar', 'Search'),
+            title: tr('Mercado Social', 'Social Market'),
             tabBarIcon: ({ color }) => <Search color={color} size={24} />,
           }}
         />

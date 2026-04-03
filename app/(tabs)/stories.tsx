@@ -1,4 +1,5 @@
 import { getActiveUserId } from '@/services/authSession';
+import { readVaultJsonWithLegacyMigration } from '@/services/userScopedStorage';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { hasActiveBusinessLicense } from '@/services/businessLicenseService';
 import { getPremiumStoryCost, purchasePremiumStoryWithCredits } from '@/services/creditsService';
@@ -116,7 +117,6 @@ const STORY_RING_NORMAL = '#2ECC71';
 const STORY_RING_VIP = '#C5A065';
 const VIP_GLOW = '#E9C98A';
 const CONTACT_META_STORAGE_KEY = 'contacts_meta_v2';
-const VAULT_STORAGE_KEY = 'vault_data';
 const STORIES_STORAGE_PREFIX = 'stories_hub_v1_';
 const STORY_EXPOSURE_MS = 30_000;
 const FALLBACK_HOUSE_AD: HouseAdStory = {
@@ -325,13 +325,24 @@ export default function StoriesPage() {
       setOwnerName('Mi Story');
       setOwnerPhotoUrl(null);
 
-      const [stateResponse, contactsResponse, cardsResponse, houseAdResponse] = await Promise.all([
-        getMyStoryState({ ownerUid: uid }),
+      const [contactsResponse, cardsResponse, houseAdResponse] = await Promise.all([
         listReceivedContacts({ ownerUid: uid }),
         listSmartCardsFromDb({ ownerUid: uid }),
         getStoriesHouseAd({ ownerUid: uid }),
       ]);
 
+      const cardsRows = cardsResponse.cards.map((row) => ({
+        cardId: row.cardId,
+        name: row.name,
+        itemIds: row.itemIds,
+      }));
+      setSmartCards(cardsRows);
+
+      const hubCardId = cardsRows[0]?.cardId;
+      const stateResponse = await getMyStoryState({
+        ownerUid: uid,
+        ...(hubCardId ? { cardId: hubCardId } : {}),
+      });
       setState(stateResponse.state);
       setExpiresAt(stateResponse.expiresAt);
 
@@ -345,19 +356,11 @@ export default function StoriesPage() {
           storyState: row.storyState || 'none',
         }))
       );
-
-      setSmartCards(
-        cardsResponse.cards.map((row) => ({
-          cardId: row.cardId,
-          name: row.name,
-          itemIds: row.itemIds,
-        }))
-      );
       setHouseAd(houseAdResponse.ad || FALLBACK_HOUSE_AD);
 
       const [metaRaw, vaultRaw, storiesRaw] = await Promise.all([
         AsyncStorage.getItem(CONTACT_META_STORAGE_KEY),
-        AsyncStorage.getItem(VAULT_STORAGE_KEY),
+        readVaultJsonWithLegacyMigration(uid),
         AsyncStorage.getItem(getStoriesStorageKey(uid)),
       ]);
 
@@ -427,7 +430,12 @@ export default function StoriesPage() {
         throw new Error('No se pudo validar tu sesion.');
       }
 
-      const response = await setMyStoryState({ ownerUid: uid, state: nextState });
+      const hubCardId = smartCards[0]?.cardId;
+      const response = await setMyStoryState({
+        ownerUid: uid,
+        state: nextState,
+        ...(hubCardId ? { cardId: hubCardId } : {}),
+      });
       setState(response.state);
       setExpiresAt(response.expiresAt);
 
@@ -592,7 +600,7 @@ export default function StoriesPage() {
         }
       }
 
-      const response = await setMyStoryState({ ownerUid, state: nextState });
+      const response = await setMyStoryState({ ownerUid, state: nextState, cardId: selectedCard.cardId });
       setState(response.state);
       setExpiresAt(response.expiresAt);
 

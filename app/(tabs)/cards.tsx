@@ -2,6 +2,14 @@ import AutoScaleText from '@/components/AutoScaleText';
 import LimitReachedModal from '@/components/LimitReachedModal';
 import { CARD_THEMES as CHEST_THEMES, getThemeById, TIER_META, type CardTheme as ChestCardTheme, type ThemeTier } from '@/constants/themeChest';
 import { getActiveUserId } from '@/services/authSession';
+import { type IconVaultEntry, getUserIconVaultMap } from '@/services/iconVaultService';
+import { newEntityId } from '@/services/newEntityId';
+import {
+  readSmartCardsJsonWithLegacyMigration,
+  readVaultJsonWithLegacyMigration,
+  smartCardsStorageKey,
+  vaultStorageKey,
+} from '@/services/userScopedStorage';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { type VaultCollectibleCertificate } from '@/services/collectibleService';
 import { auth, db } from '@/services/firebaseConfig';
@@ -10,15 +18,24 @@ import { useLanguage } from '@/services/language';
 import { validateCardCreation } from '@/services/limitService';
 import { useLookMode } from '@/services/lookMode';
 import {
+  buildSearchFacetsForSharedCard,
+  collectStringsSmartCard,
+  orderByDeepSearchWithExpandedQuery,
+} from '@/services/deepSearch';
+import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
+import {
   blockRelationship,
   deleteSmartCardInDb,
   issueDynamicQrToken,
   listCardSubscribers,
   listSmartCardsFromDb,
   revokeCardSubscriber,
+  setCardSubscriberMute,
   upsertSmartCardInDb,
+  type CardSubscriberRow,
+  type SmartCardPayload,
 } from '@/services/qrApi';
-import { getCardRowTheme } from '@/services/useActiveTheme';
+import { getCardRowTheme, useActiveTheme } from '@/services/useActiveTheme';
 import { getWallpaperResizeMode, type WallpaperItem, type WallpaperTier } from '@/services/wallpaperService';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -31,9 +48,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Gyroscope } from 'expo-sensors';
 import * as Sharing from 'expo-sharing';
-import { doc, getDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   AppState,
@@ -54,7 +72,7 @@ import {
   useWindowDimensions,
   View
 } from 'react-native';
-import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import QRCode from 'react-native-qrcode-svg';
 import Toast from 'react-native-toast-message';
 import { ActionController } from '../../services/ActionController';
@@ -67,9 +85,6 @@ try {
 } catch {
   PdfComponent = null;
 }
-
-const VAULT_STORAGE_KEY = 'vault_data';
-const SMART_CARDS_STORAGE_KEY = 'smart_cards';
 
 type CardThemeId = string;
 
@@ -92,12 +107,7 @@ const isImageValue = (value: string) =>
   /\.(jpg|jpeg|png|gif|webp|bmp|heic)(\?|$)/i.test(value) ||
   (value.startsWith('file://') && !value.toLowerCase().endsWith('.pdf'));
 const isPdfValue = (value: string) => /\.pdf(\?|$)/i.test(value);
-const createSmartCardId = () => {
-  const tsPart = Date.now().toString(36);
-  const randA = Math.random().toString(36).slice(2, 10);
-  const randB = Math.random().toString(36).slice(2, 10);
-  return `card_${tsPart}_${randA}${randB}`;
-};
+const createSmartCardId = () => newEntityId();
 
 type VaultItem = {
   id: string;
@@ -106,6 +116,7 @@ type VaultItem = {
   value: string;
   iconName: string;
   icon?: string;
+  iconVaultId?: string;
   isFavorite: boolean;
 };
 
@@ -128,16 +139,13 @@ type SmartCard = {
   itemIds: string[];
   holdersCount?: number;
   ratingAvg?: number;
+  /** Facetas para contactos; opcional en cache local */
+  searchFacets?: Array<{ type: string; label: string; value: string }>;
   createdAt: string;
   updatedAt: string;
 };
 
-type CardSubscriber = {
-  uid: string;
-  name: string;
-  photoUrl: string | null;
-  isAmixes: boolean;
-};
+type CardSubscriber = CardSubscriberRow;
 
 type EditSlot = {
   id: string;
@@ -155,6 +163,7 @@ export default function CardsFactoryScreen() {
   const { language } = useLanguage();
   const tr = (es: string, en: string) => language === 'en' ? en : es;
   const [vaultItems, setVaultItems] = useState<VaultItem[]>([]);
+  const [iconVaultById, setIconVaultById] = useState<Record<string, IconVaultEntry>>({});
   const [smartCards, setSmartCards] = useState<SmartCard[]>([]);
   const [selectedCard, setSelectedCard] = useState<SmartCard | null>(null);
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
@@ -219,6 +228,11 @@ export default function CardsFactoryScreen() {
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerItem, setViewerItem] = useState<VaultItem | null>(null);
   const [isDownloadingViewerFile, setIsDownloadingViewerFile] = useState(false);
+  const swipeableMethodsByCardIdRef = useRef<Map<string, SwipeableMethods>>(new Map());
+
+  const { unlockedIds, refreshThemes } = useActiveTheme();
+
+  const isChestThemeUnlocked = (t: ChestCardTheme) => !t.locked || unlockedIds.has(t.id);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -229,6 +243,8 @@ export default function CardsFactoryScreen() {
           return;
         }
 
+        void refreshThemes();
+
         InteractionManager.runAfterInteractions(() => {
           loadVaultItems();
           loadSmartCards();
@@ -236,7 +252,7 @@ export default function CardsFactoryScreen() {
       };
 
       void verifyAccess();
-    }, [])
+    }, [refreshThemes])
   );
 
   useEffect(() => {
@@ -271,32 +287,6 @@ export default function CardsFactoryScreen() {
 
     loadVaultItems();
     loadSmartCards();
-  }, []);
-
-  useEffect(() => {
-    // Parche de migración robusta de iconos corruptos
-    const migrateVaultIcons = async () => {
-      try {
-        const raw = await AsyncStorage.getItem(VAULT_STORAGE_KEY);
-        let parsed = raw ? (JSON.parse(raw) as any[]) : [];
-        // Migración de iconos viejos/corruptos
-        const itemsMigrated = parsed.map(item => {
-          if (item.iconName === 'alternate-email') return { ...item, iconName: 'email' };
-          if (item.iconName === 'file-presentation') return { ...item, iconName: 'file-document' };
-          if (item.iconName === 'Gmail') return { ...item, iconName: 'gmail' };
-          if (item.iconName === 'Stamp') return { ...item, iconName: 'certificate' };
-          if (item.iconName === 'Classic') return { ...item, iconName: 'card-text' };
-          // Fallback de seguridad: si no hay iconName o es inválido
-          if (!item.iconName || item.iconName.includes(' ') || item.iconName === '') {
-            return { ...item, iconName: 'link-variant' };
-          }
-          return { ...item, iconName: sanitizeMaterialCommunityIconName(item.iconName) };
-        });
-        await AsyncStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(itemsMigrated));
-        setVaultItems(itemsMigrated);
-      } catch {}
-    };
-    migrateVaultIcons();
   }, []);
 
   useEffect(() => {
@@ -375,19 +365,67 @@ export default function CardsFactoryScreen() {
 
   const loadVaultItems = async () => {
     try {
-      const raw = await AsyncStorage.getItem(VAULT_STORAGE_KEY);
-      const parsed = raw ? (JSON.parse(raw) as VaultItem[]) : [];
-      setVaultItems(parsed);
+      const ownerUid = await getActiveUserId();
+      if (!ownerUid) {
+        setVaultItems([]);
+        setIconVaultById({});
+        return;
+      }
+      const raw = await readVaultJsonWithLegacyMigration(ownerUid);
+      let parsed = raw ? (JSON.parse(raw) as any[]) : [];
+      const migrateIcons = (items: any[]) =>
+        items.map((item) => {
+          if (item.iconName === 'alternate-email') return { ...item, iconName: 'email' };
+          if (item.iconName === 'file-presentation') return { ...item, iconName: 'file-document' };
+          if (item.iconName === 'Gmail') return { ...item, iconName: 'gmail' };
+          if (item.iconName === 'Stamp') return { ...item, iconName: 'certificate' };
+          if (item.iconName === 'Classic') return { ...item, iconName: 'card-text' };
+          if (!item.iconName || item.iconName.includes(' ') || item.iconName === '') {
+            return { ...item, iconName: 'link-variant' };
+          }
+          return { ...item, iconName: sanitizeMaterialCommunityIconName(item.iconName) };
+        });
+      let itemsMigrated = migrateIcons(parsed);
+      if (JSON.stringify(itemsMigrated) !== JSON.stringify(parsed)) {
+        await AsyncStorage.setItem(vaultStorageKey(ownerUid), JSON.stringify(itemsMigrated));
+      }
+      if (itemsMigrated.length === 0) {
+        try {
+          const cloudSnapshot = await getDocs(collection(db, 'users', ownerUid, 'links'));
+          const cloudItems = cloudSnapshot.docs.map((itemDoc) => ({
+            id: itemDoc.id,
+            ...itemDoc.data(),
+          })) as any[];
+          itemsMigrated = migrateIcons(cloudItems);
+          await AsyncStorage.setItem(vaultStorageKey(ownerUid), JSON.stringify(itemsMigrated));
+        } catch {
+          /* sin red o sin permisos — deja vacío */
+        }
+      }
+      setVaultItems(itemsMigrated as VaultItem[]);
+      try {
+        const vaultMap = await getUserIconVaultMap(ownerUid);
+        setIconVaultById(Object.fromEntries(vaultMap));
+      } catch {
+        setIconVaultById({});
+      }
     } catch {
       setVaultItems([]);
+      setIconVaultById({});
     }
   };
 
   const loadSmartCards = async () => {
+    const ownerUid = await getActiveUserId();
+    if (!ownerUid) {
+      setSmartCards([]);
+      return;
+    }
+
     // 1. Lectura optimista: mostrar cache local inmediatamente (cero latencia)
     let cachedJson = '';
     try {
-      const raw = await AsyncStorage.getItem(SMART_CARDS_STORAGE_KEY);
+      const raw = await readSmartCardsJsonWithLegacyMigration(ownerUid);
       cachedJson = raw || '';
       const cached = raw ? (JSON.parse(raw) as SmartCard[]) : [];
       if (cached.length > 0) {
@@ -397,9 +435,6 @@ export default function CardsFactoryScreen() {
 
     // 2. Refresco silencioso — actualiza estado solo si los datos cambiaron
     try {
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) return;
-
       const remote = await listSmartCardsFromDb({ ownerUid });
       const mapped = remote.cards.map((card) => ({
         id: card.cardId,
@@ -420,6 +455,7 @@ export default function CardsFactoryScreen() {
         itemIds: Array.isArray(card.itemIds) ? card.itemIds : [],
         holdersCount: Number(card.holdersCount || 0),
         ratingAvg: Number(card.ratingAvg || 5),
+        searchFacets: card.searchFacets,
         createdAt: card.createdAt,
         updatedAt: card.updatedAt,
       }));
@@ -427,7 +463,7 @@ export default function CardsFactoryScreen() {
       const cloudJson = JSON.stringify(mapped);
       if (cloudJson !== cachedJson) {
         setSmartCards(mapped);
-        await AsyncStorage.setItem(SMART_CARDS_STORAGE_KEY, cloudJson);
+        await AsyncStorage.setItem(smartCardsStorageKey(ownerUid), cloudJson);
       }
     } catch {
       // Cache ya pintado — no hacer nada
@@ -438,15 +474,17 @@ export default function CardsFactoryScreen() {
     console.log('[Card] persistCards: INICIO');
     setSmartCards(nextCards);
 
+    console.log('[Card] persistCards: Antes de getActiveUserId');
+    const ownerUid = await getActiveUserId();
+    console.log('[Card] persistCards: Después de getActiveUserId', ownerUid);
+
     console.log('[Card] persistCards: Antes de AsyncStorage.setItem');
-    await AsyncStorage.setItem(SMART_CARDS_STORAGE_KEY, JSON.stringify(nextCards));
+    if (ownerUid) {
+      await AsyncStorage.setItem(smartCardsStorageKey(ownerUid), JSON.stringify(nextCards));
+    }
     console.log('[Card] persistCards: Después de AsyncStorage.setItem');
 
     try {
-      console.log('[Card] persistCards: Antes de getActiveUserId');
-      const ownerUid = await getActiveUserId();
-      console.log('[Card] persistCards: Después de getActiveUserId', ownerUid);
-
       if (!ownerUid) {
         return;
       }
@@ -457,30 +495,32 @@ export default function CardsFactoryScreen() {
 
       for (const card of cardsToSync) {
         console.log('[Card] persistCards: Antes de upsertSmartCardInDb', card.id);
+        const cardPayload: SmartCardPayload = {
+          cardId: card.id,
+          name: card.name,
+          layout: card.layout,
+          themeId: card.themeId,
+          fontId: card.fontId,
+          fontName: card.fontName,
+          fontFamily: card.fontFamily,
+          fontTier: card.fontTier,
+          wallpaperId: card.wallpaperId,
+          wallpaperUrl: card.wallpaperUrl,
+          wallpaperThumbUrl: card.wallpaperThumbUrl,
+          wallpaperTier: card.wallpaperTier,
+          wallpaperPriceCredits: Number(card.wallpaperPriceCredits || 0),
+          enableParallax: Boolean(card.enableParallax),
+          isFavorite: Boolean(card.isFavorite),
+          itemIds: card.itemIds,
+          holdersCount: Number(card.holdersCount || 0),
+          ratingAvg: Number(card.ratingAvg || 5),
+          ownerNickname: ownerNickname || undefined,
+          ownerPhotoUrl,
+          searchFacets: buildSearchFacetsForSharedCard(vaultItems, card.itemIds),
+        };
         await upsertSmartCardInDb({
           ownerUid,
-          card: {
-            cardId: card.id,
-            name: card.name,
-            layout: card.layout,
-            themeId: card.themeId,
-            fontId: card.fontId,
-            fontName: card.fontName,
-            fontFamily: card.fontFamily,
-            fontTier: card.fontTier,
-            wallpaperId: card.wallpaperId,
-            wallpaperUrl: card.wallpaperUrl,
-            wallpaperThumbUrl: card.wallpaperThumbUrl,
-            wallpaperTier: card.wallpaperTier,
-            wallpaperPriceCredits: Number(card.wallpaperPriceCredits || 0),
-            enableParallax: Boolean(card.enableParallax),
-            isFavorite: Boolean(card.isFavorite),
-            itemIds: card.itemIds,
-            holdersCount: Number(card.holdersCount || 0),
-            ratingAvg: Number(card.ratingAvg || 5),
-            ownerNickname: ownerNickname || undefined,
-            ownerPhotoUrl,
-          },
+          card: cardPayload,
         });
         console.log('[Card] persistCards: Después de upsertSmartCardInDb', card.id);
       }
@@ -490,6 +530,53 @@ export default function CardsFactoryScreen() {
     }
     console.log('[Card] persistCards: FIN');
   };
+
+  const searchFacetRepairInFlightRef = useRef(false);
+  const searchFacetRepairAttemptRef = useRef<{ uid: string | null; attempted: boolean }>({
+    uid: null,
+    attempted: false,
+  });
+
+  useEffect(() => {
+    if (searchFacetRepairInFlightRef.current) {
+      return;
+    }
+    if (!smartCards.length || !vaultItems.length) {
+      return;
+    }
+    const ids = smartCards
+      .filter(
+        (c) =>
+          c.itemIds.length > 0 && (!c.searchFacets || c.searchFacets.length === 0),
+      )
+      .map((c) => c.id);
+    if (!ids.length) {
+      return;
+    }
+    void (async () => {
+      const ownerUid = await getActiveUserId();
+      if (!ownerUid) {
+        return;
+      }
+      const state = searchFacetRepairAttemptRef.current;
+      if (state.uid !== ownerUid) {
+        searchFacetRepairAttemptRef.current = { uid: ownerUid, attempted: false };
+      } else if (state.attempted) {
+        return;
+      }
+      searchFacetRepairInFlightRef.current = true;
+      try {
+        searchFacetRepairAttemptRef.current = {
+          uid: ownerUid,
+          attempted: true,
+        };
+        await persistCards(smartCards, ids);
+        await loadSmartCards();
+      } finally {
+        searchFacetRepairInFlightRef.current = false;
+      }
+    })();
+  }, [smartCards, vaultItems]);
 
   const resetFactory = () => {
     setCardName('');
@@ -976,6 +1063,31 @@ export default function CardsFactoryScreen() {
     }
   };
 
+  const handleMuteSubscriber = async (targetUid: string, nextMuted: boolean) => {
+    if (!subscribersCard) {
+      return;
+    }
+    try {
+      const ownerUid = await getActiveUserId();
+      if (!ownerUid) {
+        throw new Error('No se pudo validar tu sesion.');
+      }
+
+      await setCardSubscriberMute({
+        ownerUid,
+        cardId: subscribersCard.id,
+        targetUid,
+        muted: nextMuted,
+      });
+
+      setSubscribers((prev) =>
+        prev.map((row) => (row.uid === targetUid ? { ...row, muted: nextMuted } : row))
+      );
+    } catch (error: any) {
+      Alert.alert(tr('No se pudo actualizar', 'Could not update'), error?.message || tr('Intenta de nuevo.', 'Try again.'));
+    }
+  };
+
   const issueQrForCard = async (card: SmartCard) => {
     try {
       // Hard Lock: Require biometric before generating QR (Nivel 6.6)
@@ -1123,15 +1235,14 @@ export default function CardsFactoryScreen() {
   }, [smartCards]);
 
   const filteredCards = useMemo(() => {
-    const q = cardSearchQuery.trim().toLowerCase();
-    if (!q) return sortedCards;
-    return sortedCards.filter((card) => {
-      if (card.name.toLowerCase().includes(q)) return true;
-      const cardItems = vaultItems.filter((vi) => card.itemIds.includes(vi.id));
-      return cardItems.some(
-        (vi) => vi.title.toLowerCase().includes(q) || vi.value.toLowerCase().includes(q) || vi.iconName.toLowerCase().includes(q),
-      );
-    });
+    const q = cardSearchQuery.trim();
+    if (!q) {
+      return sortedCards;
+    }
+    const qExpanded = buildExpandedMarketQuery(q) || q;
+    return orderByDeepSearchWithExpandedQuery(sortedCards, qExpanded, (card) =>
+      collectStringsSmartCard({ name: card.name, itemIds: card.itemIds }, vaultItems, false),
+    );
   }, [sortedCards, cardSearchQuery, vaultItems]);
 
   const openPreviewCard = (card: SmartCard) => {
@@ -1258,11 +1369,20 @@ export default function CardsFactoryScreen() {
       if (item.icon?.startsWith('http')) {
         return <ExpoImage source={{ uri: item.icon }} style={{ width: size, height: size, borderRadius: size / 2 }} cachePolicy="disk" />;
       }
-      // Protección exacta para el nombre del icono
+      const fromVault =
+        item.iconVaultId && iconVaultById[item.iconVaultId]?.materialIconName
+          ? sanitizeMaterialCommunityIconName(iconVaultById[item.iconVaultId].materialIconName)
+          : null;
+      const fromStoredIcon =
+        item.icon && String(item.icon).trim() !== '' && !String(item.icon).startsWith('http')
+          ? sanitizeMaterialCommunityIconName(item.icon)
+          : null;
       const safeIconName =
-        item.iconName && item.iconName.trim() !== ''
+        fromVault ||
+        fromStoredIcon ||
+        (item.iconName && item.iconName.trim() !== ''
           ? sanitizeMaterialCommunityIconName(item.iconName)
-          : 'help-circle';
+          : 'help-circle');
       return <MaterialCommunityIcons name={safeIconName as any} size={size} color="#0D4D8A" />;
     } catch {
       return <MaterialCommunityIcons name={"help-circle" as any} size={size} color="#0D4D8A" />;
@@ -1716,20 +1836,19 @@ export default function CardsFactoryScreen() {
     const chestTheme = getCardRowTheme(item.themeId);
     const holders = item.holdersCount ?? 0;
     const rating = item.ratingAvg ?? 5;
-    let swipeableRef: any = null;
 
     return (
       <Swipeable
-        ref={(ref) => {
-          swipeableRef = ref;
-        }}
         containerStyle={[styles.swipeWrap, isLandscape && styles.swipeWrapLandscape]}
         rightThreshold={24}
         leftThreshold={24}
-        renderLeftActions={() => <View style={styles.swipeLeftTriggerArea} />}
+        renderLeftActions={(_progress, _translation, methods) => {
+          swipeableMethodsByCardIdRef.current.set(item.id, methods);
+          return <View style={styles.swipeLeftTriggerArea} />;
+        }}
         onSwipeableOpen={(direction) => {
           if (direction === 'right') {
-            swipeableRef?.close?.();
+            swipeableMethodsByCardIdRef.current.get(item.id)?.close();
             confirmAndIssueQrForCard(item);
           }
         }}
@@ -1828,7 +1947,29 @@ export default function CardsFactoryScreen() {
           <Text style={[styles.headerSubtitle, { color: cardsTheme.sectionLabel }]}>{smartCards.length} / 30 {tr('tarjetas', 'cards')}</Text>
         </View>
         <View style={styles.headerActionsRow}>
-          
+          <TouchableOpacity
+            onPress={() => router.push('/(tabs)/createBusinessCard' as any)}
+            activeOpacity={0.9}
+            style={styles.businessCtaWrap}
+            accessibilityRole="button"
+            accessibilityLabel={tr('Abrir Business Card', 'Open Business Card')}
+          >
+            <LinearGradient
+              colors={['#0A2540', '#153D63', '#C5A065']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.businessCta}
+            >
+              <View style={styles.businessCtaIcon}>
+                <MaterialCommunityIcons name="diamond-stone" size={14} color="#0A2540" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.businessCtaTitle}>{tr('Tarjeta de Negocio', 'Business Card')}</Text>
+                <Text style={styles.businessCtaSub}>{tr('Lujo', 'Luxury')}</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={16} color="#F7E7C6" />
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -1836,6 +1977,8 @@ export default function CardsFactoryScreen() {
         data={filteredCards}
         keyExtractor={(item) => item.id}
         renderItem={renderCard}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
         horizontal={isLandscape}
         pagingEnabled={isLandscape}
         snapToAlignment={isLandscape ? 'start' : undefined}
@@ -1846,7 +1989,6 @@ export default function CardsFactoryScreen() {
         contentContainerStyle={[styles.cardsList, isLandscape && styles.cardsListLandscape]}
         bounces={false}
         overScrollMode="never"
-        keyboardDismissMode="on-drag"
         refreshControl={
           !isLandscape ? (
             <RefreshControl
@@ -1864,9 +2006,14 @@ export default function CardsFactoryScreen() {
         ListEmptyComponent={
           cardSearchQuery.trim().length > 0 ? (
             <View style={styles.emptyWrap}>
-              <MaterialCommunityIcons name="magnify-close" size={52} color="#0D4D8A" />
-              <Text style={styles.emptyTitle}>{tr('Sin resultados', 'No results')}</Text>
-              <Text style={styles.emptyText}>{tr(`No encontramos tarjetas con "${cardSearchQuery.trim()}"`, `No cards found matching "${cardSearchQuery.trim()}"`)}</Text>
+              <MaterialCommunityIcons name="magnify" size={52} color="#CCCCCC" />
+              <Text style={styles.emptyTitle}>{tr('Sin coincidencias', 'No matches')}</Text>
+              <Text style={styles.emptyText}>
+                {tr(
+                  'Prueba con otras palabras o sinónimos. También puedes revisar tu conexión.',
+                  'Try different words or synonyms. You can also check your connection.',
+                )}
+              </Text>
             </View>
           ) : (
             <View style={styles.emptyWrap}>
@@ -1884,14 +2031,26 @@ export default function CardsFactoryScreen() {
           <MaterialCommunityIcons name="magnify" size={18} color={cardsTheme.sectionLabel} />
           <TextInput
             style={[styles.cardSearchInput, { color: cardsTheme.inputText }]}
-            placeholder={tr('Buscar en mis tarjetas...', 'Search my cards...')}
+            placeholder={tr(
+              'Buscar nombre o datos enlazados (títulos, enlaces, texto…)',
+              'Search name or linked data (titles, links, text…)'
+            )}
             placeholderTextColor={cardsTheme.sectionLabel}
             value={cardSearchQuery}
             onChangeText={setCardSearchQuery}
             returnKeyType="search"
+            onSubmitEditing={Keyboard.dismiss}
+            autoCapitalize="none"
+            autoCorrect={false}
           />
           {cardSearchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setCardSearchQuery('')} accessibilityLabel={tr('Limpiar', 'Clear')}>
+            <TouchableOpacity
+              onPress={() => {
+                Keyboard.dismiss();
+                setCardSearchQuery('');
+              }}
+              accessibilityLabel={tr('Limpiar', 'Clear')}
+            >
               <MaterialCommunityIcons name="close-circle" size={16} color={cardsTheme.sectionLabel} />
             </TouchableOpacity>
           )}
@@ -1973,7 +2132,10 @@ export default function CardsFactoryScreen() {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.factoryActionBtn, { borderColor: cardsTheme.modalBorder, backgroundColor: cardsTheme.inputBg }]}
-                      onPress={() => setThemesPlaceholderVisible(true)}
+                      onPress={() => {
+                        void refreshThemes();
+                        setThemesPlaceholderVisible(true);
+                      }}
                       activeOpacity={0.82}
                     >
                       <MaterialCommunityIcons name="palette-outline" size={18} color={cardsTheme.icon} />
@@ -2191,8 +2353,22 @@ export default function CardsFactoryScreen() {
                         {tierThemes.map((t) => (
                           <TouchableOpacity
                             key={t.id}
-                            style={[styles.themePlaceholderTile, themeId === t.id && { borderWidth: 3, borderColor: '#C5A065', borderRadius: 14 }]}
+                            style={[
+                              styles.themePlaceholderTile,
+                              themeId === t.id && { borderWidth: 3, borderColor: '#C5A065', borderRadius: 14 },
+                              !isChestThemeUnlocked(t) ? { opacity: 0.5 } : null,
+                            ]}
                             onPress={() => {
+                              if (!isChestThemeUnlocked(t)) {
+                                Toast.show({
+                                  type: 'info',
+                                  text1: tr('Tema bloqueado', 'Theme locked'),
+                                  text2: tr('Desbloquéalo en Card-Studio (boutique).', 'Unlock it in Card-Studio (boutique).'),
+                                  position: 'bottom',
+                                  visibilityTime: 2800,
+                                });
+                                return;
+                              }
                               setThemeId(t.id);
                               void Haptics.selectionAsync();
                             }}
@@ -2201,7 +2377,9 @@ export default function CardsFactoryScreen() {
                             <LinearGradient colors={t.background} style={[styles.themePlaceholderSwatch, { borderColor: t.border.color, borderWidth: t.border.width, borderRadius: 12 }]} />
                             <View style={styles.themePlaceholderIconRow}>
                               <MaterialCommunityIcons name={t.icon.name as any} size={18} color={t.icon.color} />
-                              {t.locked ? <MaterialCommunityIcons name="lock-outline" size={12} color={t.border.color} /> : null}
+                              {t.locked && !unlockedIds.has(t.id) ? (
+                                <MaterialCommunityIcons name="lock-outline" size={12} color={t.border.color} />
+                              ) : null}
                             </View>
                             <Text style={[styles.themePlaceholderName, { color: t.title.color }]} numberOfLines={1}>{t.name}</Text>
                             {themeId === t.id ? (
@@ -2415,7 +2593,9 @@ export default function CardsFactoryScreen() {
             <Animated.View
               style={{
                 transform: [{
-                  rotate: rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '90deg'] }),
+                  rotate: rotateAnim.interpolate 
+                    ? rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '90deg'] }) 
+                    : '0deg',
                 }],
               }}
             >
@@ -2455,6 +2635,27 @@ export default function CardsFactoryScreen() {
                     rightThreshold={20}
                     renderRightActions={() => (
                       <View style={{ flexDirection: 'row', alignItems: 'stretch' }}>
+                        <TouchableOpacity
+                          style={styles.subscriberSwipeMute}
+                          onPress={() => {
+                            const title = row.muted
+                              ? tr('Dejar de silenciar', 'Unmute channel')
+                              : tr('Silenciar canal', 'Mute channel');
+                            const msg = row.muted
+                              ? tr('Esta persona volverá a ver historias y novedades de esta tarjeta.', 'They will see stories and updates from this card again.')
+                              : tr('No verá historias ni novedades de esta tarjeta (solo este canal).', 'They will not see stories or updates for this card only.');
+                            Alert.alert(title, msg, [
+                              { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+                              {
+                                text: row.muted ? tr('Activar', 'Unmute') : tr('Silenciar', 'Mute'),
+                                onPress: () => { void handleMuteSubscriber(row.uid, !row.muted); },
+                              },
+                            ]);
+                          }}
+                        >
+                          <MaterialCommunityIcons name={row.muted ? 'volume-high' : 'volume-off'} size={16} color="#FFFFFF" />
+                          <Text style={styles.swipeActionText}>{row.muted ? tr('Audio', 'Unmute') : tr('Silenciar', 'Mute')}</Text>
+                        </TouchableOpacity>
                         <TouchableOpacity
                           style={styles.subscriberSwipeRevoke}
                           onPress={() => {
@@ -2499,11 +2700,33 @@ export default function CardsFactoryScreen() {
                             <MaterialCommunityIcons name="account" size={16} color="#0D4D8A" />
                           </View>
                         )}
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.subscriberName}>{row.name}</Text>
-                          <Text style={styles.subscriberUid}>@{row.uid}</Text>
+                        <View style={[styles.subscriberMetaColumn, { flex: 1 }]}>
+                          <Text style={styles.subscriberName}>{row.fullName || row.name}</Text>
+                          <Text style={styles.subscriberUid}>@{row.nickname}</Text>
+                          {row.muted ? (
+                            <Text style={[styles.subscriberMutedTag, { color: cardsTheme.sectionLabel }]}>
+                              {tr('Canal silenciado', 'Channel muted')}
+                            </Text>
+                          ) : null}
+                          <View style={styles.mutualRow}>
+                            <Text style={[styles.mutualLabel, { color: cardsTheme.sectionLabel }]}>
+                              {tr('En común en Card-Social', 'Mutual on Card-Social')}: {row.mutualCount}
+                            </Text>
+                            {row.mutualPreviewPhotos.length > 0 ? (
+                              <View style={styles.mutualStackRow}>
+                                {row.mutualPreviewPhotos.slice(0, 3).map((uri, idx) => (
+                                  <ExpoImage
+                                    key={`${row.uid}-mutual-${idx}`}
+                                    source={{ uri }}
+                                    style={[styles.mutualTinyAvatar, idx === 0 ? styles.mutualTinyAvatarFirst : null]}
+                                    cachePolicy="disk"
+                                  />
+                                ))}
+                              </View>
+                            ) : null}
+                          </View>
                         </View>
-                        {renderRatingStars(5)}
+                        {renderRatingStars(row.userRating)}
                       </View>
                     </View>
                   </Swipeable>
@@ -2730,6 +2953,45 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  businessCtaWrap: {
+    borderRadius: 14,
+    shadowColor: '#0A2540',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  businessCta: {
+    minHeight: 48,
+    minWidth: 172,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  businessCtaIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 999,
+    backgroundColor: '#F7E7C6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  businessCtaTitle: {
+    color: '#F7E7C6',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  businessCtaSub: {
+    marginTop: 1,
+    color: '#E9D8B0',
+    fontSize: 10,
+    fontWeight: '700',
   },
 
 
@@ -4111,6 +4373,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
   },
+  subscriberSwipeMute: {
+    width: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#5B6E8C',
+    gap: 4,
+  },
   subscriberSwipeRevoke: {
     width: 72,
     alignItems: 'center',
@@ -4124,5 +4393,39 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#B7343A',
     gap: 4,
+  },
+  subscriberMetaColumn: {
+    minWidth: 0,
+  },
+  subscriberMutedTag: {
+    fontSize: 11,
+    marginTop: 2,
+    fontWeight: '600',
+  },
+  mutualRow: {
+    marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  mutualLabel: {
+    fontSize: 11,
+    flexShrink: 1,
+  },
+  mutualStackRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  mutualTinyAvatar: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    marginLeft: -7,
+  },
+  mutualTinyAvatarFirst: {
+    marginLeft: 0,
   },
 });

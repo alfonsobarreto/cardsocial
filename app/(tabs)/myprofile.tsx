@@ -12,6 +12,8 @@
  */
 
 import { getActiveUserId } from '@/services/authSession';
+import { getUserCreditsBalance } from '@/services/creditsService';
+import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { auth, db } from '@/services/firebaseConfig';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
@@ -48,38 +50,6 @@ import {
     View
 } from 'react-native';
 import palette from '../theme';
-  // Zona de peligro: eliminar cuenta
-  const handleDeleteAccount = async () => {
-    Alert.alert(
-      tr('Confirmar Eliminación', 'Confirm Delete'),
-      tr(
-        'Tu cuenta será desactivada inmediatamente y eliminada de forma permanente en 30 días. Si inicias sesión antes, la eliminación se cancelará. ¿Deseas continuar?',
-        'Your account will be deactivated immediately and permanently deleted in 30 days. If you log in before then, deletion will be cancelled. Continue?'
-      ),
-      [
-        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
-        {
-          text: tr('Sí, eliminar cuenta', 'Yes, delete account'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              if (!profile) throw new Error('No user');
-              const now = new Date();
-              const deadline = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-              await updateDoc(doc(db, 'users', profile.uid), {
-                pendingDeletion: true,
-                deletionRequestedAt: now,
-                deletionDeadline: deadline,
-              });
-              await signOut(auth);
-            } catch (e) {
-              Alert.alert(tr('Error', 'Error'), tr('No se pudo marcar la cuenta para eliminación.', 'Could not mark account for deletion.'));
-            }
-          },
-        },
-      ]
-    );
-  };
 
 // ─── Photo helpers ─────────────────────────────────────────────────────────────
 const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
@@ -202,6 +172,7 @@ export default function MyProfileScreen() {
   // Stats
   const [statsCards, setStatsCards] = useState(0);
   const [statsContacts, setStatsContacts] = useState(0);
+  const [creditsBalance, setCreditsBalance] = useState(0);
 
   const scrollRef = useRef<ScrollView>(null);
 
@@ -256,12 +227,47 @@ export default function MyProfileScreen() {
         setStatsCards(cardsSnap.size);
         const contactsSnap = await getDocs(collection(db, 'users', uid, 'contacts'));
         setStatsContacts(contactsSnap.size);
+        setCreditsBalance(await getUserCreditsBalance(uid));
       } catch { /* stats are non-critical */ }
     } catch (e: any) {
       Alert.alert(tr('Error', 'Error'), e?.message || 'No se pudo cargar el perfil.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      tr('Confirmar Eliminación', 'Confirm Delete'),
+      tr(
+        'Tu cuenta será desactivada inmediatamente y eliminada de forma permanente en 30 días. Si inicias sesión antes, la eliminación se cancelará. ¿Deseas continuar?',
+        'Your account will be deactivated immediately and permanently deleted in 30 days. If you log in before then, deletion will be cancelled. Continue?'
+      ),
+      [
+        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+        {
+          text: tr('Sí, eliminar cuenta', 'Yes, delete account'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              if (!profile) throw new Error('No user');
+              const uid = profile.uid;
+              const now = new Date();
+              const deadline = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+              await updateDoc(doc(db, 'users', uid), {
+                pendingDeletion: true,
+                deletionRequestedAt: now,
+                deletionDeadline: deadline,
+              });
+              await clearLocalCachesForSignOut(uid);
+              await signOut(auth);
+            } catch (e) {
+              Alert.alert(tr('Error', 'Error'), tr('No se pudo marcar la cuenta para eliminación.', 'Could not mark account for deletion.'));
+            }
+          },
+        },
+      ]
+    );
   };
 
   // ── Photo picker ────────────────────────────────────────────────────────────
@@ -640,6 +646,11 @@ export default function MyProfileScreen() {
               <View style={styles.statItem}>
                 <Text style={[styles.statValue, { color: textPrimary }]}>{statsContacts}</Text>
                 <Text style={[styles.statLabel, { color: textSecondary }]}>{tr('Contactos', 'Contacts')}</Text>
+              </View>
+              <View style={[styles.statDivider, { backgroundColor: border }]} />
+              <View style={styles.statItem}>
+                <Text style={[styles.statValue, { color: textPrimary }]}>{creditsBalance}</Text>
+                <Text style={[styles.statLabel, { color: textSecondary }]}>{tr('Créditos CS', 'CS credits')}</Text>
               </View>
             </View>
 

@@ -1,5 +1,7 @@
 import ErrorBoundary from '@/components/ErrorBoundary';
 import FlexGrid from '@/components/FlexGrid';
+import { MEDIA_PLACEHOLDER } from '@/constants/mediaPlaceholders';
+import { ActionController } from '@/services/ActionController';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import {
@@ -11,7 +13,10 @@ import {
 } from '@/services/ghostLinkVoip';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
+import { collectStringsReceivedContact, orderByDeepSearchWithExpandedQuery } from '@/services/deepSearch';
+import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
 import { blockRelationship, createCallLog, listReceivedContacts, removeRelationship } from '@/services/qrApi';
+import { extractEmailFromFacets, extractWhatsAppUrlFromFacets } from '@/services/receivedContactFacets';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
@@ -26,7 +31,9 @@ import {
   Animated,
   AppState,
   Easing,
+  Keyboard,
   LayoutAnimation,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -34,13 +41,18 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   UIManager,
   View
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Swipeable } from 'react-native-gesture-handler';
+
+const GHOST_PREMIUM_GRADIENT = ['#030814', '#0A1E38', '#0F2F58'] as const;
 
 type Contact = {
   uid: string;
+  cardId?: string | null;
   name: string;
   nickname: string;
   photoUrl: string | null;
@@ -49,6 +61,7 @@ type Contact = {
   holdersCount: number;
   addedAt: string | null;
   storyState?: 'none' | 'normal' | 'vip';
+  searchFacets?: Array<{ type: string; label: string; value: string }>;
   meta?: {
     group: string;
     isFavorite: boolean;
@@ -75,11 +88,6 @@ type Icon = {
 };
 
 type SortMode = 'name' | 'card' | 'date' | 'groups';
-
-type ContactAction = {
-  key: 'call' | 'chat' | 'browser';
-  title: string;
-};
 
 const CONTACT_META_STORAGE_KEY = 'contacts_meta_v2';
 const CONTACTS_CACHE_STORAGE_KEY = 'contacts_cache_v1';
@@ -113,9 +121,6 @@ type IncomingGhostCallView = {
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
-
-
-import { Keyboard, TouchableWithoutFeedback } from 'react-native';
 
 export default function ContactsPage() {
   return (
@@ -177,11 +182,7 @@ function ContactsContent() {
   const [groupPickerVisible, setGroupPickerVisible] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
 
-  const [actionPickerVisible, setActionPickerVisible] = useState(false);
-  const [currentAction, setCurrentAction] = useState<ContactAction | null>(null);
-  const [ghostConfirmVisible, setGhostConfirmVisible] = useState(false);
   const [ghostCallLoading, setGhostCallLoading] = useState(false);
-  const [ghostCallTarget, setGhostCallTarget] = useState<Contact | null>(null);
   const [activeGhostCall, setActiveGhostCall] = useState<ActiveGhostCallView | null>(null);
   const [incomingGhostCall, setIncomingGhostCall] = useState<IncomingGhostCallView | null>(null);
   const [ghostCallMuted, setGhostCallMuted] = useState(false);
@@ -418,7 +419,7 @@ function ContactsContent() {
   }, [metaMap, groupFavorites]);
 
   const normalizedContacts = useMemo(() => {
-    const q = searchValue.trim().toLowerCase();
+    const qRaw = searchValue.trim();
 
     const withMeta = contacts.map((contact) => {
       const meta = metaMap[contact.uid] || {
@@ -432,18 +433,26 @@ function ContactsContent() {
       };
     });
 
-    const filtered = q
-      ? withMeta.filter((row) => {
-          const byName = row.name.toLowerCase().includes(q);
-          const byNick = row.nickname.toLowerCase().includes(q);
-          const byCard = row.cardName.toLowerCase().includes(q);
-          const byGroup = row.meta.group.toLowerCase().includes(q);
-          const byIcon = row.meta.icons?.some((icon) => icon.name.toLowerCase().includes(q) || icon.url.toLowerCase().includes(q));
-          return byName || byNick || byCard || byGroup || byIcon;
-        })
-      : withMeta;
+    if (!qRaw) {
+      return withMeta;
+    }
 
-    return filtered;
+    const qExpanded = buildExpandedMarketQuery(qRaw) || qRaw;
+
+    return orderByDeepSearchWithExpandedQuery(withMeta, qExpanded, (row) =>
+      collectStringsReceivedContact(
+        {
+          uid: row.uid,
+          cardId: row.cardId ?? null,
+          name: row.name,
+          nickname: row.nickname,
+          cardName: row.cardName,
+          searchFacets: row.searchFacets,
+        },
+        row.meta.group,
+        row.meta.icons,
+      ),
+    );
   }, [contacts, metaMap, searchValue]);
 
   const sortedContacts = useMemo(() => {
@@ -567,6 +576,30 @@ function ContactsContent() {
     );
   };
 
+  const renderGhostLinkBrandLogo = () => (
+    <View style={styles.ghostBrandLogoWrap} accessibilityRole="image" accessibilityLabel={tr('Card Social', 'Card Social')}>
+      <ExpoImage
+        source={require('../../assets/images/CS Icon Logo BG transparent.png')}
+        style={styles.ghostBrandLogoImage}
+        contentFit="contain"
+      />
+    </View>
+  );
+
+  const renderGhostAvatarGlowing = (uri: string | null) => (
+    <View style={styles.ghostAvatarGlowOuter}>
+      <View style={styles.ghostAvatarGlowInner}>
+        {uri ? (
+          <ExpoImage source={{ uri }} style={styles.ghostAvatarImage} cachePolicy="disk" />
+        ) : (
+          <View style={styles.ghostAvatarImageFallback}>
+            <MaterialCommunityIcons name="account" size={40} color="#1A3A5C" />
+          </View>
+        )}
+      </View>
+    </View>
+  );
+
   const updateContactMeta = async (uid: string, updater: (prev: ContactMeta) => ContactMeta) => {
     const base = metaMap[uid] || {
       group: GROUP_DEFAULT,
@@ -597,6 +630,8 @@ function ContactsContent() {
         setFloatingVisible(false);
         setSelectedContact(null);
       }
+      setLongPressVisible(false);
+      setLongPressContact(null);
     } catch (error: any) {
       Alert.alert(tr('No se pudo eliminar', 'Could not delete'), error?.message || tr('Intenta de nuevo.', 'Try again.'));
     }
@@ -637,6 +672,7 @@ function ContactsContent() {
   };
 
   const closeFloatingCard = () => {
+    Keyboard.dismiss();
     Animated.timing(cardOpacity, {
       toValue: 0,
       duration: 160,
@@ -648,63 +684,46 @@ function ContactsContent() {
     });
   };
 
-  const openActionPicker = (action: ContactAction) => {
-    setCurrentAction(action);
-    setActionPickerVisible(true);
-  };
-
-  const openGhostLinkConfirm = (contact: Contact) => {
-    setGhostCallTarget(contact);
-    setGhostConfirmVisible(true);
-  };
-
-  const closeGhostLinkConfirm = () => {
-    if (ghostCallLoading) {
-      return;
-    }
-    setGhostConfirmVisible(false);
-    setGhostCallTarget(null);
-  };
-
-  const executeGhostLinkCall = async () => {
+  const startOutgoingGhostCallFromContact = async (contact: Contact | null) => {
     try {
-      if (!ghostCallTarget) {
+      if (!contact) {
         return;
       }
 
       const ownerUid = await getActiveUserId();
       if (!ownerUid) {
-        Alert.alert(tr('Sesion requerida', 'Session required'), tr('No se pudo validar tu sesion para iniciar Ghost-Link.', 'Could not validate your session to start Ghost-Link.'));
+        Alert.alert(
+          tr('Sesión requerida', 'Session required'),
+          tr('Inicia sesión para usar Llamada privada.', 'Sign in to use Private call.'),
+        );
         return;
       }
 
-      // Hard lock before starting private VoIP bridge
       const authenticated = await hardLockCheck('iniciar llamada Ghost-Link');
       if (!authenticated) {
         return;
       }
 
       setGhostCallLoading(true);
-      const sourceCardName = String(ghostCallTarget.cardName || 'Tarjeta Social').trim();
+      const sourceCardName = String(contact.cardName || 'Tarjeta Social').trim();
 
       const callStartResult = await startGhostLinkVoipCall({
         ownerUid,
-        targetUid: ghostCallTarget.uid,
+        targetUid: contact.uid,
         card: {
           sourceCardName,
-          sourceCardId: null,
+          sourceCardId: contact.cardId ?? null,
         },
       });
 
-      const receiverPhotoUrl =
-        resolveReceiverPhotoForOutgoing(callStartResult, ghostCallTarget.photoUrl);
+      const receiverPhotoUrl = resolveReceiverPhotoForOutgoing(callStartResult, contact.photoUrl);
 
       setActiveGhostCall({
         inviteId: callStartResult.inviteId,
         sessionId: callStartResult.sessionId,
         sourceCardName,
-        peerName: callStartResult.receiverDisplay.name || ghostCallTarget.name,
-        peerNickname: callStartResult.receiverDisplay.nickname || ghostCallTarget.nickname,
+        peerName: callStartResult.receiverDisplay.name || contact.name,
+        peerNickname: callStartResult.receiverDisplay.nickname || contact.nickname,
         peerPhotoUrl: receiverPhotoUrl,
         direction: 'outgoing',
       });
@@ -713,18 +732,15 @@ function ContactsContent() {
 
       await createCallLog({
         ownerUid,
-        peerUid: ghostCallTarget.uid,
+        peerUid: contact.uid,
         direction: 'outgoing',
         status: 'completed',
         durationSec: 0,
         tags: ['Ghost-Link'],
         sourceCardName,
-        sourceCardId: null,
+        sourceCardId: contact.cardId ?? null,
         callChannel: 'ghost-link-voip',
       });
-
-      setGhostConfirmVisible(false);
-      setGhostCallTarget(null);
     } catch (error: any) {
       Alert.alert(tr('No se pudo iniciar Ghost-Link', 'Could not start Ghost-Link'), error?.message || tr('Intenta de nuevo.', 'Try again.'));
     } finally {
@@ -767,7 +783,6 @@ function ContactsContent() {
     setActiveGhostCall(null);
     setGhostCallMuted(false);
     setGhostCallSpeaker(false);
-    Alert.alert(tr('Llamada finalizada', 'Call ended'), tr('Ghost-Link se cerró. Tu numero real continuo oculto.', 'Ghost-Link closed. Your real number remains hidden.'));
   };
 
   const rejectIncomingGhostCall = () => {
@@ -861,91 +876,10 @@ function ContactsContent() {
     })();
   };
 
-  const performActionDestination = (destination: 'browser' | 'application') => {
-    setActionPickerVisible(false);
-    Alert.alert(
-      'Destino seleccionado',
-      `${currentAction?.title || 'Accion'} via ${destination === 'browser' ? 'Browser' : 'Application'}.`
-    );
-  };
-
   const onLongPressRow = (contact: Contact) => {
     setLongPressContact(contact);
     setLongPressVisible(true);
   };
-
-  const renderRow = ({ item }: { item: { type: 'contact' | 'header'; key: string; title?: string; contact?: Contact } }) => {
-    if (item.type === 'header') {
-      return (
-        <View style={styles.groupHeaderWrap}>
-          <Text style={[styles.groupHeaderText, { color: contactsTheme.textPrimary }]}>{item.title}</Text>
-        </View>
-      );
-    }
-
-    const row = item.contact!;
-    const isAlert = Number(row.ratingAvg || 0) <= RATING_ALERT;
-
-    return (
-      <Swipeable
-        renderRightActions={() => (
-          <View style={styles.swipeActionsContainer}>
-            <TouchableOpacity
-              style={styles.swipeActionButton}
-              onPress={() => handleDeleteContact(row.uid)}
-            >
-              <MaterialCommunityIcons name="trash-can-outline" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.swipeActionButton}
-              onPress={() => handleBlockContact(row.uid)}
-            >
-              <MaterialCommunityIcons name="block-helper" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-        )}
-      >
-        <TouchableOpacity
-          style={[styles.contactCard, { backgroundColor: contactsTheme.cardBg, borderColor: contactsTheme.cardBorder }]}>
-          <View
-            style={[
-              styles.avatarRing,
-              row.storyState === 'vip' || row.meta?.storyState === 'vip'
-                ? styles.avatarRingVip
-                : row.storyState === 'normal' || row.meta?.storyState === 'normal'
-                  ? styles.avatarRingNormal
-                  : styles.avatarRingNone,
-            ]}
-          >
-            {row.photoUrl ? (
-              <ExpoImage source={{ uri: row.photoUrl }} style={styles.avatar} cachePolicy="disk" />
-            ) : (
-              <View style={[styles.avatarFallback, { backgroundColor: contactsTheme.avatarFallbackBg, borderColor: contactsTheme.avatarFallbackBorder }]}>
-                <MaterialCommunityIcons name="account" size={18} color={contactsTheme.iconColor} />
-              </View>
-            )}
-          </View>
-
-          <View style={{ flex: 1 }}>
-            <View style={styles.nameRow}>
-              <Text style={[styles.contactName, { color: contactsTheme.textPrimary }]} numberOfLines={1}>{row.name}</Text>
-              <Text style={[styles.contactNick, { color: contactsTheme.textSecondary }]} numberOfLines={1}>@{row.nickname}</Text>
-            </View>
-            <Text style={[styles.cardNameText, { color: contactsTheme.textSecondary }]} numberOfLines={1}>{row.cardName}</Text>
-            <View style={styles.metaRow}>
-              {renderStars(row.ratingAvg)}
-              <Text style={[styles.ratingNumber, isAlert && styles.ratingNumberAlert, { color: contactsTheme.textPrimary }]}>{Number(row.ratingAvg || 0).toFixed(1)}</Text>
-              <View style={[styles.holdersPill, { backgroundColor: contactsTheme.pillBg, borderColor: contactsTheme.pillBorder }]}>
-                <MaterialCommunityIcons name="account-group-outline" size={12} color={contactsTheme.iconColor} />
-                <Text style={[styles.holdersPillText, { color: contactsTheme.pillText }]}>{row.holdersCount}</Text>
-              </View>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Swipeable>
-    );
-  };
-
 
   return (
     <LinearGradient colors={isNight ? ['#071A32', '#0A2540', '#0F2C50'] : ['#EAF7FF', '#CDEFFF', '#B8E7FF']} style={styles.container}>
@@ -985,6 +919,35 @@ function ContactsContent() {
             <View style={styles.centerWrap}>
               <ActivityIndicator color="#0D4D8A" size="large" />
             </View>
+          ) : rowsWithHeaders.length === 0 ? (
+            <Pressable onPress={Keyboard.dismiss} style={styles.emptyListRoot}>
+              <MaterialCommunityIcons name="magnify" size={64} color={contactsTheme.searchPlaceholder} />
+              {contacts.length === 0 && !searchValue.trim() ? (
+                <>
+                  <Text style={[styles.emptyListTitle, { color: contactsTheme.textPrimary }]}>
+                    {tr('Sin contactos aún', 'No contacts yet')}
+                  </Text>
+                  <Text style={[styles.emptyListSubtitle, { color: contactsTheme.textSecondary }]}>
+                    {tr(
+                      'Escanea un QR o acepta invitaciones para ver contactos aquí.',
+                      'Scan a QR or accept invites to see contacts here.',
+                    )}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={[styles.emptyListTitle, { color: contactsTheme.textPrimary }]}>
+                    {tr('Sin coincidencias', 'No matches')}
+                  </Text>
+                  <Text style={[styles.emptyListSubtitle, { color: contactsTheme.textSecondary }]}>
+                    {tr(
+                      'Prueba con otras palabras o sinónimos. También puedes revisar tu conexión.',
+                      'Try different words or synonyms. You can also check your connection.',
+                    )}
+                  </Text>
+                </>
+              )}
+            </Pressable>
           ) : (
             <FlexGrid
               items={rowsWithHeaders as ContactListRow[]}
@@ -1019,7 +982,12 @@ function ContactsContent() {
                     )}
                   >
                     <TouchableOpacity
-                      style={[styles.contactCard, { backgroundColor: contactsTheme.cardBg, borderColor: contactsTheme.cardBorder }]}>
+                      style={[styles.contactCard, { backgroundColor: contactsTheme.cardBg, borderColor: contactsTheme.cardBorder }]}
+                      onPress={() => void openFloatingCard(row)}
+                      onLongPress={() => onLongPressRow(row)}
+                      delayLongPress={400}
+                      activeOpacity={0.88}
+                    >
                       <View
                         style={[
                           styles.avatarRing,
@@ -1033,8 +1001,20 @@ function ContactsContent() {
                         {row.photoUrl ? (
                           <ExpoImage source={{ uri: row.photoUrl }} style={styles.avatar} cachePolicy="disk" />
                         ) : (
-                          <View style={[styles.avatarFallback, { backgroundColor: contactsTheme.avatarFallbackBg, borderColor: contactsTheme.avatarFallbackBorder }]}>
-                            <MaterialCommunityIcons name="account" size={18} color={contactsTheme.iconColor} />
+                          <View
+                            style={[
+                              styles.avatarFallback,
+                              {
+                                backgroundColor: isNight ? MEDIA_PLACEHOLDER.personBgDark : MEDIA_PLACEHOLDER.personBgLight,
+                                borderColor: isNight ? MEDIA_PLACEHOLDER.personBorderDark : MEDIA_PLACEHOLDER.personBorderLight,
+                              },
+                            ]}
+                          >
+                            <MaterialCommunityIcons
+                              name={MEDIA_PLACEHOLDER.personIconName}
+                              size={18}
+                              color={isNight ? MEDIA_PLACEHOLDER.personIconDark : MEDIA_PLACEHOLDER.personIconLight}
+                            />
                           </View>
                         )}
                       </View>
@@ -1080,11 +1060,30 @@ function ContactsContent() {
           <MaterialCommunityIcons name="magnify" size={17} color={contactsTheme.iconColor} />
           <TextInput
             style={[styles.searchInput, { color: contactsTheme.searchText }]}
-            placeholder={tr('Buscar por nombre, tarjeta o grupo', 'Search by name, card, or group')}
+            placeholder={tr(
+              'Buscar nombre, tarjeta, grupo o datos compartidos (no teléfonos)',
+              'Search name, card, group, or shared data (not phone numbers)'
+            )}
             placeholderTextColor={contactsTheme.searchPlaceholder}
             value={searchValue}
             onChangeText={setSearchValue}
+            returnKeyType="search"
+            onSubmitEditing={Keyboard.dismiss}
+            autoCapitalize="none"
+            autoCorrect={false}
           />
+          {searchValue.length > 0 ? (
+            <TouchableOpacity
+              onPress={() => {
+                Keyboard.dismiss();
+                setSearchValue('');
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel={tr('Limpiar búsqueda', 'Clear search')}
+            >
+              <MaterialCommunityIcons name="close-circle" size={18} color={contactsTheme.searchPlaceholder} />
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
 
@@ -1099,7 +1098,13 @@ function ContactsContent() {
               { key: 'groups', label: tr('Grupos', 'Groups') }].map((option) => (
               <TouchableOpacity
                 key={option.key}
-                style={[styles.sortOptionRow, sortMode === option.key && styles.sortOptionRowActive, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]}>
+                style={[styles.sortOptionRow, sortMode === option.key && styles.sortOptionRowActive, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]}
+                onPress={() => {
+                  setSortMode(option.key as SortMode);
+                  setSortVisible(false);
+                }}
+                activeOpacity={0.85}
+              >
                 <Text style={[styles.sortOptionText, sortMode === option.key && styles.sortOptionTextActive, { color: contactsTheme.textSecondary }]}>{option.label}</Text>
                 {sortMode === option.key ? <MaterialCommunityIcons name="check-circle" size={17} color={contactsTheme.iconColor} /> : null}
               </TouchableOpacity>
@@ -1109,46 +1114,111 @@ function ContactsContent() {
       </Modal>
 
       <Modal visible={longPressVisible} transparent animationType="fade" onRequestClose={() => setLongPressVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.actionModalCard, { backgroundColor: contactsTheme.modalBg, borderColor: contactsTheme.modalBorder }]}>
-            <Text style={[styles.actionModalTitle, { color: contactsTheme.textPrimary }]}>{longPressContact?.name || 'Contacto'}</Text>
+        <Pressable style={styles.modalOverlay} onPress={() => setLongPressVisible(false)}>
+          <Pressable onPress={() => {}} style={[styles.actionModalCard, { backgroundColor: contactsTheme.modalBg, borderColor: contactsTheme.modalBorder }]}>
+            <Text style={[styles.actionModalTitle, { color: contactsTheme.textPrimary }]}>{longPressContact?.name || tr('Contacto', 'Contact')}</Text>
             <TouchableOpacity
-              style={[styles.actionRow, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]}>
-              <MaterialCommunityIcons name="star-outline" size={18} color={contactsTheme.iconColor} />
-              <Text style={[styles.actionText, { color: contactsTheme.textSecondary }]}>Favorito / no favorito</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionRow, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]}>
-              <MaterialCommunityIcons name="folder-move-outline" size={18} color={contactsTheme.iconColor} />
-              <Text style={[styles.actionText, { color: contactsTheme.textSecondary }]}>Mover a Grupo</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionRow, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]}>
-              <MaterialCommunityIcons name="trash-can-outline" size={18} color={contactsTheme.iconColor} />
-              <Text style={[styles.actionText, { color: contactsTheme.textSecondary }]}>Eliminar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionRowDanger}
+              style={[styles.actionRow, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]}
+              activeOpacity={0.85}
               onPress={() => {
                 const uid = longPressContact?.uid;
                 if (!uid) {
                   return;
                 }
-                Alert.alert('Bloquear contacto', 'Se activara blocked_relations y se cortara el acceso.', [
-                  { text: 'Cancelar', style: 'cancel' },
-                  {
-                    text: 'Bloquear',
-                    style: 'destructive',
-                    onPress: () => handleBlockContact(uid),
-                  },
-                ]);
+                void updateContactMeta(uid, (prev) => ({
+                  ...prev,
+                  isFavorite: !prev.isFavorite,
+                }));
+                setLongPressVisible(false);
+                setLongPressContact(null);
+              }}
+            >
+              <MaterialCommunityIcons
+                name={
+                  longPressContact?.uid && metaMap[longPressContact.uid]?.isFavorite ? 'star' : 'star-outline'
+                }
+                size={18}
+                color={contactsTheme.iconColor}
+              />
+              <Text style={[styles.actionText, { color: contactsTheme.textSecondary }]}>
+                {tr('Favorito / quitar favorito', 'Favorite / unfavorite')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionRow, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]}
+              activeOpacity={0.85}
+              onPress={() => {
+                setLongPressVisible(false);
+                setGroupPickerVisible(true);
+              }}
+            >
+              <MaterialCommunityIcons name="folder-move-outline" size={18} color={contactsTheme.iconColor} />
+              <Text style={[styles.actionText, { color: contactsTheme.textSecondary }]}>
+                {tr('Mover a grupo', 'Move to group')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionRow, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]}
+              activeOpacity={0.85}
+              onPress={() => {
+                const uid = longPressContact?.uid;
+                if (!uid) {
+                  return;
+                }
+                setLongPressVisible(false);
+                Alert.alert(
+                  tr('Eliminar contacto', 'Delete contact'),
+                  tr(
+                    '¿Quitar este contacto de tu lista? Podrás volver a agregarlo con un QR.',
+                    'Remove this contact from your list? You can add them again with a QR.',
+                  ),
+                  [
+                    { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+                    {
+                      text: tr('Eliminar', 'Delete'),
+                      style: 'destructive',
+                      onPress: () => void handleDeleteContact(uid),
+                    },
+                  ],
+                );
+                setLongPressContact(null);
+              }}
+            >
+              <MaterialCommunityIcons name="trash-can-outline" size={18} color={contactsTheme.iconColor} />
+              <Text style={[styles.actionText, { color: contactsTheme.textSecondary }]}>{tr('Eliminar', 'Delete')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionRowDanger}
+              activeOpacity={0.85}
+              onPress={() => {
+                const uid = longPressContact?.uid;
+                if (!uid) {
+                  return;
+                }
+                setLongPressVisible(false);
+                setLongPressContact(null);
+                Alert.alert(
+                  tr('Bloquear contacto', 'Block contact'),
+                  tr(
+                    'Se activará el bloqueo y se cortará el acceso con esta persona.',
+                    'Blocking will cut off access with this person.',
+                  ),
+                  [
+                    { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+                    {
+                      text: tr('Bloquear', 'Block'),
+                      style: 'destructive',
+                      onPress: () => void handleBlockContact(uid),
+                    },
+                  ],
+                );
               }}
             >
               <MaterialCommunityIcons name="cancel" size={18} color="#FFFFFF" />
-              <Text style={styles.actionTextDanger}>Bloquear</Text>
+              <Text style={styles.actionTextDanger}>{tr('Bloquear', 'Block')}</Text>
             </TouchableOpacity>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
 
       <Modal visible={groupPickerVisible} transparent animationType="fade" onRequestClose={() => setGroupPickerVisible(false)}>
@@ -1238,8 +1308,20 @@ function ContactsContent() {
             {selectedContact?.photoUrl ? (
               <ExpoImage source={{ uri: selectedContact.photoUrl }} style={styles.modalAvatar} cachePolicy="disk" />
             ) : (
-              <View style={[styles.modalAvatarFallback, { backgroundColor: contactsTheme.avatarFallbackBg, borderColor: contactsTheme.avatarFallbackBorder }]}>
-                <MaterialCommunityIcons name="account" size={22} color={contactsTheme.iconColor} />
+              <View
+                style={[
+                  styles.modalAvatarFallback,
+                  {
+                    backgroundColor: isNight ? MEDIA_PLACEHOLDER.personBgDark : MEDIA_PLACEHOLDER.personBgLight,
+                    borderColor: isNight ? MEDIA_PLACEHOLDER.personBorderDark : MEDIA_PLACEHOLDER.personBorderLight,
+                  },
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name={MEDIA_PLACEHOLDER.personIconName}
+                  size={22}
+                  color={isNight ? MEDIA_PLACEHOLDER.personIconDark : MEDIA_PLACEHOLDER.personIconLight}
+                />
               </View>
             )}
             <Text style={[styles.modalName, { color: contactsTheme.textPrimary }]}>{selectedContact?.name || ''}</Text>
@@ -1249,60 +1331,92 @@ function ContactsContent() {
             <View style={styles.modalStatsRow}>
               {renderStars(Number(selectedContact?.ratingAvg || 0))}
               <Text style={[styles.modalRatingNumber, { color: contactsTheme.textPrimary }]}>{Number(selectedContact?.ratingAvg || 0).toFixed(1)}</Text>
-              <Text style={[styles.modalHoldersText, { color: contactsTheme.textSecondary }]}>{selectedContact?.holdersCount || 0} poseedores</Text>
+              <Text style={[styles.modalHoldersText, { color: contactsTheme.textSecondary }]}>
+                {selectedContact?.holdersCount ?? 0} {tr('poseedores', 'holders')}
+              </Text>
             </View>
 
-            <View style={styles.actionIconRow}>
-              <TouchableOpacity style={[styles.actionIconBtn, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]} onPress={() => selectedContact && openGhostLinkConfirm(selectedContact)}>
-                <MaterialCommunityIcons name="phone-outline" size={19} color={contactsTheme.iconColor} />
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.actionIconBtn, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]} onPress={() => openActionPicker({ key: 'chat', title: 'Mensaje' })}>
-                <MaterialCommunityIcons name="chat-outline" size={19} color={contactsTheme.iconColor} />
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.actionIconBtn, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]} onPress={() => openActionPicker({ key: 'browser', title: 'Abrir enlace' })}>
-                <MaterialCommunityIcons name="web" size={19} color={contactsTheme.iconColor} />
-              </TouchableOpacity>
-            </View>
+            {selectedContact ? (
+              (() => {
+                const facets = selectedContact.searchFacets ?? [];
+                const emailAddr = extractEmailFromFacets(facets);
+                const waUrl = extractWhatsAppUrlFromFacets(facets);
+                return (
+                  <View style={[styles.modalContactHeroRow, { borderTopColor: contactsTheme.modalRowBorder }]}>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.modalContactHeroBtn,
+                        styles.modalContactHeroBtnCall,
+                        ghostCallLoading && styles.modalContactHeroBtnDisabled,
+                        pressed && { opacity: 0.9 },
+                      ]}
+                      disabled={ghostCallLoading}
+                      onPress={() => void startOutgoingGhostCallFromContact(selectedContact)}
+                      accessibilityRole="button"
+                      accessibilityLabel={tr('Llamada privada', 'Private call')}
+                    >
+                      {ghostCallLoading ? (
+                        <ActivityIndicator color="#0A2540" size="small" />
+                      ) : (
+                        <MaterialCommunityIcons name="phone-in-talk" size={26} color="#0A2540" />
+                      )}
+                      <Text style={[styles.modalContactHeroLabel, { color: contactsTheme.textPrimary }]}>
+                        {tr('Llamada\nprivada', 'Private\ncall')}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.modalContactHeroBtn,
+                        styles.modalContactHeroBtnWa,
+                        !waUrl && styles.modalContactHeroBtnDisabled,
+                        pressed && { opacity: 0.9 },
+                      ]}
+                      onPress={() => {
+                        if (!waUrl) {
+                          Alert.alert(
+                            tr('WhatsApp', 'WhatsApp'),
+                            tr('No hay enlace de WhatsApp en la tarjeta compartida.', 'No WhatsApp link on this shared card.'),
+                          );
+                          return;
+                        }
+                        Linking.openURL(waUrl).catch(() =>
+                          Alert.alert(tr('Error', 'Error'), tr('No se pudo abrir WhatsApp.', 'Could not open WhatsApp.')),
+                        );
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={tr('WhatsApp', 'WhatsApp')}
+                    >
+                      <MaterialCommunityIcons name="whatsapp" size={26} color="#128C7E" />
+                      <Text style={[styles.modalContactHeroLabel, { color: contactsTheme.textPrimary }]}>{tr('WhatsApp', 'WhatsApp')}</Text>
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.modalContactHeroBtn,
+                        styles.modalContactHeroBtnMail,
+                        !emailAddr && styles.modalContactHeroBtnDisabled,
+                        pressed && { opacity: 0.9 },
+                      ]}
+                      onPress={() => {
+                        if (!emailAddr) {
+                          Alert.alert(
+                            tr('Correo', 'Email'),
+                            tr('No hay correo en la tarjeta compartida.', 'No email on this shared card.'),
+                          );
+                          return;
+                        }
+                        void ActionController.ActionEmail({ value: emailAddr });
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={tr('Correo', 'Email')}
+                    >
+                      <MaterialCommunityIcons name="email-outline" size={26} color="#1EA7FF" />
+                      <Text style={[styles.modalContactHeroLabel, { color: contactsTheme.textPrimary }]}>{tr('Correo', 'Email')}</Text>
+                    </Pressable>
+                  </View>
+                );
+              })()
+            ) : null}
           </Animated.View>
-        </View>
-      </Modal>
-
-      <Modal visible={ghostConfirmVisible} transparent animationType="fade" onRequestClose={closeGhostLinkConfirm}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.ghostConfirmCard, { backgroundColor: contactsTheme.modalBg, borderColor: contactsTheme.modalBorder }]}>
-            {ghostCallTarget?.photoUrl ? (
-              <ExpoImage source={{ uri: ghostCallTarget.photoUrl }} style={styles.ghostAvatar} cachePolicy="disk" />
-            ) : (
-              <View style={[styles.ghostAvatarFallback, { backgroundColor: contactsTheme.avatarFallbackBg, borderColor: contactsTheme.avatarFallbackBorder }]}>
-                <MaterialCommunityIcons name="account" size={18} color={contactsTheme.iconColor} />
-              </View>
-            )}
-            <Text style={[styles.ghostConfirmName, { color: contactsTheme.textPrimary }]}>{ghostCallTarget?.name || ''}</Text>
-            <Text style={[styles.ghostConfirmNick, { color: contactsTheme.textSecondary }]}>@{ghostCallTarget?.nickname || ''}</Text>
-            <Text style={[styles.ghostConfirmCardName, { color: contactsTheme.textSecondary }]}>{ghostCallTarget?.cardName || 'Tarjeta Social'}</Text>
-            <Text style={[styles.ghostPrivacyText, { color: contactsTheme.textPrimary }]}>
-              Llamada protegida por Card-Social. Tu numero es privado.
-            </Text>
-
-            <View style={styles.ghostActionsRow}>
-              <TouchableOpacity
-                style={styles.ghostCallBtn}
-                onPress={() => {
-                  void executeGhostLinkCall();
-                }}
-                disabled={ghostCallLoading}
-              >
-                {ghostCallLoading ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <Text style={styles.ghostCallBtnText}>LLAMAR</Text>
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.ghostCancelBtn} onPress={closeGhostLinkConfirm} disabled={ghostCallLoading}>
-                <Text style={styles.ghostCancelBtnText}>CANCELAR</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
         </View>
       </Modal>
 
@@ -1312,63 +1426,73 @@ function ContactsContent() {
         animationType="fade"
         onRequestClose={endActiveGhostCall}
       >
-        <View style={styles.modalOverlay}>
-          <LinearGradient colors={['#0A2540', '#0D4D8A']} style={styles.ghostActiveCallCard}>
-            <Text style={styles.ghostActiveCallTitle}>{activeGhostCall?.direction === 'incoming' ? 'En llamada' : 'Llamando...'}</Text>
-            {activeGhostCall?.peerPhotoUrl ? (
-              <ExpoImage source={{ uri: activeGhostCall.peerPhotoUrl }} style={styles.ghostActiveAvatar} cachePolicy="disk" />
-            ) : (
-              <View style={styles.ghostActiveAvatarFallback}>
-                <MaterialCommunityIcons name="account" size={26} color="#0D4D8A" />
+        <LinearGradient
+          colors={[...GHOST_PREMIUM_GRADIENT]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={styles.ghostFullBleedGradient}
+        >
+          <SafeAreaView style={styles.ghostSafeArea} edges={['top', 'bottom']}>
+            <View style={styles.ghostLogoTopSlot}>{renderGhostLinkBrandLogo()}</View>
+            <View style={styles.ghostActiveBody}>
+              {renderGhostAvatarGlowing(activeGhostCall?.peerPhotoUrl ?? null)}
+              <Text style={styles.ghostActiveHeroNick}>@{activeGhostCall?.peerNickname || 'user'}</Text>
+              <Text style={styles.ghostActiveStatusLine}>
+                {activeGhostCall?.direction === 'incoming'
+                  ? tr('En llamada', 'On call')
+                  : tr('Llamando...', 'Calling...')}
+              </Text>
+              <View style={styles.ghostGoldIdentityPill}>
+                <Text style={styles.ghostGoldIdentityPillText} numberOfLines={2}>
+                  {activeGhostCall?.direction === 'incoming'
+                    ? `${tr('Desde su tarjeta', 'From their card')}: ${activeGhostCall?.sourceCardName || tr('Tarjeta Social', 'Social Card')}`
+                    : `${tr('Su Tarjeta', 'Your card')}: ${activeGhostCall?.sourceCardName || tr('Tarjeta Social', 'Social Card')}`}
+                </Text>
               </View>
-            )}
-
-            <Text style={styles.ghostActiveName}>{activeGhostCall?.peerName || 'Contacto'}</Text>
-            <Text style={styles.ghostActiveNick}>@{activeGhostCall?.peerNickname || 'user'}</Text>
-            <Text style={styles.ghostActiveCardContext}>
-              {activeGhostCall?.direction === 'incoming' ? 'Desde su tarjeta' : 'Su Tarjeta'}: {activeGhostCall?.sourceCardName || 'Tarjeta Social'}
-            </Text>
-
-            <View style={styles.ghostActiveControlRow}>
-              <TouchableOpacity
-                style={[styles.ghostControlBtn, ghostCallMuted && styles.ghostControlBtnActive]}
-                onPress={() => setGhostCallMuted((prev) => !prev)}
-                activeOpacity={0.9}
-              >
-                <MaterialCommunityIcons
-                  name={ghostCallMuted ? 'microphone-off' : 'microphone'}
-                  size={18}
-                  color="#FFFFFF"
-                />
-                <Text style={styles.ghostControlText}>Mute</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.ghostControlBtn, ghostCallSpeaker && styles.ghostControlBtnActive]}
-                onPress={() => setGhostCallSpeaker((prev) => !prev)}
-                activeOpacity={0.9}
-              >
-                <MaterialCommunityIcons
-                  name={ghostCallSpeaker ? 'volume-high' : 'volume-medium'}
-                  size={18}
-                  color="#FFFFFF"
-                />
-                <Text style={styles.ghostControlText}>Speaker</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.ghostControlBtn} activeOpacity={0.9}>
-                <MaterialCommunityIcons name="dialpad" size={18} color="#FFFFFF" />
-                <Text style={styles.ghostControlText}>Keypad</Text>
-              </TouchableOpacity>
+              {activeGhostCall?.direction === 'incoming' && activeGhostCall?.peerName ? (
+                <Text style={styles.ghostActiveFullNameSub}>{activeGhostCall.peerName}</Text>
+              ) : null}
+              <View style={styles.ghostActiveControlRow}>
+                <TouchableOpacity
+                  style={[styles.ghostControlBtn, ghostCallMuted && styles.ghostControlBtnActive]}
+                  onPress={() => setGhostCallMuted((prev) => !prev)}
+                  activeOpacity={0.9}
+                >
+                  <MaterialCommunityIcons
+                    name={ghostCallMuted ? 'microphone-off' : 'microphone'}
+                    size={22}
+                    color="#FFFFFF"
+                  />
+                  <Text style={styles.ghostControlText}>{tr('Silencio', 'Mute')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.ghostControlBtn, ghostCallSpeaker && styles.ghostControlBtnActive]}
+                  onPress={() => setGhostCallSpeaker((prev) => !prev)}
+                  activeOpacity={0.9}
+                >
+                  <MaterialCommunityIcons
+                    name={ghostCallSpeaker ? 'volume-high' : 'volume-medium'}
+                    size={22}
+                    color="#FFFFFF"
+                  />
+                  <Text style={styles.ghostControlText}>{tr('Altavoz', 'Speaker')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.ghostControlBtn} activeOpacity={0.9}>
+                  <MaterialCommunityIcons name="dialpad" size={22} color="#FFFFFF" />
+                  <Text style={styles.ghostControlText}>{tr('Teclado', 'Keypad')}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-
-            <Text style={styles.ghostActivePrivacy}>Tu numero real esta 100% oculto.</Text>
-
-            <TouchableOpacity style={styles.ghostEndBtn} onPress={endActiveGhostCall} activeOpacity={0.9}>
-              <Text style={styles.ghostEndBtnText}>FINALIZAR LLAMADA</Text>
-            </TouchableOpacity>
-          </LinearGradient>
-        </View>
+            <View style={styles.ghostActiveFooterColumn}>
+              <TouchableOpacity style={styles.ghostEndBtn} onPress={endActiveGhostCall} activeOpacity={0.9}>
+                <Text style={styles.ghostEndBtnText}>{tr('Finalizar llamada', 'End call')}</Text>
+              </TouchableOpacity>
+              <Text style={styles.ghostActivePrivacy}>
+                {tr('Tu número real está 100% oculto', 'Your real number stays 100% hidden')}
+              </Text>
+            </View>
+          </SafeAreaView>
+        </LinearGradient>
       </Modal>
 
       <Modal
@@ -1377,50 +1501,38 @@ function ContactsContent() {
         animationType="fade"
         onRequestClose={rejectIncomingGhostCall}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.ghostIncomingCard, { backgroundColor: contactsTheme.modalBg, borderColor: contactsTheme.modalBorder }]}>
-            {incomingGhostCall?.callerPhotoUrl ? (
-              <ExpoImage source={{ uri: incomingGhostCall.callerPhotoUrl }} style={styles.ghostIncomingAvatar} cachePolicy="disk" />
-            ) : (
-              <View style={styles.ghostIncomingAvatarFallback}>
-                <MaterialCommunityIcons name="account" size={22} color="#0D4D8A" />
+        <LinearGradient
+          colors={[...GHOST_PREMIUM_GRADIENT]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={styles.ghostFullBleedGradient}
+        >
+          <SafeAreaView style={styles.ghostSafeArea} edges={['top', 'bottom']}>
+            <View style={styles.ghostLogoTopSlot}>{renderGhostLinkBrandLogo()}</View>
+            <View style={styles.ghostIncomingScreenBody}>
+              <View style={styles.ghostIncomingCardFrosted}>
+                {renderGhostAvatarGlowing(incomingGhostCall?.callerPhotoUrl ?? null)}
+                <Text style={styles.ghostIncomingNick}>@{incomingGhostCall?.callerNickname || 'user'}</Text>
+                <Text style={styles.ghostIncomingTitle}>{tr('Llamada entrante…', 'Incoming call…')}</Text>
+                <Text style={styles.ghostIncomingGoldLine} numberOfLines={2}>
+                  {tr('Desde su tarjeta', 'From their card')}:{' '}
+                  {incomingGhostCall?.sourceCardName || tr('Tarjeta Social', 'Social Card')}
+                </Text>
+                <Text style={styles.ghostIncomingFullNameLine}>
+                  {tr('Nombre completo', 'Full name')}: {incomingGhostCall?.callerName || tr('Contacto', 'Contact')}
+                </Text>
+                <View style={styles.ghostIncomingActionsRow}>
+                  <TouchableOpacity style={styles.ghostIncomingAcceptBtn} onPress={acceptIncomingGhostCall} activeOpacity={0.9}>
+                    <Text style={styles.ghostIncomingAcceptText}>{tr('[ACEPTAR]', '[ACCEPT]')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.ghostIncomingRejectBtn} onPress={rejectIncomingGhostCall} activeOpacity={0.9}>
+                    <Text style={styles.ghostIncomingRejectText}>{tr('[RECHAZAR]', '[DECLINE]')}</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            )}
-
-            <Text style={styles.ghostIncomingNick}>@{incomingGhostCall?.callerNickname || 'user'}</Text>
-            <Text style={styles.ghostIncomingTitle}>Llamada Entrante...</Text>
-            <Text style={styles.ghostIncomingCardContext}>Desde su tarjeta: {incomingGhostCall?.sourceCardName || 'Tarjeta Social'}</Text>
-            <Text style={styles.ghostIncomingName}>Full Name: {incomingGhostCall?.callerName || 'Contacto'}</Text>
-
-            <View style={styles.ghostIncomingActionsRow}>
-              <TouchableOpacity style={styles.ghostIncomingAcceptBtn} onPress={acceptIncomingGhostCall} activeOpacity={0.9}>
-                <Text style={styles.ghostIncomingAcceptText}>[ACEPTAR]</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.ghostIncomingRejectBtn} onPress={rejectIncomingGhostCall} activeOpacity={0.9}>
-                <Text style={styles.ghostIncomingRejectText}>[RECHAZAR]</Text>
-              </TouchableOpacity>
             </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal visible={actionPickerVisible} transparent animationType="fade" onRequestClose={() => setActionPickerVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.actionPickerCard, { backgroundColor: contactsTheme.modalBg, borderColor: contactsTheme.modalBorder }]}>
-            <Text style={[styles.sortModalTitle, { color: contactsTheme.textPrimary }]}>{currentAction?.title || 'Accion'}</Text>
-            <TouchableOpacity style={[styles.actionRow, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]} onPress={() => performActionDestination('application')}>
-              <MaterialCommunityIcons name="apps" size={18} color={contactsTheme.iconColor} />
-              <Text style={[styles.actionText, { color: contactsTheme.textSecondary }]}>Application</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.actionRow, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]} onPress={() => performActionDestination('browser')}>
-              <MaterialCommunityIcons name="web" size={18} color={contactsTheme.iconColor} />
-              <Text style={[styles.actionText, { color: contactsTheme.textSecondary }]}>Browser</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.cancelPickerBtn, { backgroundColor: contactsTheme.modalRowBg, borderColor: contactsTheme.modalRowBorder }]} onPress={() => setActionPickerVisible(false)}>
-              <Text style={[styles.cancelPickerBtnText, { color: contactsTheme.textPrimary }]}>Cancelar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+          </SafeAreaView>
+        </LinearGradient>
       </Modal>
     </LinearGradient>
   );
@@ -1524,6 +1636,25 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  emptyListRoot: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+    paddingBottom: 40,
+  },
+  emptyListTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  emptyListSubtitle: {
+    fontSize: 14,
+    marginTop: 10,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   listContainer: {
     paddingHorizontal: 16,
@@ -1891,6 +2022,43 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
+  modalContactHeroRow: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 8,
+    paddingHorizontal: 4,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  modalContactHeroBtn: {
+    flex: 1,
+    minHeight: 78,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    gap: 4,
+  },
+  modalContactHeroBtnCall: {
+    backgroundColor: 'rgba(197, 160, 101, 0.22)',
+  },
+  modalContactHeroBtnWa: {
+    backgroundColor: 'rgba(37, 211, 102, 0.18)',
+  },
+  modalContactHeroBtnMail: {
+    backgroundColor: 'rgba(30, 167, 255, 0.16)',
+  },
+  modalContactHeroBtnDisabled: {
+    opacity: 0.38,
+  },
+  modalContactHeroLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    textAlign: 'center',
+    lineHeight: 13,
+  },
   actionIconRow: {
     marginTop: 14,
     flexDirection: 'row',
@@ -2017,210 +2185,292 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 0.4,
   },
-  ghostActiveCallCard: {
-    width: '88%',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(197,160,101,0.45)',
+  ghostFullBleedGradient: {
+    flex: 1,
+    width: '100%',
+  },
+  ghostSafeArea: {
+    flex: 1,
+    width: '100%',
+  },
+  ghostLogoTopSlot: {
     alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 22,
+    paddingTop: 4,
+    paddingBottom: 4,
   },
-  ghostActiveCallTitle: {
-    color: '#D8EBFF',
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0.35,
-  },
-  ghostActiveAvatar: {
-    marginTop: 14,
-    width: 112,
-    height: 112,
-    borderRadius: 56,
-    borderWidth: 3,
-    borderColor: '#C5A065',
-  },
-  ghostActiveAvatarFallback: {
-    marginTop: 14,
-    width: 112,
-    height: 112,
-    borderRadius: 56,
+  ghostBrandLogoWrap: {
+    width: 56,
+    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#EAF7FF',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.35,
+        shadowRadius: 8,
+      },
+      android: { elevation: 6 },
+      default: {},
+    }),
+  },
+  ghostBrandLogoImage: {
+    width: 52,
+    height: 52,
+  },
+  ghostAvatarGlowOuter: {
+    marginTop: 4,
+    padding: 10,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: 'rgba(248, 220, 150, 0.95)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#C5A065',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.85,
+        shadowRadius: 18,
+      },
+      android: { elevation: 16 },
+      default: {},
+    }),
+  },
+  ghostAvatarGlowInner: {
+    width: 118,
+    height: 118,
+    borderRadius: 59,
     borderWidth: 3,
     borderColor: '#C5A065',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    backgroundColor: 'rgba(8, 18, 40, 0.45)',
   },
-  ghostActiveName: {
-    marginTop: 12,
+  ghostAvatarImage: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+  },
+  ghostAvatarImageFallback: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    backgroundColor: '#EAF4FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ghostActiveBody: {
+    flex: 1,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  ghostActiveHeroNick: {
+    marginTop: 18,
     color: '#FFFFFF',
-    fontSize: 26,
+    fontSize: 20,
     fontWeight: '800',
     textAlign: 'center',
+    letterSpacing: 0.2,
   },
-  ghostActiveNick: {
-    marginTop: 4,
-    color: '#D8EBFF',
-    fontSize: 18,
-    fontWeight: '700',
+  ghostActiveStatusLine: {
+    marginTop: 8,
+    color: 'rgba(255, 255, 255, 0.92)',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
   },
-  ghostActiveCardContext: {
-    marginTop: 12,
+  ghostGoldIdentityPill: {
+    marginTop: 14,
+    maxWidth: '92%',
+    backgroundColor: '#C5A065',
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 248, 220, 0.55)',
+  },
+  ghostGoldIdentityPillText: {
     color: '#0A2540',
     fontSize: 13,
     fontWeight: '800',
-    backgroundColor: '#C5A065',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    overflow: 'hidden',
+    textAlign: 'center',
+    letterSpacing: 0.3,
   },
-  ghostActivePrivacy: {
-    marginTop: 14,
-    color: '#EAF7FF',
-    fontSize: 12,
-    fontWeight: '700',
+  ghostActiveFullNameSub: {
+    marginTop: 10,
+    color: 'rgba(255, 255, 255, 0.78)',
+    fontSize: 14,
+    fontWeight: '600',
     textAlign: 'center',
   },
-  ghostActiveControlRow: {
-    marginTop: 14,
-    flexDirection: 'row',
+  ghostActiveFooterColumn: {
+    width: '100%',
+    paddingHorizontal: 24,
+    paddingBottom: 10,
     alignItems: 'center',
+  },
+  ghostActivePrivacy: {
+    marginTop: 12,
+    color: 'rgba(255, 255, 255, 0.62)',
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 16,
+    paddingHorizontal: 12,
+  },
+  ghostActiveControlRow: {
+    marginTop: 22,
+    flexDirection: 'row',
+    alignItems: 'stretch',
     justifyContent: 'space-between',
     width: '100%',
-    gap: 8,
+    maxWidth: 360,
+    gap: 10,
   },
   ghostControlBtn: {
     flex: 1,
-    borderRadius: 11,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(216,235,255,0.35)',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 9,
-    gap: 4,
+    paddingVertical: 12,
+    gap: 5,
   },
   ghostControlBtnActive: {
-    backgroundColor: 'rgba(197,160,101,0.26)',
-    borderColor: 'rgba(197,160,101,0.85)',
+    backgroundColor: 'rgba(197, 160, 101, 0.28)',
+    borderColor: 'rgba(248, 220, 150, 0.75)',
   },
   ghostControlText: {
     color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 11,
-    letterSpacing: 0.25,
+    fontWeight: '600',
+    fontSize: 10,
+    letterSpacing: 0.35,
+    textTransform: 'uppercase',
   },
   ghostEndBtn: {
-    marginTop: 18,
-    borderRadius: 12,
-    backgroundColor: '#D7263D',
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    minWidth: 220,
+    alignSelf: 'stretch',
+    width: '100%',
+    maxWidth: 400,
+    marginTop: 8,
+    borderRadius: 14,
+    backgroundColor: '#FF2638',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
     alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#FF2638',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.45,
+        shadowRadius: 10,
+      },
+      android: { elevation: 8 },
+      default: {},
+    }),
   },
   ghostEndBtnText: {
     color: '#FFFFFF',
     fontWeight: '800',
-    fontSize: 12,
-    letterSpacing: 0.4,
+    fontSize: 15,
+    letterSpacing: 0.5,
   },
-  ghostIncomingCard: {
-    width: '88%',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#D0D8DF',
-    backgroundColor: 'rgba(242,248,252,0.96)',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 18,
-  },
-  ghostIncomingAvatar: {
-    width: 112,
-    height: 112,
-    borderRadius: 56,
-    borderWidth: 3,
-    borderColor: '#C5A065',
-  },
-  ghostIncomingAvatarFallback: {
-    width: 112,
-    height: 112,
-    borderRadius: 56,
-    borderWidth: 3,
-    borderColor: '#C5A065',
-    alignItems: 'center',
+  ghostIncomingScreenBody: {
+    flex: 1,
+    width: '100%',
     justifyContent: 'center',
-    backgroundColor: '#EAF7FF',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingBottom: 12,
+  },
+  ghostIncomingCardFrosted: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(197, 160, 101, 0.42)',
+    backgroundColor: 'rgba(236, 242, 250, 0.94)',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 22,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.2,
+        shadowRadius: 24,
+      },
+      android: { elevation: 12 },
+      default: {},
+    }),
   },
   ghostIncomingNick: {
-    marginTop: 12,
-    color: '#0D4D8A',
-    fontSize: 38,
+    marginTop: 14,
+    color: '#0A2540',
+    fontSize: 22,
     fontWeight: '800',
-    lineHeight: 42,
     textAlign: 'center',
   },
   ghostIncomingTitle: {
-    marginTop: 6,
+    marginTop: 8,
     color: '#0A2540',
-    fontSize: 42,
+    fontSize: 18,
     fontWeight: '800',
     textAlign: 'center',
-    lineHeight: 46,
   },
-  ghostIncomingCardContext: {
-    marginTop: 10,
-    color: '#0A2540',
-    fontSize: 20,
-    fontWeight: '700',
-    backgroundColor: '#C5A065',
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    overflow: 'hidden',
+  ghostIncomingGoldLine: {
+    marginTop: 12,
+    color: '#9A6B1A',
+    fontSize: 15,
+    fontWeight: '800',
     textAlign: 'center',
+    letterSpacing: 0.2,
   },
-  ghostIncomingName: {
+  ghostIncomingFullNameLine: {
     marginTop: 10,
     color: '#0A2540',
-    fontSize: 26,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '600',
     textAlign: 'center',
   },
   ghostIncomingActionsRow: {
-    marginTop: 14,
+    marginTop: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    justifyContent: 'space-between',
+    width: '100%',
+    gap: 12,
   },
   ghostIncomingAcceptBtn: {
+    flex: 1,
     borderRadius: 12,
     backgroundColor: '#00C86F',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    minWidth: 128,
+    paddingVertical: 13,
     alignItems: 'center',
   },
   ghostIncomingAcceptText: {
     color: '#FFFFFF',
     fontWeight: '900',
-    fontSize: 16,
-    letterSpacing: 0.2,
+    fontSize: 15,
+    letterSpacing: 0.3,
   },
   ghostIncomingRejectBtn: {
+    flex: 1,
     borderRadius: 12,
-    backgroundColor: '#1E2A3A',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    minWidth: 128,
+    backgroundColor: '#1A2332',
+    paddingVertical: 13,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.2)',
   },
   ghostIncomingRejectText: {
     color: '#FFFFFF',
     fontWeight: '900',
-    fontSize: 16,
-    letterSpacing: 0.2,
+    fontSize: 15,
+    letterSpacing: 0.3,
   },
   floatingScanButtonContainer: {
     position: 'absolute',
