@@ -46,7 +46,13 @@
       "expo-font",
       "expo-web-browser",
       "expo-apple-authentication",
-      "expo-video"
+      "expo-video",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Card-Social usa tu ubicación solo cuando pulsas Buscar o Cercanos en el mercado; la app deja de usarla tras unos minutos (sin rastreo continuo)."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
