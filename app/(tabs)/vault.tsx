@@ -2,9 +2,13 @@ import DullModeLock from '@/components/DullModeLock';
 import LimitReachedModal from '@/components/LimitReachedModal';
 import VerificationBadge from '@/components/VerificationBadge';
 import { FREE_TIER_POLICY } from '@/constants/freeTierPolicy';
+import { isGhostLinkVaultDeletionProtected, isGhostLinkVaultType } from '@/constants/ghostLinkVault';
 import { getActiveUserId } from '@/services/authSession';
 import { getSearchableStringsFromVaultLikeItem, orderByDeepSearchWithExpandedQuery } from '@/services/deepSearch';
 import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
+import { ActionController } from '@/services/ActionController';
+import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
+import { isClassicPhoneVaultType } from '@/services/vaultItemTypeGuards';
 import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { db } from '@/services/firebaseConfig';
@@ -61,6 +65,8 @@ interface Link {
   value: string;
   iconName: string;
   icon?: string;
+  /** Ghost-Link base: no eliminable desde la UI */
+  vaultProtected?: boolean;
   isFavorite: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -107,8 +113,6 @@ const VaultScreen = () => {
     searchPlaceholder: isNight ? '#6B9BB8' : '#8A9DAD',
     typeBadgeBg: isNight ? 'rgba(30,167,255,0.18)' : 'rgba(30,167,255,0.12)',
     typeBadgeText: isNight ? '#8ED4FF' : '#1C5BB9',
-    phonePreviewBg: isNight ? '#0F2A3D' : '#FFFFFF',
-    phonePreviewBorder: isNight ? '#C5A065' : '#D4AF37',
   };
   const [links, setLinks] = useState<Link[]>([]);
   const [formModalVisible, setFormModalVisible] = useState(false);
@@ -116,9 +120,6 @@ const VaultScreen = () => {
   const [editingData, setEditingData] = useState<Link | undefined>(undefined);
   const [profileDisplayName, setProfileDisplayName] = useState('Usuario');
   const [searchQuery, setSearchQuery] = useState('');
-  const [phonePreviewVisible, setPhonePreviewVisible] = useState(false);
-  const [ownerPhotoUrl, setOwnerPhotoUrl] = useState<string | null>(null);
-  const [ownerRatingAvg, setOwnerRatingAvg] = useState(5);
   const [isUserVerified, setIsUserVerified] = useState(false);
   const [limitReachedVisible, setLimitReachedVisible] = useState(false);
   const [limitItemCount, setLimitItemCount] = useState(0);
@@ -169,12 +170,15 @@ const VaultScreen = () => {
     }
 
     // 1. Lectura optimista: mostrar cache local inmediatamente (cero latencia)
-    let cachedJson = '';
+    let cachedJsonForCompare = '';
     try {
       const raw = await readVaultJsonWithLegacyMigration(userId);
-      cachedJson = raw || '';
       const cached = raw ? (JSON.parse(raw) as Link[]) : [];
-      if (cached.length > 0) setLinks(sortLinks(cached));
+      const withBuiltin = await mergeBuiltinGhostLinkIntoVault(userId, cached);
+      cachedJsonForCompare = JSON.stringify(withBuiltin);
+      if (withBuiltin.length > 0) {
+        setLinks(sortLinks(withBuiltin as Link[]));
+      }
     } catch { /* ignora — la nube actualiza a continuación */ }
 
     // 2. Refresco silencioso — actualiza estado solo si los datos cambiaron
@@ -185,10 +189,11 @@ const VaultScreen = () => {
         ...itemDoc.data(),
       })) as Link[];
 
-      const cloudJson = JSON.stringify(cloudItems);
-      if (cloudJson !== cachedJson) {
+      const cloudMerged = (await mergeBuiltinGhostLinkIntoVault(userId, cloudItems)) as Link[];
+      const cloudJson = JSON.stringify(cloudMerged);
+      if (cloudJson !== cachedJsonForCompare) {
         await AsyncStorage.setItem(vaultStorageKey(userId), cloudJson);
-        setLinks(sortLinks(cloudItems));
+        setLinks(sortLinks(cloudMerged));
       }
     } catch (cloudError) {
       console.warn('Cloud read failed, keeping cached data:', cloudError);
@@ -272,8 +277,6 @@ const VaultScreen = () => {
       const verified = userData.verificationStatus === 'verified' || Boolean(userData.verificationSelfieFileId);
       setProfileDisplayName(displayName);
       setIsUserVerified(verified);
-      setOwnerPhotoUrl(userData.profilePhotoUrl || userData.photoUrl || null);
-      setOwnerRatingAvg(Number(userData.ratingAvg || 5));
     } catch (error) {
       console.warn('Could not load profile meta:', error);
     }
@@ -282,6 +285,16 @@ const VaultScreen = () => {
   // Borrar item
   const deleteLink = async (link: Link) => {
     try {
+      if (isGhostLinkVaultDeletionProtected(link.type) || link.vaultProtected) {
+        Alert.alert(
+          tr('Protegido', 'Protected'),
+          tr(
+            'Ghost-Link es un servicio base de Card-Social: no se puede eliminar. Puedes editar el título y el icono.',
+            'Ghost-Link is a core Card-Social service: it cannot be deleted. You can edit the title and icon.',
+          ),
+        );
+        return;
+      }
       const biometricOk = await hardLockCheck('eliminar datos del Búnker');
       if (!biometricOk) {
         return;
@@ -606,6 +619,17 @@ const VaultScreen = () => {
       const rawValue = String(link.value || '').trim();
       const normalizedType = normalizeType(link.type || (link as any).dataType || '');
 
+      if (isGhostLinkVaultType(link.type)) {
+        Alert.alert(
+          tr('Ghost-Link', 'Ghost-Link'),
+          tr(
+            'Este ítem activa una llamada VoIP privada cuando alguien lo usa en tu tarjeta compartida. No guarda número en el Búnker.',
+            'This item starts a private VoIP call when someone uses it on your shared card. It does not store a phone number in the Vault.',
+          ),
+        );
+        return;
+      }
+
       if (!rawValue) {
         Alert.alert(tr('⚠️ Error', '⚠️ Error'), tr('El dato está vacío', 'The data is empty'));
         return;
@@ -632,8 +656,8 @@ const VaultScreen = () => {
         return;
       }
 
-      if (normalizedType === 'teléfono' || normalizedType === 'telefono') {
-        setPhonePreviewVisible(true);
+      if (isClassicPhoneVaultType(link.type) || normalizedType === 'teléfono' || normalizedType === 'telefono') {
+        await ActionController.ActionTelefono({ value: rawValue });
         triggerSuccessHaptic();
         return;
       }
@@ -807,6 +831,7 @@ const VaultScreen = () => {
     'telefono': { icon: 'phone-lock', label: 'Teléfono', labelEn: 'Phone' },
     'texto plain': { icon: 'text-short', label: 'Texto', labelEn: 'Text' },
     'documento': { icon: 'file-document-outline', label: 'Doc', labelEn: 'Doc' },
+    'ghost-link': { icon: 'phone-in-talk', label: 'Ghost-Link', labelEn: 'Ghost-Link' },
   };
 
   const filteredLinks = useMemo(() => {
@@ -852,6 +877,11 @@ const VaultScreen = () => {
           {item.isFavorite ? (
             <View style={styles.favoriteBadge}>
               <MaterialCommunityIcons name="star" color={vaultTheme.iconColor} size={10} />
+            </View>
+          ) : null}
+          {isGhostLinkVaultType(item.type) || item.vaultProtected ? (
+            <View style={styles.vaultProtectedBadge} pointerEvents="none">
+              <MaterialCommunityIcons name="shield-check" size={12} color="#C5A065" />
             </View>
           ) : null}
         </View>
@@ -1221,28 +1251,32 @@ const VaultScreen = () => {
                   <Text style={[styles.contextMenuActionText, { color: vaultTheme.contextMenuText }]}>{tr('Editar', 'Edit')}</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[styles.contextMenuAction, styles.contextDeleteAction, { borderTopColor: vaultTheme.contextDeleteDivider }]}
-                  onPress={() => {
-                    if (!contextMenuItem) return;
-                    setContextMenuVisible(false);
-                    Alert.alert(
-                      tr('⚠️ Confirmar', '⚠️ Confirm'),
-                      tr(`¿Eliminar "${contextMenuItem.title}"?`, `Delete "${contextMenuItem.title}"?`),
-                      [
-                        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
-                        {
-                          text: tr('Eliminar', 'Delete'),
-                          style: 'destructive',
-                          onPress: () => deleteLink(contextMenuItem),
-                        },
-                      ],
-                    );
-                  }}
-                >
-                  <MaterialCommunityIcons name="trash-can" color="#FF6B6B" size={18} />
-                  <Text style={[styles.contextMenuActionText, styles.contextDeleteText]}>{tr('Eliminar', 'Delete')}</Text>
-                </TouchableOpacity>
+                {contextMenuItem &&
+                !isGhostLinkVaultDeletionProtected(contextMenuItem.type) &&
+                !contextMenuItem.vaultProtected ? (
+                  <TouchableOpacity
+                    style={[styles.contextMenuAction, styles.contextDeleteAction, { borderTopColor: vaultTheme.contextDeleteDivider }]}
+                    onPress={() => {
+                      if (!contextMenuItem) return;
+                      setContextMenuVisible(false);
+                      Alert.alert(
+                        tr('⚠️ Confirmar', '⚠️ Confirm'),
+                        tr(`¿Eliminar "${contextMenuItem.title}"?`, `Delete "${contextMenuItem.title}"?`),
+                        [
+                          { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+                          {
+                            text: tr('Eliminar', 'Delete'),
+                            style: 'destructive',
+                            onPress: () => deleteLink(contextMenuItem),
+                          },
+                        ],
+                      );
+                    }}
+                  >
+                    <MaterialCommunityIcons name="trash-can" color="#FF6B6B" size={18} />
+                    <Text style={[styles.contextMenuActionText, styles.contextDeleteText]}>{tr('Eliminar', 'Delete')}</Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
             </TouchableWithoutFeedback>
           </View>
@@ -1317,65 +1351,6 @@ const VaultScreen = () => {
                     }}
                   >
                     <Text style={[styles.floatingCloseText, { color: vaultTheme.floatingCloseText }]}>{tr('Cerrar', 'Close')}</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
-
-      {/* Phone Privacy Preview Modal (#23) */}
-      <Modal
-        visible={phonePreviewVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPhonePreviewVisible(false)}
-      >
-        <TouchableWithoutFeedback onPress={() => setPhonePreviewVisible(false)}>
-          <View style={styles.phonePreviewOverlay}>
-            <TouchableWithoutFeedback>
-              <View style={[styles.phonePreviewCard, { backgroundColor: vaultTheme.phonePreviewBg, borderColor: vaultTheme.phonePreviewBorder }]}>
-                <Text style={[styles.phonePreviewLabel, { color: vaultTheme.secondaryText }]}>
-                  {tr('Así te ven cuando te llaman', 'How callers see you')}
-                </Text>
-
-                {ownerPhotoUrl ? (
-                  <ExpoImage source={{ uri: ownerPhotoUrl }} style={styles.phonePreviewAvatar} cachePolicy="disk" transition={150} />
-                ) : (
-                  <View style={[styles.phonePreviewAvatar, { backgroundColor: vaultTheme.iconCircleBg, alignItems: 'center', justifyContent: 'center' }]}>
-                    <MaterialCommunityIcons name="account" size={40} color={vaultTheme.iconColor} />
-                  </View>
-                )}
-
-                <Text style={[styles.phonePreviewName, { color: vaultTheme.primaryText }]}>{profileDisplayName}</Text>
-
-                <View style={styles.phonePreviewStarsRow}>
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <MaterialCommunityIcons
-                      key={star}
-                      name={star <= Math.round(ownerRatingAvg) ? 'star' : 'star-outline'}
-                      size={18}
-                      color="#C5A065"
-                    />
-                  ))}
-                  <Text style={[styles.phonePreviewRating, { color: vaultTheme.secondaryText }]}>{ownerRatingAvg.toFixed(1)}</Text>
-                </View>
-
-                <View style={styles.phonePreviewPrivacyBadge}>
-                  <MaterialCommunityIcons name="shield-lock" size={14} color="#C5A065" />
-                  <Text style={styles.phonePreviewPrivacyText}>
-                    {tr('Tu número siempre oculto vía Ghost-Link', 'Your number always hidden via Ghost-Link')}
-                  </Text>
-                </View>
-
-                <View style={styles.phonePreviewActions}>
-                  <TouchableOpacity style={styles.phonePreviewCallBtnDisabled} disabled activeOpacity={1}>
-                    <MaterialCommunityIcons name="phone" size={20} color="#999" />
-                    <Text style={styles.phonePreviewCallTextDisabled}>{tr('Llamar VoIP', 'VoIP Call')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.phonePreviewCloseBtn, { backgroundColor: vaultTheme.floatingCloseBg }]} onPress={() => setPhonePreviewVisible(false)}>
-                    <Text style={[styles.phonePreviewCloseText, { color: vaultTheme.floatingCloseText }]}>{tr('Cerrar', 'Close')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1505,6 +1480,7 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   iconBox: {
+    position: 'relative',
     width: 58,
     height: 58,
     borderRadius: 999,
@@ -1527,6 +1503,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#C5A065',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  vaultProtectedBadge: {
+    position: 'absolute',
+    bottom: -2,
+    left: -2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(10,37,64,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(197,160,101,0.55)',
   },
   favicon: {
     width: 44,
@@ -1803,98 +1792,6 @@ const styles = StyleSheet.create({
   typeBadgeText: {
     fontSize: 8,
     fontWeight: '700',
-  },
-  // Phone Privacy Preview
-  phonePreviewOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  phonePreviewCard: {
-    width: '100%',
-    maxWidth: 340,
-    borderRadius: 22,
-    borderWidth: 1.5,
-    padding: 24,
-    alignItems: 'center',
-  },
-  phonePreviewLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 16,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  phonePreviewAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    marginBottom: 12,
-  },
-  phonePreviewName: {
-    fontSize: 20,
-    fontWeight: '800',
-    marginBottom: 8,
-  },
-  phonePreviewStarsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    marginBottom: 12,
-  },
-  phonePreviewRating: {
-    fontSize: 13,
-    fontWeight: '700',
-    marginLeft: 6,
-  },
-  phonePreviewPrivacyBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(197,160,101,0.12)',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginBottom: 20,
-  },
-  phonePreviewPrivacyText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#C5A065',
-  },
-  phonePreviewActions: {
-    flexDirection: 'row',
-    gap: 12,
-    width: '100%',
-  },
-  phonePreviewCallBtnDisabled: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: 'rgba(150,150,150,0.15)',
-    opacity: 0.5,
-  },
-  phonePreviewCallTextDisabled: {
-    color: '#999',
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  phonePreviewCloseBtn: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  phonePreviewCloseText: {
-    fontWeight: '700',
-    fontSize: 13,
   },
 });
 

@@ -45,6 +45,7 @@ import {
   getOwnedIconVaultKeySet,
   stableKeyForCatalogIcon,
 } from '@/services/iconVaultService';
+import { GHOST_LINK_VAULT_TYPE, GHOST_LINK_VAULT_VALUE } from '@/constants/ghostLinkVault';
 import CardStudioVault, { ICON_GALLERY } from './CardStudioVault';
 import FilePreviewModal from './FilePreviewModal';
 import { sanitizeMaterialIconName } from './iconNameValidation';
@@ -73,15 +74,25 @@ function galleryItemByStableOrLegacy(sel: string) {
 
 const CLOUD_SYNC_TIMEOUT_MS = 8000;
 
-type DataType = 'Enlaces' | 'Teléfono' | 'Email' | 'Texto Plain' | 'Documento';
+type DataType = 'Enlaces' | 'Teléfono' | 'Ghost-Link' | 'Email' | 'Texto Plain' | 'Documento';
 
 const DATA_TYPE_OPTIONS: Array<{ key: DataType; label: string; labelEn: string }> = [
   { key: 'Enlaces', label: 'Enlace', labelEn: 'Link' },
   { key: 'Email', label: 'Email', labelEn: 'Email' },
   { key: 'Teléfono', label: 'Teléfono', labelEn: 'Phone' },
+  { key: 'Ghost-Link', label: 'Ghost-Link', labelEn: 'Ghost-Link' },
   { key: 'Texto Plain', label: 'Texto', labelEn: 'Text' },
   { key: 'Documento', label: 'Documento', labelEn: 'Document' },
 ];
+
+/** Ghost-Link solo existe el ítem bootstrap; no se crea uno nuevo desde "Agregar dato". */
+const DATA_TYPE_OPTIONS_CREATABLE = DATA_TYPE_OPTIONS.filter((o) => o.key !== GHOST_LINK_VAULT_TYPE);
+
+const defaultGhostLinkIconStable = (() => {
+  const it =
+    ICON_GALLERY.find((i) => i.icon === 'phone-in-talk') || ICON_GALLERY.find((i) => i.icon === 'phone-voip');
+  return it ? stableKeyForCatalogIcon(it) : DEFAULT_ICON_STABLE;
+})();
 
 interface Link {
   id: string;
@@ -92,6 +103,7 @@ interface Link {
   icon?: string;
   /** Clave documento en users/{uid}/icon_vault (estable); opcional en datos legacy */
   iconVaultId?: string;
+  vaultProtected?: boolean;
   isFavorite: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -365,7 +377,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       const type = editingData.type as DataType;
       setDataType(type);
       setDataName(editingData.title);
-      setDataValue(editingData.value);
+      setDataValue(type === GHOST_LINK_VAULT_TYPE ? GHOST_LINK_VAULT_VALUE : editingData.value);
       
       if (editingData.icon?.startsWith('http')) {
         setSelectedIcon('favicon');
@@ -676,19 +688,25 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     if (editingData?.id) return;
     if (prevDataTypeRef.current === dataType) return;
     prevDataTypeRef.current = dataType;
-    setSelectedIcon(DEFAULT_ICON_STABLE);
-    setFaviconUrl('');
     closeFaviconSuggestion();
     setFaviconPromptVisible(false);
     setFaviconPromptDomain('');
     dismissedFaviconPromptDomainsRef.current.clear();
     setLastFaviconDomain('');
-    // Keep dataName and dataValue — user may have typed them intentionally
+    if (dataType === GHOST_LINK_VAULT_TYPE) {
+      setDataValue(GHOST_LINK_VAULT_VALUE);
+      setSelectedIcon(defaultGhostLinkIconStable);
+      setFaviconUrl('');
+    } else {
+      setSelectedIcon(DEFAULT_ICON_STABLE);
+      setFaviconUrl('');
+    }
   }, [dataType, editingData?.id]);
 
   // ── Auto-detectar tipo al pegar un valor ──────────────────────────────────
   useEffect(() => {
     if (!dataValue.trim() || editingData?.id) return;
+    if (dataValue.trim() === GHOST_LINK_VAULT_VALUE) return;
     const v = dataValue.trim();
     let detected: DataType | null = null;
     if (/^(https?:\/\/|www\.)\S+/i.test(v)) {
@@ -707,7 +725,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
   // ── Sugerir ícono por nombre de data (silencioso) ─────────────────────────
   useEffect(() => {
-    if (!dataName.trim() || selectedIcon !== DEFAULT_ICON_STABLE || editingData?.id) return;
+    if (!dataName.trim() || selectedIcon !== DEFAULT_ICON_STABLE || editingData?.id || dataType === GHOST_LINK_VAULT_TYPE) return;
     const nameLower = ` ${dataName.trim().toLowerCase()} `;
     for (const entry of KNOWN_NAME_ICONS) {
       if (entry.keywords.some((kw) => nameLower.includes(kw))) {
@@ -1615,7 +1633,17 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     if (isSaving) return;
     console.log('[Vault] handleCreate: INICIO');
     console.log('[Vault] handleCreate: Antes de Validaciones Iniciales');
-    if (!dataName.trim() || !dataValue.trim()) {
+    if (dataType === GHOST_LINK_VAULT_TYPE && !editingData?.id) {
+      Alert.alert(
+        tr('Ghost-Link', 'Ghost-Link'),
+        tr(
+          'Card-Social ya incluye un Ghost-Link en tu Bóveda. Edítalo desde el menú del ítem; no puedes crear otro.',
+          'Card-Social already includes one Ghost-Link in your Vault. Edit it from the item menu; you cannot add another.',
+        ),
+      );
+      return;
+    }
+    if (!dataName.trim() || (!dataValue.trim() && dataType !== GHOST_LINK_VAULT_TYPE)) {
       Alert.alert('❌ Error', tr('Completa todos los campos', 'Fill in all fields'));
       return;
     }
@@ -1703,7 +1731,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         : (catalogPick?.label ?? mappedIconName);
       // #21 Auto-prepend https:// for Enlaces
       let preNormalized = dataValue;
-      if (dataType === 'Enlaces' && !/^https?:\/\//i.test(dataValue.trim())) {
+      if (dataType === GHOST_LINK_VAULT_TYPE) {
+        preNormalized = GHOST_LINK_VAULT_VALUE;
+      } else if (dataType === 'Enlaces' && !/^https?:\/\//i.test(dataValue.trim())) {
         preNormalized = 'https://' + dataValue.trim();
       }
       // #25 Phone formatting with country code
@@ -1738,6 +1768,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         ...(selectedIcon !== 'favicon' && catalogPick
           ? { iconVaultId: stableKeyForCatalogIcon(catalogPick) }
           : {}),
+        ...(dataType === GHOST_LINK_VAULT_TYPE ? { vaultProtected: true } : {}),
         isFavorite: editingData?.isFavorite || false,
         createdAt: editingData?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -1866,6 +1897,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     case 'Teléfono':
       mappedIconName = 'phone';
       break;
+    case 'Ghost-Link':
+      mappedIconName = 'phone-in-talk';
+      break;
     case 'Enlaces':
       mappedIconName = 'link';
       break;
@@ -1887,6 +1921,15 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     switch (dataType) {
       case 'Enlaces':
         return renderLinkField();
+      case 'Ghost-Link':
+        return (
+          <Text style={[styles.hint, { color: formTheme.textSecondary, marginBottom: 4 }]}>
+            {tr(
+              'Sin número ni enlace: quien reciba tu tarjeta podrá iniciar una llamada privada VoIP (Ghost-Link) desde Card-Social. Elige el icono en la sección ICONO (mismo catálogo Card-Studio).',
+              'No number or link: people who get your card can start a private VoIP call (Ghost-Link) from Card-Social. Pick the icon in the ICON section (same Card-Studio catalog).',
+            )}
+          </Text>
+        );
       case 'Teléfono':
         return (
           <View style={styles.phoneRow}>
@@ -2092,7 +2135,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           <View style={styles.section}>
             <Text style={[styles.stepLabel, { color: formTheme.textPrimary }]}>{tr('TIPO DE DATO', 'DATA TYPE')} {editingData?.id && tr('(No editable)', '(Read-only)')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typePillsRow} removeClippedSubviews={true} scrollEventThrottle={16} bounces={false} overScrollMode="never">
-              {DATA_TYPE_OPTIONS.map((option) => {
+              {(editingData?.id ? DATA_TYPE_OPTIONS : DATA_TYPE_OPTIONS_CREATABLE).map((option) => {
                 const isActive = dataType === option.key;
                 return (
                     <LinearGradient
@@ -2117,7 +2160,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                     onPress={() => {
                       if (editingData?.id) return;
                       setDataType(option.key);
-                      setDataValue('');
+                      setDataValue(option.key === GHOST_LINK_VAULT_TYPE ? GHOST_LINK_VAULT_VALUE : '');
                     }}
                     disabled={!!editingData?.id}
                   >
@@ -2180,17 +2223,19 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
           {/* DATA */}
           <View style={styles.section}>
-            <Text style={[styles.stepLabel, { color: formTheme.textPrimary }]}>DATA</Text>
+            <Text style={[styles.stepLabel, { color: formTheme.textPrimary }]}>
+              {dataType === GHOST_LINK_VAULT_TYPE ? tr('GHOST-LINK', 'GHOST-LINK') : 'DATA'}
+            </Text>
             {renderDataField()}
           </View>
 
-          {/* ICONO */}
           <View style={styles.section}>
             <View style={styles.stepHeader}>
               <Text style={[styles.stepLabel, { color: formTheme.textPrimary }]}>{tr('ICONO', 'ICON')}</Text>
               <TouchableOpacity
                 style={styles.editIconBtn}
                 onPress={() => setIconModalVisible(true)}
+                accessibilityLabel={tr('Elegir icono Card-Studio', 'Choose Card-Studio icon')}
               >
                 <MaterialCommunityIcons name="pencil" color="#0A2540" size={18} />
               </TouchableOpacity>
@@ -2276,7 +2321,11 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 </TouchableOpacity>
               </View>
               <FlatList
-                data={['Enlaces', 'Teléfono', 'Email', 'Texto Plain', 'Documento'] as DataType[]}
+                data={
+                  (editingData?.id
+                    ? ['Enlaces', 'Teléfono', 'Ghost-Link', 'Email', 'Texto Plain', 'Documento']
+                    : ['Enlaces', 'Teléfono', 'Email', 'Texto Plain', 'Documento']) as DataType[]
+                }
                 keyExtractor={item => item}
                 removeClippedSubviews={true}
                 scrollEventThrottle={16}
@@ -2297,7 +2346,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                     ]}
                     onPress={() => {
                       setDataType(item);
-                      setDataValue('');
+                      setDataValue(item === GHOST_LINK_VAULT_TYPE ? GHOST_LINK_VAULT_VALUE : '');
                       setTypeModalVisible(false);
                     }}
                     disabled={!!editingData?.id}

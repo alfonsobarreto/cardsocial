@@ -31,6 +31,7 @@
  * ambas fases: en contactos solo entran strings de `getContactSearchableStringsFromVaultLikeItem`.
  */
 
+import { isGhostLinkVaultType } from '@/constants/ghostLinkVault';
 import Fuse, { type IFuseOptions } from 'fuse.js';
 
 export type VaultLikeItem = {
@@ -113,7 +114,9 @@ export function getSearchableStringsFromVaultLikeItem(item: VaultLikeItem): stri
   push(item.id);
   push(item.title);
   push(item.type);
-  push(item.value);
+  if (!isGhostLinkVaultType(item.type)) {
+    push(item.value);
+  }
   push(item.iconName);
   push(item.icon);
   return out;
@@ -498,7 +501,7 @@ export function buildSearchFacetsForSharedCard(vaultItems: VaultLikeItem[], item
     out.push({
       type: String(it.type || ''),
       label: String(it.title || ''),
-      value: String(it.value || ''),
+      value: isGhostLinkVaultType(it.type) ? '' : String(it.value || ''),
     });
   }
   return out;

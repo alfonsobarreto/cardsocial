@@ -152,7 +152,7 @@ export async function listCardSubscribers(params: { ownerUid: string; cardId: st
 }> {
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
 
-  const response = await axios.get(`${auth.baseUrl}/api/cards/${encodeURIComponent(params.cardId)}/subscribers`, {
+  const response = await axios.get(`${auth.baseUrl}/api/qr/cards/${encodeURIComponent(params.cardId)}/subscribers`, {
     params: {
       ownerUid: params.ownerUid,
     },
@@ -187,7 +187,7 @@ export async function revokeCardSubscriber(params: { ownerUid: string; cardId: s
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
 
   const response = await axios.delete(
-    `${auth.baseUrl}/api/cards/${encodeURIComponent(params.cardId)}/subscribers/${encodeURIComponent(params.targetUid)}`,
+    `${auth.baseUrl}/api/qr/cards/${encodeURIComponent(params.cardId)}/subscribers/${encodeURIComponent(params.targetUid)}`,
     {
       data: {
         ownerUid: params.ownerUid,
@@ -214,9 +214,38 @@ export async function setCardSubscriberMute(params: {
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
 
   const response = await axios.post(
-    `${auth.baseUrl}/api/cards/${encodeURIComponent(params.cardId)}/subscribers/${encodeURIComponent(params.targetUid)}/mute`,
+    `${auth.baseUrl}/api/qr/cards/${encodeURIComponent(params.cardId)}/subscribers/${encodeURIComponent(params.targetUid)}/mute`,
     {
       ownerUid: params.ownerUid,
+      muted: params.muted,
+    },
+    {
+      headers: {
+        'x-api-gateway-key': auth.gatewayKey,
+        Authorization: `Bearer ${auth.token}`,
+      },
+      timeout: 15000,
+    }
+  );
+
+  return {
+    muted: response?.data?.muted === true,
+  };
+}
+
+/** El receptor silencia (o reactiva) el canal de historias de una tarjeta recibida; requiere `cardId`. */
+export async function setSubscriberSelfCardMute(params: {
+  viewerUid: string;
+  issuerUid: string;
+  cardId: string;
+  muted: boolean;
+}): Promise<{ muted: boolean }> {
+  const auth = await getScopedJwtToken(params.viewerUid, 'qr.access');
+
+  const response = await axios.post(
+    `${auth.baseUrl}/api/qr/cards/${encodeURIComponent(params.cardId)}/subscribers/${encodeURIComponent(params.viewerUid)}/mute`,
+    {
+      ownerUid: params.issuerUid,
       muted: params.muted,
     },
     {
@@ -237,7 +266,7 @@ export async function blockRelationship(params: { ownerUid: string; targetUid: s
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
 
   const response = await axios.post(
-    `${auth.baseUrl}/api/relationships/block`,
+    `${auth.baseUrl}/api/qr/relationships/block`,
     {
       ownerUid: params.ownerUid,
       targetUid: params.targetUid,
@@ -260,7 +289,7 @@ export async function removeRelationship(params: { ownerUid: string; targetUid: 
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
 
   const response = await axios.post(
-    `${auth.baseUrl}/api/relationships/remove`,
+    `${auth.baseUrl}/api/qr/relationships/remove`,
     {
       ownerUid: params.ownerUid,
       targetUid: params.targetUid,
@@ -285,7 +314,7 @@ export async function listBlockedRelations(params: { ownerUid: string }): Promis
 }> {
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
 
-  const response = await axios.get(`${auth.baseUrl}/api/relationships/blocked`, {
+  const response = await axios.get(`${auth.baseUrl}/api/qr/relationships/blocked`, {
     params: {
       ownerUid: params.ownerUid,
     },
@@ -314,7 +343,7 @@ export async function unblockRelationship(params: { ownerUid: string; targetUid:
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
 
   const response = await axios.delete(
-    `${auth.baseUrl}/api/relationships/blocked/${encodeURIComponent(params.targetUid)}`,
+    `${auth.baseUrl}/api/qr/relationships/blocked/${encodeURIComponent(params.targetUid)}`,
     {
       data: {
         ownerUid: params.ownerUid,
@@ -357,6 +386,7 @@ export type SmartCardPayload = {
   itemIds: string[];
   holdersCount?: number;
   ratingAvg?: number;
+  totalRatings?: number;
   ownerNickname?: string;
   ownerPhotoUrl?: string | null;
   /** Facetas sin tipo teléfono, para búsqueda del receptor en Contactos */
@@ -368,7 +398,7 @@ export async function listSmartCardsFromDb(params: { ownerUid: string }): Promis
 }> {
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
 
-  const response = await axios.get(`${auth.baseUrl}/api/cards`, {
+  const response = await axios.get(`${auth.baseUrl}/api/qr/cards`, {
     params: {
       ownerUid: params.ownerUid,
     },
@@ -400,6 +430,7 @@ export async function listSmartCardsFromDb(params: { ownerUid: string }): Promis
       itemIds: Array.isArray(row?.itemIds) ? row.itemIds.map((id: any) => String(id)) : [],
       holdersCount: Number(row?.holdersCount || 0),
       ratingAvg: Number(row?.ratingAvg || 5),
+      totalRatings: Number(row?.totalRatings ?? 0),
       ownerNickname: row?.ownerNickname ? String(row.ownerNickname) : undefined,
       ownerPhotoUrl: row?.ownerPhotoUrl ? String(row.ownerPhotoUrl) : null,
       searchFacets: Array.isArray(row?.searchFacets)
@@ -419,7 +450,7 @@ export async function upsertSmartCardInDb(params: { ownerUid: string; card: Smar
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
 
   await axios.put(
-    `${auth.baseUrl}/api/cards/${encodeURIComponent(params.card.cardId)}`,
+    `${auth.baseUrl}/api/qr/cards/${encodeURIComponent(params.card.cardId)}`,
     {
       ownerUid: params.ownerUid,
       ...params.card,
@@ -439,7 +470,7 @@ export async function upsertSmartCardInDb(params: { ownerUid: string; card: Smar
 export async function deleteSmartCardInDb(params: { ownerUid: string; cardId: string }): Promise<{ deleted: boolean }> {
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
 
-  const response = await axios.delete(`${auth.baseUrl}/api/cards/${encodeURIComponent(params.cardId)}`, {
+  const response = await axios.delete(`${auth.baseUrl}/api/qr/cards/${encodeURIComponent(params.cardId)}`, {
     data: {
       ownerUid: params.ownerUid,
     },
@@ -455,57 +486,105 @@ export async function deleteSmartCardInDb(params: { ownerUid: string; cardId: st
   };
 }
 
+export type ReceivedContactRow = {
+  uid: string;
+  cardId: string | null;
+  name: string;
+  nickname: string;
+  photoUrl: string | null;
+  ratingAvg: number;
+  cardName: string;
+  holdersCount: number;
+  addedAt: string | null;
+  storyState: 'none' | 'normal' | 'vip';
+  searchFacets: CardSearchFacetPayload[];
+  mutualContactsCount: number;
+  totalRatings: number;
+  channelMuted: boolean;
+  themeId: string;
+  layout: 'vertical' | 'horizontal';
+  fontId: string | null;
+  fontName: string | null;
+  fontFamily: string | null;
+  fontTier: 'free' | 'premium' | null;
+  wallpaperId: string | null;
+  wallpaperUrl: string | null;
+  wallpaperThumbUrl: string | null;
+  wallpaperTier: 'free' | 'premium' | null;
+  wallpaperPriceCredits: number;
+  enableParallax: boolean;
+  itemIds: string[];
+  cardUpdatedAt: string | null;
+};
+
 export async function listReceivedContacts(params: { ownerUid: string }): Promise<{
-  contacts: Array<{
-    uid: string;
-    cardId: string | null;
-    name: string;
-    nickname: string;
-    photoUrl: string | null;
-    ratingAvg: number;
-    cardName: string;
-    holdersCount: number;
-    addedAt: string | null;
-    storyState: 'none' | 'normal' | 'vip';
-    searchFacets: CardSearchFacetPayload[];
-  }>;
+  contacts: ReceivedContactRow[];
 }> {
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
 
-  const response = await axios.get(`${auth.baseUrl}/api/contacts/received`, {
-    params: {
-      ownerUid: params.ownerUid,
-    },
-    headers: {
-      'x-api-gateway-key': auth.gatewayKey,
-      Authorization: `Bearer ${auth.token}`,
-    },
-    timeout: 15000,
-  });
+  try {
+    const response = await axios.get(`${auth.baseUrl}/api/qr/contacts/received`, {
+      params: {
+        ownerUid: params.ownerUid,
+      },
+      headers: {
+        'x-api-gateway-key': auth.gatewayKey,
+        Authorization: `Bearer ${auth.token}`,
+      },
+      timeout: 15000,
+    });
 
-  const rows = Array.isArray(response?.data?.contacts) ? response.data.contacts : [];
-  return {
-    contacts: rows.map((row: any) => {
-      const facetRows = Array.isArray(row?.searchFacets) ? row.searchFacets : [];
-      return {
-        uid: String(row?.uid || ''),
-        cardId: row?.cardId != null && String(row.cardId).trim() ? String(row.cardId).trim() : null,
-        name: String(row?.name || 'Contacto'),
-        nickname: String(row?.nickname || 'user'),
-        photoUrl: row?.photoUrl ? String(row.photoUrl) : null,
-        ratingAvg: Number(row?.ratingAvg || 5),
-        cardName: String(row?.cardName || 'Tarjeta Social'),
-        holdersCount: Number(row?.holdersCount || 0),
-        addedAt: row?.addedAt ? String(row.addedAt) : null,
-        storyState: row?.storyState === 'vip' ? 'vip' : row?.storyState === 'normal' ? 'normal' : 'none',
-        searchFacets: facetRows.map((f: any) => ({
-          type: String(f?.type || ''),
-          label: String(f?.label || ''),
-          value: String(f?.value || ''),
-        })),
-      };
-    }),
-  };
+    const rows = Array.isArray(response?.data?.contacts) ? response.data.contacts : [];
+    return {
+      contacts: rows.map((row: any) => {
+        const facetRows = Array.isArray(row?.searchFacets) ? row.searchFacets : [];
+        return {
+          uid: String(row?.uid || ''),
+          cardId: row?.cardId != null && String(row.cardId).trim() ? String(row.cardId).trim() : null,
+          name: String(row?.name || 'Contacto'),
+          nickname: String(row?.nickname || 'user'),
+          photoUrl: row?.photoUrl ? String(row.photoUrl) : null,
+          ratingAvg: Number(row?.ratingAvg || 5),
+          cardName: String(row?.cardName || 'Tarjeta Social'),
+          holdersCount: Number(row?.holdersCount || 0),
+          addedAt: row?.addedAt ? String(row.addedAt) : null,
+          storyState: row?.storyState === 'vip' ? 'vip' : row?.storyState === 'normal' ? 'normal' : 'none',
+          searchFacets: facetRows.map((f: any) => ({
+            type: String(f?.type || ''),
+            label: String(f?.label || ''),
+            value: String(f?.value || ''),
+          })),
+          mutualContactsCount: Number.isFinite(Number(row?.mutualContactsCount))
+            ? Math.max(0, Math.floor(Number(row.mutualContactsCount)))
+            : 0,
+          totalRatings: Number.isFinite(Number(row?.totalRatings))
+            ? Math.max(0, Math.floor(Number(row.totalRatings)))
+            : 0,
+          channelMuted: Boolean(row?.channelMuted),
+          themeId: String(row?.themeId || 'deep_teal').trim() || 'deep_teal',
+          layout: String(row?.layout || 'vertical') === 'horizontal' ? 'horizontal' : 'vertical',
+          fontId: row?.fontId ? String(row.fontId) : null,
+          fontName: row?.fontName ? String(row.fontName) : null,
+          fontFamily: row?.fontFamily ? String(row.fontFamily) : null,
+          fontTier: String(row?.fontTier || '') === 'premium' ? 'premium' : String(row?.fontTier || '') === 'free' ? 'free' : null,
+          wallpaperId: row?.wallpaperId ? String(row.wallpaperId) : null,
+          wallpaperUrl: row?.wallpaperUrl ? String(row.wallpaperUrl) : null,
+          wallpaperThumbUrl: row?.wallpaperThumbUrl ? String(row.wallpaperThumbUrl) : null,
+          wallpaperTier: String(row?.wallpaperTier || '') === 'premium' ? 'premium' : String(row?.wallpaperTier || '') === 'free' ? 'free' : null,
+          wallpaperPriceCredits: Number(row?.wallpaperPriceCredits || 0),
+          enableParallax: Boolean(row?.enableParallax),
+          itemIds: Array.isArray(row?.itemIds) ? row.itemIds.map((id: any) => String(id)) : [],
+          cardUpdatedAt: row?.cardUpdatedAt ? String(row.cardUpdatedAt) : null,
+        };
+      }),
+    };
+  } catch (error: any) {
+    const status = Number(error?.response?.status || 0);
+    if (status === 404) {
+      return { contacts: [] };
+    }
+    throw error;
+  }
 }
 
 export async function setMyStoryState(params: {
@@ -527,7 +606,7 @@ export async function setMyStoryState(params: {
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
 
   const response = await axios.post(
-    `${auth.baseUrl}/api/stories/state`,
+    `${auth.baseUrl}/api/qr/stories/state`,
     {
       ownerUid: params.ownerUid,
       state: params.state,
@@ -569,7 +648,7 @@ export async function getMyStoryState(params: {
 }> {
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
 
-  const response = await axios.get(`${auth.baseUrl}/api/stories/state`, {
+  const response = await axios.get(`${auth.baseUrl}/api/qr/stories/state`, {
     params: {
       ownerUid: params.ownerUid,
       ...(params.cardId ? { cardId: params.cardId } : {}),
@@ -601,7 +680,7 @@ export async function activateVipManualExternal(params: {
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
 
   const response = await axios.post(
-    `${auth.baseUrl}/api/stories/vip/manual`,
+    `${auth.baseUrl}/api/qr/stories/vip/manual`,
     {
       ownerUid: params.ownerUid,
       vipDays: params.vipDays,
@@ -641,7 +720,7 @@ export type HouseAdStory = {
 export async function getStoriesHouseAd(params: { ownerUid: string }): Promise<{ ad: HouseAdStory | null }> {
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
 
-  const response = await axios.get(`${auth.baseUrl}/api/stories/ads/house`, {
+  const response = await axios.get(`${auth.baseUrl}/api/qr/stories/ads/house`, {
     params: {
       ownerUid: params.ownerUid,
     },
@@ -685,7 +764,7 @@ export async function upsertStoriesHouseAd(params: {
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
 
   await axios.put(
-    `${auth.baseUrl}/api/stories/ads/house`,
+    `${auth.baseUrl}/api/qr/stories/ads/house`,
     {
       ownerUid: params.ownerUid,
       title: params.title,
@@ -732,7 +811,7 @@ export type CallHistoryRow = {
 export async function listCallsHistory(params: { ownerUid: string }): Promise<{ count: number; history: CallHistoryRow[] }> {
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
 
-  const response = await axios.get(`${auth.baseUrl}/api/calls/history`, {
+  const response = await axios.get(`${auth.baseUrl}/api/qr/calls/history`, {
     params: {
       ownerUid: params.ownerUid,
     },
@@ -784,7 +863,7 @@ export async function createCallLog(params: {
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
 
   const response = await axios.post(
-    `${auth.baseUrl}/api/calls/logs`,
+    `${auth.baseUrl}/api/qr/calls/logs`,
     {
       ownerUid: params.ownerUid,
       peerUid: params.peerUid,
@@ -822,7 +901,7 @@ export async function patchCallLogMeta(params: {
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
 
   await axios.patch(
-    `${auth.baseUrl}/api/calls/logs/${encodeURIComponent(params.callId)}`,
+    `${auth.baseUrl}/api/qr/calls/logs/${encodeURIComponent(params.callId)}`,
     {
       ownerUid: params.ownerUid,
       tags: params.tags,

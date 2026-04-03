@@ -1,4 +1,5 @@
 import { getActiveUserId } from '@/services/authSession';
+import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
 import { readVaultJsonWithLegacyMigration } from '@/services/userScopedStorage';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { hasActiveBusinessLicense } from '@/services/businessLicenseService';
@@ -372,7 +373,8 @@ export default function StoriesPage() {
       setFavoritesByUid(favMap);
 
       const vaultParsed = vaultRaw ? (JSON.parse(vaultRaw) as VaultItem[]) : [];
-      setVaultItems(Array.isArray(vaultParsed) ? vaultParsed : []);
+      const vaultMerged = await mergeBuiltinGhostLinkIntoVault(uid, Array.isArray(vaultParsed) ? vaultParsed : []);
+      setVaultItems(Array.isArray(vaultMerged) ? vaultMerged : []);
 
       const now = Date.now();
       const storiesParsed = storiesRaw ? (JSON.parse(storiesRaw) as LocalStory[]) : [];

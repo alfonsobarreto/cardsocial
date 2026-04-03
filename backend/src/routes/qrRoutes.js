@@ -6,6 +6,8 @@ const STORY_NORMAL_TTL_HOURS = 24;
 const STORY_VIP_TTL_DAYS = 7;
 const GHOST_LINK_INVITE_TTL_SECONDS = 45;
 
+const { buildGhostLinkAgoraInvite } = require('../lib/agoraGhostLink');
+
 function normalizeString(value, fallback = null) {
   const text = String(value ?? '').trim();
   return text || fallback;
@@ -241,11 +243,17 @@ function createQrRoutes({ storage }) {
       const caller = await resolveUserProfileExtended(db, ownerUid);
       const receiver = await resolveUserProfileExtended(db, targetUid);
 
-      // Azure Communication Services integration point (server-bridged app-to-app data call).
       const now = new Date();
       const sessionId = `acs_${ownerUid.slice(0, 8)}_${targetUid.slice(0, 8)}_${Date.now()}`;
       const inviteId = crypto.randomBytes(16).toString('hex');
       const expiresAt = new Date(now.getTime() + GHOST_LINK_INVITE_TTL_SECONDS * 1000);
+      const agoraChannelName = `gl_${inviteId}`;
+      const agoraInvite = buildGhostLinkAgoraInvite({
+        ownerUid,
+        targetUid,
+        channelName: agoraChannelName,
+        ttlSeconds: GHOST_LINK_INVITE_TTL_SECONDS,
+      });
 
       await db.collection('ghost_link_invites').findOneAndUpdate(
         { inviteId },
@@ -272,6 +280,7 @@ function createQrRoutes({ storage }) {
             createdAt: now,
             updatedAt: now,
             expiresAt,
+            ...(agoraInvite ? { agora: agoraInvite } : {}),
           },
         },
         {
@@ -285,7 +294,7 @@ function createQrRoutes({ storage }) {
         ok: true,
         inviteId,
         sessionId,
-        engine: 'azure-communication-services',
+        engine: agoraInvite ? 'agora' : 'signaling-only',
         callChannel: 'ghost-link-voip',
         sourceCardId,
         sourceCardName,
@@ -301,6 +310,16 @@ function createQrRoutes({ storage }) {
           photoUrl: receiver.photoUrl,
           sourceCardName,
         },
+        ...(agoraInvite
+          ? {
+              agora: {
+                appId: agoraInvite.appId,
+                channelName: agoraInvite.channelName,
+                token: agoraInvite.callerToken,
+                uid: agoraInvite.callerUid,
+              },
+            }
+          : {}),
       });
     } catch (error) {
       return res.status(500).json({ ok: false, error: error.message });
@@ -343,6 +362,7 @@ function createQrRoutes({ storage }) {
             createdAt: 1,
             updatedAt: 1,
             expiresAt: 1,
+            agora: 1,
           },
         }
       );
@@ -350,6 +370,16 @@ function createQrRoutes({ storage }) {
       if (!invite) {
         return res.status(200).json({ ok: true, ownerUid, invite: null });
       }
+
+      const agoraCallee =
+        invite.agora && invite.agora.appId && invite.agora.calleeToken
+          ? {
+              appId: String(invite.agora.appId),
+              channelName: String(invite.agora.channelName || ''),
+              token: String(invite.agora.calleeToken),
+              uid: Number(invite.agora.calleeUid),
+            }
+          : null;
 
       return res.status(200).json({
         ok: true,
@@ -375,6 +405,7 @@ function createQrRoutes({ storage }) {
           createdAt: invite.createdAt ? new Date(invite.createdAt).toISOString() : null,
           updatedAt: invite.updatedAt ? new Date(invite.updatedAt).toISOString() : null,
           expiresAt: invite.expiresAt ? new Date(invite.expiresAt).toISOString() : null,
+          ...(agoraCallee ? { agora: agoraCallee } : {}),
         },
       });
     } catch (error) {
@@ -870,6 +901,8 @@ function createQrRoutes({ storage }) {
       }).toArray();
       const mutedCardKeys = new Set(muteRows.map((m) => `${String(m.ownerUid || '').trim()}::${String(m.cardId || '').trim()}`));
 
+      const neighborMap = await buildShareNeighborMap(db, now);
+
       const contacts = [];
       for (const uid of ownerUids) {
         const permMeta = latestPermByOwner.get(uid) || null;
@@ -878,6 +911,21 @@ function createQrRoutes({ storage }) {
         let holdersCount = 0;
         let avg = 5;
         let searchFacets = [];
+        let totalRatings = 0;
+        let themeId = 'deep_teal';
+        let layout = 'vertical';
+        let fontId = null;
+        let fontName = null;
+        let fontFamily = null;
+        let fontTier = null;
+        let wallpaperId = null;
+        let wallpaperUrl = null;
+        let wallpaperThumbUrl = null;
+        let wallpaperTier = null;
+        let wallpaperPriceCredits = 0;
+        let enableParallax = false;
+        let itemIds = [];
+        let cardUpdatedAt = null;
 
         if (permMeta?.cardId) {
           const cardDoc = await db.collection('smart_cards').findOne(
@@ -891,6 +939,21 @@ function createQrRoutes({ storage }) {
                 holdersCount: 1,
                 ratingAvg: 1,
                 searchFacets: 1,
+                totalRatings: 1,
+                themeId: 1,
+                layout: 1,
+                fontId: 1,
+                fontName: 1,
+                fontFamily: 1,
+                fontTier: 1,
+                wallpaperId: 1,
+                wallpaperUrl: 1,
+                wallpaperThumbUrl: 1,
+                wallpaperTier: 1,
+                wallpaperPriceCredits: 1,
+                enableParallax: 1,
+                itemIds: 1,
+                updatedAt: 1,
               },
             }
           );
@@ -900,6 +963,21 @@ function createQrRoutes({ storage }) {
             holdersCount = Number(cardDoc.holdersCount || 0);
             avg = Number(cardDoc.ratingAvg || 5);
             searchFacets = sanitizeSearchFacets(cardDoc.searchFacets);
+            totalRatings = Number(cardDoc.totalRatings ?? 0);
+            themeId = String(cardDoc.themeId || 'deep_teal').trim() || 'deep_teal';
+            layout = String(cardDoc.layout || 'vertical') === 'horizontal' ? 'horizontal' : 'vertical';
+            fontId = cardDoc.fontId ? String(cardDoc.fontId) : null;
+            fontName = cardDoc.fontName ? String(cardDoc.fontName) : null;
+            fontFamily = cardDoc.fontFamily ? String(cardDoc.fontFamily) : null;
+            fontTier = cardDoc.fontTier === 'premium' ? 'premium' : cardDoc.fontTier === 'free' ? 'free' : null;
+            wallpaperId = cardDoc.wallpaperId ? String(cardDoc.wallpaperId) : null;
+            wallpaperUrl = cardDoc.wallpaperUrl ? String(cardDoc.wallpaperUrl) : null;
+            wallpaperThumbUrl = cardDoc.wallpaperThumbUrl ? String(cardDoc.wallpaperThumbUrl) : null;
+            wallpaperTier = cardDoc.wallpaperTier === 'premium' ? 'premium' : cardDoc.wallpaperTier === 'free' ? 'free' : null;
+            wallpaperPriceCredits = Number(cardDoc.wallpaperPriceCredits || 0);
+            enableParallax = Boolean(cardDoc.enableParallax);
+            itemIds = Array.isArray(cardDoc.itemIds) ? cardDoc.itemIds.map((id) => String(id)) : [];
+            cardUpdatedAt = cardDoc.updatedAt ? new Date(cardDoc.updatedAt).toISOString() : null;
           }
         }
 
@@ -922,6 +1000,8 @@ function createQrRoutes({ storage }) {
           storyState = storyByOwner.get(uid) || 'none';
         }
 
+        const mutualContactsCount = mutualNeighborUids(neighborMap, ownerUid, uid).length;
+
         contacts.push({
           uid,
           cardId: cardIdForStory || null,
@@ -934,6 +1014,23 @@ function createQrRoutes({ storage }) {
           addedAt: permMeta?.createdAt ? permMeta.createdAt.toISOString() : null,
           storyState,
           searchFacets,
+          mutualContactsCount,
+          totalRatings: Number.isFinite(totalRatings) ? Math.max(0, Math.floor(totalRatings)) : 0,
+          channelMuted: Boolean(cardIdForStory && mutedCardKeys.has(muteKey)),
+          themeId,
+          layout,
+          fontId,
+          fontName,
+          fontFamily,
+          fontTier,
+          wallpaperId,
+          wallpaperUrl,
+          wallpaperThumbUrl,
+          wallpaperTier,
+          wallpaperPriceCredits,
+          enableParallax,
+          itemIds,
+          cardUpdatedAt,
         });
       }
 
@@ -1462,12 +1559,25 @@ function createQrRoutes({ storage }) {
       if (!ownerUid || !cardId || !targetUid) {
         return res.status(400).json({ ok: false, error: 'ownerUid, cardId and targetUid are required' });
       }
-      if (authUid && authUid !== ownerUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      if (authUid && authUid !== ownerUid && authUid !== targetUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: caller must be card owner or subscriber' });
       }
 
       const db = await storage.connect();
       const now = new Date();
+
+      if (authUid === targetUid && authUid !== ownerUid) {
+        const permOk = await db.collection('share_permissions').findOne({
+          ownerUid,
+          targetUid: authUid,
+          cardId,
+          isRevoked: { $ne: true },
+          $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }, { expiresAt: { $exists: false } }],
+        });
+        if (!permOk) {
+          return res.status(403).json({ ok: false, error: 'Forbidden: no active share for this card' });
+        }
+      }
 
       if (!muted) {
         await db.collection('card_subscriber_mutes').deleteOne({ ownerUid, cardId, targetUid });

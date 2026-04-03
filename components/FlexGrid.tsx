@@ -22,6 +22,8 @@ type FlexGridProps<T> = {
   renderItem: (item: T, index: number, ui: { size: number; scale: number; columns: number }) => React.ReactNode;
   style?: StyleProp<ViewStyle>;
   animated?: boolean;
+  /** Una columna, ancho completo (listas tipo contactos). Si es false, la rejilla varía según la cantidad de ítems. */
+  listMode?: boolean;
 };
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -29,7 +31,17 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 /** Animated cell: scale + fade entrance per item */
-function AnimatedCell({ children, widthPercent, scale }: { children: React.ReactNode; widthPercent: number; scale: number }) {
+function AnimatedCell({
+  children,
+  widthPercent,
+  scale,
+  cellStyle,
+}: {
+  children: React.ReactNode;
+  widthPercent: number;
+  scale: number;
+  cellStyle?: StyleProp<ViewStyle>;
+}) {
   const anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -45,6 +57,7 @@ function AnimatedCell({ children, widthPercent, scale }: { children: React.React
     <Animated.View
       style={[
         styles.cell,
+        cellStyle,
         {
           width: `${widthPercent}%` as any,
           opacity: anim,
@@ -75,7 +88,7 @@ function resolveGridScale(count: number): GridScaleConfig {
   return { columns: 4, size: 52, scale: 0.88 };
 }
 
-function FlexGrid<T>({ items, getKey, renderItem, style, animated = true }: FlexGridProps<T>) {
+function FlexGrid<T>({ items, getKey, renderItem, style, animated = true, listMode = false }: FlexGridProps<T>) {
   const signature = useMemo(
     () => items.map((item, index) => getKey(item, index)).join('|'),
     [items, getKey]
@@ -88,14 +101,33 @@ function FlexGrid<T>({ items, getKey, renderItem, style, animated = true }: Flex
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
   }, [signature, animated]);
 
-  const gridUi = useMemo(() => resolveGridScale(items.length), [items.length]);
+  const gridUi = useMemo(() => {
+    if (listMode) {
+      return { columns: 1, size: 100, scale: 1 };
+    }
+    return resolveGridScale(items.length);
+  }, [items.length, listMode]);
+
+  const cellListStyle = listMode ? styles.cellList : null;
 
   return (
-    <View style={[styles.grid, style]}>
+    <View style={[styles.grid, listMode && styles.gridList, listMode && styles.gridListWidth, style]}>
       {items.map((item, index) => {
         const key = getKey(item, index);
+        if (listMode) {
+          return (
+            <View key={key} style={[styles.cell, styles.cellList]}>
+              {renderItem(item, index, gridUi)}
+            </View>
+          );
+        }
         return animated ? (
-          <AnimatedCell key={key} widthPercent={100 / gridUi.columns} scale={gridUi.scale}>
+          <AnimatedCell
+            key={key}
+            widthPercent={100 / gridUi.columns}
+            scale={gridUi.scale}
+            cellStyle={cellListStyle}
+          >
             {renderItem(item, index, gridUi)}
           </AnimatedCell>
         ) : (
@@ -103,6 +135,7 @@ function FlexGrid<T>({ items, getKey, renderItem, style, animated = true }: Flex
             key={key}
             style={[
               styles.cell,
+              cellListStyle,
               {
                 width: `${100 / gridUi.columns}%`,
                 transform: [{ scale: gridUi.scale }],
@@ -125,11 +158,27 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     rowGap: 8,
   },
+  gridList: {
+    flexDirection: 'column',
+    flexWrap: 'nowrap',
+    alignItems: 'stretch',
+    rowGap: 0,
+  },
+  gridListWidth: {
+    width: '100%',
+    alignSelf: 'stretch',
+  },
   cell: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 2,
     marginBottom: 8,
+  },
+  cellList: {
+    alignItems: 'stretch',
+    alignSelf: 'stretch',
+    width: '100%',
+    paddingHorizontal: 0,
   },
 });
 

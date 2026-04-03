@@ -595,7 +595,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
         <Tabs.Screen
           name="search"
           options={{
-            title: tr('Mercado Social', 'Social Market'),
+            title: tr('Mercado', 'MS'),
             tabBarIcon: ({ color }) => <Search color={color} size={24} />,
           }}
         />

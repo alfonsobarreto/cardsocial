@@ -6,7 +6,7 @@
  * Secciones premium vacías se muestran como colecciones futuras con badge 🔒.
  */
 
-import { STUDIO_ICON_CREDIT_PRICE } from '@/constants/studioEconomy';
+import { STUDIO_CATALOG_VECTOR_ICONS_PAID, STUDIO_ICON_CREDIT_PRICE } from '@/constants/studioEconomy';
 import { TEXAS_LONGHORNS_ICON_SEEDS } from '@/constants/texasLonghornsPack';
 import { getActiveUserId } from '@/services/authSession';
 import { useLanguage } from '@/services/language';
@@ -54,6 +54,7 @@ const MAX_RECENTS = 5;
 export type VaultDataType =
   | 'Enlaces'
   | 'Teléfono'
+  | 'Ghost-Link'
   | 'Email'
   | 'Texto Plain'
   | 'Documento';
@@ -123,6 +124,7 @@ const STUDIO_FOLDERS: StudioFolderDef[] = [
         titleEn: 'Phones',
         scrollAnchor: 'Teléfonos',
         items: [
+          { label: 'Llamada', labelEn: 'Call', icon: 'phone-in-talk' },
           { label: 'Apple', labelEn: 'Apple', icon: 'apple' },
           { label: 'Android', labelEn: 'Android', icon: 'android' },
           { label: 'Teléfono', labelEn: 'Phone', icon: 'phone' },
@@ -336,6 +338,9 @@ interface CardStudioVaultProps {
 }
 
 function isIconUnlockedForUser(item: IconItem, ownedKeys: Set<string>): boolean {
+  if (!STUDIO_CATALOG_VECTOR_ICONS_PAID) {
+    return true;
+  }
   const stable = stableKeyForCatalogIcon(item);
   return isFreeStarterIconKey(stable) || ownedKeys.has(stable);
 }
@@ -433,6 +438,7 @@ export default function CardStudioVault({
       const titleMap: Record<string, string> = {
         'Enlaces': 'Enlaces',
         'Teléfono': 'Teléfonos',
+        'Ghost-Link': 'Teléfonos',
         'Email': 'Emails',
         'Documento': 'Documentos',
         'Texto Plain': 'Documentos',
@@ -733,9 +739,11 @@ export default function CardStudioVault({
                     <Text style={[styles.title, { color: theme.textPrimary }]}>
                       Card-Studio — {dataType}
                     </Text>
-                    <Text style={[styles.creditsLine, { color: theme.textSecondary }]}>
-                      {tr(`Créditos CS: ${creditsBalance}`, `CS credits: ${creditsBalance}`)}
-                    </Text>
+                    {STUDIO_CATALOG_VECTOR_ICONS_PAID ? (
+                      <Text style={[styles.creditsLine, { color: theme.textSecondary }]}>
+                        {tr(`Créditos CS: ${creditsBalance}`, `CS credits: ${creditsBalance}`)}
+                      </Text>
+                    ) : null}
                   </View>
                   <TouchableOpacity
                     onPress={onClose}
@@ -746,10 +754,15 @@ export default function CardStudioVault({
                 </View>
 
                 <Text style={[styles.hint, { color: theme.textSecondary }]}>
-                  {tr(
-                    'Candado: compra con CS. Mantén presionado (icono desbloqueado) para quitar del Bóveda.',
-                    'Lock: buy with CS. Long press (unlocked icon) to remove from Vault.',
-                  )}
+                  {STUDIO_CATALOG_VECTOR_ICONS_PAID
+                    ? tr(
+                        'Candado: compra con CS. Mantén presionado (icono desbloqueado) para quitar del Bóveda.',
+                        'Lock: buy with CS. Long press (unlocked icon) to remove from Vault.',
+                      )
+                    : tr(
+                        'Toca un icono para elegirlo. Mantén presionado para quitarlo de tu Bóveda (si aplica).',
+                        'Tap an icon to choose it. Long press to remove from your Vault (if applicable).',
+                      )}
                 </Text>
 
                 {/* SectionList categorizado */}

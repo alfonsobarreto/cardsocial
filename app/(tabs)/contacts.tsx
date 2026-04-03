@@ -1,23 +1,37 @@
+import { SharedCardSkeletonList } from '@/components/SharedCardRowSkeleton';
+import { ThemedSharedCardSurface } from '@/components/ThemedSharedCardSurface';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import FlexGrid from '@/components/FlexGrid';
 import { MEDIA_PLACEHOLDER } from '@/constants/mediaPlaceholders';
-import { ActionController } from '@/services/ActionController';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import {
+  joinGhostLinkAgoraSession,
+  leaveGhostLinkAgoraSession,
+  setGhostLinkAgoraMuted,
+  setGhostLinkAgoraSpeaker,
+} from '@/services/ghostLinkAgoraSession';
+import {
   getIncomingGhostLinkInvite,
   respondGhostLinkInvite,
-  startGhostLinkVoipCall,
-  type GhostLinkCallStartResult,
+  type GhostLinkAgoraRtc,
   type GhostLinkIncomingInvite,
 } from '@/services/ghostLinkVoip';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
+import { getCardRowTheme } from '@/services/useActiveTheme';
 import { collectStringsReceivedContact, orderByDeepSearchWithExpandedQuery } from '@/services/deepSearch';
 import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
-import { blockRelationship, createCallLog, listReceivedContacts, removeRelationship } from '@/services/qrApi';
-import { extractEmailFromFacets, extractWhatsAppUrlFromFacets } from '@/services/receivedContactFacets';
+import {
+  blockRelationship,
+  createCallLog,
+  listReceivedContacts,
+  removeRelationship,
+  setSubscriberSelfCardMute,
+} from '@/services/qrApi';
+import { mergeReceivedContactRows } from '@/services/receivedContactsPresentationMerge';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { BlurView } from 'expo-blur';
@@ -26,14 +40,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Animated,
   AppState,
   Easing,
   Keyboard,
   LayoutAnimation,
-  Linking,
   Modal,
   Platform,
   Pressable,
@@ -46,6 +58,7 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
 import { Swipeable } from 'react-native-gesture-handler';
 
 const GHOST_PREMIUM_GRADIENT = ['#030814', '#0A1E38', '#0F2F58'] as const;
@@ -59,6 +72,25 @@ type Contact = {
   ratingAvg: number;
   cardName: string;
   holdersCount: number;
+  /** Conexiones en común en el grafo de compartidos (solo número, sin listas). */
+  mutualContactsCount?: number;
+  totalRatings?: number;
+  /** El receptor silenció historias de esta tarjeta. */
+  channelMuted?: boolean;
+  themeId?: string;
+  layout?: 'vertical' | 'horizontal';
+  fontId?: string | null;
+  fontName?: string | null;
+  fontFamily?: string | null;
+  fontTier?: 'free' | 'premium' | null;
+  wallpaperId?: string | null;
+  wallpaperUrl?: string | null;
+  wallpaperThumbUrl?: string | null;
+  wallpaperTier?: 'free' | 'premium' | null;
+  wallpaperPriceCredits?: number;
+  enableParallax?: boolean;
+  itemIds?: string[];
+  cardUpdatedAt?: string | null;
   addedAt: string | null;
   storyState?: 'none' | 'normal' | 'vip';
   searchFacets?: Array<{ type: string; label: string; value: string }>;
@@ -106,6 +138,7 @@ type ActiveGhostCallView = {
   peerNickname: string;
   peerPhotoUrl: string | null;
   direction: 'incoming' | 'outgoing';
+  agora?: GhostLinkAgoraRtc;
 };
 
 type IncomingGhostCallView = {
@@ -116,6 +149,7 @@ type IncomingGhostCallView = {
   callerName: string;
   callerNickname: string;
   callerPhotoUrl: string | null;
+  agora?: GhostLinkAgoraRtc;
 };
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -182,12 +216,59 @@ function ContactsContent() {
   const [groupPickerVisible, setGroupPickerVisible] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
 
-  const [ghostCallLoading, setGhostCallLoading] = useState(false);
   const [activeGhostCall, setActiveGhostCall] = useState<ActiveGhostCallView | null>(null);
   const [incomingGhostCall, setIncomingGhostCall] = useState<IncomingGhostCallView | null>(null);
   const [ghostCallMuted, setGhostCallMuted] = useState(false);
   const [ghostCallSpeaker, setGhostCallSpeaker] = useState(false);
   const listEntrance = useRef(new Animated.Value(0)).current;
+  const swipeableByContactUidRef = useRef<Map<string, { close: () => void }>>(new Map());
+  const rowPressScaleRef = useRef<Map<string, Animated.Value>>(new Map());
+
+  const pressScaleForContact = (uid: string) => {
+    let v = rowPressScaleRef.current.get(uid);
+    if (!v) {
+      v = new Animated.Value(1);
+      rowPressScaleRef.current.set(uid, v);
+    }
+    return v;
+  };
+
+  const animateContactRowPressIn = (uid: string) => {
+    try {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {
+      /* haptics opcional */
+    }
+    Animated.spring(pressScaleForContact(uid), {
+      toValue: 0.98,
+      useNativeDriver: true,
+      friction: 7,
+      tension: 220,
+    }).start();
+  };
+
+  const animateContactRowPressOut = (uid: string) => {
+    Animated.spring(pressScaleForContact(uid), {
+      toValue: 1,
+      useNativeDriver: true,
+      friction: 7,
+      tension: 220,
+    }).start();
+  };
+
+  useEffect(() => {
+    if (!activeGhostCall?.agora) {
+      return;
+    }
+    setGhostLinkAgoraMuted(ghostCallMuted);
+  }, [activeGhostCall?.agora, ghostCallMuted]);
+
+  useEffect(() => {
+    if (!activeGhostCall?.agora) {
+      return;
+    }
+    setGhostLinkAgoraSpeaker(ghostCallSpeaker);
+  }, [activeGhostCall?.agora, ghostCallSpeaker]);
 
   const loadMetaMap = async () => {
     try {
@@ -225,47 +306,75 @@ function ContactsContent() {
     await AsyncStorage.setItem(CONTACT_META_STORAGE_KEY, JSON.stringify(next));
   };
 
-  const loadContacts = async () => {
+  const normalizeContactRow = (row: Contact): Contact => ({
+    ...row,
+    mutualContactsCount: Number(row.mutualContactsCount ?? 0),
+    totalRatings: Number(row.totalRatings ?? 0),
+    channelMuted: Boolean(row.channelMuted),
+    themeId: String(row.themeId || 'deep_teal').trim() || 'deep_teal',
+    layout: row.layout === 'horizontal' ? 'horizontal' : 'vertical',
+    fontId: row.fontId ?? null,
+    fontName: row.fontName ?? null,
+    fontFamily: row.fontFamily ?? null,
+    fontTier: row.fontTier === 'premium' ? 'premium' : row.fontTier === 'free' ? 'free' : null,
+    wallpaperId: row.wallpaperId ?? null,
+    wallpaperUrl: row.wallpaperUrl ?? null,
+    wallpaperThumbUrl: row.wallpaperThumbUrl ?? null,
+    wallpaperTier: row.wallpaperTier === 'premium' ? 'premium' : row.wallpaperTier === 'free' ? 'free' : null,
+    wallpaperPriceCredits: Number(row.wallpaperPriceCredits ?? 0),
+    enableParallax: Boolean(row.enableParallax),
+    itemIds: Array.isArray(row.itemIds) ? row.itemIds : [],
+    cardUpdatedAt: row.cardUpdatedAt ?? null,
+  });
+
+  /**
+   * @param silent Si true, no fuerza pantalla de carga ni parpadeo: fusiona tema/wallpaper según `cardUpdatedAt`.
+   */
+  const loadContacts = async (silent = false) => {
+    let cachedContacts: Contact[] = [];
     try {
-      setLoading(true);
       const existingMeta = await loadMetaMap();
       await loadGroupFavorites();
       const ownerUid = await getActiveUserId();
       if (!ownerUid) {
         setContacts([]);
+        setLoading(false);
         return;
       }
 
       const cacheKey = getContactsCacheKey(ownerUid);
-      let cachedContacts: Contact[] = [];
       try {
         const cachedRaw = await AsyncStorage.getItem(cacheKey);
         const parsed = cachedRaw ? (JSON.parse(cachedRaw) as Contact[]) : [];
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          cachedContacts = parsed;
-          setContacts(parsed);
+        if (Array.isArray(parsed)) {
+          cachedContacts = parsed.map((r) => normalizeContactRow(r as Contact));
         }
       } catch {
         cachedContacts = [];
       }
 
-      let finalContacts: Contact[] = cachedContacts;
-      try {
-        const response = await listReceivedContacts({ ownerUid });
-        finalContacts = response.contacts;
-        await AsyncStorage.setItem(cacheKey, JSON.stringify(finalContacts));
-      } catch {
-        finalContacts = cachedContacts;
+      if (cachedContacts.length > 0) {
+        setContacts((prev) => (prev.length > 0 ? prev : cachedContacts));
+        setLoading(false);
+      } else if (!silent) {
+        setLoading(true);
       }
 
-      if (!Array.isArray(finalContacts)) {
-        finalContacts = [];
+      let normalized: Contact[] = [];
+      try {
+        const response = await listReceivedContacts({ ownerUid });
+        normalized = (Array.isArray(response.contacts) ? response.contacts : []).map((c) => normalizeContactRow(c as Contact));
+        await AsyncStorage.setItem(cacheKey, JSON.stringify(normalized));
+      } catch {
+        normalized = cachedContacts;
+        if (!silent && cachedContacts.length === 0) {
+          setContacts([]);
+        }
       }
 
       const nowIso = new Date().toISOString();
-
       const mergedMeta: Record<string, ContactMeta> = { ...existingMeta };
-      for (const row of finalContacts) {
+      for (const row of normalized) {
         if (!mergedMeta[row.uid]) {
           mergedMeta[row.uid] = {
             group: GROUP_DEFAULT,
@@ -280,28 +389,32 @@ function ContactsContent() {
 
       await persistMetaMap(mergedMeta);
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setContacts(finalContacts);
+      setContacts((prev) => {
+        const base = prev.length > 0 ? prev : cachedContacts;
+        if (base.length > 0) {
+          return mergeReceivedContactRows<Contact>(base, normalized);
+        }
+        return normalized;
+      });
     } catch {
-      setContacts([]);
+      if (!silent) {
+        setContacts([]);
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadContacts();
-  }, []);
-
   useFocusEffect(
     React.useCallback(() => {
-      loadContacts();
+      void loadContacts(true);
     }, [])
   );
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
-        loadContacts();
+        void loadContacts(true);
       }
     });
 
@@ -329,12 +442,13 @@ function ContactsContent() {
         callerName: String(invite?.callerDisplay?.name || 'Contacto').trim(),
         callerNickname: String(invite?.callerDisplay?.nickname || 'user').trim(),
         callerPhotoUrl: invite?.callerDisplay?.photoUrl ? String(invite.callerDisplay.photoUrl) : null,
+        agora: invite.agora,
       };
     };
 
     const pollIncomingGhostLink = async () => {
       try {
-        if (cancelled || ghostCallLoading || Boolean(activeGhostCall)) {
+        if (cancelled || Boolean(activeGhostCall)) {
           return;
         }
 
@@ -378,7 +492,7 @@ function ContactsContent() {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [activeGhostCall, ghostCallLoading]);
+  }, [activeGhostCall]);
 
   useEffect(() => {
     if (!floatingVisible) {
@@ -576,6 +690,33 @@ function ContactsContent() {
     );
   };
 
+  const renderDetailedRatingStars = (rating: number) => {
+    const r = Math.max(0, Math.min(5, Number(rating) || 0));
+    return (
+      <View style={styles.starsRow}>
+        {Array.from({ length: 5 }).map((_, index) => {
+          const threshold = index + 1;
+          let name: 'star' | 'star-half-full' | 'star-outline' = 'star-outline';
+          if (r >= threshold) name = 'star';
+          else if (r >= threshold - 0.5) name = 'star-half-full';
+          return (
+            <MaterialCommunityIcons key={`dstar-${index}`} name={name} size={12} color="#C5A065" />
+          );
+        })}
+      </View>
+    );
+  };
+
+  const initialsFromDisplayName = (name: string) => {
+    const parts = String(name || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    if (parts.length === 0) return '?';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0][0] ?? ''}${parts[parts.length - 1][0] ?? ''}`.toUpperCase() || '?';
+  };
+
   const renderGhostLinkBrandLogo = () => (
     <View style={styles.ghostBrandLogoWrap} accessibilityRole="image" accessibilityLabel={tr('Card Social', 'Card Social')}>
       <ExpoImage
@@ -614,6 +755,37 @@ function ContactsContent() {
     await persistMetaMap(next);
   };
 
+  const persistContactsCache = async (nextContacts: Contact[]) => {
+    try {
+      const ownerUid = await getActiveUserId();
+      if (!ownerUid) {
+        return;
+      }
+      await AsyncStorage.setItem(getContactsCacheKey(ownerUid), JSON.stringify(nextContacts));
+    } catch {
+      /* cache best-effort */
+    }
+  };
+
+  const purgeContactFromUi = async (uid: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setContacts((prev) => {
+      const next = prev.filter((row) => row.uid !== uid);
+      void persistContactsCache(next);
+      return next;
+    });
+    const nextMeta = { ...metaMap };
+    delete nextMeta[uid];
+    await persistMetaMap(nextMeta);
+    if (selectedContact?.uid === uid) {
+      setFloatingVisible(false);
+      setSelectedContact(null);
+    }
+    setLongPressVisible(false);
+    setLongPressContact(null);
+    swipeableByContactUidRef.current.delete(uid);
+  };
+
   const handleDeleteContact = async (uid: string) => {
     try {
       const ownerUid = await getActiveUserId();
@@ -621,20 +793,37 @@ function ContactsContent() {
         return;
       }
       await removeRelationship({ ownerUid, targetUid: uid });
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setContacts((prev) => prev.filter((row) => row.uid !== uid));
-      const next = { ...metaMap };
-      delete next[uid];
-      await persistMetaMap(next);
-      if (selectedContact?.uid === uid) {
-        setFloatingVisible(false);
-        setSelectedContact(null);
-      }
-      setLongPressVisible(false);
-      setLongPressContact(null);
+      await purgeContactFromUi(uid);
+      Toast.show({
+        type: 'info',
+        text1: tr('Contacto eliminado', 'Contact removed'),
+        text2: tr('Puedes volver a agregarlo escaneando su QR.', 'You can add them again by scanning their QR.'),
+        position: 'bottom',
+        visibilityTime: 4000,
+      });
     } catch (error: any) {
       Alert.alert(tr('No se pudo eliminar', 'Could not delete'), error?.message || tr('Intenta de nuevo.', 'Try again.'));
     }
+  };
+
+  const promptDeleteContact = (uid: string) => {
+    Alert.alert(
+      tr('Eliminar contacto', 'Delete contact'),
+      tr(
+        'Quitar a esta persona de tu lista de contactos. Podrás volver a agregarla con un QR.',
+        'Remove this person from your contacts. You can add them again with a QR code.',
+      ),
+      [
+        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+        {
+          text: tr('Eliminar', 'Delete'),
+          style: 'destructive',
+          onPress: () => {
+            void handleDeleteContact(uid);
+          },
+        },
+      ],
+    );
   };
 
   const handleBlockContact = async (uid: string) => {
@@ -644,19 +833,80 @@ function ContactsContent() {
         return;
       }
       await blockRelationship({ ownerUid, targetUid: uid });
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setContacts((prev) => prev.filter((row) => row.uid !== uid));
-      const next = { ...metaMap };
-      delete next[uid];
-      await persistMetaMap(next);
-      if (selectedContact?.uid === uid) {
-        setFloatingVisible(false);
-        setSelectedContact(null);
-      }
-      setLongPressVisible(false);
-      setLongPressContact(null);
+      await purgeContactFromUi(uid);
+      Toast.show({
+        type: 'info',
+        text1: tr('Usuario bloqueado', 'User blocked'),
+        text2: tr(
+          'Ya no podrá interactuar contigo en la app hasta que lo desbloquees desde ajustes de relaciones.',
+          'They can no longer interact with you in the app until you unblock them in relationship settings.',
+        ),
+        position: 'bottom',
+        visibilityTime: 4500,
+      });
     } catch (error: any) {
       Alert.alert(tr('No se pudo bloquear', 'Could not block'), error?.message || tr('Intenta de nuevo.', 'Try again.'));
+    }
+  };
+
+  const promptBlockContact = (uid: string) => {
+    Alert.alert(
+      tr('Bloquear contacto', 'Block contact'),
+      tr(
+        'Esta persona dejará de aparecer en contactos y no podrá compartir ni comunicarse contigo por la app. Puedes desbloquearla más tarde en la lista de bloqueados.',
+        'They will no longer appear in contacts and cannot share or reach you through the app. You can unblock them later from blocked users.',
+      ),
+      [
+        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+        {
+          text: tr('Bloquear', 'Block'),
+          style: 'destructive',
+          onPress: () => {
+            void handleBlockContact(uid);
+          },
+        },
+      ],
+    );
+  };
+
+  const handleToggleChannelMute = async (contact: Contact) => {
+    const viewerUid = await getActiveUserId();
+    if (!viewerUid) {
+      return;
+    }
+    const cardId = contact.cardId ? String(contact.cardId).trim() : '';
+    if (!cardId) {
+      Alert.alert(
+        tr('No se puede silenciar', 'Cannot mute'),
+        tr('No hay una tarjeta vinculada a este contacto.', 'There is no card linked to this contact.'),
+      );
+      return;
+    }
+    const nextMuted = !contact.channelMuted;
+    try {
+      await setSubscriberSelfCardMute({
+        viewerUid,
+        issuerUid: contact.uid,
+        cardId,
+        muted: nextMuted,
+      });
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setContacts((prev) => {
+        const next = prev.map((row) => (row.uid === contact.uid ? { ...row, channelMuted: nextMuted } : row));
+        void persistContactsCache(next);
+        return next;
+      });
+      Toast.show({
+        type: 'success',
+        text1: nextMuted ? tr('Canal silenciado', 'Channel muted') : tr('Canal activo', 'Channel unmuted'),
+        text2: nextMuted
+          ? tr('No verás historias de esta tarjeta hasta que reactives el canal.', 'You will not see stories from this card until you unmute the channel.')
+          : tr('Volverás a ver historias de esta tarjeta.', 'You will see stories from this card again.'),
+        position: 'bottom',
+        visibilityTime: 2800,
+      });
+    } catch (error: any) {
+      Alert.alert(tr('Error', 'Error'), error?.message || tr('Intenta de nuevo.', 'Try again.'));
     }
   };
 
@@ -684,84 +934,8 @@ function ContactsContent() {
     });
   };
 
-  const startOutgoingGhostCallFromContact = async (contact: Contact | null) => {
-    try {
-      if (!contact) {
-        return;
-      }
-
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) {
-        Alert.alert(
-          tr('Sesión requerida', 'Session required'),
-          tr('Inicia sesión para usar Llamada privada.', 'Sign in to use Private call.'),
-        );
-        return;
-      }
-
-      const authenticated = await hardLockCheck('iniciar llamada Ghost-Link');
-      if (!authenticated) {
-        return;
-      }
-
-      setGhostCallLoading(true);
-      const sourceCardName = String(contact.cardName || 'Tarjeta Social').trim();
-
-      const callStartResult = await startGhostLinkVoipCall({
-        ownerUid,
-        targetUid: contact.uid,
-        card: {
-          sourceCardName,
-          sourceCardId: contact.cardId ?? null,
-        },
-      });
-
-      const receiverPhotoUrl = resolveReceiverPhotoForOutgoing(callStartResult, contact.photoUrl);
-
-      setActiveGhostCall({
-        inviteId: callStartResult.inviteId,
-        sessionId: callStartResult.sessionId,
-        sourceCardName,
-        peerName: callStartResult.receiverDisplay.name || contact.name,
-        peerNickname: callStartResult.receiverDisplay.nickname || contact.nickname,
-        peerPhotoUrl: receiverPhotoUrl,
-        direction: 'outgoing',
-      });
-      setGhostCallMuted(false);
-      setGhostCallSpeaker(false);
-
-      await createCallLog({
-        ownerUid,
-        peerUid: contact.uid,
-        direction: 'outgoing',
-        status: 'completed',
-        durationSec: 0,
-        tags: ['Ghost-Link'],
-        sourceCardName,
-        sourceCardId: contact.cardId ?? null,
-        callChannel: 'ghost-link-voip',
-      });
-    } catch (error: any) {
-      Alert.alert(tr('No se pudo iniciar Ghost-Link', 'Could not start Ghost-Link'), error?.message || tr('Intenta de nuevo.', 'Try again.'));
-    } finally {
-      setGhostCallLoading(false);
-    }
-  };
-
-  const resolveReceiverPhotoForOutgoing = (
-    result: GhostLinkCallStartResult,
-    fallbackPhotoUrl: string | null
-  ) => {
-    const fromServer = String(result?.receiverDisplay?.photoUrl || '').trim();
-    if (fromServer) {
-      return fromServer;
-    }
-
-    const fromContact = String(fallbackPhotoUrl || '').trim();
-    return fromContact || null;
-  };
-
   const endActiveGhostCall = () => {
+    void leaveGhostLinkAgoraSession();
     void (async () => {
       try {
         const inviteId = String(activeGhostCall?.inviteId || '').trim();
@@ -845,6 +1019,16 @@ function ContactsContent() {
           action: 'accept',
         });
 
+        if (incomingGhostCall.agora) {
+          try {
+            await joinGhostLinkAgoraSession(incomingGhostCall.agora);
+          } catch (agoraErr) {
+            if (__DEV__) {
+              console.warn('Ghost-Link Agora (callee join):', agoraErr);
+            }
+          }
+        }
+
         setActiveGhostCall({
           inviteId: incomingGhostCall.inviteId,
           sessionId: incomingGhostCall.sessionId,
@@ -853,6 +1037,7 @@ function ContactsContent() {
           peerNickname: incomingGhostCall.callerNickname,
           peerPhotoUrl: incomingGhostCall.callerPhotoUrl,
           direction: 'incoming',
+          agora: incomingGhostCall.agora,
         });
         setGhostCallMuted(false);
         setGhostCallSpeaker(false);
@@ -915,9 +1100,9 @@ function ContactsContent() {
             },
           ]}
         >
-          {loading ? (
-            <View style={styles.centerWrap}>
-              <ActivityIndicator color="#0D4D8A" size="large" />
+          {loading && contacts.length === 0 ? (
+            <View style={styles.skeletonListWrap}>
+              <SharedCardSkeletonList count={6} isDark={isNight} avatarSize={81} />
             </View>
           ) : rowsWithHeaders.length === 0 ? (
             <Pressable onPress={Keyboard.dismiss} style={styles.emptyListRoot}>
@@ -950,6 +1135,8 @@ function ContactsContent() {
             </Pressable>
           ) : (
             <FlexGrid
+              listMode
+              style={styles.listContainer}
               items={rowsWithHeaders as ContactListRow[]}
               getKey={(item) => item.key}
               renderItem={(item: ContactListRow, _index, _ui) => {
@@ -961,80 +1148,167 @@ function ContactsContent() {
                   );
                 }
                 const row = item.contact;
-                const isAlert = Number(row.ratingAvg || 0) <= RATING_ALERT;
+                const reviewCount = row.totalRatings ?? 0;
+                const rating = reviewCount > 0 ? Number(row.ratingAvg ?? 0) : 0;
+                const isAlert = reviewCount > 0 && Number(row.ratingAvg || 0) <= RATING_ALERT;
+                const mutual = row.mutualContactsCount ?? 0;
+                const chest = getCardRowTheme(row.themeId);
+                const issuerFont = row.fontFamily ? { fontFamily: row.fontFamily } : null;
+                const closeRowSwipe = () => {
+                  swipeableByContactUidRef.current.get(row.uid)?.close();
+                };
                 return (
                   <Swipeable
+                    containerStyle={styles.contactSwipeRow}
+                    ref={(el) => {
+                      if (el) {
+                        swipeableByContactUidRef.current.set(row.uid, { close: () => el.close() });
+                      } else {
+                        swipeableByContactUidRef.current.delete(row.uid);
+                      }
+                    }}
+                    overshootRight={false}
                     renderRightActions={() => (
-                      <View style={styles.swipeActionsContainer}>
-                        <TouchableOpacity
-                          style={styles.swipeActionButton}
-                          onPress={() => handleDeleteContact(row.uid)}
-                        >
-                          <MaterialCommunityIcons name="trash-can-outline" size={24} color="#FFFFFF" />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.swipeActionButton}
-                          onPress={() => handleBlockContact(row.uid)}
-                        >
-                          <MaterialCommunityIcons name="block-helper" size={24} color="#FFFFFF" />
-                        </TouchableOpacity>
-                      </View>
+                        <View style={styles.swipeActionsRow}>
+                          <TouchableOpacity
+                            style={[styles.swipeActionCol, styles.swipeActionDelete]}
+                            onPress={() => {
+                              closeRowSwipe();
+                              promptDeleteContact(row.uid);
+                            }}
+                            accessibilityRole="button"
+                            accessibilityLabel={tr('Eliminar contacto', 'Delete contact')}
+                            hitSlop={{ top: 4, bottom: 4, left: 2, right: 2 }}
+                          >
+                            <MaterialCommunityIcons name="trash-can-outline" size={22} color="#FFFFFF" />
+                            <Text style={styles.swipeActionLabel}>{tr('Eliminar', 'Delete')}</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.swipeActionCol, styles.swipeActionMute]}
+                            onPress={() => {
+                              closeRowSwipe();
+                              void handleToggleChannelMute(row);
+                            }}
+                            accessibilityRole="button"
+                            accessibilityLabel={
+                              row.channelMuted ? tr('Dejar de silenciar tarjeta', 'Unmute card channel') : tr('Silenciar tarjeta', 'Mute card channel')
+                            }
+                            hitSlop={{ top: 4, bottom: 4, left: 2, right: 2 }}
+                          >
+                            <MaterialCommunityIcons name={row.channelMuted ? 'volume-high' : 'volume-off'} size={22} color="#FFFFFF" />
+                            <Text style={styles.swipeActionLabel}>{tr('Silenciar', 'Mute')}</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.swipeActionCol, styles.swipeActionBlock]}
+                            onPress={() => {
+                              closeRowSwipe();
+                              promptBlockContact(row.uid);
+                            }}
+                            accessibilityRole="button"
+                            accessibilityLabel={tr('Bloquear contacto', 'Block contact')}
+                            hitSlop={{ top: 4, bottom: 4, left: 2, right: 2 }}
+                          >
+                            <MaterialCommunityIcons name="block-helper" size={22} color="#FFFFFF" />
+                            <Text style={styles.swipeActionLabel}>{tr('Bloquear', 'Block')}</Text>
+                          </TouchableOpacity>
+                        </View>
                     )}
                   >
-                    <TouchableOpacity
-                      style={[styles.contactCard, { backgroundColor: contactsTheme.cardBg, borderColor: contactsTheme.cardBorder }]}
-                      onPress={() => void openFloatingCard(row)}
-                      onLongPress={() => onLongPressRow(row)}
-                      delayLongPress={400}
-                      activeOpacity={0.88}
+                    <Animated.View style={{ transform: [{ scale: pressScaleForContact(row.uid) }] }}>
+                    <ThemedSharedCardSurface
+                      themeId={row.themeId}
+                      wallpaperUrl={row.wallpaperUrl || undefined}
+                      borderRadius={15}
+                      style={[styles.contactThemedSurface, row.channelMuted ? styles.contactCardMuted : null]}
                     >
-                      <View
-                        style={[
-                          styles.avatarRing,
-                          row.storyState === 'vip' || row.meta?.storyState === 'vip'
-                            ? styles.avatarRingVip
-                            : row.storyState === 'normal' || row.meta?.storyState === 'normal'
-                              ? styles.avatarRingNormal
-                              : styles.avatarRingNone,
-                        ]}
+                      <Pressable
+                        style={styles.contactCardInnerThemed}
+                        onPress={() => void openFloatingCard(row)}
+                        onLongPress={() => onLongPressRow(row)}
+                        delayLongPress={400}
+                        onPressIn={() => animateContactRowPressIn(row.uid)}
+                        onPressOut={() => animateContactRowPressOut(row.uid)}
                       >
-                        {row.photoUrl ? (
-                          <ExpoImage source={{ uri: row.photoUrl }} style={styles.avatar} cachePolicy="disk" />
-                        ) : (
+                        {row.channelMuted ? (
                           <View
                             style={[
-                              styles.avatarFallback,
-                              {
-                                backgroundColor: isNight ? MEDIA_PLACEHOLDER.personBgDark : MEDIA_PLACEHOLDER.personBgLight,
-                                borderColor: isNight ? MEDIA_PLACEHOLDER.personBorderDark : MEDIA_PLACEHOLDER.personBorderLight,
-                              },
+                              styles.channelMutedBadge,
+                              { backgroundColor: 'rgba(255,255,255,0.82)', borderColor: chest.borderColor },
                             ]}
+                            accessibilityLabel={tr('Canal silenciado', 'Channel muted')}
                           >
-                            <MaterialCommunityIcons
-                              name={MEDIA_PLACEHOLDER.personIconName}
-                              size={18}
-                              color={isNight ? MEDIA_PLACEHOLDER.personIconDark : MEDIA_PLACEHOLDER.personIconLight}
-                            />
+                            <MaterialCommunityIcons name="volume-off" size={12} color={chest.titleColor} />
+                            <Text style={[styles.channelMutedBadgeText, { color: chest.metaColor }]}>
+                              {tr('Silenciado', 'Muted')}
+                            </Text>
                           </View>
-                        )}
-                      </View>
+                        ) : null}
+                        <View
+                          style={[
+                            styles.avatarRingLg,
+                            row.storyState === 'vip' || row.meta?.storyState === 'vip'
+                              ? styles.avatarRingVip
+                              : row.storyState === 'normal' || row.meta?.storyState === 'normal'
+                                ? styles.avatarRingNormal
+                                : styles.avatarRingNone,
+                          ]}
+                        >
+                          {row.photoUrl ? (
+                            <ExpoImage source={{ uri: row.photoUrl }} style={styles.avatarLg} cachePolicy="disk" />
+                          ) : (
+                            <View
+                              style={[
+                                styles.avatarFallbackLg,
+                                {
+                                  backgroundColor: isNight ? MEDIA_PLACEHOLDER.personBgDark : MEDIA_PLACEHOLDER.personBgLight,
+                                  borderColor: isNight ? MEDIA_PLACEHOLDER.personBorderDark : MEDIA_PLACEHOLDER.personBorderLight,
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[styles.avatarInitials, { color: isNight ? MEDIA_PLACEHOLDER.personIconDark : MEDIA_PLACEHOLDER.personIconLight }]}
+                                numberOfLines={1}
+                              >
+                                {initialsFromDisplayName(row.name)}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
 
-                      <View style={{ flex: 1 }}>
-                        <View style={styles.nameRow}>
-                          <Text style={[styles.contactName, { color: contactsTheme.textPrimary }]} numberOfLines={1}>{row.name}</Text>
-                          <Text style={[styles.contactNick, { color: contactsTheme.textSecondary }]} numberOfLines={1}>@{row.nickname}</Text>
-                        </View>
-                        <Text style={[styles.cardNameText, { color: contactsTheme.textSecondary }]} numberOfLines={1}>{row.cardName}</Text>
-                        <View style={styles.metaRow}>
-                          {renderStars(row.ratingAvg)}
-                          <Text style={[styles.ratingNumber, isAlert && styles.ratingNumberAlert, { color: contactsTheme.textPrimary }]}>{Number(row.ratingAvg || 0).toFixed(1)}</Text>
-                          <View style={[styles.holdersPill, { backgroundColor: contactsTheme.pillBg, borderColor: contactsTheme.pillBorder }]}>
-                            <MaterialCommunityIcons name="account-group-outline" size={12} color={contactsTheme.iconColor} />
-                            <Text style={[styles.holdersPillText, { color: contactsTheme.pillText }]}>{row.holdersCount}</Text>
+                        <View style={styles.contactCardBody}>
+                          <Text style={[styles.contactTitleName, { color: chest.titleColor }, issuerFont]} numberOfLines={2}>
+                            {row.name}
+                          </Text>
+                          <Text style={[styles.contactSubtitleCardName, { color: chest.metaColor }, issuerFont]} numberOfLines={1}>
+                            {row.cardName}
+                          </Text>
+                          <View style={styles.contactRowStatsRow}>
+                            <View style={styles.contactRowRatingCluster}>
+                              {renderDetailedRatingStars(rating)}
+                              <Text
+                                style={[
+                                  styles.contactRatingCaption,
+                                  isAlert && styles.ratingNumberAlert,
+                                  { color: chest.metaColor },
+                                ]}
+                              >
+                                {rating.toFixed(1)} · {reviewCount} {tr('reseñas', 'reviews')}
+                              </Text>
+                            </View>
+                            <View
+                              style={[
+                                styles.mutualCountPill,
+                                { backgroundColor: 'rgba(255,255,255,0.72)', borderColor: chest.borderColor },
+                              ]}
+                            >
+                              <MaterialCommunityIcons name="account-multiple-outline" size={11} color={chest.titleColor} />
+                              <Text style={[styles.mutualCountPillText, { color: chest.titleColor }]}>{mutual}</Text>
+                            </View>
                           </View>
                         </View>
-                      </View>
-                    </TouchableOpacity>
+                      </Pressable>
+                    </ThemedSharedCardSurface>
+                    </Animated.View>
                   </Swipeable>
                 );
               }}
@@ -1166,22 +1440,8 @@ function ContactsContent() {
                   return;
                 }
                 setLongPressVisible(false);
-                Alert.alert(
-                  tr('Eliminar contacto', 'Delete contact'),
-                  tr(
-                    '¿Quitar este contacto de tu lista? Podrás volver a agregarlo con un QR.',
-                    'Remove this contact from your list? You can add them again with a QR.',
-                  ),
-                  [
-                    { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
-                    {
-                      text: tr('Eliminar', 'Delete'),
-                      style: 'destructive',
-                      onPress: () => void handleDeleteContact(uid),
-                    },
-                  ],
-                );
                 setLongPressContact(null);
+                promptDeleteContact(uid);
               }}
             >
               <MaterialCommunityIcons name="trash-can-outline" size={18} color={contactsTheme.iconColor} />
@@ -1197,21 +1457,7 @@ function ContactsContent() {
                 }
                 setLongPressVisible(false);
                 setLongPressContact(null);
-                Alert.alert(
-                  tr('Bloquear contacto', 'Block contact'),
-                  tr(
-                    'Se activará el bloqueo y se cortará el acceso con esta persona.',
-                    'Blocking will cut off access with this person.',
-                  ),
-                  [
-                    { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
-                    {
-                      text: tr('Bloquear', 'Block'),
-                      style: 'destructive',
-                      onPress: () => void handleBlockContact(uid),
-                    },
-                  ],
-                );
+                promptBlockContact(uid);
               }}
             >
               <MaterialCommunityIcons name="cancel" size={18} color="#FFFFFF" />
@@ -1335,87 +1581,6 @@ function ContactsContent() {
                 {selectedContact?.holdersCount ?? 0} {tr('poseedores', 'holders')}
               </Text>
             </View>
-
-            {selectedContact ? (
-              (() => {
-                const facets = selectedContact.searchFacets ?? [];
-                const emailAddr = extractEmailFromFacets(facets);
-                const waUrl = extractWhatsAppUrlFromFacets(facets);
-                return (
-                  <View style={[styles.modalContactHeroRow, { borderTopColor: contactsTheme.modalRowBorder }]}>
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.modalContactHeroBtn,
-                        styles.modalContactHeroBtnCall,
-                        ghostCallLoading && styles.modalContactHeroBtnDisabled,
-                        pressed && { opacity: 0.9 },
-                      ]}
-                      disabled={ghostCallLoading}
-                      onPress={() => void startOutgoingGhostCallFromContact(selectedContact)}
-                      accessibilityRole="button"
-                      accessibilityLabel={tr('Llamada privada', 'Private call')}
-                    >
-                      {ghostCallLoading ? (
-                        <ActivityIndicator color="#0A2540" size="small" />
-                      ) : (
-                        <MaterialCommunityIcons name="phone-in-talk" size={26} color="#0A2540" />
-                      )}
-                      <Text style={[styles.modalContactHeroLabel, { color: contactsTheme.textPrimary }]}>
-                        {tr('Llamada\nprivada', 'Private\ncall')}
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.modalContactHeroBtn,
-                        styles.modalContactHeroBtnWa,
-                        !waUrl && styles.modalContactHeroBtnDisabled,
-                        pressed && { opacity: 0.9 },
-                      ]}
-                      onPress={() => {
-                        if (!waUrl) {
-                          Alert.alert(
-                            tr('WhatsApp', 'WhatsApp'),
-                            tr('No hay enlace de WhatsApp en la tarjeta compartida.', 'No WhatsApp link on this shared card.'),
-                          );
-                          return;
-                        }
-                        Linking.openURL(waUrl).catch(() =>
-                          Alert.alert(tr('Error', 'Error'), tr('No se pudo abrir WhatsApp.', 'Could not open WhatsApp.')),
-                        );
-                      }}
-                      accessibilityRole="button"
-                      accessibilityLabel={tr('WhatsApp', 'WhatsApp')}
-                    >
-                      <MaterialCommunityIcons name="whatsapp" size={26} color="#128C7E" />
-                      <Text style={[styles.modalContactHeroLabel, { color: contactsTheme.textPrimary }]}>{tr('WhatsApp', 'WhatsApp')}</Text>
-                    </Pressable>
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.modalContactHeroBtn,
-                        styles.modalContactHeroBtnMail,
-                        !emailAddr && styles.modalContactHeroBtnDisabled,
-                        pressed && { opacity: 0.9 },
-                      ]}
-                      onPress={() => {
-                        if (!emailAddr) {
-                          Alert.alert(
-                            tr('Correo', 'Email'),
-                            tr('No hay correo en la tarjeta compartida.', 'No email on this shared card.'),
-                          );
-                          return;
-                        }
-                        void ActionController.ActionEmail({ value: emailAddr });
-                      }}
-                      accessibilityRole="button"
-                      accessibilityLabel={tr('Correo', 'Email')}
-                    >
-                      <MaterialCommunityIcons name="email-outline" size={26} color="#1EA7FF" />
-                      <Text style={[styles.modalContactHeroLabel, { color: contactsTheme.textPrimary }]}>{tr('Correo', 'Email')}</Text>
-                    </Pressable>
-                  </View>
-                );
-              })()
-            ) : null}
           </Animated.View>
         </View>
       </Modal>
@@ -1631,11 +1796,22 @@ const styles = StyleSheet.create({
   },
   listAnimatedWrap: {
     flex: 1,
+    width: '100%',
+    alignSelf: 'stretch',
+  },
+  contactSwipeRow: {
+    width: '100%',
   },
   centerWrap: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  skeletonListWrap: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 24,
   },
   emptyListRoot: {
     flex: 1,
@@ -1668,6 +1844,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   groupHeaderWrap: {
+    width: '100%',
     paddingHorizontal: 8,
     paddingVertical: 7,
     marginTop: 9,
@@ -1678,27 +1855,119 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.3,
   },
-  contactCard: {
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(13,77,138,0.18)',
-    backgroundColor: 'rgba(255,255,255,0.82)',
-    paddingHorizontal: 11,
-    paddingVertical: 11,
-    marginBottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 11,
+  contactThemedSurface: {
+    width: '100%',
+    marginBottom: 8,
     shadowColor: '#0D4D8A',
     shadowOpacity: 0.09,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
   },
+  contactCardInnerThemed: {
+    position: 'relative',
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 101,
+  },
+  contactCardMuted: {
+    opacity: 0.92,
+  },
+  channelMutedBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 10,
+    zIndex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  channelMutedBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  contactCardBody: {
+    flex: 1,
+    minWidth: 0,
+  },
+  contactTitleName: {
+    fontSize: 15,
+    fontWeight: '800',
+    lineHeight: 19,
+  },
+  contactSubtitleCardName: {
+    marginTop: 3,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  /** Fila 3: valoración (izq.) + pastilla mutuales (der.), misma línea que el mock. */
+  contactRowStatsRow: {
+    marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    gap: 6,
+  },
+  contactRowRatingCluster: {
+    alignItems: 'flex-start',
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  contactRatingCaption: {
+    marginTop: 2,
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  mutualCountPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+  },
+  mutualCountPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
   avatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
+  },
+  avatarLg: {
+    width: 73,
+    height: 73,
+    borderRadius: 36.5,
+  },
+  avatarRingLg: {
+    width: 81,
+    height: 81,
+    borderRadius: 40.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarFallbackLg: {
+    width: 73,
+    height: 73,
+    borderRadius: 36.5,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitials: {
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   avatarRing: {
     width: 50,
@@ -2021,43 +2290,6 @@ const styles = StyleSheet.create({
     color: '#2E668C',
     fontSize: 11,
     fontWeight: '700',
-  },
-  modalContactHeroRow: {
-    marginTop: 12,
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    gap: 8,
-    paddingHorizontal: 4,
-    paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  modalContactHeroBtn: {
-    flex: 1,
-    minHeight: 78,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    gap: 4,
-  },
-  modalContactHeroBtnCall: {
-    backgroundColor: 'rgba(197, 160, 101, 0.22)',
-  },
-  modalContactHeroBtnWa: {
-    backgroundColor: 'rgba(37, 211, 102, 0.18)',
-  },
-  modalContactHeroBtnMail: {
-    backgroundColor: 'rgba(30, 167, 255, 0.16)',
-  },
-  modalContactHeroBtnDisabled: {
-    opacity: 0.38,
-  },
-  modalContactHeroLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    textAlign: 'center',
-    lineHeight: 13,
   },
   actionIconRow: {
     marginTop: 14,
@@ -2495,6 +2727,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
+  },
+  swipeActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    marginBottom: 10,
+    minHeight: 118,
+    borderRadius: 15,
+    overflow: 'hidden',
+  },
+  swipeActionCol: {
+    width: 78,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    gap: 6,
+  },
+  swipeActionDelete: {
+    backgroundColor: '#B7343A',
+  },
+  swipeActionMute: {
+    backgroundColor: '#5A6B7C',
+  },
+  swipeActionBlock: {
+    backgroundColor: '#0A2540',
+  },
+  swipeActionLabel: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+    textAlign: 'center',
   },
   swipeActionButton: {
     width: 64,

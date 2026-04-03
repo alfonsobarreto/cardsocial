@@ -1,0 +1,43 @@
+/**
+ * Palabras/frases prohibidas en keywords de Business Card (Social Market).
+ * Comparación en minúsculas, normalizada (sin acentos opcional en validación).
+ * Lista conservadora: ampliar en backend con el mismo criterio.
+ */
+export const BUSINESS_KEYWORD_BLOCKLIST: string[] = [
+  'puta',
+  'puto',
+  'mierda',
+  'joder',
+  'cabron',
+  'cabrón',
+  'pendejo',
+  'idiota',
+  'estupido',
+  'estúpido',
+  'maldito',
+  'fuck',
+  'shit',
+  'bitch',
+  'asshole',
+  'nazi',
+  'kkk',
+  'terror',
+  'porn',
+  'porno',
+  'xxx',
+  'sexo explicito',
+  'child',
+  'menor',
+  'cp ',
+  'casino',
+  'apuesta',
+  'apuestas',
+  'juego ilegal',
+  'fixed match',
+  'estafa',
+  'scam',
+  'odio racial',
+  'matar judios',
+  'kill yourself',
+  'suicide',
+];

@@ -12,6 +12,7 @@ import {
 } from '@/services/deepSearch';
 import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
 import { BusinessCard, BusinessCardSearchResult } from '@/types/businessCard';
+import type { IssuerSmartCardPresentation } from '@/types/sharedCardPresentation';
 
 /** Tarjetas recibidas/aceptadas (misma fuente que pestaña Contactos), con meta local opcional. */
 export type ReceivedContactForMarketSearch = {
@@ -22,9 +23,25 @@ export type ReceivedContactForMarketSearch = {
   cardName: string;
   photoUrl: string | null;
   ratingAvg: number;
+  totalRatings?: number;
+  holdersCount?: number;
   searchFacets: Array<{ type: string; label: string; value: string }>;
   metaGroup: string;
   metaIcons?: Array<{ name: string; url: string }>;
+  themeId?: string;
+  layout?: 'vertical' | 'horizontal';
+  fontId?: string | null;
+  fontName?: string | null;
+  fontFamily?: string | null;
+  fontTier?: 'free' | 'premium' | null;
+  wallpaperId?: string | null;
+  wallpaperUrl?: string | null;
+  wallpaperThumbUrl?: string | null;
+  wallpaperTier?: 'free' | 'premium' | null;
+  wallpaperPriceCredits?: number;
+  enableParallax?: boolean;
+  itemIds?: string[];
+  cardUpdatedAt?: string | null;
 };
 
 export type SocialMarketSearchSections = {
@@ -59,7 +76,26 @@ function toRad(deg: number): number {
   return deg * (Math.PI / 180);
 }
 
-function createReceivedContactBusinessCard(row: ReceivedContactForMarketSearch): BusinessCard {
+export function issuerPresentationFromRow(row: ReceivedContactForMarketSearch): IssuerSmartCardPresentation {
+  return {
+    themeId: row.themeId,
+    layout: row.layout,
+    fontId: row.fontId ?? undefined,
+    fontName: row.fontName ?? undefined,
+    fontFamily: row.fontFamily ?? undefined,
+    fontTier: row.fontTier ?? undefined,
+    wallpaperId: row.wallpaperId ?? undefined,
+    wallpaperUrl: row.wallpaperUrl ?? undefined,
+    wallpaperThumbUrl: row.wallpaperThumbUrl ?? undefined,
+    wallpaperTier: row.wallpaperTier ?? undefined,
+    wallpaperPriceCredits: row.wallpaperPriceCredits,
+    enableParallax: row.enableParallax,
+    itemIds: row.itemIds,
+    cardUpdatedAt: row.cardUpdatedAt ?? undefined,
+  };
+}
+
+export function createReceivedContactBusinessCard(row: ReceivedContactForMarketSearch): BusinessCard {
   const now = new Date();
   const title = String(row.name || row.cardName || '').trim() || '—';
   return {
@@ -82,7 +118,7 @@ function createReceivedContactBusinessCard(row: ReceivedContactForMarketSearch):
     kycTermsAccepted: false,
     vaultDataIds: [],
     averageRating: Number(row.ratingAvg) || 0,
-    totalRatings: 0,
+    totalRatings: Number(row.totalRatings ?? 0) || 0,
     negativeRatingsCount: 0,
     isActive: true,
     isPublishedToMarket: false,
@@ -161,6 +197,8 @@ function searchReceivedContactsForMarket(
     rowSource: 'received_contact' as const,
     receivedContactFacets: row.searchFacets,
     receivedContactCardName: row.cardName,
+    issuerPresentation: issuerPresentationFromRow(row),
+    receivedHoldersCount: Number(row.holdersCount ?? 0) || 0,
   }));
 }
 

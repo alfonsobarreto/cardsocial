@@ -1,5 +1,7 @@
 import AutoScaleText from '@/components/AutoScaleText';
 import LimitReachedModal from '@/components/LimitReachedModal';
+import { isGhostLinkVaultType } from '@/constants/ghostLinkVault';
+import { isClassicPhoneVaultType } from '@/services/vaultItemTypeGuards';
 import { CARD_THEMES as CHEST_THEMES, getThemeById, TIER_META, type CardTheme as ChestCardTheme, type ThemeTier } from '@/constants/themeChest';
 import { getActiveUserId } from '@/services/authSession';
 import { type IconVaultEntry, getUserIconVaultMap } from '@/services/iconVaultService';
@@ -15,6 +17,14 @@ import { type VaultCollectibleCertificate } from '@/services/collectibleService'
 import { auth, db } from '@/services/firebaseConfig';
 import { type CardFontItem, type FontTier } from '@/services/fontLibraryService';
 import { useLanguage } from '@/services/language';
+import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
+import { generatePermanentBusinessLink } from '@/services/brandedQrService';
+import {
+  listBusinessCardsByOwner,
+  deleteBusinessCard as removeBusinessCardFromFirestore,
+  setBusinessCardFavorite,
+  type BusinessCardListRow,
+} from '@/services/businessCardService';
 import { validateCardCreation } from '@/services/limitService';
 import { useLookMode } from '@/services/lookMode';
 import {
@@ -109,6 +119,60 @@ const isImageValue = (value: string) =>
 const isPdfValue = (value: string) => /\.pdf(\?|$)/i.test(value);
 const createSmartCardId = () => newEntityId();
 
+const WIREFRAME_MAX_ICONS = 12;
+
+/** Máx. 3 filas. 1–3: una fila; 4–8: dos filas; 9–12: tres filas (reparto equilibrado). */
+function getWireframeIconRowPlan(count: number): number[] {
+  const n = Math.max(0, Math.min(WIREFRAME_MAX_ICONS, Math.floor(count)));
+  if (n <= 0) return [];
+  if (n <= 3) return [n];
+  if (n === 4) return [2, 2];
+  if (n === 5) return [2, 3];
+  if (n === 6) return [3, 3];
+  if (n === 7) return [3, 4];
+  if (n === 8) return [4, 4];
+  if (n === 9) return [3, 3, 3];
+  if (n === 10) return [4, 3, 3];
+  if (n === 11) return [4, 4, 3];
+  return [4, 4, 4];
+}
+
+/** Espacio reservado bajo la burbuja para etiquetas (2 líneas). Menor = burbujas más grandes (~4/5 del hueco vs ~2/5). */
+const WIREFRAME_SLOT_LABEL_RESERVE = 26;
+
+function computeWireframeIconCellSize(
+  gridW: number,
+  gridH: number,
+  rowPlan: number[],
+  gap: number,
+  labelReservePerRow = WIREFRAME_SLOT_LABEL_RESERVE,
+): number {
+  if (rowPlan.length === 0 || gridW <= 0 || gridH <= 0) return 0;
+  const G = gap;
+  const numRows = rowPlan.length;
+  let s = Number.POSITIVE_INFINITY;
+  for (const cols of rowPlan) {
+    if (cols <= 0) continue;
+    s = Math.min(s, (gridW - G * (cols + 1)) / cols);
+  }
+  const rowBand = (gridH - G * (numRows + 1)) / numRows - labelReservePerRow;
+  s = Math.min(s, rowBand);
+  if (!Number.isFinite(s) || s <= 0) return 0;
+  return Math.floor(s);
+}
+
+/** Altura del stack vista previa: crece cuando la rejilla tiene 3 filas de iconos. */
+function getPreviewModalStackSize(screenH: number, iconSlotCount: number): { height: number; maxHeight: number } {
+  const rowCount = Math.max(1, getWireframeIconRowPlan(iconSlotCount).length);
+  const threeRows = rowCount >= 3;
+  const fraction = threeRows ? 0.84 : 0.74;
+  const capPx = threeRows ? 800 : 680;
+  return {
+    height: Math.min(screenH * fraction, capPx),
+    maxHeight: screenH * 0.92,
+  };
+}
+
 type VaultItem = {
   id: string;
   title: string;
@@ -117,9 +181,15 @@ type VaultItem = {
   iconName: string;
   icon?: string;
   iconVaultId?: string;
+  vaultProtected?: boolean;
   isFavorite: boolean;
 };
 
+/**
+ * Smart Card: la lista pública de datos es solo `itemIds` (subset de la Bóveda).
+ * Ítems indelebles en Bóveda (p. ej. Ghost-Link bootstrap / vaultProtected) no se añaden solos a la tarjeta:
+ * el usuario los incluye o excluye en el editor como cualquier otro dato.
+ */
 type SmartCard = {
   id: string;
   name: string;
@@ -136,9 +206,12 @@ type SmartCard = {
   wallpaperPriceCredits?: number;
   enableParallax?: boolean;
   isFavorite?: boolean;
+  /** IDs de ítems de Bóveda activos en esta tarjeta (preview, wireframe, QR, facetas compartidas). */
   itemIds: string[];
   holdersCount?: number;
   ratingAvg?: number;
+  /** Número de reseñas (si el backend lo expone; si no, 0). */
+  totalRatings?: number;
   /** Facetas para contactos; opcional en cache local */
   searchFacets?: Array<{ type: string; label: string; value: string }>;
   createdAt: string;
@@ -165,6 +238,7 @@ export default function CardsFactoryScreen() {
   const [vaultItems, setVaultItems] = useState<VaultItem[]>([]);
   const [iconVaultById, setIconVaultById] = useState<Record<string, IconVaultEntry>>({});
   const [smartCards, setSmartCards] = useState<SmartCard[]>([]);
+  const [businessCardsFeed, setBusinessCardsFeed] = useState<BusinessCardListRow[]>([]);
   const [selectedCard, setSelectedCard] = useState<SmartCard | null>(null);
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
   const [cardName, setCardName] = useState('');
@@ -181,6 +255,9 @@ export default function CardsFactoryScreen() {
   const [activeSlotIndex, setActiveSlotIndex] = useState<number | null>(null);
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewCard, setPreviewCard] = useState<SmartCard | null>(null);
+  const [previewBusinessVisible, setPreviewBusinessVisible] = useState(false);
+  const [previewBusiness, setPreviewBusiness] = useState<BusinessCardListRow | null>(null);
+  const [previewBusinessOwnerUid, setPreviewBusinessOwnerUid] = useState('');
   // Estado para forzar orientación de la tarjeta en preview
   const [previewLayout, setPreviewLayout] = useState<'vertical' | 'horizontal'>('vertical');
   const [dataPopoverVisible, setDataPopoverVisible] = useState(false);
@@ -191,6 +268,13 @@ export default function CardsFactoryScreen() {
   const [subscribersCard, setSubscribersCard] = useState<SmartCard | null>(null);
   const [subscribers, setSubscribers] = useState<CardSubscriber[]>([]);
   const [qrVisible, setQrVisible] = useState(false);
+  const [qrBusinessContext, setQrBusinessContext] = useState<null | {
+    cardId: string;
+    businessName: string;
+    ownerName: string;
+    ownerUid: string;
+    logoUrl: string | null;
+  }>(null);
   // Limit Reached Modal States
   const [limitReachedVisible, setLimitReachedVisible] = useState(false);
   const [limitCardCount, setLimitCardCount] = useState(0);
@@ -206,6 +290,8 @@ export default function CardsFactoryScreen() {
   const [remainingSec, setRemainingSec] = useState(0);
   const [remainingMs, setRemainingMs] = useState(0);
   const [issuingQr, setIssuingQr] = useState(false);
+  /** UID de la sesión en Mis Tarjetas (QR permanente en filas de negocio). */
+  const [sessionOwnerUid, setSessionOwnerUid] = useState<string | null>(null);
   const [cardSearchQuery, setCardSearchQuery] = useState('');
   const [rotateHintVisible, setRotateHintVisible] = useState(false);
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -240,14 +326,19 @@ export default function CardsFactoryScreen() {
         const authenticated = await hardLockCheck('acceso a Business Cards');
         setIsCardsUnlocked(authenticated);
         if (!authenticated) {
+          setSessionOwnerUid(null);
           return;
         }
+
+        const uid = await getActiveUserId();
+        setSessionOwnerUid(uid ?? null);
 
         void refreshThemes();
 
         InteractionManager.runAfterInteractions(() => {
           loadVaultItems();
           loadSmartCards();
+          void loadBusinessCardsFeed();
         });
       };
 
@@ -402,6 +493,7 @@ export default function CardsFactoryScreen() {
           /* sin red o sin permisos — deja vacío */
         }
       }
+      itemsMigrated = await mergeBuiltinGhostLinkIntoVault(ownerUid, itemsMigrated);
       setVaultItems(itemsMigrated as VaultItem[]);
       try {
         const vaultMap = await getUserIconVaultMap(ownerUid);
@@ -455,6 +547,7 @@ export default function CardsFactoryScreen() {
         itemIds: Array.isArray(card.itemIds) ? card.itemIds : [],
         holdersCount: Number(card.holdersCount || 0),
         ratingAvg: Number(card.ratingAvg || 5),
+        totalRatings: Number(card.totalRatings ?? 0),
         searchFacets: card.searchFacets,
         createdAt: card.createdAt,
         updatedAt: card.updatedAt,
@@ -467,6 +560,20 @@ export default function CardsFactoryScreen() {
       }
     } catch {
       // Cache ya pintado — no hacer nada
+    }
+  };
+
+  const loadBusinessCardsFeed = async () => {
+    const ownerUid = await getActiveUserId();
+    if (!ownerUid) {
+      setBusinessCardsFeed([]);
+      return;
+    }
+    try {
+      const rows = await listBusinessCardsByOwner(ownerUid);
+      setBusinessCardsFeed(rows);
+    } catch {
+      setBusinessCardsFeed([]);
     }
   };
 
@@ -653,7 +760,7 @@ export default function CardsFactoryScreen() {
     setFactoryVisible(true);
   };
 
-  const MAX_CARD_SLOTS = 8;
+  const MAX_CARD_SLOTS = 12;
 
   const removeSlotItem = (slotIndex: number) => {
     setSelectedItemIds((prev) => prev.filter((_, index) => index !== slotIndex));
@@ -780,6 +887,7 @@ export default function CardsFactoryScreen() {
         itemIds: normalizedItemIds,
         holdersCount: 0,
         ratingAvg: 5,
+        totalRatings: 0,
         createdAt: nowIso,
         updatedAt: nowIso,
       };
@@ -1097,6 +1205,7 @@ export default function CardsFactoryScreen() {
       }
 
       setIssuingQr(true);
+      setQrBusinessContext(null);
       setSelectedCard(card);
 
       const ownerUid = await getActiveUserId();
@@ -1155,6 +1264,127 @@ export default function CardsFactoryScreen() {
     );
   };
 
+  const issueQrForBusiness = async (row: BusinessCardListRow) => {
+    try {
+      const authenticated = await hardLockCheck('generar QR y compartir tu tarjeta');
+      if (!authenticated) {
+        return;
+      }
+
+      setIssuingQr(true);
+      const ownerUid = await getActiveUserId();
+      if (!ownerUid) {
+        throw new Error(tr('No se pudo obtener tu sesión.', 'Could not get your session.'));
+      }
+
+      setQrBusinessContext({
+        cardId: row.id,
+        businessName: row.businessName,
+        ownerName: row.ownerName,
+        ownerUid,
+        logoUrl: toRenderableImageUri(row.businessLogo),
+      });
+      setSelectedCard(null);
+      setQrToken('');
+      setQrExpiresAt(0);
+      setRemainingMs(0);
+      setRemainingSec(0);
+      setQrVisible(true);
+    } catch (error: any) {
+      Alert.alert(tr('Error de QR', 'QR error'), String(error?.message || ''));
+    } finally {
+      setIssuingQr(false);
+    }
+  };
+
+  const confirmAndIssueQrForBusiness = (row: BusinessCardListRow) => {
+    if (issuingQr) {
+      return;
+    }
+    Alert.alert(
+      tr('Crear QR', 'Create QR'),
+      tr(
+        `¿Deseas mostrar el QR permanente de "${row.businessName}"?`,
+        `Do you want to show the permanent QR for "${row.businessName}"?`,
+      ),
+      [
+        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+        {
+          text: tr('Aceptar', 'Accept'),
+          onPress: () => {
+            void issueQrForBusiness(row);
+          },
+        },
+      ],
+    );
+  };
+
+  const deleteBusinessCardEntry = async (row: BusinessCardListRow) => {
+    const ownerUid = await getActiveUserId();
+    if (!ownerUid) {
+      return;
+    }
+    let previous: BusinessCardListRow[] = [];
+    setBusinessCardsFeed((p) => {
+      previous = p;
+      return p.filter((c) => c.id !== row.id);
+    });
+    try {
+      const r = await removeBusinessCardFromFirestore(ownerUid, row.id);
+      if (!r.success) {
+        throw new Error(r.message);
+      }
+    } catch {
+      setBusinessCardsFeed(previous);
+      Alert.alert(tr('Error', 'Error'), tr('No se pudo eliminar la tarjeta de negocio.', 'Could not delete the business card.'));
+    }
+  };
+
+  const toggleFavoriteBusinessCard = async (row: BusinessCardListRow) => {
+    const ownerUid = await getActiveUserId();
+    if (!ownerUid) {
+      return;
+    }
+    const next = !row.isFavorite;
+    setBusinessCardsFeed((p) => p.map((c) => (c.id === row.id ? { ...c, isFavorite: next } : c)));
+    try {
+      const r = await setBusinessCardFavorite(ownerUid, row.id, next);
+      if (!r.success) {
+        throw new Error(r.message);
+      }
+    } catch {
+      setBusinessCardsFeed((p) => p.map((c) => (c.id === row.id ? { ...c, isFavorite: row.isFavorite } : c)));
+    }
+  };
+
+  const openPreviewBusinessCard = async (row: BusinessCardListRow) => {
+    const uid = await getActiveUserId();
+    if (!uid) {
+      return;
+    }
+    setPreviewBusinessOwnerUid(uid);
+    setPreviewBusiness(row);
+    setPreviewLayout(width > height ? 'horizontal' : 'vertical');
+    setPreviewBusinessVisible(true);
+  };
+
+  const handleBusinessCardLongPress = (row: BusinessCardListRow) => {
+    Alert.alert(tr('Tarjeta de negocio', 'Business card'), tr('Elige una acción.', 'Choose an action.'), [
+      { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+      {
+        text: tr('Editar', 'Edit'),
+        onPress: () => router.push({ pathname: '/(tabs)/createBusinessCard', params: { cardId: row.id } } as any),
+      },
+      {
+        text: tr('Eliminar', 'Delete'),
+        style: 'destructive',
+        onPress: () => void deleteBusinessCardEntry(row),
+      },
+    ]);
+  };
+
+  const businessSwipeKey = (id: string) => `business:${id}`;
+
   const selectedCardItems = useMemo(() => {
     if (!selectedCard) {
       return [];
@@ -1181,6 +1411,11 @@ export default function CardsFactoryScreen() {
     });
   }, [selectedItemIds, vaultItems]);
 
+  const factoryWireIconRows = useMemo(() => {
+    const n = editSlots.filter((s) => s.item !== null).length;
+    return Math.max(1, getWireframeIconRowPlan(n).length);
+  }, [editSlots]);
+
   // Handle upgrade button press (limit reached modal)
   const handleUpgradePress = async () => {
     try {
@@ -1203,7 +1438,20 @@ export default function CardsFactoryScreen() {
     }));
   }, [previewCardItems]);
 
+  const businessPreviewSlots = useMemo<EditSlot[]>(() => {
+    if (!previewBusiness?.vaultLinkIds?.length) {
+      return [];
+    }
+    return previewBusiness.vaultLinkIds.map((linkId, index) => {
+      const item = vaultItems.find((v) => v.id === linkId) || null;
+      return { id: `biz-preview-${linkId}-${index}`, index, item };
+    });
+  }, [previewBusiness, vaultItems]);
+
   const qrPayload = useMemo(() => {
+    if (qrBusinessContext) {
+      return generatePermanentBusinessLink(qrBusinessContext.cardId, qrBusinessContext.ownerUid);
+    }
     if (!selectedCard || !qrToken) {
       return '';
     }
@@ -1214,15 +1462,21 @@ export default function CardsFactoryScreen() {
       cardId: selectedCard.id,
       exp: qrExpiresAt,
     });
-  }, [selectedCard, qrToken, qrExpiresAt]);
+  }, [selectedCard, qrToken, qrExpiresAt, qrBusinessContext]);
 
   const remainingPercent = useMemo(() => {
+    if (qrBusinessContext || qrWindowMs <= 0) {
+      return 1;
+    }
     return Math.max(0, Math.min(1, remainingMs / qrWindowMs));
-  }, [remainingMs, qrWindowMs]);
+  }, [remainingMs, qrWindowMs, qrBusinessContext]);
 
   const qrExpired = useMemo(() => {
+    if (qrBusinessContext) {
+      return false;
+    }
     return qrVisible && remainingMs <= 0 && Boolean(qrPayload);
-  }, [qrVisible, remainingMs, qrPayload]);
+  }, [qrVisible, remainingMs, qrPayload, qrBusinessContext]);
 
   const sortedCards = useMemo(() => {
     return [...smartCards].sort((a, b) => {
@@ -1234,16 +1488,44 @@ export default function CardsFactoryScreen() {
     });
   }, [smartCards]);
 
-  const filteredCards = useMemo(() => {
+  type FeedListItem =
+    | ({ kind: 'business' } & BusinessCardListRow)
+    | { kind: 'smart'; card: SmartCard };
+
+  const sortedBusinessCards = useMemo(() => {
+    return [...businessCardsFeed].sort((a, b) => {
+      const favDiff = Number(Boolean(b.isFavorite)) - Number(Boolean(a.isFavorite));
+      if (favDiff !== 0) {
+        return favDiff;
+      }
+      return b.createdAtMs - a.createdAtMs;
+    });
+  }, [businessCardsFeed]);
+
+  const filteredFeed = useMemo((): FeedListItem[] => {
+    const bizItems: FeedListItem[] = sortedBusinessCards.map((b) => ({
+      kind: 'business' as const,
+      ...b,
+    }));
     const q = cardSearchQuery.trim();
     if (!q) {
-      return sortedCards;
+      return [...bizItems, ...sortedCards.map((card) => ({ kind: 'smart' as const, card }))];
     }
     const qExpanded = buildExpandedMarketQuery(q) || q;
-    return orderByDeepSearchWithExpandedQuery(sortedCards, qExpanded, (card) =>
+    const qLower = q.toLowerCase();
+    const bizFiltered = bizItems.filter((b) => {
+      if (b.kind !== 'business') return false;
+      return (
+        b.businessName.toLowerCase().includes(qLower) ||
+        b.id.toLowerCase().includes(qLower) ||
+        b.ownerName.toLowerCase().includes(qLower)
+      );
+    });
+    const smartFiltered = orderByDeepSearchWithExpandedQuery(sortedCards, qExpanded, (card) =>
       collectStringsSmartCard({ name: card.name, itemIds: card.itemIds }, vaultItems, false),
     );
-  }, [sortedCards, cardSearchQuery, vaultItems]);
+    return [...bizFiltered, ...smartFiltered.map((card) => ({ kind: 'smart' as const, card }))];
+  }, [sortedBusinessCards, sortedCards, cardSearchQuery, vaultItems]);
 
   const openPreviewCard = (card: SmartCard) => {
     setPreviewCard(card);
@@ -1256,26 +1538,30 @@ export default function CardsFactoryScreen() {
     setPreviewVisible(true);
   };
 
-  // Efecto para actualizar orientación en tiempo real mientras el modal está abierto
+  // Efecto para actualizar orientación en tiempo real mientras el modal de vista previa está abierto
   useEffect(() => {
-    if (!previewVisible) return;
+    if (!previewVisible && !previewBusinessVisible) return;
     setPreviewLayout(width > height ? 'horizontal' : 'vertical');
-  }, [previewVisible, width, height]);
+  }, [previewVisible, previewBusinessVisible, width, height]);
 
   const openDataPopover = async (item: VaultItem) => {
     const type = String(item.type || '').toLowerCase();
     const value = String(item.value || '').trim();
+    if (isGhostLinkVaultType(item.type)) {
+      const activeCard = previewVisible && previewCard ? previewCard : selectedCard;
+      const issuerUid = await getActiveUserId();
+      await ActionController.ActionGhostLinkVaultItem({
+        targetUid: issuerUid,
+        sourceCardName: activeCard?.name ?? cardName ?? 'Tarjeta Social',
+        sourceCardId: activeCard?.id ?? null,
+        userName: ownerNickname || 'este contacto',
+      });
+      return;
+    }
     if (type.includes('email')) {
       await ActionController.ActionEmail({ value });
-    } else if (type.includes('tel')) {
-      await ActionController.ActionTelefono({
-        value,
-        userName: ownerNickname || 'este contacto',
-        cardName: selectedCard?.name ?? '',
-        onRequireVoipContext: () => {
-          router.push('/(tabs)/calls' as any);
-        },
-      });
+    } else if (isClassicPhoneVaultType(item.type)) {
+      await ActionController.ActionTelefono({ value });
     } else if (type.includes('enlace') || type.includes('link') || type.includes('web')) {
       await ActionController.ActionLink({ value, title: item.title });
     } else if (
@@ -1308,16 +1594,19 @@ export default function CardsFactoryScreen() {
       return;
     }
     try {
-      if (item.type === 'Teléfono') {
-        // Ghost-Link: no expone el número, redirige a la pestaña Calls
-        Alert.alert(
-          'Ghost-Link Activo',
-          'Para proteger el número real, las llamadas se hacen desde Calls/Contacts dentro de Card-Social.',
-          [
-            { text: 'Ir a Calls', onPress: () => router.push('/(tabs)/calls' as any) },
-            { text: 'Cerrar', style: 'cancel' },
-          ],
-        );
+      if (isGhostLinkVaultType(item.type)) {
+        const activeCard = previewVisible && previewCard ? previewCard : selectedCard;
+        const issuerUid = await getActiveUserId();
+        await ActionController.ActionGhostLinkVaultItem({
+          targetUid: issuerUid,
+          sourceCardName: activeCard?.name ?? cardName ?? 'Tarjeta Social',
+          sourceCardId: activeCard?.id ?? null,
+          userName: ownerNickname || 'este contacto',
+        });
+        return;
+      }
+      if (isClassicPhoneVaultType(item.type)) {
+        await ActionController.ActionTelefono({ value: String(item.value || '') });
         return;
       }
       if (item.type === 'Email') {
@@ -1343,8 +1632,15 @@ export default function CardsFactoryScreen() {
       return;
     }
     try {
-      if (item.type === 'Teléfono') {
-        Alert.alert(tr('No disponible', 'Not available'), tr('Los teléfonos no se abren en navegador por política Ghost-Link.', 'Phones cannot be opened in browser per Ghost-Link policy.'));
+      if (isGhostLinkVaultType(item.type)) {
+        Alert.alert(
+          tr('No disponible', 'Not available'),
+          tr('Ghost-Link solo funciona dentro de Card-Social (llamada VoIP).', 'Ghost-Link only works inside Card-Social (VoIP call).'),
+        );
+        return;
+      }
+      if (isClassicPhoneVaultType(item.type)) {
+        await ActionController.ActionTelefono({ value: String(item.value || '') });
         return;
       }
       if (item.type === 'Enlaces') {
@@ -1480,9 +1776,35 @@ export default function CardsFactoryScreen() {
     );
   };
 
+  /** Estrellas con media (½) para la fila de Mis Tarjetas. `starSize` por defecto 14. */
+  const renderDetailedRatingStars = (rating: number, starSize = 14) => {
+    const r = Math.max(0, Math.min(5, Number(rating) || 0));
+    const gap = Math.max(1, Math.round(starSize * 0.12));
+    return (
+      <View style={[styles.ratingRow, { gap }]}>
+        {Array.from({ length: 5 }).map((_, index) => {
+          const threshold = index + 1;
+          let name: 'star' | 'star-half-full' | 'star-outline' = 'star-outline';
+          if (r >= threshold) name = 'star';
+          else if (r >= threshold - 0.5) name = 'star-half-full';
+          return (
+            <MaterialCommunityIcons
+              key={`dstar-${index}`}
+              name={name}
+              size={starSize}
+              color="#C5A065"
+            />
+          );
+        })}
+      </View>
+    );
+  };
+
   const renderIdentityBadge = (compact = false) => {
     const holderCount = selectedCard?.holdersCount ?? previewCard?.holdersCount ?? 100;
+    const reviewCount = selectedCard?.totalRatings ?? previewCard?.totalRatings ?? 0;
     const ratingAvg = selectedCard?.ratingAvg ?? previewCard?.ratingAvg ?? 5;
+    const starsVal = reviewCount > 0 ? Math.max(0, Math.min(5, Number(ratingAvg))) : 0;
     const cardTitle = (
       selectedCard?.name
       || previewCard?.name
@@ -1490,6 +1812,7 @@ export default function CardsFactoryScreen() {
       || 'Nueva Tarjeta'
     ).trim();
     const nickname = (ownerNickname || 'user').toLowerCase();
+    const capSize = compact ? 11 : 13;
     return (
       <>
         {ownerPhotoUrl ? (
@@ -1501,12 +1824,20 @@ export default function CardsFactoryScreen() {
         )}
         <AutoScaleText style={compact ? styles.wireNameSm : styles.wireName}>{cardTitle}</AutoScaleText>
         <AutoScaleText style={compact ? styles.wireNickSm : styles.wireNick}>@{nickname}</AutoScaleText>
-        <View style={styles.wireStatsRow}>
+        <View style={styles.wireStatsRowInline}>
+          <View style={styles.wireStatsRatingStack}>
+            {renderDetailedRatingStars(starsVal, compact ? 16 : 20)}
+            <Text
+              style={[styles.wireStatsReviewCaption, { color: '#497499', fontSize: compact ? 9 : 10, textAlign: 'center' }]}
+              numberOfLines={1}
+            >
+              {starsVal.toFixed(1)} · {reviewCount} {tr('reseñas', 'reviews')}
+            </Text>
+          </View>
           <View style={styles.wireUsersPill}>
-            <MaterialCommunityIcons name="account-outline" size={compact ? 11 : 13} color="#0A2540" />
+            <MaterialCommunityIcons name="account-outline" size={capSize} color="#0A2540" />
             <Text style={styles.wireUsersPillText}>{holderCount}</Text>
           </View>
-          {renderRatingStars(ratingAvg)}
         </View>
       </>
     );
@@ -1514,18 +1845,20 @@ export default function CardsFactoryScreen() {
 
   const renderSlotContent = (slot: EditSlot, ui: { size: number }, editable: boolean) => {
     const hasItem = Boolean(slot.item);
-    // Responsive: bubble is ~14% of screen width, clamped loosely
-    const bubbleSize = Math.max(Math.round(width * 0.10), Math.min(Math.round(width * 0.18), ui.size - 8));
-    const iconSize = Math.round(bubbleSize * 0.48);
+    // Burbuja = celda; el logo llena casi todo el cuadro blanco.
+    const bubbleSize = Math.max(26, Math.floor(ui.size));
+    const iconSize = Math.round(bubbleSize * 0.9);
     const compactTitle = String(slot.item?.title || 'Agregar')
       .trim()
       .split(/\s+/)
       .slice(0, 2)
       .join(' ');
     const labelFontSize = Math.max(9, Math.round(bubbleSize * 0.15));
+    const labelLineHeight = Math.ceil(labelFontSize * 1.22);
+    const minTileH = bubbleSize + 8 + labelLineHeight * 2 + 8;
 
     return (
-      <View style={[styles.slotTile, { minHeight: bubbleSize + 26 }]}>
+      <View style={[styles.slotTile, { minHeight: minTileH }]}>
         <TouchableOpacity
           style={[styles.slotBubble, { width: bubbleSize, height: bubbleSize, borderRadius: Math.min(14, bubbleSize / 4) }]}
           onPress={() => {
@@ -1550,7 +1883,18 @@ export default function CardsFactoryScreen() {
             <MaterialCommunityIcons name="plus" size={iconSize} color="#4D7A97" />
           )}
         </TouchableOpacity>
-        <Text style={[styles.slotLabel, { width: bubbleSize, fontSize: labelFontSize }]} numberOfLines={2}>
+        <Text
+          style={[
+            styles.slotLabel,
+            {
+              width: '100%',
+              maxWidth: '100%',
+              fontSize: labelFontSize,
+              lineHeight: labelLineHeight,
+            },
+          ]}
+          numberOfLines={2}
+        >
           {compactTitle}
         </Text>
 
@@ -1576,8 +1920,27 @@ export default function CardsFactoryScreen() {
     editable: boolean;
     theme: ChestCardTheme;
     wallpaperUrl?: string;
+    /** Vista previa de tarjeta de negocio (misma rejilla que Smart Card). */
+    wireIdentity?: {
+      cardTitle: string;
+      subtitle: string;
+      avatarUri: string | null;
+      holdersCount: number;
+      ratingAvg: number;
+      totalRatings?: number;
+      noAvatarIcon: 'account' | 'storefront-outline';
+    } | null;
   }) => {
-    const { layout, slots, editable, theme, wallpaperUrl } = params;
+    const { layout, slots, editable, theme, wallpaperUrl, wireIdentity } = params;
+    const wId = wireIdentity;
+    const dispName = wId?.cardTitle ?? (selectedCard?.name || previewCard?.name || cardName || 'Nueva Tarjeta').trim();
+    const dispSub = wId ? wId.subtitle : `@${(ownerNickname || 'user').toLowerCase()}`;
+    const dispAvatar = wId ? wId.avatarUri : ownerPhotoUrl;
+    const dispHolders = wId ? wId.holdersCount : (selectedCard?.holdersCount ?? previewCard?.holdersCount ?? 0);
+    const dispReviewCount = wId?.totalRatings ?? selectedCard?.totalRatings ?? previewCard?.totalRatings ?? 0;
+    const dispRatingRaw = wId ? wId.ratingAvg : (selectedCard?.ratingAvg ?? previewCard?.ratingAvg ?? 5);
+    const dispStarsValue = dispReviewCount > 0 ? Math.max(0, Math.min(5, Number(dispRatingRaw))) : 0;
+    const noAvatarIconName = (wId?.noAvatarIcon ?? 'account') as 'account' | 'storefront-outline';
     const dataSlots = slots.filter((slot) => slot.item !== null);
     const feed = editable ? slots : dataSlots;
     const bg3 = theme.background; // 3-stop gradient
@@ -1600,22 +1963,26 @@ export default function CardsFactoryScreen() {
       const hNameFontSize  = horizInfoBoxLayout.h > 0 ? Math.round(horizInfoBoxLayout.h * 0.28) : 18;
       const hNickFontSize  = horizInfoBoxLayout.h > 0 ? Math.round(horizInfoBoxLayout.h * 0.18) : 12;
       const hStatsFontSize = horizInfoBoxLayout.h > 0 ? Math.round(horizInfoBoxLayout.h * 0.12) : 10;
+      const hWireStarSize = Math.max(18, Math.min(26, Math.round(hStatsFontSize * 2.05)));
+      const hReviewCaptionSize = Math.max(8, Math.round(hStatsFontSize * 0.68));
 
       // Branding proporcional al alto del header
       const hBrandFontSize = horizHeaderH > 0 ? Math.round(horizHeaderH * 0.45) : 13;
       const hBrandLogoSize = horizHeaderH > 0 ? Math.round(horizHeaderH * 0.55) : 18;
 
-      // Iconos: Math.min(maxByWidth, maxByHeight) — todos iguales
-      const H_GAP = 8;
-      const hCount   = feed.length;
-      const hNumCols = 3;
-      const hNumRows = Math.ceil(hCount / hNumCols);
-      const hIconSize = horizIconGridLayout.w > 0 && horizIconGridLayout.h > 0
-        ? Math.floor(Math.min(
-            (horizIconGridLayout.w - H_GAP * (hNumCols + 1)) / hNumCols,
-            (horizIconGridLayout.h - H_GAP * (hNumRows + 1)) / hNumRows,
-          ))
-        : 0;
+      const H_GAP = 5;
+      const hFeed = feed.slice(0, WIREFRAME_MAX_ICONS);
+      const hRowPlan = getWireframeIconRowPlan(hFeed.length);
+      let hCursor = 0;
+      const hIconRows = hRowPlan.map((n) => {
+        const row = hFeed.slice(hCursor, hCursor + n);
+        hCursor += n;
+        return row;
+      });
+      const hIconSize =
+        horizIconGridLayout.w > 0 && horizIconGridLayout.h > 0
+          ? computeWireframeIconCellSize(horizIconGridLayout.w, horizIconGridLayout.h, hRowPlan, H_GAP)
+          : 0;
 
       return (
         <LinearGradient colors={bg3} style={[styles.wireHorizCard, { borderColor: bd.color, borderWidth: bd.width }]}>
@@ -1638,47 +2005,55 @@ export default function CardsFactoryScreen() {
             <Text style={[styles.horizBrandingText, { color: subStyle.color, fontSize: hBrandFontSize }]}>Card-Social</Text>
           </View>
 
-          {/* ── FILA MEDIA flex:3 — Avatar flex:1 | Info flex:3 ── */}
+          {/* ── FILA MEDIA flex:3 ── */}
           <View style={styles.horizMiddleRow}>
-            {/* Avatar box — flex:1 */}
+            {/* Avatar */}
             <View
               style={styles.horizAvatarBox}
               onLayout={e => setHorizAvatarBoxLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
             >
               {horizAvatarSide > 0 ? (
-                ownerPhotoUrl ? (
+                dispAvatar ? (
                   <ExpoImage
-                    source={{ uri: ownerPhotoUrl }}
+                    source={{ uri: dispAvatar }}
                     style={{ width: horizAvatarSide, height: horizAvatarSide, borderRadius: horizAvatarRadius, borderWidth: bd.width, borderColor: bd.color }}
                     cachePolicy="disk"
                   />
                 ) : (
                   <View style={{ width: horizAvatarSide, height: horizAvatarSide, borderRadius: horizAvatarRadius, borderWidth: bd.width, borderColor: bd.color, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }}>
-                    <MaterialCommunityIcons name="account" size={Math.round(horizAvatarSide * 0.5)} color={titleStyle.color} />
+                    <MaterialCommunityIcons name={noAvatarIconName} size={Math.round(horizAvatarSide * 0.5)} color={titleStyle.color} />
                   </View>
                 )
               ) : null}
             </View>
 
-            {/* Info box — flex:3 */}
+            {/* Info */}
             <View
               style={styles.horizInfoBox}
               onLayout={e => setHorizInfoBoxLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
             >
               <Text style={[styles.horizName, { color: titleStyle.color, fontSize: hNameFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
-                {(selectedCard?.name || previewCard?.name || cardName || 'Nueva Tarjeta').trim()}
+                {dispName}
               </Text>
               <Text style={[styles.horizNick, { color: subStyle.color, fontSize: hNickFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
-                @{(ownerNickname || 'user').toLowerCase()}
+                {dispSub}
               </Text>
-              <View style={styles.wireStatsRow}>
+              <View style={styles.wireStatsRowInline}>
+                <View style={styles.wireStatsRatingStack}>
+                  {renderDetailedRatingStars(dispStarsValue, hWireStarSize)}
+                  <Text
+                    style={[styles.wireStatsReviewCaption, { color: subStyle.color, fontSize: hReviewCaptionSize, textAlign: 'center' }]}
+                    numberOfLines={1}
+                  >
+                    {dispStarsValue.toFixed(1)} · {dispReviewCount} {tr('reseñas', 'reviews')}
+                  </Text>
+                </View>
                 <View style={[styles.wireUsersPill, { borderColor: bd.color }]}>
                   <MaterialCommunityIcons name="account-outline" size={hStatsFontSize} color={titleStyle.color} />
                   <Text style={[styles.wireUsersPillText, { color: titleStyle.color, fontSize: hStatsFontSize }]}>
-                    {selectedCard?.holdersCount ?? previewCard?.holdersCount ?? 0}
+                    {dispHolders}
                   </Text>
                 </View>
-                {renderRatingStars(selectedCard?.ratingAvg ?? previewCard?.ratingAvg ?? 5)}
               </View>
             </View>
           </View>
@@ -1689,12 +2064,18 @@ export default function CardsFactoryScreen() {
             onLayout={e => setHorizIconGridLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
           >
             {hIconSize > 0 ? (
-              <View style={styles.horizIconsGrid}>
-                {feed.map((slot) => (
-                  <View key={slot.id} style={{ width: hIconSize, height: hIconSize, margin: H_GAP / 2 }}>
-                    {renderSlotContent(slot, { size: hIconSize }, editable)}
-                  </View>
-                ))}
+              <View style={styles.wireIconGridRoot}>
+                <View style={styles.wireIconRowsStack}>
+                  {hIconRows.map((rowSlots, ri) => (
+                    <View key={`h-ir-${ri}`} style={styles.wireIconRow}>
+                      {rowSlots.map((slot) => (
+                        <View key={slot.id} style={styles.wireIconCell}>
+                          {renderSlotContent(slot, { size: hIconSize }, editable)}
+                        </View>
+                      ))}
+                    </View>
+                  ))}
+                </View>
               </View>
             ) : null}
           </View>
@@ -1711,22 +2092,24 @@ export default function CardsFactoryScreen() {
     const nameFontSize  = vertInfoBoxLayout.h > 0 ? Math.round(vertInfoBoxLayout.h * 0.28) : 18;
     const nickFontSize  = vertInfoBoxLayout.h > 0 ? Math.round(vertInfoBoxLayout.h * 0.18) : 12;
     const statsFontSize = vertInfoBoxLayout.h > 0 ? Math.round(vertInfoBoxLayout.h * 0.12) : 10;
+    const vWireStarSize = Math.max(20, Math.min(28, Math.round(statsFontSize * 2.15)));
+    const vReviewCaptionSize = Math.max(8, Math.round(statsFontSize * 0.65));
     // Branding font scales from header height
     const brandFontSize = vertHeaderH > 0 ? Math.round(vertHeaderH * 0.45) : 13;
     const brandLogoSize = vertHeaderH > 0 ? Math.round(vertHeaderH * 0.55) : 18;
 
-    const ICON_GAP = 6;
-    const vertCount = feed.length;
-    const vertNumCols = 3; // always 3 columns horizontal
-    const vertNumRows = Math.ceil(vertCount / vertNumCols);
+    const ICON_GAP = 4;
+    const vFeed = feed.slice(0, WIREFRAME_MAX_ICONS);
+    const vRowPlan = getWireframeIconRowPlan(vFeed.length);
+    let vCursor = 0;
+    const vIconRows = vRowPlan.map((n) => {
+      const row = vFeed.slice(vCursor, vCursor + n);
+      vCursor += n;
+      return row;
+    });
     const vertIconCellSize =
       vertIconGridLayout.w > 0 && vertIconGridLayout.h > 0
-        ? Math.floor(
-            Math.min(
-              (vertIconGridLayout.w - ICON_GAP * (vertNumCols + 1)) / vertNumCols,
-              (vertIconGridLayout.h - ICON_GAP * (vertNumRows + 1)) / vertNumRows,
-            ),
-          )
+        ? computeWireframeIconCellSize(vertIconGridLayout.w, vertIconGridLayout.h, vRowPlan, ICON_GAP)
         : 0;
 
     return (
@@ -1750,17 +2133,17 @@ export default function CardsFactoryScreen() {
           <Text style={[styles.vertBrandingText, { color: subStyle.color, fontSize: brandFontSize }]}>Card-Social</Text>
         </View>
 
-        {/* ── SECCIÓN TOP — flex: 1.5 ────────────────────────────── */}
+        {/* ── SECCIÓN TOP (avatar + info; más aire para nombre) ── */}
         <View style={styles.vertTop}>
-          {/* Avatar box — flex: 1 */}
+          {/* Avatar */}
           <View
             style={styles.vertAvatarBox}
             onLayout={e => setVertAvatarBoxH(e.nativeEvent.layout.height)}
           >
             {vertAvatarSide > 0 ? (
-              ownerPhotoUrl ? (
+              dispAvatar ? (
                 <ExpoImage
-                  source={{ uri: ownerPhotoUrl }}
+                  source={{ uri: dispAvatar }}
                   style={{
                     width: vertAvatarSide,
                     height: vertAvatarSide,
@@ -1786,44 +2169,58 @@ export default function CardsFactoryScreen() {
                   shadowRadius: 6,
                   elevation: 5,
                 }}>
-                  <MaterialCommunityIcons name="account" size={Math.round(vertAvatarSide * 0.52)} color={titleStyle.color} />
+                  <MaterialCommunityIcons name={noAvatarIconName} size={Math.round(vertAvatarSide * 0.52)} color={titleStyle.color} />
                 </View>
               )
             ) : null}
           </View>
 
-          {/* Info box — flex: 1 */}
+          {/* Info */}
           <View style={styles.vertInfoBox} onLayout={e => setVertInfoBoxLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
             <Text style={[styles.vertName, { color: titleStyle.color, fontSize: nameFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
-              {(selectedCard?.name || previewCard?.name || cardName || 'Nueva Tarjeta').trim()}
+              {dispName}
             </Text>
             <Text style={[styles.vertNick, { color: subStyle.color, fontSize: nickFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
-              @{(ownerNickname || 'user').toLowerCase()}
+              {dispSub}
             </Text>
-            <View style={styles.wireStatsRow}>
+            <View style={styles.wireStatsRowInline}>
+              <View style={styles.wireStatsRatingStack}>
+                {renderDetailedRatingStars(dispStarsValue, vWireStarSize)}
+                <Text
+                  style={[styles.wireStatsReviewCaption, { color: subStyle.color, fontSize: vReviewCaptionSize, textAlign: 'center' }]}
+                  numberOfLines={1}
+                >
+                  {dispStarsValue.toFixed(1)} · {dispReviewCount} {tr('reseñas', 'reviews')}
+                </Text>
+              </View>
               <View style={[styles.wireUsersPill, { borderColor: bd.color }]}>
                 <MaterialCommunityIcons name="account-outline" size={statsFontSize} color={titleStyle.color} />
                 <Text style={[styles.wireUsersPillText, { color: titleStyle.color, fontSize: statsFontSize }]}>
-                  {selectedCard?.holdersCount ?? previewCard?.holdersCount ?? 0}
+                  {dispHolders}
                 </Text>
               </View>
-              {renderRatingStars(selectedCard?.ratingAvg ?? previewCard?.ratingAvg ?? 5)}
             </View>
           </View>
         </View>
 
-        {/* ── SECCIÓN BOTTOM — flex: 3.5 — Iconos ───────────────── */}
+        {/* ── Iconos (caja más baja; margen separa del bloque superior) ── */}
         <View
           style={styles.vertIconsBox}
           onLayout={e => setVertIconGridLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
         >
           {vertIconCellSize > 0 ? (
-            <View style={styles.vertIconsGrid}>
-              {feed.map((slot) => (
-                <View key={slot.id} style={{ width: vertIconCellSize, height: vertIconCellSize, margin: ICON_GAP / 2 }}>
-                  {renderSlotContent(slot, { size: vertIconCellSize }, editable)}
-                </View>
-              ))}
+            <View style={styles.wireIconGridRoot}>
+              <View style={styles.wireIconRowsStack}>
+                {vIconRows.map((rowSlots, ri) => (
+                  <View key={`v-ir-${ri}`} style={styles.wireIconRow}>
+                    {rowSlots.map((slot) => (
+                      <View key={slot.id} style={styles.wireIconCell}>
+                        {renderSlotContent(slot, { size: vertIconCellSize }, editable)}
+                      </View>
+                    ))}
+                  </View>
+                ))}
+              </View>
             </View>
           ) : null}
         </View>
@@ -1831,11 +2228,178 @@ export default function CardsFactoryScreen() {
     );
   };
 
+  const renderBusinessCardRow = (row: BusinessCardListRow) => {
+    const chestTheme = getCardRowTheme(row.themeId);
+    const themeMeta = getThemeById(row.themeId || '') ?? CHEST_THEMES[0];
+    const holders = row.holdersCount ?? 0;
+    const reviewCount = row.totalRatings ?? 0;
+    const rating = reviewCount > 0 ? Number(row.ratingAvg ?? 0) : 0;
+    const logoUri = toRenderableImageUri(row.businessLogo);
+    const sk = businessSwipeKey(row.id);
+    return (
+      <Swipeable
+        containerStyle={[styles.swipeWrap, isLandscape && styles.swipeWrapLandscape]}
+        rightThreshold={24}
+        leftThreshold={24}
+        renderLeftActions={(_progress, _translation, methods) => {
+          swipeableMethodsByCardIdRef.current.set(sk, methods);
+          return <View style={styles.swipeLeftTriggerArea} />;
+        }}
+        onSwipeableOpen={(direction) => {
+          if (direction === 'right') {
+            swipeableMethodsByCardIdRef.current.get(sk)?.close();
+            confirmAndIssueQrForBusiness(row);
+          }
+        }}
+        renderRightActions={() => (
+          <View style={styles.swipeActions}>
+            <TouchableOpacity
+              style={styles.swipeActionBtn}
+              onPress={() =>
+                router.push({ pathname: '/(tabs)/createBusinessCard', params: { cardId: row.id } } as any)
+              }
+              accessibilityLabel={tr('Editar tarjeta', 'Edit card')}
+            >
+              <MaterialCommunityIcons name="pencil" size={16} color="#FFFFFF" />
+              <Text style={styles.swipeActionText}>{tr('Editar', 'Edit')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.swipeActionBtn, { backgroundColor: '#0D4D8A' }]}
+              onPress={() => confirmAndIssueQrForBusiness(row)}
+              disabled={issuingQr}
+              accessibilityLabel={tr('Generar QR', 'Generate QR')}
+            >
+              <MaterialCommunityIcons name="qrcode" size={16} color="#FFFFFF" />
+              <Text style={styles.swipeActionText}>QR</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.swipeActionBtn, { backgroundColor: '#C5A065' }]}
+              onPress={() => void toggleFavoriteBusinessCard(row)}
+              accessibilityLabel={tr('Favorito', 'Favorite')}
+            >
+              <MaterialCommunityIcons name={row.isFavorite ? 'star' : 'star-outline'} size={16} color="#FFFFFF" />
+              <Text style={styles.swipeActionText}>{row.isFavorite ? '★' : '☆'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.swipeDeleteBtn}
+              onPress={() => void deleteBusinessCardEntry(row)}
+              accessibilityLabel={tr('Eliminar tarjeta', 'Delete card')}
+            >
+              <MaterialCommunityIcons name="trash-can-outline" size={16} color="#FFFFFF" />
+              <Text style={styles.swipeActionText}>{tr('Eliminar', 'Delete')}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      >
+        <View
+          style={[
+            styles.cardItem,
+            isLandscape && styles.cardItemLandscape,
+            { borderColor: chestTheme.borderColor, borderWidth: chestTheme.borderWidth },
+          ]}
+        >
+          <LinearGradient colors={chestTheme.gradient} style={StyleSheet.absoluteFillObject} />
+          <TouchableOpacity
+            style={styles.cardRowTouchable}
+            onPress={() => void openPreviewBusinessCard(row)}
+            onLongPress={() => handleBusinessCardLongPress(row)}
+            delayLongPress={4000}
+            activeOpacity={0.92}
+          >
+            <View style={[styles.cardRowInner, styles.businessCardListInner, styles.businessCardRowInner]}>
+              <View style={styles.businessListMainRow}>
+                {logoUri ? (
+                  <ExpoImage
+                    source={{ uri: logoUri }}
+                    style={[styles.businessListLogo, { borderColor: chestTheme.borderColor }]}
+                    cachePolicy="disk"
+                  />
+                ) : (
+                  <View style={[styles.businessListLogoPh, { borderColor: chestTheme.borderColor }]}>
+                    <MaterialCommunityIcons name="storefront-outline" size={35} color={chestTheme.titleColor} />
+                  </View>
+                )}
+                <View style={styles.businessListTextCol}>
+                  <AutoScaleText
+                    maxLines={2}
+                    style={[styles.cardTitle, styles.businessListTitle, { color: chestTheme.titleColor }]}
+                  >
+                    {row.businessName}
+                  </AutoScaleText>
+                  <Text style={[styles.businessListSubtitle, { color: chestTheme.metaColor }]} numberOfLines={1}>
+                    {row.ownerName.trim()
+                      ? row.ownerName
+                      : themeMeta.name}
+                  </Text>
+                  <View style={styles.businessCardStatsRow}>
+                    <View
+                      style={[
+                        styles.metricPill,
+                        { borderColor: chestTheme.borderColor, backgroundColor: 'rgba(255,255,255,0.72)' },
+                      ]}
+                      accessibilityRole="text"
+                      accessibilityLabel={tr('Personas con tu tarjeta', 'People with your card')}
+                    >
+                      <MaterialCommunityIcons name="account-group-outline" size={13} color={chestTheme.titleColor} />
+                      <Text style={[styles.metricPillText, { color: chestTheme.titleColor }]}>{holders}</Text>
+                    </View>
+                    <View style={styles.statsRatingStack}>
+                      <View style={styles.businessRatingStarsWrap}>{renderDetailedRatingStars(rating)}</View>
+                      <Text style={[styles.ratingStackCaption, { color: chestTheme.metaColor }]} numberOfLines={2}>
+                        {rating.toFixed(1)} · {reviewCount} {tr('reseñas', 'reviews')}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+                {sessionOwnerUid ? (
+                  <View style={styles.businessListQrWrap} pointerEvents="none">
+                    <QRCode
+                      value={generatePermanentBusinessLink(row.id, sessionOwnerUid)}
+                      size={64}
+                      color="#0A2540"
+                      backgroundColor="#FFFFFF"
+                      ecl="H"
+                      {...(logoUri
+                        ? {
+                            logo: { uri: logoUri },
+                            logoSize: 16,
+                            logoMargin: 2,
+                            logoBackgroundColor: '#FFFFFF',
+                          }
+                        : {})}
+                    />
+                  </View>
+                ) : null}
+              </View>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.cardRowFavoriteBtn}
+            onPress={() => void toggleFavoriteBusinessCard(row)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel={
+              row.isFavorite ? tr('Quitar de favoritos', 'Remove from favorites') : tr('Marcar favorito', 'Mark as favorite')
+            }
+          >
+            <MaterialCommunityIcons
+              name={row.isFavorite ? 'heart' : 'heart-outline'}
+              size={18}
+              color={row.isFavorite ? '#B7343A' : chestTheme.titleColor}
+            />
+          </TouchableOpacity>
+        </View>
+      </Swipeable>
+    );
+  };
+
   const renderCard = ({ item }: { item: SmartCard }) => {
-    const refsCount = item.itemIds.length;
     const chestTheme = getCardRowTheme(item.themeId);
     const holders = item.holdersCount ?? 0;
-    const rating = item.ratingAvg ?? 5;
+    const reviewCount = item.totalRatings ?? 0;
+    const rating = reviewCount > 0 ? Number(item.ratingAvg ?? 0) : 0;
+    const themeMeta = getThemeById(item.themeId || '') ?? CHEST_THEMES[0];
+    const themeLabel = themeMeta.name;
 
     return (
       <Swipeable
@@ -1888,20 +2452,64 @@ export default function CardsFactoryScreen() {
             />
           ) : null}
           <TouchableOpacity
-            style={{ flex: 1 }}
+            style={styles.cardRowTouchable}
             onPress={() => openPreviewCard(item)}
             onLongPress={() => handleCardLongPress(item)}
             delayLongPress={4000}
+            activeOpacity={0.92}
           >
-            <AutoScaleText style={[styles.cardTitle, { color: chestTheme.titleColor }, item.fontFamily ? { fontFamily: item.fontFamily } : null]}>{item.name}</AutoScaleText>
-            <Text style={[styles.cardMeta, { color: chestTheme.metaColor }]}>{refsCount} refs</Text>
-            <View style={styles.cardMetricRow}>
-              {renderRatingStars(rating)}
-              <TouchableOpacity style={styles.metricPill} onPress={() => openSubscribersModal(item)}>
-                <MaterialCommunityIcons name="account-group-outline" size={13} color="#0D4D8A" />
-                <Text style={styles.metricPillText}>{holders}</Text>
-              </TouchableOpacity>
+            <View style={styles.cardRowInner}>
+              <AutoScaleText
+                maxLines={2}
+                style={[
+                  styles.cardTitle,
+                  styles.cardRowTitle,
+                  { color: chestTheme.titleColor },
+                  item.fontFamily ? { fontFamily: item.fontFamily } : null,
+                ]}
+              >
+                {item.name}
+              </AutoScaleText>
+              <Text style={[styles.cardRowThemeSubtitle, { color: chestTheme.metaColor }]} numberOfLines={1}>
+                {themeLabel}
+              </Text>
+              <View style={styles.cardRowStatsRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.metricPill,
+                    { borderColor: chestTheme.borderColor, backgroundColor: 'rgba(255,255,255,0.72)' },
+                  ]}
+                  onPress={() => openSubscribersModal(item)}
+                >
+                  <MaterialCommunityIcons name="account-group-outline" size={13} color={chestTheme.titleColor} />
+                  <Text style={[styles.metricPillText, { color: chestTheme.titleColor }]}>{holders}</Text>
+                </TouchableOpacity>
+                <View style={styles.cardRowRatingCluster}>
+                  <View style={[styles.statsRatingStack, styles.statsRatingStackAlignEnd]}>
+                    {renderDetailedRatingStars(rating)}
+                    <Text
+                      style={[styles.ratingStackCaption, styles.ratingStackCaptionRight, { color: chestTheme.metaColor }]}
+                      numberOfLines={2}
+                    >
+                      {rating.toFixed(1)} · {reviewCount} {tr('reseñas', 'reviews')}
+                    </Text>
+                  </View>
+                </View>
+              </View>
             </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.cardRowFavoriteBtn}
+            onPress={() => void toggleFavoriteCard(item)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel={item.isFavorite ? tr('Quitar de favoritos', 'Remove from favorites') : tr('Marcar favorito', 'Mark as favorite')}
+          >
+            <MaterialCommunityIcons
+              name={item.isFavorite ? 'heart' : 'heart-outline'}
+              size={18}
+              color={item.isFavorite ? '#B7343A' : chestTheme.titleColor}
+            />
           </TouchableOpacity>
         </View>
       </Swipeable>
@@ -1926,8 +2534,11 @@ export default function CardsFactoryScreen() {
               const authenticated = await hardLockCheck('acceso a Business Cards');
               setIsCardsUnlocked(authenticated);
               if (authenticated) {
+                const uid = await getActiveUserId();
+                setSessionOwnerUid(uid ?? null);
                 loadVaultItems();
                 loadSmartCards();
+                void loadBusinessCardsFeed();
               }
             }}
           >
@@ -1944,7 +2555,12 @@ export default function CardsFactoryScreen() {
       <View style={[styles.headerRow, { borderBottomColor: cardsTheme.divider }]}> 
         <View>
           <Text style={[styles.headerTitle, { color: cardsTheme.text }]}>{tr('Mis Tarjetas', 'My Cards')}</Text>
-          <Text style={[styles.headerSubtitle, { color: cardsTheme.sectionLabel }]}>{smartCards.length} / 30 {tr('tarjetas', 'cards')}</Text>
+          <Text style={[styles.headerSubtitle, { color: cardsTheme.sectionLabel }]}>
+            {smartCards.length + businessCardsFeed.length} {tr('tarjetas', 'cards')}
+            {businessCardsFeed.length > 0 && smartCards.length > 0
+              ? ` (${smartCards.length} Smart · ${businessCardsFeed.length} ${tr('negocio', 'business')})`
+              : ''}
+          </Text>
         </View>
         <View style={styles.headerActionsRow}>
           <TouchableOpacity
@@ -1974,9 +2590,15 @@ export default function CardsFactoryScreen() {
       </View>
 
       <FlatList
-        data={filteredCards}
-        keyExtractor={(item) => item.id}
-        renderItem={renderCard}
+        data={filteredFeed}
+        keyExtractor={(item) => (item.kind === 'business' ? `biz-${item.id}` : `smart-${item.card.id}`)}
+        renderItem={({ item }) => {
+          if (item.kind === 'business') {
+            const { kind: _k, ...bizRow } = item;
+            return renderBusinessCardRow(bizRow);
+          }
+          return renderCard({ item: item.card });
+        }}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
         horizontal={isLandscape}
@@ -1996,6 +2618,7 @@ export default function CardsFactoryScreen() {
               onRefresh={async () => {
                 setRefreshingCards(true);
                 await loadSmartCards();
+                await loadBusinessCardsFeed();
                 setRefreshingCards(false);
               }}
               tintColor="#C5A065"
@@ -2018,15 +2641,20 @@ export default function CardsFactoryScreen() {
           ) : (
             <View style={styles.emptyWrap}>
               <MaterialCommunityIcons name="credit-card-plus-outline" size={52} color="#0D4D8A" />
-              <Text style={styles.emptyTitle}>{tr('Sin Smart Cards todavía', 'No Smart Cards yet')}</Text>
-              <Text style={styles.emptyText}>{tr('Crea tu primera tarjeta dinámica con datos del Vault.', 'Create your first dynamic card with Vault data.')}</Text>
+              <Text style={styles.emptyTitle}>{tr('Sin tarjetas todavía', 'No cards yet')}</Text>
+              <Text style={styles.emptyText}>
+                {tr(
+                  'Crea una Smart Card con datos del Vault o una Tarjeta de negocio con el botón de lujo.',
+                  'Create a Smart Card with Vault data or a Business card with the luxury button.',
+                )}
+              </Text>
             </View>
           )
         }
       />
 
       {/* Search bar — fixed above FAB */}
-      {smartCards.length > 0 && (
+      {(smartCards.length > 0 || businessCardsFeed.length > 0) && (
         <View style={[styles.cardSearchWrap, { backgroundColor: cardsTheme.inputBg, borderColor: cardsTheme.divider }]}>
           <MaterialCommunityIcons name="magnify" size={18} color={cardsTheme.sectionLabel} />
           <TextInput
@@ -2169,7 +2797,15 @@ export default function CardsFactoryScreen() {
                         </TouchableOpacity>
                       </View>
 
-                      <View style={[styles.factoryPreviewCardFrame, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.15)' }]}>
+                      <View
+                        style={[
+                          styles.factoryPreviewCardFrame,
+                          { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.15)' },
+                          factoryWireIconRows >= 3
+                            ? { minHeight: Math.min(height * 0.44, 520) }
+                            : null,
+                        ]}
+                      >
                         {editSlots.filter((s) => s.item !== null).length === 0 ? (
                           <View style={styles.factoryPreviewEmpty}>
                             <MaterialCommunityIcons name="card-plus-outline" size={38} color={isDark ? 'rgba(184,231,255,0.3)' : 'rgba(13,77,138,0.18)'} />
@@ -2422,38 +3058,58 @@ export default function CardsFactoryScreen() {
         <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}> 
           <BlurView intensity={65} tint="light" style={StyleSheet.absoluteFill} />
           {previewCard ? (
-            <>
-            <View style={[styles.previewModalCard, { borderColor: resolveTheme(previewCard.themeId).border.color, borderWidth: resolveTheme(previewCard.themeId).border.width }]}> 
-              {/* Card content fills the top portion */}
-              <View style={{ flex: 1 }}>
-                <LinearGradient
-                  colors={resolveTheme(previewCard.themeId).background}
-                  style={StyleSheet.absoluteFillObject}
-                />
-                {previewCard.wallpaperUrl ? (
-                  <Animated.Image
-                    source={{ uri: previewCard.wallpaperUrl }}
-                    style={[
-                      styles.wallpaperFill,
-                      previewCard.enableParallax
-                        ? { transform: [{ translateX: parallaxX }, { translateY: parallaxY }, { scale: 1.06 }] }
-                        : null,
-                    ]}
-                    resizeMode={getWallpaperResizeMode()}
+            <View
+              style={[
+                styles.previewModalStack,
+                getPreviewModalStackSize(height, previewCardItems.length),
+              ]}
+            >
+              <View
+                style={[
+                  styles.previewModalCard,
+                  { borderColor: resolveTheme(previewCard.themeId).border.color, borderWidth: resolveTheme(previewCard.themeId).border.width },
+                ]}
+              >
+                <View style={{ flex: 1, minHeight: 0 }}>
+                  <LinearGradient
+                    colors={resolveTheme(previewCard.themeId).background}
+                    style={StyleSheet.absoluteFillObject}
                   />
-                ) : null}
+                  {previewCard.wallpaperUrl ? (
+                    <Animated.Image
+                      source={{ uri: previewCard.wallpaperUrl }}
+                      style={[
+                        styles.wallpaperFill,
+                        previewCard.enableParallax
+                          ? { transform: [{ translateX: parallaxX }, { translateY: parallaxY }, { scale: 1.06 }] }
+                          : null,
+                      ]}
+                      resizeMode={getWallpaperResizeMode()}
+                    />
+                  ) : null}
 
-                {renderWireframeCard({
-                  layout: previewLayout,
-                  slots: previewSlots,
-                  editable: false,
-                  theme: resolveTheme(previewCard.themeId),
-                  wallpaperUrl: previewCard.wallpaperUrl,
-                })}
+                  {renderWireframeCard({
+                    layout: previewLayout,
+                    slots: previewSlots,
+                    editable: false,
+                    theme: resolveTheme(previewCard.themeId),
+                    wallpaperUrl: previewCard.wallpaperUrl,
+                  })}
+                </View>
               </View>
 
-              {/* Buttons always visible at bottom */}
-              <View style={[styles.modalActions, { backgroundColor: cardsTheme.modalBg, paddingVertical: 10, paddingHorizontal: 16 }]}>
+              <View
+                style={[
+                  styles.modalActions,
+                  styles.previewModalFooterOutside,
+                  {
+                    backgroundColor: cardsTheme.modalBg,
+                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                    borderColor: cardsTheme.modalBorder,
+                  },
+                ]}
+              >
                 <TouchableOpacity
                   style={[styles.ghostBtn, { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder }]}
                   onPress={() => {
@@ -2474,7 +3130,107 @@ export default function CardsFactoryScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-            </>
+          ) : null}
+        </View>
+      </Modal>
+
+      <Modal
+        visible={previewBusinessVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setPreviewBusinessVisible(false);
+          setPreviewBusiness(null);
+          setPreviewBusinessOwnerUid('');
+        }}
+      >
+        <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}>
+          <BlurView intensity={65} tint="light" style={StyleSheet.absoluteFill} />
+          {previewBusiness && previewBusinessOwnerUid ? (
+            <View
+              style={[
+                styles.previewModalStack,
+                getPreviewModalStackSize(
+                  height,
+                  businessPreviewSlots.filter((s) => s.item !== null).length,
+                ),
+              ]}
+            >
+              <View
+                style={[
+                  styles.previewModalCard,
+                  {
+                    borderColor: resolveTheme(previewBusiness.themeId).border.color,
+                    borderWidth: resolveTheme(previewBusiness.themeId).border.width,
+                  },
+                ]}
+              >
+                <View style={{ flex: 1, minHeight: 0 }}>
+                  <LinearGradient
+                    colors={resolveTheme(previewBusiness.themeId).background}
+                    style={StyleSheet.absoluteFillObject}
+                  />
+                  {renderWireframeCard({
+                    layout: previewLayout,
+                    slots: businessPreviewSlots,
+                    editable: false,
+                    theme: resolveTheme(previewBusiness.themeId),
+                    wireIdentity: {
+                      cardTitle: previewBusiness.businessName.trim(),
+                      subtitle: previewBusiness.ownerName.trim(),
+                      avatarUri: toRenderableImageUri(previewBusiness.businessLogo),
+                      holdersCount: previewBusiness.holdersCount ?? 0,
+                      ratingAvg: Number(previewBusiness.ratingAvg ?? 0),
+                      totalRatings: previewBusiness.totalRatings ?? 0,
+                      noAvatarIcon: 'storefront-outline',
+                    },
+                  })}
+                </View>
+              </View>
+
+              <View
+                style={[
+                  styles.modalActions,
+                  styles.previewModalFooterOutside,
+                  {
+                    backgroundColor: cardsTheme.modalBg,
+                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                    borderColor: cardsTheme.modalBorder,
+                  },
+                ]}
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.ghostBtn,
+                    { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder },
+                  ]}
+                  onPress={() => {
+                    setPreviewBusinessVisible(false);
+                    setPreviewBusiness(null);
+                    setPreviewBusinessOwnerUid('');
+                  }}
+                >
+                  <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>
+                    {tr('Cerrar', 'Close')}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary }]}
+                  onPress={() => {
+                    const id = previewBusiness.id;
+                    setPreviewBusinessVisible(false);
+                    setPreviewBusiness(null);
+                    setPreviewBusinessOwnerUid('');
+                    router.push({ pathname: '/(tabs)/createBusinessCard', params: { cardId: id } } as any);
+                  }}
+                >
+                  <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>
+                    {tr('Editar tarjeta', 'Edit card')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           ) : null}
         </View>
       </Modal>
@@ -2543,7 +3299,14 @@ export default function CardsFactoryScreen() {
               </View>
             </View>
 
-            <Text style={[styles.dataPopoverHint, { color: cardsTheme.sectionLabel }]}>Valor protegido por Ghost-Link: solo acceso enrutado.</Text>
+            <Text style={[styles.dataPopoverHint, { color: cardsTheme.sectionLabel }]}>
+              {focusedDataItem && isGhostLinkVaultType(focusedDataItem.type)
+                ? tr(
+                    'Ghost-Link: llamada VoIP privada desde la app. No usa número visible.',
+                    'Ghost-Link: private VoIP call from the app. No visible phone number.',
+                  )
+                : tr('Valor protegido por Ghost-Link: solo acceso enrutado.', 'Ghost-Link protected value: routed access only.')}
+            </Text>
 
             {focusedCertificate ? (
               <View style={styles.authCertBox}>
@@ -2839,18 +3602,36 @@ export default function CardsFactoryScreen() {
         </View>
       </Modal>
 
-      <Modal visible={qrVisible} transparent animationType="fade" onRequestClose={() => setQrVisible(false)}>
+      <Modal
+        visible={qrVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setQrVisible(false);
+          setQrBusinessContext(null);
+        }}
+      >
         <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}> 
           <View style={styles.qrModal}>
-            <Text style={styles.factoryTitle}>{selectedCard?.name || 'Smart Card'}</Text>
-            <Text style={styles.qrSubtitle}>QR dinámico seguro con expiración de 60s</Text>
+            <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle }]}>
+              {qrBusinessContext
+                ? qrBusinessContext.businessName
+                : selectedCard?.name || 'Smart Card'}
+            </Text>
+            <Text style={[styles.qrSubtitle, { color: cardsTheme.sectionLabel }]}>
+              {qrBusinessContext
+                ? tr('QR permanente (no caduca)', 'Permanent QR (does not expire)')
+                : tr('QR dinámico seguro con expiración de 60s', 'Secure dynamic QR with ~60s expiry')}
+            </Text>
 
-            <View style={styles.countdownWrap}>
-              <Text style={styles.countdownText}>{remainingSec}s</Text>
-              <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${remainingPercent * 100}%` }]} />
+            {qrBusinessContext ? null : (
+              <View style={styles.countdownWrap}>
+                <Text style={styles.countdownText}>{remainingSec}s</Text>
+                <View style={styles.progressTrack}>
+                  <View style={[styles.progressFill, { width: `${remainingPercent * 100}%` }]} />
+                </View>
               </View>
-            </View>
+            )}
 
             <View style={styles.qrWrap}>
               {qrPayload ? (
@@ -2860,13 +3641,18 @@ export default function CardsFactoryScreen() {
                     size={210}
                     color="#0D4D8A"
                     backgroundColor="#FFFFFF"
-                    logo={require('../../assets/images/CS Icon Logo.png')}
-                    logoSize={42}
-                    logoBackgroundColor="transparent"
+                    logo={
+                      qrBusinessContext?.logoUrl
+                        ? { uri: qrBusinessContext.logoUrl }
+                        : require('../../assets/images/CS Icon Logo.png')
+                    }
+                    logoSize={qrBusinessContext?.logoUrl ? 48 : 42}
+                    logoBackgroundColor="#FFFFFF"
+                    logoMargin={qrBusinessContext?.logoUrl ? 2 : 4}
                     ecl="H"
                   />
 
-                  {qrExpired ? (
+                  {!qrBusinessContext && qrExpired ? (
                     <View style={styles.expiredOverlay}>
                       <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
                       <TouchableOpacity
@@ -2879,7 +3665,7 @@ export default function CardsFactoryScreen() {
                         disabled={issuingQr}
                       >
                         <MaterialCommunityIcons name="refresh" size={16} color="#FFFFFF" />
-                        <Text style={styles.refreshOverlayBtnText}>Generar nuevo QR</Text>
+                        <Text style={styles.refreshOverlayBtnText}>{tr('Generar nuevo QR', 'Generate new QR')}</Text>
                       </TouchableOpacity>
                     </View>
                   ) : null}
@@ -2887,27 +3673,62 @@ export default function CardsFactoryScreen() {
               ) : null}
             </View>
 
-            <Text style={styles.qrRefsTitle}>Datos vinculados</Text>
+            <Text style={[styles.qrRefsTitle, { color: cardsTheme.text }]}>
+              {qrBusinessContext ? tr('Resumen', 'Summary') : tr('Datos vinculados', 'Linked data')}
+            </Text>
             <ScrollView style={styles.qrRefsList} bounces={false} overScrollMode="never">
-              {selectedCardItems.map((item) => (
-                <Text key={item.id} style={styles.qrRefItem}>• {item.title} ({item.type})</Text>
-              ))}
+              {qrBusinessContext ? (
+                <>
+                  <Text style={[styles.qrRefItem, { color: cardsTheme.sectionLabel }]}>
+                    • {tr('Titular', 'Owner')}: {qrBusinessContext.ownerName || '—'}
+                  </Text>
+                  <Text style={[styles.qrRefItem, { color: cardsTheme.sectionLabel }]}>
+                    • {tr('Enlace fijo de negocio', 'Fixed business link')}
+                  </Text>
+                </>
+              ) : (
+                selectedCardItems.map((item) => (
+                  <Text key={item.id} style={[styles.qrRefItem, { color: cardsTheme.sectionLabel }]}>
+                    • {item.title} ({item.type})
+                  </Text>
+                ))
+              )}
             </ScrollView>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.ghostBtn}
-                onPress={() => {
-                  if (selectedCard) {
-                    confirmAndIssueQrForCard(selectedCard);
-                  }
-                }}
-              >
-                <Text style={styles.ghostBtnText}>Renovar QR</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.saveBtn} onPress={() => setQrVisible(false)}>
-                <Text style={styles.saveBtnText}>Cerrar</Text>
-              </TouchableOpacity>
+              {qrBusinessContext ? (
+                <TouchableOpacity
+                  style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary, flex: 1 }]}
+                  onPress={() => {
+                    setQrVisible(false);
+                    setQrBusinessContext(null);
+                  }}
+                >
+                  <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>{tr('Cerrar', 'Close')}</Text>
+                </TouchableOpacity>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={[styles.ghostBtn, { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder }]}
+                    onPress={() => {
+                      if (selectedCard) {
+                        confirmAndIssueQrForCard(selectedCard);
+                      }
+                    }}
+                  >
+                    <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>{tr('Renovar QR', 'Renew QR')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary }]}
+                    onPress={() => {
+                      setQrVisible(false);
+                      setQrBusinessContext(null);
+                    }}
+                  >
+                    <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>{tr('Cerrar', 'Close')}</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           </View>
         </View>
@@ -3037,7 +3858,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   swipeWrap: {
-    marginVertical: 6,
+    marginVertical: 5,
     borderRadius: 12,
     overflow: 'hidden',
   },
@@ -3048,7 +3869,7 @@ const styles = StyleSheet.create({
   swipeActions: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    marginVertical: 6,
+    marginVertical: 5,
   },
   swipeActionBtn: {
     width: 64,
@@ -3066,7 +3887,7 @@ const styles = StyleSheet.create({
   },
   swipeLeftTriggerArea: {
     width: 56,
-    marginVertical: 6,
+    marginVertical: 5,
   },
   swipeActionText: {
     color: '#FFFFFF',
@@ -3079,21 +3900,154 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  cardRowTouchable: {
+    flex: 1,
+    width: '100%',
+    alignSelf: 'stretch',
+  },
+  businessCardListInner: {
+    alignItems: 'stretch',
+  },
+  /** Menos padding derecho: QR pegado al borde; el corazón va absolute encima de la esquina. */
+  businessCardRowInner: {
+    paddingRight: 2,
+    paddingLeft: 6,
+  },
+  businessListMainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    width: '100%',
+  },
+  /** Pill a la izquierda; bloque valoración en columna (estrellas arriba, texto abajo) para que quepa con el QR. */
+  businessCardStatsRow: {
+    marginTop: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    flexWrap: 'nowrap',
+    gap: 8,
+    width: '100%',
+    minWidth: 0,
+  },
+  /** Estrellas arriba, “4.5 · N reseñas” debajo (menos ancho que en una sola fila). */
+  statsRatingStack: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    gap: 2,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  statsRatingStackAlignEnd: {
+    alignItems: 'flex-end',
+  },
+  businessRatingStarsWrap: {
+    flexShrink: 0,
+  },
+  ratingStackCaption: {
+    fontSize: 11,
+    fontWeight: '600',
+    includeFontPadding: false,
+    maxWidth: '100%',
+  },
+  ratingStackCaptionRight: {
+    textAlign: 'right',
+  },
+  businessListQrWrap: {
+    marginLeft: 'auto',
+    padding: 2,
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
+    flexShrink: 0,
+  },
+  businessListLogo: {
+    width: 70,
+    height: 70,
+    borderRadius: 15,
+    borderWidth: 1,
+  },
+  businessListLogoPh: {
+    width: 70,
+    height: 70,
+    borderRadius: 15,
+    borderWidth: 1,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  businessListTextCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  businessListTitle: {
+    textAlign: 'left',
+    alignSelf: 'stretch',
+  },
+  businessListSubtitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 2,
+    textAlign: 'left',
+  },
+  cardRowInner: {
+    alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: 4,
+    paddingRight: 28,
+  },
+  cardRowTitle: {
+    textAlign: 'center',
+    alignSelf: 'stretch',
+  },
+  cardRowThemeSubtitle: {
+    marginTop: 2,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    maxWidth: '100%',
+    paddingHorizontal: 8,
+  },
+  /** Fila 3: receptores (izq.) + estrellas y texto de valoración (der.) en la misma línea. */
+  cardRowStatsRow: {
+    marginTop: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    gap: 6,
+    paddingHorizontal: 2,
+  },
+  cardRowRatingCluster: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  cardRowFavoriteBtn: {
+    position: 'absolute',
+    top: 5,
+    right: 4,
+    zIndex: 4,
+    padding: 3,
+  },
   metricPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 3,
+    flexShrink: 0,
     borderRadius: 999,
     backgroundColor: 'rgba(255,255,255,0.65)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     borderWidth: 1,
     borderColor: 'rgba(13,77,138,0.18)',
   },
   metricPillText: {
     color: '#0D4D8A',
     fontWeight: '700',
-    fontSize: 11,
+    fontSize: 12,
   },
   ratingRow: {
     flexDirection: 'row',
@@ -3105,18 +4059,17 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(13,77,138,0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    position: 'relative',
+    minHeight: 90,
   },
   wallpaperFill: {
     ...StyleSheet.absoluteFillObject,
     opacity: 0.93,
   },
   cardItemLandscape: {
-    minHeight: 140,
+    minHeight: 88,
     shadowColor: '#0A2540',
     shadowOpacity: 0.12,
     shadowRadius: 10,
@@ -3125,8 +4078,9 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     color: '#0D4D8A',
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
+    lineHeight: 20,
   },
   cardMeta: {
     marginTop: 2,
@@ -3192,22 +4146,24 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   vertTop: {
-    flex: 2,
+    flex: 2.2,
     flexDirection: 'column',
   },
   vertAvatarBox: {
-    flex: 1,
+    flex: 2.2,
     padding: 8,
+    paddingBottom: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
   vertInfoBox: {
-    flex: 1,
+    flex: 1.45,
     padding: 8,
+    paddingTop: 6,
+    paddingBottom: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    overflow: 'hidden',
+    gap: 5,
   },
   vertName: {
     fontWeight: '800',
@@ -3218,8 +4174,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   vertIconsBox: {
-    flex: 3,
-    padding: 8,
+    flex: 2.05,
+    marginTop: 12,
+    paddingHorizontal: 5,
+    paddingTop: 2,
+    paddingBottom: 6,
   },
   vertIconsGrid: {
     flex: 1,
@@ -3227,6 +4186,31 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     alignContent: 'center',
     justifyContent: 'center',
+  },
+  wireIconGridRoot: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'stretch',
+    paddingHorizontal: 2,
+  },
+  wireIconRowsStack: {
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'stretch',
+    width: '100%',
+    gap: 7,
+  },
+  wireIconRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    width: '100%',
+    paddingHorizontal: 0,
+  },
+  wireIconCell: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'center',
   },
   wireVerticalIdentity: {
     flexDirection: 'row',
@@ -3284,18 +4268,22 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   horizMiddleRow: {
-    flex: 3,
+    flex: 2.85,
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   horizAvatarBox: {
-    flex: 1,
+    flex: 1.2,
     padding: 8,
+    paddingRight: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
   horizInfoBox: {
-    flex: 3,
+    flex: 2.6,
     padding: 8,
+    paddingLeft: 4,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
@@ -3309,8 +4297,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   horizIconsBox: {
-    flex: 4,
-    padding: 8,
+    flex: 2.95,
+    marginTop: 12,
+    paddingHorizontal: 5,
+    paddingTop: 2,
+    paddingBottom: 6,
   },
   horizIconsGrid: {
     flex: 1,
@@ -3387,6 +4378,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
+  /** Estrellas arriba, pill de receptores abajo (evita corte horizontal en wireframe). */
+  wireStatsStack: {
+    marginTop: 6,
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    width: '100%',
+    maxWidth: '100%',
+  },
+  wireStatsRowInline: {
+    marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
+    width: '100%',
+    maxWidth: '100%',
+    paddingHorizontal: 2,
+  },
+  /** Estrellas arriba, texto de reseñas más pequeño abajo (wireframe). */
+  wireStatsRatingStack: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    flex: 1,
+    minWidth: 0,
+  },
+  wireStatsReviewCaption: {
+    fontWeight: '600',
+    flexShrink: 1,
+  },
   wireUsersPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -3421,8 +4446,8 @@ const styles = StyleSheet.create({
     color: '#0A2540',
     fontSize: 10,
     fontWeight: '700',
-    maxWidth: 72,
     textAlign: 'center',
+    alignSelf: 'stretch',
   },
   slotMinusBtn: {
     position: 'absolute',
@@ -3636,15 +4661,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginBottom: 4,
   },
-  previewModalCard: {
-    width: '100%',
-    height: '70%',
+  previewModalStack: {
+    width: '92%',
     maxWidth: 600,
+    alignSelf: 'center',
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    justifyContent: 'flex-start',
+  },
+  previewModalCard: {
+    flex: 1,
+    minHeight: 0,
+    width: '100%',
     borderRadius: 18,
     borderWidth: 1,
     borderColor: '#CDEFFF',
     overflow: 'hidden',
     flexDirection: 'column',
+  },
+  previewModalFooterOutside: {
+    marginTop: 14,
+    marginBottom: 0,
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: 'hidden',
   },
   previewBrandingRow: {
     flexDirection: 'row',
