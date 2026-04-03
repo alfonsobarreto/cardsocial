@@ -4,7 +4,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActionSheetIOS,
   Alert,
@@ -27,6 +27,8 @@ import {
 // import { PDFDocument } from 'pdf-lib'; // [SILENCIADO POR ERROR DE DEPENDENCIA]
 import BrandedSpinner from '@/components/BrandedSpinner';
 import { getActiveUserId } from '@/services/authSession';
+import { newEntityId } from '@/services/newEntityId';
+import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { fetchFaviconFromAzure } from '@/services/faviconApi';
 import { db } from '@/services/firebaseConfig';
@@ -37,16 +39,38 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 import Toast from 'react-native-toast-message';
+import { getUserCreditsBalance } from '@/services/creditsService';
+import {
+  ensureFreeStarterIconVault,
+  getOwnedIconVaultKeySet,
+  stableKeyForCatalogIcon,
+} from '@/services/iconVaultService';
 import CardStudioVault, { ICON_GALLERY } from './CardStudioVault';
 import FilePreviewModal from './FilePreviewModal';
 import { sanitizeMaterialIconName } from './iconNameValidation';
 import LuxuryModerationModal from './LuxuryModerationModal';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
-const VAULT_STORAGE_KEY = 'vault_data';
-const DEFAULT_ICON_ID = ICON_GALLERY[0]?.id ?? '1';
-const LINK_FALLBACK_ICON_ID =
-  ICON_GALLERY.find((icon) => icon.icon === 'link-variant')?.id ?? DEFAULT_ICON_ID;
+
+const LINK_FALLBACK_GALLERY_ITEM =
+  ICON_GALLERY.find((icon) => icon.icon === 'link-variant') ?? ICON_GALLERY[0];
+/** Clave estable en users/{uid}/icon_vault — canónica para selección y persistencia */
+const DEFAULT_ICON_STABLE = LINK_FALLBACK_GALLERY_ITEM
+  ? stableKeyForCatalogIcon(LINK_FALLBACK_GALLERY_ITEM)
+  : 'link-variant__Link';
+
+function legacyIdToStableKey(legacyId: string): string {
+  const it = ICON_GALLERY.find((i) => i.id === legacyId);
+  return it ? stableKeyForCatalogIcon(it) : legacyId;
+}
+
+function galleryItemByStableOrLegacy(sel: string) {
+  if (!sel || sel === 'favicon') return undefined;
+  return (
+    ICON_GALLERY.find((i) => stableKeyForCatalogIcon(i) === sel) || ICON_GALLERY.find((i) => i.id === sel)
+  );
+}
+
 const CLOUD_SYNC_TIMEOUT_MS = 8000;
 
 type DataType = 'Enlaces' | 'Teléfono' | 'Email' | 'Texto Plain' | 'Documento';
@@ -66,6 +90,8 @@ interface Link {
   value: string;
   iconName: string;
   icon?: string;
+  /** Clave documento en users/{uid}/icon_vault (estable); opcional en datos legacy */
+  iconVaultId?: string;
   isFavorite: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -149,7 +175,21 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const [dataType, setDataType] = useState<DataType>('Enlaces');
   const [dataName, setDataName] = useState('');
   const [dataValue, setDataValue] = useState('');
-  const [selectedIcon, setSelectedIcon] = useState(DEFAULT_ICON_ID);
+  const [selectedIcon, setSelectedIcon] = useState(DEFAULT_ICON_STABLE);
+  const [ownedIconVaultKeys, setOwnedIconVaultKeys] = useState<Set<string>>(new Set());
+  const [creditsBalance, setCreditsBalance] = useState(0);
+
+  const refreshStudioEconomy = useCallback(async () => {
+    const uid = await getActiveUserId();
+    if (!uid) return;
+    await ensureFreeStarterIconVault(uid);
+    const [keys, bal] = await Promise.all([
+      getOwnedIconVaultKeySet(uid),
+      getUserCreditsBalance(uid),
+    ]);
+    setOwnedIconVaultKeys(keys);
+    setCreditsBalance(bal);
+  }, []);
   const [countryCode, setCountryCode] = useState('+1');
   const [autoTypeSuggestion, setAutoTypeSuggestion] = useState<DataType | null>(null);
   
@@ -315,6 +355,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setModerationAlertVisible(true);
   };
 
+  useEffect(() => {
+    void refreshStudioEconomy();
+  }, [refreshStudioEconomy]);
+
   // Pre-populate form if editing
   useEffect(() => {
     if (editingData?.id) {
@@ -323,22 +367,17 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       setDataName(editingData.title);
       setDataValue(editingData.value);
       
-      // Try to find the icon by name or use favicon
       if (editingData.icon?.startsWith('http')) {
         setSelectedIcon('favicon');
         setFaviconUrl(editingData.icon);
+      } else if (editingData.iconVaultId) {
+        setSelectedIcon(editingData.iconVaultId);
       } else {
-        // Find icon by label/iconName in the correct type
-        const iconsForType = ICON_GALLERY;
-        if (iconsForType) {
-          const iconIndex = iconsForType.findIndex(i => i.label === editingData.iconName);
-          if (iconIndex >= 0) {
-            setSelectedIcon((iconIndex + 1).toString());
-          } else {
-            setSelectedIcon(DEFAULT_ICON_ID);
-          }
+        const match = ICON_GALLERY.find((i) => i.label === editingData.iconName);
+        if (match) {
+          setSelectedIcon(stableKeyForCatalogIcon(match));
         } else {
-          setSelectedIcon(DEFAULT_ICON_ID);
+          setSelectedIcon(DEFAULT_ICON_STABLE);
         }
       }
     }
@@ -370,37 +409,36 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   // IDs basados en orden actual de RAW_SECTIONS: LinkedIn=1,Instagram=2,Facebook=3,
   // WhatsApp=4,Twitter=5,TikTok=6,YouTube=7,Snapchat=8,Web=9,Link=10
   const KNOWN_DOMAIN_ICONS: Record<string, string> = {
-    'facebook.com':    '3',  // facebook
-    'fb.com':          '3',
-    'm.facebook.com':  '3',
-    'instagram.com':   '2',  // instagram
-    'linkedin.com':    '1',  // linkedin
-    'whatsapp.com':    '4',  // whatsapp
-    'wa.me':           '4',
-    'youtube.com':     '7',  // youtube
-    'youtu.be':        '7',
-    'twitter.com':     '5',  // twitter/x
-    'x.com':           '5',
-    'tiktok.com':      '6',  // tiktok
-    'snapchat.com':    '8',  // snapchat
-    'maps.google.com': '9',  // web/map
-    'goo.gl':          '9',
-    'maps.apple.com':  '9',
+    'facebook.com':    legacyIdToStableKey('3'),
+    'fb.com':          legacyIdToStableKey('3'),
+    'm.facebook.com':  legacyIdToStableKey('3'),
+    'instagram.com':   legacyIdToStableKey('2'),
+    'linkedin.com':    legacyIdToStableKey('1'),
+    'whatsapp.com':    legacyIdToStableKey('4'),
+    'wa.me':           legacyIdToStableKey('4'),
+    'youtube.com':     legacyIdToStableKey('7'),
+    'youtu.be':        legacyIdToStableKey('7'),
+    'twitter.com':     legacyIdToStableKey('5'),
+    'x.com':           legacyIdToStableKey('5'),
+    'tiktok.com':      legacyIdToStableKey('6'),
+    'snapchat.com':    legacyIdToStableKey('8'),
+    'maps.google.com': legacyIdToStableKey('9'),
+    'goo.gl':          legacyIdToStableKey('9'),
+    'maps.apple.com':  legacyIdToStableKey('9'),
   };
 
-  // ─── KNOWN NAMES → ICON_GALLERY id (sugerencia por nombre de data) ────────────
   const KNOWN_NAME_ICONS: Array<{ keywords: string[]; iconId: string }> = [
-    { keywords: ['linkedin'],               iconId: '1'  },
-    { keywords: ['instagram'],              iconId: '2'  },
-    { keywords: ['facebook', 'fb'],         iconId: '3'  },
-    { keywords: ['whatsapp'],               iconId: '4'  },
-    { keywords: ['twitter', 'tweet', ' x '],iconId: '5'  },
-    { keywords: ['tiktok', 'tik tok'],      iconId: '6'  },
-    { keywords: ['youtube', ' yt '],        iconId: '7'  },
-    { keywords: ['snapchat', 'snap'],       iconId: '8'  },
-    { keywords: ['gmail'],                  iconId: '21' },
-    { keywords: ['outlook'],                iconId: '24' },
-    { keywords: ['yahoo'],                  iconId: '25' },
+    { keywords: ['linkedin'],               iconId: legacyIdToStableKey('1') },
+    { keywords: ['instagram'],              iconId: legacyIdToStableKey('2') },
+    { keywords: ['facebook', 'fb'],         iconId: legacyIdToStableKey('3') },
+    { keywords: ['whatsapp'],               iconId: legacyIdToStableKey('4') },
+    { keywords: ['twitter', 'tweet', ' x '], iconId: legacyIdToStableKey('5') },
+    { keywords: ['tiktok', 'tik tok'],      iconId: legacyIdToStableKey('6') },
+    { keywords: ['youtube', ' yt '],        iconId: legacyIdToStableKey('7') },
+    { keywords: ['snapchat', 'snap'],       iconId: legacyIdToStableKey('8') },
+    { keywords: ['gmail'],                  iconId: legacyIdToStableKey('21') },
+    { keywords: ['outlook'],                iconId: legacyIdToStableKey('24') },
+    { keywords: ['yahoo'],                  iconId: legacyIdToStableKey('25') },
   ];
 
   const extractDomainFromLink = (rawValue: string): string => {
@@ -638,7 +676,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     if (editingData?.id) return;
     if (prevDataTypeRef.current === dataType) return;
     prevDataTypeRef.current = dataType;
-    setSelectedIcon(DEFAULT_ICON_ID);
+    setSelectedIcon(DEFAULT_ICON_STABLE);
     setFaviconUrl('');
     closeFaviconSuggestion();
     setFaviconPromptVisible(false);
@@ -669,7 +707,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
   // ── Sugerir ícono por nombre de data (silencioso) ─────────────────────────
   useEffect(() => {
-    if (!dataName.trim() || selectedIcon !== DEFAULT_ICON_ID || editingData?.id) return;
+    if (!dataName.trim() || selectedIcon !== DEFAULT_ICON_STABLE || editingData?.id) return;
     const nameLower = ` ${dataName.trim().toLowerCase()} `;
     for (const entry of KNOWN_NAME_ICONS) {
       if (entry.keywords.some((kw) => nameLower.includes(kw))) {
@@ -710,7 +748,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setDataName('');
     setDataValue('');
     setDataType('Enlaces');
-    setSelectedIcon(DEFAULT_ICON_ID);
+    setSelectedIcon(DEFAULT_ICON_STABLE);
     setCountryCode('+1');
     setFaviconUrl('');
     closeFaviconSuggestion();
@@ -1632,7 +1670,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         return;
       }
       console.log('[Vault] handleCreate: Antes de AsyncStorage.getItem');
-      const existingData = await AsyncStorage.getItem(VAULT_STORAGE_KEY);
+      const existingData = await readVaultJsonWithLegacyMigration(userId);
       console.log('[Vault] handleCreate: Después de AsyncStorage.getItem');
       let dataArray: any[] = [];
       if (existingData) {
@@ -1656,13 +1694,13 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         );
         return;
       }
+      const catalogPick = selectedIcon === 'favicon' ? undefined : galleryItemByStableOrLegacy(selectedIcon);
       const iconData = selectedIcon === 'favicon'
         ? faviconUrl
-        : sanitizeMaterialIconName(ICON_GALLERY.find(i => i.id === selectedIcon)?.icon);
-      // iconName ahora siempre es válido
+        : sanitizeMaterialIconName(catalogPick?.icon || mappedIconName);
       const iconName = selectedIcon === 'favicon'
         ? 'Favicon'
-        : mappedIconName;
+        : (catalogPick?.label ?? mappedIconName);
       // #21 Auto-prepend https:// for Enlaces
       let preNormalized = dataValue;
       if (dataType === 'Enlaces' && !/^https?:\/\//i.test(dataValue.trim())) {
@@ -1687,7 +1725,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       let uniqueId = editingData?.id;
       if (!uniqueId) {
         do {
-          uniqueId = `${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+          uniqueId = newEntityId();
         } while (existingIds.has(uniqueId));
       }
       const dataPayload = {
@@ -1697,6 +1735,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         value: finalValue,
         iconName: iconName,
         icon: iconData,
+        ...(selectedIcon !== 'favicon' && catalogPick
+          ? { iconVaultId: stableKeyForCatalogIcon(catalogPick) }
+          : {}),
         isFavorite: editingData?.isFavorite || false,
         createdAt: editingData?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -1715,7 +1756,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         dataArray.push(dataPayload);
       }
       console.log('[Vault] handleCreate: Antes de AsyncStorage.setItem');
-      await AsyncStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(dataArray));
+      await AsyncStorage.setItem(vaultStorageKey(userId), JSON.stringify(dataArray));
       console.log('[Vault] handleCreate: Después de AsyncStorage.setItem');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Toast.show({
@@ -1834,13 +1875,13 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     default:
       mappedIconName = 'file';
   }
+  const previewCatalogItem = selectedIcon === 'favicon' ? undefined : galleryItemByStableOrLegacy(selectedIcon);
   const iconData = selectedIcon === 'favicon'
     ? faviconUrl
-    : sanitizeMaterialIconName(ICON_GALLERY.find(i => i.id === selectedIcon)?.icon);
-  // iconName ahora siempre es válido
+    : sanitizeMaterialIconName(previewCatalogItem?.icon || mappedIconName);
   const iconName = selectedIcon === 'favicon'
     ? 'Favicon'
-    : mappedIconName;
+    : (previewCatalogItem?.label ?? mappedIconName);
   // Render dynamic field based on data type
   const renderDataField = () => {
     switch (dataType) {
@@ -2184,7 +2225,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 >
                   <View style={[styles.iconPreviewCircleInner, { backgroundColor: formTheme.iconPreviewCircleBg }]}> 
                     <MaterialCommunityIcons
-                      name={sanitizeMaterialIconName(ICON_GALLERY.find(i => i.id === selectedIcon)?.icon) as any}
+                      name={sanitizeMaterialIconName(previewCatalogItem?.icon || mappedIconName) as any}
                       color={formTheme.textPrimary}
                       size={48}
                     />
@@ -2372,6 +2413,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           onSelectIcon={setSelectedIcon}
           dataType={dataType}
           selectedIcon={selectedIcon}
+          ownedIconVaultKeys={ownedIconVaultKeys}
+          creditsBalance={creditsBalance}
+          onEconomyUpdated={() => void refreshStudioEconomy()}
         />
 
         {/* MODAL: ELEGIR FOTOS O DOCUMENTOS */}
