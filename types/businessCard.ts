@@ -85,9 +85,16 @@ export interface KYCValidation {
 
 export interface BusinessCardSearchResult {
   card: BusinessCard;
-  distanceMiles: number;
-  relevanceScore: number; // 0-100, basado en keywords match
+  /** null = no mostrar millas (sin ubicación / modo ciego) */
+  distanceMiles: number | null;
+  relevanceScore: number;
   matchedKeywords: string[];
+  /** Si es false, la UI no muestra distancia aunque exista número legacy */
+  showDistance?: boolean;
+  rowSource?: 'received_contact' | 'social_market';
+  /** Solo rowSource received_contact: facetas compartidas (email, enlaces WA, etc.). */
+  receivedContactFacets?: Array<{ type: string; label: string; value: string }>;
+  receivedContactCardName?: string;
 }
 
 export interface SocialMarketSearchParams {

@@ -4,10 +4,23 @@
  */
 
 import { db } from '@/services/firebaseConfig';
-import { collection, doc, setDoc, getDocs, query, where, updateDoc, increment } from 'firebase/firestore';
+import { newEntityId } from '@/services/newEntityId';
+import {
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+  getDocs,
+  query,
+  where,
+  updateDoc,
+  increment,
+} from 'firebase/firestore';
 
 export interface BusinessCardCreateInput {
   ownerUid: string;
+  /** IDs en users/{ownerUid}/links — la app puede resolver texto desde la bóveda sin duplicar */
+  vaultLinkIds?: string[];
   businessName: string;
   ownerName: string;
   ownerEmail: string;
@@ -36,7 +49,7 @@ export async function createBusinessCard(
   message: string;
 }> {
   try {
-    const cardId = `bcard_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const cardId = newEntityId();
 
     const businessCardRef = doc(db, 'businessCards', cardId);
 
@@ -47,6 +60,9 @@ export async function createBusinessCard(
     const businessCardData = {
       id: cardId,
       ownerUid: data.ownerUid,
+      ...(Array.isArray(data.vaultLinkIds) && data.vaultLinkIds.length > 0
+        ? { vaultLinkIds: data.vaultLinkIds.map((id) => String(id)) }
+        : {}),
       type: 'business',
       businessName: data.businessName,
       ownerName: data.ownerName,
@@ -97,6 +113,31 @@ export async function createBusinessCard(
       success: false,
       message: `Error creando tarjeta: ${error.message}`,
     };
+  }
+}
+
+export async function updateBusinessCardMarketVisibility(
+  ownerUid: string,
+  cardId: string,
+  isPublishedToMarket: boolean,
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const cardRef = doc(db, 'businessCards', cardId);
+    const snap = await getDoc(cardRef);
+    if (!snap.exists()) {
+      return { success: false, message: 'Tarjeta no encontrada.' };
+    }
+    const data = snap.data() as { ownerUid?: string };
+    if (String(data.ownerUid) !== ownerUid) {
+      return { success: false, message: 'No autorizado.' };
+    }
+    await updateDoc(cardRef, {
+      isPublishedToMarket,
+      publishedAt: isPublishedToMarket ? new Date() : null,
+    });
+    return { success: true, message: 'OK' };
+  } catch (e: any) {
+    return { success: false, message: e?.message || 'Error' };
   }
 }
 
@@ -202,4 +243,28 @@ export async function rateBusinessCard(
       message: `Error registrando rating: ${error.message}`,
     };
   }
+}
+
+/** Resuelve filas de bóveda por ID para UI (Smart/Business) sin duplicar texto en la tarjeta. */
+export async function fetchVaultLinksByIds(
+  ownerUid: string,
+  linkIds: string[]
+): Promise<Map<string, { title?: string; value?: string; type?: string; iconVaultId?: string }>> {
+  const map = new Map<string, { title?: string; value?: string; type?: string; iconVaultId?: string }>();
+  const unique = [...new Set(linkIds.filter(Boolean))];
+  await Promise.all(
+    unique.map(async (linkId) => {
+      const snap = await getDoc(doc(db, 'users', ownerUid, 'links', linkId));
+      if (snap.exists()) {
+        const row = snap.data() as Record<string, unknown>;
+        map.set(linkId, {
+          title: row.title != null ? String(row.title) : undefined,
+          value: row.value != null ? String(row.value) : undefined,
+          type: row.type != null ? String(row.type) : undefined,
+          iconVaultId: row.iconVaultId != null ? String(row.iconVaultId) : undefined,
+        });
+      }
+    })
+  );
+  return map;
 }

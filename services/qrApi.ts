@@ -133,9 +133,22 @@ export async function consumeDynamicQrToken(params: { receiverUid: string; token
   };
 }
 
+export type CardSubscriberRow = {
+  uid: string;
+  name: string;
+  fullName: string;
+  nickname: string;
+  photoUrl: string | null;
+  isAmixes: boolean;
+  userRating: number;
+  mutualCount: number;
+  mutualPreviewPhotos: string[];
+  muted: boolean;
+};
+
 export async function listCardSubscribers(params: { ownerUid: string; cardId: string }): Promise<{
   count: number;
-  subscribers: Array<{ uid: string; name: string; photoUrl: string | null; isAmixes: boolean }>;
+  subscribers: CardSubscriberRow[];
 }> {
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
 
@@ -155,9 +168,17 @@ export async function listCardSubscribers(params: { ownerUid: string; cardId: st
     count: Number(response?.data?.count || rows.length || 0),
     subscribers: rows.map((row: any) => ({
       uid: String(row?.uid || ''),
-      name: String(row?.name || 'Usuario'),
+      name: String(row?.name || row?.fullName || 'Usuario'),
+      fullName: String(row?.fullName || row?.name || 'Usuario'),
+      nickname: String(row?.nickname || 'user'),
       photoUrl: row?.photoUrl ? String(row.photoUrl) : null,
       isAmixes: Boolean(row?.isAmixes),
+      userRating: Number.isFinite(Number(row?.userRating)) ? Number(row.userRating) : 0,
+      mutualCount: Number.isFinite(Number(row?.mutualCount)) ? Math.max(0, Math.floor(Number(row.mutualCount))) : 0,
+      mutualPreviewPhotos: Array.isArray(row?.mutualPreviewPhotos)
+        ? row.mutualPreviewPhotos.map((u: unknown) => String(u || '').trim()).filter(Boolean)
+        : [],
+      muted: Boolean(row?.muted),
     })),
   };
 }
@@ -181,6 +202,34 @@ export async function revokeCardSubscriber(params: { ownerUid: string; cardId: s
 
   return {
     deletedCount: Number(response?.data?.deletedCount || 0),
+  };
+}
+
+export async function setCardSubscriberMute(params: {
+  ownerUid: string;
+  cardId: string;
+  targetUid: string;
+  muted: boolean;
+}): Promise<{ muted: boolean }> {
+  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+
+  const response = await axios.post(
+    `${auth.baseUrl}/api/cards/${encodeURIComponent(params.cardId)}/subscribers/${encodeURIComponent(params.targetUid)}/mute`,
+    {
+      ownerUid: params.ownerUid,
+      muted: params.muted,
+    },
+    {
+      headers: {
+        'x-api-gateway-key': auth.gatewayKey,
+        Authorization: `Bearer ${auth.token}`,
+      },
+      timeout: 15000,
+    }
+  );
+
+  return {
+    muted: response?.data?.muted === true,
   };
 }
 
@@ -283,6 +332,12 @@ export async function unblockRelationship(params: { ownerUid: string; targetUid:
   };
 }
 
+export type CardSearchFacetPayload = {
+  type: string;
+  label: string;
+  value: string;
+};
+
 export type SmartCardPayload = {
   cardId: string;
   name: string;
@@ -304,6 +359,8 @@ export type SmartCardPayload = {
   ratingAvg?: number;
   ownerNickname?: string;
   ownerPhotoUrl?: string | null;
+  /** Facetas sin tipo teléfono, para búsqueda del receptor en Contactos */
+  searchFacets?: CardSearchFacetPayload[];
 };
 
 export async function listSmartCardsFromDb(params: { ownerUid: string }): Promise<{
@@ -345,6 +402,13 @@ export async function listSmartCardsFromDb(params: { ownerUid: string }): Promis
       ratingAvg: Number(row?.ratingAvg || 5),
       ownerNickname: row?.ownerNickname ? String(row.ownerNickname) : undefined,
       ownerPhotoUrl: row?.ownerPhotoUrl ? String(row.ownerPhotoUrl) : null,
+      searchFacets: Array.isArray(row?.searchFacets)
+        ? row.searchFacets.map((f: any) => ({
+            type: String(f?.type || ''),
+            label: String(f?.label || ''),
+            value: String(f?.value || ''),
+          }))
+        : undefined,
       createdAt: String(row?.createdAt || new Date().toISOString()),
       updatedAt: String(row?.updatedAt || new Date().toISOString()),
     })),
@@ -394,6 +458,7 @@ export async function deleteSmartCardInDb(params: { ownerUid: string; cardId: st
 export async function listReceivedContacts(params: { ownerUid: string }): Promise<{
   contacts: Array<{
     uid: string;
+    cardId: string | null;
     name: string;
     nickname: string;
     photoUrl: string | null;
@@ -402,6 +467,7 @@ export async function listReceivedContacts(params: { ownerUid: string }): Promis
     holdersCount: number;
     addedAt: string | null;
     storyState: 'none' | 'normal' | 'vip';
+    searchFacets: CardSearchFacetPayload[];
   }>;
 }> {
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
@@ -419,23 +485,33 @@ export async function listReceivedContacts(params: { ownerUid: string }): Promis
 
   const rows = Array.isArray(response?.data?.contacts) ? response.data.contacts : [];
   return {
-    contacts: rows.map((row: any) => ({
-      uid: String(row?.uid || ''),
-      name: String(row?.name || 'Contacto'),
-      nickname: String(row?.nickname || 'user'),
-      photoUrl: row?.photoUrl ? String(row.photoUrl) : null,
-      ratingAvg: Number(row?.ratingAvg || 5),
-      cardName: String(row?.cardName || 'Tarjeta Social'),
-      holdersCount: Number(row?.holdersCount || 0),
-      addedAt: row?.addedAt ? String(row.addedAt) : null,
-      storyState: row?.storyState === 'vip' ? 'vip' : row?.storyState === 'normal' ? 'normal' : 'none',
-    })),
+    contacts: rows.map((row: any) => {
+      const facetRows = Array.isArray(row?.searchFacets) ? row.searchFacets : [];
+      return {
+        uid: String(row?.uid || ''),
+        cardId: row?.cardId != null && String(row.cardId).trim() ? String(row.cardId).trim() : null,
+        name: String(row?.name || 'Contacto'),
+        nickname: String(row?.nickname || 'user'),
+        photoUrl: row?.photoUrl ? String(row.photoUrl) : null,
+        ratingAvg: Number(row?.ratingAvg || 5),
+        cardName: String(row?.cardName || 'Tarjeta Social'),
+        holdersCount: Number(row?.holdersCount || 0),
+        addedAt: row?.addedAt ? String(row.addedAt) : null,
+        storyState: row?.storyState === 'vip' ? 'vip' : row?.storyState === 'normal' ? 'normal' : 'none',
+        searchFacets: facetRows.map((f: any) => ({
+          type: String(f?.type || ''),
+          label: String(f?.label || ''),
+          value: String(f?.value || ''),
+        })),
+      };
+    }),
   };
 }
 
 export async function setMyStoryState(params: {
   ownerUid: string;
   state: 'none' | 'normal' | 'vip';
+  cardId?: string;
   isPaidExternal?: boolean;
   vipSource?: 'manual' | 'subscription' | 'external_partner';
   paidChannel?: string;
@@ -443,6 +519,7 @@ export async function setMyStoryState(params: {
 }): Promise<{
   state: 'none' | 'normal' | 'vip';
   expiresAt: string | null;
+  cardId?: string;
   isPaidExternal?: boolean;
   vipSource?: 'manual' | 'subscription' | 'external_partner' | null;
   paidChannel?: string | null;
@@ -454,6 +531,7 @@ export async function setMyStoryState(params: {
     {
       ownerUid: params.ownerUid,
       state: params.state,
+      cardId: params.cardId,
       isPaidExternal: params.isPaidExternal,
       vipSource: params.vipSource,
       paidChannel: params.paidChannel,
@@ -471,6 +549,7 @@ export async function setMyStoryState(params: {
   return {
     state: response?.data?.state === 'vip' ? 'vip' : response?.data?.state === 'normal' ? 'normal' : 'none',
     expiresAt: response?.data?.expiresAt ? String(response.data.expiresAt) : null,
+    cardId: response?.data?.cardId ? String(response.data.cardId) : undefined,
     isPaidExternal: response?.data?.isPaidExternal === true,
     vipSource: response?.data?.vipSource ? String(response.data.vipSource) as 'manual' | 'subscription' | 'external_partner' : null,
     paidChannel: response?.data?.paidChannel ? String(response.data.paidChannel) : null,
@@ -479,9 +558,11 @@ export async function setMyStoryState(params: {
 
 export async function getMyStoryState(params: {
   ownerUid: string;
+  cardId?: string;
 }): Promise<{
   state: 'none' | 'normal' | 'vip';
   expiresAt: string | null;
+  cardId?: string;
   isPaidExternal?: boolean;
   vipSource?: 'manual' | 'subscription' | 'external_partner' | null;
   paidChannel?: string | null;
@@ -491,6 +572,7 @@ export async function getMyStoryState(params: {
   const response = await axios.get(`${auth.baseUrl}/api/stories/state`, {
     params: {
       ownerUid: params.ownerUid,
+      ...(params.cardId ? { cardId: params.cardId } : {}),
     },
     headers: {
       'x-api-gateway-key': auth.gatewayKey,
@@ -502,6 +584,7 @@ export async function getMyStoryState(params: {
   return {
     state: response?.data?.state === 'vip' ? 'vip' : response?.data?.state === 'normal' ? 'normal' : 'none',
     expiresAt: response?.data?.expiresAt ? String(response.data.expiresAt) : null,
+    cardId: response?.data?.cardId ? String(response.data.cardId) : undefined,
     isPaidExternal: response?.data?.isPaidExternal === true,
     vipSource: response?.data?.vipSource ? String(response.data.vipSource) as 'manual' | 'subscription' | 'external_partner' : null,
     paidChannel: response?.data?.paidChannel ? String(response.data.paidChannel) : null,

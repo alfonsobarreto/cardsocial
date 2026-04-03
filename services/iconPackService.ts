@@ -14,6 +14,7 @@
  */
 
 import { deductCredits, recordCreditTransaction } from '@/services/creditsService';
+import { grantIconVaultKeys } from '@/services/iconVaultService';
 import { db } from '@/services/firebaseConfig';
 import {
     addDoc,
@@ -52,6 +53,8 @@ export interface IconPack {
   dropLabel?: string;
   isCollectible?: boolean;
   storeSection?: 'featured' | 'newest' | 'most_popular' | 'collectible' | 'out_of_stock' | 'retail';
+  /** Claves estables Card-Studio (iconVaultService.stableIconVaultDocumentId) desbloqueadas al comprar el pack */
+  grantedIconVaultKeys?: string[];
 }
 
 export interface UserIconPack {
@@ -130,9 +133,7 @@ export async function createIconPack(
 }
 
 /**
- * Obtiene TODOS los packs disponibles para comprar
- * Usuarios GRATIS ven packs pero no desbloqueados
- * Usuarios PREMIUM: Todos automáticamente desbloqueados
+ * Obtiene packs activos del catálogo. El desbloqueo es por compra con CS (no por flag premium global).
  */
 export async function getAvailableIconPacks(userId: string): Promise<IconPack[]> {
   try {
@@ -143,41 +144,16 @@ export async function getAvailableIconPacks(userId: string): Promise<IconPack[]>
       return [];
     }
 
-    const isPremium = userSnap.data().isPremium || false;
-
-    // Si es Premium, retornar TODOS los packs (están desbloqueados)
-    if (isPremium) {
-      const packsRef = collection(db, 'icon_packs');
-      const snapshot = await getDocs(packsRef);
-
-      return snapshot.docs
-        .filter((d) => d.data().isActive !== false)
-        .map((doc) => {
-          const row = {
-            id: doc.id,
-            ...doc.data(),
-            totalSales: doc.data().totalSales || 0,
-          } as IconPack;
-          return {
-            ...row,
-            max_supply: Number(row.max_supply ?? row.stockTotal ?? 0),
-            current_supply: Number(row.current_supply ?? row.stockRemaining ?? 0),
-            storeSection: row.storeSection || normalizeSection(row),
-          };
-        }) as IconPack[];
-    }
-
-    // Usuario GRATIS: leer todos y filtrar en cliente para evitar índice compuesto.
     const packsRef = collection(db, 'icon_packs');
     const snapshot = await getDocs(packsRef);
 
     return snapshot.docs
       .filter((d) => d.data().isActive !== false)
-      .map((doc) => {
+      .map((docSnap) => {
         const row = {
-          id: doc.id,
-          ...doc.data(),
-          totalSales: doc.data().totalSales || 0,
+          id: docSnap.id,
+          ...docSnap.data(),
+          totalSales: docSnap.data().totalSales || 0,
         } as IconPack;
         return {
           ...row,
@@ -185,8 +161,7 @@ export async function getAvailableIconPacks(userId: string): Promise<IconPack[]>
           current_supply: Number(row.current_supply ?? row.stockRemaining ?? 0),
           storeSection: row.storeSection || normalizeSection(row),
         };
-      })
-      .filter((pack) => String(pack.category || '').toLowerCase() !== 'premium') as IconPack[];
+      }) as IconPack[];
   } catch (error) {
     console.error('Error getting available icon packs:', error);
     return [];
@@ -297,6 +272,12 @@ export async function purchaseIconPack(userId: string, packId: string): Promise<
           assetToken: cert.assetToken, packId, tradable: true, createdAt: cert.mintedAt,
         });
       }
+      const packKeys = Array.isArray((pack as IconPack).grantedIconVaultKeys)
+        ? (pack as IconPack).grantedIconVaultKeys!
+        : [];
+      if (packKeys.length) {
+        await grantIconVaultKeys(userId, packKeys, 'pack', packId);
+      }
       console.log(`✅ Icon Pack (admin claim, 0 créditos): ${pack.name}`);
       return true;
     }
@@ -399,6 +380,13 @@ export async function purchaseIconPack(userId: string, packId: string): Promise<
       costInCredits,
       `icon_pack_purchase:${pack.name}`,
     );
+
+    const packKeys = Array.isArray((pack as IconPack).grantedIconVaultKeys)
+      ? (pack as IconPack).grantedIconVaultKeys!
+      : [];
+    if (packKeys.length) {
+      await grantIconVaultKeys(userId, packKeys, 'pack', packId);
+    }
 
     console.log(`✅ Icon Pack comprado: ${pack.name} | Usuario: ${userId}`);
     return true;

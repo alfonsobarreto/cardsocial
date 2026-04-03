@@ -173,6 +173,47 @@ export const CARD_THEMES: CardTheme[] = [
     locked: true,
     price: 200,
   },
+
+  // ═══ BUNDLE: Texas Longhorns (3 variantes — se desbloquean juntas vía themeBundleService) ═══
+  {
+    id: 'texas_burnt_orange',
+    name: 'Texas Burnt Orange',
+    tier: 'luxury',
+    background: ['#BF5700', '#A34A00', '#7C3700'],
+    border: { color: '#FFFFFF', width: 3.5 },
+    title:    { color: '#FFFFFF', fontSize: 22 },
+    subtitle: { color: '#FFCCBC', fontSize: 13 },
+    icon:     { name: 'star-four-points', color: '#FFFFFF', size: 32 },
+    shadowStyle: 'drop',
+    locked: true,
+    price: 0,
+  },
+  {
+    id: 'texas_whiteout',
+    name: 'Texas Whiteout',
+    tier: 'moderno',
+    background: ['#FFFFFF', '#F5F5F5', '#EEEEEE'],
+    border: { color: '#BF5700', width: 3 },
+    title:    { color: '#BF5700', fontSize: 22 },
+    subtitle: { color: '#5D4037', fontSize: 13 },
+    icon:     { name: 'flag', color: '#BF5700', size: 32 },
+    shadowStyle: 'none',
+    locked: true,
+    price: 0,
+  },
+  {
+    id: 'texas_night_game',
+    name: 'Texas Night Game',
+    tier: 'luxury',
+    background: ['#0D1117', '#161B22', '#1F2937'],
+    border: { color: '#BF5700', width: 3.5 },
+    title:    { color: '#BF5700', fontSize: 22 },
+    subtitle: { color: '#9CA3AF', fontSize: 13 },
+    icon:     { name: 'stadium-variant', color: '#BF5700', size: 32 },
+    shadowStyle: 'inner',
+    locked: true,
+    price: 0,
+  },
 ];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

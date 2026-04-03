@@ -10,14 +10,64 @@ import { getActiveUserId } from '@/services/authSession';
 import { db } from '@/services/firebaseConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 const ACTIVE_THEME_KEY = 'card_social_active_theme';
 const UNLOCKED_THEMES_KEY = 'card_social_unlocked_themes';
 const DEFAULT_THEME_ID = 'deep_teal';
 
-// Free themes that are always unlocked
-const FREE_THEME_IDS = new Set(['deep_teal', 'citrus_pop', 'sky_indigo']);
+/** Temas base siempre desbloqueados (sync con persistUnlockedThemes). */
+export const FREE_THEME_IDS = new Set(['deep_teal', 'citrus_pop', 'sky_indigo']);
+
+function parseUnlockedFromJson(raw: string | null): Set<string> {
+  if (!raw) return new Set(FREE_THEME_IDS);
+  try {
+    const parsed = JSON.parse(raw) as string[];
+    return new Set([...FREE_THEME_IDS, ...parsed]);
+  } catch {
+    return new Set(FREE_THEME_IDS);
+  }
+}
+
+/**
+ * Trae temas desde Firestore y escribe AsyncStorage (misma fuente que mergeUnlockedThemeIdsFromServer).
+ */
+export async function syncThemesFromFirestore(): Promise<{
+  unlockedIds: Set<string>;
+  activeThemeId: string | null;
+} | null> {
+  try {
+    const uid = await getActiveUserId();
+    if (!uid) return null;
+
+    const settingsRef = doc(db, 'users', uid, 'settings', 'themes');
+    const snap = await getDoc(settingsRef);
+
+    if (!snap.exists()) {
+      return null;
+    }
+
+    const data = snap.data();
+    const firestoreThemeId = data?.activeThemeId as string | undefined;
+    const firestoreUnlocked = Array.isArray(data?.unlockedThemeIds)
+      ? (data.unlockedThemeIds as string[])
+      : [];
+
+    const merged = new Set([...FREE_THEME_IDS, ...firestoreUnlocked]);
+    await AsyncStorage.setItem(UNLOCKED_THEMES_KEY, JSON.stringify([...merged]));
+
+    if (firestoreThemeId) {
+      await AsyncStorage.setItem(ACTIVE_THEME_KEY, firestoreThemeId);
+    }
+
+    return {
+      unlockedIds: merged,
+      activeThemeId: firestoreThemeId ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
 
 export function useActiveTheme() {
   const [activeTheme, setActiveTheme] = useState<CardTheme>(
@@ -26,12 +76,37 @@ export function useActiveTheme() {
   const [unlockedIds, setUnlockedIds] = useState<Set<string>>(new Set(FREE_THEME_IDS));
   const [loading, setLoading] = useState(true);
 
+  const refreshThemes = useCallback(async () => {
+    try {
+      const [storedId, unlockedRaw] = await Promise.all([
+        AsyncStorage.getItem(ACTIVE_THEME_KEY),
+        AsyncStorage.getItem(UNLOCKED_THEMES_KEY),
+      ]);
+
+      if (storedId) {
+        const t = getThemeById(storedId);
+        if (t) setActiveTheme(t);
+      }
+      setUnlockedIds(parseUnlockedFromJson(unlockedRaw));
+
+      const remote = await syncThemesFromFirestore();
+      if (remote) {
+        setUnlockedIds(remote.unlockedIds);
+        if (remote.activeThemeId) {
+          const t = getThemeById(remote.activeThemeId);
+          if (t) setActiveTheme(t);
+        }
+      }
+    } catch {
+      /* offline */
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
       try {
-        // 1. Fast: load from AsyncStorage
         const [storedId, unlockedRaw] = await Promise.all([
           AsyncStorage.getItem(ACTIVE_THEME_KEY),
           AsyncStorage.getItem(UNLOCKED_THEMES_KEY),
@@ -43,49 +118,31 @@ export function useActiveTheme() {
             if (t) setActiveTheme(t);
           }
           if (unlockedRaw) {
-            const parsed = JSON.parse(unlockedRaw) as string[];
-            setUnlockedIds(new Set([...FREE_THEME_IDS, ...parsed]));
+            setUnlockedIds(parseUnlockedFromJson(unlockedRaw));
           }
         }
 
-        // 2. Sync with Firestore (cross-device truth)
-        const uid = await getActiveUserId();
-        if (!uid || cancelled) { setLoading(false); return; }
-
-        const settingsRef = doc(db, 'users', uid, 'settings', 'themes');
-        const snap = await getDoc(settingsRef);
-
-        if (snap.exists() && !cancelled) {
-          const data = snap.data();
-          const firestoreThemeId = data?.activeThemeId;
-          const firestoreUnlocked = Array.isArray(data?.unlockedThemeIds)
-            ? data.unlockedThemeIds as string[]
-            : [];
-
-          // Firestore wins if it has data
-          if (firestoreThemeId) {
-            const t = getThemeById(firestoreThemeId);
-            if (t) {
-              setActiveTheme(t);
-              await AsyncStorage.setItem(ACTIVE_THEME_KEY, firestoreThemeId);
-            }
-          }
-          if (firestoreUnlocked.length > 0) {
-            const merged = new Set([...FREE_THEME_IDS, ...firestoreUnlocked]);
-            setUnlockedIds(merged);
-            await AsyncStorage.setItem(UNLOCKED_THEMES_KEY, JSON.stringify([...merged]));
+        const remote = await syncThemesFromFirestore();
+        if (!cancelled && remote) {
+          setUnlockedIds(remote.unlockedIds);
+          if (remote.activeThemeId) {
+            const t = getThemeById(remote.activeThemeId);
+            if (t) setActiveTheme(t);
           }
         }
-      } catch { /* offline or first run */ }
-      finally {
+      } catch {
+        /* offline or first run */
+      } finally {
         if (!cancelled) setLoading(false);
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  return { activeTheme, unlockedIds, loading };
+  return { activeTheme, unlockedIds, loading, refreshThemes };
 }
 
 /**
@@ -99,7 +156,9 @@ export async function setActiveThemeId(themeId: string): Promise<void> {
       const settingsRef = doc(db, 'users', uid, 'settings', 'themes');
       await setDoc(settingsRef, { activeThemeId: themeId }, { merge: true });
     }
-  } catch { /* offline — local is still saved */ }
+  } catch {
+    /* offline — local is still saved */
+  }
 }
 
 /**
@@ -114,7 +173,21 @@ export async function persistUnlockedThemes(ids: string[]): Promise<void> {
       const settingsRef = doc(db, 'users', uid, 'settings', 'themes');
       await setDoc(settingsRef, { unlockedThemeIds: allIds }, { merge: true });
     }
-  } catch { /* offline */ }
+  } catch {
+    /* offline */
+  }
+}
+
+/** Combina temas ya desbloqueados en Firestore con nuevos IDs (p. ej. compra de bundle). */
+export async function mergeUnlockedThemeIdsFromServer(userId: string, additionalIds: string[]): Promise<void> {
+  const settingsRef = doc(db, 'users', userId, 'settings', 'themes');
+  const snap = await getDoc(settingsRef);
+  const existing = Array.isArray(snap.data()?.unlockedThemeIds)
+    ? (snap.data()!.unlockedThemeIds as string[])
+    : [];
+  const merged = [...new Set([...FREE_THEME_IDS, ...existing, ...additionalIds])];
+  await AsyncStorage.setItem(UNLOCKED_THEMES_KEY, JSON.stringify(merged));
+  await setDoc(settingsRef, { unlockedThemeIds: merged }, { merge: true });
 }
 
 /**
