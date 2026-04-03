@@ -121,6 +121,42 @@ async function ensureMongoHardening(db) {
     },
   };
 
+  const storyCardStatesValidator = {
+    $jsonSchema: {
+      bsonType: 'object',
+      required: ['ownerUid', 'cardId', 'state', 'expiresAt', 'createdAt', 'updatedAt'],
+      properties: {
+        ownerUid: { bsonType: 'string', minLength: 3 },
+        cardId: { bsonType: 'string', minLength: 4 },
+        state: { enum: ['normal', 'vip'] },
+        isPaidExternal: { bsonType: ['bool', 'null'] },
+        vipSource: { enum: ['manual', 'subscription', 'external_partner', null] },
+        paidChannel: { bsonType: ['string', 'null'], maxLength: 80 },
+        manualReason: { bsonType: ['string', 'null'], maxLength: 220 },
+        externalPaidAt: { bsonType: ['date', 'null'] },
+        activatedByUid: { bsonType: ['string', 'null'], maxLength: 100 },
+        expiresAt: { bsonType: 'date' },
+        createdAt: { bsonType: 'date' },
+        updatedAt: { bsonType: 'date' },
+      },
+    },
+  };
+
+  const cardSubscriberMutesValidator = {
+    $jsonSchema: {
+      bsonType: 'object',
+      required: ['ownerUid', 'cardId', 'targetUid', 'muted', 'createdAt', 'updatedAt'],
+      properties: {
+        ownerUid: { bsonType: 'string', minLength: 3 },
+        cardId: { bsonType: 'string', minLength: 4 },
+        targetUid: { bsonType: 'string', minLength: 3 },
+        muted: { bsonType: 'bool' },
+        createdAt: { bsonType: 'date' },
+        updatedAt: { bsonType: 'date' },
+      },
+    },
+  };
+
   const storiesHouseAdsValidator = {
     $jsonSchema: {
       bsonType: 'object',
@@ -193,6 +229,8 @@ async function ensureMongoHardening(db) {
   await ensureCollection(db, 'share_permissions', sharePermissionsValidator);
   await ensureCollection(db, 'blocked_relations', blockedRelationsValidator);
   await ensureCollection(db, 'story_states', storyStatesValidator);
+  await ensureCollection(db, 'story_card_states', storyCardStatesValidator);
+  await ensureCollection(db, 'card_subscriber_mutes', cardSubscriberMutesValidator);
   await ensureCollection(db, 'stories_house_ads', storiesHouseAdsValidator);
   await ensureCollection(db, 'call_logs', callLogsValidator);
   await ensureCollection(db, 'email_otps', emailOtpsValidator);
@@ -213,6 +251,12 @@ async function ensureMongoHardening(db) {
   await db.collection('story_states').createIndex({ ownerUid: 1 }, { unique: true, name: 'uq_story_owner' });
   await db.collection('story_states').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, name: 'ttl_story_expires_at' });
   await db.collection('story_states').createIndex({ isPaidExternal: 1, expiresAt: 1 }, { name: 'idx_story_external_exp' });
+
+  await db.collection('story_card_states').createIndex({ ownerUid: 1, cardId: 1 }, { unique: true, name: 'uq_story_card_owner_card' });
+  await db.collection('story_card_states').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, name: 'ttl_story_card_expires_at' });
+
+  await db.collection('card_subscriber_mutes').createIndex({ ownerUid: 1, cardId: 1, targetUid: 1 }, { unique: true, name: 'uq_mute_owner_card_target' });
+  await db.collection('card_subscriber_mutes').createIndex({ targetUid: 1, ownerUid: 1 }, { name: 'idx_mute_target_owner' });
 
   await db.collection('stories_house_ads').createIndex({ ownerUid: 1 }, { unique: true, name: 'uq_house_ad_owner' });
   await db.collection('stories_house_ads').createIndex({ isActive: 1, updatedAt: -1 }, { name: 'idx_house_ad_active_updated' });
