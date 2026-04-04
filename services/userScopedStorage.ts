@@ -13,6 +13,11 @@ export function smartCardsStorageKey(uid: string): string {
   return `smart_cards:${uid}`;
 }
 
+/** Orden manual de filas en Mis Tarjetas (Smart + negocio mezcladas), JSON string[]. */
+export function cardsTabFeedOrderStorageKey(uid: string): string {
+  return `cards_tab_feed_order:${uid}`;
+}
+
 export function vaultRecentIconsStorageKey(uid: string): string {
   return `vault_recent_icon_ids:${uid}`;
 }
@@ -76,7 +81,12 @@ export async function clearLocalCachesForSignOut(uid: string | null): Promise<vo
     LEGACY_VAULT_RECENT_ICONS_KEY,
   ];
   if (uid) {
-    keys.push(vaultStorageKey(uid), smartCardsStorageKey(uid), vaultRecentIconsStorageKey(uid));
+    keys.push(
+      vaultStorageKey(uid),
+      smartCardsStorageKey(uid),
+      vaultRecentIconsStorageKey(uid),
+      cardsTabFeedOrderStorageKey(uid),
+    );
   }
   await AsyncStorage.multiRemove(keys);
 }

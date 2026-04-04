@@ -52,6 +52,7 @@ import {
 } from '@/services/qrApi';
 import { getCardRowTheme, useActiveTheme } from '@/services/useActiveTheme';
 import {
+  cardsTabFeedOrderStorageKey,
   readSmartCardsJsonWithLegacyMigration,
   readVaultJsonWithLegacyMigration,
   smartCardsStorageKey,
@@ -71,7 +72,7 @@ import { useRouter } from 'expo-router';
 import { Gyroscope } from 'expo-sensors';
 import * as Sharing from 'expo-sharing';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -96,6 +97,7 @@ import {
 } from 'react-native';
 import { TouchableOpacity as GestureTouchableOpacity } from 'react-native-gesture-handler';
 import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
+import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from 'react-native-draggable-flatlist';
 import QRCode from 'react-native-qrcode-svg';
 import Toast from 'react-native-toast-message';
 import { ActionController } from '../../services/ActionController';
@@ -208,6 +210,16 @@ function computeWireframeIconCellSize(
         hi = mid - 1;
       }
     }
+    if (best === 0 && numRows > 0) {
+      const legacy = Math.min(
+        Math.floor(sW),
+        Math.max(
+          0,
+          Math.floor((gridH - betweenRows) / numRows - WIREFRAME_SLOT_LABEL_RESERVE),
+        ),
+      );
+      return legacy;
+    }
     return best;
   }
 
@@ -274,6 +286,37 @@ type SmartCard = {
   updatedAt: string;
 };
 
+/** Fila unificada en la lista Mis Tarjetas (Smart + negocio). */
+type CardsFeedListItem =
+  | ({ kind: 'business' } & BusinessCardListRow)
+  | { kind: 'smart'; card: SmartCard };
+
+function cardsFeedItemKey(item: CardsFeedListItem): string {
+  return item.kind === 'business' ? `b:${item.id}` : `s:${item.card.id}`;
+}
+
+function applyCardsManualFeedOrder(feed: CardsFeedListItem[], savedKeys: string[] | null): CardsFeedListItem[] {
+  if (!savedKeys?.length) return feed;
+  const map = new Map<string, CardsFeedListItem>();
+  for (const it of feed) {
+    map.set(cardsFeedItemKey(it), it);
+  }
+  const out: CardsFeedListItem[] = [];
+  const used = new Set<string>();
+  for (const k of savedKeys) {
+    const it = map.get(k);
+    if (it) {
+      out.push(it);
+      used.add(k);
+    }
+  }
+  for (const it of feed) {
+    const k = cardsFeedItemKey(it);
+    if (!used.has(k)) out.push(it);
+  }
+  return out;
+}
+
 type CardSubscriber = CardSubscriberRow;
 
 type EditSlot = {
@@ -281,6 +324,366 @@ type EditSlot = {
   index: number;
   item: VaultItem | null;
 };
+
+type IsolatedWireframeCardProps = {
+  layout: 'vertical' | 'horizontal';
+  slots: EditSlot[];
+  editable: boolean;
+  theme: ChestCardTheme;
+  wallpaperUrl?: string;
+  dispName: string;
+  dispSub: string;
+  dispAvatar: string | null;
+  dispHolders: number;
+  dispReviewCount: number;
+  dispStarsValue: number;
+  noAvatarIconName: 'account' | 'storefront-outline';
+  enableParallax: boolean;
+  parallaxX: Animated.Value;
+  parallaxY: Animated.Value;
+  renderSlotContent: (slot: EditSlot, ui: { size: number }, editable: boolean, chestTheme: ChestCardTheme) => React.ReactNode;
+  renderDetailedRatingStars: (rating: number, starSize: number, starColor: string) => React.ReactNode;
+  tr: (es: string, en: string) => string;
+};
+
+/** Cada instancia tiene su propio `onLayout` (evita que factory + previews compartan medidas y dejen `iconCellSize` en 0). */
+function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
+  const {
+    layout,
+    slots,
+    editable,
+    theme,
+    wallpaperUrl,
+    dispName,
+    dispSub,
+    dispAvatar,
+    dispHolders,
+    dispReviewCount,
+    dispStarsValue,
+    noAvatarIconName,
+    enableParallax,
+    parallaxX,
+    parallaxY,
+    renderSlotContent,
+    renderDetailedRatingStars,
+    tr,
+  } = props;
+
+  const [vertAvatarBoxH, setVertAvatarBoxH] = useState(0);
+  const [vertIconGridLayout, setVertIconGridLayout] = useState({ w: 0, h: 0 });
+  const [vertInfoBoxLayout, setVertInfoBoxLayout] = useState({ w: 0, h: 0 });
+  const [vertHeaderH, setVertHeaderH] = useState(0);
+  const [horizHeaderH, setHorizHeaderH] = useState(0);
+  const [horizAvatarBoxLayout, setHorizAvatarBoxLayout] = useState({ w: 0, h: 0 });
+  const [horizInfoBoxLayout, setHorizInfoBoxLayout] = useState({ w: 0, h: 0 });
+  const [horizIconGridLayout, setHorizIconGridLayout] = useState({ w: 0, h: 0 });
+
+  const dataSlots = slots.filter((slot) => slot.item !== null);
+  const feed = editable ? slots : dataSlots;
+  const bg3 = theme.background;
+  const bd = theme.border;
+  const titleStyle = theme.title;
+  const subStyle = theme.subtitle;
+  const extraStyle = theme.extraText;
+  const iconMeta = theme.icon;
+
+  if (layout === 'horizontal') {
+    const H_PAD = 8;
+    const horizAvatarSide = horizAvatarBoxLayout.h > 0 ? horizAvatarBoxLayout.h - H_PAD * 2 : 0;
+    const horizAvatarRadius = horizAvatarSide > 0 ? Math.round(horizAvatarSide * 0.15) : 0;
+
+    const hNameFontSize = horizInfoBoxLayout.h > 0 ? Math.round(horizInfoBoxLayout.h * 0.28) : 18;
+    const hNickFontSize = horizInfoBoxLayout.h > 0 ? Math.round(horizInfoBoxLayout.h * 0.18) : 12;
+    const hStatsFontSize = horizInfoBoxLayout.h > 0 ? Math.round(horizInfoBoxLayout.h * 0.12) : 10;
+    const hWireStarSize = Math.max(18, Math.min(26, Math.round(hStatsFontSize * 2.05)));
+    const hReviewCaptionSize = Math.max(8, Math.round(hStatsFontSize * 0.68));
+
+    const hBrandFontSize = horizHeaderH > 0 ? Math.round(horizHeaderH * 0.45) : 13;
+    const hBrandLogoSize = horizHeaderH > 0 ? Math.round(horizHeaderH * 0.55) : 18;
+
+    const H_GAP = 5;
+    const hFeed = feed.slice(0, WIREFRAME_MAX_ICONS);
+    const hRowPlan = getWireframeIconRowPlan(hFeed.length);
+    let hCursor = 0;
+    const hIconRows = hRowPlan.map((n) => {
+      const row = hFeed.slice(hCursor, hCursor + n);
+      hCursor += n;
+      return row;
+    });
+    const hIconSize =
+      horizIconGridLayout.w > 0 && horizIconGridLayout.h > 0
+        ? computeWireframeIconCellSize(
+            horizIconGridLayout.w,
+            horizIconGridLayout.h,
+            hRowPlan,
+            H_GAP,
+            26,
+            WIREFRAME_ROW_GAP_V,
+            theme.iconLabel.fontSize,
+          )
+        : 0;
+
+    return (
+      <LinearGradient colors={bg3} style={[styles.wireHorizCard, { borderColor: bd.color, borderWidth: bd.width }]}>
+        {wallpaperUrl ? (
+          <Animated.Image
+            source={{ uri: wallpaperUrl }}
+            style={[
+              styles.wallpaperFill,
+              enableParallax ? { transform: [{ translateX: parallaxX }, { translateY: parallaxY }, { scale: 1.06 }] } : null,
+            ]}
+            resizeMode={getWallpaperResizeMode()}
+          />
+        ) : null}
+
+        <View style={styles.horizHeader} onLayout={(e) => setHorizHeaderH(e.nativeEvent.layout.height)}>
+          <Image source={require('../../assets/images/CS Icon Logo.png')} style={{ width: hBrandLogoSize, height: hBrandLogoSize }} />
+          <Text style={[styles.horizBrandingText, { color: subStyle.color, fontSize: hBrandFontSize }]}>Card-Social</Text>
+        </View>
+
+        <View style={styles.horizMiddleRow}>
+          <View
+            style={styles.horizAvatarBox}
+            onLayout={(e) => setHorizAvatarBoxLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+          >
+            {horizAvatarSide > 0 ? (
+              dispAvatar ? (
+                <ExpoImage
+                  source={{ uri: dispAvatar }}
+                  style={{
+                    width: horizAvatarSide,
+                    height: horizAvatarSide,
+                    borderRadius: horizAvatarRadius,
+                    borderWidth: bd.width,
+                    borderColor: bd.color,
+                  }}
+                  cachePolicy="disk"
+                />
+              ) : (
+                <View
+                  style={{
+                    width: horizAvatarSide,
+                    height: horizAvatarSide,
+                    borderRadius: horizAvatarRadius,
+                    borderWidth: bd.width,
+                    borderColor: bd.color,
+                    backgroundColor: theme.bubble.backgroundColor,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <MaterialCommunityIcons name={noAvatarIconName} size={Math.round(horizAvatarSide * 0.5)} color={titleStyle.color} />
+                </View>
+              )
+            ) : null}
+          </View>
+
+          <View
+            style={styles.horizInfoBox}
+            onLayout={(e) => setHorizInfoBoxLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+          >
+            <Text style={[styles.horizName, { color: titleStyle.color, fontSize: hNameFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
+              {dispName}
+            </Text>
+            <Text style={[styles.horizNick, { color: subStyle.color, fontSize: hNickFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
+              {dispSub}
+            </Text>
+            <View style={styles.wireStatsRowInline}>
+              <View style={styles.wireStatsRatingStack}>
+                {renderDetailedRatingStars(dispStarsValue, hWireStarSize, iconMeta.color)}
+                <Text
+                  style={[
+                    styles.wireStatsReviewCaption,
+                    {
+                      color: extraStyle.color,
+                      fontSize: hReviewCaptionSize,
+                      fontWeight: extraStyle.fontWeight,
+                      fontStyle: extraStyle.fontStyle,
+                      textAlign: 'center',
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {dispStarsValue.toFixed(1)} · {dispReviewCount} {tr('reseñas', 'reviews')}
+                </Text>
+              </View>
+              <View style={[styles.wireUsersPill, { borderColor: bd.color, backgroundColor: theme.bubble.backgroundColor }]}>
+                <MaterialCommunityIcons name="account-outline" size={hStatsFontSize} color={iconMeta.color} />
+                <Text style={[styles.wireUsersPillText, { color: titleStyle.color, fontSize: hStatsFontSize }]}>{dispHolders}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <View
+          style={styles.horizIconsBox}
+          onLayout={(e) => setHorizIconGridLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+        >
+          {hIconSize > 0 ? (
+            <View style={styles.wireIconGridRoot}>
+              <View style={styles.wireIconRowsStack}>
+                {hIconRows.map((rowSlots, ri) => (
+                  <View key={`h-ir-${ri}`} style={styles.wireIconRow}>
+                    {rowSlots.map((slot) => (
+                      <View key={slot.id} style={styles.wireIconCell}>
+                        {renderSlotContent(slot, { size: hIconSize }, editable, theme)}
+                      </View>
+                    ))}
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : null}
+        </View>
+      </LinearGradient>
+    );
+  }
+
+  const VERT_AVATAR_PAD_TOP = 4;
+  const VERT_AVATAR_PAD_BOTTOM = 10;
+  const vertAvatarSide = vertAvatarBoxH > 0 ? vertAvatarBoxH - VERT_AVATAR_PAD_TOP - VERT_AVATAR_PAD_BOTTOM : 0;
+
+  const nameFontSize = vertInfoBoxLayout.h > 0 ? Math.round(vertInfoBoxLayout.h * 0.28) : 18;
+  const nickFontSize = vertInfoBoxLayout.h > 0 ? Math.round(vertInfoBoxLayout.h * 0.18) : 12;
+  const statsFontSize = vertInfoBoxLayout.h > 0 ? Math.round(vertInfoBoxLayout.h * 0.12) : 10;
+  const vWireStarSize = Math.max(20, Math.min(28, Math.round(statsFontSize * 2.15)));
+  const vReviewCaptionSize = Math.max(8, Math.round(statsFontSize * 0.65));
+  const brandFontSize = vertHeaderH > 0 ? Math.round(vertHeaderH * 0.45) : 13;
+  const brandLogoSize = vertHeaderH > 0 ? Math.round(vertHeaderH * 0.55) : 18;
+
+  const ICON_GAP = 3;
+  const vFeed = feed.slice(0, WIREFRAME_MAX_ICONS);
+  const vRowPlan = getWireframeIconRowPlan(vFeed.length);
+  let vCursor = 0;
+  const vIconRows = vRowPlan.map((n) => {
+    const row = vFeed.slice(vCursor, vCursor + n);
+    vCursor += n;
+    return row;
+  });
+  const vertIconCellSize =
+    vertIconGridLayout.w > 0 && vertIconGridLayout.h > 0
+      ? computeWireframeIconCellSize(
+          vertIconGridLayout.w,
+          vertIconGridLayout.h,
+          vRowPlan,
+          ICON_GAP,
+          WIREFRAME_SLOT_LABEL_RESERVE,
+          WIREFRAME_ROW_GAP_V,
+          theme.iconLabel.fontSize,
+        )
+      : 0;
+
+  return (
+    <LinearGradient colors={bg3} style={[styles.wireVerticalCard, { borderColor: bd.color, borderWidth: bd.width }]}>
+      {wallpaperUrl ? (
+        <Animated.Image
+          source={{ uri: wallpaperUrl }}
+          style={[
+            styles.wallpaperFill,
+            enableParallax ? { transform: [{ translateX: parallaxX }, { translateY: parallaxY }, { scale: 1.06 }] } : null,
+          ]}
+          resizeMode={getWallpaperResizeMode()}
+        />
+      ) : null}
+
+      <View style={styles.vertHeader} onLayout={(e) => setVertHeaderH(e.nativeEvent.layout.height)}>
+        <Image source={require('../../assets/images/CS Icon Logo.png')} style={{ width: brandLogoSize, height: brandLogoSize }} />
+        <Text style={[styles.vertBrandingText, { color: subStyle.color, fontSize: brandFontSize }]}>Card-Social</Text>
+      </View>
+
+      <View style={styles.vertTop}>
+        <View style={styles.vertAvatarBox} onLayout={(e) => setVertAvatarBoxH(e.nativeEvent.layout.height)}>
+          {vertAvatarSide > 0 ? (
+            dispAvatar ? (
+              <ExpoImage
+                source={{ uri: dispAvatar }}
+                style={{
+                  width: vertAvatarSide,
+                  height: vertAvatarSide,
+                  borderRadius: Math.round(vertAvatarSide * 0.22),
+                  borderWidth: bd.width + 1,
+                  borderColor: bd.color,
+                }}
+                cachePolicy="disk"
+              />
+            ) : (
+              <View
+                style={{
+                  width: vertAvatarSide,
+                  height: vertAvatarSide,
+                  borderRadius: Math.round(vertAvatarSide * 0.22),
+                  borderWidth: bd.width + 1,
+                  borderColor: bd.color,
+                  backgroundColor: theme.bubble.backgroundColor,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  shadowColor: bd.color,
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.35,
+                  shadowRadius: 6,
+                  elevation: 5,
+                }}
+              >
+                <MaterialCommunityIcons name={noAvatarIconName} size={Math.round(vertAvatarSide * 0.52)} color={titleStyle.color} />
+              </View>
+            )
+          ) : null}
+        </View>
+
+        <View style={styles.vertInfoBox} onLayout={(e) => setVertInfoBoxLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+          <Text style={[styles.vertName, { color: titleStyle.color, fontSize: nameFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
+            {dispName}
+          </Text>
+          <Text style={[styles.vertNick, { color: subStyle.color, fontSize: nickFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
+            {dispSub}
+          </Text>
+          <View style={styles.wireStatsRowInline}>
+            <View style={styles.wireStatsRatingStack}>
+              {renderDetailedRatingStars(dispStarsValue, vWireStarSize, iconMeta.color)}
+              <Text
+                style={[
+                  styles.wireStatsReviewCaption,
+                  {
+                    color: extraStyle.color,
+                    fontSize: vReviewCaptionSize,
+                    fontWeight: extraStyle.fontWeight,
+                    fontStyle: extraStyle.fontStyle,
+                    textAlign: 'center',
+                  },
+                ]}
+                numberOfLines={1}
+              >
+                {dispStarsValue.toFixed(1)} · {dispReviewCount} {tr('reseñas', 'reviews')}
+              </Text>
+            </View>
+            <View style={[styles.wireUsersPill, { borderColor: bd.color, backgroundColor: theme.bubble.backgroundColor }]}>
+              <MaterialCommunityIcons name="account-outline" size={statsFontSize} color={iconMeta.color} />
+              <Text style={[styles.wireUsersPillText, { color: titleStyle.color, fontSize: statsFontSize }]}>{dispHolders}</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.vertIconsBox} onLayout={(e) => setVertIconGridLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+        {vertIconCellSize > 0 ? (
+          <View style={[styles.wireIconGridRoot, styles.wireVertIconGridRoot]}>
+            <View style={styles.wireIconRowsStack}>
+              {vIconRows.map((rowSlots, ri) => (
+                <View key={`v-ir-${ri}`} style={styles.wireIconRow}>
+                  {rowSlots.map((slot) => (
+                    <View key={slot.id} style={styles.wireIconCell}>
+                      {renderSlotContent(slot, { size: vertIconCellSize }, editable, theme)}
+                    </View>
+                  ))}
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
+      </View>
+    </LinearGradient>
+  );
+}
 
 export default function CardsFactoryScreen() {
   const { width, height } = useWindowDimensions();
@@ -355,18 +758,12 @@ export default function CardsFactoryScreen() {
   /** UID de la sesión en Mis Tarjetas (QR permanente en filas de negocio). */
   const [sessionOwnerUid, setSessionOwnerUid] = useState<string | null>(null);
   const [cardSearchQuery, setCardSearchQuery] = useState('');
+  const [manualFeedOrderKeys, setManualFeedOrderKeys] = useState<string[]>([]);
+  const [cardsReorderMode, setCardsReorderMode] = useState(false);
+  const [reorderDraftData, setReorderDraftData] = useState<CardsFeedListItem[]>([]);
+  const enterCardsReorderRef = useRef<(() => void) | null>(null);
   const [rotateHintVisible, setRotateHintVisible] = useState(false);
   const rotateAnim = useRef(new Animated.Value(0)).current;
-  // Vertical card responsive layout state
-  const [vertAvatarBoxH, setVertAvatarBoxH] = useState(0);
-  const [vertIconGridLayout, setVertIconGridLayout] = useState({ w: 0, h: 0 });
-  const [vertInfoBoxLayout, setVertInfoBoxLayout] = useState({ w: 0, h: 0 });
-  const [vertHeaderH, setVertHeaderH] = useState(0);
-  // Horizontal card responsive layout state
-  const [horizHeaderH, setHorizHeaderH] = useState(0);
-  const [horizAvatarBoxLayout, setHorizAvatarBoxLayout] = useState({ w: 0, h: 0 });
-  const [horizInfoBoxLayout, setHorizInfoBoxLayout] = useState({ w: 0, h: 0 });
-  const [horizIconGridLayout, setHorizIconGridLayout] = useState({ w: 0, h: 0 });
   const [ownerNickname, setOwnerNickname] = useState('');
   const [ownerDisplayName, setOwnerDisplayName] = useState('');
   const [ownerPhotoUrl, setOwnerPhotoUrl] = useState<string | null>(null);
@@ -1010,21 +1407,6 @@ export default function CardsFactoryScreen() {
     await persistCards(nextCards);
   };
 
-  const handleCardLongPress = (card: SmartCard) => {
-    Alert.alert('Gestionar Smart Card', 'Selecciona una accion para esta tarjeta.', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Editar',
-        onPress: () => openEditFactory(card),
-      },
-      {
-        text: 'Eliminar',
-        style: 'destructive',
-        onPress: () => deleteCard(card),
-      },
-    ]);
-  };
-
   const updateCardItemIds = async (card: SmartCard, nextItemIds: string[]) => {
     const normalized = nextItemIds.filter(Boolean).slice(0, MAX_CARD_SLOTS);
     const nowIso = new Date().toISOString();
@@ -1452,29 +1834,7 @@ export default function CardsFactoryScreen() {
     setPreviewBusinessVisible(true);
   };
 
-  const handleBusinessCardLongPress = (row: BusinessCardListRow) => {
-    Alert.alert(tr('Tarjeta de negocio', 'Business card'), tr('Elige una acción.', 'Choose an action.'), [
-      { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
-      {
-        text: tr('Editar', 'Edit'),
-        onPress: () => router.push({ pathname: '/(tabs)/createBusinessCard', params: { cardId: row.id } } as any),
-      },
-      {
-        text: tr('Eliminar', 'Delete'),
-        style: 'destructive',
-        onPress: () => void deleteBusinessCardEntry(row),
-      },
-    ]);
-  };
-
   const businessSwipeKey = (id: string) => `business:${id}`;
-
-  const selectedCardItems = useMemo(() => {
-    if (!selectedCard) {
-      return [];
-    }
-    return vaultItems.filter((item) => selectedCard.itemIds.includes(item.id));
-  }, [selectedCard, vaultItems]);
 
   const previewCardItems = useMemo(() => {
     if (!previewCard) {
@@ -1572,10 +1932,6 @@ export default function CardsFactoryScreen() {
     });
   }, [smartCards]);
 
-  type FeedListItem =
-    | ({ kind: 'business' } & BusinessCardListRow)
-    | { kind: 'smart'; card: SmartCard };
-
   const sortedBusinessCards = useMemo(() => {
     return [...businessCardsFeed].sort((a, b) => {
       const favDiff = Number(Boolean(b.isFavorite)) - Number(Boolean(a.isFavorite));
@@ -1586,18 +1942,29 @@ export default function CardsFactoryScreen() {
     });
   }, [businessCardsFeed]);
 
-  const filteredFeed = useMemo((): FeedListItem[] => {
-    const bizItems: FeedListItem[] = sortedBusinessCards.map((b) => ({
+  const baseFeedMerged = useMemo((): CardsFeedListItem[] => {
+    const bizItems: CardsFeedListItem[] = sortedBusinessCards.map((b) => ({
       kind: 'business' as const,
       ...b,
     }));
+    return [...bizItems, ...sortedCards.map((card) => ({ kind: 'smart' as const, card }))];
+  }, [sortedBusinessCards, sortedCards]);
+
+  const orderedBaseFeed = useMemo(() => {
+    return applyCardsManualFeedOrder(
+      baseFeedMerged,
+      manualFeedOrderKeys.length > 0 ? manualFeedOrderKeys : null,
+    );
+  }, [baseFeedMerged, manualFeedOrderKeys]);
+
+  const filteredFeed = useMemo((): CardsFeedListItem[] => {
     const q = cardSearchQuery.trim();
     if (!q) {
-      return [...bizItems, ...sortedCards.map((card) => ({ kind: 'smart' as const, card }))];
+      return orderedBaseFeed;
     }
     const qExpanded = buildExpandedMarketQuery(q) || q;
     const qLower = q.toLowerCase();
-    const bizFiltered = bizItems.filter((b) => {
+    const bizFiltered = orderedBaseFeed.filter((b): b is CardsFeedListItem & { kind: 'business' } => {
       if (b.kind !== 'business') return false;
       return (
         b.businessName.toLowerCase().includes(qLower) ||
@@ -1605,11 +1972,86 @@ export default function CardsFactoryScreen() {
         b.ownerName.toLowerCase().includes(qLower)
       );
     });
-    const smartFiltered = orderByDeepSearchWithExpandedQuery(sortedCards, qExpanded, (card) =>
+    const smartOrdered = orderedBaseFeed
+      .filter((x): x is { kind: 'smart'; card: SmartCard } => x.kind === 'smart')
+      .map((x) => x.card);
+    const smartFiltered = orderByDeepSearchWithExpandedQuery(smartOrdered, qExpanded, (card) =>
       collectStringsSmartCard({ name: card.name, itemIds: card.itemIds }, vaultItems, false),
     );
     return [...bizFiltered, ...smartFiltered.map((card) => ({ kind: 'smart' as const, card }))];
-  }, [sortedBusinessCards, sortedCards, cardSearchQuery, vaultItems]);
+  }, [orderedBaseFeed, cardSearchQuery, vaultItems]);
+
+  useEffect(() => {
+    enterCardsReorderRef.current = () => {
+      if (cardSearchQuery.trim()) {
+        Alert.alert(
+          tr('Ordenar tarjetas', 'Reorder cards'),
+          tr('Sal de la búsqueda para poder reordenar la lista.', 'Clear search to reorder the list.'),
+        );
+        return;
+      }
+      if (isLandscape) {
+        Alert.alert(
+          tr('Ordenar tarjetas', 'Reorder cards'),
+          tr('Gira el teléfono a vertical para reordenar.', 'Rotate your phone to portrait to reorder.'),
+        );
+        return;
+      }
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setReorderDraftData([...filteredFeed]);
+      setCardsReorderMode(true);
+    };
+  }, [filteredFeed, cardSearchQuery, isLandscape, tr]);
+
+  useEffect(() => {
+    if (!isCardsUnlocked) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const uid = await getActiveUserId();
+      if (!uid || cancelled) return;
+      try {
+        const raw = await AsyncStorage.getItem(cardsTabFeedOrderStorageKey(uid));
+        if (cancelled || !raw) return;
+        const arr = JSON.parse(raw) as unknown;
+        if (Array.isArray(arr) && arr.every((x) => typeof x === 'string')) {
+          setManualFeedOrderKeys(arr);
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isCardsUnlocked]);
+
+  const commitCardsReorder = useCallback(async () => {
+    const keys = reorderDraftData.map(cardsFeedItemKey);
+    setManualFeedOrderKeys(keys);
+    setCardsReorderMode(false);
+    const uid = await getActiveUserId();
+    if (uid) {
+      try {
+        await AsyncStorage.setItem(cardsTabFeedOrderStorageKey(uid), JSON.stringify(keys));
+      } catch {
+        /* ignore */
+      }
+    }
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }, [reorderDraftData]);
+
+  const cancelCardsReorder = useCallback(() => {
+    setCardsReorderMode(false);
+    setReorderDraftData([]);
+  }, []);
+
+  useEffect(() => {
+    if (cardsReorderMode && isLandscape) {
+      cancelCardsReorder();
+    }
+  }, [cardsReorderMode, isLandscape, cancelCardsReorder]);
 
   const openPreviewCard = (card: SmartCard) => {
     setPreviewCard(card);
@@ -2023,7 +2465,6 @@ export default function CardsFactoryScreen() {
     editable: boolean;
     theme: ChestCardTheme;
     wallpaperUrl?: string;
-    /** Vista previa de tarjeta de negocio (misma rejilla que Smart Card). */
     wireIdentity?: {
       cardTitle: string;
       subtitle: string;
@@ -2044,336 +2485,28 @@ export default function CardsFactoryScreen() {
     const dispRatingRaw = wId ? wId.ratingAvg : (selectedCard?.ratingAvg ?? previewCard?.ratingAvg ?? 5);
     const dispStarsValue = dispReviewCount > 0 ? Math.max(0, Math.min(5, Number(dispRatingRaw))) : 0;
     const noAvatarIconName = (wId?.noAvatarIcon ?? 'account') as 'account' | 'storefront-outline';
-    const dataSlots = slots.filter((slot) => slot.item !== null);
-    const feed = editable ? slots : dataSlots;
-    const bg3 = theme.background; // 3-stop gradient
-    const bd = theme.border;
-    const titleStyle = theme.title;
-    const subStyle = theme.subtitle;
-    const extraStyle = theme.extraText;
-    const iconMeta = theme.icon;
-    // Responsive sizes based on screen width
-    const avatarSize = Math.round(width * 0.24);   // ~24% of screen
-    const avatarRadius = Math.round(avatarSize * 0.18);
-    const iconFallbackSize = Math.round(avatarSize * 0.38);
-
-    if (layout === 'horizontal') {
-      // Avatar: cuadrado toca top/bottom del su box (padding 8)
-      const H_PAD = 8;
-      const horizAvatarSide = horizAvatarBoxLayout.h > 0 ? horizAvatarBoxLayout.h - H_PAD * 2 : 0;
-      const horizAvatarRadius = horizAvatarSide > 0 ? Math.round(horizAvatarSide * 0.15) : 0;
-
-      // Font sizes proporcional al alto del info box
-      const hNameFontSize  = horizInfoBoxLayout.h > 0 ? Math.round(horizInfoBoxLayout.h * 0.28) : 18;
-      const hNickFontSize  = horizInfoBoxLayout.h > 0 ? Math.round(horizInfoBoxLayout.h * 0.18) : 12;
-      const hStatsFontSize = horizInfoBoxLayout.h > 0 ? Math.round(horizInfoBoxLayout.h * 0.12) : 10;
-      const hWireStarSize = Math.max(18, Math.min(26, Math.round(hStatsFontSize * 2.05)));
-      const hReviewCaptionSize = Math.max(8, Math.round(hStatsFontSize * 0.68));
-
-      // Branding proporcional al alto del header
-      const hBrandFontSize = horizHeaderH > 0 ? Math.round(horizHeaderH * 0.45) : 13;
-      const hBrandLogoSize = horizHeaderH > 0 ? Math.round(horizHeaderH * 0.55) : 18;
-
-      const H_GAP = 5;
-      const hFeed = feed.slice(0, WIREFRAME_MAX_ICONS);
-      const hRowPlan = getWireframeIconRowPlan(hFeed.length);
-      let hCursor = 0;
-      const hIconRows = hRowPlan.map((n) => {
-        const row = hFeed.slice(hCursor, hCursor + n);
-        hCursor += n;
-        return row;
-      });
-      const hIconSize =
-        horizIconGridLayout.w > 0 && horizIconGridLayout.h > 0
-          ? computeWireframeIconCellSize(
-              horizIconGridLayout.w,
-              horizIconGridLayout.h,
-              hRowPlan,
-              H_GAP,
-              26,
-              WIREFRAME_ROW_GAP_V,
-              theme.iconLabel.fontSize,
-            )
-          : 0;
-
-      return (
-        <LinearGradient colors={bg3} style={[styles.wireHorizCard, { borderColor: bd.color, borderWidth: bd.width }]}>
-          {wallpaperUrl ? (
-            <Animated.Image
-              source={{ uri: wallpaperUrl }}
-              style={[
-                styles.wallpaperFill,
-                enableParallax
-                  ? { transform: [{ translateX: parallaxX }, { translateY: parallaxY }, { scale: 1.06 }] }
-                  : null,
-              ]}
-              resizeMode={getWallpaperResizeMode()}
-            />
-          ) : null}
-
-          {/* ── HEADER ─────────────────────────────────────────── */}
-          <View style={styles.horizHeader} onLayout={e => setHorizHeaderH(e.nativeEvent.layout.height)}>
-            <Image source={require('../../assets/images/CS Icon Logo.png')} style={{ width: hBrandLogoSize, height: hBrandLogoSize }} />
-            <Text style={[styles.horizBrandingText, { color: subStyle.color, fontSize: hBrandFontSize }]}>Card-Social</Text>
-          </View>
-
-          {/* ── FILA MEDIA flex:3 ── */}
-          <View style={styles.horizMiddleRow}>
-            {/* Avatar */}
-            <View
-              style={styles.horizAvatarBox}
-              onLayout={e => setHorizAvatarBoxLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
-            >
-              {horizAvatarSide > 0 ? (
-                dispAvatar ? (
-                  <ExpoImage
-                    source={{ uri: dispAvatar }}
-                    style={{ width: horizAvatarSide, height: horizAvatarSide, borderRadius: horizAvatarRadius, borderWidth: bd.width, borderColor: bd.color }}
-                    cachePolicy="disk"
-                  />
-                ) : (
-                  <View style={{ width: horizAvatarSide, height: horizAvatarSide, borderRadius: horizAvatarRadius, borderWidth: bd.width, borderColor: bd.color, backgroundColor: theme.bubble.backgroundColor, alignItems: 'center', justifyContent: 'center' }}>
-                    <MaterialCommunityIcons name={noAvatarIconName} size={Math.round(horizAvatarSide * 0.5)} color={titleStyle.color} />
-                  </View>
-                )
-              ) : null}
-            </View>
-
-            {/* Info */}
-            <View
-              style={styles.horizInfoBox}
-              onLayout={e => setHorizInfoBoxLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
-            >
-              <Text style={[styles.horizName, { color: titleStyle.color, fontSize: hNameFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
-                {dispName}
-              </Text>
-              <Text style={[styles.horizNick, { color: subStyle.color, fontSize: hNickFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
-                {dispSub}
-              </Text>
-              <View style={styles.wireStatsRowInline}>
-                <View style={styles.wireStatsRatingStack}>
-                  {renderDetailedRatingStars(dispStarsValue, hWireStarSize, iconMeta.color)}
-                  <Text
-                    style={[
-                      styles.wireStatsReviewCaption,
-                      {
-                        color: extraStyle.color,
-                        fontSize: hReviewCaptionSize,
-                        fontWeight: extraStyle.fontWeight,
-                        fontStyle: extraStyle.fontStyle,
-                        textAlign: 'center',
-                      },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {dispStarsValue.toFixed(1)} · {dispReviewCount} {tr('reseñas', 'reviews')}
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.wireUsersPill,
-                    { borderColor: bd.color, backgroundColor: theme.bubble.backgroundColor },
-                  ]}
-                >
-                  <MaterialCommunityIcons name="account-outline" size={hStatsFontSize} color={iconMeta.color} />
-                  <Text style={[styles.wireUsersPillText, { color: titleStyle.color, fontSize: hStatsFontSize }]}>
-                    {dispHolders}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          {/* ── ICONOS flex:4 ───────────────────────────────────── */}
-          <View
-            style={styles.horizIconsBox}
-            onLayout={e => setHorizIconGridLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
-          >
-            {hIconSize > 0 ? (
-              <View style={styles.wireIconGridRoot}>
-                <View style={styles.wireIconRowsStack}>
-                  {hIconRows.map((rowSlots, ri) => (
-                    <View key={`h-ir-${ri}`} style={styles.wireIconRow}>
-                      {rowSlots.map((slot) => (
-                        <View key={slot.id} style={styles.wireIconCell}>
-                          {renderSlotContent(slot, { size: hIconSize }, editable, theme)}
-                        </View>
-                      ))}
-                    </View>
-                  ))}
-                </View>
-              </View>
-            ) : null}
-          </View>
-        </LinearGradient>
-      );
-    }
-
-    // ── VERTICAL MODEL ─────────────────────────────────────────────
-    const VERT_AVATAR_PAD_TOP = 4;
-    const VERT_AVATAR_PAD_BOTTOM = 10;
-    const vertAvatarSide =
-      vertAvatarBoxH > 0 ? vertAvatarBoxH - VERT_AVATAR_PAD_TOP - VERT_AVATAR_PAD_BOTTOM : 0;
-
-    // Font sizes scale from info box height — no fixed numbers
-    const nameFontSize  = vertInfoBoxLayout.h > 0 ? Math.round(vertInfoBoxLayout.h * 0.28) : 18;
-    const nickFontSize  = vertInfoBoxLayout.h > 0 ? Math.round(vertInfoBoxLayout.h * 0.18) : 12;
-    const statsFontSize = vertInfoBoxLayout.h > 0 ? Math.round(vertInfoBoxLayout.h * 0.12) : 10;
-    const vWireStarSize = Math.max(20, Math.min(28, Math.round(statsFontSize * 2.15)));
-    const vReviewCaptionSize = Math.max(8, Math.round(statsFontSize * 0.65));
-    // Branding font scales from header height
-    const brandFontSize = vertHeaderH > 0 ? Math.round(vertHeaderH * 0.45) : 13;
-    const brandLogoSize = vertHeaderH > 0 ? Math.round(vertHeaderH * 0.55) : 18;
-
-    const ICON_GAP = 3;
-    const vFeed = feed.slice(0, WIREFRAME_MAX_ICONS);
-    const vRowPlan = getWireframeIconRowPlan(vFeed.length);
-    let vCursor = 0;
-    const vIconRows = vRowPlan.map((n) => {
-      const row = vFeed.slice(vCursor, vCursor + n);
-      vCursor += n;
-      return row;
-    });
-    const vertIconCellSize =
-      vertIconGridLayout.w > 0 && vertIconGridLayout.h > 0
-        ? computeWireframeIconCellSize(
-            vertIconGridLayout.w,
-            vertIconGridLayout.h,
-            vRowPlan,
-            ICON_GAP,
-            WIREFRAME_SLOT_LABEL_RESERVE,
-            WIREFRAME_ROW_GAP_V,
-            theme.iconLabel.fontSize,
-          )
-        : 0;
 
     return (
-      <LinearGradient colors={bg3} style={[styles.wireVerticalCard, { borderColor: bd.color, borderWidth: bd.width }]}>
-        {wallpaperUrl ? (
-          <Animated.Image
-            source={{ uri: wallpaperUrl }}
-            style={[
-              styles.wallpaperFill,
-              enableParallax
-                ? { transform: [{ translateX: parallaxX }, { translateY: parallaxY }, { scale: 1.06 }] }
-                : null,
-            ]}
-            resizeMode={getWallpaperResizeMode()}
-          />
-        ) : null}
-
-        {/* ── HEADER ─────────────────────────────────────────────── */}
-        <View style={styles.vertHeader} onLayout={e => setVertHeaderH(e.nativeEvent.layout.height)}>
-          <Image source={require('../../assets/images/CS Icon Logo.png')} style={{ width: brandLogoSize, height: brandLogoSize }} />
-          <Text style={[styles.vertBrandingText, { color: subStyle.color, fontSize: brandFontSize }]}>Card-Social</Text>
-        </View>
-
-        {/* ── SECCIÓN TOP (avatar + info; más aire para nombre) ── */}
-        <View style={styles.vertTop}>
-          {/* Avatar */}
-          <View
-            style={styles.vertAvatarBox}
-            onLayout={e => setVertAvatarBoxH(e.nativeEvent.layout.height)}
-          >
-            {vertAvatarSide > 0 ? (
-              dispAvatar ? (
-                <ExpoImage
-                  source={{ uri: dispAvatar }}
-                  style={{
-                    width: vertAvatarSide,
-                    height: vertAvatarSide,
-                    borderRadius: Math.round(vertAvatarSide * 0.22),
-                    borderWidth: bd.width + 1,
-                    borderColor: bd.color,
-                  }}
-                  cachePolicy="disk"
-                />
-              ) : (
-                <View style={{
-                  width: vertAvatarSide,
-                  height: vertAvatarSide,
-                  borderRadius: Math.round(vertAvatarSide * 0.22),
-                  borderWidth: bd.width + 1,
-                  borderColor: bd.color,
-                  backgroundColor: theme.bubble.backgroundColor,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  shadowColor: bd.color,
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.35,
-                  shadowRadius: 6,
-                  elevation: 5,
-                }}>
-                  <MaterialCommunityIcons name={noAvatarIconName} size={Math.round(vertAvatarSide * 0.52)} color={titleStyle.color} />
-                </View>
-              )
-            ) : null}
-          </View>
-
-          {/* Info */}
-          <View style={styles.vertInfoBox} onLayout={e => setVertInfoBoxLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-            <Text style={[styles.vertName, { color: titleStyle.color, fontSize: nameFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
-              {dispName}
-            </Text>
-            <Text style={[styles.vertNick, { color: subStyle.color, fontSize: nickFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
-              {dispSub}
-            </Text>
-            <View style={styles.wireStatsRowInline}>
-              <View style={styles.wireStatsRatingStack}>
-                {renderDetailedRatingStars(dispStarsValue, vWireStarSize, iconMeta.color)}
-                <Text
-                  style={[
-                    styles.wireStatsReviewCaption,
-                    {
-                      color: extraStyle.color,
-                      fontSize: vReviewCaptionSize,
-                      fontWeight: extraStyle.fontWeight,
-                      fontStyle: extraStyle.fontStyle,
-                      textAlign: 'center',
-                    },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {dispStarsValue.toFixed(1)} · {dispReviewCount} {tr('reseñas', 'reviews')}
-                </Text>
-              </View>
-              <View
-                style={[
-                  styles.wireUsersPill,
-                  { borderColor: bd.color, backgroundColor: theme.bubble.backgroundColor },
-                ]}
-              >
-                <MaterialCommunityIcons name="account-outline" size={statsFontSize} color={iconMeta.color} />
-                <Text style={[styles.wireUsersPillText, { color: titleStyle.color, fontSize: statsFontSize }]}>
-                  {dispHolders}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* ── Iconos (caja más baja; margen separa del bloque superior) ── */}
-        <View
-          style={styles.vertIconsBox}
-          onLayout={e => setVertIconGridLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
-        >
-          {vertIconCellSize > 0 ? (
-            <View style={[styles.wireIconGridRoot, styles.wireVertIconGridRoot]}>
-              <View style={styles.wireIconRowsStack}>
-                {vIconRows.map((rowSlots, ri) => (
-                  <View key={`v-ir-${ri}`} style={styles.wireIconRow}>
-                    {rowSlots.map((slot) => (
-                      <View key={slot.id} style={styles.wireIconCell}>
-                        {renderSlotContent(slot, { size: vertIconCellSize }, editable, theme)}
-                      </View>
-                    ))}
-                  </View>
-                ))}
-              </View>
-            </View>
-          ) : null}
-        </View>
-      </LinearGradient>
+      <IsolatedWireframeCard
+        layout={layout}
+        slots={slots}
+        editable={editable}
+        theme={theme}
+        wallpaperUrl={wallpaperUrl}
+        dispName={dispName}
+        dispSub={dispSub}
+        dispAvatar={dispAvatar}
+        dispHolders={dispHolders}
+        dispReviewCount={dispReviewCount}
+        dispStarsValue={dispStarsValue}
+        noAvatarIconName={noAvatarIconName}
+        enableParallax={enableParallax}
+        parallaxX={parallaxX}
+        parallaxY={parallaxY}
+        renderSlotContent={renderSlotContent}
+        renderDetailedRatingStars={renderDetailedRatingStars}
+        tr={tr}
+      />
     );
   };
 
@@ -2458,8 +2591,7 @@ export default function CardsFactoryScreen() {
           <GestureTouchableOpacity
             style={styles.cardRowTouchable}
             onPress={() => void openPreviewBusinessCard(row)}
-            onLongPress={() => handleBusinessCardLongPress(row)}
-            delayLongPress={4000}
+            onLongPress={() => enterCardsReorderRef.current?.()}
             activeOpacity={0.92}
           >
             <View style={[styles.cardRowInner, styles.businessCardListInner, styles.businessCardRowInner]}>
@@ -2634,8 +2766,7 @@ export default function CardsFactoryScreen() {
           <GestureTouchableOpacity
             style={styles.cardRowTouchable}
             onPress={() => openPreviewCard(item)}
-            onLongPress={() => handleCardLongPress(item)}
-            delayLongPress={4000}
+            onLongPress={() => enterCardsReorderRef.current?.()}
             activeOpacity={0.92}
           >
             <View style={styles.cardRowInner}>
@@ -2693,6 +2824,216 @@ export default function CardsFactoryScreen() {
           </TouchableOpacity>
         </View>
       </Swipeable>
+    );
+  };
+
+  const renderDraggableFeedItem = ({ item, drag, isActive }: RenderItemParams<CardsFeedListItem>) => {
+    if (item.kind === 'business') {
+      const row = item;
+      const chestTheme = getCardRowTheme(row.themeId);
+      const themeMeta = getThemeById(row.themeId || '') ?? CHEST_THEMES[0];
+      const holders = row.holdersCount ?? 0;
+      const reviewCount = row.totalRatings ?? 0;
+      const ratingRaw = Number(row.ratingAvg ?? 0);
+      const rating =
+        reviewCount > 0 && Number.isFinite(ratingRaw) ? Math.max(0, Math.min(5, ratingRaw)) : 0;
+      const logoUri = toRenderableImageUri(row.businessLogo);
+      return (
+        <ScaleDecorator>
+          <TouchableOpacity
+            onLongPress={drag}
+            disabled={isActive}
+            delayLongPress={180}
+            activeOpacity={0.95}
+            style={[styles.swipeWrap, isLandscape && styles.swipeWrapLandscape]}
+            accessibilityLabel={tr('Mantén y arrastra para mover', 'Hold and drag to move')}
+          >
+            <View
+              style={[
+                styles.cardItem,
+                isLandscape && styles.cardItemLandscape,
+                {
+                  borderColor: chestTheme.borderColor,
+                  borderWidth: chestTheme.borderWidth,
+                  opacity: isActive ? 0.92 : 1,
+                },
+              ]}
+            >
+              <LinearGradient
+                colors={[...chestTheme.gradient]}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+              />
+              <View style={[styles.cardRowTouchable, styles.reorderRowPad]}>
+                <View style={[styles.cardRowInner, styles.businessCardListInner, styles.businessCardRowInner]}>
+                  <View style={styles.businessListMainRow}>
+                    {logoUri ? (
+                      <ExpoImage
+                        source={{ uri: logoUri }}
+                        style={[styles.businessListLogo, { borderColor: chestTheme.borderColor }]}
+                        cachePolicy="disk"
+                      />
+                    ) : (
+                      <View style={[styles.businessListLogoPh, { borderColor: chestTheme.borderColor }]}>
+                        <MaterialCommunityIcons name="storefront-outline" size={35} color={chestTheme.titleColor} />
+                      </View>
+                    )}
+                    <View style={styles.businessListTextCol}>
+                      <AutoScaleText
+                        maxLines={2}
+                        style={[styles.cardTitle, styles.businessListTitle, { color: chestTheme.titleColor }]}
+                      >
+                        {row.businessName}
+                      </AutoScaleText>
+                      <Text style={[styles.businessListSubtitle, { color: chestTheme.metaColor }]} numberOfLines={1}>
+                        {row.ownerName.trim() ? row.ownerName : themeMeta.name}
+                      </Text>
+                      <View style={styles.businessCardStatsRow}>
+                        <View
+                          style={[
+                            styles.metricPill,
+                            { borderColor: chestTheme.borderColor, backgroundColor: 'rgba(255,255,255,0.72)' },
+                          ]}
+                          accessibilityRole="text"
+                        >
+                          <MaterialCommunityIcons name="account-group-outline" size={13} color={chestTheme.titleColor} />
+                          <Text style={[styles.metricPillText, { color: chestTheme.titleColor }]}>{holders}</Text>
+                        </View>
+                        <View style={styles.statsRatingStack}>
+                          <View style={styles.businessRatingStarsWrap}>{renderDetailedRatingStars(rating)}</View>
+                          <Text style={[styles.ratingStackCaption, { color: chestTheme.metaColor }]} numberOfLines={2}>
+                            {rating.toFixed(1)} · {reviewCount} {tr('reseñas', 'reviews')}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                    {sessionOwnerUid ? (
+                      <View style={styles.businessListQrWrap} pointerEvents="none">
+                        <QRCode
+                          value={generatePermanentBusinessLink(row.id, sessionOwnerUid)}
+                          size={64}
+                          color="#0A2540"
+                          backgroundColor="#FFFFFF"
+                          ecl="H"
+                          {...(logoUri
+                            ? {
+                                logo: { uri: logoUri },
+                                logoSize: 16,
+                                logoMargin: 2,
+                                logoBackgroundColor: '#FFFFFF',
+                              }
+                            : {})}
+                        />
+                      </View>
+                    ) : null}
+                  </View>
+                </View>
+              </View>
+              <View style={[styles.reorderHandleHint, { backgroundColor: cardsTheme.pillBg }]}>
+                <MaterialCommunityIcons name="drag" size={18} color={cardsTheme.icon} />
+              </View>
+            </View>
+          </TouchableOpacity>
+        </ScaleDecorator>
+      );
+    }
+
+    const card = item.card;
+    const chestTheme = getCardRowTheme(card.themeId);
+    const holders = card.holdersCount ?? 0;
+    const reviewCount = card.totalRatings ?? 0;
+    const ratingRaw = Number(card.ratingAvg ?? 0);
+    const rating =
+      reviewCount > 0 && Number.isFinite(ratingRaw) ? Math.max(0, Math.min(5, ratingRaw)) : 0;
+    const themeMeta = getThemeById(card.themeId || '') ?? CHEST_THEMES[0];
+    const themeLabel = themeMeta.name;
+
+    return (
+      <ScaleDecorator>
+        <TouchableOpacity
+          onLongPress={drag}
+          disabled={isActive}
+          delayLongPress={180}
+          activeOpacity={0.95}
+          style={[styles.swipeWrap, isLandscape && styles.swipeWrapLandscape]}
+          accessibilityLabel={tr('Mantén y arrastra para mover', 'Hold and drag to move')}
+        >
+          <View
+            style={[
+              styles.cardItem,
+              isLandscape && styles.cardItemLandscape,
+              {
+                borderColor: chestTheme.borderColor,
+                borderWidth: chestTheme.borderWidth,
+                opacity: isActive ? 0.92 : 1,
+              },
+            ]}
+          >
+            <LinearGradient
+              colors={[...chestTheme.gradient]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={StyleSheet.absoluteFillObject}
+            />
+            {card.wallpaperUrl ? (
+              <Animated.Image
+                source={{ uri: card.wallpaperUrl }}
+                style={[
+                  styles.wallpaperFill,
+                  card.enableParallax
+                    ? { transform: [{ translateX: parallaxX }, { translateY: parallaxY }, { scale: 1.06 }] }
+                    : null,
+                ]}
+                resizeMode={getWallpaperResizeMode()}
+              />
+            ) : null}
+            <View style={[styles.cardRowTouchable, styles.reorderRowPad]}>
+              <View style={styles.cardRowInner}>
+                <AutoScaleText
+                  maxLines={2}
+                  style={[
+                    styles.cardTitle,
+                    styles.cardRowTitle,
+                    { color: chestTheme.titleColor },
+                    card.fontFamily ? { fontFamily: card.fontFamily } : null,
+                  ]}
+                >
+                  {card.name}
+                </AutoScaleText>
+                <Text style={[styles.cardRowThemeSubtitle, { color: chestTheme.metaColor }]} numberOfLines={1}>
+                  {themeLabel}
+                </Text>
+                <View style={styles.cardRowStatsRow}>
+                  <View
+                    style={[
+                      styles.metricPill,
+                      { borderColor: chestTheme.borderColor, backgroundColor: 'rgba(255,255,255,0.72)' },
+                    ]}
+                  >
+                    <MaterialCommunityIcons name="account-group-outline" size={13} color={chestTheme.titleColor} />
+                    <Text style={[styles.metricPillText, { color: chestTheme.titleColor }]}>{holders}</Text>
+                  </View>
+                  <View style={styles.cardRowRatingCluster}>
+                    <View style={[styles.statsRatingStack, styles.statsRatingStackAlignEnd]}>
+                      {renderDetailedRatingStars(rating)}
+                      <Text
+                        style={[styles.ratingStackCaption, styles.ratingStackCaptionRight, { color: chestTheme.metaColor }]}
+                        numberOfLines={2}
+                      >
+                        {rating.toFixed(1)} · {reviewCount} {tr('reseñas', 'reviews')}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            </View>
+            <View style={[styles.reorderHandleHint, { backgroundColor: cardsTheme.pillBg }]}>
+              <MaterialCommunityIcons name="drag" size={18} color={cardsTheme.icon} />
+            </View>
+          </View>
+        </TouchableOpacity>
+      </ScaleDecorator>
     );
   };
 
@@ -2774,74 +3115,126 @@ export default function CardsFactoryScreen() {
         </View>
       </View>
 
-      <FlatList
-        style={{ flex: 1 }}
-        data={filteredFeed}
-        keyExtractor={(item) => (item.kind === 'business' ? `biz-${item.id}` : `smart-${item.card.id}`)}
-        renderItem={({ item }) => {
-          if (item.kind === 'business') {
-            const { kind: _k, ...bizRow } = item;
-            return renderBusinessCardRow(bizRow);
+      {cardsReorderMode && !isLandscape ? (
+        <>
+          <View
+            style={[styles.cardsReorderBanner, { backgroundColor: cardsTheme.surfaceMuted, borderBottomColor: cardsTheme.divider }]}
+          >
+            <Text style={[styles.cardsReorderBannerText, { color: cardsTheme.text }]}>
+              {tr(
+                'Mantén pulsado y arrastra. Listo guarda el orden.',
+                'Hold and drag to reorder. Done saves the order.',
+              )}
+            </Text>
+            <TouchableOpacity
+              style={[styles.reorderBannerBtn, { backgroundColor: cardsTheme.inputBg }]}
+              onPress={cancelCardsReorder}
+              accessibilityRole="button"
+              accessibilityLabel={tr('Cancelar orden', 'Cancel reorder')}
+            >
+              <Text style={[styles.reorderBannerBtnText, { color: cardsTheme.text }]}>{tr('Cancelar', 'Cancel')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.reorderBannerBtn, { backgroundColor: cardsTheme.btnPrimary }]}
+              onPress={() => void commitCardsReorder()}
+              accessibilityRole="button"
+              accessibilityLabel={tr('Guardar orden', 'Save order')}
+            >
+              <Text style={[styles.reorderBannerBtnText, { color: cardsTheme.btnPrimaryText }]}>{tr('Listo', 'Done')}</Text>
+            </TouchableOpacity>
+          </View>
+          <DraggableFlatList
+            style={{ flex: 1 }}
+            data={reorderDraftData}
+            keyExtractor={(item) => cardsFeedItemKey(item)}
+            onDragEnd={({ data }) => setReorderDraftData(data)}
+            renderItem={renderDraggableFeedItem}
+            keyboardDismissMode="on-drag"
+            keyboardShouldPersistTaps="handled"
+            key="cards-reorder-portrait"
+            contentContainerStyle={styles.cardsList}
+            bounces={false}
+            overScrollMode="never"
+            activationDistance={12}
+          />
+        </>
+      ) : (
+        <FlatList
+          style={{ flex: 1 }}
+          data={filteredFeed}
+          keyExtractor={(item) => (item.kind === 'business' ? `biz-${item.id}` : `smart-${item.card.id}`)}
+          renderItem={({ item }) => {
+            if (item.kind === 'business') {
+              const { kind: _k, ...bizRow } = item;
+              return renderBusinessCardRow(bizRow);
+            }
+            return renderCard({ item: item.card });
+          }}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+          horizontal={isLandscape}
+          pagingEnabled={isLandscape}
+          snapToAlignment={isLandscape ? 'start' : undefined}
+          snapToInterval={isLandscape ? width * 0.84 : undefined}
+          decelerationRate={isLandscape ? 'fast' : 'normal'}
+          showsHorizontalScrollIndicator={false}
+          key={isLandscape ? 'cards-landscape' : 'cards-portrait'}
+          contentContainerStyle={[styles.cardsList, isLandscape && styles.cardsListLandscape]}
+          bounces={false}
+          overScrollMode="never"
+          refreshControl={
+            !isLandscape ? (
+              <RefreshControl
+                refreshing={refreshingCards}
+                onRefresh={async () => {
+                  setRefreshingCards(true);
+                  await loadSmartCards();
+                  await loadBusinessCardsFeed();
+                  setRefreshingCards(false);
+                }}
+                tintColor={cardsTheme.tint}
+                colors={[cardsTheme.tint]}
+              />
+            ) : undefined
           }
-          return renderCard({ item: item.card });
-        }}
-        keyboardDismissMode="on-drag"
-        keyboardShouldPersistTaps="handled"
-        horizontal={isLandscape}
-        pagingEnabled={isLandscape}
-        snapToAlignment={isLandscape ? 'start' : undefined}
-        snapToInterval={isLandscape ? width * 0.84 : undefined}
-        decelerationRate={isLandscape ? 'fast' : 'normal'}
-        showsHorizontalScrollIndicator={false}
-        key={isLandscape ? 'cards-landscape' : 'cards-portrait'}
-        contentContainerStyle={[styles.cardsList, isLandscape && styles.cardsListLandscape]}
-        bounces={false}
-        overScrollMode="never"
-        refreshControl={
-          !isLandscape ? (
-            <RefreshControl
-              refreshing={refreshingCards}
-              onRefresh={async () => {
-                setRefreshingCards(true);
-                await loadSmartCards();
-                await loadBusinessCardsFeed();
-                setRefreshingCards(false);
-              }}
-              tintColor={cardsTheme.tint}
-              colors={[cardsTheme.tint]}
-            />
-          ) : undefined
-        }
-        ListEmptyComponent={
-          cardSearchQuery.trim().length > 0 ? (
-            <View style={styles.emptyWrap}>
-              <MaterialCommunityIcons name="magnify" size={52} color={cardsTheme.sectionLabel} />
-              <Text style={[styles.emptyTitle, { color: cardsTheme.text }]}>{tr('Sin coincidencias', 'No matches')}</Text>
-              <Text style={[styles.emptyText, { color: cardsTheme.modalSubtitle }]}>
-                {tr(
-                  'Prueba con otras palabras o sinónimos. También puedes revisar tu conexión.',
-                  'Try different words or synonyms. You can also check your connection.',
-                )}
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.emptyWrap}>
-              <MaterialCommunityIcons name="credit-card-plus-outline" size={52} color={cardsTheme.icon} />
-              <Text style={[styles.emptyTitle, { color: cardsTheme.text }]}>{tr('Sin tarjetas todavía', 'No cards yet')}</Text>
-              <Text style={[styles.emptyText, { color: cardsTheme.modalSubtitle }]}>
-                {tr(
-                  'Crea una Smart Card con datos del Vault o una Tarjeta de negocio con el botón de lujo.',
-                  'Create a Smart Card with Vault data or a Business card with the luxury button.',
-                )}
-              </Text>
-            </View>
-          )
-        }
-      />
+          ListEmptyComponent={
+            cardSearchQuery.trim().length > 0 ? (
+              <View style={styles.emptyWrap}>
+                <MaterialCommunityIcons name="magnify" size={52} color={cardsTheme.sectionLabel} />
+                <Text style={[styles.emptyTitle, { color: cardsTheme.text }]}>{tr('Sin coincidencias', 'No matches')}</Text>
+                <Text style={[styles.emptyText, { color: cardsTheme.modalSubtitle }]}>
+                  {tr(
+                    'Prueba con otras palabras o sinónimos. También puedes revisar tu conexión.',
+                    'Try different words or synonyms. You can also check your connection.',
+                  )}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.emptyWrap}>
+                <MaterialCommunityIcons name="credit-card-plus-outline" size={52} color={cardsTheme.icon} />
+                <Text style={[styles.emptyTitle, { color: cardsTheme.text }]}>{tr('Sin tarjetas todavía', 'No cards yet')}</Text>
+                <Text style={[styles.emptyText, { color: cardsTheme.modalSubtitle }]}>
+                  {tr(
+                    'Crea una Smart Card con datos del Vault o una Tarjeta de negocio con el botón de lujo.',
+                    'Create a Smart Card with Vault data or a Business card with the luxury button.',
+                  )}
+                </Text>
+              </View>
+            )
+          }
+        />
+      )}
 
       {/* Search bar — fixed above FAB */}
       {(smartCards.length > 0 || businessCardsFeed.length > 0) && (
-        <View style={[styles.cardSearchWrap, { backgroundColor: cardsTheme.inputBg, borderColor: cardsTheme.divider }]}>
+        <View
+          style={[
+            styles.cardSearchWrap,
+            { backgroundColor: cardsTheme.inputBg, borderColor: cardsTheme.divider },
+            cardsReorderMode ? { opacity: 0.45 } : null,
+          ]}
+          pointerEvents={cardsReorderMode ? 'none' : 'auto'}
+        >
           <MaterialCommunityIcons name="magnify" size={18} color={cardsTheme.sectionLabel} />
           <TextInput
             style={[styles.cardSearchInput, { color: cardsTheme.inputText }]}
@@ -2871,7 +3264,12 @@ export default function CardsFactoryScreen() {
         </View>
       )}
 
-      <TouchableOpacity style={[styles.createFab, { backgroundColor: cardsTheme.fabBg }]} onPress={openCreateFactory} activeOpacity={0.82}>
+      <TouchableOpacity
+        style={[styles.createFab, { backgroundColor: cardsTheme.fabBg, opacity: cardsReorderMode ? 0.35 : 1 }]}
+        onPress={openCreateFactory}
+        activeOpacity={0.82}
+        disabled={cardsReorderMode}
+      >
         <MaterialCommunityIcons name="plus" size={20} color={cardsTheme.fabText} />
         <Text style={[styles.createFabText, { color: cardsTheme.fabText }]}>{tr('Crear', 'Create')}</Text>
       </TouchableOpacity>
@@ -2964,36 +3362,13 @@ export default function CardsFactoryScreen() {
                   {/* Card preview — fills remaining height */}
                   <View style={styles.factoryPreviewWrap}>
                     <View style={[styles.factoryPreviewStage, { backgroundColor: isDark ? 'rgba(8,18,30,0.72)' : 'rgba(255,255,255,0.36)', borderColor: cardsTheme.modalBorder }] }>
-                      <View style={styles.factoryPreviewHeaderRow}>
-                        <Text style={[styles.factoryPreviewTitle, { color: cardsTheme.text }]}>{tr('Asi te veran', 'How they will see you')}</Text>
-                        <TouchableOpacity
-                          style={[styles.factoryPreviewChip, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.8)', borderColor: cardsTheme.modalBorder }]}
-                          onPress={() => {
-                            setRotateHintVisible(true);
-                            rotateAnim.setValue(0);
-                            Animated.loop(
-                              Animated.sequence([
-                                Animated.timing(rotateAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-                                Animated.timing(rotateAnim, { toValue: 0, duration: 800, useNativeDriver: true }),
-                              ]),
-                              { iterations: 2 },
-                            ).start(() => setTimeout(() => setRotateHintVisible(false), 400));
-                          }}
-                          activeOpacity={0.7}
-                          accessibilityLabel={tr('Vista horizontal', 'Horizontal view')}
-                        >
-                          <MaterialCommunityIcons name="phone-rotate-landscape" size={13} color={cardsTheme.icon} />
-                          <Text style={[styles.factoryPreviewChipText, { color: cardsTheme.text }]}>{tr('Vista horizontal', 'Horizontal view')}</Text>
-                        </TouchableOpacity>
-                      </View>
-
                       <View
                         style={[
                           styles.factoryPreviewCardFrame,
                           { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.15)' },
                           factoryWireIconRows >= 3
                             ? { minHeight: Math.min(height * 0.44, 520) }
-                            : null,
+                            : { minHeight: Math.min(height * 0.34, 380) },
                         ]}
                       >
                         {editSlots.filter((s) => s.item !== null).length === 0 ? (
@@ -3822,91 +4197,77 @@ export default function CardsFactoryScreen() {
           setQrBusinessContext(null);
         }}
       >
-        <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}> 
-          <View style={styles.qrModal}>
-            <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle }]}>
-              {qrBusinessContext
-                ? qrBusinessContext.businessName
-                : selectedCard?.name || 'Smart Card'}
-            </Text>
-            <Text style={[styles.qrSubtitle, { color: cardsTheme.sectionLabel }]}>
-              {qrBusinessContext
-                ? tr('QR permanente (no caduca)', 'Permanent QR (does not expire)')
-                : tr('QR dinámico seguro con expiración de 60s', 'Secure dynamic QR with ~60s expiry')}
-            </Text>
+        <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}>
+          <LinearGradient
+            colors={[...cardsTheme.luxuryFrameGradient]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.qrModalLuxuryOuter}
+          >
+            <View style={[styles.qrModalInner, { backgroundColor: cardsTheme.modalBg }]}>
+              <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle }]}>
+                {qrBusinessContext
+                  ? qrBusinessContext.businessName
+                  : selectedCard?.name || 'Smart Card'}
+              </Text>
+              <Text style={[styles.qrSubtitle, { color: cardsTheme.modalSubtitle }]}>
+                {qrBusinessContext
+                  ? tr('QR permanente (no caduca)', 'Permanent QR (does not expire)')
+                  : tr('QR dinámico seguro con expiración de 60s', 'Secure dynamic QR with ~60s expiry')}
+              </Text>
 
-            {qrBusinessContext ? null : (
-              <View style={styles.countdownWrap}>
-                <Text style={styles.countdownText}>{remainingSec}s</Text>
-                <View style={styles.progressTrack}>
-                  <View style={[styles.progressFill, { width: `${remainingPercent * 100}%` }]} />
+              {qrBusinessContext ? null : (
+                <View style={styles.countdownWrap}>
+                  <Text style={[styles.countdownText, { color: cardsTheme.text }]}>{remainingSec}s</Text>
+                  <View style={[styles.progressTrack, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(28,28,30,0.08)' }]}>
+                    <View style={[styles.progressFill, { width: `${remainingPercent * 100}%`, backgroundColor: cardsTheme.tint }]} />
+                  </View>
                 </View>
-              </View>
-            )}
-
-            <View style={styles.qrWrap}>
-              {qrPayload ? (
-                <View style={styles.qrLayerContainer}>
-                  <QRCode
-                    value={qrPayload}
-                    size={210}
-                    color="#0D4D8A"
-                    backgroundColor="#FFFFFF"
-                    logo={
-                      qrBusinessContext?.logoUrl
-                        ? { uri: qrBusinessContext.logoUrl }
-                        : require('../../assets/images/CS Icon Logo.png')
-                    }
-                    logoSize={qrBusinessContext?.logoUrl ? 48 : 42}
-                    logoBackgroundColor="#FFFFFF"
-                    logoMargin={qrBusinessContext?.logoUrl ? 2 : 4}
-                    ecl="H"
-                  />
-
-                  {!qrBusinessContext && qrExpired ? (
-                    <View style={styles.expiredOverlay}>
-                      <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} pointerEvents="none" />
-                      <TouchableOpacity
-                        style={styles.refreshOverlayBtn}
-                        onPress={() => {
-                          if (selectedCard) {
-                            confirmAndIssueQrForCard(selectedCard);
-                          }
-                        }}
-                        disabled={issuingQr}
-                      >
-                        <MaterialCommunityIcons name="refresh" size={16} color="#FFFFFF" />
-                        <Text style={styles.refreshOverlayBtnText}>{tr('Generar nuevo QR', 'Generate new QR')}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ) : null}
-                </View>
-              ) : null}
-            </View>
-
-            <Text style={[styles.qrRefsTitle, { color: cardsTheme.text }]}>
-              {qrBusinessContext ? tr('Resumen', 'Summary') : tr('Datos vinculados', 'Linked data')}
-            </Text>
-            <ScrollView style={styles.qrRefsList} bounces={false} overScrollMode="never">
-              {qrBusinessContext ? (
-                <>
-                  <Text style={[styles.qrRefItem, { color: cardsTheme.sectionLabel }]}>
-                    • {tr('Titular', 'Owner')}: {qrBusinessContext.ownerName || '—'}
-                  </Text>
-                  <Text style={[styles.qrRefItem, { color: cardsTheme.sectionLabel }]}>
-                    • {tr('Enlace fijo de negocio', 'Fixed business link')}
-                  </Text>
-                </>
-              ) : (
-                selectedCardItems.map((item) => (
-                  <Text key={item.id} style={[styles.qrRefItem, { color: cardsTheme.sectionLabel }]}>
-                    • {item.title} ({item.type})
-                  </Text>
-                ))
               )}
-            </ScrollView>
 
-            <View style={styles.modalActions}>
+              <View style={[styles.qrWrap, { backgroundColor: cardsTheme.inputBg, borderColor: cardsTheme.modalBorder }]}>
+                {qrPayload ? (
+                  <View style={styles.qrLayerContainer}>
+                    <QRCode
+                      value={qrPayload}
+                      size={210}
+                      color={isDark ? '#E8D4A3' : '#0D4D8A'}
+                      backgroundColor={isDark ? '#1C1C1E' : '#FFFFFF'}
+                      logo={
+                        qrBusinessContext?.logoUrl
+                          ? { uri: qrBusinessContext.logoUrl }
+                          : require('../../assets/images/CS Icon Logo.png')
+                      }
+                      logoSize={qrBusinessContext?.logoUrl ? 48 : 42}
+                      logoBackgroundColor={isDark ? '#1C1C1E' : '#FFFFFF'}
+                      logoMargin={qrBusinessContext?.logoUrl ? 2 : 4}
+                      ecl="H"
+                    />
+
+                    {!qrBusinessContext && qrExpired ? (
+                      <View style={styles.expiredOverlay}>
+                        <BlurView intensity={80} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} pointerEvents="none" />
+                        <TouchableOpacity
+                          style={[styles.refreshOverlayBtn, { backgroundColor: cardsTheme.btnPrimary, borderColor: cardsTheme.modalBorder }]}
+                          onPress={() => {
+                            if (selectedCard) {
+                              confirmAndIssueQrForCard(selectedCard);
+                            }
+                          }}
+                          disabled={issuingQr}
+                        >
+                          <MaterialCommunityIcons name="refresh" size={16} color={cardsTheme.btnPrimaryText} />
+                          <Text style={[styles.refreshOverlayBtnText, { color: cardsTheme.btnPrimaryText }]}>
+                            {tr('Generar nuevo QR', 'Generate new QR')}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
+              </View>
+
+              <View style={[styles.modalActions, styles.qrModalActions]}>
               {qrBusinessContext ? (
                 <TouchableOpacity
                   style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary, flex: 1 }]}
@@ -3940,8 +4301,9 @@ export default function CardsFactoryScreen() {
                   </TouchableOpacity>
                 </>
               )}
+              </View>
             </View>
-          </View>
+          </LinearGradient>
         </View>
       </Modal>
 
@@ -4059,6 +4421,42 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '800',
+  },
+  cardsReorderBanner: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  cardsReorderBannerText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  reorderBannerBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  reorderBannerBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  reorderRowPad: {
+    paddingRight: 40,
+  },
+  reorderHandleHint: {
+    position: 'absolute',
+    right: 6,
+    top: '50%',
+    marginTop: -16,
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cardsList: {
     paddingHorizontal: 12,
@@ -4694,6 +5092,7 @@ const styles = StyleSheet.create({
   factoryModal: {
     width: '100%',
     height: '98%',
+    flexDirection: 'column',
     backgroundColor: '#F2FBFF',
     borderRadius: 22,
     borderWidth: 1,
@@ -4787,26 +5186,32 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
   },
-  qrModal: {
+  qrModalLuxuryOuter: {
     width: '90%',
-    backgroundColor: '#F2FBFF',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#B8E7FF',
+    maxWidth: 400,
+    borderRadius: 20,
+    padding: 2,
+  },
+  qrModalInner: {
+    borderRadius: 18,
     padding: 16,
     alignItems: 'center',
+    width: '100%',
+  },
+  qrModalActions: {
+    marginTop: 16,
+    width: '100%',
   },
   qrSubtitle: {
     marginTop: 2,
-    color: '#4B7395',
     marginBottom: 10,
+    textAlign: 'center',
   },
   countdownWrap: {
     width: '100%',
     marginBottom: 10,
   },
   countdownText: {
-    color: '#0A2540',
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 6,
@@ -4816,19 +5221,16 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 8,
     borderRadius: 999,
-    backgroundColor: '#EAF7FF',
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#0A2540',
+    borderRadius: 999,
   },
   qrWrap: {
-    backgroundColor: '#FFFFFF',
     padding: 16,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#D6F2FF',
   },
   qrLayerContainer: {
     width: 210,
@@ -4845,34 +5247,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#0A2540',
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderWidth: 1,
-    borderColor: '#CDEFFF',
   },
   refreshOverlayBtnText: {
-    color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 12,
-  },
-  qrRefsTitle: {
-    marginTop: 12,
-    marginBottom: 6,
-    color: '#0D4D8A',
-    fontWeight: '700',
-    alignSelf: 'flex-start',
-  },
-  qrRefsList: {
-    width: '100%',
-    maxHeight: 120,
-    marginBottom: 10,
-  },
-  qrRefItem: {
-    color: '#2F6389',
-    fontSize: 12,
-    marginBottom: 4,
   },
   previewModalStack: {
     width: '92%',
@@ -5319,44 +5701,20 @@ const styles = StyleSheet.create({
     flex: 1,
     marginBottom: 8,
     overflow: 'hidden',
+    minHeight: 0,
   },
   factoryPreviewStage: {
     flex: 1,
+    minHeight: 0,
     borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.36)',
     borderWidth: 1,
     borderColor: 'rgba(184,231,255,0.72)',
     padding: 10,
   },
-  factoryPreviewHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  factoryPreviewTitle: {
-    color: '#0A2540',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  factoryPreviewChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    borderWidth: 1,
-    borderColor: '#B8E7FF',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  factoryPreviewChipText: {
-    color: '#0A2540',
-    fontSize: 10,
-    fontWeight: '800',
-  },
   factoryPreviewCardFrame: {
     flex: 1,
+    minHeight: 0,
     borderRadius: 18,
     overflow: 'hidden',
     backgroundColor: 'rgba(255,255,255,0.15)',
