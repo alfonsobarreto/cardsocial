@@ -95,7 +95,6 @@ import {
   useWindowDimensions,
   View
 } from 'react-native';
-import { TouchableOpacity as GestureTouchableOpacity } from 'react-native-gesture-handler';
 import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from 'react-native-draggable-flatlist';
 import QRCode from 'react-native-qrcode-svg';
@@ -155,78 +154,85 @@ function getWireframeIconRowPlan(count: number): number[] {
 /** Espacio reservado bajo la burbuja para etiquetas (2 líneas + descendentes). */
 const WIREFRAME_SLOT_LABEL_RESERVE = 36;
 
-/** Gap vertical real entre filas de iconos (`wireIconRowsStack`). */
-const WIREFRAME_ROW_GAP_V = 7;
+/** Stitch: hueco entre iconos (horizontal y vertical entre filas). */
+const WIREFRAME_STITCH_GAP = 12;
+/** Stitch: padding horizontal total en la rejilla (24 + 24); `anchoUtil = onLayout.width - esto`. */
+const WIREFRAME_STITCH_HORIZONTAL_INSET = 48;
+/** Stitch: con un solo icono, lado máximo de la burbuja. */
+const WIREFRAME_STITCH_SINGLE_MAX_SIDE = 112;
 
 /** Altura bajo la burbuja (margen + 2 líneas de etiqueta + márgenes), igual criterio que `renderSlotContent` → `minTileH`. */
 function wireframeSlotBelowBubbleHeight(bubbleSize: number, iconLabelFontSize: number): number {
-  const labelFontSize = Math.max(9, Math.round(Math.min(bubbleSize * 0.15, iconLabelFontSize + 4)));
+  const labelFontSize = Math.max(
+    9,
+    Math.min(15, Math.round(Math.min(bubbleSize * 0.155, iconLabelFontSize + 5))),
+  );
   const labelLineHeight = Math.ceil(labelFontSize * 1.22);
   return 8 + labelLineHeight * 2 + 8 + 6;
 }
 
-function computeWireframeIconCellSize(
-  gridW: number,
+/**
+ * Tamaño de burbuja (Stitch): `anchoUtil = ancho contenedor - 48`, `gap = 12`.
+ * 1 icono: `side = min(112, anchoUtil)`. Más de uno: por fila `(anchoUtil - gap*(cols-1))/cols`, y el mínimo entre filas.
+ * Luego se limita por altura disponible para no solapar reseñas.
+ */
+function computeStitchWireframeBubbleSide(
+  usableW: number,
   gridH: number,
   rowPlan: number[],
   gap: number,
-  labelReservePerRow = WIREFRAME_SLOT_LABEL_RESERVE,
-  /** Si se pasa, la altura por fila usa solo huecos entre filas (layout vertical). */
-  interRowGap?: number,
-  /**
-   * Si se pasa, el tope en altura usa la misma banda de etiqueta que `renderSlotContent` (evita solape
-   * con reseñas cuando hay pocas filas y la burbuja crece mucho).
-   */
-  iconLabelFontSizeForSlotMetrics?: number,
+  rowGapV: number,
+  themeIconLabelFontSize: number,
 ): number {
-  if (rowPlan.length === 0 || gridW <= 0 || gridH <= 0) return 0;
-  const G = gap;
-  const numRows = rowPlan.length;
-  let sW = Number.POSITIVE_INFINITY;
-  for (const cols of rowPlan) {
-    if (cols <= 0) continue;
-    sW = Math.min(sW, (gridW - G * (cols + 1)) / cols);
-  }
-  if (!Number.isFinite(sW) || sW <= 0) return 0;
+  if (rowPlan.length === 0 || usableW <= 0 || gridH <= 0) return 0;
 
-  const rowGapsBetween = interRowGap != null ? interRowGap * Math.max(0, numRows - 1) : G * (numRows + 1);
+  const totalIcons = rowPlan.reduce((a, b) => a + b, 0);
+  let sideFromW: number;
 
-  if (iconLabelFontSizeForSlotMetrics != null && Number.isFinite(iconLabelFontSizeForSlotMetrics)) {
-    const betweenRows = WIREFRAME_ROW_GAP_V * Math.max(0, numRows - 1);
-    const fits = (cell: number) => {
-      const bubble = Math.max(26, Math.floor(cell));
-      const below = wireframeSlotBelowBubbleHeight(bubble, iconLabelFontSizeForSlotMetrics);
-      return numRows * (bubble + below) + betweenRows <= gridH + 0.5;
-    };
-    let lo = 26;
-    let hi = Math.min(Math.floor(sW), 560);
-    let best = 0;
-    while (lo <= hi) {
-      const mid = Math.floor((lo + hi) / 2);
-      if (fits(mid)) {
-        best = mid;
-        lo = mid + 1;
-      } else {
-        hi = mid - 1;
+  if (totalIcons <= 1) {
+    sideFromW = Math.min(WIREFRAME_STITCH_SINGLE_MAX_SIDE, usableW);
+  } else {
+    let sW = Number.POSITIVE_INFINITY;
+    for (const cols of rowPlan) {
+      if (cols <= 0) continue;
+      const raw = (usableW - gap * (cols - 1)) / cols;
+      if (Number.isFinite(raw) && raw > 0) {
+        sW = Math.min(sW, raw);
       }
     }
-    if (best === 0 && numRows > 0) {
-      const legacy = Math.min(
-        Math.floor(sW),
-        Math.max(
-          0,
-          Math.floor((gridH - betweenRows) / numRows - WIREFRAME_SLOT_LABEL_RESERVE),
-        ),
-      );
-      return legacy;
-    }
-    return best;
+    if (!Number.isFinite(sW) || sW <= 0) return 0;
+    sideFromW = sW;
   }
 
-  const rowBand = (gridH - rowGapsBetween) / Math.max(1, numRows) - labelReservePerRow;
-  const s = Math.min(sW, rowBand);
-  if (!Number.isFinite(s) || s <= 0) return 0;
-  return Math.floor(s);
+  const numRows = rowPlan.length;
+  const betweenRows = rowGapV * Math.max(0, numRows - 1);
+
+  const fits = (cell: number) => {
+    const bubble = Math.max(26, Math.floor(cell));
+    const below = wireframeSlotBelowBubbleHeight(bubble, themeIconLabelFontSize);
+    return numRows * (bubble + below) + betweenRows <= gridH + 0.5;
+  };
+
+  let lo = 26;
+  let hi = Math.min(Math.floor(sideFromW), 560);
+  let best = 0;
+  while (lo <= hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (fits(mid)) {
+      best = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+
+  if (best === 0 && numRows > 0) {
+    return Math.min(
+      Math.floor(sideFromW),
+      Math.max(0, Math.floor((gridH - betweenRows) / numRows - WIREFRAME_SLOT_LABEL_RESERVE)),
+    );
+  }
+  return best;
 }
 
 /** Altura del stack vista previa: crece cuando la rejilla tiene 3 filas de iconos. */
@@ -377,6 +383,12 @@ function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
   const [horizAvatarBoxLayout, setHorizAvatarBoxLayout] = useState({ w: 0, h: 0 });
   const [horizInfoBoxLayout, setHorizInfoBoxLayout] = useState({ w: 0, h: 0 });
   const [horizIconGridLayout, setHorizIconGridLayout] = useState({ w: 0, h: 0 });
+  /** Ancho útil para fórmula Stitch: `onLayout(wireIconGridRoot).width - WIREFRAME_STITCH_HORIZONTAL_INSET`. */
+  const [stitchUsableW, setStitchUsableW] = useState(0);
+
+  useEffect(() => {
+    setStitchUsableW(0);
+  }, [layout]);
 
   const dataSlots = slots.filter((slot) => slot.item !== null);
   const feed = editable ? slots : dataSlots;
@@ -401,7 +413,6 @@ function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
     const hBrandFontSize = horizHeaderH > 0 ? Math.round(horizHeaderH * 0.45) : 13;
     const hBrandLogoSize = horizHeaderH > 0 ? Math.round(horizHeaderH * 0.55) : 18;
 
-    const H_GAP = 5;
     const hFeed = feed.slice(0, WIREFRAME_MAX_ICONS);
     const hRowPlan = getWireframeIconRowPlan(hFeed.length);
     let hCursor = 0;
@@ -411,14 +422,13 @@ function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
       return row;
     });
     const hIconSize =
-      horizIconGridLayout.w > 0 && horizIconGridLayout.h > 0
-        ? computeWireframeIconCellSize(
-            horizIconGridLayout.w,
+      stitchUsableW > 0 && horizIconGridLayout.h > 0
+        ? computeStitchWireframeBubbleSide(
+            stitchUsableW,
             horizIconGridLayout.h,
             hRowPlan,
-            H_GAP,
-            26,
-            WIREFRAME_ROW_GAP_V,
+            WIREFRAME_STITCH_GAP,
+            WIREFRAME_STITCH_GAP,
             theme.iconLabel.fontSize,
           )
         : 0;
@@ -519,21 +529,30 @@ function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
           style={styles.horizIconsBox}
           onLayout={(e) => setHorizIconGridLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
         >
-          {hIconSize > 0 ? (
-            <View style={styles.wireIconGridRoot}>
+          <View
+            style={styles.wireIconGridRoot}
+            onLayout={(e) => {
+              const lw = e.nativeEvent.layout.width;
+              setStitchUsableW(Math.max(0, lw - WIREFRAME_STITCH_HORIZONTAL_INSET));
+            }}
+          >
+            {hIconSize > 0 ? (
               <View style={styles.wireIconRowsStack}>
                 {hIconRows.map((rowSlots, ri) => (
                   <View key={`h-ir-${ri}`} style={styles.wireIconRow}>
                     {rowSlots.map((slot) => (
-                      <View key={slot.id} style={styles.wireIconCell}>
+                      <View
+                        key={slot.id}
+                        style={[styles.wireIconCell, { width: hIconSize, maxWidth: hIconSize, flexBasis: hIconSize }]}
+                      >
                         {renderSlotContent(slot, { size: hIconSize }, editable, theme)}
                       </View>
                     ))}
                   </View>
                 ))}
               </View>
-            </View>
-          ) : null}
+            ) : null}
+          </View>
         </View>
       </LinearGradient>
     );
@@ -551,7 +570,6 @@ function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
   const brandFontSize = vertHeaderH > 0 ? Math.round(vertHeaderH * 0.45) : 13;
   const brandLogoSize = vertHeaderH > 0 ? Math.round(vertHeaderH * 0.55) : 18;
 
-  const ICON_GAP = 3;
   const vFeed = feed.slice(0, WIREFRAME_MAX_ICONS);
   const vRowPlan = getWireframeIconRowPlan(vFeed.length);
   let vCursor = 0;
@@ -561,14 +579,13 @@ function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
     return row;
   });
   const vertIconCellSize =
-    vertIconGridLayout.w > 0 && vertIconGridLayout.h > 0
-      ? computeWireframeIconCellSize(
-          vertIconGridLayout.w,
+    stitchUsableW > 0 && vertIconGridLayout.h > 0
+      ? computeStitchWireframeBubbleSide(
+          stitchUsableW,
           vertIconGridLayout.h,
           vRowPlan,
-          ICON_GAP,
-          WIREFRAME_SLOT_LABEL_RESERVE,
-          WIREFRAME_ROW_GAP_V,
+          WIREFRAME_STITCH_GAP,
+          WIREFRAME_STITCH_GAP,
           theme.iconLabel.fontSize,
         )
       : 0;
@@ -665,21 +682,33 @@ function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
       </View>
 
       <View style={styles.vertIconsBox} onLayout={(e) => setVertIconGridLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-        {vertIconCellSize > 0 ? (
-          <View style={[styles.wireIconGridRoot, styles.wireVertIconGridRoot]}>
+        <View
+          style={[styles.wireIconGridRoot, styles.wireVertIconGridRoot]}
+          onLayout={(e) => {
+            const lw = e.nativeEvent.layout.width;
+            setStitchUsableW(Math.max(0, lw - WIREFRAME_STITCH_HORIZONTAL_INSET));
+          }}
+        >
+          {vertIconCellSize > 0 ? (
             <View style={styles.wireIconRowsStack}>
               {vIconRows.map((rowSlots, ri) => (
                 <View key={`v-ir-${ri}`} style={styles.wireIconRow}>
                   {rowSlots.map((slot) => (
-                    <View key={slot.id} style={styles.wireIconCell}>
+                    <View
+                      key={slot.id}
+                      style={[
+                        styles.wireIconCell,
+                        { width: vertIconCellSize, maxWidth: vertIconCellSize, flexBasis: vertIconCellSize },
+                      ]}
+                    >
                       {renderSlotContent(slot, { size: vertIconCellSize }, editable, theme)}
                     </View>
                   ))}
                 </View>
               ))}
             </View>
-          </View>
-        ) : null}
+          ) : null}
+        </View>
       </View>
     </LinearGradient>
   );
@@ -1824,10 +1853,7 @@ export default function CardsFactoryScreen() {
   };
 
   const openPreviewBusinessCard = async (row: BusinessCardListRow) => {
-    const uid = await getActiveUserId();
-    if (!uid) {
-      return;
-    }
+    const uid = (await getActiveUserId()) ?? sessionOwnerUid ?? '';
     setPreviewBusinessOwnerUid(uid);
     setPreviewBusiness(row);
     setPreviewLayout(width > height ? 'horizontal' : 'vertical');
@@ -2380,7 +2406,10 @@ export default function CardsFactoryScreen() {
       .slice(0, 2)
       .join(' ');
     const il = chestTheme.iconLabel;
-    const labelFontSize = Math.max(9, Math.round(Math.min(bubbleSize * 0.15, il.fontSize + 4)));
+    const labelFontSize = Math.max(
+      9,
+      Math.min(15, Math.round(Math.min(bubbleSize * 0.155, il.fontSize + 5))),
+    );
     const labelLineHeight = Math.ceil(labelFontSize * 1.22);
     const minTileH = bubbleSize + 8 + labelLineHeight * 2 + 8 + 6;
     const bubbleR = Math.min(chestTheme.bubble.borderRadius, bubbleSize / 2);
@@ -2588,10 +2617,11 @@ export default function CardsFactoryScreen() {
             end={{ x: 0.5, y: 1 }}
             style={StyleSheet.absoluteFillObject}
           />
-          <GestureTouchableOpacity
+          <TouchableOpacity
             style={styles.cardRowTouchable}
             onPress={() => void openPreviewBusinessCard(row)}
             onLongPress={() => enterCardsReorderRef.current?.()}
+            delayLongPress={420}
             activeOpacity={0.92}
           >
             <View style={[styles.cardRowInner, styles.businessCardListInner, styles.businessCardRowInner]}>
@@ -2660,7 +2690,7 @@ export default function CardsFactoryScreen() {
                 ) : null}
               </View>
             </View>
-          </GestureTouchableOpacity>
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.cardRowFavoriteBtn}
             onPress={() => void toggleFavoriteBusinessCard(row)}
@@ -2763,10 +2793,11 @@ export default function CardsFactoryScreen() {
               resizeMode={getWallpaperResizeMode()}
             />
           ) : null}
-          <GestureTouchableOpacity
+          <TouchableOpacity
             style={styles.cardRowTouchable}
             onPress={() => openPreviewCard(item)}
             onLongPress={() => enterCardsReorderRef.current?.()}
+            delayLongPress={420}
             activeOpacity={0.92}
           >
             <View style={styles.cardRowInner}>
@@ -2808,7 +2839,7 @@ export default function CardsFactoryScreen() {
                 </View>
               </View>
             </View>
-          </GestureTouchableOpacity>
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.cardRowFavoriteBtn}
             onPress={() => void toggleFavoriteCard(item)}
@@ -3116,7 +3147,7 @@ export default function CardsFactoryScreen() {
       </View>
 
       {cardsReorderMode && !isLandscape ? (
-        <>
+        <View style={styles.cardsReorderListWrap}>
           <View
             style={[styles.cardsReorderBanner, { backgroundColor: cardsTheme.surfaceMuted, borderBottomColor: cardsTheme.divider }]}
           >
@@ -3144,7 +3175,8 @@ export default function CardsFactoryScreen() {
             </TouchableOpacity>
           </View>
           <DraggableFlatList
-            style={{ flex: 1 }}
+            style={styles.cardsReorderDraggableList}
+            containerStyle={styles.cardsReorderDraggableList}
             data={reorderDraftData}
             keyExtractor={(item) => cardsFeedItemKey(item)}
             onDragEnd={({ data }) => setReorderDraftData(data)}
@@ -3157,7 +3189,7 @@ export default function CardsFactoryScreen() {
             overScrollMode="never"
             activationDistance={12}
           />
-        </>
+        </View>
       ) : (
         <FlatList
           style={{ flex: 1 }}
@@ -4422,6 +4454,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
+  cardsReorderListWrap: {
+    flex: 1,
+    minHeight: 0,
+  },
+  cardsReorderDraggableList: {
+    flex: 1,
+    minHeight: 0,
+  },
   cardsReorderBanner: {
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -4784,7 +4824,7 @@ const styles = StyleSheet.create({
   vertIconsBox: {
     flex: 2.35,
     marginTop: 12,
-    paddingHorizontal: 4,
+    paddingHorizontal: 0,
     paddingTop: 2,
     paddingBottom: 22,
     justifyContent: 'flex-start',
@@ -4805,23 +4845,27 @@ const styles = StyleSheet.create({
     width: '100%',
     justifyContent: 'center',
     alignItems: 'stretch',
-    paddingHorizontal: 2,
+    paddingHorizontal: 24,
   },
   wireIconRowsStack: {
     flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'stretch',
     width: '100%',
-    gap: 7,
+    gap: 12,
   },
   wireIconRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    justifyContent: 'center',
     width: '100%',
+    gap: 12,
+    flexWrap: 'nowrap',
     paddingHorizontal: 0,
   },
   wireIconCell: {
-    flex: 1,
+    flexGrow: 0,
+    flexShrink: 0,
     minWidth: 0,
     alignItems: 'center',
   },
@@ -4912,7 +4956,7 @@ const styles = StyleSheet.create({
   horizIconsBox: {
     flex: 2.95,
     marginTop: 12,
-    paddingHorizontal: 5,
+    paddingHorizontal: 0,
     paddingTop: 2,
     paddingBottom: 6,
   },
