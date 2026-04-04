@@ -1,23 +1,21 @@
 import AutoScaleText from '@/components/AutoScaleText';
 import LimitReachedModal from '@/components/LimitReachedModal';
-import { isGhostLinkVaultType } from '@/constants/ghostLinkVault';
-import { isClassicPhoneVaultType } from '@/services/vaultItemTypeGuards';
-import { CARD_THEMES as CHEST_THEMES, getThemeById, TIER_META, type CardTheme as ChestCardTheme, type ThemeTier } from '@/constants/themeChest';
-import { getActiveUserId } from '@/services/authSession';
-import { type IconVaultEntry, getUserIconVaultMap } from '@/services/iconVaultService';
-import { newEntityId } from '@/services/newEntityId';
 import {
-  readSmartCardsJsonWithLegacyMigration,
-  readVaultJsonWithLegacyMigration,
-  smartCardsStorageKey,
-  vaultStorageKey,
-} from '@/services/userScopedStorage';
+  computeThemeLockerTileWidth,
+  ThemeLockerThemeTile,
+  THEME_LOCKER_TILE_GAP,
+} from '@/components/ThemeLockerThemeTile';
+import { isGhostLinkVaultType } from '@/constants/ghostLinkVault';
+import {
+  CARD_THEMES as CHEST_THEMES,
+  getThemeById,
+  getThemesByTier,
+  TIER_META,
+  type CardTheme as ChestCardTheme,
+  type ThemeTier,
+} from '@/constants/themeChest';
+import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
-import { type VaultCollectibleCertificate } from '@/services/collectibleService';
-import { auth, db } from '@/services/firebaseConfig';
-import { type CardFontItem, type FontTier } from '@/services/fontLibraryService';
-import { useLanguage } from '@/services/language';
-import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
 import { generatePermanentBusinessLink } from '@/services/brandedQrService';
 import {
   listBusinessCardsByOwner,
@@ -25,14 +23,21 @@ import {
   setBusinessCardFavorite,
   type BusinessCardListRow,
 } from '@/services/businessCardService';
-import { validateCardCreation } from '@/services/limitService';
-import { useLookMode } from '@/services/lookMode';
+import { type VaultCollectibleCertificate } from '@/services/collectibleService';
 import {
   buildSearchFacetsForSharedCard,
   collectStringsSmartCard,
   orderByDeepSearchWithExpandedQuery,
 } from '@/services/deepSearch';
+import { auth, db } from '@/services/firebaseConfig';
+import { type CardFontItem, type FontTier } from '@/services/fontLibraryService';
+import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
+import { getUserIconVaultMap, type IconVaultEntry } from '@/services/iconVaultService';
+import { useLanguage } from '@/services/language';
+import { validateCardCreation } from '@/services/limitService';
+import { useLookMode } from '@/services/lookMode';
 import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
+import { newEntityId } from '@/services/newEntityId';
 import {
   blockRelationship,
   deleteSmartCardInDb,
@@ -46,6 +51,13 @@ import {
   type SmartCardPayload,
 } from '@/services/qrApi';
 import { getCardRowTheme, useActiveTheme } from '@/services/useActiveTheme';
+import {
+  readSmartCardsJsonWithLegacyMigration,
+  readVaultJsonWithLegacyMigration,
+  smartCardsStorageKey,
+  vaultStorageKey,
+} from '@/services/userScopedStorage';
+import { isClassicPhoneVaultType } from '@/services/vaultItemTypeGuards';
 import { getWallpaperResizeMode, type WallpaperItem, type WallpaperTier } from '@/services/wallpaperService';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -82,6 +94,7 @@ import {
   useWindowDimensions,
   View
 } from 'react-native';
+import { TouchableOpacity as GestureTouchableOpacity } from 'react-native-gesture-handler';
 import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import QRCode from 'react-native-qrcode-svg';
 import Toast from 'react-native-toast-message';
@@ -137,8 +150,18 @@ function getWireframeIconRowPlan(count: number): number[] {
   return [4, 4, 4];
 }
 
-/** Espacio reservado bajo la burbuja para etiquetas (2 líneas). Menor = burbujas más grandes (~4/5 del hueco vs ~2/5). */
-const WIREFRAME_SLOT_LABEL_RESERVE = 26;
+/** Espacio reservado bajo la burbuja para etiquetas (2 líneas + descendentes). */
+const WIREFRAME_SLOT_LABEL_RESERVE = 36;
+
+/** Gap vertical real entre filas de iconos (`wireIconRowsStack`). */
+const WIREFRAME_ROW_GAP_V = 7;
+
+/** Altura bajo la burbuja (margen + 2 líneas de etiqueta + márgenes), igual criterio que `renderSlotContent` → `minTileH`. */
+function wireframeSlotBelowBubbleHeight(bubbleSize: number, iconLabelFontSize: number): number {
+  const labelFontSize = Math.max(9, Math.round(Math.min(bubbleSize * 0.15, iconLabelFontSize + 4)));
+  const labelLineHeight = Math.ceil(labelFontSize * 1.22);
+  return 8 + labelLineHeight * 2 + 8 + 6;
+}
 
 function computeWireframeIconCellSize(
   gridW: number,
@@ -146,17 +169,50 @@ function computeWireframeIconCellSize(
   rowPlan: number[],
   gap: number,
   labelReservePerRow = WIREFRAME_SLOT_LABEL_RESERVE,
+  /** Si se pasa, la altura por fila usa solo huecos entre filas (layout vertical). */
+  interRowGap?: number,
+  /**
+   * Si se pasa, el tope en altura usa la misma banda de etiqueta que `renderSlotContent` (evita solape
+   * con reseñas cuando hay pocas filas y la burbuja crece mucho).
+   */
+  iconLabelFontSizeForSlotMetrics?: number,
 ): number {
   if (rowPlan.length === 0 || gridW <= 0 || gridH <= 0) return 0;
   const G = gap;
   const numRows = rowPlan.length;
-  let s = Number.POSITIVE_INFINITY;
+  let sW = Number.POSITIVE_INFINITY;
   for (const cols of rowPlan) {
     if (cols <= 0) continue;
-    s = Math.min(s, (gridW - G * (cols + 1)) / cols);
+    sW = Math.min(sW, (gridW - G * (cols + 1)) / cols);
   }
-  const rowBand = (gridH - G * (numRows + 1)) / numRows - labelReservePerRow;
-  s = Math.min(s, rowBand);
+  if (!Number.isFinite(sW) || sW <= 0) return 0;
+
+  const rowGapsBetween = interRowGap != null ? interRowGap * Math.max(0, numRows - 1) : G * (numRows + 1);
+
+  if (iconLabelFontSizeForSlotMetrics != null && Number.isFinite(iconLabelFontSizeForSlotMetrics)) {
+    const betweenRows = WIREFRAME_ROW_GAP_V * Math.max(0, numRows - 1);
+    const fits = (cell: number) => {
+      const bubble = Math.max(26, Math.floor(cell));
+      const below = wireframeSlotBelowBubbleHeight(bubble, iconLabelFontSizeForSlotMetrics);
+      return numRows * (bubble + below) + betweenRows <= gridH + 0.5;
+    };
+    let lo = 26;
+    let hi = Math.min(Math.floor(sW), 560);
+    let best = 0;
+    while (lo <= hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (fits(mid)) {
+        best = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    return best;
+  }
+
+  const rowBand = (gridH - rowGapsBetween) / Math.max(1, numRows) - labelReservePerRow;
+  const s = Math.min(sW, rowBand);
   if (!Number.isFinite(s) || s <= 0) return 0;
   return Math.floor(s);
 }
@@ -244,6 +300,12 @@ export default function CardsFactoryScreen() {
   const [cardName, setCardName] = useState('');
   const [layoutMode, setLayoutMode] = useState<'vertical' | 'horizontal'>('vertical');
   const [themeId, setThemeId] = useState<string>('deep_teal');
+  /** Ancho de tile del modal Temas (misma fórmula que Locker de Estilos, caja 85% / max 380 menos padding). */
+  const themesModalTileWidth = useMemo(() => {
+    const boxOuter = Math.min(400, width * 0.92);
+    const contentInner = Math.max(200, boxOuter - 32);
+    return computeThemeLockerTileWidth(contentInner);
+  }, [width]);
   const [selectedFont, setSelectedFont] = useState<CardFontItem | null>(null);
   const [resolvedFontFamily, setResolvedFontFamily] = useState<string | null>(null);
   const [selectedWallpaper, setSelectedWallpaper] = useState<WallpaperItem | null>(null);
@@ -315,6 +377,16 @@ export default function CardsFactoryScreen() {
   const [viewerItem, setViewerItem] = useState<VaultItem | null>(null);
   const [isDownloadingViewerFile, setIsDownloadingViewerFile] = useState(false);
   const swipeableMethodsByCardIdRef = useRef<Map<string, SwipeableMethods>>(new Map());
+  /** Tras cerrar selector de datos / temas, reabrir el factory si estaba abierto (evita 2 Modals superpuestos en Android). */
+  const resumeFactoryAfterAuxModalRef = useRef(false);
+
+  const restoreFactoryAfterAuxModal = () => {
+    if (!resumeFactoryAfterAuxModalRef.current) {
+      return;
+    }
+    resumeFactoryAfterAuxModalRef.current = false;
+    setFactoryVisible(true);
+  };
 
   const { unlockedIds, refreshThemes } = useActiveTheme();
 
@@ -988,11 +1060,16 @@ export default function CardsFactoryScreen() {
   };
 
   const openDataSelector = () => {
-    // Only carry over IDs that still exist in the vault — discard stale references
     const validIds = selectedItemIds.filter((id) => vaultItems.some((vi) => vi.id === id));
     setTempSelectedIds(validIds);
     setDataSelectorLimitReached(false);
-    setDataSelectorVisible(true);
+    resumeFactoryAfterAuxModalRef.current = factoryVisible;
+    if (factoryVisible) {
+      setFactoryVisible(false);
+    }
+    requestAnimationFrame(() => {
+      setDataSelectorVisible(true);
+    });
   };
 
   const handleSelectorToggle = (itemId: string) => {
@@ -1014,10 +1091,17 @@ export default function CardsFactoryScreen() {
   const confirmDataSelector = () => {
     setSelectedItemIds(tempSelectedIds.slice(0, MAX_CARD_SLOTS));
     setDataSelectorVisible(false);
+    requestAnimationFrame(() => restoreFactoryAfterAuxModal());
   };
 
   const cancelDataSelector = () => {
     setDataSelectorVisible(false);
+    requestAnimationFrame(() => restoreFactoryAfterAuxModal());
+  };
+
+  const closeThemesPickerModal = () => {
+    setThemesPlaceholderVisible(false);
+    requestAnimationFrame(() => restoreFactoryAfterAuxModal());
   };
 
   const handlePreviewIconLongPress = (slot: EditSlot) => {
@@ -1657,10 +1741,11 @@ export default function CardsFactoryScreen() {
     }
   };
 
-  const renderVaultMiniIcon = (item: VaultItem | null | undefined, size = 20) => {
+  const renderVaultMiniIcon = (item: VaultItem | null | undefined, size = 20, glyphColor?: string) => {
+    const tint = glyphColor ?? cardsTheme.refreshAccent;
     try {
       if (!item) {
-        return <MaterialCommunityIcons name="link-variant" size={size} color="#B0B0B0" />;
+        return <MaterialCommunityIcons name="link-variant" size={size} color={cardsTheme.textMuted} />;
       }
       if (item.icon?.startsWith('http')) {
         return <ExpoImage source={{ uri: item.icon }} style={{ width: size, height: size, borderRadius: size / 2 }} cachePolicy="disk" />;
@@ -1679,9 +1764,9 @@ export default function CardsFactoryScreen() {
         (item.iconName && item.iconName.trim() !== ''
           ? sanitizeMaterialCommunityIconName(item.iconName)
           : 'help-circle');
-      return <MaterialCommunityIcons name={safeIconName as any} size={size} color="#0D4D8A" />;
+      return <MaterialCommunityIcons name={safeIconName as any} size={size} color={tint} />;
     } catch {
-      return <MaterialCommunityIcons name={"help-circle" as any} size={size} color="#0D4D8A" />;
+      return <MaterialCommunityIcons name={"help-circle" as any} size={size} color={tint} />;
     }
   };
 
@@ -1777,7 +1862,7 @@ export default function CardsFactoryScreen() {
   };
 
   /** Estrellas con media (½) para la fila de Mis Tarjetas. `starSize` por defecto 14. */
-  const renderDetailedRatingStars = (rating: number, starSize = 14) => {
+  const renderDetailedRatingStars = (rating: number, starSize = 14, starColor = '#C5A065') => {
     const r = Math.max(0, Math.min(5, Number(rating) || 0));
     const gap = Math.max(1, Math.round(starSize * 0.12));
     return (
@@ -1792,7 +1877,7 @@ export default function CardsFactoryScreen() {
               key={`dstar-${index}`}
               name={name}
               size={starSize}
-              color="#C5A065"
+              color={starColor}
             />
           );
         })}
@@ -1843,9 +1928,8 @@ export default function CardsFactoryScreen() {
     );
   };
 
-  const renderSlotContent = (slot: EditSlot, ui: { size: number }, editable: boolean) => {
+  const renderSlotContent = (slot: EditSlot, ui: { size: number }, editable: boolean, chestTheme: ChestCardTheme) => {
     const hasItem = Boolean(slot.item);
-    // Burbuja = celda; el logo llena casi todo el cuadro blanco.
     const bubbleSize = Math.max(26, Math.floor(ui.size));
     const iconSize = Math.round(bubbleSize * 0.9);
     const compactTitle = String(slot.item?.title || 'Agregar')
@@ -1853,14 +1937,30 @@ export default function CardsFactoryScreen() {
       .split(/\s+/)
       .slice(0, 2)
       .join(' ');
-    const labelFontSize = Math.max(9, Math.round(bubbleSize * 0.15));
+    const il = chestTheme.iconLabel;
+    const labelFontSize = Math.max(9, Math.round(Math.min(bubbleSize * 0.15, il.fontSize + 4)));
     const labelLineHeight = Math.ceil(labelFontSize * 1.22);
-    const minTileH = bubbleSize + 8 + labelLineHeight * 2 + 8;
+    const minTileH = bubbleSize + 8 + labelLineHeight * 2 + 8 + 6;
+    const bubbleR = Math.min(chestTheme.bubble.borderRadius, bubbleSize / 2);
+    const slotBubbleBg = chestTheme.bubble.backgroundColor;
+    const slotBorderColor = chestTheme.border.color;
+    const slotBorderW = Math.max(1, chestTheme.border.width);
+    const glyphColor = chestTheme.icon.color;
 
     return (
       <View style={[styles.slotTile, { minHeight: minTileH }]}>
         <TouchableOpacity
-          style={[styles.slotBubble, { width: bubbleSize, height: bubbleSize, borderRadius: Math.min(14, bubbleSize / 4) }]}
+          style={[
+            styles.slotBubble,
+            {
+              width: bubbleSize,
+              height: bubbleSize,
+              borderRadius: bubbleR,
+              backgroundColor: slotBubbleBg,
+              borderWidth: slotBorderW,
+              borderColor: slotBorderColor,
+            },
+          ]}
           onPress={() => {
             if (editable) {
               openSlotPicker(slot.index);
@@ -1878,9 +1978,9 @@ export default function CardsFactoryScreen() {
           delayLongPress={650}
         >
           {slot.item ? (
-            renderVaultMiniIcon(slot.item, iconSize)
+            renderVaultMiniIcon(slot.item, iconSize, glyphColor)
           ) : (
-            <MaterialCommunityIcons name="plus" size={iconSize} color="#4D7A97" />
+            <MaterialCommunityIcons name="plus" size={iconSize} color={glyphColor} />
           )}
         </TouchableOpacity>
         <Text
@@ -1891,6 +1991,9 @@ export default function CardsFactoryScreen() {
               maxWidth: '100%',
               fontSize: labelFontSize,
               lineHeight: labelLineHeight,
+              color: il.color,
+              fontWeight: il.fontWeight,
+              fontStyle: il.fontStyle,
             },
           ]}
           numberOfLines={2}
@@ -1947,6 +2050,7 @@ export default function CardsFactoryScreen() {
     const bd = theme.border;
     const titleStyle = theme.title;
     const subStyle = theme.subtitle;
+    const extraStyle = theme.extraText;
     const iconMeta = theme.icon;
     // Responsive sizes based on screen width
     const avatarSize = Math.round(width * 0.24);   // ~24% of screen
@@ -1981,7 +2085,15 @@ export default function CardsFactoryScreen() {
       });
       const hIconSize =
         horizIconGridLayout.w > 0 && horizIconGridLayout.h > 0
-          ? computeWireframeIconCellSize(horizIconGridLayout.w, horizIconGridLayout.h, hRowPlan, H_GAP)
+          ? computeWireframeIconCellSize(
+              horizIconGridLayout.w,
+              horizIconGridLayout.h,
+              hRowPlan,
+              H_GAP,
+              26,
+              WIREFRAME_ROW_GAP_V,
+              theme.iconLabel.fontSize,
+            )
           : 0;
 
       return (
@@ -2020,7 +2132,7 @@ export default function CardsFactoryScreen() {
                     cachePolicy="disk"
                   />
                 ) : (
-                  <View style={{ width: horizAvatarSide, height: horizAvatarSide, borderRadius: horizAvatarRadius, borderWidth: bd.width, borderColor: bd.color, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={{ width: horizAvatarSide, height: horizAvatarSide, borderRadius: horizAvatarRadius, borderWidth: bd.width, borderColor: bd.color, backgroundColor: theme.bubble.backgroundColor, alignItems: 'center', justifyContent: 'center' }}>
                     <MaterialCommunityIcons name={noAvatarIconName} size={Math.round(horizAvatarSide * 0.5)} color={titleStyle.color} />
                   </View>
                 )
@@ -2040,16 +2152,30 @@ export default function CardsFactoryScreen() {
               </Text>
               <View style={styles.wireStatsRowInline}>
                 <View style={styles.wireStatsRatingStack}>
-                  {renderDetailedRatingStars(dispStarsValue, hWireStarSize)}
+                  {renderDetailedRatingStars(dispStarsValue, hWireStarSize, iconMeta.color)}
                   <Text
-                    style={[styles.wireStatsReviewCaption, { color: subStyle.color, fontSize: hReviewCaptionSize, textAlign: 'center' }]}
+                    style={[
+                      styles.wireStatsReviewCaption,
+                      {
+                        color: extraStyle.color,
+                        fontSize: hReviewCaptionSize,
+                        fontWeight: extraStyle.fontWeight,
+                        fontStyle: extraStyle.fontStyle,
+                        textAlign: 'center',
+                      },
+                    ]}
                     numberOfLines={1}
                   >
                     {dispStarsValue.toFixed(1)} · {dispReviewCount} {tr('reseñas', 'reviews')}
                   </Text>
                 </View>
-                <View style={[styles.wireUsersPill, { borderColor: bd.color }]}>
-                  <MaterialCommunityIcons name="account-outline" size={hStatsFontSize} color={titleStyle.color} />
+                <View
+                  style={[
+                    styles.wireUsersPill,
+                    { borderColor: bd.color, backgroundColor: theme.bubble.backgroundColor },
+                  ]}
+                >
+                  <MaterialCommunityIcons name="account-outline" size={hStatsFontSize} color={iconMeta.color} />
                   <Text style={[styles.wireUsersPillText, { color: titleStyle.color, fontSize: hStatsFontSize }]}>
                     {dispHolders}
                   </Text>
@@ -2070,7 +2196,7 @@ export default function CardsFactoryScreen() {
                     <View key={`h-ir-${ri}`} style={styles.wireIconRow}>
                       {rowSlots.map((slot) => (
                         <View key={slot.id} style={styles.wireIconCell}>
-                          {renderSlotContent(slot, { size: hIconSize }, editable)}
+                          {renderSlotContent(slot, { size: hIconSize }, editable, theme)}
                         </View>
                       ))}
                     </View>
@@ -2084,9 +2210,10 @@ export default function CardsFactoryScreen() {
     }
 
     // ── VERTICAL MODEL ─────────────────────────────────────────────
-    const AVATAR_PAD = 8;
-    const vertAvatarSide = vertAvatarBoxH > 0 ? vertAvatarBoxH - AVATAR_PAD * 2 : 0;
-    const vertAvatarRadius = vertAvatarSide > 0 ? Math.round(vertAvatarSide * 0.15) : 0;
+    const VERT_AVATAR_PAD_TOP = 4;
+    const VERT_AVATAR_PAD_BOTTOM = 10;
+    const vertAvatarSide =
+      vertAvatarBoxH > 0 ? vertAvatarBoxH - VERT_AVATAR_PAD_TOP - VERT_AVATAR_PAD_BOTTOM : 0;
 
     // Font sizes scale from info box height — no fixed numbers
     const nameFontSize  = vertInfoBoxLayout.h > 0 ? Math.round(vertInfoBoxLayout.h * 0.28) : 18;
@@ -2098,7 +2225,7 @@ export default function CardsFactoryScreen() {
     const brandFontSize = vertHeaderH > 0 ? Math.round(vertHeaderH * 0.45) : 13;
     const brandLogoSize = vertHeaderH > 0 ? Math.round(vertHeaderH * 0.55) : 18;
 
-    const ICON_GAP = 4;
+    const ICON_GAP = 3;
     const vFeed = feed.slice(0, WIREFRAME_MAX_ICONS);
     const vRowPlan = getWireframeIconRowPlan(vFeed.length);
     let vCursor = 0;
@@ -2109,7 +2236,15 @@ export default function CardsFactoryScreen() {
     });
     const vertIconCellSize =
       vertIconGridLayout.w > 0 && vertIconGridLayout.h > 0
-        ? computeWireframeIconCellSize(vertIconGridLayout.w, vertIconGridLayout.h, vRowPlan, ICON_GAP)
+        ? computeWireframeIconCellSize(
+            vertIconGridLayout.w,
+            vertIconGridLayout.h,
+            vRowPlan,
+            ICON_GAP,
+            WIREFRAME_SLOT_LABEL_RESERVE,
+            WIREFRAME_ROW_GAP_V,
+            theme.iconLabel.fontSize,
+          )
         : 0;
 
     return (
@@ -2160,7 +2295,7 @@ export default function CardsFactoryScreen() {
                   borderRadius: Math.round(vertAvatarSide * 0.22),
                   borderWidth: bd.width + 1,
                   borderColor: bd.color,
-                  backgroundColor: 'rgba(255,255,255,0.9)',
+                  backgroundColor: theme.bubble.backgroundColor,
                   alignItems: 'center',
                   justifyContent: 'center',
                   shadowColor: bd.color,
@@ -2185,16 +2320,30 @@ export default function CardsFactoryScreen() {
             </Text>
             <View style={styles.wireStatsRowInline}>
               <View style={styles.wireStatsRatingStack}>
-                {renderDetailedRatingStars(dispStarsValue, vWireStarSize)}
+                {renderDetailedRatingStars(dispStarsValue, vWireStarSize, iconMeta.color)}
                 <Text
-                  style={[styles.wireStatsReviewCaption, { color: subStyle.color, fontSize: vReviewCaptionSize, textAlign: 'center' }]}
+                  style={[
+                    styles.wireStatsReviewCaption,
+                    {
+                      color: extraStyle.color,
+                      fontSize: vReviewCaptionSize,
+                      fontWeight: extraStyle.fontWeight,
+                      fontStyle: extraStyle.fontStyle,
+                      textAlign: 'center',
+                    },
+                  ]}
                   numberOfLines={1}
                 >
                   {dispStarsValue.toFixed(1)} · {dispReviewCount} {tr('reseñas', 'reviews')}
                 </Text>
               </View>
-              <View style={[styles.wireUsersPill, { borderColor: bd.color }]}>
-                <MaterialCommunityIcons name="account-outline" size={statsFontSize} color={titleStyle.color} />
+              <View
+                style={[
+                  styles.wireUsersPill,
+                  { borderColor: bd.color, backgroundColor: theme.bubble.backgroundColor },
+                ]}
+              >
+                <MaterialCommunityIcons name="account-outline" size={statsFontSize} color={iconMeta.color} />
                 <Text style={[styles.wireUsersPillText, { color: titleStyle.color, fontSize: statsFontSize }]}>
                   {dispHolders}
                 </Text>
@@ -2209,13 +2358,13 @@ export default function CardsFactoryScreen() {
           onLayout={e => setVertIconGridLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
         >
           {vertIconCellSize > 0 ? (
-            <View style={styles.wireIconGridRoot}>
+            <View style={[styles.wireIconGridRoot, styles.wireVertIconGridRoot]}>
               <View style={styles.wireIconRowsStack}>
                 {vIconRows.map((rowSlots, ri) => (
                   <View key={`v-ir-${ri}`} style={styles.wireIconRow}>
                     {rowSlots.map((slot) => (
                       <View key={slot.id} style={styles.wireIconCell}>
-                        {renderSlotContent(slot, { size: vertIconCellSize }, editable)}
+                        {renderSlotContent(slot, { size: vertIconCellSize }, editable, theme)}
                       </View>
                     ))}
                   </View>
@@ -2233,7 +2382,9 @@ export default function CardsFactoryScreen() {
     const themeMeta = getThemeById(row.themeId || '') ?? CHEST_THEMES[0];
     const holders = row.holdersCount ?? 0;
     const reviewCount = row.totalRatings ?? 0;
-    const rating = reviewCount > 0 ? Number(row.ratingAvg ?? 0) : 0;
+    const ratingRaw = Number(row.ratingAvg ?? 0);
+    const rating =
+      reviewCount > 0 && Number.isFinite(ratingRaw) ? Math.max(0, Math.min(5, ratingRaw)) : 0;
     const logoUri = toRenderableImageUri(row.businessLogo);
     const sk = businessSwipeKey(row.id);
     return (
@@ -2254,38 +2405,38 @@ export default function CardsFactoryScreen() {
         renderRightActions={() => (
           <View style={styles.swipeActions}>
             <TouchableOpacity
-              style={styles.swipeActionBtn}
+              style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.swipeStripEditBg }]}
               onPress={() =>
                 router.push({ pathname: '/(tabs)/createBusinessCard', params: { cardId: row.id } } as any)
               }
               accessibilityLabel={tr('Editar tarjeta', 'Edit card')}
             >
-              <MaterialCommunityIcons name="pencil" size={16} color="#FFFFFF" />
+              <MaterialCommunityIcons name="pencil" size={16} color={cardsTheme.btnPrimaryText} />
               <Text style={styles.swipeActionText}>{tr('Editar', 'Edit')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.swipeActionBtn, { backgroundColor: '#0D4D8A' }]}
+              style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.headerBtnBg }]}
               onPress={() => confirmAndIssueQrForBusiness(row)}
               disabled={issuingQr}
               accessibilityLabel={tr('Generar QR', 'Generate QR')}
             >
-              <MaterialCommunityIcons name="qrcode" size={16} color="#FFFFFF" />
+              <MaterialCommunityIcons name="qrcode" size={16} color={cardsTheme.btnPrimaryText} />
               <Text style={styles.swipeActionText}>QR</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.swipeActionBtn, { backgroundColor: '#C5A065' }]}
+              style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.ctaAccent }]}
               onPress={() => void toggleFavoriteBusinessCard(row)}
               accessibilityLabel={tr('Favorito', 'Favorite')}
             >
-              <MaterialCommunityIcons name={row.isFavorite ? 'star' : 'star-outline'} size={16} color="#FFFFFF" />
+              <MaterialCommunityIcons name={row.isFavorite ? 'star' : 'star-outline'} size={16} color={cardsTheme.btnPrimaryText} />
               <Text style={styles.swipeActionText}>{row.isFavorite ? '★' : '☆'}</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.swipeDeleteBtn}
+              style={[styles.swipeDeleteBtn, { backgroundColor: cardsTheme.swipeDeleteBg }]}
               onPress={() => void deleteBusinessCardEntry(row)}
               accessibilityLabel={tr('Eliminar tarjeta', 'Delete card')}
             >
-              <MaterialCommunityIcons name="trash-can-outline" size={16} color="#FFFFFF" />
+              <MaterialCommunityIcons name="trash-can-outline" size={16} color={cardsTheme.btnPrimaryText} />
               <Text style={styles.swipeActionText}>{tr('Eliminar', 'Delete')}</Text>
             </TouchableOpacity>
           </View>
@@ -2298,8 +2449,13 @@ export default function CardsFactoryScreen() {
             { borderColor: chestTheme.borderColor, borderWidth: chestTheme.borderWidth },
           ]}
         >
-          <LinearGradient colors={chestTheme.gradient} style={StyleSheet.absoluteFillObject} />
-          <TouchableOpacity
+          <LinearGradient
+            colors={[...chestTheme.gradient]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <GestureTouchableOpacity
             style={styles.cardRowTouchable}
             onPress={() => void openPreviewBusinessCard(row)}
             onLongPress={() => handleBusinessCardLongPress(row)}
@@ -2372,7 +2528,7 @@ export default function CardsFactoryScreen() {
                 ) : null}
               </View>
             </View>
-          </TouchableOpacity>
+          </GestureTouchableOpacity>
           <TouchableOpacity
             style={styles.cardRowFavoriteBtn}
             onPress={() => void toggleFavoriteBusinessCard(row)}
@@ -2385,7 +2541,7 @@ export default function CardsFactoryScreen() {
             <MaterialCommunityIcons
               name={row.isFavorite ? 'heart' : 'heart-outline'}
               size={18}
-              color={row.isFavorite ? '#B7343A' : chestTheme.titleColor}
+              color={row.isFavorite ? cardsTheme.favoriteActive : chestTheme.titleColor}
             />
           </TouchableOpacity>
         </View>
@@ -2397,7 +2553,9 @@ export default function CardsFactoryScreen() {
     const chestTheme = getCardRowTheme(item.themeId);
     const holders = item.holdersCount ?? 0;
     const reviewCount = item.totalRatings ?? 0;
-    const rating = reviewCount > 0 ? Number(item.ratingAvg ?? 0) : 0;
+    const ratingRaw = Number(item.ratingAvg ?? 0);
+    const rating =
+      reviewCount > 0 && Number.isFinite(ratingRaw) ? Math.max(0, Math.min(5, ratingRaw)) : 0;
     const themeMeta = getThemeById(item.themeId || '') ?? CHEST_THEMES[0];
     const themeLabel = themeMeta.name;
 
@@ -2418,27 +2576,49 @@ export default function CardsFactoryScreen() {
         }}
         renderRightActions={() => (
           <View style={styles.swipeActions}>
-            <TouchableOpacity style={styles.swipeActionBtn} onPress={() => openEditFactory(item)} accessibilityLabel={tr('Editar tarjeta', 'Edit card')}>
-              <MaterialCommunityIcons name="pencil" size={16} color="#FFFFFF" />
+            <TouchableOpacity
+              style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.swipeStripEditBg }]}
+              onPress={() => openEditFactory(item)}
+              accessibilityLabel={tr('Editar tarjeta', 'Edit card')}
+            >
+              <MaterialCommunityIcons name="pencil" size={16} color={cardsTheme.btnPrimaryText} />
               <Text style={styles.swipeActionText}>{tr('Editar', 'Edit')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.swipeActionBtn, { backgroundColor: '#0D4D8A' }]} onPress={() => confirmAndIssueQrForCard(item)} disabled={issuingQr} accessibilityLabel={tr('Generar QR', 'Generate QR')}>
-              <MaterialCommunityIcons name="qrcode" size={16} color="#FFFFFF" />
+            <TouchableOpacity
+              style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.headerBtnBg }]}
+              onPress={() => confirmAndIssueQrForCard(item)}
+              disabled={issuingQr}
+              accessibilityLabel={tr('Generar QR', 'Generate QR')}
+            >
+              <MaterialCommunityIcons name="qrcode" size={16} color={cardsTheme.btnPrimaryText} />
               <Text style={styles.swipeActionText}>QR</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.swipeActionBtn, { backgroundColor: '#C5A065' }]} onPress={() => toggleFavoriteCard(item)} accessibilityLabel={tr('Favorito', 'Favorite')}>
-              <MaterialCommunityIcons name={item.isFavorite ? 'star' : 'star-outline'} size={16} color="#FFFFFF" />
+            <TouchableOpacity
+              style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.ctaAccent }]}
+              onPress={() => toggleFavoriteCard(item)}
+              accessibilityLabel={tr('Favorito', 'Favorite')}
+            >
+              <MaterialCommunityIcons name={item.isFavorite ? 'star' : 'star-outline'} size={16} color={cardsTheme.btnPrimaryText} />
               <Text style={styles.swipeActionText}>{item.isFavorite ? '★' : '☆'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.swipeDeleteBtn} onPress={() => deleteCard(item)} accessibilityLabel={tr('Eliminar tarjeta', 'Delete card')}>
-              <MaterialCommunityIcons name="trash-can-outline" size={16} color="#FFFFFF" />
+            <TouchableOpacity
+              style={[styles.swipeDeleteBtn, { backgroundColor: cardsTheme.swipeDeleteBg }]}
+              onPress={() => deleteCard(item)}
+              accessibilityLabel={tr('Eliminar tarjeta', 'Delete card')}
+            >
+              <MaterialCommunityIcons name="trash-can-outline" size={16} color={cardsTheme.btnPrimaryText} />
               <Text style={styles.swipeActionText}>{tr('Eliminar', 'Delete')}</Text>
             </TouchableOpacity>
           </View>
         )}
       >
         <View style={[styles.cardItem, isLandscape && styles.cardItemLandscape, { borderColor: chestTheme.borderColor, borderWidth: chestTheme.borderWidth }]}>
-          <LinearGradient colors={chestTheme.gradient} style={StyleSheet.absoluteFillObject} />
+          <LinearGradient
+            colors={[...chestTheme.gradient]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={StyleSheet.absoluteFillObject}
+          />
           {item.wallpaperUrl ? (
             <Animated.Image
               source={{ uri: item.wallpaperUrl }}
@@ -2451,7 +2631,7 @@ export default function CardsFactoryScreen() {
               resizeMode={getWallpaperResizeMode()}
             />
           ) : null}
-          <TouchableOpacity
+          <GestureTouchableOpacity
             style={styles.cardRowTouchable}
             onPress={() => openPreviewCard(item)}
             onLongPress={() => handleCardLongPress(item)}
@@ -2497,7 +2677,7 @@ export default function CardsFactoryScreen() {
                 </View>
               </View>
             </View>
-          </TouchableOpacity>
+          </GestureTouchableOpacity>
           <TouchableOpacity
             style={styles.cardRowFavoriteBtn}
             onPress={() => void toggleFavoriteCard(item)}
@@ -2508,7 +2688,7 @@ export default function CardsFactoryScreen() {
             <MaterialCommunityIcons
               name={item.isFavorite ? 'heart' : 'heart-outline'}
               size={18}
-              color={item.isFavorite ? '#B7343A' : chestTheme.titleColor}
+              color={item.isFavorite ? cardsTheme.favoriteActive : chestTheme.titleColor}
             />
           </TouchableOpacity>
         </View>
@@ -2519,17 +2699,17 @@ export default function CardsFactoryScreen() {
   if (!isCardsUnlocked) {
     return (
       <LinearGradient
-        colors={isDark ? ['#05070A', '#0C121A', '#151D28'] : ['#EAF7FF', '#CDEFFF', '#B8E7FF']}
+        colors={[...cardsTheme.tabShellGradient]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.container}
       >
         <View style={styles.emptyWrap}>
-          <MaterialCommunityIcons name="shield-lock-outline" size={56} color="#0D4D8A" />
-          <Text style={styles.emptyTitle}>Acceso biométrico requerido</Text>
-          <Text style={styles.emptyText}>Autoriza FaceID/TouchID para entrar a Business Cards.</Text>
+          <MaterialCommunityIcons name="shield-lock-outline" size={56} color={cardsTheme.icon} />
+          <Text style={[styles.emptyTitle, { color: cardsTheme.text }]}>Acceso biométrico requerido</Text>
+          <Text style={[styles.emptyText, { color: cardsTheme.modalSubtitle }]}>Autoriza FaceID/TouchID para entrar a Business Cards.</Text>
           <TouchableOpacity
-            style={styles.firstQrBtn}
+            style={[styles.firstQrBtn, { backgroundColor: cardsTheme.btnPrimary }]}
             onPress={async () => {
               const authenticated = await hardLockCheck('acceso a Business Cards');
               setIsCardsUnlocked(authenticated);
@@ -2542,8 +2722,8 @@ export default function CardsFactoryScreen() {
               }
             }}
           >
-            <MaterialCommunityIcons name="fingerprint" size={18} color="#FFFFFF" />
-            <Text style={styles.firstQrBtnText}>Desbloquear</Text>
+            <MaterialCommunityIcons name="fingerprint" size={18} color={cardsTheme.btnPrimaryText} />
+            <Text style={[styles.firstQrBtnText, { color: cardsTheme.btnPrimaryText }]}>Desbloquear</Text>
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -2551,7 +2731,12 @@ export default function CardsFactoryScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: cardsTheme.background }]}> 
+    <LinearGradient
+      colors={[...cardsTheme.tabShellGradient]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.container}
+    >
       <View style={[styles.headerRow, { borderBottomColor: cardsTheme.divider }]}> 
         <View>
           <Text style={[styles.headerTitle, { color: cardsTheme.text }]}>{tr('Mis Tarjetas', 'My Cards')}</Text>
@@ -2571,25 +2756,26 @@ export default function CardsFactoryScreen() {
             accessibilityLabel={tr('Abrir Business Card', 'Open Business Card')}
           >
             <LinearGradient
-              colors={['#0A2540', '#153D63', '#C5A065']}
+              colors={[...cardsTheme.vipBannerGradient]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.businessCta}
             >
               <View style={styles.businessCtaIcon}>
-                <MaterialCommunityIcons name="diamond-stone" size={14} color="#0A2540" />
+                <MaterialCommunityIcons name="diamond-stone" size={14} color={cardsTheme.vipBannerDiamondIcon} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.businessCtaTitle}>{tr('Tarjeta de Negocio', 'Business Card')}</Text>
                 <Text style={styles.businessCtaSub}>{tr('Lujo', 'Luxury')}</Text>
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={16} color="#F7E7C6" />
+              <MaterialCommunityIcons name="chevron-right" size={16} color={cardsTheme.vipBannerChevron} />
             </LinearGradient>
           </TouchableOpacity>
         </View>
       </View>
 
       <FlatList
+        style={{ flex: 1 }}
         data={filteredFeed}
         keyExtractor={(item) => (item.kind === 'business' ? `biz-${item.id}` : `smart-${item.card.id}`)}
         renderItem={({ item }) => {
@@ -2621,17 +2807,17 @@ export default function CardsFactoryScreen() {
                 await loadBusinessCardsFeed();
                 setRefreshingCards(false);
               }}
-              tintColor="#C5A065"
-              colors={['#C5A065']}
+              tintColor={cardsTheme.tint}
+              colors={[cardsTheme.tint]}
             />
           ) : undefined
         }
         ListEmptyComponent={
           cardSearchQuery.trim().length > 0 ? (
             <View style={styles.emptyWrap}>
-              <MaterialCommunityIcons name="magnify" size={52} color="#CCCCCC" />
-              <Text style={styles.emptyTitle}>{tr('Sin coincidencias', 'No matches')}</Text>
-              <Text style={styles.emptyText}>
+              <MaterialCommunityIcons name="magnify" size={52} color={cardsTheme.sectionLabel} />
+              <Text style={[styles.emptyTitle, { color: cardsTheme.text }]}>{tr('Sin coincidencias', 'No matches')}</Text>
+              <Text style={[styles.emptyText, { color: cardsTheme.modalSubtitle }]}>
                 {tr(
                   'Prueba con otras palabras o sinónimos. También puedes revisar tu conexión.',
                   'Try different words or synonyms. You can also check your connection.',
@@ -2640,9 +2826,9 @@ export default function CardsFactoryScreen() {
             </View>
           ) : (
             <View style={styles.emptyWrap}>
-              <MaterialCommunityIcons name="credit-card-plus-outline" size={52} color="#0D4D8A" />
-              <Text style={styles.emptyTitle}>{tr('Sin tarjetas todavía', 'No cards yet')}</Text>
-              <Text style={styles.emptyText}>
+              <MaterialCommunityIcons name="credit-card-plus-outline" size={52} color={cardsTheme.icon} />
+              <Text style={[styles.emptyTitle, { color: cardsTheme.text }]}>{tr('Sin tarjetas todavía', 'No cards yet')}</Text>
+              <Text style={[styles.emptyText, { color: cardsTheme.modalSubtitle }]}>
                 {tr(
                   'Crea una Smart Card con datos del Vault o una Tarjeta de negocio con el botón de lujo.',
                   'Create a Smart Card with Vault data or a Business card with the luxury button.',
@@ -2692,9 +2878,7 @@ export default function CardsFactoryScreen() {
 
       <Modal visible={factoryVisible} transparent animationType="slide" onRequestClose={() => { Keyboard.dismiss(); InteractionManager.runAfterInteractions(() => setFactoryVisible(false)); }}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}>
-              <TouchableWithoutFeedback>
                 <View style={[styles.factoryModal, { backgroundColor: cardsTheme.modalBg, borderColor: cardsTheme.modalBorder }]}>
 
                   {/* Header */}
@@ -2717,7 +2901,7 @@ export default function CardsFactoryScreen() {
                       <ExpoImage source={{ uri: ownerPhotoUrl }} style={styles.identityAvatarLg} cachePolicy="disk" />
                     ) : (
                       <View style={styles.identityAvatarLgFallback}>
-                        <MaterialCommunityIcons name="account" size={32} color="#0D4D8A" />
+                        <MaterialCommunityIcons name="account" size={32} color={cardsTheme.ctaAccent} />
                       </View>
                     )}
                     <View style={{ flex: 1 }}>
@@ -2762,7 +2946,13 @@ export default function CardsFactoryScreen() {
                       style={[styles.factoryActionBtn, { borderColor: cardsTheme.modalBorder, backgroundColor: cardsTheme.inputBg }]}
                       onPress={() => {
                         void refreshThemes();
-                        setThemesPlaceholderVisible(true);
+                        resumeFactoryAfterAuxModalRef.current = factoryVisible;
+                        if (factoryVisible) {
+                          setFactoryVisible(false);
+                        }
+                        requestAnimationFrame(() => {
+                          setThemesPlaceholderVisible(true);
+                        });
                       }}
                       activeOpacity={0.82}
                     >
@@ -2840,10 +3030,9 @@ export default function CardsFactoryScreen() {
                   </View>
 
                 </View>
-              </TouchableWithoutFeedback>
             </View>
-          </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
+      </Modal>
 
       {/* DataSelector — Vault mirror for bulk icon selection */}
       <Modal
@@ -2861,7 +3050,7 @@ export default function CardsFactoryScreen() {
                 {tr('Selecciona datos', 'Select data')}
               </Text>
               <View style={styles.dataSelectorCounterWrap}>
-                <Text style={[styles.dataSelectorCounter, { color: tempSelectedIds.length >= MAX_CARD_SLOTS ? '#C44B55' : cardsTheme.icon }]}>
+                <Text style={[styles.dataSelectorCounter, { color: tempSelectedIds.length >= MAX_CARD_SLOTS ? cardsTheme.danger : cardsTheme.icon }]}>
                   {tempSelectedIds.length} / {MAX_CARD_SLOTS}
                 </Text>
               </View>
@@ -2872,8 +3061,16 @@ export default function CardsFactoryScreen() {
 
             {/* Limit reached banner */}
             {dataSelectorLimitReached && (
-              <View style={[styles.dataSelectorLimitBanner, { backgroundColor: isDark ? 'rgba(196,75,85,0.16)' : '#FFF2F3', borderColor: isDark ? 'rgba(229,164,168,0.35)' : '#E5A4A8' }]}>
-                <MaterialCommunityIcons name="alert-circle-outline" size={14} color="#C44B55" />
+              <View
+                style={[
+                  styles.dataSelectorLimitBanner,
+                  {
+                    backgroundColor: isDark ? cardsTheme.dangerBannerBgDark : cardsTheme.dangerBannerBg,
+                    borderColor: isDark ? cardsTheme.dangerBannerBorderDark : cardsTheme.dangerBannerBorder,
+                  },
+                ]}
+              >
+                <MaterialCommunityIcons name="alert-circle-outline" size={14} color={cardsTheme.danger} />
                 <Text style={styles.dataSelectorLimitText}>{tr(`Máximo ${MAX_CARD_SLOTS} iconos por tarjeta`, `Maximum ${MAX_CARD_SLOTS} icons per card`)}</Text>
               </View>
             )}
@@ -2899,18 +3096,29 @@ export default function CardsFactoryScreen() {
                     <TouchableOpacity
                       style={[
                         styles.selectorItemTile,
-                        { borderColor: isDark ? 'rgba(184,231,255,0.18)' : '#CFEFFF', backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#FFFFFF' },
-                        isSelected && [styles.selectorItemTileSelected, { backgroundColor: isDark ? 'rgba(197,160,101,0.14)' : '#FFFBF0' }],
+                        {
+                          borderColor: isDark ? 'rgba(184,231,255,0.18)' : cardsTheme.border,
+                          backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : cardsTheme.surface,
+                        },
+                        isSelected && [
+                          styles.selectorItemTileSelected,
+                          { backgroundColor: isDark ? 'rgba(197,160,101,0.14)' : cardsTheme.typeBadgeBg },
+                        ],
                       ]}
                       onPress={() => handleSelectorToggle(item.id)}
                       activeOpacity={0.75}
                     >
                       {isSelected && (
                         <View style={styles.selectorCheckOverlay}>
-                          <MaterialCommunityIcons name="check-circle" size={17} color="#C5A065" />
+                          <MaterialCommunityIcons name="check-circle" size={17} color={cardsTheme.ctaAccent} />
                         </View>
                       )}
-                      <View style={[styles.selectorIconCircle, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#EAF7FF' }]}>
+                      <View
+                        style={[
+                          styles.selectorIconCircle,
+                          { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : cardsTheme.marketCtaPressedBg },
+                        ]}
+                      >
                         {renderVaultMiniIcon(item, 26)}
                       </View>
                       <Text style={[styles.selectorItemTitle, { color: cardsTheme.text }]} numberOfLines={2}>
@@ -2928,7 +3136,7 @@ export default function CardsFactoryScreen() {
 
             {/* Floating upsell */}
             <TouchableOpacity style={styles.dataSelectorUpsellBtn} activeOpacity={0.85}>
-              <MaterialCommunityIcons name="star-circle-outline" size={15} color="#0A2540" />
+              <MaterialCommunityIcons name="star-circle-outline" size={15} color={cardsTheme.modalTitle} />
               <Text style={styles.dataSelectorUpsellText}>{tr('Consigue tu coleccionable', 'Get your collectible')}</Text>
             </TouchableOpacity>
 
@@ -2959,11 +3167,11 @@ export default function CardsFactoryScreen() {
         visible={themesPlaceholderVisible}
         transparent
         animationType="fade"
-        onRequestClose={() => setThemesPlaceholderVisible(false)}
+        onRequestClose={closeThemesPickerModal}
       >
-        <TouchableWithoutFeedback onPress={() => setThemesPlaceholderVisible(false)}>
+        <TouchableWithoutFeedback onPress={closeThemesPickerModal}>
           <View style={styles.themesPopupOverlay}>
-            <TouchableWithoutFeedback onPress={() => {}}>
+            <TouchableWithoutFeedback onPress={() => {}} accessible={false}>
               <View style={[styles.themesPopupBox, { backgroundColor: cardsTheme.modalBg, borderColor: cardsTheme.modalBorder }]}>
 
                 <View style={styles.factoryHeaderRow}>
@@ -2971,69 +3179,74 @@ export default function CardsFactoryScreen() {
                     {tr('Temas de Tarjeta', 'Card Themes')}
                   </Text>
                   <TouchableOpacity
-                    onPress={() => setThemesPlaceholderVisible(false)}
+                    onPress={closeThemesPickerModal}
                     hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                   >
                     <MaterialCommunityIcons name="close" size={22} color={cardsTheme.sectionLabel} />
                   </TouchableOpacity>
                 </View>
 
-                <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
-                {(['fresh', 'moderno', 'luxury'] as ThemeTier[]).map((tier) => {
-                  const meta = TIER_META[tier];
-                  const tierThemes = CHEST_THEMES.filter((t) => t.tier === tier);
-                  return (
-                    <View key={tier} style={{ marginBottom: 12 }}>
-                      <Text style={[styles.themeTierLabel, { color: cardsTheme.text }]}>{meta.emoji} {language === 'en' ? meta.label[1] : meta.label[0]}</Text>
-                      <View style={styles.themesPlaceholderGrid}>
-                        {tierThemes.map((t) => (
-                          <TouchableOpacity
-                            key={t.id}
+                <ScrollView
+                  style={styles.themesLockerScroll}
+                  contentContainerStyle={styles.themesLockerScrollContent}
+                  showsVerticalScrollIndicator={false}
+                  bounces={false}
+                  overScrollMode="never"
+                >
+                  {(['fresh', 'moderno', 'luxury'] as ThemeTier[]).map((tier) => {
+                    const meta = TIER_META[tier];
+                    const tierThemes = getThemesByTier(tier);
+                    return (
+                      <View key={tier} style={styles.themesLockerTierSection}>
+                        <View style={styles.themesLockerTierHeader}>
+                          <Text style={styles.themesLockerTierEmoji}>{meta.emoji}</Text>
+                          <Text style={[styles.themesLockerTierLabel, { color: cardsTheme.text }]}>
+                            {language === 'en' ? meta.label[1] : meta.label[0]}
+                          </Text>
+                          <View
                             style={[
-                              styles.themePlaceholderTile,
-                              themeId === t.id && { borderWidth: 3, borderColor: '#C5A065', borderRadius: 14 },
-                              !isChestThemeUnlocked(t) ? { opacity: 0.5 } : null,
+                              styles.themesLockerTierLine,
+                              { backgroundColor: tier === 'luxury' ? '#D4AF37' : cardsTheme.divider },
                             ]}
-                            onPress={() => {
-                              if (!isChestThemeUnlocked(t)) {
-                                Toast.show({
-                                  type: 'info',
-                                  text1: tr('Tema bloqueado', 'Theme locked'),
-                                  text2: tr('Desbloquéalo en Card-Studio (boutique).', 'Unlock it in Card-Studio (boutique).'),
-                                  position: 'bottom',
-                                  visibilityTime: 2800,
-                                });
-                                return;
-                              }
-                              setThemeId(t.id);
-                              void Haptics.selectionAsync();
-                            }}
-                            activeOpacity={0.75}
-                          >
-                            <LinearGradient colors={t.background} style={[styles.themePlaceholderSwatch, { borderColor: t.border.color, borderWidth: t.border.width, borderRadius: 12 }]} />
-                            <View style={styles.themePlaceholderIconRow}>
-                              <MaterialCommunityIcons name={t.icon.name as any} size={18} color={t.icon.color} />
-                              {t.locked && !unlockedIds.has(t.id) ? (
-                                <MaterialCommunityIcons name="lock-outline" size={12} color={t.border.color} />
-                              ) : null}
-                            </View>
-                            <Text style={[styles.themePlaceholderName, { color: t.title.color }]} numberOfLines={1}>{t.name}</Text>
-                            {themeId === t.id ? (
-                              <View style={styles.themePlaceholderLock}>
-                                <MaterialCommunityIcons name="check-circle" size={20} color="#C5A065" />
-                              </View>
-                            ) : null}
-                          </TouchableOpacity>
-                        ))}
+                          />
+                        </View>
+                        <View style={[styles.themesLockerTierGrid, { gap: THEME_LOCKER_TILE_GAP }]}>
+                          {tierThemes.map((t) => (
+                            <ThemeLockerThemeTile
+                              key={t.id}
+                              theme={t}
+                              isActive={themeId === t.id}
+                              isUnlocked={isChestThemeUnlocked(t)}
+                              tileWidth={themesModalTileWidth}
+                              reviewsLabel={tr('4.8 · 12 reseñas', '4.8 · 12 reviews')}
+                              onPress={() => {
+                                if (!isChestThemeUnlocked(t)) {
+                                  Toast.show({
+                                    type: 'info',
+                                    text1: tr('Tema bloqueado', 'Theme locked'),
+                                    text2: tr(
+                                      'Desbloquéalo en Locker de Estilos o La Fragua.',
+                                      'Unlock it in Theme Locker or The Forge.',
+                                    ),
+                                    position: 'bottom',
+                                    visibilityTime: 2800,
+                                  });
+                                  return;
+                                }
+                                setThemeId(t.id);
+                                void Haptics.selectionAsync();
+                              }}
+                            />
+                          ))}
+                        </View>
                       </View>
-                    </View>
-                  );
-                })}
+                    );
+                  })}
                 </ScrollView>
 
                 <TouchableOpacity
                   style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary, marginTop: 12 }]}
-                  onPress={() => setThemesPlaceholderVisible(false)}
+                  onPress={closeThemesPickerModal}
                 >
                   <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>{tr('Aceptar', 'Accept')}</Text>
                 </TouchableOpacity>
@@ -3042,8 +3255,6 @@ export default function CardsFactoryScreen() {
             </TouchableWithoutFeedback>
           </View>
         </TouchableWithoutFeedback>
-      </Modal>
-
       </Modal>
 
       <Modal
@@ -3056,7 +3267,7 @@ export default function CardsFactoryScreen() {
         }}
       >
         <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}> 
-          <BlurView intensity={65} tint="light" style={StyleSheet.absoluteFill} />
+          <BlurView intensity={65} tint="light" style={StyleSheet.absoluteFill} pointerEvents="none" />
           {previewCard ? (
             <View
               style={[
@@ -3145,7 +3356,7 @@ export default function CardsFactoryScreen() {
         }}
       >
         <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}>
-          <BlurView intensity={65} tint="light" style={StyleSheet.absoluteFill} />
+          <BlurView intensity={65} tint="light" style={StyleSheet.absoluteFill} pointerEvents="none" />
           {previewBusiness && previewBusinessOwnerUid ? (
             <View
               style={[
@@ -3380,7 +3591,7 @@ export default function CardsFactoryScreen() {
         }}
       >
         <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}> 
-          <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
+          <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} pointerEvents="none" />
           <View style={[styles.subscribersModalCard, { backgroundColor: cardsTheme.modalBg, borderColor: cardsTheme.modalBorder }]}> 
             <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle }]}>{tr('Personas con tu tarjeta', 'People with your card')}</Text>
             <Text style={[styles.subscribersSubtitle, { color: cardsTheme.modalSubtitle }]}>{subscribersCard?.name || 'Smart Card'}</Text>
@@ -3399,7 +3610,7 @@ export default function CardsFactoryScreen() {
                     renderRightActions={() => (
                       <View style={{ flexDirection: 'row', alignItems: 'stretch' }}>
                         <TouchableOpacity
-                          style={styles.subscriberSwipeMute}
+                          style={[styles.subscriberSwipeMute, { backgroundColor: cardsTheme.subscriberSwipeMuteBg }]}
                           onPress={() => {
                             const title = row.muted
                               ? tr('Dejar de silenciar', 'Unmute channel')
@@ -3416,11 +3627,11 @@ export default function CardsFactoryScreen() {
                             ]);
                           }}
                         >
-                          <MaterialCommunityIcons name={row.muted ? 'volume-high' : 'volume-off'} size={16} color="#FFFFFF" />
+                          <MaterialCommunityIcons name={row.muted ? 'volume-high' : 'volume-off'} size={16} color={cardsTheme.btnPrimaryText} />
                           <Text style={styles.swipeActionText}>{row.muted ? tr('Audio', 'Unmute') : tr('Silenciar', 'Mute')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                          style={styles.subscriberSwipeRevoke}
+                          style={[styles.subscriberSwipeRevoke, { backgroundColor: cardsTheme.subscriberSwipeRevokeBg }]}
                           onPress={() => {
                             Alert.alert(
                               tr('Eliminar acceso', 'Remove access'),
@@ -3432,11 +3643,11 @@ export default function CardsFactoryScreen() {
                             );
                           }}
                         >
-                          <MaterialCommunityIcons name="card-remove-outline" size={16} color="#FFFFFF" />
+                          <MaterialCommunityIcons name="card-remove-outline" size={16} color={cardsTheme.btnPrimaryText} />
                           <Text style={styles.swipeActionText}>{tr('Quitar', 'Remove')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                          style={styles.subscriberSwipeBlock}
+                          style={[styles.subscriberSwipeBlock, { backgroundColor: cardsTheme.swipeDeleteBg }]}
                           onPress={() => {
                             Alert.alert(
                               tr('Bloquear usuario', 'Block user'),
@@ -3448,7 +3659,7 @@ export default function CardsFactoryScreen() {
                             );
                           }}
                         >
-                          <MaterialCommunityIcons name="account-cancel-outline" size={16} color="#FFFFFF" />
+                          <MaterialCommunityIcons name="account-cancel-outline" size={16} color={cardsTheme.btnPrimaryText} />
                           <Text style={styles.swipeActionText}>{tr('Bloquear', 'Block')}</Text>
                         </TouchableOpacity>
                       </View>
@@ -3460,7 +3671,7 @@ export default function CardsFactoryScreen() {
                           <ExpoImage source={{ uri: row.photoUrl }} style={styles.subscriberAvatar} cachePolicy="disk" />
                         ) : (
                           <View style={styles.subscriberAvatarFallback}>
-                            <MaterialCommunityIcons name="account" size={16} color="#0D4D8A" />
+                            <MaterialCommunityIcons name="account" size={16} color={cardsTheme.pillText} />
                           </View>
                         )}
                         <View style={[styles.subscriberMetaColumn, { flex: 1 }]}>
@@ -3654,7 +3865,7 @@ export default function CardsFactoryScreen() {
 
                   {!qrBusinessContext && qrExpired ? (
                     <View style={styles.expiredOverlay}>
-                      <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
+                      <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} pointerEvents="none" />
                       <TouchableOpacity
                         style={styles.refreshOverlayBtn}
                         onPress={() => {
@@ -3743,7 +3954,7 @@ export default function CardsFactoryScreen() {
         onClose={() => setLimitReachedVisible(false)}
         onUpgradePress={handleUpgradePress}
       />
-    </View>
+    </LinearGradient>
   );
 }
 
@@ -3875,14 +4086,12 @@ const styles = StyleSheet.create({
     width: 64,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#497499',
     gap: 4,
   },
   swipeDeleteBtn: {
     width: 64,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#B7343A',
     gap: 4,
   },
   swipeLeftTriggerArea: {
@@ -4146,23 +4355,24 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   vertTop: {
-    flex: 2.2,
+    flex: 2.9,
     flexDirection: 'column',
   },
   vertAvatarBox: {
-    flex: 2.2,
-    padding: 8,
-    paddingBottom: 4,
+    flex: 1.85,
+    paddingHorizontal: 8,
+    paddingTop: 4,
+    paddingBottom: 10,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
   },
   vertInfoBox: {
-    flex: 1.45,
+    flex: 1.55,
     padding: 8,
-    paddingTop: 6,
+    paddingTop: 12,
     paddingBottom: 12,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     gap: 5,
   },
   vertName: {
@@ -4174,11 +4384,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   vertIconsBox: {
-    flex: 2.05,
+    flex: 2.35,
     marginTop: 12,
-    paddingHorizontal: 5,
+    paddingHorizontal: 4,
     paddingTop: 2,
-    paddingBottom: 6,
+    paddingBottom: 22,
+    justifyContent: 'flex-start',
+    overflow: 'hidden',
+  },
+  wireVertIconGridRoot: {
+    justifyContent: 'flex-start',
   },
   vertIconsGrid: {
     flex: 1,
@@ -4390,6 +4605,7 @@ const styles = StyleSheet.create({
   },
   wireStatsRowInline: {
     marginTop: 6,
+    marginBottom: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -4442,10 +4658,7 @@ const styles = StyleSheet.create({
     borderColor: '#C3E6FA',
   },
   slotLabel: {
-    marginTop: 4,
-    color: '#0A2540',
-    fontSize: 10,
-    fontWeight: '700',
+    marginTop: 2,
     textAlign: 'center',
     alignSelf: 'stretch',
   },
@@ -5283,16 +5496,50 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.25)',
   },
   themesPopupBox: {
-    width: '85%',
-    maxWidth: 380,
+    width: '92%',
+    maxWidth: 400,
     borderRadius: 18,
     borderWidth: 1,
     padding: 16,
+    maxHeight: '82%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.18,
     shadowRadius: 12,
     elevation: 10,
+  },
+  themesLockerScroll: {
+    maxHeight: 440,
+  },
+  themesLockerScrollContent: {
+    paddingBottom: 8,
+  },
+  themesLockerTierSection: {
+    marginBottom: 16,
+  },
+  themesLockerTierHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  themesLockerTierEmoji: {
+    fontSize: 18,
+  },
+  themesLockerTierLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  themesLockerTierLine: {
+    flex: 1,
+    height: 1,
+    marginLeft: 8,
+  },
+  themesLockerTierGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
   themesPlaceholderModal: {
     width: '100%',
@@ -5396,7 +5643,6 @@ const styles = StyleSheet.create({
   cardSearchInput: {
     flex: 1,
     fontSize: 13,
-    color: '#0D4D8A',
     paddingVertical: 0,
   },
   rotateHintOverlay: {
@@ -5417,21 +5663,18 @@ const styles = StyleSheet.create({
     width: 72,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#5B6E8C',
     gap: 4,
   },
   subscriberSwipeRevoke: {
     width: 72,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#E88D3F',
     gap: 4,
   },
   subscriberSwipeBlock: {
     width: 72,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#B7343A',
     gap: 4,
   },
   subscriberMetaColumn: {

@@ -47,7 +47,7 @@ import {
     TextInput,
     TouchableOpacity,
     TouchableWithoutFeedback,
-    View
+    View,
 } from 'react-native';
 import palette from '../theme';
 
@@ -140,7 +140,7 @@ export default function MyProfileScreen() {
   const { resolvedMode } = useLookMode();
   const isDark = resolvedMode === 'noche';
   const router = useRouter();
-  const theme = palette[isDark ? 'dark' : 'light'] as any;
+  const shell = palette[isDark ? 'dark' : 'light'];
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -549,13 +549,13 @@ export default function MyProfileScreen() {
 
   // ─────────────────────────────────────────────────────────────────────────────
 
-  const bg = isDark ? '#08121E' : '#EAF7FF';
-  const card = isDark ? '#0F1E30' : '#FFFFFF';
-  const textPrimary = isDark ? '#E8F4FF' : '#0A2540';
-  const textSecondary = isDark ? '#7EB5D6' : '#4F7799';
-  const border = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(13,77,138,0.12)';
-  const inputBg = isDark ? '#152030' : '#F5FAFF';
-  const accent = '#C5A065';
+  const bg = shell.backgroundSolid;
+  const card = shell.surface;
+  const textPrimary = shell.textPrimary;
+  const textSecondary = shell.textSecondary;
+  const border = shell.border;
+  const inputBg = shell.inputBg;
+  const accent = shell.ctaAccent;
 
   if (loading) {
     return (
@@ -577,10 +577,7 @@ export default function MyProfileScreen() {
         style={{ flex: 1, backgroundColor: bg }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <LinearGradient
-          colors={isDark ? ['#08121E', '#0D1F33', '#08121E'] : ['#EAF7FF', '#CDEFFF', '#EAF7FF']}
-          style={{ flex: 1 }}
-        >
+        <LinearGradient colors={[...shell.tabShellGradient]} style={{ flex: 1 }}>
           {/* Header */}
           <View style={[styles.header, { borderBottomColor: border }]}>
             <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={tr('Volver', 'Go back')}>
@@ -593,7 +590,13 @@ export default function MyProfileScreen() {
           <ScrollView
             ref={scrollRef}
             style={{ flex: 1 }}
-            contentContainerStyle={styles.scroll}
+            contentContainerStyle={[
+              styles.scroll,
+              {
+                // Separación cómoda entre "Eliminar cuenta" y el tab bar.
+                paddingBottom: 56,
+              },
+            ]}
             keyboardDismissMode="on-drag"
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
@@ -615,11 +618,11 @@ export default function MyProfileScreen() {
 
                   {uploadingPhoto ? (
                     <View style={styles.avatarOverlay}>
-                      <MaterialCommunityIcons name="loading" size={28} color="#FFFFFF" />
+                      <MaterialCommunityIcons name="loading" size={28} color={shell.fabText} />
                     </View>
                   ) : (
                     <View style={[styles.avatarEditBadge, { backgroundColor: accent }]}>
-                      <MaterialCommunityIcons name="camera-outline" size={14} color="#FFFFFF" />
+                      <MaterialCommunityIcons name="camera-outline" size={14} color={shell.fabText} />
                     </View>
                   )}
                 </View>
@@ -629,9 +632,14 @@ export default function MyProfileScreen() {
               <Text style={[styles.avatarHandle, { color: textSecondary }]}>@{profile?.nickname || '—'}</Text>
 
               {profile?.verificationStatus === 'verified' && (
-                <View style={[styles.verifiedBadge, { backgroundColor: isDark ? 'rgba(84,193,251,0.15)' : '#EAF7FF', borderColor: '#54C1FB' }]}>
-                  <MaterialCommunityIcons name="check-decagram" size={14} color="#54C1FB" />
-                  <Text style={[styles.verifiedText, { color: '#54C1FB' }]}>{tr('Verificado', 'Verified')}</Text>
+                <View
+                  style={[
+                    styles.verifiedBadge,
+                    { backgroundColor: shell.marketCtaPressedBg, borderColor: shell.refreshAccent },
+                  ]}
+                >
+                  <MaterialCommunityIcons name="check-decagram" size={14} color={shell.refreshAccent} />
+                  <Text style={[styles.verifiedText, { color: shell.refreshAccent }]}>{tr('Verificado', 'Verified')}</Text>
                 </View>
               )}
             </View>
@@ -678,7 +686,7 @@ export default function MyProfileScreen() {
                 disabled={savingBio}
                 activeOpacity={0.82}
               >
-                <Text style={styles.saveBtnText}>{savingBio ? tr('Guardando…', 'Saving…') : tr('Guardar bio', 'Save bio')}</Text>
+                <Text style={[styles.saveBtnText, { color: shell.emptyCtaText }]}>{savingBio ? tr('Guardando…', 'Saving…') : tr('Guardar bio', 'Save bio')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -703,7 +711,7 @@ export default function MyProfileScreen() {
                 disabled={savingName}
                 activeOpacity={0.82}
               >
-                <Text style={styles.saveBtnText}>{savingName ? tr('Guardando…', 'Saving…') : tr('Guardar nombre', 'Save name')}</Text>
+                <Text style={[styles.saveBtnText, { color: shell.emptyCtaText }]}>{savingName ? tr('Guardando…', 'Saving…') : tr('Guardar nombre', 'Save name')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -713,9 +721,14 @@ export default function MyProfileScreen() {
                 <MaterialCommunityIcons name="at" size={18} color={accent} />
                 <Text style={[styles.cardTitle, { color: textPrimary }]}>{tr('Nickname único', 'Unique nickname')}</Text>
                 {nicknameLocked && (
-                  <View style={[styles.lockChip, { backgroundColor: isDark ? 'rgba(196,75,85,0.2)' : '#FFF2F3', borderColor: '#C44B55' }]}>
-                    <MaterialCommunityIcons name="lock-clock" size={12} color="#C44B55" />
-                    <Text style={styles.lockChipText}>{tr('Bloqueado', 'Locked')}</Text>
+                  <View
+                    style={[
+                      styles.lockChip,
+                      { backgroundColor: isDark ? shell.dangerBannerBgDark : shell.dangerBannerBg, borderColor: shell.danger },
+                    ]}
+                  >
+                    <MaterialCommunityIcons name="lock-clock" size={12} color={shell.danger} />
+                    <Text style={[styles.lockChipText, { color: shell.danger }]}>{tr('Bloqueado', 'Locked')}</Text>
                   </View>
                 )}
               </View>
@@ -731,7 +744,7 @@ export default function MyProfileScreen() {
                 editable={!nicknameLocked}
               />
               {nicknameLocked && unlock ? (
-                <Text style={[styles.hintText, { color: '#C44B55' }]}>
+                <Text style={[styles.hintText, { color: shell.danger }]}>
                   {tr(`Disponible el ${formatDate(unlock)}`, `Available on ${formatDate(unlock)}`)}
                 </Text>
               ) : (
@@ -745,7 +758,7 @@ export default function MyProfileScreen() {
                 disabled={savingNickname || nicknameLocked}
                 activeOpacity={0.82}
               >
-                <Text style={styles.saveBtnText}>{savingNickname ? tr('Guardando…', 'Saving…') : tr('Guardar nickname', 'Save nickname')}</Text>
+                <Text style={[styles.saveBtnText, { color: shell.emptyCtaText }]}>{savingNickname ? tr('Guardando…', 'Saving…') : tr('Guardar nickname', 'Save nickname')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -754,7 +767,7 @@ export default function MyProfileScreen() {
               <View style={styles.cardHeader}>
                 <MaterialCommunityIcons name="email-outline" size={18} color={accent} />
                 <Text style={[styles.cardTitle, { color: textPrimary }]}>{tr('Correo electrónico', 'Email')}</Text>
-                <View style={[styles.roChip, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F0F0F0', borderColor: border }]}>
+                <View style={[styles.roChip, { backgroundColor: shell.gridCardBg, borderColor: border }]}>
                   <MaterialCommunityIcons name="lock-outline" size={11} color={textSecondary} />
                   <Text style={[styles.roChipText, { color: textSecondary }]}>{tr('Solo lectura', 'Read only')}</Text>
                 </View>
@@ -772,7 +785,7 @@ export default function MyProfileScreen() {
               <View style={styles.cardHeader}>
                 <MaterialCommunityIcons name="phone-outline" size={18} color={accent} />
                 <Text style={[styles.cardTitle, { color: textPrimary }]}>{tr('Teléfono', 'Phone')}</Text>
-                <View style={[styles.roChip, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F0F0F0', borderColor: border }]}>
+                <View style={[styles.roChip, { backgroundColor: shell.gridCardBg, borderColor: border }]}>
                   <MaterialCommunityIcons name="lock-outline" size={11} color={textSecondary} />
                   <Text style={[styles.roChipText, { color: textSecondary }]}>{tr('Solo lectura', 'Read only')}</Text>
                 </View>
@@ -863,8 +876,8 @@ export default function MyProfileScreen() {
                       disabled={savingPw}
                       activeOpacity={0.82}
                     >
-                      <MaterialCommunityIcons name="lock-check-outline" size={16} color="#FFFFFF" />
-                      <Text style={styles.saveBtnText}>{savingPw ? tr('Cambiando…', 'Changing…') : tr('Cambiar contraseña', 'Change password')}</Text>
+                      <MaterialCommunityIcons name="lock-check-outline" size={16} color={shell.emptyCtaText} />
+                      <Text style={[styles.saveBtnText, { color: shell.emptyCtaText }]}>{savingPw ? tr('Cambiando…', 'Changing…') : tr('Cambiar contraseña', 'Change password')}</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -887,22 +900,22 @@ export default function MyProfileScreen() {
               </View>
             )}
 
-            <View style={{ height: 60 }} />
-
             {/* Zona de Peligro: Eliminar Cuenta */}
-            <View style={{
-              borderTopWidth: 1,
-              borderColor: '#B7343A33',
-              marginTop: 32,
-              paddingTop: 24,
-              alignItems: 'center',
-            }}>
-              <Text style={{ color: '#B7343A', fontWeight: 'bold', marginBottom: 10, fontSize: 15 }}>
+            <View
+              style={{
+                borderTopWidth: 1,
+                borderColor: shell.dangerBannerBorder,
+                marginTop: 14,
+                paddingTop: 16,
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: shell.danger, fontWeight: 'bold', marginBottom: 10, fontSize: 15 }}>
                 {tr('Zona de Peligro', 'Danger Zone')}
               </Text>
               <TouchableOpacity
                 style={{
-                  backgroundColor: '#B7343A',
+                  backgroundColor: shell.danger,
                   borderRadius: 10,
                   paddingVertical: 14,
                   paddingHorizontal: 32,
@@ -914,8 +927,8 @@ export default function MyProfileScreen() {
                 onPress={handleDeleteAccount}
                 activeOpacity={0.85}
               >
-                <MaterialCommunityIcons name="delete" size={18} color="#fff" />
-                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 15 }}>
+                <MaterialCommunityIcons name="delete" size={18} color={shell.fabText} />
+                <Text style={{ color: shell.fabText, fontWeight: 'bold', fontSize: 15 }}>
                   {tr('Eliminar Cuenta', 'Delete Account')}
                 </Text>
               </TouchableOpacity>
@@ -1002,7 +1015,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: 'rgba(255,255,255,0.95)',
   },
   avatarName: {
     fontSize: 20,
@@ -1053,7 +1066,6 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   lockChipText: {
-    color: '#C44B55',
     fontSize: 11,
     fontWeight: '700',
   },
@@ -1104,7 +1116,6 @@ const styles = StyleSheet.create({
     opacity: 0.55,
   },
   saveBtnText: {
-    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
   },

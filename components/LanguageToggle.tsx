@@ -1,22 +1,125 @@
 import type { AppLanguage } from '@/services/language';
 import { SUPPORTED_LANGUAGES, useLanguage } from '@/services/language';
+import { useLookMode } from '@/services/lookMode';
 import * as Haptics from 'expo-haptics';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Animated,
-    Dimensions,
-    Modal,
-    Pressable,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Animated,
+  Dimensions,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import palette from '../app/theme';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function LanguageToggle() {
   const { language, setLanguage } = useLanguage();
+  const { resolvedMode } = useLookMode();
+  const isNight = resolvedMode === 'noche';
+  const shell = palette[isNight ? 'dark' : 'light'];
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        chip: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          backgroundColor: shell.typeBadgeBg,
+          borderRadius: 10,
+          paddingHorizontal: 8,
+          paddingVertical: 5,
+          gap: 4,
+        },
+        chipFlag: {
+          fontSize: 14,
+        },
+        chipCode: {
+          fontSize: 12,
+          fontWeight: '800',
+          color: shell.textPrimary,
+          letterSpacing: 0.5,
+        },
+        backdrop: {
+          ...StyleSheet.absoluteFillObject,
+        },
+        toastContainer: {
+          position: 'absolute',
+          bottom: 0,
+          width: SCREEN_WIDTH,
+          backgroundColor: shell.modalBg,
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+          paddingTop: 10,
+          paddingBottom: 34,
+          paddingHorizontal: 20,
+          shadowColor: shell.subtleShadow,
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.15,
+          shadowRadius: 12,
+          elevation: 20,
+        },
+        toastHandle: {
+          width: 40,
+          height: 4,
+          borderRadius: 2,
+          backgroundColor: shell.border,
+          alignSelf: 'center',
+          marginBottom: 14,
+        },
+        toastTitle: {
+          fontSize: 16,
+          fontWeight: '700',
+          color: shell.textPrimary,
+          marginBottom: 12,
+          textAlign: 'center',
+        },
+        langRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingVertical: 12,
+          paddingHorizontal: 12,
+          borderRadius: 12,
+          marginBottom: 4,
+        },
+        langRowActive: {
+          backgroundColor: shell.marketCtaPressedBg,
+        },
+        langFlag: {
+          fontSize: 22,
+          marginRight: 12,
+        },
+        langTextCol: {
+          flex: 1,
+        },
+        langLabel: {
+          fontSize: 15,
+          fontWeight: '600',
+          color: shell.textPrimary,
+        },
+        langLabelActive: {
+          color: shell.refreshAccent,
+          fontWeight: '700',
+        },
+        langCode: {
+          fontSize: 11,
+          color: shell.textSecondary,
+          fontWeight: '600',
+          marginTop: 1,
+        },
+        checkmark: {
+          fontSize: 18,
+          fontWeight: '700',
+          color: shell.refreshAccent,
+        },
+      }),
+    [shell],
+  );
+
   const [toastVisible, setToastVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(300)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -52,26 +155,19 @@ export default function LanguageToggle() {
 
   return (
     <>
-      {/* ── Compact chip in header ── */}
-      <TouchableOpacity
-        style={styles.chip}
-        activeOpacity={0.7}
-        onPress={openToast}
-        accessibilityLabel="Change language"
-      >
+      <TouchableOpacity style={styles.chip} activeOpacity={0.7} onPress={openToast} accessibilityLabel="Change language">
         <Text style={styles.chipFlag}>{current.flag}</Text>
         <Text style={styles.chipCode}>{current.code.toUpperCase()}</Text>
       </TouchableOpacity>
 
-      {/* ── Bottom toast modal ── */}
       <Modal visible={toastVisible} transparent animationType="none" statusBarTranslucent>
         <Pressable style={styles.backdrop} onPress={closeToast}>
-          <Animated.View style={[styles.backdrop, { opacity: fadeAnim, backgroundColor: 'rgba(10,26,47,0.45)' }]} />
+          <Animated.View style={[styles.backdrop, { opacity: fadeAnim, backgroundColor: shell.modalOverlay }]} />
         </Pressable>
 
         <Animated.View style={[styles.toastContainer, { transform: [{ translateY: slideAnim }] }]}>
           <View style={styles.toastHandle} />
-          <Text style={styles.toastTitle}>🌐 Language</Text>
+          <Text style={styles.toastTitle}>{language === 'es' ? 'Idioma' : 'Language'}</Text>
 
           {SUPPORTED_LANGUAGES.map((lang) => {
             const isActive = lang.code === language;
@@ -87,7 +183,7 @@ export default function LanguageToggle() {
                   <Text style={[styles.langLabel, isActive && styles.langLabelActive]}>{lang.label}</Text>
                   <Text style={styles.langCode}>{lang.code.toUpperCase()}</Text>
                 </View>
-                {isActive && <Text style={styles.checkmark}>✓</Text>}
+                {isActive ? <Text style={styles.checkmark}>✓</Text> : null}
               </TouchableOpacity>
             );
           })}
@@ -96,103 +192,3 @@ export default function LanguageToggle() {
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  /* ── Chip ── */
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(212,175,55,0.15)',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    gap: 4,
-  },
-  chipFlag: {
-    fontSize: 14,
-  },
-  chipCode: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#0D4D8A',
-    letterSpacing: 0.5,
-  },
-
-  /* ── Backdrop ── */
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-  },
-
-  /* ── Toast ── */
-  toastContainer: {
-    position: 'absolute',
-    bottom: 0,
-    width: SCREEN_WIDTH,
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 10,
-    paddingBottom: 34,
-    paddingHorizontal: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 20,
-  },
-  toastHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#D0D5DD',
-    alignSelf: 'center',
-    marginBottom: 14,
-  },
-  toastTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0A1A2F',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-
-  /* ── Language rows ── */
-  langRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    marginBottom: 4,
-  },
-  langRowActive: {
-    backgroundColor: 'rgba(13,77,138,0.08)',
-  },
-  langFlag: {
-    fontSize: 22,
-    marginRight: 12,
-  },
-  langTextCol: {
-    flex: 1,
-  },
-  langLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#0A1A2F',
-  },
-  langLabelActive: {
-    color: '#0D4D8A',
-    fontWeight: '700',
-  },
-  langCode: {
-    fontSize: 11,
-    color: '#8AA8C0',
-    fontWeight: '600',
-    marginTop: 1,
-  },
-  checkmark: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0D4D8A',
-  },
-});

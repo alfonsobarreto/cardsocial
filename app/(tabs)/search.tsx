@@ -14,6 +14,7 @@ import {
   subscribeSearchLocationSession,
 } from '@/services/searchLocationSession';
 import { useLookMode } from '@/services/lookMode';
+import appPalette, { type AppShellTheme } from '../theme';
 import { listReceivedContacts } from '@/services/qrApi';
 import { mergeReceivedContactRows } from '@/services/receivedContactsPresentationMerge';
 import { getCardRowTheme } from '@/services/useActiveTheme';
@@ -52,30 +53,19 @@ const MAX_MARKET_RADIUS_MILES = 20;
 
 type ContactMetaLite = { group?: string; icons?: Array<{ name: string; url: string }> };
 
-type SearchPalette = {
-  background: string;
-  surface: string;
-  surfaceMuted: string;
-  border: string;
-  textPrimary: string;
-  textSecondary: string;
-  ctaPrimary: string;
-  ctaAccent: string;
-};
-
 /**
  * Barra de búsqueda con texto en estado local: el padre no re-renderiza en cada tecla,
  * así el TextInput no pierde el foco ni se desmonta con el ListHeader del SectionList.
  */
 const SocialMarketSearchBar = React.memo(function SocialMarketSearchBar({
   loading,
-  palette,
+  shell,
   tr,
   onSubmitQuery,
   onClearResults,
 }: {
   loading: boolean;
-  palette: SearchPalette;
+  shell: AppShellTheme;
   tr: (es: string, en: string) => string;
   onSubmitQuery: (trimmed: string) => void;
   onClearResults: () => void;
@@ -98,15 +88,15 @@ const SocialMarketSearchBar = React.memo(function SocialMarketSearchBar({
   }, [onClearResults]);
 
   return (
-    <View style={[styles.searchRow, { backgroundColor: palette.surfaceMuted, borderColor: palette.border }]}>
-      <MaterialCommunityIcons name="magnify" size={22} color={palette.textSecondary} style={styles.searchRowIcon} />
+    <View style={[styles.searchRow, { backgroundColor: shell.surfaceMuted, borderColor: shell.border }]}>
+      <MaterialCommunityIcons name="magnify" size={22} color={shell.textSecondary} style={styles.searchRowIcon} />
       <TextInput
-        style={[styles.searchInputMinimal, { color: palette.textPrimary }]}
+        style={[styles.searchInputMinimal, { color: shell.textPrimary }]}
         placeholder={tr('Nails, Hair, Cosmetología…', 'Nails, hair, cosmetology…')}
         value={localSearchText}
         onChangeText={setLocalSearchText}
         onSubmitEditing={submit}
-        placeholderTextColor={palette.textSecondary}
+        placeholderTextColor={shell.textMuted}
         returnKeyType="search"
         blurOnSubmit={false}
       />
@@ -116,17 +106,17 @@ const SocialMarketSearchBar = React.memo(function SocialMarketSearchBar({
           hitSlop={12}
           accessibilityLabel={tr('Limpiar búsqueda', 'Clear search')}
         >
-          <MaterialCommunityIcons name="close-circle-outline" size={22} color={palette.textSecondary} />
+          <MaterialCommunityIcons name="close-circle-outline" size={22} color={shell.textMuted} />
         </TouchableOpacity>
       ) : null}
       <TouchableOpacity
-        style={[styles.goButton, { backgroundColor: palette.ctaPrimary }]}
+        style={[styles.goButton, { backgroundColor: shell.ctaPrimary }]}
         onPress={submit}
         disabled={loading}
         accessibilityRole="button"
         accessibilityLabel={tr('Buscar en el mercado', 'Search the market')}
       >
-        <Text style={styles.goButtonText}>{tr('IR', 'GO')}</Text>
+        <Text style={[styles.goButtonText, { color: shell.btnPrimaryText }]}>{tr('IR', 'GO')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -135,6 +125,7 @@ const SocialMarketSearchBar = React.memo(function SocialMarketSearchBar({
 export default function SearchScreen() {
   const { resolvedMode } = useLookMode();
   const isDark = resolvedMode === 'noche';
+  const shell = appPalette[isDark ? 'dark' : 'light'];
   const { language } = useLanguage();
   const tr = useCallback((es: string, en: string) => (language === 'en' ? en : es), [language]);
   /** Última consulta enviada (IR / Intro); el campo de texto vive en SocialMarketSearchBar. */
@@ -185,20 +176,6 @@ export default function SearchScreen() {
       tension: 220,
     }).start();
   };
-
-  const palette = useMemo<SearchPalette>(
-    () => ({
-      background: isDark ? '#06080B' : '#F9F9F9',
-      surface: isDark ? '#10141A' : '#FFFFFF',
-      surfaceMuted: isDark ? '#1B222C' : '#F5F5F5',
-      border: isDark ? '#2A3340' : '#E8E8E8',
-      textPrimary: isDark ? '#F5F8FC' : '#0A2540',
-      textSecondary: isDark ? '#C8D0DA' : '#4A4A4A',
-      ctaPrimary: '#0A2540',
-      ctaAccent: '#C5A065',
-    }),
-    [isDark],
-  );
 
   const displaySectionBusinesses = useMemo(() => {
     if (marketSortMode === 'distance') {
@@ -479,14 +456,14 @@ export default function SearchScreen() {
   };
 
   const marketListHeader = (
-    <View style={[styles.headerBlock, { backgroundColor: palette.background, borderBottomColor: palette.border }]}>
-      <Text style={[styles.heroTitle, { color: palette.textPrimary }]} adjustsFontSizeToFit numberOfLines={2}>
+    <View style={[styles.headerBlock, { backgroundColor: shell.background, borderBottomColor: shell.border }]}>
+      <Text style={[styles.heroTitle, { color: shell.textPrimary }]} adjustsFontSizeToFit numberOfLines={2}>
         {tr('Mercado Social', 'Social Market')}
       </Text>
 
       <SocialMarketSearchBar
         loading={loading}
-        palette={palette}
+        shell={shell}
         tr={tr}
         onSubmitQuery={onSubmitMarketQuery}
         onClearResults={onClearMarketSearch}
@@ -498,8 +475,8 @@ export default function SearchScreen() {
             style={[
               styles.marketActiveSortPill,
               {
-                color: palette.textPrimary,
-                backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.72)',
+                color: shell.textPrimary,
+                backgroundColor: isDark ? shell.surfaceMuted : shell.filterPillBg,
               },
               Platform.OS === 'android' ? { includeFontPadding: false } : null,
             ]}
@@ -513,8 +490,9 @@ export default function SearchScreen() {
           style={[
             styles.marketSortBtn,
             {
-              backgroundColor: isDark ? palette.surface : '#FFFFFF',
-              borderColor: palette.border,
+              backgroundColor: shell.surface,
+              borderColor: shell.border,
+              shadowColor: shell.brandShadow,
             },
           ]}
           onPress={() => setMarketSortModalVisible(true)}
@@ -522,7 +500,7 @@ export default function SearchScreen() {
           accessibilityRole="button"
           accessibilityLabel={tr('Ordenar resultados', 'Sort results')}
         >
-          <Text style={[styles.marketSortBtnText, { color: palette.textPrimary }]}>
+          <Text style={[styles.marketSortBtnText, { color: shell.textPrimary }]}>
             {tr('Ordenar', 'Sort')}
           </Text>
         </TouchableOpacity>
@@ -530,7 +508,7 @@ export default function SearchScreen() {
 
       {allMarketRows.length > 0 ? (
         <View style={styles.resultHeader}>
-          <Text style={[styles.resultTitle, { color: palette.textPrimary }]}>
+          <Text style={[styles.resultTitle, { color: shell.textPrimary }]}>
             {allMarketRows.length}{' '}
             {allMarketRows.length !== 1 ? tr('resultados', 'results') : tr('resultado', 'result')}
           </Text>
@@ -593,7 +571,7 @@ export default function SearchScreen() {
             let name: 'star' | 'star-half-full' | 'star-outline' = 'star-outline';
             if (r >= threshold) name = 'star';
             else if (r >= threshold - 0.5) name = 'star-half-full';
-            return <MaterialCommunityIcons key={index} name={name} size={12} color="#C5A065" />;
+            return <MaterialCommunityIcons key={index} name={name} size={12} color={shell.ctaAccent} />;
           })}
         </View>
       );
@@ -604,7 +582,7 @@ export default function SearchScreen() {
           themeId={pres?.themeId}
           wallpaperUrl={pres?.wallpaperUrl || undefined}
           borderRadius={14}
-          style={styles.marketReceivedSurfaceWrap}
+          style={[styles.marketReceivedSurfaceWrap, { shadowColor: shell.subtleShadow }]}
         >
           <Pressable
             style={styles.marketReceivedPressable}
@@ -613,23 +591,27 @@ export default function SearchScreen() {
           >
             <View style={styles.marketReceivedMainRow}>
               {item.card.businessLogo ? (
-                <ExpoImage source={{ uri: item.card.businessLogo }} style={styles.marketReceivedAvatar} cachePolicy="disk" />
+                <ExpoImage
+                  source={{ uri: item.card.businessLogo }}
+                  style={[styles.marketReceivedAvatar, { backgroundColor: shell.avatarPlaceholderBg }]}
+                  cachePolicy="disk"
+                />
               ) : (
                 <View
                   style={[
                     styles.marketReceivedAvatar,
                     styles.cardImagePlaceholder,
                     {
-                      backgroundColor: isDark ? MEDIA_PLACEHOLDER.personBgDark : MEDIA_PLACEHOLDER.personBgLight,
+                      backgroundColor: MEDIA_PLACEHOLDER.personBgLight,
                       borderWidth: 1,
-                      borderColor: isDark ? MEDIA_PLACEHOLDER.personBorderDark : MEDIA_PLACEHOLDER.personBorderLight,
+                      borderColor: MEDIA_PLACEHOLDER.personBorderLight,
                     },
                   ]}
                 >
                   <MaterialCommunityIcons
                     name={MEDIA_PLACEHOLDER.personIconName}
                     size={36}
-                    color={isDark ? MEDIA_PLACEHOLDER.personIconDark : MEDIA_PLACEHOLDER.personIconLight}
+                    color={MEDIA_PLACEHOLDER.personIconLight}
                   />
                 </View>
               )}
@@ -637,7 +619,11 @@ export default function SearchScreen() {
                 <Text
                   style={[
                     styles.mrPersonName,
-                    { color: chest.titleColor },
+                    {
+                      color: chest.titleColor,
+                      fontWeight: chest.titleFontWeight,
+                      fontStyle: chest.titleFontStyle,
+                    },
                     pres?.fontFamily ? { fontFamily: pres.fontFamily } : null,
                   ]}
                   numberOfLines={2}
@@ -647,7 +633,11 @@ export default function SearchScreen() {
                 <Text
                   style={[
                     styles.mrCardName,
-                    { color: chest.metaColor },
+                    {
+                      color: chest.metaColor,
+                      fontWeight: chest.subtitleFontWeight,
+                      fontStyle: chest.subtitleFontStyle,
+                    },
                     pres?.fontFamily ? { fontFamily: pres.fontFamily } : null,
                   ]}
                   numberOfLines={1}
@@ -657,7 +647,17 @@ export default function SearchScreen() {
                 <View style={styles.mrRowStatsRow}>
                   <View style={styles.mrRatingCluster}>
                     {starsEl}
-                    <Text style={[styles.mrRatingCaption, { color: chest.metaColor }]}>
+                    <Text
+                      style={[
+                        styles.mrRatingCaption,
+                        {
+                          color: chest.extraColor,
+                          fontSize: chest.extraFontSize,
+                          fontWeight: chest.extraFontWeight,
+                          fontStyle: chest.extraFontStyle,
+                        },
+                      ]}
+                    >
                       {rating.toFixed(1)} · {reviewCount} {tr('reseñas', 'reviews')}
                     </Text>
                   </View>
@@ -691,17 +691,33 @@ export default function SearchScreen() {
         onPressOut={() => rowPressOut(item.card.id)}
         style={({ pressed }) => [
           styles.resultCard,
-          { backgroundColor: palette.surface, borderColor: palette.border },
-          !hasLicense && isMarketBusiness && styles.dullCard,
+          {
+            backgroundColor: shell.marketVipCardBg,
+            borderColor: shell.marketVipCardBorder,
+            shadowColor: shell.subtleShadow,
+          },
+          !hasLicense &&
+            isMarketBusiness && {
+              backgroundColor: shell.marketDullCardBg,
+              borderColor: shell.marketDullCardBorder,
+              shadowOpacity: 0,
+              elevation: 0,
+            },
           pressed && styles.pressedCard,
         ]}
       >
-        <View style={[styles.floatingQrWrap, !hasLicense && styles.dullQrWrap]}>
+        <View
+          style={[
+            styles.floatingQrWrap,
+            { backgroundColor: shell.marketVipQrBg, shadowColor: shell.subtleShadow },
+            !hasLicense && { backgroundColor: shell.marketDullQrWrapBg },
+          ]}
+        >
           <QRCode
             value={permanentLink}
             size={76}
-            color="#0A2540"
-            backgroundColor="#FFFFFF"
+            color={shell.marketVipQrFg}
+            backgroundColor={shell.marketVipQrBg}
             logo={item.card.businessLogo ? { uri: item.card.businessLogo } : undefined}
             logoSize={16}
             ecl="H"
@@ -711,7 +727,11 @@ export default function SearchScreen() {
         {item.card.businessLogo ? (
           <ExpoImage
             source={{ uri: item.card.businessLogo }}
-            style={[styles.cardImage, !hasLicense && isMarketBusiness && styles.dullCardImage]}
+            style={[
+              styles.cardImage,
+              { backgroundColor: shell.avatarPlaceholderBg },
+              !hasLicense && isMarketBusiness && styles.dullCardImage,
+            ]}
             cachePolicy="disk"
           />
         ) : (
@@ -721,29 +741,27 @@ export default function SearchScreen() {
               styles.cardImagePlaceholder,
               !hasLicense && isMarketBusiness && styles.dullCardImage,
               {
-                backgroundColor: isDark ? MEDIA_PLACEHOLDER.businessBgDark : MEDIA_PLACEHOLDER.businessBgLight,
+                backgroundColor: MEDIA_PLACEHOLDER.businessBgLight,
                 borderWidth: 1,
-                borderColor: isDark ? MEDIA_PLACEHOLDER.businessBorderDark : MEDIA_PLACEHOLDER.businessBorderLight,
+                borderColor: MEDIA_PLACEHOLDER.businessBorderLight,
               },
             ]}
           >
             <MaterialCommunityIcons
               name={MEDIA_PLACEHOLDER.businessIconName}
               size={40}
-              color={isDark ? MEDIA_PLACEHOLDER.businessIconDark : MEDIA_PLACEHOLDER.businessIconLight}
+              color={MEDIA_PLACEHOLDER.businessIconLight}
             />
           </View>
         )}
 
         <View style={styles.cardContent}>
-          <Text style={[styles.cardTitle, { color: palette.textPrimary }]}>{item.card.businessName}</Text>
-          <Text style={[styles.cardSubtitle, { color: palette.textSecondary }]}>
-            {item.card.businessDescription}
-          </Text>
+          <Text style={[styles.cardTitle, { color: shell.marketVipTitle }]}>{item.card.businessName}</Text>
+          <Text style={[styles.cardSubtitle, { color: shell.marketVipBody }]}>{item.card.businessDescription}</Text>
 
           {!hasLicense && isMarketBusiness ? (
-            <View style={styles.dullPill}>
-              <Text style={styles.dullPillText}>
+            <View style={[styles.dullPill, { backgroundColor: shell.marketDullPillBg }]}>
+              <Text style={[styles.dullPillText, { color: shell.marketDullPillText }]}>
                 {tr('Modo tenue: anualidad pendiente', 'Dull mode: subscription pending')}
               </Text>
             </View>
@@ -751,40 +769,39 @@ export default function SearchScreen() {
 
           <View style={styles.statsContainer}>
             <View style={styles.stat}>
-              <MaterialCommunityIcons name="star" size={14} color="#C5A065" />
-              <Text style={[styles.statText, { color: palette.textSecondary }]}>
-                {(item.card.averageRating ?? 0).toFixed(1)}
-              </Text>
+              <MaterialCommunityIcons name="star" size={14} color={shell.ctaAccent} />
+              <Text style={[styles.statText, { color: shell.marketVipBody }]}>{(item.card.averageRating ?? 0).toFixed(1)}</Text>
             </View>
 
             {showMiles && milesLabel ? (
               <View style={styles.stat}>
-                <MaterialCommunityIcons name="map-marker" size={14} color="#1EA7FF" />
-                <Text style={[styles.statText, { color: palette.textSecondary }]}>{milesLabel}</Text>
+                <MaterialCommunityIcons name="map-marker" size={14} color={shell.textSecondary} />
+                <Text style={[styles.statText, { color: shell.marketVipBody }]}>{milesLabel}</Text>
               </View>
             ) : null}
 
             <View style={styles.stat}>
-              <MaterialCommunityIcons name="check-circle" size={14} color="#2ECC71" />
-              <Text style={[styles.statText, { color: palette.textSecondary }]}>
-                {tr('Verificado', 'Verified')}
-              </Text>
+              <MaterialCommunityIcons name="check-circle" size={14} color={shell.success} />
+              <Text style={[styles.statText, { color: shell.marketVipBody }]}>{tr('Verificado', 'Verified')}</Text>
             </View>
           </View>
         </View>
 
-        <View style={[styles.ctaContainer, { borderLeftColor: palette.border }]}>
-          <Pressable style={({ pressed }) => [styles.ctaButton, pressed && styles.pressedButton]}>
-            <MaterialCommunityIcons name="phone" size={24} color="#1EA7FF" />
+        <View style={[styles.ctaContainer, { borderLeftColor: shell.marketVipCtaDivider }]}>
+          <Pressable style={({ pressed }) => [styles.ctaButton, pressed && { backgroundColor: shell.marketCtaPressedBg }]}>
+            <MaterialCommunityIcons name="phone" size={24} color={shell.textSecondary} />
           </Pressable>
-          <Pressable style={({ pressed }) => [styles.ctaButton, pressed && styles.pressedButton]}>
-            <MaterialCommunityIcons name="message-text" size={24} color="#1EA7FF" />
+          <Pressable style={({ pressed }) => [styles.ctaButton, pressed && { backgroundColor: shell.marketCtaPressedBg }]}>
+            <MaterialCommunityIcons name="message-text" size={24} color={shell.textSecondary} />
           </Pressable>
-          <Pressable style={({ pressed }) => [styles.ctaButton, pressed && styles.pressedButton]}>
-            <MaterialCommunityIcons name="plus" size={24} color="#1EA7FF" />
+          <Pressable style={({ pressed }) => [styles.ctaButton, pressed && { backgroundColor: shell.marketCtaPressedBg }]}>
+            <MaterialCommunityIcons name="plus" size={24} color={shell.textSecondary} />
           </Pressable>
-          <Pressable style={({ pressed }) => [styles.exportButton, pressed && styles.pressedCta]} onPress={handleExportBusinessQr}>
-            <MaterialCommunityIcons name="download" size={18} color="#FFFFFF" />
+          <Pressable
+            style={({ pressed }) => [styles.exportButton, { backgroundColor: shell.marketExportBtnBg }, pressed && styles.pressedCta]}
+            onPress={handleExportBusinessQr}
+          >
+            <MaterialCommunityIcons name="download" size={18} color={shell.btnPrimaryText} />
           </Pressable>
         </View>
       </Pressable>
@@ -793,7 +810,7 @@ export default function SearchScreen() {
   };
 
   return (
-    <View style={[styles.wrapper, { backgroundColor: palette.background }]}> 
+    <View style={[styles.wrapper, { backgroundColor: shell.background }]}> 
       <SectionList
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
@@ -805,15 +822,22 @@ export default function SearchScreen() {
           <View
             style={[
               styles.sectionHeader,
-              { backgroundColor: palette.surfaceMuted, borderBottomColor: palette.border },
+              { backgroundColor: shell.surfaceMuted, borderBottomColor: shell.border },
             ]}
           >
-            <Text style={[styles.sectionHeaderText, { color: palette.textPrimary }]}>{title}</Text>
+            <Text style={[styles.sectionHeaderText, { color: shell.textPrimary }]}>{title}</Text>
           </View>
         )}
         ListHeaderComponent={marketListHeader}
         stickySectionHeadersEnabled={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={shell.refreshAccent}
+            colors={[shell.refreshAccent]}
+          />
+        }
         ListEmptyComponent={
           listSections.length === 0 && loading && submittedQuery.trim().length > 0 ? (
             <View style={styles.marketSkeletonWrap}>
@@ -821,13 +845,13 @@ export default function SearchScreen() {
             </View>
           ) : !loading && listSections.length === 0 ? (
             <Pressable onPress={Keyboard.dismiss} style={styles.emptyState}>
-              <MaterialCommunityIcons name="magnify" size={64} color="#CCC" />
+              <MaterialCommunityIcons name="magnify" size={64} color={shell.emptyIconMuted} />
               {submittedQuery.trim().length > 0 ? (
                 <>
-                  <Text style={[styles.emptyTitle, { color: palette.textPrimary }]}>
+                  <Text style={[styles.emptyTitle, { color: shell.textPrimary }]}>
                     {tr('Sin coincidencias', 'No matches')}
                   </Text>
-                  <Text style={[styles.emptySubtitle, { color: palette.textSecondary }]}>
+                  <Text style={[styles.emptySubtitle, { color: shell.textSecondary }]}>
                     {tr(
                       'Prueba con otras palabras o sinónimos. También puedes revisar tu conexión.',
                       'Try different words or synonyms. You can also check your connection.',
@@ -836,10 +860,10 @@ export default function SearchScreen() {
                 </>
               ) : (
                 <>
-                  <Text style={[styles.emptyTitle, { color: palette.textPrimary }]}>
+                  <Text style={[styles.emptyTitle, { color: shell.textPrimary }]}>
                     {tr('Busca algo…', 'Search for something…')}
                   </Text>
-                  <Text style={[styles.emptySubtitle, { color: palette.textSecondary }]}>
+                  <Text style={[styles.emptySubtitle, { color: shell.textSecondary }]}>
                     {tr(
                       'Tus tarjetas recibidas y el Mercado Social',
                       'Your received cards and the Social Market',
@@ -853,8 +877,8 @@ export default function SearchScreen() {
       />
 
       {loading && listSections.length > 0 ? (
-        <View style={[styles.loadingOverlayLight, { backgroundColor: isDark ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.45)' }]}>
-          <ActivityIndicator size="small" color="#54C1FB" />
+        <View style={[styles.loadingOverlayLight, { backgroundColor: isDark ? shell.loadingOverlayDimDark : shell.loadingOverlayDim }]}>
+          <ActivityIndicator size="small" color={shell.refreshAccent} />
         </View>
       ) : null}
 
@@ -864,12 +888,12 @@ export default function SearchScreen() {
         animationType="slide"
         onRequestClose={() => setMarketSortModalVisible(false)}
       >
-        <Pressable style={styles.marketSortModalOverlay} onPress={() => setMarketSortModalVisible(false)}>
+        <Pressable style={[styles.marketSortModalOverlay, { backgroundColor: shell.overlayScrim }]} onPress={() => setMarketSortModalVisible(false)}>
           <Pressable
-            style={[styles.marketSortModalCard, { backgroundColor: palette.surface, borderColor: palette.border }]}
+            style={[styles.marketSortModalCard, { backgroundColor: shell.surface, borderColor: shell.border }]}
             onPress={() => {}}
           >
-            <Text style={[styles.marketSortModalTitle, { color: palette.textPrimary }]}>
+            <Text style={[styles.marketSortModalTitle, { color: shell.textPrimary }]}>
               {tr('Ordenar Mercado', 'Sort market')}
             </Text>
             {(
@@ -883,12 +907,12 @@ export default function SearchScreen() {
                 style={[
                   styles.marketSortOptionRow,
                   {
-                    backgroundColor: isDark ? palette.surfaceMuted : '#FFFFFF',
-                    borderColor: palette.border,
+                    backgroundColor: isDark ? shell.surfaceMuted : shell.surface,
+                    borderColor: shell.border,
                   },
                   marketSortMode === option.key && {
-                    borderColor: palette.ctaPrimary,
-                    backgroundColor: isDark ? '#1a2838' : '#EAF7FF',
+                    borderColor: shell.ctaPrimary,
+                    backgroundColor: shell.storiesControlActiveBg,
                   },
                 ]}
                 onPress={() => {
@@ -900,14 +924,14 @@ export default function SearchScreen() {
                 <Text
                   style={[
                     styles.marketSortOptionText,
-                    { color: palette.textSecondary },
-                    marketSortMode === option.key && { color: palette.textPrimary },
+                    { color: shell.textSecondary },
+                    marketSortMode === option.key && { color: shell.textPrimary },
                   ]}
                 >
                   {option.label}
                 </Text>
                 {marketSortMode === option.key ? (
-                  <MaterialCommunityIcons name="check-circle" size={17} color={palette.ctaAccent} />
+                  <MaterialCommunityIcons name="check-circle" size={17} color={shell.ctaAccent} />
                 ) : null}
               </TouchableOpacity>
             ))}
@@ -928,7 +952,6 @@ export default function SearchScreen() {
 const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
-    backgroundColor: '#F9F9F9',
   },
   listContent: {
     flexGrow: 1,
@@ -977,7 +1000,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   goButtonText: {
-    color: '#FFFFFF',
     fontWeight: '800',
     fontSize: 15,
     letterSpacing: 0.8,
@@ -1003,7 +1025,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
-    shadowColor: '#0D4D8A',
     shadowOpacity: 0.08,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
@@ -1024,7 +1045,6 @@ const styles = StyleSheet.create({
   },
   marketSortModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(7,33,54,0.35)',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 18,
@@ -1076,14 +1096,11 @@ const styles = StyleSheet.create({
   },
   resultCard: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
     marginHorizontal: 12,
     marginVertical: 8,
     borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#E8E8E8',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -1101,7 +1118,6 @@ const styles = StyleSheet.create({
     maxWidth: 520,
     width: '100%',
     alignSelf: 'center',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 5,
@@ -1122,7 +1138,6 @@ const styles = StyleSheet.create({
     width: 76,
     height: 76,
     borderRadius: 38,
-    backgroundColor: '#F5F5F5',
   },
   marketReceivedTextCol: {
     flex: 1,
@@ -1202,7 +1217,6 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 12,
-    backgroundColor: '#F5F5F5',
   },
   cardContentFlat: {
     flex: 1,
@@ -1214,22 +1228,12 @@ const styles = StyleSheet.create({
     opacity: 0.94,
     transform: [{ scale: 0.995 }],
   },
-  dullCard: {
-    backgroundColor: '#ECEFF3',
-    borderColor: '#B9C0C9',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
   dullCardImage: {
     opacity: 0.55,
-  },
-  dullQrWrap: {
-    backgroundColor: '#F1F1F1',
   },
   cardImage: {
     width: 80,
     height: 80,
-    backgroundColor: '#F5F5F5',
   },
   cardImagePlaceholder: {
     justifyContent: 'center',
@@ -1243,17 +1247,14 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0A2540',
     marginBottom: 4,
   },
   cardSubtitle: {
     fontSize: 12,
-    color: '#666',
     marginBottom: 8,
   },
   dullPill: {
     alignSelf: 'flex-start',
-    backgroundColor: '#D6DADF',
     borderRadius: 999,
     paddingHorizontal: 9,
     paddingVertical: 4,
@@ -1261,7 +1262,6 @@ const styles = StyleSheet.create({
   },
   dullPillText: {
     fontSize: 10,
-    color: '#303846',
     fontWeight: '700',
   },
   statsContainer: {
@@ -1275,14 +1275,12 @@ const styles = StyleSheet.create({
   },
   statText: {
     fontSize: 11,
-    color: '#666',
     fontWeight: '500',
   },
   ctaContainer: {
     justifyContent: 'space-around',
     paddingVertical: 12,
     borderLeftWidth: 1,
-    borderLeftColor: '#E8E8E8',
   },
   ctaButton: {
     minHeight: 44,
@@ -1297,12 +1295,8 @@ const styles = StyleSheet.create({
     minHeight: 44,
     minWidth: 44,
     borderRadius: 999,
-    backgroundColor: '#0A2540',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  pressedButton: {
-    backgroundColor: 'rgba(30,167,255,0.14)',
   },
   pressedCta: {
     opacity: 0.88,
@@ -1316,10 +1310,8 @@ const styles = StyleSheet.create({
     width: 84,
     height: 84,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.16,
     shadowRadius: 5,
@@ -1333,12 +1325,10 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0A2540',
     marginTop: 16,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#666',
     marginTop: 8,
   },
   marketSkeletonWrap: {

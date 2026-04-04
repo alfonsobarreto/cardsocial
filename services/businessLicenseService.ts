@@ -57,21 +57,19 @@ export async function activateOrRenewBusinessLicense(params: {
     updatedAt: nowIso,
   };
 
-  await setDoc(
-    userLicenseRef,
-    {
+  /** Firestore no acepta `undefined` en campos — omitir opcionales vacíos. */
+  const licenseForFirestore = Object.fromEntries(
+    Object.entries({
       ...license,
       updatedAtServer: serverTimestamp(),
-    },
-    { merge: true },
+    }).filter(([, v]) => v !== undefined),
   );
+
+  await setDoc(userLicenseRef, licenseForFirestore, { merge: true });
 
   await setDoc(
     doc(db, 'business_card_licenses', `${params.userId}_${params.cardId}`),
-    {
-      ...license,
-      updatedAtServer: serverTimestamp(),
-    },
+    licenseForFirestore,
     { merge: true },
   );
 

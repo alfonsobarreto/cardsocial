@@ -4,7 +4,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActionSheetIOS,
   Alert,
@@ -31,6 +31,7 @@ import { newEntityId } from '@/services/newEntityId';
 import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { fetchFaviconFromAzure } from '@/services/faviconApi';
+import { premiumTheme } from '../premiumTheme';
 import { db } from '@/services/firebaseConfig';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
@@ -76,17 +77,19 @@ const CLOUD_SYNC_TIMEOUT_MS = 8000;
 
 type DataType = 'Enlaces' | 'Teléfono' | 'Ghost-Link' | 'Email' | 'Texto Plain' | 'Documento';
 
-const DATA_TYPE_OPTIONS: Array<{ key: DataType; label: string; labelEn: string }> = [
-  { key: 'Enlaces', label: 'Enlace', labelEn: 'Link' },
-  { key: 'Email', label: 'Email', labelEn: 'Email' },
-  { key: 'Teléfono', label: 'Teléfono', labelEn: 'Phone' },
-  { key: 'Ghost-Link', label: 'Ghost-Link', labelEn: 'Ghost-Link' },
-  { key: 'Texto Plain', label: 'Texto', labelEn: 'Text' },
-  { key: 'Documento', label: 'Documento', labelEn: 'Document' },
+const DATA_TYPE_OPTIONS: Array<{
+  key: DataType;
+  label: string;
+  labelEn: string;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+}> = [
+  { key: 'Enlaces', label: 'Enlace', labelEn: 'Link', icon: 'link-variant' },
+  { key: 'Email', label: 'Email', labelEn: 'Email', icon: 'email-outline' },
+  { key: 'Teléfono', label: 'Teléfono', labelEn: 'Phone', icon: 'phone-outline' },
+  { key: 'Texto Plain', label: 'Texto', labelEn: 'Text', icon: 'text-box-outline' },
+  { key: 'Documento', label: 'Documento', labelEn: 'Document', icon: 'file-document-outline' },
+  { key: 'Ghost-Link', label: 'Ghost Link', labelEn: 'Ghost Link', icon: 'phone-in-talk' },
 ];
-
-/** Ghost-Link solo existe el ítem bootstrap; no se crea uno nuevo desde "Agregar dato". */
-const DATA_TYPE_OPTIONS_CREATABLE = DATA_TYPE_OPTIONS.filter((o) => o.key !== GHOST_LINK_VAULT_TYPE);
 
 const defaultGhostLinkIconStable = (() => {
   const it =
@@ -167,23 +170,54 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const { language } = useLanguage();
   const tr = (es: string, en: string) => language === 'en' ? en : es;
   const isNight = resolvedMode === 'noche';
-  const formTheme = {
-    motherBg: isNight ? '#0A2540' : '#E3F2FD',
-    surfaceBg: isNight ? '#0A2540' : '#E3F2FD',
-    border: isNight ? '#D4AF37' : '#D4AF37',
-    textPrimary: isNight ? '#F0F4F8' : '#002D4B',
-    textSecondary: isNight ? '#B8D9F0' : '#7A8A97',
-    inputBg: isNight ? '#0D2E40' : '#E3F2FD',
-    inputText: isNight ? '#F0F4F8' : '#002D4B',
-    inputPlaceholder: isNight ? '#87A9C2' : '#666666',
-    selectedPillBg: isNight ? '#1C5BB9' : '#54C1FB',
-    selectedPillText: '#F0F4F8',
-    selectedPillGlow: isNight ? '#1C5BB9' : '#54C1FB',
-    selectedBgInput: isNight ? '#1C5BB9' : '#54C1FB',
-    iconPreviewCircleBg: isNight ? '#0B2234' : '#F0F4F8',
-    iconPreviewCircleBorder: isNight ? '#C5A065' : '#CFE6F8',
-    gradientColors: (isNight ? ['#E8C547', '#C5A065', '#D4AF37'] : ['#00BFD9', '#00A0C6', '#0099CC']) as readonly [string, string, ...string[]],
-  };
+  const formTheme = useMemo(
+    () => ({
+      motherBg: isNight ? '#0E0E0E' : '#FAF8F4',
+      surfaceBg: isNight ? '#141414' : '#FFFFFF',
+      /** Alineado con `premiumTheme.surfaceElevated` (tarjetas / paneles). */
+      premiumElevated: isNight ? premiumTheme.dark.surfaceElevated : premiumTheme.light.surfaceElevated,
+      chipInactiveBg: isNight ? '#161616' : '#F3EFE8',
+      chipInactiveBorder: isNight ? 'rgba(153,144,124,0.4)' : 'rgba(92,77,50,0.22)',
+      border: '#D4AF37',
+      labelGold: '#D4AF37',
+      titleColor: isNight ? '#FFFFFF' : '#1A1510',
+      textPrimary: isNight ? '#F2F0EB' : '#1C180F',
+      textSecondary: isNight ? '#9A9388' : '#5C5346',
+      inputBg: isNight ? '#101010' : '#FFFCF7',
+      inputText: isNight ? '#F0EDE8' : '#1C180F',
+      inputPlaceholder: isNight ? 'rgba(212,175,55,0.42)' : 'rgba(92,77,50,0.45)',
+      onLuxuryCta: '#0C0C0C',
+      /** Icono fallback dentro del aro (fondo oscuro → trazo claro). */
+      previewIconInCircle: isNight ? premiumTheme.dark.onVipBanner : premiumTheme.light.onAccent,
+      accentMuted: isNight ? 'rgba(242,202,80,0.55)' : 'rgba(180,140,50,0.55)',
+      selectedPillBg: isNight ? '#2A2418' : '#FFF6E0',
+      selectedPillText: isNight ? '#0C0C0C' : '#0C0C0C',
+      selectedPillGlow: '#C9A227',
+      selectedBgInput: isNight ? '#1C1810' : '#FFF3DC',
+      iconPreviewCircleBg: isNight ? premiumTheme.dark.surfaceElevated : premiumTheme.light.surfaceElevated,
+      iconPreviewCircleBorder: isNight ? '#C5A065' : '#D4AF37',
+      /** Marco de inputs (oro). */
+      gradientColors: (isNight
+        ? (['#5C4D32', '#B8942E', '#E8D4A3', '#C9A227', '#5C4D32'] as const)
+        : (['#A68B5B', '#D4AF37', '#F8EED0', '#D4AF37', '#8B7349'] as const)) as readonly [string, string, ...string[]],
+      /** Chips activos (relleno metálico). */
+      chipActiveFillGradient: (isNight
+        ? (['#5A4820', '#C9A227', '#FFF2C4', '#E8D4A3', '#B8942E', '#5A4820'] as const)
+        : (['#7A6528', '#E0C068', '#FFF8E8', '#F0D878', '#C9A227', '#7A6528'] as const)) as readonly [string, string, ...string[]],
+      /** Botón CREAR. */
+      ctaGradient: (isNight
+        ? (['#6B5420', '#B8942E', '#FFEFD0', '#F2CA50', '#D4AF37', '#6B5420'] as const)
+        : (['#8B7340', '#D4AF37', '#FFF4D8', '#F2CA50', '#C9A227', '#7A6228'] as const)) as readonly [string, string, ...string[]],
+      previewCardBg: isNight ? 'rgba(18,16,12,0.96)' : 'rgba(255,252,247,0.98)',
+      previewCardBorder: (isNight
+        ? (['#5C4D32', '#E8C76F', '#F2CA50', '#C9A227', '#5C4D32'] as const)
+        : (['#A68B5B', '#E8D0A0', '#F5E6C8', '#D4AF37', '#9A8358'] as const)) as readonly [string, string, ...string[]],
+    }),
+    [isNight],
+  );
+  /** 3 columnas × 2 filas; padding horizontal del scroll 20+20, dos huecos entre columnas. */
+  const typeChipGap = 8;
+  const typeChipWidth = (Dimensions.get('window').width - 40 - typeChipGap * 2) / 3;
   const [dataType, setDataType] = useState<DataType>('Enlaces');
   const [dataName, setDataName] = useState('');
   const [dataValue, setDataValue] = useState('');
@@ -592,6 +626,70 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           autoCorrect={false}
         />
       </LinearGradient>
+      {(dataName.trim() || dataValue.trim()) && (
+        <LinearGradient
+          colors={formTheme.previewCardBorder}
+          locations={[0, 0.22, 0.48, 0.55, 0.78, 1]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.linkPreviewLuxOuter}
+        >
+          <View
+            style={[
+              styles.linkPreviewInner,
+              { backgroundColor: formTheme.previewCardBg },
+              Platform.select({
+                ios: {
+                  shadowColor: '#F2CA50',
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: isNight ? 0.42 : 0.28,
+                  shadowRadius: 16,
+                },
+                android: { elevation: isNight ? 10 : 6 },
+                default: {},
+              }),
+            ]}
+          >
+            <Text style={[styles.linkPreviewSectionLabel, { color: formTheme.labelGold }]}>
+              {tr('VISTA PREVIA', 'PREVIEW')}
+            </Text>
+            <View style={styles.linkPreviewRow}>
+              <LinearGradient
+                colors={formTheme.chipActiveFillGradient as readonly [string, string, ...string[]]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.linkPreviewIconFrame}
+              >
+                <View style={[styles.linkPreviewIconInner, { backgroundColor: formTheme.iconPreviewCircleBg }]}>
+                  {selectedIcon === 'favicon' && faviconUrl ? (
+                    <Image source={{ uri: faviconUrl }} style={styles.linkPreviewFavicon} />
+                  ) : (
+                    <MaterialCommunityIcons
+                      name={
+                        sanitizeMaterialIconName(
+                          (selectedIcon === 'favicon' ? undefined : galleryItemByStableOrLegacy(selectedIcon))?.icon ||
+                            'link',
+                        ) as any
+                      }
+                      color={formTheme.previewIconInCircle}
+                      size={26}
+                    />
+                  )}
+                </View>
+              </LinearGradient>
+              <View style={styles.linkPreviewTextCol}>
+                <Text style={[styles.linkPreviewTitle, { color: formTheme.textPrimary }]} numberOfLines={1}>
+                  {dataName.trim() || tr('Sin nombre', 'No name')}
+                </Text>
+                <Text style={[styles.linkPreviewUrl, { color: formTheme.textSecondary }]} numberOfLines={1}>
+                  {dataValue.trim() || getLinkPlaceholder()}
+                </Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={22} color={formTheme.labelGold} />
+            </View>
+          </View>
+        </LinearGradient>
+      )}
       {dataType === 'Enlaces' && faviconPromptVisible && !!faviconPromptDomain && !faviconLoading && (
         <View style={styles.faviconPromptCard}>
           <Text style={styles.faviconPromptTitle}>
@@ -625,11 +723,20 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       )}
       {faviconUrl && (
         <View>
-          <View style={styles.faviconContainer}>
+          <View
+            style={[
+              styles.faviconContainer,
+              {
+                backgroundColor: formTheme.premiumElevated,
+                borderWidth: 1,
+                borderColor: formTheme.chipInactiveBorder,
+              },
+            ]}
+          >
             <Image source={{ uri: faviconUrl }} style={styles.faviconImg} />
-            <Text style={styles.faviconLabel}>{tr('Favicon detectado', 'Favicon detected')}</Text>
+            <Text style={[styles.faviconLabel, { color: formTheme.labelGold }]}>{tr('Favicon detectado', 'Favicon detected')}</Text>
           </View>
-          <Text style={styles.wordCount}>{tr('Si quieres otro estilo, elige un icono de la galería oficial.', 'Want a different style? Pick an icon from the official gallery.')}</Text>
+          <Text style={[styles.wordCount, { color: formTheme.textSecondary }]}>{tr('Si quieres otro estilo, elige un icono de la galería oficial.', 'Want a different style? Pick an icon from the official gallery.')}</Text>
         </View>
       )}
     </View>
@@ -1944,7 +2051,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 onPress={() => setCountryModalVisible(true)}
               >
                 <Text style={[styles.countryCodeText, { color: formTheme.inputText }]}>{countryCode}</Text>
-                <MaterialCommunityIcons name="chevron-down" color="#1EA7FF" size={18} />
+                <MaterialCommunityIcons name="chevron-down" color={formTheme.labelGold} size={18} />
               </TouchableOpacity>
             </LinearGradient>
             <LinearGradient
@@ -2056,17 +2163,19 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               </Text>
               </TouchableOpacity>
             </LinearGradient>
-            <Text style={styles.wordCount}>{tr('Se aceptan PDF o imágenes para visor protegido del Búnker.', 'PDF or images accepted for Vault protected viewer.')}</Text>
+            <Text style={[styles.wordCount, { color: formTheme.textSecondary }]}>{tr('Se aceptan PDF o imágenes para visor protegido del Búnker.', 'PDF or images accepted for Vault protected viewer.')}</Text>
             
             {/* PREVIEW del documento/imagen seleccionado */}
             {dataValue && (
               <View style={[styles.previewContainer, { backgroundColor: formTheme.inputBg }]}>
-                <Text style={[styles.previewLabel, { color: formTheme.textPrimary }]}>{tr('Vista Previa:', 'Preview:')}</Text>
+                <Text style={[styles.previewLabel, { color: formTheme.labelGold }]}>
+                  {tr('VISTA PREVIA', 'PREVIEW')}
+                </Text>
                 {isImageFile(dataValue) || isImageFile(dataName) ? (
                   <View style={styles.imagePreview}>
                     <Image 
                       source={{ uri: dataValue }} 
-                      style={styles.previewImage}
+                      style={[styles.previewImage, { backgroundColor: formTheme.premiumElevated }]}
                       onError={() => console.log('Error loading image')}
                     />
                     <Text style={[styles.previewFileName, { color: formTheme.textPrimary }]} numberOfLines={1}>
@@ -2104,7 +2213,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             <View style={styles.modalDragHandle} />
           </View>
           <View style={styles.titleDragZone}>
-            <Text style={styles.titleMain}>
+            <Text style={[styles.titleMain, { color: formTheme.titleColor }]}>
               {editingData?.id ? tr('EDITAR INFORMACIÓN', 'EDIT INFORMATION') : tr('NUEVA INFORMACIÓN', 'NEW INFORMATION')}
             </Text>
           </View>
@@ -2133,56 +2242,102 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         >
           {/* TIPO DE DATA */}
           <View style={styles.section}>
-            <Text style={[styles.stepLabel, { color: formTheme.textPrimary }]}>{tr('TIPO DE DATO', 'DATA TYPE')} {editingData?.id && tr('(No editable)', '(Read-only)')}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typePillsRow} removeClippedSubviews={true} scrollEventThrottle={16} bounces={false} overScrollMode="never">
-              {(editingData?.id ? DATA_TYPE_OPTIONS : DATA_TYPE_OPTIONS_CREATABLE).map((option) => {
+            <Text style={[styles.stepLabel, { color: formTheme.labelGold }]}>
+              {tr('TIPO DE DATO', 'DATA TYPE')} {editingData?.id && tr('(No editable)', '(Read-only)')}
+            </Text>
+            <View style={styles.typeChipGrid}>
+              {DATA_TYPE_OPTIONS.map((option) => {
                 const isActive = dataType === option.key;
+                const chipLabel = language === 'en' ? option.labelEn : option.label;
+                const disabledChip = !!editingData?.id;
+                const onSelectType = () => {
+                  if (disabledChip) return;
+                  if (option.key === GHOST_LINK_VAULT_TYPE) {
+                    Alert.alert(
+                      tr('Ghost Link', 'Ghost Link'),
+                      tr(
+                        'Card-Social ya incluye un Ghost Link en tu Bóveda. Edítalo desde el menú del ítem; no puedes crear otro.',
+                        'Card-Social already includes one Ghost Link in your Vault. Edit it from the item menu; you cannot add another.',
+                      ),
+                    );
+                    return;
+                  }
+                  setDataType(option.key);
+                  setDataValue('');
+                };
+                const iconColor = isActive ? formTheme.onLuxuryCta : formTheme.textPrimary;
+                const labelColor = isActive ? formTheme.onLuxuryCta : formTheme.textPrimary;
                 return (
-                    <LinearGradient
-                      key={option.key}
-                      colors={formTheme.gradientColors}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={{ borderRadius: 999, padding: 4 }}
-                    >
+                  <View key={option.key} style={[styles.typeChipWrap, { width: typeChipWidth }]}>
+                    {isActive ? (
+                      <LinearGradient
+                        colors={formTheme.chipActiveFillGradient as readonly [string, string, ...string[]]}
+                        locations={[0, 0.2, 0.45, 0.55, 0.8, 1]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={[
+                          styles.typeChipGradientOuter,
+                          Platform.select({
+                            ios: {
+                              shadowColor: formTheme.selectedPillGlow,
+                              shadowOffset: { width: 0, height: 0 },
+                              shadowOpacity: 0.5,
+                              shadowRadius: 14,
+                            },
+                            android: { elevation: 10 },
+                            default: {},
+                          }),
+                        ]}
+                      >
+                        <TouchableOpacity
+                          style={[styles.typeChipCellInner, disabledChip && styles.typePillDisabled]}
+                          onPress={onSelectType}
+                          disabled={disabledChip}
+                          activeOpacity={0.88}
+                        >
+                          <MaterialCommunityIcons name={option.icon} size={18} color={iconColor} />
+                          <Text style={[styles.typeChipLabel, { color: labelColor }]} numberOfLines={2}>
+                            {chipLabel}
+                          </Text>
+                        </TouchableOpacity>
+                      </LinearGradient>
+                    ) : (
                       <TouchableOpacity
-                    style={[
-                      styles.typePill,
-                      {
-                        backgroundColor: isActive ? formTheme.selectedPillBg : formTheme.surfaceBg,
-                          borderWidth: 0,
-                          shadowColor: isActive ? formTheme.selectedPillGlow : '#000',
-                        shadowOpacity: isActive ? 0.22 : 0,
-                        elevation: isActive ? 4 : 0,
-                      },
-                      editingData?.id && styles.typePillDisabled,
-                    ]}
-                    onPress={() => {
-                      if (editingData?.id) return;
-                      setDataType(option.key);
-                      setDataValue(option.key === GHOST_LINK_VAULT_TYPE ? GHOST_LINK_VAULT_VALUE : '');
-                    }}
-                    disabled={!!editingData?.id}
-                  >
-                    <Text
-                      style={[
-                        styles.typePillText,
-                        { color: isActive ? formTheme.selectedPillText : formTheme.textPrimary },
-                      ]}
-                    >
-                      {language === 'en' ? option.labelEn : option.label}
-                    </Text>
+                        style={[
+                          styles.typeChipCellInactive,
+                          {
+                            backgroundColor: formTheme.chipInactiveBg,
+                            borderColor: formTheme.chipInactiveBorder,
+                          },
+                          disabledChip && styles.typePillDisabled,
+                        ]}
+                        onPress={onSelectType}
+                        disabled={disabledChip}
+                        activeOpacity={0.88}
+                      >
+                        <MaterialCommunityIcons name={option.icon} size={18} color={iconColor} />
+                        <Text style={[styles.typeChipLabel, { color: labelColor }]} numberOfLines={2}>
+                          {chipLabel}
+                        </Text>
                       </TouchableOpacity>
-                    </LinearGradient>
+                    )}
+                  </View>
                 );
               })}
-            </ScrollView>
+            </View>
             <Text style={[styles.hint, { color: formTheme.textSecondary }]}>
               {editingData?.id ? tr('Tipo no puede cambiar al editar', 'Type cannot change while editing') : tr('Selecciona el tipo de dato', 'Select data type')}
             </Text>
             {autoTypeSuggestion && !editingData?.id && (
               <TouchableOpacity
-                style={[styles.autoTypeBanner, { backgroundColor: formTheme.selectedPillBg }]}
+                style={[
+                  styles.autoTypeBanner,
+                  {
+                    backgroundColor: isNight ? 'rgba(212,175,55,0.16)' : 'rgba(212,175,55,0.22)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(212,175,55,0.45)',
+                  },
+                ]}
                 onPress={() => {
                   prevDataTypeRef.current = autoTypeSuggestion;
                   setDataType(autoTypeSuggestion);
@@ -2191,12 +2346,12 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 }}
                 activeOpacity={0.8}
               >
-                <MaterialCommunityIcons name="swap-horizontal" color="#F0F4F8" size={16} />
-                <Text style={styles.autoTypeBannerText}>
+                <MaterialCommunityIcons name="swap-horizontal" color={formTheme.labelGold} size={16} />
+                <Text style={[styles.autoTypeBannerText, { color: formTheme.textPrimary }]}>
                   {tr(`¿Cambiar a ${autoTypeSuggestion}?`, `Switch to ${autoTypeSuggestion}?`)}
                 </Text>
                 <TouchableOpacity onPress={() => setAutoTypeSuggestion(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <MaterialCommunityIcons name="close" color="#F0F4F8" size={14} />
+                  <MaterialCommunityIcons name="close" color={formTheme.labelGold} size={14} />
                 </TouchableOpacity>
               </TouchableOpacity>
             )}
@@ -2204,7 +2359,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
           {/* NOMBRE DE DATA */}
           <View style={styles.section}>
-            <Text style={[styles.stepLabel, { color: formTheme.textPrimary }]}>{tr('NOMBRE DE DATA', 'DATA NAME')}</Text>
+            <Text style={[styles.stepLabel, { color: formTheme.labelGold }]}>{tr('NOMBRE DE DATA', 'DATA NAME')}</Text>
               <LinearGradient
                 colors={formTheme.gradientColors}
                 start={{ x: 0, y: 0 }}
@@ -2223,84 +2378,115 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
           {/* DATA */}
           <View style={styles.section}>
-            <Text style={[styles.stepLabel, { color: formTheme.textPrimary }]}>
-              {dataType === GHOST_LINK_VAULT_TYPE ? tr('GHOST-LINK', 'GHOST-LINK') : 'DATA'}
+            <Text style={[styles.stepLabel, { color: formTheme.labelGold }]}>
+              {dataType === GHOST_LINK_VAULT_TYPE ? tr('GHOST LINK', 'GHOST LINK') : 'DATA'}
             </Text>
             {renderDataField()}
           </View>
 
           <View style={styles.section}>
-            <View style={styles.stepHeader}>
-              <Text style={[styles.stepLabel, { color: formTheme.textPrimary }]}>{tr('ICONO', 'ICON')}</Text>
-              <TouchableOpacity
-                style={styles.editIconBtn}
-                onPress={() => setIconModalVisible(true)}
-                accessibilityLabel={tr('Elegir icono Card-Studio', 'Choose Card-Studio icon')}
-              >
-                <MaterialCommunityIcons name="pencil" color="#0A2540" size={18} />
-              </TouchableOpacity>
-            </View>
-            <View style={[styles.iconPreview, { backgroundColor: formTheme.surfaceBg }]}>
+            <Text style={[styles.stepLabel, { color: formTheme.labelGold, marginBottom: 10 }]}>{tr('ICONO', 'ICON')}</Text>
+            <TouchableOpacity
+              style={[
+                styles.iconLuxuryRow,
+                {
+                  backgroundColor: formTheme.surfaceBg,
+                  borderColor: formTheme.chipInactiveBorder,
+                },
+                Platform.select({
+                  ios: {
+                    shadowColor: formTheme.labelGold,
+                    shadowOffset: { width: 0, height: 0 },
+                    shadowOpacity: isNight ? 0.12 : 0.08,
+                    shadowRadius: 10,
+                  },
+                  android: { elevation: 3 },
+                  default: {},
+                }),
+              ]}
+              onPress={() => setIconModalVisible(true)}
+              activeOpacity={0.88}
+              accessibilityLabel={tr('Elegir icono Card-Studio', 'Choose Card-Studio icon')}
+            >
               {faviconLoading && dataType === 'Enlaces' ? (
-                <>
-                  <View style={styles.iconLoadingPreview}>
-                    <View style={styles.spinnerPriorityLayer}>
-                      <BrandedSpinner size={52} color="#D4AF37" />
-                    </View>
+                <View style={styles.iconLuxuryThumb}>
+                  <View style={styles.spinnerPriorityLayer}>
+                    <BrandedSpinner size={40} color="#D4AF37" />
                   </View>
-                  <Text style={styles.faviconLabel}>{tr('Buscando favicon en Azure...', 'Searching favicon on Azure...')}</Text>
-                </>
+                </View>
               ) : selectedIcon === 'favicon' && faviconUrl ? (
                 <LinearGradient
-                  colors={formTheme.gradientColors}
+                  colors={formTheme.chipActiveFillGradient as readonly [string, string, ...string[]]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
-                  style={styles.iconPreviewCircleGradient}
+                  style={styles.iconLuxuryThumbGradient}
                 >
-                  <View style={[styles.iconPreviewCircleInner, { backgroundColor: formTheme.iconPreviewCircleBg }]}> 
-                    <Image source={{ uri: faviconUrl }} style={styles.faviconImg} />
+                  <View style={[styles.iconLuxuryThumbInner, { backgroundColor: formTheme.iconPreviewCircleBg }]}>
+                    <Image source={{ uri: faviconUrl }} style={styles.iconLuxuryFavicon} />
                   </View>
                 </LinearGradient>
               ) : selectedIcon ? (
                 <LinearGradient
-                  colors={formTheme.gradientColors}
+                  colors={formTheme.chipActiveFillGradient as readonly [string, string, ...string[]]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
-                  style={styles.iconPreviewCircleGradient}
+                  style={styles.iconLuxuryThumbGradient}
                 >
-                  <View style={[styles.iconPreviewCircleInner, { backgroundColor: formTheme.iconPreviewCircleBg }]}> 
+                  <View style={[styles.iconLuxuryThumbInner, { backgroundColor: formTheme.iconPreviewCircleBg }]}>
                     <MaterialCommunityIcons
                       name={sanitizeMaterialIconName(previewCatalogItem?.icon || mappedIconName) as any}
-                      color={formTheme.textPrimary}
-                      size={48}
+                      color={formTheme.previewIconInCircle}
+                      size={28}
                     />
                   </View>
                 </LinearGradient>
               ) : (
-                <MaterialCommunityIcons name="image-plus" color="#999" size={40} />
+                <View style={[styles.iconLuxuryThumb, { backgroundColor: formTheme.chipInactiveBg }]}>
+                  <MaterialCommunityIcons name="image-plus" color={formTheme.accentMuted} size={28} />
+                </View>
               )}
-              <Text style={[styles.iconName, { color: formTheme.textPrimary }]}>
-                {dataName?.trim() || tr('Sin nombre', 'No name')}
-              </Text>
-            </View>
+              <View style={styles.iconLuxuryTextCol}>
+                <Text style={[styles.iconLuxuryTitle, { color: formTheme.textPrimary }]}>{tr('Icono', 'Icon')}</Text>
+                <Text style={[styles.iconLuxurySubtitle, { color: formTheme.textSecondary }]}>
+                  {tr('Personalizar representación', 'Customize appearance')}
+                </Text>
+                {faviconLoading && dataType === 'Enlaces' ? (
+                  <Text style={[styles.iconLuxurySubtitle, { color: formTheme.labelGold, marginTop: 4 }]}>
+                    {tr('Buscando favicon…', 'Searching favicon…')}
+                  </Text>
+                ) : null}
+              </View>
+              <Text style={[styles.iconLuxuryCta, { color: formTheme.labelGold }]}>{tr('CAMBIAR', 'CHANGE')}</Text>
+            </TouchableOpacity>
           </View>
 
           {/* CREATE/UPDATE BUTTON */}
-          <TouchableOpacity 
-            style={[styles.createButton, isSaving && styles.createButtonDisabled]} 
+          <TouchableOpacity
+            style={[styles.createButtonOuter, isSaving && styles.createButtonDisabled]}
             onPress={handleCreate}
             disabled={isSaving}
+            activeOpacity={0.9}
           >
-            {isSaving ? (
-              <Text style={styles.createButtonText}>{tr('GUARDANDO...', 'SAVING...')}</Text>
-            ) : (
-              <>
-                <MaterialCommunityIcons name="check-circle" color="#0A1A2F" size={24} />
-                <Text style={styles.createButtonText}>
-                  {editingData?.id ? tr('ACTUALIZAR', 'UPDATE') : tr('CREAR', 'CREATE')}
+            <LinearGradient
+              colors={formTheme.ctaGradient as readonly [string, string, ...string[]]}
+              locations={[0, 0.18, 0.45, 0.52, 0.75, 1]}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={styles.createButtonGradient}
+            >
+              {isSaving ? (
+                <Text style={[styles.createButtonText, { color: formTheme.onLuxuryCta }]}>
+                  {tr('GUARDANDO...', 'SAVING...')}
                 </Text>
-              </>
-            )}
+              ) : (
+                <>
+                  <MaterialCommunityIcons name="check-circle" color={formTheme.onLuxuryCta} size={24} />
+                  <Text style={[styles.createButtonText, { color: formTheme.onLuxuryCta }]}>
+                    {editingData?.id ? tr('ACTUALIZAR', 'UPDATE') : tr('CREAR', 'CREATE')}
+                  </Text>
+                </>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
           <View style={styles.saveButtonSpacer} />
         </ScrollView>
@@ -2317,16 +2503,16 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: formTheme.textPrimary }]}>{tr('Selecciona Tipo', 'Select Type')}</Text>
                 <TouchableOpacity onPress={() => setTypeModalVisible(false)}>
-                  <MaterialCommunityIcons name="close" color="#1EA7FF" size={24} />
+                  <MaterialCommunityIcons name="close" color={formTheme.labelGold} size={24} />
                 </TouchableOpacity>
               </View>
               <FlatList
                 data={
                   (editingData?.id
-                    ? ['Enlaces', 'Teléfono', 'Ghost-Link', 'Email', 'Texto Plain', 'Documento']
-                    : ['Enlaces', 'Teléfono', 'Email', 'Texto Plain', 'Documento']) as DataType[]
+                    ? (['Enlaces', 'Email', 'Teléfono', 'Texto Plain', 'Documento', 'Ghost-Link'] as DataType[])
+                    : (['Enlaces', 'Email', 'Teléfono', 'Texto Plain', 'Documento', 'Ghost-Link'] as DataType[]))
                 }
-                keyExtractor={item => item}
+                keyExtractor={(item) => item}
                 removeClippedSubviews={true}
                 scrollEventThrottle={16}
                 bounces={false}
@@ -2345,6 +2531,17 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                       },
                     ]}
                     onPress={() => {
+                      if (!editingData?.id && item === GHOST_LINK_VAULT_TYPE) {
+                        Alert.alert(
+                          tr('Ghost Link', 'Ghost Link'),
+                          tr(
+                            'Card-Social ya incluye un Ghost Link en tu Bóveda. Edítalo desde el menú del ítem; no puedes crear otro.',
+                            'Card-Social already includes one Ghost Link in your Vault. Edit it from the item menu; you cannot add another.',
+                          ),
+                        );
+                        setTypeModalVisible(false);
+                        return;
+                      }
                       setDataType(item);
                       setDataValue(item === GHOST_LINK_VAULT_TYPE ? GHOST_LINK_VAULT_VALUE : '');
                       setTypeModalVisible(false);
@@ -2358,7 +2555,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                         dataType === item && { color: formTheme.selectedPillText },
                       ]}
                     >
-                      {item}
+                      {language === 'en'
+                        ? DATA_TYPE_OPTIONS.find((o) => o.key === item)?.labelEn ?? item
+                        : DATA_TYPE_OPTIONS.find((o) => o.key === item)?.label ?? item}
                     </Text>
                     {dataType === item && (
                       <MaterialCommunityIcons name="check" color={formTheme.selectedPillText} size={20} />
@@ -2540,9 +2739,17 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
         {(isCompressing || isSaving || isUploading || uploadModalVisible) && (
           <View style={styles.compressOverlay} pointerEvents="auto">
-            <View style={styles.compressCard}>
+            <View
+              style={[
+                styles.compressCard,
+                {
+                  backgroundColor: formTheme.premiumElevated,
+                  borderColor: formTheme.border,
+                },
+              ]}
+            >
               <BrandedSpinner size={56} color="#D4AF37" />
-              <Text style={styles.compressText}>
+              <Text style={[styles.compressText, { color: formTheme.textPrimary }]}>
                 {isCompressing
                   ? tr('Optimizando archivo de forma segura...', 'Securely optimizing file...')
                   : isUploading
@@ -2591,6 +2798,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     </TouchableWithoutFeedback>
   );
 };
+
+/** Fallback en `StyleSheet` (el tema real va en `formTheme` en runtime). */
+const PREMIUM_PANEL = premiumTheme.light.surfaceElevated;
 
 const styles = StyleSheet.create({
   keyboardAvoiding: {
@@ -2695,10 +2905,10 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 4,
     borderColor: '#D4AF37',
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
   },
   typePillActive: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
   },
   typePillDisabled: {
     opacity: 0.55,
@@ -2712,8 +2922,161 @@ const styles = StyleSheet.create({
     color: '#F0F4F8',
     fontWeight: '700',
   },
+  typeChipGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    columnGap: 8,
+    rowGap: 8,
+  },
+  typeChipWrap: {
+    marginBottom: 0,
+  },
+  typeChipGradientOuter: {
+    borderRadius: 14,
+    padding: 2,
+    overflow: 'hidden',
+  },
+  typeChipCellInner: {
+    minHeight: 64,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    paddingVertical: 6,
+    gap: 4,
+    backgroundColor: 'transparent',
+  },
+  typeChipCellInactive: {
+    minHeight: 64,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    paddingVertical: 6,
+    gap: 4,
+  },
+  typeChipLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    textAlign: 'center',
+    letterSpacing: 0.15,
+    lineHeight: 12,
+  },
+  linkPreviewLuxOuter: {
+    marginTop: 14,
+    borderRadius: 18,
+    padding: 2,
+    overflow: 'hidden',
+  },
+  linkPreviewInner: {
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  linkPreviewSectionLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    marginBottom: 10,
+  },
+  linkPreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  linkPreviewIconFrame: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    padding: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  linkPreviewIconInner: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  linkPreviewFavicon: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+  },
+  linkPreviewTextCol: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  linkPreviewTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  linkPreviewUrl: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  iconLuxuryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    gap: 12,
+  },
+  iconLuxuryThumb: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  iconLuxuryThumbGradient: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    padding: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconLuxuryThumbInner: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  iconLuxuryFavicon: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+  },
+  iconLuxuryTextCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  iconLuxuryTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  iconLuxurySubtitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  iconLuxuryCta: {
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.9,
+  },
   dropdownButton: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     borderColor: '#D4AF37',
     borderWidth: 4,
     borderRadius: 12,
@@ -2740,7 +3103,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   input: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     borderColor: '#D4AF37',
     borderWidth: 4,
     borderRadius: 10,
@@ -2755,7 +3118,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   countryCodeButton: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     borderColor: '#D4AF37',
     borderWidth: 4,
     borderRadius: 10,
@@ -2773,14 +3136,13 @@ const styles = StyleSheet.create({
   faviconContainer: {
     marginTop: 12,
     padding: 12,
-    backgroundColor: '#E3F2FD',
     borderRadius: 10,
     alignItems: 'center',
   },
   faviconLoadingContainer: {
     marginTop: 12,
     padding: 12,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     borderRadius: 12,
     borderWidth: 4,
     borderColor: '#D4AF37',
@@ -2794,13 +3156,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   faviconLabel: {
-    color: '#1EA7FF',
     fontSize: 12,
     fontWeight: '600',
     marginTop: 8,
   },
   useFaviconButton: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     borderColor: '#D4AF37',
     borderWidth: 4,
     borderRadius: 10,
@@ -2831,7 +3192,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   documentButton: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     borderColor: '#D4AF37',
     borderWidth: 4,
     borderStyle: 'dashed',
@@ -2848,7 +3209,7 @@ const styles = StyleSheet.create({
   previewContainer: {
     marginTop: 16,
     padding: 14,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     borderRadius: 10,
     borderColor: '#D4AF37',
     borderWidth: 4,
@@ -2869,7 +3230,6 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 8,
-    backgroundColor: '#E3F2FD',
   },
   documentPreview: {
     alignItems: 'center',
@@ -2884,7 +3244,7 @@ const styles = StyleSheet.create({
     maxWidth: 200,
   },
   iconPreview: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     borderRadius: 24,
     paddingVertical: 24,
     alignItems: 'center',
@@ -2996,19 +3356,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  createButton: {
-    backgroundColor: '#D4AF37',
+  createButtonOuter: {
+    marginTop: 12,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  createButtonGradient: {
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 14,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 10,
-    marginTop: 12,
   },
   createButtonDisabled: {
     opacity: 0.5,
-    backgroundColor: '#999',
   },
   createButtonText: {
     color: '#0A1A2F',
@@ -3098,7 +3460,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   modalContent: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: SCREEN_HEIGHT * 0.65,
@@ -3178,13 +3540,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     margin: 4,
     borderRadius: 10,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     borderWidth: 0.5,
     borderColor: '#D4AF37',
   },
   iconItemSelected: {
-    backgroundColor: '#E3F2FD',
-    borderColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
+    borderColor: premiumTheme.light.border,
   },
   iconLabel: {
     fontSize: 9,
@@ -3243,7 +3605,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#D4AF37',
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 18,
@@ -3266,7 +3628,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 420,
     maxHeight: '88%',
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     borderRadius: 18,
     borderWidth: 1,
     borderColor: '#D4AF37',
@@ -3354,15 +3716,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   progressContainer: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     borderRadius: 20,
     padding: 40,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#1EA7FF',
+    borderColor: premiumTheme.light.accent,
   },
   uploadPercentage: {
-    color: '#1EA7FF',
+    color: premiumTheme.light.accent,
     fontSize: 32,
     fontWeight: '700',
     marginTop: 20,

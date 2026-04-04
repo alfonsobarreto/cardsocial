@@ -7,14 +7,10 @@
 
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useEffect, useRef, useState } from 'react';
-import {
-    Animated,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-} from 'react-native';
+import { useLookMode } from '@/services/lookMode';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import palette from '../app/theme';
 
 type SwipeHintProps = {
   storageKey?: string;
@@ -29,21 +25,61 @@ export function SwipeHint({
   message,
   onDismiss,
 }: SwipeHintProps) {
+  const { resolvedMode } = useLookMode();
+  const isNight = resolvedMode === 'noche';
+  const shell = palette[isNight ? 'dark' : 'light'];
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        overlay: {
+          ...StyleSheet.absoluteFillObject,
+          backgroundColor: shell.storiesModalOverlayBg,
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 999,
+        },
+        content: {
+          alignItems: 'center',
+          gap: 16,
+          paddingHorizontal: 40,
+        },
+        message: {
+          color: shell.fabText,
+          fontSize: 16,
+          fontWeight: '600',
+          textAlign: 'center',
+          lineHeight: 22,
+        },
+        gotIt: {
+          backgroundColor: shell.ctaAccent,
+          borderRadius: 24,
+          paddingHorizontal: 28,
+          paddingVertical: 10,
+          marginTop: 8,
+        },
+        gotItText: {
+          color: shell.emptyCtaText,
+          fontSize: 14,
+          fontWeight: '700',
+        },
+      }),
+    [shell],
+  );
+
   const [visible, setVisible] = useState(false);
   const translateX = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    void (async () => {
       const seen = await AsyncStorage.getItem(storageKey);
       if (seen || cancelled) return;
       setVisible(true);
 
-      // Fade in
       Animated.timing(opacity, { toValue: 1, duration: 400, useNativeDriver: true }).start();
 
-      // Animated swipe gesture loop
       Animated.loop(
         Animated.sequence([
           Animated.timing(translateX, {
@@ -60,7 +96,9 @@ export function SwipeHint({
         ]),
       ).start();
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [storageKey, direction, opacity, translateX]);
 
   const dismiss = async () => {
@@ -85,48 +123,14 @@ export function SwipeHint({
           <MaterialCommunityIcons
             name={direction === 'left' ? 'gesture-swipe-left' : 'gesture-swipe-right'}
             size={48}
-            color="#FFFFFF"
+            color={shell.fabText}
           />
         </Animated.View>
         <Text style={styles.message}>{message || defaultMsg}</Text>
-        <TouchableOpacity style={styles.gotIt} onPress={dismiss} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.gotIt} onPress={() => void dismiss()} activeOpacity={0.8}>
           <Text style={styles.gotItText}>Entendido</Text>
         </TouchableOpacity>
       </View>
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.65)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 999,
-  },
-  content: {
-    alignItems: 'center',
-    gap: 16,
-    paddingHorizontal: 40,
-  },
-  message: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  gotIt: {
-    backgroundColor: '#C5A065',
-    borderRadius: 24,
-    paddingHorizontal: 28,
-    paddingVertical: 10,
-    marginTop: 8,
-  },
-  gotItText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-});

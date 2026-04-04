@@ -1,4 +1,5 @@
 import { useLookMode } from '@/services/lookMode';
+import palette from '../theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import React from 'react';
@@ -50,23 +51,25 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
   const { t } = useTranslation();
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
+  const shell = palette[isNight ? 'dark' : 'light'];
 
-  // ── Theme tokens ────────────────────────────────────────
   const theme = {
-    overlayBg:       isNight ? '#0A1A2F'                   : '#EAF7FF',
-    previewAreaBg:   isNight ? '#0A1A2F'                   : '#D0EBF5',
-    bottomCardBg:    isNight ? '#0A1A2F'                   : '#FFFFFF',
-    bottomCardBorder:isNight ? 'rgba(212,175,55,0.22)'     : 'rgba(0,150,200,0.18)',
-    closeBtnBg:      isNight ? 'rgba(255,255,255,0.18)'    : 'rgba(0,45,75,0.14)',
-    closeIconColor:  isNight ? '#FFFFFF'                   : '#002D4B',
-    pdfFileNameColor:isNight ? '#FFFFFF'                   : '#002D4B',
-    pdfSnippetBg:    isNight ? 'rgba(255,255,255,0.08)'    : 'rgba(0,45,75,0.07)',
-    pdfSnippetText:  isNight ? 'rgba(255,255,255,0.55)'    : 'rgba(0,45,75,0.55)',
-    pdfSnippetDash:  isNight ? 'rgba(255,255,255,0.12)'    : 'rgba(0,45,75,0.12)',
-    titleColor:      isNight ? '#FFFFFF'                   : '#002D4B',
-    subtitleColor:   isNight ? 'rgba(255,255,255,0.50)'    : 'rgba(0,45,75,0.50)',
-    ghostBorder:     isNight ? 'rgba(255,255,255,0.30)'    : 'rgba(0,45,75,0.30)',
-    ghostText:       isNight ? '#FFFFFF'                   : '#002D4B',
+    overlayBg: shell.backgroundSolid,
+    previewAreaBg: shell.surface,
+    bottomCardBg: shell.modalBg,
+    bottomCardBorder: shell.border,
+    closeBtnBg: isNight ? 'rgba(255,255,255,0.14)' : 'rgba(28,28,30,0.1)',
+    closeIconColor: shell.textPrimary,
+    pdfFileNameColor: shell.textPrimary,
+    pdfSnippetBg: shell.gridCardBg,
+    pdfSnippetText: shell.textSecondary,
+    pdfSnippetDash: shell.divider,
+    titleColor: shell.textPrimary,
+    subtitleColor: shell.textSecondary,
+    ghostBorder: shell.border,
+    ghostText: shell.textPrimary,
+    acceptIconColor: shell.emptyCtaText,
+    accentPdfIcon: shell.ctaAccent,
   };
 
   const isPdf =
@@ -119,11 +122,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
                     </View>
                   ) : (
                     <View style={styles.pdfContainer}>
-                      <MaterialCommunityIcons
-                        name="file-pdf-box"
-                        color="#D4AF37"
-                        size={96}
-                      />
+                      <MaterialCommunityIcons name="file-pdf-box" color={theme.accentPdfIcon} size={96} />
                       <Text style={[styles.pdfFileName, { color: theme.pdfFileNameColor }]} numberOfLines={3}>
                         {fileName}
                       </Text>
@@ -157,7 +156,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
                     </ScrollView>
                   ) : (
                     <View style={styles.pdfContainer}>
-                      <MaterialCommunityIcons name="file-alert-outline" color="#D4AF37" size={88} />
+                      <MaterialCommunityIcons name="file-alert-outline" color={theme.accentPdfIcon} size={88} />
                       <Text style={[styles.pdfFileName, { color: theme.pdfFileNameColor }]}>
                         {t('preview_file_not_available')}
                       </Text>
@@ -192,17 +191,13 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
 
                   {/* Gold accept button */}
                   <TouchableOpacity
-                    style={styles.acceptBtn}
+                    style={[styles.acceptBtn, { backgroundColor: shell.ctaAccent, shadowColor: shell.ctaAccent }]}
                     onPress={handleAccept}
                     activeOpacity={0.85}
                     disabled={!hasAssetUri}
                   >
-                    <MaterialCommunityIcons
-                      name="shield-check"
-                      color="#0A1A2F"
-                      size={18}
-                    />
-                    <Text style={styles.acceptBtnText}>{t('preview_accept')}</Text>
+                    <MaterialCommunityIcons name="shield-check" color={theme.acceptIconColor} size={18} />
+                    <Text style={[styles.acceptBtnText, { color: shell.emptyCtaText }]}>{t('preview_accept')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -291,6 +286,19 @@ const styles = StyleSheet.create({
     height: 2,
     borderRadius: 1,
   },
+  pdfPreviewWrap: {
+    flex: 1,
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT * 0.62,
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 18,
+    overflow: 'hidden',
+  },
+  pdfPreview: {
+    flex: 1,
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT * 0.62,
+  },
 
   // ── Bottom card ───────────────────────────────────────────
   bottomCard: {
@@ -334,19 +342,16 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 48,
     borderRadius: 12,
-    backgroundColor: '#D4AF37',
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 6,
-    shadowColor: '#D4AF37',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 6,
   },
   acceptBtnText: {
-    color: '#0A1A2F',
     fontSize: 14,
     fontWeight: '800',
   },

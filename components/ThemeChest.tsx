@@ -15,6 +15,7 @@
  *   - "La Fragua" button for premium store
  */
 
+import { ThemeLockerThemeTile, THEME_LOCKER_TILE_GAP } from '@/components/ThemeLockerThemeTile';
 import {
     TIER_META,
     getThemeById,
@@ -25,7 +26,6 @@ import {
 import { useLanguage } from '@/services/language';
 import { setActiveThemeId, useActiveTheme } from '@/services/useActiveTheme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useState } from 'react';
@@ -33,7 +33,6 @@ import {
     Alert,
     Dimensions,
     Modal,
-    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -43,10 +42,8 @@ import {
 import Toast from 'react-native-toast-message';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const CARD_GAP = 10;
 const GRID_PADDING = 16;
-const CARD_WIDTH = (SCREEN_WIDTH - GRID_PADDING * 2 - CARD_GAP * 2) / 3;
-const CARD_HEIGHT = CARD_WIDTH * 1.3;
+const CARD_WIDTH = (SCREEN_WIDTH - GRID_PADDING * 2 - THEME_LOCKER_TILE_GAP * 2) / 3;
 const BORDER_RADIUS = 22; // squircle iOS-style
 
 type Props = {
@@ -99,110 +96,29 @@ export default function ThemeChest({ onNavigateToForge }: Props) {
     [unlockedIds, onNavigateToForge, tr],
   );
 
-  // ── Render one theme preview card ──────────────────────────────────────────
+  // ── Render one theme preview card (mismo tile que modal Temas en cards) ─────
   const renderThemeCard = (theme: CardTheme) => {
     const isActive = selectedThemeId === theme.id;
     const isUnlocked = unlockedIds.has(theme.id) || !theme.locked;
 
-    // Shadow per tier
-    const shadowProps =
-      theme.shadowStyle === 'drop'
-        ? {
-            shadowColor: theme.border.color,
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.35,
-            shadowRadius: 8,
-            elevation: 6,
-          }
-        : theme.shadowStyle === 'inner'
-          ? {
-              shadowColor: '#000000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.5,
-              shadowRadius: 4,
-              elevation: 3,
-            }
-          : {};
-
     return (
-      <View key={theme.id} style={styles.cardCol}>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => handleSelectTheme(theme)}
-          onLongPress={() => { try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {} setPreviewTheme(theme); }}
-          delayLongPress={400}
-          accessibilityLabel={`${theme.name} theme, ${theme.tier} tier${isActive ? ', active' : ''}${!isUnlocked ? `, locked, ${theme.price} credits` : ''}`}
-          accessibilityRole="button"
-          style={[
-            styles.cardWrap,
-            {
-              borderColor: theme.border.color,
-              borderWidth: theme.border.width,
-              ...shadowProps,
-            },
-            isActive && styles.cardActive,
-          ]}
-        >
-        <LinearGradient
-          colors={theme.background}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          style={styles.cardGradient}
-        >
-          {/* Title */}
-          <Text
-            style={[
-              styles.cardTitle,
-              { color: theme.title.color, fontSize: theme.title.fontSize * 0.68 },
-            ]}
-            numberOfLines={1}
-          >
-            Card
-          </Text>
-
-          {/* Subtitle */}
-          <Text
-            style={[
-              styles.cardSubtitle,
-              { color: theme.subtitle.color, fontSize: theme.subtitle.fontSize * 0.82 },
-            ]}
-            numberOfLines={1}
-          >
-            Social
-          </Text>
-
-          {/* Icon */}
-          <View style={styles.cardIconWrap}>
-            <MaterialCommunityIcons
-              name={theme.icon.name as any}
-              size={theme.icon.size * 0.85}
-              color={theme.icon.color}
-            />
-          </View>
-
-          {/* Active check */}
-          {isActive && (
-            <View style={styles.activeCheck}>
-              <MaterialCommunityIcons name="check-circle" size={20} color="#D4AF37" />
-            </View>
-          )}
-
-          {/* Locked overlay */}
-          {!isUnlocked && (
-            <View style={styles.lockedOverlay}>
-              {Platform.OS === 'ios' ? (
-                <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
-              ) : (
-                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)' }]} />
-              )}
-              <MaterialCommunityIcons name="lock" size={22} color="#FFFFFF" />
-              <Text style={styles.lockedPrice}>{theme.price}</Text>
-            </View>
-          )}
-        </LinearGradient>
-        </TouchableOpacity>
-        <Text style={styles.cardName} numberOfLines={1}>{theme.name}</Text>
-      </View>
+      <ThemeLockerThemeTile
+        key={theme.id}
+        theme={theme}
+        isActive={isActive}
+        isUnlocked={isUnlocked}
+        tileWidth={CARD_WIDTH}
+        reviewsLabel={tr('4.8 · 12 reseñas', '4.8 · 12 reviews')}
+        onPress={() => void handleSelectTheme(theme)}
+        onLongPress={() => {
+          try {
+            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          } catch {
+            /* noop */
+          }
+          setPreviewTheme(theme);
+        }}
+      />
     );
   };
 
@@ -312,9 +228,71 @@ export default function ThemeChest({ onNavigateToForge }: Props) {
                 end={{ x: 0.5, y: 1 }}
                 style={styles.previewGradient}
               >
-                <Text style={[styles.previewTitle, { color: previewTheme.title.color }]}>Card</Text>
-                <Text style={[styles.previewSubtitle, { color: previewTheme.subtitle.color }]}>Social</Text>
-                <MaterialCommunityIcons name={previewTheme.icon.name as any} size={previewTheme.icon.size * 1.8} color={previewTheme.icon.color} />
+                <Text
+                  style={[
+                    styles.previewTitle,
+                    {
+                      color: previewTheme.title.color,
+                      fontWeight: previewTheme.title.fontWeight,
+                      fontStyle: previewTheme.title.fontStyle,
+                    },
+                  ]}
+                >
+                  Card
+                </Text>
+                <Text
+                  style={[
+                    styles.previewSubtitle,
+                    {
+                      color: previewTheme.subtitle.color,
+                      fontWeight: previewTheme.subtitle.fontWeight,
+                      fontStyle: previewTheme.subtitle.fontStyle,
+                    },
+                  ]}
+                >
+                  Social
+                </Text>
+                <View
+                  style={[
+                    styles.previewIconBubble,
+                    {
+                      backgroundColor: previewTheme.bubble.backgroundColor,
+                      borderRadius: Math.min(previewTheme.bubble.borderRadius, 36),
+                      borderColor: previewTheme.border.color,
+                      borderWidth: Math.max(1, previewTheme.border.width),
+                    },
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name={previewTheme.icon.name as any}
+                    size={previewTheme.icon.size * 1.65}
+                    color={previewTheme.icon.color}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.previewIconLabel,
+                    {
+                      color: previewTheme.iconLabel.color,
+                      fontWeight: previewTheme.iconLabel.fontWeight,
+                      fontStyle: previewTheme.iconLabel.fontStyle,
+                    },
+                  ]}
+                >
+                  Icon
+                </Text>
+                <Text
+                  style={[
+                    styles.previewExtra,
+                    {
+                      color: previewTheme.extraText.color,
+                      fontWeight: previewTheme.extraText.fontWeight,
+                      fontStyle: previewTheme.extraText.fontStyle,
+                    },
+                  ]}
+                >
+                  {tr('4.8 · 12 reseñas', '4.8 · 12 reviews')}
+                </Text>
               </LinearGradient>
               <View style={styles.previewFooter}>
                 <Text style={styles.previewName}>{previewTheme.name}</Text>
@@ -383,58 +361,8 @@ const styles = StyleSheet.create({
   },
   tierGrid: {
     flexDirection: 'row',
-    gap: CARD_GAP,
-  },
-
-  // ── Theme card ──
-  cardWrap: {
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
-    borderRadius: BORDER_RADIUS,
-    overflow: 'hidden',
-  },
-  cardGradient: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    gap: 2,
-  },
-  cardTitle: {
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  cardSubtitle: {
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  cardIconWrap: {
-    marginTop: 4,
-  },
-  cardActive: {
-    borderWidth: 4,
-  },
-
-  // ── Active check ──
-  activeCheck: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-  },
-
-  // ── Locked overlay ──
-  lockedOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: BORDER_RADIUS - 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    overflow: 'hidden',
-  },
-  lockedPrice: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '800',
+    flexWrap: 'wrap',
+    gap: THEME_LOCKER_TILE_GAP,
   },
 
   // ── La Fragua ──
@@ -464,19 +392,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     marginTop: 2,
-  },
-
-  // ── Card column (card + name) ──
-  cardCol: {
-    width: CARD_WIDTH,
-    alignItems: 'center',
-    gap: 4,
-  },
-  cardName: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#5A6A7A',
-    textAlign: 'center',
   },
 
   // ── Current theme banner ──
@@ -536,7 +451,23 @@ const styles = StyleSheet.create({
   previewSubtitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 12,
+  },
+  previewIconBubble: {
+    width: 72,
+    height: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  previewIconLabel: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  previewExtra: {
+    fontSize: 12,
+    marginTop: 4,
+    opacity: 0.95,
   },
   previewFooter: {
     alignItems: 'center',

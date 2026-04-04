@@ -30,6 +30,7 @@ import { useLookMode } from '@/services/lookMode';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { sanitizeMaterialIconName } from './iconNameValidation';
 import {
@@ -38,6 +39,7 @@ import {
   Dimensions,
   InteractionManager,
   Modal,
+  Platform,
   ScrollView,
   SectionList,
   StyleSheet,
@@ -560,19 +562,38 @@ export default function CardStudioVault({
     })();
   };
 
-  const theme = {
-    surfaceBg:        isNight ? '#0A2540' : '#E3F2FD',
-    sheetBg:          isNight ? '#071828' : '#F5F9FF',
-    border:           '#D4AF37',
-    textPrimary:      isNight ? '#F0F4F8' : '#002D4B',
-    textSecondary:    isNight ? '#87A9C2' : '#5A7A8A',
-    selectedBg:       isNight ? '#1C5BB9' : '#54C1FB',
-    selectedText:     '#F0F4F8',
-    sectionHeaderBg:  isNight ? '#0D2035' : '#DCF0FC',
-    premiumBadgeBg:   '#1A1A2E',
-    premiumBadgeText: '#D4AF37',
-    iconBorder:       isNight ? '#1A3A50' : '#C8E6F5',
-  };
+  /** Alineado con NewInfoForm: lujo día/noche (oro, sin azul “app antigua”). */
+  const theme = useMemo(
+    () => ({
+      sheetBg: isNight ? '#121212' : '#FAF8F4',
+      border: '#D4AF37',
+      labelGold: '#D4AF37',
+      titleColor: isNight ? '#FFFFFF' : '#1A1510',
+      textPrimary: isNight ? '#F2F0EB' : '#1C180F',
+      textSecondary: isNight ? '#9A9388' : '#5C5346',
+      sectionHeaderBg: isNight ? 'rgba(212,175,55,0.08)' : 'rgba(212,175,55,0.12)',
+      sectionHeaderBorder: 'rgba(212,175,55,0.32)',
+      tileInactiveBg: isNight ? '#161616' : '#FFFFFF',
+      tileInactiveBorder: isNight ? 'rgba(153,144,124,0.4)' : 'rgba(92,77,50,0.22)',
+      selectedFillGradient: (isNight
+        ? (['#5A4820', '#C9A227', '#FFF2C4', '#E8D4A3', '#B8942E', '#5A4820'] as const)
+        : (['#7A6528', '#E0C068', '#FFF8E8', '#F0D878', '#C9A227', '#7A6528'] as const)) as readonly [string, string, ...string[]],
+      selectedText: '#0C0C0C',
+      selectedIcon: '#0C0C0C',
+      premiumBadgeBg: isNight ? '#221C12' : '#F3EBD4',
+      premiumBadgeText: '#D4AF37',
+      headerAccentGradient: (isNight
+        ? (['#3D3018', '#C9A227', '#F2CA50', '#C9A227', '#3D3018'] as const)
+        : (['#8B7349', '#D4AF37', '#F5E6C8', '#D4AF37', '#9A8048'] as const)) as readonly [string, string, ...string[]],
+      storeSheetBg: isNight ? '#141210' : '#FFFCF7',
+      storeSubtitle: isNight ? '#B5ADA2' : '#5C5346',
+      bundleMeta: isNight ? '#A8A090' : '#6B6258',
+      ctaGradient: (isNight
+        ? (['#6B5420', '#B8942E', '#FFEFD0', '#F2CA50', '#D4AF37', '#6B5420'] as const)
+        : (['#8B7340', '#D4AF37', '#FFF4D8', '#F2CA50', '#C9A227', '#7A6228'] as const)) as readonly [string, string, ...string[]],
+    }),
+    [isNight],
+  );
 
   const handleLongPress = (item: IconItem) => {
     Alert.alert(
@@ -609,8 +630,16 @@ export default function CardStudioVault({
   };
 
   const renderSectionHeader = ({ section }: { section: IconSection }) => (
-    <View style={[styles.sectionHeader, { backgroundColor: theme.sectionHeaderBg }]}>
-      <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
+    <View
+      style={[
+        styles.sectionHeader,
+        {
+          backgroundColor: theme.sectionHeaderBg,
+          borderBottomColor: theme.sectionHeaderBorder,
+        },
+      ]}
+    >
+      <Text style={[styles.sectionTitle, { color: theme.labelGold }]}>
         {isEN ? section.titleEn : section.title}
       </Text>
       {section.isPremium && (
@@ -632,47 +661,81 @@ export default function CardStudioVault({
           const stable = stableKeyForCatalogIcon(item);
           const active = selectedIcon === stable || selectedIcon === item.id;
           const unlocked = isIconUnlockedForUser(item, ownedIconVaultKeys);
-          return (
-            <TouchableOpacity
-              key={stable}
-              style={[
-                styles.iconItem,
-                { borderColor: theme.iconBorder },
-                active && {
-                  backgroundColor: theme.selectedBg,
-                  borderColor: theme.selectedBg,
-                  shadowColor: theme.selectedBg,
-                  shadowOpacity: 0.3,
-                  shadowRadius: 6,
-                  elevation: 4,
-                },
-              ]}
-              onPress={() => onPressCatalogIcon(item)}
-              onLongPress={unlocked ? () => handleLongPress(item) : undefined}
-              delayLongPress={1200}
-              activeOpacity={0.75}
-            >
+          const iconColor = active
+            ? theme.selectedIcon
+            : unlocked
+              ? theme.textPrimary
+              : theme.textSecondary;
+          const labelColor = active ? theme.selectedText : theme.textSecondary;
+          const cellInner = (
+            <>
               {!unlocked && (
                 <View style={styles.lockBadge}>
                   <MaterialCommunityIcons name="lock" size={11} color="#0A1A2F" />
                 </View>
               )}
-              {!unlocked && (
-                <Text style={styles.priceBadge}>{iconCreditPrice}</Text>
-              )}
+              {!unlocked && <Text style={styles.priceBadge}>{iconCreditPrice}</Text>}
               <MaterialCommunityIcons
                 name={sanitizeMaterialIconName(item.icon) as any}
-                color={active ? theme.selectedText : unlocked ? theme.textPrimary : theme.textSecondary}
+                color={iconColor}
                 size={28}
                 style={!unlocked ? { opacity: 0.55 } : undefined}
               />
-              <Text
-                style={[styles.iconLabel, { color: active ? theme.selectedText : theme.textSecondary }]}
-                numberOfLines={1}
-              >
+              <Text style={[styles.iconLabel, { color: labelColor }]} numberOfLines={1}>
                 {isEN ? item.labelEn : item.label}
               </Text>
-            </TouchableOpacity>
+            </>
+          );
+          return (
+            <View key={stable} style={styles.iconCellWrap}>
+              {active ? (
+                <LinearGradient
+                  colors={theme.selectedFillGradient}
+                  locations={[0, 0.2, 0.45, 0.55, 0.8, 1]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={[
+                    styles.iconItemGradientOuter,
+                    Platform.select({
+                      ios: {
+                        shadowColor: '#C9A227',
+                        shadowOffset: { width: 0, height: 0 },
+                        shadowOpacity: 0.45,
+                        shadowRadius: 10,
+                      },
+                      android: { elevation: 8 },
+                      default: {},
+                    }),
+                  ]}
+                >
+                  <TouchableOpacity
+                    style={styles.iconItemInner}
+                    onPress={() => onPressCatalogIcon(item)}
+                    onLongPress={unlocked ? () => handleLongPress(item) : undefined}
+                    delayLongPress={1200}
+                    activeOpacity={0.75}
+                  >
+                    {cellInner}
+                  </TouchableOpacity>
+                </LinearGradient>
+              ) : (
+                <TouchableOpacity
+                  style={[
+                    styles.iconItem,
+                    {
+                      borderColor: theme.tileInactiveBorder,
+                      backgroundColor: theme.tileInactiveBg,
+                    },
+                  ]}
+                  onPress={() => onPressCatalogIcon(item)}
+                  onLongPress={unlocked ? () => handleLongPress(item) : undefined}
+                  delayLongPress={1200}
+                  activeOpacity={0.75}
+                >
+                  {cellInner}
+                </TouchableOpacity>
+              )}
+            </View>
           );
         })}
       </View>
@@ -697,13 +760,21 @@ export default function CardStudioVault({
 
   const ListFooter = () => (
     <TouchableOpacity
-      style={styles.storeButton}
+      style={styles.storeButtonOuter}
       onPress={() => setStoreModalVisible(true)}
-      activeOpacity={0.85}
+      activeOpacity={0.88}
     >
-      <MaterialCommunityIcons name="store" color="#0A1A2F" size={22} />
-      <Text style={styles.storeButtonText}>Card-Studio</Text>
-      <MaterialCommunityIcons name="chevron-right" color="#0A1A2F" size={20} />
+      <LinearGradient
+        colors={theme.ctaGradient}
+        locations={[0, 0.18, 0.45, 0.52, 0.75, 1]}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={styles.storeButtonGradient}
+      >
+        <MaterialCommunityIcons name="store" color={theme.selectedText} size={22} />
+        <Text style={[styles.storeButtonText, { color: theme.selectedText }]}>Card-Studio</Text>
+        <MaterialCommunityIcons name="chevron-right" color={theme.selectedText} size={20} />
+      </LinearGradient>
     </TouchableOpacity>
   );
 
@@ -728,15 +799,21 @@ export default function CardStudioVault({
                 ]}
                 onStartShouldSetResponder={() => true}
               >
-                {/* Drag handle */}
+                {/* Drag handle + acento oro (misma línea visual que NewInfoForm) */}
                 <View style={styles.dragHandleWrap}>
                   <View style={styles.dragHandle} />
                 </View>
+                <LinearGradient
+                  colors={theme.headerAccentGradient}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={styles.headerGoldLine}
+                />
 
                 {/* Header */}
                 <View style={styles.header}>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.title, { color: theme.textPrimary }]}>
+                    <Text style={[styles.title, { color: theme.titleColor }]}>
                       Card-Studio — {dataType}
                     </Text>
                     {STUDIO_CATALOG_VECTOR_ICONS_PAID ? (
@@ -809,13 +886,13 @@ export default function CardStudioVault({
         <TouchableWithoutFeedback onPress={() => setStoreModalVisible(false)}>
           <View style={styles.storeOverlay}>
             <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={styles.storeSheet}>
-                <MaterialCommunityIcons name="store" color="#D4AF37" size={48} />
-                <Text style={styles.storeTitle}>Card-Studio</Text>
-                <Text style={[styles.storeSubtitle, { marginBottom: 8 }]}>
+              <View style={[styles.storeSheet, { backgroundColor: theme.storeSheetBg, borderColor: theme.border }]}>
+                <MaterialCommunityIcons name="store" color={theme.labelGold} size={48} />
+                <Text style={[styles.storeTitle, { color: theme.labelGold }]}>Card-Studio</Text>
+                <Text style={[styles.storeSubtitle, { marginBottom: 8, color: theme.textPrimary }]}>
                   {tr(`Saldo: ${creditsBalance} CS`, `Balance: ${creditsBalance} CS`)}
                 </Text>
-                <Text style={styles.storeSubtitle}>
+                <Text style={[styles.storeSubtitle, { color: theme.storeSubtitle }]}>
                   {tr(
                     'Bundles temáticos: 3 estilos de tarjeta + pack de iconos vinculado.',
                     'Theme bundles: 3 card styles + linked icon pack.',
@@ -829,10 +906,15 @@ export default function CardStudioVault({
                     const owned = bundleOwnedFlags[b.id];
                     const busy = bundlePurchasingId === b.id;
                     return (
-                      <View key={b.id} style={styles.bundleRow}>
+                      <View
+                        key={b.id}
+                        style={[styles.bundleRow, { borderBottomColor: theme.sectionHeaderBorder }]}
+                      >
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.bundleName}>{isEN ? b.nameEn : b.nameEs}</Text>
-                          <Text style={styles.bundleMeta}>
+                          <Text style={[styles.bundleName, { color: theme.textPrimary }]}>
+                            {isEN ? b.nameEn : b.nameEs}
+                          </Text>
+                          <Text style={[styles.bundleMeta, { color: theme.bundleMeta }]}>
                             {tr(
                               `3 temas + ${b.iconSeeds.length} iconos · ${b.creditsPrice} CS`,
                               `3 themes + ${b.iconSeeds.length} icons · ${b.creditsPrice} CS`,
@@ -904,6 +986,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#D4AF37',
     opacity: 0.5,
   },
+  headerGoldLine: {
+    height: 3,
+    width: '100%',
+    opacity: 0.95,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -935,6 +1022,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   sectionTitle: {
     fontSize: 12,
@@ -959,17 +1047,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
-  iconItem: {
+  iconCellWrap: {
     flex: 1,
     margin: 4,
+    minWidth: 56,
+    maxWidth: 70,
+  },
+  iconItemGradientOuter: {
+    borderRadius: 14,
+    padding: 2,
+    overflow: 'hidden',
+    flex: 1,
+  },
+  iconItemInner: {
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    backgroundColor: 'transparent',
+    minHeight: 72,
+  },
+  iconItem: {
+    flex: 1,
     borderRadius: 12,
     borderWidth: 1.5,
     paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 56,
-    maxWidth: 70,
     position: 'relative',
+    minHeight: 72,
   },
   lockBadge: {
     position: 'absolute',
@@ -1012,26 +1119,34 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     flex: 1,
   },
-  // Botón Card-Studio
-  storeButton: {
+  // Botón Card-Studio (gradiente como NewInfoForm)
+  storeButtonOuter: {
+    marginHorizontal: 20,
+    marginTop: 16,
+    borderRadius: 14,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#C9A227',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.35,
+        shadowRadius: 8,
+      },
+      android: { elevation: 6 },
+      default: {},
+    }),
+  },
+  storeButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 20,
-    marginTop: 16,
     paddingVertical: 14,
     borderRadius: 14,
-    backgroundColor: '#D4AF37',
     gap: 8,
-    shadowColor: '#D4AF37',
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 5,
   },
   storeButtonText: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#0A1A2F',
     letterSpacing: 1,
   },
   // Store modal
@@ -1043,24 +1158,20 @@ const styles = StyleSheet.create({
     padding: 32,
   },
   storeSheet: {
-    backgroundColor: '#0A2540',
     borderRadius: 20,
     padding: 32,
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#D4AF37',
     width: '100%',
   },
   storeTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#D4AF37',
     marginTop: 12,
     letterSpacing: 1,
   },
   storeSubtitle: {
     fontSize: 14,
-    color: '#B8D9F0',
     textAlign: 'center',
     marginTop: 12,
     lineHeight: 20,
@@ -1083,15 +1194,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 4,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(212,175,55,0.35)',
   },
   bundleName: {
-    color: '#F0F4F8',
     fontSize: 15,
     fontWeight: '700',
   },
   bundleMeta: {
-    color: '#9ECAE8',
     fontSize: 12,
     marginTop: 4,
   },

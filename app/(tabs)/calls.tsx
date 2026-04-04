@@ -1,6 +1,7 @@
 import { getActiveUserId } from '@/services/authSession';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
+import appPalette from '../theme';
 import {
     type CallHistoryRow,
     createCallLog,
@@ -20,6 +21,7 @@ import {
     FlatList,
     Modal,
     Pressable,
+    RefreshControl,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -37,8 +39,6 @@ type ContactRow = {
   storyState: 'none' | 'normal' | 'vip';
 };
 
-const STORY_RING_NORMAL = '#2ECC71';
-const STORY_RING_VIP = '#C5A065';
 const QUICK_TAGS = ['Interesado', 'Llamar luego', 'Cerrado'];
 
 export default function CallsPage() {
@@ -46,24 +46,302 @@ export default function CallsPage() {
   const tr = (es: string, en: string) => language === 'en' ? en : es;
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
-  const callsTheme = {
-    cardBg: isNight ? 'rgba(12,40,70,0.90)' : 'rgba(255,255,255,0.92)',
-    cardBorder: isNight ? 'rgba(212,175,55,0.18)' : 'rgba(13,77,138,0.22)',
-    textPrimary: isNight ? '#F0F4F8' : '#0A2540',
-    textSecondary: isNight ? '#87C8E8' : '#2E678E',
-    textMuted: isNight ? '#7AB9D8' : '#4A4A4A',
-    textChannel: isNight ? '#7AB9D8' : '#4F7FA0',
-    avatarFallbackBg: isNight ? '#0D2E40' : '#E8F5FF',
-    pillBg: isNight ? 'rgba(10,37,64,0.85)' : '#F2FAFF',
-    pillBorder: isNight ? 'rgba(212,175,55,0.22)' : 'rgba(13,77,138,0.27)',
-    pillText: isNight ? '#87C8E8' : '#0D4D8A',
-    modalBg: isNight ? '#0D2E40' : '#FFFFFF',
-    modalBorder: isNight ? 'rgba(212,175,55,0.22)' : 'rgba(13,77,138,0.2)',
-    modalRowBg: isNight ? '#0F3554' : '#F4FAFF',
-    modalRowBorder: isNight ? 'rgba(212,175,55,0.15)' : 'rgba(13,77,138,0.22)',
-    iconColor: isNight ? '#87C8E8' : '#0D4D8A',
-  };
+  const shell = appPalette[isNight ? 'dark' : 'light'];
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: { flex: 1 },
+        headerRow: {
+          marginTop: 16,
+          marginHorizontal: 16,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        },
+        title: {
+          color: shell.textPrimary,
+          fontSize: 25,
+          fontFamily: 'Georgia',
+          fontWeight: '800',
+        },
+        registerBtn: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 5,
+          backgroundColor: shell.headerBtnBg,
+          borderRadius: 999,
+          paddingVertical: 8,
+          paddingHorizontal: 12,
+        },
+        registerBtnText: {
+          color: shell.btnPrimaryText,
+          fontSize: 12,
+          fontWeight: '700',
+        },
+        loaderWrap: {
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        listContent: {
+          paddingHorizontal: 14,
+          paddingTop: 12,
+          paddingBottom: 20,
+          gap: 10,
+        },
+        rowCard: {
+          borderRadius: 16,
+          borderWidth: 1,
+          borderColor: shell.callsCardBorder,
+          backgroundColor: shell.callsCardBg,
+          padding: 10,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 10,
+        },
+        avatarRingBase: {
+          width: 58,
+          height: 58,
+          borderRadius: 29,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        avatarRingNone: {
+          borderWidth: 1,
+          borderColor: shell.border,
+        },
+        avatar: {
+          width: 50,
+          height: 50,
+          borderRadius: 25,
+        },
+        avatarFallback: {
+          width: 50,
+          height: 50,
+          borderRadius: 25,
+          backgroundColor: shell.avatarFallbackBg,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        rowMain: {
+          flex: 1,
+        },
+        nameText: {
+          color: shell.textPrimary,
+          fontSize: 15,
+          fontWeight: '800',
+        },
+        nickText: {
+          marginTop: 1,
+          color: shell.textSecondary,
+          fontSize: 12,
+          fontWeight: '700',
+        },
+        cardHintText: {
+          marginTop: 2,
+          color: shell.textMuted,
+          fontSize: 11,
+        },
+        callChannelText: {
+          marginTop: 2,
+          color: shell.textChannel,
+          fontSize: 10,
+          fontWeight: '700',
+        },
+        tagRow: {
+          marginTop: 7,
+          flexDirection: 'row',
+          gap: 6,
+        },
+        tagChip: {
+          borderRadius: 999,
+          borderWidth: 1,
+          borderColor: shell.pillBorder,
+          backgroundColor: shell.pillBg,
+          paddingHorizontal: 8,
+          paddingVertical: 4,
+        },
+        tagChipText: {
+          fontSize: 10,
+          color: shell.pillText,
+          fontWeight: '700',
+        },
+        voiceBtn: {
+          width: 34,
+          height: 34,
+          borderRadius: 17,
+          backgroundColor: shell.voiceBtnBg,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        emptyText: {
+          marginTop: 48,
+          textAlign: 'center',
+          color: shell.textSecondary,
+          fontSize: 14,
+          fontWeight: '600',
+        },
+        modalOverlay: {
+          flex: 1,
+          backgroundColor: shell.overlayScrim,
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingHorizontal: 18,
+        },
+        detailCard: {
+          width: '100%',
+          borderRadius: 18,
+          borderWidth: 1,
+          borderColor: shell.callsCardBorder,
+          backgroundColor: shell.callsCardBg,
+          padding: 18,
+          alignItems: 'center',
+        },
+        closeBtn: {
+          position: 'absolute',
+          top: 10,
+          right: 10,
+          width: 32,
+          height: 32,
+          borderRadius: 16,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: shell.surfaceMuted,
+        },
+        detailAvatar: {
+          marginTop: 8,
+          width: 78,
+          height: 78,
+          borderRadius: 39,
+        },
+        detailAvatarFallback: {
+          marginTop: 8,
+          width: 78,
+          height: 78,
+          borderRadius: 39,
+          backgroundColor: shell.avatarFallbackBg,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        detailName: {
+          marginTop: 10,
+          color: shell.textPrimary,
+          fontSize: 18,
+          fontWeight: '800',
+        },
+        detailNick: {
+          marginTop: 2,
+          color: shell.textSecondary,
+          fontSize: 13,
+          fontWeight: '700',
+        },
+        detailCardName: {
+          marginTop: 6,
+          color: shell.textMuted,
+          fontSize: 12,
+        },
+        detailStats: {
+          marginTop: 6,
+          color: shell.textPrimary,
+          fontSize: 12,
+          fontWeight: '700',
+        },
+        detailMeta: {
+          marginTop: 8,
+          color: shell.textSecondary,
+          fontSize: 11,
+          textAlign: 'center',
+        },
+        registerCard: {
+          width: '100%',
+          maxHeight: '80%',
+          borderRadius: 18,
+          backgroundColor: shell.modalBg,
+          borderWidth: 1,
+          borderColor: shell.modalBorder,
+          padding: 14,
+        },
+        registerTitle: {
+          color: shell.textPrimary,
+          fontSize: 17,
+          fontWeight: '800',
+        },
+        registerStep: {
+          marginTop: 12,
+          marginBottom: 6,
+          color: shell.textSecondary,
+          fontSize: 12,
+          fontWeight: '700',
+        },
+        optionWrap: {
+          gap: 7,
+        },
+        optionBtn: {
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: shell.modalRowBorder,
+          backgroundColor: shell.modalRowBg,
+          paddingVertical: 9,
+          paddingHorizontal: 10,
+        },
+        optionText: {
+          color: shell.textPrimary,
+          fontSize: 12,
+          fontWeight: '700',
+        },
+        inlineRow: {
+          flexDirection: 'row',
+          gap: 8,
+        },
+        inlineBtn: {
+          borderRadius: 999,
+          borderWidth: 1,
+          borderColor: shell.modalRowBorder,
+          backgroundColor: shell.modalRowBg,
+          paddingHorizontal: 10,
+          paddingVertical: 7,
+        },
+        inlineBtnText: {
+          color: shell.textPrimary,
+          fontSize: 11,
+          fontWeight: '700',
+        },
+        footerBtns: {
+          marginTop: 16,
+          flexDirection: 'row',
+          justifyContent: 'flex-end',
+          gap: 8,
+        },
+        cancelBtn: {
+          borderRadius: 10,
+          borderWidth: 1,
+          borderColor: shell.modalRowBorder,
+          paddingHorizontal: 12,
+          paddingVertical: 8,
+        },
+        cancelBtnText: {
+          color: shell.textSecondary,
+          fontSize: 12,
+          fontWeight: '700',
+        },
+        saveBtn: {
+          borderRadius: 10,
+          backgroundColor: shell.headerBtnBg,
+          paddingHorizontal: 12,
+          paddingVertical: 8,
+        },
+        saveBtnText: {
+          color: shell.btnPrimaryText,
+          fontSize: 12,
+          fontWeight: '700',
+        },
+      }),
+    [shell],
+  );
+
   const [loading, setLoading] = useState(true);
+  const [listRefreshing, setListRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [ownerUid, setOwnerUid] = useState('');
   const [history, setHistory] = useState<CallHistoryRow[]>([]);
@@ -82,9 +360,12 @@ export default function CallsPage() {
     return map;
   }, [contacts]);
 
-  const loadData = async () => {
+  const loadData = async (opts?: { silent?: boolean }) => {
+    const silent = Boolean(opts?.silent);
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       const uid = await getActiveUserId();
       if (!uid) {
         setHistory([]);
@@ -115,12 +396,14 @@ export default function CallsPage() {
     } catch (error: any) {
       Alert.alert(tr('No se pudo cargar Calls', 'Could not load Calls'), error?.message || tr('Intenta de nuevo.', 'Try again.'));
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
   const assignTag = async (row: CallHistoryRow, tag: string) => {
@@ -208,7 +491,7 @@ export default function CallsPage() {
 
       setRegisterVisible(false);
       setNewPeerUid('');
-      await loadData();
+      await loadData({ silent: true });
     } catch (error: any) {
       Alert.alert(tr('No se pudo registrar llamada', 'Could not register call'), error?.message || tr('Intenta nuevamente.', 'Try again.'));
     } finally {
@@ -217,38 +500,38 @@ export default function CallsPage() {
   };
 
   const renderRow = ({ item }: { item: CallHistoryRow }) => {
-    const ringStyle =
+    const ringExtra =
       item.storyState === 'vip'
-        ? styles.avatarRingVip
+        ? { borderWidth: 2.2 as const, borderColor: shell.ctaAccent }
         : item.storyState === 'normal'
-          ? styles.avatarRingNormal
+          ? { borderWidth: 2 as const, borderColor: shell.success }
           : styles.avatarRingNone;
     const contact = contactByUid.get(item.peerUid) || null;
 
     return (
       <TouchableOpacity
         activeOpacity={0.92}
-        style={[styles.rowCard, { backgroundColor: callsTheme.cardBg, borderColor: callsTheme.cardBorder }]}
+        style={styles.rowCard}
         onPress={() => {
           setSelectedCall(item);
           setDetailVisible(true);
         }}
       >
-        <View style={[styles.avatarRingBase, ringStyle]}>
+        <View style={[styles.avatarRingBase, ringExtra]}>
           {item.photoUrl ? (
             <ExpoImage source={{ uri: item.photoUrl }} style={styles.avatar} cachePolicy="disk" />
           ) : (
-            <View style={[styles.avatarFallback, { backgroundColor: callsTheme.avatarFallbackBg }]}>
-              <MaterialCommunityIcons name="account" size={18} color={callsTheme.iconColor} />
+            <View style={styles.avatarFallback}>
+              <MaterialCommunityIcons name="account" size={18} color={shell.iconColor} />
             </View>
           )}
         </View>
 
         <View style={styles.rowMain}>
-          <Text style={[styles.nameText, { color: callsTheme.textPrimary }]} numberOfLines={1}>{item.name}</Text>
-          <Text style={[styles.nickText, { color: callsTheme.textSecondary }]} numberOfLines={1}>@{item.nickname}</Text>
-          <Text style={[styles.cardHintText, { color: callsTheme.textMuted }]} numberOfLines={1}>{item.sourceCardName || contact?.cardName || tr('Tarjeta de contacto', 'Contact card')}</Text>
-          <Text style={[styles.callChannelText, { color: callsTheme.textChannel }]}>{tr('Canal privado: Ghost-Link VoIP', 'Private channel: Ghost-Link VoIP')}</Text>
+          <Text style={styles.nameText} numberOfLines={1}>{item.name}</Text>
+          <Text style={styles.nickText} numberOfLines={1}>@{item.nickname}</Text>
+          <Text style={styles.cardHintText} numberOfLines={1}>{item.sourceCardName || contact?.cardName || tr('Tarjeta de contacto', 'Contact card')}</Text>
+          <Text style={styles.callChannelText}>{tr('Canal privado: Ghost-Link VoIP', 'Private channel: Ghost-Link VoIP')}</Text>
 
           <View style={styles.tagRow}>
             {QUICK_TAGS.map((tag) => {
@@ -256,13 +539,19 @@ export default function CallsPage() {
               return (
                 <TouchableOpacity
                   key={`${item.callId}_${tag}`}
-                  style={[styles.tagChip, active && styles.tagChipActive, { backgroundColor: active ? undefined : callsTheme.pillBg, borderColor: active ? undefined : callsTheme.pillBorder }]}
+                  style={[
+                    styles.tagChip,
+                    {
+                      backgroundColor: active ? shell.headerBtnBg : shell.pillBg,
+                      borderColor: active ? shell.headerBtnBg : shell.pillBorder,
+                    },
+                  ]}
                   onPress={() => {
                     void assignTag(item, tag);
                   }}
                   disabled={saving}
                 >
-                  <Text style={[styles.tagChipText, active && styles.tagChipTextActive, { color: active ? undefined : callsTheme.pillText }]}>{tag}</Text>
+                  <Text style={[styles.tagChipText, { color: active ? shell.btnPrimaryText : shell.pillText }]}>{tag}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -276,7 +565,7 @@ export default function CallsPage() {
           }}
           disabled={saving}
         >
-          <MaterialCommunityIcons name="microphone-outline" size={18} color="#FFFFFF" />
+          <MaterialCommunityIcons name="microphone-outline" size={18} color={shell.btnPrimaryText} />
         </TouchableOpacity>
       </TouchableOpacity>
     );
@@ -285,18 +574,18 @@ export default function CallsPage() {
   const selectedContact = selectedCall ? contactByUid.get(selectedCall.peerUid) || null : null;
 
   return (
-    <LinearGradient colors={isNight ? ['#071A32', '#0A2540', '#0F2C50'] : ['#F8FCFF', '#EAF7FF', '#DDF2FF']} style={styles.container}>
+    <LinearGradient colors={[...shell.callsShellGradient]} style={styles.container}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>Calls</Text>
         <TouchableOpacity style={styles.registerBtn} onPress={() => setRegisterVisible(true)}>
-          <MaterialCommunityIcons name="plus" size={15} color="#FFFFFF" />
+          <MaterialCommunityIcons name="plus" size={15} color={shell.btnPrimaryText} />
           <Text style={styles.registerBtnText}>Registrar</Text>
         </TouchableOpacity>
       </View>
 
       {loading ? (
         <View style={styles.loaderWrap}>
-          <ActivityIndicator size="large" color="#0D4D8A" />
+          <ActivityIndicator size="large" color={shell.loaderAccent} />
         </View>
       ) : (
         <FlatList
@@ -304,88 +593,114 @@ export default function CallsPage() {
           keyExtractor={(item) => item.callId}
           renderItem={renderRow}
           contentContainerStyle={styles.listContent}
-          refreshing={loading}
-          onRefresh={() => {
-            void loadData();
-          }}
-          ListEmptyComponent={<Text style={[styles.emptyText, { color: callsTheme.textSecondary }]}>{tr('Aun no hay llamadas registradas.', 'No calls registered yet.')}</Text>}
+          refreshControl={
+            <RefreshControl
+              refreshing={listRefreshing}
+              onRefresh={async () => {
+                setListRefreshing(true);
+                await loadData({ silent: true });
+                setListRefreshing(false);
+              }}
+              tintColor={shell.refreshAccent}
+              colors={[shell.refreshAccent]}
+            />
+          }
+          ListEmptyComponent={<Text style={styles.emptyText}>{tr('Aun no hay llamadas registradas.', 'No calls registered yet.')}</Text>}
         />
       )}
 
       <Modal visible={detailVisible} transparent animationType="fade" onRequestClose={() => setDetailVisible(false)}>
         <View style={styles.modalOverlay}>
           <BlurView intensity={70} tint={isNight ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
-          <View style={[styles.detailCard, { backgroundColor: isNight ? 'rgba(12,40,70,0.95)' : 'rgba(255,255,255,0.72)', borderColor: callsTheme.cardBorder }]}>
-            <TouchableOpacity style={[styles.closeBtn, { backgroundColor: isNight ? 'rgba(15,53,84,0.95)' : 'rgba(255,255,255,0.88)' }]} onPress={() => setDetailVisible(false)} accessibilityLabel={tr('Cerrar', 'Close')}>
-              <MaterialCommunityIcons name="close" size={20} color={callsTheme.iconColor} />
+          <View style={styles.detailCard}>
+            <TouchableOpacity style={styles.closeBtn} onPress={() => setDetailVisible(false)} accessibilityLabel={tr('Cerrar', 'Close')}>
+              <MaterialCommunityIcons name="close" size={20} color={shell.iconColor} />
             </TouchableOpacity>
 
             {selectedCall?.photoUrl ? (
               <ExpoImage source={{ uri: selectedCall.photoUrl }} style={styles.detailAvatar} cachePolicy="disk" />
             ) : (
-              <View style={[styles.detailAvatarFallback, { backgroundColor: callsTheme.avatarFallbackBg }]}>
-                <MaterialCommunityIcons name="account" size={20} color={callsTheme.iconColor} />
+              <View style={styles.detailAvatarFallback}>
+                <MaterialCommunityIcons name="account" size={20} color={shell.iconColor} />
               </View>
             )}
 
-            <Text style={[styles.detailName, { color: callsTheme.textPrimary }]}>{selectedCall?.name || ''}</Text>
-            <Text style={[styles.detailNick, { color: callsTheme.textSecondary }]}>@{selectedCall?.nickname || ''}</Text>
-            <Text style={[styles.detailCardName, { color: callsTheme.textMuted }]}>{selectedCall?.sourceCardName || selectedContact?.cardName || tr('Tarjeta social', 'Social card')}</Text>
-            <Text style={[styles.detailStats, { color: callsTheme.textPrimary }]}>
+            <Text style={styles.detailName}>{selectedCall?.name || ''}</Text>
+            <Text style={styles.detailNick}>@{selectedCall?.nickname || ''}</Text>
+            <Text style={styles.detailCardName}>{selectedCall?.sourceCardName || selectedContact?.cardName || tr('Tarjeta social', 'Social card')}</Text>
+            <Text style={styles.detailStats}>
               Rating {Number(selectedContact?.ratingAvg || 0).toFixed(1)} | {selectedContact?.holdersCount || 0} poseedores
             </Text>
-            <Text style={[styles.detailMeta, { color: callsTheme.textSecondary }]}>{tr('Ultima nota de voz:', 'Last voice note:')} {selectedCall?.voiceNoteName || tr('Ninguna', 'None')}</Text>
+            <Text style={styles.detailMeta}>{tr('Ultima nota de voz:', 'Last voice note:')} {selectedCall?.voiceNoteName || tr('Ninguna', 'None')}</Text>
           </View>
         </View>
       </Modal>
 
       <Modal visible={registerVisible} transparent animationType="slide" onRequestClose={() => setRegisterVisible(false)}>
         <Pressable style={styles.modalOverlay} onPress={() => setRegisterVisible(false)}>
-          <Pressable style={[styles.registerCard, { backgroundColor: callsTheme.modalBg, borderColor: callsTheme.modalBorder }]} onPress={(event) => event.stopPropagation()}>
-            <Text style={[styles.registerTitle, { color: callsTheme.textPrimary }]}>Registrar llamada</Text>
+          <Pressable style={styles.registerCard} onPress={(event) => event.stopPropagation()}>
+            <Text style={styles.registerTitle}>Registrar llamada</Text>
 
-            <Text style={[styles.registerStep, { color: callsTheme.iconColor }]}>Contacto</Text>
+            <Text style={[styles.registerStep, { color: shell.iconColor }]}>Contacto</Text>
             <View style={styles.optionWrap}>
               {contacts.map((contact) => (
                 <TouchableOpacity
                   key={contact.uid}
-                  style={[styles.optionBtn, newPeerUid === contact.uid && styles.optionBtnActive, { backgroundColor: newPeerUid === contact.uid ? undefined : callsTheme.modalRowBg, borderColor: callsTheme.modalRowBorder }]}
+                  style={[
+                    styles.optionBtn,
+                    {
+                      backgroundColor: newPeerUid === contact.uid ? shell.headerBtnBg : shell.modalRowBg,
+                      borderColor: newPeerUid === contact.uid ? shell.headerBtnBg : shell.modalRowBorder,
+                    },
+                  ]}
                   onPress={() => setNewPeerUid(contact.uid)}
                 >
-                  <Text style={[styles.optionText, { color: newPeerUid === contact.uid ? '#FFFFFF' : callsTheme.iconColor }]}>{contact.name}</Text>
+                  <Text style={[styles.optionText, { color: newPeerUid === contact.uid ? shell.btnPrimaryText : shell.iconColor }]}>{contact.name}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={[styles.registerStep, { color: callsTheme.iconColor }]}>Direccion</Text>
+            <Text style={[styles.registerStep, { color: shell.iconColor }]}>Direccion</Text>
             <View style={styles.inlineRow}>
               {(['incoming', 'outgoing', 'missed'] as const).map((direction) => (
                 <TouchableOpacity
                   key={direction}
-                  style={[styles.inlineBtn, newDirection === direction && styles.inlineBtnActive, { backgroundColor: newDirection === direction ? undefined : callsTheme.modalRowBg, borderColor: callsTheme.modalRowBorder }]}
+                  style={[
+                    styles.inlineBtn,
+                    {
+                      backgroundColor: newDirection === direction ? shell.headerBtnBg : shell.modalRowBg,
+                      borderColor: newDirection === direction ? shell.headerBtnBg : shell.modalRowBorder,
+                    },
+                  ]}
                   onPress={() => setNewDirection(direction)}
                 >
-                  <Text style={[styles.inlineBtnText, { color: newDirection === direction ? '#FFFFFF' : callsTheme.iconColor }]}>{direction}</Text>
+                  <Text style={[styles.inlineBtnText, { color: newDirection === direction ? shell.btnPrimaryText : shell.iconColor }]}>{direction}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={[styles.registerStep, { color: callsTheme.iconColor }]}>Estado</Text>
+            <Text style={[styles.registerStep, { color: shell.iconColor }]}>Estado</Text>
             <View style={styles.inlineRow}>
               {(['completed', 'missed', 'rejected'] as const).map((status) => (
                 <TouchableOpacity
                   key={status}
-                  style={[styles.inlineBtn, newStatus === status && styles.inlineBtnActive, { backgroundColor: newStatus === status ? undefined : callsTheme.modalRowBg, borderColor: callsTheme.modalRowBorder }]}
+                  style={[
+                    styles.inlineBtn,
+                    {
+                      backgroundColor: newStatus === status ? shell.headerBtnBg : shell.modalRowBg,
+                      borderColor: newStatus === status ? shell.headerBtnBg : shell.modalRowBorder,
+                    },
+                  ]}
                   onPress={() => setNewStatus(status)}
                 >
-                  <Text style={[styles.inlineBtnText, { color: newStatus === status ? '#FFFFFF' : callsTheme.iconColor }]}>{status}</Text>
+                  <Text style={[styles.inlineBtnText, { color: newStatus === status ? shell.btnPrimaryText : shell.iconColor }]}>{status}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             <View style={styles.footerBtns}>
-              <TouchableOpacity style={[styles.cancelBtn, { borderColor: callsTheme.modalRowBorder }]} onPress={() => setRegisterVisible(false)}>
-                <Text style={[styles.cancelBtnText, { color: callsTheme.iconColor }]}>Cancelar</Text>
+              <TouchableOpacity style={[styles.cancelBtn, { borderColor: shell.modalRowBorder }]} onPress={() => setRegisterVisible(false)}>
+                <Text style={[styles.cancelBtnText, { color: shell.iconColor }]}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.saveBtn} onPress={() => { void registerCall(); }} disabled={saving}>
                 <Text style={styles.saveBtnText}>Guardar</Text>
@@ -397,314 +712,3 @@ export default function CallsPage() {
     </LinearGradient>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  headerRow: {
-    marginTop: 16,
-    marginHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  title: {
-    color: '#0A2540',
-    fontSize: 25,
-    fontFamily: 'Georgia',
-    fontWeight: '800',
-  },
-  registerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#0D4D8A',
-    borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  registerBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  loaderWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  listContent: {
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 20,
-    gap: 10,
-  },
-  rowCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(13,77,138,0.22)',
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    padding: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  avatarRingBase: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarRingNone: {
-    borderWidth: 1,
-    borderColor: 'rgba(13,77,138,0.2)',
-  },
-  avatarRingNormal: {
-    borderWidth: 2,
-    borderColor: STORY_RING_NORMAL,
-  },
-  avatarRingVip: {
-    borderWidth: 2.2,
-    borderColor: STORY_RING_VIP,
-  },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-  },
-  avatarFallback: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#E8F5FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowMain: {
-    flex: 1,
-  },
-  nameText: {
-    color: '#0A2540',
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  nickText: {
-    marginTop: 1,
-    color: '#2E678E',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  cardHintText: {
-    marginTop: 2,
-    color: '#4A4A4A',
-    fontSize: 11,
-  },
-  callChannelText: {
-    marginTop: 2,
-    color: '#4F7FA0',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  tagRow: {
-    marginTop: 7,
-    flexDirection: 'row',
-    gap: 6,
-  },
-  tagChip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(13,77,138,0.27)',
-    backgroundColor: '#F2FAFF',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  tagChipActive: {
-    backgroundColor: '#0D4D8A',
-    borderColor: '#0D4D8A',
-  },
-  tagChipText: {
-    fontSize: 10,
-    color: '#0D4D8A',
-    fontWeight: '700',
-  },
-  tagChipTextActive: {
-    color: '#FFFFFF',
-  },
-  voiceBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#0D4D8A',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyText: {
-    marginTop: 48,
-    textAlign: 'center',
-    color: '#2E668C',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(5,20,35,0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 18,
-  },
-  detailCard: {
-    width: '100%',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.54)',
-    backgroundColor: 'rgba(255,255,255,0.72)',
-    padding: 18,
-    alignItems: 'center',
-  },
-  closeBtn: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.88)',
-  },
-  detailAvatar: {
-    marginTop: 8,
-    width: 78,
-    height: 78,
-    borderRadius: 39,
-  },
-  detailAvatarFallback: {
-    marginTop: 8,
-    width: 78,
-    height: 78,
-    borderRadius: 39,
-    backgroundColor: '#E8F5FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  detailName: {
-    marginTop: 10,
-    color: '#0A2540',
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  detailNick: {
-    marginTop: 2,
-    color: '#2E668C',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  detailCardName: {
-    marginTop: 6,
-    color: '#4A4A4A',
-    fontSize: 12,
-  },
-  detailStats: {
-    marginTop: 6,
-    color: '#0D4D8A',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  detailMeta: {
-    marginTop: 8,
-    color: '#2E668C',
-    fontSize: 11,
-    textAlign: 'center',
-  },
-  registerCard: {
-    width: '100%',
-    maxHeight: '80%',
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: 'rgba(13,77,138,0.2)',
-    padding: 14,
-  },
-  registerTitle: {
-    color: '#0A2540',
-    fontSize: 17,
-    fontWeight: '800',
-  },
-  registerStep: {
-    marginTop: 12,
-    marginBottom: 6,
-    color: '#0D4D8A',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  optionWrap: {
-    gap: 7,
-  },
-  optionBtn: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(13,77,138,0.22)',
-    backgroundColor: '#F4FAFF',
-    paddingVertical: 9,
-    paddingHorizontal: 10,
-  },
-  optionBtnActive: {
-    backgroundColor: '#0D4D8A',
-    borderColor: '#0D4D8A',
-  },
-  optionText: {
-    color: '#0D4D8A',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  inlineRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  inlineBtn: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(13,77,138,0.22)',
-    backgroundColor: '#F4FAFF',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  inlineBtnActive: {
-    backgroundColor: '#0D4D8A',
-    borderColor: '#0D4D8A',
-  },
-  inlineBtnText: {
-    color: '#0D4D8A',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  footerBtns: {
-    marginTop: 16,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
-  },
-  cancelBtn: {
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(13,77,138,0.28)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  cancelBtnText: {
-    color: '#0D4D8A',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  saveBtn: {
-    borderRadius: 10,
-    backgroundColor: '#0D4D8A',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  saveBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-});

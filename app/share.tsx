@@ -1,19 +1,106 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLanguage } from '@/services/language';
+import { useLookMode } from '@/services/lookMode';
+import palette from './theme';
 
 export default function ShareScreen() {
   const router = useRouter();
   const { language } = useLanguage();
   const tr = (es: string, en: string) => language === 'en' ? en : es;
+  const { resolvedMode } = useLookMode();
+  const isDark = resolvedMode === 'noche';
+  const shell = palette[isDark ? 'dark' : 'light'];
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 16,
+        },
+        card: {
+          width: '100%',
+          maxWidth: 420,
+          borderRadius: 18,
+          backgroundColor: shell.surface,
+          borderWidth: 1,
+          borderColor: shell.border,
+          padding: 18,
+          alignItems: 'center',
+        },
+        title: {
+          color: shell.ctaPrimary,
+          fontSize: 24,
+          fontWeight: '700',
+        },
+        subtitle: {
+          marginTop: 4,
+          color: shell.textSecondary,
+          fontSize: 13,
+        },
+        noticeBox: {
+          marginTop: 14,
+          width: '100%',
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: shell.border,
+          backgroundColor: shell.surfaceMuted,
+          paddingHorizontal: 12,
+          paddingVertical: 10,
+        },
+        noticeText: {
+          color: shell.textSecondary,
+          fontSize: 13,
+          textAlign: 'center',
+          fontWeight: '600',
+        },
+        actionsRow: {
+          marginTop: 16,
+          width: '100%',
+          flexDirection: 'row',
+          gap: 10,
+        },
+        ghostBtn: {
+          flex: 1,
+          borderRadius: 10,
+          borderWidth: 1,
+          borderColor: shell.border,
+          backgroundColor: shell.surfaceMuted,
+          paddingVertical: 11,
+          alignItems: 'center',
+        },
+        ghostBtnText: {
+          color: shell.ctaPrimary,
+          fontWeight: '700',
+        },
+        primaryBtn: {
+          flex: 1,
+          borderRadius: 10,
+          backgroundColor: shell.ctaPrimary,
+          paddingVertical: 11,
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'row',
+          gap: 8,
+        },
+        primaryBtnText: {
+          color: shell.btnPrimaryText,
+          fontWeight: '700',
+        },
+      }),
+    [shell]
+  );
 
   return (
-    <LinearGradient colors={['#EAF7FF', '#CDEFFF', '#B8E7FF']} style={styles.container}>
+    <LinearGradient colors={[...shell.tabShellGradient]} style={styles.container}>
       <View style={styles.card}>
-        <MaterialCommunityIcons name="shield-lock-outline" size={44} color="#0D4D8A" />
+        <MaterialCommunityIcons name="shield-lock-outline" size={44} color={shell.ctaPrimary} />
         <Text style={styles.title}>{tr('Flujo Legacy Deshabilitado', 'Legacy Flow Disabled')}</Text>
         <Text style={styles.subtitle}>
           {tr(
@@ -36,7 +123,7 @@ export default function ShareScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.primaryBtn} onPress={() => router.back()}>
-            <MaterialCommunityIcons name="arrow-left" size={16} color="#FFFFFF" />
+            <MaterialCommunityIcons name="arrow-left" size={16} color={shell.btnPrimaryText} />
             <Text style={styles.primaryBtnText}>{tr('Volver', 'Back')}</Text>
           </TouchableOpacity>
         </View>
@@ -44,81 +131,3 @@ export default function ShareScreen() {
     </LinearGradient>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 420,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.84)',
-    borderWidth: 1,
-    borderColor: 'rgba(13,77,138,0.2)',
-    padding: 18,
-    alignItems: 'center',
-  },
-  title: {
-    color: '#0D4D8A',
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  subtitle: {
-    marginTop: 4,
-    color: '#3F7193',
-    fontSize: 13,
-  },
-  noticeBox: {
-    marginTop: 14,
-    width: '100%',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#D6F2FF',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  noticeText: {
-    color: '#3F7193',
-    fontSize: 13,
-    textAlign: 'center',
-    fontWeight: '600',
-  },
-  actionsRow: {
-    marginTop: 16,
-    width: '100%',
-    flexDirection: 'row',
-    gap: 10,
-  },
-  ghostBtn: {
-    flex: 1,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#B8E7FF',
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 11,
-    alignItems: 'center',
-  },
-  ghostBtnText: {
-    color: '#0D4D8A',
-    fontWeight: '700',
-  },
-  primaryBtn: {
-    flex: 1,
-    borderRadius: 10,
-    backgroundColor: '#0D4D8A',
-    paddingVertical: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 8,
-  },
-  primaryBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-});

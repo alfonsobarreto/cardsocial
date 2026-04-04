@@ -5,7 +5,14 @@
  * Returns the full CardTheme object + helpers.
  */
 
-import { CARD_THEMES, getThemeById, type CardTheme } from '@/constants/themeChest';
+import {
+  ALL_CARD_THEME_IDS,
+  CARD_THEMES,
+  getThemeById,
+  type CardTheme,
+  type ThemeFontStyle,
+  type ThemeFontWeight,
+} from '@/constants/themeChest';
 import { getActiveUserId } from '@/services/authSession';
 import { db } from '@/services/firebaseConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -16,8 +23,8 @@ const ACTIVE_THEME_KEY = 'card_social_active_theme';
 const UNLOCKED_THEMES_KEY = 'card_social_unlocked_themes';
 const DEFAULT_THEME_ID = 'deep_teal';
 
-/** Temas base siempre desbloqueados (sync con persistUnlockedThemes). */
-export const FREE_THEME_IDS = new Set(['deep_teal', 'citrus_pop', 'sky_indigo']);
+/** Catálogo completo siempre desbloqueado (temas gratis). */
+export const FREE_THEME_IDS = new Set(ALL_CARD_THEME_IDS);
 
 function parseUnlockedFromJson(raw: string | null): Set<string> {
   if (!raw) return new Set(FREE_THEME_IDS);
@@ -194,31 +201,74 @@ export async function mergeUnlockedThemeIdsFromServer(userId: string, additional
  * Get theme gradient colors for a card — maps chest theme IDs to [color, color] tuples
  * for backwards compat with existing cards.tsx LinearGradient.
  */
-export function getThemeGradient(themeId: string | undefined): [string, string] {
+export function getThemeGradient(themeId: string | undefined): [string, string, string] {
   const t = getThemeById(themeId ?? DEFAULT_THEME_ID);
-  if (!t) return ['#EAF7FF', '#CDEFFF']; // fallback sky-glass
-  return [t.background[0], t.background[2]];
+  if (!t) return ['#EAF7FF', '#CDEFFF', '#B8E7FF'];
+  return [t.background[0], t.background[1], t.background[2]];
 }
 
+export type CardRowThemeResolved = {
+  gradient: [string, string, string];
+  borderColor: string;
+  borderWidth: number;
+  titleColor: string;
+  titleFontWeight: ThemeFontWeight;
+  titleFontStyle: ThemeFontStyle;
+  metaColor: string;
+  subtitleFontWeight: ThemeFontWeight;
+  subtitleFontStyle: ThemeFontStyle;
+  extraColor: string;
+  extraFontSize: number;
+  extraFontWeight: ThemeFontWeight;
+  extraFontStyle: ThemeFontStyle;
+  iconColor: string;
+  bubbleBackgroundColor: string;
+  bubbleBorderRadius: number;
+};
+
+const FALLBACK_CARD_ROW: CardRowThemeResolved = {
+  gradient: ['#EAF7FF', '#CDEFFF', '#B8E7FF'],
+  borderColor: 'rgba(13,77,138,0.2)',
+  borderWidth: 1,
+  titleColor: '#0D4D8A',
+  titleFontWeight: '800',
+  titleFontStyle: 'normal',
+  metaColor: '#497499',
+  subtitleFontWeight: '600',
+  subtitleFontStyle: 'normal',
+  extraColor: '#5A7A94',
+  extraFontSize: 11,
+  extraFontWeight: '500',
+  extraFontStyle: 'italic',
+  iconColor: '#0D4D8A',
+  bubbleBackgroundColor: 'rgba(255,255,255,0.82)',
+  bubbleBorderRadius: 14,
+};
+
 /**
- * Get full theme style for a card row.
+ * Estilos resueltos para filas de tarjeta, mercado, contactos y burbujas de icono.
  */
-export function getCardRowTheme(themeId: string | undefined) {
+export function getCardRowTheme(themeId: string | undefined): CardRowThemeResolved {
   const t = getThemeById(themeId ?? DEFAULT_THEME_ID);
   if (!t) {
-    return {
-      gradient: ['#EAF7FF', '#CDEFFF'] as [string, string],
-      borderColor: 'rgba(13,77,138,0.2)',
-      borderWidth: 1,
-      titleColor: '#0D4D8A',
-      metaColor: '#497499',
-    };
+    return FALLBACK_CARD_ROW;
   }
   return {
-    gradient: [t.background[0], t.background[2]] as [string, string],
+    gradient: [t.background[0], t.background[1], t.background[2]],
     borderColor: t.border.color,
     borderWidth: t.border.width,
     titleColor: t.title.color,
+    titleFontWeight: t.title.fontWeight,
+    titleFontStyle: t.title.fontStyle,
     metaColor: t.subtitle.color,
+    subtitleFontWeight: t.subtitle.fontWeight,
+    subtitleFontStyle: t.subtitle.fontStyle,
+    extraColor: t.extraText.color,
+    extraFontSize: t.extraText.fontSize,
+    extraFontWeight: t.extraText.fontWeight,
+    extraFontStyle: t.extraText.fontStyle,
+    iconColor: t.icon.color,
+    bubbleBackgroundColor: t.bubble.backgroundColor,
+    bubbleBorderRadius: t.bubble.borderRadius,
   };
 }

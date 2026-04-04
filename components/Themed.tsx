@@ -16,18 +16,25 @@ type ThemeProps = {
 export type TextProps = ThemeProps & DefaultText['props'];
 export type ViewProps = ThemeProps & DefaultView['props'];
 
+/** Solo tokens de color string (excluye tuplas como `storiesGlowGradient`). */
+type StringColorKey<T> = {
+  [K in keyof T]: T[K] extends string ? K : never;
+}[keyof T];
+
+type ColorName = StringColorKey<typeof palette.light> & StringColorKey<typeof palette.dark>;
+
 export function useThemeColor(
   props: { light?: string; dark?: string },
-  colorName: keyof typeof Colors.light & keyof typeof Colors.dark
-) {
-  const theme: 'light' | 'dark' = useColorScheme();
+  colorName: ColorName
+): string {
+  const scheme = useColorScheme();
+  const theme: 'light' | 'dark' = scheme === 'dark' ? 'dark' : 'light';
   const colorFromProps = props[theme];
 
   if (colorFromProps) {
     return colorFromProps;
-  } else {
-    return palette[theme][colorName];
   }
+  return palette[theme][colorName] as string;
 }
 
 export function Text(props: TextProps) {

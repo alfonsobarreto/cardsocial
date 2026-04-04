@@ -24,6 +24,7 @@ import { getCardRowTheme, useActiveTheme } from '@/services/useActiveTheme';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import palette from '../theme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -183,6 +184,7 @@ export default function CreateBusinessCardScreen() {
   const tr = (es: string, en: string) => (language === 'en' ? en : es);
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
+  const shell = palette[isNight ? 'dark' : 'light'];
   const { unlockedIds, refreshThemes } = useActiveTheme();
   const isChestThemeUnlocked = (t: ChestCardTheme) => !t.locked || unlockedIds.has(t.id);
 
@@ -760,13 +762,13 @@ export default function CreateBusinessCardScreen() {
     }
   };
 
-  const bg = isNight ? '#071828' : '#F5F9FF';
-  const card = isNight ? '#0D2035' : '#FFFFFF';
-  const text = isNight ? '#F0F4F8' : '#002D4B';
-  const sub = isNight ? '#87A9C2' : '#5A7A8A';
-  const border = '#D4AF37';
-  const inputBg = isNight ? '#0A2540' : '#E8F4FC';
-  const chipBg = isNight ? '#0A2540' : '#F0F8FF';
+  const bg = shell.backgroundSolid;
+  const card = shell.modalBg;
+  const text = shell.text;
+  const sub = shell.textSecondary;
+  const border = shell.ctaAccent;
+  const inputBg = shell.inputBg;
+  const chipBg = shell.surfaceMuted;
 
   const subscriptionLabel =
     subscriptionStatus === 'trial'
@@ -779,7 +781,7 @@ export default function CreateBusinessCardScreen() {
 
   const chestPreview = getCardRowTheme(businessThemeId);
 
-  const vaultTileIconColor = isNight ? '#B8E7FF' : '#0D4D8A';
+  const vaultTileIconColor = shell.textSecondary;
 
   return (
     <>
@@ -819,10 +821,30 @@ export default function CreateBusinessCardScreen() {
                     </View>
                   )}
                   <View style={styles.previewTextCol}>
-                    <Text style={[styles.previewBiz, { color: chestPreview.titleColor }]} numberOfLines={2}>
+                    <Text
+                      style={[
+                        styles.previewBiz,
+                        {
+                          color: chestPreview.titleColor,
+                          fontWeight: chestPreview.titleFontWeight,
+                          fontStyle: chestPreview.titleFontStyle,
+                        },
+                      ]}
+                      numberOfLines={2}
+                    >
                       {businessName.trim() || tr('Nombre del negocio', 'Business name')}
                     </Text>
-                    <Text style={[styles.previewOwner, { color: chestPreview.metaColor }]} numberOfLines={1}>
+                    <Text
+                      style={[
+                        styles.previewOwner,
+                        {
+                          color: chestPreview.metaColor,
+                          fontWeight: chestPreview.subtitleFontWeight,
+                          fontStyle: chestPreview.subtitleFontStyle,
+                        },
+                      ]}
+                      numberOfLines={1}
+                    >
                       {ownerName.trim() || tr('Tu nombre', 'Your name')}
                     </Text>
                   </View>
@@ -830,7 +852,7 @@ export default function CreateBusinessCardScreen() {
                     <QRCode
                       value={qrPayload}
                       size={54}
-                      color="#0A2540"
+                      color={isNight ? '#0C0C0C' : '#1C1C1E'}
                       backgroundColor="#FFFFFF"
                       ecl="H"
                       logo={
@@ -1123,17 +1145,26 @@ export default function CreateBusinessCardScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.primaryBtn, { backgroundColor: border, opacity: submitting || loadingExistingCard ? 0.6 : 1 }]}
+          style={[styles.primaryBtnOuter, { opacity: submitting || loadingExistingCard ? 0.6 : 1 }]}
           onPress={() => void handleCreate()}
           disabled={submitting || loadingExistingCard}
+          activeOpacity={0.9}
         >
-          {submitting ? (
-            <ActivityIndicator color="#0A1A2F" />
-          ) : (
-            <Text style={styles.primaryBtnText}>
-              {editingCardId ? tr('Guardar cambios', 'Save changes') : tr('Crear tarjeta', 'Create card')}
-            </Text>
-          )}
+          <LinearGradient
+            colors={[...shell.luxuryCtaGradient]}
+            locations={[0, 0.18, 0.45, 0.52, 0.75, 1]}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.primaryBtnGradient}
+          >
+            {submitting ? (
+              <ActivityIndicator color={shell.emptyCtaText} />
+            ) : (
+              <Text style={[styles.primaryBtnText, { color: shell.emptyCtaText }]}>
+                {editingCardId ? tr('Guardar cambios', 'Save changes') : tr('Crear tarjeta', 'Create card')}
+              </Text>
+            )}
+          </LinearGradient>
         </TouchableOpacity>
 
         {editingCardId ? (
@@ -1914,12 +1945,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   kycText: { flex: 1, fontSize: 14, lineHeight: 20, marginLeft: 10 },
-  primaryBtn: {
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
+  primaryBtnOuter: {
+    marginTop: 18,
+    borderRadius: 14,
+    overflow: 'hidden',
   },
-  primaryBtnText: { fontWeight: '800', color: '#0A1A2F', fontSize: 16 },
+  primaryBtnGradient: {
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
+  },
+  primaryBtnText: { fontWeight: '800', fontSize: 16 },
   uuid: { fontSize: 13, fontWeight: '600' },
   switchRow: { flexDirection: 'row', alignItems: 'center', marginTop: 16 },
   secondaryBtn: {

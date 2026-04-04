@@ -38,6 +38,9 @@ backend/logs/
 .DS_Store
 *.pem
 
+# Cursor MCP local (puede contener API keys; la plantilla es mcp.json.example)
+.cursor/mcp.json
+
 # local env files — NEVER commit real credentials
 .env
 .env.local

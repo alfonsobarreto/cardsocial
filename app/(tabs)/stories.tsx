@@ -6,6 +6,8 @@ import { hasActiveBusinessLicense } from '@/services/businessLicenseService';
 import { getPremiumStoryCost, purchasePremiumStoryWithCredits } from '@/services/creditsService';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
+import appPalette from '../theme';
+import { makeStoriesStyles } from './stories.styles';
 import { getMyStoryState, getStoriesHouseAd, listReceivedContacts, listSmartCardsFromDb, setMyStoryState, type HouseAdStory } from '@/services/qrApi';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,10 +26,10 @@ import {
     Linking,
     Modal,
     RefreshControl,
-    StyleSheet,
     Text,
     TouchableOpacity,
-    View
+    View,
+    type ViewStyle,
 } from 'react-native';
 import { ActionController } from '../../services/ActionController';
 
@@ -111,12 +113,6 @@ type GridStoryItem = {
   localStory: LocalStory | null;
 };
 
-const SKY_PREMIUM = '#7ED7FF';
-const SKY_BRIGHT = '#57C6FF';
-const SKY_DEEP = '#2FAFEA';
-const STORY_RING_NORMAL = '#2ECC71';
-const STORY_RING_VIP = '#C5A065';
-const VIP_GLOW = '#E9C98A';
 const CONTACT_META_STORAGE_KEY = 'contacts_meta_v2';
 const STORIES_STORAGE_PREFIX = 'stories_hub_v1_';
 const STORY_EXPOSURE_MS = 30_000;
@@ -131,14 +127,14 @@ const FALLBACK_HOUSE_AD: HouseAdStory = {
   updatedAt: new Date().toISOString(),
 };
 
-function StoryVideo({ uri }: { uri: string }) {
+function StoryVideo({ uri, videoStyle }: { uri: string; videoStyle: ViewStyle }) {
   const player = useVideoPlayer({ uri }, (instance) => {
     instance.loop = false;
     instance.currentTime = 0;
     instance.play();
   });
 
-  return <VideoView style={styles.viewerImage} player={player} allowsFullscreen allowsPictureInPicture={false} />;
+  return <VideoView style={videoStyle} player={player} allowsFullscreen allowsPictureInPicture={false} />;
 }
 
 function getStoriesStorageKey(ownerUid: string) {
@@ -150,42 +146,8 @@ export default function StoriesPage() {
   const tr = (es: string, en: string) => language === 'en' ? en : es;
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
-  const storiesTheme = {
-    glowCardGradient: isNight
-      ? (['rgba(28,91,185,0.45)', 'rgba(21,68,139,0.30)', 'rgba(15,44,80,0.25)'] as const)
-      : (['rgba(126,215,255,0.45)', 'rgba(87,198,255,0.28)', 'rgba(47,175,234,0.24)'] as const),
-    glowInnerBg: isNight ? 'rgba(10,35,60,0.88)' : 'rgba(255,255,255,0.66)',
-    glowInnerBorder: isNight ? 'rgba(212,175,55,0.35)' : 'rgba(47,175,234,0.35)',
-    statusText: isNight ? '#F0F4F8' : '#0D4D8A',
-    expiryText: isNight ? '#87C8E8' : '#2E668C',
-    avatarFallbackBg: isNight ? '#0D2E40' : '#EAF7FF',
-    avatarFallbackBorder: isNight ? 'rgba(212,175,55,0.22)' : '#C7E8FF',
-    iconColor: isNight ? '#87C8E8' : '#0D4D8A',
-    gridCardName: isNight ? '#87C8E8' : '#0D4D8A',
-    emptyText: isNight ? '#87A9C2' : '#3A7093',
-    normalBtnBg: isNight ? 'rgba(46,204,113,0.12)' : '#EFFFF5',
-    normalBtnBorder: isNight ? 'rgba(46,204,113,0.35)' : '#B9EFD0',
-    offBtnBg: isNight ? 'rgba(10,37,64,0.60)' : '#FFFFFF',
-    offBtnBorder: isNight ? 'rgba(212,175,55,0.22)' : '#D5EAF7',
-    actionBtnText: isNight ? '#87C8E8' : '#0D4D8A',
-    createCardBg: isNight ? '#071A32' : '#F5FCFF',
-    createCardBorder: isNight ? 'rgba(212,175,55,0.22)' : 'rgba(13,77,138,0.18)',
-    modalTitle: isNight ? '#F0F4F8' : '#0D4D8A',
-    stepTitle: isNight ? '#87C8E8' : '#2E668C',
-    selectorBtnBg: isNight ? '#0D2E40' : '#FFFFFF',
-    selectorBtnBorder: isNight ? 'rgba(212,175,55,0.22)' : '#CFE8F7',
-    selectorBtnActiveBg: isNight ? 'rgba(28,91,185,0.35)' : '#EAF7FF',
-    selectorBtnActiveBorder: isNight ? '#1C5BB9' : '#0D4D8A',
-    selectorText: isNight ? '#87C8E8' : '#0D4D8A',
-    listOptionBg: isNight ? '#0D2E40' : '#FFFFFF',
-    listOptionBorder: isNight ? 'rgba(212,175,55,0.15)' : '#D6EBF8',
-    listOptionActiveBg: isNight ? 'rgba(28,91,185,0.35)' : '#EAF7FF',
-    listOptionActiveBorder: isNight ? '#1C5BB9' : '#0D4D8A',
-    cancelBtnBg: isNight ? '#0D2E40' : '#E5F2FA',
-    fileNameText: isNight ? '#87A9C2' : '#3E7395',
-    emptyCtaText: isNight ? '#87A9C2' : '#4F7D9B',
-    exposureHint: isNight ? '#7AB9D8' : '#5A7A90',
-  };
+  const shell = appPalette[isNight ? 'dark' : 'light'];
+  const styles = useMemo(() => makeStoriesStyles(shell), [shell]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [state, setState] = useState<StoryState>('none');
@@ -714,56 +676,89 @@ export default function StoriesPage() {
   }, [expiresAt]);
 
   const renderGridItem = ({ item }: { item: GridStoryItem }) => {
-    const ringStyle = item.storyState === 'vip' ? styles.ringVip : item.storyState === 'normal' ? styles.ringNormal : styles.ringIdle;
-    const ringBgOverride = item.storyState === 'none' ? { backgroundColor: isNight ? 'rgba(10,37,64,0.64)' : 'rgba(255,255,255,0.64)' } : undefined;
+    const ringStyle =
+      item.storyState === 'vip'
+        ? {
+            borderWidth: 2.8,
+            borderColor: shell.ctaAccent,
+            backgroundColor: isNight ? 'rgba(212,175,55,0.2)' : 'rgba(212,175,55,0.14)',
+            shadowColor: shell.ctaAccent,
+            shadowOpacity: 0.45,
+            shadowRadius: 16,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: 5,
+          }
+        : item.storyState === 'normal'
+          ? {
+              borderWidth: 2.6,
+              borderColor: shell.success,
+              backgroundColor: isNight ? 'rgba(48,209,88,0.12)' : 'rgba(52,199,89,0.1)',
+              shadowColor: shell.success,
+              shadowOpacity: 0.2,
+              shadowRadius: 8,
+              shadowOffset: { width: 0, height: 3 },
+              elevation: 2,
+            }
+          : {
+              borderWidth: 1.2,
+              borderColor: shell.border,
+              backgroundColor: isNight ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.55)',
+            };
     return (
       <TouchableOpacity style={styles.gridItem} onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openStoryViewer(item); }}>
-        <View style={[styles.gridAvatarRing, ringStyle, ringBgOverride]}>
+        <View style={[styles.gridAvatarRing, ringStyle]}>
           {item.photoUrl ? (
             <ExpoImage source={{ uri: item.photoUrl }} style={styles.gridAvatar} cachePolicy="disk" />
           ) : (
-            <View style={[styles.gridAvatarFallback, { backgroundColor: storiesTheme.avatarFallbackBg, borderColor: storiesTheme.avatarFallbackBorder }]}>
-              <MaterialCommunityIcons name="account" size={20} color={storiesTheme.iconColor} />
+            <View style={[styles.gridAvatarFallback, { backgroundColor: shell.avatarFallbackBg, borderColor: shell.avatarFallbackBorder }]}>
+              <MaterialCommunityIcons name="account" size={20} color={shell.iconColor} />
             </View>
           )}
         </View>
-        <Text style={[styles.gridCardName, { color: storiesTheme.gridCardName }]} numberOfLines={1}>{item.cardName}</Text>
+        <Text style={[styles.gridCardName, { color: shell.sectionLabel }]} numberOfLines={1}>{item.cardName}</Text>
       </TouchableOpacity>
     );
   };
 
   return (
     <LinearGradient
-      colors={isNight ? ['#071A32', '#0A2540', '#0F2C50'] : ['#EAF7FF', '#CDEFFF', '#B8E7FF']}
+      colors={[...shell.tabShellGradient]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.container}
     >
       <View style={styles.headerWrap}>
-        <Text style={styles.title}>Stories Hub</Text>
-        <Text style={styles.subtitle}>VIP primero, luego favoritos, luego general</Text>
+        <Text style={[styles.title, { color: shell.textPrimary }]}>Stories Hub</Text>
+        <Text style={[styles.subtitle, { color: shell.textSecondary }]}>VIP primero, luego favoritos, luego general</Text>
       </View>
 
       {loading ? (
         <View style={styles.loaderWrap}>
-          <ActivityIndicator color="#0D4D8A" size="large" />
+          <ActivityIndicator color={shell.loaderAccent} size="large" />
         </View>
       ) : (
         <>
           <LinearGradient
-            colors={storiesTheme.glowCardGradient}
-            style={styles.premiumGlowCard}
+            colors={[...shell.storiesGlowGradient]}
+            style={[styles.premiumGlowCard, { shadowColor: shell.storiesFabBorder }]}
           >
-            <BlurView intensity={45} tint={isNight ? 'dark' : 'light'} style={styles.premiumGlowInner}>
+            <BlurView
+              intensity={45}
+              tint={isNight ? 'dark' : 'light'}
+              style={[
+                styles.premiumGlowInner,
+                { backgroundColor: shell.storiesGlowInnerBg, borderColor: shell.storiesGlowInnerBorder },
+              ]}
+            >
               <View style={styles.statusRow}>
                 <MaterialCommunityIcons
                   name={state === 'vip' ? 'star-circle' : state === 'normal' ? 'checkbox-marked-circle-outline' : 'circle-off-outline'}
                   size={20}
-                  color={state === 'vip' ? '#C5A065' : state === 'normal' ? '#2ECC71' : '#4B88AF'}
+                  color={state === 'vip' ? shell.ctaAccent : state === 'normal' ? shell.success : shell.textMuted}
                 />
-                <Text style={[styles.statusText, { color: storiesTheme.statusText }]}>{statusLabel}</Text>
+                <Text style={[styles.statusText, { color: shell.textPrimary }]}>{statusLabel}</Text>
               </View>
-              <Text style={[styles.expiryText, { color: storiesTheme.expiryText }]}>{expiryLabel}</Text>
+              <Text style={[styles.expiryText, { color: shell.textSecondary }]}>{expiryLabel}</Text>
             </BlurView>
           </LinearGradient>
 
@@ -775,75 +770,87 @@ export default function StoriesPage() {
             bounces={false}
             overScrollMode="never"
             renderItem={renderGridItem}
-            ListEmptyComponent={<Text style={[styles.emptyText, { color: storiesTheme.emptyText }]}>{tr('No hay historias activas en tu red.', 'No active stories in your network.')}</Text>}
+            ListEmptyComponent={<Text style={[styles.emptyText, { color: shell.textMuted }]}>{tr('No hay historias activas en tu red.', 'No active stories in your network.')}</Text>}
             refreshControl={
               <RefreshControl
                 refreshing={loading}
                 onRefresh={() => { void loadStoriesHub(); }}
-                tintColor="#C5A065"
-                colors={['#C5A065']}
+                tintColor={shell.refreshTint}
+                colors={[shell.refreshTint]}
               />
             }
           />
 
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: storiesTheme.normalBtnBg, borderColor: storiesTheme.normalBtnBorder }]}
+            style={[styles.actionBtn, { backgroundColor: shell.storiesNormalBtnBg, borderColor: shell.storiesNormalBtnBorder }]}
             onPress={() => publishState('normal')}
             disabled={saving}
           >
-            <Text style={[styles.actionBtnText, { color: storiesTheme.actionBtnText }]}>Simular Story Normal Rapida</Text>
+            <Text style={[styles.actionBtnText, { color: shell.textPrimary }]}>Simular Story Normal Rapida</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionBtn, styles.vipBtn]}
+            style={[
+              styles.actionBtn,
+              styles.vipBtn,
+              {
+                borderColor: shell.ctaAccent,
+                shadowColor: shell.ctaAccent,
+                backgroundColor: isNight ? 'rgba(212,175,55,0.14)' : shell.storiesNormalBtnBg,
+              },
+            ]}
             onPress={() => publishState('vip')}
             disabled={saving}
           >
-            <Text style={[styles.actionBtnText, { color: storiesTheme.actionBtnText }]}>Activar VIP Manual (7 dias)</Text>
+            <Text style={[styles.actionBtnText, { color: shell.textPrimary }]}>Activar VIP Manual (7 dias)</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: storiesTheme.offBtnBg, borderColor: storiesTheme.offBtnBorder }]}
+            style={[styles.actionBtn, { backgroundColor: shell.storiesOffBtnBg, borderColor: shell.storiesOffBtnBorder }]}
             onPress={() => publishState('none')}
             disabled={saving}
           >
-            <Text style={[styles.actionBtnText, { color: storiesTheme.actionBtnText }]}>Apagar Story Rapida</Text>
+            <Text style={[styles.actionBtnText, { color: shell.textPrimary }]}>Apagar Story Rapida</Text>
           </TouchableOpacity>
         </>
       )}
 
-      <View pointerEvents="none" style={styles.fabGlowHalo} />
-      <TouchableOpacity style={styles.fabAddStory} onPress={openCreate} activeOpacity={0.9}>
-        <MaterialCommunityIcons name="plus" size={28} color="#FFFFFF" />
+      <View pointerEvents="none" style={[styles.fabGlowHalo, { backgroundColor: shell.storiesFabHalo, shadowColor: shell.storiesFabBorder }]} />
+      <TouchableOpacity
+        style={[styles.fabAddStory, { backgroundColor: shell.headerBtnBg, borderColor: shell.storiesFabBorder, shadowColor: shell.storiesFabBorder }]}
+        onPress={openCreate}
+        activeOpacity={0.9}
+      >
+        <MaterialCommunityIcons name="plus" size={28} color={shell.btnPrimaryText} />
       </TouchableOpacity>
 
       <Modal visible={createVisible} transparent animationType="slide" onRequestClose={() => setCreateVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.createCard, { backgroundColor: storiesTheme.createCardBg, borderColor: storiesTheme.createCardBorder }]}>
-            <Text style={[styles.modalTitle, { color: storiesTheme.modalTitle }]}>Crear Historia</Text>
+        <View style={[styles.modalOverlay, { backgroundColor: shell.storiesModalOverlayBg }]}>
+          <View style={[styles.createCard, { backgroundColor: shell.storiesCreateCardBg, borderColor: shell.storiesCreateCardBorder }]}>
+            <Text style={[styles.modalTitle, { color: shell.modalTitle }]}>Crear Historia</Text>
 
-            <Text style={[styles.stepTitle, { color: storiesTheme.stepTitle }]}>1) Tipo de contenido</Text>
+            <Text style={[styles.stepTitle, { color: shell.textSecondary }]}>1) Tipo de contenido</Text>
             <View style={styles.rowWrap}>
               <TouchableOpacity
-                style={[styles.selectorBtn, selectedType === 'image' && styles.selectorBtnActive, { backgroundColor: selectedType === 'image' ? storiesTheme.selectorBtnActiveBg : storiesTheme.selectorBtnBg, borderColor: selectedType === 'image' ? storiesTheme.selectorBtnActiveBorder : storiesTheme.selectorBtnBorder }]}
+                style={[styles.selectorBtn, selectedType === 'image' && styles.selectorBtnActive, { backgroundColor: selectedType === 'image' ? shell.storiesControlActiveBg : shell.inputBg, borderColor: selectedType === 'image' ? shell.storiesControlActiveBorder : shell.border }]}
                 onPress={() => setSelectedType('image')}
               >
-                <Text style={[styles.selectorText, { color: storiesTheme.selectorText }]}>Imagen</Text>
+                <Text style={[styles.selectorText, { color: shell.textPrimary }]}>Imagen</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.selectorBtn, selectedType === 'video' && styles.selectorBtnActive, { backgroundColor: selectedType === 'video' ? storiesTheme.selectorBtnActiveBg : storiesTheme.selectorBtnBg, borderColor: selectedType === 'video' ? storiesTheme.selectorBtnActiveBorder : storiesTheme.selectorBtnBorder }]}
+                style={[styles.selectorBtn, selectedType === 'video' && styles.selectorBtnActive, { backgroundColor: selectedType === 'video' ? shell.storiesControlActiveBg : shell.inputBg, borderColor: selectedType === 'video' ? shell.storiesControlActiveBorder : shell.border }]}
                 onPress={() => setSelectedType('video')}
               >
-                <Text style={[styles.selectorText, { color: storiesTheme.selectorText }]}>Video</Text>
+                <Text style={[styles.selectorText, { color: shell.textPrimary }]}>Video</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.selectorBtn, selectedType === 'document' && styles.selectorBtnActive, { backgroundColor: selectedType === 'document' ? storiesTheme.selectorBtnActiveBg : storiesTheme.selectorBtnBg, borderColor: selectedType === 'document' ? storiesTheme.selectorBtnActiveBorder : storiesTheme.selectorBtnBorder }]}
+                style={[styles.selectorBtn, selectedType === 'document' && styles.selectorBtnActive, { backgroundColor: selectedType === 'document' ? shell.storiesControlActiveBg : shell.inputBg, borderColor: selectedType === 'document' ? shell.storiesControlActiveBorder : shell.border }]}
                 onPress={() => setSelectedType('document')}
               >
-                <Text style={[styles.selectorText, { color: storiesTheme.selectorText }]}>Documento</Text>
+                <Text style={[styles.selectorText, { color: shell.textPrimary }]}>Documento</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.pickBtn}
+                style={[styles.pickBtn, { backgroundColor: shell.ctaPrimary }]}
                 onPress={() => {
                   if (selectedType === 'image') {
                     void pickImage();
@@ -854,74 +861,78 @@ export default function StoriesPage() {
                   }
                 }}
               >
-                <Text style={styles.pickBtnText}>Agregar</Text>
+                <Text style={[styles.pickBtnText, { color: shell.btnPrimaryText }]}>Agregar</Text>
               </TouchableOpacity>
             </View>
-            <Text style={[styles.fileNameText, { color: storiesTheme.fileNameText }]}>{selectedMediaName || 'Sin archivo seleccionado'}</Text>
+            <Text style={[styles.fileNameText, { color: shell.textMuted }]}>{selectedMediaName || 'Sin archivo seleccionado'}</Text>
 
-            <Text style={[styles.stepTitle, { color: storiesTheme.stepTitle }]}>2) Tarjeta emisora</Text>
+            <Text style={[styles.stepTitle, { color: shell.textSecondary }]}>2) Tarjeta emisora</Text>
             <View style={styles.selectorListWrap}>
               {smartCards.map((card) => (
                 <TouchableOpacity
                   key={card.cardId}
-                  style={[styles.listOption, selectedCardId === card.cardId && styles.listOptionActive, { backgroundColor: selectedCardId === card.cardId ? storiesTheme.listOptionActiveBg : storiesTheme.listOptionBg, borderColor: selectedCardId === card.cardId ? storiesTheme.listOptionActiveBorder : storiesTheme.listOptionBorder }]}
+                  style={[styles.listOption, selectedCardId === card.cardId && styles.listOptionActive, { backgroundColor: selectedCardId === card.cardId ? shell.storiesControlActiveBg : shell.inputBg, borderColor: selectedCardId === card.cardId ? shell.storiesControlActiveBorder : shell.modalRowBorder }]}
                   onPress={() => {
                     setSelectedCardId(card.cardId);
                     setSelectedCtaItemId('');
                   }}
                 >
-                  <Text style={[styles.listOptionText, { color: storiesTheme.selectorText }]}>{card.name}</Text>
+                  <Text style={[styles.listOptionText, { color: shell.textPrimary }]}>{card.name}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={[styles.stepTitle, { color: storiesTheme.stepTitle }]}>3) CTA (icono/dato de la tarjeta)</Text>
+            <Text style={[styles.stepTitle, { color: shell.textSecondary }]}>3) CTA (icono/dato de la tarjeta)</Text>
             <View style={styles.selectorListWrap}>
               {cardCtaOptions.length === 0 ? (
-                <Text style={[styles.emptyCtaText, { color: storiesTheme.emptyCtaText }]}>Selecciona una tarjeta para ver CTA disponibles.</Text>
+                <Text style={[styles.emptyCtaText, { color: shell.textMuted }]}>Selecciona una tarjeta para ver CTA disponibles.</Text>
               ) : (
                 cardCtaOptions.map((item) => (
                   <TouchableOpacity
                     key={item.id}
-                    style={[styles.listOption, selectedCtaItemId === item.id && styles.listOptionActive, { backgroundColor: selectedCtaItemId === item.id ? storiesTheme.listOptionActiveBg : storiesTheme.listOptionBg, borderColor: selectedCtaItemId === item.id ? storiesTheme.listOptionActiveBorder : storiesTheme.listOptionBorder }]}
+                    style={[styles.listOption, selectedCtaItemId === item.id && styles.listOptionActive, { backgroundColor: selectedCtaItemId === item.id ? shell.storiesControlActiveBg : shell.inputBg, borderColor: selectedCtaItemId === item.id ? shell.storiesControlActiveBorder : shell.modalRowBorder }]}
                     onPress={() => setSelectedCtaItemId(item.id)}
                   >
-                    <Text style={[styles.listOptionText, { color: storiesTheme.selectorText }]}>{item.title}</Text>
+                    <Text style={[styles.listOptionText, { color: shell.textPrimary }]}>{item.title}</Text>
                   </TouchableOpacity>
                 ))
               )}
             </View>
 
-            <Text style={[styles.stepTitle, { color: storiesTheme.stepTitle }]}>4) Tiempo de historia</Text>
+            <Text style={[styles.stepTitle, { color: shell.textSecondary }]}>4) Tiempo de historia</Text>
             <View style={styles.rowWrap}>
               <TouchableOpacity
-                style={[styles.selectorBtn, selectedDuration === '24h' && styles.selectorBtnActive, { backgroundColor: selectedDuration === '24h' ? storiesTheme.selectorBtnActiveBg : storiesTheme.selectorBtnBg, borderColor: selectedDuration === '24h' ? storiesTheme.selectorBtnActiveBorder : storiesTheme.selectorBtnBorder }]}
+                style={[styles.selectorBtn, selectedDuration === '24h' && styles.selectorBtnActive, { backgroundColor: selectedDuration === '24h' ? shell.storiesControlActiveBg : shell.inputBg, borderColor: selectedDuration === '24h' ? shell.storiesControlActiveBorder : shell.border }]}
                 onPress={() => setSelectedDuration('24h')}
               >
-                <Text style={[styles.selectorText, { color: storiesTheme.selectorText }]}>24 horas (Gratis)</Text>
+                <Text style={[styles.selectorText, { color: shell.textPrimary }]}>24 horas (Gratis)</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.selectorBtn, selectedDuration === '7d' && styles.selectorVipBtn, { backgroundColor: selectedDuration === '7d' ? storiesTheme.selectorBtnActiveBg : storiesTheme.selectorBtnBg, borderColor: selectedDuration === '7d' ? storiesTheme.selectorBtnActiveBorder : storiesTheme.selectorBtnBorder }]}
+                style={[styles.selectorBtn, selectedDuration === '7d' && styles.selectorVipBtn, { backgroundColor: selectedDuration === '7d' ? shell.storiesControlActiveBg : shell.inputBg, borderColor: selectedDuration === '7d' ? shell.storiesControlActiveBorder : shell.border }]}
                 onPress={() => setSelectedDuration('7d')}
               >
-                <Text style={[styles.selectorText, { color: storiesTheme.selectorText }]}>7 dias Premium ({getPremiumStoryCost('7d')} CS)</Text>
+                <Text style={[styles.selectorText, { color: shell.textPrimary }]}>7 dias Premium ({getPremiumStoryCost('7d')} CS)</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.selectorBtn, selectedDuration === '30d' && styles.selectorVipBtn, { backgroundColor: selectedDuration === '30d' ? storiesTheme.selectorBtnActiveBg : storiesTheme.selectorBtnBg, borderColor: selectedDuration === '30d' ? storiesTheme.selectorBtnActiveBorder : storiesTheme.selectorBtnBorder }]}
+                style={[styles.selectorBtn, selectedDuration === '30d' && styles.selectorVipBtn, { backgroundColor: selectedDuration === '30d' ? shell.storiesControlActiveBg : shell.inputBg, borderColor: selectedDuration === '30d' ? shell.storiesControlActiveBorder : shell.border }]}
                 onPress={() => setSelectedDuration('30d')}
               >
-                <Text style={[styles.selectorText, { color: storiesTheme.selectorText }]}>30 dias Premium ({getPremiumStoryCost('30d')} CS)</Text>
+                <Text style={[styles.selectorText, { color: shell.textPrimary }]}>30 dias Premium ({getPremiumStoryCost('30d')} CS)</Text>
               </TouchableOpacity>
             </View>
 
-            <Text style={[styles.exposureHintText, { color: storiesTheme.exposureHint }]}>Exposicion en carrusel: 30 segundos por historia.</Text>
+            <Text style={[styles.exposureHintText, { color: shell.textMuted }]}>Exposicion en carrusel: 30 segundos por historia.</Text>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity style={[styles.cancelBtn, { backgroundColor: storiesTheme.cancelBtnBg }]} onPress={() => setCreateVisible(false)}>
-                <Text style={[styles.cancelBtnText, { color: storiesTheme.selectorText }]}>Cancelar</Text>
+              <TouchableOpacity style={[styles.cancelBtn, { backgroundColor: shell.storiesCancelBtnBg }]} onPress={() => setCreateVisible(false)}>
+                <Text style={[styles.cancelBtnText, { color: shell.textPrimary }]}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.publishBtn, !selectedCtaItem && styles.publishBtnDisabled]}
+                style={[
+                  styles.publishBtn,
+                  { backgroundColor: shell.ctaPrimary },
+                  !selectedCtaItem && [styles.publishBtnDisabled, { backgroundColor: shell.storiesPublishDisabled }],
+                ]}
                 onPress={() => {
                   if (selectedCtaItem) {
                     void publishStory();
@@ -929,7 +940,7 @@ export default function StoriesPage() {
                 }}
                 disabled={!selectedCtaItem}
               >
-                <Text style={styles.publishBtnText}>Publicar Story</Text>
+                <Text style={[styles.publishBtnText, { color: shell.btnPrimaryText }]}>Publicar Story</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -939,7 +950,7 @@ export default function StoriesPage() {
       <Modal visible={viewerVisible} transparent animationType="fade" onRequestClose={() => setViewerVisible(false)}>
         <View style={styles.viewerOverlay}>
           <TouchableOpacity style={styles.viewerClose} onPress={() => setViewerVisible(false)} accessibilityLabel={tr('Cerrar', 'Close')}>
-            <MaterialCommunityIcons name="close" size={24} color="#FFFFFF" />
+            <MaterialCommunityIcons name="close" size={24} color={shell.ghostLinkOnGradient} />
           </TouchableOpacity>
 
           <View style={styles.viewerTopMeta}>
@@ -948,11 +959,11 @@ export default function StoriesPage() {
           </View>
 
           {selectedViewerItem?.kind === 'ad' ? (
-            <LinearGradient colors={['#0A2540', '#123B61', '#0E2D49']} style={styles.adPanel}>
+            <LinearGradient colors={[...shell.vipBannerGradient]} style={styles.adPanel}>
               {selectedViewerItem.photoUrl ? (
                 <ExpoImage source={{ uri: selectedViewerItem.photoUrl }} style={styles.adPhoto} contentFit="cover" cachePolicy="disk" />
               ) : (
-                <MaterialCommunityIcons name="home-city-outline" size={68} color="#C5A065" />
+                <MaterialCommunityIcons name="home-city-outline" size={68} color={shell.ctaAccent} />
               )}
               <Text style={styles.adTitle}>{selectedViewerItem.title}</Text>
               <Text style={styles.adSubtitle}>{selectedViewerItem.subtitle}</Text>
@@ -966,13 +977,13 @@ export default function StoriesPage() {
           ) : selectedViewerItem?.localStory?.storyType === 'image' ? (
             <ExpoImage source={{ uri: selectedViewerItem.localStory.mediaUri }} style={styles.viewerImage} contentFit="cover" cachePolicy="disk" />
           ) : selectedViewerItem?.localStory?.storyType === 'video' ? (
-            <StoryVideo uri={selectedViewerItem.localStory.mediaUri} />
+            <StoryVideo uri={selectedViewerItem.localStory.mediaUri} videoStyle={styles.viewerImage} />
           ) : (
             <View style={styles.viewerDocWrap}>
               <MaterialCommunityIcons
                 name={selectedViewerItem?.localStory ? 'file-document-outline' : 'card-account-details-outline'}
                 size={62}
-                color="#FFFFFF"
+                color={shell.ghostLinkOnGradient}
               />
               <Text style={styles.viewerDocText}>{selectedViewerItem?.localStory?.mediaName || 'Historia sin media sincronizada'}</Text>
             </View>
@@ -1026,492 +1037,3 @@ export default function StoriesPage() {
     </LinearGradient>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingHorizontal: 14,
-    paddingTop: 14,
-  },
-  headerWrap: {
-    marginBottom: 10,
-  },
-  title: {
-    color: '#0A2540',
-    fontSize: 24,
-    fontFamily: 'Georgia',
-    fontWeight: '700',
-  },
-  subtitle: {
-    marginTop: 3,
-    color: '#346B8E',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  premiumGlowCard: {
-    borderRadius: 18,
-    padding: 1.2,
-    shadowColor: SKY_BRIGHT,
-    shadowOpacity: 0.36,
-    shadowRadius: 15,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
-  },
-  premiumGlowInner: {
-    borderRadius: 17,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.66)',
-    borderWidth: 1,
-    borderColor: 'rgba(47,175,234,0.35)',
-    padding: 14,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  statusText: {
-    color: '#0D4D8A',
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  expiryText: {
-    marginTop: 6,
-    color: '#2E668C',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  hintText: {
-    marginTop: 8,
-    color: '#4C7C9D',
-    fontSize: 11,
-    lineHeight: 17,
-  },
-  gridWrap: {
-    paddingTop: 14,
-    paddingBottom: 96,
-  },
-  gridItem: {
-    width: '25%',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  gridAvatarRing: {
-    width: 78,
-    height: 78,
-    borderRadius: 39,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ringIdle: {
-    borderWidth: 1.2,
-    borderColor: 'rgba(13,77,138,0.16)',
-    backgroundColor: 'rgba(255,255,255,0.64)',
-  },
-  ringNormal: {
-    borderWidth: 2.6,
-    borderColor: STORY_RING_NORMAL,
-    backgroundColor: 'rgba(46,204,113,0.09)',
-    shadowColor: STORY_RING_NORMAL,
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-  },
-  ringVip: {
-    borderWidth: 2.8,
-    borderColor: STORY_RING_VIP,
-    backgroundColor: 'rgba(233,201,138,0.20)',
-    shadowColor: VIP_GLOW,
-    shadowOpacity: 0.52,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 6,
-  },
-  gridAvatar: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-  },
-  gridAvatarFallback: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#EAF7FF',
-    borderWidth: 1,
-    borderColor: '#C7E8FF',
-  },
-  gridCardName: {
-    marginTop: 6,
-    color: '#0D4D8A',
-    fontSize: 10,
-    fontWeight: '700',
-    maxWidth: 84,
-    textAlign: 'center',
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#3A7093',
-    fontSize: 12,
-    marginTop: 18,
-  },
-  fabAddStory: {
-    position: 'absolute',
-    right: 18,
-    bottom: 22,
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#0D4D8A',
-    borderWidth: 1,
-    borderColor: '#57C6FF',
-    shadowColor: SKY_BRIGHT,
-    shadowOpacity: 0.45,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
-  },
-  fabGlowHalo: {
-    position: 'absolute',
-    right: 10,
-    bottom: 14,
-    width: 74,
-    height: 74,
-    borderRadius: 37,
-    backgroundColor: 'rgba(87,198,255,0.30)',
-    shadowColor: '#7ED7FF',
-    shadowOpacity: 0.65,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 3,
-  },
-  loaderWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionsWrap: {
-    marginTop: 12,
-    gap: 10,
-  },
-  actionBtn: {
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderWidth: 1,
-  },
-  normalBtn: {
-    backgroundColor: '#EFFFF5',
-    borderColor: '#B9EFD0',
-  },
-  vipBtn: {
-    backgroundColor: '#EBF8FF',
-    borderColor: SKY_DEEP,
-    shadowColor: SKY_PREMIUM,
-    shadowOpacity: 0.24,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-  offBtn: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#D5EAF7',
-  },
-  actionBtnText: {
-    color: '#0D4D8A',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  actionBtnSub: {
-    marginTop: 2,
-    color: '#407797',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(6,26,42,0.42)',
-    justifyContent: 'flex-end',
-  },
-  createCard: {
-    maxHeight: '90%',
-    backgroundColor: '#F5FCFF',
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(13,77,138,0.18)',
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 16,
-  },
-  modalTitle: {
-    color: '#0D4D8A',
-    fontSize: 18,
-    fontWeight: '800',
-    marginBottom: 10,
-  },
-  stepTitle: {
-    color: '#2E668C',
-    fontSize: 12,
-    fontWeight: '800',
-    marginTop: 7,
-    marginBottom: 5,
-  },
-  rowWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  selectorBtn: {
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#CFE8F7',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  selectorBtnActive: {
-    borderColor: '#0D4D8A',
-    backgroundColor: '#EAF7FF',
-  },
-  selectorVipBtn: {
-    borderColor: STORY_RING_VIP,
-    backgroundColor: 'rgba(233,201,138,0.22)',
-  },
-  exposureHintText: {
-    marginTop: 7,
-    color: '#5A7A90',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  selectorText: {
-    color: '#0D4D8A',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  pickBtn: {
-    borderRadius: 10,
-    backgroundColor: '#0D4D8A',
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-  },
-  pickBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  fileNameText: {
-    marginTop: 5,
-    color: '#3E7395',
-    fontSize: 11,
-  },
-  selectorListWrap: {
-    maxHeight: 110,
-    marginBottom: 2,
-  },
-  listOption: {
-    borderRadius: 9,
-    borderWidth: 1,
-    borderColor: '#D6EBF8',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    marginBottom: 6,
-  },
-  listOptionActive: {
-    borderColor: '#0D4D8A',
-    backgroundColor: '#EAF7FF',
-  },
-  listOptionText: {
-    color: '#0D4D8A',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  emptyCtaText: {
-    color: '#4F7D9B',
-    fontSize: 11,
-    marginBottom: 6,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
-  },
-  cancelBtn: {
-    flex: 1,
-    borderRadius: 10,
-    backgroundColor: '#E5F2FA',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-  },
-  cancelBtnText: {
-    color: '#0D4D8A',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  publishBtn: {
-    flex: 1,
-    borderRadius: 10,
-    backgroundColor: '#0D4D8A',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-  },
-  publishBtnDisabled: {
-    backgroundColor: '#9EABBA',
-  },
-  publishBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  viewerOverlay: {
-    flex: 1,
-    backgroundColor: '#000000',
-    justifyContent: 'center',
-  },
-  viewerClose: {
-    position: 'absolute',
-    top: 42,
-    right: 16,
-    zIndex: 10,
-  },
-  viewerTopMeta: {
-    position: 'absolute',
-    top: 44,
-    left: 12,
-    zIndex: 10,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  viewerMetaText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  adPanel: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    gap: 12,
-  },
-  adPhoto: {
-    width: 240,
-    height: 160,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(197,160,101,0.75)',
-  },
-  adTitle: {
-    color: '#FFFFFF',
-    fontSize: 28,
-    fontFamily: 'Georgia',
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  adSubtitle: {
-    color: '#EAF7FF',
-    fontSize: 13,
-    textAlign: 'center',
-    lineHeight: 18,
-    maxWidth: 320,
-  },
-  adMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  adMetaText: {
-    color: '#F4E8D4',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  adMetaDot: {
-    color: '#C5A065',
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  adBadge: {
-    marginTop: 4,
-    color: '#C5A065',
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 0.8,
-  },
-  viewerImage: {
-    width: '100%',
-    height: '100%',
-  },
-  viewerDocWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  viewerDocText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-    maxWidth: '85%',
-    textAlign: 'center',
-  },
-  viewerFooter: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: 14,
-    paddingVertical: 16,
-    backgroundColor: 'rgba(0,0,0,0.42)',
-  },
-  viewerTitle: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  viewerCtaBtn: {
-    marginTop: 10,
-    borderRadius: 12,
-    backgroundColor: '#0D4D8A',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 11,
-    borderWidth: 1,
-    borderColor: '#66C7FF',
-  },
-  viewerCtaText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  viewerNavRow: {
-    marginTop: 10,
-    flexDirection: 'row',
-    gap: 8,
-  },
-  viewerNavBtn: {
-    flex: 1,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
-    backgroundColor: 'rgba(255,255,255,0.10)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 9,
-  },
-  viewerNavText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-});
