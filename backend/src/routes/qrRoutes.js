@@ -31,6 +31,16 @@ function sanitizeSearchFacets(raw) {
   return out;
 }
 
+/** Claves seguras para `$inc` anidado en `card_analytics` (evita `$` y puntos raros). */
+function sanitizeAnalyticsSegmentKey(raw) {
+  const s = String(raw || 'unknown')
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, '_')
+    .replace(/_+/g, '_')
+    .slice(0, 64);
+  return s || 'unknown';
+}
+
 function createQrRoutes({ storage }) {
   const router = express.Router();
   // Cambiar nickname con bloqueo de 30 días
@@ -994,9 +1004,11 @@ function createQrRoutes({ storage }) {
         let storyState = 'none';
         if (cardIdForStory && mutedCardKeys.has(muteKey)) {
           storyState = 'none';
-        } else if (cardIdForStory && storyCardByKey.has(muteKey)) {
-          storyState = storyCardByKey.get(muteKey);
+        } else if (cardIdForStory) {
+          // Historia anclada a tarjeta: solo suscriptores de esa cardId ven el estado (no fallback a story global).
+          storyState = storyCardByKey.get(muteKey) || 'none';
         } else {
+          // Compartidos legacy sin cardId en permiso: mantener visibilidad por story_states global.
           storyState = storyByOwner.get(uid) || 'none';
         }
 
@@ -1401,6 +1413,146 @@ function createQrRoutes({ storage }) {
       );
 
       return res.status(200).json({ ok: true, ownerUid });
+    } catch (error) {
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+  });
+
+  /**
+   * Conversión / interacciones por tarjeta (Fase 2). Colección `card_analytics`:
+   * documentos diarios `d:{cardId}:{YYYY-MM-DD}` y mensuales `m:{cardId}:{YYYY-MM}`.
+   */
+  router.post('/analytics/track', async (req, res) => {
+    try {
+      const authUid = String(req.auth?.sub || '').trim();
+      if (!authUid) {
+        return res.status(401).json({ ok: false, error: 'Unauthorized' });
+      }
+
+      const cardId = String(req.body?.cardId || '').trim();
+      if (!cardId || cardId.length > 160) {
+        return res.status(400).json({ ok: false, error: 'cardId is required' });
+      }
+
+      const iconType = sanitizeAnalyticsSegmentKey(req.body?.iconType);
+      const source = String(req.body?.source || '').trim();
+      const allowedSources = new Set(['search', 'story', 'card']);
+      if (!allowedSources.has(source)) {
+        return res.status(400).json({ ok: false, error: 'source must be search, story, or card' });
+      }
+
+      const ts = req.body?.timestamp ? new Date(req.body.timestamp) : new Date();
+      if (Number.isNaN(ts.getTime())) {
+        return res.status(400).json({ ok: false, error: 'invalid timestamp' });
+      }
+
+      const dayKey = ts.toISOString().slice(0, 10);
+      const monthKey = ts.toISOString().slice(0, 7);
+      const srcKey = sanitizeAnalyticsSegmentKey(source);
+      const db = await storage.connect();
+      const now = new Date();
+
+      const dailyId = `d:${cardId}:${dayKey}`;
+      await db.collection('card_analytics').updateOne(
+        { _id: dailyId },
+        {
+          $inc: {
+            totalInteractions: 1,
+            [`icons.${iconType}`]: 1,
+            [`sources.${srcKey}`]: 1,
+          },
+          $set: { updatedAt: now },
+          $setOnInsert: {
+            cardId,
+            granularity: 'day',
+            periodKey: dayKey,
+            monthKey,
+            createdAt: now,
+          },
+        },
+        { upsert: true },
+      );
+
+      const monthlyId = `m:${cardId}:${monthKey}`;
+      await db.collection('card_analytics').updateOne(
+        { _id: monthlyId },
+        {
+          $inc: {
+            totalInteractions: 1,
+            [`icons.${iconType}`]: 1,
+            [`sources.${srcKey}`]: 1,
+          },
+          $set: { updatedAt: now },
+          $setOnInsert: {
+            cardId,
+            granularity: 'month',
+            periodKey: monthKey,
+            createdAt: now,
+          },
+        },
+        { upsert: true },
+      );
+
+      return res.status(200).json({ ok: true });
+    } catch (error) {
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+  });
+
+  router.get('/analytics/card/:cardId/summary', async (req, res) => {
+    try {
+      const authUid = String(req.auth?.sub || '').trim();
+      const ownerUid = String(req.query?.ownerUid || authUid || '').trim();
+      const cardId = String(req.params?.cardId || '').trim();
+
+      if (!ownerUid) {
+        return res.status(400).json({ ok: false, error: 'ownerUid is required' });
+      }
+      if (!cardId) {
+        return res.status(400).json({ ok: false, error: 'cardId is required' });
+      }
+      if (authUid && authUid !== ownerUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      }
+
+      const db = await storage.connect();
+      const owns = await db.collection('smart_cards').findOne({ ownerUid, cardId });
+      if (!owns) {
+        return res.status(404).json({ ok: false, error: 'Card not found for this owner' });
+      }
+
+      const minDay = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const docs = await db
+        .collection('card_analytics')
+        .find({
+          cardId,
+          granularity: 'day',
+          periodKey: { $gte: minDay },
+        })
+        .toArray();
+
+      let totalViews = 0;
+      const iconAgg = Object.create(null);
+      for (const d of docs) {
+        totalViews += Number(d.totalInteractions || 0) || 0;
+        const icons = d.icons && typeof d.icons === 'object' ? d.icons : {};
+        for (const [k, v] of Object.entries(icons)) {
+          const n = Number(v || 0) || 0;
+          iconAgg[k] = (iconAgg[k] || 0) + n;
+        }
+      }
+
+      const topIcons = Object.entries(iconAgg)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 12)
+        .map(([iconType, count]) => ({ iconType, count: Number(count) }));
+
+      return res.status(200).json({
+        ok: true,
+        cardId,
+        totalViews,
+        topIcons,
+      });
     } catch (error) {
       return res.status(500).json({ ok: false, error: error.message });
     }

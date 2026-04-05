@@ -919,3 +919,63 @@ export async function patchCallLogMeta(params: {
 
   return { ok: true };
 }
+
+export type CardAnalyticsSummary = {
+  cardId: string;
+  totalViews: number;
+  topIcons: Array<{ iconType: string; count: number }>;
+};
+
+export async function trackCardAnalyticsEvent(params: {
+  ownerUid: string;
+  cardId: string;
+  iconType: string;
+  source: 'search' | 'story' | 'card';
+}): Promise<void> {
+  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+  await axios.post(
+    `${auth.baseUrl}/api/qr/analytics/track`,
+    {
+      cardId: params.cardId,
+      iconType: params.iconType,
+      source: params.source,
+      timestamp: new Date().toISOString(),
+    },
+    {
+      headers: {
+        'x-api-gateway-key': auth.gatewayKey,
+        Authorization: `Bearer ${auth.token}`,
+      },
+      timeout: 12000,
+    }
+  );
+}
+
+export async function getCardAnalyticsSummary(params: {
+  ownerUid: string;
+  cardId: string;
+}): Promise<CardAnalyticsSummary> {
+  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+
+  const response = await axios.get(
+    `${auth.baseUrl}/api/qr/analytics/card/${encodeURIComponent(params.cardId)}/summary`,
+    {
+      params: { ownerUid: params.ownerUid },
+      headers: {
+        'x-api-gateway-key': auth.gatewayKey,
+        Authorization: `Bearer ${auth.token}`,
+      },
+      timeout: 15000,
+    }
+  );
+
+  const top = Array.isArray(response?.data?.topIcons) ? response.data.topIcons : [];
+  return {
+    cardId: String(response?.data?.cardId || params.cardId),
+    totalViews: Number(response?.data?.totalViews || 0) || 0,
+    topIcons: top.map((row: any) => ({
+      iconType: String(row?.iconType || ''),
+      count: Number(row?.count || 0) || 0,
+    })),
+  };
+}

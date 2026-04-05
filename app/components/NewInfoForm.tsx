@@ -31,7 +31,7 @@ import { newEntityId } from '@/services/newEntityId';
 import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { fetchFaviconFromAzure } from '@/services/faviconApi';
-import { premiumTheme } from '../premiumTheme';
+import { premiumTheme } from '../_premiumTheme';
 import { db } from '@/services/firebaseConfig';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
@@ -159,8 +159,11 @@ const COUNTRY_CODES = [
   { code: '+66', country: 'Tailandia' },
 ];
 
-// Tamaño máximo de archivos (en bytes)
-const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2 MB
+// Tamaño máximo de imágenes en Búnker (alineado con Historias + backend moderation `imageMaxBytes`)
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
+/** Borde largo tras compresión (tarjeta nítida sin peso excesivo). */
+const VAULT_IMAGE_MAX_LONG_EDGE = 2000;
+const VAULT_JPEG_QUALITY_INITIAL = 0.8;
 const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024; // 20 MB
 const PICKER_LAUNCH_TIMEOUT_MS = 14000;
 const PICKER_STALE_LOCK_MS = 20000;
@@ -978,54 +981,84 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     return mime.includes('pdf') || /\.pdf(\?|$)/i.test(String(uri || ''));
   };
 
-  // Optimiza imágenes automáticamente para cumplir límites de cliente/backend.
+  const alertVaultImageTooLarge = () => {
+    Alert.alert(
+      tr('Imagen demasiado grande', 'Image too large'),
+      tr(
+        'La imagen es demasiado grande. Intenta usar una foto con menos resolución.',
+        'The image is too large. Try using a photo with lower resolution.',
+      ),
+    );
+  };
+
+  /** Redimensiona borde largo ≤2000px, JPEG 0.8, y re-comprime hasta caber en maxBytes (p. ej. 5MB). */
   const optimizeImageForLimit = async (uri: string, maxBytes: number): Promise<{ uri: string; size: number }> => {
     try {
       setIsCompressing(true);
 
-      const initialSize = await getFileSizeInBytes(uri);
-      if (initialSize <= maxBytes) {
-        return { uri, size: initialSize };
+      const readDimensions = (): Promise<{ w: number; h: number }> =>
+        new Promise((resolve, reject) => {
+          Image.getSize(
+            uri,
+            (w, h) => resolve({ w, h }),
+            (e) => reject(e),
+          );
+        });
+
+      let width = 0;
+      let height = 0;
+      try {
+        const d = await readDimensions();
+        width = d.w;
+        height = d.h;
+      } catch {
+        width = 0;
+        height = 0;
       }
 
-      let bestUri = uri;
-      let bestSize = initialSize;
-
-      const attempts = [
-        { width: 1920, compress: 0.72 },
-        { width: 1440, compress: 0.62 },
-        { width: 1080, compress: 0.52 },
-        { width: 840, compress: 0.45 },
-        { width: 640, compress: 0.38 },
-      ];
-
-      for (const attempt of attempts) {
-        const manipResult = await ImageManipulator.manipulateAsync(
-          bestUri,
-          [{ resize: { width: attempt.width } }],
-          { compress: attempt.compress, format: ImageManipulator.SaveFormat.JPEG }
-        );
-        const size = await getFileSizeInBytes(manipResult.uri);
-        bestUri = manipResult.uri;
-        bestSize = size;
-
-        if (size <= maxBytes) {
-          return { uri: bestUri, size: bestSize };
+      const resizeActions: ImageManipulator.Action[] = [];
+      if (width > 0 && height > 0) {
+        const longEdge = Math.max(width, height);
+        if (longEdge > VAULT_IMAGE_MAX_LONG_EDGE) {
+          if (width >= height) {
+            resizeActions.push({ resize: { width: VAULT_IMAGE_MAX_LONG_EDGE } });
+          } else {
+            resizeActions.push({ resize: { height: VAULT_IMAGE_MAX_LONG_EDGE } });
+          }
         }
+      } else {
+        resizeActions.push({ resize: { width: VAULT_IMAGE_MAX_LONG_EDGE } });
       }
 
-      // Lógica de emergencia: último intento a 480px y calidad 0.2
-      const emergencyResult = await ImageManipulator.manipulateAsync(
-        bestUri,
-        [{ resize: { width: 480 } }],
-        { compress: 0.2, format: ImageManipulator.SaveFormat.JPEG }
-      );
-      const emergencySize = await getFileSizeInBytes(emergencyResult.uri);
-      if (emergencySize <= maxBytes) {
-        return { uri: emergencyResult.uri, size: emergencySize };
+      let out = await ImageManipulator.manipulateAsync(uri, resizeActions, {
+        compress: VAULT_JPEG_QUALITY_INITIAL,
+        format: ImageManipulator.SaveFormat.JPEG,
+      });
+      let size = await getFileSizeInBytes(out.uri);
+
+      let q = 0.72;
+      for (let step = 0; step < 10 && size > maxBytes; step += 1) {
+        const r = await ImageManipulator.manipulateAsync(out.uri, [], {
+          compress: q,
+          format: ImageManipulator.SaveFormat.JPEG,
+        });
+        out = r;
+        size = await getFileSizeInBytes(out.uri);
+        q = Math.max(0.32, q - 0.07);
       }
-      // Si aún así no baja, devolver el último intento (probablemente corrupto o imposible)
-      return { uri: emergencyResult.uri, size: emergencySize };
+
+      let edge = VAULT_IMAGE_MAX_LONG_EDGE;
+      for (let downgrade = 0; downgrade < 6 && size > maxBytes; downgrade += 1) {
+        edge = Math.max(720, Math.round(edge * 0.85));
+        const r = await ImageManipulator.manipulateAsync(out.uri, [{ resize: { width: edge } }], {
+          compress: Math.max(0.38, q),
+          format: ImageManipulator.SaveFormat.JPEG,
+        });
+        out = r;
+        size = await getFileSizeInBytes(out.uri);
+      }
+
+      return { uri: out.uri, size };
     } catch (error) {
       console.error('Error compressing image:', error);
       const size = await getFileSizeInBytes(uri).catch(() => Number.MAX_SAFE_INTEGER);
@@ -1281,10 +1314,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         if (isSessionClosed(sessionToken)) return;
         console.log('--- COMPRESIÓN REAL ---', optimized.size);
         if (optimized.size > maxImageBytes) {
-          Alert.alert(
-            tr('No se pudo optimizar', 'Could not optimize'),
-            tr('La imagen no pudo reducirse al límite seguro. Intenta otra foto o menor resolución.', 'The image could not be reduced to the safe limit. Try another photo or lower resolution.')
-          );
+          alertVaultImageTooLarge();
           return;
         }
         logAssetAudit('PICK_GALLERY_COMPRESSED', {
@@ -1375,10 +1405,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         finalMime = 'image/jpeg';
 
         if (finalSize > maxImageBytes) {
-          Alert.alert(
-            tr('No se pudo optimizar', 'Could not optimize'),
-            tr('No fue posible reducir la imagen al límite seguro. Prueba con otra captura.', 'Could not reduce image to safe limit. Try another capture.')
-          );
+          alertVaultImageTooLarge();
           return;
         }
         // Permitir guardar imágenes como documentos: ajustar nombre si es necesario
@@ -1515,10 +1542,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         if (isSessionClosed(sessionToken)) return;
         console.log('--- COMPRESIÓN REAL ---', optimized.size);
         if (optimized.size > maxImageBytes) {
-          Alert.alert(
-            tr('No se pudo optimizar', 'Could not optimize'),
-            tr('La foto no pudo reducirse al límite seguro. Intenta otra captura.', 'Photo could not be reduced to safe limit. Try another capture.')
-          );
+          alertVaultImageTooLarge();
           return;
         }
         logAssetAudit('PICK_CAMERA_COMPRESSED', {
@@ -1852,7 +1876,25 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         dataType === 'Documento' && normalizedValue.startsWith('file://');
       let finalValue = normalizedValue;
       if (shouldUploadFile) {
-        const { fileId, publicUrl: filePublicUrl } = await uploadFileToModerationBackend(normalizedValue, dataName, userId);
+        let fileUriToUpload = normalizedValue;
+        const mimeForUpload = inferMimeType(normalizedValue);
+        const treatAsImage =
+          mimeForUpload.startsWith('image/') ||
+          isImageLikeAsset(normalizedValue, mimeForUpload) ||
+          isImageFile(dataName);
+        if (treatAsImage) {
+          const prepared = await optimizeImageForLimit(normalizedValue, MAX_IMAGE_SIZE);
+          if (prepared.size > MAX_IMAGE_SIZE) {
+            alertVaultImageTooLarge();
+            return;
+          }
+          fileUriToUpload = prepared.uri;
+        }
+        const { fileId, publicUrl: filePublicUrl } = await uploadFileToModerationBackend(
+          fileUriToUpload,
+          dataName,
+          userId,
+        );
         finalValue = filePublicUrl || `mongo-gridfs://${fileId}`;
       }
       // Crear ID único evitando cualquier choque accidental local.

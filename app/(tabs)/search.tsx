@@ -5,6 +5,7 @@
 import { SharedCardSkeletonList } from '@/components/SharedCardRowSkeleton';
 import { ThemedSharedCardSurface } from '@/components/ThemedSharedCardSurface';
 import { getActiveUserId } from '@/services/authSession';
+import { hardLockCheck } from '@/services/biometricAuth';
 import { ExportBusinessQR, generatePermanentBusinessLink } from '@/services/brandedQrService';
 import { hasActiveBusinessLicense } from '@/services/businessLicenseService';
 import { useLanguage } from '@/services/language';
@@ -18,10 +19,18 @@ import appPalette, { type AppShellTheme } from '../theme';
 import { listReceivedContacts } from '@/services/qrApi';
 import { mergeReceivedContactRows } from '@/services/receivedContactsPresentationMerge';
 import { getCardRowTheme } from '@/services/useActiveTheme';
+import { facetIconNameForSearch, runSearchFacetQuickAction } from '@/services/searchFacetQuickAction';
+import { buildMarketCardSearchFacets, marketSearchStoryRingState } from '@/services/searchPhase2Logic';
 import { searchSocialMarket } from '@/services/searchService';
 import type { ReceivedContactForMarketSearch } from '@/services/searchService';
+import {
+  buildStoryLookupFromReceivedContacts,
+  resolveSearchRowStoryState,
+  storyChannelKey,
+} from '@/services/storiesPhase1Logic';
 import { BusinessCardSearchResult } from '@/types/businessCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
@@ -36,12 +45,15 @@ import {
     Platform,
     Pressable,
     RefreshControl,
+    ScrollView,
     SectionList,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
-    View
+    View,
+    type NativeSyntheticEvent,
+    type NativeScrollEvent,
 } from 'react-native';
 import { MEDIA_PLACEHOLDER } from '@/constants/mediaPlaceholders';
 import QRCode from 'react-native-qrcode-svg';
@@ -144,6 +156,48 @@ export default function SearchScreen() {
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
   const [licenseStatus, setLicenseStatus] = useState<Record<string, boolean>>({});
   const rowPressScaleRef = useRef<Map<string, Animated.Value>>(new Map());
+  const sectionListRef = useRef<SectionList<BusinessCardSearchResult>>(null);
+  const searchScrollYRef = useRef(0);
+  const savedSearchScrollYRef = useRef(0);
+
+  const restoreSearchListScroll = useCallback(() => {
+    const y = savedSearchScrollYRef.current;
+    const list = sectionListRef.current as unknown as
+      | { scrollToOffset?: (o: { offset: number; animated?: boolean }) => void }
+      | null;
+    list?.scrollToOffset?.({ offset: Math.max(0, y), animated: false });
+  }, []);
+
+  const [receivedContactsLookupRows, setReceivedContactsLookupRows] = useState<ReceivedContactForMarketSearch[]>([]);
+  const [receivedCardDetail, setReceivedCardDetail] = useState<BusinessCardSearchResult | null>(null);
+  const [marketCardDetail, setMarketCardDetail] = useState<BusinessCardSearchResult | null>(null);
+
+  const storyLookupMaps = useMemo(
+    () =>
+      buildStoryLookupFromReceivedContacts(
+        receivedContactsLookupRows.map((r) => ({
+          uid: r.uid,
+          cardId: r.cardId,
+          channelMuted: r.channelMuted,
+          storyState: r.storyState ?? 'none',
+        }))
+      ),
+    [receivedContactsLookupRows]
+  );
+
+  const closeReceivedCardDetail = useCallback(() => {
+    setReceivedCardDetail(null);
+    requestAnimationFrame(restoreSearchListScroll);
+  }, [restoreSearchListScroll]);
+
+  const closeMarketCardDetail = useCallback(() => {
+    setMarketCardDetail(null);
+    requestAnimationFrame(restoreSearchListScroll);
+  }, [restoreSearchListScroll]);
+
+  const onSearchScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    searchScrollYRef.current = e.nativeEvent.contentOffset.y;
+  }, []);
 
   const pressScaleForRow = (key: string) => {
     let v = rowPressScaleRef.current.get(key);
@@ -256,13 +310,13 @@ export default function SearchScreen() {
     const sections: { title: string; data: BusinessCardSearchResult[] }[] = [];
     if (displaySectionContacts.length) {
       sections.push({
-        title: tr('Mis Contactos', 'My Contacts'),
+        title: tr('Conocidos primero (Contactos)', 'Contacts first'),
         data: displaySectionContacts,
       });
     }
     if (displaySectionBusinesses.length) {
       sections.push({
-        title: tr('Tarjetas de negocio', 'Business Cards'),
+        title: tr('Mercado Social', 'Social Market'),
         data: displaySectionBusinesses,
       });
     }
@@ -314,7 +368,10 @@ export default function SearchScreen() {
         enableParallax: c.enableParallax,
         itemIds: c.itemIds,
         cardUpdatedAt: c.cardUpdatedAt,
+        storyState: c.storyState ?? 'none',
+        channelMuted: Boolean(c.channelMuted),
       }));
+      setReceivedContactsLookupRows(merged);
       setReceivedContactsForMarket((prev) => {
         if (!prev.length) {
           return merged;
@@ -563,6 +620,74 @@ export default function SearchScreen() {
       const holders = item.receivedHoldersCount ?? 0;
       const cardTitle = String(item.receivedContactCardName || '').trim() || item.card.businessName;
 
+      const ringState = resolveSearchRowStoryState(
+        {
+          uid: item.card.ownerUid,
+          cardId: item.receivedSourceCardId ?? null,
+          channelMuted: item.receivedChannelMuted,
+        },
+        storyLookupMaps
+      );
+
+      const openStoryFromAvatar = () => {
+        if (ringState === 'none') {
+          return;
+        }
+        const sourceCardId = String(item.receivedSourceCardId || '').trim();
+        if (!sourceCardId) {
+          Alert.alert(
+            tr('Historia no disponible', 'Story unavailable'),
+            tr('Falta la tarjeta de origen para abrir esta historia.', 'Missing source card to open this story.'),
+          );
+          return;
+        }
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        router.push({
+          pathname: '/(tabs)/stories',
+          params: { openStory: storyChannelKey(item.card.ownerUid, sourceCardId) },
+        });
+      };
+
+      const openCardBody = () => {
+        void (async () => {
+          const ok = await hardLockCheck('ver tarjeta desde busqueda');
+          if (!ok) {
+            return;
+          }
+          savedSearchScrollYRef.current = searchScrollYRef.current;
+          setReceivedCardDetail(item);
+        })();
+      };
+
+      const ringStyle =
+        ringState === 'vip'
+          ? {
+              borderWidth: 2.6,
+              borderColor: shell.ctaAccent,
+              backgroundColor: isDark ? 'rgba(212,175,55,0.22)' : 'rgba(212,175,55,0.12)',
+              shadowColor: shell.ctaAccent,
+              shadowOpacity: 0.45,
+              shadowRadius: 12,
+              shadowOffset: { width: 0, height: 2 },
+              elevation: 5,
+            }
+          : ringState === 'normal'
+            ? {
+                borderWidth: 2.5,
+                borderColor: shell.success,
+                backgroundColor: isDark ? 'rgba(48,209,88,0.14)' : 'rgba(52,199,89,0.1)',
+                shadowColor: shell.success,
+                shadowOpacity: 0.28,
+                shadowRadius: 8,
+                shadowOffset: { width: 0, height: 2 },
+                elevation: 3,
+              }
+            : {
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.1)',
+                backgroundColor: 'transparent',
+              };
+
       const starsEl = (
         <View style={styles.mrStarRow}>
           {Array.from({ length: 5 }).map((_, index) => {
@@ -576,235 +701,432 @@ export default function SearchScreen() {
         </View>
       );
 
+      const facets = item.receivedContactFacets || [];
+
       return (
         <Animated.View style={{ transform: [{ scale: pressScaleForRow(item.card.id) }] }}>
-        <ThemedSharedCardSurface
-          themeId={pres?.themeId}
-          wallpaperUrl={pres?.wallpaperUrl || undefined}
-          borderRadius={14}
-          style={[styles.marketReceivedSurfaceWrap, { shadowColor: shell.subtleShadow }]}
-        >
-          <Pressable
-            style={styles.marketReceivedPressable}
-            onPressIn={() => rowPressIn(item.card.id)}
-            onPressOut={() => rowPressOut(item.card.id)}
+          <ThemedSharedCardSurface
+            themeId={pres?.themeId}
+            wallpaperUrl={pres?.wallpaperUrl || undefined}
+            borderRadius={14}
+            style={[styles.marketReceivedSurfaceWrap, { shadowColor: shell.subtleShadow }]}
           >
-            <View style={styles.marketReceivedMainRow}>
-              {item.card.businessLogo ? (
-                <ExpoImage
-                  source={{ uri: item.card.businessLogo }}
-                  style={[styles.marketReceivedAvatar, { backgroundColor: shell.avatarPlaceholderBg }]}
-                  cachePolicy="disk"
-                />
-              ) : (
-                <View
-                  style={[
-                    styles.marketReceivedAvatar,
-                    styles.cardImagePlaceholder,
-                    {
-                      backgroundColor: MEDIA_PLACEHOLDER.personBgLight,
-                      borderWidth: 1,
-                      borderColor: MEDIA_PLACEHOLDER.personBorderLight,
-                    },
-                  ]}
+            <View style={styles.marketReceivedPressable}>
+              <View style={styles.marketReceivedMainRow}>
+                <TouchableOpacity
+                  activeOpacity={ringState === 'none' ? 1 : 0.88}
+                  onPress={openStoryFromAvatar}
+                  disabled={ringState === 'none'}
+                  accessibilityLabel={tr('Abrir historia', 'Open story')}
                 >
-                  <MaterialCommunityIcons
-                    name={MEDIA_PLACEHOLDER.personIconName}
-                    size={36}
-                    color={MEDIA_PLACEHOLDER.personIconLight}
-                  />
-                </View>
-              )}
-              <View style={styles.marketReceivedTextCol}>
-                <Text
-                  style={[
-                    styles.mrPersonName,
-                    {
-                      color: chest.titleColor,
-                      fontWeight: chest.titleFontWeight,
-                      fontStyle: chest.titleFontStyle,
-                    },
-                    pres?.fontFamily ? { fontFamily: pres.fontFamily } : null,
-                  ]}
-                  numberOfLines={2}
+                  <View style={[styles.searchAvatarRing, ringStyle]}>
+                    {item.card.businessLogo ? (
+                      <ExpoImage
+                        source={{ uri: item.card.businessLogo }}
+                        style={[styles.searchAvatarInner, { backgroundColor: shell.avatarPlaceholderBg }]}
+                        cachePolicy="disk"
+                      />
+                    ) : (
+                      <View
+                        style={[
+                          styles.searchAvatarInner,
+                          styles.cardImagePlaceholder,
+                          {
+                            backgroundColor: MEDIA_PLACEHOLDER.personBgLight,
+                            borderWidth: 1,
+                            borderColor: MEDIA_PLACEHOLDER.personBorderLight,
+                          },
+                        ]}
+                      >
+                        <MaterialCommunityIcons
+                          name={MEDIA_PLACEHOLDER.personIconName}
+                          size={34}
+                          color={MEDIA_PLACEHOLDER.personIconLight}
+                        />
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+                <Pressable
+                  style={[styles.marketReceivedTextCol, { flex: 1 }]}
+                  onPress={openCardBody}
+                  onPressIn={() => rowPressIn(item.card.id)}
+                  onPressOut={() => rowPressOut(item.card.id)}
                 >
-                  {item.card.businessName}
-                </Text>
-                <Text
-                  style={[
-                    styles.mrCardName,
-                    {
-                      color: chest.metaColor,
-                      fontWeight: chest.subtitleFontWeight,
-                      fontStyle: chest.subtitleFontStyle,
-                    },
-                    pres?.fontFamily ? { fontFamily: pres.fontFamily } : null,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {cardTitle}
-                </Text>
-                <View style={styles.mrRowStatsRow}>
-                  <View style={styles.mrRatingCluster}>
-                    {starsEl}
-                    <Text
+                  <Text
+                    style={[
+                      styles.mrPersonName,
+                      {
+                        color: chest.titleColor,
+                        fontWeight: chest.titleFontWeight,
+                        fontStyle: chest.titleFontStyle,
+                      },
+                      pres?.fontFamily ? { fontFamily: pres.fontFamily } : null,
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {item.card.businessName}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.mrCardName,
+                      {
+                        color: chest.metaColor,
+                        fontWeight: chest.subtitleFontWeight,
+                        fontStyle: chest.subtitleFontStyle,
+                      },
+                      pres?.fontFamily ? { fontFamily: pres.fontFamily } : null,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {cardTitle}
+                  </Text>
+                  <View style={styles.mrRowStatsRow}>
+                    <View style={styles.mrRatingCluster}>
+                      {starsEl}
+                      <Text
+                        style={[
+                          styles.mrRatingCaption,
+                          {
+                            color: chest.extraColor,
+                            fontSize: chest.extraFontSize,
+                            fontWeight: chest.extraFontWeight,
+                            fontStyle: chest.extraFontStyle,
+                          },
+                        ]}
+                      >
+                        {rating.toFixed(1)} · {reviewCount} {tr('reseñas', 'reviews')}
+                      </Text>
+                    </View>
+                    <View
                       style={[
-                        styles.mrRatingCaption,
-                        {
-                          color: chest.extraColor,
-                          fontSize: chest.extraFontSize,
-                          fontWeight: chest.extraFontWeight,
-                          fontStyle: chest.extraFontStyle,
-                        },
+                        styles.mrRecipientsPill,
+                        { borderColor: chest.borderColor, backgroundColor: 'rgba(255,255,255,0.72)' },
                       ]}
                     >
-                      {rating.toFixed(1)} · {reviewCount} {tr('reseñas', 'reviews')}
-                    </Text>
+                      <MaterialCommunityIcons name="account-group-outline" size={12} color={chest.titleColor} />
+                      <Text style={[styles.mrRecipientsPillNum, { color: chest.titleColor }]}>{holders}</Text>
+                    </View>
                   </View>
-                  <View
-                    style={[
-                      styles.mrRecipientsPill,
-                      { borderColor: chest.borderColor, backgroundColor: 'rgba(255,255,255,0.72)' },
-                    ]}
-                  >
-                    <MaterialCommunityIcons name="account-group-outline" size={12} color={chest.titleColor} />
-                    <Text style={[styles.mrRecipientsPillNum, { color: chest.titleColor }]}>{holders}</Text>
-                  </View>
+                </Pressable>
+              </View>
+              {facets.length > 0 ? (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={styles.searchFacetRow}
+                >
+                  {facets.slice(0, 14).map((f, idx) => (
+                    <TouchableOpacity
+                      key={`${f.type}-${idx}-${f.label}`}
+                      style={[styles.searchFacetIconBtn, { borderColor: 'rgba(197,160,101,0.45)' }]}
+                      onPress={() =>
+                        runSearchFacetQuickAction({
+                          type: f.type,
+                          label: f.label,
+                          value: f.value,
+                          issuerUid: item.card.ownerUid,
+                          issuerCardName: cardTitle,
+                          issuerCardId: item.receivedSourceCardId ?? null,
+                          issuerDisplayName: item.card.businessName,
+                        })
+                      }
+                      accessibilityLabel={f.label}
+                    >
+                      <MaterialCommunityIcons
+                        name={facetIconNameForSearch(f.type) as 'help-circle'}
+                        size={22}
+                        color="rgba(212,175,55,0.95)"
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              ) : null}
+              {showMiles && milesLabel ? (
+                <View style={[styles.mrDistanceBadge, { borderColor: chest.metaColor, backgroundColor: 'rgba(255,255,255,0.55)' }]}>
+                  <Text style={[styles.mrDistanceText, { color: chest.titleColor }]}>{milesLabel}</Text>
                 </View>
-              </View>
+              ) : null}
             </View>
-            {showMiles && milesLabel ? (
-              <View style={[styles.mrDistanceBadge, { borderColor: chest.metaColor, backgroundColor: 'rgba(255,255,255,0.55)' }]}>
-                <Text style={[styles.mrDistanceText, { color: chest.titleColor }]}>{milesLabel}</Text>
-              </View>
-            ) : null}
-          </Pressable>
-        </ThemedSharedCardSurface>
+          </ThemedSharedCardSurface>
         </Animated.View>
       );
     }
 
+    const card = item.card;
+    const marketRingState = marketSearchStoryRingState(card);
+    const marketFacets = buildMarketCardSearchFacets(card);
+    const marketRingStyle =
+      marketRingState === 'vip'
+        ? {
+            borderWidth: 2.6,
+            borderColor: shell.ctaAccent,
+            backgroundColor: isDark ? 'rgba(212,175,55,0.22)' : 'rgba(212,175,55,0.12)',
+            shadowColor: shell.ctaAccent,
+            shadowOpacity: 0.45,
+            shadowRadius: 12,
+            shadowOffset: { width: 0, height: 2 },
+            elevation: 5,
+          }
+        : marketRingState === 'normal'
+          ? {
+              borderWidth: 2.5,
+              borderColor: shell.success,
+              backgroundColor: isDark ? 'rgba(48,209,88,0.14)' : 'rgba(52,199,89,0.1)',
+              shadowColor: shell.success,
+              shadowOpacity: 0.28,
+              shadowRadius: 8,
+              shadowOffset: { width: 0, height: 2 },
+              elevation: 3,
+            }
+          : {
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.1)',
+              backgroundColor: 'transparent',
+            };
+
+    const openMarketStoryFromLogo = () => {
+      if (marketRingState === 'none') {
+        return;
+      }
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      router.push({
+        pathname: '/(tabs)/stories',
+        params: { openMarketVip: card.id },
+      });
+    };
+
+    const openMarketCardBody = () => {
+      void (async () => {
+        const ok = await hardLockCheck('ver tarjeta desde busqueda');
+        if (!ok) {
+          return;
+        }
+        savedSearchScrollYRef.current = searchScrollYRef.current;
+        setMarketCardDetail(item);
+      })();
+    };
+
+    const runMarketPhone = () => {
+      const phone = String(card.ownerPhone || '').trim();
+      if (!phone) {
+        Alert.alert(tr('Dato no disponible', 'Not available'), tr('Este negocio no publicó teléfono.', 'This business has no phone listed.'));
+        return;
+      }
+      runSearchFacetQuickAction({
+        type: 'teléfono',
+        label: tr('Teléfono', 'Phone'),
+        value: phone,
+        issuerUid: card.ownerUid,
+        issuerCardName: card.businessName,
+        issuerCardId: card.id,
+        issuerDisplayName: card.businessName,
+      });
+    };
+
+    const runMarketWhatsapp = () => {
+      const phone = String(card.ownerPhone || '').trim();
+      if (!phone) {
+        Alert.alert(tr('Dato no disponible', 'Not available'), tr('Sin número para WhatsApp.', 'No number for WhatsApp.'));
+        return;
+      }
+      const digits = phone.replace(/\D/g, '');
+      runSearchFacetQuickAction({
+        type: 'whatsapp',
+        label: 'WhatsApp',
+        value: digits ? `https://wa.me/${digits}` : phone,
+        issuerUid: card.ownerUid,
+        issuerCardName: card.businessName,
+        issuerCardId: card.id,
+        issuerDisplayName: card.businessName,
+      });
+    };
+
     return (
       <Animated.View style={{ transform: [{ scale: pressScaleForRow(item.card.id) }] }}>
-      <Pressable
-        onPressIn={() => rowPressIn(item.card.id)}
-        onPressOut={() => rowPressOut(item.card.id)}
-        style={({ pressed }) => [
-          styles.resultCard,
-          {
-            backgroundColor: shell.marketVipCardBg,
-            borderColor: shell.marketVipCardBorder,
-            shadowColor: shell.subtleShadow,
-          },
-          !hasLicense &&
-            isMarketBusiness && {
-              backgroundColor: shell.marketDullCardBg,
-              borderColor: shell.marketDullCardBorder,
-              shadowOpacity: 0,
-              elevation: 0,
-            },
-          pressed && styles.pressedCard,
-        ]}
-      >
         <View
           style={[
-            styles.floatingQrWrap,
-            { backgroundColor: shell.marketVipQrBg, shadowColor: shell.subtleShadow },
-            !hasLicense && { backgroundColor: shell.marketDullQrWrapBg },
+            styles.resultCard,
+            styles.marketResultCardColumn,
+            {
+              backgroundColor: shell.marketVipCardBg,
+              borderColor: shell.marketVipCardBorder,
+              shadowColor: shell.subtleShadow,
+            },
+            !hasLicense &&
+              isMarketBusiness && {
+                backgroundColor: shell.marketDullCardBg,
+                borderColor: shell.marketDullCardBorder,
+                shadowOpacity: 0,
+                elevation: 0,
+              },
           ]}
         >
-          <QRCode
-            value={permanentLink}
-            size={76}
-            color={shell.marketVipQrFg}
-            backgroundColor={shell.marketVipQrBg}
-            logo={item.card.businessLogo ? { uri: item.card.businessLogo } : undefined}
-            logoSize={16}
-            ecl="H"
-          />
-        </View>
-
-        {item.card.businessLogo ? (
-          <ExpoImage
-            source={{ uri: item.card.businessLogo }}
-            style={[
-              styles.cardImage,
-              { backgroundColor: shell.avatarPlaceholderBg },
-              !hasLicense && isMarketBusiness && styles.dullCardImage,
-            ]}
-            cachePolicy="disk"
-          />
-        ) : (
-          <View
-            style={[
-              styles.cardImage,
-              styles.cardImagePlaceholder,
-              !hasLicense && isMarketBusiness && styles.dullCardImage,
-              {
-                backgroundColor: MEDIA_PLACEHOLDER.businessBgLight,
-                borderWidth: 1,
-                borderColor: MEDIA_PLACEHOLDER.businessBorderLight,
-              },
-            ]}
-          >
-            <MaterialCommunityIcons
-              name={MEDIA_PLACEHOLDER.businessIconName}
-              size={40}
-              color={MEDIA_PLACEHOLDER.businessIconLight}
-            />
-          </View>
-        )}
-
-        <View style={styles.cardContent}>
-          <Text style={[styles.cardTitle, { color: shell.marketVipTitle }]}>{item.card.businessName}</Text>
-          <Text style={[styles.cardSubtitle, { color: shell.marketVipBody }]}>{item.card.businessDescription}</Text>
-
-          {!hasLicense && isMarketBusiness ? (
-            <View style={[styles.dullPill, { backgroundColor: shell.marketDullPillBg }]}>
-              <Text style={[styles.dullPillText, { color: shell.marketDullPillText }]}>
-                {tr('Modo tenue: anualidad pendiente', 'Dull mode: subscription pending')}
-              </Text>
-            </View>
-          ) : null}
-
-          <View style={styles.statsContainer}>
-            <View style={styles.stat}>
-              <MaterialCommunityIcons name="star" size={14} color={shell.ctaAccent} />
-              <Text style={[styles.statText, { color: shell.marketVipBody }]}>{(item.card.averageRating ?? 0).toFixed(1)}</Text>
+          <View style={styles.marketResultTopRow}>
+            <View
+              style={[
+                styles.floatingQrWrap,
+                { backgroundColor: shell.marketVipQrBg, shadowColor: shell.subtleShadow },
+                !hasLicense && { backgroundColor: shell.marketDullQrWrapBg },
+              ]}
+            >
+              <QRCode
+                value={permanentLink}
+                size={76}
+                color={shell.marketVipQrFg}
+                backgroundColor={shell.marketVipQrBg}
+                logo={item.card.businessLogo ? { uri: item.card.businessLogo } : undefined}
+                logoSize={16}
+                ecl="H"
+              />
             </View>
 
-            {showMiles && milesLabel ? (
-              <View style={styles.stat}>
-                <MaterialCommunityIcons name="map-marker" size={14} color={shell.textSecondary} />
-                <Text style={[styles.statText, { color: shell.marketVipBody }]}>{milesLabel}</Text>
+            <TouchableOpacity
+              activeOpacity={marketRingState === 'none' ? 1 : 0.88}
+              onPress={openMarketStoryFromLogo}
+              disabled={marketRingState === 'none'}
+              accessibilityLabel={tr('Abrir historia', 'Open story')}
+            >
+              <View style={[styles.searchAvatarRing, marketRingStyle]}>
+                {item.card.businessLogo ? (
+                  <ExpoImage
+                    source={{ uri: item.card.businessLogo }}
+                    style={[
+                      styles.searchMarketLogoInner,
+                      { backgroundColor: shell.avatarPlaceholderBg },
+                      !hasLicense && isMarketBusiness && styles.dullCardImage,
+                    ]}
+                    cachePolicy="disk"
+                  />
+                ) : (
+                  <View
+                    style={[
+                      styles.searchMarketLogoInner,
+                      styles.cardImagePlaceholder,
+                      !hasLicense && isMarketBusiness && styles.dullCardImage,
+                      {
+                        backgroundColor: MEDIA_PLACEHOLDER.businessBgLight,
+                        borderWidth: 1,
+                        borderColor: MEDIA_PLACEHOLDER.businessBorderLight,
+                      },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name={MEDIA_PLACEHOLDER.businessIconName}
+                      size={36}
+                      color={MEDIA_PLACEHOLDER.businessIconLight}
+                    />
+                  </View>
+                )}
               </View>
-            ) : null}
+            </TouchableOpacity>
 
-            <View style={styles.stat}>
-              <MaterialCommunityIcons name="check-circle" size={14} color={shell.success} />
-              <Text style={[styles.statText, { color: shell.marketVipBody }]}>{tr('Verificado', 'Verified')}</Text>
+            <Pressable
+              style={styles.cardContent}
+              onPress={openMarketCardBody}
+              onPressIn={() => rowPressIn(item.card.id)}
+              onPressOut={() => rowPressOut(item.card.id)}
+            >
+              <Text style={[styles.cardTitle, { color: shell.marketVipTitle }]}>{item.card.businessName}</Text>
+              <Text style={[styles.cardSubtitle, { color: shell.marketVipBody }]}>{item.card.businessDescription}</Text>
+
+              {!hasLicense && isMarketBusiness ? (
+                <View style={[styles.dullPill, { backgroundColor: shell.marketDullPillBg }]}>
+                  <Text style={[styles.dullPillText, { color: shell.marketDullPillText }]}>
+                    {tr('Modo tenue: anualidad pendiente', 'Dull mode: subscription pending')}
+                  </Text>
+                </View>
+              ) : null}
+
+              <View style={styles.statsContainer}>
+                <View style={styles.stat}>
+                  <MaterialCommunityIcons name="star" size={14} color={shell.ctaAccent} />
+                  <Text style={[styles.statText, { color: shell.marketVipBody }]}>
+                    {(item.card.averageRating ?? 0).toFixed(1)}
+                  </Text>
+                </View>
+
+                {showMiles && milesLabel ? (
+                  <View style={styles.stat}>
+                    <MaterialCommunityIcons name="map-marker" size={14} color={shell.textSecondary} />
+                    <Text style={[styles.statText, { color: shell.marketVipBody }]}>{milesLabel}</Text>
+                  </View>
+                ) : null}
+
+                <View style={styles.stat}>
+                  <MaterialCommunityIcons name="check-circle" size={14} color={shell.success} />
+                  <Text style={[styles.statText, { color: shell.marketVipBody }]}>{tr('Verificado', 'Verified')}</Text>
+                </View>
+              </View>
+            </Pressable>
+
+            <View style={[styles.ctaContainer, { borderLeftColor: shell.marketVipCtaDivider }]}>
+              <Pressable
+                style={({ pressed }) => [styles.ctaButton, pressed && { backgroundColor: shell.marketCtaPressedBg }]}
+                onPress={runMarketPhone}
+              >
+                <MaterialCommunityIcons name="phone" size={24} color={shell.textSecondary} />
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.ctaButton, pressed && { backgroundColor: shell.marketCtaPressedBg }]}
+                onPress={runMarketWhatsapp}
+              >
+                <MaterialCommunityIcons name="message-text" size={24} color={shell.textSecondary} />
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.ctaButton, pressed && { backgroundColor: shell.marketCtaPressedBg }]}
+                onPress={openMarketCardBody}
+              >
+                <MaterialCommunityIcons name="plus" size={24} color={shell.textSecondary} />
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.exportButton,
+                  { backgroundColor: shell.marketExportBtnBg },
+                  pressed && styles.pressedCta,
+                ]}
+                onPress={handleExportBusinessQr}
+              >
+                <MaterialCommunityIcons name="download" size={18} color={shell.btnPrimaryText} />
+              </Pressable>
             </View>
           </View>
-        </View>
 
-        <View style={[styles.ctaContainer, { borderLeftColor: shell.marketVipCtaDivider }]}>
-          <Pressable style={({ pressed }) => [styles.ctaButton, pressed && { backgroundColor: shell.marketCtaPressedBg }]}>
-            <MaterialCommunityIcons name="phone" size={24} color={shell.textSecondary} />
-          </Pressable>
-          <Pressable style={({ pressed }) => [styles.ctaButton, pressed && { backgroundColor: shell.marketCtaPressedBg }]}>
-            <MaterialCommunityIcons name="message-text" size={24} color={shell.textSecondary} />
-          </Pressable>
-          <Pressable style={({ pressed }) => [styles.ctaButton, pressed && { backgroundColor: shell.marketCtaPressedBg }]}>
-            <MaterialCommunityIcons name="plus" size={24} color={shell.textSecondary} />
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.exportButton, { backgroundColor: shell.marketExportBtnBg }, pressed && styles.pressedCta]}
-            onPress={handleExportBusinessQr}
-          >
-            <MaterialCommunityIcons name="download" size={18} color={shell.btnPrimaryText} />
-          </Pressable>
+          {marketFacets.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.searchFacetRowMarket}
+            >
+              {marketFacets.slice(0, 14).map((f, idx) => (
+                <TouchableOpacity
+                  key={`m-${f.type}-${idx}-${f.label}`}
+                  style={[styles.searchFacetIconBtn, { borderColor: 'rgba(197,160,101,0.45)' }]}
+                  onPress={() =>
+                    runSearchFacetQuickAction({
+                      type: f.type,
+                      label: f.label,
+                      value: f.value,
+                      issuerUid: card.ownerUid,
+                      issuerCardName: card.businessName,
+                      issuerCardId: card.id,
+                      issuerDisplayName: card.businessName,
+                    })
+                  }
+                  accessibilityLabel={f.label}
+                >
+                  <MaterialCommunityIcons
+                    name={facetIconNameForSearch(f.type) as 'card-account-details-outline'}
+                    size={22}
+                    color="rgba(212,175,55,0.95)"
+                  />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          ) : null}
         </View>
-      </Pressable>
       </Animated.View>
     );
   };
@@ -812,10 +1134,13 @@ export default function SearchScreen() {
   return (
     <View style={[styles.wrapper, { backgroundColor: shell.background }]}> 
       <SectionList
+        ref={sectionListRef}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.listContent}
         sections={listSections}
+        onScroll={onSearchScroll}
+        scrollEventThrottle={16}
         keyExtractor={(item) => `${item.rowSource ?? 'm'}:${item.card.id}`}
         renderItem={renderResultCard}
         renderSectionHeader={({ section: { title } }) => (
@@ -881,6 +1206,122 @@ export default function SearchScreen() {
           <ActivityIndicator size="small" color={shell.refreshAccent} />
         </View>
       ) : null}
+
+      <Modal
+        visible={Boolean(receivedCardDetail)}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={closeReceivedCardDetail}
+      >
+        {receivedCardDetail ? (
+          <View style={[styles.searchDetailModalRoot, { backgroundColor: shell.background }]}>
+            <View style={[styles.searchDetailHeader, { borderBottomColor: shell.border }]}>
+              <Text style={[styles.searchDetailTitle, { color: shell.textPrimary }]} numberOfLines={2}>
+                {receivedCardDetail.card.businessName}
+              </Text>
+              <TouchableOpacity onPress={closeReceivedCardDetail} hitSlop={12} accessibilityLabel={tr('Cerrar', 'Close')}>
+                <MaterialCommunityIcons name="close" size={26} color={shell.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              style={styles.searchDetailScroll}
+              contentContainerStyle={styles.searchDetailScrollContent}
+              keyboardShouldPersistTaps="handled"
+            >
+              <Text style={[styles.searchDetailSubtitle, { color: shell.textSecondary }]}>
+                {String(receivedCardDetail.receivedContactCardName || '').trim() || receivedCardDetail.card.businessName}
+              </Text>
+              <View style={styles.searchDetailFacetGrid}>
+                {(receivedCardDetail.receivedContactFacets || []).map((f, idx) => (
+                  <TouchableOpacity
+                    key={`rd-${f.type}-${idx}`}
+                    style={[styles.searchDetailFacetChip, { borderColor: 'rgba(197,160,101,0.5)', backgroundColor: shell.surfaceMuted }]}
+                    onPress={() =>
+                      runSearchFacetQuickAction({
+                        type: f.type,
+                        label: f.label,
+                        value: f.value,
+                        issuerUid: receivedCardDetail.card.ownerUid,
+                        issuerCardName:
+                          String(receivedCardDetail.receivedContactCardName || '').trim() ||
+                          receivedCardDetail.card.businessName,
+                        issuerCardId: receivedCardDetail.receivedSourceCardId ?? null,
+                        issuerDisplayName: receivedCardDetail.card.businessName,
+                      })
+                    }
+                  >
+                    <MaterialCommunityIcons
+                      name={facetIconNameForSearch(f.type) as 'card-account-details-outline'}
+                      size={26}
+                      color="rgba(212,175,55,0.95)"
+                    />
+                    <Text style={[styles.searchDetailFacetLabel, { color: shell.textPrimary }]} numberOfLines={2}>
+                      {f.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        ) : null}
+      </Modal>
+
+      <Modal
+        visible={Boolean(marketCardDetail)}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={closeMarketCardDetail}
+      >
+        {marketCardDetail ? (
+          <View style={[styles.searchDetailModalRoot, { backgroundColor: shell.background }]}>
+            <View style={[styles.searchDetailHeader, { borderBottomColor: shell.border }]}>
+              <Text style={[styles.searchDetailTitle, { color: shell.textPrimary }]} numberOfLines={2}>
+                {marketCardDetail.card.businessName}
+              </Text>
+              <TouchableOpacity onPress={closeMarketCardDetail} hitSlop={12} accessibilityLabel={tr('Cerrar', 'Close')}>
+                <MaterialCommunityIcons name="close" size={26} color={shell.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              style={styles.searchDetailScroll}
+              contentContainerStyle={styles.searchDetailScrollContent}
+              keyboardShouldPersistTaps="handled"
+            >
+              <Text style={[styles.searchDetailSubtitle, { color: shell.textSecondary }]}>
+                {String(marketCardDetail.card.businessDescription || '').trim() || '—'}
+              </Text>
+              <View style={styles.searchDetailFacetGrid}>
+                {buildMarketCardSearchFacets(marketCardDetail.card).map((f, idx) => (
+                  <TouchableOpacity
+                    key={`md-${f.type}-${idx}`}
+                    style={[styles.searchDetailFacetChip, { borderColor: 'rgba(197,160,101,0.5)', backgroundColor: shell.surfaceMuted }]}
+                    onPress={() =>
+                      runSearchFacetQuickAction({
+                        type: f.type,
+                        label: f.label,
+                        value: f.value,
+                        issuerUid: marketCardDetail.card.ownerUid,
+                        issuerCardName: marketCardDetail.card.businessName,
+                        issuerCardId: marketCardDetail.card.id,
+                        issuerDisplayName: marketCardDetail.card.businessName,
+                      })
+                    }
+                  >
+                    <MaterialCommunityIcons
+                      name={facetIconNameForSearch(f.type) as 'card-account-details-outline'}
+                      size={26}
+                      color="rgba(212,175,55,0.95)"
+                    />
+                    <Text style={[styles.searchDetailFacetLabel, { color: shell.textPrimary }]} numberOfLines={2}>
+                      {f.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        ) : null}
+      </Modal>
 
       <Modal
         visible={marketSortModalVisible}
@@ -1106,6 +1547,110 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
     minHeight: 116,
+  },
+  marketResultCardColumn: {
+    flexDirection: 'column',
+    minHeight: 0,
+  },
+  marketResultTopRow: {
+    position: 'relative',
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    minHeight: 116,
+  },
+  searchAvatarRing: {
+    borderRadius: 999,
+    padding: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchAvatarInner: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    overflow: 'hidden',
+  },
+  searchMarketLogoInner: {
+    width: 74,
+    height: 74,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  searchFacetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 4,
+    paddingBottom: 6,
+    paddingTop: 2,
+  },
+  searchFacetRowMarket: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+    paddingTop: 4,
+  },
+  searchFacetIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.28)',
+  },
+  searchDetailModalRoot: {
+    flex: 1,
+    paddingTop: Platform.OS === 'ios' ? 8 : 12,
+  },
+  searchDetailHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  searchDetailTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  searchDetailScroll: {
+    flex: 1,
+  },
+  searchDetailScrollContent: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  searchDetailSubtitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  searchDetailFacetGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  searchDetailFacetChip: {
+    width: '30%',
+    minWidth: 96,
+    maxWidth: 140,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    gap: 8,
+  },
+  searchDetailFacetLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   resultCardReceived: {
     flexDirection: 'column',

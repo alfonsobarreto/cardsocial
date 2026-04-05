@@ -64,13 +64,18 @@ npm install
 npx expo start
 ```
 
+**Contexto fresco para la app (lista Mis Tarjetas, scroll, reorden, preview, wireframe):** `funcionalidades.md` (sección *Mis Tarjetas* bajo Tarjetas inteligentes).
+
 ## Documentación adicional
 
 - `backend/README.md` — moderación, uploads, variables de entorno del backend.
 - `backend/DEPLOY_DETERMINISTIC_AZURE.md` — despliegue Azure del API.
-- `funcionalidades.md`, `admin.md`, `businesscard.md` — producto y operación.
-- `PHASE5_COMPLETION.md.old` — informe histórico de fase (puede estar desalineado con el repo actual).
-- `frontend-admin/README.md.old` — notas del portal admin web (contenía credenciales en texto plano; **rotar** si alguna vez fueron reales).
+- `funcionalidades.md` — MVP + **tab Mis Tarjetas** y resumen Stories (actualizado abril 2026).
+- `docs/INFRA_ESTADO_STORIES_VOIP.md` — Stories (metadatos vs media), Spaces/GridFS, Firebase en app, Agora Ghost-Link y activación.
+- `admin.md` — panel The Mint (`super_admin`, módulos, Firestore).
+- `businesscard.md` — contrato Business Card (v1 freeze).
+- `ICON_STORE_SETUP.md`, `ICON_LIBRARY_SETUP.md` — tienda / librería de iconos.
+- `ONE_PAGER_CARD_SOCIAL_MUNDO.md`, `PATENTE_MARCA_CARD_SOCIAL_BRIEF.md` — comercial / legal (no son spec de código).
 
 ## Seguridad
 

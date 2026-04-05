@@ -42,6 +42,8 @@ export type ReceivedContactForMarketSearch = {
   enableParallax?: boolean;
   itemIds?: string[];
   cardUpdatedAt?: string | null;
+  storyState?: 'none' | 'normal' | 'vip';
+  channelMuted?: boolean;
 };
 
 export type SocialMarketSearchSections = {
@@ -199,6 +201,8 @@ function searchReceivedContactsForMarket(
     receivedContactCardName: row.cardName,
     issuerPresentation: issuerPresentationFromRow(row),
     receivedHoldersCount: Number(row.holdersCount ?? 0) || 0,
+    receivedSourceCardId: row.cardId ?? null,
+    receivedChannelMuted: Boolean(row.channelMuted),
   }));
 }
 

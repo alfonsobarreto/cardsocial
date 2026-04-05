@@ -3,7 +3,7 @@
  * `background` / `motherBg` usan translucidez para el gradiente de Tabs.
  */
 
-import { premiumTheme as PT } from './premiumTheme';
+import { premiumTheme as PT } from './_premiumTheme';
 
 const pl = PT.light;
 const pd = PT.dark;

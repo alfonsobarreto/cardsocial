@@ -115,6 +115,6 @@ export function makeContactsStyles(shell: AppShellTheme) {
 footer = """);
 }
 """
-out_path = root / "app" / "(tabs)" / "contacts.styles.ts"
+out_path = root / "app" / "(tabs)" / "_contacts.styles.ts"
 out_path.write_text(header + out + footer, encoding="utf-8")
 print("written", out_path, "chars", len(out))

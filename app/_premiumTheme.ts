@@ -1,4 +1,5 @@
 /**
+ * Prefijo `_` en el nombre: Expo Router ignora este archivo (no es una pantalla).
  * Paleta premium (derivada / corregida del brief Stitch).
  * - Sintaxis válida, `as const` para tuplas.
  * - Modo claro: `onAccent` oscuro sobre oro (#D4AF37) para WCAG AA en texto de botón ~14px.

@@ -26,7 +26,7 @@ const env = {
   smtpUser: process.env.SMTP_USER || "",
   smtpPass: process.env.SMTP_PASS || "",
   revenueCatApiKey: process.env.REVENUECAT_API_KEY || "",
-  imageMaxBytes: 2 * MB,
+  imageMaxBytes: 5 * MB,
   docMaxBytes: 20 * MB,
 };
 

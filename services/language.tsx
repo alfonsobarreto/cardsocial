@@ -8,7 +8,9 @@ export const SUPPORTED_LANGUAGES: { code: AppLanguage; flag: string; label: stri
   { code: 'es', flag: '🇪🇸', label: 'Español' },
 ];
 
-const LANGUAGE_STORAGE_KEY = 'card-social:app-language';
+/** Usado también por servicios fuera de React (p. ej. biometricAuth). */
+export const APP_LANGUAGE_STORAGE_KEY = 'card-social:app-language';
+const LANGUAGE_STORAGE_KEY = APP_LANGUAGE_STORAGE_KEY;
 
 type LanguageContextValue = {
   language: AppLanguage;

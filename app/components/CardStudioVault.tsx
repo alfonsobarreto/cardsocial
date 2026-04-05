@@ -571,7 +571,8 @@ export default function CardStudioVault({
       titleColor: isNight ? '#FFFFFF' : '#1A1510',
       textPrimary: isNight ? '#F2F0EB' : '#1C180F',
       textSecondary: isNight ? '#9A9388' : '#5C5346',
-      sectionHeaderBg: isNight ? 'rgba(212,175,55,0.08)' : 'rgba(212,175,55,0.12)',
+      /** Opaco #000: evita bleed-through bajo cabeceras sticky (día y noche). */
+      sectionHeaderBg: '#000000',
       sectionHeaderBorder: 'rgba(212,175,55,0.32)',
       tileInactiveBg: isNight ? '#161616' : '#FFFFFF',
       tileInactiveBorder: isNight ? 'rgba(153,144,124,0.4)' : 'rgba(92,77,50,0.22)',
@@ -637,6 +638,7 @@ export default function CardStudioVault({
           backgroundColor: theme.sectionHeaderBg,
           borderBottomColor: theme.sectionHeaderBorder,
         },
+        styles.sectionHeaderSticky,
       ]}
     >
       <Text style={[styles.sectionTitle, { color: theme.labelGold }]}>
@@ -656,7 +658,7 @@ export default function CardStudioVault({
   const renderItem = ({ item: row, section }: { item: IconItem[]; section: IconSection }) => {
     if (section.isEmpty) return null;
     return (
-      <View style={styles.row}>
+      <View style={styles.row} collapsable={false}>
         {row.map((item) => {
           const stable = stableKeyForCatalogIcon(item);
           const active = selectedIcon === stable || selectedIcon === item.id;
@@ -703,7 +705,8 @@ export default function CardStudioVault({
                         shadowOpacity: 0.45,
                         shadowRadius: 10,
                       },
-                      android: { elevation: 8 },
+                      /** Por debajo de cabeceras sticky (elevation ~24). */
+                      android: { elevation: 3 },
                       default: {},
                     }),
                   ]}
@@ -843,9 +846,10 @@ export default function CardStudioVault({
                 </Text>
 
                 {/* SectionList categorizado */}
-                <View style={{ flex: 1 }}>
+                <View style={styles.listViewport}>
                 <SectionList
                   ref={sectionListRef}
+                  style={styles.sectionListFlex}
                   sections={displaySections}
                   keyExtractor={(row, idx) =>
                     Array.isArray(row) && row.length > 0
@@ -865,9 +869,10 @@ export default function CardStudioVault({
                   showsVerticalScrollIndicator={false}
                   contentContainerStyle={styles.listContent}
                   scrollEventThrottle={16}
-                  windowSize={2}
-                  maxToRenderPerBatch={5}
-                  initialNumToRender={3}
+                  removeClippedSubviews
+                  windowSize={8}
+                  maxToRenderPerBatch={10}
+                  initialNumToRender={8}
                   bounces={false}
                   overScrollMode="never"
                 />
@@ -1017,12 +1022,30 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: 32,
   },
+  listViewport: {
+    flex: 1,
+    zIndex: 0,
+  },
+  sectionListFlex: {
+    flex: 1,
+  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  /** Por encima de celdas de iconos (badges zIndex 2, sombras). Sticky en Android usa elevation. */
+  sectionHeaderSticky: {
+    zIndex: 100,
+    ...Platform.select({
+      ios: {},
+      android: {
+        elevation: 24,
+      },
+      default: {},
+    }),
   },
   sectionTitle: {
     fontSize: 12,
@@ -1046,12 +1069,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 8,
     paddingVertical: 4,
+    zIndex: 0,
+    elevation: 0,
   },
   iconCellWrap: {
     flex: 1,
     margin: 4,
     minWidth: 56,
     maxWidth: 70,
+    zIndex: 0,
   },
   iconItemGradientOuter: {
     borderRadius: 14,
@@ -1082,7 +1108,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 4,
     right: 4,
-    zIndex: 2,
+    zIndex: 1,
     backgroundColor: '#D4AF37',
     borderRadius: 8,
     padding: 2,
@@ -1091,7 +1117,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 4,
     left: 4,
-    zIndex: 2,
+    zIndex: 1,
     fontSize: 9,
     fontWeight: '800',
     color: '#0A1A2F',

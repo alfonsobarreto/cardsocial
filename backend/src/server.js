@@ -381,8 +381,19 @@ const otpHash = (emailLower, code) => {
     res.status(500).json({ ok: false, error: err.message || "Unexpected error" });
   });
 
+  const { runStorySpacesAssetCleanup } = require("./jobs/storySpacesCleanup");
+  const STORY_SPACES_CLEANUP_MS = 24 * 60 * 60 * 1000;
+
   app.listen(env.port, () => {
     console.log(`Moderation backend running at http://localhost:${env.port}`);
+    void runStorySpacesAssetCleanup(storage).catch((e) =>
+      console.warn("[storySpacesCleanup] initial:", e?.message || e)
+    );
+    setInterval(() => {
+      void runStorySpacesAssetCleanup(storage).catch((e) =>
+        console.warn("[storySpacesCleanup] interval:", e?.message || e)
+      );
+    }, STORY_SPACES_CLEANUP_MS);
   });
 }
 

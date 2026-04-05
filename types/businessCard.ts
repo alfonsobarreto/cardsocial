@@ -110,6 +110,9 @@ export interface BusinessCardSearchResult {
   issuerPresentation?: IssuerSmartCardPresentation;
   /** Suscriptores de la tarjeta del emisor (solo filas `received_contact`). */
   receivedHoldersCount?: number;
+  /** Tarjeta del emisor que posee el viewer (canal Stories / lookup). */
+  receivedSourceCardId?: string | null;
+  receivedChannelMuted?: boolean;
 }
 
 export interface SocialMarketSearchParams {

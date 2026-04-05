@@ -1,5 +1,20 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Alert } from 'react-native';
+
+import { APP_LANGUAGE_STORAGE_KEY } from '@/services/language';
+
+async function getStoredAppLanguage(): Promise<'es' | 'en'> {
+  try {
+    const stored = await AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY);
+    if (stored === 'en' || stored === 'es') {
+      return stored;
+    }
+  } catch {
+    /* ignore */
+  }
+  return 'es';
+}
 
 interface BiometricAvailability {
   available: boolean;
@@ -48,16 +63,20 @@ export async function authenticateWithBiometric(
   // return result.success;
 }
 
-export async function hardLockCheck(
-  actionLabel: string = 'acceso'
-): Promise<boolean> {
-  const reason = `Autoriza acceso a ${actionLabel} en Card-Social`;
+export async function hardLockCheck(actionLabel: string = 'acceso'): Promise<boolean> {
+  const lang = await getStoredAppLanguage();
+  const reason =
+    lang === 'en'
+      ? `Authorize access to ${actionLabel} in Card-Social`
+      : `Autoriza acceso a ${actionLabel} en Card-Social`;
   const authenticated = await authenticateWithBiometric(reason, true);
 
   if (!authenticated) {
     Alert.alert(
-      'Acceso denegado',
-      `No se pudo verificar tu identidad para ${actionLabel}. Usa FaceID/huella o PIN/contraseña del dispositivo.`
+      lang === 'en' ? 'Access denied' : 'Acceso denegado',
+      lang === 'en'
+        ? `We couldn't verify your identity for ${actionLabel}. Use Face ID, fingerprint, or your device PIN or password.`
+        : `No se pudo verificar tu identidad para ${actionLabel}. Usa Face ID, huella o PIN/contraseña del dispositivo.`,
     );
   }
 

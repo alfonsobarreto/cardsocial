@@ -20,7 +20,7 @@ import {
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import appPalette from '../theme';
-import { makeContactsStyles } from './contacts.styles';
+import { makeContactsStyles } from './_contacts.styles';
 import { getCardRowTheme } from '@/services/useActiveTheme';
 import { collectStringsReceivedContact, orderByDeepSearchWithExpandedQuery } from '@/services/deepSearch';
 import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
@@ -1200,8 +1200,14 @@ function ContactsContent() {
                     >
                       <Pressable
                         style={styles.contactCardInnerThemed}
-                        onPress={() => void openFloatingCard(row)}
-                        onLongPress={() => onLongPressRow(row)}
+                        onPress={() => {
+                          closeRowSwipe();
+                          void openFloatingCard(row);
+                        }}
+                        onLongPress={() => {
+                          closeRowSwipe();
+                          onLongPressRow(row);
+                        }}
                         delayLongPress={400}
                         onPressIn={() => animateContactRowPressIn(row.uid)}
                         onPressOut={() => animateContactRowPressOut(row.uid)}

@@ -41,6 +41,7 @@ import { newEntityId } from '@/services/newEntityId';
 import {
   blockRelationship,
   deleteSmartCardInDb,
+  getCardAnalyticsSummary,
   issueDynamicQrToken,
   listCardSubscribers,
   listSmartCardsFromDb,
@@ -85,6 +86,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -292,6 +294,19 @@ type SmartCard = {
   updatedAt: string;
 };
 
+/** Una sola fila por `id` (evita claves duplicadas en listas y orden manual). */
+function dedupeSmartCardsById(cards: SmartCard[]): SmartCard[] {
+  const byId = new Map<string, SmartCard>();
+  for (const c of cards) {
+    const id = String(c.id || '').trim();
+    if (!id) {
+      continue;
+    }
+    byId.set(id, c);
+  }
+  return [...byId.values()];
+}
+
 /** Fila unificada en la lista Mis Tarjetas (Smart + negocio). */
 type CardsFeedListItem =
   | ({ kind: 'business' } & BusinessCardListRow)
@@ -318,7 +333,10 @@ function applyCardsManualFeedOrder(feed: CardsFeedListItem[], savedKeys: string[
   }
   for (const it of feed) {
     const k = cardsFeedItemKey(it);
-    if (!used.has(k)) out.push(it);
+    if (!used.has(k)) {
+      out.push(it);
+      used.add(k);
+    }
   }
   return out;
 }
@@ -787,6 +805,13 @@ export default function CardsFactoryScreen() {
   /** UID de la sesión en Mis Tarjetas (QR permanente en filas de negocio). */
   const [sessionOwnerUid, setSessionOwnerUid] = useState<string | null>(null);
   const [cardSearchQuery, setCardSearchQuery] = useState('');
+  const [cardStatsVisible, setCardStatsVisible] = useState(false);
+  const [cardStatsTarget, setCardStatsTarget] = useState<SmartCard | null>(null);
+  const [cardStatsLoading, setCardStatsLoading] = useState(false);
+  const [cardStatsData, setCardStatsData] = useState<{
+    totalViews: number;
+    topIcons: Array<{ iconType: string; count: number }>;
+  } | null>(null);
   const [manualFeedOrderKeys, setManualFeedOrderKeys] = useState<string[]>([]);
   const [cardsReorderMode, setCardsReorderMode] = useState(false);
   const [reorderDraftData, setReorderDraftData] = useState<CardsFeedListItem[]>([]);
@@ -803,6 +828,12 @@ export default function CardsFactoryScreen() {
   const [viewerItem, setViewerItem] = useState<VaultItem | null>(null);
   const [isDownloadingViewerFile, setIsDownloadingViewerFile] = useState(false);
   const swipeableMethodsByCardIdRef = useRef<Map<string, SwipeableMethods>>(new Map());
+  const subscriberSwipeableMethodsRef = useRef<Map<string, SwipeableMethods>>(new Map());
+  useEffect(() => {
+    if (!subscribersVisible) {
+      subscriberSwipeableMethodsRef.current.clear();
+    }
+  }, [subscribersVisible]);
   /** Tras cerrar selector de datos / temas, reabrir el factory si estaba abierto (evita 2 Modals superpuestos en Android). */
   const resumeFactoryAfterAuxModalRef = useRef(false);
 
@@ -1019,7 +1050,9 @@ export default function CardsFactoryScreen() {
       cachedJson = raw || '';
       const cached = raw ? (JSON.parse(raw) as SmartCard[]) : [];
       if (cached.length > 0) {
-        setSmartCards(cached.map((card) => ({ ...card, isFavorite: Boolean(card.isFavorite) })));
+        setSmartCards(
+          dedupeSmartCardsById(cached.map((card) => ({ ...card, isFavorite: Boolean(card.isFavorite) }))),
+        );
       }
     } catch { /* ignora — la nube actualiza a continuación */ }
 
@@ -1051,9 +1084,10 @@ export default function CardsFactoryScreen() {
         updatedAt: card.updatedAt,
       }));
 
-      const cloudJson = JSON.stringify(mapped);
+      const deduped = dedupeSmartCardsById(mapped);
+      const cloudJson = JSON.stringify(deduped);
       if (cloudJson !== cachedJson) {
-        setSmartCards(mapped);
+        setSmartCards(deduped);
         await AsyncStorage.setItem(smartCardsStorageKey(ownerUid), cloudJson);
       }
     } catch {
@@ -1077,7 +1111,8 @@ export default function CardsFactoryScreen() {
 
   const persistCards = async (nextCards: SmartCard[], changedCardIds?: string[]) => {
     console.log('[Card] persistCards: INICIO');
-    setSmartCards(nextCards);
+    const normalized = dedupeSmartCardsById(nextCards);
+    setSmartCards(normalized);
 
     console.log('[Card] persistCards: Antes de getActiveUserId');
     const ownerUid = await getActiveUserId();
@@ -1085,7 +1120,7 @@ export default function CardsFactoryScreen() {
 
     console.log('[Card] persistCards: Antes de AsyncStorage.setItem');
     if (ownerUid) {
-      await AsyncStorage.setItem(smartCardsStorageKey(ownerUid), JSON.stringify(nextCards));
+      await AsyncStorage.setItem(smartCardsStorageKey(ownerUid), JSON.stringify(normalized));
     }
     console.log('[Card] persistCards: Después de AsyncStorage.setItem');
 
@@ -1737,6 +1772,27 @@ export default function CardsFactoryScreen() {
     }
   };
 
+  const openCardAnalytics = (card: SmartCard) => {
+    setCardStatsTarget(card);
+    setCardStatsVisible(true);
+    setCardStatsLoading(true);
+    setCardStatsData(null);
+    void (async () => {
+      try {
+        const ownerUid = await getActiveUserId();
+        if (!ownerUid) {
+          throw new Error(tr('Sin sesión', 'Not signed in'));
+        }
+        const sum = await getCardAnalyticsSummary({ ownerUid, cardId: card.id });
+        setCardStatsData({ totalViews: sum.totalViews, topIcons: sum.topIcons });
+      } catch {
+        setCardStatsData({ totalViews: 0, topIcons: [] });
+      } finally {
+        setCardStatsLoading(false);
+      }
+    })();
+  };
+
   const confirmAndIssueQrForCard = (card: SmartCard) => {
     if (issuingQr) {
       return;
@@ -1949,7 +2005,8 @@ export default function CardsFactoryScreen() {
   }, [qrVisible, remainingMs, qrPayload, qrBusinessContext]);
 
   const sortedCards = useMemo(() => {
-    return [...smartCards].sort((a, b) => {
+    const unique = dedupeSmartCardsById(smartCards);
+    return unique.sort((a, b) => {
       const favDiff = Number(Boolean(b.isFavorite)) - Number(Boolean(a.isFavorite));
       if (favDiff !== 0) {
         return favDiff;
@@ -2549,6 +2606,9 @@ export default function CardsFactoryScreen() {
       reviewCount > 0 && Number.isFinite(ratingRaw) ? Math.max(0, Math.min(5, ratingRaw)) : 0;
     const logoUri = toRenderableImageUri(row.businessLogo);
     const sk = businessSwipeKey(row.id);
+    const closeBusinessRowSwipe = () => {
+      swipeableMethodsByCardIdRef.current.get(sk)?.close();
+    };
     return (
       <Swipeable
         containerStyle={[styles.swipeWrap, isLandscape && styles.swipeWrapLandscape]}
@@ -2568,9 +2628,10 @@ export default function CardsFactoryScreen() {
           <View style={styles.swipeActions}>
             <TouchableOpacity
               style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.swipeStripEditBg }]}
-              onPress={() =>
-                router.push({ pathname: '/(tabs)/createBusinessCard', params: { cardId: row.id } } as any)
-              }
+              onPress={() => {
+                closeBusinessRowSwipe();
+                router.push({ pathname: '/(tabs)/createBusinessCard', params: { cardId: row.id } } as any);
+              }}
               accessibilityLabel={tr('Editar tarjeta', 'Edit card')}
             >
               <MaterialCommunityIcons name="pencil" size={16} color={cardsTheme.btnPrimaryText} />
@@ -2578,7 +2639,10 @@ export default function CardsFactoryScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.headerBtnBg }]}
-              onPress={() => confirmAndIssueQrForBusiness(row)}
+              onPress={() => {
+                closeBusinessRowSwipe();
+                confirmAndIssueQrForBusiness(row);
+              }}
               disabled={issuingQr}
               accessibilityLabel={tr('Generar QR', 'Generate QR')}
             >
@@ -2587,7 +2651,10 @@ export default function CardsFactoryScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.ctaAccent }]}
-              onPress={() => void toggleFavoriteBusinessCard(row)}
+              onPress={() => {
+                closeBusinessRowSwipe();
+                void toggleFavoriteBusinessCard(row);
+              }}
               accessibilityLabel={tr('Favorito', 'Favorite')}
             >
               <MaterialCommunityIcons name={row.isFavorite ? 'star' : 'star-outline'} size={16} color={cardsTheme.btnPrimaryText} />
@@ -2595,7 +2662,10 @@ export default function CardsFactoryScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.swipeDeleteBtn, { backgroundColor: cardsTheme.swipeDeleteBg }]}
-              onPress={() => void deleteBusinessCardEntry(row)}
+              onPress={() => {
+                closeBusinessRowSwipe();
+                void deleteBusinessCardEntry(row);
+              }}
               accessibilityLabel={tr('Eliminar tarjeta', 'Delete card')}
             >
               <MaterialCommunityIcons name="trash-can-outline" size={16} color={cardsTheme.btnPrimaryText} />
@@ -2619,7 +2689,10 @@ export default function CardsFactoryScreen() {
           />
           <TouchableOpacity
             style={styles.cardRowTouchable}
-            onPress={() => void openPreviewBusinessCard(row)}
+            onPress={() => {
+              closeBusinessRowSwipe();
+              void openPreviewBusinessCard(row);
+            }}
             onLongPress={() => enterCardsReorderRef.current?.()}
             delayLongPress={420}
             activeOpacity={0.92}
@@ -2693,7 +2766,10 @@ export default function CardsFactoryScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.cardRowFavoriteBtn}
-            onPress={() => void toggleFavoriteBusinessCard(row)}
+            onPress={() => {
+              closeBusinessRowSwipe();
+              void toggleFavoriteBusinessCard(row);
+            }}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             accessibilityRole="button"
             accessibilityLabel={
@@ -2720,6 +2796,9 @@ export default function CardsFactoryScreen() {
       reviewCount > 0 && Number.isFinite(ratingRaw) ? Math.max(0, Math.min(5, ratingRaw)) : 0;
     const themeMeta = getThemeById(item.themeId || '') ?? CHEST_THEMES[0];
     const themeLabel = themeMeta.name;
+    const closeSmartCardRowSwipe = () => {
+      swipeableMethodsByCardIdRef.current.get(item.id)?.close();
+    };
 
     return (
       <Swipeable
@@ -2740,7 +2819,10 @@ export default function CardsFactoryScreen() {
           <View style={styles.swipeActions}>
             <TouchableOpacity
               style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.swipeStripEditBg }]}
-              onPress={() => openEditFactory(item)}
+              onPress={() => {
+                closeSmartCardRowSwipe();
+                openEditFactory(item);
+              }}
               accessibilityLabel={tr('Editar tarjeta', 'Edit card')}
             >
               <MaterialCommunityIcons name="pencil" size={16} color={cardsTheme.btnPrimaryText} />
@@ -2748,7 +2830,10 @@ export default function CardsFactoryScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.headerBtnBg }]}
-              onPress={() => confirmAndIssueQrForCard(item)}
+              onPress={() => {
+                closeSmartCardRowSwipe();
+                confirmAndIssueQrForCard(item);
+              }}
               disabled={issuingQr}
               accessibilityLabel={tr('Generar QR', 'Generate QR')}
             >
@@ -2757,7 +2842,10 @@ export default function CardsFactoryScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.ctaAccent }]}
-              onPress={() => toggleFavoriteCard(item)}
+              onPress={() => {
+                closeSmartCardRowSwipe();
+                toggleFavoriteCard(item);
+              }}
               accessibilityLabel={tr('Favorito', 'Favorite')}
             >
               <MaterialCommunityIcons name={item.isFavorite ? 'star' : 'star-outline'} size={16} color={cardsTheme.btnPrimaryText} />
@@ -2765,7 +2853,10 @@ export default function CardsFactoryScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.swipeDeleteBtn, { backgroundColor: cardsTheme.swipeDeleteBg }]}
-              onPress={() => deleteCard(item)}
+              onPress={() => {
+                closeSmartCardRowSwipe();
+                deleteCard(item);
+              }}
               accessibilityLabel={tr('Eliminar tarjeta', 'Delete card')}
             >
               <MaterialCommunityIcons name="trash-can-outline" size={16} color={cardsTheme.btnPrimaryText} />
@@ -2795,7 +2886,10 @@ export default function CardsFactoryScreen() {
           ) : null}
           <TouchableOpacity
             style={styles.cardRowTouchable}
-            onPress={() => openPreviewCard(item)}
+            onPress={() => {
+              closeSmartCardRowSwipe();
+              openPreviewCard(item);
+            }}
             onLongPress={() => enterCardsReorderRef.current?.()}
             delayLongPress={420}
             activeOpacity={0.92}
@@ -2821,7 +2915,10 @@ export default function CardsFactoryScreen() {
                     styles.metricPill,
                     { borderColor: chestTheme.borderColor, backgroundColor: 'rgba(255,255,255,0.72)' },
                   ]}
-                  onPress={() => openSubscribersModal(item)}
+                  onPress={() => {
+                    closeSmartCardRowSwipe();
+                    openSubscribersModal(item);
+                  }}
                 >
                   <MaterialCommunityIcons name="account-group-outline" size={13} color={chestTheme.titleColor} />
                   <Text style={[styles.metricPillText, { color: chestTheme.titleColor }]}>{holders}</Text>
@@ -2841,8 +2938,23 @@ export default function CardsFactoryScreen() {
             </View>
           </TouchableOpacity>
           <TouchableOpacity
+            style={styles.cardRowStatsBtn}
+            onPress={() => {
+              closeSmartCardRowSwipe();
+              openCardAnalytics(item);
+            }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel={tr('Estadísticas', 'Statistics')}
+          >
+            <MaterialCommunityIcons name="chart-line-variant" size={17} color="rgba(212,175,55,0.95)" />
+          </TouchableOpacity>
+          <TouchableOpacity
             style={styles.cardRowFavoriteBtn}
-            onPress={() => void toggleFavoriteCard(item)}
+            onPress={() => {
+              closeSmartCardRowSwipe();
+              void toggleFavoriteCard(item);
+            }}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             accessibilityRole="button"
             accessibilityLabel={item.isFavorite ? tr('Quitar de favoritos', 'Remove from favorites') : tr('Marcar favorito', 'Mark as favorite')}
@@ -3194,7 +3306,7 @@ export default function CardsFactoryScreen() {
         <FlatList
           style={{ flex: 1 }}
           data={filteredFeed}
-          keyExtractor={(item) => (item.kind === 'business' ? `biz-${item.id}` : `smart-${item.card.id}`)}
+          keyExtractor={(item) => cardsFeedItemKey(item)}
           renderItem={({ item }) => {
             if (item.kind === 'business') {
               const { kind: _k, ...bizRow } = item;
@@ -4012,6 +4124,15 @@ export default function CardsFactoryScreen() {
                 subscribers.map((row) => (
                   <Swipeable
                     key={row.uid}
+                    ref={
+                      ((methods: SwipeableMethods | null) => {
+                        if (methods) {
+                          subscriberSwipeableMethodsRef.current.set(row.uid, methods);
+                        } else {
+                          subscriberSwipeableMethodsRef.current.delete(row.uid);
+                        }
+                      }) as unknown as React.RefObject<SwipeableMethods | null>
+                    }
                     containerStyle={{ marginBottom: 6, borderRadius: 12, overflow: 'hidden' }}
                     rightThreshold={20}
                     renderRightActions={() => (
@@ -4019,6 +4140,7 @@ export default function CardsFactoryScreen() {
                         <TouchableOpacity
                           style={[styles.subscriberSwipeMute, { backgroundColor: cardsTheme.subscriberSwipeMuteBg }]}
                           onPress={() => {
+                            subscriberSwipeableMethodsRef.current.get(row.uid)?.close();
                             const title = row.muted
                               ? tr('Dejar de silenciar', 'Unmute channel')
                               : tr('Silenciar canal', 'Mute channel');
@@ -4040,6 +4162,7 @@ export default function CardsFactoryScreen() {
                         <TouchableOpacity
                           style={[styles.subscriberSwipeRevoke, { backgroundColor: cardsTheme.subscriberSwipeRevokeBg }]}
                           onPress={() => {
+                            subscriberSwipeableMethodsRef.current.get(row.uid)?.close();
                             Alert.alert(
                               tr('Eliminar acceso', 'Remove access'),
                               tr('Se revocará tu tarjeta de este usuario.', 'Your card will be revoked from this user.'),
@@ -4056,6 +4179,7 @@ export default function CardsFactoryScreen() {
                         <TouchableOpacity
                           style={[styles.subscriberSwipeBlock, { backgroundColor: cardsTheme.swipeDeleteBg }]}
                           onPress={() => {
+                            subscriberSwipeableMethodsRef.current.get(row.uid)?.close();
                             Alert.alert(
                               tr('Bloquear usuario', 'Block user'),
                               tr('Se eliminarán todos los vínculos en ambas direcciones.', 'All share permissions will be removed bilaterally.'),
@@ -4337,6 +4461,79 @@ export default function CardsFactoryScreen() {
             </View>
           </LinearGradient>
         </View>
+      </Modal>
+
+      <Modal
+        visible={cardStatsVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setCardStatsVisible(false);
+          setCardStatsTarget(null);
+        }}
+      >
+        <Pressable
+          style={[styles.cardStatsOverlay, { backgroundColor: cardsTheme.modalOverlay }]}
+          onPress={() => {
+            setCardStatsVisible(false);
+            setCardStatsTarget(null);
+          }}
+        >
+          <Pressable
+            style={[styles.cardStatsCard, { backgroundColor: cardsTheme.modalBg, borderColor: cardsTheme.modalBorder }]}
+            onPress={() => {}}
+          >
+            <View style={styles.cardStatsHeaderRow}>
+              <Text style={[styles.cardStatsTitle, { color: cardsTheme.modalTitle }]}>
+                {tr('Estadísticas', 'Statistics')}
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setCardStatsVisible(false);
+                  setCardStatsTarget(null);
+                }}
+                hitSlop={12}
+                accessibilityLabel={tr('Cerrar', 'Close')}
+              >
+                <MaterialCommunityIcons name="close" size={22} color={cardsTheme.sectionLabel} />
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.cardStatsCardName, { color: cardsTheme.text }]} numberOfLines={2}>
+              {cardStatsTarget?.name || '—'}
+            </Text>
+            {cardStatsLoading ? (
+              <ActivityIndicator style={{ marginVertical: 24 }} color={cardsTheme.ctaAccent} />
+            ) : (
+              <>
+                <Text style={[styles.cardStatsSectionLabel, { color: cardsTheme.sectionLabel }]}>
+                  {tr('Visualizaciones totales (90 días)', 'Total views (90 days)')}
+                </Text>
+                <Text style={[styles.cardStatsBigNumber, { color: cardsTheme.ctaAccent }]}>
+                  {cardStatsData?.totalViews ?? 0}
+                </Text>
+                <Text style={[styles.cardStatsSectionLabel, { color: cardsTheme.sectionLabel, marginTop: 16 }]}>
+                  {tr('Tus iconos más usados', 'Your most-used icons')}
+                </Text>
+                {(cardStatsData?.topIcons || []).length === 0 ? (
+                  <Text style={[styles.cardStatsEmpty, { color: cardsTheme.modalSubtitle }]}>
+                    {tr('Aún no hay datos. Comparte tu tarjeta o espera interacciones.', 'No data yet. Share your card or wait for interactions.')}
+                  </Text>
+                ) : (
+                  <View style={styles.cardStatsIconList}>
+                    {(cardStatsData?.topIcons || []).map((row) => (
+                      <View key={row.iconType} style={[styles.cardStatsIconRow, { borderBottomColor: cardsTheme.divider }]}>
+                        <Text style={[styles.cardStatsIconType, { color: cardsTheme.text }]} numberOfLines={1}>
+                          {row.iconType}
+                        </Text>
+                        <Text style={[styles.cardStatsIconCount, { color: 'rgba(212,175,55,0.95)' }]}>{row.count}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </>
+            )}
+          </Pressable>
+        </Pressable>
       </Modal>
 
       {/* Limit Reached Modal */}
@@ -4676,6 +4873,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 5,
     right: 4,
+    zIndex: 4,
+    padding: 3,
+  },
+  cardRowStatsBtn: {
+    position: 'absolute',
+    top: 5,
+    right: 34,
     zIndex: 4,
     padding: 3,
   },
@@ -6112,5 +6316,68 @@ const styles = StyleSheet.create({
   },
   mutualTinyAvatarFirst: {
     marginLeft: 0,
+  },
+  cardStatsOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  cardStatsCard: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 18,
+  },
+  cardStatsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  cardStatsTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  cardStatsCardName: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  cardStatsSectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  cardStatsBigNumber: {
+    fontSize: 32,
+    fontWeight: '800',
+  },
+  cardStatsEmpty: {
+    fontSize: 13,
+    marginTop: 8,
+    lineHeight: 19,
+  },
+  cardStatsIconList: {
+    marginTop: 8,
+    maxHeight: 220,
+  },
+  cardStatsIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  cardStatsIconType: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    marginRight: 8,
+  },
+  cardStatsIconCount: {
+    fontSize: 14,
+    fontWeight: '800',
   },
 });

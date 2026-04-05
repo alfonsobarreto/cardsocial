@@ -1,4 +1,4 @@
-"""One-off generator: extract StyleSheet from stories.tsx → stories.styles.ts (run while StyleSheet still in file)."""
+"""One-off generator: extract StyleSheet from stories.tsx → _stories.styles.ts (run while StyleSheet still in file)."""
 import re
 from pathlib import Path
 
@@ -84,6 +84,6 @@ export function makeStoriesStyles(shell: AppShellTheme) {
 footer = """);
 }
 """
-out_path = root / "app" / "(tabs)" / "stories.styles.ts"
+out_path = root / "app" / "(tabs)" / "_stories.styles.ts"
 out_path.write_text(header + out + footer, encoding="utf-8")
 print("written", out_path)
