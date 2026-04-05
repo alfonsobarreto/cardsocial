@@ -14,6 +14,17 @@ Este documento resume el núcleo funcional actual para mantener alineado el comp
 - Las tarjetas se comparten por QR dinámico y permisos de relación.
 - Al tocar un dato telefónico desde tarjeta, nunca debe abrir marcador nativo del sistema.
 
+### QR universal (marketing, TTL 24h) — `https://cardsocial.me/u/…`
+
+| Pieza | Comportamiento |
+|--------|----------------|
+| **URL del QR** | Base **`https://cardsocial.me`**, ruta **`/u/{token}`**, query recomendada **`source=qr_scan`** (analytics). Se genera vía backend `POST /api/qr/temporary-access/issue` (`issueTemporaryUniversalAccess` en `services/qrApi.ts`). |
+| **Mongo** | Colección **`temporary_access`**: token opaco, `cardId`, `ownerUid`, `expiresAt` (+24h), índice TTL. |
+| **Validación en API** | `GET /u/:token` en Express valida el token antes de redirigir a la SPA; expirado → página HTML negra OLED con mensaje acordado. |
+| **JSON para Expo Web** | `GET /api/public/universal-card?token=…` — sin JWT; solo datos públicos; **slots** desde **`publicCardSlots`** en `smart_cards` (el vault completo del dispositivo no se expone; ítems privados se excluyen al sincronizar `publicCardSlots` en el PUT de tarjeta). |
+| **Deep links** | Universal Links / App Links: archivos en **`public/.well-known/`** (build web); `app.json` con `associatedDomains` e `intentFilters` para `https://cardsocial.me/u`. |
+| **Infra** | Dominio **`cardsocial.me`** apuntando al front; **`api.cardsocial.me`** para API; en Azure, enrutar **`/u/*`** del dominio público al backend cuando se quiera validación en el primer hop (ver `README.md`). |
+
 ### Tab **Mis Tarjetas** (`app/(tabs)/cards.tsx`) — comportamiento actual
 
 | Tema | Implementación |

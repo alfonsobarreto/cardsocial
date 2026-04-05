@@ -107,6 +107,108 @@ export async function issueDynamicQrToken(params: { ownerUid: string; cardId: st
   };
 }
 
+/** QR universal 24h → `universalUrl` (web + App Link); distinto del token `/issue` de un solo uso para compartir en app. */
+export async function issueTemporaryUniversalAccess(params: {
+  ownerUid: string;
+  cardId: string;
+}): Promise<{ token: string; universalUrl: string; ttlSec: number; expiresAt: string; source: string }> {
+  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+
+  const response = await axios.post(
+    `${auth.baseUrl}/api/qr/temporary-access/issue`,
+    {
+      ownerUid: params.ownerUid,
+      cardId: params.cardId,
+    },
+    {
+      headers: {
+        'x-api-gateway-key': auth.gatewayKey,
+        Authorization: `Bearer ${auth.token}`,
+      },
+      timeout: 15000,
+    }
+  );
+
+  return {
+    token: String(response?.data?.token || ''),
+    universalUrl: String(response?.data?.universalUrl || ''),
+    ttlSec: Number(response?.data?.ttlSec || 86400),
+    expiresAt: String(response?.data?.expiresAt || ''),
+    source: String(response?.data?.source || 'qr_scan'),
+  };
+}
+
+export type PublicUniversalCardSlot = {
+  itemId: string;
+  type: string;
+  label: string;
+  value: string;
+  iconName: string | null;
+};
+
+export type PublicUniversalCardPayload = {
+  cardId: string;
+  ownerUid: string;
+  name: string;
+  layout: 'vertical' | 'horizontal';
+  themeId: string | null;
+  fontId: string | null;
+  fontName: string | null;
+  fontFamily: string | null;
+  fontTier: 'free' | 'premium' | null;
+  wallpaperId: string | null;
+  wallpaperUrl: string | null;
+  wallpaperThumbUrl: string | null;
+  wallpaperTier: 'free' | 'premium' | null;
+  enableParallax: boolean;
+  ownerNickname: string | null;
+  ownerPhotoUrl: string | null;
+  searchFacets: Array<{ type: string; label: string; value: string }>;
+  holdersCount: number;
+  ratingAvg: number;
+  totalRatings: number;
+  storyState: 'none' | 'normal' | 'vip';
+  slots: PublicUniversalCardSlot[];
+  expiresAt: string;
+};
+
+/** Sin JWT: el token opaco es el secreto. Usar en Expo Web para `/u/[token]`. */
+export async function fetchPublicUniversalCardByToken(params: {
+  token: string;
+  source?: string;
+}): Promise<
+  | { ok: true; card: PublicUniversalCardPayload; source: string | null }
+  | { ok: false; expired: boolean; error?: string }
+> {
+  const baseUrl = getApiBaseUrl();
+  const response = await axios.get(`${baseUrl}/api/public/universal-card`, {
+    params: { token: params.token, source: params.source ?? 'qr_scan' },
+    timeout: 20000,
+    validateStatus: () => true,
+  });
+
+  if (response.status === 410) {
+    return {
+      ok: false,
+      expired: true,
+      error: String(response?.data?.error || ''),
+    };
+  }
+  if (response.status !== 200 || !response?.data?.ok || !response?.data?.card) {
+    return {
+      ok: false,
+      expired: false,
+      error: String(response?.data?.error || 'Request failed'),
+    };
+  }
+
+  return {
+    ok: true,
+    card: response.data.card as PublicUniversalCardPayload,
+    source: response.data.source != null ? String(response.data.source) : null,
+  };
+}
+
 export async function consumeDynamicQrToken(params: { receiverUid: string; token: string }): Promise<{ ownerUid: string; receiverUid: string; cardId: string; shareGranted: boolean }> {
   const auth = await getScopedJwtToken(params.receiverUid, 'qr.access');
 
@@ -367,6 +469,17 @@ export type CardSearchFacetPayload = {
   value: string;
 };
 
+export type PublicCardSlotPayload = {
+  itemId: string;
+  type?: string;
+  label?: string;
+  value?: string;
+  iconName?: string;
+  icon?: string;
+  isPrivate?: boolean;
+  visibility?: string;
+};
+
 export type SmartCardPayload = {
   cardId: string;
   name: string;
@@ -391,6 +504,11 @@ export type SmartCardPayload = {
   ownerPhotoUrl?: string | null;
   /** Facetas sin tipo teléfono, para búsqueda del receptor en Contactos */
   searchFacets?: CardSearchFacetPayload[];
+  /**
+   * Slots seguros para vista web pública (QR universal). No enviar el vault completo.
+   * El backend filtra `isPrivate` / `visibility: private`.
+   */
+  publicCardSlots?: PublicCardSlotPayload[];
 };
 
 export async function listSmartCardsFromDb(params: { ownerUid: string }): Promise<{
@@ -438,6 +556,17 @@ export async function listSmartCardsFromDb(params: { ownerUid: string }): Promis
             type: String(f?.type || ''),
             label: String(f?.label || ''),
             value: String(f?.value || ''),
+          }))
+        : undefined,
+      publicCardSlots: Array.isArray(row?.publicCardSlots)
+        ? row.publicCardSlots.map((s: any) => ({
+            itemId: String(s?.itemId || ''),
+            type: String(s?.type || 'link'),
+            label: String(s?.label || ''),
+            value: String(s?.value || ''),
+            iconName: s?.iconName != null ? String(s.iconName) : s?.icon != null ? String(s.icon) : undefined,
+            isPrivate: Boolean(s?.isPrivate),
+            visibility: s?.visibility != null ? String(s.visibility) : undefined,
           }))
         : undefined,
       createdAt: String(row?.createdAt || new Date().toISOString()),
@@ -930,7 +1059,7 @@ export async function trackCardAnalyticsEvent(params: {
   ownerUid: string;
   cardId: string;
   iconType: string;
-  source: 'search' | 'story' | 'card';
+  source: 'search' | 'story' | 'card' | 'qr_scan';
 }): Promise<void> {
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
   await axios.post(

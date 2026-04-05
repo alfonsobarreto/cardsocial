@@ -28,6 +28,13 @@ const env = {
   revenueCatApiKey: process.env.REVENUECAT_API_KEY || "",
   imageMaxBytes: 5 * MB,
   docMaxBytes: 20 * MB,
+  /** Base URL del sitio (Expo Web) para enlaces QR universales TTL; ej. https://cardsocial.me */
+  publicUniversalCardBaseUrl: (process.env.PUBLIC_UNIVERSAL_CARD_BASE_URL || "https://cardsocial.me").replace(/\/+$/, ""),
+  /**
+   * Si es true, tras validar GET /u/:token se redirige a `/?universalToken=...` en lugar de `/u/...`.
+   * Útil cuando el proxy envía todo `/u/*` al API y un 302 a `/u/` volvería al backend (bucle).
+   */
+  universalValidRedirectUseRoot: String(process.env.UNIVERSAL_VALID_REDIRECT_USE_ROOT || "").trim() === "1",
 };
 
 function assertRequiredConfig() {

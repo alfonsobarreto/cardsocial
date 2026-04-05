@@ -55,6 +55,29 @@ Todas las rutas definidas en `backend/src/routes/qrRoutes.js` llevan prefijo **`
 
 **Cliente Expo (`services/qrApi.ts`):** suele llamar rutas bajo `/api/cards/...` y `/api/stories/...` en la URL pública; en despliegues con **solo** este servidor, el prefijo real es **`/api/qr/...`** (p. ej. `/api/qr/cards`). Si la app no conecta en local, revisa gateway, proxy o variable `EXPO_PUBLIC_MODERATION_API_URL`.
 
+## QR dinámico universal (24h) — `https://cardsocial.me/u/…`
+
+- **Emisión (autenticado):** `POST /api/qr/temporary-access/issue` → devuelve `universalUrl` con base **`PUBLIC_UNIVERSAL_CARD_BASE_URL`** (por defecto `https://cardsocial.me`) y ruta **`/u/{token}?source=qr_scan`**.
+- **Datos públicos (sin JWT):** `GET /api/public/universal-card?token=…&source=qr_scan` — payload filtrado; slots desde `publicCardSlots` en `smart_cards` (sin vault completo).
+- **Entrada HTTP con validación en servidor:** `GET /u/:token` en el mismo proceso Express (`universalEntryHttpRoutes.js`). Comprueba `temporary_access` en Mongo (TTL 24h). Si el token no es válido o expiró → **HTML** fondo negro + mensaje de expiración; si es válido → **302** a `https://cardsocial.me/u/{token}?source=qr_scan` (o a `/?universalToken=…` si `UNIVERSAL_VALID_REDIRECT_USE_ROOT=1` en `backend/.env` para evitar bucles de proxy).
+
+### Azure (API en `api.cardsocial.me`, web en `cardsocial.me`)
+
+1. Configura una regla de **enrutamiento** (Front Door, Application Gateway, nginx, etc.) para que las peticiones **`https://cardsocial.me/u/*`** lleguen al **mismo backend Node** que sirve `/api/*`, de modo que se ejecute `GET /u/:token`.
+2. Tras un token válido el navegador recibe el **302** hacia la SPA en `cardsocial.me` (estática Expo Web). Asegúrate de que esa segunda petición **no** se reenvíe otra vez solo al API sin archivos estáticos, o activa **`UNIVERSAL_VALID_REDIRECT_USE_ROOT=1`** y implementa en Expo Web la lectura de `universalToken` en la raíz.
+3. Variables en **`backend/.env`:** `PUBLIC_UNIVERSAL_CARD_BASE_URL`, `UNIVERSAL_VALID_REDIRECT_USE_ROOT` (ver `backend/.env.example`).
+
+### Deep linking — archivos en `https://cardsocial.me/.well-known/`
+
+En el monorepo, al hacer **Expo Web** (`npx expo export --platform web` o flujo EAS), la carpeta **`public/.well-known/`** se copia al sitio:
+
+- `apple-app-site-association` — sustituye **`APPLE_TEAM_ID`** por tu Team ID de Apple Developer.
+- `assetlinks.json` — sustituye el **SHA-256** del certificado de firma de release (Play Console o `keytool`).
+
+**Cabeceras:** donde sea posible, sirve `apple-app-site-association` con `Content-Type: application/json` (algunos hosts lo exigen para Universal Links).
+
+**App nativa:** `app.json` incluye `ios.associatedDomains` (`applinks:cardsocial.me`) e `android.intentFilters` para `https://cardsocial.me/u`.
+
 ## App móvil (Expo)
 
 Variables: copia **`.env.example`** en la raíz a **`.env`** y rellena `EXPO_PUBLIC_*` (ver comentarios en el ejemplo). Nunca subas `.env` con secretos al repositorio.

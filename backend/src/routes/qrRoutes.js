@@ -2,11 +2,15 @@ const crypto = require('crypto');
 const express = require('express');
 
 const QR_TTL_SECONDS = 60;
+/** QR universal web / app link (colección temporary_access). */
+const TEMPORARY_ACCESS_TTL_MS = 24 * 60 * 60 * 1000;
+const UNIVERSAL_QR_SOURCE = 'qr_scan';
 const STORY_NORMAL_TTL_HOURS = 24;
 const STORY_VIP_TTL_DAYS = 7;
 const GHOST_LINK_INVITE_TTL_SECONDS = 45;
 
 const { buildGhostLinkAgoraInvite } = require('../lib/agoraGhostLink');
+const { env } = require('../config');
 
 function normalizeString(value, fallback = null) {
   const text = String(value ?? '').trim();
@@ -29,6 +33,43 @@ function sanitizeSearchFacets(raw) {
     out.push({ type, label, value });
   }
   return out;
+}
+
+/**
+ * Slots visibles en la vista web pública (sincronizados desde la app).
+ * Excluye ítems marcados privados; nunca incluir el vault completo del dispositivo.
+ */
+function sanitizePublicCardSlots(raw) {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const out = [];
+  for (const row of raw.slice(0, 24)) {
+    if (row?.isPrivate === true || String(row?.visibility || '').toLowerCase() === 'private') {
+      continue;
+    }
+    const itemId = String(row?.itemId || '').trim().slice(0, 120);
+    if (!itemId) {
+      continue;
+    }
+    const type = String(row?.type || 'link').trim().slice(0, 64);
+    const label = String(row?.label || '').trim().slice(0, 200);
+    const value = String(row?.value || '').trim().slice(0, 4000);
+    const iconName = String(row?.iconName || row?.icon || '').trim().slice(0, 120);
+    out.push({
+      itemId,
+      type,
+      label,
+      value,
+      iconName: iconName || null,
+    });
+  }
+  return out;
+}
+
+function getPublicUniversalCardBaseUrl() {
+  const base = String(env.publicUniversalCardBaseUrl || 'https://cardsocial.me').trim();
+  return base.replace(/\/+$/, '') || 'https://cardsocial.me';
 }
 
 /** Claves seguras para `$inc` anidado en `card_analytics` (evita `$` y puntos raros). */
@@ -545,6 +586,57 @@ function createQrRoutes({ storage }) {
     }
   });
 
+  /**
+   * Enlace universal TTL 24h para QR marketing (web + Universal Link).
+   * URL: {PUBLIC_UNIVERSAL_CARD_BASE_URL}/u/{token}?source=qr_scan
+   */
+  router.post('/temporary-access/issue', async (req, res) => {
+    try {
+      const ownerUid = String(req.body?.ownerUid || req.auth?.sub || '').trim();
+      const cardId = String(req.body?.cardId || '').trim();
+
+      if (!ownerUid) {
+        return res.status(400).json({ ok: false, error: 'ownerUid is required' });
+      }
+      if (!cardId) {
+        return res.status(400).json({ ok: false, error: 'cardId is required' });
+      }
+
+      const db = await storage.connect();
+      const owns = await db.collection('smart_cards').findOne({ ownerUid, cardId }, { projection: { cardId: 1 } });
+      if (!owns) {
+        return res.status(404).json({ ok: false, error: 'Card not found for this owner' });
+      }
+
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + TEMPORARY_ACCESS_TTL_MS);
+      const token = crypto.randomBytes(24).toString('hex');
+
+      await db.collection('temporary_access').insertOne({
+        token,
+        cardId,
+        ownerUid,
+        source: UNIVERSAL_QR_SOURCE,
+        createdAt: now,
+        expiresAt,
+      });
+
+      const base = getPublicUniversalCardBaseUrl();
+      const universalUrl = `${base}/u/${encodeURIComponent(token)}?source=${encodeURIComponent(UNIVERSAL_QR_SOURCE)}`;
+
+      return res.status(201).json({
+        ok: true,
+        token,
+        universalUrl,
+        ttlSec: Math.floor(TEMPORARY_ACCESS_TTL_MS / 1000),
+        expiresAt: expiresAt.toISOString(),
+        source: UNIVERSAL_QR_SOURCE,
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+  });
+
   router.post('/consume', async (req, res) => {
     try {
       const receiverUid = String(req.body?.receiverUid || req.auth?.sub || '').trim();
@@ -714,6 +806,7 @@ function createQrRoutes({ storage }) {
           ownerNickname: card.ownerNickname || null,
           ownerPhotoUrl: card.ownerPhotoUrl || null,
           searchFacets: sanitizeSearchFacets(card.searchFacets),
+          publicCardSlots: sanitizePublicCardSlots(card.publicCardSlots),
           createdAt: card.createdAt ? new Date(card.createdAt).toISOString() : new Date().toISOString(),
           updatedAt: card.updatedAt ? new Date(card.updatedAt).toISOString() : new Date().toISOString(),
         })),
@@ -739,32 +832,37 @@ function createQrRoutes({ storage }) {
       const now = new Date();
       const db = await storage.connect();
 
+      const setDoc = {
+        name: String(req.body?.name || 'Smart Card').trim(),
+        layout: String(req.body?.layout || 'vertical') === 'horizontal' ? 'horizontal' : 'vertical',
+        themeId: req.body?.themeId ? String(req.body.themeId) : null,
+        fontId: req.body?.fontId ? String(req.body.fontId) : null,
+        fontName: req.body?.fontName ? String(req.body.fontName) : null,
+        fontFamily: req.body?.fontFamily ? String(req.body.fontFamily) : null,
+        fontTier: String(req.body?.fontTier || '') === 'premium' ? 'premium' : String(req.body?.fontTier || '') === 'free' ? 'free' : null,
+        wallpaperId: req.body?.wallpaperId ? String(req.body.wallpaperId) : null,
+        wallpaperUrl: req.body?.wallpaperUrl ? String(req.body.wallpaperUrl) : null,
+        wallpaperThumbUrl: req.body?.wallpaperThumbUrl ? String(req.body.wallpaperThumbUrl) : null,
+        wallpaperTier: String(req.body?.wallpaperTier || '') === 'premium' ? 'premium' : String(req.body?.wallpaperTier || '') === 'free' ? 'free' : null,
+        wallpaperPriceCredits: Number(req.body?.wallpaperPriceCredits || 0),
+        enableParallax: Boolean(req.body?.enableParallax),
+        isFavorite: Boolean(req.body?.isFavorite),
+        itemIds: Array.isArray(req.body?.itemIds) ? req.body.itemIds.map((id) => String(id)) : [],
+        holdersCount: Number(req.body?.holdersCount || 0),
+        ratingAvg: Number(req.body?.ratingAvg || 5),
+        ownerNickname: req.body?.ownerNickname ? String(req.body.ownerNickname) : null,
+        ownerPhotoUrl: req.body?.ownerPhotoUrl ? String(req.body.ownerPhotoUrl) : null,
+        searchFacets: sanitizeSearchFacets(req.body?.searchFacets),
+        updatedAt: now,
+      };
+      if (req.body && Object.prototype.hasOwnProperty.call(req.body, 'publicCardSlots')) {
+        setDoc.publicCardSlots = sanitizePublicCardSlots(req.body.publicCardSlots);
+      }
+
       await db.collection('smart_cards').findOneAndUpdate(
         { ownerUid, cardId },
         {
-          $set: {
-            name: String(req.body?.name || 'Smart Card').trim(),
-            layout: String(req.body?.layout || 'vertical') === 'horizontal' ? 'horizontal' : 'vertical',
-            themeId: req.body?.themeId ? String(req.body.themeId) : null,
-            fontId: req.body?.fontId ? String(req.body.fontId) : null,
-            fontName: req.body?.fontName ? String(req.body.fontName) : null,
-            fontFamily: req.body?.fontFamily ? String(req.body.fontFamily) : null,
-            fontTier: String(req.body?.fontTier || '') === 'premium' ? 'premium' : String(req.body?.fontTier || '') === 'free' ? 'free' : null,
-            wallpaperId: req.body?.wallpaperId ? String(req.body.wallpaperId) : null,
-            wallpaperUrl: req.body?.wallpaperUrl ? String(req.body.wallpaperUrl) : null,
-            wallpaperThumbUrl: req.body?.wallpaperThumbUrl ? String(req.body.wallpaperThumbUrl) : null,
-            wallpaperTier: String(req.body?.wallpaperTier || '') === 'premium' ? 'premium' : String(req.body?.wallpaperTier || '') === 'free' ? 'free' : null,
-            wallpaperPriceCredits: Number(req.body?.wallpaperPriceCredits || 0),
-            enableParallax: Boolean(req.body?.enableParallax),
-            isFavorite: Boolean(req.body?.isFavorite),
-            itemIds: Array.isArray(req.body?.itemIds) ? req.body.itemIds.map((id) => String(id)) : [],
-            holdersCount: Number(req.body?.holdersCount || 0),
-            ratingAvg: Number(req.body?.ratingAvg || 5),
-            ownerNickname: req.body?.ownerNickname ? String(req.body.ownerNickname) : null,
-            ownerPhotoUrl: req.body?.ownerPhotoUrl ? String(req.body.ownerPhotoUrl) : null,
-            searchFacets: sanitizeSearchFacets(req.body?.searchFacets),
-            updatedAt: now,
-          },
+          $set: setDoc,
           $setOnInsert: {
             ownerUid,
             cardId,
@@ -1436,9 +1534,9 @@ function createQrRoutes({ storage }) {
 
       const iconType = sanitizeAnalyticsSegmentKey(req.body?.iconType);
       const source = String(req.body?.source || '').trim();
-      const allowedSources = new Set(['search', 'story', 'card']);
+      const allowedSources = new Set(['search', 'story', 'card', 'qr_scan']);
       if (!allowedSources.has(source)) {
-        return res.status(400).json({ ok: false, error: 'source must be search, story, or card' });
+        return res.status(400).json({ ok: false, error: 'source must be search, story, card, or qr_scan' });
       }
 
       const ts = req.body?.timestamp ? new Date(req.body.timestamp) : new Date();

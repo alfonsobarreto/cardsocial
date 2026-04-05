@@ -20,6 +20,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.cardsocial.app",
+      "associatedDomains": ["applinks:cardsocial.me"],
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
           "googlegmail",
@@ -40,6 +41,20 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.cardsocial.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "cardsocial.me",
+              "pathPrefix": "/u"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"

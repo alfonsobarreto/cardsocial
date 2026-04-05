@@ -19,6 +19,8 @@ This microservice validates user content with Azure Content Safety before persis
 ## Endpoints
 
 - `GET /api/health`
+- `GET /u/:token` — QR universal: valida `temporary_access` (24h); expirado → HTML; válido → redirect a SPA (`README` raíz del monorepo).
+- `GET /api/public/universal-card` — JSON público de tarjeta por token (sin gateway JWT).
 - `POST /api/auth/token`
 - `POST /api/auth/github/exchange`
 - `POST /api/auth/email-otp/send`

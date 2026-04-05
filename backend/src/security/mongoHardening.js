@@ -205,6 +205,21 @@ async function ensureMongoHardening(db) {
     },
   };
 
+  const temporaryAccessValidator = {
+    $jsonSchema: {
+      bsonType: 'object',
+      required: ['token', 'cardId', 'ownerUid', 'source', 'expiresAt', 'createdAt'],
+      properties: {
+        token: { bsonType: 'string', minLength: 16, maxLength: 128 },
+        cardId: { bsonType: 'string', minLength: 4 },
+        ownerUid: { bsonType: 'string', minLength: 3 },
+        source: { bsonType: 'string', minLength: 1, maxLength: 64 },
+        expiresAt: { bsonType: 'date' },
+        createdAt: { bsonType: 'date' },
+      },
+    },
+  };
+
   const emailOtpsValidator = {
     $jsonSchema: {
       bsonType: 'object',
@@ -234,6 +249,7 @@ async function ensureMongoHardening(db) {
   await ensureCollection(db, 'stories_house_ads', storiesHouseAdsValidator);
   await ensureCollection(db, 'call_logs', callLogsValidator);
   await ensureCollection(db, 'email_otps', emailOtpsValidator);
+  await ensureCollection(db, 'temporary_access', temporaryAccessValidator);
 
   await db.collection('cards').createIndex({ ownerUid: 1, isActive: 1, updatedAt: -1 }, { name: 'idx_cards_owner_active_updated' });
   await db.collection('cards').createIndex({ ownerUid: 1, version: -1 }, { name: 'idx_cards_owner_version' });
@@ -268,6 +284,10 @@ async function ensureMongoHardening(db) {
   await db.collection('email_otps').createIndex({ sessionId: 1 }, { unique: true, name: 'uq_email_otp_session' });
   await db.collection('email_otps').createIndex({ emailLower: 1, status: 1, expiresAt: 1 }, { name: 'idx_email_otp_email_status_exp' });
   await db.collection('email_otps').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, name: 'ttl_email_otp_expires_at' });
+
+  await db.collection('temporary_access').createIndex({ token: 1 }, { unique: true, name: 'uq_temporary_access_token' });
+  await db.collection('temporary_access').createIndex({ ownerUid: 1, cardId: 1, createdAt: -1 }, { name: 'idx_temp_access_owner_card_created' });
+  await db.collection('temporary_access').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, name: 'ttl_temporary_access_expires_at' });
 }
 
 module.exports = {

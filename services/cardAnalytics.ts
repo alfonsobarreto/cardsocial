@@ -5,7 +5,7 @@ import { trackCardAnalyticsEvent } from '@/services/qrApi';
 export function trackCardAnalyticsFireAndForget(params: {
   cardId: string | null | undefined;
   iconType: string;
-  source: 'search' | 'story' | 'card';
+  source: 'search' | 'story' | 'card' | 'qr_scan';
 }): void {
   const id = String(params.cardId || '').trim();
   if (!id) {
