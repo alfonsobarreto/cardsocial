@@ -161,8 +161,10 @@ export type PublicUniversalCardPayload = {
   wallpaperThumbUrl: string | null;
   wallpaperTier: 'free' | 'premium' | null;
   enableParallax: boolean;
+  ownerDisplayName: string | null;
   ownerNickname: string | null;
   ownerPhotoUrl: string | null;
+  ownerOccupation: string | null;
   searchFacets: Array<{ type: string; label: string; value: string }>;
   holdersCount: number;
   ratingAvg: number;
@@ -500,8 +502,11 @@ export type SmartCardPayload = {
   holdersCount?: number;
   ratingAvg?: number;
   totalRatings?: number;
+  ownerDisplayName?: string;
   ownerNickname?: string;
   ownerPhotoUrl?: string | null;
+  /** Cargo / título profesional persistido en la tarjeta (receptor). */
+  ownerOccupation?: string | null;
   /** Facetas sin tipo teléfono, para búsqueda del receptor en Contactos */
   searchFacets?: CardSearchFacetPayload[];
   /**
@@ -549,8 +554,10 @@ export async function listSmartCardsFromDb(params: { ownerUid: string }): Promis
       holdersCount: Number(row?.holdersCount || 0),
       ratingAvg: Number(row?.ratingAvg || 5),
       totalRatings: Number(row?.totalRatings ?? 0),
+      ownerDisplayName: row?.ownerDisplayName ? String(row.ownerDisplayName) : undefined,
       ownerNickname: row?.ownerNickname ? String(row.ownerNickname) : undefined,
       ownerPhotoUrl: row?.ownerPhotoUrl ? String(row.ownerPhotoUrl) : null,
+      ownerOccupation: row?.ownerOccupation != null ? String(row.ownerOccupation) : undefined,
       searchFacets: Array.isArray(row?.searchFacets)
         ? row.searchFacets.map((f: any) => ({
             type: String(f?.type || ''),
@@ -621,6 +628,7 @@ export type ReceivedContactRow = {
   name: string;
   nickname: string;
   photoUrl: string | null;
+  ownerOccupation?: string | null;
   ratingAvg: number;
   cardName: string;
   holdersCount: number;
@@ -673,6 +681,7 @@ export async function listReceivedContacts(params: { ownerUid: string }): Promis
           name: String(row?.name || 'Contacto'),
           nickname: String(row?.nickname || 'user'),
           photoUrl: row?.photoUrl ? String(row.photoUrl) : null,
+          ownerOccupation: row?.ownerOccupation != null && String(row.ownerOccupation).trim() ? String(row.ownerOccupation).trim() : null,
           ratingAvg: Number(row?.ratingAvg || 5),
           cardName: String(row?.cardName || 'Tarjeta Social'),
           holdersCount: Number(row?.holdersCount || 0),

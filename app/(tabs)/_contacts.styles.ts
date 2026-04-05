@@ -201,6 +201,10 @@ export function makeContactsStyles(shell: AppShellTheme) {
     fontWeight: '800',
     lineHeight: 19,
   },
+  contactOccupationLine: {
+    marginTop: 2,
+    lineHeight: 16,
+  },
   contactSubtitleCardName: {
     marginTop: 3,
     fontSize: 12,
@@ -517,6 +521,19 @@ export function makeContactsStyles(shell: AppShellTheme) {
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 18,
+  },
+  /** Contenedor del preview tipo teatro (ThemedSharedCardSurface). */
+  floatingTheaterOuter: {
+    width: '90%',
+    maxWidth: 400,
+    alignSelf: 'center',
+  },
+  floatingTheaterSurface: {
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    position: 'relative',
+    overflow: 'hidden',
   },
   closeBtn: {
     position: 'absolute',

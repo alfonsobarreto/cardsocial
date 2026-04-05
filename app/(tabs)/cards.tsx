@@ -27,6 +27,7 @@ import { type VaultCollectibleCertificate } from '@/services/collectibleService'
 import {
   buildSearchFacetsForSharedCard,
   collectStringsSmartCard,
+  deriveOwnerOccupationFromFacets,
   orderByDeepSearchWithExpandedQuery,
 } from '@/services/deepSearch';
 import { auth, db } from '@/services/firebaseConfig';
@@ -1135,6 +1136,8 @@ export default function CardsFactoryScreen() {
 
       for (const card of cardsToSync) {
         console.log('[Card] persistCards: Antes de upsertSmartCardInDb', card.id);
+        const searchFacets = buildSearchFacetsForSharedCard(vaultItems, card.itemIds);
+        const occ = deriveOwnerOccupationFromFacets(searchFacets).trim();
         const cardPayload: SmartCardPayload = {
           cardId: card.id,
           name: card.name,
@@ -1154,9 +1157,11 @@ export default function CardsFactoryScreen() {
           itemIds: card.itemIds,
           holdersCount: Number(card.holdersCount || 0),
           ratingAvg: Number(card.ratingAvg || 5),
-          ownerNickname: ownerNickname || undefined,
+          ownerDisplayName: (ownerDisplayName || '').trim() || undefined,
+          ownerNickname: (ownerNickname || '').trim() || undefined,
           ownerPhotoUrl,
-          searchFacets: buildSearchFacetsForSharedCard(vaultItems, card.itemIds),
+          ownerOccupation: occ || undefined,
+          searchFacets,
         };
         await upsertSmartCardInDb({
           ownerUid,

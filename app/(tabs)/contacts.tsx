@@ -69,6 +69,8 @@ type Contact = {
   name: string;
   nickname: string;
   photoUrl: string | null;
+  /** Cargo del emisor persistido en smart_cards. */
+  ownerOccupation?: string | null;
   ratingAvg: number;
   cardName: string;
   holdersCount: number;
@@ -285,6 +287,10 @@ function ContactsContent() {
 
   const normalizeContactRow = (row: Contact): Contact => ({
     ...row,
+    ownerOccupation:
+      row.ownerOccupation != null && String(row.ownerOccupation).trim()
+        ? String(row.ownerOccupation).trim()
+        : null,
     mutualContactsCount: Number(row.mutualContactsCount ?? 0),
     totalRatings: Number(row.totalRatings ?? 0),
     channelMuted: Boolean(row.channelMuted),
@@ -538,6 +544,7 @@ function ContactsContent() {
           name: row.name,
           nickname: row.nickname,
           cardName: row.cardName,
+          ownerOccupation: row.ownerOccupation ?? null,
           searchFacets: row.searchFacets,
         },
         row.meta.group,
@@ -1281,6 +1288,23 @@ function ContactsContent() {
                           >
                             {row.name}
                           </Text>
+                          {row.ownerOccupation ? (
+                            <Text
+                              style={[
+                                styles.contactOccupationLine,
+                                {
+                                  color: chest.extraColor,
+                                  fontSize: chest.extraFontSize,
+                                  fontWeight: chest.extraFontWeight,
+                                  fontStyle: chest.extraFontStyle,
+                                },
+                                issuerFont,
+                              ]}
+                              numberOfLines={2}
+                            >
+                              {row.ownerOccupation}
+                            </Text>
+                          ) : null}
                           <Text
                             style={[
                               styles.contactSubtitleCardName,
@@ -1572,48 +1596,76 @@ function ContactsContent() {
           <BlurView intensity={70} tint={isNight ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
           <Animated.View
             style={[
-              styles.floatingCard,
-              { backgroundColor: shell.modalBg, borderColor: shell.modalBorder },
+              styles.floatingTheaterOuter,
               {
                 opacity: cardOpacity,
                 transform: [{ scale: cardScale }],
               },
             ]}
           >
-            <TouchableOpacity style={[styles.closeBtn, { backgroundColor: shell.modalRowBg }]} onPress={closeFloatingCard} accessibilityLabel={tr('Cerrar', 'Close')}>
-              <MaterialCommunityIcons name="close" size={20} color={shell.iconColor} />
-            </TouchableOpacity>
-
-            {selectedContact?.photoUrl ? (
-              <ExpoImage source={{ uri: selectedContact.photoUrl }} style={styles.modalAvatar} cachePolicy="disk" />
-            ) : (
-              <View
-                style={[
-                  styles.modalAvatarFallback,
-                  {
-                    backgroundColor: MEDIA_PLACEHOLDER.personBgLight,
-                    borderColor: MEDIA_PLACEHOLDER.personBorderLight,
-                  },
-                ]}
+            {selectedContact ? (
+              <ThemedSharedCardSurface
+                themeId={selectedContact.themeId}
+                wallpaperUrl={selectedContact.wallpaperUrl || undefined}
+                borderRadius={20}
+                style={styles.floatingTheaterSurface}
               >
-                <MaterialCommunityIcons
-                  name={MEDIA_PLACEHOLDER.personIconName}
-                  size={22}
-                  color={MEDIA_PLACEHOLDER.personIconLight}
-                />
-              </View>
-            )}
-            <Text style={[styles.modalName, { color: shell.textPrimary }]}>{selectedContact?.name || ''}</Text>
-            <Text style={[styles.modalNick, { color: shell.textSecondary }]}>@{selectedContact?.nickname || ''}</Text>
-            <Text style={[styles.modalCardName, { color: shell.textSecondary }]}>{selectedContact?.cardName || ''}</Text>
+                {(() => {
+                  const floatChest = getCardRowTheme(selectedContact.themeId);
+                  return (
+                    <>
+                      <TouchableOpacity
+                        style={[styles.closeBtn, { backgroundColor: 'rgba(255,255,255,0.88)' }]}
+                        onPress={closeFloatingCard}
+                        accessibilityLabel={tr('Cerrar', 'Close')}
+                      >
+                        <MaterialCommunityIcons name="close" size={20} color={floatChest.titleColor} />
+                      </TouchableOpacity>
 
-            <View style={styles.modalStatsRow}>
-              {renderStars(Number(selectedContact?.ratingAvg || 0))}
-              <Text style={[styles.modalRatingNumber, { color: shell.textPrimary }]}>{Number(selectedContact?.ratingAvg || 0).toFixed(1)}</Text>
-              <Text style={[styles.modalHoldersText, { color: shell.textSecondary }]}>
-                {selectedContact?.holdersCount ?? 0} {tr('poseedores', 'holders')}
-              </Text>
-            </View>
+                      {selectedContact.photoUrl ? (
+                        <ExpoImage source={{ uri: selectedContact.photoUrl }} style={styles.modalAvatar} cachePolicy="disk" />
+                      ) : (
+                        <View
+                          style={[
+                            styles.modalAvatarFallback,
+                            {
+                              backgroundColor: MEDIA_PLACEHOLDER.personBgLight,
+                              borderColor: floatChest.borderColor,
+                            },
+                          ]}
+                        >
+                          <MaterialCommunityIcons
+                            name={MEDIA_PLACEHOLDER.personIconName}
+                            size={22}
+                            color={MEDIA_PLACEHOLDER.personIconLight}
+                          />
+                        </View>
+                      )}
+                      <Text style={[styles.modalName, { color: floatChest.titleColor }]}>{selectedContact.name || ''}</Text>
+                      <Text style={[styles.modalNick, { color: floatChest.metaColor }]}>@{selectedContact.nickname || ''}</Text>
+                      {selectedContact.ownerOccupation ? (
+                        <Text style={[styles.modalCardName, { color: floatChest.extraColor, marginTop: 6 }]} numberOfLines={2}>
+                          {selectedContact.ownerOccupation}
+                        </Text>
+                      ) : null}
+                      <Text style={[styles.modalCardName, { color: floatChest.metaColor, marginTop: selectedContact.ownerOccupation ? 4 : 6 }]}>
+                        {selectedContact.cardName || ''}
+                      </Text>
+
+                      <View style={styles.modalStatsRow}>
+                        {renderStars(Number(selectedContact.ratingAvg || 0))}
+                        <Text style={[styles.modalRatingNumber, { color: floatChest.titleColor }]}>
+                          {Number(selectedContact.ratingAvg || 0).toFixed(1)}
+                        </Text>
+                        <Text style={[styles.modalHoldersText, { color: floatChest.metaColor }]}>
+                          {selectedContact.holdersCount ?? 0} {tr('poseedores', 'holders')}
+                        </Text>
+                      </View>
+                    </>
+                  );
+                })()}
+              </ThemedSharedCardSurface>
+            ) : null}
           </Animated.View>
         </View>
       </Modal>

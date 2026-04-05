@@ -507,12 +507,33 @@ export function buildSearchFacetsForSharedCard(vaultItems: VaultLikeItem[], item
   return out;
 }
 
+/**
+ * Extrae cargo / título desde facetas de tarjeta (sync con ownerOccupation persistido al guardar).
+ */
+export function deriveOwnerOccupationFromFacets(facets: CardSearchFacet[]): string {
+  for (const f of facets || []) {
+    const type = String(f.type || '').trim().toLowerCase();
+    const label = String(f.label || '').trim().toLowerCase();
+    if (
+      /title|role|job|occupation|position|cargo|puesto|rol/.test(type) ||
+      /t[ií]tulo|cargo|puesto|rol|position| ocupaci|ceo|founder|director/.test(label)
+    ) {
+      const v = String(f.value || '').trim().slice(0, 240);
+      if (v) {
+        return v;
+      }
+    }
+  }
+  return '';
+}
+
 export type ReceivedContactSearchRow = {
   uid: string;
   cardId?: string | null;
   name: string;
   nickname: string;
   cardName: string;
+  ownerOccupation?: string | null;
   searchFacets?: CardSearchFacet[] | null;
 };
 
@@ -535,6 +556,7 @@ export function collectStringsReceivedContact(
   push(contact.name);
   push(contact.nickname);
   push(contact.cardName);
+  push(contact.ownerOccupation);
   push(metaGroup);
   if (iconRows?.length) {
     for (const ic of iconRows) {

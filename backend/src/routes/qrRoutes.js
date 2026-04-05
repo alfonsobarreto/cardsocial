@@ -10,6 +10,7 @@ const STORY_VIP_TTL_DAYS = 7;
 const GHOST_LINK_INVITE_TTL_SECONDS = 45;
 
 const { buildGhostLinkAgoraInvite } = require('../lib/agoraGhostLink');
+const { mergeContactProfileFromCard } = require('../lib/contactIdentityMerge');
 const { env } = require('../config');
 
 function normalizeString(value, fallback = null) {
@@ -84,6 +85,26 @@ function sanitizeAnalyticsSegmentKey(raw) {
 
 function createQrRoutes({ storage }) {
   const router = express.Router();
+
+  async function fetchLatestCardIdentityDoc(db, ownerUid) {
+    const uid = String(ownerUid || '').trim();
+    if (!uid) {
+      return null;
+    }
+    return db.collection('smart_cards').findOne(
+      { ownerUid: uid },
+      {
+        sort: { updatedAt: -1 },
+        projection: {
+          ownerDisplayName: 1,
+          ownerNickname: 1,
+          ownerPhotoUrl: 1,
+          ownerOccupation: 1,
+          updatedAt: 1,
+        },
+      },
+    );
+  }
   // Cambiar nickname con bloqueo de 30 días
   router.put('/users/:uid/nickname', async (req, res) => {
     try {
@@ -291,8 +312,12 @@ function createQrRoutes({ storage }) {
         return res.status(403).json({ ok: false, error: 'Access denied: blocked relationship' });
       }
 
-      const caller = await resolveUserProfileExtended(db, ownerUid);
-      const receiver = await resolveUserProfileExtended(db, targetUid);
+      let caller = await resolveUserProfileExtended(db, ownerUid);
+      let receiver = await resolveUserProfileExtended(db, targetUid);
+      const callerCard = await fetchLatestCardIdentityDoc(db, ownerUid);
+      const receiverCard = await fetchLatestCardIdentityDoc(db, targetUid);
+      caller = mergeContactProfileFromCard(caller, ownerUid, callerCard);
+      receiver = mergeContactProfileFromCard(receiver, targetUid, receiverCard);
 
       const now = new Date();
       const sessionId = `acs_${ownerUid.slice(0, 8)}_${targetUid.slice(0, 8)}_${Date.now()}`;
@@ -803,8 +828,10 @@ function createQrRoutes({ storage }) {
           itemIds: Array.isArray(card.itemIds) ? card.itemIds : [],
           holdersCount: Number(card.holdersCount || 0),
           ratingAvg: Number(card.ratingAvg || 5),
+          ownerDisplayName: card.ownerDisplayName || null,
           ownerNickname: card.ownerNickname || null,
           ownerPhotoUrl: card.ownerPhotoUrl || null,
+          ownerOccupation: card.ownerOccupation || null,
           searchFacets: sanitizeSearchFacets(card.searchFacets),
           publicCardSlots: sanitizePublicCardSlots(card.publicCardSlots),
           createdAt: card.createdAt ? new Date(card.createdAt).toISOString() : new Date().toISOString(),
@@ -850,8 +877,10 @@ function createQrRoutes({ storage }) {
         itemIds: Array.isArray(req.body?.itemIds) ? req.body.itemIds.map((id) => String(id)) : [],
         holdersCount: Number(req.body?.holdersCount || 0),
         ratingAvg: Number(req.body?.ratingAvg || 5),
-        ownerNickname: req.body?.ownerNickname ? String(req.body.ownerNickname) : null,
-        ownerPhotoUrl: req.body?.ownerPhotoUrl ? String(req.body.ownerPhotoUrl) : null,
+        ownerDisplayName: req.body?.ownerDisplayName ? String(req.body.ownerDisplayName).trim().slice(0, 240) : null,
+        ownerNickname: req.body?.ownerNickname ? String(req.body.ownerNickname).trim().slice(0, 240) : null,
+        ownerPhotoUrl: req.body?.ownerPhotoUrl ? String(req.body.ownerPhotoUrl).trim() : null,
+        ownerOccupation: req.body?.ownerOccupation ? String(req.body.ownerOccupation).trim().slice(0, 240) : null,
         searchFacets: sanitizeSearchFacets(req.body?.searchFacets),
         updatedAt: now,
       };
@@ -1014,7 +1043,7 @@ function createQrRoutes({ storage }) {
       const contacts = [];
       for (const uid of ownerUids) {
         const permMeta = latestPermByOwner.get(uid) || null;
-        const profile = await resolveUserProfileExtended(db, uid);
+        let profile = await resolveUserProfileExtended(db, uid);
         let cardName = 'Tarjeta Social';
         let holdersCount = 0;
         let avg = 5;
@@ -1035,6 +1064,7 @@ function createQrRoutes({ storage }) {
         let itemIds = [];
         let cardUpdatedAt = null;
 
+        let cardDocForProfile = null;
         if (permMeta?.cardId) {
           const cardDoc = await db.collection('smart_cards').findOne(
             {
@@ -1062,9 +1092,14 @@ function createQrRoutes({ storage }) {
                 enableParallax: 1,
                 itemIds: 1,
                 updatedAt: 1,
+                ownerDisplayName: 1,
+                ownerNickname: 1,
+                ownerPhotoUrl: 1,
+                ownerOccupation: 1,
               },
             }
           );
+          cardDocForProfile = cardDoc;
 
           if (cardDoc) {
             cardName = String(cardDoc.name || 'Tarjeta Social');
@@ -1088,6 +1123,8 @@ function createQrRoutes({ storage }) {
             cardUpdatedAt = cardDoc.updatedAt ? new Date(cardDoc.updatedAt).toISOString() : null;
           }
         }
+
+        profile = mergeContactProfileFromCard(profile, uid, cardDocForProfile);
 
         if (!Number.isFinite(avg) || avg <= 0) {
           const ratingAgg = await db.collection('smart_cards').aggregate([
@@ -1118,6 +1155,7 @@ function createQrRoutes({ storage }) {
           name: profile.name,
           nickname: profile.nickname,
           photoUrl: profile.photoUrl,
+          ownerOccupation: profile.ownerOccupation != null ? profile.ownerOccupation : null,
           ratingAvg: Number.isFinite(avg) ? avg : 5,
           cardName,
           holdersCount,
@@ -1721,7 +1759,9 @@ function createQrRoutes({ storage }) {
 
       const subscribers = [];
       for (const uid of subscriberUids) {
-        const profile = await resolveUserProfileExtended(db, uid);
+        let profile = await resolveUserProfileExtended(db, uid);
+        const idCard = await fetchLatestCardIdentityDoc(db, uid);
+        profile = mergeContactProfileFromCard(profile, uid, idCard);
         const mutualIds = mutualNeighborUids(neighborMap, ownerUid, uid);
         const mutualCount = mutualIds.length;
         const mutualPreviewPhotos = [];
@@ -1949,7 +1989,9 @@ function createQrRoutes({ storage }) {
         if (!otherUid) {
           continue;
         }
-        const profile = await resolveUserProfile(db, otherUid);
+        let profile = await resolveUserProfileExtended(db, otherUid);
+        const bCard = await fetchLatestCardIdentityDoc(db, otherUid);
+        profile = mergeContactProfileFromCard(profile, otherUid, bCard);
         blockedUsers.push({
           uid: otherUid,
           name: profile.name,
@@ -2065,7 +2107,9 @@ function createQrRoutes({ storage }) {
       const history = [];
       for (const row of rows) {
         const peerUid = String(row.peerUid || '').trim();
-        const profile = await resolveUserProfileExtended(db, peerUid);
+        let profile = await resolveUserProfileExtended(db, peerUid);
+        const peerCard = await fetchLatestCardIdentityDoc(db, peerUid);
+        profile = mergeContactProfileFromCard(profile, peerUid, peerCard);
 
         history.push({
           callId: String(row.callId || ''),
