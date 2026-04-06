@@ -3,6 +3,7 @@
  * Tarjeta de Negocio con validación KYC, geolocalización e integración Social Market
  */
 
+import type { PublicCardSlotPayload } from '@/services/qrApi';
 import type { IssuerSmartCardPresentation } from '@/types/sharedCardPresentation';
 
 export interface BusinessCard {
@@ -113,6 +114,11 @@ export interface BusinessCardSearchResult {
   /** Tarjeta del emisor que posee el viewer (canal Stories / lookup). */
   receivedSourceCardId?: string | null;
   receivedChannelMuted?: boolean;
+  /** Slots públicos del emisor (misma carga que Contactos → wireframe espejo). */
+  receivedPublicCardSlots?: PublicCardSlotPayload[];
+  receivedOwnerOccupation?: string | null;
+  /** @nickname del emisor (texto del contacto recibido). */
+  receivedIssuerNickname?: string;
 }
 
 export interface SocialMarketSearchParams {

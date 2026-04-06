@@ -116,6 +116,10 @@ import {
   resolveMaterialGlyphFromVaultLikeFields,
   sanitizeMaterialCommunityIconName,
 } from '../components/iconNameValidation';
+import {
+  renderWireframeDetailedRatingStars,
+  renderWireframeMiniIcon,
+} from '@/components/smartCard/wireframeMirrorRendering';
 import palette from '../theme';
 
 type CardThemeId = string;
@@ -1829,21 +1833,8 @@ export default function CardsFactoryScreen() {
     }
   };
 
-  const renderVaultMiniIcon = (item: VaultItem | null | undefined, size = 20, glyphColor?: string) => {
-    const tint = glyphColor ?? cardsTheme.refreshAccent;
-    try {
-      if (!item) {
-        return <MaterialCommunityIcons name="link-variant" size={size} color={cardsTheme.textMuted} />;
-      }
-      if (item.icon?.startsWith('http')) {
-        return <ExpoImage source={{ uri: item.icon }} style={{ width: size, height: size, borderRadius: size / 2 }} cachePolicy="disk" />;
-      }
-      const safeIconName = resolveMaterialGlyphFromVaultLikeFields(item, iconVaultById);
-      return <MaterialCommunityIcons name={(safeIconName || 'help-circle') as any} size={size} color={tint} />;
-    } catch {
-      return <MaterialCommunityIcons name={"help-circle" as any} size={size} color={tint} />;
-    }
-  };
+  const renderVaultMiniIcon = (item: VaultItem | null | undefined, size = 20, glyphColor?: string) =>
+    renderWireframeMiniIcon(item, size, glyphColor, iconVaultById, cardsTheme.textMuted);
 
   const openDocumentViewer = async (item: VaultItem) => {
     const biometricOk = await hardLockCheck('abrir visor seguro de documentos');
@@ -1869,30 +1860,6 @@ export default function CardsFactoryScreen() {
             color="#C5A065"
           />
         ))}
-      </View>
-    );
-  };
-
-  /** Estrellas con media (½) para la fila de Mis Tarjetas. `starSize` por defecto 14. */
-  const renderDetailedRatingStars = (rating: number, starSize = 14, starColor = '#C5A065') => {
-    const r = Math.max(0, Math.min(5, Number(rating) || 0));
-    const gap = Math.max(1, Math.round(starSize * 0.12));
-    return (
-      <View style={[styles.ratingRow, { gap }]}>
-        {Array.from({ length: 5 }).map((_, index) => {
-          const threshold = index + 1;
-          let name: 'star' | 'star-half-full' | 'star-outline' = 'star-outline';
-          if (r >= threshold) name = 'star';
-          else if (r >= threshold - 0.5) name = 'star-half-full';
-          return (
-            <MaterialCommunityIcons
-              key={`dstar-${index}`}
-              name={name}
-              size={starSize}
-              color={starColor}
-            />
-          );
-        })}
       </View>
     );
   };
@@ -1923,7 +1890,7 @@ export default function CardsFactoryScreen() {
         <AutoScaleText style={compact ? styles.wireNickSm : styles.wireNick}>@{nickname}</AutoScaleText>
         <View style={styles.wireStatsRowInline}>
           <View style={styles.wireStatsRatingStack}>
-            {renderDetailedRatingStars(starsVal, compact ? 16 : 20)}
+            {renderWireframeDetailedRatingStars(starsVal, compact ? 16 : 20)}
             <Text
               style={[styles.wireStatsReviewCaption, { color: '#497499', fontSize: compact ? 9 : 10, textAlign: 'center' }]}
               numberOfLines={1}
@@ -2000,7 +1967,7 @@ export default function CardsFactoryScreen() {
         parallaxX={parallaxX}
         parallaxY={parallaxY}
         renderSlotContent={renderSlotContent}
-        renderDetailedRatingStars={renderDetailedRatingStars}
+        renderDetailedRatingStars={renderWireframeDetailedRatingStars}
         tr={tr}
       />
     );
@@ -2145,7 +2112,7 @@ export default function CardsFactoryScreen() {
                       <Text style={[styles.metricPillText, { color: chestTheme.titleColor }]}>{holders}</Text>
                     </View>
                     <View style={styles.statsRatingStack}>
-                      <View style={styles.businessRatingStarsWrap}>{renderDetailedRatingStars(rating)}</View>
+                      <View style={styles.businessRatingStarsWrap}>{renderWireframeDetailedRatingStars(rating)}</View>
                       <Text style={[styles.ratingStackCaption, { color: chestTheme.metaColor }]} numberOfLines={2}>
                         {rating.toFixed(1)} · {reviewCount} {tr('reseñas', 'reviews')}
                       </Text>
@@ -2335,7 +2302,7 @@ export default function CardsFactoryScreen() {
                 </TouchableOpacity>
                 <View style={styles.cardRowRatingCluster}>
                   <View style={[styles.statsRatingStack, styles.statsRatingStackAlignEnd]}>
-                    {renderDetailedRatingStars(rating)}
+                    {renderWireframeDetailedRatingStars(rating)}
                     <Text
                       style={[styles.ratingStackCaption, styles.ratingStackCaptionRight, { color: chestTheme.metaColor }]}
                       numberOfLines={2}
@@ -2454,7 +2421,7 @@ export default function CardsFactoryScreen() {
                           <Text style={[styles.metricPillText, { color: chestTheme.titleColor }]}>{holders}</Text>
                         </View>
                         <View style={styles.statsRatingStack}>
-                          <View style={styles.businessRatingStarsWrap}>{renderDetailedRatingStars(rating)}</View>
+                          <View style={styles.businessRatingStarsWrap}>{renderWireframeDetailedRatingStars(rating)}</View>
                           <Text style={[styles.ratingStackCaption, { color: chestTheme.metaColor }]} numberOfLines={2}>
                             {rating.toFixed(1)} · {reviewCount} {tr('reseñas', 'reviews')}
                           </Text>
@@ -2569,7 +2536,7 @@ export default function CardsFactoryScreen() {
                   </View>
                   <View style={styles.cardRowRatingCluster}>
                     <View style={[styles.statsRatingStack, styles.statsRatingStackAlignEnd]}>
-                      {renderDetailedRatingStars(rating)}
+                      {renderWireframeDetailedRatingStars(rating)}
                       <Text
                         style={[styles.ratingStackCaption, styles.ratingStackCaptionRight, { color: chestTheme.metaColor }]}
                         numberOfLines={2}

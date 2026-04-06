@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { CardTheme } from '@/lib/themes';
 import { getSlotIcon } from '@/lib/slotIcons';
+import { getWireframeIconRowPlan } from '@/lib/wireframeIconPlan';
 
 export type PublicSlot = {
   type: string;
@@ -158,7 +159,11 @@ export default function CardPreview({ card, theme, expiresAt, locale }: Props) {
   const bg = theme.background;
   const bd = theme.border;
 
-  const dispName = (card.ownerOccupation || card.name || card.ownerDisplayName || 'Card-Social').trim();
+  /** Misma prioridad que modales RN: nombre de tarjeta → nombre visible → cargo. */
+  const cardNm = String(card.name || '').trim();
+  const person = String(card.ownerDisplayName || '').trim();
+  const occ = String(card.ownerOccupation || '').trim();
+  const dispName = (cardNm || person || occ || 'Card-Social').trim();
   const dispSub = card.ownerNickname
     ? (card.ownerNickname.startsWith('@') ? card.ownerNickname : `@${card.ownerNickname}`)
     : null;
@@ -166,16 +171,13 @@ export default function CardPreview({ card, theme, expiresAt, locale }: Props) {
   const reviewCount = Math.max(0, Math.floor(card.totalRatings ?? 0));
   const ratingVal = reviewCount > 0 ? Math.max(0, Math.min(5, Number(card.ratingAvg ?? 5))) : 0;
 
-  const slots = (card.slots ?? []).slice(0, 12);
+  const slots = (card.slots ?? []).slice(0, 24);
   const rows: PublicSlot[][] = [];
-  let i = 0;
-  const plan = slots.length <= 3 ? [slots.length]
-    : slots.length <= 6 ? [3, slots.length - 3]
-    : slots.length <= 9 ? [3, 3, slots.length - 6]
-    : [3, 3, 3, slots.length - 9];
+  const plan = getWireframeIconRowPlan(slots.length);
+  let offset = 0;
   for (const n of plan) {
-    rows.push(slots.slice(i, i + n));
-    i += n;
+    rows.push(slots.slice(offset, offset + n));
+    offset += n;
   }
 
   const expiresDate = new Date(expiresAt);
@@ -285,26 +287,16 @@ export default function CardPreview({ card, theme, expiresAt, locale }: Props) {
                 lineHeight: 1.2,
                 marginBottom: 2,
               }}>
-                {card.ownerDisplayName || card.name}
+                {dispName}
               </div>
               {dispSub && (
                 <div style={{
                   color: theme.subtitle.color,
                   fontSize: 13,
                   fontWeight: theme.subtitle.fontWeight,
-                  marginBottom: 2,
-                }}>
-                  {dispSub}
-                </div>
-              )}
-              {card.ownerOccupation && (
-                <div style={{
-                  color: theme.subtitle.color,
-                  fontSize: 13,
-                  fontWeight: '600',
                   marginBottom: 6,
                 }}>
-                  {card.ownerOccupation}
+                  {dispSub}
                 </div>
               )}
 

@@ -25,6 +25,7 @@ const VISUAL_KEYS = new Set([
   'itemIds',
   'publicCardSlots',
   'searchFacets',
+  'ownerOccupation',
   'cardUpdatedAt',
 ]);
 

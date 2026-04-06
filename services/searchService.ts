@@ -13,6 +13,7 @@ import {
 import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
 import { BusinessCard, BusinessCardSearchResult } from '@/types/businessCard';
 import type { IssuerSmartCardPresentation } from '@/types/sharedCardPresentation';
+import type { PublicCardSlotPayload } from '@/services/qrApi';
 
 /** Tarjetas recibidas/aceptadas (misma fuente que pestaña Contactos), con meta local opcional. */
 export type ReceivedContactForMarketSearch = {
@@ -44,6 +45,8 @@ export type ReceivedContactForMarketSearch = {
   cardUpdatedAt?: string | null;
   storyState?: 'none' | 'normal' | 'vip';
   channelMuted?: boolean;
+  publicCardSlots?: PublicCardSlotPayload[];
+  ownerOccupation?: string | null;
 };
 
 export type SocialMarketSearchSections = {
@@ -204,6 +207,9 @@ function searchReceivedContactsForMarket(
     receivedHoldersCount: Number(row.holdersCount ?? 0) || 0,
     receivedSourceCardId: row.cardId ?? null,
     receivedChannelMuted: Boolean(row.channelMuted),
+    receivedPublicCardSlots: Array.isArray(row.publicCardSlots) ? row.publicCardSlots : [],
+    receivedOwnerOccupation: row.ownerOccupation ?? null,
+    receivedIssuerNickname: String(row.nickname || '').trim() || undefined,
   }));
 }
 

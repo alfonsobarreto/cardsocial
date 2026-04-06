@@ -4,7 +4,10 @@ import {
   type WireframeEditSlot,
   type WireframeVaultItem,
 } from '@/components/smartCard/IsolatedWireframeCard';
-import { WireframeSlotTile } from '@/components/smartCard/WireframeSlotTile';
+import {
+  createReceiverWireframeSlotRenderer,
+  renderWireframeDetailedRatingStars,
+} from '@/components/smartCard/wireframeMirrorRendering';
 import { SmartCardMirrorModal } from '@/components/SmartCardMirrorModal';
 import { VaultDocumentViewerModal } from '@/components/VaultDocumentViewerModal';
 import { ThemedSharedCardSurface } from '@/components/ThemedSharedCardSurface';
@@ -77,8 +80,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { Swipeable } from 'react-native-gesture-handler';
-import { CARD_THEMES as CHEST_THEMES, getThemeById, type CardTheme as ChestCardTheme } from '@/constants/themeChest';
-import { resolveMaterialGlyphFromVaultLikeFields } from '@/app/components/iconNameValidation';
+import { CARD_THEMES as CHEST_THEMES, getThemeById } from '@/constants/themeChest';
 
 type Contact = {
   uid: string;
@@ -539,47 +541,6 @@ function ContactsContent() {
     }));
   }, [mirrorVaultItems]);
 
-  const renderMirrorDetailedStars = useCallback((rating: number, starSize = 14, starColor = '#C5A065') => {
-    const r = Math.max(0, Math.min(5, Number(rating) || 0));
-    const gap = Math.max(1, Math.round(starSize * 0.12));
-    return (
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap }}>
-        {Array.from({ length: 5 }).map((_, index) => {
-          const threshold = index + 1;
-          let name: 'star' | 'star-half-full' | 'star-outline' = 'star-outline';
-          if (r >= threshold) name = 'star';
-          else if (r >= threshold - 0.5) name = 'star-half-full';
-          return <MaterialCommunityIcons key={`mrs-${index}`} name={name} size={starSize} color={starColor} />;
-        })}
-      </View>
-    );
-  }, []);
-
-  const renderMirrorMiniIcon = useCallback(
-    (item: WireframeVaultItem | null | undefined, size: number, glyphColor?: string) => {
-      const tint = glyphColor ?? shell.textPrimary;
-      try {
-        if (!item) {
-          return <MaterialCommunityIcons name="link-variant" size={size} color={shell.textMuted} />;
-        }
-        if (item.icon?.startsWith('http')) {
-          return (
-            <ExpoImage
-              source={{ uri: item.icon }}
-              style={{ width: size, height: size, borderRadius: size / 2 }}
-              cachePolicy="disk"
-            />
-          );
-        }
-        const safe = resolveMaterialGlyphFromVaultLikeFields(item, null) || 'help-circle';
-        return <MaterialCommunityIcons name={safe as any} size={size} color={tint} />;
-      } catch {
-        return <MaterialCommunityIcons name="help-circle" size={size} color={tint} />;
-      }
-    },
-    [shell.textPrimary, shell.textMuted],
-  );
-
   const openMirrorDocumentViewer = useCallback(async (item: MirrorVaultItem) => {
     const ok = await hardLockCheck('abrir visor seguro de documentos');
     if (!ok) {
@@ -608,20 +569,13 @@ function ContactsContent() {
     [openMirrorDocumentViewer, selectedContact, tr],
   );
 
-  const renderMirrorSlotContent = useCallback(
-    (slot: WireframeEditSlot, ui: { size: number }, _editable: boolean, chestTheme: ChestCardTheme) => (
-      <WireframeSlotTile
-        slot={slot}
-        ui={ui}
-        editable={false}
-        chestTheme={chestTheme}
-        tr={tr}
-        renderMiniIcon={renderMirrorMiniIcon}
-        onEditableOpenPicker={() => {}}
-        onDataPress={(it) => void openMirrorDataItem(it as MirrorVaultItem)}
-      />
-    ),
-    [openMirrorDataItem, renderMirrorMiniIcon, tr],
+  const renderMirrorSlotContent = useMemo(
+    () =>
+      createReceiverWireframeSlotRenderer({
+        tr,
+        onDataPress: (it) => void openMirrorDataItem(it as MirrorVaultItem),
+      }),
+    [openMirrorDataItem, tr],
   );
 
   const allGroups = useMemo(() => {
@@ -1797,10 +1751,11 @@ function ContactsContent() {
             reviewCount > 0 && Number.isFinite(ratingAvgRaw) ? Math.max(0, Math.min(5, ratingAvgRaw)) : 0;
           const nick = String(c.nickname || 'user').trim() || 'user';
           const dispSub = nick.startsWith('@') ? nick : `@${nick}`;
-          const occ = String(c.ownerOccupation || '').trim();
           const cardNm = String(c.cardName || '').trim();
           const person = String(c.name || '').trim();
-          const dispName = (occ || cardNm || person || tr('Tarjeta Social', 'Social Card')).trim();
+          const occ = String(c.ownerOccupation || '').trim();
+          /** Misma prioridad que vista previa Mis Tarjetas: nombre de tarjeta → persona → cargo. */
+          const dispName = (cardNm || person || occ || tr('Tarjeta Social', 'Social Card')).trim();
           const layout = c.layout === 'horizontal' ? 'horizontal' : 'vertical';
           return (
             <IsolatedWireframeCard
@@ -1820,7 +1775,7 @@ function ContactsContent() {
               parallaxX={parallaxX}
               parallaxY={parallaxY}
               renderSlotContent={renderMirrorSlotContent}
-              renderDetailedRatingStars={renderMirrorDetailedStars}
+              renderDetailedRatingStars={renderWireframeDetailedRatingStars}
               tr={tr}
             />
           );
