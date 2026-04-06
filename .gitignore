@@ -1,4 +1,6 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+#
+# Nota: ignorar .env / logs NO borra archivos en tu disco; solo evita que Git los incluya en commits.
 
 # dependencies
 node_modules/
@@ -26,9 +28,18 @@ npm-debug.*
 yarn-debug.*
 yarn-error.*
 
+# logs
+logs/
+*.log
+backend/logs/
+.npm/
+
 # macOS
 .DS_Store
 *.pem
+
+# Cursor MCP local (puede contener API keys; la plantilla es mcp.json.example)
+.cursor/mcp.json
 
 # local env files — NEVER commit real credentials
 .env

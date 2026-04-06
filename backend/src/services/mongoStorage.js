@@ -1,5 +1,5 @@
 const { MongoClient, GridFSBucket, ObjectId } = require("mongodb");
-const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
+const { S3Client, PutObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
 
 // ─── DO Spaces client (solo instanciado si las credenciales están presentes) ──
 function createSpacesClient() {
@@ -56,6 +56,47 @@ function createMongoStorage({ uri, dbName }) {
     return `https://${bucket_name}.${endpoint}/${key}`;
   }
 
+  /**
+   * Elimina un objeto en Spaces a partir de su URL pública (mismo formato que `saveFileToSpaces`).
+   * @returns {Promise<boolean>} true si se borró o no aplicaba; false si falló el parseo.
+   */
+  async function deleteFromSpacesByPublicUrl(publicUrl) {
+    if (!spaces || !publicUrl) {
+      return false;
+    }
+    const urlStr = String(publicUrl).trim();
+    if (!urlStr.startsWith("http")) {
+      return false;
+    }
+    let parsed;
+    try {
+      parsed = new URL(urlStr);
+    } catch {
+      return false;
+    }
+    const hostParts = parsed.hostname.split(".");
+    if (hostParts.length < 3) {
+      return false;
+    }
+    const bucket_name = hostParts[0];
+    const objectKey = parsed.pathname.replace(/^\//, "");
+    if (!objectKey) {
+      return false;
+    }
+    try {
+      await spaces.send(
+        new DeleteObjectCommand({
+          Bucket: bucket_name,
+          Key: objectKey,
+        })
+      );
+      return true;
+    } catch (e) {
+      console.warn("[Spaces] delete failed:", objectKey, e?.message || e);
+      return false;
+    }
+  }
+
   async function saveFile({ fileBuffer, filename, mimeType, metadata }) {
     await connect();
 
@@ -102,6 +143,7 @@ function createMongoStorage({ uri, dbName }) {
     connect,
     saveFile,
     saveFileToSpaces,
+    deleteFromSpacesByPublicUrl,
     saveModerationAudit,
     getFileMeta,
     close,

@@ -2,12 +2,20 @@ import DullModeLock from '@/components/DullModeLock';
 import LimitReachedModal from '@/components/LimitReachedModal';
 import VerificationBadge from '@/components/VerificationBadge';
 import { FREE_TIER_POLICY } from '@/constants/freeTierPolicy';
+import { isGhostLinkVaultDeletionProtected, isGhostLinkVaultType } from '@/constants/ghostLinkVault';
 import { getActiveUserId } from '@/services/authSession';
+import { getSearchableStringsFromVaultLikeItem, orderByDeepSearchWithExpandedQuery } from '@/services/deepSearch';
+import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
+import { ActionController } from '@/services/ActionController';
+import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
+import { isClassicPhoneVaultType } from '@/services/vaultItemTypeGuards';
+import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { db } from '@/services/firebaseConfig';
 import { useLanguage } from '@/services/language';
 import { validateVaultItemCreation } from '@/services/limitService';
 import { useLookMode } from '@/services/lookMode';
+import appPalette from '../theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
@@ -26,9 +34,11 @@ import {
   Dimensions,
   FlatList,
   InteractionManager,
+  Keyboard,
   Linking,
   Modal,
   Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -56,13 +66,14 @@ interface Link {
   value: string;
   iconName: string;
   icon?: string;
+  /** Ghost-Link base: no eliminable desde la UI */
+  vaultProtected?: boolean;
   isFavorite: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
-const VAULT_STORAGE_KEY = 'vault_data';
 
 const VaultScreen = () => {
   const router = useRouter();
@@ -70,51 +81,13 @@ const VaultScreen = () => {
   const { resolvedMode } = useLookMode();
   const tr = (es: string, en: string) => language === 'en' ? en : es;
   const isNight = resolvedMode === 'noche';
-  const vaultTheme = {
-    motherBg: isNight ? '#0A2540' : '#E3F2FD',
-    primaryText: isNight ? '#FFFFFF' : '#002D4B',
-    iconColor: isNight ? '#FFFFFF' : '#002D4B',
-    headerDivider: '#D4AF37',
-    progressTrack: isNight ? 'rgba(255,255,255,0.18)' : 'rgba(0,45,75,0.18)',
-    progressFill: isNight ? '#1EA7FF' : '#54C1FB',
-    gridCardBg: isNight ? 'rgba(13,58,86,0.45)' : 'rgba(28,91,185,0.18)',
-    iconCircleBg: isNight ? '#0A1A2F' : '#E3F2FD',
-    gridCardBorder: isNight ? 'rgba(212,175,55,0.16)' : 'rgba(212,175,55,0.55)',
-    secondaryText: isNight ? '#8ED4FF' : '#1EA7FF',
-    viewerFallbackText: isNight ? '#F1F7FF' : '#002D4B',
-    contextMenuBg: isNight ? '#0F2A3D' : '#FFFFFF',
-    contextMenuBorder: isNight ? '#1EA7FF' : '#D4AF37',
-    contextMenuText: isNight ? '#F1F7FF' : '#002D4B',
-    contextDeleteDivider: isNight ? 'rgba(255,255,255,0.1)' : 'rgba(0,45,75,0.1)',
-    floatingCardBg: isNight ? '#12324A' : '#FFFFFF',
-    floatingCardBorder: isNight ? '#2B6A91' : '#D8EAF9',
-    floatingTitle: isNight ? '#F1F7FF' : '#0A2540',
-    floatingBody: isNight ? '#D4EAFB' : '#4A4A4A',
-    floatingCopyBg: isNight ? '#0E4466' : '#EAF7FF',
-    floatingCopyText: isNight ? '#F1F7FF' : '#0A2540',
-    floatingCloseBg: isNight ? '#1D4D6F' : '#E3F2FD',
-    floatingCloseText: isNight ? '#F1F7FF' : '#002D4B',
-    selectedActionBg: isNight ? '#1C5BB9' : '#54C1FB',
-    selectedActionText: '#F0F4F8',
-    selectedActionGlow: isNight ? '#1C5BB9' : '#54C1FB',
-    searchBg: isNight ? '#0D2E40' : '#FFFFFF',
-    searchBorder: isNight ? 'rgba(212,175,55,0.25)' : 'rgba(0,45,75,0.15)',
-    searchText: isNight ? '#F0F4F8' : '#002D4B',
-    searchPlaceholder: isNight ? '#6B9BB8' : '#8A9DAD',
-    typeBadgeBg: isNight ? 'rgba(30,167,255,0.18)' : 'rgba(30,167,255,0.12)',
-    typeBadgeText: isNight ? '#8ED4FF' : '#1C5BB9',
-    phonePreviewBg: isNight ? '#0F2A3D' : '#FFFFFF',
-    phonePreviewBorder: isNight ? '#C5A065' : '#D4AF37',
-  };
+  const vaultTheme = appPalette[isNight ? 'dark' : 'light'];
   const [links, setLinks] = useState<Link[]>([]);
   const [formModalVisible, setFormModalVisible] = useState(false);
   const [formRenderNonce, setFormRenderNonce] = useState(0);
   const [editingData, setEditingData] = useState<Link | undefined>(undefined);
   const [profileDisplayName, setProfileDisplayName] = useState('Usuario');
   const [searchQuery, setSearchQuery] = useState('');
-  const [phonePreviewVisible, setPhonePreviewVisible] = useState(false);
-  const [ownerPhotoUrl, setOwnerPhotoUrl] = useState<string | null>(null);
-  const [ownerRatingAvg, setOwnerRatingAvg] = useState(5);
   const [isUserVerified, setIsUserVerified] = useState(false);
   const [limitReachedVisible, setLimitReachedVisible] = useState(false);
   const [limitItemCount, setLimitItemCount] = useState(0);
@@ -158,30 +131,37 @@ const VaultScreen = () => {
   };
 
   const loadVaultData = async () => {
+    const userId = await getActiveUserId();
+    if (!userId) {
+      setLinks([]);
+      return;
+    }
+
     // 1. Lectura optimista: mostrar cache local inmediatamente (cero latencia)
-    let cachedJson = '';
+    let cachedJsonForCompare = '';
     try {
-      const raw = await AsyncStorage.getItem(VAULT_STORAGE_KEY);
-      cachedJson = raw || '';
+      const raw = await readVaultJsonWithLegacyMigration(userId);
       const cached = raw ? (JSON.parse(raw) as Link[]) : [];
-      if (cached.length > 0) setLinks(sortLinks(cached));
+      const withBuiltin = await mergeBuiltinGhostLinkIntoVault(userId, cached);
+      cachedJsonForCompare = JSON.stringify(withBuiltin);
+      if (withBuiltin.length > 0) {
+        setLinks(sortLinks(withBuiltin as Link[]));
+      }
     } catch { /* ignora — la nube actualiza a continuación */ }
 
     // 2. Refresco silencioso — actualiza estado solo si los datos cambiaron
     try {
-      const userId = await getActiveUserId();
-      if (userId) {
-        const cloudSnapshot = await getDocs(collection(db, 'users', userId, 'links'));
-        const cloudItems = cloudSnapshot.docs.map((itemDoc) => ({
-          id: itemDoc.id,
-          ...itemDoc.data(),
-        })) as Link[];
+      const cloudSnapshot = await getDocs(collection(db, 'users', userId, 'links'));
+      const cloudItems = cloudSnapshot.docs.map((itemDoc) => ({
+        id: itemDoc.id,
+        ...itemDoc.data(),
+      })) as Link[];
 
-        const cloudJson = JSON.stringify(cloudItems);
-        if (cloudJson !== cachedJson) {
-          await AsyncStorage.setItem(VAULT_STORAGE_KEY, cloudJson);
-          setLinks(sortLinks(cloudItems));
-        }
+      const cloudMerged = (await mergeBuiltinGhostLinkIntoVault(userId, cloudItems)) as Link[];
+      const cloudJson = JSON.stringify(cloudMerged);
+      if (cloudJson !== cachedJsonForCompare) {
+        await AsyncStorage.setItem(vaultStorageKey(userId), cloudJson);
+        setLinks(sortLinks(cloudMerged));
       }
     } catch (cloudError) {
       console.warn('Cloud read failed, keeping cached data:', cloudError);
@@ -197,7 +177,10 @@ const VaultScreen = () => {
   };
 
   const saveVaultData = async (items: Link[]) => {
-    await AsyncStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(items));
+    const uid = await getActiveUserId();
+    if (uid) {
+      await AsyncStorage.setItem(vaultStorageKey(uid), JSON.stringify(items));
+    }
     setLinks(sortLinks(items));
   };
 
@@ -262,8 +245,6 @@ const VaultScreen = () => {
       const verified = userData.verificationStatus === 'verified' || Boolean(userData.verificationSelfieFileId);
       setProfileDisplayName(displayName);
       setIsUserVerified(verified);
-      setOwnerPhotoUrl(userData.profilePhotoUrl || userData.photoUrl || null);
-      setOwnerRatingAvg(Number(userData.ratingAvg || 5));
     } catch (error) {
       console.warn('Could not load profile meta:', error);
     }
@@ -272,6 +253,16 @@ const VaultScreen = () => {
   // Borrar item
   const deleteLink = async (link: Link) => {
     try {
+      if (isGhostLinkVaultDeletionProtected(link.type) || link.vaultProtected) {
+        Alert.alert(
+          tr('Protegido', 'Protected'),
+          tr(
+            'Ghost-Link es un servicio base de Card-Social: no se puede eliminar. Puedes editar el título y el icono.',
+            'Ghost-Link is a core Card-Social service: it cannot be deleted. You can edit the title and icon.',
+          ),
+        );
+        return;
+      }
       const biometricOk = await hardLockCheck('eliminar datos del Búnker');
       if (!biometricOk) {
         return;
@@ -596,6 +587,17 @@ const VaultScreen = () => {
       const rawValue = String(link.value || '').trim();
       const normalizedType = normalizeType(link.type || (link as any).dataType || '');
 
+      if (isGhostLinkVaultType(link.type)) {
+        Alert.alert(
+          tr('Ghost-Link', 'Ghost-Link'),
+          tr(
+            'Este ítem activa una llamada VoIP privada cuando alguien lo usa en tu tarjeta compartida. No guarda número en el Búnker.',
+            'This item starts a private VoIP call when someone uses it on your shared card. It does not store a phone number in the Vault.',
+          ),
+        );
+        return;
+      }
+
       if (!rawValue) {
         Alert.alert(tr('⚠️ Error', '⚠️ Error'), tr('El dato está vacío', 'The data is empty'));
         return;
@@ -622,8 +624,8 @@ const VaultScreen = () => {
         return;
       }
 
-      if (normalizedType === 'teléfono' || normalizedType === 'telefono') {
-        setPhonePreviewVisible(true);
+      if (isClassicPhoneVaultType(link.type) || normalizedType === 'teléfono' || normalizedType === 'telefono') {
+        await ActionController.ActionTelefono({ value: rawValue });
         triggerSuccessHaptic();
         return;
       }
@@ -797,16 +799,431 @@ const VaultScreen = () => {
     'telefono': { icon: 'phone-lock', label: 'Teléfono', labelEn: 'Phone' },
     'texto plain': { icon: 'text-short', label: 'Texto', labelEn: 'Text' },
     'documento': { icon: 'file-document-outline', label: 'Doc', labelEn: 'Doc' },
+    'ghost-link': { icon: 'phone-in-talk', label: 'Ghost-Link', labelEn: 'Ghost-Link' },
   };
 
   const filteredLinks = useMemo(() => {
-    if (!searchQuery.trim()) return links;
-    const q = searchQuery.trim().toLowerCase();
-    return links.filter((l) =>
-      l.title.toLowerCase().includes(q) ||
-      String(l.type || '').toLowerCase().includes(q)
+    if (!searchQuery.trim()) {
+      return links;
+    }
+    const qRaw = searchQuery.trim();
+    const qExpanded = buildExpandedMarketQuery(qRaw) || qRaw;
+    return orderByDeepSearchWithExpandedQuery(links, qExpanded, (l) =>
+      getSearchableStringsFromVaultLikeItem({
+        id: l.id,
+        title: l.title,
+        type: l.type,
+        value: l.value,
+        iconName: l.iconName,
+        icon: l.icon,
+      }),
     );
   }, [links, searchQuery]);
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          flex: 1,
+        },
+        header: {
+          alignItems: 'stretch',
+          paddingHorizontal: 16,
+          paddingTop: 18,
+          paddingBottom: 24,
+          borderBottomWidth: 1,
+          borderBottomColor: vaultTheme.headerDivider,
+        },
+        headerCenterBlock: {
+          alignItems: 'center',
+          width: '100%',
+          marginTop: 0,
+        },
+        headerSubtitle: {
+          fontSize: 30,
+          fontWeight: 'bold',
+          marginTop: 2,
+        },
+        vaultCounterLabel: {
+          marginTop: 12,
+          width: '100%',
+          textAlign: 'center',
+          fontSize: 26,
+          lineHeight: 32,
+          fontWeight: '800',
+        },
+        progressTrack: {
+          width: '100%',
+          maxWidth: 330,
+          height: 8,
+          borderRadius: 999,
+          marginTop: 8,
+          backgroundColor: vaultTheme.progressTrack,
+          overflow: 'hidden',
+        },
+        progressFill: {
+          height: '100%',
+          borderRadius: 999,
+          backgroundColor: vaultTheme.progressFill,
+        },
+        headerUserRowCentered: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 10,
+        },
+        headerVerificationWrap: {
+          transform: [{ scale: 1.24 }],
+        },
+        formOverlay: {
+          flex: 1,
+          backgroundColor: vaultTheme.overlay,
+          justifyContent: 'flex-end',
+        },
+        formSheet: {
+          height: SCREEN_HEIGHT * 0.94,
+          borderTopLeftRadius: 22,
+          borderTopRightRadius: 22,
+          overflow: 'hidden',
+        },
+        formDragHandleWrap: {
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingTop: 10,
+          paddingBottom: 6,
+          backgroundColor: 'transparent',
+        },
+        formDragHandle: {
+          width: 52,
+          height: 5,
+          borderRadius: 999,
+          backgroundColor: vaultTheme.gridCardBorder,
+        },
+        addButton: {
+          width: 44,
+          height: 44,
+          borderRadius: 22,
+          backgroundColor: vaultTheme.refreshAccent,
+          justifyContent: 'center',
+          alignItems: 'center',
+          shadowColor: vaultTheme.subtleShadow,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.15,
+          shadowRadius: 4,
+          elevation: 3,
+        },
+        listContainer: {
+          paddingHorizontal: 12,
+          paddingVertical: 8,
+          paddingBottom: 120,
+        },
+        gridCell: {
+          width: '25%',
+          paddingHorizontal: 4,
+          paddingVertical: 10,
+        },
+        gridCard: {
+          alignItems: 'center',
+          justifyContent: 'flex-start',
+          width: '100%',
+          backgroundColor: 'transparent',
+        },
+        cardDullMode: {
+          opacity: 0.45,
+        },
+        iconBox: {
+          position: 'relative',
+          width: 58,
+          height: 58,
+          borderRadius: 999,
+          justifyContent: 'center',
+          alignItems: 'center',
+          shadowColor: vaultTheme.subtleShadow,
+          shadowOffset: { width: 0, height: 3 },
+          shadowOpacity: 0.18,
+          shadowRadius: 6,
+          elevation: 6,
+        },
+        favoriteBadge: {
+          position: 'absolute',
+          top: -4,
+          right: -4,
+          width: 16,
+          height: 16,
+          borderRadius: 8,
+          backgroundColor: vaultTheme.ctaAccent,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        vaultProtectedBadge: {
+          position: 'absolute',
+          bottom: -2,
+          left: -2,
+          width: 20,
+          height: 20,
+          borderRadius: 10,
+          backgroundColor: isNight ? 'rgba(0,0,0,0.88)' : 'rgba(28,28,30,0.92)',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: vaultTheme.gridCardBorder,
+        },
+        favicon: {
+          width: 44,
+          height: 44,
+          borderRadius: 22,
+        },
+        gridTitle: {
+          marginTop: 8,
+          fontSize: 11,
+          fontWeight: '700',
+          textAlign: 'center',
+        },
+        emptyContainer: {
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingVertical: 60,
+        },
+        emptyTitle: {
+          fontSize: 18,
+          fontWeight: '600',
+          marginTop: 16,
+          textAlign: 'center',
+        },
+        emptySubtitle: {
+          fontSize: 13,
+          marginTop: 8,
+          textAlign: 'center',
+          maxWidth: '80%',
+        },
+        emptyCtaButton: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 8,
+          marginTop: 24,
+          paddingHorizontal: 24,
+          paddingVertical: 14,
+          borderRadius: 14,
+          shadowOpacity: 0.4,
+          shadowRadius: 8,
+          elevation: 5,
+        },
+        emptyCtaText: {
+          fontSize: 16,
+          fontWeight: '800',
+          letterSpacing: 0.5,
+        },
+        viewerOverlay: {
+          flex: 1,
+          backgroundColor: vaultTheme.storiesModalOverlayBg,
+        },
+        viewerTopBar: {
+          marginTop: 42,
+          paddingHorizontal: 16,
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        },
+        viewerDownloadButton: {
+          borderRadius: 999,
+          paddingHorizontal: 12,
+          paddingVertical: 8,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+        },
+        viewerDownloadText: {
+          fontWeight: '700',
+          fontSize: 13,
+        },
+        viewerCloseButton: {
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        viewerBody: {
+          flex: 1,
+          padding: 16,
+        },
+        viewerZoomContainer: {
+          flexGrow: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        viewerImage: {
+          width: '100%',
+          height: SCREEN_HEIGHT * 0.76,
+          borderRadius: 12,
+        },
+        viewerPdfWrapper: {
+          flex: 1,
+          width: '100%',
+          borderRadius: 12,
+          overflow: 'hidden',
+        },
+        viewerPdf: {
+          flex: 1,
+          borderRadius: 12,
+          overflow: 'hidden',
+        },
+        viewerFallback: {
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 10,
+        },
+        viewerFallbackText: {
+          fontWeight: '600',
+        },
+        fabAddButton: {
+          position: 'absolute',
+          right: 18,
+          bottom: 24,
+          width: 62,
+          height: 62,
+          borderRadius: 31,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: vaultTheme.ctaAccent,
+          shadowColor: vaultTheme.subtleShadow,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.24,
+          shadowRadius: 8,
+          elevation: 7,
+        },
+        contextOverlay: {
+          flex: 1,
+          backgroundColor: vaultTheme.overlayScrim,
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingHorizontal: 20,
+        },
+        contextMenuCard: {
+          width: '100%',
+          maxWidth: 320,
+          borderWidth: 1,
+          borderRadius: 16,
+          paddingVertical: 6,
+        },
+        contextMenuAction: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 10,
+          paddingVertical: 14,
+          paddingHorizontal: 16,
+        },
+        contextMenuActionText: {
+          fontWeight: '700',
+          fontSize: 14,
+        },
+        contextDeleteAction: {
+          borderTopWidth: 1,
+        },
+        contextDeleteText: {
+          color: vaultTheme.danger,
+        },
+        floatingOverlay: {
+          flex: 1,
+          backgroundColor: vaultTheme.modalOverlay,
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingHorizontal: 20,
+        },
+        floatingModalCard: {
+          width: '100%',
+          maxWidth: 420,
+          borderRadius: 18,
+          padding: 16,
+          borderWidth: 1,
+        },
+        floatingModalTitle: {
+          fontWeight: '800',
+          fontSize: 16,
+          marginBottom: 8,
+        },
+        floatingModalBody: {
+          fontSize: 13,
+          lineHeight: 18,
+          marginBottom: 14,
+        },
+        floatingActionsRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 10,
+        },
+        floatingCopyButton: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+          paddingHorizontal: 12,
+          paddingVertical: 10,
+          borderRadius: 999,
+        },
+        floatingCopyText: {
+          fontWeight: '700',
+          fontSize: 12,
+        },
+        floatingCloseButton: {
+          paddingHorizontal: 12,
+          paddingVertical: 10,
+          borderRadius: 999,
+          alignSelf: 'flex-end',
+          marginTop: 8,
+        },
+        floatingCloseText: {
+          fontWeight: '700',
+          fontSize: 12,
+        },
+        emailClientButton: {
+          paddingVertical: 10,
+          paddingHorizontal: 12,
+          borderRadius: 12,
+          borderWidth: 1,
+          marginBottom: 8,
+        },
+        emailClientText: {
+          fontWeight: '700',
+          fontSize: 13,
+        },
+        searchRow: {
+          paddingHorizontal: 14,
+          paddingTop: 10,
+          paddingBottom: 4,
+        },
+        searchInputWrap: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          borderRadius: 12,
+          borderWidth: 1,
+          paddingHorizontal: 12,
+          height: 40,
+          gap: 8,
+        },
+        searchInput: {
+          flex: 1,
+          fontSize: 14,
+          paddingVertical: 0,
+        },
+        typeBadge: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 3,
+          marginTop: 4,
+          paddingHorizontal: 6,
+          paddingVertical: 2,
+          borderRadius: 6,
+        },
+        typeBadgeText: {
+          fontSize: 8,
+          fontWeight: '700',
+        },
+      }),
+    [vaultTheme, isNight],
+  );
 
   // Renderizar tarjeta en grid
   const renderCard = ({ item }: { item: Link }) => {
@@ -833,6 +1250,11 @@ const VaultScreen = () => {
           {item.isFavorite ? (
             <View style={styles.favoriteBadge}>
               <MaterialCommunityIcons name="star" color={vaultTheme.iconColor} size={10} />
+            </View>
+          ) : null}
+          {isGhostLinkVaultType(item.type) || item.vaultProtected ? (
+            <View style={styles.vaultProtectedBadge} pointerEvents="none">
+              <MaterialCommunityIcons name="shield-check" size={12} color={vaultTheme.ctaAccent} />
             </View>
           ) : null}
         </View>
@@ -896,10 +1318,9 @@ const VaultScreen = () => {
     }
   };
 
-  // Header vacío
-  const renderEmptyState = () => (
+  const renderEmptyVaultOnboarding = () => (
     <View style={styles.emptyContainer}>
-      <MaterialCommunityIcons name="safe" color="#D4AF37" size={72} />
+      <MaterialCommunityIcons name="safe" color={vaultTheme.ctaAccent} size={72} />
       <Text style={[styles.emptyTitle, { color: vaultTheme.primaryText }]}>
         {tr('Tu Búnker está listo', 'Your Vault is ready')}
       </Text>
@@ -910,17 +1331,40 @@ const VaultScreen = () => {
         )}
       </Text>
       <TouchableOpacity
-        style={styles.emptyCtaButton}
+        style={[styles.emptyCtaButton, { backgroundColor: vaultTheme.emptyCtaBg, shadowColor: vaultTheme.emptyCtaBg }]}
         onPress={openCreateVaultItemForm}
         activeOpacity={0.85}
       >
-        <MaterialCommunityIcons name="plus" color="#0A1A2F" size={22} />
-        <Text style={styles.emptyCtaText}>
+        <MaterialCommunityIcons name="plus" color={vaultTheme.emptyCtaText} size={22} />
+        <Text style={[styles.emptyCtaText, { color: vaultTheme.emptyCtaText }]}>
           {tr('Agregar primer dato', 'Add first item')}
         </Text>
       </TouchableOpacity>
     </View>
   );
+
+  const renderVaultListEmpty = () => {
+    if (links.length === 0) {
+      return renderEmptyVaultOnboarding();
+    }
+    if (searchQuery.trim()) {
+      return (
+        <Pressable onPress={Keyboard.dismiss} style={styles.emptyContainer}>
+          <MaterialCommunityIcons name="magnify" color={vaultTheme.searchPlaceholder} size={64} />
+          <Text style={[styles.emptyTitle, { color: vaultTheme.primaryText }]}>
+            {tr('Sin coincidencias', 'No matches')}
+          </Text>
+          <Text style={[styles.emptySubtitle, { color: vaultTheme.secondaryText }]}>
+            {tr(
+              'Prueba con otras palabras o sinónimos. También puedes revisar tu conexión.',
+              'Try different words or synonyms. You can also check your connection.',
+            )}
+          </Text>
+        </Pressable>
+      );
+    }
+    return renderEmptyVaultOnboarding();
+  };
 
   const isUnlimitedVault = true; // Forzar ilimitado para admin pochobs
   const usageProgress = 1;
@@ -938,7 +1382,12 @@ const VaultScreen = () => {
               </View>
             ) : null}
           </View>
-          <Text style={styles.vaultCounterLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.62}>
+          <Text
+            style={[styles.vaultCounterLabel, { color: vaultTheme.counterAccent }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.62}
+          >
             {tr(`${links.length} / 50`, `${links.length} / 50`)}
           </Text>
           {/* Barra de progreso: oculta para usuarios 50 */}
@@ -953,16 +1402,27 @@ const VaultScreen = () => {
             <MaterialCommunityIcons name="magnify" size={18} color={vaultTheme.searchPlaceholder} />
             <TextInput
               style={[styles.searchInput, { color: vaultTheme.searchText }]}
-              placeholder={tr('Buscar en el Búnker...', 'Search Vault...')}
+              placeholder={tr(
+                'Buscar en todo el dato (título, tipo, enlace, valor…)',
+                'Search all fields (title, type, link, value…)'
+              )}
               placeholderTextColor={vaultTheme.searchPlaceholder}
               value={searchQuery}
               onChangeText={setSearchQuery}
               returnKeyType="search"
+              onSubmitEditing={Keyboard.dismiss}
               autoCapitalize="none"
               autoCorrect={false}
             />
             {searchQuery.length > 0 ? (
-              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <TouchableOpacity
+                onPress={() => {
+                  Keyboard.dismiss();
+                  setSearchQuery('');
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel={tr('Limpiar búsqueda', 'Clear search')}
+              >
                 <MaterialCommunityIcons name="close-circle" size={16} color={vaultTheme.searchPlaceholder} />
               </TouchableOpacity>
             ) : null}
@@ -979,7 +1439,7 @@ const VaultScreen = () => {
         removeClippedSubviews={true}
         scrollEventThrottle={16}
         keyboardDismissMode="on-drag"
-        ListEmptyComponent={renderEmptyState}
+        ListEmptyComponent={renderVaultListEmpty}
         contentContainerStyle={styles.listContainer}
         scrollEnabled={true}
         showsVerticalScrollIndicator={false}
@@ -993,8 +1453,8 @@ const VaultScreen = () => {
               await loadVaultData();
               setRefreshing(false);
             }}
-            tintColor="#C5A065"
-            colors={['#C5A065']}
+            tintColor={vaultTheme.refreshTint}
+            colors={[vaultTheme.refreshTint]}
           />
         }
       />
@@ -1004,15 +1464,15 @@ const VaultScreen = () => {
         onPress={openCreateVaultItemForm}
         activeOpacity={0.85}
       >
-        <MaterialCommunityIcons name="plus" color={vaultTheme.iconColor} size={30} />
+        <MaterialCommunityIcons name="plus" color={vaultTheme.emptyCtaText} size={30} />
       </TouchableOpacity>
 
       {/* Modal del formulario */}
       <Modal
         visible={formModalVisible}
-        transparent
+        transparent={false}
         animationType="slide"
-        presentationStyle="overFullScreen"
+        presentationStyle="fullScreen"
         hardwareAccelerated
         onDismiss={() => {
           formSheetTranslateY.stopAnimation();
@@ -1049,17 +1509,26 @@ const VaultScreen = () => {
       >
         <View style={styles.viewerOverlay}>
           <View style={styles.viewerTopBar}>
-<TouchableOpacity style={styles.viewerDownloadButton} onPress={handleDownloadFromViewer} disabled={isDownloadingViewerFile}>
+<TouchableOpacity
+              style={[styles.viewerDownloadButton, { backgroundColor: vaultTheme.viewerDownloadBg }]}
+              onPress={handleDownloadFromViewer}
+              disabled={isDownloadingViewerFile}
+            >
               {isDownloadingViewerFile ? (
-                <ActivityIndicator size="small" color="#0A2540" />
+                <ActivityIndicator size="small" color={vaultTheme.viewerIconTint} />
               ) : (
-                <MaterialCommunityIcons name="download" color="#0A2540" size={18} />
+                <MaterialCommunityIcons name="download" color={vaultTheme.viewerIconTint} size={18} />
               )}
-              <Text style={styles.viewerDownloadText}>{tr('Descargar', 'Download')}</Text>
+              <Text style={[styles.viewerDownloadText, { color: vaultTheme.viewerDownloadLabel }]}>
+                {tr('Descargar', 'Download')}
+              </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.viewerCloseButton} onPress={() => setViewerVisible(false)}>
-              <MaterialCommunityIcons name="close" color="#002D4B" size={28} />
+            <TouchableOpacity
+              style={[styles.viewerCloseButton, { backgroundColor: vaultTheme.viewerCloseButtonBg }]}
+              onPress={() => setViewerVisible(false)}
+            >
+              <MaterialCommunityIcons name="close" color={vaultTheme.viewerCloseTint} size={28} />
             </TouchableOpacity>
           </View>
 
@@ -1111,7 +1580,7 @@ const VaultScreen = () => {
                   </TouchableWithoutFeedback>
                 ) : (
                   <View style={styles.viewerFallback}>
-                    <MaterialCommunityIcons name="file-pdf-box" color="#C5A065" size={54} />
+                    <MaterialCommunityIcons name="file-pdf-box" color={vaultTheme.ctaAccent} size={54} />
                     <Text style={[styles.viewerFallbackText, { color: vaultTheme.viewerFallbackText }]}>
                       {tr(
                         'La previsualizacion PDF no esta disponible en Expo Go. Usa un development build para verla.',
@@ -1122,7 +1591,7 @@ const VaultScreen = () => {
                 )
               ) : (
                 <View style={styles.viewerFallback}>
-                  <MaterialCommunityIcons name="file-alert-outline" color="#C5A065" size={54} />
+                  <MaterialCommunityIcons name="file-alert-outline" color={vaultTheme.ctaAccent} size={54} />
                   <Text style={[styles.viewerFallbackText, { color: vaultTheme.viewerFallbackText }]}>{tr('No se pudo previsualizar este archivo.', 'Could not preview this file.')}</Text>
                 </View>
               )
@@ -1157,7 +1626,7 @@ const VaultScreen = () => {
                     await toggleFavorite(contextMenuItem);
                   }}
                 >
-                  <MaterialCommunityIcons name="star" color="#C5A065" size={18} />
+                  <MaterialCommunityIcons name="star" color={vaultTheme.ctaAccent} size={18} />
                   <Text style={[styles.contextMenuActionText, { color: vaultTheme.contextMenuText }]}>{tr('Favorito', 'Favorite')}</Text>
                 </TouchableOpacity>
 
@@ -1165,32 +1634,36 @@ const VaultScreen = () => {
                   style={styles.contextMenuAction}
                   onPress={openEditFromContextMenu}
                 >
-                  <MaterialCommunityIcons name="pencil" color="#1EA7FF" size={18} />
+                  <MaterialCommunityIcons name="pencil" color={vaultTheme.refreshAccent} size={18} />
                   <Text style={[styles.contextMenuActionText, { color: vaultTheme.contextMenuText }]}>{tr('Editar', 'Edit')}</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[styles.contextMenuAction, styles.contextDeleteAction, { borderTopColor: vaultTheme.contextDeleteDivider }]}
-                  onPress={() => {
-                    if (!contextMenuItem) return;
-                    setContextMenuVisible(false);
-                    Alert.alert(
-                      tr('⚠️ Confirmar', '⚠️ Confirm'),
-                      tr(`¿Eliminar "${contextMenuItem.title}"?`, `Delete "${contextMenuItem.title}"?`),
-                      [
-                        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
-                        {
-                          text: tr('Eliminar', 'Delete'),
-                          style: 'destructive',
-                          onPress: () => deleteLink(contextMenuItem),
-                        },
-                      ],
-                    );
-                  }}
-                >
-                  <MaterialCommunityIcons name="trash-can" color="#FF6B6B" size={18} />
-                  <Text style={[styles.contextMenuActionText, styles.contextDeleteText]}>{tr('Eliminar', 'Delete')}</Text>
-                </TouchableOpacity>
+                {contextMenuItem &&
+                !isGhostLinkVaultDeletionProtected(contextMenuItem.type) &&
+                !contextMenuItem.vaultProtected ? (
+                  <TouchableOpacity
+                    style={[styles.contextMenuAction, styles.contextDeleteAction, { borderTopColor: vaultTheme.contextDeleteDivider }]}
+                    onPress={() => {
+                      if (!contextMenuItem) return;
+                      setContextMenuVisible(false);
+                      Alert.alert(
+                        tr('⚠️ Confirmar', '⚠️ Confirm'),
+                        tr(`¿Eliminar "${contextMenuItem.title}"?`, `Delete "${contextMenuItem.title}"?`),
+                        [
+                          { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+                          {
+                            text: tr('Eliminar', 'Delete'),
+                            style: 'destructive',
+                            onPress: () => deleteLink(contextMenuItem),
+                          },
+                        ],
+                      );
+                    }}
+                  >
+                    <MaterialCommunityIcons name="trash-can" color={vaultTheme.danger} size={18} />
+                    <Text style={[styles.contextMenuActionText, styles.contextDeleteText]}>{tr('Eliminar', 'Delete')}</Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
             </TouchableWithoutFeedback>
           </View>
@@ -1273,577 +1746,8 @@ const VaultScreen = () => {
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* Phone Privacy Preview Modal (#23) */}
-      <Modal
-        visible={phonePreviewVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPhonePreviewVisible(false)}
-      >
-        <TouchableWithoutFeedback onPress={() => setPhonePreviewVisible(false)}>
-          <View style={styles.phonePreviewOverlay}>
-            <TouchableWithoutFeedback>
-              <View style={[styles.phonePreviewCard, { backgroundColor: vaultTheme.phonePreviewBg, borderColor: vaultTheme.phonePreviewBorder }]}>
-                <Text style={[styles.phonePreviewLabel, { color: vaultTheme.secondaryText }]}>
-                  {tr('Así te ven cuando te llaman', 'How callers see you')}
-                </Text>
-
-                {ownerPhotoUrl ? (
-                  <ExpoImage source={{ uri: ownerPhotoUrl }} style={styles.phonePreviewAvatar} cachePolicy="disk" transition={150} />
-                ) : (
-                  <View style={[styles.phonePreviewAvatar, { backgroundColor: vaultTheme.iconCircleBg, alignItems: 'center', justifyContent: 'center' }]}>
-                    <MaterialCommunityIcons name="account" size={40} color={vaultTheme.iconColor} />
-                  </View>
-                )}
-
-                <Text style={[styles.phonePreviewName, { color: vaultTheme.primaryText }]}>{profileDisplayName}</Text>
-
-                <View style={styles.phonePreviewStarsRow}>
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <MaterialCommunityIcons
-                      key={star}
-                      name={star <= Math.round(ownerRatingAvg) ? 'star' : 'star-outline'}
-                      size={18}
-                      color="#C5A065"
-                    />
-                  ))}
-                  <Text style={[styles.phonePreviewRating, { color: vaultTheme.secondaryText }]}>{ownerRatingAvg.toFixed(1)}</Text>
-                </View>
-
-                <View style={styles.phonePreviewPrivacyBadge}>
-                  <MaterialCommunityIcons name="shield-lock" size={14} color="#C5A065" />
-                  <Text style={styles.phonePreviewPrivacyText}>
-                    {tr('Tu número siempre oculto vía Ghost-Link', 'Your number always hidden via Ghost-Link')}
-                  </Text>
-                </View>
-
-                <View style={styles.phonePreviewActions}>
-                  <TouchableOpacity style={styles.phonePreviewCallBtnDisabled} disabled activeOpacity={1}>
-                    <MaterialCommunityIcons name="phone" size={20} color="#999" />
-                    <Text style={styles.phonePreviewCallTextDisabled}>{tr('Llamar VoIP', 'VoIP Call')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.phonePreviewCloseBtn, { backgroundColor: vaultTheme.floatingCloseBg }]} onPress={() => setPhonePreviewVisible(false)}>
-                    <Text style={[styles.phonePreviewCloseText, { color: vaultTheme.floatingCloseText }]}>{tr('Cerrar', 'Close')}</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
-
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-
-  // HEADER
-  header: {
-    alignItems: 'stretch',
-    paddingHorizontal: 16,
-    paddingTop: 18,
-    paddingBottom: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: '#D4AF37',
-  },
-  headerCenterBlock: {
-    alignItems: 'center',
-    width: '100%',
-    marginTop: 0,
-  },
-  headerSubtitle: {
-    fontSize: 30,
-    color: '#002D4B',
-    fontWeight: 'bold',
-    marginTop: 2,
-  },
-  vaultCounterLabel: {
-    marginTop: 12,
-    width: '100%',
-    textAlign: 'center',
-    fontSize: 26,
-    lineHeight: 32,
-    color: '#D4AF37',
-    fontWeight: '800',
-  },
-  progressTrack: {
-    width: '100%',
-    maxWidth: 330,
-    height: 8,
-    borderRadius: 999,
-    marginTop: 8,
-    backgroundColor: 'rgba(241,241,241,0.1)',
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 999,
-  },
-  headerUserRowCentered: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  headerVerificationWrap: {
-    transform: [{ scale: 1.24 }],
-  },
-  formOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.42)',
-    justifyContent: 'flex-end',
-  },
-  formSheet: {
-    height: SCREEN_HEIGHT * 0.94,
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    overflow: 'hidden',
-  },
-  formDragHandleWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 10,
-    paddingBottom: 6,
-    backgroundColor: 'transparent',
-  },
-  formDragHandle: {
-    width: 52,
-    height: 5,
-    borderRadius: 999,
-    backgroundColor: 'rgba(212,175,55,0.55)',
-  },
-  addButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#1EA7FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  // LISTA
-  listContainer: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    paddingBottom: 120,
-  },
-
-  // GRID
-  gridCell: {
-    width: '25%',
-    paddingHorizontal: 4,
-    paddingVertical: 10,
-  },
-  gridCard: {
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    width: '100%',
-    // Sin fondo ni borde — el ícono flota solo
-    backgroundColor: 'transparent',
-  },
-  cardDullMode: {
-    opacity: 0.45,
-  },
-  iconBox: {
-    width: 58,
-    height: 58,
-    borderRadius: 999,
-    justifyContent: 'center',
-    alignItems: 'center',
-    // Drop shadow flotante
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.18,
-    shadowRadius: 6,
-    elevation: 6,
-  },
-  favoriteBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#C5A065',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  favicon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-  },
-  gridTitle: {
-    marginTop: 8,
-    color: '#002D4B',
-    fontSize: 11,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-
-  // ESTADO VACÍO
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#002D4B',
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    color: '#1EA7FF',
-    marginTop: 8,
-    textAlign: 'center',
-    maxWidth: '80%',
-  },
-  emptyCtaButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 24,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: '#D4AF37',
-    shadowColor: '#D4AF37',
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  emptyCtaText: {
-    color: '#0A1A2F',
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  viewerOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-  },
-  viewerTopBar: {
-    marginTop: 42,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  viewerDownloadButton: {
-    backgroundColor: '#C5A065',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  viewerDownloadText: {
-    color: '#0A2540',
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  viewerCloseButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  viewerBody: {
-    flex: 1,
-    padding: 16,
-  },
-  viewerZoomContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  viewerImage: {
-    width: '100%',
-    height: SCREEN_HEIGHT * 0.76,
-    borderRadius: 12,
-  },
-  viewerPdf: {
-    flex: 1,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  viewerFallback: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  viewerFallbackText: {
-    color: '#002D4B',
-    fontWeight: '600',
-  },
-  fabAddButton: {
-    position: 'absolute',
-    right: 18,
-    bottom: 24,
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    backgroundColor: '#D4AF37',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.24,
-    shadowRadius: 8,
-    elevation: 7,
-  },
-  contextOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  contextMenuCard: {
-    width: '100%',
-    maxWidth: 320,
-    backgroundColor: '#132F45',
-    borderWidth: 1,
-    borderColor: '#1EA7FF',
-    borderRadius: 16,
-    paddingVertical: 6,
-  },
-  contextMenuAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  contextMenuActionText: {
-    color: '#002D4B',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  contextDeleteAction: {
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.12)',
-  },
-  contextDeleteText: {
-    color: '#FF6B6B',
-  },
-  floatingOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  floatingModalCard: {
-    width: '100%',
-    maxWidth: 420,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#D8EAF9',
-  },
-  floatingModalTitle: {
-    color: '#0A2540',
-    fontWeight: '800',
-    fontSize: 16,
-    marginBottom: 8,
-  },
-  floatingModalBody: {
-    color: '#4A4A4A',
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 14,
-  },
-  floatingActionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  floatingCopyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 999,
-    backgroundColor: '#EAF7FF',
-  },
-  floatingCopyText: {
-    color: '#0A2540',
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  floatingCloseButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 999,
-    backgroundColor: '#E3F2FD',
-    alignSelf: 'flex-end',
-    marginTop: 8,
-  },
-  floatingCloseText: {
-    color: '#002D4B',
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  emailClientButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#CFE6F8',
-    backgroundColor: '#F8FCFF',
-    marginBottom: 8,
-  },
-  emailClientText: {
-    color: '#0A2540',
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  // Search bar
-  searchRow: {
-    paddingHorizontal: 14,
-    paddingTop: 10,
-    paddingBottom: 4,
-  },
-  searchInputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    height: 40,
-    gap: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    paddingVertical: 0,
-  },
-  // Type badge
-  typeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    marginTop: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  typeBadgeText: {
-    fontSize: 8,
-    fontWeight: '700',
-  },
-  // Phone Privacy Preview
-  phonePreviewOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  phonePreviewCard: {
-    width: '100%',
-    maxWidth: 340,
-    borderRadius: 22,
-    borderWidth: 1.5,
-    padding: 24,
-    alignItems: 'center',
-  },
-  phonePreviewLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 16,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  phonePreviewAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    marginBottom: 12,
-  },
-  phonePreviewName: {
-    fontSize: 20,
-    fontWeight: '800',
-    marginBottom: 8,
-  },
-  phonePreviewStarsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    marginBottom: 12,
-  },
-  phonePreviewRating: {
-    fontSize: 13,
-    fontWeight: '700',
-    marginLeft: 6,
-  },
-  phonePreviewPrivacyBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(197,160,101,0.12)',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginBottom: 20,
-  },
-  phonePreviewPrivacyText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#C5A065',
-  },
-  phonePreviewActions: {
-    flexDirection: 'row',
-    gap: 12,
-    width: '100%',
-  },
-  phonePreviewCallBtnDisabled: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: 'rgba(150,150,150,0.15)',
-    opacity: 0.5,
-  },
-  phonePreviewCallTextDisabled: {
-    color: '#999',
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  phonePreviewCloseBtn: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  phonePreviewCloseText: {
-    fontWeight: '700',
-    fontSize: 13,
-  },
-});
 
 export default VaultScreen;

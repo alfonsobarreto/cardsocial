@@ -6,18 +6,41 @@
  * Secciones premium vacías se muestran como colecciones futuras con badge 🔒.
  */
 
+import { STUDIO_CATALOG_VECTOR_ICONS_PAID, STUDIO_ICON_CREDIT_PRICE } from '@/constants/studioEconomy';
+import { TEXAS_LONGHORNS_ICON_SEEDS } from '@/constants/texasLonghornsPack';
+import { getActiveUserId } from '@/services/authSession';
 import { useLanguage } from '@/services/language';
+import {
+  isFreeStarterIconKey,
+  purchaseStudioIconUnlock,
+  stableKeyForCatalogIcon,
+} from '@/services/iconVaultService';
+import {
+  purchaseThemeBundle,
+  THEME_BUNDLES,
+  userOwnsThemeBundle,
+} from '@/services/themeBundleService';
+import {
+  readRecentIconsJsonWithLegacyMigration,
+  readVaultJsonWithLegacyMigration,
+  vaultRecentIconsStorageKey,
+  vaultStorageKey,
+} from '@/services/userScopedStorage';
 import { useLookMode } from '@/services/lookMode';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { sanitizeMaterialIconName } from './iconNameValidation';
 import {
   Alert,
+  ActivityIndicator,
   Dimensions,
   InteractionManager,
   Modal,
+  Platform,
+  ScrollView,
   SectionList,
   StyleSheet,
   Text,
@@ -27,14 +50,13 @@ import {
 } from 'react-native';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
-const VAULT_STORAGE_KEY = 'vault_data';
-const RECENT_ICONS_KEY = 'vault_recent_icon_ids';
 const MAX_RECENTS = 5;
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 export type VaultDataType =
   | 'Enlaces'
   | 'Teléfono'
+  | 'Ghost-Link'
   | 'Email'
   | 'Texto Plain'
   | 'Documento';
@@ -54,10 +76,11 @@ interface IconSection {
   isPremium?: boolean;
   emptyLabel?: string;
   emptyLabelEn?: string;
+  /** Coincide con dataType para auto-scroll (sin prefijo de carpeta). */
+  scrollAnchor?: string;
 }
 
-// ─── SECCIONES CATEGORIZADAS ──────────────────────────────────────────────────
-const RAW_SECTIONS: Array<{
+type RawSectionDef = {
   title: string;
   titleEn: string;
   items?: Array<{ label: string; labelEn: string; icon: string }>;
@@ -65,187 +88,275 @@ const RAW_SECTIONS: Array<{
   isPremium?: boolean;
   emptyLabel?: string;
   emptyLabelEn?: string;
-}> = [
+  scrollAnchor?: string;
+};
+
+type StudioFolderDef = {
+  id: string;
+  title: string;
+  titleEn: string;
+  sections: RawSectionDef[];
+};
+
+const STUDIO_FOLDERS: StudioFolderDef[] = [
   {
-    title: 'Enlaces',
-    titleEn: 'Links',
-    items: [
-      { label: 'LinkedIn',    labelEn: 'LinkedIn',    icon: 'linkedin'         },
-      { label: 'Instagram',   labelEn: 'Instagram',   icon: 'instagram'        },
-      { label: 'Facebook',    labelEn: 'Facebook',    icon: 'facebook'         },
-      { label: 'WhatsApp',    labelEn: 'WhatsApp',    icon: 'whatsapp'         },
-      { label: 'Twitter/X',   labelEn: 'Twitter/X',   icon: 'twitter'          },
-      { label: 'TikTok',      labelEn: 'TikTok',      icon: 'music-note'       },
-      { label: 'YouTube',     labelEn: 'YouTube',     icon: 'youtube'          },
-      { label: 'Snapchat',    labelEn: 'Snapchat',    icon: 'snapchat'         },
-      { label: 'Web',         labelEn: 'Web',         icon: 'web'              },
-      { label: 'Enlace',      labelEn: 'Link',        icon: 'link-variant'     },
+    id: 'esenciales',
+    title: 'Esenciales',
+    titleEn: 'Essentials',
+    sections: [
+      {
+        title: 'Enlaces',
+        titleEn: 'Links',
+        scrollAnchor: 'Enlaces',
+        items: [
+          { label: 'LinkedIn', labelEn: 'LinkedIn', icon: 'linkedin' },
+          { label: 'Instagram', labelEn: 'Instagram', icon: 'instagram' },
+          { label: 'Facebook', labelEn: 'Facebook', icon: 'facebook' },
+          { label: 'WhatsApp', labelEn: 'WhatsApp', icon: 'whatsapp' },
+          { label: 'Twitter/X', labelEn: 'Twitter/X', icon: 'twitter' },
+          { label: 'TikTok', labelEn: 'TikTok', icon: 'music-note' },
+          { label: 'YouTube', labelEn: 'YouTube', icon: 'youtube' },
+          { label: 'Snapchat', labelEn: 'Snapchat', icon: 'snapchat' },
+          { label: 'Web', labelEn: 'Web', icon: 'web' },
+          { label: 'Enlace', labelEn: 'Link', icon: 'link-variant' },
+        ],
+      },
+      {
+        title: 'Teléfonos',
+        titleEn: 'Phones',
+        scrollAnchor: 'Teléfonos',
+        items: [
+          { label: 'Llamada', labelEn: 'Call', icon: 'phone-in-talk' },
+          { label: 'Apple', labelEn: 'Apple', icon: 'apple' },
+          { label: 'Android', labelEn: 'Android', icon: 'android' },
+          { label: 'Teléfono', labelEn: 'Phone', icon: 'phone' },
+          { label: 'Clásico', labelEn: 'Classic', icon: 'phone-classic' },
+          { label: 'Celular', labelEn: 'Mobile', icon: 'cellphone' },
+          { label: 'WhatsApp', labelEn: 'WhatsApp', icon: 'whatsapp' },
+          { label: 'Tablet', labelEn: 'Tablet', icon: 'tablet-cellphone' },
+          { label: 'Vibrar', labelEn: 'Vibrate', icon: 'vibrate' },
+          { label: 'VoIP', labelEn: 'VoIP', icon: 'phone-voip' },
+          { label: 'Contactos', labelEn: 'Contacts', icon: 'contacts' },
+        ],
+      },
+      {
+        title: 'Emails',
+        titleEn: 'Emails',
+        scrollAnchor: 'Emails',
+        items: [
+          { label: 'Gmail', labelEn: 'Gmail', icon: 'gmail' },
+          { label: 'Email', labelEn: 'Email', icon: 'email-outline' },
+          { label: 'Abierto', labelEn: 'Open', icon: 'email-open' },
+          { label: 'Outlook', labelEn: 'Outlook', icon: 'microsoft-outlook' },
+          { label: 'Yahoo', labelEn: 'Yahoo', icon: 'yahoo' },
+          { label: 'Buzón', labelEn: 'Mailbox', icon: 'mailbox' },
+          { label: 'Enviar', labelEn: 'Send', icon: 'send' },
+          { label: 'Sello', labelEn: 'Stamp', icon: 'certificate' },
+          { label: 'Arroba', labelEn: 'At Sign', icon: 'at' },
+          { label: 'Alt Email', labelEn: 'Alt Email', icon: 'email' },
+        ],
+      },
+      {
+        title: 'Seguridad / Estilo',
+        titleEn: 'Security / Style',
+        items: [
+          { label: 'Llave', labelEn: 'Key', icon: 'key' },
+          { label: 'Escudo', labelEn: 'Shield', icon: 'shield-check' },
+          { label: 'Candado', labelEn: 'Lock', icon: 'lock' },
+          { label: 'Carpeta', labelEn: 'Folder', icon: 'folder-lock' },
+          { label: 'Ojo', labelEn: 'Eye', icon: 'eye-outline' },
+          { label: 'Huella', labelEn: 'Fingerprint', icon: 'fingerprint' },
+          { label: 'Estrella', labelEn: 'Star', icon: 'star' },
+          { label: 'Diamante', labelEn: 'Diamond', icon: 'diamond-stone' },
+          { label: 'Corona', labelEn: 'Crown', icon: 'crown' },
+          { label: 'Corazón', labelEn: 'Heart', icon: 'heart' },
+          { label: 'Rayo', labelEn: 'Flash', icon: 'flash' },
+        ],
+      },
+      {
+        title: 'Documentos',
+        titleEn: 'Documents',
+        scrollAnchor: 'Documentos',
+        items: [
+          { label: 'PDF', labelEn: 'PDF', icon: 'file-pdf-box' },
+          { label: 'Imagen', labelEn: 'Image', icon: 'file-image' },
+          { label: 'Video', labelEn: 'Video', icon: 'file-video' },
+          { label: 'Word', labelEn: 'Word', icon: 'file-word' },
+          { label: 'Excel', labelEn: 'Excel', icon: 'file-excel' },
+          { label: 'Doc', labelEn: 'Doc', icon: 'file-document' },
+          { label: 'PPT', labelEn: 'PPT', icon: 'presentation' },
+          { label: 'Música', labelEn: 'Music', icon: 'file-music' },
+          { label: 'ZIP', labelEn: 'ZIP', icon: 'zip-box' },
+          { label: 'Carpeta', labelEn: 'Folder', icon: 'folder-zip' },
+        ],
+      },
+      {
+        title: 'Mis Iconos Personalizados',
+        titleEn: 'My Custom Icons',
+        isEmpty: true,
+        isPremium: false,
+        emptyLabel: 'Próximamente: Sube tus propios iconos',
+        emptyLabelEn: 'Coming soon: Upload your own icons',
+      },
     ],
   },
   {
-    title: 'Teléfonos',
-    titleEn: 'Phones',
-    items: [
-      { label: 'Apple',       labelEn: 'Apple',       icon: 'apple'            },
-      { label: 'Android',     labelEn: 'Android',     icon: 'android'          },
-      { label: 'Teléfono',    labelEn: 'Phone',       icon: 'phone'            },
-      { label: 'Clásico',     labelEn: 'Classic',     icon: 'phone-classic'    },
-      { label: 'Celular',     labelEn: 'Mobile',      icon: 'cellphone'        },
-      { label: 'WhatsApp',    labelEn: 'WhatsApp',    icon: 'whatsapp'         },
-      { label: 'Tablet',      labelEn: 'Tablet',      icon: 'tablet-cellphone' },
-      { label: 'Vibrar',      labelEn: 'Vibrate',     icon: 'vibrate'          },
-      { label: 'VoIP',        labelEn: 'VoIP',        icon: 'phone-voip'       },
-      { label: 'Contactos',   labelEn: 'Contacts',    icon: 'contacts'         },
-    ],
-  },
-  {
-    title: 'Emails',
-    titleEn: 'Emails',
-    items: [
-      { label: 'Gmail',       labelEn: 'Gmail',       icon: 'gmail'             },
-      { label: 'Email',       labelEn: 'Email',       icon: 'email-outline'     },
-      { label: 'Abierto',     labelEn: 'Open',        icon: 'email-open'        },
-      { label: 'Outlook',     labelEn: 'Outlook',     icon: 'microsoft-outlook' },
-      { label: 'Yahoo',       labelEn: 'Yahoo',       icon: 'yahoo'             },
-      { label: 'Buzón',       labelEn: 'Mailbox',     icon: 'mailbox'           },
-      { label: 'Enviar',      labelEn: 'Send',        icon: 'send'              },
-      { label: 'Sello',       labelEn: 'Stamp',       icon: 'certificate'       },
-      { label: 'Arroba',      labelEn: 'At Sign',     icon: 'at'                },
-      { label: 'Alt Email',   labelEn: 'Alt Email',   icon: 'email'             },
-    ],
-  },
-  {
-    title: 'Seguridad / Estilo',
-    titleEn: 'Security / Style',
-    items: [
-      { label: 'Llave',       labelEn: 'Key',         icon: 'key'              },
-      { label: 'Escudo',      labelEn: 'Shield',      icon: 'shield-check'     },
-      { label: 'Candado',     labelEn: 'Lock',        icon: 'lock'             },
-      { label: 'Carpeta',     labelEn: 'Folder',      icon: 'folder-lock'      },
-      { label: 'Ojo',         labelEn: 'Eye',         icon: 'eye-outline'      },
-      { label: 'Huella',      labelEn: 'Fingerprint', icon: 'fingerprint'      },
-      { label: 'Estrella',    labelEn: 'Star',        icon: 'star'             },
-      { label: 'Diamante',    labelEn: 'Diamond',     icon: 'diamond-stone'    },
-      { label: 'Corona',      labelEn: 'Crown',       icon: 'crown'            },
-      { label: 'Corazón',     labelEn: 'Heart',       icon: 'heart'            },
-      { label: 'Rayo',        labelEn: 'Flash',       icon: 'flash'            },
-    ],
-  },
-  {
-    title: 'Documentos',
-    titleEn: 'Documents',
-    items: [
-      { label: 'PDF',         labelEn: 'PDF',         icon: 'file-pdf-box'      },
-      { label: 'Imagen',      labelEn: 'Image',       icon: 'file-image'        },
-      { label: 'Video',       labelEn: 'Video',       icon: 'file-video'        },
-      { label: 'Word',        labelEn: 'Word',        icon: 'file-word'         },
-      { label: 'Excel',       labelEn: 'Excel',       icon: 'file-excel'        },
-      { label: 'Doc',         labelEn: 'Doc',         icon: 'file-document'     },
-      { label: 'PPT',         labelEn: 'PPT',         icon: 'presentation'      },
-      { label: 'Música',      labelEn: 'Music',       icon: 'file-music'        },
-      { label: 'ZIP',         labelEn: 'ZIP',         icon: 'zip-box'           },
-      { label: 'Carpeta',     labelEn: 'Folder',      icon: 'folder-zip'        },
-    ],
-  },
-  // ── Colección personal ────
-  {
-    title: 'Mis Iconos Personalizados',
-    titleEn: 'My Custom Icons',
-    isEmpty: true,
-    isPremium: false,
-    emptyLabel: 'Próximamente: Sube tus propios iconos',
-    emptyLabelEn: 'Coming soon: Upload your own icons',
-  },
-  // ── Colecciones premium futuras ───
-  {
+    id: 'luxury',
     title: 'Luxury',
     titleEn: 'Luxury',
-    isEmpty: true,
-    isPremium: true,
-    emptyLabel: 'Colección Luxury — Próximamente',
-    emptyLabelEn: 'Luxury Collection — Coming soon',
+    sections: [
+      {
+        title: 'Colección Luxury',
+        titleEn: 'Luxury collection',
+        isEmpty: true,
+        isPremium: true,
+        emptyLabel: 'Iconos vector luxury — Próximamente en boutique',
+        emptyLabelEn: 'Luxury vector icons — Coming soon to the boutique',
+      },
+    ],
   },
   {
+    id: 'animated',
+    title: 'Animados',
+    titleEn: 'Animated',
+    sections: [
+      {
+        title: 'GIF / Lottie',
+        titleEn: 'GIF / Lottie',
+        isEmpty: true,
+        isPremium: true,
+        emptyLabel: 'Iconos animados — Próximamente',
+        emptyLabelEn: 'Animated icons — Coming soon',
+      },
+    ],
+  },
+  {
+    id: 'd3',
     title: '3D',
     titleEn: '3D',
-    isEmpty: true,
-    isPremium: true,
-    emptyLabel: 'Iconos 3D — Próximamente',
-    emptyLabelEn: '3D Icons — Coming soon',
+    sections: [
+      {
+        title: 'Iconos 3D',
+        titleEn: '3D icons',
+        isEmpty: true,
+        isPremium: true,
+        emptyLabel: 'Pack 3D — Próximamente',
+        emptyLabelEn: '3D pack — Coming soon',
+      },
+    ],
   },
   {
-    title: 'GIF',
-    titleEn: 'GIF',
-    isEmpty: true,
-    isPremium: true,
-    emptyLabel: 'Iconos Animados GIF — Próximamente',
-    emptyLabelEn: 'Animated GIF Icons — Coming soon',
-  },
-  {
+    id: 'collectibles',
     title: 'Coleccionables',
     titleEn: 'Collectibles',
-    isEmpty: true,
-    isPremium: true,
-    emptyLabel: 'Coleccionables — Próximamente',
-    emptyLabelEn: 'Collectibles — Coming soon',
+    sections: [
+      {
+        title: 'Ediciones limitadas',
+        titleEn: 'Limited editions',
+        isEmpty: true,
+        isPremium: true,
+        emptyLabel: 'Coleccionables — Próximamente',
+        emptyLabelEn: 'Collectibles — Coming soon',
+      },
+    ],
   },
   {
-    title: 'Themes',
-    titleEn: 'Themes',
-    isEmpty: true,
-    isPremium: true,
-    emptyLabel: 'Temas Exclusivos — Próximamente',
-    emptyLabelEn: 'Exclusive Themes — Coming soon',
+    id: 'themes',
+    title: 'Themes temáticos',
+    titleEn: 'Thematic themes',
+    sections: [
+      {
+        title: 'Texas Longhorns',
+        titleEn: 'Texas Longhorns',
+        items: TEXAS_LONGHORNS_ICON_SEEDS.map((s) => ({
+          label: s.label,
+          labelEn: s.labelEn,
+          icon: s.icon,
+        })),
+      },
+      {
+        title: 'Más bundles',
+        titleEn: 'More bundles',
+        isEmpty: true,
+        isPremium: true,
+        emptyLabel: 'Nuevos packs temáticos — Próximamente',
+        emptyLabelEn: 'New theme packs — Coming soon',
+      },
+    ],
   },
 ];
 
-// Asigna IDs únicos y trocea en filas de 5 para SectionList
 let _globalId = 1;
-const ICON_SECTIONS: IconSection[] = RAW_SECTIONS.map((sec) => {
-  if (sec.isEmpty || !sec.items) {
-    return {
-      title: sec.title,
-      titleEn: sec.titleEn,
-      data: [],
-      isEmpty: true,
-      isPremium: sec.isPremium,
-      emptyLabel: sec.emptyLabel,
-      emptyLabelEn: sec.emptyLabelEn,
-    };
+function buildIconSections(): IconSection[] {
+  const out: IconSection[] = [];
+  for (const folder of STUDIO_FOLDERS) {
+    for (const sec of folder.sections) {
+      const title = `${folder.title} · ${sec.title}`;
+      const titleEn = `${folder.titleEn} · ${sec.titleEn}`;
+      if (sec.isEmpty || !sec.items) {
+        out.push({
+          title,
+          titleEn,
+          data: [],
+          isEmpty: true,
+          isPremium: sec.isPremium,
+          emptyLabel: sec.emptyLabel,
+          emptyLabelEn: sec.emptyLabelEn,
+          scrollAnchor: sec.scrollAnchor,
+        });
+        continue;
+      }
+      const items: IconItem[] = sec.items.map((i) => ({
+        id: String(_globalId++),
+        label: i.label,
+        labelEn: i.labelEn,
+        icon: sanitizeMaterialIconName(i.icon),
+      }));
+      const rows: IconItem[][] = [];
+      for (let i = 0; i < items.length; i += 5) rows.push(items.slice(i, i + 5));
+      out.push({ title, titleEn, data: rows, scrollAnchor: sec.scrollAnchor });
+    }
   }
-  const items: IconItem[] = sec.items.map((i) => ({
-    id: String(_globalId++),
-    label: i.label,
-    labelEn: i.labelEn,
-    icon: sanitizeMaterialIconName(i.icon),
-  }));
-  // Chunk into rows of 5
-  const rows: IconItem[][] = [];
-  for (let i = 0; i < items.length; i += 5) rows.push(items.slice(i, i + 5));
-  return { title: sec.title, titleEn: sec.titleEn, data: rows };
-});
+  return out;
+}
 
-// ─── ICON_GALLERY flat — compatibilidad con NewInfoForm y resto del app ───────
+const ICON_SECTIONS: IconSection[] = buildIconSections();
+
 export const ICON_GALLERY: IconItem[] = ICON_SECTIONS.flatMap((sec) =>
-  sec.data.flatMap((row) => row)
+  sec.data.flatMap((row) => row),
 );
 
-// ─── Props ────────────────────────────────────────────────────────────────────
 interface CardStudioVaultProps {
   visible: boolean;
   onClose: () => void;
   onSelectIcon: (iconId: string) => void;
   dataType: VaultDataType;
   selectedIcon: string;
+  /** Claves poseídas en Firestore icon_vault (incluye compras y packs). */
+  ownedIconVaultKeys: Set<string>;
+  creditsBalance: number;
+  iconCreditPrice?: number;
+  onEconomyUpdated?: () => void;
 }
 
-// ─── Componente ───────────────────────────────────────────────────────────────
+function isIconUnlockedForUser(item: IconItem, ownedKeys: Set<string>): boolean {
+  if (!STUDIO_CATALOG_VECTOR_ICONS_PAID) {
+    return true;
+  }
+  const stable = stableKeyForCatalogIcon(item);
+  return isFreeStarterIconKey(stable) || ownedKeys.has(stable);
+}
+
 export default function CardStudioVault({
   visible,
   onClose,
   onSelectIcon,
   dataType,
   selectedIcon,
+  ownedIconVaultKeys,
+  creditsBalance,
+  iconCreditPrice = STUDIO_ICON_CREDIT_PRICE,
+  onEconomyUpdated,
 }: CardStudioVaultProps) {
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
@@ -254,8 +365,9 @@ export default function CardStudioVault({
   const tr = (es: string, en: string) => isEN ? en : es;
   const [storeModalVisible, setStoreModalVisible] = useState(false);
   const [recentIconIds, setRecentIconIds] = useState<string[]>([]);
+  const [bundleOwnedFlags, setBundleOwnedFlags] = useState<Record<string, boolean>>({});
+  const [bundlePurchasingId, setBundlePurchasingId] = useState<string | null>(null);
   const sectionListRef = useRef<SectionList<IconItem[], IconSection>>(null);
-  const longPressTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({}); 
 
   useEffect(() => {
     if (!visible && storeModalVisible) {
@@ -263,22 +375,53 @@ export default function CardStudioVault({
     }
   }, [visible, storeModalVisible]);
 
+  useEffect(() => {
+    if (!storeModalVisible) return;
+    void (async () => {
+      const uid = await getActiveUserId();
+      if (!uid) return;
+      const next: Record<string, boolean> = {};
+      for (const b of THEME_BUNDLES) {
+        next[b.id] = await userOwnsThemeBundle(uid, b.id);
+      }
+      setBundleOwnedFlags(next);
+    })();
+  }, [storeModalVisible]);
+
   // Cargar recientes de AsyncStorage al montar — diferido para no bloquear la animación
   useEffect(() => {
     const task = InteractionManager.runAfterInteractions(() => {
-      AsyncStorage.getItem(RECENT_ICONS_KEY)
-        .then((raw) => { if (raw) setRecentIconIds(JSON.parse(raw)); })
-        .catch(() => {});
+      void (async () => {
+        try {
+          const uid = await getActiveUserId();
+          if (!uid) return;
+          const raw = await readRecentIconsJsonWithLegacyMigration(uid);
+          if (raw) setRecentIconIds(JSON.parse(raw));
+        } catch { /* ignore */ }
+      })();
     });
     return () => task.cancel();
   }, []);
 
+  const catalogSections = ICON_SECTIONS;
+
+  const recentItemsResolved = useMemo(() => {
+    return recentIconIds
+      .map((rawId) => {
+        const byLegacy = ICON_GALLERY.find((i) => i.id === rawId);
+        const item = byLegacy || ICON_GALLERY.find((i) => stableKeyForCatalogIcon(i) === rawId);
+        return item;
+      })
+      .filter((item): item is IconItem => {
+        if (!item) return false;
+        return isIconUnlockedForUser(item, ownedIconVaultKeys);
+      });
+  }, [recentIconIds, ownedIconVaultKeys]);
+
   // Secciones dinámicas — antepone "Recientes" si existen
   const displaySections = useMemo((): IconSection[] => {
-    if (recentIconIds.length === 0) return ICON_SECTIONS;
-    const recentItems = recentIconIds
-      .map((id) => ICON_GALLERY.find((i) => i.id === id))
-      .filter(Boolean) as IconItem[];
+    if (recentItemsResolved.length === 0) return catalogSections;
+    const recentItems = recentItemsResolved;
     const recentRows: IconItem[][] = [];
     for (let i = 0; i < recentItems.length; i += 5)
       recentRows.push(recentItems.slice(i, i + 5));
@@ -287,8 +430,8 @@ export default function CardStudioVault({
       titleEn: 'Recent',
       data: recentRows,
     };
-    return [recentSection, ...ICON_SECTIONS];
-  }, [recentIconIds, isEN]);
+    return [recentSection, ...catalogSections];
+  }, [recentItemsResolved, isEN, catalogSections]);
 
   // Auto-scroll a la sección del dataType cuando el modal se abre
   useEffect(() => {
@@ -297,13 +440,16 @@ export default function CardStudioVault({
       const titleMap: Record<string, string> = {
         'Enlaces': 'Enlaces',
         'Teléfono': 'Teléfonos',
+        'Ghost-Link': 'Teléfonos',
         'Email': 'Emails',
         'Documento': 'Documentos',
         'Texto Plain': 'Documentos',
       };
       const target = titleMap[dataType];
       if (!target) return;
-      const sectionIndex = displaySections.findIndex((s) => s.title === target);
+      const sectionIndex = displaySections.findIndex(
+        (s) => s.scrollAnchor === target || s.title.includes(`· ${target}`),
+      );
       if (sectionIndex < 0) return;
       try {
         sectionListRef.current?.scrollToLocation({
@@ -317,33 +463,138 @@ export default function CardStudioVault({
     return () => clearTimeout(timer);
   }, [visible, dataType, displaySections]);
 
-  // Selección de ícono con haptic + recientes
-  const handleSelectIcon = (iconId: string) => {
+  const handleSelectCatalogItem = (item: IconItem) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    // Cerrar el modal de inmediato — la animación de slide-down no se bloquea
-    onSelectIcon(iconId);
+    const stable = stableKeyForCatalogIcon(item);
+    onSelectIcon(stable);
     onClose();
-    // Escribir recientes en AsyncStorage después de que termine la animación
     InteractionManager.runAfterInteractions(() => {
-      const next = [iconId, ...recentIconIds.filter((id) => id !== iconId)].slice(0, MAX_RECENTS);
-      setRecentIconIds(next);
-      AsyncStorage.setItem(RECENT_ICONS_KEY, JSON.stringify(next)).catch(() => {});
+      void (async () => {
+        const next = [stable, ...recentIconIds.filter((id) => id !== stable)].slice(0, MAX_RECENTS);
+        setRecentIconIds(next);
+        try {
+          const uid = await getActiveUserId();
+          if (uid) {
+            await AsyncStorage.setItem(vaultRecentIconsStorageKey(uid), JSON.stringify(next));
+          }
+        } catch { /* ignore */ }
+      })();
     });
   };
 
-  const theme = {
-    surfaceBg:        isNight ? '#0A2540' : '#E3F2FD',
-    sheetBg:          isNight ? '#071828' : '#F5F9FF',
-    border:           '#D4AF37',
-    textPrimary:      isNight ? '#F0F4F8' : '#002D4B',
-    textSecondary:    isNight ? '#87A9C2' : '#5A7A8A',
-    selectedBg:       isNight ? '#1C5BB9' : '#54C1FB',
-    selectedText:     '#F0F4F8',
-    sectionHeaderBg:  isNight ? '#0D2035' : '#DCF0FC',
-    premiumBadgeBg:   '#1A1A2E',
-    premiumBadgeText: '#D4AF37',
-    iconBorder:       isNight ? '#1A3A50' : '#C8E6F5',
+  const promptPurchaseIcon = (item: IconItem) => {
+    void (async () => {
+      const uid = await getActiveUserId();
+      if (!uid) return;
+      Alert.alert(
+        tr('Desbloquear icono', 'Unlock icon'),
+        tr(
+          `Incluye este icono en tu bóveda por ${iconCreditPrice} Créditos CS.`,
+          `Add this icon to your vault for ${iconCreditPrice} CS credits.`,
+        ),
+        [
+          { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+          {
+            text: tr('Comprar', 'Buy'),
+            onPress: () => {
+              void (async () => {
+                const ok = await purchaseStudioIconUnlock(
+                  uid,
+                  {
+                    id: item.id,
+                    icon: item.icon,
+                    label: item.label,
+                    labelEn: item.labelEn,
+                  },
+                  iconCreditPrice,
+                );
+                if (ok) {
+                  onEconomyUpdated?.();
+                  handleSelectCatalogItem(item);
+                } else {
+                  Alert.alert(
+                    tr('No se pudo comprar', 'Purchase failed'),
+                    tr('Revisa tu saldo de Créditos CS.', 'Check your CS credit balance.'),
+                  );
+                }
+              })();
+            },
+          },
+        ],
+      );
+    })();
   };
+
+  const onPressCatalogIcon = (item: IconItem) => {
+    if (isIconUnlockedForUser(item, ownedIconVaultKeys)) {
+      handleSelectCatalogItem(item);
+    } else {
+      promptPurchaseIcon(item);
+    }
+  };
+
+  const onPurchaseThemeBundlePress = (bundleId: string) => {
+    void (async () => {
+      const uid = await getActiveUserId();
+      if (!uid) return;
+      setBundlePurchasingId(bundleId);
+      try {
+        const ok = await purchaseThemeBundle(uid, bundleId);
+        if (ok) {
+          setBundleOwnedFlags((p) => ({ ...p, [bundleId]: true }));
+          onEconomyUpdated?.();
+          Alert.alert(
+            tr('Bundle desbloqueado', 'Bundle unlocked'),
+            tr(
+              'Tus 3 variantes de tema y el pack de iconos ya están disponibles.',
+              'Your 3 theme variants and icon pack are now available.',
+            ),
+          );
+        } else {
+          Alert.alert(
+            tr('No se pudo comprar', 'Purchase failed'),
+            tr('Saldo insuficiente u error de red.', 'Insufficient balance or network error.'),
+          );
+        }
+      } finally {
+        setBundlePurchasingId(null);
+      }
+    })();
+  };
+
+  /** Alineado con NewInfoForm: lujo día/noche (oro, sin azul “app antigua”). */
+  const theme = useMemo(
+    () => ({
+      sheetBg: isNight ? '#121212' : '#FAF8F4',
+      border: '#D4AF37',
+      labelGold: '#D4AF37',
+      titleColor: isNight ? '#FFFFFF' : '#1A1510',
+      textPrimary: isNight ? '#F2F0EB' : '#1C180F',
+      textSecondary: isNight ? '#9A9388' : '#5C5346',
+      /** Opaco #000: evita bleed-through bajo cabeceras sticky (día y noche). */
+      sectionHeaderBg: '#000000',
+      sectionHeaderBorder: 'rgba(212,175,55,0.32)',
+      tileInactiveBg: isNight ? '#161616' : '#FFFFFF',
+      tileInactiveBorder: isNight ? 'rgba(153,144,124,0.4)' : 'rgba(92,77,50,0.22)',
+      selectedFillGradient: (isNight
+        ? (['#5A4820', '#C9A227', '#FFF2C4', '#E8D4A3', '#B8942E', '#5A4820'] as const)
+        : (['#7A6528', '#E0C068', '#FFF8E8', '#F0D878', '#C9A227', '#7A6528'] as const)) as readonly [string, string, ...string[]],
+      selectedText: '#0C0C0C',
+      selectedIcon: '#0C0C0C',
+      premiumBadgeBg: isNight ? '#221C12' : '#F3EBD4',
+      premiumBadgeText: '#D4AF37',
+      headerAccentGradient: (isNight
+        ? (['#3D3018', '#C9A227', '#F2CA50', '#C9A227', '#3D3018'] as const)
+        : (['#8B7349', '#D4AF37', '#F5E6C8', '#D4AF37', '#9A8048'] as const)) as readonly [string, string, ...string[]],
+      storeSheetBg: isNight ? '#141210' : '#FFFCF7',
+      storeSubtitle: isNight ? '#B5ADA2' : '#5C5346',
+      bundleMeta: isNight ? '#A8A090' : '#6B6258',
+      ctaGradient: (isNight
+        ? (['#6B5420', '#B8942E', '#FFEFD0', '#F2CA50', '#D4AF37', '#6B5420'] as const)
+        : (['#8B7340', '#D4AF37', '#FFF4D8', '#F2CA50', '#C9A227', '#7A6228'] as const)) as readonly [string, string, ...string[]],
+    }),
+    [isNight],
+  );
 
   const handleLongPress = (item: IconItem) => {
     Alert.alert(
@@ -359,7 +610,9 @@ export default function CardStudioVault({
           style: 'destructive',
           onPress: async () => {
             try {
-              const raw = await AsyncStorage.getItem(VAULT_STORAGE_KEY);
+              const uid = await getActiveUserId();
+              if (!uid) return;
+              const raw = await readVaultJsonWithLegacyMigration(uid);
               if (!raw) return;
               const data: any[] = JSON.parse(raw);
               const updated = data.map((entry) =>
@@ -367,7 +620,7 @@ export default function CardStudioVault({
                   ? { ...entry, icon: 'file-document', iconName: 'Documento' }
                   : entry
               );
-              await AsyncStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(updated));
+              await AsyncStorage.setItem(vaultStorageKey(uid), JSON.stringify(updated));
             } catch {
               // silent
             }
@@ -378,8 +631,17 @@ export default function CardStudioVault({
   };
 
   const renderSectionHeader = ({ section }: { section: IconSection }) => (
-    <View style={[styles.sectionHeader, { backgroundColor: theme.sectionHeaderBg }]}>
-      <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
+    <View
+      style={[
+        styles.sectionHeader,
+        {
+          backgroundColor: theme.sectionHeaderBg,
+          borderBottomColor: theme.sectionHeaderBorder,
+        },
+        styles.sectionHeaderSticky,
+      ]}
+    >
+      <Text style={[styles.sectionTitle, { color: theme.labelGold }]}>
         {isEN ? section.titleEn : section.title}
       </Text>
       {section.isPremium && (
@@ -396,41 +658,87 @@ export default function CardStudioVault({
   const renderItem = ({ item: row, section }: { item: IconItem[]; section: IconSection }) => {
     if (section.isEmpty) return null;
     return (
-      <View style={styles.row}>
+      <View style={styles.row} collapsable={false}>
         {row.map((item) => {
-          const active = selectedIcon === item.id;
-          return (
-            <TouchableOpacity
-              key={item.id}
-              style={[
-                styles.iconItem,
-                { borderColor: theme.iconBorder },
-                active && {
-                  backgroundColor: theme.selectedBg,
-                  borderColor: theme.selectedBg,
-                  shadowColor: theme.selectedBg,
-                  shadowOpacity: 0.3,
-                  shadowRadius: 6,
-                  elevation: 4,
-                },
-              ]}
-              onPress={() => handleSelectIcon(item.id)}
-              onLongPress={() => handleLongPress(item)}
-              delayLongPress={1200}
-              activeOpacity={0.75}
-            >
+          const stable = stableKeyForCatalogIcon(item);
+          const active = selectedIcon === stable || selectedIcon === item.id;
+          const unlocked = isIconUnlockedForUser(item, ownedIconVaultKeys);
+          const iconColor = active
+            ? theme.selectedIcon
+            : unlocked
+              ? theme.textPrimary
+              : theme.textSecondary;
+          const labelColor = active ? theme.selectedText : theme.textSecondary;
+          const cellInner = (
+            <>
+              {!unlocked && (
+                <View style={styles.lockBadge}>
+                  <MaterialCommunityIcons name="lock" size={11} color="#0A1A2F" />
+                </View>
+              )}
+              {!unlocked && <Text style={styles.priceBadge}>{iconCreditPrice}</Text>}
               <MaterialCommunityIcons
                 name={sanitizeMaterialIconName(item.icon) as any}
-                color={active ? theme.selectedText : theme.textPrimary}
+                color={iconColor}
                 size={28}
+                style={!unlocked ? { opacity: 0.55 } : undefined}
               />
-              <Text
-                style={[styles.iconLabel, { color: active ? theme.selectedText : theme.textSecondary }]}
-                numberOfLines={1}
-              >
+              <Text style={[styles.iconLabel, { color: labelColor }]} numberOfLines={1}>
                 {isEN ? item.labelEn : item.label}
               </Text>
-            </TouchableOpacity>
+            </>
+          );
+          return (
+            <View key={stable} style={styles.iconCellWrap}>
+              {active ? (
+                <LinearGradient
+                  colors={theme.selectedFillGradient}
+                  locations={[0, 0.2, 0.45, 0.55, 0.8, 1]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={[
+                    styles.iconItemGradientOuter,
+                    Platform.select({
+                      ios: {
+                        shadowColor: '#C9A227',
+                        shadowOffset: { width: 0, height: 0 },
+                        shadowOpacity: 0.45,
+                        shadowRadius: 10,
+                      },
+                      /** Por debajo de cabeceras sticky (elevation ~24). */
+                      android: { elevation: 3 },
+                      default: {},
+                    }),
+                  ]}
+                >
+                  <TouchableOpacity
+                    style={styles.iconItemInner}
+                    onPress={() => onPressCatalogIcon(item)}
+                    onLongPress={unlocked ? () => handleLongPress(item) : undefined}
+                    delayLongPress={1200}
+                    activeOpacity={0.75}
+                  >
+                    {cellInner}
+                  </TouchableOpacity>
+                </LinearGradient>
+              ) : (
+                <TouchableOpacity
+                  style={[
+                    styles.iconItem,
+                    {
+                      borderColor: theme.tileInactiveBorder,
+                      backgroundColor: theme.tileInactiveBg,
+                    },
+                  ]}
+                  onPress={() => onPressCatalogIcon(item)}
+                  onLongPress={unlocked ? () => handleLongPress(item) : undefined}
+                  delayLongPress={1200}
+                  activeOpacity={0.75}
+                >
+                  {cellInner}
+                </TouchableOpacity>
+              )}
+            </View>
           );
         })}
       </View>
@@ -455,13 +763,21 @@ export default function CardStudioVault({
 
   const ListFooter = () => (
     <TouchableOpacity
-      style={styles.storeButton}
+      style={styles.storeButtonOuter}
       onPress={() => setStoreModalVisible(true)}
-      activeOpacity={0.85}
+      activeOpacity={0.88}
     >
-      <MaterialCommunityIcons name="store" color="#0A1A2F" size={22} />
-      <Text style={styles.storeButtonText}>Card-Studio</Text>
-      <MaterialCommunityIcons name="chevron-right" color="#0A1A2F" size={20} />
+      <LinearGradient
+        colors={theme.ctaGradient}
+        locations={[0, 0.18, 0.45, 0.52, 0.75, 1]}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={styles.storeButtonGradient}
+      >
+        <MaterialCommunityIcons name="store" color={theme.selectedText} size={22} />
+        <Text style={[styles.storeButtonText, { color: theme.selectedText }]}>Card-Studio</Text>
+        <MaterialCommunityIcons name="chevron-right" color={theme.selectedText} size={20} />
+      </LinearGradient>
     </TouchableOpacity>
   );
 
@@ -486,16 +802,29 @@ export default function CardStudioVault({
                 ]}
                 onStartShouldSetResponder={() => true}
               >
-                {/* Drag handle */}
+                {/* Drag handle + acento oro (misma línea visual que NewInfoForm) */}
                 <View style={styles.dragHandleWrap}>
                   <View style={styles.dragHandle} />
                 </View>
+                <LinearGradient
+                  colors={theme.headerAccentGradient}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={styles.headerGoldLine}
+                />
 
                 {/* Header */}
                 <View style={styles.header}>
-                  <Text style={[styles.title, { color: theme.textPrimary }]}>
-                    Card-Studio — {dataType}
-                  </Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.title, { color: theme.titleColor }]}>
+                      Card-Studio — {dataType}
+                    </Text>
+                    {STUDIO_CATALOG_VECTOR_ICONS_PAID ? (
+                      <Text style={[styles.creditsLine, { color: theme.textSecondary }]}>
+                        {tr(`Créditos CS: ${creditsBalance}`, `CS credits: ${creditsBalance}`)}
+                      </Text>
+                    ) : null}
+                  </View>
                   <TouchableOpacity
                     onPress={onClose}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -505,16 +834,27 @@ export default function CardStudioVault({
                 </View>
 
                 <Text style={[styles.hint, { color: theme.textSecondary }]}>
-                  {tr('Mantén presionado para eliminar un ícono', 'Long press to delete an icon')}
+                  {STUDIO_CATALOG_VECTOR_ICONS_PAID
+                    ? tr(
+                        'Candado: compra con CS. Mantén presionado (icono desbloqueado) para quitar del Bóveda.',
+                        'Lock: buy with CS. Long press (unlocked icon) to remove from Vault.',
+                      )
+                    : tr(
+                        'Toca un icono para elegirlo. Mantén presionado para quitarlo de tu Bóveda (si aplica).',
+                        'Tap an icon to choose it. Long press to remove from your Vault (if applicable).',
+                      )}
                 </Text>
 
                 {/* SectionList categorizado */}
-                <View style={{ flex: 1 }}>
+                <View style={styles.listViewport}>
                 <SectionList
                   ref={sectionListRef}
+                  style={styles.sectionListFlex}
                   sections={displaySections}
                   keyExtractor={(row, idx) =>
-                    Array.isArray(row) && row.length > 0 ? row[0].id : `empty-${idx}`
+                    Array.isArray(row) && row.length > 0
+                      ? stableKeyForCatalogIcon(row[0])
+                      : `empty-${idx}`
                   }
                   renderSectionHeader={renderSectionHeader}
                   renderItem={({ item, section }) => {
@@ -529,9 +869,10 @@ export default function CardStudioVault({
                   showsVerticalScrollIndicator={false}
                   contentContainerStyle={styles.listContent}
                   scrollEventThrottle={16}
-                  windowSize={2}
-                  maxToRenderPerBatch={5}
-                  initialNumToRender={3}
+                  removeClippedSubviews
+                  windowSize={8}
+                  maxToRenderPerBatch={10}
+                  initialNumToRender={8}
                   bounces={false}
                   overScrollMode="never"
                 />
@@ -541,7 +882,6 @@ export default function CardStudioVault({
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* Modal Card-Studio Store placeholder */}
       <Modal
         visible={storeModalVisible}
         transparent
@@ -551,12 +891,60 @@ export default function CardStudioVault({
         <TouchableWithoutFeedback onPress={() => setStoreModalVisible(false)}>
           <View style={styles.storeOverlay}>
             <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={styles.storeSheet}>
-                <MaterialCommunityIcons name="store" color="#D4AF37" size={48} />
-                <Text style={styles.storeTitle}>Card-Studio</Text>
-                <Text style={styles.storeSubtitle}>
-                  {tr('Tienda Card-Studio: Temas y Coleccionables disponibles muy pronto.', 'Card-Studio Store: Themes and Collectibles coming very soon.')}
+              <View style={[styles.storeSheet, { backgroundColor: theme.storeSheetBg, borderColor: theme.border }]}>
+                <MaterialCommunityIcons name="store" color={theme.labelGold} size={48} />
+                <Text style={[styles.storeTitle, { color: theme.labelGold }]}>Card-Studio</Text>
+                <Text style={[styles.storeSubtitle, { marginBottom: 8, color: theme.textPrimary }]}>
+                  {tr(`Saldo: ${creditsBalance} CS`, `Balance: ${creditsBalance} CS`)}
                 </Text>
+                <Text style={[styles.storeSubtitle, { color: theme.storeSubtitle }]}>
+                  {tr(
+                    'Bundles temáticos: 3 estilos de tarjeta + pack de iconos vinculado.',
+                    'Theme bundles: 3 card styles + linked icon pack.',
+                  )}
+                </Text>
+                <ScrollView
+                  style={{ maxHeight: SCREEN_HEIGHT * 0.42, width: '100%', marginTop: 16 }}
+                  showsVerticalScrollIndicator={false}
+                >
+                  {THEME_BUNDLES.map((b) => {
+                    const owned = bundleOwnedFlags[b.id];
+                    const busy = bundlePurchasingId === b.id;
+                    return (
+                      <View
+                        key={b.id}
+                        style={[styles.bundleRow, { borderBottomColor: theme.sectionHeaderBorder }]}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.bundleName, { color: theme.textPrimary }]}>
+                            {isEN ? b.nameEn : b.nameEs}
+                          </Text>
+                          <Text style={[styles.bundleMeta, { color: theme.bundleMeta }]}>
+                            {tr(
+                              `3 temas + ${b.iconSeeds.length} iconos · ${b.creditsPrice} CS`,
+                              `3 themes + ${b.iconSeeds.length} icons · ${b.creditsPrice} CS`,
+                            )}
+                          </Text>
+                        </View>
+                        {owned ? (
+                          <Text style={styles.bundleOwned}>{tr('En tu cuenta', 'Owned')}</Text>
+                        ) : (
+                          <TouchableOpacity
+                            style={styles.bundleBuyBtn}
+                            disabled={busy}
+                            onPress={() => onPurchaseThemeBundlePress(b.id)}
+                          >
+                            {busy ? (
+                              <ActivityIndicator color="#0A1A2F" size="small" />
+                            ) : (
+                              <Text style={styles.bundleBuyText}>{tr('Comprar', 'Buy')}</Text>
+                            )}
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    );
+                  })}
+                </ScrollView>
                 <TouchableOpacity
                   style={styles.storeCloseBtn}
                   onPress={() => setStoreModalVisible(false)}
@@ -603,6 +991,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#D4AF37',
     opacity: 0.5,
   },
+  headerGoldLine: {
+    height: 3,
+    width: '100%',
+    opacity: 0.95,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -615,6 +1008,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.3,
   },
+  creditsLine: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
+  },
   hint: {
     fontSize: 11,
     textAlign: 'center',
@@ -624,11 +1022,30 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: 32,
   },
+  listViewport: {
+    flex: 1,
+    zIndex: 0,
+  },
+  sectionListFlex: {
+    flex: 1,
+  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  /** Por encima de celdas de iconos (badges zIndex 2, sombras). Sticky en Android usa elevation. */
+  sectionHeaderSticky: {
+    zIndex: 100,
+    ...Platform.select({
+      ios: {},
+      android: {
+        elevation: 24,
+      },
+      default: {},
+    }),
   },
   sectionTitle: {
     fontSize: 12,
@@ -652,17 +1069,63 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 8,
     paddingVertical: 4,
+    zIndex: 0,
+    elevation: 0,
+  },
+  iconCellWrap: {
+    flex: 1,
+    margin: 4,
+    minWidth: 56,
+    maxWidth: 70,
+    zIndex: 0,
+  },
+  iconItemGradientOuter: {
+    borderRadius: 14,
+    padding: 2,
+    overflow: 'hidden',
+    flex: 1,
+  },
+  iconItemInner: {
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    backgroundColor: 'transparent',
+    minHeight: 72,
   },
   iconItem: {
     flex: 1,
-    margin: 4,
     borderRadius: 12,
     borderWidth: 1.5,
     paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 56,
-    maxWidth: 70,
+    position: 'relative',
+    minHeight: 72,
+  },
+  lockBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    zIndex: 1,
+    backgroundColor: '#D4AF37',
+    borderRadius: 8,
+    padding: 2,
+  },
+  priceBadge: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    zIndex: 1,
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#0A1A2F',
+    backgroundColor: 'rgba(212,175,55,0.35)',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 6,
+    overflow: 'hidden',
   },
   iconLabel: {
     fontSize: 9,
@@ -682,26 +1145,34 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     flex: 1,
   },
-  // Botón Card-Studio
-  storeButton: {
+  // Botón Card-Studio (gradiente como NewInfoForm)
+  storeButtonOuter: {
+    marginHorizontal: 20,
+    marginTop: 16,
+    borderRadius: 14,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#C9A227',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.35,
+        shadowRadius: 8,
+      },
+      android: { elevation: 6 },
+      default: {},
+    }),
+  },
+  storeButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 20,
-    marginTop: 16,
     paddingVertical: 14,
     borderRadius: 14,
-    backgroundColor: '#D4AF37',
     gap: 8,
-    shadowColor: '#D4AF37',
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 5,
   },
   storeButtonText: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#0A1A2F',
     letterSpacing: 1,
   },
   // Store modal
@@ -713,24 +1184,20 @@ const styles = StyleSheet.create({
     padding: 32,
   },
   storeSheet: {
-    backgroundColor: '#0A2540',
     borderRadius: 20,
     padding: 32,
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#D4AF37',
     width: '100%',
   },
   storeTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#D4AF37',
     marginTop: 12,
     letterSpacing: 1,
   },
   storeSubtitle: {
     fontSize: 14,
-    color: '#B8D9F0',
     textAlign: 'center',
     marginTop: 12,
     lineHeight: 20,
@@ -746,5 +1213,38 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#0A1A2F',
     fontSize: 15,
+  },
+  bundleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  bundleName: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  bundleMeta: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  bundleOwned: {
+    color: '#69F0AE',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  bundleBuyBtn: {
+    backgroundColor: '#D4AF37',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+    minWidth: 88,
+    alignItems: 'center',
+  },
+  bundleBuyText: {
+    color: '#0A1A2F',
+    fontWeight: '800',
+    fontSize: 13,
   },
 });

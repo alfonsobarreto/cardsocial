@@ -121,6 +121,42 @@ async function ensureMongoHardening(db) {
     },
   };
 
+  const storyCardStatesValidator = {
+    $jsonSchema: {
+      bsonType: 'object',
+      required: ['ownerUid', 'cardId', 'state', 'expiresAt', 'createdAt', 'updatedAt'],
+      properties: {
+        ownerUid: { bsonType: 'string', minLength: 3 },
+        cardId: { bsonType: 'string', minLength: 4 },
+        state: { enum: ['normal', 'vip'] },
+        isPaidExternal: { bsonType: ['bool', 'null'] },
+        vipSource: { enum: ['manual', 'subscription', 'external_partner', null] },
+        paidChannel: { bsonType: ['string', 'null'], maxLength: 80 },
+        manualReason: { bsonType: ['string', 'null'], maxLength: 220 },
+        externalPaidAt: { bsonType: ['date', 'null'] },
+        activatedByUid: { bsonType: ['string', 'null'], maxLength: 100 },
+        expiresAt: { bsonType: 'date' },
+        createdAt: { bsonType: 'date' },
+        updatedAt: { bsonType: 'date' },
+      },
+    },
+  };
+
+  const cardSubscriberMutesValidator = {
+    $jsonSchema: {
+      bsonType: 'object',
+      required: ['ownerUid', 'cardId', 'targetUid', 'muted', 'createdAt', 'updatedAt'],
+      properties: {
+        ownerUid: { bsonType: 'string', minLength: 3 },
+        cardId: { bsonType: 'string', minLength: 4 },
+        targetUid: { bsonType: 'string', minLength: 3 },
+        muted: { bsonType: 'bool' },
+        createdAt: { bsonType: 'date' },
+        updatedAt: { bsonType: 'date' },
+      },
+    },
+  };
+
   const storiesHouseAdsValidator = {
     $jsonSchema: {
       bsonType: 'object',
@@ -169,6 +205,34 @@ async function ensureMongoHardening(db) {
     },
   };
 
+  const temporaryAccessValidator = {
+    $jsonSchema: {
+      bsonType: 'object',
+      required: ['token', 'cardId', 'ownerUid', 'source', 'expiresAt', 'createdAt'],
+      properties: {
+        token: { bsonType: 'string', minLength: 16, maxLength: 128 },
+        cardId: { bsonType: 'string', minLength: 4 },
+        ownerUid: { bsonType: 'string', minLength: 3 },
+        source: { bsonType: 'string', minLength: 1, maxLength: 64 },
+        expiresAt: { bsonType: 'date' },
+        createdAt: { bsonType: 'date' },
+      },
+    },
+  };
+
+  const bunkerGroupsValidator = {
+    $jsonSchema: {
+      bsonType: 'object',
+      required: ['viewerUid', 'groupName', 'createdAt', 'updatedAt'],
+      properties: {
+        viewerUid: { bsonType: 'string', minLength: 3 },
+        groupName: { bsonType: 'string', minLength: 1, maxLength: 60 },
+        createdAt: { bsonType: 'date' },
+        updatedAt: { bsonType: 'date' },
+      },
+    },
+  };
+
   const emailOtpsValidator = {
     $jsonSchema: {
       bsonType: 'object',
@@ -193,9 +257,13 @@ async function ensureMongoHardening(db) {
   await ensureCollection(db, 'share_permissions', sharePermissionsValidator);
   await ensureCollection(db, 'blocked_relations', blockedRelationsValidator);
   await ensureCollection(db, 'story_states', storyStatesValidator);
+  await ensureCollection(db, 'story_card_states', storyCardStatesValidator);
+  await ensureCollection(db, 'card_subscriber_mutes', cardSubscriberMutesValidator);
   await ensureCollection(db, 'stories_house_ads', storiesHouseAdsValidator);
   await ensureCollection(db, 'call_logs', callLogsValidator);
   await ensureCollection(db, 'email_otps', emailOtpsValidator);
+  await ensureCollection(db, 'temporary_access', temporaryAccessValidator);
+  await ensureCollection(db, 'bunker_groups', bunkerGroupsValidator);
 
   await db.collection('cards').createIndex({ ownerUid: 1, isActive: 1, updatedAt: -1 }, { name: 'idx_cards_owner_active_updated' });
   await db.collection('cards').createIndex({ ownerUid: 1, version: -1 }, { name: 'idx_cards_owner_version' });
@@ -214,6 +282,12 @@ async function ensureMongoHardening(db) {
   await db.collection('story_states').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, name: 'ttl_story_expires_at' });
   await db.collection('story_states').createIndex({ isPaidExternal: 1, expiresAt: 1 }, { name: 'idx_story_external_exp' });
 
+  await db.collection('story_card_states').createIndex({ ownerUid: 1, cardId: 1 }, { unique: true, name: 'uq_story_card_owner_card' });
+  await db.collection('story_card_states').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, name: 'ttl_story_card_expires_at' });
+
+  await db.collection('card_subscriber_mutes').createIndex({ ownerUid: 1, cardId: 1, targetUid: 1 }, { unique: true, name: 'uq_mute_owner_card_target' });
+  await db.collection('card_subscriber_mutes').createIndex({ targetUid: 1, ownerUid: 1 }, { name: 'idx_mute_target_owner' });
+
   await db.collection('stories_house_ads').createIndex({ ownerUid: 1 }, { unique: true, name: 'uq_house_ad_owner' });
   await db.collection('stories_house_ads').createIndex({ isActive: 1, updatedAt: -1 }, { name: 'idx_house_ad_active_updated' });
 
@@ -224,6 +298,14 @@ async function ensureMongoHardening(db) {
   await db.collection('email_otps').createIndex({ sessionId: 1 }, { unique: true, name: 'uq_email_otp_session' });
   await db.collection('email_otps').createIndex({ emailLower: 1, status: 1, expiresAt: 1 }, { name: 'idx_email_otp_email_status_exp' });
   await db.collection('email_otps').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, name: 'ttl_email_otp_expires_at' });
+
+  await db.collection('temporary_access').createIndex({ token: 1 }, { unique: true, name: 'uq_temporary_access_token' });
+  await db.collection('temporary_access').createIndex({ ownerUid: 1, cardId: 1, createdAt: -1 }, { name: 'idx_temp_access_owner_card_created' });
+  await db.collection('temporary_access').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, name: 'ttl_temporary_access_expires_at' });
+  await db.collection('bunker_groups').createIndex(
+    { viewerUid: 1, groupName: 1 },
+    { unique: true, name: 'uq_bunker_groups_viewer_name' },
+  );
 }
 
 module.exports = {

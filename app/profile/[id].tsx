@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/services/firebaseConfig';
+import { useLookMode } from '@/services/lookMode';
+import palette from '../theme';
 
 interface User {
   name: string;
@@ -14,6 +17,37 @@ export default function ProfileScreen() {
   const { id } = useLocalSearchParams();
   const [userData, setUserData] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const { resolvedMode } = useLookMode();
+  const isDark = resolvedMode === 'noche';
+  const shell = palette[isDark ? 'dark' : 'light'];
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 20,
+        },
+        title: {
+          fontSize: 24,
+          fontWeight: 'bold',
+          color: shell.textPrimary,
+          marginBottom: 10,
+        },
+        subtitle: {
+          fontSize: 16,
+          color: shell.refreshAccent,
+          marginBottom: 5,
+        },
+        errorText: {
+          fontSize: 18,
+          color: shell.danger,
+        },
+      }),
+    [shell]
+  );
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -38,51 +72,25 @@ export default function ProfileScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#1EA7FF" />
-      </View>
+      <LinearGradient colors={[...shell.tabShellGradient]} style={styles.container}>
+        <ActivityIndicator size="large" color={shell.refreshAccent} />
+      </LinearGradient>
     );
   }
 
   if (!userData) {
     return (
-      <View style={styles.container}>
+      <LinearGradient colors={[...shell.tabShellGradient]} style={styles.container}>
         <Text style={styles.errorText}>Usuario no encontrado</Text>
-      </View>
+      </LinearGradient>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <LinearGradient colors={[...shell.tabShellGradient]} style={styles.container}>
       <Text style={styles.title}>{userData.name}</Text>
       <Text style={styles.subtitle}>Teléfono: {userData.phone}</Text>
       <Text style={styles.subtitle}>Ghost-Link: {userData.ghostLink}</Text>
-      {/* Render public icons here */}
-    </View>
+    </LinearGradient>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A2540', // Azul Marino
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#1EA7FF', // Azul brillante
-    marginBottom: 5,
-  },
-  errorText: {
-    fontSize: 18,
-    color: '#FF6B6B',
-  },
-});

@@ -1,16 +1,21 @@
+import 'react-native-get-random-values';
 
 import '@/i18n';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { PendingBunkerRedeemGate } from '@/components/PendingBunkerRedeemGate';
 import { LanguageProvider, useLanguage } from '@/services/language';
 import { LookModeProvider } from '@/services/lookMode';
 import { NetworkProvider } from '@/services/NetworkProvider';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Stack } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Toast from 'react-native-toast-message';
+import { useLookMode } from '@/services/lookMode';
+import palette from './theme';
 
 
 export default function RootLayout() {
@@ -33,6 +38,43 @@ function RootNavigator() {
   const [isLoading, setIsLoading] = useState(true);
   const appState = useRef(AppState.currentState);
   const { language } = useLanguage();
+  const { resolvedMode } = useLookMode();
+  const isDark = resolvedMode === 'noche';
+  const shell = palette[isDark ? 'dark' : 'light'];
+  const lockStyles = useMemo(
+    () =>
+      StyleSheet.create({
+        lockScreen: {
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        logo: {
+          width: 120,
+          height: 120,
+          marginBottom: 32,
+        },
+        lockTitle: {
+          color: shell.fabText,
+          fontSize: 22,
+          fontWeight: 'bold',
+          marginBottom: 32,
+        },
+        unlockButton: {
+          backgroundColor: shell.refreshAccent,
+          paddingVertical: 18,
+          paddingHorizontal: 36,
+          borderRadius: 32,
+          marginTop: 12,
+        },
+        unlockButtonText: {
+          color: shell.fabText,
+          fontSize: 18,
+          fontWeight: 'bold',
+        },
+      }),
+    [shell]
+  );
   const tr = (es: string, en: string) => (language === 'en' ? en : es);
 
   // Función para lanzar biometría
@@ -87,25 +129,25 @@ function RootNavigator() {
   // UI de bloqueo
   if (isLocked) {
     return (
-      <View style={styles.lockScreen}>
+      <LinearGradient colors={[...shell.vipBannerGradient]} style={lockStyles.lockScreen}>
         <Image
           source={require('@/assets/images/CSLogo.png')}
-          style={styles.logo}
+          style={lockStyles.logo}
           resizeMode="contain"
         />
-        <Text style={styles.lockTitle}>{tr('Búnker Card-Social', 'Card-Social Bunker')}</Text>
+        <Text style={lockStyles.lockTitle}>{tr('Búnker Card-Social', 'Card-Social Bunker')}</Text>
         <TouchableOpacity
-          style={styles.unlockButton}
+          style={lockStyles.unlockButton}
           onPress={handleBiometricAuth}
           disabled={isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={shell.fabText} />
           ) : (
-            <Text style={styles.unlockButtonText}>{tr('Desbloquear Búnker', 'Unlock Bunker')}</Text>
+            <Text style={lockStyles.unlockButtonText}>{tr('Desbloquear Búnker', 'Unlock Bunker')}</Text>
           )}
         </TouchableOpacity>
-      </View>
+      </LinearGradient>
     );
   }
 
@@ -124,41 +166,11 @@ function RootNavigator() {
         />
         <Stack.Screen name="register" options={{ title: language === 'en' ? 'Sign Up' : 'Registro' }} />
         <Stack.Screen name="scan" options={{ title: language === 'en' ? 'Scan Card' : 'Escanear Tarjeta', headerShown: false }} />
+        <Stack.Screen name="u" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
+      <PendingBunkerRedeemGate />
       <Toast />
     </GestureHandlerRootView>
   );
 }
-
-const styles = StyleSheet.create({
-  lockScreen: {
-    flex: 1,
-    backgroundColor: '#0D4D8A',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logo: {
-    width: 120,
-    height: 120,
-    marginBottom: 32,
-  },
-  lockTitle: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 32,
-  },
-  unlockButton: {
-    backgroundColor: '#1CB0F6',
-    paddingVertical: 18,
-    paddingHorizontal: 36,
-    borderRadius: 32,
-    marginTop: 12,
-  },
-  unlockButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-});

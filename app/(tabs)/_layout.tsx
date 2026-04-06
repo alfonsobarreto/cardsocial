@@ -5,6 +5,7 @@ import LanguageToggle from '@/components/LanguageToggle';
 import Subscription from '@/components/Subscription';
 import ThemeChest from '@/components/ThemeChest';
 import { getActiveUserId } from '@/services/authSession';
+import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { auth, db } from '@/services/firebaseConfig';
 import { requestLocationPermission } from '@/services/geolocationService';
 import { useLanguage } from '@/services/language';
@@ -21,6 +22,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import palette from '../theme';
 import { Tabs, useRouter } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import {
@@ -34,7 +36,9 @@ import {
   where
 } from 'firebase/firestore';
 import { CreditCard, Database, Phone, PlayCircle, Search, Users } from 'lucide-react-native';
+import type { ComponentType } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Alert,
   Image,
@@ -58,6 +62,42 @@ type BlockedUser = {
   photoUrl: string | null;
   createdAt: string | null;
 };
+
+type LucideTabGlyph = ComponentType<{
+  color?: string;
+  size?: number;
+  strokeWidth?: number;
+}>;
+
+/** Tab activo: icono en acento con glow suave (sin disco que tape el área ni compita con la etiqueta). */
+function PremiumTabIcon({
+  Icon,
+  focused,
+  accent,
+  onAccent: _onAccent,
+  inactiveColor = 'rgba(255,255,255,0.5)',
+}: {
+  Icon: LucideTabGlyph;
+  focused: boolean;
+  accent: string;
+  onAccent: string;
+  inactiveColor?: string;
+}) {
+  if (focused) {
+    return (
+      <View style={styles.tabBarIconFocusedWrap}>
+        <View style={[styles.tabBarIconGlowWrap, { shadowColor: accent }]}>
+          <Icon color={accent} size={25} strokeWidth={2.45} />
+        </View>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.tabBarIconInactiveWrap}>
+      <Icon color={inactiveColor} size={24} strokeWidth={2} />
+    </View>
+  );
+}
 
 type EditableProfile = {
   uid: string;
@@ -83,6 +123,8 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const [adminPendingReports, setAdminPendingReports] = useState(0);
   const [adminTotalUsers, setAdminTotalUsers] = useState<number | null>(null);
   const [adminTodayRevenue, setAdminTodayRevenue] = useState<number | null>(null);
+  /** Usuarios / ingresos del día: solo visible al expandir (super_admin). */
+  const [adminQuickStatsOpen, setAdminQuickStatsOpen] = useState(false);
   const confettiRef = useRef<ConfettiAnimationRef>(null);
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
   const [loadingBlocked, setLoadingBlocked] = useState(false);
@@ -97,6 +139,8 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const [editFullName, setEditFullName] = useState('');
   const [editNickname, setEditNickname] = useState('');
   const router = useRouter();
+  const shell = palette[resolvedMode === 'noche' ? 'dark' : 'light'];
+  const insets = useSafeAreaInsets();
 
   const panelTitle = useMemo(() => {
     if (activePanel === 'profile') return tr('Perfil', 'Profile');
@@ -105,8 +149,8 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
     if (activePanel === 'about') return tr('Acerca de Card-Social', 'About Card-Social');
     if (activePanel === 'privacy') return tr('Privacidad', 'Privacy');
     if (activePanel === 'subscription') return tr('Suscripción', 'Subscription');
-    if (activePanel === 'icon_store') return `🎨 ${tr('Estudio de Tarjetas', 'Card Studio')}`;
-    if (activePanel === 'theme_chest') return tr('🔒 Locker de Estilos', '🔒 Theme Locker');
+    if (activePanel === 'icon_store') return tr('Estudio de Tarjetas', 'Card Studio');
+    if (activePanel === 'theme_chest') return tr('Locker de Estilos', 'Theme Locker');
     if (activePanel === 'blocked_users') return tr('Gestión de Relaciones', 'Relationship Manager');
     return tr('Menú', 'Menu');
   }, [activePanel, language]);
@@ -143,11 +187,13 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
 
   const handleSignOut = async () => {
     try {
+      const signingOutUid = auth.currentUser?.uid ?? null;
       // Limpieza de memoria: elimina el flag de bloqueo biométrico y otras claves sensibles
       try {
         await AsyncStorage.removeItem('@app_lock_enabled');
         // Ejemplo: await AsyncStorage.removeItem('OTRA_CLAVE_SENSIBLE');
       } catch {}
+      await clearLocalCachesForSignOut(signingOutUid);
       await signOut(auth);
     } catch {
       // Keep UX smooth even if session was already anonymous or expired.
@@ -490,6 +536,10 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
     }
   }, [drawerVisible, activePanel]);
 
+  useEffect(() => {
+    if (!drawerVisible) setAdminQuickStatsOpen(false);
+  }, [drawerVisible]);
+
   const formatBlockedMonthYear = (isoDate: string | null) => {
     if (!isoDate) {
       return tr('Bloqueado: --', 'Blocked: --');
@@ -514,57 +564,101 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
     >
       <Tabs
         screenOptions={{
-          tabBarActiveTintColor: '#54C1FB',
-          tabBarInactiveTintColor: '#F1F1F1',
-          tabBarStyle: {
-            backgroundColor: '#0A1A2F',
-            height: 90,
-            paddingTop: 8,
-            paddingBottom: 14,
-            borderTopColor: 'rgba(212,175,55,0.25)',
-            borderTopWidth: 1,
-            shadowColor: '#000000',
-            shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.2,
-            shadowRadius: 6,
-            elevation: 8,
+          tabBarActiveTintColor: shell.ctaAccent,
+          tabBarInactiveTintColor: 'rgba(255,255,255,0.48)',
+          tabBarLabelStyle: {
+            fontSize: 10,
+            fontWeight: '800',
+            letterSpacing: 0.55,
+            marginTop: 2,
           },
-          headerStyle: { backgroundColor: '#0A1A2F', height: 90 },
-          headerTintColor: '#D4AF37',
-          headerTitleAlign: 'center',
-          headerLeft: () => (
-            <View style={styles.headerLeftLogoWrap}>
-              <View style={styles.logoFrame}>
-                <Image source={require('../../assets/images/CS Icon Logo.png')} style={styles.headerLogo} />
-              </View>
-            </View>
-          ),
-          headerTitle: () => (
-            <View style={styles.headerBrandWrap}>
-              <Text style={styles.headerBrandText}>Card-Social</Text>
-            </View>
-          ),
-          headerRight: () => (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginRight: 12 }}>
-              <LanguageToggle />
-              <TouchableOpacity
-                onPress={() => {
-                  setActivePanel('menu');
-                  setDrawerVisible(true);
-                }}
-                style={styles.headerMenuButton}
-                accessibilityLabel={tr('Abrir menú', 'Open menu')}
-              >
-                <MaterialCommunityIcons name="menu" size={24} color="#D4AF37" />
-                {/* Red badge — only visible when admin has pending reports */}
-                {userIsSuperAdmin && adminPendingReports > 0 ? (
-                  <View style={styles.menuBadge}>
-                    <Text style={styles.menuBadgeText}>
-                      {adminPendingReports > 99 ? '99+' : adminPendingReports}
+          tabBarItemStyle: {
+            paddingTop: 4,
+          },
+          tabBarStyle: {
+            backgroundColor: '#0C0C0E',
+            minHeight: Platform.OS === 'ios' ? 84 : 88,
+            paddingTop: 8,
+            paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 12 : 10),
+            borderTopWidth: 0,
+            marginHorizontal: 0,
+            width: '100%' as const,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.35,
+            shadowRadius: 10,
+            elevation: 16,
+          },
+          /**
+           * Fila única: [menú + idioma] flex | [logo + CARD-SOCIAL] | [perfil] flex
+           * La marca queda centrada en el hueco real entre toggle y perfil.
+           */
+          header: () => (
+            <View
+              style={[
+                styles.headerBarRoot,
+                {
+                  backgroundColor: shell.backgroundSolid,
+                  borderBottomColor: shell.modalBorder,
+                  paddingTop: insets.top,
+                },
+              ]}
+            >
+              <View style={styles.headerBarRow}>
+                <View style={[styles.headerBarEdge, styles.headerBarEdgeStart]}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setActivePanel('menu');
+                      setDrawerVisible(true);
+                    }}
+                    style={styles.headerIconHit}
+                    accessibilityLabel={tr('Abrir menú', 'Open menu')}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <MaterialCommunityIcons name="menu" size={26} color={shell.ctaAccent} />
+                    {userIsSuperAdmin && adminPendingReports > 0 ? (
+                      <View style={styles.menuBadge}>
+                        <Text style={styles.menuBadgeText}>
+                          {adminPendingReports > 99 ? '99+' : adminPendingReports}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </TouchableOpacity>
+                  <LanguageToggle />
+                </View>
+                <View style={styles.headerBrandCenter} pointerEvents="none">
+                  <View style={styles.headerBrandWrap}>
+                    <Image
+                      source={require('../../assets/images/CS Icon Logo.png')}
+                      style={styles.headerBrandLogo}
+                      resizeMode="contain"
+                      accessibilityIgnoresInvertColors
+                    />
+                    <Text
+                      style={[styles.headerBrandText, { color: shell.ctaAccent, flex: 1, minWidth: 0 }]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.78}
+                      allowFontScaling
+                    >
+                      {tr('Card-Social', 'Card-Social')}
                     </Text>
                   </View>
-                ) : null}
-              </TouchableOpacity>
+                </View>
+                <View style={[styles.headerBarEdge, styles.headerBarEdgeEnd]}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setDrawerVisible(false);
+                      router.push('/(tabs)/myprofile' as any);
+                    }}
+                    style={styles.headerIconHit}
+                    accessibilityLabel={tr('Mi perfil', 'My profile')}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <MaterialCommunityIcons name="account-circle-outline" size={26} color={shell.ctaAccent} />
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
           ),
         }}>
@@ -572,42 +666,54 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
           name="vault"
           options={{
             title: tr('Bóveda', 'Vault'),
-            tabBarIcon: ({ color }) => <Database color={color} size={24} />,
+            tabBarIcon: ({ focused }) => (
+              <PremiumTabIcon Icon={Database} focused={focused} accent={shell.ctaAccent} onAccent={shell.emptyCtaText} />
+            ),
           }}
         />
         <Tabs.Screen
           name="cards"
           options={{
             title: tr('Tarjetas', 'Cards'),
-            tabBarIcon: ({ color }) => <CreditCard color={color} size={24} />,
+            tabBarIcon: ({ focused }) => (
+              <PremiumTabIcon Icon={CreditCard} focused={focused} accent={shell.ctaAccent} onAccent={shell.emptyCtaText} />
+            ),
           }}
         />
         <Tabs.Screen
           name="contacts"
           options={{
             title: tr('Contactos', 'Contacts'),
-            tabBarIcon: ({ color }) => <Users color={color} size={24} />,
+            tabBarIcon: ({ focused }) => (
+              <PremiumTabIcon Icon={Users} focused={focused} accent={shell.ctaAccent} onAccent={shell.emptyCtaText} />
+            ),
           }}
         />
         <Tabs.Screen
           name="search"
           options={{
-            title: tr('Buscar', 'Search'),
-            tabBarIcon: ({ color }) => <Search color={color} size={24} />,
+            title: tr('Mercado', 'MS'),
+            tabBarIcon: ({ focused }) => (
+              <PremiumTabIcon Icon={Search} focused={focused} accent={shell.ctaAccent} onAccent={shell.emptyCtaText} />
+            ),
           }}
         />
         <Tabs.Screen
           name="stories"
           options={{
             title: tr('Historias', 'Stories'),
-            tabBarIcon: ({ color }) => <PlayCircle color={color} size={24} />,
+            tabBarIcon: ({ focused }) => (
+              <PremiumTabIcon Icon={PlayCircle} focused={focused} accent={shell.ctaAccent} onAccent={shell.emptyCtaText} />
+            ),
           }}
         />
         <Tabs.Screen
           name="calls"
           options={{
             title: tr('Llamadas', 'Calls'),
-            tabBarIcon: ({ color }) => <Phone color={color} size={24} />,
+            tabBarIcon: ({ focused }) => (
+              <PremiumTabIcon Icon={Phone} focused={focused} accent={shell.ctaAccent} onAccent={shell.emptyCtaText} />
+            ),
           }}
         />
         <Tabs.Screen
@@ -640,57 +746,72 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
         onRequestClose={() => setDrawerVisible(false)}
       >
         <View style={styles.drawerOverlay}>
-          <Pressable style={styles.drawerBackdrop} onPress={() => setDrawerVisible(false)} />
-          <BlurView intensity={50} tint="light" style={styles.drawerShell}>
+          <Pressable style={[styles.drawerBackdrop, { backgroundColor: shell.overlayScrim }]} onPress={() => setDrawerVisible(false)} />
+          <BlurView intensity={resolvedMode === 'noche' ? 38 : 34} tint={resolvedMode === 'noche' ? 'dark' : 'light'} style={styles.drawerShell}>
             <LinearGradient
-              colors={['rgba(164,220,255,0.95)', 'rgba(255,255,255,0.98)', 'rgba(173,230,255,0.95)']}
+              colors={[...shell.luxuryFrameGradient]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.drawerGradientBorder}
             >
-              <View style={styles.drawerInner}>
-                <View style={styles.drawerHeader}>
-                  <Text style={styles.drawerTitle}>{panelTitle}</Text>
+              <View style={[styles.drawerInner, { backgroundColor: shell.modalBg }]}>
+                <View style={[styles.drawerHeader, { borderBottomColor: shell.modalBorder }]}>
+                  <Text style={[styles.drawerTitle, { color: shell.modalTitle }]}>{panelTitle}</Text>
                   <TouchableOpacity onPress={() => setDrawerVisible(false)} accessibilityLabel={tr('Cerrar menú', 'Close menu')}>
-                    <MaterialCommunityIcons name="close" size={24} color="#0D4D8A" />
+                    <MaterialCommunityIcons name="close" size={24} color={shell.ctaAccent} />
                   </TouchableOpacity>
                 </View>
 
-                {/* Credits Indicator - Always Visible in Menu */}
+                {/* Créditos: sin caja clara; línea fina bajo el bloque */}
                 {activePanel === 'menu' && (
-                  <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
+                  <View style={{ paddingHorizontal: 16, paddingTop: 4 }}>
                     <CreditsIndicator userId={auth.currentUser?.uid || ''} refreshTrigger={creditsRefreshTrigger} />
                   </View>
                 )}
 
-                {/* ── Admin Quick-Stats Strip (solo super_admin) ── */}
+                {/* Super admin: reportes solo si hay pendientes; resto tras "Estadísticas admin" */}
                 {activePanel === 'menu' && userIsSuperAdmin && (
-                  <View style={styles.adminStatsStrip}>
-                    {/* Pending reports */}
-                    <View style={[styles.adminStatChip, adminPendingReports > 0 && styles.adminStatChipAlert]}>
+                  <View style={{ paddingHorizontal: 16, paddingBottom: 4 }}>
+                    {adminPendingReports > 0 ? (
+                      <View style={[styles.adminStatChip, styles.adminStatChipAlert, { alignSelf: 'flex-start', marginBottom: 8 }]}>
+                        <MaterialCommunityIcons name="flag-outline" size={14} color={shell.danger} />
+                        <Text style={[styles.adminStatLabel, { color: shell.danger }]}>
+                          {`${adminPendingReports} ${tr('reportes', 'reports')}`}
+                        </Text>
+                      </View>
+                    ) : null}
+                    <TouchableOpacity
+                      style={styles.drawerItem}
+                      onPress={() => setAdminQuickStatsOpen((o) => !o)}
+                      accessibilityRole="button"
+                      accessibilityState={{ expanded: adminQuickStatsOpen }}
+                    >
+                      <MaterialCommunityIcons name="chart-box-outline" size={20} color={shell.ctaAccent} />
+                      <Text style={[styles.drawerItemText, { color: shell.text }]}>
+                        {tr('Estadísticas admin', 'Admin statistics')}
+                      </Text>
                       <MaterialCommunityIcons
-                        name="flag-outline"
-                        size={14}
-                        color={adminPendingReports > 0 ? '#FF4444' : '#C5A065'}
+                        name={adminQuickStatsOpen ? 'chevron-up' : 'chevron-down'}
+                        size={22}
+                        color={shell.textSecondary}
                       />
-                      <Text style={[styles.adminStatLabel, adminPendingReports > 0 && { color: '#FF4444' }]}>
-                        {adminPendingReports > 0 ? `${adminPendingReports} ${tr('reportes', 'reports')}` : tr('Sin reportes', 'No reports')}
-                      </Text>
-                    </View>
-                    {/* Total users */}
-                    <View style={styles.adminStatChip}>
-                      <MaterialCommunityIcons name="account-group-outline" size={14} color="#C5A065" />
-                      <Text style={styles.adminStatLabel}>
-                        {adminTotalUsers !== null ? `${adminTotalUsers} ${tr('usuarios', 'users')}` : '...'}
-                      </Text>
-                    </View>
-                    {/* Revenue today */}
-                    <View style={styles.adminStatChip}>
-                      <MaterialCommunityIcons name="cash-multiple" size={14} color="#C5A065" />
-                      <Text style={styles.adminStatLabel}>
-                        {adminTodayRevenue !== null ? `$${adminTodayRevenue.toFixed(2)}` : '...'}
-                      </Text>
-                    </View>
+                    </TouchableOpacity>
+                    {adminQuickStatsOpen ? (
+                      <View style={[styles.adminStatsStrip, { paddingTop: 6, paddingHorizontal: 0 }]}>
+                        <View style={styles.adminStatChip}>
+                          <MaterialCommunityIcons name="account-group-outline" size={14} color={shell.ctaAccent} />
+                          <Text style={[styles.adminStatLabel, { color: shell.ctaAccent }]}>
+                            {adminTotalUsers !== null ? `${adminTotalUsers} ${tr('usuarios', 'users')}` : '...'}
+                          </Text>
+                        </View>
+                        <View style={styles.adminStatChip}>
+                          <MaterialCommunityIcons name="cash-multiple" size={14} color={shell.ctaAccent} />
+                          <Text style={[styles.adminStatLabel, { color: shell.ctaAccent }]}>
+                            {adminTodayRevenue !== null ? `$${adminTodayRevenue.toFixed(2)}` : '...'}
+                          </Text>
+                        </View>
+                      </View>
+                    ) : null}
                   </View>
                 )}
 
@@ -699,104 +820,134 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                 {activePanel === 'menu' ? (
                   <ScrollView style={styles.drawerMenuList} contentContainerStyle={{ paddingBottom: 32 }}>
                     <TouchableOpacity
-                      style={[styles.drawerItem, styles.drawerItemHighlight]}
+                      style={styles.drawerItem}
                       onPress={() => {
                         setDrawerVisible(false);
                         router.push('/(tabs)/myprofile' as any);
                       }}
                     >
-                      <MaterialCommunityIcons name="account-circle-outline" size={18} color="#C5A065" />
-                      <Text style={[styles.drawerItemText, { color: '#C5A065', fontWeight: '700' }]}>{tr('Cuenta', 'Account')}</Text>
+                      <MaterialCommunityIcons name="account-circle-outline" size={20} color={shell.ctaAccent} />
+                      <Text style={[styles.drawerItemText, { color: shell.text }]}>{tr('Cuenta', 'Account')}</Text>
                     </TouchableOpacity>
 
-
-
-
                     <TouchableOpacity style={styles.drawerItem} onPress={() => { setDrawerVisible(false); router.push('/vault_store'); }}>
-                      <MaterialCommunityIcons name="store" size={18} color="#C5A065" />
-                      <Text style={[styles.drawerItemText, { color: '#C5A065', fontWeight: '600' }]}>{tr('Suscripción', 'Subscription')}</Text>
+                      <MaterialCommunityIcons name="store" size={20} color={shell.ctaAccent} />
+                      <Text style={[styles.drawerItemText, { color: shell.text }]}>{tr('Suscripción', 'Subscription')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.drawerItem} onPress={() => { setDrawerVisible(false); router.push('/icon_store'); }}>
-                      <MaterialCommunityIcons name="palette-outline" size={18} color="#0D4D8A" />
-                      <Text style={styles.drawerItemText}>{`🎨 ${tr('Estudio de Tarjetas', 'Card Studio')}`}</Text>
+                      <MaterialCommunityIcons name="palette-outline" size={20} color={shell.ctaAccent} />
+                      <Text style={[styles.drawerItemText, { color: shell.text }]}>{tr('Estudio de Tarjetas', 'Card Studio')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.drawerItem} onPress={() => { setDrawerVisible(false); router.push('/theme_locker'); }}>
-                      <MaterialCommunityIcons name="treasure-chest" size={18} color="#C5A065" />
-                      <Text style={[styles.drawerItemText, { color: '#C5A065', fontWeight: '600' }]}>{tr('🔒 Locker de Estilos', '🔒 Theme Locker')}</Text>
+                      <MaterialCommunityIcons name="treasure-chest" size={20} color={shell.ctaAccent} />
+                      <Text style={[styles.drawerItemText, { color: shell.text }]}>{tr('Locker de Estilos', 'Theme Locker')}</Text>
                     </TouchableOpacity>
 
                     {userIsSuperAdmin && (
-                      <TouchableOpacity 
-                        style={[styles.drawerItem, styles.mintItem]} 
+                      <TouchableOpacity
+                        style={styles.drawerItem}
                         onPress={() => {
-                          setDrawerVisible(false); // Cierra el drawer primero
-                          router.push('/admin/dashboard'); // Navega a ruta protegida
+                          setDrawerVisible(false);
+                          router.push('/admin/dashboard');
                         }}
                       >
-                        <MaterialCommunityIcons name="crown" size={18} color="#C5A065" />
-                        <Text style={[styles.drawerItemText, { color: '#C5A065', fontWeight: '700' }]}>The Mint 👑</Text>
+                        <MaterialCommunityIcons name="crown" size={20} color={shell.ctaAccent} />
+                        <Text style={[styles.drawerItemText, { color: shell.text }]}>The Mint</Text>
                       </TouchableOpacity>
                     )}
 
-
                     <TouchableOpacity style={styles.drawerItem} onPress={() => { setDrawerVisible(false); router.push('/settings'); }}>
-                      <MaterialCommunityIcons name="cog-outline" size={18} color="#0D4D8A" />
-                      <Text style={styles.drawerItemText}>{tr('Configuración', 'Settings')}</Text>
+                      <MaterialCommunityIcons name="cog-outline" size={20} color={shell.ctaAccent} />
+                      <Text style={[styles.drawerItemText, { color: shell.text }]}>{tr('Configuración', 'Settings')}</Text>
                     </TouchableOpacity>
 
-                    {/* Botones legales restaurados */}
                     <TouchableOpacity style={styles.drawerItem} onPress={() => { setActivePanel('terms'); }}>
-                      <MaterialCommunityIcons name="file-document-outline" size={18} color="#0D4D8A" />
-                      <Text style={styles.drawerItemText}>{tr('Términos y Condiciones', 'Terms & Conditions')}</Text>
+                      <MaterialCommunityIcons name="file-document-outline" size={20} color={shell.ctaAccent} />
+                      <Text style={[styles.drawerItemText, { color: shell.text }]}>{tr('Términos y Condiciones', 'Terms & Conditions')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.drawerItem} onPress={() => { setActivePanel('policy'); }}>
-                      <MaterialCommunityIcons name="shield-lock-outline" size={18} color="#0D4D8A" />
-                      <Text style={styles.drawerItemText}>{tr('Política de Uso', 'Usage Policy')}</Text>
+                      <MaterialCommunityIcons name="shield-lock-outline" size={20} color={shell.ctaAccent} />
+                      <Text style={[styles.drawerItemText, { color: shell.text }]}>{tr('Política de Uso', 'Usage Policy')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.drawerItem} onPress={() => { setActivePanel('about'); }}>
-                      <MaterialCommunityIcons name="information-outline" size={18} color="#0D4D8A" />
-                      <Text style={styles.drawerItemText}>{tr('Acerca de Card-Social', 'About Card-Social')}</Text>
+                      <MaterialCommunityIcons name="information-outline" size={20} color={shell.ctaAccent} />
+                      <Text style={[styles.drawerItemText, { color: shell.text }]}>{tr('Acerca de Card-Social', 'About Card-Social')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.drawerItem} onPress={() => { setActivePanel('privacy'); }}>
-                      <MaterialCommunityIcons name="shield-account-outline" size={18} color="#0D4D8A" />
-                      <Text style={styles.drawerItemText}>{tr('Privacidad', 'Privacy')}</Text>
+                      <MaterialCommunityIcons name="shield-account-outline" size={20} color={shell.ctaAccent} />
+                      <Text style={[styles.drawerItemText, { color: shell.text }]}>{tr('Privacidad', 'Privacy')}</Text>
                     </TouchableOpacity>
-
 
                     <TouchableOpacity style={styles.drawerItem} onPress={() => { setActivePanel('blocked_users'); void loadRelEntries('blocked'); setRelTab('blocked'); }}>
-                      <MaterialCommunityIcons name="account-cancel-outline" size={18} color="#B7343A" />
-                      <Text style={[styles.drawerItemText, { color: '#B7343A' }]}>{tr('Gestión de Relaciones', 'Relationship Manager')}</Text>
+                      <MaterialCommunityIcons name="account-cancel-outline" size={20} color={shell.danger} />
+                      <Text style={[styles.drawerItemText, { color: shell.danger }]}>{tr('Gestión de Relaciones', 'Relationship Manager')}</Text>
                     </TouchableOpacity>
 
-                    <View style={styles.lookModeSection}>
+                    <View style={[styles.lookModeSection, { borderTopColor: shell.modalBorder }]}>
                       <View style={styles.lookModeHeaderRow}>
-                        <MaterialCommunityIcons name="theme-light-dark" size={18} color="#0D4D8A" />
-                        <Text style={styles.lookModeTitle}>{tr('Apariencia', 'Appearance')}</Text>
+                        <MaterialCommunityIcons name="theme-light-dark" size={20} color={shell.ctaAccent} />
+                        <Text style={[styles.lookModeTitle, { color: shell.text }]}>{tr('Apariencia', 'Appearance')}</Text>
                       </View>
                       <View style={styles.lookModeRow}>
                         <TouchableOpacity
-                          style={[styles.lookModeButton, mode === 'dia' && styles.lookModeButtonActive]}
+                          style={[
+                            styles.lookModeButton,
+                            { borderColor: shell.modalBorder, backgroundColor: 'transparent' },
+                            mode === 'dia' && { backgroundColor: shell.ctaAccent, borderColor: shell.ctaAccent },
+                          ]}
                           onPress={() => setMode('dia')}
                         >
-                          <Text style={[styles.lookModeButtonText, mode === 'dia' && styles.lookModeButtonTextActive]}>{tr('Dia', 'Day')}</Text>
+                          <Text
+                            style={[
+                              styles.lookModeButtonText,
+                              { color: shell.text },
+                              mode === 'dia' && { color: shell.emptyCtaText },
+                            ]}
+                          >
+                            {tr('Dia', 'Day')}
+                          </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                          style={[styles.lookModeButton, mode === 'noche' && styles.lookModeButtonActive]}
+                          style={[
+                            styles.lookModeButton,
+                            { borderColor: shell.modalBorder, backgroundColor: 'transparent' },
+                            mode === 'noche' && { backgroundColor: shell.ctaAccent, borderColor: shell.ctaAccent },
+                          ]}
                           onPress={() => setMode('noche')}
                         >
-                          <Text style={[styles.lookModeButtonText, mode === 'noche' && styles.lookModeButtonTextActive]}>{tr('Noche', 'Night')}</Text>
+                          <Text
+                            style={[
+                              styles.lookModeButtonText,
+                              { color: shell.text },
+                              mode === 'noche' && { color: shell.emptyCtaText },
+                            ]}
+                          >
+                            {tr('Noche', 'Night')}
+                          </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                          style={[styles.lookModeButton, mode === 'auto' && styles.lookModeButtonActive]}
+                          style={[
+                            styles.lookModeButton,
+                            { borderColor: shell.modalBorder, backgroundColor: 'transparent' },
+                            mode === 'auto' && { backgroundColor: shell.ctaAccent, borderColor: shell.ctaAccent },
+                          ]}
                           onPress={handleSelectAutoMode}
                         >
-                          <Text style={[styles.lookModeButtonText, mode === 'auto' && styles.lookModeButtonTextActive]}>Auto</Text>
+                          <Text
+                            style={[
+                              styles.lookModeButtonText,
+                              { color: shell.text },
+                              mode === 'auto' && { color: shell.emptyCtaText },
+                            ]}
+                          >
+                            Auto
+                          </Text>
                         </TouchableOpacity>
                       </View>
                       {mode === 'auto' ? (
-                        <Text style={styles.lookModeHint}>
+                        <Text style={[styles.lookModeHint, { color: shell.textSecondary }]}>
                           {(() => {
                             if (mode === 'auto') {
                               if (autoStatusText.includes('GPS')) return tr('auto_gps', 'auto_gps');
@@ -814,27 +965,22 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                       ) : null}
                     </View>
 
-                    <TouchableOpacity style={styles.drawerItem}>
-                      <MaterialCommunityIcons name="qrcode-scan" size={18} color="#0D4D8A" />
-                      <Text style={styles.drawerItemText}>{tr('Mis QR (Próximamente)', 'My QR (Coming Soon)')}</Text>
-                    </TouchableOpacity>
-
                     <TouchableOpacity style={styles.drawerItem} onPress={handleSignOut}>
-                      <MaterialCommunityIcons name="logout" size={18} color="#0D4D8A" />
-                      <Text style={styles.drawerItemText}>{tr('Cerrar Sesión', 'Sign Out')}</Text>
+                      <MaterialCommunityIcons name="logout" size={20} color={shell.ctaAccent} />
+                      <Text style={[styles.drawerItemText, { color: shell.text }]}>{tr('Cerrar Sesión', 'Sign Out')}</Text>
                     </TouchableOpacity>
                   </ScrollView>
                 ) : activePanel === 'privacy' ? (
                   <ScrollView style={styles.legalScroll} contentContainerStyle={styles.legalContentWrap}>
-                    <Text style={styles.legalTitle}>{tr('Política de Privacidad', 'Privacy Policy')}</Text>
-                    <Text style={styles.legalText}>
+                    <Text style={[styles.legalTitle, { color: shell.ctaAccent }]}>{tr('Política de Privacidad', 'Privacy Policy')}</Text>
+                    <Text style={[styles.legalText, { color: shell.modalSubtitle }]}>
                       {tr(
                         'Tus datos personales (nombre, email, teléfono) solo se usan para el funcionamiento de Card-Social. No compartimos tu información con terceros sin tu consentimiento. Puedes solicitar la eliminación de tu cuenta y datos en cualquier momento. También puedes descargar una copia de tus datos personales.',
                         'Your personal data (name, email, phone) is only used for the operation of Card-Social. We do not share your information with third parties without your consent. You can request deletion of your account and data at any time. You can also download a copy of your personal data.'
                       )}
                     </Text>
                     <TouchableOpacity
-                      style={[styles.editProfileBtn, { marginTop: 24, backgroundColor: '#0A2540' }]}
+                      style={[styles.editProfileBtn, { marginTop: 24, backgroundColor: shell.ctaAccent }]}
                       onPress={() => {
                         Alert.alert(
                           tr('Descarga de datos', 'Download Data'),
@@ -842,8 +988,8 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                         );
                       }}
                     >
-                      <MaterialCommunityIcons name="download" size={16} color="#FFFFFF" />
-                      <Text style={styles.editProfileBtnText}>{tr('Descargar mis datos', 'Download my data')}</Text>
+                      <MaterialCommunityIcons name="download" size={16} color={shell.emptyCtaText} />
+                      <Text style={[styles.editProfileBtnText, { color: shell.emptyCtaText }]}>{tr('Descargar mis datos', 'Download my data')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.editProfileBtn, { marginTop: 16, backgroundColor: '#B7343A' }]}
@@ -915,33 +1061,33 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                 ) : activePanel === 'profile' ? (
                   <ScrollView style={styles.legalScroll} contentContainerStyle={styles.legalContentWrap}>
                               {profileLoading ? (
-                                <Text style={styles.legalText}>{tr('Cargando perfil...', 'Loading profile...')}</Text>
+                                <Text style={[styles.legalText, { color: shell.modalSubtitle }]}>{tr('Cargando perfil...', 'Loading profile...')}</Text>
                               ) : !profileData ? (
-                                <Text style={styles.legalText}>{tr('No se pudo cargar tu perfil.', 'Could not load your profile.')}</Text>
+                                <Text style={[styles.legalText, { color: shell.modalSubtitle }]}>{tr('No se pudo cargar tu perfil.', 'Could not load your profile.')}</Text>
                               ) : (
                                 <>
-                                  <View style={styles.profileCard}>
+                                  <View style={[styles.profileCard, { backgroundColor: shell.surfaceMuted, borderColor: shell.modalBorder }]}>
                                                   {/* ...existing code... */}
-                          <Text style={styles.profileLabel}>{tr('Nombre', 'Name')}</Text>
-                          <Text style={styles.profileValue}>{profileData.fullName}</Text>
+                          <Text style={[styles.profileLabel, { color: shell.ctaAccent }]}>{tr('Nombre', 'Name')}</Text>
+                          <Text style={[styles.profileValue, { color: shell.text }]}>{profileData.fullName}</Text>
 
-                          <Text style={styles.profileLabel}>{tr('Nickname único', 'Unique Nickname')}</Text>
-                          <Text style={styles.profileValue}>@{profileData.nickname}</Text>
+                          <Text style={[styles.profileLabel, { color: shell.ctaAccent }]}>{tr('Nickname único', 'Unique Nickname')}</Text>
+                          <Text style={[styles.profileValue, { color: shell.text }]}>@{profileData.nickname}</Text>
 
-                          <Text style={styles.profileLabel}>{tr('Email (solo lectura)', 'Email (read-only)')}</Text>
-                          <Text style={styles.profileReadonly}>{profileData.email || tr('No disponible', 'Not available')}</Text>
+                          <Text style={[styles.profileLabel, { color: shell.ctaAccent }]}>{tr('Email (solo lectura)', 'Email (read-only)')}</Text>
+                          <Text style={[styles.profileReadonly, { color: shell.textSecondary }]}>{profileData.email || tr('No disponible', 'Not available')}</Text>
 
-                          <Text style={styles.profileLabel}>{tr('Celular (solo lectura)', 'Phone (read-only)')}</Text>
-                          <Text style={styles.profileReadonly}>{profileData.phone || tr('No disponible', 'Not available')}</Text>
+                          <Text style={[styles.profileLabel, { color: shell.ctaAccent }]}>{tr('Celular (solo lectura)', 'Phone (read-only)')}</Text>
+                          <Text style={[styles.profileReadonly, { color: shell.textSecondary }]}>{profileData.phone || tr('No disponible', 'Not available')}</Text>
 
-                          <Text style={styles.profileHint}>
+                          <Text style={[styles.profileHint, { color: shell.textSecondary }]}>
                             {tr('Puedes editar tu perfil excepto email y celular. El nickname solo se puede cambiar cada 4 semanas.', 'You can edit your profile except email and phone. Nickname can only be changed every 4 weeks.')}
                           </Text>
                         </View>
 
-                        <TouchableOpacity style={styles.editProfileBtn} onPress={openProfileEditor}>
-                          <MaterialCommunityIcons name="pencil-outline" size={16} color="#FFFFFF" />
-                          <Text style={styles.editProfileBtnText}>{tr('Modificar perfil', 'Edit Profile')}</Text>
+                        <TouchableOpacity style={[styles.editProfileBtn, { backgroundColor: shell.ctaAccent }]} onPress={openProfileEditor}>
+                          <MaterialCommunityIcons name="pencil-outline" size={16} color={shell.emptyCtaText} />
+                          <Text style={[styles.editProfileBtnText, { color: shell.emptyCtaText }]}>{tr('Modificar perfil', 'Edit Profile')}</Text>
                         </TouchableOpacity>
                       </>
                     )}
@@ -955,7 +1101,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                 ) : activePanel === 'blocked_users' ? (
                   <View style={styles.legalScroll}>
                     {/* ── 3-tab selector ──────────────────────────────────────── */}
-                    <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderColor: '#E0E0E0', marginBottom: 12 }}>
+                    <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderColor: shell.modalBorder, marginBottom: 12 }}>
                       {(['muted', 'restricted', 'blocked'] as RelTab[]).map((tab) => {
                         const labels: Record<RelTab, [string, string]> = {
                           muted: ['Silenciados', 'Muted'],
@@ -967,9 +1113,21 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                           <TouchableOpacity
                             key={tab}
                             onPress={() => { setRelTab(tab); void loadRelEntries(tab); }}
-                            style={{ flex: 1, alignItems: 'center', paddingVertical: 10, borderBottomWidth: active ? 2 : 0, borderColor: active ? '#0D4D8A' : 'transparent' }}
+                            style={{
+                              flex: 1,
+                              alignItems: 'center',
+                              paddingVertical: 10,
+                              borderBottomWidth: active ? 2 : 0,
+                              borderColor: active ? shell.ctaAccent : 'transparent',
+                            }}
                           >
-                            <Text style={{ fontSize: 13, fontWeight: active ? '700' : '500', color: active ? '#0D4D8A' : '#999' }}>
+                            <Text
+                              style={{
+                                fontSize: 13,
+                                fontWeight: active ? '700' : '500',
+                                color: active ? shell.ctaAccent : shell.textMuted,
+                              }}
+                            >
                               {tr(labels[tab][0], labels[tab][1])}
                             </Text>
                           </TouchableOpacity>
@@ -980,7 +1138,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                     {/* ── List ────────────────────────────────────────────────── */}
                     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 20 }}>
                       {loadingRel ? (
-                        <Text style={{ color: '#0D4D8A', textAlign: 'center', marginTop: 24, fontSize: 14 }}>
+                        <Text style={{ color: shell.textSecondary, textAlign: 'center', marginTop: 24, fontSize: 14 }}>
                           {tr('Cargando…', 'Loading…')}
                         </Text>
                       ) : relEntries.length === 0 ? (
@@ -990,7 +1148,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                             size={48}
                             color="#B7343A"
                           />
-                          <Text style={{ color: '#0D4D8A', fontSize: 14, fontWeight: '600', marginTop: 12, textAlign: 'center' }}>
+                          <Text style={{ color: shell.text, fontSize: 14, fontWeight: '600', marginTop: 12, textAlign: 'center' }}>
                             {tr(
                               `No tienes usuarios ${relTab === 'muted' ? 'silenciados' : relTab === 'restricted' ? 'restringidos' : 'bloqueados'}.`,
                               `No ${relTab} users.`
@@ -999,24 +1157,27 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                         </View>
                       ) : (
                         relEntries.map((entry) => (
-                          <View key={entry.uid} style={styles.blockedRow}>
+                          <View
+                            key={entry.uid}
+                            style={[styles.blockedRow, { backgroundColor: shell.surfaceMuted, borderColor: shell.modalBorder }]}
+                          >
                             <View style={styles.blockedIdentity}>
                               {entry.photoUrl ? (
                                 <Image source={{ uri: entry.photoUrl }} style={styles.blockedAvatar} />
                               ) : (
-                                <View style={styles.blockedAvatarFallback}>
-                                  <MaterialCommunityIcons name="account" size={15} color="#0D4D8A" />
+                                <View style={[styles.blockedAvatarFallback, { backgroundColor: shell.inputBg, borderColor: shell.modalBorder }]}>
+                                  <MaterialCommunityIcons name="account" size={15} color={shell.ctaAccent} />
                                 </View>
                               )}
                               <View style={styles.blockedTextCol}>
-                                <Text style={styles.blockedName}>{entry.name}</Text>
-                                <Text style={styles.blockedDateText}>
+                                <Text style={[styles.blockedName, { color: shell.text }]}>{entry.name}</Text>
+                                <Text style={[styles.blockedDateText, { color: shell.textSecondary }]}>
                                   {entry.status === 'muted' ? '🔇' : entry.status === 'restricted' ? '👁️‍🗨️' : '🚫'}
                                 </Text>
                               </View>
                             </View>
-                            <TouchableOpacity style={styles.unblockBtn} onPress={() => handleRelRemove(entry)}>
-                              <Text style={styles.unblockBtnText}>{tr('Restaurar', 'Restore')}</Text>
+                            <TouchableOpacity style={[styles.unblockBtn, { backgroundColor: shell.ctaAccent }]} onPress={() => handleRelRemove(entry)}>
+                              <Text style={[styles.unblockBtnText, { color: shell.emptyCtaText }]}>{tr('Restaurar', 'Restore')}</Text>
                             </TouchableOpacity>
                           </View>
                         ))
@@ -1027,17 +1188,20 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                   <ScrollView style={styles.legalScroll} contentContainerStyle={styles.legalContentWrap}>
                     {legalContent.map((line, index) => (
                       <View style={styles.legalLine} key={`${activePanel}-${index}`}>
-                        <MaterialCommunityIcons name="chevron-right" size={16} color="#0D4D8A" />
-                        <Text style={styles.legalText}>{line}</Text>
+                        <MaterialCommunityIcons name="chevron-right" size={16} color={shell.ctaAccent} />
+                        <Text style={[styles.legalText, { color: shell.modalSubtitle }]}>{line}</Text>
                       </View>
                     ))}
                   </ScrollView>
                 )}
 
                 {activePanel !== 'menu' ? (
-                  <TouchableOpacity style={styles.backToMenuBtn} onPress={() => setActivePanel('menu')}>
-                    <MaterialCommunityIcons name="arrow-left" size={16} color="#0D4D8A" />
-                    <Text style={styles.backToMenuText}>{tr('Volver al menú', 'Back to menu')}</Text>
+                  <TouchableOpacity
+                    style={[styles.backToMenuBtn, { backgroundColor: shell.surfaceMuted, borderWidth: 1, borderColor: shell.ctaAccent }]}
+                    onPress={() => setActivePanel('menu')}
+                  >
+                    <MaterialCommunityIcons name="arrow-left" size={16} color={shell.ctaAccent} />
+                    <Text style={[styles.backToMenuText, { color: shell.ctaAccent }]}>{tr('Volver al menú', 'Back to menu')}</Text>
                   </TouchableOpacity>
                 ) : null}
               </View>
@@ -1053,68 +1217,70 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
         onRequestClose={() => setProfileModalVisible(false)}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.profileModalOverlay}>
+          <View style={[styles.profileModalOverlay, { backgroundColor: shell.overlayScrim }]}>
             <KeyboardAvoidingView
               behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
               style={styles.profileModalKeyboardWrap}
             >
-              <View style={styles.profileModalCard}>
-                <Text style={styles.profileModalTitle}>{tr('Modificar Perfil', 'Edit Profile')}</Text>
+              <View style={[styles.profileModalCard, { backgroundColor: shell.modalBg, borderColor: shell.modalBorder }]}>
+                <Text style={[styles.profileModalTitle, { color: shell.modalTitle }]}>{tr('Modificar Perfil', 'Edit Profile')}</Text>
 
                 <ScrollView
                   keyboardDismissMode="on-drag"
                   keyboardShouldPersistTaps="handled"
                   contentContainerStyle={styles.profileFormWrap}
                 >
-                  <Text style={styles.inputLabel}>{tr('Nombre visible', 'Display Name')}</Text>
+                  <Text style={[styles.inputLabel, { color: shell.ctaAccent }]}>{tr('Nombre visible', 'Display Name')}</Text>
                   <TextInput
-                    style={styles.profileInput}
+                    style={[styles.profileInput, { backgroundColor: shell.inputBg, color: shell.inputText, borderColor: shell.modalBorder }]}
                     value={editFullName}
                     onChangeText={setEditFullName}
                     placeholder={tr('Nombre completo', 'Full name')}
-                    placeholderTextColor="#7AA6C1"
+                    placeholderTextColor={shell.textMuted}
                   />
 
-                  <Text style={styles.inputLabel}>{tr('Nickname único', 'Unique Nickname')}</Text>
+                  <Text style={[styles.inputLabel, { color: shell.ctaAccent }]}>{tr('Nickname único', 'Unique Nickname')}</Text>
                   <TextInput
-                    style={styles.profileInput}
+                    style={[styles.profileInput, { backgroundColor: shell.inputBg, color: shell.inputText, borderColor: shell.modalBorder }]}
                     value={editNickname}
                     onChangeText={setEditNickname}
                     placeholder="nickname"
                     autoCapitalize="none"
-                    placeholderTextColor="#7AA6C1"
+                    placeholderTextColor={shell.textMuted}
                   />
 
-                  <Text style={styles.inputLabel}>{tr('Email (bloqueado)', 'Email (locked)')}</Text>
-                  <View style={styles.profileReadOnlyInput}>
-                    <Text style={styles.profileReadOnlyText}>{profileData?.email || tr('No disponible', 'Not available')}</Text>
+                  <Text style={[styles.inputLabel, { color: shell.ctaAccent }]}>{tr('Email (bloqueado)', 'Email (locked)')}</Text>
+                  <View style={[styles.profileReadOnlyInput, { backgroundColor: shell.surfaceMuted, borderColor: shell.modalBorder }]}>
+                    <Text style={[styles.profileReadOnlyText, { color: shell.textSecondary }]}>{profileData?.email || tr('No disponible', 'Not available')}</Text>
                   </View>
 
-                  <Text style={styles.inputLabel}>{tr('Celular (bloqueado)', 'Phone (locked)')}</Text>
-                  <View style={styles.profileReadOnlyInput}>
-                    <Text style={styles.profileReadOnlyText}>{profileData?.phone || tr('No disponible', 'Not available')}</Text>
+                  <Text style={[styles.inputLabel, { color: shell.ctaAccent }]}>{tr('Celular (bloqueado)', 'Phone (locked)')}</Text>
+                  <View style={[styles.profileReadOnlyInput, { backgroundColor: shell.surfaceMuted, borderColor: shell.modalBorder }]}>
+                    <Text style={[styles.profileReadOnlyText, { color: shell.textSecondary }]}>{profileData?.phone || tr('No disponible', 'Not available')}</Text>
                   </View>
 
-                  <Text style={styles.profileHint}>
+                  <Text style={[styles.profileHint, { color: shell.textSecondary }]}>
                     {tr('Regla activa: nickname no repetido globalmente y cambio permitido cada 4 semanas.', 'Active rule: nickname must be globally unique and can only be changed every 4 weeks.')}
                   </Text>
                 </ScrollView>
 
                 <View style={styles.profileModalActions}>
                   <TouchableOpacity
-                    style={styles.profileGhostBtn}
+                    style={[styles.profileGhostBtn, { backgroundColor: shell.surfaceMuted, borderWidth: 1, borderColor: shell.modalBorder }]}
                     onPress={() => setProfileModalVisible(false)}
                     disabled={profileSaving}
                   >
-                    <Text style={styles.profileGhostBtnText}>{tr('Cancelar', 'Cancel')}</Text>
+                    <Text style={[styles.profileGhostBtnText, { color: shell.ctaAccent }]}>{tr('Cancelar', 'Cancel')}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={styles.profileSaveBtn}
+                    style={[styles.profileSaveBtn, { backgroundColor: shell.ctaAccent }]}
                     onPress={saveProfileChanges}
                     disabled={profileSaving}
                   >
-                    <Text style={styles.profileSaveBtnText}>{profileSaving ? tr('Guardando...', 'Saving...') : tr('Guardar', 'Save')}</Text>
+                    <Text style={[styles.profileSaveBtnText, { color: shell.emptyCtaText }]}>
+                      {profileSaving ? tr('Guardando...', 'Saving...') : tr('Guardar', 'Save')}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1127,39 +1293,92 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
 }
 
 const styles = StyleSheet.create({
-  headerLeftLogoWrap: {
-    marginLeft: 6,
+  tabBarIconFocusedWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 50,
+    paddingTop: 10,
+  },
+  /** Halo ligero alrededor del glifo; sin relleno sólido. */
+  tabBarIconGlowWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.38,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  tabBarIconInactiveWrap: {
+    minHeight: 50,
+    paddingTop: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerBarRoot: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  headerBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 48,
+    paddingHorizontal: 4,
+    paddingBottom: 6,
+  },
+  /** Ancho mínimo simétrico: la marca vive en `headerBrandCenter` (flex 1) y no queda pegada al toggle. */
+  headerBarEdge: {
+    minWidth: 118,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 44,
+    gap: 4,
+    zIndex: 2,
+    elevation: 4,
+  },
+  headerBarEdgeStart: {
+    justifyContent: 'flex-start',
+  },
+  headerBarEdgeEnd: {
+    justifyContent: 'flex-end',
+  },
+  headerBrandCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 0,
+    paddingHorizontal: 4,
+    overflow: 'hidden',
+    zIndex: 0,
+  },
+  headerIconHit: {
+    position: 'relative',
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerBrandWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
+    maxWidth: '100%',
+    width: '100%',
   },
-  logoFrame: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 999,
-    padding: 4,
-    borderWidth: 1.5,
-    borderColor: '#D4AF37',
-  },
-  headerLogo: {
+  headerBrandLogo: {
     width: 28,
     height: 28,
     borderRadius: 6,
+    flexShrink: 0,
   },
   headerBrandText: {
-    color: '#D4AF37',
-    fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: 0.4,
-  },
-  headerMenuButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: 'rgba(212,175,55,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 0.9,
+    textTransform: 'uppercase',
+    textAlign: 'center',
   },
   menuBadge: {
     position: 'absolute',
@@ -1192,19 +1411,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(197,160,101,0.10)',
+    backgroundColor: 'transparent',
     borderRadius: 20,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderWidth: 1,
-    borderColor: 'rgba(197,160,101,0.25)',
+    borderColor: 'rgba(212,175,55,0.35)',
   },
   adminStatChipAlert: {
     backgroundColor: 'rgba(255,68,68,0.10)',
     borderColor: 'rgba(255,68,68,0.35)',
   },
   adminStatLabel: {
-    color: '#C5A065',
     fontSize: 11,
     fontWeight: '600',
   },
@@ -1242,10 +1460,11 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   drawerTitle: {
-    color: '#0D4D8A',
     fontSize: 20,
-    fontFamily: 'Georgia',
     fontWeight: '700',
+    letterSpacing: 0.2,
+    flex: 1,
+    paddingRight: 8,
   },
   drawerMenuList: {
     gap: 8,
@@ -1255,33 +1474,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     paddingVertical: 12,
-    paddingHorizontal: 10,
+    paddingHorizontal: 4,
     borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.55)',
-  },
-  drawerItemHighlight: {
-    backgroundColor: 'rgba(197, 160, 101, 0.18)',
-    borderWidth: 1,
-    borderColor: 'rgba(197, 160, 101, 0.45)',
-  },
-  mintItem: {
-    backgroundColor: 'rgba(197, 160, 101, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(197, 160, 101, 0.3)',
+    backgroundColor: 'transparent',
   },
   drawerItemText: {
-    color: '#184B76',
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
+    flex: 1,
   },
   lookModeSection: {
-    marginTop: 4,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.55)',
-    borderWidth: 1,
-    borderColor: 'rgba(13,77,138,0.15)',
+    marginTop: 8,
+    paddingTop: 12,
+    paddingBottom: 4,
+    paddingHorizontal: 4,
+    borderTopWidth: 1,
+    backgroundColor: 'transparent',
     gap: 8,
   },
   lookModeHeaderRow: {
@@ -1290,7 +1498,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   lookModeTitle: {
-    color: '#184B76',
     fontSize: 13,
     fontWeight: '700',
   },
@@ -1302,26 +1509,15 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(13,77,138,0.3)',
-    backgroundColor: 'rgba(255,255,255,0.65)',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
   },
-  lookModeButtonActive: {
-    backgroundColor: '#0D4D8A',
-    borderColor: '#0D4D8A',
-  },
   lookModeButtonText: {
-    color: '#0D4D8A',
     fontSize: 12,
     fontWeight: '700',
   },
-  lookModeButtonTextActive: {
-    color: '#FFFFFF',
-  },
   lookModeHint: {
-    color: '#346489',
     fontSize: 11,
     fontStyle: 'italic',
   },
@@ -1529,7 +1725,7 @@ const styles = StyleSheet.create({
   profileGhostBtn: {
     flex: 1,
     borderRadius: 10,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,

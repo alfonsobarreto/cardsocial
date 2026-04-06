@@ -23,6 +23,7 @@
   "preview_choose_again": "Take / Choose Again",
   "preview_accept": "Accept",
   "preview_pdf_ready": "document ready",
+  "preview_file_not_available": "File preview unavailable",
   "crop_title": "Adjust your profile photo",
   "crop_hint": "Drag to move · Pinch to zoom",
   "crop_confirm": "Confirm photo",

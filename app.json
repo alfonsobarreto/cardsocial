@@ -20,12 +20,18 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.cardsocial.app",
+      "associatedDomains": ["applinks:cardsocial.me"],
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
           "googlegmail",
           "ms-outlook",
+          "ymail",
+          "googlegmail",
+          "ms-outlook",
           "ymail"
-        ]
+        ],
+        "NSMicrophoneUsageDescription": "Card-Social usa el micrófono para las llamadas de voz Ghost-Link (VoIP).",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -34,7 +40,25 @@
         "foregroundImage": "./assets/images/CS Icon Logo.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.cardsocial.app"
+      "package": "com.cardsocial.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "cardsocial.me",
+              "pathPrefix": "/u"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -46,10 +70,22 @@
       "expo-font",
       "expo-web-browser",
       "expo-apple-authentication",
-      "expo-video"
+      "expo-video",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Card-Social usa tu ubicación cuando buscas en el mercado o cuando guardas la ubicación de tu tarjeta de negocio; no hay rastreo continuo en segundo plano."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "63df0a01-75f5-40bf-96be-2fdfde55c77f"
+      }
     }
   }
 }

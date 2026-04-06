@@ -1,53 +1,56 @@
 /**
- * Credits Indicator Component
- * Muestra el balance de créditos en el menú hamburguesa
+ * Balance de créditos en el menú — sin caja clara; colores desde `palette` / modo.
  */
 
-
+import palette from '../app/theme';
 import { getUserCreditsBalance } from '@/services/creditsService';
 import { useLanguage } from '@/services/language';
+import { useLookMode } from '@/services/lookMode';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 interface CreditsIndicatorProps {
   userId: string;
-  refreshTrigger?: number; // Incrementar para forzar actualización
+  refreshTrigger?: number;
 }
 
 export const CreditsIndicator: React.FC<CreditsIndicatorProps> = ({ userId, refreshTrigger }) => {
   const { language } = useLanguage ? useLanguage() : { language: 'es' };
   const tr = (es: string, en: string) => (language === 'en' ? en : es);
+  const { resolvedMode } = useLookMode();
+  const shell = palette[resolvedMode === 'noche' ? 'dark' : 'light'];
+  const colors = useMemo(
+    () => ({
+      label: shell.textSecondary,
+      balance: shell.ctaAccent,
+      icon: shell.ctaAccent,
+      hairline: shell.modalBorder,
+    }),
+    [shell],
+  );
+
   const [creditsBalance, setCreditsBalance] = useState<number>(0);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchCredits = async () => {
-      setLoading(true);
       try {
         const balance = await getUserCreditsBalance(userId);
         setCreditsBalance(balance);
       } catch (error) {
         console.error('Error fetching credits balance:', error);
-      } finally {
-        setLoading(false);
       }
     };
-    fetchCredits();
+    void fetchCredits();
   }, [userId, refreshTrigger]);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.creditsBox}>
-        <MaterialCommunityIcons
-          name="cash"
-          size={20}
-          color="#C5A065"
-          style={styles.icon}
-        />
-        <View>
-          <Text style={styles.label}>{tr('Créditos CS', 'CS Credits')}</Text>
-          <Text style={styles.balance}>{creditsBalance}</Text>
+    <View style={[styles.wrap, { borderBottomColor: colors.hairline }]}>
+      <View style={styles.row}>
+        <MaterialCommunityIcons name="cash" size={22} color={colors.icon} style={styles.icon} />
+        <View style={styles.textCol}>
+          <Text style={[styles.label, { color: colors.label }]}>{tr('Créditos CS', 'CS Credits')}</Text>
+          <Text style={[styles.balance, { color: colors.balance }]}>{creditsBalance}</Text>
         </View>
       </View>
     </View>
@@ -55,35 +58,30 @@ export const CreditsIndicator: React.FC<CreditsIndicatorProps> = ({ userId, refr
 };
 
 const styles = StyleSheet.create({
-  container: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#F8F9FA',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E6E8EB',
+  wrap: {
+    paddingVertical: 10,
+    paddingHorizontal: 0,
+    backgroundColor: 'transparent',
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  creditsBox: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: '#C5A065',
   },
   icon: {
-    marginRight: 10,
+    marginRight: 12,
+  },
+  textCol: {
+    flex: 1,
   },
   label: {
     fontSize: 12,
-    color: '#4A4A4A',
-    fontWeight: '500',
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
   balance: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '800',
-    color: '#C5A065',
     marginTop: 2,
   },
 });

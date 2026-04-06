@@ -6,6 +6,7 @@ import { useLanguage } from '@/services/language';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, SocialProviderId } from '@/services/socialAuth';
 import { grantStudentPackCreditsIfEligible } from '@/services/studentPackService';
+import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { Picker } from '@react-native-picker/picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -654,6 +655,7 @@ export default function RegisterScreen() {
       const providerEmail = getEmailFromCredential(credential);
 
       if (!providerEmail) {
+        await clearLocalCachesForSignOut(credential.user.uid);
         await signOut(auth);
         Alert.alert(
           tr('Email requerido', 'Email required'),
@@ -668,6 +670,7 @@ export default function RegisterScreen() {
       );
 
       if (!existingByEmail.empty && existingByEmail.docs[0].id !== credential.user.uid) {
+        await clearLocalCachesForSignOut(credential.user.uid);
         await signOut(auth);
         Alert.alert(
           tr('Cuenta ya existente', 'Account already exists'),
@@ -951,6 +954,7 @@ export default function RegisterScreen() {
         if (auth.currentUser) {
           await sendEmailVerification(auth.currentUser);
         }
+        await clearLocalCachesForSignOut(auth.currentUser?.uid ?? uid);
         await signOut(auth);
         Alert.alert(
           tr('Verifica tu correo', 'Verify your email'),

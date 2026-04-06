@@ -7,6 +7,7 @@ import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, Soc
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { sendEmailVerification, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { collection, getDocs, limit, query, where } from 'firebase/firestore';
 import { Eye, EyeOff, Lock, User } from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
@@ -121,6 +122,7 @@ export default function SignInScreen() {
                 tr('Cuenta eliminada', 'Account deleted'),
                 tr('El periodo de restauración expiró. Tu cuenta ha sido eliminada permanentemente.', 'The restoration period has expired. Your account has been permanently deleted.')
               );
+              await clearLocalCachesForSignOut(auth.currentUser?.uid ?? null);
               await signOut(auth);
               setIsSubmitting(false);
               return;
@@ -207,6 +209,7 @@ export default function SignInScreen() {
       }
 
       await sendEmailVerification(user);
+      await clearLocalCachesForSignOut(user.uid);
       await signOut(auth).catch(() => null);
       Alert.alert(tr('Email reenviado', 'Verification resent'), tr('Te enviamos un nuevo enlace de verificacion. Revisa tambien spam/promociones.', 'A new verification link was sent. Check spam/promotions too.'));
     } catch (error) {

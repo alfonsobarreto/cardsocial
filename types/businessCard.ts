@@ -3,6 +3,8 @@
  * Tarjeta de Negocio con validación KYC, geolocalización e integración Social Market
  */
 
+import type { IssuerSmartCardPresentation } from '@/types/sharedCardPresentation';
+
 export interface BusinessCard {
   id: string;
   ownerUid: string;
@@ -72,6 +74,15 @@ export interface BusinessCard {
   viewCount: number;
   searchRankScore: number; // Algoritmo interno de relevancia
   distanceFromUser?: number; // Se calcula en búsqueda (millas)
+
+  /** Ciclo de suscripción (sin pasarela de cobro aún). */
+  subscriptionStatus?: 'trial' | 'active' | 'dull';
+  trialEndsAt?: Date | { seconds: number; nanoseconds?: number } | null;
+  subscriptionExpiresAt?: Date | { seconds: number; nanoseconds?: number } | null;
+  lastQrUpdate?: Date | { seconds: number; nanoseconds?: number } | null;
+  /** Origen de lat/lng (p. ej. GPS del dispositivo). */
+  locationSource?: string;
+  businessTermsAccepted?: boolean;
 }
 
 export interface KYCValidation {
@@ -85,9 +96,23 @@ export interface KYCValidation {
 
 export interface BusinessCardSearchResult {
   card: BusinessCard;
-  distanceMiles: number;
-  relevanceScore: number; // 0-100, basado en keywords match
+  /** null = no mostrar millas (sin ubicación / modo ciego) */
+  distanceMiles: number | null;
+  relevanceScore: number;
   matchedKeywords: string[];
+  /** Si es false, la UI no muestra distancia aunque exista número legacy */
+  showDistance?: boolean;
+  rowSource?: 'received_contact' | 'social_market';
+  /** Solo rowSource received_contact: facetas compartidas (email, enlaces WA, etc.). */
+  receivedContactFacets?: Array<{ type: string; label: string; value: string }>;
+  receivedContactCardName?: string;
+  /** Look de la Smart Card del emisor (contactos recibidos en Social Market). */
+  issuerPresentation?: IssuerSmartCardPresentation;
+  /** Suscriptores de la tarjeta del emisor (solo filas `received_contact`). */
+  receivedHoldersCount?: number;
+  /** Tarjeta del emisor que posee el viewer (canal Stories / lookup). */
+  receivedSourceCardId?: string | null;
+  receivedChannelMuted?: boolean;
 }
 
 export interface SocialMarketSearchParams {

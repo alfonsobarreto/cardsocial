@@ -3,9 +3,25 @@
 import * as Clipboard from 'expo-clipboard';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
-import { startGhostLinkVoipCall } from '@/services/ghostLinkVoip';
+import {
+  joinGhostLinkAgoraSession,
+  leaveGhostLinkAgoraSession,
+} from '@/services/ghostLinkAgoraSession';
+import { isGhostLinkExpoGoAbortError, startGhostLinkVoipCall } from '@/services/ghostLinkVoip';
 import { createCallLog } from '@/services/qrApi';
 import { Alert, Linking, Platform } from 'react-native';
+
+function normalizeTelDialString(value: string): string | null {
+  const raw = String(value || '').trim();
+  if (!raw) {
+    return null;
+  }
+  const compact = raw.replace(/\s+/g, '');
+  if (!/^\+?\d{7,15}$/.test(compact)) {
+    return null;
+  }
+  return compact;
+}
 
 export const ActionController = {
   /**
@@ -121,19 +137,12 @@ export const ActionController = {
   },
 
   /**
-   * ActionTelefono: Modal flotante con nombre de usuario y tarjeta. NUNCA muestra el número real.
-   * NUNCA abre el marcador nativo (tel:). Solo Ghost-Link VoIP o redirección interna.
+   * Teléfono clásico (Bóveda / CTA): abre el marcador nativo con esquema tel:.
+   * Ghost-Link VoIP usa ActionGhostLinkVaultItem (sin Linking, sin número).
+   * Parámetros extra se ignoran; se mantienen por compatibilidad con llamadas antiguas.
    */
   async ActionTelefono({
     value,
-    userName = 'este contacto',
-    cardName,
-    targetUid,
-    sourceCardName,
-    sourceCardId = null,
-    onRequireVoipContext,
-    fallbackToCallsTab = false,
-    enforceGhostLinkOnly = false,
   }: {
     value: string;
     userName?: string;
@@ -145,41 +154,55 @@ export const ActionController = {
     fallbackToCallsTab?: boolean;
     enforceGhostLinkOnly?: boolean;
   }) {
-    const tel = String(value || '').replace(/\s+/g, '');
-    if (!/^\+?\d{7,15}$/.test(tel)) {
+    const tel = normalizeTelDialString(value);
+    if (!tel) {
       Alert.alert('Teléfono inválido', 'No es un número válido para marcar.');
       return;
     }
+    const url = `tel:${tel}`;
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('Error', 'No se pudo abrir el marcador del sistema.');
+    }
+  },
 
+  /**
+   * Ítem Bóveda "Ghost-Link": sin número ni URL; inicia VoIP hacia el titular de la tarjeta (targetUid).
+   */
+  async ActionGhostLinkVaultItem({
+    targetUid,
+    sourceCardName,
+    sourceCardId = null,
+    userName = 'este contacto',
+  }: {
+    targetUid: string | null | undefined;
+    sourceCardName: string;
+    sourceCardId?: string | null;
+    userName?: string;
+  }) {
     const normalizedTargetUid = String(targetUid || '').trim();
-    const resolvedSourceCardName = String(sourceCardName || cardName || 'Tarjeta Social').trim();
+    const resolvedSourceCardName = String(sourceCardName || 'Tarjeta Social').trim();
 
-    // Sin targetUid no existe ruta VoIP segura. El número queda como identificador interno.
     if (!normalizedTargetUid) {
       Alert.alert(
-        'Ghost-Link requerido',
-        'Este dato de teléfono permanece privado. Para llamar debes iniciar la sesión VoIP desde Contacts/Calls con un contacto validado.',
-        [
-          {
-            text: 'Ir a Calls',
-            onPress: () => {
-              if (onRequireVoipContext) {
-                void Promise.resolve(onRequireVoipContext());
-              }
-            },
-          },
-          { text: 'Cerrar', style: 'cancel' },
-        ]
+        'Ghost-Link',
+        'No se puede iniciar la llamada: falta el identificador del titular de la tarjeta.',
       );
-      if (fallbackToCallsTab && onRequireVoipContext) {
-        void Promise.resolve(onRequireVoipContext());
-      }
       return;
     }
 
     const ownerUid = await getActiveUserId();
     if (!ownerUid) {
-      Alert.alert('Sesión requerida', 'No se pudo validar tu sesión para iniciar Ghost-Link.');
+      Alert.alert('Sesión requerida', 'Inicia sesión para usar Ghost-Link.');
+      return;
+    }
+
+    if (ownerUid === normalizedTargetUid) {
+      Alert.alert(
+        'Vista previa',
+        'Al compartir tu tarjeta, tus contactos podrán llamarte por Ghost-Link desde la app. Aquí no se inicia una llamada contigo mismo.',
+      );
       return;
     }
 
@@ -189,7 +212,7 @@ export const ActionController = {
     }
 
     try {
-      await startGhostLinkVoipCall({
+      const started = await startGhostLinkVoipCall({
         ownerUid,
         targetUid: normalizedTargetUid,
         card: {
@@ -197,6 +220,16 @@ export const ActionController = {
           sourceCardId,
         },
       });
+
+      if (started.agora) {
+        try {
+          await joinGhostLinkAgoraSession(started.agora);
+        } catch (agoraErr) {
+          if (__DEV__) {
+            console.warn('Ghost-Link Agora (caller join):', agoraErr);
+          }
+        }
+      }
 
       await createCallLog({
         ownerUid,
@@ -210,21 +243,34 @@ export const ActionController = {
         callChannel: 'ghost-link-voip',
       });
 
-      Alert.alert(
-        'Ghost-Link en curso',
-        `Conectando con ${userName}. Tu número real permanece oculto.`
-      );
-    } catch (error: any) {
-      if (enforceGhostLinkOnly) {
+      if (started.agora) {
         Alert.alert(
-          'Ghost-Link obligatorio',
-          error?.message || 'No se pudo establecer llamada segura.'
+          'Ghost-Link',
+          `En llamada con ${userName}. Tu número real permanece oculto. Pulsa Colgar para terminar el audio.`,
+          [
+            {
+              text: 'Colgar',
+              style: 'destructive',
+              onPress: () => {
+                void leaveGhostLinkAgoraSession();
+              },
+            },
+          ],
+          { cancelable: false },
         );
+      } else {
+        Alert.alert(
+          'Ghost-Link',
+          `Señalización enviada a ${userName}. Para audio real, configura AGORA_APP_ID y AGORA_APP_CERTIFICATE en el backend.`,
+        );
+      }
+    } catch (error: any) {
+      if (isGhostLinkExpoGoAbortError(error)) {
         return;
       }
       Alert.alert(
         'No se pudo iniciar Ghost-Link',
-        error?.message || 'Intenta nuevamente.'
+        error?.message || 'Intenta nuevamente.',
       );
     }
   },

@@ -1,4 +1,26 @@
+import { isGhostLinkAgoraNativeAvailable } from '@/services/expoGoAgoraGuard';
 import axios from 'axios';
+import { Alert } from 'react-native';
+
+/** Aborta startGhostLinkVoipCall en Expo Go tras informar al usuario (evita doble Alert en el caller). */
+export class GhostLinkExpoGoAbortError extends Error {
+  constructor() {
+    super('GHOST_LINK_EXPO_GO_ABORT');
+    this.name = 'GhostLinkExpoGoAbortError';
+  }
+}
+
+export function isGhostLinkExpoGoAbortError(e: unknown): boolean {
+  return e instanceof GhostLinkExpoGoAbortError;
+}
+
+function alertGhostLinkExpoGo(): void {
+  Alert.alert(
+    'Ghost-Link',
+    'Motor de audio solo disponible en compilaciones nativas (development build / EAS). En Expo Go puedes seguir usando el resto de la app.\n\n' +
+      'Audio engine is only available in native builds. The rest of the app works in Expo Go.',
+  );
+}
 
 export type GhostLinkCardContext = {
   sourceCardId?: string | null;
@@ -11,10 +33,35 @@ export type GhostLinkCallStartParams = {
   card: GhostLinkCardContext;
 };
 
+/** Credenciales RTC devueltas por el backend (token corto, uid entero Agora). */
+export type GhostLinkAgoraRtc = {
+  appId: string;
+  channelName: string;
+  token: string;
+  uid: number;
+};
+
+function parseAgoraRtc(raw: unknown): GhostLinkAgoraRtc | undefined {
+  if (!raw || typeof raw !== 'object') {
+    return undefined;
+  }
+  const o = raw as Record<string, unknown>;
+  const appId = String(o.appId || '').trim();
+  const channelName = String(o.channelName || '').trim();
+  const token = String(o.token || '').trim();
+  const uid = Number(o.uid);
+  if (!appId || !channelName || !token || !Number.isFinite(uid) || uid < 1) {
+    return undefined;
+  }
+  return { appId, channelName, token, uid };
+}
+
 export type GhostLinkCallStartResult = {
   inviteId?: string;
   sessionId: string;
-  engine: 'azure-communication-services';
+  engine: 'agora' | 'signaling-only';
+  /** Presente cuando el backend tiene Agora configurado (AGORA_* en servidor). */
+  agora?: GhostLinkAgoraRtc;
   callChannel: 'ghost-link-voip';
   callerDisplay: {
     name: string;
@@ -38,6 +85,7 @@ export type GhostLinkIncomingInvite = {
   sourceCardName: string;
   sourceCardId: string | null;
   callChannel: 'ghost-link-voip';
+  agora?: GhostLinkAgoraRtc;
   callerDisplay: {
     name: string;
     nickname: string;
@@ -100,6 +148,11 @@ export async function startGhostLinkVoipCall(
     throw new Error('ownerUid, targetUid y sourceCardName son obligatorios para Ghost-Link.');
   }
 
+  if (!isGhostLinkAgoraNativeAvailable()) {
+    alertGhostLinkExpoGo();
+    throw new GhostLinkExpoGoAbortError();
+  }
+
   const jwt = await getQrScopedJwt(ownerUid);
   const response = await axios.post(
     `${getApiBaseUrl()}/api/qr/voip/ghost-link/start`,
@@ -118,10 +171,14 @@ export async function startGhostLinkVoipCall(
     }
   );
 
+  const engineRaw = String(response?.data?.engine || '').trim();
+  const engine: 'agora' | 'signaling-only' = engineRaw === 'agora' ? 'agora' : 'signaling-only';
+
   return {
     inviteId: response?.data?.inviteId ? String(response.data.inviteId) : undefined,
     sessionId: String(response?.data?.sessionId || ''),
-    engine: 'azure-communication-services',
+    engine,
+    agora: parseAgoraRtc(response?.data?.agora),
     callChannel: 'ghost-link-voip',
     callerDisplay: {
       name: String(response?.data?.callerDisplay?.name || 'Emisor'),
@@ -169,6 +226,7 @@ export async function getIncomingGhostLinkInvite(params: {
     sourceCardName: String(invite?.sourceCardName || 'Tarjeta Social'),
     sourceCardId: invite?.sourceCardId ? String(invite.sourceCardId) : null,
     callChannel: 'ghost-link-voip',
+    agora: parseAgoraRtc(invite?.agora),
     callerDisplay: {
       name: String(invite?.callerDisplay?.name || 'Contacto'),
       nickname: String(invite?.callerDisplay?.nickname || 'user'),

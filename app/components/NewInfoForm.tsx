@@ -4,12 +4,14 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActionSheetIOS,
   Alert,
   Dimensions,
   FlatList,
   Image,
+  InteractionManager,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -25,8 +27,11 @@ import {
 // import { PDFDocument } from 'pdf-lib'; // [SILENCIADO POR ERROR DE DEPENDENCIA]
 import BrandedSpinner from '@/components/BrandedSpinner';
 import { getActiveUserId } from '@/services/authSession';
+import { newEntityId } from '@/services/newEntityId';
+import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { fetchFaviconFromAzure } from '@/services/faviconApi';
+import { premiumTheme } from '../_premiumTheme';
 import { db } from '@/services/firebaseConfig';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
@@ -35,27 +40,62 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 import Toast from 'react-native-toast-message';
+import { getUserCreditsBalance } from '@/services/creditsService';
+import {
+  ensureFreeStarterIconVault,
+  getOwnedIconVaultKeySet,
+  stableKeyForCatalogIcon,
+} from '@/services/iconVaultService';
+import { GHOST_LINK_VAULT_TYPE, GHOST_LINK_VAULT_VALUE } from '@/constants/ghostLinkVault';
 import CardStudioVault, { ICON_GALLERY } from './CardStudioVault';
 import FilePreviewModal from './FilePreviewModal';
 import { sanitizeMaterialIconName } from './iconNameValidation';
 import LuxuryModerationModal from './LuxuryModerationModal';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
-const VAULT_STORAGE_KEY = 'vault_data';
-const DEFAULT_ICON_ID = ICON_GALLERY[0]?.id ?? '1';
-const LINK_FALLBACK_ICON_ID =
-  ICON_GALLERY.find((icon) => icon.icon === 'link-variant')?.id ?? DEFAULT_ICON_ID;
+
+const LINK_FALLBACK_GALLERY_ITEM =
+  ICON_GALLERY.find((icon) => icon.icon === 'link-variant') ?? ICON_GALLERY[0];
+/** Clave estable en users/{uid}/icon_vault — canónica para selección y persistencia */
+const DEFAULT_ICON_STABLE = LINK_FALLBACK_GALLERY_ITEM
+  ? stableKeyForCatalogIcon(LINK_FALLBACK_GALLERY_ITEM)
+  : 'link-variant__Link';
+
+function legacyIdToStableKey(legacyId: string): string {
+  const it = ICON_GALLERY.find((i) => i.id === legacyId);
+  return it ? stableKeyForCatalogIcon(it) : legacyId;
+}
+
+function galleryItemByStableOrLegacy(sel: string) {
+  if (!sel || sel === 'favicon') return undefined;
+  return (
+    ICON_GALLERY.find((i) => stableKeyForCatalogIcon(i) === sel) || ICON_GALLERY.find((i) => i.id === sel)
+  );
+}
+
 const CLOUD_SYNC_TIMEOUT_MS = 8000;
 
-type DataType = 'Enlaces' | 'Teléfono' | 'Email' | 'Texto Plain' | 'Documento';
+type DataType = 'Enlaces' | 'Teléfono' | 'Ghost-Link' | 'Email' | 'Texto Plain' | 'Documento';
 
-const DATA_TYPE_OPTIONS: Array<{ key: DataType; label: string; labelEn: string }> = [
-  { key: 'Enlaces', label: 'Enlace', labelEn: 'Link' },
-  { key: 'Email', label: 'Email', labelEn: 'Email' },
-  { key: 'Teléfono', label: 'Teléfono', labelEn: 'Phone' },
-  { key: 'Texto Plain', label: 'Texto', labelEn: 'Text' },
-  { key: 'Documento', label: 'Documento', labelEn: 'Document' },
+const DATA_TYPE_OPTIONS: Array<{
+  key: DataType;
+  label: string;
+  labelEn: string;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+}> = [
+  { key: 'Enlaces', label: 'Enlace', labelEn: 'Link', icon: 'link-variant' },
+  { key: 'Email', label: 'Email', labelEn: 'Email', icon: 'email-outline' },
+  { key: 'Teléfono', label: 'Teléfono', labelEn: 'Phone', icon: 'phone-outline' },
+  { key: 'Texto Plain', label: 'Texto', labelEn: 'Text', icon: 'text-box-outline' },
+  { key: 'Documento', label: 'Documento', labelEn: 'Document', icon: 'file-document-outline' },
+  { key: 'Ghost-Link', label: 'Ghost Link', labelEn: 'Ghost Link', icon: 'phone-in-talk' },
 ];
+
+const defaultGhostLinkIconStable = (() => {
+  const it =
+    ICON_GALLERY.find((i) => i.icon === 'phone-in-talk') || ICON_GALLERY.find((i) => i.icon === 'phone-voip');
+  return it ? stableKeyForCatalogIcon(it) : DEFAULT_ICON_STABLE;
+})();
 
 interface Link {
   id: string;
@@ -64,6 +104,9 @@ interface Link {
   value: string;
   iconName: string;
   icon?: string;
+  /** Clave documento en users/{uid}/icon_vault (estable); opcional en datos legacy */
+  iconVaultId?: string;
+  vaultProtected?: boolean;
   isFavorite: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -116,36 +159,86 @@ const COUNTRY_CODES = [
   { code: '+66', country: 'Tailandia' },
 ];
 
-// Tamaño máximo de archivos (en bytes)
-const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2 MB
+// Tamaño máximo de imágenes en Búnker (alineado con Historias + backend moderation `imageMaxBytes`)
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
+/** Borde largo tras compresión (tarjeta nítida sin peso excesivo). */
+const VAULT_IMAGE_MAX_LONG_EDGE = 2000;
+const VAULT_JPEG_QUALITY_INITIAL = 0.8;
 const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024; // 20 MB
+const PICKER_LAUNCH_TIMEOUT_MS = 14000;
+const PICKER_STALE_LOCK_MS = 20000;
 
 const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingData?: Link }) => {
   const { resolvedMode } = useLookMode();
   const { language } = useLanguage();
   const tr = (es: string, en: string) => language === 'en' ? en : es;
   const isNight = resolvedMode === 'noche';
-  const formTheme = {
-    motherBg: isNight ? '#0A2540' : '#E3F2FD',
-    surfaceBg: isNight ? '#0A2540' : '#E3F2FD',
-    border: isNight ? '#D4AF37' : '#D4AF37',
-    textPrimary: isNight ? '#F0F4F8' : '#002D4B',
-    textSecondary: isNight ? '#B8D9F0' : '#7A8A97',
-    inputBg: isNight ? '#0D2E40' : '#E3F2FD',
-    inputText: isNight ? '#F0F4F8' : '#002D4B',
-    inputPlaceholder: isNight ? '#87A9C2' : '#666666',
-    selectedPillBg: isNight ? '#1C5BB9' : '#54C1FB',
-    selectedPillText: '#F0F4F8',
-    selectedPillGlow: isNight ? '#1C5BB9' : '#54C1FB',
-    selectedBgInput: isNight ? '#1C5BB9' : '#54C1FB',
-    iconPreviewCircleBg: isNight ? '#0B2234' : '#F0F4F8',
-    iconPreviewCircleBorder: isNight ? '#C5A065' : '#CFE6F8',
-    gradientColors: (isNight ? ['#E8C547', '#C5A065', '#D4AF37'] : ['#00BFD9', '#00A0C6', '#0099CC']) as readonly [string, string, ...string[]],
-  };
+  const formTheme = useMemo(
+    () => ({
+      motherBg: isNight ? '#0E0E0E' : '#FAF8F4',
+      surfaceBg: isNight ? '#141414' : '#FFFFFF',
+      /** Alineado con `premiumTheme.surfaceElevated` (tarjetas / paneles). */
+      premiumElevated: isNight ? premiumTheme.dark.surfaceElevated : premiumTheme.light.surfaceElevated,
+      chipInactiveBg: isNight ? '#161616' : '#F3EFE8',
+      chipInactiveBorder: isNight ? 'rgba(153,144,124,0.4)' : 'rgba(92,77,50,0.22)',
+      border: '#D4AF37',
+      labelGold: '#D4AF37',
+      titleColor: isNight ? '#FFFFFF' : '#1A1510',
+      textPrimary: isNight ? '#F2F0EB' : '#1C180F',
+      textSecondary: isNight ? '#9A9388' : '#5C5346',
+      inputBg: isNight ? '#101010' : '#FFFCF7',
+      inputText: isNight ? '#F0EDE8' : '#1C180F',
+      inputPlaceholder: isNight ? 'rgba(212,175,55,0.42)' : 'rgba(92,77,50,0.45)',
+      onLuxuryCta: '#0C0C0C',
+      /** Icono fallback dentro del aro (fondo oscuro → trazo claro). */
+      previewIconInCircle: isNight ? premiumTheme.dark.onVipBanner : premiumTheme.light.onAccent,
+      accentMuted: isNight ? 'rgba(242,202,80,0.55)' : 'rgba(180,140,50,0.55)',
+      selectedPillBg: isNight ? '#2A2418' : '#FFF6E0',
+      selectedPillText: isNight ? '#0C0C0C' : '#0C0C0C',
+      selectedPillGlow: '#C9A227',
+      selectedBgInput: isNight ? '#1C1810' : '#FFF3DC',
+      iconPreviewCircleBg: isNight ? premiumTheme.dark.surfaceElevated : premiumTheme.light.surfaceElevated,
+      iconPreviewCircleBorder: isNight ? '#C5A065' : '#D4AF37',
+      /** Marco de inputs (oro). */
+      gradientColors: (isNight
+        ? (['#5C4D32', '#B8942E', '#E8D4A3', '#C9A227', '#5C4D32'] as const)
+        : (['#A68B5B', '#D4AF37', '#F8EED0', '#D4AF37', '#8B7349'] as const)) as readonly [string, string, ...string[]],
+      /** Chips activos (relleno metálico). */
+      chipActiveFillGradient: (isNight
+        ? (['#5A4820', '#C9A227', '#FFF2C4', '#E8D4A3', '#B8942E', '#5A4820'] as const)
+        : (['#7A6528', '#E0C068', '#FFF8E8', '#F0D878', '#C9A227', '#7A6528'] as const)) as readonly [string, string, ...string[]],
+      /** Botón CREAR. */
+      ctaGradient: (isNight
+        ? (['#6B5420', '#B8942E', '#FFEFD0', '#F2CA50', '#D4AF37', '#6B5420'] as const)
+        : (['#8B7340', '#D4AF37', '#FFF4D8', '#F2CA50', '#C9A227', '#7A6228'] as const)) as readonly [string, string, ...string[]],
+      previewCardBg: isNight ? 'rgba(18,16,12,0.96)' : 'rgba(255,252,247,0.98)',
+      previewCardBorder: (isNight
+        ? (['#5C4D32', '#E8C76F', '#F2CA50', '#C9A227', '#5C4D32'] as const)
+        : (['#A68B5B', '#E8D0A0', '#F5E6C8', '#D4AF37', '#9A8358'] as const)) as readonly [string, string, ...string[]],
+    }),
+    [isNight],
+  );
+  /** 3 columnas × 2 filas; padding horizontal del scroll 20+20, dos huecos entre columnas. */
+  const typeChipGap = 8;
+  const typeChipWidth = (Dimensions.get('window').width - 40 - typeChipGap * 2) / 3;
   const [dataType, setDataType] = useState<DataType>('Enlaces');
   const [dataName, setDataName] = useState('');
   const [dataValue, setDataValue] = useState('');
-  const [selectedIcon, setSelectedIcon] = useState(DEFAULT_ICON_ID);
+  const [selectedIcon, setSelectedIcon] = useState(DEFAULT_ICON_STABLE);
+  const [ownedIconVaultKeys, setOwnedIconVaultKeys] = useState<Set<string>>(new Set());
+  const [creditsBalance, setCreditsBalance] = useState(0);
+
+  const refreshStudioEconomy = useCallback(async () => {
+    const uid = await getActiveUserId();
+    if (!uid) return;
+    await ensureFreeStarterIconVault(uid);
+    const [keys, bal] = await Promise.all([
+      getOwnedIconVaultKeySet(uid),
+      getUserCreditsBalance(uid),
+    ]);
+    setOwnedIconVaultKeys(keys);
+    setCreditsBalance(bal);
+  }, []);
   const [countryCode, setCountryCode] = useState('+1');
   const [autoTypeSuggestion, setAutoTypeSuggestion] = useState<DataType | null>(null);
   
@@ -159,6 +252,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const [faviconPromptDomain, setFaviconPromptDomain] = useState('');
   const [lastFaviconDomain, setLastFaviconDomain] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isPicking, setIsPicking] = useState(false);
   const [fileTypeModalVisible, setFileTypeModalVisible] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
   const [assetPreviewVisible, setAssetPreviewVisible] = useState(false);
@@ -184,6 +278,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const faviconPromptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dismissedFaviconPromptDomainsRef = useRef<Set<string>>(new Set());
   const closeGenerationRef = useRef(0);
+  const isPickingRef = useRef(false);
+  const pickerLockTimestampRef = useRef<number | null>(null);
+  const pickerWatchdogTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fileTypeModalDismissResolverRef = useRef<((reason: string) => void) | null>(null);
   const pendingTimeoutsRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const pendingInteractionTasksRef = useRef<Array<{ cancel?: () => void }>>([]);
   const isMountedRef = useRef(true);
@@ -198,6 +296,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
   const logAssetAudit = (stage: string, payload: Record<string, any>) => {
     console.log('[ELITE_UPLOAD_AUDIT]', stage, JSON.stringify(payload));
+  };
+
+  const logPickerTrace = (stage: string, payload: Record<string, any> = {}) => {
+    console.log('[NEWINFO_PICKER_TRACE]', stage, JSON.stringify(payload));
   };
 
   const trackTimeout = (callback: () => void, delayMs: number) => {
@@ -223,6 +325,13 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const clearPendingAsyncWork = () => {
     closeGenerationRef.current += 1;
     faviconLookupTokenRef.current += 1;
+    if (pickerWatchdogTimeoutRef.current) {
+      clearTimeout(pickerWatchdogTimeoutRef.current);
+      pickerWatchdogTimeoutRef.current = null;
+    }
+    pickerLockTimestampRef.current = null;
+    fileTypeModalDismissResolverRef.current = null;
+    isPickingRef.current = false;
     if (faviconPromptTimerRef.current) {
       clearTimeout(faviconPromptTimerRef.current);
       faviconPromptTimerRef.current = null;
@@ -295,30 +404,29 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setModerationAlertVisible(true);
   };
 
+  useEffect(() => {
+    void refreshStudioEconomy();
+  }, [refreshStudioEconomy]);
+
   // Pre-populate form if editing
   useEffect(() => {
     if (editingData?.id) {
       const type = editingData.type as DataType;
       setDataType(type);
       setDataName(editingData.title);
-      setDataValue(editingData.value);
+      setDataValue(type === GHOST_LINK_VAULT_TYPE ? GHOST_LINK_VAULT_VALUE : editingData.value);
       
-      // Try to find the icon by name or use favicon
       if (editingData.icon?.startsWith('http')) {
         setSelectedIcon('favicon');
         setFaviconUrl(editingData.icon);
+      } else if (editingData.iconVaultId) {
+        setSelectedIcon(editingData.iconVaultId);
       } else {
-        // Find icon by label/iconName in the correct type
-        const iconsForType = ICON_GALLERY;
-        if (iconsForType) {
-          const iconIndex = iconsForType.findIndex(i => i.label === editingData.iconName);
-          if (iconIndex >= 0) {
-            setSelectedIcon((iconIndex + 1).toString());
-          } else {
-            setSelectedIcon(DEFAULT_ICON_ID);
-          }
+        const match = ICON_GALLERY.find((i) => i.label === editingData.iconName);
+        if (match) {
+          setSelectedIcon(stableKeyForCatalogIcon(match));
         } else {
-          setSelectedIcon(DEFAULT_ICON_ID);
+          setSelectedIcon(DEFAULT_ICON_STABLE);
         }
       }
     }
@@ -350,37 +458,36 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   // IDs basados en orden actual de RAW_SECTIONS: LinkedIn=1,Instagram=2,Facebook=3,
   // WhatsApp=4,Twitter=5,TikTok=6,YouTube=7,Snapchat=8,Web=9,Link=10
   const KNOWN_DOMAIN_ICONS: Record<string, string> = {
-    'facebook.com':    '3',  // facebook
-    'fb.com':          '3',
-    'm.facebook.com':  '3',
-    'instagram.com':   '2',  // instagram
-    'linkedin.com':    '1',  // linkedin
-    'whatsapp.com':    '4',  // whatsapp
-    'wa.me':           '4',
-    'youtube.com':     '7',  // youtube
-    'youtu.be':        '7',
-    'twitter.com':     '5',  // twitter/x
-    'x.com':           '5',
-    'tiktok.com':      '6',  // tiktok
-    'snapchat.com':    '8',  // snapchat
-    'maps.google.com': '9',  // web/map
-    'goo.gl':          '9',
-    'maps.apple.com':  '9',
+    'facebook.com':    legacyIdToStableKey('3'),
+    'fb.com':          legacyIdToStableKey('3'),
+    'm.facebook.com':  legacyIdToStableKey('3'),
+    'instagram.com':   legacyIdToStableKey('2'),
+    'linkedin.com':    legacyIdToStableKey('1'),
+    'whatsapp.com':    legacyIdToStableKey('4'),
+    'wa.me':           legacyIdToStableKey('4'),
+    'youtube.com':     legacyIdToStableKey('7'),
+    'youtu.be':        legacyIdToStableKey('7'),
+    'twitter.com':     legacyIdToStableKey('5'),
+    'x.com':           legacyIdToStableKey('5'),
+    'tiktok.com':      legacyIdToStableKey('6'),
+    'snapchat.com':    legacyIdToStableKey('8'),
+    'maps.google.com': legacyIdToStableKey('9'),
+    'goo.gl':          legacyIdToStableKey('9'),
+    'maps.apple.com':  legacyIdToStableKey('9'),
   };
 
-  // ─── KNOWN NAMES → ICON_GALLERY id (sugerencia por nombre de data) ────────────
   const KNOWN_NAME_ICONS: Array<{ keywords: string[]; iconId: string }> = [
-    { keywords: ['linkedin'],               iconId: '1'  },
-    { keywords: ['instagram'],              iconId: '2'  },
-    { keywords: ['facebook', 'fb'],         iconId: '3'  },
-    { keywords: ['whatsapp'],               iconId: '4'  },
-    { keywords: ['twitter', 'tweet', ' x '],iconId: '5'  },
-    { keywords: ['tiktok', 'tik tok'],      iconId: '6'  },
-    { keywords: ['youtube', ' yt '],        iconId: '7'  },
-    { keywords: ['snapchat', 'snap'],       iconId: '8'  },
-    { keywords: ['gmail'],                  iconId: '21' },
-    { keywords: ['outlook'],                iconId: '24' },
-    { keywords: ['yahoo'],                  iconId: '25' },
+    { keywords: ['linkedin'],               iconId: legacyIdToStableKey('1') },
+    { keywords: ['instagram'],              iconId: legacyIdToStableKey('2') },
+    { keywords: ['facebook', 'fb'],         iconId: legacyIdToStableKey('3') },
+    { keywords: ['whatsapp'],               iconId: legacyIdToStableKey('4') },
+    { keywords: ['twitter', 'tweet', ' x '], iconId: legacyIdToStableKey('5') },
+    { keywords: ['tiktok', 'tik tok'],      iconId: legacyIdToStableKey('6') },
+    { keywords: ['youtube', ' yt '],        iconId: legacyIdToStableKey('7') },
+    { keywords: ['snapchat', 'snap'],       iconId: legacyIdToStableKey('8') },
+    { keywords: ['gmail'],                  iconId: legacyIdToStableKey('21') },
+    { keywords: ['outlook'],                iconId: legacyIdToStableKey('24') },
+    { keywords: ['yahoo'],                  iconId: legacyIdToStableKey('25') },
   ];
 
   const extractDomainFromLink = (rawValue: string): string => {
@@ -522,6 +629,70 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           autoCorrect={false}
         />
       </LinearGradient>
+      {(dataName.trim() || dataValue.trim()) && (
+        <LinearGradient
+          colors={formTheme.previewCardBorder}
+          locations={[0, 0.22, 0.48, 0.55, 0.78, 1]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.linkPreviewLuxOuter}
+        >
+          <View
+            style={[
+              styles.linkPreviewInner,
+              { backgroundColor: formTheme.previewCardBg },
+              Platform.select({
+                ios: {
+                  shadowColor: '#F2CA50',
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: isNight ? 0.42 : 0.28,
+                  shadowRadius: 16,
+                },
+                android: { elevation: isNight ? 10 : 6 },
+                default: {},
+              }),
+            ]}
+          >
+            <Text style={[styles.linkPreviewSectionLabel, { color: formTheme.labelGold }]}>
+              {tr('VISTA PREVIA', 'PREVIEW')}
+            </Text>
+            <View style={styles.linkPreviewRow}>
+              <LinearGradient
+                colors={formTheme.chipActiveFillGradient as readonly [string, string, ...string[]]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.linkPreviewIconFrame}
+              >
+                <View style={[styles.linkPreviewIconInner, { backgroundColor: formTheme.iconPreviewCircleBg }]}>
+                  {selectedIcon === 'favicon' && faviconUrl ? (
+                    <Image source={{ uri: faviconUrl }} style={styles.linkPreviewFavicon} />
+                  ) : (
+                    <MaterialCommunityIcons
+                      name={
+                        sanitizeMaterialIconName(
+                          (selectedIcon === 'favicon' ? undefined : galleryItemByStableOrLegacy(selectedIcon))?.icon ||
+                            'link',
+                        ) as any
+                      }
+                      color={formTheme.previewIconInCircle}
+                      size={26}
+                    />
+                  )}
+                </View>
+              </LinearGradient>
+              <View style={styles.linkPreviewTextCol}>
+                <Text style={[styles.linkPreviewTitle, { color: formTheme.textPrimary }]} numberOfLines={1}>
+                  {dataName.trim() || tr('Sin nombre', 'No name')}
+                </Text>
+                <Text style={[styles.linkPreviewUrl, { color: formTheme.textSecondary }]} numberOfLines={1}>
+                  {dataValue.trim() || getLinkPlaceholder()}
+                </Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={22} color={formTheme.labelGold} />
+            </View>
+          </View>
+        </LinearGradient>
+      )}
       {dataType === 'Enlaces' && faviconPromptVisible && !!faviconPromptDomain && !faviconLoading && (
         <View style={styles.faviconPromptCard}>
           <Text style={styles.faviconPromptTitle}>
@@ -555,11 +726,20 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       )}
       {faviconUrl && (
         <View>
-          <View style={styles.faviconContainer}>
+          <View
+            style={[
+              styles.faviconContainer,
+              {
+                backgroundColor: formTheme.premiumElevated,
+                borderWidth: 1,
+                borderColor: formTheme.chipInactiveBorder,
+              },
+            ]}
+          >
             <Image source={{ uri: faviconUrl }} style={styles.faviconImg} />
-            <Text style={styles.faviconLabel}>{tr('Favicon detectado', 'Favicon detected')}</Text>
+            <Text style={[styles.faviconLabel, { color: formTheme.labelGold }]}>{tr('Favicon detectado', 'Favicon detected')}</Text>
           </View>
-          <Text style={styles.wordCount}>{tr('Si quieres otro estilo, elige un icono de la galería oficial.', 'Want a different style? Pick an icon from the official gallery.')}</Text>
+          <Text style={[styles.wordCount, { color: formTheme.textSecondary }]}>{tr('Si quieres otro estilo, elige un icono de la galería oficial.', 'Want a different style? Pick an icon from the official gallery.')}</Text>
         </View>
       )}
     </View>
@@ -618,19 +798,25 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     if (editingData?.id) return;
     if (prevDataTypeRef.current === dataType) return;
     prevDataTypeRef.current = dataType;
-    setSelectedIcon(DEFAULT_ICON_ID);
-    setFaviconUrl('');
     closeFaviconSuggestion();
     setFaviconPromptVisible(false);
     setFaviconPromptDomain('');
     dismissedFaviconPromptDomainsRef.current.clear();
     setLastFaviconDomain('');
-    // Keep dataName and dataValue — user may have typed them intentionally
+    if (dataType === GHOST_LINK_VAULT_TYPE) {
+      setDataValue(GHOST_LINK_VAULT_VALUE);
+      setSelectedIcon(defaultGhostLinkIconStable);
+      setFaviconUrl('');
+    } else {
+      setSelectedIcon(DEFAULT_ICON_STABLE);
+      setFaviconUrl('');
+    }
   }, [dataType, editingData?.id]);
 
   // ── Auto-detectar tipo al pegar un valor ──────────────────────────────────
   useEffect(() => {
     if (!dataValue.trim() || editingData?.id) return;
+    if (dataValue.trim() === GHOST_LINK_VAULT_VALUE) return;
     const v = dataValue.trim();
     let detected: DataType | null = null;
     if (/^(https?:\/\/|www\.)\S+/i.test(v)) {
@@ -649,7 +835,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
   // ── Sugerir ícono por nombre de data (silencioso) ─────────────────────────
   useEffect(() => {
-    if (!dataName.trim() || selectedIcon !== DEFAULT_ICON_ID || editingData?.id) return;
+    if (!dataName.trim() || selectedIcon !== DEFAULT_ICON_STABLE || editingData?.id || dataType === GHOST_LINK_VAULT_TYPE) return;
     const nameLower = ` ${dataName.trim().toLowerCase()} `;
     for (const entry of KNOWN_NAME_ICONS) {
       if (entry.keywords.some((kw) => nameLower.includes(kw))) {
@@ -690,7 +876,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setDataName('');
     setDataValue('');
     setDataType('Enlaces');
-    setSelectedIcon(DEFAULT_ICON_ID);
+    setSelectedIcon(DEFAULT_ICON_STABLE);
     setCountryCode('+1');
     setFaviconUrl('');
     closeFaviconSuggestion();
@@ -718,7 +904,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   };
 
   const confirmAssetPreview = () => {
-    if (!pendingAsset) return;
+    if (!pendingAsset?.uri) return;
     setDataValue(pendingAsset.uri);
     if (!dataName.trim()) {
       const baseName = pendingAsset.name.replace(/\.[^/.]+$/, '');
@@ -738,7 +924,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setPendingAsset(null);
     trackTimeout(() => {
       if (!isSessionClosed(sessionToken)) {
-        setFileTypeModalVisible(true);
+        handlePickFile();
       }
     }, 150);
   };
@@ -795,54 +981,84 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     return mime.includes('pdf') || /\.pdf(\?|$)/i.test(String(uri || ''));
   };
 
-  // Optimiza imágenes automáticamente para cumplir límites de cliente/backend.
+  const alertVaultImageTooLarge = () => {
+    Alert.alert(
+      tr('Imagen demasiado grande', 'Image too large'),
+      tr(
+        'La imagen es demasiado grande. Intenta usar una foto con menos resolución.',
+        'The image is too large. Try using a photo with lower resolution.',
+      ),
+    );
+  };
+
+  /** Redimensiona borde largo ≤2000px, JPEG 0.8, y re-comprime hasta caber en maxBytes (p. ej. 5MB). */
   const optimizeImageForLimit = async (uri: string, maxBytes: number): Promise<{ uri: string; size: number }> => {
     try {
       setIsCompressing(true);
 
-      const initialSize = await getFileSizeInBytes(uri);
-      if (initialSize <= maxBytes) {
-        return { uri, size: initialSize };
+      const readDimensions = (): Promise<{ w: number; h: number }> =>
+        new Promise((resolve, reject) => {
+          Image.getSize(
+            uri,
+            (w, h) => resolve({ w, h }),
+            (e) => reject(e),
+          );
+        });
+
+      let width = 0;
+      let height = 0;
+      try {
+        const d = await readDimensions();
+        width = d.w;
+        height = d.h;
+      } catch {
+        width = 0;
+        height = 0;
       }
 
-      let bestUri = uri;
-      let bestSize = initialSize;
-
-      const attempts = [
-        { width: 1920, compress: 0.72 },
-        { width: 1440, compress: 0.62 },
-        { width: 1080, compress: 0.52 },
-        { width: 840, compress: 0.45 },
-        { width: 640, compress: 0.38 },
-      ];
-
-      for (const attempt of attempts) {
-        const manipResult = await ImageManipulator.manipulateAsync(
-          bestUri,
-          [{ resize: { width: attempt.width } }],
-          { compress: attempt.compress, format: ImageManipulator.SaveFormat.JPEG }
-        );
-        const size = await getFileSizeInBytes(manipResult.uri);
-        bestUri = manipResult.uri;
-        bestSize = size;
-
-        if (size <= maxBytes) {
-          return { uri: bestUri, size: bestSize };
+      const resizeActions: ImageManipulator.Action[] = [];
+      if (width > 0 && height > 0) {
+        const longEdge = Math.max(width, height);
+        if (longEdge > VAULT_IMAGE_MAX_LONG_EDGE) {
+          if (width >= height) {
+            resizeActions.push({ resize: { width: VAULT_IMAGE_MAX_LONG_EDGE } });
+          } else {
+            resizeActions.push({ resize: { height: VAULT_IMAGE_MAX_LONG_EDGE } });
+          }
         }
+      } else {
+        resizeActions.push({ resize: { width: VAULT_IMAGE_MAX_LONG_EDGE } });
       }
 
-      // Lógica de emergencia: último intento a 480px y calidad 0.2
-      const emergencyResult = await ImageManipulator.manipulateAsync(
-        bestUri,
-        [{ resize: { width: 480 } }],
-        { compress: 0.2, format: ImageManipulator.SaveFormat.JPEG }
-      );
-      const emergencySize = await getFileSizeInBytes(emergencyResult.uri);
-      if (emergencySize <= maxBytes) {
-        return { uri: emergencyResult.uri, size: emergencySize };
+      let out = await ImageManipulator.manipulateAsync(uri, resizeActions, {
+        compress: VAULT_JPEG_QUALITY_INITIAL,
+        format: ImageManipulator.SaveFormat.JPEG,
+      });
+      let size = await getFileSizeInBytes(out.uri);
+
+      let q = 0.72;
+      for (let step = 0; step < 10 && size > maxBytes; step += 1) {
+        const r = await ImageManipulator.manipulateAsync(out.uri, [], {
+          compress: q,
+          format: ImageManipulator.SaveFormat.JPEG,
+        });
+        out = r;
+        size = await getFileSizeInBytes(out.uri);
+        q = Math.max(0.32, q - 0.07);
       }
-      // Si aún así no baja, devolver el último intento (probablemente corrupto o imposible)
-      return { uri: emergencyResult.uri, size: emergencySize };
+
+      let edge = VAULT_IMAGE_MAX_LONG_EDGE;
+      for (let downgrade = 0; downgrade < 6 && size > maxBytes; downgrade += 1) {
+        edge = Math.max(720, Math.round(edge * 0.85));
+        const r = await ImageManipulator.manipulateAsync(out.uri, [{ resize: { width: edge } }], {
+          compress: Math.max(0.38, q),
+          format: ImageManipulator.SaveFormat.JPEG,
+        });
+        out = r;
+        size = await getFileSizeInBytes(out.uri);
+      }
+
+      return { uri: out.uri, size };
     } catch (error) {
       console.error('Error compressing image:', error);
       const size = await getFileSizeInBytes(uri).catch(() => Number.MAX_SAFE_INTEGER);
@@ -879,25 +1095,184 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     }
   };
 
+  const forceUnlockPicker = (reason: string) => {
+    if (pickerWatchdogTimeoutRef.current) {
+      clearTimeout(pickerWatchdogTimeoutRef.current);
+      pickerWatchdogTimeoutRef.current = null;
+    }
+    pickerLockTimestampRef.current = null;
+    isPickingRef.current = false;
+    setIsPicking(false);
+    logPickerTrace('PICKER_FORCE_UNLOCK', { reason });
+  };
+
+  const startPickerGuard = (source: string) => {
+    pickerLockTimestampRef.current = Date.now();
+    if (pickerWatchdogTimeoutRef.current) {
+      clearTimeout(pickerWatchdogTimeoutRef.current);
+    }
+    pickerWatchdogTimeoutRef.current = setTimeout(() => {
+      if (isPickingRef.current) {
+        forceUnlockPicker(`${source}_watchdog_timeout`);
+      }
+    }, PICKER_STALE_LOCK_MS);
+    logPickerTrace('PICKER_GUARD_START', { source, timeoutMs: PICKER_STALE_LOCK_MS });
+  };
+
+  const stopPickerGuard = (source: string) => {
+    if (pickerWatchdogTimeoutRef.current) {
+      clearTimeout(pickerWatchdogTimeoutRef.current);
+      pickerWatchdogTimeoutRef.current = null;
+    }
+    pickerLockTimestampRef.current = null;
+    logPickerTrace('PICKER_GUARD_STOP', { source });
+  };
+
+  const withPickerLaunchTimeout = async <T,>(source: string, task: Promise<T>, timeoutMessage: string) => {
+    try {
+      return await withTimeout(task, PICKER_LAUNCH_TIMEOUT_MS, timeoutMessage);
+    } catch (error) {
+      const message = String((error as any)?.message || '');
+      if (message === timeoutMessage) {
+        logPickerTrace(`${source}_LAUNCH_TIMEOUT`, { timeoutMs: PICKER_LAUNCH_TIMEOUT_MS });
+      }
+      throw error;
+    }
+  };
+
   // Abrir selector de Fotos o Documentos
   const handlePickFile = () => {
+    logPickerTrace('OPEN_PICKER_SHEET_REQUEST', {
+      isPickingState: isPicking,
+      isPickingRef: isPickingRef.current,
+      isCompressing,
+    });
+
+    if (isPickingRef.current) {
+      const lockAgeMs = pickerLockTimestampRef.current ? Date.now() - pickerLockTimestampRef.current : null;
+      if (lockAgeMs === null || lockAgeMs > PICKER_STALE_LOCK_MS) {
+        logPickerTrace('OPEN_PICKER_SHEET_RECOVER_STALE_REF', { lockAgeMs });
+        forceUnlockPicker('open_sheet_stale_ref');
+      } else {
+        logPickerTrace('OPEN_PICKER_SHEET_BLOCKED_REF_BUSY', { lockAgeMs });
+        return;
+      }
+    }
+
+    // Recover from stale UI flag if ref is already free.
+    if (isPicking) {
+      logPickerTrace('OPEN_PICKER_SHEET_RECOVER_STALE_STATE');
+      setIsPicking(false);
+    }
+
+    if (Platform.OS === 'ios') {
+      logPickerTrace('OPEN_PICKER_IOS_ACTION_SHEET');
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: [
+            tr('Cancelar', 'Cancel'),
+            tr('Tomar foto', 'Take photo'),
+            tr('Elegir imagen', 'Choose image'),
+            tr('Elegir documento', 'Choose document'),
+          ],
+          cancelButtonIndex: 0,
+        },
+        (idx) => {
+          if (idx === 1) {
+            logPickerTrace('OPEN_PICKER_IOS_SELECT_CAMERA');
+            trackTimeout(() => {
+              void handleTakePhoto();
+            }, 180);
+          }
+          if (idx === 2) {
+            logPickerTrace('OPEN_PICKER_IOS_SELECT_PHOTOS');
+            trackTimeout(() => {
+              void handlePickPhotos();
+            }, 180);
+          }
+          if (idx === 3) {
+            logPickerTrace('OPEN_PICKER_IOS_SELECT_DOCUMENT');
+            trackTimeout(() => {
+              void handlePickDocument();
+            }, 180);
+          }
+        },
+      );
+      return;
+    }
+
     setFileTypeModalVisible(true);
+    logPickerTrace('OPEN_PICKER_SHEET_VISIBLE');
+  };
+
+  const closeFileTypeModal = () => {
+    logPickerTrace('CLOSE_PICKER_SHEET_REQUEST', {
+      isPickingState: isPicking,
+      isPickingRef: isPickingRef.current,
+    });
+    setFileTypeModalVisible(false);
+    // If user just dismisses picker sheet, keep picker mutex unlocked for next try.
+    if (!isPickingRef.current) {
+      setIsPicking(false);
+      logPickerTrace('CLOSE_PICKER_SHEET_UNLOCKED');
+    } else {
+      logPickerTrace('CLOSE_PICKER_SHEET_KEEP_LOCK_ACTIVE');
+    }
   };
 
   const waitForModalCloseFrame = () =>
     new Promise<void>((resolve) => {
-      trackTimeout(() => resolve(), 140);
+      if (!fileTypeModalVisible) {
+        logPickerTrace('PICKER_SHEET_WAIT_SKIPPED_NOT_VISIBLE');
+        let interactionTask: { cancel?: () => void } | null = null;
+        interactionTask = InteractionManager.runAfterInteractions(() => {
+          untrackInteractionTask(interactionTask);
+          trackTimeout(() => resolve(), Platform.OS === 'ios' ? 120 : 60);
+        });
+        trackInteractionTask(interactionTask);
+        return;
+      }
+
+      let settled = false;
+      const settle = (reason: string) => {
+        if (settled) return;
+        settled = true;
+        if (fileTypeModalDismissResolverRef.current) {
+          fileTypeModalDismissResolverRef.current = null;
+        }
+        logPickerTrace('PICKER_SHEET_WAIT_RESOLVED', { reason });
+        let interactionTask: { cancel?: () => void } | null = null;
+        interactionTask = InteractionManager.runAfterInteractions(() => {
+          untrackInteractionTask(interactionTask);
+          trackTimeout(() => resolve(), Platform.OS === 'ios' ? 220 : 90);
+        });
+        trackInteractionTask(interactionTask);
+      };
+
+      fileTypeModalDismissResolverRef.current = settle;
+      setFileTypeModalVisible(false);
+      trackTimeout(() => settle('dismiss_timeout_fallback'), Platform.OS === 'ios' ? 1100 : 500);
     });
 
   // Seleccionar imagen del dispositivo
   const handlePickPhotos = async () => {
+    if (isPickingRef.current) {
+      logPickerTrace('PICK_PHOTOS_BLOCKED_ALREADY_PICKING');
+      return;
+    }
+    isPickingRef.current = true;
+    setIsPicking(true);
+    startPickerGuard('pick_photos');
+    logPickerTrace('PICK_PHOTOS_START');
     try {
+      logPickerTrace('PICK_PHOTOS_REQUEST_PERMISSION');
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      logPickerTrace('PICK_PHOTOS_PERMISSION_RESULT', { status });
       if (status !== 'granted') {
         Alert.alert(tr('Permiso denegado', 'Permission denied'), tr('Se necesita acceso a fotos', 'Photo access required'));
         return;
       }
-      setFileTypeModalVisible(false);
+      logPickerTrace('PICK_PHOTOS_SHEET_CLOSED_WAITING_FRAME');
       await waitForModalCloseFrame();
       Toast.show({
         text1: tr('Subiendo archivo...', 'Uploading file...'),
@@ -908,10 +1283,19 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       });
       const sessionToken = closeGenerationRef.current;
       if (isSessionClosed(sessionToken)) return;
-      const result = await ImagePicker.launchImageLibraryAsync({
+      logPickerTrace('PICK_PHOTOS_LAUNCH_LIBRARY');
+      const result = await withPickerLaunchTimeout(
+        'PICK_PHOTOS_LIBRARY',
+        ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: false,
         quality: 0.8,
+        }),
+        tr('La galería tardó demasiado en responder. Reintenta.', 'Gallery took too long to respond. Please retry.')
+      );
+      logPickerTrace('PICK_PHOTOS_LIBRARY_RESULT', {
+        canceled: result.canceled,
+        assetsCount: result.assets?.length ?? 0,
       });
       if (isSessionClosed(sessionToken)) return;
       if (!result.canceled && result.assets.length > 0) {
@@ -930,10 +1314,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         if (isSessionClosed(sessionToken)) return;
         console.log('--- COMPRESIÓN REAL ---', optimized.size);
         if (optimized.size > maxImageBytes) {
-          Alert.alert(
-            tr('No se pudo optimizar', 'Could not optimize'),
-            tr('La imagen no pudo reducirse al límite seguro. Intenta otra foto o menor resolución.', 'The image could not be reduced to the safe limit. Try another photo or lower resolution.')
-          );
+          alertVaultImageTooLarge();
           return;
         }
         logAssetAudit('PICK_GALLERY_COMPRESSED', {
@@ -953,21 +1334,47 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       }
     } catch (error) {
       console.error('Error al seleccionar imagen:', error);
+      logPickerTrace('PICK_PHOTOS_ERROR', {
+        message: String((error as any)?.message || ''),
+        code: String((error as any)?.code || ''),
+      });
       Alert.alert(
         tr('No se pudo abrir la galería', 'Could not open gallery'),
         tr('Intenta nuevamente o elige un archivo desde documentos.', 'Try again or choose a file from documents.')
       );
+    } finally {
+      stopPickerGuard('pick_photos');
+      isPickingRef.current = false;
+      setIsPicking(false);
+      logPickerTrace('PICK_PHOTOS_FINALLY_RELEASE');
     }
   };
 
   const handlePickDocument = async () => {
+    if (isPickingRef.current) {
+      logPickerTrace('PICK_DOCUMENT_BLOCKED_ALREADY_PICKING');
+      return;
+    }
+    isPickingRef.current = true;
+    setIsPicking(true);
+    startPickerGuard('pick_document');
+    logPickerTrace('PICK_DOCUMENT_START');
     try {
-      setFileTypeModalVisible(false);
+      logPickerTrace('PICK_DOCUMENT_SHEET_CLOSED_WAITING_FRAME');
       await waitForModalCloseFrame();
-      const result = await DocumentPicker.getDocumentAsync({
+      logPickerTrace('PICK_DOCUMENT_LAUNCH');
+      const result = await withPickerLaunchTimeout(
+        'PICK_DOCUMENT',
+        DocumentPicker.getDocumentAsync({
         type: ['application/pdf', 'image/*'],
         multiple: false,
         copyToCacheDirectory: true,
+        }),
+        tr('El selector de documentos tardó demasiado en responder. Reintenta.', 'Document picker took too long to respond. Please retry.')
+      );
+      logPickerTrace('PICK_DOCUMENT_RESULT', {
+        canceled: result.canceled,
+        assetsCount: result.assets?.length ?? 0,
       });
 
       if (result.canceled || !result.assets?.length) {
@@ -998,10 +1405,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         finalMime = 'image/jpeg';
 
         if (finalSize > maxImageBytes) {
-          Alert.alert(
-            tr('No se pudo optimizar', 'Could not optimize'),
-            tr('No fue posible reducir la imagen al límite seguro. Prueba con otra captura.', 'Could not reduce image to safe limit. Try another capture.')
-          );
+          alertVaultImageTooLarge();
           return;
         }
         // Permitir guardar imágenes como documentos: ajustar nombre si es necesario
@@ -1067,18 +1471,37 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       });
     } catch (error) {
       console.error('Error picking document:', error);
+      logPickerTrace('PICK_DOCUMENT_ERROR', {
+        message: String((error as any)?.message || ''),
+        code: String((error as any)?.code || ''),
+      });
       Alert.alert(tr('Error', 'Error'), tr('No se pudo seleccionar el documento', 'Could not select document'));
+    } finally {
+      stopPickerGuard('pick_document');
+      isPickingRef.current = false;
+      setIsPicking(false);
+      logPickerTrace('PICK_DOCUMENT_FINALLY_RELEASE');
     }
   };
 
   const handleTakePhoto = async () => {
+    if (isPickingRef.current) {
+      logPickerTrace('PICK_CAMERA_BLOCKED_ALREADY_PICKING');
+      return;
+    }
+    isPickingRef.current = true;
+    setIsPicking(true);
+    startPickerGuard('pick_camera');
+    logPickerTrace('PICK_CAMERA_START');
     try {
+      logPickerTrace('PICK_CAMERA_REQUEST_PERMISSION');
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      logPickerTrace('PICK_CAMERA_PERMISSION_RESULT', { status });
       if (status !== 'granted') {
         Alert.alert(tr('Permiso denegado', 'Permission denied'), tr('Se necesita acceso a la cámara', 'Camera access required'));
         return;
       }
-      setFileTypeModalVisible(false);
+      logPickerTrace('PICK_CAMERA_SHEET_CLOSED_WAITING_FRAME');
       await waitForModalCloseFrame();
       Toast.show({
         text1: tr('Subiendo archivo...', 'Uploading file...'),
@@ -1089,10 +1512,19 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       });
       const sessionToken = closeGenerationRef.current;
       if (isSessionClosed(sessionToken)) return;
-      const result = await ImagePicker.launchCameraAsync({
+      logPickerTrace('PICK_CAMERA_LAUNCH');
+      const result = await withPickerLaunchTimeout(
+        'PICK_CAMERA',
+        ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
         allowsEditing: false,
         quality: 0.8,
+        }),
+        tr('La cámara tardó demasiado en responder. Reintenta.', 'Camera took too long to respond. Please retry.')
+      );
+      logPickerTrace('PICK_CAMERA_RESULT', {
+        canceled: result.canceled,
+        assetsCount: result.assets?.length ?? 0,
       });
       if (isSessionClosed(sessionToken)) return;
       if (!result.canceled && result.assets.length > 0) {
@@ -1110,10 +1542,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         if (isSessionClosed(sessionToken)) return;
         console.log('--- COMPRESIÓN REAL ---', optimized.size);
         if (optimized.size > maxImageBytes) {
-          Alert.alert(
-            tr('No se pudo optimizar', 'Could not optimize'),
-            tr('La foto no pudo reducirse al límite seguro. Intenta otra captura.', 'Photo could not be reduced to safe limit. Try another capture.')
-          );
+          alertVaultImageTooLarge();
           return;
         }
         logAssetAudit('PICK_CAMERA_COMPRESSED', {
@@ -1133,10 +1562,19 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       }
     } catch (error) {
       console.error('Error taking photo:', error);
+      logPickerTrace('PICK_CAMERA_ERROR', {
+        message: String((error as any)?.message || ''),
+        code: String((error as any)?.code || ''),
+      });
       Alert.alert(
         tr('No se pudo abrir la cámara', 'Could not open camera'),
         tr('Cierra otras apps de cámara y vuelve a intentar.', 'Close other camera apps and try again.')
       );
+    } finally {
+      stopPickerGuard('pick_camera');
+      isPickingRef.current = false;
+      setIsPicking(false);
+      logPickerTrace('PICK_CAMERA_FINALLY_RELEASE');
     }
   };
 
@@ -1326,7 +1764,17 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     if (isSaving) return;
     console.log('[Vault] handleCreate: INICIO');
     console.log('[Vault] handleCreate: Antes de Validaciones Iniciales');
-    if (!dataName.trim() || !dataValue.trim()) {
+    if (dataType === GHOST_LINK_VAULT_TYPE && !editingData?.id) {
+      Alert.alert(
+        tr('Ghost-Link', 'Ghost-Link'),
+        tr(
+          'Card-Social ya incluye un Ghost-Link en tu Bóveda. Edítalo desde el menú del ítem; no puedes crear otro.',
+          'Card-Social already includes one Ghost-Link in your Vault. Edit it from the item menu; you cannot add another.',
+        ),
+      );
+      return;
+    }
+    if (!dataName.trim() || (!dataValue.trim() && dataType !== GHOST_LINK_VAULT_TYPE)) {
       Alert.alert('❌ Error', tr('Completa todos los campos', 'Fill in all fields'));
       return;
     }
@@ -1381,7 +1829,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         return;
       }
       console.log('[Vault] handleCreate: Antes de AsyncStorage.getItem');
-      const existingData = await AsyncStorage.getItem(VAULT_STORAGE_KEY);
+      const existingData = await readVaultJsonWithLegacyMigration(userId);
       console.log('[Vault] handleCreate: Después de AsyncStorage.getItem');
       let dataArray: any[] = [];
       if (existingData) {
@@ -1405,16 +1853,18 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         );
         return;
       }
+      const catalogPick = selectedIcon === 'favicon' ? undefined : galleryItemByStableOrLegacy(selectedIcon);
       const iconData = selectedIcon === 'favicon'
         ? faviconUrl
-        : sanitizeMaterialIconName(ICON_GALLERY.find(i => i.id === selectedIcon)?.icon);
-      // iconName ahora siempre es válido
+        : sanitizeMaterialIconName(catalogPick?.icon || mappedIconName);
       const iconName = selectedIcon === 'favicon'
         ? 'Favicon'
-        : mappedIconName;
+        : (catalogPick?.label ?? mappedIconName);
       // #21 Auto-prepend https:// for Enlaces
       let preNormalized = dataValue;
-      if (dataType === 'Enlaces' && !/^https?:\/\//i.test(dataValue.trim())) {
+      if (dataType === GHOST_LINK_VAULT_TYPE) {
+        preNormalized = GHOST_LINK_VAULT_VALUE;
+      } else if (dataType === 'Enlaces' && !/^https?:\/\//i.test(dataValue.trim())) {
         preNormalized = 'https://' + dataValue.trim();
       }
       // #25 Phone formatting with country code
@@ -1426,7 +1876,25 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         dataType === 'Documento' && normalizedValue.startsWith('file://');
       let finalValue = normalizedValue;
       if (shouldUploadFile) {
-        const { fileId, publicUrl: filePublicUrl } = await uploadFileToModerationBackend(normalizedValue, dataName, userId);
+        let fileUriToUpload = normalizedValue;
+        const mimeForUpload = inferMimeType(normalizedValue);
+        const treatAsImage =
+          mimeForUpload.startsWith('image/') ||
+          isImageLikeAsset(normalizedValue, mimeForUpload) ||
+          isImageFile(dataName);
+        if (treatAsImage) {
+          const prepared = await optimizeImageForLimit(normalizedValue, MAX_IMAGE_SIZE);
+          if (prepared.size > MAX_IMAGE_SIZE) {
+            alertVaultImageTooLarge();
+            return;
+          }
+          fileUriToUpload = prepared.uri;
+        }
+        const { fileId, publicUrl: filePublicUrl } = await uploadFileToModerationBackend(
+          fileUriToUpload,
+          dataName,
+          userId,
+        );
         finalValue = filePublicUrl || `mongo-gridfs://${fileId}`;
       }
       // Crear ID único evitando cualquier choque accidental local.
@@ -1436,7 +1904,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       let uniqueId = editingData?.id;
       if (!uniqueId) {
         do {
-          uniqueId = `${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+          uniqueId = newEntityId();
         } while (existingIds.has(uniqueId));
       }
       const dataPayload = {
@@ -1446,6 +1914,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         value: finalValue,
         iconName: iconName,
         icon: iconData,
+        ...(selectedIcon !== 'favicon' && catalogPick
+          ? { iconVaultId: stableKeyForCatalogIcon(catalogPick) }
+          : {}),
+        ...(dataType === GHOST_LINK_VAULT_TYPE ? { vaultProtected: true } : {}),
         isFavorite: editingData?.isFavorite || false,
         createdAt: editingData?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -1464,7 +1936,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         dataArray.push(dataPayload);
       }
       console.log('[Vault] handleCreate: Antes de AsyncStorage.setItem');
-      await AsyncStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(dataArray));
+      await AsyncStorage.setItem(vaultStorageKey(userId), JSON.stringify(dataArray));
       console.log('[Vault] handleCreate: Después de AsyncStorage.setItem');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Toast.show({
@@ -1574,6 +2046,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     case 'Teléfono':
       mappedIconName = 'phone';
       break;
+    case 'Ghost-Link':
+      mappedIconName = 'phone-in-talk';
+      break;
     case 'Enlaces':
       mappedIconName = 'link';
       break;
@@ -1583,18 +2058,27 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     default:
       mappedIconName = 'file';
   }
+  const previewCatalogItem = selectedIcon === 'favicon' ? undefined : galleryItemByStableOrLegacy(selectedIcon);
   const iconData = selectedIcon === 'favicon'
     ? faviconUrl
-    : sanitizeMaterialIconName(ICON_GALLERY.find(i => i.id === selectedIcon)?.icon);
-  // iconName ahora siempre es válido
+    : sanitizeMaterialIconName(previewCatalogItem?.icon || mappedIconName);
   const iconName = selectedIcon === 'favicon'
     ? 'Favicon'
-    : mappedIconName;
+    : (previewCatalogItem?.label ?? mappedIconName);
   // Render dynamic field based on data type
   const renderDataField = () => {
     switch (dataType) {
       case 'Enlaces':
         return renderLinkField();
+      case 'Ghost-Link':
+        return (
+          <Text style={[styles.hint, { color: formTheme.textSecondary, marginBottom: 4 }]}>
+            {tr(
+              'Sin número ni enlace: quien reciba tu tarjeta podrá iniciar una llamada privada VoIP (Ghost-Link) desde Card-Social. Elige el icono en la sección ICONO (mismo catálogo Card-Studio).',
+              'No number or link: people who get your card can start a private VoIP call (Ghost-Link) from Card-Social. Pick the icon in the ICON section (same Card-Studio catalog).',
+            )}
+          </Text>
+        );
       case 'Teléfono':
         return (
           <View style={styles.phoneRow}>
@@ -1609,7 +2093,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 onPress={() => setCountryModalVisible(true)}
               >
                 <Text style={[styles.countryCodeText, { color: formTheme.inputText }]}>{countryCode}</Text>
-                <MaterialCommunityIcons name="chevron-down" color="#1EA7FF" size={18} />
+                <MaterialCommunityIcons name="chevron-down" color={formTheme.labelGold} size={18} />
               </TouchableOpacity>
             </LinearGradient>
             <LinearGradient
@@ -1687,7 +2171,25 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             >
               <TouchableOpacity
                 style={[styles.documentButton, { borderWidth: 0, backgroundColor: formTheme.inputBg }]}
-                onPress={pendingAsset || dataValue ? () => setAssetPreviewVisible(true) : handlePickFile}
+                onPress={() => {
+                  if (pendingAsset?.uri) {
+                    setAssetPreviewVisible(true);
+                    return;
+                  }
+                  if (dataValue) {
+                    const mime = inferMimeType(dataValue);
+                    const name = dataName?.trim() || inferFileName(dataValue);
+                    setPendingAsset({
+                      uri: dataValue,
+                      name,
+                      mimeType: mime,
+                      source: 'document',
+                    });
+                    setAssetPreviewVisible(true);
+                    return;
+                  }
+                  handlePickFile();
+                }}
               >
               <MaterialCommunityIcons
                 name={pendingAsset || dataValue ? 'eye' : 'image-plus'}
@@ -1695,7 +2197,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 size={32}
               />
               <Text style={[styles.documentText, { color: formTheme.textPrimary }]}>
-                {pendingAsset
+                {pendingAsset?.uri
                   ? tr('Ver Archivo Seleccionado', 'View Selected File')
                   : dataValue
                   ? tr('Ver Archivo Guardado', 'View Saved File')
@@ -1703,17 +2205,19 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               </Text>
               </TouchableOpacity>
             </LinearGradient>
-            <Text style={styles.wordCount}>{tr('Se aceptan PDF o imágenes para visor protegido del Búnker.', 'PDF or images accepted for Vault protected viewer.')}</Text>
+            <Text style={[styles.wordCount, { color: formTheme.textSecondary }]}>{tr('Se aceptan PDF o imágenes para visor protegido del Búnker.', 'PDF or images accepted for Vault protected viewer.')}</Text>
             
             {/* PREVIEW del documento/imagen seleccionado */}
             {dataValue && (
               <View style={[styles.previewContainer, { backgroundColor: formTheme.inputBg }]}>
-                <Text style={[styles.previewLabel, { color: formTheme.textPrimary }]}>{tr('Vista Previa:', 'Preview:')}</Text>
+                <Text style={[styles.previewLabel, { color: formTheme.labelGold }]}>
+                  {tr('VISTA PREVIA', 'PREVIEW')}
+                </Text>
                 {isImageFile(dataValue) || isImageFile(dataName) ? (
                   <View style={styles.imagePreview}>
                     <Image 
                       source={{ uri: dataValue }} 
-                      style={styles.previewImage}
+                      style={[styles.previewImage, { backgroundColor: formTheme.premiumElevated }]}
                       onError={() => console.log('Error loading image')}
                     />
                     <Text style={[styles.previewFileName, { color: formTheme.textPrimary }]} numberOfLines={1}>
@@ -1751,7 +2255,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             <View style={styles.modalDragHandle} />
           </View>
           <View style={styles.titleDragZone}>
-            <Text style={styles.titleMain}>
+            <Text style={[styles.titleMain, { color: formTheme.titleColor }]}>
               {editingData?.id ? tr('EDITAR INFORMACIÓN', 'EDIT INFORMATION') : tr('NUEVA INFORMACIÓN', 'NEW INFORMATION')}
             </Text>
           </View>
@@ -1768,68 +2272,114 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           key={editingData?.id ? `edit-${editingData.id}` : 'create'}
           style={styles.scrollView}
           contentContainerStyle={[styles.scrollContent, { flexGrow: 1 }]}
-          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="always"
           nestedScrollEnabled
           automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
           contentInsetAdjustmentBehavior="automatic"
           scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
-          bounces
-          overScrollMode="always"
+          bounces={false}
+          overScrollMode="never"
         >
           {/* TIPO DE DATA */}
           <View style={styles.section}>
-            <Text style={[styles.stepLabel, { color: formTheme.textPrimary }]}>{tr('TIPO DE DATO', 'DATA TYPE')} {editingData?.id && tr('(No editable)', '(Read-only)')}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typePillsRow} removeClippedSubviews={true} scrollEventThrottle={16} bounces={false} overScrollMode="never">
+            <Text style={[styles.stepLabel, { color: formTheme.labelGold }]}>
+              {tr('TIPO DE DATO', 'DATA TYPE')} {editingData?.id && tr('(No editable)', '(Read-only)')}
+            </Text>
+            <View style={styles.typeChipGrid}>
               {DATA_TYPE_OPTIONS.map((option) => {
                 const isActive = dataType === option.key;
+                const chipLabel = language === 'en' ? option.labelEn : option.label;
+                const disabledChip = !!editingData?.id;
+                const onSelectType = () => {
+                  if (disabledChip) return;
+                  if (option.key === GHOST_LINK_VAULT_TYPE) {
+                    Alert.alert(
+                      tr('Ghost Link', 'Ghost Link'),
+                      tr(
+                        'Card-Social ya incluye un Ghost Link en tu Bóveda. Edítalo desde el menú del ítem; no puedes crear otro.',
+                        'Card-Social already includes one Ghost Link in your Vault. Edit it from the item menu; you cannot add another.',
+                      ),
+                    );
+                    return;
+                  }
+                  setDataType(option.key);
+                  setDataValue('');
+                };
+                const iconColor = isActive ? formTheme.onLuxuryCta : formTheme.textPrimary;
+                const labelColor = isActive ? formTheme.onLuxuryCta : formTheme.textPrimary;
                 return (
-                    <LinearGradient
-                      key={option.key}
-                      colors={formTheme.gradientColors}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={{ borderRadius: 999, padding: 4 }}
-                    >
+                  <View key={option.key} style={[styles.typeChipWrap, { width: typeChipWidth }]}>
+                    {isActive ? (
+                      <LinearGradient
+                        colors={formTheme.chipActiveFillGradient as readonly [string, string, ...string[]]}
+                        locations={[0, 0.2, 0.45, 0.55, 0.8, 1]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={[
+                          styles.typeChipGradientOuter,
+                          Platform.select({
+                            ios: {
+                              shadowColor: formTheme.selectedPillGlow,
+                              shadowOffset: { width: 0, height: 0 },
+                              shadowOpacity: 0.5,
+                              shadowRadius: 14,
+                            },
+                            android: { elevation: 10 },
+                            default: {},
+                          }),
+                        ]}
+                      >
+                        <TouchableOpacity
+                          style={[styles.typeChipCellInner, disabledChip && styles.typePillDisabled]}
+                          onPress={onSelectType}
+                          disabled={disabledChip}
+                          activeOpacity={0.88}
+                        >
+                          <MaterialCommunityIcons name={option.icon} size={18} color={iconColor} />
+                          <Text style={[styles.typeChipLabel, { color: labelColor }]} numberOfLines={2}>
+                            {chipLabel}
+                          </Text>
+                        </TouchableOpacity>
+                      </LinearGradient>
+                    ) : (
                       <TouchableOpacity
-                    style={[
-                      styles.typePill,
-                      {
-                        backgroundColor: isActive ? formTheme.selectedPillBg : formTheme.surfaceBg,
-                          borderWidth: 0,
-                          shadowColor: isActive ? formTheme.selectedPillGlow : '#000',
-                        shadowOpacity: isActive ? 0.22 : 0,
-                        elevation: isActive ? 4 : 0,
-                      },
-                      editingData?.id && styles.typePillDisabled,
-                    ]}
-                    onPress={() => {
-                      if (editingData?.id) return;
-                      setDataType(option.key);
-                      setDataValue('');
-                    }}
-                    disabled={!!editingData?.id}
-                  >
-                    <Text
-                      style={[
-                        styles.typePillText,
-                        { color: isActive ? formTheme.selectedPillText : formTheme.textPrimary },
-                      ]}
-                    >
-                      {language === 'en' ? option.labelEn : option.label}
-                    </Text>
+                        style={[
+                          styles.typeChipCellInactive,
+                          {
+                            backgroundColor: formTheme.chipInactiveBg,
+                            borderColor: formTheme.chipInactiveBorder,
+                          },
+                          disabledChip && styles.typePillDisabled,
+                        ]}
+                        onPress={onSelectType}
+                        disabled={disabledChip}
+                        activeOpacity={0.88}
+                      >
+                        <MaterialCommunityIcons name={option.icon} size={18} color={iconColor} />
+                        <Text style={[styles.typeChipLabel, { color: labelColor }]} numberOfLines={2}>
+                          {chipLabel}
+                        </Text>
                       </TouchableOpacity>
-                    </LinearGradient>
+                    )}
+                  </View>
                 );
               })}
-            </ScrollView>
+            </View>
             <Text style={[styles.hint, { color: formTheme.textSecondary }]}>
               {editingData?.id ? tr('Tipo no puede cambiar al editar', 'Type cannot change while editing') : tr('Selecciona el tipo de dato', 'Select data type')}
             </Text>
             {autoTypeSuggestion && !editingData?.id && (
               <TouchableOpacity
-                style={[styles.autoTypeBanner, { backgroundColor: formTheme.selectedPillBg }]}
+                style={[
+                  styles.autoTypeBanner,
+                  {
+                    backgroundColor: isNight ? 'rgba(212,175,55,0.16)' : 'rgba(212,175,55,0.22)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(212,175,55,0.45)',
+                  },
+                ]}
                 onPress={() => {
                   prevDataTypeRef.current = autoTypeSuggestion;
                   setDataType(autoTypeSuggestion);
@@ -1838,12 +2388,12 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 }}
                 activeOpacity={0.8}
               >
-                <MaterialCommunityIcons name="swap-horizontal" color="#F0F4F8" size={16} />
-                <Text style={styles.autoTypeBannerText}>
+                <MaterialCommunityIcons name="swap-horizontal" color={formTheme.labelGold} size={16} />
+                <Text style={[styles.autoTypeBannerText, { color: formTheme.textPrimary }]}>
                   {tr(`¿Cambiar a ${autoTypeSuggestion}?`, `Switch to ${autoTypeSuggestion}?`)}
                 </Text>
                 <TouchableOpacity onPress={() => setAutoTypeSuggestion(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <MaterialCommunityIcons name="close" color="#F0F4F8" size={14} />
+                  <MaterialCommunityIcons name="close" color={formTheme.labelGold} size={14} />
                 </TouchableOpacity>
               </TouchableOpacity>
             )}
@@ -1851,7 +2401,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
           {/* NOMBRE DE DATA */}
           <View style={styles.section}>
-            <Text style={[styles.stepLabel, { color: formTheme.textPrimary }]}>{tr('NOMBRE DE DATA', 'DATA NAME')}</Text>
+            <Text style={[styles.stepLabel, { color: formTheme.labelGold }]}>{tr('NOMBRE DE DATA', 'DATA NAME')}</Text>
               <LinearGradient
                 colors={formTheme.gradientColors}
                 start={{ x: 0, y: 0 }}
@@ -1870,82 +2420,115 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
           {/* DATA */}
           <View style={styles.section}>
-            <Text style={[styles.stepLabel, { color: formTheme.textPrimary }]}>DATA</Text>
+            <Text style={[styles.stepLabel, { color: formTheme.labelGold }]}>
+              {dataType === GHOST_LINK_VAULT_TYPE ? tr('GHOST LINK', 'GHOST LINK') : 'DATA'}
+            </Text>
             {renderDataField()}
           </View>
 
-          {/* ICONO */}
           <View style={styles.section}>
-            <View style={styles.stepHeader}>
-              <Text style={[styles.stepLabel, { color: formTheme.textPrimary }]}>{tr('ICONO', 'ICON')}</Text>
-              <TouchableOpacity
-                style={styles.editIconBtn}
-                onPress={() => setIconModalVisible(true)}
-              >
-                <MaterialCommunityIcons name="pencil" color="#0A2540" size={18} />
-              </TouchableOpacity>
-            </View>
-            <View style={[styles.iconPreview, { backgroundColor: formTheme.surfaceBg }]}>
+            <Text style={[styles.stepLabel, { color: formTheme.labelGold, marginBottom: 10 }]}>{tr('ICONO', 'ICON')}</Text>
+            <TouchableOpacity
+              style={[
+                styles.iconLuxuryRow,
+                {
+                  backgroundColor: formTheme.surfaceBg,
+                  borderColor: formTheme.chipInactiveBorder,
+                },
+                Platform.select({
+                  ios: {
+                    shadowColor: formTheme.labelGold,
+                    shadowOffset: { width: 0, height: 0 },
+                    shadowOpacity: isNight ? 0.12 : 0.08,
+                    shadowRadius: 10,
+                  },
+                  android: { elevation: 3 },
+                  default: {},
+                }),
+              ]}
+              onPress={() => setIconModalVisible(true)}
+              activeOpacity={0.88}
+              accessibilityLabel={tr('Elegir icono Card-Studio', 'Choose Card-Studio icon')}
+            >
               {faviconLoading && dataType === 'Enlaces' ? (
-                <>
-                  <View style={styles.iconLoadingPreview}>
-                    <View style={styles.spinnerPriorityLayer}>
-                      <BrandedSpinner size={52} color="#D4AF37" />
-                    </View>
+                <View style={styles.iconLuxuryThumb}>
+                  <View style={styles.spinnerPriorityLayer}>
+                    <BrandedSpinner size={40} color="#D4AF37" />
                   </View>
-                  <Text style={styles.faviconLabel}>{tr('Buscando favicon en Azure...', 'Searching favicon on Azure...')}</Text>
-                </>
+                </View>
               ) : selectedIcon === 'favicon' && faviconUrl ? (
                 <LinearGradient
-                  colors={formTheme.gradientColors}
+                  colors={formTheme.chipActiveFillGradient as readonly [string, string, ...string[]]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
-                  style={styles.iconPreviewCircleGradient}
+                  style={styles.iconLuxuryThumbGradient}
                 >
-                  <View style={[styles.iconPreviewCircleInner, { backgroundColor: formTheme.iconPreviewCircleBg }]}> 
-                    <Image source={{ uri: faviconUrl }} style={styles.faviconImg} />
+                  <View style={[styles.iconLuxuryThumbInner, { backgroundColor: formTheme.iconPreviewCircleBg }]}>
+                    <Image source={{ uri: faviconUrl }} style={styles.iconLuxuryFavicon} />
                   </View>
                 </LinearGradient>
               ) : selectedIcon ? (
                 <LinearGradient
-                  colors={formTheme.gradientColors}
+                  colors={formTheme.chipActiveFillGradient as readonly [string, string, ...string[]]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
-                  style={styles.iconPreviewCircleGradient}
+                  style={styles.iconLuxuryThumbGradient}
                 >
-                  <View style={[styles.iconPreviewCircleInner, { backgroundColor: formTheme.iconPreviewCircleBg }]}> 
+                  <View style={[styles.iconLuxuryThumbInner, { backgroundColor: formTheme.iconPreviewCircleBg }]}>
                     <MaterialCommunityIcons
-                      name={sanitizeMaterialIconName(ICON_GALLERY.find(i => i.id === selectedIcon)?.icon) as any}
-                      color={formTheme.textPrimary}
-                      size={48}
+                      name={sanitizeMaterialIconName(previewCatalogItem?.icon || mappedIconName) as any}
+                      color={formTheme.previewIconInCircle}
+                      size={28}
                     />
                   </View>
                 </LinearGradient>
               ) : (
-                <MaterialCommunityIcons name="image-plus" color="#999" size={40} />
+                <View style={[styles.iconLuxuryThumb, { backgroundColor: formTheme.chipInactiveBg }]}>
+                  <MaterialCommunityIcons name="image-plus" color={formTheme.accentMuted} size={28} />
+                </View>
               )}
-              <Text style={[styles.iconName, { color: formTheme.textPrimary }]}>
-                {dataName?.trim() || tr('Sin nombre', 'No name')}
-              </Text>
-            </View>
+              <View style={styles.iconLuxuryTextCol}>
+                <Text style={[styles.iconLuxuryTitle, { color: formTheme.textPrimary }]}>{tr('Icono', 'Icon')}</Text>
+                <Text style={[styles.iconLuxurySubtitle, { color: formTheme.textSecondary }]}>
+                  {tr('Personalizar representación', 'Customize appearance')}
+                </Text>
+                {faviconLoading && dataType === 'Enlaces' ? (
+                  <Text style={[styles.iconLuxurySubtitle, { color: formTheme.labelGold, marginTop: 4 }]}>
+                    {tr('Buscando favicon…', 'Searching favicon…')}
+                  </Text>
+                ) : null}
+              </View>
+              <Text style={[styles.iconLuxuryCta, { color: formTheme.labelGold }]}>{tr('CAMBIAR', 'CHANGE')}</Text>
+            </TouchableOpacity>
           </View>
 
           {/* CREATE/UPDATE BUTTON */}
-          <TouchableOpacity 
-            style={[styles.createButton, isSaving && styles.createButtonDisabled]} 
+          <TouchableOpacity
+            style={[styles.createButtonOuter, isSaving && styles.createButtonDisabled]}
             onPress={handleCreate}
             disabled={isSaving}
+            activeOpacity={0.9}
           >
-            {isSaving ? (
-              <Text style={styles.createButtonText}>{tr('GUARDANDO...', 'SAVING...')}</Text>
-            ) : (
-              <>
-                <MaterialCommunityIcons name="check-circle" color="#0A1A2F" size={24} />
-                <Text style={styles.createButtonText}>
-                  {editingData?.id ? tr('ACTUALIZAR', 'UPDATE') : tr('CREAR', 'CREATE')}
+            <LinearGradient
+              colors={formTheme.ctaGradient as readonly [string, string, ...string[]]}
+              locations={[0, 0.18, 0.45, 0.52, 0.75, 1]}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={styles.createButtonGradient}
+            >
+              {isSaving ? (
+                <Text style={[styles.createButtonText, { color: formTheme.onLuxuryCta }]}>
+                  {tr('GUARDANDO...', 'SAVING...')}
                 </Text>
-              </>
-            )}
+              ) : (
+                <>
+                  <MaterialCommunityIcons name="check-circle" color={formTheme.onLuxuryCta} size={24} />
+                  <Text style={[styles.createButtonText, { color: formTheme.onLuxuryCta }]}>
+                    {editingData?.id ? tr('ACTUALIZAR', 'UPDATE') : tr('CREAR', 'CREATE')}
+                  </Text>
+                </>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
           <View style={styles.saveButtonSpacer} />
         </ScrollView>
@@ -1962,12 +2545,16 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: formTheme.textPrimary }]}>{tr('Selecciona Tipo', 'Select Type')}</Text>
                 <TouchableOpacity onPress={() => setTypeModalVisible(false)}>
-                  <MaterialCommunityIcons name="close" color="#1EA7FF" size={24} />
+                  <MaterialCommunityIcons name="close" color={formTheme.labelGold} size={24} />
                 </TouchableOpacity>
               </View>
               <FlatList
-                data={['Enlaces', 'Teléfono', 'Email', 'Texto Plain', 'Documento'] as DataType[]}
-                keyExtractor={item => item}
+                data={
+                  (editingData?.id
+                    ? (['Enlaces', 'Email', 'Teléfono', 'Texto Plain', 'Documento', 'Ghost-Link'] as DataType[])
+                    : (['Enlaces', 'Email', 'Teléfono', 'Texto Plain', 'Documento', 'Ghost-Link'] as DataType[]))
+                }
+                keyExtractor={(item) => item}
                 removeClippedSubviews={true}
                 scrollEventThrottle={16}
                 bounces={false}
@@ -1986,8 +2573,19 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                       },
                     ]}
                     onPress={() => {
+                      if (!editingData?.id && item === GHOST_LINK_VAULT_TYPE) {
+                        Alert.alert(
+                          tr('Ghost Link', 'Ghost Link'),
+                          tr(
+                            'Card-Social ya incluye un Ghost Link en tu Bóveda. Edítalo desde el menú del ítem; no puedes crear otro.',
+                            'Card-Social already includes one Ghost Link in your Vault. Edit it from the item menu; you cannot add another.',
+                          ),
+                        );
+                        setTypeModalVisible(false);
+                        return;
+                      }
                       setDataType(item);
-                      setDataValue('');
+                      setDataValue(item === GHOST_LINK_VAULT_TYPE ? GHOST_LINK_VAULT_VALUE : '');
                       setTypeModalVisible(false);
                     }}
                     disabled={!!editingData?.id}
@@ -1999,7 +2597,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                         dataType === item && { color: formTheme.selectedPillText },
                       ]}
                     >
-                      {item}
+                      {language === 'en'
+                        ? DATA_TYPE_OPTIONS.find((o) => o.key === item)?.labelEn ?? item
+                        : DATA_TYPE_OPTIONS.find((o) => o.key === item)?.label ?? item}
                     </Text>
                     {dataType === item && (
                       <MaterialCommunityIcons name="check" color={formTheme.selectedPillText} size={20} />
@@ -2017,39 +2617,38 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           animationType="fade"
           onRequestClose={() => closeFaviconSuggestion()}
         >
-            <TouchableWithoutFeedback onPress={() => closeFaviconSuggestion()}>
+          <TouchableWithoutFeedback onPress={() => closeFaviconSuggestion()}>
             <View style={styles.faviconPopupOverlay}>
               <TouchableWithoutFeedback onPress={() => {}}>
-                  <View style={styles.faviconPopupCard}>
-                    <Text style={styles.faviconPopupTitle}>{tr('¿Usar este icono?', 'Use this icon?')}</Text>
-                    <View style={styles.faviconPopupPreviewBox}>
-                      {faviconLoading ? (
-                        <BrandedSpinner size={44} color="#D4AF37" />
-                      ) : faviconUrl ? (
-                        <Image source={{ uri: faviconUrl }} style={styles.faviconPopupImage} />
-                      ) : (
-                        <MaterialCommunityIcons name="web" color="#0A2540" size={36} />
-                      )}
-                    </View>
-                    <View style={styles.faviconPopupActions}>
-                      <TouchableOpacity
-                        style={[styles.faviconPopupButton, styles.faviconConfirmButton]}
-                        onPress={() => {
-                          setSelectedIcon('favicon');
-                          closeFaviconSuggestion();
-                        }}
-                      >
-                        <Text style={styles.faviconConfirmButtonText}>{tr('SÍ, USAR', 'YES, USE')}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.faviconPopupButton, styles.faviconCancelButton, styles.faviconPopupButtonSpacing]}
-                        onPress={() => {
-                          closeFaviconSuggestion();
-                        }}
-                      >
-                        <Text style={styles.faviconCancelButtonText}>{tr('NO, CANCELAR', 'NO, CANCEL')}</Text>
-                      </TouchableOpacity>
-                    </View>
+                <View style={styles.faviconPopupCard}>
+                  <Text style={styles.faviconPopupTitle}>{tr('¿Usar este icono?', 'Use this icon?')}</Text>
+                  <View style={styles.faviconPopupPreviewBox}>
+                    {faviconLoading ? (
+                      <BrandedSpinner size={44} color="#D4AF37" />
+                    ) : faviconUrl ? (
+                      <Image source={{ uri: faviconUrl }} style={styles.faviconPopupImage} />
+                    ) : (
+                      <MaterialCommunityIcons name="web" color="#0A2540" size={36} />
+                    )}
+                  </View>
+                  <View style={styles.faviconPopupActions}>
+                    <TouchableOpacity
+                      style={[styles.faviconPopupButton, styles.faviconConfirmButton]}
+                      onPress={() => {
+                        setSelectedIcon('favicon');
+                        closeFaviconSuggestion();
+                      }}
+                    >
+                      <Text style={styles.faviconConfirmButtonText}>{tr('SÍ, USAR', 'YES, USE')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.faviconPopupButton, styles.faviconCancelButton, styles.faviconPopupButtonSpacing]}
+                      onPress={() => {
+                        closeFaviconSuggestion();
+                      }}
+                    >
+                      <Text style={styles.faviconCancelButtonText}>{tr('NO, CANCELAR', 'NO, CANCEL')}</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
               </TouchableWithoutFeedback>
@@ -2104,6 +2703,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           onSelectIcon={setSelectedIcon}
           dataType={dataType}
           selectedIcon={selectedIcon}
+          ownedIconVaultKeys={ownedIconVaultKeys}
+          creditsBalance={creditsBalance}
+          onEconomyUpdated={() => void refreshStudioEconomy()}
         />
 
         {/* MODAL: ELEGIR FOTOS O DOCUMENTOS */}
@@ -2111,9 +2713,18 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           visible={fileTypeModalVisible}
           transparent
           animationType="slide"
-          onRequestClose={() => setFileTypeModalVisible(false)}
+          presentationStyle="overFullScreen"
+          statusBarTranslucent
+          hardwareAccelerated
+          onDismiss={() => {
+            if (fileTypeModalDismissResolverRef.current) {
+              logPickerTrace('PICKER_SHEET_MODAL_ON_DISMISS');
+              fileTypeModalDismissResolverRef.current('modal_on_dismiss');
+            }
+          }}
+          onRequestClose={closeFileTypeModal}
         >
-          <TouchableWithoutFeedback onPress={() => setFileTypeModalVisible(false)}>
+          <TouchableWithoutFeedback onPress={closeFileTypeModal}>
             <View style={styles.modalOverlay}>
             <TouchableWithoutFeedback onPress={() => {}}>
             <View style={[styles.modalContent, { backgroundColor: formTheme.surfaceBg, borderTopColor: formTheme.border }]}>
@@ -2122,7 +2733,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               </View>
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: formTheme.textPrimary }]}>{tr('Carga Segura de Documento', 'Secure Document Upload')}</Text>
-                <TouchableOpacity onPress={() => setFileTypeModalVisible(false)}>
+                <TouchableOpacity onPress={closeFileTypeModal}>
                   <MaterialCommunityIcons name="close" color={formTheme.textPrimary} size={24} />
                 </TouchableOpacity>
               </View>
@@ -2137,7 +2748,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               <TouchableOpacity
                 style={[styles.fileTypeOption, { backgroundColor: formTheme.inputBg, borderColor: formTheme.border }]}
                 onPress={handleTakePhoto}
-                disabled={isCompressing}
+                disabled={isCompressing || isPicking}
               >
                 <MaterialCommunityIcons name="camera" color={formTheme.textPrimary} size={30} />
                 <Text style={[styles.fileTypeText, { color: formTheme.textPrimary }]}>{tr('Tomar Foto', 'Take Photo')}</Text>
@@ -2146,7 +2757,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               <TouchableOpacity
                 style={[styles.fileTypeOption, { backgroundColor: formTheme.inputBg, borderColor: formTheme.border }]}
                 onPress={handlePickPhotos}
-                disabled={isCompressing}
+                disabled={isCompressing || isPicking}
               >
                 <MaterialCommunityIcons name="image-multiple" color={formTheme.textPrimary} size={30} />
                 <Text style={[styles.fileTypeText, { color: formTheme.textPrimary }]}>{tr('Elegir imagen', 'Choose image')}</Text>
@@ -2155,7 +2766,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               <TouchableOpacity
                 style={[styles.fileTypeOption, { backgroundColor: formTheme.inputBg, borderColor: formTheme.border }]}
                 onPress={handlePickDocument}
-                disabled={isCompressing}
+                disabled={isCompressing || isPicking}
               >
                 <MaterialCommunityIcons name="file-document-outline" color={formTheme.textPrimary} size={30} />
                 <Text style={[styles.fileTypeText, { color: formTheme.textPrimary }]}>{tr('Elegir documento', 'Choose document')}</Text>
@@ -2170,9 +2781,17 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
         {(isCompressing || isSaving || isUploading || uploadModalVisible) && (
           <View style={styles.compressOverlay} pointerEvents="auto">
-            <View style={styles.compressCard}>
+            <View
+              style={[
+                styles.compressCard,
+                {
+                  backgroundColor: formTheme.premiumElevated,
+                  borderColor: formTheme.border,
+                },
+              ]}
+            >
               <BrandedSpinner size={56} color="#D4AF37" />
-              <Text style={styles.compressText}>
+              <Text style={[styles.compressText, { color: formTheme.textPrimary }]}>
                 {isCompressing
                   ? tr('Optimizando archivo de forma segura...', 'Securely optimizing file...')
                   : isUploading
@@ -2221,6 +2840,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     </TouchableWithoutFeedback>
   );
 };
+
+/** Fallback en `StyleSheet` (el tema real va en `formTheme` en runtime). */
+const PREMIUM_PANEL = premiumTheme.light.surfaceElevated;
 
 const styles = StyleSheet.create({
   keyboardAvoiding: {
@@ -2325,10 +2947,10 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 4,
     borderColor: '#D4AF37',
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
   },
   typePillActive: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
   },
   typePillDisabled: {
     opacity: 0.55,
@@ -2342,8 +2964,161 @@ const styles = StyleSheet.create({
     color: '#F0F4F8',
     fontWeight: '700',
   },
+  typeChipGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    columnGap: 8,
+    rowGap: 8,
+  },
+  typeChipWrap: {
+    marginBottom: 0,
+  },
+  typeChipGradientOuter: {
+    borderRadius: 14,
+    padding: 2,
+    overflow: 'hidden',
+  },
+  typeChipCellInner: {
+    minHeight: 64,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    paddingVertical: 6,
+    gap: 4,
+    backgroundColor: 'transparent',
+  },
+  typeChipCellInactive: {
+    minHeight: 64,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    paddingVertical: 6,
+    gap: 4,
+  },
+  typeChipLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    textAlign: 'center',
+    letterSpacing: 0.15,
+    lineHeight: 12,
+  },
+  linkPreviewLuxOuter: {
+    marginTop: 14,
+    borderRadius: 18,
+    padding: 2,
+    overflow: 'hidden',
+  },
+  linkPreviewInner: {
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  linkPreviewSectionLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    marginBottom: 10,
+  },
+  linkPreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  linkPreviewIconFrame: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    padding: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  linkPreviewIconInner: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  linkPreviewFavicon: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+  },
+  linkPreviewTextCol: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  linkPreviewTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  linkPreviewUrl: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  iconLuxuryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    gap: 12,
+  },
+  iconLuxuryThumb: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  iconLuxuryThumbGradient: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    padding: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconLuxuryThumbInner: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  iconLuxuryFavicon: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+  },
+  iconLuxuryTextCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  iconLuxuryTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  iconLuxurySubtitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  iconLuxuryCta: {
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.9,
+  },
   dropdownButton: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     borderColor: '#D4AF37',
     borderWidth: 4,
     borderRadius: 12,
@@ -2370,7 +3145,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   input: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     borderColor: '#D4AF37',
     borderWidth: 4,
     borderRadius: 10,
@@ -2385,7 +3160,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   countryCodeButton: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     borderColor: '#D4AF37',
     borderWidth: 4,
     borderRadius: 10,
@@ -2403,14 +3178,13 @@ const styles = StyleSheet.create({
   faviconContainer: {
     marginTop: 12,
     padding: 12,
-    backgroundColor: '#E3F2FD',
     borderRadius: 10,
     alignItems: 'center',
   },
   faviconLoadingContainer: {
     marginTop: 12,
     padding: 12,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     borderRadius: 12,
     borderWidth: 4,
     borderColor: '#D4AF37',
@@ -2424,13 +3198,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   faviconLabel: {
-    color: '#1EA7FF',
     fontSize: 12,
     fontWeight: '600',
     marginTop: 8,
   },
   useFaviconButton: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     borderColor: '#D4AF37',
     borderWidth: 4,
     borderRadius: 10,
@@ -2461,7 +3234,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   documentButton: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     borderColor: '#D4AF37',
     borderWidth: 4,
     borderStyle: 'dashed',
@@ -2478,7 +3251,7 @@ const styles = StyleSheet.create({
   previewContainer: {
     marginTop: 16,
     padding: 14,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     borderRadius: 10,
     borderColor: '#D4AF37',
     borderWidth: 4,
@@ -2499,7 +3272,6 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 8,
-    backgroundColor: '#E3F2FD',
   },
   documentPreview: {
     alignItems: 'center',
@@ -2514,7 +3286,7 @@ const styles = StyleSheet.create({
     maxWidth: 200,
   },
   iconPreview: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     borderRadius: 24,
     paddingVertical: 24,
     alignItems: 'center',
@@ -2626,19 +3398,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  createButton: {
-    backgroundColor: '#D4AF37',
+  createButtonOuter: {
+    marginTop: 12,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  createButtonGradient: {
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 14,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 10,
-    marginTop: 12,
   },
   createButtonDisabled: {
     opacity: 0.5,
-    backgroundColor: '#999',
   },
   createButtonText: {
     color: '#0A1A2F',
@@ -2728,7 +3502,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   modalContent: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: SCREEN_HEIGHT * 0.65,
@@ -2808,13 +3582,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     margin: 4,
     borderRadius: 10,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     borderWidth: 0.5,
     borderColor: '#D4AF37',
   },
   iconItemSelected: {
-    backgroundColor: '#E3F2FD',
-    borderColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
+    borderColor: premiumTheme.light.border,
   },
   iconLabel: {
     fontSize: 9,
@@ -2873,7 +3647,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#D4AF37',
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 18,
@@ -2896,7 +3670,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 420,
     maxHeight: '88%',
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     borderRadius: 18,
     borderWidth: 1,
     borderColor: '#D4AF37',
@@ -2984,15 +3758,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   progressContainer: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: PREMIUM_PANEL,
     borderRadius: 20,
     padding: 40,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#1EA7FF',
+    borderColor: premiumTheme.light.accent,
   },
   uploadPercentage: {
-    color: '#1EA7FF',
+    color: premiumTheme.light.accent,
     fontSize: 32,
     fontWeight: '700',
     marginTop: 20,

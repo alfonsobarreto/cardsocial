@@ -9,6 +9,8 @@
     "web": "expo start --web",
     "backend:start": "node backend/src/server.js",
     "smoke:test": "node scripts/smoke-test-all.mjs",
+    "test:stories-phase1": "node scripts/test-stories-phase1.mjs",
+    "test:search-phase2": "tsx scripts/test-search-phase2.ts",
     "backend:seed:house-ad": "node backend/src/scripts/seedHouseAdRotation.js",
     "backend:seed:house-ad:tomorrow": "node backend/src/scripts/seedHouseAdRotation.js --day-shift=1"
   },
@@ -33,6 +35,7 @@
     "expo-camera": "~17.0.10",
     "expo-clipboard": "~8.0.8",
     "expo-constants": "~18.0.13",
+    "expo-dev-client": "~6.0.20",
     "expo-device": "~8.0.10",
     "expo-document-picker": "~14.0.8",
     "expo-face-detector": "^13.0.2",
@@ -57,6 +60,7 @@
     "expo-web-browser": "~15.0.10",
     "express": "^5.2.1",
     "firebase": "^12.10.0",
+    "fuse.js": "^7.2.0",
     "i18next": "^25.10.10",
     "jsonwebtoken": "^9.0.3",
     "lucide-react-native": "^0.577.0",
@@ -70,7 +74,10 @@
     "react-dom": "19.1.0",
     "react-i18next": "^16.6.6",
     "react-native": "0.81.5",
+    "react-native-agora": "^4.6.2",
+    "react-native-draggable-flatlist": "^4.0.3",
     "react-native-gesture-handler": "~2.28.0",
+    "react-native-get-random-values": "^2.0.0",
     "react-native-keyboard-aware-scroll-view": "^0.9.5",
     "react-native-linear-gradient": "^2.8.3",
     "react-native-pdf": "^7.0.3",
@@ -84,14 +91,17 @@
     "react-native-toast-message": "^2.3.3",
     "react-native-web": "~0.21.0",
     "react-native-worklets": "0.5.1",
-    "tslib": "^2.8.1"
+    "tslib": "^2.8.1",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@types/firebase": "^2.4.32",
     "@types/qrcode": "^1.5.6",
     "@types/react": "~19.1.10",
     "@types/react-is": "^19.2.0",
+    "@types/uuid": "^10.0.0",
     "expo-module-scripts": "^55.0.2",
+    "tsx": "^4.19.3",
     "typescript": "~5.9.2"
   },
   "private": true

@@ -7,6 +7,8 @@ const { createAzureSafetyClient } = require("./services/azureSafety");
 const { createMongoStorage } = require("./services/mongoStorage");
 const { createModerationRoutes } = require("./routes/moderationRoutes");
 const { createQrRoutes } = require("./routes/qrRoutes");
+const { createPublicUniversalRoutes } = require("./routes/publicUniversalRoutes");
+const { createUniversalEntryHttpRoutes } = require("./routes/universalEntryHttpRoutes");
 const revenueCatRoutes = require("./routes/revenueCatRoutes");
 const { createAdminRoutes } = require("./routes/adminRoutes");
 const { ensureMongoHardening } = require("./security/mongoHardening");
@@ -123,6 +125,9 @@ const otpHash = (emailLower, code) => {
   app.get("/api/health", (_req, res) => {
     res.status(200).json({ ok: true, service: "moderation-backend" });
   });
+
+  /** QR universal: validación TTL en servidor antes de servir la SPA (ver README — proxy Azure). */
+  app.use(createUniversalEntryHttpRoutes({ storage }));
 
   // Azure warmup probe commonly targets '/'. Keep it lightweight and always 200.
   app.get("/", (_req, res) => {
@@ -360,6 +365,8 @@ const otpHash = (emailLower, code) => {
   // Admin Routes (Marketing, Asset Minting, Stats)
   app.use("/api/admin", createAdminRoutes());
 
+  app.use("/api/public", createPublicUniversalRoutes({ storage }));
+
   app.use("/api", createModerationRoutes({
     azureSafety,
     storage,
@@ -381,8 +388,19 @@ const otpHash = (emailLower, code) => {
     res.status(500).json({ ok: false, error: err.message || "Unexpected error" });
   });
 
+  const { runStorySpacesAssetCleanup } = require("./jobs/storySpacesCleanup");
+  const STORY_SPACES_CLEANUP_MS = 24 * 60 * 60 * 1000;
+
   app.listen(env.port, () => {
     console.log(`Moderation backend running at http://localhost:${env.port}`);
+    void runStorySpacesAssetCleanup(storage).catch((e) =>
+      console.warn("[storySpacesCleanup] initial:", e?.message || e)
+    );
+    setInterval(() => {
+      void runStorySpacesAssetCleanup(storage).catch((e) =>
+        console.warn("[storySpacesCleanup] interval:", e?.message || e)
+      );
+    }, STORY_SPACES_CLEANUP_MS);
   });
 }
 

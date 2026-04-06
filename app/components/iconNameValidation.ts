@@ -42,3 +42,42 @@ export const sanitizeMaterialCommunityIconName = normalizeMaterialIconName;
 export const normalizeMaterialCommunityIconName = normalizeMaterialIconName;
 export const normalizeVaultIconName = normalizeMaterialIconName;
 export default normalizeMaterialIconName;
+
+/** Catálogo mínimo para resolver `materialIconName` desde `iconVaultId` (p. ej. Mis Tarjetas al guardar). */
+export type MaterialIconVaultLookup = Record<string, { materialIconName?: string | null } | undefined>;
+
+/**
+ * Misma prioridad que el mini-icono de bóveda: catálogo (`iconVaultId`) → `icon` si no es URL (nombre Material) → `iconName`.
+ * Devuelve cadena vacía si no hay ningún campo útil (p. ej. slot vacío).
+ */
+export function resolveMaterialGlyphFromVaultLikeFields(
+  fields: {
+    icon?: string | null;
+    iconName?: string | null;
+    iconVaultId?: string | null;
+  },
+  iconVaultById?: MaterialIconVaultLookup | null,
+): string {
+  const iconRaw = String(fields.icon || '').trim();
+  const labelRaw = String(fields.iconName || '').trim();
+  const vaultId = String(fields.iconVaultId || '').trim();
+  const isHttp = /^https?:\/\//i.test(iconRaw);
+
+  if (!vaultId && !iconRaw && !labelRaw) {
+    return '';
+  }
+
+  let fromVault = '';
+  if (!isHttp && vaultId && iconVaultById) {
+    const ent = iconVaultById[vaultId];
+    const mn = String(ent?.materialIconName || '').trim();
+    if (mn) {
+      fromVault = normalizeMaterialIconName(mn);
+    }
+  }
+
+  const fromStoredIcon = !isHttp && iconRaw ? normalizeMaterialIconName(iconRaw) : '';
+  const fromIconName = labelRaw ? normalizeMaterialIconName(labelRaw) : '';
+
+  return fromVault || fromStoredIcon || fromIconName || 'help-circle';
+}

@@ -2,7 +2,7 @@
  * Account Recovery Screen Component
  */
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -13,15 +13,151 @@ import {
   ScrollView,
   KeyboardAvoidingView,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { initiateAccountRecovery, checkRecoveryRequestStatus } from '@/services/accountRecoveryService';
 import { useLanguage } from '@/services/language';
+import { useLookMode } from '@/services/lookMode';
+import palette from '../theme';
 
 type RecoveryStep = 'method-select' | 'email-recovery' | 'ticket-status';
 
 export default function AccountRecoveryScreen({ onClose }: { onClose: () => void }) {
   const { language } = useLanguage();
   const tr = (es: string, en: string) => language === 'en' ? en : es;
+  const { resolvedMode } = useLookMode();
+  const isDark = resolvedMode === 'noche';
+  const shell = palette[isDark ? 'dark' : 'light'];
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          flex: 1,
+          backgroundColor: shell.backgroundSolid,
+        },
+        scrollContent: {
+          flexGrow: 1,
+          paddingBottom: 32,
+        },
+        header: {
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          paddingHorizontal: 16,
+          paddingTop: 24,
+          paddingBottom: 16,
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: shell.border,
+        },
+        headerTitle: {
+          fontSize: 18,
+          fontWeight: '700',
+          color: shell.textPrimary,
+        },
+        content: {
+          flex: 1,
+          paddingHorizontal: 16,
+          paddingVertical: 32,
+        },
+        icon: {
+          alignSelf: 'center',
+          marginBottom: 24,
+        },
+        title: {
+          fontSize: 22,
+          fontWeight: '700',
+          color: shell.textPrimary,
+          marginBottom: 8,
+          textAlign: 'center',
+        },
+        subtitle: {
+          fontSize: 14,
+          color: shell.textSecondary,
+          textAlign: 'center',
+          marginBottom: 32,
+        },
+        methodButton: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: 16,
+          paddingVertical: 16,
+          borderRadius: 12,
+          backgroundColor: shell.surface,
+          marginBottom: 12,
+          borderWidth: 1,
+          borderColor: shell.border,
+        },
+        methodTextContainer: {
+          flex: 1,
+          marginLeft: 12,
+        },
+        methodTitle: {
+          fontSize: 16,
+          fontWeight: '600',
+          color: shell.textPrimary,
+          marginBottom: 4,
+        },
+        methodSubtitle: {
+          fontSize: 12,
+          color: shell.textSecondary,
+        },
+        backButton: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          marginBottom: 24,
+        },
+        backButtonText: {
+          fontSize: 14,
+          fontWeight: '600',
+          color: shell.textPrimary,
+          marginLeft: 4,
+        },
+        input: {
+          borderWidth: 1,
+          borderColor: shell.border,
+          borderRadius: 8,
+          paddingHorizontal: 12,
+          paddingVertical: 12,
+          fontSize: 14,
+          color: shell.textPrimary,
+          marginBottom: 24,
+          backgroundColor: shell.inputBg,
+        },
+        primaryButton: {
+          borderRadius: 8,
+          overflow: 'hidden',
+        },
+        primaryButtonInner: {
+          paddingVertical: 14,
+          alignItems: 'center',
+        },
+        primaryButtonText: {
+          fontSize: 14,
+          fontWeight: '700',
+          color: shell.btnPrimaryText,
+        },
+        disabled: {
+          opacity: 0.6,
+        },
+        statusBox: {
+          marginTop: 24,
+          paddingHorizontal: 12,
+          paddingVertical: 12,
+          borderRadius: 8,
+          backgroundColor: shell.storiesNormalBtnBg,
+          borderLeftWidth: 4,
+          borderLeftColor: shell.success,
+        },
+        statusText: {
+          fontSize: 13,
+          color: shell.success,
+          fontWeight: '500',
+        },
+      }),
+    [shell]
+  );
+
   const [step, setStep] = useState<RecoveryStep>('method-select');
   const [email, setEmail] = useState('');
   const [ticketId, setTicketId] = useState('');
@@ -59,13 +195,15 @@ export default function AccountRecoveryScreen({ onClose }: { onClose: () => void
     setStatusInfo(result.message);
   };
 
+  const accent = shell.ctaAccent;
+  const chevronColor = shell.textPrimary;
+
   return (
     <KeyboardAvoidingView behavior="padding" style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose}>
-            <MaterialCommunityIcons name="close" size={28} color="#0A2540" />
+            <MaterialCommunityIcons name="close" size={28} color={chevronColor} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Recuperar Cuenta</Text>
           <View style={{ width: 28 }} />
@@ -73,63 +211,39 @@ export default function AccountRecoveryScreen({ onClose }: { onClose: () => void
 
         {step === 'method-select' && (
           <View style={styles.content}>
-            <MaterialCommunityIcons
-              name="shield-lock"
-              size={64}
-              color="#C5A065"
-              style={styles.icon}
-            />
+            <MaterialCommunityIcons name="shield-lock" size={64} color={accent} style={styles.icon} />
             <Text style={styles.title}>¿Perdiste acceso a tu cuenta?</Text>
-            <Text style={styles.subtitle}>
-              Elige cómo deseas recuperar tu cuenta
-            </Text>
+            <Text style={styles.subtitle}>Elige cómo deseas recuperar tu cuenta</Text>
 
-            {/* Opción 1: Reset por Email */}
-            <TouchableOpacity
-              style={styles.methodButton}
-              onPress={() => setStep('email-recovery')}
-            >
-              <MaterialCommunityIcons name="email" size={32} color="#C5A065" />
+            <TouchableOpacity style={styles.methodButton} onPress={() => setStep('email-recovery')}>
+              <MaterialCommunityIcons name="email" size={32} color={accent} />
               <View style={styles.methodTextContainer}>
                 <Text style={styles.methodTitle}>Récupera por Email</Text>
-                <Text style={styles.methodSubtitle}>
-                  Recibirás un link para resetear tu contraseña
-                </Text>
+                <Text style={styles.methodSubtitle}>Recibirás un link para resetear tu contraseña</Text>
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={24} color="#0A2540" />
+              <MaterialCommunityIcons name="chevron-right" size={24} color={chevronColor} />
             </TouchableOpacity>
 
-            {/* Opción 2: Verificación por Documento */}
-            <TouchableOpacity
-              style={styles.methodButton}
-              onPress={() => setStep('ticket-status')}
-            >
-              <MaterialCommunityIcons name="file-document" size={32} color="#C5A065" />
+            <TouchableOpacity style={styles.methodButton} onPress={() => setStep('ticket-status')}>
+              <MaterialCommunityIcons name="file-document" size={32} color={accent} />
               <View style={styles.methodTextContainer}>
                 <Text style={styles.methodTitle}>Verificación Manual</Text>
-                <Text style={styles.methodSubtitle}>
-                  Verifica tu identidad con documento
-                </Text>
+                <Text style={styles.methodSubtitle}>Verifica tu identidad con documento</Text>
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={24} color="#0A2540" />
+              <MaterialCommunityIcons name="chevron-right" size={24} color={chevronColor} />
             </TouchableOpacity>
           </View>
         )}
 
         {step === 'email-recovery' && (
           <View style={styles.content}>
-            <TouchableOpacity
-              onPress={() => setStep('method-select')}
-              style={styles.backButton}
-            >
-              <MaterialCommunityIcons name="chevron-left" size={24} color="#0A2540" />
+            <TouchableOpacity onPress={() => setStep('method-select')} style={styles.backButton}>
+              <MaterialCommunityIcons name="chevron-left" size={24} color={chevronColor} />
               <Text style={styles.backButtonText}>Volver</Text>
             </TouchableOpacity>
 
             <Text style={styles.title}>Ingresa tu Email</Text>
-            <Text style={styles.subtitle}>
-              Enviaremos un link a tu email para resetear tu contraseña
-            </Text>
+            <Text style={styles.subtitle}>Enviaremos un link a tu email para resetear tu contraseña</Text>
 
             <TextInput
               style={styles.input}
@@ -138,7 +252,7 @@ export default function AccountRecoveryScreen({ onClose }: { onClose: () => void
               onChangeText={setEmail}
               keyboardType="email-address"
               editable={!loading}
-              placeholderTextColor="#999"
+              placeholderTextColor={shell.textMuted}
             />
 
             <TouchableOpacity
@@ -146,27 +260,24 @@ export default function AccountRecoveryScreen({ onClose }: { onClose: () => void
               onPress={handleEmailRecovery}
               disabled={loading}
             >
-              <Text style={styles.primaryButtonText}>
-                {loading ? 'Enviando...' : 'Enviar Link de Recuperación'}
-              </Text>
+              <LinearGradient colors={[shell.ctaPrimary, shell.refreshAccent]} style={styles.primaryButtonInner}>
+                <Text style={styles.primaryButtonText}>
+                  {loading ? 'Enviando...' : 'Enviar Link de Recuperación'}
+                </Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         )}
 
         {step === 'ticket-status' && (
           <View style={styles.content}>
-            <TouchableOpacity
-              onPress={() => setStep('method-select')}
-              style={styles.backButton}
-            >
-              <MaterialCommunityIcons name="chevron-left" size={24} color="#0A2540" />
+            <TouchableOpacity onPress={() => setStep('method-select')} style={styles.backButton}>
+              <MaterialCommunityIcons name="chevron-left" size={24} color={chevronColor} />
               <Text style={styles.backButtonText}>Volver</Text>
             </TouchableOpacity>
 
             <Text style={styles.title}>Verfifica tu ID de Ticket</Text>
-            <Text style={styles.subtitle}>
-              Ingresa el ID de tu solicitud de verificación para ver el estado
-            </Text>
+            <Text style={styles.subtitle}>Ingresa el ID de tu solicitud de verificación para ver el estado</Text>
 
             <TextInput
               style={styles.input}
@@ -174,7 +285,7 @@ export default function AccountRecoveryScreen({ onClose }: { onClose: () => void
               value={ticketId}
               onChangeText={setTicketId}
               editable={!loading}
-              placeholderTextColor="#999"
+              placeholderTextColor={shell.textMuted}
             />
 
             <TouchableOpacity
@@ -182,142 +293,19 @@ export default function AccountRecoveryScreen({ onClose }: { onClose: () => void
               onPress={handleCheckTicketStatus}
               disabled={loading}
             >
-              <Text style={styles.primaryButtonText}>
-                {loading ? 'Verificando...' : 'Verificar Estado'}
-              </Text>
+              <LinearGradient colors={[shell.ctaPrimary, shell.refreshAccent]} style={styles.primaryButtonInner}>
+                <Text style={styles.primaryButtonText}>{loading ? 'Verificando...' : 'Verificar Estado'}</Text>
+              </LinearGradient>
             </TouchableOpacity>
 
-            {statusInfo && (
+            {statusInfo ? (
               <View style={styles.statusBox}>
                 <Text style={styles.statusText}>{statusInfo}</Text>
               </View>
-            )}
+            ) : null}
           </View>
         )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: 32,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 24,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8E8E8',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0A2540',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 32,
-  },
-  icon: {
-    alignSelf: 'center',
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#0A2540',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 32,
-  },
-  methodButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderRadius: 12,
-    backgroundColor: '#F5F5F5',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E8E8E8',
-  },
-  methodTextContainer: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  methodTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#0A2540',
-    marginBottom: 4,
-  },
-  methodSubtitle: {
-    fontSize: 12,
-    color: '#999',
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  backButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0A2540',
-    marginLeft: 4,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#E8E8E8',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: '#0A2540',
-    marginBottom: 24,
-    backgroundColor: '#F9F9F9',
-  },
-  primaryButton: {
-    backgroundColor: 'linear-gradient(135deg, #0A2540 0%, #1EA7FF 100%)',
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  primaryButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  disabled: {
-    opacity: 0.6,
-  },
-  statusBox: {
-    marginTop: 24,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: '#E8F5E9',
-    borderLeftWidth: 4,
-    borderLeftColor: '#2ECC71',
-  },
-  statusText: {
-    fontSize: 13,
-    color: '#2E7D32',
-    fontWeight: '500',
-  },
-});

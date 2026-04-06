@@ -1,95 +1,300 @@
 /**
- * Improved Search Screen with Social Market
- * Búsqueda Fuzzy + Geolocalización + Business Cards
+ * Mercado Social / Social Market: búsqueda con sinónimos, contactos recibidos y tarjetas de negocio.
  */
 
+import { SharedCardSkeletonList } from '@/components/SharedCardRowSkeleton';
+import { ThemedSharedCardSurface } from '@/components/ThemedSharedCardSurface';
 import { getActiveUserId } from '@/services/authSession';
+import { hardLockCheck } from '@/services/biometricAuth';
 import { ExportBusinessQR, generatePermanentBusinessLink } from '@/services/brandedQrService';
 import { hasActiveBusinessLicense } from '@/services/businessLicenseService';
-import { db } from '@/services/firebaseConfig';
-import {
-    getCurrentLocation,
-    hasLocationPermission,
-    requestLocationPermission,
-} from '@/services/geolocationService';
 import { useLanguage } from '@/services/language';
+import {
+  isSearchLocationSessionActive,
+  startSearchLocationSession,
+  subscribeSearchLocationSession,
+} from '@/services/searchLocationSession';
 import { useLookMode } from '@/services/lookMode';
-import { findNearbyBusinesses, searchSocialMarket } from '@/services/searchService';
-import { BusinessCardSearchResult, GeoLocation } from '@/types/businessCard';
+import appPalette, { type AppShellTheme } from '../theme';
+import { listReceivedContacts } from '@/services/qrApi';
+import {
+  mergeReceivedContactRows,
+  receivedContactMergeKey,
+} from '@/services/receivedContactsPresentationMerge';
+import { getCardRowTheme } from '@/services/useActiveTheme';
+import { facetIconNameForSearch, runSearchFacetQuickAction } from '@/services/searchFacetQuickAction';
+import { buildMarketCardSearchFacets, marketSearchStoryRingState } from '@/services/searchPhase2Logic';
+import { searchSocialMarket } from '@/services/searchService';
+import type { ReceivedContactForMarketSearch } from '@/services/searchService';
+import {
+  buildStoryLookupFromReceivedContacts,
+  resolveSearchRowStoryState,
+  storyChannelKey,
+} from '@/services/storiesPhase1Logic';
+import { BusinessCardSearchResult } from '@/types/businessCard';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
-import { useRouter } from 'expo-router';
-import { collection, getDocs } from 'firebase/firestore';
-import React, { useEffect, useRef, useState } from 'react';
+import * as Haptics from 'expo-haptics';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
-    FlatList,
+    Animated,
+    Keyboard,
     Modal,
+    Platform,
     Pressable,
     RefreshControl,
+    ScrollView,
+    SectionList,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
-    View
+    View,
+    type NativeSyntheticEvent,
+    type NativeScrollEvent,
 } from 'react-native';
+import { MEDIA_PLACEHOLDER } from '@/constants/mediaPlaceholders';
 import QRCode from 'react-native-qrcode-svg';
 
-interface MyContact {
-  id: string;
-  title: string;
-  type: string;
-  value: string;
-}
+const CONTACT_META_STORAGE_KEY = 'contacts_meta_v2';
+const GROUP_DEFAULT = 'Random';
+/** Radio de negocios en millas (búsqueda con ubicación y modo orden por distancia). */
+const MAX_MARKET_RADIUS_MILES = 20;
+
+type ContactMetaLite = { group?: string; icons?: Array<{ name: string; url: string }> };
+
+/**
+ * Barra de búsqueda con texto en estado local: el padre no re-renderiza en cada tecla,
+ * así el TextInput no pierde el foco ni se desmonta con el ListHeader del SectionList.
+ */
+const SocialMarketSearchBar = React.memo(function SocialMarketSearchBar({
+  loading,
+  shell,
+  tr,
+  onSubmitQuery,
+  onClearResults,
+}: {
+  loading: boolean;
+  shell: AppShellTheme;
+  tr: (es: string, en: string) => string;
+  onSubmitQuery: (trimmed: string) => void;
+  onClearResults: () => void;
+}) {
+  const [localSearchText, setLocalSearchText] = useState('');
+
+  const submit = useCallback(() => {
+    const q = localSearchText.trim();
+    if (!q) {
+      Alert.alert(tr('Error', 'Error'), tr('Ingresa palabras clave para buscar', 'Enter keywords to search'));
+      return;
+    }
+    onSubmitQuery(q);
+  }, [localSearchText, onSubmitQuery, tr]);
+
+  const clear = useCallback(() => {
+    setLocalSearchText('');
+    Keyboard.dismiss();
+    onClearResults();
+  }, [onClearResults]);
+
+  return (
+    <View style={[styles.searchRow, { backgroundColor: shell.surfaceMuted, borderColor: shell.border }]}>
+      <MaterialCommunityIcons name="magnify" size={22} color={shell.textSecondary} style={styles.searchRowIcon} />
+      <TextInput
+        style={[styles.searchInputMinimal, { color: shell.textPrimary }]}
+        placeholder={tr('Nails, Hair, Cosmetología…', 'Nails, hair, cosmetology…')}
+        value={localSearchText}
+        onChangeText={setLocalSearchText}
+        onSubmitEditing={submit}
+        placeholderTextColor={shell.textMuted}
+        returnKeyType="search"
+        blurOnSubmit={false}
+      />
+      {localSearchText.length > 0 ? (
+        <TouchableOpacity
+          onPress={clear}
+          hitSlop={12}
+          accessibilityLabel={tr('Limpiar búsqueda', 'Clear search')}
+        >
+          <MaterialCommunityIcons name="close-circle-outline" size={22} color={shell.textMuted} />
+        </TouchableOpacity>
+      ) : null}
+      <TouchableOpacity
+        style={[styles.goButton, { backgroundColor: shell.ctaPrimary }]}
+        onPress={submit}
+        disabled={loading}
+        accessibilityRole="button"
+        accessibilityLabel={tr('Buscar en el mercado', 'Search the market')}
+      >
+        <Text style={[styles.goButtonText, { color: shell.btnPrimaryText }]}>{tr('IR', 'GO')}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+});
 
 export default function SearchScreen() {
-  const router = useRouter();
   const { resolvedMode } = useLookMode();
   const isDark = resolvedMode === 'noche';
+  const shell = appPalette[isDark ? 'dark' : 'light'];
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => language === 'en' ? en : es;
-  const [searchQuery, setSearchQuery] = useState('');
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [results, setResults] = useState<BusinessCardSearchResult[]>([]);
-  const [myContacts, setMyContacts] = useState<MyContact[]>([]);
+  const tr = useCallback((es: string, en: string) => (language === 'en' ? en : es), [language]);
+  /** Última consulta enviada (IR / Intro); el campo de texto vive en SocialMarketSearchBar. */
+  const [submittedQuery, setSubmittedQuery] = useState('');
+  const searchQueryRef = useRef('');
+  const [, setLocationSessionUiRev] = useState(0);
+  const sessionWasActiveRef = useRef(false);
+  const [sectionContacts, setSectionContacts] = useState<BusinessCardSearchResult[]>([]);
+  const [sectionBusinesses, setSectionBusinesses] = useState<BusinessCardSearchResult[]>([]);
+  /** Orden global Mercado: distancia (≤20 mi) o valoración. */
+  const [marketSortMode, setMarketSortMode] = useState<'distance' | 'rating'>('distance');
+  const [marketSortModalVisible, setMarketSortModalVisible] = useState(false);
+  const [, setReceivedContactsForMarket] = useState<ReceivedContactForMarketSearch[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [userLocation, setUserLocation] = useState<GeoLocation | null>(null);
-  const [hasLocationAccess, setHasLocationAccess] = useState(false);
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
   const [licenseStatus, setLicenseStatus] = useState<Record<string, boolean>>({});
+  const rowPressScaleRef = useRef<Map<string, Animated.Value>>(new Map());
+  const sectionListRef = useRef<SectionList<BusinessCardSearchResult>>(null);
+  const searchScrollYRef = useRef(0);
+  const savedSearchScrollYRef = useRef(0);
 
-  const palette = {
-    background: isDark ? '#06080B' : '#F9F9F9',
-    surface: isDark ? '#10141A' : '#FFFFFF',
-    surfaceMuted: isDark ? '#1B222C' : '#F5F5F5',
-    border: isDark ? '#2A3340' : '#E8E8E8',
-    textPrimary: isDark ? '#F5F8FC' : '#0A2540',
-    textSecondary: isDark ? '#C8D0DA' : '#4A4A4A',
-    ctaPrimary: '#0A2540',
-    ctaAccent: '#C5A065',
+  const restoreSearchListScroll = useCallback(() => {
+    const y = savedSearchScrollYRef.current;
+    const list = sectionListRef.current as unknown as
+      | { scrollToOffset?: (o: { offset: number; animated?: boolean }) => void }
+      | null;
+    list?.scrollToOffset?.({ offset: Math.max(0, y), animated: false });
+  }, []);
+
+  const [receivedContactsLookupRows, setReceivedContactsLookupRows] = useState<ReceivedContactForMarketSearch[]>([]);
+  const [receivedCardDetail, setReceivedCardDetail] = useState<BusinessCardSearchResult | null>(null);
+  const [marketCardDetail, setMarketCardDetail] = useState<BusinessCardSearchResult | null>(null);
+
+  const storyLookupMaps = useMemo(
+    () =>
+      buildStoryLookupFromReceivedContacts(
+        receivedContactsLookupRows.map((r) => ({
+          uid: r.uid,
+          cardId: r.cardId,
+          channelMuted: r.channelMuted,
+          storyState: r.storyState ?? 'none',
+        }))
+      ),
+    [receivedContactsLookupRows]
+  );
+
+  const closeReceivedCardDetail = useCallback(() => {
+    setReceivedCardDetail(null);
+    requestAnimationFrame(restoreSearchListScroll);
+  }, [restoreSearchListScroll]);
+
+  const closeMarketCardDetail = useCallback(() => {
+    setMarketCardDetail(null);
+    requestAnimationFrame(restoreSearchListScroll);
+  }, [restoreSearchListScroll]);
+
+  const onSearchScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    searchScrollYRef.current = e.nativeEvent.contentOffset.y;
+  }, []);
+
+  const pressScaleForRow = (key: string) => {
+    let v = rowPressScaleRef.current.get(key);
+    if (!v) {
+      v = new Animated.Value(1);
+      rowPressScaleRef.current.set(key, v);
+    }
+    return v;
   };
 
-  useEffect(() => {
-    loadMyContacts();
-    checkLocationPermission();
-  }, []);
+  const rowPressIn = (key: string) => {
+    try {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {
+      /* opcional */
+    }
+    Animated.spring(pressScaleForRow(key), {
+      toValue: 0.98,
+      useNativeDriver: true,
+      friction: 7,
+      tension: 220,
+    }).start();
+  };
+
+  const rowPressOut = (key: string) => {
+    Animated.spring(pressScaleForRow(key), {
+      toValue: 1,
+      useNativeDriver: true,
+      friction: 7,
+      tension: 220,
+    }).start();
+  };
+
+  const displaySectionBusinesses = useMemo(() => {
+    if (marketSortMode === 'distance') {
+      const within = sectionBusinesses.filter((r) => {
+        const d = r.distanceMiles;
+        if (d == null || !Number.isFinite(d)) {
+          return true;
+        }
+        return d <= MAX_MARKET_RADIUS_MILES;
+      });
+      return [...within].sort((a, b) => {
+        const da = a.distanceMiles ?? 1e9;
+        const db_ = b.distanceMiles ?? 1e9;
+        return da - db_;
+      });
+    }
+    const withRating = sectionBusinesses.filter((r) => Number(r.card.averageRating) > 0);
+    return [...withRating].sort((a, b) => {
+      const rb = Number(b.card.averageRating) || 0;
+      const ra = Number(a.card.averageRating) || 0;
+      if (rb !== ra) {
+        return rb - ra;
+      }
+      const da = a.distanceMiles ?? 1e9;
+      const db_ = b.distanceMiles ?? 1e9;
+      return da - db_;
+    });
+  }, [sectionBusinesses, marketSortMode]);
+
+  const displaySectionContacts = useMemo(() => {
+    if (marketSortMode === 'rating') {
+      return [...sectionContacts].sort((a, b) => {
+        const rb = Number(b.card.averageRating) || 0;
+        const ra = Number(a.card.averageRating) || 0;
+        return rb - ra;
+      });
+    }
+    return sectionContacts;
+  }, [sectionContacts, marketSortMode]);
+
+  const allMarketRows = useMemo(
+    () => [...displaySectionContacts, ...displaySectionBusinesses],
+    [displaySectionContacts, displaySectionBusinesses],
+  );
 
   useEffect(() => {
     let cancelled = false;
 
     const loadLicenseStatus = async () => {
-      if (!results.length) {
+      const marketOnly = allMarketRows.filter(
+        (r) => r.rowSource === 'social_market' && r.card.ownerUid && r.card.ownerUid !== '__vault_local__',
+      );
+      if (!marketOnly.length) {
         setLicenseStatus({});
         return;
       }
 
       const statuses = await Promise.all(
-        results.map(async (result) => {
+        marketOnly.map(async (result) => {
           const active = await hasActiveBusinessLicense(result.card.ownerUid, result.card.id);
           return [result.card.id, active] as const;
-        })
+        }),
       );
 
       if (!cancelled) {
@@ -102,242 +307,295 @@ export default function SearchScreen() {
     return () => {
       cancelled = true;
     };
-  }, [results]);
+  }, [allMarketRows]);
 
-  const loadMyContacts = async () => {
-    try {
-      const userId = await getActiveUserId();
-      if (userId) {
-        const contactsSnapshot = await getDocs(
-          collection(db, 'users', userId, 'links')
-        );
-        const contacts = contactsSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as MyContact[];
-        setMyContacts(contacts);
-      }
-    } catch (error) {
-      console.error('Error loading contacts:', error);
+  const listSections = useMemo(() => {
+    const sections: { title: string; data: BusinessCardSearchResult[] }[] = [];
+    if (displaySectionContacts.length) {
+      sections.push({
+        title: tr('Conocidos primero (Contactos)', 'Contacts first'),
+        data: displaySectionContacts,
+      });
     }
-  };
+    if (displaySectionBusinesses.length) {
+      sections.push({
+        title: tr('Mercado Social', 'Social Market'),
+        data: displaySectionBusinesses,
+      });
+    }
+    return sections;
+  }, [displaySectionContacts, displaySectionBusinesses, language]);
 
-  const checkLocationPermission = async () => {
-    const hasPermission = await hasLocationPermission();
-    setHasLocationAccess(hasPermission);
-  };
-
-  const handleLocationRequest = async () => {
+  const loadReceivedContactsForMarket = useCallback(async (): Promise<ReceivedContactForMarketSearch[]> => {
+    const empty: ReceivedContactForMarketSearch[] = [];
     try {
-      const granted = await requestLocationPermission();
-      if (granted) {
-        setHasLocationAccess(true);
-        const location = await getCurrentLocation();
-        if (location) {
-          setUserLocation(location);
-          Alert.alert(tr('✅ GPS Activado', '✅ GPS Activated'), tr('Ahora buscaremos negocios cercanos', 'Now we will search nearby businesses'));
+      const ownerUid = await getActiveUserId();
+      if (!ownerUid) {
+        setReceivedContactsForMarket(empty);
+        return empty;
+      }
+      let meta: Record<string, ContactMetaLite> = {};
+      try {
+        const raw = await AsyncStorage.getItem(CONTACT_META_STORAGE_KEY);
+        if (raw) {
+          meta = JSON.parse(raw) as Record<string, ContactMetaLite>;
         }
-      } else {
-        Alert.alert(tr('❌ Permiso Denegado', '❌ Permission Denied'), tr('Sin GPS no puedo buscar negocios cercanos', 'Without GPS I cannot search nearby businesses'));
+      } catch {
+        meta = {};
       }
+      const { contacts } = await listReceivedContacts({ ownerUid });
+      const merged: ReceivedContactForMarketSearch[] = contacts.map((c) => {
+        const mk = receivedContactMergeKey({ uid: c.uid, cardId: c.cardId });
+        return {
+        uid: c.uid,
+        cardId: c.cardId,
+        name: c.name,
+        nickname: c.nickname,
+        cardName: c.cardName,
+        photoUrl: c.photoUrl,
+        ratingAvg: c.ratingAvg,
+        totalRatings: c.totalRatings,
+        holdersCount: c.holdersCount,
+        searchFacets: c.searchFacets || [],
+        metaGroup: meta[mk]?.group || meta[c.uid]?.group || GROUP_DEFAULT,
+        metaIcons: meta[mk]?.icons || meta[c.uid]?.icons,
+        themeId: c.themeId,
+        layout: c.layout,
+        fontId: c.fontId,
+        fontName: c.fontName,
+        fontFamily: c.fontFamily,
+        fontTier: c.fontTier,
+        wallpaperId: c.wallpaperId,
+        wallpaperUrl: c.wallpaperUrl,
+        wallpaperThumbUrl: c.wallpaperThumbUrl,
+        wallpaperTier: c.wallpaperTier,
+        wallpaperPriceCredits: c.wallpaperPriceCredits,
+        enableParallax: c.enableParallax,
+        itemIds: c.itemIds,
+        cardUpdatedAt: c.cardUpdatedAt,
+        storyState: c.storyState ?? 'none',
+        channelMuted: Boolean(c.channelMuted),
+      };
+      });
+      setReceivedContactsLookupRows(merged);
+      setReceivedContactsForMarket((prev) => {
+        if (!prev.length) {
+          return merged;
+        }
+        return mergeReceivedContactRows<ReceivedContactForMarketSearch>(prev, merged);
+      });
+      return merged;
     } catch (error) {
-      console.error('Error requesting location:', error);
-    }
-  };
-
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      Alert.alert(tr('Error', 'Error'), tr('Ingresa palabras clave para buscar', 'Enter keywords to search'));
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Si no tenemos ubicación pero hay permiso, intentar obtenerla
-      let location = userLocation;
-      if (hasLocationAccess && !location) {
-        location = await getCurrentLocation();
-        if (location) setUserLocation(location);
+      if (__DEV__) {
+        console.warn('loadReceivedContactsForMarket:', error);
       }
-
-      const terms = searchQuery.split(' ').filter((t) => t.length > 0);
-
-      const searchResults = await searchSocialMarket(
-        terms,
-        myContacts as any, // Type casting - same structure, different interface
-        location?.latitude,
-        location?.longitude,
-        5 // radiusMiles
-      );
-
-      setResults(searchResults);
-
-      if (searchResults.length === 0) {
-        Alert.alert(tr('Sin Resultados', 'No Results'), tr('No encontramos coincidencias con esa búsqueda', 'We found no matches for that search'));
-      }
-    } catch (error) {
-      console.error('Error searching:', error);
-      Alert.alert(tr('Error', 'Error'), tr('Error en la búsqueda', 'Search error'));
-    } finally {
-      setLoading(false);
+      setReceivedContactsForMarket(empty);
+      return empty;
     }
-  };
+  }, []);
 
-  const handleNearby = async () => {
-    if (!hasLocationAccess) {
-      Alert.alert(
-        'GPS Requerido',
-        '¿Activar GPS para encontrar negocios cercanos?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Activar GPS', onPress: handleLocationRequest },
-        ]
-      );
-      return;
-    }
+  useEffect(() => {
+    void loadReceivedContactsForMarket();
+  }, [loadReceivedContactsForMarket]);
 
-    setLoading(true);
-    try {
-      let location = userLocation;
-      if (!location) {
-        location = await getCurrentLocation();
-        if (location) setUserLocation(location);
-      }
-
-      if (!location) {
-        Alert.alert(tr('Error', 'Error'), tr('No se pudo obtener tu ubicación', 'Could not get your location'));
-        setLoading(false);
+  const performMarketSearch = useCallback(
+    async (query: string, latitude?: number, longitude?: number) => {
+      const q = query.trim();
+      if (!q) {
         return;
       }
-
-      const nearby = await findNearbyBusinesses(
-        location.latitude,
-        location.longitude,
-        5 // 5 millas
-      );
-
-      setResults(nearby);
-
-      if (nearby.length === 0) {
-        Alert.alert(
-          'Sin Negocios Cercanos',
-          'No encontramos negocios en un radio de 5 millas'
+      searchQueryRef.current = q;
+      setSubmittedQuery(q);
+      setLoading(true);
+      try {
+        const receivedRows = await loadReceivedContactsForMarket();
+        const { contacts, businesses } = await searchSocialMarket(
+          q,
+          receivedRows,
+          latitude,
+          longitude,
+          MAX_MARKET_RADIUS_MILES,
         );
+        setSectionContacts(contacts);
+        setSectionBusinesses(businesses);
+        setMarketSortMode('distance');
+      } catch (error) {
+        console.error('Error searching:', error);
+        Alert.alert(
+          tr('No se pudo completar la búsqueda', 'Search could not finish'),
+          tr(
+            'Revisa tu conexión a internet e inténtalo de nuevo. Si el fallo continúa, prueba más tarde.',
+            'Check your internet connection and try again. If it keeps failing, try again later.',
+          ),
+        );
+      } finally {
+        Keyboard.dismiss();
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Error finding nearby:', error);
-      Alert.alert(tr('Error', 'Error'), tr('Error buscando negocios cercanos', 'Error searching nearby businesses'));
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [loadReceivedContactsForMarket, tr],
+  );
+
+  const onSubmitMarketQuery = useCallback(
+    (q: string) => {
+      void (async () => {
+        const r = await startSearchLocationSession();
+        if (r.ok) {
+          await performMarketSearch(q, r.latitude, r.longitude);
+        } else {
+          await performMarketSearch(q, undefined, undefined);
+        }
+      })();
+    },
+    [performMarketSearch],
+  );
+
+  const onClearMarketSearch = useCallback(() => {
+    searchQueryRef.current = '';
+    setSubmittedQuery('');
+    setSectionContacts([]);
+    setSectionBusinesses([]);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      void (async () => {
+        const rows = await loadReceivedContactsForMarket();
+        if (cancelled) {
+          return;
+        }
+        const q = searchQueryRef.current.trim();
+        if (!q) {
+          return;
+        }
+        try {
+          const { contacts, businesses } = await searchSocialMarket(
+            q,
+            rows,
+            undefined,
+            undefined,
+            MAX_MARKET_RADIUS_MILES,
+          );
+          if (cancelled) {
+            return;
+          }
+          setSectionContacts(contacts);
+          setSectionBusinesses(businesses);
+        } catch {
+          /* mantener resultados previos */
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [loadReceivedContactsForMarket]),
+  );
+
+  useEffect(() => {
+    const unsub = subscribeSearchLocationSession(() => {
+      const active = isSearchLocationSessionActive();
+      if (sessionWasActiveRef.current && !active) {
+        const q = searchQueryRef.current.trim();
+        if (q) {
+          void performMarketSearch(q, undefined, undefined);
+        } else {
+          setSectionBusinesses([]);
+        }
+      }
+      sessionWasActiveRef.current = active;
+      setLocationSessionUiRev((n) => n + 1);
+    });
+    sessionWasActiveRef.current = isSearchLocationSessionActive();
+    return () => {
+      unsub();
+    };
+  }, [loadReceivedContactsForMarket, performMarketSearch]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadMyContacts();
+    await loadReceivedContactsForMarket();
     setRefreshing(false);
   };
 
-  const handleCreateBusinessCard = async () => {
-    // [CUARENTENA] Flujo de business card deshabilitado temporalmente
-    // const authenticated = await hardLockCheck('crear una tarjeta de negocio');
-    // if (!authenticated) {
-    //   return;
-    // }
-    // router.push('/createBusinessCard');
-  };
+  const marketListHeader = (
+    <View style={[styles.headerBlock, { backgroundColor: shell.background, borderBottomColor: shell.border }]}>
+      <Text style={[styles.heroTitle, { color: shell.textPrimary }]} adjustsFontSizeToFit numberOfLines={2}>
+        {tr('Mercado Social', 'Social Market')}
+      </Text>
 
-  const renderHeader = () => (
-    <View style={styles.container}>
-      {/* Búsqueda Principal */}
-      <View style={styles.searchContainer}>
-        <MaterialCommunityIcons name="magnify" size={20} color="#999" />
-        <TextInput
-          style={styles.searchInput}
-          placeholder={tr('Busca: Nails, Hair, Cosmetología...', 'Search: Nails, Hair, Cosmetology...')}
-          value={searchQuery}
-          onChangeText={(text) => {
-            setSearchQuery(text);
-            if (debounceRef.current) clearTimeout(debounceRef.current);
-            if (text.trim().length >= 2) {
-              debounceRef.current = setTimeout(() => { void handleSearch(); }, 400);
-            }
-          }}
-          onSubmitEditing={handleSearch}
-          placeholderTextColor="#999"
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')} accessibilityLabel={tr('Limpiar búsqueda', 'Clear search')}>
-            <MaterialCommunityIcons name="close" size={20} color="#999" />
-          </TouchableOpacity>
-        )}
-      </View>
+      <SocialMarketSearchBar
+        loading={loading}
+        shell={shell}
+        tr={tr}
+        onSubmitQuery={onSubmitMarketQuery}
+        onClearResults={onClearMarketSearch}
+      />
 
-      {/* Botones de Acción */}
-      <View style={styles.actionButtons}>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.searchButton]}
-          onPress={handleSearch}
-          disabled={loading}
-        >
-          <MaterialCommunityIcons name="magnify" size={16} color="#FFF" />
-          <Text style={styles.actionButtonText}>Buscar</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.actionButton, styles.locationButton]}
-          onPress={handleNearby}
-          disabled={loading}
-        >
-          <MaterialCommunityIcons
-            name={hasLocationAccess ? 'map-marker' : 'map-marker-outline'}
-            size={16}
-            color="#FFF"
-          />
-          <Text style={styles.actionButtonText}>Cercanos</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.actionButton, styles.createButton]}
-          onPress={handleCreateBusinessCard}
-          disabled={loading}
-        >
-          <MaterialCommunityIcons name="plus-circle" size={16} color="#FFF" />
-          <Text style={styles.actionButtonText}>Crear</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* GPS Status */}
-      {!hasLocationAccess && (
-        <Pressable
-          style={styles.gpsWarning}
-          onPress={handleLocationRequest}
-          accessibilityRole="button"
-        >
-          <MaterialCommunityIcons name="information" size={16} color="#FF6B6B" />
-          <Text style={styles.gpsWarningText}>Activa GPS para búsqueda por proximidad</Text>
-          <MaterialCommunityIcons name="chevron-right" size={16} color="#FF6B6B" />
-          </Pressable>
-      )}
-
-      {/* Resultados Header */}
-      {results.length > 0 && (
-        <View style={styles.resultHeader}>
-          <Text style={styles.resultTitle}>
-            {results.length} Resultado{results.length !== 1 ? 's' : ''} Encontrado
-            {results.length !== 1 ? 's' : ''}
+      <View style={styles.marketSortToolbar}>
+        <View style={styles.marketSortPillCol}>
+          <Text
+            style={[
+              styles.marketActiveSortPill,
+              {
+                color: shell.textPrimary,
+                backgroundColor: isDark ? shell.surfaceMuted : shell.filterPillBg,
+              },
+              Platform.OS === 'android' ? { includeFontPadding: false } : null,
+            ]}
+            numberOfLines={2}
+          >
+            {tr('Filtro activo:', 'Active filter:')}{' '}
+            {marketSortMode === 'distance' ? tr('Distancia', 'Distance') : tr('Valoración', 'Rating')}
           </Text>
         </View>
-      )}
+        <TouchableOpacity
+          style={[
+            styles.marketSortBtn,
+            {
+              backgroundColor: shell.surface,
+              borderColor: shell.border,
+              shadowColor: shell.brandShadow,
+            },
+          ]}
+          onPress={() => setMarketSortModalVisible(true)}
+          activeOpacity={0.86}
+          accessibilityRole="button"
+          accessibilityLabel={tr('Ordenar resultados', 'Sort results')}
+        >
+          <Text style={[styles.marketSortBtnText, { color: shell.textPrimary }]}>
+            {tr('Ordenar', 'Sort')}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {allMarketRows.length > 0 ? (
+        <View style={styles.resultHeader}>
+          <Text style={[styles.resultTitle, { color: shell.textPrimary }]}>
+            {allMarketRows.length}{' '}
+            {allMarketRows.length !== 1 ? tr('resultados', 'results') : tr('resultado', 'result')}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 
   const renderResultCard = ({ item }: { item: BusinessCardSearchResult }) => {
+    const isMarketBusiness = item.rowSource === 'social_market';
     const hasLicense = licenseStatus[item.card.id] ?? true;
-    const permanentLink = (item.card as any).permanent_business_link
-      || generatePermanentBusinessLink(item.card.id, item.card.ownerUid || 'owner');
+    const dm = item.distanceMiles;
+    /** Sin NaN, sin ∞, sin 0.0 mi (solo distancia estrictamente positiva). */
+    const milesOk = typeof dm === 'number' && Number.isFinite(dm) && dm > 0;
+    const showMiles = item.showDistance === true && milesOk;
+    const permanentLink = !isMarketBusiness
+      ? 'https://cardsocial.app'
+      : (item.card as any).permanent_business_link ||
+        generatePermanentBusinessLink(item.card.id, item.card.ownerUid || 'owner');
 
     const handleExportBusinessQr = async () => {
+      if (!isMarketBusiness) {
+        return;
+      }
       try {
         const result = await ExportBusinessQR({
           businessId: item.card.id,
@@ -353,123 +611,780 @@ export default function SearchScreen() {
       }
     };
 
-    return (
-      <Pressable
-        style={({ pressed }) => [
-          styles.resultCard,
-          { backgroundColor: palette.surface, borderColor: palette.border },
-          !hasLicense && styles.dullCard,
-          pressed && styles.pressedCard,
-        ]}
-      >
-        <View style={[styles.floatingQrWrap, !hasLicense && styles.dullQrWrap]}>
-          <QRCode
-            value={permanentLink}
-            size={76}
-            color="#0A2540"
-            backgroundColor="#FFFFFF"
-            logo={item.card.businessLogo ? { uri: item.card.businessLogo } : undefined}
-            logoSize={16}
-            ecl="H"
-          />
+    const milesLabel =
+      showMiles && milesOk
+        ? dm < 1
+          ? tr('<1 mi', '<1 mi')
+          : `${dm.toFixed(1)} ${tr('mi', 'mi')}`
+        : '';
+
+    if (!isMarketBusiness) {
+      const pres = item.issuerPresentation;
+      const chest = getCardRowTheme(pres?.themeId);
+      const reviewCount = Number(item.card.totalRatings) || 0;
+      const rating = reviewCount > 0 ? Number(item.card.averageRating) || 0 : 0;
+      const holders = item.receivedHoldersCount ?? 0;
+      const cardTitle = String(item.receivedContactCardName || '').trim() || item.card.businessName;
+
+      const ringState = resolveSearchRowStoryState(
+        {
+          uid: item.card.ownerUid,
+          cardId: item.receivedSourceCardId ?? null,
+          channelMuted: item.receivedChannelMuted,
+        },
+        storyLookupMaps
+      );
+
+      const openStoryFromAvatar = () => {
+        if (ringState === 'none') {
+          return;
+        }
+        const sourceCardId = String(item.receivedSourceCardId || '').trim();
+        if (!sourceCardId) {
+          Alert.alert(
+            tr('Historia no disponible', 'Story unavailable'),
+            tr('Falta la tarjeta de origen para abrir esta historia.', 'Missing source card to open this story.'),
+          );
+          return;
+        }
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        router.push({
+          pathname: '/(tabs)/stories',
+          params: { openStory: storyChannelKey(item.card.ownerUid, sourceCardId) },
+        });
+      };
+
+      const openCardBody = () => {
+        void (async () => {
+          const ok = await hardLockCheck('ver tarjeta desde busqueda');
+          if (!ok) {
+            return;
+          }
+          savedSearchScrollYRef.current = searchScrollYRef.current;
+          setReceivedCardDetail(item);
+        })();
+      };
+
+      const ringStyle =
+        ringState === 'vip'
+          ? {
+              borderWidth: 2.6,
+              borderColor: shell.ctaAccent,
+              backgroundColor: isDark ? 'rgba(212,175,55,0.22)' : 'rgba(212,175,55,0.12)',
+              shadowColor: shell.ctaAccent,
+              shadowOpacity: 0.45,
+              shadowRadius: 12,
+              shadowOffset: { width: 0, height: 2 },
+              elevation: 5,
+            }
+          : ringState === 'normal'
+            ? {
+                borderWidth: 2.5,
+                borderColor: shell.success,
+                backgroundColor: isDark ? 'rgba(48,209,88,0.14)' : 'rgba(52,199,89,0.1)',
+                shadowColor: shell.success,
+                shadowOpacity: 0.28,
+                shadowRadius: 8,
+                shadowOffset: { width: 0, height: 2 },
+                elevation: 3,
+              }
+            : {
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.1)',
+                backgroundColor: 'transparent',
+              };
+
+      const starsEl = (
+        <View style={styles.mrStarRow}>
+          {Array.from({ length: 5 }).map((_, index) => {
+            const r = Math.max(0, Math.min(5, rating));
+            const threshold = index + 1;
+            let name: 'star' | 'star-half-full' | 'star-outline' = 'star-outline';
+            if (r >= threshold) name = 'star';
+            else if (r >= threshold - 0.5) name = 'star-half-full';
+            return <MaterialCommunityIcons key={index} name={name} size={12} color={shell.ctaAccent} />;
+          })}
         </View>
+      );
 
-        {item.card.businessLogo ? (
-          <ExpoImage
-            source={{ uri: item.card.businessLogo }}
-            style={[styles.cardImage, !hasLicense && styles.dullCardImage]}
-            cachePolicy="disk"
-          />
-        ) : (
-          <View style={[styles.cardImage, styles.cardImagePlaceholder, !hasLicense && styles.dullCardImage]}>
-            <MaterialCommunityIcons name="store" size={40} color="#C5A065" />
-          </View>
-        )}
+      const facets = item.receivedContactFacets || [];
 
-        <View style={styles.cardContent}>
-          <Text style={[styles.cardTitle, { color: palette.textPrimary }]}>{item.card.businessName}</Text>
-          <Text style={[styles.cardSubtitle, { color: palette.textSecondary }]}> 
-            {item.card.businessDescription}
-          </Text>
-
-          {!hasLicense ? (
-            <View style={styles.dullPill}>
-              <Text style={styles.dullPillText}>Dull Mode: anualidad pendiente</Text>
-            </View>
-          ) : null}
-
-          <View style={styles.statsContainer}>
-            <View style={styles.stat}>
-              <MaterialCommunityIcons name="star" size={14} color="#C5A065" />
-              <Text style={[styles.statText, { color: palette.textSecondary }]}>{item.card.averageRating.toFixed(1)}</Text>
-            </View>
-
-            {item.distanceMiles > 0 && (
-              <View style={styles.stat}>
-                <MaterialCommunityIcons name="map-marker" size={14} color="#1EA7FF" />
-                <Text style={[styles.statText, { color: palette.textSecondary }]}>
-                  {item.distanceMiles < 1 ? '<1 mi' : `${item.distanceMiles.toFixed(1)} mi`}
-                </Text>
+      return (
+        <Animated.View style={{ transform: [{ scale: pressScaleForRow(item.card.id) }] }}>
+          <ThemedSharedCardSurface
+            themeId={pres?.themeId}
+            wallpaperUrl={pres?.wallpaperUrl || undefined}
+            borderRadius={14}
+            style={[styles.marketReceivedSurfaceWrap, { shadowColor: shell.subtleShadow }]}
+          >
+            <View style={styles.marketReceivedPressable}>
+              <View style={styles.marketReceivedMainRow}>
+                <TouchableOpacity
+                  activeOpacity={ringState === 'none' ? 1 : 0.88}
+                  onPress={openStoryFromAvatar}
+                  disabled={ringState === 'none'}
+                  accessibilityLabel={tr('Abrir historia', 'Open story')}
+                >
+                  <View style={[styles.searchAvatarRing, ringStyle]}>
+                    {item.card.businessLogo ? (
+                      <ExpoImage
+                        source={{ uri: item.card.businessLogo }}
+                        style={[styles.searchAvatarInner, { backgroundColor: shell.avatarPlaceholderBg }]}
+                        cachePolicy="disk"
+                      />
+                    ) : (
+                      <View
+                        style={[
+                          styles.searchAvatarInner,
+                          styles.cardImagePlaceholder,
+                          {
+                            backgroundColor: MEDIA_PLACEHOLDER.personBgLight,
+                            borderWidth: 1,
+                            borderColor: MEDIA_PLACEHOLDER.personBorderLight,
+                          },
+                        ]}
+                      >
+                        <MaterialCommunityIcons
+                          name={MEDIA_PLACEHOLDER.personIconName}
+                          size={34}
+                          color={MEDIA_PLACEHOLDER.personIconLight}
+                        />
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+                <Pressable
+                  style={[styles.marketReceivedTextCol, { flex: 1 }]}
+                  onPress={openCardBody}
+                  onPressIn={() => rowPressIn(item.card.id)}
+                  onPressOut={() => rowPressOut(item.card.id)}
+                >
+                  <Text
+                    style={[
+                      styles.mrPersonName,
+                      {
+                        color: chest.titleColor,
+                        fontWeight: chest.titleFontWeight,
+                        fontStyle: chest.titleFontStyle,
+                      },
+                      pres?.fontFamily ? { fontFamily: pres.fontFamily } : null,
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {item.card.businessName}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.mrCardName,
+                      {
+                        color: chest.metaColor,
+                        fontWeight: chest.subtitleFontWeight,
+                        fontStyle: chest.subtitleFontStyle,
+                      },
+                      pres?.fontFamily ? { fontFamily: pres.fontFamily } : null,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {cardTitle}
+                  </Text>
+                  <View style={styles.mrRowStatsRow}>
+                    <View style={styles.mrRatingCluster}>
+                      {starsEl}
+                      <Text
+                        style={[
+                          styles.mrRatingCaption,
+                          {
+                            color: chest.extraColor,
+                            fontSize: chest.extraFontSize,
+                            fontWeight: chest.extraFontWeight,
+                            fontStyle: chest.extraFontStyle,
+                          },
+                        ]}
+                      >
+                        {rating.toFixed(1)} · {reviewCount} {tr('reseñas', 'reviews')}
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.mrRecipientsPill,
+                        { borderColor: chest.borderColor, backgroundColor: 'rgba(255,255,255,0.72)' },
+                      ]}
+                    >
+                      <MaterialCommunityIcons name="account-group-outline" size={12} color={chest.titleColor} />
+                      <Text style={[styles.mrRecipientsPillNum, { color: chest.titleColor }]}>{holders}</Text>
+                    </View>
+                  </View>
+                </Pressable>
               </View>
-            )}
+              {facets.length > 0 ? (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={styles.searchFacetRow}
+                >
+                  {facets.slice(0, 14).map((f, idx) => (
+                    <TouchableOpacity
+                      key={`${f.type}-${idx}-${f.label}`}
+                      style={[styles.searchFacetIconBtn, { borderColor: 'rgba(197,160,101,0.45)' }]}
+                      onPress={() =>
+                        runSearchFacetQuickAction({
+                          type: f.type,
+                          label: f.label,
+                          value: f.value,
+                          issuerUid: item.card.ownerUid,
+                          issuerCardName: cardTitle,
+                          issuerCardId: item.receivedSourceCardId ?? null,
+                          issuerDisplayName: item.card.businessName,
+                        })
+                      }
+                      accessibilityLabel={f.label}
+                    >
+                      <MaterialCommunityIcons
+                        name={facetIconNameForSearch(f.type) as 'help-circle'}
+                        size={22}
+                        color="rgba(212,175,55,0.95)"
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              ) : null}
+              {showMiles && milesLabel ? (
+                <View style={[styles.mrDistanceBadge, { borderColor: chest.metaColor, backgroundColor: 'rgba(255,255,255,0.55)' }]}>
+                  <Text style={[styles.mrDistanceText, { color: chest.titleColor }]}>{milesLabel}</Text>
+                </View>
+              ) : null}
+            </View>
+          </ThemedSharedCardSurface>
+        </Animated.View>
+      );
+    }
 
-            <View style={styles.stat}>
-              <MaterialCommunityIcons name="check-circle" size={14} color="#2ECC71" />
-              <Text style={[styles.statText, { color: palette.textSecondary }]}>Verificado</Text>
+    const card = item.card;
+    const marketRingState = marketSearchStoryRingState(card);
+    const marketFacets = buildMarketCardSearchFacets(card);
+    const marketRingStyle =
+      marketRingState === 'vip'
+        ? {
+            borderWidth: 2.6,
+            borderColor: shell.ctaAccent,
+            backgroundColor: isDark ? 'rgba(212,175,55,0.22)' : 'rgba(212,175,55,0.12)',
+            shadowColor: shell.ctaAccent,
+            shadowOpacity: 0.45,
+            shadowRadius: 12,
+            shadowOffset: { width: 0, height: 2 },
+            elevation: 5,
+          }
+        : marketRingState === 'normal'
+          ? {
+              borderWidth: 2.5,
+              borderColor: shell.success,
+              backgroundColor: isDark ? 'rgba(48,209,88,0.14)' : 'rgba(52,199,89,0.1)',
+              shadowColor: shell.success,
+              shadowOpacity: 0.28,
+              shadowRadius: 8,
+              shadowOffset: { width: 0, height: 2 },
+              elevation: 3,
+            }
+          : {
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.1)',
+              backgroundColor: 'transparent',
+            };
+
+    const openMarketStoryFromLogo = () => {
+      if (marketRingState === 'none') {
+        return;
+      }
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      router.push({
+        pathname: '/(tabs)/stories',
+        params: { openMarketVip: card.id },
+      });
+    };
+
+    const openMarketCardBody = () => {
+      void (async () => {
+        const ok = await hardLockCheck('ver tarjeta desde busqueda');
+        if (!ok) {
+          return;
+        }
+        savedSearchScrollYRef.current = searchScrollYRef.current;
+        setMarketCardDetail(item);
+      })();
+    };
+
+    const runMarketPhone = () => {
+      const phone = String(card.ownerPhone || '').trim();
+      if (!phone) {
+        Alert.alert(tr('Dato no disponible', 'Not available'), tr('Este negocio no publicó teléfono.', 'This business has no phone listed.'));
+        return;
+      }
+      runSearchFacetQuickAction({
+        type: 'teléfono',
+        label: tr('Teléfono', 'Phone'),
+        value: phone,
+        issuerUid: card.ownerUid,
+        issuerCardName: card.businessName,
+        issuerCardId: card.id,
+        issuerDisplayName: card.businessName,
+      });
+    };
+
+    const runMarketWhatsapp = () => {
+      const phone = String(card.ownerPhone || '').trim();
+      if (!phone) {
+        Alert.alert(tr('Dato no disponible', 'Not available'), tr('Sin número para WhatsApp.', 'No number for WhatsApp.'));
+        return;
+      }
+      const digits = phone.replace(/\D/g, '');
+      runSearchFacetQuickAction({
+        type: 'whatsapp',
+        label: 'WhatsApp',
+        value: digits ? `https://wa.me/${digits}` : phone,
+        issuerUid: card.ownerUid,
+        issuerCardName: card.businessName,
+        issuerCardId: card.id,
+        issuerDisplayName: card.businessName,
+      });
+    };
+
+    return (
+      <Animated.View style={{ transform: [{ scale: pressScaleForRow(item.card.id) }] }}>
+        <View
+          style={[
+            styles.resultCard,
+            styles.marketResultCardColumn,
+            {
+              backgroundColor: shell.marketVipCardBg,
+              borderColor: shell.marketVipCardBorder,
+              shadowColor: shell.subtleShadow,
+            },
+            !hasLicense &&
+              isMarketBusiness && {
+                backgroundColor: shell.marketDullCardBg,
+                borderColor: shell.marketDullCardBorder,
+                shadowOpacity: 0,
+                elevation: 0,
+              },
+          ]}
+        >
+          <View style={styles.marketResultTopRow}>
+            <View
+              style={[
+                styles.floatingQrWrap,
+                { backgroundColor: shell.marketVipQrBg, shadowColor: shell.subtleShadow },
+                !hasLicense && { backgroundColor: shell.marketDullQrWrapBg },
+              ]}
+            >
+              <QRCode
+                value={permanentLink}
+                size={76}
+                color={shell.marketVipQrFg}
+                backgroundColor={shell.marketVipQrBg}
+                logo={item.card.businessLogo ? { uri: item.card.businessLogo } : undefined}
+                logoSize={16}
+                ecl="H"
+              />
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={marketRingState === 'none' ? 1 : 0.88}
+              onPress={openMarketStoryFromLogo}
+              disabled={marketRingState === 'none'}
+              accessibilityLabel={tr('Abrir historia', 'Open story')}
+            >
+              <View style={[styles.searchAvatarRing, marketRingStyle]}>
+                {item.card.businessLogo ? (
+                  <ExpoImage
+                    source={{ uri: item.card.businessLogo }}
+                    style={[
+                      styles.searchMarketLogoInner,
+                      { backgroundColor: shell.avatarPlaceholderBg },
+                      !hasLicense && isMarketBusiness && styles.dullCardImage,
+                    ]}
+                    cachePolicy="disk"
+                  />
+                ) : (
+                  <View
+                    style={[
+                      styles.searchMarketLogoInner,
+                      styles.cardImagePlaceholder,
+                      !hasLicense && isMarketBusiness && styles.dullCardImage,
+                      {
+                        backgroundColor: MEDIA_PLACEHOLDER.businessBgLight,
+                        borderWidth: 1,
+                        borderColor: MEDIA_PLACEHOLDER.businessBorderLight,
+                      },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name={MEDIA_PLACEHOLDER.businessIconName}
+                      size={36}
+                      color={MEDIA_PLACEHOLDER.businessIconLight}
+                    />
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+
+            <Pressable
+              style={styles.cardContent}
+              onPress={openMarketCardBody}
+              onPressIn={() => rowPressIn(item.card.id)}
+              onPressOut={() => rowPressOut(item.card.id)}
+            >
+              <Text style={[styles.cardTitle, { color: shell.marketVipTitle }]}>{item.card.businessName}</Text>
+              <Text style={[styles.cardSubtitle, { color: shell.marketVipBody }]}>{item.card.businessDescription}</Text>
+
+              {!hasLicense && isMarketBusiness ? (
+                <View style={[styles.dullPill, { backgroundColor: shell.marketDullPillBg }]}>
+                  <Text style={[styles.dullPillText, { color: shell.marketDullPillText }]}>
+                    {tr('Modo tenue: anualidad pendiente', 'Dull mode: subscription pending')}
+                  </Text>
+                </View>
+              ) : null}
+
+              <View style={styles.statsContainer}>
+                <View style={styles.stat}>
+                  <MaterialCommunityIcons name="star" size={14} color={shell.ctaAccent} />
+                  <Text style={[styles.statText, { color: shell.marketVipBody }]}>
+                    {(item.card.averageRating ?? 0).toFixed(1)}
+                  </Text>
+                </View>
+
+                {showMiles && milesLabel ? (
+                  <View style={styles.stat}>
+                    <MaterialCommunityIcons name="map-marker" size={14} color={shell.textSecondary} />
+                    <Text style={[styles.statText, { color: shell.marketVipBody }]}>{milesLabel}</Text>
+                  </View>
+                ) : null}
+
+                <View style={styles.stat}>
+                  <MaterialCommunityIcons name="check-circle" size={14} color={shell.success} />
+                  <Text style={[styles.statText, { color: shell.marketVipBody }]}>{tr('Verificado', 'Verified')}</Text>
+                </View>
+              </View>
+            </Pressable>
+
+            <View style={[styles.ctaContainer, { borderLeftColor: shell.marketVipCtaDivider }]}>
+              <Pressable
+                style={({ pressed }) => [styles.ctaButton, pressed && { backgroundColor: shell.marketCtaPressedBg }]}
+                onPress={runMarketPhone}
+              >
+                <MaterialCommunityIcons name="phone" size={24} color={shell.textSecondary} />
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.ctaButton, pressed && { backgroundColor: shell.marketCtaPressedBg }]}
+                onPress={runMarketWhatsapp}
+              >
+                <MaterialCommunityIcons name="message-text" size={24} color={shell.textSecondary} />
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.ctaButton, pressed && { backgroundColor: shell.marketCtaPressedBg }]}
+                onPress={openMarketCardBody}
+              >
+                <MaterialCommunityIcons name="plus" size={24} color={shell.textSecondary} />
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.exportButton,
+                  { backgroundColor: shell.marketExportBtnBg },
+                  pressed && styles.pressedCta,
+                ]}
+                onPress={handleExportBusinessQr}
+              >
+                <MaterialCommunityIcons name="download" size={18} color={shell.btnPrimaryText} />
+              </Pressable>
             </View>
           </View>
-        </View>
 
-        <View style={[styles.ctaContainer, { borderLeftColor: palette.border }]}> 
-          <Pressable style={({ pressed }) => [styles.ctaButton, pressed && styles.pressedButton]}>
-            <MaterialCommunityIcons name="phone" size={24} color="#1EA7FF" />
-          </Pressable>
-          <Pressable style={({ pressed }) => [styles.ctaButton, pressed && styles.pressedButton]}>
-            <MaterialCommunityIcons name="message-text" size={24} color="#1EA7FF" />
-          </Pressable>
-          <Pressable style={({ pressed }) => [styles.ctaButton, pressed && styles.pressedButton]}>
-            <MaterialCommunityIcons name="plus" size={24} color="#1EA7FF" />
-          </Pressable>
-          <Pressable style={({ pressed }) => [styles.exportButton, pressed && styles.pressedCta]} onPress={handleExportBusinessQr}>
-            <MaterialCommunityIcons name="download" size={18} color="#FFFFFF" />
-          </Pressable>
+          {marketFacets.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.searchFacetRowMarket}
+            >
+              {marketFacets.slice(0, 14).map((f, idx) => (
+                <TouchableOpacity
+                  key={`m-${f.type}-${idx}-${f.label}`}
+                  style={[styles.searchFacetIconBtn, { borderColor: 'rgba(197,160,101,0.45)' }]}
+                  onPress={() =>
+                    runSearchFacetQuickAction({
+                      type: f.type,
+                      label: f.label,
+                      value: f.value,
+                      issuerUid: card.ownerUid,
+                      issuerCardName: card.businessName,
+                      issuerCardId: card.id,
+                      issuerDisplayName: card.businessName,
+                    })
+                  }
+                  accessibilityLabel={f.label}
+                >
+                  <MaterialCommunityIcons
+                    name={facetIconNameForSearch(f.type) as 'card-account-details-outline'}
+                    size={22}
+                    color="rgba(212,175,55,0.95)"
+                  />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          ) : null}
         </View>
-      </Pressable>
+      </Animated.View>
     );
   };
 
   return (
-    <View style={[styles.wrapper, { backgroundColor: palette.background }]}> 
-      <FlatList
-        data={results}
+    <View style={[styles.wrapper, { backgroundColor: shell.background }]}> 
+      <SectionList
+        ref={sectionListRef}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.listContent}
+        sections={listSections}
+        onScroll={onSearchScroll}
+        scrollEventThrottle={16}
+        keyExtractor={(item) => `${item.rowSource ?? 'm'}:${item.card.id}`}
         renderItem={renderResultCard}
-        keyExtractor={(item) => item.card.id}
-        ListHeaderComponent={renderHeader}
+        renderSectionHeader={({ section: { title } }) => (
+          <View
+            style={[
+              styles.sectionHeader,
+              { backgroundColor: shell.surfaceMuted, borderBottomColor: shell.border },
+            ]}
+          >
+            <Text style={[styles.sectionHeaderText, { color: shell.textPrimary }]}>{title}</Text>
+          </View>
+        )}
+        ListHeaderComponent={marketListHeader}
+        stickySectionHeadersEnabled={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={shell.refreshAccent}
+            colors={[shell.refreshAccent]}
+          />
         }
         ListEmptyComponent={
-          !loading && results.length === 0 ? (
-            <View style={styles.emptyState}>
-              <MaterialCommunityIcons
-                name="magnify"
-                size={64}
-                color="#CCC"
-              />
-              <Text style={[styles.emptyTitle, { color: palette.textPrimary }]}>Busca algo...</Text>
-              <Text style={styles.emptySubtitle}>
-                Encuentra contactos o negocios cercanos
-              </Text>
+          listSections.length === 0 && loading && submittedQuery.trim().length > 0 ? (
+            <View style={styles.marketSkeletonWrap}>
+              <SharedCardSkeletonList count={5} isDark={isDark} />
             </View>
+          ) : !loading && listSections.length === 0 ? (
+            <Pressable onPress={Keyboard.dismiss} style={styles.emptyState}>
+              <MaterialCommunityIcons name="magnify" size={64} color={shell.emptyIconMuted} />
+              {submittedQuery.trim().length > 0 ? (
+                <>
+                  <Text style={[styles.emptyTitle, { color: shell.textPrimary }]}>
+                    {tr('Sin coincidencias', 'No matches')}
+                  </Text>
+                  <Text style={[styles.emptySubtitle, { color: shell.textSecondary }]}>
+                    {tr(
+                      'Prueba con otras palabras o sinónimos. También puedes revisar tu conexión.',
+                      'Try different words or synonyms. You can also check your connection.',
+                    )}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={[styles.emptyTitle, { color: shell.textPrimary }]}>
+                    {tr('Busca algo…', 'Search for something…')}
+                  </Text>
+                  <Text style={[styles.emptySubtitle, { color: shell.textSecondary }]}>
+                    {tr(
+                      'Tus tarjetas recibidas y el Mercado Social',
+                      'Your received cards and the Social Market',
+                    )}
+                  </Text>
+                </>
+              )}
+            </Pressable>
           ) : null
         }
       />
 
-      {loading && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#1EA7FF" />
+      {loading && listSections.length > 0 ? (
+        <View style={[styles.loadingOverlayLight, { backgroundColor: isDark ? shell.loadingOverlayDimDark : shell.loadingOverlayDim }]}>
+          <ActivityIndicator size="small" color={shell.refreshAccent} />
         </View>
-      )}
+      ) : null}
+
+      <Modal
+        visible={Boolean(receivedCardDetail)}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={closeReceivedCardDetail}
+      >
+        {receivedCardDetail ? (
+          <View style={[styles.searchDetailModalRoot, { backgroundColor: shell.background }]}>
+            <View style={[styles.searchDetailHeader, { borderBottomColor: shell.border }]}>
+              <Text style={[styles.searchDetailTitle, { color: shell.textPrimary }]} numberOfLines={2}>
+                {receivedCardDetail.card.businessName}
+              </Text>
+              <TouchableOpacity onPress={closeReceivedCardDetail} hitSlop={12} accessibilityLabel={tr('Cerrar', 'Close')}>
+                <MaterialCommunityIcons name="close" size={26} color={shell.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              style={styles.searchDetailScroll}
+              contentContainerStyle={styles.searchDetailScrollContent}
+              keyboardShouldPersistTaps="handled"
+            >
+              <Text style={[styles.searchDetailSubtitle, { color: shell.textSecondary }]}>
+                {String(receivedCardDetail.receivedContactCardName || '').trim() || receivedCardDetail.card.businessName}
+              </Text>
+              <View style={styles.searchDetailFacetGrid}>
+                {(receivedCardDetail.receivedContactFacets || []).map((f, idx) => (
+                  <TouchableOpacity
+                    key={`rd-${f.type}-${idx}`}
+                    style={[styles.searchDetailFacetChip, { borderColor: 'rgba(197,160,101,0.5)', backgroundColor: shell.surfaceMuted }]}
+                    onPress={() =>
+                      runSearchFacetQuickAction({
+                        type: f.type,
+                        label: f.label,
+                        value: f.value,
+                        issuerUid: receivedCardDetail.card.ownerUid,
+                        issuerCardName:
+                          String(receivedCardDetail.receivedContactCardName || '').trim() ||
+                          receivedCardDetail.card.businessName,
+                        issuerCardId: receivedCardDetail.receivedSourceCardId ?? null,
+                        issuerDisplayName: receivedCardDetail.card.businessName,
+                      })
+                    }
+                  >
+                    <MaterialCommunityIcons
+                      name={facetIconNameForSearch(f.type) as 'card-account-details-outline'}
+                      size={26}
+                      color="rgba(212,175,55,0.95)"
+                    />
+                    <Text style={[styles.searchDetailFacetLabel, { color: shell.textPrimary }]} numberOfLines={2}>
+                      {f.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        ) : null}
+      </Modal>
+
+      <Modal
+        visible={Boolean(marketCardDetail)}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={closeMarketCardDetail}
+      >
+        {marketCardDetail ? (
+          <View style={[styles.searchDetailModalRoot, { backgroundColor: shell.background }]}>
+            <View style={[styles.searchDetailHeader, { borderBottomColor: shell.border }]}>
+              <Text style={[styles.searchDetailTitle, { color: shell.textPrimary }]} numberOfLines={2}>
+                {marketCardDetail.card.businessName}
+              </Text>
+              <TouchableOpacity onPress={closeMarketCardDetail} hitSlop={12} accessibilityLabel={tr('Cerrar', 'Close')}>
+                <MaterialCommunityIcons name="close" size={26} color={shell.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              style={styles.searchDetailScroll}
+              contentContainerStyle={styles.searchDetailScrollContent}
+              keyboardShouldPersistTaps="handled"
+            >
+              <Text style={[styles.searchDetailSubtitle, { color: shell.textSecondary }]}>
+                {String(marketCardDetail.card.businessDescription || '').trim() || '—'}
+              </Text>
+              <View style={styles.searchDetailFacetGrid}>
+                {buildMarketCardSearchFacets(marketCardDetail.card).map((f, idx) => (
+                  <TouchableOpacity
+                    key={`md-${f.type}-${idx}`}
+                    style={[styles.searchDetailFacetChip, { borderColor: 'rgba(197,160,101,0.5)', backgroundColor: shell.surfaceMuted }]}
+                    onPress={() =>
+                      runSearchFacetQuickAction({
+                        type: f.type,
+                        label: f.label,
+                        value: f.value,
+                        issuerUid: marketCardDetail.card.ownerUid,
+                        issuerCardName: marketCardDetail.card.businessName,
+                        issuerCardId: marketCardDetail.card.id,
+                        issuerDisplayName: marketCardDetail.card.businessName,
+                      })
+                    }
+                  >
+                    <MaterialCommunityIcons
+                      name={facetIconNameForSearch(f.type) as 'card-account-details-outline'}
+                      size={26}
+                      color="rgba(212,175,55,0.95)"
+                    />
+                    <Text style={[styles.searchDetailFacetLabel, { color: shell.textPrimary }]} numberOfLines={2}>
+                      {f.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        ) : null}
+      </Modal>
+
+      <Modal
+        visible={marketSortModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setMarketSortModalVisible(false)}
+      >
+        <Pressable style={[styles.marketSortModalOverlay, { backgroundColor: shell.overlayScrim }]} onPress={() => setMarketSortModalVisible(false)}>
+          <Pressable
+            style={[styles.marketSortModalCard, { backgroundColor: shell.surface, borderColor: shell.border }]}
+            onPress={() => {}}
+          >
+            <Text style={[styles.marketSortModalTitle, { color: shell.textPrimary }]}>
+              {tr('Ordenar Mercado', 'Sort market')}
+            </Text>
+            {(
+              [
+                { key: 'distance' as const, label: tr('Distancia', 'Distance') },
+                { key: 'rating' as const, label: tr('Valoración', 'Rating') },
+              ] as const
+            ).map((option) => (
+              <TouchableOpacity
+                key={option.key}
+                style={[
+                  styles.marketSortOptionRow,
+                  {
+                    backgroundColor: isDark ? shell.surfaceMuted : shell.surface,
+                    borderColor: shell.border,
+                  },
+                  marketSortMode === option.key && {
+                    borderColor: shell.ctaPrimary,
+                    backgroundColor: shell.storiesControlActiveBg,
+                  },
+                ]}
+                onPress={() => {
+                  setMarketSortMode(option.key);
+                  setMarketSortModalVisible(false);
+                }}
+                activeOpacity={0.85}
+              >
+                <Text
+                  style={[
+                    styles.marketSortOptionText,
+                    { color: shell.textSecondary },
+                    marketSortMode === option.key && { color: shell.textPrimary },
+                  ]}
+                >
+                  {option.label}
+                </Text>
+                {marketSortMode === option.key ? (
+                  <MaterialCommunityIcons name="check-circle" size={17} color={shell.ctaAccent} />
+                ) : null}
+              </TouchableOpacity>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Account Recovery Modal */}
       <Modal visible={showRecoveryModal} transparent animationType="slide">
@@ -484,118 +1399,392 @@ export default function SearchScreen() {
 const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
-    backgroundColor: '#F9F9F9',
   },
-  container: {
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8E8E8',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+  listContent: {
+    flexGrow: 1,
+    paddingBottom: 24,
   },
-  searchContainer: {
+  headerBlock: {
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  heroTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: 0.35,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    marginBottom: 12,
-  },
-  searchInput: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    fontSize: 14,
-    color: '#0A2540',
-  },
-  actionButtons: {
-    flexDirection: 'row',
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingLeft: 12,
+    paddingRight: 6,
+    paddingVertical: 6,
     gap: 8,
-    marginBottom: 12,
+    marginBottom: 10,
   },
-  actionButton: {
+  searchRowIcon: {
+    marginRight: -4,
+  },
+  searchInputMinimal: {
     flex: 1,
+    fontSize: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    minHeight: 44,
+  },
+  goButton: {
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 10,
+    minWidth: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  goButtonText: {
+    fontWeight: '800',
+    fontSize: 15,
+    letterSpacing: 0.8,
+  },
+  marketSortToolbar: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 4,
+  },
+  marketSortPillCol: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'flex-start',
+  },
+  marketSortBtn: {
+    borderRadius: 12,
+    borderWidth: 1,
+    height: 44,
+    paddingHorizontal: 13,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 44,
-    borderRadius: 8,
-    gap: 6,
+    flexShrink: 0,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
-  searchButton: {
-    backgroundColor: '#1EA7FF',
+  marketSortBtnText: {
+    fontWeight: '700',
+    fontSize: 12.5,
   },
-  locationButton: {
-    backgroundColor: '#2ECC71',
+  marketActiveSortPill: {
+    alignSelf: 'flex-start',
+    fontSize: 11.5,
+    lineHeight: 15,
+    fontWeight: '700',
+    borderRadius: 999,
+    paddingHorizontal: 11,
+    paddingVertical: 6.5,
   },
-  createButton: {
-    backgroundColor: '#C5A065',
+  marketSortModalOverlay: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
   },
-  actionButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 12,
+  marketSortModalCard: {
+    width: '92%',
+    borderRadius: 15,
+    borderWidth: 1,
+    padding: 14,
   },
-  gpsWarning: {
+  marketSortModalTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    marginBottom: 9,
+  },
+  marketSortOptionRow: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+    marginBottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF3E0',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginBottom: 12,
-    gap: 8,
+    justifyContent: 'space-between',
   },
-  gpsWarningText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#FF6B6B',
-    fontWeight: '500',
+  marketSortOptionText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   resultHeader: {
-    paddingVertical: 8,
+    paddingTop: 2,
+    paddingBottom: 4,
   },
   resultTitle: {
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: '600',
-    color: '#0A2540',
+  },
+  sectionHeader: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  sectionHeaderText: {
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+    textTransform: 'uppercase',
   },
   resultCard: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
     marginHorizontal: 12,
     marginVertical: 8,
     borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#E8E8E8',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
     minHeight: 116,
   },
+  marketResultCardColumn: {
+    flexDirection: 'column',
+    minHeight: 0,
+  },
+  marketResultTopRow: {
+    position: 'relative',
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    minHeight: 116,
+  },
+  searchAvatarRing: {
+    borderRadius: 999,
+    padding: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchAvatarInner: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    overflow: 'hidden',
+  },
+  searchMarketLogoInner: {
+    width: 74,
+    height: 74,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  searchFacetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 4,
+    paddingBottom: 6,
+    paddingTop: 2,
+  },
+  searchFacetRowMarket: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+    paddingTop: 4,
+  },
+  searchFacetIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.28)',
+  },
+  searchDetailModalRoot: {
+    flex: 1,
+    paddingTop: Platform.OS === 'ios' ? 8 : 12,
+  },
+  searchDetailHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  searchDetailTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  searchDetailScroll: {
+    flex: 1,
+  },
+  searchDetailScrollContent: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  searchDetailSubtitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  searchDetailFacetGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  searchDetailFacetChip: {
+    width: '30%',
+    minWidth: 96,
+    maxWidth: 140,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    gap: 8,
+  },
+  searchDetailFacetLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  resultCardReceived: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    minHeight: 0,
+  },
+  marketReceivedSurfaceWrap: {
+    marginHorizontal: 20,
+    marginVertical: 8,
+    maxWidth: 520,
+    width: '100%',
+    alignSelf: 'center',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  marketReceivedPressable: {
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    minHeight: 104,
+    position: 'relative',
+  },
+  marketReceivedMainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  marketReceivedAvatar: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+  },
+  marketReceivedTextCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  mrPersonName: {
+    fontSize: 16,
+    fontWeight: '800',
+    lineHeight: 20,
+  },
+  mrCardName: {
+    marginTop: 3,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  /** Fila 3: valoración + pastilla de receptores (misma línea que Contactos). */
+  mrRowStatsRow: {
+    marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    gap: 8,
+  },
+  mrRatingCluster: {
+    alignItems: 'flex-start',
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  mrStarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 1,
+  },
+  mrRatingCaption: {
+    marginTop: 2,
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  mrRecipientsPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+  },
+  mrRecipientsPillNum: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  mrDistanceBadge: {
+    position: 'absolute',
+    right: 10,
+    bottom: 7,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  mrDistanceText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  receivedCardColumn: {
+    width: '100%',
+  },
+  receivedTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 6,
+  },
+  receivedAvatar: {
+    width: 72,
+    height: 72,
+    borderRadius: 12,
+  },
+  cardContentFlat: {
+    flex: 1,
+    paddingLeft: 12,
+    paddingRight: 8,
+    justifyContent: 'center',
+  },
   pressedCard: {
     opacity: 0.94,
     transform: [{ scale: 0.995 }],
   },
-  dullCard: {
-    backgroundColor: '#ECEFF3',
-    borderColor: '#B9C0C9',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
   dullCardImage: {
     opacity: 0.55,
-  },
-  dullQrWrap: {
-    backgroundColor: '#F1F1F1',
   },
   cardImage: {
     width: 80,
     height: 80,
-    backgroundColor: '#F5F5F5',
   },
   cardImagePlaceholder: {
     justifyContent: 'center',
@@ -609,17 +1798,14 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0A2540',
     marginBottom: 4,
   },
   cardSubtitle: {
     fontSize: 12,
-    color: '#666',
     marginBottom: 8,
   },
   dullPill: {
     alignSelf: 'flex-start',
-    backgroundColor: '#D6DADF',
     borderRadius: 999,
     paddingHorizontal: 9,
     paddingVertical: 4,
@@ -627,7 +1813,6 @@ const styles = StyleSheet.create({
   },
   dullPillText: {
     fontSize: 10,
-    color: '#303846',
     fontWeight: '700',
   },
   statsContainer: {
@@ -641,14 +1826,12 @@ const styles = StyleSheet.create({
   },
   statText: {
     fontSize: 11,
-    color: '#666',
     fontWeight: '500',
   },
   ctaContainer: {
     justifyContent: 'space-around',
     paddingVertical: 12,
     borderLeftWidth: 1,
-    borderLeftColor: '#E8E8E8',
   },
   ctaButton: {
     minHeight: 44,
@@ -663,12 +1846,8 @@ const styles = StyleSheet.create({
     minHeight: 44,
     minWidth: 44,
     borderRadius: 999,
-    backgroundColor: '#0A2540',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  pressedButton: {
-    backgroundColor: 'rgba(30,167,255,0.14)',
   },
   pressedCta: {
     opacity: 0.88,
@@ -682,10 +1861,8 @@ const styles = StyleSheet.create({
     width: 84,
     height: 84,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.16,
     shadowRadius: 5,
@@ -699,17 +1876,26 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0A2540',
     marginTop: 16,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#666',
     marginTop: 8,
+  },
+  marketSkeletonWrap: {
+    paddingHorizontal: 8,
+    paddingTop: 12,
+    paddingBottom: 32,
+    minHeight: 280,
+  },
+  loadingOverlayLight: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    pointerEvents: 'none',
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
   },

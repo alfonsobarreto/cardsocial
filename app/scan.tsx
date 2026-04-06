@@ -1,4 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import { BunkerClassificationModal } from '@/components/BunkerClassificationModal';
+import { savePendingBunkerScan } from '@/services/bunkerPendingScan';
+import { getActiveUserId } from '@/services/authSession';
+import { useLanguage } from '@/services/language';
+import { useLookMode } from '@/services/lookMode';
+import { fetchPublicQrTokenPreview } from '@/services/qrApi';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   StyleSheet,
@@ -7,12 +13,10 @@ import {
   View,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { consumeDynamicQrToken } from '@/services/qrApi';
-import { getActiveUserId } from '@/services/authSession';
-import { useLanguage } from '@/services/language';
 import ActivityIndicator from '@/components/BrandedSpinner';
+import palette from './theme';
 
 type ParsedPayload = {
   token: string;
@@ -37,23 +41,175 @@ function parseQrToken(data: string): ParsedPayload | null {
       return { token, cardId, exp };
     }
   } catch {
-    // If it is not JSON, we try plain token fallback below.
+    /* plain token not supported for dynamic QR */
   }
 
   return null;
 }
 
+type ClassificationPayload = {
+  token: string;
+  ownerUid: string;
+  cardId: string;
+  issuerFullName: string;
+};
+
 export default function ScanScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ resumeToken?: string; resumeCardId?: string }>();
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => language === 'en' ? en : es;
+  const tr = (es: string, en: string) => (language === 'en' ? en : es);
+  const { resolvedMode } = useLookMode();
+  const isDark = resolvedMode === 'noche';
+  const shell = palette[isDark ? 'dark' : 'light'];
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        screen: {
+          flex: 1,
+          backgroundColor: shell.backgroundSolid,
+        },
+        centerScreen: {
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingHorizontal: 24,
+        },
+        title: {
+          marginTop: 12,
+          color: shell.textPrimary,
+          fontSize: 20,
+          fontWeight: '700',
+          textAlign: 'center',
+        },
+        subtitle: {
+          marginTop: 8,
+          color: shell.textSecondary,
+          fontSize: 14,
+          textAlign: 'center',
+        },
+        primaryBtn: {
+          marginTop: 16,
+          backgroundColor: shell.ctaPrimary,
+          borderRadius: 12,
+          paddingHorizontal: 16,
+          paddingVertical: 11,
+        },
+        primaryBtnText: {
+          color: shell.btnPrimaryText,
+          fontWeight: '700',
+        },
+        secondaryBtn: {
+          marginTop: 10,
+          borderWidth: 1,
+          borderColor: shell.border,
+          borderRadius: 12,
+          paddingHorizontal: 16,
+          paddingVertical: 11,
+          backgroundColor: shell.surface,
+        },
+        secondaryBtnText: {
+          color: shell.ctaPrimary,
+          fontWeight: '700',
+        },
+        overlay: {
+          flex: 1,
+          justifyContent: 'space-between',
+          paddingTop: 70,
+          paddingBottom: 36,
+          paddingHorizontal: 20,
+        },
+        topPanel: {
+          alignItems: 'center',
+        },
+        overlayTitle: {
+          color: shell.fabText,
+          fontSize: 22,
+          fontWeight: '700',
+        },
+        overlaySubtitle: {
+          marginTop: 6,
+          color: 'rgba(255,255,255,0.82)',
+          fontSize: 13,
+        },
+        frameWrap: {
+          alignItems: 'center',
+        },
+        scanFrame: {
+          width: 260,
+          height: 260,
+          borderRadius: 20,
+          borderWidth: 3,
+          borderColor: shell.refreshAccent,
+          backgroundColor: 'rgba(255,255,255,0.06)',
+        },
+        bottomPanel: {
+          alignItems: 'center',
+          gap: 12,
+        },
+        secondaryBtnGlass: {
+          borderWidth: 1,
+          borderColor: 'rgba(255,255,255,0.45)',
+          borderRadius: 12,
+          paddingHorizontal: 20,
+          paddingVertical: 10,
+          backgroundColor: 'rgba(255,255,255,0.14)',
+        },
+        secondaryBtnGlassText: {
+          color: shell.fabText,
+          fontWeight: '700',
+        },
+      }),
+    [shell],
+  );
+
   const [permission, requestPermission] = useCameraPermissions();
   const [processing, setProcessing] = useState(false);
   const [scanLocked, setScanLocked] = useState(false);
+  const [receiverUid, setReceiverUid] = useState<string | null>(null);
+  const [classification, setClassification] = useState<ClassificationPayload | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const resumeHandledRef = useRef(false);
 
   const canScan = useMemo(() => {
-    return !processing && !scanLocked;
-  }, [processing, scanLocked]);
+    return !processing && !scanLocked && !modalVisible;
+  }, [processing, scanLocked, modalVisible]);
+
+  const openClassification = useCallback(
+    async (token: string) => {
+      setProcessing(true);
+      const locale = language === 'es' ? 'es' : 'en';
+      try {
+        const preview = await fetchPublicQrTokenPreview({ token, locale });
+        if (!preview.ok) {
+          Alert.alert(
+            tr('QR no disponible', 'QR unavailable'),
+            preview.expired
+              ? tr('El token expiró o ya fue usado.', 'The token expired or was already used.')
+              : tr('No se pudo cargar la vista previa.', 'Could not load preview.'),
+          );
+          setScanLocked(false);
+          return;
+        }
+        const p = preview.preview;
+        setClassification({
+          token: p.token,
+          ownerUid: p.ownerUid,
+          cardId: p.cardId,
+          issuerFullName: p.ownerDisplayName,
+        });
+        setModalVisible(true);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : tr('Error de red.', 'Network error.');
+        Alert.alert(tr('No se pudo escanear', 'Could not scan'), msg);
+        setScanLocked(false);
+      } finally {
+        setProcessing(false);
+      }
+    },
+    [tr, language],
+  );
 
   const handleScanned = async (data: string) => {
     if (!canScan) {
@@ -61,73 +217,84 @@ export default function ScanScreen() {
     }
 
     const parsed = parseQrToken(data);
-    if (!parsed?.token || !parsed?.cardId) {
-      Alert.alert(tr('QR inválido', 'Invalid QR'), tr('Este QR no pertenece a Card-Social o está corrupto.', 'This QR does not belong to Card-Social or is corrupted.'));
+    if (!parsed?.token) {
+      Alert.alert(
+        tr('QR inválido', 'Invalid QR'),
+        tr('Este QR no pertenece a Card-Social o está corrupto.', 'This QR does not belong to Card-Social or is corrupted.'),
+      );
+      return;
+    }
+    const scannedCardId = parsed.cardId;
+    if (!scannedCardId) {
+      Alert.alert(
+        tr('QR inválido', 'Invalid QR'),
+        tr('Este QR no pertenece a Card-Social o está corrupto.', 'This QR does not belong to Card-Social or is corrupted.'),
+      );
       return;
     }
 
     if (parsed.exp && parsed.exp < Date.now()) {
       Alert.alert(
         tr('QR expirado', 'QR expired'),
-        tr('Este QR ya expiró. Pide al contacto generar uno nuevo.', 'This QR has expired. Ask your contact to generate a new one.')
+        tr('Este QR ya expiró. Pide al contacto generar uno nuevo.', 'This QR has expired. Ask your contact to generate a new one.'),
       );
       return;
     }
 
     setScanLocked(true);
-    setProcessing(true);
 
-    try {
-      const receiverUid = await getActiveUserId();
-      if (!receiverUid) {
-        throw new Error(tr('No se pudo validar tu sesión actual.', 'Could not validate your current session.'));
-      }
-
-      const result = await consumeDynamicQrToken({
-        receiverUid,
+    const uid = await getActiveUserId();
+    setReceiverUid(uid);
+    if (!uid) {
+      await savePendingBunkerScan({
+        kind: 'dynamic_qr',
         token: parsed.token,
+        cardId: scannedCardId,
       });
-
-      if (!result.shareGranted) {
-        throw new Error(tr('No se pudo crear el permiso de acceso a la tarjeta.', 'Could not create card access permission.'));
-      }
-
-      if (String(result.cardId || '').trim() !== parsed.cardId) {
-        throw new Error(
-          tr(
-            'No se pudo validar el acceso de la tarjeta escaneada.',
-            'Could not validate access for the scanned card.'
-          )
-        );
-      }
-
-      Alert.alert(tr('Tarjeta agregada', 'Card added'), tr('Conexión segura creada correctamente.', 'Secure connection created successfully.'), [
-        {
-          text: 'OK',
-          onPress: () => {
-            router.replace('/(tabs)/contacts');
-          },
-        },
-      ]);
-    } catch (error: any) {
-      Alert.alert(tr('No se pudo escanear', 'Could not scan'), error?.message || tr('El token expiró o ya fue usado.', 'Token expired or already used.'));
-      setScanLocked(false);
-    } finally {
-      setProcessing(false);
+      router.replace('/signin');
+      return;
     }
+
+    await openClassification(parsed.token);
   };
+
+  useEffect(() => {
+    const rt = params.resumeToken != null ? String(params.resumeToken).trim() : '';
+    const rc = params.resumeCardId != null ? String(params.resumeCardId).trim() : '';
+    if (!rt || !rc) {
+      resumeHandledRef.current = false;
+      return;
+    }
+    if (resumeHandledRef.current) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const uid = await getActiveUserId();
+      if (!uid || cancelled) {
+        return;
+      }
+      resumeHandledRef.current = true;
+      setReceiverUid(uid);
+      setScanLocked(true);
+      await openClassification(rt);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [openClassification, params.resumeCardId, params.resumeToken]);
 
   if (!permission) {
     return (
       <View style={styles.centerScreen}>
-        <ActivityIndicator size="large" color="#1EA7FF" />
+        <ActivityIndicator size="large" color={shell.refreshAccent} />
       </View>
     );
   }
 
   if (!permission.granted) {
     return (
-      <LinearGradient colors={['#EAF7FF', '#CDEFFF']} style={styles.centerScreen}>
+      <LinearGradient colors={[...shell.tabShellGradient]} style={styles.centerScreen}>
         <Text style={styles.title}>{tr('Permiso de cámara requerido', 'Camera permission required')}</Text>
         <Text style={styles.subtitle}>{tr('Necesitamos acceso para escanear tu nueva tarjeta.', 'We need access to scan your new card.')}</Text>
         <TouchableOpacity style={styles.primaryBtn} onPress={requestPermission}>
@@ -140,6 +307,10 @@ export default function ScanScreen() {
     );
   }
 
+  const overlayGradient = isDark
+    ? (['rgba(0,0,0,0.72)', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.72)'] as const)
+    : (['rgba(28,28,30,0.55)', 'rgba(28,28,30,0.22)', 'rgba(28,28,30,0.55)'] as const);
+
   return (
     <View style={styles.screen}>
       <CameraView
@@ -148,10 +319,10 @@ export default function ScanScreen() {
         barcodeScannerSettings={{
           barcodeTypes: ['qr'],
         }}
-        onBarcodeScanned={canScan ? ({ data }) => handleScanned(data) : undefined}
+        onBarcodeScanned={canScan ? ({ data }) => void handleScanned(data) : undefined}
       />
 
-      <LinearGradient colors={['rgba(10,37,64,0.74)', 'rgba(10,37,64,0.35)', 'rgba(10,37,64,0.74)']} style={styles.overlay}>
+      <LinearGradient colors={[...overlayGradient]} style={styles.overlay}>
         <View style={styles.topPanel}>
           <Text style={styles.overlayTitle}>{tr('Escanear Nueva Tarjeta', 'Scan New Card')}</Text>
           <Text style={styles.overlaySubtitle}>{tr('Apunta el QR dentro del marco', 'Point the QR within the frame')}</Text>
@@ -162,109 +333,35 @@ export default function ScanScreen() {
         </View>
 
         <View style={styles.bottomPanel}>
-          {processing ? <ActivityIndicator size="small" color="#1EA7FF" /> : null}
+          {processing ? <ActivityIndicator size="small" color={shell.refreshAccent} /> : null}
           <TouchableOpacity style={styles.secondaryBtnGlass} onPress={() => router.back()}>
             <Text style={styles.secondaryBtnGlassText}>{tr('Cancelar', 'Cancel')}</Text>
           </TouchableOpacity>
         </View>
       </LinearGradient>
+
+      {classification && receiverUid ? (
+        <BunkerClassificationModal
+          visible={modalVisible}
+          mode="dynamic_qr"
+          token={classification.token}
+          ownerUid={classification.ownerUid}
+          cardId={classification.cardId}
+          issuerFullName={classification.issuerFullName}
+          receiverUid={receiverUid}
+          onClose={() => {
+            setModalVisible(false);
+            setClassification(null);
+            setScanLocked(false);
+          }}
+          onSuccess={() => {
+            setModalVisible(false);
+            setClassification(null);
+            setScanLocked(false);
+            router.replace('/(tabs)/contacts');
+          }}
+        />
+      ) : null}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#03101E',
-  },
-  centerScreen: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  title: {
-    marginTop: 12,
-    color: '#0A2540',
-    fontSize: 20,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  subtitle: {
-    marginTop: 8,
-    color: '#2A668F',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  primaryBtn: {
-    marginTop: 16,
-    backgroundColor: '#0A2540',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 11,
-  },
-  primaryBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  secondaryBtn: {
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: '#A8DAF8',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 11,
-    backgroundColor: '#FFFFFF',
-  },
-  secondaryBtnText: {
-    color: '#0D4D8A',
-    fontWeight: '700',
-  },
-  overlay: {
-    flex: 1,
-    justifyContent: 'space-between',
-    paddingTop: 70,
-    paddingBottom: 36,
-    paddingHorizontal: 20,
-  },
-  topPanel: {
-    alignItems: 'center',
-  },
-  overlayTitle: {
-    color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: '700',
-  },
-  overlaySubtitle: {
-    marginTop: 6,
-    color: '#C9ECFF',
-    fontSize: 13,
-  },
-  frameWrap: {
-    alignItems: 'center',
-  },
-  scanFrame: {
-    width: 260,
-    height: 260,
-    borderRadius: 20,
-    borderWidth: 3,
-    borderColor: '#1EA7FF',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-  bottomPanel: {
-    alignItems: 'center',
-    gap: 12,
-  },
-  secondaryBtnGlass: {
-    borderWidth: 1,
-    borderColor: 'rgba(199,236,255,0.8)',
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: 'rgba(255,255,255,0.14)',
-  },
-  secondaryBtnGlassText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-});
