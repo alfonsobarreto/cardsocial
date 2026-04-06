@@ -16,7 +16,8 @@ export function filterVaultItemsByCardItemIds<T extends { id: string }>(
 }
 
 /**
- * Réplica del criterio en `backend/src/routes/qrRoutes.js` (contacts/received).
+ * Réplica del criterio en `backend/src/routes/qrRoutes.js` (contacts/received):
+ * una fila por permiso (uid emisor + cardId); historias por `storyChannelKey`.
  */
 export function resolveContactStoryState(params: {
   ownerUid: string;

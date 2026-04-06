@@ -1,4 +1,12 @@
 import { SharedCardSkeletonList } from '@/components/SharedCardRowSkeleton';
+import {
+  IsolatedWireframeCard,
+  type WireframeEditSlot,
+  type WireframeVaultItem,
+} from '@/components/smartCard/IsolatedWireframeCard';
+import { WireframeSlotTile } from '@/components/smartCard/WireframeSlotTile';
+import { SmartCardMirrorModal } from '@/components/SmartCardMirrorModal';
+import { VaultDocumentViewerModal } from '@/components/VaultDocumentViewerModal';
 import { ThemedSharedCardSurface } from '@/components/ThemedSharedCardSurface';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import FlexGrid from '@/components/FlexGrid';
@@ -30,8 +38,14 @@ import {
   listReceivedContacts,
   removeRelationship,
   setSubscriberSelfCardMute,
+  type PublicCardSlotPayload,
 } from '@/services/qrApi';
-import { mergeReceivedContactRows } from '@/services/receivedContactsPresentationMerge';
+import {
+  mergeReceivedContactRows,
+  receivedContactMergeKey,
+} from '@/services/receivedContactsPresentationMerge';
+import { buildMirrorVaultItemsForContact, type MirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
+import { openVaultPreviewItem } from '@/services/openVaultPreviewItem';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -40,7 +54,7 @@ import { BlurView } from 'expo-blur';
 import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
@@ -57,11 +71,14 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   UIManager,
+  useWindowDimensions,
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { Swipeable } from 'react-native-gesture-handler';
+import { CARD_THEMES as CHEST_THEMES, getThemeById, type CardTheme as ChestCardTheme } from '@/constants/themeChest';
+import { resolveMaterialGlyphFromVaultLikeFields } from '@/app/components/iconNameValidation';
 
 type Contact = {
   uid: string;
@@ -96,6 +113,8 @@ type Contact = {
   addedAt: string | null;
   storyState?: 'none' | 'normal' | 'vip';
   searchFacets?: Array<{ type: string; label: string; value: string }>;
+  /** Slots del emisor (icon URL / iconName) para el wireframe espejo del receptor. */
+  publicCardSlots?: PublicCardSlotPayload[];
   meta?: {
     group: string;
     isFavorite: boolean;
@@ -184,10 +203,13 @@ function ContactsContent() {
   const [sortVisible, setSortVisible] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>('groups');
 
+  const { height: windowHeight } = useWindowDimensions();
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [floatingVisible, setFloatingVisible] = useState(false);
-  const cardScale = useRef(new Animated.Value(0.92)).current;
-  const cardOpacity = useRef(new Animated.Value(0)).current;
+  const parallaxX = useRef(new Animated.Value(0)).current;
+  const parallaxY = useRef(new Animated.Value(0)).current;
+  const [mirrorViewerVisible, setMirrorViewerVisible] = useState(false);
+  const [mirrorViewerItem, setMirrorViewerItem] = useState<MirrorVaultItem | null>(null);
 
   const [longPressVisible, setLongPressVisible] = useState(false);
   const [longPressContact, setLongPressContact] = useState<Contact | null>(null);
@@ -200,25 +222,25 @@ function ContactsContent() {
   const [ghostCallMuted, setGhostCallMuted] = useState(false);
   const [ghostCallSpeaker, setGhostCallSpeaker] = useState(false);
   const listEntrance = useRef(new Animated.Value(0)).current;
-  const swipeableByContactUidRef = useRef<Map<string, { close: () => void }>>(new Map());
+  const swipeableByContactLinkRef = useRef<Map<string, { close: () => void }>>(new Map());
   const rowPressScaleRef = useRef<Map<string, Animated.Value>>(new Map());
 
-  const pressScaleForContact = (uid: string) => {
-    let v = rowPressScaleRef.current.get(uid);
+  const pressScaleForContactLink = (linkKey: string) => {
+    let v = rowPressScaleRef.current.get(linkKey);
     if (!v) {
       v = new Animated.Value(1);
-      rowPressScaleRef.current.set(uid, v);
+      rowPressScaleRef.current.set(linkKey, v);
     }
     return v;
   };
 
-  const animateContactRowPressIn = (uid: string) => {
+  const animateContactRowPressIn = (linkKey: string) => {
     try {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {
       /* haptics opcional */
     }
-    Animated.spring(pressScaleForContact(uid), {
+    Animated.spring(pressScaleForContactLink(linkKey), {
       toValue: 0.98,
       useNativeDriver: true,
       friction: 7,
@@ -226,8 +248,8 @@ function ContactsContent() {
     }).start();
   };
 
-  const animateContactRowPressOut = (uid: string) => {
-    Animated.spring(pressScaleForContact(uid), {
+  const animateContactRowPressOut = (linkKey: string) => {
+    Animated.spring(pressScaleForContactLink(linkKey), {
       toValue: 1,
       useNativeDriver: true,
       friction: 7,
@@ -285,30 +307,47 @@ function ContactsContent() {
     await AsyncStorage.setItem(CONTACT_META_STORAGE_KEY, JSON.stringify(next));
   };
 
-  const normalizeContactRow = (row: Contact): Contact => ({
-    ...row,
-    ownerOccupation:
-      row.ownerOccupation != null && String(row.ownerOccupation).trim()
-        ? String(row.ownerOccupation).trim()
-        : null,
-    mutualContactsCount: Number(row.mutualContactsCount ?? 0),
-    totalRatings: Number(row.totalRatings ?? 0),
-    channelMuted: Boolean(row.channelMuted),
-    themeId: String(row.themeId || 'deep_teal').trim() || 'deep_teal',
-    layout: row.layout === 'horizontal' ? 'horizontal' : 'vertical',
-    fontId: row.fontId ?? null,
-    fontName: row.fontName ?? null,
-    fontFamily: row.fontFamily ?? null,
-    fontTier: row.fontTier === 'premium' ? 'premium' : row.fontTier === 'free' ? 'free' : null,
-    wallpaperId: row.wallpaperId ?? null,
-    wallpaperUrl: row.wallpaperUrl ?? null,
-    wallpaperThumbUrl: row.wallpaperThumbUrl ?? null,
-    wallpaperTier: row.wallpaperTier === 'premium' ? 'premium' : row.wallpaperTier === 'free' ? 'free' : null,
-    wallpaperPriceCredits: Number(row.wallpaperPriceCredits ?? 0),
-    enableParallax: Boolean(row.enableParallax),
-    itemIds: Array.isArray(row.itemIds) ? row.itemIds : [],
-    cardUpdatedAt: row.cardUpdatedAt ?? null,
-  });
+  const normalizeContactRow = (row: Contact): Contact => {
+    const slotSource = Array.isArray(row.publicCardSlots) ? row.publicCardSlots : [];
+    const publicCardSlots: PublicCardSlotPayload[] = slotSource.map((s) => {
+      const iconRaw = s?.icon != null ? String(s.icon).trim() : '';
+      const icon = /^https?:\/\//i.test(iconRaw) ? iconRaw : undefined;
+      const iconName = s?.iconName != null ? String(s.iconName).trim() : '';
+      return {
+        itemId: String(s?.itemId || ''),
+        type: String(s?.type || 'link'),
+        label: String(s?.label || ''),
+        value: String(s?.value || ''),
+        ...(icon ? { icon } : {}),
+        ...(iconName ? { iconName } : {}),
+      };
+    });
+    return {
+      ...row,
+      ownerOccupation:
+        row.ownerOccupation != null && String(row.ownerOccupation).trim()
+          ? String(row.ownerOccupation).trim()
+          : null,
+      mutualContactsCount: Number(row.mutualContactsCount ?? 0),
+      totalRatings: Number(row.totalRatings ?? 0),
+      channelMuted: Boolean(row.channelMuted),
+      themeId: String(row.themeId || 'deep_teal').trim() || 'deep_teal',
+      layout: row.layout === 'horizontal' ? 'horizontal' : 'vertical',
+      fontId: row.fontId ?? null,
+      fontName: row.fontName ?? null,
+      fontFamily: row.fontFamily ?? null,
+      fontTier: row.fontTier === 'premium' ? 'premium' : row.fontTier === 'free' ? 'free' : null,
+      wallpaperId: row.wallpaperId ?? null,
+      wallpaperUrl: row.wallpaperUrl ?? null,
+      wallpaperThumbUrl: row.wallpaperThumbUrl ?? null,
+      wallpaperTier: row.wallpaperTier === 'premium' ? 'premium' : row.wallpaperTier === 'free' ? 'free' : null,
+      wallpaperPriceCredits: Number(row.wallpaperPriceCredits ?? 0),
+      enableParallax: Boolean(row.enableParallax),
+      itemIds: Array.isArray(row.itemIds) ? row.itemIds : [],
+      cardUpdatedAt: row.cardUpdatedAt ?? null,
+      publicCardSlots,
+    };
+  };
 
   /**
    * @param silent Si true, no fuerza pantalla de carga ni parpadeo: fusiona tema/wallpaper según `cardUpdatedAt`.
@@ -358,15 +397,23 @@ function ContactsContent() {
       const nowIso = new Date().toISOString();
       const mergedMeta: Record<string, ContactMeta> = { ...existingMeta };
       for (const row of normalized) {
-        if (!mergedMeta[row.uid]) {
-          mergedMeta[row.uid] = {
-            group: GROUP_DEFAULT,
-            isFavorite: false,
-            firstSeenAt: row.addedAt || nowIso,
-            storyState: row.storyState || 'none',
-          };
-        } else if (!mergedMeta[row.uid].storyState) {
-          mergedMeta[row.uid].storyState = row.storyState || 'none';
+        const linkKey = receivedContactMergeKey(row);
+        if (!mergedMeta[linkKey]) {
+          const legacy = mergedMeta[row.uid];
+          mergedMeta[linkKey] = legacy
+            ? {
+                ...legacy,
+                storyState: row.storyState || legacy.storyState || 'none',
+                firstSeenAt: row.addedAt || legacy.firstSeenAt || nowIso,
+              }
+            : {
+                group: GROUP_DEFAULT,
+                isFavorite: false,
+                firstSeenAt: row.addedAt || nowIso,
+                storyState: row.storyState || 'none',
+              };
+        } else if (!mergedMeta[linkKey].storyState) {
+          mergedMeta[linkKey].storyState = row.storyState || 'none';
         }
       }
 
@@ -477,28 +524,105 @@ function ContactsContent() {
     };
   }, [activeGhostCall]);
 
-  useEffect(() => {
-    if (!floatingVisible) {
-      cardScale.setValue(0.92);
-      cardOpacity.setValue(0);
+  const mirrorVaultItems = useMemo(() => {
+    if (!selectedContact) {
+      return [];
+    }
+    return buildMirrorVaultItemsForContact(selectedContact);
+  }, [selectedContact]);
+
+  const mirrorPreviewSlots = useMemo<WireframeEditSlot[]>(() => {
+    return mirrorVaultItems.map((item, index) => ({
+      id: `rx-${item.id}-${index}`,
+      index,
+      item,
+    }));
+  }, [mirrorVaultItems]);
+
+  const renderMirrorDetailedStars = useCallback((rating: number, starSize = 14, starColor = '#C5A065') => {
+    const r = Math.max(0, Math.min(5, Number(rating) || 0));
+    const gap = Math.max(1, Math.round(starSize * 0.12));
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap }}>
+        {Array.from({ length: 5 }).map((_, index) => {
+          const threshold = index + 1;
+          let name: 'star' | 'star-half-full' | 'star-outline' = 'star-outline';
+          if (r >= threshold) name = 'star';
+          else if (r >= threshold - 0.5) name = 'star-half-full';
+          return <MaterialCommunityIcons key={`mrs-${index}`} name={name} size={starSize} color={starColor} />;
+        })}
+      </View>
+    );
+  }, []);
+
+  const renderMirrorMiniIcon = useCallback(
+    (item: WireframeVaultItem | null | undefined, size: number, glyphColor?: string) => {
+      const tint = glyphColor ?? shell.textPrimary;
+      try {
+        if (!item) {
+          return <MaterialCommunityIcons name="link-variant" size={size} color={shell.textMuted} />;
+        }
+        if (item.icon?.startsWith('http')) {
+          return (
+            <ExpoImage
+              source={{ uri: item.icon }}
+              style={{ width: size, height: size, borderRadius: size / 2 }}
+              cachePolicy="disk"
+            />
+          );
+        }
+        const safe = resolveMaterialGlyphFromVaultLikeFields(item, null) || 'help-circle';
+        return <MaterialCommunityIcons name={safe as any} size={size} color={tint} />;
+      } catch {
+        return <MaterialCommunityIcons name="help-circle" size={size} color={tint} />;
+      }
+    },
+    [shell.textPrimary, shell.textMuted],
+  );
+
+  const openMirrorDocumentViewer = useCallback(async (item: MirrorVaultItem) => {
+    const ok = await hardLockCheck('abrir visor seguro de documentos');
+    if (!ok) {
       return;
     }
+    setMirrorViewerItem(item);
+    setMirrorViewerVisible(true);
+  }, []);
 
-    Animated.parallel([
-      Animated.timing(cardOpacity, {
-        toValue: 1,
-        duration: 220,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.spring(cardScale, {
-        toValue: 1,
-        speed: 16,
-        bounciness: 7,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [floatingVisible, cardOpacity, cardScale]);
+  const openMirrorDataItem = useCallback(
+    async (item: MirrorVaultItem) => {
+      if (!selectedContact) {
+        return;
+      }
+      await openVaultPreviewItem(item, {
+        tr,
+        openDocumentViewer: async (it) => {
+          await openMirrorDocumentViewer(it as MirrorVaultItem);
+        },
+        ghostTargetUid: selectedContact.uid,
+        sourceCardName: selectedContact.cardName,
+        sourceCardId: selectedContact.cardId ?? null,
+        peerDisplayName: selectedContact.nickname || selectedContact.name || 'contacto',
+      });
+    },
+    [openMirrorDocumentViewer, selectedContact, tr],
+  );
+
+  const renderMirrorSlotContent = useCallback(
+    (slot: WireframeEditSlot, ui: { size: number }, _editable: boolean, chestTheme: ChestCardTheme) => (
+      <WireframeSlotTile
+        slot={slot}
+        ui={ui}
+        editable={false}
+        chestTheme={chestTheme}
+        tr={tr}
+        renderMiniIcon={renderMirrorMiniIcon}
+        onEditableOpenPicker={() => {}}
+        onDataPress={(it) => void openMirrorDataItem(it as MirrorVaultItem)}
+      />
+    ),
+    [openMirrorDataItem, renderMirrorMiniIcon, tr],
+  );
 
   const allGroups = useMemo(() => {
     const dynamic = Object.values(metaMap)
@@ -519,11 +643,14 @@ function ContactsContent() {
     const qRaw = searchValue.trim();
 
     const withMeta = contacts.map((contact) => {
-      const meta = metaMap[contact.uid] || {
-        group: GROUP_DEFAULT,
-        isFavorite: false,
-        firstSeenAt: contact.addedAt || new Date().toISOString(),
-      };
+      const linkKey = receivedContactMergeKey(contact);
+      const meta =
+        metaMap[linkKey] ||
+        metaMap[contact.uid] || {
+          group: GROUP_DEFAULT,
+          isFavorite: false,
+          firstSeenAt: contact.addedAt || new Date().toISOString(),
+        };
       return {
         ...contact,
         meta,
@@ -625,7 +752,11 @@ function ContactsContent() {
 
   const rowsWithHeaders = useMemo(() => {
     if (sortMode !== 'groups') {
-      return sortedContacts.map((row) => ({ type: 'contact' as const, key: row.uid, contact: row }));
+      return sortedContacts.map((row) => ({
+        type: 'contact' as const,
+        key: receivedContactMergeKey(row),
+        contact: row,
+      }));
     }
 
     const result: Array<{ type: 'header' | 'contact'; key: string; title?: string; contact?: any }> = [];
@@ -640,7 +771,7 @@ function ContactsContent() {
         });
         lastGroup = groupName;
       }
-      result.push({ type: 'contact', key: row.uid, contact: row });
+      result.push({ type: 'contact', key: receivedContactMergeKey(row), contact: row });
     }
     return result;
   }, [sortedContacts, sortMode]);
@@ -658,23 +789,7 @@ function ContactsContent() {
     }).start();
   }, [loading, rowsWithHeaders.length, listEntrance]);
 
-  const renderStars = (value: number) => {
-    const rounded = Math.max(0, Math.min(5, Math.round(value)));
-    return (
-      <View style={styles.starsRow}>
-        {Array.from({ length: 5 }).map((_, index) => (
-          <MaterialCommunityIcons
-            key={`rating-${index}`}
-            name={index < rounded ? 'star' : 'star-outline'}
-            size={14}
-            color={shell.ctaAccent}
-          />
-        ))}
-      </View>
-    );
-  };
-
-  const renderDetailedRatingStars = (rating: number) => {
+  const renderDetailedRatingStars = (rating: number, starColor: string) => {
     const r = Math.max(0, Math.min(5, Number(rating) || 0));
     return (
       <View style={styles.starsRow}>
@@ -684,7 +799,7 @@ function ContactsContent() {
           if (r >= threshold) name = 'star';
           else if (r >= threshold - 0.5) name = 'star-half-full';
           return (
-            <MaterialCommunityIcons key={`dstar-${index}`} name={name} size={12} color={shell.ctaAccent} />
+            <MaterialCommunityIcons key={`dstar-${index}`} name={name} size={12} color={starColor} />
           );
         })}
       </View>
@@ -725,15 +840,18 @@ function ContactsContent() {
     </View>
   );
 
-  const updateContactMeta = async (uid: string, updater: (prev: ContactMeta) => ContactMeta) => {
-    const base = metaMap[uid] || {
-      group: GROUP_DEFAULT,
-      isFavorite: false,
-      firstSeenAt: new Date().toISOString(),
-    };
+  const updateContactMeta = async (contact: Contact, updater: (prev: ContactMeta) => ContactMeta) => {
+    const linkKey = receivedContactMergeKey(contact);
+    const base =
+      metaMap[linkKey] ||
+      metaMap[contact.uid] || {
+        group: GROUP_DEFAULT,
+        isFavorite: false,
+        firstSeenAt: new Date().toISOString(),
+      };
     const next = {
       ...metaMap,
-      [uid]: updater(base),
+      [linkKey]: updater(base),
     };
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     await persistMetaMap(next);
@@ -751,37 +869,80 @@ function ContactsContent() {
     }
   };
 
-  const purgeContactFromUi = async (uid: string) => {
+  /** Quita una sola tarjeta recibida (mismo emisor puede seguir con otras filas). */
+  const purgeReceivedCardLinkFromUi = async (contact: Contact) => {
+    const linkKey = receivedContactMergeKey(contact);
+    let nextContacts: Contact[] = [];
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setContacts((prev) => {
-      const next = prev.filter((row) => row.uid !== uid);
-      void persistContactsCache(next);
-      return next;
+      nextContacts = prev.filter((row) => receivedContactMergeKey(row) !== linkKey);
+      void persistContactsCache(nextContacts);
+      return nextContacts;
     });
     const nextMeta = { ...metaMap };
-    delete nextMeta[uid];
+    delete nextMeta[linkKey];
+    const stillSameIssuer = nextContacts.some((c) => c.uid === contact.uid);
+    if (!stillSameIssuer) {
+      delete nextMeta[contact.uid];
+    }
     await persistMetaMap(nextMeta);
-    if (selectedContact?.uid === uid) {
+    if (selectedContact && receivedContactMergeKey(selectedContact) === linkKey) {
       setFloatingVisible(false);
       setSelectedContact(null);
     }
     setLongPressVisible(false);
     setLongPressContact(null);
-    swipeableByContactUidRef.current.delete(uid);
+    swipeableByContactLinkRef.current.delete(linkKey);
   };
 
-  const handleDeleteContact = async (uid: string) => {
+  /** Tras bloquear: quitar todas las tarjetas recibidas de ese emisor en UI. */
+  const purgeAllReceivedFromIssuerInUi = async (issuerUid: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setContacts((prev) => {
+      const next = prev.filter((row) => row.uid !== issuerUid);
+      void persistContactsCache(next);
+      return next;
+    });
+    const nextMeta = { ...metaMap };
+    for (const k of Object.keys(nextMeta)) {
+      if (k === issuerUid || k.startsWith(`${issuerUid}::`)) {
+        delete nextMeta[k];
+      }
+    }
+    await persistMetaMap(nextMeta);
+    if (selectedContact?.uid === issuerUid) {
+      setFloatingVisible(false);
+      setSelectedContact(null);
+    }
+    setLongPressVisible(false);
+    setLongPressContact(null);
+    for (const k of [...swipeableByContactLinkRef.current.keys()]) {
+      if (k === issuerUid || k.startsWith(`${issuerUid}::`)) {
+        swipeableByContactLinkRef.current.delete(k);
+      }
+    }
+  };
+
+  const handleDeleteContact = async (contact: Contact) => {
     try {
       const ownerUid = await getActiveUserId();
       if (!ownerUid) {
         return;
       }
-      await removeRelationship({ ownerUid, targetUid: uid });
-      await purgeContactFromUi(uid);
+      const scopedCardId = contact.cardId != null && String(contact.cardId).trim() ? String(contact.cardId).trim() : '';
+      await removeRelationship({
+        ownerUid,
+        targetUid: contact.uid,
+        ...(scopedCardId ? { cardId: scopedCardId } : {}),
+      });
+      await purgeReceivedCardLinkFromUi(contact);
       Toast.show({
         type: 'info',
-        text1: tr('Contacto eliminado', 'Contact removed'),
-        text2: tr('Puedes volver a agregarlo escaneando su QR.', 'You can add them again by scanning their QR.'),
+        text1: tr('Tarjeta quitada', 'Card removed'),
+        text2: tr(
+          'Esta tarjeta ya no está en tu lista. Puedes volver a agregarla con un QR.',
+          'This card is no longer in your list. You can add it again with a QR code.',
+        ),
         position: 'bottom',
         visibilityTime: 4000,
       });
@@ -790,12 +951,12 @@ function ContactsContent() {
     }
   };
 
-  const promptDeleteContact = (uid: string) => {
+  const promptDeleteContact = (contact: Contact) => {
     Alert.alert(
-      tr('Eliminar contacto', 'Delete contact'),
+      tr('Quitar tarjeta recibida', 'Remove received card'),
       tr(
-        'Quitar a esta persona de tu lista de contactos. Podrás volver a agregarla con un QR.',
-        'Remove this person from your contacts. You can add them again with a QR code.',
+        'Esta tarjeta dejará de aparecer en tu lista. Si la persona te compartió otras tarjetas, esas se mantienen.',
+        'This card will disappear from your list. If they shared other cards with you, those stay.',
       ),
       [
         { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
@@ -803,7 +964,7 @@ function ContactsContent() {
           text: tr('Eliminar', 'Delete'),
           style: 'destructive',
           onPress: () => {
-            void handleDeleteContact(uid);
+            void handleDeleteContact(contact);
           },
         },
       ],
@@ -817,7 +978,7 @@ function ContactsContent() {
         return;
       }
       await blockRelationship({ ownerUid, targetUid: uid });
-      await purgeContactFromUi(uid);
+      await purgeAllReceivedFromIssuerInUi(uid);
       Toast.show({
         type: 'info',
         text1: tr('Usuario bloqueado', 'User blocked'),
@@ -875,8 +1036,11 @@ function ContactsContent() {
         muted: nextMuted,
       });
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      const linkKey = receivedContactMergeKey(contact);
       setContacts((prev) => {
-        const next = prev.map((row) => (row.uid === contact.uid ? { ...row, channelMuted: nextMuted } : row));
+        const next = prev.map((row) =>
+          receivedContactMergeKey(row) === linkKey ? { ...row, channelMuted: nextMuted } : row,
+        );
         void persistContactsCache(next);
         return next;
       });
@@ -907,15 +1071,10 @@ function ContactsContent() {
 
   const closeFloatingCard = () => {
     Keyboard.dismiss();
-    Animated.timing(cardOpacity, {
-      toValue: 0,
-      duration: 160,
-      easing: Easing.in(Easing.quad),
-      useNativeDriver: true,
-    }).start(() => {
-      setFloatingVisible(false);
-      setSelectedContact(null);
-    });
+    setMirrorViewerVisible(false);
+    setMirrorViewerItem(null);
+    setFloatingVisible(false);
+    setSelectedContact(null);
   };
 
   const endActiveGhostCall = () => {
@@ -1132,6 +1291,7 @@ function ContactsContent() {
                   );
                 }
                 const row = item.contact;
+                const rowLinkKey = receivedContactMergeKey(row);
                 const reviewCount = row.totalRatings ?? 0;
                 const rating = reviewCount > 0 ? Number(row.ratingAvg ?? 0) : 0;
                 const isAlert = reviewCount > 0 && Number(row.ratingAvg || 0) <= RATING_ALERT;
@@ -1139,16 +1299,16 @@ function ContactsContent() {
                 const chest = getCardRowTheme(row.themeId);
                 const issuerFont = row.fontFamily ? { fontFamily: row.fontFamily } : null;
                 const closeRowSwipe = () => {
-                  swipeableByContactUidRef.current.get(row.uid)?.close();
+                  swipeableByContactLinkRef.current.get(rowLinkKey)?.close();
                 };
                 return (
                   <Swipeable
                     containerStyle={styles.contactSwipeRow}
                     ref={(el) => {
                       if (el) {
-                        swipeableByContactUidRef.current.set(row.uid, { close: () => el.close() });
+                        swipeableByContactLinkRef.current.set(rowLinkKey, { close: () => el.close() });
                       } else {
-                        swipeableByContactUidRef.current.delete(row.uid);
+                        swipeableByContactLinkRef.current.delete(rowLinkKey);
                       }
                     }}
                     overshootRight={false}
@@ -1158,7 +1318,7 @@ function ContactsContent() {
                             style={[styles.swipeActionCol, { backgroundColor: shell.danger }]}
                             onPress={() => {
                               closeRowSwipe();
-                              promptDeleteContact(row.uid);
+                              promptDeleteContact(row);
                             }}
                             accessibilityRole="button"
                             accessibilityLabel={tr('Eliminar contacto', 'Delete contact')}
@@ -1198,7 +1358,7 @@ function ContactsContent() {
                         </View>
                     )}
                   >
-                    <Animated.View style={{ transform: [{ scale: pressScaleForContact(row.uid) }] }}>
+                    <Animated.View style={{ transform: [{ scale: pressScaleForContactLink(rowLinkKey) }] }}>
                     <ThemedSharedCardSurface
                       themeId={row.themeId}
                       wallpaperUrl={row.wallpaperUrl || undefined}
@@ -1216,8 +1376,8 @@ function ContactsContent() {
                           onLongPressRow(row);
                         }}
                         delayLongPress={400}
-                        onPressIn={() => animateContactRowPressIn(row.uid)}
-                        onPressOut={() => animateContactRowPressOut(row.uid)}
+                        onPressIn={() => animateContactRowPressIn(rowLinkKey)}
+                        onPressOut={() => animateContactRowPressOut(rowLinkKey)}
                       >
                         {row.channelMuted ? (
                           <View
@@ -1321,7 +1481,7 @@ function ContactsContent() {
                           </Text>
                           <View style={styles.contactRowStatsRow}>
                             <View style={styles.contactRowRatingCluster}>
-                              {renderDetailedRatingStars(rating)}
+                              {renderDetailedRatingStars(rating, chest.iconColor)}
                               <Text
                                 style={[
                                   styles.contactRatingCaption,
@@ -1448,15 +1608,20 @@ function ContactsContent() {
         <Pressable style={[styles.modalOverlay, { backgroundColor: shell.overlayScrim }]} onPress={() => setLongPressVisible(false)}>
           <Pressable onPress={() => {}} style={[styles.actionModalCard, { backgroundColor: shell.modalBg, borderColor: shell.modalBorder }]}>
             <Text style={[styles.actionModalTitle, { color: shell.textPrimary }]}>{longPressContact?.name || tr('Contacto', 'Contact')}</Text>
+            {longPressContact?.cardName ? (
+              <Text style={[styles.contactSubtitleCardName, { color: shell.textSecondary, marginBottom: 8, textAlign: 'center' }]} numberOfLines={2}>
+                {longPressContact.cardName}
+              </Text>
+            ) : null}
             <TouchableOpacity
               style={[styles.actionRow, { backgroundColor: shell.modalRowBg, borderColor: shell.modalRowBorder }]}
               activeOpacity={0.85}
               onPress={() => {
-                const uid = longPressContact?.uid;
-                if (!uid) {
+                const c = longPressContact;
+                if (!c) {
                   return;
                 }
-                void updateContactMeta(uid, (prev) => ({
+                void updateContactMeta(c, (prev) => ({
                   ...prev,
                   isFavorite: !prev.isFavorite,
                 }));
@@ -1466,7 +1631,9 @@ function ContactsContent() {
             >
               <MaterialCommunityIcons
                 name={
-                  longPressContact?.uid && metaMap[longPressContact.uid]?.isFavorite ? 'star' : 'star-outline'
+                  longPressContact && (metaMap[receivedContactMergeKey(longPressContact)] || metaMap[longPressContact.uid])?.isFavorite
+                    ? 'star'
+                    : 'star-outline'
                 }
                 size={18}
                 color={shell.iconColor}
@@ -1492,13 +1659,13 @@ function ContactsContent() {
               style={[styles.actionRow, { backgroundColor: shell.modalRowBg, borderColor: shell.modalRowBorder }]}
               activeOpacity={0.85}
               onPress={() => {
-                const uid = longPressContact?.uid;
-                if (!uid) {
+                const c = longPressContact;
+                if (!c) {
                   return;
                 }
                 setLongPressVisible(false);
                 setLongPressContact(null);
-                promptDeleteContact(uid);
+                promptDeleteContact(c);
               }}
             >
               <MaterialCommunityIcons name="trash-can-outline" size={18} color={shell.iconColor} />
@@ -1533,11 +1700,11 @@ function ContactsContent() {
                 <TouchableOpacity
                   style={[styles.sortOptionRow, styles.groupSelectRow, { backgroundColor: shell.modalRowBg, borderColor: shell.modalRowBorder }]}
                   onPress={() => {
-                    const uid = longPressContact?.uid;
-                    if (!uid) {
+                    const c = longPressContact;
+                    if (!c) {
                       return;
                     }
-                    updateContactMeta(uid, (prev) => ({
+                    void updateContactMeta(c, (prev) => ({
                       ...prev,
                       group: groupName,
                     }));
@@ -1572,11 +1739,11 @@ function ContactsContent() {
                 style={[styles.newGroupBtn, { backgroundColor: shell.ctaPrimary }]}
                 onPress={() => {
                   const name = String(newGroupName || '').trim();
-                  const uid = longPressContact?.uid;
-                  if (!uid || !name) {
+                  const c = longPressContact;
+                  if (!c || !name) {
                     return;
                   }
-                  updateContactMeta(uid, (prev) => ({
+                  void updateContactMeta(c, (prev) => ({
                     ...prev,
                     group: name,
                   }));
@@ -1591,84 +1758,85 @@ function ContactsContent() {
         </View>
       </Modal>
 
-      <Modal visible={floatingVisible} transparent animationType="none" onRequestClose={closeFloatingCard}>
-        <View style={[styles.modalOverlay, { backgroundColor: shell.overlayScrim }]}>
-          <BlurView intensity={70} tint={isNight ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
-          <Animated.View
-            style={[
-              styles.floatingTheaterOuter,
-              {
-                opacity: cardOpacity,
-                transform: [{ scale: cardScale }],
-              },
-            ]}
-          >
-            {selectedContact ? (
-              <ThemedSharedCardSurface
-                themeId={selectedContact.themeId}
-                wallpaperUrl={selectedContact.wallpaperUrl || undefined}
-                borderRadius={20}
-                style={styles.floatingTheaterSurface}
-              >
-                {(() => {
-                  const floatChest = getCardRowTheme(selectedContact.themeId);
-                  return (
-                    <>
-                      <TouchableOpacity
-                        style={[styles.closeBtn, { backgroundColor: 'rgba(255,255,255,0.88)' }]}
-                        onPress={closeFloatingCard}
-                        accessibilityLabel={tr('Cerrar', 'Close')}
-                      >
-                        <MaterialCommunityIcons name="close" size={20} color={floatChest.titleColor} />
-                      </TouchableOpacity>
+      <SmartCardMirrorModal
+        visible={Boolean(floatingVisible && selectedContact)}
+        onRequestClose={closeFloatingCard}
+        screenHeight={windowHeight}
+        iconSlotCount={mirrorPreviewSlots.length}
+        cardBorder={
+          selectedContact
+            ? {
+                color: (getThemeById(selectedContact.themeId || '') ?? CHEST_THEMES[0]).border.color,
+                width: (getThemeById(selectedContact.themeId || '') ?? CHEST_THEMES[0]).border.width,
+              }
+            : { color: shell.border, width: 1 }
+        }
+        footer={{
+          variant: 'receiver',
+          closeLabel: tr('Cerrar', 'Close'),
+          onClose: closeFloatingCard,
+          colors: {
+            overlay: shell.overlayScrim,
+            modalBg: shell.modalBg,
+            modalBorder: shell.modalBorder,
+            ghostBg: shell.surfaceMuted,
+            ghostBorder: shell.border,
+            ghostText: shell.textPrimary,
+            primaryBg: shell.ctaPrimary,
+            primaryText: shell.btnPrimaryText,
+          },
+          blurTint: isNight ? 'dark' : 'light',
+        }}
+      >
+        {selectedContact ? (() => {
+          const c = selectedContact;
+          const theme = getThemeById(c.themeId || '') ?? CHEST_THEMES[0];
+          const reviewCount = Math.max(0, Math.floor(Number(c.totalRatings ?? 0)));
+          const ratingAvgRaw = Number(c.ratingAvg);
+          const dispStarsValue =
+            reviewCount > 0 && Number.isFinite(ratingAvgRaw) ? Math.max(0, Math.min(5, ratingAvgRaw)) : 0;
+          const nick = String(c.nickname || 'user').trim() || 'user';
+          const dispSub = nick.startsWith('@') ? nick : `@${nick}`;
+          const occ = String(c.ownerOccupation || '').trim();
+          const cardNm = String(c.cardName || '').trim();
+          const person = String(c.name || '').trim();
+          const dispName = (occ || cardNm || person || tr('Tarjeta Social', 'Social Card')).trim();
+          const layout = c.layout === 'horizontal' ? 'horizontal' : 'vertical';
+          return (
+            <IsolatedWireframeCard
+              layout={layout}
+              slots={mirrorPreviewSlots}
+              editable={false}
+              theme={theme}
+              wallpaperUrl={c.wallpaperUrl ?? undefined}
+              dispName={dispName}
+              dispSub={dispSub}
+              dispAvatar={c.photoUrl}
+              dispHolders={Math.max(0, Math.floor(Number(c.holdersCount ?? 0)))}
+              dispReviewCount={reviewCount}
+              dispStarsValue={dispStarsValue}
+              noAvatarIconName="account"
+              enableParallax={Boolean(c.enableParallax)}
+              parallaxX={parallaxX}
+              parallaxY={parallaxY}
+              renderSlotContent={renderMirrorSlotContent}
+              renderDetailedRatingStars={renderMirrorDetailedStars}
+              tr={tr}
+            />
+          );
+        })() : null}
+      </SmartCardMirrorModal>
 
-                      {selectedContact.photoUrl ? (
-                        <ExpoImage source={{ uri: selectedContact.photoUrl }} style={styles.modalAvatar} cachePolicy="disk" />
-                      ) : (
-                        <View
-                          style={[
-                            styles.modalAvatarFallback,
-                            {
-                              backgroundColor: MEDIA_PLACEHOLDER.personBgLight,
-                              borderColor: floatChest.borderColor,
-                            },
-                          ]}
-                        >
-                          <MaterialCommunityIcons
-                            name={MEDIA_PLACEHOLDER.personIconName}
-                            size={22}
-                            color={MEDIA_PLACEHOLDER.personIconLight}
-                          />
-                        </View>
-                      )}
-                      <Text style={[styles.modalName, { color: floatChest.titleColor }]}>{selectedContact.name || ''}</Text>
-                      <Text style={[styles.modalNick, { color: floatChest.metaColor }]}>@{selectedContact.nickname || ''}</Text>
-                      {selectedContact.ownerOccupation ? (
-                        <Text style={[styles.modalCardName, { color: floatChest.extraColor, marginTop: 6 }]} numberOfLines={2}>
-                          {selectedContact.ownerOccupation}
-                        </Text>
-                      ) : null}
-                      <Text style={[styles.modalCardName, { color: floatChest.metaColor, marginTop: selectedContact.ownerOccupation ? 4 : 6 }]}>
-                        {selectedContact.cardName || ''}
-                      </Text>
-
-                      <View style={styles.modalStatsRow}>
-                        {renderStars(Number(selectedContact.ratingAvg || 0))}
-                        <Text style={[styles.modalRatingNumber, { color: floatChest.titleColor }]}>
-                          {Number(selectedContact.ratingAvg || 0).toFixed(1)}
-                        </Text>
-                        <Text style={[styles.modalHoldersText, { color: floatChest.metaColor }]}>
-                          {selectedContact.holdersCount ?? 0} {tr('poseedores', 'holders')}
-                        </Text>
-                      </View>
-                    </>
-                  );
-                })()}
-              </ThemedSharedCardSurface>
-            ) : null}
-          </Animated.View>
-        </View>
-      </Modal>
+      <VaultDocumentViewerModal
+        visible={mirrorViewerVisible}
+        item={mirrorViewerItem}
+        onClose={() => {
+          setMirrorViewerVisible(false);
+          setMirrorViewerItem(null);
+        }}
+        tr={tr}
+        fallbackMutedColor={shell.textSecondary}
+      />
 
       <Modal
         visible={Boolean(activeGhostCall)}

@@ -23,11 +23,23 @@ const VISUAL_KEYS = new Set([
   'wallpaperPriceCredits',
   'enableParallax',
   'itemIds',
+  'publicCardSlots',
+  'searchFacets',
   'cardUpdatedAt',
 ]);
 
 /** Fila con identidad estable y marca temporal opcional del diseño en servidor. */
-export type PresentationMergeRow = { uid: string; cardUpdatedAt?: string | null } & Record<string, unknown>;
+export type PresentationMergeRow = {
+  uid: string;
+  cardId?: string | null;
+  cardUpdatedAt?: string | null;
+} & Record<string, unknown>;
+
+/** Clave estable por vínculo recibido: mismo emisor, varias tarjetas → varias filas. */
+export function receivedContactMergeKey(row: { uid: string; cardId?: string | null | undefined }): string {
+  const cid = row.cardId != null && String(row.cardId).trim() ? String(row.cardId).trim() : '';
+  return `${String(row.uid || '').trim()}::${cid}`;
+}
 
 function pickVisualSnapshot(row: PresentationMergeRow): Partial<PresentationMergeRow> {
   const out: Partial<PresentationMergeRow> = {};
@@ -44,9 +56,9 @@ function pickVisualSnapshot(row: PresentationMergeRow): Partial<PresentationMerg
  * Si la tarjeta del contacto no cambió en servidor, se conserva el snapshot visual local para evitar parpadeos de wallpaper/tema.
  */
 export function mergeReceivedContactRows<T extends PresentationMergeRow>(prev: T[], remote: T[]): T[] {
-  const prevMap = new Map(prev.map((r) => [r.uid, r]));
+  const prevMap = new Map(prev.map((r) => [receivedContactMergeKey(r), r]));
   return remote.map((r) => {
-    const old = prevMap.get(r.uid);
+    const old = prevMap.get(receivedContactMergeKey(r));
     if (!old) {
       return r;
     }

@@ -174,10 +174,16 @@ export type PublicUniversalCardPayload = {
   expiresAt: string;
 };
 
+function publicApiAcceptLanguage(locale?: 'en' | 'es'): { 'Accept-Language': string } {
+  return { 'Accept-Language': locale === 'es' ? 'es' : 'en' };
+}
+
 /** Sin JWT: el token opaco es el secreto. Usar en Expo Web para `/u/[token]`. */
 export async function fetchPublicUniversalCardByToken(params: {
   token: string;
   source?: string;
+  /** Alinea mensajes JSON con el idioma de la app (header Accept-Language). */
+  locale?: 'en' | 'es';
 }): Promise<
   | { ok: true; card: PublicUniversalCardPayload; source: string | null }
   | { ok: false; expired: boolean; error?: string }
@@ -185,6 +191,7 @@ export async function fetchPublicUniversalCardByToken(params: {
   const baseUrl = getApiBaseUrl();
   const response = await axios.get(`${baseUrl}/api/public/universal-card`, {
     params: { token: params.token, source: params.source ?? 'qr_scan' },
+    headers: publicApiAcceptLanguage(params.locale),
     timeout: 20000,
     validateStatus: () => true,
   });
@@ -211,7 +218,66 @@ export async function fetchPublicUniversalCardByToken(params: {
   };
 }
 
-export async function consumeDynamicQrToken(params: { receiverUid: string; token: string }): Promise<{ ownerUid: string; receiverUid: string; cardId: string; shareGranted: boolean }> {
+export type PublicQrTokenPreview = {
+  ownerUid: string;
+  cardId: string;
+  token: string;
+  expiresAt: string;
+  ownerDisplayName: string;
+  cardName: string;
+  ownerNickname: string | null;
+  ownerPhotoUrl: string | null;
+  ownerOccupation: string | null;
+  slots: Array<{ itemId?: string; type?: string; label?: string; value?: string; icon?: string; iconName?: string }>;
+};
+
+/** Vista previa del QR dinámico sin consumir (modal de clasificación). */
+export async function fetchPublicQrTokenPreview(params: {
+  token: string;
+  locale?: 'en' | 'es';
+}): Promise<{ ok: true; preview: PublicQrTokenPreview } | { ok: false; expired: boolean; error?: string }> {
+  const baseUrl = getApiBaseUrl();
+  const response = await axios.get(`${baseUrl}/api/public/qr-token-preview`, {
+    params: { token: params.token },
+    headers: publicApiAcceptLanguage(params.locale),
+    timeout: 20000,
+    validateStatus: () => true,
+  });
+
+  if (response.status === 410) {
+    return { ok: false, expired: true, error: String(response?.data?.error || '') };
+  }
+  if (response.status !== 200 || !response?.data?.ok) {
+    return {
+      ok: false,
+      expired: false,
+      error: String(response?.data?.error || 'Request failed'),
+    };
+  }
+
+  const d = response.data;
+  return {
+    ok: true,
+    preview: {
+      ownerUid: String(d.ownerUid || ''),
+      cardId: String(d.cardId || ''),
+      token: String(d.token || params.token),
+      expiresAt: String(d.expiresAt || ''),
+      ownerDisplayName: String(d.ownerDisplayName || ''),
+      cardName: String(d.cardName || ''),
+      ownerNickname: d.ownerNickname != null ? String(d.ownerNickname) : null,
+      ownerPhotoUrl: d.ownerPhotoUrl != null ? String(d.ownerPhotoUrl) : null,
+      ownerOccupation: d.ownerOccupation != null ? String(d.ownerOccupation) : null,
+      slots: Array.isArray(d.slots) ? d.slots : [],
+    },
+  };
+}
+
+export async function consumeDynamicQrToken(params: {
+  receiverUid: string;
+  token: string;
+  locale?: 'en' | 'es';
+}): Promise<{ ownerUid: string; receiverUid: string; cardId: string; shareGranted: boolean }> {
   const auth = await getScopedJwtToken(params.receiverUid, 'qr.access');
 
   const response = await axios.post(
@@ -224,6 +290,7 @@ export async function consumeDynamicQrToken(params: { receiverUid: string; token
       headers: {
         'x-api-gateway-key': auth.gatewayKey,
         Authorization: `Bearer ${auth.token}`,
+        ...publicApiAcceptLanguage(params.locale),
       },
       timeout: 15000,
     }
@@ -235,6 +302,86 @@ export async function consumeDynamicQrToken(params: { receiverUid: string; token
     cardId: String(response?.data?.cardId || ''),
     shareGranted: Boolean(response?.data?.shareGranted),
   };
+}
+
+/** Canjea enlace universal 24h (temporary_access) → share_permission. */
+export async function redeemTemporaryAccessToken(params: {
+  receiverUid: string;
+  token: string;
+  locale?: 'en' | 'es';
+}): Promise<{ ownerUid: string; receiverUid: string; cardId: string; shareGranted: boolean }> {
+  const auth = await getScopedJwtToken(params.receiverUid, 'qr.access');
+
+  const response = await axios.post(
+    `${auth.baseUrl}/api/qr/temporary-access/redeem`,
+    {
+      receiverUid: params.receiverUid,
+      token: params.token,
+    },
+    {
+      headers: {
+        'x-api-gateway-key': auth.gatewayKey,
+        Authorization: `Bearer ${auth.token}`,
+        ...publicApiAcceptLanguage(params.locale),
+      },
+      timeout: 15000,
+    }
+  );
+
+  return {
+    ownerUid: String(response?.data?.ownerUid || ''),
+    receiverUid: String(response?.data?.receiverUid || ''),
+    cardId: String(response?.data?.cardId || ''),
+    shareGranted: Boolean(response?.data?.shareGranted),
+  };
+}
+
+/** Grupos del Búnker: valores por defecto + personalizados guardados en Mongo (`bunker_groups`). */
+export async function fetchBunkerGroups(viewerUid: string, locale?: 'en' | 'es'): Promise<string[]> {
+  const auth = await getScopedJwtToken(viewerUid, 'qr.access');
+
+  const response = await axios.get(`${auth.baseUrl}/api/qr/bunker/groups`, {
+    headers: {
+      'x-api-gateway-key': auth.gatewayKey,
+      Authorization: `Bearer ${auth.token}`,
+      ...publicApiAcceptLanguage(locale),
+    },
+    timeout: 15000,
+    validateStatus: () => true,
+  });
+
+  if (response.status !== 200 || !response.data?.ok || !Array.isArray(response.data.groups)) {
+    throw new Error(String(response?.data?.error || 'Failed to load bunker groups'));
+  }
+
+  return (response.data.groups as unknown[]).map((g) => String(g || '').trim()).filter(Boolean);
+}
+
+/** Registra uso de un grupo personalizado para que aparezca en futuras sesiones/dispositivos. */
+export async function trackBunkerGroupUsage(params: {
+  viewerUid: string;
+  groupName: string;
+  locale?: 'en' | 'es';
+}): Promise<void> {
+  const auth = await getScopedJwtToken(params.viewerUid, 'qr.access');
+  const groupName = String(params.groupName || '').trim().slice(0, 60);
+  if (!groupName) {
+    return;
+  }
+
+  await axios.post(
+    `${auth.baseUrl}/api/qr/bunker/groups/track`,
+    { groupName },
+    {
+      headers: {
+        'x-api-gateway-key': auth.gatewayKey,
+        Authorization: `Bearer ${auth.token}`,
+        ...publicApiAcceptLanguage(params.locale),
+      },
+      timeout: 15000,
+      validateStatus: () => true,
+    },
+  );
 }
 
 export type CardSubscriberRow = {
@@ -389,14 +536,22 @@ export async function blockRelationship(params: { ownerUid: string; targetUid: s
   };
 }
 
-export async function removeRelationship(params: { ownerUid: string; targetUid: string }): Promise<{ deletedLinks: number }> {
+export async function removeRelationship(params: {
+  ownerUid: string;
+  targetUid: string;
+  /** Si se envía, solo se elimina el permiso de esa tarjeta (mismo emisor puede tener otras). */
+  cardId?: string | null;
+}): Promise<{ deletedLinks: number }> {
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+
+  const cardId = params.cardId != null && String(params.cardId).trim() ? String(params.cardId).trim() : '';
 
   const response = await axios.post(
     `${auth.baseUrl}/api/qr/relationships/remove`,
     {
       ownerUid: params.ownerUid,
       targetUid: params.targetUid,
+      ...(cardId ? { cardId } : {}),
     },
     {
       headers: {
@@ -566,15 +721,21 @@ export async function listSmartCardsFromDb(params: { ownerUid: string }): Promis
           }))
         : undefined,
       publicCardSlots: Array.isArray(row?.publicCardSlots)
-        ? row.publicCardSlots.map((s: any) => ({
-            itemId: String(s?.itemId || ''),
-            type: String(s?.type || 'link'),
-            label: String(s?.label || ''),
-            value: String(s?.value || ''),
-            iconName: s?.iconName != null ? String(s.iconName) : s?.icon != null ? String(s.icon) : undefined,
-            isPrivate: Boolean(s?.isPrivate),
-            visibility: s?.visibility != null ? String(s.visibility) : undefined,
-          }))
+        ? row.publicCardSlots.map((s: any) => {
+            const iconRaw = s?.icon != null ? String(s.icon).trim() : '';
+            const icon = /^https?:\/\//i.test(iconRaw) ? iconRaw : undefined;
+            const iconName = s?.iconName != null ? String(s.iconName).trim() : '';
+            return {
+              itemId: String(s?.itemId || ''),
+              type: String(s?.type || 'link'),
+              label: String(s?.label || ''),
+              value: String(s?.value || ''),
+              ...(icon ? { icon } : {}),
+              ...(iconName ? { iconName } : {}),
+              isPrivate: Boolean(s?.isPrivate),
+              visibility: s?.visibility != null ? String(s.visibility) : undefined,
+            };
+          })
         : undefined,
       createdAt: String(row?.createdAt || new Date().toISOString()),
       updatedAt: String(row?.updatedAt || new Date().toISOString()),
@@ -652,6 +813,8 @@ export type ReceivedContactRow = {
   enableParallax: boolean;
   itemIds: string[];
   cardUpdatedAt: string | null;
+  /** Slots públicos (logos/URLs + iconName) para preview espejo del receptor. */
+  publicCardSlots?: PublicCardSlotPayload[];
 };
 
 export async function listReceivedContacts(params: { ownerUid: string }): Promise<{
@@ -675,6 +838,13 @@ export async function listReceivedContacts(params: { ownerUid: string }): Promis
     return {
       contacts: rows.map((row: any) => {
         const facetRows = Array.isArray(row?.searchFacets) ? row.searchFacets : [];
+        const totalRatings = Number.isFinite(Number(row?.totalRatings))
+          ? Math.max(0, Math.floor(Number(row.totalRatings)))
+          : 0;
+        const ratingAvgRaw = Number(row?.ratingAvg);
+        const ratingAvg =
+          totalRatings > 0 && Number.isFinite(ratingAvgRaw) ? ratingAvgRaw : 0;
+        const slotRows = Array.isArray(row?.publicCardSlots) ? row.publicCardSlots : [];
         return {
           uid: String(row?.uid || ''),
           cardId: row?.cardId != null && String(row.cardId).trim() ? String(row.cardId).trim() : null,
@@ -682,7 +852,7 @@ export async function listReceivedContacts(params: { ownerUid: string }): Promis
           nickname: String(row?.nickname || 'user'),
           photoUrl: row?.photoUrl ? String(row.photoUrl) : null,
           ownerOccupation: row?.ownerOccupation != null && String(row.ownerOccupation).trim() ? String(row.ownerOccupation).trim() : null,
-          ratingAvg: Number(row?.ratingAvg || 5),
+          ratingAvg,
           cardName: String(row?.cardName || 'Tarjeta Social'),
           holdersCount: Number(row?.holdersCount || 0),
           addedAt: row?.addedAt ? String(row.addedAt) : null,
@@ -692,12 +862,23 @@ export async function listReceivedContacts(params: { ownerUid: string }): Promis
             label: String(f?.label || ''),
             value: String(f?.value || ''),
           })),
+          publicCardSlots: slotRows.map((s: any) => {
+            const iconRaw = s?.icon != null ? String(s.icon).trim() : '';
+            const icon = /^https?:\/\//i.test(iconRaw) ? iconRaw : undefined;
+            const iconName = s?.iconName != null ? String(s.iconName).trim() : '';
+            return {
+              itemId: String(s?.itemId || ''),
+              type: String(s?.type || 'link'),
+              label: String(s?.label || ''),
+              value: String(s?.value || ''),
+              ...(icon ? { icon } : {}),
+              ...(iconName ? { iconName } : {}),
+            };
+          }),
           mutualContactsCount: Number.isFinite(Number(row?.mutualContactsCount))
             ? Math.max(0, Math.floor(Number(row.mutualContactsCount)))
             : 0,
-          totalRatings: Number.isFinite(Number(row?.totalRatings))
-            ? Math.max(0, Math.floor(Number(row.totalRatings)))
-            : 0,
+          totalRatings,
           channelMuted: Boolean(row?.channelMuted),
           themeId: String(row?.themeId || 'deep_teal').trim() || 'deep_teal',
           layout: String(row?.layout || 'vertical') === 'horizontal' ? 'horizontal' : 'vertical',

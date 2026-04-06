@@ -9,6 +9,7 @@ import {
     listReceivedContacts,
     patchCallLogMeta,
 } from '@/services/qrApi';
+import { receivedContactMergeKey } from '@/services/receivedContactsPresentationMerge';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import * as DocumentPicker from 'expo-document-picker';
@@ -29,7 +30,9 @@ import {
 } from 'react-native';
 
 type ContactRow = {
+  linkKey: string;
   uid: string;
+  cardId: string | null;
   name: string;
   nickname: string;
   photoUrl: string | null;
@@ -350,13 +353,17 @@ export default function CallsPage() {
   const [detailVisible, setDetailVisible] = useState(false);
   const [registerVisible, setRegisterVisible] = useState(false);
 
-  const [newPeerUid, setNewPeerUid] = useState('');
+  const [newPeerLinkKey, setNewPeerLinkKey] = useState('');
   const [newDirection, setNewDirection] = useState<'incoming' | 'outgoing' | 'missed'>('incoming');
   const [newStatus, setNewStatus] = useState<'completed' | 'missed' | 'rejected'>('completed');
 
   const contactByUid = useMemo(() => {
     const map = new Map<string, ContactRow>();
-    contacts.forEach((row) => map.set(row.uid, row));
+    contacts.forEach((row) => {
+      if (!map.has(row.uid)) {
+        map.set(row.uid, row);
+      }
+    });
     return map;
   }, [contacts]);
 
@@ -382,16 +389,21 @@ export default function CallsPage() {
 
       setHistory(historyResponse.history);
       setContacts(
-        contactsResponse.contacts.map((row) => ({
-          uid: row.uid,
-          name: row.name,
-          nickname: row.nickname,
-          photoUrl: row.photoUrl,
-          cardName: row.cardName,
-          holdersCount: row.holdersCount,
-          ratingAvg: row.ratingAvg,
-          storyState: row.storyState,
-        }))
+        contactsResponse.contacts.map((row) => {
+          const cardId = row.cardId != null && String(row.cardId).trim() ? String(row.cardId).trim() : null;
+          return {
+            linkKey: receivedContactMergeKey({ uid: row.uid, cardId }),
+            uid: row.uid,
+            cardId,
+            name: row.name,
+            nickname: row.nickname,
+            photoUrl: row.photoUrl,
+            cardName: row.cardName,
+            holdersCount: row.holdersCount,
+            ratingAvg: row.ratingAvg,
+            storyState: row.storyState,
+          };
+        }),
       );
     } catch (error: any) {
       Alert.alert(tr('No se pudo cargar Calls', 'Could not load Calls'), error?.message || tr('Intenta de nuevo.', 'Try again.'));
@@ -472,7 +484,13 @@ export default function CallsPage() {
       if (!ownerUid) {
         return;
       }
-      if (!newPeerUid) {
+      if (!newPeerLinkKey) {
+        Alert.alert(tr('Contacto requerido', 'Contact required'), tr('Selecciona un contacto para registrar la llamada.', 'Select a contact to register the call.'));
+        return;
+      }
+
+      const picked = contacts.find((row) => row.linkKey === newPeerLinkKey);
+      if (!picked) {
         Alert.alert(tr('Contacto requerido', 'Contact required'), tr('Selecciona un contacto para registrar la llamada.', 'Select a contact to register the call.'));
         return;
       }
@@ -480,17 +498,17 @@ export default function CallsPage() {
       setSaving(true);
       await createCallLog({
         ownerUid,
-        peerUid: newPeerUid,
+        peerUid: picked.uid,
         direction: newDirection,
         status: newStatus,
         durationSec: newStatus === 'completed' ? 42 : 0,
-        sourceCardName: contacts.find((row) => row.uid === newPeerUid)?.cardName || 'Tarjeta Social',
-        sourceCardId: null,
+        sourceCardName: picked.cardName || 'Tarjeta Social',
+        sourceCardId: picked.cardId,
         callChannel: 'ghost-link-voip',
       });
 
       setRegisterVisible(false);
-      setNewPeerUid('');
+      setNewPeerLinkKey('');
       await loadData({ silent: true });
     } catch (error: any) {
       Alert.alert(tr('No se pudo registrar llamada', 'Could not register call'), error?.message || tr('Intenta nuevamente.', 'Try again.'));
@@ -645,17 +663,20 @@ export default function CallsPage() {
             <View style={styles.optionWrap}>
               {contacts.map((contact) => (
                 <TouchableOpacity
-                  key={contact.uid}
+                  key={contact.linkKey}
                   style={[
                     styles.optionBtn,
                     {
-                      backgroundColor: newPeerUid === contact.uid ? shell.headerBtnBg : shell.modalRowBg,
-                      borderColor: newPeerUid === contact.uid ? shell.headerBtnBg : shell.modalRowBorder,
+                      backgroundColor: newPeerLinkKey === contact.linkKey ? shell.headerBtnBg : shell.modalRowBg,
+                      borderColor: newPeerLinkKey === contact.linkKey ? shell.headerBtnBg : shell.modalRowBorder,
                     },
                   ]}
-                  onPress={() => setNewPeerUid(contact.uid)}
+                  onPress={() => setNewPeerLinkKey(contact.linkKey)}
                 >
-                  <Text style={[styles.optionText, { color: newPeerUid === contact.uid ? shell.btnPrimaryText : shell.iconColor }]}>{contact.name}</Text>
+                  <Text style={[styles.optionText, { color: newPeerLinkKey === contact.linkKey ? shell.btnPrimaryText : shell.iconColor }]}>
+                    {contact.name}
+                    {contact.cardName ? ` · ${contact.cardName}` : ''}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>

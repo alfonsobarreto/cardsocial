@@ -2,6 +2,7 @@ import 'react-native-get-random-values';
 
 import '@/i18n';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { PendingBunkerRedeemGate } from '@/components/PendingBunkerRedeemGate';
 import { LanguageProvider, useLanguage } from '@/services/language';
 import { LookModeProvider } from '@/services/lookMode';
 import { NetworkProvider } from '@/services/NetworkProvider';
@@ -165,8 +166,10 @@ function RootNavigator() {
         />
         <Stack.Screen name="register" options={{ title: language === 'en' ? 'Sign Up' : 'Registro' }} />
         <Stack.Screen name="scan" options={{ title: language === 'en' ? 'Scan Card' : 'Escanear Tarjeta', headerShown: false }} />
+        <Stack.Screen name="u" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
+      <PendingBunkerRedeemGate />
       <Toast />
     </GestureHandlerRootView>
   );

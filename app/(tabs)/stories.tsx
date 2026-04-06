@@ -12,6 +12,7 @@ import appPalette from '../theme';
 import { makeStoriesStyles } from './_stories.styles';
 import { trackCardAnalyticsFireAndForget } from '@/services/cardAnalytics';
 import { getMyStoryState, getStoriesHouseAd, listReceivedContacts, listSmartCardsFromDb, setMyStoryState, type HouseAdStory } from '@/services/qrApi';
+import { receivedContactMergeKey } from '@/services/receivedContactsPresentationMerge';
 import { fetchVipMarketStorySlots, type VipMarketStorySlot } from '@/services/storiesFeedInjectionService';
 import {
   normalizeStoryPickedImageAuto,
@@ -420,7 +421,10 @@ export default function StoriesPage() {
         sourceCardId: row.sourceCardId,
         photoUrl: row.photoUrl,
         storyState,
-        isFavorite: Boolean(favoritesByUid[row.uid]),
+        isFavorite: Boolean(
+          favoritesByUid[receivedContactMergeKey({ uid: row.uid, cardId: row.sourceCardId })] ||
+            favoritesByUid[row.uid],
+        ),
         localStory,
       };
     });

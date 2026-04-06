@@ -9,8 +9,12 @@ const STORY_NORMAL_TTL_HOURS = 24;
 const STORY_VIP_TTL_DAYS = 7;
 const GHOST_LINK_INVITE_TTL_SECONDS = 45;
 
+const DEFAULT_BUNKER_GROUPS = ['Random', 'Family', 'Social', 'Work'];
+
 const { buildGhostLinkAgoraInvite } = require('../lib/agoraGhostLink');
 const { mergeContactProfileFromCard } = require('../lib/contactIdentityMerge');
+const { clientLocaleIsSpanish } = require('../lib/httpRequestLocale');
+const { parseAndValidateTemporaryAccess } = require('../lib/temporaryAccessToken');
 const { env } = require('../config');
 
 function normalizeString(value, fallback = null) {
@@ -56,16 +60,64 @@ function sanitizePublicCardSlots(raw) {
     const type = String(row?.type || 'link').trim().slice(0, 64);
     const label = String(row?.label || '').trim().slice(0, 200);
     const value = String(row?.value || '').trim().slice(0, 4000);
-    const iconName = String(row?.iconName || row?.icon || '').trim().slice(0, 120);
-    out.push({
+    const iconName = String(row?.iconName || '').trim().slice(0, 120);
+    const rawIcon = String(row?.icon || '').trim();
+    const iconUrl = /^https?:\/\//i.test(rawIcon) ? rawIcon.slice(0, 4000) : null;
+    const rowOut = {
       itemId,
       type,
       label,
       value,
       iconName: iconName || null,
-    });
+    };
+    if (iconUrl) {
+      rowOut.icon = iconUrl;
+    }
+    out.push(rowOut);
   }
   return out;
+}
+
+/**
+ * Cuenta receptores activos por tarjeta desde `share_permissions` (no revocados, no expirados).
+ * Fuente de verdad para "cuántas personas tienen esta tarjeta"; independiente de `smart_cards.holdersCount`.
+ */
+async function aggregateActiveReceiverCountByCardId(db, ownerUid, cardIds, now) {
+  const ou = String(ownerUid || '').trim();
+  const ids = [...new Set((cardIds || []).map((id) => String(id || '').trim()).filter(Boolean))];
+  const map = new Map();
+  for (const id of ids) {
+    map.set(id, 0);
+  }
+  if (!ou || !ids.length) {
+    return map;
+  }
+
+  const expiryOr = [
+    { expiresAt: null },
+    { expiresAt: { $gt: now } },
+    { expiresAt: { $exists: false } },
+  ];
+
+  const rows = await db.collection('share_permissions').aggregate([
+    {
+      $match: {
+        ownerUid: ou,
+        cardId: { $in: ids },
+        isRevoked: { $ne: true },
+        $or: expiryOr,
+      },
+    },
+    { $group: { _id: '$cardId', n: { $sum: 1 } } },
+  ]).toArray();
+
+  for (const row of rows) {
+    const cid = String(row?._id || '').trim();
+    if (cid) {
+      map.set(cid, Number(row.n || 0));
+    }
+  }
+  return map;
 }
 
 function getPublicUniversalCardBaseUrl() {
@@ -614,8 +666,9 @@ function createQrRoutes({ storage }) {
   /**
    * Enlace universal TTL 24h para QR marketing (web + Universal Link).
    * URL: {PUBLIC_UNIVERSAL_CARD_BASE_URL}/u/{token}?source=qr_scan
+   * Alias: POST /universal-link/issue (mismo cuerpo).
    */
-  router.post('/temporary-access/issue', async (req, res) => {
+  async function issueTemporaryUniversalAccessRoute(req, res) {
     try {
       const ownerUid = String(req.body?.ownerUid || req.auth?.sub || '').trim();
       const cardId = String(req.body?.cardId || '').trim();
@@ -660,18 +713,215 @@ function createQrRoutes({ storage }) {
     } catch (error) {
       return res.status(500).json({ ok: false, error: error.message });
     }
-  });
+  }
 
-  router.post('/consume', async (req, res) => {
+  router.post('/temporary-access/issue', issueTemporaryUniversalAccessRoute);
+  router.post('/universal-link/issue', issueTemporaryUniversalAccessRoute);
+
+  /**
+   * Canjea acceso temporal 24h → share_permission (sin consumir el documento TTL; varios receptores pueden unirse mientras el token exista).
+   */
+  router.post('/temporary-access/redeem', async (req, res) => {
     try {
+      const isEs = clientLocaleIsSpanish(req);
       const receiverUid = String(req.body?.receiverUid || req.auth?.sub || '').trim();
       const token = String(req.body?.token || '').trim();
 
       if (!receiverUid) {
-        return res.status(400).json({ ok: false, error: 'receiverUid is required' });
+        return res.status(400).json({
+          ok: false,
+          error: isEs ? 'Se requiere receiverUid.' : 'receiverUid is required.',
+        });
       }
       if (!token) {
-        return res.status(400).json({ ok: false, error: 'token is required' });
+        return res.status(400).json({
+          ok: false,
+          error: isEs ? 'Se requiere token.' : 'token is required.',
+        });
+      }
+
+      const db = await storage.connect();
+      const now = new Date();
+
+      const validation = await parseAndValidateTemporaryAccess(db, token);
+      if (!validation.ok) {
+        return res.status(410).json({
+          ok: false,
+          error: isEs ? 'Acceso expirado o token no válido.' : 'Access expired or invalid token.',
+        });
+      }
+
+      const ownerUid = String(validation.ownerUid || '').trim();
+      const cardId = String(validation.cardId || '').trim();
+      if (!ownerUid || !cardId) {
+        return res.status(400).json({
+          ok: false,
+          error: isEs ? 'Datos del token no válidos.' : 'Invalid token payload.',
+        });
+      }
+
+      const relationKey = buildRelationKey(ownerUid, receiverUid);
+      const blocked = await db.collection('blocked_relations').findOne({ relationKey });
+      if (blocked) {
+        return res.status(403).json({
+          ok: false,
+          error: isEs ? 'Acceso denegado: relación bloqueada.' : 'Access denied: blocked relationship.',
+        });
+      }
+
+      await db.collection('share_permissions').findOneAndUpdate(
+        {
+          ownerUid,
+          targetUid: receiverUid,
+          cardId,
+        },
+        {
+          $set: {
+            scope: 'view',
+            isRevoked: false,
+            revokedAt: null,
+            expiresAt: null,
+          },
+          $setOnInsert: {
+            createdAt: now,
+          },
+        },
+        {
+          upsert: true,
+          returnDocument: 'after',
+          includeResultMetadata: false,
+        },
+      );
+
+      return res.status(200).json({
+        ok: true,
+        ownerUid,
+        receiverUid,
+        cardId,
+        shareGranted: true,
+      });
+    } catch (error) {
+      const isEs = clientLocaleIsSpanish(req);
+      return res.status(500).json({
+        ok: false,
+        error: isEs ? 'Error del servidor. Intenta de nuevo.' : 'Server error. Please try again.',
+      });
+    }
+  });
+
+  /**
+   * Grupos del Búnker para el receptor: defaults + nombres guardados en nube (`bunker_groups`).
+   */
+  router.get('/bunker/groups', async (req, res) => {
+    try {
+      const isEs = clientLocaleIsSpanish(req);
+      const viewerUid = String(req.auth?.sub || '').trim();
+      if (!viewerUid) {
+        return res.status(401).json({
+          ok: false,
+          error: isEs ? 'No autorizado.' : 'Unauthorized.',
+        });
+      }
+
+      const db = await storage.connect();
+      const rows = await db
+        .collection('bunker_groups')
+        .find({ viewerUid }, { projection: { groupName: 1, _id: 0 } })
+        .sort({ groupName: 1 })
+        .toArray();
+      const fromDb = rows.map((r) => String(r.groupName || '').trim()).filter(Boolean);
+      const merged = new Set([...DEFAULT_BUNKER_GROUPS, ...fromDb]);
+      const groups = Array.from(merged).sort((a, b) => {
+        const ia = DEFAULT_BUNKER_GROUPS.indexOf(a);
+        const ib = DEFAULT_BUNKER_GROUPS.indexOf(b);
+        if (ia !== -1 && ib !== -1) {
+          return ia - ib;
+        }
+        if (ia !== -1) {
+          return -1;
+        }
+        if (ib !== -1) {
+          return 1;
+        }
+        return a.localeCompare(b, 'en', { sensitivity: 'base' });
+      });
+
+      return res.status(200).json({ ok: true, groups });
+    } catch (error) {
+      const isEs = clientLocaleIsSpanish(req);
+      return res.status(500).json({
+        ok: false,
+        error: isEs ? 'Error del servidor. Intenta de nuevo.' : 'Server error. Please try again.',
+      });
+    }
+  });
+
+  /** Registra un nombre de grupo personalizado usado por el receptor (para futuros desplegables). */
+  router.post('/bunker/groups/track', async (req, res) => {
+    try {
+      const isEs = clientLocaleIsSpanish(req);
+      const viewerUid = String(req.auth?.sub || '').trim();
+      const groupName = String(req.body?.groupName || '')
+        .trim()
+        .slice(0, 60);
+      if (!viewerUid) {
+        return res.status(401).json({
+          ok: false,
+          error: isEs ? 'No autorizado.' : 'Unauthorized.',
+        });
+      }
+      if (!groupName) {
+        return res.status(400).json({
+          ok: false,
+          error: isEs ? 'Se requiere groupName.' : 'groupName is required.',
+        });
+      }
+      if (DEFAULT_BUNKER_GROUPS.includes(groupName)) {
+        return res.status(200).json({ ok: true });
+      }
+
+      const db = await storage.connect();
+      const now = new Date();
+      await db.collection('bunker_groups').updateOne(
+        { viewerUid, groupName },
+        {
+          $set: { updatedAt: now },
+          $setOnInsert: {
+            viewerUid,
+            groupName,
+            createdAt: now,
+          },
+        },
+        { upsert: true },
+      );
+
+      return res.status(200).json({ ok: true });
+    } catch (error) {
+      const isEs = clientLocaleIsSpanish(req);
+      return res.status(500).json({
+        ok: false,
+        error: isEs ? 'Error del servidor. Intenta de nuevo.' : 'Server error. Please try again.',
+      });
+    }
+  });
+
+  router.post('/consume', async (req, res) => {
+    try {
+      const isEs = clientLocaleIsSpanish(req);
+      const receiverUid = String(req.body?.receiverUid || req.auth?.sub || '').trim();
+      const token = String(req.body?.token || '').trim();
+
+      if (!receiverUid) {
+        return res.status(400).json({
+          ok: false,
+          error: isEs ? 'Se requiere receiverUid.' : 'receiverUid is required.',
+        });
+      }
+      if (!token) {
+        return res.status(400).json({
+          ok: false,
+          error: isEs ? 'Se requiere token.' : 'token is required.',
+        });
       }
 
       const db = await storage.connect();
@@ -689,18 +939,29 @@ function createQrRoutes({ storage }) {
         }
       );
       if (!tokenDoc) {
-        return res.status(410).json({ ok: false, error: 'Token expired, revoked or already consumed' });
+        return res.status(410).json({
+          ok: false,
+          error: isEs
+            ? 'El token expiró, fue revocado o ya se usó.'
+            : 'Token expired, revoked or already consumed.',
+        });
       }
 
       const ownerUidFromToken = String(tokenDoc.ownerUid || '').trim();
       if (!ownerUidFromToken) {
-        return res.status(400).json({ ok: false, error: 'Token payload is invalid' });
+        return res.status(400).json({
+          ok: false,
+          error: isEs ? 'Datos del token no válidos.' : 'Token payload is invalid.',
+        });
       }
 
       const relationKey = buildRelationKey(ownerUidFromToken, receiverUid);
       const blocked = await db.collection('blocked_relations').findOne({ relationKey });
       if (blocked) {
-        return res.status(403).json({ ok: false, error: 'Access denied: blocked relationship' });
+        return res.status(403).json({
+          ok: false,
+          error: isEs ? 'Acceso denegado: relación bloqueada.' : 'Access denied: blocked relationship.',
+        });
       }
 
       const consumed = await db.collection('qr_tokens').findOneAndUpdate(
@@ -724,13 +985,21 @@ function createQrRoutes({ storage }) {
 
       const qrToken = consumed;
       if (!qrToken) {
-        return res.status(410).json({ ok: false, error: 'Token expired, revoked or already consumed' });
+        return res.status(410).json({
+          ok: false,
+          error: isEs
+            ? 'El token expiró, fue revocado o ya se usó.'
+            : 'Token expired, revoked or already consumed.',
+        });
       }
 
       const ownerUid = String(qrToken.ownerUid || '').trim();
       const cardId = String(qrToken.cardId || '').trim();
       if (!ownerUid || !cardId) {
-        return res.status(400).json({ ok: false, error: 'Token payload is invalid' });
+        return res.status(400).json({
+          ok: false,
+          error: isEs ? 'Datos del token no válidos.' : 'Token payload is invalid.',
+        });
       }
 
       const permissionResult = await db.collection('share_permissions').findOneAndUpdate(
@@ -770,7 +1039,11 @@ function createQrRoutes({ storage }) {
         shareGranted: true,
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      const isEs = clientLocaleIsSpanish(req);
+      return res.status(500).json({
+        ok: false,
+        error: isEs ? 'Error del servidor. Intenta de nuevo.' : 'Server error. Please try again.',
+      });
     }
   });
 
@@ -802,15 +1075,21 @@ function createQrRoutes({ storage }) {
       }
 
       const db = await storage.connect();
+      const now = new Date();
       const cards = await db.collection('smart_cards').find(
         { ownerUid },
         { sort: { updatedAt: -1 } }
       ).toArray();
 
+      const cardIdList = cards.map((c) => String(c.cardId || c._id || '').trim()).filter(Boolean);
+      const receiverCountByCardId = await aggregateActiveReceiverCountByCardId(db, ownerUid, cardIdList, now);
+
       return res.status(200).json({
         ok: true,
-        cards: cards.map((card) => ({
-          cardId: String(card.cardId || card._id || ''),
+        cards: cards.map((card) => {
+          const cid = String(card.cardId || card._id || '').trim();
+          return {
+          cardId: cid,
           name: String(card.name || 'Smart Card'),
           layout: String(card.layout || 'vertical') === 'horizontal' ? 'horizontal' : 'vertical',
           themeId: card.themeId || null,
@@ -826,7 +1105,7 @@ function createQrRoutes({ storage }) {
           enableParallax: Boolean(card.enableParallax),
           isFavorite: Boolean(card.isFavorite),
           itemIds: Array.isArray(card.itemIds) ? card.itemIds : [],
-          holdersCount: Number(card.holdersCount || 0),
+          holdersCount: receiverCountByCardId.get(cid) ?? 0,
           ratingAvg: Number(card.ratingAvg || 5),
           ownerDisplayName: card.ownerDisplayName || null,
           ownerNickname: card.ownerNickname || null,
@@ -836,7 +1115,8 @@ function createQrRoutes({ storage }) {
           publicCardSlots: sanitizePublicCardSlots(card.publicCardSlots),
           createdAt: card.createdAt ? new Date(card.createdAt).toISOString() : new Date().toISOString(),
           updatedAt: card.updatedAt ? new Date(card.updatedAt).toISOString() : new Date().toISOString(),
-        })),
+        };
+        }),
       });
     } catch (error) {
       return res.status(500).json({ ok: false, error: error.message });
@@ -958,24 +1238,24 @@ function createQrRoutes({ storage }) {
         { projection: { ownerUid: 1, cardId: 1, createdAt: 1 } }
       ).toArray();
 
-      const latestPermByOwner = new Map();
+      /** Una fila por permiso activo (ownerUid + cardId); no colapsar a “solo la última tarjeta por emisor”. */
+      const permEntries = [];
       for (const row of perms) {
         const sourceUid = String(row.ownerUid || '').trim();
         if (!sourceUid) {
           continue;
         }
         const rowDate = row.createdAt ? new Date(row.createdAt) : new Date(0);
-        const prev = latestPermByOwner.get(sourceUid);
-        if (!prev || rowDate.getTime() > prev.createdAt.getTime()) {
-          latestPermByOwner.set(sourceUid, {
-            ownerUid: sourceUid,
-            cardId: String(row.cardId || '').trim() || null,
-            createdAt: rowDate,
-          });
-        }
+        const cid = String(row.cardId || '').trim();
+        permEntries.push({
+          ownerUid: sourceUid,
+          cardId: cid || null,
+          createdAt: rowDate,
+        });
       }
+      permEntries.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
-      const ownerUids = Array.from(latestPermByOwner.keys());
+      const ownerUids = [...new Set(permEntries.map((e) => e.ownerUid))];
       const activeStories = await db.collection('story_states').find(
         {
           ownerUid: { $in: ownerUids },
@@ -1003,11 +1283,49 @@ function createQrRoutes({ storage }) {
       }
 
       const pairsForCardStories = [];
-      for (const uid of ownerUids) {
-        const meta = latestPermByOwner.get(uid);
-        const cid = meta?.cardId ? String(meta.cardId).trim() : '';
-        if (cid) {
-          pairsForCardStories.push({ ownerUid: uid, cardId: cid });
+      const pairKeySeen = new Set();
+      for (const e of permEntries) {
+        const cid = e.cardId ? String(e.cardId).trim() : '';
+        if (!cid) {
+          continue;
+        }
+        const pk = `${e.ownerUid}::${cid}`;
+        if (pairKeySeen.has(pk)) {
+          continue;
+        }
+        pairKeySeen.add(pk);
+        pairsForCardStories.push({ ownerUid: e.ownerUid, cardId: cid });
+      }
+
+      /** Conteo real de receptores por tarjeta (share_permissions); smart_cards.holdersCount suele estar desactualizado. */
+      const holderCountByOwnerCard = new Map();
+      if (pairsForCardStories.length) {
+        const expiryOr = [
+          { expiresAt: null },
+          { expiresAt: { $gt: now } },
+          { expiresAt: { $exists: false } },
+        ];
+        for (const p of pairsForCardStories) {
+          holderCountByOwnerCard.set(`${p.ownerUid}::${p.cardId}`, 0);
+        }
+        const permMatch = {
+          $or: pairsForCardStories.map((p) => ({
+            ownerUid: p.ownerUid,
+            cardId: p.cardId,
+            isRevoked: { $ne: true },
+            $or: expiryOr,
+          })),
+        };
+        const holderAgg = await db.collection('share_permissions').aggregate([
+          { $match: permMatch },
+          { $group: { _id: { ou: '$ownerUid', cid: '$cardId' }, n: { $sum: 1 } } },
+        ]).toArray();
+        for (const row of holderAgg) {
+          const ou = String(row._id?.ou || '').trim();
+          const cid = String(row._id?.cid || '').trim();
+          if (ou && cid) {
+            holderCountByOwnerCard.set(`${ou}::${cid}`, Number(row.n || 0));
+          }
         }
       }
 
@@ -1040,12 +1358,29 @@ function createQrRoutes({ storage }) {
 
       const neighborMap = await buildShareNeighborMap(db, now);
 
+      const profileCache = new Map();
+      const resolveProfileCached = async (uid) => {
+        if (profileCache.has(uid)) {
+          return profileCache.get(uid);
+        }
+        const p = await resolveUserProfileExtended(db, uid);
+        profileCache.set(uid, p);
+        return p;
+      };
+
       const contacts = [];
-      for (const uid of ownerUids) {
-        const permMeta = latestPermByOwner.get(uid) || null;
-        let profile = await resolveUserProfileExtended(db, uid);
+      for (const permEntry of permEntries) {
+        const uid = permEntry.ownerUid;
+        const permMeta = permEntry;
+        const holderKey =
+          permMeta?.cardId && String(permMeta.cardId).trim()
+            ? `${uid}::${String(permMeta.cardId).trim()}`
+            : '';
+        const holdersCount = holderKey && holderCountByOwnerCard.has(holderKey)
+          ? holderCountByOwnerCard.get(holderKey)
+          : 0;
+        let profile = await resolveProfileCached(uid);
         let cardName = 'Tarjeta Social';
-        let holdersCount = 0;
         let avg = 5;
         let searchFacets = [];
         let totalRatings = 0;
@@ -1096,6 +1431,7 @@ function createQrRoutes({ storage }) {
                 ownerNickname: 1,
                 ownerPhotoUrl: 1,
                 ownerOccupation: 1,
+                publicCardSlots: 1,
               },
             }
           );
@@ -1103,7 +1439,6 @@ function createQrRoutes({ storage }) {
 
           if (cardDoc) {
             cardName = String(cardDoc.name || 'Tarjeta Social');
-            holdersCount = Number(cardDoc.holdersCount || 0);
             avg = Number(cardDoc.ratingAvg || 5);
             searchFacets = sanitizeSearchFacets(cardDoc.searchFacets);
             totalRatings = Number(cardDoc.totalRatings ?? 0);
@@ -1149,6 +1484,10 @@ function createQrRoutes({ storage }) {
 
         const mutualContactsCount = mutualNeighborUids(neighborMap, ownerUid, uid).length;
 
+        const publicCardSlots = cardDocForProfile
+          ? sanitizePublicCardSlots(cardDocForProfile.publicCardSlots)
+          : [];
+
         contacts.push({
           uid,
           cardId: cardIdForStory || null,
@@ -1162,6 +1501,7 @@ function createQrRoutes({ storage }) {
           addedAt: permMeta?.createdAt ? permMeta.createdAt.toISOString() : null,
           storyState,
           searchFacets,
+          publicCardSlots,
           mutualContactsCount,
           totalRatings: Number.isFinite(totalRatings) ? Math.max(0, Math.floor(totalRatings)) : 0,
           channelMuted: Boolean(cardIdForStory && mutedCardKeys.has(muteKey)),
@@ -1193,6 +1533,7 @@ function createQrRoutes({ storage }) {
       const authUid = String(req.auth?.sub || '').trim();
       const ownerUid = String(req.body?.ownerUid || authUid || '').trim();
       const targetUid = String(req.body?.targetUid || '').trim();
+      const cardIdScoped = String(req.body?.cardId || '').trim();
 
       if (!ownerUid || !targetUid) {
         return res.status(400).json({ ok: false, error: 'ownerUid and targetUid are required' });
@@ -1202,17 +1543,29 @@ function createQrRoutes({ storage }) {
       }
 
       const db = await storage.connect();
-      const deleted = await db.collection('share_permissions').deleteMany({
-        $or: [
-          { ownerUid, targetUid },
-          { ownerUid: targetUid, targetUid: ownerUid },
-        ],
-      });
+      let deleted;
+      if (cardIdScoped) {
+        /** Quitar solo el vínculo de esa tarjeta; el mismo emisor puede seguir apareciendo con otras cardId. */
+        deleted = await db.collection('share_permissions').deleteMany({
+          $or: [
+            { ownerUid: targetUid, targetUid: ownerUid, cardId: cardIdScoped },
+            { ownerUid, targetUid: targetUid, cardId: cardIdScoped },
+          ],
+        });
+      } else {
+        deleted = await db.collection('share_permissions').deleteMany({
+          $or: [
+            { ownerUid, targetUid },
+            { ownerUid: targetUid, targetUid: ownerUid },
+          ],
+        });
+      }
 
       return res.status(200).json({
         ok: true,
         ownerUid,
         targetUid,
+        cardId: cardIdScoped || null,
         deletedLinks: Number(deleted?.deletedCount || 0),
       });
     } catch (error) {

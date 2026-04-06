@@ -1,5 +1,10 @@
 import AutoScaleText from '@/components/AutoScaleText';
 import LimitReachedModal from '@/components/LimitReachedModal';
+import { IsolatedWireframeCard } from '@/components/smartCard/IsolatedWireframeCard';
+import { WireframeSlotTile } from '@/components/smartCard/WireframeSlotTile';
+import { getPreviewModalStackSize, getWireframeIconRowPlan } from '@/components/smartCard/wireframeMath';
+import { SmartCardMirrorModal } from '@/components/SmartCardMirrorModal';
+import { VaultDocumentViewerModal } from '@/components/VaultDocumentViewerModal';
 import {
   computeThemeLockerTileWidth,
   ThemeLockerThemeTile,
@@ -50,6 +55,7 @@ import {
   setCardSubscriberMute,
   upsertSmartCardInDb,
   type CardSubscriberRow,
+  type PublicCardSlotPayload,
   type SmartCardPayload,
 } from '@/services/qrApi';
 import { getCardRowTheme, useActiveTheme } from '@/services/useActiveTheme';
@@ -103,15 +109,12 @@ import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from 'react-
 import QRCode from 'react-native-qrcode-svg';
 import Toast from 'react-native-toast-message';
 import { ActionController } from '../../services/ActionController';
-import { sanitizeMaterialCommunityIconName } from '../components/iconNameValidation';
+import { openVaultPreviewItem } from '@/services/openVaultPreviewItem';
+import {
+  resolveMaterialGlyphFromVaultLikeFields,
+  sanitizeMaterialCommunityIconName,
+} from '../components/iconNameValidation';
 import palette from '../theme';
-
-let PdfComponent: any = null;
-try {
-  PdfComponent = require('react-native-pdf').default;
-} catch {
-  PdfComponent = null;
-}
 
 type CardThemeId = string;
 
@@ -136,120 +139,6 @@ const isImageValue = (value: string) =>
 const isPdfValue = (value: string) => /\.pdf(\?|$)/i.test(value);
 const createSmartCardId = () => newEntityId();
 
-const WIREFRAME_MAX_ICONS = 12;
-
-/** Máx. 3 filas. 1–3: una fila; 4–8: dos filas; 9–12: tres filas (reparto equilibrado). */
-function getWireframeIconRowPlan(count: number): number[] {
-  const n = Math.max(0, Math.min(WIREFRAME_MAX_ICONS, Math.floor(count)));
-  if (n <= 0) return [];
-  if (n <= 3) return [n];
-  if (n === 4) return [2, 2];
-  if (n === 5) return [2, 3];
-  if (n === 6) return [3, 3];
-  if (n === 7) return [3, 4];
-  if (n === 8) return [4, 4];
-  if (n === 9) return [3, 3, 3];
-  if (n === 10) return [4, 3, 3];
-  if (n === 11) return [4, 4, 3];
-  return [4, 4, 4];
-}
-
-/** Espacio reservado bajo la burbuja para etiquetas (2 líneas + descendentes). */
-const WIREFRAME_SLOT_LABEL_RESERVE = 36;
-
-/** Stitch: hueco entre iconos (horizontal y vertical entre filas). */
-const WIREFRAME_STITCH_GAP = 12;
-/** Stitch: padding horizontal total en la rejilla (24 + 24); `anchoUtil = onLayout.width - esto`. */
-const WIREFRAME_STITCH_HORIZONTAL_INSET = 48;
-/** Stitch: con un solo icono, lado máximo de la burbuja. */
-const WIREFRAME_STITCH_SINGLE_MAX_SIDE = 112;
-
-/** Altura bajo la burbuja (margen + 2 líneas de etiqueta + márgenes), igual criterio que `renderSlotContent` → `minTileH`. */
-function wireframeSlotBelowBubbleHeight(bubbleSize: number, iconLabelFontSize: number): number {
-  const labelFontSize = Math.max(
-    9,
-    Math.min(15, Math.round(Math.min(bubbleSize * 0.155, iconLabelFontSize + 5))),
-  );
-  const labelLineHeight = Math.ceil(labelFontSize * 1.22);
-  return 8 + labelLineHeight * 2 + 8 + 6;
-}
-
-/**
- * Tamaño de burbuja (Stitch): `anchoUtil = ancho contenedor - 48`, `gap = 12`.
- * 1 icono: `side = min(112, anchoUtil)`. Más de uno: por fila `(anchoUtil - gap*(cols-1))/cols`, y el mínimo entre filas.
- * Luego se limita por altura disponible para no solapar reseñas.
- */
-function computeStitchWireframeBubbleSide(
-  usableW: number,
-  gridH: number,
-  rowPlan: number[],
-  gap: number,
-  rowGapV: number,
-  themeIconLabelFontSize: number,
-): number {
-  if (rowPlan.length === 0 || usableW <= 0 || gridH <= 0) return 0;
-
-  const totalIcons = rowPlan.reduce((a, b) => a + b, 0);
-  let sideFromW: number;
-
-  if (totalIcons <= 1) {
-    sideFromW = Math.min(WIREFRAME_STITCH_SINGLE_MAX_SIDE, usableW);
-  } else {
-    let sW = Number.POSITIVE_INFINITY;
-    for (const cols of rowPlan) {
-      if (cols <= 0) continue;
-      const raw = (usableW - gap * (cols - 1)) / cols;
-      if (Number.isFinite(raw) && raw > 0) {
-        sW = Math.min(sW, raw);
-      }
-    }
-    if (!Number.isFinite(sW) || sW <= 0) return 0;
-    sideFromW = sW;
-  }
-
-  const numRows = rowPlan.length;
-  const betweenRows = rowGapV * Math.max(0, numRows - 1);
-
-  const fits = (cell: number) => {
-    const bubble = Math.max(26, Math.floor(cell));
-    const below = wireframeSlotBelowBubbleHeight(bubble, themeIconLabelFontSize);
-    return numRows * (bubble + below) + betweenRows <= gridH + 0.5;
-  };
-
-  let lo = 26;
-  let hi = Math.min(Math.floor(sideFromW), 560);
-  let best = 0;
-  while (lo <= hi) {
-    const mid = Math.floor((lo + hi) / 2);
-    if (fits(mid)) {
-      best = mid;
-      lo = mid + 1;
-    } else {
-      hi = mid - 1;
-    }
-  }
-
-  if (best === 0 && numRows > 0) {
-    return Math.min(
-      Math.floor(sideFromW),
-      Math.max(0, Math.floor((gridH - betweenRows) / numRows - WIREFRAME_SLOT_LABEL_RESERVE)),
-    );
-  }
-  return best;
-}
-
-/** Altura del stack vista previa: crece cuando la rejilla tiene 3 filas de iconos. */
-function getPreviewModalStackSize(screenH: number, iconSlotCount: number): { height: number; maxHeight: number } {
-  const rowCount = Math.max(1, getWireframeIconRowPlan(iconSlotCount).length);
-  const threeRows = rowCount >= 3;
-  const fraction = threeRows ? 0.84 : 0.74;
-  const capPx = threeRows ? 800 : 680;
-  return {
-    height: Math.min(screenH * fraction, capPx),
-    maxHeight: screenH * 0.92,
-  };
-}
-
 type VaultItem = {
   id: string;
   title: string;
@@ -261,6 +150,51 @@ type VaultItem = {
   vaultProtected?: boolean;
   isFavorite: boolean;
 };
+
+function buildPublicCardSlotsForPersist(
+  vaultItems: VaultItem[],
+  itemIds: string[],
+  iconVaultById: Record<string, IconVaultEntry>,
+): PublicCardSlotPayload[] {
+  const out: PublicCardSlotPayload[] = [];
+  const seen = new Set<string>();
+  for (const id of itemIds) {
+    const trimmedId = String(id || '').trim();
+    if (!trimmedId || seen.has(trimmedId)) {
+      continue;
+    }
+    seen.add(trimmedId);
+    const it = vaultItems.find((v) => String(v.id || '').trim() === trimmedId);
+    if (!it) {
+      continue;
+    }
+    const iconRaw = String(it.icon || '').trim();
+    const iconUrl = /^https?:\/\//i.test(iconRaw) ? iconRaw.slice(0, 4000) : undefined;
+    const resolvedGlyph = resolveMaterialGlyphFromVaultLikeFields(
+      {
+        icon: it.icon,
+        iconName: it.iconName,
+        iconVaultId: it.iconVaultId,
+      },
+      iconVaultById,
+    );
+    const value = isGhostLinkVaultType(it.type) ? '' : String(it.value || '').trim();
+    const row: PublicCardSlotPayload = {
+      itemId: trimmedId,
+      type: String(it.type || 'link').slice(0, 64),
+      label: String(it.title || '').slice(0, 200),
+      value: value.slice(0, 4000),
+    };
+    if (iconUrl) {
+      row.icon = iconUrl;
+    }
+    if (resolvedGlyph) {
+      row.iconName = resolvedGlyph.slice(0, 120);
+    }
+    out.push(row);
+  }
+  return out.slice(0, 24);
+}
 
 /**
  * Smart Card: la lista pública de datos es solo `itemIds` (subset de la Bóveda).
@@ -349,389 +283,6 @@ type EditSlot = {
   index: number;
   item: VaultItem | null;
 };
-
-type IsolatedWireframeCardProps = {
-  layout: 'vertical' | 'horizontal';
-  slots: EditSlot[];
-  editable: boolean;
-  theme: ChestCardTheme;
-  wallpaperUrl?: string;
-  dispName: string;
-  dispSub: string;
-  dispAvatar: string | null;
-  dispHolders: number;
-  dispReviewCount: number;
-  dispStarsValue: number;
-  noAvatarIconName: 'account' | 'storefront-outline';
-  enableParallax: boolean;
-  parallaxX: Animated.Value;
-  parallaxY: Animated.Value;
-  renderSlotContent: (slot: EditSlot, ui: { size: number }, editable: boolean, chestTheme: ChestCardTheme) => React.ReactNode;
-  renderDetailedRatingStars: (rating: number, starSize: number, starColor: string) => React.ReactNode;
-  tr: (es: string, en: string) => string;
-};
-
-/** Cada instancia tiene su propio `onLayout` (evita que factory + previews compartan medidas y dejen `iconCellSize` en 0). */
-function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
-  const {
-    layout,
-    slots,
-    editable,
-    theme,
-    wallpaperUrl,
-    dispName,
-    dispSub,
-    dispAvatar,
-    dispHolders,
-    dispReviewCount,
-    dispStarsValue,
-    noAvatarIconName,
-    enableParallax,
-    parallaxX,
-    parallaxY,
-    renderSlotContent,
-    renderDetailedRatingStars,
-    tr,
-  } = props;
-
-  const [vertAvatarBoxH, setVertAvatarBoxH] = useState(0);
-  const [vertIconGridLayout, setVertIconGridLayout] = useState({ w: 0, h: 0 });
-  const [vertInfoBoxLayout, setVertInfoBoxLayout] = useState({ w: 0, h: 0 });
-  const [vertHeaderH, setVertHeaderH] = useState(0);
-  const [horizHeaderH, setHorizHeaderH] = useState(0);
-  const [horizAvatarBoxLayout, setHorizAvatarBoxLayout] = useState({ w: 0, h: 0 });
-  const [horizInfoBoxLayout, setHorizInfoBoxLayout] = useState({ w: 0, h: 0 });
-  const [horizIconGridLayout, setHorizIconGridLayout] = useState({ w: 0, h: 0 });
-  /** Ancho útil para fórmula Stitch: `onLayout(wireIconGridRoot).width - WIREFRAME_STITCH_HORIZONTAL_INSET`. */
-  const [stitchUsableW, setStitchUsableW] = useState(0);
-
-  useEffect(() => {
-    setStitchUsableW(0);
-  }, [layout]);
-
-  const dataSlots = slots.filter((slot) => slot.item !== null);
-  const feed = editable ? slots : dataSlots;
-  const bg3 = theme.background;
-  const bd = theme.border;
-  const titleStyle = theme.title;
-  const subStyle = theme.subtitle;
-  const extraStyle = theme.extraText;
-  const iconMeta = theme.icon;
-
-  if (layout === 'horizontal') {
-    const H_PAD = 8;
-    const horizAvatarSide = horizAvatarBoxLayout.h > 0 ? horizAvatarBoxLayout.h - H_PAD * 2 : 0;
-    const horizAvatarRadius = horizAvatarSide > 0 ? Math.round(horizAvatarSide * 0.15) : 0;
-
-    const hNameFontSize = horizInfoBoxLayout.h > 0 ? Math.round(horizInfoBoxLayout.h * 0.28) : 18;
-    const hNickFontSize = horizInfoBoxLayout.h > 0 ? Math.round(horizInfoBoxLayout.h * 0.18) : 12;
-    const hStatsFontSize = horizInfoBoxLayout.h > 0 ? Math.round(horizInfoBoxLayout.h * 0.12) : 10;
-    const hWireStarSize = Math.max(18, Math.min(26, Math.round(hStatsFontSize * 2.05)));
-    const hReviewCaptionSize = Math.max(8, Math.round(hStatsFontSize * 0.68));
-
-    const hBrandFontSize = horizHeaderH > 0 ? Math.round(horizHeaderH * 0.45) : 13;
-    const hBrandLogoSize = horizHeaderH > 0 ? Math.round(horizHeaderH * 0.55) : 18;
-
-    const hFeed = feed.slice(0, WIREFRAME_MAX_ICONS);
-    const hRowPlan = getWireframeIconRowPlan(hFeed.length);
-    let hCursor = 0;
-    const hIconRows = hRowPlan.map((n) => {
-      const row = hFeed.slice(hCursor, hCursor + n);
-      hCursor += n;
-      return row;
-    });
-    const hIconSize =
-      stitchUsableW > 0 && horizIconGridLayout.h > 0
-        ? computeStitchWireframeBubbleSide(
-            stitchUsableW,
-            horizIconGridLayout.h,
-            hRowPlan,
-            WIREFRAME_STITCH_GAP,
-            WIREFRAME_STITCH_GAP,
-            theme.iconLabel.fontSize,
-          )
-        : 0;
-
-    return (
-      <LinearGradient colors={bg3} style={[styles.wireHorizCard, { borderColor: bd.color, borderWidth: bd.width }]}>
-        {wallpaperUrl ? (
-          <Animated.Image
-            source={{ uri: wallpaperUrl }}
-            style={[
-              styles.wallpaperFill,
-              enableParallax ? { transform: [{ translateX: parallaxX }, { translateY: parallaxY }, { scale: 1.06 }] } : null,
-            ]}
-            resizeMode={getWallpaperResizeMode()}
-          />
-        ) : null}
-
-        <View style={styles.horizHeader} onLayout={(e) => setHorizHeaderH(e.nativeEvent.layout.height)}>
-          <Image source={require('../../assets/images/CS Icon Logo.png')} style={{ width: hBrandLogoSize, height: hBrandLogoSize }} />
-          <Text style={[styles.horizBrandingText, { color: subStyle.color, fontSize: hBrandFontSize }]}>Card-Social</Text>
-        </View>
-
-        <View style={styles.horizMiddleRow}>
-          <View
-            style={styles.horizAvatarBox}
-            onLayout={(e) => setHorizAvatarBoxLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
-          >
-            {horizAvatarSide > 0 ? (
-              dispAvatar ? (
-                <ExpoImage
-                  source={{ uri: dispAvatar }}
-                  style={{
-                    width: horizAvatarSide,
-                    height: horizAvatarSide,
-                    borderRadius: horizAvatarRadius,
-                    borderWidth: bd.width,
-                    borderColor: bd.color,
-                  }}
-                  cachePolicy="disk"
-                />
-              ) : (
-                <View
-                  style={{
-                    width: horizAvatarSide,
-                    height: horizAvatarSide,
-                    borderRadius: horizAvatarRadius,
-                    borderWidth: bd.width,
-                    borderColor: bd.color,
-                    backgroundColor: theme.bubble.backgroundColor,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <MaterialCommunityIcons name={noAvatarIconName} size={Math.round(horizAvatarSide * 0.5)} color={titleStyle.color} />
-                </View>
-              )
-            ) : null}
-          </View>
-
-          <View
-            style={styles.horizInfoBox}
-            onLayout={(e) => setHorizInfoBoxLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
-          >
-            <Text style={[styles.horizName, { color: titleStyle.color, fontSize: hNameFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
-              {dispName}
-            </Text>
-            <Text style={[styles.horizNick, { color: subStyle.color, fontSize: hNickFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
-              {dispSub}
-            </Text>
-            <View style={styles.wireStatsRowInline}>
-              <View style={styles.wireStatsRatingStack}>
-                {renderDetailedRatingStars(dispStarsValue, hWireStarSize, iconMeta.color)}
-                <Text
-                  style={[
-                    styles.wireStatsReviewCaption,
-                    {
-                      color: extraStyle.color,
-                      fontSize: hReviewCaptionSize,
-                      fontWeight: extraStyle.fontWeight,
-                      fontStyle: extraStyle.fontStyle,
-                      textAlign: 'center',
-                    },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {dispStarsValue.toFixed(1)} · {dispReviewCount} {tr('reseñas', 'reviews')}
-                </Text>
-              </View>
-              <View style={[styles.wireUsersPill, { borderColor: bd.color, backgroundColor: theme.bubble.backgroundColor }]}>
-                <MaterialCommunityIcons name="account-outline" size={hStatsFontSize} color={iconMeta.color} />
-                <Text style={[styles.wireUsersPillText, { color: titleStyle.color, fontSize: hStatsFontSize }]}>{dispHolders}</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        <View
-          style={styles.horizIconsBox}
-          onLayout={(e) => setHorizIconGridLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
-        >
-          <View
-            style={styles.wireIconGridRoot}
-            onLayout={(e) => {
-              const lw = e.nativeEvent.layout.width;
-              setStitchUsableW(Math.max(0, lw - WIREFRAME_STITCH_HORIZONTAL_INSET));
-            }}
-          >
-            {hIconSize > 0 ? (
-              <View style={styles.wireIconRowsStack}>
-                {hIconRows.map((rowSlots, ri) => (
-                  <View key={`h-ir-${ri}`} style={styles.wireIconRow}>
-                    {rowSlots.map((slot) => (
-                      <View
-                        key={slot.id}
-                        style={[styles.wireIconCell, { width: hIconSize, maxWidth: hIconSize, flexBasis: hIconSize }]}
-                      >
-                        {renderSlotContent(slot, { size: hIconSize }, editable, theme)}
-                      </View>
-                    ))}
-                  </View>
-                ))}
-              </View>
-            ) : null}
-          </View>
-        </View>
-      </LinearGradient>
-    );
-  }
-
-  const VERT_AVATAR_PAD_TOP = 4;
-  const VERT_AVATAR_PAD_BOTTOM = 10;
-  const vertAvatarSide = vertAvatarBoxH > 0 ? vertAvatarBoxH - VERT_AVATAR_PAD_TOP - VERT_AVATAR_PAD_BOTTOM : 0;
-
-  const nameFontSize = vertInfoBoxLayout.h > 0 ? Math.round(vertInfoBoxLayout.h * 0.28) : 18;
-  const nickFontSize = vertInfoBoxLayout.h > 0 ? Math.round(vertInfoBoxLayout.h * 0.18) : 12;
-  const statsFontSize = vertInfoBoxLayout.h > 0 ? Math.round(vertInfoBoxLayout.h * 0.12) : 10;
-  const vWireStarSize = Math.max(20, Math.min(28, Math.round(statsFontSize * 2.15)));
-  const vReviewCaptionSize = Math.max(8, Math.round(statsFontSize * 0.65));
-  const brandFontSize = vertHeaderH > 0 ? Math.round(vertHeaderH * 0.45) : 13;
-  const brandLogoSize = vertHeaderH > 0 ? Math.round(vertHeaderH * 0.55) : 18;
-
-  const vFeed = feed.slice(0, WIREFRAME_MAX_ICONS);
-  const vRowPlan = getWireframeIconRowPlan(vFeed.length);
-  let vCursor = 0;
-  const vIconRows = vRowPlan.map((n) => {
-    const row = vFeed.slice(vCursor, vCursor + n);
-    vCursor += n;
-    return row;
-  });
-  const vertIconCellSize =
-    stitchUsableW > 0 && vertIconGridLayout.h > 0
-      ? computeStitchWireframeBubbleSide(
-          stitchUsableW,
-          vertIconGridLayout.h,
-          vRowPlan,
-          WIREFRAME_STITCH_GAP,
-          WIREFRAME_STITCH_GAP,
-          theme.iconLabel.fontSize,
-        )
-      : 0;
-
-  return (
-    <LinearGradient colors={bg3} style={[styles.wireVerticalCard, { borderColor: bd.color, borderWidth: bd.width }]}>
-      {wallpaperUrl ? (
-        <Animated.Image
-          source={{ uri: wallpaperUrl }}
-          style={[
-            styles.wallpaperFill,
-            enableParallax ? { transform: [{ translateX: parallaxX }, { translateY: parallaxY }, { scale: 1.06 }] } : null,
-          ]}
-          resizeMode={getWallpaperResizeMode()}
-        />
-      ) : null}
-
-      <View style={styles.vertHeader} onLayout={(e) => setVertHeaderH(e.nativeEvent.layout.height)}>
-        <Image source={require('../../assets/images/CS Icon Logo.png')} style={{ width: brandLogoSize, height: brandLogoSize }} />
-        <Text style={[styles.vertBrandingText, { color: subStyle.color, fontSize: brandFontSize }]}>Card-Social</Text>
-      </View>
-
-      <View style={styles.vertTop}>
-        <View style={styles.vertAvatarBox} onLayout={(e) => setVertAvatarBoxH(e.nativeEvent.layout.height)}>
-          {vertAvatarSide > 0 ? (
-            dispAvatar ? (
-              <ExpoImage
-                source={{ uri: dispAvatar }}
-                style={{
-                  width: vertAvatarSide,
-                  height: vertAvatarSide,
-                  borderRadius: Math.round(vertAvatarSide * 0.22),
-                  borderWidth: bd.width + 1,
-                  borderColor: bd.color,
-                }}
-                cachePolicy="disk"
-              />
-            ) : (
-              <View
-                style={{
-                  width: vertAvatarSide,
-                  height: vertAvatarSide,
-                  borderRadius: Math.round(vertAvatarSide * 0.22),
-                  borderWidth: bd.width + 1,
-                  borderColor: bd.color,
-                  backgroundColor: theme.bubble.backgroundColor,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  shadowColor: bd.color,
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.35,
-                  shadowRadius: 6,
-                  elevation: 5,
-                }}
-              >
-                <MaterialCommunityIcons name={noAvatarIconName} size={Math.round(vertAvatarSide * 0.52)} color={titleStyle.color} />
-              </View>
-            )
-          ) : null}
-        </View>
-
-        <View style={styles.vertInfoBox} onLayout={(e) => setVertInfoBoxLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-          <Text style={[styles.vertName, { color: titleStyle.color, fontSize: nameFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
-            {dispName}
-          </Text>
-          <Text style={[styles.vertNick, { color: subStyle.color, fontSize: nickFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
-            {dispSub}
-          </Text>
-          <View style={styles.wireStatsRowInline}>
-            <View style={styles.wireStatsRatingStack}>
-              {renderDetailedRatingStars(dispStarsValue, vWireStarSize, iconMeta.color)}
-              <Text
-                style={[
-                  styles.wireStatsReviewCaption,
-                  {
-                    color: extraStyle.color,
-                    fontSize: vReviewCaptionSize,
-                    fontWeight: extraStyle.fontWeight,
-                    fontStyle: extraStyle.fontStyle,
-                    textAlign: 'center',
-                  },
-                ]}
-                numberOfLines={1}
-              >
-                {dispStarsValue.toFixed(1)} · {dispReviewCount} {tr('reseñas', 'reviews')}
-              </Text>
-            </View>
-            <View style={[styles.wireUsersPill, { borderColor: bd.color, backgroundColor: theme.bubble.backgroundColor }]}>
-              <MaterialCommunityIcons name="account-outline" size={statsFontSize} color={iconMeta.color} />
-              <Text style={[styles.wireUsersPillText, { color: titleStyle.color, fontSize: statsFontSize }]}>{dispHolders}</Text>
-            </View>
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.vertIconsBox} onLayout={(e) => setVertIconGridLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-        <View
-          style={[styles.wireIconGridRoot, styles.wireVertIconGridRoot]}
-          onLayout={(e) => {
-            const lw = e.nativeEvent.layout.width;
-            setStitchUsableW(Math.max(0, lw - WIREFRAME_STITCH_HORIZONTAL_INSET));
-          }}
-        >
-          {vertIconCellSize > 0 ? (
-            <View style={styles.wireIconRowsStack}>
-              {vIconRows.map((rowSlots, ri) => (
-                <View key={`v-ir-${ri}`} style={styles.wireIconRow}>
-                  {rowSlots.map((slot) => (
-                    <View
-                      key={slot.id}
-                      style={[
-                        styles.wireIconCell,
-                        { width: vertIconCellSize, maxWidth: vertIconCellSize, flexBasis: vertIconCellSize },
-                      ]}
-                    >
-                      {renderSlotContent(slot, { size: vertIconCellSize }, editable, theme)}
-                    </View>
-                  ))}
-                </View>
-              ))}
-            </View>
-          ) : null}
-        </View>
-      </View>
-    </LinearGradient>
-  );
-}
 
 export default function CardsFactoryScreen() {
   const { width, height } = useWindowDimensions();
@@ -827,7 +378,6 @@ export default function CardsFactoryScreen() {
   const qrTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerItem, setViewerItem] = useState<VaultItem | null>(null);
-  const [isDownloadingViewerFile, setIsDownloadingViewerFile] = useState(false);
   const swipeableMethodsByCardIdRef = useRef<Map<string, SwipeableMethods>>(new Map());
   const subscriberSwipeableMethodsRef = useRef<Map<string, SwipeableMethods>>(new Map());
   useEffect(() => {
@@ -1138,6 +688,7 @@ export default function CardsFactoryScreen() {
         console.log('[Card] persistCards: Antes de upsertSmartCardInDb', card.id);
         const searchFacets = buildSearchFacetsForSharedCard(vaultItems, card.itemIds);
         const occ = deriveOwnerOccupationFromFacets(searchFacets).trim();
+        const publicCardSlots = buildPublicCardSlotsForPersist(vaultItems, card.itemIds, iconVaultById);
         const cardPayload: SmartCardPayload = {
           cardId: card.id,
           name: card.name,
@@ -1162,6 +713,7 @@ export default function CardsFactoryScreen() {
           ownerPhotoUrl,
           ownerOccupation: occ || undefined,
           searchFacets,
+          publicCardSlots,
         };
         await upsertSmartCardInDb({
           ownerUid,
@@ -1927,7 +1479,16 @@ export default function CardsFactoryScreen() {
     if (!previewCard) {
       return [];
     }
-    return vaultItems.filter((item) => previewCard.itemIds.includes(item.id));
+    const idOrder = previewCard.itemIds.map((id) => String(id || '').trim()).filter(Boolean);
+    const byId = new Map(vaultItems.map((v) => [String(v.id || '').trim(), v]));
+    const out: VaultItem[] = [];
+    for (const id of idOrder) {
+      const item = byId.get(id);
+      if (item) {
+        out.push(item);
+      }
+    }
+    return out;
   }, [previewCard, vaultItems]);
 
   const editSlots = useMemo<EditSlot[]>(() => {
@@ -2159,37 +1720,18 @@ export default function CardsFactoryScreen() {
   }, [previewVisible, previewBusinessVisible, width, height]);
 
   const openDataPopover = async (item: VaultItem) => {
-    const type = String(item.type || '').toLowerCase();
-    const value = String(item.value || '').trim();
-    if (isGhostLinkVaultType(item.type)) {
-      const activeCard = previewVisible && previewCard ? previewCard : selectedCard;
-      const issuerUid = await getActiveUserId();
-      await ActionController.ActionGhostLinkVaultItem({
-        targetUid: issuerUid,
-        sourceCardName: activeCard?.name ?? cardName ?? 'Tarjeta Social',
-        sourceCardId: activeCard?.id ?? null,
-        userName: ownerNickname || 'este contacto',
-      });
-      return;
-    }
-    if (type.includes('email')) {
-      await ActionController.ActionEmail({ value });
-    } else if (isClassicPhoneVaultType(item.type)) {
-      await ActionController.ActionTelefono({ value });
-    } else if (type.includes('enlace') || type.includes('link') || type.includes('web')) {
-      await ActionController.ActionLink({ value, title: item.title });
-    } else if (
-      type.includes('documento') ||
-      type.includes('pdf') ||
-      isPdfValue(value) ||
-      isImageValue(value)
-    ) {
-      await openDocumentViewer(item);
-    } else if (type.includes('texto')) {
-      await ActionController.ActionText({ value, title: item.title });
-    } else {
-      Alert.alert('Dato', value);
-    }
+    const activeCard = previewVisible && previewCard ? previewCard : selectedCard;
+    const issuerUid = await getActiveUserId();
+    await openVaultPreviewItem(item, {
+      tr,
+      openDocumentViewer: async (it) => {
+        await openDocumentViewer(it as VaultItem);
+      },
+      ghostTargetUid: issuerUid,
+      sourceCardName: activeCard?.name ?? cardName ?? 'Tarjeta Social',
+      sourceCardId: activeCard?.id ?? null,
+      peerDisplayName: ownerNickname || 'este contacto',
+    });
   };
 
   const ensureWebUrl = (raw: string) => {
@@ -2208,34 +1750,18 @@ export default function CardsFactoryScreen() {
       return;
     }
     try {
-      if (isGhostLinkVaultType(item.type)) {
-        const activeCard = previewVisible && previewCard ? previewCard : selectedCard;
-        const issuerUid = await getActiveUserId();
-        await ActionController.ActionGhostLinkVaultItem({
-          targetUid: issuerUid,
-          sourceCardName: activeCard?.name ?? cardName ?? 'Tarjeta Social',
-          sourceCardId: activeCard?.id ?? null,
-          userName: ownerNickname || 'este contacto',
-        });
-        return;
-      }
-      if (isClassicPhoneVaultType(item.type)) {
-        await ActionController.ActionTelefono({ value: String(item.value || '') });
-        return;
-      }
-      if (item.type === 'Email') {
-        await ActionController.ActionEmail({ value: String(item.value || '') });
-        return;
-      }
-      if (item.type === 'Enlaces') {
-        await ActionController.ActionLink({ value: ensureWebUrl(item.value), title: item.title });
-        return;
-      }
-      if (item.type === 'Documento') {
-        await openDocumentViewer(item);
-        return;
-      }
-      Alert.alert(tr('Documento protegido', 'Protected document'), tr('Este dato solo se puede visualizar por el visor seguro de Card-Social.', 'This data can only be viewed through Card-Social secure viewer.'));
+      const activeCard = previewVisible && previewCard ? previewCard : selectedCard;
+      const issuerUid = await getActiveUserId();
+      await openVaultPreviewItem(item, {
+        tr,
+        openDocumentViewer: async (it) => {
+          await openDocumentViewer(it as VaultItem);
+        },
+        ghostTargetUid: issuerUid,
+        sourceCardName: activeCard?.name ?? cardName ?? 'Tarjeta Social',
+        sourceCardId: activeCard?.id ?? null,
+        peerDisplayName: ownerNickname || 'este contacto',
+      });
     } catch {
       Alert.alert(tr('No se pudo abrir', 'Could not open'), tr('El dispositivo no pudo abrir este dato en app nativa.', 'Device could not open this data in native app.'));
     }
@@ -2280,21 +1806,8 @@ export default function CardsFactoryScreen() {
       if (item.icon?.startsWith('http')) {
         return <ExpoImage source={{ uri: item.icon }} style={{ width: size, height: size, borderRadius: size / 2 }} cachePolicy="disk" />;
       }
-      const fromVault =
-        item.iconVaultId && iconVaultById[item.iconVaultId]?.materialIconName
-          ? sanitizeMaterialCommunityIconName(iconVaultById[item.iconVaultId].materialIconName)
-          : null;
-      const fromStoredIcon =
-        item.icon && String(item.icon).trim() !== '' && !String(item.icon).startsWith('http')
-          ? sanitizeMaterialCommunityIconName(item.icon)
-          : null;
-      const safeIconName =
-        fromVault ||
-        fromStoredIcon ||
-        (item.iconName && item.iconName.trim() !== ''
-          ? sanitizeMaterialCommunityIconName(item.iconName)
-          : 'help-circle');
-      return <MaterialCommunityIcons name={safeIconName as any} size={size} color={tint} />;
+      const safeIconName = resolveMaterialGlyphFromVaultLikeFields(item, iconVaultById);
+      return <MaterialCommunityIcons name={(safeIconName || 'help-circle') as any} size={size} color={tint} />;
     } catch {
       return <MaterialCommunityIcons name={"help-circle" as any} size={size} color={tint} />;
     }
@@ -2310,69 +1823,6 @@ export default function CardsFactoryScreen() {
     setFocusedCertificate(null);
     setViewerItem(item);
     setViewerVisible(true);
-  };
-
-  const handleDownloadFromViewer = async () => {
-    if (!viewerItem?.value) {
-      return;
-    }
-
-    try {
-      setIsDownloadingViewerFile(true);
-      const fileNameSafe = `${viewerItem.title || 'archivo'}-${Date.now()}`.replace(/[^a-zA-Z0-9-_]/g, '_');
-      const extension = isPdfValue(viewerItem.value) ? 'pdf' : 'jpg';
-      const targetUri = `${FileSystem.cacheDirectory}${fileNameSafe}.${extension}`;
-
-      await FileSystem.downloadAsync(viewerItem.value, targetUri);
-
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        await Sharing.shareAsync(targetUri, {
-          mimeType: isPdfValue(viewerItem.value) ? 'application/pdf' : 'image/jpeg',
-          dialogTitle: tr('Guardar archivo de Card-Social', 'Save Card-Social file'),
-        });
-      }
-
-      Toast.show({
-        type: 'success',
-        text1: tr('📥 Descarga lista', '📥 Download ready'),
-        text2: tr('Archivo preparado en tu dispositivo', 'File ready on your device'),
-        position: 'bottom',
-        visibilityTime: 3000,
-        autoHide: true,
-      });
-    } catch (error) {
-      console.error('Cards viewer download failed:', error);
-      Toast.show({
-        type: 'error',
-        text1: tr('❌ No se pudo descargar', '❌ Download failed'),
-        position: 'bottom',
-        visibilityTime: 3000,
-        autoHide: true,
-      });
-    } finally {
-      setIsDownloadingViewerFile(false);
-    }
-  };
-
-  const handleViewerLongPress = () => {
-    if (!viewerItem) return;
-    Alert.alert(
-      tr('Guardar archivo', 'Save file'),
-      tr(
-        'Mantén la privacidad: el archivo se exportará desde el visor seguro.',
-        'Keep privacy: the file will be exported from the secure viewer.'
-      ),
-      [
-        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
-        {
-          text: tr('Guardar', 'Save'),
-          onPress: () => {
-            void handleDownloadFromViewer();
-          },
-        },
-      ]
-    );
   };
 
   const renderRatingStars = (rating: number) => {
@@ -2416,7 +1866,7 @@ export default function CardsFactoryScreen() {
   };
 
   const renderIdentityBadge = (compact = false) => {
-    const holderCount = selectedCard?.holdersCount ?? previewCard?.holdersCount ?? 100;
+    const holderCount = selectedCard?.holdersCount ?? previewCard?.holdersCount ?? 0;
     const reviewCount = selectedCard?.totalRatings ?? previewCard?.totalRatings ?? 0;
     const ratingAvg = selectedCard?.ratingAvg ?? previewCard?.ratingAvg ?? 5;
     const starsVal = reviewCount > 0 ? Math.max(0, Math.min(5, Number(ratingAvg))) : 0;
@@ -2458,97 +1908,20 @@ export default function CardsFactoryScreen() {
     );
   };
 
-  const renderSlotContent = (slot: EditSlot, ui: { size: number }, editable: boolean, chestTheme: ChestCardTheme) => {
-    const hasItem = Boolean(slot.item);
-    const bubbleSize = Math.max(26, Math.floor(ui.size));
-    const iconSize = Math.round(bubbleSize * 0.9);
-    const compactTitle = String(slot.item?.title || 'Agregar')
-      .trim()
-      .split(/\s+/)
-      .slice(0, 2)
-      .join(' ');
-    const il = chestTheme.iconLabel;
-    const labelFontSize = Math.max(
-      9,
-      Math.min(15, Math.round(Math.min(bubbleSize * 0.155, il.fontSize + 5))),
-    );
-    const labelLineHeight = Math.ceil(labelFontSize * 1.22);
-    const minTileH = bubbleSize + 8 + labelLineHeight * 2 + 8 + 6;
-    const bubbleR = Math.min(chestTheme.bubble.borderRadius, bubbleSize / 2);
-    const slotBubbleBg = chestTheme.bubble.backgroundColor;
-    const slotBorderColor = chestTheme.border.color;
-    const slotBorderW = Math.max(1, chestTheme.border.width);
-    const glyphColor = chestTheme.icon.color;
-
-    return (
-      <View style={[styles.slotTile, { minHeight: minTileH }]}>
-        <TouchableOpacity
-          style={[
-            styles.slotBubble,
-            {
-              width: bubbleSize,
-              height: bubbleSize,
-              borderRadius: bubbleR,
-              backgroundColor: slotBubbleBg,
-              borderWidth: slotBorderW,
-              borderColor: slotBorderColor,
-            },
-          ]}
-          onPress={() => {
-            if (editable) {
-              openSlotPicker(slot.index);
-              return;
-            }
-            if (slot.item) {
-              void openDataPopover(slot.item);
-            }
-          }}
-          onLongPress={() => {
-            if (!editable) {
-              handlePreviewIconLongPress(slot);
-            }
-          }}
-          delayLongPress={650}
-        >
-          {slot.item ? (
-            renderVaultMiniIcon(slot.item, iconSize, glyphColor)
-          ) : (
-            <MaterialCommunityIcons name="plus" size={iconSize} color={glyphColor} />
-          )}
-        </TouchableOpacity>
-        <Text
-          style={[
-            styles.slotLabel,
-            {
-              width: '100%',
-              maxWidth: '100%',
-              fontSize: labelFontSize,
-              lineHeight: labelLineHeight,
-              color: il.color,
-              fontWeight: il.fontWeight,
-              fontStyle: il.fontStyle,
-            },
-          ]}
-          numberOfLines={2}
-        >
-          {compactTitle}
-        </Text>
-
-        {editable ? (
-          <>
-            {hasItem ? (
-              <TouchableOpacity style={styles.slotMinusBtn} onPress={() => removeSlotItem(slot.index)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={tr('Quitar dato', 'Remove item')}>
-                <MaterialCommunityIcons name="minus" size={11} color="#FFFFFF" />
-              </TouchableOpacity>
-            ) : null}
-            <TouchableOpacity style={styles.slotPlusBtn} onPress={() => openSlotPicker(slot.index)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={tr('Agregar dato', 'Add item')}>
-              <MaterialCommunityIcons name="plus" size={11} color="#FFFFFF" />
-            </TouchableOpacity>
-          </>
-        ) : null}
-      </View>
-    );
-  };
+  const renderSlotContent = (slot: EditSlot, ui: { size: number }, editable: boolean, chestTheme: ChestCardTheme) => (
+    <WireframeSlotTile
+      slot={slot}
+      ui={ui}
+      editable={editable}
+      chestTheme={chestTheme}
+      tr={tr}
+      renderMiniIcon={renderVaultMiniIcon}
+      onEditableOpenPicker={(index) => openSlotPicker(index)}
+      onDataPress={(item) => void openDataPopover(item as VaultItem)}
+      onMirrorLongPress={(s) => handlePreviewIconLongPress(s as EditSlot)}
+      onRemoveSlotItem={(index) => removeSlotItem(index)}
+    />
+  );
 
   const renderWireframeCard = (params: {
     layout: 'vertical' | 'horizontal';
@@ -3781,93 +3154,60 @@ export default function CardsFactoryScreen() {
         </TouchableWithoutFeedback>
       </Modal>
 
-      <Modal
-        visible={previewVisible}
-        transparent
-        animationType="fade"
+      <SmartCardMirrorModal
+        visible={Boolean(previewVisible && previewCard)}
         onRequestClose={() => {
           setPreviewVisible(false);
           setPreviewCard(null);
         }}
+        screenHeight={height}
+        iconSlotCount={previewCardItems.length}
+        cardBorder={
+          previewCard
+            ? {
+                color: resolveTheme(previewCard.themeId).border.color,
+                width: resolveTheme(previewCard.themeId).border.width,
+              }
+            : { color: '#CDEFFF', width: 1 }
+        }
+        footer={{
+          variant: 'issuer',
+          closeLabel: tr('Cerrar', 'Close'),
+          editLabel: tr('Editar tarjeta', 'Edit card'),
+          onClose: () => {
+            setPreviewVisible(false);
+            setPreviewCard(null);
+          },
+          onEditCard:
+            previewCard != null
+              ? () => {
+                  setPreviewVisible(false);
+                  openEditFactory(previewCard);
+                }
+              : undefined,
+          colors: {
+            overlay: cardsTheme.modalOverlay,
+            modalBg: cardsTheme.modalBg,
+            modalBorder: cardsTheme.modalBorder,
+            ghostBg: cardsTheme.btnGhost,
+            ghostBorder: cardsTheme.modalBorder,
+            ghostText: cardsTheme.btnGhostText,
+            primaryBg: cardsTheme.btnPrimary,
+            primaryText: cardsTheme.btnPrimaryText,
+          },
+          blurTint: 'light',
+        }}
       >
-        <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}> 
-          <BlurView intensity={65} tint="light" style={StyleSheet.absoluteFill} pointerEvents="none" />
-          {previewCard ? (
-            <View
-              style={[
-                styles.previewModalStack,
-                getPreviewModalStackSize(height, previewCardItems.length),
-              ]}
-            >
-              <View
-                style={[
-                  styles.previewModalCard,
-                  { borderColor: resolveTheme(previewCard.themeId).border.color, borderWidth: resolveTheme(previewCard.themeId).border.width },
-                ]}
-              >
-                <View style={{ flex: 1, minHeight: 0 }}>
-                  <LinearGradient
-                    colors={resolveTheme(previewCard.themeId).background}
-                    style={StyleSheet.absoluteFillObject}
-                  />
-                  {previewCard.wallpaperUrl ? (
-                    <Animated.Image
-                      source={{ uri: previewCard.wallpaperUrl }}
-                      style={[
-                        styles.wallpaperFill,
-                        previewCard.enableParallax
-                          ? { transform: [{ translateX: parallaxX }, { translateY: parallaxY }, { scale: 1.06 }] }
-                          : null,
-                      ]}
-                      resizeMode={getWallpaperResizeMode()}
-                    />
-                  ) : null}
-
-                  {renderWireframeCard({
-                    layout: previewLayout,
-                    slots: previewSlots,
-                    editable: false,
-                    theme: resolveTheme(previewCard.themeId),
-                    wallpaperUrl: previewCard.wallpaperUrl,
-                  })}
-                </View>
-              </View>
-
-              <View
-                style={[
-                  styles.modalActions,
-                  styles.previewModalFooterOutside,
-                  {
-                    backgroundColor: cardsTheme.modalBg,
-                    paddingVertical: 12,
-                    paddingHorizontal: 16,
-                    borderColor: cardsTheme.modalBorder,
-                  },
-                ]}
-              >
-                <TouchableOpacity
-                  style={[styles.ghostBtn, { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder }]}
-                  onPress={() => {
-                    setPreviewVisible(false);
-                    setPreviewCard(null);
-                  }}
-                >
-                  <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>{tr('Cerrar', 'Close')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary }]}
-                  onPress={() => {
-                    setPreviewVisible(false);
-                    openEditFactory(previewCard);
-                  }}
-                >
-                  <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>{tr('Editar tarjeta', 'Edit card')}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : null}
-        </View>
-      </Modal>
+        {previewCard
+          ? renderWireframeCard({
+              layout: previewLayout,
+              slots: previewSlots,
+              editable: false,
+              theme: resolveTheme(previewCard.themeId),
+              wallpaperUrl: previewCard.wallpaperUrl,
+            })
+          : null}
+      </SmartCardMirrorModal>
 
       <Modal
         visible={previewBusinessVisible}
@@ -4258,96 +3598,16 @@ export default function CardsFactoryScreen() {
         </View>
       </Modal>
 
-      <Modal
+      <VaultDocumentViewerModal
         visible={viewerVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
+        item={viewerItem}
+        onClose={() => {
           setViewerVisible(false);
           setViewerItem(null);
         }}
-      >
-        <View style={styles.viewerOverlay}>
-          <View style={styles.viewerTopBar}>
-            <TouchableOpacity style={styles.viewerDownloadButton} onPress={handleDownloadFromViewer} disabled={isDownloadingViewerFile}>
-              {isDownloadingViewerFile ? (
-                <ActivityIndicator size="small" color="#0A2540" />
-              ) : (
-                <MaterialCommunityIcons name="download" color="#0A2540" size={18} />
-              )}
-              <Text style={styles.viewerDownloadText}>{tr('Descargar', 'Download')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.viewerCloseButton}
-              onPress={() => {
-                setViewerVisible(false);
-                setViewerItem(null);
-              }}
-            >
-              <MaterialCommunityIcons name="close" color="#002D4B" size={28} />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.viewerBody}>
-            {viewerItem ? (
-              isImageValue(viewerItem.value) ? (
-                <TouchableWithoutFeedback onLongPress={handleViewerLongPress} delayLongPress={550}>
-                  <ScrollView
-                    maximumZoomScale={6}
-                    minimumZoomScale={1}
-                    contentContainerStyle={styles.viewerZoomContainer}
-                    centerContent
-                    bounces={false}
-                    overScrollMode="never"
-                    bouncesZoom
-                  >
-                    <ExpoImage
-                      source={{ uri: viewerItem.value }}
-                      style={styles.viewerImage}
-                      contentFit="contain"
-                      cachePolicy="disk"
-                      transition={200}
-                      accessibilityLabel={tr('Documento imagen', 'Document image')}
-                    />
-                  </ScrollView>
-                </TouchableWithoutFeedback>
-              ) : isPdfValue(viewerItem.value) ? (
-                PdfComponent ? (
-                  <TouchableWithoutFeedback onLongPress={handleViewerLongPress} delayLongPress={550}>
-                    <View style={styles.viewerPdfWrapper}>
-                      <PdfComponent
-                        source={{ uri: viewerItem.value }}
-                        style={styles.viewerPdf}
-                        minScale={1}
-                        maxScale={3}
-                        trustAllCerts={false}
-                      />
-                    </View>
-                  </TouchableWithoutFeedback>
-                ) : (
-                  <View style={styles.viewerFallback}>
-                    <MaterialCommunityIcons name="file-pdf-box" color="#C5A065" size={54} />
-                    <Text style={[styles.viewerFallbackText, { color: cardsTheme.sectionLabel }]}>
-                      {tr(
-                        'La previsualizacion PDF no esta disponible en Expo Go. Usa un development build para verla.',
-                        'PDF preview is not available in Expo Go. Use a development build to view it.'
-                      )}
-                    </Text>
-                  </View>
-                )
-              ) : (
-                <View style={styles.viewerFallback}>
-                  <MaterialCommunityIcons name="file-alert-outline" color="#C5A065" size={54} />
-                  <Text style={[styles.viewerFallbackText, { color: cardsTheme.sectionLabel }]}>
-                    {tr('No se pudo previsualizar este archivo.', 'Could not preview this file.')}
-                  </Text>
-                </View>
-              )
-            ) : null}
-          </View>
-        </View>
-      </Modal>
+        tr={tr}
+        fallbackMutedColor={cardsTheme.sectionLabel}
+      />
 
       <Modal
         visible={qrVisible}

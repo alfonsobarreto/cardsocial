@@ -1,4 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import { BunkerClassificationModal } from '@/components/BunkerClassificationModal';
+import { savePendingBunkerScan } from '@/services/bunkerPendingScan';
+import { getActiveUserId } from '@/services/authSession';
+import { useLanguage } from '@/services/language';
+import { useLookMode } from '@/services/lookMode';
+import { fetchPublicQrTokenPreview } from '@/services/qrApi';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   StyleSheet,
@@ -7,12 +13,8 @@ import {
   View,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { consumeDynamicQrToken } from '@/services/qrApi';
-import { getActiveUserId } from '@/services/authSession';
-import { useLanguage } from '@/services/language';
-import { useLookMode } from '@/services/lookMode';
 import ActivityIndicator from '@/components/BrandedSpinner';
 import palette from './theme';
 
@@ -39,16 +41,24 @@ function parseQrToken(data: string): ParsedPayload | null {
       return { token, cardId, exp };
     }
   } catch {
-    // If it is not JSON, we try plain token fallback below.
+    /* plain token not supported for dynamic QR */
   }
 
   return null;
 }
 
+type ClassificationPayload = {
+  token: string;
+  ownerUid: string;
+  cardId: string;
+  issuerFullName: string;
+};
+
 export default function ScanScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ resumeToken?: string; resumeCardId?: string }>();
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => language === 'en' ? en : es;
+  const tr = (es: string, en: string) => (language === 'en' ? en : es);
   const { resolvedMode } = useLookMode();
   const isDark = resolvedMode === 'noche';
   const shell = palette[isDark ? 'dark' : 'light'];
@@ -151,16 +161,55 @@ export default function ScanScreen() {
           fontWeight: '700',
         },
       }),
-    [shell]
+    [shell],
   );
 
   const [permission, requestPermission] = useCameraPermissions();
   const [processing, setProcessing] = useState(false);
   const [scanLocked, setScanLocked] = useState(false);
+  const [receiverUid, setReceiverUid] = useState<string | null>(null);
+  const [classification, setClassification] = useState<ClassificationPayload | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const resumeHandledRef = useRef(false);
 
   const canScan = useMemo(() => {
-    return !processing && !scanLocked;
-  }, [processing, scanLocked]);
+    return !processing && !scanLocked && !modalVisible;
+  }, [processing, scanLocked, modalVisible]);
+
+  const openClassification = useCallback(
+    async (token: string) => {
+      setProcessing(true);
+      const locale = language === 'es' ? 'es' : 'en';
+      try {
+        const preview = await fetchPublicQrTokenPreview({ token, locale });
+        if (!preview.ok) {
+          Alert.alert(
+            tr('QR no disponible', 'QR unavailable'),
+            preview.expired
+              ? tr('El token expiró o ya fue usado.', 'The token expired or was already used.')
+              : tr('No se pudo cargar la vista previa.', 'Could not load preview.'),
+          );
+          setScanLocked(false);
+          return;
+        }
+        const p = preview.preview;
+        setClassification({
+          token: p.token,
+          ownerUid: p.ownerUid,
+          cardId: p.cardId,
+          issuerFullName: p.ownerDisplayName,
+        });
+        setModalVisible(true);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : tr('Error de red.', 'Network error.');
+        Alert.alert(tr('No se pudo escanear', 'Could not scan'), msg);
+        setScanLocked(false);
+      } finally {
+        setProcessing(false);
+      }
+    },
+    [tr, language],
+  );
 
   const handleScanned = async (data: string) => {
     if (!canScan) {
@@ -168,61 +217,72 @@ export default function ScanScreen() {
     }
 
     const parsed = parseQrToken(data);
-    if (!parsed?.token || !parsed?.cardId) {
-      Alert.alert(tr('QR inválido', 'Invalid QR'), tr('Este QR no pertenece a Card-Social o está corrupto.', 'This QR does not belong to Card-Social or is corrupted.'));
+    if (!parsed?.token) {
+      Alert.alert(
+        tr('QR inválido', 'Invalid QR'),
+        tr('Este QR no pertenece a Card-Social o está corrupto.', 'This QR does not belong to Card-Social or is corrupted.'),
+      );
+      return;
+    }
+    const scannedCardId = parsed.cardId;
+    if (!scannedCardId) {
+      Alert.alert(
+        tr('QR inválido', 'Invalid QR'),
+        tr('Este QR no pertenece a Card-Social o está corrupto.', 'This QR does not belong to Card-Social or is corrupted.'),
+      );
       return;
     }
 
     if (parsed.exp && parsed.exp < Date.now()) {
       Alert.alert(
         tr('QR expirado', 'QR expired'),
-        tr('Este QR ya expiró. Pide al contacto generar uno nuevo.', 'This QR has expired. Ask your contact to generate a new one.')
+        tr('Este QR ya expiró. Pide al contacto generar uno nuevo.', 'This QR has expired. Ask your contact to generate a new one.'),
       );
       return;
     }
 
     setScanLocked(true);
-    setProcessing(true);
 
-    try {
-      const receiverUid = await getActiveUserId();
-      if (!receiverUid) {
-        throw new Error(tr('No se pudo validar tu sesión actual.', 'Could not validate your current session.'));
-      }
-
-      const result = await consumeDynamicQrToken({
-        receiverUid,
+    const uid = await getActiveUserId();
+    setReceiverUid(uid);
+    if (!uid) {
+      await savePendingBunkerScan({
+        kind: 'dynamic_qr',
         token: parsed.token,
+        cardId: scannedCardId,
       });
-
-      if (!result.shareGranted) {
-        throw new Error(tr('No se pudo crear el permiso de acceso a la tarjeta.', 'Could not create card access permission.'));
-      }
-
-      if (String(result.cardId || '').trim() !== parsed.cardId) {
-        throw new Error(
-          tr(
-            'No se pudo validar el acceso de la tarjeta escaneada.',
-            'Could not validate access for the scanned card.'
-          )
-        );
-      }
-
-      Alert.alert(tr('Tarjeta agregada', 'Card added'), tr('Conexión segura creada correctamente.', 'Secure connection created successfully.'), [
-        {
-          text: 'OK',
-          onPress: () => {
-            router.replace('/(tabs)/contacts');
-          },
-        },
-      ]);
-    } catch (error: any) {
-      Alert.alert(tr('No se pudo escanear', 'Could not scan'), error?.message || tr('El token expiró o ya fue usado.', 'Token expired or already used.'));
-      setScanLocked(false);
-    } finally {
-      setProcessing(false);
+      router.replace('/signin');
+      return;
     }
+
+    await openClassification(parsed.token);
   };
+
+  useEffect(() => {
+    const rt = params.resumeToken != null ? String(params.resumeToken).trim() : '';
+    const rc = params.resumeCardId != null ? String(params.resumeCardId).trim() : '';
+    if (!rt || !rc) {
+      resumeHandledRef.current = false;
+      return;
+    }
+    if (resumeHandledRef.current) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const uid = await getActiveUserId();
+      if (!uid || cancelled) {
+        return;
+      }
+      resumeHandledRef.current = true;
+      setReceiverUid(uid);
+      setScanLocked(true);
+      await openClassification(rt);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [openClassification, params.resumeCardId, params.resumeToken]);
 
   if (!permission) {
     return (
@@ -259,7 +319,7 @@ export default function ScanScreen() {
         barcodeScannerSettings={{
           barcodeTypes: ['qr'],
         }}
-        onBarcodeScanned={canScan ? ({ data }) => handleScanned(data) : undefined}
+        onBarcodeScanned={canScan ? ({ data }) => void handleScanned(data) : undefined}
       />
 
       <LinearGradient colors={[...overlayGradient]} style={styles.overlay}>
@@ -279,6 +339,29 @@ export default function ScanScreen() {
           </TouchableOpacity>
         </View>
       </LinearGradient>
+
+      {classification && receiverUid ? (
+        <BunkerClassificationModal
+          visible={modalVisible}
+          mode="dynamic_qr"
+          token={classification.token}
+          ownerUid={classification.ownerUid}
+          cardId={classification.cardId}
+          issuerFullName={classification.issuerFullName}
+          receiverUid={receiverUid}
+          onClose={() => {
+            setModalVisible(false);
+            setClassification(null);
+            setScanLocked(false);
+          }}
+          onSuccess={() => {
+            setModalVisible(false);
+            setClassification(null);
+            setScanLocked(false);
+            router.replace('/(tabs)/contacts');
+          }}
+        />
+      ) : null}
     </View>
   );
 }

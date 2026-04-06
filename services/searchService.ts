@@ -100,8 +100,9 @@ export function issuerPresentationFromRow(row: ReceivedContactForMarketSearch): 
 export function createReceivedContactBusinessCard(row: ReceivedContactForMarketSearch): BusinessCard {
   const now = new Date();
   const title = String(row.name || row.cardName || '').trim() || '—';
+  const cid = row.cardId != null && String(row.cardId).trim() ? String(row.cardId).trim() : 'legacy';
   return {
-    id: `received-contact:${row.uid}`,
+    id: `received-contact:${row.uid}:${cid}`,
     ownerUid: row.uid,
     type: 'business',
     businessName: title,

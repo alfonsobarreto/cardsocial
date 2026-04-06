@@ -17,7 +17,10 @@ import {
 import { useLookMode } from '@/services/lookMode';
 import appPalette, { type AppShellTheme } from '../theme';
 import { listReceivedContacts } from '@/services/qrApi';
-import { mergeReceivedContactRows } from '@/services/receivedContactsPresentationMerge';
+import {
+  mergeReceivedContactRows,
+  receivedContactMergeKey,
+} from '@/services/receivedContactsPresentationMerge';
 import { getCardRowTheme } from '@/services/useActiveTheme';
 import { facetIconNameForSearch, runSearchFacetQuickAction } from '@/services/searchFacetQuickAction';
 import { buildMarketCardSearchFacets, marketSearchStoryRingState } from '@/services/searchPhase2Logic';
@@ -341,7 +344,9 @@ export default function SearchScreen() {
         meta = {};
       }
       const { contacts } = await listReceivedContacts({ ownerUid });
-      const merged: ReceivedContactForMarketSearch[] = contacts.map((c) => ({
+      const merged: ReceivedContactForMarketSearch[] = contacts.map((c) => {
+        const mk = receivedContactMergeKey({ uid: c.uid, cardId: c.cardId });
+        return {
         uid: c.uid,
         cardId: c.cardId,
         name: c.name,
@@ -352,8 +357,8 @@ export default function SearchScreen() {
         totalRatings: c.totalRatings,
         holdersCount: c.holdersCount,
         searchFacets: c.searchFacets || [],
-        metaGroup: meta[c.uid]?.group || GROUP_DEFAULT,
-        metaIcons: meta[c.uid]?.icons,
+        metaGroup: meta[mk]?.group || meta[c.uid]?.group || GROUP_DEFAULT,
+        metaIcons: meta[mk]?.icons || meta[c.uid]?.icons,
         themeId: c.themeId,
         layout: c.layout,
         fontId: c.fontId,
@@ -370,7 +375,8 @@ export default function SearchScreen() {
         cardUpdatedAt: c.cardUpdatedAt,
         storyState: c.storyState ?? 'none',
         channelMuted: Boolean(c.channelMuted),
-      }));
+      };
+      });
       setReceivedContactsLookupRows(merged);
       setReceivedContactsForMarket((prev) => {
         if (!prev.length) {

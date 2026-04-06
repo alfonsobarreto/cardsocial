@@ -4,7 +4,9 @@
  */
 
 const express = require('express');
+const { clientLocaleIsSpanish } = require('../lib/httpRequestLocale');
 const { parseAndValidateTemporaryAccess } = require('../lib/temporaryAccessToken');
+const { resolvePublicIdentity } = require('../lib/resolvePublicIdentity');
 
 const QR_SCAN_SOURCE = 'qr_scan';
 
@@ -93,14 +95,18 @@ function createPublicUniversalRoutes({ storage }) {
   router.get('/universal-card', async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept-Language');
 
     try {
+      const isEs = clientLocaleIsSpanish(req);
       const token = String(req.query?.token || '').trim();
       const source = String(req.query?.source || '').trim().toLowerCase();
 
       if (!token || token.length < 16 || token.length > 128) {
-        return res.status(400).json({ ok: false, error: 'token is required' });
+        return res.status(400).json({
+          ok: false,
+          error: isEs ? 'El token no es válido o falta.' : 'Invalid or missing token.',
+        });
       }
 
       const db = await storage.connect();
@@ -111,7 +117,9 @@ function createPublicUniversalRoutes({ storage }) {
         return res.status(410).json({
           ok: false,
           expired: true,
-          error: 'Este acceso ha expirado. Escanea el QR actualizado o únete al Búnker.',
+          error: isEs
+            ? 'Este acceso ha expirado. Escanea el QR actualizado o únete al Búnker.'
+            : 'This access has expired. Scan the updated QR or join from the app.',
         });
       }
 
@@ -148,8 +156,13 @@ function createPublicUniversalRoutes({ storage }) {
       );
 
       if (!cardDoc) {
-        return res.status(404).json({ ok: false, error: 'Card not found' });
+        return res.status(404).json({
+          ok: false,
+          error: isEs ? 'No se encontró la tarjeta.' : 'Card not found.',
+        });
       }
+
+      const idn = await resolvePublicIdentity(db, ownerUid, cardId);
 
       const storyRow = await db.collection('story_card_states').findOne(
         {
@@ -174,7 +187,7 @@ function createPublicUniversalRoutes({ storage }) {
       const payload = {
         cardId,
         ownerUid,
-        name: String(cardDoc.name || 'Smart Card'),
+        name: String(cardDoc.name || idn.cardTitle || 'Smart Card'),
         layout: String(cardDoc.layout || 'vertical') === 'horizontal' ? 'horizontal' : 'vertical',
         themeId: cardDoc.themeId || null,
         fontId: cardDoc.fontId ? String(cardDoc.fontId) : null,
@@ -186,7 +199,7 @@ function createPublicUniversalRoutes({ storage }) {
         wallpaperThumbUrl: cardDoc.wallpaperThumbUrl ? String(cardDoc.wallpaperThumbUrl) : null,
         wallpaperTier: cardDoc.wallpaperTier === 'premium' ? 'premium' : cardDoc.wallpaperTier === 'free' ? 'free' : null,
         enableParallax: Boolean(cardDoc.enableParallax),
-        ownerDisplayName: cardDoc.ownerDisplayName ? String(cardDoc.ownerDisplayName) : null,
+        ownerDisplayName: idn.fullName,
         ownerNickname: cardDoc.ownerNickname ? String(cardDoc.ownerNickname) : null,
         ownerPhotoUrl: cardDoc.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl) : null,
         ownerOccupation: cardDoc.ownerOccupation ? String(cardDoc.ownerOccupation) : null,
@@ -213,14 +226,119 @@ function createPublicUniversalRoutes({ storage }) {
         card: payload,
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      const isEs = clientLocaleIsSpanish(req);
+      return res.status(500).json({
+        ok: false,
+        error: isEs ? 'Error del servidor. Intenta de nuevo.' : 'Server error. Please try again.',
+      });
     }
   });
 
   router.options('/universal-card', (_req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept-Language');
+    return res.status(204).end();
+  });
+
+  /**
+   * Vista previa de QR dinámico (qr_tokens) sin consumir el token — para modal de clasificación en app.
+   */
+  router.get('/qr-token-preview', async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept-Language');
+
+    try {
+      const isEs = clientLocaleIsSpanish(req);
+      const token = String(req.query?.token || '').trim();
+      if (!token || token.length < 16 || token.length > 128) {
+        return res.status(400).json({
+          ok: false,
+          error: isEs ? 'El token no es válido o falta.' : 'Invalid or missing token.',
+        });
+      }
+
+      const db = await storage.connect();
+      const now = new Date();
+
+      const tokenDoc = await db.collection('qr_tokens').findOne(
+        { token },
+        { projection: { ownerUid: 1, cardId: 1, status: 1, expiresAt: 1 } },
+      );
+      if (!tokenDoc || String(tokenDoc.status || '') !== 'unused') {
+        return res.status(410).json({
+          ok: false,
+          expired: true,
+          error: isEs ? 'El token expiró o ya fue usado.' : 'Token expired or already used.',
+        });
+      }
+      const exp = tokenDoc.expiresAt ? new Date(tokenDoc.expiresAt) : null;
+      if (!exp || exp.getTime() <= now.getTime()) {
+        return res.status(410).json({
+          ok: false,
+          expired: true,
+          error: isEs ? 'El token expiró.' : 'Token expired.',
+        });
+      }
+
+      const ownerUid = String(tokenDoc.ownerUid || '').trim();
+      const cardId = String(tokenDoc.cardId || '').trim();
+      if (!ownerUid || !cardId) {
+        return res.status(400).json({
+          ok: false,
+          error: isEs ? 'Datos del token no válidos.' : 'Invalid token payload.',
+        });
+      }
+
+      const cardDoc = await db.collection('smart_cards').findOne(
+        { ownerUid, cardId },
+        {
+          projection: {
+            name: 1,
+            ownerNickname: 1,
+            ownerPhotoUrl: 1,
+            ownerOccupation: 1,
+            publicCardSlots: 1,
+          },
+        },
+      );
+      if (!cardDoc) {
+        return res.status(404).json({
+          ok: false,
+          error: isEs ? 'No se encontró la tarjeta.' : 'Card not found.',
+        });
+      }
+
+      const idn = await resolvePublicIdentity(db, ownerUid, cardId);
+      const slots = Array.isArray(cardDoc.publicCardSlots) ? cardDoc.publicCardSlots : [];
+
+      return res.status(200).json({
+        ok: true,
+        ownerUid,
+        cardId,
+        token,
+        expiresAt: exp.toISOString(),
+        ownerDisplayName: idn.fullName,
+        cardName: String(cardDoc.name || idn.cardTitle || ''),
+        ownerNickname: cardDoc.ownerNickname ? String(cardDoc.ownerNickname) : null,
+        ownerPhotoUrl: cardDoc.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl) : null,
+        ownerOccupation: cardDoc.ownerOccupation ? String(cardDoc.ownerOccupation) : null,
+        slots,
+      });
+    } catch (error) {
+      const isEs = clientLocaleIsSpanish(req);
+      return res.status(500).json({
+        ok: false,
+        error: isEs ? 'Error del servidor. Intenta de nuevo.' : 'Server error. Please try again.',
+      });
+    }
+  });
+
+  router.options('/qr-token-preview', (_req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept-Language');
     return res.status(204).end();
   });
 

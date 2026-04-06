@@ -220,6 +220,19 @@ async function ensureMongoHardening(db) {
     },
   };
 
+  const bunkerGroupsValidator = {
+    $jsonSchema: {
+      bsonType: 'object',
+      required: ['viewerUid', 'groupName', 'createdAt', 'updatedAt'],
+      properties: {
+        viewerUid: { bsonType: 'string', minLength: 3 },
+        groupName: { bsonType: 'string', minLength: 1, maxLength: 60 },
+        createdAt: { bsonType: 'date' },
+        updatedAt: { bsonType: 'date' },
+      },
+    },
+  };
+
   const emailOtpsValidator = {
     $jsonSchema: {
       bsonType: 'object',
@@ -250,6 +263,7 @@ async function ensureMongoHardening(db) {
   await ensureCollection(db, 'call_logs', callLogsValidator);
   await ensureCollection(db, 'email_otps', emailOtpsValidator);
   await ensureCollection(db, 'temporary_access', temporaryAccessValidator);
+  await ensureCollection(db, 'bunker_groups', bunkerGroupsValidator);
 
   await db.collection('cards').createIndex({ ownerUid: 1, isActive: 1, updatedAt: -1 }, { name: 'idx_cards_owner_active_updated' });
   await db.collection('cards').createIndex({ ownerUid: 1, version: -1 }, { name: 'idx_cards_owner_version' });
@@ -288,6 +302,10 @@ async function ensureMongoHardening(db) {
   await db.collection('temporary_access').createIndex({ token: 1 }, { unique: true, name: 'uq_temporary_access_token' });
   await db.collection('temporary_access').createIndex({ ownerUid: 1, cardId: 1, createdAt: -1 }, { name: 'idx_temp_access_owner_card_created' });
   await db.collection('temporary_access').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, name: 'ttl_temporary_access_expires_at' });
+  await db.collection('bunker_groups').createIndex(
+    { viewerUid: 1, groupName: 1 },
+    { unique: true, name: 'uq_bunker_groups_viewer_name' },
+  );
 }
 
 module.exports = {
