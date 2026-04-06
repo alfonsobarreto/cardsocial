@@ -37,19 +37,31 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: https://cardsocial.me
 
+      # Next output:standalone incluye server.js + .next/ mínimo. Hay que copiar .next/static y public aparte.
+      # upload-artifact@v4 excluye rutas ocultas por defecto → sin include-hidden-files la carpeta .next NO sube a Azure.
       - name: Copy Next.js standalone into backend
         run: |
+          set -euo pipefail
+          test -f frontend-web/.next/standalone/server.js
+          rm -rf backend/frontend-web
           mkdir -p backend/frontend-web
-          cp -r frontend-web/.next/standalone/. backend/frontend-web/
-          cp -r frontend-web/.next/static frontend-web/public backend/frontend-web/.next/ 2>/dev/null || true
+          cp -a frontend-web/.next/standalone/. backend/frontend-web/
           mkdir -p backend/frontend-web/.next/static
-          cp -r frontend-web/.next/static/. backend/frontend-web/.next/static/
+          cp -a frontend-web/.next/static/. backend/frontend-web/.next/static/
+          if [ -d frontend-web/public ]; then
+            mkdir -p backend/frontend-web/public
+            cp -a frontend-web/public/. backend/frontend-web/public/ || true
+          fi
+          test -f backend/frontend-web/server.js
+          test -f backend/frontend-web/.next/BUILD_ID
+          echo "Next bundle OK:" && ls -la backend/frontend-web/.next | head -24
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
           path: backend
+          include-hidden-files: true
 
   deploy:
     runs-on: ubuntu-latest

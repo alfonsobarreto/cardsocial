@@ -59,13 +59,15 @@ Todas las rutas definidas en `backend/src/routes/qrRoutes.js` llevan prefijo **`
 
 - **Emisión (autenticado):** `POST /api/qr/temporary-access/issue` → devuelve `universalUrl` con base **`PUBLIC_UNIVERSAL_CARD_BASE_URL`** (por defecto `https://cardsocial.me`) y ruta **`/u/{token}?source=qr_scan`**.
 - **Datos públicos (sin JWT):** `GET /api/public/universal-card?token=…&source=qr_scan` — payload filtrado; slots desde `publicCardSlots` en `smart_cards` (sin vault completo).
-- **Entrada HTTP con validación en servidor:** `GET /u/:token` en el mismo proceso Express (`universalEntryHttpRoutes.js`). Comprueba `temporary_access` en Mongo (TTL 24h). Si el token no es válido o expiró → **HTML** fondo negro + mensaje de expiración; si es válido → **302** a `https://cardsocial.me/u/{token}?source=qr_scan` (o a `/?universalToken=…` si `UNIVERSAL_VALID_REDIRECT_USE_ROOT=1` en `backend/.env` para evitar bucles de proxy).
+- **Entrada HTTP con validación en servidor:** En producción Azure, **`/u/*`** lo sirve **Next.js** empaquetado en `backend/frontend-web/` (`output: 'standalone'`). El proceso principal sigue siendo Express (`node src/server.js`): arranca un hijo `node server.js` con `cwd` en esa carpeta (puerto interno típico **3001**). Las rutas Express legacy `GET /u/:token` pueden coexistir o delegarse según el despliegue.
+- **SSR / fetch interno:** Next usa **`INTERNAL_API_URL`** (p. ej. `http://127.0.0.1:<PORT_API>`) para llamar a `GET /api/public/universal-card` sin pasar por el dominio público (evita bucles de proxy).
 
 ### Azure (API en `api.cardsocial.me`, web en `cardsocial.me`)
 
-1. Configura una regla de **enrutamiento** (Front Door, Application Gateway, nginx, etc.) para que las peticiones **`https://cardsocial.me/u/*`** lleguen al **mismo backend Node** que sirve `/api/*`, de modo que se ejecute `GET /u/:token`.
-2. Tras un token válido el navegador recibe el **302** hacia la SPA en `cardsocial.me` (estática Expo Web). Asegúrate de que esa segunda petición **no** se reenvíe otra vez solo al API sin archivos estáticos, o activa **`UNIVERSAL_VALID_REDIRECT_USE_ROOT=1`** y implementa en Expo Web la lectura de `universalToken` en la raíz.
-3. Variables en **`backend/.env`:** `PUBLIC_UNIVERSAL_CARD_BASE_URL`, `UNIVERSAL_VALID_REDIRECT_USE_ROOT` (ver `backend/.env.example`).
+1. Las peticiones **`https://cardsocial.me/u/*`** deben llegar al **mismo App Service** que ejecuta Express, de modo que Next responda **`/u/[token]`** con la build en `frontend-web/.next`.
+2. **CI (GitHub Actions):** en `.github/workflows/main_card-social-api.yml` se ejecuta `npm ci` + **`npm run build`** en `frontend-web/`, se copia el **standalone** de Next a `backend/frontend-web/` junto con **`.next/static`** y `public`. El artefacto que sube el job de deploy debe incluir carpetas ocultas: **`actions/upload-artifact@v4` con `include-hidden-files: true`**; si no, Azure recibe el backend **sin** `.next` y Next falla con *Could not find a production build in the '.next' directory*.
+3. **Arranque en Azure:** comando de inicio **`node src/server.js`** desde la raíz del paquete desplegado (carpeta `backend` del repo). No hace falta cambiar el startup solo por Next; el backend localiza `frontend-web` y arranca el hijo.
+4. Variables en **`backend/.env`:** `PUBLIC_UNIVERSAL_CARD_BASE_URL`, `INTERNAL_API_URL`, `UNIVERSAL_VALID_REDIRECT_USE_ROOT` si aplica (ver `backend/.env.example`).
 
 ### Deep linking — archivos en `https://cardsocial.me/.well-known/`
 

@@ -4,6 +4,13 @@ Este documento resume el núcleo funcional actual para mantener alineado el comp
 
 **Última ampliación técnica (app): abril 2026** — tab Mis Tarjetas (scroll, reorden, preview, wireframe). Mantener esta sección al día al cambiar `app/(tabs)/cards.tsx`.
 
+### Registro de cambios (6 abr 2026)
+
+- **Web universal `/u/…`:** proyecto **Next.js** en `frontend-web/` (temas alineados con `constants/themeChest.ts`, vista de tarjeta con slots públicos). En Azure va empaquetado dentro de `backend/frontend-web/` (build standalone + estáticos).
+- **Deploy Azure / GitHub Actions:** el workflow construye `frontend-web` y sube el artefacto `backend` con **`include-hidden-files: true`** para que la carpeta **`.next`** no se pierda al empaquetar (sin eso, el Log Stream muestra el error de Next sobre falta de build de producción).
+- **App — Search / contactos recibidos:** modal de tarjeta recibida unificado hacia **SmartCardMirrorModal** + **IsolatedWireframeCard**; datos enriquecidos (`publicCardSlots`, `ownerOccupation`, `receivedIssuerNickname`, etc.) y orden de nombre mostrado alineado con Mis Tarjetas.
+- **Backend:** dependencia **`@aws-sdk/client-s3`** para rutas que usan S3; ajustes de proxy / **`INTERNAL_API_URL`** para que Next llame al API local sin bucles.
+
 ## 1) Búnker / Vault de datos
 - El usuario guarda datos sensibles (teléfono, email, links, documentos, texto) en `vault_data`.
 - El valor sensible se usa como dato interno de identidad, no como dato de exposición directa.
@@ -23,7 +30,7 @@ Este documento resume el núcleo funcional actual para mantener alineado el comp
 | **Validación en API** | `GET /u/:token` en Express valida el token antes de redirigir a la SPA; expirado → página HTML negra OLED con mensaje acordado. |
 | **JSON para Expo Web** | `GET /api/public/universal-card?token=…` — sin JWT; solo datos públicos; **slots** desde **`publicCardSlots`** en `smart_cards` (el vault completo del dispositivo no se expone; ítems privados se excluyen al sincronizar `publicCardSlots` en el PUT de tarjeta). |
 | **Deep links** | Universal Links / App Links: archivos en **`public/.well-known/`** (build web); `app.json` con `associatedDomains` e `intentFilters` para `https://cardsocial.me/u`. |
-| **Infra** | Dominio **`cardsocial.me`** apuntando al front; **`api.cardsocial.me`** para API; en Azure, enrutar **`/u/*`** del dominio público al backend cuando se quiera validación en el primer hop (ver `README.md`). |
+| **Infra** | Dominio **`cardsocial.me`**; **`/u/*`** puede servirse desde el mismo App Service que el API vía **Next.js** embebido (`frontend-web` → `backend/frontend-web` en el zip de deploy). Ver `README.md` y `backend/README.md`. |
 
 ### Tab **Mis Tarjetas** (`app/(tabs)/cards.tsx`) — comportamiento actual
 

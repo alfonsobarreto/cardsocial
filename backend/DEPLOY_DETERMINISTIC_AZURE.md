@@ -36,6 +36,12 @@ Use a non-interactive local-git push to Kudu with credentials from Azure CLI pub
 
 This avoids the OneDeploy zip extraction bug seen in this environment (`starter.sh` with missing `/tmp/zipdeploy/extracted`).
 
+## GitHub Actions vs este script
+
+El flujo **recomendado en producción** para el App Service que incluye **Next.js** es el workflow **`.github/workflows/main_card-social-api.yml`**: construye `frontend-web`, copia standalone + `.next/static` a `backend/frontend-web/` y sube el artefacto con **`include-hidden-files: true`**.
+
+Si despliegas solo con **`deploy-deterministic-azure.ps1`**, debes **incorporar manualmente** una carpeta `backend/frontend-web` ya construida (mismo contenido que genera el workflow); de lo contrario el API arrancará sin la build de Next.
+
 ## Post-deploy smoke checklist
 
 Run these checks after every deploy.

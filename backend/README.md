@@ -19,7 +19,7 @@ This microservice validates user content with Azure Content Safety before persis
 ## Endpoints
 
 - `GET /api/health`
-- `GET /u/:token` — QR universal: valida `temporary_access` (24h); expirado → HTML; válido → redirect a SPA (`README` raíz del monorepo).
+- `GET /u/:token` — QR universal (legacy Express): valida `temporary_access` (24h); expirado → HTML; válido → redirect. En producción con **Next.js**, la ruta **`/u/[token]`** la sirve el hijo en `backend/frontend-web` (ver sección siguiente).
 - `GET /api/public/universal-card` — JSON público de tarjeta por token (sin gateway JWT).
 - Identidad en contactos: si Mongo `users`/`profiles` solo tiene el fallback `User {uid6}`, se usan `ownerDisplayName`, `ownerNickname`, `ownerPhotoUrl` y `ownerOccupation` de `smart_cards` (`src/lib/contactIdentityMerge.js`).
 - `POST /api/auth/token`
@@ -67,6 +67,12 @@ Create a `.env`-style environment in your host with:
 - `SMTP_PASS`
 
 Use `backend/.env.example` as reference.
+
+## Next.js embebido (`frontend-web`)
+
+- El código fuente del sitio universal vive en **`frontend-web/`** en la raíz del monorepo. En **CI**, tras `npm run build` ahí, el workflow copia **`frontend-web/.next/standalone`** a **`backend/frontend-web/`** y añade **`backend/frontend-web/.next/static`** (y `public` si existe).
+- **`actions/upload-artifact@v4`** omite por defecto archivos y carpetas cuyo nombre empieza por **`.`**. El artefacto de deploy debe usar **`include-hidden-files: true`**; de lo contrario **`.next`** no llega a Azure y Next arranca con error de “no production build”.
+- En runtime, **`src/server.js`** arranca **`node server.js`** con `cwd` en `backend/frontend-web` y puerto interno (p. ej. 3001). Define **`INTERNAL_API_URL`** apuntando al propio Express (`http://127.0.0.1:<PORT>` del API) para que el servidor Next pida `GET /api/public/universal-card` sin circular por el dominio público.
 
 ## Run
 
