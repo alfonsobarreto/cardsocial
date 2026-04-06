@@ -1,7 +1,19 @@
 {
   "cleanUrls": true,
-  "trailingSlash": true,
+  "trailingSlash": false,
   "rewrites": [
+    {
+      "source": "/u/:token",
+      "destination": "https://card-social-api.azurewebsites.net/u/:token"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://card-social-api.azurewebsites.net/api/:path*"
+    },
+    {
+      "source": "/.well-known/:file",
+      "destination": "https://card-social-api.azurewebsites.net/.well-known/:file"
+    },
     {
       "source": "/admin",
       "destination": "/admin/"
