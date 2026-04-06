@@ -86,29 +86,77 @@ function buildValidCourtesyPageHtml(opts) {
       letter-spacing: 0.02em;
     }
     .wrap { max-width: 420px; margin: 0 auto; padding: 16px 18px 32px; }
+    /* card shell: clona wireframeLayoutStyles.wireVerticalCard + IsolatedWireframeCard */
     .card {
-      border: 1px solid ${GOLD_DIM}; border-radius: 18px; padding: 18px 16px 20px;
-      background: radial-gradient(ellipse at top, rgba(212,175,55,0.08), transparent 55%), #050505;
+      border: 1px solid ${GOLD_DIM};
+      border-radius: 16px;
+      overflow: hidden;
+      padding: 0;
+      background: linear-gradient(180deg, rgba(212,175,55,0.10) 0%, rgba(0,0,0,0) 55%), #050505;
       box-shadow: 0 0 0 1px rgba(212,175,55,0.12), 0 12px 40px rgba(0,0,0,0.65);
     }
+    /* vertHeader */
+    .card-header {
+      display: flex; align-items: center; justify-content: center;
+      gap: 6px; padding: 6px 8px; font-weight: 700; font-size: 0.82rem;
+      opacity: 0.85; color: ${GOLD};
+    }
+    /* vertTop: avatar + info */
+    .card-top { display: flex; flex-direction: column; padding: 0 8px; }
+    /* vertAvatarBox */
+    .avatar-box { display: flex; justify-content: center; padding: 4px 0 10px; }
     .avatar {
-      width: 72px; height: 72px; border-radius: 16px; object-fit: cover; border: 2px solid ${GOLD};
-      display: block; margin: 0 auto 10px;
+      width: 72px; height: 72px;
+      border-radius: 16px; /* 22% of ~72px */
+      object-fit: cover;
+      border: 2px solid ${GOLD};
+      display: block;
+      box-shadow: 0 2px 6px rgba(212,175,55,0.35);
     }
     .avatar-ph {
-      width: 72px; height: 72px; border-radius: 16px; border: 2px solid ${GOLD}; margin: 0 auto 10px;
-      display: flex; align-items: center; justify-content: center; font-size: 1.6rem; background: #111;
+      width: 72px; height: 72px;
+      border-radius: 16px;
+      border: 2px solid ${GOLD};
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.6rem; background: #111;
+      box-shadow: 0 2px 6px rgba(212,175,55,0.35);
     }
-    h1 { margin: 0 0 4px; font-size: 1.35rem; text-align: center; color: ${GOLD}; font-weight: 800; }
-    .sub { text-align: center; opacity: 0.88; font-size: 0.88rem; margin-bottom: 12px; }
-    .cn { text-align: center; font-size: 0.95rem; font-weight: 700; margin-bottom: 14px; color: ${GOLD}; }
-    .slot-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    /* vertInfoBox */
+    .card-info { padding: 8px 8px 12px; text-align: center; display: flex; flex-direction: column; gap: 5px; }
+    h1 { margin: 0; font-size: 1.2rem; text-align: center; color: ${GOLD}; font-weight: 800; }
+    .sub { text-align: center; opacity: 0.88; font-size: 0.82rem; margin: 0; }
+    .cn { text-align: center; font-size: 0.88rem; font-weight: 700; margin: 0; color: ${GOLD}; }
+    /* wireStatsRowInline */
+    .stats-row {
+      display: flex; flex-direction: row; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 8px; width: 100%; padding: 0 2px; margin: 6px 0 10px;
+      font-size: 0.72rem;
+    }
+    .stats-pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      border-radius: 999px; border: 1px solid ${GOLD_DIM};
+      background: rgba(212,175,55,0.08); padding: 3px 8px;
+      font-size: 0.72rem; font-weight: 800; color: ${GOLD};
+    }
+    /* vertIconsBox: paddingHorizontal 24px, gap 12px entre filas */
+    .slot-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      padding: 12px 24px 22px;
+    }
+    /* wireIconCell / WireframeSlotTile */
     .slot {
-      border: 1px solid ${GOLD_DIM}; border-radius: 12px; padding: 10px 6px; text-align: center; min-height: 76px;
+      border: 1px solid ${GOLD_DIM};
+      border-radius: 12px;
+      padding: 10px 6px;
+      text-align: center;
+      min-height: 72px;
       background: rgba(255,255,255,0.03);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
     }
-    .slot-ic { font-size: 1.25rem; margin-bottom: 4px; }
-    .slot-lb { font-size: 0.65rem; color: rgba(212,175,55,0.85); line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .slot-ic { font-size: 1.2rem; margin-bottom: 4px; }
+    .slot-lb { font-size: 0.62rem; color: rgba(212,175,55,0.85); line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .actions { margin-top: 22px; display: flex; flex-direction: column; gap: 10px; }
     .btn {
       display: block; width: 100%; padding: 14px 16px; border-radius: 12px; font-weight: 800; font-size: 0.95rem;
@@ -182,14 +230,23 @@ function buildValidCourtesyPageHtml(opts) {
         var lb = esc(s.label || s.type || '—');
         return '<div class="slot"><div class="slot-ic">◆</div><div class="slot-lb">'+lb+'</div></div>';
       }).join('');
-      if (!grid) grid = '<p style="text-align:center;opacity:0.7;font-size:0.85rem;">—</p>';
+      if (!grid) grid = '<p style="text-align:center;opacity:0.7;font-size:0.85rem;padding:0 24px;">—</p>';
       document.getElementById('root').innerHTML =
-        photo +
-        '<h1>'+esc(c.ownerDisplayName || c.name || 'Card-Social')+'</h1>'+
-        (nick ? '<div class="sub">'+nick+'</div>' : '')+
-        '<div class="cn">'+esc(c.name || '')+'</div>'+
-        '<div style="text-align:center;font-size:0.75rem;opacity:0.75;margin-bottom:10px;">'+
-          (c.ratingAvg!=null ? Number(c.ratingAvg).toFixed(1) : '—')+' · '+(c.totalRatings||0)+' '+T.reviews+' · '+(c.holdersCount||0)+' '+T.holders+
+        '<div class="card-header"><span>★</span> Card-Social</div>'+
+        '<div class="card-top">'+
+          '<div class="avatar-box">'+photo+'</div>'+
+          '<div class="card-info">'+
+            '<h1>'+esc(c.ownerDisplayName || c.name || 'Card-Social')+'</h1>'+
+            (nick ? '<div class="sub">'+nick+'</div>' : '')+
+            '<div class="cn">'+esc(c.name || '')+'</div>'+
+            '<div class="stats-row">'+
+              '<span>'+
+                (c.ratingAvg!=null ? Number(c.ratingAvg).toFixed(1) : '—')+
+                ' · '+(c.totalRatings||0)+' '+T.reviews+
+              '</span>'+
+              '<span class="stats-pill">👤 '+(c.holdersCount||0)+' '+T.holders+'</span>'+
+            '</div>'+
+          '</div>'+
         '</div>'+
         '<div class="slot-grid">'+grid+'</div>';
       document.getElementById('actions').style.display = 'flex';

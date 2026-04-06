@@ -49,6 +49,7 @@ import {
   deleteSmartCardInDb,
   getCardAnalyticsSummary,
   issueDynamicQrToken,
+  issueTemporaryUniversalAccess,
   listCardSubscribers,
   listSmartCardsFromDb,
   revokeCardSubscriber,
@@ -96,6 +97,7 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -354,6 +356,7 @@ export default function CardsFactoryScreen() {
   const [remainingSec, setRemainingSec] = useState(0);
   const [remainingMs, setRemainingMs] = useState(0);
   const [issuingQr, setIssuingQr] = useState(false);
+  const [issuingUniversalLink, setIssuingUniversalLink] = useState(false);
   /** UID de la sesión en Mis Tarjetas (QR permanente en filas de negocio). */
   const [sessionOwnerUid, setSessionOwnerUid] = useState<string | null>(null);
   const [cardSearchQuery, setCardSearchQuery] = useState('');
@@ -1285,10 +1288,9 @@ export default function CardsFactoryScreen() {
 
   const issueQrForCard = async (card: SmartCard) => {
     try {
-      // Hard Lock: Require biometric before generating QR (Nivel 6.6)
-      const authenticated = await hardLockCheck('generar QR y compartir tu tarjeta');
+      const authenticated = await hardLockCheck(tr('generar QR y compartir tu tarjeta', 'generate QR and share your card'));
       if (!authenticated) {
-        return; // User cancelled or auth failed
+        return;
       }
 
       setIssuingQr(true);
@@ -1297,17 +1299,17 @@ export default function CardsFactoryScreen() {
 
       const ownerUid = await getActiveUserId();
       if (!ownerUid) {
-        throw new Error('No se pudo obtener tu sesión para emitir el QR.');
+        throw new Error(tr('No se pudo obtener tu sesión para emitir el QR.', 'Could not get your session to issue the QR.'));
       }
 
-      const issued = await issueDynamicQrToken({ ownerUid, cardId: card.id });
+      const issued = await issueTemporaryUniversalAccess({ ownerUid, cardId: card.id });
       const parsedExpiresAt = Date.parse(String(issued.expiresAt || ''));
       const nextExpiresAt = Number.isFinite(parsedExpiresAt)
         ? parsedExpiresAt
-        : Date.now() + Math.max(1, Number(issued.ttlSec || 60)) * 1000;
+        : Date.now() + Math.max(1, Number(issued.ttlSec || 86400)) * 1000;
       const visibleWindowMs = Math.max(1000, nextExpiresAt - Date.now());
 
-      setQrToken(issued.token);
+      setQrToken(issued.universalUrl);
       setQrExpiresAt(nextExpiresAt);
       setQrWindowMs(visibleWindowMs);
       setQrVisible(true);
@@ -1322,7 +1324,7 @@ export default function CardsFactoryScreen() {
             'No se pudo conectar al backend de QR.\n\nChecklist rápido:\n• EXPO_PUBLIC_MODERATION_API_URL con IP LAN (no localhost)\n• Backend activo en puerto 4000\n• Móvil y PC en la misma Wi‑Fi\n• EXPO_PUBLIC_MODERATION_GATEWAY_KEY igual a API_GATEWAY_KEY del backend',
             'Could not connect to the QR backend.\n\nQuick checklist:\n• EXPO_PUBLIC_MODERATION_API_URL uses LAN IP (not localhost)\n• Backend is running on port 4000\n• Phone and PC are on the same Wi‑Fi\n• EXPO_PUBLIC_MODERATION_GATEWAY_KEY matches backend API_GATEWAY_KEY'
           )
-        : rawMessage || tr('No se pudo emitir el QR dinámico.', 'Could not issue dynamic QR.');
+        : rawMessage || tr('No se pudo emitir el QR.', 'Could not issue QR.');
       Alert.alert(tr('Error de QR', 'QR error'), diagnosticMessage);
     } finally {
       setIssuingQr(false);
@@ -1370,6 +1372,34 @@ export default function CardsFactoryScreen() {
         },
       ]
     );
+  };
+
+  const issueAndShareUniversalLink = async (card: SmartCard) => {
+    if (issuingUniversalLink) return;
+    try {
+      const authenticated = await hardLockCheck(tr('compartir enlace de tarjeta', 'share card link'));
+      if (!authenticated) return;
+      setIssuingUniversalLink(true);
+      const ownerUid = await getActiveUserId();
+      if (!ownerUid) throw new Error(tr('No se pudo obtener tu sesión.', 'Could not get your session.'));
+      const result = await issueTemporaryUniversalAccess({ ownerUid, cardId: card.id });
+      const url = result.universalUrl;
+      if (!url) throw new Error(tr('No se recibió el enlace del servidor.', 'No link received from server.'));
+      await Share.share({
+        message: tr(
+          `Mira mi tarjeta en Card-Social:\n${url}`,
+          `Check out my Card-Social card:\n${url}`
+        ),
+        url,
+      });
+    } catch (error: any) {
+      const msg = String(error?.message || '');
+      if (msg && !msg.includes('cancel')) {
+        Alert.alert(tr('Error al compartir', 'Share error'), msg);
+      }
+    } finally {
+      setIssuingUniversalLink(false);
+    }
   };
 
   const issueQrForBusiness = async (row: BusinessCardListRow) => {
@@ -1547,14 +1577,9 @@ export default function CardsFactoryScreen() {
     if (!selectedCard || !qrToken) {
       return '';
     }
-
-    return JSON.stringify({
-      kind: 'cardsocial-qr-v1',
-      token: qrToken,
-      cardId: selectedCard.id,
-      exp: qrExpiresAt,
-    });
-  }, [selectedCard, qrToken, qrExpiresAt, qrBusinessContext]);
+    // qrToken now holds the full universalUrl: https://cardsocial.me/u/<token>
+    return qrToken;
+  }, [selectedCard, qrToken, qrBusinessContext]);
 
   const remainingPercent = useMemo(() => {
     if (qrBusinessContext || qrWindowMs <= 0) {
@@ -3634,12 +3659,16 @@ export default function CardsFactoryScreen() {
               <Text style={[styles.qrSubtitle, { color: cardsTheme.modalSubtitle }]}>
                 {qrBusinessContext
                   ? tr('QR permanente (no caduca)', 'Permanent QR (does not expire)')
-                  : tr('QR dinámico seguro con expiración de 60s', 'Secure dynamic QR with ~60s expiry')}
+                  : tr('Enlace universal · válido 24 horas', 'Universal link · valid 24 hours')}
               </Text>
 
               {qrBusinessContext ? null : (
                 <View style={styles.countdownWrap}>
-                  <Text style={[styles.countdownText, { color: cardsTheme.text }]}>{remainingSec}s</Text>
+                  <Text style={[styles.countdownText, { color: cardsTheme.text }]}>
+                    {remainingSec > 0
+                      ? `${Math.floor(remainingSec / 3600)}h ${Math.floor((remainingSec % 3600) / 60)}m`
+                      : tr('Activo', 'Active')}
+                  </Text>
                   <View style={[styles.progressTrack, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(28,28,30,0.08)' }]}>
                     <View style={[styles.progressFill, { width: `${remainingPercent * 100}%`, backgroundColor: cardsTheme.tint }]} />
                   </View>
@@ -3709,16 +3738,29 @@ export default function CardsFactoryScreen() {
                       }
                     }}
                   >
-                    <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>{tr('Renovar QR', 'Renew QR')}</Text>
+                    <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>{tr('Nuevo enlace', 'New link')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary }]}
+                    onPress={() => {
+                      if (selectedCard) {
+                        void issueAndShareUniversalLink(selectedCard);
+                      }
+                    }}
+                    disabled={issuingUniversalLink}
+                  >
+                    <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>
+                      {issuingUniversalLink ? tr('Generando…', 'Generating…') : tr('🔗 Compartir', '🔗 Share')}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.ghostBtn, { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder }]}
                     onPress={() => {
                       setQrVisible(false);
                       setQrBusinessContext(null);
                     }}
                   >
-                    <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>{tr('Cerrar', 'Close')}</Text>
+                    <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>{tr('Cerrar', 'Close')}</Text>
                   </TouchableOpacity>
                 </>
               )}

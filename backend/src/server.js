@@ -42,6 +42,28 @@ async function bootstrap() {
   app.use(express.json({ limit: "2mb" }));
   app.locals.db = db;
 
+  // Universal Links verification files (iOS AASA + Android assetlinks)
+  app.get('/.well-known/apple-app-site-association', (_req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.json({
+      applinks: {
+        apps: [],
+        details: [{ appID: 'APPLE_TEAM_ID.com.cardsocial.app', paths: ['/u/*'] }],
+      },
+    });
+  });
+  app.get('/.well-known/assetlinks.json', (_req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.json([{
+      relation: ['delegate_permission/common.handle_all_urls'],
+      target: {
+        namespace: 'android_app',
+        package_name: 'com.cardsocial.app',
+        sha256_cert_fingerprints: ['REPLACE_WITH_RELEASE_SHA256_FROM_PLAY_CONSOLE_OR_KEYTOOL'],
+      },
+    }]);
+  });
+
   // --- Action Token Model ---
   const { createActionTokenModel } = require('./models/actionToken');
   const actionTokenModel = createActionTokenModel(db);
@@ -366,6 +388,8 @@ const otpHash = (emailLower, code) => {
   app.use("/api/admin", createAdminRoutes());
 
   app.use("/api/public", createPublicUniversalRoutes({ storage }));
+
+  app.use("/", createUniversalEntryHttpRoutes({ storage }));
 
   app.use("/api", createModerationRoutes({
     azureSafety,

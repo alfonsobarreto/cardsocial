@@ -1057,7 +1057,7 @@ export default function RegisterScreen() {
           <Text style={styles.label}>{tr('Nombre', 'First Name')}</Text>
           <TextInput
             style={styles.input}
-            placeholder={tr('Ej: Alfonso', 'Ex: John')}
+            placeholder={tr('Ej: Carlos', 'Ex: John')}
             placeholderTextColor="#8E8E93"
             value={firstName}
             onChangeText={setFirstName}
@@ -1066,7 +1066,7 @@ export default function RegisterScreen() {
           <Text style={styles.label}>{tr('Apellido', 'Last Name')}</Text>
           <TextInput
             style={styles.input}
-            placeholder={tr('Ej: Barreto', 'Ex: Carter')}
+            placeholder={tr('Ej: Ramírez', 'Ex: Carter')}
             placeholderTextColor="#8E8E93"
             value={lastName}
             onChangeText={setLastName}
@@ -1075,7 +1075,7 @@ export default function RegisterScreen() {
           <Text style={styles.label}>{tr('NickName (Unico)', 'Nickname (Unique)')}</Text>
           <TextInput
             style={styles.input}
-            placeholder={tr('Ej: alfonso.barreto', 'Ex: john.carter')}
+            placeholder={tr('Ej: carlos.ramirez', 'Ex: john.carter')}
             placeholderTextColor="#8E8E93"
             autoCapitalize="none"
             value={nickname}

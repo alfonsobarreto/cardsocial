@@ -4,6 +4,7 @@ import * as Device from 'expo-device';
 import * as FileSystem from 'expo-file-system';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as Notifications from 'expo-notifications';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Sharing from 'expo-sharing';
 import { doc, getDoc } from 'firebase/firestore';
 import React, { useMemo } from 'react';
@@ -97,6 +98,8 @@ export default function SettingsScreen() {
 
     const checkNotifications = async () => {
       try {
+        const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+        if (isExpoGo) return;
         const { status } = await Notifications.getPermissionsAsync();
         setIsNotificationsEnabled(status === 'granted');
       } catch {}
@@ -105,6 +108,11 @@ export default function SettingsScreen() {
   }, []);
 
   const toggleNotifications = async () => {
+    const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+    if (isExpoGo) {
+      Alert.alert('No disponible', 'Las notificaciones push requieren un development build. No están disponibles en Expo Go.');
+      return;
+    }
     if (!isNotificationsEnabled) {
       const { status } = await Notifications.requestPermissionsAsync();
       if (status === 'granted') {
