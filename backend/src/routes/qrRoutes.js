@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const express = require('express');
 
-const QR_TTL_SECONDS = 60;
+const QR_TTL_SECONDS = 120;
 /** QR universal web / app link (colección temporary_access). */
 const TEMPORARY_ACCESS_TTL_MS = 24 * 60 * 60 * 1000;
 const UNIVERSAL_QR_SOURCE = 'qr_scan';

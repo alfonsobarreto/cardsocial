@@ -1302,14 +1302,21 @@ export default function CardsFactoryScreen() {
         throw new Error(tr('No se pudo obtener tu sesión para emitir el QR.', 'Could not get your session to issue the QR.'));
       }
 
-      const issued = await issueTemporaryUniversalAccess({ ownerUid, cardId: card.id });
+      const issued = await issueDynamicQrToken({ ownerUid, cardId: card.id });
       const parsedExpiresAt = Date.parse(String(issued.expiresAt || ''));
       const nextExpiresAt = Number.isFinite(parsedExpiresAt)
         ? parsedExpiresAt
-        : Date.now() + Math.max(1, Number(issued.ttlSec || 86400)) * 1000;
+        : Date.now() + Math.max(1, Number(issued.ttlSec || 120)) * 1000;
       const visibleWindowMs = Math.max(1000, nextExpiresAt - Date.now());
 
-      setQrToken(issued.universalUrl);
+      // QR payload: JSON opaco para que scan.tsx lo parsee (no una URL)
+      const qrJson = JSON.stringify({
+        kind: 'cardsocial-qr-v1',
+        token: issued.token,
+        cardId: card.id,
+        exp: nextExpiresAt,
+      });
+      setQrToken(qrJson);
       setQrExpiresAt(nextExpiresAt);
       setQrWindowMs(visibleWindowMs);
       setQrVisible(true);
@@ -1577,7 +1584,7 @@ export default function CardsFactoryScreen() {
     if (!selectedCard || !qrToken) {
       return '';
     }
-    // qrToken now holds the full universalUrl: https://cardsocial.me/u/<token>
+    // qrToken holds JSON {kind, token, cardId, exp} para escaneo in-app (60s-2min)
     return qrToken;
   }, [selectedCard, qrToken, qrBusinessContext]);
 
@@ -3659,15 +3666,17 @@ export default function CardsFactoryScreen() {
               <Text style={[styles.qrSubtitle, { color: cardsTheme.modalSubtitle }]}>
                 {qrBusinessContext
                   ? tr('QR permanente (no caduca)', 'Permanent QR (does not expire)')
-                  : tr('Enlace universal · válido 24 horas', 'Universal link · valid 24 hours')}
+                  : tr('QR dinámico · válido 2 minutos', 'Dynamic QR · valid 2 minutes')}
               </Text>
 
               {qrBusinessContext ? null : (
                 <View style={styles.countdownWrap}>
                   <Text style={[styles.countdownText, { color: cardsTheme.text }]}>
                     {remainingSec > 0
-                      ? `${Math.floor(remainingSec / 3600)}h ${Math.floor((remainingSec % 3600) / 60)}m`
-                      : tr('Activo', 'Active')}
+                      ? remainingSec >= 60
+                        ? `${Math.floor(remainingSec / 60)}:${String(remainingSec % 60).padStart(2, '0')}`
+                        : `${remainingSec}s`
+                      : tr('Expirado', 'Expired')}
                   </Text>
                   <View style={[styles.progressTrack, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(28,28,30,0.08)' }]}>
                     <View style={[styles.progressFill, { width: `${remainingPercent * 100}%`, backgroundColor: cardsTheme.tint }]} />
@@ -3738,7 +3747,7 @@ export default function CardsFactoryScreen() {
                       }
                     }}
                   >
-                    <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>{tr('Nuevo enlace', 'New link')}</Text>
+                    <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>{tr('Nuevo QR', 'New QR')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary }]}
@@ -3750,7 +3759,7 @@ export default function CardsFactoryScreen() {
                     disabled={issuingUniversalLink}
                   >
                     <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>
-                      {issuingUniversalLink ? tr('Generando…', 'Generating…') : tr('🔗 Compartir', '🔗 Share')}
+                      {issuingUniversalLink ? tr('Generando…', 'Generating…') : tr('🔗 Link 24h', '🔗 24h Link')}
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
