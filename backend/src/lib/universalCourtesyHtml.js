@@ -56,7 +56,7 @@ function buildValidCourtesyPageHtml(opts) {
     title: isEs ? 'Card-Social' : 'Card-Social',
     countdown: isEs ? 'Acceso temporal:' : 'Temporary access:',
     remaining: isEs ? 'restantes' : 'remaining',
-    addContacts: isEs ? 'Agregar a mis contactos' : 'Add to contacts',
+    addContacts: isEs ? 'Descargar Card-Social' : 'Download Card-Social',
     openApp: isEs ? 'Abrir en la app' : 'Open in app',
     loadErr: isEs ? 'No se pudo cargar la tarjeta.' : 'Could not load the card.',
     expired: isEs ? 'Este acceso ha expirado.' : 'This access has expired.',
@@ -185,7 +185,9 @@ function buildValidCourtesyPageHtml(opts) {
   var API_PREFIX = ${safeApi};
   var IS_ES = ${isEs ? 'true' : 'false'};
   var T = ${JSON.stringify(t)};
-  var IOS_URL = 'https://apps.apple.com/';
+  // TODO: reemplazar IOS_URL con el link real de App Store cuando la app esté publicada
+  // Ejemplo: 'https://apps.apple.com/app/card-social/id123456789'
+  var IOS_URL = 'https://cardsocial.me';
   var AND_URL = 'https://play.google.com/store/apps/details?id=com.cardsocial.app';
 
   function apiUrl(path) {
