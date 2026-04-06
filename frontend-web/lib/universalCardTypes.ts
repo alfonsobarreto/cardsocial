@@ -9,6 +9,8 @@ export type PublicSlot = {
 
 export type CardData = {
   cardId: string;
+  /** Titular (Ghost-Link / contexto de app). */
+  ownerUid?: string;
   name: string;
   layout: 'vertical' | 'horizontal';
   themeId: string | null;

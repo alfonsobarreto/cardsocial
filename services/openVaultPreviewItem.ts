@@ -1,19 +1,12 @@
-import { isGhostLinkVaultType } from '@/constants/ghostLinkVault';
 import { ActionController } from '@/services/ActionController';
-import { isClassicPhoneVaultType } from '@/services/vaultItemTypeGuards';
 import type { MirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
+import {
+  ensureWebUrl,
+  getMirrorVaultOpenPlan,
+} from '@/services/mirrorVaultItemOpenPlan';
 import { Alert } from 'react-native';
 
-export function ensureWebUrl(raw: string): string {
-  const value = String(raw || '').trim();
-  if (!value) {
-    return '';
-  }
-  if (value.startsWith('http://') || value.startsWith('https://')) {
-    return value;
-  }
-  return `https://${value}`;
-}
+export { ensureWebUrl } from '@/services/mirrorVaultItemOpenPlan';
 
 export type OpenVaultPreviewItemDeps = {
   tr: (es: string, en: string) => string;
@@ -30,45 +23,44 @@ export type OpenVaultPreviewItemDeps = {
 
 /**
  * Misma lógica que el popover de datos en Mis Tarjetas (`openDataPopover` / `tryOpenInApp`).
+ * El discriminador de tipo vive en `getMirrorVaultOpenPlan` (compartido con web universal).
  */
 export async function openVaultPreviewItem(item: MirrorVaultItem, deps: OpenVaultPreviewItemDeps): Promise<void> {
-  const type = String(item.type || '').toLowerCase();
-  const value = String(item.value || '').trim();
-
-  if (isGhostLinkVaultType(item.type)) {
-    await ActionController.ActionGhostLinkVaultItem({
-      targetUid: deps.ghostTargetUid,
+  const plan = getMirrorVaultOpenPlan(
+    { type: item.type, value: item.value, title: item.title },
+    {
+      cardOwnerUid: String(deps.ghostTargetUid || '').trim(),
+      cardId: String(deps.sourceCardId || '').trim(),
       sourceCardName: deps.sourceCardName,
-      sourceCardId: deps.sourceCardId,
-      userName: deps.peerDisplayName,
-    });
-    return;
+    },
+  );
+
+  switch (plan.kind) {
+    case 'ghost':
+      await ActionController.ActionGhostLinkVaultItem({
+        targetUid: deps.ghostTargetUid,
+        sourceCardName: deps.sourceCardName,
+        sourceCardId: deps.sourceCardId,
+        userName: deps.peerDisplayName,
+      });
+      return;
+    case 'email':
+      await ActionController.ActionEmail({ value: plan.value });
+      return;
+    case 'phone':
+      await ActionController.ActionTelefono({ value: plan.value });
+      return;
+    case 'link':
+      await ActionController.ActionLink({ value: plan.url, title: plan.title });
+      return;
+    case 'document':
+      await deps.openDocumentViewer(item);
+      return;
+    case 'text':
+      await ActionController.ActionText({ value: plan.value, title: plan.title });
+      return;
+    case 'raw':
+      Alert.alert(deps.tr('Dato', 'Data'), plan.value || deps.tr('Sin contenido', 'No content'));
+      return;
   }
-  if (type.includes('email')) {
-    await ActionController.ActionEmail({ value });
-    return;
-  }
-  if (isClassicPhoneVaultType(item.type)) {
-    await ActionController.ActionTelefono({ value });
-    return;
-  }
-  if (type.includes('enlace') || type.includes('link') || type.includes('web')) {
-    await ActionController.ActionLink({ value: ensureWebUrl(value), title: item.title });
-    return;
-  }
-  if (
-    type.includes('documento') ||
-    type.includes('pdf') ||
-    /\.pdf(\?|$)/i.test(value) ||
-    /\.(jpg|jpeg|png|gif|webp|bmp|heic)(\?|$)/i.test(value) ||
-    (value.startsWith('file://') && !value.toLowerCase().endsWith('.pdf'))
-  ) {
-    await deps.openDocumentViewer(item);
-    return;
-  }
-  if (type.includes('texto')) {
-    await ActionController.ActionText({ value, title: item.title });
-    return;
-  }
-  Alert.alert(deps.tr('Dato', 'Data'), value || deps.tr('Sin contenido', 'No content'));
 }

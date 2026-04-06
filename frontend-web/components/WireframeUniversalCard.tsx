@@ -12,6 +12,8 @@ import {
 } from '@/lib/wireframeMath';
 import { resolveSlotVisual } from '@/lib/slotVisual';
 import type { SlotIconDef } from '@/lib/slotIcons';
+import { getMirrorVaultOpenPlan, type MirrorOpenPlan } from '@card-social/services/mirrorVaultItemOpenPlan';
+import { MirrorActionModals } from '@/components/MirrorActionModals';
 
 const STAR_PATH =
   'M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z';
@@ -72,29 +74,6 @@ function compactSlotLabel(label: string): string {
     .join(' ');
 }
 
-function openSlotLink(slot: PublicSlot) {
-  const isVoip = String(slot.type || '').toLowerCase().includes('voip');
-  if (isVoip) return;
-  const val = String(slot.value || '');
-  const type = String(slot.type || '').toLowerCase();
-  let url = '';
-  if (type === 'phone') url = `tel:${val}`;
-  else if (type === 'email') url = `mailto:${val}`;
-  else if (type === 'whatsapp') url = `https://wa.me/${val.replace(/\D/g, '')}`;
-  else if (type === 'instagram') url = `https://instagram.com/${val.replace('@', '')}`;
-  else if (type === 'linkedin') url = `https://linkedin.com/in/${val}`;
-  else if (type === 'twitter') url = `https://twitter.com/${val.replace('@', '')}`;
-  else if (type === 'facebook') url = `https://facebook.com/${val}`;
-  else if (type === 'youtube') url = `https://youtube.com/@${val}`;
-  else if (type === 'tiktok') url = `https://tiktok.com/@${val}`;
-  else if (type === 'telegram') url = `https://t.me/${val}`;
-  else if (type === 'snapchat') url = `https://snapchat.com/add/${val}`;
-  else if (type === 'website' || type === 'url' || type === 'link')
-    url = val.startsWith('http') ? val : `https://${val}`;
-  else if (type === 'location' || type === 'address') url = `https://maps.google.com/?q=${encodeURIComponent(val)}`;
-  if (url) window.open(url, '_blank', 'noopener');
-}
-
 function SlotGlyph({ visual, size, color }: { visual: { kind: 'url'; url: string } | { kind: 'svg'; def: SlotIconDef }; size: number; color: string }) {
   if (visual.kind === 'url') {
     return (
@@ -119,10 +98,12 @@ function WebWireframeSlotTile({
   slot,
   bubbleSize,
   theme,
+  onPress,
 }: {
   slot: PublicSlot;
   bubbleSize: number;
   theme: CardTheme;
+  onPress: (slot: PublicSlot) => void;
 }) {
   const bubble = Math.max(26, Math.floor(bubbleSize));
   const iconSize = Math.round(bubble * 0.9);
@@ -137,7 +118,7 @@ function WebWireframeSlotTile({
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: minTileH, width: bubble }}>
       <button
         type="button"
-        onClick={() => openSlotLink(slot)}
+        onClick={() => onPress(slot)}
         disabled={String(slot.type || '').toLowerCase().includes('voip')}
         style={{
           width: bubble,
@@ -192,6 +173,23 @@ type Props = {
 
 export default function WireframeUniversalCard({ card, theme, locale }: Props) {
   const tr = (es: string, en: string) => (locale === 'es' ? es : en);
+  const [slotActionPlan, setSlotActionPlan] = useState<MirrorOpenPlan | null>(null);
+
+  const handleSlotPress = (slot: PublicSlot) => {
+    if (String(slot.type || '').toLowerCase().includes('voip')) {
+      return;
+    }
+    const plan = getMirrorVaultOpenPlan(
+      { type: slot.type, value: slot.value, title: slot.label },
+      {
+        cardOwnerUid: String(card.ownerUid || '').trim(),
+        cardId: String(card.cardId || '').trim(),
+        sourceCardName: String(card.name || '').trim() || 'Card-Social',
+      },
+    );
+    setSlotActionPlan(plan);
+  };
+
   const vertIconsBoxRef = useRef<HTMLDivElement | null>(null);
   const horizIconsBoxRef = useRef<HTMLDivElement | null>(null);
   const [vertBox, setVertBox] = useState({ w: 0, h: 0 });
@@ -303,7 +301,7 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
                   justifyContent: 'center',
                 }}
               >
-                <WebWireframeSlotTile slot={slot} bubbleSize={bubble} theme={theme} />
+                <WebWireframeSlotTile slot={slot} bubbleSize={bubble} theme={theme} onPress={handleSlotPress} />
               </div>
             ))}
           </div>
@@ -370,6 +368,7 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
 
   if (layout === 'horizontal') {
     return (
+      <>
       <div
         style={{
           borderRadius: 16,
@@ -497,10 +496,13 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
           </div>
         </div>
       </div>
+      <MirrorActionModals plan={slotActionPlan} onClose={() => setSlotActionPlan(null)} tr={tr} />
+      </>
     );
   }
 
   return (
+    <>
     <div
       style={{
         borderRadius: 16,
@@ -642,5 +644,7 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
         </div>
       </div>
     </div>
+    <MirrorActionModals plan={slotActionPlan} onClose={() => setSlotActionPlan(null)} tr={tr} />
+    </>
   );
 }

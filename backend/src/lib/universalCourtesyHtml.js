@@ -154,7 +154,9 @@ function buildValidCourtesyPageHtml(opts) {
       min-height: 72px;
       background: rgba(255,255,255,0.03);
       display: flex; flex-direction: column; align-items: center; justify-content: center;
+      cursor: pointer;
     }
+    .slot:focus { outline: 2px solid ${GOLD}; outline-offset: 2px; }
     .slot-ic { font-size: 1.2rem; margin-bottom: 4px; display: flex; align-items: center; justify-content: center; color: ${GOLD}; }
     .slot-ic svg { display: block; }
     .slot-ic img { display: block; }
@@ -254,6 +256,56 @@ function buildValidCourtesyPageHtml(opts) {
     return String(s.label || s.type || '—').trim().split(/\\s+/).slice(0, 2).join(' ');
   }
 
+  function normType(t) {
+    return String(t || '').trim().toLowerCase().replace(/_/g, '-');
+  }
+  function ensureHttpUrl(v) {
+    v = String(v || '').trim();
+    if (!v) return '';
+    if (/^https?:\\/\\//i.test(v)) return v;
+    return 'https://' + v;
+  }
+  function courtesyOpenSlot(s) {
+    var type = String(s.type || '').toLowerCase();
+    if (type.indexOf('voip') >= 0) return;
+    var typeN = normType(s.type);
+    var value = String(s.value || '').trim();
+    var title = String(s.label || '').trim() || 'Card-Social';
+    if (typeN === 'ghost-link') {
+      if (confirm('Ghost-Link: abre la app Card-Social para llamar sin mostrar tu número. ¿Abrir app?')) {
+        window.location.href = 'cardsocial://';
+      }
+      return;
+    }
+    if (type.includes('email') || /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value)) {
+      window.location.href = 'mailto:' + value;
+      return;
+    }
+    if (typeN.indexOf('telefono') >= 0 || typeN.indexOf('telephone') >= 0 || typeN === 'phone' || typeN === 'movil' || typeN === 'mobile') {
+      var compact = value.replace(/\\s+/g, '');
+      if (/^\\+?\\d{7,15}$/.test(compact)) window.location.href = 'tel:' + compact;
+      else { alert(value); if (navigator.clipboard) navigator.clipboard.writeText(value); }
+      return;
+    }
+    if (typeN.indexOf('texto') >= 0) {
+      alert(title + '\\n\\n' + value);
+      if (navigator.clipboard && confirm('¿Copiar al portapapeles?')) {
+        navigator.clipboard.writeText(value);
+      }
+      return;
+    }
+    if (typeN.indexOf('documento') >= 0 || typeN.indexOf('pdf') >= 0 || /\\.pdf(\\?|$)/i.test(value) || /\\.(jpg|jpeg|png|gif|webp)(\\?|$)/i.test(value)) {
+      if (/^https?:\\/\\//i.test(value)) window.open(value, '_blank', 'noopener');
+      else alert(value || 'Sin archivo');
+      return;
+    }
+    if (typeN.indexOf('enlace') >= 0 || typeN.indexOf('link') >= 0 || typeN.indexOf('web') >= 0 || /^https?:\\/\\//i.test(value) || /^(www\\.)/i.test(value)) {
+      window.open(ensureHttpUrl(value), '_blank', 'noopener');
+      return;
+    }
+    alert(title + ': ' + (value || '—'));
+  }
+
   fetch(apiUrl('/api/public/universal-card?token='+encodeURIComponent(TOKEN)+'&source=qr_scan'))
     .then(function(r){ return r.json().then(function(j){ return { ok: r.ok, j: j }; }); })
     .then(function(res){
@@ -271,9 +323,9 @@ function buildValidCourtesyPageHtml(opts) {
       var occ = String(c.ownerOccupation || '').trim();
       var dispName = cardNm || person || occ || 'Card-Social';
       var slots = Array.isArray(c.slots) ? c.slots : [];
-      var grid = slots.slice(0,24).map(function(s){
+      var grid = slots.slice(0,24).map(function(s, idx){
         var lb = esc(compactLb(s));
-        return '<div class="slot"><div class="slot-ic">'+slotIconHtml(s)+'</div><div class="slot-lb">'+lb+'</div></div>';
+        return '<div class="slot" data-slot-idx="'+idx+'" role="button" tabindex="0"><div class="slot-ic">'+slotIconHtml(s)+'</div><div class="slot-lb">'+lb+'</div></div>';
       }).join('');
       if (!grid) grid = '<p style="text-align:center;opacity:0.7;font-size:0.85rem;padding:0 24px;">—</p>';
       document.getElementById('root').innerHTML =
@@ -293,6 +345,17 @@ function buildValidCourtesyPageHtml(opts) {
           '</div>'+
         '</div>'+
         '<div class="slot-grid">'+grid+'</div>';
+      var rootEl = document.getElementById('root');
+      var sg = rootEl && rootEl.querySelector('.slot-grid');
+      if (sg && slots.length) {
+        sg.addEventListener('click', function(ev) {
+          var el = ev.target.closest('.slot');
+          if (!el) return;
+          var i = el.getAttribute('data-slot-idx');
+          if (i == null) return;
+          courtesyOpenSlot(slots[Number(i)]);
+        });
+      }
       document.getElementById('actions').style.display = 'flex';
       var deep = 'cardsocial://u/' + encodeURIComponent(TOKEN);
       var appLink = document.getElementById('btn-app');
