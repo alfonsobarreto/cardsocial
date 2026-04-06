@@ -395,7 +395,45 @@ const otpHash = (emailLower, code) => {
 
   app.use("/api/public", createPublicUniversalRoutes({ storage }));
 
-  app.use("/", createUniversalEntryHttpRoutes({ storage }));
+  // Next.js frontend-web: proxy /u/:token and /_next/* to Next.js standalone server
+  const nextWebDir = require('path').join(__dirname, '..', 'frontend-web');
+  const fs = require('fs');
+  if (fs.existsSync(nextWebDir)) {
+    const { spawn } = require('child_process');
+    const NEXT_PORT = 3001;
+    const nextServer = spawn('node', ['server.js'], {
+      cwd: nextWebDir,
+      env: { ...process.env, PORT: String(NEXT_PORT), HOSTNAME: '127.0.0.1' },
+      stdio: 'inherit',
+    });
+    nextServer.on('error', (e) => console.warn('[next-web] spawn error:', e.message));
+    process.on('exit', () => nextServer.kill());
+
+    const http = require('http');
+    const nextProxy = (req, res) => {
+      const options = {
+        hostname: '127.0.0.1',
+        port: NEXT_PORT,
+        path: req.url,
+        method: req.method,
+        headers: req.headers,
+      };
+      const proxy = http.request(options, (proxyRes) => {
+        res.writeHead(proxyRes.statusCode, proxyRes.headers);
+        proxyRes.pipe(res, { end: true });
+      });
+      proxy.on('error', () => {
+        if (!res.headersSent) res.status(502).send('Next.js not ready yet');
+      });
+      req.pipe(proxy, { end: true });
+    };
+
+    app.use('/u', nextProxy);
+    app.use('/_next', nextProxy);
+  } else {
+    // Fallback: legacy HTML courtesy page
+    app.use("/", createUniversalEntryHttpRoutes({ storage }));
+  }
 
   app.use("/api", createModerationRoutes({
     azureSafety,
