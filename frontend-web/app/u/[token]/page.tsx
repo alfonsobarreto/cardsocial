@@ -3,7 +3,13 @@ import { notFound } from 'next/navigation';
 import CardPreview, { CardData } from '@/components/CardPreview';
 import { getThemeById } from '@/lib/themes';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://cardsocial.me';
+// En producción (Azure) el Next.js corre como proceso hijo del backend Express.
+// Llamamos directo a localhost para evitar el loop proxy → Next.js → proxy.
+// NEXT_PUBLIC_API_URL se usa solo en desarrollo local.
+const API_BASE =
+  process.env.INTERNAL_API_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  'https://cardsocial.me';
 
 type Props = { params: Promise<{ token: string }> };
 

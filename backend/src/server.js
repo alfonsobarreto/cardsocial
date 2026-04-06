@@ -403,7 +403,13 @@ const otpHash = (emailLower, code) => {
     const NEXT_PORT = 3001;
     const nextServer = spawn('node', ['server.js'], {
       cwd: nextWebDir,
-      env: { ...process.env, PORT: String(NEXT_PORT), HOSTNAME: '127.0.0.1' },
+      env: {
+        ...process.env,
+        PORT: String(NEXT_PORT),
+        HOSTNAME: '127.0.0.1',
+        // Next.js llama directo al backend Express en localhost para evitar loop de proxy
+        INTERNAL_API_URL: `http://127.0.0.1:${env.port}`,
+      },
       stdio: 'inherit',
     });
     nextServer.on('error', (e) => console.warn('[next-web] spawn error:', e.message));
