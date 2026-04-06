@@ -384,6 +384,11 @@ const otpHash = (emailLower, code) => {
     }
   });
 
+  // Serve admin panel HTML at /admin and /admin/
+  app.get(['/admin', '/admin/'], (_req, res) => {
+    res.sendFile(require('path').join(__dirname, 'admin-panel.html'));
+  });
+
   // Admin Routes (Marketing, Asset Minting, Stats)
   app.use("/api/admin", createAdminRoutes());
 
