@@ -211,6 +211,96 @@ export async function fetchPublicUniversalCardByToken(params: {
   };
 }
 
+export type TemporaryAccessValidationResult =
+  | {
+      ok: true;
+      ownerUid: string;
+      cardId: string;
+      ownerDisplayName: string | null;
+      ownerNickname: string | null;
+      ownerPhotoUrl: string | null;
+      ownerOccupation: string | null;
+      cardName: string;
+      holdersCount: number;
+      ratingAvg: number;
+      expiresAt: string;
+    }
+  | { ok: false; expired: boolean; error?: string };
+
+/**
+ * Validates a temporary-access token read from the clipboard.
+ * Only requires the gateway key — no JWT needed (receptor may not be logged in yet).
+ */
+export async function validateTemporaryAccessToken(params: {
+  token: string;
+}): Promise<TemporaryAccessValidationResult> {
+  const baseUrl = getApiBaseUrl();
+  const gatewayKey = getGatewayKey();
+
+  const response = await axios.post(
+    `${baseUrl}/api/qr/temporary-access/validate`,
+    { token: params.token },
+    {
+      headers: { 'x-api-gateway-key': gatewayKey },
+      timeout: 15000,
+      validateStatus: () => true,
+    }
+  );
+
+  if (response.status === 410) {
+    return { ok: false, expired: true, error: String(response?.data?.error || 'expired') };
+  }
+  if (response.status !== 200 || !response?.data?.ok) {
+    return { ok: false, expired: false, error: String(response?.data?.error || 'validation failed') };
+  }
+
+  const d = response.data;
+  return {
+    ok: true,
+    ownerUid: String(d.ownerUid || ''),
+    cardId: String(d.cardId || ''),
+    ownerDisplayName: d.ownerDisplayName ? String(d.ownerDisplayName) : null,
+    ownerNickname: d.ownerNickname ? String(d.ownerNickname) : null,
+    ownerPhotoUrl: d.ownerPhotoUrl ? String(d.ownerPhotoUrl) : null,
+    ownerOccupation: d.ownerOccupation ? String(d.ownerOccupation) : null,
+    cardName: String(d.cardName || 'Smart Card'),
+    holdersCount: Number(d.holdersCount || 0),
+    ratingAvg: Number(d.ratingAvg || 5),
+    expiresAt: String(d.expiresAt || ''),
+  };
+}
+
+/**
+ * Consumes a temporary-access token (24h Bunker clipboard flow).
+ * Creates a share_permission so the contact appears in ContactsPage.
+ * Requires the receiver to be logged in (JWT).
+ */
+export async function consumeTemporaryAccessToken(params: {
+  receiverUid: string;
+  token: string;
+}): Promise<{ ownerUid: string; receiverUid: string; cardId: string; shareGranted: boolean }> {
+  const auth = await getScopedJwtToken(params.receiverUid, 'qr.access');
+
+  const response = await axios.post(
+    `${auth.baseUrl}/api/qr/temporary-access/consume`,
+    { receiverUid: params.receiverUid, token: params.token },
+    {
+      headers: {
+        'x-api-gateway-key': auth.gatewayKey,
+        Authorization: `Bearer ${auth.token}`,
+      },
+      timeout: 15000,
+    }
+  );
+
+  return {
+    ownerUid: String(response?.data?.ownerUid || ''),
+    receiverUid: String(response?.data?.receiverUid || ''),
+    cardId: String(response?.data?.cardId || ''),
+    shareGranted: Boolean(response?.data?.shareGranted),
+  };
+}
+
 export async function consumeDynamicQrToken(params: { receiverUid: string; token: string }): Promise<{ ownerUid: string; receiverUid: string; cardId: string; shareGranted: boolean }> {
   const auth = await getScopedJwtToken(params.receiverUid, 'qr.access');
 

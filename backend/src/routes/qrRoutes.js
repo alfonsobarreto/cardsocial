@@ -11,6 +11,7 @@ const GHOST_LINK_INVITE_TTL_SECONDS = 45;
 
 const { buildGhostLinkAgoraInvite } = require('../lib/agoraGhostLink');
 const { mergeContactProfileFromCard } = require('../lib/contactIdentityMerge');
+const { parseAndValidateTemporaryAccess } = require('../lib/temporaryAccessToken');
 const { env } = require('../config');
 
 function normalizeString(value, fallback = null) {
@@ -656,6 +657,71 @@ function createQrRoutes({ storage }) {
         ttlSec: Math.floor(TEMPORARY_ACCESS_TTL_MS / 1000),
         expiresAt: expiresAt.toISOString(),
         source: UNIVERSAL_QR_SOURCE,
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+  });
+
+  /**
+   * Valida un token de acceso temporal (24h) leído del portapapeles por la App.
+   * Devuelve los datos públicos del dueño para mostrar en el BunkerClassificationModal.
+   * No requiere JWT propio del receptor; el token opaco es el secreto.
+   * Protegido solo por gateway key para evitar fuerza bruta desde la web.
+   */
+  router.post('/temporary-access/validate', async (req, res) => {
+    try {
+      const token = String(req.body?.token || '').trim();
+
+      if (!token || token.length < 16 || token.length > 128) {
+        return res.status(400).json({ ok: false, error: 'token is required' });
+      }
+
+      const db = await storage.connect();
+      const validation = await parseAndValidateTemporaryAccess(db, token);
+
+      if (!validation.ok) {
+        const status = validation.reason === 'expired' ? 410 : 404;
+        return res.status(status).json({
+          ok: false,
+          expired: validation.reason === 'expired',
+          error: validation.reason,
+        });
+      }
+
+      const { ownerUid, cardId, expiresAt } = validation;
+
+      const cardDoc = await db.collection('smart_cards').findOne(
+        { ownerUid, cardId },
+        {
+          projection: {
+            name: 1,
+            ownerDisplayName: 1,
+            ownerNickname: 1,
+            ownerPhotoUrl: 1,
+            ownerOccupation: 1,
+            holdersCount: 1,
+            ratingAvg: 1,
+          },
+        },
+      );
+
+      if (!cardDoc) {
+        return res.status(404).json({ ok: false, error: 'Card not found' });
+      }
+
+      return res.status(200).json({
+        ok: true,
+        ownerUid,
+        cardId,
+        ownerDisplayName: cardDoc.ownerDisplayName ? String(cardDoc.ownerDisplayName) : null,
+        ownerNickname: cardDoc.ownerNickname ? String(cardDoc.ownerNickname) : null,
+        ownerPhotoUrl: cardDoc.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl) : null,
+        ownerOccupation: cardDoc.ownerOccupation ? String(cardDoc.ownerOccupation) : null,
+        cardName: String(cardDoc.name || 'Smart Card'),
+        holdersCount: Number(cardDoc.holdersCount || 0),
+        ratingAvg: Number(cardDoc.ratingAvg || 5),
+        expiresAt: expiresAt.toISOString(),
       });
     } catch (error) {
       return res.status(500).json({ ok: false, error: error.message });

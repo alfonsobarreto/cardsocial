@@ -1,79 +1,90 @@
 /**
  * Entrada HTTP GET /u/:token en el mismo proceso que la API (Azure).
- * Valida temporary_access (24h); si es válido redirige a la SPA en cardsocial.me.
+ * Valida temporary_access (24h); si es válido sirve la Web de Cortesía completa (clon de la tarjeta).
+ * Si el token está expirado/inválido muestra una página de error bilingüe.
  *
  * Enrutamiento sugerido (Azure Front Door / Application Gateway / nginx):
- * - Enviar https://cardsocial.me/u/* a este backend, O exponer la misma ruta en api.cardsocial.me
- *   y usar el QR solo hacia el host que ejecute este handler.
- *
- * Si todo /u/* del dominio público se proxifica siempre al API, puede haber bucle al redirigir
- * de nuevo a /u/. En ese caso define UNIVERSAL_VALID_REDIRECT_USE_ROOT=1 para redirigir a
- * https://cardsocial.me/?universalToken=...&source=qr_scan (ruta que no reenvíes al API).
+ * - Enviar https://cardsocial.me/u/* a este backend.
  */
 
+'use strict';
+
 const express = require('express');
-const { env } = require('../config');
 const { parseAndValidateTemporaryAccess } = require('../lib/temporaryAccessToken');
-
-const EXPIRED_HTML = `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Card-Social — Acceso expirado</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
-      background: #000000; color: #d4af37; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      padding: 24px; text-align: center;
-    }
-    p { max-width: 22rem; line-height: 1.45; font-size: 1rem; }
-  </style>
-</head>
-<body>
-  <p>Este acceso ha expirado. Escanea el QR actualizado o únete al Búnker.</p>
-</body>
-</html>`;
-
-function buildValidRedirectLocation(token) {
-  const base = String(env.publicUniversalCardBaseUrl || 'https://cardsocial.me').replace(/\/+$/, '');
-  const baseWithSlash = `${base}/`;
-
-  if (env.universalValidRedirectUseRoot) {
-    const u = new URL(baseWithSlash);
-    u.searchParams.set('universalToken', token);
-    u.searchParams.set('source', 'qr_scan');
-    return u.toString();
-  }
-
-  const u = new URL(`u/${encodeURIComponent(token)}`, baseWithSlash);
-  u.searchParams.set('source', 'qr_scan');
-  return u.toString();
-}
+const { buildCourtesyHtml, buildExpiredHtml } = require('../lib/universalCourtesyHtml');
 
 function createUniversalEntryHttpRoutes({ storage }) {
   const router = express.Router();
 
   router.get('/u/:token', async (req, res) => {
+    const acceptLanguage = req.headers['accept-language'] || '';
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+
     try {
       const token = String(req.params.token || '').trim();
+
+      if (!token) {
+        return res.status(400).send(buildExpiredHtml(acceptLanguage));
+      }
+
       const db = await storage.connect();
       const validation = await parseAndValidateTemporaryAccess(db, token);
 
       if (!validation.ok) {
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.setHeader('Cache-Control', 'no-store');
-        return res.status(200).send(EXPIRED_HTML);
+        return res.status(200).send(buildExpiredHtml(acceptLanguage));
       }
 
-      const location = buildValidRedirectLocation(token);
-      res.setHeader('Cache-Control', 'no-store');
-      return res.redirect(302, location);
+      const { ownerUid, cardId } = validation;
+
+      // Fetch card data to build the courtesy mirror
+      const cardDoc = await db.collection('smart_cards').findOne(
+        { ownerUid, cardId },
+        {
+          projection: {
+            name: 1,
+            ownerDisplayName: 1,
+            ownerNickname: 1,
+            ownerPhotoUrl: 1,
+            ownerOccupation: 1,
+            publicCardSlots: 1,
+            holdersCount: 1,
+            ratingAvg: 1,
+          },
+        },
+      );
+
+      if (!cardDoc) {
+        return res.status(200).send(buildExpiredHtml(acceptLanguage));
+      }
+
+      const slots = Array.isArray(cardDoc.publicCardSlots) ? cardDoc.publicCardSlots : [];
+      const publicSlots = slots
+        .filter((s) => !s.isPrivate && String(s.visibility || '').toLowerCase() !== 'private')
+        .slice(0, 8)
+        .map((s) => ({
+          type: String(s.type || 'link').trim(),
+          label: String(s.label || '').trim(),
+          value: String(s.value || '').trim(),
+        }));
+
+      const html = buildCourtesyHtml({
+        token,
+        ownerDisplayName: String(cardDoc.ownerDisplayName || cardDoc.ownerNickname || 'Card-Social'),
+        ownerNickname: cardDoc.ownerNickname ? String(cardDoc.ownerNickname) : null,
+        ownerOccupation: cardDoc.ownerOccupation ? String(cardDoc.ownerOccupation) : null,
+        ownerPhotoUrl: cardDoc.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl) : null,
+        cardName: String(cardDoc.name || 'Smart Card'),
+        slots: publicSlots,
+        holdersCount: Number(cardDoc.holdersCount || 0),
+        ratingAvg: Number(cardDoc.ratingAvg || 5),
+        acceptLanguage,
+      });
+
+      return res.status(200).send(html);
     } catch (error) {
       console.error('[GET /u/:token]', error?.message || error);
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      return res.status(500).send(EXPIRED_HTML);
+      return res.status(500).send(buildExpiredHtml(acceptLanguage));
     }
   });
 

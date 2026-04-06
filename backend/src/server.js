@@ -377,6 +377,99 @@ const otpHash = (emailLower, code) => {
     middlewares: [gatewayKeyMiddleware, jwtAuthMiddleware, uploadScopeMiddleware],
   }));
 
+  // Temporary-access Bunker bridge: validate + consume (share_permission creation).
+  // These sit before the qrScopeMiddleware block so validate can run without JWT.
+  const { parseAndValidateTemporaryAccess } = require('./lib/temporaryAccessToken');
+
+  function buildRelationKey(uidA, uidB) {
+    const sorted = [String(uidA || ''), String(uidB || '')].sort();
+    return sorted.join(':');
+  }
+
+  app.post('/api/qr/temporary-access/validate', gatewayKeyMiddleware, async (req, res) => {
+    try {
+      const token = String(req.body?.token || '').trim();
+      if (!token || token.length < 16 || token.length > 128) {
+        return res.status(400).json({ ok: false, error: 'token is required' });
+      }
+      const validation = await parseAndValidateTemporaryAccess(db, token);
+      if (!validation.ok) {
+        const status = validation.reason === 'expired' ? 410 : 404;
+        return res.status(status).json({ ok: false, expired: validation.reason === 'expired', error: validation.reason });
+      }
+      const { ownerUid, cardId, expiresAt } = validation;
+      const cardDoc = await db.collection('smart_cards').findOne(
+        { ownerUid, cardId },
+        { projection: { name: 1, ownerDisplayName: 1, ownerNickname: 1, ownerPhotoUrl: 1, ownerOccupation: 1, holdersCount: 1, ratingAvg: 1 } },
+      );
+      if (!cardDoc) {
+        return res.status(404).json({ ok: false, error: 'Card not found' });
+      }
+      return res.status(200).json({
+        ok: true,
+        ownerUid,
+        cardId,
+        ownerDisplayName: cardDoc.ownerDisplayName ? String(cardDoc.ownerDisplayName) : null,
+        ownerNickname: cardDoc.ownerNickname ? String(cardDoc.ownerNickname) : null,
+        ownerPhotoUrl: cardDoc.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl) : null,
+        ownerOccupation: cardDoc.ownerOccupation ? String(cardDoc.ownerOccupation) : null,
+        cardName: String(cardDoc.name || 'Smart Card'),
+        holdersCount: Number(cardDoc.holdersCount || 0),
+        ratingAvg: Number(cardDoc.ratingAvg || 5),
+        expiresAt: expiresAt.toISOString(),
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+  });
+
+  /**
+   * Consume a temporary-access token from the Bunker clipboard flow.
+   * Creates a share_permission so the contact shows in ContactsPage.
+   * Requires gateway key + JWT (user must be logged in to receive a contact).
+   */
+  app.post('/api/qr/temporary-access/consume', gatewayKeyMiddleware, jwtAuthMiddleware, async (req, res) => {
+    try {
+      const receiverUid = String(req.body?.receiverUid || req.auth?.sub || '').trim();
+      const token = String(req.body?.token || '').trim();
+
+      if (!receiverUid) {
+        return res.status(400).json({ ok: false, error: 'receiverUid is required' });
+      }
+      if (!token || token.length < 16 || token.length > 128) {
+        return res.status(400).json({ ok: false, error: 'token is required' });
+      }
+
+      const validation = await parseAndValidateTemporaryAccess(db, token);
+      if (!validation.ok) {
+        const status = validation.reason === 'expired' ? 410 : 404;
+        return res.status(status).json({ ok: false, expired: validation.reason === 'expired', error: validation.reason });
+      }
+
+      const { ownerUid, cardId } = validation;
+
+      const relationKey = buildRelationKey(ownerUid, receiverUid);
+      const blocked = await db.collection('blocked_relations').findOne({ relationKey });
+      if (blocked) {
+        return res.status(403).json({ ok: false, error: 'Access denied: blocked relationship' });
+      }
+
+      const now = new Date();
+      await db.collection('share_permissions').findOneAndUpdate(
+        { ownerUid, targetUid: receiverUid, cardId },
+        {
+          $set: { scope: 'view', isRevoked: false, revokedAt: null, expiresAt: null },
+          $setOnInsert: { createdAt: now },
+        },
+        { upsert: true, returnDocument: 'after', includeResultMetadata: false },
+      );
+
+      return res.status(200).json({ ok: true, ownerUid, receiverUid, cardId, shareGranted: true });
+    } catch (error) {
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+  });
+
   app.use("/api/qr", gatewayKeyMiddleware, jwtAuthMiddleware, qrScopeMiddleware, createQrRoutes({
     storage,
   }));
