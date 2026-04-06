@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import CardPreview, { CardData } from '@/components/CardPreview';
+import CardPreview from '@/components/CardPreview';
+import type { CardData } from '@/lib/universalCardTypes';
 import { getThemeById } from '@/lib/themes';
 
 // En producción (Azure) el Next.js corre como proceso hijo del backend Express.

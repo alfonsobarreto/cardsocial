@@ -155,7 +155,9 @@ function buildValidCourtesyPageHtml(opts) {
       background: rgba(255,255,255,0.03);
       display: flex; flex-direction: column; align-items: center; justify-content: center;
     }
-    .slot-ic { font-size: 1.2rem; margin-bottom: 4px; }
+    .slot-ic { font-size: 1.2rem; margin-bottom: 4px; display: flex; align-items: center; justify-content: center; color: ${GOLD}; }
+    .slot-ic svg { display: block; }
+    .slot-ic img { display: block; }
     .slot-lb { font-size: 0.62rem; color: rgba(212,175,55,0.85); line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .actions { margin-top: 22px; display: flex; flex-direction: column; gap: 10px; }
     .btn {
@@ -216,6 +218,42 @@ function buildValidCourtesyPageHtml(opts) {
 
   function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
 
+  /** Mismos paths que frontend-web/lib/slotIcons.ts (prioridad: icon URL → iconName → type). */
+  var SLOT_PATH = {
+    phone: 'M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z',
+    email: 'M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z',
+    whatsapp: 'M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.38 1.26 4.8L2.05 22l5.42-1.42c1.37.73 2.93 1.14 4.57 1.14 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01C17.18 3.03 14.69 2 12.04 2zm5.52 14.43c-.23.64-1.33 1.22-1.84 1.3-.47.07-1.07.1-1.72-.11-.4-.13-.91-.3-1.56-.58-2.74-1.18-4.53-3.95-4.67-4.13-.14-.18-1.13-1.5-1.13-2.86 0-1.36.71-2.03 1-2.34.23-.25.62-.37.99-.37.12 0 .23 0 .33.01.29.01.44.03.63.49.23.57.79 1.93.86 2.07.07.14.14.32.04.51-.09.2-.14.32-.28.49-.14.17-.29.38-.41.51-.14.14-.29.3-.12.58.17.29.74 1.22 1.59 1.97 1.09.97 2.01 1.27 2.3 1.41.29.14.46.12.63-.07.18-.2.74-.86.94-1.15.2-.29.39-.24.66-.14.27.1 1.7.8 1.99.95.29.14.48.21.55.33.07.12.07.69-.16 1.33z',
+    linkedin: 'M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.32 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.79M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z',
+    instagram: 'M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2m-.2 2A3.6 3.6 0 0 0 4 7.6v8.8C4 18.39 5.61 20 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6C20 5.61 18.39 4 16.4 4H7.6m9.65 1.5a1.25 1.25 0 0 1 1.25 1.25A1.25 1.25 0 0 1 17.25 8 1.25 1.25 0 0 1 16 6.75a1.25 1.25 0 0 1 1.25-1.25M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3z',
+    twitter: 'M22.46 6c-.77.35-1.6.58-2.46.69.88-.53 1.56-1.37 1.88-2.38-.83.5-1.75.85-2.72 1.05C18.37 4.5 17.26 4 16 4c-2.35 0-4.27 1.92-4.27 4.29 0 .34.04.67.11.98C8.28 9.09 5.11 7.38 3 4.79c-.37.63-.58 1.37-.58 2.15 0 1.49.75 2.81 1.91 3.56-.71 0-1.37-.2-1.95-.5v.03c0 2.08 1.48 3.82 3.44 4.21a4.22 4.22 0 0 1-1.93.07 4.28 4.28 0 0 0 4 2.98 8.521 8.521 0 0 1-5.33 1.84c-.34 0-.68-.02-1.02-.06C3.44 20.29 5.7 21 8.12 21 16 21 20.33 14.46 20.33 8.79c0-.19 0-.37-.01-.56.84-.6 1.56-1.36 2.14-2.23z',
+    facebook: 'M17 2v4h-2c-.69 0-1 .81-1 1.5V10h3v4h-3v8h-4v-8H7v-4h3V6.5C10 4.57 11.57 3 13.5 3H17z',
+    youtube: 'M10 15l5.19-3L10 9v6m11.56-7.83c.13.47.22 1.1.28 1.9.07.8.1 1.49.1 2.09L22 12c0 2.19-.16 3.8-.44 4.83-.25.9-.83 1.48-1.73 1.73-.47.13-1.33.22-2.65.28-1.3.07-2.49.1-3.59.1L12 19c-4.19 0-6.8-.16-7.83-.44-.9-.25-1.48-.83-1.73-1.73-.13-.47-.22-1.1-.28-1.9-.07-.8-.1-1.49-.1-2.09L2 12c0-2.19.16-3.8.44-4.83.25-.9.83-1.48 1.73-1.73.47-.13 1.33-.22 2.65-.28 1.3-.07 2.49-.1 3.59-.1L12 5c4.19 0 6.8.16 7.83.44.9.25 1.48.83 1.73 1.73z',
+    tiktok: 'M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.75a4.85 4.85 0 0 1-1.01-.06z',
+    telegram: 'M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z',
+    website: 'M16.36 14c.08-.66.14-1.32.14-2 0-.68-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2m-5.15 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95a8.03 8.03 0 0 1-4.33 3.56M14.34 14H9.66c-.1-.66-.16-1.32-.16-2 0-.68.06-1.35.16-2h4.68c.09.65.16 1.32.16 2 0 .68-.07 1.34-.16 2M12 19.96c-.83-1.2-1.5-2.53-1.91-3.96h3.82c-.41 1.43-1.08 2.76-1.91 3.96M8 8H5.08A7.923 7.923 0 0 1 9.4 4.44C8.8 5.55 8.35 6.75 8 8m-2.92 8H8c.35 1.25.8 2.45 1.4 3.56A8.008 8.008 0 0 1 5.08 16m-.82-2C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2 0 .68.06 1.34.14 2M12 4.03c.83 1.2 1.5 2.54 1.91 3.97h-3.82c.41-1.43 1.08-2.77 1.91-3.97M18.92 8h-2.95a15.65 15.65 0 0 0-1.38-3.56c1.84.63 3.37 1.9 4.33 3.56M12 2C6.47 2 2 6.5 2 12a10 10 0 0 0 10 10A10 10 0 0 0 22 12 10 10 0 0 0 12 2z',
+    link: 'M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z',
+    location: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
+    default: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z',
+  };
+  function normIconName(n) {
+    var raw = String(n || '').toLowerCase().replace(/^mdi-/, '').replace(/-/g, '');
+    var alias = { youtubese: 'youtube', youtubeplay: 'youtube', linkvariant: 'website', web: 'website', mapmarker: 'location' };
+    return alias[raw] || raw;
+  }
+  function slotIconHtml(s) {
+    var ic = String(s.icon || '').trim();
+    if (/^https?:\\/\\//i.test(ic)) {
+      return '<img src="'+esc(ic)+'" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover"/>';
+    }
+    var k = s.iconName ? normIconName(s.iconName) : '';
+    var typeK = String(s.type || 'link').toLowerCase().replace(/[^a-z]/g, '') || 'link';
+    var path = (k && SLOT_PATH[k]) || SLOT_PATH[typeK] || SLOT_PATH.default;
+    return '<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="currentColor" d="'+path+'"/></svg>';
+  }
+  function compactLb(s) {
+    return String(s.label || s.type || '—').trim().split(/\\s+/).slice(0, 2).join(' ');
+  }
+
   fetch(apiUrl('/api/public/universal-card?token='+encodeURIComponent(TOKEN)+'&source=qr_scan'))
     .then(function(r){ return r.json().then(function(j){ return { ok: r.ok, j: j }; }); })
     .then(function(res){
@@ -226,11 +264,16 @@ function buildValidCourtesyPageHtml(opts) {
       var c = res.j.card;
       EXPIRES_AT = c.expiresAt || EXPIRES_AT;
       var photo = c.ownerPhotoUrl ? '<img class="avatar" src="'+esc(c.ownerPhotoUrl)+'" alt=""/>' : '<div class="avatar-ph">★</div>';
-      var nick = c.ownerNickname ? ('@'+esc(c.ownerNickname)) : '';
+      var nickRaw = String(c.ownerNickname || '').trim();
+      var nick = nickRaw ? (nickRaw.charAt(0) === '@' ? esc(nickRaw) : '@'+esc(nickRaw)) : '';
+      var cardNm = String(c.name || '').trim();
+      var person = String(c.ownerDisplayName || '').trim();
+      var occ = String(c.ownerOccupation || '').trim();
+      var dispName = cardNm || person || occ || 'Card-Social';
       var slots = Array.isArray(c.slots) ? c.slots : [];
-      var grid = slots.slice(0,12).map(function(s){
-        var lb = esc(s.label || s.type || '—');
-        return '<div class="slot"><div class="slot-ic">◆</div><div class="slot-lb">'+lb+'</div></div>';
+      var grid = slots.slice(0,24).map(function(s){
+        var lb = esc(compactLb(s));
+        return '<div class="slot"><div class="slot-ic">'+slotIconHtml(s)+'</div><div class="slot-lb">'+lb+'</div></div>';
       }).join('');
       if (!grid) grid = '<p style="text-align:center;opacity:0.7;font-size:0.85rem;padding:0 24px;">—</p>';
       document.getElementById('root').innerHTML =
@@ -238,9 +281,8 @@ function buildValidCourtesyPageHtml(opts) {
         '<div class="card-top">'+
           '<div class="avatar-box">'+photo+'</div>'+
           '<div class="card-info">'+
-            '<h1>'+esc(c.ownerDisplayName || c.name || 'Card-Social')+'</h1>'+
+            '<h1>'+esc(dispName)+'</h1>'+
             (nick ? '<div class="sub">'+nick+'</div>' : '')+
-            '<div class="cn">'+esc(c.name || '')+'</div>'+
             '<div class="stats-row">'+
               '<span>'+
                 (c.ratingAvg!=null ? Number(c.ratingAvg).toFixed(1) : '—')+
