@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const shellStyles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
   },
   previewModalStack: {
@@ -107,7 +107,8 @@ export function SmartCardMirrorModal({
   const insets = useSafeAreaInsets();
   const stack = getPreviewModalStackSize(screenHeight, iconSlotCount);
   const c = footer.colors;
-  const overlayPadTop = Math.max(insets.top, 12) + 20;
+  /** Mínimo generoso si no hay SafeAreaProvider; + extra para que la tarjeta no roce el status bar. */
+  const overlayPadTop = Math.max(insets.top, 28) + 36;
   const overlayPadBottom = Math.max(insets.bottom, 16) + 12;
 
   return (
