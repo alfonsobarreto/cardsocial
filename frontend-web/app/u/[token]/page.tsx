@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import CardPreview from '@/components/CardPreview';
 import type { CardData } from '@/lib/universalCardTypes';
+import { normalizeUniversalCardPayload } from '@/lib/normalizeUniversalCard';
 import { getThemeById } from '@/lib/themes';
 
 // En producción (Azure) el Next.js corre como proceso hijo del backend Express.
@@ -23,7 +24,7 @@ async function fetchCard(token: string): Promise<{ card: CardData } | null> {
     if (!res.ok) return null;
     const data = await res.json();
     if (!data.ok || !data.card) return null;
-    return { card: data.card as CardData };
+    return { card: normalizeUniversalCardPayload(data.card) };
   } catch {
     return null;
   }

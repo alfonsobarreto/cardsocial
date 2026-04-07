@@ -10,13 +10,15 @@ import {
   WIREFRAME_STITCH_GAP,
   WIREFRAME_STITCH_HORIZONTAL_INSET,
 } from '@/lib/wireframeMath';
-
-/** Ancho útil típico del preview (~maxWidth 420 − paddings) hasta que ResizeObserver mida el contenedor; sin esto el grid puede quedar en bubble=0 y no pintar iconos. */
-const WIREFRAME_FALLBACK_USABLE_W = 304;
 import { resolveSlotVisual } from '@/lib/slotVisual';
 import type { SlotIconDef } from '@/lib/slotIcons';
 import { getMirrorVaultOpenPlan, type MirrorOpenPlan } from '@card-social/services/mirrorVaultItemOpenPlan';
 import { MirrorActionModals } from '@/components/MirrorActionModals';
+
+/** Ancho útil típico del preview (~maxWidth 420 − paddings) hasta que ResizeObserver mida el contenedor. */
+const WIREFRAME_FALLBACK_USABLE_W = 304;
+/** Si el cálculo devuelve 0 con slots, forzar tamaño mínimo (Safari / flex raro). */
+const WIREFRAME_MIN_BUBBLE_WHEN_SLOTS = 48;
 
 const STAR_PATH =
   'M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z';
@@ -102,8 +104,14 @@ function SlotGlyph({
   }
   const d = visual.def;
   return (
-    <svg width={size} height={size} viewBox={d.viewBox ?? '0 0 24 24'} fill={color} style={{ display: 'block' }}>
-      <path d={d.path} />
+    <svg
+      width={size}
+      height={size}
+      viewBox={d.viewBox ?? '0 0 24 24'}
+      style={{ display: 'block', color }}
+      aria-hidden
+    >
+      <path d={d.path} fill="currentColor" />
     </svg>
   );
 }
@@ -267,7 +275,7 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
   const vertMeasuredW = Math.max(0, vertBox.w - WIREFRAME_STITCH_HORIZONTAL_INSET);
   const vertUsableW =
     vertMeasuredW > 0 ? vertMeasuredW : slots.length > 0 ? WIREFRAME_FALLBACK_USABLE_W : 0;
-  const vertBubble =
+  const vertBubbleRaw =
     vertUsableW > 0 && rowPlan.length
       ? computeStitchWireframeBubbleSide(
           vertUsableW,
@@ -278,11 +286,15 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
           theme.iconLabel.fontSize,
         )
       : 0;
+  const vertBubble =
+    slots.length > 0 && rowPlan.length > 0
+      ? Math.max(vertBubbleRaw, vertBubbleRaw > 0 ? 0 : WIREFRAME_MIN_BUBBLE_WHEN_SLOTS)
+      : 0;
 
   const horizMeasuredW = Math.max(0, horizBox.w - WIREFRAME_STITCH_HORIZONTAL_INSET);
   const horizUsableW =
     horizMeasuredW > 0 ? horizMeasuredW : slots.length > 0 ? WIREFRAME_FALLBACK_USABLE_W : 0;
-  const horizBubble =
+  const horizBubbleRaw =
     horizUsableW > 0 && rowPlan.length
       ? computeStitchWireframeBubbleSide(
           horizUsableW,
@@ -292,6 +304,10 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
           WIREFRAME_STITCH_GAP,
           theme.iconLabel.fontSize,
         )
+      : 0;
+  const horizBubble =
+    slots.length > 0 && rowPlan.length > 0
+      ? Math.max(horizBubbleRaw, horizBubbleRaw > 0 ? 0 : WIREFRAME_MIN_BUBBLE_WHEN_SLOTS)
       : 0;
 
   const iconGrid = (bubble: number) =>

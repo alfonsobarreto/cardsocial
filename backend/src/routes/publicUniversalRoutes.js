@@ -37,6 +37,40 @@ function sanitizeAnalyticsSegmentKey(raw) {
 }
 
 /**
+ * Slots públicos para web/app: forma estable + itemId sintético si faltara (datos viejos en Mongo).
+ */
+function normalizePublicCardSlotsForUniversal(raw) {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const out = [];
+  for (let i = 0; i < raw.length && out.length < 24; i += 1) {
+    const row = raw[i] || {};
+    if (row.isPrivate === true || String(row.visibility || '').toLowerCase() === 'private') {
+      continue;
+    }
+    const itemId = String(row.itemId || '').trim().slice(0, 120) || `legacy-${i}`;
+    const type = String(row.type || 'link').trim().slice(0, 64) || 'link';
+    const label = String(row.label || '').trim().slice(0, 200);
+    const value = String(row.value || '').trim().slice(0, 4000);
+    const iconNameRaw = String(row.iconName || '').trim();
+    const iconName = iconNameRaw ? iconNameRaw.slice(0, 120) : null;
+    const rawIcon = String(row.icon || '').trim();
+    const icon = /^https?:\/\//i.test(rawIcon) ? rawIcon.slice(0, 4000) : undefined;
+    const slot = {
+      itemId,
+      type,
+      label,
+      value,
+      ...(iconName ? { iconName } : {}),
+      ...(icon ? { icon } : {}),
+    };
+    out.push(slot);
+  }
+  return out;
+}
+
+/**
  * Registra vista desde QR físico en la misma estructura que POST /api/qr/analytics/track.
  */
 async function bumpUniversalQrScanAnalytics(db, cardId) {
@@ -182,7 +216,7 @@ function createPublicUniversalRoutes({ storage }) {
         }
       }
 
-      const slots = Array.isArray(cardDoc.publicCardSlots) ? cardDoc.publicCardSlots : [];
+      const slots = normalizePublicCardSlotsForUniversal(cardDoc.publicCardSlots);
 
       const payload = {
         cardId,
@@ -311,7 +345,7 @@ function createPublicUniversalRoutes({ storage }) {
       }
 
       const idn = await resolvePublicIdentity(db, ownerUid, cardId);
-      const slots = Array.isArray(cardDoc.publicCardSlots) ? cardDoc.publicCardSlots : [];
+      const slots = normalizePublicCardSlotsForUniversal(cardDoc.publicCardSlots);
 
       return res.status(200).json({
         ok: true,
