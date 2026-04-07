@@ -51,11 +51,11 @@ const slotStyles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
   },
   cardTileLabel: {
-    marginTop: 4,
+    marginTop: 3,
     textAlign: 'center',
     alignSelf: 'stretch',
   },
@@ -101,9 +101,9 @@ export function WireframeSlotTile({
 
   /* ── Preview mode: unified card tile (icon + label in one block) ── */
   if (!editable) {
-    const previewIconSize = Math.max(24, Math.min(32, Math.round(bubbleSize * 0.52)));
-    const previewLabelSize = Math.max(9, Math.min(12, Math.round(bubbleSize * 0.14)));
-    const previewLineH = Math.ceil(previewLabelSize * 1.22);
+    const previewIconSize = Math.max(22, Math.min(28, Math.round(bubbleSize * 0.36)));
+    const previewLabelSize = Math.max(8, Math.min(11, Math.round(bubbleSize * 0.12)));
+    const previewLineH = Math.ceil(previewLabelSize * 1.2);
 
     return (
       <TouchableOpacity
@@ -112,7 +112,6 @@ export function WireframeSlotTile({
           {
             backgroundColor: slotBubbleBg,
             borderColor: slotBorderColor,
-            minHeight: Math.max(72, Math.round(bubbleSize * 0.85)),
           },
         ]}
         activeOpacity={0.7}

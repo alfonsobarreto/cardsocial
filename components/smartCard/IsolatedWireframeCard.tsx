@@ -246,12 +246,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
                     {rowSlots.map((slot) => (
                       <View
                         key={slot.id}
-                        style={[
-                          wf.wireIconCell,
-                          editable
-                            ? { width: hIconSize, maxWidth: hIconSize, flexBasis: hIconSize }
-                            : { flex: 1, maxWidth: '100%' },
-                        ]}
+                        style={[wf.wireIconCell, { width: hIconSize, maxWidth: hIconSize, flexBasis: hIconSize }]}
                       >
                         {renderSlotContent(slot, { size: hIconSize }, editable, theme)}
                       </View>
@@ -406,9 +401,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
                       key={slot.id}
                       style={[
                         wf.wireIconCell,
-                        editable
-                          ? { width: vertIconCellSize, maxWidth: vertIconCellSize, flexBasis: vertIconCellSize }
-                          : { flex: 1, maxWidth: '100%' },
+                        { width: vertIconCellSize, maxWidth: vertIconCellSize, flexBasis: vertIconCellSize },
                       ]}
                     >
                       {renderSlotContent(slot, { size: vertIconCellSize }, editable, theme)}
