@@ -60,7 +60,6 @@ function iconNameToTypeKey(iconName: string): string {
     yahoo: 'website',
     microsoftoutlook: 'email',
     outlook: 'email',
-    phoneclassic: 'phone',
     helpcircle: 'default',
   };
   return alias[raw] || raw;
