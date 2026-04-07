@@ -5,15 +5,33 @@
 
 const { acceptLanguageHeaderIsSpanish } = require('./httpRequestLocale');
 
-const BG = '#000000';
-const GOLD = '#d4af37';
-const GOLD_DIM = '#a68b2d';
+/** Tabla mínima de temas — misma lista que constants/themeChest.ts y frontend-web/lib/themes.ts. */
+const THEME_TABLE = {
+  deep_teal:         { bg: ['#E0F7FA','#B2EBF2','#4DD0C8'], bc: '#00E5FF', tc: '#00695C', sc: '#00897B', ic: '#00796B', bb: 'rgba(255,255,255,0.94)' },
+  citrus_pop:        { bg: ['#FFFDE7','#FFF59D','#FFEE58'], bc: '#76FF03', tc: '#E65100', sc: '#EF6C00', ic: '#F57C00', bb: 'rgba(255,255,255,0.9)' },
+  sky_indigo:        { bg: ['#E8EAF6','#C5CAE9','#9FA8DA'], bc: '#5C6BC0', tc: '#1A237E', sc: '#283593', ic: '#3949AB', bb: 'rgba(255,255,255,0.92)' },
+  pure_snow:         { bg: ['#FFFFFF','#F5F5F5','#EEEEEE'], bc: '#BDBDBD', tc: '#212121', sc: '#616161', ic: '#424242', bb: 'rgba(250,250,250,0.98)' },
+  neon_matrix:       { bg: ['#1B1B1B','#121212','#0A0A0A'], bc: '#00E676', tc: '#00E676', sc: '#69F0AE', ic: '#B9F6CA', bb: 'rgba(0,230,118,0.12)' },
+  lavender_blush:    { bg: ['#FCE4EC','#F8BBD0','#F48FB1'], bc: '#E0E0E0', tc: '#AD1457', sc: '#C2185B', ic: '#880E4F', bb: 'rgba(255,255,255,0.88)' },
+  royal_navy:        { bg: ['#0D1B2A','#1B2838','#162032'], bc: '#D4AF37', tc: '#D4AF37', sc: '#E6C966', ic: '#F0D875', bb: 'rgba(212,175,55,0.15)' },
+  obsidian:          { bg: ['#1C1C1C','#121212','#050505'], bc: '#B0BEC5', tc: '#ECEFF1', sc: '#B0BEC5', ic: '#90A4AE', bb: 'rgba(176,190,197,0.14)' },
+  emerald_crown:     { bg: ['#003D33','#00695C','#00897B'], bc: '#D4AF37', tc: '#FFFFFF', sc: '#A7FFEB', ic: '#B2DFDB', bb: 'rgba(212,175,55,0.18)' },
+  texas_burnt_orange: { bg: ['#BF5700','#9E4500','#6D3000'], bc: '#FFFFFF', tc: '#FFFFFF', sc: '#FFCCBC', ic: '#FFE0B2', bb: 'rgba(255,255,255,0.16)' },
+  texas_whiteout:    { bg: ['#FFFFFF','#F5F5F5','#EEEEEE'], bc: '#BF5700', tc: '#BF5700', sc: '#5D4037', ic: '#8D4E37', bb: 'rgba(191,87,0,0.08)' },
+  texas_night_game:  { bg: ['#0D1117','#161B22','#1F2937'], bc: '#BF5700', tc: '#BF5700', sc: '#9CA3AF', ic: '#D1D5DB', bb: 'rgba(191,87,0,0.12)' },
+};
+const DEFAULT_THEME_ID = 'deep_teal';
+
+function resolveCourtesyTheme(themeId) {
+  return THEME_TABLE[themeId] || THEME_TABLE[DEFAULT_THEME_ID];
+}
 
 function acceptLanguageIsSpanish(acceptLanguage) {
   return acceptLanguageHeaderIsSpanish(acceptLanguage);
 }
 
 function buildExpiredHtml(isEs) {
+  const dt = THEME_TABLE[DEFAULT_THEME_ID];
   const title = isEs ? 'Card-Social — Acceso expirado' : 'Card-Social — Access expired';
   const msg = isEs
     ? 'Acceso expirado. Contacta a quien te compartió el enlace para un código nuevo.'
@@ -23,16 +41,16 @@ function buildExpiredHtml(isEs) {
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <meta name="theme-color" content="${BG}"/>
+  <meta name="theme-color" content="${dt.bg[0]}"/>
   <title>${title}</title>
   <style>
     * { box-sizing: border-box; }
     body {
       margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
-      background: ${BG}; color: ${GOLD}; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: linear-gradient(180deg, ${dt.bg[0]}, ${dt.bg[1]}, ${dt.bg[2]}); color: ${dt.tc}; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
       padding: 24px; text-align: center;
     }
-    p { max-width: 24rem; line-height: 1.5; font-size: 1.05rem; border: 1px solid ${GOLD_DIM}; border-radius: 14px; padding: 22px 18px; }
+    p { max-width: 24rem; line-height: 1.5; font-size: 1.05rem; border: 1px solid ${dt.bc}; border-radius: 14px; padding: 22px 18px; }
   </style>
 </head>
 <body>
@@ -51,6 +69,7 @@ function buildExpiredHtml(isEs) {
 function buildValidCourtesyPageHtml(opts) {
   const { token, expiresAtIso, isEs, apiPrefix } = opts;
   const apiBase = String(apiPrefix || '').replace(/\/+$/, '');
+  const dt = THEME_TABLE[DEFAULT_THEME_ID];
 
   const t = {
     title: isEs ? 'Card-Social' : 'Card-Social',
@@ -73,101 +92,97 @@ function buildValidCourtesyPageHtml(opts) {
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-  <meta name="theme-color" content="${BG}"/>
+  <meta name="theme-color" content="${dt.bg[0]}"/>
   <title>${t.title}</title>
   <style>
+    :root {
+      --bg0: ${dt.bg[0]}; --bg1: ${dt.bg[1]}; --bg2: ${dt.bg[2]};
+      --bc: ${dt.bc}; --tc: ${dt.tc}; --sc: ${dt.sc}; --ic: ${dt.ic}; --bb: ${dt.bb};
+    }
     * { box-sizing: border-box; }
-    body { margin: 0; background: ${BG}; color: ${GOLD}; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; min-height: 100vh; }
+    body { margin: 0; background: linear-gradient(180deg, var(--bg0), var(--bg1), var(--bg2)); color: var(--tc); font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; min-height: 100vh; transition: background 0.4s; }
     .banner {
       position: sticky; top: 0; z-index: 10;
       text-align: center; padding: 12px 14px; font-weight: 700; font-size: 0.95rem;
-      background: linear-gradient(180deg, rgba(212,175,55,0.18), rgba(0,0,0,0));
-      border-bottom: 1px solid ${GOLD_DIM}; color: ${GOLD};
+      background: linear-gradient(180deg, color-mix(in srgb, var(--bc) 18%, transparent), transparent);
+      border-bottom: 1px solid var(--bc); color: var(--bc);
       letter-spacing: 0.02em;
     }
     .wrap { max-width: 420px; margin: 0 auto; padding: 16px 18px 32px; }
-    /* card shell: clona wireframeLayoutStyles.wireVerticalCard + IsolatedWireframeCard */
     .card {
-      border: 1px solid ${GOLD_DIM};
+      border: 3px solid var(--bc);
       border-radius: 16px;
       overflow: hidden;
       padding: 0;
-      background: linear-gradient(180deg, rgba(212,175,55,0.10) 0%, rgba(0,0,0,0) 55%), #050505;
-      box-shadow: 0 0 0 1px rgba(212,175,55,0.12), 0 12px 40px rgba(0,0,0,0.65);
+      background: linear-gradient(180deg, var(--bg0), var(--bg1), var(--bg2));
+      box-shadow: 0 12px 40px rgba(0,0,0,0.35);
     }
-    /* vertHeader */
     .card-header {
       display: flex; align-items: center; justify-content: center;
       gap: 6px; padding: 6px 8px; font-weight: 700; font-size: 0.82rem;
-      opacity: 0.85; color: ${GOLD};
+      opacity: 0.85; color: var(--tc);
     }
-    /* vertTop: avatar + info */
     .card-top { display: flex; flex-direction: column; padding: 0 8px; }
-    /* vertAvatarBox */
     .avatar-box { display: flex; justify-content: center; padding: 4px 0 10px; }
     .avatar {
       width: 72px; height: 72px;
-      border-radius: 16px; /* 22% of ~72px */
+      border-radius: 16px;
       object-fit: cover;
-      border: 2px solid ${GOLD};
+      border: 2px solid var(--bc);
       display: block;
-      box-shadow: 0 2px 6px rgba(212,175,55,0.35);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
     }
     .avatar-ph {
       width: 72px; height: 72px;
       border-radius: 16px;
-      border: 2px solid ${GOLD};
+      border: 2px solid var(--bc);
       display: flex; align-items: center; justify-content: center;
-      font-size: 1.6rem; background: #111;
-      box-shadow: 0 2px 6px rgba(212,175,55,0.35);
+      font-size: 1.6rem; background: var(--bb);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
     }
-    /* vertInfoBox */
     .card-info { padding: 8px 8px 12px; text-align: center; display: flex; flex-direction: column; gap: 5px; }
-    h1 { margin: 0; font-size: 1.2rem; text-align: center; color: ${GOLD}; font-weight: 800; }
-    .sub { text-align: center; opacity: 0.88; font-size: 0.82rem; margin: 0; }
-    .cn { text-align: center; font-size: 0.88rem; font-weight: 700; margin: 0; color: ${GOLD}; }
-    /* wireStatsRowInline */
+    h1 { margin: 0; font-size: 1.2rem; text-align: center; color: var(--tc); font-weight: 800; }
+    .sub { text-align: center; color: var(--sc); opacity: 0.88; font-size: 0.82rem; margin: 0; }
+    .cn { text-align: center; font-size: 0.88rem; font-weight: 700; margin: 0; color: var(--tc); }
     .stats-row {
       display: flex; flex-direction: row; align-items: center; justify-content: space-between;
       flex-wrap: wrap; gap: 8px; width: 100%; padding: 0 2px; margin: 6px 0 10px;
-      font-size: 0.72rem;
+      font-size: 0.72rem; color: var(--sc);
     }
     .stats-pill {
       display: inline-flex; align-items: center; gap: 4px;
-      border-radius: 999px; border: 1px solid ${GOLD_DIM};
-      background: rgba(212,175,55,0.08); padding: 3px 8px;
-      font-size: 0.72rem; font-weight: 800; color: ${GOLD};
+      border-radius: 999px; border: 1px solid var(--bc);
+      background: var(--bb); padding: 3px 8px;
+      font-size: 0.72rem; font-weight: 800; color: var(--tc);
     }
-    /* vertIconsBox: paddingHorizontal 24px, gap 12px entre filas */
     .slot-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 12px;
       padding: 12px 24px 22px;
     }
-    /* wireIconCell / WireframeSlotTile */
     .slot {
-      border: 1px solid ${GOLD_DIM};
+      border: 1px solid var(--bc);
       border-radius: 12px;
       padding: 10px 6px;
       text-align: center;
       min-height: 72px;
-      background: rgba(255,255,255,0.03);
+      background: var(--bb);
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       cursor: pointer;
     }
-    .slot:focus { outline: 2px solid ${GOLD}; outline-offset: 2px; }
-    .slot-ic { font-size: 1.2rem; margin-bottom: 4px; display: flex; align-items: center; justify-content: center; color: ${GOLD}; }
+    .slot:focus { outline: 2px solid var(--bc); outline-offset: 2px; }
+    .slot-ic { font-size: 1.2rem; margin-bottom: 4px; display: flex; align-items: center; justify-content: center; color: var(--ic); }
     .slot-ic svg { display: block; }
     .slot-ic img { display: block; }
-    .slot-lb { font-size: 0.62rem; color: rgba(212,175,55,0.85); line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .slot-lb { font-size: 0.62rem; color: var(--ic); opacity: 0.85; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .actions { margin-top: 22px; display: flex; flex-direction: column; gap: 10px; }
     .btn {
       display: block; width: 100%; padding: 14px 16px; border-radius: 12px; font-weight: 800; font-size: 0.95rem;
       text-align: center; text-decoration: none; cursor: pointer; border: none;
     }
-    .btn-primary { background: ${GOLD}; color: #0a0a0a; }
-    .btn-ghost { background: transparent; color: ${GOLD}; border: 1px solid ${GOLD_DIM}; }
+    .btn-primary { background: var(--bc); color: var(--bg0); }
+    .btn-ghost { background: transparent; color: var(--bc); border: 1px solid var(--bc); }
     .err { text-align: center; padding: 24px; color: #c44; }
   </style>
 </head>
@@ -189,6 +204,22 @@ function buildValidCourtesyPageHtml(opts) {
   var API_PREFIX = ${safeApi};
   var IS_ES = ${isEs ? 'true' : 'false'};
   var T = ${JSON.stringify(t)};
+  var THEMES = ${JSON.stringify(THEME_TABLE)};
+  var DEFAULT_TID = ${JSON.stringify(DEFAULT_THEME_ID)};
+  function applyTheme(tid) {
+    var th = THEMES[tid] || THEMES[DEFAULT_TID];
+    var r = document.documentElement.style;
+    r.setProperty('--bg0', th.bg[0]);
+    r.setProperty('--bg1', th.bg[1]);
+    r.setProperty('--bg2', th.bg[2]);
+    r.setProperty('--bc', th.bc);
+    r.setProperty('--tc', th.tc);
+    r.setProperty('--sc', th.sc);
+    r.setProperty('--ic', th.ic);
+    r.setProperty('--bb', th.bb);
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.content = th.bg[0];
+  }
   // TODO: reemplazar IOS_URL con el link real de App Store cuando la app esté publicada
   // Ejemplo: 'https://apps.apple.com/app/card-social/id123456789'
   var IOS_URL = 'https://cardsocial.me';
@@ -314,6 +345,7 @@ function buildValidCourtesyPageHtml(opts) {
         return;
       }
       var c = res.j.card;
+      if (c.themeId) applyTheme(c.themeId);
       EXPIRES_AT = c.expiresAt || EXPIRES_AT;
       var photo = c.ownerPhotoUrl ? '<img class="avatar" src="'+esc(c.ownerPhotoUrl)+'" alt=""/>' : '<div class="avatar-ph">★</div>';
       var nickRaw = String(c.ownerNickname || '').trim();
