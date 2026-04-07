@@ -10,6 +10,9 @@ import {
   WIREFRAME_STITCH_GAP,
   WIREFRAME_STITCH_HORIZONTAL_INSET,
 } from '@/lib/wireframeMath';
+
+/** Ancho útil típico del preview (~maxWidth 420 − paddings) hasta que ResizeObserver mida el contenedor; sin esto el grid puede quedar en bubble=0 y no pintar iconos. */
+const WIREFRAME_FALLBACK_USABLE_W = 304;
 import { resolveSlotVisual } from '@/lib/slotVisual';
 import type { SlotIconDef } from '@/lib/slotIcons';
 import { getMirrorVaultOpenPlan, type MirrorOpenPlan } from '@card-social/services/mirrorVaultItemOpenPlan';
@@ -74,7 +77,17 @@ function compactSlotLabel(label: string): string {
     .join(' ');
 }
 
-function SlotGlyph({ visual, size, color }: { visual: { kind: 'url'; url: string } | { kind: 'svg'; def: SlotIconDef }; size: number; color: string }) {
+function SlotGlyph({
+  visual,
+  size,
+  color,
+  onUrlError,
+}: {
+  visual: { kind: 'url'; url: string } | { kind: 'svg'; def: SlotIconDef };
+  size: number;
+  color: string;
+  onUrlError?: () => void;
+}) {
   if (visual.kind === 'url') {
     return (
       <img
@@ -83,6 +96,7 @@ function SlotGlyph({ visual, size, color }: { visual: { kind: 'url'; url: string
         width={size}
         height={size}
         style={{ borderRadius: size / 2, objectFit: 'cover', display: 'block' }}
+        onError={() => onUrlError?.()}
       />
     );
   }
@@ -105,6 +119,7 @@ function WebWireframeSlotTile({
   theme: CardTheme;
   onPress: (slot: PublicSlot) => void;
 }) {
+  const [iconUrlFailed, setIconUrlFailed] = useState(false);
   const bubble = Math.max(26, Math.floor(bubbleSize));
   const iconSize = Math.round(bubble * 0.9);
   const il = theme.iconLabel;
@@ -112,7 +127,11 @@ function WebWireframeSlotTile({
   const labelLineHeight = Math.ceil(labelFontSize * 1.22);
   const minTileH = bubble + 8 + labelLineHeight * 2 + 8 + 6;
   const bubbleR = Math.min(theme.bubble.borderRadius, bubble / 2);
-  const visual = resolveSlotVisual(slot);
+  const baseVisual = resolveSlotVisual(slot);
+  const visual =
+    iconUrlFailed && baseVisual.kind === 'url'
+      ? resolveSlotVisual({ ...slot, icon: null })
+      : baseVisual;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: minTileH, width: bubble }}>
@@ -140,7 +159,12 @@ function WebWireframeSlotTile({
               : {}),
         }}
       >
-        <SlotGlyph visual={visual} size={iconSize} color={theme.icon.color} />
+        <SlotGlyph
+          visual={visual}
+          size={iconSize}
+          color={theme.icon.color}
+          onUrlError={() => setIconUrlFailed(true)}
+        />
       </button>
       <div
         style={{
@@ -240,9 +264,11 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
 
   const layout = card.layout === 'horizontal' ? 'horizontal' : 'vertical';
 
-  const vertUsableW = Math.max(0, vertBox.w - WIREFRAME_STITCH_HORIZONTAL_INSET);
+  const vertMeasuredW = Math.max(0, vertBox.w - WIREFRAME_STITCH_HORIZONTAL_INSET);
+  const vertUsableW =
+    vertMeasuredW > 0 ? vertMeasuredW : slots.length > 0 ? WIREFRAME_FALLBACK_USABLE_W : 0;
   const vertBubble =
-    vertUsableW > 0 && vertBox.h > 0 && rowPlan.length
+    vertUsableW > 0 && rowPlan.length
       ? computeStitchWireframeBubbleSide(
           vertUsableW,
           vertBox.h,
@@ -253,9 +279,11 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
         )
       : 0;
 
-  const horizUsableW = Math.max(0, horizBox.w - WIREFRAME_STITCH_HORIZONTAL_INSET);
+  const horizMeasuredW = Math.max(0, horizBox.w - WIREFRAME_STITCH_HORIZONTAL_INSET);
+  const horizUsableW =
+    horizMeasuredW > 0 ? horizMeasuredW : slots.length > 0 ? WIREFRAME_FALLBACK_USABLE_W : 0;
   const horizBubble =
-    horizUsableW > 0 && horizBox.h > 0 && rowPlan.length
+    horizUsableW > 0 && rowPlan.length
       ? computeStitchWireframeBubbleSide(
           horizUsableW,
           horizBox.h,

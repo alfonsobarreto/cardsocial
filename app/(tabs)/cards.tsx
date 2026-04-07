@@ -74,6 +74,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { BlurView } from 'expo-blur';
+import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
 import { Image as ExpoImage } from 'expo-image';
@@ -98,7 +99,6 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -356,8 +356,12 @@ export default function CardsFactoryScreen() {
   const [tempSelectedIds, setTempSelectedIds] = useState<string[]>([]);
   const [themesPlaceholderVisible, setThemesPlaceholderVisible] = useState(false);
   const [qrToken, setQrToken] = useState('');
+  /** Si no está vacío, el QR codifica esta URL web (acceso universal 24h); si no, JSON in-app (`qrToken`). */
+  const [qrUniversalWebUrl, setQrUniversalWebUrl] = useState('');
   const [qrExpiresAt, setQrExpiresAt] = useState<number>(0);
   const [qrWindowMs, setQrWindowMs] = useState(60000);
+  /** Tarjeta a la que aplica el QR activo (dinámico o web 24h); bloquea otra emisión hasta `qrExpiresAt`. */
+  const [qrActiveCardId, setQrActiveCardId] = useState<string | null>(null);
   const [remainingSec, setRemainingSec] = useState(0);
   const [remainingMs, setRemainingMs] = useState(0);
   const [issuingQr, setIssuingQr] = useState(false);
@@ -525,9 +529,12 @@ export default function CardsFactoryScreen() {
       setRemainingMs(remainingMs);
       const nextRemainingSec = Math.ceil(remainingMs / 1000);
       setRemainingSec(nextRemainingSec);
-      if (remainingMs <= 0 && qrTimerRef.current) {
-        clearInterval(qrTimerRef.current);
-        qrTimerRef.current = null;
+      if (remainingMs <= 0) {
+        setQrActiveCardId(null);
+        if (qrTimerRef.current) {
+          clearInterval(qrTimerRef.current);
+          qrTimerRef.current = null;
+        }
       }
     };
 
@@ -668,6 +675,39 @@ export default function CardsFactoryScreen() {
     }
   };
 
+  /** Payload para `smart_cards` en Mongo (incl. `publicCardSlots` que consume la web del QR24h). */
+  const buildSmartCardDbPayload = (card: SmartCard): SmartCardPayload => {
+    const searchFacets = buildSearchFacetsForSharedCard(vaultItems, card.itemIds);
+    const occ = deriveOwnerOccupationFromFacets(searchFacets).trim();
+    const publicCardSlots = buildPublicCardSlotsForPersist(vaultItems, card.itemIds, iconVaultById);
+    return {
+      cardId: card.id,
+      name: card.name,
+      layout: card.layout,
+      themeId: card.themeId,
+      fontId: card.fontId,
+      fontName: card.fontName,
+      fontFamily: card.fontFamily,
+      fontTier: card.fontTier,
+      wallpaperId: card.wallpaperId,
+      wallpaperUrl: card.wallpaperUrl,
+      wallpaperThumbUrl: card.wallpaperThumbUrl,
+      wallpaperTier: card.wallpaperTier,
+      wallpaperPriceCredits: Number(card.wallpaperPriceCredits || 0),
+      enableParallax: Boolean(card.enableParallax),
+      isFavorite: Boolean(card.isFavorite),
+      itemIds: card.itemIds,
+      holdersCount: Number(card.holdersCount || 0),
+      ratingAvg: Number(card.ratingAvg || 5),
+      ownerDisplayName: (ownerDisplayName || '').trim() || undefined,
+      ownerNickname: (ownerNickname || '').trim() || undefined,
+      ownerPhotoUrl,
+      ownerOccupation: occ || undefined,
+      searchFacets,
+      publicCardSlots,
+    };
+  };
+
   const persistCards = async (nextCards: SmartCard[], changedCardIds?: string[]) => {
     console.log('[Card] persistCards: INICIO');
     const normalized = dedupeSmartCardsById(nextCards);
@@ -694,38 +734,9 @@ export default function CardsFactoryScreen() {
 
       for (const card of cardsToSync) {
         console.log('[Card] persistCards: Antes de upsertSmartCardInDb', card.id);
-        const searchFacets = buildSearchFacetsForSharedCard(vaultItems, card.itemIds);
-        const occ = deriveOwnerOccupationFromFacets(searchFacets).trim();
-        const publicCardSlots = buildPublicCardSlotsForPersist(vaultItems, card.itemIds, iconVaultById);
-        const cardPayload: SmartCardPayload = {
-          cardId: card.id,
-          name: card.name,
-          layout: card.layout,
-          themeId: card.themeId,
-          fontId: card.fontId,
-          fontName: card.fontName,
-          fontFamily: card.fontFamily,
-          fontTier: card.fontTier,
-          wallpaperId: card.wallpaperId,
-          wallpaperUrl: card.wallpaperUrl,
-          wallpaperThumbUrl: card.wallpaperThumbUrl,
-          wallpaperTier: card.wallpaperTier,
-          wallpaperPriceCredits: Number(card.wallpaperPriceCredits || 0),
-          enableParallax: Boolean(card.enableParallax),
-          isFavorite: Boolean(card.isFavorite),
-          itemIds: card.itemIds,
-          holdersCount: Number(card.holdersCount || 0),
-          ratingAvg: Number(card.ratingAvg || 5),
-          ownerDisplayName: (ownerDisplayName || '').trim() || undefined,
-          ownerNickname: (ownerNickname || '').trim() || undefined,
-          ownerPhotoUrl,
-          ownerOccupation: occ || undefined,
-          searchFacets,
-          publicCardSlots,
-        };
         await upsertSmartCardInDb({
           ownerUid,
-          card: cardPayload,
+          card: buildSmartCardDbPayload(card),
         });
         console.log('[Card] persistCards: Después de upsertSmartCardInDb', card.id);
       }
@@ -1298,6 +1309,18 @@ export default function CardsFactoryScreen() {
         return;
       }
 
+      // Mismo QR dinámico (app↔app) aún válido: solo reabrir modal con countdown, sin nueva emisión.
+      if (
+        qrActiveCardId === card.id &&
+        qrExpiresAt > Date.now() &&
+        Boolean(qrToken) &&
+        !qrUniversalWebUrl
+      ) {
+        setSelectedCard(card);
+        setQrVisible(true);
+        return;
+      }
+
       setIssuingQr(true);
       setQrBusinessContext(null);
       setSelectedCard(card);
@@ -1321,9 +1344,11 @@ export default function CardsFactoryScreen() {
         cardId: card.id,
         exp: nextExpiresAt,
       });
+      setQrUniversalWebUrl('');
       setQrToken(qrJson);
       setQrExpiresAt(nextExpiresAt);
       setQrWindowMs(visibleWindowMs);
+      setQrActiveCardId(card.id);
       setQrVisible(true);
     } catch (error: any) {
       const rawMessage = String(error?.message || '');
@@ -1386,28 +1411,60 @@ export default function CardsFactoryScreen() {
     );
   };
 
-  const issueAndShareUniversalLink = async (card: SmartCard) => {
+  /** QR web ~24h: si ya hay uno vigente para esta tarjeta, solo muestra modal + countdown; si no, lo crea. */
+  const openOrCreateUniversalQrForCard = async (card: SmartCard) => {
     if (issuingUniversalLink) return;
+
+    const universalStillValid =
+      qrActiveCardId === card.id && qrExpiresAt > Date.now() && Boolean(qrUniversalWebUrl);
+
+    if (universalStillValid) {
+      setQrBusinessContext(null);
+      setSelectedCard(card);
+      setQrVisible(true);
+      void (async () => {
+        try {
+          const uid = await getActiveUserId();
+          if (uid) {
+            await upsertSmartCardInDb({ ownerUid: uid, card: buildSmartCardDbPayload(card) });
+          }
+        } catch {
+          // Mejor esfuerzo: el enlace ya existía; la web puede seguir mostrando un snapshot antiguo si falla la red.
+        }
+      })();
+      return;
+    }
+
     try {
-      const authenticated = await hardLockCheck(tr('compartir enlace de tarjeta', 'share card link'));
+      const authenticated = await hardLockCheck(tr('QR web 24 h de tarjeta', '24h web QR for card'));
       if (!authenticated) return;
       setIssuingUniversalLink(true);
       const ownerUid = await getActiveUserId();
       if (!ownerUid) throw new Error(tr('No se pudo obtener tu sesión.', 'Could not get your session.'));
+      // La web lee `publicCardSlots` desde Mongo; sin este upsert el enlace puede abrirse vacío aunque la app muestre la bóveda local.
+      await upsertSmartCardInDb({ ownerUid, card: buildSmartCardDbPayload(card) });
       const result = await issueTemporaryUniversalAccess({ ownerUid, cardId: card.id });
       const url = result.universalUrl;
       if (!url) throw new Error(tr('No se recibió el enlace del servidor.', 'No link received from server.'));
-      await Share.share({
-        message: tr(
-          `Mira mi tarjeta en Card-Social:\n${url}`,
-          `Check out my Card-Social card:\n${url}`
-        ),
-        url,
-      });
+      const parsedExpiresAt = Date.parse(String(result.expiresAt || ''));
+      const ttlMs = Math.max(1, Number(result.ttlSec || 86400)) * 1000;
+      const nextExpiresAt = Number.isFinite(parsedExpiresAt)
+        ? parsedExpiresAt
+        : Date.now() + ttlMs;
+      const visibleWindowMs = Math.max(1000, nextExpiresAt - Date.now());
+
+      setQrBusinessContext(null);
+      setSelectedCard(card);
+      setQrToken('');
+      setQrUniversalWebUrl(url);
+      setQrExpiresAt(nextExpiresAt);
+      setQrWindowMs(visibleWindowMs);
+      setQrActiveCardId(card.id);
+      setQrVisible(true);
     } catch (error: any) {
       const msg = String(error?.message || '');
       if (msg && !msg.includes('cancel')) {
-        Alert.alert(tr('Error al compartir', 'Share error'), msg);
+        Alert.alert(tr('Error de QR web', 'Web QR error'), msg);
       }
     } finally {
       setIssuingUniversalLink(false);
@@ -1436,7 +1493,9 @@ export default function CardsFactoryScreen() {
       });
       setSelectedCard(null);
       setQrToken('');
+      setQrUniversalWebUrl('');
       setQrExpiresAt(0);
+      setQrActiveCardId(null);
       setRemainingMs(0);
       setRemainingSec(0);
       setQrVisible(true);
@@ -1603,12 +1662,18 @@ export default function CardsFactoryScreen() {
     if (qrBusinessContext) {
       return generatePermanentBusinessLink(qrBusinessContext.cardId, qrBusinessContext.ownerUid);
     }
-    if (!selectedCard || !qrToken) {
+    if (!selectedCard) {
       return '';
     }
-    // qrToken holds JSON {kind, token, cardId, exp} para escaneo in-app (60s-2min)
+    if (qrUniversalWebUrl) {
+      return qrUniversalWebUrl;
+    }
+    if (!qrToken) {
+      return '';
+    }
+    // qrToken: JSON {kind, token, cardId, exp} para escaneo in-app
     return qrToken;
-  }, [selectedCard, qrToken, qrBusinessContext]);
+  }, [selectedCard, qrToken, qrUniversalWebUrl, qrBusinessContext]);
 
   const remainingPercent = useMemo(() => {
     if (qrBusinessContext || qrWindowMs <= 0) {
@@ -3609,25 +3674,62 @@ export default function CardsFactoryScreen() {
             style={styles.qrModalLuxuryOuter}
           >
             <View style={[styles.qrModalInner, { backgroundColor: cardsTheme.modalBg }]}>
-              <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle }]}>
-                {qrBusinessContext
-                  ? qrBusinessContext.businessName
-                  : selectedCard?.name || 'Smart Card'}
-              </Text>
+              {!qrBusinessContext && qrUniversalWebUrl ? (
+                <View style={styles.qrModalTitleRow}>
+                  <Text
+                    style={[styles.factoryTitle, styles.qrModalTitleText, { color: cardsTheme.modalTitle }]}
+                    numberOfLines={2}
+                  >
+                    {selectedCard?.name || 'Smart Card'}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={async () => {
+                      try {
+                        await Clipboard.setStringAsync(qrUniversalWebUrl);
+                        Toast.show({
+                          type: 'success',
+                          text1: tr('Enlace copiado', 'Link copied'),
+                          text2: tr('Pégalo donde quieras compartirlo.', 'Paste it wherever you want to share.'),
+                        });
+                      } catch {
+                        Toast.show({
+                          type: 'error',
+                          text1: tr('No se pudo copiar', 'Could not copy'),
+                        });
+                      }
+                    }}
+                    hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={tr('Copiar enlace', 'Copy link')}
+                  >
+                    <MaterialCommunityIcons name="content-copy" size={22} color={cardsTheme.tint} />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle }]}>
+                  {qrBusinessContext
+                    ? qrBusinessContext.businessName
+                    : selectedCard?.name || 'Smart Card'}
+                </Text>
+              )}
               <Text style={[styles.qrSubtitle, { color: cardsTheme.modalSubtitle }]}>
                 {qrBusinessContext
                   ? tr('QR permanente (no caduca)', 'Permanent QR (does not expire)')
-                  : tr('QR dinámico · válido 2 minutos', 'Dynamic QR · valid 2 minutes')}
+                  : qrUniversalWebUrl
+                    ? tr('Enlace web · válido 24 h (aprox.)', 'Web link · valid ~24 h')
+                    : tr('QR dinámico · válido 2 minutos', 'Dynamic QR · valid 2 minutes')}
               </Text>
 
               {qrBusinessContext ? null : (
                 <View style={styles.countdownWrap}>
                   <Text style={[styles.countdownText, { color: cardsTheme.text }]}>
-                    {remainingSec > 0
-                      ? remainingSec >= 60
-                        ? `${Math.floor(remainingSec / 60)}:${String(remainingSec % 60).padStart(2, '0')}`
-                        : `${remainingSec}s`
-                      : tr('Expirado', 'Expired')}
+                    {remainingSec <= 0
+                      ? tr('Expirado', 'Expired')
+                      : remainingSec >= 3600
+                        ? `${Math.floor(remainingSec / 3600)}h ${Math.floor((remainingSec % 3600) / 60)}m`
+                        : remainingSec >= 60
+                          ? `${Math.floor(remainingSec / 60)}:${String(remainingSec % 60).padStart(2, '0')}`
+                          : `${remainingSec}s`}
                   </Text>
                   <View style={[styles.progressTrack, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(28,28,30,0.08)' }]}>
                     <View style={[styles.progressFill, { width: `${remainingPercent * 100}%`, backgroundColor: cardsTheme.tint }]} />
@@ -3690,38 +3792,98 @@ export default function CardsFactoryScreen() {
                 </TouchableOpacity>
               ) : (
                 <>
-                  <TouchableOpacity
-                    style={[styles.ghostBtn, { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder }]}
+                  <Pressable
+                    disabled={issuingQr}
+                    style={({ pressed }) => [
+                      styles.ghostBtn,
+                      {
+                        borderColor: pressed ? cardsTheme.btnPrimary : cardsTheme.modalBorder,
+                        backgroundColor: pressed ? cardsTheme.btnPrimary : cardsTheme.btnGhost,
+                        opacity: issuingQr ? 0.45 : 1,
+                      },
+                    ]}
                     onPress={() => {
                       if (selectedCard) {
                         confirmAndIssueQrForCard(selectedCard);
                       }
                     }}
                   >
-                    <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>{tr('Nuevo QR', 'New QR')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary }]}
+                    {({ pressed }) => (
+                      <Text
+                        style={[
+                          styles.ghostBtnText,
+                          { color: pressed ? cardsTheme.btnPrimaryText : cardsTheme.btnGhostText },
+                        ]}
+                      >
+                        {tr('Nuevo QR', 'New QR')}
+                      </Text>
+                    )}
+                  </Pressable>
+                  <Pressable
+                    disabled={issuingUniversalLink}
+                    style={({ pressed }) => [
+                      styles.ghostBtn,
+                      {
+                        borderColor: issuingUniversalLink
+                          ? cardsTheme.modalBorder
+                          : pressed
+                            ? cardsTheme.btnPrimary
+                            : cardsTheme.modalBorder,
+                        backgroundColor: issuingUniversalLink
+                          ? cardsTheme.btnGhost
+                          : pressed
+                            ? cardsTheme.btnPrimary
+                            : cardsTheme.btnGhost,
+                        opacity: issuingUniversalLink ? 0.45 : 1,
+                      },
+                    ]}
                     onPress={() => {
                       if (selectedCard) {
-                        void issueAndShareUniversalLink(selectedCard);
+                        void openOrCreateUniversalQrForCard(selectedCard);
                       }
                     }}
-                    disabled={issuingUniversalLink}
                   >
-                    <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>
-                      {issuingUniversalLink ? tr('Generando…', 'Generating…') : tr('🔗 Link 24h', '🔗 24h Link')}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.ghostBtn, { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder }]}
+                    {({ pressed }) => (
+                      <Text
+                        style={[
+                          styles.ghostBtnText,
+                          {
+                            color: issuingUniversalLink
+                              ? cardsTheme.btnGhostText
+                              : pressed
+                                ? cardsTheme.btnPrimaryText
+                                : cardsTheme.btnGhostText,
+                          },
+                        ]}
+                      >
+                        {issuingUniversalLink ? tr('Generando…', 'Generating…') : tr('QR24h', 'QR24h')}
+                      </Text>
+                    )}
+                  </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.ghostBtn,
+                      {
+                        borderColor: pressed ? cardsTheme.btnPrimary : cardsTheme.modalBorder,
+                        backgroundColor: pressed ? cardsTheme.btnPrimary : cardsTheme.btnGhost,
+                      },
+                    ]}
                     onPress={() => {
                       setQrVisible(false);
                       setQrBusinessContext(null);
                     }}
                   >
-                    <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>{tr('Cerrar', 'Close')}</Text>
-                  </TouchableOpacity>
+                    {({ pressed }) => (
+                      <Text
+                        style={[
+                          styles.ghostBtnText,
+                          { color: pressed ? cardsTheme.btnPrimaryText : cardsTheme.btnGhostText },
+                        ]}
+                      >
+                        {tr('Cerrar', 'Close')}
+                      </Text>
+                    )}
+                  </Pressable>
                 </>
               )}
               </View>
@@ -4712,6 +4874,19 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
     width: '100%',
+  },
+  qrModalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    width: '100%',
+    marginBottom: 8,
+    paddingHorizontal: 2,
+  },
+  qrModalTitleText: {
+    flex: 1,
+    marginBottom: 0,
+    textAlign: 'left',
   },
   qrModalActions: {
     marginTop: 16,

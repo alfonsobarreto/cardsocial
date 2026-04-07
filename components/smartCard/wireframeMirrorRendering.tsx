@@ -100,6 +100,10 @@ export function renderWireframeMiniIcon(
 /**
  * Preview modal / web: favicon en cuadrado redondeado (no círculo inscrito) para no dejar “anillo” vacío en el bubble.
  * Glifo Material sigue a tamaño `size` (≈ 0.9 × bubble desde `WireframeSlotTile`).
+ *
+ * URLs: el `borderRadius` va en un `View` con `overflow: 'hidden'` (no en la `ExpoImage`); en Android,
+ * radio en la imagen nativa recorta mal el píxel superior. `contentFit="contain"` evita el recorte
+ * agresivo del default (`cover`) que en nativo no coincide con el `<img objectFit="cover">` del navegador.
  */
 export function renderWireframeMirrorMiniIcon(
   item: WireframeVaultItem | null | undefined,
@@ -116,11 +120,23 @@ export function renderWireframeMirrorMiniIcon(
     }
     if (item.icon?.startsWith('http')) {
       return (
-        <ExpoImage
-          source={{ uri: item.icon }}
-          style={{ width: size, height: size, borderRadius: imgRadius }}
-          cachePolicy="disk"
-        />
+        <View
+          style={{
+            width: size,
+            height: size,
+            borderRadius: imgRadius,
+            overflow: 'hidden',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <ExpoImage
+            source={{ uri: item.icon }}
+            style={{ width: size, height: size }}
+            contentFit="contain"
+            cachePolicy="disk"
+          />
+        </View>
       );
     }
     const safeIconName = resolveMaterialGlyphFromVaultLikeFields(item, iconVaultById ?? null);

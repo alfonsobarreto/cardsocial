@@ -57,6 +57,11 @@ function iconNameToTypeKey(iconName: string): string {
     certificate: 'link',
     presentation: 'link',
     gmail: 'email',
+    yahoo: 'website',
+    microsoftoutlook: 'email',
+    outlook: 'email',
+    phoneclassic: 'phone',
+    helpcircle: 'default',
   };
   return alias[raw] || raw;
 }

@@ -234,6 +234,7 @@ export function MyCardsPreviewModal({
             renderSlotContent={renderSlotContent}
             renderDetailedRatingStars={renderWireframeMirrorRatingStars}
             tr={tr}
+            mirrorStatsCapsuleScale={variant === 'issuer' ? 0.8 : 1}
           />
         ) : null}
       </SmartCardMirrorModal>

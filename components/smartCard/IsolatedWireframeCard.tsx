@@ -56,6 +56,8 @@ export type IsolatedWireframeCardProps = {
   ) => React.ReactNode;
   renderDetailedRatingStars: (rating: number, starSize: number, starColor: string) => React.ReactNode;
   tr: (es: string, en: string) => string;
+  /** Solo modo espejo (modal): escala 0–1 de la cápsula de rating (estrellas + texto + paddings). Ej. 0.8 = 4/5. */
+  mirrorStatsCapsuleScale?: number;
 };
 
 export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
@@ -78,6 +80,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
     renderSlotContent,
     renderDetailedRatingStars,
     tr,
+    mirrorStatsCapsuleScale,
   } = props;
 
   const [vertAvatarBoxH, setVertAvatarBoxH] = useState(0);
@@ -105,52 +108,77 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
 
   /** Modal / espejo: alineado con web (`WireframeUniversalCard`): cabecera compacta, cápsula de rating, rejilla centrada. */
   const mirror = !editable;
+  const mStatsScale = mirror ? (mirrorStatsCapsuleScale ?? 1) : 1;
   const thin = mirror ? { fontWeight: '300' as const } : {};
   const iconsBoxMirror = mirror ? { marginTop: 12 } : {};
   const MIRROR_AVATAR = 96;
   const MIRROR_AVATAR_R = 21;
 
-  const renderMirrorStatsCapsule = (
-    starSize: number,
-    captionSize: number,
-    holdersIconSize: number,
-  ) => (
-    <View style={{ width: '100%', marginTop: 6, paddingHorizontal: 4 }}>
+  const renderMirrorStatsCapsule = (starSizeBase: number, captionSizeBase: number) => {
+    const s = mStatsScale;
+    const starSize = Math.max(12, Math.round(starSizeBase * s));
+    const captionSize = Math.max(7, Math.round(captionSizeBase * s));
+    /** Icono persona = estrellas; la cifra a 3/4 de ese tamaño (antes iba 4/4 y competía con el icono). */
+    const holdersIconSize = starSize;
+    const holdersCountFontSize = Math.max(10, Math.round(holdersIconSize * 0.75));
+    return (
       <View
         style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderRadius: 999,
-          backgroundColor: 'rgba(255,255,255,0.12)',
-          borderWidth: Math.max(1, bd.width),
-          borderColor: bd.color,
-          paddingVertical: 10,
-          paddingHorizontal: 14,
+          width: '100%',
+          marginTop: Math.max(4, Math.round(6 * s)),
+          paddingHorizontal: Math.max(2, Math.round(4 * s)),
         }}
       >
-        <View style={{ flex: 1, alignItems: 'center', gap: 3, minWidth: 0 }}>
-          {renderDetailedRatingStars(dispStarsValue, starSize, iconMeta.color)}
-          <Text
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderRadius: 999,
+            backgroundColor: 'rgba(255,255,255,0.12)',
+            borderWidth: Math.max(1, bd.width),
+            borderColor: bd.color,
+            paddingVertical: Math.max(6, Math.round(10 * s)),
+            paddingHorizontal: Math.max(8, Math.round(14 * s)),
+          }}
+        >
+          <View
             style={{
-              color: extraStyle.color,
-              fontSize: captionSize,
-              fontWeight: '300',
-              fontStyle: extraStyle.fontStyle,
-              textAlign: 'center',
+              flex: 1,
+              alignItems: 'center',
+              gap: Math.max(2, Math.round(3 * s)),
+              minWidth: 0,
             }}
-            numberOfLines={1}
           >
-            {dispStarsValue.toFixed(1)} · {dispReviewCount} {tr('reseñas', 'reviews')}
-          </Text>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingLeft: 6 }}>
-          <MaterialCommunityIcons name="account-outline" size={holdersIconSize} color={iconMeta.color} />
-          <Text style={{ color: titleStyle.color, fontSize: holdersIconSize, fontWeight: '300' }}>{dispHolders}</Text>
+            {renderDetailedRatingStars(dispStarsValue, starSize, iconMeta.color)}
+            <Text
+              style={{
+                color: extraStyle.color,
+                fontSize: captionSize,
+                fontWeight: '300',
+                fontStyle: extraStyle.fontStyle,
+                textAlign: 'center',
+              }}
+              numberOfLines={1}
+            >
+              {dispStarsValue.toFixed(1)} · {dispReviewCount} {tr('reseñas', 'reviews')}
+            </Text>
+          </View>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: Math.max(3, Math.round(4 * s)),
+              paddingLeft: Math.max(4, Math.round(6 * s)),
+            }}
+          >
+            <MaterialCommunityIcons name="account-outline" size={holdersIconSize} color={iconMeta.color} />
+            <Text style={{ color: titleStyle.color, fontSize: holdersCountFontSize, fontWeight: '300' }}>{dispHolders}</Text>
+          </View>
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   if (layout === 'horizontal') {
     const H_PAD = 8;
@@ -254,7 +282,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
               {dispSub}
             </Text>
             {mirror ? (
-              renderMirrorStatsCapsule(hWireStarSize, hReviewCaptionSize, 11)
+              renderMirrorStatsCapsule(hWireStarSize, hReviewCaptionSize)
             ) : (
               <View style={wf.wireStatsRowInline}>
                 <View style={wf.wireStatsRatingStack}>
@@ -444,7 +472,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
                 {dispSub}
               </Text>
             ) : null}
-            {renderMirrorStatsCapsule(24, 9, 11)}
+            {renderMirrorStatsCapsule(24, 9)}
           </View>
         </View>
       ) : (
@@ -531,9 +559,10 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
                 flexGrow: 1,
                 minHeight: 200,
                 marginTop: 12,
-                paddingTop: 2,
+                /** `flex-start`: igual que edición; `center` + overflow:hidden recortaba la fila superior al centrar rejillas altas (3–4 filas). */
+                paddingTop: 10,
                 paddingBottom: 22,
-                justifyContent: 'center',
+                justifyContent: 'flex-start',
               }
             : iconsBoxMirror,
         ]}
@@ -544,7 +573,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
             wf.wireIconGridRoot,
             wf.wireVertIconGridRoot,
             !editable && { paddingHorizontal: vGridInset / 2 },
-            mirror && { flex: 0, flexGrow: 0, justifyContent: 'center' },
+            mirror && { flex: 0, flexGrow: 0, justifyContent: 'flex-start' },
           ]}
           onLayout={(e) => {
             const lw = e.nativeEvent.layout.width;
