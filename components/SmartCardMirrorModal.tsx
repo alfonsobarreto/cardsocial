@@ -48,7 +48,7 @@ const shellStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   ghostBtnText: {
-    fontWeight: '700',
+    fontWeight: '400',
   },
   saveBtn: {
     flex: 1,
@@ -58,7 +58,7 @@ const shellStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   saveBtnText: {
-    fontWeight: '700',
+    fontWeight: '400',
   },
 });
 

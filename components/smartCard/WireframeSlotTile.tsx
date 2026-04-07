@@ -134,7 +134,7 @@ export function WireframeSlotTile({
               fontSize: previewLabelSize,
               lineHeight: previewLineH,
               color: il.color,
-              fontWeight: il.fontWeight,
+              fontWeight: '300',
               fontStyle: il.fontStyle,
             },
           ]}

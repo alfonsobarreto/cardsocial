@@ -103,6 +103,13 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
   const extraStyle = theme.extraText;
   const iconMeta = theme.icon;
 
+  /** Modal / espejo: sin negritas, peso fino; más margen entre valoraciones e iconos. */
+  const mirror = !editable;
+  const thin = mirror ? { fontWeight: '300' as const } : {};
+  const statsRowMirror = mirror ? { marginTop: 14, marginBottom: 28 } : {};
+  const iconsBoxMirror = mirror ? { marginTop: 24 } : {};
+  const ratingStackMirror = mirror ? { gap: 6 as const } : {};
+
   if (layout === 'horizontal') {
     const H_PAD = 8;
     const horizAvatarSide = horizAvatarBoxLayout.h > 0 ? horizAvatarBoxLayout.h - H_PAD * 2 : 0;
@@ -157,7 +164,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
         <View style={wf.wireCardContentInset}>
         <View style={wf.horizHeader} onLayout={(e) => setHorizHeaderH(e.nativeEvent.layout.height)}>
           <Image source={require('../../assets/images/CS Icon Logo.png')} style={{ width: hBrandLogoSize, height: hBrandLogoSize }} />
-          <Text style={[wf.horizBrandingText, { color: subStyle.color, fontSize: hBrandFontSize }]}>Card-Social</Text>
+          <Text style={[wf.horizBrandingText, { color: subStyle.color, fontSize: hBrandFontSize }, thin]}>Card-Social</Text>
         </View>
 
         <View style={wf.horizMiddleRow}>
@@ -201,14 +208,14 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
             style={wf.horizInfoBox}
             onLayout={(e) => setHorizInfoBoxLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
           >
-            <Text style={[wf.horizName, { color: titleStyle.color, fontSize: hNameFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
+            <Text style={[wf.horizName, { color: titleStyle.color, fontSize: hNameFontSize }, thin]} numberOfLines={1} adjustsFontSizeToFit>
               {dispName}
             </Text>
-            <Text style={[wf.horizNick, { color: subStyle.color, fontSize: hNickFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
+            <Text style={[wf.horizNick, { color: subStyle.color, fontSize: hNickFontSize }, thin]} numberOfLines={1} adjustsFontSizeToFit>
               {dispSub}
             </Text>
-            <View style={wf.wireStatsRowInline}>
-              <View style={wf.wireStatsRatingStack}>
+            <View style={[wf.wireStatsRowInline, statsRowMirror]}>
+              <View style={[wf.wireStatsRatingStack, ratingStackMirror]}>
                 {renderDetailedRatingStars(dispStarsValue, hWireStarSize, iconMeta.color)}
                 <Text
                   style={[
@@ -216,7 +223,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
                     {
                       color: extraStyle.color,
                       fontSize: hReviewCaptionSize,
-                      fontWeight: extraStyle.fontWeight,
+                      fontWeight: mirror ? '300' : extraStyle.fontWeight,
                       fontStyle: extraStyle.fontStyle,
                       textAlign: 'center',
                     },
@@ -228,14 +235,14 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
               </View>
               <View style={[wf.wireUsersPill, { borderColor: bd.color, backgroundColor: theme.bubble.backgroundColor }]}>
                 <MaterialCommunityIcons name="account-outline" size={hStatsFontSize} color={iconMeta.color} />
-                <Text style={[wf.wireUsersPillText, { color: titleStyle.color, fontSize: hStatsFontSize }]}>{dispHolders}</Text>
+                <Text style={[wf.wireUsersPillText, { color: titleStyle.color, fontSize: hStatsFontSize }, thin]}>{dispHolders}</Text>
               </View>
             </View>
           </View>
         </View>
 
         <View
-          style={wf.horizIconsBox}
+          style={[wf.horizIconsBox, iconsBoxMirror]}
           onLayout={(e) => setHorizIconGridLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
         >
           <View
@@ -324,7 +331,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
       <View style={wf.wireCardContentInset}>
       <View style={wf.vertHeader} onLayout={(e) => setVertHeaderH(e.nativeEvent.layout.height)}>
         <Image source={require('../../assets/images/CS Icon Logo.png')} style={{ width: brandLogoSize, height: brandLogoSize }} />
-        <Text style={[wf.vertBrandingText, { color: subStyle.color, fontSize: brandFontSize }]}>Card-Social</Text>
+        <Text style={[wf.vertBrandingText, { color: subStyle.color, fontSize: brandFontSize }, thin]}>Card-Social</Text>
       </View>
 
       <View style={wf.vertTop}>
@@ -367,14 +374,14 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
         </View>
 
         <View style={wf.vertInfoBox} onLayout={(e) => setVertInfoBoxLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-          <Text style={[wf.vertName, { color: titleStyle.color, fontSize: nameFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
+          <Text style={[wf.vertName, { color: titleStyle.color, fontSize: nameFontSize }, thin]} numberOfLines={1} adjustsFontSizeToFit>
             {dispName}
           </Text>
-          <Text style={[wf.vertNick, { color: subStyle.color, fontSize: nickFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
+          <Text style={[wf.vertNick, { color: subStyle.color, fontSize: nickFontSize }, thin]} numberOfLines={1} adjustsFontSizeToFit>
             {dispSub}
           </Text>
-          <View style={wf.wireStatsRowInline}>
-            <View style={wf.wireStatsRatingStack}>
+          <View style={[wf.wireStatsRowInline, statsRowMirror]}>
+            <View style={[wf.wireStatsRatingStack, ratingStackMirror]}>
               {renderDetailedRatingStars(dispStarsValue, vWireStarSize, iconMeta.color)}
               <Text
                 style={[
@@ -382,7 +389,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
                   {
                     color: extraStyle.color,
                     fontSize: vReviewCaptionSize,
-                    fontWeight: extraStyle.fontWeight,
+                    fontWeight: mirror ? '300' : extraStyle.fontWeight,
                     fontStyle: extraStyle.fontStyle,
                     textAlign: 'center',
                   },
@@ -394,13 +401,13 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
             </View>
             <View style={[wf.wireUsersPill, { borderColor: bd.color, backgroundColor: theme.bubble.backgroundColor }]}>
               <MaterialCommunityIcons name="account-outline" size={statsFontSize} color={iconMeta.color} />
-              <Text style={[wf.wireUsersPillText, { color: titleStyle.color, fontSize: statsFontSize }]}>{dispHolders}</Text>
+              <Text style={[wf.wireUsersPillText, { color: titleStyle.color, fontSize: statsFontSize }, thin]}>{dispHolders}</Text>
             </View>
           </View>
         </View>
       </View>
 
-      <View style={wf.vertIconsBox} onLayout={(e) => setVertIconGridLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+      <View style={[wf.vertIconsBox, iconsBoxMirror]} onLayout={(e) => setVertIconGridLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
         <View
           style={[wf.wireIconGridRoot, wf.wireVertIconGridRoot, !editable && { paddingHorizontal: vGridInset / 2 }]}
           onLayout={(e) => {
