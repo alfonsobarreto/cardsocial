@@ -203,6 +203,58 @@ function buildPublicCardSlotsForPersist(
   return out.slice(0, 24);
 }
 
+function migrateVaultIconsForStorage(items: any[]) {
+  return items.map((item) => {
+    if (item.iconName === 'alternate-email') return { ...item, iconName: 'email' };
+    if (item.iconName === 'file-presentation') return { ...item, iconName: 'file-document' };
+    if (item.iconName === 'Gmail') return { ...item, iconName: 'gmail' };
+    if (item.iconName === 'Stamp') return { ...item, iconName: 'certificate' };
+    if (item.iconName === 'Classic') return { ...item, iconName: 'card-text' };
+    if (!item.iconName || item.iconName.includes(' ') || item.iconName === '') {
+      return { ...item, iconName: 'link-variant' };
+    }
+    return { ...item, iconName: sanitizeMaterialCommunityIconName(item.iconName) };
+  });
+}
+
+/**
+ * Misma fuente que `loadVaultItems`, pero devuelve datos sin depender del estado React.
+ * QR24h debe usar esto antes del upsert: si `vaultItems` en memoria va vacío, `publicCardSlots` salía [] y la web sin iconos.
+ */
+async function loadVaultSnapshotForSync(ownerUid: string): Promise<{
+  vaultItems: VaultItem[];
+  iconVaultById: Record<string, IconVaultEntry>;
+}> {
+  const raw = await readVaultJsonWithLegacyMigration(ownerUid);
+  let parsed = raw ? (JSON.parse(raw) as any[]) : [];
+  let itemsMigrated = migrateVaultIconsForStorage(parsed);
+  if (JSON.stringify(itemsMigrated) !== JSON.stringify(parsed)) {
+    await AsyncStorage.setItem(vaultStorageKey(ownerUid), JSON.stringify(itemsMigrated));
+  }
+  if (itemsMigrated.length === 0) {
+    try {
+      const cloudSnapshot = await getDocs(collection(db, 'users', ownerUid, 'links'));
+      const cloudItems = cloudSnapshot.docs.map((itemDoc) => ({
+        id: itemDoc.id,
+        ...itemDoc.data(),
+      })) as any[];
+      itemsMigrated = migrateVaultIconsForStorage(cloudItems);
+      await AsyncStorage.setItem(vaultStorageKey(ownerUid), JSON.stringify(itemsMigrated));
+    } catch {
+      /* sin red */
+    }
+  }
+  itemsMigrated = await mergeBuiltinGhostLinkIntoVault(ownerUid, itemsMigrated);
+  let iconMap: Record<string, IconVaultEntry> = {};
+  try {
+    const vaultMap = await getUserIconVaultMap(ownerUid);
+    iconMap = Object.fromEntries(vaultMap);
+  } catch {
+    iconMap = {};
+  }
+  return { vaultItems: itemsMigrated as VaultItem[], iconVaultById: iconMap };
+}
+
 /**
  * Smart Card: la lista pública de datos es solo `itemIds` (subset de la Bóveda).
  * Ítems indelebles en Bóveda (p. ej. Ghost-Link bootstrap / vaultProtected) no se añaden solos a la tarjeta:
@@ -557,45 +609,9 @@ export default function CardsFactoryScreen() {
         setIconVaultById({});
         return;
       }
-      const raw = await readVaultJsonWithLegacyMigration(ownerUid);
-      let parsed = raw ? (JSON.parse(raw) as any[]) : [];
-      const migrateIcons = (items: any[]) =>
-        items.map((item) => {
-          if (item.iconName === 'alternate-email') return { ...item, iconName: 'email' };
-          if (item.iconName === 'file-presentation') return { ...item, iconName: 'file-document' };
-          if (item.iconName === 'Gmail') return { ...item, iconName: 'gmail' };
-          if (item.iconName === 'Stamp') return { ...item, iconName: 'certificate' };
-          if (item.iconName === 'Classic') return { ...item, iconName: 'card-text' };
-          if (!item.iconName || item.iconName.includes(' ') || item.iconName === '') {
-            return { ...item, iconName: 'link-variant' };
-          }
-          return { ...item, iconName: sanitizeMaterialCommunityIconName(item.iconName) };
-        });
-      let itemsMigrated = migrateIcons(parsed);
-      if (JSON.stringify(itemsMigrated) !== JSON.stringify(parsed)) {
-        await AsyncStorage.setItem(vaultStorageKey(ownerUid), JSON.stringify(itemsMigrated));
-      }
-      if (itemsMigrated.length === 0) {
-        try {
-          const cloudSnapshot = await getDocs(collection(db, 'users', ownerUid, 'links'));
-          const cloudItems = cloudSnapshot.docs.map((itemDoc) => ({
-            id: itemDoc.id,
-            ...itemDoc.data(),
-          })) as any[];
-          itemsMigrated = migrateIcons(cloudItems);
-          await AsyncStorage.setItem(vaultStorageKey(ownerUid), JSON.stringify(itemsMigrated));
-        } catch {
-          /* sin red o sin permisos — deja vacío */
-        }
-      }
-      itemsMigrated = await mergeBuiltinGhostLinkIntoVault(ownerUid, itemsMigrated);
-      setVaultItems(itemsMigrated as VaultItem[]);
-      try {
-        const vaultMap = await getUserIconVaultMap(ownerUid);
-        setIconVaultById(Object.fromEntries(vaultMap));
-      } catch {
-        setIconVaultById({});
-      }
+      const snap = await loadVaultSnapshotForSync(ownerUid);
+      setVaultItems(snap.vaultItems);
+      setIconVaultById(snap.iconVaultById);
     } catch {
       setVaultItems([]);
       setIconVaultById({});
@@ -676,10 +692,15 @@ export default function CardsFactoryScreen() {
   };
 
   /** Payload para `smart_cards` en Mongo (incl. `publicCardSlots` que consume la web del QR24h). */
-  const buildSmartCardDbPayload = (card: SmartCard): SmartCardPayload => {
-    const searchFacets = buildSearchFacetsForSharedCard(vaultItems, card.itemIds);
+  const buildSmartCardDbPayload = (
+    card: SmartCard,
+    vaultSnap?: { vaultItems: VaultItem[]; iconVaultById: Record<string, IconVaultEntry> },
+  ): SmartCardPayload => {
+    const vItems = vaultSnap?.vaultItems ?? vaultItems;
+    const vIcons = vaultSnap?.iconVaultById ?? iconVaultById;
+    const searchFacets = buildSearchFacetsForSharedCard(vItems, card.itemIds);
     const occ = deriveOwnerOccupationFromFacets(searchFacets).trim();
-    const publicCardSlots = buildPublicCardSlotsForPersist(vaultItems, card.itemIds, iconVaultById);
+    const publicCardSlots = buildPublicCardSlotsForPersist(vItems, card.itemIds, vIcons);
     return {
       cardId: card.id,
       name: card.name,
@@ -1426,7 +1447,8 @@ export default function CardsFactoryScreen() {
         try {
           const uid = await getActiveUserId();
           if (uid) {
-            await upsertSmartCardInDb({ ownerUid: uid, card: buildSmartCardDbPayload(card) });
+            const snap = await loadVaultSnapshotForSync(uid);
+            await upsertSmartCardInDb({ ownerUid: uid, card: buildSmartCardDbPayload(card, snap) });
           }
         } catch {
           // Mejor esfuerzo: el enlace ya existía; la web puede seguir mostrando un snapshot antiguo si falla la red.
@@ -1441,8 +1463,21 @@ export default function CardsFactoryScreen() {
       setIssuingUniversalLink(true);
       const ownerUid = await getActiveUserId();
       if (!ownerUid) throw new Error(tr('No se pudo obtener tu sesión.', 'Could not get your session.'));
-      // La web lee `publicCardSlots` desde Mongo; sin este upsert el enlace puede abrirse vacío aunque la app muestre la bóveda local.
-      await upsertSmartCardInDb({ ownerUid, card: buildSmartCardDbPayload(card) });
+      // Leer Bóveda desde disco (no solo estado React): si no, publicCardSlots podía ir vacío y la web sin iconos.
+      const vaultSnap = await loadVaultSnapshotForSync(ownerUid);
+      const cardPayload = buildSmartCardDbPayload(card, vaultSnap);
+      if (card.itemIds.length > 0 && (cardPayload.publicCardSlots?.length ?? 0) === 0) {
+        Toast.show({
+          type: 'error',
+          text1: tr('No se sincronizaron los datos públicos', 'Public data did not sync'),
+          text2: tr(
+            'Abre la pestaña Bóveda y vuelve a intentar QR24h, o revisa tu conexión.',
+            'Open the Vault tab and try QR24h again, or check your connection.',
+          ),
+        });
+        return;
+      }
+      await upsertSmartCardInDb({ ownerUid, card: cardPayload });
       const result = await issueTemporaryUniversalAccess({ ownerUid, cardId: card.id });
       const url = result.universalUrl;
       if (!url) throw new Error(tr('No se recibió el enlace del servidor.', 'No link received from server.'));
