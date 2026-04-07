@@ -2,13 +2,13 @@ import { getPreviewModalStackSize } from '@/components/smartCard/wireframeMath';
 import { BlurView } from 'expo-blur';
 import React from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const shellStyles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 14,
   },
   previewModalStack: {
     width: '92%',
@@ -22,7 +22,7 @@ const shellStyles = StyleSheet.create({
     flex: 1,
     minHeight: 0,
     width: '100%',
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1,
     overflow: 'hidden',
     flexDirection: 'column',
@@ -104,12 +104,25 @@ export function SmartCardMirrorModal({
   footer,
   children,
 }: SmartCardMirrorModalProps) {
+  const insets = useSafeAreaInsets();
   const stack = getPreviewModalStackSize(screenHeight, iconSlotCount);
   const c = footer.colors;
+  const overlayPadTop = Math.max(insets.top, 12) + 20;
+  const overlayPadBottom = Math.max(insets.bottom, 16) + 12;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onRequestClose}>
-      <View style={[shellStyles.modalOverlay, { backgroundColor: c.overlay }]}>
+      <View
+        style={[
+          shellStyles.modalOverlay,
+          {
+            backgroundColor: c.overlay,
+            paddingTop: overlayPadTop,
+            paddingBottom: overlayPadBottom,
+            paddingHorizontal: 16,
+          },
+        ]}
+      >
         <BlurView intensity={65} tint={footer.blurTint} style={StyleSheet.absoluteFill} pointerEvents="none" />
         <View style={[shellStyles.previewModalStack, { height: stack.height, maxHeight: stack.maxHeight }]}>
           <View style={[shellStyles.previewModalCard, { borderColor: cardBorder.color, borderWidth: cardBorder.width }]}>

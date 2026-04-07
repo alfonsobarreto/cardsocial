@@ -116,13 +116,14 @@ export function computeStitchWireframeBubbleSide(
   return best;
 }
 
+/** Alineado con la web: tarjeta ~minHeight 520 + banner; el modal necesita altura extra para no aplastar el flex vertical. */
 export function getPreviewModalStackSize(screenH: number, iconSlotCount: number): { height: number; maxHeight: number } {
   const rowCount = Math.max(1, getWireframeIconRowPlan(iconSlotCount).length);
   const threeRows = rowCount >= 3;
-  const fraction = threeRows ? 0.84 : 0.74;
-  const capPx = threeRows ? 800 : 680;
+  const fraction = threeRows ? 0.9 : 0.82;
+  const capPx = threeRows ? 860 : 740;
   return {
     height: Math.min(screenH * fraction, capPx),
-    maxHeight: screenH * 0.92,
+    maxHeight: screenH * 0.94,
   };
 }

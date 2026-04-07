@@ -154,6 +154,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
           />
         ) : null}
 
+        <View style={wf.wireCardContentInset}>
         <View style={wf.horizHeader} onLayout={(e) => setHorizHeaderH(e.nativeEvent.layout.height)}>
           <Image source={require('../../assets/images/CS Icon Logo.png')} style={{ width: hBrandLogoSize, height: hBrandLogoSize }} />
           <Text style={[wf.horizBrandingText, { color: subStyle.color, fontSize: hBrandFontSize }]}>Card-Social</Text>
@@ -266,6 +267,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
             ) : null}
           </View>
         </View>
+        </View>
       </LinearGradient>
     );
   }
@@ -319,6 +321,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
         />
       ) : null}
 
+      <View style={wf.wireCardContentInset}>
       <View style={wf.vertHeader} onLayout={(e) => setVertHeaderH(e.nativeEvent.layout.height)}>
         <Image source={require('../../assets/images/CS Icon Logo.png')} style={{ width: brandLogoSize, height: brandLogoSize }} />
         <Text style={[wf.vertBrandingText, { color: subStyle.color, fontSize: brandFontSize }]}>Card-Social</Text>
@@ -426,6 +429,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
             </View>
           ) : null}
         </View>
+      </View>
       </View>
     </LinearGradient>
   );

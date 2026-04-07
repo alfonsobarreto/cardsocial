@@ -11,12 +11,19 @@ export const wireframeLayoutStyles = StyleSheet.create({
     flex: 1,
     overflow: 'hidden',
   },
+  /** Contenido encima del wallpaper (misma idea que web: padding superior bajo el borde de la tarjeta). */
+  wireCardContentInset: {
+    flex: 1,
+    minHeight: 0,
+    paddingTop: 12,
+  },
   vertHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 6,
     gap: 6,
+    flexShrink: 0,
   },
   vertBrandingText: {
     fontWeight: '700',
@@ -25,6 +32,7 @@ export const wireframeLayoutStyles = StyleSheet.create({
   vertTop: {
     flex: 2.9,
     flexDirection: 'column',
+    minHeight: 0,
   },
   vertAvatarBox: {
     flex: 1.85,
@@ -59,6 +67,7 @@ export const wireframeLayoutStyles = StyleSheet.create({
     paddingBottom: 22,
     justifyContent: 'flex-start',
     overflow: 'hidden',
+    minHeight: 0,
   },
   wireVertIconGridRoot: {
     justifyContent: 'flex-start',
@@ -66,13 +75,13 @@ export const wireframeLayoutStyles = StyleSheet.create({
   wireIconGridRoot: {
     flex: 1,
     width: '100%',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'stretch',
     paddingHorizontal: 24,
   },
   wireIconRowsStack: {
     flexDirection: 'column',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'stretch',
     width: '100%',
     gap: 12,
@@ -103,6 +112,7 @@ export const wireframeLayoutStyles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 6,
     gap: 6,
+    flexShrink: 0,
   },
   horizBrandingText: {
     fontWeight: '700',
@@ -113,6 +123,7 @@ export const wireframeLayoutStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    minHeight: 0,
   },
   horizAvatarBox: {
     flex: 1.2,
@@ -143,6 +154,8 @@ export const wireframeLayoutStyles = StyleSheet.create({
     paddingHorizontal: 0,
     paddingTop: 2,
     paddingBottom: 6,
+    minHeight: 0,
+    overflow: 'hidden',
   },
   wireStatsRowInline: {
     marginTop: 6,
