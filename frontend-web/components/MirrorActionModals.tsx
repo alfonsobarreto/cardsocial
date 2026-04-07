@@ -54,7 +54,7 @@ function Btn({
         border: primary ? 'none' : `1px solid ${accent}80`,
         backgroundColor: primary ? accent : 'transparent',
         color: primary ? '#000' : accent,
-        fontWeight: 700,
+        fontWeight: 400,
         fontSize: 14,
         cursor: 'pointer',
       }}
@@ -122,7 +122,7 @@ export function MirrorActionModals({
     return (
       <div style={overlay} onClick={onClose} role="presentation">
         <div style={sheetStyle} onClick={(e) => e.stopPropagation()} role="dialog">
-          <div style={{ fontWeight: 800, color: accent, marginBottom: 12 }}>{plan.title}</div>
+          <div style={{ fontWeight: 400, color: accent, marginBottom: 12 }}>{plan.title}</div>
           <pre
             style={{
               whiteSpace: 'pre-wrap',
@@ -149,7 +149,7 @@ export function MirrorActionModals({
     return (
       <div style={overlay} onClick={onClose} role="presentation">
         <div style={sheetStyle} onClick={(e) => e.stopPropagation()}>
-          <div style={{ fontWeight: 800, color: accent, marginBottom: 8 }}>{tr('Correo', 'Email')}</div>
+          <div style={{ fontWeight: 400, color: accent, marginBottom: 8 }}>{tr('Correo', 'Email')}</div>
           <div style={{ fontSize: 15, marginBottom: 16 }}>{plan.value}</div>
           <div style={rowBtns}>
             <Btn
@@ -177,7 +177,7 @@ export function MirrorActionModals({
     return (
       <div style={overlay} onClick={onClose} role="presentation">
         <div style={sheetStyle} onClick={(e) => e.stopPropagation()}>
-          <div style={{ fontWeight: 800, color: accent, marginBottom: 8 }}>{tr('Teléfono', 'Phone')}</div>
+          <div style={{ fontWeight: 400, color: accent, marginBottom: 8 }}>{tr('Teléfono', 'Phone')}</div>
           <div style={{ fontSize: 18, marginBottom: 16, fontVariantNumeric: 'tabular-nums' }}>{plan.value}</div>
           <div style={rowBtns}>
             {compact ? (
@@ -210,7 +210,7 @@ export function MirrorActionModals({
     return (
       <div style={overlay} onClick={onClose} role="presentation">
         <div style={sheetStyle} onClick={(e) => e.stopPropagation()}>
-          <div style={{ fontWeight: 800, color: accent, marginBottom: 8 }}>{plan.title}</div>
+          <div style={{ fontWeight: 400, color: accent, marginBottom: 8 }}>{plan.title}</div>
           <div style={{ fontSize: 12, opacity: 0.85, wordBreak: 'break-all', marginBottom: 16 }}>{httpsUrl}</div>
           <div style={rowBtns}>
             <Btn
@@ -266,7 +266,7 @@ export function MirrorActionModals({
           onClick={(e) => e.stopPropagation()}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <div style={{ fontWeight: 800, color: accent }}>{plan.title}</div>
+            <div style={{ fontWeight: 400, color: accent }}>{plan.title}</div>
             <button
               type="button"
               onClick={onClose}
@@ -318,7 +318,7 @@ export function MirrorActionModals({
     return (
       <div style={overlay} onClick={onClose} role="presentation">
         <div style={sheetStyle} onClick={(e) => e.stopPropagation()}>
-          <div style={{ fontWeight: 800, color: accent, marginBottom: 12 }}>Ghost-Link</div>
+          <div style={{ fontWeight: 400, color: accent, marginBottom: 12 }}>Ghost-Link</div>
           <p style={{ fontSize: 14, lineHeight: 1.5, margin: '0 0 16px' }}>
             {tr(
               'Las llamadas privadas Ghost-Link solo están disponibles en la app Card-Social. Tu número real permanece oculto.',

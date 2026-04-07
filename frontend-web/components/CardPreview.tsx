@@ -48,7 +48,7 @@ export default function CardPreview({ card, theme, expiresAt, locale }: Props) {
           textAlign: 'center',
           color: bd.color,
           fontSize: 13,
-          fontWeight: 600,
+          fontWeight: 300,
         }}
       >
         {tr('Acceso temporal', 'Temporary access')}: <span style={{ fontVariantNumeric: 'tabular-nums' }}>{cdStr}</span>{' '}
@@ -69,7 +69,7 @@ export default function CardPreview({ card, theme, expiresAt, locale }: Props) {
             borderRadius: 14,
             backgroundColor: bd.color,
             color: theme.background[0],
-            fontWeight: 800,
+            fontWeight: 400,
             fontSize: 16,
             textDecoration: 'none',
             letterSpacing: 0.3,
@@ -86,7 +86,7 @@ export default function CardPreview({ card, theme, expiresAt, locale }: Props) {
             borderRadius: 14,
             border: `2px solid ${bd.color}`,
             color: bd.color,
-            fontWeight: 700,
+            fontWeight: 400,
             fontSize: 15,
             textDecoration: 'none',
           }}

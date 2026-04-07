@@ -5225,7 +5225,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.36)',
     borderWidth: 1,
     borderColor: 'rgba(184,231,255,0.72)',
-    padding: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
   },
   factoryPreviewCardFrame: {
     flex: 1,

@@ -103,13 +103,54 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
   const extraStyle = theme.extraText;
   const iconMeta = theme.icon;
 
-  /** Modal / espejo: sin negritas, peso fino; más margen entre valoraciones e iconos. */
+  /** Modal / espejo: alineado con web (`WireframeUniversalCard`): cabecera compacta, cápsula de rating, rejilla centrada. */
   const mirror = !editable;
   const thin = mirror ? { fontWeight: '300' as const } : {};
-  const statsRowMirror = mirror ? { marginTop: 14, marginBottom: 28 } : {};
-  const iconsBoxMirror = mirror ? { marginTop: 24 } : {};
-  /** Estrellas y “0.0 · reseñas” lo más juntos posible en vista espejo. */
-  const ratingStackMirror = mirror ? { gap: 0 as const } : {};
+  const iconsBoxMirror = mirror ? { marginTop: 12 } : {};
+  const MIRROR_AVATAR = 96;
+  const MIRROR_AVATAR_R = 21;
+
+  const renderMirrorStatsCapsule = (
+    starSize: number,
+    captionSize: number,
+    holdersIconSize: number,
+  ) => (
+    <View style={{ width: '100%', marginTop: 6, paddingHorizontal: 4 }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderRadius: 999,
+          backgroundColor: 'rgba(255,255,255,0.12)',
+          borderWidth: Math.max(1, bd.width),
+          borderColor: bd.color,
+          paddingVertical: 10,
+          paddingHorizontal: 14,
+        }}
+      >
+        <View style={{ flex: 1, alignItems: 'center', gap: 3, minWidth: 0 }}>
+          {renderDetailedRatingStars(dispStarsValue, starSize, iconMeta.color)}
+          <Text
+            style={{
+              color: extraStyle.color,
+              fontSize: captionSize,
+              fontWeight: '300',
+              fontStyle: extraStyle.fontStyle,
+              textAlign: 'center',
+            }}
+            numberOfLines={1}
+          >
+            {dispStarsValue.toFixed(1)} · {dispReviewCount} {tr('reseñas', 'reviews')}
+          </Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingLeft: 6 }}>
+          <MaterialCommunityIcons name="account-outline" size={holdersIconSize} color={iconMeta.color} />
+          <Text style={{ color: titleStyle.color, fontSize: holdersIconSize, fontWeight: '300' }}>{dispHolders}</Text>
+        </View>
+      </View>
+    </View>
+  );
 
   if (layout === 'horizontal') {
     const H_PAD = 8;
@@ -143,11 +184,8 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
             WIREFRAME_STITCH_GAP,
             WIREFRAME_STITCH_GAP,
             theme.iconLabel.fontSize,
-            !editable,
           )
         : 0;
-  const hPreviewCellW = (cols: number) =>
-    Math.max(1, Math.floor((stitchUsableW - WIREFRAME_STITCH_GAP * Math.max(0, cols - 1)) / cols));
 
     return (
       <LinearGradient colors={bg3} style={[wf.wireHorizCard, { borderColor: bd.color, borderWidth: bd.width }]}>
@@ -215,36 +253,34 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
             <Text style={[wf.horizNick, { color: subStyle.color, fontSize: hNickFontSize }, thin]} numberOfLines={1} adjustsFontSizeToFit>
               {dispSub}
             </Text>
-            <View style={[wf.wireStatsRowInline, statsRowMirror]}>
-              <View style={[wf.wireStatsRatingStack, ratingStackMirror]}>
-                {renderDetailedRatingStars(dispStarsValue, hWireStarSize, iconMeta.color)}
-                <Text
-                  style={[
-                    wf.wireStatsReviewCaption,
-                    {
-                      color: extraStyle.color,
-                      fontSize: hReviewCaptionSize,
-                      fontWeight: mirror ? '300' : extraStyle.fontWeight,
-                      fontStyle: extraStyle.fontStyle,
-                      textAlign: 'center',
-                      ...(mirror
-                        ? {
-                            marginTop: -4,
-                            lineHeight: Math.max(hReviewCaptionSize, Math.ceil(hReviewCaptionSize * 1.08)),
-                          }
-                        : {}),
-                    },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {dispStarsValue.toFixed(1)} · {dispReviewCount} {tr('reseñas', 'reviews')}
-                </Text>
+            {mirror ? (
+              renderMirrorStatsCapsule(hWireStarSize, hReviewCaptionSize, 11)
+            ) : (
+              <View style={wf.wireStatsRowInline}>
+                <View style={wf.wireStatsRatingStack}>
+                  {renderDetailedRatingStars(dispStarsValue, hWireStarSize, iconMeta.color)}
+                  <Text
+                    style={[
+                      wf.wireStatsReviewCaption,
+                      {
+                        color: extraStyle.color,
+                        fontSize: hReviewCaptionSize,
+                        fontWeight: extraStyle.fontWeight,
+                        fontStyle: extraStyle.fontStyle,
+                        textAlign: 'center',
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {dispStarsValue.toFixed(1)} · {dispReviewCount} {tr('reseñas', 'reviews')}
+                  </Text>
+                </View>
+                <View style={[wf.wireUsersPill, { borderColor: bd.color, backgroundColor: theme.bubble.backgroundColor }]}>
+                  <MaterialCommunityIcons name="account-outline" size={hStatsFontSize} color={iconMeta.color} />
+                  <Text style={[wf.wireUsersPillText, { color: titleStyle.color, fontSize: hStatsFontSize }]}>{dispHolders}</Text>
+                </View>
               </View>
-              <View style={[wf.wireUsersPill, { borderColor: bd.color, backgroundColor: theme.bubble.backgroundColor }]}>
-                <MaterialCommunityIcons name="account-outline" size={hStatsFontSize} color={iconMeta.color} />
-                <Text style={[wf.wireUsersPillText, { color: titleStyle.color, fontSize: hStatsFontSize }, thin]}>{dispHolders}</Text>
-              </View>
-            </View>
+            )}
           </View>
         </View>
 
@@ -262,8 +298,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
             {hIconSize > 0 ? (
               <View style={wf.wireIconRowsStack}>
                 {hIconRows.map((rowSlots, ri) => {
-                  const cols = rowSlots.length;
-                  const cellW = editable ? hIconSize : hPreviewCellW(cols);
+                  const cellW = hIconSize;
                   return (
                     <View key={`h-ir-${ri}`} style={[wf.wireIconRow, !editable && { justifyContent: 'center' }]}>
                       {rowSlots.map((slot) => (
@@ -316,11 +351,8 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
           WIREFRAME_STITCH_GAP,
           WIREFRAME_STITCH_GAP,
           theme.iconLabel.fontSize,
-          !editable,
         )
       : 0;
-  const vPreviewCellW = (cols: number) =>
-    Math.max(1, Math.floor((stitchUsableW - WIREFRAME_STITCH_GAP * Math.max(0, cols - 1)) / cols));
 
   return (
     <LinearGradient colors={bg3} style={[wf.wireVerticalCard, { borderColor: bd.color, borderWidth: bd.width }]}>
@@ -341,16 +373,25 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
         <Text style={[wf.vertBrandingText, { color: subStyle.color, fontSize: brandFontSize }, thin]}>Card-Social</Text>
       </View>
 
-      <View style={wf.vertTop}>
-        <View style={wf.vertAvatarBox} onLayout={(e) => setVertAvatarBoxH(e.nativeEvent.layout.height)}>
-          {vertAvatarSide > 0 ? (
-            dispAvatar ? (
+      {mirror ? (
+        <View style={{ width: '100%', flexShrink: 0, flexGrow: 0 }}>
+          <View
+            style={{
+              minHeight: 96,
+              paddingHorizontal: 8,
+              paddingTop: 4,
+              paddingBottom: 10,
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+            }}
+          >
+            {dispAvatar ? (
               <ExpoImage
                 source={{ uri: dispAvatar }}
                 style={{
-                  width: vertAvatarSide,
-                  height: vertAvatarSide,
-                  borderRadius: Math.round(vertAvatarSide * 0.22),
+                  width: MIRROR_AVATAR,
+                  height: MIRROR_AVATAR,
+                  borderRadius: MIRROR_AVATAR_R,
                   borderWidth: bd.width + 1,
                   borderColor: bd.color,
                 }}
@@ -359,9 +400,9 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
             ) : (
               <View
                 style={{
-                  width: vertAvatarSide,
-                  height: vertAvatarSide,
-                  borderRadius: Math.round(vertAvatarSide * 0.22),
+                  width: MIRROR_AVATAR,
+                  height: MIRROR_AVATAR,
+                  borderRadius: MIRROR_AVATAR_R,
                   borderWidth: bd.width + 1,
                   borderColor: bd.color,
                   backgroundColor: theme.bubble.backgroundColor,
@@ -374,55 +415,137 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
                   elevation: 5,
                 }}
               >
-                <MaterialCommunityIcons name={noAvatarIconName} size={Math.round(vertAvatarSide * 0.52)} color={titleStyle.color} />
+                <MaterialCommunityIcons name={noAvatarIconName} size={48} color={titleStyle.color} />
               </View>
-            )
-          ) : null}
-        </View>
-
-        <View style={wf.vertInfoBox} onLayout={(e) => setVertInfoBoxLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-          <Text style={[wf.vertName, { color: titleStyle.color, fontSize: nameFontSize }, thin]} numberOfLines={1} adjustsFontSizeToFit>
-            {dispName}
-          </Text>
-          <Text style={[wf.vertNick, { color: subStyle.color, fontSize: nickFontSize }, thin]} numberOfLines={1} adjustsFontSizeToFit>
-            {dispSub}
-          </Text>
-          <View style={[wf.wireStatsRowInline, statsRowMirror]}>
-            <View style={[wf.wireStatsRatingStack, ratingStackMirror]}>
-              {renderDetailedRatingStars(dispStarsValue, vWireStarSize, iconMeta.color)}
-              <Text
-                style={[
-                  wf.wireStatsReviewCaption,
-                  {
-                    color: extraStyle.color,
-                    fontSize: vReviewCaptionSize,
-                    fontWeight: mirror ? '300' : extraStyle.fontWeight,
-                    fontStyle: extraStyle.fontStyle,
-                    textAlign: 'center',
-                    ...(mirror
-                      ? {
-                          marginTop: -4,
-                          lineHeight: Math.max(vReviewCaptionSize, Math.ceil(vReviewCaptionSize * 1.08)),
-                        }
-                      : {}),
-                  },
-                ]}
-                numberOfLines={1}
-              >
-                {dispStarsValue.toFixed(1)} · {dispReviewCount} {tr('reseñas', 'reviews')}
+            )}
+          </View>
+          <View
+            style={{
+              width: '100%',
+              paddingHorizontal: 8,
+              paddingTop: 8,
+              paddingBottom: 12,
+              alignItems: 'center',
+              gap: 5,
+            }}
+          >
+            <Text
+              style={[
+                wf.vertName,
+                { color: titleStyle.color, fontSize: 22, lineHeight: 26 },
+                thin,
+              ]}
+              numberOfLines={1}
+            >
+              {dispName}
+            </Text>
+            {dispSub ? (
+              <Text style={[{ color: subStyle.color, fontSize: 13 }, thin]} numberOfLines={1}>
+                {dispSub}
               </Text>
-            </View>
-            <View style={[wf.wireUsersPill, { borderColor: bd.color, backgroundColor: theme.bubble.backgroundColor }]}>
-              <MaterialCommunityIcons name="account-outline" size={statsFontSize} color={iconMeta.color} />
-              <Text style={[wf.wireUsersPillText, { color: titleStyle.color, fontSize: statsFontSize }, thin]}>{dispHolders}</Text>
+            ) : null}
+            {renderMirrorStatsCapsule(24, 9, 11)}
+          </View>
+        </View>
+      ) : (
+        <View style={wf.vertTop}>
+          <View style={wf.vertAvatarBox} onLayout={(e) => setVertAvatarBoxH(e.nativeEvent.layout.height)}>
+            {vertAvatarSide > 0 ? (
+              dispAvatar ? (
+                <ExpoImage
+                  source={{ uri: dispAvatar }}
+                  style={{
+                    width: vertAvatarSide,
+                    height: vertAvatarSide,
+                    borderRadius: Math.round(vertAvatarSide * 0.22),
+                    borderWidth: bd.width + 1,
+                    borderColor: bd.color,
+                  }}
+                  cachePolicy="disk"
+                />
+              ) : (
+                <View
+                  style={{
+                    width: vertAvatarSide,
+                    height: vertAvatarSide,
+                    borderRadius: Math.round(vertAvatarSide * 0.22),
+                    borderWidth: bd.width + 1,
+                    borderColor: bd.color,
+                    backgroundColor: theme.bubble.backgroundColor,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    shadowColor: bd.color,
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.35,
+                    shadowRadius: 6,
+                    elevation: 5,
+                  }}
+                >
+                  <MaterialCommunityIcons name={noAvatarIconName} size={Math.round(vertAvatarSide * 0.52)} color={titleStyle.color} />
+                </View>
+              )
+            ) : null}
+          </View>
+
+          <View style={wf.vertInfoBox} onLayout={(e) => setVertInfoBoxLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+            <Text style={[wf.vertName, { color: titleStyle.color, fontSize: nameFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
+              {dispName}
+            </Text>
+            <Text style={[wf.vertNick, { color: subStyle.color, fontSize: nickFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
+              {dispSub}
+            </Text>
+            <View style={wf.wireStatsRowInline}>
+              <View style={wf.wireStatsRatingStack}>
+                {renderDetailedRatingStars(dispStarsValue, vWireStarSize, iconMeta.color)}
+                <Text
+                  style={[
+                    wf.wireStatsReviewCaption,
+                    {
+                      color: extraStyle.color,
+                      fontSize: vReviewCaptionSize,
+                      fontWeight: extraStyle.fontWeight,
+                      fontStyle: extraStyle.fontStyle,
+                      textAlign: 'center',
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {dispStarsValue.toFixed(1)} · {dispReviewCount} {tr('reseñas', 'reviews')}
+                </Text>
+              </View>
+              <View style={[wf.wireUsersPill, { borderColor: bd.color, backgroundColor: theme.bubble.backgroundColor }]}>
+                <MaterialCommunityIcons name="account-outline" size={statsFontSize} color={iconMeta.color} />
+                <Text style={[wf.wireUsersPillText, { color: titleStyle.color, fontSize: statsFontSize }]}>{dispHolders}</Text>
+              </View>
             </View>
           </View>
         </View>
-      </View>
+      )}
 
-      <View style={[wf.vertIconsBox, iconsBoxMirror]} onLayout={(e) => setVertIconGridLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+      <View
+        style={[
+          wf.vertIconsBox,
+          mirror
+            ? {
+                flex: 1,
+                flexGrow: 1,
+                minHeight: 200,
+                marginTop: 12,
+                paddingTop: 2,
+                paddingBottom: 22,
+                justifyContent: 'center',
+              }
+            : iconsBoxMirror,
+        ]}
+        onLayout={(e) => setVertIconGridLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+      >
         <View
-          style={[wf.wireIconGridRoot, wf.wireVertIconGridRoot, !editable && { paddingHorizontal: vGridInset / 2 }]}
+          style={[
+            wf.wireIconGridRoot,
+            wf.wireVertIconGridRoot,
+            !editable && { paddingHorizontal: vGridInset / 2 },
+            mirror && { flex: 0, flexGrow: 0, justifyContent: 'center' },
+          ]}
           onLayout={(e) => {
             const lw = e.nativeEvent.layout.width;
             setStitchUsableW(Math.max(0, lw - vGridInset));
@@ -431,8 +554,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
           {vertIconCellSize > 0 ? (
             <View style={wf.wireIconRowsStack}>
               {vIconRows.map((rowSlots, ri) => {
-                const cols = rowSlots.length;
-                const cellW = editable ? vertIconCellSize : vPreviewCellW(cols);
+                const cellW = vertIconCellSize;
                 return (
                   <View key={`v-ir-${ri}`} style={[wf.wireIconRow, !editable && { justifyContent: 'center' }]}>
                     {rowSlots.map((slot) => (

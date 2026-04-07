@@ -71,6 +71,11 @@ const ICONS: Record<string, SlotIconDef> = {
 };
 
 export function getSlotIcon(type: string): SlotIconDef {
-  const key = (type || '').toLowerCase().replace(/[^a-z]/g, '');
+  let key = (type || '').toLowerCase().replace(/[^a-z]/g, '');
+  if (key.includes('ghostlink') || (key.includes('ghost') && key.includes('voip')) || key.endsWith('voip')) {
+    key = 'voip';
+  } else if (key.includes('telefono') || key.includes('telephone') || key === 'movil' || key === 'mobile') {
+    key = 'phone';
+  }
   return ICONS[key] ?? ICONS['default'];
 }

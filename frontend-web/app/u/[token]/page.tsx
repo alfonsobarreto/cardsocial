@@ -93,7 +93,7 @@ function ExpiredPage() {
       textAlign: 'center',
     }}>
       <div style={{ fontSize: 48, marginBottom: 16 }}>⏱</div>
-      <h1 style={{ color: '#00695C', fontSize: 24, fontWeight: '800', marginBottom: 8 }}>
+      <h1 style={{ color: '#00695C', fontSize: 24, fontWeight: '400', marginBottom: 8 }}>
         Enlace expirado
       </h1>
       <p style={{ color: '#4E7570', fontSize: 15, maxWidth: 320, lineHeight: 1.6 }}>
@@ -108,7 +108,7 @@ function ExpiredPage() {
           borderRadius: 14,
           backgroundColor: '#00E5FF',
           color: '#00695C',
-          fontWeight: '800',
+          fontWeight: '400',
           fontSize: 16,
           textDecoration: 'none',
         }}

@@ -3,7 +3,20 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { WireframeEditSlot, WireframeVaultItem } from '@/components/smartCard/IsolatedWireframeCard';
-import { wireframeUnifiedPreviewTileMetrics } from '@/components/smartCard/wireframeMath';
+import {
+  computeWireframeBubbleBorderRadius,
+  wireframeSlotBelowBubbleHeight,
+  wireframeWebBubbleBorderRadius,
+} from '@/components/smartCard/wireframeMath';
+
+/** Igual que `compactSlotLabel` en `WebWireframeUniversalCard` (máx. 2 palabras). */
+function compactSlotLabel(label: string): string {
+  return String(label || '')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .join(' ');
+}
 
 const slotStyles = StyleSheet.create({
   slotTile: {
@@ -46,20 +59,6 @@ const slotStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cardTile: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-  },
-  cardTileLabel: {
-    marginTop: 3,
-    textAlign: 'center',
-    alignSelf: 'stretch',
-  },
 });
 
 export type WireframeSlotTileProps = {
@@ -89,73 +88,93 @@ export function WireframeSlotTile({
 }: WireframeSlotTileProps) {
   const hasItem = Boolean(slot.item);
   const bubbleSize = Math.max(26, Math.floor(ui.size));
-  const iconSize = Math.round(bubbleSize * 0.9);
-  const compactTitle = String(slot.item?.title || 'Agregar')
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .join(' ');
+  const editableGlyphSize = Math.round(bubbleSize * 0.9);
   const il = chestTheme.iconLabel;
   const slotBubbleBg = chestTheme.bubble.backgroundColor;
   const slotBorderColor = chestTheme.border.color;
   const glyphColor = chestTheme.icon.color;
 
-  /* ── Preview mode: unified card tile (icon + label in one block) ── */
-  if (!editable) {
-    const { previewIconSize, previewLabelSize, previewLineH } = wireframeUnifiedPreviewTileMetrics(bubbleSize);
-
-    return (
-      <TouchableOpacity
-        style={[
-          slotStyles.cardTile,
-          {
-            backgroundColor: slotBubbleBg,
-            borderColor: slotBorderColor,
-          },
-        ]}
-        activeOpacity={0.7}
-        onPress={() => {
-          if (slot.item) void onDataPress(slot.item);
-        }}
-        onLongPress={() => {
-          if (onMirrorLongPress) onMirrorLongPress(slot);
-        }}
-        delayLongPress={650}
-      >
-        {slot.item ? (
-          renderMiniIcon(slot.item, previewIconSize, glyphColor)
-        ) : (
-          <MaterialCommunityIcons name="plus" size={previewIconSize} color={glyphColor} />
-        )}
-        <Text
-          style={[
-            slotStyles.cardTileLabel,
-            {
-              fontSize: previewLabelSize,
-              lineHeight: previewLineH,
-              color: il.color,
-              fontWeight: '300',
-              fontStyle: il.fontStyle,
-            },
-          ]}
-          numberOfLines={2}
-        >
-          {compactTitle}
-        </Text>
-      </TouchableOpacity>
-    );
-  }
-
-  /* ── Edit mode: original bubble + detached label ── */
   const labelFontSize = Math.max(
     9,
     Math.min(15, Math.round(Math.min(bubbleSize * 0.155, il.fontSize + 5))),
   );
   const labelLineHeight = Math.ceil(labelFontSize * 1.22);
-  const minTileH = bubbleSize + 8 + labelLineHeight * 2 + 8 + 6;
-  const bubbleR = Math.min(chestTheme.bubble.borderRadius, bubbleSize / 2);
+  const minTileH = bubbleSize + wireframeSlotBelowBubbleHeight(bubbleSize, il.fontSize);
+  const bubbleR = editable
+    ? computeWireframeBubbleBorderRadius(bubbleSize, chestTheme.bubble.borderRadius)
+    : wireframeWebBubbleBorderRadius(bubbleSize, chestTheme.bubble.borderRadius);
   const slotBorderW = Math.max(1, chestTheme.border.width);
 
+  /* ── Vista espejo: unidad atómica (ancho fijo = bubble), columna, botón + label — calque WebWireframeSlotTile ── */
+  if (!editable) {
+    const voip = String(slot.item?.type || '')
+      .toLowerCase()
+      .includes('voip');
+    const mirrorGlyphSize = Math.round(bubbleSize * 0.9);
+    const compactLabel = compactSlotLabel(slot.item ? String(slot.item.title || '') : tr('Agregar', 'Add'));
+
+    return (
+      <View
+        style={{
+          width: bubbleSize,
+          minHeight: minTileH,
+          flexDirection: 'column',
+          alignItems: 'center',
+        }}
+      >
+        <TouchableOpacity
+          style={[
+            slotStyles.slotBubble,
+            {
+              width: bubbleSize,
+              height: bubbleSize,
+              borderRadius: bubbleR,
+              backgroundColor: slotBubbleBg,
+              borderWidth: slotBorderW,
+              borderColor: slotBorderColor,
+              opacity: voip ? 0.45 : 1,
+            },
+          ]}
+          activeOpacity={voip ? 1 : 0.7}
+          disabled={voip}
+          onPress={() => {
+            if (voip || !slot.item) return;
+            void onDataPress(slot.item);
+          }}
+          onLongPress={() => {
+            if (onMirrorLongPress) onMirrorLongPress(slot);
+          }}
+          delayLongPress={650}
+        >
+          {slot.item ? (
+            renderMiniIcon(slot.item, mirrorGlyphSize, glyphColor)
+          ) : (
+            <MaterialCommunityIcons name="plus" size={mirrorGlyphSize} color={glyphColor} />
+          )}
+        </TouchableOpacity>
+        <Text
+          style={{
+            marginTop: 4,
+            width: '100%',
+            maxWidth: bubbleSize,
+            textAlign: 'center',
+            alignSelf: 'stretch',
+            fontSize: labelFontSize,
+            lineHeight: labelLineHeight,
+            color: il.color,
+            fontWeight: '300',
+            fontStyle: il.fontStyle,
+          }}
+          numberOfLines={2}
+          ellipsizeMode="tail"
+        >
+          {compactLabel}
+        </Text>
+      </View>
+    );
+  }
+
+  /* ── Edición Mis Tarjetas: bubble + etiqueta + controles ── */
   return (
     <View style={[slotStyles.slotTile, { minHeight: minTileH }]}>
       <TouchableOpacity
@@ -173,9 +192,9 @@ export function WireframeSlotTile({
         onPress={() => onEditableOpenPicker(slot.index)}
       >
         {slot.item ? (
-          renderMiniIcon(slot.item, iconSize, glyphColor)
+          renderMiniIcon(slot.item, editableGlyphSize, glyphColor)
         ) : (
-          <MaterialCommunityIcons name="plus" size={iconSize} color={glyphColor} />
+          <MaterialCommunityIcons name="plus" size={editableGlyphSize} color={glyphColor} />
         )}
       </TouchableOpacity>
       <Text
@@ -192,8 +211,9 @@ export function WireframeSlotTile({
           },
         ]}
         numberOfLines={2}
+        ellipsizeMode="tail"
       >
-        {compactTitle}
+        {compactSlotLabel(slot.item ? String(slot.item.title || '') : tr('Agregar', 'Add'))}
       </Text>
 
       {hasItem && onRemoveSlotItem ? (

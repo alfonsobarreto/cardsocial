@@ -10,8 +10,8 @@ import {
   type WireframeVaultItem,
 } from '@/components/smartCard/IsolatedWireframeCard';
 import {
-  createReceiverWireframeSlotRenderer,
-  renderWireframeDetailedRatingStars,
+  createPreviewWireframeSlotRenderer,
+  renderWireframeMirrorRatingStars,
   type IconVaultLookup,
 } from '@/components/smartCard/wireframeMirrorRendering';
 import { SmartCardMirrorModal } from '@/components/SmartCardMirrorModal';
@@ -140,7 +140,7 @@ export function MyCardsPreviewModal({
 
   const renderSlotContent = useMemo(
     () =>
-      createReceiverWireframeSlotRenderer({
+      createPreviewWireframeSlotRenderer({
         tr,
         onDataPress: (it) => void handleSlotPress(it as WireframeVaultItem),
         iconVaultById: payload?.iconVaultById,
@@ -232,7 +232,7 @@ export function MyCardsPreviewModal({
             parallaxX={parallaxX}
             parallaxY={parallaxY}
             renderSlotContent={renderSlotContent}
-            renderDetailedRatingStars={renderWireframeDetailedRatingStars}
+            renderDetailedRatingStars={renderWireframeMirrorRatingStars}
             tr={tr}
           />
         ) : null}

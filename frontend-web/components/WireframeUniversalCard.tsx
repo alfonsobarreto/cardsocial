@@ -151,7 +151,7 @@ function WebWireframeSlotTile({
           fontSize: labelFontSize,
           lineHeight: `${labelLineHeight}px`,
           color: il.color,
-          fontWeight: il.fontWeight,
+          fontWeight: 300,
           fontStyle: il.fontStyle,
           display: '-webkit-box',
           WebkitLineClamp: 2,
@@ -353,7 +353,7 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
         <svg width={statsSize} height={statsSize} viewBox="0 0 24 24" fill={theme.icon.color}>
           <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
         </svg>
-        <span style={{ color: theme.title.color, fontSize: statsSize, fontWeight: 800 }}>{card.holdersCount}</span>
+        <span style={{ color: theme.title.color, fontSize: statsSize, fontWeight: 300 }}>{card.holdersCount}</span>
       </div>
     </div>
   );
@@ -401,7 +401,7 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
             }}
           >
             <Image src="/cs-icon-logo.png" alt="" width={18} height={18} unoptimized />
-            <span style={{ fontWeight: 700, opacity: 0.85, color: theme.subtitle.color, fontSize: 13 }}>Card-Social</span>
+            <span style={{ fontWeight: 300, opacity: 0.85, color: theme.subtitle.color, fontSize: 13 }}>Card-Social</span>
           </div>
 
           <div
@@ -458,9 +458,9 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
                 gap: 4,
               }}
             >
-              <div style={{ color: theme.title.color, fontWeight: 800, fontSize: 18, textAlign: 'center' }}>{dispName}</div>
+              <div style={{ color: theme.title.color, fontWeight: 300, fontSize: 18, textAlign: 'center' }}>{dispName}</div>
               {dispSub ? (
-                <div style={{ color: theme.subtitle.color, fontWeight: 600, fontSize: 12, textAlign: 'center' }}>{dispSub}</div>
+                <div style={{ color: theme.subtitle.color, fontWeight: 300, fontSize: 12, textAlign: 'center' }}>{dispSub}</div>
               ) : null}
               {statsBlock(22, 8, 10)}
             </div>
@@ -536,7 +536,7 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
           }}
         >
           <Image src="/cs-icon-logo.png" alt="" width={18} height={18} unoptimized />
-          <span style={{ fontWeight: 700, opacity: 0.85, color: theme.subtitle.color, fontSize: 13 }}>Card-Social</span>
+          <span style={{ fontWeight: 300, opacity: 0.85, color: theme.subtitle.color, fontSize: 13 }}>Card-Social</span>
         </div>
 
         <div style={{ flex: '2.9 1 0', minHeight: 0, display: 'flex', flexDirection: 'column' }}>

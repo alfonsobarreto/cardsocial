@@ -11,8 +11,8 @@ const shellStyles = StyleSheet.create({
     alignItems: 'center',
   },
   previewModalStack: {
-    width: '92%',
-    maxWidth: 600,
+    width: '100%',
+    maxWidth: 420,
     alignSelf: 'center',
     flexDirection: 'column',
     alignItems: 'stretch',
@@ -23,39 +23,40 @@ const shellStyles = StyleSheet.create({
     minHeight: 0,
     width: '100%',
     borderRadius: 16,
-    borderWidth: 1,
     overflow: 'hidden',
     flexDirection: 'column',
   },
   previewModalFooterOutside: {
-    marginTop: 14,
+    marginTop: 20,
     marginBottom: 0,
-    borderRadius: 14,
+    borderRadius: 999,
     borderWidth: 1,
     overflow: 'hidden',
   },
   modalActions: {
-    marginTop: 10,
+    marginTop: 0,
     flexDirection: 'row',
     gap: 10,
   },
   ghostBtn: {
     flex: 1,
-    borderRadius: 10,
+    borderRadius: 999,
     borderWidth: 1,
-    minHeight: 44,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 12,
   },
   ghostBtnText: {
     fontWeight: '400',
   },
   saveBtn: {
     flex: 1,
-    borderRadius: 10,
-    minHeight: 44,
+    borderRadius: 999,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 12,
   },
   saveBtnText: {
     fontWeight: '400',
@@ -86,7 +87,7 @@ export type SmartCardMirrorModalProps = {
   onRequestClose: () => void;
   screenHeight: number;
   iconSlotCount: number;
-  /** Borde del marco de tarjeta (tema). */
+  /** Reservado (el borde vive solo en `IsolatedWireframeCard` / tema; sin doble marco en el shell). */
   cardBorder: { color: string; width: number };
   footer: SmartCardMirrorModalFooter;
   children: React.ReactNode;
@@ -100,7 +101,7 @@ export function SmartCardMirrorModal({
   onRequestClose,
   screenHeight,
   iconSlotCount,
-  cardBorder,
+  cardBorder: _cardBorder,
   footer,
   children,
 }: SmartCardMirrorModalProps) {
@@ -126,8 +127,8 @@ export function SmartCardMirrorModal({
       >
         <BlurView intensity={65} tint={footer.blurTint} style={StyleSheet.absoluteFill} pointerEvents="none" />
         <View style={[shellStyles.previewModalStack, { height: stack.height, maxHeight: stack.maxHeight }]}>
-          <View style={[shellStyles.previewModalCard, { borderColor: cardBorder.color, borderWidth: cardBorder.width }]}>
-            <View style={{ flex: 1, minHeight: 0 }}>{children}</View>
+          <View style={shellStyles.previewModalCard}>
+            <View style={{ flex: 1, minHeight: 0, paddingBottom: 22 }}>{children}</View>
           </View>
 
           <View

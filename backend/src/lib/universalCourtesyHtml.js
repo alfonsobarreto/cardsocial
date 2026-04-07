@@ -266,11 +266,24 @@ function buildValidCourtesyPageHtml(opts) {
     website: 'M16.36 14c.08-.66.14-1.32.14-2 0-.68-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2m-5.15 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95a8.03 8.03 0 0 1-4.33 3.56M14.34 14H9.66c-.1-.66-.16-1.32-.16-2 0-.68.06-1.35.16-2h4.68c.09.65.16 1.32.16 2 0 .68-.07 1.34-.16 2M12 19.96c-.83-1.2-1.5-2.53-1.91-3.96h3.82c-.41 1.43-1.08 2.76-1.91 3.96M8 8H5.08A7.923 7.923 0 0 1 9.4 4.44C8.8 5.55 8.35 6.75 8 8m-2.92 8H8c.35 1.25.8 2.45 1.4 3.56A8.008 8.008 0 0 1 5.08 16m-.82-2C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2 0 .68.06 1.34.14 2M12 4.03c.83 1.2 1.5 2.54 1.91 3.97h-3.82c.41-1.43 1.08-2.77 1.91-3.97M18.92 8h-2.95a15.65 15.65 0 0 0-1.38-3.56c1.84.63 3.37 1.9 4.33 3.56M12 2C6.47 2 2 6.5 2 12a10 10 0 0 0 10 10A10 10 0 0 0 22 12 10 10 0 0 0 12 2z',
     link: 'M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z',
     location: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
+    voip: 'M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z',
     default: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z',
   };
   function normIconName(n) {
     var raw = String(n || '').toLowerCase().replace(/^mdi-/, '').replace(/-/g, '');
-    var alias = { youtubese: 'youtube', youtubeplay: 'youtube', linkvariant: 'website', web: 'website', mapmarker: 'location' };
+    var alias = {
+      youtubese: 'youtube',
+      youtubeplay: 'youtube',
+      linkvariant: 'website',
+      web: 'website',
+      mapmarker: 'location',
+      phoneintalk: 'phone',
+      phonevoip: 'voip',
+      phoneclassic: 'phone',
+      phonelock: 'phone',
+      cellphone: 'phone',
+      gmail: 'email',
+    };
     return alias[raw] || raw;
   }
   function slotIconHtml(s) {
@@ -279,7 +292,11 @@ function buildValidCourtesyPageHtml(opts) {
       return '<img src="'+esc(ic)+'" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover"/>';
     }
     var k = s.iconName ? normIconName(s.iconName) : '';
-    var typeK = String(s.type || 'link').toLowerCase().replace(/[^a-z]/g, '') || 'link';
+    var typeRaw = String(s.type || 'link').toLowerCase();
+    var typeK = typeRaw.replace(/[^a-z]/g, '') || 'link';
+    if (typeRaw.indexOf('voip') >= 0 || typeK.indexOf('ghostlink') >= 0) {
+      typeK = 'voip';
+    }
     var path = (k && SLOT_PATH[k]) || SLOT_PATH[typeK] || SLOT_PATH.default;
     return '<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="currentColor" d="'+path+'"/></svg>';
   }

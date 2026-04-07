@@ -23,20 +23,28 @@ export function getWireframeIconRowPlan(count: number): number[] {
 export const WIREFRAME_SLOT_LABEL_RESERVE = 36;
 export const WIREFRAME_STITCH_GAP = 12;
 export const WIREFRAME_STITCH_HORIZONTAL_INSET = 48;
-/** Preview modal: menos margen lateral para usar casi todo el ancho de la tarjeta (4/4). */
-export const WIREFRAME_STITCH_HORIZONTAL_INSET_PREVIEW = 20;
+/** Vista previa espejo: mismo inset que la web (`WireframeUniversalCard` padding 24+24). */
+export const WIREFRAME_STITCH_HORIZONTAL_INSET_PREVIEW = 48;
 export const WIREFRAME_STITCH_SINGLE_MAX_SIDE = 112;
 
 /**
- * Métricas del tile unificado (preview). Debe coincidir con `WireframeSlotTile` modo !editable.
+ * Radio de esquina del slot en wireframe (app). Evita círculos perfectos cuando el bubble es pequeño:
+ * `min(theme.borderRadius, side/2)` acaba en radio = mitad del lado (círculo). La referencia web es cuadrado redondeado.
  */
-export function wireframeUnifiedPreviewTileMetrics(bubbleSize: number) {
+export function computeWireframeBubbleBorderRadius(bubbleSize: number, themeBubbleRadius: number): number {
   const b = Math.max(26, Math.floor(bubbleSize));
-  const previewIconSize = Math.max(26, Math.min(34, Math.round(b * 0.42)));
-  const previewLabelSize = Math.max(9, Math.min(12, Math.round(b * 0.13)));
-  const previewLineH = Math.ceil(previewLabelSize * 1.2);
-  const totalH = 8 + 8 + previewIconSize + 3 + previewLineH * 2 + 4;
-  return { previewIconSize, previewLabelSize, previewLineH, totalH };
+  const fromTheme = Math.min(Math.max(6, themeBubbleRadius), 16);
+  const maxForSquircle = Math.floor(b * 0.34);
+  return Math.max(6, Math.min(fromTheme, maxForSquircle));
+}
+
+/**
+ * Modo espejo / modal: tope ~25% del lado para evitar círculos perfectos en columnas estrechas
+ * (`bubble/2` + tema grande → disco). No copia la fórmula web `min(theme, bubble/2)`.
+ */
+export function wireframeWebBubbleBorderRadius(bubbleSize: number, themeBubbleRadius: number): number {
+  const b = Math.max(26, Math.floor(bubbleSize));
+  return Math.min(Math.max(0, themeBubbleRadius), Math.floor(b * 0.25));
 }
 
 export function wireframeSlotBelowBubbleHeight(bubbleSize: number, iconLabelFontSize: number): number {
@@ -71,7 +79,6 @@ export function computeStitchWireframeBubbleSide(
   gap: number,
   rowGapV: number,
   themeIconLabelFontSize: number,
-  unifiedPreviewTile = false,
 ): number {
   if (rowPlan.length === 0 || usableW <= 0) return 0;
 
@@ -87,9 +94,7 @@ export function computeStitchWireframeBubbleSide(
 
   const fits = (cell: number) => {
     const bubble = Math.max(26, Math.floor(cell));
-    const rowH = unifiedPreviewTile
-      ? wireframeUnifiedPreviewTileMetrics(bubble).totalH
-      : bubble + wireframeSlotBelowBubbleHeight(bubble, themeIconLabelFontSize);
+    const rowH = bubble + wireframeSlotBelowBubbleHeight(bubble, themeIconLabelFontSize);
     return numRows * rowH + betweenRows <= gridH + 0.5;
   };
 

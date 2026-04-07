@@ -976,7 +976,7 @@ const VaultScreen = () => {
         gridTitle: {
           marginTop: 8,
           fontSize: 11,
-          fontWeight: '700',
+          fontWeight: '300',
           textAlign: 'center',
         },
         emptyContainer: {
@@ -1219,7 +1219,7 @@ const VaultScreen = () => {
         },
         typeBadgeText: {
           fontSize: 8,
-          fontWeight: '700',
+          fontWeight: '300',
         },
       }),
     [vaultTheme, isNight],
