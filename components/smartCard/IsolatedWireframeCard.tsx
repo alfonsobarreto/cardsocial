@@ -108,7 +108,8 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
   const thin = mirror ? { fontWeight: '300' as const } : {};
   const statsRowMirror = mirror ? { marginTop: 14, marginBottom: 28 } : {};
   const iconsBoxMirror = mirror ? { marginTop: 24 } : {};
-  const ratingStackMirror = mirror ? { gap: 6 as const } : {};
+  /** Estrellas y “0.0 · reseñas” lo más juntos posible en vista espejo. */
+  const ratingStackMirror = mirror ? { gap: 0 as const } : {};
 
   if (layout === 'horizontal') {
     const H_PAD = 8;
@@ -226,6 +227,12 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
                       fontWeight: mirror ? '300' : extraStyle.fontWeight,
                       fontStyle: extraStyle.fontStyle,
                       textAlign: 'center',
+                      ...(mirror
+                        ? {
+                            marginTop: -4,
+                            lineHeight: Math.max(hReviewCaptionSize, Math.ceil(hReviewCaptionSize * 1.08)),
+                          }
+                        : {}),
                     },
                   ]}
                   numberOfLines={1}
@@ -392,6 +399,12 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
                     fontWeight: mirror ? '300' : extraStyle.fontWeight,
                     fontStyle: extraStyle.fontStyle,
                     textAlign: 'center',
+                    ...(mirror
+                      ? {
+                          marginTop: -4,
+                          lineHeight: Math.max(vReviewCaptionSize, Math.ceil(vReviewCaptionSize * 1.08)),
+                        }
+                      : {}),
                   },
                 ]}
                 numberOfLines={1}
