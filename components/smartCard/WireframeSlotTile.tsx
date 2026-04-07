@@ -3,6 +3,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { WireframeEditSlot, WireframeVaultItem } from '@/components/smartCard/IsolatedWireframeCard';
+import { wireframeUnifiedPreviewTileMetrics } from '@/components/smartCard/wireframeMath';
 
 const slotStyles = StyleSheet.create({
   slotTile: {
@@ -101,9 +102,7 @@ export function WireframeSlotTile({
 
   /* ── Preview mode: unified card tile (icon + label in one block) ── */
   if (!editable) {
-    const previewIconSize = Math.max(22, Math.min(28, Math.round(bubbleSize * 0.36)));
-    const previewLabelSize = Math.max(8, Math.min(11, Math.round(bubbleSize * 0.12)));
-    const previewLineH = Math.ceil(previewLabelSize * 1.2);
+    const { previewIconSize, previewLabelSize, previewLineH } = wireframeUnifiedPreviewTileMetrics(bubbleSize);
 
     return (
       <TouchableOpacity

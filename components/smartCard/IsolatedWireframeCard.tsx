@@ -10,6 +10,7 @@ import {
   getWireframeIconRowPlan,
   WIREFRAME_STITCH_GAP,
   WIREFRAME_STITCH_HORIZONTAL_INSET,
+  WIREFRAME_STITCH_HORIZONTAL_INSET_PREVIEW,
 } from '@/components/smartCard/wireframeMath';
 import { wireframeLayoutStyles as wf } from '@/components/smartCard/wireframeLayoutStyles';
 
@@ -116,25 +117,29 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
     const hBrandFontSize = horizHeaderH > 0 ? Math.round(horizHeaderH * 0.45) : 13;
     const hBrandLogoSize = horizHeaderH > 0 ? Math.round(horizHeaderH * 0.55) : 18;
 
-    const hFeed = feed;
-    const hRowPlan = getWireframeIconRowPlan(hFeed.length);
-    let hCursor = 0;
-    const hIconRows = hRowPlan.map((n) => {
-      const row = hFeed.slice(hCursor, hCursor + n);
-      hCursor += n;
-      return row;
-    });
-    const hIconSize =
-      stitchUsableW > 0 && horizIconGridLayout.h > 0
-        ? computeStitchWireframeBubbleSide(
+  const hFeed = feed;
+  const hRowPlan = getWireframeIconRowPlan(hFeed.length);
+  let hCursor = 0;
+  const hIconRows = hRowPlan.map((n) => {
+    const row = hFeed.slice(hCursor, hCursor + n);
+    hCursor += n;
+    return row;
+  });
+  const hGridInset = editable ? WIREFRAME_STITCH_HORIZONTAL_INSET : WIREFRAME_STITCH_HORIZONTAL_INSET_PREVIEW;
+  const hIconSize =
+    stitchUsableW > 0 && horizIconGridLayout.h > 0
+      ? computeStitchWireframeBubbleSide(
             stitchUsableW,
             horizIconGridLayout.h,
             hRowPlan,
             WIREFRAME_STITCH_GAP,
             WIREFRAME_STITCH_GAP,
             theme.iconLabel.fontSize,
+            !editable,
           )
         : 0;
+  const hPreviewCellW = (cols: number) =>
+    Math.max(1, Math.floor((stitchUsableW - WIREFRAME_STITCH_GAP * Math.max(0, cols - 1)) / cols));
 
     return (
       <LinearGradient colors={bg3} style={[wf.wireHorizCard, { borderColor: bd.color, borderWidth: bd.width }]}>
@@ -233,26 +238,30 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
           onLayout={(e) => setHorizIconGridLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
         >
           <View
-            style={wf.wireIconGridRoot}
+            style={[wf.wireIconGridRoot, !editable && { paddingHorizontal: hGridInset / 2 }]}
             onLayout={(e) => {
               const lw = e.nativeEvent.layout.width;
-              setStitchUsableW(Math.max(0, lw - WIREFRAME_STITCH_HORIZONTAL_INSET));
+              setStitchUsableW(Math.max(0, lw - hGridInset));
             }}
           >
             {hIconSize > 0 ? (
               <View style={wf.wireIconRowsStack}>
-                {hIconRows.map((rowSlots, ri) => (
-                  <View key={`h-ir-${ri}`} style={wf.wireIconRow}>
-                    {rowSlots.map((slot) => (
-                      <View
-                        key={slot.id}
-                        style={[wf.wireIconCell, { width: hIconSize, maxWidth: hIconSize, flexBasis: hIconSize }]}
-                      >
-                        {renderSlotContent(slot, { size: hIconSize }, editable, theme)}
-                      </View>
-                    ))}
-                  </View>
-                ))}
+                {hIconRows.map((rowSlots, ri) => {
+                  const cols = rowSlots.length;
+                  const cellW = editable ? hIconSize : hPreviewCellW(cols);
+                  return (
+                    <View key={`h-ir-${ri}`} style={[wf.wireIconRow, !editable && { justifyContent: 'center' }]}>
+                      {rowSlots.map((slot) => (
+                        <View
+                          key={slot.id}
+                          style={[wf.wireIconCell, { width: cellW, maxWidth: cellW, flexBasis: cellW }]}
+                        >
+                          {renderSlotContent(slot, { size: cellW }, editable, theme)}
+                        </View>
+                      ))}
+                    </View>
+                  );
+                })}
               </View>
             ) : null}
           </View>
@@ -281,6 +290,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
     vCursor += n;
     return row;
   });
+  const vGridInset = editable ? WIREFRAME_STITCH_HORIZONTAL_INSET : WIREFRAME_STITCH_HORIZONTAL_INSET_PREVIEW;
   const vertIconCellSize =
     stitchUsableW > 0 && vertIconGridLayout.h > 0
       ? computeStitchWireframeBubbleSide(
@@ -290,8 +300,11 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
           WIREFRAME_STITCH_GAP,
           WIREFRAME_STITCH_GAP,
           theme.iconLabel.fontSize,
+          !editable,
         )
       : 0;
+  const vPreviewCellW = (cols: number) =>
+    Math.max(1, Math.floor((stitchUsableW - WIREFRAME_STITCH_GAP * Math.max(0, cols - 1)) / cols));
 
   return (
     <LinearGradient colors={bg3} style={[wf.wireVerticalCard, { borderColor: bd.color, borderWidth: bd.width }]}>
@@ -386,29 +399,30 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
 
       <View style={wf.vertIconsBox} onLayout={(e) => setVertIconGridLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
         <View
-          style={[wf.wireIconGridRoot, wf.wireVertIconGridRoot]}
+          style={[wf.wireIconGridRoot, wf.wireVertIconGridRoot, !editable && { paddingHorizontal: vGridInset / 2 }]}
           onLayout={(e) => {
             const lw = e.nativeEvent.layout.width;
-            setStitchUsableW(Math.max(0, lw - WIREFRAME_STITCH_HORIZONTAL_INSET));
+            setStitchUsableW(Math.max(0, lw - vGridInset));
           }}
         >
           {vertIconCellSize > 0 ? (
             <View style={wf.wireIconRowsStack}>
-              {vIconRows.map((rowSlots, ri) => (
-                <View key={`v-ir-${ri}`} style={wf.wireIconRow}>
-                  {rowSlots.map((slot) => (
-                    <View
-                      key={slot.id}
-                      style={[
-                        wf.wireIconCell,
-                        { width: vertIconCellSize, maxWidth: vertIconCellSize, flexBasis: vertIconCellSize },
-                      ]}
-                    >
-                      {renderSlotContent(slot, { size: vertIconCellSize }, editable, theme)}
-                    </View>
-                  ))}
-                </View>
-              ))}
+              {vIconRows.map((rowSlots, ri) => {
+                const cols = rowSlots.length;
+                const cellW = editable ? vertIconCellSize : vPreviewCellW(cols);
+                return (
+                  <View key={`v-ir-${ri}`} style={[wf.wireIconRow, !editable && { justifyContent: 'center' }]}>
+                    {rowSlots.map((slot) => (
+                      <View
+                        key={slot.id}
+                        style={[wf.wireIconCell, { width: cellW, maxWidth: cellW, flexBasis: cellW }]}
+                      >
+                        {renderSlotContent(slot, { size: cellW }, editable, theme)}
+                      </View>
+                    ))}
+                  </View>
+                );
+              })}
             </View>
           ) : null}
         </View>

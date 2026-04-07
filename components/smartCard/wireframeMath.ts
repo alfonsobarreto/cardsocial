@@ -23,7 +23,21 @@ export function getWireframeIconRowPlan(count: number): number[] {
 export const WIREFRAME_SLOT_LABEL_RESERVE = 36;
 export const WIREFRAME_STITCH_GAP = 12;
 export const WIREFRAME_STITCH_HORIZONTAL_INSET = 48;
+/** Preview modal: menos margen lateral para usar casi todo el ancho de la tarjeta (4/4). */
+export const WIREFRAME_STITCH_HORIZONTAL_INSET_PREVIEW = 20;
 export const WIREFRAME_STITCH_SINGLE_MAX_SIDE = 112;
+
+/**
+ * Métricas del tile unificado (preview). Debe coincidir con `WireframeSlotTile` modo !editable.
+ */
+export function wireframeUnifiedPreviewTileMetrics(bubbleSize: number) {
+  const b = Math.max(26, Math.floor(bubbleSize));
+  const previewIconSize = Math.max(26, Math.min(34, Math.round(b * 0.42)));
+  const previewLabelSize = Math.max(9, Math.min(12, Math.round(b * 0.13)));
+  const previewLineH = Math.ceil(previewLabelSize * 1.2);
+  const totalH = 8 + 8 + previewIconSize + 3 + previewLineH * 2 + 4;
+  return { previewIconSize, previewLabelSize, previewLineH, totalH };
+}
 
 export function wireframeSlotBelowBubbleHeight(bubbleSize: number, iconLabelFontSize: number): number {
   const labelFontSize = Math.max(
@@ -41,6 +55,7 @@ export function computeStitchWireframeBubbleSide(
   gap: number,
   rowGapV: number,
   themeIconLabelFontSize: number,
+  unifiedPreviewTile = false,
 ): number {
   if (rowPlan.length === 0 || usableW <= 0 || gridH <= 0) return 0;
 
@@ -67,8 +82,10 @@ export function computeStitchWireframeBubbleSide(
 
   const fits = (cell: number) => {
     const bubble = Math.max(26, Math.floor(cell));
-    const below = wireframeSlotBelowBubbleHeight(bubble, themeIconLabelFontSize);
-    return numRows * (bubble + below) + betweenRows <= gridH + 0.5;
+    const rowH = unifiedPreviewTile
+      ? wireframeUnifiedPreviewTileMetrics(bubble).totalH
+      : bubble + wireframeSlotBelowBubbleHeight(bubble, themeIconLabelFontSize);
+    return numRows * rowH + betweenRows <= gridH + 0.5;
   };
 
   let lo = 26;
