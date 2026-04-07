@@ -3,6 +3,7 @@ import LimitReachedModal from '@/components/LimitReachedModal';
 import { IsolatedWireframeCard } from '@/components/smartCard/IsolatedWireframeCard';
 import { WireframeSlotTile } from '@/components/smartCard/WireframeSlotTile';
 import { getPreviewModalStackSize, getWireframeIconRowPlan } from '@/components/smartCard/wireframeMath';
+import { MyCardsPreviewModal, type MyCardsPayload } from '@/components/MyCards';
 import { SmartCardMirrorModal } from '@/components/SmartCardMirrorModal';
 import { VaultDocumentViewerModal } from '@/components/VaultDocumentViewerModal';
 import {
@@ -1570,6 +1571,23 @@ export default function CardsFactoryScreen() {
       item,
     }));
   }, [previewCardItems]);
+
+  const previewPayload = useMemo<MyCardsPayload | null>(() => {
+    if (!previewCard) return null;
+    return {
+      cardName: (previewCard.name || cardName || 'Nueva Tarjeta').trim(),
+      subtitle: `@${(ownerNickname || 'user').toLowerCase()}`,
+      avatarUrl: ownerPhotoUrl,
+      themeId: previewCard.themeId || '',
+      wallpaperUrl: previewCard.wallpaperUrl,
+      layout: previewLayout,
+      holdersCount: previewCard.holdersCount ?? 0,
+      ratingAvg: previewCard.ratingAvg ?? 5,
+      totalRatings: previewCard.totalRatings ?? 0,
+      enableParallax,
+      slots: previewSlots,
+    };
+  }, [previewCard, cardName, ownerNickname, ownerPhotoUrl, previewLayout, enableParallax, previewSlots]);
 
   const businessPreviewSlots = useMemo<EditSlot[]>(() => {
     if (!previewBusiness?.vaultLinkIds?.length) {
@@ -3153,60 +3171,26 @@ export default function CardsFactoryScreen() {
         </TouchableWithoutFeedback>
       </Modal>
 
-      <SmartCardMirrorModal
+      <MyCardsPreviewModal
         visible={Boolean(previewVisible && previewCard)}
-        onRequestClose={() => {
+        onClose={() => {
           setPreviewVisible(false);
           setPreviewCard(null);
         }}
-        screenHeight={height}
-        iconSlotCount={previewCardItems.length}
-        cardBorder={
-          previewCard
-            ? {
-                color: resolveTheme(previewCard.themeId).border.color,
-                width: resolveTheme(previewCard.themeId).border.width,
+        variant="issuer"
+        payload={previewPayload}
+        onEditCard={
+          previewCard != null
+            ? () => {
+                setPreviewVisible(false);
+                openEditFactory(previewCard);
               }
-            : { color: '#CDEFFF', width: 1 }
+            : undefined
         }
-        footer={{
-          variant: 'issuer',
-          closeLabel: tr('Cerrar', 'Close'),
-          editLabel: tr('Editar tarjeta', 'Edit card'),
-          onClose: () => {
-            setPreviewVisible(false);
-            setPreviewCard(null);
-          },
-          onEditCard:
-            previewCard != null
-              ? () => {
-                  setPreviewVisible(false);
-                  openEditFactory(previewCard);
-                }
-              : undefined,
-          colors: {
-            overlay: cardsTheme.modalOverlay,
-            modalBg: cardsTheme.modalBg,
-            modalBorder: cardsTheme.modalBorder,
-            ghostBg: cardsTheme.btnGhost,
-            ghostBorder: cardsTheme.modalBorder,
-            ghostText: cardsTheme.btnGhostText,
-            primaryBg: cardsTheme.btnPrimary,
-            primaryText: cardsTheme.btnPrimaryText,
-          },
-          blurTint: 'light',
-        }}
-      >
-        {previewCard
-          ? renderWireframeCard({
-              layout: previewLayout,
-              slots: previewSlots,
-              editable: false,
-              theme: resolveTheme(previewCard.themeId),
-              wallpaperUrl: previewCard.wallpaperUrl,
-            })
-          : null}
-      </SmartCardMirrorModal>
+        sourceCardId={previewCard?.id ?? null}
+        sourceCardName={previewCard?.name ?? cardName ?? 'Tarjeta Social'}
+        peerDisplayName={ownerNickname || 'este contacto'}
+      />
 
       <Modal
         visible={previewBusinessVisible}

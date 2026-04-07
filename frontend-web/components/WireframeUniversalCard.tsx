@@ -496,7 +496,7 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
           </div>
         </div>
       </div>
-      <MirrorActionModals plan={slotActionPlan} onClose={() => setSlotActionPlan(null)} tr={tr} />
+      <MirrorActionModals plan={slotActionPlan} onClose={() => setSlotActionPlan(null)} tr={tr} accent={theme.border.color} />
       </>
     );
   }
@@ -644,7 +644,7 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
         </div>
       </div>
     </div>
-    <MirrorActionModals plan={slotActionPlan} onClose={() => setSlotActionPlan(null)} tr={tr} />
+    <MirrorActionModals plan={slotActionPlan} onClose={() => setSlotActionPlan(null)} tr={tr} accent={theme.border.color} />
     </>
   );
 }

@@ -3,15 +3,9 @@
  */
 
 import { SharedCardSkeletonList } from '@/components/SharedCardRowSkeleton';
-import { SmartCardMirrorModal } from '@/components/SmartCardMirrorModal';
-import { VaultDocumentViewerModal } from '@/components/VaultDocumentViewerModal';
-import { IsolatedWireframeCard, type WireframeEditSlot } from '@/components/smartCard/IsolatedWireframeCard';
-import {
-  createReceiverWireframeSlotRenderer,
-  renderWireframeDetailedRatingStars,
-} from '@/components/smartCard/wireframeMirrorRendering';
+import { MyCardsPreviewModal, type MyCardsPayload } from '@/components/MyCards';
+import { type WireframeEditSlot } from '@/components/smartCard/IsolatedWireframeCard';
 import { ThemedSharedCardSurface } from '@/components/ThemedSharedCardSurface';
-import { CARD_THEMES as CHEST_THEMES, getThemeById } from '@/constants/themeChest';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { ExportBusinessQR, generatePermanentBusinessLink } from '@/services/brandedQrService';
@@ -32,8 +26,7 @@ import {
 import { getCardRowTheme } from '@/services/useActiveTheme';
 import { facetIconNameForSearch, runSearchFacetQuickAction } from '@/services/searchFacetQuickAction';
 import { buildMarketCardSearchFacets, marketSearchStoryRingState } from '@/services/searchPhase2Logic';
-import { buildMirrorVaultItemsForContact, type MirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
-import { openVaultPreviewItem } from '@/services/openVaultPreviewItem';
+import { buildMirrorVaultItemsForContact } from '@/services/buildReceiverPreviewVaultItems';
 import { searchSocialMarket } from '@/services/searchService';
 import type { ReceivedContactForMarketSearch } from '@/services/searchService';
 import {
@@ -64,7 +57,6 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    useWindowDimensions,
     View,
     type NativeSyntheticEvent,
     type NativeScrollEvent,
@@ -152,11 +144,6 @@ export default function SearchScreen() {
   const { resolvedMode } = useLookMode();
   const isDark = resolvedMode === 'noche';
   const shell = appPalette[isDark ? 'dark' : 'light'];
-  const { height: windowHeight } = useWindowDimensions();
-  const searchDetailParallaxX = useRef(new Animated.Value(0)).current;
-  const searchDetailParallaxY = useRef(new Animated.Value(0)).current;
-  const [searchMirrorViewerVisible, setSearchMirrorViewerVisible] = useState(false);
-  const [searchMirrorViewerItem, setSearchMirrorViewerItem] = useState<MirrorVaultItem | null>(null);
   const { language } = useLanguage();
   const tr = useCallback((es: string, en: string) => (language === 'en' ? en : es), [language]);
   /** Última consulta enviada (IR / Intro); el campo de texto vive en SocialMarketSearchBar. */
@@ -214,41 +201,6 @@ export default function SearchScreen() {
     requestAnimationFrame(restoreSearchListScroll);
   }, [restoreSearchListScroll]);
 
-  const openSearchMirrorDocumentViewer = useCallback(async (item: MirrorVaultItem) => {
-    const ok = await hardLockCheck('abrir visor seguro de documentos');
-    if (!ok) {
-      return;
-    }
-    setSearchMirrorViewerItem(item);
-    setSearchMirrorViewerVisible(true);
-  }, []);
-
-  const openSearchMirrorDataItem = useCallback(
-    async (item: MirrorVaultItem) => {
-      const d = receivedCardDetail;
-      if (!d || d.rowSource !== 'received_contact') {
-        return;
-      }
-      await openVaultPreviewItem(item, {
-        tr,
-        openDocumentViewer: async (it) => {
-          await openSearchMirrorDocumentViewer(it as MirrorVaultItem);
-        },
-        ghostTargetUid: d.card.ownerUid,
-        sourceCardName:
-          String(d.receivedContactCardName || '').trim() ||
-          d.card.businessName ||
-          tr('Tarjeta Social', 'Social Card'),
-        sourceCardId: d.receivedSourceCardId ?? null,
-        peerDisplayName:
-          String(d.receivedIssuerNickname || '').trim() ||
-          d.card.businessName ||
-          tr('contacto', 'contact'),
-      });
-    },
-    [receivedCardDetail, tr, openSearchMirrorDocumentViewer],
-  );
-
   const searchMirrorPreviewSlots = useMemo<WireframeEditSlot[]>(() => {
     if (!receivedCardDetail || receivedCardDetail.rowSource !== 'received_contact') {
       return [];
@@ -266,14 +218,27 @@ export default function SearchScreen() {
     }));
   }, [receivedCardDetail]);
 
-  const renderSearchMirrorSlotContent = useMemo(
-    () =>
-      createReceiverWireframeSlotRenderer({
-        tr,
-        onDataPress: (it) => void openSearchMirrorDataItem(it as MirrorVaultItem),
-      }),
-    [tr, openSearchMirrorDataItem],
-  );
+  const searchReceivedPayload = useMemo<MyCardsPayload | null>(() => {
+    if (!receivedCardDetail || receivedCardDetail.rowSource !== 'received_contact') return null;
+    const d = receivedCardDetail;
+    const nickRaw = String(d.receivedIssuerNickname || 'user').trim() || 'user';
+    const cardNm = String(d.receivedContactCardName || '').trim();
+    const person = String(d.card.businessName || '').trim();
+    const occ = String(d.receivedOwnerOccupation || '').trim();
+    return {
+      cardName: (cardNm || person || occ || tr('Tarjeta Social', 'Social Card')).trim(),
+      subtitle: nickRaw.startsWith('@') ? nickRaw : `@${nickRaw}`,
+      avatarUrl: d.card.businessLogo ?? null,
+      themeId: d.issuerPresentation?.themeId || '',
+      wallpaperUrl: d.issuerPresentation?.wallpaperUrl ?? undefined,
+      layout: d.issuerPresentation?.layout === 'horizontal' ? 'horizontal' : 'vertical',
+      holdersCount: Math.max(0, Math.floor(Number(d.receivedHoldersCount ?? 0))),
+      ratingAvg: Number(d.card.averageRating),
+      totalRatings: Math.max(0, Math.floor(Number(d.card.totalRatings ?? 0))),
+      enableParallax: Boolean(d.issuerPresentation?.enableParallax),
+      slots: searchMirrorPreviewSlots,
+    };
+  }, [receivedCardDetail, searchMirrorPreviewSlots, tr]);
 
   const onSearchScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     searchScrollYRef.current = e.nativeEvent.contentOffset.y;
@@ -1292,86 +1257,23 @@ export default function SearchScreen() {
         </View>
       ) : null}
 
-      <SmartCardMirrorModal
+      <MyCardsPreviewModal
         visible={Boolean(receivedCardDetail && receivedCardDetail.rowSource === 'received_contact')}
-        onRequestClose={closeReceivedCardDetail}
-        screenHeight={windowHeight}
-        iconSlotCount={searchMirrorPreviewSlots.length}
-        cardBorder={
-          receivedCardDetail && receivedCardDetail.rowSource === 'received_contact'
-            ? {
-                color: (getThemeById(receivedCardDetail.issuerPresentation?.themeId || '') ?? CHEST_THEMES[0]).border.color,
-                width: (getThemeById(receivedCardDetail.issuerPresentation?.themeId || '') ?? CHEST_THEMES[0]).border.width,
-              }
-            : { color: shell.border, width: 1 }
+        onClose={closeReceivedCardDetail}
+        variant="receiver"
+        payload={searchReceivedPayload}
+        ghostTargetUid={receivedCardDetail?.card?.ownerUid}
+        sourceCardId={receivedCardDetail?.receivedSourceCardId ?? null}
+        sourceCardName={
+          String(receivedCardDetail?.receivedContactCardName || '').trim() ||
+          receivedCardDetail?.card?.businessName ||
+          undefined
         }
-        footer={{
-          variant: 'receiver',
-          closeLabel: tr('Cerrar', 'Close'),
-          onClose: closeReceivedCardDetail,
-          colors: {
-            overlay: shell.overlayScrim,
-            modalBg: shell.modalBg,
-            modalBorder: shell.modalBorder,
-            ghostBg: shell.surfaceMuted,
-            ghostBorder: shell.border,
-            ghostText: shell.textPrimary,
-            primaryBg: shell.ctaPrimary,
-            primaryText: shell.btnPrimaryText,
-          },
-          blurTint: isDark ? 'dark' : 'light',
-        }}
-      >
-        {receivedCardDetail && receivedCardDetail.rowSource === 'received_contact'
-          ? (() => {
-              const d = receivedCardDetail;
-              const theme = getThemeById(d.issuerPresentation?.themeId || '') ?? CHEST_THEMES[0];
-              const reviewCount = Math.max(0, Math.floor(Number(d.card.totalRatings ?? 0)));
-              const ratingAvgRaw = Number(d.card.averageRating);
-              const dispStarsValue =
-                reviewCount > 0 && Number.isFinite(ratingAvgRaw) ? Math.max(0, Math.min(5, ratingAvgRaw)) : 0;
-              const nickRaw = String(d.receivedIssuerNickname || 'user').trim() || 'user';
-              const dispSub = nickRaw.startsWith('@') ? nickRaw : `@${nickRaw}`;
-              const cardNm = String(d.receivedContactCardName || '').trim();
-              const person = String(d.card.businessName || '').trim();
-              const occ = String(d.receivedOwnerOccupation || '').trim();
-              const dispName = (cardNm || person || occ || tr('Tarjeta Social', 'Social Card')).trim();
-              const layout = d.issuerPresentation?.layout === 'horizontal' ? 'horizontal' : 'vertical';
-              return (
-                <IsolatedWireframeCard
-                  layout={layout}
-                  slots={searchMirrorPreviewSlots}
-                  editable={false}
-                  theme={theme}
-                  wallpaperUrl={d.issuerPresentation?.wallpaperUrl ?? undefined}
-                  dispName={dispName}
-                  dispSub={dispSub}
-                  dispAvatar={d.card.businessLogo ?? null}
-                  dispHolders={Math.max(0, Math.floor(Number(d.receivedHoldersCount ?? 0)))}
-                  dispReviewCount={reviewCount}
-                  dispStarsValue={dispStarsValue}
-                  noAvatarIconName="account"
-                  enableParallax={Boolean(d.issuerPresentation?.enableParallax)}
-                  parallaxX={searchDetailParallaxX}
-                  parallaxY={searchDetailParallaxY}
-                  renderSlotContent={renderSearchMirrorSlotContent}
-                  renderDetailedRatingStars={renderWireframeDetailedRatingStars}
-                  tr={tr}
-                />
-              );
-            })()
-          : null}
-      </SmartCardMirrorModal>
-
-      <VaultDocumentViewerModal
-        visible={searchMirrorViewerVisible}
-        item={searchMirrorViewerItem}
-        onClose={() => {
-          setSearchMirrorViewerVisible(false);
-          setSearchMirrorViewerItem(null);
-        }}
-        tr={tr}
-        fallbackMutedColor={shell.textSecondary}
+        peerDisplayName={
+          String(receivedCardDetail?.receivedIssuerNickname || '').trim() ||
+          receivedCardDetail?.card?.businessName ||
+          undefined
+        }
       />
 
       <Modal

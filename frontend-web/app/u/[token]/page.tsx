@@ -58,11 +58,12 @@ export default async function UniversalCardPage({ params }: Props) {
 
   const { card } = result;
   const theme = getThemeById(card.themeId);
+  const bgGradient = `linear-gradient(180deg, ${theme.background[0]}, ${theme.background[1]}, ${theme.background[2]})`;
 
   return (
     <main style={{
       minHeight: '100vh',
-      backgroundColor: '#000000',
+      background: bgGradient,
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
@@ -83,7 +84,7 @@ function ExpiredPage() {
   return (
     <main style={{
       minHeight: '100vh',
-      backgroundColor: '#000000',
+      background: 'linear-gradient(180deg, #E0F7FA, #B2EBF2, #4DD0C8)',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
@@ -92,10 +93,10 @@ function ExpiredPage() {
       textAlign: 'center',
     }}>
       <div style={{ fontSize: 48, marginBottom: 16 }}>⏱</div>
-      <h1 style={{ color: '#D4AF37', fontSize: 24, fontWeight: '800', marginBottom: 8 }}>
+      <h1 style={{ color: '#00695C', fontSize: 24, fontWeight: '800', marginBottom: 8 }}>
         Enlace expirado
       </h1>
-      <p style={{ color: '#9CA3AF', fontSize: 15, maxWidth: 320, lineHeight: 1.6 }}>
+      <p style={{ color: '#4E7570', fontSize: 15, maxWidth: 320, lineHeight: 1.6 }}>
         Este acceso temporal ha expirado. Pide al emisor que genere un nuevo enlace desde la app.
       </p>
       <a
@@ -105,8 +106,8 @@ function ExpiredPage() {
           display: 'inline-block',
           padding: '14px 32px',
           borderRadius: 14,
-          backgroundColor: '#D4AF37',
-          color: '#000',
+          backgroundColor: '#00E5FF',
+          color: '#00695C',
           fontWeight: '800',
           fontSize: 16,
           textDecoration: 'none',

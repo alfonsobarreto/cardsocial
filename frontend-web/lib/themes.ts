@@ -186,7 +186,7 @@ export const CARD_THEMES: CardTheme[] = [
   },
 ];
 
-export const DEFAULT_THEME = CARD_THEMES.find((t) => t.id === 'royal_navy')!;
+export const DEFAULT_THEME = CARD_THEMES.find((t) => t.id === 'deep_teal')!;
 
 export function getThemeById(id: string | null | undefined): CardTheme {
   if (!id) return DEFAULT_THEME;

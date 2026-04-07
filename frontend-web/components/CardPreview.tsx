@@ -40,7 +40,7 @@ export default function CardPreview({ card, theme, expiresAt, locale }: Props) {
     <div style={{ width: '100%', maxWidth: 420, margin: '0 auto' }}>
       <div
         style={{
-          background: 'rgba(212,175,55,0.15)',
+          background: `${bd.color}26`,
           border: `1px solid ${bd.color}44`,
           borderRadius: 10,
           padding: '8px 16px',
@@ -68,7 +68,7 @@ export default function CardPreview({ card, theme, expiresAt, locale }: Props) {
             padding: '14px 24px',
             borderRadius: 14,
             backgroundColor: bd.color,
-            color: '#000',
+            color: theme.background[0],
             fontWeight: 800,
             fontSize: 16,
             textDecoration: 'none',

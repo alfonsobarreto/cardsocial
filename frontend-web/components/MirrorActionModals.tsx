@@ -18,26 +18,30 @@ const overlay: React.CSSProperties = {
   padding: 20,
 };
 
-const sheet: React.CSSProperties = {
-  width: '100%',
-  maxWidth: 400,
-  maxHeight: '85vh',
-  overflow: 'auto',
-  borderRadius: 16,
-  backgroundColor: '#111',
-  border: '1px solid rgba(212,175,55,0.35)',
-  padding: 20,
-  color: '#e5e5e5',
-};
+function makeSheet(accent: string): React.CSSProperties {
+  return {
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '85vh',
+    overflow: 'auto',
+    borderRadius: 16,
+    backgroundColor: '#111',
+    border: `1px solid ${accent}59`,
+    padding: 20,
+    color: '#e5e5e5',
+  };
+}
 
 function Btn({
   primary,
   onClick,
   children,
+  accent,
 }: {
   primary?: boolean;
   onClick: () => void;
   children: React.ReactNode;
+  accent: string;
 }) {
   return (
     <button
@@ -47,9 +51,9 @@ function Btn({
         flex: 1,
         minHeight: 44,
         borderRadius: 10,
-        border: primary ? 'none' : '1px solid rgba(212,175,55,0.5)',
-        backgroundColor: primary ? '#D4AF37' : 'transparent',
-        color: primary ? '#000' : '#D4AF37',
+        border: primary ? 'none' : `1px solid ${accent}80`,
+        backgroundColor: primary ? accent : 'transparent',
+        color: primary ? '#000' : accent,
         fontWeight: 700,
         fontSize: 14,
         cursor: 'pointer',
@@ -85,11 +89,14 @@ export function MirrorActionModals({
   plan,
   onClose,
   tr,
+  accent = '#D4AF37',
 }: {
   plan: MirrorOpenPlan | null;
   onClose: () => void;
   tr: Tr;
+  accent?: string;
 }) {
+  const sheetStyle = makeSheet(accent);
   const onCopy = useCallback(async (text: string) => {
     const ok = await copyText(text);
     if (ok) {
@@ -114,8 +121,8 @@ export function MirrorActionModals({
     const body = plan.value || tr('Sin contenido', 'No content');
     return (
       <div style={overlay} onClick={onClose} role="presentation">
-        <div style={sheet} onClick={(e) => e.stopPropagation()} role="dialog">
-          <div style={{ fontWeight: 800, color: '#D4AF37', marginBottom: 12 }}>{plan.title}</div>
+        <div style={sheetStyle} onClick={(e) => e.stopPropagation()} role="dialog">
+          <div style={{ fontWeight: 800, color: accent, marginBottom: 12 }}>{plan.title}</div>
           <pre
             style={{
               whiteSpace: 'pre-wrap',
@@ -130,8 +137,8 @@ export function MirrorActionModals({
             {body}
           </pre>
           <div style={rowBtns}>
-            <Btn primary onClick={() => void onCopy(body)}>{tr('Copiar', 'Copy')}</Btn>
-            <Btn onClick={onClose}>{tr('Cerrar', 'Close')}</Btn>
+            <Btn primary accent={accent} onClick={() => void onCopy(body)}>{tr('Copiar', 'Copy')}</Btn>
+            <Btn accent={accent} onClick={onClose}>{tr('Cerrar', 'Close')}</Btn>
           </div>
         </div>
       </div>
@@ -141,12 +148,13 @@ export function MirrorActionModals({
   if (plan.kind === 'email') {
     return (
       <div style={overlay} onClick={onClose} role="presentation">
-        <div style={sheet} onClick={(e) => e.stopPropagation()}>
-          <div style={{ fontWeight: 800, color: '#D4AF37', marginBottom: 8 }}>{tr('Correo', 'Email')}</div>
+        <div style={sheetStyle} onClick={(e) => e.stopPropagation()}>
+          <div style={{ fontWeight: 800, color: accent, marginBottom: 8 }}>{tr('Correo', 'Email')}</div>
           <div style={{ fontSize: 15, marginBottom: 16 }}>{plan.value}</div>
           <div style={rowBtns}>
             <Btn
               primary
+              accent={accent}
               onClick={() => {
                 window.location.href = `mailto:${plan.value}`;
                 onClose();
@@ -154,10 +162,10 @@ export function MirrorActionModals({
             >
               {tr('Abrir cliente de correo', 'Open mail app')}
             </Btn>
-            <Btn onClick={() => void onCopy(plan.value)}>{tr('Copiar', 'Copy')}</Btn>
+            <Btn accent={accent} onClick={() => void onCopy(plan.value)}>{tr('Copiar', 'Copy')}</Btn>
           </div>
           <div style={{ marginTop: 10 }}>
-            <Btn onClick={onClose}>{tr('Cerrar', 'Close')}</Btn>
+            <Btn accent={accent} onClick={onClose}>{tr('Cerrar', 'Close')}</Btn>
           </div>
         </div>
       </div>
@@ -168,13 +176,14 @@ export function MirrorActionModals({
     const compact = normalizeTelDialString(plan.value);
     return (
       <div style={overlay} onClick={onClose} role="presentation">
-        <div style={sheet} onClick={(e) => e.stopPropagation()}>
-          <div style={{ fontWeight: 800, color: '#D4AF37', marginBottom: 8 }}>{tr('Teléfono', 'Phone')}</div>
+        <div style={sheetStyle} onClick={(e) => e.stopPropagation()}>
+          <div style={{ fontWeight: 800, color: accent, marginBottom: 8 }}>{tr('Teléfono', 'Phone')}</div>
           <div style={{ fontSize: 18, marginBottom: 16, fontVariantNumeric: 'tabular-nums' }}>{plan.value}</div>
           <div style={rowBtns}>
             {compact ? (
               <Btn
                 primary
+                accent={accent}
                 onClick={() => {
                   window.location.href = `tel:${compact}`;
                   onClose();
@@ -183,10 +192,10 @@ export function MirrorActionModals({
                 {tr('Llamar', 'Call')}
               </Btn>
             ) : null}
-            <Btn onClick={() => void onCopy(plan.value)}>{tr('Copiar número', 'Copy number')}</Btn>
+            <Btn accent={accent} onClick={() => void onCopy(plan.value)}>{tr('Copiar número', 'Copy number')}</Btn>
           </div>
           <div style={{ marginTop: 10 }}>
-            <Btn onClick={onClose}>{tr('Cerrar', 'Close')}</Btn>
+            <Btn accent={accent} onClick={onClose}>{tr('Cerrar', 'Close')}</Btn>
           </div>
         </div>
       </div>
@@ -200,12 +209,13 @@ export function MirrorActionModals({
 
     return (
       <div style={overlay} onClick={onClose} role="presentation">
-        <div style={sheet} onClick={(e) => e.stopPropagation()}>
-          <div style={{ fontWeight: 800, color: '#D4AF37', marginBottom: 8 }}>{plan.title}</div>
+        <div style={sheetStyle} onClick={(e) => e.stopPropagation()}>
+          <div style={{ fontWeight: 800, color: accent, marginBottom: 8 }}>{plan.title}</div>
           <div style={{ fontSize: 12, opacity: 0.85, wordBreak: 'break-all', marginBottom: 16 }}>{httpsUrl}</div>
           <div style={rowBtns}>
             <Btn
               primary
+              accent={accent}
               onClick={() => {
                 window.open(httpsUrl, '_blank', 'noopener,noreferrer');
                 onClose();
@@ -217,6 +227,7 @@ export function MirrorActionModals({
           {appCandidates.length ? (
             <div style={{ ...rowBtns, marginTop: 10 }}>
               <Btn
+                accent={accent}
                 onClick={() => {
                   tryOpenNativeAppUrl(appCandidates[0]);
                 }}
@@ -226,10 +237,10 @@ export function MirrorActionModals({
             </div>
           ) : null}
           <div style={{ marginTop: 10 }}>
-            <Btn onClick={() => void onCopy(httpsUrl)}>{tr('Copiar enlace', 'Copy link')}</Btn>
+            <Btn accent={accent} onClick={() => void onCopy(httpsUrl)}>{tr('Copiar enlace', 'Copy link')}</Btn>
           </div>
           <div style={{ marginTop: 10 }}>
-            <Btn onClick={onClose}>{tr('Cerrar', 'Close')}</Btn>
+            <Btn accent={accent} onClick={onClose}>{tr('Cerrar', 'Close')}</Btn>
           </div>
         </div>
       </div>
@@ -244,7 +255,7 @@ export function MirrorActionModals({
       <div style={{ ...overlay, alignItems: 'stretch', padding: 0 }} onClick={onClose} role="presentation">
         <div
           style={{
-            ...sheet,
+            ...sheetStyle,
             maxWidth: '100%',
             maxHeight: '100vh',
             margin: 12,
@@ -255,7 +266,7 @@ export function MirrorActionModals({
           onClick={(e) => e.stopPropagation()}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <div style={{ fontWeight: 800, color: '#D4AF37' }}>{plan.title}</div>
+            <div style={{ fontWeight: 800, color: accent }}>{plan.title}</div>
             <button
               type="button"
               onClick={onClose}
@@ -288,13 +299,14 @@ export function MirrorActionModals({
           <div style={rowBtns}>
             <Btn
               primary
+              accent={accent}
               onClick={() => {
                 window.open(u, '_blank', 'noopener,noreferrer');
               }}
             >
               {tr('Abrir / descargar', 'Open / download')}
             </Btn>
-            <Btn onClick={() => void onCopy(u)}>{tr('Copiar URL', 'Copy URL')}</Btn>
+            <Btn accent={accent} onClick={() => void onCopy(u)}>{tr('Copiar URL', 'Copy URL')}</Btn>
           </div>
         </div>
       </div>
@@ -305,8 +317,8 @@ export function MirrorActionModals({
     const appUrl = `cardsocial://`;
     return (
       <div style={overlay} onClick={onClose} role="presentation">
-        <div style={sheet} onClick={(e) => e.stopPropagation()}>
-          <div style={{ fontWeight: 800, color: '#D4AF37', marginBottom: 12 }}>Ghost-Link</div>
+        <div style={sheetStyle} onClick={(e) => e.stopPropagation()}>
+          <div style={{ fontWeight: 800, color: accent, marginBottom: 12 }}>Ghost-Link</div>
           <p style={{ fontSize: 14, lineHeight: 1.5, margin: '0 0 16px' }}>
             {tr(
               'Las llamadas privadas Ghost-Link solo están disponibles en la app Card-Social. Tu número real permanece oculto.',
@@ -314,19 +326,20 @@ export function MirrorActionModals({
             )}
           </p>
           <div style={rowBtns}>
-            <Btn primary onClick={() => tryOpenNativeAppUrl(appUrl)}>
+            <Btn primary accent={accent} onClick={() => tryOpenNativeAppUrl(appUrl)}>
               {tr('Abrir Card-Social', 'Open Card-Social')}
             </Btn>
           </div>
           <div style={{ ...rowBtns, marginTop: 10 }}>
             <Btn
+              accent={accent}
               onClick={() => {
                 window.open('https://cardsocial.me', '_blank', 'noopener,noreferrer');
               }}
             >
               {tr('Descargar app', 'Get the app')}
             </Btn>
-            <Btn onClick={onClose}>{tr('Cerrar', 'Close')}</Btn>
+            <Btn accent={accent} onClick={onClose}>{tr('Cerrar', 'Close')}</Btn>
           </div>
         </div>
       </div>

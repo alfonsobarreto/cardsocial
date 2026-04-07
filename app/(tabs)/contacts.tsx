@@ -1,15 +1,6 @@
 import { SharedCardSkeletonList } from '@/components/SharedCardRowSkeleton';
-import {
-  IsolatedWireframeCard,
-  type WireframeEditSlot,
-  type WireframeVaultItem,
-} from '@/components/smartCard/IsolatedWireframeCard';
-import {
-  createReceiverWireframeSlotRenderer,
-  renderWireframeDetailedRatingStars,
-} from '@/components/smartCard/wireframeMirrorRendering';
-import { SmartCardMirrorModal } from '@/components/SmartCardMirrorModal';
-import { VaultDocumentViewerModal } from '@/components/VaultDocumentViewerModal';
+import { type WireframeEditSlot } from '@/components/smartCard/IsolatedWireframeCard';
+import { MyCardsPreviewModal, type MyCardsPayload } from '@/components/MyCards';
 import { ThemedSharedCardSurface } from '@/components/ThemedSharedCardSurface';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import FlexGrid from '@/components/FlexGrid';
@@ -47,8 +38,8 @@ import {
   mergeReceivedContactRows,
   receivedContactMergeKey,
 } from '@/services/receivedContactsPresentationMerge';
-import { buildMirrorVaultItemsForContact, type MirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
-import { openVaultPreviewItem } from '@/services/openVaultPreviewItem';
+import { buildMirrorVaultItemsForContact } from '@/services/buildReceiverPreviewVaultItems';
+
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -80,7 +71,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { Swipeable } from 'react-native-gesture-handler';
-import { CARD_THEMES as CHEST_THEMES, getThemeById } from '@/constants/themeChest';
 
 type Contact = {
   uid: string;
@@ -208,10 +198,6 @@ function ContactsContent() {
   const { height: windowHeight } = useWindowDimensions();
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [floatingVisible, setFloatingVisible] = useState(false);
-  const parallaxX = useRef(new Animated.Value(0)).current;
-  const parallaxY = useRef(new Animated.Value(0)).current;
-  const [mirrorViewerVisible, setMirrorViewerVisible] = useState(false);
-  const [mirrorViewerItem, setMirrorViewerItem] = useState<MirrorVaultItem | null>(null);
 
   const [longPressVisible, setLongPressVisible] = useState(false);
   const [longPressContact, setLongPressContact] = useState<Contact | null>(null);
@@ -541,42 +527,27 @@ function ContactsContent() {
     }));
   }, [mirrorVaultItems]);
 
-  const openMirrorDocumentViewer = useCallback(async (item: MirrorVaultItem) => {
-    const ok = await hardLockCheck('abrir visor seguro de documentos');
-    if (!ok) {
-      return;
-    }
-    setMirrorViewerItem(item);
-    setMirrorViewerVisible(true);
-  }, []);
-
-  const openMirrorDataItem = useCallback(
-    async (item: MirrorVaultItem) => {
-      if (!selectedContact) {
-        return;
-      }
-      await openVaultPreviewItem(item, {
-        tr,
-        openDocumentViewer: async (it) => {
-          await openMirrorDocumentViewer(it as MirrorVaultItem);
-        },
-        ghostTargetUid: selectedContact.uid,
-        sourceCardName: selectedContact.cardName,
-        sourceCardId: selectedContact.cardId ?? null,
-        peerDisplayName: selectedContact.nickname || selectedContact.name || 'contacto',
-      });
-    },
-    [openMirrorDocumentViewer, selectedContact, tr],
-  );
-
-  const renderMirrorSlotContent = useMemo(
-    () =>
-      createReceiverWireframeSlotRenderer({
-        tr,
-        onDataPress: (it) => void openMirrorDataItem(it as MirrorVaultItem),
-      }),
-    [openMirrorDataItem, tr],
-  );
+  const contactPayload = useMemo<MyCardsPayload | null>(() => {
+    if (!selectedContact) return null;
+    const c = selectedContact;
+    const nick = String(c.nickname || 'user').trim() || 'user';
+    const cardNm = String(c.cardName || '').trim();
+    const person = String(c.name || '').trim();
+    const occ = String(c.ownerOccupation || '').trim();
+    return {
+      cardName: (cardNm || person || occ || tr('Tarjeta Social', 'Social Card')).trim(),
+      subtitle: nick.startsWith('@') ? nick : `@${nick}`,
+      avatarUrl: c.photoUrl,
+      themeId: c.themeId || '',
+      wallpaperUrl: c.wallpaperUrl ?? undefined,
+      layout: c.layout === 'horizontal' ? 'horizontal' : 'vertical',
+      holdersCount: Math.max(0, Math.floor(Number(c.holdersCount ?? 0))),
+      ratingAvg: Number(c.ratingAvg),
+      totalRatings: Math.max(0, Math.floor(Number(c.totalRatings ?? 0))),
+      enableParallax: Boolean(c.enableParallax),
+      slots: mirrorPreviewSlots,
+    };
+  }, [selectedContact, mirrorPreviewSlots, tr]);
 
   const allGroups = useMemo(() => {
     const dynamic = Object.values(metaMap)
@@ -1025,8 +996,6 @@ function ContactsContent() {
 
   const closeFloatingCard = () => {
     Keyboard.dismiss();
-    setMirrorViewerVisible(false);
-    setMirrorViewerItem(null);
     setFloatingVisible(false);
     setSelectedContact(null);
   };
@@ -1712,85 +1681,15 @@ function ContactsContent() {
         </View>
       </Modal>
 
-      <SmartCardMirrorModal
+      <MyCardsPreviewModal
         visible={Boolean(floatingVisible && selectedContact)}
-        onRequestClose={closeFloatingCard}
-        screenHeight={windowHeight}
-        iconSlotCount={mirrorPreviewSlots.length}
-        cardBorder={
-          selectedContact
-            ? {
-                color: (getThemeById(selectedContact.themeId || '') ?? CHEST_THEMES[0]).border.color,
-                width: (getThemeById(selectedContact.themeId || '') ?? CHEST_THEMES[0]).border.width,
-              }
-            : { color: shell.border, width: 1 }
-        }
-        footer={{
-          variant: 'receiver',
-          closeLabel: tr('Cerrar', 'Close'),
-          onClose: closeFloatingCard,
-          colors: {
-            overlay: shell.overlayScrim,
-            modalBg: shell.modalBg,
-            modalBorder: shell.modalBorder,
-            ghostBg: shell.surfaceMuted,
-            ghostBorder: shell.border,
-            ghostText: shell.textPrimary,
-            primaryBg: shell.ctaPrimary,
-            primaryText: shell.btnPrimaryText,
-          },
-          blurTint: isNight ? 'dark' : 'light',
-        }}
-      >
-        {selectedContact ? (() => {
-          const c = selectedContact;
-          const theme = getThemeById(c.themeId || '') ?? CHEST_THEMES[0];
-          const reviewCount = Math.max(0, Math.floor(Number(c.totalRatings ?? 0)));
-          const ratingAvgRaw = Number(c.ratingAvg);
-          const dispStarsValue =
-            reviewCount > 0 && Number.isFinite(ratingAvgRaw) ? Math.max(0, Math.min(5, ratingAvgRaw)) : 0;
-          const nick = String(c.nickname || 'user').trim() || 'user';
-          const dispSub = nick.startsWith('@') ? nick : `@${nick}`;
-          const cardNm = String(c.cardName || '').trim();
-          const person = String(c.name || '').trim();
-          const occ = String(c.ownerOccupation || '').trim();
-          /** Misma prioridad que vista previa Mis Tarjetas: nombre de tarjeta → persona → cargo. */
-          const dispName = (cardNm || person || occ || tr('Tarjeta Social', 'Social Card')).trim();
-          const layout = c.layout === 'horizontal' ? 'horizontal' : 'vertical';
-          return (
-            <IsolatedWireframeCard
-              layout={layout}
-              slots={mirrorPreviewSlots}
-              editable={false}
-              theme={theme}
-              wallpaperUrl={c.wallpaperUrl ?? undefined}
-              dispName={dispName}
-              dispSub={dispSub}
-              dispAvatar={c.photoUrl}
-              dispHolders={Math.max(0, Math.floor(Number(c.holdersCount ?? 0)))}
-              dispReviewCount={reviewCount}
-              dispStarsValue={dispStarsValue}
-              noAvatarIconName="account"
-              enableParallax={Boolean(c.enableParallax)}
-              parallaxX={parallaxX}
-              parallaxY={parallaxY}
-              renderSlotContent={renderMirrorSlotContent}
-              renderDetailedRatingStars={renderWireframeDetailedRatingStars}
-              tr={tr}
-            />
-          );
-        })() : null}
-      </SmartCardMirrorModal>
-
-      <VaultDocumentViewerModal
-        visible={mirrorViewerVisible}
-        item={mirrorViewerItem}
-        onClose={() => {
-          setMirrorViewerVisible(false);
-          setMirrorViewerItem(null);
-        }}
-        tr={tr}
-        fallbackMutedColor={shell.textSecondary}
+        onClose={closeFloatingCard}
+        variant="receiver"
+        payload={contactPayload}
+        ghostTargetUid={selectedContact?.uid}
+        sourceCardId={selectedContact?.cardId ?? null}
+        sourceCardName={selectedContact?.cardName}
+        peerDisplayName={selectedContact?.nickname || selectedContact?.name || 'contacto'}
       />
 
       <Modal
