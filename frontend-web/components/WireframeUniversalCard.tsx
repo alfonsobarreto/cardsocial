@@ -470,7 +470,7 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
             ref={horizIconsBoxRef}
             style={{
               flex: '2.95 1 0',
-              minHeight: 120,
+              minHeight: 180,
               marginTop: 12,
               paddingTop: 2,
               paddingBottom: 6,
@@ -618,7 +618,7 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
           ref={vertIconsBoxRef}
           style={{
             flex: '2.35 1 0',
-            minHeight: 140,
+            minHeight: 200,
             marginTop: 12,
             paddingTop: 2,
             paddingBottom: 22,

@@ -33,6 +33,22 @@ export function wireframeSlotBelowBubbleHeight(bubbleSize: number, iconLabelFont
   return 8 + labelLineHeight * 2 + 8 + 6;
 }
 
+function sideFromWidth(usableW: number, rowPlan: number[], gap: number): number {
+  const totalIcons = rowPlan.reduce((a, b) => a + b, 0);
+  if (totalIcons <= 1) {
+    return Math.min(WIREFRAME_STITCH_SINGLE_MAX_SIDE, usableW);
+  }
+  let sW = Number.POSITIVE_INFINITY;
+  for (const cols of rowPlan) {
+    if (cols <= 0) continue;
+    const raw = (usableW - gap * (cols - 1)) / cols;
+    if (Number.isFinite(raw) && raw > 0) {
+      sW = Math.min(sW, raw);
+    }
+  }
+  return Number.isFinite(sW) && sW > 0 ? sW : 0;
+}
+
 export function computeStitchWireframeBubbleSide(
   usableW: number,
   gridH: number,
@@ -41,24 +57,14 @@ export function computeStitchWireframeBubbleSide(
   rowGapV: number,
   themeIconLabelFontSize: number,
 ): number {
-  if (rowPlan.length === 0 || usableW <= 0 || gridH <= 0) return 0;
+  if (rowPlan.length === 0 || usableW <= 0) return 0;
 
-  const totalIcons = rowPlan.reduce((a, b) => a + b, 0);
-  let sideFromW: number;
+  const sideFromW = sideFromWidth(usableW, rowPlan, gap);
+  if (sideFromW <= 0) return 0;
 
-  if (totalIcons <= 1) {
-    sideFromW = Math.min(WIREFRAME_STITCH_SINGLE_MAX_SIDE, usableW);
-  } else {
-    let sW = Number.POSITIVE_INFINITY;
-    for (const cols of rowPlan) {
-      if (cols <= 0) continue;
-      const raw = (usableW - gap * (cols - 1)) / cols;
-      if (Number.isFinite(raw) && raw > 0) {
-        sW = Math.min(sW, raw);
-      }
-    }
-    if (!Number.isFinite(sW) || sW <= 0) return 0;
-    sideFromW = sW;
+  /** Primera pintura / SSR: aún no hay altura del ResizeObserver → no devolver 0 o desaparecen los iconos. */
+  if (gridH <= 0) {
+    return Math.max(26, Math.min(WIREFRAME_STITCH_SINGLE_MAX_SIDE, Math.floor(sideFromW)));
   }
 
   const numRows = rowPlan.length;
@@ -84,10 +90,12 @@ export function computeStitchWireframeBubbleSide(
   }
 
   if (best === 0 && numRows > 0) {
-    return Math.min(
-      Math.floor(sideFromW),
-      Math.max(0, Math.floor((gridH - betweenRows) / numRows - WIREFRAME_SLOT_LABEL_RESERVE)),
-    );
+    const wCap = Math.floor(sideFromW);
+    const hCap = Math.floor((gridH - betweenRows) / numRows - WIREFRAME_SLOT_LABEL_RESERVE);
+    const tight = Math.min(wCap, Math.max(0, hCap));
+    if (tight >= 26) return tight;
+    /** Contenedor bajo pero hay ancho: mostrar iconos aunque roce el overflow. */
+    return Math.max(26, Math.min(wCap, WIREFRAME_STITCH_SINGLE_MAX_SIDE));
   }
   return best;
 }
