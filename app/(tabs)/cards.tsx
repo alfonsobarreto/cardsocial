@@ -231,6 +231,29 @@ async function loadVaultSnapshotForSync(ownerUid: string): Promise<{
   if (JSON.stringify(itemsMigrated) !== JSON.stringify(parsed)) {
     await AsyncStorage.setItem(vaultStorageKey(ownerUid), JSON.stringify(itemsMigrated));
   }
+
+  /** Unión local + Firestore por `id`: si el caché local no tiene algún link, la tarjeta igual muestra iconos en app pero publicCardSlots salía []. */
+  const byId = new Map<string, any>();
+  for (const it of itemsMigrated) {
+    const id = String(it?.id || '').trim();
+    if (id) {
+      byId.set(id, it);
+    }
+  }
+  try {
+    const cloudSnapshot = await getDocs(collection(db, 'users', ownerUid, 'links'));
+    for (const itemDoc of cloudSnapshot.docs) {
+      const id = String(itemDoc.id || '').trim();
+      if (!id || byId.has(id)) {
+        continue;
+      }
+      byId.set(id, { id: itemDoc.id, ...itemDoc.data() });
+    }
+  } catch {
+    /* sin red */
+  }
+  itemsMigrated = migrateVaultIconsForStorage([...byId.values()]);
+
   if (itemsMigrated.length === 0) {
     try {
       const cloudSnapshot = await getDocs(collection(db, 'users', ownerUid, 'links'));
@@ -1466,16 +1489,28 @@ export default function CardsFactoryScreen() {
       // Leer Bóveda desde disco (no solo estado React): si no, publicCardSlots podía ir vacío y la web sin iconos.
       const vaultSnap = await loadVaultSnapshotForSync(ownerUid);
       const cardPayload = buildSmartCardDbPayload(card, vaultSnap);
-      if (card.itemIds.length > 0 && (cardPayload.publicCardSlots?.length ?? 0) === 0) {
+      const slotN = cardPayload.publicCardSlots?.length ?? 0;
+      const needN = card.itemIds.length;
+      if (needN > 0 && slotN === 0) {
         Toast.show({
           type: 'error',
           text1: tr('No se sincronizaron los datos públicos', 'Public data did not sync'),
           text2: tr(
-            'Abre la pestaña Bóveda y vuelve a intentar QR24h, o revisa tu conexión.',
-            'Open the Vault tab and try QR24h again, or check your connection.',
+            'Comprueba conexión, abre Bóveda y vuelve a intentar QR24h.',
+            'Check connection, open Vault, then try QR24h again.',
           ),
         });
         return;
+      }
+      if (needN > 0 && slotN > 0 && slotN < needN) {
+        Toast.show({
+          type: 'info',
+          text1: tr('Sincronización parcial', 'Partial sync'),
+          text2: tr(
+            `Se enviaron ${slotN} de ${needN} datos a la web. El resto no está en Bóveda local ni en la nube.`,
+            `Sent ${slotN} of ${needN} items to the web. The rest are missing locally and in the cloud.`,
+          ),
+        });
       }
       await upsertSmartCardInDb({ ownerUid, card: cardPayload });
       const result = await issueTemporaryUniversalAccess({ ownerUid, cardId: card.id });

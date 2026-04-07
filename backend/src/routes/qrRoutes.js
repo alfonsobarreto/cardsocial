@@ -1164,7 +1164,8 @@ function createQrRoutes({ storage }) {
         searchFacets: sanitizeSearchFacets(req.body?.searchFacets),
         updatedAt: now,
       };
-      if (req.body && Object.prototype.hasOwnProperty.call(req.body, 'publicCardSlots')) {
+      // Incluir si el cliente envía la clave (incl. array vacío). `in` evita fallos raros con hasOwnProperty en body parseado.
+      if (req.body != null && 'publicCardSlots' in req.body) {
         setDoc.publicCardSlots = sanitizePublicCardSlots(req.body.publicCardSlots);
       }
 
