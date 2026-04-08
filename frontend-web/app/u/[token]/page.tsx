@@ -4,6 +4,7 @@ import CardPreview from '@/components/CardPreview';
 import type { CardData } from '@/lib/universalCardTypes';
 import { normalizeUniversalCardPayload } from '@/lib/normalizeUniversalCard';
 import { getThemeById } from '@/lib/themes';
+import PublicLegalFooter from '@/components/PublicLegalFooter';
 
 // En producción (Azure) el Next.js corre como proceso hijo del backend Express.
 // Llamamos directo a localhost para evitar el loop proxy → Next.js → proxy.
@@ -116,6 +117,9 @@ function ExpiredPage() {
       >
         Descargar Card-Social
       </a>
+      <div style={{ width: '100%', maxWidth: 420, marginTop: 8 }}>
+        <PublicLegalFooter locale="es" accentColor="#00695C" />
+      </div>
     </main>
   );
 }

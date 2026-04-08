@@ -32,10 +32,15 @@ function acceptLanguageIsSpanish(acceptLanguage) {
 
 function buildExpiredHtml(isEs) {
   const dt = THEME_TABLE[DEFAULT_THEME_ID];
+  const SITE = 'https://cardsocial.me';
   const title = isEs ? 'Card-Social — Acceso expirado' : 'Card-Social — Access expired';
   const msg = isEs
     ? 'Acceso expirado. Contacta a quien te compartió el enlace para un código nuevo.'
     : 'Access expired. Contact the person who shared this link for a new code.';
+  const footPrivacy = isEs ? 'Privacidad' : 'Privacy';
+  const footTerms = isEs ? 'Términos' : 'Terms';
+  const footUsage = isEs ? 'Uso' : 'Usage';
+  const footSupport = isEs ? 'Soporte' : 'Support';
   return `<!DOCTYPE html>
 <html lang="${isEs ? 'es' : 'en'}">
 <head>
@@ -46,15 +51,29 @@ function buildExpiredHtml(isEs) {
   <style>
     * { box-sizing: border-box; }
     body {
-      margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
       background: linear-gradient(180deg, ${dt.bg[0]}, ${dt.bg[1]}, ${dt.bg[2]}); color: ${dt.tc}; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
       padding: 24px; text-align: center;
     }
     p { max-width: 24rem; line-height: 1.5; font-size: 1.05rem; border: 1px solid ${dt.bc}; border-radius: 14px; padding: 22px 18px; }
+    .legal-foot {
+      margin-top: 22px; max-width: 24rem; font-size: 0.65rem; font-weight: 300; line-height: 1.55;
+      color: ${dt.sc}; opacity: 0.85;
+    }
+    .legal-foot a { color: inherit; text-decoration: underline; }
   </style>
 </head>
 <body>
   <p>${msg}</p>
+  <footer class="legal-foot" aria-label="Legal">
+    <a href="${SITE}/legal/privacidad" target="_blank" rel="noopener noreferrer">${footPrivacy}</a>
+    <span aria-hidden="true"> · </span>
+    <a href="${SITE}/legal/terminos" target="_blank" rel="noopener noreferrer">${footTerms}</a>
+    <span aria-hidden="true"> · </span>
+    <a href="${SITE}/legal/uso" target="_blank" rel="noopener noreferrer">${footUsage}</a>
+    <span aria-hidden="true"> · </span>
+    <a href="mailto:soporte@card-social.com?subject=Soporte%20Card-Social">${footSupport}</a>
+  </footer>
 </body>
 </html>`;
 }
@@ -71,6 +90,7 @@ function buildValidCourtesyPageHtml(opts) {
   const apiBase = String(apiPrefix || '').replace(/\/+$/, '');
   const dt = THEME_TABLE[DEFAULT_THEME_ID];
 
+  const SITE = 'https://cardsocial.me';
   const t = {
     title: isEs ? 'Card-Social' : 'Card-Social',
     countdown: isEs ? 'Acceso temporal:' : 'Temporary access:',
@@ -81,6 +101,10 @@ function buildValidCourtesyPageHtml(opts) {
     expired: isEs ? 'Este acceso ha expirado.' : 'This access has expired.',
     holders: isEs ? 'receptores' : 'holders',
     reviews: isEs ? 'reseñas' : 'reviews',
+    footPrivacy: isEs ? 'Privacidad' : 'Privacy',
+    footTerms: isEs ? 'Términos' : 'Terms',
+    footUsage: isEs ? 'Uso' : 'Usage',
+    footSupport: isEs ? 'Soporte' : 'Support',
   };
 
   const safeToken = JSON.stringify(token);
@@ -184,6 +208,18 @@ function buildValidCourtesyPageHtml(opts) {
     .btn-primary { background: var(--bc); color: var(--bg0); }
     .btn-ghost { background: transparent; color: var(--bc); border: 1px solid var(--bc); }
     .err { text-align: center; padding: 24px; color: #c44; }
+    .legal-foot {
+      margin-top: 18px;
+      text-align: center;
+      font-size: 0.62rem;
+      font-weight: 300;
+      line-height: 1.55;
+      color: var(--sc);
+      opacity: 0.82;
+      padding: 12px 6px 4px;
+      border-top: 1px solid color-mix(in srgb, var(--bc) 22%, transparent);
+    }
+    .legal-foot a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
   </style>
 </head>
 <body>
@@ -196,6 +232,15 @@ function buildValidCourtesyPageHtml(opts) {
       <button type="button" class="btn btn-primary" id="btn-store">${t.addContacts}</button>
       <a class="btn btn-ghost" id="btn-app" href="#">${t.openApp}</a>
     </div>
+    <footer class="legal-foot" aria-label="Legal">
+      <a href="${SITE}/legal/privacidad" target="_blank" rel="noopener noreferrer">${t.footPrivacy}</a>
+      <span aria-hidden="true"> · </span>
+      <a href="${SITE}/legal/terminos" target="_blank" rel="noopener noreferrer">${t.footTerms}</a>
+      <span aria-hidden="true"> · </span>
+      <a href="${SITE}/legal/uso" target="_blank" rel="noopener noreferrer">${t.footUsage}</a>
+      <span aria-hidden="true"> · </span>
+      <a href="mailto:soporte@card-social.com?subject=Soporte%20Card-Social">${t.footSupport}</a>
+    </footer>
   </div>
   <script>
 (function(){

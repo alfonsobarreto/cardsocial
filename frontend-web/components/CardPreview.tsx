@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import WireframeUniversalCard from '@/components/WireframeUniversalCard';
+import PublicLegalFooter from '@/components/PublicLegalFooter';
 import type { CardData } from '@/lib/universalCardTypes';
 import { CardTheme } from '@/lib/themes';
 
@@ -94,6 +95,12 @@ export default function CardPreview({ card, theme, expiresAt, locale }: Props) {
           {tr('Abrir en la app', 'Open in app')}
         </a>
       </div>
+
+      <PublicLegalFooter
+        locale={locale}
+        accentColor={bd.color}
+        background={`${bd.color}14`}
+      />
     </div>
   );
 }
