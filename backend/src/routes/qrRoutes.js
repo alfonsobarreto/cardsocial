@@ -1052,6 +1052,98 @@ function createQrRoutes({ storage }) {
     }
   });
 
+  /**
+   * Otorga share_permission por QR permanente de Business Card (sin qr_tokens).
+   */
+  router.post('/grant-business-share', async (req, res) => {
+    try {
+      const isEs = clientLocaleIsSpanish(req);
+      const receiverUid = String(req.body?.receiverUid || req.auth?.sub || '').trim();
+      const ownerUid = String(req.body?.ownerUid || '').trim();
+      const cardId = String(req.body?.cardId || '').trim();
+
+      if (!receiverUid) {
+        return res.status(400).json({
+          ok: false,
+          error: isEs ? 'Se requiere receiverUid.' : 'receiverUid is required.',
+        });
+      }
+      if (!ownerUid || !cardId) {
+        return res.status(400).json({
+          ok: false,
+          error: isEs ? 'Se requiere ownerUid y cardId.' : 'ownerUid and cardId are required.',
+        });
+      }
+      if (receiverUid === ownerUid) {
+        return res.status(400).json({
+          ok: false,
+          error: isEs ? 'No puedes agregarte a ti mismo.' : 'You cannot add yourself.',
+        });
+      }
+
+      const db = await storage.connect();
+      const now = new Date();
+
+      const relationKey = buildRelationKey(ownerUid, receiverUid);
+      const blocked = await db.collection('blocked_relations').findOne({ relationKey });
+      if (blocked) {
+        return res.status(403).json({
+          ok: false,
+          error: isEs ? 'Acceso denegado: relación bloqueada.' : 'Access denied: blocked relationship.',
+        });
+      }
+
+      const cardDoc = await db.collection('smart_cards').findOne(
+        { ownerUid, cardId },
+        { projection: { _id: 1 } },
+      );
+      if (!cardDoc) {
+        return res.status(404).json({
+          ok: false,
+          error: isEs ? 'No se encontró la tarjeta.' : 'Card not found.',
+        });
+      }
+
+      await db.collection('share_permissions').findOneAndUpdate(
+        {
+          ownerUid,
+          targetUid: receiverUid,
+          cardId,
+        },
+        {
+          $set: {
+            scope: 'view',
+            isRevoked: false,
+            revokedAt: null,
+            expiresAt: null,
+          },
+          $setOnInsert: {
+            createdAt: now,
+          },
+        },
+        {
+          upsert: true,
+          returnDocument: 'after',
+          includeResultMetadata: false,
+        },
+      );
+
+      return res.status(200).json({
+        ok: true,
+        ownerUid,
+        receiverUid,
+        cardId,
+        shareGranted: true,
+      });
+    } catch (error) {
+      const isEs = clientLocaleIsSpanish(req);
+      return res.status(500).json({
+        ok: false,
+        error: isEs ? 'Error del servidor. Intenta de nuevo.' : 'Server error. Please try again.',
+      });
+    }
+  });
+
   router.get('/user/:uid/premium-status', async (req, res) => {
     try {
       const requestedUid = String(req.params?.uid || '').trim();

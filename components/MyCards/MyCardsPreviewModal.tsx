@@ -1,7 +1,7 @@
 /**
  * Componente maestro de vista previa de tarjeta.
  * Fuente única de verdad visual para Mis Tarjetas (emisor),
- * Contactos (receptor) y Búsqueda (receptor).
+ * Contactos (receptor), Búsqueda (receptor) y aceptación entrante (token / QR).
  */
 
 import {
@@ -22,11 +22,22 @@ import {
 } from '@/constants/themeChest';
 import type { MirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
 import { openVaultPreviewItem } from '@/services/openVaultPreviewItem';
+import { seedMetaForIncomingCard } from '@/services/bunkerContactMetaSeed';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
+import {
+  consumeDynamicQrToken,
+  fetchBunkerGroups,
+  grantBusinessShareFromQr,
+  redeemTemporaryAccessToken,
+  trackBunkerGroupUsage,
+} from '@/services/qrApi';
 import appPalette from '@/app/theme';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Animated, useWindowDimensions } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Animated, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+
+const INCOMING_BASE_GROUPS = ['Random', 'Family', 'Social', 'Work'];
 
 /* ------------------------------------------------------------------ */
 /*  Payload: contrato de datos que cada pantalla construye             */
@@ -48,6 +59,15 @@ export type MyCardsPayload = {
   iconVaultById?: IconVaultLookup;
 };
 
+export type MyCardsIncomingRedeem = {
+  mode: 'universal' | 'dynamic_qr' | 'business_permanent';
+  token: string;
+  ownerUid: string;
+  cardId: string;
+  receiverUid: string;
+  onSuccess: () => void;
+};
+
 /* ------------------------------------------------------------------ */
 /*  Props del modal                                                    */
 /* ------------------------------------------------------------------ */
@@ -55,9 +75,11 @@ export type MyCardsPayload = {
 export type MyCardsPreviewModalProps = {
   visible: boolean;
   onClose: () => void;
-  variant: 'issuer' | 'receiver';
+  variant: 'issuer' | 'receiver' | 'incoming';
   payload: MyCardsPayload | null;
   onEditCard?: () => void;
+  /** Obligatorio si variant === 'incoming'. */
+  incomingRedeem?: MyCardsIncomingRedeem | null;
   ghostTargetUid?: string | null;
   sourceCardId?: string | null;
   sourceCardName?: string;
@@ -74,6 +96,7 @@ export function MyCardsPreviewModal({
   variant,
   payload,
   onEditCard,
+  incomingRedeem,
   ghostTargetUid,
   sourceCardId,
   sourceCardName,
@@ -92,26 +115,83 @@ export function MyCardsPreviewModal({
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerItem, setViewerItem] = useState<MirrorVaultItem | null>(null);
 
-  /** Solo propaga el cierre al padre; no resetear el visor aquí (evita carreras con Modal en iOS). El padre puede forzar remount vía `key`. */
+  const [incomingGroups, setIncomingGroups] = useState<string[]>(INCOMING_BASE_GROUPS);
+  const [incomingGroup, setIncomingGroup] = useState('Random');
+  const [incomingBusy, setIncomingBusy] = useState(false);
+
   const handleClose = useCallback(() => {
     onClose();
   }, [onClose]);
-
-  /* ---------- theme ---------- */
 
   const theme = useMemo(
     () => getThemeById(payload?.themeId || '') ?? CHEST_THEMES[0],
     [payload?.themeId],
   );
 
-  /* ---------- document viewer ---------- */
+  useEffect(() => {
+    if (variant !== 'incoming' || !visible || !incomingRedeem?.receiverUid) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const g = await fetchBunkerGroups(incomingRedeem.receiverUid, language);
+        if (!cancelled) {
+          const list = Array.isArray(g) && g.length > 0 ? g : INCOMING_BASE_GROUPS;
+          setIncomingGroups(list);
+          setIncomingGroup((prev) => (list.includes(prev) ? prev : 'Random'));
+        }
+      } catch {
+        if (!cancelled) {
+          setIncomingGroups(INCOMING_BASE_GROUPS);
+          setIncomingGroup((prev) => (INCOMING_BASE_GROUPS.includes(prev) ? prev : 'Random'));
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [variant, visible, incomingRedeem?.receiverUid, language]);
+
+  const handleIncomingAccept = useCallback(async () => {
+    const r = incomingRedeem;
+    if (!r || variant !== 'incoming') return;
+    const { receiverUid, token, ownerUid, cardId, mode, onSuccess } = r;
+    if (!receiverUid || !ownerUid || !cardId) return;
+    if (mode !== 'business_permanent' && !String(token || '').trim()) return;
+    setIncomingBusy(true);
+    try {
+      if (mode === 'universal') {
+        await redeemTemporaryAccessToken({ receiverUid, token, locale: language });
+      } else if (mode === 'business_permanent') {
+        await grantBusinessShareFromQr({ receiverUid, ownerUid, cardId, locale: language });
+      } else {
+        await consumeDynamicQrToken({ receiverUid, token, locale: language });
+      }
+      await seedMetaForIncomingCard({
+        issuerUid: ownerUid,
+        cardId,
+        group: incomingGroup,
+      });
+      try {
+        await trackBunkerGroupUsage({ viewerUid: receiverUid, groupName: incomingGroup, locale: language });
+      } catch {
+        /* no bloquear */
+      }
+      onSuccess();
+      handleClose();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : tr('Intenta de nuevo.', 'Try again.');
+      Alert.alert(tr('No se pudo agregar', 'Could not add'), msg);
+    } finally {
+      setIncomingBusy(false);
+    }
+  }, [incomingRedeem, variant, incomingGroup, language, tr, handleClose]);
 
   const openDocumentViewer = useCallback((item: MirrorVaultItem) => {
     setViewerItem(item);
     setViewerVisible(true);
   }, []);
-
-  /* ---------- slot action ---------- */
 
   const handleSlotPress = useCallback(
     async (item: WireframeVaultItem) => {
@@ -138,8 +218,6 @@ export function MyCardsPreviewModal({
     ],
   );
 
-  /* ---------- slot renderer ---------- */
-
   const renderSlotContent = useMemo(
     () =>
       createPreviewWireframeSlotRenderer({
@@ -150,8 +228,6 @@ export function MyCardsPreviewModal({
     [handleSlotPress, tr, payload?.iconVaultById],
   );
 
-  /* ---------- display stars ---------- */
-
   const reviewCount = Math.max(
     0,
     Math.floor(Number(payload?.totalRatings ?? 0)),
@@ -161,8 +237,6 @@ export function MyCardsPreviewModal({
     reviewCount > 0 && Number.isFinite(ratingAvgRaw)
       ? Math.max(0, Math.min(5, ratingAvgRaw))
       : 0;
-
-  /* ---------- footer colors per variant ---------- */
 
   const footerColors =
     variant === 'issuer'
@@ -187,7 +261,31 @@ export function MyCardsPreviewModal({
           primaryText: shell.btnPrimaryText,
         };
 
-  /* ---------- render ---------- */
+  const accent = theme.border.color;
+  const footerVariant = variant === 'incoming' ? 'incoming' : variant;
+
+  const incomingAccessory =
+    variant === 'incoming' ? (
+      <View style={incomingStyles.wrap}>
+        <Text style={[incomingStyles.label, { color: accent }]}>{tr('Grupo en el Búnker', 'Bunker group')}</Text>
+        <View style={[incomingStyles.pickerWrap, { borderColor: `${accent}73` }]}>
+          <Picker
+            selectedValue={incomingGroup}
+            onValueChange={(v) => setIncomingGroup(String(v))}
+            dropdownIconColor={accent}
+            style={incomingStyles.picker}
+            itemStyle={incomingStyles.pickerItem}
+            enabled={!incomingBusy}
+          >
+            {incomingGroups.map((g) => (
+              <Picker.Item key={g} label={g} value={g} color={accent} />
+            ))}
+          </Picker>
+        </View>
+      </View>
+    ) : null;
+
+  const mirrorScale = variant === 'issuer' ? 0.8 : 1;
 
   return (
     <>
@@ -200,15 +298,22 @@ export function MyCardsPreviewModal({
           color: theme.border.color,
           width: theme.border.width,
         }}
+        footerTopAccessory={incomingAccessory}
         footer={{
-          variant,
-          closeLabel: tr('Cerrar', 'Close'),
+          variant: footerVariant,
+          closeLabel:
+            variant === 'incoming' ? tr('Cancelar', 'Cancel') : tr('Cerrar', 'Close'),
           editLabel:
             variant === 'issuer'
               ? tr('Editar tarjeta', 'Edit card')
               : undefined,
           onClose: handleClose,
           onEditCard: variant === 'issuer' ? onEditCard : undefined,
+          acceptLabel:
+            variant === 'incoming' ? tr('Aceptar', 'Accept') : undefined,
+          onAccept:
+            variant === 'incoming' ? () => void handleIncomingAccept() : undefined,
+          acceptBusy: variant === 'incoming' ? incomingBusy : undefined,
           colors: footerColors,
           blurTint: isDark ? 'dark' : 'light',
         }}
@@ -236,7 +341,7 @@ export function MyCardsPreviewModal({
             renderSlotContent={renderSlotContent}
             renderDetailedRatingStars={renderWireframeMirrorRatingStars}
             tr={tr}
-            mirrorStatsCapsuleScale={variant === 'issuer' ? 0.8 : 1}
+            mirrorStatsCapsuleScale={mirrorScale}
           />
         ) : null}
       </SmartCardMirrorModal>
@@ -256,3 +361,25 @@ export function MyCardsPreviewModal({
     </>
   );
 }
+
+const incomingStyles = StyleSheet.create({
+  wrap: { width: '100%', paddingHorizontal: 4 },
+  label: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  pickerWrap: {
+    borderWidth: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  picker: {
+    color: '#d4af37',
+  },
+  pickerItem: {
+    color: '#d4af37',
+    backgroundColor: '#000000',
+  },
+});

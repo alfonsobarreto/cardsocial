@@ -279,6 +279,79 @@ function createPublicUniversalRoutes({ storage }) {
   });
 
   /**
+   * Vista previa de Business Card (QR permanente / deep link) sin token opaco — misma forma que qr-token-preview.
+   */
+  router.get('/business-card-preview', async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept-Language');
+
+    try {
+      const isEs = clientLocaleIsSpanish(req);
+      const ownerUid = String(req.query?.ownerUid || '').trim();
+      const cardId = String(req.query?.cardId || '').trim();
+      if (!ownerUid || !cardId) {
+        return res.status(400).json({
+          ok: false,
+          error: isEs ? 'Faltan ownerUid o cardId.' : 'ownerUid and cardId are required.',
+        });
+      }
+
+      const db = await storage.connect();
+      const cardDoc = await db.collection('smart_cards').findOne(
+        { ownerUid, cardId },
+        {
+          projection: {
+            name: 1,
+            ownerNickname: 1,
+            ownerPhotoUrl: 1,
+            ownerOccupation: 1,
+            publicCardSlots: 1,
+          },
+        },
+      );
+      if (!cardDoc) {
+        return res.status(404).json({
+          ok: false,
+          error: isEs ? 'No se encontró la tarjeta.' : 'Card not found.',
+        });
+      }
+
+      const idn = await resolvePublicIdentity(db, ownerUid, cardId);
+      const slots = normalizePublicCardSlotsForUniversal(cardDoc.publicCardSlots);
+      const far = new Date();
+      far.setFullYear(far.getFullYear() + 10);
+
+      return res.status(200).json({
+        ok: true,
+        ownerUid,
+        cardId,
+        token: '',
+        expiresAt: far.toISOString(),
+        ownerDisplayName: idn.fullName,
+        cardName: String(cardDoc.name || idn.cardTitle || ''),
+        ownerNickname: cardDoc.ownerNickname ? String(cardDoc.ownerNickname) : null,
+        ownerPhotoUrl: cardDoc.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl) : null,
+        ownerOccupation: cardDoc.ownerOccupation ? String(cardDoc.ownerOccupation) : null,
+        slots,
+      });
+    } catch (error) {
+      const isEs = clientLocaleIsSpanish(req);
+      return res.status(500).json({
+        ok: false,
+        error: isEs ? 'Error del servidor. Intenta de nuevo.' : 'Server error. Please try again.',
+      });
+    }
+  });
+
+  router.options('/business-card-preview', (_req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept-Language');
+    return res.status(204).end();
+  });
+
+  /**
    * Vista previa de QR dinámico (qr_tokens) sin consumir el token — para modal de clasificación en app.
    */
   router.get('/qr-token-preview', async (req, res) => {

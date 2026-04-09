@@ -3,49 +3,24 @@ import { savePendingBunkerScan } from '@/services/bunkerPendingScan';
 import { getActiveUserId } from '@/services/authSession';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
-import { fetchPublicQrTokenPreview } from '@/services/qrApi';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { myCardsPayloadFromQrPreview } from '@/services/incomingCardPreviewPayload';
 import {
-  Alert,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+  fetchPublicBusinessCardPreview,
+  fetchPublicQrTokenPreview,
+  type PublicQrTokenPreview,
+} from '@/services/qrApi';
+import {
+  parseBrandedBusinessQrUrl,
+  parseDynamicAppQrJson,
+  parsePermanentBusinessQr,
+} from '@/services/parseCardsocialQrPayload';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import ActivityIndicator from '@/components/BrandedSpinner';
 import palette from './theme';
-
-type ParsedPayload = {
-  token: string;
-  cardId: string | null;
-  exp: number | null;
-};
-
-function parseQrToken(data: string): ParsedPayload | null {
-  const raw = String(data || '').trim();
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(raw);
-    const kind = String(parsed?.kind || '').trim().toLowerCase();
-    const token = String(parsed?.token || '').trim();
-    const cardId = String(parsed?.cardId || '').trim();
-    const expRaw = Number(parsed?.exp);
-    const exp = Number.isFinite(expRaw) ? expRaw : null;
-    if (token && kind === 'cardsocial-qr-v1' && cardId) {
-      return { token, cardId, exp };
-    }
-  } catch {
-    /* plain token not supported for dynamic QR */
-  }
-
-  return null;
-}
 
 type ClassificationPayload = {
   token: string;
@@ -54,9 +29,15 @@ type ClassificationPayload = {
   issuerFullName: string;
 };
 
+type IncomingScanMode = 'dynamic_qr' | 'business_permanent';
+
 export default function ScanScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ resumeToken?: string; resumeCardId?: string }>();
+  const params = useLocalSearchParams<{
+    resumeToken?: string;
+    resumeCardId?: string;
+    resumeOwnerUid?: string;
+  }>();
   const { language } = useLanguage();
   const tr = (es: string, en: string) => (language === 'en' ? en : es);
   const { resolvedMode } = useLookMode();
@@ -169,17 +150,30 @@ export default function ScanScreen() {
   const [scanLocked, setScanLocked] = useState(false);
   const [receiverUid, setReceiverUid] = useState<string | null>(null);
   const [classification, setClassification] = useState<ClassificationPayload | null>(null);
+  const [qrPreview, setQrPreview] = useState<PublicQrTokenPreview | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [incomingScanMode, setIncomingScanMode] = useState<IncomingScanMode>('dynamic_qr');
   const resumeHandledRef = useRef(false);
 
   const canScan = useMemo(() => {
     return !processing && !scanLocked && !modalVisible;
   }, [processing, scanLocked, modalVisible]);
 
+  const resetScanUi = useCallback(() => {
+    setProcessing(false);
+    setScanLocked(false);
+    setModalVisible(false);
+    setClassification(null);
+    setQrPreview(null);
+    setIncomingScanMode('dynamic_qr');
+  }, []);
+
   const openClassification = useCallback(
     async (token: string) => {
+      setIncomingScanMode('dynamic_qr');
       setProcessing(true);
       const locale = language === 'es' ? 'es' : 'en';
+      const okLabel = tr('Aceptar', 'OK');
       try {
         const preview = await fetchPublicQrTokenPreview({ token, locale });
         if (!preview.ok) {
@@ -188,11 +182,13 @@ export default function ScanScreen() {
             preview.expired
               ? tr('El token expiró o ya fue usado.', 'The token expired or was already used.')
               : tr('No se pudo cargar la vista previa.', 'Could not load preview.'),
+            [{ text: okLabel, onPress: resetScanUi }],
           );
           setScanLocked(false);
           return;
         }
         const p = preview.preview;
+        setQrPreview(p);
         setClassification({
           token: p.token,
           ownerUid: p.ownerUid,
@@ -202,13 +198,50 @@ export default function ScanScreen() {
         setModalVisible(true);
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : tr('Error de red.', 'Network error.');
-        Alert.alert(tr('No se pudo escanear', 'Could not scan'), msg);
+        Alert.alert(tr('No se pudo escanear', 'Could not scan'), msg, [{ text: okLabel, onPress: resetScanUi }]);
         setScanLocked(false);
       } finally {
         setProcessing(false);
       }
     },
-    [tr, language],
+    [tr, language, resetScanUi],
+  );
+
+  const openBusinessClassification = useCallback(
+    async (ownerUid: string, cardId: string) => {
+      setIncomingScanMode('business_permanent');
+      setProcessing(true);
+      const locale = language === 'es' ? 'es' : 'en';
+      const okLabel = tr('Aceptar', 'OK');
+      try {
+        const preview = await fetchPublicBusinessCardPreview({ ownerUid, cardId, locale });
+        if (!preview.ok) {
+          Alert.alert(
+            tr('QR no disponible', 'QR unavailable'),
+            tr('No se pudo cargar la vista previa.', 'Could not load preview.'),
+            [{ text: okLabel, onPress: resetScanUi }],
+          );
+          setScanLocked(false);
+          return;
+        }
+        const p = preview.preview;
+        setQrPreview(p);
+        setClassification({
+          token: '',
+          ownerUid: p.ownerUid,
+          cardId: p.cardId,
+          issuerFullName: p.ownerDisplayName,
+        });
+        setModalVisible(true);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : tr('Error de red.', 'Network error.');
+        Alert.alert(tr('No se pudo escanear', 'Could not scan'), msg, [{ text: okLabel, onPress: resetScanUi }]);
+        setScanLocked(false);
+      } finally {
+        setProcessing(false);
+      }
+    },
+    [tr, language, resetScanUi],
   );
 
   const handleScanned = async (data: string) => {
@@ -216,27 +249,42 @@ export default function ScanScreen() {
       return;
     }
 
-    const parsed = parseQrToken(data);
-    if (!parsed?.token) {
-      Alert.alert(
-        tr('QR inválido', 'Invalid QR'),
-        tr('Este QR no pertenece a Card-Social o está corrupto.', 'This QR does not belong to Card-Social or is corrupted.'),
-      );
+    const okLabel = tr('Aceptar', 'OK');
+    const invalidButtons = [{ text: okLabel, onPress: resetScanUi }];
+
+    const business = parsePermanentBusinessQr(data) || parseBrandedBusinessQrUrl(data);
+    if (business) {
+      setScanLocked(true);
+      const uid = await getActiveUserId();
+      setReceiverUid(uid);
+      if (!uid) {
+        await savePendingBunkerScan({
+          kind: 'business_permanent',
+          ownerUid: business.ownerUid,
+          cardId: business.cardId,
+        });
+        router.replace('/signin');
+        return;
+      }
+      await openBusinessClassification(business.ownerUid, business.cardId);
       return;
     }
-    const scannedCardId = parsed.cardId;
-    if (!scannedCardId) {
+
+    const dyn = parseDynamicAppQrJson(data);
+    if (!dyn || dyn.kind !== 'dynamic_app' || !dyn.token || !dyn.cardId) {
       Alert.alert(
         tr('QR inválido', 'Invalid QR'),
         tr('Este QR no pertenece a Card-Social o está corrupto.', 'This QR does not belong to Card-Social or is corrupted.'),
+        invalidButtons,
       );
       return;
     }
 
-    if (parsed.exp && parsed.exp < Date.now()) {
+    if (dyn.exp && dyn.exp < Date.now()) {
       Alert.alert(
         tr('QR expirado', 'QR expired'),
         tr('Este QR ya expiró. Pide al contacto generar uno nuevo.', 'This QR has expired. Ask your contact to generate a new one.'),
+        invalidButtons,
       );
       return;
     }
@@ -248,20 +296,25 @@ export default function ScanScreen() {
     if (!uid) {
       await savePendingBunkerScan({
         kind: 'dynamic_qr',
-        token: parsed.token,
-        cardId: scannedCardId,
+        token: dyn.token,
+        cardId: dyn.cardId,
       });
       router.replace('/signin');
       return;
     }
 
-    await openClassification(parsed.token);
+    await openClassification(dyn.token);
   };
 
   useEffect(() => {
     const rt = params.resumeToken != null ? String(params.resumeToken).trim() : '';
     const rc = params.resumeCardId != null ? String(params.resumeCardId).trim() : '';
-    if (!rt || !rc) {
+    const ro = params.resumeOwnerUid != null ? String(params.resumeOwnerUid).trim() : '';
+
+    const businessResume = Boolean(ro && rc);
+    const dynamicResume = Boolean(rt && rc);
+
+    if (!businessResume && !dynamicResume) {
       resumeHandledRef.current = false;
       return;
     }
@@ -277,12 +330,27 @@ export default function ScanScreen() {
       resumeHandledRef.current = true;
       setReceiverUid(uid);
       setScanLocked(true);
-      await openClassification(rt);
+      if (businessResume) {
+        await openBusinessClassification(ro, rc);
+      } else {
+        await openClassification(rt);
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [openClassification, params.resumeCardId, params.resumeToken]);
+  }, [
+    openBusinessClassification,
+    openClassification,
+    params.resumeCardId,
+    params.resumeOwnerUid,
+    params.resumeToken,
+  ]);
+
+  const scanPreviewPayload = useMemo(
+    () => (qrPreview ? myCardsPayloadFromQrPreview(qrPreview, tr) : null),
+    [qrPreview, tr],
+  );
 
   if (!permission) {
     return (
@@ -340,24 +408,29 @@ export default function ScanScreen() {
         </View>
       </LinearGradient>
 
-      {classification && receiverUid ? (
+      {classification && receiverUid && qrPreview ? (
         <BunkerClassificationModal
           visible={modalVisible}
-          mode="dynamic_qr"
+          mode={incomingScanMode}
           token={classification.token}
           ownerUid={classification.ownerUid}
           cardId={classification.cardId}
           issuerFullName={classification.issuerFullName}
           receiverUid={receiverUid}
+          previewPayload={scanPreviewPayload}
           onClose={() => {
             setModalVisible(false);
             setClassification(null);
+            setQrPreview(null);
             setScanLocked(false);
+            setIncomingScanMode('dynamic_qr');
           }}
           onSuccess={() => {
             setModalVisible(false);
             setClassification(null);
+            setQrPreview(null);
             setScanLocked(false);
+            setIncomingScanMode('dynamic_qr');
             router.replace('/(tabs)/contacts');
           }}
         />

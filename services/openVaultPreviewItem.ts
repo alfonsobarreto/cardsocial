@@ -4,7 +4,6 @@ import {
   ensureWebUrl,
   getMirrorVaultOpenPlan,
 } from '@/services/mirrorVaultItemOpenPlan';
-import { Alert } from 'react-native';
 
 export { ensureWebUrl } from '@/services/mirrorVaultItemOpenPlan';
 
@@ -65,7 +64,10 @@ export async function openVaultPreviewItem(item: MirrorVaultItem, deps: OpenVaul
       await ActionController.ActionText({ value: plan.value, title: plan.title });
       return;
     case 'raw':
-      Alert.alert(deps.tr('Dato', 'Data'), plan.value || deps.tr('Sin contenido', 'No content'));
+      await ActionController.ActionRaw({
+        value: plan.value || deps.tr('Sin contenido', 'No content'),
+        title: plan.title || deps.tr('Dato', 'Data'),
+      });
       return;
   }
 }

@@ -1,11 +1,19 @@
 'use client';
 
-import React, { useCallback } from 'react';
+import Image from 'next/image';
+import React, { useCallback, useState } from 'react';
 import {
   buildLinkOpenCandidates,
   normalizeTelDialString,
   type MirrorOpenPlan,
 } from '@card-social/services/mirrorVaultItemOpenPlan';
+import type { PublicSlot } from '@/lib/universalCardTypes';
+import { resolveSlotVisual } from '@/lib/slotVisual';
+import {
+  InterstitialAvatar,
+  SafeDataViewerSheet,
+  slotDefToGlyph,
+} from '@/components/SafeDataViewerSheet';
 
 const overlay: React.CSSProperties = {
   position: 'fixed',
@@ -73,42 +81,89 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
-function tryOpenNativeAppUrl(schemeUrl: string): void {
-  const start = Date.now();
-  window.location.href = schemeUrl;
-  setTimeout(() => {
-    if (Date.now() - start < 1600 && document.visibilityState === 'visible') {
-      /* still here — app probably not installed */
+function CopyChip({
+  text,
+  tr,
+  accent,
+  narrowLabel,
+}: {
+  text: string;
+  tr: Tr;
+  accent: string;
+  narrowLabel?: string;
+}) {
+  const [copied, setCopied] = useState(false);
+  const onCopy = useCallback(async () => {
+    const ok = await copyText(text);
+    if (ok) {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2200);
     }
-  }, 1500);
+  }, [text]);
+  return (
+    <button
+      type="button"
+      onClick={() => void onCopy()}
+      style={{
+        flex: 1,
+        minHeight: 44,
+        borderRadius: 10,
+        border: copied ? '1px solid rgba(34,197,94,0.45)' : `1px solid ${accent}80`,
+        backgroundColor: copied ? 'rgba(34,197,94,0.12)' : 'transparent',
+        color: copied ? '#86efac' : accent,
+        fontWeight: 500,
+        fontSize: 14,
+        cursor: 'pointer',
+      }}
+    >
+      {copied
+        ? tr('Copiado', 'Copied')
+        : narrowLabel ?? tr('Copiar', 'Copy')}
+    </button>
+  );
+}
+
+function tryOpenNativeAppUrl(schemeUrl: string): void {
+  window.location.href = schemeUrl;
 }
 
 type Tr = (es: string, en: string) => string;
 
+export type CallInterstitialProfile = {
+  name: string;
+  photoUrl: string | null;
+};
+
+function slotHeaderGlyph(slot: PublicSlot | null | undefined, accent: string): React.ReactNode | undefined {
+  if (!slot) return undefined;
+  const v = resolveSlotVisual(slot);
+  if (v.kind === 'url') {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={v.url} alt="" width={28} height={28} style={{ borderRadius: 8, objectFit: 'cover' }} />
+    );
+  }
+  return slotDefToGlyph(v.def, 26, accent);
+}
+
 export function MirrorActionModals({
   plan,
+  slot,
+  callInterstitialProfile,
   onClose,
   tr,
   accent = '#D4AF37',
 }: {
   plan: MirrorOpenPlan | null;
+  /** Slot pulsado (icono en el panel de datos). */
+  slot?: PublicSlot | null;
+  /** Perfil del titular de la tarjeta (interstitial Ghost-Link). */
+  callInterstitialProfile?: CallInterstitialProfile | null;
   onClose: () => void;
   tr: Tr;
   accent?: string;
 }) {
   const sheetStyle = makeSheet(accent);
-  const onCopy = useCallback(async (text: string) => {
-    const ok = await copyText(text);
-    if (ok) {
-      window.alert(tr('Copiado al portapapeles', 'Copied to clipboard'));
-    } else {
-      window.alert(tr('No se pudo copiar', 'Could not copy'));
-    }
-  }, [tr]);
-
-  if (!plan) {
-    return null;
-  }
 
   const rowBtns: React.CSSProperties = {
     display: 'flex',
@@ -117,31 +172,42 @@ export function MirrorActionModals({
     flexWrap: 'wrap',
   };
 
+  if (!plan) {
+    return null;
+  }
+
   if (plan.kind === 'text' || plan.kind === 'raw') {
     const body = plan.value || tr('Sin contenido', 'No content');
     return (
-      <div style={overlay} onClick={onClose} role="presentation">
-        <div style={sheetStyle} onClick={(e) => e.stopPropagation()} role="dialog">
-          <div style={{ fontWeight: 400, color: accent, marginBottom: 12 }}>{plan.title}</div>
-          <pre
+      <SafeDataViewerSheet
+        open
+        onClose={onClose}
+        title={plan.title}
+        body={body}
+        tr={tr}
+        accent={accent}
+        headerGlyph={slotHeaderGlyph(slot ?? null, accent)}
+        copyText={body}
+        footerActions={
+          <button
+            type="button"
+            onClick={onClose}
             style={{
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-              fontSize: 14,
-              lineHeight: 1.5,
-              margin: 0,
-              maxHeight: '50vh',
-              overflow: 'auto',
+              width: '100%',
+              minHeight: 48,
+              borderRadius: 14,
+              border: '1px solid rgba(255,255,255,0.12)',
+              backgroundColor: 'rgba(255,255,255,0.06)',
+              color: '#a1a1aa',
+              fontSize: 16,
+              fontWeight: 500,
+              cursor: 'pointer',
             }}
           >
-            {body}
-          </pre>
-          <div style={rowBtns}>
-            <Btn primary accent={accent} onClick={() => void onCopy(body)}>{tr('Copiar', 'Copy')}</Btn>
-            <Btn accent={accent} onClick={onClose}>{tr('Cerrar', 'Close')}</Btn>
-          </div>
-        </div>
-      </div>
+            {tr('Cerrar', 'Close')}
+          </button>
+        }
+      />
     );
   }
 
@@ -162,7 +228,7 @@ export function MirrorActionModals({
             >
               {tr('Abrir cliente de correo', 'Open mail app')}
             </Btn>
-            <Btn accent={accent} onClick={() => void onCopy(plan.value)}>{tr('Copiar', 'Copy')}</Btn>
+            <CopyChip text={plan.value} tr={tr} accent={accent} />
           </div>
           <div style={{ marginTop: 10 }}>
             <Btn accent={accent} onClick={onClose}>{tr('Cerrar', 'Close')}</Btn>
@@ -192,7 +258,7 @@ export function MirrorActionModals({
                 {tr('Llamar', 'Call')}
               </Btn>
             ) : null}
-            <Btn accent={accent} onClick={() => void onCopy(plan.value)}>{tr('Copiar número', 'Copy number')}</Btn>
+            <CopyChip text={plan.value} tr={tr} accent={accent} narrowLabel={tr('Copiar número', 'Copy number')} />
           </div>
           <div style={{ marginTop: 10 }}>
             <Btn accent={accent} onClick={onClose}>{tr('Cerrar', 'Close')}</Btn>
@@ -237,7 +303,7 @@ export function MirrorActionModals({
             </div>
           ) : null}
           <div style={{ marginTop: 10 }}>
-            <Btn accent={accent} onClick={() => void onCopy(httpsUrl)}>{tr('Copiar enlace', 'Copy link')}</Btn>
+            <CopyChip text={httpsUrl} tr={tr} accent={accent} narrowLabel={tr('Copiar enlace', 'Copy link')} />
           </div>
           <div style={{ marginTop: 10 }}>
             <Btn accent={accent} onClick={onClose}>{tr('Cerrar', 'Close')}</Btn>
@@ -308,7 +374,7 @@ export function MirrorActionModals({
             >
               {tr('Abrir / descargar', 'Open / download')}
             </Btn>
-            <Btn accent={accent} onClick={() => void onCopy(u)}>{tr('Copiar URL', 'Copy URL')}</Btn>
+            <CopyChip text={u} tr={tr} accent={accent} narrowLabel={tr('Copiar URL', 'Copy URL')} />
           </div>
         </div>
       </div>
@@ -316,37 +382,145 @@ export function MirrorActionModals({
   }
 
   if (plan.kind === 'ghost') {
-    const appUrl = `cardsocial://`;
     return (
-      <div style={overlay} onClick={onClose} role="presentation">
-        <div style={sheetStyle} onClick={(e) => e.stopPropagation()}>
-          <div style={{ fontWeight: 400, color: accent, marginBottom: 12 }}>Ghost-Link</div>
-          <p style={{ fontSize: 14, lineHeight: 1.5, margin: '0 0 16px' }}>
-            {tr(
-              'Las llamadas privadas Ghost-Link solo están disponibles en la app Card-Social. Tu número real permanece oculto.',
-              'Private Ghost-Link calls are only available in the Card-Social app. Your real number stays hidden.',
-            )}
-          </p>
-          <div style={rowBtns}>
-            <Btn primary accent={accent} onClick={() => tryOpenNativeAppUrl(appUrl)}>
-              {tr('Abrir Card-Social', 'Open Card-Social')}
-            </Btn>
-          </div>
-          <div style={{ ...rowBtns, marginTop: 10 }}>
-            <Btn
-              accent={accent}
-              onClick={() => {
-                window.open('https://cardsocial.me', '_blank', 'noopener,noreferrer');
-              }}
-            >
-              {tr('Descargar app', 'Get the app')}
-            </Btn>
-            <Btn accent={accent} onClick={onClose}>{tr('Cerrar', 'Close')}</Btn>
-          </div>
-        </div>
-      </div>
+      <GhostCallInterstitial
+        accent={accent}
+        tr={tr}
+        onClose={onClose}
+        profile={callInterstitialProfile ?? null}
+      />
     );
   }
 
   return null;
+}
+
+function GhostCallInterstitial({
+  accent,
+  tr,
+  onClose,
+  profile,
+}: {
+  accent: string;
+  tr: Tr;
+  onClose: () => void;
+  profile: CallInterstitialProfile | null;
+}) {
+  const appUrl = 'cardsocial://';
+  const displayName = (profile?.name || tr('Contacto', 'Contact')).trim();
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 10001,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+        paddingBottom: 'max(28px, env(safe-area-inset-bottom, 0px))',
+        background: 'radial-gradient(ellipse 120% 80% at 50% 20%, rgba(201,162,39,0.12) 0%, transparent 55%), linear-gradient(180deg, #0a0a0f 0%, #050508 100%)',
+      }}
+      role="dialog"
+      aria-modal
+    >
+      <div style={{ position: 'absolute', top: 18, left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        <Image src="/cs-icon-logo.png" alt="" width={22} height={22} unoptimized />
+        <span style={{ color: '#d4d4d8', fontWeight: 300, fontSize: 15, letterSpacing: 0.5 }}>Card-Social</span>
+      </div>
+
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label={tr('Cerrar', 'Close')}
+        style={{
+          position: 'absolute',
+          top: 16,
+          right: 16,
+          width: 40,
+          height: 40,
+          borderRadius: 12,
+          border: '1px solid rgba(255,255,255,0.12)',
+          background: 'rgba(255,255,255,0.06)',
+          color: '#a1a1aa',
+          fontSize: 22,
+          lineHeight: 1,
+          cursor: 'pointer',
+        }}
+      >
+        ×
+      </button>
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', maxWidth: 360, width: '100%' }}>
+        <InterstitialAvatar photoUrl={profile?.photoUrl ?? null} name={displayName} size={112} accent={accent} />
+        <h2
+          style={{
+            margin: '22px 0 8px',
+            color: '#fafafa',
+            fontSize: 24,
+            fontWeight: 600,
+            textAlign: 'center',
+            lineHeight: 1.25,
+          }}
+        >
+          {displayName}
+        </h2>
+        <p
+          style={{
+            margin: '0 0 28px',
+            color: '#a1a1aa',
+            fontSize: 15,
+            lineHeight: 1.55,
+            textAlign: 'center',
+          }}
+        >
+          {tr(
+            'Llamada privada Ghost-Link: solo en la app Card-Social. Tu número real no se comparte.',
+            'Private Ghost-Link call: only in the Card-Social app. Your real number is never shared.',
+          )}
+        </p>
+
+        <button
+          type="button"
+          onClick={() => tryOpenNativeAppUrl(appUrl)}
+          style={{
+            width: '100%',
+            maxWidth: 340,
+            minHeight: 54,
+            borderRadius: 16,
+            border: 'none',
+            background: `linear-gradient(135deg, ${accent} 0%, #a67c1f 100%)`,
+            color: '#0a0a0a',
+            fontSize: 17,
+            fontWeight: 700,
+            letterSpacing: 0.3,
+            cursor: 'pointer',
+            boxShadow: `0 8px 28px ${accent}44`,
+          }}
+        >
+          {tr('Iniciar llamada segura', 'Start secure call')}
+        </button>
+
+        <div style={{ display: 'flex', gap: 12, marginTop: 18, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <button
+            type="button"
+            onClick={() => window.open('https://cardsocial.me', '_blank', 'noopener,noreferrer')}
+            style={{
+              padding: '12px 20px',
+              borderRadius: 12,
+              border: `1px solid ${accent}55`,
+              background: 'transparent',
+              color: accent,
+              fontSize: 14,
+              cursor: 'pointer',
+            }}
+          >
+            {tr('Descargar app', 'Get the app')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }

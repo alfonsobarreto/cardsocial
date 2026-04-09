@@ -1,7 +1,7 @@
 import { getPreviewModalStackSize } from '@/components/smartCard/wireframeMath';
 import { BlurView } from 'expo-blur';
 import React from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const shellStyles = StyleSheet.create({
@@ -64,11 +64,15 @@ const shellStyles = StyleSheet.create({
 });
 
 export type SmartCardMirrorModalFooter = {
-  variant: 'issuer' | 'receiver';
+  variant: 'issuer' | 'receiver' | 'incoming';
   closeLabel: string;
   editLabel?: string;
   onClose: () => void;
   onEditCard?: () => void;
+  /** variant === 'incoming' */
+  acceptLabel?: string;
+  onAccept?: () => void;
+  acceptBusy?: boolean;
   colors: {
     overlay: string;
     modalBg: string;
@@ -90,6 +94,8 @@ export type SmartCardMirrorModalProps = {
   /** Reservado (el borde vive solo en `IsolatedWireframeCard` / tema; sin doble marco en el shell). */
   cardBorder: { color: string; width: number };
   footer: SmartCardMirrorModalFooter;
+  /** Contenido entre la tarjeta y la fila de botones (p. ej. selector de grupo al aceptar). */
+  footerTopAccessory?: React.ReactNode;
   children: React.ReactNode;
 };
 
@@ -103,6 +109,7 @@ export function SmartCardMirrorModal({
   iconSlotCount,
   cardBorder: _cardBorder,
   footer,
+  footerTopAccessory,
   children,
 }: SmartCardMirrorModalProps) {
   const insets = useSafeAreaInsets();
@@ -128,8 +135,12 @@ export function SmartCardMirrorModal({
         <BlurView intensity={65} tint={footer.blurTint} style={StyleSheet.absoluteFill} pointerEvents="none" />
         <View style={[shellStyles.previewModalStack, { height: stack.height, maxHeight: stack.maxHeight }]}>
           <View style={shellStyles.previewModalCard}>
-            <View style={{ flex: 1, minHeight: 0, paddingBottom: 22 }}>{children}</View>
+            <View style={{ flex: 1, minHeight: 0, paddingBottom: footerTopAccessory ? 10 : 22 }}>{children}</View>
           </View>
+
+          {footerTopAccessory ? (
+            <View style={{ width: '100%', marginTop: 6, marginBottom: 4 }}>{footerTopAccessory}</View>
+          ) : null}
 
           <View
             style={[
@@ -143,17 +154,45 @@ export function SmartCardMirrorModal({
               },
             ]}
           >
-            <TouchableOpacity
-              style={[shellStyles.ghostBtn, { backgroundColor: c.ghostBg, borderColor: c.ghostBorder }]}
-              onPress={footer.onClose}
-            >
-              <Text style={[shellStyles.ghostBtnText, { color: c.ghostText }]}>{footer.closeLabel}</Text>
-            </TouchableOpacity>
-            {footer.variant === 'issuer' && footer.onEditCard ? (
-              <TouchableOpacity style={[shellStyles.saveBtn, { backgroundColor: c.primaryBg }]} onPress={footer.onEditCard}>
-                <Text style={[shellStyles.saveBtnText, { color: c.primaryText }]}>{footer.editLabel}</Text>
-              </TouchableOpacity>
-            ) : null}
+            {footer.variant === 'incoming' && footer.onAccept ? (
+              <>
+                <TouchableOpacity
+                  style={[shellStyles.ghostBtn, { backgroundColor: c.ghostBg, borderColor: c.ghostBorder }]}
+                  onPress={footer.onClose}
+                  disabled={footer.acceptBusy}
+                >
+                  <Text style={[shellStyles.ghostBtnText, { color: c.ghostText }]}>{footer.closeLabel}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    shellStyles.saveBtn,
+                    { backgroundColor: c.primaryBg, opacity: footer.acceptBusy ? 0.72 : 1 },
+                  ]}
+                  onPress={footer.onAccept}
+                  disabled={footer.acceptBusy}
+                >
+                  {footer.acceptBusy ? (
+                    <ActivityIndicator color={c.primaryText} />
+                  ) : (
+                    <Text style={[shellStyles.saveBtnText, { color: c.primaryText }]}>{footer.acceptLabel}</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={[shellStyles.ghostBtn, { backgroundColor: c.ghostBg, borderColor: c.ghostBorder }]}
+                  onPress={footer.onClose}
+                >
+                  <Text style={[shellStyles.ghostBtnText, { color: c.ghostText }]}>{footer.closeLabel}</Text>
+                </TouchableOpacity>
+                {footer.variant === 'issuer' && footer.onEditCard ? (
+                  <TouchableOpacity style={[shellStyles.saveBtn, { backgroundColor: c.primaryBg }]} onPress={footer.onEditCard}>
+                    <Text style={[shellStyles.saveBtnText, { color: c.primaryText }]}>{footer.editLabel}</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </>
+            )}
           </View>
         </View>
       </View>

@@ -83,6 +83,13 @@ export function PendingBunkerRedeemGate() {
             pathname: '/scan',
             params: { resumeToken: pending.token, resumeCardId: pending.cardId },
           } as never);
+          return;
+        }
+        if (pending.kind === 'business_permanent') {
+          router.replace({
+            pathname: '/scan',
+            params: { resumeOwnerUid: pending.ownerUid, resumeCardId: pending.cardId },
+          } as never);
         }
         return;
       }

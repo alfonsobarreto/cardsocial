@@ -205,7 +205,7 @@ type Props = {
 
 export default function WireframeUniversalCard({ card, theme, locale }: Props) {
   const tr = (es: string, en: string) => (locale === 'es' ? es : en);
-  const [slotActionPlan, setSlotActionPlan] = useState<MirrorOpenPlan | null>(null);
+  const [slotAction, setSlotAction] = useState<{ plan: MirrorOpenPlan; slot: PublicSlot } | null>(null);
 
   const handleSlotPress = (slot: PublicSlot) => {
     if (String(slot.type || '').toLowerCase().includes('voip')) {
@@ -224,7 +224,7 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
         sourceCardName: String(card.name || '').trim() || 'Card-Social',
       },
     );
-    setSlotActionPlan(plan);
+    setSlotAction({ plan, slot });
   };
 
   const vertIconsBoxRef = useRef<HTMLDivElement | null>(null);
@@ -415,6 +415,17 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
         ? `inset 0 2px 16px ${bd.color}22, 0 4px 24px rgba(0,0,0,0.4)`
         : '0 4px 20px rgba(0,0,0,0.3)';
 
+  const mirrorModals = (
+    <MirrorActionModals
+      plan={slotAction?.plan ?? null}
+      slot={slotAction?.slot ?? null}
+      callInterstitialProfile={{ name: dispName, photoUrl: card.ownerPhotoUrl }}
+      onClose={() => setSlotAction(null)}
+      tr={tr}
+      accent={theme.border.color}
+    />
+  );
+
   if (layout === 'horizontal') {
     return (
       <>
@@ -545,7 +556,7 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
           </div>
         </div>
       </div>
-      <MirrorActionModals plan={slotActionPlan} onClose={() => setSlotActionPlan(null)} tr={tr} accent={theme.border.color} />
+      {mirrorModals}
       </>
     );
   }
@@ -693,7 +704,7 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
         </div>
       </div>
     </div>
-    <MirrorActionModals plan={slotActionPlan} onClose={() => setSlotActionPlan(null)} tr={tr} accent={theme.border.color} />
+    {mirrorModals}
     </>
   );
 }

@@ -1,6 +1,5 @@
 // ActionController.ts
 // Controlador central para acciones de iconos Card-Social
-import * as Clipboard from 'expo-clipboard';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import {
@@ -8,8 +7,13 @@ import {
   leaveGhostLinkAgoraSession,
 } from '@/services/ghostLinkAgoraSession';
 import { isGhostLinkExpoGoAbortError, startGhostLinkVoipCall } from '@/services/ghostLinkVoip';
+import {
+  dismissPremiumDataPanel,
+  presentPremiumDataPanel,
+} from '@/services/premiumDataPanelController';
 import { createCallLog } from '@/services/qrApi';
-import { Alert, Linking, Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
+import Toast from 'react-native-toast-message';
 
 function normalizeTelDialString(value: string): string | null {
   const raw = String(value || '').trim();
@@ -30,117 +34,146 @@ export const ActionController = {
   async ActionLink({ value, title }: { value: string; title: string }) {
     const raw = String(value || '').trim();
     if (!raw) {
-      Alert.alert('Enlace inválido', 'No hay URL para abrir.');
+      presentPremiumDataPanel({
+        title: 'Enlace inválido',
+        body: 'No hay URL para abrir.',
+        icon: 'link-variant',
+        actions: [{ label: 'Cerrar', variant: 'secondary', onPress: dismissPremiumDataPanel }],
+      });
       return;
     }
     const url = encodeURI(raw);
     const displayUrl = url.length > 42 ? `${url.slice(0, 39)}...` : url;
-    Alert.alert(
-      title || 'Abrir enlace',
-      displayUrl,
-      [
-        { text: 'Abrir', onPress: () => Linking.openURL(url).catch(() => Alert.alert('Error', 'No se pudo abrir el enlace.')) },
-        { text: 'Cancelar', style: 'cancel' },
-      ]
-    );
+    presentPremiumDataPanel({
+      title: title || 'Abrir enlace',
+      body: displayUrl,
+      icon: 'link-variant',
+      copyText: url,
+      actions: [
+        {
+          label: 'Abrir',
+          variant: 'primary',
+          onPress: () => {
+            dismissPremiumDataPanel();
+            void Linking.openURL(url).catch(() =>
+              Toast.show({
+                type: 'error',
+                text1: 'Error',
+                text2: 'No se pudo abrir el enlace.',
+              }),
+            );
+          },
+        },
+        { label: 'Cancelar', variant: 'secondary', onPress: dismissPremiumDataPanel },
+      ],
+    });
   },
 
   /**
    * ActionEmail: Deep linking real para Gmail, Outlook, Yahoo y Apple Mail.
-   *
-   * MAPA DE ESQUEMAS (única fuente de verdad):
-   *   gmail   → googlegmail:///co?to=<email>
-   *   outlook → ms-outlook://compose?to=<email>
-   *   yahoo   → ymail://mail/compose?to=<email>
-   *
-   * En iOS: pre-chequea Linking.canOpenURL ANTES de mostrar botones.
-   *   - App instalada   → botón activo, abre directo.
-   *   - App no instalada → botón activo pero avisa y no redirige a Mail sin avisar.
-   * En Android: usa mailto: (el sistema presenta el chooser nativo).
    */
   async ActionEmail({ value }: { value: string }) {
     const email = String(value || '').trim();
     if (!email) {
-      Alert.alert('Correo inválido', 'No hay un correo válido para abrir.');
+      presentPremiumDataPanel({
+        title: 'Correo inválido',
+        body: 'No hay un correo válido para abrir.',
+        icon: 'email-outline',
+        actions: [{ label: 'Cerrar', variant: 'secondary', onPress: dismissPremiumDataPanel }],
+      });
       return;
     }
 
     const encodedEmail = encodeURIComponent(email);
     const mailto = `mailto:${email}`;
 
-    // ─── MAPA CENTRALIZADO DE ESQUEMAS ───────────────────────────────────────
     const EMAIL_CLIENTS: Array<{ id: string; label: string; url: string }> = [
-      { id: 'gmail',   label: 'Gmail',   url: `googlegmail:///co?to=${encodedEmail}` },
+      { id: 'gmail', label: 'Gmail', url: `googlegmail:///co?to=${encodedEmail}` },
       { id: 'outlook', label: 'Outlook', url: `ms-outlook://compose?to=${encodedEmail}` },
-      { id: 'yahoo',   label: 'Yahoo',   url: `ymail://mail/compose?to=${encodedEmail}` },
+      { id: 'yahoo', label: 'Yahoo', url: `ymail://mail/compose?to=${encodedEmail}` },
     ];
-    // ─────────────────────────────────────────────────────────────────────────
 
     if (Platform.OS !== 'ios') {
-      // Android: el chooser del sistema maneja todo
       await Linking.openURL(mailto).catch(() =>
-        Alert.alert('Error', 'No se pudo abrir la app de correo.')
+        Toast.show({
+          type: 'error',
+          text1: 'Error',
+          text2: 'No se pudo abrir la app de correo.',
+        }),
       );
       return;
     }
 
-    // iOS: pre-chequear disponibilidad ANTES de mostrar el Alert
     const checked = await Promise.all(
       EMAIL_CLIENTS.map(async (client) => ({
         ...client,
         available: await Linking.canOpenURL(client.url).catch(() => false),
-      }))
+      })),
     );
 
-    type AlertButton = { text: string; onPress?: () => void; style?: 'cancel' | 'default' | 'destructive' };
-    const buttons: AlertButton[] = [];
+    const rows: Array<{ key: string; label: string; onPress: () => void }> = [];
 
-    // Apple Mail — siempre disponible
-    buttons.push({
-      text: 'Apple Mail',
-      onPress: () => Linking.openURL(mailto).catch(() => null),
+    rows.push({
+      key: 'apple-mail',
+      label: 'Apple Mail',
+      onPress: () => {
+        dismissPremiumDataPanel();
+        void Linking.openURL(mailto).catch(() =>
+          Toast.show({ type: 'error', text1: 'Error', text2: 'No se pudo abrir Apple Mail.' }),
+        );
+      },
     });
 
     for (const client of checked) {
       if (client.available) {
-        // App instalada → abre directo, fallback con aviso si falla
-        buttons.push({
-          text: client.label,
+        rows.push({
+          key: client.id,
+          label: client.label,
           onPress: () => {
-            Linking.openURL(client.url).catch(() => {
-              Alert.alert(
-                `${client.label} no disponible`,
-                'No se pudo abrir la app. Usando Apple Mail como respaldo.',
-                [{ text: 'OK', onPress: () => Linking.openURL(mailto).catch(() => null) }]
+            dismissPremiumDataPanel();
+            void Linking.openURL(client.url).catch(() => {
+              Toast.show({
+                type: 'info',
+                text1: `${client.label} no disponible`,
+                text2: 'Abriendo Apple Mail como respaldo.',
+              });
+              void Linking.openURL(mailto).catch(() =>
+                Toast.show({ type: 'error', text1: 'Error', text2: 'No se pudo abrir el correo.' }),
               );
             });
           },
         });
       } else {
-        // App NO instalada → botón informativo, sin redirigir a Mail a escondidas
-        buttons.push({
-          text: `${client.label} (no instalado)`,
+        rows.push({
+          key: `${client.id}-na`,
+          label: `${client.label} (no instalado)`,
           onPress: () => {
-            Alert.alert(
-              `${client.label} no está instalado`,
-              'Instala la app para usarla como cliente de correo.',
-              [{ text: 'OK' }]
-            );
+            dismissPremiumDataPanel();
+            Toast.show({
+              type: 'info',
+              text1: `${client.label} no está instalado`,
+              text2: 'Instala la app para usarla como cliente de correo.',
+            });
           },
         });
       }
     }
 
-    buttons.push({ text: 'Cancelar', style: 'cancel' });
+    rows.push({
+      key: 'cancel',
+      label: 'Cancelar',
+      onPress: () => dismissPremiumDataPanel(),
+    });
 
-    Alert.alert('Selecciona app de correo', email, buttons);
+    presentPremiumDataPanel({
+      title: 'Selecciona app de correo',
+      email,
+      icon: 'email-outline',
+      copyText: email,
+      emailOptions: rows,
+    });
   },
 
-  /**
-   * Teléfono clásico (Bóveda / CTA): abre el marcador nativo con esquema tel:.
-   * Ghost-Link VoIP usa ActionGhostLinkVaultItem (sin Linking, sin número).
-   * Parámetros extra se ignoran; se mantienen por compatibilidad con llamadas antiguas.
-   */
   async ActionTelefono({
     value,
   }: {
@@ -156,20 +189,26 @@ export const ActionController = {
   }) {
     const tel = normalizeTelDialString(value);
     if (!tel) {
-      Alert.alert('Teléfono inválido', 'No es un número válido para marcar.');
+      presentPremiumDataPanel({
+        title: 'Teléfono inválido',
+        body: 'No es un número válido para marcar.',
+        icon: 'phone-alert',
+        actions: [{ label: 'Cerrar', variant: 'secondary', onPress: dismissPremiumDataPanel }],
+      });
       return;
     }
     const url = `tel:${tel}`;
     try {
       await Linking.openURL(url);
     } catch {
-      Alert.alert('Error', 'No se pudo abrir el marcador del sistema.');
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'No se pudo abrir el marcador del sistema.',
+      });
     }
   },
 
-  /**
-   * Ítem Bóveda "Ghost-Link": sin número ni URL; inicia VoIP hacia el titular de la tarjeta (targetUid).
-   */
   async ActionGhostLinkVaultItem({
     targetUid,
     sourceCardName,
@@ -185,24 +224,33 @@ export const ActionController = {
     const resolvedSourceCardName = String(sourceCardName || 'Tarjeta Social').trim();
 
     if (!normalizedTargetUid) {
-      Alert.alert(
-        'Ghost-Link',
-        'No se puede iniciar la llamada: falta el identificador del titular de la tarjeta.',
-      );
+      presentPremiumDataPanel({
+        title: 'Ghost-Link',
+        body: 'No se puede iniciar la llamada: falta el identificador del titular de la tarjeta.',
+        icon: 'shield-lock-outline',
+        actions: [{ label: 'Entendido', variant: 'secondary', onPress: dismissPremiumDataPanel }],
+      });
       return;
     }
 
     const ownerUid = await getActiveUserId();
     if (!ownerUid) {
-      Alert.alert('Sesión requerida', 'Inicia sesión para usar Ghost-Link.');
+      presentPremiumDataPanel({
+        title: 'Sesión requerida',
+        body: 'Inicia sesión para usar Ghost-Link.',
+        icon: 'account-lock-outline',
+        actions: [{ label: 'Cerrar', variant: 'secondary', onPress: dismissPremiumDataPanel }],
+      });
       return;
     }
 
     if (ownerUid === normalizedTargetUid) {
-      Alert.alert(
-        'Vista previa',
-        'Al compartir tu tarjeta, tus contactos podrán llamarte por Ghost-Link desde la app. Aquí no se inicia una llamada contigo mismo.',
-      );
+      presentPremiumDataPanel({
+        title: 'Vista previa',
+        body: 'Al compartir tu tarjeta, tus contactos podrán llamarte por Ghost-Link desde la app. Aquí no se inicia una llamada contigo mismo.',
+        icon: 'eye-outline',
+        actions: [{ label: 'Cerrar', variant: 'secondary', onPress: dismissPremiumDataPanel }],
+      });
       return;
     }
 
@@ -244,62 +292,62 @@ export const ActionController = {
       });
 
       if (started.agora) {
-        Alert.alert(
-          'Ghost-Link',
-          `En llamada con ${userName}. Tu número real permanece oculto. Pulsa Colgar para terminar el audio.`,
-          [
+        presentPremiumDataPanel({
+          title: 'Ghost-Link',
+          body: `En llamada con ${userName}. Tu número real permanece oculto. Pulsa Colgar para terminar el audio.`,
+          icon: 'phone-in-talk',
+          hideCopy: true,
+          dismissOnBackdropPress: false,
+          actions: [
             {
-              text: 'Colgar',
-              style: 'destructive',
+              label: 'Colgar',
+              variant: 'destructive',
               onPress: () => {
                 void leaveGhostLinkAgoraSession();
+                dismissPremiumDataPanel();
               },
             },
           ],
-          { cancelable: false },
-        );
+        });
       } else {
-        Alert.alert(
-          'Ghost-Link',
-          `Señalización enviada a ${userName}. Para audio real, configura AGORA_APP_ID y AGORA_APP_CERTIFICATE en el backend.`,
-        );
+        presentPremiumDataPanel({
+          title: 'Ghost-Link',
+          body: `Señalización enviada a ${userName}. Para audio real, configura AGORA_APP_ID y AGORA_APP_CERTIFICATE en el backend.`,
+          icon: 'phone-outline',
+          actions: [{ label: 'Entendido', variant: 'secondary', onPress: dismissPremiumDataPanel }],
+        });
       }
     } catch (error: any) {
       if (isGhostLinkExpoGoAbortError(error)) {
         return;
       }
-      Alert.alert(
-        'No se pudo iniciar Ghost-Link',
-        error?.message || 'Intenta nuevamente.',
-      );
+      presentPremiumDataPanel({
+        title: 'No se pudo iniciar Ghost-Link',
+        body: error?.message || 'Intenta nuevamente.',
+        icon: 'alert-circle-outline',
+        actions: [{ label: 'Cerrar', variant: 'secondary', onPress: dismissPremiumDataPanel }],
+      });
     }
   },
 
-  /**
-   * ActionText: Modal flotante con el texto completo.
-   * Encabezado = Nombre del Dato (title). Botones: Copiar y Cancelar.
-   */
   async ActionText({ value, title }: { value: string; title?: string }) {
     const text = String(value || '');
-    Alert.alert(
-      title || 'Texto',
-      text,
-      [
-        {
-          text: 'Copiar',
-          onPress: async () => {
-            await Clipboard.setStringAsync(text);
-          },
-        },
-        { text: 'Cancelar', style: 'cancel' },
-      ]
-    );
+    presentPremiumDataPanel({
+      title: title || 'Texto',
+      body: text || '—',
+      icon: 'text-box-outline',
+      copyText: text,
+      actions: [{ label: 'Cerrar', variant: 'secondary', onPress: dismissPremiumDataPanel }],
+    });
   },
 
   /**
-   * ActionDocument: Flujo asíncrono estilo WhatsApp hacia DigitalOcean.
-   * Cierra el modal del frontend de INMEDIATO y deja que el backend procese en silencio.
+   * Misma UX que ActionText (panel premium) para datos crudos de la bóveda.
    */
+  async ActionRaw({ value, title }: { value: string; title?: string }) {
+    await ActionController.ActionText({ value, title });
+  },
+
   async ActionDocument({
     value,
     closeModal,
@@ -309,35 +357,36 @@ export const ActionController = {
     closeModal?: () => void;
     uploadCallback?: () => Promise<void>;
   }) {
-    // Cierra el modal del frontend de inmediato — igual que WhatsApp al enviar
     closeModal?.();
 
-    // Si hay un uploadCallback, lanza el proceso en background silenciosamente
     if (uploadCallback) {
-      uploadCallback().catch(() => {
-        // Error silencioso: el usuario ya no ve el modal
-      });
+      uploadCallback().catch(() => {});
       return;
     }
 
-    // Si es solo visualización (sin upload), abre la URL
     const url = String(value || '').trim();
     if (url.startsWith('http://') || url.startsWith('https://')) {
       try {
         await Linking.openURL(url);
       } catch {
-        Alert.alert('Documento', 'No se pudo abrir el documento.');
+        Toast.show({
+          type: 'error',
+          text1: 'Documento',
+          text2: 'No se pudo abrir el documento.',
+        });
       }
       return;
     }
 
-    Alert.alert('Documento', url || 'No hay documento disponible.');
+    presentPremiumDataPanel({
+      title: 'Documento',
+      body: url || 'No hay documento disponible.',
+      icon: 'file-document-outline',
+      copyText: url || undefined,
+      actions: [{ label: 'Cerrar', variant: 'secondary', onPress: dismissPremiumDataPanel }],
+    });
   },
 
-  /**
-   * ActionImage: Similar to ActionDocument but for images.
-   * Closes the modal immediately and processes the image upload in the background.
-   */
   async ActionImage({
     value,
     closeModal,
@@ -347,20 +396,17 @@ export const ActionController = {
     closeModal?: () => void;
     uploadCallback?: () => Promise<void>;
   }) {
-    // Close the modal immediately
     closeModal?.();
 
-    // Launch the upload process in the background
     if (uploadCallback) {
       setTimeout(() => {
-        uploadCallback().catch(() => {
-          // Silent error handling
-        });
+        uploadCallback().catch(() => {});
       }, 0);
       return;
     }
 
-    // If no uploadCallback, log the value for debugging
-    console.log('No uploadCallback provided for ActionImage:', value);
+    if (__DEV__) {
+      console.log('No uploadCallback provided for ActionImage:', value);
+    }
   },
 };

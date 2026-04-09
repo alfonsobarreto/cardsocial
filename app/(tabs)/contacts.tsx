@@ -59,6 +59,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -716,6 +717,16 @@ function ContactsContent() {
     }).start();
   }, [loading, rowsWithHeaders.length, listEntrance]);
 
+  const contactsListScrollContentStyle = useMemo(() => {
+    if (loading && contacts.length === 0) {
+      return { flexGrow: 1 as const };
+    }
+    if (rowsWithHeaders.length === 0) {
+      return { flexGrow: 1 as const, minHeight: Math.max(420, windowHeight * 0.58) };
+    }
+    return { flexGrow: 1 as const, paddingBottom: 36 };
+  }, [loading, contacts.length, rowsWithHeaders.length, windowHeight]);
+
   const renderDetailedRatingStars = (rating: number, starColor: string) => {
     const r = Math.max(0, Math.min(5, Number(rating) || 0));
     return (
@@ -1168,46 +1179,53 @@ function ContactsContent() {
             },
           ]}
         >
-          {loading && contacts.length === 0 ? (
-            <View style={styles.skeletonListWrap}>
-              <SharedCardSkeletonList count={6} isDark={isNight} avatarSize={81} />
-            </View>
-          ) : rowsWithHeaders.length === 0 ? (
-            <Pressable onPress={Keyboard.dismiss} style={styles.emptyListRoot}>
-              <MaterialCommunityIcons name="magnify" size={64} color={shell.searchPlaceholder} />
-              {contacts.length === 0 && !searchValue.trim() ? (
-                <>
-                  <Text style={[styles.emptyListTitle, { color: shell.textPrimary }]}>
-                    {tr('Sin contactos aún', 'No contacts yet')}
-                  </Text>
-                  <Text style={[styles.emptyListSubtitle, { color: shell.textSecondary }]}>
-                    {tr(
-                      'Escanea un QR o acepta invitaciones para ver contactos aquí.',
-                      'Scan a QR or accept invites to see contacts here.',
-                    )}
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <Text style={[styles.emptyListTitle, { color: shell.textPrimary }]}>
-                    {tr('Sin coincidencias', 'No matches')}
-                  </Text>
-                  <Text style={[styles.emptyListSubtitle, { color: shell.textSecondary }]}>
-                    {tr(
-                      'Prueba con otras palabras o sinónimos. También puedes revisar tu conexión.',
-                      'Try different words or synonyms. You can also check your connection.',
-                    )}
-                  </Text>
-                </>
-              )}
-            </Pressable>
-          ) : (
-            <FlexGrid
-              listMode
-              style={styles.listContainer}
-              items={rowsWithHeaders as ContactListRow[]}
-              getKey={(item) => item.key}
-              renderItem={(item: ContactListRow, _index, _ui) => {
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={contactsListScrollContentStyle}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator
+            nestedScrollEnabled
+          >
+            {loading && contacts.length === 0 ? (
+              <View style={styles.skeletonListWrap}>
+                <SharedCardSkeletonList count={6} isDark={isNight} avatarSize={81} />
+              </View>
+            ) : rowsWithHeaders.length === 0 ? (
+              <Pressable onPress={Keyboard.dismiss} style={styles.emptyListRoot}>
+                <MaterialCommunityIcons name="magnify" size={64} color={shell.searchPlaceholder} />
+                {contacts.length === 0 && !searchValue.trim() ? (
+                  <>
+                    <Text style={[styles.emptyListTitle, { color: shell.textPrimary }]}>
+                      {tr('Sin contactos aún', 'No contacts yet')}
+                    </Text>
+                    <Text style={[styles.emptyListSubtitle, { color: shell.textSecondary }]}>
+                      {tr(
+                        'Escanea un QR o acepta invitaciones para ver contactos aquí.',
+                        'Scan a QR or accept invites to see contacts here.',
+                      )}
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={[styles.emptyListTitle, { color: shell.textPrimary }]}>
+                      {tr('Sin coincidencias', 'No matches')}
+                    </Text>
+                    <Text style={[styles.emptyListSubtitle, { color: shell.textSecondary }]}>
+                      {tr(
+                        'Prueba con otras palabras o sinónimos. También puedes revisar tu conexión.',
+                        'Try different words or synonyms. You can also check your connection.',
+                      )}
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+            ) : (
+              <FlexGrid
+                listMode
+                style={styles.listContainer}
+                items={rowsWithHeaders as ContactListRow[]}
+                getKey={(item) => item.key}
+                renderItem={(item: ContactListRow, _index, _ui) => {
                 if (item.type === 'header') {
                   return (
                     <View style={styles.groupHeaderWrap}>
@@ -1440,7 +1458,8 @@ function ContactsContent() {
                 );
               }}
             />
-          )}
+            )}
+          </ScrollView>
         </Animated.View>
 
         {/* Floating Scan Button */}

@@ -1,10 +1,9 @@
 import AutoScaleText from '@/components/AutoScaleText';
 import LimitReachedModal from '@/components/LimitReachedModal';
-import { IsolatedWireframeCard } from '@/components/smartCard/IsolatedWireframeCard';
+import { IsolatedWireframeCard, type WireframeEditSlot } from '@/components/smartCard/IsolatedWireframeCard';
 import { WireframeSlotTile } from '@/components/smartCard/WireframeSlotTile';
-import { getPreviewModalStackSize, getWireframeIconRowPlan } from '@/components/smartCard/wireframeMath';
+import { getWireframeIconRowPlan } from '@/components/smartCard/wireframeMath';
 import { MyCardsPreviewModal, type MyCardsPayload } from '@/components/MyCards';
-import { SmartCardMirrorModal } from '@/components/SmartCardMirrorModal';
 import { VaultDocumentViewerModal } from '@/components/VaultDocumentViewerModal';
 import {
   computeThemeLockerTileWidth,
@@ -1719,9 +1718,10 @@ export default function CardsFactoryScreen() {
       ratingAvg: previewCard.ratingAvg ?? 5,
       totalRatings: previewCard.totalRatings ?? 0,
       enableParallax,
-      slots: previewSlots,
+      slots: previewSlots as unknown as WireframeEditSlot[],
+      iconVaultById,
     };
-  }, [previewCard, cardName, ownerNickname, ownerPhotoUrl, previewLayout, enableParallax, previewSlots]);
+  }, [previewCard, cardName, ownerNickname, ownerPhotoUrl, previewLayout, enableParallax, previewSlots, iconVaultById]);
 
   const businessPreviewSlots = useMemo<EditSlot[]>(() => {
     if (!previewBusiness?.vaultLinkIds?.length) {
@@ -1732,6 +1732,24 @@ export default function CardsFactoryScreen() {
       return { id: `biz-preview-${linkId}-${index}`, index, item };
     });
   }, [previewBusiness, vaultItems]);
+
+  const businessPreviewPayload = useMemo<MyCardsPayload | null>(() => {
+    if (!previewBusiness) return null;
+    return {
+      cardName: previewBusiness.businessName.trim(),
+      subtitle: previewBusiness.ownerName.trim(),
+      avatarUrl: toRenderableImageUri(previewBusiness.businessLogo),
+      themeId: previewBusiness.themeId || '',
+      layout: previewLayout,
+      holdersCount: previewBusiness.holdersCount ?? 0,
+      ratingAvg: Number(previewBusiness.ratingAvg ?? 0),
+      totalRatings: previewBusiness.totalRatings ?? 0,
+      enableParallax,
+      slots: businessPreviewSlots as unknown as WireframeEditSlot[],
+      noAvatarIcon: 'storefront-outline',
+      iconVaultById,
+    };
+  }, [previewBusiness, previewLayout, enableParallax, businessPreviewSlots, iconVaultById]);
 
   const qrPayload = useMemo(() => {
     if (qrBusinessContext) {
@@ -2007,23 +2025,8 @@ export default function CardsFactoryScreen() {
   const openDocumentViewer = (item: VaultItem) => {
     setDataPopoverVisible(false);
     setFocusedCertificate(null);
-    const hadBusinessPreview = previewBusinessVisible;
-    if (hadBusinessPreview) {
-      setPreviewBusinessVisible(false);
-      setPreviewBusiness(null);
-      setPreviewBusinessOwnerUid('');
-    }
-    const showViewer = () => {
-      setViewerItem(item);
-      setViewerVisible(true);
-    };
-    if (hadBusinessPreview) {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(showViewer);
-      });
-    } else {
-      showViewer();
-    }
+    setViewerItem(item);
+    setViewerVisible(true);
   };
 
   const renderRatingStars = (rating: number) => {
@@ -3351,108 +3354,35 @@ export default function CardsFactoryScreen() {
         sourceCardId={previewCard?.id ?? null}
         sourceCardName={previewCard?.name ?? cardName ?? 'Tarjeta Social'}
         peerDisplayName={ownerNickname || 'este contacto'}
+        ghostTargetUid={sessionOwnerUid}
       />
 
-      <Modal
-        visible={previewBusinessVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
+      <MyCardsPreviewModal
+        key={previewBusinessVisible && previewBusiness ? `my-cards-biz-${previewBusiness.id}` : 'my-cards-biz-closed'}
+        visible={Boolean(previewBusinessVisible && previewBusiness)}
+        onClose={() => {
           setPreviewBusinessVisible(false);
           setPreviewBusiness(null);
           setPreviewBusinessOwnerUid('');
         }}
-      >
-        <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}>
-          <BlurView intensity={65} tint="light" style={StyleSheet.absoluteFill} pointerEvents="none" />
-          {previewBusiness && previewBusinessOwnerUid ? (
-            <View
-              style={[
-                styles.previewModalStack,
-                getPreviewModalStackSize(
-                  height,
-                  businessPreviewSlots.filter((s) => s.item !== null).length,
-                ),
-              ]}
-            >
-              <View
-                style={[
-                  styles.previewModalCard,
-                  {
-                    borderColor: resolveTheme(previewBusiness.themeId).border.color,
-                    borderWidth: resolveTheme(previewBusiness.themeId).border.width,
-                  },
-                ]}
-              >
-                <View style={{ flex: 1, minHeight: 0 }}>
-                  <LinearGradient
-                    colors={resolveTheme(previewBusiness.themeId).background}
-                    style={StyleSheet.absoluteFillObject}
-                  />
-                  {renderWireframeCard({
-                    layout: previewLayout,
-                    slots: businessPreviewSlots,
-                    editable: false,
-                    theme: resolveTheme(previewBusiness.themeId),
-                    wireIdentity: {
-                      cardTitle: previewBusiness.businessName.trim(),
-                      subtitle: previewBusiness.ownerName.trim(),
-                      avatarUri: toRenderableImageUri(previewBusiness.businessLogo),
-                      holdersCount: previewBusiness.holdersCount ?? 0,
-                      ratingAvg: Number(previewBusiness.ratingAvg ?? 0),
-                      totalRatings: previewBusiness.totalRatings ?? 0,
-                      noAvatarIcon: 'storefront-outline',
-                    },
-                  })}
-                </View>
-              </View>
-
-              <View
-                style={[
-                  styles.modalActions,
-                  styles.previewModalFooterOutside,
-                  {
-                    backgroundColor: cardsTheme.modalBg,
-                    paddingVertical: 12,
-                    paddingHorizontal: 16,
-                    borderColor: cardsTheme.modalBorder,
-                  },
-                ]}
-              >
-                <TouchableOpacity
-                  style={[
-                    styles.ghostBtn,
-                    { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder },
-                  ]}
-                  onPress={() => {
-                    setPreviewBusinessVisible(false);
-                    setPreviewBusiness(null);
-                    setPreviewBusinessOwnerUid('');
-                  }}
-                >
-                  <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>
-                    {tr('Cerrar', 'Close')}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary }]}
-                  onPress={() => {
-                    const id = previewBusiness.id;
-                    setPreviewBusinessVisible(false);
-                    setPreviewBusiness(null);
-                    setPreviewBusinessOwnerUid('');
-                    router.push({ pathname: '/(tabs)/createBusinessCard', params: { cardId: id } } as any);
-                  }}
-                >
-                  <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>
-                    {tr('Editar tarjeta', 'Edit card')}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : null}
-        </View>
-      </Modal>
+        variant="issuer"
+        payload={businessPreviewPayload}
+        onEditCard={
+          previewBusiness
+            ? () => {
+                const id = previewBusiness.id;
+                setPreviewBusinessVisible(false);
+                setPreviewBusiness(null);
+                setPreviewBusinessOwnerUid('');
+                router.push({ pathname: '/(tabs)/createBusinessCard', params: { cardId: id } } as any);
+              }
+            : undefined
+        }
+        sourceCardId={previewBusiness?.id ?? null}
+        sourceCardName={previewBusiness?.businessName ?? tr('Negocio', 'Business')}
+        peerDisplayName={ownerNickname || 'este contacto'}
+        ghostTargetUid={previewBusinessOwnerUid || sessionOwnerUid}
+      />
 
       <Modal
         visible={slotPickerVisible}
@@ -5043,31 +4973,6 @@ const styles = StyleSheet.create({
   refreshOverlayBtnText: {
     fontWeight: '700',
     fontSize: 12,
-  },
-  previewModalStack: {
-    width: '92%',
-    maxWidth: 600,
-    alignSelf: 'center',
-    flexDirection: 'column',
-    alignItems: 'stretch',
-    justifyContent: 'flex-start',
-  },
-  previewModalCard: {
-    flex: 1,
-    minHeight: 0,
-    width: '100%',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#CDEFFF',
-    overflow: 'hidden',
-    flexDirection: 'column',
-  },
-  previewModalFooterOutside: {
-    marginTop: 14,
-    marginBottom: 0,
-    borderRadius: 14,
-    borderWidth: 1,
-    overflow: 'hidden',
   },
   previewBrandingRow: {
     flexDirection: 'row',

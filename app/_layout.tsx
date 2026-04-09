@@ -2,6 +2,7 @@ import 'react-native-get-random-values';
 
 import '@/i18n';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import PremiumDataPanelHost from '@/components/PremiumDataPanelHost';
 import { PendingBunkerRedeemGate } from '@/components/PendingBunkerRedeemGate';
 import { LanguageProvider, useLanguage } from '@/services/language';
 import { LookModeProvider } from '@/services/lookMode';
@@ -170,6 +171,7 @@ function RootNavigator() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
       <PendingBunkerRedeemGate />
+      <PremiumDataPanelHost />
       <Toast />
     </GestureHandlerRootView>
   );

@@ -228,7 +228,15 @@ export type PublicQrTokenPreview = {
   ownerNickname: string | null;
   ownerPhotoUrl: string | null;
   ownerOccupation: string | null;
-  slots: Array<{ itemId?: string; type?: string; label?: string; value?: string; icon?: string; iconName?: string }>;
+  slots: Array<{
+    itemId?: string;
+    type?: string;
+    label?: string;
+    value?: string;
+    icon?: string;
+    iconName?: string;
+    vaultMimeType?: string;
+  }>;
 };
 
 /** Vista previa del QR dinámico sin consumir (modal de clasificación). */
@@ -294,6 +302,77 @@ export async function consumeDynamicQrToken(params: {
       },
       timeout: 15000,
     }
+  );
+
+  return {
+    ownerUid: String(response?.data?.ownerUid || ''),
+    receiverUid: String(response?.data?.receiverUid || ''),
+    cardId: String(response?.data?.cardId || ''),
+    shareGranted: Boolean(response?.data?.shareGranted),
+  };
+}
+
+export async function fetchPublicBusinessCardPreview(params: {
+  ownerUid: string;
+  cardId: string;
+  locale?: 'en' | 'es';
+}): Promise<{ ok: true; preview: PublicQrTokenPreview } | { ok: false; error?: string }> {
+  const baseUrl = getApiBaseUrl();
+  const response = await axios.get(`${baseUrl}/api/public/business-card-preview`, {
+    params: { ownerUid: params.ownerUid, cardId: params.cardId },
+    headers: publicApiAcceptLanguage(params.locale),
+    timeout: 20000,
+    validateStatus: () => true,
+  });
+
+  if (response.status !== 200 || !response?.data?.ok) {
+    return {
+      ok: false,
+      error: String(response?.data?.error || 'Request failed'),
+    };
+  }
+
+  const d = response.data;
+  return {
+    ok: true,
+    preview: {
+      ownerUid: String(d.ownerUid || ''),
+      cardId: String(d.cardId || ''),
+      token: String(d.token || ''),
+      expiresAt: String(d.expiresAt || ''),
+      ownerDisplayName: String(d.ownerDisplayName || ''),
+      cardName: String(d.cardName || ''),
+      ownerNickname: d.ownerNickname != null ? String(d.ownerNickname) : null,
+      ownerPhotoUrl: d.ownerPhotoUrl != null ? String(d.ownerPhotoUrl) : null,
+      ownerOccupation: d.ownerOccupation != null ? String(d.ownerOccupation) : null,
+      slots: Array.isArray(d.slots) ? d.slots : [],
+    },
+  };
+}
+
+export async function grantBusinessShareFromQr(params: {
+  receiverUid: string;
+  ownerUid: string;
+  cardId: string;
+  locale?: 'en' | 'es';
+}): Promise<{ ownerUid: string; receiverUid: string; cardId: string; shareGranted: boolean }> {
+  const auth = await getScopedJwtToken(params.receiverUid, 'qr.access');
+
+  const response = await axios.post(
+    `${auth.baseUrl}/api/qr/grant-business-share`,
+    {
+      receiverUid: params.receiverUid,
+      ownerUid: params.ownerUid,
+      cardId: params.cardId,
+    },
+    {
+      headers: {
+        'x-api-gateway-key': auth.gatewayKey,
+        Authorization: `Bearer ${auth.token}`,
+        ...publicApiAcceptLanguage(params.locale),
+      },
+      timeout: 15000,
+    },
   );
 
   return {

@@ -2,6 +2,7 @@ import { BunkerClassificationModal } from '@/components/BunkerClassificationModa
 import { clearPendingBunkerScan, savePendingBunkerScan } from '@/services/bunkerPendingScan';
 import { getActiveUserId } from '@/services/authSession';
 import { useLanguage } from '@/services/language';
+import { myCardsPayloadFromUniversalCard } from '@/services/incomingCardPreviewPayload';
 import { fetchPublicUniversalCardByToken, type PublicUniversalCardPayload } from '@/services/qrApi';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -66,6 +67,11 @@ export default function UniversalTokenScreen() {
     router.replace('/(tabs)/contacts');
   }, [router]);
 
+  const previewPayload = useMemo(
+    () => (card ? myCardsPayloadFromUniversalCard(card, tr) : null),
+    [card, tr],
+  );
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -92,6 +98,7 @@ export default function UniversalTokenScreen() {
         cardId={card.cardId}
         issuerFullName={card.ownerDisplayName || ''}
         receiverUid={receiverUid || ''}
+        previewPayload={previewPayload}
         onClose={() => {
           setModalVisible(false);
           router.back();
