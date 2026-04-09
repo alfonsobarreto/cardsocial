@@ -1,61 +1,136 @@
 import { BusinessCardKeywordTags } from '@/components/BusinessCardKeywordTags';
-import { CARD_THEMES as CHEST_THEMES, getThemeById, TIER_META, type CardTheme as ChestCardTheme, type ThemeTier } from '@/constants/themeChest';
-import { sanitizeMaterialCommunityIconName } from '../components/iconNameValidation';
 import { ThemedSharedCardSurface } from '@/components/ThemedSharedCardSurface';
+import { CARD_THEMES as CHEST_THEMES, getThemeById, TIER_META, type CardTheme as ChestCardTheme, type ThemeTier } from '@/constants/themeChest';
 import { getActiveUserId } from '@/services/authSession';
+import { generatePermanentBusinessLink } from '@/services/brandedQrService';
 import {
-  createBusinessCard,
-  MAX_BUSINESS_VAULT_DATA_SLOTS,
-  updateBusinessCard,
-  updateBusinessCardMarketVisibility,
-  updateBusinessCardSubscriptionStatus,
+    createBusinessCard,
+    MAX_BUSINESS_VAULT_DATA_SLOTS,
+    updateBusinessCard,
+    updateBusinessCardMarketVisibility,
+    updateBusinessCardSubscriptionStatus,
 } from '@/services/businessCardService';
 import { validateBusinessKeywordList } from '@/services/businessKeywordValidation';
 import {
-  activateOrRenewBusinessLicense,
-  hasActiveBusinessLicense,
+    activateOrRenewBusinessLicense,
+    hasActiveBusinessLicense,
 } from '@/services/businessLicenseService';
-import { generatePermanentBusinessLink } from '@/services/brandedQrService';
 import { db } from '@/services/firebaseConfig';
+import { getUserIconVaultMap, type IconVaultEntry } from '@/services/iconVaultService';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
-import { type IconVaultEntry, getUserIconVaultMap } from '@/services/iconVaultService';
-import { getCardRowTheme, useActiveTheme } from '@/services/useActiveTheme';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
+import { upsertSmartCardInDb, type PublicCardSlotPayload } from '@/services/qrApi';
+import { getCardRowTheme, useActiveTheme } from '@/services/useActiveTheme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import palette from '../theme';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import * as Haptics from 'expo-haptics';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as Haptics from 'expo-haptics';
+import { Image as ExpoImage } from 'expo-image';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
-import { Image as ExpoImage } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Image,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import Toast from 'react-native-toast-message';
+import { sanitizeMaterialCommunityIconName } from '../components/iconNameValidation';
+import palette from '../theme';
 
 const DEFAULT_BIZ_THEME_ID = 'deep_teal';
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
+
+/**
+ * Sync BusinessCard data → MongoDB smart_cards so /contacts/received finds it.
+ * Phase 1: essential data (no Firestore reads, guaranteed).
+ * Phase 2: vault slots enrichment (best-effort, can fail silently).
+ */
+async function syncBusinessCardToMongo(params: {
+  ownerUid: string;
+  cardId: string;
+  businessName: string;
+  ownerName: string;
+  themeId: string;
+  businessLogo: string;
+  vaultLinkIds: string[];
+}) {
+  const { ownerUid, cardId, businessName, ownerName, themeId, businessLogo, vaultLinkIds } = params;
+
+  const basePayload = {
+    cardId,
+    name: businessName,
+    layout: 'vertical' as const,
+    themeId: themeId || 'deep_teal',
+    ownerDisplayName: ownerName || undefined,
+    ownerNickname: ownerName || undefined,
+    ownerPhotoUrl: businessLogo || null,
+    itemIds: [...vaultLinkIds],
+    holdersCount: 0,
+    ratingAvg: 5,
+    totalRatings: 0,
+    enableParallax: false,
+    isFavorite: false,
+  };
+
+  // Phase 1 — essential data (no vault reads needed)
+  try {
+    await upsertSmartCardInDb({ ownerUid, card: basePayload });
+  } catch (e) {
+    console.log('[BusinessCard] syncToMongo essentials FAILED', e);
+    return;
+  }
+
+  // Phase 2 — enrich with public card slots (vault + icons)
+  try {
+    const vaultSnap = await getDocs(collection(db, 'users', ownerUid, 'links'));
+    const vaultAll = vaultSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, unknown>) }));
+    const iconMap: Record<string, IconVaultEntry> = await getUserIconVaultMap(ownerUid)
+      .then((m) => Object.fromEntries(m))
+      .catch(() => ({} as Record<string, IconVaultEntry>));
+    const slots: PublicCardSlotPayload[] = vaultLinkIds.slice(0, 24).flatMap((lid) => {
+      const it = vaultAll.find((v) => v.id === lid);
+      if (!it) return [];
+      const iconEntry = (it.iconVaultId as string | undefined) && iconMap[it.iconVaultId as string];
+      const glyphName = iconEntry?.materialIconName
+        ? sanitizeMaterialCommunityIconName(iconEntry.materialIconName)
+        : (it.iconName as string | undefined)
+          ? sanitizeMaterialCommunityIconName(it.iconName as string)
+          : undefined;
+      const iconUrl = /^https?:\/\//i.test(String(it.icon || '')) ? String(it.icon) : undefined;
+      return [{
+        itemId: String(it.id),
+        type: String(it.type || 'link'),
+        label: String(it.title || ''),
+        value: String(it.value || ''),
+        ...(glyphName ? { iconName: glyphName } : {}),
+        ...(iconUrl ? { icon: iconUrl } : {}),
+      } as PublicCardSlotPayload];
+    });
+    if (slots.length > 0) {
+      await upsertSmartCardInDb({ ownerUid, card: { ...basePayload, publicCardSlots: slots } });
+    }
+  } catch (e) {
+    console.log('[BusinessCard] syncToMongo slots FAILED (essentials already saved)', e);
+  }
+}
 
 type VaultLinkRow = {
   id: string;
@@ -344,6 +419,10 @@ export default function CreateBusinessCardScreen() {
           setSubscriptionStatus(st);
         } else {
           setSubscriptionStatus(null);
+        }
+        // Auto-migrate: denormalize vault facets if missing
+        if (vids.length > 0 && !Array.isArray(d.marketFacets)) {
+          void updateBusinessCard(uid, paramCardId, { vaultLinkIds: vids }).catch(() => {});
         }
       } finally {
         if (!cancelled) setLoadingExistingCard(false);
@@ -647,6 +726,15 @@ export default function CreateBusinessCardScreen() {
           locationSource: locationCoordSource || 'device_gps',
         });
         if (res.success) {
+          void syncBusinessCardToMongo({
+            ownerUid: uid,
+            cardId: editingCardId!,
+            businessName: businessName.trim(),
+            ownerName: ownerName.trim(),
+            themeId: businessThemeId || 'deep_teal',
+            businessLogo,
+            vaultLinkIds: [...selectedVaultLinkIds],
+          });
           Alert.alert(tr('Listo', 'Done'), tr('Cambios guardados.', 'Changes saved.'), [
             {
               text: tr('OK', 'OK'),
@@ -679,6 +767,15 @@ export default function CreateBusinessCardScreen() {
           setOwnerUidState(uid);
           setMarketVisible(false);
           setSubscriptionStatus('trial');
+          void syncBusinessCardToMongo({
+            ownerUid: uid,
+            cardId: res.cardId!,
+            businessName: businessName.trim(),
+            ownerName: ownerName.trim(),
+            themeId: businessThemeId || 'deep_teal',
+            businessLogo,
+            vaultLinkIds: [...selectedVaultLinkIds],
+          });
           Alert.alert(tr('Listo', 'Done'), res.message, [
             {
               text: tr('OK', 'OK'),

@@ -100,6 +100,9 @@ export function makeContactsStyles(shell: AppShellTheme) {
   },
   contactSwipeRow: {
     width: '100%',
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 8,
   },
   centerWrap: {
     flex: 1,
@@ -156,7 +159,6 @@ export function makeContactsStyles(shell: AppShellTheme) {
   },
   contactThemedSurface: {
     width: '100%',
-    marginBottom: 8,
     shadowColor: shell.textPrimary,
     shadowOpacity: 0.09,
     shadowRadius: 8,
@@ -1034,18 +1036,20 @@ export function makeContactsStyles(shell: AppShellTheme) {
   swipeActionsRow: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    marginBottom: 10,
-    minHeight: 118,
-    borderRadius: 15,
-    overflow: 'hidden',
   },
   swipeActionCol: {
-    width: 78,
+    width: 56,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 4,
-    gap: 6,
+  },
+  swipeActionColDanger: {
+    backgroundColor: '#7A2029',
+  },
+  swipeActionColMute: {
+    backgroundColor: '#1A3350',
+  },
+  swipeActionColBlock: {
+    backgroundColor: '#2A2D35',
   },
   swipeActionLabel: {
     fontSize: 10,

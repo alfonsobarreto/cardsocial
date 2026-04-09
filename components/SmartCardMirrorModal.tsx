@@ -27,7 +27,7 @@ const shellStyles = StyleSheet.create({
     flexDirection: 'column',
   },
   previewModalFooterOutside: {
-    marginTop: 20,
+    marginTop: 0,
     marginBottom: 0,
     borderRadius: 999,
     borderWidth: 1,
@@ -73,6 +73,10 @@ export type SmartCardMirrorModalFooter = {
   acceptLabel?: string;
   onAccept?: () => void;
   acceptBusy?: boolean;
+  /** variant === 'receiver' — agregar al Búnker desde Social Market */
+  addLabel?: string;
+  onAdd?: () => void;
+  addBusy?: boolean;
   colors: {
     overlay: string;
     modalBg: string;
@@ -116,8 +120,8 @@ export function SmartCardMirrorModal({
   const stack = getPreviewModalStackSize(screenHeight, iconSlotCount);
   const c = footer.colors;
   /** Mínimo generoso si no hay SafeAreaProvider; + extra para que la tarjeta no roce el status bar. */
-  const overlayPadTop = Math.max(insets.top, 28) + 36;
-  const overlayPadBottom = Math.max(insets.bottom, 16) + 12;
+  const overlayPadTop = Math.max(insets.top, 28) + 20;
+  const overlayPadBottom = Math.max(insets.bottom, 16) + 4;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onRequestClose}>
@@ -135,25 +139,26 @@ export function SmartCardMirrorModal({
         <BlurView intensity={65} tint={footer.blurTint} style={StyleSheet.absoluteFill} pointerEvents="none" />
         <View style={[shellStyles.previewModalStack, { height: stack.height, maxHeight: stack.maxHeight }]}>
           <View style={shellStyles.previewModalCard}>
-            <View style={{ flex: 1, minHeight: 0, paddingBottom: footerTopAccessory ? 10 : 22 }}>{children}</View>
+            <View style={{ flex: 1, minHeight: 0, paddingBottom: 8 }}>{children}</View>
           </View>
 
-          {footerTopAccessory ? (
-            <View style={{ width: '100%', marginTop: 6, marginBottom: 4 }}>{footerTopAccessory}</View>
-          ) : null}
+          <View style={{ marginTop: 12 }}>
+            {footerTopAccessory ? (
+              <View style={{ width: '100%', marginBottom: 8 }}>{footerTopAccessory}</View>
+            ) : null}
 
-          <View
-            style={[
-              shellStyles.modalActions,
-              shellStyles.previewModalFooterOutside,
-              {
-                backgroundColor: c.modalBg,
-                paddingVertical: 12,
-                paddingHorizontal: 16,
-                borderColor: c.modalBorder,
-              },
-            ]}
-          >
+            <View
+              style={[
+                shellStyles.modalActions,
+                shellStyles.previewModalFooterOutside,
+                {
+                  backgroundColor: c.modalBg,
+                  paddingVertical: 12,
+                  paddingHorizontal: 16,
+                  borderColor: c.modalBorder,
+                },
+              ]}
+            >
             {footer.variant === 'incoming' && footer.onAccept ? (
               <>
                 <TouchableOpacity
@@ -191,8 +196,22 @@ export function SmartCardMirrorModal({
                     <Text style={[shellStyles.saveBtnText, { color: c.primaryText }]}>{footer.editLabel}</Text>
                   </TouchableOpacity>
                 ) : null}
+                {footer.variant === 'receiver' && footer.onAdd ? (
+                  <TouchableOpacity
+                    style={[shellStyles.saveBtn, { backgroundColor: c.primaryBg, opacity: footer.addBusy ? 0.72 : 1 }]}
+                    onPress={footer.onAdd}
+                    disabled={footer.addBusy}
+                  >
+                    {footer.addBusy ? (
+                      <ActivityIndicator color={c.primaryText} />
+                    ) : (
+                      <Text style={[shellStyles.saveBtnText, { color: c.primaryText }]}>{footer.addLabel}</Text>
+                    )}
+                  </TouchableOpacity>
+                ) : null}
               </>
             )}
+            </View>
           </View>
         </View>
       </View>

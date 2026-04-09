@@ -1118,12 +1118,17 @@ function createQrRoutes({ storage }) {
         },
       );
 
+      /* Calcular holders reales después del upsert */
+      const countsMap = await aggregateActiveReceiverCountByCardId(db, ownerUid, [cardId], now);
+      const holdersCount = countsMap.get(cardId) ?? 0;
+
       return res.status(200).json({
         ok: true,
         ownerUid,
         receiverUid,
         cardId,
         shareGranted: true,
+        holdersCount,
       });
     } catch (error) {
       const isEs = clientLocaleIsSpanish(req);
@@ -1131,6 +1136,33 @@ function createQrRoutes({ storage }) {
         ok: false,
         error: isEs ? 'Error del servidor. Intenta de nuevo.' : 'Server error. Please try again.',
       });
+    }
+  });
+
+  /**
+   * Retorna holdersCount real (desde share_permissions) para las business cards del owner.
+   * GET /api/qr/business-holders?ownerUid=xxx&cardIds=id1,id2
+   */
+  router.get('/business-holders', async (req, res) => {
+    try {
+      const ownerUid = String(req.query?.ownerUid || req.auth?.sub || '').trim();
+      const rawIds = String(req.query?.cardIds || '').trim();
+      if (!ownerUid || !rawIds) {
+        return res.status(400).json({ ok: false, error: 'ownerUid and cardIds required' });
+      }
+      const cardIds = rawIds.split(',').map((s) => s.trim()).filter(Boolean);
+      if (!cardIds.length) {
+        return res.status(200).json({ ok: true, counts: {} });
+      }
+      const db = await storage.connect();
+      const countsMap = await aggregateActiveReceiverCountByCardId(db, ownerUid, cardIds, new Date());
+      const counts = {};
+      for (const [cid, n] of countsMap) {
+        counts[cid] = n;
+      }
+      return res.status(200).json({ ok: true, counts });
+    } catch (error) {
+      return res.status(500).json({ ok: false, error: error.message });
     }
   });
 
@@ -1229,7 +1261,6 @@ function createQrRoutes({ storage }) {
       const setDoc = {
         name: String(req.body?.name || 'Smart Card').trim(),
         layout: String(req.body?.layout || 'vertical') === 'horizontal' ? 'horizontal' : 'vertical',
-        themeId: req.body?.themeId ? String(req.body.themeId) : null,
         fontId: req.body?.fontId ? String(req.body.fontId) : null,
         fontName: req.body?.fontName ? String(req.body.fontName) : null,
         fontFamily: req.body?.fontFamily ? String(req.body.fontFamily) : null,
@@ -1251,6 +1282,11 @@ function createQrRoutes({ storage }) {
         searchFacets: sanitizeSearchFacets(req.body?.searchFacets),
         updatedAt: now,
       };
+      // themeId: solo sobreescribir si se envía un valor no vacío; evita borrar el themeId existente en MongoDB
+      // cuando el cliente no lo incluye o lo envía como undefined/null.
+      if (req.body?.themeId) {
+        setDoc.themeId = String(req.body.themeId).trim();
+      }
       // Incluir si el cliente envía la clave (incl. array vacío). `in` evita fallos raros con hasOwnProperty en body parseado.
       if (req.body != null && 'publicCardSlots' in req.body) {
         setDoc.publicCardSlots = sanitizePublicCardSlots(req.body.publicCardSlots);
@@ -2161,8 +2197,19 @@ function createQrRoutes({ storage }) {
           isRevoked: { $ne: true },
           $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }, { expiresAt: { $exists: false } }],
         },
-        { projection: { targetUid: 1 } }
+        { projection: { targetUid: 1, createdAt: 1 } }
       ).toArray();
+
+      /** Map targetUid → earliest createdAt (addedAt). */
+      const addedAtByUid = new Map();
+      for (const p of permissions) {
+        const tuid = String(p.targetUid || '').trim();
+        if (!tuid) continue;
+        const ts = p.createdAt ? new Date(p.createdAt) : null;
+        if (ts && (!addedAtByUid.has(tuid) || ts < addedAtByUid.get(tuid))) {
+          addedAtByUid.set(tuid, ts);
+        }
+      }
 
       const subscriberUids = Array.from(new Set(permissions.map((p) => String(p.targetUid || '').trim()).filter(Boolean)));
       const amixesCursor = await db.collection('share_permissions').find(
@@ -2214,17 +2261,20 @@ function createQrRoutes({ storage }) {
         }
         const userRating = ratingBySub.has(uid) ? ratingBySub.get(uid) : 0;
 
+        const addedDate = addedAtByUid.get(uid);
         subscribers.push({
           uid,
           name: profile.name,
           fullName: profile.name,
           nickname: profile.nickname,
           photoUrl: profile.photoUrl,
+          ownerOccupation: profile.ownerOccupation || null,
           isAmixes: amixesSet.has(uid),
           userRating: Number.isFinite(userRating) ? userRating : 0,
           mutualCount,
           mutualPreviewPhotos,
           muted: mutedSet.has(uid),
+          addedAt: addedDate ? addedDate.toISOString() : null,
         });
       }
 

@@ -1,39 +1,44 @@
 import AutoScaleText from '@/components/AutoScaleText';
 import LimitReachedModal from '@/components/LimitReachedModal';
+import { MyCardsPreviewModal, type MyCardsPayload } from '@/components/MyCards';
+import ReceptorScreenModal from '@/components/ReceptorScreenModal';
+import {
+    computeThemeLockerTileWidth,
+    THEME_LOCKER_TILE_GAP,
+    ThemeLockerThemeTile,
+} from '@/components/ThemeLockerThemeTile';
+import { VaultDocumentViewerModal } from '@/components/VaultDocumentViewerModal';
 import { IsolatedWireframeCard, type WireframeEditSlot } from '@/components/smartCard/IsolatedWireframeCard';
 import { WireframeSlotTile } from '@/components/smartCard/WireframeSlotTile';
 import { getWireframeIconRowPlan } from '@/components/smartCard/wireframeMath';
-import { MyCardsPreviewModal, type MyCardsPayload } from '@/components/MyCards';
-import { VaultDocumentViewerModal } from '@/components/VaultDocumentViewerModal';
 import {
-  computeThemeLockerTileWidth,
-  ThemeLockerThemeTile,
-  THEME_LOCKER_TILE_GAP,
-} from '@/components/ThemeLockerThemeTile';
+    renderWireframeDetailedRatingStars,
+    renderWireframeMiniIcon,
+} from '@/components/smartCard/wireframeMirrorRendering';
 import { isGhostLinkVaultType } from '@/constants/ghostLinkVault';
 import {
-  CARD_THEMES as CHEST_THEMES,
-  getThemeById,
-  getThemesByTier,
-  TIER_META,
-  type CardTheme as ChestCardTheme,
-  type ThemeTier,
+    CARD_THEMES as CHEST_THEMES,
+    getThemeById,
+    getThemesByTier,
+    TIER_META,
+    type CardTheme as ChestCardTheme,
+    type ThemeTier,
 } from '@/constants/themeChest';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { generatePermanentBusinessLink } from '@/services/brandedQrService';
 import {
-  listBusinessCardsByOwner,
-  deleteBusinessCard as removeBusinessCardFromFirestore,
-  setBusinessCardFavorite,
-  type BusinessCardListRow,
+    listBusinessCardsByOwner,
+    deleteBusinessCard as removeBusinessCardFromFirestore,
+    setBusinessCardFavorite,
+    type BusinessCardListRow,
 } from '@/services/businessCardService';
 import { type VaultCollectibleCertificate } from '@/services/collectibleService';
 import {
-  buildSearchFacetsForSharedCard,
-  collectStringsSmartCard,
-  deriveOwnerOccupationFromFacets,
-  orderByDeepSearchWithExpandedQuery,
+    buildSearchFacetsForSharedCard,
+    collectStringsSmartCard,
+    deriveOwnerOccupationFromFacets,
+    orderByDeepSearchWithExpandedQuery,
 } from '@/services/deepSearch';
 import { auth, db } from '@/services/firebaseConfig';
 import { type CardFontItem, type FontTier } from '@/services/fontLibraryService';
@@ -44,28 +49,30 @@ import { validateCardCreation } from '@/services/limitService';
 import { useLookMode } from '@/services/lookMode';
 import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
 import { newEntityId } from '@/services/newEntityId';
+import { openVaultPreviewItem } from '@/services/openVaultPreviewItem';
 import {
-  blockRelationship,
-  deleteSmartCardInDb,
-  getCardAnalyticsSummary,
-  issueDynamicQrToken,
-  issueTemporaryUniversalAccess,
-  listCardSubscribers,
-  listSmartCardsFromDb,
-  revokeCardSubscriber,
-  setCardSubscriberMute,
-  upsertSmartCardInDb,
-  type CardSubscriberRow,
-  type PublicCardSlotPayload,
-  type SmartCardPayload,
+    blockRelationship,
+    deleteSmartCardInDb,
+    fetchBusinessCardHolderCounts,
+    getCardAnalyticsSummary,
+    issueDynamicQrToken,
+    issueTemporaryUniversalAccess,
+    listCardSubscribers,
+    listSmartCardsFromDb,
+    revokeCardSubscriber,
+    setCardSubscriberMute,
+    upsertSmartCardInDb,
+    type CardSubscriberRow,
+    type PublicCardSlotPayload,
+    type SmartCardPayload,
 } from '@/services/qrApi';
 import { getCardRowTheme, useActiveTheme } from '@/services/useActiveTheme';
 import {
-  cardsTabFeedOrderStorageKey,
-  readSmartCardsJsonWithLegacyMigration,
-  readVaultJsonWithLegacyMigration,
-  smartCardsStorageKey,
-  vaultStorageKey,
+    cardsTabFeedOrderStorageKey,
+    readSmartCardsJsonWithLegacyMigration,
+    readVaultJsonWithLegacyMigration,
+    smartCardsStorageKey,
+    vaultStorageKey,
 } from '@/services/userScopedStorage';
 import { isClassicPhoneVaultType } from '@/services/vaultItemTypeGuards';
 import { getWallpaperResizeMode, type WallpaperItem, type WallpaperTier } from '@/services/wallpaperService';
@@ -74,52 +81,44 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { BlurView } from 'expo-blur';
 import * as Clipboard from 'expo-clipboard';
-import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
 import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Gyroscope } from 'expo-sensors';
-import * as Sharing from 'expo-sharing';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  AppState,
-  FlatList,
-  Image,
-  InteractionManager,
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  useWindowDimensions,
-  View
+    ActivityIndicator,
+    Alert,
+    Animated,
+    AppState,
+    FlatList,
+    InteractionManager,
+    Keyboard,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    Pressable,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    useWindowDimensions,
+    View
 } from 'react-native';
-import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from 'react-native-draggable-flatlist';
+import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import QRCode from 'react-native-qrcode-svg';
 import Toast from 'react-native-toast-message';
 import { ActionController } from '../../services/ActionController';
-import { openVaultPreviewItem } from '@/services/openVaultPreviewItem';
 import {
-  resolveMaterialGlyphFromVaultLikeFields,
-  sanitizeMaterialCommunityIconName,
+    resolveMaterialGlyphFromVaultLikeFields,
+    sanitizeMaterialCommunityIconName,
 } from '../components/iconNameValidation';
-import {
-  renderWireframeDetailedRatingStars,
-  renderWireframeMiniIcon,
-} from '@/components/smartCard/wireframeMirrorRendering';
 import palette from '../theme';
 
 type CardThemeId = string;
@@ -416,6 +415,7 @@ export default function CardsFactoryScreen() {
   const [subscribersVisible, setSubscribersVisible] = useState(false);
   const [subscribersLoading, setSubscribersLoading] = useState(false);
   const [subscribersCard, setSubscribersCard] = useState<SmartCard | null>(null);
+  const [subscribersBusinessRow, setSubscribersBusinessRow] = useState<BusinessCardListRow | null>(null);
   const [subscribers, setSubscribers] = useState<CardSubscriber[]>([]);
   const [qrVisible, setQrVisible] = useState(false);
   const [qrBusinessContext, setQrBusinessContext] = useState<null | {
@@ -471,6 +471,16 @@ export default function CardsFactoryScreen() {
   const [viewerItem, setViewerItem] = useState<VaultItem | null>(null);
   const swipeableMethodsByCardIdRef = useRef<Map<string, SwipeableMethods>>(new Map());
   const subscriberSwipeableMethodsRef = useRef<Map<string, SwipeableMethods>>(new Map());
+
+  const closeAllCardSwipes = useCallback(() => {
+    for (const m of swipeableMethodsByCardIdRef.current.values()) {
+      m.close();
+    }
+    for (const m of subscriberSwipeableMethodsRef.current.values()) {
+      m.close();
+    }
+  }, []);
+
   useEffect(() => {
     if (!subscribersVisible) {
       subscriberSwipeableMethodsRef.current.clear();
@@ -712,6 +722,18 @@ export default function CardsFactoryScreen() {
     }
     try {
       const rows = await listBusinessCardsByOwner(ownerUid);
+      /* Obtener holdersCount real desde share_permissions (MongoDB) */
+      const cardIds = rows.map((r) => r.id);
+      if (cardIds.length) {
+        try {
+          const counts = await fetchBusinessCardHolderCounts({ ownerUid, cardIds });
+          for (const r of rows) {
+            if (counts[r.id] !== undefined) {
+              r.holdersCount = counts[r.id];
+            }
+          }
+        } catch { /* Firestore fallback si el backend no responde */ }
+      }
       setBusinessCardsFeed(rows);
     } catch {
       setBusinessCardsFeed([]);
@@ -732,7 +754,7 @@ export default function CardsFactoryScreen() {
       cardId: card.id,
       name: card.name,
       layout: card.layout,
-      themeId: card.themeId,
+      themeId: card.themeId || 'deep_teal',
       fontId: card.fontId,
       fontName: card.fontName,
       fontFamily: card.fontFamily,
@@ -1231,6 +1253,32 @@ export default function CardsFactoryScreen() {
     ]);
   };
 
+  const openBusinessSubscribersModal = async (row: BusinessCardListRow) => {
+    try {
+      setSubscribersVisible(true);
+      setSubscribersLoading(true);
+      setSubscribersBusinessRow(row);
+      setSubscribersCard(null);
+
+      const ownerUid = await getActiveUserId();
+      if (!ownerUid) throw new Error('No active session.');
+
+      const response = await listCardSubscribers({ ownerUid, cardId: row.id });
+      setSubscribers(response.subscribers);
+
+      setBusinessCardsFeed((prev) =>
+        prev.map((entry) =>
+          entry.id === row.id ? { ...entry, holdersCount: response.count } : entry
+        )
+      );
+    } catch (error: any) {
+      Alert.alert(tr('Error', 'Error'), error?.message || tr('No se pudo cargar receptores.', 'Could not load receptors.'));
+      setSubscribers([]);
+    } finally {
+      setSubscribersLoading(false);
+    }
+  };
+
   const openSubscribersModal = async (card: SmartCard) => {
     try {
       setSubscribersVisible(true);
@@ -1376,6 +1424,16 @@ export default function CardsFactoryScreen() {
       const ownerUid = await getActiveUserId();
       if (!ownerUid) {
         throw new Error(tr('No se pudo obtener tu sesión para emitir el QR.', 'Could not get your session to issue the QR.'));
+      }
+
+      // Sincroniza smart_cards (themeId + publicCardSlots) antes de emitir el token,
+      // igual que el flujo de QR web 24h. Sin esto, el receptor ve la tarjeta vacía
+      // o con el tema incorrecto si el documento en MongoDB está desactualizado.
+      try {
+        const vaultSnap = await loadVaultSnapshotForSync(ownerUid);
+        await upsertSmartCardInDb({ ownerUid, card: buildSmartCardDbPayload(card, vaultSnap) });
+      } catch {
+        // Mejor esfuerzo: el QR se emite igualmente; el receptor verá el snapshot anterior si falla la red.
       }
 
       const issued = await issueDynamicQrToken({ ownerUid, cardId: card.id });
@@ -1556,6 +1614,39 @@ export default function CardsFactoryScreen() {
       const ownerUid = await getActiveUserId();
       if (!ownerUid) {
         throw new Error(tr('No se pudo obtener tu sesión.', 'Could not get your session.'));
+      }
+
+      // Sincroniza el snapshot de la Business Card en MongoDB (smart_cards) antes de mostrar el QR permanente.
+      // Sin esto, el receptor siempre ve 404 en /business-card-preview y cae en el fallback de Firestore,
+      // que no incluye los vault items (vaultLinkIds) del propietario.
+      try {
+        const vaultSnap = await loadVaultSnapshotForSync(ownerUid);
+        const publicCardSlots = buildPublicCardSlotsForPersist(
+          vaultSnap.vaultItems,
+          row.vaultLinkIds,
+          vaultSnap.iconVaultById,
+        );
+        await upsertSmartCardInDb({
+          ownerUid,
+          card: {
+            cardId: row.id,
+            name: row.businessName,
+            layout: 'vertical',
+            themeId: row.themeId || 'deep_teal',
+            ownerDisplayName: row.ownerName || undefined,
+            ownerNickname: row.ownerName || undefined,
+            ownerPhotoUrl: row.businessLogo ? toRenderableImageUri(row.businessLogo) : null,
+            itemIds: row.vaultLinkIds,
+            publicCardSlots,
+            holdersCount: Number(row.holdersCount || 0),
+            ratingAvg: Number(row.ratingAvg || 5),
+            totalRatings: Number(row.totalRatings || 0),
+            enableParallax: false,
+            isFavorite: Boolean(row.isFavorite),
+          },
+        });
+      } catch {
+        // Mejor esfuerzo: el QR se muestra igualmente; el receptor verá el snapshot anterior (o 404 + fallback).
       }
 
       setQrBusinessContext({
@@ -2192,11 +2283,11 @@ export default function CardsFactoryScreen() {
               }}
               accessibilityLabel={tr('Editar tarjeta', 'Edit card')}
             >
-              <MaterialCommunityIcons name="pencil" size={16} color={cardsTheme.btnPrimaryText} />
+              <MaterialCommunityIcons name="pencil" size={16} color="#FFFFFF" />
               <Text style={styles.swipeActionText}>{tr('Editar', 'Edit')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.headerBtnBg }]}
+              style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.subscriberSwipeMuteBg }]}
               onPress={() => {
                 closeBusinessRowSwipe();
                 confirmAndIssueQrForBusiness(row);
@@ -2204,18 +2295,18 @@ export default function CardsFactoryScreen() {
               disabled={issuingQr}
               accessibilityLabel={tr('Generar QR', 'Generate QR')}
             >
-              <MaterialCommunityIcons name="qrcode" size={16} color={cardsTheme.btnPrimaryText} />
+              <MaterialCommunityIcons name="qrcode" size={16} color="#FFFFFF" />
               <Text style={styles.swipeActionText}>QR</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.ctaAccent }]}
+              style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.subscriberSwipeRevokeBg }]}
               onPress={() => {
                 closeBusinessRowSwipe();
                 void toggleFavoriteBusinessCard(row);
               }}
               accessibilityLabel={tr('Favorito', 'Favorite')}
             >
-              <MaterialCommunityIcons name={row.isFavorite ? 'star' : 'star-outline'} size={16} color={cardsTheme.btnPrimaryText} />
+              <MaterialCommunityIcons name={row.isFavorite ? 'star' : 'star-outline'} size={16} color="#FFFFFF" />
               <Text style={styles.swipeActionText}>{row.isFavorite ? '★' : '☆'}</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -2226,7 +2317,7 @@ export default function CardsFactoryScreen() {
               }}
               accessibilityLabel={tr('Eliminar tarjeta', 'Delete card')}
             >
-              <MaterialCommunityIcons name="trash-can-outline" size={16} color={cardsTheme.btnPrimaryText} />
+              <MaterialCommunityIcons name="trash-can-outline" size={16} color="#FFFFFF" />
               <Text style={styles.swipeActionText}>{tr('Eliminar', 'Delete')}</Text>
             </TouchableOpacity>
           </View>
@@ -2248,7 +2339,7 @@ export default function CardsFactoryScreen() {
           <TouchableOpacity
             style={styles.cardRowTouchable}
             onPress={() => {
-              closeBusinessRowSwipe();
+              closeAllCardSwipes();
               void openPreviewBusinessCard(row);
             }}
             onLongPress={() => enterCardsReorderRef.current?.()}
@@ -2281,17 +2372,18 @@ export default function CardsFactoryScreen() {
                       : themeMeta.name}
                   </Text>
                   <View style={styles.businessCardStatsRow}>
-                    <View
+                    <TouchableOpacity
                       style={[
                         styles.metricPill,
                         { borderColor: chestTheme.borderColor, backgroundColor: 'rgba(255,255,255,0.72)' },
                       ]}
                       accessibilityRole="text"
                       accessibilityLabel={tr('Personas con tu tarjeta', 'People with your card')}
+                      onPress={() => { void openBusinessSubscribersModal(row); }}
                     >
                       <MaterialCommunityIcons name="account-group-outline" size={13} color={chestTheme.titleColor} />
                       <Text style={[styles.metricPillText, { color: chestTheme.titleColor }]}>{holders}</Text>
-                    </View>
+                    </TouchableOpacity>
                     <View style={styles.statsRatingStack}>
                       <View style={styles.businessRatingStarsWrap}>{renderWireframeDetailedRatingStars(rating)}</View>
                       <Text style={[styles.ratingStackCaption, { color: chestTheme.metaColor }]} numberOfLines={2}>
@@ -2383,11 +2475,11 @@ export default function CardsFactoryScreen() {
               }}
               accessibilityLabel={tr('Editar tarjeta', 'Edit card')}
             >
-              <MaterialCommunityIcons name="pencil" size={16} color={cardsTheme.btnPrimaryText} />
+              <MaterialCommunityIcons name="pencil" size={16} color="#FFFFFF" />
               <Text style={styles.swipeActionText}>{tr('Editar', 'Edit')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.headerBtnBg }]}
+              style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.subscriberSwipeMuteBg }]}
               onPress={() => {
                 closeSmartCardRowSwipe();
                 confirmAndIssueQrForCard(item);
@@ -2395,18 +2487,18 @@ export default function CardsFactoryScreen() {
               disabled={issuingQr}
               accessibilityLabel={tr('Generar QR', 'Generate QR')}
             >
-              <MaterialCommunityIcons name="qrcode" size={16} color={cardsTheme.btnPrimaryText} />
+              <MaterialCommunityIcons name="qrcode" size={16} color="#FFFFFF" />
               <Text style={styles.swipeActionText}>QR</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.ctaAccent }]}
+              style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.subscriberSwipeRevokeBg }]}
               onPress={() => {
                 closeSmartCardRowSwipe();
                 toggleFavoriteCard(item);
               }}
               accessibilityLabel={tr('Favorito', 'Favorite')}
             >
-              <MaterialCommunityIcons name={item.isFavorite ? 'star' : 'star-outline'} size={16} color={cardsTheme.btnPrimaryText} />
+              <MaterialCommunityIcons name={item.isFavorite ? 'star' : 'star-outline'} size={16} color="#FFFFFF" />
               <Text style={styles.swipeActionText}>{item.isFavorite ? '★' : '☆'}</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -2417,7 +2509,7 @@ export default function CardsFactoryScreen() {
               }}
               accessibilityLabel={tr('Eliminar tarjeta', 'Delete card')}
             >
-              <MaterialCommunityIcons name="trash-can-outline" size={16} color={cardsTheme.btnPrimaryText} />
+              <MaterialCommunityIcons name="trash-can-outline" size={16} color="#FFFFFF" />
               <Text style={styles.swipeActionText}>{tr('Eliminar', 'Delete')}</Text>
             </TouchableOpacity>
           </View>
@@ -2445,7 +2537,7 @@ export default function CardsFactoryScreen() {
           <TouchableOpacity
             style={styles.cardRowTouchable}
             onPress={() => {
-              closeSmartCardRowSwipe();
+              closeAllCardSwipes();
               openPreviewCard(item);
             }}
             onLongPress={() => enterCardsReorderRef.current?.()}
@@ -2884,6 +2976,10 @@ export default function CardsFactoryScreen() {
           contentContainerStyle={[styles.cardsList, isLandscape && styles.cardsListLandscape]}
           bounces={false}
           overScrollMode="never"
+          onScrollBeginDrag={closeAllCardSwipes}
+          ListFooterComponent={
+            <Pressable onPress={closeAllCardSwipes} style={{ minHeight: 120 }} />
+          }
           refreshControl={
             !isLandscape ? (
               <RefreshControl
@@ -3518,159 +3614,33 @@ export default function CardsFactoryScreen() {
         </TouchableWithoutFeedback>
       </Modal>
 
-      <Modal
+      <ReceptorScreenModal
         visible={subscribersVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
+        onClose={() => {
           setSubscribersVisible(false);
           setSubscribersCard(null);
+          setSubscribersBusinessRow(null);
           setSubscribers([]);
         }}
-      >
-        <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}> 
-          <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} pointerEvents="none" />
-          <View style={[styles.subscribersModalCard, { backgroundColor: cardsTheme.modalBg, borderColor: cardsTheme.modalBorder }]}> 
-            <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle }]}>{tr('Personas con tu tarjeta', 'People with your card')}</Text>
-            <Text style={[styles.subscribersSubtitle, { color: cardsTheme.modalSubtitle }]}>{subscribersCard?.name || 'Smart Card'}</Text>
-
-            <ScrollView style={styles.subscribersList} bounces={false} overScrollMode="never">
-              {subscribersLoading ? (
-                <Text style={[styles.subscribersLoadingText, { color: cardsTheme.sectionLabel }]}>{tr('Cargando...', 'Loading...')}</Text>
-              ) : subscribers.length === 0 ? (
-                <Text style={[styles.subscribersLoadingText, { color: cardsTheme.sectionLabel }]}>{tr('Aún no hay personas con acceso a esta tarjeta.', 'No one has access to this card yet.')}</Text>
-              ) : (
-                subscribers.map((row) => (
-                  <Swipeable
-                    key={row.uid}
-                    ref={
-                      ((methods: SwipeableMethods | null) => {
-                        if (methods) {
-                          subscriberSwipeableMethodsRef.current.set(row.uid, methods);
-                        } else {
-                          subscriberSwipeableMethodsRef.current.delete(row.uid);
-                        }
-                      }) as unknown as React.RefObject<SwipeableMethods | null>
-                    }
-                    containerStyle={{ marginBottom: 6, borderRadius: 12, overflow: 'hidden' }}
-                    rightThreshold={20}
-                    renderRightActions={() => (
-                      <View style={{ flexDirection: 'row', alignItems: 'stretch' }}>
-                        <TouchableOpacity
-                          style={[styles.subscriberSwipeMute, { backgroundColor: cardsTheme.subscriberSwipeMuteBg }]}
-                          onPress={() => {
-                            subscriberSwipeableMethodsRef.current.get(row.uid)?.close();
-                            const title = row.muted
-                              ? tr('Dejar de silenciar', 'Unmute channel')
-                              : tr('Silenciar canal', 'Mute channel');
-                            const msg = row.muted
-                              ? tr('Esta persona volverá a ver historias y novedades de esta tarjeta.', 'They will see stories and updates from this card again.')
-                              : tr('No verá historias ni novedades de esta tarjeta (solo este canal).', 'They will not see stories or updates for this card only.');
-                            Alert.alert(title, msg, [
-                              { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
-                              {
-                                text: row.muted ? tr('Activar', 'Unmute') : tr('Silenciar', 'Mute'),
-                                onPress: () => { void handleMuteSubscriber(row.uid, !row.muted); },
-                              },
-                            ]);
-                          }}
-                        >
-                          <MaterialCommunityIcons name={row.muted ? 'volume-high' : 'volume-off'} size={16} color={cardsTheme.btnPrimaryText} />
-                          <Text style={styles.swipeActionText}>{row.muted ? tr('Audio', 'Unmute') : tr('Silenciar', 'Mute')}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[styles.subscriberSwipeRevoke, { backgroundColor: cardsTheme.subscriberSwipeRevokeBg }]}
-                          onPress={() => {
-                            subscriberSwipeableMethodsRef.current.get(row.uid)?.close();
-                            Alert.alert(
-                              tr('Eliminar acceso', 'Remove access'),
-                              tr('Se revocará tu tarjeta de este usuario.', 'Your card will be revoked from this user.'),
-                              [
-                                { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
-                                { text: tr('Eliminar', 'Remove'), style: 'destructive', onPress: () => handleRevokeSubscriber(row.uid) },
-                              ],
-                            );
-                          }}
-                        >
-                          <MaterialCommunityIcons name="card-remove-outline" size={16} color={cardsTheme.btnPrimaryText} />
-                          <Text style={styles.swipeActionText}>{tr('Quitar', 'Remove')}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[styles.subscriberSwipeBlock, { backgroundColor: cardsTheme.swipeDeleteBg }]}
-                          onPress={() => {
-                            subscriberSwipeableMethodsRef.current.get(row.uid)?.close();
-                            Alert.alert(
-                              tr('Bloquear usuario', 'Block user'),
-                              tr('Se eliminarán todos los vínculos en ambas direcciones.', 'All share permissions will be removed bilaterally.'),
-                              [
-                                { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
-                                { text: tr('Bloquear', 'Block'), style: 'destructive', onPress: () => handleBlockSubscriber(row.uid) },
-                              ],
-                            );
-                          }}
-                        >
-                          <MaterialCommunityIcons name="account-cancel-outline" size={16} color={cardsTheme.btnPrimaryText} />
-                          <Text style={styles.swipeActionText}>{tr('Bloquear', 'Block')}</Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  >
-                    <View style={[styles.subscriberRow, { backgroundColor: cardsTheme.inputBg }]}>
-                      <View style={styles.subscriberIdentity}>
-                        {row.photoUrl ? (
-                          <ExpoImage source={{ uri: row.photoUrl }} style={styles.subscriberAvatar} cachePolicy="disk" />
-                        ) : (
-                          <View style={styles.subscriberAvatarFallback}>
-                            <MaterialCommunityIcons name="account" size={16} color={cardsTheme.pillText} />
-                          </View>
-                        )}
-                        <View style={[styles.subscriberMetaColumn, { flex: 1 }]}>
-                          <Text style={styles.subscriberName}>{row.fullName || row.name}</Text>
-                          <Text style={styles.subscriberUid}>@{row.nickname}</Text>
-                          {row.muted ? (
-                            <Text style={[styles.subscriberMutedTag, { color: cardsTheme.sectionLabel }]}>
-                              {tr('Canal silenciado', 'Channel muted')}
-                            </Text>
-                          ) : null}
-                          <View style={styles.mutualRow}>
-                            <Text style={[styles.mutualLabel, { color: cardsTheme.sectionLabel }]}>
-                              {tr('En común en Card-Social', 'Mutual on Card-Social')}: {row.mutualCount}
-                            </Text>
-                            {row.mutualPreviewPhotos.length > 0 ? (
-                              <View style={styles.mutualStackRow}>
-                                {row.mutualPreviewPhotos.slice(0, 3).map((uri, idx) => (
-                                  <ExpoImage
-                                    key={`${row.uid}-mutual-${idx}`}
-                                    source={{ uri }}
-                                    style={[styles.mutualTinyAvatar, idx === 0 ? styles.mutualTinyAvatarFirst : null]}
-                                    cachePolicy="disk"
-                                  />
-                                ))}
-                              </View>
-                            ) : null}
-                          </View>
-                        </View>
-                        {renderRatingStars(row.userRating)}
-                      </View>
-                    </View>
-                  </Swipeable>
-                ))
-              )}
-            </ScrollView>
-
-            <TouchableOpacity
-              style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary }]}
-              onPress={() => {
-                setSubscribersVisible(false);
-                setSubscribersCard(null);
-                setSubscribers([]);
-              }}
-            >
-              <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>{tr('Cerrar', 'Close')}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        owner={{
+          displayName: subscribersBusinessRow
+            ? (subscribersBusinessRow.businessName || tr('Mi Negocio', 'My Business'))
+            : (ownerDisplayName || tr('Mi Tarjeta', 'My Card')),
+          occupation: subscribersBusinessRow
+            ? (subscribersBusinessRow.ownerName || '')
+            : (subscribersCard?.name || ''),
+          photoUrl: subscribersBusinessRow?.businessLogo || ownerPhotoUrl,
+        }}
+        subscribers={subscribers}
+        totalCount={
+          subscribersBusinessRow
+            ? (subscribersBusinessRow.holdersCount ?? subscribers.length)
+            : (subscribersCard?.holdersCount ?? subscribers.length)
+        }
+        loading={subscribersLoading}
+        isDark={isDark}
+        tr={tr}
+      />
 
       {viewerVisible && viewerItem ? (
         <VaultDocumentViewerModal
@@ -4172,7 +4142,6 @@ const styles = StyleSheet.create({
   swipeActions: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    marginVertical: 5,
   },
   swipeActionBtn: {
     width: 64,

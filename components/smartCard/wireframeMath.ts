@@ -125,10 +125,10 @@ export function computeStitchWireframeBubbleSide(
 export function getPreviewModalStackSize(screenH: number, iconSlotCount: number): { height: number; maxHeight: number } {
   const rowCount = Math.max(1, getWireframeIconRowPlan(iconSlotCount).length);
   const threeRows = rowCount >= 3;
-  const fraction = threeRows ? 0.9 : 0.82;
-  const capPx = threeRows ? 860 : 740;
+  const fraction = threeRows ? 0.92 : 0.88;
+  const capPx = threeRows ? 880 : 820;
   return {
     height: Math.min(screenH * fraction, capPx),
-    maxHeight: screenH * 0.94,
+    maxHeight: screenH * 0.96,
   };
 }

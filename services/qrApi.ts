@@ -483,11 +483,13 @@ export type CardSubscriberRow = {
   fullName: string;
   nickname: string;
   photoUrl: string | null;
+  ownerOccupation: string | null;
   isAmixes: boolean;
   userRating: number;
   mutualCount: number;
   mutualPreviewPhotos: string[];
   muted: boolean;
+  addedAt: string | null;
 };
 
 export async function listCardSubscribers(params: { ownerUid: string; cardId: string }): Promise<{
@@ -516,6 +518,7 @@ export async function listCardSubscribers(params: { ownerUid: string; cardId: st
       fullName: String(row?.fullName || row?.name || 'Usuario'),
       nickname: String(row?.nickname || 'user'),
       photoUrl: row?.photoUrl ? String(row.photoUrl) : null,
+      ownerOccupation: row?.ownerOccupation ? String(row.ownerOccupation).trim() : null,
       isAmixes: Boolean(row?.isAmixes),
       userRating: Number.isFinite(Number(row?.userRating)) ? Number(row.userRating) : 0,
       mutualCount: Number.isFinite(Number(row?.mutualCount)) ? Math.max(0, Math.floor(Number(row.mutualCount))) : 0,
@@ -523,6 +526,7 @@ export async function listCardSubscribers(params: { ownerUid: string; cardId: st
         ? row.mutualPreviewPhotos.map((u: unknown) => String(u || '').trim()).filter(Boolean)
         : [],
       muted: Boolean(row?.muted),
+      addedAt: row?.addedAt ? String(row.addedAt) : null,
     })),
   };
 }
@@ -1392,4 +1396,31 @@ export async function getCardAnalyticsSummary(params: {
       count: Number(row?.count || 0) || 0,
     })),
   };
+}
+
+/**
+ * Obtiene holdersCount real (desde share_permissions) para un conjunto de business cards.
+ * Retorna mapa { cardId: holdersCount }.
+ */
+export async function fetchBusinessCardHolderCounts(params: {
+  ownerUid: string;
+  cardIds: string[];
+}): Promise<Record<string, number>> {
+  if (!params.ownerUid || !params.cardIds.length) return {};
+  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+  const response = await axios.get(`${auth.baseUrl}/api/qr/business-holders`, {
+    params: { ownerUid: params.ownerUid, cardIds: params.cardIds.join(',') },
+    headers: {
+      'x-api-gateway-key': auth.gatewayKey,
+      Authorization: `Bearer ${auth.token}`,
+    },
+    timeout: 12000,
+  });
+  const counts = response?.data?.counts;
+  if (!counts || typeof counts !== 'object') return {};
+  const result: Record<string, number> = {};
+  for (const [cid, n] of Object.entries(counts)) {
+    result[cid] = Number(n || 0);
+  }
+  return result;
 }

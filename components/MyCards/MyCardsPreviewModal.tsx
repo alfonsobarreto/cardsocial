@@ -4,48 +4,48 @@
  * Contactos (receptor), Búsqueda (receptor) y aceptación entrante (token / QR).
  */
 
+import appPalette from '@/app/theme';
 import {
-  IsolatedWireframeCard,
-  type WireframeEditSlot,
-  type WireframeVaultItem,
+    IsolatedWireframeCard,
+    type WireframeEditSlot,
+    type WireframeVaultItem,
 } from '@/components/smartCard/IsolatedWireframeCard';
 import {
-  createPreviewWireframeSlotRenderer,
-  renderWireframeMirrorRatingStars,
-  type IconVaultLookup,
+    createPreviewWireframeSlotRenderer,
+    renderWireframeMirrorRatingStars,
+    type IconVaultLookup,
 } from '@/components/smartCard/wireframeMirrorRendering';
 import { SmartCardMirrorModal } from '@/components/SmartCardMirrorModal';
 import { VaultDocumentViewerModal } from '@/components/VaultDocumentViewerModal';
 import {
-  CARD_THEMES as CHEST_THEMES,
-  getThemeById,
+    CARD_THEMES as CHEST_THEMES,
+    getThemeById,
 } from '@/constants/themeChest';
+import { getActiveUserId } from '@/services/authSession';
 import type { MirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
-import { openVaultPreviewItem } from '@/services/openVaultPreviewItem';
 import { seedMetaForIncomingCard } from '@/services/bunkerContactMetaSeed';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
+import { openVaultPreviewItem } from '@/services/openVaultPreviewItem';
 import {
-  consumeDynamicQrToken,
-  fetchBunkerGroups,
-  grantBusinessShareFromQr,
-  redeemTemporaryAccessToken,
-  trackBunkerGroupUsage,
+    consumeDynamicQrToken,
+    fetchBunkerGroups,
+    grantBusinessShareFromQr,
+    redeemTemporaryAccessToken,
+    trackBunkerGroupUsage,
 } from '@/services/qrApi';
-import appPalette from '@/app/theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
-  Animated,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    Alert,
+    Animated,
+    Modal,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions
 } from 'react-native';
 
 const INCOMING_BASE_GROUPS = ['Random', 'Family', 'Social', 'Work'];
@@ -131,6 +131,12 @@ export function MyCardsPreviewModal({
   const [incomingBusy, setIncomingBusy] = useState(false);
   const [groupSheetOpen, setGroupSheetOpen] = useState(false);
 
+  /* Receiver "Add to Bunker" state */
+  const [receiverGroups, setReceiverGroups] = useState<string[]>(INCOMING_BASE_GROUPS);
+  const [receiverGroup, setReceiverGroup] = useState('Random');
+  const [receiverAddBusy, setReceiverAddBusy] = useState(false);
+  const [receiverGroupSheetOpen, setReceiverGroupSheetOpen] = useState(false);
+
   const handleClose = useCallback(() => {
     onClose();
   }, [onClose]);
@@ -143,8 +149,67 @@ export function MyCardsPreviewModal({
   useEffect(() => {
     if (!visible) {
       setGroupSheetOpen(false);
+      setReceiverGroupSheetOpen(false);
     }
   }, [visible]);
+
+  /* Fetch groups for receiver variant (Social Market add) */
+  useEffect(() => {
+    if (variant !== 'receiver' || !visible || !ghostTargetUid) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const uid = await getActiveUserId();
+        if (!uid || cancelled) return;
+        const g = await fetchBunkerGroups(uid, language);
+        if (!cancelled) {
+          const list = Array.isArray(g) && g.length > 0 ? g : INCOMING_BASE_GROUPS;
+          setReceiverGroups(list);
+          setReceiverGroup((prev) => (list.includes(prev) ? prev : 'Random'));
+        }
+      } catch {
+        if (!cancelled) {
+          setReceiverGroups(INCOMING_BASE_GROUPS);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [variant, visible, ghostTargetUid, language]);
+
+  /* Handle "Add to Bunker" from receiver (Social Market) */
+  const handleReceiverAdd = useCallback(async () => {
+    if (variant !== 'receiver' || !ghostTargetUid || !sourceCardId) return;
+    setReceiverAddBusy(true);
+    try {
+      const uid = await getActiveUserId();
+      if (!uid) throw new Error(tr('No autenticado', 'Not authenticated'));
+      await grantBusinessShareFromQr({
+        receiverUid: uid,
+        ownerUid: ghostTargetUid,
+        cardId: sourceCardId,
+        locale: language === 'en' ? 'en' : 'es',
+      });
+      await seedMetaForIncomingCard({
+        issuerUid: ghostTargetUid,
+        cardId: sourceCardId,
+        group: receiverGroup,
+        scanThemeId: payload?.themeId?.trim() ? payload.themeId : null,
+      });
+      try {
+        await trackBunkerGroupUsage({ viewerUid: uid, groupName: receiverGroup, locale: language === 'en' ? 'en' : 'es' });
+      } catch { /* non-blocking */ }
+      Alert.alert(
+        tr('Agregado', 'Added'),
+        tr('La tarjeta fue agregada a tu Búnker.', 'The card was added to your Bunker.'),
+      );
+      handleClose();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : tr('Intenta de nuevo.', 'Try again.');
+      Alert.alert(tr('No se pudo agregar', 'Could not add'), msg);
+    } finally {
+      setReceiverAddBusy(false);
+    }
+  }, [variant, ghostTargetUid, sourceCardId, receiverGroup, language, payload?.themeId, tr, handleClose]);
 
   useEffect(() => {
     if (variant !== 'incoming' || !visible || !incomingRedeem?.receiverUid) {
@@ -343,6 +408,65 @@ export function MyCardsPreviewModal({
       </>
     ) : null;
 
+  const receiverAccessory =
+    variant === 'receiver' && ghostTargetUid ? (
+      <>
+        <TouchableOpacity
+          style={[incomingStyles.groupChip, { borderColor: `${accent}55` }]}
+          onPress={() => !receiverAddBusy && setReceiverGroupSheetOpen(true)}
+          disabled={receiverAddBusy}
+          accessibilityRole="button"
+          accessibilityLabel={tr('Elegir grupo del Búnker', 'Choose Bunker group')}
+        >
+          <MaterialCommunityIcons name="folder-outline" size={16} color={accent} />
+          <Text style={[incomingStyles.groupChipText, { color: accent }]} numberOfLines={1}>
+            {tr('Grupo', 'Group')}: {receiverGroup}
+          </Text>
+          <MaterialCommunityIcons name="chevron-down" size={18} color={accent} />
+        </TouchableOpacity>
+        <Modal
+          visible={receiverGroupSheetOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setReceiverGroupSheetOpen(false)}
+        >
+          <Pressable style={incomingStyles.sheetBackdrop} onPress={() => setReceiverGroupSheetOpen(false)}>
+            <Pressable
+              style={[incomingStyles.sheetCard, { backgroundColor: shell.modalBg, borderColor: shell.border }]}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <Text style={[incomingStyles.sheetTitle, { color: shell.textPrimary }]}>
+                {tr('Grupo en el Búnker', 'Bunker group')}
+              </Text>
+              <ScrollView style={incomingStyles.sheetList} keyboardShouldPersistTaps="handled">
+                {receiverGroups.map((g) => (
+                  <TouchableOpacity
+                    key={g}
+                    style={incomingStyles.sheetRow}
+                    onPress={() => {
+                      setReceiverGroup(g);
+                      setReceiverGroupSheetOpen(false);
+                    }}
+                  >
+                    <Text style={[incomingStyles.sheetRowText, { color: shell.textPrimary }]}>{g}</Text>
+                    {receiverGroup === g ? (
+                      <MaterialCommunityIcons name="check" size={20} color={accent} />
+                    ) : null}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <TouchableOpacity
+                style={[incomingStyles.sheetDone, { borderColor: shell.border }]}
+                onPress={() => setReceiverGroupSheetOpen(false)}
+              >
+                <Text style={{ color: shell.textPrimary, fontWeight: '600' }}>{tr('Listo', 'Done')}</Text>
+              </TouchableOpacity>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      </>
+    ) : null;
+
   const mirrorScale = variant === 'issuer' ? 0.8 : 1;
 
   return (
@@ -356,7 +480,7 @@ export function MyCardsPreviewModal({
           color: theme.border.color,
           width: theme.border.width,
         }}
-        footerTopAccessory={incomingAccessory}
+        footerTopAccessory={incomingAccessory || receiverAccessory}
         footer={{
           variant: footerVariant,
           closeLabel:
@@ -372,6 +496,15 @@ export function MyCardsPreviewModal({
           onAccept:
             variant === 'incoming' ? () => void handleIncomingAccept() : undefined,
           acceptBusy: variant === 'incoming' ? incomingBusy : undefined,
+          addLabel:
+            variant === 'receiver' && ghostTargetUid
+              ? tr('Agregar', 'Add')
+              : undefined,
+          onAdd:
+            variant === 'receiver' && ghostTargetUid
+              ? () => void handleReceiverAdd()
+              : undefined,
+          addBusy: receiverAddBusy,
           colors: footerColors,
           blurTint: isDark ? 'dark' : 'light',
         }}

@@ -42,6 +42,12 @@ export function marketSearchStoryRingState(card: BusinessCard): 'none' | 'normal
 }
 
 export function buildMarketCardSearchFacets(card: BusinessCard): Array<{ type: string; label: string; value: string }> {
+  // Prefer denormalized marketFacets (resolved at card create/update)
+  if (Array.isArray(card.marketFacets) && card.marketFacets.length > 0) {
+    return card.marketFacets;
+  }
+
+  // Legacy fallback: flat fields (ownerEmail, ownerPhone, etc.)
   const out: Array<{ type: string; label: string; value: string }> = [];
   const email = String(card.ownerEmail || '').trim();
   if (email) {
@@ -54,16 +60,6 @@ export function buildMarketCardSearchFacets(card: BusinessCard): Array<{ type: s
   const maps = String(card.mapsLink || '').trim();
   if (maps) {
     out.push({ type: 'mapa', label: 'Mapa', value: maps });
-  } else if (
-    Number.isFinite(card.latitude) &&
-    Number.isFinite(card.longitude) &&
-    (card.latitude !== 0 || card.longitude !== 0)
-  ) {
-    out.push({
-      type: 'mapa',
-      label: 'Ubicación',
-      value: `https://www.google.com/maps?q=${card.latitude},${card.longitude}`,
-    });
   }
   const pdf = String(card.professionalVault?.contractsPdf || '').trim();
   if (pdf) {

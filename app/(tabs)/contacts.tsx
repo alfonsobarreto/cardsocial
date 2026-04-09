@@ -1,77 +1,78 @@
-import { SharedCardSkeletonList } from '@/components/SharedCardRowSkeleton';
-import { type WireframeEditSlot } from '@/components/smartCard/IsolatedWireframeCard';
-import { MyCardsPreviewModal, type MyCardsPayload } from '@/components/MyCards';
-import { ThemedSharedCardSurface } from '@/components/ThemedSharedCardSurface';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import FlexGrid from '@/components/FlexGrid';
+import { MyCardsPreviewModal, type MyCardsPayload } from '@/components/MyCards';
+import ReceptorScreenModal from '@/components/ReceptorScreenModal';
+import { SharedCardSkeletonList } from '@/components/SharedCardRowSkeleton';
+import { type WireframeEditSlot } from '@/components/smartCard/IsolatedWireframeCard';
+import { ThemedSharedCardSurface } from '@/components/ThemedSharedCardSurface';
 import { MEDIA_PLACEHOLDER } from '@/constants/mediaPlaceholders';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
+import { buildMirrorVaultItemsForContact } from '@/services/buildReceiverPreviewVaultItems';
+import { collectStringsReceivedContact, orderByDeepSearchWithExpandedQuery } from '@/services/deepSearch';
 import {
-  joinGhostLinkAgoraSession,
-  leaveGhostLinkAgoraSession,
-  setGhostLinkAgoraMuted,
-  setGhostLinkAgoraSpeaker,
+    joinGhostLinkAgoraSession,
+    leaveGhostLinkAgoraSession,
+    setGhostLinkAgoraMuted,
+    setGhostLinkAgoraSpeaker,
 } from '@/services/ghostLinkAgoraSession';
 import {
-  getIncomingGhostLinkInvite,
-  respondGhostLinkInvite,
-  type GhostLinkAgoraRtc,
-  type GhostLinkIncomingInvite,
+    getIncomingGhostLinkInvite,
+    respondGhostLinkInvite,
+    type GhostLinkAgoraRtc,
+    type GhostLinkIncomingInvite,
 } from '@/services/ghostLinkVoip';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
-import appPalette from '../theme';
-import { makeContactsStyles } from './_contacts.styles';
-import { getCardRowTheme } from '@/services/useActiveTheme';
-import { collectStringsReceivedContact, orderByDeepSearchWithExpandedQuery } from '@/services/deepSearch';
 import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
 import {
-  blockRelationship,
-  createCallLog,
-  listReceivedContacts,
-  removeRelationship,
-  setSubscriberSelfCardMute,
-  type PublicCardSlotPayload,
+    blockRelationship,
+    createCallLog,
+    listCardSubscribers,
+    listReceivedContacts,
+    removeRelationship,
+    setSubscriberSelfCardMute,
+    type CardSubscriberRow,
+    type PublicCardSlotPayload,
 } from '@/services/qrApi';
 import {
-  mergeReceivedContactRows,
-  receivedContactMergeKey,
+    mergeReceivedContactRows,
+    receivedContactMergeKey,
 } from '@/services/receivedContactsPresentationMerge';
-import { buildMirrorVaultItemsForContact } from '@/services/buildReceiverPreviewVaultItems';
+import { getCardRowTheme } from '@/services/useActiveTheme';
+import appPalette from '../theme';
+import { makeContactsStyles } from './_contacts.styles';
 
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
-import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
 import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
-  Animated,
-  AppState,
-  Easing,
-  Keyboard,
-  LayoutAnimation,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  UIManager,
-  useWindowDimensions,
-  View
+    Alert,
+    Animated,
+    AppState,
+    Easing,
+    Keyboard,
+    LayoutAnimation,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    UIManager,
+    useWindowDimensions,
+    View
 } from 'react-native';
+import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
-import { Swipeable } from 'react-native-gesture-handler';
 
 type Contact = {
   uid: string;
@@ -212,9 +213,21 @@ function ContactsContent() {
   const [incomingGhostCall, setIncomingGhostCall] = useState<IncomingGhostCallView | null>(null);
   const [ghostCallMuted, setGhostCallMuted] = useState(false);
   const [ghostCallSpeaker, setGhostCallSpeaker] = useState(false);
+
+  /* Receptor modal state */
+  const [receptorModalVisible, setReceptorModalVisible] = useState(false);
+  const [receptorContact, setReceptorContact] = useState<Contact | null>(null);
+  const [receptorSubscribers, setReceptorSubscribers] = useState<CardSubscriberRow[]>([]);
+  const [receptorLoading, setReceptorLoading] = useState(false);
   const listEntrance = useRef(new Animated.Value(0)).current;
-  const swipeableByContactLinkRef = useRef<Map<string, { close: () => void }>>(new Map());
+  const swipeableByContactLinkRef = useRef<Map<string, SwipeableMethods>>(new Map());
   const rowPressScaleRef = useRef<Map<string, Animated.Value>>(new Map());
+
+  const closeAllSwipes = useCallback(() => {
+    for (const m of swipeableByContactLinkRef.current.values()) {
+      m.close();
+    }
+  }, []);
 
   const pressScaleForContactLink = (linkKey: string) => {
     let v = rowPressScaleRef.current.get(linkKey);
@@ -1011,6 +1024,21 @@ function ContactsContent() {
     setFloatingVisible(true);
   };
 
+  const openReceptorModal = async (contact: Contact) => {
+    if (!contact.uid || !contact.cardId) return;
+    setReceptorContact(contact);
+    setReceptorModalVisible(true);
+    setReceptorLoading(true);
+    try {
+      const response = await listCardSubscribers({ ownerUid: contact.uid, cardId: contact.cardId });
+      setReceptorSubscribers(response.subscribers);
+    } catch {
+      setReceptorSubscribers([]);
+    } finally {
+      setReceptorLoading(false);
+    }
+  };
+
   const closeFloatingCard = () => {
     Keyboard.dismiss();
     setFloatingVisible(false);
@@ -1150,6 +1178,7 @@ function ContactsContent() {
   };
 
   return (
+    <>
     <LinearGradient colors={[...shell.tabShellGradient]} style={styles.container}>
       {/* Header with title and Sort button */}
       <View style={styles.headerBar}>
@@ -1189,6 +1218,7 @@ function ContactsContent() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator
             nestedScrollEnabled
+            onScrollBeginDrag={closeAllSwipes}
           >
             {loading && contacts.length === 0 ? (
               <View style={styles.skeletonListWrap}>
@@ -1242,7 +1272,7 @@ function ContactsContent() {
                 const reviewCount = row.totalRatings ?? 0;
                 const rating = reviewCount > 0 ? Number(row.ratingAvg ?? 0) : 0;
                 const isAlert = reviewCount > 0 && Number(row.ratingAvg || 0) <= RATING_ALERT;
-                const mutual = row.mutualContactsCount ?? 0;
+                const holders = row.holdersCount ?? 0;
                 const chest = getCardRowTheme(row.themeId);
                 const issuerFont = row.fontFamily ? { fontFamily: row.fontFamily } : null;
                 const closeRowSwipe = () => {
@@ -1251,56 +1281,56 @@ function ContactsContent() {
                 return (
                   <Swipeable
                     containerStyle={styles.contactSwipeRow}
-                    ref={(el) => {
-                      if (el) {
-                        swipeableByContactLinkRef.current.set(rowLinkKey, { close: () => el.close() });
-                      } else {
-                        swipeableByContactLinkRef.current.delete(rowLinkKey);
-                      }
-                    }}
                     overshootRight={false}
+                    rightThreshold={36}
+                    friction={1.8}
+                    renderLeftActions={(_progress, _translation, methods) => {
+                      swipeableByContactLinkRef.current.set(rowLinkKey, methods);
+                      return null;
+                    }}
+                    onSwipeableWillOpen={() => {
+                      /* Close any other open swipe before opening this one */
+                      for (const [k, m] of swipeableByContactLinkRef.current) {
+                        if (k !== rowLinkKey) m.close();
+                      }
+                      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    }}
                     renderRightActions={() => (
                         <View style={styles.swipeActionsRow}>
                           <TouchableOpacity
-                            style={[styles.swipeActionCol, { backgroundColor: shell.danger }]}
-                            onPress={() => {
-                              closeRowSwipe();
-                              promptDeleteContact(row);
-                            }}
-                            accessibilityRole="button"
-                            accessibilityLabel={tr('Eliminar contacto', 'Delete contact')}
-                            hitSlop={{ top: 4, bottom: 4, left: 2, right: 2 }}
-                          >
-                            <MaterialCommunityIcons name="trash-can-outline" size={22} color={shell.btnPrimaryText} />
-                            <Text style={[styles.swipeActionLabel, { color: shell.btnPrimaryText }]}>{tr('Eliminar', 'Delete')}</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={[styles.swipeActionCol, { backgroundColor: shell.subscriberSwipeMuteBg }]}
+                            style={[styles.swipeActionCol, styles.swipeActionColMute]}
                             onPress={() => {
                               closeRowSwipe();
                               void handleToggleChannelMute(row);
                             }}
                             accessibilityRole="button"
                             accessibilityLabel={
-                              row.channelMuted ? tr('Dejar de silenciar tarjeta', 'Unmute card channel') : tr('Silenciar tarjeta', 'Mute card channel')
+                              row.channelMuted ? tr('Dejar de silenciar', 'Unmute') : tr('Silenciar', 'Mute')
                             }
-                            hitSlop={{ top: 4, bottom: 4, left: 2, right: 2 }}
                           >
-                            <MaterialCommunityIcons name={row.channelMuted ? 'volume-high' : 'volume-off'} size={22} color={shell.btnPrimaryText} />
-                            <Text style={[styles.swipeActionLabel, { color: shell.btnPrimaryText }]}>{tr('Silenciar', 'Mute')}</Text>
+                            <MaterialCommunityIcons name={row.channelMuted ? 'volume-high' : 'volume-off'} size={20} color="#FFFFFF" />
                           </TouchableOpacity>
                           <TouchableOpacity
-                            style={[styles.swipeActionCol, { backgroundColor: shell.fabBg }]}
+                            style={[styles.swipeActionCol, styles.swipeActionColBlock]}
                             onPress={() => {
                               closeRowSwipe();
                               promptBlockContact(row.uid);
                             }}
                             accessibilityRole="button"
-                            accessibilityLabel={tr('Bloquear contacto', 'Block contact')}
-                            hitSlop={{ top: 4, bottom: 4, left: 2, right: 2 }}
+                            accessibilityLabel={tr('Bloquear', 'Block')}
                           >
-                            <MaterialCommunityIcons name="block-helper" size={22} color={shell.btnPrimaryText} />
-                            <Text style={[styles.swipeActionLabel, { color: shell.btnPrimaryText }]}>{tr('Bloquear', 'Block')}</Text>
+                            <MaterialCommunityIcons name="cancel" size={20} color="#FFFFFF" />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.swipeActionCol, styles.swipeActionColDanger]}
+                            onPress={() => {
+                              closeRowSwipe();
+                              promptDeleteContact(row);
+                            }}
+                            accessibilityRole="button"
+                            accessibilityLabel={tr('Eliminar', 'Delete')}
+                          >
+                            <MaterialCommunityIcons name="trash-can-outline" size={20} color="#FFFFFF" />
                           </TouchableOpacity>
                         </View>
                     )}
@@ -1309,13 +1339,13 @@ function ContactsContent() {
                     <ThemedSharedCardSurface
                       themeId={row.themeId}
                       wallpaperUrl={row.wallpaperUrl || undefined}
-                      borderRadius={15}
+                      borderRadius={16}
                       style={[styles.contactThemedSurface, row.channelMuted ? styles.contactCardMuted : null]}
                     >
                       <Pressable
                         style={styles.contactCardInnerThemed}
                         onPress={() => {
-                          closeRowSwipe();
+                          closeAllSwipes();
                           void openFloatingCard(row);
                         }}
                         onLongPress={() => {
@@ -1444,15 +1474,18 @@ function ContactsContent() {
                                 {rating.toFixed(1)} · {reviewCount} {tr('reseñas', 'reviews')}
                               </Text>
                             </View>
-                            <View
+                            <TouchableOpacity
                               style={[
                                 styles.mutualCountPill,
                                 { backgroundColor: 'rgba(255,255,255,0.72)', borderColor: chest.borderColor },
                               ]}
+                              onPress={() => { void openReceptorModal(row); }}
+                              activeOpacity={0.7}
+                              hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
                             >
-                              <MaterialCommunityIcons name="account-multiple-outline" size={11} color={chest.titleColor} />
-                              <Text style={[styles.mutualCountPillText, { color: chest.titleColor }]}>{mutual}</Text>
-                            </View>
+                              <MaterialCommunityIcons name="account-group-outline" size={11} color={chest.titleColor} />
+                              <Text style={[styles.mutualCountPillText, { color: chest.titleColor }]}>{holders}</Text>
+                            </TouchableOpacity>
                           </View>
                         </View>
                       </Pressable>
@@ -1463,6 +1496,7 @@ function ContactsContent() {
               }}
             />
             )}
+            <Pressable onPress={closeAllSwipes} style={{ flexGrow: 1, minHeight: 80 }} />
           </ScrollView>
         </Animated.View>
 
@@ -1833,5 +1867,25 @@ function ContactsContent() {
         </LinearGradient>
       </Modal>
     </LinearGradient>
+
+      <ReceptorScreenModal
+        visible={receptorModalVisible}
+        onClose={() => {
+          setReceptorModalVisible(false);
+          setReceptorContact(null);
+          setReceptorSubscribers([]);
+        }}
+        owner={{
+          displayName: receptorContact?.name || '',
+          occupation: receptorContact?.ownerOccupation || receptorContact?.cardName || '',
+          photoUrl: receptorContact?.photoUrl ?? null,
+        }}
+        subscribers={receptorSubscribers}
+        totalCount={receptorContact?.holdersCount ?? receptorSubscribers.length}
+        loading={receptorLoading}
+        isDark={isNight}
+        tr={tr}
+      />
+    </>
   );
 }

@@ -6,23 +6,71 @@
 import { db } from '@/services/firebaseConfig';
 import { newEntityId } from '@/services/newEntityId';
 import {
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  setDoc,
-  getDocs,
-  query,
-  where,
-  updateDoc,
-  increment,
-  Timestamp,
+    collection,
+    deleteDoc,
+    doc,
+    getDoc,
+    getDocs,
+    increment,
+    query,
+    setDoc,
+    Timestamp,
+    updateDoc,
+    where,
 } from 'firebase/firestore';
 
 const TRIAL_DAYS = 14;
 
 /** Igual que Smart Cards (12 slots): máx. ítems de Bóveda por tarjeta de negocio. */
 export const MAX_BUSINESS_VAULT_DATA_SLOTS = 12;
+
+/**
+ * Resuelve vault link IDs del owner → facetas denormalizadas para el Social Market.
+ * Se guarda como `marketFacets` en el doc de businessCards para que cualquier
+ * usuario autenticado pueda ver los iconos sin acceder al vault ajeno.
+ */
+async function resolveMarketFacets(
+  ownerUid: string,
+  linkIds: string[],
+): Promise<Array<{ type: string; label: string; value: string }>> {
+  const unique = [...new Set(linkIds.filter(Boolean))].slice(0, MAX_BUSINESS_VAULT_DATA_SLOTS);
+  if (!unique.length) return [];
+  const facets: Array<{ type: string; label: string; value: string }> = [];
+
+  // Per-link timeout (3 s) so a single slow doc never blocks the others.
+  const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T | null> =>
+    Promise.race([p, new Promise<null>((r) => setTimeout(() => r(null), ms))]);
+
+  // Global safety cap (3.5 s): if Promise.all itself stalls, fall back to whatever
+  // facets were collected up to that point rather than hanging forever.
+  const globalTimeout = new Promise<'timeout'>((r) => setTimeout(() => r('timeout'), 3500));
+
+  const resolved = await Promise.race([
+    Promise.all(
+      unique.map(async (linkId) => {
+        try {
+          const snap = await withTimeout(getDoc(doc(db, 'users', ownerUid, 'links', linkId)), 3000);
+          if (snap && snap.exists()) {
+            const row = snap.data() as Record<string, unknown>;
+            const type = String(row.type ?? '').trim();
+            const label = String(row.title ?? row.label ?? type).trim();
+            const value = String(row.value ?? '').trim();
+            if (value) {
+              facets.push({ type: type || 'otro', label: label || type || 'Dato', value });
+            }
+          }
+        } catch { /* skip unreadable */ }
+      }),
+    ),
+    globalTimeout,
+  ]);
+
+  if (resolved === 'timeout') {
+    console.log('[resolveMarketFacets] global timeout — returning partial facets', facets.length);
+  }
+
+  return facets;
+}
 
 export interface BusinessCardCreateInput {
   ownerUid: string;
@@ -118,7 +166,14 @@ export async function createBusinessCard(
       holdersCount: 0,
       themeId: String(data.themeId || 'deep_teal').trim() || 'deep_teal',
       isFavorite: false,
+      marketFacets: [] as Array<{ type: string; label: string; value: string }>,
     };
+
+    // Resolve vault links → marketFacets BEFORE persisting so the document is
+    // consistent from the start. resolveMarketFacets is capped at 3.5 s total.
+    if (Array.isArray(data.vaultLinkIds) && data.vaultLinkIds.length > 0) {
+      businessCardData.marketFacets = await resolveMarketFacets(data.ownerUid, data.vaultLinkIds);
+    }
 
     await setDoc(businessCardRef, businessCardData);
 
@@ -272,10 +327,20 @@ export async function updateBusinessCard(
     if (data.businessName !== undefined) payload.businessName = data.businessName;
     if (data.ownerName !== undefined) payload.ownerName = data.ownerName;
     if (data.vaultLinkIds !== undefined) {
-      payload.vaultLinkIds = data.vaultLinkIds
+      const sanitized = data.vaultLinkIds
         .slice(0, MAX_BUSINESS_VAULT_DATA_SLOTS)
         .map((id) => String(id));
+      payload.vaultLinkIds = sanitized;
+
+      // Links changed → resolve facets NOW, before updateDoc, so the document
+      // is always consistent. resolveMarketFacets is capped at 3.5 s total.
+      payload.marketFacets = sanitized.length > 0
+        ? await resolveMarketFacets(ownerUid, sanitized)
+        : [];
     }
+    // If vaultLinkIds is NOT in the payload the user didn't change the links,
+    // so we leave marketFacets untouched (no key in payload = Firestore keeps it).
+
     if (data.themeId !== undefined) {
       payload.themeId = String(data.themeId).trim() || 'deep_teal';
     }
@@ -290,6 +355,7 @@ export async function updateBusinessCard(
     if (data.longitude !== undefined) payload.longitude = data.longitude;
     if (data.locationSource !== undefined) payload.locationSource = data.locationSource;
     await updateDoc(cardRef, payload);
+
     return { success: true, message: 'OK' };
   } catch (e: any) {
     return { success: false, message: e?.message || 'Error' };

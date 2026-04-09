@@ -88,6 +88,8 @@ export interface BusinessCard {
   themeId?: string;
   /** Conteo mostrado en filas / QR (Firestore). */
   holdersCount?: number;
+  /** Facetas resueltas del vault — denormalizadas al crear/editar la tarjeta. */
+  marketFacets?: Array<{ type: string; label: string; value: string }>;
 }
 
 export interface KYCValidation {
