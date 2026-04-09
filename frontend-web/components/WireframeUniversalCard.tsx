@@ -212,7 +212,12 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
       return;
     }
     const plan = getMirrorVaultOpenPlan(
-      { type: slot.type, value: slot.value, title: slot.label },
+      {
+        type: slot.type,
+        value: slot.value,
+        title: slot.label,
+        vaultMimeType: slot.vaultMimeType ?? undefined,
+      },
       {
         cardOwnerUid: String(card.ownerUid || '').trim(),
         cardId: String(card.cardId || '').trim(),

@@ -24,6 +24,7 @@ import {
   receivedContactMergeKey,
 } from '@/services/receivedContactsPresentationMerge';
 import { getCardRowTheme } from '@/services/useActiveTheme';
+import { adaptBusinessCardSearchResultToMyCardsPayload } from '@/services/adaptBusinessCardMarketPremium';
 import { facetIconNameForSearch, runSearchFacetQuickAction } from '@/services/searchFacetQuickAction';
 import { buildMarketCardSearchFacets, marketSearchStoryRingState } from '@/services/searchPhase2Logic';
 import { buildMirrorVaultItemsForContact } from '@/services/buildReceiverPreviewVaultItems';
@@ -239,6 +240,11 @@ export default function SearchScreen() {
       slots: searchMirrorPreviewSlots,
     };
   }, [receivedCardDetail, searchMirrorPreviewSlots, tr]);
+
+  const marketPremiumPayload = useMemo<MyCardsPayload | null>(() => {
+    if (!marketCardDetail) return null;
+    return adaptBusinessCardSearchResultToMyCardsPayload(marketCardDetail, tr);
+  }, [marketCardDetail, tr]);
 
   const onSearchScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     searchScrollYRef.current = e.nativeEvent.contentOffset.y;
@@ -1258,6 +1264,7 @@ export default function SearchScreen() {
       ) : null}
 
       <MyCardsPreviewModal
+        key={receivedCardDetail ? `search-received-${receivedCardDetail.card.id}` : 'search-received-closed'}
         visible={Boolean(receivedCardDetail && receivedCardDetail.rowSource === 'received_contact')}
         onClose={closeReceivedCardDetail}
         variant="receiver"
@@ -1276,62 +1283,20 @@ export default function SearchScreen() {
         }
       />
 
-      <Modal
+      <MyCardsPreviewModal
+        key={marketCardDetail ? `search-market-${marketCardDetail.card.id}` : 'search-market-closed'}
         visible={Boolean(marketCardDetail)}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={closeMarketCardDetail}
-      >
-        {marketCardDetail ? (
-          <View style={[styles.searchDetailModalRoot, { backgroundColor: shell.background }]}>
-            <View style={[styles.searchDetailHeader, { borderBottomColor: shell.border }]}>
-              <Text style={[styles.searchDetailTitle, { color: shell.textPrimary }]} numberOfLines={2}>
-                {marketCardDetail.card.businessName}
-              </Text>
-              <TouchableOpacity onPress={closeMarketCardDetail} hitSlop={12} accessibilityLabel={tr('Cerrar', 'Close')}>
-                <MaterialCommunityIcons name="close" size={26} color={shell.textSecondary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView
-              style={styles.searchDetailScroll}
-              contentContainerStyle={styles.searchDetailScrollContent}
-              keyboardShouldPersistTaps="handled"
-            >
-              <Text style={[styles.searchDetailSubtitle, { color: shell.textSecondary }]}>
-                {String(marketCardDetail.card.businessDescription || '').trim() || '—'}
-              </Text>
-              <View style={styles.searchDetailFacetGrid}>
-                {buildMarketCardSearchFacets(marketCardDetail.card).map((f, idx) => (
-                  <TouchableOpacity
-                    key={`md-${f.type}-${idx}`}
-                    style={[styles.searchDetailFacetChip, { borderColor: 'rgba(197,160,101,0.5)', backgroundColor: shell.surfaceMuted }]}
-                    onPress={() =>
-                      runSearchFacetQuickAction({
-                        type: f.type,
-                        label: f.label,
-                        value: f.value,
-                        issuerUid: marketCardDetail.card.ownerUid,
-                        issuerCardName: marketCardDetail.card.businessName,
-                        issuerCardId: marketCardDetail.card.id,
-                        issuerDisplayName: marketCardDetail.card.businessName,
-                      })
-                    }
-                  >
-                    <MaterialCommunityIcons
-                      name={facetIconNameForSearch(f.type) as 'card-account-details-outline'}
-                      size={26}
-                      color="rgba(212,175,55,0.95)"
-                    />
-                    <Text style={[styles.searchDetailFacetLabel, { color: shell.textPrimary }]} numberOfLines={2}>
-                      {f.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-          </View>
-        ) : null}
-      </Modal>
+        onClose={closeMarketCardDetail}
+        variant="receiver"
+        payload={marketPremiumPayload}
+        ghostTargetUid={marketCardDetail?.card.ownerUid ?? null}
+        sourceCardId={marketCardDetail?.card.id ?? null}
+        sourceCardName={marketCardDetail?.card.businessName}
+        peerDisplayName={
+          String(marketCardDetail?.card.businessName || '').trim() ||
+          tr('Negocio', 'Business')
+        }
+      />
 
       <Modal
         visible={marketSortModalVisible}
@@ -1610,57 +1575,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.28)',
-  },
-  searchDetailModalRoot: {
-    flex: 1,
-    paddingTop: Platform.OS === 'ios' ? 8 : 12,
-  },
-  searchDetailHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  searchDetailTitle: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  searchDetailScroll: {
-    flex: 1,
-  },
-  searchDetailScrollContent: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  searchDetailSubtitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 16,
-  },
-  searchDetailFacetGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  searchDetailFacetChip: {
-    width: '30%',
-    minWidth: 96,
-    maxWidth: 140,
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingVertical: 14,
-    paddingHorizontal: 8,
-    alignItems: 'center',
-    gap: 8,
-  },
-  searchDetailFacetLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    textAlign: 'center',
   },
   resultCardReceived: {
     flexDirection: 'column',

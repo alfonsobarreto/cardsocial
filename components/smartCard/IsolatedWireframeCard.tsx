@@ -24,6 +24,7 @@ export type WireframeVaultItem = {
   iconVaultId?: string;
   vaultProtected?: boolean;
   isFavorite: boolean;
+  vaultMimeType?: string;
 };
 
 export type WireframeEditSlot = {

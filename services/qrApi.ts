@@ -635,6 +635,8 @@ export type PublicCardSlotPayload = {
   icon?: string;
   isPrivate?: boolean;
   visibility?: string;
+  /** MIME para visor (proxy /api/vault/file/… sin extensión). */
+  vaultMimeType?: string;
 };
 
 export type SmartCardPayload = {

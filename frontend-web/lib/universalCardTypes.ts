@@ -5,6 +5,7 @@ export type PublicSlot = {
   value: string;
   icon?: string | null;
   iconName?: string | null;
+  vaultMimeType?: string | null;
 };
 
 export type CardData = {

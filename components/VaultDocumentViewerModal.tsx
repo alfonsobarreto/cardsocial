@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Image as ExpoImage } from 'expo-image';
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -12,8 +12,10 @@ import {
   Text,
   TouchableOpacity,
   TouchableWithoutFeedback,
+  useWindowDimensions,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Sharing from 'expo-sharing';
 import Toast from 'react-native-toast-message';
 import type { MirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
@@ -25,14 +27,29 @@ try {
   PdfComponent = null;
 }
 
-function isImageValue(value: string) {
+function isVaultProxyUrl(value: string) {
+  return /\/api\/vault\/file\//i.test(String(value || ''));
+}
+
+function isImageValue(value: string, mimeHint?: string) {
+  const m = String(mimeHint || '').toLowerCase();
+  if (m.startsWith('image/')) {
+    return true;
+  }
   return (
     /\.(jpg|jpeg|png|gif|webp|bmp|heic)(\?|$)/i.test(value) ||
     (value.startsWith('file://') && !value.toLowerCase().endsWith('.pdf'))
   );
 }
 
-function isPdfValue(value: string) {
+function isPdfValue(value: string, mimeHint?: string) {
+  const m = String(mimeHint || '').toLowerCase();
+  if (m.includes('pdf') || m === 'application/pdf') {
+    return true;
+  }
+  if (isVaultProxyUrl(value)) {
+    return !m.startsWith('image/');
+  }
   return /\.pdf(\?|$)/i.test(value);
 }
 
@@ -42,7 +59,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.86)',
   },
   viewerTopBar: {
-    marginTop: Platform.OS === 'ios' ? 56 : 24,
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
@@ -72,8 +88,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.85)',
   },
   viewerBody: {
-    flex: 1,
     marginTop: 14,
+    alignSelf: 'stretch',
   },
   viewerZoomContainer: {
     flexGrow: 1,
@@ -86,10 +102,9 @@ const styles = StyleSheet.create({
     minHeight: 340,
   },
   viewerPdfWrapper: {
-    flex: 1,
+    backgroundColor: '#0E2236',
   },
   viewerPdf: {
-    flex: 1,
     backgroundColor: '#0E2236',
   },
   viewerFallback: {
@@ -116,23 +131,46 @@ type Props = {
 
 export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackMutedColor }: Props) {
   const [downloading, setDownloading] = useState(false);
+  const [pdfLoadError, setPdfLoadError] = useState<string | null>(null);
+  const { width: winW, height: winH } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+
+  /** Altura aproximada de la franja superior (safe area + botones) para dar alto fijo al PDF. */
+  const topBarReserve = useMemo(() => Math.max(insets.top, Platform.OS === 'ios' ? 47 : 24) + 56 + 20, [insets.top]);
+
+  const pdfSize = useMemo(() => {
+    const h = Math.max(280, winH - topBarReserve);
+    return { width: winW, height: h };
+  }, [winW, winH, topBarReserve]);
+
+  const onPdfError = useCallback((err: unknown) => {
+    const msg = err != null ? String((err as Error)?.message || err) : '';
+    setPdfLoadError(msg || 'load failed');
+  }, []);
+
+  useEffect(() => {
+    setPdfLoadError(null);
+  }, [item?.value]);
 
   const handleDownload = async () => {
     if (!item?.value) {
       return;
     }
+    const mimeHint = item.vaultMimeType;
     try {
       setDownloading(true);
       const fileNameSafe = `${item.title || 'archivo'}-${Date.now()}`.replace(/[^a-zA-Z0-9-_]/g, '_');
-      const extension = isPdfValue(item.value) ? 'pdf' : 'jpg';
+      const extension = isPdfValue(item.value, mimeHint) ? 'pdf' : 'jpg';
       const targetUri = `${FileSystem.cacheDirectory}${fileNameSafe}.${extension}`;
 
       await FileSystem.downloadAsync(item.value, targetUri);
 
       const canShare = await Sharing.isAvailableAsync();
+      const shareMime =
+        (mimeHint && mimeHint.includes('/')) ? mimeHint : isPdfValue(item.value, mimeHint) ? 'application/pdf' : 'image/jpeg';
       if (canShare) {
         await Sharing.shareAsync(targetUri, {
-          mimeType: isPdfValue(item.value) ? 'application/pdf' : 'image/jpeg',
+          mimeType: shareMime,
           dialogTitle: tr('Guardar archivo de Card-Social', 'Save Card-Social file'),
         });
       }
@@ -173,10 +211,21 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
     );
   };
 
+  const showPdf =
+    Boolean(item) &&
+    isPdfValue(item!.value, item!.vaultMimeType) &&
+    !isImageValue(item!.value, item!.vaultMimeType);
+
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.viewerOverlay}>
-        <View style={styles.viewerTopBar}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      <View style={[styles.viewerOverlay, { width: winW, minHeight: winH }]}>
+        <View style={[styles.viewerTopBar, { paddingTop: Math.max(insets.top, Platform.OS === 'ios' ? 8 : 4) }]}>
           <TouchableOpacity style={styles.viewerDownloadButton} onPress={() => void handleDownload()} disabled={downloading}>
             {downloading ? (
               <ActivityIndicator size="small" color="#0A2540" />
@@ -191,9 +240,9 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
           </TouchableOpacity>
         </View>
 
-        <View style={styles.viewerBody}>
+        <View style={[styles.viewerBody, { height: pdfSize.height, minHeight: 280 }]}>
           {item ? (
-            isImageValue(item.value) ? (
+            isImageValue(item.value, item.vaultMimeType) ? (
               <TouchableWithoutFeedback onLongPress={handleLongPress} delayLongPress={550}>
                 <ScrollView
                   maximumZoomScale={6}
@@ -203,10 +252,11 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
                   bounces={false}
                   overScrollMode="never"
                   bouncesZoom
+                  style={{ width: winW, height: pdfSize.height }}
                 >
                   <ExpoImage
                     source={{ uri: item.value }}
-                    style={styles.viewerImage}
+                    style={[styles.viewerImage, { width: winW, minHeight: pdfSize.height * 0.85 }]}
                     contentFit="contain"
                     cachePolicy="disk"
                     transition={200}
@@ -214,21 +264,35 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
                   />
                 </ScrollView>
               </TouchableWithoutFeedback>
-            ) : isPdfValue(item.value) ? (
+            ) : showPdf ? (
               PdfComponent ? (
-                <TouchableWithoutFeedback onLongPress={handleLongPress} delayLongPress={550}>
-                  <View style={styles.viewerPdfWrapper}>
-                    <PdfComponent
-                      source={{ uri: item.value }}
-                      style={styles.viewerPdf}
-                      minScale={1}
-                      maxScale={3}
-                      trustAllCerts={false}
-                    />
+                pdfLoadError ? (
+                  <View style={[styles.viewerFallback, { minHeight: pdfSize.height }]}>
+                    <MaterialCommunityIcons name="file-pdf-box" color="#C5A065" size={54} />
+                    <Text style={[styles.viewerFallbackText, { color: fallbackMutedColor }]}>
+                      {tr('No se pudo cargar el PDF en el visor.', 'Could not load the PDF in the viewer.')}
+                    </Text>
+                    <Text style={[styles.viewerFallbackText, { color: fallbackMutedColor, fontSize: 11, opacity: 0.85 }]}>
+                      {pdfLoadError}
+                    </Text>
                   </View>
-                </TouchableWithoutFeedback>
+                ) : (
+                  <TouchableWithoutFeedback onLongPress={handleLongPress} delayLongPress={550}>
+                    <View style={[styles.viewerPdfWrapper, pdfSize]}>
+                      <PdfComponent
+                        source={{ uri: item.value }}
+                        style={[styles.viewerPdf, pdfSize]}
+                        minScale={1}
+                        maxScale={3}
+                        trustAllCerts
+                        onError={onPdfError}
+                        onLoadComplete={() => setPdfLoadError(null)}
+                      />
+                    </View>
+                  </TouchableWithoutFeedback>
+                )
               ) : (
-                <View style={styles.viewerFallback}>
+                <View style={[styles.viewerFallback, { minHeight: pdfSize.height }]}>
                   <MaterialCommunityIcons name="file-pdf-box" color="#C5A065" size={54} />
                   <Text style={[styles.viewerFallbackText, { color: fallbackMutedColor }]}>
                     {tr(

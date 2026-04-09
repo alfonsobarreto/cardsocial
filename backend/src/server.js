@@ -6,6 +6,7 @@ const { env, assertRequiredConfig } = require("./config");
 const { createAzureSafetyClient } = require("./services/azureSafety");
 const { createMongoStorage } = require("./services/mongoStorage");
 const { createModerationRoutes } = require("./routes/moderationRoutes");
+const { createVaultFileProxyRoutes } = require("./routes/vaultFileProxyRoutes");
 const { createQrRoutes } = require("./routes/qrRoutes");
 const { createPublicUniversalRoutes } = require("./routes/publicUniversalRoutes");
 const { createUniversalEntryHttpRoutes } = require("./routes/universalEntryHttpRoutes");
@@ -147,6 +148,9 @@ const otpHash = (emailLower, code) => {
   app.get("/api/health", (_req, res) => {
     res.status(200).json({ ok: true, service: "moderation-backend" });
   });
+
+  /** Proxy enmascarado: /api/vault/file/:uuid → stream desde Spaces (sin exponer URL DO). */
+  app.use("/api/vault", createVaultFileProxyRoutes({ storage }));
 
   /** QR universal: validación TTL en servidor antes de servir la SPA (ver README — proxy Azure). */
   app.use(createUniversalEntryHttpRoutes({ storage }));
@@ -441,6 +445,9 @@ const otpHash = (emailLower, code) => {
     app.use("/", createUniversalEntryHttpRoutes({ storage }));
   }
 
+  const publicAppBase = String(env.publicUniversalCardBaseUrl || "https://cardsocial.me").replace(/\/+$/, "");
+  const buildVaultAccessUrl = (fileId) => `${publicAppBase}/api/vault/file/${fileId}`;
+
   app.use("/api", createModerationRoutes({
     azureSafety,
     storage,
@@ -449,6 +456,7 @@ const otpHash = (emailLower, code) => {
       docMaxBytes: env.docMaxBytes,
     },
     middlewares: [gatewayKeyMiddleware, jwtAuthMiddleware, uploadScopeMiddleware],
+    buildVaultAccessUrl,
   }));
 
   app.use("/api/qr", gatewayKeyMiddleware, jwtAuthMiddleware, qrScopeMiddleware, createQrRoutes({

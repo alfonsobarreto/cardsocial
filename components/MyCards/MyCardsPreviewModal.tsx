@@ -20,7 +20,6 @@ import {
   CARD_THEMES as CHEST_THEMES,
   getThemeById,
 } from '@/constants/themeChest';
-import { hardLockCheck } from '@/services/biometricAuth';
 import type { MirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
 import { openVaultPreviewItem } from '@/services/openVaultPreviewItem';
 import { useLanguage } from '@/services/language';
@@ -93,6 +92,11 @@ export function MyCardsPreviewModal({
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerItem, setViewerItem] = useState<MirrorVaultItem | null>(null);
 
+  /** Solo propaga el cierre al padre; no resetear el visor aquí (evita carreras con Modal en iOS). El padre puede forzar remount vía `key`. */
+  const handleClose = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
   /* ---------- theme ---------- */
 
   const theme = useMemo(
@@ -102,9 +106,7 @@ export function MyCardsPreviewModal({
 
   /* ---------- document viewer ---------- */
 
-  const openDocumentViewer = useCallback(async (item: MirrorVaultItem) => {
-    const ok = await hardLockCheck('abrir visor seguro de documentos');
-    if (!ok) return;
+  const openDocumentViewer = useCallback((item: MirrorVaultItem) => {
     setViewerItem(item);
     setViewerVisible(true);
   }, []);
@@ -115,8 +117,8 @@ export function MyCardsPreviewModal({
     async (item: WireframeVaultItem) => {
       await openVaultPreviewItem(item as unknown as MirrorVaultItem, {
         tr,
-        openDocumentViewer: async (it) => {
-          await openDocumentViewer(it as MirrorVaultItem);
+        openDocumentViewer: (it) => {
+          openDocumentViewer(it as MirrorVaultItem);
         },
         ghostTargetUid: ghostTargetUid ?? null,
         sourceCardName:
@@ -191,7 +193,7 @@ export function MyCardsPreviewModal({
     <>
       <SmartCardMirrorModal
         visible={visible && payload != null}
-        onRequestClose={onClose}
+        onRequestClose={handleClose}
         screenHeight={screenHeight}
         iconSlotCount={payload?.slots.length ?? 0}
         cardBorder={{
@@ -205,7 +207,7 @@ export function MyCardsPreviewModal({
             variant === 'issuer'
               ? tr('Editar tarjeta', 'Edit card')
               : undefined,
-          onClose,
+          onClose: handleClose,
           onEditCard: variant === 'issuer' ? onEditCard : undefined,
           colors: footerColors,
           blurTint: isDark ? 'dark' : 'light',
@@ -239,16 +241,18 @@ export function MyCardsPreviewModal({
         ) : null}
       </SmartCardMirrorModal>
 
-      <VaultDocumentViewerModal
-        visible={viewerVisible}
-        item={viewerItem}
-        onClose={() => {
-          setViewerVisible(false);
-          setViewerItem(null);
-        }}
-        tr={tr}
-        fallbackMutedColor={shell.textSecondary}
-      />
+      {viewerVisible && viewerItem ? (
+        <VaultDocumentViewerModal
+          visible={viewerVisible}
+          item={viewerItem}
+          onClose={() => {
+            setViewerVisible(false);
+            setViewerItem(null);
+          }}
+          tr={tr}
+          fallbackMutedColor={shell.textSecondary}
+        />
+      ) : null}
     </>
   );
 }

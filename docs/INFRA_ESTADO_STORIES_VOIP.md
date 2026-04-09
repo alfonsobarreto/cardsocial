@@ -11,8 +11,8 @@ Documento para contexto de nuevos chats / planificación de fases. **Abril 2026.
 **Qué sí existe para archivos (genérico, no específico de Story):**
 
 - `POST /api/upload` (rutas de moderación montadas en `/api` en `backend/src/server.js`).
-- Flujo: multipart `file` + moderación **Azure Content Safety** → si es imagen y hay credenciales **DigitalOcean Spaces** (API S3-compatible), sube y devuelve **`publicUrl`**; si no, **MongoDB GridFS** (`vaultFiles`) y devuelve `fileId`.
-- Código: `backend/src/routes/moderationRoutes.js`, almacenamiento `backend/src/services/mongoStorage.js` (`saveFileToSpaces`, `saveFile`).
+- Flujo: multipart `file` + moderación **Azure Content Safety** → con credenciales **DigitalOcean Spaces** (API S3-compatible), sube el binario a un prefijo privado (`vault-proxy/...`), registra metadatos en Mongo (`vault_file_registry`) y devuelve **`publicUrl`** = URL del **proxy** (`GET /api/vault/file/:fileId`, ver `vaultFileProxyRoutes.js`). Sin Spaces configurado, el upload responde error (no hay fallback local).
+- Código: `backend/src/routes/moderationRoutes.js`, almacenamiento `backend/src/services/mongoStorage.js` (`uploadVaultFilePrivate`, `pipeVaultFileToResponse`, `saveFileToSpaces` para otros flujos públicos).
 
 **Fase 1 razonable:** Sincronizar **metadatos** (URLs absolutas, `expiresAt` alineado al asset, tipo MIME, etc.) **asumiendo** que el binario ya está en Spaces (vía `/api/upload` o flujo futuro dedicado) **o** extender el modelo Mongo (`story_states` / `story_card_states` o colección nueva `story_assets`) y un endpoint que una `ownerUid` + `cardId` + URL. Eso **no está implementado** hoy como contrato único “Story upload”.
 
@@ -35,7 +35,7 @@ Documento para contexto de nuevos chats / planificación de fases. **Abril 2026.
 
 | Uso | Ubicación |
 |-----|-----------|
-| Cliente S3, `PutObject`, URL pública CDN | `backend/src/services/mongoStorage.js` — `createSpacesClient()`, `saveFileToSpaces()` |
+| Cliente S3, `PutObject`, objetos vault privados + stream vía proxy | `backend/src/services/mongoStorage.js` — `createSpacesClient()`, `uploadVaultFilePrivate()`, `pipeVaultFileToResponse()`; rutas `vaultFileProxyRoutes.js` |
 | Variables | `DO_SPACES_KEY`, `DO_SPACES_SECRET`, `DO_SPACES_BUCKET`, `DO_SPACES_ENDPOINT`, `DO_SPACES_REGION` |
 | Script de prueba | `backend/testUpload.js` |
 
@@ -54,7 +54,7 @@ Documento para contexto de nuevos chats / planificación de fases. **Abril 2026.
 | Uso | Ubicación |
 |-----|-----------|
 | Estados de story, anuncios casa, contactos enriquecidos | `backend/src/routes/qrRoutes.js`, índices TTL en `backend/src/security/mongoHardening.js` |
-| GridFS `vaultFiles` | `mongoStorage.js` para fallbacks cuando no hay Spaces o no es imagen |
+| Registro vault (metadatos + `spacesKey`, sin binario en Mongo) | `mongoStorage.js` — colección `vault_file_registry` |
 
 ### Stories API (solo metadatos)
 
@@ -87,7 +87,7 @@ Documento para contexto de nuevos chats / planificación de fases. **Abril 2026.
 ## Resumen para planificación
 
 1. **Story multimedia end-to-end:** Hoy = **estado en API + contenido local en app**. Para Fase 1 “solo metadatos” con URLs: coherente con el backend actual; habría que **definir contrato** (campos + quién llama a `/api/upload` y cuándo se hace `POST /stories/state`).
-2. **Almacenamiento “ya existe”** a nivel código: **Sí** para uploads genéricos moderados → **DO Spaces** (imágenes) / GridFS (fallback). **No** está cableado automáticamente a `storyState`.
+2. **Almacenamiento “ya existe”** a nivel código: **Sí** para uploads genéricos moderados → **DO Spaces** (privado) + **proxy** `/api/vault/file/:id`. **No** está cableado automáticamente a `storyState`.
 3. **Firebase + DO + Azure + Mongo** conviven: Firebase en app; DO Spaces y Mongo en API Node; Azure para moderación (y email).
 
 ---

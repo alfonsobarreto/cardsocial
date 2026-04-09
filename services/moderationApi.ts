@@ -52,7 +52,7 @@ export async function uploadFileWithModeration(params: {
   label: string;
   fileName: string;
   mimeType: string;
-}): Promise<{ fileId: string; filename: string; publicUrl: string | null }> {
+}): Promise<{ fileId: string; filename: string; publicUrl: string | null; mimeType: string | null }> {
   return retryWithBackoff(async () => {
     const formData = new FormData();
     formData.append('ownerUid', params.ownerUid);
@@ -81,6 +81,7 @@ export async function uploadFileWithModeration(params: {
       fileId: response.data.fileId,
       filename: response.data.filename,
       publicUrl: response.data.publicUrl ?? null,
+      mimeType: response.data.mimeType != null ? String(response.data.mimeType) : null,
     };
   } catch (error: any) {
     const rawMessage = String(error?.message || '').toLowerCase();

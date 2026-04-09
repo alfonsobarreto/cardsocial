@@ -20,6 +20,8 @@ export function normalizeUniversalCardPayload(raw: unknown): CardData {
     const iconName = iconNameRaw ? iconNameRaw.slice(0, 120) : null;
     const iconStr = String(r?.icon ?? '').trim();
     const icon = /^https?:\/\//i.test(iconStr) ? iconStr.slice(0, 4000) : null;
+    const vaultMimeRaw = String(r?.vaultMimeType ?? '').trim();
+    const vaultMimeType = vaultMimeRaw ? vaultMimeRaw.slice(0, 120) : null;
     return {
       itemId,
       type,
@@ -27,6 +29,7 @@ export function normalizeUniversalCardPayload(raw: unknown): CardData {
       value,
       ...(iconName ? { iconName } : {}),
       ...(icon ? { icon } : {}),
+      ...(vaultMimeType ? { vaultMimeType } : {}),
     };
   });
 

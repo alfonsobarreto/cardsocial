@@ -4,7 +4,7 @@ const multer = require("multer");
 const upload = multer({ storage: multer.memoryStorage() });
 
 function isImageMime(mimeType) {
-  return mimeType.startsWith("image/");
+  return String(mimeType || "").startsWith("image/");
 }
 
 function validateSize(file, limits) {
@@ -22,7 +22,11 @@ function validateSize(file, limits) {
   return null;
 }
 
-function createModerationRoutes({ azureSafety, storage, limits, middlewares = [] }) {
+/**
+ * @param {object} opts
+ * @param {function(string): string} opts.buildVaultAccessUrl - URL pública del proxy (sin exponer Spaces)
+ */
+function createModerationRoutes({ azureSafety, storage, limits, middlewares = [], buildVaultAccessUrl }) {
   const router = express.Router();
 
   router.post("/moderate/text", express.json(), async (req, res) => {
@@ -57,6 +61,13 @@ function createModerationRoutes({ azureSafety, storage, limits, middlewares = []
         return res.status(400).json({ ok: false, error: "file is required (multipart field name: file)" });
       }
 
+      if (!storage.isSpacesConfigured || !storage.isSpacesConfigured()) {
+        return res.status(503).json({
+          ok: false,
+          error: "File storage is not configured. Set DO_SPACES_KEY, DO_SPACES_SECRET, and bucket.",
+        });
+      }
+
       const sizeError = validateSize(file, limits);
       if (sizeError) {
         return res.status(400).json({ ok: false, error: sizeError });
@@ -69,7 +80,6 @@ function createModerationRoutes({ azureSafety, storage, limits, middlewares = []
       if (isImageMime(file.mimetype)) {
         moderation = await azureSafety.moderateImageBuffer(file.buffer);
       } else {
-        // For non-image files, moderate associated text metadata.
         const textToModerate = `${file.originalname} ${label}`.trim();
         moderation = await azureSafety.moderateText(textToModerate);
       }
@@ -92,60 +102,34 @@ function createModerationRoutes({ azureSafety, storage, limits, middlewares = []
         });
       }
 
-      // El archivo pasó la moderación — decidir destino de almacenamiento:
-      // 1. Imágenes → DO Spaces (CDN público, URL real servible)
-      // 2. Documentos → MongoDB GridFS (privados, acceso por fileId)
-      let saveResult;
-      let publicUrl = null;
+      const { fileId } = await storage.uploadVaultFilePrivate({
+        fileBuffer: file.buffer,
+        filename: file.originalname,
+        mimeType: file.mimetype,
+        ownerUid,
+        label,
+      });
 
-      if (isImageMime(file.mimetype)) {
-        // Inferir carpeta según label: profile-photo, verification-selfie, vault-doc, etc.
-        const folder = label
-          ? `user-uploads/${String(label).replace(/[^a-zA-Z0-9-]/g, "-")}`
-          : "user-uploads/misc";
+      const accessUrl = buildVaultAccessUrl(fileId);
 
-        publicUrl = await storage.saveFileToSpaces({
-          fileBuffer: file.buffer,
-          filename: file.originalname,
-          mimeType: file.mimetype,
-          folder,
-        });
-      }
-
-      if (!publicUrl) {
-        // Fallback: guardar en MongoDB GridFS (documentos o si DO Spaces no está configurado)
-        saveResult = await storage.saveFile({
-          fileBuffer: file.buffer,
-          filename: file.originalname,
-          mimeType: file.mimetype,
-          metadata: {
-            ownerUid,
-            label,
-            moderated: true,
-            maxSeverity: moderation.maxSeverity,
-            uploadDateISO: new Date().toISOString(),
-          },
-        });
-      } else {
-        // Para imágenes en DO Spaces, guardamos solo un registro de auditoría mínimo en Mongo
-        await storage.saveModerationAudit({
-          type: "file",
-          ownerUid,
-          fileName: file.originalname,
-          mimeType: file.mimetype,
-          size: file.size,
-          blocked: false,
-          maxSeverity: moderation.maxSeverity,
-          publicUrl,
-        });
-        saveResult = { fileId: `spaces://${publicUrl}`, filename: file.originalname };
-      }
+      await storage.saveModerationAudit({
+        type: "file_stored",
+        ownerUid,
+        fileName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+        blocked: false,
+        maxSeverity: moderation.maxSeverity,
+        vaultFileId: fileId,
+        proxyUrl: accessUrl,
+      });
 
       return res.status(201).json({
         ok: true,
-        fileId: saveResult.fileId,
-        filename: saveResult.filename,
-        publicUrl: publicUrl || null,
+        fileId,
+        filename: file.originalname,
+        publicUrl: accessUrl,
+        mimeType: file.mimetype,
         moderated: true,
       });
     } catch (error) {

@@ -415,7 +415,7 @@ function buildValidCourtesyPageHtml(opts) {
       }
       return;
     }
-    if (typeN.indexOf('documento') >= 0 || typeN.indexOf('pdf') >= 0 || /\\.pdf(\\?|$)/i.test(value) || /\\.(jpg|jpeg|png|gif|webp)(\\?|$)/i.test(value)) {
+    if (typeN.indexOf('documento') >= 0 || typeN.indexOf('pdf') >= 0 || /\\/api\\/vault\\/file\\//i.test(value) || /\\.pdf(\\?|$)/i.test(value) || /\\.(jpg|jpeg|png|gif|webp)(\\?|$)/i.test(value)) {
       if (/^https?:\\/\\//i.test(value)) window.open(value, '_blank', 'noopener');
       else alert(value || 'Sin archivo');
       return;

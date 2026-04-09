@@ -110,6 +110,8 @@ interface Link {
   isFavorite: boolean;
   createdAt?: string;
   updatedAt?: string;
+  /** MIME del archivo (visor con URL proxy sin extensión). */
+  vaultMimeType?: string;
 }
 
 let PdfComponent: any = null;
@@ -1363,15 +1365,11 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       logPickerTrace('PICK_DOCUMENT_SHEET_CLOSED_WAITING_FRAME');
       await waitForModalCloseFrame();
       logPickerTrace('PICK_DOCUMENT_LAUNCH');
-      const result = await withPickerLaunchTimeout(
-        'PICK_DOCUMENT',
-        DocumentPicker.getDocumentAsync({
+      const result = await DocumentPicker.getDocumentAsync({
         type: ['application/pdf', 'image/*'],
         multiple: false,
         copyToCacheDirectory: true,
-        }),
-        tr('El selector de documentos tardó demasiado en responder. Reintenta.', 'Document picker took too long to respond. Please retry.')
-      );
+      });
       logPickerTrace('PICK_DOCUMENT_RESULT', {
         canceled: result.canceled,
         assetsCount: result.assets?.length ?? 0,
@@ -1709,10 +1707,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     fileUri: string,
     fileLabel: string,
     ownerUid: string
-  ): Promise<{ fileId: string; publicUrl: string | null }> => {
+  ): Promise<{ fileId: string; publicUrl: string | null; mimeType: string | null }> => {
     try {
       if (!fileUri.startsWith('file://')) {
-        return { fileId: fileUri, publicUrl: null };
+        return { fileId: fileUri, publicUrl: null, mimeType: null };
       }
       const sessionToken = closeGenerationRef.current;
 
@@ -1751,7 +1749,11 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         setIsUploading(false);
       }, 400);
 
-      return { fileId: uploadResult.fileId, publicUrl: uploadResult.publicUrl };
+      return {
+        fileId: uploadResult.fileId,
+        publicUrl: uploadResult.publicUrl,
+        mimeType: uploadResult.mimeType,
+      };
     } catch (error) {
       setUploadModalVisible(false);
       setIsUploading(false);
@@ -1875,6 +1877,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       const shouldUploadFile =
         dataType === 'Documento' && normalizedValue.startsWith('file://');
       let finalValue = normalizedValue;
+      let vaultMimeForPayload: string | undefined;
       if (shouldUploadFile) {
         let fileUriToUpload = normalizedValue;
         const mimeForUpload = inferMimeType(normalizedValue);
@@ -1890,12 +1893,29 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           }
           fileUriToUpload = prepared.uri;
         }
-        const { fileId, publicUrl: filePublicUrl } = await uploadFileToModerationBackend(
+        const { publicUrl: filePublicUrl, mimeType: uploadedMime } = await uploadFileToModerationBackend(
           fileUriToUpload,
           dataName,
           userId,
         );
-        finalValue = filePublicUrl || `mongo-gridfs://${fileId}`;
+        const resolvedUrl = String(filePublicUrl || '').trim();
+        if (!resolvedUrl) {
+          Alert.alert(
+            tr('Subida incompleta', 'Upload incomplete'),
+            tr(
+              'No se obtuvo enlace del archivo. Comprueba que DigitalOcean Spaces esté configurado en el servidor.',
+              'No file URL was returned. Verify DigitalOcean Spaces is configured on the server.',
+            ),
+          );
+          return;
+        }
+        finalValue = resolvedUrl;
+        const mergedMime = String(uploadedMime || mimeForUpload || '').trim();
+        if (mergedMime) {
+          vaultMimeForPayload = mergedMime.slice(0, 120);
+        }
+      } else if (dataType === 'Documento' && editingData?.vaultMimeType) {
+        vaultMimeForPayload = String(editingData.vaultMimeType).trim().slice(0, 120);
       }
       // Crear ID único evitando cualquier choque accidental local.
       const existingIds = new Set(
@@ -1918,6 +1938,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           ? { iconVaultId: stableKeyForCatalogIcon(catalogPick) }
           : {}),
         ...(dataType === GHOST_LINK_VAULT_TYPE ? { vaultProtected: true } : {}),
+        ...(dataType === 'Documento' && vaultMimeForPayload ? { vaultMimeType: vaultMimeForPayload } : {}),
         isFavorite: editingData?.isFavorite || false,
         createdAt: editingData?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),

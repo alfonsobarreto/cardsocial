@@ -1,5 +1,8 @@
-const { MongoClient, GridFSBucket, ObjectId } = require("mongodb");
-const { S3Client, PutObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
+const { MongoClient } = require("mongodb");
+const { randomUUID } = require("crypto");
+const { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } = require("@aws-sdk/client-s3");
+
+const VAULT_REGISTRY = "vault_file_registry";
 
 // ─── DO Spaces client (solo instanciado si las credenciales están presentes) ──
 function createSpacesClient() {
@@ -21,21 +24,23 @@ function createSpacesClient() {
 function createMongoStorage({ uri, dbName }) {
   const client = new MongoClient(uri);
   let db;
-  let bucket;
   const spaces = createSpacesClient();
 
   async function connect() {
     if (!db) {
       await client.connect();
       db = client.db(dbName);
-      bucket = new GridFSBucket(db, { bucketName: "vaultFiles" });
+      try {
+        await db.collection(VAULT_REGISTRY).createIndex({ fileId: 1 }, { unique: true });
+      } catch {
+        /* index may exist */
+      }
     }
     return db;
   }
 
   /**
-   * Sube un buffer a DigitalOcean Spaces y devuelve la URL pública CDN.
-   * Si DO Spaces no está configurado, retorna null y el caller decide el fallback.
+   * Sube un buffer a DigitalOcean Spaces y devuelve la URL pública CDN (legacy / historias).
    */
   async function saveFileToSpaces({ fileBuffer, filename, mimeType, folder }) {
     if (!spaces) return null;
@@ -58,7 +63,6 @@ function createMongoStorage({ uri, dbName }) {
 
   /**
    * Elimina un objeto en Spaces a partir de su URL pública (mismo formato que `saveFileToSpaces`).
-   * @returns {Promise<boolean>} true si se borró o no aplicaba; false si falló el parseo.
    */
   async function deleteFromSpacesByPublicUrl(publicUrl) {
     if (!spaces || !publicUrl) {
@@ -97,27 +101,6 @@ function createMongoStorage({ uri, dbName }) {
     }
   }
 
-  async function saveFile({ fileBuffer, filename, mimeType, metadata }) {
-    await connect();
-
-    const uploadStream = bucket.openUploadStream(filename, {
-      contentType: mimeType,
-      metadata,
-    });
-
-    uploadStream.end(fileBuffer);
-
-    return new Promise((resolve, reject) => {
-      uploadStream.on("finish", () => {
-        resolve({
-          fileId: uploadStream.id.toString(),
-          filename,
-        });
-      });
-      uploadStream.on("error", reject);
-    });
-  }
-
   async function saveModerationAudit(audit) {
     const currentDb = await connect();
     const result = await currentDb.collection("moderation_audit").insertOne({
@@ -128,11 +111,95 @@ function createMongoStorage({ uri, dbName }) {
     return result.insertedId.toString();
   }
 
-  async function getFileMeta(fileId) {
+  /**
+   * Sube archivo moderado a Spaces (objeto privado) y registra metadatos para el proxy /api/vault/file/:id.
+   * @returns {{ fileId: string, spacesKey: string, spacesBucket: string }}
+   */
+  async function uploadVaultFilePrivate({ fileBuffer, filename, mimeType, ownerUid, label }) {
+    if (!spaces) {
+      throw new Error("DigitalOcean Spaces is not configured (DO_SPACES_KEY / DO_SPACES_SECRET)");
+    }
+    const bucket_name = process.env.DO_SPACES_BUCKET || "cardsocial-assets";
+    const fileId = randomUUID();
+    const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, "-") || "file";
+    const spacesKey = `vault-proxy/${fileId}/${safeName}`;
+    const contentType = mimeType || "application/octet-stream";
+
+    await spaces.send(new PutObjectCommand({
+      Bucket: bucket_name,
+      Key: spacesKey,
+      Body: fileBuffer,
+      ContentType: contentType,
+      ACL: "private",
+    }));
+
     const currentDb = await connect();
-    const found = await currentDb.collection("vaultFiles.files").findOne({ _id: new ObjectId(fileId) });
-    if (!found) return null;
-    return found;
+    await currentDb.collection(VAULT_REGISTRY).insertOne({
+      fileId,
+      spacesKey,
+      spacesBucket: bucket_name,
+      mimeType: contentType,
+      ownerUid: String(ownerUid || "").trim(),
+      label: String(label || "").trim(),
+      originalFilename: filename,
+      size: fileBuffer.length,
+      createdAt: new Date(),
+    });
+
+    return { fileId, spacesKey, spacesBucket: bucket_name };
+  }
+
+  /**
+   * Busca registro del proxy.
+   */
+  async function findVaultFileRecord(fileId) {
+    const currentDb = await connect();
+    const id = String(fileId || "").trim();
+    if (!id) return null;
+    return currentDb.collection(VAULT_REGISTRY).findOne({ fileId: id });
+  }
+
+  /**
+   * Stream de S3 → Express response. Resuelve false si no hay registro o error.
+   */
+  async function pipeVaultFileToResponse(fileId, res) {
+    const meta = await findVaultFileRecord(fileId);
+    if (!meta || !spaces) {
+      return false;
+    }
+    try {
+      const out = await spaces.send(new GetObjectCommand({
+        Bucket: meta.spacesBucket,
+        Key: meta.spacesKey,
+      }));
+
+      const mime = meta.mimeType || out.ContentType || "application/octet-stream";
+      res.setHeader("Content-Type", mime);
+      res.setHeader("Cache-Control", "private, max-age=300");
+      if (out.ContentLength != null) {
+        res.setHeader("Content-Length", String(out.ContentLength));
+      }
+      const safeName = String(meta.originalFilename || "file").replace(/[^\w.\-]+/g, "_").slice(0, 180);
+      res.setHeader("Content-Disposition", `inline; filename="${safeName}"`);
+
+      const body = out.Body;
+      if (body && typeof body.pipe === "function") {
+        body.on("error", (err) => {
+          console.warn("[vault proxy] stream error:", err?.message || err);
+          if (!res.headersSent) {
+            res.status(500).end("Stream error");
+          } else {
+            res.destroy(err);
+          }
+        });
+        body.pipe(res);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.warn("[vault proxy] GetObject failed:", fileId, e?.message || e);
+      return false;
+    }
   }
 
   async function close() {
@@ -141,11 +208,13 @@ function createMongoStorage({ uri, dbName }) {
 
   return {
     connect,
-    saveFile,
     saveFileToSpaces,
     deleteFromSpacesByPublicUrl,
     saveModerationAudit,
-    getFileMeta,
+    uploadVaultFilePrivate,
+    findVaultFileRecord,
+    pipeVaultFileToResponse,
+    isSpacesConfigured: () => Boolean(spaces),
     close,
   };
 }

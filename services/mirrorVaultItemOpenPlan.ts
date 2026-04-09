@@ -10,6 +10,8 @@ export type MirrorItemLike = {
   type: string;
   value: string;
   title: string;
+  /** MIME del archivo en Bóveda (p. ej. proxy /api/vault/file/... sin extensión en URL). */
+  vaultMimeType?: string;
 };
 
 export type MirrorOpenPlanContext = {
@@ -24,7 +26,7 @@ export type MirrorOpenPlan =
   | { kind: 'email'; value: string }
   | { kind: 'phone'; value: string }
   | { kind: 'link'; url: string; title: string }
-  | { kind: 'document'; value: string; title: string }
+  | { kind: 'document'; value: string; title: string; vaultMimeType?: string }
   | { kind: 'text'; value: string; title: string }
   | { kind: 'raw'; value: string; title: string };
 
@@ -81,11 +83,17 @@ function isLikelyUrl(value: string): boolean {
   return /^https?:\/\//i.test(raw) || /^(www\.)/i.test(raw) || /\.[a-z]{2,}(\/|\?|$)/i.test(raw);
 }
 
-function isPdfValue(value: string): boolean {
+function isPdfValue(value: string, mimeHint?: string): boolean {
+  if (String(mimeHint || '').toLowerCase().includes('pdf')) {
+    return true;
+  }
   return /\.pdf(\?|$)/i.test(String(value || ''));
 }
 
-function isImageValue(value: string): boolean {
+function isImageValue(value: string, mimeHint?: string): boolean {
+  if (String(mimeHint || '').toLowerCase().startsWith('image/')) {
+    return true;
+  }
   const v = String(value || '');
   return (
     /\.(jpg|jpeg|png|gif|webp|bmp|heic)(\?|$)/i.test(v) ||
@@ -167,6 +175,7 @@ export function getMirrorVaultOpenPlan(item: MirrorItemLike, ctx: MirrorOpenPlan
   const typeNorm = normalizeTypeKey(item.type);
   const value = String(item.value || '').trim();
   const title = String(item.title || '').trim();
+  const mimeHint = String(item.vaultMimeType || '').trim();
 
   if (isGhostLinkVaultType(item.type)) {
     return { kind: 'ghost', ctx };
@@ -198,18 +207,19 @@ export function getMirrorVaultOpenPlan(item: MirrorItemLike, ctx: MirrorOpenPlan
     };
   }
 
-  if (typeNorm.includes('enlace') || typeNorm.includes('link') || typeNorm.includes('web') || isLikelyUrl(value)) {
-    return { kind: 'link', url: ensureWebUrl(value), title: title || 'Enlace' };
-  }
-
   if (
     typeNorm.includes('documento') ||
     typeNorm.includes('pdf') ||
-    isPdfValue(value) ||
-    isImageValue(value) ||
-    (value.startsWith('http') && (isPdfValue(value) || isImageValue(value)))
+    isPdfValue(value, mimeHint) ||
+    isImageValue(value, mimeHint) ||
+    /\/api\/vault\/file\//i.test(value) ||
+    (value.startsWith('http') && (isPdfValue(value, mimeHint) || isImageValue(value, mimeHint)))
   ) {
-    return { kind: 'document', value, title: title || 'Documento' };
+    return { kind: 'document', value, title: title || 'Documento', vaultMimeType: mimeHint || undefined };
+  }
+
+  if (typeNorm.includes('enlace') || typeNorm.includes('link') || typeNorm.includes('web') || isLikelyUrl(value)) {
+    return { kind: 'link', url: ensureWebUrl(value), title: title || 'Enlace' };
   }
 
   if (typeNorm.includes('texto')) {

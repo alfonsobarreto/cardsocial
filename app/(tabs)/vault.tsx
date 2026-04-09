@@ -71,6 +71,7 @@ interface Link {
   isFavorite: boolean;
   createdAt?: string;
   updatedAt?: string;
+  vaultMimeType?: string;
 }
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -525,22 +526,12 @@ const VaultScreen = () => {
       return;
     }
 
-    if (String(link.value || '').startsWith('mongo-gridfs://')) {
-      Alert.alert(tr('Archivo protegido', 'Protected file'), tr('Este archivo usa túnel seguro y requiere endpoint de descarga firmado para vista externa.', 'This file uses secure tunnel and requires signed download endpoint for external viewing.'));
-      return;
-    }
-
     setViewerItem(link);
     setViewerVisible(true);
   };
 
   const handleDownloadFromViewer = async () => {
     if (!viewerItem?.value) {
-      return;
-    }
-
-    if (viewerItem.value.startsWith('mongo-gridfs://')) {
-      Alert.alert(tr('Descarga protegida', 'Protected download'), tr('Falta endpoint de descarga firmada para archivos en túnel seguro.', 'Missing signed download endpoint for secure tunnel files.'));
       return;
     }
 

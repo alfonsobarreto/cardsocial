@@ -63,6 +63,8 @@ function sanitizePublicCardSlots(raw) {
     const iconName = String(row?.iconName || '').trim().slice(0, 120);
     const rawIcon = String(row?.icon || '').trim();
     const iconUrl = /^https?:\/\//i.test(rawIcon) ? rawIcon.slice(0, 4000) : null;
+    const vaultMimeRaw = String(row?.vaultMimeType || '').trim();
+    const vaultMimeType = vaultMimeRaw ? vaultMimeRaw.slice(0, 120) : null;
     const rowOut = {
       itemId,
       type,
@@ -72,6 +74,9 @@ function sanitizePublicCardSlots(raw) {
     };
     if (iconUrl) {
       rowOut.icon = iconUrl;
+    }
+    if (vaultMimeType) {
+      rowOut.vaultMimeType = vaultMimeType;
     }
     out.push(rowOut);
   }

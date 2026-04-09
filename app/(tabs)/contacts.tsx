@@ -301,6 +301,7 @@ function ContactsContent() {
       const iconRaw = s?.icon != null ? String(s.icon).trim() : '';
       const icon = /^https?:\/\//i.test(iconRaw) ? iconRaw : undefined;
       const iconName = s?.iconName != null ? String(s.iconName).trim() : '';
+      const vm = s?.vaultMimeType != null ? String(s.vaultMimeType).trim() : '';
       return {
         itemId: String(s?.itemId || ''),
         type: String(s?.type || 'link'),
@@ -308,6 +309,7 @@ function ContactsContent() {
         value: String(s?.value || ''),
         ...(icon ? { icon } : {}),
         ...(iconName ? { iconName } : {}),
+        ...(vm ? { vaultMimeType: vm.slice(0, 120) } : {}),
       };
     });
     return {
@@ -1682,6 +1684,7 @@ function ContactsContent() {
       </Modal>
 
       <MyCardsPreviewModal
+        key={floatingVisible && selectedContact ? `contacts-mirror-${selectedContact.uid}` : 'contacts-mirror-closed'}
         visible={Boolean(floatingVisible && selectedContact)}
         onClose={closeFloatingCard}
         variant="receiver"

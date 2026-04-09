@@ -249,8 +249,10 @@ export function MirrorActionModals({
 
   if (plan.kind === 'document') {
     const u = plan.value.trim();
-    const isPdf = /\.pdf(\?|$)/i.test(u);
-    const isImg = /\.(jpg|jpeg|png|gif|webp|bmp)(\?|$)/i.test(u);
+    const mime = String(plan.vaultMimeType || '').toLowerCase();
+    const isPdf = mime.includes('pdf') || /\.pdf(\?|$)/i.test(u);
+    const isImg =
+      mime.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|bmp|heic)(\?|$)/i.test(u);
     return (
       <div style={{ ...overlay, alignItems: 'stretch', padding: 0 }} onClick={onClose} role="presentation">
         <div

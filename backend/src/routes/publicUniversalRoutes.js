@@ -57,6 +57,8 @@ function normalizePublicCardSlotsForUniversal(raw) {
     const iconName = iconNameRaw ? iconNameRaw.slice(0, 120) : null;
     const rawIcon = String(row.icon || '').trim();
     const icon = /^https?:\/\//i.test(rawIcon) ? rawIcon.slice(0, 4000) : undefined;
+    const vaultMimeRaw = String(row.vaultMimeType || '').trim();
+    const vaultMimeType = vaultMimeRaw ? vaultMimeRaw.slice(0, 120) : undefined;
     const slot = {
       itemId,
       type,
@@ -64,6 +66,7 @@ function normalizePublicCardSlotsForUniversal(raw) {
       value,
       ...(iconName ? { iconName } : {}),
       ...(icon ? { icon } : {}),
+      ...(vaultMimeType ? { vaultMimeType } : {}),
     };
     out.push(slot);
   }

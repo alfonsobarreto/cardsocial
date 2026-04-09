@@ -156,6 +156,7 @@ type VaultItem = {
   iconVaultId?: string;
   vaultProtected?: boolean;
   isFavorite: boolean;
+  vaultMimeType?: string;
 };
 
 function buildPublicCardSlotsForPersist(
@@ -197,6 +198,10 @@ function buildPublicCardSlotsForPersist(
     }
     if (resolvedGlyph) {
       row.iconName = resolvedGlyph.slice(0, 120);
+    }
+    const vm = String((it as { vaultMimeType?: string }).vaultMimeType || '').trim();
+    if (vm) {
+      row.vaultMimeType = vm.slice(0, 120);
     }
     out.push(row);
   }
@@ -1909,12 +1914,17 @@ export default function CardsFactoryScreen() {
   }, [previewVisible, previewBusinessVisible, width, height]);
 
   const openDataPopover = async (item: VaultItem) => {
-    const activeCard = previewVisible && previewCard ? previewCard : selectedCard;
+    const activeCard =
+      previewBusinessVisible && previewBusiness
+        ? { id: previewBusiness.id, name: previewBusiness.businessName }
+        : previewVisible && previewCard
+          ? previewCard
+          : selectedCard;
     const issuerUid = await getActiveUserId();
     await openVaultPreviewItem(item, {
       tr,
-      openDocumentViewer: async (it) => {
-        await openDocumentViewer(it as VaultItem);
+      openDocumentViewer: (it) => {
+        openDocumentViewer(it as VaultItem);
       },
       ghostTargetUid: issuerUid,
       sourceCardName: activeCard?.name ?? cardName ?? 'Tarjeta Social',
@@ -1939,12 +1949,17 @@ export default function CardsFactoryScreen() {
       return;
     }
     try {
-      const activeCard = previewVisible && previewCard ? previewCard : selectedCard;
+      const activeCard =
+        previewBusinessVisible && previewBusiness
+          ? { id: previewBusiness.id, name: previewBusiness.businessName }
+          : previewVisible && previewCard
+            ? previewCard
+            : selectedCard;
       const issuerUid = await getActiveUserId();
       await openVaultPreviewItem(item, {
         tr,
-        openDocumentViewer: async (it) => {
-          await openDocumentViewer(it as VaultItem);
+        openDocumentViewer: (it) => {
+          openDocumentViewer(it as VaultItem);
         },
         ghostTargetUid: issuerUid,
         sourceCardName: activeCard?.name ?? cardName ?? 'Tarjeta Social',
@@ -1977,7 +1992,7 @@ export default function CardsFactoryScreen() {
         return;
       }
       if (item.type === 'Documento') {
-        await openDocumentViewer(item);
+        openDocumentViewer(item);
         return;
       }
       Alert.alert(tr('No disponible', 'Not available'), tr('Este dato no tiene ruta de navegador directa.', 'This data has no direct browser route.'));
@@ -1989,16 +2004,26 @@ export default function CardsFactoryScreen() {
   const renderVaultMiniIcon = (item: VaultItem | null | undefined, size = 20, glyphColor?: string) =>
     renderWireframeMiniIcon(item, size, glyphColor, iconVaultById, cardsTheme.textMuted);
 
-  const openDocumentViewer = async (item: VaultItem) => {
-    const biometricOk = await hardLockCheck('abrir visor seguro de documentos');
-    if (!biometricOk) {
-      return;
-    }
-
+  const openDocumentViewer = (item: VaultItem) => {
     setDataPopoverVisible(false);
     setFocusedCertificate(null);
-    setViewerItem(item);
-    setViewerVisible(true);
+    const hadBusinessPreview = previewBusinessVisible;
+    if (hadBusinessPreview) {
+      setPreviewBusinessVisible(false);
+      setPreviewBusiness(null);
+      setPreviewBusinessOwnerUid('');
+    }
+    const showViewer = () => {
+      setViewerItem(item);
+      setViewerVisible(true);
+    };
+    if (hadBusinessPreview) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(showViewer);
+      });
+    } else {
+      showViewer();
+    }
   };
 
   const renderRatingStars = (rating: number) => {
@@ -3307,6 +3332,7 @@ export default function CardsFactoryScreen() {
       </Modal>
 
       <MyCardsPreviewModal
+        key={previewVisible && previewCard ? `my-cards-preview-${previewCard.id}` : 'my-cards-preview-closed'}
         visible={Boolean(previewVisible && previewCard)}
         onClose={() => {
           setPreviewVisible(false);
@@ -3716,16 +3742,18 @@ export default function CardsFactoryScreen() {
         </View>
       </Modal>
 
-      <VaultDocumentViewerModal
-        visible={viewerVisible}
-        item={viewerItem}
-        onClose={() => {
-          setViewerVisible(false);
-          setViewerItem(null);
-        }}
-        tr={tr}
-        fallbackMutedColor={cardsTheme.sectionLabel}
-      />
+      {viewerVisible && viewerItem ? (
+        <VaultDocumentViewerModal
+          visible={viewerVisible}
+          item={viewerItem}
+          onClose={() => {
+            setViewerVisible(false);
+            setViewerItem(null);
+          }}
+          tr={tr}
+          fallbackMutedColor={cardsTheme.sectionLabel}
+        />
+      ) : null}
 
       <Modal
         visible={qrVisible}

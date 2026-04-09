@@ -27,7 +27,12 @@ export type OpenVaultPreviewItemDeps = {
  */
 export async function openVaultPreviewItem(item: MirrorVaultItem, deps: OpenVaultPreviewItemDeps): Promise<void> {
   const plan = getMirrorVaultOpenPlan(
-    { type: item.type, value: item.value, title: item.title },
+    {
+      type: item.type,
+      value: item.value,
+      title: item.title,
+      vaultMimeType: item.vaultMimeType,
+    },
     {
       cardOwnerUid: String(deps.ghostTargetUid || '').trim(),
       cardId: String(deps.sourceCardId || '').trim(),

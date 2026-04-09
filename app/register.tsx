@@ -590,7 +590,7 @@ export default function RegisterScreen() {
 
     const allowModerationBypass = process.env.EXPO_PUBLIC_ALLOW_PHOTO_MODERATION_BYPASS === '1';
 
-    let result: { fileId: string; filename: string; publicUrl: string | null };
+    let result: { fileId: string; filename: string; publicUrl: string | null; mimeType: string | null };
     try {
       result = await uploadFileWithModeration({
         fileUri: activeUri,
@@ -609,7 +609,7 @@ export default function RegisterScreen() {
       if (allowModerationBypass && moderationServiceUnavailable) {
         setUploadProgress(1);
         setUploadStageLabel('Escudo de seguridad no disponible. Continuando en modo respaldo...');
-        return { fileId: `bypass-${label}-${Date.now()}`, publicUrl: null };
+        return { fileId: `bypass-${label}-${Date.now()}`, publicUrl: null, mimeType: null };
       }
 
       throw error;
@@ -620,7 +620,7 @@ export default function RegisterScreen() {
     setUploadProgress(1);
     setUploadStageLabel('Contenido aprobado. Continuando...');
 
-    return { fileId: result.fileId, publicUrl: result.publicUrl };
+    return { fileId: result.fileId, publicUrl: result.publicUrl, mimeType: result.mimeType };
   };
 
   const checkUniqueness = async (
@@ -901,7 +901,7 @@ export default function RegisterScreen() {
             stateRegion: normalizedStateRegion,
             country: normalizedCountry,
             timezone,
-            photoUrl: moderatedPhotoPublicUrl || `mongo-gridfs://${moderatedPhotoFileId}`,
+            photoUrl: moderatedPhotoPublicUrl?.trim() || '',
             profilePhotoFileId: moderatedPhotoFileId,
             verificationSelfieFileId: moderatedVerificationSelfieFileId,
             verificationStatus: 'verified',
