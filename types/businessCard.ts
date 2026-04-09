@@ -84,6 +84,10 @@ export interface BusinessCard {
   /** Origen de lat/lng (p. ej. GPS del dispositivo). */
   locationSource?: string;
   businessTermsAccepted?: boolean;
+  /** Misma paleta que Smart Cards (Firestore `businessCards`). */
+  themeId?: string;
+  /** Conteo mostrado en filas / QR (Firestore). */
+  holdersCount?: number;
 }
 
 export interface KYCValidation {

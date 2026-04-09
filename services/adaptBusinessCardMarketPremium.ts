@@ -17,7 +17,7 @@ function normalizeFacetType(type: string): string {
     .replace(/\p{M}/gu, '');
 }
 
-/** Tema luxury fijo para vista previa VIP del mercado (tarjeta de negocio). */
+/** Tema por defecto solo si la tarjeta no trae `themeId` (Firestore). */
 export const MARKET_PREMIUM_WIREFRAME_THEME_ID = 'emerald_crown';
 
 /**
@@ -89,13 +89,88 @@ export function adaptBusinessCardSearchResultToMyCardsPayload(
     subtitle = subBase ? `${subBase} · ${distLabel}` : distLabel;
   }
 
+  const themeFromCard = String(card.themeId || '').trim();
   return {
     cardName: String(card.businessName || '').trim() || tr('Negocio', 'Business'),
     subtitle,
     avatarUrl: card.businessLogo ?? null,
-    themeId: MARKET_PREMIUM_WIREFRAME_THEME_ID,
+    themeId: themeFromCard || MARKET_PREMIUM_WIREFRAME_THEME_ID,
     layout: 'vertical',
-    holdersCount: 0,
+    holdersCount: Math.max(0, Math.floor(Number(card.holdersCount ?? 0))),
+    ratingAvg: Number(card.averageRating),
+    totalRatings: Math.max(0, Math.floor(Number(card.totalRatings ?? 0))),
+    enableParallax: true,
+    slots,
+    noAvatarIcon: 'storefront-outline',
+  };
+}
+
+/**
+ * Vista previa al escanear QR de negocio cuando la tarjeta vive en Firestore (`businessCards`).
+ * Usa el mismo wireframe premium que el Mercado y el **themeId** guardado en el documento.
+ */
+export function businessFirestoreDocToMyCardsPayload(
+  raw: Record<string, unknown>,
+  cardId: string,
+  tr: (es: string, en: string) => string,
+): MyCardsPayload {
+  const prof = raw.professionalVault as { contractsPdf?: string } | undefined;
+  const card = {
+    id: String(raw.id || cardId),
+    ownerUid: String(raw.ownerUid || ''),
+    type: 'business' as const,
+    businessName: String(raw.businessName || ''),
+    ownerName: String(raw.ownerName || ''),
+    ownerEmail: String(raw.ownerEmail || ''),
+    ownerPhone: String(raw.ownerPhone || ''),
+    physicalAddress: String(raw.physicalAddress || ''),
+    latitude: Number(raw.latitude ?? 0),
+    longitude: Number(raw.longitude ?? 0),
+    city: String(raw.city || ''),
+    postalCode: String(raw.postalCode || ''),
+    keywords: Array.isArray(raw.keywords) ? (raw.keywords as string[]).map(String) : [],
+    businessLogo: raw.businessLogo != null ? String(raw.businessLogo) : '',
+    mapsLink: raw.mapsLink != null ? String(raw.mapsLink) : '',
+    permanent_business_link:
+      raw.permanent_business_link != null ? String(raw.permanent_business_link) : '',
+    professionalVault: { contractsPdf: String(prof?.contractsPdf || '') },
+    averageRating: Number(raw.averageRating ?? 5),
+    totalRatings: Number(raw.totalRatings ?? 0),
+    negativeRatingsCount: Number(raw.negativeRatingsCount ?? 0),
+    kycVerified: Boolean(raw.kycVerified),
+    kycTermsAccepted: Boolean(raw.kycTermsAccepted),
+    isActive: raw.isActive !== false,
+    isPublishedToMarket: Boolean(raw.isPublishedToMarket),
+    lastUpdated: new Date(),
+    createdAt: new Date(),
+    viewCount: Number(raw.viewCount ?? 0),
+    searchRankScore: Number(raw.searchRankScore ?? 0),
+    vaultDataIds: Array.isArray(raw.vaultDataIds)
+      ? (raw.vaultDataIds as string[]).map(String)
+      : Array.isArray(raw.vaultLinkIds)
+        ? (raw.vaultLinkIds as string[]).map(String)
+        : [],
+    themeId: String(raw.themeId || '').trim(),
+    holdersCount: Number(raw.holdersCount ?? 0),
+  } as BusinessCard;
+
+  const slots = wireframeSlotsFromBusinessCard(card);
+  const cityLine = [card.city, card.postalCode].filter(Boolean).join(' · ');
+  const subBase =
+    String(cityLine || '').trim() ||
+    String(card.physicalAddress || '').trim().slice(0, 120) ||
+    String((raw.businessDescription as string) || '').trim().slice(0, 120) ||
+    tr('Mercado Social', 'Social Market');
+
+  const themeId = String(raw.themeId || '').trim() || MARKET_PREMIUM_WIREFRAME_THEME_ID;
+
+  return {
+    cardName: String(card.businessName || '').trim() || tr('Negocio', 'Business'),
+    subtitle: subBase,
+    avatarUrl: card.businessLogo ? String(card.businessLogo) : null,
+    themeId,
+    layout: 'vertical',
+    holdersCount: Math.max(0, Math.floor(Number(raw.holdersCount ?? 0))),
     ratingAvg: Number(card.averageRating),
     totalRatings: Math.max(0, Math.floor(Number(card.totalRatings ?? 0))),
     enableParallax: true,

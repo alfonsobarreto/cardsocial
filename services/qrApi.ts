@@ -228,6 +228,14 @@ export type PublicQrTokenPreview = {
   ownerNickname: string | null;
   ownerPhotoUrl: string | null;
   ownerOccupation: string | null;
+  /** Tema Chest / smart_cards (vista previa fiel al emisor). */
+  themeId: string;
+  layout: 'vertical' | 'horizontal';
+  wallpaperUrl?: string;
+  enableParallax: boolean;
+  holdersCount: number;
+  ratingAvg: number;
+  totalRatings: number;
   slots: Array<{
     itemId?: string;
     type?: string;
@@ -238,6 +246,34 @@ export type PublicQrTokenPreview = {
     vaultMimeType?: string;
   }>;
 };
+
+function mapPublicQrPreviewResponse(
+  d: Record<string, unknown>,
+  tokenFallback: string,
+): PublicQrTokenPreview {
+  const layoutRaw = String(d.layout || 'vertical').toLowerCase();
+  const layout: 'vertical' | 'horizontal' = layoutRaw === 'horizontal' ? 'horizontal' : 'vertical';
+  const rawSlots = d.slots;
+  return {
+    ownerUid: String(d.ownerUid || ''),
+    cardId: String(d.cardId || ''),
+    token: String(d.token != null && d.token !== '' ? d.token : tokenFallback),
+    expiresAt: String(d.expiresAt || ''),
+    ownerDisplayName: String(d.ownerDisplayName || ''),
+    cardName: String(d.cardName || ''),
+    ownerNickname: d.ownerNickname != null ? String(d.ownerNickname) : null,
+    ownerPhotoUrl: d.ownerPhotoUrl != null ? String(d.ownerPhotoUrl) : null,
+    ownerOccupation: d.ownerOccupation != null ? String(d.ownerOccupation) : null,
+    themeId: d.themeId != null ? String(d.themeId) : '',
+    layout,
+    wallpaperUrl: d.wallpaperUrl != null ? String(d.wallpaperUrl) : undefined,
+    enableParallax: Boolean(d.enableParallax),
+    holdersCount: Math.max(0, Math.floor(Number(d.holdersCount ?? 0))),
+    ratingAvg: Number.isFinite(Number(d.ratingAvg)) ? Number(d.ratingAvg) : 0,
+    totalRatings: Math.max(0, Math.floor(Number(d.totalRatings ?? 0))),
+    slots: Array.isArray(rawSlots) ? rawSlots : [],
+  };
+}
 
 /** Vista previa del QR dinámico sin consumir (modal de clasificación). */
 export async function fetchPublicQrTokenPreview(params: {
@@ -263,21 +299,10 @@ export async function fetchPublicQrTokenPreview(params: {
     };
   }
 
-  const d = response.data;
+  const d = response.data as Record<string, unknown>;
   return {
     ok: true,
-    preview: {
-      ownerUid: String(d.ownerUid || ''),
-      cardId: String(d.cardId || ''),
-      token: String(d.token || params.token),
-      expiresAt: String(d.expiresAt || ''),
-      ownerDisplayName: String(d.ownerDisplayName || ''),
-      cardName: String(d.cardName || ''),
-      ownerNickname: d.ownerNickname != null ? String(d.ownerNickname) : null,
-      ownerPhotoUrl: d.ownerPhotoUrl != null ? String(d.ownerPhotoUrl) : null,
-      ownerOccupation: d.ownerOccupation != null ? String(d.ownerOccupation) : null,
-      slots: Array.isArray(d.slots) ? d.slots : [],
-    },
+    preview: mapPublicQrPreviewResponse(d, params.token),
   };
 }
 
@@ -332,21 +357,10 @@ export async function fetchPublicBusinessCardPreview(params: {
     };
   }
 
-  const d = response.data;
+  const d = response.data as Record<string, unknown>;
   return {
     ok: true,
-    preview: {
-      ownerUid: String(d.ownerUid || ''),
-      cardId: String(d.cardId || ''),
-      token: String(d.token || ''),
-      expiresAt: String(d.expiresAt || ''),
-      ownerDisplayName: String(d.ownerDisplayName || ''),
-      cardName: String(d.cardName || ''),
-      ownerNickname: d.ownerNickname != null ? String(d.ownerNickname) : null,
-      ownerPhotoUrl: d.ownerPhotoUrl != null ? String(d.ownerPhotoUrl) : null,
-      ownerOccupation: d.ownerOccupation != null ? String(d.ownerOccupation) : null,
-      slots: Array.isArray(d.slots) ? d.slots : [],
-    },
+    preview: mapPublicQrPreviewResponse(d, ''),
   };
 }
 

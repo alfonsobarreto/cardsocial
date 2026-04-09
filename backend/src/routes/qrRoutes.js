@@ -1093,17 +1093,7 @@ function createQrRoutes({ storage }) {
         });
       }
 
-      const cardDoc = await db.collection('smart_cards').findOne(
-        { ownerUid, cardId },
-        { projection: { _id: 1 } },
-      );
-      if (!cardDoc) {
-        return res.status(404).json({
-          ok: false,
-          error: isEs ? 'No se encontró la tarjeta.' : 'Card not found.',
-        });
-      }
-
+      /** Negocios solo en Firestore comparten el mismo QR: el permiso es válido sin fila en `smart_cards`. */
       await db.collection('share_permissions').findOneAndUpdate(
         {
           ownerUid,

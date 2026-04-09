@@ -1,19 +1,24 @@
 import { BunkerClassificationModal } from '@/components/BunkerClassificationModal';
+import type { MyCardsPayload } from '@/components/MyCards';
 import { savePendingBunkerScan } from '@/services/bunkerPendingScan';
 import { getActiveUserId } from '@/services/authSession';
+import { businessFirestoreDocToMyCardsPayload } from '@/services/adaptBusinessCardMarketPremium';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { myCardsPayloadFromQrPreview } from '@/services/incomingCardPreviewPayload';
+import { db } from '@/services/firebaseConfig';
 import {
   fetchPublicBusinessCardPreview,
   fetchPublicQrTokenPreview,
   type PublicQrTokenPreview,
 } from '@/services/qrApi';
 import {
+  normalizeQrScanPayload,
   parseBrandedBusinessQrUrl,
   parseDynamicAppQrJson,
   parsePermanentBusinessQr,
 } from '@/services/parseCardsocialQrPayload';
+import { doc, getDoc } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -153,6 +158,8 @@ export default function ScanScreen() {
   const [qrPreview, setQrPreview] = useState<PublicQrTokenPreview | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [incomingScanMode, setIncomingScanMode] = useState<IncomingScanMode>('dynamic_qr');
+  /** Vista previa Firestore (`businessCards`) si el API público Mongo no tiene la tarjeta. */
+  const [incomingPreviewOverride, setIncomingPreviewOverride] = useState<MyCardsPayload | null>(null);
   const resumeHandledRef = useRef(false);
 
   const canScan = useMemo(() => {
@@ -166,11 +173,13 @@ export default function ScanScreen() {
     setClassification(null);
     setQrPreview(null);
     setIncomingScanMode('dynamic_qr');
+    setIncomingPreviewOverride(null);
   }, []);
 
   const openClassification = useCallback(
     async (token: string) => {
       setIncomingScanMode('dynamic_qr');
+      setIncomingPreviewOverride(null);
       setProcessing(true);
       const locale = language === 'es' ? 'es' : 'en';
       const okLabel = tr('Aceptar', 'OK');
@@ -210,12 +219,53 @@ export default function ScanScreen() {
   const openBusinessClassification = useCallback(
     async (ownerUid: string, cardId: string) => {
       setIncomingScanMode('business_permanent');
+      setIncomingPreviewOverride(null);
       setProcessing(true);
       const locale = language === 'es' ? 'es' : 'en';
       const okLabel = tr('Aceptar', 'OK');
       try {
         const preview = await fetchPublicBusinessCardPreview({ ownerUid, cardId, locale });
         if (!preview.ok) {
+          const bSnap = await getDoc(doc(db, 'businessCards', cardId));
+          if (bSnap.exists()) {
+            const raw = bSnap.data() as Record<string, unknown>;
+            if (String(raw?.ownerUid || '').trim() === ownerUid) {
+              const payload = businessFirestoreDocToMyCardsPayload(raw, cardId, tr);
+              setIncomingPreviewOverride(payload);
+              const far = new Date();
+              far.setFullYear(far.getFullYear() + 10);
+              const issuer =
+                String(raw.ownerName || raw.businessName || '').trim() ||
+                String(payload.cardName || '').trim();
+              setQrPreview({
+                ownerUid,
+                cardId,
+                token: '',
+                expiresAt: far.toISOString(),
+                ownerDisplayName: issuer,
+                cardName: payload.cardName,
+                ownerNickname: null,
+                ownerPhotoUrl: payload.avatarUrl,
+                ownerOccupation: null,
+                themeId: payload.themeId,
+                layout: payload.layout,
+                wallpaperUrl: payload.wallpaperUrl,
+                enableParallax: payload.enableParallax,
+                holdersCount: payload.holdersCount,
+                ratingAvg: payload.ratingAvg,
+                totalRatings: payload.totalRatings,
+                slots: [],
+              });
+              setClassification({
+                token: '',
+                ownerUid,
+                cardId,
+                issuerFullName: issuer,
+              });
+              setModalVisible(true);
+              return;
+            }
+          }
           Alert.alert(
             tr('QR no disponible', 'QR unavailable'),
             tr('No se pudo cargar la vista previa.', 'Could not load preview.'),
@@ -251,8 +301,9 @@ export default function ScanScreen() {
 
     const okLabel = tr('Aceptar', 'OK');
     const invalidButtons = [{ text: okLabel, onPress: resetScanUi }];
+    const normalized = normalizeQrScanPayload(data);
 
-    const business = parsePermanentBusinessQr(data) || parseBrandedBusinessQrUrl(data);
+    const business = parsePermanentBusinessQr(normalized) || parseBrandedBusinessQrUrl(normalized);
     if (business) {
       setScanLocked(true);
       const uid = await getActiveUserId();
@@ -270,7 +321,7 @@ export default function ScanScreen() {
       return;
     }
 
-    const dyn = parseDynamicAppQrJson(data);
+    const dyn = parseDynamicAppQrJson(normalized);
     if (!dyn || dyn.kind !== 'dynamic_app' || !dyn.token || !dyn.cardId) {
       Alert.alert(
         tr('QR inválido', 'Invalid QR'),
@@ -347,10 +398,19 @@ export default function ScanScreen() {
     params.resumeToken,
   ]);
 
-  const scanPreviewPayload = useMemo(
-    () => (qrPreview ? myCardsPayloadFromQrPreview(qrPreview, tr) : null),
-    [qrPreview, tr],
-  );
+  const scanPreviewPayload = useMemo(() => {
+    if (incomingPreviewOverride) {
+      return incomingPreviewOverride;
+    }
+    if (!qrPreview) {
+      return null;
+    }
+    const base = myCardsPayloadFromQrPreview(qrPreview, tr);
+    if (incomingScanMode === 'business_permanent') {
+      return { ...base, noAvatarIcon: 'storefront-outline' as const };
+    }
+    return base;
+  }, [incomingPreviewOverride, incomingScanMode, qrPreview, tr]);
 
   if (!permission) {
     return (
@@ -424,6 +484,7 @@ export default function ScanScreen() {
             setQrPreview(null);
             setScanLocked(false);
             setIncomingScanMode('dynamic_qr');
+            setIncomingPreviewOverride(null);
           }}
           onSuccess={() => {
             setModalVisible(false);
@@ -431,6 +492,7 @@ export default function ScanScreen() {
             setQrPreview(null);
             setScanLocked(false);
             setIncomingScanMode('dynamic_qr');
+            setIncomingPreviewOverride(null);
             router.replace('/(tabs)/contacts');
           }}
         />

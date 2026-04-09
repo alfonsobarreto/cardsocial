@@ -33,9 +33,20 @@ import {
   trackBunkerGroupUsage,
 } from '@/services/qrApi';
 import appPalette from '@/app/theme';
-import { Picker } from '@react-native-picker/picker';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import {
+  Alert,
+  Animated,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 const INCOMING_BASE_GROUPS = ['Random', 'Family', 'Social', 'Work'];
 
@@ -118,6 +129,7 @@ export function MyCardsPreviewModal({
   const [incomingGroups, setIncomingGroups] = useState<string[]>(INCOMING_BASE_GROUPS);
   const [incomingGroup, setIncomingGroup] = useState('Random');
   const [incomingBusy, setIncomingBusy] = useState(false);
+  const [groupSheetOpen, setGroupSheetOpen] = useState(false);
 
   const handleClose = useCallback(() => {
     onClose();
@@ -127,6 +139,12 @@ export function MyCardsPreviewModal({
     () => getThemeById(payload?.themeId || '') ?? CHEST_THEMES[0],
     [payload?.themeId],
   );
+
+  useEffect(() => {
+    if (!visible) {
+      setGroupSheetOpen(false);
+    }
+  }, [visible]);
 
   useEffect(() => {
     if (variant !== 'incoming' || !visible || !incomingRedeem?.receiverUid) {
@@ -172,6 +190,7 @@ export function MyCardsPreviewModal({
         issuerUid: ownerUid,
         cardId,
         group: incomingGroup,
+        scanThemeId: payload?.themeId?.trim() ? payload.themeId : null,
       });
       try {
         await trackBunkerGroupUsage({ viewerUid: receiverUid, groupName: incomingGroup, locale: language });
@@ -182,11 +201,12 @@ export function MyCardsPreviewModal({
       handleClose();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : tr('Intenta de nuevo.', 'Try again.');
-      Alert.alert(tr('No se pudo agregar', 'Could not add'), msg);
+      const ok = tr('Aceptar', 'OK');
+      Alert.alert(tr('No se pudo agregar', 'Could not add'), msg, [{ text: ok }]);
     } finally {
       setIncomingBusy(false);
     }
-  }, [incomingRedeem, variant, incomingGroup, language, tr, handleClose]);
+  }, [incomingRedeem, variant, incomingGroup, language, payload?.themeId, tr, handleClose]);
 
   const openDocumentViewer = useCallback((item: MirrorVaultItem) => {
     setViewerItem(item);
@@ -266,23 +286,61 @@ export function MyCardsPreviewModal({
 
   const incomingAccessory =
     variant === 'incoming' ? (
-      <View style={incomingStyles.wrap}>
-        <Text style={[incomingStyles.label, { color: accent }]}>{tr('Grupo en el Búnker', 'Bunker group')}</Text>
-        <View style={[incomingStyles.pickerWrap, { borderColor: `${accent}73` }]}>
-          <Picker
-            selectedValue={incomingGroup}
-            onValueChange={(v) => setIncomingGroup(String(v))}
-            dropdownIconColor={accent}
-            style={incomingStyles.picker}
-            itemStyle={incomingStyles.pickerItem}
-            enabled={!incomingBusy}
-          >
-            {incomingGroups.map((g) => (
-              <Picker.Item key={g} label={g} value={g} color={accent} />
-            ))}
-          </Picker>
-        </View>
-      </View>
+      <>
+        <TouchableOpacity
+          style={[incomingStyles.groupChip, { borderColor: `${accent}55` }]}
+          onPress={() => !incomingBusy && setGroupSheetOpen(true)}
+          disabled={incomingBusy}
+          accessibilityRole="button"
+          accessibilityLabel={tr('Cambiar grupo del Búnker', 'Change Bunker group')}
+        >
+          <MaterialCommunityIcons name="folder-outline" size={16} color={accent} />
+          <Text style={[incomingStyles.groupChipText, { color: accent }]} numberOfLines={1}>
+            {tr('Grupo', 'Group')}: {incomingGroup}
+          </Text>
+          <MaterialCommunityIcons name="chevron-down" size={18} color={accent} />
+        </TouchableOpacity>
+        <Modal
+          visible={groupSheetOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setGroupSheetOpen(false)}
+        >
+          <Pressable style={incomingStyles.sheetBackdrop} onPress={() => setGroupSheetOpen(false)}>
+            <Pressable
+              style={[incomingStyles.sheetCard, { backgroundColor: shell.modalBg, borderColor: shell.border }]}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <Text style={[incomingStyles.sheetTitle, { color: shell.textPrimary }]}>
+                {tr('Grupo en el Búnker', 'Bunker group')}
+              </Text>
+              <ScrollView style={incomingStyles.sheetList} keyboardShouldPersistTaps="handled">
+                {incomingGroups.map((g) => (
+                  <TouchableOpacity
+                    key={g}
+                    style={incomingStyles.sheetRow}
+                    onPress={() => {
+                      setIncomingGroup(g);
+                      setGroupSheetOpen(false);
+                    }}
+                  >
+                    <Text style={[incomingStyles.sheetRowText, { color: shell.textPrimary }]}>{g}</Text>
+                    {incomingGroup === g ? (
+                      <MaterialCommunityIcons name="check" size={20} color={accent} />
+                    ) : null}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <TouchableOpacity
+                style={[incomingStyles.sheetDone, { borderColor: shell.border }]}
+                onPress={() => setGroupSheetOpen(false)}
+              >
+                <Text style={{ color: shell.textPrimary, fontWeight: '600' }}>{tr('Listo', 'Done')}</Text>
+              </TouchableOpacity>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      </>
     ) : null;
 
   const mirrorScale = variant === 'issuer' ? 0.8 : 1;
@@ -363,23 +421,60 @@ export function MyCardsPreviewModal({
 }
 
 const incomingStyles = StyleSheet.create({
-  wrap: { width: '100%', paddingHorizontal: 4 },
-  label: {
-    fontSize: 12,
-    fontWeight: '700',
-    marginBottom: 6,
-  },
-  pickerWrap: {
+  groupChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    gap: 6,
+    maxWidth: '100%',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
     borderWidth: 1,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: 'rgba(0,0,0,0.2)',
   },
-  picker: {
-    color: '#d4af37',
+  groupChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    flexShrink: 1,
   },
-  pickerItem: {
-    color: '#d4af37',
-    backgroundColor: '#000000',
+  sheetBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+  },
+  sheetCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingTop: 14,
+    paddingHorizontal: 12,
+    maxHeight: 360,
+  },
+  sheetTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 8,
+    paddingHorizontal: 8,
+  },
+  sheetList: {
+    maxHeight: 260,
+  },
+  sheetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+  },
+  sheetRowText: {
+    fontSize: 16,
+  },
+  sheetDone: {
+    marginTop: 4,
+    marginBottom: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
 });

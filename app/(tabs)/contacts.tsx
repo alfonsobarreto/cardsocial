@@ -126,6 +126,8 @@ type ContactMeta = {
   firstSeenAt: string;
   storyState?: 'none' | 'normal' | 'vip';
   icons?: Icon[]; // Add icons property to support icon search
+  /** Tema capturado al aceptar por QR (prioridad sobre default del API si faltó smart_cards). */
+  scanThemeId?: string;
 };
 
 type Icon = {
@@ -579,8 +581,10 @@ function ContactsContent() {
           isFavorite: false,
           firstSeenAt: contact.addedAt || new Date().toISOString(),
         };
+      const scanTheme = meta.scanThemeId && String(meta.scanThemeId).trim();
       return {
         ...contact,
+        ...(scanTheme ? { themeId: scanTheme } : {}),
         meta,
       };
     });

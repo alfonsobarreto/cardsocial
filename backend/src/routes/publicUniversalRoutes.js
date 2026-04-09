@@ -39,6 +39,30 @@ function sanitizeAnalyticsSegmentKey(raw) {
 /**
  * Slots públicos para web/app: forma estable + itemId sintético si faltara (datos viejos en Mongo).
  */
+/** Estilo público de smart_cards para vista previa QR (tema / layout / ratings). */
+function previewStyleFromSmartCardDoc(cardDoc) {
+  if (!cardDoc) {
+    return {
+      themeId: '',
+      layout: 'vertical',
+      wallpaperUrl: null,
+      enableParallax: false,
+      holdersCount: 0,
+      ratingAvg: 0,
+      totalRatings: 0,
+    };
+  }
+  return {
+    themeId: cardDoc.themeId ? String(cardDoc.themeId) : '',
+    layout: String(cardDoc.layout || 'vertical') === 'horizontal' ? 'horizontal' : 'vertical',
+    wallpaperUrl: cardDoc.wallpaperUrl ? String(cardDoc.wallpaperUrl) : null,
+    enableParallax: Boolean(cardDoc.enableParallax),
+    holdersCount: Math.max(0, Math.floor(Number(cardDoc.holdersCount ?? 0))),
+    ratingAvg: Number.isFinite(Number(cardDoc.ratingAvg)) ? Number(cardDoc.ratingAvg) : 0,
+    totalRatings: Math.max(0, Math.floor(Number(cardDoc.totalRatings ?? 0))),
+  };
+}
+
 function normalizePublicCardSlotsForUniversal(raw) {
   if (!Array.isArray(raw)) {
     return [];
@@ -307,6 +331,13 @@ function createPublicUniversalRoutes({ storage }) {
             ownerPhotoUrl: 1,
             ownerOccupation: 1,
             publicCardSlots: 1,
+            themeId: 1,
+            layout: 1,
+            wallpaperUrl: 1,
+            enableParallax: 1,
+            holdersCount: 1,
+            ratingAvg: 1,
+            totalRatings: 1,
           },
         },
       );
@@ -319,6 +350,7 @@ function createPublicUniversalRoutes({ storage }) {
 
       const idn = await resolvePublicIdentity(db, ownerUid, cardId);
       const slots = normalizePublicCardSlotsForUniversal(cardDoc.publicCardSlots);
+      const style = previewStyleFromSmartCardDoc(cardDoc);
       const far = new Date();
       far.setFullYear(far.getFullYear() + 10);
 
@@ -334,6 +366,7 @@ function createPublicUniversalRoutes({ storage }) {
         ownerPhotoUrl: cardDoc.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl) : null,
         ownerOccupation: cardDoc.ownerOccupation ? String(cardDoc.ownerOccupation) : null,
         slots,
+        ...style,
       });
     } catch (error) {
       const isEs = clientLocaleIsSpanish(req);
@@ -410,6 +443,13 @@ function createPublicUniversalRoutes({ storage }) {
             ownerPhotoUrl: 1,
             ownerOccupation: 1,
             publicCardSlots: 1,
+            themeId: 1,
+            layout: 1,
+            wallpaperUrl: 1,
+            enableParallax: 1,
+            holdersCount: 1,
+            ratingAvg: 1,
+            totalRatings: 1,
           },
         },
       );
@@ -422,6 +462,7 @@ function createPublicUniversalRoutes({ storage }) {
 
       const idn = await resolvePublicIdentity(db, ownerUid, cardId);
       const slots = normalizePublicCardSlotsForUniversal(cardDoc.publicCardSlots);
+      const style = previewStyleFromSmartCardDoc(cardDoc);
 
       return res.status(200).json({
         ok: true,
@@ -435,6 +476,7 @@ function createPublicUniversalRoutes({ storage }) {
         ownerPhotoUrl: cardDoc.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl) : null,
         ownerOccupation: cardDoc.ownerOccupation ? String(cardDoc.ownerOccupation) : null,
         slots,
+        ...style,
       });
     } catch (error) {
       const isEs = clientLocaleIsSpanish(req);

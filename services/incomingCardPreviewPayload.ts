@@ -61,16 +61,19 @@ export function myCardsPayloadFromQrPreview(
     icon: s.icon,
     vaultMimeType: s.vaultMimeType,
   }));
+  const layout = p.layout === 'horizontal' ? 'horizontal' : 'vertical';
+  const themeId = String(p.themeId || '').trim();
   return {
     cardName: (cardNm || person || occ || tr('Tarjeta Social', 'Social Card')).trim(),
     subtitle,
     avatarUrl: p.ownerPhotoUrl,
-    themeId: '',
-    layout: 'vertical',
-    holdersCount: 0,
-    ratingAvg: 0,
-    totalRatings: 0,
-    enableParallax: false,
+    themeId,
+    layout,
+    wallpaperUrl: p.wallpaperUrl,
+    holdersCount: Math.max(0, Math.floor(Number(p.holdersCount ?? 0))),
+    ratingAvg: Number.isFinite(Number(p.ratingAvg)) ? Number(p.ratingAvg) : 0,
+    totalRatings: Math.max(0, Math.floor(Number(p.totalRatings ?? 0))),
+    enableParallax: Boolean(p.enableParallax),
     slots: slotsToWireframeSlots(slotRows),
   };
 }

@@ -3,6 +3,18 @@
  * Business / branded: deep links `card-social://business/...` o `card-social://qr/...`.
  */
 
+/** Limpia BOM, espacios y extrae un deep link embebido en texto o URL. */
+export function normalizeQrScanPayload(raw: string): string {
+  let s = String(raw || '')
+    .replace(/^\uFEFF/, '')
+    .trim();
+  const embedded = s.match(/(?:card-social|cardsocial):\/\/[^\s"'<>\]]+/i);
+  if (embedded) {
+    return embedded[0].trim();
+  }
+  return s;
+}
+
 export type ParsedDynamicAppQr = {
   kind: 'dynamic_app';
   token: string;
@@ -26,7 +38,7 @@ function decodeParam(s: string): string {
 
 /** `card-social://business/{cardId}?owner=...&mode=permanent` */
 export function parsePermanentBusinessQr(data: string): ParsedBusinessDeepLink | null {
-  const raw = String(data || '').trim();
+  const raw = normalizeQrScanPayload(data);
   if (!raw) return null;
   const lower = raw.toLowerCase();
   if (!lower.includes('card-social://business/') && !lower.includes('cardsocial://business/')) {
@@ -44,7 +56,7 @@ export function parsePermanentBusinessQr(data: string): ParsedBusinessDeepLink |
 
 /** `card-social://qr/{cardId}?business=...&owner=...` */
 export function parseBrandedBusinessQrUrl(data: string): ParsedBusinessDeepLink | null {
-  const raw = String(data || '').trim();
+  const raw = normalizeQrScanPayload(data);
   if (!raw) return null;
   const lower = raw.toLowerCase();
   if (!lower.includes('card-social://qr/') && !lower.includes('cardsocial://qr/')) {
@@ -61,7 +73,7 @@ export function parseBrandedBusinessQrUrl(data: string): ParsedBusinessDeepLink 
 }
 
 export function parseDynamicAppQrJson(data: string): ParsedDynamicAppQr | null {
-  const raw = String(data || '').trim();
+  const raw = normalizeQrScanPayload(data);
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
