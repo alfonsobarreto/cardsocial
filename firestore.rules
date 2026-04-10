@@ -112,6 +112,17 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
     }
 
+    // Medal system: counts readable by all signed-in users; votes owner-only.
+    match /medals/{cardId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    match /medals/{cardId}/votes/{userId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isOwner(userId);
+    }
+
     // Default deny for any non-explicit collection.
     match /{document=**} {
       allow read, write: if false;

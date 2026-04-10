@@ -5,54 +5,60 @@
  */
 
 import appPalette from '@/app/theme';
+import { MedalRatingModal } from '@/components/MedalRatingModal';
 import {
-  IsolatedWireframeCard,
-  type WireframeEditSlot,
-  type WireframeVaultItem,
+    IsolatedWireframeCard,
+    type WireframeEditSlot,
+    type WireframeVaultItem,
 } from '@/components/smartCard/IsolatedWireframeCard';
 import {
-  createPreviewWireframeSlotRenderer,
-  renderWireframeMirrorRatingStars,
-  type IconVaultLookup,
+    createPreviewWireframeSlotRenderer,
+    type IconVaultLookup,
 } from '@/components/smartCard/wireframeMirrorRendering';
 import { SmartCardMirrorModal } from '@/components/SmartCardMirrorModal';
 import { VaultDocumentViewerModal } from '@/components/VaultDocumentViewerModal';
 import {
-  CARD_THEMES as CHEST_THEMES,
-  getThemeById,
+    CARD_THEMES as CHEST_THEMES,
+    getThemeById,
 } from '@/constants/themeChest';
 import { getActiveUserId } from '@/services/authSession';
 import type { MirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
 import { CONTACT_META_STORAGE_KEY, seedMetaForIncomingCard } from '@/services/bunkerContactMetaSeed';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
+import {
+    BUSINESS_MEDALS,
+    getMedalData,
+    type MedalCounts,
+    SOCIAL_MEDALS,
+} from '@/services/medalService';
 import { openVaultPreviewItem } from '@/services/openVaultPreviewItem';
 import {
-  consumeDynamicQrToken,
-  fetchBunkerGroups,
-  grantBusinessShareFromQr,
-  redeemTemporaryAccessToken,
-  trackBunkerGroupUsage,
-  upsertSmartCardInDb,
+    consumeDynamicQrToken,
+    fetchBunkerGroups,
+    grantBusinessShareFromQr,
+    redeemTemporaryAccessToken,
+    trackBunkerGroupUsage,
+    upsertSmartCardInDb,
 } from '@/services/qrApi';
 import { receivedContactMergeKey } from '@/services/receivedContactsPresentationMerge';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
-  Animated,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    Alert,
+    Animated,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from 'react-native';
 
 const INCOMING_BASE_GROUPS = ['Random', 'Family', 'Social', 'Work'];
@@ -102,6 +108,8 @@ export type MyCardsPreviewModalProps = {
   sourceCardId?: string | null;
   sourceCardName?: string;
   peerDisplayName?: string;
+  /** Tipo de tarjeta para el modal de medallas ('smart' | 'business'). No aplica a variant=issuer. */
+  ratingCardType?: 'smart' | 'business';
 };
 
 /* ------------------------------------------------------------------ */
@@ -119,6 +127,7 @@ export function MyCardsPreviewModal({
   sourceCardId,
   sourceCardName,
   peerDisplayName,
+  ratingCardType,
 }: MyCardsPreviewModalProps) {
   const { resolvedMode } = useLookMode();
   const isDark = resolvedMode === 'noche';
@@ -152,6 +161,38 @@ export function MyCardsPreviewModal({
   const [newGroupInput, setNewGroupInput] = useState('');
   const [isAddingIncomingGroup, setIsAddingIncomingGroup] = useState(false);
   const [isAddingReceiverGroup, setIsAddingReceiverGroup] = useState(false);
+
+  /* ── Medallas ─────────────────────────────────────────────────────────────── */
+  const [medalCounts, setMedalCounts] = useState<MedalCounts>({});
+  const [medalModalVisible, setMedalModalVisible] = useState(false);
+
+  const canRate = variant !== 'issuer' && !!ratingCardType;
+  const showMedals = !!ratingCardType;  // issuer ve sus medallas, contacts pueden votar
+  const cardIdForMedals = sourceCardId ?? incomingRedeem?.cardId ?? null;
+  const cardOwnerUidForMedals = ghostTargetUid ?? incomingRedeem?.ownerUid ?? null;
+
+  useEffect(() => {
+    if (!visible || !showMedals || !cardIdForMedals) return;
+    void (async () => {
+      try {
+        const uid = await getActiveUserId();
+        if (!uid) return;
+        const data = await getMedalData(cardIdForMedals, uid);
+        setMedalCounts(data.counts);
+      } catch {
+        // no-op — medallas no críticas
+      }
+    })();
+  }, [visible, showMedals, cardIdForMedals]);
+
+  const medalPillDefs = ratingCardType === 'business' ? BUSINESS_MEDALS : SOCIAL_MEDALS;
+  const medalPills = showMedals
+    ? medalPillDefs.map((m) => ({
+        key: m.key,
+        icon: m.icon,
+        count: medalCounts[m.key] ?? 0,
+      }))
+    : undefined;
 
   useEffect(() => {
     if (!visible) { setAlreadyInBunker(false); return; }
@@ -469,16 +510,6 @@ export function MyCardsPreviewModal({
       }),
     [handleSlotPress, tr, payload?.iconVaultById],
   );
-
-  const reviewCount = Math.max(
-    0,
-    Math.floor(Number(payload?.totalRatings ?? 0)),
-  );
-  const ratingAvgRaw = Number(payload?.ratingAvg);
-  const dispStarsValue =
-    reviewCount > 0 && Number.isFinite(ratingAvgRaw)
-      ? Math.max(0, Math.min(5, ratingAvgRaw))
-      : 0;
 
   const footerColors =
     variant === 'issuer'
@@ -808,19 +839,31 @@ export function MyCardsPreviewModal({
               0,
               Math.floor(Number(payload.holdersCount ?? 0)),
             )}
-            dispReviewCount={reviewCount}
-            dispStarsValue={dispStarsValue}
             noAvatarIconName={payload.noAvatarIcon ?? 'account'}
             enableParallax={payload.enableParallax}
             parallaxX={parallaxX}
             parallaxY={parallaxY}
             renderSlotContent={renderSlotContent}
-            renderDetailedRatingStars={renderWireframeMirrorRatingStars}
             tr={tr}
             mirrorStatsCapsuleScale={mirrorScale}
+            medalPills={medalPills}
+            onRate={canRate ? () => setMedalModalVisible(true) : undefined}
           />
         ) : null}
       </SmartCardMirrorModal>
+
+      {/* Modal de medallas */}
+      {canRate ? (
+        <MedalRatingModal
+          visible={medalModalVisible}
+          onClose={() => setMedalModalVisible(false)}
+          cardType={ratingCardType!}
+          cardId={cardIdForMedals ?? ''}
+          cardOwnerUid={cardOwnerUidForMedals ?? ''}
+          cardOwnerName={peerDisplayName ?? sourceCardName ?? ''}
+          onCountsChanged={setMedalCounts}
+        />
+      ) : null}
 
       {viewerVisible && viewerItem ? (
         <VaultDocumentViewerModal

@@ -52,6 +52,7 @@ export function BunkerClassificationModal({
       sourceCardId={cardId}
       sourceCardName={previewPayload?.cardName}
       peerDisplayName={issuerFullName}
+      ratingCardType={mode === 'business_permanent' ? 'business' : 'smart'}
     />
   );
 }

@@ -751,23 +751,6 @@ function ContactsContent() {
     return { flexGrow: 1 as const, paddingBottom: 36 };
   }, [loading, contacts.length, rowsWithHeaders.length, windowHeight]);
 
-  const renderDetailedRatingStars = (rating: number, starColor: string) => {
-    const r = Math.max(0, Math.min(5, Number(rating) || 0));
-    return (
-      <View style={styles.starsRow}>
-        {Array.from({ length: 5 }).map((_, index) => {
-          const threshold = index + 1;
-          let name: 'star' | 'star-half-full' | 'star-outline' = 'star-outline';
-          if (r >= threshold) name = 'star';
-          else if (r >= threshold - 0.5) name = 'star-half-full';
-          return (
-            <MaterialCommunityIcons key={`dstar-${index}`} name={name} size={12} color={starColor} />
-          );
-        })}
-      </View>
-    );
-  };
-
   const initialsFromDisplayName = (name: string) => {
     const parts = String(name || '')
       .trim()
@@ -1276,9 +1259,6 @@ function ContactsContent() {
                 }
                 const row = item.contact;
                 const rowLinkKey = receivedContactMergeKey(row);
-                const reviewCount = row.totalRatings ?? 0;
-                const rating = reviewCount > 0 ? Number(row.ratingAvg ?? 0) : 0;
-                const isAlert = reviewCount > 0 && Number(row.ratingAvg || 0) <= RATING_ALERT;
                 const holders = row.holdersCount ?? 0;
                 const chest = getCardRowTheme(row.themeId);
                 const issuerFont = row.fontFamily ? { fontFamily: row.fontFamily } : null;
@@ -1464,23 +1444,6 @@ function ContactsContent() {
                             {row.cardName}
                           </Text>
                           <View style={styles.contactRowStatsRow}>
-                            <View style={styles.contactRowRatingCluster}>
-                              {renderDetailedRatingStars(rating, chest.iconColor)}
-                              <Text
-                                style={[
-                                  styles.contactRatingCaption,
-                                  isAlert && styles.ratingNumberAlert,
-                                  {
-                                    color: chest.extraColor,
-                                    fontSize: chest.extraFontSize,
-                                    fontWeight: chest.extraFontWeight,
-                                    fontStyle: chest.extraFontStyle,
-                                  },
-                                ]}
-                              >
-                                {rating.toFixed(1)} · {reviewCount} {tr('reseñas', 'reviews')}
-                              </Text>
-                            </View>
                             <TouchableOpacity
                               style={[
                                 styles.mutualCountPill,
@@ -1757,6 +1720,7 @@ function ContactsContent() {
         sourceCardId={selectedContact?.cardId ?? null}
         sourceCardName={selectedContact?.cardName}
         peerDisplayName={selectedContact?.nickname || selectedContact?.name || 'contacto'}
+        ratingCardType='smart'
       />
 
       <Modal

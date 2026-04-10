@@ -12,7 +12,6 @@ import { IsolatedWireframeCard, type WireframeEditSlot } from '@/components/smar
 import { WireframeSlotTile } from '@/components/smartCard/WireframeSlotTile';
 import { getWireframeIconRowPlan } from '@/components/smartCard/wireframeMath';
 import {
-    renderWireframeDetailedRatingStars,
     renderWireframeMiniIcon,
 } from '@/components/smartCard/wireframeMirrorRendering';
 import { isGhostLinkVaultType } from '@/constants/ghostLinkVault';
@@ -2120,34 +2119,8 @@ export default function CardsFactoryScreen() {
     setViewerVisible(true);
   };
 
-  const renderRatingStars = (rating: number) => {
-    const rounded = Math.max(0, Math.min(5, Math.round(rating)));
-    return (
-      <View style={styles.ratingRow}>
-        {Array.from({ length: 5 }).map((_, index) => (
-          <MaterialCommunityIcons
-            key={`star-${index}`}
-            name={index < rounded ? 'star' : 'star-outline'}
-            size={13}
-            color="#C5A065"
-          />
-        ))}
-      </View>
-    );
-  };
-
   const renderIdentityBadge = (compact = false) => {
     const holderCount = selectedCard?.holdersCount ?? previewCard?.holdersCount ?? 0;
-    const reviewCount = selectedCard?.totalRatings ?? previewCard?.totalRatings ?? 0;
-    const ratingAvg = selectedCard?.ratingAvg ?? previewCard?.ratingAvg ?? 5;
-    const starsVal = reviewCount > 0 ? Math.max(0, Math.min(5, Number(ratingAvg))) : 0;
-    const cardTitle = (
-      selectedCard?.name
-      || previewCard?.name
-      || cardName
-      || 'Nueva Tarjeta'
-    ).trim();
-    const nickname = (ownerNickname || 'user').toLowerCase();
     const capSize = compact ? 11 : 13;
     return (
       <>
@@ -2161,15 +2134,6 @@ export default function CardsFactoryScreen() {
         <AutoScaleText style={compact ? styles.wireNameSm : styles.wireName}>{cardTitle}</AutoScaleText>
         <AutoScaleText style={compact ? styles.wireNickSm : styles.wireNick}>@{nickname}</AutoScaleText>
         <View style={styles.wireStatsRowInline}>
-          <View style={styles.wireStatsRatingStack}>
-            {renderWireframeDetailedRatingStars(starsVal, compact ? 16 : 20)}
-            <Text
-              style={[styles.wireStatsReviewCaption, { color: '#497499', fontSize: compact ? 9 : 10, textAlign: 'center' }]}
-              numberOfLines={1}
-            >
-              {starsVal.toFixed(1)} · {reviewCount} {tr('reseñas', 'reviews')}
-            </Text>
-          </View>
           <View style={styles.wireUsersPill}>
             <MaterialCommunityIcons name="account-outline" size={capSize} color="#0A2540" />
             <Text style={styles.wireUsersPillText}>{holderCount}</Text>
@@ -2216,9 +2180,6 @@ export default function CardsFactoryScreen() {
     const dispSub = wId ? wId.subtitle : `@${(ownerNickname || 'user').toLowerCase()}`;
     const dispAvatar = wId ? wId.avatarUri : ownerPhotoUrl;
     const dispHolders = wId ? wId.holdersCount : (selectedCard?.holdersCount ?? previewCard?.holdersCount ?? 0);
-    const dispReviewCount = wId?.totalRatings ?? selectedCard?.totalRatings ?? previewCard?.totalRatings ?? 0;
-    const dispRatingRaw = wId ? wId.ratingAvg : (selectedCard?.ratingAvg ?? previewCard?.ratingAvg ?? 5);
-    const dispStarsValue = dispReviewCount > 0 ? Math.max(0, Math.min(5, Number(dispRatingRaw))) : 0;
     const noAvatarIconName = (wId?.noAvatarIcon ?? 'account') as 'account' | 'storefront-outline';
 
     return (
@@ -2232,14 +2193,11 @@ export default function CardsFactoryScreen() {
         dispSub={dispSub}
         dispAvatar={dispAvatar}
         dispHolders={dispHolders}
-        dispReviewCount={dispReviewCount}
-        dispStarsValue={dispStarsValue}
         noAvatarIconName={noAvatarIconName}
         enableParallax={enableParallax}
         parallaxX={parallaxX}
         parallaxY={parallaxY}
         renderSlotContent={renderSlotContent}
-        renderDetailedRatingStars={renderWireframeDetailedRatingStars}
         tr={tr}
       />
     );
@@ -2249,10 +2207,6 @@ export default function CardsFactoryScreen() {
     const chestTheme = getCardRowTheme(row.themeId);
     const themeMeta = getThemeById(row.themeId || '') ?? CHEST_THEMES[0];
     const holders = row.holdersCount ?? 0;
-    const reviewCount = row.totalRatings ?? 0;
-    const ratingRaw = Number(row.ratingAvg ?? 0);
-    const rating =
-      reviewCount > 0 && Number.isFinite(ratingRaw) ? Math.max(0, Math.min(5, ratingRaw)) : 0;
     const logoUri = toRenderableImageUri(row.businessLogo);
     const sk = businessSwipeKey(row.id);
     const closeBusinessRowSwipe = () => {
@@ -2384,12 +2338,6 @@ export default function CardsFactoryScreen() {
                       <MaterialCommunityIcons name="account-group-outline" size={13} color={chestTheme.titleColor} />
                       <Text style={[styles.metricPillText, { color: chestTheme.titleColor }]}>{holders}</Text>
                     </TouchableOpacity>
-                    <View style={styles.statsRatingStack}>
-                      <View style={styles.businessRatingStarsWrap}>{renderWireframeDetailedRatingStars(rating)}</View>
-                      <Text style={[styles.ratingStackCaption, { color: chestTheme.metaColor }]} numberOfLines={2}>
-                        {rating.toFixed(1)} · {reviewCount} {tr('reseñas', 'reviews')}
-                      </Text>
-                    </View>
                   </View>
                 </View>
                 {sessionOwnerUid ? (
@@ -2573,17 +2521,6 @@ export default function CardsFactoryScreen() {
                   <MaterialCommunityIcons name="account-group-outline" size={13} color={chestTheme.titleColor} />
                   <Text style={[styles.metricPillText, { color: chestTheme.titleColor }]}>{holders}</Text>
                 </TouchableOpacity>
-                <View style={styles.cardRowRatingCluster}>
-                  <View style={[styles.statsRatingStack, styles.statsRatingStackAlignEnd]}>
-                    {renderWireframeDetailedRatingStars(rating)}
-                    <Text
-                      style={[styles.ratingStackCaption, styles.ratingStackCaptionRight, { color: chestTheme.metaColor }]}
-                      numberOfLines={2}
-                    >
-                      {rating.toFixed(1)} · {reviewCount} {tr('reseñas', 'reviews')}
-                    </Text>
-                  </View>
-                </View>
               </View>
             </View>
           </TouchableOpacity>
@@ -2735,10 +2672,6 @@ export default function CardsFactoryScreen() {
     const card = item.card;
     const chestTheme = getCardRowTheme(card.themeId);
     const holders = card.holdersCount ?? 0;
-    const reviewCount = card.totalRatings ?? 0;
-    const ratingRaw = Number(card.ratingAvg ?? 0);
-    const rating =
-      reviewCount > 0 && Number.isFinite(ratingRaw) ? Math.max(0, Math.min(5, ratingRaw)) : 0;
     const themeMeta = getThemeById(card.themeId || '') ?? CHEST_THEMES[0];
     const themeLabel = themeMeta.name;
 
@@ -2807,17 +2740,7 @@ export default function CardsFactoryScreen() {
                     <MaterialCommunityIcons name="account-group-outline" size={13} color={chestTheme.titleColor} />
                     <Text style={[styles.metricPillText, { color: chestTheme.titleColor }]}>{holders}</Text>
                   </View>
-                  <View style={styles.cardRowRatingCluster}>
-                    <View style={[styles.statsRatingStack, styles.statsRatingStackAlignEnd]}>
-                      {renderWireframeDetailedRatingStars(rating)}
-                      <Text
-                        style={[styles.ratingStackCaption, styles.ratingStackCaptionRight, { color: chestTheme.metaColor }]}
-                        numberOfLines={2}
-                      >
-                        {rating.toFixed(1)} · {reviewCount} {tr('reseñas', 'reviews')}
-                      </Text>
-                    </View>
-                  </View>
+
                 </View>
               </View>
             </View>
@@ -3451,6 +3374,7 @@ export default function CardsFactoryScreen() {
         sourceCardName={previewCard?.name ?? cardName ?? 'Tarjeta Social'}
         peerDisplayName={ownerNickname || 'este contacto'}
         ghostTargetUid={sessionOwnerUid}
+        ratingCardType='smart'
       />
 
       <MyCardsPreviewModal
@@ -3478,6 +3402,7 @@ export default function CardsFactoryScreen() {
         sourceCardName={previewBusiness?.businessName ?? tr('Negocio', 'Business')}
         peerDisplayName={ownerNickname || 'este contacto'}
         ghostTargetUid={previewBusinessOwnerUid || sessionOwnerUid}
+        ratingCardType='business'
       />
 
       <Modal

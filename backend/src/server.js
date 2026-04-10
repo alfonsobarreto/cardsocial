@@ -439,6 +439,7 @@ const otpHash = (emailLower, code) => {
     };
 
     app.use('/u', nextProxy);
+    app.use('/legal', nextProxy);
     app.use('/_next', nextProxy);
   } else {
     // Fallback: legacy HTML courtesy page

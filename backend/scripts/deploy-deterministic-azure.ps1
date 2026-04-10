@@ -62,6 +62,19 @@ if ($robocopyCode -ge 8) {
   throw "robocopy failed with exit code $robocopyCode. See $robocopyLog"
 }
 
+Write-Step "Installing production dependencies in staging"
+Push-Location $staging
+$prevPref = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+npm ci --omit=dev 2>&1 | Write-Host
+$npmExit = $LASTEXITCODE
+$ErrorActionPreference = $prevPref
+if ($npmExit -ne 0) {
+  Pop-Location
+  throw "npm ci failed in staging folder (exit code $npmExit)"
+}
+Pop-Location
+
 Write-Step "Applying deterministic app settings for local-git deploy"
 az webapp config appsettings set `
   --resource-group $ResourceGroup `

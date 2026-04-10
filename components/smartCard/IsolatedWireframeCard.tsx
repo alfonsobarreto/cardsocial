@@ -12,7 +12,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
-import { Animated, Image, Text, View } from 'react-native';
+import { Animated, Image, Text, TouchableOpacity, View } from 'react-native';
 
 export type WireframeVaultItem = {
   id: string;
@@ -43,8 +43,6 @@ export type IsolatedWireframeCardProps = {
   dispSub: string;
   dispAvatar: string | null;
   dispHolders: number;
-  dispReviewCount: number;
-  dispStarsValue: number;
   noAvatarIconName: 'account' | 'storefront-outline';
   enableParallax: boolean;
   parallaxX: Animated.Value;
@@ -55,10 +53,16 @@ export type IsolatedWireframeCardProps = {
     editable: boolean,
     chestTheme: ChestCardTheme,
   ) => React.ReactNode;
-  renderDetailedRatingStars: (rating: number, starSize: number, starColor: string) => React.ReactNode;
   tr: (es: string, en: string) => string;
   /** Solo modo espejo (modal): escala 0–1 de la cápsula de rating (estrellas + texto + paddings). Ej. 0.8 = 4/5. */
   mirrorStatsCapsuleScale?: number;
+  /**
+   * Modo medallas: si se provee, la cápsula reemplaza las estrellas por pills de medallas.
+   * Cada pill: { key, icon (MaterialCommunityIcons), count }.
+   */
+  medalPills?: { key: string; icon: string; count: number }[];
+  /** Callback para abrir el modal de calificación (solo visible cuando !editable). */
+  onRate?: () => void;
 };
 
 export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
@@ -72,16 +76,15 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
     dispSub,
     dispAvatar,
     dispHolders,
-    dispReviewCount,
-    dispStarsValue,
     noAvatarIconName,
     enableParallax,
     parallaxX,
     parallaxY,
     renderSlotContent,
-    renderDetailedRatingStars,
     tr,
     mirrorStatsCapsuleScale,
+    medalPills,
+    onRate,
   } = props;
 
   const [vertAvatarBoxH, setVertAvatarBoxH] = useState(0);
@@ -119,9 +122,78 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
     const s = mStatsScale;
     const starSize = Math.max(12, Math.round(starSizeBase * s));
     const captionSize = Math.max(7, Math.round(captionSizeBase * s));
-    /** Icono persona = estrellas; la cifra a 3/4 de ese tamaño (antes iba 4/4 y competía con el icono). */
     const holdersIconSize = starSize;
     const holdersCountFontSize = Math.max(10, Math.round(holdersIconSize * 0.75));
+
+    const capsuleStyle = {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      borderRadius: 999,
+      backgroundColor: 'rgba(255,255,255,0.12)',
+      borderWidth: Math.max(1, bd.width),
+      borderColor: bd.color,
+      paddingVertical: Math.max(6, Math.round(10 * s)),
+      paddingHorizontal: Math.max(8, Math.round(14 * s)),
+    };
+
+    // ── Modo medallas ──────────────────────────────────────────────────────
+    if (medalPills !== undefined) {
+      // Siempre mostrar las 5 medallas con su número (aunque sea 0)
+      const visiblePills = medalPills;
+      return (
+        <View
+          style={{
+            width: '100%',
+            marginTop: Math.max(4, Math.round(6 * s)),
+            paddingHorizontal: Math.max(2, Math.round(4 * s)),
+          }}
+        >
+          <View
+            style={[
+              capsuleStyle,
+              { justifyContent: onRate ? 'space-between' : 'space-evenly' },
+            ]}
+          >
+            {/* Pills de medallas */}
+            {visiblePills.length === 0 ? (
+              <Text style={{ color: extraStyle.color, fontSize: captionSize, fontWeight: '300' }}>
+                {tr('Sin calificaciones', 'No ratings yet')}
+              </Text>
+            ) : (
+              visiblePills.map((p) => (
+                <View key={p.key} style={{ flexDirection: 'row', alignItems: 'center', gap: Math.max(2, Math.round(3 * s)) }}>
+                  <MaterialCommunityIcons name={p.icon as any} size={Math.round(starSizeBase * 1.5)} color={iconMeta.color} />
+                  <Text style={{ color: titleStyle.color, fontSize: Math.round(captionSizeBase * 1.5), fontWeight: '600' }}>{p.count}</Text>
+                </View>
+              ))
+            )}
+            {/* Botón + a la derecha — solo contactos */}
+            {onRate ? (
+              <TouchableOpacity
+                onPress={onRate}
+                style={{
+                  width: Math.max(22, Math.round(captionSize * 2)),
+                  height: Math.max(22, Math.round(captionSize * 2)),
+                  borderRadius: 999,
+                  backgroundColor: 'rgba(255,255,255,0.22)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginLeft: Math.max(4, Math.round(6 * s)),
+                  flexShrink: 0,
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel={tr('Calificar', 'Rate')}
+              >
+                <Text style={{ color: iconMeta.color, fontSize: Math.max(14, Math.round(captionSize * 1.2)), fontWeight: '700', lineHeight: Math.max(16, Math.round(captionSize * 1.4)) }}>+</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        </View>
+      );
+    }
+
+    // ── Modo por defecto: solo receptores ────────────────────────────────
     return (
       <View
         style={{
@@ -130,52 +202,9 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
           paddingHorizontal: Math.max(2, Math.round(4 * s)),
         }}
       >
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderRadius: 999,
-            backgroundColor: 'rgba(255,255,255,0.12)',
-            borderWidth: Math.max(1, bd.width),
-            borderColor: bd.color,
-            paddingVertical: Math.max(6, Math.round(10 * s)),
-            paddingHorizontal: Math.max(8, Math.round(14 * s)),
-          }}
-        >
-          <View
-            style={{
-              flex: 1,
-              alignItems: 'center',
-              gap: Math.max(2, Math.round(3 * s)),
-              minWidth: 0,
-            }}
-          >
-            {renderDetailedRatingStars(dispStarsValue, starSize, iconMeta.color)}
-            <Text
-              style={{
-                color: extraStyle.color,
-                fontSize: captionSize,
-                fontWeight: '300',
-                fontStyle: extraStyle.fontStyle,
-                textAlign: 'center',
-              }}
-              numberOfLines={1}
-            >
-              {dispStarsValue.toFixed(1)} · {dispReviewCount} {tr('reseñas', 'reviews')}
-            </Text>
-          </View>
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: Math.max(3, Math.round(4 * s)),
-              paddingLeft: Math.max(4, Math.round(6 * s)),
-            }}
-          >
-            <MaterialCommunityIcons name="account-outline" size={holdersIconSize} color={iconMeta.color} />
-            <Text style={{ color: titleStyle.color, fontSize: holdersCountFontSize, fontWeight: '300' }}>{dispHolders}</Text>
-          </View>
+        <View style={[capsuleStyle, { justifyContent: 'center', gap: Math.max(3, Math.round(4 * s)) }]}>
+          <MaterialCommunityIcons name="account-outline" size={holdersIconSize} color={iconMeta.color} />
+          <Text style={{ color: titleStyle.color, fontSize: holdersCountFontSize, fontWeight: '300' }}>{dispHolders}</Text>
         </View>
       </View>
     );

@@ -325,17 +325,20 @@ function createQrRoutes({ storage }) {
 
     const usersDoc = await db.collection('users').findOne(
       { uid: safeUid },
-      { projection: { displayName: 1, name: 1, fullName: 1, nickname: 1, nicknameLower: 1, photoUrl: 1, avatarUrl: 1, profilePhoto: 1 } }
+      { projection: { displayName: 1, name: 1, fullName: 1, firstName: 1, lastName: 1, nickname: 1, nicknameLower: 1, photoUrl: 1, avatarUrl: 1, profilePhoto: 1 } }
     );
     const profilesDoc = usersDoc
       ? null
       : await db.collection('profiles').findOne(
           { uid: safeUid },
-          { projection: { displayName: 1, name: 1, fullName: 1, nickname: 1, nicknameLower: 1, photoUrl: 1, avatarUrl: 1, profilePhoto: 1 } }
+          { projection: { displayName: 1, name: 1, fullName: 1, firstName: 1, lastName: 1, nickname: 1, nicknameLower: 1, photoUrl: 1, avatarUrl: 1, profilePhoto: 1 } }
         );
 
     const source = usersDoc || profilesDoc || null;
-    const name = String(source?.displayName || source?.name || source?.fullName || `User ${safeUid.slice(0, 6)}`).trim();
+    const firstName = String(source?.firstName || '').trim();
+    const lastName = String(source?.lastName || '').trim();
+    const composedFull = `${firstName} ${lastName}`.trim();
+    const name = String(source?.fullName || source?.displayName || source?.name || composedFull || `User ${safeUid.slice(0, 6)}`).trim();
     const nickname = String(source?.nickname || source?.nicknameLower || name.toLowerCase().replace(/\s+/g, '_')).trim();
     const photoUrl = String(source?.photoUrl || source?.avatarUrl || source?.profilePhoto || '').trim() || null;
 

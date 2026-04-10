@@ -1,75 +1,24 @@
 'use client';
 
-import Image from 'next/image';
-import React, { useId, useLayoutEffect, useRef, useState } from 'react';
-import type { CardData, PublicSlot } from '@/lib/universalCardTypes';
-import { CardTheme } from '@/lib/themes';
-import {
-  computeStitchWireframeBubbleSide,
-  getWireframeIconRowPlan,
-  WIREFRAME_STITCH_GAP,
-  WIREFRAME_STITCH_HORIZONTAL_INSET,
-} from '@/lib/wireframeMath';
-import { resolveSlotVisual } from '@/lib/slotVisual';
-import type { SlotIconDef } from '@/lib/slotIcons';
-import { getMirrorVaultOpenPlan, type MirrorOpenPlan } from '@card-social/services/mirrorVaultItemOpenPlan';
 import { MirrorActionModals } from '@/components/MirrorActionModals';
+import type { SlotIconDef } from '@/lib/slotIcons';
+import { resolveSlotVisual } from '@/lib/slotVisual';
+import { CardTheme } from '@/lib/themes';
+import type { CardData, PublicSlot } from '@/lib/universalCardTypes';
+import {
+    computeStitchWireframeBubbleSide,
+    getWireframeIconRowPlan,
+    WIREFRAME_STITCH_GAP,
+    WIREFRAME_STITCH_HORIZONTAL_INSET,
+} from '@/lib/wireframeMath';
+import { getMirrorVaultOpenPlan, type MirrorOpenPlan } from '@card-social/services/mirrorVaultItemOpenPlan';
+import Image from 'next/image';
+import { useLayoutEffect, useRef, useState } from 'react';
 
 /** Ancho útil típico del preview (~maxWidth 420 − paddings) hasta que ResizeObserver mida el contenedor. */
 const WIREFRAME_FALLBACK_USABLE_W = 304;
 /** Si el cálculo devuelve 0 con slots, forzar tamaño mínimo (Safari / flex raro). */
 const WIREFRAME_MIN_BUBBLE_WHEN_SLOTS = 48;
-
-const STAR_PATH =
-  'M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z';
-
-function WireRatingStars({ rating, size, color }: { rating: number; size: number; color: string }) {
-  const clipUid = useId().replace(/:/g, '');
-  const r = Math.max(0, Math.min(5, Number(rating) || 0));
-  const gap = Math.max(1, Math.round(size * 0.12));
-  return (
-    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap }}>
-      {[1, 2, 3, 4, 5].map((i) => {
-        const threshold = i;
-        let mode: 'full' | 'half' | 'empty' = 'empty';
-        if (r >= threshold) mode = 'full';
-        else if (r >= threshold - 0.5) mode = 'half';
-        const hid = `${clipUid}-h${i}`;
-        return (
-          <div key={i} style={{ position: 'relative', width: size, height: size }}>
-            <svg width={size} height={size} viewBox="0 0 24 24" style={{ display: 'block' }}>
-              <path d={STAR_PATH} fill="none" stroke={color} strokeWidth={1.2} opacity={0.35} />
-            </svg>
-            {mode === 'full' ? (
-              <svg
-                width={size}
-                height={size}
-                viewBox="0 0 24 24"
-                style={{ position: 'absolute', left: 0, top: 0, display: 'block' }}
-              >
-                <path d={STAR_PATH} fill={color} />
-              </svg>
-            ) : mode === 'half' ? (
-              <svg
-                width={size}
-                height={size}
-                viewBox="0 0 24 24"
-                style={{ position: 'absolute', left: 0, top: 0, display: 'block' }}
-              >
-                <defs>
-                  <clipPath id={hid}>
-                    <rect x="0" y="0" width="12" height="24" />
-                  </clipPath>
-                </defs>
-                <path d={STAR_PATH} fill={color} clipPath={`url(#${hid})`} />
-              </svg>
-            ) : null}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 function compactSlotLabel(label: string): string {
   return String(label || '')
@@ -270,7 +219,6 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
     : '';
 
   const reviewCount = Math.max(0, Math.floor(card.totalRatings ?? 0));
-  const ratingVal = reviewCount > 0 ? Math.max(0, Math.min(5, Number(card.ratingAvg ?? 5))) : 0;
 
   const bg = theme.background;
   const bd = theme.border;
@@ -358,7 +306,7 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
       </div>
     ) : null;
 
-  const statsBlock = (starSize: number, captionSize: number, statsSize: number) => (
+  const statsBlock = (_starSize: number, captionSize: number, statsSize: number) => (
     <div
       style={{
         display: 'flex',
@@ -373,20 +321,16 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
         marginTop: 6,
       }}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flex: 1, minWidth: 0 }}>
-        <WireRatingStars rating={ratingVal} size={starSize} color={theme.icon.color} />
-        <span
-          style={{
-            color: theme.extraText.color,
-            fontSize: captionSize,
-            fontWeight: theme.extraText.fontWeight,
-            fontStyle: theme.extraText.fontStyle,
-            textAlign: 'center',
-          }}
-        >
-          {ratingVal.toFixed(1)} · {reviewCount} {tr('reseñas', 'reviews')}
-        </span>
-      </div>
+      <span
+        style={{
+          color: theme.extraText.color,
+          fontSize: captionSize,
+          fontWeight: theme.extraText.fontWeight,
+          fontStyle: theme.extraText.fontStyle,
+        }}
+      >
+        {reviewCount} {tr('calificaciones', 'ratings')}
+      </span>
       <div
         style={{
           display: 'inline-flex',

@@ -1,23 +1,25 @@
+import {
+    dismissPremiumDataPanel,
+    type PremiumDataPanelPayload,
+    subscribePremiumDataPanel,
+} from '@/services/premiumDataPanelController';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Animated,
-  Dimensions,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Animated,
+    BackHandler,
+    Dimensions,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  dismissPremiumDataPanel,
-  type PremiumDataPanelPayload,
-  subscribePremiumDataPanel,
-} from '@/services/premiumDataPanelController';
+import { FullWindowOverlay } from 'react-native-screens';
 
 const ACCENT = '#C9A227';
 const SHEET_BG = '#101014';
@@ -78,19 +80,24 @@ export default function PremiumDataPanelHost() {
   const showCopy = !p?.hideCopy && Boolean(copySource.trim());
   const backdropDismiss = !p || p.dismissOnBackdropPress !== false;
 
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      onRequestClose={backdropDismiss ? close : () => {}}
-      statusBarTranslucent
-    >
-      <View style={styles.root}>
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={backdropDismiss ? close : undefined}
-        />
+  // Android hardware back button
+  useEffect(() => {
+    if (!visible) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (backdropDismiss) { close(); return true; }
+      return false;
+    });
+    return () => sub.remove();
+  }, [visible, backdropDismiss, close]);
+
+  if (!visible) return null;
+
+  const content = (
+    <View style={styles.root}>
+      <Pressable
+        style={StyleSheet.absoluteFill}
+        onPress={backdropDismiss ? close : undefined}
+      />
         <Animated.View
           style={[
             styles.sheet,
@@ -204,16 +211,24 @@ export default function PremiumDataPanelHost() {
             </>
           ) : null}
         </Animated.View>
-      </View>
-    </Modal>
+    </View>
   );
+
+  // iOS: FullWindowOverlay crea un UIWindow nativo encima de TODOS los Modal.
+  // Android: View absoluta es suficiente (los Modal nativos no bloquean z-index).
+  if (Platform.OS === 'ios') {
+    return <FullWindowOverlay>{content}</FullWindowOverlay>;
+  }
+  return content;
 }
 
 const styles = StyleSheet.create({
   root: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(0,0,0,0.55)',
+    zIndex: 99999,
+    elevation: 99999,
   },
   sheet: {
     backgroundColor: SHEET_BG,

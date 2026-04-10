@@ -797,19 +797,6 @@ export default function SearchScreen() {
                 backgroundColor: 'transparent',
               };
 
-      const starsEl = (
-        <View style={styles.mrStarRow}>
-          {Array.from({ length: 5 }).map((_, index) => {
-            const r = Math.max(0, Math.min(5, rating));
-            const threshold = index + 1;
-            let name: 'star' | 'star-half-full' | 'star-outline' = 'star-outline';
-            if (r >= threshold) name = 'star';
-            else if (r >= threshold - 0.5) name = 'star-half-full';
-            return <MaterialCommunityIcons key={index} name={name} size={12} color={shell.ctaAccent} />;
-          })}
-        </View>
-      );
-
       const facets = item.receivedContactFacets || [];
 
       return (
@@ -891,22 +878,6 @@ export default function SearchScreen() {
                     {cardTitle}
                   </Text>
                   <View style={styles.mrRowStatsRow}>
-                    <View style={styles.mrRatingCluster}>
-                      {starsEl}
-                      <Text
-                        style={[
-                          styles.mrRatingCaption,
-                          {
-                            color: chest.extraColor,
-                            fontSize: chest.extraFontSize,
-                            fontWeight: chest.extraFontWeight,
-                            fontStyle: chest.extraFontStyle,
-                          },
-                        ]}
-                      >
-                        {rating.toFixed(1)} · {reviewCount} {tr('reseñas', 'reviews')}
-                      </Text>
-                    </View>
                     {showMiles && milesLabel ? (
                       <View style={[styles.mrDistancePill, { backgroundColor: 'rgba(255,255,255,0.72)', borderColor: chest.borderColor }]}>
                         <MaterialCommunityIcons name="map-marker-radius-outline" size={11} color={chest.titleColor} />
@@ -1135,26 +1106,6 @@ export default function SearchScreen() {
                   {card.ownerName?.trim() || card.businessDescription || ''}
                 </Text>
                 <View style={styles.mrRowStatsRow}>
-                  <View style={styles.mrRatingCluster}>
-                    <View style={styles.mrStarRow}>
-                      {Array.from({ length: 5 }).map((_, index) => {
-                        const r = Math.max(0, Math.min(5, rating));
-                        const threshold = index + 1;
-                        let name: 'star' | 'star-half-full' | 'star-outline' = 'star-outline';
-                        if (r >= threshold) name = 'star';
-                        else if (r >= threshold - 0.5) name = 'star-half-full';
-                        return <MaterialCommunityIcons key={index} name={name} size={12} color={shell.ctaAccent} />;
-                      })}
-                    </View>
-                    <Text
-                      style={[
-                        styles.mrRatingCaption,
-                        { color: chest.extraColor, fontWeight: chest.extraFontWeight, fontStyle: chest.extraFontStyle },
-                      ]}
-                    >
-                      {rating.toFixed(1)} · {reviewCount} {tr('reseñas', 'reviews')}
-                    </Text>
-                  </View>
                   {showMiles && milesLabel ? (
                     <View style={[styles.mrDistancePill, { backgroundColor: 'rgba(255,255,255,0.72)', borderColor: chest.borderColor }]}>
                       <MaterialCommunityIcons name="map-marker-radius-outline" size={11} color={chest.titleColor} />
@@ -1326,6 +1277,7 @@ export default function SearchScreen() {
           receivedCardDetail?.card?.businessName ||
           undefined
         }
+        ratingCardType='smart'
       />
 
       <MyCardsPreviewModal
@@ -1349,6 +1301,7 @@ export default function SearchScreen() {
           receiverUid: viewerUid ?? '',
           onSuccess: closeMarketCardDetail,
         } : null}
+        ratingCardType='business'
       />
 
       <Modal
