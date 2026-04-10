@@ -2,13 +2,13 @@
  * Balance de créditos en el menú — sin caja clara; colores desde `palette` / modo.
  */
 
-import palette from '../app/theme';
 import { getUserCreditsBalance } from '@/services/creditsService';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import palette from '../app/theme';
 
 interface CreditsIndicatorProps {
   userId: string;
@@ -33,6 +33,7 @@ export const CreditsIndicator: React.FC<CreditsIndicatorProps> = ({ userId, refr
   const [creditsBalance, setCreditsBalance] = useState<number>(0);
 
   useEffect(() => {
+    if (!userId) return;
     const fetchCredits = async () => {
       try {
         const balance = await getUserCreditsBalance(userId);

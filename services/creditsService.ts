@@ -8,8 +8,8 @@
  * Zero-Balance: Nuevo usuario comienza con 0 CS
  */
 
-import { doc, getDoc, updateDoc, increment, serverTimestamp, setDoc, collection, addDoc } from 'firebase/firestore';
 import { db } from '@/services/firebaseConfig';
+import { addDoc, collection, doc, getDoc, increment, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 
 export interface UserCreditsState {
   userId: string;
@@ -71,6 +71,7 @@ export async function initializeUserCredits(userId: string): Promise<void> {
  */
 export async function getUserCreditsBalance(userId: string): Promise<number> {
   try {
+    if (!userId) return 0;
     const userCreditsRef = doc(db, `users/${userId}/credits/balance`);
     const snapshot = await getDoc(userCreditsRef);
 

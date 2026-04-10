@@ -2,15 +2,20 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
 import * as FileSystem from 'expo-file-system';
+import { Image as ExpoImage } from 'expo-image';
 import * as LocalAuthentication from 'expo-local-authentication';
 // expo-notifications is imported lazily below to avoid a crash on Android (Expo Go)
 // where the module calls addPushTokenListener at module-load time.
+import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
+import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
+import { useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
+import { signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import React, { useMemo } from 'react';
-import { ActivityIndicator, Alert, Linking, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { auth, db } from '../services/firebaseConfig';
 import palette from './theme';
 
@@ -18,6 +23,9 @@ export default function SettingsScreen() {
   const { resolvedMode } = useLookMode();
   const isDark = resolvedMode === 'noche';
   const shell = palette[isDark ? 'dark' : 'light'];
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => (language === 'en' ? en : es);
+  const router = useRouter();
 
   const styles = useMemo(
     () =>
@@ -175,30 +183,62 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleClearCache = async () => {
-    setIsClearingCache(true);
-    try {
-      // @ts-expect-error: Propiedad no tipada pero existe en runtime
-      const cacheDir = FileSystem.cacheDirectory;
-      if (Platform.OS === 'web' || !cacheDir) {
-        Alert.alert(
-          'No disponible',
-          'Limpiar cache solo está disponible en dispositivos nativos (iOS/Android).'
-        );
-        return;
-      }
-      const files = await FileSystem.readDirectoryAsync(cacheDir);
-      for (const file of files) {
-        const fileUri = cacheDir + file;
-        await FileSystem.deleteAsync(fileUri, { idempotent: true });
-      }
-      Alert.alert('Éxito', 'El cache se ha limpiado correctamente. Tu aplicación ahora es más rápida.');
-    } catch (error) {
-      console.error('Error al limpiar cache:', error);
-      Alert.alert('Error', 'No se pudo limpiar el cache. Intenta nuevamente.');
-    } finally {
-      setIsClearingCache(false);
-    }
+  const handleClearCache = () => {
+    Alert.alert(
+      tr('¿Limpiar caché?', 'Clear Cache?'),
+      tr(
+        'Esto borrará todos los datos locales, preferencias e imágenes cacheadas, y cerrará tu sesión.',
+        'This will erase all local data, preferences and cached images, and sign you out.',
+      ),
+      [
+        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+        {
+          text: tr('Limpiar y salir', 'Clear & Sign out'),
+          style: 'destructive',
+          onPress: async () => {
+            setIsClearingCache(true);
+            // Capture uid before any clearing (auth.currentUser could be null after)
+            const uid = auth.currentUser?.uid ?? null;
+            try {
+              // 1. Expo-image: clear disk + memory image caches (best-effort)
+              await Promise.allSettled([
+                ExpoImage.clearDiskCache(),
+                ExpoImage.clearMemoryCache(),
+              ]);
+
+              // 2. FileSystem cache directory (best-effort)
+              const cacheDir = FileSystem.cacheDirectory;
+              if (cacheDir) {
+                try {
+                  const files = await FileSystem.readDirectoryAsync(cacheDir);
+                  await Promise.allSettled(
+                    files.map((f) => FileSystem.deleteAsync(cacheDir + f, { idempotent: true }))
+                  );
+                } catch { /* cacheDir vacío o no accesible */ }
+              }
+
+              // 3. AsyncStorage: clear all local preferences + bunker cache (best-effort)
+              try { await AsyncStorage.clear(); } catch { /* ignore */ }
+            } catch { /* ignore partial failures */ }
+
+            // 4. Sign out — always runs regardless of cache clearing errors
+            try {
+              await clearLocalCachesForSignOut(uid);
+              await signOut(auth);
+            } catch (e: any) {
+              console.error('Sign out error:', e);
+              Alert.alert(
+                'Error',
+                tr('No se pudo cerrar la sesión. Intenta de nuevo.', 'Could not sign out. Try again.'),
+              );
+            } finally {
+              setIsClearingCache(false);
+              router.replace('/');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleExportData = async () => {
