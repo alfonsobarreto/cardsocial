@@ -80,7 +80,7 @@ export default function PublicLegalFooter({ locale, accentColor, background }: P
     marginTop: 20,
     paddingTop: 14,
     textAlign: 'center',
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: 300,
     lineHeight: 1.5,
     color: accentColor,
