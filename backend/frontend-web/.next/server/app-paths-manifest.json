@@ -1,0 +1,9 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/page": "app/page.js",
+  "/u/[token]/page": "app/u/[token]/page.js",
+  "/legal/about/page": "app/legal/about/page.js",
+  "/legal/terminos/page": "app/legal/terminos/page.js",
+  "/legal/uso/page": "app/legal/uso/page.js",
+  "/legal/privacidad/page": "app/legal/privacidad/page.js"
+}
