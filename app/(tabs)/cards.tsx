@@ -12,6 +12,7 @@ import { IsolatedWireframeCard, type WireframeEditSlot } from '@/components/smar
 import { WireframeSlotTile } from '@/components/smartCard/WireframeSlotTile';
 import { getWireframeIconRowPlan } from '@/components/smartCard/wireframeMath';
 import {
+    renderWireframeDetailedRatingStars,
     renderWireframeMiniIcon,
 } from '@/components/smartCard/wireframeMirrorRendering';
 import { isGhostLinkVaultType } from '@/constants/ghostLinkVault';
@@ -1633,7 +1634,7 @@ export default function CardsFactoryScreen() {
             layout: 'vertical',
             themeId: row.themeId || 'deep_teal',
             ownerDisplayName: row.ownerName || undefined,
-            ownerNickname: row.ownerName || undefined,
+            ownerNickname: undefined,
             ownerPhotoUrl: row.businessLogo ? toRenderableImageUri(row.businessLogo) : null,
             itemIds: row.vaultLinkIds,
             publicCardSlots,
@@ -2131,8 +2132,8 @@ export default function CardsFactoryScreen() {
             <MaterialCommunityIcons name="account" size={compact ? 22 : 32} color="#0D4D8A" />
           </View>
         )}
-        <AutoScaleText style={compact ? styles.wireNameSm : styles.wireName}>{cardTitle}</AutoScaleText>
-        <AutoScaleText style={compact ? styles.wireNickSm : styles.wireNick}>@{nickname}</AutoScaleText>
+        <AutoScaleText style={compact ? styles.wireNameSm : styles.wireName}>{(selectedCard?.name || previewCard?.name || cardName || 'Nueva Tarjeta').trim()}</AutoScaleText>
+        <AutoScaleText style={compact ? styles.wireNickSm : styles.wireNick}>@{(ownerNickname || 'user').toLowerCase()}</AutoScaleText>
         <View style={styles.wireStatsRowInline}>
           <View style={styles.wireUsersPill}>
             <MaterialCommunityIcons name="account-outline" size={capSize} color="#0A2540" />

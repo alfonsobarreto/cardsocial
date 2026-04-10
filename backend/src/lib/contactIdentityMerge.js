@@ -52,7 +52,7 @@ function mergeContactProfileFromCard(profile, uid, cardDoc) {
         ? String(cardNick).toLowerCase().replace(/\s+/g, '_')
         : String(display).toLowerCase().replace(/\s+/g, '_');
     } else if (cardNick) {
-      name = cardNick;
+      // Only use cardNick as the nickname, never promote it to display name
       nickname = String(cardNick).toLowerCase().replace(/\s+/g, '_');
     }
   }
