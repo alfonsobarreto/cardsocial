@@ -1,17 +1,19 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
 import {
-  PRIVACY_PARAGRAPH_EN,
-  PRIVACY_PARAGRAPH_ES,
-  SUPPORT_MAILTO,
-  TERMS_LINES_EN,
-  TERMS_LINES_ES,
-  USAGE_LINES_EN,
-  USAGE_LINES_ES,
+    ABOUT_LINES_EN,
+    ABOUT_LINES_ES,
+    PRIVACY_PARAGRAPH_EN,
+    PRIVACY_PARAGRAPH_ES,
+    SUPPORT_MAILTO,
+    TERMS_LINES_EN,
+    TERMS_LINES_ES,
+    USAGE_LINES_EN,
+    USAGE_LINES_ES,
 } from '@/lib/legalContent';
+import React, { useEffect, useState } from 'react';
 
-type ModalKey = 'privacy' | 'terms' | 'usage';
+type ModalKey = 'privacy' | 'terms' | 'usage' | 'about';
 
 type Props = {
   locale: 'es' | 'en';
@@ -62,6 +64,16 @@ export default function PublicLegalFooter({ locale, accentColor, background }: P
         </ul>
       ),
     },
+    about: {
+      title: tr('Acerca de Card-Social', 'About Card-Social'),
+      body: (
+        <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.8 }}>
+          {(locale === 'es' ? ABOUT_LINES_ES : ABOUT_LINES_EN).map((line, i) => (
+            <li key={i}>{line}</li>
+          ))}
+        </ul>
+      ),
+    },
   };
 
   const foot: React.CSSProperties = {
@@ -106,6 +118,10 @@ export default function PublicLegalFooter({ locale, accentColor, background }: P
           {sep}
           <button style={btnStyle} onClick={() => setLegalModal('usage')}>
             {tr('Uso', 'Usage')}
+          </button>
+          {sep}
+          <button style={btnStyle} onClick={() => setLegalModal('about')}>
+            {tr('Acerca de', 'About')}
           </button>
           {sep}
           <a href={SUPPORT_MAILTO} style={{ color: 'inherit', textDecoration: 'underline', textUnderlineOffset: 2 }}>

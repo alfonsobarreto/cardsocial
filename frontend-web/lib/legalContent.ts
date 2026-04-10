@@ -39,3 +39,15 @@ export const PRIVACY_PARAGRAPH_EN =
 
 export const SUPPORT_MAILTO =
   'mailto:soporte@card-social.com?subject=Soporte%20Card-Social';
+
+export const ABOUT_LINES_ES = [
+  'Card-Social nació para devolver al usuario el control total de su información personal y profesional.',
+  'Nuestra misión es reemplazar el intercambio inseguro de datos por accesos inteligentes, verificados y actualizados en tiempo real.',
+  'Confianza, elegancia y simplicidad: esa es la base del diseño y de toda la experiencia de producto.',
+] as const;
+
+export const ABOUT_LINES_EN = [
+  'Card-Social was born to give users full control of their personal and professional information.',
+  'Our mission is to replace insecure data exchange with smart, verified, real-time access.',
+  'Trust, elegance, and simplicity: that is the foundation of the design and the entire product experience.',
+] as const;
