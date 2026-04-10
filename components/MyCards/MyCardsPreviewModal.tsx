@@ -42,13 +42,17 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   Animated,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
-  useWindowDimensions
+  useWindowDimensions,
+  View,
 } from 'react-native';
 
 const INCOMING_BASE_GROUPS = ['Random', 'Family', 'Social', 'Work'];
@@ -140,28 +144,49 @@ export function MyCardsPreviewModal({
   const [receiverAddBusy, setReceiverAddBusy] = useState(false);
   const [receiverGroupSheetOpen, setReceiverGroupSheetOpen] = useState(false);
 
-  /* Already-in-bunker check for business_permanent flow */
+  /* Already-in-bunker check — all incoming modes + receiver variant */
   const [alreadyInBunker, setAlreadyInBunker] = useState(false);
 
+  /* Add-new-group inline (dentro del sheet, sin modal separado) */
+  const preLoadedGroupRef = useRef<string>('');
+  const [newGroupInput, setNewGroupInput] = useState('');
+  const [isAddingIncomingGroup, setIsAddingIncomingGroup] = useState(false);
+  const [isAddingReceiverGroup, setIsAddingReceiverGroup] = useState(false);
+
   useEffect(() => {
-    if (!visible || variant !== 'incoming' || incomingRedeem?.mode !== 'business_permanent') {
-      setAlreadyInBunker(false);
-      return;
+    if (!visible) { setAlreadyInBunker(false); return; }
+    let ownerUid = '';
+    let cardId = '';
+    if (variant === 'incoming' && incomingRedeem?.ownerUid && incomingRedeem?.cardId) {
+      ownerUid = incomingRedeem.ownerUid;
+      cardId = incomingRedeem.cardId;
+    } else if (variant === 'receiver' && ghostTargetUid && sourceCardId) {
+      ownerUid = ghostTargetUid;
+      cardId = sourceCardId;
     }
-    const { ownerUid, cardId } = incomingRedeem;
     if (!ownerUid || !cardId) { setAlreadyInBunker(false); return; }
     void (async () => {
       try {
         const raw = await AsyncStorage.getItem(CONTACT_META_STORAGE_KEY);
         if (!raw) { setAlreadyInBunker(false); return; }
-        const map = JSON.parse(raw) as Record<string, unknown>;
+        const map = JSON.parse(raw) as Record<string, { group?: string } | unknown>;
         const key = receivedContactMergeKey({ uid: ownerUid, cardId });
-        setAlreadyInBunker(key in map);
+        const isIn = key in map;
+        setAlreadyInBunker(isIn);
+        // Pre-load the stored group so the dropdown shows the correct current value
+        if (isIn) {
+          const meta = map[key] as { group?: string } | undefined;
+          if (meta?.group) {
+            preLoadedGroupRef.current = meta.group;
+            if (variant === 'incoming') setIncomingGroup(meta.group);
+            else setReceiverGroup(meta.group);
+          }
+        }
       } catch {
         setAlreadyInBunker(false);
       }
     })();
-  }, [visible, variant, incomingRedeem]);
+  }, [visible, variant, incomingRedeem, ghostTargetUid, sourceCardId]);
 
   const handleClose = useCallback(() => {
     onClose();
@@ -176,6 +201,9 @@ export function MyCardsPreviewModal({
     if (!visible) {
       setGroupSheetOpen(false);
       setReceiverGroupSheetOpen(false);
+      setIsAddingIncomingGroup(false);
+      setIsAddingReceiverGroup(false);
+      setNewGroupInput('');
     }
   }, [visible]);
 
@@ -189,9 +217,11 @@ export function MyCardsPreviewModal({
         if (!uid || cancelled) return;
         const g = await fetchBunkerGroups(uid, language);
         if (!cancelled) {
-          const list = Array.isArray(g) && g.length > 0 ? g : INCOMING_BASE_GROUPS;
+          const base = Array.isArray(g) && g.length > 0 ? g : INCOMING_BASE_GROUPS;
+          const preLoaded = preLoadedGroupRef.current;
+          const list = preLoaded && !base.includes(preLoaded) ? [...base, preLoaded] : base;
           setReceiverGroups(list);
-          setReceiverGroup((prev) => (list.includes(prev) ? prev : 'Random'));
+          setReceiverGroup((prev) => (list.includes(prev) ? prev : (list[0] ?? 'Random')));
         }
       } catch {
         if (!cancelled) {
@@ -238,21 +268,21 @@ export function MyCardsPreviewModal({
   }, [variant, ghostTargetUid, sourceCardId, receiverGroup, language, payload?.themeId, tr, handleClose]);
 
   useEffect(() => {
-    if (variant !== 'incoming' || !visible || incomingRedeem?.mode !== 'business_permanent') {
-      return;
-    }
-    if (!incomingRedeem.ownerUid || !incomingRedeem.cardId) return;
+    if (variant !== 'incoming' || !visible) return;
+    if (!incomingRedeem?.ownerUid || !incomingRedeem?.cardId) return;
     let cancelled = false;
     void (async () => {
       try {
-        // Use getActiveUserId() directly — receiverUid prop may arrive empty on first render.
         const selfUid = await getActiveUserId();
         if (!selfUid || cancelled) return;
         const g = await fetchBunkerGroups(selfUid, language);
         if (!cancelled) {
-          const list = Array.isArray(g) && g.length > 0 ? g : INCOMING_BASE_GROUPS;
+          const base = Array.isArray(g) && g.length > 0 ? g : INCOMING_BASE_GROUPS;
+          const preLoaded = preLoadedGroupRef.current;
+          const list = preLoaded && !base.includes(preLoaded) ? [...base, preLoaded] : base;
           setIncomingGroups(list);
-          setIncomingGroup((prev) => (list.includes(prev) ? prev : 'Random'));
+          // Always preserve the pre-loaded group from meta
+          setIncomingGroup((prev) => (list.includes(prev) ? prev : (list[0] ?? 'Random')));
         }
       } catch {
         if (!cancelled) {
@@ -261,10 +291,72 @@ export function MyCardsPreviewModal({
         }
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [variant, visible, incomingRedeem?.ownerUid, incomingRedeem?.cardId, language]);
+
+  /* Cambiar grupo de una tarjeta ya existente en el Búnker (Caso 2 y Caso 3) */
+  const handleChangeGroup = useCallback(async () => {
+    let ownerUid = '';
+    let cardId = '';
+    let group = incomingGroup;
+    if (variant === 'incoming' && incomingRedeem) {
+      ownerUid = incomingRedeem.ownerUid;
+      cardId = incomingRedeem.cardId;
+      group = incomingGroup;
+    } else if (variant === 'receiver' && ghostTargetUid && sourceCardId) {
+      ownerUid = ghostTargetUid;
+      cardId = sourceCardId;
+      group = receiverGroup;
+    }
+    if (!ownerUid || !cardId) { handleClose(); return; }
+    if (variant === 'incoming') setIncomingBusy(true);
+    else setReceiverAddBusy(true);
+    try {
+      await seedMetaForIncomingCard({
+        issuerUid: ownerUid,
+        cardId,
+        group,
+        scanThemeId: payload?.themeId?.trim() ? payload.themeId : null,
+      });
+      try {
+        const uid = await getActiveUserId();
+        if (uid) await trackBunkerGroupUsage({ viewerUid: uid, groupName: group, locale: language === 'en' ? 'en' : 'es' });
+      } catch { /* non-blocking */ }
+      if (variant === 'incoming' && incomingRedeem?.onSuccess) {
+        incomingRedeem.onSuccess();
+      }
+      handleClose();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : tr('Intenta de nuevo.', 'Try again.');
+      Alert.alert(tr('Error', 'Error'), msg);
+    } finally {
+      if (variant === 'incoming') setIncomingBusy(false);
+      else setReceiverAddBusy(false);
+    }
+  }, [variant, incomingRedeem, ghostTargetUid, sourceCardId, incomingGroup, receiverGroup, language, payload?.themeId, tr, handleClose]);
+
+  const handleAddNewGroup = useCallback(async (target: 'incoming' | 'receiver') => {
+    const trimmed = newGroupInput.trim();
+    if (!trimmed) return;
+    if (target === 'incoming') {
+      setIncomingGroups((prev) => Array.from(new Set([...prev, trimmed])));
+      setIncomingGroup(trimmed);
+      setIsAddingIncomingGroup(false);
+      setGroupSheetOpen(false);
+    } else {
+      setReceiverGroups((prev) => Array.from(new Set([...prev, trimmed])));
+      setReceiverGroup(trimmed);
+      setIsAddingReceiverGroup(false);
+      setReceiverGroupSheetOpen(false);
+    }
+    setNewGroupInput('');
+    const uid = await getActiveUserId();
+    if (uid) {
+      try {
+        await trackBunkerGroupUsage({ viewerUid: uid, groupName: trimmed, locale: language === 'en' ? 'en' : 'es' });
+      } catch { /* non-blocking */ }
+    }
+  }, [newGroupInput, language]);
 
   const handleIncomingAccept = useCallback(async () => {
     const r = incomingRedeem;
@@ -415,7 +507,7 @@ export function MyCardsPreviewModal({
   const footerVariant = variant === 'incoming' ? 'incoming' : variant;
 
   const incomingAccessory =
-    variant === 'incoming' && !alreadyInBunker ? (
+    variant === 'incoming' ? (
       <>
         <TouchableOpacity
           style={[incomingStyles.groupChip, { borderColor: `${accent}55` }]}
@@ -434,9 +526,20 @@ export function MyCardsPreviewModal({
           visible={groupSheetOpen}
           transparent
           animationType="fade"
-          onRequestClose={() => setGroupSheetOpen(false)}
+          onRequestClose={() => {
+            setGroupSheetOpen(false);
+            setIsAddingIncomingGroup(false);
+            setNewGroupInput('');
+          }}
         >
-          <Pressable style={incomingStyles.sheetBackdrop} onPress={() => setGroupSheetOpen(false)}>
+          <Pressable
+            style={incomingStyles.sheetBackdrop}
+            onPress={() => {
+              setGroupSheetOpen(false);
+              setIsAddingIncomingGroup(false);
+              setNewGroupInput('');
+            }}
+          >
             <Pressable
               style={[incomingStyles.sheetCard, { backgroundColor: shell.modalBg, borderColor: shell.border }]}
               onPress={(e) => e.stopPropagation()}
@@ -444,29 +547,76 @@ export function MyCardsPreviewModal({
               <Text style={[incomingStyles.sheetTitle, { color: shell.textPrimary }]}>
                 {tr('Grupo en el Búnker', 'Bunker group')}
               </Text>
-              <ScrollView style={incomingStyles.sheetList} keyboardShouldPersistTaps="handled">
-                {incomingGroups.map((g) => (
+              {isAddingIncomingGroup ? (
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+                  <View style={incomingStyles.inlineAddContainer}>
+                    <TextInput
+                      style={[
+                        incomingStyles.inlineAddInput,
+                        { color: shell.textPrimary, borderColor: shell.border, backgroundColor: shell.surfaceMuted },
+                      ]}
+                      placeholder={tr('Nombre del grupo', 'Group name')}
+                      placeholderTextColor={shell.textSecondary}
+                      value={newGroupInput}
+                      onChangeText={setNewGroupInput}
+                      maxLength={40}
+                      autoFocus
+                      returnKeyType="done"
+                      onSubmitEditing={() => void handleAddNewGroup('incoming')}
+                    />
+                    <View style={incomingStyles.inlineAddActions}>
+                      <TouchableOpacity
+                        style={incomingStyles.inlineAddCancel}
+                        onPress={() => { setIsAddingIncomingGroup(false); setNewGroupInput(''); }}
+                      >
+                        <Text style={{ color: shell.textSecondary, fontWeight: '600' }}>{tr('Cancelar', 'Cancel')}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[incomingStyles.inlineAddSave, { backgroundColor: newGroupInput.trim() ? accent : `${accent}55` }]}
+                        onPress={() => void handleAddNewGroup('incoming')}
+                        disabled={!newGroupInput.trim()}
+                      >
+                        <Text style={{ color: '#fff', fontWeight: '700' }}>{tr('Guardar', 'Save')}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </KeyboardAvoidingView>
+              ) : (
+                <>
+                  <ScrollView style={incomingStyles.sheetList} keyboardShouldPersistTaps="handled">
+                    {incomingGroups.map((g) => (
+                      <TouchableOpacity
+                        key={g}
+                        style={incomingStyles.sheetRow}
+                        onPress={() => {
+                          setIncomingGroup(g);
+                          setGroupSheetOpen(false);
+                        }}
+                      >
+                        <Text style={[incomingStyles.sheetRowText, { color: shell.textPrimary }]}>{g}</Text>
+                        {incomingGroup === g ? (
+                          <MaterialCommunityIcons name="check" size={20} color={accent} />
+                        ) : null}
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
                   <TouchableOpacity
-                    key={g}
-                    style={incomingStyles.sheetRow}
-                    onPress={() => {
-                      setIncomingGroup(g);
-                      setGroupSheetOpen(false);
-                    }}
+                    style={[incomingStyles.sheetAddNewRow, { borderColor: shell.border }]}
+                    onPress={() => { setIsAddingIncomingGroup(true); setNewGroupInput(''); }}
                   >
-                    <Text style={[incomingStyles.sheetRowText, { color: shell.textPrimary }]}>{g}</Text>
-                    {incomingGroup === g ? (
-                      <MaterialCommunityIcons name="check" size={20} color={accent} />
-                    ) : null}
+                    <MaterialCommunityIcons name="plus-circle-outline" size={18} color={accent} />
+                    <Text style={[incomingStyles.sheetAddNewText, { color: accent }]}>
+                      {tr('Agregar nuevo grupo', 'Add new group')}
+                    </Text>
                   </TouchableOpacity>
-                ))}
-              </ScrollView>
-              <TouchableOpacity
-                style={[incomingStyles.sheetDone, { borderColor: shell.border }]}
-                onPress={() => setGroupSheetOpen(false)}
-              >
-                <Text style={{ color: shell.textPrimary, fontWeight: '600' }}>{tr('Listo', 'Done')}</Text>
-              </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[incomingStyles.sheetDone, { borderColor: shell.border }]}
+                    onPress={() => setGroupSheetOpen(false)}
+                  >
+                    <Text style={{ color: shell.textPrimary, fontWeight: '600' }}>{tr('Listo', 'Done')}</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </Pressable>
           </Pressable>
         </Modal>
@@ -493,9 +643,20 @@ export function MyCardsPreviewModal({
           visible={receiverGroupSheetOpen}
           transparent
           animationType="fade"
-          onRequestClose={() => setReceiverGroupSheetOpen(false)}
+          onRequestClose={() => {
+            setReceiverGroupSheetOpen(false);
+            setIsAddingReceiverGroup(false);
+            setNewGroupInput('');
+          }}
         >
-          <Pressable style={incomingStyles.sheetBackdrop} onPress={() => setReceiverGroupSheetOpen(false)}>
+          <Pressable
+            style={incomingStyles.sheetBackdrop}
+            onPress={() => {
+              setReceiverGroupSheetOpen(false);
+              setIsAddingReceiverGroup(false);
+              setNewGroupInput('');
+            }}
+          >
             <Pressable
               style={[incomingStyles.sheetCard, { backgroundColor: shell.modalBg, borderColor: shell.border }]}
               onPress={(e) => e.stopPropagation()}
@@ -503,29 +664,76 @@ export function MyCardsPreviewModal({
               <Text style={[incomingStyles.sheetTitle, { color: shell.textPrimary }]}>
                 {tr('Grupo en el Búnker', 'Bunker group')}
               </Text>
-              <ScrollView style={incomingStyles.sheetList} keyboardShouldPersistTaps="handled">
-                {receiverGroups.map((g) => (
+              {isAddingReceiverGroup ? (
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+                  <View style={incomingStyles.inlineAddContainer}>
+                    <TextInput
+                      style={[
+                        incomingStyles.inlineAddInput,
+                        { color: shell.textPrimary, borderColor: shell.border, backgroundColor: shell.surfaceMuted },
+                      ]}
+                      placeholder={tr('Nombre del grupo', 'Group name')}
+                      placeholderTextColor={shell.textSecondary}
+                      value={newGroupInput}
+                      onChangeText={setNewGroupInput}
+                      maxLength={40}
+                      autoFocus
+                      returnKeyType="done"
+                      onSubmitEditing={() => void handleAddNewGroup('receiver')}
+                    />
+                    <View style={incomingStyles.inlineAddActions}>
+                      <TouchableOpacity
+                        style={incomingStyles.inlineAddCancel}
+                        onPress={() => { setIsAddingReceiverGroup(false); setNewGroupInput(''); }}
+                      >
+                        <Text style={{ color: shell.textSecondary, fontWeight: '600' }}>{tr('Cancelar', 'Cancel')}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[incomingStyles.inlineAddSave, { backgroundColor: newGroupInput.trim() ? accent : `${accent}55` }]}
+                        onPress={() => void handleAddNewGroup('receiver')}
+                        disabled={!newGroupInput.trim()}
+                      >
+                        <Text style={{ color: '#fff', fontWeight: '700' }}>{tr('Guardar', 'Save')}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </KeyboardAvoidingView>
+              ) : (
+                <>
+                  <ScrollView style={incomingStyles.sheetList} keyboardShouldPersistTaps="handled">
+                    {receiverGroups.map((g) => (
+                      <TouchableOpacity
+                        key={g}
+                        style={incomingStyles.sheetRow}
+                        onPress={() => {
+                          setReceiverGroup(g);
+                          setReceiverGroupSheetOpen(false);
+                        }}
+                      >
+                        <Text style={[incomingStyles.sheetRowText, { color: shell.textPrimary }]}>{g}</Text>
+                        {receiverGroup === g ? (
+                          <MaterialCommunityIcons name="check" size={20} color={accent} />
+                        ) : null}
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
                   <TouchableOpacity
-                    key={g}
-                    style={incomingStyles.sheetRow}
-                    onPress={() => {
-                      setReceiverGroup(g);
-                      setReceiverGroupSheetOpen(false);
-                    }}
+                    style={[incomingStyles.sheetAddNewRow, { borderColor: shell.border }]}
+                    onPress={() => { setIsAddingReceiverGroup(true); setNewGroupInput(''); }}
                   >
-                    <Text style={[incomingStyles.sheetRowText, { color: shell.textPrimary }]}>{g}</Text>
-                    {receiverGroup === g ? (
-                      <MaterialCommunityIcons name="check" size={20} color={accent} />
-                    ) : null}
+                    <MaterialCommunityIcons name="plus-circle-outline" size={18} color={accent} />
+                    <Text style={[incomingStyles.sheetAddNewText, { color: accent }]}>
+                      {tr('Agregar nuevo grupo', 'Add new group')}
+                    </Text>
                   </TouchableOpacity>
-                ))}
-              </ScrollView>
-              <TouchableOpacity
-                style={[incomingStyles.sheetDone, { borderColor: shell.border }]}
-                onPress={() => setReceiverGroupSheetOpen(false)}
-              >
-                <Text style={{ color: shell.textPrimary, fontWeight: '600' }}>{tr('Listo', 'Done')}</Text>
-              </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[incomingStyles.sheetDone, { borderColor: shell.border }]}
+                    onPress={() => setReceiverGroupSheetOpen(false)}
+                  >
+                    <Text style={{ color: shell.textPrimary, fontWeight: '600' }}>{tr('Listo', 'Done')}</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </Pressable>
           </Pressable>
         </Modal>
@@ -549,33 +757,37 @@ export function MyCardsPreviewModal({
         footer={{
           variant: footerVariant,
           closeLabel:
-            variant === 'incoming' && !alreadyInBunker ? tr('Cancelar', 'Cancel') : tr('Cerrar', 'Close'),
+            variant === 'issuer' ? tr('Cerrar', 'Close') : tr('Cancelar', 'Cancel'),
           editLabel:
             variant === 'issuer'
               ? tr('Editar tarjeta', 'Edit card')
               : undefined,
           onClose: handleClose,
           onEditCard: variant === 'issuer' ? onEditCard : undefined,
+          // Caso 1: nuevo → Agregar/Aceptar | Caso 2: ya está → Cambiar Grupo
           acceptLabel:
-            variant === 'incoming' && !alreadyInBunker
-              ? (incomingRedeem?.mode === 'business_permanent'
-                  ? tr('Agregar', 'Add')
-                  : tr('Aceptar', 'Accept'))
+            variant === 'incoming'
+              ? (alreadyInBunker
+                  ? tr('Cambiar Grupo', 'Change Group')
+                  : (incomingRedeem?.mode === 'business_permanent'
+                      ? tr('Agregar', 'Add')
+                      : tr('Aceptar', 'Accept')))
               : undefined,
           onAccept:
-            variant === 'incoming' && !alreadyInBunker ? () => void handleIncomingAccept() : undefined,
+            variant === 'incoming'
+              ? (alreadyInBunker ? () => void handleChangeGroup() : () => void handleIncomingAccept())
+              : undefined,
           acceptBusy: variant === 'incoming' ? incomingBusy : undefined,
 
-          // 👇 AQUÍ ESTÁ EL CAMBIO MÁGICO 👇
+          // Caso 3: ya en contactos → Cambiar Grupo | Social Market nuevo → Agregar
           addLabel:
-            variant === 'receiver'
-              ? tr('Agregar', 'Add')
+            variant === 'receiver' && ghostTargetUid
+              ? (alreadyInBunker ? tr('Cambiar Grupo', 'Change Group') : tr('Agregar', 'Add'))
               : undefined,
           onAdd:
-            variant === 'receiver'
-              ? () => void handleReceiverAdd()
+            variant === 'receiver' && ghostTargetUid
+              ? (alreadyInBunker ? () => void handleChangeGroup() : () => void handleReceiverAdd())
               : undefined,
-          // 👆 FIN DEL CAMBIO 👆
 
           addBusy: receiverAddBusy,
           colors: footerColors,
@@ -622,6 +834,7 @@ export function MyCardsPreviewModal({
           fallbackMutedColor={shell.textSecondary}
         />
       ) : null}
+
     </>
   );
 }
@@ -682,5 +895,46 @@ const incomingStyles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
     borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  sheetAddNewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  sheetAddNewText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  inlineAddContainer: {
+    paddingTop: 4,
+    paddingBottom: 8,
+    paddingHorizontal: 4,
+  },
+  inlineAddInput: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    marginBottom: 12,
+  },
+  inlineAddActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 4,
+  },
+  inlineAddCancel: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  inlineAddSave: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
   },
 });

@@ -4,18 +4,18 @@ import { CARD_THEMES as CHEST_THEMES, getThemeById, TIER_META, type CardTheme as
 import { getActiveUserId } from '@/services/authSession';
 import { generatePermanentBusinessLink } from '@/services/brandedQrService';
 import {
-  createBusinessCard,
-  MAX_BUSINESS_VAULT_DATA_SLOTS,
-  updateBusinessCard,
-  updateBusinessCardMarketVisibility,
-  updateBusinessCardSubscriptionStatus,
+    createBusinessCard,
+    MAX_BUSINESS_VAULT_DATA_SLOTS,
+    updateBusinessCard,
+    updateBusinessCardMarketVisibility,
+    updateBusinessCardSubscriptionStatus,
 } from '@/services/businessCardService';
 import { validateBusinessKeywordList } from '@/services/businessKeywordValidation';
 import {
-  activateOrRenewBusinessLicense,
-  hasActiveBusinessLicense,
+    activateOrRenewBusinessLicense,
+    hasActiveBusinessLicense,
 } from '@/services/businessLicenseService';
-import { db } from '@/services/firebaseConfig';
+import { db, storage } from '@/services/firebaseConfig';
 import { getUserIconVaultMap, type IconVaultEntry } from '@/services/iconVaultService';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
@@ -32,23 +32,24 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
+import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Image,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import Toast from 'react-native-toast-message';
@@ -553,12 +554,18 @@ export default function CreateBusinessCardScreen() {
       }
       const res = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: false,
-        quality: 1,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.85,
+        base64: true,
       });
-      if (res.canceled || !res.assets?.[0]?.uri) return;
-      const square = await cropImageToSquare(res.assets[0].uri);
-      setPendingSquareLogoUri(square);
+      if (res.canceled || !res.assets?.[0]) return;
+      const asset = res.assets[0];
+      // Use base64 data URI for display — works on all platforms regardless of URI type
+      const dataUri = asset.base64
+        ? `data:image/jpeg;base64,${asset.base64}`
+        : asset.uri;
+      setPendingSquareLogoUri(dataUri);
       setUploadedLogoUrl(null);
     } catch (e: any) {
       Alert.alert(tr('Error', 'Error'), e?.message || tr('No se pudo procesar la imagen.', 'Could not process image.'));
@@ -664,20 +671,53 @@ export default function CreateBusinessCardScreen() {
 
   const resolveLogoForSave = async (uid: string): Promise<string> => {
     if (pendingSquareLogoUri) {
-      const optimized = await optimizePhoto(pendingSquareLogoUri);
-      const result = await uploadFileWithModeration({
-        fileUri: optimized,
-        ownerUid: uid,
-        label: 'business_logo',
-        fileName: `business_logo_${uid}_${Date.now()}.jpg`,
-        mimeType: 'image/jpeg',
-      });
-      const url = toRenderableImageUri(result.publicUrl);
-      if (url) {
-        setUploadedLogoUrl(url);
-        setPendingSquareLogoUri(null);
-        return url;
+      // Build a Uint8Array from either a data URI (base64) or a file URI
+      let bytes: Uint8Array;
+      if (pendingSquareLogoUri.startsWith('data:')) {
+        const base64 = pendingSquareLogoUri.replace(/^data:image\/[^;]+;base64,/, '');
+        const binary = atob(base64);
+        bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      } else {
+        // File URI path (fallback) — use FileSystem for reliable binary read
+        const optimized = await optimizePhoto(pendingSquareLogoUri);
+        const b64 = await FileSystem.readAsStringAsync(optimized, {
+          encoding: (FileSystem.EncodingType as any).Base64,
+        });
+        const binary = atob(b64);
+        bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
       }
+
+      // 1. Try moderation API if explicitly configured in env
+      if (process.env.EXPO_PUBLIC_MODERATION_API_URL?.trim()) {
+        try {
+          const result = await uploadFileWithModeration({
+            fileUri: pendingSquareLogoUri,
+            ownerUid: uid,
+            label: 'business_logo',
+            fileName: `business_logo_${uid}_${Date.now()}.jpg`,
+            mimeType: 'image/jpeg',
+          });
+          const url = toRenderableImageUri(result.publicUrl);
+          if (url) {
+            setUploadedLogoUrl(url);
+            setPendingSquareLogoUri(null);
+            return url;
+          }
+        } catch (e: any) {
+          if (e instanceof ModerationRejectedError) throw e;
+          // Moderation API unavailable — fall through to Firebase Storage
+        }
+      }
+
+      // 2. Firebase Storage upload (reliable binary path, no fetch().blob())
+      const logoRef = storageRef(storage, `business_logos/${uid}/${Date.now()}.jpg`);
+      await uploadBytes(logoRef, bytes, { contentType: 'image/jpeg' });
+      const url = await getDownloadURL(logoRef);
+      setUploadedLogoUrl(url);
+      setPendingSquareLogoUri(null);
+      return url;
     }
     return uploadedLogoUrl || profilePhotoUrl || '';
   };
@@ -738,23 +778,17 @@ export default function CreateBusinessCardScreen() {
           setSubmitting(false);
           return;
         }
-        const msg = String(e?.message || '');
-        if (msg.includes('EXPO_PUBLIC_MODERATION')) {
-          businessLogo = profilePhotoUrl || '';
-          if (!businessLogo) {
-            Alert.alert(
-              tr('Subida no disponible', 'Upload unavailable'),
-              tr(
-                'Configura el servicio de moderación o usa foto de perfil.',
-                'Configure the moderation service or use profile photo.',
-              ),
-            );
-            setSubmitting(false);
-            return;
-          }
-        } else {
-          throw e;
-        }
+        // Upload failed — fall back to profile photo so the card can still be saved
+        businessLogo = profilePhotoUrl || '';
+        Toast.show({
+          type: 'error',
+          text1: tr('Logo no subido', 'Logo not uploaded'),
+          text2: tr(
+            'No se pudo subir el logo. Se usará tu foto de perfil. Revisa tu conexión o los permisos de almacenamiento.',
+            'Logo upload failed. Your profile photo will be used. Check your connection or Storage permissions.',
+          ),
+          visibilityTime: 6000,
+        });
       }
 
       const kwTags = kw.ok ? kw.tags : [];
@@ -993,7 +1027,7 @@ export default function CreateBusinessCardScreen() {
               <View style={[styles.previewInner, isDullPreview && styles.previewDullInner]}>
                 <View style={styles.previewRow}>
                   {displayLogoUri ? (
-                    <ExpoImage source={{ uri: displayLogoUri }} style={styles.previewAvatar} cachePolicy="disk" />
+                    <ExpoImage source={{ uri: displayLogoUri }} style={styles.previewAvatar} cachePolicy="memory" />
                   ) : (
                     <View style={[styles.previewAvatar, styles.previewAvatarPh, { borderColor: border }]}>
                       <MaterialCommunityIcons name="storefront-outline" size={32} color={sub} />
@@ -1106,7 +1140,7 @@ export default function CreateBusinessCardScreen() {
           </Text>
           <View style={styles.logoRow}>
             {displayLogoUri ? (
-              <ExpoImage source={{ uri: displayLogoUri }} style={styles.logoThumb} cachePolicy="disk" />
+              <ExpoImage source={{ uri: displayLogoUri }} style={styles.logoThumb} cachePolicy="memory" />
             ) : (
               <View style={[styles.logoThumb, styles.logoThumbPh, { borderColor: border }]}>
                 <MaterialCommunityIcons name="image-outline" size={28} color={sub} />

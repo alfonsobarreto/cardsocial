@@ -4,5 +4,9 @@
     "source.organizeImports": "explicit",
     "source.sortMembers": "explicit"
   },
-  "typescript.tsserver.experimental.enableProjectDiagnostics": false
+  "typescript.tsserver.experimental.enableProjectDiagnostics": false,
+  "typescript.tsserver.watchOptions": {
+    "excludeDirectories": ["**/node_modules"],
+    "excludeFiles": ["**/node_modules/**"]
+  }
 }

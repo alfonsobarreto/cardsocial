@@ -28,7 +28,8 @@
   ],
   "exclude": [
     "node_modules",
-    "backend/node_modules"
+    "backend/node_modules",
+    "**/__tests__/node_modules"
   ],
   "extends": "expo/tsconfig.base"
 }

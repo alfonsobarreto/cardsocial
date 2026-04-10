@@ -317,9 +317,17 @@ export default function SearchScreen() {
   };
 
   const displaySectionBusinesses = useMemo(() => {
-    // 1. ELIMINAR DUPLICADOS: Filtramos los negocios del Market que ya están en Contactos
+    // 1. ELIMINAR DUPLICADOS: Filtramos los negocios del Market que ya están en Contactos.
+    // Los contactos usan card.id = "received-contact:uid:cardId", por eso comparamos
+    // con receivedSourceCardId (el cardId real) vs el Firestore doc id del negocio.
+    const contactCardIds = new Set(
+      sectionContacts.map((c) => c.receivedSourceCardId).filter(Boolean)
+    );
+    // 2. ELIMINAR PROPIAS: No mostrar tarjetas cuyo ownerUid sea el usuario activo.
     const uniqueBusinesses = sectionBusinesses.filter(
-      (business) => !sectionContacts.some((contact) => contact.card.id === business.card.id)
+      (business) =>
+        !contactCardIds.has(business.card.id) &&
+        (viewerUid == null || business.card.ownerUid !== viewerUid)
     );
 
     // 2. APLICAR ORDENAMIENTO (Distancia o Valoración) a la lista limpia
@@ -349,7 +357,7 @@ export default function SearchScreen() {
       const db_ = b.distanceMiles ?? 1e9;
       return da - db_;
     });
-  }, [sectionBusinesses, sectionContacts, marketSortMode]);
+  }, [sectionBusinesses, sectionContacts, marketSortMode, viewerUid]);
 
   const displaySectionContacts = useMemo(() => {
     if (marketSortMode === 'rating') {

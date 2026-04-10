@@ -3,13 +3,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
 import * as FileSystem from 'expo-file-system';
 import * as LocalAuthentication from 'expo-local-authentication';
-import * as Notifications from 'expo-notifications';
+// expo-notifications is imported lazily below to avoid a crash on Android (Expo Go)
+// where the module calls addPushTokenListener at module-load time.
+import { useLookMode } from '@/services/lookMode';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Sharing from 'expo-sharing';
 import { doc, getDoc } from 'firebase/firestore';
 import React, { useMemo } from 'react';
 import { ActivityIndicator, Alert, Linking, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
-import { useLookMode } from '@/services/lookMode';
 import { auth, db } from '../services/firebaseConfig';
 import palette from './theme';
 
@@ -100,6 +101,7 @@ export default function SettingsScreen() {
       try {
         const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
         if (isExpoGo) return;
+        const Notifications = await import('expo-notifications');
         const { status } = await Notifications.getPermissionsAsync();
         setIsNotificationsEnabled(status === 'granted');
       } catch {}
@@ -114,6 +116,7 @@ export default function SettingsScreen() {
       return;
     }
     if (!isNotificationsEnabled) {
+      const Notifications = await import('expo-notifications');
       const { status } = await Notifications.requestPermissionsAsync();
       if (status === 'granted') {
         setIsNotificationsEnabled(true);
