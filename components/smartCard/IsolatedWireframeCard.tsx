@@ -1,3 +1,11 @@
+import { wireframeLayoutStyles as wf } from '@/components/smartCard/wireframeLayoutStyles';
+import {
+    computeStitchWireframeBubbleSide,
+    getWireframeIconRowPlan,
+    WIREFRAME_STITCH_GAP,
+    WIREFRAME_STITCH_HORIZONTAL_INSET,
+    WIREFRAME_STITCH_HORIZONTAL_INSET_PREVIEW,
+} from '@/components/smartCard/wireframeMath';
 import type { CardTheme as ChestCardTheme } from '@/constants/themeChest';
 import { getWallpaperResizeMode } from '@/services/wallpaperService';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -5,14 +13,6 @@ import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import { Animated, Image, Text, View } from 'react-native';
-import {
-  computeStitchWireframeBubbleSide,
-  getWireframeIconRowPlan,
-  WIREFRAME_STITCH_GAP,
-  WIREFRAME_STITCH_HORIZONTAL_INSET,
-  WIREFRAME_STITCH_HORIZONTAL_INSET_PREVIEW,
-} from '@/components/smartCard/wireframeMath';
-import { wireframeLayoutStyles as wf } from '@/components/smartCard/wireframeLayoutStyles';
 
 export type WireframeVaultItem = {
   id: string;
@@ -469,7 +469,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
               {dispName}
             </Text>
             {dispSub ? (
-              <Text style={[{ color: subStyle.color, fontSize: 13 }, thin]} numberOfLines={1}>
+              <Text style={[{ color: subStyle.color, fontSize: 15 }, thin]} numberOfLines={1}>
                 {dispSub}
               </Text>
             ) : null}

@@ -1195,8 +1195,9 @@ function createQrRoutes({ storage }) {
 
       const db = await storage.connect();
       const now = new Date();
+      // Exclude business cards — they are managed separately via /business-cards endpoints.
       const cards = await db.collection('smart_cards').find(
-        { ownerUid },
+        { ownerUid, cardType: { $ne: 'business' } },
         { sort: { updatedAt: -1 } }
       ).toArray();
 
@@ -1286,6 +1287,10 @@ function createQrRoutes({ storage }) {
       // cuando el cliente no lo incluye o lo envía como undefined/null.
       if (req.body?.themeId) {
         setDoc.themeId = String(req.body.themeId).trim();
+      }
+      // cardType: 'business' | 'smart' — solo sobreescribir si el cliente lo envía
+      if (req.body?.cardType === 'business' || req.body?.cardType === 'smart') {
+        setDoc.cardType = req.body.cardType;
       }
       // Incluir si el cliente envía la clave (incl. array vacío). `in` evita fallos raros con hasOwnProperty en body parseado.
       if (req.body != null && 'publicCardSlots' in req.body) {
@@ -1556,6 +1561,7 @@ function createQrRoutes({ storage }) {
                 ownerPhotoUrl: 1,
                 ownerOccupation: 1,
                 publicCardSlots: 1,
+                cardType: 1,
               },
             }
           );
@@ -1612,6 +1618,8 @@ function createQrRoutes({ storage }) {
           ? sanitizePublicCardSlots(cardDocForProfile.publicCardSlots)
           : [];
 
+        const cardType = cardDocForProfile?.cardType === 'business' ? 'business' : 'smart';
+
         contacts.push({
           uid,
           cardId: cardIdForStory || null,
@@ -1643,6 +1651,7 @@ function createQrRoutes({ storage }) {
           enableParallax,
           itemIds,
           cardUpdatedAt,
+          cardType,
         });
       }
 

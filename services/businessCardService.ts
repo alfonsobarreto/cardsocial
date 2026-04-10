@@ -3,6 +3,8 @@
  * Maneja creación, búsqueda y gestión de tarjetas de negocio
  */
 
+import { normalizeMaterialIconName } from '@/app/components/iconNameValidation';
+import { activateOrRenewBusinessLicense } from '@/services/businessLicenseService';
 import { db } from '@/services/firebaseConfig';
 import { newEntityId } from '@/services/newEntityId';
 import {
@@ -32,10 +34,10 @@ export const MAX_BUSINESS_VAULT_DATA_SLOTS = 12;
 async function resolveMarketFacets(
   ownerUid: string,
   linkIds: string[],
-): Promise<Array<{ type: string; label: string; value: string }>> {
+): Promise<Array<{ type: string; label: string; value: string; iconName?: string }>> {
   const unique = [...new Set(linkIds.filter(Boolean))].slice(0, MAX_BUSINESS_VAULT_DATA_SLOTS);
   if (!unique.length) return [];
-  const facets: Array<{ type: string; label: string; value: string }> = [];
+  const facets: Array<{ type: string; label: string; value: string; iconName?: string }> = [];
 
   // Per-link timeout (3 s) so a single slow doc never blocks the others.
   const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T | null> =>
@@ -55,8 +57,15 @@ async function resolveMarketFacets(
             const type = String(row.type ?? '').trim();
             const label = String(row.title ?? row.label ?? type).trim();
             const value = String(row.value ?? '').trim();
+            // Priority: iconName field → icon field (if non-HTTP = material icon name)
+            // Validate against MCI glyphMap so only real icon names are stored.
+            const iconNameRaw = row.iconName != null ? String(row.iconName).trim() : '';
+            const iconFieldRaw = row.icon != null ? String(row.icon).trim() : '';
+            const rawCandidate = iconNameRaw
+              || (!iconFieldRaw.startsWith('http') && iconFieldRaw ? iconFieldRaw : '');
+            const iconName = rawCandidate ? normalizeMaterialIconName(rawCandidate, '') : '';
             if (value) {
-              facets.push({ type: type || 'otro', label: label || type || 'Dato', value });
+              facets.push({ type: type || 'otro', label: label || type || 'Dato', value, ...(iconName ? { iconName } : {}) });
             }
           }
         } catch { /* skip unreadable */ }
@@ -102,6 +111,7 @@ export async function createBusinessCard(
   success: boolean;
   cardId?: string;
   message: string;
+  licenseWarning?: boolean;
 }> {
   try {
     const cardId = newEntityId();
@@ -126,17 +136,9 @@ export async function createBusinessCard(
       type: 'business',
       businessName: data.businessName,
       ownerName: data.ownerName,
-      ownerEmail: '',
-      ownerPhone: '',
       physicalAddress: (data.physicalAddress || '').trim(),
-      calendlyLink: '',
       keywords: searchWords,
       elevatorPitchWords: searchWords,
-      permanent_business_link: '',
-      mapsLink: '',
-      professionalVault: {
-        contractsPdf: '',
-      },
       businessLogo: data.businessLogo || '',
       latitude: data.latitude,
       longitude: data.longitude,
@@ -166,7 +168,7 @@ export async function createBusinessCard(
       holdersCount: 0,
       themeId: String(data.themeId || 'deep_teal').trim() || 'deep_teal',
       isFavorite: false,
-      marketFacets: [] as Array<{ type: string; label: string; value: string }>,
+      marketFacets: [] as Array<{ type: string; label: string; value: string; iconName?: string }>,
     };
 
     // Resolve vault links → marketFacets BEFORE persisting so the document is
@@ -176,6 +178,26 @@ export async function createBusinessCard(
     }
 
     await setDoc(businessCardRef, businessCardData);
+
+    // Create the trial license in business_card_licenses so the card passes
+    // isBusinessCardMarketEligible and appears in Social Market search.
+    try {
+      await activateOrRenewBusinessLicense({
+        userId: data.ownerUid,
+        cardId,
+        annualPriceUsd: 0,
+        cashbackCreditsGranted: 0,
+      });
+    } catch (licErr) {
+      console.warn('[createBusinessCard] trial license write failed:', licErr);
+      return {
+        success: true,
+        cardId,
+        licenseWarning: true,
+        message:
+          'Tarjeta creada, pero la licencia de prueba no pudo activarse automáticamente. Activála desde la pantalla de tu tarjeta.',
+      };
+    }
 
     return {
       success: true,

@@ -6,46 +6,49 @@
 
 import appPalette from '@/app/theme';
 import {
-    IsolatedWireframeCard,
-    type WireframeEditSlot,
-    type WireframeVaultItem,
+  IsolatedWireframeCard,
+  type WireframeEditSlot,
+  type WireframeVaultItem,
 } from '@/components/smartCard/IsolatedWireframeCard';
 import {
-    createPreviewWireframeSlotRenderer,
-    renderWireframeMirrorRatingStars,
-    type IconVaultLookup,
+  createPreviewWireframeSlotRenderer,
+  renderWireframeMirrorRatingStars,
+  type IconVaultLookup,
 } from '@/components/smartCard/wireframeMirrorRendering';
 import { SmartCardMirrorModal } from '@/components/SmartCardMirrorModal';
 import { VaultDocumentViewerModal } from '@/components/VaultDocumentViewerModal';
 import {
-    CARD_THEMES as CHEST_THEMES,
-    getThemeById,
+  CARD_THEMES as CHEST_THEMES,
+  getThemeById,
 } from '@/constants/themeChest';
 import { getActiveUserId } from '@/services/authSession';
 import type { MirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
-import { seedMetaForIncomingCard } from '@/services/bunkerContactMetaSeed';
+import { CONTACT_META_STORAGE_KEY, seedMetaForIncomingCard } from '@/services/bunkerContactMetaSeed';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { openVaultPreviewItem } from '@/services/openVaultPreviewItem';
 import {
-    consumeDynamicQrToken,
-    fetchBunkerGroups,
-    grantBusinessShareFromQr,
-    redeemTemporaryAccessToken,
-    trackBunkerGroupUsage,
+  consumeDynamicQrToken,
+  fetchBunkerGroups,
+  grantBusinessShareFromQr,
+  redeemTemporaryAccessToken,
+  trackBunkerGroupUsage,
+  upsertSmartCardInDb,
 } from '@/services/qrApi';
+import { receivedContactMergeKey } from '@/services/receivedContactsPresentationMerge';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Alert,
-    Animated,
-    Modal,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    useWindowDimensions
+  Alert,
+  Animated,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions
 } from 'react-native';
 
 const INCOMING_BASE_GROUPS = ['Random', 'Family', 'Social', 'Work'];
@@ -137,6 +140,29 @@ export function MyCardsPreviewModal({
   const [receiverAddBusy, setReceiverAddBusy] = useState(false);
   const [receiverGroupSheetOpen, setReceiverGroupSheetOpen] = useState(false);
 
+  /* Already-in-bunker check for business_permanent flow */
+  const [alreadyInBunker, setAlreadyInBunker] = useState(false);
+
+  useEffect(() => {
+    if (!visible || variant !== 'incoming' || incomingRedeem?.mode !== 'business_permanent') {
+      setAlreadyInBunker(false);
+      return;
+    }
+    const { ownerUid, cardId } = incomingRedeem;
+    if (!ownerUid || !cardId) { setAlreadyInBunker(false); return; }
+    void (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(CONTACT_META_STORAGE_KEY);
+        if (!raw) { setAlreadyInBunker(false); return; }
+        const map = JSON.parse(raw) as Record<string, unknown>;
+        const key = receivedContactMergeKey({ uid: ownerUid, cardId });
+        setAlreadyInBunker(key in map);
+      } catch {
+        setAlreadyInBunker(false);
+      }
+    })();
+  }, [visible, variant, incomingRedeem]);
+
   const handleClose = useCallback(() => {
     onClose();
   }, [onClose]);
@@ -212,13 +238,17 @@ export function MyCardsPreviewModal({
   }, [variant, ghostTargetUid, sourceCardId, receiverGroup, language, payload?.themeId, tr, handleClose]);
 
   useEffect(() => {
-    if (variant !== 'incoming' || !visible || !incomingRedeem?.receiverUid) {
+    if (variant !== 'incoming' || !visible || incomingRedeem?.mode !== 'business_permanent') {
       return;
     }
+    if (!incomingRedeem.ownerUid || !incomingRedeem.cardId) return;
     let cancelled = false;
     void (async () => {
       try {
-        const g = await fetchBunkerGroups(incomingRedeem.receiverUid, language);
+        // Use getActiveUserId() directly — receiverUid prop may arrive empty on first render.
+        const selfUid = await getActiveUserId();
+        if (!selfUid || cancelled) return;
+        const g = await fetchBunkerGroups(selfUid, language);
         if (!cancelled) {
           const list = Array.isArray(g) && g.length > 0 ? g : INCOMING_BASE_GROUPS;
           setIncomingGroups(list);
@@ -234,14 +264,17 @@ export function MyCardsPreviewModal({
     return () => {
       cancelled = true;
     };
-  }, [variant, visible, incomingRedeem?.receiverUid, language]);
+  }, [variant, visible, incomingRedeem?.ownerUid, incomingRedeem?.cardId, language]);
 
   const handleIncomingAccept = useCallback(async () => {
     const r = incomingRedeem;
     if (!r || variant !== 'incoming') return;
-    const { receiverUid, token, ownerUid, cardId, mode, onSuccess } = r;
-    if (!receiverUid || !ownerUid || !cardId) return;
+    const { token, ownerUid, cardId, mode, onSuccess } = r;
+    if (!ownerUid || !cardId) return;
     if (mode !== 'business_permanent' && !String(token || '').trim()) return;
+    // Resolve the receiver UID on the spot — the prop may have been empty on first render.
+    const receiverUid = r.receiverUid || (await getActiveUserId()) || '';
+    if (!receiverUid) return;
     setIncomingBusy(true);
     try {
       if (mode === 'universal') {
@@ -257,10 +290,42 @@ export function MyCardsPreviewModal({
         group: incomingGroup,
         scanThemeId: payload?.themeId?.trim() ? payload.themeId : null,
       });
+
+      // --- NUEVO: persistir localmente en Contactos ---
+      if (mode === 'business_permanent' && payload) {
+        const { cardName, subtitle, avatarUrl, themeId, wallpaperUrl, layout, holdersCount, ratingAvg, totalRatings, enableParallax, slots } = payload;
+        await upsertSmartCardInDb({
+          ownerUid: receiverUid,
+          card: {
+            cardId,
+            name: cardName,
+            layout: layout === 'horizontal' ? 'horizontal' : 'vertical',
+            themeId,
+            wallpaperUrl,
+            holdersCount,
+            ratingAvg,
+            totalRatings,
+            enableParallax,
+            ownerDisplayName: subtitle,
+            ownerPhotoUrl: avatarUrl ?? null,
+            itemIds: Array.isArray(slots) ? slots.map((s: any) => String(s.id ?? s.itemId ?? '')) : [],
+            cardType: 'business',
+          }
+        });
+      }
+      // --- FIN NUEVO ---
+
       try {
         await trackBunkerGroupUsage({ viewerUid: receiverUid, groupName: incomingGroup, locale: language });
       } catch {
         /* no bloquear */
+      }
+      if (mode === 'business_permanent') {
+        Alert.alert(
+          tr('Agregado', 'Added'),
+          tr('El contacto ha sido agregado a tu Búnker.', 'The contact has been added to your Bunker.'),
+          [{ text: tr('OK', 'OK') }],
+        );
       }
       onSuccess();
       handleClose();
@@ -350,7 +415,7 @@ export function MyCardsPreviewModal({
   const footerVariant = variant === 'incoming' ? 'incoming' : variant;
 
   const incomingAccessory =
-    variant === 'incoming' ? (
+    variant === 'incoming' && !alreadyInBunker ? (
       <>
         <TouchableOpacity
           style={[incomingStyles.groupChip, { borderColor: `${accent}55` }]}
@@ -484,7 +549,7 @@ export function MyCardsPreviewModal({
         footer={{
           variant: footerVariant,
           closeLabel:
-            variant === 'incoming' ? tr('Cancelar', 'Cancel') : tr('Cerrar', 'Close'),
+            variant === 'incoming' && !alreadyInBunker ? tr('Cancelar', 'Cancel') : tr('Cerrar', 'Close'),
           editLabel:
             variant === 'issuer'
               ? tr('Editar tarjeta', 'Edit card')
@@ -492,18 +557,26 @@ export function MyCardsPreviewModal({
           onClose: handleClose,
           onEditCard: variant === 'issuer' ? onEditCard : undefined,
           acceptLabel:
-            variant === 'incoming' ? tr('Aceptar', 'Accept') : undefined,
+            variant === 'incoming' && !alreadyInBunker
+              ? (incomingRedeem?.mode === 'business_permanent'
+                  ? tr('Agregar', 'Add')
+                  : tr('Aceptar', 'Accept'))
+              : undefined,
           onAccept:
-            variant === 'incoming' ? () => void handleIncomingAccept() : undefined,
+            variant === 'incoming' && !alreadyInBunker ? () => void handleIncomingAccept() : undefined,
           acceptBusy: variant === 'incoming' ? incomingBusy : undefined,
+
+          // 👇 AQUÍ ESTÁ EL CAMBIO MÁGICO 👇
           addLabel:
-            variant === 'receiver' && ghostTargetUid
+            variant === 'receiver'
               ? tr('Agregar', 'Add')
               : undefined,
           onAdd:
-            variant === 'receiver' && ghostTargetUid
+            variant === 'receiver'
               ? () => void handleReceiverAdd()
               : undefined,
+          // 👆 FIN DEL CAMBIO 👆
+
           addBusy: receiverAddBusy,
           colors: footerColors,
           blurTint: isDark ? 'dark' : 'light',

@@ -3,12 +3,13 @@
  * reutilizado por MyCardsPreviewItem → openVaultPreviewItem → VaultDocumentViewerModal.
  */
 
+import { normalizeMaterialIconName } from '@/app/components/iconNameValidation';
+import type { MyCardsPayload } from '@/components/MyCards';
 import type { WireframeEditSlot } from '@/components/smartCard/IsolatedWireframeCard';
 import type { MirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
-import { buildMarketCardSearchFacets } from '@/services/searchPhase2Logic';
 import { facetIconNameForSearch } from '@/services/searchFacetIcons';
+import { buildMarketCardSearchFacets } from '@/services/searchPhase2Logic';
 import type { BusinessCard, BusinessCardSearchResult } from '@/types/businessCard';
-import type { MyCardsPayload } from '@/components/MyCards';
 
 function normalizeFacetType(type: string): string {
   return String(type || '')
@@ -50,7 +51,12 @@ export function mirrorVaultItemsFromBusinessCard(card: BusinessCard): MirrorVaul
       title: String(f.label || '').trim() || '—',
       type: typeOut,
       value: v,
-      iconName: facetIconNameForSearch(f.type),
+      // Validate stored iconName against MCI; fall back to type-derived icon if invalid.
+      iconName: (() => {
+        const raw = f.iconName?.trim() ?? '';
+        const validated = raw ? normalizeMaterialIconName(raw, '') : '';
+        return validated || facetIconNameForSearch(f.type);
+      })(),
       isFavorite: false,
       ...(vaultMimeType ? { vaultMimeType } : {}),
     };
@@ -72,22 +78,10 @@ export function adaptBusinessCardSearchResultToMyCardsPayload(
 ): MyCardsPayload {
   const card = result.card;
   const slots = wireframeSlotsFromBusinessCard(card);
-  const cityLine = [card.city, card.postalCode].filter(Boolean).join(' · ');
-  const subBase =
-    String(cityLine || '').trim() ||
-    String(card.physicalAddress || '').trim().slice(0, 120) ||
+  const subtitle =
+    String(card.ownerName || '').trim().slice(0, 60) ||
     String(card.businessDescription || '').trim().slice(0, 120) ||
     tr('Mercado Social', 'Social Market');
-
-  let subtitle = subBase;
-  if (result.distanceMiles != null && result.showDistance !== false) {
-    const dist = result.distanceMiles;
-    const distLabel =
-      dist < 0.1
-        ? tr('muy cerca', 'very close')
-        : tr(`a ${dist.toFixed(1)} millas`, `${dist.toFixed(1)} mi`);
-    subtitle = subBase ? `${subBase} · ${distLabel}` : distLabel;
-  }
 
   const themeFromCard = String(card.themeId || '').trim();
   return {
@@ -114,15 +108,12 @@ export function businessFirestoreDocToMyCardsPayload(
   cardId: string,
   tr: (es: string, en: string) => string,
 ): MyCardsPayload {
-  const prof = raw.professionalVault as { contractsPdf?: string } | undefined;
   const card = {
     id: String(raw.id || cardId),
     ownerUid: String(raw.ownerUid || ''),
     type: 'business' as const,
     businessName: String(raw.businessName || ''),
     ownerName: String(raw.ownerName || ''),
-    ownerEmail: String(raw.ownerEmail || ''),
-    ownerPhone: String(raw.ownerPhone || ''),
     physicalAddress: String(raw.physicalAddress || ''),
     latitude: Number(raw.latitude ?? 0),
     longitude: Number(raw.longitude ?? 0),
@@ -130,10 +121,7 @@ export function businessFirestoreDocToMyCardsPayload(
     postalCode: String(raw.postalCode || ''),
     keywords: Array.isArray(raw.keywords) ? (raw.keywords as string[]).map(String) : [],
     businessLogo: raw.businessLogo != null ? String(raw.businessLogo) : '',
-    mapsLink: raw.mapsLink != null ? String(raw.mapsLink) : '',
-    permanent_business_link:
-      raw.permanent_business_link != null ? String(raw.permanent_business_link) : '',
-    professionalVault: { contractsPdf: String(prof?.contractsPdf || '') },
+    marketFacets: Array.isArray(raw.marketFacets) ? raw.marketFacets as Array<{ type: string; label: string; value: string; iconName?: string }> : [],
     averageRating: Number(raw.averageRating ?? 5),
     totalRatings: Number(raw.totalRatings ?? 0),
     negativeRatingsCount: Number(raw.negativeRatingsCount ?? 0),
@@ -155,10 +143,8 @@ export function businessFirestoreDocToMyCardsPayload(
   } as BusinessCard;
 
   const slots = wireframeSlotsFromBusinessCard(card);
-  const cityLine = [card.city, card.postalCode].filter(Boolean).join(' · ');
   const subBase =
-    String(cityLine || '').trim() ||
-    String(card.physicalAddress || '').trim().slice(0, 120) ||
+    String(card.ownerName || '').trim().slice(0, 60) ||
     String((raw.businessDescription as string) || '').trim().slice(0, 120) ||
     tr('Mercado Social', 'Social Market');
 

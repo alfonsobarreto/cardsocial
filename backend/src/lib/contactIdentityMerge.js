@@ -24,6 +24,18 @@ function mergeContactProfileFromCard(profile, uid, cardDoc) {
   const cardPhoto = cardDoc?.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl).trim() : '';
   const occupation = cardDoc?.ownerOccupation ? String(cardDoc.ownerOccupation).trim().slice(0, 240) : '';
 
+  // Business cards must never blend with the personal profile.
+  // Use the business identity (ownerDisplayName / ownerPhotoUrl) exclusively.
+  if (cardDoc?.cardType === 'business') {
+    return {
+      uid: profile.uid,
+      name: display || cardNick || profile.name,
+      nickname: display || cardNick || profile.nickname,
+      photoUrl: cardPhoto || null,
+      ownerOccupation: occupation || null,
+    };
+  }
+
   let name = profile.name;
   let nickname = profile.nickname;
   let photoUrl = profile.photoUrl;

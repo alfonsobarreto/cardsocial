@@ -109,6 +109,8 @@ type Contact = {
   searchFacets?: Array<{ type: string; label: string; value: string }>;
   /** Slots del emisor (icon URL / iconName) para el wireframe espejo del receptor. */
   publicCardSlots?: PublicCardSlotPayload[];
+  /** 'business' para BusinessCard corporativa; 'smart' para tarjeta personal. */
+  cardType?: 'business' | 'smart';
   meta?: {
     group: string;
     isFavorite: boolean;
@@ -548,13 +550,18 @@ function ContactsContent() {
   const contactPayload = useMemo<MyCardsPayload | null>(() => {
     if (!selectedContact) return null;
     const c = selectedContact;
+    const isBusiness = c.cardType === 'business';
     const nick = String(c.nickname || 'user').trim() || 'user';
     const cardNm = String(c.cardName || '').trim();
     const person = String(c.name || '').trim();
     const occ = String(c.ownerOccupation || '').trim();
+    // Business cards: subtitle = ownerName (no @ prefix). Personal: @nickname.
+    const subtitle = isBusiness
+      ? person || occ || ''
+      : nick.startsWith('@') ? nick : `@${nick}`;
     return {
       cardName: (cardNm || person || occ || tr('Tarjeta Social', 'Social Card')).trim(),
-      subtitle: nick.startsWith('@') ? nick : `@${nick}`,
+      subtitle,
       avatarUrl: c.photoUrl,
       themeId: c.themeId || '',
       wallpaperUrl: c.wallpaperUrl ?? undefined,

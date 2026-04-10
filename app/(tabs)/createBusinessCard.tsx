@@ -4,16 +4,16 @@ import { CARD_THEMES as CHEST_THEMES, getThemeById, TIER_META, type CardTheme as
 import { getActiveUserId } from '@/services/authSession';
 import { generatePermanentBusinessLink } from '@/services/brandedQrService';
 import {
-    createBusinessCard,
-    MAX_BUSINESS_VAULT_DATA_SLOTS,
-    updateBusinessCard,
-    updateBusinessCardMarketVisibility,
-    updateBusinessCardSubscriptionStatus,
+  createBusinessCard,
+  MAX_BUSINESS_VAULT_DATA_SLOTS,
+  updateBusinessCard,
+  updateBusinessCardMarketVisibility,
+  updateBusinessCardSubscriptionStatus,
 } from '@/services/businessCardService';
 import { validateBusinessKeywordList } from '@/services/businessKeywordValidation';
 import {
-    activateOrRenewBusinessLicense,
-    hasActiveBusinessLicense,
+  activateOrRenewBusinessLicense,
+  hasActiveBusinessLicense,
 } from '@/services/businessLicenseService';
 import { db } from '@/services/firebaseConfig';
 import { getUserIconVaultMap, type IconVaultEntry } from '@/services/iconVaultService';
@@ -34,27 +34,28 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Image,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import Toast from 'react-native-toast-message';
 import { sanitizeMaterialCommunityIconName } from '../components/iconNameValidation';
 import palette from '../theme';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 const DEFAULT_BIZ_THEME_ID = 'deep_teal';
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 
@@ -79,6 +80,7 @@ async function syncBusinessCardToMongo(params: {
     name: businessName,
     layout: 'vertical' as const,
     themeId: themeId || 'deep_teal',
+    cardType: 'business' as const,
     ownerDisplayName: ownerName || undefined,
     ownerNickname: ownerName || undefined,
     ownerPhotoUrl: businessLogo || null,
@@ -90,31 +92,39 @@ async function syncBusinessCardToMongo(params: {
     isFavorite: false,
   };
 
-  // Phase 1 — essential data (no vault reads needed)
-  try {
-    await upsertSmartCardInDb({ ownerUid, card: basePayload });
-  } catch (e) {
-    console.log('[BusinessCard] syncToMongo essentials FAILED', e);
-    return;
-  }
+  // Phase 1 — essential data. Throws on failure so callers surface the error.
+  await upsertSmartCardInDb({ ownerUid, card: basePayload });
 
-  // Phase 2 — enrich with public card slots (vault + icons)
+  // Phase 2 — enrich with public card slots (vault + icons). Fails silently;
+  // essentials are already committed in Phase 1.
   try {
     const vaultSnap = await getDocs(collection(db, 'users', ownerUid, 'links'));
-    const vaultAll = vaultSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, unknown>) }));
+    const vaultAll: Array<Record<string, unknown> & { id: string }> = vaultSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, unknown>) }));
     const iconMap: Record<string, IconVaultEntry> = await getUserIconVaultMap(ownerUid)
       .then((m) => Object.fromEntries(m))
       .catch(() => ({} as Record<string, IconVaultEntry>));
     const slots: PublicCardSlotPayload[] = vaultLinkIds.slice(0, 24).flatMap((lid) => {
       const it = vaultAll.find((v) => v.id === lid);
       if (!it) return [];
-      const iconEntry = (it.iconVaultId as string | undefined) && iconMap[it.iconVaultId as string];
-      const glyphName = iconEntry?.materialIconName
-        ? sanitizeMaterialCommunityIconName(iconEntry.materialIconName)
-        : (it.iconName as string | undefined)
-          ? sanitizeMaterialCommunityIconName(it.iconName as string)
-          : undefined;
-      const iconUrl = /^https?:\/\//i.test(String(it.icon || '')) ? String(it.icon) : undefined;
+      const iconVaultId = it.iconVaultId as string | undefined;
+      const iconEntry: IconVaultEntry | undefined = iconVaultId ? iconMap[iconVaultId] : undefined;
+      const iconRaw = String(it.icon || '').trim();
+      const iconUrl = /^https?:\/\//i.test(iconRaw) ? iconRaw : undefined;
+
+      // Full resolution chain matching renderVaultLinkTileIcon:
+      // vault materialIconName → stored icon (non-HTTP) → iconName field
+      // Use '' fallback so invalid names don't produce 'help-circle' in stored data.
+      const fromVault = iconEntry?.materialIconName
+        ? sanitizeMaterialCommunityIconName(iconEntry.materialIconName, '')
+        : '';
+      const fromStored = iconRaw && !iconUrl
+        ? sanitizeMaterialCommunityIconName(iconRaw, '')
+        : '';
+      const fromName = (it.iconName as string | undefined)
+        ? sanitizeMaterialCommunityIconName(it.iconName as string, '')
+        : '';
+      const glyphName = fromVault || fromStored || fromName || undefined;
+
       return [{
         itemId: String(it.id),
         type: String(it.type || 'link'),
@@ -127,8 +137,8 @@ async function syncBusinessCardToMongo(params: {
     if (slots.length > 0) {
       await upsertSmartCardInDb({ ownerUid, card: { ...basePayload, publicCardSlots: slots } });
     }
-  } catch (e) {
-    console.log('[BusinessCard] syncToMongo slots FAILED (essentials already saved)', e);
+  } catch {
+    // Vault enrichment failed; essentials already committed in Phase 1.
   }
 }
 
@@ -384,7 +394,41 @@ export default function CreateBusinessCardScreen() {
       }
       try {
         const snap = await getDoc(doc(db, 'businessCards', paramCardId));
-        if (cancelled || !snap.exists()) return;
+        if (cancelled) return;
+        if (!snap.exists()) {
+          // 1. Elimina la tarjeta fantasma de la base de datos local o caché
+          try {
+            await AsyncStorage.removeItem(`@smartcard_${paramCardId}`);
+          } catch {
+            // Ignorar errores de borrado local
+          }
+          // 2. Limpia los estados del formulario
+          setCreatedCardId(null);
+          setOwnerUidState(null);
+          setBusinessName('');
+          setOwnerName('');
+          setKeywordTags([]);
+          setBusinessThemeId(DEFAULT_BIZ_THEME_ID);
+          setSelectedVaultLinkIds(new Set());
+          setLatitude(null);
+          setLongitude(null);
+          setResolvedAddressLabel('');
+          setLocationCoordSource(null);
+          setUploadedLogoUrl(null);
+          setPendingSquareLogoUri(null);
+          setBusinessTermsAccepted(false);
+          setSubscriptionStatus(null);
+          // 3. Alerta bilingüe al usuario
+          Alert.alert(
+            tr('Tarjeta no encontrada', 'Card not found'),
+            tr(
+              'Tu tarjeta anterior ya no existe en el servidor. El formulario ha sido limpiado para que puedas crear una nueva.',
+              'Your previous card no longer exists on the server. The form has been cleared so you can create a new one.'
+            )
+          );
+          setLoadingExistingCard(false);
+          return;
+        }
         const d = snap.data() as Record<string, unknown>;
         if (String(d.ownerUid) !== uid) {
           Alert.alert(tr('Acceso', 'Access'), tr('Esta tarjeta no es tuya.', 'This card is not yours.'));
@@ -397,8 +441,8 @@ export default function CreateBusinessCardScreen() {
         setOwnerName(String(d.ownerName ?? ''));
         setKeywordTags(Array.isArray(d.keywords) ? (d.keywords as string[]).map(String) : []);
         setBusinessThemeId(String(d.themeId ?? DEFAULT_BIZ_THEME_ID).trim() || DEFAULT_BIZ_THEME_ID);
-      const vids = Array.isArray(d.vaultLinkIds) ? (d.vaultLinkIds as unknown[]).map(String) : [];
-      setSelectedVaultLinkIds(new Set(vids.slice(0, MAX_BUSINESS_VAULT_DATA_SLOTS)));
+        const vids = Array.isArray(d.vaultLinkIds) ? (d.vaultLinkIds as unknown[]).map(String) : [];
+        setSelectedVaultLinkIds(new Set(vids.slice(0, MAX_BUSINESS_VAULT_DATA_SLOTS)));
         const lat = d.latitude;
         const lng = d.longitude;
         setLatitude(typeof lat === 'number' ? lat : null);
@@ -420,8 +464,11 @@ export default function CreateBusinessCardScreen() {
         } else {
           setSubscriptionStatus(null);
         }
-        // Auto-migrate: denormalize vault facets if missing
-        if (vids.length > 0 && !Array.isArray(d.marketFacets)) {
+        // Auto-migrate: denormalize vault facets if missing OR if saved as empty array
+        const needsMigration =
+          vids.length > 0 &&
+          (!Array.isArray(d.marketFacets) || (d.marketFacets as unknown[]).length === 0);
+        if (needsMigration) {
           void updateBusinessCard(uid, paramCardId, { vaultLinkIds: vids }).catch(() => {});
         }
       } finally {
@@ -726,15 +773,27 @@ export default function CreateBusinessCardScreen() {
           locationSource: locationCoordSource || 'device_gps',
         });
         if (res.success) {
-          void syncBusinessCardToMongo({
-            ownerUid: uid,
-            cardId: editingCardId!,
-            businessName: businessName.trim(),
-            ownerName: ownerName.trim(),
-            themeId: businessThemeId || 'deep_teal',
-            businessLogo,
-            vaultLinkIds: [...selectedVaultLinkIds],
-          });
+          try {
+            await syncBusinessCardToMongo({
+              ownerUid: uid,
+              cardId: editingCardId!,
+              businessName: businessName.trim(),
+              ownerName: ownerName.trim(),
+              themeId: businessThemeId || 'deep_teal',
+              businessLogo,
+              vaultLinkIds: [...selectedVaultLinkIds],
+            });
+          } catch {
+            Toast.show({
+              type: 'info',
+              text1: tr('Tarjeta guardada', 'Card saved'),
+              text2: tr(
+                'No se pudo sincronizar con el servidor. Tus contactos verán los datos actualizados en el próximo acceso.',
+                'Could not sync with server. Your contacts will see updated data on next access.',
+              ),
+              visibilityTime: 5000,
+            });
+          }
           Alert.alert(tr('Listo', 'Done'), tr('Cambios guardados.', 'Changes saved.'), [
             {
               text: tr('OK', 'OK'),
@@ -767,15 +826,38 @@ export default function CreateBusinessCardScreen() {
           setOwnerUidState(uid);
           setMarketVisible(false);
           setSubscriptionStatus('trial');
-          void syncBusinessCardToMongo({
-            ownerUid: uid,
-            cardId: res.cardId!,
-            businessName: businessName.trim(),
-            ownerName: ownerName.trim(),
-            themeId: businessThemeId || 'deep_teal',
-            businessLogo,
-            vaultLinkIds: [...selectedVaultLinkIds],
-          });
+          try {
+            await syncBusinessCardToMongo({
+              ownerUid: uid,
+              cardId: res.cardId!,
+              businessName: businessName.trim(),
+              ownerName: ownerName.trim(),
+              themeId: businessThemeId || 'deep_teal',
+              businessLogo,
+              vaultLinkIds: [...selectedVaultLinkIds],
+            });
+          } catch {
+            Toast.show({
+              type: 'info',
+              text1: tr('Tarjeta creada', 'Card created'),
+              text2: tr(
+                'No se pudo sincronizar con el servidor. Tus contactos verán los datos reales en el próximo acceso.',
+                'Could not sync with server. Your contacts will see real data on next access.',
+              ),
+              visibilityTime: 5000,
+            });
+          }
+          if ((res as any).licenseWarning) {
+            Toast.show({
+              type: 'error',
+              text1: tr('Licencia trial no activada', 'Trial license not activated'),
+              text2: tr(
+                'La tarjeta se guardó pero no aparecerá en el Mercado Social. Activa la licencia desde la pantalla de tu tarjeta.',
+                "Card saved but won't appear in Social Market. Activate the license from your card screen.",
+              ),
+              visibilityTime: 7000,
+            });
+          }
           Alert.alert(tr('Listo', 'Done'), res.message, [
             {
               text: tr('OK', 'OK'),

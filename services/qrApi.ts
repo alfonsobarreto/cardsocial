@@ -761,6 +761,8 @@ export type SmartCardPayload = {
   ownerPhotoUrl?: string | null;
   /** Cargo / título profesional persistido en la tarjeta (receptor). */
   ownerOccupation?: string | null;
+  /** 'business' para BusinessCard sincronizada desde Firestore; 'smart' para tarjeta personal. */
+  cardType?: 'business' | 'smart';
   /** Facetas sin tipo teléfono, para búsqueda del receptor en Contactos */
   searchFacets?: CardSearchFacetPayload[];
   /**
@@ -914,6 +916,8 @@ export type ReceivedContactRow = {
   cardUpdatedAt: string | null;
   /** Slots públicos (logos/URLs + iconName) para preview espejo del receptor. */
   publicCardSlots?: PublicCardSlotPayload[];
+  /** 'business' para BusinessCard corporativa; 'smart' para tarjeta personal. */
+  cardType?: 'business' | 'smart';
 };
 
 export async function listReceivedContacts(params: { ownerUid: string }): Promise<{
@@ -993,6 +997,7 @@ export async function listReceivedContacts(params: { ownerUid: string }): Promis
           enableParallax: Boolean(row?.enableParallax),
           itemIds: Array.isArray(row?.itemIds) ? row.itemIds.map((id: any) => String(id)) : [],
           cardUpdatedAt: row?.cardUpdatedAt ? String(row.cardUpdatedAt) : null,
+          cardType: row?.cardType === 'business' ? 'business' as const : 'smart' as const,
         };
       }),
     };

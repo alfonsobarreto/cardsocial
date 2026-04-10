@@ -41,33 +41,11 @@ export function marketSearchStoryRingState(card: BusinessCard): 'none' | 'normal
   return card.isPremiumStory ? 'vip' : 'normal';
 }
 
-export function buildMarketCardSearchFacets(card: BusinessCard): Array<{ type: string; label: string; value: string }> {
-  // Prefer denormalized marketFacets (resolved at card create/update)
+export function buildMarketCardSearchFacets(card: BusinessCard): Array<{ type: string; label: string; value: string; iconName?: string }> {
   if (Array.isArray(card.marketFacets) && card.marketFacets.length > 0) {
     return card.marketFacets;
   }
-
-  // Legacy fallback: flat fields (ownerEmail, ownerPhone, etc.)
-  const out: Array<{ type: string; label: string; value: string }> = [];
-  const email = String(card.ownerEmail || '').trim();
-  if (email) {
-    out.push({ type: 'email', label: 'Email', value: email });
-  }
-  const phone = String(card.ownerPhone || '').trim();
-  if (phone) {
-    out.push({ type: 'teléfono', label: 'Teléfono', value: phone });
-  }
-  const maps = String(card.mapsLink || '').trim();
-  if (maps) {
-    out.push({ type: 'mapa', label: 'Mapa', value: maps });
-  }
-  const pdf = String(card.professionalVault?.contractsPdf || '').trim();
-  if (pdf) {
-    out.push({ type: 'pdf', label: 'PDF', value: pdf });
-  }
-  const link = String(card.permanent_business_link || '').trim();
-  if (link) {
-    out.push({ type: 'enlace', label: 'Web', value: link });
-  }
-  return out;
+  // No marketFacets means the card hasn't been synced from the Vault yet.
+  // Return empty — never invent data from flat fields.
+  return [];
 }

@@ -2,6 +2,7 @@
  * Mercado Social / Social Market: búsqueda con sinónimos, contactos recibidos y tarjetas de negocio.
  */
 
+import { normalizeMaterialIconName } from '@/app/components/iconNameValidation';
 import { MyCardsPreviewModal, type MyCardsPayload } from '@/components/MyCards';
 import ReceptorScreenModal from '@/components/ReceptorScreenModal';
 import { SharedCardSkeletonList } from '@/components/SharedCardRowSkeleton';
@@ -18,22 +19,22 @@ import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { listCardSubscribers, listReceivedContacts, type CardSubscriberRow } from '@/services/qrApi';
 import {
-    mergeReceivedContactRows,
-    receivedContactMergeKey,
+  mergeReceivedContactRows,
+  receivedContactMergeKey,
 } from '@/services/receivedContactsPresentationMerge';
 import { facetIconNameForSearch, runSearchFacetQuickAction } from '@/services/searchFacetQuickAction';
 import {
-    isSearchLocationSessionActive,
-    startSearchLocationSession,
-    subscribeSearchLocationSession,
+  isSearchLocationSessionActive,
+  startSearchLocationSession,
+  subscribeSearchLocationSession,
 } from '@/services/searchLocationSession';
 import { buildMarketCardSearchFacets, marketSearchStoryRingState } from '@/services/searchPhase2Logic';
 import type { ReceivedContactForMarketSearch } from '@/services/searchService';
 import { searchSocialMarket } from '@/services/searchService';
 import {
-    buildStoryLookupFromReceivedContacts,
-    resolveSearchRowStoryState,
-    storyChannelKey,
+  buildStoryLookupFromReceivedContacts,
+  resolveSearchRowStoryState,
+  storyChannelKey,
 } from '@/services/storiesPhase1Logic';
 import { getCardRowTheme } from '@/services/useActiveTheme';
 import { BusinessCardSearchResult } from '@/types/businessCard';
@@ -45,23 +46,23 @@ import { Image as ExpoImage } from 'expo-image';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    Keyboard,
-    Modal,
-    Platform,
-    Pressable,
-    RefreshControl,
-    ScrollView,
-    SectionList,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
-    type NativeScrollEvent,
-    type NativeSyntheticEvent,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Keyboard,
+  Modal,
+  Platform,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  SectionList,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import appPalette, { type AppShellTheme } from '../theme';
@@ -204,6 +205,9 @@ export default function SearchScreen() {
   const [receivedCardDetail, setReceivedCardDetail] = useState<BusinessCardSearchResult | null>(null);
   const [marketCardDetail, setMarketCardDetail] = useState<BusinessCardSearchResult | null>(null);
 
+  const [viewerUid, setViewerUid] = useState<string | null>(null);
+  useEffect(() => { void getActiveUserId().then(setViewerUid); }, []);
+
   const storyLookupMaps = useMemo(
     () =>
       buildStoryLookupFromReceivedContacts(
@@ -247,13 +251,18 @@ export default function SearchScreen() {
   const searchReceivedPayload = useMemo<MyCardsPayload | null>(() => {
     if (!receivedCardDetail || receivedCardDetail.rowSource !== 'received_contact') return null;
     const d = receivedCardDetail;
+    const isBusiness = d.card.type === 'business';
     const nickRaw = String(d.receivedIssuerNickname || 'user').trim() || 'user';
     const cardNm = String(d.receivedContactCardName || '').trim();
-    const person = String(d.card.businessName || '').trim();
+    const person = String(d.card.businessName || d.card.ownerName || '').trim();
     const occ = String(d.receivedOwnerOccupation || '').trim();
+    // Business: subtitle = ownerName (no @). Personal: @nickname.
+    const subtitle = isBusiness
+      ? String(d.card.ownerName || occ || '').trim()
+      : nickRaw.startsWith('@') ? nickRaw : `@${nickRaw}`;
     return {
       cardName: (cardNm || person || occ || tr('Tarjeta Social', 'Social Card')).trim(),
-      subtitle: nickRaw.startsWith('@') ? nickRaw : `@${nickRaw}`,
+      subtitle,
       avatarUrl: d.card.businessLogo ?? null,
       themeId: d.issuerPresentation?.themeId || '',
       wallpaperUrl: d.issuerPresentation?.wallpaperUrl ?? undefined,
@@ -308,8 +317,14 @@ export default function SearchScreen() {
   };
 
   const displaySectionBusinesses = useMemo(() => {
+    // 1. ELIMINAR DUPLICADOS: Filtramos los negocios del Market que ya están en Contactos
+    const uniqueBusinesses = sectionBusinesses.filter(
+      (business) => !sectionContacts.some((contact) => contact.card.id === business.card.id)
+    );
+
+    // 2. APLICAR ORDENAMIENTO (Distancia o Valoración) a la lista limpia
     if (marketSortMode === 'distance') {
-      const within = sectionBusinesses.filter((r) => {
+      const within = uniqueBusinesses.filter((r) => {
         const d = r.distanceMiles;
         if (d == null || !Number.isFinite(d)) {
           return true;
@@ -322,7 +337,8 @@ export default function SearchScreen() {
         return da - db_;
       });
     }
-    const withRating = sectionBusinesses.filter((r) => Number(r.card.averageRating) > 0);
+    
+    const withRating = uniqueBusinesses.filter((r) => Number(r.card.averageRating) > 0);
     return [...withRating].sort((a, b) => {
       const rb = Number(b.card.averageRating) || 0;
       const ra = Number(a.card.averageRating) || 0;
@@ -333,7 +349,7 @@ export default function SearchScreen() {
       const db_ = b.distanceMiles ?? 1e9;
       return da - db_;
     });
-  }, [sectionBusinesses, marketSortMode]);
+  }, [sectionBusinesses, sectionContacts, marketSortMode]);
 
   const displaySectionContacts = useMemo(() => {
     if (marketSortMode === 'rating') {
@@ -1193,7 +1209,7 @@ export default function SearchScreen() {
                     accessibilityLabel={f.label}
                   >
                     <MaterialCommunityIcons
-                      name={facetIconNameForSearch(f.type) as 'card-account-details-outline'}
+                      name={(normalizeMaterialIconName(f.iconName, '') || facetIconNameForSearch(f.type)) as 'card-account-details-outline'}
                       size={22}
                       color="rgba(212,175,55,0.95)"
                     />
@@ -1308,7 +1324,7 @@ export default function SearchScreen() {
         key={marketCardDetail ? `search-market-${marketCardDetail.card.id}` : 'search-market-closed'}
         visible={Boolean(marketCardDetail)}
         onClose={closeMarketCardDetail}
-        variant="receiver"
+        variant="incoming"
         payload={marketPremiumPayload}
         ghostTargetUid={marketCardDetail?.card.ownerUid ?? null}
         sourceCardId={marketCardDetail?.card.id ?? null}
@@ -1317,6 +1333,14 @@ export default function SearchScreen() {
           String(marketCardDetail?.card.businessName || '').trim() ||
           tr('Negocio', 'Business')
         }
+        incomingRedeem={marketCardDetail ? {
+          mode: 'business_permanent',
+          token: '',
+          ownerUid: marketCardDetail.card.ownerUid ?? '',
+          cardId: marketCardDetail.card.id ?? '',
+          receiverUid: viewerUid ?? '',
+          onSuccess: closeMarketCardDetail,
+        } : null}
       />
 
       <Modal
@@ -1390,7 +1414,7 @@ export default function SearchScreen() {
       owner={{
         displayName: receptorItem?.card?.businessName || tr('Tarjeta', 'Card'),
         occupation: receptorItem?.receivedContactCardName || '',
-        photoUrl: receptorItem?.card?.photoUrl || null,
+        photoUrl: receptorItem?.card?.businessLogo || null,
       }}
       subscribers={receptorSubscribers}
       totalCount={receptorItem?.receivedHoldersCount ?? receptorSubscribers.length}

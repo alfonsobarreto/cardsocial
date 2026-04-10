@@ -12,8 +12,8 @@ export interface BusinessCard {
   type: 'business';
   businessName: string;
   ownerName: string;
-  ownerEmail: string;
-  ownerPhone: string;
+  ownerEmail?: string;
+  ownerPhone?: string;
   
   // Ubicación (Mapa Invisible)
   physicalAddress: string;
@@ -89,7 +89,7 @@ export interface BusinessCard {
   /** Conteo mostrado en filas / QR (Firestore). */
   holdersCount?: number;
   /** Facetas resueltas del vault — denormalizadas al crear/editar la tarjeta. */
-  marketFacets?: Array<{ type: string; label: string; value: string }>;
+  marketFacets?: Array<{ type: string; label: string; value: string; iconName?: string }>;
 }
 
 export interface KYCValidation {
