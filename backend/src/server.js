@@ -446,7 +446,8 @@ const otpHash = (emailLower, code) => {
     app.use("/", createUniversalEntryHttpRoutes({ storage }));
   }
 
-  const buildVaultAccessUrl = (fileId) => `${env.publicVaultFileBaseUrl}/api/vault/file/${fileId}`;
+  // TEMP prueba Alfonso: forzar host API (quitar cuando PUBLIC_VAULT_FILE_BASE_URL esté validado en deploy)
+  const buildVaultAccessUrl = (fileId) => `https://api.cardsocial.me/api/vault/file/${fileId}`;
 
   app.use("/api", createModerationRoutes({
     azureSafety,

@@ -173,9 +173,20 @@ function createMongoStorage({ uri, dbName }) {
    */
   async function pipeVaultFileToResponse(fileId, res) {
     const meta = await findVaultFileRecord(fileId);
-    if (!meta || !spaces) {
+    if (!spaces) {
+      console.warn("[vault proxy] pipeVaultFileToResponse: Spaces client not configured, fileId=", fileId);
       return false;
     }
+    if (!meta) {
+      console.warn("[vault proxy] pipeVaultFileToResponse: sin registro en vault_file_registry, fileId=", fileId);
+      return false;
+    }
+    console.log(
+      "[vault proxy] registro Mongo OK → Spaces GetObject bucket=%s key=%s fileId=%s",
+      meta.spacesBucket,
+      meta.spacesKey,
+      fileId
+    );
     try {
       const out = await spaces.send(new GetObjectCommand({
         Bucket: meta.spacesBucket,

@@ -12,6 +12,7 @@ function createVaultFileProxyRoutes({ storage }) {
   router.get("/file/:fileId", async (req, res) => {
     try {
       const fileId = String(req.params.fileId || "").trim();
+      console.log("Buscando archivo con ID:", fileId);
       if (!UUID_RE.test(fileId)) {
         return res.status(400).send("Invalid file id");
       }
