@@ -1,5 +1,6 @@
 /**
- * GET /api/vault/file/:fileId — proxy de descarga enmascarado (DigitalOcean Spaces interno).
+ * GET …/file/:fileId — proxy de descarga enmascarado (DigitalOcean Spaces interno).
+ * Montajes típicos: /api/vault + /file/:id o /api/qr/vault-proxy + /file/:id (mismo router).
  */
 
 const express = require("express");
@@ -25,7 +26,7 @@ function createVaultFileProxyRoutes({ storage }) {
         return;
       }
     } catch (e) {
-      console.error("[GET /api/vault/file]", e?.message || e);
+      console.error("[GET vault file proxy]", e?.message || e);
       if (!res.headersSent) {
         return res.status(500).send("Proxy error");
       }

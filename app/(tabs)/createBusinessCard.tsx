@@ -38,6 +38,7 @@ import {
   Alert,
   FlatList,
   Image,
+  InteractionManager,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -256,10 +257,7 @@ function formatReverseAddress(a?: Location.LocationGeocodedAddress | null): stri
   return parts.join(' · ');
 }
 
-async function cropImageToSquare(uri: string): Promise<string> {
-  const { width, height } = await new Promise<{ width: number; height: number }>((resolve, reject) => {
-    Image.getSize(uri, (w, h) => resolve({ width: w, height: h }), reject);
-  });
+async function cropImageWithDims(uri: string, width: number, height: number): Promise<string> {
   const size = Math.min(width, height);
   const originX = Math.floor((width - size) / 2);
   const originY = Math.floor((height - size) / 2);
@@ -269,6 +267,13 @@ async function cropImageToSquare(uri: string): Promise<string> {
     { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG },
   );
   return result.uri;
+}
+
+async function cropImageToSquare(uri: string): Promise<string> {
+  const { width, height } = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+    Image.getSize(uri, (w, h) => resolve({ width: w, height: h }), reject);
+  });
+  return cropImageWithDims(uri, width, height);
 }
 
 export default function CreateBusinessCardScreen() {
@@ -553,6 +558,13 @@ export default function CreateBusinessCardScreen() {
   const pickBusinessLogo = async () => {
     setPickingLogo(true);
     try {
+      // Evitar que un Modal RN quede encima del picker/recorte del sistema (Android).
+      setVaultSelectorVisible(false);
+      setThemesPickerVisible(false);
+      await new Promise<void>((resolve) => {
+        InteractionManager.runAfterInteractions(() => resolve());
+      });
+
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
         Alert.alert(
@@ -561,20 +573,32 @@ export default function CreateBusinessCardScreen() {
         );
         return;
       }
+
+      // Android: allowsEditing abre un crop nativo roto (botones fuera de pantalla / congelado).
+      // iOS: recorte nativo 1:1 + base64 para preview estable.
+      const skipNativeCrop = Platform.OS === 'android';
       const res = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
+        allowsEditing: !skipNativeCrop,
+        ...(skipNativeCrop ? {} : { aspect: [1, 1] as [number, number] }),
         quality: 0.85,
-        base64: true,
+        base64: !skipNativeCrop,
       });
       if (res.canceled || !res.assets?.[0]) return;
       const asset = res.assets[0];
-      // Use base64 data URI for display — works on all platforms regardless of URI type
-      const dataUri = asset.base64
-        ? `data:image/jpeg;base64,${asset.base64}`
-        : asset.uri;
-      setPendingSquareLogoUri(dataUri);
+
+      let nextUri: string;
+      if (skipNativeCrop) {
+        const w = typeof asset.width === 'number' ? asset.width : 0;
+        const h = typeof asset.height === 'number' ? asset.height : 0;
+        nextUri =
+          w > 0 && h > 0
+            ? await cropImageWithDims(asset.uri, w, h)
+            : await cropImageToSquare(asset.uri);
+      } else {
+        nextUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+      }
+      setPendingSquareLogoUri(nextUri);
       setUploadedLogoUrl(null);
     } catch (e: any) {
       Alert.alert(tr('Error', 'Error'), e?.message || tr('No se pudo procesar la imagen.', 'Could not process image.'));

@@ -79,6 +79,8 @@ az rest --method get --url "$base/api/admin/billing-status" --skip-authorization
 ```
 Expected: `401` or `403` (route exists and auth is enforced).
 
+5. **Vault file proxy (imágenes moderadas / `publicUrl`):** el stream vive en **dos** prefijos del mismo `server.js`: `GET /api/vault/file/:id` (legado) y **`GET /api/qr/vault-proxy/file/:id`** (recomendado si Front Door / WAF no reenvían `/api/vault/*` al Node: no aparecen logs al abrir el enlace). Los uploads nuevos usan `PUBLIC_VAULT_FILE_BASE_URL` + ruta `/api/qr/vault-proxy/file/...`. No hay `web.config` en el repo: el filtrado suele estar en **Azure Front Door**, **WAF** o reglas del **App Service / ARR**; hay que añadir una regla que permita el prefijo elegido o desbloquear `/api/vault/*` si quieren conservar la URL antigua.
+
 ## Drift guardrails
 
 If these values drift, set them back before deploying:

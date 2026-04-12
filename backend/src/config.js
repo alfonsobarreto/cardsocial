@@ -31,10 +31,8 @@ const env = {
   /** Base URL del sitio (Expo Web) para enlaces QR universales TTL; ej. https://cardsocial.me */
   publicUniversalCardBaseUrl: (process.env.PUBLIC_UNIVERSAL_CARD_BASE_URL || "https://cardsocial.me").replace(/\/+$/, ""),
   /**
-   * Base URL donde el MISMO proceso Express expone GET /api/vault/file/:id (proxy Spaces).
-   * Si subes a api.cardsocial.me pero PUBLIC_UNIVERSAL_CARD_BASE_URL es https://cardsocial.me y ese host
-   * no enruta /api/vault al mismo API+Mongo, el navegador devolverá 404 aunque el upload devolvió 201.
-   * En ese despliegue: PUBLIC_VAULT_FILE_BASE_URL=https://api.cardsocial.me
+   * Base URL del host donde Express sirve el proxy de vault (GET …/api/qr/vault-proxy/file/:id).
+   * Si WAF no reenvía /api/vault/* al Node, usar el host del API (p. ej. https://api.cardsocial.me).
    */
   publicVaultFileBaseUrl: String(
     process.env.PUBLIC_VAULT_FILE_BASE_URL || process.env.PUBLIC_UNIVERSAL_CARD_BASE_URL || "https://cardsocial.me"

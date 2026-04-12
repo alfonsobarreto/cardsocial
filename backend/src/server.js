@@ -149,8 +149,13 @@ const otpHash = (emailLower, code) => {
     res.status(200).json({ ok: true, service: "moderation-backend" });
   });
 
-  /** Proxy enmascarado: /api/vault/file/:uuid → stream desde Spaces (sin exponer URL DO). */
-  app.use("/api/vault", createVaultFileProxyRoutes({ storage }));
+  /**
+   * Proxy de archivos vault → Spaces (sin URL DO pública).
+   * - /api/vault/file/:id — legado; en Azure a veces WAF/Front Door no reenvía /api/vault/* al Node (0 logs).
+   * - /api/qr/vault-proxy/file/:id — mismo handler; prefijo /api/qr suele estar permitido como el resto del API QR.
+   */
+  const vaultFileProxyRouter = createVaultFileProxyRoutes({ storage });
+  app.use("/api/vault", vaultFileProxyRouter);
 
   /** QR universal: validación TTL en servidor antes de servir la SPA (ver README — proxy Azure). */
   app.use(createUniversalEntryHttpRoutes({ storage }));
@@ -446,8 +451,9 @@ const otpHash = (emailLower, code) => {
     app.use("/", createUniversalEntryHttpRoutes({ storage }));
   }
 
-  // TEMP prueba Alfonso: forzar host API (quitar cuando PUBLIC_VAULT_FILE_BASE_URL esté validado en deploy)
-  const buildVaultAccessUrl = (fileId) => `https://api.cardsocial.me/api/vault/file/${fileId}`;
+  const vaultPublicBase = String(env.publicVaultFileBaseUrl || "https://api.cardsocial.me").replace(/\/+$/, "");
+  /** Ruta bajo /api/qr/* para evitar bloqueos de infra en /api/vault/*. */
+  const buildVaultAccessUrl = (fileId) => `${vaultPublicBase}/api/qr/vault-proxy/file/${fileId}`;
 
   app.use("/api", createModerationRoutes({
     azureSafety,
@@ -459,6 +465,8 @@ const otpHash = (emailLower, code) => {
     middlewares: [gatewayKeyMiddleware, jwtAuthMiddleware, uploadScopeMiddleware],
     buildVaultAccessUrl,
   }));
+
+  app.use("/api/qr/vault-proxy", vaultFileProxyRouter);
 
   app.use("/api/qr", gatewayKeyMiddleware, jwtAuthMiddleware, qrScopeMiddleware, createQrRoutes({
     storage,
