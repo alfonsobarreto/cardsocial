@@ -1,6 +1,7 @@
 /**
  * Tema global Día/Noche — cascarón dinámico alineado con `premiumTheme`.
  * `background` / `motherBg` usan translucidez para el gradiente de Tabs.
+ * Colores base: `styles/_premiumTheme` (light/dark).
  */
 
 import { premiumTheme as PT } from '@/styles/_premiumTheme';
