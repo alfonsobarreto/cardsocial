@@ -79,4 +79,5 @@ module.exports = {
   resolvePublicIdentity,
   RESPECT_FALLBACK_NAME,
   isGenericUserLabel,
+  pickFirstNonGeneric,
 };

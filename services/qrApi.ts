@@ -515,8 +515,10 @@ export async function listCardSubscribers(params: { ownerUid: string; cardId: st
   return {
     count: Number(response?.data?.count || rows.length || 0),
     subscribers: rows.map((row: any) => {
-      const fullName = String(row?.fullName || row?.name || '').trim() || 'Usuario';
-      const username = String(row?.username ?? row?.nickname ?? '').trim();
+      const fullName = String(row?.fullName || row?.name || '').trim();
+      const username = String(row?.username ?? row?.nickname ?? '')
+        .trim()
+        .replace(/^@+/g, '');
       return {
       uid: String(row?.uid || ''),
       name: fullName,

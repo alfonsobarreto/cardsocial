@@ -13,6 +13,8 @@ const DEFAULT_BUNKER_GROUPS = ['Random', 'Family', 'Social', 'Work'];
 
 const { buildGhostLinkAgoraInvite } = require('../lib/agoraGhostLink');
 const { mergeContactProfileFromCard, enrichSubscriberProfileFromCard } = require('../lib/contactIdentityMerge');
+const { buildMongoExtendedProfileFields, mergeUsersAndProfilesDocuments } = require('../lib/extendedUserIdentity');
+const { pickFirstNonGeneric } = require('../lib/resolvePublicIdentity');
 const { clientLocaleIsSpanish } = require('../lib/httpRequestLocale');
 const { parseAndValidateTemporaryAccess } = require('../lib/temporaryAccessToken');
 const { env } = require('../config');
@@ -291,20 +293,20 @@ function createQrRoutes({ storage }) {
       return { uid: '', name: 'Usuario', photoUrl: null };
     }
 
-    const usersDoc = await db.collection('users').findOne(
-      { uid: safeUid },
-      { projection: { displayName: 1, name: 1, fullName: 1, photoUrl: 1, avatarUrl: 1, profilePhoto: 1 } }
-    );
-    const profilesDoc = usersDoc
-      ? null
-      : await db.collection('profiles').findOne(
-          { uid: safeUid },
-          { projection: { displayName: 1, name: 1, fullName: 1, photoUrl: 1, avatarUrl: 1, profilePhoto: 1 } }
-        );
+    const profileProj = { displayName: 1, name: 1, fullName: 1, photoUrl: 1, avatarUrl: 1, profilePhoto: 1 };
+    const [usersDoc, profilesDoc] = await Promise.all([
+      db.collection('users').findOne({ uid: safeUid }, { projection: profileProj }),
+      db.collection('profiles').findOne({ uid: safeUid }, { projection: profileProj }),
+    ]);
 
-    const source = usersDoc || profilesDoc || null;
-    const name = String(source?.displayName || source?.name || source?.fullName || `User ${safeUid.slice(0, 6)}`).trim();
-    const photoUrl = String(source?.photoUrl || source?.avatarUrl || source?.profilePhoto || '').trim() || null;
+    const merged = mergeUsersAndProfilesDocuments(usersDoc, profilesDoc);
+    const name =
+      pickFirstNonGeneric(
+        merged?.fullName,
+        merged?.displayName,
+        merged?.name,
+      ) || 'Usuario';
+    const photoUrl = String(merged?.photoUrl || merged?.avatarUrl || merged?.profilePhoto || '').trim() || null;
 
     return {
       uid: safeUid,
@@ -327,38 +329,24 @@ function createQrRoutes({ storage }) {
       };
     }
 
-    const usersDoc = await db.collection('users').findOne(
-      { uid: safeUid },
-      { projection: { displayName: 1, name: 1, fullName: 1, firstName: 1, lastName: 1, nickname: 1, nicknameLower: 1, photoUrl: 1, avatarUrl: 1, profilePhoto: 1 } }
-    );
-    const profilesDoc = usersDoc
-      ? null
-      : await db.collection('profiles').findOne(
-          { uid: safeUid },
-          { projection: { displayName: 1, name: 1, fullName: 1, firstName: 1, lastName: 1, nickname: 1, nicknameLower: 1, photoUrl: 1, avatarUrl: 1, profilePhoto: 1 } }
-        );
-
-    const source = usersDoc || profilesDoc || null;
-    const firstName = String(source?.firstName || '').trim();
-    const lastName = String(source?.lastName || '').trim();
-    const composedFull = `${firstName} ${lastName}`.trim();
-    /** Nombre legible (no inferir desde nickname). */
-    const fullName = String(
-      source?.fullName || composedFull || source?.displayName || source?.name || `User ${safeUid.slice(0, 6)}`,
-    ).trim();
-    /** @handle real en Mongo; vacío si no hay cuenta / no configuró username. */
-    const username = String(source?.nickname || source?.nicknameLower || '').trim();
-    const photoUrl = String(source?.photoUrl || source?.avatarUrl || source?.profilePhoto || '').trim() || null;
-
-    return {
-      uid: safeUid,
-      fullName,
-      username,
-      name: fullName,
-      nickname: username,
-      photoUrl,
-      ownerOccupation: null,
+    const extendedProj = {
+      displayName: 1,
+      name: 1,
+      fullName: 1,
+      firstName: 1,
+      lastName: 1,
+      nickname: 1,
+      nicknameLower: 1,
+      photoUrl: 1,
+      avatarUrl: 1,
+      profilePhoto: 1,
     };
+    const [usersDoc, profilesDoc] = await Promise.all([
+      db.collection('users').findOne({ uid: safeUid }, { projection: extendedProj }),
+      db.collection('profiles').findOne({ uid: safeUid }, { projection: extendedProj }),
+    ]);
+
+    return buildMongoExtendedProfileFields(safeUid, usersDoc, profilesDoc);
   }
 
   router.post('/voip/ghost-link/start', async (req, res) => {

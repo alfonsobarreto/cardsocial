@@ -10,15 +10,15 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-    Dimensions,
-    FlatList,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  FlatList,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 /* ─── Types ───────────────────────────────────────────────────────── */
@@ -79,9 +79,9 @@ function initialsFrom(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-/** Título: nombre real del perfil Mongo (API `fullName`), nunca el nombre de la tarjeta del receptor. */
-function subscriberTitle(item: CardSubscriberRow, tr: (es: string, en: string) => string): string {
-  return (item.fullName || item.name || '').trim() || tr('Usuario', 'User');
+/** Título: `fullName` / `name` desde la API; vacío si no hay (iniciales ? en avatar). */
+function subscriberTitle(item: CardSubscriberRow): string {
+  return (item.fullName || item.name || '').trim();
 }
 
 /**
@@ -167,7 +167,7 @@ export default function ReceptorScreenModal({
     const list = [...subscribers];
     if (sortMode === 'alpha') {
       list.sort((a, b) =>
-        subscriberTitle(a, tr).localeCompare(subscriberTitle(b, tr), 'es', { sensitivity: 'base' }),
+        subscriberTitle(a).localeCompare(subscriberTitle(b), 'es', { sensitivity: 'base' }),
       );
     } else {
       list.sort((a, b) => {
@@ -195,7 +195,7 @@ export default function ReceptorScreenModal({
   const renderListRow = useCallback(
     ({ item }: { item: CardSubscriberRow }) => {
       const timeLabel = relativeTimeLabel(item.addedAt, tr);
-      const primary = subscriberTitle(item, tr);
+      const primary = subscriberTitle(item);
       const subtitle = subscriberSubtitleLine(item, primary);
       return (
         <View style={[s.listRow, { backgroundColor: c.rowBg, borderBottomColor: c.rowBorder }]}>
@@ -306,7 +306,7 @@ export default function ReceptorScreenModal({
               contentContainerStyle={s.carouselContent}
             >
               {recentSubscribers.map((sub) => {
-                const title = subscriberTitle(sub, tr);
+                const title = subscriberTitle(sub);
                 const parts = title.split(/\s+/).filter(Boolean);
                 return (
                 <View key={`carousel-${sub.uid}`} style={s.carouselItem}>

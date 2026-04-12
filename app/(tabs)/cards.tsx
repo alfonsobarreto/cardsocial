@@ -329,6 +329,34 @@ function dedupeSmartCardsById(cards: SmartCard[]): SmartCard[] {
   return [...byId.values()];
 }
 
+/**
+ * Segunda línea en Mis Tarjetas (Smart): evita repetir el título si coincide con el tema o con tu nombre público.
+ */
+function misCardsSmartRowSubtitle(
+  cardName: string,
+  themeLabel: string,
+  ownerDisplayName: string,
+  ownerNicknameRaw: string,
+): string {
+  const t = String(cardName || '').trim();
+  const th = String(themeLabel || '').trim();
+  const who = String(ownerDisplayName || '').trim();
+  const nick = () => {
+    const raw = String(ownerNicknameRaw || '')
+      .trim()
+      .replace(/^@+/g, '')
+      .replace(/\s+/g, '');
+    return raw ? `@${raw.toLowerCase()}` : '';
+  };
+  if (who && t && who.localeCompare(t, undefined, { sensitivity: 'accent' }) === 0) {
+    return nick() || th;
+  }
+  if (th && t && th.localeCompare(t, undefined, { sensitivity: 'accent' }) === 0) {
+    return nick() || '';
+  }
+  return th;
+}
+
 /** Fila unificada en la lista Mis Tarjetas (Smart + negocio). */
 type CardsFeedListItem =
   | ({ kind: 'business' } & BusinessCardListRow)
@@ -3567,7 +3595,18 @@ export default function CardsFactoryScreen() {
             : (ownerDisplayName || tr('Mi Tarjeta', 'My Card')),
           occupation: subscribersBusinessRow
             ? (subscribersBusinessRow.ownerName || '')
-            : (subscribersCard?.name || ''),
+            : (() => {
+                const cardNm = String(subscribersCard?.name || '').trim();
+                const who = String(ownerDisplayName || '').trim();
+                if (cardNm && who && cardNm.localeCompare(who, undefined, { sensitivity: 'accent' }) === 0) {
+                  const h = String(ownerNickname || '')
+                    .trim()
+                    .replace(/^@+/g, '')
+                    .replace(/\s+/g, '');
+                  return h ? `@${h.toLowerCase()}` : '';
+                }
+                return cardNm;
+              })(),
           photoUrl: subscribersBusinessRow?.businessLogo || ownerPhotoUrl,
         }}
         subscribers={subscribers}
