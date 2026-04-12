@@ -446,8 +446,7 @@ const otpHash = (emailLower, code) => {
     app.use("/", createUniversalEntryHttpRoutes({ storage }));
   }
 
-  const publicAppBase = String(env.publicUniversalCardBaseUrl || "https://cardsocial.me").replace(/\/+$/, "");
-  const buildVaultAccessUrl = (fileId) => `${publicAppBase}/api/vault/file/${fileId}`;
+  const buildVaultAccessUrl = (fileId) => `${env.publicVaultFileBaseUrl}/api/vault/file/${fileId}`;
 
   app.use("/api", createModerationRoutes({
     azureSafety,

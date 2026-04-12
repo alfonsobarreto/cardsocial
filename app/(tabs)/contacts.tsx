@@ -5,6 +5,7 @@ import ReceptorScreenModal from '@/components/ReceptorScreenModal';
 import { SharedCardSkeletonList } from '@/components/SharedCardRowSkeleton';
 import { type WireframeEditSlot } from '@/components/smartCard/IsolatedWireframeCard';
 import { ThemedSharedCardSurface } from '@/components/ThemedSharedCardSurface';
+import { brandCsIconLogoBgTransparent } from '@/constants/brandAssets';
 import { MEDIA_PLACEHOLDER } from '@/constants/mediaPlaceholders';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
@@ -40,8 +41,8 @@ import {
     receivedContactMergeKey,
 } from '@/services/receivedContactsPresentationMerge';
 import { getCardRowTheme } from '@/services/useActiveTheme';
+import { makeContactsStyles } from '@/styles/_contacts.styles';
 import appPalette from '../theme';
-import { makeContactsStyles } from './_contacts.styles';
 
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -764,7 +765,7 @@ function ContactsContent() {
   const renderGhostLinkBrandLogo = () => (
     <View style={styles.ghostBrandLogoWrap} accessibilityRole="image" accessibilityLabel={tr('Card Social', 'Card Social')}>
       <ExpoImage
-        source={require('../../assets/images/CS Icon Logo BG transparent.png')}
+        source={brandCsIconLogoBgTransparent}
         style={styles.ghostBrandLogoImage}
         contentFit="contain"
       />

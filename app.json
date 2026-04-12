@@ -4,11 +4,11 @@
     "slug": "card-social",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/CS Icon Logo.png",
+    "icon": "./assets/images/cs-icon-logo.png",
     "scheme": "cardsocial",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/images/CS Icon Logo.png",
+      "image": "./assets/images/cs-icon-logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
@@ -34,7 +34,7 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
-        "foregroundImage": "./assets/images/CS Icon Logo.png"
+        "foregroundImage": "./assets/images/cs-icon-logo.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.cardsocial.app",

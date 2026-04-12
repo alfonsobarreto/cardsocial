@@ -9,7 +9,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyBF-DGMoQAtaf49sMcsVgGJLtoAyTAHwgA",
   authDomain: "card-social-app.firebaseapp.com",
   projectId: "card-social-app",
-  storageBucket: "card-social-app.firebasestorage.app",
+  storageBucket: "card-social-app.appspot.com",
   messagingSenderId: "604587233093",
   appId: "1:604587233093:web:76abc315ea9326b5fdf82c"
 };

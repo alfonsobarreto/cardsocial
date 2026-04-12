@@ -1,41 +1,40 @@
-import { getActiveUserId } from '@/services/authSession';
+import {
+    storyTextFontFamily,
+    StoryTheaterFullBleedImage,
+    StoryTheaterFullBleedVideo,
+    StoryTheaterTextCanvas,
+    TEXT_STORY_BACKGROUNDS,
+    type TextFontRole,
+} from '@/components/StoryTheaterStage';
 import { isGhostLinkVaultType } from '@/constants/ghostLinkVault';
-import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
-import { readSmartCardsJsonWithLegacyMigration, readVaultJsonWithLegacyMigration } from '@/services/userScopedStorage';
+import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { hasActiveBusinessLicense } from '@/services/businessLicenseService';
+import { trackCardAnalyticsFireAndForget } from '@/services/cardAnalytics';
 import { getPremiumStoryCost, getUserCreditsBalance, purchasePremiumStoryWithCredits } from '@/services/creditsService';
+import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
-import { normalizeMaterialCommunityIconName } from '../components/iconNameValidation';
-import appPalette from '../theme';
-import { makeStoriesStyles } from './_stories.styles';
-import { trackCardAnalyticsFireAndForget } from '@/services/cardAnalytics';
 import { getMyStoryState, getStoriesHouseAd, listReceivedContacts, listSmartCardsFromDb, setMyStoryState, type HouseAdStory } from '@/services/qrApi';
 import { receivedContactMergeKey } from '@/services/receivedContactsPresentationMerge';
 import { fetchVipMarketStorySlots, type VipMarketStorySlot } from '@/services/storiesFeedInjectionService';
-import {
-  normalizeStoryPickedImageAuto,
-  STORY_VIDEO_MAX_DURATION_SEC,
-  validateStoryVideoAsset,
-} from '@/services/storyMediaLimits';
 import { storyChannelKey } from '@/services/storiesPhase1Logic';
 import {
-  TEXT_STORY_BACKGROUNDS,
-  StoryTheaterFullBleedImage,
-  StoryTheaterFullBleedVideo,
-  StoryTheaterTextCanvas,
-  storyTextFontFamily,
-  type TextFontRole,
-} from '@/components/StoryTheaterStage';
+    normalizeStoryPickedImageAuto,
+    STORY_VIDEO_MAX_DURATION_SEC,
+    validateStoryVideoAsset,
+} from '@/services/storyMediaLimits';
+import { readSmartCardsJsonWithLegacyMigration, readVaultJsonWithLegacyMigration } from '@/services/userScopedStorage';
+import { makeStoriesStyles } from '@/styles/_stories.styles';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import * as Location from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Location from 'expo-location';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -55,8 +54,9 @@ import {
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
 import { ActionController } from '../../services/ActionController';
+import { normalizeMaterialCommunityIconName } from '../components/iconNameValidation';
+import appPalette from '../theme';
 
 type StoryState = 'none' | 'normal' | 'vip';
 type StoryDuration = '24h' | '7d' | '30d';

@@ -4,22 +4,22 @@ import { CARD_THEMES as CHEST_THEMES, getThemeById, TIER_META, type CardTheme as
 import { getActiveUserId } from '@/services/authSession';
 import { generatePermanentBusinessLink } from '@/services/brandedQrService';
 import {
-    createBusinessCard,
-    MAX_BUSINESS_VAULT_DATA_SLOTS,
-    updateBusinessCard,
-    updateBusinessCardMarketVisibility,
-    updateBusinessCardSubscriptionStatus,
+  createBusinessCard,
+  MAX_BUSINESS_VAULT_DATA_SLOTS,
+  updateBusinessCard,
+  updateBusinessCardMarketVisibility,
+  updateBusinessCardSubscriptionStatus,
 } from '@/services/businessCardService';
 import { validateBusinessKeywordList } from '@/services/businessKeywordValidation';
 import {
-    activateOrRenewBusinessLicense,
-    hasActiveBusinessLicense,
+  activateOrRenewBusinessLicense,
+  hasActiveBusinessLicense,
 } from '@/services/businessLicenseService';
-import { db, storage } from '@/services/firebaseConfig';
+import { db } from '@/services/firebaseConfig';
 import { getUserIconVaultMap, type IconVaultEntry } from '@/services/iconVaultService';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
-import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
+import { uploadFileWithModeration } from '@/services/moderationApi';
 import { upsertSmartCardInDb, type PublicCardSlotPayload } from '@/services/qrApi';
 import { getCardRowTheme, useActiveTheme } from '@/services/useActiveTheme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -32,24 +32,23 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
-import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Image,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import Toast from 'react-native-toast-message';
@@ -211,22 +210,32 @@ async function getFileSize(uri: string): Promise<number> {
   return blob.size;
 }
 
+/**
+ * Siempre decodifica a JPEG (corrige HEIC / PNG pesado / data URI) y recorta el tamaño
+ * antes de subir con mimeType image/jpeg — misma idea que el avatar en myprofile.
+ */
 async function optimizePhoto(uri: string): Promise<string> {
-  const initialSize = await getFileSize(uri);
-  if (initialSize <= MAX_LOGO_BYTES) return uri;
+  const normalized = await ImageManipulator.manipulateAsync(
+    uri,
+    [{ resize: { width: 1024 } }],
+    { compress: 0.88, format: ImageManipulator.SaveFormat.JPEG },
+  );
+  let best = normalized.uri;
+  let size = await getFileSize(best);
+  if (size <= MAX_LOGO_BYTES) return best;
+
   const attempts = [
-    { width: 1024, compress: 0.82 },
-    { width: 800, compress: 0.72 },
-    { width: 512, compress: 0.62 },
+    { width: 800, compress: 0.78 },
+    { width: 640, compress: 0.68 },
+    { width: 512, compress: 0.58 },
   ];
-  let best = uri;
   for (const a of attempts) {
     const r = await ImageManipulator.manipulateAsync(
       best,
       [{ resize: { width: a.width } }],
       { compress: a.compress, format: ImageManipulator.SaveFormat.JPEG },
     );
-    const size = await getFileSize(r.uri);
+    size = await getFileSize(r.uri);
     best = r.uri;
     if (size <= MAX_LOGO_BYTES) return best;
   }
@@ -669,57 +678,33 @@ export default function CreateBusinessCardScreen() {
     setGeocodeLabels([]);
   };
 
-  const resolveLogoForSave = async (uid: string): Promise<string> => {
+  const resolveLogoForSave = async (uid: string): Promise<string | null> => {
     if (pendingSquareLogoUri) {
-      // Build a Uint8Array from either a data URI (base64) or a file URI
-      let bytes: Uint8Array;
-      if (pendingSquareLogoUri.startsWith('data:')) {
-        const base64 = pendingSquareLogoUri.replace(/^data:image\/[^;]+;base64,/, '');
-        const binary = atob(base64);
-        bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      } else {
-        // File URI path (fallback) — use FileSystem for reliable binary read
-        const optimized = await optimizePhoto(pendingSquareLogoUri);
-        const b64 = await FileSystem.readAsStringAsync(optimized, {
-          encoding: (FileSystem.EncodingType as any).Base64,
+      try {
+        const optimizedUri = await optimizePhoto(pendingSquareLogoUri);
+        const result = await uploadFileWithModeration({
+          fileUri: optimizedUri,
+          ownerUid: uid,
+          label: 'business_logo',
+          fileName: `logo_${uid}_${Date.now()}.jpg`,
+          mimeType: 'image/jpeg',
         });
-        const binary = atob(b64);
-        bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      }
-
-      // 1. Try moderation API if explicitly configured in env
-      if (process.env.EXPO_PUBLIC_MODERATION_API_URL?.trim()) {
-        try {
-          const result = await uploadFileWithModeration({
-            fileUri: pendingSquareLogoUri,
-            ownerUid: uid,
-            label: 'business_logo',
-            fileName: `business_logo_${uid}_${Date.now()}.jpg`,
-            mimeType: 'image/jpeg',
-          });
-          const url = toRenderableImageUri(result.publicUrl);
-          if (url) {
-            setUploadedLogoUrl(url);
-            setPendingSquareLogoUri(null);
-            return url;
-          }
-        } catch (e: any) {
-          if (e instanceof ModerationRejectedError) throw e;
-          // Moderation API unavailable — fall through to Firebase Storage
+        const newPhotoUrl = result?.publicUrl || null;
+        if (newPhotoUrl) {
+          setUploadedLogoUrl(newPhotoUrl);
+          setPendingSquareLogoUri(null);
+          return newPhotoUrl;
         }
+        return null;
+      } catch (error) {
+        console.error('Error subiendo logo al servidor:', error);
+        return null;
       }
-
-      // 2. Firebase Storage upload (reliable binary path, no fetch().blob())
-      const logoRef = storageRef(storage, `business_logos/${uid}/${Date.now()}.jpg`);
-      await uploadBytes(logoRef, bytes, { contentType: 'image/jpeg' });
-      const url = await getDownloadURL(logoRef);
-      setUploadedLogoUrl(url);
-      setPendingSquareLogoUri(null);
-      return url;
     }
-    return uploadedLogoUrl || profilePhotoUrl || '';
+    if (uploadedLogoUrl) {
+      return uploadedLogoUrl;
+    }
+    return null;
   };
 
   const handleCreate = async () => {
@@ -769,27 +754,9 @@ export default function CreateBusinessCardScreen() {
 
     setSubmitting(true);
     try {
-      let businessLogo = '';
-      try {
-        businessLogo = await resolveLogoForSave(uid);
-      } catch (e: any) {
-        if (e instanceof ModerationRejectedError) {
-          Alert.alert(tr('Imagen rechazada', 'Image rejected'), tr('El logo no pasó la moderación.', 'Logo did not pass moderation.'));
-          setSubmitting(false);
-          return;
-        }
-        // Upload failed — fall back to profile photo so the card can still be saved
-        businessLogo = profilePhotoUrl || '';
-        Toast.show({
-          type: 'error',
-          text1: tr('Logo no subido', 'Logo not uploaded'),
-          text2: tr(
-            'No se pudo subir el logo. Se usará tu foto de perfil. Revisa tu conexión o los permisos de almacenamiento.',
-            'Logo upload failed. Your profile photo will be used. Check your connection or Storage permissions.',
-          ),
-          visibilityTime: 6000,
-        });
-      }
+      const resolvedLogo = await resolveLogoForSave(uid);
+      const businessLogo = resolvedLogo ?? '';
+
 
       const kwTags = kw.ok ? kw.tags : [];
 

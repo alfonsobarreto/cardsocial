@@ -1,4 +1,5 @@
 import ActivityIndicator from '@/components/BrandedSpinner';
+import { brandCsIconLogoBgTransparent } from '@/constants/brandAssets';
 import { initiateAccountRecovery } from '@/services/accountRecoveryService';
 import { saveCachedCredentials } from '@/services/credentialVault';
 import { auth, db } from '@/services/firebaseConfig';
@@ -257,11 +258,7 @@ export default function SignInScreen() {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.heroIconWrap}>
-              <Image
-                source={require('../assets/images/CS Icon Logo BG transparent.png')}
-                style={styles.heroLogo}
-                resizeMode="contain"
-              />
+              <Image source={brandCsIconLogoBgTransparent} style={styles.heroLogo} resizeMode="contain" />
             </View>
             <Text style={styles.title}>{welcomeTitle}</Text>
             <Text style={styles.subtitle}>{tr('Inicia como prefieras, pero siempre con control total de tu identidad.', 'Sign in your way, always with full control of your identity.')}</Text>

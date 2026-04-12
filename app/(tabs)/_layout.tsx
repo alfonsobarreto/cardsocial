@@ -1,4 +1,5 @@
 import { ConfettiAnimation, ConfettiAnimationRef } from '@/components/ConfettiAnimation';
+import { brandCsIconLogo } from '@/constants/brandAssets';
 import { CreditsIndicator } from '@/components/CreditsIndicator';
 import IconStore from '@/components/IconStore';
 import LanguageToggle from '@/components/LanguageToggle';
@@ -630,7 +631,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                 <View style={styles.headerBrandCenter} pointerEvents="none">
                   <View style={styles.headerBrandWrap}>
                     <Image
-                      source={require('../../assets/images/CS Icon Logo.png')}
+                      source={brandCsIconLogo}
                       style={styles.headerBrandLogo}
                       resizeMode="contain"
                       accessibilityIgnoresInvertColors

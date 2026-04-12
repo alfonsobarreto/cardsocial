@@ -31,6 +31,15 @@ const env = {
   /** Base URL del sitio (Expo Web) para enlaces QR universales TTL; ej. https://cardsocial.me */
   publicUniversalCardBaseUrl: (process.env.PUBLIC_UNIVERSAL_CARD_BASE_URL || "https://cardsocial.me").replace(/\/+$/, ""),
   /**
+   * Base URL donde el MISMO proceso Express expone GET /api/vault/file/:id (proxy Spaces).
+   * Si subes a api.cardsocial.me pero PUBLIC_UNIVERSAL_CARD_BASE_URL es https://cardsocial.me y ese host
+   * no enruta /api/vault al mismo API+Mongo, el navegador devolverá 404 aunque el upload devolvió 201.
+   * En ese despliegue: PUBLIC_VAULT_FILE_BASE_URL=https://api.cardsocial.me
+   */
+  publicVaultFileBaseUrl: String(
+    process.env.PUBLIC_VAULT_FILE_BASE_URL || process.env.PUBLIC_UNIVERSAL_CARD_BASE_URL || "https://cardsocial.me"
+  ).replace(/\/+$/, ""),
+  /**
    * Si es true, tras validar GET /u/:token se redirige a `/?universalToken=...` en lugar de `/u/...`.
    * Útil cuando el proxy envía todo `/u/*` al API y un 302 a `/u/` volvería al backend (bucle).
    */

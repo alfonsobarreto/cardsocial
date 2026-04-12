@@ -6,6 +6,7 @@ import {
     WIREFRAME_STITCH_HORIZONTAL_INSET,
     WIREFRAME_STITCH_HORIZONTAL_INSET_PREVIEW,
 } from '@/components/smartCard/wireframeMath';
+import { brandCsIconLogo } from '@/constants/brandAssets';
 import type { CardTheme as ChestCardTheme } from '@/constants/themeChest';
 import { getWallpaperResizeMode } from '@/services/wallpaperService';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -260,7 +261,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
 
         <View style={wf.wireCardContentInset}>
         <View style={wf.horizHeader} onLayout={(e) => setHorizHeaderH(e.nativeEvent.layout.height)}>
-          <Image source={require('../../assets/images/CS Icon Logo.png')} style={{ width: hBrandLogoSize, height: hBrandLogoSize }} />
+          <Image source={brandCsIconLogo} style={{ width: hBrandLogoSize, height: hBrandLogoSize }} />
           <Text style={[wf.horizBrandingText, { color: subStyle.color, fontSize: hBrandFontSize }, thin]}>Card-Social</Text>
         </View>
 
@@ -427,7 +428,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
 
       <View style={wf.wireCardContentInset}>
       <View style={wf.vertHeader} onLayout={(e) => setVertHeaderH(e.nativeEvent.layout.height)}>
-        <Image source={require('../../assets/images/CS Icon Logo.png')} style={{ width: brandLogoSize, height: brandLogoSize }} />
+        <Image source={brandCsIconLogo} style={{ width: brandLogoSize, height: brandLogoSize }} />
         <Text style={[wf.vertBrandingText, { color: subStyle.color, fontSize: brandFontSize }, thin]}>Card-Social</Text>
       </View>
 

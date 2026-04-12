@@ -15,6 +15,7 @@ import {
     renderWireframeDetailedRatingStars,
     renderWireframeMiniIcon,
 } from '@/components/smartCard/wireframeMirrorRendering';
+import { brandCsIconLogo } from '@/constants/brandAssets';
 import { isGhostLinkVaultType } from '@/constants/ghostLinkVault';
 import {
     CARD_THEMES as CHEST_THEMES,
@@ -3670,9 +3671,7 @@ export default function CardsFactoryScreen() {
                       color={isDark ? '#E8D4A3' : '#0D4D8A'}
                       backgroundColor={isDark ? '#1C1C1E' : '#FFFFFF'}
                       logo={
-                        qrBusinessContext?.logoUrl
-                          ? { uri: qrBusinessContext.logoUrl }
-                          : require('../../assets/images/CS Icon Logo.png')
+                        qrBusinessContext?.logoUrl ? { uri: qrBusinessContext.logoUrl } : brandCsIconLogo
                       }
                       logoSize={qrBusinessContext?.logoUrl ? 48 : 42}
                       logoBackgroundColor={isDark ? '#1C1C1E' : '#FFFFFF'}

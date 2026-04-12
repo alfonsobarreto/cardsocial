@@ -7,7 +7,6 @@
  * Tema: dÃ­a/noche desde premiumTheme Â· BilingÃ¼e (es/en)
  */
 
-import { premiumTheme as PT } from '@/app/_premiumTheme';
 import { getActiveUserId } from '@/services/authSession';
 import { db } from '@/services/firebaseConfig';
 import { useLanguage } from '@/services/language';
@@ -20,6 +19,7 @@ import {
     SOCIAL_MEDALS,
     submitMedalVote,
 } from '@/services/medalService';
+import { premiumTheme as PT } from '@/styles/_premiumTheme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { addDoc, collection, doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import React, { useCallback, useEffect, useRef, useState } from 'react';

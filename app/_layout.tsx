@@ -17,6 +17,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Toast from 'react-native-toast-message';
 import { useLookMode } from '@/services/lookMode';
 import palette from './theme';
+import { brandCsLogo } from '@/constants/brandAssets';
 
 
 export default function RootLayout() {
@@ -131,11 +132,7 @@ function RootNavigator() {
   if (isLocked) {
     return (
       <LinearGradient colors={[...shell.vipBannerGradient]} style={lockStyles.lockScreen}>
-        <Image
-          source={require('@/assets/images/CSLogo.png')}
-          style={lockStyles.logo}
-          resizeMode="contain"
-        />
+        <Image source={brandCsLogo} style={lockStyles.logo} resizeMode="contain" />
         <Text style={lockStyles.lockTitle}>{tr('Búnker Card-Social', 'Card-Social Bunker')}</Text>
         <TouchableOpacity
           style={lockStyles.unlockButton}

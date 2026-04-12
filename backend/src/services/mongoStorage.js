@@ -134,17 +134,26 @@ function createMongoStorage({ uri, dbName }) {
     }));
 
     const currentDb = await connect();
-    await currentDb.collection(VAULT_REGISTRY).insertOne({
-      fileId,
-      spacesKey,
-      spacesBucket: bucket_name,
-      mimeType: contentType,
-      ownerUid: String(ownerUid || "").trim(),
-      label: String(label || "").trim(),
-      originalFilename: filename,
-      size: fileBuffer.length,
-      createdAt: new Date(),
-    });
+    try {
+      await currentDb.collection(VAULT_REGISTRY).insertOne({
+        fileId,
+        spacesKey,
+        spacesBucket: bucket_name,
+        mimeType: contentType,
+        ownerUid: String(ownerUid || "").trim(),
+        label: String(label || "").trim(),
+        originalFilename: filename,
+        size: fileBuffer.length,
+        createdAt: new Date(),
+      });
+    } catch (insertErr) {
+      try {
+        await spaces.send(new DeleteObjectCommand({ Bucket: bucket_name, Key: spacesKey }));
+      } catch (delErr) {
+        console.warn("[vault upload] rollback DeleteObject failed:", spacesKey, delErr?.message || delErr);
+      }
+      throw insertErr;
+    }
 
     return { fileId, spacesKey, spacesBucket: bucket_name };
   }
@@ -183,7 +192,11 @@ function createMongoStorage({ uri, dbName }) {
       res.setHeader("Content-Disposition", `inline; filename="${safeName}"`);
 
       const body = out.Body;
-      if (body && typeof body.pipe === "function") {
+      if (!body) {
+        console.warn("[vault proxy] empty Body for:", fileId);
+        return false;
+      }
+      if (typeof body.pipe === "function") {
         body.on("error", (err) => {
           console.warn("[vault proxy] stream error:", err?.message || err);
           if (!res.headersSent) {
@@ -195,9 +208,16 @@ function createMongoStorage({ uri, dbName }) {
         body.pipe(res);
         return true;
       }
+      if (typeof body.transformToByteArray === "function") {
+        const bytes = await body.transformToByteArray();
+        res.end(Buffer.from(bytes));
+        return true;
+      }
+      console.warn("[vault proxy] unsupported S3 Body type for:", fileId);
       return false;
     } catch (e) {
-      console.warn("[vault proxy] GetObject failed:", fileId, e?.message || e);
+      const code = e?.name || e?.Code || e?.code || "";
+      console.warn("[vault proxy] GetObject failed:", fileId, code, e?.message || e);
       return false;
     }
   }
