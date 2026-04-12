@@ -1,27 +1,34 @@
 const { MongoClient } = require("mongodb");
 const { randomUUID } = require("crypto");
 const { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } = require("@aws-sdk/client-s3");
+const {
+  env,
+  getSpacesMissingEnvVars,
+  logSpacesVariablesLoaded,
+  formatSpacesEnvMissingError,
+} = require("../config");
 
 const VAULT_REGISTRY = "vault_file_registry";
 
-// ─── DO Spaces client (solo instanciado si las credenciales están presentes) ──
+/** S3 solo si las cinco `SPACES_*` están definidas en `config` (Azure App Settings). */
 function createSpacesClient() {
-  const key = process.env.DO_SPACES_KEY;
-  const secret = process.env.DO_SPACES_SECRET;
-  const endpoint = process.env.DO_SPACES_ENDPOINT || "sfo3.digitaloceanspaces.com";
-  const region = process.env.DO_SPACES_REGION || "sfo3";
-
-  if (!key || !secret) return null;
-
+  if (getSpacesMissingEnvVars().length > 0) {
+    return null;
+  }
   return new S3Client({
-    region,
-    endpoint: `https://${endpoint}`,
-    credentials: { accessKeyId: key, secretAccessKey: secret },
+    region: env.spacesRegion,
+    endpoint: `https://${env.spacesEndpoint}`,
+    credentials: {
+      accessKeyId: env.spacesKey,
+      secretAccessKey: env.spacesSecret,
+    },
     forcePathStyle: false,
   });
 }
 
 function createMongoStorage({ uri, dbName }) {
+  logSpacesVariablesLoaded();
+
   const client = new MongoClient(uri);
   let db;
   const spaces = createSpacesClient();
@@ -45,8 +52,8 @@ function createMongoStorage({ uri, dbName }) {
   async function saveFileToSpaces({ fileBuffer, filename, mimeType, folder }) {
     if (!spaces) return null;
 
-    const bucket_name = process.env.DO_SPACES_BUCKET || "cardsocial-assets";
-    const endpoint = process.env.DO_SPACES_ENDPOINT || "sfo3.digitaloceanspaces.com";
+    const bucket_name = env.spacesBucket;
+    const endpoint = env.spacesEndpoint;
     const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, "-");
     const key = `${folder}/${Date.now()}-${safeName}`;
 
@@ -117,9 +124,9 @@ function createMongoStorage({ uri, dbName }) {
    */
   async function uploadVaultFilePrivate({ fileBuffer, filename, mimeType, ownerUid, label }) {
     if (!spaces) {
-      throw new Error("DigitalOcean Spaces is not configured (DO_SPACES_KEY / DO_SPACES_SECRET)");
+      throw new Error(formatSpacesEnvMissingError());
     }
-    const bucket_name = process.env.DO_SPACES_BUCKET || "cardsocial-assets";
+    const bucket_name = env.spacesBucket;
     const fileId = randomUUID();
     const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, "-") || "file";
     const spacesKey = `vault-proxy/${fileId}/${safeName}`;
@@ -174,7 +181,12 @@ function createMongoStorage({ uri, dbName }) {
   async function pipeVaultFileToResponse(fileId, res) {
     const meta = await findVaultFileRecord(fileId);
     if (!spaces) {
-      console.warn("[vault proxy] pipeVaultFileToResponse: Spaces client not configured, fileId=", fileId);
+      console.warn(
+        "[vault proxy] pipeVaultFileToResponse:",
+        formatSpacesEnvMissingError(),
+        "fileId=",
+        fileId
+      );
       return false;
     }
     if (!meta) {

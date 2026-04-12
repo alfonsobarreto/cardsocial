@@ -1,5 +1,6 @@
 const express = require("express");
 const multer = require("multer");
+const { formatSpacesEnvMissingError } = require("../config");
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -64,7 +65,7 @@ function createModerationRoutes({ azureSafety, storage, limits, middlewares = []
       if (!storage.isSpacesConfigured || !storage.isSpacesConfigured()) {
         return res.status(503).json({
           ok: false,
-          error: "File storage is not configured. Set DO_SPACES_KEY, DO_SPACES_SECRET, and bucket.",
+          error: formatSpacesEnvMissingError(),
         });
       }
 
