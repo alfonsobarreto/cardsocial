@@ -7,6 +7,7 @@ import { normalizeMaterialIconName } from '@/app/components/iconNameValidation';
 import { activateOrRenewBusinessLicense } from '@/services/businessLicenseService';
 import { db } from '@/services/firebaseConfig';
 import { newEntityId } from '@/services/newEntityId';
+import { inferMciIconFromContext } from '@/services/searchFacetIcons';
 import {
     collection,
     deleteDoc,
@@ -37,48 +38,44 @@ async function resolveMarketFacets(
 ): Promise<Array<{ type: string; label: string; value: string; iconName?: string }>> {
   const unique = [...new Set(linkIds.filter(Boolean))].slice(0, MAX_BUSINESS_VAULT_DATA_SLOTS);
   if (!unique.length) return [];
-  const facets: Array<{ type: string; label: string; value: string; iconName?: string }> = [];
 
-  // Per-link timeout (3 s) so a single slow doc never blocks the others.
+  // Per-link timeout (4 s) so a single slow doc never blocks the others.
+  // All fetches run in parallel; results that time out are simply skipped.
+  // No global race-condition timeout — Promise.all with per-item caps is sufficient
+  // and avoids storing partially-resolved facets.
   const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T | null> =>
     Promise.race([p, new Promise<null>((r) => setTimeout(() => r(null), ms))]);
 
-  // Global safety cap (3.5 s): if Promise.all itself stalls, fall back to whatever
-  // facets were collected up to that point rather than hanging forever.
-  const globalTimeout = new Promise<'timeout'>((r) => setTimeout(() => r('timeout'), 3500));
-
-  const resolved = await Promise.race([
-    Promise.all(
-      unique.map(async (linkId) => {
-        try {
-          const snap = await withTimeout(getDoc(doc(db, 'users', ownerUid, 'links', linkId)), 3000);
-          if (snap && snap.exists()) {
-            const row = snap.data() as Record<string, unknown>;
-            const type = String(row.type ?? '').trim();
-            const label = String(row.title ?? row.label ?? type).trim();
-            const value = String(row.value ?? '').trim();
-            // Priority: iconName field → icon field (if non-HTTP = material icon name)
-            // Validate against MCI glyphMap so only real icon names are stored.
-            const iconNameRaw = row.iconName != null ? String(row.iconName).trim() : '';
-            const iconFieldRaw = row.icon != null ? String(row.icon).trim() : '';
-            const rawCandidate = iconNameRaw
-              || (!iconFieldRaw.startsWith('http') && iconFieldRaw ? iconFieldRaw : '');
-            const iconName = rawCandidate ? normalizeMaterialIconName(rawCandidate, '') : '';
-            if (value) {
-              facets.push({ type: type || 'otro', label: label || type || 'Dato', value, ...(iconName ? { iconName } : {}) });
-            }
+  const results = await Promise.all(
+    unique.map(async (linkId) => {
+      try {
+        const snap = await withTimeout(getDoc(doc(db, 'users', ownerUid, 'links', linkId)), 4000);
+        if (snap && snap.exists()) {
+          const row = snap.data() as Record<string, unknown>;
+          const type = String(row.type ?? '').trim();
+          const label = String(row.title ?? row.label ?? type).trim();
+          const value = String(row.value ?? '').trim();
+          // Priority: iconName field → icon field (if non-HTTP = material icon name)
+          // Validate against MCI glyphMap so only real icon names are stored.
+          const iconNameRaw = row.iconName != null ? String(row.iconName).trim() : '';
+          const iconFieldRaw = row.icon != null ? String(row.icon).trim() : '';
+          const rawCandidate = iconNameRaw
+            || (!iconFieldRaw.startsWith('http') && iconFieldRaw ? iconFieldRaw : '');
+          // Validate explicit iconName first; if absent (e.g. item uses HTTP custom icon),
+          // infer a good MCI name from label + URL so the Social Market always has an icon.
+          const explicitIcon = rawCandidate ? normalizeMaterialIconName(rawCandidate, '') : '';
+          const iconName = explicitIcon || normalizeMaterialIconName(
+            inferMciIconFromContext(type || 'otro', label || '', value), '');
+          if (value) {
+            return { type: type || 'otro', label: label || type || 'Dato', value, ...(iconName ? { iconName } : {}) } as { type: string; label: string; value: string; iconName?: string };
           }
-        } catch { /* skip unreadable */ }
-      }),
-    ),
-    globalTimeout,
-  ]);
+        }
+      } catch { /* skip unreadable */ }
+      return null;
+    }),
+  );
 
-  if (resolved === 'timeout') {
-    console.log('[resolveMarketFacets] global timeout — returning partial facets', facets.length);
-  }
-
-  return facets;
+  return results.filter((r): r is { type: string; label: string; value: string; iconName?: string } => r !== null);
 }
 
 export interface BusinessCardCreateInput {

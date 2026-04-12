@@ -22,7 +22,7 @@ import {
   mergeReceivedContactRows,
   receivedContactMergeKey,
 } from '@/services/receivedContactsPresentationMerge';
-import { facetIconNameForSearch, runSearchFacetQuickAction } from '@/services/searchFacetQuickAction';
+import { inferMciIconFromContext, runSearchFacetQuickAction } from '@/services/searchFacetQuickAction';
 import {
   isSearchLocationSessionActive,
   startSearchLocationSession,
@@ -922,7 +922,7 @@ export default function SearchScreen() {
                       accessibilityLabel={f.label}
                     >
                       <MaterialCommunityIcons
-                        name={facetIconNameForSearch(f.type) as 'help-circle'}
+                        name={normalizeMaterialIconName(inferMciIconFromContext(f.type, f.label, f.value), 'card-account-details-outline') as 'help-circle'}
                         size={22}
                         color="rgba(212,175,55,0.95)"
                       />
@@ -1168,7 +1168,7 @@ export default function SearchScreen() {
                     accessibilityLabel={f.label}
                   >
                     <MaterialCommunityIcons
-                      name={(normalizeMaterialIconName(f.iconName, '') || facetIconNameForSearch(f.type)) as 'card-account-details-outline'}
+                      name={(normalizeMaterialIconName(f.iconName, '') || normalizeMaterialIconName(inferMciIconFromContext(f.type, f.label, f.value), 'card-account-details-outline')) as 'card-account-details-outline'}
                       size={22}
                       color="rgba(212,175,55,0.95)"
                     />
@@ -1277,7 +1277,7 @@ export default function SearchScreen() {
           receivedCardDetail?.card?.businessName ||
           undefined
         }
-        ratingCardType='smart'
+        ratingCardType='business'
       />
 
       <MyCardsPreviewModal

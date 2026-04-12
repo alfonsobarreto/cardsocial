@@ -7,7 +7,7 @@ import { normalizeMaterialIconName } from '@/app/components/iconNameValidation';
 import type { MyCardsPayload } from '@/components/MyCards';
 import type { WireframeEditSlot } from '@/components/smartCard/IsolatedWireframeCard';
 import type { MirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
-import { facetIconNameForSearch } from '@/services/searchFacetIcons';
+import { inferMciIconFromContext } from '@/services/searchFacetIcons';
 import { buildMarketCardSearchFacets } from '@/services/searchPhase2Logic';
 import type { BusinessCard, BusinessCardSearchResult } from '@/types/businessCard';
 
@@ -51,11 +51,13 @@ export function mirrorVaultItemsFromBusinessCard(card: BusinessCard): MirrorVaul
       title: String(f.label || '').trim() || '—',
       type: typeOut,
       value: v,
-      // Validate stored iconName against MCI; fall back to type-derived icon if invalid.
+      // Validate stored iconName against MCI; fall back to context-inferred icon
+      // (label + URL + type) to handle items that use HTTP custom icons.
       iconName: (() => {
         const raw = f.iconName?.trim() ?? '';
         const validated = raw ? normalizeMaterialIconName(raw, '') : '';
-        return validated || facetIconNameForSearch(f.type);
+        const inferred = inferMciIconFromContext(f.type, String(f.label || ''), v);
+        return validated || normalizeMaterialIconName(inferred, 'card-account-details-outline');
       })(),
       isFavorite: false,
       ...(vaultMimeType ? { vaultMimeType } : {}),

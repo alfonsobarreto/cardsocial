@@ -1,10 +1,10 @@
 import { isGhostLinkVaultType } from '@/constants/ghostLinkVault';
-import { trackCardAnalyticsFireAndForget } from '@/services/cardAnalytics';
 import { ActionController } from '@/services/ActionController';
-import { facetIconNameForSearch } from '@/services/searchFacetIcons';
+import { trackCardAnalyticsFireAndForget } from '@/services/cardAnalytics';
+import { facetIconNameForSearch, inferMciIconFromContext } from '@/services/searchFacetIcons';
 import { Alert, Linking } from 'react-native';
 
-export { facetIconNameForSearch };
+export { facetIconNameForSearch, inferMciIconFromContext };
 
 export function runSearchFacetQuickAction(params: {
   type: string;
