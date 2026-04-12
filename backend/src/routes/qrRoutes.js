@@ -165,6 +165,32 @@ function createQrRoutes({ storage }) {
       },
     );
   }
+
+  async function fetchPersonalCardIdentityDoc(db, ownerUid) {
+    const uid = String(ownerUid || '').trim();
+    if (!uid) {
+      return null;
+    }
+    const proj = {
+      cardType: 1,
+      ownerDisplayName: 1,
+      ownerNickname: 1,
+      ownerPhotoUrl: 1,
+      ownerOccupation: 1,
+      updatedAt: 1,
+    };
+    const personal = await db.collection('smart_cards').findOne(
+      { ownerUid: uid, cardType: { $ne: 'business' } },
+      { sort: { updatedAt: -1 }, projection: proj },
+    );
+    if (personal) {
+      return personal;
+    }
+    return db.collection('smart_cards').findOne(
+      { ownerUid: uid },
+      { sort: { updatedAt: -1 }, projection: proj },
+    );
+  }
   // Cambiar nickname con bloqueo de 30 días
   router.put('/users/:uid/nickname', async (req, res) => {
     try {
@@ -2262,7 +2288,7 @@ function createQrRoutes({ storage }) {
       const subscribers = [];
       for (const uid of subscriberUids) {
         let profile = await resolveUserProfileExtended(db, uid);
-        const idCard = await fetchLatestCardIdentityDoc(db, uid);
+        const idCard = await fetchPersonalCardIdentityDoc(db, uid);
         profile = enrichSubscriberProfileFromCard(profile, idCard);
         const mutualIds = mutualNeighborUids(neighborMap, ownerUid, uid);
         const mutualCount = mutualIds.length;
