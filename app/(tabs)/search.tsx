@@ -15,9 +15,10 @@ import { hardLockCheck } from '@/services/biometricAuth';
 import { ExportBusinessQR, generatePermanentBusinessLink } from '@/services/brandedQrService';
 import { buildMirrorVaultItemsForContact } from '@/services/buildReceiverPreviewVaultItems';
 import { hasActiveBusinessLicense } from '@/services/businessLicenseService';
+import { myCardsPayloadFromQrPreview } from '@/services/incomingCardPreviewPayload';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
-import { listCardSubscribers, listReceivedContacts, type CardSubscriberRow } from '@/services/qrApi';
+import { fetchPublicBusinessCardPreview, listCardSubscribers, listReceivedContacts, type CardSubscriberRow } from '@/services/qrApi';
 import {
   mergeReceivedContactRows,
   receivedContactMergeKey,
@@ -204,6 +205,9 @@ export default function SearchScreen() {
   const [receivedContactsLookupRows, setReceivedContactsLookupRows] = useState<ReceivedContactForMarketSearch[]>([]);
   const [receivedCardDetail, setReceivedCardDetail] = useState<BusinessCardSearchResult | null>(null);
   const [marketCardDetail, setMarketCardDetail] = useState<BusinessCardSearchResult | null>(null);
+  /** Payload real obtenido de MongoDB (Single Source of Truth). */
+  const [marketFetchedPayload, setMarketFetchedPayload] = useState<MyCardsPayload | null>(null);
+  const [marketFetching, setMarketFetching] = useState(false);
 
   const [viewerUid, setViewerUid] = useState<string | null>(null);
   useEffect(() => { void getActiveUserId().then(setViewerUid); }, []);
@@ -228,6 +232,7 @@ export default function SearchScreen() {
 
   const closeMarketCardDetail = useCallback(() => {
     setMarketCardDetail(null);
+    setMarketFetchedPayload(null);
     requestAnimationFrame(restoreSearchListScroll);
   }, [restoreSearchListScroll]);
 
@@ -276,9 +281,12 @@ export default function SearchScreen() {
   }, [receivedCardDetail, searchMirrorPreviewSlots, tr]);
 
   const marketPremiumPayload = useMemo<MyCardsPayload | null>(() => {
+    // Single Source of Truth: preferir el payload real de MongoDB.
+    // Fallback a adaptBusinessCardSearchResult solo si el fetch falla.
+    if (marketFetchedPayload) return marketFetchedPayload;
     if (!marketCardDetail) return null;
     return adaptBusinessCardSearchResultToMyCardsPayload(marketCardDetail, tr);
-  }, [marketCardDetail, tr]);
+  }, [marketFetchedPayload, marketCardDetail, tr]);
 
   const onSearchScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     searchScrollYRef.current = e.nativeEvent.contentOffset.y;
@@ -991,7 +999,36 @@ export default function SearchScreen() {
           return;
         }
         savedSearchScrollYRef.current = searchScrollYRef.current;
+        // Abrir modal inmediatamente con el resultado de búsqueda (UX: sin wait).
         setMarketCardDetail(item);
+        setMarketFetchedPayload(null);
+        // Fetch real: Single Source of Truth desde MongoDB (publicCardSlots reales).
+        try {
+          setMarketFetching(true);
+          const res = await fetchPublicBusinessCardPreview({
+            ownerUid: card.ownerUid,
+            cardId: card.id,
+            locale: language === 'es' ? 'es' : 'en',
+          });
+          if (res.ok) {
+            const realPayload = myCardsPayloadFromQrPreview(res.preview, tr);
+            // Preservar datos de Firestore que el preview público no tiene.
+            realPayload.avatarUrl = realPayload.avatarUrl || card.businessLogo || null;
+            realPayload.cardName = realPayload.cardName || String(card.businessName || '').trim() || tr('Negocio', 'Business');
+            if (!realPayload.subtitle) {
+              realPayload.subtitle =
+                String(card.ownerName || '').trim().slice(0, 60) ||
+                String(card.businessDescription || '').trim().slice(0, 120) ||
+                tr('Mercado Social', 'Social Market');
+            }
+            realPayload.noAvatarIcon = 'storefront-outline';
+            setMarketFetchedPayload(realPayload);
+          }
+        } catch {
+          // Fetch falló — el modal sigue con el fallback de marketFacets.
+        } finally {
+          setMarketFetching(false);
+        }
       })();
     };
 

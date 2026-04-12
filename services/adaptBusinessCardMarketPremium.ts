@@ -7,7 +7,6 @@ import { normalizeMaterialIconName } from '@/app/components/iconNameValidation';
 import type { MyCardsPayload } from '@/components/MyCards';
 import type { WireframeEditSlot } from '@/components/smartCard/IsolatedWireframeCard';
 import type { MirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
-import { inferMciIconFromContext } from '@/services/searchFacetIcons';
 import { buildMarketCardSearchFacets } from '@/services/searchPhase2Logic';
 import type { BusinessCard, BusinessCardSearchResult } from '@/types/businessCard';
 
@@ -15,7 +14,7 @@ function normalizeFacetType(type: string): string {
   return String(type || '')
     .toLowerCase()
     .normalize('NFD')
-    .replace(/\p{M}/gu, '');
+    .replace(/[\u0300-\u036f]/g, '');
 }
 
 /** Tema por defecto solo si la tarjeta no trae `themeId` (Firestore). */
@@ -24,8 +23,22 @@ export const MARKET_PREMIUM_WIREFRAME_THEME_ID = 'emerald_crown';
 /**
  * Facetas de negocio → ítems espejo (mismos campos que contactos / QR público).
  */
-export function mirrorVaultItemsFromBusinessCard(card: BusinessCard): MirrorVaultItem[] {
-  const facets = buildMarketCardSearchFacets(card);
+export function mirrorVaultItemsFromBusinessCard(card: BusinessCard | any): MirrorVaultItem[] {
+  // 1. FIX DE LOS 7 ICONOS: Priorizar publicCardSlots si existen.
+  // Si la tarjeta trae slots completos (no truncados por la búsqueda), los usamos todos.
+  let facets: Array<{ type: string; label: string; value: string; iconName?: string }> = [];
+  if (Array.isArray(card.publicCardSlots) && card.publicCardSlots.length > 0) {
+    facets = card.publicCardSlots.map((slot: any) => ({
+      type: slot.type || '',
+      label: slot.title || slot.label || '',
+      value: slot.value || slot.url || '',
+      iconName: slot.iconName || ''
+    }));
+  } else {
+    // Fallback: usar los de búsqueda si es lo único que mandó el backend
+    facets = buildMarketCardSearchFacets(card as BusinessCard);
+  }
+
   return facets.map((f, i): MirrorVaultItem => {
     const v = String(f.value || '').trim();
     const baseType = String(f.type || '');
@@ -46,19 +59,13 @@ export function mirrorVaultItemsFromBusinessCard(card: BusinessCard): MirrorVaul
       }
     }
 
+    // 2. FIX DE LOS ICONOS ROTOS (?): Mapeo manual agresivo e infalible
     return {
       id: `market-premium-${i}-${tn || 'slot'}`,
       title: String(f.label || '').trim() || '—',
       type: typeOut,
       value: v,
-      // Validate stored iconName against MCI; fall back to context-inferred icon
-      // (label + URL + type) to handle items that use HTTP custom icons.
-      iconName: (() => {
-        const raw = f.iconName?.trim() ?? '';
-        const validated = raw ? normalizeMaterialIconName(raw, '') : '';
-        const inferred = inferMciIconFromContext(f.type, String(f.label || ''), v);
-        return validated || normalizeMaterialIconName(inferred, 'card-account-details-outline');
-      })(),
+      iconName: normalizeMaterialIconName(f.iconName?.trim() ?? '', 'link-variant'),
       isFavorite: false,
       ...(vaultMimeType ? { vaultMimeType } : {}),
     };
@@ -78,7 +85,12 @@ export function adaptBusinessCardSearchResultToMyCardsPayload(
   result: BusinessCardSearchResult,
   tr: (es: string, en: string) => string,
 ): MyCardsPayload {
-  const card = result.card;
+  // TRUCO DE INYECCIÓN: Si el result trae publicCardSlots, se los pasamos a la card.
+  const card = { ...result.card };
+  if (result.receivedPublicCardSlots) {
+    (card as any).publicCardSlots = result.receivedPublicCardSlots;
+  }
+
   const slots = wireframeSlotsFromBusinessCard(card);
   const subtitle =
     String(card.ownerName || '').trim().slice(0, 60) ||
@@ -101,10 +113,6 @@ export function adaptBusinessCardSearchResultToMyCardsPayload(
   };
 }
 
-/**
- * Vista previa al escanear QR de negocio cuando la tarjeta vive en Firestore (`businessCards`).
- * Usa el mismo wireframe premium que el Mercado y el **themeId** guardado en el documento.
- */
 export function businessFirestoreDocToMyCardsPayload(
   raw: Record<string, unknown>,
   cardId: string,
