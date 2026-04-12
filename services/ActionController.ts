@@ -2,16 +2,11 @@
 // Controlador central para acciones de iconos Card-Social
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
-import {
-    joinGhostLinkAgoraSession,
-    leaveGhostLinkAgoraSession,
-} from '@/services/ghostLinkAgoraSession';
-import { isGhostLinkExpoGoAbortError, startGhostLinkVoipCall } from '@/services/ghostLinkVoip';
+import { requestGhostLinkCallImperative } from '@/services/GhostLinkCallProvider';
 import {
     dismissPremiumDataPanel,
     presentPremiumDataPanel,
 } from '@/services/premiumDataPanelController';
-import { createCallLog } from '@/services/qrApi';
 import { Linking, Platform } from 'react-native';
 import Toast from 'react-native-toast-message';
 
@@ -204,11 +199,19 @@ export const ActionController = {
     sourceCardName,
     sourceCardId = null,
     userName = 'este contacto',
+    cardPhoto = null,
+    cardType = 'personal',
+    peerPhotoUrl = null,
+    callType = 'audio',
   }: {
     targetUid: string | null | undefined;
     sourceCardName: string;
     sourceCardId?: string | null;
     userName?: string;
+    cardPhoto?: string | null;
+    cardType?: 'business' | 'personal';
+    peerPhotoUrl?: string | null;
+    callType?: 'audio' | 'video';
   }) {
     const normalizedTargetUid = String(targetUid || '').trim();
     const resolvedSourceCardName = String(sourceCardName || 'Tarjeta Social').trim();
@@ -249,75 +252,17 @@ export const ActionController = {
       return;
     }
 
-    try {
-      const started = await startGhostLinkVoipCall({
-        ownerUid,
-        targetUid: normalizedTargetUid,
-        card: {
-          sourceCardName: resolvedSourceCardName,
-          sourceCardId,
-        },
-      });
-
-      if (started.agora) {
-        try {
-          await joinGhostLinkAgoraSession(started.agora);
-        } catch (agoraErr) {
-          if (__DEV__) {
-            console.warn('Ghost-Link Agora (caller join):', agoraErr);
-          }
-        }
-      }
-
-      await createCallLog({
-        ownerUid,
-        peerUid: normalizedTargetUid,
-        direction: 'outgoing',
-        status: 'completed',
-        durationSec: 0,
-        tags: ['Ghost-Link'],
-        sourceCardName: resolvedSourceCardName,
-        sourceCardId,
-        callChannel: 'ghost-link-voip',
-      });
-
-      if (started.agora) {
-        presentPremiumDataPanel({
-          title: 'Ghost-Link',
-          body: `En llamada con ${userName}. Tu número real permanece oculto. Pulsa Colgar para terminar el audio.`,
-          icon: 'phone-in-talk',
-          hideCopy: true,
-          dismissOnBackdropPress: false,
-          actions: [
-            {
-              label: 'Colgar',
-              variant: 'destructive',
-              onPress: () => {
-                void leaveGhostLinkAgoraSession();
-                dismissPremiumDataPanel();
-              },
-            },
-          ],
-        });
-      } else {
-        presentPremiumDataPanel({
-          title: 'Ghost-Link',
-          body: `Señalización enviada a ${userName}. Para audio real, configura AGORA_APP_ID y AGORA_APP_CERTIFICATE en el backend.`,
-          icon: 'phone-outline',
-          actions: [{ label: 'Entendido', variant: 'secondary', onPress: dismissPremiumDataPanel }],
-        });
-      }
-    } catch (error: any) {
-      if (isGhostLinkExpoGoAbortError(error)) {
-        return;
-      }
-      presentPremiumDataPanel({
-        title: 'No se pudo iniciar Ghost-Link',
-        body: error?.message || 'Intenta nuevamente.',
-        icon: 'alert-circle-outline',
-        actions: [{ label: 'Cerrar', variant: 'secondary', onPress: dismissPremiumDataPanel }],
-      });
-    }
+    requestGhostLinkCallImperative({
+      targetUid: normalizedTargetUid,
+      sourceCardId: sourceCardId ?? null,
+      sourceCardName: resolvedSourceCardName,
+      cardPhoto: cardPhoto ?? null,
+      cardType: cardType ?? 'personal',
+      callType: callType ?? 'audio',
+      peerName: userName,
+      peerNickname: userName.toLowerCase().replace(/\s+/g, '_'),
+      peerPhotoUrl: peerPhotoUrl ?? null,
+    });
   },
 
   async ActionText({ value, title }: { value: string; title?: string }) {

@@ -1,5 +1,5 @@
 /**
- * Sesión RTC Agora para Ghost-Link (solo audio).
+ * Sesión RTC Agora para Ghost-Link (audio + video).
  * En Expo Go no se carga react-native-agora (evita crash por módulo nativo no enlazado).
  */
 
@@ -10,6 +10,7 @@ type AgoraModule = typeof import('react-native-agora');
 type IRtcEngine = import('react-native-agora').IRtcEngine;
 
 let engine: IRtcEngine | null = null;
+let videoEnabledState = false;
 
 function loadAgoraModule(): AgoraModule | null {
   if (!isGhostLinkAgoraNativeAvailable()) {
@@ -27,9 +28,14 @@ export function isGhostLinkAgoraActive(): boolean {
   return engine != null;
 }
 
+export function getGhostLinkAgoraEngine(): IRtcEngine | null {
+  return engine;
+}
+
 export async function leaveGhostLinkAgoraSession(): Promise<void> {
   const e = engine;
   engine = null;
+  videoEnabledState = false;
   if (!e) {
     return;
   }
@@ -46,9 +52,10 @@ export async function leaveGhostLinkAgoraSession(): Promise<void> {
 }
 
 /**
- * Entra al canal RTC con credenciales emitidas por el backend (token + uid por participante).
+ * Entra al canal RTC con credenciales emitidas por el backend.
+ * @param enableVideo - true para habilitar video desde el inicio (FaceCall).
  */
-export async function joinGhostLinkAgoraSession(creds: GhostLinkAgoraRtc): Promise<void> {
+export async function joinGhostLinkAgoraSession(creds: GhostLinkAgoraRtc, enableVideo = false): Promise<void> {
   const agora = loadAgoraModule();
   if (!agora) {
     return;
@@ -69,11 +76,22 @@ export async function joinGhostLinkAgoraSession(creds: GhostLinkAgoraRtc): Promi
 
   e.enableAudio();
 
+  if (enableVideo) {
+    e.enableVideo();
+    e.startPreview();
+    videoEnabledState = true;
+  }
+
   const options = new ChannelMediaOptions();
   options.channelProfile = ChannelProfileType.ChannelProfileCommunication;
   options.clientRoleType = ClientRoleType.ClientRoleBroadcaster;
   options.publishMicrophoneTrack = true;
   options.autoSubscribeAudio = true;
+
+  if (enableVideo) {
+    options.publishCameraTrack = true;
+    options.autoSubscribeVideo = true;
+  }
 
   const joinCode = e.joinChannel(creds.token, creds.channelName, creds.uid, options);
   if (joinCode !== 0 && __DEV__) {
@@ -97,4 +115,48 @@ export function setGhostLinkAgoraSpeaker(speakerOn: boolean): void {
   } catch {
     /* ignore */
   }
+}
+
+export function setGhostLinkAgoraVideo(enabled: boolean): void {
+  try {
+    if (!engine) return;
+    const agora = loadAgoraModule();
+
+    if (enabled) {
+      engine.enableVideo();
+      engine.startPreview();
+      engine.muteLocalVideoStream(false);
+
+      if (agora) {
+        const opts = new agora.ChannelMediaOptions();
+        opts.publishCameraTrack = true;
+        opts.autoSubscribeVideo = true;
+        engine.updateChannelMediaOptions(opts);
+      }
+    } else {
+      engine.muteLocalVideoStream(true);
+      engine.stopPreview();
+
+      if (agora) {
+        const opts = new agora.ChannelMediaOptions();
+        opts.publishCameraTrack = false;
+        engine.updateChannelMediaOptions(opts);
+      }
+    }
+    videoEnabledState = enabled;
+  } catch {
+    /* ignore */
+  }
+}
+
+export function switchGhostLinkAgoraCamera(): void {
+  try {
+    engine?.switchCamera();
+  } catch {
+    /* ignore */
+  }
+}
+
+export function isGhostLinkVideoEnabled(): boolean {
+  return videoEnabledState;
 }

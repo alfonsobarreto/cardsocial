@@ -1230,6 +1230,7 @@ export type CallHistoryRow = {
   sourceCardName: string;
   sourceCardId: string | null;
   callChannel: 'ghost-link-voip';
+  callType: 'audio' | 'video';
   storyState: 'none' | 'normal' | 'vip';
   direction: 'incoming' | 'outgoing' | 'missed';
   status: 'completed' | 'missed' | 'rejected';
@@ -1267,6 +1268,7 @@ export async function listCallsHistory(params: { ownerUid: string }): Promise<{ 
       sourceCardName: String(row?.sourceCardName || 'Tarjeta Social'),
       sourceCardId: row?.sourceCardId ? String(row.sourceCardId) : null,
       callChannel: 'ghost-link-voip',
+      callType: row?.callType === 'video' ? 'video' : 'audio' as const,
       storyState: row?.storyState === 'vip' ? 'vip' : row?.storyState === 'normal' ? 'normal' : 'none',
       direction: row?.direction === 'outgoing' ? 'outgoing' : row?.direction === 'missed' ? 'missed' : 'incoming',
       status: row?.status === 'missed' ? 'missed' : row?.status === 'rejected' ? 'rejected' : 'completed',
@@ -1292,6 +1294,7 @@ export async function createCallLog(params: {
   sourceCardName?: string;
   sourceCardId?: string | null;
   callChannel?: 'ghost-link-voip';
+  callType?: 'audio' | 'video';
 }): Promise<{ callId: string }> {
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
 
@@ -1309,6 +1312,7 @@ export async function createCallLog(params: {
       sourceCardName: params.sourceCardName ? String(params.sourceCardName) : 'Tarjeta Social',
       sourceCardId: params.sourceCardId ?? null,
       callChannel: params.callChannel || 'ghost-link-voip',
+      callType: params.callType || 'audio',
     },
     {
       headers: {

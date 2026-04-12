@@ -925,6 +925,8 @@ export default function SearchScreen() {
                           issuerCardName: cardTitle,
                           issuerCardId: item.receivedSourceCardId ?? null,
                           issuerDisplayName: item.card.businessName,
+                          issuerCardPhoto: item.card.businessLogo ?? null,
+                          issuerCardType: 'business',
                         })
                       }
                       accessibilityLabel={f.label}
@@ -1046,6 +1048,8 @@ export default function SearchScreen() {
         issuerCardName: card.businessName,
         issuerCardId: card.id,
         issuerDisplayName: card.businessName,
+        issuerCardPhoto: card.businessLogo ?? null,
+        issuerCardType: 'business',
       });
     };
 
@@ -1200,6 +1204,8 @@ export default function SearchScreen() {
                         issuerCardName: card.businessName,
                         issuerCardId: card.id,
                         issuerDisplayName: card.businessName,
+                        issuerCardPhoto: card.businessLogo ?? null,
+                        issuerCardType: 'business',
                       })
                     }
                     accessibilityLabel={f.label}

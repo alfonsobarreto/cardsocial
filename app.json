@@ -28,6 +28,7 @@
           "ymail"
         ],
         "NSMicrophoneUsageDescription": "Card-Social usa el micrófono para las llamadas de voz Ghost-Link (VoIP).",
+        "NSCameraUsageDescription": "Card-Social usa la cámara para videollamadas FaceCall Ghost-Link.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -54,7 +55,8 @@
       ],
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA"
       ]
     },
     "web": {
@@ -72,6 +74,15 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "Card-Social usa tu ubicación cuando buscas en el mercado o cuando guardas la ubicación de tu tarjeta de negocio; no hay rastreo continuo en segundo plano."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/cs-icon-logo.png",
+          "color": "#C5A065",
+          "defaultChannel": "ghost-link-calls",
+          "sounds": []
         }
       ]
     ],

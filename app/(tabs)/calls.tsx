@@ -1,4 +1,5 @@
 import { getActiveUserId } from '@/services/authSession';
+import { requestGhostLinkCallImperative } from '@/services/GhostLinkCallProvider';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import appPalette from '../theme';
@@ -349,7 +350,7 @@ export default function CallsPage() {
   const [ownerUid, setOwnerUid] = useState('');
   const [history, setHistory] = useState<CallHistoryRow[]>([]);
   const [contacts, setContacts] = useState<ContactRow[]>([]);
-  const [selectedCall, setSelectedCall] = useState<CallHistoryRow | null>(null);
+  const [selectedCall, setSelectedCall] = useState<(CallHistoryRow & { count?: number; allCalls?: CallHistoryRow[] }) | null>(null);
   const [detailVisible, setDetailVisible] = useState(false);
   const [registerVisible, setRegisterVisible] = useState(false);
 
@@ -366,6 +367,24 @@ export default function CallsPage() {
     });
     return map;
   }, [contacts]);
+
+  type GroupedCall = CallHistoryRow & { count: number; allCalls: CallHistoryRow[] };
+
+  const groupedHistory = useMemo<GroupedCall[]>(() => {
+    if (history.length === 0) return [];
+    const groups: GroupedCall[] = [];
+    for (const call of history) {
+      const last = groups[groups.length - 1];
+      if (last && last.peerUid === call.peerUid && last.direction === call.direction) {
+        last.count += 1;
+        last.allCalls.push(call);
+        last.durationSec += call.durationSec;
+      } else {
+        groups.push({ ...call, count: 1, allCalls: [call] });
+      }
+    }
+    return groups;
+  }, [history]);
 
   const loadData = async (opts?: { silent?: boolean }) => {
     const silent = Boolean(opts?.silent);
@@ -517,7 +536,7 @@ export default function CallsPage() {
     }
   };
 
-  const renderRow = ({ item }: { item: CallHistoryRow }) => {
+  const renderRow = ({ item }: { item: GroupedCall }) => {
     const ringExtra =
       item.storyState === 'vip'
         ? { borderWidth: 2.2 as const, borderColor: shell.ctaAccent }
@@ -546,8 +565,28 @@ export default function CallsPage() {
         </View>
 
         <View style={styles.rowMain}>
-          <Text style={styles.nameText} numberOfLines={1}>{item.name}</Text>
-          <Text style={styles.nickText} numberOfLines={1}>@{item.nickname}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <MaterialCommunityIcons
+              name={
+                item.status === 'missed' || item.status === 'rejected'
+                  ? 'phone-missed'
+                  : item.direction === 'outgoing'
+                    ? 'phone-outgoing'
+                    : 'phone-incoming'
+              }
+              size={14}
+              color={
+                item.status === 'missed' || item.status === 'rejected'
+                  ? '#E53935'
+                  : item.direction === 'outgoing'
+                    ? '#4CAF50'
+                    : '#2196F3'
+              }
+            />
+            <Text style={styles.nameText} numberOfLines={1}>{item.name}{item.count > 1 ? ` (${item.count})` : ''}</Text>
+            {item.callType === 'video' && <MaterialCommunityIcons name="video" size={13} color="#C8A84E" />}
+          </View>
+          <Text style={styles.nickText} numberOfLines={1}>@{item.nickname}{item.durationSec > 0 ? ` · ${Math.floor(item.durationSec / 60)}:${String(item.durationSec % 60).padStart(2, '0')}` : ''}</Text>
           <Text style={styles.cardHintText} numberOfLines={1}>{item.sourceCardName || contact?.cardName || tr('Tarjeta de contacto', 'Contact card')}</Text>
           <Text style={styles.callChannelText}>{tr('Canal privado: Ghost-Link VoIP', 'Private channel: Ghost-Link VoIP')}</Text>
 
@@ -576,15 +615,54 @@ export default function CallsPage() {
           </View>
         </View>
 
-        <TouchableOpacity
-          style={styles.voiceBtn}
-          onPress={() => {
-            void attachVoiceNote(item);
-          }}
-          disabled={saving}
-        >
-          <MaterialCommunityIcons name="microphone-outline" size={18} color={shell.btnPrimaryText} />
-        </TouchableOpacity>
+        <View style={{ alignItems: 'center', gap: 6 }}>
+          <TouchableOpacity
+            style={[styles.voiceBtn, { backgroundColor: '#1B6B3A' }]}
+            onPress={() => {
+              requestGhostLinkCallImperative({
+                targetUid: item.peerUid,
+                sourceCardId: item.sourceCardId,
+                sourceCardName: item.sourceCardName || tr('Tarjeta Social', 'Social Card'),
+                cardPhoto: item.photoUrl,
+                cardType: 'personal',
+                peerName: item.name,
+                peerNickname: item.nickname,
+                peerPhotoUrl: item.photoUrl,
+              });
+            }}
+            accessibilityLabel={tr('Rellamar', 'Call back')}
+          >
+            <MaterialCommunityIcons name="phone" size={18} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.voiceBtn, { backgroundColor: '#C8A84E' }]}
+            onPress={() => {
+              requestGhostLinkCallImperative({
+                targetUid: item.peerUid,
+                sourceCardId: item.sourceCardId,
+                sourceCardName: item.sourceCardName || tr('Tarjeta Social', 'Social Card'),
+                cardPhoto: item.photoUrl,
+                cardType: 'personal',
+                callType: 'video',
+                peerName: item.name,
+                peerNickname: item.nickname,
+                peerPhotoUrl: item.photoUrl,
+              });
+            }}
+            accessibilityLabel={tr('FaceCall', 'FaceCall')}
+          >
+            <MaterialCommunityIcons name="video" size={16} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.voiceBtn}
+            onPress={() => {
+              void attachVoiceNote(item);
+            }}
+            disabled={saving}
+          >
+            <MaterialCommunityIcons name="microphone-outline" size={18} color={shell.btnPrimaryText} />
+          </TouchableOpacity>
+        </View>
       </TouchableOpacity>
     );
   };
@@ -607,7 +685,7 @@ export default function CallsPage() {
         </View>
       ) : (
         <FlatList
-          data={history}
+          data={groupedHistory}
           keyExtractor={(item) => item.callId}
           renderItem={renderRow}
           contentContainerStyle={styles.listContent}
@@ -643,13 +721,35 @@ export default function CallsPage() {
               </View>
             )}
 
-            <Text style={styles.detailName}>{selectedCall?.name || ''}</Text>
+            <Text style={styles.detailName}>{selectedCall?.name || ''}{(selectedCall?.count ?? 0) > 1 ? ` (${selectedCall?.count})` : ''}</Text>
             <Text style={styles.detailNick}>@{selectedCall?.nickname || ''}</Text>
             <Text style={styles.detailCardName}>{selectedCall?.sourceCardName || selectedContact?.cardName || tr('Tarjeta social', 'Social card')}</Text>
             <Text style={styles.detailStats}>
               Rating {Number(selectedContact?.ratingAvg || 0).toFixed(1)} | {selectedContact?.holdersCount || 0} poseedores
             </Text>
-            <Text style={styles.detailMeta}>{tr('Ultima nota de voz:', 'Last voice note:')} {selectedCall?.voiceNoteName || tr('Ninguna', 'None')}</Text>
+
+            {(selectedCall?.allCalls?.length ?? 0) > 1 && (
+              <View style={{ width: '100%', marginTop: 10, gap: 6 }}>
+                <Text style={[styles.detailMeta, { fontWeight: '600', marginBottom: 2 }]}>{tr('Detalle del grupo:', 'Group detail:')}</Text>
+                {selectedCall!.allCalls!.map((sub) => {
+                  const ts = sub.createdAt ? new Date(sub.createdAt) : null;
+                  const timeStr = ts ? ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                  const dur = sub.durationSec > 0 ? `${Math.floor(sub.durationSec / 60)}:${String(sub.durationSec % 60).padStart(2, '0')}` : '';
+                  return (
+                    <View key={sub.callId} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <MaterialCommunityIcons
+                        name={sub.status === 'missed' || sub.status === 'rejected' ? 'phone-missed' : sub.direction === 'outgoing' ? 'phone-outgoing' : 'phone-incoming'}
+                        size={13}
+                        color={sub.status === 'missed' || sub.status === 'rejected' ? '#E53935' : sub.direction === 'outgoing' ? '#4CAF50' : '#2196F3'}
+                      />
+                      <Text style={[styles.detailMeta, { flex: 1 }]}>{timeStr}{dur ? ` · ${dur}` : ''} — {sub.status}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            <Text style={[styles.detailMeta, { marginTop: 8 }]}>{tr('Ultima nota de voz:', 'Last voice note:')} {selectedCall?.voiceNoteName || tr('Ninguna', 'None')}</Text>
           </View>
         </View>
       </Modal>

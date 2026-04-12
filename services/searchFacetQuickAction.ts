@@ -14,6 +14,8 @@ export function runSearchFacetQuickAction(params: {
   issuerCardName: string;
   issuerCardId: string | null;
   issuerDisplayName: string;
+  issuerCardPhoto?: string | null;
+  issuerCardType?: 'business' | 'personal';
 }): void {
   const { type, label, value, issuerUid, issuerCardName, issuerCardId, issuerDisplayName } = params;
 
@@ -34,6 +36,8 @@ export function runSearchFacetQuickAction(params: {
       sourceCardName: issuerCardName,
       sourceCardId: issuerCardId,
       userName: issuerDisplayName,
+      cardPhoto: params.issuerCardPhoto ?? null,
+      cardType: params.issuerCardType ?? 'personal',
     });
     return;
   }
@@ -59,6 +63,8 @@ export function runSearchFacetQuickAction(params: {
       sourceCardName: issuerCardName,
       sourceCardId: issuerCardId,
       userName: issuerDisplayName,
+      cardPhoto: params.issuerCardPhoto ?? null,
+      cardType: params.issuerCardType ?? 'personal',
     });
     return;
   }

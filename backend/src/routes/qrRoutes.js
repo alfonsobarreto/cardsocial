@@ -12,6 +12,7 @@ const GHOST_LINK_INVITE_TTL_SECONDS = 45;
 const DEFAULT_BUNKER_GROUPS = ['Random', 'Family', 'Social', 'Work'];
 
 const { buildGhostLinkAgoraInvite } = require('../lib/agoraGhostLink');
+const { sendPushToUser } = require('../lib/pushNotifications');
 const { mergeContactProfileFromCard, enrichSubscriberProfileFromCard } = require('../lib/contactIdentityMerge');
 const { buildMongoExtendedProfileFields, mergeUsersAndProfilesDocuments } = require('../lib/extendedUserIdentity');
 const { pickFirstNonGeneric } = require('../lib/resolvePublicIdentity');
@@ -375,6 +376,33 @@ function createQrRoutes({ storage }) {
     return buildMongoExtendedProfileFields(safeUid, usersDoc, profilesDoc);
   }
 
+  // ── Push token registration ──
+  router.post('/push/register', async (req, res) => {
+    try {
+      const authUid = String(req.auth?.sub || '').trim();
+      const ownerUid = String(req.body?.ownerUid || authUid || '').trim();
+      const token = String(req.body?.token || '').trim();
+
+      if (!ownerUid || !token) {
+        return res.status(400).json({ ok: false, error: 'ownerUid and token are required' });
+      }
+      if (authUid && authUid !== ownerUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden' });
+      }
+
+      const db = await storage.connect();
+      await db.collection('push_tokens').updateOne(
+        { uid: ownerUid, token },
+        { $set: { uid: ownerUid, token, updatedAt: new Date() }, $setOnInsert: { createdAt: new Date() } },
+        { upsert: true },
+      );
+
+      return res.status(200).json({ ok: true });
+    } catch (error) {
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+  });
+
   router.post('/voip/ghost-link/start', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
@@ -382,6 +410,9 @@ function createQrRoutes({ storage }) {
       const targetUid = String(req.body?.targetUid || '').trim();
       const sourceCardName = String(req.body?.sourceCardName || '').trim();
       const sourceCardId = normalizeString(req.body?.sourceCardId, null);
+      const callType = ['audio', 'video'].includes(String(req.body?.callType || '').trim())
+        ? String(req.body.callType).trim()
+        : 'audio';
 
       if (!ownerUid || !targetUid || !sourceCardName) {
         return res.status(400).json({ ok: false, error: 'ownerUid, targetUid y sourceCardName son obligatorios' });
@@ -404,6 +435,25 @@ function createQrRoutes({ storage }) {
       caller = mergeContactProfileFromCard(caller, ownerUid, callerCard);
       receiver = mergeContactProfileFromCard(receiver, targetUid, receiverCard);
 
+      // The shared card is the single bridge between caller and receiver.
+      let sharedCard = null;
+      if (sourceCardId) {
+        sharedCard = await db.collection('smart_cards').findOne(
+          { cardId: sourceCardId },
+          {
+            projection: {
+              cardId: 1, name: 1, cardType: 1,
+              ownerDisplayName: 1, ownerPhotoUrl: 1,
+            },
+          },
+        );
+      }
+      const cardType = String(sharedCard?.cardType || 'personal').trim();
+      const cardName = String(
+        sharedCard?.ownerDisplayName || sharedCard?.name || sourceCardName || 'Tarjeta Social',
+      ).trim();
+      const cardPhoto = String(sharedCard?.ownerPhotoUrl || receiver.photoUrl || '').trim() || null;
+
       const now = new Date();
       const sessionId = `acs_${ownerUid.slice(0, 8)}_${targetUid.slice(0, 8)}_${Date.now()}`;
       const inviteId = crypto.randomBytes(16).toString('hex');
@@ -416,6 +466,13 @@ function createQrRoutes({ storage }) {
         ttlSeconds: GHOST_LINK_INVITE_TTL_SECONDS,
       });
 
+      const cardPayload = {
+        cardId: sourceCardId || null,
+        cardName,
+        cardPhoto,
+        cardType,
+      };
+
       await db.collection('ghost_link_invites').findOneAndUpdate(
         { inviteId },
         {
@@ -424,9 +481,11 @@ function createQrRoutes({ storage }) {
             sessionId,
             ownerUid,
             targetUid,
-            sourceCardName,
+            sourceCardName: cardName,
             sourceCardId,
             callChannel: 'ghost-link-voip',
+            callType,
+            card: cardPayload,
             callerDisplay: {
               name: caller.name,
               nickname: caller.nickname,
@@ -451,25 +510,41 @@ function createQrRoutes({ storage }) {
         }
       );
 
+      void sendPushToUser(db, targetUid, {
+        title: 'Ghost-Link',
+        body: callType === 'video'
+          ? `${caller.name || 'Alguien'} te está videollamando`
+          : `${caller.name || 'Alguien'} te está llamando`,
+        data: {
+          type: 'ghost-link-incoming',
+          inviteId,
+          callerUid: ownerUid,
+          callerName: caller.name,
+          cardName,
+          callType,
+        },
+        channelId: 'ghost-link-calls',
+      });
+
       return res.status(200).json({
         ok: true,
         inviteId,
         sessionId,
         engine: agoraInvite ? 'agora' : 'signaling-only',
+        callType,
         callChannel: 'ghost-link-voip',
         sourceCardId,
-        sourceCardName,
+        sourceCardName: cardName,
+        card: cardPayload,
         callerDisplay: {
           name: caller.name,
           nickname: caller.nickname,
           photoUrl: caller.photoUrl,
-          sourceCardName,
         },
         receiverDisplay: {
           name: receiver.name,
           nickname: receiver.nickname,
           photoUrl: receiver.photoUrl,
-          sourceCardName,
         },
         ...(agoraInvite
           ? {
@@ -523,6 +598,7 @@ function createQrRoutes({ storage }) {
             createdAt: 1,
             updatedAt: 1,
             expiresAt: 1,
+            callType: 1,
             agora: 1,
           },
         }
@@ -542,6 +618,7 @@ function createQrRoutes({ storage }) {
             }
           : null;
 
+      const inviteCard = invite.card || {};
       return res.status(200).json({
         ok: true,
         ownerUid,
@@ -553,6 +630,13 @@ function createQrRoutes({ storage }) {
           sourceCardName: String(invite.sourceCardName || 'Tarjeta Social'),
           sourceCardId: normalizeString(invite.sourceCardId, null),
           callChannel: 'ghost-link-voip',
+          callType: String(invite.callType || 'audio'),
+          card: {
+            cardId: normalizeString(inviteCard.cardId, null),
+            cardName: String(inviteCard.cardName || invite.sourceCardName || 'Tarjeta Social'),
+            cardPhoto: normalizeString(inviteCard.cardPhoto, null),
+            cardType: String(inviteCard.cardType || 'personal'),
+          },
           callerDisplay: {
             name: String(invite?.callerDisplay?.name || 'Contacto'),
             nickname: String(invite?.callerDisplay?.nickname || 'user'),

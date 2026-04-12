@@ -7,6 +7,9 @@ import { PendingBunkerRedeemGate } from '@/components/PendingBunkerRedeemGate';
 import { LanguageProvider, useLanguage } from '@/services/language';
 import { LookModeProvider } from '@/services/lookMode';
 import { NetworkProvider } from '@/services/NetworkProvider';
+import { GhostLinkCallProvider } from '@/services/GhostLinkCallProvider';
+import GhostLinkCallOverlay from '@/components/GhostLinkCallOverlay';
+import { registerPushToken } from '@/services/pushRegistration';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Stack } from 'expo-router';
@@ -128,6 +131,12 @@ function RootNavigator() {
     return () => sub.remove();
   }, []);
 
+  useEffect(() => {
+    if (!isLocked) {
+      void registerPushToken();
+    }
+  }, [isLocked]);
+
   // UI de bloqueo
   if (isLocked) {
     return (
@@ -152,24 +161,27 @@ function RootNavigator() {
   // UI normal
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <Stack>
-        {/* Forzamos a que la primera pantalla sea el Index (Bienvenida) */}
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen 
-          name="signin" 
-          options={{ 
-            title: language === 'en' ? 'Sign In' : 'Iniciar sesion',
-            headerStyle: { backgroundColor: '#fff' }
-          }} 
-        />
-        <Stack.Screen name="register" options={{ title: language === 'en' ? 'Sign Up' : 'Registro' }} />
-        <Stack.Screen name="scan" options={{ title: language === 'en' ? 'Scan Card' : 'Escanear Tarjeta', headerShown: false }} />
-        <Stack.Screen name="u" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      </Stack>
-      <PendingBunkerRedeemGate />
-      <PremiumDataPanelHost />
-      <Toast />
+      <GhostLinkCallProvider>
+        <Stack>
+          {/* Forzamos a que la primera pantalla sea el Index (Bienvenida) */}
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen 
+            name="signin" 
+            options={{ 
+              title: language === 'en' ? 'Sign In' : 'Iniciar sesion',
+              headerStyle: { backgroundColor: '#fff' }
+            }} 
+          />
+          <Stack.Screen name="register" options={{ title: language === 'en' ? 'Sign Up' : 'Registro' }} />
+          <Stack.Screen name="scan" options={{ title: language === 'en' ? 'Scan Card' : 'Escanear Tarjeta', headerShown: false }} />
+          <Stack.Screen name="u" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        </Stack>
+        <GhostLinkCallOverlay />
+        <PendingBunkerRedeemGate />
+        <PremiumDataPanelHost />
+        <Toast />
+      </GhostLinkCallProvider>
     </GestureHandlerRootView>
   );
 }
