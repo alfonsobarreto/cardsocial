@@ -90,7 +90,7 @@ function PulsingRing({ size, active, children }: { size: number; active: boolean
 
   const ringSize = size + 32;
   return (
-    <View style={{ alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
       {active && (
         <Animated.View
           style={{
