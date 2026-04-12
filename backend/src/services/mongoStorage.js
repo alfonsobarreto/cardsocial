@@ -187,12 +187,33 @@ function createMongoStorage({ uri, dbName }) {
       meta.spacesKey,
       fileId
     );
+    // Upload usa la misma Key en PutObject y en Mongo (vault-proxy/<fileId>/<safeName>).
+    // No hay ruta alterna "sin extensión": el nombre del objeto en Spaces incluye el safeName del multipart (ej. .jpg).
+    let out;
     try {
-      const out = await spaces.send(new GetObjectCommand({
-        Bucket: meta.spacesBucket,
-        Key: meta.spacesKey,
-      }));
+      out = await spaces.send(
+        new GetObjectCommand({
+          Bucket: meta.spacesBucket,
+          Key: meta.spacesKey,
+        })
+      );
+    } catch (getErr) {
+      console.error(
+        "ERROR CRÍTICO AL RECUPERAR DE SPACES:",
+        getErr,
+        "| Bucket:",
+        meta.spacesBucket,
+        "| Key:",
+        meta.spacesKey,
+        "| stack:",
+        getErr?.stack,
+        "| $metadata:",
+        getErr?.$metadata ? JSON.stringify(getErr.$metadata) : "(none)"
+      );
+      return false;
+    }
 
+    try {
       const mime = meta.mimeType || out.ContentType || "application/octet-stream";
       res.setHeader("Content-Type", mime);
       res.setHeader("Cache-Control", "private, max-age=300");
@@ -228,7 +249,7 @@ function createMongoStorage({ uri, dbName }) {
       return false;
     } catch (e) {
       const code = e?.name || e?.Code || e?.code || "";
-      console.warn("[vault proxy] GetObject failed:", fileId, code, e?.message || e);
+      console.warn("[vault proxy] respuesta GetObject OK pero fallo al escribir al cliente:", fileId, code, e?.message || e);
       return false;
     }
   }
