@@ -6,47 +6,47 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActionSheetIOS,
-  Alert,
-  Dimensions,
-  FlatList,
-  Image,
-  InteractionManager,
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View
+    ActionSheetIOS,
+    Alert,
+    Dimensions,
+    FlatList,
+    Image,
+    InteractionManager,
+    Keyboard,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View
 } from 'react-native';
 // import { PDFDocument } from 'pdf-lib'; // [SILENCIADO POR ERROR DE DEPENDENCIA]
 import BrandedSpinner from '@/components/BrandedSpinner';
+import { GHOST_LINK_VAULT_TYPE, GHOST_LINK_VAULT_VALUE } from '@/constants/ghostLinkVault';
 import { getActiveUserId } from '@/services/authSession';
-import { newEntityId } from '@/services/newEntityId';
-import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
 import { hardLockCheck } from '@/services/biometricAuth';
+import { getUserCreditsBalance } from '@/services/creditsService';
 import { fetchFaviconFromAzure } from '@/services/faviconApi';
-import { premiumTheme } from '../_premiumTheme';
 import { db } from '@/services/firebaseConfig';
+import {
+    ensureFreeStarterIconVault,
+    getOwnedIconVaultKeySet,
+    stableKeyForCatalogIcon,
+} from '@/services/iconVaultService';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
+import { newEntityId } from '@/services/newEntityId';
+import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 import Toast from 'react-native-toast-message';
-import { getUserCreditsBalance } from '@/services/creditsService';
-import {
-  ensureFreeStarterIconVault,
-  getOwnedIconVaultKeySet,
-  stableKeyForCatalogIcon,
-} from '@/services/iconVaultService';
-import { GHOST_LINK_VAULT_TYPE, GHOST_LINK_VAULT_VALUE } from '@/constants/ghostLinkVault';
+import { premiumTheme } from '../_premiumTheme';
 import CardStudioVault, { ICON_GALLERY } from './CardStudioVault';
 import FilePreviewModal from './FilePreviewModal';
 import { sanitizeMaterialIconName } from './iconNameValidation';
@@ -2266,7 +2266,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <KeyboardAvoidingView
         style={styles.keyboardAvoiding}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' && dataType !== 'Documento' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
       >
         <View style={[styles.container, { backgroundColor: formTheme.motherBg }]}>

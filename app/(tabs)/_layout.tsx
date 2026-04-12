@@ -5,56 +5,56 @@ import LanguageToggle from '@/components/LanguageToggle';
 import Subscription from '@/components/Subscription';
 import ThemeChest from '@/components/ThemeChest';
 import { getActiveUserId } from '@/services/authSession';
-import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { auth, db } from '@/services/firebaseConfig';
 import { requestLocationPermission } from '@/services/geolocationService';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { listBlockedRelations, unblockRelationship } from '@/services/qrApi';
 import {
-  type RelationshipEntry,
-  type RelationshipStatus,
-  listRelationshipsByStatus,
-  removeRelationship as removeRelEntry
+    type RelationshipEntry,
+    type RelationshipStatus,
+    listRelationshipsByStatus,
+    removeRelationship as removeRelEntry
 } from '@/services/relationshipService';
 import { isSuperAdmin } from '@/services/roleService';
+import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import palette from '../theme';
 import { Tabs, useRouter } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where
+    collection,
+    doc,
+    getDoc,
+    getDocs,
+    query,
+    serverTimestamp,
+    updateDoc,
+    where
 } from 'firebase/firestore';
 import { CreditCard, Database, Phone, PlayCircle, Search, Users } from 'lucide-react-native';
 import type { ComponentType } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  Alert,
-  Image,
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
+    Alert,
+    Image,
+    Keyboard,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import palette from '../theme';
 
 type BlockedUser = {
   uid: string;
@@ -563,6 +563,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
       style={{ flex: 1 }}
     >
       <Tabs
+        initialRouteName="cards"
         screenOptions={{
           tabBarActiveTintColor: shell.ctaAccent,
           tabBarInactiveTintColor: 'rgba(255,255,255,0.48)',

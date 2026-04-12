@@ -4,10 +4,10 @@ import { saveCachedCredentials } from '@/services/credentialVault';
 import { auth, db } from '@/services/firebaseConfig';
 import { useLanguage } from '@/services/language';
 import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, SocialProviderId } from '@/services/socialAuth';
+import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { sendEmailVerification, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { collection, getDocs, limit, query, where } from 'firebase/firestore';
 import { Eye, EyeOff, Lock, User } from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
@@ -148,7 +148,7 @@ export default function SignInScreen() {
 
       await saveCachedCredentials(resolvedEmail, normalizedPassword);
 
-      router.replace('/(tabs)/vault');
+      router.replace('/(tabs)/cards');
     } catch (error) {
       const message = error instanceof Error ? error.message : tr('No se pudo iniciar sesion.', 'Could not sign in.');
       Alert.alert(tr('Error de acceso', 'Access error'), message);
@@ -237,7 +237,7 @@ export default function SignInScreen() {
         return;
       }
 
-      router.replace('/(tabs)/vault');
+      router.replace('/(tabs)/cards');
     } catch (error) {
       const message = error instanceof Error ? error.message : tr('No se pudo iniciar sesion con proveedor.', 'Could not sign in with provider.');
       Alert.alert(tr('Acceso social no disponible', 'Social sign-in unavailable'), message);

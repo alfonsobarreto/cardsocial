@@ -9,48 +9,56 @@
 import { STUDIO_CATALOG_VECTOR_ICONS_PAID, STUDIO_ICON_CREDIT_PRICE } from '@/constants/studioEconomy';
 import { TEXAS_LONGHORNS_ICON_SEEDS } from '@/constants/texasLonghornsPack';
 import { getActiveUserId } from '@/services/authSession';
-import { useLanguage } from '@/services/language';
 import {
-  isFreeStarterIconKey,
-  purchaseStudioIconUnlock,
-  stableKeyForCatalogIcon,
+    isFreeStarterIconKey,
+    purchaseStudioIconUnlock,
+    stableKeyForCatalogIcon,
 } from '@/services/iconVaultService';
+import { useLanguage } from '@/services/language';
+import { useLookMode } from '@/services/lookMode';
 import {
-  purchaseThemeBundle,
-  THEME_BUNDLES,
-  userOwnsThemeBundle,
+    purchaseThemeBundle,
+    THEME_BUNDLES,
+    userOwnsThemeBundle,
 } from '@/services/themeBundleService';
 import {
-  readRecentIconsJsonWithLegacyMigration,
-  readVaultJsonWithLegacyMigration,
-  vaultRecentIconsStorageKey,
-  vaultStorageKey,
+    readRecentIconsJsonWithLegacyMigration,
+    readVaultJsonWithLegacyMigration,
+    vaultRecentIconsStorageKey,
+    vaultStorageKey,
 } from '@/services/userScopedStorage';
-import { useLookMode } from '@/services/lookMode';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { sanitizeMaterialIconName } from './iconNameValidation';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
-  ActivityIndicator,
-  Dimensions,
-  InteractionManager,
-  Modal,
-  Platform,
-  ScrollView,
-  SectionList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    InteractionManager,
+    Modal,
+    Platform,
+    ScrollView,
+    SectionList,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
 } from 'react-native';
+import { sanitizeMaterialIconName } from './iconNameValidation';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const MAX_RECENTS = 5;
+
+// Alturas fijas para getItemLayout — medidas desde los StyleSheet de este archivo.
+// sectionHeader: paddingVertical:8×2=16 + fontSize:12 lineHeight≈17 + hairlineWidth≈1 = 34
+// icon row:      row.paddingVertical:4×2=8 + iconCellWrap.margin:4×2=8 + iconItem.minHeight:72 = 88
+// emptySection:  paddingVertical:14×2=28 + icon:28 = 56
+const SECTION_HEADER_H = 34;
+const ICON_ROW_H = 88;
+const EMPTY_FOOTER_H = 56;
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 export type VaultDataType =
@@ -154,6 +162,23 @@ const STUDIO_FOLDERS: StudioFolderDef[] = [
           { label: 'Sello', labelEn: 'Stamp', icon: 'certificate' },
           { label: 'Arroba', labelEn: 'At Sign', icon: 'at' },
           { label: 'Alt Email', labelEn: 'Alt Email', icon: 'email' },
+        ],
+      },
+      {
+        title: 'Texto',
+        titleEn: 'Text',
+        scrollAnchor: 'Texto',
+        items: [
+          { label: 'Cuadro Texto', labelEn: 'Text Box', icon: 'text-box-outline' },
+          { label: 'Formato', labelEn: 'Format', icon: 'format-text' },
+          { label: 'Nota', labelEn: 'Note', icon: 'note-text-outline' },
+          { label: 'Mensaje', labelEn: 'Message', icon: 'message-text-outline' },
+          { label: 'Portapapeles', labelEn: 'Clipboard', icon: 'clipboard-text-outline' },
+          { label: 'Texto', labelEn: 'Text', icon: 'text' },
+          { label: 'Párrafo', labelEn: 'Paragraph', icon: 'format-paragraph' },
+          { label: 'Cita', labelEn: 'Quote', icon: 'format-quote-close' },
+          { label: 'Pluma', labelEn: 'Pen', icon: 'pen' },
+          { label: 'Lápiz', labelEn: 'Pencil', icon: 'pencil-outline' },
         ],
       },
       {
@@ -368,6 +393,9 @@ export default function CardStudioVault({
   const [bundleOwnedFlags, setBundleOwnedFlags] = useState<Record<string, boolean>>({});
   const [bundlePurchasingId, setBundlePurchasingId] = useState<string | null>(null);
   const sectionListRef = useRef<SectionList<IconItem[], IconSection>>(null);
+  const pendingScrollSectionRef = useRef<number | null>(null);
+  // Ref que siempre apunta a displaySections actual — evita stale closures en onShow
+  const displaySectionsRef = useRef<IconSection[]>([]);
 
   useEffect(() => {
     if (!visible && storeModalVisible) {
@@ -418,6 +446,12 @@ export default function CardStudioVault({
       });
   }, [recentIconIds, ownedIconVaultKeys]);
 
+  // Mantener ref sincronizada con displaySections
+  // (se actualiza antes de onShow porque el render ocurre primero)
+  useEffect(() => {
+    displaySectionsRef.current = displaySections;
+  });
+
   // Secciones dinámicas — antepone "Recientes" si existen
   const displaySections = useMemo((): IconSection[] => {
     if (recentItemsResolved.length === 0) return catalogSections;
@@ -433,35 +467,57 @@ export default function CardStudioVault({
     return [recentSection, ...catalogSections];
   }, [recentItemsResolved, isEN, catalogSections]);
 
-  // Auto-scroll a la sección del dataType cuando el modal se abre
-  useEffect(() => {
-    if (!visible) return;
-    const timer = setTimeout(() => {
-      const titleMap: Record<string, string> = {
-        'Enlaces': 'Enlaces',
-        'Teléfono': 'Teléfonos',
-        'Ghost-Link': 'Teléfonos',
-        'Email': 'Emails',
-        'Documento': 'Documentos',
-        'Texto Plain': 'Documentos',
-      };
-      const target = titleMap[dataType];
-      if (!target) return;
-      const sectionIndex = displaySections.findIndex(
-        (s) => s.scrollAnchor === target || s.title.includes(`· ${target}`),
-      );
-      if (sectionIndex < 0) return;
-      try {
-        sectionListRef.current?.scrollToLocation({
-          sectionIndex,
-          itemIndex: 0,
-          animated: true,
-          viewPosition: 0,
-        });
-      } catch { /* ignora si la sección aún no está renderizada */ }
-    }, 420);
-    return () => clearTimeout(timer);
-  }, [visible, dataType, displaySections]);
+  // Mapa plano de offsets para getItemLayout — VirtualizedSectionList cuenta 1 header + N rows + 1 footer por sección.
+  const sectionLayouts = useMemo(() => {
+    const arr: Array<{ length: number; offset: number }> = [];
+    let offset = 0;
+    for (const section of displaySections) {
+      // header
+      arr.push({ length: SECTION_HEADER_H, offset });
+      offset += SECTION_HEADER_H;
+      // data rows
+      for (let i = 0; i < section.data.length; i++) {
+        arr.push({ length: ICON_ROW_H, offset });
+        offset += ICON_ROW_H;
+      }
+      // footer (slot siempre existe; height 0 para secciones no-empty)
+      const footerH = section.isEmpty ? EMPTY_FOOTER_H : 0;
+      arr.push({ length: footerH, offset });
+      offset += footerH;
+    }
+    return arr;
+  }, [displaySections]);
+
+  const TITLE_MAP: Record<string, string> = {
+    'Enlaces': 'Enlaces',
+    'Teléfono': 'Teléfonos',
+    'Ghost-Link': 'Teléfonos',
+    'Email': 'Emails',
+    'Texto Plain': 'Texto',
+    'Documento': 'Documentos',
+  };
+
+  // Lee displaySectionsRef.current en el momento del scroll (nunca stale)
+  const doAutoScroll = useCallback(() => {
+    const target = TITLE_MAP[dataType];
+    if (!target) return;
+    const sections = displaySectionsRef.current;
+    const sectionIndex = sections.findIndex(
+      (s) => s.scrollAnchor === target || s.title.includes(`· ${target}`),
+    );
+    console.log('[IconPicker] auto-scroll → dataType:', dataType, '| target:', target, '| sectionIndex:', sectionIndex, '| total sections:', sections.length);
+    if (sectionIndex < 0) return;
+    pendingScrollSectionRef.current = sectionIndex;
+    sectionListRef.current?.scrollToLocation({
+      sectionIndex,
+      itemIndex: 0,
+      animated: true,
+      viewPosition: 0,
+      // viewOffset = altura del section header: hace que el header quede visible
+      // justo encima del primer row, en lugar de quedar cortado fuera del viewport.
+      viewOffset: SECTION_HEADER_H,
+    });
+  }, [dataType]);
 
   const handleSelectCatalogItem = (item: IconItem) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -788,6 +844,11 @@ export default function CardStudioVault({
         transparent
         animationType="slide"
         onRequestClose={onClose}
+        onShow={() => {
+          // onShow dispara DESPUÉS de que la animación del Modal termina.
+          // Solo un setTimeout de 50ms — sin InteractionManager para no bloquear scroll manual.
+          setTimeout(() => doAutoScroll(), 50);
+        }}
       >
         <TouchableWithoutFeedback onPress={() => {}}>
           <View style={styles.overlay}>
@@ -869,12 +930,29 @@ export default function CardStudioVault({
                   showsVerticalScrollIndicator={false}
                   contentContainerStyle={styles.listContent}
                   scrollEventThrottle={16}
-                  removeClippedSubviews
-                  windowSize={8}
-                  maxToRenderPerBatch={10}
-                  initialNumToRender={8}
+                  removeClippedSubviews={false}
+                  windowSize={12}
+                  maxToRenderPerBatch={20}
+                  initialNumToRender={50}
                   bounces={false}
                   overScrollMode="never"
+                  getItemLayout={(_, flatIndex) => {
+                    const item = sectionLayouts[flatIndex];
+                    if (!item) return { length: 0, offset: 0, index: flatIndex };
+                    return { length: item.length, offset: item.offset, index: flatIndex };
+                  }}
+                  onScrollToIndexFailed={() => {
+                    const idx = pendingScrollSectionRef.current;
+                    if (idx === null) return;
+                    setTimeout(() => {
+                      sectionListRef.current?.scrollToLocation({
+                        sectionIndex: idx,
+                        itemIndex: 0,
+                        animated: false,
+                        viewPosition: 0,
+                      });
+                    }, 300);
+                  }}
                 />
                 </View>
               </View>
