@@ -10,7 +10,7 @@ const {
 
 const VAULT_REGISTRY = "vault_file_registry";
 
-/** S3 solo si las cinco `SPACES_*` están definidas en `config` (Azure App Settings). */
+/** S3 solo si las cinco `DO_SPACES_*` están en `config` (mapeadas desde `process.env`). */
 function createSpacesClient() {
   if (getSpacesMissingEnvVars().length > 0) {
     return null;

@@ -5,6 +5,13 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const MB = 1024 * 1024;
 
+/** Host Spaces sin esquema (ej. `sfo3.digitaloceanspaces.com`) para S3 y URLs públicas. */
+function normalizeSpacesEndpointHost(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return "";
+  return s.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+}
+
 const env = {
   port: Number(process.env.PORT || 4000),
   mongoUri: process.env.MONGO_URI || "",
@@ -43,22 +50,25 @@ const env = {
    */
   universalValidRedirectUseRoot: String(process.env.UNIVERSAL_VALID_REDIRECT_USE_ROOT || "").trim() === "1",
 
-  /** DigitalOcean Spaces — nombres exactos para App Settings en Azure (`SPACES_*`). */
-  spacesKey: String(process.env.SPACES_KEY || "").trim(),
-  spacesSecret: String(process.env.SPACES_SECRET || "").trim(),
-  spacesEndpoint: String(process.env.SPACES_ENDPOINT || "").trim(),
-  spacesRegion: String(process.env.SPACES_REGION || "").trim(),
-  spacesBucket: String(process.env.SPACES_BUCKET || "").trim(),
+  /**
+   * DigitalOcean Spaces — lee `DO_SPACES_*` del `.env` / Azure (mismo prefijo en App Settings).
+   * Propiedades internas `spaces*` las consume `mongoStorage` y el S3Client.
+   */
+  spacesKey: String(process.env.DO_SPACES_KEY || "").trim(),
+  spacesSecret: String(process.env.DO_SPACES_SECRET || "").trim(),
+  spacesEndpoint: normalizeSpacesEndpointHost(process.env.DO_SPACES_ENDPOINT),
+  spacesRegion: String(process.env.DO_SPACES_REGION || "").trim(),
+  spacesBucket: String(process.env.DO_SPACES_BUCKET || "").trim(),
 };
 
-/** Lista nombres `SPACES_*` que faltan o están vacíos (todas son obligatorias para S3). */
+/** Lista nombres `DO_SPACES_*` ausentes o vacíos (todas obligatorias para inicializar S3). */
 function getSpacesMissingEnvVars() {
   const missing = [];
-  if (!env.spacesKey) missing.push("SPACES_KEY");
-  if (!env.spacesSecret) missing.push("SPACES_SECRET");
-  if (!env.spacesEndpoint) missing.push("SPACES_ENDPOINT");
-  if (!env.spacesRegion) missing.push("SPACES_REGION");
-  if (!env.spacesBucket) missing.push("SPACES_BUCKET");
+  if (!env.spacesKey) missing.push("DO_SPACES_KEY");
+  if (!env.spacesSecret) missing.push("DO_SPACES_SECRET");
+  if (!env.spacesEndpoint) missing.push("DO_SPACES_ENDPOINT");
+  if (!env.spacesRegion) missing.push("DO_SPACES_REGION");
+  if (!env.spacesBucket) missing.push("DO_SPACES_BUCKET");
   return missing;
 }
 
@@ -73,7 +83,7 @@ function logSpacesVariablesLoaded() {
   console.log(`Variables cargadas: KEY=[${keySi}], ENDPOINT=[${endpointVal}]`);
 }
 
-/** Mensaje para logs/respuestas cuando falta alguna variable `SPACES_*`. */
+/** Mensaje para logs/respuestas cuando falta alguna variable `DO_SPACES_*`. */
 function formatSpacesEnvMissingError() {
   const m = getSpacesMissingEnvVars();
   return `Spaces S3Client no inicializado. Variables ausentes o vacías: ${m.join(", ")}`;

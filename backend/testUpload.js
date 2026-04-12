@@ -4,14 +4,14 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 const fs = require('fs');
 const AWS = require('aws-sdk');
 
-const SPACES_KEY = process.env.SPACES_KEY;
-const SPACES_SECRET = process.env.SPACES_SECRET;
-const SPACES_ENDPOINT = process.env.SPACES_ENDPOINT;
-const SPACES_BUCKET = process.env.SPACES_BUCKET;
-const SPACES_REGION = process.env.SPACES_REGION || 'sfo3';
+const SPACES_KEY = process.env.DO_SPACES_KEY;
+const SPACES_SECRET = process.env.DO_SPACES_SECRET;
+const SPACES_ENDPOINT = process.env.DO_SPACES_ENDPOINT;
+const SPACES_BUCKET = process.env.DO_SPACES_BUCKET;
+const SPACES_REGION = process.env.DO_SPACES_REGION || 'sfo3';
 
 if (!SPACES_ENDPOINT) {
-  console.error('❌ SPACES_ENDPOINT no está definido.');
+  console.error('❌ DO_SPACES_ENDPOINT no está definido.');
   process.exit(1);
 }
 
