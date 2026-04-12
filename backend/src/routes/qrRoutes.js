@@ -12,7 +12,7 @@ const GHOST_LINK_INVITE_TTL_SECONDS = 45;
 const DEFAULT_BUNKER_GROUPS = ['Random', 'Family', 'Social', 'Work'];
 
 const { buildGhostLinkAgoraInvite } = require('../lib/agoraGhostLink');
-const { mergeContactProfileFromCard } = require('../lib/contactIdentityMerge');
+const { mergeContactProfileFromCard, enrichSubscriberProfileFromCard } = require('../lib/contactIdentityMerge');
 const { clientLocaleIsSpanish } = require('../lib/httpRequestLocale');
 const { parseAndValidateTemporaryAccess } = require('../lib/temporaryAccessToken');
 const { env } = require('../config');
@@ -153,6 +153,7 @@ function createQrRoutes({ storage }) {
       {
         sort: { updatedAt: -1 },
         projection: {
+          cardType: 1,
           ownerDisplayName: 1,
           ownerNickname: 1,
           ownerPhotoUrl: 1,
@@ -317,9 +318,12 @@ function createQrRoutes({ storage }) {
     if (!safeUid) {
       return {
         uid: '',
+        fullName: 'Usuario',
+        username: '',
         name: 'Usuario',
-        nickname: 'user',
+        nickname: '',
         photoUrl: null,
+        ownerOccupation: null,
       };
     }
 
@@ -338,15 +342,22 @@ function createQrRoutes({ storage }) {
     const firstName = String(source?.firstName || '').trim();
     const lastName = String(source?.lastName || '').trim();
     const composedFull = `${firstName} ${lastName}`.trim();
-    const name = String(source?.fullName || source?.displayName || source?.name || composedFull || `User ${safeUid.slice(0, 6)}`).trim();
-    const nickname = String(source?.nickname || source?.nicknameLower || name.toLowerCase().replace(/\s+/g, '_')).trim();
+    /** Nombre legible (no inferir desde nickname). */
+    const fullName = String(
+      source?.fullName || composedFull || source?.displayName || source?.name || `User ${safeUid.slice(0, 6)}`,
+    ).trim();
+    /** @handle real en Mongo; vacío si no hay cuenta / no configuró username. */
+    const username = String(source?.nickname || source?.nicknameLower || '').trim();
     const photoUrl = String(source?.photoUrl || source?.avatarUrl || source?.profilePhoto || '').trim() || null;
 
     return {
       uid: safeUid,
-      name,
-      nickname,
+      fullName,
+      username,
+      name: fullName,
+      nickname: username,
       photoUrl,
+      ownerOccupation: null,
     };
   }
 
@@ -1198,9 +1209,11 @@ function createQrRoutes({ storage }) {
 
       const db = await storage.connect();
       const now = new Date();
-      // Exclude business cards — they are managed separately via /business-cards endpoints.
+      // Incluye `cardType: 'business'` (espejo Mongo de Business Card) para que el cliente pueda
+      // fusionar `ownerPhotoUrl` (logo vault) con la lista de Firestore. Mis Tarjetas filtra
+      // `cardType !== 'business'` al hidratar Smart Cards.
       const cards = await db.collection('smart_cards').find(
-        { ownerUid, cardType: { $ne: 'business' } },
+        { ownerUid },
         { sort: { updatedAt: -1 } }
       ).toArray();
 
@@ -1234,6 +1247,7 @@ function createQrRoutes({ storage }) {
           ownerNickname: card.ownerNickname || null,
           ownerPhotoUrl: card.ownerPhotoUrl || null,
           ownerOccupation: card.ownerOccupation || null,
+          cardType: card.cardType === 'business' ? 'business' : 'smart',
           searchFacets: sanitizeSearchFacets(card.searchFacets),
           publicCardSlots: sanitizePublicCardSlots(card.publicCardSlots),
           createdAt: card.createdAt ? new Date(card.createdAt).toISOString() : new Date().toISOString(),
@@ -2261,7 +2275,7 @@ function createQrRoutes({ storage }) {
       for (const uid of subscriberUids) {
         let profile = await resolveUserProfileExtended(db, uid);
         const idCard = await fetchLatestCardIdentityDoc(db, uid);
-        profile = mergeContactProfileFromCard(profile, uid, idCard);
+        profile = enrichSubscriberProfileFromCard(profile, idCard);
         const mutualIds = mutualNeighborUids(neighborMap, ownerUid, uid);
         const mutualCount = mutualIds.length;
         const mutualPreviewPhotos = [];
@@ -2276,9 +2290,10 @@ function createQrRoutes({ storage }) {
         const addedDate = addedAtByUid.get(uid);
         subscribers.push({
           uid,
-          name: profile.name,
-          fullName: profile.name,
-          nickname: profile.nickname,
+          fullName: profile.fullName || profile.name,
+          username: profile.username || '',
+          name: profile.fullName || profile.name,
+          nickname: profile.username || '',
           photoUrl: profile.photoUrl,
           ownerOccupation: profile.ownerOccupation || null,
           isAmixes: amixesSet.has(uid),

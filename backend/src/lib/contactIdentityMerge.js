@@ -27,12 +27,14 @@ function mergeContactProfileFromCard(profile, uid, cardDoc) {
   // Business cards must never blend with the personal profile.
   // Use the business identity (ownerDisplayName / ownerPhotoUrl) exclusively.
   if (cardDoc?.cardType === 'business') {
+    const brand = String(display || cardNick || profile.name || "").trim();
     return {
-      uid: profile.uid,
-      name: display || cardNick || profile.name,
-      nickname: display || cardNick || profile.nickname,
-      photoUrl: cardPhoto || null,
-      ownerOccupation: occupation || null,
+      ...profile,
+      name: brand || profile.name,
+      fullName: brand || profile.fullName || profile.name,
+      nickname: String(profile.username || profile.nickname || cardNick || "").trim(),
+      photoUrl: cardPhoto || profile.photoUrl || null,
+      ownerOccupation: occupation || profile.ownerOccupation || null,
     };
   }
 
@@ -61,15 +63,37 @@ function mergeContactProfileFromCard(profile, uid, cardDoc) {
   }
 
   return {
-    uid: profile.uid,
+    ...profile,
+    fullName: name,
     name,
     nickname,
     photoUrl,
-    ownerOccupation: occupation || null,
+    ownerOccupation: occupation || profile.ownerOccupation || null,
+  };
+}
+
+/**
+ * Lista de receptores: nunca mezclar `ownerDisplayName` de smart_cards (suele ser el nombre de la tarjeta).
+ * Solo rellenar foto y ocupación desde la tarjeta si faltan en el perfil Mongo.
+ * @param {object} profile - resultado de resolveUserProfileExtended
+ * @param {object|null} cardDoc - smart_cards (proyección acotada)
+ */
+function enrichSubscriberProfileFromCard(profile, cardDoc) {
+  if (!cardDoc) {
+    return { ...profile };
+  }
+  const cardPhoto = cardDoc.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl).trim() : "";
+  const occupation = cardDoc.ownerOccupation ? String(cardDoc.ownerOccupation).trim().slice(0, 240) : "";
+
+  return {
+    ...profile,
+    photoUrl: profile.photoUrl || cardPhoto || null,
+    ownerOccupation: occupation || profile.ownerOccupation || null,
   };
 }
 
 module.exports = {
   isSyntheticMongoUserName,
   mergeContactProfileFromCard,
+  enrichSubscriberProfileFromCard,
 };

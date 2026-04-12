@@ -757,11 +757,13 @@ export default function StoriesPage() {
       ]);
 
       const cardsRows = dedupeSmartCardsByCardId(
-        cardsResponse.cards.map((row) => ({
-          cardId: row.cardId,
-          name: row.name,
-          itemIds: row.itemIds,
-        })),
+        cardsResponse.cards
+          .filter((row) => (row.cardType || 'smart') !== 'business')
+          .map((row) => ({
+            cardId: row.cardId,
+            name: row.name,
+            itemIds: row.itemIds,
+          })),
       );
       if (cardsRows.length > 0) {
         setSmartCards(cardsRows);

@@ -79,6 +79,29 @@ function initialsFrom(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+/** Título: nombre real del perfil Mongo (API `fullName`), nunca el nombre de la tarjeta del receptor. */
+function subscriberTitle(item: CardSubscriberRow, tr: (es: string, en: string) => string): string {
+  return (item.fullName || item.name || '').trim() || tr('Usuario', 'User');
+}
+
+/**
+ * Subtítulo: `@username` desde Mongo. Sin username: ocupación si difiere del título (evita duplicar la tarjeta en ambas líneas).
+ */
+function subscriberSubtitleLine(item: CardSubscriberRow, primary: string): string {
+  const u = String(item.username || item.nickname || '')
+    .replace(/^@+/g, '')
+    .trim();
+  if (u) {
+    const at = `@${u}`;
+    const pNorm = primary.replace(/^@+/g, '').trim().toLowerCase();
+    if (pNorm === u.toLowerCase()) return '';
+    return at;
+  }
+  const occ = String(item.ownerOccupation || '').trim();
+  if (occ && occ.toLowerCase() !== primary.trim().toLowerCase()) return occ;
+  return '';
+}
+
 function isToday(iso: string | null | undefined): boolean {
   if (!iso) return false;
   const d = new Date(iso);
@@ -144,7 +167,7 @@ export default function ReceptorScreenModal({
     const list = [...subscribers];
     if (sortMode === 'alpha') {
       list.sort((a, b) =>
-        (a.fullName || a.name).localeCompare(b.fullName || b.name, 'es', { sensitivity: 'base' }),
+        subscriberTitle(a, tr).localeCompare(subscriberTitle(b, tr), 'es', { sensitivity: 'base' }),
       );
     } else {
       list.sort((a, b) => {
@@ -172,23 +195,20 @@ export default function ReceptorScreenModal({
   const renderListRow = useCallback(
     ({ item }: { item: CardSubscriberRow }) => {
       const timeLabel = relativeTimeLabel(item.addedAt, tr);
-      const subtitle = item.ownerOccupation
-        ? item.ownerOccupation
-        : item.nickname
-          ? `@${item.nickname}`
-          : '';
+      const primary = subscriberTitle(item, tr);
+      const subtitle = subscriberSubtitleLine(item, primary);
       return (
         <View style={[s.listRow, { backgroundColor: c.rowBg, borderBottomColor: c.rowBorder }]}>
           {item.photoUrl ? (
             <ExpoImage source={{ uri: item.photoUrl }} style={[s.listAvatar, { borderColor: c.avatarRing }]} cachePolicy="disk" />
           ) : (
             <View style={[s.listAvatarFallback, { backgroundColor: c.surface, borderColor: c.avatarRing }]}>
-              <Text style={[s.listAvatarInitials, { color: c.muted }]}>{initialsFrom(item.fullName || item.name)}</Text>
+              <Text style={[s.listAvatarInitials, { color: c.muted }]}>{initialsFrom(primary)}</Text>
             </View>
           )}
           <View style={s.listTextCol}>
             <Text style={[s.listName, { color: c.text }]} numberOfLines={1}>
-              {item.fullName || item.name}
+              {primary}
             </Text>
             {subtitle ? (
               <Text style={[s.listSubtitle, { color: c.textSecondary }]} numberOfLines={1}>
@@ -285,7 +305,10 @@ export default function ReceptorScreenModal({
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={s.carouselContent}
             >
-              {recentSubscribers.map((sub) => (
+              {recentSubscribers.map((sub) => {
+                const title = subscriberTitle(sub, tr);
+                const parts = title.split(/\s+/).filter(Boolean);
+                return (
                 <View key={`carousel-${sub.uid}`} style={s.carouselItem}>
                   <View style={[s.carouselAvatarRing, { borderColor: c.gold }]}>
                     {sub.photoUrl ? (
@@ -297,19 +320,18 @@ export default function ReceptorScreenModal({
                     ) : (
                       <View style={[s.carouselAvatarFallback, { backgroundColor: c.surface }]}>
                         <Text style={[s.carouselFallbackInitials, { color: c.muted }]}>
-                          {initialsFrom(sub.fullName || sub.name)}
+                          {initialsFrom(title)}
                         </Text>
                       </View>
                     )}
                   </View>
                   <Text style={[s.carouselName, { color: c.carouselNameColor }]} numberOfLines={1}>
-                    {(sub.fullName || sub.name).split(' ')[0]}
-                    {(sub.fullName || sub.name).split(' ').length > 1
-                      ? ` ${(sub.fullName || sub.name).split(' ')[1]?.[0]?.toUpperCase() ?? ''}.`
-                      : ''}
+                    {parts[0] || title}
+                    {parts.length > 1 ? ` ${parts[1]?.[0]?.toUpperCase() ?? ''}.` : ''}
                   </Text>
                 </View>
-              ))}
+              );
+              })}
             </ScrollView>
           </View>
         ) : null}

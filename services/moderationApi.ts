@@ -57,10 +57,11 @@ export async function uploadFileWithModeration(params: {
     const formData = new FormData();
     formData.append('ownerUid', params.ownerUid);
     formData.append('label', params.label);
+    const partMime = String(params.mimeType || '').trim() || 'application/octet-stream';
     formData.append('file', {
       uri: params.fileUri,
-      name: params.fileName,
-      type: params.mimeType,
+      name: params.fileName || 'upload.bin',
+      type: partMime,
     } as any);
 
   try {

@@ -8,8 +8,36 @@ function isImageMime(mimeType) {
   return String(mimeType || "").startsWith("image/");
 }
 
-function validateSize(file, limits) {
-  if (isImageMime(file.mimetype)) {
+/**
+ * Multer suele recibir `application/octet-stream` desde React Native si el part no trae type;
+ * corregimos por extensión para Spaces, proxy y clientes móviles.
+ */
+function normalizeVaultMimeType(mimetype, originalname) {
+  const raw = String(mimetype || "").trim().toLowerCase();
+  const name = String(originalname || "").toLowerCase();
+  const ext = name.includes(".") ? name.slice(name.lastIndexOf(".")) : "";
+  if (raw && raw !== "application/octet-stream" && raw !== "binary/octet-stream") {
+    return String(mimetype || "").trim();
+  }
+  if (ext === ".pdf") return "application/pdf";
+  if (ext === ".png") return "image/png";
+  if (ext === ".gif") return "image/gif";
+  if (ext === ".webp") return "image/webp";
+  if (ext === ".heic" || ext === ".heif") return "image/heic";
+  if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
+  if (ext === ".docx") {
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  }
+  if (ext === ".xlsx") {
+    return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  }
+  if (ext === ".txt") return "text/plain";
+  return raw || "application/octet-stream";
+}
+
+function validateSize(file, limits, resolvedMime) {
+  const mime = resolvedMime || file.mimetype;
+  if (isImageMime(mime)) {
     if (file.size > limits.imageMaxBytes) {
       return `Image exceeds ${Math.floor(limits.imageMaxBytes / (1024 * 1024))}MB limit`;
     }
@@ -69,23 +97,25 @@ function createModerationRoutes({ azureSafety, storage, limits, middlewares = []
         });
       }
 
-      const sizeError = validateSize(file, limits);
+      const ownerUid = String(req.body?.ownerUid || "").trim();
+      const label = String(req.body?.label || "").trim();
+      const resolvedMime = normalizeVaultMimeType(file.mimetype, file.originalname);
+
+      const sizeError = validateSize(file, limits, resolvedMime);
       if (sizeError) {
         return res.status(400).json({ ok: false, error: sizeError });
       }
-
-      const ownerUid = String(req.body?.ownerUid || "").trim();
-      const label = String(req.body?.label || "").trim();
       console.log("[POST /api/upload] recibido", {
         label,
         ownerUid: ownerUid ? `${ownerUid.slice(0, 6)}…` : "(vacío)",
         bytes: file.size,
-        mime: file.mimetype,
+        mime: resolvedMime,
+        mimeRaw: file.mimetype,
         name: file.originalname,
       });
 
       let moderation;
-      if (isImageMime(file.mimetype)) {
+      if (isImageMime(resolvedMime)) {
         moderation = await azureSafety.moderateImageBuffer(file.buffer);
       } else {
         const textToModerate = `${file.originalname} ${label}`.trim();
@@ -96,7 +126,7 @@ function createModerationRoutes({ azureSafety, storage, limits, middlewares = []
         type: "file",
         ownerUid,
         fileName: file.originalname,
-        mimeType: file.mimetype,
+        mimeType: resolvedMime,
         size: file.size,
         blocked: moderation.blocked,
         maxSeverity: moderation.maxSeverity,
@@ -113,7 +143,7 @@ function createModerationRoutes({ azureSafety, storage, limits, middlewares = []
       const { fileId } = await storage.uploadVaultFilePrivate({
         fileBuffer: file.buffer,
         filename: file.originalname,
-        mimeType: file.mimetype,
+        mimeType: resolvedMime,
         ownerUid,
         label,
       });
@@ -125,7 +155,7 @@ function createModerationRoutes({ azureSafety, storage, limits, middlewares = []
         type: "file_stored",
         ownerUid,
         fileName: file.originalname,
-        mimeType: file.mimetype,
+        mimeType: resolvedMime,
         size: file.size,
         blocked: false,
         maxSeverity: moderation.maxSeverity,
@@ -138,7 +168,7 @@ function createModerationRoutes({ azureSafety, storage, limits, middlewares = []
         fileId,
         filename: file.originalname,
         publicUrl: accessUrl,
-        mimeType: file.mimetype,
+        mimeType: resolvedMime,
         moderated: true,
       });
     } catch (error) {

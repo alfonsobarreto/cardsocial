@@ -30,6 +30,7 @@ import { hardLockCheck } from '@/services/biometricAuth';
 import { generatePermanentBusinessLink } from '@/services/brandedQrService';
 import {
     listBusinessCardsByOwner,
+    mergeBusinessCardRowsWithMongoOwnerPhoto,
     deleteBusinessCard as removeBusinessCardFromFirestore,
     setBusinessCardFavorite,
     type BusinessCardListRow,
@@ -132,7 +133,7 @@ const resolveTheme = (id: string | undefined): ChestCardTheme => {
 const toRenderableImageUri = (value: string | null | undefined): string | null => {
   const uri = String(value || '').trim();
   if (!uri) return null;
-  if (uri.startsWith('https://') || uri.startsWith('http://')) return uri;
+  if (/^https?:\/\//i.test(uri)) return uri;
   if (uri.startsWith('file://')) return uri;
   if (uri.startsWith('data:image/')) return uri;
   return null;
@@ -679,7 +680,8 @@ export default function CardsFactoryScreen() {
     // 2. Refresco silencioso — actualiza estado solo si los datos cambiaron
     try {
       const remote = await listSmartCardsFromDb({ ownerUid });
-      const mapped = remote.cards.map((card) => ({
+      const smartOnly = remote.cards.filter((c) => (c.cardType || 'smart') !== 'business');
+      const mapped = smartOnly.map((card) => ({
         id: card.cardId,
         name: card.name,
         layout: card.layout,
@@ -722,7 +724,13 @@ export default function CardsFactoryScreen() {
       return;
     }
     try {
-      const rows = await listBusinessCardsByOwner(ownerUid);
+      let rows = await listBusinessCardsByOwner(ownerUid);
+      try {
+        const { cards: mongoMirror } = await listSmartCardsFromDb({ ownerUid });
+        rows = mergeBusinessCardRowsWithMongoOwnerPhoto(rows, mongoMirror);
+      } catch {
+        /* sin espejo Mongo: se usa solo Firestore */
+      }
       /* Obtener holdersCount real desde share_permissions (MongoDB) */
       const cardIds = rows.map((r) => r.id);
       if (cardIds.length) {
@@ -2308,7 +2316,9 @@ export default function CardsFactoryScreen() {
                   <ExpoImage
                     source={{ uri: logoUri }}
                     style={[styles.businessListLogo, { borderColor: chestTheme.borderColor }]}
-                    cachePolicy="disk"
+                    cachePolicy="memory"
+                    recyclingKey={logoUri}
+                    transition={120}
                   />
                 ) : (
                   <View style={[styles.businessListLogoPh, { borderColor: chestTheme.borderColor }]}>
@@ -2604,7 +2614,9 @@ export default function CardsFactoryScreen() {
                       <ExpoImage
                         source={{ uri: logoUri }}
                         style={[styles.businessListLogo, { borderColor: chestTheme.borderColor }]}
-                        cachePolicy="disk"
+                        cachePolicy="memory"
+                        recyclingKey={logoUri}
+                        transition={120}
                       />
                     ) : (
                       <View style={[styles.businessListLogoPh, { borderColor: chestTheme.borderColor }]}>

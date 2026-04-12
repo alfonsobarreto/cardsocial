@@ -264,7 +264,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     mimeType: string;
     source: 'camera' | 'gallery' | 'document';
   } | null>(null);
-  
+  /** Tras confirmar el preview se pierde `pendingAsset`; guardamos nombre/MIME reales para el POST multipart. */
+  const documentUploadMetaRef = useRef<{ fileName: string; mimeType: string } | null>(null);
+
   // Estados para progreso de upload
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
@@ -859,6 +861,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setFileTypeModalVisible(false);
     setAssetPreviewVisible(false);
     setPendingAsset(null);
+    documentUploadMetaRef.current = null;
     closeFaviconSuggestion();
     setFaviconPromptVisible(false);
     setFaviconPromptDomain('');
@@ -900,6 +903,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     mimeType: string;
     source: 'camera' | 'gallery' | 'document';
   }) => {
+    documentUploadMetaRef.current = null;
     setPendingAsset(asset);
     setAssetPreviewVisible(true);
     setFileTypeModalVisible(false);
@@ -907,6 +911,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
   const confirmAssetPreview = () => {
     if (!pendingAsset?.uri) return;
+    documentUploadMetaRef.current = {
+      fileName: pendingAsset.name.trim() || inferFileName(pendingAsset.uri),
+      mimeType: pendingAsset.mimeType.trim() || inferMimeType(pendingAsset.uri),
+    };
     setDataValue(pendingAsset.uri);
     if (!dataName.trim()) {
       const baseName = pendingAsset.name.replace(/\.[^/.]+$/, '');
@@ -919,6 +927,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const retryAssetSelection = () => {
     const sessionToken = closeGenerationRef.current;
     setDataValue('');
+    documentUploadMetaRef.current = null;
     setUploadProgress(0);
     setUploadStageLabel(tr('Iniciando...', 'Starting...'));
     setIsUploading(false);
@@ -1698,8 +1707,38 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     if (last && last.includes('.')) return last;
 
     const timestamp = Date.now();
-    if (dataType === 'Documento') return `vault-file-${timestamp}.pdf`;
+    const m = inferMimeType(uri);
+    if (dataType === 'Documento') {
+      if (m === 'application/pdf' || m.includes('pdf')) return `vault-file-${timestamp}.pdf`;
+      if (m.startsWith('image/')) return `vault-file-${timestamp}.jpg`;
+      return `vault-file-${timestamp}.bin`;
+    }
     return `vault-image-${timestamp}.jpg`;
+  };
+
+  const logVaultUploadFailure = (error: unknown, context: { fileName: string; mimeType: string; fileUri: string }) => {
+    const e = error as any;
+    const msg = String(e?.message || error || '');
+    const status = e?.response?.status as number | undefined;
+    const body = e?.response?.data;
+    let category = 'UNKNOWN';
+    if (status === 400 && /exceeds|too large|limit|MB/i.test(msg)) {
+      category = 'FILE_SIZE_LIMIT';
+    } else if (status === 400) {
+      category = 'FILE_TYPE_OR_REQUEST_VALIDATION';
+    } else if (status === 403) {
+      category = 'MODERATION_BLOCKED';
+    } else if (status === 503 || /Spaces S3Client|DO_SPACES_|not configured/i.test(msg)) {
+      category = 'SERVER_STORAGE_ENV';
+    } else if (/Missing EXPO_PUBLIC_MODERATION|EXPO_PUBLIC_MODERATION|GATEWAY_KEY/i.test(msg)) {
+      category = 'CLIENT_APP_ENV';
+    } else if (e?.code === 'ECONNABORTED' || /timeout|network error|failed to fetch/i.test(msg.toLowerCase())) {
+      category = 'NETWORK_OR_TIMEOUT';
+    }
+    console.error(
+      `[NewInfoForm:VaultUpload] category=${category} httpStatus=${status ?? 'n/a'} fileName=${context.fileName} mimeType=${context.mimeType}`,
+      { message: msg, responseBody: body },
+    );
   };
 
   // Subir archivo al backend (Azure Content Safety + Mongo)
@@ -1714,6 +1753,11 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       }
       const sessionToken = closeGenerationRef.current;
 
+      const meta = documentUploadMetaRef.current;
+      const fileName = (meta?.fileName && meta.fileName.trim()) || inferFileName(fileUri);
+      const mimeType =
+        (meta?.mimeType && meta.mimeType.trim()) || inferMimeType(fileUri) || 'application/octet-stream';
+
       setUploadProgress(0);
       setUploadStageLabel(tr('Preparando...', 'Preparing...'));
       setIsUploading(true);
@@ -1721,27 +1765,30 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       setUploadProgress(0.2);
       setUploadStageLabel(tr('Enviando...', 'Sending...'));
 
-      const uploadResult = await uploadFileWithModeration({
-        fileUri,
-        ownerUid,
-        label: fileLabel,
-        fileName: inferFileName(fileUri),
-        mimeType: inferMimeType(fileUri),
-      });
       const fileInfo = await FileSystem.getInfoAsync(fileUri, { size: true } as any).catch(() => null);
       logAssetAudit('UPLOAD_ATTEMPT', {
         dataType,
         dataName: fileLabel,
         uri: fileUri,
-        fileName: inferFileName(fileUri),
-        mimeType: inferMimeType(fileUri),
+        fileName,
+        mimeType,
         sizeBytes: (fileInfo as any)?.size || null,
+      });
+
+      const uploadResult = await uploadFileWithModeration({
+        fileUri,
+        ownerUid,
+        label: fileLabel,
+        fileName,
+        mimeType,
       });
 
       setUploadProgress(0.8);
       setUploadStageLabel(tr('Moderando...', 'Moderating...'));
       setUploadProgress(1);
       setUploadStageLabel(tr('Aprobado ✓', 'Approved ✓'));
+
+      documentUploadMetaRef.current = null;
 
       trackTimeout(() => {
         if (isSessionClosed(sessionToken)) return;
@@ -1757,6 +1804,12 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     } catch (error) {
       setUploadModalVisible(false);
       setIsUploading(false);
+      const meta = documentUploadMetaRef.current;
+      logVaultUploadFailure(error, {
+        fileUri,
+        fileName: (meta?.fileName && meta.fileName.trim()) || inferFileName(fileUri),
+        mimeType: (meta?.mimeType && meta.mimeType.trim()) || inferMimeType(fileUri) || 'application/octet-stream',
+      });
       throw error;
     }
   };
@@ -1880,7 +1933,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       let vaultMimeForPayload: string | undefined;
       if (shouldUploadFile) {
         let fileUriToUpload = normalizedValue;
-        const mimeForUpload = inferMimeType(normalizedValue);
+        const meta = documentUploadMetaRef.current;
+        const mimeForUpload =
+          (meta?.mimeType && meta.mimeType.trim()) || inferMimeType(normalizedValue);
         const treatAsImage =
           mimeForUpload.startsWith('image/') ||
           isImageLikeAsset(normalizedValue, mimeForUpload) ||

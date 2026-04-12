@@ -224,6 +224,40 @@ export type BusinessCardListRow = {
   ratingAvg: number;
 };
 
+function isRenderableImageUriString(value: string | null | undefined): boolean {
+  const u = String(value || '').trim();
+  if (!u) return false;
+  if (/^https?:\/\//i.test(u)) return true;
+  if (u.startsWith('file://')) return true;
+  if (u.startsWith('data:image/')) return true;
+  return false;
+}
+
+/**
+ * Firestore puede ir vacío en `businessLogo` mientras el espejo en Mongo (`smart_cards` con
+ * `cardType: 'business'`) ya tiene `ownerPhotoUrl` (p. ej. logo vía vault-proxy). Misma prioridad
+ * que el detalle / web: URL usable en Firestore primero, si no la de Mongo.
+ */
+export function mergeBusinessCardRowsWithMongoOwnerPhoto(
+  rows: BusinessCardListRow[],
+  mongoCards: Array<{ cardId: string; cardType?: string; ownerPhotoUrl?: string | null }>,
+): BusinessCardListRow[] {
+  const photoById = new Map<string, string>();
+  for (const c of mongoCards) {
+    if (String(c.cardType || '') !== 'business') continue;
+    const u = String(c.ownerPhotoUrl || '').trim();
+    if (isRenderableImageUriString(u)) {
+      photoById.set(String(c.cardId || '').trim(), u);
+    }
+  }
+  if (photoById.size === 0) return rows;
+  return rows.map((r) => {
+    if (isRenderableImageUriString(r.businessLogo)) return r;
+    const fallback = photoById.get(r.id);
+    return fallback ? { ...r, businessLogo: fallback } : r;
+  });
+}
+
 /** Tarjetas de negocio del usuario (colección `businessCards`, distinta de Smart Cards). */
 export async function listBusinessCardsByOwner(ownerUid: string): Promise<BusinessCardListRow[]> {
   const q = query(collection(db, 'businessCards'), where('ownerUid', '==', ownerUid));
@@ -233,6 +267,8 @@ export async function listBusinessCardsByOwner(ownerUid: string): Promise<Busine
       businessName?: string;
       ownerName?: string;
       businessLogo?: string;
+      /** Algunos flujos antiguos podían duplicar el logo aquí. */
+      ownerPhotoUrl?: string;
       themeId?: string;
       vaultLinkIds?: unknown;
       isFavorite?: boolean;
@@ -257,7 +293,7 @@ export async function listBusinessCardsByOwner(ownerUid: string): Promise<Busine
       id: d.id,
       businessName: String(data.businessName ?? '').trim() || d.id,
       ownerName: String(data.ownerName ?? '').trim(),
-      businessLogo: String(data.businessLogo ?? '').trim(),
+      businessLogo: String(data.businessLogo ?? data.ownerPhotoUrl ?? '').trim(),
       vaultLinkIds,
       createdAtMs,
       themeId: String(data.themeId ?? 'deep_teal').trim() || 'deep_teal',

@@ -10,6 +10,32 @@ const {
 
 const VAULT_REGISTRY = "vault_file_registry";
 
+/** Si el nombre saneado pierde extensión, se añade según Content-Type (Spaces + proxy conservan tipo). */
+function extensionForMime(mimeType) {
+  const m = String(mimeType || "").toLowerCase();
+  if (m.includes("pdf")) return ".pdf";
+  if (m === "image/jpeg" || m === "image/jpg") return ".jpg";
+  if (m === "image/png") return ".png";
+  if (m === "image/webp") return ".webp";
+  if (m === "image/gif") return ".gif";
+  if (m === "image/heic" || m === "image/heif") return ".heic";
+  if (m.includes("wordprocessingml")) return ".docx";
+  if (m.includes("spreadsheetml")) return ".xlsx";
+  if (m === "text/plain") return ".txt";
+  return "";
+}
+
+function ensureVaultSpacesLeafName(filename, mimeType) {
+  let base = String(filename || "").trim() || "file";
+  base = base.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-").replace(/^\.+/, "");
+  if (!base) base = "file";
+  if (/\.[a-z0-9]{2,12}$/i.test(base)) {
+    return base.slice(0, 200);
+  }
+  const ext = extensionForMime(mimeType);
+  return ext ? `${base}${ext}`.slice(0, 200) : base.slice(0, 200);
+}
+
 /** S3 solo si las cinco `DO_SPACES_*` están en `config` (mapeadas desde `process.env`). */
 function createSpacesClient() {
   if (getSpacesMissingEnvVars().length > 0) {
@@ -128,9 +154,9 @@ function createMongoStorage({ uri, dbName }) {
     }
     const bucket_name = env.spacesBucket;
     const fileId = randomUUID();
-    const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, "-") || "file";
-    const spacesKey = `vault-proxy/${fileId}/${safeName}`;
     const contentType = mimeType || "application/octet-stream";
+    const safeName = ensureVaultSpacesLeafName(filename, contentType);
+    const spacesKey = `vault-proxy/${fileId}/${safeName}`;
 
     await spaces.send(new PutObjectCommand({
       Bucket: bucket_name,
@@ -226,8 +252,18 @@ function createMongoStorage({ uri, dbName }) {
     }
 
     try {
-      const mime = meta.mimeType || out.ContentType || "application/octet-stream";
+      let mime = String(meta.mimeType || out.ContentType || "").trim() || "application/octet-stream";
+      const orig = String(meta.originalFilename || "");
+      const keyTail = String(meta.spacesKey || "").split("/").pop() || "";
+      const pathLooksPdf = /\.pdf(\?|$)/i.test(orig) || /\.pdf(\?|$)/i.test(keyTail);
+      if (
+        pathLooksPdf &&
+        (mime === "application/octet-stream" || mime === "binary/octet-stream" || !mime.includes("/"))
+      ) {
+        mime = "application/pdf";
+      }
       res.setHeader("Content-Type", mime);
+      res.setHeader("X-Content-Type-Options", "nosniff");
       res.setHeader("Cache-Control", "private, max-age=300");
       if (out.ContentLength != null) {
         res.setHeader("Content-Length", String(out.ContentLength));

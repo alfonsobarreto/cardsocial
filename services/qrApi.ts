@@ -481,6 +481,8 @@ export type CardSubscriberRow = {
   uid: string;
   name: string;
   fullName: string;
+  /** @handle desde Mongo (`nickname` / `nicknameLower`); sin inventar desde el nombre. */
+  username: string;
   nickname: string;
   photoUrl: string | null;
   ownerOccupation: string | null;
@@ -512,11 +514,15 @@ export async function listCardSubscribers(params: { ownerUid: string; cardId: st
   const rows = Array.isArray(response?.data?.subscribers) ? response.data.subscribers : [];
   return {
     count: Number(response?.data?.count || rows.length || 0),
-    subscribers: rows.map((row: any) => ({
+    subscribers: rows.map((row: any) => {
+      const fullName = String(row?.fullName || row?.name || '').trim() || 'Usuario';
+      const username = String(row?.username ?? row?.nickname ?? '').trim();
+      return {
       uid: String(row?.uid || ''),
-      name: String(row?.name || row?.fullName || 'Usuario'),
-      fullName: String(row?.fullName || row?.name || 'Usuario'),
-      nickname: String(row?.nickname || 'user'),
+      name: fullName,
+      fullName,
+      username,
+      nickname: username,
       photoUrl: row?.photoUrl ? String(row.photoUrl) : null,
       ownerOccupation: row?.ownerOccupation ? String(row.ownerOccupation).trim() : null,
       isAmixes: Boolean(row?.isAmixes),
@@ -527,7 +533,8 @@ export async function listCardSubscribers(params: { ownerUid: string; cardId: st
         : [],
       muted: Boolean(row?.muted),
       addedAt: row?.addedAt ? String(row.addedAt) : null,
-    })),
+    };
+    }),
   };
 }
 
@@ -814,6 +821,7 @@ export async function listSmartCardsFromDb(params: { ownerUid: string }): Promis
       ownerNickname: row?.ownerNickname ? String(row.ownerNickname) : undefined,
       ownerPhotoUrl: row?.ownerPhotoUrl ? String(row.ownerPhotoUrl) : null,
       ownerOccupation: row?.ownerOccupation != null ? String(row.ownerOccupation) : undefined,
+      cardType: row?.cardType === 'business' ? 'business' : 'smart',
       searchFacets: Array.isArray(row?.searchFacets)
         ? row.searchFacets.map((f: any) => ({
             type: String(f?.type || ''),
