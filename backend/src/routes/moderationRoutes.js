@@ -75,6 +75,13 @@ function createModerationRoutes({ azureSafety, storage, limits, middlewares = []
 
       const ownerUid = String(req.body?.ownerUid || "").trim();
       const label = String(req.body?.label || "").trim();
+      console.log("[POST /api/upload] recibido", {
+        label,
+        ownerUid: ownerUid ? `${ownerUid.slice(0, 6)}…` : "(vacío)",
+        bytes: file.size,
+        mime: file.mimetype,
+        name: file.originalname,
+      });
 
       let moderation;
       if (isImageMime(file.mimetype)) {
@@ -111,6 +118,7 @@ function createModerationRoutes({ azureSafety, storage, limits, middlewares = []
       });
 
       const accessUrl = buildVaultAccessUrl(fileId);
+      console.log("[POST /api/upload] guardado OK", { label, fileId, publicUrl: accessUrl });
 
       await storage.saveModerationAudit({
         type: "file_stored",
@@ -133,6 +141,7 @@ function createModerationRoutes({ azureSafety, storage, limits, middlewares = []
         moderated: true,
       });
     } catch (error) {
+      console.error("[POST /api/upload] error", error?.message || error, error?.stack);
       return res.status(500).json({ ok: false, error: error.message });
     }
   });

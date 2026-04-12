@@ -703,9 +703,15 @@ export default function CreateBusinessCardScreen() {
   };
 
   const resolveLogoForSave = async (uid: string): Promise<string | null> => {
+    console.log('[BusinessCard] resolveLogoForSave', {
+      hayPendiente: Boolean(pendingSquareLogoUri),
+      haySubido: Boolean(uploadedLogoUrl),
+    });
     if (pendingSquareLogoUri) {
       try {
+        console.log('[BusinessCard] optimizando logo antes de subir…');
         const optimizedUri = await optimizePhoto(pendingSquareLogoUri);
+        console.log('[BusinessCard] llamando uploadFileWithModeration (business_logo)…');
         const result = await uploadFileWithModeration({
           fileUri: optimizedUri,
           ownerUid: uid,
@@ -715,19 +721,23 @@ export default function CreateBusinessCardScreen() {
         });
         const newPhotoUrl = result?.publicUrl || null;
         if (newPhotoUrl) {
+          console.log('[BusinessCard] logo subido OK, publicUrl=', newPhotoUrl);
           setUploadedLogoUrl(newPhotoUrl);
           setPendingSquareLogoUri(null);
           return newPhotoUrl;
         }
+        console.warn('[BusinessCard] upload respondió sin publicUrl', result);
         return null;
       } catch (error) {
-        console.error('Error subiendo logo al servidor:', error);
+        console.error('[BusinessCard] error subiendo logo:', error);
         return null;
       }
     }
     if (uploadedLogoUrl) {
+      console.log('[BusinessCard] reutilizando logo ya subido (sin nuevo pending)');
       return uploadedLogoUrl;
     }
+    console.log('[BusinessCard] sin logo pendiente ni URL previa → businessLogo vacío');
     return null;
   };
 
@@ -778,8 +788,10 @@ export default function CreateBusinessCardScreen() {
 
     setSubmitting(true);
     try {
+      console.log('[BusinessCard] handleCreate: resolviendo logo…');
       const resolvedLogo = await resolveLogoForSave(uid);
       const businessLogo = resolvedLogo ?? '';
+      console.log('[BusinessCard] handleCreate: businessLogo length=', businessLogo.length);
 
 
       const kwTags = kw.ok ? kw.tags : [];

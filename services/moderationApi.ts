@@ -66,6 +66,10 @@ export async function uploadFileWithModeration(params: {
   try {
     const baseUrl = getApiBaseUrl();
     const gatewayKey = getGatewayKey();
+    if (params.label === 'business_logo') {
+      // Metro / consola: confirma que el guardado disparó red (no confundir con GET /api/.../vault)
+      console.log('[moderationApi] POST /api/upload', params.label, '→', `${baseUrl}/api/upload`, params.fileName);
+    }
     const uploadToken = await getUploadJwtToken(baseUrl, params.ownerUid, gatewayKey);
 
     const response = await axios.post(`${baseUrl}/api/upload`, formData, {
@@ -77,6 +81,12 @@ export async function uploadFileWithModeration(params: {
       timeout: 120000,
     });
 
+    if (params.label === 'business_logo') {
+      console.log('[moderationApi] upload respuesta OK', {
+        fileId: response.data?.fileId,
+        publicUrl: response.data?.publicUrl,
+      });
+    }
     return {
       fileId: response.data.fileId,
       filename: response.data.filename,
@@ -98,6 +108,9 @@ export async function uploadFileWithModeration(params: {
     }
 
     const status = error?.response?.status;
+    if (params.label === 'business_logo') {
+      console.error('[moderationApi] upload falló', status, error?.response?.data || error?.message);
+    }
     if (status === 403) {
       throw new ModerationRejectedError(
         error?.response?.data?.error || 'File blocked by Content Safety',
