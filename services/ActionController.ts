@@ -3,13 +3,13 @@
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import {
-  joinGhostLinkAgoraSession,
-  leaveGhostLinkAgoraSession,
+    joinGhostLinkAgoraSession,
+    leaveGhostLinkAgoraSession,
 } from '@/services/ghostLinkAgoraSession';
 import { isGhostLinkExpoGoAbortError, startGhostLinkVoipCall } from '@/services/ghostLinkVoip';
 import {
-  dismissPremiumDataPanel,
-  presentPremiumDataPanel,
+    dismissPremiumDataPanel,
+    presentPremiumDataPanel,
 } from '@/services/premiumDataPanelController';
 import { createCallLog } from '@/services/qrApi';
 import { Linking, Platform } from 'react-native';
@@ -70,7 +70,11 @@ export const ActionController = {
   },
 
   /**
-   * ActionEmail: Deep linking real para Gmail, Outlook, Yahoo y Apple Mail.
+   * ActionEmail: Muestra un picker con las apps de correo instaladas en el dispositivo.
+   * - Android: delega al sistema (Intent nativo muestra el selector de apps).
+   * - iOS: detecta apps disponibles vía canOpenURL y muestra solo las instaladas.
+   *   Requiere LSApplicationQueriesSchemes declarados en app.json (infoPlist) y un
+   *   development/production build; en Expo Go siempre verás solo Apple Mail.
    */
   async ActionEmail({ value }: { value: string }) {
     const email = String(value || '').trim();
@@ -87,12 +91,7 @@ export const ActionController = {
     const encodedEmail = encodeURIComponent(email);
     const mailto = `mailto:${email}`;
 
-    const EMAIL_CLIENTS: Array<{ id: string; label: string; url: string }> = [
-      { id: 'gmail', label: 'Gmail', url: `googlegmail:///co?to=${encodedEmail}` },
-      { id: 'outlook', label: 'Outlook', url: `ms-outlook://compose?to=${encodedEmail}` },
-      { id: 'yahoo', label: 'Yahoo', url: `ymail://mail/compose?to=${encodedEmail}` },
-    ];
-
+    // Android: el Intent del sistema ya presenta un selector nativo con las apps disponibles.
     if (Platform.OS !== 'ios') {
       await Linking.openURL(mailto).catch(() =>
         Toast.show({
@@ -104,6 +103,13 @@ export const ActionController = {
       return;
     }
 
+    // iOS: detectar qué clientes están instalados y mostrar solo esos.
+    const EMAIL_CLIENTS: Array<{ id: string; label: string; url: string }> = [
+      { id: 'gmail', label: 'Gmail', url: `googlegmail://co?to=${encodedEmail}` },
+      { id: 'outlook', label: 'Outlook', url: `ms-outlook://compose?to=${encodedEmail}` },
+      { id: 'yahoo', label: 'Yahoo Mail', url: `ymail://mail/compose?to=${encodedEmail}` },
+    ];
+
     const checked = await Promise.all(
       EMAIL_CLIENTS.map(async (client) => ({
         ...client,
@@ -111,8 +117,12 @@ export const ActionController = {
       })),
     );
 
+    // Solo las apps que respondieron true.
+    const availableClients = checked.filter((c) => c.available);
+
     const rows: Array<{ key: string; label: string; onPress: () => void }> = [];
 
+    // Apple Mail: siempre disponible en iOS vía mailto:.
     rows.push({
       key: 'apple-mail',
       label: 'Apple Mail',
@@ -124,39 +134,19 @@ export const ActionController = {
       },
     });
 
-    for (const client of checked) {
-      if (client.available) {
-        rows.push({
-          key: client.id,
-          label: client.label,
-          onPress: () => {
-            dismissPremiumDataPanel();
-            void Linking.openURL(client.url).catch(() => {
-              Toast.show({
-                type: 'info',
-                text1: `${client.label} no disponible`,
-                text2: 'Abriendo Apple Mail como respaldo.',
-              });
-              void Linking.openURL(mailto).catch(() =>
-                Toast.show({ type: 'error', text1: 'Error', text2: 'No se pudo abrir el correo.' }),
-              );
-            });
-          },
-        });
-      } else {
-        rows.push({
-          key: `${client.id}-na`,
-          label: `${client.label} (no instalado)`,
-          onPress: () => {
-            dismissPremiumDataPanel();
-            Toast.show({
-              type: 'info',
-              text1: `${client.label} no está instalado`,
-              text2: 'Instala la app para usarla como cliente de correo.',
-            });
-          },
-        });
-      }
+    for (const client of availableClients) {
+      rows.push({
+        key: client.id,
+        label: client.label,
+        onPress: () => {
+          dismissPremiumDataPanel();
+          void Linking.openURL(client.url).catch(() =>
+            void Linking.openURL(mailto).catch(() =>
+              Toast.show({ type: 'error', text1: 'Error', text2: 'No se pudo abrir el correo.' }),
+            ),
+          );
+        },
+      });
     }
 
     rows.push({

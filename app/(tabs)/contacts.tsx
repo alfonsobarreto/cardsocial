@@ -1720,7 +1720,7 @@ function ContactsContent() {
         sourceCardId={selectedContact?.cardId ?? null}
         sourceCardName={selectedContact?.cardName}
         peerDisplayName={selectedContact?.nickname || selectedContact?.name || 'contacto'}
-        ratingCardType='smart'
+        ratingCardType={selectedContact?.cardType ?? 'smart'}
       />
 
       <Modal

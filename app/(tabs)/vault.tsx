@@ -3,19 +3,18 @@ import LimitReachedModal from '@/components/LimitReachedModal';
 import VerificationBadge from '@/components/VerificationBadge';
 import { FREE_TIER_POLICY } from '@/constants/freeTierPolicy';
 import { isGhostLinkVaultDeletionProtected, isGhostLinkVaultType } from '@/constants/ghostLinkVault';
-import { getActiveUserId } from '@/services/authSession';
-import { getSearchableStringsFromVaultLikeItem, orderByDeepSearchWithExpandedQuery } from '@/services/deepSearch';
-import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
 import { ActionController } from '@/services/ActionController';
-import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
-import { isClassicPhoneVaultType } from '@/services/vaultItemTypeGuards';
-import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
+import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
+import { getSearchableStringsFromVaultLikeItem, orderByDeepSearchWithExpandedQuery } from '@/services/deepSearch';
 import { db } from '@/services/firebaseConfig';
+import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
 import { useLanguage } from '@/services/language';
 import { validateVaultItemCreation } from '@/services/limitService';
 import { useLookMode } from '@/services/lookMode';
-import appPalette from '../theme';
+import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
+import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
+import { isClassicPhoneVaultType } from '@/services/vaultItemTypeGuards';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
@@ -28,29 +27,30 @@ import * as Sharing from 'expo-sharing';
 import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  Dimensions,
-  FlatList,
-  InteractionManager,
-  Keyboard,
-  Linking,
-  Modal,
-  Platform,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View
+    ActivityIndicator,
+    Alert,
+    Animated,
+    Dimensions,
+    FlatList,
+    InteractionManager,
+    Keyboard,
+    Linking,
+    Modal,
+    Platform,
+    Pressable,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import NewInfoForm from '../components/NewInfoForm';
 import { normalizeMaterialCommunityIconName } from '../components/iconNameValidation';
+import appPalette from '../theme';
 
 let PdfComponent: any = null;
 try {
@@ -520,12 +520,56 @@ const VaultScreen = () => {
     triggerSuccessHaptic();
   };
 
+  /** Opción B: descarga el PDF a caché y lo abre con el visor nativo del sistema. */
+  const openPdfWithSystemViewer = async (link: Link) => {
+    try {
+      Toast.show({
+        type: 'info',
+        text1: tr('Abriendo PDF…', 'Opening PDF…'),
+        text2: tr('Descargando para visualización', 'Downloading for viewing'),
+        position: 'bottom',
+        visibilityTime: 2000,
+        autoHide: true,
+      });
+      const safeName = `${link.title || 'documento'}-${Date.now()}`.replace(/[^a-zA-Z0-9-_]/g, '_');
+      const targetUri = `${FileSystem.cacheDirectory}${safeName}.pdf`;
+      await FileSystem.downloadAsync(link.value, targetUri);
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(targetUri, {
+          mimeType: 'application/pdf',
+          UTI: 'com.adobe.pdf',
+          dialogTitle: link.title || 'Documento PDF',
+        });
+      } else {
+        // Fallback: abrir URL directamente en el browser
+        await Linking.openURL(link.value);
+      }
+    } catch {
+      Toast.show({
+        type: 'error',
+        text1: tr('Error', 'Error'),
+        text2: tr('No se pudo abrir el PDF.', 'Could not open the PDF.'),
+        position: 'bottom',
+        visibilityTime: 3000,
+        autoHide: true,
+      });
+    }
+  };
+
   const openDocumentViewer = async (link: Link) => {
     const biometricOk = await hardLockCheck('abrir el visor de documentos del Búnker');
     if (!biometricOk) {
       return;
     }
 
+    if (isPdfValue(link.value)) {
+      // PDFs: visor nativo del sistema vía expo-sharing (funciona en Expo Go y builds).
+      await openPdfWithSystemViewer(link);
+      return;
+    }
+
+    // Imágenes y otros: modal in-app con ExpoImage.
     setViewerItem(link);
     setViewerVisible(true);
   };
@@ -1552,34 +1596,12 @@ const VaultScreen = () => {
                   </ScrollView>
                 </TouchableWithoutFeedback>
               ) : isPdfValue(viewerItem.value) ? (
-                PdfComponent ? (
-                  <TouchableWithoutFeedback
-                    onLongPress={() => {
-                      void handleDownloadFromViewer();
-                    }}
-                    delayLongPress={550}
-                  >
-                    <View style={styles.viewerPdfWrapper}>
-                      <PdfComponent
-                        source={{ uri: viewerItem.value }}
-                        style={styles.viewerPdf}
-                        minScale={1}
-                        maxScale={3}
-                        trustAllCerts={false}
-                      />
-                    </View>
-                  </TouchableWithoutFeedback>
-                ) : (
-                  <View style={styles.viewerFallback}>
-                    <MaterialCommunityIcons name="file-pdf-box" color={vaultTheme.ctaAccent} size={54} />
-                    <Text style={[styles.viewerFallbackText, { color: vaultTheme.viewerFallbackText }]}>
-                      {tr(
-                        'La previsualizacion PDF no esta disponible en Expo Go. Usa un development build para verla.',
-                        'PDF preview is not available in Expo Go. Use a development build to view it.'
-                      )}
-                    </Text>
-                  </View>
-                )
+                <View style={styles.viewerFallback}>
+                  <MaterialCommunityIcons name="file-pdf-box" color={vaultTheme.ctaAccent} size={54} />
+                  <Text style={[styles.viewerFallbackText, { color: vaultTheme.viewerFallbackText }]}>
+                    {tr('Abre el PDF con el botón Descargar.', 'Open the PDF using the Download button.')}
+                  </Text>
+                </View>
               ) : (
                 <View style={styles.viewerFallback}>
                   <MaterialCommunityIcons name="file-alert-outline" color={vaultTheme.ctaAccent} size={54} />

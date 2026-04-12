@@ -25,9 +25,6 @@
         "LSApplicationQueriesSchemes": [
           "googlegmail",
           "ms-outlook",
-          "ymail",
-          "googlegmail",
-          "ms-outlook",
           "ymail"
         ],
         "NSMicrophoneUsageDescription": "Card-Social usa el micrófono para las llamadas de voz Ghost-Link (VoIP).",

@@ -405,6 +405,7 @@ const styles = StyleSheet.create({
   },
   sheet: {
     flex: 1,
+    paddingTop: 40,
     paddingBottom: 36,
   },
   handle: {
