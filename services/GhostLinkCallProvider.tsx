@@ -1,8 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { AppState, Platform, Vibration } from 'react-native';
+import { AppState, NativeModules, Platform, Vibration } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as Notifications from 'expo-notifications';
-import { VolumeManager } from 'react-native-volume-manager';
 import { getActiveUserId } from '@/services/authSession';
 
 const RINGTONE_AUDIO_ASSET = require('@/assets/sounds/ghost-link-ringtone.wav');
@@ -22,7 +21,6 @@ import type {
   GhostLinkCallType,
   GhostLinkSharedCard,
 } from '@/services/ghostLinkVoip';
-import { Camera } from 'expo-camera';
 import {
   getGhostLinkAgoraEngine,
   joinGhostLinkAgoraSession,
@@ -114,6 +112,17 @@ function loadExpoAv(): Promise<typeof import('expo-av') | null> {
       .catch(() => null);
   }
   return expoAvModulePromise;
+}
+
+/** Evita import estático de expo-camera si el nativo no está en el dev client. */
+async function requestGhostLinkCameraPermission(): Promise<'granted' | string> {
+  try {
+    const { Camera } = await import('expo-camera');
+    const { status } = await Camera.requestCameraPermissionsAsync();
+    return status;
+  } catch {
+    return 'denied';
+  }
 }
 
 // ── Imperative bridge for non-React code (ActionController) ──
@@ -329,13 +338,24 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
 
   // ── Push notification listener: incoming call triggers immediate poll ──
   useEffect(() => {
-    const sub = Notifications.addNotificationReceivedListener((notification) => {
-      const data = notification.request.content.data as Record<string, unknown> | undefined;
-      if (data?.type === 'ghost-link-incoming' && phase === 'idle') {
-        pollingRef.current = true;
+    let sub: { remove: () => void } | undefined;
+    try {
+      sub = Notifications.addNotificationReceivedListener((notification) => {
+        const data = notification.request.content.data as Record<string, unknown> | undefined;
+        if (data?.type === 'ghost-link-incoming' && phase === 'idle') {
+          pollingRef.current = true;
+        }
+      });
+    } catch {
+      return undefined;
+    }
+    return () => {
+      try {
+        sub?.remove();
+      } catch {
+        /* noop */
       }
-    });
-    return () => sub.remove();
+    };
   }, [phase]);
 
   // ── Volume-down: silences vibration on first press, rejects on second ──
@@ -351,18 +371,37 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
   }, [phase]);
 
   useEffect(() => {
-    const sub = VolumeManager.addVolumeListener(() => {
-      if (phaseRef.current !== 'ringing_incoming') return;
+    if (!NativeModules.VolumeManager) {
+      return undefined;
+    }
+    let sub: { remove: () => void } | null = null;
+    try {
+      // Solo require si el nativo está registrado; el JS del paquete rompe al import si no hay enlace.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { VolumeManager } = require('react-native-volume-manager') as {
+        VolumeManager: { addVolumeListener: (cb: () => void) => { remove: () => void } };
+      };
+      sub = VolumeManager.addVolumeListener(() => {
+        if (phaseRef.current !== 'ringing_incoming') return;
 
-      if (!volumeSilencedRef.current) {
-        Vibration.cancel();
-        void stopTone();
-        volumeSilencedRef.current = true;
-      } else {
-        rejectIncomingRef.current();
+        if (!volumeSilencedRef.current) {
+          Vibration.cancel();
+          void stopTone();
+          volumeSilencedRef.current = true;
+        } else {
+          rejectIncomingRef.current();
+        }
+      });
+    } catch {
+      return undefined;
+    }
+    return () => {
+      try {
+        sub?.remove();
+      } catch {
+        /* noop */
       }
-    });
-    return () => sub.remove();
+    };
   }, [stopTone]);
 
   // ── Agora: detect peer joined → transition caller to active ──
@@ -480,7 +519,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
       if (!ownerUid) return;
 
       if (pending.callType === 'video') {
-        const { status } = await Camera.requestCameraPermissionsAsync();
+        const status = await requestGhostLinkCameraPermission();
         if (status !== 'granted') {
           pending.callType = 'audio';
           setVideoEnabled(false);
@@ -560,7 +599,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
 
     const isVideo = callData.callType === 'video';
     if (isVideo) {
-      const { status } = await Camera.requestCameraPermissionsAsync();
+      const status = await requestGhostLinkCameraPermission();
       if (status !== 'granted') {
         setVideoEnabled(false);
       }
