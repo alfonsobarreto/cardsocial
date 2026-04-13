@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import axios from 'axios';
 import { getActiveUserId } from '@/services/authSession';
@@ -46,10 +47,25 @@ if (Platform.OS === 'android') {
   });
 }
 
+/** SDK 53+: Expo Go en Android ya no expone push remoto; evita getExpoPushTokenAsync (warning/crash). */
+function shouldSkipExpoPushToken(): boolean {
+  return Platform.OS === 'android' && Constants.executionEnvironment === 'storeClient';
+}
+
 export async function registerPushToken(): Promise<void> {
   try {
     const ownerUid = await getActiveUserId();
     if (!ownerUid) return;
+
+    if (shouldSkipExpoPushToken()) {
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.log(
+          '[Push] Skipped on Android Expo Go — use a development build for remote push (expo.dev/develop/development-builds).',
+        );
+      }
+      return;
+    }
 
     const { status: existing } = await Notifications.getPermissionsAsync();
     let finalStatus = existing;
