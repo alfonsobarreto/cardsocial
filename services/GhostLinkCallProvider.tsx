@@ -117,9 +117,16 @@ function loadExpoAv(): Promise<typeof import('expo-av') | null> {
 /** Evita import estático de expo-camera si el nativo no está en el dev client. */
 async function requestGhostLinkCameraPermission(): Promise<'granted' | string> {
   try {
-    const { Camera } = await import('expo-camera');
-    const { status } = await Camera.requestCameraPermissionsAsync();
-    return status;
+    const {
+      requestCameraPermissionsAsync,
+      requestMicrophonePermissionsAsync,
+    } = await import('expo-camera');
+    const cam = await requestCameraPermissionsAsync();
+    if (cam.status !== 'granted') {
+      return cam.status;
+    }
+    const mic = await requestMicrophonePermissionsAsync();
+    return mic.status === 'granted' ? 'granted' : mic.status;
   } catch {
     return 'denied';
   }
@@ -171,8 +178,12 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
         allowsRecordingIOS: false,
         playsInSilentModeIOS: true,
         staysActiveInBackground: true,
+        interruptionModeIOS: 0,
+        interruptionModeAndroid: 2,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
       });
-      const { sound } = await Audio.Sound.createAsync(asset, { isLooping: true, volume: 0.6 });
+      const { sound } = await Audio.Sound.createAsync(asset, { isLooping: true, volume: 0.72 });
       soundRef.current = sound;
       await sound.playAsync();
     } catch {
@@ -184,12 +195,41 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
     try {
       const av = await loadExpoAv();
       if (!av?.Audio) return;
+      const { Audio } = av;
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        interruptionModeIOS: 0,
+        interruptionModeAndroid: 2,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
       const { sound } = await av.Audio.Sound.createAsync(asset, { volume: 0.5 });
       await sound.playAsync();
       sound.setOnPlaybackStatusUpdate((s: { didJustFinish?: boolean }) => {
         if ('didJustFinish' in s && s.didJustFinish) void sound.unloadAsync();
       });
     } catch { /* ignore */ }
+  }, []);
+
+  /** Tras ringback: modo captura para que Agora no compita con playback-only (menos “estática”). */
+  const prepareSystemAudioForAgora = useCallback(async () => {
+    try {
+      const av = await loadExpoAv();
+      if (!av?.Audio) return;
+      await av.Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        interruptionModeIOS: 2,
+        interruptionModeAndroid: 1,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
+    } catch {
+      /* sin expo-av nativo */
+    }
   }, []);
 
   // ── Timer: cuenta segundos en fase active ──
@@ -309,7 +349,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
           if (incomingCallType === 'video') setVideoEnabled(true);
           setPhase('ringing_incoming');
           Vibration.vibrate([0, 500, 400, 500, 400, 500], true);
-          void playTone(incomingCallType === 'video' ? RINGTONE_VIDEO_ASSET : RINGTONE_AUDIO_ASSET);
+          await playTone(incomingCallType === 'video' ? RINGTONE_VIDEO_ASSET : RINGTONE_AUDIO_ASSET);
         }
       } catch {
         /* network hiccup — retry next tick */
@@ -334,7 +374,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
       if (timer) clearTimeout(timer);
       appSub.remove();
     };
-  }, [phase]);
+  }, [phase, playTone]);
 
   // ── Push notification listener: incoming call triggers immediate poll ──
   useEffect(() => {
@@ -484,7 +524,12 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
       pendingParamsRef.current = {
         ownerUid: '',
         targetUid: params.targetUid,
-        card: { sourceCardName: params.sourceCardName, sourceCardId: params.sourceCardId },
+        card: {
+          sourceCardName: params.sourceCardName,
+          sourceCardId: params.sourceCardId,
+          sourceCardKind: params.cardType,
+          ...(params.cardPhoto ? { sourceCardPhotoUrl: params.cardPhoto } : {}),
+        },
         callType: ct,
       };
       setCallData({
@@ -529,7 +574,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
 
       pending.ownerUid = ownerUid;
       setPhase('ringing_outgoing');
-      void playTone(pending.callType === 'video' ? RINGBACK_VIDEO_ASSET : RINGBACK_AUDIO_ASSET);
+      await playTone(pending.callType === 'video' ? RINGBACK_VIDEO_ASSET : RINGBACK_AUDIO_ASSET);
 
       const started = await startGhostLinkVoipCall(pending);
 
@@ -551,6 +596,9 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
 
       if (started.agora) {
         try {
+          await stopTone();
+          await new Promise<void>((r) => setTimeout(r, 220));
+          await prepareSystemAudioForAgora();
           await joinGhostLinkAgoraSession(started.agora, started.callType === 'video');
         } catch (e) {
           if (__DEV__) console.warn('[Ghost-Link] caller join error', e);
@@ -569,7 +617,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
       }
       setTimeout(resetCall, 3000);
     }
-  }, [resetCall, playTone]);
+  }, [resetCall, playTone, stopTone, prepareSystemAudioForAgora]);
 
   const confirmVideoCall = useCallback(async () => {
     if (pendingParamsRef.current) {
@@ -595,7 +643,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
   const acceptIncoming = useCallback(async () => {
     if (!callData?.inviteId || !callData.ownerUid) return;
     Vibration.cancel();
-    void stopTone();
+    await stopTone();
 
     const isVideo = callData.callType === 'video';
     if (isVideo) {
@@ -614,6 +662,8 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
 
       if (callData.agora) {
         try {
+          await new Promise<void>((r) => setTimeout(r, 220));
+          await prepareSystemAudioForAgora();
           await joinGhostLinkAgoraSession(callData.agora, isVideo);
         } catch (e) {
           if (__DEV__) console.warn('[Ghost-Link] callee join error', e);
@@ -627,7 +677,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
       setPhase('error');
       setTimeout(resetCall, 3000);
     }
-  }, [callData, resetCall]);
+  }, [callData, resetCall, stopTone, playBeep, prepareSystemAudioForAgora]);
 
   // ── Receptor: rechazar ──
   const rejectIncoming = useCallback(async () => {

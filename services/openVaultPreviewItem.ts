@@ -1,3 +1,4 @@
+import { InteractionManager, Platform } from 'react-native';
 import { ActionController } from '@/services/ActionController';
 import type { MirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
 import {
@@ -18,6 +19,15 @@ export type OpenVaultPreviewItemDeps = {
   sourceCardName: string;
   sourceCardId: string | null;
   peerDisplayName: string;
+  /**
+   * Cierra el modal de vista previa (tarjeta flotante) antes de Ghost-Link.
+   * En iOS, dos Modal superpuestos puede congelar la UI si no se cierra el primero.
+   */
+  dismissParentModal?: () => void;
+  /** Foto del titular / contacto (preview espejo). */
+  peerPhotoUrl?: string | null;
+  cardPhoto?: string | null;
+  cardType?: 'business' | 'personal';
 };
 
 /**
@@ -41,11 +51,22 @@ export async function openVaultPreviewItem(item: MirrorVaultItem, deps: OpenVaul
 
   switch (plan.kind) {
     case 'ghost':
+      deps.dismissParentModal?.();
+      await new Promise<void>((resolve) => {
+        InteractionManager.runAfterInteractions(() => resolve());
+      });
+      if (Platform.OS === 'ios') {
+        await new Promise((r) => setTimeout(r, 220));
+      }
+      const photo = deps.peerPhotoUrl ?? deps.cardPhoto ?? null;
       await ActionController.ActionGhostLinkVaultItem({
         targetUid: deps.ghostTargetUid,
         sourceCardName: deps.sourceCardName,
         sourceCardId: deps.sourceCardId,
         userName: deps.peerDisplayName,
+        cardPhoto: deps.cardPhoto ?? photo,
+        peerPhotoUrl: photo,
+        cardType: deps.cardType ?? 'personal',
       });
       return;
     case 'email':

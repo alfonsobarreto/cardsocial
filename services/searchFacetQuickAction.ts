@@ -37,6 +37,7 @@ export function runSearchFacetQuickAction(params: {
       sourceCardId: issuerCardId,
       userName: issuerDisplayName,
       cardPhoto: params.issuerCardPhoto ?? null,
+      peerPhotoUrl: params.issuerCardPhoto ?? null,
       cardType: params.issuerCardType ?? 'personal',
     });
     return;

@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator as NativeActivityIndicator, ActivityIndicatorProps, StyleProp, View, ViewStyle, Image } from 'react-native';
-import { Video } from 'expo-av';
 
 type SpinnerSize = ActivityIndicatorProps['size'];
 

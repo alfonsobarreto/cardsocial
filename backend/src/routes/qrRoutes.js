@@ -422,6 +422,7 @@ function createQrRoutes({ storage }) {
       }
 
       const db = await storage.connect();
+      const now = new Date();
       const relationKey = buildRelationKey(ownerUid, targetUid);
       const blocked = await db.collection('blocked_relations').findOne({ relationKey });
       if (blocked) {
@@ -430,18 +431,19 @@ function createQrRoutes({ storage }) {
 
       if (sourceCardId) {
         const cardDoc = await db.collection('smart_cards').findOne(
-          { cardId: sourceCardId },
+          { cardId: sourceCardId, ownerUid },
           { projection: { silenced: 1, ownerUid: 1 } },
         );
         if (cardDoc?.silenced === true) {
           return res.status(403).json({ ok: false, error: 'Call blocked: card is muted' });
         }
 
+        /** ownerUid en mutes = dueño de la tarjeta (emisor); targetUid = suscriptor que silenció. */
         const subscriberMuted = await db.collection('card_subscriber_mutes').findOne({
           cardId: sourceCardId,
           muted: true,
-          ownerUid: cardDoc?.ownerUid || targetUid,
-          targetUid: ownerUid,
+          ownerUid: cardDoc?.ownerUid || ownerUid,
+          targetUid,
         });
         if (subscriberMuted) {
           return res.status(403).json({ ok: false, error: 'Call blocked: card is muted' });
@@ -459,7 +461,7 @@ function createQrRoutes({ storage }) {
       let sharedCard = null;
       if (sourceCardId) {
         sharedCard = await db.collection('smart_cards').findOne(
-          { cardId: sourceCardId },
+          { cardId: sourceCardId, ownerUid },
           {
             projection: {
               cardId: 1, name: 1, cardType: 1,
@@ -468,13 +470,55 @@ function createQrRoutes({ storage }) {
           },
         );
       }
-      const cardType = String(sharedCard?.cardType || 'personal').trim();
-      const cardName = String(
+
+      const hintedKind = String(req.body?.sourceCardKind || '').trim().toLowerCase();
+      const hintedPhoto = normalizeString(req.body?.sourceCardPhotoUrl, null);
+      const hintedDisplayName = normalizeString(req.body?.sourceCardDisplayName, null);
+
+      const mongoCardKind = String(sharedCard?.cardType || '').trim().toLowerCase();
+      let cardType = mongoCardKind === 'business' ? 'business' : 'personal';
+      if (!sharedCard) {
+        cardType = hintedKind === 'business' ? 'business' : 'personal';
+      }
+
+      let cardName = String(
         sharedCard?.ownerDisplayName || sharedCard?.name || sourceCardName || 'Tarjeta Social',
       ).trim();
-      const cardPhoto = String(sharedCard?.ownerPhotoUrl || receiver.photoUrl || '').trim() || null;
+      if (hintedDisplayName && !sharedCard) {
+        cardName = hintedDisplayName;
+      }
 
-      const now = new Date();
+      /** Foto del “puente” tarjeta: nunca usar la foto del receptor (mezclaba persona vs negocio). */
+      let cardPhoto = String(sharedCard?.ownerPhotoUrl || '').trim() || null;
+      if (!cardPhoto && sharedCard) {
+        if (mongoCardKind === 'business') {
+          cardPhoto = hintedPhoto;
+        } else {
+          cardPhoto = caller.photoUrl;
+        }
+      }
+
+      if (!sharedCard && sourceCardId) {
+        const perm = await db.collection('share_permissions').findOne({
+          ownerUid,
+          targetUid,
+          cardId: sourceCardId,
+          isRevoked: { $ne: true },
+          $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }, { expiresAt: { $exists: false } }],
+        });
+        if (perm) {
+          if (hintedKind === 'business' || hintedKind === 'personal') {
+            cardType = hintedKind === 'business' ? 'business' : 'personal';
+          } else {
+            cardType = 'business';
+          }
+          cardPhoto = hintedPhoto || cardPhoto;
+          if (hintedDisplayName) {
+            cardName = hintedDisplayName;
+          }
+        }
+      }
+
       const sessionId = `acs_${ownerUid.slice(0, 8)}_${targetUid.slice(0, 8)}_${Date.now()}`;
       const inviteId = crypto.randomBytes(16).toString('hex');
       const expiresAt = new Date(now.getTime() + GHOST_LINK_INVITE_TTL_SECONDS * 1000);
@@ -613,6 +657,7 @@ function createQrRoutes({ storage }) {
             sourceCardName: 1,
             sourceCardId: 1,
             callChannel: 1,
+            card: 1,
             callerDisplay: 1,
             receiverDisplay: 1,
             createdAt: 1,

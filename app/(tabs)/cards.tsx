@@ -2089,6 +2089,14 @@ export default function CardsFactoryScreen() {
     setPreviewLayout(width > height ? 'horizontal' : 'vertical');
   }, [previewVisible, previewBusinessVisible, width, height]);
 
+  const dismissCardPreviewModals = useCallback(() => {
+    setPreviewVisible(false);
+    setPreviewCard(null);
+    setPreviewBusinessVisible(false);
+    setPreviewBusiness(null);
+    setPreviewBusinessOwnerUid('');
+  }, []);
+
   const openDataPopover = async (item: VaultItem) => {
     const activeCard =
       previewBusinessVisible && previewBusiness
@@ -2106,6 +2114,10 @@ export default function CardsFactoryScreen() {
       sourceCardName: activeCard?.name ?? cardName ?? 'Tarjeta Social',
       sourceCardId: activeCard?.id ?? null,
       peerDisplayName: ownerNickname || 'este contacto',
+      dismissParentModal: dismissCardPreviewModals,
+      peerPhotoUrl: ownerPhotoUrl ?? null,
+      cardPhoto: ownerPhotoUrl ?? null,
+      cardType: previewBusinessVisible ? 'business' : 'personal',
     });
   };
 
@@ -2141,6 +2153,10 @@ export default function CardsFactoryScreen() {
         sourceCardName: activeCard?.name ?? cardName ?? 'Tarjeta Social',
         sourceCardId: activeCard?.id ?? null,
         peerDisplayName: ownerNickname || 'este contacto',
+        dismissParentModal: dismissCardPreviewModals,
+        peerPhotoUrl: ownerPhotoUrl ?? null,
+        cardPhoto: ownerPhotoUrl ?? null,
+        cardType: previewBusinessVisible ? 'business' : 'personal',
       });
     } catch {
       Alert.alert(tr('No se pudo abrir', 'Could not open'), tr('El dispositivo no pudo abrir este dato en app nativa.', 'Device could not open this data in native app.'));

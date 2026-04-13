@@ -25,6 +25,11 @@ function alertGhostLinkExpoGo(): void {
 export type GhostLinkCardContext = {
   sourceCardId?: string | null;
   sourceCardName: string;
+  /** Alineado con Mongo `smart_cards.cardType` / UI; el backend prioriza el doc de tarjeta. */
+  sourceCardKind?: 'business' | 'personal';
+  /** Logo o foto de preview de la tarjeta (p. ej. negocio sin fila Mongo o logo faltante). */
+  sourceCardPhotoUrl?: string | null;
+  sourceCardDisplayName?: string | null;
 };
 
 /** Datos de la tarjeta compartida (el puente entre caller y receptor). */
@@ -167,15 +172,27 @@ export async function startGhostLinkVoipCall(
   }
 
   const jwt = await getQrScopedJwt(ownerUid);
+  const card = params.card || ({} as GhostLinkCardContext);
+  const startBody: Record<string, unknown> = {
+    ownerUid,
+    targetUid,
+    sourceCardName,
+    sourceCardId,
+    callType: params.callType || 'audio',
+  };
+  if (card.sourceCardKind) {
+    startBody.sourceCardKind = card.sourceCardKind;
+  }
+  if (card.sourceCardPhotoUrl) {
+    startBody.sourceCardPhotoUrl = String(card.sourceCardPhotoUrl).trim();
+  }
+  if (card.sourceCardDisplayName) {
+    startBody.sourceCardDisplayName = String(card.sourceCardDisplayName).trim();
+  }
+
   const response = await axios.post(
     `${getApiBaseUrl()}/api/qr/voip/ghost-link/start`,
-    {
-      ownerUid,
-      targetUid,
-      sourceCardName,
-      sourceCardId,
-      callType: params.callType || 'audio',
-    },
+    startBody,
     {
       headers: {
         'x-api-gateway-key': getGatewayKey(),

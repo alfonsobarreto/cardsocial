@@ -488,6 +488,10 @@ export function MyCardsPreviewModal({
           sourceCardName || payload?.cardName || 'Tarjeta Social',
         sourceCardId: sourceCardId ?? null,
         peerDisplayName: peerDisplayName || tr('contacto', 'contact'),
+        dismissParentModal: handleClose,
+        peerPhotoUrl: payload?.avatarUrl ?? null,
+        cardPhoto: payload?.avatarUrl ?? null,
+        cardType: ratingCardType === 'business' ? 'business' : 'personal',
       });
     },
     [
@@ -498,6 +502,9 @@ export function MyCardsPreviewModal({
       sourceCardId,
       peerDisplayName,
       payload?.cardName,
+      payload?.avatarUrl,
+      handleClose,
+      ratingCardType,
     ],
   );
 

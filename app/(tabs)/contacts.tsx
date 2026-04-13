@@ -1731,7 +1731,7 @@ function ContactsContent() {
         onRequestClose={endActiveGhostCall}
       >
         <LinearGradient
-          colors={[...shell.ghostLinkPremiumGradient]}
+          colors={[...shell.tabShellGradient]}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
           style={styles.ghostFullBleedGradient}
@@ -1792,7 +1792,7 @@ function ContactsContent() {
                 <Text style={styles.ghostEndBtnText}>{tr('Finalizar llamada', 'End call')}</Text>
               </TouchableOpacity>
               <Text style={styles.ghostActivePrivacy}>
-                {tr('Tu número real está 100% oculto', 'Your real number stays 100% hidden')}
+                {tr('Enlace exclusivo', 'Exclusive Link')}
               </Text>
             </View>
           </SafeAreaView>
@@ -1806,7 +1806,7 @@ function ContactsContent() {
         onRequestClose={rejectIncomingGhostCall}
       >
         <LinearGradient
-          colors={[...shell.ghostLinkPremiumGradient]}
+          colors={[...shell.tabShellGradient]}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
           style={styles.ghostFullBleedGradient}

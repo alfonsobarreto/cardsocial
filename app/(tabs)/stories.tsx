@@ -1285,6 +1285,8 @@ export default function StoriesPage() {
         sourceCardName: story.cardName,
         sourceCardId: story.cardId,
         userName: story.ownerName || tr('este contacto', 'this contact'),
+        cardPhoto: story.ownerPhotoUrl,
+        peerPhotoUrl: story.ownerPhotoUrl,
       });
       return;
     }
@@ -1295,6 +1297,8 @@ export default function StoriesPage() {
         sourceCardName: story.cardName,
         sourceCardId: story.cardId,
         userName: story.ownerName || tr('este contacto', 'this contact'),
+        cardPhoto: story.ownerPhotoUrl,
+        peerPhotoUrl: story.ownerPhotoUrl,
       });
       return;
     }

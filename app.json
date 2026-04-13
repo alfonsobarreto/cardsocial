@@ -69,6 +69,14 @@
       "expo-font",
       "expo-web-browser",
       "expo-apple-authentication",
+      "expo-av",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Card-Social usa la cámara para videollamadas FaceCall Ghost-Link.",
+          "microphonePermission": "Card-Social usa el micrófono para llamadas Ghost-Link y FaceCall."
+        }
+      ],
       "expo-video",
       [
         "expo-location",

@@ -738,6 +738,10 @@ export function makeContactsStyles(shell: AppShellTheme) {
   ghostBrandLogoWrap: {
     width: 56,
     height: 56,
+    borderRadius: 28,
+    backgroundColor: shell.ghostLinkLogoBubbleBg,
+    borderWidth: 1,
+    borderColor: shell.ghostLinkLogoBubbleBorder,
     alignItems: 'center',
     justifyContent: 'center',
     ...Platform.select({
@@ -781,7 +785,7 @@ export function makeContactsStyles(shell: AppShellTheme) {
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    backgroundColor: 'rgba(8, 18, 40, 0.45)',
+    backgroundColor: shell.ghostLinkAvatarInnerBg,
   },
   ghostAvatarImage: {
     width: 112,
@@ -805,7 +809,7 @@ export function makeContactsStyles(shell: AppShellTheme) {
   },
   ghostActiveHeroNick: {
     marginTop: 18,
-    color: shell.surface,
+    color: shell.ghostLinkTextPrimary,
     fontSize: 20,
     fontWeight: '800',
     textAlign: 'center',
@@ -813,7 +817,7 @@ export function makeContactsStyles(shell: AppShellTheme) {
   },
   ghostActiveStatusLine: {
     marginTop: 8,
-    color: 'rgba(255, 255, 255, 0.92)',
+    color: shell.ghostLinkTextSecondary,
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
@@ -837,7 +841,7 @@ export function makeContactsStyles(shell: AppShellTheme) {
   },
   ghostActiveFullNameSub: {
     marginTop: 10,
-    color: 'rgba(255, 255, 255, 0.78)',
+    color: shell.ghostLinkTextSecondary,
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
@@ -850,7 +854,7 @@ export function makeContactsStyles(shell: AppShellTheme) {
   },
   ghostActivePrivacy: {
     marginTop: 12,
-    color: 'rgba(255, 255, 255, 0.62)',
+    color: shell.ghostLinkTextMuted,
     fontSize: 11,
     fontWeight: '600',
     textAlign: 'center',
@@ -870,19 +874,19 @@ export function makeContactsStyles(shell: AppShellTheme) {
     flex: 1,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: shell.border,
+    backgroundColor: shell.ghostLinkControlFrost,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
     gap: 5,
   },
   ghostControlBtnActive: {
-    backgroundColor: 'rgba(197, 160, 101, 0.28)',
-    borderColor: 'rgba(248, 220, 150, 0.75)',
+    backgroundColor: shell.ghostLinkControlFrostActive,
+    borderColor: shell.ctaAccent,
   },
   ghostControlText: {
-    color: shell.surface,
+    color: shell.ghostLinkTextPrimary,
     fontWeight: '600',
     fontSize: 10,
     letterSpacing: 0.35,

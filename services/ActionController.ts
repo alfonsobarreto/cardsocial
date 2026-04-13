@@ -252,16 +252,18 @@ export const ActionController = {
       return;
     }
 
+    const resolvedPeerPhoto = peerPhotoUrl?.trim() ? peerPhotoUrl : null;
+    const resolvedCardPhoto = cardPhoto?.trim() ? cardPhoto : null;
     requestGhostLinkCallImperative({
       targetUid: normalizedTargetUid,
       sourceCardId: sourceCardId ?? null,
       sourceCardName: resolvedSourceCardName,
-      cardPhoto: cardPhoto ?? null,
+      cardPhoto: resolvedCardPhoto,
       cardType: cardType ?? 'personal',
       callType: callType ?? 'audio',
       peerName: userName,
       peerNickname: userName.toLowerCase().replace(/\s+/g, '_'),
-      peerPhotoUrl: peerPhotoUrl ?? null,
+      peerPhotoUrl: resolvedPeerPhoto,
     });
   },
 

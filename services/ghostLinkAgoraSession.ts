@@ -63,18 +63,34 @@ export async function joinGhostLinkAgoraSession(creds: GhostLinkAgoraRtc, enable
 
   await leaveGhostLinkAgoraSession();
 
-  const { createAgoraRtcEngine, ChannelProfileType, ClientRoleType, ChannelMediaOptions } = agora;
+  const {
+    createAgoraRtcEngine,
+    ChannelProfileType,
+    ClientRoleType,
+    ChannelMediaOptions,
+    AudioScenarioType,
+    AudioProfileType,
+  } = agora;
 
   const e = createAgoraRtcEngine();
   const initCode = e.initialize({
     appId: creds.appId,
     channelProfile: ChannelProfileType.ChannelProfileCommunication,
+    /** Chatroom: AEC/NS orientados a voz frecuente; reduce choque con otros usos del audio del sistema. */
+    audioScenario: AudioScenarioType.AudioScenarioChatroom,
   });
   if (initCode !== 0 && __DEV__) {
     console.warn('[Ghost-Link Agora] initialize code', initCode);
   }
 
+  try {
+    e.setAudioProfile(AudioProfileType.AudioProfileDefault, AudioScenarioType.AudioScenarioChatroom);
+  } catch {
+    /* native opcional */
+  }
+
   e.enableAudio();
+  await new Promise<void>((r) => setTimeout(r, 200));
 
   if (enableVideo) {
     e.enableVideo();

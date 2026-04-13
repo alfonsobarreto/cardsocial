@@ -161,9 +161,18 @@ const light = {
   subscriberSwipeMuteBg: '#1E3A5F',
   subscriberSwipeRevokeBg: '#5C3D1E',
   callsShellGradient: ['#F2F2F7', '#E8E8ED', pl.background] as const,
-  /** Ghost-Link VoIP pantalla completa (siempre cinemática oscura). */
-  ghostLinkPremiumGradient: ['#030814', '#0A1E38', '#0F2F58'] as const,
-  ghostLinkOnGradient: '#FFFFFF',
+  /** Ghost-Link: fondo pantalla completa (modo día, alineado al cascarón premium). */
+  ghostLinkPremiumGradient: ['#FBFAF7', '#F3EFE6', '#E8E3D8'] as const,
+  /** Texto/icono principal sobre el fondo Ghost-Link (día: oscuro). */
+  ghostLinkOnGradient: pl.text,
+  ghostLinkTextPrimary: pl.text,
+  ghostLinkTextSecondary: pl.textSecondary,
+  ghostLinkTextMuted: pl.muted,
+  ghostLinkLogoBubbleBg: '#F5F0E6',
+  ghostLinkLogoBubbleBorder: 'rgba(212, 175, 55, 0.42)',
+  ghostLinkAvatarInnerBg: 'rgba(255, 255, 255, 0.82)',
+  ghostLinkControlFrost: 'rgba(28, 28, 30, 0.08)',
+  ghostLinkControlFrostActive: 'rgba(212, 175, 55, 0.24)',
 } as const;
 
 const dark = {
@@ -318,8 +327,17 @@ const dark = {
   subscriberSwipeMuteBg: '#1A3350',
   subscriberSwipeRevokeBg: '#4A3020',
   callsShellGradient: ['#1C1C1E', '#0F0F10', pd.background] as const,
+  /** Ghost-Link: fondo nocturno (cinemático, contraste alto). */
   ghostLinkPremiumGradient: ['#030814', '#0A1E38', '#0F2F58'] as const,
   ghostLinkOnGradient: '#FFFFFF',
+  ghostLinkTextPrimary: '#FFFFFF',
+  ghostLinkTextSecondary: 'rgba(255, 255, 255, 0.74)',
+  ghostLinkTextMuted: 'rgba(255, 255, 255, 0.52)',
+  ghostLinkLogoBubbleBg: '#F5F0E6',
+  ghostLinkLogoBubbleBorder: 'rgba(212, 175, 55, 0.5)',
+  ghostLinkAvatarInnerBg: 'rgba(8, 18, 40, 0.45)',
+  ghostLinkControlFrost: 'rgba(255, 255, 255, 0.15)',
+  ghostLinkControlFrostActive: 'rgba(255, 255, 255, 0.35)',
 } as const;
 
 const palette = {
