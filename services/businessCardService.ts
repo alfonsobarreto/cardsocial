@@ -222,6 +222,7 @@ export type BusinessCardListRow = {
   holdersCount: number;
   totalRatings: number;
   ratingAvg: number;
+  silenced?: boolean;
 };
 
 function isRenderableImageUriString(value: string | null | undefined): boolean {

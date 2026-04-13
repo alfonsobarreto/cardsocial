@@ -429,15 +429,21 @@ function createQrRoutes({ storage }) {
       }
 
       if (sourceCardId) {
-        const muted = await db.collection('card_subscriber_mutes').findOne({
+        const cardDoc = await db.collection('smart_cards').findOne(
+          { cardId: sourceCardId },
+          { projection: { silenced: 1, ownerUid: 1 } },
+        );
+        if (cardDoc?.silenced === true) {
+          return res.status(403).json({ ok: false, error: 'Call blocked: card is muted' });
+        }
+
+        const subscriberMuted = await db.collection('card_subscriber_mutes').findOne({
           cardId: sourceCardId,
           muted: true,
-          $or: [
-            { ownerUid: targetUid, targetUid: ownerUid },
-            { ownerUid, targetUid },
-          ],
+          ownerUid: cardDoc?.ownerUid || targetUid,
+          targetUid: ownerUid,
         });
-        if (muted) {
+        if (subscriberMuted) {
           return res.status(403).json({ ok: false, error: 'Call blocked: card is muted' });
         }
       }
@@ -2544,6 +2550,32 @@ function createQrRoutes({ storage }) {
       );
 
       return res.status(200).json({ ok: true, ownerUid, cardId, targetUid, muted: true });
+    } catch (error) {
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+  });
+
+  router.post('/cards/:cardId/silence', async (req, res) => {
+    try {
+      const authUid = String(req.auth?.sub || '').trim();
+      const ownerUid = String(req.body?.ownerUid || req.query?.ownerUid || authUid || '').trim();
+      const cardId = String(req.params?.cardId || '').trim();
+      const silenced = req.body?.silenced === true;
+
+      if (!ownerUid || !cardId) {
+        return res.status(400).json({ ok: false, error: 'ownerUid and cardId are required' });
+      }
+      if (authUid && authUid !== ownerUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      }
+
+      const db = await storage.connect();
+      await db.collection('smart_cards').updateOne(
+        { ownerUid, cardId },
+        { $set: { silenced, updatedAt: new Date() } },
+      );
+
+      return res.status(200).json({ ok: true, ownerUid, cardId, silenced });
     } catch (error) {
       return res.status(500).json({ ok: false, error: error.message });
     }

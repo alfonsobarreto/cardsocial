@@ -8,8 +8,9 @@
 import type { CardSubscriberRow } from '@/services/qrApi';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Dimensions,
   FlatList,
   Modal,
@@ -20,6 +21,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 /* ─── Types ───────────────────────────────────────────────────────── */
 
@@ -38,6 +40,12 @@ export type ReceptorScreenModalProps = {
   loading: boolean;
   isDark: boolean;
   tr: (es: string, en: string) => string;
+  /** Owner context: actions on own card's subscribers */
+  onRevoke?: (targetUid: string, name: string) => void;
+  onMute?: (targetUid: string, currentlyMuted: boolean, name: string) => void;
+  onBlock?: (targetUid: string, name: string) => void;
+  /** Viewer context: block a user seen in someone else's card */
+  onBlockExternal?: (targetUid: string, name: string) => void;
 };
 
 type SortMode = 'date' | 'alpha';
@@ -143,6 +151,38 @@ function getColors(isDark: boolean) {
   };
 }
 
+/* ─── Swipeable row wrapper (avoids ref type mismatch) ───────────── */
+
+function SwipeableRow({
+  uid,
+  swipeRefs,
+  swipeActions,
+  children,
+}: {
+  uid: string;
+  swipeRefs: React.MutableRefObject<Map<string, any>>;
+  swipeActions: React.ReactElement;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<any>(null);
+
+  React.useEffect(() => {
+    if (ref.current) swipeRefs.current.set(uid, ref.current);
+    return () => { swipeRefs.current.delete(uid); };
+  }, [uid, swipeRefs]);
+
+  return (
+    <Swipeable
+      ref={ref}
+      rightThreshold={30}
+      renderRightActions={() => swipeActions}
+      containerStyle={{ overflow: 'visible' }}
+    >
+      {children}
+    </Swipeable>
+  );
+}
+
 /* ─── Component ───────────────────────────────────────────────────── */
 
 export default function ReceptorScreenModal({
@@ -154,9 +194,19 @@ export default function ReceptorScreenModal({
   loading,
   isDark,
   tr,
+  onRevoke,
+  onMute,
+  onBlock,
+  onBlockExternal,
 }: ReceptorScreenModalProps) {
   const [sortMode, setSortMode] = useState<SortMode>('date');
   const c = useMemo(() => getColors(isDark), [isDark]);
+  const swipeRefs = useRef<Map<string, any>>(new Map());
+  const closeAllSwipes = useCallback(() => {
+    for (const ref of swipeRefs.current.values()) { try { ref.close(); } catch {} }
+  }, []);
+  const hasOwnerActions = !!(onRevoke || onMute || onBlock);
+  const hasExternalAction = !!onBlockExternal;
 
   const newToday = useMemo(
     () => subscribers.filter((s) => isToday(s.addedAt)).length,
@@ -197,8 +247,9 @@ export default function ReceptorScreenModal({
       const timeLabel = relativeTimeLabel(item.addedAt, tr);
       const primary = subscriberTitle(item);
       const subtitle = subscriberSubtitleLine(item, primary);
-      return (
-        <View style={[s.listRow, { backgroundColor: c.rowBg, borderBottomColor: c.rowBorder }]}>
+
+      const rowContent = (
+        <View style={[s.listRow, { backgroundColor: c.rowBg, borderBottomColor: c.rowBorder }, item.muted && { opacity: 0.5 }]}>
           {item.photoUrl ? (
             <ExpoImage source={{ uri: item.photoUrl }} style={[s.listAvatar, { borderColor: c.avatarRing }]} cachePolicy="disk" />
           ) : (
@@ -207,9 +258,12 @@ export default function ReceptorScreenModal({
             </View>
           )}
           <View style={s.listTextCol}>
-            <Text style={[s.listName, { color: c.text }]} numberOfLines={1}>
-              {primary}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text style={[s.listName, { color: c.text }]} numberOfLines={1}>
+                {primary}
+              </Text>
+              {item.muted && <MaterialCommunityIcons name="volume-off" size={13} color={c.gold} />}
+            </View>
             {subtitle ? (
               <Text style={[s.listSubtitle, { color: c.textSecondary }]} numberOfLines={1}>
                 {subtitle}
@@ -223,8 +277,71 @@ export default function ReceptorScreenModal({
           ) : null}
         </View>
       );
+
+      if (!hasOwnerActions && !hasExternalAction) return rowContent;
+
+      const swipeActions = (
+        <View style={s.swipeRow}>
+          {onMute && (
+            <TouchableOpacity
+              style={[s.swipeBtn, { backgroundColor: '#FF9500' }]}
+              onPress={() => {
+                closeAllSwipes();
+                onMute(item.uid, item.muted, primary);
+              }}
+            >
+              <MaterialCommunityIcons name={item.muted ? 'volume-high' : 'volume-off'} size={18} color="#fff" />
+              <Text style={s.swipeBtnText}>
+                {item.muted ? tr('Activar', 'Unmute') : tr('Silenciar', 'Mute')}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {onBlock && (
+            <TouchableOpacity
+              style={[s.swipeBtn, { backgroundColor: '#AF52DE' }]}
+              onPress={() => {
+                closeAllSwipes();
+                onBlock(item.uid, primary);
+              }}
+            >
+              <MaterialCommunityIcons name="cancel" size={18} color="#fff" />
+              <Text style={s.swipeBtnText}>{tr('Bloquear', 'Block')}</Text>
+            </TouchableOpacity>
+          )}
+          {onBlockExternal && (
+            <TouchableOpacity
+              style={[s.swipeBtn, { backgroundColor: '#AF52DE' }]}
+              onPress={() => {
+                closeAllSwipes();
+                onBlockExternal(item.uid, primary);
+              }}
+            >
+              <MaterialCommunityIcons name="cancel" size={18} color="#fff" />
+              <Text style={s.swipeBtnText}>{tr('Bloquear', 'Block')}</Text>
+            </TouchableOpacity>
+          )}
+          {onRevoke && (
+            <TouchableOpacity
+              style={[s.swipeBtn, { backgroundColor: '#FF3B30' }]}
+              onPress={() => {
+                closeAllSwipes();
+                onRevoke(item.uid, primary);
+              }}
+            >
+              <MaterialCommunityIcons name="trash-can-outline" size={18} color="#fff" />
+              <Text style={s.swipeBtnText}>{tr('Eliminar', 'Remove')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      );
+
+      return (
+        <SwipeableRow uid={item.uid} swipeRefs={swipeRefs} swipeActions={swipeActions}>
+          {rowContent}
+        </SwipeableRow>
+      );
     },
-    [c, tr],
+    [c, tr, hasOwnerActions, hasExternalAction, onRevoke, onMute, onBlock, onBlockExternal, closeAllSwipes],
   );
 
   const keyExtractor = useCallback((item: CardSubscriberRow) => item.uid, []);
@@ -628,5 +745,23 @@ const s = StyleSheet.create({
   emptyText: {
     fontSize: 14,
     textAlign: 'center',
+  },
+
+  /* Swipe actions */
+  swipeRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    height: '100%',
+  },
+  swipeBtn: {
+    width: 72,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 2,
+  },
+  swipeBtnText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600',
   },
 });

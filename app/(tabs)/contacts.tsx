@@ -1857,6 +1857,32 @@ function ContactsContent() {
         loading={receptorLoading}
         isDark={isNight}
         tr={tr}
+        onBlockExternal={(targetUid, name) => {
+          Alert.alert(
+            tr('Bloquear usuario', 'Block user'),
+            tr(
+              `¿Bloquear a ${name}? No podrá agregarte a ninguna tarjeta ni contactarte.`,
+              `Block ${name}? They won't be able to add you to any card or contact you.`,
+            ),
+            [
+              { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+              {
+                text: tr('Bloquear', 'Block'),
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    const ownerUid = await getActiveUserId();
+                    if (!ownerUid) return;
+                    await blockRelationship({ ownerUid, targetUid });
+                    setReceptorSubscribers((prev) => prev.filter((r) => r.uid !== targetUid));
+                  } catch (e: any) {
+                    Alert.alert(tr('Error', 'Error'), e?.message || tr('No se pudo bloquear.', 'Could not block.'));
+                  }
+                },
+              },
+            ],
+          );
+        }}
       />
     </>
   );

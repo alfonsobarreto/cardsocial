@@ -62,6 +62,7 @@ import {
     listCardSubscribers,
     listSmartCardsFromDb,
     revokeCardSubscriber,
+    setCardSilenced,
     setCardSubscriberMute,
     upsertSmartCardInDb,
     type CardSubscriberRow,
@@ -312,6 +313,7 @@ type SmartCard = {
   totalRatings?: number;
   /** Facetas para contactos; opcional en cache local */
   searchFacets?: Array<{ type: string; label: string; value: string }>;
+  silenced?: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -1435,6 +1437,20 @@ export default function CardsFactoryScreen() {
     }
   };
 
+  const toggleCardSilence = async (card: SmartCard) => {
+    const next = !card.silenced;
+    try {
+      const ownerUid = await getActiveUserId();
+      if (!ownerUid) return;
+      await setCardSilenced({ ownerUid, cardId: card.id, silenced: next });
+      setSmartCards((prev) =>
+        prev.map((c) => (c.id === card.id ? { ...c, silenced: next } : c)),
+      );
+    } catch (e: any) {
+      Alert.alert(tr('Error', 'Error'), e?.message || tr('No se pudo actualizar.', 'Could not update.'));
+    }
+  };
+
   const issueQrForCard = async (card: SmartCard) => {
     try {
       const authenticated = await hardLockCheck(tr('generar QR y compartir tu tarjeta', 'generate QR and share your card'));
@@ -1748,6 +1764,20 @@ export default function CardsFactoryScreen() {
     } catch {
       setBusinessCardsFeed(previous);
       Alert.alert(tr('Error', 'Error'), tr('No se pudo eliminar la tarjeta de negocio.', 'Could not delete the business card.'));
+    }
+  };
+
+  const toggleBusinessCardSilence = async (row: BusinessCardListRow) => {
+    const next = !row.silenced;
+    try {
+      const ownerUid = await getActiveUserId();
+      if (!ownerUid) return;
+      await setCardSilenced({ ownerUid, cardId: row.id, silenced: next });
+      setBusinessCardsFeed((prev) =>
+        prev.map((r) => (r.id === row.id ? { ...r, silenced: next } : r)),
+      );
+    } catch (e: any) {
+      Alert.alert(tr('Error', 'Error'), e?.message || tr('No se pudo actualizar.', 'Could not update.'));
     }
   };
 
@@ -2279,16 +2309,29 @@ export default function CardsFactoryScreen() {
               <Text style={styles.swipeActionText}>{tr('Editar', 'Edit')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.subscriberSwipeMuteBg }]}
+              style={[styles.swipeActionBtn, { backgroundColor: row.silenced ? '#34C759' : '#FF9500' }]}
               onPress={() => {
                 closeBusinessRowSwipe();
-                confirmAndIssueQrForBusiness(row);
+                if (row.silenced) {
+                  void toggleBusinessCardSilence(row);
+                } else {
+                  Alert.alert(
+                    tr('Silenciar tarjeta', 'Silence card'),
+                    tr(
+                      'Nadie podrá llamarte desde esta tarjeta mientras esté silenciada.',
+                      'No one will be able to call you from this card while silenced.',
+                    ),
+                    [
+                      { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+                      { text: tr('Silenciar', 'Silence'), onPress: () => void toggleBusinessCardSilence(row) },
+                    ],
+                  );
+                }
               }}
-              disabled={issuingQr}
-              accessibilityLabel={tr('Generar QR', 'Generate QR')}
+              accessibilityLabel={row.silenced ? tr('Reactivar tarjeta', 'Unmute card') : tr('Silenciar tarjeta', 'Silence card')}
             >
-              <MaterialCommunityIcons name="qrcode" size={16} color="#FFFFFF" />
-              <Text style={styles.swipeActionText}>QR</Text>
+              <MaterialCommunityIcons name={row.silenced ? 'volume-high' : 'volume-off'} size={16} color="#FFFFFF" />
+              <Text style={styles.swipeActionText}>{row.silenced ? tr('Activar', 'Unmute') : tr('Silenciar', 'Silence')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.subscriberSwipeRevokeBg }]}
@@ -2467,16 +2510,29 @@ export default function CardsFactoryScreen() {
               <Text style={styles.swipeActionText}>{tr('Editar', 'Edit')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.subscriberSwipeMuteBg }]}
+              style={[styles.swipeActionBtn, { backgroundColor: item.silenced ? '#34C759' : '#FF9500' }]}
               onPress={() => {
                 closeSmartCardRowSwipe();
-                confirmAndIssueQrForCard(item);
+                if (item.silenced) {
+                  void toggleCardSilence(item);
+                } else {
+                  Alert.alert(
+                    tr('Silenciar tarjeta', 'Silence card'),
+                    tr(
+                      'Nadie podrá llamarte desde esta tarjeta mientras esté silenciada.',
+                      'No one will be able to call you from this card while silenced.',
+                    ),
+                    [
+                      { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+                      { text: tr('Silenciar', 'Silence'), onPress: () => void toggleCardSilence(item) },
+                    ],
+                  );
+                }
               }}
-              disabled={issuingQr}
-              accessibilityLabel={tr('Generar QR', 'Generate QR')}
+              accessibilityLabel={item.silenced ? tr('Reactivar tarjeta', 'Unmute card') : tr('Silenciar tarjeta', 'Silence card')}
             >
-              <MaterialCommunityIcons name="qrcode" size={16} color="#FFFFFF" />
-              <Text style={styles.swipeActionText}>QR</Text>
+              <MaterialCommunityIcons name={item.silenced ? 'volume-high' : 'volume-off'} size={16} color="#FFFFFF" />
+              <Text style={styles.swipeActionText}>{item.silenced ? tr('Activar', 'Unmute') : tr('Silenciar', 'Silence')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.subscriberSwipeRevokeBg }]}
@@ -3618,6 +3674,49 @@ export default function CardsFactoryScreen() {
         loading={subscribersLoading}
         isDark={isDark}
         tr={tr}
+        onRevoke={(targetUid, name) => {
+          Alert.alert(
+            tr('Eliminar receptor', 'Remove receptor'),
+            tr(
+              `¿Eliminar a ${name} de esta tarjeta? Tu tarjeta desaparecerá de sus contactos.`,
+              `Remove ${name} from this card? Your card will disappear from their contacts.`,
+            ),
+            [
+              { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+              { text: tr('Eliminar', 'Remove'), style: 'destructive', onPress: () => void handleRevokeSubscriber(targetUid) },
+            ],
+          );
+        }}
+        onMute={(targetUid, currentlyMuted, name) => {
+          if (currentlyMuted) {
+            void handleMuteSubscriber(targetUid, false);
+          } else {
+            Alert.alert(
+              tr('Silenciar receptor', 'Mute receptor'),
+              tr(
+                `¿Silenciar a ${name}? No podrá llamarte desde esta tarjeta. No sabrá que está silenciado/a.`,
+                `Mute ${name}? They won't be able to call you from this card. They won't know they're muted.`,
+              ),
+              [
+                { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+                { text: tr('Silenciar', 'Mute'), onPress: () => void handleMuteSubscriber(targetUid, true) },
+              ],
+            );
+          }
+        }}
+        onBlock={(targetUid, name) => {
+          Alert.alert(
+            tr('Bloquear usuario', 'Block user'),
+            tr(
+              `¿Bloquear a ${name}? Se eliminará de tus contactos y tarjetas. No podrá agregarte.`,
+              `Block ${name}? They will be removed from your contacts and cards. They won't be able to add you.`,
+            ),
+            [
+              { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+              { text: tr('Bloquear', 'Block'), style: 'destructive', onPress: () => void handleBlockSubscriber(targetUid) },
+            ],
+          );
+        }}
       />
 
       {viewerVisible && viewerItem ? (

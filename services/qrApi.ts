@@ -619,6 +619,33 @@ export async function setSubscriberSelfCardMute(params: {
   };
 }
 
+export async function setCardSilenced(params: {
+  ownerUid: string;
+  cardId: string;
+  silenced: boolean;
+}): Promise<{ silenced: boolean }> {
+  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+
+  const response = await axios.post(
+    `${auth.baseUrl}/api/qr/cards/${encodeURIComponent(params.cardId)}/silence`,
+    {
+      ownerUid: params.ownerUid,
+      silenced: params.silenced,
+    },
+    {
+      headers: {
+        'x-api-gateway-key': auth.gatewayKey,
+        Authorization: `Bearer ${auth.token}`,
+      },
+      timeout: 15000,
+    }
+  );
+
+  return {
+    silenced: response?.data?.silenced === true,
+  };
+}
+
 export async function blockRelationship(params: { ownerUid: string; targetUid: string }): Promise<{ deletedLinks: number }> {
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
 
