@@ -1,6 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AppState, Platform, Vibration } from 'react-native';
-import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import * as Notifications from 'expo-notifications';
 import { VolumeManager } from 'react-native-volume-manager';
@@ -106,6 +105,17 @@ const POLL_INTERVAL_MS = 4000;
 const INVITE_TTL_MS = 45_000;
 const CALLER_STATUS_POLL_MS = 3000;
 
+/** Carga expo-av solo al reproducir tono; evita crash si el dev build no incluye ExponentAV. */
+let expoAvModulePromise: Promise<typeof import('expo-av') | null> | undefined;
+function loadExpoAv(): Promise<typeof import('expo-av') | null> {
+  if (expoAvModulePromise === undefined) {
+    expoAvModulePromise = import('expo-av')
+      .then((m) => m)
+      .catch(() => null);
+  }
+  return expoAvModulePromise;
+}
+
 // ── Imperative bridge for non-React code (ActionController) ──
 type ImperativeRequestCall = GhostLinkCallContextValue['requestCall'] | null;
 let _imperativeRequestCall: ImperativeRequestCall = null;
@@ -128,33 +138,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
   const pollingRef = useRef(true);
   const activeStartRef = useRef<number | null>(null);
   const ringingStartRef = useRef<number | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
-
-  const playTone = useCallback(async (asset: any) => {
-    try {
-      await stopTone();
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-      });
-      const { sound } = await Audio.Sound.createAsync(asset, { isLooping: true, volume: 0.6 });
-      soundRef.current = sound;
-      await sound.playAsync();
-    } catch {
-      /* device without audio or Expo Go limitation */
-    }
-  }, []);
-
-  const playBeep = useCallback(async (asset: any) => {
-    try {
-      const { sound } = await Audio.Sound.createAsync(asset, { volume: 0.5 });
-      await sound.playAsync();
-      sound.setOnPlaybackStatusUpdate((s) => {
-        if ('didJustFinish' in s && s.didJustFinish) void sound.unloadAsync();
-      });
-    } catch { /* ignore */ }
-  }, []);
+  const soundRef = useRef<{ stopAsync: () => Promise<void>; unloadAsync: () => Promise<void>; playAsync: () => Promise<unknown> } | null>(null);
 
   const stopTone = useCallback(async () => {
     try {
@@ -166,6 +150,37 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
     } catch {
       soundRef.current = null;
     }
+  }, []);
+
+  const playTone = useCallback(async (asset: any) => {
+    try {
+      await stopTone();
+      const av = await loadExpoAv();
+      if (!av?.Audio) return;
+      const { Audio } = av;
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+      });
+      const { sound } = await Audio.Sound.createAsync(asset, { isLooping: true, volume: 0.6 });
+      soundRef.current = sound;
+      await sound.playAsync();
+    } catch {
+      /* device without audio or native module missing */
+    }
+  }, [stopTone]);
+
+  const playBeep = useCallback(async (asset: any) => {
+    try {
+      const av = await loadExpoAv();
+      if (!av?.Audio) return;
+      const { sound } = await av.Audio.Sound.createAsync(asset, { volume: 0.5 });
+      await sound.playAsync();
+      sound.setOnPlaybackStatusUpdate((s: { didJustFinish?: boolean }) => {
+        if ('didJustFinish' in s && s.didJustFinish) void sound.unloadAsync();
+      });
+    } catch { /* ignore */ }
   }, []);
 
   // ── Timer: cuenta segundos en fase active ──

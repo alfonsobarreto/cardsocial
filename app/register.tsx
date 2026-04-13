@@ -2,7 +2,7 @@ import ActivityIndicator from '@/components/BrandedSpinner';
 import { FREE_TIER_POLICY } from '@/constants/freeTierPolicy';
 import { saveCachedCredentials } from '@/services/credentialVault';
 import { createDefaultCards, createDefaultVaultData, initializeUserCredits } from '@/services/creditsService';
-import { useLanguage } from '@/services/language';
+import { useLanguageOptional } from '@/services/language';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, SocialProviderId } from '@/services/socialAuth';
 import { grantStudentPackCreditsIfEligible } from '@/services/studentPackService';
@@ -84,7 +84,8 @@ async function optimizePhotoForUpload(uri: string): Promise<string> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function RegisterScreen() {
-  const { language } = useLanguage();
+  const langCtx = useLanguageOptional();
+  const language = langCtx?.language ?? 'es';
   const tr = (es: string, en: string) => (language === 'en' ? en : es);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');

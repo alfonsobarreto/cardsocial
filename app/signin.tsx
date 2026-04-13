@@ -3,7 +3,7 @@ import { brandCsIconLogoBgTransparent } from '@/constants/brandAssets';
 import { initiateAccountRecovery } from '@/services/accountRecoveryService';
 import { saveCachedCredentials } from '@/services/credentialVault';
 import { auth, db } from '@/services/firebaseConfig';
-import { useLanguage } from '@/services/language';
+import { useLanguageOptional } from '@/services/language';
 import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, SocialProviderId } from '@/services/socialAuth';
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -30,7 +30,8 @@ import {
 
 export default function SignInScreen() {
   const router = useRouter();
-  const { language } = useLanguage();
+  const langCtx = useLanguageOptional();
+  const language = langCtx?.language ?? 'es';
   const tr = (es: string, en: string) => (language === 'en' ? en : es);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');

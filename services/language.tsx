@@ -66,3 +66,8 @@ export function useLanguage() {
   }
   return context;
 }
+
+/** Pantallas de auth o código que puede montar antes del provider; default ES. */
+export function useLanguageOptional(): LanguageContextValue | null {
+  return useContext(LanguageContext);
+}
