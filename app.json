@@ -18,20 +18,24 @@
       "cardsocial://redeem?code=*"
     ],
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.cardsocial.app",
-      "associatedDomains": ["applinks:cardsocial.me"],
-      "infoPlist": {
-        "LSApplicationQueriesSchemes": [
-          "googlegmail",
-          "ms-outlook",
-          "ymail"
-        ],
-        "NSMicrophoneUsageDescription": "Card-Social usa el micrófono para las llamadas de voz Ghost-Link (VoIP).",
-        "NSCameraUsageDescription": "Card-Social usa la cámara para videollamadas FaceCall Ghost-Link.",
-        "ITSAppUsesNonExemptEncryption": false
-      }
-    },
+        "supportsTablet": true,
+        "bundleIdentifier": "com.cardsocial.app",
+        "associatedDomains": ["applinks:cardsocial.me"],
+        "infoPlist": {
+          "LSApplicationQueriesSchemes": [
+            "googlegmail",
+            "ms-outlook",
+            "ymail"
+          ],
+          "NSMicrophoneUsageDescription": "Card-Social usa el micrófono para las llamadas de voz Ghost-Link (VoIP).",
+          "NSCameraUsageDescription": "Card-Social usa la cámara para videollamadas FaceCall Ghost-Link.",
+          "ITSAppUsesNonExemptEncryption": false,
+          "UIBackgroundModes": [
+            "audio",
+            "voip"
+          ]
+        }
+      },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
@@ -56,7 +60,9 @@
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.BLUETOOTH_CONNECT"
       ]
     },
     "web": {
@@ -91,6 +97,12 @@
           "color": "#C5A065",
           "defaultChannel": "ghost-link-calls",
           "sounds": []
+        }
+      ],
+      [
+        "react-native-permissions/app.plugin.js",
+        {
+          "iosPermissions": ["Camera"]
         }
       ]
     ],

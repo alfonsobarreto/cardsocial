@@ -241,53 +241,107 @@ export async function getIncomingGhostLinkInvite(params: {
     throw new Error('ownerUid es obligatorio para consultar llamadas entrantes Ghost-Link.');
   }
 
-  const jwt = await getQrScopedJwt(ownerUid);
-  const response = await axios.get(`${getApiBaseUrl()}/api/qr/voip/ghost-link/incoming`, {
-    params: { ownerUid },
-    headers: {
-      'x-api-gateway-key': getGatewayKey(),
-      Authorization: `Bearer ${jwt}`,
-    },
-    timeout: 15000,
-  });
+  try {
+    const jwt = await getQrScopedJwt(ownerUid);
+    const response = await axios.get(`${getApiBaseUrl()}/api/qr/voip/ghost-link/incoming`, {
+      params: { ownerUid },
+      headers: {
+        'x-api-gateway-key': getGatewayKey(),
+        Authorization: `Bearer ${jwt}`,
+      },
+      timeout: 15000,
+    });
 
-  const invite = response?.data?.invite;
-  if (!invite) {
-    return null;
+    const invite = response?.data?.invite;
+    if (!invite) {
+      return null;
+    }
+
+    const invCard = invite?.card;
+    const invCallType: GhostLinkCallType = invite?.callType === 'video' ? 'video' : 'audio';
+    return {
+      inviteId: String(invite?.inviteId || ''),
+      sessionId: String(invite?.sessionId || ''),
+      ownerUid: String(invite?.ownerUid || ''),
+      targetUid: String(invite?.targetUid || ''),
+      sourceCardName: String(invite?.sourceCardName || 'Tarjeta Social'),
+      sourceCardId: invite?.sourceCardId ? String(invite.sourceCardId) : null,
+      callChannel: 'ghost-link-voip',
+      callType: invCallType,
+      agora: parseAgoraRtc(invite?.agora),
+      card: {
+        cardId: invCard?.cardId ? String(invCard.cardId) : (invite?.sourceCardId ? String(invite.sourceCardId) : null),
+        cardName: String(invCard?.cardName || invite?.sourceCardName || 'Tarjeta Social'),
+        cardPhoto: invCard?.cardPhoto ? String(invCard.cardPhoto) : null,
+        cardType: invCard?.cardType === 'business' ? 'business' : 'personal',
+      },
+      callerDisplay: {
+        name: String(invite?.callerDisplay?.name || 'Contacto'),
+        nickname: String(invite?.callerDisplay?.nickname || 'user'),
+        photoUrl: invite?.callerDisplay?.photoUrl ? String(invite.callerDisplay.photoUrl) : null,
+      },
+      receiverDisplay: {
+        name: String(invite?.receiverDisplay?.name || 'Contacto'),
+        nickname: String(invite?.receiverDisplay?.nickname || 'user'),
+        photoUrl: invite?.receiverDisplay?.photoUrl ? String(invite.receiverDisplay.photoUrl) : null,
+      },
+      createdAt: invite?.createdAt ? String(invite.createdAt) : null,
+      updatedAt: invite?.updatedAt ? String(invite.updatedAt) : null,
+      expiresAt: invite?.expiresAt ? String(invite.expiresAt) : null,
+    };
+  } catch (e) {
+    if (axios.isAxiosError(e) && e.response?.status === 404) {
+      return null;
+    }
+    throw e;
+  }
+}
+
+export type OutgoingGhostLinkInviteStatus =
+  | 'ringing'
+  | 'accepted'
+  | 'rejected'
+  | 'ended'
+  | 'expired'
+  | 'not_found'
+  | 'unknown';
+
+/** Emisor: consulta el estado de la invitación tras `start` (signaling antes del join Agora). */
+export async function getOutgoingGhostLinkInviteStatus(params: {
+  ownerUid: string;
+  inviteId: string;
+}): Promise<OutgoingGhostLinkInviteStatus> {
+  const ownerUid = String(params.ownerUid || '').trim();
+  const inviteId = String(params.inviteId || '').trim();
+  if (!ownerUid || !inviteId) {
+    throw new Error('ownerUid e inviteId son obligatorios para el estado de invitación saliente Ghost-Link.');
   }
 
-  const invCard = invite?.card;
-  const invCallType: GhostLinkCallType = invite?.callType === 'video' ? 'video' : 'audio';
-  return {
-    inviteId: String(invite?.inviteId || ''),
-    sessionId: String(invite?.sessionId || ''),
-    ownerUid: String(invite?.ownerUid || ''),
-    targetUid: String(invite?.targetUid || ''),
-    sourceCardName: String(invite?.sourceCardName || 'Tarjeta Social'),
-    sourceCardId: invite?.sourceCardId ? String(invite.sourceCardId) : null,
-    callChannel: 'ghost-link-voip',
-    callType: invCallType,
-    agora: parseAgoraRtc(invite?.agora),
-    card: {
-      cardId: invCard?.cardId ? String(invCard.cardId) : (invite?.sourceCardId ? String(invite.sourceCardId) : null),
-      cardName: String(invCard?.cardName || invite?.sourceCardName || 'Tarjeta Social'),
-      cardPhoto: invCard?.cardPhoto ? String(invCard.cardPhoto) : null,
-      cardType: invCard?.cardType === 'business' ? 'business' : 'personal',
-    },
-    callerDisplay: {
-      name: String(invite?.callerDisplay?.name || 'Contacto'),
-      nickname: String(invite?.callerDisplay?.nickname || 'user'),
-      photoUrl: invite?.callerDisplay?.photoUrl ? String(invite.callerDisplay.photoUrl) : null,
-    },
-    receiverDisplay: {
-      name: String(invite?.receiverDisplay?.name || 'Contacto'),
-      nickname: String(invite?.receiverDisplay?.nickname || 'user'),
-      photoUrl: invite?.receiverDisplay?.photoUrl ? String(invite.receiverDisplay.photoUrl) : null,
-    },
-    createdAt: invite?.createdAt ? String(invite.createdAt) : null,
-    updatedAt: invite?.updatedAt ? String(invite.updatedAt) : null,
-    expiresAt: invite?.expiresAt ? String(invite.expiresAt) : null,
-  };
+  try {
+    const jwt = await getQrScopedJwt(ownerUid);
+    const response = await axios.get(`${getApiBaseUrl()}/api/qr/voip/ghost-link/outgoing-invite`, {
+      params: { ownerUid, inviteId },
+      headers: {
+        'x-api-gateway-key': getGatewayKey(),
+        Authorization: `Bearer ${jwt}`,
+      },
+      timeout: 15000,
+    });
+
+    const raw = String(response?.data?.status || '').trim().toLowerCase();
+    if (raw === 'accepted') return 'accepted';
+    if (raw === 'rejected') return 'rejected';
+    if (raw === 'ended') return 'ended';
+    if (raw === 'expired') return 'expired';
+    if (raw === 'not_found') return 'not_found';
+    if (raw === 'ringing') return 'ringing';
+    return 'unknown';
+  } catch (e) {
+    if (axios.isAxiosError(e) && e.response?.status === 404) {
+      return 'not_found';
+    }
+    throw e;
+  }
 }
 
 export async function respondGhostLinkInvite(params: {

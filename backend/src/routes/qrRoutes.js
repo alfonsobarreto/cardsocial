@@ -723,6 +723,48 @@ function createQrRoutes({ storage }) {
     }
   });
 
+  /** Emisor (caller): estado de una invitación concreta tras `start` (ringing → accepted | rejected | …). */
+  router.get('/voip/ghost-link/outgoing-invite', async (req, res) => {
+    try {
+      const authUid = String(req.auth?.sub || '').trim();
+      const ownerUid = String(req.query?.ownerUid || authUid || '').trim();
+      const inviteId = String(req.query?.inviteId || '').trim();
+
+      if (!ownerUid || !inviteId) {
+        return res.status(400).json({ ok: false, error: 'ownerUid e inviteId son requeridos' });
+      }
+      if (authUid && authUid !== ownerUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      }
+
+      const db = await storage.connect();
+      const now = new Date();
+
+      const invite = await db.collection('ghost_link_invites').findOne(
+        { ownerUid, inviteId },
+        { projection: { status: 1, expiresAt: 1, inviteId: 1 } },
+      );
+
+      if (!invite) {
+        return res.status(200).json({ ok: true, ownerUid, inviteId, status: 'not_found' });
+      }
+
+      const statusRaw = String(invite.status || '').trim();
+      if (statusRaw === 'ringing' && invite.expiresAt && new Date(invite.expiresAt) <= now) {
+        return res.status(200).json({ ok: true, ownerUid, inviteId, status: 'expired' });
+      }
+
+      return res.status(200).json({
+        ok: true,
+        ownerUid,
+        inviteId,
+        status: statusRaw || 'unknown',
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+  });
+
   router.post('/voip/ghost-link/respond', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();

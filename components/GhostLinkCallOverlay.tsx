@@ -17,10 +17,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useGhostLinkCall, type GhostCallData } from '@/services/GhostLinkCallProvider';
+import { VoIPCallPhase } from '@/services/voip/VoIPCallPhase';
 
 /** Tras `sessionId`, congela nombre/foto peer + tarjeta para que re-renders no sustituyan identidad en mitad de llamada. */
 type GhostDisplayIdentity = Pick<GhostCallData, 'peerName' | 'peerNickname' | 'peerPhotoUrl' | 'card'>;
@@ -33,11 +36,11 @@ function GhostDisplayIdentityProvider({ children }: { children: React.ReactNode 
 
   useLayoutEffect(() => {
     if (
-      phase === 'idle' ||
-      phase === 'ended' ||
-      phase === 'rejected' ||
-      phase === 'error' ||
-      phase === 'muted'
+      phase === VoIPCallPhase.Idle ||
+      phase === VoIPCallPhase.Ended ||
+      phase === VoIPCallPhase.Rejected ||
+      phase === VoIPCallPhase.Error ||
+      phase === VoIPCallPhase.Muted
     ) {
       setIdentitySnap(null);
       return;
@@ -81,7 +84,6 @@ function useDisplayGhostCallData(): GhostCallData | null {
   if (!idCtx) return callData;
   return idCtx.mergeDisplay(callData);
 }
-import { getGhostLinkAgoraEngine } from '@/services/ghostLinkAgoraSession';
 import { isGhostLinkAgoraNativeAvailable } from '@/services/expoGoAgoraGuard';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
@@ -141,6 +143,110 @@ function formatDuration(sec: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+function CallChromeMinimizeButton({ videoChrome }: { videoChrome?: boolean }) {
+  const { minimizeCall } = useGhostLinkCall();
+  const shell = useGhostLinkShell();
+  const tr = useTr();
+  const color = videoChrome ? shell.ghostLinkVideoTopBarText : shell.ghostLinkTextPrimary;
+  return (
+    <TouchableOpacity
+      onPress={minimizeCall}
+      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+      style={videoChrome ? videoStyles.minimizeTap : styles.minimizeTap}
+      accessibilityRole="button"
+      accessibilityLabel={tr('Minimizar llamada', 'Minimize call')}
+    >
+      <MaterialCommunityIcons name="chevron-down" size={28} color={color} />
+    </TouchableOpacity>
+  );
+}
+
+/** PiP in-app: tocar restaura pantalla completa. */
+function FloatingCallBubble() {
+  const { maximizeCall, remoteUid, isRemoteVideoEnabled, videoEnabled, callDurationSec } = useGhostLinkCall();
+  const callData = useDisplayGhostCallData();
+  const shell = useGhostLinkShell();
+  const tr = useTr();
+
+  if (!callData) return null;
+
+  const isVideo = callData.callType === 'video' && videoEnabled;
+  const showRemoteSurface = remoteUid != null && isRemoteVideoEnabled;
+  const avatarUri = resolveCallAvatarUri(callData.peerPhotoUrl, callData.card.cardPhoto);
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.92}
+      onPress={maximizeCall}
+      style={[
+        bubbleStyles.wrap,
+        Platform.select({
+          ios: {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.35,
+            shadowRadius: 16,
+          },
+          android: { elevation: 14 },
+          default: {},
+        }),
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={tr('Volver a la llamada', 'Return to call')}
+    >
+      <View
+        style={[
+          bubbleStyles.card,
+          {
+            backgroundColor: shell.surface,
+            borderColor: shell.ghostLinkLogoBubbleBorder,
+          },
+        ]}
+      >
+        {isVideo && showRemoteSurface && RtcSurfaceView ? (
+          <View style={bubbleStyles.videoBox}>
+            <RtcSurfaceView style={bubbleStyles.remoteVideo} canvas={{ uid: remoteUid! }} />
+            <View style={[bubbleStyles.durationPill, { backgroundColor: shell.ghostLinkVideoControlFrost }]}>
+              <Text style={[bubbleStyles.durationText, { color: shell.ghostLinkVideoTopBarText }]}>
+                {formatDuration(callDurationSec)}
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <View style={bubbleStyles.audioCol}>
+            <GoldAvatarRing uri={avatarUri} size={56} />
+            <Text style={[bubbleStyles.timeText, { color: shell.ghostLinkTextPrimary }]}>
+              {formatDuration(callDurationSec)}
+            </Text>
+            <Text numberOfLines={1} style={[bubbleStyles.nameSmall, { color: shell.ghostLinkTextMuted }]}>
+              {callData.peerName}
+            </Text>
+          </View>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+/** Preview local Agora (`startPreview` sin join) durante timbre; detrás del contenido UI. */
+function RingingLocalVideoBackdrop() {
+  const { localPreviewActive } = useGhostLinkCall();
+  const shell = useGhostLinkShell();
+  if (!localPreviewActive || !RtcSurfaceView || !VideoSourceType) return null;
+  return (
+    <View style={[StyleSheet.absoluteFillObject, { zIndex: 0 }]} pointerEvents="none">
+      <RtcSurfaceView
+        style={StyleSheet.absoluteFillObject}
+        canvas={{ uid: 0, sourceType: VideoSourceType.VideoSourceCamera }}
+      />
+      <View
+        style={[StyleSheet.absoluteFillObject, { backgroundColor: shell.ghostLinkRingingVideoScrim }]}
+        pointerEvents="none"
+      />
+    </View>
+  );
+}
+
 /** Foto del contacto (VoIP) con prioridad sobre miniatura de tarjeta. */
 function resolveCallAvatarUri(peerPhotoUrl: string | null | undefined, cardPhoto: string | null | undefined): string | null {
   const a = String(peerPhotoUrl || '').trim();
@@ -193,6 +299,7 @@ function GoldAvatarRing({ uri, size = 130 }: { uri: string | null; size?: number
 }
 
 function BrandLogoMark({ compact }: { compact?: boolean }) {
+  const shell = useGhostLinkShell();
   const wrap = compact ? Math.round(SIGNIN_HERO_ICON_WRAP / 2) : SIGNIN_HERO_ICON_WRAP;
   const logo = compact ? Math.round(SIGNIN_HERO_LOGO / 2) : SIGNIN_HERO_LOGO;
   const r = wrap / 2;
@@ -200,12 +307,24 @@ function BrandLogoMark({ compact }: { compact?: boolean }) {
     <View
       style={[
         styles.logoBubble,
-        styles.signinHeroIconWrap,
         {
           width: wrap,
           height: wrap,
           borderRadius: r,
+          backgroundColor: shell.ghostLinkLogoBubbleBg,
+          borderWidth: 1,
+          borderColor: shell.ghostLinkLogoBubbleBorder,
         },
+        Platform.select({
+          ios: {
+            shadowColor: shell.brandShadow,
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.12,
+            shadowRadius: 14,
+          },
+          android: { elevation: 6 },
+          default: {},
+        }),
       ]}
       accessibilityRole="image"
       accessibilityLabel="Card-Social"
@@ -284,26 +403,34 @@ function ControlButton({
   label,
   active,
   onPress,
+  chrome = 'default',
 }: {
   icon: string;
   label: string;
   active?: boolean;
   onPress: () => void;
+  /** `onVideo`: contraste sobre stage de vídeo oscuro aunque el cascarón sea modo día. */
+  chrome?: 'default' | 'onVideo';
 }) {
   const shell = useGhostLinkShell();
+  const frost = chrome === 'onVideo' ? shell.ghostLinkVideoControlFrost : shell.ghostLinkControlFrost;
+  const frostActive =
+    chrome === 'onVideo' ? shell.ghostLinkVideoControlFrostActive : shell.ghostLinkControlFrostActive;
+  const iconColor = chrome === 'onVideo' ? shell.ghostLinkVideoControlIcon : shell.ghostLinkTextPrimary;
+  const labelColor = chrome === 'onVideo' ? shell.ghostLinkVideoControlLabel : shell.ghostLinkTextSecondary;
   return (
     <TouchableOpacity style={styles.controlBtn} onPress={onPress} activeOpacity={0.7}>
       <View
         style={[
           styles.controlCircle,
           {
-            backgroundColor: active ? shell.ghostLinkControlFrostActive : shell.ghostLinkControlFrost,
+            backgroundColor: active ? frostActive : frost,
           },
         ]}
       >
-        <MaterialCommunityIcons name={icon as any} size={28} color={shell.ghostLinkTextPrimary} />
+        <MaterialCommunityIcons name={icon as any} size={28} color={iconColor} />
       </View>
-      <Text style={[styles.controlLabel, { color: shell.ghostLinkTextSecondary }]}>{label}</Text>
+      <Text style={[styles.controlLabel, { color: labelColor }]}>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -361,13 +488,14 @@ function ConfirmView() {
 }
 
 function OutgoingView() {
-  const { phase, muted, speaker, videoEnabled, callDurationSec, toggleMute, toggleSpeaker, toggleVideo, flipCamera, endCall } = useGhostLinkCall();
+  const { phase, muted, speaker, videoEnabled, localPreviewActive, callDurationSec, toggleMute, toggleSpeaker, toggleVideo, flipCamera, endCall } =
+    useGhostLinkCall();
   const callData = useDisplayGhostCallData();
   const shell = useGhostLinkShell();
   const tr = useTr();
   if (!callData) return null;
 
-  const isRinging = phase === 'ringing_outgoing';
+  const isRinging = phase === VoIPCallPhase.RingingOutgoing;
   const isVideo = callData.callType === 'video' && videoEnabled;
   const statusText = isRinging
     ? tr('Llamando...', 'Calling...')
@@ -379,30 +507,40 @@ function OutgoingView() {
   }
 
   return (
-    <View style={styles.centered}>
-      <View style={styles.logoSlot}>
-        <BrandLogoMark />
-      </View>
-      <PulsingRing size={130} active={isRinging}>
-        <GoldAvatarRing uri={avatarUri} size={130} />
-      </PulsingRing>
-      <Text style={[styles.nameText, { color: shell.ghostLinkTextPrimary }]}>{callData.card.cardName}</Text>
-      <CardBadge label={ghostCallParticipantBadgeLabel(callData, tr)} />
-      <Text style={[styles.statusText, { color: shell.ghostLinkTextSecondary }]}>{statusText}</Text>
+    <View style={styles.fullScreenStack}>
+      {isVideo && isRinging ? <RingingLocalVideoBackdrop /> : null}
+      <View style={[styles.centered, styles.fullScreenForeground]}>
+        {!isRinging ? <CallChromeMinimizeButton /> : null}
+        <View style={styles.logoSlot}>
+          <BrandLogoMark />
+        </View>
+        {!(isVideo && isRinging && localPreviewActive) ? (
+          <PulsingRing size={130} active={isRinging}>
+            <GoldAvatarRing uri={avatarUri} size={130} />
+          </PulsingRing>
+        ) : null}
+        <Text style={[styles.nameText, { color: shell.ghostLinkTextPrimary }]}>{callData.card.cardName}</Text>
+        <CardBadge label={ghostCallParticipantBadgeLabel(callData, tr)} />
+        <Text style={[styles.statusText, { color: shell.ghostLinkTextSecondary }]}>{statusText}</Text>
 
-      <View style={styles.controls}>
-        <ControlButton icon="microphone-off" label={tr('Silencio', 'Mute')} active={muted} onPress={toggleMute} />
-        <ControlButton icon="volume-high" label={tr('Altavoz', 'Speaker')} active={speaker} onPress={toggleSpeaker} />
-        <ControlButton icon="video" label={tr('Cámara', 'Camera')} active={videoEnabled} onPress={toggleVideo} />
-      </View>
+        <View style={styles.controls}>
+          <ControlButton icon="microphone-off" label={tr('Silencio', 'Mute')} active={muted} onPress={toggleMute} />
+          <ControlButton icon="volume-high" label={tr('Altavoz', 'Speaker')} active={speaker} onPress={toggleSpeaker} />
+          <ControlButton icon="video" label={tr('Cámara', 'Camera')} active={videoEnabled} onPress={toggleVideo} />
+        </View>
 
-      <TouchableOpacity style={styles.endCallBtn} onPress={endCall} activeOpacity={0.8}>
-        <MaterialCommunityIcons name="phone-hangup" size={28} color="#fff" />
-        <Text style={styles.endCallText}>{tr('Colgar', 'End Call')}</Text>
-      </TouchableOpacity>
-      <Text style={[styles.footerText, { color: shell.ghostLinkTextMuted }]}>
-        {tr('Enlace exclusivo', 'Exclusive Link')}
-      </Text>
+        <TouchableOpacity
+          style={[styles.endCallBtn, { backgroundColor: shell.danger }]}
+          onPress={endCall}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons name="phone-hangup" size={28} color={shell.ghostLinkOnHangup} />
+          <Text style={[styles.endCallText, { color: shell.ghostLinkOnHangup }]}>{tr('Colgar', 'End Call')}</Text>
+        </TouchableOpacity>
+        <Text style={[styles.footerText, { color: shell.ghostLinkTextMuted }]}>
+          {tr('Enlace exclusivo', 'Exclusive Link')}
+        </Text>
+      </View>
     </View>
   );
 }
@@ -420,45 +558,48 @@ function IncomingView() {
     : tr('Llamada Entrante...', 'Incoming Call...');
 
   return (
-    <View style={styles.centered}>
-      <View style={styles.logoSlot}>
-        <BrandLogoMark />
-      </View>
-      <PulsingRing size={130} active>
-        <GoldAvatarRing uri={resolveCallAvatarUri(callData.peerPhotoUrl, callData.card.cardPhoto)} size={130} />
-      </PulsingRing>
-      <Text style={[styles.nameText, { color: shell.ghostLinkTextPrimary }]}>@{callData.peerNickname}</Text>
-      <Text style={[styles.fullNameText, { color: shell.ghostLinkTextSecondary }]}>{callData.peerName}</Text>
-      {isVideo && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-          <MaterialCommunityIcons name="video" size={18} color={shell.tint} />
-          <Text style={{ color: shell.tint, fontSize: 13, fontWeight: '600' }}>FaceCall</Text>
+    <View style={styles.fullScreenStack}>
+      {/* Entrante: sin Agora startPreview / RtcSurfaceView uid:0 hasta ACEPTAR (evita crash en bloqueo/segundo plano). */}
+      <View style={[styles.centered, styles.fullScreenForeground]}>
+        <View style={styles.logoSlot}>
+          <BrandLogoMark />
         </View>
-      )}
-      <Text style={[styles.statusText, { color: shell.ghostLinkTextSecondary }]}>{statusLabel}</Text>
-      <CardBadge label={`${tr('Desde tu tarjeta', 'From your card')}: ${callData.card.cardName}`} />
+        <PulsingRing size={130} active>
+          <GoldAvatarRing uri={resolveCallAvatarUri(callData.peerPhotoUrl, callData.card.cardPhoto)} size={130} />
+        </PulsingRing>
+        <Text style={[styles.nameText, { color: shell.ghostLinkTextPrimary }]}>@{callData.peerNickname}</Text>
+        <Text style={[styles.fullNameText, { color: shell.ghostLinkTextSecondary }]}>{callData.peerName}</Text>
+        {isVideo && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+            <MaterialCommunityIcons name="video" size={18} color={shell.tint} />
+            <Text style={{ color: shell.tint, fontSize: 13, fontWeight: '600' }}>{tr('FaceCall', 'FaceCall')}</Text>
+          </View>
+        )}
+        <Text style={[styles.statusText, { color: shell.ghostLinkTextSecondary }]}>{statusLabel}</Text>
+        <CardBadge label={`${tr('Desde tu tarjeta', 'From your card')}: ${callData.card.cardName}`} />
 
-      <View style={styles.incomingActions}>
-        <TouchableOpacity
-          style={[styles.acceptBtn, { backgroundColor: shell.ctaAccent }]}
-          onPress={acceptIncoming}
-          activeOpacity={0.85}
-        >
-          <MaterialCommunityIcons
-            name={isVideo ? 'video' : 'phone'}
-            size={20}
-            color={shell.emptyCtaText}
-            style={{ marginRight: 6 }}
-          />
-          <Text style={[styles.acceptBtnText, { color: shell.emptyCtaText }]}>{tr('ACEPTAR', 'ACCEPT')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.rejectBtn, { backgroundColor: shell.surface, borderColor: shell.danger }]}
-          onPress={rejectIncoming}
-          activeOpacity={0.85}
-        >
-          <Text style={[styles.rejectBtnText, { color: shell.danger }]}>{tr('RECHAZAR', 'DECLINE')}</Text>
-        </TouchableOpacity>
+        <View style={styles.incomingActions}>
+          <TouchableOpacity
+            style={[styles.acceptBtn, { backgroundColor: shell.ctaAccent }]}
+            onPress={acceptIncoming}
+            activeOpacity={0.85}
+          >
+            <MaterialCommunityIcons
+              name={isVideo ? 'video' : 'phone'}
+              size={20}
+              color={shell.emptyCtaText}
+              style={{ marginRight: 6 }}
+            />
+            <Text style={[styles.acceptBtnText, { color: shell.emptyCtaText }]}>{tr('ACEPTAR', 'ACCEPT')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.rejectBtn, { backgroundColor: shell.surface, borderColor: shell.danger }]}
+            onPress={rejectIncoming}
+            activeOpacity={0.85}
+          >
+            <Text style={[styles.rejectBtnText, { color: shell.danger }]}>{tr('RECHAZAR', 'DECLINE')}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -478,6 +619,7 @@ function ActiveIncomingView() {
 
   return (
     <View style={styles.centered}>
+      <CallChromeMinimizeButton />
       <View style={styles.logoSlot}>
         <BrandLogoMark />
       </View>
@@ -494,9 +636,13 @@ function ActiveIncomingView() {
         <ControlButton icon="video" label={tr('Cámara', 'Camera')} active={videoEnabled} onPress={toggleVideo} />
       </View>
 
-      <TouchableOpacity style={styles.endCallBtn} onPress={endCall} activeOpacity={0.8}>
-        <MaterialCommunityIcons name="phone-hangup" size={28} color="#fff" />
-        <Text style={styles.endCallText}>{tr('Colgar', 'End Call')}</Text>
+      <TouchableOpacity
+        style={[styles.endCallBtn, { backgroundColor: shell.danger }]}
+        onPress={endCall}
+        activeOpacity={0.8}
+      >
+        <MaterialCommunityIcons name="phone-hangup" size={28} color={shell.ghostLinkOnHangup} />
+        <Text style={[styles.endCallText, { color: shell.ghostLinkOnHangup }]}>{tr('Colgar', 'End Call')}</Text>
       </TouchableOpacity>
       <Text style={[styles.footerText, { color: shell.ghostLinkTextMuted }]}>
         {tr('Enlace exclusivo', 'Exclusive Link')}
@@ -506,76 +652,134 @@ function ActiveIncomingView() {
 }
 
 function ActiveVideoView() {
-  const { muted, speaker, videoEnabled, callDurationSec, toggleMute, toggleSpeaker, toggleVideo, flipCamera, endCall } = useGhostLinkCall();
+  const {
+    muted,
+    speaker,
+    remoteUid,
+    isRemoteVideoEnabled,
+    videoEnabled,
+    callDurationSec,
+    toggleMute,
+    toggleSpeaker,
+    toggleVideo,
+    flipCamera,
+    endCall,
+    onLocalCameraPinchStart,
+    applyLocalCameraPinchScale,
+  } = useGhostLinkCall();
   const callData = useDisplayGhostCallData();
   const shell = useGhostLinkShell();
   const tr = useTr();
-  const [remoteUid, setRemoteUid] = useState<number | null>(null);
-
-  useEffect(() => {
-    const e = getGhostLinkAgoraEngine();
-    if (!e) return;
-    const handler = {
-      onUserJoined: (_conn: any, uid: number) => setRemoteUid(uid),
-      onUserOffline: () => setRemoteUid(null),
-    };
-    e.registerEventHandler(handler);
-    return () => {
-      try { e.unregisterEventHandler(handler); } catch { /* ignore */ }
-    };
-  }, []);
 
   if (!callData || !RtcSurfaceView) return null;
 
+  const pinchGesture = useMemo(
+    () =>
+      Gesture.Pinch()
+        .onStart(() => {
+          runOnJS(onLocalCameraPinchStart)();
+        })
+        .onUpdate((e) => {
+          runOnJS(applyLocalCameraPinchScale)(e.scale);
+        }),
+    [onLocalCameraPinchStart, applyLocalCameraPinchScale],
+  );
+
+  const showRemoteSurface = remoteUid != null && isRemoteVideoEnabled;
+  const remotePlaceholderLabel = remoteUid == null
+    ? tr('Esperando video...', 'Waiting for video...')
+    : tr('Cámara apagada', 'Camera off');
+
   return (
-    <View style={videoStyles.root}>
-      {/* Remote video — full screen background */}
-      {remoteUid != null ? (
-        <RtcSurfaceView
-          style={videoStyles.remoteVideo}
-          canvas={{ uid: remoteUid }}
-        />
+    <View style={[videoStyles.root, { backgroundColor: shell.ghostLinkVideoStageBg }]}>
+      {/* Remote: solo montar SurfaceView cuando el SDK reporta vídeo activo (evita frame congelado). */}
+      {showRemoteSurface ? (
+        <RtcSurfaceView style={videoStyles.remoteVideo} canvas={{ uid: remoteUid! }} />
       ) : (
-        <View style={videoStyles.remoteVideoPlaceholder}>
+        <View
+          style={[videoStyles.remoteVideoPlaceholder, { backgroundColor: shell.ghostLinkRemoteVideoPlaceholderBg }]}
+        >
           <GoldAvatarRing uri={resolveCallAvatarUri(callData.peerPhotoUrl, callData.card.cardPhoto)} size={100} />
-          <Text style={[videoStyles.waitingText, { color: shell.ghostLinkTextMuted }]}>
-            {tr('Esperando video...', 'Waiting for video...')}
+          <Text style={[videoStyles.waitingText, { color: shell.ghostLinkVideoWaitingText }]}>
+            {remotePlaceholderLabel}
           </Text>
         </View>
       )}
 
-      {/* Local video — PiP (top right) */}
+      {/* Local — PiP; al apagar cámara, ocultar vista y dejar solo controles + fondo remoto/placeholder. */}
       {videoEnabled && VideoSourceType && (
-        <View style={videoStyles.pipContainer}>
-          <RtcSurfaceView
-            style={videoStyles.pipVideo}
-            canvas={{ uid: 0, sourceType: VideoSourceType.VideoSourceCamera }}
-            zOrderMediaOverlay
-          />
-        </View>
+        <GestureDetector gesture={pinchGesture}>
+          <View
+            style={[
+              videoStyles.pipContainer,
+              {
+                borderColor: shell.ghostLinkLogoBubbleBorder,
+                ...Platform.select({
+                  ios: {
+                    shadowColor: shell.ghostLinkVideoPipShadow,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.4,
+                    shadowRadius: 6,
+                  },
+                  android: { elevation: 8 },
+                  default: {},
+                }),
+              },
+            ]}
+          >
+            <RtcSurfaceView
+              style={videoStyles.pipVideo}
+              canvas={{ uid: 0, sourceType: VideoSourceType.VideoSourceCamera }}
+              zOrderMediaOverlay
+            />
+          </View>
+        </GestureDetector>
       )}
 
       {/* Top info bar */}
       <View style={videoStyles.topBar}>
         <BrandLogoMark compact />
         <View style={{ flex: 1, marginLeft: 10 }}>
-          <Text style={videoStyles.topName}>{callData.peerName}</Text>
-          <Text style={videoStyles.topStatus}>
+          <Text style={[videoStyles.topName, { color: shell.ghostLinkVideoTopBarText }]}>{callData.peerName}</Text>
+          <Text style={[videoStyles.topStatus, { color: shell.ghostLinkVideoTopBarMuted }]}>
             {callData.card.cardName} · {formatDuration(callDurationSec)}
           </Text>
         </View>
+        <CallChromeMinimizeButton videoChrome />
       </View>
 
       {/* Bottom controls */}
       <View style={videoStyles.bottomBar}>
-        <ControlButton icon="microphone-off" label={tr('Silencio', 'Mute')} active={muted} onPress={toggleMute} />
-        <ControlButton icon="video-off" label={tr('Cámara', 'Camera')} active={!videoEnabled} onPress={toggleVideo} />
-        <ControlButton icon="camera-flip" label={tr('Voltear', 'Flip')} onPress={flipCamera} />
-        <ControlButton icon="volume-high" label={tr('Altavoz', 'Speaker')} active={speaker} onPress={toggleSpeaker} />
+        <ControlButton
+          chrome="onVideo"
+          icon="microphone-off"
+          label={tr('Silencio', 'Mute')}
+          active={muted}
+          onPress={toggleMute}
+        />
+        <ControlButton
+          chrome="onVideo"
+          icon="video-off"
+          label={tr('Cámara', 'Camera')}
+          active={!videoEnabled}
+          onPress={toggleVideo}
+        />
+        <ControlButton chrome="onVideo" icon="camera-flip" label={tr('Voltear', 'Flip')} onPress={flipCamera} />
+        <ControlButton
+          chrome="onVideo"
+          icon="volume-high"
+          label={tr('Altavoz', 'Speaker')}
+          active={speaker}
+          onPress={toggleSpeaker}
+        />
       </View>
 
-      <TouchableOpacity style={videoStyles.endBtn} onPress={endCall} activeOpacity={0.8}>
-        <MaterialCommunityIcons name="phone-hangup" size={28} color="#fff" />
+      <TouchableOpacity
+        style={[videoStyles.endBtn, { backgroundColor: shell.danger }]}
+        onPress={endCall}
+        activeOpacity={0.8}
+      >
+        <MaterialCommunityIcons name="phone-hangup" size={28} color={shell.ghostLinkOnHangup} />
       </TouchableOpacity>
     </View>
   );
@@ -590,7 +794,7 @@ function EndedView({ reason }: { reason: 'ended' | 'rejected' | 'error' | 'muted
       : reason === 'muted'
         ? tr('Tarjeta silenciada — no se puede llamar', 'Card muted — cannot call')
         : reason === 'error'
-          ? tr('No se pudo conectar', 'Could not connect')
+          ? tr('Error de conexión', 'Connection error')
           : tr('Llamada finalizada', 'Call ended');
 
   return (
@@ -609,34 +813,62 @@ function EndedView({ reason }: { reason: 'ended' | 'rejected' | 'error' | 'muted
 }
 
 export default function GhostLinkCallOverlay() {
-  const { phase, callData } = useGhostLinkCall();
+  const { phase, callData, isMinimized } = useGhostLinkCall();
   const { resolvedMode } = useLookMode();
   const shell = palette[resolvedMode === 'noche' ? 'dark' : 'light'];
+  const minimizedUi = isMinimized && phase === VoIPCallPhase.Active && !!callData;
 
-  if (phase === 'idle' || (!callData && phase !== 'ended' && phase !== 'rejected' && phase !== 'error')) return null;
+  if (
+    phase === VoIPCallPhase.Idle ||
+    (!callData &&
+      phase !== VoIPCallPhase.Ended &&
+      phase !== VoIPCallPhase.Rejected &&
+      phase !== VoIPCallPhase.Error)
+  ) {
+    return null;
+  }
+
+  if (minimizedUi) {
+    return (
+      <View
+        style={[
+          StyleSheet.absoluteFill,
+          { zIndex: 9999 },
+          Platform.OS === 'android' ? { elevation: 12 } : null,
+        ]}
+        pointerEvents="box-none"
+      >
+        <GhostLinkShellContext.Provider value={shell}>
+          <GhostDisplayIdentityProvider>
+            <FloatingCallBubble />
+          </GhostDisplayIdentityProvider>
+        </GhostLinkShellContext.Provider>
+      </View>
+    );
+  }
 
   let content: React.ReactNode = null;
   switch (phase) {
-    case 'confirming':
+    case VoIPCallPhase.Confirming:
       content = <ConfirmView />;
       break;
-    case 'ringing_outgoing':
-    case 'active':
+    case VoIPCallPhase.RingingOutgoing:
+    case VoIPCallPhase.Active:
       content = callData?.direction === 'outgoing' ? <OutgoingView /> : <ActiveIncomingView />;
       break;
-    case 'ringing_incoming':
+    case VoIPCallPhase.RingingIncoming:
       content = <IncomingView />;
       break;
-    case 'ended':
+    case VoIPCallPhase.Ended:
       content = <EndedView reason="ended" />;
       break;
-    case 'rejected':
+    case VoIPCallPhase.Rejected:
       content = <EndedView reason="rejected" />;
       break;
-    case 'muted':
+    case VoIPCallPhase.Muted:
       content = <EndedView reason="muted" />;
       break;
-    case 'error':
+    case VoIPCallPhase.Error:
       content = <EndedView reason="error" />;
       break;
     default:
@@ -644,7 +876,7 @@ export default function GhostLinkCallOverlay() {
   }
 
   return (
-    <Modal visible animationType="slide" statusBarTranslucent>
+    <Modal visible animationType="slide" transparent={false} statusBarTranslucent>
       <LinearGradient colors={[...shell.tabShellGradient]} style={styles.root}>
         <GhostLinkShellContext.Provider value={shell}>
           <GhostDisplayIdentityProvider>{content}</GhostDisplayIdentityProvider>
@@ -657,6 +889,20 @@ export default function GhostLinkCallOverlay() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+  },
+  minimizeTap: {
+    position: 'absolute',
+    top: 48,
+    right: 16,
+    zIndex: 20,
+    padding: 4,
+  },
+  fullScreenStack: {
+    flex: 1,
+    width: '100%',
+  },
+  fullScreenForeground: {
+    zIndex: 2,
   },
   centered: {
     flex: 1,
@@ -674,22 +920,6 @@ const styles = StyleSheet.create({
   logoBubble: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  /** Copiado de `app/signin.tsx` → `heroIconWrap` (sin depender del tema día/noche). */
-  signinHeroIconWrap: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#DCE9F2',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#0A2540',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.12,
-        shadowRadius: 14,
-      },
-      android: { elevation: 6 },
-      default: {},
-    }),
   },
   nameText: {
     fontSize: 22,
@@ -751,7 +981,6 @@ const styles = StyleSheet.create({
   endCallBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E53935',
     borderRadius: 32,
     paddingVertical: 14,
     paddingHorizontal: 40,
@@ -759,7 +988,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   endCallText: {
-    color: '#fff',
     fontSize: 17,
     fontWeight: '700',
   },
@@ -842,7 +1070,6 @@ const styles = StyleSheet.create({
 const videoStyles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#000',
   },
   remoteVideo: {
     ...StyleSheet.absoluteFillObject,
@@ -851,10 +1078,8 @@ const videoStyles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1a1a2e',
   },
   waitingText: {
-    color: 'rgba(255,255,255,0.5)',
     fontSize: 14,
     marginTop: 16,
   },
@@ -867,12 +1092,6 @@ const videoStyles = StyleSheet.create({
     borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: 'rgba(212, 175, 55, 0.85)',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
   },
   pipVideo: {
     flex: 1,
@@ -886,12 +1105,10 @@ const videoStyles = StyleSheet.create({
     alignItems: 'center',
   },
   topName: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '700',
   },
   topStatus: {
-    color: 'rgba(255,255,255,0.6)',
     fontSize: 12,
   },
   bottomBar: {
@@ -910,8 +1127,62 @@ const videoStyles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#E53935',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  minimizeTap: {
+    padding: 6,
+    marginLeft: 4,
+  },
+});
+
+const bubbleStyles = StyleSheet.create({
+  wrap: {
+    position: 'absolute',
+    bottom: 28,
+    right: 16,
+    zIndex: 9999,
+  },
+  card: {
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+    width: 120,
+  },
+  videoBox: {
+    width: '100%',
+    height: 148,
+    position: 'relative',
+  },
+  remoteVideo: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  durationPill: {
+    position: 'absolute',
+    bottom: 8,
+    alignSelf: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  durationText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  audioCol: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+  },
+  timeText: {
+    fontSize: 14,
+    fontWeight: '800',
+    marginTop: 8,
+  },
+  nameSmall: {
+    fontSize: 11,
+    marginTop: 4,
+    maxWidth: 108,
+    textAlign: 'center',
   },
 });

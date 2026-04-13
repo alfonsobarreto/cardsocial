@@ -11,6 +11,9 @@ type IRtcEngine = import('react-native-agora').IRtcEngine;
 
 let engine: IRtcEngine | null = null;
 let videoEnabledState = false;
+/** Motor creado solo para `startPreview` (sin `joinChannel`); `joinGhostLinkAgoraSession` reutiliza la misma instancia. */
+let ghostLinkEnginePreviewOnly = false;
+let lastPreviewAppId = '';
 
 function loadAgoraModule(): AgoraModule | null {
   if (!isGhostLinkAgoraNativeAvailable()) {
@@ -36,8 +39,15 @@ export async function leaveGhostLinkAgoraSession(): Promise<void> {
   const e = engine;
   engine = null;
   videoEnabledState = false;
+  ghostLinkEnginePreviewOnly = false;
+  lastPreviewAppId = '';
   if (!e) {
     return;
+  }
+  try {
+    e.stopPreview();
+  } catch {
+    /* ignore */
   }
   try {
     e.leaveChannel();
@@ -52,6 +62,58 @@ export async function leaveGhostLinkAgoraSession(): Promise<void> {
 }
 
 /**
+ * Motor Agora mínimo: solo `initialize` + `enableVideo` + `startPreview` (sin `joinChannel`).
+ * En timbre antes del handoff. `joinGhostLinkAgoraSession` reutiliza este mismo `IRtcEngine` (mismo singleton)
+ * para evitar `release()` intermedio y parpadeo de cámara.
+ */
+export async function startGhostLinkLocalVideoPreview(appId: string): Promise<void> {
+  const agora = loadAgoraModule();
+  const id = String(appId || '').trim();
+  if (!agora || !id) {
+    return;
+  }
+
+  await leaveGhostLinkAgoraSession();
+
+  const { createAgoraRtcEngine, ChannelProfileType, AudioScenarioType } = agora;
+
+  const e = createAgoraRtcEngine();
+  const initCode = e.initialize({
+    appId: id,
+    channelProfile: ChannelProfileType.ChannelProfileCommunication,
+    audioScenario: AudioScenarioType.AudioScenarioChatroom,
+  });
+  if (initCode !== 0 && __DEV__) {
+    console.warn('[Ghost-Link Agora] preview initialize code', initCode);
+  }
+
+  try {
+    e.enableVideo();
+    e.startPreview();
+    videoEnabledState = true;
+    engine = e;
+    lastPreviewAppId = id;
+    ghostLinkEnginePreviewOnly = true;
+  } catch (err) {
+    if (__DEV__) console.warn('[Ghost-Link Agora] preview start', err);
+    try {
+      e.release();
+    } catch {
+      /* noop */
+    }
+    engine = null;
+    videoEnabledState = false;
+    lastPreviewAppId = '';
+    ghostLinkEnginePreviewOnly = false;
+  }
+}
+
+/** Detiene preview y libera el engine (idéntico a teardown de sesión sin canal). */
+export async function stopGhostLinkLocalVideoPreview(): Promise<void> {
+  await leaveGhostLinkAgoraSession();
+}
+
+/**
  * Entra al canal RTC con credenciales emitidas por el backend.
  * @param enableVideo - true para habilitar video desde el inicio (FaceCall).
  */
@@ -60,8 +122,6 @@ export async function joinGhostLinkAgoraSession(creds: GhostLinkAgoraRtc, enable
   if (!agora) {
     return;
   }
-
-  await leaveGhostLinkAgoraSession();
 
   const {
     createAgoraRtcEngine,
@@ -72,15 +132,32 @@ export async function joinGhostLinkAgoraSession(creds: GhostLinkAgoraRtc, enable
     AudioProfileType,
   } = agora;
 
-  const e = createAgoraRtcEngine();
-  const initCode = e.initialize({
-    appId: creds.appId,
-    channelProfile: ChannelProfileType.ChannelProfileCommunication,
-    /** Chatroom: AEC/NS orientados a voz frecuente; reduce choque con otros usos del audio del sistema. */
-    audioScenario: AudioScenarioType.AudioScenarioChatroom,
-  });
-  if (initCode !== 0 && __DEV__) {
-    console.warn('[Ghost-Link Agora] initialize code', initCode);
+  const credsAppId = String(creds.appId || '').trim();
+  const reusePreviewEngine =
+    engine != null &&
+    ghostLinkEnginePreviewOnly &&
+    credsAppId !== '' &&
+    credsAppId === lastPreviewAppId;
+
+  if (!reusePreviewEngine) {
+    await leaveGhostLinkAgoraSession();
+  }
+
+  let e: IRtcEngine;
+
+  if (reusePreviewEngine) {
+    e = engine as IRtcEngine;
+  } else {
+    e = createAgoraRtcEngine();
+    const initCode = e.initialize({
+      appId: creds.appId,
+      channelProfile: ChannelProfileType.ChannelProfileCommunication,
+      /** Chatroom: AEC/NS orientados a voz frecuente; reduce choque con otros usos del audio del sistema. */
+      audioScenario: AudioScenarioType.AudioScenarioChatroom,
+    });
+    if (initCode !== 0 && __DEV__) {
+      console.warn('[Ghost-Link Agora] initialize code', initCode);
+    }
   }
 
   try {
@@ -94,7 +171,10 @@ export async function joinGhostLinkAgoraSession(creds: GhostLinkAgoraRtc, enable
 
   if (enableVideo) {
     e.enableVideo();
-    e.startPreview();
+    if (!reusePreviewEngine) {
+      e.startPreview();
+    }
+    e.muteLocalVideoStream(false);
     videoEnabledState = true;
   }
 
@@ -109,12 +189,21 @@ export async function joinGhostLinkAgoraSession(creds: GhostLinkAgoraRtc, enable
     options.autoSubscribeVideo = true;
   }
 
-  const joinCode = e.joinChannel(creds.token, creds.channelName, creds.uid, options);
-  if (joinCode !== 0 && __DEV__) {
-    console.warn('[Ghost-Link Agora] joinChannel code', joinCode);
+  if (!reusePreviewEngine) {
+    engine = e;
   }
 
-  engine = e;
+  const joinCode = e.joinChannel(creds.token, creds.channelName, creds.uid, options);
+  if (joinCode !== 0) {
+    if (__DEV__) {
+      console.warn('[Ghost-Link Agora] joinChannel code', joinCode);
+    }
+    await leaveGhostLinkAgoraSession();
+    return;
+  }
+
+  ghostLinkEnginePreviewOnly = false;
+  lastPreviewAppId = '';
 }
 
 export function setGhostLinkAgoraMuted(muted: boolean): void {
@@ -137,6 +226,8 @@ export function setGhostLinkAgoraVideo(enabled: boolean): void {
   try {
     if (!engine) return;
     const agora = loadAgoraModule();
+
+    engine.enableLocalVideo(enabled);
 
     if (enabled) {
       engine.enableVideo();
@@ -170,6 +261,36 @@ export function switchGhostLinkAgoraCamera(): void {
     engine?.switchCamera();
   } catch {
     /* ignore */
+  }
+}
+
+/**
+ * Zoom de cámara local (captura). `factor` típicamente ≥ 1; se recorta al máximo del dispositivo vía `getCameraMaxZoomFactor()` cuando aplica.
+ * @returns Factor efectivo aplicado (tras clamp), o 1 si no hay motor.
+ */
+export function setGhostLinkAgoraCameraZoom(factor: number): number {
+  try {
+    if (!engine) {
+      return 1;
+    }
+    let maxZoom = Number.POSITIVE_INFINITY;
+    try {
+      const m = engine.getCameraMaxZoomFactor();
+      if (typeof m === 'number' && Number.isFinite(m) && m > 1) {
+        maxZoom = m;
+      }
+    } catch {
+      /* iOS u builds sin dato — solo clamp inferior */
+    }
+    const clamped = Math.min(Math.max(factor, 1), maxZoom);
+    try {
+      engine.setCameraZoomFactor(clamped);
+    } catch {
+      /* ignore */
+    }
+    return clamped;
+  } catch {
+    return 1;
   }
 }
 

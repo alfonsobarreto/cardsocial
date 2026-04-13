@@ -173,6 +173,20 @@ const light = {
   ghostLinkAvatarInnerBg: 'rgba(255, 255, 255, 0.82)',
   ghostLinkControlFrost: 'rgba(28, 28, 30, 0.08)',
   ghostLinkControlFrostActive: 'rgba(212, 175, 55, 0.24)',
+  /** Full-bleed vídeo Ghost-Link: base cinematográfica (texto claro encima). */
+  ghostLinkVideoStageBg: 'rgba(22, 27, 34, 0.98)',
+  ghostLinkRemoteVideoPlaceholderBg: 'rgba(30, 36, 44, 0.92)',
+  ghostLinkRingingVideoScrim: 'rgba(15, 20, 25, 0.42)',
+  ghostLinkVideoTopBarText: 'rgba(255, 255, 255, 0.95)',
+  ghostLinkVideoTopBarMuted: 'rgba(255, 255, 255, 0.65)',
+  ghostLinkVideoWaitingText: 'rgba(255, 255, 255, 0.55)',
+  ghostLinkOnHangup: '#FFFFFF',
+  ghostLinkVideoPipShadow: 'rgba(28, 28, 30, 0.35)',
+  /** Controles sobre el stage de vídeo (fondo oscuro en ambos modos sistema). */
+  ghostLinkVideoControlFrost: 'rgba(255, 255, 255, 0.18)',
+  ghostLinkVideoControlFrostActive: 'rgba(255, 255, 255, 0.32)',
+  ghostLinkVideoControlIcon: 'rgba(255, 255, 255, 0.95)',
+  ghostLinkVideoControlLabel: 'rgba(255, 255, 255, 0.78)',
 } as const;
 
 const dark = {
@@ -338,6 +352,18 @@ const dark = {
   ghostLinkAvatarInnerBg: 'rgba(8, 18, 40, 0.45)',
   ghostLinkControlFrost: 'rgba(255, 255, 255, 0.15)',
   ghostLinkControlFrostActive: 'rgba(255, 255, 255, 0.35)',
+  ghostLinkVideoStageBg: 'rgba(4, 8, 14, 0.99)',
+  ghostLinkRemoteVideoPlaceholderBg: 'rgba(10, 16, 28, 0.94)',
+  ghostLinkRingingVideoScrim: 'rgba(0, 0, 0, 0.36)',
+  ghostLinkVideoTopBarText: 'rgba(255, 255, 255, 0.95)',
+  ghostLinkVideoTopBarMuted: 'rgba(255, 255, 255, 0.65)',
+  ghostLinkVideoWaitingText: 'rgba(255, 255, 255, 0.55)',
+  ghostLinkOnHangup: '#FFFFFF',
+  ghostLinkVideoPipShadow: 'rgba(0, 0, 0, 0.45)',
+  ghostLinkVideoControlFrost: 'rgba(255, 255, 255, 0.18)',
+  ghostLinkVideoControlFrostActive: 'rgba(255, 255, 255, 0.32)',
+  ghostLinkVideoControlIcon: 'rgba(255, 255, 255, 0.95)',
+  ghostLinkVideoControlLabel: 'rgba(255, 255, 255, 0.78)',
 } as const;
 
 const palette = {

@@ -1,16 +1,27 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { AppState, NativeModules, Platform, Vibration } from 'react-native';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { AppState, NativeModules, Vibration } from 'react-native';
+import type { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import * as Notifications from 'expo-notifications';
+import Toast from 'react-native-toast-message';
 import { getActiveUserId } from '@/services/authSession';
 
 const RINGTONE_AUDIO_ASSET = require('@/assets/sounds/ghost-link-ringtone.wav');
 const RINGTONE_VIDEO_ASSET = require('@/assets/sounds/ghost-link-ringtone-video.wav');
 const RINGBACK_AUDIO_ASSET = require('@/assets/sounds/ghost-link-ringback.wav');
 const RINGBACK_VIDEO_ASSET = require('@/assets/sounds/ghost-link-ringback-video.wav');
-const CONNECTED_BEEP_ASSET = require('@/assets/sounds/ghost-link-connected.wav');
 import {
   getIncomingGhostLinkInvite,
+  getOutgoingGhostLinkInviteStatus,
   respondGhostLinkInvite,
   startGhostLinkVoipCall,
   isGhostLinkExpoGoAbortError,
@@ -21,27 +32,19 @@ import type {
   GhostLinkCallType,
   GhostLinkSharedCard,
 } from '@/services/ghostLinkVoip';
-import {
-  getGhostLinkAgoraEngine,
-  joinGhostLinkAgoraSession,
-  leaveGhostLinkAgoraSession,
-  setGhostLinkAgoraMuted,
-  setGhostLinkAgoraSpeaker,
-  setGhostLinkAgoraVideo,
-  switchGhostLinkAgoraCamera,
-} from '@/services/ghostLinkAgoraSession';
 import { createCallLog } from '@/services/qrApi';
+import { triggerGhostLinkConnectedFeedback } from '@/services/voip/ghostLinkConnectedFeedback';
+import { runVoipConnectingAudioHandoff } from '@/services/voip/voipExpoAvToAgoraAudioBridge';
+import { useAgoraRtc } from '@/services/voip/useAgoraRtc';
+import { useGhostLinkRingingVideoPreview } from '@/services/voip/useGhostLinkRingingVideoPreview';
+import { ensureVoipPermissions } from '@/services/voip/ensureVoipPermissions';
+import { VoIPCallPhase } from '@/services/voip/VoIPCallPhase';
+import { isGhostLinkAgoraNativeAvailable } from '@/services/expoGoAgoraGuard';
+import { setGhostLinkAgoraSpeaker } from '@/services/ghostLinkAgoraSession';
+import { useLanguage } from '@/services/language';
 
-export type GhostCallPhase =
-  | 'idle'
-  | 'confirming'
-  | 'ringing_outgoing'
-  | 'ringing_incoming'
-  | 'active'
-  | 'ended'
-  | 'rejected'
-  | 'muted'
-  | 'error';
+/** @deprecated Use `VoIPCallPhase` (enum) en código nuevo. */
+export type GhostCallPhase = VoIPCallPhase;
 
 export type GhostCallData = {
   inviteId?: string;
@@ -59,13 +62,26 @@ export type GhostCallData = {
 };
 
 type GhostLinkCallContextValue = {
-  phase: GhostCallPhase;
+  phase: VoIPCallPhase;
   callData: GhostCallData | null;
   muted: boolean;
   speaker: boolean;
+  /** Llamada VoIP minimizada a burbuja flotante (multitarea in-app). */
+  isMinimized: boolean;
+  minimizeCall: () => void;
+  maximizeCall: () => void;
+  /** UID remoto en el canal Agora (vídeo); null hasta que el peer entre. */
+  remoteUid: number | null;
+  /** Remoto enviando vídeo visible (evita frame congelado en `RtcSurfaceView`). */
+  isRemoteVideoEnabled: boolean;
+  /** Preview local Agora durante timbre (antes de `joinChannel`). */
+  localPreviewActive: boolean;
   videoEnabled: boolean;
   /** Seconds elapsed since the call was connected (active phase). */
   callDurationSec: number;
+  /** Pinch sobre PiP local (solo FaceCall); ancla + escala relativa del gesto. */
+  onLocalCameraPinchStart: () => void;
+  applyLocalCameraPinchScale: (relativeScale: number) => void;
   requestCall: (params: {
     targetUid: string;
     sourceCardId: string | null;
@@ -102,6 +118,8 @@ export function useGhostLinkCall(): GhostLinkCallContextValue {
 const POLL_INTERVAL_MS = 4000;
 const INVITE_TTL_MS = 45_000;
 const CALLER_STATUS_POLL_MS = 3000;
+/** Emisor tras `accepted` + handoff: si el remoto no entra al canal Agora, evitar “Llamando…” infinito. */
+const OUTGOING_AGORA_JOIN_TIMEOUT_MS = 15_000;
 
 /** Carga expo-av solo al reproducir tono; evita crash si el dev build no incluye ExponentAV. */
 let expoAvModulePromise: Promise<typeof import('expo-av') | null> | undefined;
@@ -112,24 +130,6 @@ function loadExpoAv(): Promise<typeof import('expo-av') | null> {
       .catch(() => null);
   }
   return expoAvModulePromise;
-}
-
-/** Evita import estático de expo-camera si el nativo no está en el dev client. */
-async function requestGhostLinkCameraPermission(): Promise<'granted' | string> {
-  try {
-    const {
-      requestCameraPermissionsAsync,
-      requestMicrophonePermissionsAsync,
-    } = await import('expo-camera');
-    const cam = await requestCameraPermissionsAsync();
-    if (cam.status !== 'granted') {
-      return cam.status;
-    }
-    const mic = await requestMicrophonePermissionsAsync();
-    return mic.status === 'granted' ? 'granted' : mic.status;
-  } catch {
-    return 'denied';
-  }
 }
 
 // ── Imperative bridge for non-React code (ActionController) ──
@@ -143,18 +143,36 @@ export function requestGhostLinkCallImperative(params: Parameters<NonNullable<Im
 }
 
 export function GhostLinkCallProvider({ children }: { children: React.ReactNode }) {
-  const [phase, setPhase] = useState<GhostCallPhase>('idle');
+  const { language } = useLanguage();
+  const tr = useCallback((es: string, en: string) => (language === 'en' ? en : es), [language]);
+
+  const [phase, setPhase] = useState<VoIPCallPhase>(VoIPCallPhase.Idle);
   const [callData, setCallData] = useState<GhostCallData | null>(null);
-  const [muted, setMuted] = useState(false);
-  const [speaker, setSpeaker] = useState(false);
   const [videoEnabled, setVideoEnabled] = useState(false);
   const [callDurationSec, setCallDurationSec] = useState(0);
+  /** true tras `runVoipConnectingAudioHandoff`; el join RTC lo hace solo `useAgoraRtc`. */
+  const [rtcHandoffComplete, setRtcHandoffComplete] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
 
   const pendingParamsRef = useRef<GhostLinkCallStartParams | null>(null);
   const pollingRef = useRef(true);
   const activeStartRef = useRef<number | null>(null);
   const ringingStartRef = useRef<number | null>(null);
-  const soundRef = useRef<{ stopAsync: () => Promise<void>; unloadAsync: () => Promise<void>; playAsync: () => Promise<unknown> } | null>(null);
+  /** Emisor: evita doble handoff/join si el poll ve `accepted` dos veces antes de terminar el await. */
+  const outgoingRtcPrimedRef = useRef(false);
+  /** Emisor: salvavidas post-accept si `onRemoteUserJoined` nunca llega. */
+  const outgoingJoinWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const soundRef = useRef<Audio.Sound | null>(null);
+  const callDataRef = useRef<GhostCallData | null>(null);
+  callDataRef.current = callData;
+  const directionRef = useRef<GhostCallData['direction'] | undefined>(undefined);
+  directionRef.current = callData?.direction;
+  const endingInProgressRef = useRef(false);
+  /** Evita que `onLeaveChannel` duplique teardown tras colgar/cancelar local (misma salida del SDK). */
+  const suppressLeaveFinalizeRef = useRef(false);
+  const finalizeEndingRef = useRef<(kind: 'local' | 'remote' | 'leave_channel' | 'cancel') => Promise<void>>(async () => {});
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
 
   const stopTone = useCallback(async () => {
     try {
@@ -191,50 +209,9 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
     }
   }, [stopTone]);
 
-  const playBeep = useCallback(async (asset: any) => {
-    try {
-      const av = await loadExpoAv();
-      if (!av?.Audio) return;
-      const { Audio } = av;
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: false,
-        interruptionModeIOS: 0,
-        interruptionModeAndroid: 2,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
-      });
-      const { sound } = await av.Audio.Sound.createAsync(asset, { volume: 0.5 });
-      await sound.playAsync();
-      sound.setOnPlaybackStatusUpdate((s: { didJustFinish?: boolean }) => {
-        if ('didJustFinish' in s && s.didJustFinish) void sound.unloadAsync();
-      });
-    } catch { /* ignore */ }
-  }, []);
-
-  /** Tras ringback: modo captura para que Agora no compita con playback-only (menos “estática”). */
-  const prepareSystemAudioForAgora = useCallback(async () => {
-    try {
-      const av = await loadExpoAv();
-      if (!av?.Audio) return;
-      await av.Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-        interruptionModeIOS: 2,
-        interruptionModeAndroid: 1,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
-      });
-    } catch {
-      /* sin expo-av nativo */
-    }
-  }, []);
-
   // ── Timer: cuenta segundos en fase active ──
   useEffect(() => {
-    if (phase === 'active') {
+    if (phase === VoIPCallPhase.Active) {
       if (!activeStartRef.current) {
         activeStartRef.current = Date.now();
       }
@@ -250,69 +227,6 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
     setCallDurationSec(0);
   }, [phase]);
 
-  // ── Caller: poll invite status while ringing to detect reject/expire ──
-  useEffect(() => {
-    if (phase !== 'ringing_outgoing' && phase !== 'active') {
-      ringingStartRef.current = null;
-      return;
-    }
-
-    if (phase === 'ringing_outgoing' && !ringingStartRef.current) {
-      ringingStartRef.current = Date.now();
-    }
-
-    if (phase !== 'ringing_outgoing') return;
-
-    let cancelled = false;
-
-    const checkStatus = async () => {
-      if (cancelled) return;
-
-      if (ringingStartRef.current && Date.now() - ringingStartRef.current > INVITE_TTL_MS) {
-        await handleMissed();
-        return;
-      }
-
-      try {
-        const cd = callData;
-        if (!cd?.inviteId || !cd.ownerUid) return;
-
-        const invite = await getIncomingGhostLinkInvite({ ownerUid: cd.peerUid });
-
-        if (cancelled) return;
-
-        if (!invite || invite.inviteId !== cd.inviteId) {
-          await handleRejectedByCaller();
-          return;
-        }
-      } catch {
-        /* network error — retry */
-      }
-
-      if (!cancelled) {
-        setTimeout(checkStatus, CALLER_STATUS_POLL_MS);
-      }
-    };
-
-    const handleMissed = async () => {
-      try { await leaveGhostLinkAgoraSession(); } catch { /* ignore */ }
-      logCall('outgoing', 'missed', 0);
-      setPhase('ended');
-      setTimeout(resetCall, 2000);
-    };
-
-    const handleRejectedByCaller = async () => {
-      try { await leaveGhostLinkAgoraSession(); } catch { /* ignore */ }
-      logCall('outgoing', 'rejected', 0);
-      setPhase('rejected');
-      setTimeout(resetCall, 2000);
-    };
-
-    setTimeout(checkStatus, CALLER_STATUS_POLL_MS);
-
-    return () => { cancelled = true; };
-  }, [phase, callData]);
-
   // ── Polling de llamadas entrantes ──
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -320,18 +234,18 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
 
     const poll = async () => {
       if (cancelled || !pollingRef.current) return;
-      if (phase !== 'idle') return;
+      if (phaseRef.current !== VoIPCallPhase.Idle) return;
 
       try {
         const ownerUid = await getActiveUserId();
         if (!ownerUid || cancelled) return;
 
         const invite = await getIncomingGhostLinkInvite({ ownerUid });
-        if (cancelled || phase !== 'idle') return;
+        if (cancelled || phaseRef.current !== VoIPCallPhase.Idle) return;
 
         if (invite) {
-          pollingRef.current = false;
           const incomingCallType: GhostLinkCallType = invite.callType || 'audio';
+          pollingRef.current = false;
           setCallData({
             inviteId: invite.inviteId,
             sessionId: invite.sessionId,
@@ -347,7 +261,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
             sourceCardId: invite.sourceCardId,
           });
           if (incomingCallType === 'video') setVideoEnabled(true);
-          setPhase('ringing_incoming');
+          setPhase(VoIPCallPhase.RingingIncoming);
           Vibration.vibrate([0, 500, 400, 500, 400, 500], true);
           await playTone(incomingCallType === 'video' ? RINGTONE_VIDEO_ASSET : RINGTONE_AUDIO_ASSET);
         }
@@ -363,7 +277,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
     poll();
 
     const appSub = AppState.addEventListener('change', (next) => {
-      if (next === 'active' && phase === 'idle') {
+      if (next === 'active' && phaseRef.current === VoIPCallPhase.Idle) {
         pollingRef.current = true;
         poll();
       }
@@ -376,16 +290,74 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
     };
   }, [phase, playTone]);
 
-  // ── Push notification listener: incoming call triggers immediate poll ──
+  // ── Callee: durante INCOMING_RINGING, seguir consultando si la invitación sigue en “ringing” ──
+  useEffect(() => {
+    if (phase !== VoIPCallPhase.RingingIncoming) return;
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const watch = async () => {
+      if (cancelled) return;
+      const cd = callDataRef.current;
+      const expectId = cd?.inviteId;
+      const ownerUid = cd?.ownerUid;
+      if (!expectId || !ownerUid) {
+        if (!cancelled) {
+          timer = setTimeout(watch, CALLER_STATUS_POLL_MS);
+        }
+        return;
+      }
+
+      try {
+        const current = await getIncomingGhostLinkInvite({ ownerUid });
+        if (cancelled) return;
+        if (!current || current.inviteId !== expectId) {
+          void finalizeEndingRef.current('remote');
+          return;
+        }
+      } catch {
+        /* red intermitente — reintentar */
+      }
+
+      if (!cancelled) {
+        timer = setTimeout(watch, CALLER_STATUS_POLL_MS);
+      }
+    };
+
+    timer = setTimeout(watch, CALLER_STATUS_POLL_MS);
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [phase]);
+
+  /**
+   * Push en primer plano: sin closures sobre `phase`/`callData` del render.
+   * Siempre leemos `phaseRef`, `callDataRef` y `finalizeEndingRef` (mutados cada render / layout),
+   * y el efecto tiene deps `[]` para no re-suscribir al listener con valores obsoletos.
+   */
   useEffect(() => {
     let sub: { remove: () => void } | undefined;
-    try {
-      sub = Notifications.addNotificationReceivedListener((notification) => {
-        const data = notification.request.content.data as Record<string, unknown> | undefined;
-        if (data?.type === 'ghost-link-incoming' && phase === 'idle') {
-          pollingRef.current = true;
+    const onNotificationReceived = (notification: Notifications.Notification) => {
+      const data = notification.request.content.data as Record<string, unknown> | undefined;
+      const type = data?.type != null ? String(data.type) : '';
+
+      if (type === 'ghost-link-incoming' && phaseRef.current === VoIPCallPhase.Idle) {
+        pollingRef.current = true;
+      }
+
+      if (type === 'ghost-link-cancelled' && phaseRef.current === VoIPCallPhase.RingingIncoming) {
+        const nid = data?.inviteId != null ? String(data.inviteId) : '';
+        if (!nid || nid === callDataRef.current?.inviteId) {
+          void finalizeEndingRef.current('remote');
         }
-      });
+      }
+    };
+
+    try {
+      sub = Notifications.addNotificationReceivedListener(onNotificationReceived);
     } catch {
       return undefined;
     }
@@ -396,16 +368,14 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
         /* noop */
       }
     };
-  }, [phase]);
+  }, []);
 
   // ── Volume-down: silences vibration on first press, rejects on second ──
   const volumeSilencedRef = useRef(false);
-  const phaseRef = useRef(phase);
-  phaseRef.current = phase;
   const rejectIncomingRef = useRef<() => void>(() => {});
 
   useEffect(() => {
-    if (phase === 'ringing_incoming') {
+    if (phase === VoIPCallPhase.RingingIncoming) {
       volumeSilencedRef.current = false;
     }
   }, [phase]);
@@ -422,7 +392,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
         VolumeManager: { addVolumeListener: (cb: () => void) => { remove: () => void } };
       };
       sub = VolumeManager.addVolumeListener(() => {
-        if (phaseRef.current !== 'ringing_incoming') return;
+        if (phaseRef.current !== VoIPCallPhase.RingingIncoming) return;
 
         if (!volumeSilencedRef.current) {
           Vibration.cancel();
@@ -443,28 +413,6 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
       }
     };
   }, [stopTone]);
-
-  // ── Agora: detect peer joined → transition caller to active ──
-  useEffect(() => {
-    if (phase !== 'ringing_outgoing') return;
-    const eng = getGhostLinkAgoraEngine();
-    if (!eng) return;
-    let removed = false;
-    const handler = {
-      onUserJoined: () => {
-        if (removed) return;
-        void stopTone();
-        setPhase('active');
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        void playBeep(CONNECTED_BEEP_ASSET);
-      },
-    };
-    try { eng.registerEventHandler(handler); } catch { /* no-op */ }
-    return () => {
-      removed = true;
-      try { eng.unregisterEventHandler(handler); } catch { /* no-op */ }
-    };
-  }, [phase, stopTone, playBeep]);
 
   // ── Call log helper ──
   const logCall = useCallback(
@@ -492,20 +440,299 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
   );
 
   // ── Reset helpers ──
+  const minimizeCall = useCallback(() => {
+    setIsMinimized(true);
+  }, []);
+
+  const maximizeCall = useCallback(() => {
+    setIsMinimized(false);
+  }, []);
+
   const resetCall = useCallback(() => {
+    if (outgoingJoinWatchdogRef.current != null) {
+      clearTimeout(outgoingJoinWatchdogRef.current);
+      outgoingJoinWatchdogRef.current = null;
+    }
     Vibration.cancel();
     void stopTone();
-    setPhase('idle');
+    setPhase(VoIPCallPhase.Idle);
     setCallData(null);
-    setMuted(false);
-    setSpeaker(false);
     setVideoEnabled(false);
     setCallDurationSec(0);
+    setRtcHandoffComplete(false);
+    setIsMinimized(false);
     pendingParamsRef.current = null;
     pollingRef.current = true;
     activeStartRef.current = null;
     ringingStartRef.current = null;
+    outgoingRtcPrimedRef.current = false;
   }, [stopTone]);
+
+  useEffect(() => {
+    if (phase !== VoIPCallPhase.Active) {
+      setIsMinimized(false);
+    }
+  }, [phase]);
+
+  const shouldJoinRtc =
+    rtcHandoffComplete &&
+    !!callData?.agora &&
+    (phase === VoIPCallPhase.RingingOutgoing ||
+      phase === VoIPCallPhase.RingingIncoming ||
+      phase === VoIPCallPhase.Active);
+
+  /** Preview local sin join: solo emisor en RingingOutgoing (ya pasó permisos en confirm). Nunca en RingingIncoming (fondo/bloqueo → crash iOS). */
+  const wantsRingingLocalPreview = useMemo(
+    () =>
+      isGhostLinkAgoraNativeAvailable() &&
+      callData?.callType === 'video' &&
+      videoEnabled &&
+      !!callData?.agora?.appId &&
+      phase === VoIPCallPhase.RingingOutgoing &&
+      !rtcHandoffComplete,
+    [callData?.callType, callData?.agora?.appId, videoEnabled, phase, rtcHandoffComplete],
+  );
+
+  const { localPreviewActive } = useGhostLinkRingingVideoPreview({
+    appId: callData?.agora?.appId,
+    active: wantsRingingLocalPreview,
+  });
+
+  const endRtcSessionRef = useRef<() => Promise<void>>(async () => {});
+  const resetCallRef = useRef<() => void>(() => {});
+
+  const {
+    isMuted: muted,
+    isSpeakerphoneOn: speaker,
+    remoteUid,
+    isRemoteVideoEnabled,
+    toggleMute,
+    toggleSpeakerphone,
+    switchCamera,
+    setSpeakerphoneOn,
+    onLocalCameraPinchStart,
+    applyLocalCameraPinchScale,
+    endRtcSession,
+  } = useAgoraRtc({
+    creds: callData?.agora ?? null,
+    enableVideo: callData?.callType === 'video',
+    shouldJoin: shouldJoinRtc,
+    localVideoOn: videoEnabled,
+    onRemoteUserJoined: () => {
+      if (outgoingJoinWatchdogRef.current != null) {
+        clearTimeout(outgoingJoinWatchdogRef.current);
+        outgoingJoinWatchdogRef.current = null;
+      }
+      void stopTone();
+      if (directionRef.current === 'outgoing') {
+        triggerGhostLinkConnectedFeedback();
+        setPhase(VoIPCallPhase.Active);
+      }
+    },
+    onLocalRtcJoined: () => {
+      if (directionRef.current === 'incoming') {
+        triggerGhostLinkConnectedFeedback();
+        setPhase(VoIPCallPhase.Active);
+      }
+    },
+    onRemoteUserOffline: () => {
+      void finalizeEndingRef.current('remote');
+    },
+    onLeaveChannel: () => {
+      if (suppressLeaveFinalizeRef.current) return;
+      void finalizeEndingRef.current('leave_channel');
+    },
+    initialSpeakerphoneOn: false,
+  });
+
+  useLayoutEffect(() => {
+    endRtcSessionRef.current = endRtcSession;
+    resetCallRef.current = resetCall;
+  }, [endRtcSession, resetCall]);
+
+  useEffect(() => {
+    if (!isMinimized) return;
+    if (callData?.callType !== 'audio') return;
+    if (phase !== VoIPCallPhase.Active) return;
+    setGhostLinkAgoraSpeaker(true);
+    setSpeakerphoneOn(true);
+  }, [isMinimized, callData?.callType, phase, setSpeakerphoneOn]);
+
+  const finalizeCallEnding = useCallback(
+    async (kind: 'local' | 'remote' | 'leave_channel' | 'cancel') => {
+      if (endingInProgressRef.current) return;
+      if (!callDataRef.current && phaseRef.current === VoIPCallPhase.Idle) return;
+      endingInProgressRef.current = true;
+      const cdSnapshot = callDataRef.current;
+      const suppressLeave = kind === 'local' || kind === 'cancel';
+      if (suppressLeave) suppressLeaveFinalizeRef.current = true;
+      try {
+        await endRtcSession();
+        if (kind === 'cancel') {
+          if (cdSnapshot?.inviteId && cdSnapshot.ownerUid) {
+            await respondGhostLinkInvite({
+              ownerUid: cdSnapshot.ownerUid,
+              inviteId: cdSnapshot.inviteId,
+              action: 'end',
+            }).catch(() => {});
+          }
+        } else if (kind === 'local' || kind === 'remote' || kind === 'leave_channel') {
+          if (cdSnapshot?.inviteId && cdSnapshot.ownerUid) {
+            await respondGhostLinkInvite({
+              ownerUid: cdSnapshot.ownerUid,
+              inviteId: cdSnapshot.inviteId,
+              action: 'end',
+            }).catch(() => {});
+          }
+          if (cdSnapshot?.ownerUid) {
+            const duration = activeStartRef.current
+              ? Math.floor((Date.now() - activeStartRef.current) / 1000)
+              : 0;
+            const dir = cdSnapshot.direction ?? 'outgoing';
+            logCall(dir, 'completed', duration);
+          }
+          if (kind === 'local') {
+            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          }
+        }
+        resetCall();
+      } finally {
+        if (suppressLeave) suppressLeaveFinalizeRef.current = false;
+        endingInProgressRef.current = false;
+      }
+    },
+    [endRtcSession, logCall, resetCall],
+  );
+
+  useLayoutEffect(() => {
+    finalizeEndingRef.current = finalizeCallEnding;
+  });
+
+  // ── Emisor: poll estado de invitación (signaling). Ringback sigue en expo-av hasta `accepted`; entonces handoff + join Agora.
+  useEffect(() => {
+    if (phase !== VoIPCallPhase.RingingOutgoing && phase !== VoIPCallPhase.Active) {
+      ringingStartRef.current = null;
+      return;
+    }
+
+    if (phase === VoIPCallPhase.RingingOutgoing && !ringingStartRef.current) {
+      ringingStartRef.current = Date.now();
+    }
+
+    if (phase !== VoIPCallPhase.RingingOutgoing) return;
+
+    let cancelled = false;
+
+    const handleMissed = async () => {
+      try {
+        await endRtcSession();
+      } catch {
+        /* ignore */
+      }
+      logCall('outgoing', 'missed', 0);
+      setPhase(VoIPCallPhase.Ended);
+      setTimeout(resetCall, 2000);
+    };
+
+    const handleRejectedByCaller = async () => {
+      try {
+        await endRtcSession();
+      } catch {
+        /* ignore */
+      }
+      logCall('outgoing', 'rejected', 0);
+      setPhase(VoIPCallPhase.Rejected);
+      setTimeout(resetCall, 2000);
+    };
+
+    const checkStatus = async () => {
+      if (cancelled) return;
+
+      if (ringingStartRef.current && Date.now() - ringingStartRef.current > INVITE_TTL_MS) {
+        await handleMissed();
+        return;
+      }
+
+      try {
+        const cd = callData;
+        if (!cd?.inviteId || !cd.ownerUid) return;
+
+        const status = await getOutgoingGhostLinkInviteStatus({
+          ownerUid: cd.ownerUid,
+          inviteId: cd.inviteId,
+        });
+
+        if (cancelled) return;
+
+        if (status === 'accepted') {
+          let handoffDone = outgoingRtcPrimedRef.current;
+          if (!handoffDone) {
+            outgoingRtcPrimedRef.current = true;
+            try {
+              await runVoipConnectingAudioHandoff(stopTone);
+              if (callDataRef.current?.agora) {
+                setRtcHandoffComplete(true);
+                if (outgoingJoinWatchdogRef.current != null) {
+                  clearTimeout(outgoingJoinWatchdogRef.current);
+                }
+                outgoingJoinWatchdogRef.current = setTimeout(() => {
+                  outgoingJoinWatchdogRef.current = null;
+                  if (
+                    phaseRef.current !== VoIPCallPhase.Active &&
+                    directionRef.current === 'outgoing'
+                  ) {
+                    void (async () => {
+                      try {
+                        await endRtcSessionRef.current();
+                      } catch {
+                        /* ignore */
+                      }
+                      setPhase(VoIPCallPhase.Error);
+                      setTimeout(() => resetCallRef.current(), 3000);
+                    })();
+                  }
+                }, OUTGOING_AGORA_JOIN_TIMEOUT_MS);
+              }
+              handoffDone = true;
+            } catch (e) {
+              outgoingRtcPrimedRef.current = false;
+              if (__DEV__) console.warn('[Ghost-Link] caller post-accept handoff error', e);
+            }
+          }
+          if (!handoffDone && !cancelled) {
+            setTimeout(checkStatus, CALLER_STATUS_POLL_MS);
+          }
+          return;
+        }
+
+        if (status === 'ringing') {
+          if (!cancelled) {
+            setTimeout(checkStatus, CALLER_STATUS_POLL_MS);
+          }
+          return;
+        }
+
+        if (status === 'expired') {
+          await handleMissed();
+          return;
+        }
+
+        await handleRejectedByCaller();
+      } catch {
+        /* network error — retry */
+      }
+
+      if (!cancelled) {
+        setTimeout(checkStatus, CALLER_STATUS_POLL_MS);
+      }
+    };
+
+    setTimeout(checkStatus, CALLER_STATUS_POLL_MS);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [phase, callData, endRtcSession, logCall, resetCall, stopTone]);
 
   // ── Caller: paso 1 — mostrar modal de confirmacion ──
   const requestCall = useCallback(
@@ -549,7 +776,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
         sourceCardId: params.sourceCardId,
       });
       if (ct === 'video') setVideoEnabled(true);
-      setPhase('confirming');
+      setPhase(VoIPCallPhase.Confirming);
     },
     [],
   );
@@ -563,18 +790,27 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
       const ownerUid = await getActiveUserId();
       if (!ownerUid) return;
 
-      if (pending.callType === 'video') {
-        const status = await requestGhostLinkCameraPermission();
-        if (status !== 'granted') {
-          pending.callType = 'audio';
-          setVideoEnabled(false);
-          setCallData((prev) => (prev ? { ...prev, callType: 'audio' } : prev));
-        }
+      pending.ownerUid = ownerUid;
+
+      const outgoingType: GhostLinkCallType = pending.callType || 'audio';
+      const permitted = await ensureVoipPermissions(outgoingType);
+      if (!permitted) {
+        Toast.show({
+          type: 'error',
+          text1: tr('Permisos necesarios', 'Permissions required'),
+          text2:
+            outgoingType === 'video'
+              ? tr(
+                  'Activa el micrófono y la cámara para llamar.',
+                  'Enable the microphone and camera to place a call.',
+                )
+              : tr('Activa el micrófono para llamar.', 'Enable the microphone to place a call.'),
+        });
+        return;
       }
 
-      pending.ownerUid = ownerUid;
-      setPhase('ringing_outgoing');
-      await playTone(pending.callType === 'video' ? RINGBACK_VIDEO_ASSET : RINGBACK_AUDIO_ASSET);
+      outgoingRtcPrimedRef.current = false;
+      setPhase(VoIPCallPhase.RingingOutgoing);
 
       const started = await startGhostLinkVoipCall(pending);
 
@@ -594,16 +830,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
           : prev,
       );
 
-      if (started.agora) {
-        try {
-          await stopTone();
-          await new Promise<void>((r) => setTimeout(r, 220));
-          await prepareSystemAudioForAgora();
-          await joinGhostLinkAgoraSession(started.agora, started.callType === 'video');
-        } catch (e) {
-          if (__DEV__) console.warn('[Ghost-Link] caller join error', e);
-        }
-      }
+      await playTone(outgoingType === 'video' ? RINGBACK_VIDEO_ASSET : RINGBACK_AUDIO_ASSET);
     } catch (error: any) {
       if (isGhostLinkExpoGoAbortError(error)) {
         resetCall();
@@ -611,13 +838,13 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
       }
       const errMsg = String(error?.response?.data?.error || '').toLowerCase();
       if (error?.response?.status === 403 && errMsg.includes('muted')) {
-        setPhase('muted');
+        setPhase(VoIPCallPhase.Muted);
       } else {
-        setPhase('error');
+        setPhase(VoIPCallPhase.Error);
       }
       setTimeout(resetCall, 3000);
     }
-  }, [resetCall, playTone, stopTone, prepareSystemAudioForAgora]);
+  }, [resetCall, playTone, stopTone, tr]);
 
   const confirmVideoCall = useCallback(async () => {
     if (pendingParamsRef.current) {
@@ -629,29 +856,43 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
   }, [confirmCall]);
 
   const cancelCall = useCallback(() => {
-    if (callData?.inviteId && callData.ownerUid) {
-      void respondGhostLinkInvite({
-        ownerUid: callData.ownerUid,
-        inviteId: callData.inviteId,
-        action: 'end',
-      }).catch(() => {});
-    }
-    resetCall();
-  }, [callData, resetCall]);
+    void finalizeCallEnding('cancel');
+  }, [finalizeCallEnding]);
 
-  // ── Receptor: aceptar ──
+  // ── Receptor: aceptar (permisos solo aquí, con UI ya en primer plano; no durante el poll IDLE) ──
   const acceptIncoming = useCallback(async () => {
     if (!callData?.inviteId || !callData.ownerUid) return;
     Vibration.cancel();
-    await stopTone();
 
-    const isVideo = callData.callType === 'video';
-    if (isVideo) {
-      const status = await requestGhostLinkCameraPermission();
-      if (status !== 'granted') {
-        setVideoEnabled(false);
+    const acceptType: GhostLinkCallType = callData.callType || 'audio';
+    const permitted = await ensureVoipPermissions(acceptType);
+    if (!permitted) {
+      Toast.show({
+        type: 'error',
+        text1: tr('Permisos necesarios', 'Permissions required'),
+        text2:
+          acceptType === 'video'
+            ? tr(
+                'Activa el micrófono y la cámara para unirte a la videollamada.',
+                'Enable the microphone and camera to join the video call.',
+              )
+            : tr('Activa el micrófono para contestar.', 'Enable the microphone to answer the call.'),
+      });
+      try {
+        await respondGhostLinkInvite({
+          ownerUid: callData.ownerUid,
+          inviteId: callData.inviteId,
+          action: 'reject',
+        });
+      } catch {
+        /* best effort */
       }
+      void stopTone();
+      resetCall();
+      return;
     }
+
+    await runVoipConnectingAudioHandoff(stopTone);
 
     try {
       await respondGhostLinkInvite({
@@ -661,23 +902,13 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
       });
 
       if (callData.agora) {
-        try {
-          await new Promise<void>((r) => setTimeout(r, 220));
-          await prepareSystemAudioForAgora();
-          await joinGhostLinkAgoraSession(callData.agora, isVideo);
-        } catch (e) {
-          if (__DEV__) console.warn('[Ghost-Link] callee join error', e);
-        }
+        setRtcHandoffComplete(true);
       }
-
-      setPhase('active');
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      void playBeep(CONNECTED_BEEP_ASSET);
     } catch {
-      setPhase('error');
+      setPhase(VoIPCallPhase.Error);
       setTimeout(resetCall, 3000);
     }
-  }, [callData, resetCall, stopTone, playBeep, prepareSystemAudioForAgora]);
+  }, [callData, resetCall, stopTone, tr]);
 
   // ── Receptor: rechazar ──
   const rejectIncoming = useCallback(async () => {
@@ -685,6 +916,11 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
 
     logCall('incoming', 'rejected', 0);
 
+    try {
+      await endRtcSession();
+    } catch {
+      /* ignore */
+    }
     try {
       await respondGhostLinkInvite({
         ownerUid: callData.ownerUid,
@@ -695,74 +931,38 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
       /* best effort */
     }
     resetCall();
-  }, [callData, logCall, resetCall]);
+  }, [callData, endRtcSession, logCall, resetCall]);
 
   rejectIncomingRef.current = rejectIncoming;
 
-  // ── Colgar (ambos lados) ──
+  // ── Colgar (ambos lados): Agora → backend `end` → IDLE (vía finalizeCallEnding) ──
   const endCall = useCallback(async () => {
-    const duration = activeStartRef.current
-      ? Math.floor((Date.now() - activeStartRef.current) / 1000)
-      : 0;
-
-    try {
-      await leaveGhostLinkAgoraSession();
-    } catch {
-      /* ignore */
-    }
-
-    const dir = callData?.direction ?? 'outgoing';
-    logCall(dir, 'completed', duration);
-
-    if (callData?.inviteId && callData.ownerUid) {
-      try {
-        await respondGhostLinkInvite({
-          ownerUid: callData.ownerUid,
-          inviteId: callData.inviteId,
-          action: 'end',
-        });
-      } catch {
-        /* best effort */
-      }
-    }
-
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    resetCall();
-  }, [callData, logCall, resetCall]);
-
-  // ── Audio controls ──
-  const toggleMute = useCallback(() => {
-    setMuted((prev) => {
-      setGhostLinkAgoraMuted(!prev);
-      return !prev;
-    });
-  }, []);
-
-  const toggleSpeaker = useCallback(() => {
-    setSpeaker((prev) => {
-      setGhostLinkAgoraSpeaker(!prev);
-      return !prev;
-    });
-  }, []);
+    await finalizeCallEnding('local');
+  }, [finalizeCallEnding]);
 
   const toggleVideo = useCallback(() => {
-    setVideoEnabled((prev) => {
-      setGhostLinkAgoraVideo(!prev);
-      return !prev;
-    });
+    setVideoEnabled((prev) => !prev);
   }, []);
 
   const flipCamera = useCallback(() => {
-    switchGhostLinkAgoraCamera();
-  }, []);
+    switchCamera();
+  }, [switchCamera]);
 
   const value: GhostLinkCallContextValue = {
     phase,
     callData,
     muted,
     speaker,
+    isMinimized,
+    minimizeCall,
+    maximizeCall,
+    remoteUid,
+    isRemoteVideoEnabled,
+    localPreviewActive,
     videoEnabled,
     callDurationSec,
+    onLocalCameraPinchStart,
+    applyLocalCameraPinchScale,
     requestCall,
     confirmCall,
     confirmVideoCall,
@@ -771,7 +971,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
     rejectIncoming,
     endCall,
     toggleMute,
-    toggleSpeaker,
+    toggleSpeaker: toggleSpeakerphone,
     toggleVideo,
     flipCamera,
   };
