@@ -428,6 +428,20 @@ function createQrRoutes({ storage }) {
         return res.status(403).json({ ok: false, error: 'Access denied: blocked relationship' });
       }
 
+      if (sourceCardId) {
+        const muted = await db.collection('card_subscriber_mutes').findOne({
+          cardId: sourceCardId,
+          muted: true,
+          $or: [
+            { ownerUid: targetUid, targetUid: ownerUid },
+            { ownerUid, targetUid },
+          ],
+        });
+        if (muted) {
+          return res.status(403).json({ ok: false, error: 'Call blocked: card is muted' });
+        }
+      }
+
       let caller = await resolveUserProfileExtended(db, ownerUid);
       let receiver = await resolveUserProfileExtended(db, targetUid);
       const callerCard = await fetchLatestCardIdentityDoc(db, ownerUid);
@@ -1453,6 +1467,12 @@ function createQrRoutes({ storage }) {
 
       await db.collection('share_permissions').deleteMany({ ownerUid, cardId });
 
+      await db.collection('ghost_link_invites').deleteMany({ sourceCardId: cardId });
+
+      await db.collection('call_logs').deleteMany({ sourceCardId: cardId });
+
+      await db.collection('card_subscriber_mutes').deleteMany({ ownerUid, cardId });
+
       return res.status(200).json({ ok: true, ownerUid, cardId, deleted: Number(deleted?.deletedCount || 0) > 0 });
     } catch (error) {
       return res.status(500).json({ ok: false, error: error.message });
@@ -2440,6 +2460,22 @@ function createQrRoutes({ storage }) {
         ownerUid,
         targetUid,
         cardId,
+      });
+
+      await db.collection('ghost_link_invites').deleteMany({
+        sourceCardId: cardId,
+        $or: [
+          { ownerUid, targetUid },
+          { ownerUid: targetUid, targetUid: ownerUid },
+        ],
+      });
+
+      await db.collection('call_logs').deleteMany({
+        sourceCardId: cardId,
+        $or: [
+          { ownerUid, peerUid: targetUid },
+          { ownerUid: targetUid, peerUid: ownerUid },
+        ],
       });
 
       return res.status(200).json({

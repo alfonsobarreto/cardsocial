@@ -359,20 +359,22 @@ function ActiveVideoView() {
   );
 }
 
-function EndedView({ reason }: { reason: 'ended' | 'rejected' | 'error' }) {
+function EndedView({ reason }: { reason: 'ended' | 'rejected' | 'error' | 'muted' }) {
   const tr = useTr();
   const msg =
     reason === 'rejected'
       ? tr('Llamada rechazada', 'Call declined')
-      : reason === 'error'
-        ? tr('No se pudo conectar', 'Could not connect')
-        : tr('Llamada finalizada', 'Call ended');
+      : reason === 'muted'
+        ? tr('Tarjeta silenciada — no se puede llamar', 'Card muted — cannot call')
+        : reason === 'error'
+          ? tr('No se pudo conectar', 'Could not connect')
+          : tr('Llamada finalizada', 'Call ended');
 
   return (
     <View style={styles.centered}>
       <Image source={brandCsLogo} style={styles.logo} resizeMode="contain" />
       <MaterialCommunityIcons
-        name={reason === 'rejected' ? 'phone-missed' : reason === 'error' ? 'alert-circle-outline' : 'phone-hangup'}
+        name={reason === 'rejected' ? 'phone-missed' : reason === 'muted' ? 'volume-off' : reason === 'error' ? 'alert-circle-outline' : 'phone-hangup'}
         size={64}
         color="rgba(255,255,255,0.6)"
       />
@@ -405,6 +407,9 @@ export default function GhostLinkCallOverlay() {
       break;
     case 'rejected':
       content = <EndedView reason="rejected" />;
+      break;
+    case 'muted':
+      content = <EndedView reason="muted" />;
       break;
     case 'error':
       content = <EndedView reason="error" />;

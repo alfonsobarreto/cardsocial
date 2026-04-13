@@ -43,6 +43,7 @@ export type GhostCallPhase =
   | 'active'
   | 'ended'
   | 'rejected'
+  | 'muted'
   | 'error';
 
 export type GhostCallData = {
@@ -506,7 +507,12 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
         resetCall();
         return;
       }
-      setPhase('error');
+      const errMsg = String(error?.response?.data?.error || '').toLowerCase();
+      if (error?.response?.status === 403 && errMsg.includes('muted')) {
+        setPhase('muted');
+      } else {
+        setPhase('error');
+      }
       setTimeout(resetCall, 3000);
     }
   }, [resetCall, playTone]);
