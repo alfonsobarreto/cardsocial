@@ -425,11 +425,16 @@ const otpHash = (emailLower, code) => {
     process.on('exit', () => nextServer.kill());
 
     const http = require('http');
+    /**
+     * Express quita el prefijo del mount en `req.url` (p. ej. /legal/privacidad → /privacidad).
+     * Next.js necesita la ruta completa; si no, devuelve 404 (pantalla negra en el cliente).
+     */
     const nextProxy = (req, res) => {
+      const pathWithQuery = req.originalUrl || req.url;
       const options = {
         hostname: '127.0.0.1',
         port: NEXT_PORT,
-        path: req.url,
+        path: pathWithQuery,
         method: req.method,
         headers: req.headers,
       };
