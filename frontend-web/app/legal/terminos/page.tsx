@@ -5,6 +5,7 @@ import { TERMS_LINES_EN, TERMS_LINES_ES } from '@/lib/legalContent';
 export const metadata: Metadata = {
   title: 'Términos y Condiciones — Card-Social',
   description: 'Términos y condiciones de uso de Card-Social.',
+  alternates: { canonical: 'https://cardsocial.me/legal/terminos' },
 };
 
 export default function LegalTermsPage() {

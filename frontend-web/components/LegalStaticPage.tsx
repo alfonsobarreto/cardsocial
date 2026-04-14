@@ -1,11 +1,14 @@
+import LegalSiteNav from '@/components/LegalSiteNav';
 import React from 'react';
 
 type Props = {
   title: string;
   children: React.ReactNode;
+  /** Mostrar índice de enlaces legales al pie (por defecto sí, para auditoría en tiendas). */
+  showLegalNav?: boolean;
 };
 
-export default function LegalStaticPage({ title, children }: Props) {
+export default function LegalStaticPage({ title, children, showLegalNav = true }: Props) {
   return (
     <main
       style={{
@@ -16,7 +19,7 @@ export default function LegalStaticPage({ title, children }: Props) {
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       }}
     >
-      <div style={{ maxWidth: 560, margin: '0 auto' }}>
+      <div style={{ maxWidth: 640, margin: '0 auto' }}>
         <a
           href="/"
           style={{
@@ -31,6 +34,7 @@ export default function LegalStaticPage({ title, children }: Props) {
         </a>
         <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 20px', lineHeight: 1.25 }}>{title}</h1>
         <div style={{ fontSize: 15, lineHeight: 1.65 }}>{children}</div>
+        {showLegalNav ? <LegalSiteNav /> : null}
       </div>
     </main>
   );

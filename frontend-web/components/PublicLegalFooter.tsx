@@ -1,19 +1,7 @@
 'use client';
 
-import {
-    ABOUT_LINES_EN,
-    ABOUT_LINES_ES,
-    PRIVACY_PARAGRAPH_EN,
-    PRIVACY_PARAGRAPH_ES,
-    SUPPORT_MAILTO,
-    TERMS_LINES_EN,
-    TERMS_LINES_ES,
-    USAGE_LINES_EN,
-    USAGE_LINES_ES,
-} from '@/lib/legalContent';
-import React, { useEffect, useState } from 'react';
-
-type ModalKey = 'privacy' | 'terms' | 'usage' | 'about';
+import { SUPPORT_MAILTO } from '@/lib/legalContent';
+import React from 'react';
 
 type Props = {
   locale: 'es' | 'en';
@@ -21,60 +9,16 @@ type Props = {
   background?: string;
 };
 
+/**
+ * Enlaces a páginas legales públicas en cardsocial.me (requisito tiendas / Google Play).
+ */
 export default function PublicLegalFooter({ locale, accentColor, background }: Props) {
   const tr = (es: string, en: string) => (locale === 'es' ? es : en);
-  const [legalModal, setLegalModal] = useState<ModalKey | null>(null);
-
-  // Close on Escape key
-  useEffect(() => {
-    if (!legalModal) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setLegalModal(null); };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [legalModal]);
-
-  // Prevent body scroll while modal is open
-  useEffect(() => {
-    document.body.style.overflow = legalModal ? 'hidden' : '';
-    return () => { document.body.style.overflow = ''; };
-  }, [legalModal]);
-
-  const modalContent: Record<ModalKey, { title: string; body: React.ReactNode }> = {
-    privacy: {
-      title: tr('Política de Privacidad', 'Privacy Policy'),
-      body: <p style={{ margin: 0, lineHeight: 1.7 }}>{tr(PRIVACY_PARAGRAPH_ES, PRIVACY_PARAGRAPH_EN)}</p>,
-    },
-    terms: {
-      title: tr('Términos de Uso', 'Terms of Use'),
-      body: (
-        <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.8 }}>
-          {(locale === 'es' ? TERMS_LINES_ES : TERMS_LINES_EN).map((line, i) => (
-            <li key={i}>{line}</li>
-          ))}
-        </ul>
-      ),
-    },
-    usage: {
-      title: tr('Política de Contenido', 'Content Policy'),
-      body: (
-        <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.8 }}>
-          {(locale === 'es' ? USAGE_LINES_ES : USAGE_LINES_EN).map((line, i) => (
-            <li key={i}>{line}</li>
-          ))}
-        </ul>
-      ),
-    },
-    about: {
-      title: tr('Acerca de Card-Social', 'About Card-Social'),
-      body: (
-        <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.8 }}>
-          {(locale === 'es' ? ABOUT_LINES_ES : ABOUT_LINES_EN).map((line, i) => (
-            <li key={i}>{line}</li>
-          ))}
-        </ul>
-      ),
-    },
-  };
+  const privacyHref = locale === 'es' ? '/legal/privacidad' : '/legal/privacy';
+  const termsHref = locale === 'es' ? '/legal/terminos' : '/legal/terms';
+  const useHref = locale === 'es' ? '/legal/uso' : '/legal/use';
+  const contactHref = locale === 'es' ? '/legal/contacto' : '/legal/contact';
+  const mailHref = SUPPORT_MAILTO === '#' ? contactHref : SUPPORT_MAILTO;
 
   const foot: React.CSSProperties = {
     marginTop: 20,
@@ -89,11 +33,7 @@ export default function PublicLegalFooter({ locale, accentColor, background }: P
     ...(background ? { background, borderRadius: 8, padding: '12px 8px', marginTop: 16 } : {}),
   };
 
-  const btnStyle: React.CSSProperties = {
-    background: 'none',
-    border: 'none',
-    padding: 0,
-    cursor: 'pointer',
+  const linkStyle: React.CSSProperties = {
     color: 'inherit',
     textDecoration: 'underline',
     textUnderlineOffset: 2,
@@ -105,94 +45,32 @@ export default function PublicLegalFooter({ locale, accentColor, background }: P
   const sep = <span aria-hidden="true"> · </span>;
 
   return (
-    <>
-      <footer style={foot}>
-        <nav aria-label={tr('Enlaces legales', 'Legal links')}>
-          <button style={btnStyle} onClick={() => setLegalModal('privacy')}>
-            {tr('Privacidad', 'Privacy')}
-          </button>
-          {sep}
-          <button style={btnStyle} onClick={() => setLegalModal('terms')}>
-            {tr('Términos', 'Terms')}
-          </button>
-          {sep}
-          <button style={btnStyle} onClick={() => setLegalModal('usage')}>
-            {tr('Uso', 'Usage')}
-          </button>
-          {sep}
-          <button style={btnStyle} onClick={() => setLegalModal('about')}>
-            {tr('Acerca de', 'About')}
-          </button>
-          {sep}
-          <a href={SUPPORT_MAILTO} style={{ color: 'inherit', textDecoration: 'underline', textUnderlineOffset: 2 }}>
-            {tr('Soporte', 'Support')}
-          </a>
-        </nav>
-      </footer>
-
-      {legalModal && (
-        /* Overlay — click outside closes */
-        <div
-          onClick={() => setLegalModal(null)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999,
-            background: 'rgba(0,0,0,0.72)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-          }}
-        >
-          {/* Modal box — stop propagation so clicking inside doesn't close */}
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: '#1a1a2e',
-              color: '#e8e8f0',
-              borderRadius: 16,
-              padding: '28px 24px 24px',
-              width: '100%',
-              maxWidth: 480,
-              maxHeight: '80vh',
-              overflowY: 'auto',
-              boxShadow: '0 24px 60px rgba(0,0,0,0.6)',
-              position: 'relative',
-            }}
-          >
-            {/* Close button */}
-            <button
-              onClick={() => setLegalModal(null)}
-              aria-label={tr('Cerrar', 'Close')}
-              style={{
-                position: 'absolute',
-                top: 14,
-                right: 16,
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: '#a0a0b8',
-                fontSize: 22,
-                lineHeight: 1,
-                padding: 4,
-              }}
-            >
-              ✕
-            </button>
-
-            {/* Title */}
-            <h2 style={{ margin: '0 0 16px', fontSize: 17, fontWeight: 700, paddingRight: 28, color: '#ffffff' }}>
-              {modalContent[legalModal].title}
-            </h2>
-
-            {/* Body */}
-            <div style={{ fontSize: 13, lineHeight: 1.7, color: '#c8c8d8' }}>
-              {modalContent[legalModal].body}
-            </div>
-          </div>
-        </div>
-      )}
-    </>
+    <footer style={foot}>
+      <nav aria-label={tr('Enlaces legales', 'Legal links')}>
+        <a href={privacyHref} style={linkStyle}>
+          {tr('Privacidad', 'Privacy')}
+        </a>
+        {sep}
+        <a href={termsHref} style={linkStyle}>
+          {tr('Términos', 'Terms')}
+        </a>
+        {sep}
+        <a href={useHref} style={linkStyle}>
+          {tr('Uso', 'Usage')}
+        </a>
+        {sep}
+        <a href="/legal/about" style={linkStyle}>
+          {tr('Acerca de', 'About')}
+        </a>
+        {sep}
+        <a href={contactHref} style={linkStyle}>
+          {tr('Contacto', 'Contact')}
+        </a>
+        {sep}
+        <a href={mailHref} style={linkStyle}>
+          {tr('Correo', 'Email')}
+        </a>
+      </nav>
+    </footer>
   );
 }
