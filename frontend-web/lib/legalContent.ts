@@ -1,15 +1,11 @@
 /**
  * Contenido legal del sitio (Next.js en cardsocial.me).
- * La app móvil tiene modales propios en `app/(tabs)/_layout.tsx`; conviene alinear el criterio.
  *
- * Correo de soporte: definir en Azure / build con NEXT_PUBLIC_LEGAL_SUPPORT_EMAIL
- * o sustituir el valor por defecto antes de publicar.
+ * Importante (Next.js App Router): NO mezclar `process.env` solo-servidor con el valor
+ * que Webpack inyecta en el cliente para `NEXT_PUBLIC_*` — provoca error de hidratación
+ * y la página queda en blanco / negro. El correo debe ser el mismo en build y runtime.
  */
-export const LEGAL_SUPPORT_EMAIL =
-  typeof process.env.NEXT_PUBLIC_LEGAL_SUPPORT_EMAIL === 'string' &&
-  process.env.NEXT_PUBLIC_LEGAL_SUPPORT_EMAIL.trim() !== ''
-    ? process.env.NEXT_PUBLIC_LEGAL_SUPPORT_EMAIL.trim()
-    : '[TU_CORREO_DE_SOPORTE]';
+export const LEGAL_SUPPORT_EMAIL = 'soporte@card-social.com';
 
 export const SUPPORT_MAILTO =
   LEGAL_SUPPORT_EMAIL.includes('@') && !LEGAL_SUPPORT_EMAIL.startsWith('[')
@@ -106,7 +102,6 @@ export const PRIVACY_SECTIONS_ES: PrivacySection[] = [
     title: '9. Contacto',
     paragraphs: [
       `Para consultas sobre privacidad, protección de datos o soporte relacionado con Card-Social, puede escribirnos a: ${LEGAL_SUPPORT_EMAIL}`,
-      'Si aún figura un marcador de posición en lugar de un correo electrónico, sustitúyalo por la dirección oficial de soporte antes de publicar la aplicación en las tiendas.',
     ],
   },
 ];
@@ -182,7 +177,6 @@ export const PRIVACY_SECTIONS_EN: PrivacySection[] = [
     title: '9. Contact',
     paragraphs: [
       `For privacy inquiries, data-protection questions, or Card-Social support, contact us at: ${LEGAL_SUPPORT_EMAIL}`,
-      'If a placeholder appears instead of an email address, replace it with your official support address before publishing in app stores.',
     ],
   },
 ];

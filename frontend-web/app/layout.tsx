@@ -11,7 +11,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body style={{
         margin: 0,
         padding: 0,
-        backgroundColor: '#000000',
+        backgroundColor: '#E0F7FA',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         minHeight: '100vh',
       }}>
