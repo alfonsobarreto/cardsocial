@@ -18,24 +18,26 @@
       "cardsocial://redeem?code=*"
     ],
     "ios": {
-        "supportsTablet": true,
-        "bundleIdentifier": "com.cardsocial.app",
-        "associatedDomains": ["applinks:cardsocial.me"],
-        "infoPlist": {
-          "LSApplicationQueriesSchemes": [
-            "googlegmail",
-            "ms-outlook",
-            "ymail"
-          ],
-          "NSMicrophoneUsageDescription": "Card-Social usa el micrófono para las llamadas de voz Ghost-Link (VoIP).",
-          "NSCameraUsageDescription": "Card-Social usa la cámara para videollamadas FaceCall Ghost-Link.",
-          "ITSAppUsesNonExemptEncryption": false,
-          "UIBackgroundModes": [
-            "audio",
-            "voip"
-          ]
-        }
-      },
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cardsocial.app",
+      "associatedDomains": [
+        "applinks:cardsocial.me"
+      ],
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": [
+          "googlegmail",
+          "ms-outlook",
+          "ymail"
+        ],
+        "NSMicrophoneUsageDescription": "Card-Social usa el micrófono para las llamadas de voz Ghost-Link (VoIP).",
+        "NSCameraUsageDescription": "Card-Social usa la cámara para videollamadas FaceCall Ghost-Link.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": [
+          "audio",
+          "voip"
+        ]
+      }
+    },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
@@ -54,7 +56,10 @@
               "pathPrefix": "/u"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "permissions": [
@@ -62,7 +67,10 @@
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
-        "android.permission.BLUETOOTH_CONNECT"
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.WAKE_LOCK",
+        "android.permission.INTERNET"
       ]
     },
     "web": {
@@ -102,7 +110,9 @@
       [
         "react-native-permissions/app.plugin.js",
         {
-          "iosPermissions": ["Camera"]
+          "iosPermissions": [
+            "Camera"
+          ]
         }
       ]
     ],
