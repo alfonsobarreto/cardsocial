@@ -1,3 +1,4 @@
+import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { useLookMode } from '@/services/lookMode';
 import palette from '../theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -49,6 +50,7 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
+  const modalFooterBottomPad = useModalFooterBottomPad();
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
   const shell = palette[isNight ? 'dark' : 'light'];
@@ -168,7 +170,11 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
               {/* ── Bottom card ──────────────────────────────────── */}
               <View style={[
                 styles.bottomCard,
-                { backgroundColor: theme.bottomCardBg, borderTopColor: theme.bottomCardBorder },
+                {
+                  backgroundColor: theme.bottomCardBg,
+                  borderTopColor: theme.bottomCardBorder,
+                  paddingBottom: Math.max(Platform.OS === 'ios' ? 42 : 28, modalFooterBottomPad),
+                },
               ]}>
                 <Text style={[styles.confirmTitle, { color: theme.titleColor }]}>
                   {isPdf ? fileName : t('preview_confirm_title_image')}

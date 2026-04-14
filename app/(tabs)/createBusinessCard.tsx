@@ -1,3 +1,4 @@
+import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { BusinessCardKeywordTags } from '@/components/BusinessCardKeywordTags';
 import { ThemedSharedCardSurface } from '@/components/ThemedSharedCardSurface';
 import { CARD_THEMES as CHEST_THEMES, getThemeById, TIER_META, type CardTheme as ChestCardTheme, type ThemeTier } from '@/constants/themeChest';
@@ -282,6 +283,7 @@ export default function CreateBusinessCardScreen() {
   const paramCardId = typeof params.cardId === 'string' ? params.cardId : params.cardId?.[0] || '';
   const { language } = useLanguage();
   const tr = (es: string, en: string) => (language === 'en' ? en : es);
+  const modalFooterBottomPad = useModalFooterBottomPad();
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
   const shell = palette[isNight ? 'dark' : 'light'];
@@ -1537,7 +1539,7 @@ export default function CreateBusinessCardScreen() {
             />
           )}
 
-          <View style={styles.vaultModalActions}>
+          <View style={[styles.vaultModalActions, { paddingBottom: modalFooterBottomPad }]}>
             <TouchableOpacity
               style={[styles.vaultGhostBtn, { backgroundColor: inputBg, borderColor: border }]}
               onPress={cancelVaultLinkSelector}
@@ -1824,9 +1826,14 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   previewQr: {
+    width: 64,
+    height: 64,
     padding: 4,
     backgroundColor: 'rgba(255,255,255,0.85)',
     borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
   dullOverlay: {
     ...StyleSheet.absoluteFillObject,

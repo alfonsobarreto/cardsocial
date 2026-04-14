@@ -1,3 +1,4 @@
+import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { getActiveUserId } from '@/services/authSession';
 import { requestGhostLinkCallImperative } from '@/services/GhostLinkCallProvider';
 import { useLanguage } from '@/services/language';
@@ -51,6 +52,7 @@ export default function CallsPage() {
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
   const shell = appPalette[isNight ? 'dark' : 'light'];
+  const modalFooterBottomPad = useModalFooterBottomPad();
 
   const styles = useMemo(
     () =>
@@ -819,7 +821,7 @@ export default function CallsPage() {
               ))}
             </View>
 
-            <View style={styles.footerBtns}>
+            <View style={[styles.footerBtns, { paddingBottom: modalFooterBottomPad }]}>
               <TouchableOpacity style={[styles.cancelBtn, { borderColor: shell.modalRowBorder }]} onPress={() => setRegisterVisible(false)}>
                 <Text style={[styles.cancelBtnText, { color: shell.iconColor }]}>Cancelar</Text>
               </TouchableOpacity>

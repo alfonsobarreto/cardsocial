@@ -37,8 +37,11 @@ function mapQrNetworkError(error: any, baseUrl: string): Error {
     /timeout/i.test(message);
 
   if (isNetwork) {
+    const cleartextHint = /^http:\/\//i.test(baseUrl)
+      ? ' Desarrollo Android: sin esto, HTTP LAN falla; usa `android.usesCleartextTraffic: true` en app.json y reconstruye el dev client / APK.'
+      : '';
     return new Error(
-      `No se pudo conectar con el backend QR (${baseUrl}). Verifica IP/puerto, misma red Wi-Fi y backend activo.`
+      `No se pudo conectar con el backend QR (${baseUrl}). Verifica IP/puerto, misma red Wi-Fi y backend activo.${cleartextHint}`
     );
   }
   if (status === 401) {
@@ -281,12 +284,30 @@ export async function fetchPublicQrTokenPreview(params: {
   locale?: 'en' | 'es';
 }): Promise<{ ok: true; preview: PublicQrTokenPreview } | { ok: false; expired: boolean; error?: string }> {
   const baseUrl = getApiBaseUrl();
-  const response = await axios.get(`${baseUrl}/api/public/qr-token-preview`, {
-    params: { token: params.token },
-    headers: publicApiAcceptLanguage(params.locale),
-    timeout: 20000,
-    validateStatus: () => true,
-  });
+  let response;
+  try {
+    response = await axios.get(`${baseUrl}/api/public/qr-token-preview`, {
+      params: { token: params.token },
+      headers: publicApiAcceptLanguage(params.locale),
+      timeout: 20000,
+      validateStatus: () => true,
+    });
+  } catch (e: unknown) {
+    if (axios.isAxiosError(e)) {
+      console.error('[qrApi fetchPublicQrTokenPreview] request failed', {
+        message: e.message,
+        code: e.code,
+        url: e.config?.url,
+        method: e.config?.method,
+        status: e.response?.status,
+        data: e.response?.data,
+        baseUrl,
+      });
+    } else {
+      console.error('[qrApi fetchPublicQrTokenPreview]', e);
+    }
+    throw mapQrNetworkError(e, baseUrl);
+  }
 
   if (response.status === 410) {
     return { ok: false, expired: true, error: String(response?.data?.error || '') };
@@ -343,12 +364,30 @@ export async function fetchPublicBusinessCardPreview(params: {
   locale?: 'en' | 'es';
 }): Promise<{ ok: true; preview: PublicQrTokenPreview } | { ok: false; error?: string }> {
   const baseUrl = getApiBaseUrl();
-  const response = await axios.get(`${baseUrl}/api/public/business-card-preview`, {
-    params: { ownerUid: params.ownerUid, cardId: params.cardId },
-    headers: publicApiAcceptLanguage(params.locale),
-    timeout: 20000,
-    validateStatus: () => true,
-  });
+  let response;
+  try {
+    response = await axios.get(`${baseUrl}/api/public/business-card-preview`, {
+      params: { ownerUid: params.ownerUid, cardId: params.cardId },
+      headers: publicApiAcceptLanguage(params.locale),
+      timeout: 20000,
+      validateStatus: () => true,
+    });
+  } catch (e: unknown) {
+    if (axios.isAxiosError(e)) {
+      console.error('[qrApi fetchPublicBusinessCardPreview] request failed', {
+        message: e.message,
+        code: e.code,
+        url: e.config?.url,
+        method: e.config?.method,
+        status: e.response?.status,
+        data: e.response?.data,
+        baseUrl,
+      });
+    } else {
+      console.error('[qrApi fetchPublicBusinessCardPreview]', e);
+    }
+    throw mapQrNetworkError(e, baseUrl);
+  }
 
   if (response.status !== 200 || !response?.data?.ok) {
     return {

@@ -1,3 +1,4 @@
+import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import React, { useState, useRef } from 'react';
 import {
   View,
@@ -44,6 +45,7 @@ const MintQRGenerator: React.FC<MintQRGeneratorProps> = ({ onClose, pochobsUid }
   const [generatedQR, setGeneratedQR] = useState<string | null>(null);
   const [qrModalVisible, setQRModalVisible] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const modalFooterBottomPad = useModalFooterBottomPad();
 
   const qrCodeRef = useRef<any>(null);
 
@@ -302,7 +304,7 @@ const MintQRGenerator: React.FC<MintQRGeneratorProps> = ({ onClose, pochobsUid }
       {/* QR RESULT MODAL */}
       <Modal visible={qrModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modal}>
+          <View style={[styles.modal, { paddingBottom: modalFooterBottomPad }]}>
             <TouchableOpacity style={styles.modalClose} onPress={() => setQRModalVisible(false)}>
               <MaterialCommunityIcons name="close" size={24} color="#0A2540" />
             </TouchableOpacity>
@@ -311,18 +313,23 @@ const MintQRGenerator: React.FC<MintQRGeneratorProps> = ({ onClose, pochobsUid }
 
             {generatedQR && (
               <View style={styles.qrContainer}>
-                <LinearGradient colors={['#C5A065', '#E8C547']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.qrFrame}>
-                  <QRCode
-                    ref={qrCodeRef}
-                    value={`cardsocial://redeem?code=${generatedQR}`}
-                    size={256}
-                    color="#0A2540"
-                    backgroundColor="#FFF"
-                    logoSize={60}
-                    logoBackgroundColor="#FFF"
-                    ecl="H"
-                  />
-                </LinearGradient>
+                <View style={styles.qrSvgBox} collapsable={false}>
+                  <LinearGradient
+                    colors={['#C5A065', '#E8C547']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.qrFrame}
+                  >
+                    <QRCode
+                      ref={qrCodeRef}
+                      value={`cardsocial://redeem?code=${generatedQR}`}
+                      size={256}
+                      color="#0A2540"
+                      backgroundColor="#FFF"
+                      ecl="H"
+                    />
+                  </LinearGradient>
+                </View>
 
                 <Text style={styles.qrCodeText}>{generatedQR}</Text>
                 <Text style={styles.qrLabel}>Escanea o comparte este código</Text>
@@ -585,10 +592,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
+  qrSvgBox: {
+    width: 280,
+    height: 280,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
   qrFrame: {
+    width: 280,
+    height: 280,
     borderRadius: 12,
     padding: 12,
-    marginBottom: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   qrCodeText: {
     fontSize: 11,

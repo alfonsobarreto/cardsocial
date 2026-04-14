@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
+import React from 'react';
 import {
   View,
   Text,
@@ -54,6 +55,7 @@ const DullModeLock: React.FC<DullModeLockProps> = ({
   };
 
   const config = lockMessages[lockType];
+  const modalFooterBottomPad = useModalFooterBottomPad();
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -81,7 +83,7 @@ const DullModeLock: React.FC<DullModeLockProps> = ({
           <Text style={styles.lockDescription}>{config.description}</Text>
 
           {/* CTA Buttons */}
-          <View style={styles.buttonsContainer}>
+          <View style={[styles.buttonsContainer, { paddingBottom: modalFooterBottomPad }]}>
             {/* Botón Premium (Gradient Azul/Dorado) */}
             <LinearGradient
               colors={['#0A2540', '#1a3a5a']}

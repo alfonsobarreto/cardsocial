@@ -116,6 +116,7 @@ import {
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from 'react-native-draggable-flatlist';
 import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import QRCode from 'react-native-qrcode-svg';
+import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import Toast from 'react-native-toast-message';
 import { ActionController } from '../../services/ActionController';
 import {
@@ -402,6 +403,7 @@ type EditSlot = {
 };
 
 export default function CardsFactoryScreen() {
+  const modalFooterBottomPad = useModalFooterBottomPad();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const { resolvedMode } = useLookMode();
@@ -3226,8 +3228,17 @@ export default function CardsFactoryScreen() {
                     </View>
                   </View>
 
-                  {/* Footer buttons */}
-                  <View style={styles.modalActions}>
+                  {/* Footer buttons — respect system nav / home indicator (Android + iOS) */}
+                  {/* DEBUG Android: quitar `backgroundColor` rojo tras confirmar build en dispositivo */}
+                  <View
+                    style={[
+                      styles.modalActions,
+                      {
+                        paddingBottom: modalFooterBottomPad,
+                        backgroundColor: Platform.OS === 'android' ? '#FF0000' : 'transparent',
+                      },
+                    ]}
+                  >
                     <TouchableOpacity
                       style={[styles.ghostBtn, { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder }]}
                       onPress={() => { Keyboard.dismiss(); InteractionManager.runAfterInteractions(() => setFactoryVisible(false)); }}
@@ -3351,7 +3362,7 @@ export default function CardsFactoryScreen() {
             </TouchableOpacity>
 
             {/* Footer */}
-            <View style={styles.modalActions}>
+            <View style={[styles.modalActions, { paddingBottom: modalFooterBottomPad }]}>
               <TouchableOpacity
                 style={[styles.ghostBtn, { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder }]}
                 onPress={cancelDataSelector}
@@ -3455,7 +3466,7 @@ export default function CardsFactoryScreen() {
                 </ScrollView>
 
                 <TouchableOpacity
-                  style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary, marginTop: 12 }]}
+                  style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary, marginTop: 12, marginBottom: modalFooterBottomPad }]}
                   onPress={closeThemesPickerModal}
                 >
                   <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>{tr('Aceptar', 'Accept')}</Text>
@@ -3600,7 +3611,7 @@ export default function CardsFactoryScreen() {
               </View>
             ) : null}
 
-            <View style={styles.modalActions}>
+            <View style={[styles.modalActions, { paddingBottom: modalFooterBottomPad }]}>
               <TouchableOpacity
                 style={[styles.ghostBtn, { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder }]}
                 onPress={async () => {
@@ -3868,7 +3879,7 @@ export default function CardsFactoryScreen() {
                 ) : null}
               </View>
 
-              <View style={[styles.modalActions, styles.qrModalActions]}>
+              <View style={[styles.modalActions, styles.qrModalActions, { paddingBottom: modalFooterBottomPad }]}>
               {qrBusinessContext ? (
                 <TouchableOpacity
                   style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary, flex: 1 }]}
@@ -4317,10 +4328,15 @@ const styles = StyleSheet.create({
   },
   businessListQrWrap: {
     marginLeft: 'auto',
+    width: 68,
+    height: 68,
     padding: 2,
     borderRadius: 6,
     backgroundColor: '#FFFFFF',
     flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
   businessListLogo: {
     width: 70,

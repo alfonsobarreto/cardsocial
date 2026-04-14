@@ -23,6 +23,7 @@ import {
     type CardTheme,
     type ThemeTier
 } from '@/constants/themeChest';
+import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { useLanguage } from '@/services/language';
 import { setActiveThemeId, useActiveTheme } from '@/services/useActiveTheme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -51,6 +52,7 @@ type Props = {
 };
 
 export default function ThemeChest({ onNavigateToForge }: Props) {
+  const modalFooterBottomPad = useModalFooterBottomPad();
   const { language } = useLanguage();
   const tr = (es: string, en: string) => (language === 'en' ? en : es);
 
@@ -221,7 +223,16 @@ export default function ThemeChest({ onNavigateToForge }: Props) {
       <Modal visible={!!previewTheme} transparent animationType="fade" onRequestClose={() => setPreviewTheme(null)}>
         <TouchableOpacity style={styles.previewOverlay} activeOpacity={1} onPress={() => setPreviewTheme(null)}>
           {previewTheme && (
-            <View style={[styles.previewCard, { borderColor: previewTheme.border.color, borderWidth: previewTheme.border.width + 1 }]}>
+            <View
+              style={[
+                styles.previewCard,
+                {
+                  borderColor: previewTheme.border.color,
+                  borderWidth: previewTheme.border.width + 1,
+                  marginBottom: modalFooterBottomPad,
+                },
+              ]}
+            >
               <LinearGradient
                 colors={previewTheme.background}
                 start={{ x: 0.5, y: 0 }}

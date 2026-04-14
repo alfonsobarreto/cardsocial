@@ -54,6 +54,7 @@ import {
     TouchableWithoutFeedback,
     View,
 } from 'react-native';
+import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import palette from '../theme';
 
@@ -142,6 +143,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const shell = palette[resolvedMode === 'noche' ? 'dark' : 'light'];
   const insets = useSafeAreaInsets();
+  const modalFooterBottomPad = useModalFooterBottomPad();
 
   const panelTitle = useMemo(() => {
     if (activePanel === 'profile') return tr('Perfil', 'Profile');
@@ -1266,7 +1268,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                   </Text>
                 </ScrollView>
 
-                <View style={styles.profileModalActions}>
+                <View style={[styles.profileModalActions, { paddingBottom: modalFooterBottomPad }]}>
                   <TouchableOpacity
                     style={[styles.profileGhostBtn, { backgroundColor: shell.surfaceMuted, borderWidth: 1, borderColor: shell.modalBorder }]}
                     onPress={() => setProfileModalVisible(false)}

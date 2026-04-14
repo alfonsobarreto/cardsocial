@@ -15,6 +15,7 @@
  *  onClose      – called on X-button press
  */
 
+import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { useLookMode } from '@/services/lookMode';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -67,6 +68,7 @@ const CircularPhotoCropper: React.FC<CircularPhotoCropperProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
+  const modalFooterBottomPad = useModalFooterBottomPad();
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
 
@@ -295,7 +297,16 @@ const CircularPhotoCropper: React.FC<CircularPhotoCropperProps> = ({
         </View>
 
         {/* ── Bottom card ──────────────────────────────── */}
-        <View style={[styles.bottomCard, { backgroundColor: theme.cardBg, borderTopColor: theme.cardBorder }]}>
+        <View
+          style={[
+            styles.bottomCard,
+            {
+              backgroundColor: theme.cardBg,
+              borderTopColor: theme.cardBorder,
+              paddingBottom: Math.max(Platform.OS === 'ios' ? 40 : 28, modalFooterBottomPad),
+            },
+          ]}
+        >
           <View style={styles.actionsRow}>
             {/* Ghost: choose again */}
             <TouchableOpacity

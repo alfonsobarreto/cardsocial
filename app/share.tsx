@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
+import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import palette from './theme';
 
 export default function ShareScreen() {
@@ -14,6 +15,7 @@ export default function ShareScreen() {
   const { resolvedMode } = useLookMode();
   const isDark = resolvedMode === 'noche';
   const shell = palette[isDark ? 'dark' : 'light'];
+  const modalFooterBottomPad = useModalFooterBottomPad();
 
   const styles = useMemo(
     () =>
@@ -117,7 +119,7 @@ export default function ShareScreen() {
           </Text>
         </View>
 
-        <View style={styles.actionsRow}>
+        <View style={[styles.actionsRow, { marginBottom: modalFooterBottomPad }]}>
           <TouchableOpacity style={styles.ghostBtn} onPress={() => router.replace('/(tabs)/cards' as any)}>
             <Text style={styles.ghostBtnText}>{tr('Ir a Tarjetas', 'Go to Cards')}</Text>
           </TouchableOpacity>

@@ -21,6 +21,7 @@ import {
     CARD_THEMES as CHEST_THEMES,
     getThemeById,
 } from '@/constants/themeChest';
+import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { getActiveUserId } from '@/services/authSession';
 import type { MirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
 import { CONTACT_META_STORAGE_KEY, seedMetaForIncomingCard } from '@/services/bunkerContactMetaSeed';
@@ -134,6 +135,7 @@ export function MyCardsPreviewModal({
   const shell = appPalette[isDark ? 'dark' : 'light'];
   const { language } = useLanguage();
   const tr = (es: string, en: string) => (language === 'en' ? en : es);
+  const sheetFooterPad = useModalFooterBottomPad();
   const { height: screenHeight } = useWindowDimensions();
 
   const parallaxX = useRef(new Animated.Value(0)).current;
@@ -579,7 +581,7 @@ export function MyCardsPreviewModal({
             }}
           >
             <Pressable
-              style={[incomingStyles.sheetCard, { backgroundColor: shell.modalBg, borderColor: shell.border }]}
+              style={[incomingStyles.sheetCard, { backgroundColor: shell.modalBg, borderColor: shell.border, paddingBottom: sheetFooterPad }]}
               onPress={(e) => e.stopPropagation()}
             >
               <Text style={[incomingStyles.sheetTitle, { color: shell.textPrimary }]}>
@@ -696,7 +698,7 @@ export function MyCardsPreviewModal({
             }}
           >
             <Pressable
-              style={[incomingStyles.sheetCard, { backgroundColor: shell.modalBg, borderColor: shell.border }]}
+              style={[incomingStyles.sheetCard, { backgroundColor: shell.modalBg, borderColor: shell.border, paddingBottom: sheetFooterPad }]}
               onPress={(e) => e.stopPropagation()}
             >
               <Text style={[incomingStyles.sheetTitle, { color: shell.textPrimary }]}>

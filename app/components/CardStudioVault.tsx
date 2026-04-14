@@ -6,6 +6,7 @@
  * Secciones premium vacías se muestran como colecciones futuras con badge 🔒.
  */
 
+import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { STUDIO_CATALOG_VECTOR_ICONS_PAID, STUDIO_ICON_CREDIT_PRICE } from '@/constants/studioEconomy';
 import { TEXAS_LONGHORNS_ICON_SEEDS } from '@/constants/texasLonghornsPack';
 import { getActiveUserId } from '@/services/authSession';
@@ -388,6 +389,7 @@ export default function CardStudioVault({
   const { language } = useLanguage();
   const isEN = language === 'en';
   const tr = (es: string, en: string) => isEN ? en : es;
+  const modalFooterBottomPad = useModalFooterBottomPad();
   const [storeModalVisible, setStoreModalVisible] = useState(false);
   const [recentIconIds, setRecentIconIds] = useState<string[]>([]);
   const [bundleOwnedFlags, setBundleOwnedFlags] = useState<Record<string, boolean>>({});
@@ -859,6 +861,7 @@ export default function CardStudioVault({
                     maxHeight: SCREEN_HEIGHT * 0.88,
                     backgroundColor: theme.sheetBg,
                     borderTopColor: theme.border,
+                    paddingBottom: modalFooterBottomPad,
                   },
                 ]}
                 onStartShouldSetResponder={() => true}
@@ -969,7 +972,7 @@ export default function CardStudioVault({
         <TouchableWithoutFeedback onPress={() => setStoreModalVisible(false)}>
           <View style={styles.storeOverlay}>
             <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={[styles.storeSheet, { backgroundColor: theme.storeSheetBg, borderColor: theme.border }]}>
+              <View style={[styles.storeSheet, { backgroundColor: theme.storeSheetBg, borderColor: theme.border, paddingBottom: modalFooterBottomPad }]}>
                 <MaterialCommunityIcons name="store" color={theme.labelGold} size={48} />
                 <Text style={[styles.storeTitle, { color: theme.labelGold }]}>Card-Studio</Text>
                 <Text style={[styles.storeSubtitle, { marginBottom: 8, color: theme.textPrimary }]}>

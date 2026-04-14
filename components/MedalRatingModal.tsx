@@ -7,6 +7,7 @@
  * Tema: dÃ­a/noche desde premiumTheme Â· BilingÃ¼e (es/en)
  */
 
+import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { getActiveUserId } from '@/services/authSession';
 import { db } from '@/services/firebaseConfig';
 import { useLanguage } from '@/services/language';
@@ -70,6 +71,7 @@ export function MedalRatingModal({
   const { resolvedMode } = useLookMode();
   const isDark = resolvedMode === 'noche';
   const P = isDark ? PT.dark : PT.light;
+  const modalFooterBottomPad = useModalFooterBottomPad();
 
   const tr = (es: string, en: string) => (language === 'en' ? en : es);
 
@@ -367,7 +369,7 @@ export function MedalRatingModal({
 
               {/* BotÃ³n Confirmar */}
               <TouchableOpacity
-                style={[styles.confirmBtn, { backgroundColor: accent, opacity: sending ? 0.6 : 1 }]}
+                style={[styles.confirmBtn, { backgroundColor: accent, opacity: sending ? 0.6 : 1, marginBottom: modalFooterBottomPad }]}
                 onPress={() => void handleConfirm()}
                 disabled={sending}
                 activeOpacity={0.85}

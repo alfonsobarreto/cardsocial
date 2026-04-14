@@ -66,6 +66,7 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
+import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import appPalette, { type AppShellTheme } from '../theme';
 
 const CONTACT_META_STORAGE_KEY = 'contacts_meta_v2';
@@ -150,6 +151,7 @@ export default function SearchScreen() {
   const shell = appPalette[isDark ? 'dark' : 'light'];
   const { language } = useLanguage();
   const tr = useCallback((es: string, en: string) => (language === 'en' ? en : es), [language]);
+  const modalFooterBottomPad = useModalFooterBottomPad();
   /** Última consulta enviada (IR / Intro); el campo de texto vive en SocialMarketSearchBar. */
   const [submittedQuery, setSubmittedQuery] = useState('');
   const searchQueryRef = useRef('');
@@ -1355,7 +1357,7 @@ export default function SearchScreen() {
       >
         <Pressable style={[styles.marketSortModalOverlay, { backgroundColor: shell.overlayScrim }]} onPress={() => setMarketSortModalVisible(false)}>
           <Pressable
-            style={[styles.marketSortModalCard, { backgroundColor: shell.surface, borderColor: shell.border }]}
+            style={[styles.marketSortModalCard, { backgroundColor: shell.surface, borderColor: shell.border, paddingBottom: modalFooterBottomPad }]}
             onPress={() => {}}
           >
             <Text style={[styles.marketSortModalTitle, { color: shell.textPrimary }]}>

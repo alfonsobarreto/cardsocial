@@ -16,6 +16,7 @@ import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
 import { collection, doc, getDocs, limit, query, runTransaction, serverTimestamp, where } from 'firebase/firestore';
+import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
     Alert,
@@ -87,6 +88,7 @@ export default function RegisterScreen() {
   const langCtx = useLanguageOptional();
   const language = langCtx?.language ?? 'es';
   const tr = (es: string, en: string) => (language === 'en' ? en : es);
+  const modalFooterBottomPad = useModalFooterBottomPad();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [nickname, setNickname] = useState('');
@@ -1354,7 +1356,7 @@ export default function RegisterScreen() {
                 </View>
               </View>
 
-              <View style={styles.dateModalActions}>
+              <View style={[styles.dateModalActions, { paddingBottom: modalFooterBottomPad }]}>
                 <TouchableOpacity style={styles.dateModalButtonGhost} onPress={() => setBirthPickerVisible(false)}>
                   <Text style={styles.dateModalButtonGhostText}>{tr('Cancelar', 'Cancel')}</Text>
                 </TouchableOpacity>

@@ -19,9 +19,10 @@ import {
   parsePermanentBusinessQr,
 } from '@/services/parseCardsocialQrPayload';
 import { doc, getDoc } from 'firebase/firestore';
+import axios from 'axios';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { Alert, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import ActivityIndicator from '@/components/BrandedSpinner';
@@ -100,7 +101,7 @@ export default function ScanScreen() {
           fontWeight: '700',
         },
         overlay: {
-          flex: 1,
+          ...StyleSheet.absoluteFillObject,
           justifyContent: 'space-between',
           paddingTop: 70,
           paddingBottom: 36,
@@ -206,6 +207,13 @@ export default function ScanScreen() {
         });
         setModalVisible(true);
       } catch (e: unknown) {
+        if (__DEV__) {
+          if (axios.isAxiosError(e)) {
+            console.error('[Scan openClassification] axios', e.message, e.code, e.response?.data ?? e.response?.status);
+          } else {
+            console.error('[Scan openClassification]', e instanceof Error ? e.message : e);
+          }
+        }
         const msg = e instanceof Error ? e.message : tr('Error de red.', 'Network error.');
         Alert.alert(tr('No se pudo escanear', 'Could not scan'), msg, [{ text: okLabel, onPress: resetScanUi }]);
         setScanLocked(false);
@@ -284,6 +292,13 @@ export default function ScanScreen() {
         });
         setModalVisible(true);
       } catch (e: unknown) {
+        if (__DEV__) {
+          if (axios.isAxiosError(e)) {
+            console.error('[Scan openBusinessClassification] axios', e.message, e.code, e.response?.data ?? e.response?.status);
+          } else {
+            console.error('[Scan openBusinessClassification]', e instanceof Error ? e.message : e);
+          }
+        }
         const msg = e instanceof Error ? e.message : tr('Error de red.', 'Network error.');
         Alert.alert(tr('No se pudo escanear', 'Could not scan'), msg, [{ text: okLabel, onPress: resetScanUi }]);
         setScanLocked(false);
@@ -412,22 +427,30 @@ export default function ScanScreen() {
     return base;
   }, [incomingPreviewOverride, incomingScanMode, qrPreview, tr]);
 
-  if (!permission) {
-    return (
-      <View style={styles.centerScreen}>
-        <ActivityIndicator size="large" color={shell.refreshAccent} />
-      </View>
-    );
-  }
-
-  if (!permission.granted) {
+  /** Android: no montar CameraView hasta granted === true; siempre ofrecer botón explícito si no hay permiso. */
+  if (permission?.granted !== true) {
+    const deniedPermanent = permission != null && !permission.granted && permission.canAskAgain === false;
     return (
       <LinearGradient colors={[...shell.tabShellGradient]} style={styles.centerScreen}>
+        {permission == null ? <ActivityIndicator size="large" color={shell.refreshAccent} /> : null}
         <Text style={styles.title}>{tr('Permiso de cámara requerido', 'Camera permission required')}</Text>
-        <Text style={styles.subtitle}>{tr('Necesitamos acceso para escanear tu nueva tarjeta.', 'We need access to scan your new card.')}</Text>
-        <TouchableOpacity style={styles.primaryBtn} onPress={requestPermission}>
-          <Text style={styles.primaryBtnText}>{tr('Permitir cámara', 'Allow camera')}</Text>
-        </TouchableOpacity>
+        <Text style={styles.subtitle}>
+          {deniedPermanent
+            ? tr(
+                'La cámara está desactivada para Card-Social. Actívala en Ajustes del sistema.',
+                'Camera is turned off for Card-Social. Enable it in system Settings.',
+              )
+            : tr('Necesitamos acceso para escanear tu nueva tarjeta.', 'We need access to scan your new card.')}
+        </Text>
+        {deniedPermanent ? (
+          <TouchableOpacity style={styles.primaryBtn} onPress={() => void Linking.openSettings()}>
+            <Text style={styles.primaryBtnText}>{tr('Abrir ajustes', 'Open Settings')}</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.primaryBtn} onPress={() => void requestPermission()}>
+            <Text style={styles.primaryBtnText}>{tr('Permitir cámara', 'Allow camera')}</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.back()}>
           <Text style={styles.secondaryBtnText}>{tr('Volver', 'Back')}</Text>
         </TouchableOpacity>
@@ -442,15 +465,22 @@ export default function ScanScreen() {
   return (
     <View style={styles.screen}>
       <CameraView
-        style={StyleSheet.absoluteFill}
+        style={[StyleSheet.absoluteFill, { zIndex: 0 }]}
         facing="back"
         barcodeScannerSettings={{
           barcodeTypes: ['qr'],
         }}
-        onBarcodeScanned={canScan ? ({ data }) => void handleScanned(data) : undefined}
+        onBarcodeScanned={
+          canScan
+            ? (result: BarcodeScanningResult) => {
+                const data = typeof result.data === 'string' ? result.data : String(result.raw ?? '');
+                if (data) void handleScanned(data);
+              }
+            : undefined
+        }
       />
 
-      <LinearGradient colors={[...overlayGradient]} style={styles.overlay}>
+      <LinearGradient colors={[...overlayGradient]} style={[styles.overlay, { zIndex: 1, elevation: 8 }]} pointerEvents="box-none">
         <View style={styles.topPanel}>
           <Text style={styles.overlayTitle}>{tr('Escanear Nueva Tarjeta', 'Scan New Card')}</Text>
           <Text style={styles.overlaySubtitle}>{tr('Apunta el QR dentro del marco', 'Point the QR within the frame')}</Text>

@@ -1,3 +1,4 @@
+import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -63,6 +64,7 @@ const AdminIconUploader: React.FC = () => {
   const [showCategoryInput, setShowCategoryInput] = useState(false);
   const [newCategory, setNewCategory] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
+  const modalFooterBottomPad = useModalFooterBottomPad();
 
   useEffect(() => {
     loadInitialData();
@@ -485,7 +487,7 @@ const AdminIconUploader: React.FC = () => {
               onChangeText={setNewCategory}
             />
 
-            <View style={styles.modalButtons}>
+            <View style={[styles.modalButtons, { paddingBottom: modalFooterBottomPad }]}>
               <TouchableOpacity
                 style={styles.modalButtonCancel}
                 onPress={() => {

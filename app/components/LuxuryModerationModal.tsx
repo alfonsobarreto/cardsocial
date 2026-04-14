@@ -3,6 +3,7 @@ import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { useLanguage } from '@/services/language';
 
 type LuxuryModerationModalProps = {
@@ -34,6 +35,7 @@ export default function LuxuryModerationModal({
   lockMessage,
 }: LuxuryModerationModalProps) {
   const { language } = useLanguage();
+  const modalFooterBottomPad = useModalFooterBottomPad();
   const tr = (es: string, en: string) => language === 'en' ? en : es;
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -63,7 +65,7 @@ export default function LuxuryModerationModal({
                 </View>
               ) : null}
 
-              <View style={styles.actionsRow}>
+              <View style={[styles.actionsRow, { paddingBottom: modalFooterBottomPad }]}>
                 <TouchableOpacity style={styles.secondaryButton} onPress={onClose}>
                   <Text style={styles.secondaryButtonText}>{tr('Cerrar', 'Close')}</Text>
                 </TouchableOpacity>

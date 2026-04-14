@@ -491,8 +491,11 @@ const otpHash = (emailLower, code) => {
   const { runStorySpacesAssetCleanup } = require("./jobs/storySpacesCleanup");
   const STORY_SPACES_CLEANUP_MS = 24 * 60 * 60 * 1000;
 
-  app.listen(env.port, () => {
-    console.log(`Moderation backend running at http://localhost:${env.port}`);
+  const PORT = env.port;
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(
+      `Moderation backend listening on 0.0.0.0:${PORT} (LAN: http://<tu-ip>:${PORT})`
+    );
     void runStorySpacesAssetCleanup(storage).catch((e) =>
       console.warn("[storySpacesCleanup] initial:", e?.message || e)
     );

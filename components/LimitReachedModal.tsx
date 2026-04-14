@@ -1,3 +1,4 @@
+import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import React, { useRef } from 'react';
 import {
   View,
@@ -29,6 +30,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
   onClose,
   onUpgradePress,
 }) => {
+  const modalFooterBottomPad = useModalFooterBottomPad();
   const confettiRef = useRef<ConfettiAnimationRef>(null);
 
   React.useEffect(() => {
@@ -163,7 +165,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
             </ScrollView>
 
             {/* Action Buttons */}
-            <View style={styles.buttonContainer}>
+            <View style={[styles.buttonContainer, { paddingBottom: modalFooterBottomPad }]}>
               <TouchableOpacity
                 style={[styles.button, styles.cancelButton]}
                 onPress={onClose}

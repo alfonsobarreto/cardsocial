@@ -53,6 +53,7 @@ import {
 } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ActionController } from '../../services/ActionController';
 import { normalizeMaterialCommunityIconName } from '../components/iconNameValidation';
@@ -259,6 +260,7 @@ export default function StoriesPage() {
   const styles = useMemo(() => makeStoriesStyles(shell), [shell]);
   const { width: windowWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const modalFooterBottomPad = useModalFooterBottomPad();
   const routeParams = useLocalSearchParams<{ openStory?: string | string[]; openMarketVip?: string | string[] }>();
   const openStoryParam = useMemo(() => {
     const v = routeParams.openStory;
@@ -1771,7 +1773,7 @@ export default function StoriesPage() {
                 );
               })}
             </ScrollView>
-            <View style={styles.vaultMirrorActions}>
+            <View style={[styles.vaultMirrorActions, { paddingBottom: modalFooterBottomPad }]}>
               <TouchableOpacity
                 style={[styles.cancelBtn, { flex: 1, backgroundColor: shell.storiesCancelBtnBg }]}
                 onPress={() => setCardPickerVisible(false)}
@@ -1841,7 +1843,7 @@ export default function StoriesPage() {
                 </Text>
               }
             />
-            <View style={styles.vaultMirrorActions}>
+            <View style={[styles.vaultMirrorActions, { paddingBottom: modalFooterBottomPad }]}>
               <TouchableOpacity
                 style={[styles.cancelBtn, { flex: 1, backgroundColor: shell.storiesCancelBtnBg }]}
                 onPress={() => {
@@ -2013,7 +2015,7 @@ export default function StoriesPage() {
                 )}
               </Text>
 
-              <View style={styles.modalActions}>
+              <View style={[styles.modalActions, { paddingBottom: modalFooterBottomPad }]}>
                 <TouchableOpacity
                   style={[styles.cancelBtn, { backgroundColor: shell.storiesCancelBtnBg }]}
                   onPress={() => {
@@ -2226,7 +2228,7 @@ export default function StoriesPage() {
             </View>
           </GestureDetector>
 
-          <View style={[styles.viewerFooter, { paddingBottom: Math.max(insets.bottom, 12) + 10 }]}>
+          <View style={[styles.viewerFooter, { paddingBottom: modalFooterBottomPad + 10 }]}>
             <Text style={[styles.viewerTitle, { textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 4, textShadowOffset: { width: 0, height: 1 } }]}>
               {selectedViewerItem?.kind === 'ad'
                 ? selectedViewerItem.title === FALLBACK_HOUSE_AD.title

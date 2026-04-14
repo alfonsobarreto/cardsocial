@@ -5,6 +5,7 @@
  * Adapts to dark/light mode and ES/EN via the `tr` prop.
  */
 
+import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import type { CardSubscriberRow } from '@/services/qrApi';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
@@ -199,6 +200,7 @@ export default function ReceptorScreenModal({
   onBlock,
   onBlockExternal,
 }: ReceptorScreenModalProps) {
+  const modalFooterBottomPad = useModalFooterBottomPad();
   const [sortMode, setSortMode] = useState<SortMode>('date');
   const c = useMemo(() => getColors(isDark), [isDark]);
   const swipeRefs = useRef<Map<string, any>>(new Map());
@@ -489,7 +491,7 @@ export default function ReceptorScreenModal({
             data={sorted}
             keyExtractor={keyExtractor}
             renderItem={renderListRow}
-            contentContainerStyle={s.listContent}
+            contentContainerStyle={[s.listContent, { paddingBottom: Math.max(40, modalFooterBottomPad) }]}
             showsVerticalScrollIndicator={false}
             initialNumToRender={15}
             maxToRenderPerBatch={20}

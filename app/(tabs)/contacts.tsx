@@ -41,6 +41,7 @@ import {
     receivedContactMergeKey,
 } from '@/services/receivedContactsPresentationMerge';
 import { getCardRowTheme } from '@/services/useActiveTheme';
+import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { makeContactsStyles } from '@/styles/_contacts.styles';
 import appPalette from '../theme';
 
@@ -194,6 +195,7 @@ function ContactsContent() {
   const shell = appPalette[isNight ? 'dark' : 'light'];
   const styles = useMemo(() => makeContactsStyles(shell), [shell]);
   const tr = (es: string, en: string) => language === 'en' ? en : es;
+  const modalFooterBottomPad = useModalFooterBottomPad();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [metaMap, setMetaMap] = useState<Record<string, ContactMeta>>({});
   const [groupFavorites, setGroupFavorites] = useState<Record<string, boolean>>({});
@@ -1518,7 +1520,7 @@ function ContactsContent() {
 
       <Modal visible={sortVisible} transparent animationType="slide" onRequestClose={() => setSortVisible(false)}>
         <Pressable style={[styles.modalOverlay, { backgroundColor: shell.overlayScrim }]} onPress={() => setSortVisible(false)}>
-          <Pressable style={[styles.sortModalCard, { backgroundColor: shell.modalBg, borderColor: shell.modalBorder }]}>
+          <Pressable style={[styles.sortModalCard, { backgroundColor: shell.modalBg, borderColor: shell.modalBorder, paddingBottom: modalFooterBottomPad }]}>
             <Text style={[styles.sortModalTitle, { color: shell.textPrimary }]}>Ordenar contactos</Text>
             {[
               { key: 'name', label: tr('Nombre (A-Z, favoritos arriba)', 'Name (A-Z, favorites first)') },
@@ -1559,7 +1561,7 @@ function ContactsContent() {
 
       <Modal visible={longPressVisible} transparent animationType="fade" onRequestClose={() => setLongPressVisible(false)}>
         <Pressable style={[styles.modalOverlay, { backgroundColor: shell.overlayScrim }]} onPress={() => setLongPressVisible(false)}>
-          <Pressable onPress={() => {}} style={[styles.actionModalCard, { backgroundColor: shell.modalBg, borderColor: shell.modalBorder }]}>
+          <Pressable onPress={() => {}} style={[styles.actionModalCard, { backgroundColor: shell.modalBg, borderColor: shell.modalBorder, paddingBottom: modalFooterBottomPad }]}>
             <Text style={[styles.actionModalTitle, { color: shell.textPrimary }]}>{longPressContact?.name || tr('Contacto', 'Contact')}</Text>
             {longPressContact?.cardName ? (
               <Text style={[styles.contactSubtitleCardName, { color: shell.textSecondary, marginBottom: 8, textAlign: 'center' }]} numberOfLines={2}>
@@ -1646,7 +1648,7 @@ function ContactsContent() {
 
       <Modal visible={groupPickerVisible} transparent animationType="fade" onRequestClose={() => setGroupPickerVisible(false)}>
         <View style={[styles.modalOverlay, { backgroundColor: shell.overlayScrim }]}>
-          <View style={[styles.groupPickerCard, { backgroundColor: shell.modalBg, borderColor: shell.border }]}>
+          <View style={[styles.groupPickerCard, { backgroundColor: shell.modalBg, borderColor: shell.border, paddingBottom: modalFooterBottomPad }]}>
             <Text style={[styles.sortModalTitle, { color: shell.textPrimary }]}>Selecciona Grupo</Text>
             {allGroups.map((groupName) => (
               <View key={groupName} style={styles.groupRowWrap}>
