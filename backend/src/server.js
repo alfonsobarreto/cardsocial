@@ -426,11 +426,15 @@ const otpHash = (emailLower, code) => {
 
     const http = require('http');
     /**
-     * Express quita el prefijo del mount en `req.url` (p. ej. /legal/privacidad → /privacidad).
-     * Next.js necesita la ruta completa; si no, devuelve 404 (pantalla negra en el cliente).
+     * Express, en `app.use('/legal', …)`, deja `req.url` sin el prefijo (/privacidad).
+     * `req.originalUrl` a veces llega ya truncado detrás de Azure/iisnode → Next ve /privacidad y 404.
+     * `req.baseUrl + req.url` reconstruye siempre la ruta pública (/legal/privacidad).
      */
     const nextProxy = (req, res) => {
-      const pathWithQuery = req.originalUrl || req.url;
+      const pathWithQuery =
+        req.baseUrl != null && req.baseUrl !== '' && typeof req.url === 'string'
+          ? `${req.baseUrl}${req.url.startsWith('/') ? '' : '/'}${req.url}`
+          : req.originalUrl || req.url;
       const options = {
         hostname: '127.0.0.1',
         port: NEXT_PORT,
