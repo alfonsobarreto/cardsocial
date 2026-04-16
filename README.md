@@ -45,13 +45,13 @@ Todas las rutas definidas en `backend/src/routes/qrRoutes.js` llevan prefijo **`
 |--------|-----------------------------|
 | POST | `/issue`, `/consume` |
 | GET | `/cards`, `/contacts/received`, `/stories/state`, `/stories/ads/house`, `/calls/history`, … |
-| PUT | `/cards/:cardId`, `/users/:uid/nickname`, `/stories/ads/house` |
-| DELETE | `/cards/:cardId`, `/cards/:cardId/subscribers/:targetUid`, `/relationships/blocked/:targetUid` |
-| POST | `/stories/state`, `/relationships/block`, `/relationships/remove`, `/calls/logs`, `/voip/ghost-link/start`, `/voip/ghost-link/respond`, `/cards/:cardId/subscribers/:targetUid/mute`, … |
+| PUT | `/cards/:cardRef`, `/users/:uid/nickname`, `/stories/ads/house` |
+| DELETE | `/cards/:cardRef`, `/cards/:cardRef/subscribers/:targetUid`, `/relationships/blocked/:targetUid` |
+| POST | `/stories/state`, `/relationships/block`, `/relationships/remove`, `/calls/logs`, `/voip/ghost-link/start`, `/voip/ghost-link/respond`, `/cards/:cardRef/subscribers/:targetUid/mute`, … |
 | PATCH | `/calls/logs/:callId` |
-| GET | `/cards/:cardId/subscribers` |
+| GET | `/cards/:cardRef/subscribers` |
 
-**Autenticación:** cabecera `x-api-gateway-key` y JWT con scope `qr.access` (vía `POST /api/auth/token` con `{ "ownerUid": "…", "scope": "qr.access" }`), salvo que el middleware aplique otra regla a rutas concretas.
+**Autenticación:** cabecera `x-api-gateway-key` y JWT con scope `qr.access` (vía `POST /api/auth/token` con `{ "uid": "…", "scope": "qr.access" }`), salvo que el middleware aplique otra regla a rutas concretas.
 
 **Cliente Expo (`services/qrApi.ts`):** suele llamar rutas bajo `/api/cards/...` y `/api/stories/...` en la URL pública; en despliegues con **solo** este servidor, el prefijo real es **`/api/qr/...`** (p. ej. `/api/qr/cards`). Si la app no conecta en local, revisa gateway, proxy o variable `EXPO_PUBLIC_MODERATION_API_URL`.
 

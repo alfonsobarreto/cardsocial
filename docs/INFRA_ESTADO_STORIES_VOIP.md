@@ -6,7 +6,7 @@ Documento para contexto de nuevos chats / planificación de fases. **Abril 2026.
 
 ## Pregunta frecuente: ¿El backend ya sube y entrega assets de Story vinculados a `storyState`?
 
-**Respuesta corta:** Los endpoints de **Stories bajo `/api/qr`** hoy gestionan **solo metadatos de estado** (`none` | `normal` | `vip`), expiración, `cardId` opcional y flags VIP. **No** incluyen subida de archivo ni un campo estándar `mediaUrl` enlazado a esa fila en la misma operación.
+**Respuesta corta:** Los endpoints de **Stories bajo `/api/qr`** hoy gestionan **solo metadatos de estado** (`none` | `normal` | `vip`), expiración, `sid` / `bId` opcional y flags VIP. **No** incluyen subida de archivo ni un campo estándar `mediaUrl` enlazado a esa fila en la misma operación.
 
 **Qué sí existe para archivos (genérico, no específico de Story):**
 
@@ -14,7 +14,7 @@ Documento para contexto de nuevos chats / planificación de fases. **Abril 2026.
 - Flujo: multipart `file` + moderación **Azure Content Safety** → con credenciales **DigitalOcean Spaces** (API S3-compatible), sube el binario a un prefijo privado (`vault-proxy/...`), registra metadatos en Mongo (`vault_file_registry`) y devuelve **`publicUrl`** = URL del **proxy** (`GET /api/vault/file/:fileId`, ver `vaultFileProxyRoutes.js`). Sin Spaces configurado, el upload responde error (no hay fallback local).
 - Código: `backend/src/routes/moderationRoutes.js`, almacenamiento `backend/src/services/mongoStorage.js` (`uploadVaultFilePrivate`, `pipeVaultFileToResponse`, `saveFileToSpaces` para otros flujos públicos).
 
-**Fase 1 razonable:** Sincronizar **metadatos** (URLs absolutas, `expiresAt` alineado al asset, tipo MIME, etc.) **asumiendo** que el binario ya está en Spaces (vía `/api/upload` o flujo futuro dedicado) **o** extender el modelo Mongo (`story_states` / `story_card_states` o colección nueva `story_assets`) y un endpoint que una `ownerUid` + `cardId` + URL. Eso **no está implementado** hoy como contrato único “Story upload”.
+**Fase 1 razonable:** Sincronizar **metadatos** (URLs absolutas, `expiresAt` alineado al asset, tipo MIME, etc.) **asumiendo** que el binario ya está en Spaces (vía `/api/upload` o flujo futuro dedicado) **o** extender el modelo Mongo (`story_states` / `story_card_states` o colección nueva `story_assets`) y un endpoint que una `uid` + `sid` / `bId` + URL. Eso **no está implementado** hoy como contrato único “Story upload”.
 
 **App móvil (`app/(tabs)/stories.tsx`):** el contenido visible en demo suele ser **`LocalStory` en AsyncStorage** (`stories_hub_v1_<uid>`) con `mediaUri` local; el backend confirma estado con `setMyStoryState` / `getMyStoryState` pero **no** entrega el binario de la historia por esos endpoints.
 

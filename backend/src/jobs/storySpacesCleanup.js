@@ -5,7 +5,7 @@
  *   db.story_cdn_assets.insertOne({
  *     spacesUrl: 'https://bucket.region.digitaloceanspaces.com/...',
  *     expiresAt: new Date(...), // alineado a expiración VIP (ej. 30 días)
- *     ownerUid, cardId (opcional)
+ *     uid, sid / bId (opcional)
  *   })
  *
  * Este job borra el objeto en Spaces y el documento cuando `expiresAt <= now`.

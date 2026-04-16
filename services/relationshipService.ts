@@ -4,7 +4,7 @@
  *
  * - Block goes through backend API (already exists in qrApi.ts)
  * - Mute & Restrict are stored in Firestore subcollection:
- *   users/{ownerUid}/relationships/{targetUid} → { status, updatedAt }
+ *   users/{uid}/relationships/{targetUid} → { status, updatedAt }
  */
 
 import {
@@ -35,21 +35,21 @@ export type RelationshipEntry = {
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
-function relDocRef(ownerUid: string, targetUid: string) {
-  return doc(db, 'users', ownerUid, 'relationships', targetUid);
+function relDocRef(uid: string, targetUid: string) {
+  return doc(db, 'users', uid, 'relationships', targetUid);
 }
 
-function relCollectionRef(ownerUid: string) {
-  return collection(db, 'users', ownerUid, 'relationships');
+function relCollectionRef(uid: string) {
+  return collection(db, 'users', uid, 'relationships');
 }
 
 // ── Mute ─────────────────────────────────────────────────────────────────
 
 export async function muteUser(
-  ownerUid: string,
+  uid: string,
   target: { uid: string; name: string; userAvatarUrl: string | null },
 ): Promise<void> {
-  await setDoc(relDocRef(ownerUid, target.uid), {
+  await setDoc(relDocRef(uid, target.uid), {
     status: 'muted',
     name: target.name,
     userAvatarUrl: target.userAvatarUrl ?? null,
@@ -61,10 +61,10 @@ export async function muteUser(
 // ── Restrict ─────────────────────────────────────────────────────────────
 
 export async function restrictUser(
-  ownerUid: string,
+  uid: string,
   target: { uid: string; name: string; userAvatarUrl: string | null },
 ): Promise<void> {
-  await setDoc(relDocRef(ownerUid, target.uid), {
+  await setDoc(relDocRef(uid, target.uid), {
     status: 'restricted',
     name: target.name,
     userAvatarUrl: target.userAvatarUrl ?? null,
@@ -76,13 +76,13 @@ export async function restrictUser(
 // ── Block (delegates to backend API) ─────────────────────────────────────
 
 export async function blockUser(
-  ownerUid: string,
+  uid: string,
   target: { uid: string; name: string; userAvatarUrl: string | null },
 ): Promise<void> {
   // Backend handles severing links
-  await blockRelationship({ ownerUid, targetUid: target.uid });
+  await blockRelationship({ uid, targetUid: target.uid });
   // Also persist in local subcollection for unified queries
-  await setDoc(relDocRef(ownerUid, target.uid), {
+  await setDoc(relDocRef(uid, target.uid), {
     status: 'blocked',
     name: target.name,
     userAvatarUrl: target.userAvatarUrl ?? null,
@@ -94,32 +94,32 @@ export async function blockUser(
 // ── Remove relationship (restore) ────────────────────────────────────────
 
 export async function removeRelationship(
-  ownerUid: string,
+  uid: string,
   targetUid: string,
   currentStatus: RelationshipStatus,
 ): Promise<void> {
   if (currentStatus === 'blocked') {
-    await unblockRelationship({ ownerUid, targetUid });
+    await unblockRelationship({ uid, targetUid });
   }
-  await deleteDoc(relDocRef(ownerUid, targetUid));
+  await deleteDoc(relDocRef(uid, targetUid));
 }
 
 // ── Change tier (e.g. muted → restricted → blocked) ─────────────────────
 
 export async function changeRelationshipTier(
-  ownerUid: string,
+  uid: string,
   target: { uid: string; name: string; userAvatarUrl: string | null },
   newStatus: RelationshipStatus,
 ): Promise<void> {
   if (newStatus === 'blocked') {
-    await blockUser(ownerUid, target);
+    await blockUser(uid, target);
   } else {
     // If was blocked, unblock via backend first
-    const existing = await getRelationshipStatus(ownerUid, target.uid);
+    const existing = await getRelationshipStatus(uid, target.uid);
     if (existing === 'blocked') {
-      await unblockRelationship({ ownerUid, targetUid: target.uid });
+      await unblockRelationship({ uid, targetUid: target.uid });
     }
-    await setDoc(relDocRef(ownerUid, target.uid), {
+    await setDoc(relDocRef(uid, target.uid), {
       status: newStatus,
       name: target.name,
       userAvatarUrl: target.userAvatarUrl ?? null,
@@ -132,10 +132,10 @@ export async function changeRelationshipTier(
 // ── List by status ───────────────────────────────────────────────────────
 
 export async function listRelationshipsByStatus(
-  ownerUid: string,
+  uid: string,
   status: RelationshipStatus,
 ): Promise<RelationshipEntry[]> {
-  const q = query(relCollectionRef(ownerUid), where('status', '==', status));
+  const q = query(relCollectionRef(uid), where('status', '==', status));
   const snap = await getDocs(q);
   return snap.docs.map((d) => {
     const data = d.data();
@@ -153,9 +153,9 @@ export async function listRelationshipsByStatus(
 // ── List all relationships ───────────────────────────────────────────────
 
 export async function listAllRelationships(
-  ownerUid: string,
+  uid: string,
 ): Promise<RelationshipEntry[]> {
-  const snap = await getDocs(relCollectionRef(ownerUid));
+  const snap = await getDocs(relCollectionRef(uid));
   return snap.docs.map((d) => {
     const data = d.data();
     const ts = data.updatedAt as Timestamp | null;
@@ -172,25 +172,25 @@ export async function listAllRelationships(
 // ── Quick check ──────────────────────────────────────────────────────────
 
 export async function getRelationshipStatus(
-  ownerUid: string,
+  uid: string,
   targetUid: string,
 ): Promise<RelationshipStatus | null> {
   const { getDoc } = await import('firebase/firestore');
-  const snap = await getDoc(relDocRef(ownerUid, targetUid));
+  const snap = await getDoc(relDocRef(uid, targetUid));
   if (!snap.exists()) return null;
   return (snap.data().status as RelationshipStatus) ?? null;
 }
 
 // ── Check helpers for UI filtering ───────────────────────────────────────
 
-export async function isMuted(ownerUid: string, targetUid: string): Promise<boolean> {
-  return (await getRelationshipStatus(ownerUid, targetUid)) === 'muted';
+export async function isMuted(uid: string, targetUid: string): Promise<boolean> {
+  return (await getRelationshipStatus(uid, targetUid)) === 'muted';
 }
 
-export async function isRestricted(ownerUid: string, targetUid: string): Promise<boolean> {
-  return (await getRelationshipStatus(ownerUid, targetUid)) === 'restricted';
+export async function isRestricted(uid: string, targetUid: string): Promise<boolean> {
+  return (await getRelationshipStatus(uid, targetUid)) === 'restricted';
 }
 
-export async function isBlocked(ownerUid: string, targetUid: string): Promise<boolean> {
-  return (await getRelationshipStatus(ownerUid, targetUid)) === 'blocked';
+export async function isBlocked(uid: string, targetUid: string): Promise<boolean> {
+  return (await getRelationshipStatus(uid, targetUid)) === 'blocked';
 }

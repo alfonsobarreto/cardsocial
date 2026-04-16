@@ -12,15 +12,17 @@ export function runSearchFacetQuickAction(params: {
   value: string;
   issuerUid: string;
   issuerCardName: string;
-  issuerCardId: string | null;
+  issuerSid: string | null;
+  issuerBId: string | null;
   issuerDisplayName: string;
   issuerCardPhoto?: string | null;
   issuerCardType?: 'business' | 'personal';
 }): void {
-  const { type, label, value, issuerUid, issuerCardName, issuerCardId, issuerDisplayName } = params;
+  const { type, label, value, issuerUid, issuerCardName, issuerSid, issuerBId, issuerDisplayName } = params;
 
   trackCardAnalyticsFireAndForget({
-    cardId: issuerCardId,
+    sid: issuerSid,
+    bId: issuerBId,
     iconType: type,
     source: 'search',
   });
@@ -34,7 +36,8 @@ export function runSearchFacetQuickAction(params: {
     void ActionController.ActionGhostLinkVaultItem({
       targetUid: issuerUid,
       sourceCardName: issuerCardName,
-      sourceCardId: issuerCardId,
+      sourceSid: issuerSid,
+      sourceBId: issuerBId,
       userName: issuerDisplayName,
       cardPhoto: params.issuerCardPhoto ?? null,
       peerPhotoUrl: params.issuerCardPhoto ?? null,
@@ -62,7 +65,8 @@ export function runSearchFacetQuickAction(params: {
     void ActionController.ActionGhostLinkVaultItem({
       targetUid: issuerUid,
       sourceCardName: issuerCardName,
-      sourceCardId: issuerCardId,
+      sourceSid: issuerSid,
+      sourceBId: issuerBId,
       userName: issuerDisplayName,
       cardPhoto: params.issuerCardPhoto ?? null,
       cardType: params.issuerCardType ?? 'personal',

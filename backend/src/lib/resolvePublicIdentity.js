@@ -34,19 +34,19 @@ function pickFirstNonGeneric(...candidates) {
 
 /**
  * @param {import('mongodb').Db} db
- * @param {string} ownerUid
- * @param {string} cardId
+ * @param {string} uid
+ * @param {string} cardKey public sid or bId
  * @returns {Promise<{ fullName: string; cardTitle: string }>}
  */
-async function resolvePublicIdentity(db, ownerUid, cardId) {
-  const ou = String(ownerUid || '').trim();
-  const cid = String(cardId || '').trim();
+async function resolvePublicIdentity(db, uid, cardKey) {
+  const ou = String(uid || '').trim();
+  const cid = String(cardKey || '').trim();
   if (!ou || !cid) {
     return { fullName: RESPECT_FALLBACK_NAME, cardTitle: 'Card-Social' };
   }
 
   const card = await db.collection('smart_cards').findOne(
-    { ownerUid: ou, cardId: cid },
+    { uid: ou, $or: [{ sid: cid }, { bId: cid }] },
     { projection: { ownerDisplayName: 1, scName: 1 } },
   );
 

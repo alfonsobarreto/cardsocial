@@ -13,9 +13,11 @@ type Props = {
   theme: CardTheme;
   expiresAt: string;
   locale: 'es' | 'en';
+  /** Token del enlace universal (`/u/{token}`), para deep link en la copia. */
+  universalToken: string;
 };
 
-export default function CardPreview({ card, theme, expiresAt, locale }: Props) {
+export default function CardPreview({ card, theme, expiresAt, locale, universalToken }: Props) {
   const tr = (es: string, en: string) => (locale === 'es' ? es : en);
   const bd = theme.border;
 
@@ -34,7 +36,7 @@ export default function CardPreview({ card, theme, expiresAt, locale }: Props) {
   const pad = (n: number) => (n < 10 ? `0${n}` : String(n));
   const cdStr = `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
 
-  const deepLink = `cardsocial://u/${card.cardId}`;
+  const deepLink = `cardsocial://u/${universalToken}`;
   const storeUrl = 'https://cardsocial.me';
 
   return (

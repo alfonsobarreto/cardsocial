@@ -2,7 +2,7 @@
 const { Schema, model } = require('mongoose');
 
 const reviewSchema = new Schema({
-  cardId: { type: String, required: true, index: true },
+  bId: { type: String, required: true, index: true },
   userId: { type: String, required: true, index: true },
   stars: { type: Number, min: 1, max: 5, required: true },
   comment: { type: String, default: '' },
@@ -10,6 +10,6 @@ const reviewSchema = new Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 
-reviewSchema.index({ cardId: 1, userId: 1 }, { unique: true });
+reviewSchema.index({ bId: 1, userId: 1 }, { unique: true });
 
 module.exports = model('Review', reviewSchema);

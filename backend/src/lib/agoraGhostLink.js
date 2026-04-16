@@ -16,7 +16,7 @@ function uidFromString(s) {
 }
 
 /**
- * @param {{ ownerUid: string; targetUid: string; channelName: string; ttlSeconds: number }} params
+ * @param {{ callerUid: string; targetUid: string; channelName: string; ttlSeconds: number }} params
  * @returns {null | { appId: string; channelName: string; callerUid: number; calleeUid: number; callerToken: string; calleeToken: string }}
  */
 function buildGhostLinkAgoraInvite(params) {
@@ -31,9 +31,9 @@ function buildGhostLinkAgoraInvite(params) {
     return null;
   }
 
-  const callerUid = uidFromString(`c:${params.ownerUid}`);
+  const callerRtcUid = uidFromString(`c:${params.callerUid}`);
   let calleeUid = uidFromString(`t:${params.targetUid}`);
-  if (calleeUid === callerUid) {
+  if (calleeUid === callerRtcUid) {
     calleeUid = (calleeUid + 1) >>> 0;
     if (calleeUid < 1) calleeUid = 2;
   }
@@ -41,13 +41,13 @@ function buildGhostLinkAgoraInvite(params) {
   const ttl = Math.max(60, Number(params.ttlSeconds || 45) + 300);
   const role = RtcRole.PUBLISHER;
 
-  const callerToken = RtcTokenBuilder.buildTokenWithUid(appId, cert, channelName, callerUid, role, ttl, ttl);
+  const callerToken = RtcTokenBuilder.buildTokenWithUid(appId, cert, channelName, callerRtcUid, role, ttl, ttl);
   const calleeToken = RtcTokenBuilder.buildTokenWithUid(appId, cert, channelName, calleeUid, role, ttl, ttl);
 
   return {
     appId,
     channelName,
-    callerUid,
+    callerUid: callerRtcUid,
     calleeUid,
     callerToken,
     calleeToken,

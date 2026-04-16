@@ -4,14 +4,13 @@ export const PENDING_BUNKER_SCAN_KEY = 'bunker_pending_scan_v1';
 
 export type PendingBunkerScan =
   | { kind: 'universal'; token: string; savedAt: string }
-  | { kind: 'dynamic_qr'; token: string; cardId: string; savedAt: string }
-  | { kind: 'business_permanent'; ownerUid: string; cardId: string; savedAt: string };
+  | { kind: 'dynamic_qr'; token: string; savedAt: string }
+  | { kind: 'business_permanent'; uid: string; bId: string; savedAt: string };
 
-/** Avoid `Omit<Union, K>` — `keyof` on unions is an intersection and drops `cardId`. */
 export type PendingBunkerScanPayload =
   | { kind: 'universal'; token: string }
-  | { kind: 'dynamic_qr'; token: string; cardId: string }
-  | { kind: 'business_permanent'; ownerUid: string; cardId: string };
+  | { kind: 'dynamic_qr'; token: string }
+  | { kind: 'business_permanent'; uid: string; bId: string };
 
 export async function savePendingBunkerScan(payload: PendingBunkerScanPayload): Promise<void> {
   const row: PendingBunkerScan = {
@@ -31,17 +30,13 @@ export async function loadPendingBunkerScan(): Promise<PendingBunkerScan | null>
     if (parsed?.kind === 'universal' && String((parsed as any).token || '').trim()) {
       return parsed;
     }
-    if (
-      parsed?.kind === 'dynamic_qr' &&
-      String((parsed as any).token || '').trim() &&
-      String((parsed as any).cardId || '').trim()
-    ) {
+    if (parsed?.kind === 'dynamic_qr' && String((parsed as any).token || '').trim()) {
       return parsed;
     }
     if (
       parsed?.kind === 'business_permanent' &&
-      String((parsed as any).ownerUid || '').trim() &&
-      String((parsed as any).cardId || '').trim()
+      String((parsed as any).uid || '').trim() &&
+      String((parsed as any).bId || '').trim()
     ) {
       return parsed;
     }

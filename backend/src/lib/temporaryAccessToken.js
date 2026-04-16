@@ -7,7 +7,7 @@
  * @param {string} token
  * @returns {Promise<
  *   | { ok: false; reason: 'bad_token' | 'missing' | 'expired' | 'invalid_payload' }
- *   | { ok: true; ownerUid: string; cardId: string; expiresAt: Date }
+ *   | { ok: true; uid: string; sid: string | null; bId: string | null; expiresAt: Date }
  * >}
  */
 async function parseAndValidateTemporaryAccess(db, token) {
@@ -19,7 +19,7 @@ async function parseAndValidateTemporaryAccess(db, token) {
   const now = new Date();
   const accessDoc = await db.collection('temporary_access').findOne(
     { token: trimmed },
-    { projection: { cardId: 1, ownerUid: 1, expiresAt: 1 } },
+    { projection: { sid: 1, bId: 1, uid: 1, expiresAt: 1 } },
   );
 
   if (!accessDoc) {
@@ -31,9 +31,10 @@ async function parseAndValidateTemporaryAccess(db, token) {
     return { ok: false, reason: 'expired' };
   }
 
-  const ownerUid = String(accessDoc.ownerUid || '').trim();
-  const cardId = String(accessDoc.cardId || '').trim();
-  if (!ownerUid || !cardId) {
+  const uid = String(accessDoc.uid || '').trim();
+  const sid = accessDoc.sid != null && String(accessDoc.sid).trim() ? String(accessDoc.sid).trim() : null;
+  const bId = accessDoc.bId != null && String(accessDoc.bId).trim() ? String(accessDoc.bId).trim() : null;
+  if (!uid || (!sid && !bId)) {
     return { ok: false, reason: 'invalid_payload' };
   }
 
@@ -42,16 +43,18 @@ async function parseAndValidateTemporaryAccess(db, token) {
    * la primera visita con un token válido elimina las demás; el otro enlace deja de funcionar en la siguiente petición.
    */
   try {
+    const cardFilter =
+      sid && bId ? { sid, bId } : sid ? { sid, bId: null } : { sid: null, bId };
     await db.collection('temporary_access').deleteMany({
-      ownerUid,
-      cardId,
+      uid,
+      ...cardFilter,
       token: { $ne: trimmed },
     });
   } catch (e) {
     console.warn('[temporary_access] dedupe by card failed:', e?.message || e);
   }
 
-  return { ok: true, ownerUid, cardId, expiresAt };
+  return { ok: true, uid, sid, bId, expiresAt };
 }
 
 module.exports = {

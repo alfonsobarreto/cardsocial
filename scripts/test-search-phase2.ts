@@ -43,18 +43,18 @@ function stubCard(p: Partial<BusinessCard> & Pick<BusinessCard, 'bId' | 'uid' | 
 }
 
 function run() {
-  // --- Fase 1 integración en filas Search (cardId + mute) ---
+  // --- Fase 1 integración en filas Search (sid/bId + mute) ---
   const lookup = buildStoryLookupFromReceivedContacts([
-    { uid: 'u1', cardId: 'c1', storyState: 'vip', channelMuted: false },
-    { uid: 'u2', cardId: 'c2', storyState: 'normal', channelMuted: true },
+    { uid: 'u1', sid: 'c1', bId: null, storyState: 'vip', channelMuted: false },
+    { uid: 'u2', sid: 'c2', bId: null, storyState: 'normal', channelMuted: true },
   ]);
 
   assert.equal(
-    resolveSearchRowStoryState({ uid: 'u1', cardId: 'c1', channelMuted: false }, lookup),
+    resolveSearchRowStoryState({ uid: 'u1', sid: 'c1', bId: null, channelMuted: false }, lookup),
     'vip',
   );
   assert.equal(
-    resolveSearchRowStoryState({ uid: 'u2', cardId: 'c2', channelMuted: true }, lookup),
+    resolveSearchRowStoryState({ uid: 'u2', sid: 'c2', bId: null, channelMuted: true }, lookup),
     'none',
     'canal silenciado → sin anillo',
   );

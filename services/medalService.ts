@@ -3,8 +3,8 @@
  * Sistema de medallas/kudos para tarjetas sociales y de negocio.
  *
  * Firestore structure:
- *   medals/{cardId}                    → { counts: { [medalKey]: number } }
- *   medals/{cardId}/votes/{userId}     → { medal: string, votedAt: Timestamp }
+ *   medals/{sidOrBId}                    → { counts: { [medalKey]: number } }
+ *   medals/{sidOrBId}/votes/{userId}     → { medal: string, votedAt: Timestamp }
  *
  * Reglas de voto:
  *   - Tap misma medalla  → quita el voto (toggle off)
@@ -81,13 +81,13 @@ function sumCounts(counts: MedalCounts): number {
  * Lee el voto actual del usuario + conteos de medallas de una tarjeta.
  */
 export async function getMedalData(
-  cardId: string,
+  sidOrBId: string,
   userId: string,
 ): Promise<MedalData> {
-  if (!cardId || !userId) return { myVote: null, counts: {}, totalVotes: 0 };
+  if (!sidOrBId || !userId) return { myVote: null, counts: {}, totalVotes: 0 };
 
-  const countsRef = doc(db, 'medals', cardId);
-  const voteRef   = doc(db, 'medals', cardId, 'votes', userId);
+  const countsRef = doc(db, 'medals', sidOrBId);
+  const voteRef   = doc(db, 'medals', sidOrBId, 'votes', userId);
 
   const [countsSnap, voteSnap] = await Promise.all([
     getDoc(countsRef),
@@ -109,14 +109,14 @@ export async function getMedalData(
  * Retorna el estado resultante.
  */
 export async function submitMedalVote(
-  cardId: string,
+  sidOrBId: string,
   userId: string,
   medal: MedalKey,
 ): Promise<MedalData> {
-  if (!cardId || !userId) throw new Error('cardId y userId son requeridos');
+  if (!sidOrBId || !userId) throw new Error('sidOrBId y userId son requeridos');
 
-  const countsRef = doc(db, 'medals', cardId);
-  const voteRef   = doc(db, 'medals', cardId, 'votes', userId);
+  const countsRef = doc(db, 'medals', sidOrBId);
+  const voteRef   = doc(db, 'medals', sidOrBId, 'votes', userId);
 
   let resultMyVote: MedalKey | null = null;
   let resultCounts: MedalCounts = {};

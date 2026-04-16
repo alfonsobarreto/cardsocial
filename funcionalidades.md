@@ -26,7 +26,7 @@ Este documento resume el núcleo funcional actual para mantener alineado el comp
 | Pieza | Comportamiento |
 |--------|----------------|
 | **URL del QR** | Base **`https://cardsocial.me`**, ruta **`/u/{token}`**, query recomendada **`source=qr_scan`** (analytics). Se genera vía backend `POST /api/qr/temporary-access/issue` (`issueTemporaryUniversalAccess` en `services/qrApi.ts`). |
-| **Mongo** | Colección **`temporary_access`**: token opaco, `cardId`, `ownerUid`, `expiresAt` (+24h), índice TTL. |
+| **Mongo** | Colección **`temporary_access`**: token opaco, `sid` / `bId`, `uid`, `expiresAt` (+24h), índice TTL. |
 | **Validación en API** | `GET /u/:token` en Express valida el token antes de redirigir a la SPA; expirado → página HTML negra OLED con mensaje acordado. |
 | **JSON para Expo Web** | `GET /api/public/universal-card?token=…` — sin JWT; solo datos públicos; **slots** desde **`publicCardSlots`** en `smart_cards` (el vault completo del dispositivo no se expone; ítems privados se excluyen al sincronizar `publicCardSlots` en el PUT de tarjeta). |
 | **Deep links** | Universal Links / App Links: archivos en **`public/.well-known/`** (build web); `app.json` con `associatedDomains` e `intentFilters` para `https://cardsocial.me/u`. |
@@ -75,6 +75,6 @@ Este documento resume el núcleo funcional actual para mantener alineado el comp
 ## 7) Stories (resumen para no duplicar contexto)
 - Pantalla: `app/(tabs)/stories.tsx`, estilos `app/(tabs)/_stories.styles.ts` (prefijo `_` para que Expo Router no lo trate como ruta), tokens `stories*` en `app/theme.ts`.
 - API cliente: `getMyStoryState`, `setMyStoryState`, `listReceivedContacts`, `getStoriesHouseAd` en `services/qrApi.ts`.
-- Flujo creación: primero **tarjeta emisora** (carrusel), luego **mirror del Bunker filtrado** solo a `itemIds` de esa tarjeta; `setMyStoryState` siempre con `cardId`. En feed, `listReceivedContacts` devuelve `storyState` por canal **ownerUid + cardId** del permiso recibido (sin mezclar historia global si ya hay tarjeta).
+- Flujo creación: primero **tarjeta emisora** (carrusel), luego **mirror del Bunker filtrado** solo a `itemIds` de esa tarjeta; `setMyStoryState` siempre con `sid` / `bId`. En feed, `listReceivedContacts` devuelve `storyState` por canal **uid + sid/bId** del permiso recibido (sin mezclar historia global si ya hay tarjeta).
 - Estados de anillo: `none` | `normal` (24h) | `vip` (7d/30d + créditos en flujo publicación). Contactos reutilizan `storyState` en avatar (`app/(tabs)/contacts.tsx`).
 - Servicio **no cableado a la UI del tab**: `services/storiesFeedInjectionService.ts` (inyección de historias de negocio por distancia) — diseño futuro / market.

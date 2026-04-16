@@ -68,15 +68,15 @@ service cloud.firestore {
 
     // Business cards can be queried by authenticated users for Social Market.
     // Only owner or super admin can write.
-    match /businessCards/{cardId} {
+    match /businessCards/{bId} {
       allow read: if isSignedIn();
 
       allow create: if isSignedIn()
-        && request.resource.data.ownerUid == request.auth.uid;
+        && request.resource.data.uid == request.auth.uid;
 
       allow update, delete: if isSignedIn()
         && (
-          resource.data.ownerUid == request.auth.uid
+          resource.data.uid == request.auth.uid
           || isSuperAdmin()
         );
     }
@@ -119,12 +119,12 @@ service cloud.firestore {
     }
 
     // Medal system: counts readable by all signed-in users; votes owner-only.
-    match /medals/{cardId} {
+    match /medals/{medalDocId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn();
     }
 
-    match /medals/{cardId}/votes/{userId} {
+    match /medals/{medalDocId}/votes/{userId} {
       allow read: if isSignedIn();
       allow create, update, delete: if isOwner(userId);
     }

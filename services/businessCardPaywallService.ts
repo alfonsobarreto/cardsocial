@@ -49,7 +49,7 @@ export interface BusinessCardPurchaseState {
   isPremiumUser: boolean;
   hasActiveSubscription: boolean;
   expirationDate?: Date;
-  cardId?: string;
+  bId?: string;
   purchaseId?: string;
 }
 
@@ -167,7 +167,7 @@ export async function getBusinessCardPurchaseState(
   // Aquí consultarías Firestore para verificar:
   // - Si el usuario tiene una suscripción activa a Business Card
   // - Fecha de expiración
-  // - cardId asociado
+  // - bId asociado
   
   try {
     // PLACEHOLDER: En producción, consultarías Firestore
@@ -179,7 +179,7 @@ export async function getBusinessCardPurchaseState(
       isPremiumUser,
       hasActiveSubscription: false,
       expirationDate: undefined,
-      cardId: undefined,
+      bId: undefined,
       purchaseId: undefined,
     };
   } catch (error) {
@@ -196,7 +196,7 @@ export async function getBusinessCardPurchaseState(
  * Prepara los datos de checkout con el precio calculado
  */
 export function prepareCheckoutData(
-  cardId: string,
+  bId: string,
   isPremiumUser: boolean,
   platform: 'ios' | 'android'
 ): {
@@ -212,7 +212,7 @@ export function prepareCheckoutData(
   const pricing = calculatePriceWithPremiumDiscount(pkg.priceUsd, isPremiumUser);
 
   const checkoutMetadata = {
-    cardId,
+    bId,
     packageType: 'business_card_annual',
     premiumDiscount: isPremiumUser,
     normalPrice: pkg.priceUsd,
@@ -237,7 +237,7 @@ export function prepareCheckoutData(
 export async function purchaseBusinessCard(
   platform: 'ios' | 'android',
   isPremiumUser: boolean,
-  cardId: string,
+  bId: string,
   userId?: string // Para aplicar Welcome Bonus en primer pago
 ): Promise<{
   success: boolean;
@@ -263,7 +263,7 @@ export async function purchaseBusinessCard(
 
     console.log(`Compra iniciada: ${productId}`);
     console.log(`Precio validado por RevenueCat: $${pricing.finalPrice.toFixed(2)}`);
-    console.log(`   🎫 Card ID: ${cardId}`);
+    console.log(`   🎫 bId: ${bId}`);
     if (validatedPremium !== isPremiumUser) {
       console.log(`Premium local desfasado. Local=${isPremiumUser} RevenueCat=${validatedPremium}`);
     }
@@ -277,7 +277,7 @@ export async function purchaseBusinessCard(
         await addCredits(userId, cashbackCredits, 'business_card_annual_cashback');
         await activateOrRenewBusinessLicense({
           uid: userId,
-          bId: cardId,
+          bId,
           purchaseId,
           platform,
           annualPriceUsd: pricing.finalPrice,

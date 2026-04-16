@@ -19,7 +19,8 @@ import type { PublicCardSlotPayload } from '@/services/qrApi';
 /** Tarjetas recibidas/aceptadas (misma fuente que pestaña Contactos), con meta local opcional. */
 export type ReceivedContactForMarketSearch = {
   uid: string;
-  cardId: string | null;
+  sid: string | null;
+  bId: string | null;
   userFullName: string;
   userNickName: string;
   userAvatarUrl: string | null;
@@ -104,9 +105,13 @@ export function issuerPresentationFromRow(row: ReceivedContactForMarketSearch): 
 export function createReceivedContactBusinessCard(row: ReceivedContactForMarketSearch): BusinessCard {
   const now = new Date();
   const title = String(row.userFullName || row.cardName || '').trim() || '—';
-  const cid = row.cardId != null && String(row.cardId).trim() ? String(row.cardId).trim() : 'legacy';
+  const link = row.sid != null && String(row.sid).trim()
+    ? String(row.sid).trim()
+    : row.bId != null && String(row.bId).trim()
+      ? String(row.bId).trim()
+      : 'legacy';
   return {
-    bId: `received-contact:${row.uid}:${cid}`,
+    bId: `received-contact:${row.uid}:${link}`,
     uid: row.uid,
     type: 'business',
     bcName: title,
@@ -185,7 +190,8 @@ function searchReceivedContactsForMarket(
     collectStringsReceivedContact(
       {
         uid: row.uid,
-        cardId: row.cardId,
+        sid: row.sid,
+        bId: row.bId,
         userFullName: row.userFullName,
         userNickName: row.userNickName,
         cardName: row.cardName,
@@ -206,8 +212,8 @@ function searchReceivedContactsForMarket(
     receivedContactCardName: row.cardName,
     issuerPresentation: issuerPresentationFromRow(row),
     receivedHoldersCount: Number(row.holdersCount ?? 0) || 0,
-    receivedSourceSid: row.cardId ?? null,
-    receivedSourceBId: null,
+    receivedSourceSid: row.sid ?? null,
+    receivedSourceBId: row.bId ?? null,
     receivedChannelMuted: Boolean(row.channelMuted),
     receivedPublicCardSlots: Array.isArray(row.publicCardSlots) ? row.publicCardSlots : [],
     receivedOwnerOccupation: row.ownerOccupation ?? null,

@@ -14,6 +14,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
 import { collection, doc, getDocs, limit, query, runTransaction, serverTimestamp, where } from 'firebase/firestore';
@@ -100,6 +101,7 @@ export default function RegisterScreen() {
   const [stateRegion, setStateRegion] = useState('');
   const [country, setCountry] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [photoUri, setPhotoUri] = useState('');
   const [cropperVisible, setCropperVisible] = useState(false);
   const [rawPhotoUri, setRawPhotoUri] = useState('');
@@ -575,7 +577,7 @@ export default function RegisterScreen() {
   const uploadWithSafety = async (
     fileUri: string,
     label: string,
-    ownerUid: string,
+    uid: string,
     fileName: string,
     mimeType: string
   ) => {
@@ -596,7 +598,7 @@ export default function RegisterScreen() {
     try {
       result = await uploadFileWithModeration({
         fileUri: activeUri,
-        ownerUid,
+        uid,
         label,
         fileName,
         mimeType,
@@ -867,8 +869,8 @@ export default function RegisterScreen() {
 
         const validateKeyOwner = (keyDoc: any, fieldLabel: 'nickname' | 'email' | 'telefono') => {
           if (!keyDoc.exists()) return;
-          const ownerUid = keyDoc.data()?.uid;
-          if (ownerUid && ownerUid !== uid) {
+          const keyHolderUid = keyDoc.data()?.uid;
+          if (keyHolderUid && keyHolderUid !== uid) {
             if (fieldLabel === 'nickname') {
               throw new Error(tr('El nickname ya esta en uso.', 'This nickname is already in use.'));
             }
@@ -931,7 +933,8 @@ export default function RegisterScreen() {
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           },
-          { merge: false }
+          // `firestoreUserAvatarUrlWrite` usa `deleteField()` para claves legacy; Firestore exige merge:true en ese caso.
+          { merge: true }
         );
 
         tx.set(nicknameKeyRef, { uid, type: 'nickname', value: nicknameLower, updatedAt: serverTimestamp() }, { merge: true });
@@ -1223,17 +1226,36 @@ export default function RegisterScreen() {
           {!socialProviderId ? (
             <>
               <Text style={styles.label}>{tr('Contrasena', 'Password')}</Text>
-              <TextInput
-                style={styles.input}
-                placeholder={tr('Minimo 8 caracteres', 'Minimum 8 characters')}
-                placeholderTextColor="#8E8E93"
-                secureTextEntry
-                autoComplete="off"
-                textContentType="none"
-                importantForAutofill="no"
-                value={password}
-                onChangeText={setPassword}
-              />
+              <View style={styles.passwordRow}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder={tr('Minimo 8 caracteres', 'Minimum 8 characters')}
+                  placeholderTextColor="#8E8E93"
+                  secureTextEntry={!passwordVisible}
+                  autoComplete="off"
+                  textContentType="none"
+                  importantForAutofill="no"
+                  value={password}
+                  onChangeText={setPassword}
+                />
+                <TouchableOpacity
+                  style={styles.passwordToggle}
+                  onPress={() => setPasswordVisible((v) => !v)}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    passwordVisible
+                      ? tr('Ocultar contrasena', 'Hide password')
+                      : tr('Mostrar contrasena', 'Show password')
+                  }
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                >
+                  <MaterialCommunityIcons
+                    name={passwordVisible ? 'eye-off-outline' : 'eye-outline'}
+                    size={24}
+                    color="#0A2540"
+                  />
+                </TouchableOpacity>
+              </View>
             </>
           ) : null}
 
@@ -1549,6 +1571,28 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     color: '#0A2540',
     fontSize: 16,
+  },
+  passwordRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    marginBottom: 20,
+    paddingRight: 6,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingVertical: 18,
+    paddingLeft: 18,
+    paddingRight: 8,
+    color: '#0A2540',
+    fontSize: 16,
+  },
+  passwordToggle: {
+    padding: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   dateInputRow: {
     width: '100%',

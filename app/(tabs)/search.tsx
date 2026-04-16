@@ -180,14 +180,14 @@ export default function SearchScreen() {
   const [receptorLoading, setReceptorLoading] = useState(false);
 
   const openReceptorModal = async (item: BusinessCardSearchResult) => {
-    const cardId = String(item.receivedSourceBId ?? item.receivedSourceSid ?? '').trim();
+    const cardRef = String(item.receivedSourceBId ?? item.receivedSourceSid ?? '').trim();
     const uid = String(item.card?.uid ?? '').trim();
-    if (!uid || !cardId) return;
+    if (!uid || !cardRef) return;
     setReceptorItem(item);
     setReceptorModalVisible(true);
     setReceptorLoading(true);
     try {
-      const r = await listCardSubscribers({ ownerUid: uid, cardId });
+      const r = await listCardSubscribers({ uid, cardRef });
       setReceptorSubscribers(r.subscribers);
     } catch {
       setReceptorSubscribers([]);
@@ -218,7 +218,8 @@ export default function SearchScreen() {
       buildStoryLookupFromReceivedContacts(
         receivedContactsLookupRows.map((r) => ({
           uid: r.uid,
-          cardId: r.cardId,
+          sid: r.sid,
+          bId: r.bId,
           channelMuted: r.channelMuted,
           storyState: r.storyState ?? 'none',
         }))
@@ -431,8 +432,8 @@ export default function SearchScreen() {
   const loadReceivedContactsForMarket = useCallback(async (): Promise<ReceivedContactForMarketSearch[]> => {
     const empty: ReceivedContactForMarketSearch[] = [];
     try {
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) {
+      const viewerUid = await getActiveUserId();
+      if (!viewerUid) {
         setReceivedContactsForMarket(empty);
         return empty;
       }
@@ -445,12 +446,13 @@ export default function SearchScreen() {
       } catch {
         meta = {};
       }
-      const { contacts } = await listReceivedContacts({ ownerUid });
+      const { contacts } = await listReceivedContacts({ uid: viewerUid });
       const merged: ReceivedContactForMarketSearch[] = contacts.map((c) => {
-        const mk = receivedContactMergeKey({ uid: c.uid, cardId: c.cardId });
+        const mk = receivedContactMergeKey({ uid: c.uid, sid: c.sid, bId: c.bId });
         return {
         uid: c.uid,
-        cardId: c.cardId,
+        sid: c.sid,
+        bId: c.bId,
         userFullName: c.userFullName,
         userNickName: c.userNickName,
         cardName: c.cardName,
@@ -742,7 +744,8 @@ export default function SearchScreen() {
       const ringState = resolveSearchRowStoryState(
         {
           uid: item.card.uid,
-          cardId: item.receivedSourceBId ?? item.receivedSourceSid ?? null,
+          sid: item.receivedSourceSid ?? null,
+          bId: item.receivedSourceBId ?? null,
           channelMuted: item.receivedChannelMuted,
         },
         storyLookupMaps
@@ -752,8 +755,8 @@ export default function SearchScreen() {
         if (ringState === 'none') {
           return;
         }
-        const sourceCardId = String(item.receivedSourceBId ?? item.receivedSourceSid ?? '').trim();
-        if (!sourceCardId) {
+        const sidOrBId = String(item.receivedSourceBId ?? item.receivedSourceSid ?? '').trim();
+        if (!sidOrBId) {
           Alert.alert(
             tr('Historia no disponible', 'Story unavailable'),
             tr('Falta la tarjeta de origen para abrir esta historia.', 'Missing source card to open this story.'),
@@ -763,7 +766,7 @@ export default function SearchScreen() {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         router.push({
           pathname: '/(tabs)/stories',
-          params: { openStory: storyChannelKey(item.card.uid, sourceCardId) },
+          params: { openStory: storyChannelKey(item.card.uid, sidOrBId) },
         });
       };
 
@@ -925,7 +928,8 @@ export default function SearchScreen() {
                           value: f.value,
                           issuerUid: item.card.uid,
                           issuerCardName: cardTitle,
-                          issuerCardId: item.receivedSourceBId ?? item.receivedSourceSid ?? null,
+                          issuerSid: item.receivedSourceSid ?? null,
+                          issuerBId: item.receivedSourceBId ?? null,
                           issuerDisplayName: item.card.bcName,
                           issuerCardPhoto: item.card.bcLogoUrl ?? null,
                           issuerCardType: 'business',
@@ -1010,8 +1014,8 @@ export default function SearchScreen() {
         savedSearchScrollYRef.current = searchScrollYRef.current;
         try {
           const res = await fetchPublicBusinessCardPreview({
-            ownerUid: card.uid,
-            cardId: card.bId,
+            uid: card.uid,
+            bId: card.bId,
             locale: language === 'es' ? 'es' : 'en',
           });
           if (!res.ok) {
@@ -1054,7 +1058,8 @@ export default function SearchScreen() {
         value: phone,
         issuerUid: card.uid,
         issuerCardName: card.bcName,
-        issuerCardId: card.bId,
+        issuerSid: null,
+        issuerBId: card.bId,
         issuerDisplayName: card.bcName,
         issuerCardPhoto: card.bcLogoUrl ?? null,
         issuerCardType: 'business',
@@ -1074,8 +1079,10 @@ export default function SearchScreen() {
         value: digits ? `https://wa.me/${digits}` : phone,
         issuerUid: card.uid,
         issuerCardName: card.bcName,
-        issuerCardId: card.bId,
+        issuerSid: null,
+        issuerBId: card.bId,
         issuerDisplayName: card.bcName,
+        issuerCardType: 'business',
       });
     };
 
@@ -1210,7 +1217,8 @@ export default function SearchScreen() {
                         value: f.value,
                         issuerUid: card.uid,
                         issuerCardName: card.bcName,
-                        issuerCardId: card.bId,
+                        issuerSid: null,
+                        issuerBId: card.bId,
                         issuerDisplayName: card.bcName,
                         issuerCardPhoto: card.bcLogoUrl ?? null,
                         issuerCardType: 'business',
@@ -1317,7 +1325,8 @@ export default function SearchScreen() {
         variant="receiver"
         payload={searchReceivedPayload}
         ghostTargetUid={receivedCardDetail?.card?.uid}
-        sourceCardId={receivedCardDetail?.receivedSourceBId ?? receivedCardDetail?.receivedSourceSid ?? null}
+        sourceSid={receivedCardDetail?.receivedSourceSid ?? null}
+        sourceBId={receivedCardDetail?.receivedSourceBId ?? null}
         sourceCardName={
           String(receivedCardDetail?.receivedContactCardName || '').trim() ||
           receivedCardDetail?.card?.bcName ||
@@ -1339,7 +1348,8 @@ export default function SearchScreen() {
         variant="incoming"
         payload={marketPremiumPayload}
         ghostTargetUid={marketCardDetail?.card.uid ?? null}
-        sourceCardId={marketCardDetail?.card.bId ?? null}
+        sourceSid={null}
+        sourceBId={marketCardDetail?.card.bId ?? null}
         sourceCardName={marketCardDetail?.card.bcName}
         peerDisplayName={
           String(marketCardDetail?.card.bcName || '').trim() ||
@@ -1349,8 +1359,9 @@ export default function SearchScreen() {
         incomingRedeem={marketCardDetail ? {
           mode: 'business_permanent',
           token: '',
-          ownerUid: marketCardDetail.card.uid ?? '',
-          cardId: marketCardDetail.card.bId ?? '',
+          issuerUid: marketCardDetail.card.uid ?? '',
+          sid: null,
+          bId: marketCardDetail.card.bId ?? null,
           receiverUid: viewerUid ?? '',
           onSuccess: closeMarketCardDetail,
         } : null}
@@ -1449,9 +1460,9 @@ export default function SearchScreen() {
               style: 'destructive',
               onPress: async () => {
                 try {
-                  const ownerUid = await getActiveUserId();
-                  if (!ownerUid) return;
-                  await blockRelationship({ ownerUid, targetUid });
+                  const viewerUid = await getActiveUserId();
+                  if (!viewerUid) return;
+                  await blockRelationship({ uid: viewerUid, targetUid });
                   setReceptorSubscribers((prev) => prev.filter((r) => r.uid !== targetUid));
                 } catch (e: any) {
                   Alert.alert(tr('Error', 'Error'), e?.message || tr('No se pudo bloquear.', 'Could not block.'));

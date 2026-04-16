@@ -116,12 +116,12 @@ export function adaptBusinessCardSearchResultToMyCardsPayload(
 
 export function businessFirestoreDocToMyCardsPayload(
   raw: Record<string, unknown>,
-  cardId: string,
+  fallbackBId: string,
   tr: (es: string, en: string) => string,
 ): MyCardsPayload {
   const idn = readBusinessCardIdentityFields(raw);
   const card = {
-    bId: String(raw.bId || cardId),
+    bId: String(raw.bId || fallbackBId),
     uid: String(raw.uid ?? ''),
     type: 'business' as const,
     bcName: idn.bcName,

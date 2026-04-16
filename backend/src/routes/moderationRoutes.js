@@ -97,7 +97,7 @@ function createModerationRoutes({ azureSafety, storage, limits, middlewares = []
         });
       }
 
-      const ownerUid = String(req.body?.uid || req.body?.ownerUid || "").trim();
+      const uid = String(req.body?.uid || "").trim();
       const label = String(req.body?.label || "").trim();
       const resolvedMime = normalizeVaultMimeType(file.mimetype, file.originalname);
 
@@ -107,7 +107,7 @@ function createModerationRoutes({ azureSafety, storage, limits, middlewares = []
       }
       console.log("[POST /api/upload] recibido", {
         label,
-        ownerUid: ownerUid ? `${ownerUid.slice(0, 6)}…` : "(vacío)",
+        uid: uid ? `${uid.slice(0, 6)}…` : "(vacío)",
         bytes: file.size,
         mime: resolvedMime,
         mimeRaw: file.mimetype,
@@ -124,7 +124,7 @@ function createModerationRoutes({ azureSafety, storage, limits, middlewares = []
 
       await storage.saveModerationAudit({
         type: "file",
-        ownerUid,
+        uid,
         fileName: file.originalname,
         mimeType: resolvedMime,
         size: file.size,
@@ -144,7 +144,7 @@ function createModerationRoutes({ azureSafety, storage, limits, middlewares = []
         fileBuffer: file.buffer,
         filename: file.originalname,
         mimeType: resolvedMime,
-        ownerUid,
+        uid,
         label,
       });
 
@@ -153,7 +153,7 @@ function createModerationRoutes({ azureSafety, storage, limits, middlewares = []
 
       await storage.saveModerationAudit({
         type: "file_stored",
-        ownerUid,
+        uid,
         fileName: file.originalname,
         mimeType: resolvedMime,
         size: file.size,

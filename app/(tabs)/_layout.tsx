@@ -282,13 +282,13 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const loadBlockedUsers = async () => {
     try {
       setLoadingBlocked(true);
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) {
+      const uid = await getActiveUserId();
+      if (!uid) {
         setBlockedUsers([]);
         return;
       }
 
-      const response = await listBlockedRelations({ ownerUid });
+      const response = await listBlockedRelations({ uid });
       setBlockedUsers(
         response.blockedUsers.map((row) => ({
           uid: row.uid,
@@ -307,9 +307,9 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const loadRelEntries = async (tab: RelTab = relTab) => {
     try {
       setLoadingRel(true);
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) { setRelEntries([]); return; }
-      const entries = await listRelationshipsByStatus(ownerUid, tab as RelationshipStatus);
+      const uid = await getActiveUserId();
+      if (!uid) { setRelEntries([]); return; }
+      const entries = await listRelationshipsByStatus(uid, tab as RelationshipStatus);
       setRelEntries(entries);
     } catch {
       setRelEntries([]);
@@ -332,9 +332,9 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
           style: 'destructive',
           onPress: async () => {
             try {
-              const ownerUid = await getActiveUserId();
-              if (!ownerUid) return;
-              await removeRelEntry(ownerUid, entry.uid, entry.status);
+              const actorUid = await getActiveUserId();
+              if (!actorUid) return;
+              await removeRelEntry(actorUid, entry.uid, entry.status);
               setRelEntries((prev) => prev.filter((e) => e.uid !== entry.uid));
             } catch (err: any) {
               Alert.alert('Error', err?.message || tr('No se pudo restaurar.', 'Could not restore.'));
@@ -348,13 +348,13 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const loadProfile = async () => {
     try {
       setProfileLoading(true);
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) {
+      const uid = await getActiveUserId();
+      if (!uid) {
         setProfileData(null);
         return;
       }
 
-      const userDocRef = doc(db, 'users', ownerUid);
+      const userDocRef = doc(db, 'users', uid);
       const userSnap = await getDoc(userDocRef);
       if (!userSnap.exists()) {
         setProfileData(null);
@@ -378,7 +378,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
             : null;
 
       const nextProfile: EditableProfile = {
-        uid: ownerUid,
+        uid,
         userFullName,
         firstName,
         lastName,
@@ -532,12 +532,12 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
 
   const handleUnblock = async (targetUid: string) => {
     try {
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) {
+      const uid = await getActiveUserId();
+      if (!uid) {
         throw new Error(tr('No se pudo validar tu sesión.', 'Could not validate your session.'));
       }
 
-      await unblockRelationship({ ownerUid, targetUid });
+      await unblockRelationship({ uid, targetUid });
       setBlockedUsers((prev) => prev.filter((row) => row.uid !== targetUid));
     } catch (error: any) {
       Alert.alert(tr('No se pudo desbloquear', 'Could not unblock'), error?.message || tr('Inténtalo de nuevo.', 'Try again.'));

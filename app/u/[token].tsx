@@ -94,8 +94,9 @@ export default function UniversalTokenScreen() {
         visible={modalVisible && Boolean(receiverUid)}
         mode="universal"
         token={String(token || '').trim()}
-        ownerUid={card.ownerUid}
-        cardId={card.cardId}
+        issuerUid={card.uid}
+        sid={card.sid}
+        bId={card.bId}
         issuerFullName={card.ownerDisplayName || ''}
         receiverUid={receiverUid || ''}
         previewPayload={previewPayload}

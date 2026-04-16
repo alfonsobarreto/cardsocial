@@ -199,7 +199,7 @@ export async function uploadWallpaperAsAdmin(params: {
     formData.append('rarity', params.tier === 'premium' ? 'legendary' : 'common');
     formData.append('price_cs', String(params.priceCredits));
     formData.append('orientation', params.orientation);
-    formData.append('ownerUid', params.userId);
+    formData.append('uid', params.userId);
 
     // Adjuntar archivo en el campo correcto según orientación
     const fieldName = params.orientation === 'vertical' ? 'wallpaper_vertical' : 'wallpaper_horizontal';

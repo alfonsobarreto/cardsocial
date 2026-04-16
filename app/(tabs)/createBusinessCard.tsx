@@ -71,7 +71,7 @@ const MAX_LOGO_BYTES = 2 * 1024 * 1024;
  * Phase 2: vault slots enrichment (best-effort, can fail silently).
  */
 async function syncBusinessCardToMongo(params: {
-  ownerUid: string;
+  uid: string;
   bId: string;
   bcName: string;
   bcContactName: string;
@@ -79,10 +79,9 @@ async function syncBusinessCardToMongo(params: {
   bcLogoUrl: string;
   vaultLinkIds: string[];
 }) {
-  const { ownerUid, bId, bcName, bcContactName, themeId, bcLogoUrl, vaultLinkIds } = params;
+  const { uid, bId, bcName, bcContactName, themeId, bcLogoUrl, vaultLinkIds } = params;
 
   const basePayload = {
-    cardId: bId,
     bId,
     scName: bcName,
     layout: 'vertical' as const,
@@ -100,14 +99,14 @@ async function syncBusinessCardToMongo(params: {
   };
 
   // Phase 1 — essential data. Throws on failure so callers surface the error.
-  await upsertSmartCardInDb({ ownerUid, card: basePayload });
+  await upsertSmartCardInDb({ uid, card: basePayload });
 
   // Phase 2 — enrich with public card slots (vault + icons). Fails silently;
   // essentials are already committed in Phase 1.
   try {
-    const vaultSnap = await getDocs(collection(db, 'users', ownerUid, 'links'));
+    const vaultSnap = await getDocs(collection(db, 'users', uid, 'links'));
     const vaultAll: Array<Record<string, unknown> & { id: string }> = vaultSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, unknown>) }));
-    const iconMap: Record<string, IconVaultEntry> = await getUserIconVaultMap(ownerUid)
+    const iconMap: Record<string, IconVaultEntry> = await getUserIconVaultMap(uid)
       .then((m) => Object.fromEntries(m))
       .catch(() => ({} as Record<string, IconVaultEntry>));
     const slots: PublicCardSlotPayload[] = vaultLinkIds.slice(0, 24).flatMap((lid) => {
@@ -142,7 +141,7 @@ async function syncBusinessCardToMongo(params: {
       } as PublicCardSlotPayload];
     });
     if (slots.length > 0) {
-      await upsertSmartCardInDb({ ownerUid, card: { ...basePayload, publicCardSlots: slots } });
+      await upsertSmartCardInDb({ uid, card: { ...basePayload, publicCardSlots: slots } });
     }
   } catch {
     // Vault enrichment failed; essentials already committed in Phase 1.
@@ -284,8 +283,8 @@ async function cropImageToSquare(uri: string): Promise<string> {
 
 export default function CreateBusinessCardScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ cardId?: string }>();
-  const paramCardId = typeof params.cardId === 'string' ? params.cardId : params.cardId?.[0] || '';
+  const params = useLocalSearchParams<{ bId?: string }>();
+  const routeBId = typeof params.bId === 'string' ? params.bId : params.bId?.[0] || '';
   const safeInsets = useSafeAreaInsets();
   const { language } = useLanguage();
   const tr = (es: string, en: string) => (language === 'en' ? en : es);
@@ -313,8 +312,8 @@ export default function CreateBusinessCardScreen() {
   const [keywordTags, setKeywordTags] = useState<string[]>([]);
   const [businessTermsAccepted, setBusinessTermsAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [createdCardId, setCreatedCardId] = useState<string | null>(null);
-  const [ownerUidState, setOwnerUidState] = useState<string | null>(null);
+  const [createdBId, setCreatedBId] = useState<string | null>(null);
+  const [uidState, setUidState] = useState<string | null>(null);
   const [marketVisible, setMarketVisible] = useState(false);
   const [licenseActive, setLicenseActive] = useState(false);
   const [activatingLicense, setActivatingLicense] = useState(false);
@@ -330,8 +329,8 @@ export default function CreateBusinessCardScreen() {
   const [simulatingDull, setSimulatingDull] = useState(false);
   const [businessThemeId, setBusinessThemeId] = useState<string>(DEFAULT_BIZ_THEME_ID);
   const [themesPickerVisible, setThemesPickerVisible] = useState(false);
-  /** Si hay cardId en la ruta, mostramos loading hasta hidratar Firestore (evita baseline “vacío” antes de cargar). */
-  const [loadingExistingCard, setLoadingExistingCard] = useState(() => Boolean(String(paramCardId || '').trim()));
+  /** Si hay bId en la ruta, mostramos loading hasta hidratar Firestore (evita baseline “vacío” antes de cargar). */
+  const [loadingExistingCard, setLoadingExistingCard] = useState(() => Boolean(String(routeBId || '').trim()));
 
   const formBaselineRef = useRef<string | null>(null);
   /** Evita resetear el baseline en cada tecla: solo al terminar carga o primer montaje en “crear”. */
@@ -341,7 +340,7 @@ export default function CreateBusinessCardScreen() {
   const loadLinks = useCallback(async () => {
     const uid = await getActiveUserId();
     if (!uid) return;
-    setOwnerUidState(uid);
+    setUidState(uid);
     try {
       const vaultMap = await getUserIconVaultMap(uid);
       setIconVaultById(Object.fromEntries(vaultMap));
@@ -380,11 +379,11 @@ export default function CreateBusinessCardScreen() {
   }, [loadLinks]);
 
   const refreshCreatedCardMeta = useCallback(async () => {
-    if (!createdCardId) return;
+    if (!createdBId) return;
     const uid = await getActiveUserId();
     if (!uid) return;
     try {
-      const snap = await getDoc(doc(db, 'businessCards', createdCardId));
+      const snap = await getDoc(doc(db, 'businessCards', createdBId));
       if (snap.exists()) {
         const d = snap.data() as { isPublishedToMarket?: boolean; subscriptionStatus?: string };
         setMarketVisible(Boolean(d.isPublishedToMarket));
@@ -396,15 +395,15 @@ export default function CreateBusinessCardScreen() {
     } catch {
       /* ignore */
     }
-    setLicenseActive(await hasActiveBusinessLicense(uid, createdCardId));
-  }, [createdCardId]);
+    setLicenseActive(await hasActiveBusinessLicense(uid, createdBId));
+  }, [createdBId]);
 
   useEffect(() => {
     void refreshCreatedCardMeta();
   }, [refreshCreatedCardMeta]);
 
   useEffect(() => {
-    if (!paramCardId) return;
+    if (!routeBId) return;
     let cancelled = false;
     setLoadingExistingCard(true);
     void (async () => {
@@ -414,18 +413,18 @@ export default function CreateBusinessCardScreen() {
         return;
       }
       try {
-        const snap = await getDoc(doc(db, 'businessCards', paramCardId));
+        const snap = await getDoc(doc(db, 'businessCards', routeBId));
         if (cancelled) return;
         if (!snap.exists()) {
           // 1. Elimina la tarjeta fantasma de la base de datos local o caché
           try {
-            await AsyncStorage.removeItem(`@smartcard_${paramCardId}`);
+            await AsyncStorage.removeItem(`@smartcard_${routeBId}`);
           } catch {
             // Ignorar errores de borrado local
           }
           // 2. Limpia los estados del formulario
-          setCreatedCardId(null);
-          setOwnerUidState(null);
+          setCreatedBId(null);
+          setUidState(null);
           setBcName('');
           setBcContactName('');
           setKeywordTags([]);
@@ -456,8 +455,8 @@ export default function CreateBusinessCardScreen() {
           return;
         }
         if (cancelled) return;
-        setCreatedCardId(paramCardId);
-        setOwnerUidState(uid);
+        setCreatedBId(routeBId);
+        setUidState(uid);
         const idn = readBusinessCardIdentityFields(d as Record<string, unknown>);
         setBcName(idn.bcName);
         setBcContactName(idn.bcContactName);
@@ -490,7 +489,7 @@ export default function CreateBusinessCardScreen() {
           vids.length > 0 &&
           (!Array.isArray(d.marketFacets) || (d.marketFacets as unknown[]).length === 0);
         if (needsMigration) {
-          void updateBusinessCard(uid, paramCardId, { vaultLinkIds: vids }).catch(() => {});
+          void updateBusinessCard(uid, routeBId, { vaultLinkIds: vids }).catch(() => {});
         }
       } finally {
         if (!cancelled) setLoadingExistingCard(false);
@@ -499,9 +498,9 @@ export default function CreateBusinessCardScreen() {
     return () => {
       cancelled = true;
     };
-  }, [paramCardId]);
+  }, [routeBId]);
 
-  const editingCardId = paramCardId || createdCardId;
+  const editingBId = routeBId || createdBId;
 
   const openVaultLinkSelector = () => {
     const valid = [...selectedVaultLinkIds].filter((id) => links.some((l) => l.id === id));
@@ -552,12 +551,12 @@ export default function CreateBusinessCardScreen() {
   }, [bcLogo, bcLogoUrl, profilePhotoUrl]);
 
   const qrPayload = useMemo(() => {
-    const uid = ownerUidState || 'owner';
-    if (createdCardId) {
-      return generatePermanentBusinessLink(createdCardId, uid);
+    const uid = uidState || 'owner';
+    if (createdBId) {
+      return generatePermanentBusinessLink(createdBId, uid);
     }
     return `card-social://business/preview?owner=${encodeURIComponent(uid)}&mode=draft`;
-  }, [createdCardId, ownerUidState]);
+  }, [createdBId, uidState]);
 
   const isDullPreview = subscriptionStatus === 'dull';
 
@@ -814,7 +813,7 @@ export default function CreateBusinessCardScreen() {
         console.log('[BusinessCard] llamando uploadFileWithModeration (business_logo)…');
         const result = await uploadFileWithModeration({
           fileUri: optimizedUri,
-          ownerUid: uid,
+          uid: uid,
           label: 'business_logo',
           fileName: `logo_${uid}_${Date.now()}.jpg`,
           mimeType: 'image/jpeg',
@@ -896,8 +895,8 @@ export default function CreateBusinessCardScreen() {
 
       const kwTags = kw.ok ? kw.tags : [];
 
-      if (editingCardId) {
-        const res = await updateBusinessCard(uid, editingCardId, {
+      if (editingBId) {
+        const res = await updateBusinessCard(uid, editingBId, {
           bcName: bcName.trim(),
           bcContactName: bcContactName.trim(),
           vaultLinkIds: [...selectedVaultLinkIds],
@@ -913,8 +912,8 @@ export default function CreateBusinessCardScreen() {
           formBaselineRef.current = computeFormSnapshot();
           try {
             await syncBusinessCardToMongo({
-              ownerUid: uid,
-              bId: editingCardId!,
+              uid: uid,
+              bId: editingBId!,
               bcName: bcName.trim(),
               bcContactName: bcContactName.trim(),
               themeId: businessThemeId || 'deep_teal',
@@ -960,14 +959,14 @@ export default function CreateBusinessCardScreen() {
           themeId: businessThemeId,
         });
         if (res.success && res.bId) {
-          setCreatedCardId(res.bId);
-          setOwnerUidState(uid);
+          setCreatedBId(res.bId);
+          setUidState(uid);
           setMarketVisible(false);
           setSubscriptionStatus('trial');
           formBaselineRef.current = computeFormSnapshot();
           try {
             await syncBusinessCardToMongo({
-              ownerUid: uid,
+              uid: uid,
               bId: res.bId!,
               bcName: bcName.trim(),
               bcContactName: bcContactName.trim(),
@@ -1065,21 +1064,21 @@ export default function CreateBusinessCardScreen() {
 
   const handleDemoLicense = async () => {
     const uid = await getActiveUserId();
-    if (!uid || !createdCardId) return;
+    if (!uid || !createdBId) return;
     setActivatingLicense(true);
     try {
       const lic = await activateOrRenewBusinessLicense({
         uid,
-        bId: createdCardId,
+        bId: createdBId,
         annualPriceUsd: 99,
         cashbackCreditsGranted: 0,
       });
       const exp = Date.parse(String(lic.expiresAt || ''));
-      await updateBusinessCardSubscriptionStatus(uid, createdCardId, 'active', {
+      await updateBusinessCardSubscriptionStatus(uid, createdBId, 'active', {
         subscriptionExpiresAt: Number.isFinite(exp) ? new Date(exp) : null,
       });
       setSubscriptionStatus('active');
-      setLicenseActive(await hasActiveBusinessLicense(uid, createdCardId));
+      setLicenseActive(await hasActiveBusinessLicense(uid, createdBId));
       Alert.alert(
         tr('Licencia activa', 'License active'),
         tr('Estado en Firestore: active. Puedes publicar en Social Market.', 'Firestore status: active. You can publish to Social Market.'),
@@ -1091,10 +1090,10 @@ export default function CreateBusinessCardScreen() {
 
   const handleSimulateDull = async () => {
     const uid = await getActiveUserId();
-    if (!uid || !createdCardId) return;
+    if (!uid || !createdBId) return;
     setSimulatingDull(true);
     try {
-      const r = await updateBusinessCardSubscriptionStatus(uid, createdCardId, 'dull');
+      const r = await updateBusinessCardSubscriptionStatus(uid, createdBId, 'dull');
       if (r.success) {
         setSubscriptionStatus('dull');
         Alert.alert(
@@ -1111,8 +1110,8 @@ export default function CreateBusinessCardScreen() {
 
   const onToggleMarket = async (value: boolean) => {
     const uid = await getActiveUserId();
-    if (!uid || !createdCardId) return;
-    const licensed = await hasActiveBusinessLicense(uid, createdCardId);
+    if (!uid || !createdBId) return;
+    const licensed = await hasActiveBusinessLicense(uid, createdBId);
     if (!licensed) {
       Alert.alert(
         tr('Licencia requerida', 'License required'),
@@ -1120,7 +1119,7 @@ export default function CreateBusinessCardScreen() {
       );
       return;
     }
-    const r = await updateBusinessCardMarketVisibility(uid, createdCardId, value);
+    const r = await updateBusinessCardMarketVisibility(uid, createdBId, value);
     if (r.success) {
       setMarketVisible(value);
     } else {
@@ -1539,13 +1538,13 @@ export default function CreateBusinessCardScreen() {
               <ActivityIndicator color={shell.emptyCtaText} />
             ) : (
               <Text style={[styles.primaryBtnText, { color: shell.emptyCtaText }]}>
-                {editingCardId ? tr('Guardar cambios', 'Save changes') : tr('Crear tarjeta', 'Create card')}
+                {editingBId ? tr('Guardar cambios', 'Save changes') : tr('Crear tarjeta', 'Create card')}
               </Text>
             )}
           </LinearGradient>
         </TouchableOpacity>
 
-        {editingCardId ? (
+        {editingBId ? (
           <View style={[styles.cardBlock, { backgroundColor: card, borderColor: border, marginTop: 20 }]}>
             <View style={styles.switchRow}>
               <View style={{ flex: 1, paddingRight: 12 }}>

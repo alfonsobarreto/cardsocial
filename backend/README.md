@@ -94,10 +94,10 @@ Forzar la siguiente propiedad (simular manana):
 HOUSE_AD_OWNER_UID=user_123 npm run backend:seed:house-ad:tomorrow
 ```
 
-Tambien puedes pasar ownerUid por flag:
+Tambien puedes pasar uid por flag:
 
 ```bash
-npm run backend:seed:house-ad -- --ownerUid=user_123
+npm run backend:seed:house-ad -- --uid=user_123
 ```
 
 ## Request examples
@@ -114,7 +114,7 @@ curl -X POST http://localhost:4000/api/moderate/text \
 
 ```bash
 curl -X POST http://localhost:4000/api/upload \
-  -F "ownerUid=user_123" \
+  -F "uid=user_123" \
   -F "label=business-card" \
   -F "file=@./sample.jpg"
 ```

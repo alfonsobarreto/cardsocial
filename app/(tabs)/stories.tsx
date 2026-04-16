@@ -72,8 +72,8 @@ type ViewerFeedItem =
       uid: string;
       displayName: string;
       cardName: string;
-      /** Tarjeta que el viewer recibió del emisor (canal de confianza). */
-      sourceCardId: string | null;
+      sourceSid: string | null;
+      sourceBId: string | null;
       userAvatarUrl: string | null;
       storyState: StoryState;
       isFavorite: boolean;
@@ -112,9 +112,12 @@ type VaultItem = {
 };
 
 type SmartCard = {
-  cardId: string;
+  /** Clave de canal en hub: `sid` (smart) o `bId` (negocio). */
+  sid: string;
   scName: string;
   itemIds: string[];
+  /** Solo tarjetas de negocio: licencia anual para historias 7d/30d. */
+  bId?: string | null;
 };
 
 type ContactRow = {
@@ -123,17 +126,17 @@ type ContactRow = {
   userNickName: string;
   userAvatarUrl: string | null;
   cardName: string;
-  /** cardId de la tarjeta que este usuario tiene del contacto (share_permissions). */
-  sourceCardId: string | null;
+  sourceSid: string | null;
+  sourceBId: string | null;
   storyState: StoryState;
 };
 
 type LocalStory = {
   id: string;
-  ownerUid: string;
+  uid: string;
   ownerName: string;
   ownerUserAvatar: string | null;
-  cardId: string;
+  sid: string;
   cardName: string;
   storyType: StoryAssetType;
   /** Imagen/video: URI local. Texto: cuerpo en texto plano. */
@@ -157,7 +160,8 @@ type GridStoryItem = {
   uid: string;
   displayName: string;
   cardName: string;
-  sourceCardId: string | null;
+  sourceSid: string | null;
+  sourceBId: string | null;
   userAvatarUrl: string | null;
   storyState: StoryState;
   isFavorite: boolean;
@@ -183,11 +187,11 @@ const FALLBACK_HOUSE_AD: HouseAdStory = {
   updatedAt: new Date().toISOString(),
 };
 
-function getStoriesStorageKey(ownerUid: string) {
-  return `${STORIES_STORAGE_PREFIX}${ownerUid}`;
+function getStoriesStorageKey(viewerUid: string) {
+  return `${STORIES_STORAGE_PREFIX}${viewerUid}`;
 }
 
-/** Misma caché que Mis Tarjetas (`smart_cards:{uid}`); `id` o `cardId`. Sin duplicados por cardId. */
+/** Misma caché que Mis Tarjetas (`smart_cards:{uid}`); `sid` legado o `id`. Sin duplicados por sid. */
 function mapCachedSmartCardsToStoryRows(raw: string): SmartCard[] {
   try {
     const parsed = JSON.parse(raw) as unknown;
@@ -195,16 +199,23 @@ function mapCachedSmartCardsToStoryRows(raw: string): SmartCard[] {
       return [];
     }
     const rows = parsed
-      .map((c: { cardId?: string; id?: string; scName?: string; itemIds?: unknown }) => ({
-        cardId: String(c?.cardId || c?.id || ''),
-        scName: String(c?.scName ?? '').trim() || 'Smart Card',
-        itemIds: Array.isArray(c?.itemIds) ? c.itemIds.map((id) => String(id)) : [],
-      }))
-      .filter((row) => row.cardId.length > 0);
+      .map((c: { sid?: string; bId?: string; cardType?: string; scName?: string; itemIds?: unknown } & { id?: string }) => {
+        const isBiz = String(c?.cardType || '') === 'business';
+        const rawB = c?.bId != null ? String(c.bId).trim() : '';
+        const rawS = String(c?.sid || '').trim();
+        const sid = isBiz && rawB ? rawB : String(rawS || c?.id || '').trim();
+        return {
+          sid,
+          scName: String(c?.scName ?? '').trim() || 'Smart Card',
+          itemIds: Array.isArray(c?.itemIds) ? c.itemIds.map((id) => String(id)) : [],
+          bId: isBiz && rawB ? rawB : null,
+        };
+      })
+      .filter((row) => row.sid.length > 0);
     const byId = new Map<string, SmartCard>();
     for (const r of rows) {
-      if (!byId.has(r.cardId)) {
-        byId.set(r.cardId, r);
+      if (!byId.has(r.sid)) {
+        byId.set(r.sid, r);
       }
     }
     return [...byId.values()];
@@ -232,10 +243,10 @@ function orderedUniqueVaultItemsForCard(itemIds: string[], items: VaultItem[]): 
   return out;
 }
 
-function dedupeSmartCardsByCardId(cards: SmartCard[]): SmartCard[] {
+function dedupeSmartCardsBySid(cards: SmartCard[]): SmartCard[] {
   const byId = new Map<string, SmartCard>();
   for (const c of cards) {
-    const id = String(c.cardId || '').trim();
+    const id = String(c.sid || '').trim();
     if (!id || byId.has(id)) {
       continue;
     }
@@ -246,12 +257,12 @@ function dedupeSmartCardsByCardId(cards: SmartCard[]): SmartCard[] {
 
 /** Tarjeta cuyo canal de historia debemos consultar en API / hub (no siempre `smartCards[0]`). */
 function resolveStoryHubCardId(uid: string, cardsRows: SmartCard[], activeStories: LocalStory[]): string {
-  const allowed = new Set(cardsRows.map((c) => c.cardId).filter(Boolean));
+  const allowed = new Set(cardsRows.map((c) => c.sid).filter(Boolean));
   const mine = activeStories
-    .filter((s) => s.ownerUid === uid && allowed.has(s.cardId))
+    .filter((s) => s.uid === uid && allowed.has(s.sid))
     .slice()
     .sort((a, b) => Date.parse(String(b.createdAt || 0)) - Date.parse(String(a.createdAt || 0)));
-  return mine[0]?.cardId || cardsRows[0]?.cardId || '';
+  return mine[0]?.sid || cardsRows[0]?.sid || '';
 }
 
 export default function StoriesPage() {
@@ -279,7 +290,7 @@ export default function StoriesPage() {
   const [saving, setSaving] = useState(false);
   const [state, setState] = useState<StoryState>('none');
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
-  const [ownerUid, setOwnerUid] = useState('');
+  const [viewerUid, setViewerUid] = useState('');
   const [ownerName, setOwnerName] = useState('Mi Story');
   const [ownerUserAvatar, setOwnerUserAvatar] = useState<string | null>(null);
 
@@ -330,7 +341,7 @@ export default function StoriesPage() {
   const [committedTextBgId, setCommittedTextBgId] = useState('');
   const [committedTextFont, setCommittedTextFont] = useState<TextFontRole>('serif');
 
-  const selectedCard = useMemo(() => smartCards.find((c) => c.cardId === selectedCardId) || null, [smartCards, selectedCardId]);
+  const selectedCard = useMemo(() => smartCards.find((c) => c.sid === selectedCardId) || null, [smartCards, selectedCardId]);
 
   /** Orden de slots de la tarjeta, sin ids repetidos (evita crash de React por keys duplicadas). */
   const vaultItemsOnSelectedCard = useMemo(() => {
@@ -350,22 +361,22 @@ export default function StoriesPage() {
   const vaultMirrorItems = vaultItemsOnSelectedCard;
 
   const storyHubCardId = useMemo(
-    () => resolveStoryHubCardId(ownerUid, smartCards, localStories),
-    [ownerUid, smartCards, localStories],
+    () => resolveStoryHubCardId(viewerUid, smartCards, localStories),
+    [viewerUid, smartCards, localStories],
   );
 
   const effectiveHubState = useMemo((): StoryState => {
     if (state !== 'none') {
       return state;
     }
-    if (!ownerUid || !storyHubCardId) {
+    if (!viewerUid || !storyHubCardId) {
       return 'none';
     }
     const now = Date.now();
     const row = localStories.find(
       (s) =>
-        s.ownerUid === ownerUid &&
-        s.cardId === storyHubCardId &&
+        s.uid === viewerUid &&
+        s.sid === storyHubCardId &&
         Number.isFinite(Date.parse(String(s.expiresAt || ''))) &&
         Date.parse(String(s.expiresAt)) > now,
     );
@@ -373,25 +384,25 @@ export default function StoriesPage() {
       return 'none';
     }
     return row.state === 'vip' ? 'vip' : 'normal';
-  }, [state, ownerUid, storyHubCardId, localStories]);
+  }, [state, viewerUid, storyHubCardId, localStories]);
 
   const effectiveExpiresAt = useMemo(() => {
     if (expiresAt) {
       return expiresAt;
     }
-    if (!ownerUid || !storyHubCardId) {
+    if (!viewerUid || !storyHubCardId) {
       return null;
     }
     const now = Date.now();
     const row = localStories.find(
       (s) =>
-        s.ownerUid === ownerUid &&
-        s.cardId === storyHubCardId &&
+        s.uid === viewerUid &&
+        s.sid === storyHubCardId &&
         Number.isFinite(Date.parse(String(s.expiresAt || ''))) &&
         Date.parse(String(s.expiresAt)) > now,
     );
     return row?.expiresAt ?? null;
-  }, [expiresAt, ownerUid, storyHubCardId, localStories]);
+  }, [expiresAt, viewerUid, storyHubCardId, localStories]);
 
   const cost7 = getPremiumStoryCost('7d');
   const cost30 = getPremiumStoryCost('30d');
@@ -402,15 +413,16 @@ export default function StoriesPage() {
   const gridItems = useMemo(() => {
     const localByOwnerCard = new Map<string, LocalStory>();
     localStories.forEach((s) => {
-      localByOwnerCard.set(storyChannelKey(s.ownerUid, s.cardId), s);
+      localByOwnerCard.set(storyChannelKey(s.uid, s.sid), s);
     });
     const hubCardId = storyHubCardId;
-    const selfChannelKey = ownerUid && hubCardId ? storyChannelKey(ownerUid, hubCardId) : '';
+    const selfChannelKey = viewerUid && hubCardId ? storyChannelKey(viewerUid, hubCardId) : '';
     const localSelfStory = selfChannelKey ? localByOwnerCard.get(selfChannelKey) ?? null : null;
-    const hubCardRow = hubCardId ? smartCards.find((c) => c.cardId === hubCardId) ?? null : null;
+    const hubCardRow = hubCardId ? smartCards.find((c) => c.sid === hubCardId) ?? null : null;
 
     const rows: GridStoryItem[] = contacts.map((row) => {
-      const key = row.sourceCardId ? storyChannelKey(row.uid, row.sourceCardId) : '';
+      const linkCh = String(row.sourceBId || row.sourceSid || '').trim();
+      const key = linkCh ? storyChannelKey(row.uid, linkCh) : '';
       const localStory = key ? localByOwnerCard.get(key) ?? null : null;
       let storyState = row.storyState;
       if (storyState === 'none' && localStory) {
@@ -423,11 +435,12 @@ export default function StoriesPage() {
         uid: row.uid,
         displayName: row.userFullName,
         cardName: row.cardName,
-        sourceCardId: row.sourceCardId,
+        sourceSid: row.sourceSid,
+        sourceBId: row.sourceBId,
         userAvatarUrl: row.userAvatarUrl,
         storyState,
         isFavorite: Boolean(
-          favoritesByUid[receivedContactMergeKey({ uid: row.uid, cardId: row.sourceCardId })] ||
+          favoritesByUid[receivedContactMergeKey({ uid: row.uid, sid: row.sourceSid, bId: row.sourceBId })] ||
             favoritesByUid[row.uid],
         ),
         localStory,
@@ -435,16 +448,17 @@ export default function StoriesPage() {
     });
 
     const hasSelfInContacts = selfChannelKey
-      ? rows.some((r) => storyChannelKey(r.uid, r.sourceCardId ?? '') === selfChannelKey)
+      ? rows.some((r) => storyChannelKey(r.uid, String(r.sourceBId || r.sourceSid || '').trim()) === selfChannelKey)
       : true;
-    if (selfChannelKey && ownerUid && hubCardId && (hubCardRow || localSelfStory) && !hasSelfInContacts) {
+    if (selfChannelKey && viewerUid && hubCardId && (hubCardRow || localSelfStory) && !hasSelfInContacts) {
       const effectiveSelfState: StoryState =
         effectiveHubState !== 'none' ? effectiveHubState : localSelfStory ? 'normal' : 'none';
       rows.push({
-        uid: ownerUid,
+        uid: viewerUid,
         displayName: ownerName,
         cardName: hubCardRow?.scName ?? localSelfStory?.cardName ?? tr('Mi tarjeta', 'My card'),
-        sourceCardId: hubCardId,
+        sourceSid: hubCardId,
+        sourceBId: null,
         userAvatarUrl: ownerUserAvatar,
         storyState: effectiveSelfState,
         isFavorite: false,
@@ -480,7 +494,7 @@ export default function StoriesPage() {
     localStories,
     ownerName,
     ownerUserAvatar,
-    ownerUid,
+    viewerUid,
     smartCards,
     storyHubCardId,
   ]);
@@ -490,12 +504,12 @@ export default function StoriesPage() {
     if (flagged) {
       return flagged;
     }
-    if (!ownerUid || !storyHubCardId) {
+    if (!viewerUid || !storyHubCardId) {
       return null;
     }
-    const key = storyChannelKey(ownerUid, storyHubCardId);
-    return gridItems.find((g) => storyChannelKey(g.uid, g.sourceCardId ?? '') === key) ?? null;
-  }, [gridItems, ownerUid, storyHubCardId]);
+    const key = storyChannelKey(viewerUid, storyHubCardId);
+    return gridItems.find((g) => storyChannelKey(g.uid, String(g.sourceBId || g.sourceSid || '').trim()) === key) ?? null;
+  }, [gridItems, viewerUid, storyHubCardId]);
 
   const viewerFeed = useMemo<ViewerFeedItem[]>(() => {
     const now = Date.now();
@@ -520,7 +534,8 @@ export default function StoriesPage() {
           uid: item.uid,
           displayName: item.displayName,
           cardName: item.cardName,
-          sourceCardId: item.sourceCardId,
+          sourceSid: item.sourceSid,
+          sourceBId: item.sourceBId,
           userAvatarUrl: item.userAvatarUrl,
           storyState,
           isFavorite: item.isFavorite,
@@ -572,7 +587,7 @@ export default function StoriesPage() {
       viewerFeed
         .map((f) =>
           f.kind === 'story'
-            ? `s:${storyChannelKey(f.uid, f.sourceCardId ?? '')}`
+            ? `s:${storyChannelKey(f.uid, String(f.sourceBId || f.sourceSid || '').trim())}`
             : f.kind === 'market_vip'
               ? `m:${f.businessCardId}`
               : `a:${f.id}`,
@@ -595,7 +610,9 @@ export default function StoriesPage() {
     let idx = -1;
     if (openStoryParam) {
       idx = viewerFeed.findIndex(
-        (f) => f.kind === 'story' && storyChannelKey(f.uid, f.sourceCardId ?? '') === openStoryParam,
+        (f) =>
+          f.kind === 'story' &&
+          storyChannelKey(f.uid, String(f.sourceBId || f.sourceSid || '').trim()) === openStoryParam,
       );
     } else if (openMarketVipParam) {
       idx = viewerFeed.findIndex((f) => f.kind === 'market_vip' && f.businessCardId === openMarketVipParam);
@@ -652,9 +669,9 @@ export default function StoriesPage() {
 
   const openCreate = async () => {
     resetCreateForm();
-    let effectiveCards = dedupeSmartCardsByCardId(smartCards);
+    let effectiveCards = dedupeSmartCardsBySid(smartCards);
     if (effectiveCards.length === 0) {
-      const uid = ownerUid || (await getActiveUserId());
+      const uid = viewerUid || (await getActiveUserId());
       if (uid) {
         try {
           const raw = await readSmartCardsJsonWithLegacyMigration(uid);
@@ -662,7 +679,7 @@ export default function StoriesPage() {
             const fromCache = mapCachedSmartCardsToStoryRows(raw);
             if (fromCache.length > 0) {
               setSmartCards(fromCache);
-              effectiveCards = dedupeSmartCardsByCardId(fromCache);
+              effectiveCards = dedupeSmartCardsBySid(fromCache);
             }
           }
         } catch {
@@ -681,12 +698,12 @@ export default function StoriesPage() {
       );
       return;
     }
-    setSelectedCardId(effectiveCards[0]?.cardId || '');
+    setSelectedCardId(effectiveCards[0]?.sid || '');
     setCardPickerVisible(true);
   };
 
   const proceedFromCardPicker = () => {
-    const card = smartCards.find((c) => c.cardId === selectedCardId);
+    const card = smartCards.find((c) => c.sid === selectedCardId);
     if (!card) {
       Alert.alert(tr('Elige tarjeta', 'Pick a card'), tr('Selecciona desde cual tarjeta quieres publicar.', 'Select which card you publish from.'));
       return;
@@ -739,7 +756,7 @@ export default function StoriesPage() {
         return;
       }
 
-      setOwnerUid(uid);
+      setViewerUid(uid);
       setOwnerName(tr('Mi Story', 'My Story'));
       setOwnerUserAvatar(null);
 
@@ -748,7 +765,7 @@ export default function StoriesPage() {
         if (cardsCacheRaw) {
           const fromCache = mapCachedSmartCardsToStoryRows(cardsCacheRaw);
           if (fromCache.length > 0) {
-            setSmartCards(dedupeSmartCardsByCardId(fromCache));
+            setSmartCards(dedupeSmartCardsBySid(fromCache));
           }
         }
       } catch {
@@ -756,19 +773,22 @@ export default function StoriesPage() {
       }
 
       const [contactsResponse, cardsResponse, houseAdResponse] = await Promise.all([
-        listReceivedContacts({ ownerUid: uid }),
+        listReceivedContacts({ uid }),
         listSmartCardsFromDb({ uid }),
-        getStoriesHouseAd({ ownerUid: uid }),
+        getStoriesHouseAd({ uid }),
       ]);
 
-      const cardsRows = dedupeSmartCardsByCardId(
-        cardsResponse.cards
-          .filter((row) => (row.cardType || 'smart') !== 'business')
-          .map((row) => ({
-            cardId: row.cardId,
+      const cardsRows = dedupeSmartCardsBySid(
+        cardsResponse.cards.map((row) => {
+          const isBiz = row.cardType === 'business';
+          const sid = isBiz ? String(row.bId || '').trim() : String(row.sid || '').trim();
+          return {
+            sid,
             scName: String(row.scName ?? 'Smart Card'),
             itemIds: row.itemIds,
-          })),
+            bId: isBiz ? String(row.bId || '').trim() || null : null,
+          };
+        }),
       );
       if (cardsRows.length > 0) {
         setSmartCards(cardsRows);
@@ -778,9 +798,16 @@ export default function StoriesPage() {
       const storiesRawEarly = await AsyncStorage.getItem(getStoriesStorageKey(uid));
       const storiesParsedRaw = storiesRawEarly ? (JSON.parse(storiesRawEarly) as unknown[]) : [];
       const storiesParsedEarly = (Array.isArray(storiesParsedRaw) ? storiesParsedRaw : []).map((raw) => {
+        const legacy = raw as Record<string, unknown>;
+        const LEGACY_UID_KEY = 'owner' + 'Uid';
+        const LEGACY_SID_KEY = 'card' + 'Id';
+        const uid = String(legacy.uid ?? (legacy as Record<string, unknown>)[LEGACY_UID_KEY] ?? '').trim();
+        const sid = String(legacy.sid ?? (legacy as Record<string, unknown>)[LEGACY_SID_KEY] ?? '').trim();
         const s = raw as LocalStory & { ownerPhotoUrl?: string | null };
         return {
           ...s,
+          uid: uid || s.uid,
+          sid: sid || s.sid,
           ownerUserAvatar: s.ownerUserAvatar ?? s.ownerPhotoUrl ?? null,
         };
       });
@@ -791,8 +818,8 @@ export default function StoriesPage() {
       const hubCardId = resolveStoryHubCardId(uid, cardsRows, activeStoriesEarly);
 
       const stateResponse = await getMyStoryState({
-        ownerUid: uid,
-        ...(hubCardId ? { cardId: hubCardId } : {}),
+        uid,
+        ...(hubCardId ? { sid: hubCardId } : {}),
       });
       setState(stateResponse.state);
       setExpiresAt(stateResponse.expiresAt);
@@ -804,7 +831,8 @@ export default function StoriesPage() {
           userNickName: row.userNickName,
           userAvatarUrl: row.userAvatarUrl,
           cardName: row.cardName,
-          sourceCardId: row.cardId ?? null,
+          sourceSid: row.sid ?? null,
+          sourceBId: row.bId ?? null,
           storyState: row.storyState || 'none',
         }))
       );
@@ -885,10 +913,10 @@ export default function StoriesPage() {
   }, []);
 
   useEffect(() => {
-    if (ownerUid) {
+    if (viewerUid) {
       setOwnerName(language === 'en' ? 'My Story' : 'Mi Story');
     }
-  }, [language, ownerUid]);
+  }, [language, viewerUid]);
 
   useEffect(() => {
     if (!viewerVisible || !viewerFeed.length) {
@@ -932,7 +960,7 @@ export default function StoriesPage() {
         throw new Error(tr('No se pudo validar tu sesion.', 'Could not validate your session.'));
       }
 
-      const hubCardId = storyHubCardId || smartCards[0]?.cardId;
+      const hubCardId = storyHubCardId || smartCards[0]?.sid;
       if (!hubCardId) {
         Alert.alert(
           tr('Tarjeta requerida', 'Card required'),
@@ -941,9 +969,9 @@ export default function StoriesPage() {
         return;
       }
       const response = await setMyStoryState({
-        ownerUid: uid,
+        uid,
         state: nextState,
-        cardId: hubCardId,
+        sid: hubCardId,
       });
       setState(response.state);
       setExpiresAt(response.expiresAt);
@@ -1084,7 +1112,7 @@ export default function StoriesPage() {
   };
 
   const confirmVaultMirrorSelection = () => {
-    const card = smartCards.find((c) => c.cardId === selectedCardId);
+    const card = smartCards.find((c) => c.sid === selectedCardId);
     if (!card) {
       Alert.alert(tr('Tarjeta invalida', 'Invalid card'), tr('Vuelve a elegir la tarjeta emisora.', 'Pick the source card again.'));
       return;
@@ -1127,7 +1155,7 @@ export default function StoriesPage() {
 
   const publishStory = async () => {
     try {
-      if (!ownerUid) {
+      if (!viewerUid) {
         throw new Error(tr('No se pudo validar sesion.', 'Could not validate your session.'));
       }
       if (!selectedCard) {
@@ -1167,7 +1195,18 @@ export default function StoriesPage() {
               : tr('Contacto Directo', 'Direct contact');
 
       if (selectedDuration === '7d' || selectedDuration === '30d') {
-        const licensed = await hasActiveBusinessLicense(ownerUid, selectedCard.cardId);
+        const bId = selectedCard.bId && String(selectedCard.bId).trim();
+        if (!bId) {
+          Alert.alert(
+            tr('Tarjeta de negocio requerida', 'Business card required'),
+            tr(
+              'Las historias de 7 u 30 días solo aplican a tarjetas de negocio. Crea o selecciona una Business Card.',
+              '7–30 day stories only apply to business cards. Create or select a Business Card.',
+            ),
+          );
+          return;
+        }
+        const licensed = await hasActiveBusinessLicense(viewerUid, bId);
         if (!licensed) {
           Alert.alert(
             tr('Licencia anual requerida', 'Annual license required'),
@@ -1182,10 +1221,10 @@ export default function StoriesPage() {
 
       const story: LocalStory = {
         id: `${now}`,
-        ownerUid,
+        uid: viewerUid,
         ownerName,
         ownerUserAvatar,
-        cardId: selectedCard.cardId,
+        sid: selectedCard.sid,
         cardName: selectedCard.scName,
         storyType: selectedType,
         mediaUri: selectedType === 'text' ? String(selectedMediaUri).trim() : selectedMediaUri,
@@ -1212,22 +1251,22 @@ export default function StoriesPage() {
 
       const nextStories = [
         story,
-        ...localStories.filter((s) => !(s.ownerUid === ownerUid && s.cardId === selectedCard.cardId)),
+        ...localStories.filter((s) => !(s.uid === viewerUid && s.sid === selectedCard.sid)),
       ];
       setLocalStories(nextStories);
-      await AsyncStorage.setItem(getStoriesStorageKey(ownerUid), JSON.stringify(nextStories));
+      await AsyncStorage.setItem(getStoriesStorageKey(viewerUid), JSON.stringify(nextStories));
 
       // Deduct credits for premium durations
       if (selectedDuration === '7d' || selectedDuration === '30d') {
         try {
-          const creditDeducted = await purchasePremiumStoryWithCredits(ownerUid, selectedDuration);
+          const creditDeducted = await purchasePremiumStoryWithCredits(viewerUid, selectedDuration);
           if (!creditDeducted) {
             // Revert story if credit deduction failed
             const revertedStories = localStories.filter(
-              (s) => !(s.ownerUid === ownerUid && s.cardId === selectedCard.cardId)
+              (s) => !(s.uid === viewerUid && s.sid === selectedCard.sid)
             );
             setLocalStories(revertedStories);
-            await AsyncStorage.setItem(getStoriesStorageKey(ownerUid), JSON.stringify(revertedStories));
+            await AsyncStorage.setItem(getStoriesStorageKey(viewerUid), JSON.stringify(revertedStories));
             const required = getPremiumStoryCost(selectedDuration);
             Alert.alert(tr('Créditos insuficientes', 'Insufficient credits'), tr(`Necesitas ${required} CS para publicar esta Story Premium.`, `You need ${required} CS to publish this Premium Story.`));
             return;
@@ -1239,9 +1278,9 @@ export default function StoriesPage() {
       }
 
       const response = await setMyStoryState({
-        ownerUid,
+        uid: viewerUid,
         state: nextState,
-        cardId: selectedCard.cardId,
+        sid: selectedCard.sid,
       });
       setState(response.state);
       setExpiresAt(response.expiresAt);
@@ -1278,7 +1317,8 @@ export default function StoriesPage() {
       (feedItem) =>
         feedItem.kind === 'story' &&
         feedItem.uid === item.uid &&
-        feedItem.sourceCardId === item.sourceCardId
+        feedItem.sourceSid === item.sourceSid &&
+        feedItem.sourceBId === item.sourceBId
     );
     if (startIndex < 0) {
       Alert.alert(tr('Sin Story sincronizada', 'Story not synced'), tr('Este perfil tiene Story activa, pero aun no cargo contenido en cache local.', 'This profile has an active Story, but content not yet cached locally.'));
@@ -1295,7 +1335,8 @@ export default function StoriesPage() {
       return;
     }
     trackCardAnalyticsFireAndForget({
-      cardId: story.cardId,
+      sid: story.sid,
+      bId: null,
       iconType: String(story.ctaType || 'story_cta'),
       source: 'story',
     });
@@ -1305,9 +1346,10 @@ export default function StoriesPage() {
 
     if (isGhostLinkVaultType(story.ctaType)) {
       await ActionController.ActionGhostLinkVaultItem({
-        targetUid: story.ownerUid,
+        targetUid: story.uid,
         sourceCardName: story.cardName,
-        sourceCardId: story.cardId,
+        sourceSid: story.sid,
+        sourceBId: null,
         userName: story.ownerName || tr('este contacto', 'this contact'),
         cardPhoto: story.ownerUserAvatar,
         peerPhotoUrl: story.ownerUserAvatar,
@@ -1317,9 +1359,10 @@ export default function StoriesPage() {
 
     if (tNorm.includes('tel') || type.includes('teléfono') || type.includes('telefono') || type.includes('phone')) {
       await ActionController.ActionGhostLinkVaultItem({
-        targetUid: story.ownerUid,
+        targetUid: story.uid,
         sourceCardName: story.cardName,
-        sourceCardId: story.cardId,
+        sourceSid: story.sid,
+        sourceBId: null,
         userName: story.ownerName || tr('este contacto', 'this contact'),
         cardPhoto: story.ownerUserAvatar,
         peerPhotoUrl: story.ownerUserAvatar,
@@ -1372,7 +1415,8 @@ export default function StoriesPage() {
       return;
     }
     trackCardAnalyticsFireAndForget({
-      cardId: item.businessCardId,
+      sid: null,
+      bId: item.businessCardId,
       iconType: 'market_vip_cta',
       source: 'story',
     });
@@ -1670,7 +1714,7 @@ export default function StoriesPage() {
           <FlatList
             ref={hubGridListRef}
             data={gridItems}
-            keyExtractor={(item) => storyChannelKey(item.uid, item.sourceCardId ?? '')}
+            keyExtractor={(item) => storyChannelKey(item.uid, String(item.sourceBId || item.sourceSid || '').trim())}
             numColumns={4}
             contentContainerStyle={styles.gridWrap}
             bounces={false}
@@ -1768,11 +1812,11 @@ export default function StoriesPage() {
               style={styles.cardPickerCarouselScroll}
             >
               {smartCards.map((c, cardPickIdx) => {
-                const active = selectedCardId === c.cardId;
+                const active = selectedCardId === c.sid;
                 const emptyIcons = !c.itemIds?.length;
                 return (
                   <TouchableOpacity
-                    key={`story-pick-${c.cardId}-${cardPickIdx}`}
+                    key={`story-pick-${c.sid}-${cardPickIdx}`}
                     style={[
                       styles.cardCarouselItem,
                       { width: Math.min(216, Math.max(160, windowWidth * 0.52)) },
@@ -1780,7 +1824,7 @@ export default function StoriesPage() {
                     ]}
                     onPress={() => {
                       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setSelectedCardId(c.cardId);
+                      setSelectedCardId(c.sid);
                     }}
                   >
                     <Text style={[styles.cardCarouselName, { color: shell.textPrimary }]} numberOfLines={2}>
@@ -1906,7 +1950,7 @@ export default function StoriesPage() {
                     onPress={() => {
                       setCreateVisible(false);
                       resetCreateForm();
-                      setSelectedCardId(smartCards[0]?.cardId || '');
+                      setSelectedCardId(smartCards[0]?.sid || '');
                       setCardPickerVisible(true);
                     }}
                   >

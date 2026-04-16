@@ -3,12 +3,14 @@ import { trackCardAnalyticsEvent } from '@/services/qrApi';
 
 /** Envía evento de conversión sin bloquear la UI (Fase 2). */
 export function trackCardAnalyticsFireAndForget(params: {
-  cardId: string | null | undefined;
+  sid?: string | null | undefined;
+  bId?: string | null | undefined;
   iconType: string;
   source: 'search' | 'story' | 'card' | 'qr_scan';
 }): void {
-  const id = String(params.cardId || '').trim();
-  if (!id) {
+  const sid = String(params.sid || '').trim();
+  const bId = String(params.bId || '').trim();
+  if (!sid && !bId) {
     return;
   }
   void (async () => {
@@ -18,8 +20,9 @@ export function trackCardAnalyticsFireAndForget(params: {
     }
     try {
       await trackCardAnalyticsEvent({
-        ownerUid: uid,
-        cardId: id,
+        uid,
+        ...(sid ? { sid } : {}),
+        ...(bId ? { bId } : {}),
         iconType: params.iconType,
         source: params.source,
       });

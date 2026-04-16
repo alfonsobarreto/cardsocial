@@ -168,8 +168,9 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
         vaultMimeType: slot.vaultMimeType ?? undefined,
       },
       {
-        cardOwnerUid: String(card.ownerUid || '').trim(),
-        cardId: String(card.cardId || '').trim(),
+        cardOwnerUid: String(card.uid || '').trim(),
+        sid: String(card.sid || '').trim(),
+        bId: String(card.bId || '').trim(),
         sourceCardName: String(card.scName || '').trim() || 'Card-Social',
       },
     );

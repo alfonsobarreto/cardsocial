@@ -27,10 +27,10 @@ function getGatewayKey(): string {
   return key;
 }
 
-async function getUploadJwtToken(baseUrl: string, ownerUid: string, gatewayKey: string): Promise<string> {
+async function getUploadJwtToken(baseUrl: string, uid: string, gatewayKey: string): Promise<string> {
   const response = await axios.post(
     `${baseUrl}/api/auth/token`,
-    { uid: ownerUid },
+    { uid },
     {
       headers: {
         'x-api-gateway-key': gatewayKey,
@@ -48,15 +48,14 @@ async function getUploadJwtToken(baseUrl: string, ownerUid: string, gatewayKey: 
 
 export async function uploadFileWithModeration(params: {
   fileUri: string;
-  ownerUid: string;
+  uid: string;
   label: string;
   fileName: string;
   mimeType: string;
 }): Promise<{ fileId: string; filename: string; publicUrl: string | null; mimeType: string | null }> {
   return retryWithBackoff(async () => {
     const formData = new FormData();
-    formData.append('uid', params.ownerUid);
-    formData.append('ownerUid', params.ownerUid);
+    formData.append('uid', params.uid);
     formData.append('label', params.label);
     const partMime = String(params.mimeType || '').trim() || 'application/octet-stream';
     formData.append('file', {
@@ -72,7 +71,7 @@ export async function uploadFileWithModeration(params: {
       // Metro / consola: confirma que el guardado disparó red (no confundir con GET /api/.../vault)
       console.log('[moderationApi] POST /api/upload', params.label, '→', `${baseUrl}/api/upload`, params.fileName);
     }
-    const uploadToken = await getUploadJwtToken(baseUrl, params.ownerUid, gatewayKey);
+    const uploadToken = await getUploadJwtToken(baseUrl, params.uid, gatewayKey);
 
     const response = await axios.post(`${baseUrl}/api/upload`, formData, {
       headers: {

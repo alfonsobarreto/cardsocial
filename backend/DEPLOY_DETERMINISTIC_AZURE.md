@@ -64,7 +64,7 @@ $base='https://card-social-api.azurewebsites.net'
 $gateway='<API_GATEWAY_KEY>'
 $tokenReq='token-request.json'
 $modReq='moderate-request.json'
-'{"ownerUid":"qa-live","scope":"moderation.upload"}' | Set-Content -Path $tokenReq -NoNewline
+'{"uid":"qa-live","scope":"moderation.upload"}' | Set-Content -Path $tokenReq -NoNewline
 '{"text":"Smoke test moderation"}' | Set-Content -Path $modReq -NoNewline
 $tokenJson = az rest --method post --url "$base/api/auth/token" --skip-authorization-header --headers "x-api-gateway-key=$gateway" "Content-Type=application/json" --body "@$tokenReq"
 $uploadToken = ($tokenJson | ConvertFrom-Json).token

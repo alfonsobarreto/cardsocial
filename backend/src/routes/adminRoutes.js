@@ -333,7 +333,7 @@ router.get('/billing-status', verifyAdminToken, async (req, res) => {
             recent: [],
           },
           adminBalance: {
-            ownerUid: String(process.env.ADMIN_OWNER_UID || process.env.ADMIN_USER || 'admin_pochobs'),
+            uid: String(process.env.ADMIN_OWNER_UID || process.env.ADMIN_USER || 'admin_pochobs'),
             myCreditsCS: 0,
             qrsCreated: 0,
             qrsCreatedThisMonth: 0,
@@ -421,18 +421,18 @@ router.get('/billing-status', verifyAdminToken, async (req, res) => {
       .limit(20)
       .toArray();
 
-    const adminOwnerUid = String(process.env.ADMIN_OWNER_UID || process.env.ADMIN_USER || 'admin_pochobs');
+    const adminUid = String(process.env.ADMIN_OWNER_UID || process.env.ADMIN_USER || 'admin_pochobs');
 
     const adminUserDoc = await usersCollection.findOne(
       {
-        $or: [{ uid: adminOwnerUid }, { nickname: adminOwnerUid }, { email: adminOwnerUid }],
+        $or: [{ uid: adminUid }, { nickname: adminUid }, { email: adminUid }],
       },
       { projection: { creditsBalance: 1 } }
     );
 
-    const qrsCreated = await qrTokensCollection.countDocuments({ ownerUid: adminOwnerUid });
+    const qrsCreated = await qrTokensCollection.countDocuments({ uid: adminUid });
     const qrsCreatedThisMonth = await qrTokensCollection.countDocuments({
-      ownerUid: adminOwnerUid,
+      uid: adminUid,
       $or: [{ createdAt: { $gte: startOfMonth } }, { created_at: { $gte: startOfMonth } }],
     });
 
@@ -458,7 +458,7 @@ router.get('/billing-status', verifyAdminToken, async (req, res) => {
           recent: recentTx,
         },
         adminBalance: {
-          ownerUid: adminOwnerUid,
+          uid: adminUid,
           myCreditsCS: Number(adminUserDoc?.creditsBalance || 0),
           qrsCreated,
           qrsCreatedThisMonth,

@@ -167,7 +167,8 @@ export const ActionController = {
     cardName?: string;
     targetUid?: string | null;
     sourceCardName?: string;
-    sourceCardId?: string | null;
+    sourceSid?: string | null;
+    sourceBId?: string | null;
     onRequireVoipContext?: () => void | Promise<void>;
     fallbackToCallsTab?: boolean;
     enforceGhostLinkOnly?: boolean;
@@ -197,7 +198,8 @@ export const ActionController = {
   async ActionGhostLinkVaultItem({
     targetUid,
     sourceCardName,
-    sourceCardId = null,
+    sourceSid = null,
+    sourceBId = null,
     userName = 'este contacto',
     cardPhoto = null,
     cardType = 'personal',
@@ -206,7 +208,8 @@ export const ActionController = {
   }: {
     targetUid: string | null | undefined;
     sourceCardName: string;
-    sourceCardId?: string | null;
+    sourceSid?: string | null;
+    sourceBId?: string | null;
     userName?: string;
     cardPhoto?: string | null;
     cardType?: 'business' | 'personal';
@@ -226,8 +229,8 @@ export const ActionController = {
       return;
     }
 
-    const ownerUid = await getActiveUserId();
-    if (!ownerUid) {
+    const sessionUid = await getActiveUserId();
+    if (!sessionUid) {
       presentPremiumDataPanel({
         title: 'Sesión requerida',
         body: 'Inicia sesión para usar Ghost-Link.',
@@ -237,7 +240,7 @@ export const ActionController = {
       return;
     }
 
-    if (ownerUid === normalizedTargetUid) {
+    if (sessionUid === normalizedTargetUid) {
       presentPremiumDataPanel({
         title: 'Vista previa',
         body: 'Al compartir tu tarjeta, tus contactos podrán llamarte por Ghost-Link desde la app. Aquí no se inicia una llamada contigo mismo.',
@@ -256,7 +259,8 @@ export const ActionController = {
     const resolvedCardPhoto = cardPhoto?.trim() ? cardPhoto : null;
     requestGhostLinkCallImperative({
       targetUid: normalizedTargetUid,
-      sourceCardId: sourceCardId ?? null,
+      sourceSid: sourceSid ?? null,
+      sourceBId: sourceBId ?? null,
       sourceCardName: resolvedSourceCardName,
       cardPhoto: resolvedCardPhoto,
       cardType: cardType ?? 'personal',

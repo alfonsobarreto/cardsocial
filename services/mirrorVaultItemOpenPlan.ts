@@ -17,7 +17,8 @@ export type MirrorItemLike = {
 export type MirrorOpenPlanContext = {
   /** Titular de la tarjeta (Ghost-Link target). */
   cardOwnerUid: string;
-  cardId: string;
+  sid: string;
+  bId: string;
   sourceCardName: string;
 };
 

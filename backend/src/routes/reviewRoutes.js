@@ -8,9 +8,9 @@ function createReviewRoutes({ storage }) {
   // POST /api/cards/review
   router.post('/cards/review', async (req, res) => {
     try {
-      const { cardId, userId, stars, comment } = req.body;
-      if (!cardId || !userId || !stars) {
-        return res.status(400).json({ ok: false, error: 'cardId, userId y stars son obligatorios' });
+      const { bId, userId, stars, comment } = req.body;
+      if (!bId || !userId || !stars) {
+        return res.status(400).json({ ok: false, error: 'bId, userId y stars son obligatorios' });
       }
       if (stars < 1 || stars > 5) {
         return res.status(400).json({ ok: false, error: 'stars debe estar entre 1 y 5' });
@@ -18,7 +18,7 @@ function createReviewRoutes({ storage }) {
       const db = await storage.connect();
       const now = new Date();
       const review = await db.collection('reviews').findOneAndUpdate(
-        { cardId, userId },
+        { bId, userId },
         {
           $set: { stars, comment: comment || '', updatedAt: now },
           $setOnInsert: { createdAt: now },

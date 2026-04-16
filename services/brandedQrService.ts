@@ -9,9 +9,9 @@ import { Alert } from 'react-native';
 import QRCode from 'qrcode';
 
 export interface BrandedQrGenerationParams {
-  cardId: string;
+  bId: string;
   bcName: string;
-  ownerUid: string;
+  uid: string;
   /** URI local del logo (preview / centro del QR). */
   bcLogo?: string;
   cardQrDataUrl: string; // Payload del QR o data URL
@@ -43,18 +43,18 @@ const DEFAULT_EXPORT_PX = Math.max(1200, MIN_QR_PX_AT_300_DPI);
 
 /**
  * Genera URL de QR con parámetros codificados
- * Formato: card-social://qr/{cardId}?business={bcName}&owner={ownerUid}
+ * Formato: card-social://qr/{bId}?business={bcName}&uid={uid}
  */
-export function generateQrDataUrl(cardId: string, bcName: string, ownerUid: string): string {
+export function generateQrDataUrl(bId: string, bcName: string, uid: string): string {
   const encodedBusiness = encodeURIComponent(bcName);
-  return `card-social://qr/${cardId}?business=${encodedBusiness}&owner=${ownerUid}`;
+  return `card-social://qr/${bId}?business=${encodedBusiness}&uid=${encodeURIComponent(uid)}`;
 }
 
 /**
  * Enlace perpetuo para identidad de negocio (no expira y no usa Ghost-Link).
  */
-export function generatePermanentBusinessLink(cardId: string, ownerUid: string): string {
-  return `card-social://business/${cardId}?owner=${encodeURIComponent(ownerUid)}&mode=permanent`;
+export function generatePermanentBusinessLink(bId: string, uid: string): string {
+  return `card-social://business/${bId}?uid=${encodeURIComponent(uid)}&mode=permanent`;
 }
 
 /**
@@ -70,7 +70,7 @@ export async function downloadBrandedQr(
   params: BrandedQrGenerationParams
 ): Promise<BrandedQrResult> {
   try {
-    const { cardId, bcName, ownerUid, cardQrDataUrl, format, bcLogo } = params;
+    const { bId, bcName, uid, cardQrDataUrl, format, bcLogo } = params;
 
     // Sanitizar nombre para el archivo
     const sanitizedName = bcName
@@ -87,7 +87,7 @@ export async function downloadBrandedQr(
     // 1. GENERAR QR DE ALTA RESOLUCION CON ERROR CORRECTION H
     const qrPayload =
       cardQrDataUrl.startsWith('data:') || cardQrDataUrl.startsWith('file://')
-        ? generateQrDataUrl(cardId, bcName, ownerUid)
+        ? generateQrDataUrl(bId, bcName, uid)
         : cardQrDataUrl;
 
     let finalQrData = await QRCode.toDataURL(qrPayload, {

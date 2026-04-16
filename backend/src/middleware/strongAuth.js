@@ -58,7 +58,7 @@ function createQrScopeMiddleware() {
 
 function createTokenIssuer({ jwtSecret, jwtIssuer, jwtAudience }) {
   return function issueUploadToken(payload) {
-    const uid = String(payload.uid || payload.ownerUid || '').trim();
+    const uid = String(payload.uid || '').trim();
     if (!uid) {
       throw new Error('uid is required to issue token');
     }

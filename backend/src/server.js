@@ -167,7 +167,7 @@ const otpHash = (emailLower, code) => {
 
   app.post("/api/auth/token", gatewayKeyMiddleware, (req, res) => {
     try {
-      const uid = String(req.body?.uid || req.body?.ownerUid || "").trim();
+      const uid = String(req.body?.uid || "").trim();
       const requestedScope = String(req.body?.scope || "moderation.upload").trim();
       const allowedScopes = new Set(["moderation.upload", "qr.access"]);
       if (!uid) {

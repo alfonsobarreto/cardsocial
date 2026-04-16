@@ -18,14 +18,15 @@ export function normalizeQrScanPayload(raw: string): string {
 export type ParsedDynamicAppQr = {
   kind: 'dynamic_app';
   token: string;
-  cardId: string;
+  sid: string | null;
+  bId: string | null;
   exp: number | null;
 };
 
 export type ParsedBusinessDeepLink = {
   kind: 'business_deep_link';
-  ownerUid: string;
-  cardId: string;
+  uid: string;
+  bId: string;
 };
 
 function decodeParam(s: string): string {
@@ -36,7 +37,7 @@ function decodeParam(s: string): string {
   }
 }
 
-/** `card-social://business/{cardId}?owner=...&mode=permanent` */
+/** `card-social://business/{bId}?uid=...&mode=permanent` (legacy: `owner=`) */
 export function parsePermanentBusinessQr(data: string): ParsedBusinessDeepLink | null {
   const raw = normalizeQrScanPayload(data);
   if (!raw) return null;
@@ -46,15 +47,17 @@ export function parsePermanentBusinessQr(data: string): ParsedBusinessDeepLink |
   }
   const mPath = raw.match(/(?:card-social|cardsocial):\/\/business\/([^?#]+)/i);
   if (!mPath) return null;
-  const cardId = decodeParam(mPath[1]);
-  const mOwner = raw.match(/[?&]owner=([^&]+)/i);
-  if (!mOwner) return null;
-  const ownerUid = decodeParam(mOwner[1]);
-  if (!cardId || !ownerUid) return null;
-  return { kind: 'business_deep_link', ownerUid, cardId };
+  const bId = decodeParam(mPath[1]);
+  const mUid = raw.match(/[?&]uid=([^&]+)/i);
+  const mLegacyOwner = raw.match(/[?&]owner=([^&]+)/i);
+  const uidRaw = mUid?.[1] ?? mLegacyOwner?.[1];
+  if (!uidRaw) return null;
+  const uid = decodeParam(uidRaw);
+  if (!bId || !uid) return null;
+  return { kind: 'business_deep_link', uid, bId };
 }
 
-/** `card-social://qr/{cardId}?business=...&owner=...` */
+/** `card-social://qr/{bId}?business=...&uid=...` (legacy: `owner=`) */
 export function parseBrandedBusinessQrUrl(data: string): ParsedBusinessDeepLink | null {
   const raw = normalizeQrScanPayload(data);
   if (!raw) return null;
@@ -64,12 +67,14 @@ export function parseBrandedBusinessQrUrl(data: string): ParsedBusinessDeepLink 
   }
   const mPath = raw.match(/(?:card-social|cardsocial):\/\/qr\/([^?#]+)/i);
   if (!mPath) return null;
-  const cardId = decodeParam(mPath[1]);
-  const mOwner = raw.match(/[?&]owner=([^&]+)/i);
-  if (!mOwner) return null;
-  const ownerUid = decodeParam(mOwner[1]);
-  if (!cardId || !ownerUid) return null;
-  return { kind: 'business_deep_link', ownerUid, cardId };
+  const bId = decodeParam(mPath[1]);
+  const mUid = raw.match(/[?&]uid=([^&]+)/i);
+  const mLegacyOwner = raw.match(/[?&]owner=([^&]+)/i);
+  const uidRaw = mUid?.[1] ?? mLegacyOwner?.[1];
+  if (!uidRaw) return null;
+  const uid = decodeParam(uidRaw);
+  if (!bId || !uid) return null;
+  return { kind: 'business_deep_link', uid, bId };
 }
 
 export function parseDynamicAppQrJson(data: string): ParsedDynamicAppQr | null {
@@ -79,11 +84,14 @@ export function parseDynamicAppQrJson(data: string): ParsedDynamicAppQr | null {
     const parsed = JSON.parse(raw);
     const k = String(parsed?.kind || '').trim().toLowerCase();
     const token = String(parsed?.token || '').trim();
-    const cardId = String(parsed?.cardId || '').trim();
+    const sidRaw = parsed?.sid != null ? String(parsed.sid).trim() : '';
+    const bIdRaw = parsed?.bId != null ? String(parsed.bId).trim() : '';
+    const sid = sidRaw || null;
+    const bId = bIdRaw || null;
     const expRaw = Number(parsed?.exp);
     const exp = Number.isFinite(expRaw) ? expRaw : null;
-    if (token && k === 'cardsocial-qr-v1' && cardId) {
-      return { kind: 'dynamic_app', token, cardId, exp };
+    if (token && k === 'cardsocial-qr-v1') {
+      return { kind: 'dynamic_app', token, sid, bId, exp };
     }
   } catch {
     /* not JSON */

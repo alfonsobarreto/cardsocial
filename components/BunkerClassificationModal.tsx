@@ -9,10 +9,11 @@ import React from 'react';
 export type BunkerClassificationModalProps = {
   visible: boolean;
   mode: 'universal' | 'dynamic_qr' | 'business_permanent';
-  /** Vacío si `mode === 'business_permanent'` (canje vía ownerUid + cardId). */
+  /** Vacío si `mode === 'business_permanent'` (canje vía uid + bId). */
   token: string;
-  ownerUid: string;
-  cardId: string;
+  issuerUid: string;
+  sid: string | null;
+  bId: string | null;
   /** Nombre público del emisor (Ghost-Link / peer). */
   issuerFullName: string;
   receiverUid: string;
@@ -26,8 +27,9 @@ export function BunkerClassificationModal({
   visible,
   mode,
   token,
-  ownerUid,
-  cardId,
+  issuerUid,
+  sid,
+  bId,
   issuerFullName,
   receiverUid,
   previewPayload,
@@ -43,13 +45,15 @@ export function BunkerClassificationModal({
       incomingRedeem={{
         mode,
         token,
-        ownerUid,
-        cardId,
+        issuerUid,
+        sid,
+        bId,
         receiverUid,
         onSuccess,
       }}
-      ghostTargetUid={ownerUid}
-      sourceCardId={cardId}
+      ghostTargetUid={issuerUid}
+      sourceSid={sid}
+      sourceBId={bId}
       sourceCardName={previewPayload?.cardName}
       peerDisplayName={issuerFullName}
       ratingCardType={mode === 'business_permanent' ? 'business' : 'smart'}

@@ -17,7 +17,8 @@ export type OpenVaultPreviewItemDeps = {
    */
   ghostTargetUid: string | null | undefined;
   sourceCardName: string;
-  sourceCardId: string | null;
+  sourceSid: string | null;
+  sourceBId: string | null;
   peerDisplayName: string;
   /**
    * Cierra el modal de vista previa (tarjeta flotante) antes de Ghost-Link.
@@ -44,7 +45,8 @@ export async function openVaultPreviewItem(item: MirrorVaultItem, deps: OpenVaul
     },
     {
       cardOwnerUid: String(deps.ghostTargetUid || '').trim(),
-      cardId: String(deps.sourceCardId || '').trim(),
+      sid: String(deps.sourceSid || '').trim(),
+      bId: String(deps.sourceBId || '').trim(),
       sourceCardName: deps.sourceCardName,
     },
   );
@@ -62,7 +64,8 @@ export async function openVaultPreviewItem(item: MirrorVaultItem, deps: OpenVaul
       await ActionController.ActionGhostLinkVaultItem({
         targetUid: deps.ghostTargetUid,
         sourceCardName: deps.sourceCardName,
-        sourceCardId: deps.sourceCardId,
+        sourceSid: deps.sourceSid,
+        sourceBId: deps.sourceBId,
         userName: deps.peerDisplayName,
         cardPhoto: deps.cardPhoto ?? photo,
         peerPhotoUrl: photo,

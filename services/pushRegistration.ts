@@ -16,10 +16,10 @@ function getGatewayKey(): string {
   return key;
 }
 
-async function getQrScopedJwt(ownerUid: string): Promise<string> {
+async function getQrScopedJwt(uid: string): Promise<string> {
   const response = await axios.post(
     `${getApiBaseUrl()}/api/auth/token`,
-    { uid: ownerUid, scope: 'qr.access' },
+    { uid, scope: 'qr.access' },
     { headers: { 'x-api-gateway-key': getGatewayKey() }, timeout: 15000 },
   );
   return String(response?.data?.token || '').trim();
@@ -75,8 +75,8 @@ function shouldSkipExpoPushToken(): boolean {
 
 export async function registerPushToken(): Promise<void> {
   try {
-    const ownerUid = await getActiveUserId();
-    if (!ownerUid) return;
+    const uid = await getActiveUserId();
+    if (!uid) return;
 
     if (shouldSkipExpoPushToken()) {
       if (__DEV__) {
@@ -101,10 +101,10 @@ export async function registerPushToken(): Promise<void> {
     const token = tokenData.data;
     if (!token) return;
 
-    const jwt = await getQrScopedJwt(ownerUid);
+    const jwt = await getQrScopedJwt(uid);
     await axios.post(
       `${getApiBaseUrl()}/api/qr/push/register`,
-      { ownerUid, token },
+      { uid, token },
       {
         headers: {
           'x-api-gateway-key': getGatewayKey(),

@@ -18,8 +18,8 @@
  *    - Tipo `VaultItem` alineado con bóveda (title, type, value, iconName, ...).
  *
  * 3) app/(tabs)/contacts.tsx
- *    - API devuelve `cardId` + `searchFacets` (facetas sin tipo teléfono, generadas al guardar la tarjeta).
- *    - `receivedContactMatchesDeepSearch` unifica uid, cardId, nombres, grupo, icons y facetas.
+ *    - API devuelve `sid` / `bId` + `searchFacets` (facetas sin tipo teléfono, generadas al guardar la tarjeta).
+ *    - `receivedContactMatchesDeepSearch` unifica uid, sid, bId, nombres, grupo, icons y facetas.
  *
  * Tipos de dato en formulario (NewInfoForm): 'Enlaces' | 'Teléfono' | 'Email' | 'Texto Plain' | 'Documento'.
  * En vault también existen claves legacy en badges: teléfono/telefono, enlaces, texto plain, etc.
@@ -529,7 +529,8 @@ export function deriveOwnerOccupationFromFacets(facets: CardSearchFacet[]): stri
 
 export type ReceivedContactSearchRow = {
   uid: string;
-  cardId?: string | null;
+  sid?: string | null;
+  bId?: string | null;
   userFullName: string;
   userNickName: string;
   cardName: string;
@@ -550,8 +551,11 @@ export function collectStringsReceivedContact(
     }
   };
   push(contact.uid);
-  if (contact.cardId) {
-    push(String(contact.cardId));
+  if (contact.sid) {
+    push(String(contact.sid));
+  }
+  if (contact.bId) {
+    push(String(contact.bId));
   }
   push(contact.userFullName);
   push(contact.userNickName);

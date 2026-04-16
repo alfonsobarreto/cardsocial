@@ -92,7 +92,7 @@ async function checkHealthEndpoint() {
 async function checkTokenEndpoint() {
   const response = await axios.post(
     `${baseUrl}/api/auth/token`,
-    { ownerUid: `smoke_owner_${Date.now()}` },
+    { uid: `smoke_owner_${Date.now()}` },
     {
       headers: {
         'x-api-gateway-key': gatewayKey,

@@ -29,7 +29,8 @@ import {
 type ContactRow = {
   linkKey: string;
   uid: string;
-  cardId: string | null;
+  sid: string | null;
+  bId: string | null;
   userFullName: string;
   userNickName: string;
   userAvatarUrl: string | null;
@@ -328,18 +329,20 @@ export default function CallsPage() {
       }
 
       const [historyResponse, contactsResponse] = await Promise.all([
-        listCallsHistory({ ownerUid: uid }),
-        listReceivedContacts({ ownerUid: uid }),
+        listCallsHistory({ uid }),
+        listReceivedContacts({ uid }),
       ]);
 
       setHistory(historyResponse.history);
       setContacts(
         contactsResponse.contacts.map((row) => {
-          const cardId = row.cardId != null && String(row.cardId).trim() ? String(row.cardId).trim() : null;
+          const sid = row.sid != null && String(row.sid).trim() ? String(row.sid).trim() : null;
+          const bId = row.bId != null && String(row.bId).trim() ? String(row.bId).trim() : null;
           return {
-            linkKey: receivedContactMergeKey({ uid: row.uid, cardId }),
+            linkKey: receivedContactMergeKey({ uid: row.uid, sid, bId }),
             uid: row.uid,
-            cardId,
+            sid,
+            bId,
             userFullName: row.userFullName,
             userNickName: row.userNickName,
             userAvatarUrl: row.userAvatarUrl,
@@ -373,10 +376,11 @@ export default function CallsPage() {
         : item.storyState === 'normal'
           ? { borderWidth: 2 as const, borderColor: shell.success }
           : styles.avatarRingNone;
-    const cardKind = item.isBusinessCard ? 'business' : 'personal';
+    const cardKind = (item.isBusinessCard ? 'business' : 'personal') as const;
     const imperativeBase = {
       targetUid: item.peerUid,
-      sourceCardId: item.sourceCardId,
+      sourceSid: item.sourceSid,
+      sourceBId: item.sourceBId,
       sourceCardName: item.sourceCardName || tr('Tarjeta Social', 'Social Card'),
       cardPhoto: item.userAvatarUrl,
       cardType: cardKind,

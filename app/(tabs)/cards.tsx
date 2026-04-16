@@ -236,15 +236,15 @@ function migrateVaultIconsForStorage(items: any[]) {
  * Misma fuente que `loadVaultItems`, pero devuelve datos sin depender del estado React.
  * QR24h debe usar esto antes del upsert: si `vaultItems` en memoria va vacío, `publicCardSlots` salía [] y la web sin iconos.
  */
-async function loadVaultSnapshotForSync(ownerUid: string): Promise<{
+async function loadVaultSnapshotForSync(uid: string): Promise<{
   vaultItems: VaultItem[];
   iconVaultById: Record<string, IconVaultEntry>;
 }> {
-  const raw = await readVaultJsonWithLegacyMigration(ownerUid);
+  const raw = await readVaultJsonWithLegacyMigration(uid);
   let parsed = raw ? (JSON.parse(raw) as any[]) : [];
   let itemsMigrated = migrateVaultIconsForStorage(parsed);
   if (JSON.stringify(itemsMigrated) !== JSON.stringify(parsed)) {
-    await AsyncStorage.setItem(vaultStorageKey(ownerUid), JSON.stringify(itemsMigrated));
+    await AsyncStorage.setItem(vaultStorageKey(uid), JSON.stringify(itemsMigrated));
   }
 
   /** Unión local + Firestore por `id`: si el caché local no tiene algún link, la tarjeta igual muestra iconos en app pero publicCardSlots salía []. */
@@ -256,7 +256,7 @@ async function loadVaultSnapshotForSync(ownerUid: string): Promise<{
     }
   }
   try {
-    const cloudSnapshot = await getDocs(collection(db, 'users', ownerUid, 'links'));
+    const cloudSnapshot = await getDocs(collection(db, 'users', uid, 'links'));
     for (const itemDoc of cloudSnapshot.docs) {
       const id = String(itemDoc.id || '').trim();
       if (!id || byId.has(id)) {
@@ -271,21 +271,21 @@ async function loadVaultSnapshotForSync(ownerUid: string): Promise<{
 
   if (itemsMigrated.length === 0) {
     try {
-      const cloudSnapshot = await getDocs(collection(db, 'users', ownerUid, 'links'));
+      const cloudSnapshot = await getDocs(collection(db, 'users', uid, 'links'));
       const cloudItems = cloudSnapshot.docs.map((itemDoc) => ({
         id: itemDoc.id,
         ...itemDoc.data(),
       })) as any[];
       itemsMigrated = migrateVaultIconsForStorage(cloudItems);
-      await AsyncStorage.setItem(vaultStorageKey(ownerUid), JSON.stringify(itemsMigrated));
+      await AsyncStorage.setItem(vaultStorageKey(uid), JSON.stringify(itemsMigrated));
     } catch {
       /* sin red */
     }
   }
-  itemsMigrated = await mergeBuiltinGhostLinkIntoVault(ownerUid, itemsMigrated);
+  itemsMigrated = await mergeBuiltinGhostLinkIntoVault(uid, itemsMigrated);
   let iconMap: Record<string, IconVaultEntry> = {};
   try {
-    const vaultMap = await getUserIconVaultMap(ownerUid);
+    const vaultMap = await getUserIconVaultMap(uid);
     iconMap = Object.fromEntries(vaultMap);
   } catch {
     iconMap = {};
@@ -300,20 +300,20 @@ type Universal24hQrCacheRow = {
   qrWindowMs: number;
 };
 
-function universal24hQrStorageKey(ownerUid: string, cardId: string) {
-  return `@cs_universal24h_${ownerUid}_${cardId}`;
+function universal24hQrStorageKey(uid: string, sid: string) {
+  return `@cs_universal24h_${uid}_${sid}`;
 }
 
-async function readUniversal24hQrCache(ownerUid: string, cardId: string): Promise<Universal24hQrCacheRow | null> {
+async function readUniversal24hQrCache(uid: string, sid: string): Promise<Universal24hQrCacheRow | null> {
   try {
-    const raw = await AsyncStorage.getItem(universal24hQrStorageKey(ownerUid, cardId));
+    const raw = await AsyncStorage.getItem(universal24hQrStorageKey(uid, sid));
     if (!raw) return null;
     const p = JSON.parse(raw) as Partial<Universal24hQrCacheRow>;
     const universalUrl = String(p.universalUrl || '').trim();
     const expiresAt = Number(p.expiresAt || 0);
     const qrWindowMs = Math.max(1000, Number(p.qrWindowMs || 0));
     if (!universalUrl || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
-      await AsyncStorage.removeItem(universal24hQrStorageKey(ownerUid, cardId));
+      await AsyncStorage.removeItem(universal24hQrStorageKey(uid, sid));
       return null;
     }
     return { universalUrl, expiresAt, qrWindowMs };
@@ -322,9 +322,9 @@ async function readUniversal24hQrCache(ownerUid: string, cardId: string): Promis
   }
 }
 
-async function writeUniversal24hQrCache(ownerUid: string, cardId: string, row: Universal24hQrCacheRow) {
+async function writeUniversal24hQrCache(uid: string, sid: string, row: Universal24hQrCacheRow) {
   try {
-    await AsyncStorage.setItem(universal24hQrStorageKey(ownerUid, cardId), JSON.stringify(row));
+    await AsyncStorage.setItem(universal24hQrStorageKey(uid, sid), JSON.stringify(row));
   } catch {
     /* ignore */
   }
@@ -336,7 +336,7 @@ async function writeUniversal24hQrCache(ownerUid: string, cardId: string, row: U
  * el usuario los incluye o excluye en el editor como cualquier otro dato.
  */
 type SmartCard = {
-  id: string;
+  sid: string;
   scName: string;
   layout: 'vertical' | 'horizontal';
   themeId?: string;
@@ -364,11 +364,11 @@ type SmartCard = {
   updatedAt: string;
 };
 
-/** Una sola fila por `id` (evita claves duplicadas en listas y orden manual). */
-function dedupeSmartCardsById(cards: SmartCard[]): SmartCard[] {
+/** Una sola fila por `sid` (evita claves duplicadas en listas y orden manual). */
+function dedupeSmartCardsBySid(cards: SmartCard[]): SmartCard[] {
   const byId = new Map<string, SmartCard>();
   for (const c of cards) {
-    const id = String(c.id || '').trim();
+    const id = String(c.sid || '').trim();
     if (!id) {
       continue;
     }
@@ -411,7 +411,7 @@ type CardsFeedListItem =
   | { kind: 'smart'; card: SmartCard };
 
 function cardsFeedItemKey(item: CardsFeedListItem): string {
-  return item.kind === 'business' ? `b:${item.bId}` : `s:${item.card.id}`;
+  return item.kind === 'business' ? `b:${item.bId}` : `s:${item.card.sid}`;
 }
 
 function applyCardsManualFeedOrder(feed: CardsFeedListItem[], savedKeys: string[] | null): CardsFeedListItem[] {
@@ -499,10 +499,10 @@ export default function CardsFactoryScreen() {
   const [subscribers, setSubscribers] = useState<CardSubscriber[]>([]);
   const [qrVisible, setQrVisible] = useState(false);
   const [qrBusinessContext, setQrBusinessContext] = useState<null | {
-    cardId: string;
+    bId: string;
     bcName: string;
     bcContactName: string;
-    ownerUid: string;
+    uid: string;
     bcLogoUrl: string | null;
   }>(null);
   // Limit Reached Modal States
@@ -520,13 +520,13 @@ export default function CardsFactoryScreen() {
   const [qrExpiresAt, setQrExpiresAt] = useState<number>(0);
   const [qrWindowMs, setQrWindowMs] = useState(60000);
   /** Tarjeta a la que aplica el QR activo (dinámico o web 24h); bloquea otra emisión hasta `qrExpiresAt`. */
-  const [qrActiveCardId, setQrActiveCardId] = useState<string | null>(null);
+  const [qrActiveSid, setQrActiveSid] = useState<string | null>(null);
   const [remainingSec, setRemainingSec] = useState(0);
   const [remainingMs, setRemainingMs] = useState(0);
   const [issuingQr, setIssuingQr] = useState(false);
   const [issuingUniversalLink, setIssuingUniversalLink] = useState(false);
   /** UID de la sesión en Mis Tarjetas (QR permanente en filas de negocio). */
-  const [sessionOwnerUid, setSessionOwnerUid] = useState<string | null>(null);
+  const [sessionUid, setSessionUid] = useState<string | null>(null);
   const [cardSearchQuery, setCardSearchQuery] = useState('');
   const [cardStatsVisible, setCardStatsVisible] = useState(false);
   const [cardStatsTarget, setCardStatsTarget] = useState<SmartCard | null>(null);
@@ -625,12 +625,12 @@ export default function CardsFactoryScreen() {
         const authenticated = await hardLockCheck('acceso a Business Cards');
         setIsCardsUnlocked(authenticated);
         if (!authenticated) {
-          setSessionOwnerUid(null);
+          setSessionUid(null);
           return;
         }
 
         const uid = await getActiveUserId();
-        setSessionOwnerUid(uid ?? null);
+        setSessionUid(uid ?? null);
 
         void refreshThemes();
 
@@ -712,7 +712,7 @@ export default function CardsFactoryScreen() {
       const nextRemainingSec = Math.ceil(remainingMs / 1000);
       setRemainingSec(nextRemainingSec);
       if (remainingMs <= 0) {
-        setQrActiveCardId(null);
+        setQrActiveSid(null);
         if (qrTimerRef.current) {
           clearInterval(qrTimerRef.current);
           qrTimerRef.current = null;
@@ -733,13 +733,13 @@ export default function CardsFactoryScreen() {
 
   const loadVaultItems = async () => {
     try {
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) {
+      const uid = await getActiveUserId();
+      if (!uid) {
         setVaultItems([]);
         setIconVaultById({});
         return;
       }
-      const snap = await loadVaultSnapshotForSync(ownerUid);
+      const snap = await loadVaultSnapshotForSync(uid);
       setVaultItems(snap.vaultItems);
       setIconVaultById(snap.iconVaultById);
     } catch {
@@ -749,17 +749,25 @@ export default function CardsFactoryScreen() {
   };
 
   const loadSmartCards = async (): Promise<SmartCard[]> => {
-    const ownerUid = await getActiveUserId();
-    if (!ownerUid) {
+    const uid = await getActiveUserId();
+    if (!uid) {
       setSmartCards([]);
       return [];
     }
 
     let lastList: SmartCard[] = [];
     try {
-      const raw = await readSmartCardsJsonWithLegacyMigration(ownerUid);
+      const raw = await readSmartCardsJsonWithLegacyMigration(uid);
       const cached = raw ? (JSON.parse(raw) as SmartCard[]) : [];
-      lastList = dedupeSmartCardsById(cached.map((card) => ({ ...card, isFavorite: Boolean(card.isFavorite) })));
+      lastList = dedupeSmartCardsBySid(
+        cached.map((card) => {
+          const row = card as SmartCard & { id?: string };
+          const sid = String(row.sid || row.id || '').trim();
+          const next = { ...row, sid, isFavorite: Boolean(card.isFavorite) } as SmartCard & { id?: string };
+          delete next.id;
+          return next as SmartCard;
+        }),
+      );
       if (lastList.length > 0) {
         setSmartCards(lastList);
       }
@@ -768,10 +776,10 @@ export default function CardsFactoryScreen() {
     }
 
     try {
-      const remote = await listSmartCardsFromDb({ uid: ownerUid });
+      const remote = await listSmartCardsFromDb({ uid: uid });
       const smartOnly = remote.cards.filter((c) => (c.cardType || 'smart') !== 'business');
       const mapped = smartOnly.map((card) => ({
-        id: card.cardId,
+        sid: String(card.sid || ''),
         scName: card.scName,
         layout: card.layout,
         themeId: card.themeId || 'deep_teal',
@@ -795,9 +803,9 @@ export default function CardsFactoryScreen() {
         updatedAt: card.updatedAt,
       }));
 
-      const deduped = dedupeSmartCardsById(mapped);
+      const deduped = dedupeSmartCardsBySid(mapped);
       setSmartCards(deduped);
-      await AsyncStorage.setItem(smartCardsStorageKey(ownerUid), JSON.stringify(deduped));
+      await AsyncStorage.setItem(smartCardsStorageKey(uid), JSON.stringify(deduped));
       return deduped;
     } catch {
       return lastList;
@@ -805,24 +813,24 @@ export default function CardsFactoryScreen() {
   };
 
   const loadBusinessCardsFeed = async (): Promise<BusinessCardListRow[]> => {
-    const ownerUid = await getActiveUserId();
-    if (!ownerUid) {
+    const uid = await getActiveUserId();
+    if (!uid) {
       setBusinessCardsFeed([]);
       return [];
     }
     try {
-      let rows = await listBusinessCardsByOwner(ownerUid);
+      let rows = await listBusinessCardsByOwner(uid);
       try {
-        const { cards: mongoMirror } = await listSmartCardsFromDb({ uid: ownerUid });
+        const { cards: mongoMirror } = await listSmartCardsFromDb({ uid: uid });
         rows = mergeBusinessCardRowsWithMongoOwnerPhoto(rows, mongoMirror);
       } catch {
         /* sin espejo Mongo: se usa solo Firestore */
       }
       /* Obtener holdersCount real desde share_permissions (MongoDB) */
-      const cardIds = rows.map((r) => r.bId);
-      if (cardIds.length) {
+      const bIds = rows.map((r) => r.bId);
+      if (bIds.length) {
         try {
-          const counts = await fetchBusinessCardHolderCounts({ ownerUid, cardIds });
+          const counts = await fetchBusinessCardHolderCounts({ uid: uid, keys: bIds });
           for (const r of rows) {
             if (counts[r.bId] !== undefined) {
               r.holdersCount = counts[r.bId];
@@ -866,7 +874,8 @@ export default function CardsFactoryScreen() {
     const occ = deriveOwnerOccupationFromFacets(searchFacets).trim();
     const publicCardSlots = buildPublicCardSlotsForPersist(vItems, card.itemIds, vIcons);
     return {
-      cardId: card.id,
+      sid: card.sid,
+      cardType: 'smart' as const,
       scName: card.scName,
       layout: card.layout,
       themeId: card.themeId || 'deep_teal',
@@ -895,35 +904,35 @@ export default function CardsFactoryScreen() {
 
   const persistCards = async (nextCards: SmartCard[], changedCardIds?: string[]) => {
     console.log('[Card] persistCards: INICIO');
-    const normalized = dedupeSmartCardsById(nextCards);
+    const normalized = dedupeSmartCardsBySid(nextCards);
     setSmartCards(normalized);
 
     console.log('[Card] persistCards: Antes de getActiveUserId');
-    const ownerUid = await getActiveUserId();
-    console.log('[Card] persistCards: Después de getActiveUserId', ownerUid);
+    const uid = await getActiveUserId();
+    console.log('[Card] persistCards: Después de getActiveUserId', uid);
 
     console.log('[Card] persistCards: Antes de AsyncStorage.setItem');
-    if (ownerUid) {
-      await AsyncStorage.setItem(smartCardsStorageKey(ownerUid), JSON.stringify(normalized));
+    if (uid) {
+      await AsyncStorage.setItem(smartCardsStorageKey(uid), JSON.stringify(normalized));
     }
     console.log('[Card] persistCards: Después de AsyncStorage.setItem');
 
     try {
-      if (!ownerUid) {
+      if (!uid) {
         return;
       }
 
       const cardsToSync = changedCardIds
-        ? nextCards.filter((c) => changedCardIds.includes(c.id))
+        ? nextCards.filter((c) => changedCardIds.includes(c.sid))
         : nextCards;
 
       for (const card of cardsToSync) {
-        console.log('[Card] persistCards: Antes de upsertSmartCardInDb', card.id);
+        console.log('[Card] persistCards: Antes de upsertSmartCardInDb', card.sid);
         await upsertSmartCardInDb({
-          ownerUid,
+          uid: uid,
           card: buildSmartCardDbPayload(card),
         });
-        console.log('[Card] persistCards: Después de upsertSmartCardInDb', card.id);
+        console.log('[Card] persistCards: Después de upsertSmartCardInDb', card.sid);
       }
     } catch (e) {
       // Keep local cache as fallback when backend is not reachable.
@@ -950,25 +959,25 @@ export default function CardsFactoryScreen() {
         (c) =>
           c.itemIds.length > 0 && (!c.searchFacets || c.searchFacets.length === 0),
       )
-      .map((c) => c.id);
+      .map((c) => c.sid);
     if (!ids.length) {
       return;
     }
     void (async () => {
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) {
+      const uid = await getActiveUserId();
+      if (!uid) {
         return;
       }
       const state = searchFacetRepairAttemptRef.current;
-      if (state.uid !== ownerUid) {
-        searchFacetRepairAttemptRef.current = { uid: ownerUid, attempted: false };
+      if (state.uid !== uid) {
+        searchFacetRepairAttemptRef.current = { uid: uid, attempted: false };
       } else if (state.attempted) {
         return;
       }
       searchFacetRepairInFlightRef.current = true;
       try {
         searchFacetRepairAttemptRef.current = {
-          uid: ownerUid,
+          uid: uid,
           attempted: true,
         };
         await persistCards(smartCards, ids);
@@ -1041,8 +1050,8 @@ export default function CardsFactoryScreen() {
     setSelectedWallpaper(
       card.wallpaperUrl
         ? {
-            id: card.wallpaperId || `custom-${card.id}`,
-            name: String(card.wallpaperId || `custom-${card.id}`).trim() || 'wallpaper',
+            id: card.wallpaperId || `custom-${card.sid}`,
+            name: String(card.wallpaperId || `custom-${card.sid}`).trim() || 'wallpaper',
             orientation: card.layout,
             tier: card.wallpaperTier || 'free',
             fullUrl: card.wallpaperUrl,
@@ -1101,7 +1110,7 @@ export default function CardsFactoryScreen() {
 
     const normalizedCardName = cardName.trim().toLowerCase();
     const duplicatedName = smartCards.some((card) => {
-      if (selectedCard && card.id === selectedCard.id) {
+      if (selectedCard && card.sid === selectedCard.sid) {
         return false;
       }
       return String(card.scName || '').trim().toLowerCase() === normalizedCardName;
@@ -1131,7 +1140,7 @@ export default function CardsFactoryScreen() {
 
       if (selectedCard) {
         const nextCards = smartCards.map((card) =>
-          card.id === selectedCard.id
+          card.sid === selectedCard.sid
             ? {
                 ...card,
                 scName: cardName.trim(),
@@ -1152,7 +1161,7 @@ export default function CardsFactoryScreen() {
               }
             : card
         );
-        await persistCards(nextCards as SmartCard[], [selectedCard.id]);
+        await persistCards(nextCards as SmartCard[], [selectedCard.sid]);
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Toast.show({
           type: 'success',
@@ -1166,7 +1175,7 @@ export default function CardsFactoryScreen() {
       }
 
       const newCard: SmartCard = {
-        id: createSmartCardId(),
+        sid: createSmartCardId(),
         scName: cardName.trim(),
         layout: 'vertical',
         themeId,
@@ -1189,7 +1198,7 @@ export default function CardsFactoryScreen() {
         updatedAt: nowIso,
       };
 
-      await persistCards([newCard, ...smartCards], [newCard.id]);
+      await persistCards([newCard, ...smartCards], [newCard.sid]);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Toast.show({
         type: 'success',
@@ -1205,26 +1214,26 @@ export default function CardsFactoryScreen() {
   };
 
   const deleteCard = async (card: SmartCard) => {
-    const nextCards = smartCards.filter((item) => item.id !== card.id);
+    const nextCards = smartCards.filter((item) => item.sid !== card.sid);
     await persistCards(nextCards);
 
     try {
-      const ownerUid = await getActiveUserId();
-      if (ownerUid) {
-        await deleteSmartCardInDb({ ownerUid, cardId: card.id });
+      const uid = await getActiveUserId();
+      if (uid) {
+        await deleteSmartCardInDb({ uid: uid, cardRef: card.sid });
       }
     } catch {
       // Local state already updated.
     }
 
-    if (selectedCard?.id === card.id) {
+    if (selectedCard?.sid === card.sid) {
       setSelectedCard(null);
     }
   };
 
   const toggleFavoriteCard = async (card: SmartCard) => {
     const nextCards = smartCards.map((entry) =>
-      entry.id === card.id
+      entry.sid === card.sid
         ? {
             ...entry,
             isFavorite: !entry.isFavorite,
@@ -1240,7 +1249,7 @@ export default function CardsFactoryScreen() {
     const nowIso = new Date().toISOString();
 
     const nextCards = smartCards.map((entry) =>
-      entry.id === card.id
+      entry.sid === card.sid
         ? {
             ...entry,
             itemIds: normalized,
@@ -1250,7 +1259,7 @@ export default function CardsFactoryScreen() {
     );
 
     await persistCards(nextCards);
-    const refreshed = nextCards.find((entry) => entry.id === card.id) || null;
+    const refreshed = nextCards.find((entry) => entry.sid === card.sid) || null;
     setPreviewCard(refreshed);
     setSelectedCard(refreshed);
   };
@@ -1379,10 +1388,10 @@ export default function CardsFactoryScreen() {
       setSubscribersBusinessRow(row);
       setSubscribersCard(null);
 
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) throw new Error('No active session.');
+      const uid = await getActiveUserId();
+      if (!uid) throw new Error('No active session.');
 
-      const response = await listCardSubscribers({ ownerUid, cardId: row.bId });
+      const response = await listCardSubscribers({ uid: uid, cardRef: row.bId });
       setSubscribers(response.subscribers);
 
       setBusinessCardsFeed((prev) =>
@@ -1405,17 +1414,17 @@ export default function CardsFactoryScreen() {
       setSubscribersLoading(true);
       setSubscribersCard(card);
 
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) {
+      const uid = await getActiveUserId();
+      if (!uid) {
         throw new Error('No se pudo validar tu sesion.');
       }
 
-      const response = await listCardSubscribers({ ownerUid, cardId: card.id });
+      const response = await listCardSubscribers({ uid: uid, cardRef: card.sid });
       setSubscribers(response.subscribers);
 
       setSmartCards((prev) =>
         prev.map((entry) =>
-          entry.id === card.id
+          entry.sid === card.sid
             ? {
                 ...entry,
                 holdersCount: response.count,
@@ -1437,14 +1446,14 @@ export default function CardsFactoryScreen() {
     }
 
     try {
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) {
+      const uid = await getActiveUserId();
+      if (!uid) {
         throw new Error('No se pudo validar tu sesion.');
       }
 
       await revokeCardSubscriber({
-        ownerUid,
-        cardId: subscribersCard.id,
+        uid: uid,
+        cardRef: subscribersCard.sid,
         targetUid,
       });
 
@@ -1452,7 +1461,7 @@ export default function CardsFactoryScreen() {
       setSubscribers(nextRows);
       setSmartCards((prev) =>
         prev.map((entry) =>
-          entry.id === subscribersCard.id
+          entry.sid === subscribersCard.sid
             ? {
                 ...entry,
                 holdersCount: nextRows.length,
@@ -1467,19 +1476,19 @@ export default function CardsFactoryScreen() {
 
   const handleBlockSubscriber = async (targetUid: string) => {
     try {
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) {
+      const uid = await getActiveUserId();
+      if (!uid) {
         throw new Error('No se pudo validar tu sesion.');
       }
 
-      await blockRelationship({ ownerUid, targetUid });
+      await blockRelationship({ uid: uid, targetUid });
 
       const nextRows = subscribers.filter((row) => row.uid !== targetUid);
       setSubscribers(nextRows);
       if (subscribersCard) {
         setSmartCards((prev) =>
           prev.map((entry) =>
-            entry.id === subscribersCard.id
+            entry.sid === subscribersCard.sid
               ? {
                   ...entry,
                   holdersCount: nextRows.length,
@@ -1498,14 +1507,14 @@ export default function CardsFactoryScreen() {
       return;
     }
     try {
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) {
+      const uid = await getActiveUserId();
+      if (!uid) {
         throw new Error('No se pudo validar tu sesion.');
       }
 
       await setCardSubscriberMute({
-        ownerUid,
-        cardId: subscribersCard.id,
+        uid: uid,
+        cardRef: subscribersCard.sid,
         targetUid,
         muted: nextMuted,
       });
@@ -1521,11 +1530,11 @@ export default function CardsFactoryScreen() {
   const toggleCardSilence = async (card: SmartCard) => {
     const next = !card.silenced;
     try {
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) return;
-      await setCardSilenced({ ownerUid, cardId: card.id, silenced: next });
+      const uid = await getActiveUserId();
+      if (!uid) return;
+      await setCardSilenced({ uid: uid, cardRef: card.sid, silenced: next });
       setSmartCards((prev) =>
-        prev.map((c) => (c.id === card.id ? { ...c, silenced: next } : c)),
+        prev.map((c) => (c.sid === card.sid ? { ...c, silenced: next } : c)),
       );
     } catch (e: any) {
       Alert.alert(tr('Error', 'Error'), e?.message || tr('No se pudo actualizar.', 'Could not update.'));
@@ -1541,7 +1550,7 @@ export default function CardsFactoryScreen() {
 
       // Mismo QR dinámico (app↔app) aún válido: solo reabrir modal con countdown, sin nueva emisión.
       if (
-        qrActiveCardId === card.id &&
+        qrActiveSid === card.sid &&
         qrExpiresAt > Date.now() &&
         Boolean(qrToken) &&
         !qrUniversalWebUrl
@@ -1555,8 +1564,8 @@ export default function CardsFactoryScreen() {
       setQrBusinessContext(null);
       setSelectedCard(card);
 
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) {
+      const uid = await getActiveUserId();
+      if (!uid) {
         throw new Error(tr('No se pudo obtener tu sesión para emitir el QR.', 'Could not get your session to issue the QR.'));
       }
 
@@ -1564,13 +1573,13 @@ export default function CardsFactoryScreen() {
       // igual que el flujo de QR web 24h. Sin esto, el receptor ve la tarjeta vacía
       // o con el tema incorrecto si el documento en MongoDB está desactualizado.
       try {
-        const vaultSnap = await loadVaultSnapshotForSync(ownerUid);
-        await upsertSmartCardInDb({ ownerUid, card: buildSmartCardDbPayload(card, vaultSnap) });
+        const vaultSnap = await loadVaultSnapshotForSync(uid);
+        await upsertSmartCardInDb({ uid: uid, card: buildSmartCardDbPayload(card, vaultSnap) });
       } catch {
         // Mejor esfuerzo: el QR se emite igualmente; el receptor verá el snapshot anterior si falla la red.
       }
 
-      const issued = await issueDynamicQrToken({ ownerUid, cardId: card.id });
+      const issued = await issueDynamicQrToken({ uid: uid, sid: card.sid });
       const parsedExpiresAt = Date.parse(String(issued.expiresAt || ''));
       const nextExpiresAt = Number.isFinite(parsedExpiresAt)
         ? parsedExpiresAt
@@ -1581,14 +1590,15 @@ export default function CardsFactoryScreen() {
       const qrJson = JSON.stringify({
         kind: 'cardsocial-qr-v1',
         token: issued.token,
-        cardId: card.id,
+        sid: card.sid,
+        bId: null,
         exp: nextExpiresAt,
       });
       setQrUniversalWebUrl('');
       setQrToken(qrJson);
       setQrExpiresAt(nextExpiresAt);
       setQrWindowMs(visibleWindowMs);
-      setQrActiveCardId(card.id);
+      setQrActiveSid(card.sid);
       setQrVisible(true);
     } catch (error: any) {
       const rawMessage = String(error?.message || '');
@@ -1615,11 +1625,11 @@ export default function CardsFactoryScreen() {
     setCardStatsData(null);
     void (async () => {
       try {
-        const ownerUid = await getActiveUserId();
-        if (!ownerUid) {
+        const uid = await getActiveUserId();
+        if (!uid) {
           throw new Error(tr('Sin sesión', 'Not signed in'));
         }
-        const sum = await getCardAnalyticsSummary({ ownerUid, cardId: card.id });
+        const sum = await getCardAnalyticsSummary({ uid: uid, cardRef: card.sid });
         setCardStatsData({ totalViews: sum.totalViews, topIcons: sum.topIcons });
       } catch {
         setCardStatsData({ totalViews: 0, topIcons: [] });
@@ -1656,7 +1666,7 @@ export default function CardsFactoryScreen() {
     if (issuingUniversalLink) return;
 
     const universalStillValid =
-      qrActiveCardId === card.id && qrExpiresAt > Date.now() && Boolean(qrUniversalWebUrl);
+      qrActiveSid === card.sid && qrExpiresAt > Date.now() && Boolean(qrUniversalWebUrl);
 
     if (universalStillValid) {
       setQrBusinessContext(null);
@@ -1667,7 +1677,7 @@ export default function CardsFactoryScreen() {
           const uid = await getActiveUserId();
           if (uid) {
             const snap = await loadVaultSnapshotForSync(uid);
-            await upsertSmartCardInDb({ ownerUid: uid, card: buildSmartCardDbPayload(card, snap) });
+            await upsertSmartCardInDb({ uid, card: buildSmartCardDbPayload(card, snap) });
           }
         } catch {
           // Mejor esfuerzo: el enlace ya existía; la web puede seguir mostrando un snapshot antiguo si falla la red.
@@ -1679,10 +1689,10 @@ export default function CardsFactoryScreen() {
     try {
       const authenticated = await hardLockCheck(tr('QR web 24 h de tarjeta', '24h web QR for card'));
       if (!authenticated) return;
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) throw new Error(tr('No se pudo obtener tu sesión.', 'Could not get your session.'));
+      const uid = await getActiveUserId();
+      if (!uid) throw new Error(tr('No se pudo obtener tu sesión.', 'Could not get your session.'));
 
-      const cached = await readUniversal24hQrCache(ownerUid, card.id);
+      const cached = await readUniversal24hQrCache(uid, card.sid);
       if (cached) {
         setQrBusinessContext(null);
         setSelectedCard(card);
@@ -1690,12 +1700,12 @@ export default function CardsFactoryScreen() {
         setQrUniversalWebUrl(cached.universalUrl);
         setQrExpiresAt(cached.expiresAt);
         setQrWindowMs(cached.qrWindowMs);
-        setQrActiveCardId(card.id);
+        setQrActiveSid(card.sid);
         setQrVisible(true);
         void (async () => {
           try {
-            const snap = await loadVaultSnapshotForSync(ownerUid);
-            await upsertSmartCardInDb({ ownerUid, card: buildSmartCardDbPayload(card, snap) });
+            const snap = await loadVaultSnapshotForSync(uid);
+            await upsertSmartCardInDb({ uid: uid, card: buildSmartCardDbPayload(card, snap) });
           } catch {
             /* mejor esfuerzo */
           }
@@ -1705,7 +1715,7 @@ export default function CardsFactoryScreen() {
 
       setIssuingUniversalLink(true);
       // Leer Bóveda desde disco (no solo estado React): si no, publicCardSlots podía ir vacío y la web sin iconos.
-      const vaultSnap = await loadVaultSnapshotForSync(ownerUid);
+      const vaultSnap = await loadVaultSnapshotForSync(uid);
       const cardPayload = buildSmartCardDbPayload(card, vaultSnap);
       const slotN = cardPayload.publicCardSlots?.length ?? 0;
       const needN = card.itemIds.length;
@@ -1730,8 +1740,8 @@ export default function CardsFactoryScreen() {
           ),
         });
       }
-      await upsertSmartCardInDb({ ownerUid, card: cardPayload });
-      const result = await issueTemporaryUniversalAccess({ ownerUid, cardId: card.id });
+      await upsertSmartCardInDb({ uid: uid, card: cardPayload });
+      const result = await issueTemporaryUniversalAccess({ uid: uid, sid: card.sid });
       const url = result.universalUrl;
       if (!url) throw new Error(tr('No se recibió el enlace del servidor.', 'No link received from server.'));
       const parsedExpiresAt = Date.parse(String(result.expiresAt || ''));
@@ -1747,9 +1757,9 @@ export default function CardsFactoryScreen() {
       setQrUniversalWebUrl(url);
       setQrExpiresAt(nextExpiresAt);
       setQrWindowMs(visibleWindowMs);
-      setQrActiveCardId(card.id);
+      setQrActiveSid(card.sid);
       setQrVisible(true);
-      await writeUniversal24hQrCache(ownerUid, card.id, {
+      await writeUniversal24hQrCache(uid, card.sid, {
         universalUrl: url,
         expiresAt: nextExpiresAt,
         qrWindowMs: visibleWindowMs,
@@ -1772,8 +1782,8 @@ export default function CardsFactoryScreen() {
       }
 
       setIssuingQr(true);
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) {
+      const uid = await getActiveUserId();
+      if (!uid) {
         throw new Error(tr('No se pudo obtener tu sesión.', 'Could not get your session.'));
       }
 
@@ -1781,17 +1791,17 @@ export default function CardsFactoryScreen() {
       // Sin esto, el receptor siempre ve 404 en /business-card-preview y cae en el fallback de Firestore,
       // que no incluye los vault items (vaultLinkIds) del propietario.
       try {
-        const vaultSnap = await loadVaultSnapshotForSync(ownerUid);
+        const vaultSnap = await loadVaultSnapshotForSync(uid);
         const publicCardSlots = buildPublicCardSlotsForPersist(
           vaultSnap.vaultItems,
           row.vaultLinkIds,
           vaultSnap.iconVaultById,
         );
         await upsertSmartCardInDb({
-          ownerUid,
+          uid: uid,
           card: {
-            cardId: row.bId,
             bId: row.bId,
+            cardType: 'business',
             scName: row.bcName,
             layout: 'vertical',
             themeId: row.themeId || 'deep_teal',
@@ -1812,17 +1822,17 @@ export default function CardsFactoryScreen() {
       }
 
       setQrBusinessContext({
-        cardId: row.bId,
+        bId: row.bId,
         bcName: row.bcName,
         bcContactName: row.bcContactName,
-        ownerUid,
+        uid,
         bcLogoUrl: toRenderableImageUri(row.bcLogoUrl),
       });
       setSelectedCard(null);
       setQrToken('');
       setQrUniversalWebUrl('');
       setQrExpiresAt(0);
-      setQrActiveCardId(null);
+      setQrActiveSid(null);
       setRemainingMs(0);
       setRemainingSec(0);
       setQrVisible(true);
@@ -1856,8 +1866,8 @@ export default function CardsFactoryScreen() {
   };
 
   const deleteBusinessCardEntry = async (row: BusinessCardListRow) => {
-    const ownerUid = await getActiveUserId();
-    if (!ownerUid) {
+    const uid = await getActiveUserId();
+    if (!uid) {
       return;
     }
     let previous: BusinessCardListRow[] = [];
@@ -1866,7 +1876,7 @@ export default function CardsFactoryScreen() {
       return p.filter((c) => c.bId !== row.bId);
     });
     try {
-      const r = await removeBusinessCardFromFirestore(ownerUid, row.bId);
+      const r = await removeBusinessCardFromFirestore(uid, row.bId);
       if (!r.success) {
         throw new Error(r.message);
       }
@@ -1879,9 +1889,9 @@ export default function CardsFactoryScreen() {
   const toggleBusinessCardSilence = async (row: BusinessCardListRow) => {
     const next = !row.silenced;
     try {
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) return;
-      await setCardSilenced({ ownerUid, cardId: row.bId, silenced: next });
+      const uid = await getActiveUserId();
+      if (!uid) return;
+      await setCardSilenced({ uid: uid, cardRef: row.bId, silenced: next });
       setBusinessCardsFeed((prev) =>
         prev.map((r) => (r.bId === row.bId ? { ...r, silenced: next } : r)),
       );
@@ -1891,14 +1901,14 @@ export default function CardsFactoryScreen() {
   };
 
   const toggleFavoriteBusinessCard = async (row: BusinessCardListRow) => {
-    const ownerUid = await getActiveUserId();
-    if (!ownerUid) {
+    const uid = await getActiveUserId();
+    if (!uid) {
       return;
     }
     const next = !row.isFavorite;
     setBusinessCardsFeed((p) => p.map((c) => (c.bId === row.bId ? { ...c, isFavorite: next } : c)));
     try {
-      const r = await setBusinessCardFavorite(ownerUid, row.bId, next);
+      const r = await setBusinessCardFavorite(uid, row.bId, next);
       if (!r.success) {
         throw new Error(r.message);
       }
@@ -1908,7 +1918,7 @@ export default function CardsFactoryScreen() {
   };
 
   const openPreviewBusinessCard = async (row: BusinessCardListRow) => {
-    const uid = (await getActiveUserId()) ?? sessionOwnerUid ?? '';
+    const uid = (await getActiveUserId()) ?? sessionUid ?? '';
     const rows = await loadBusinessCardsFeed();
     const fresh = rows.find((r) => r.bId === row.bId) ?? row;
     setPreviewBusinessOwnerUid(uid);
@@ -2037,7 +2047,7 @@ export default function CardsFactoryScreen() {
 
   const qrPayload = useMemo(() => {
     if (qrBusinessContext) {
-      return generatePermanentBusinessLink(qrBusinessContext.cardId, qrBusinessContext.ownerUid);
+      return generatePermanentBusinessLink(qrBusinessContext.bId, qrBusinessContext.uid);
     }
     if (!selectedCard) {
       return '';
@@ -2048,7 +2058,7 @@ export default function CardsFactoryScreen() {
     if (!qrToken) {
       return '';
     }
-    // qrToken: JSON {kind, token, cardId, exp} para escaneo in-app
+    // qrToken: JSON {kind, token, sid, bId, exp} para escaneo in-app
     return qrToken;
   }, [selectedCard, qrToken, qrUniversalWebUrl, qrBusinessContext]);
 
@@ -2067,7 +2077,7 @@ export default function CardsFactoryScreen() {
   }, [qrVisible, remainingMs, qrPayload, qrBusinessContext]);
 
   const sortedCards = useMemo(() => {
-    const unique = dedupeSmartCardsById(smartCards);
+    const unique = dedupeSmartCardsBySid(smartCards);
     return unique.sort((a, b) => {
       const favDiff = Number(Boolean(b.isFavorite)) - Number(Boolean(a.isFavorite));
       if (favDiff !== 0) {
@@ -2201,7 +2211,7 @@ export default function CardsFactoryScreen() {
   const openPreviewCard = (card: SmartCard) => {
     void (async () => {
       const list = await loadSmartCards();
-      const fresh = list.find((c) => c.id === card.id) ?? card;
+      const fresh = list.find((c) => c.sid === card.sid) ?? card;
       setPreviewLayout(width > height ? 'horizontal' : 'vertical');
       setPreviewCard(fresh);
       setPreviewVisible(true);
@@ -2224,12 +2234,12 @@ export default function CardsFactoryScreen() {
   }, []);
 
   const openDataPopover = async (item: VaultItem) => {
-    const activeCard =
+    const activeScName =
       previewBusinessVisible && previewBusiness
-        ? { id: previewBusiness.bId, scName: previewBusiness.bcName }
+        ? previewBusiness.bcName
         : previewVisible && previewCard
-          ? previewCard
-          : selectedCard;
+          ? previewCard.scName
+          : selectedCard?.scName ?? cardName;
     const issuerUid = await getActiveUserId();
     await openVaultPreviewItem(item, {
       tr,
@@ -2237,8 +2247,9 @@ export default function CardsFactoryScreen() {
         openDocumentViewer(it as VaultItem);
       },
       ghostTargetUid: issuerUid,
-      sourceCardName: activeCard?.scName ?? cardName ?? 'Tarjeta Social',
-      sourceCardId: activeCard?.id ?? null,
+      sourceCardName: activeScName ?? cardName ?? 'Tarjeta Social',
+      sourceSid: previewBusinessVisible ? null : String(previewCard?.sid ?? selectedCard?.sid ?? '').trim() || null,
+      sourceBId: previewBusinessVisible ? String(previewBusiness?.bId ?? '').trim() || null : null,
       peerDisplayName: ownerNickname || 'este contacto',
       dismissParentModal: dismissCardPreviewModals,
       peerPhotoUrl: ownerPhotoUrl ?? null,
@@ -2263,12 +2274,12 @@ export default function CardsFactoryScreen() {
       return;
     }
     try {
-      const activeCard =
+      const activeScName =
         previewBusinessVisible && previewBusiness
-          ? { id: previewBusiness.bId, scName: previewBusiness.bcName }
+          ? previewBusiness.bcName
           : previewVisible && previewCard
-            ? previewCard
-            : selectedCard;
+            ? previewCard.scName
+            : selectedCard?.scName ?? cardName;
       const issuerUid = await getActiveUserId();
       await openVaultPreviewItem(item, {
         tr,
@@ -2276,8 +2287,9 @@ export default function CardsFactoryScreen() {
           openDocumentViewer(it as VaultItem);
         },
         ghostTargetUid: issuerUid,
-        sourceCardName: activeCard?.scName ?? cardName ?? 'Tarjeta Social',
-        sourceCardId: activeCard?.id ?? null,
+        sourceCardName: activeScName ?? cardName ?? 'Tarjeta Social',
+        sourceSid: previewBusinessVisible ? null : String(previewCard?.sid ?? selectedCard?.sid ?? '').trim() || null,
+        sourceBId: previewBusinessVisible ? String(previewBusiness?.bId ?? '').trim() || null : null,
         peerDisplayName: ownerNickname || 'este contacto',
         dismissParentModal: dismissCardPreviewModals,
         peerPhotoUrl: ownerPhotoUrl ?? null,
@@ -2448,7 +2460,7 @@ export default function CardsFactoryScreen() {
               style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.swipeStripEditBg }]}
               onPress={() => {
                 closeBusinessRowSwipe();
-                router.push({ pathname: '/(tabs)/createBusinessCard', params: { cardId: row.bId } } as any);
+                router.push({ pathname: '/(tabs)/createBusinessCard', params: { bId: row.bId } } as any);
               }}
               accessibilityLabel={tr('Editar tarjeta', 'Edit card')}
             >
@@ -2570,10 +2582,10 @@ export default function CardsFactoryScreen() {
                     </TouchableOpacity>
                   </View>
                 </View>
-                {sessionOwnerUid ? (
+                {sessionUid ? (
                   <View style={styles.businessListQrWrap} pointerEvents="none">
                     <QRCode
-                      value={generatePermanentBusinessLink(row.bId, sessionOwnerUid)}
+                      value={generatePermanentBusinessLink(row.bId, sessionUid)}
                       size={64}
                       color="#0A2540"
                       backgroundColor="#FFFFFF"
@@ -2630,7 +2642,7 @@ export default function CardsFactoryScreen() {
     const themeMeta = getThemeById(item.themeId || '') ?? CHEST_THEMES[0];
     const themeLabel = themeMeta.name;
     const closeSmartCardRowSwipe = () => {
-      swipeableMethodsByCardIdRef.current.get(item.id)?.close();
+      swipeableMethodsByCardIdRef.current.get(item.sid)?.close();
     };
 
     return (
@@ -2639,12 +2651,12 @@ export default function CardsFactoryScreen() {
         rightThreshold={24}
         leftThreshold={24}
         renderLeftActions={(_progress, _translation, methods) => {
-          swipeableMethodsByCardIdRef.current.set(item.id, methods);
+          swipeableMethodsByCardIdRef.current.set(item.sid, methods);
           return <View style={styles.swipeLeftTriggerArea} />;
         }}
         onSwipeableOpen={(direction) => {
           if (direction === 'right') {
-            swipeableMethodsByCardIdRef.current.get(item.id)?.close();
+            swipeableMethodsByCardIdRef.current.get(item.sid)?.close();
             confirmAndIssueQrForCard(item);
           }
         }}
@@ -2893,10 +2905,10 @@ export default function CardsFactoryScreen() {
                         </View>
                       </View>
                     </View>
-                    {sessionOwnerUid ? (
+                    {sessionUid ? (
                       <View style={styles.businessListQrWrap} pointerEvents="none">
                         <QRCode
-                          value={generatePermanentBusinessLink(row.bId, sessionOwnerUid)}
+                          value={generatePermanentBusinessLink(row.bId, sessionUid)}
                           size={64}
                           color="#0A2540"
                           backgroundColor="#FFFFFF"
@@ -3032,7 +3044,7 @@ export default function CardsFactoryScreen() {
               setIsCardsUnlocked(authenticated);
               if (authenticated) {
                 const uid = await getActiveUserId();
-                setSessionOwnerUid(uid ?? null);
+                setSessionUid(uid ?? null);
                 loadVaultItems();
                 loadSmartCards();
                 void loadBusinessCardsFeed();
@@ -3640,7 +3652,7 @@ export default function CardsFactoryScreen() {
       </Modal>
 
       <MyCardsPreviewModal
-        key={previewVisible && previewCard ? `my-cards-preview-${previewCard.id}` : 'my-cards-preview-closed'}
+        key={previewVisible && previewCard ? `my-cards-preview-${previewCard.sid}` : 'my-cards-preview-closed'}
         visible={Boolean(previewVisible && previewCard)}
         onClose={() => {
           setPreviewVisible(false);
@@ -3657,10 +3669,11 @@ export default function CardsFactoryScreen() {
               }
             : undefined
         }
-        sourceCardId={previewCard?.id ?? null}
+        sourceSid={previewCard?.sid ?? null}
+        sourceBId={null}
         sourceCardName={previewCard?.scName ?? cardName ?? 'Tarjeta Social'}
         peerDisplayName={ownerNickname || 'este contacto'}
-        ghostTargetUid={sessionOwnerUid}
+        ghostTargetUid={sessionUid}
         ratingCardType='smart'
       />
 
@@ -3682,14 +3695,15 @@ export default function CardsFactoryScreen() {
                 setPreviewBusinessVisible(false);
                 setPreviewBusiness(null);
                 setPreviewBusinessOwnerUid('');
-                router.push({ pathname: '/(tabs)/createBusinessCard', params: { cardId: id } } as any);
+                router.push({ pathname: '/(tabs)/createBusinessCard', params: { bId: id } } as any);
               }
             : undefined
         }
-        sourceCardId={previewBusiness?.bId ?? null}
+        sourceSid={null}
+        sourceBId={previewBusiness?.bId ?? null}
         sourceCardName={previewBusiness?.bcName ?? tr('Negocio', 'Business')}
         peerDisplayName={ownerNickname || 'este contacto'}
-        ghostTargetUid={previewBusinessOwnerUid || sessionOwnerUid}
+        ghostTargetUid={previewBusinessOwnerUid || sessionUid}
         ratingCardType='business'
       />
 

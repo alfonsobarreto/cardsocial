@@ -26,6 +26,23 @@ function normalizeString(value, fallback = null) {
   return text || fallback;
 }
 
+/** Fila `smart_cards`: dueño + clave pública (sid o bId, mismos valores no deberían colisionar). */
+function smartCardKeyQuery(uid, key) {
+  const u = String(uid || '').trim();
+  const k = String(key || '').trim();
+  if (!u || !k) return null;
+  return { uid: u, $or: [{ sid: k }, { bId: k }] };
+}
+
+/** Permiso compartido activo entre emisor y receptor para una tarjeta identificada por clave pública. */
+function sharePermQuery(issuerUid, targetUid, key) {
+  const a = String(issuerUid || '').trim();
+  const b = String(targetUid || '').trim();
+  const k = String(key || '').trim();
+  if (!a || !b || !k) return null;
+  return { uid: a, targetUid: b, $or: [{ sid: k }, { bId: k }] };
+}
+
 /** Facetas para búsqueda en contactos (sin datos tipo teléfono; las envía el cliente). */
 function sanitizeSearchFacets(raw) {
   if (!Array.isArray(raw)) {
@@ -91,14 +108,14 @@ function sanitizePublicCardSlots(raw) {
  * Cuenta receptores activos por tarjeta desde `share_permissions` (no revocados, no expirados).
  * Fuente de verdad para "cuántas personas tienen esta tarjeta"; independiente de `smart_cards.holdersCount`.
  */
-async function aggregateActiveReceiverCountByCardId(db, ownerUid, cardIds, now) {
-  const ou = String(ownerUid || '').trim();
-  const ids = [...new Set((cardIds || []).map((id) => String(id || '').trim()).filter(Boolean))];
+async function aggregateActiveReceiverCountByKeys(db, issuerUid, cardKeys, now) {
+  const u = String(issuerUid || '').trim();
+  const ids = [...new Set((cardKeys || []).map((id) => String(id || '').trim()).filter(Boolean))];
   const map = new Map();
   for (const id of ids) {
     map.set(id, 0);
   }
-  if (!ou || !ids.length) {
+  if (!u || !ids.length) {
     return map;
   }
 
@@ -111,13 +128,16 @@ async function aggregateActiveReceiverCountByCardId(db, ownerUid, cardIds, now) 
   const rows = await db.collection('share_permissions').aggregate([
     {
       $match: {
-        ownerUid: ou,
-        cardId: { $in: ids },
+        uid: u,
         isRevoked: { $ne: true },
-        $or: expiryOr,
+        $and: [
+          { $or: [{ sid: { $in: ids } }, { bId: { $in: ids } }] },
+          { $or: expiryOr },
+        ],
       },
     },
-    { $group: { _id: '$cardId', n: { $sum: 1 } } },
+    { $addFields: { _cardKey: { $ifNull: ['$bId', '$sid'] } } },
+    { $group: { _id: '$_cardKey', n: { $sum: 1 } } },
   ]).toArray();
 
   for (const row of rows) {
@@ -127,6 +147,20 @@ async function aggregateActiveReceiverCountByCardId(db, ownerUid, cardIds, now) 
     }
   }
   return map;
+}
+
+/** Filtro único para `story_card_states`: visor + sid o bId (no ambos). */
+function storyCardScopeFilter(viewerUid, sidRaw, bIdRaw) {
+  const u = String(viewerUid || '').trim();
+  const sid = sidRaw != null && String(sidRaw).trim() ? String(sidRaw).trim() : null;
+  const bId = bIdRaw != null && String(bIdRaw).trim() ? String(bIdRaw).trim() : null;
+  if (!u || (!sid && !bId)) {
+    return null;
+  }
+  if (sid) {
+    return { uid: u, sid };
+  }
+  return { uid: u, bId };
 }
 
 function getPublicUniversalCardBaseUrl() {
@@ -147,13 +181,13 @@ function sanitizeAnalyticsSegmentKey(raw) {
 function createQrRoutes({ storage }) {
   const router = express.Router();
 
-  async function fetchLatestCardIdentityDoc(db, ownerUid) {
-    const uid = String(ownerUid || '').trim();
+  async function fetchLatestCardIdentityDoc(db, subjectUid) {
+    const uid = String(subjectUid || '').trim();
     if (!uid) {
       return null;
     }
     return db.collection('smart_cards').findOne(
-      { ownerUid: uid },
+      { uid },
       {
         sort: { updatedAt: -1 },
         projection: {
@@ -168,8 +202,8 @@ function createQrRoutes({ storage }) {
     );
   }
 
-  async function fetchPersonalCardIdentityDoc(db, ownerUid) {
-    const uid = String(ownerUid || '').trim();
+  async function fetchPersonalCardIdentityDoc(db, subjectUid) {
+    const uid = String(subjectUid || '').trim();
     if (!uid) {
       return null;
     }
@@ -182,14 +216,14 @@ function createQrRoutes({ storage }) {
       updatedAt: 1,
     };
     const personal = await db.collection('smart_cards').findOne(
-      { ownerUid: uid, cardType: { $ne: 'business' } },
+      { uid, cardType: { $ne: 'business' } },
       { sort: { updatedAt: -1 }, projection: proj },
     );
     if (personal) {
       return personal;
     }
     return db.collection('smart_cards').findOne(
-      { ownerUid: uid },
+      { uid },
       { sort: { updatedAt: -1 }, projection: proj },
     );
   }
@@ -248,7 +282,7 @@ function createQrRoutes({ storage }) {
 
   /**
    * Grafo interno Card-Social: arista A—B si existe share_permission activa
-   * (ownerUid=A, targetUid=B). Sin agenda ni datos externos.
+   * (uid=A, targetUid=B). Sin agenda ni datos externos.
    */
   async function buildShareNeighborMap(db, now) {
     const perms = await db.collection('share_permissions').find(
@@ -256,7 +290,7 @@ function createQrRoutes({ storage }) {
         isRevoked: { $ne: true },
         $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }, { expiresAt: { $exists: false } }],
       },
-      { projection: { ownerUid: 1, targetUid: 1 } }
+      { projection: { uid: 1, targetUid: 1 } }
     ).toArray();
 
     const neighbors = new Map();
@@ -272,7 +306,7 @@ function createQrRoutes({ storage }) {
       neighbors.get(y).add(x);
     };
     for (const p of perms) {
-      addEdge(p.ownerUid, p.targetUid);
+      addEdge(p.uid, p.targetUid);
     }
     return neighbors;
   }
@@ -301,20 +335,20 @@ function createQrRoutes({ storage }) {
   async function purgeInteractionForBlock(db, uidA, uidB) {
     await db.collection('ghost_link_invites').deleteMany({
       $or: [
-        { ownerUid: uidA, targetUid: uidB },
-        { ownerUid: uidB, targetUid: uidA },
+        { callerUid: uidA, targetUid: uidB },
+        { callerUid: uidB, targetUid: uidA },
       ],
     });
     await db.collection('call_logs').deleteMany({
       $or: [
-        { ownerUid: uidA, peerUid: uidB },
-        { ownerUid: uidB, peerUid: uidA },
+        { uid: uidA, peerUid: uidB },
+        { uid: uidB, peerUid: uidA },
       ],
     });
     await db.collection('card_subscriber_mutes').deleteMany({
       $or: [
-        { ownerUid: uidA, targetUid: uidB },
-        { ownerUid: uidB, targetUid: uidA },
+        { uid: uidA, targetUid: uidB },
+        { uid: uidB, targetUid: uidA },
       ],
     });
     // Chats: enlazar aquí cuando exista colección de mensajes.
@@ -394,20 +428,20 @@ function createQrRoutes({ storage }) {
   router.post('/push/register', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.uid || req.body?.ownerUid || authUid || '').trim();
+      const userUid = String(req.body?.uid || authUid || '').trim();
       const token = String(req.body?.token || '').trim();
 
-      if (!ownerUid || !token) {
-        return res.status(400).json({ ok: false, error: 'ownerUid and token are required' });
+      if (!userUid || !token) {
+        return res.status(400).json({ ok: false, error: 'uid and token are required' });
       }
-      if (authUid && authUid !== ownerUid) {
+      if (authUid && authUid !== userUid) {
         return res.status(403).json({ ok: false, error: 'Forbidden' });
       }
 
       const db = await storage.connect();
       await db.collection('push_tokens').updateOne(
-        { uid: ownerUid, token },
-        { $set: { uid: ownerUid, token, updatedAt: new Date() }, $setOnInsert: { createdAt: new Date() } },
+        { uid: userUid, token },
+        { $set: { uid: userUid, token, updatedAt: new Date() }, $setOnInsert: { createdAt: new Date() } },
         { upsert: true },
       );
 
@@ -420,66 +454,71 @@ function createQrRoutes({ storage }) {
   router.post('/voip/ghost-link/start', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.uid || req.body?.ownerUid || authUid || '').trim();
+      const callerUid = String(req.body?.uid || authUid || '').trim();
       const targetUid = String(req.body?.targetUid || '').trim();
       const sourceCardName = String(req.body?.sourceCardName || '').trim();
-      const sourceCardId = normalizeString(req.body?.sourceCardId, null);
+      const sourceSid = normalizeString(req.body?.sourceSid, null);
+      const sourceBId = normalizeString(req.body?.sourceBId, null);
+      const sourceKey = sourceBId || sourceSid;
       const callType = ['audio', 'video'].includes(String(req.body?.callType || '').trim())
         ? String(req.body.callType).trim()
         : 'audio';
 
-      if (!ownerUid || !targetUid || !sourceCardName) {
-        return res.status(400).json({ ok: false, error: 'ownerUid, targetUid y sourceCardName son obligatorios' });
+      if (!callerUid || !targetUid || !sourceCardName) {
+        return res.status(400).json({ ok: false, error: 'uid, targetUid y sourceCardName son obligatorios' });
       }
-      if (authUid && authUid !== ownerUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      if (authUid && authUid !== callerUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
       }
 
       const db = await storage.connect();
       const now = new Date();
-      const relationKey = buildRelationKey(ownerUid, targetUid);
+      const relationKey = buildRelationKey(callerUid, targetUid);
       const blocked = await db.collection('blocked_relations').findOne({ relationKey });
       if (blocked) {
         return res.status(403).json({ ok: false, error: 'Access denied: blocked relationship' });
       }
 
-      if (sourceCardId) {
+      if (sourceKey) {
         const cardDoc = await db.collection('smart_cards').findOne(
-          { cardId: sourceCardId, ownerUid },
-          { projection: { silenced: 1, ownerUid: 1 } },
+          smartCardKeyQuery(callerUid, sourceKey),
+          { projection: { silenced: 1, uid: 1 } },
         );
         if (cardDoc?.silenced === true) {
           return res.status(403).json({ ok: false, error: 'Call blocked: card is muted' });
         }
 
-        /** ownerUid en mutes = dueño de la tarjeta (emisor); targetUid = suscriptor que silenció. */
+        const issuerForMute = String(cardDoc?.uid || callerUid).trim();
         const subscriberMuted = await db.collection('card_subscriber_mutes').findOne({
-          cardId: sourceCardId,
-          muted: true,
-          ownerUid: cardDoc?.ownerUid || ownerUid,
+          uid: issuerForMute,
           targetUid,
+          muted: true,
+          $or: [{ sid: sourceKey }, { bId: sourceKey }],
         });
         if (subscriberMuted) {
           return res.status(403).json({ ok: false, error: 'Call blocked: card is muted' });
         }
       }
 
-      let caller = await resolveUserProfileExtended(db, ownerUid);
+      let caller = await resolveUserProfileExtended(db, callerUid);
       let receiver = await resolveUserProfileExtended(db, targetUid);
-      const callerCard = await fetchLatestCardIdentityDoc(db, ownerUid);
+      const callerCard = await fetchLatestCardIdentityDoc(db, callerUid);
       const receiverCard = await fetchLatestCardIdentityDoc(db, targetUid);
-      caller = mergeContactProfileFromCard(caller, ownerUid, callerCard);
+      caller = mergeContactProfileFromCard(caller, callerUid, callerCard);
       receiver = mergeContactProfileFromCard(receiver, targetUid, receiverCard);
 
-      // The shared card is the single bridge between caller and receiver.
       let sharedCard = null;
-      if (sourceCardId) {
+      if (sourceKey) {
         sharedCard = await db.collection('smart_cards').findOne(
-          { cardId: sourceCardId, ownerUid },
+          smartCardKeyQuery(callerUid, sourceKey),
           {
             projection: {
-              cardId: 1, scName: 1, cardType: 1,
-              ownerDisplayName: 1, ownerPhotoUrl: 1,
+              sid: 1,
+              bId: 1,
+              scName: 1,
+              cardType: 1,
+              ownerDisplayName: 1,
+              ownerPhotoUrl: 1,
             },
           },
         );
@@ -502,7 +541,6 @@ function createQrRoutes({ storage }) {
         cardName = hintedDisplayName;
       }
 
-      /** Foto del “puente” tarjeta: nunca usar la foto del receptor (mezclaba persona vs negocio). */
       let cardPhoto = String(sharedCard?.ownerPhotoUrl || '').trim() || null;
       if (!cardPhoto && sharedCard) {
         if (mongoCardKind === 'business') {
@@ -512,13 +550,15 @@ function createQrRoutes({ storage }) {
         }
       }
 
-      if (!sharedCard && sourceCardId) {
+      if (!sharedCard && sourceKey) {
         const perm = await db.collection('share_permissions').findOne({
-          ownerUid,
+          uid: callerUid,
           targetUid,
-          cardId: sourceCardId,
           isRevoked: { $ne: true },
-          $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }, { expiresAt: { $exists: false } }],
+          $and: [
+            { $or: [{ sid: sourceKey }, { bId: sourceKey }] },
+            { $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }, { expiresAt: { $exists: false } }] },
+          ],
         });
         if (perm) {
           if (hintedKind === 'business' || hintedKind === 'personal') {
@@ -533,19 +573,23 @@ function createQrRoutes({ storage }) {
         }
       }
 
-      const sessionId = `acs_${ownerUid.slice(0, 8)}_${targetUid.slice(0, 8)}_${Date.now()}`;
+      const sessionId = `acs_${callerUid.slice(0, 8)}_${targetUid.slice(0, 8)}_${Date.now()}`;
       const inviteId = crypto.randomBytes(16).toString('hex');
       const expiresAt = new Date(now.getTime() + GHOST_LINK_INVITE_TTL_SECONDS * 1000);
       const agoraChannelName = `gl_${inviteId}`;
       const agoraInvite = buildGhostLinkAgoraInvite({
-        ownerUid,
+        callerUid,
         targetUid,
         channelName: agoraChannelName,
         ttlSeconds: GHOST_LINK_INVITE_TTL_SECONDS,
       });
 
+      const outSid = sharedCard?.sid != null && String(sharedCard.sid).trim() ? String(sharedCard.sid).trim() : sourceSid;
+      const outBId = sharedCard?.bId != null && String(sharedCard.bId).trim() ? String(sharedCard.bId).trim() : sourceBId;
+
       const cardPayload = {
-        cardId: sourceCardId || null,
+        sid: outSid || null,
+        bId: outBId || null,
         cardName,
         cardPhoto,
         cardType,
@@ -557,10 +601,11 @@ function createQrRoutes({ storage }) {
           $set: {
             inviteId,
             sessionId,
-            ownerUid,
+            callerUid,
             targetUid,
             sourceCardName: cardName,
-            sourceCardId,
+            sourceSid: outSid || null,
+            sourceBId: outBId || null,
             callChannel: 'ghost-link-voip',
             callType,
             card: cardPayload,
@@ -596,7 +641,7 @@ function createQrRoutes({ storage }) {
         data: {
           type: 'ghost-link-incoming',
           inviteId,
-          callerUid: ownerUid,
+          callerUid,
           callerName: caller.name,
           cardName,
           callType,
@@ -611,7 +656,8 @@ function createQrRoutes({ storage }) {
         engine: agoraInvite ? 'agora' : 'signaling-only',
         callType,
         callChannel: 'ghost-link-voip',
-        sourceCardId,
+        sourceSid: outSid || null,
+        sourceBId: outBId || null,
         sourceCardName: cardName,
         card: cardPayload,
         callerDisplay: {
@@ -643,13 +689,13 @@ function createQrRoutes({ storage }) {
   router.get('/voip/ghost-link/incoming', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.query?.uid || req.query?.ownerUid || authUid || '').trim();
+      const userUid = String(req.query?.uid || authUid || '').trim();
 
-      if (!ownerUid) {
-        return res.status(400).json({ ok: false, error: 'ownerUid is required' });
+      if (!userUid) {
+        return res.status(400).json({ ok: false, error: 'uid is required' });
       }
-      if (authUid && authUid !== ownerUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      if (authUid && authUid !== userUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
       }
 
       const db = await storage.connect();
@@ -657,7 +703,7 @@ function createQrRoutes({ storage }) {
 
       const invite = await db.collection('ghost_link_invites').findOne(
         {
-          targetUid: ownerUid,
+          targetUid: userUid,
           status: 'ringing',
           expiresAt: { $gt: now },
         },
@@ -666,10 +712,11 @@ function createQrRoutes({ storage }) {
           projection: {
             inviteId: 1,
             sessionId: 1,
-            ownerUid: 1,
+            callerUid: 1,
             targetUid: 1,
             sourceCardName: 1,
-            sourceCardId: 1,
+            sourceSid: 1,
+            sourceBId: 1,
             callChannel: 1,
             card: 1,
             callerDisplay: 1,
@@ -684,7 +731,7 @@ function createQrRoutes({ storage }) {
       );
 
       if (!invite) {
-        return res.status(200).json({ ok: true, ownerUid, invite: null });
+        return res.status(200).json({ ok: true, uid: userUid, invite: null });
       }
 
       const agoraCallee =
@@ -700,18 +747,20 @@ function createQrRoutes({ storage }) {
       const inviteCard = invite.card || {};
       return res.status(200).json({
         ok: true,
-        ownerUid,
+        uid: userUid,
         invite: {
           inviteId: String(invite.inviteId || ''),
           sessionId: String(invite.sessionId || ''),
-          ownerUid: String(invite.ownerUid || ''),
+          callerUid: String(invite.callerUid || ''),
           targetUid: String(invite.targetUid || ''),
           sourceCardName: String(invite.sourceCardName || 'Tarjeta Social'),
-          sourceCardId: normalizeString(invite.sourceCardId, null),
+          sourceSid: normalizeString(invite.sourceSid, null),
+          sourceBId: normalizeString(invite.sourceBId, null),
           callChannel: 'ghost-link-voip',
           callType: String(invite.callType || 'audio'),
           card: {
-            cardId: normalizeString(inviteCard.cardId, null),
+            sid: normalizeString(inviteCard.sid, null),
+            bId: normalizeString(inviteCard.bId, null),
             cardName: String(inviteCard.cardName || invite.sourceCardName || 'Tarjeta Social'),
             cardPhoto: normalizeString(inviteCard.cardPhoto, null),
             cardType: String(inviteCard.cardType || 'personal'),
@@ -741,36 +790,36 @@ function createQrRoutes({ storage }) {
   router.get('/voip/ghost-link/outgoing-invite', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.query?.uid || req.query?.ownerUid || authUid || '').trim();
+      const userUid = String(req.query?.uid || authUid || '').trim();
       const inviteId = String(req.query?.inviteId || '').trim();
 
-      if (!ownerUid || !inviteId) {
-        return res.status(400).json({ ok: false, error: 'ownerUid e inviteId son requeridos' });
+      if (!userUid || !inviteId) {
+        return res.status(400).json({ ok: false, error: 'uid e inviteId son requeridos' });
       }
-      if (authUid && authUid !== ownerUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      if (authUid && authUid !== userUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
       }
 
       const db = await storage.connect();
       const now = new Date();
 
       const invite = await db.collection('ghost_link_invites').findOne(
-        { ownerUid, inviteId },
+        { callerUid: userUid, inviteId },
         { projection: { status: 1, expiresAt: 1, inviteId: 1 } },
       );
 
       if (!invite) {
-        return res.status(200).json({ ok: true, ownerUid, inviteId, status: 'not_found' });
+        return res.status(200).json({ ok: true, uid: userUid, inviteId, status: 'not_found' });
       }
 
       const statusRaw = String(invite.status || '').trim();
       if (statusRaw === 'ringing' && invite.expiresAt && new Date(invite.expiresAt) <= now) {
-        return res.status(200).json({ ok: true, ownerUid, inviteId, status: 'expired' });
+        return res.status(200).json({ ok: true, uid: userUid, inviteId, status: 'expired' });
       }
 
       return res.status(200).json({
         ok: true,
-        ownerUid,
+        uid: userUid,
         inviteId,
         status: statusRaw || 'unknown',
       });
@@ -782,15 +831,15 @@ function createQrRoutes({ storage }) {
   router.post('/voip/ghost-link/respond', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.uid || req.body?.ownerUid || authUid || '').trim();
+      const userUid = String(req.body?.uid || authUid || '').trim();
       const inviteId = String(req.body?.inviteId || '').trim();
       const action = String(req.body?.action || '').trim().toLowerCase();
 
-      if (!ownerUid || !inviteId || !action) {
-        return res.status(400).json({ ok: false, error: 'ownerUid, inviteId y action son requeridos' });
+      if (!userUid || !inviteId || !action) {
+        return res.status(400).json({ ok: false, error: 'uid, inviteId y action son requeridos' });
       }
-      if (authUid && authUid !== ownerUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      if (authUid && authUid !== userUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
       }
       if (!['accept', 'reject', 'end'].includes(action)) {
         return res.status(400).json({ ok: false, error: 'action must be accept|reject|end' });
@@ -805,7 +854,7 @@ function createQrRoutes({ storage }) {
       if (action === 'accept') {
         filter = {
           inviteId,
-          targetUid: ownerUid,
+          targetUid: userUid,
           status: 'ringing',
           expiresAt: { $gt: now },
         };
@@ -813,14 +862,14 @@ function createQrRoutes({ storage }) {
       } else if (action === 'reject') {
         filter = {
           inviteId,
-          targetUid: ownerUid,
+          targetUid: userUid,
           status: 'ringing',
         };
         nextStatus = 'rejected';
       } else {
         filter = {
           inviteId,
-          $or: [{ ownerUid }, { targetUid: ownerUid }],
+          $or: [{ callerUid: userUid }, { targetUid: userUid }],
           status: { $in: ['ringing', 'accepted'] },
         };
         nextStatus = 'ended';
@@ -832,7 +881,7 @@ function createQrRoutes({ storage }) {
           $set: {
             status: nextStatus,
             updatedAt: now,
-            respondedByUid: ownerUid,
+            respondedByUid: userUid,
             respondedAt: now,
             acceptedAt: action === 'accept' ? now : null,
             rejectedAt: action === 'reject' ? now : null,
@@ -851,7 +900,7 @@ function createQrRoutes({ storage }) {
 
       return res.status(200).json({
         ok: true,
-        ownerUid,
+        uid: userUid,
         inviteId,
         status: String(updated.status || nextStatus),
       });
@@ -862,14 +911,14 @@ function createQrRoutes({ storage }) {
 
   router.post('/issue', async (req, res) => {
     try {
-      const ownerUid = String(req.body?.uid || req.body?.ownerUid || req.auth?.sub || '').trim();
-      const cardId = String(req.body?.cardId || '').trim();
+      const uid = String(req.body?.uid || req.auth?.sub || '').trim();
+      const sid = String(req.body?.sid || '').trim();
 
-      if (!ownerUid) {
-        return res.status(400).json({ ok: false, error: 'ownerUid is required' });
+      if (!uid) {
+        return res.status(400).json({ ok: false, error: 'uid is required' });
       }
-      if (!cardId) {
-        return res.status(400).json({ ok: false, error: 'cardId is required' });
+      if (!sid) {
+        return res.status(400).json({ ok: false, error: 'sid is required' });
       }
 
       const now = new Date();
@@ -879,8 +928,9 @@ function createQrRoutes({ storage }) {
       const db = await storage.connect();
       await db.collection('qr_tokens').insertOne({
         token,
-        cardId,
-        ownerUid,
+        uid,
+        sid,
+        bId: null,
         status: 'unused',
         oneTime: true,
         createdAt: now,
@@ -908,29 +958,35 @@ function createQrRoutes({ storage }) {
    */
   async function issueTemporaryUniversalAccessRoute(req, res) {
     try {
-      const ownerUid = String(req.body?.uid || req.body?.ownerUid || req.auth?.sub || '').trim();
-      const cardId = String(req.body?.cardId || '').trim();
+      const issuerUid = String(req.body?.uid || req.auth?.sub || '').trim();
+      const sid = String(req.body?.sid || '').trim();
+      const bId = String(req.body?.bId || '').trim();
+      const cardKey = sid || bId;
 
-      if (!ownerUid) {
-        return res.status(400).json({ ok: false, error: 'ownerUid is required' });
+      if (!issuerUid) {
+        return res.status(400).json({ ok: false, error: 'uid is required' });
       }
-      if (!cardId) {
-        return res.status(400).json({ ok: false, error: 'cardId is required' });
+      if (!cardKey) {
+        return res.status(400).json({ ok: false, error: 'sid or bId is required' });
       }
 
       const db = await storage.connect();
-      const owns = await db.collection('smart_cards').findOne({ ownerUid, cardId }, { projection: { cardId: 1 } });
+      const owns = await db.collection('smart_cards').findOne(smartCardKeyQuery(issuerUid, cardKey), { projection: { sid: 1, bId: 1 } });
       if (!owns) {
         return res.status(404).json({ ok: false, error: 'Card not found for this owner' });
       }
+
+      const rowSid = owns.sid != null && String(owns.sid).trim() ? String(owns.sid).trim() : null;
+      const rowBId = owns.bId != null && String(owns.bId).trim() ? String(owns.bId).trim() : null;
 
       const now = new Date();
 
       /** Un solo enlace vigente por tarjeta: reutilizar el token hasta que expire (evita 100 QR distintos en 24 h). */
       const existing = await db.collection('temporary_access').findOne(
         {
-          ownerUid,
-          cardId,
+          uid: issuerUid,
+          sid: rowSid,
+          bId: rowBId,
           source: UNIVERSAL_QR_SOURCE,
           expiresAt: { $gt: now },
         },
@@ -943,8 +999,9 @@ function createQrRoutes({ storage }) {
         const ttlMs = Math.max(0, exp.getTime() - now.getTime());
         /** Borra otros tokens 24h de la misma tarjeta (p. ej. emitidos antes del fix); solo debe quedar uno vigente. */
         await db.collection('temporary_access').deleteMany({
-          ownerUid,
-          cardId,
+          uid: issuerUid,
+          sid: rowSid,
+          bId: rowBId,
           source: UNIVERSAL_QR_SOURCE,
           token: { $ne: token },
         });
@@ -967,16 +1024,18 @@ function createQrRoutes({ storage }) {
 
       await db.collection('temporary_access').insertOne({
         token,
-        cardId,
-        ownerUid,
+        uid: issuerUid,
+        sid: rowSid,
+        bId: rowBId,
         source: UNIVERSAL_QR_SOURCE,
         createdAt: now,
         expiresAt,
       });
 
       await db.collection('temporary_access').deleteMany({
-        ownerUid,
-        cardId,
+        uid: issuerUid,
+        sid: rowSid,
+        bId: rowBId,
         source: UNIVERSAL_QR_SOURCE,
         token: { $ne: token },
       });
@@ -1034,16 +1093,17 @@ function createQrRoutes({ storage }) {
         });
       }
 
-      const ownerUid = String(validation.ownerUid || '').trim();
-      const cardId = String(validation.cardId || '').trim();
-      if (!ownerUid || !cardId) {
+      const issuerUid = String(validation.uid || '').trim();
+      const sid = validation.sid != null && String(validation.sid).trim() ? String(validation.sid).trim() : null;
+      const bId = validation.bId != null && String(validation.bId).trim() ? String(validation.bId).trim() : null;
+      if (!issuerUid || (!sid && !bId)) {
         return res.status(400).json({
           ok: false,
           error: isEs ? 'Datos del token no válidos.' : 'Invalid token payload.',
         });
       }
 
-      const relationKey = buildRelationKey(ownerUid, receiverUid);
+      const relationKey = buildRelationKey(issuerUid, receiverUid);
       const blocked = await db.collection('blocked_relations').findOne({ relationKey });
       if (blocked) {
         return res.status(403).json({
@@ -1054,9 +1114,10 @@ function createQrRoutes({ storage }) {
 
       await db.collection('share_permissions').findOneAndUpdate(
         {
-          ownerUid,
+          uid: issuerUid,
           targetUid: receiverUid,
-          cardId,
+          sid,
+          bId,
         },
         {
           $set: {
@@ -1078,9 +1139,10 @@ function createQrRoutes({ storage }) {
 
       return res.status(200).json({
         ok: true,
-        ownerUid,
+        uid: issuerUid,
         receiverUid,
-        cardId,
+        sid,
+        bId,
         shareGranted: true,
       });
     } catch (error) {
@@ -1214,8 +1276,9 @@ function createQrRoutes({ storage }) {
         { token },
         {
           projection: {
-            ownerUid: 1,
-            cardId: 1,
+            uid: 1,
+            sid: 1,
+            bId: 1,
             status: 1,
             expiresAt: 1,
           },
@@ -1230,15 +1293,15 @@ function createQrRoutes({ storage }) {
         });
       }
 
-      const ownerUidFromToken = String(tokenDoc.ownerUid || '').trim();
-      if (!ownerUidFromToken) {
+      const issuerFromToken = String(tokenDoc.uid || '').trim();
+      if (!issuerFromToken) {
         return res.status(400).json({
           ok: false,
           error: isEs ? 'Datos del token no válidos.' : 'Token payload is invalid.',
         });
       }
 
-      const relationKey = buildRelationKey(ownerUidFromToken, receiverUid);
+      const relationKey = buildRelationKey(issuerFromToken, receiverUid);
       const blocked = await db.collection('blocked_relations').findOne({ relationKey });
       if (blocked) {
         return res.status(403).json({
@@ -1276,9 +1339,10 @@ function createQrRoutes({ storage }) {
         });
       }
 
-      const ownerUid = String(qrToken.ownerUid || '').trim();
-      const cardId = String(qrToken.cardId || '').trim();
-      if (!ownerUid || !cardId) {
+      const issuerUid = String(qrToken.uid || '').trim();
+      const sid = qrToken.sid != null && String(qrToken.sid).trim() ? String(qrToken.sid).trim() : null;
+      const bId = qrToken.bId != null && String(qrToken.bId).trim() ? String(qrToken.bId).trim() : null;
+      if (!issuerUid || (!sid && !bId)) {
         return res.status(400).json({
           ok: false,
           error: isEs ? 'Datos del token no válidos.' : 'Token payload is invalid.',
@@ -1287,9 +1351,10 @@ function createQrRoutes({ storage }) {
 
       const permissionResult = await db.collection('share_permissions').findOneAndUpdate(
         {
-          ownerUid,
+          uid: issuerUid,
           targetUid: receiverUid,
-          cardId,
+          sid,
+          bId,
         },
         {
           $set: {
@@ -1316,9 +1381,10 @@ function createQrRoutes({ storage }) {
 
       return res.status(200).json({
         ok: true,
-        ownerUid,
+        uid: issuerUid,
         receiverUid,
-        cardId,
+        sid,
+        bId,
         shareGranted: true,
       });
     } catch (error) {
@@ -1337,8 +1403,8 @@ function createQrRoutes({ storage }) {
     try {
       const isEs = clientLocaleIsSpanish(req);
       const receiverUid = String(req.body?.receiverUid || req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.uid || req.body?.ownerUid || '').trim();
-      const cardId = String(req.body?.cardId || '').trim();
+      const userUid = String(req.body?.uid || '').trim();
+      const bId = String(req.body?.bId || '').trim();
 
       if (!receiverUid) {
         return res.status(400).json({
@@ -1346,13 +1412,13 @@ function createQrRoutes({ storage }) {
           error: isEs ? 'Se requiere receiverUid.' : 'receiverUid is required.',
         });
       }
-      if (!ownerUid || !cardId) {
+      if (!userUid || !bId) {
         return res.status(400).json({
           ok: false,
-          error: isEs ? 'Se requiere ownerUid y cardId.' : 'ownerUid and cardId are required.',
+          error: isEs ? 'Se requiere uid y bId.' : 'uid and bId are required.',
         });
       }
-      if (receiverUid === ownerUid) {
+      if (receiverUid === userUid) {
         return res.status(400).json({
           ok: false,
           error: isEs ? 'No puedes agregarte a ti mismo.' : 'You cannot add yourself.',
@@ -1362,7 +1428,7 @@ function createQrRoutes({ storage }) {
       const db = await storage.connect();
       const now = new Date();
 
-      const relationKey = buildRelationKey(ownerUid, receiverUid);
+      const relationKey = buildRelationKey(userUid, receiverUid);
       const blocked = await db.collection('blocked_relations').findOne({ relationKey });
       if (blocked) {
         return res.status(403).json({
@@ -1374,9 +1440,10 @@ function createQrRoutes({ storage }) {
       /** Negocios solo en Firestore comparten el mismo QR: el permiso es válido sin fila en `smart_cards`. */
       await db.collection('share_permissions').findOneAndUpdate(
         {
-          ownerUid,
+          uid: userUid,
           targetUid: receiverUid,
-          cardId,
+          sid: null,
+          bId,
         },
         {
           $set: {
@@ -1397,14 +1464,14 @@ function createQrRoutes({ storage }) {
       );
 
       /* Calcular holders reales después del upsert */
-      const countsMap = await aggregateActiveReceiverCountByCardId(db, ownerUid, [cardId], now);
-      const holdersCount = countsMap.get(cardId) ?? 0;
+      const countsMap = await aggregateActiveReceiverCountByKeys(db, userUid, [bId], now);
+      const holdersCount = countsMap.get(bId) ?? 0;
 
       return res.status(200).json({
         ok: true,
-        ownerUid,
+        uid: userUid,
         receiverUid,
-        cardId,
+        bId,
         shareGranted: true,
         holdersCount,
       });
@@ -1418,22 +1485,22 @@ function createQrRoutes({ storage }) {
   });
 
   /**
-   * Retorna holdersCount real (desde share_permissions) para las business cards del owner.
-   * GET /api/qr/business-holders?ownerUid=xxx&cardIds=id1,id2
+   * Retorna holdersCount real (desde share_permissions) para las business cards del issuer.
+   * GET /api/qr/business-holders?uid=…&keys=id1,id2
    */
   router.get('/business-holders', async (req, res) => {
     try {
-      const ownerUid = String(req.query?.uid || req.query?.ownerUid || req.auth?.sub || '').trim();
-      const rawIds = String(req.query?.cardIds || '').trim();
-      if (!ownerUid || !rawIds) {
-        return res.status(400).json({ ok: false, error: 'uid and cardIds required' });
+      const userUid = String(req.query?.uid || req.auth?.sub || '').trim();
+      const rawIds = String(req.query?.keys || '').trim();
+      if (!userUid || !rawIds) {
+        return res.status(400).json({ ok: false, error: 'uid and keys required' });
       }
-      const cardIds = rawIds.split(',').map((s) => s.trim()).filter(Boolean);
-      if (!cardIds.length) {
+      const cardKeys = rawIds.split(',').map((s) => s.trim()).filter(Boolean);
+      if (!cardKeys.length) {
         return res.status(200).json({ ok: true, counts: {} });
       }
       const db = await storage.connect();
-      const countsMap = await aggregateActiveReceiverCountByCardId(db, ownerUid, cardIds, new Date());
+      const countsMap = await aggregateActiveReceiverCountByKeys(db, userUid, cardKeys, new Date());
       const counts = {};
       for (const [cid, n] of countsMap) {
         counts[cid] = n;
@@ -1463,11 +1530,11 @@ function createQrRoutes({ storage }) {
   router.get('/cards', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.query?.uid || req.query?.ownerUid || authUid || '').trim();
-      if (!ownerUid) {
+      const userUid = String(req.query?.uid || authUid || '').trim();
+      if (!userUid) {
         return res.status(400).json({ ok: false, error: 'uid is required' });
       }
-      if (authUid && authUid !== ownerUid) {
+      if (authUid && authUid !== userUid) {
         return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
       }
 
@@ -1477,20 +1544,19 @@ function createQrRoutes({ storage }) {
       // fusionar `ownerPhotoUrl` (logo vault) con la lista de Firestore. Mis Tarjetas filtra
       // `cardType !== 'business'` al hidratar Smart Cards.
       const cards = await db.collection('smart_cards').find(
-        { $or: [{ ownerUid }, { uid: ownerUid }] },
+        { uid: userUid },
         { sort: { updatedAt: -1 } }
       ).toArray();
 
-      const cardIdList = cards.map((c) => String(c.cardId || c.sid || c.bId || c._id || '').trim()).filter(Boolean);
-      const receiverCountByCardId = await aggregateActiveReceiverCountByCardId(db, ownerUid, cardIdList, now);
+      const cardKeyList = cards.map((c) => String(c.sid || c.bId || c._id || '').trim()).filter(Boolean);
+      const receiverCountByKey = await aggregateActiveReceiverCountByKeys(db, userUid, cardKeyList, now);
 
       return res.status(200).json({
         ok: true,
         cards: cards.map((card) => {
-          const cid = String(card.cardId || card.sid || card.bId || card._id || '').trim();
+          const cid = String(card.sid || card.bId || card._id || '').trim();
           const isBiz = card.cardType === 'business';
           return {
-          cardId: cid,
           ...(isBiz ? { bId: cid } : { sid: cid }),
           scName: String(readSmartCardScName(card) || 'Smart Card'),
           layout: String(card.layout || 'vertical') === 'horizontal' ? 'horizontal' : 'vertical',
@@ -1507,7 +1573,7 @@ function createQrRoutes({ storage }) {
           enableParallax: Boolean(card.enableParallax),
           isFavorite: Boolean(card.isFavorite),
           itemIds: Array.isArray(card.itemIds) ? card.itemIds : [],
-          holdersCount: receiverCountByCardId.get(cid) ?? 0,
+          holdersCount: receiverCountByKey.get(cid) ?? 0,
           ratingAvg: Number(card.ratingAvg || 5),
           ownerDisplayName: card.ownerDisplayName || null,
           ownerNickname: card.ownerNickname || null,
@@ -1526,17 +1592,18 @@ function createQrRoutes({ storage }) {
     }
   });
 
-  router.put('/cards/:cardId', async (req, res) => {
+  router.put('/cards/:cardRef', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.uid || req.body?.ownerUid || authUid || '').trim();
-      const cardId = String(req.params?.cardId || req.body?.cardId || '').trim();
+      const userUid = String(req.body?.uid || authUid || '').trim();
+      const cardRef = String(req.params?.cardRef || req.body?.sid || req.body?.bId || '').trim();
+      const cardType = req.body?.cardType === 'business' ? 'business' : 'smart';
 
-      if (!ownerUid || !cardId) {
-        return res.status(400).json({ ok: false, error: 'ownerUid and cardId are required' });
+      if (!userUid || !cardRef) {
+        return res.status(400).json({ ok: false, error: 'uid and card key (sid or bId) are required' });
       }
-      if (authUid && authUid !== ownerUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      if (authUid && authUid !== userUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
       }
 
       const now = new Date();
@@ -1544,8 +1611,13 @@ function createQrRoutes({ storage }) {
 
       const scNameVal = String(req.body?.scName ?? 'Smart Card').trim() || 'Smart Card';
 
+      const sid = cardType === 'business' ? null : cardRef;
+      const bId = cardType === 'business' ? cardRef : null;
+
       const setDoc = {
-        uid: ownerUid,
+        uid: userUid,
+        sid,
+        bId,
         scName: scNameVal,
         layout: String(req.body?.layout || 'vertical') === 'horizontal' ? 'horizontal' : 'vertical',
         fontId: req.body?.fontId ? String(req.body.fontId) : null,
@@ -1583,14 +1655,13 @@ function createQrRoutes({ storage }) {
         setDoc.publicCardSlots = sanitizePublicCardSlots(req.body.publicCardSlots);
       }
 
+      const filter = cardType === 'business' ? { uid: userUid, bId: cardRef } : { uid: userUid, sid: cardRef };
+
       await db.collection('smart_cards').findOneAndUpdate(
-        { ownerUid, cardId },
+        filter,
         {
           $set: setDoc,
           $setOnInsert: {
-            ownerUid,
-            uid: ownerUid,
-            cardId,
             createdAt: now,
           },
           $unset: { name: '' },
@@ -1602,37 +1673,51 @@ function createQrRoutes({ storage }) {
         }
       );
 
-      return res.status(200).json({ ok: true, ownerUid, cardId });
+      return res.status(200).json({ ok: true, uid: userUid, sid, bId });
     } catch (error) {
       return res.status(500).json({ ok: false, error: error.message });
     }
   });
 
-  router.delete('/cards/:cardId', async (req, res) => {
+  router.delete('/cards/:cardRef', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.uid || req.body?.ownerUid || req.query?.uid || req.query?.ownerUid || authUid || '').trim();
-      const cardId = String(req.params?.cardId || '').trim();
+      const userUid = String(req.body?.uid || req.query?.uid || authUid || '').trim();
+      const cardRef = String(req.params?.cardRef || '').trim();
 
-      if (!ownerUid || !cardId) {
-        return res.status(400).json({ ok: false, error: 'ownerUid and cardId are required' });
+      if (!userUid || !cardRef) {
+        return res.status(400).json({ ok: false, error: 'uid and card key are required' });
       }
-      if (authUid && authUid !== ownerUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      if (authUid && authUid !== userUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
       }
 
       const db = await storage.connect();
-      const deleted = await db.collection('smart_cards').deleteOne({ ownerUid, cardId });
+      const q = smartCardKeyQuery(userUid, cardRef);
+      if (!q) {
+        return res.status(400).json({ ok: false, error: 'invalid card key' });
+      }
+      const deleted = await db.collection('smart_cards').deleteOne(q);
 
-      await db.collection('share_permissions').deleteMany({ ownerUid, cardId });
+      await db.collection('share_permissions').deleteMany({
+        uid: userUid,
+        $or: [{ sid: cardRef }, { bId: cardRef }],
+      });
 
-      await db.collection('ghost_link_invites').deleteMany({ sourceCardId: cardId });
+      await db.collection('ghost_link_invites').deleteMany({
+        $or: [{ sourceSid: cardRef }, { sourceBId: cardRef }],
+      });
 
-      await db.collection('call_logs').deleteMany({ sourceCardId: cardId });
+      await db.collection('call_logs').deleteMany({
+        $or: [{ sourceSid: cardRef }, { sourceBId: cardRef }],
+      });
 
-      await db.collection('card_subscriber_mutes').deleteMany({ ownerUid, cardId });
+      await db.collection('card_subscriber_mutes').deleteMany({
+        uid: userUid,
+        $or: [{ sid: cardRef }, { bId: cardRef }],
+      });
 
-      return res.status(200).json({ ok: true, ownerUid, cardId, deleted: Number(deleted?.deletedCount || 0) > 0 });
+      return res.status(200).json({ ok: true, uid: userUid, deleted: Number(deleted?.deletedCount || 0) > 0 });
     } catch (error) {
       return res.status(500).json({ ok: false, error: error.message });
     }
@@ -1641,12 +1726,12 @@ function createQrRoutes({ storage }) {
   router.get('/contacts/received', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.query?.uid || req.query?.ownerUid || authUid || '').trim();
-      if (!ownerUid) {
-        return res.status(400).json({ ok: false, error: 'ownerUid is required' });
+      const userUid = String(req.query?.uid || authUid || '').trim();
+      if (!userUid) {
+        return res.status(400).json({ ok: false, error: 'uid is required' });
       }
-      if (authUid && authUid !== ownerUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      if (authUid && authUid !== userUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
       }
 
       const db = await storage.connect();
@@ -1654,39 +1739,43 @@ function createQrRoutes({ storage }) {
 
       const perms = await db.collection('share_permissions').find(
         {
-          targetUid: ownerUid,
+          targetUid: userUid,
           isRevoked: { $ne: true },
           $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }, { expiresAt: { $exists: false } }],
         },
-        { projection: { ownerUid: 1, cardId: 1, createdAt: 1 } }
+        { projection: { uid: 1, sid: 1, bId: 1, createdAt: 1 } }
       ).toArray();
 
-      /** Una fila por permiso activo (ownerUid + cardId); no colapsar a “solo la última tarjeta por emisor”. */
+      /** Una fila por permiso activo (uid emisor + sid/bId); no colapsar a “solo la última tarjeta por emisor”. */
       const permEntries = [];
       for (const row of perms) {
-        const sourceUid = String(row.ownerUid || '').trim();
+        const sourceUid = String(row.uid || '').trim();
         if (!sourceUid) {
           continue;
         }
         const rowDate = row.createdAt ? new Date(row.createdAt) : new Date(0);
-        const cid = String(row.cardId || '').trim();
+        const sidV = row.sid != null && String(row.sid).trim() ? String(row.sid).trim() : null;
+        const bIdV = row.bId != null && String(row.bId).trim() ? String(row.bId).trim() : null;
+        const cardKey = bIdV || sidV || '';
         permEntries.push({
-          ownerUid: sourceUid,
-          cardId: cid || null,
+          issuerUid: sourceUid,
+          sid: sidV,
+          bId: bIdV,
+          cardKey,
           createdAt: rowDate,
         });
       }
       permEntries.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
-      const ownerUids = [...new Set(permEntries.map((e) => e.ownerUid))];
+      const issuerUids = [...new Set(permEntries.map((e) => e.issuerUid))];
       const activeStories = await db.collection('story_states').find(
         {
-          ownerUid: { $in: ownerUids },
+          uid: { $in: issuerUids },
           expiresAt: { $gt: now },
         },
         {
           projection: {
-            ownerUid: 1,
+            uid: 1,
             state: 1,
             expiresAt: 1,
           },
@@ -1695,7 +1784,7 @@ function createQrRoutes({ storage }) {
 
       const storyByOwner = new Map();
       for (const row of activeStories) {
-        const uid = String(row.ownerUid || '').trim();
+        const uid = String(row.uid || '').trim();
         if (!uid) {
           continue;
         }
@@ -1708,16 +1797,16 @@ function createQrRoutes({ storage }) {
       const pairsForCardStories = [];
       const pairKeySeen = new Set();
       for (const e of permEntries) {
-        const cid = e.cardId ? String(e.cardId).trim() : '';
+        const cid = e.cardKey ? String(e.cardKey).trim() : '';
         if (!cid) {
           continue;
         }
-        const pk = `${e.ownerUid}::${cid}`;
+        const pk = `${e.issuerUid}::${cid}`;
         if (pairKeySeen.has(pk)) {
           continue;
         }
         pairKeySeen.add(pk);
-        pairsForCardStories.push({ ownerUid: e.ownerUid, cardId: cid });
+        pairsForCardStories.push({ uid: e.issuerUid, cardKey: cid });
       }
 
       /** Conteo real de receptores por tarjeta (share_permissions); smart_cards.holdersCount suele estar desactualizado. */
@@ -1729,19 +1818,22 @@ function createQrRoutes({ storage }) {
           { expiresAt: { $exists: false } },
         ];
         for (const p of pairsForCardStories) {
-          holderCountByOwnerCard.set(`${p.ownerUid}::${p.cardId}`, 0);
+          holderCountByOwnerCard.set(`${p.uid}::${p.cardKey}`, 0);
         }
         const permMatch = {
           $or: pairsForCardStories.map((p) => ({
-            ownerUid: p.ownerUid,
-            cardId: p.cardId,
+            uid: p.uid,
             isRevoked: { $ne: true },
-            $or: expiryOr,
+            $and: [
+              { $or: [{ sid: p.cardKey }, { bId: p.cardKey }] },
+              { $or: expiryOr },
+            ],
           })),
         };
         const holderAgg = await db.collection('share_permissions').aggregate([
           { $match: permMatch },
-          { $group: { _id: { ou: '$ownerUid', cid: '$cardId' }, n: { $sum: 1 } } },
+          { $addFields: { _ck: { $ifNull: ['$bId', '$sid'] } } },
+          { $group: { _id: { ou: '$uid', cid: '$_ck' }, n: { $sum: 1 } } },
         ]).toArray();
         for (const row of holderAgg) {
           const ou = String(row._id?.ou || '').trim();
@@ -1755,14 +1847,19 @@ function createQrRoutes({ storage }) {
       let storyCardRows = [];
       if (pairsForCardStories.length) {
         storyCardRows = await db.collection('story_card_states').find({
-          $or: pairsForCardStories.map((p) => ({ ownerUid: p.ownerUid, cardId: p.cardId })),
-          expiresAt: { $gt: now },
+          $or: pairsForCardStories.map((p) => ({
+            uid: p.uid,
+            $and: [
+              { $or: [{ sid: p.cardKey }, { bId: p.cardKey }] },
+              { expiresAt: { $gt: now } },
+            ],
+          })),
         }).toArray();
       }
       const storyCardByKey = new Map();
       for (const row of storyCardRows) {
-        const ou = String(row.ownerUid || '').trim();
-        const cid = String(row.cardId || '').trim();
+        const ou = String(row.uid || '').trim();
+        const cid = String(row.bId || row.sid || '').trim();
         if (!ou || !cid) {
           continue;
         }
@@ -1773,11 +1870,13 @@ function createQrRoutes({ storage }) {
       }
 
       const muteRows = await db.collection('card_subscriber_mutes').find({
-        targetUid: ownerUid,
-        ownerUid: { $in: ownerUids },
+        targetUid: userUid,
+        uid: { $in: issuerUids },
         muted: true,
       }).toArray();
-      const mutedCardKeys = new Set(muteRows.map((m) => `${String(m.ownerUid || '').trim()}::${String(m.cardId || '').trim()}`));
+      const mutedCardKeys = new Set(
+        muteRows.map((m) => `${String(m.uid || '').trim()}::${String(m.bId || m.sid || '').trim()}`),
+      );
 
       const neighborMap = await buildShareNeighborMap(db, now);
 
@@ -1793,11 +1892,11 @@ function createQrRoutes({ storage }) {
 
       const contacts = [];
       for (const permEntry of permEntries) {
-        const uid = permEntry.ownerUid;
+        const uid = permEntry.issuerUid;
         const permMeta = permEntry;
         const holderKey =
-          permMeta?.cardId && String(permMeta.cardId).trim()
-            ? `${uid}::${String(permMeta.cardId).trim()}`
+          permMeta?.cardKey && String(permMeta.cardKey).trim()
+            ? `${uid}::${String(permMeta.cardKey).trim()}`
             : '';
         const holdersCount = holderKey && holderCountByOwnerCard.has(holderKey)
           ? holderCountByOwnerCard.get(holderKey)
@@ -1823,12 +1922,9 @@ function createQrRoutes({ storage }) {
         let cardUpdatedAt = null;
 
         let cardDocForProfile = null;
-        if (permMeta?.cardId) {
+        if (permMeta?.cardKey) {
           const cardDoc = await db.collection('smart_cards').findOne(
-            {
-              ownerUid: uid,
-              cardId: permMeta.cardId,
-            },
+            smartCardKeyQuery(uid, permMeta.cardKey),
             {
               projection: {
                 scName: 1,
@@ -1887,26 +1983,24 @@ function createQrRoutes({ storage }) {
 
         if (!Number.isFinite(avg) || avg <= 0) {
           const ratingAgg = await db.collection('smart_cards').aggregate([
-            { $match: { ownerUid: uid } },
+            { $match: { uid } },
             { $group: { _id: null, avg: { $avg: '$ratingAvg' } } },
           ]).toArray();
           avg = Number(ratingAgg?.[0]?.avg || 5);
         }
 
-        const cardIdForStory = permMeta?.cardId ? String(permMeta.cardId).trim() : '';
-        const muteKey = `${uid}::${cardIdForStory}`;
+        const cardKeyForStory = permMeta?.cardKey ? String(permMeta.cardKey).trim() : '';
+        const muteKey = `${uid}::${cardKeyForStory}`;
         let storyState = 'none';
-        if (cardIdForStory && mutedCardKeys.has(muteKey)) {
+        if (cardKeyForStory && mutedCardKeys.has(muteKey)) {
           storyState = 'none';
-        } else if (cardIdForStory) {
-          // Historia anclada a tarjeta: solo suscriptores de esa cardId ven el estado (no fallback a story global).
+        } else if (cardKeyForStory) {
           storyState = storyCardByKey.get(muteKey) || 'none';
         } else {
-          // Compartidos legacy sin cardId en permiso: mantener visibilidad por story_states global.
           storyState = storyByOwner.get(uid) || 'none';
         }
 
-        const mutualContactsCount = mutualNeighborUids(neighborMap, ownerUid, uid).length;
+        const mutualContactsCount = mutualNeighborUids(neighborMap, userUid, uid).length;
 
         const publicCardSlots = cardDocForProfile
           ? sanitizePublicCardSlots(cardDocForProfile.publicCardSlots)
@@ -1916,7 +2010,8 @@ function createQrRoutes({ storage }) {
 
         contacts.push({
           uid,
-          cardId: cardIdForStory || null,
+          sid: permMeta.sid,
+          bId: permMeta.bId,
           userFullName: profile.name,
           userNickName: profile.nickname,
           userAvatarUrl: profile.userAvatarUrl,
@@ -1930,7 +2025,7 @@ function createQrRoutes({ storage }) {
           publicCardSlots,
           mutualContactsCount,
           totalRatings: Number.isFinite(totalRatings) ? Math.max(0, Math.floor(totalRatings)) : 0,
-          channelMuted: Boolean(cardIdForStory && mutedCardKeys.has(muteKey)),
+          channelMuted: Boolean(cardKeyForStory && mutedCardKeys.has(muteKey)),
           themeId,
           layout,
           fontId,
@@ -1949,7 +2044,7 @@ function createQrRoutes({ storage }) {
         });
       }
 
-      return res.status(200).json({ ok: true, ownerUid, count: contacts.length, contacts });
+      return res.status(200).json({ ok: true, uid: userUid, count: contacts.length, contacts });
     } catch (error) {
       return res.status(500).json({ ok: false, error: error.message });
     }
@@ -1958,41 +2053,47 @@ function createQrRoutes({ storage }) {
   router.post('/relationships/remove', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.uid || req.body?.ownerUid || authUid || '').trim();
+      const userUid = String(req.body?.uid || authUid || '').trim();
       const targetUid = String(req.body?.targetUid || '').trim();
-      const cardIdScoped = String(req.body?.cardId || '').trim();
+      const cardKeyScoped = String(req.body?.sid || req.body?.bId || '').trim();
 
-      if (!ownerUid || !targetUid) {
-        return res.status(400).json({ ok: false, error: 'ownerUid and targetUid are required' });
+      if (!userUid || !targetUid) {
+        return res.status(400).json({ ok: false, error: 'uid and targetUid are required' });
       }
-      if (authUid && authUid !== ownerUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      if (authUid && authUid !== userUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
       }
 
       const db = await storage.connect();
       let deleted;
-      if (cardIdScoped) {
-        /** Quitar solo el vínculo de esa tarjeta; el mismo emisor puede seguir apareciendo con otras cardId. */
+      if (cardKeyScoped) {
         deleted = await db.collection('share_permissions').deleteMany({
           $or: [
-            { ownerUid: targetUid, targetUid: ownerUid, cardId: cardIdScoped },
-            { ownerUid, targetUid: targetUid, cardId: cardIdScoped },
+            {
+              uid: targetUid,
+              targetUid: userUid,
+              $or: [{ sid: cardKeyScoped }, { bId: cardKeyScoped }],
+            },
+            {
+              uid: userUid,
+              targetUid,
+              $or: [{ sid: cardKeyScoped }, { bId: cardKeyScoped }],
+            },
           ],
         });
       } else {
         deleted = await db.collection('share_permissions').deleteMany({
           $or: [
-            { ownerUid, targetUid },
-            { ownerUid: targetUid, targetUid: ownerUid },
+            { uid: userUid, targetUid },
+            { uid: targetUid, targetUid: userUid },
           ],
         });
       }
 
       return res.status(200).json({
         ok: true,
-        ownerUid,
+        uid: userUid,
         targetUid,
-        cardId: cardIdScoped || null,
         deletedLinks: Number(deleted?.deletedCount || 0),
       });
     } catch (error) {
@@ -2003,20 +2104,22 @@ function createQrRoutes({ storage }) {
   router.post('/stories/state', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.uid || req.body?.ownerUid || authUid || '').trim();
+      const userUid = String(req.body?.uid || authUid || '').trim();
       const incomingState = String(req.body?.state || 'none').trim().toLowerCase();
       const incomingPaidExternal = req.body?.isPaidExternal === true;
       const incomingSourceRaw = normalizeString(req.body?.vipSource, 'manual');
       const vipSource = ['manual', 'subscription', 'external_partner'].includes(incomingSourceRaw) ? incomingSourceRaw : 'manual';
       const paidChannel = normalizeString(req.body?.paidChannel, null);
       const manualReason = normalizeString(req.body?.manualReason, null);
-      const cardIdBody = normalizeString(req.body?.cardId, null);
+      const scopeSid = normalizeString(req.body?.sid, null);
+      const scopeBId = normalizeString(req.body?.bId, null);
+      const cardScope = storyCardScopeFilter(userUid, scopeSid, scopeBId);
 
-      if (!ownerUid) {
-        return res.status(400).json({ ok: false, error: 'ownerUid is required' });
+      if (!userUid) {
+        return res.status(400).json({ ok: false, error: 'uid is required' });
       }
-      if (authUid && authUid !== ownerUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      if (authUid && authUid !== userUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
       }
       if (!['none', 'normal', 'vip'].includes(incomingState)) {
         return res.status(400).json({ ok: false, error: 'state must be one of none|normal|vip' });
@@ -2025,13 +2128,14 @@ function createQrRoutes({ storage }) {
       const db = await storage.connect();
       const now = new Date();
 
-      if (cardIdBody) {
+      if (cardScope) {
         if (incomingState === 'none') {
-          await db.collection('story_card_states').deleteOne({ ownerUid, cardId: cardIdBody });
+          await db.collection('story_card_states').deleteOne(cardScope);
           return res.status(200).json({
             ok: true,
-            ownerUid,
-            cardId: cardIdBody,
+            uid: userUid,
+            sid: cardScope.sid || null,
+            bId: cardScope.bId || null,
             state: 'none',
             expiresAt: null,
           });
@@ -2042,18 +2146,19 @@ function createQrRoutes({ storage }) {
           : new Date(now.getTime() + STORY_NORMAL_TTL_HOURS * 60 * 60 * 1000);
 
         await db.collection('story_card_states').findOneAndUpdate(
-          { ownerUid, cardId: cardIdBody },
+          cardScope,
           {
             $set: {
-              ownerUid,
-              cardId: cardIdBody,
+              uid: userUid,
+              sid: cardScope.sid ?? null,
+              bId: cardScope.bId ?? null,
               state: incomingState,
               isPaidExternal: incomingState === 'vip' ? incomingPaidExternal : false,
               vipSource: incomingState === 'vip' ? vipSource : 'manual',
               paidChannel: incomingState === 'vip' ? paidChannel : null,
               manualReason: incomingState === 'vip' ? manualReason : null,
               externalPaidAt: incomingState === 'vip' && incomingPaidExternal ? now : null,
-              activatedByUid: authUid || ownerUid,
+              activatedByUid: authUid || userUid,
               expiresAt,
               updatedAt: now,
             },
@@ -2070,8 +2175,9 @@ function createQrRoutes({ storage }) {
 
         return res.status(200).json({
           ok: true,
-          ownerUid,
-          cardId: cardIdBody,
+          uid: userUid,
+          sid: cardScope.sid || null,
+          bId: cardScope.bId || null,
           state: incomingState,
           expiresAt: expiresAt.toISOString(),
           isPaidExternal: incomingState === 'vip' ? incomingPaidExternal : false,
@@ -2081,8 +2187,8 @@ function createQrRoutes({ storage }) {
       }
 
       if (incomingState === 'none') {
-        await db.collection('story_states').deleteOne({ ownerUid });
-        return res.status(200).json({ ok: true, ownerUid, state: 'none', expiresAt: null });
+        await db.collection('story_states').deleteOne({ uid: userUid });
+        return res.status(200).json({ ok: true, uid: userUid, state: 'none', expiresAt: null });
       }
 
       const expiresAt = incomingState === 'vip'
@@ -2090,17 +2196,17 @@ function createQrRoutes({ storage }) {
         : new Date(now.getTime() + STORY_NORMAL_TTL_HOURS * 60 * 60 * 1000);
 
       await db.collection('story_states').findOneAndUpdate(
-        { ownerUid },
+        { uid: userUid },
         {
           $set: {
-            ownerUid,
+            uid: userUid,
             state: incomingState,
             isPaidExternal: incomingState === 'vip' ? incomingPaidExternal : false,
             vipSource: incomingState === 'vip' ? vipSource : 'manual',
             paidChannel: incomingState === 'vip' ? paidChannel : null,
             manualReason: incomingState === 'vip' ? manualReason : null,
             externalPaidAt: incomingState === 'vip' && incomingPaidExternal ? now : null,
-            activatedByUid: authUid || ownerUid,
+            activatedByUid: authUid || userUid,
             expiresAt,
             updatedAt: now,
           },
@@ -2117,7 +2223,7 @@ function createQrRoutes({ storage }) {
 
       return res.status(200).json({
         ok: true,
-        ownerUid,
+        uid: userUid,
         state: incomingState,
         expiresAt: expiresAt.toISOString(),
         isPaidExternal: incomingState === 'vip' ? incomingPaidExternal : false,
@@ -2132,15 +2238,15 @@ function createQrRoutes({ storage }) {
   router.post('/stories/vip/manual', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.uid || req.body?.ownerUid || '').trim();
+      const userUid = String(req.body?.uid || '').trim();
       const paidChannel = normalizeString(req.body?.paidChannel, 'offline_partner');
       const manualReason = normalizeString(req.body?.manualReason, 'Pago confirmado fuera de app');
       const isPaidExternal = req.body?.isPaidExternal !== false;
       const vipDaysInput = Number(req.body?.vipDays || STORY_VIP_TTL_DAYS);
       const vipDays = Number.isFinite(vipDaysInput) ? Math.max(1, Math.min(30, Math.floor(vipDaysInput))) : STORY_VIP_TTL_DAYS;
 
-      if (!ownerUid) {
-        return res.status(400).json({ ok: false, error: 'ownerUid is required' });
+      if (!userUid) {
+        return res.status(400).json({ ok: false, error: 'uid is required' });
       }
 
       const db = await storage.connect();
@@ -2148,10 +2254,10 @@ function createQrRoutes({ storage }) {
       const expiresAt = new Date(now.getTime() + vipDays * 24 * 60 * 60 * 1000);
 
       await db.collection('story_states').findOneAndUpdate(
-        { ownerUid },
+        { uid: userUid },
         {
           $set: {
-            ownerUid,
+            uid: userUid,
             state: 'vip',
             isPaidExternal,
             vipSource: isPaidExternal ? 'external_partner' : 'manual',
@@ -2175,7 +2281,7 @@ function createQrRoutes({ storage }) {
 
       return res.status(200).json({
         ok: true,
-        ownerUid,
+        uid: userUid,
         state: 'vip',
         vipDays,
         isPaidExternal,
@@ -2191,26 +2297,29 @@ function createQrRoutes({ storage }) {
   router.get('/stories/state', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.query?.uid || req.query?.ownerUid || authUid || '').trim();
-      const cardIdQuery = normalizeString(req.query?.cardId, null);
+      const userUid = String(req.query?.uid || authUid || '').trim();
+      const sidQuery = normalizeString(req.query?.sid, null);
+      const bIdQuery = normalizeString(req.query?.bId, null);
+      const cardScope = storyCardScopeFilter(userUid, sidQuery, bIdQuery);
 
-      if (!ownerUid) {
-        return res.status(400).json({ ok: false, error: 'ownerUid is required' });
+      if (!userUid) {
+        return res.status(400).json({ ok: false, error: 'uid is required' });
       }
-      if (authUid && authUid !== ownerUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      if (authUid && authUid !== userUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
       }
 
       const db = await storage.connect();
       const now = new Date();
 
-      if (cardIdQuery) {
-        const row = await db.collection('story_card_states').findOne({ ownerUid, cardId: cardIdQuery });
+      if (cardScope) {
+        const row = await db.collection('story_card_states').findOne(cardScope);
         if (!row || !row.expiresAt || new Date(row.expiresAt).getTime() <= now.getTime()) {
           return res.status(200).json({
             ok: true,
-            ownerUid,
-            cardId: cardIdQuery,
+            uid: userUid,
+            sid: cardScope.sid || null,
+            bId: cardScope.bId || null,
             state: 'none',
             expiresAt: null,
           });
@@ -2218,8 +2327,9 @@ function createQrRoutes({ storage }) {
         const state = String(row.state || 'none');
         return res.status(200).json({
           ok: true,
-          ownerUid,
-          cardId: cardIdQuery,
+          uid: userUid,
+          sid: cardScope.sid || null,
+          bId: cardScope.bId || null,
           state: state === 'vip' ? 'vip' : state === 'normal' ? 'normal' : 'none',
           expiresAt: new Date(row.expiresAt).toISOString(),
           isPaidExternal: Boolean(row.isPaidExternal),
@@ -2228,16 +2338,16 @@ function createQrRoutes({ storage }) {
         });
       }
 
-      const row = await db.collection('story_states').findOne({ ownerUid });
+      const row = await db.collection('story_states').findOne({ uid: userUid });
 
       if (!row || !row.expiresAt || new Date(row.expiresAt).getTime() <= now.getTime()) {
-        return res.status(200).json({ ok: true, ownerUid, state: 'none', expiresAt: null });
+        return res.status(200).json({ ok: true, uid: userUid, state: 'none', expiresAt: null });
       }
 
       const state = String(row.state || 'none');
       return res.status(200).json({
         ok: true,
-        ownerUid,
+        uid: userUid,
         state: state === 'vip' ? 'vip' : state === 'normal' ? 'normal' : 'none',
         expiresAt: new Date(row.expiresAt).toISOString(),
         isPaidExternal: Boolean(row.isPaidExternal),
@@ -2252,25 +2362,25 @@ function createQrRoutes({ storage }) {
   router.get('/stories/ads/house', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.query?.uid || req.query?.ownerUid || authUid || '').trim();
+      const userUid = String(req.query?.uid || authUid || '').trim();
 
-      if (!ownerUid) {
-        return res.status(400).json({ ok: false, error: 'ownerUid is required' });
+      if (!userUid) {
+        return res.status(400).json({ ok: false, error: 'uid is required' });
       }
-      if (authUid && authUid !== ownerUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      if (authUid && authUid !== userUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
       }
 
       const db = await storage.connect();
-      const row = await db.collection('stories_house_ads').findOne({ ownerUid, isActive: true });
+      const row = await db.collection('stories_house_ads').findOne({ uid: userUid, isActive: true });
 
       if (!row) {
-        return res.status(200).json({ ok: true, ownerUid, ad: null });
+        return res.status(200).json({ ok: true, uid: userUid, ad: null });
       }
 
       return res.status(200).json({
         ok: true,
-        ownerUid,
+        uid: userUid,
         ad: {
           title: normalizeString(row.title, 'Mi Sueno Mexicano'),
           subtitle: normalizeString(row.subtitle, 'Casa destacada en tu zona'),
@@ -2290,23 +2400,23 @@ function createQrRoutes({ storage }) {
   router.put('/stories/ads/house', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.uid || req.body?.ownerUid || authUid || '').trim();
+      const userUid = String(req.body?.uid || authUid || '').trim();
 
-      if (!ownerUid) {
-        return res.status(400).json({ ok: false, error: 'ownerUid is required' });
+      if (!userUid) {
+        return res.status(400).json({ ok: false, error: 'uid is required' });
       }
-      if (authUid && authUid !== ownerUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      if (authUid && authUid !== userUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
       }
 
       const db = await storage.connect();
       const now = new Date();
 
       await db.collection('stories_house_ads').findOneAndUpdate(
-        { ownerUid },
+        { uid: userUid },
         {
           $set: {
-            ownerUid,
+            uid: userUid,
             title: normalizeString(req.body?.title, 'Mi Sueno Mexicano'),
             subtitle: normalizeString(req.body?.subtitle, null),
             priceLabel: normalizeString(req.body?.priceLabel, '$0 MXN'),
@@ -2328,7 +2438,7 @@ function createQrRoutes({ storage }) {
         }
       );
 
-      return res.status(200).json({ ok: true, ownerUid });
+      return res.status(200).json({ ok: true, uid: userUid });
     } catch (error) {
       return res.status(500).json({ ok: false, error: error.message });
     }
@@ -2336,7 +2446,7 @@ function createQrRoutes({ storage }) {
 
   /**
    * Conversión / interacciones por tarjeta (Fase 2). Colección `card_analytics`:
-   * documentos diarios `d:{cardId}:{YYYY-MM-DD}` y mensuales `m:{cardId}:{YYYY-MM}`.
+   * documentos diarios `d:{cardKey}:{YYYY-MM-DD}` y mensuales `m:{cardKey}:{YYYY-MM}`.
    */
   router.post('/analytics/track', async (req, res) => {
     try {
@@ -2345,9 +2455,11 @@ function createQrRoutes({ storage }) {
         return res.status(401).json({ ok: false, error: 'Unauthorized' });
       }
 
-      const cardId = String(req.body?.cardId || '').trim();
-      if (!cardId || cardId.length > 160) {
-        return res.status(400).json({ ok: false, error: 'cardId is required' });
+      const sid = String(req.body?.sid || '').trim();
+      const bId = String(req.body?.bId || '').trim();
+      const cardKey = sid || bId;
+      if (!cardKey || cardKey.length > 160) {
+        return res.status(400).json({ ok: false, error: 'sid or bId is required' });
       }
 
       const iconType = sanitizeAnalyticsSegmentKey(req.body?.iconType);
@@ -2368,7 +2480,7 @@ function createQrRoutes({ storage }) {
       const db = await storage.connect();
       const now = new Date();
 
-      const dailyId = `d:${cardId}:${dayKey}`;
+      const dailyId = `d:${cardKey}:${dayKey}`;
       await db.collection('card_analytics').updateOne(
         { _id: dailyId },
         {
@@ -2379,7 +2491,8 @@ function createQrRoutes({ storage }) {
           },
           $set: { updatedAt: now },
           $setOnInsert: {
-            cardId,
+            sid: sid || null,
+            bId: bId || null,
             granularity: 'day',
             periodKey: dayKey,
             monthKey,
@@ -2389,7 +2502,7 @@ function createQrRoutes({ storage }) {
         { upsert: true },
       );
 
-      const monthlyId = `m:${cardId}:${monthKey}`;
+      const monthlyId = `m:${cardKey}:${monthKey}`;
       await db.collection('card_analytics').updateOne(
         { _id: monthlyId },
         {
@@ -2400,7 +2513,8 @@ function createQrRoutes({ storage }) {
           },
           $set: { updatedAt: now },
           $setOnInsert: {
-            cardId,
+            sid: sid || null,
+            bId: bId || null,
             granularity: 'month',
             periodKey: monthKey,
             createdAt: now,
@@ -2415,24 +2529,24 @@ function createQrRoutes({ storage }) {
     }
   });
 
-  router.get('/analytics/card/:cardId/summary', async (req, res) => {
+  router.get('/analytics/card/:cardRef/summary', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.query?.uid || req.query?.ownerUid || authUid || '').trim();
-      const cardId = String(req.params?.cardId || '').trim();
+      const userUid = String(req.query?.uid || authUid || '').trim();
+      const cardRef = String(req.params?.cardRef || '').trim();
 
-      if (!ownerUid) {
-        return res.status(400).json({ ok: false, error: 'ownerUid is required' });
+      if (!userUid) {
+        return res.status(400).json({ ok: false, error: 'uid is required' });
       }
-      if (!cardId) {
-        return res.status(400).json({ ok: false, error: 'cardId is required' });
+      if (!cardRef) {
+        return res.status(400).json({ ok: false, error: 'card key is required' });
       }
-      if (authUid && authUid !== ownerUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      if (authUid && authUid !== userUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
       }
 
       const db = await storage.connect();
-      const owns = await db.collection('smart_cards').findOne({ ownerUid, cardId });
+      const owns = await db.collection('smart_cards').findOne(smartCardKeyQuery(userUid, cardRef));
       if (!owns) {
         return res.status(404).json({ ok: false, error: 'Card not found for this owner' });
       }
@@ -2441,7 +2555,7 @@ function createQrRoutes({ storage }) {
       const docs = await db
         .collection('card_analytics')
         .find({
-          cardId,
+          $or: [{ sid: cardRef }, { bId: cardRef }],
           granularity: 'day',
           periodKey: { $gte: minDay },
         })
@@ -2463,9 +2577,10 @@ function createQrRoutes({ storage }) {
         .slice(0, 12)
         .map(([iconType, count]) => ({ iconType, count: Number(count) }));
 
+      const isBiz = owns.cardType === 'business';
       return res.status(200).json({
         ok: true,
-        cardId,
+        ...(isBiz ? { bId: cardRef } : { sid: cardRef }),
         totalViews,
         topIcons,
       });
@@ -2474,20 +2589,20 @@ function createQrRoutes({ storage }) {
     }
   });
 
-  router.get('/cards/:cardId/subscribers', async (req, res) => {
+  router.get('/cards/:cardRef/subscribers', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.query?.uid || req.query?.ownerUid || authUid || '').trim();
-      const cardId = String(req.params?.cardId || '').trim();
+      const userUid = String(req.query?.uid || authUid || '').trim();
+      const cardRef = String(req.params?.cardRef || '').trim();
 
-      if (!ownerUid) {
-        return res.status(400).json({ ok: false, error: 'ownerUid is required' });
+      if (!userUid) {
+        return res.status(400).json({ ok: false, error: 'uid is required' });
       }
-      if (!cardId) {
-        return res.status(400).json({ ok: false, error: 'cardId is required' });
+      if (!cardRef) {
+        return res.status(400).json({ ok: false, error: 'card key is required' });
       }
-      if (authUid && authUid !== ownerUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      if (authUid && authUid !== userUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
       }
 
       const db = await storage.connect();
@@ -2495,10 +2610,12 @@ function createQrRoutes({ storage }) {
 
       const permissions = await db.collection('share_permissions').find(
         {
-          ownerUid,
-          cardId,
+          uid: userUid,
           isRevoked: { $ne: true },
-          $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }, { expiresAt: { $exists: false } }],
+          $and: [
+            { $or: [{ sid: cardRef }, { bId: cardRef }] },
+            { $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }, { expiresAt: { $exists: false } }] },
+          ],
         },
         { projection: { targetUid: 1, createdAt: 1 } }
       ).toArray();
@@ -2517,20 +2634,20 @@ function createQrRoutes({ storage }) {
       const subscriberUids = Array.from(new Set(permissions.map((p) => String(p.targetUid || '').trim()).filter(Boolean)));
       const amixesCursor = await db.collection('share_permissions').find(
         {
-          ownerUid: { $in: subscriberUids },
-          targetUid: ownerUid,
+          uid: { $in: subscriberUids },
+          targetUid: userUid,
           isRevoked: { $ne: true },
           $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }, { expiresAt: { $exists: false } }],
         },
-        { projection: { ownerUid: 1 } }
+        { projection: { uid: 1 } }
       ).toArray();
-      const amixesSet = new Set(amixesCursor.map((row) => String(row.ownerUid || '').trim()));
+      const amixesSet = new Set(amixesCursor.map((row) => String(row.uid || '').trim()));
 
       const neighborMap = await buildShareNeighborMap(db, now);
 
       const muteRows = await db.collection('card_subscriber_mutes').find({
-        ownerUid,
-        cardId,
+        uid: userUid,
+        $or: [{ sid: cardRef }, { bId: cardRef }],
         muted: true,
       }).toArray();
       const mutedSet = new Set(muteRows.map((m) => String(m.targetUid || '').trim()).filter(Boolean));
@@ -2538,8 +2655,8 @@ function createQrRoutes({ storage }) {
       const ratingBySub = new Map();
       if (subscriberUids.length) {
         const ratingAgg = await db.collection('smart_cards').aggregate([
-          { $match: { ownerUid: { $in: subscriberUids } } },
-          { $group: { _id: '$ownerUid', avgRating: { $avg: '$ratingAvg' } } },
+          { $match: { uid: { $in: subscriberUids } } },
+          { $group: { _id: '$uid', avgRating: { $avg: '$ratingAvg' } } },
         ]).toArray();
         for (const row of ratingAgg) {
           const uidKey = String(row._id || '').trim();
@@ -2553,7 +2670,7 @@ function createQrRoutes({ storage }) {
         let profile = await resolveUserProfileExtended(db, uid);
         const idCard = await fetchPersonalCardIdentityDoc(db, uid);
         profile = enrichSubscriberProfileFromCard(profile, idCard);
-        const mutualIds = mutualNeighborUids(neighborMap, ownerUid, uid);
+        const mutualIds = mutualNeighborUids(neighborMap, userUid, uid);
         const mutualCount = mutualIds.length;
         const mutualPreviewPhotos = [];
         for (const mid of mutualIds.slice(0, 3)) {
@@ -2582,10 +2699,13 @@ function createQrRoutes({ storage }) {
         });
       }
 
+      const cardRow = await db.collection('smart_cards').findOne(smartCardKeyQuery(userUid, cardRef), { projection: { cardType: 1, sid: 1, bId: 1 } });
+      const isBiz = cardRow?.cardType === 'business';
+
       return res.status(200).json({
         ok: true,
-        ownerUid,
-        cardId,
+        uid: userUid,
+        ...(isBiz ? { bId: cardRef } : { sid: cardRef }),
         count: subscribers.length,
         subscribers,
       });
@@ -2594,54 +2714,61 @@ function createQrRoutes({ storage }) {
     }
   });
 
-  router.delete('/cards/:cardId/subscribers/:targetUid', async (req, res) => {
+  router.delete('/cards/:cardRef/subscribers/:targetUid', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.uid || req.body?.ownerUid || req.query?.uid || req.query?.ownerUid || authUid || '').trim();
-      const cardId = String(req.params?.cardId || '').trim();
+      const userUid = String(req.body?.uid || req.query?.uid || authUid || '').trim();
+      const cardRef = String(req.params?.cardRef || '').trim();
       const targetUid = String(req.params?.targetUid || req.body?.targetUid || '').trim();
 
-      if (!ownerUid || !cardId || !targetUid) {
-        return res.status(400).json({ ok: false, error: 'ownerUid, cardId and targetUid are required' });
+      if (!userUid || !cardRef || !targetUid) {
+        return res.status(400).json({ ok: false, error: 'uid, card key and targetUid are required' });
       }
-      if (authUid && authUid !== ownerUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      if (authUid && authUid !== userUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
       }
 
       const db = await storage.connect();
-      const deleted = await db.collection('share_permissions').deleteMany({
-        ownerUid,
-        targetUid,
-        cardId,
-      });
+      const spQ = sharePermQuery(userUid, targetUid, cardRef);
+      if (!spQ) {
+        return res.status(400).json({ ok: false, error: 'invalid share key' });
+      }
+      const deleted = await db.collection('share_permissions').deleteMany(spQ);
 
       await db.collection('card_subscriber_mutes').deleteMany({
-        ownerUid,
+        uid: userUid,
         targetUid,
-        cardId,
+        $or: [{ sid: cardRef }, { bId: cardRef }],
       });
 
       await db.collection('ghost_link_invites').deleteMany({
-        sourceCardId: cardId,
-        $or: [
-          { ownerUid, targetUid },
-          { ownerUid: targetUid, targetUid: ownerUid },
+        $and: [
+          { $or: [{ sourceSid: cardRef }, { sourceBId: cardRef }] },
+          {
+            $or: [
+              { callerUid: userUid, targetUid },
+              { callerUid: targetUid, targetUid: userUid },
+            ],
+          },
         ],
       });
 
       await db.collection('call_logs').deleteMany({
-        sourceCardId: cardId,
-        $or: [
-          { ownerUid, peerUid: targetUid },
-          { ownerUid: targetUid, peerUid: ownerUid },
+        $and: [
+          { $or: [{ sourceSid: cardRef }, { sourceBId: cardRef }] },
+          {
+            $or: [
+              { uid: userUid, peerUid: targetUid },
+              { uid: targetUid, peerUid: userUid },
+            ],
+          },
         ],
       });
 
       return res.status(200).json({
         ok: true,
-        ownerUid,
+        uid: userUid,
         targetUid,
-        cardId,
         deletedCount: Number(deleted?.deletedCount || 0),
       });
     } catch (error) {
@@ -2649,48 +2776,65 @@ function createQrRoutes({ storage }) {
     }
   });
 
-  router.post('/cards/:cardId/subscribers/:targetUid/mute', async (req, res) => {
+  router.post('/cards/:cardRef/subscribers/:targetUid/mute', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.uid || req.body?.ownerUid || req.query?.uid || req.query?.ownerUid || authUid || '').trim();
-      const cardId = String(req.params?.cardId || '').trim();
+      const userUid = String(req.body?.uid || req.query?.uid || authUid || '').trim();
+      const cardRef = String(req.params?.cardRef || '').trim();
       const targetUid = String(req.params?.targetUid || '').trim();
       const muted = req.body?.muted === true;
 
-      if (!ownerUid || !cardId || !targetUid) {
-        return res.status(400).json({ ok: false, error: 'ownerUid, cardId and targetUid are required' });
+      if (!userUid || !cardRef || !targetUid) {
+        return res.status(400).json({ ok: false, error: 'uid, card key and targetUid are required' });
       }
-      if (authUid && authUid !== ownerUid && authUid !== targetUid) {
+      if (authUid && authUid !== userUid && authUid !== targetUid) {
         return res.status(403).json({ ok: false, error: 'Forbidden: caller must be card owner or subscriber' });
       }
 
       const db = await storage.connect();
       const now = new Date();
 
-      if (authUid === targetUid && authUid !== ownerUid) {
+      if (authUid === targetUid && authUid !== userUid) {
         const permOk = await db.collection('share_permissions').findOne({
-          ownerUid,
+          uid: userUid,
           targetUid: authUid,
-          cardId,
           isRevoked: { $ne: true },
-          $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }, { expiresAt: { $exists: false } }],
+          $and: [
+            { $or: [{ sid: cardRef }, { bId: cardRef }] },
+            { $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }, { expiresAt: { $exists: false } }] },
+          ],
         });
         if (!permOk) {
           return res.status(403).json({ ok: false, error: 'Forbidden: no active share for this card' });
         }
       }
 
+      const cdoc = await db.collection('smart_cards').findOne(smartCardKeyQuery(userUid, cardRef), { projection: { sid: 1, bId: 1 } });
+      let sid = cdoc?.sid != null && String(cdoc.sid).trim() ? String(cdoc.sid).trim() : null;
+      let bId = cdoc?.bId != null && String(cdoc.bId).trim() ? String(cdoc.bId).trim() : null;
+      if (!cdoc) {
+        sid = cardRef;
+        bId = null;
+      }
+
+      const muteFilter = { uid: userUid, targetUid, sid, bId };
+
       if (!muted) {
-        await db.collection('card_subscriber_mutes').deleteOne({ ownerUid, cardId, targetUid });
-        return res.status(200).json({ ok: true, ownerUid, cardId, targetUid, muted: false });
+        await db.collection('card_subscriber_mutes').deleteOne({
+          uid: userUid,
+          targetUid,
+          $or: [{ sid: cardRef }, { bId: cardRef }],
+        });
+        return res.status(200).json({ ok: true, uid: userUid, targetUid, muted: false });
       }
 
       await db.collection('card_subscriber_mutes').findOneAndUpdate(
-        { ownerUid, cardId, targetUid },
+        muteFilter,
         {
           $set: {
-            ownerUid,
-            cardId,
+            uid: userUid,
+            sid,
+            bId,
             targetUid,
             muted: true,
             updatedAt: now,
@@ -2702,33 +2846,37 @@ function createQrRoutes({ storage }) {
         { upsert: true, returnDocument: 'after', includeResultMetadata: false }
       );
 
-      return res.status(200).json({ ok: true, ownerUid, cardId, targetUid, muted: true });
+      return res.status(200).json({ ok: true, uid: userUid, targetUid, muted: true });
     } catch (error) {
       return res.status(500).json({ ok: false, error: error.message });
     }
   });
 
-  router.post('/cards/:cardId/silence', async (req, res) => {
+  router.post('/cards/:cardRef/silence', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.uid || req.body?.ownerUid || req.query?.uid || req.query?.ownerUid || authUid || '').trim();
-      const cardId = String(req.params?.cardId || '').trim();
+      const userUid = String(req.body?.uid || req.query?.uid || authUid || '').trim();
+      const cardRef = String(req.params?.cardRef || '').trim();
       const silenced = req.body?.silenced === true;
 
-      if (!ownerUid || !cardId) {
-        return res.status(400).json({ ok: false, error: 'ownerUid and cardId are required' });
+      if (!userUid || !cardRef) {
+        return res.status(400).json({ ok: false, error: 'uid and card key are required' });
       }
-      if (authUid && authUid !== ownerUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      if (authUid && authUid !== userUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
       }
 
       const db = await storage.connect();
+      const q = smartCardKeyQuery(userUid, cardRef);
+      if (!q) {
+        return res.status(400).json({ ok: false, error: 'invalid card key' });
+      }
       await db.collection('smart_cards').updateOne(
-        { ownerUid, cardId },
+        q,
         { $set: { silenced, updatedAt: new Date() } },
       );
 
-      return res.status(200).json({ ok: true, ownerUid, cardId, silenced });
+      return res.status(200).json({ ok: true, uid: userUid, silenced });
     } catch (error) {
       return res.status(500).json({ ok: false, error: error.message });
     }
@@ -2737,36 +2885,36 @@ function createQrRoutes({ storage }) {
   router.post('/relationships/block', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.uid || req.body?.ownerUid || authUid || '').trim();
+      const userUid = String(req.body?.uid || authUid || '').trim();
       const targetUid = String(req.body?.targetUid || '').trim();
 
-      if (!ownerUid || !targetUid) {
-        return res.status(400).json({ ok: false, error: 'ownerUid and targetUid are required' });
+      if (!userUid || !targetUid) {
+        return res.status(400).json({ ok: false, error: 'uid and targetUid are required' });
       }
-      if (authUid && authUid !== ownerUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      if (authUid && authUid !== userUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
       }
 
       const db = await storage.connect();
       const deleted = await db.collection('share_permissions').deleteMany({
         $or: [
-          { ownerUid, targetUid },
-          { ownerUid: targetUid, targetUid: ownerUid },
+          { uid: userUid, targetUid },
+          { uid: targetUid, targetUid: userUid },
         ],
       });
 
-      await purgeInteractionForBlock(db, ownerUid, targetUid);
+      await purgeInteractionForBlock(db, userUid, targetUid);
 
       const now = new Date();
-      const relationKey = buildRelationKey(ownerUid, targetUid);
+      const relationKey = buildRelationKey(userUid, targetUid);
       await db.collection('blocked_relations').findOneAndUpdate(
         { relationKey },
         {
           $set: {
             relationKey,
-            uidA: [ownerUid, targetUid].sort()[0],
-            uidB: [ownerUid, targetUid].sort()[1],
-            blockedByUid: ownerUid,
+            uidA: [userUid, targetUid].sort()[0],
+            uidB: [userUid, targetUid].sort()[1],
+            blockedByUid: userUid,
             updatedAt: now,
           },
           $setOnInsert: {
@@ -2782,7 +2930,7 @@ function createQrRoutes({ storage }) {
 
       return res.status(200).json({
         ok: true,
-        ownerUid,
+        uid: userUid,
         targetUid,
         deletedLinks: Number(deleted?.deletedCount || 0),
       });
@@ -2794,19 +2942,19 @@ function createQrRoutes({ storage }) {
   router.get('/relationships/blocked', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.query?.uid || req.query?.ownerUid || authUid || '').trim();
+      const userUid = String(req.query?.uid || authUid || '').trim();
 
-      if (!ownerUid) {
-        return res.status(400).json({ ok: false, error: 'ownerUid is required' });
+      if (!userUid) {
+        return res.status(400).json({ ok: false, error: 'uid is required' });
       }
-      if (authUid && authUid !== ownerUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      if (authUid && authUid !== userUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
       }
 
       const db = await storage.connect();
       const rows = await db.collection('blocked_relations').find(
         {
-          $or: [{ uidA: ownerUid }, { uidB: ownerUid }],
+          $or: [{ uidA: userUid }, { uidB: userUid }],
         },
         {
           projection: {
@@ -2822,7 +2970,7 @@ function createQrRoutes({ storage }) {
 
       const blockedUsers = [];
       for (const row of rows) {
-        const otherUid = String(row.uidA === ownerUid ? row.uidB : row.uidA || '').trim();
+        const otherUid = String(row.uidA === userUid ? row.uidB : row.uidA || '').trim();
         if (!otherUid) {
           continue;
         }
@@ -2841,7 +2989,7 @@ function createQrRoutes({ storage }) {
 
       return res.status(200).json({
         ok: true,
-        ownerUid,
+        uid: userUid,
         count: blockedUsers.length,
         blockedUsers,
       });
@@ -2853,23 +3001,23 @@ function createQrRoutes({ storage }) {
   router.delete('/relationships/blocked/:targetUid', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.uid || req.body?.ownerUid || req.query?.uid || req.query?.ownerUid || authUid || '').trim();
+      const userUid = String(req.body?.uid || req.query?.uid || authUid || '').trim();
       const targetUid = String(req.params?.targetUid || req.body?.targetUid || '').trim();
 
-      if (!ownerUid || !targetUid) {
-        return res.status(400).json({ ok: false, error: 'ownerUid and targetUid are required' });
+      if (!userUid || !targetUid) {
+        return res.status(400).json({ ok: false, error: 'uid and targetUid are required' });
       }
-      if (authUid && authUid !== ownerUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      if (authUid && authUid !== userUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
       }
 
       const db = await storage.connect();
-      const relationKey = buildRelationKey(ownerUid, targetUid);
+      const relationKey = buildRelationKey(userUid, targetUid);
       const deleted = await db.collection('blocked_relations').deleteOne({ relationKey });
 
       return res.status(200).json({
         ok: true,
-        ownerUid,
+        uid: userUid,
         targetUid,
         unblocked: Number(deleted?.deletedCount || 0) > 0,
       });
@@ -2887,26 +3035,27 @@ function createQrRoutes({ storage }) {
   router.get('/calls/history', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.query?.uid || req.query?.ownerUid || authUid || '').trim();
+      const userUid = String(req.query?.uid || authUid || '').trim();
 
-      if (!ownerUid) {
-        return res.status(400).json({ ok: false, error: 'ownerUid is required' });
+      if (!userUid) {
+        return res.status(400).json({ ok: false, error: 'uid is required' });
       }
-      if (authUid && authUid !== ownerUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      if (authUid && authUid !== userUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
       }
 
       const db = await storage.connect();
       const now = new Date();
 
       const rows = await db.collection('call_logs')
-        .find({ ownerUid })
+        .find({ uid: userUid })
         .project({
-          ownerUid: 1,
+          uid: 1,
           callId: 1,
           peerUid: 1,
           sourceCardName: 1,
-          sourceCardId: 1,
+          sourceSid: 1,
+          sourceBId: 1,
           callChannel: 1,
           direction: 1,
           status: 1,
@@ -2925,12 +3074,12 @@ function createQrRoutes({ storage }) {
       const peerUids = Array.from(new Set(rows.map((row) => String(row.peerUid || '').trim()).filter(Boolean)));
       const activeStories = await db.collection('story_states').find(
         {
-          ownerUid: { $in: peerUids },
+          uid: { $in: peerUids },
           expiresAt: { $gt: now },
         },
         {
           projection: {
-            ownerUid: 1,
+            uid: 1,
             state: 1,
           },
         }
@@ -2938,7 +3087,7 @@ function createQrRoutes({ storage }) {
 
       const storyByOwner = new Map();
       for (const story of activeStories) {
-        const uid = String(story.ownerUid || '').trim();
+        const uid = String(story.uid || '').trim();
         const state = String(story.state || 'none');
         if (!uid) {
           continue;
@@ -2961,7 +3110,8 @@ function createQrRoutes({ storage }) {
           peerPersonalName: 'Usuario',
           userAvatarUrl: null,
           sourceCardName: String(row.sourceCardName || 'Tarjeta Social'),
-          sourceCardId: normalizeString(row.sourceCardId, null),
+          sourceSid: normalizeString(row.sourceSid, null),
+          sourceBId: normalizeString(row.sourceBId, null),
           callChannel: 'ghost-link-voip',
           callType: String(row.callType || '').trim() === 'video' ? 'video' : 'audio',
           storyState: storyMap.get(peerUidF) || 'none',
@@ -2979,17 +3129,19 @@ function createQrRoutes({ storage }) {
       const history = [];
       for (const row of rows) {
         try {
-          const logOwnerUid = String(row.ownerUid || ownerUid || '').trim();
+          const logViewerUid = String(row.uid || userUid || '').trim();
           const peerUid = String(row.peerUid || '').trim();
           const direction = String(row.direction || '').trim().toLowerCase();
           const incomingLike = direction === 'incoming' || direction === 'missed';
           /** Tarjeta “puente” Ghost-Link: saliente → tarjeta del que llama (dueño del log); entrante → tarjeta del caller. */
-          const cardEmitterUid = direction === 'outgoing' ? logOwnerUid : peerUid;
+          const cardEmitterUid = direction === 'outgoing' ? logViewerUid : peerUid;
+
+          const bridgeKey = normalizeString(row.sourceSid, null) || normalizeString(row.sourceBId, null);
 
           let sourceCard = null;
-          if (row.sourceCardId && cardEmitterUid) {
+          if (bridgeKey && cardEmitterUid) {
             sourceCard = await db.collection('smart_cards').findOne(
-              { cardId: String(row.sourceCardId), ownerUid: cardEmitterUid },
+              smartCardKeyQuery(cardEmitterUid, bridgeKey),
               { projection: { scName: 1, ownerDisplayName: 1, ownerPhotoUrl: 1, cardType: 1 } },
             );
           }
@@ -3029,14 +3181,14 @@ function createQrRoutes({ storage }) {
           const peerPersonalName = profileFullName;
 
           let localViewerCard = null;
-          if (incomingLike && logOwnerUid) {
+          if (incomingLike && logViewerUid) {
             localViewerCard = await db.collection('smart_cards').findOne(
-              { ownerUid: logOwnerUid, cardType: { $ne: 'business' } },
+              { uid: logViewerUid, cardType: { $ne: 'business' } },
               { sort: { updatedAt: -1 }, projection: { scName: 1, cardType: 1 } },
             );
             if (!localViewerCard) {
               localViewerCard = await db.collection('smart_cards').findOne(
-                { ownerUid: logOwnerUid },
+                { uid: logViewerUid },
                 { sort: { updatedAt: -1 }, projection: { scName: 1, cardType: 1 } },
               );
             }
@@ -3089,7 +3241,8 @@ function createQrRoutes({ storage }) {
             peerPersonalName,
             userAvatarUrl,
             sourceCardName: String(row.sourceCardName || 'Tarjeta Social'),
-            sourceCardId: normalizeString(row.sourceCardId, null),
+            sourceSid: normalizeString(row.sourceSid, null),
+            sourceBId: normalizeString(row.sourceBId, null),
             callChannel: 'ghost-link-voip',
             callType,
             storyState: storyByOwner.get(peerUid) || 'none',
@@ -3110,7 +3263,7 @@ function createQrRoutes({ storage }) {
 
       return res.status(200).json({
         ok: true,
-        ownerUid,
+        uid: userUid,
         count: history.length,
         history,
       });
@@ -3122,7 +3275,7 @@ function createQrRoutes({ storage }) {
   router.post('/calls/logs', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.uid || req.body?.ownerUid || authUid || '').trim();
+      const userUid = String(req.body?.uid || authUid || '').trim();
       const peerUid = String(req.body?.peerUid || '').trim();
       const direction = String(req.body?.direction || 'incoming').trim().toLowerCase();
       const status = String(req.body?.status || 'completed').trim().toLowerCase();
@@ -3131,18 +3284,19 @@ function createQrRoutes({ storage }) {
       const voiceNoteUri = req.body?.voiceNoteUri ? String(req.body.voiceNoteUri).trim() : null;
       const voiceNoteName = req.body?.voiceNoteName ? String(req.body.voiceNoteName).trim() : null;
       const sourceCardName = normalizeString(req.body?.sourceCardName, 'Tarjeta Social');
-      const sourceCardId = normalizeString(req.body?.sourceCardId, null);
+      const sourceSid = normalizeString(req.body?.sourceSid, null);
+      const sourceBId = normalizeString(req.body?.sourceBId, null);
       const callChannel = 'ghost-link-voip';
       const callType = ['audio', 'video'].includes(String(req.body?.callType || '').trim())
         ? String(req.body.callType).trim()
         : 'audio';
       const isBusinessCard = req.body?.isBusinessCard === true || req.body?.isBusinessCard === 'true';
 
-      if (!ownerUid || !peerUid) {
-        return res.status(400).json({ ok: false, error: 'ownerUid and peerUid are required' });
+      if (!userUid || !peerUid) {
+        return res.status(400).json({ ok: false, error: 'uid and peerUid are required' });
       }
-      if (authUid && authUid !== ownerUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      if (authUid && authUid !== userUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
       }
       if (!['incoming', 'outgoing', 'missed'].includes(direction)) {
         return res.status(400).json({ ok: false, error: 'direction must be incoming|outgoing|missed' });
@@ -3153,11 +3307,11 @@ function createQrRoutes({ storage }) {
 
       const db = await storage.connect();
       const now = new Date();
-      const callId = `${ownerUid}_${peerUid}_${now.getTime()}`;
+      const callId = `${userUid}_${peerUid}_${now.getTime()}`;
 
       await db.collection('call_logs').insertOne({
         callId,
-        ownerUid,
+        uid: userUid,
         peerUid,
         direction,
         status,
@@ -3166,7 +3320,8 @@ function createQrRoutes({ storage }) {
         voiceNoteUri,
         voiceNoteName,
         sourceCardName,
-        sourceCardId,
+        sourceSid,
+        sourceBId,
         callChannel,
         callType,
         isBusinessCard,
@@ -3174,7 +3329,7 @@ function createQrRoutes({ storage }) {
         updatedAt: now,
       });
 
-      return res.status(201).json({ ok: true, ownerUid, callId });
+      return res.status(201).json({ ok: true, uid: userUid, callId });
     } catch (error) {
       return res.status(500).json({ ok: false, error: error.message });
     }
@@ -3183,14 +3338,14 @@ function createQrRoutes({ storage }) {
   router.patch('/calls/logs/:callId', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.uid || req.body?.ownerUid || authUid || '').trim();
+      const userUid = String(req.body?.uid || authUid || '').trim();
       const callId = String(req.params?.callId || req.body?.callId || '').trim();
 
-      if (!ownerUid || !callId) {
-        return res.status(400).json({ ok: false, error: 'ownerUid and callId are required' });
+      if (!userUid || !callId) {
+        return res.status(400).json({ ok: false, error: 'uid and callId are required' });
       }
-      if (authUid && authUid !== ownerUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+      if (authUid && authUid !== userUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
       }
 
       const tags = Array.isArray(req.body?.tags)
@@ -3215,7 +3370,7 @@ function createQrRoutes({ storage }) {
       const db = await storage.connect();
       const updated = await db.collection('call_logs').findOneAndUpdate(
         {
-          ownerUid,
+          uid: userUid,
           callId,
         },
         {
@@ -3231,7 +3386,7 @@ function createQrRoutes({ storage }) {
         return res.status(404).json({ ok: false, error: 'Call log not found' });
       }
 
-      return res.status(200).json({ ok: true, ownerUid, callId });
+      return res.status(200).json({ ok: true, uid: userUid, callId });
     } catch (error) {
       return res.status(500).json({ ok: false, error: error.message });
     }

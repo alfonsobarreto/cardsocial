@@ -23,7 +23,8 @@ function alertGhostLinkExpoGo(): void {
 }
 
 export type GhostLinkCardContext = {
-  sourceCardId?: string | null;
+  sourceSid?: string | null;
+  sourceBId?: string | null;
   sourceCardName: string;
   /** Alineado con Mongo `smart_cards.cardType` / UI; el backend prioriza el doc de tarjeta. */
   sourceCardKind?: 'business' | 'personal';
@@ -34,7 +35,8 @@ export type GhostLinkCardContext = {
 
 /** Datos de la tarjeta compartida (el puente entre caller y receptor). */
 export type GhostLinkSharedCard = {
-  cardId: string | null;
+  sid: string | null;
+  bId: string | null;
   cardName: string;
   cardPhoto: string | null;
   cardType: 'business' | 'personal';
@@ -43,7 +45,7 @@ export type GhostLinkSharedCard = {
 export type GhostLinkCallType = 'audio' | 'video';
 
 export type GhostLinkCallStartParams = {
-  ownerUid: string;
+  uid: string;
   targetUid: string;
   card: GhostLinkCardContext;
   callType?: GhostLinkCallType;
@@ -96,10 +98,11 @@ export type GhostLinkCallStartResult = {
 export type GhostLinkIncomingInvite = {
   inviteId: string;
   sessionId: string;
-  ownerUid: string;
+  callerUid: string;
   targetUid: string;
   sourceCardName: string;
-  sourceCardId: string | null;
+  sourceSid: string | null;
+  sourceBId: string | null;
   callChannel: 'ghost-link-voip';
   callType: GhostLinkCallType;
   agora?: GhostLinkAgoraRtc;
@@ -135,10 +138,10 @@ function getGatewayKey(): string {
   return key;
 }
 
-async function getQrScopedJwt(ownerUid: string): Promise<string> {
+async function getQrScopedJwt(uid: string): Promise<string> {
   const response = await axios.post(
     `${getApiBaseUrl()}/api/auth/token`,
-    { uid: ownerUid, scope: 'qr.access' },
+    { uid, scope: 'qr.access' },
     {
       headers: {
         'x-api-gateway-key': getGatewayKey(),
@@ -157,13 +160,18 @@ async function getQrScopedJwt(ownerUid: string): Promise<string> {
 export async function startGhostLinkVoipCall(
   params: GhostLinkCallStartParams
 ): Promise<GhostLinkCallStartResult> {
-  const ownerUid = String(params.ownerUid || '').trim();
+  const callerUid = String(params.uid || '').trim();
   const targetUid = String(params.targetUid || '').trim();
   const sourceCardName = String(params.card?.sourceCardName || '').trim();
-  const sourceCardId = params.card?.sourceCardId ? String(params.card.sourceCardId).trim() : null;
+  const sourceSid = params.card?.sourceSid != null && String(params.card.sourceSid).trim()
+    ? String(params.card.sourceSid).trim()
+    : null;
+  const sourceBId = params.card?.sourceBId != null && String(params.card.sourceBId).trim()
+    ? String(params.card.sourceBId).trim()
+    : null;
 
-  if (!ownerUid || !targetUid || !sourceCardName) {
-    throw new Error('ownerUid, targetUid y sourceCardName son obligatorios para Ghost-Link.');
+  if (!callerUid || !targetUid || !sourceCardName) {
+    throw new Error('uid, targetUid y sourceCardName son obligatorios para Ghost-Link.');
   }
 
   if (!isGhostLinkAgoraNativeAvailable()) {
@@ -171,13 +179,14 @@ export async function startGhostLinkVoipCall(
     throw new GhostLinkExpoGoAbortError();
   }
 
-  const jwt = await getQrScopedJwt(ownerUid);
+  const jwt = await getQrScopedJwt(callerUid);
   const card = params.card || ({} as GhostLinkCardContext);
   const startBody: Record<string, unknown> = {
-    ownerUid,
+    uid: callerUid,
     targetUid,
     sourceCardName,
-    sourceCardId,
+    ...(sourceSid ? { sourceSid } : {}),
+    ...(sourceBId ? { sourceBId } : {}),
     callType: params.callType || 'audio',
   };
   if (card.sourceCardKind) {
@@ -207,6 +216,10 @@ export async function startGhostLinkVoipCall(
 
   const rawCard = response?.data?.card;
   const respCallType: GhostLinkCallType = response?.data?.callType === 'video' ? 'video' : 'audio';
+  const outSid =
+    rawCard?.sid != null && String(rawCard.sid).trim() ? String(rawCard.sid).trim() : sourceSid;
+  const outBId =
+    rawCard?.bId != null && String(rawCard.bId).trim() ? String(rawCard.bId).trim() : sourceBId;
   return {
     inviteId: response?.data?.inviteId ? String(response.data.inviteId) : undefined,
     sessionId: String(response?.data?.sessionId || ''),
@@ -215,7 +228,8 @@ export async function startGhostLinkVoipCall(
     callChannel: 'ghost-link-voip',
     callType: respCallType,
     card: {
-      cardId: rawCard?.cardId ? String(rawCard.cardId) : sourceCardId,
+      sid: outSid || null,
+      bId: outBId || null,
       cardName: String(rawCard?.cardName || sourceCardName || 'Tarjeta Social'),
       cardPhoto: rawCard?.cardPhoto ? String(rawCard.cardPhoto) : null,
       cardType: rawCard?.cardType === 'business' ? 'business' : 'personal',
@@ -240,17 +254,17 @@ export async function startGhostLinkVoipCall(
 }
 
 export async function getIncomingGhostLinkInvite(params: {
-  ownerUid: string;
+  uid: string;
 }): Promise<GhostLinkIncomingInvite | null> {
-  const ownerUid = String(params.ownerUid || '').trim();
-  if (!ownerUid) {
-    throw new Error('ownerUid es obligatorio para consultar llamadas entrantes Ghost-Link.');
+  const userUid = String(params.uid || '').trim();
+  if (!userUid) {
+    throw new Error('uid es obligatorio para consultar llamadas entrantes Ghost-Link.');
   }
 
   try {
-    const jwt = await getQrScopedJwt(ownerUid);
+    const jwt = await getQrScopedJwt(userUid);
     const response = await axios.get(`${getApiBaseUrl()}/api/qr/voip/ghost-link/incoming`, {
-      params: { ownerUid },
+      params: { uid: userUid },
       headers: {
         'x-api-gateway-key': getGatewayKey(),
         Authorization: `Bearer ${jwt}`,
@@ -265,18 +279,22 @@ export async function getIncomingGhostLinkInvite(params: {
 
     const invCard = invite?.card;
     const invCallType: GhostLinkCallType = invite?.callType === 'video' ? 'video' : 'audio';
+    const srcSid = invite?.sourceSid != null && String(invite.sourceSid).trim() ? String(invite.sourceSid) : null;
+    const srcBId = invite?.sourceBId != null && String(invite.sourceBId).trim() ? String(invite.sourceBId) : null;
     return {
       inviteId: String(invite?.inviteId || ''),
       sessionId: String(invite?.sessionId || ''),
-      ownerUid: String(invite?.ownerUid || ''),
+      callerUid: String(invite?.callerUid || ''),
       targetUid: String(invite?.targetUid || ''),
       sourceCardName: String(invite?.sourceCardName || 'Tarjeta Social'),
-      sourceCardId: invite?.sourceCardId ? String(invite.sourceCardId) : null,
+      sourceSid: srcSid,
+      sourceBId: srcBId,
       callChannel: 'ghost-link-voip',
       callType: invCallType,
       agora: parseAgoraRtc(invite?.agora),
       card: {
-        cardId: invCard?.cardId ? String(invCard.cardId) : (invite?.sourceCardId ? String(invite.sourceCardId) : null),
+        sid: invCard?.sid != null && String(invCard.sid).trim() ? String(invCard.sid) : srcSid,
+        bId: invCard?.bId != null && String(invCard.bId).trim() ? String(invCard.bId) : srcBId,
         cardName: String(invCard?.cardName || invite?.sourceCardName || 'Tarjeta Social'),
         cardPhoto: invCard?.cardPhoto ? String(invCard.cardPhoto) : null,
         cardType: invCard?.cardType === 'business' ? 'business' : 'personal',
@@ -320,19 +338,19 @@ export type OutgoingGhostLinkInviteStatus =
 
 /** Emisor: consulta el estado de la invitación tras `start` (signaling antes del join Agora). */
 export async function getOutgoingGhostLinkInviteStatus(params: {
-  ownerUid: string;
+  uid: string;
   inviteId: string;
 }): Promise<OutgoingGhostLinkInviteStatus> {
-  const ownerUid = String(params.ownerUid || '').trim();
+  const userUid = String(params.uid || '').trim();
   const inviteId = String(params.inviteId || '').trim();
-  if (!ownerUid || !inviteId) {
-    throw new Error('ownerUid e inviteId son obligatorios para el estado de invitación saliente Ghost-Link.');
+  if (!userUid || !inviteId) {
+    throw new Error('uid e inviteId son obligatorios para el estado de invitación saliente Ghost-Link.');
   }
 
   try {
-    const jwt = await getQrScopedJwt(ownerUid);
+    const jwt = await getQrScopedJwt(userUid);
     const response = await axios.get(`${getApiBaseUrl()}/api/qr/voip/ghost-link/outgoing-invite`, {
-      params: { ownerUid, inviteId },
+      params: { uid: userUid, inviteId },
       headers: {
         'x-api-gateway-key': getGatewayKey(),
         Authorization: `Bearer ${jwt}`,
@@ -357,23 +375,23 @@ export async function getOutgoingGhostLinkInviteStatus(params: {
 }
 
 export async function respondGhostLinkInvite(params: {
-  ownerUid: string;
+  uid: string;
   inviteId: string;
   action: 'accept' | 'reject' | 'end';
 }): Promise<{ status: 'accepted' | 'rejected' | 'ended' }> {
-  const ownerUid = String(params.ownerUid || '').trim();
+  const userUid = String(params.uid || '').trim();
   const inviteId = String(params.inviteId || '').trim();
   const action = String(params.action || '').trim().toLowerCase();
 
-  if (!ownerUid || !inviteId || !['accept', 'reject', 'end'].includes(action)) {
-    throw new Error('ownerUid, inviteId y action valido son requeridos para responder Ghost-Link.');
+  if (!userUid || !inviteId || !['accept', 'reject', 'end'].includes(action)) {
+    throw new Error('uid, inviteId y action valido son requeridos para responder Ghost-Link.');
   }
 
-  const jwt = await getQrScopedJwt(ownerUid);
+  const jwt = await getQrScopedJwt(userUid);
   const response = await axios.post(
     `${getApiBaseUrl()}/api/qr/voip/ghost-link/respond`,
     {
-      ownerUid,
+      uid: userUid,
       inviteId,
       action,
     },

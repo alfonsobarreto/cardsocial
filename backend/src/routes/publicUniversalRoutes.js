@@ -101,7 +101,7 @@ function normalizePublicCardSlotsForUniversal(raw) {
 /**
  * Registra vista desde QR físico en la misma estructura que POST /api/qr/analytics/track.
  */
-async function bumpUniversalQrScanAnalytics(db, cardId) {
+async function bumpUniversalQrScanAnalytics(db, cardKey, sid, bId) {
   const ts = new Date();
   const dayKey = ts.toISOString().slice(0, 10);
   const monthKey = ts.toISOString().slice(0, 7);
@@ -109,7 +109,7 @@ async function bumpUniversalQrScanAnalytics(db, cardId) {
   const now = new Date();
   const iconType = sanitizeAnalyticsSegmentKey('universal_open');
 
-  const dailyId = `d:${cardId}:${dayKey}`;
+  const dailyId = `d:${cardKey}:${dayKey}`;
   await db.collection('card_analytics').updateOne(
     { _id: dailyId },
     {
@@ -120,7 +120,8 @@ async function bumpUniversalQrScanAnalytics(db, cardId) {
       },
       $set: { updatedAt: now },
       $setOnInsert: {
-        cardId,
+        sid: sid || null,
+        bId: bId || null,
         granularity: 'day',
         periodKey: dayKey,
         monthKey,
@@ -130,7 +131,7 @@ async function bumpUniversalQrScanAnalytics(db, cardId) {
     { upsert: true },
   );
 
-  const monthlyId = `m:${cardId}:${monthKey}`;
+  const monthlyId = `m:${cardKey}:${monthKey}`;
   await db.collection('card_analytics').updateOne(
     { _id: monthlyId },
     {
@@ -141,7 +142,8 @@ async function bumpUniversalQrScanAnalytics(db, cardId) {
       },
       $set: { updatedAt: now },
       $setOnInsert: {
-        cardId,
+        sid: sid || null,
+        bId: bId || null,
         granularity: 'month',
         periodKey: monthKey,
         createdAt: now,
@@ -185,10 +187,13 @@ function createPublicUniversalRoutes({ storage }) {
         });
       }
 
-      const { ownerUid, cardId, expiresAt } = validation;
+      const { uid: issuerUid, sid: valSid, bId: valBId, expiresAt } = validation;
+      const sid = valSid != null && String(valSid).trim() ? String(valSid).trim() : null;
+      const bId = valBId != null && String(valBId).trim() ? String(valBId).trim() : null;
+      const cardKey = sid || bId;
 
       const cardDoc = await db.collection('smart_cards').findOne(
-        { ownerUid, cardId },
+        { uid: issuerUid, $or: [{ sid: cardKey }, { bId: cardKey }] },
         {
           projection: {
             scName: 1,
@@ -224,13 +229,15 @@ function createPublicUniversalRoutes({ storage }) {
         });
       }
 
-      const idn = await resolvePublicIdentity(db, ownerUid, cardId);
+      const idn = await resolvePublicIdentity(db, issuerUid, cardKey);
 
       const storyRow = await db.collection('story_card_states').findOne(
         {
-          ownerUid,
-          cardId,
-          expiresAt: { $gt: now },
+          uid: issuerUid,
+          $and: [
+            { $or: [{ sid: cardKey }, { bId: cardKey }] },
+            { expiresAt: { $gt: now } },
+          ],
         },
         { projection: { state: 1 } },
       );
@@ -247,8 +254,9 @@ function createPublicUniversalRoutes({ storage }) {
       const slots = normalizePublicCardSlotsForUniversal(cardDoc.publicCardSlots);
 
       const payload = {
-        cardId,
-        ownerUid,
+        uid: issuerUid,
+        sid,
+        bId,
         scName: String(readSmartCardScName(cardDoc) || idn.cardTitle || 'Smart Card'),
         layout: String(cardDoc.layout || 'vertical') === 'horizontal' ? 'horizontal' : 'vertical',
         themeId: cardDoc.themeId || null,
@@ -276,7 +284,7 @@ function createPublicUniversalRoutes({ storage }) {
 
       if (source === QR_SCAN_SOURCE) {
         try {
-          await bumpUniversalQrScanAnalytics(db, cardId);
+          await bumpUniversalQrScanAnalytics(db, cardKey, sid, bId);
         } catch (e) {
           console.warn('[public/universal-card] analytics bump failed:', e?.message || e);
         }
@@ -313,18 +321,18 @@ function createPublicUniversalRoutes({ storage }) {
 
     try {
       const isEs = clientLocaleIsSpanish(req);
-      const ownerUid = String(req.query?.ownerUid || '').trim();
-      const cardId = String(req.query?.cardId || '').trim();
-      if (!ownerUid || !cardId) {
+      const uid = String(req.query?.uid || '').trim();
+      const bId = String(req.query?.bId || '').trim();
+      if (!uid || !bId) {
         return res.status(400).json({
           ok: false,
-          error: isEs ? 'Faltan ownerUid o cardId.' : 'ownerUid and cardId are required.',
+          error: isEs ? 'Faltan uid o bId.' : 'uid and bId are required.',
         });
       }
 
       const db = await storage.connect();
       const cardDoc = await db.collection('smart_cards').findOne(
-        { ownerUid, cardId },
+        { uid, bId },
         {
           projection: {
             scName: 1,
@@ -349,7 +357,7 @@ function createPublicUniversalRoutes({ storage }) {
         });
       }
 
-      const idn = await resolvePublicIdentity(db, ownerUid, cardId);
+      const idn = await resolvePublicIdentity(db, uid, bId);
       const slots = normalizePublicCardSlotsForUniversal(cardDoc.publicCardSlots);
       const style = previewStyleFromSmartCardDoc(cardDoc);
       const far = new Date();
@@ -357,8 +365,8 @@ function createPublicUniversalRoutes({ storage }) {
 
       return res.status(200).json({
         ok: true,
-        ownerUid,
-        cardId,
+        uid,
+        bId,
         token: '',
         expiresAt: far.toISOString(),
         ownerDisplayName: idn.fullName,
@@ -408,7 +416,7 @@ function createPublicUniversalRoutes({ storage }) {
 
       const tokenDoc = await db.collection('qr_tokens').findOne(
         { token },
-        { projection: { ownerUid: 1, cardId: 1, status: 1, expiresAt: 1 } },
+               { projection: { uid: 1, sid: 1, bId: 1, status: 1, expiresAt: 1 } },
       );
       if (!tokenDoc || String(tokenDoc.status || '') !== 'unused') {
         return res.status(410).json({
@@ -426,9 +434,11 @@ function createPublicUniversalRoutes({ storage }) {
         });
       }
 
-      const ownerUid = String(tokenDoc.ownerUid || '').trim();
-      const cardId = String(tokenDoc.cardId || '').trim();
-      if (!ownerUid || !cardId) {
+      const issuerUid = String(tokenDoc.uid || '').trim();
+      const sid = tokenDoc.sid != null && String(tokenDoc.sid).trim() ? String(tokenDoc.sid).trim() : null;
+      const bId = tokenDoc.bId != null && String(tokenDoc.bId).trim() ? String(tokenDoc.bId).trim() : null;
+      const cardKey = sid || bId;
+      if (!issuerUid || !cardKey) {
         return res.status(400).json({
           ok: false,
           error: isEs ? 'Datos del token no válidos.' : 'Invalid token payload.',
@@ -436,7 +446,7 @@ function createPublicUniversalRoutes({ storage }) {
       }
 
       const cardDoc = await db.collection('smart_cards').findOne(
-        { ownerUid, cardId },
+        { uid: issuerUid, $or: [{ sid: cardKey }, { bId: cardKey }] },
         {
           projection: {
             scName: 1,
@@ -461,14 +471,15 @@ function createPublicUniversalRoutes({ storage }) {
         });
       }
 
-      const idn = await resolvePublicIdentity(db, ownerUid, cardId);
+      const idn = await resolvePublicIdentity(db, issuerUid, cardKey);
       const slots = normalizePublicCardSlotsForUniversal(cardDoc.publicCardSlots);
       const style = previewStyleFromSmartCardDoc(cardDoc);
 
       return res.status(200).json({
         ok: true,
-        ownerUid,
-        cardId,
+        uid: issuerUid,
+        sid,
+        bId,
         token,
         expiresAt: exp.toISOString(),
         ownerDisplayName: idn.fullName,

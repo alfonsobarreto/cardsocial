@@ -396,7 +396,7 @@ export default function MyProfileScreen() {
         const optimized = await optimizePhoto(uri);
         const result = await uploadFileWithModeration({
           fileUri: optimized,
-          ownerUid: profile.uid,
+          uid: profile.uid,
           label: 'profile_photo',
           fileName: `profile_${profile.uid}_${Date.now()}.jpg`,
           mimeType: 'image/jpeg',

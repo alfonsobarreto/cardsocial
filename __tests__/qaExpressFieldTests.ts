@@ -58,7 +58,7 @@ const getFeedInjectableStories = async (params: any): Promise<any[]> => {
   }];
 };
 
-const isContactOfUser = async (cardId: string, userId: string): Promise<boolean> => {
+const isContactOfUser = async (bId: string, userId: string): Promise<boolean> => {
   return false; // Mock: usuario no es contacto
 };
 

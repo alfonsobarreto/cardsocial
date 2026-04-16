@@ -77,6 +77,7 @@ export default async function UniversalCardPage({ params }: Props) {
         theme={theme}
         expiresAt={card.expiresAt}
         locale="es"
+        universalToken={token}
       />
     </main>
   );

@@ -50,8 +50,9 @@ export interface MedalRatingModalProps {
   visible: boolean;
   onClose: () => void;
   cardType: 'smart' | 'business';
-  cardId: string;
-  cardOwnerUid: string;
+  /** Document id under `medals/` (smart `sid` or business `bId`). */
+  sidOrBId: string;
+  issuerUid: string;
   cardOwnerName: string;
   onCountsChanged?: (counts: MedalCounts) => void;
   /**
@@ -69,8 +70,8 @@ export function MedalRatingModal({
   visible,
   onClose,
   cardType,
-  cardId,
-  cardOwnerUid,
+  sidOrBId,
+  issuerUid,
   cardOwnerName,
   onCountsChanged,
   useNativeModalOnAndroid = true,
@@ -97,7 +98,7 @@ export function MedalRatingModal({
 
   // â”€â”€ cargar datos al abrir â”€â”€
   useEffect(() => {
-    if (!visible || !cardId) return;
+    if (!visible || !sidOrBId) return;
     setReportText('');
     void (async () => {
       setLoadingData(true);
@@ -106,9 +107,9 @@ export function MedalRatingModal({
         setMyUid(uid);
         if (!uid) return;
         // Fetch profile name from users collection
-        if (cardOwnerUid) {
+        if (issuerUid) {
           try {
-            const profileSnap = await getDoc(doc(db, 'users', cardOwnerUid));
+            const profileSnap = await getDoc(doc(db, 'users', issuerUid));
             const pData = profileSnap.data() as Record<string, unknown>;
             if (pData) {
               const full = readUserFullName(pData);
@@ -117,7 +118,7 @@ export function MedalRatingModal({
             }
           } catch { /* silencia */ }
         }
-        const data = await getMedalData(cardId, uid);
+        const data = await getMedalData(sidOrBId, uid);
         setCounts(data.counts);
         setMyVote(data.myVote);
       } catch {
@@ -126,7 +127,7 @@ export function MedalRatingModal({
         setLoadingData(false);
       }
     })();
-  }, [visible, cardId, cardType]);
+  }, [visible, sidOrBId, cardType, issuerUid]);
 
   // â”€â”€ cerrar â”€â”€
   const handleClose = useCallback(() => {
@@ -141,7 +142,7 @@ export function MedalRatingModal({
       if (!myUid || votingKey) return;
       setVotingKey(medal);
       try {
-        const result = await submitMedalVote(cardId, myUid, medal);
+        const result = await submitMedalVote(sidOrBId, myUid, medal);
         setMyVote(result.myVote);
         setCounts(result.counts);
         onCountsChanged?.(result.counts);
@@ -151,7 +152,7 @@ export function MedalRatingModal({
         setVotingKey(null);
       }
     },
-    [myUid, votingKey, cardId, tr],
+    [myUid, votingKey, sidOrBId, tr],
   );
 
   // â”€â”€ enviar reporte incÃ³gnito â”€â”€
@@ -163,8 +164,8 @@ export function MedalRatingModal({
       await addDoc(collection(db, 'userReports'), {
         type: cardType === 'smart' ? 'user_report' : 'card_feedback',
         status: 'pending',
-        targetCardId: cardId,
-        targetOwnerUid: cardOwnerUid,
+        targetSidOrBId: sidOrBId,
+        targetIssuerUid: issuerUid,
         details: text,
         anonymous: true,
         createdAt: serverTimestamp(),
@@ -181,7 +182,7 @@ export function MedalRatingModal({
     } finally {
       setSending(false);
     }
-  }, [reportText, sending, cardType, cardId, cardOwnerUid, tr]);
+  }, [reportText, sending, cardType, sidOrBId, issuerUid, tr]);
 
   // â”€â”€ confirmar â”€â”€
   const handleConfirm = useCallback(async () => {

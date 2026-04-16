@@ -59,8 +59,10 @@ export type GhostCallData = {
   peerPhotoUrl: string | null;
   peerUid: string;
   agora?: GhostLinkAgoraRtc;
-  ownerUid: string;
-  sourceCardId: string | null;
+  /** Usuario local (autenticado) en esta sesión VoIP. */
+  uid: string;
+  sourceSid: string | null;
+  sourceBId: string | null;
 };
 
 type GhostLinkCallContextValue = {
@@ -86,7 +88,8 @@ type GhostLinkCallContextValue = {
   applyLocalCameraPinchScale: (relativeScale: number) => void;
   requestCall: (params: {
     targetUid: string;
-    sourceCardId: string | null;
+    sourceSid: string | null;
+    sourceBId: string | null;
     sourceCardName: string;
     cardPhoto: string | null;
     cardType: 'business' | 'personal';
@@ -239,10 +242,10 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
       if (phaseRef.current !== VoIPCallPhase.Idle) return;
 
       try {
-        const ownerUid = await getActiveUserId();
-        if (!ownerUid || cancelled) return;
+        const localUid = await getActiveUserId();
+        if (!localUid || cancelled) return;
 
-        const invite = await getIncomingGhostLinkInvite({ ownerUid });
+        const invite = await getIncomingGhostLinkInvite({ uid: localUid });
         if (cancelled || phaseRef.current !== VoIPCallPhase.Idle) return;
 
         if (invite) {
@@ -257,10 +260,11 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
             peerName: invite.callerDisplay.name,
             peerNickname: invite.callerDisplay.nickname,
             peerPhotoUrl: invite.callerDisplay.userAvatarUrl,
-            peerUid: invite.ownerUid,
+            peerUid: invite.callerUid,
             agora: invite.agora,
-            ownerUid,
-            sourceCardId: invite.sourceCardId,
+            uid: localUid,
+            sourceSid: invite.sourceSid,
+            sourceBId: invite.sourceBId,
           });
           if (incomingCallType === 'video') setVideoEnabled(true);
           setPhase(VoIPCallPhase.RingingIncoming);
@@ -303,8 +307,8 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
       if (cancelled) return;
       const cd = callDataRef.current;
       const expectId = cd?.inviteId;
-      const ownerUid = cd?.ownerUid;
-      if (!expectId || !ownerUid) {
+      const localUid = cd?.uid;
+      if (!expectId || !localUid) {
         if (!cancelled) {
           timer = setTimeout(watch, CALLER_STATUS_POLL_MS);
         }
@@ -312,7 +316,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
       }
 
       try {
-        const current = await getIncomingGhostLinkInvite({ ownerUid });
+        const current = await getIncomingGhostLinkInvite({ uid: localUid });
         if (cancelled) return;
         if (!current || current.inviteId !== expectId) {
           void finalizeEndingRef.current('remote');
@@ -424,16 +428,17 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
       durationSec: number,
     ) => {
       const cd = callData;
-      if (!cd?.ownerUid) return;
+      if (!cd?.uid) return;
       void createCallLog({
-        ownerUid: cd.ownerUid,
+        uid: cd.uid,
         peerUid: cd.peerUid,
         direction,
         status,
         durationSec,
         tags: ['Ghost-Link'],
         sourceCardName: cd.card.cardName,
-        sourceCardId: cd.sourceCardId ?? undefined,
+        sourceSid: cd.sourceSid ?? null,
+        sourceBId: cd.sourceBId ?? null,
         callChannel: 'ghost-link-voip',
         callType: cd.callType || 'audio',
         isBusinessCard: cd.card.cardType === 'business',
@@ -576,22 +581,22 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
       try {
         await endRtcSession();
         if (kind === 'cancel') {
-          if (cdSnapshot?.inviteId && cdSnapshot.ownerUid) {
+          if (cdSnapshot?.inviteId && cdSnapshot.uid) {
             await respondGhostLinkInvite({
-              ownerUid: cdSnapshot.ownerUid,
+              uid: cdSnapshot.uid,
               inviteId: cdSnapshot.inviteId,
               action: 'end',
             }).catch(() => {});
           }
         } else if (kind === 'local' || kind === 'remote' || kind === 'leave_channel') {
-          if (cdSnapshot?.inviteId && cdSnapshot.ownerUid) {
+          if (cdSnapshot?.inviteId && cdSnapshot.uid) {
             await respondGhostLinkInvite({
-              ownerUid: cdSnapshot.ownerUid,
+              uid: cdSnapshot.uid,
               inviteId: cdSnapshot.inviteId,
               action: 'end',
             }).catch(() => {});
           }
-          if (cdSnapshot?.ownerUid) {
+          if (cdSnapshot?.uid) {
             const duration = activeStartRef.current
               ? Math.floor((Date.now() - activeStartRef.current) / 1000)
               : 0;
@@ -662,10 +667,10 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
 
       try {
         const cd = callData;
-        if (!cd?.inviteId || !cd.ownerUid) return;
+        if (!cd?.inviteId || !cd.uid) return;
 
         const status = await getOutgoingGhostLinkInviteStatus({
-          ownerUid: cd.ownerUid,
+          uid: cd.uid,
           inviteId: cd.inviteId,
         });
 
@@ -745,7 +750,8 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
   const requestCall = useCallback(
     (params: {
       targetUid: string;
-      sourceCardId: string | null;
+      sourceSid: string | null;
+      sourceBId: string | null;
       sourceCardName: string;
       cardPhoto: string | null;
       cardType: 'business' | 'personal';
@@ -756,11 +762,12 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
     }) => {
       const ct: GhostLinkCallType = params.callType || 'audio';
       pendingParamsRef.current = {
-        ownerUid: '',
+        uid: '',
         targetUid: params.targetUid,
         card: {
           sourceCardName: params.sourceCardName,
-          sourceCardId: params.sourceCardId,
+          sourceSid: params.sourceSid,
+          sourceBId: params.sourceBId,
           sourceCardKind: params.cardType,
           ...(params.cardPhoto ? { sourceCardPhotoUrl: params.cardPhoto } : {}),
         },
@@ -770,7 +777,8 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
         direction: 'outgoing',
         callType: ct,
         card: {
-          cardId: params.sourceCardId,
+          sid: params.sourceSid,
+          bId: params.sourceBId,
           cardName: params.sourceCardName,
           cardPhoto: params.cardPhoto,
           cardType: params.cardType,
@@ -779,8 +787,9 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
         peerNickname: params.peerNickname,
         peerPhotoUrl: params.peerPhotoUrl,
         peerUid: params.targetUid,
-        ownerUid: '',
-        sourceCardId: params.sourceCardId,
+        uid: '',
+        sourceSid: params.sourceSid,
+        sourceBId: params.sourceBId,
       });
       if (ct === 'video') setVideoEnabled(true);
       setPhase(VoIPCallPhase.Confirming);
@@ -794,10 +803,10 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
     if (!pending) return;
 
     try {
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) return;
+      const localUid = await getActiveUserId();
+      if (!localUid) return;
 
-      pending.ownerUid = ownerUid;
+      pending.uid = localUid;
 
       const outgoingType: GhostLinkCallType = pending.callType || 'audio';
       const permitted = await ensureVoipPermissions(outgoingType);
@@ -828,7 +837,9 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
               inviteId: started.inviteId,
               sessionId: started.sessionId,
               agora: started.agora,
-              ownerUid,
+              uid: localUid,
+              sourceSid: started.card.sid ?? null,
+              sourceBId: started.card.bId ?? null,
               callType: started.callType,
               card: started.card,
               peerName: started.receiverDisplay.name,
@@ -868,7 +879,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
 
   // ── Receptor: aceptar (permisos solo aquí, con UI ya en primer plano; no durante el poll IDLE) ──
   const acceptIncoming = useCallback(async () => {
-    if (!callData?.inviteId || !callData.ownerUid) return;
+    if (!callData?.inviteId || !callData.uid) return;
     Vibration.cancel();
 
     const acceptType: GhostLinkCallType = callData.callType || 'audio';
@@ -887,7 +898,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
       });
       try {
         await respondGhostLinkInvite({
-          ownerUid: callData.ownerUid,
+          uid: callData.uid,
           inviteId: callData.inviteId,
           action: 'reject',
         });
@@ -903,7 +914,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
 
     try {
       await respondGhostLinkInvite({
-        ownerUid: callData.ownerUid,
+        uid: callData.uid,
         inviteId: callData.inviteId,
         action: 'accept',
       });
@@ -919,7 +930,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
 
   // ── Receptor: rechazar ──
   const rejectIncoming = useCallback(async () => {
-    if (!callData?.inviteId || !callData.ownerUid) return;
+    if (!callData?.inviteId || !callData.uid) return;
 
     logCall('incoming', 'rejected', 0);
 
@@ -930,7 +941,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
     }
     try {
       await respondGhostLinkInvite({
-        ownerUid: callData.ownerUid,
+        uid: callData.uid,
         inviteId: callData.inviteId,
         action: 'reject',
       });

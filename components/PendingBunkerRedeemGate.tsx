@@ -51,7 +51,7 @@ export function PendingBunkerRedeemGate() {
       await Clipboard.setStringAsync('').catch(() => null);
       router.replace({
         pathname: '/scan',
-        params: { resumeToken: token, resumeCardId: dyn.preview.cardId },
+        params: { resumeToken: token },
       } as never);
       return true;
     }
@@ -81,14 +81,14 @@ export function PendingBunkerRedeemGate() {
         if (pending.kind === 'dynamic_qr') {
           router.replace({
             pathname: '/scan',
-            params: { resumeToken: pending.token, resumeCardId: pending.cardId },
+            params: { resumeToken: pending.token },
           } as never);
           return;
         }
         if (pending.kind === 'business_permanent') {
           router.replace({
             pathname: '/scan',
-            params: { resumeOwnerUid: pending.ownerUid, resumeCardId: pending.cardId },
+            params: { resumeIssuerUid: pending.uid, resumeBId: pending.bId },
           } as never);
         }
         return;

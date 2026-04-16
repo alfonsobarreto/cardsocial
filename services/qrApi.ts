@@ -85,14 +85,14 @@ async function getScopedJwtToken(uid: string, scope: 'moderation.upload' | 'qr.a
   };
 }
 
-export async function issueDynamicQrToken(params: { ownerUid: string; cardId: string }): Promise<{ token: string; ttlSec: number; expiresAt: string }> {
-  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+export async function issueDynamicQrToken(params: { uid: string; sid: string }): Promise<{ token: string; ttlSec: number; expiresAt: string }> {
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
   const response = await axios.post(
     `${auth.baseUrl}/api/qr/issue`,
     {
-      ownerUid: params.ownerUid,
-      cardId: params.cardId,
+      uid: params.uid,
+      sid: params.sid,
     },
     {
       headers: {
@@ -112,16 +112,18 @@ export async function issueDynamicQrToken(params: { ownerUid: string; cardId: st
 
 /** QR universal 24h → `universalUrl` (web + App Link); distinto del token `/issue` de un solo uso para compartir en app. */
 export async function issueTemporaryUniversalAccess(params: {
-  ownerUid: string;
-  cardId: string;
+  uid: string;
+  sid?: string;
+  bId?: string;
 }): Promise<{ token: string; universalUrl: string; ttlSec: number; expiresAt: string; source: string }> {
-  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
   const response = await axios.post(
     `${auth.baseUrl}/api/qr/temporary-access/issue`,
     {
-      ownerUid: params.ownerUid,
-      cardId: params.cardId,
+      uid: params.uid,
+      ...(params.sid ? { sid: params.sid } : {}),
+      ...(params.bId ? { bId: params.bId } : {}),
     },
     {
       headers: {
@@ -150,8 +152,9 @@ export type PublicUniversalCardSlot = {
 };
 
 export type PublicUniversalCardPayload = {
-  cardId: string;
-  ownerUid: string;
+  uid: string;
+  sid: string | null;
+  bId: string | null;
   scName: string;
   layout: 'vertical' | 'horizontal';
   themeId: string | null;
@@ -222,8 +225,9 @@ export async function fetchPublicUniversalCardByToken(params: {
 }
 
 export type PublicQrTokenPreview = {
-  ownerUid: string;
-  cardId: string;
+  uid: string;
+  sid: string | null;
+  bId: string | null;
   token: string;
   expiresAt: string;
   ownerDisplayName: string;
@@ -258,8 +262,9 @@ function mapPublicQrPreviewResponse(
   const layout: 'vertical' | 'horizontal' = layoutRaw === 'horizontal' ? 'horizontal' : 'vertical';
   const rawSlots = d.slots;
   return {
-    ownerUid: String(d.ownerUid || ''),
-    cardId: String(d.cardId || ''),
+    uid: String(d.uid || ''),
+    sid: d.sid != null && String(d.sid).trim() ? String(d.sid) : null,
+    bId: d.bId != null && String(d.bId).trim() ? String(d.bId) : null,
     token: String(d.token != null && d.token !== '' ? d.token : tokenFallback),
     expiresAt: String(d.expiresAt || ''),
     ownerDisplayName: String(d.ownerDisplayName || ''),
@@ -331,7 +336,7 @@ export async function consumeDynamicQrToken(params: {
   receiverUid: string;
   token: string;
   locale?: 'en' | 'es';
-}): Promise<{ ownerUid: string; receiverUid: string; cardId: string; shareGranted: boolean }> {
+}): Promise<{ uid: string; receiverUid: string; sid: string | null; bId: string | null; shareGranted: boolean }> {
   const auth = await getScopedJwtToken(params.receiverUid, 'qr.access');
 
   const response = await axios.post(
@@ -351,23 +356,24 @@ export async function consumeDynamicQrToken(params: {
   );
 
   return {
-    ownerUid: String(response?.data?.ownerUid || ''),
+    uid: String(response?.data?.uid || ''),
     receiverUid: String(response?.data?.receiverUid || ''),
-    cardId: String(response?.data?.cardId || ''),
+    sid: response?.data?.sid != null && String(response.data.sid).trim() ? String(response.data.sid) : null,
+    bId: response?.data?.bId != null && String(response.data.bId).trim() ? String(response.data.bId) : null,
     shareGranted: Boolean(response?.data?.shareGranted),
   };
 }
 
 export async function fetchPublicBusinessCardPreview(params: {
-  ownerUid: string;
-  cardId: string;
+  uid: string;
+  bId: string;
   locale?: 'en' | 'es';
 }): Promise<{ ok: true; preview: PublicQrTokenPreview } | { ok: false; error?: string }> {
   const baseUrl = getApiBaseUrl();
   let response;
   try {
     response = await axios.get(`${baseUrl}/api/public/business-card-preview`, {
-      params: { ownerUid: params.ownerUid, cardId: params.cardId },
+      params: { uid: params.uid, bId: params.bId },
       headers: publicApiAcceptLanguage(params.locale),
       timeout: 20000,
       validateStatus: () => true,
@@ -405,18 +411,18 @@ export async function fetchPublicBusinessCardPreview(params: {
 
 export async function grantBusinessShareFromQr(params: {
   receiverUid: string;
-  ownerUid: string;
-  cardId: string;
+  uid: string;
+  bId: string;
   locale?: 'en' | 'es';
-}): Promise<{ ownerUid: string; receiverUid: string; cardId: string; shareGranted: boolean }> {
+}): Promise<{ uid: string; receiverUid: string; bId: string; shareGranted: boolean }> {
   const auth = await getScopedJwtToken(params.receiverUid, 'qr.access');
 
   const response = await axios.post(
     `${auth.baseUrl}/api/qr/grant-business-share`,
     {
       receiverUid: params.receiverUid,
-      ownerUid: params.ownerUid,
-      cardId: params.cardId,
+      uid: params.uid,
+      bId: params.bId,
     },
     {
       headers: {
@@ -429,9 +435,9 @@ export async function grantBusinessShareFromQr(params: {
   );
 
   return {
-    ownerUid: String(response?.data?.ownerUid || ''),
+    uid: String(response?.data?.uid || ''),
     receiverUid: String(response?.data?.receiverUid || ''),
-    cardId: String(response?.data?.cardId || ''),
+    bId: String(response?.data?.bId || ''),
     shareGranted: Boolean(response?.data?.shareGranted),
   };
 }
@@ -441,7 +447,7 @@ export async function redeemTemporaryAccessToken(params: {
   receiverUid: string;
   token: string;
   locale?: 'en' | 'es';
-}): Promise<{ ownerUid: string; receiverUid: string; cardId: string; shareGranted: boolean }> {
+}): Promise<{ uid: string; receiverUid: string; sid: string | null; bId: string | null; shareGranted: boolean }> {
   const auth = await getScopedJwtToken(params.receiverUid, 'qr.access');
 
   const response = await axios.post(
@@ -461,9 +467,10 @@ export async function redeemTemporaryAccessToken(params: {
   );
 
   return {
-    ownerUid: String(response?.data?.ownerUid || ''),
+    uid: String(response?.data?.uid || ''),
     receiverUid: String(response?.data?.receiverUid || ''),
-    cardId: String(response?.data?.cardId || ''),
+    sid: response?.data?.sid != null && String(response.data.sid).trim() ? String(response.data.sid) : null,
+    bId: response?.data?.bId != null && String(response.data.bId).trim() ? String(response.data.bId) : null,
     shareGranted: Boolean(response?.data?.shareGranted),
   };
 }
@@ -532,15 +539,15 @@ export type CardSubscriberRow = {
   addedAt: string | null;
 };
 
-export async function listCardSubscribers(params: { ownerUid: string; cardId: string }): Promise<{
+export async function listCardSubscribers(params: { uid: string; cardRef: string }): Promise<{
   count: number;
   subscribers: CardSubscriberRow[];
 }> {
-  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
-  const response = await axios.get(`${auth.baseUrl}/api/qr/cards/${encodeURIComponent(params.cardId)}/subscribers`, {
+  const response = await axios.get(`${auth.baseUrl}/api/qr/cards/${encodeURIComponent(params.cardRef)}/subscribers`, {
     params: {
-      ownerUid: params.ownerUid,
+      uid: params.uid,
     },
     headers: {
       'x-api-gateway-key': auth.gatewayKey,
@@ -582,14 +589,14 @@ export async function listCardSubscribers(params: { ownerUid: string; cardId: st
   };
 }
 
-export async function revokeCardSubscriber(params: { ownerUid: string; cardId: string; targetUid: string }): Promise<{ deletedCount: number }> {
-  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+export async function revokeCardSubscriber(params: { uid: string; cardRef: string; targetUid: string }): Promise<{ deletedCount: number }> {
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
   const response = await axios.delete(
-    `${auth.baseUrl}/api/qr/cards/${encodeURIComponent(params.cardId)}/subscribers/${encodeURIComponent(params.targetUid)}`,
+    `${auth.baseUrl}/api/qr/cards/${encodeURIComponent(params.cardRef)}/subscribers/${encodeURIComponent(params.targetUid)}`,
     {
       data: {
-        ownerUid: params.ownerUid,
+        uid: params.uid,
       },
       headers: {
         'x-api-gateway-key': auth.gatewayKey,
@@ -605,17 +612,17 @@ export async function revokeCardSubscriber(params: { ownerUid: string; cardId: s
 }
 
 export async function setCardSubscriberMute(params: {
-  ownerUid: string;
-  cardId: string;
+  uid: string;
+  cardRef: string;
   targetUid: string;
   muted: boolean;
 }): Promise<{ muted: boolean }> {
-  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
   const response = await axios.post(
-    `${auth.baseUrl}/api/qr/cards/${encodeURIComponent(params.cardId)}/subscribers/${encodeURIComponent(params.targetUid)}/mute`,
+    `${auth.baseUrl}/api/qr/cards/${encodeURIComponent(params.cardRef)}/subscribers/${encodeURIComponent(params.targetUid)}/mute`,
     {
-      ownerUid: params.ownerUid,
+      uid: params.uid,
       muted: params.muted,
     },
     {
@@ -632,19 +639,19 @@ export async function setCardSubscriberMute(params: {
   };
 }
 
-/** El receptor silencia (o reactiva) el canal de historias de una tarjeta recibida; requiere `cardId`. */
+/** El receptor silencia (o reactiva) el canal de historias de una tarjeta recibida. */
 export async function setSubscriberSelfCardMute(params: {
   viewerUid: string;
   issuerUid: string;
-  cardId: string;
+  cardRef: string;
   muted: boolean;
 }): Promise<{ muted: boolean }> {
   const auth = await getScopedJwtToken(params.viewerUid, 'qr.access');
 
   const response = await axios.post(
-    `${auth.baseUrl}/api/qr/cards/${encodeURIComponent(params.cardId)}/subscribers/${encodeURIComponent(params.viewerUid)}/mute`,
+    `${auth.baseUrl}/api/qr/cards/${encodeURIComponent(params.cardRef)}/subscribers/${encodeURIComponent(params.viewerUid)}/mute`,
     {
-      ownerUid: params.issuerUid,
+      uid: params.issuerUid,
       muted: params.muted,
     },
     {
@@ -662,16 +669,16 @@ export async function setSubscriberSelfCardMute(params: {
 }
 
 export async function setCardSilenced(params: {
-  ownerUid: string;
-  cardId: string;
+  uid: string;
+  cardRef: string;
   silenced: boolean;
 }): Promise<{ silenced: boolean }> {
-  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
   const response = await axios.post(
-    `${auth.baseUrl}/api/qr/cards/${encodeURIComponent(params.cardId)}/silence`,
+    `${auth.baseUrl}/api/qr/cards/${encodeURIComponent(params.cardRef)}/silence`,
     {
-      ownerUid: params.ownerUid,
+      uid: params.uid,
       silenced: params.silenced,
     },
     {
@@ -688,13 +695,13 @@ export async function setCardSilenced(params: {
   };
 }
 
-export async function blockRelationship(params: { ownerUid: string; targetUid: string }): Promise<{ deletedLinks: number }> {
-  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+export async function blockRelationship(params: { uid: string; targetUid: string }): Promise<{ deletedLinks: number }> {
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
   const response = await axios.post(
     `${auth.baseUrl}/api/qr/relationships/block`,
     {
-      ownerUid: params.ownerUid,
+      uid: params.uid,
       targetUid: params.targetUid,
     },
     {
@@ -712,21 +719,24 @@ export async function blockRelationship(params: { ownerUid: string; targetUid: s
 }
 
 export async function removeRelationship(params: {
-  ownerUid: string;
+  uid: string;
   targetUid: string;
   /** Si se envía, solo se elimina el permiso de esa tarjeta (mismo emisor puede tener otras). */
-  cardId?: string | null;
+  sid?: string | null;
+  bId?: string | null;
 }): Promise<{ deletedLinks: number }> {
-  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
-  const cardId = params.cardId != null && String(params.cardId).trim() ? String(params.cardId).trim() : '';
+  const sid = params.sid != null && String(params.sid).trim() ? String(params.sid).trim() : '';
+  const bId = params.bId != null && String(params.bId).trim() ? String(params.bId).trim() : '';
 
   const response = await axios.post(
     `${auth.baseUrl}/api/qr/relationships/remove`,
     {
-      ownerUid: params.ownerUid,
+      uid: params.uid,
       targetUid: params.targetUid,
-      ...(cardId ? { cardId } : {}),
+      ...(sid ? { sid } : {}),
+      ...(bId ? { bId } : {}),
     },
     {
       headers: {
@@ -742,15 +752,15 @@ export async function removeRelationship(params: {
   };
 }
 
-export async function listBlockedRelations(params: { ownerUid: string }): Promise<{
+export async function listBlockedRelations(params: { uid: string }): Promise<{
   count: number;
   blockedUsers: Array<{ uid: string; name: string; userAvatarUrl: string | null; blockedByUid: string; createdAt: string | null; blockedAt: string | null }>;
 }> {
-  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
   const response = await axios.get(`${auth.baseUrl}/api/qr/relationships/blocked`, {
     params: {
-      ownerUid: params.ownerUid,
+      uid: params.uid,
     },
     headers: {
       'x-api-gateway-key': auth.gatewayKey,
@@ -778,14 +788,14 @@ export async function listBlockedRelations(params: { ownerUid: string }): Promis
   };
 }
 
-export async function unblockRelationship(params: { ownerUid: string; targetUid: string }): Promise<{ unblocked: boolean }> {
-  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+export async function unblockRelationship(params: { uid: string; targetUid: string }): Promise<{ unblocked: boolean }> {
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
   const response = await axios.delete(
     `${auth.baseUrl}/api/qr/relationships/blocked/${encodeURIComponent(params.targetUid)}`,
     {
       data: {
-        ownerUid: params.ownerUid,
+        uid: params.uid,
       },
       headers: {
         'x-api-gateway-key': auth.gatewayKey,
@@ -820,8 +830,7 @@ export type PublicCardSlotPayload = {
 };
 
 export type SmartCardPayload = {
-  cardId: string;
-  /** Tarjeta personal en Mongo (mismo valor que cardId cuando viene del listado). */
+  /** Tarjeta personal en Mongo. */
   sid?: string;
   /** Espejo business en Mongo: id de tarjeta de negocio (Firestore doc id). */
   bId?: string;
@@ -878,7 +887,6 @@ export async function listSmartCardsFromDb(params: { uid: string }): Promise<{
   const rows = Array.isArray(response?.data?.cards) ? response.data.cards : [];
   return {
     cards: rows.map((row: any) => ({
-      cardId: String(row?.cardId || row?.sid || row?.bId || ''),
       scName: String(row?.scName ?? 'Smart Card'),
       layout: String(row?.layout || 'vertical') === 'horizontal' ? 'horizontal' : 'vertical',
       themeId: row?.themeId ? String(row.themeId) : undefined,
@@ -902,8 +910,8 @@ export async function listSmartCardsFromDb(params: { uid: string }): Promise<{
       ownerPhotoUrl: row?.ownerPhotoUrl ? String(row.ownerPhotoUrl) : null,
       ownerOccupation: row?.ownerOccupation != null ? String(row.ownerOccupation) : undefined,
       cardType: row?.cardType === 'business' ? 'business' : 'smart',
-      bId: row?.cardType === 'business' ? String(row?.bId ?? row?.cardId ?? '') : undefined,
-      sid: row?.cardType === 'business' ? undefined : String(row?.sid ?? row?.cardId ?? ''),
+      bId: row?.cardType === 'business' ? String(row?.bId ?? '') : undefined,
+      sid: row?.cardType === 'business' ? undefined : String(row?.sid ?? ''),
       searchFacets: Array.isArray(row?.searchFacets)
         ? row.searchFacets.map((f: any) => ({
             type: String(f?.type || ''),
@@ -934,14 +942,17 @@ export async function listSmartCardsFromDb(params: { uid: string }): Promise<{
   };
 }
 
-export async function upsertSmartCardInDb(params: { ownerUid: string; card: SmartCardPayload }): Promise<{ ok: boolean }> {
-  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+export async function upsertSmartCardInDb(params: { uid: string; card: SmartCardPayload }): Promise<{ ok: boolean }> {
+  const cardRef = String(params.card.sid || params.card.bId || '').trim();
+  if (!cardRef) {
+    throw new Error('SmartCardPayload requires sid or bId');
+  }
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
   await axios.put(
-    `${auth.baseUrl}/api/qr/cards/${encodeURIComponent(params.card.cardId)}`,
+    `${auth.baseUrl}/api/qr/cards/${encodeURIComponent(cardRef)}`,
     {
-      uid: params.ownerUid,
-      ownerUid: params.ownerUid,
+      uid: params.uid,
       ...params.card,
     },
     {
@@ -956,13 +967,12 @@ export async function upsertSmartCardInDb(params: { ownerUid: string; card: Smar
   return { ok: true };
 }
 
-export async function deleteSmartCardInDb(params: { ownerUid: string; cardId: string }): Promise<{ deleted: boolean }> {
-  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+export async function deleteSmartCardInDb(params: { uid: string; cardRef: string }): Promise<{ deleted: boolean }> {
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
-  const response = await axios.delete(`${auth.baseUrl}/api/qr/cards/${encodeURIComponent(params.cardId)}`, {
+  const response = await axios.delete(`${auth.baseUrl}/api/qr/cards/${encodeURIComponent(params.cardRef)}`, {
     data: {
-      uid: params.ownerUid,
-      ownerUid: params.ownerUid,
+      uid: params.uid,
     },
     headers: {
       'x-api-gateway-key': auth.gatewayKey,
@@ -978,7 +988,8 @@ export async function deleteSmartCardInDb(params: { ownerUid: string; cardId: st
 
 export type ReceivedContactRow = {
   uid: string;
-  cardId: string | null;
+  sid: string | null;
+  bId: string | null;
   userFullName: string;
   userNickName: string;
   userAvatarUrl: string | null;
@@ -1012,15 +1023,15 @@ export type ReceivedContactRow = {
   cardType?: 'business' | 'smart';
 };
 
-export async function listReceivedContacts(params: { ownerUid: string }): Promise<{
+export async function listReceivedContacts(params: { uid: string }): Promise<{
   contacts: ReceivedContactRow[];
 }> {
-  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
   try {
     const response = await axios.get(`${auth.baseUrl}/api/qr/contacts/received`, {
       params: {
-        uid: params.ownerUid,
+        uid: params.uid,
       },
       headers: {
         'x-api-gateway-key': auth.gatewayKey,
@@ -1052,7 +1063,8 @@ export async function listReceivedContacts(params: { ownerUid: string }): Promis
               : null;
         return {
           uid: String(row?.uid || ''),
-          cardId: row?.cardId != null && String(row.cardId).trim() ? String(row.cardId).trim() : null,
+          sid: row?.sid != null && String(row.sid).trim() ? String(row.sid).trim() : null,
+          bId: row?.bId != null && String(row.bId).trim() ? String(row.bId).trim() : null,
           userFullName,
           userNickName: userNickName || 'user',
           userAvatarUrl,
@@ -1113,9 +1125,10 @@ export async function listReceivedContacts(params: { ownerUid: string }): Promis
 }
 
 export async function setMyStoryState(params: {
-  ownerUid: string;
+  uid: string;
   state: 'none' | 'normal' | 'vip';
-  cardId?: string;
+  sid?: string;
+  bId?: string;
   isPaidExternal?: boolean;
   vipSource?: 'manual' | 'subscription' | 'external_partner';
   paidChannel?: string;
@@ -1123,19 +1136,21 @@ export async function setMyStoryState(params: {
 }): Promise<{
   state: 'none' | 'normal' | 'vip';
   expiresAt: string | null;
-  cardId?: string;
+  sid?: string | null;
+  bId?: string | null;
   isPaidExternal?: boolean;
   vipSource?: 'manual' | 'subscription' | 'external_partner' | null;
   paidChannel?: string | null;
 }> {
-  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
   const response = await axios.post(
     `${auth.baseUrl}/api/qr/stories/state`,
     {
-      ownerUid: params.ownerUid,
+      uid: params.uid,
       state: params.state,
-      cardId: params.cardId,
+      ...(params.sid ? { sid: params.sid } : {}),
+      ...(params.bId ? { bId: params.bId } : {}),
       isPaidExternal: params.isPaidExternal,
       vipSource: params.vipSource,
       paidChannel: params.paidChannel,
@@ -1153,7 +1168,8 @@ export async function setMyStoryState(params: {
   return {
     state: response?.data?.state === 'vip' ? 'vip' : response?.data?.state === 'normal' ? 'normal' : 'none',
     expiresAt: response?.data?.expiresAt ? String(response.data.expiresAt) : null,
-    cardId: response?.data?.cardId ? String(response.data.cardId) : undefined,
+    sid: response?.data?.sid != null ? String(response.data.sid) : null,
+    bId: response?.data?.bId != null ? String(response.data.bId) : null,
     isPaidExternal: response?.data?.isPaidExternal === true,
     vipSource: response?.data?.vipSource ? String(response.data.vipSource) as 'manual' | 'subscription' | 'external_partner' : null,
     paidChannel: response?.data?.paidChannel ? String(response.data.paidChannel) : null,
@@ -1161,22 +1177,25 @@ export async function setMyStoryState(params: {
 }
 
 export async function getMyStoryState(params: {
-  ownerUid: string;
-  cardId?: string;
+  uid: string;
+  sid?: string;
+  bId?: string;
 }): Promise<{
   state: 'none' | 'normal' | 'vip';
   expiresAt: string | null;
-  cardId?: string;
+  sid?: string | null;
+  bId?: string | null;
   isPaidExternal?: boolean;
   vipSource?: 'manual' | 'subscription' | 'external_partner' | null;
   paidChannel?: string | null;
 }> {
-  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
   const response = await axios.get(`${auth.baseUrl}/api/qr/stories/state`, {
     params: {
-      ownerUid: params.ownerUid,
-      ...(params.cardId ? { cardId: params.cardId } : {}),
+      uid: params.uid,
+      ...(params.sid ? { sid: params.sid } : {}),
+      ...(params.bId ? { bId: params.bId } : {}),
     },
     headers: {
       'x-api-gateway-key': auth.gatewayKey,
@@ -1188,7 +1207,8 @@ export async function getMyStoryState(params: {
   return {
     state: response?.data?.state === 'vip' ? 'vip' : response?.data?.state === 'normal' ? 'normal' : 'none',
     expiresAt: response?.data?.expiresAt ? String(response.data.expiresAt) : null,
-    cardId: response?.data?.cardId ? String(response.data.cardId) : undefined,
+    sid: response?.data?.sid != null ? String(response.data.sid) : null,
+    bId: response?.data?.bId != null ? String(response.data.bId) : null,
     isPaidExternal: response?.data?.isPaidExternal === true,
     vipSource: response?.data?.vipSource ? String(response.data.vipSource) as 'manual' | 'subscription' | 'external_partner' : null,
     paidChannel: response?.data?.paidChannel ? String(response.data.paidChannel) : null,
@@ -1196,18 +1216,18 @@ export async function getMyStoryState(params: {
 }
 
 export async function activateVipManualExternal(params: {
-  ownerUid: string;
+  uid: string;
   vipDays?: number;
   isPaidExternal?: boolean;
   paidChannel?: string;
   manualReason?: string;
 }): Promise<{ state: 'vip'; expiresAt: string; vipDays: number; isPaidExternal: boolean; paidChannel: string | null }> {
-  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
   const response = await axios.post(
     `${auth.baseUrl}/api/qr/stories/vip/manual`,
     {
-      ownerUid: params.ownerUid,
+      uid: params.uid,
       vipDays: params.vipDays,
       isPaidExternal: params.isPaidExternal,
       paidChannel: params.paidChannel,
@@ -1242,12 +1262,12 @@ export type HouseAdStory = {
   updatedAt: string;
 };
 
-export async function getStoriesHouseAd(params: { ownerUid: string }): Promise<{ ad: HouseAdStory | null }> {
-  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+export async function getStoriesHouseAd(params: { uid: string }): Promise<{ ad: HouseAdStory | null }> {
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
   const response = await axios.get(`${auth.baseUrl}/api/qr/stories/ads/house`, {
     params: {
-      ownerUid: params.ownerUid,
+      uid: params.uid,
     },
     headers: {
       'x-api-gateway-key': auth.gatewayKey,
@@ -1276,7 +1296,7 @@ export async function getStoriesHouseAd(params: { ownerUid: string }): Promise<{
 }
 
 export async function upsertStoriesHouseAd(params: {
-  ownerUid: string;
+  uid: string;
   title: string;
   subtitle?: string;
   priceLabel: string;
@@ -1286,12 +1306,12 @@ export async function upsertStoriesHouseAd(params: {
   ctaUrl?: string | null;
   isActive?: boolean;
 }): Promise<{ ok: boolean }> {
-  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
   await axios.put(
     `${auth.baseUrl}/api/qr/stories/ads/house`,
     {
-      ownerUid: params.ownerUid,
+      uid: params.uid,
       title: params.title,
       subtitle: params.subtitle,
       priceLabel: params.priceLabel,
@@ -1325,7 +1345,8 @@ export type CallHistoryRow = {
   peerPersonalName: string;
   userAvatarUrl: string | null;
   sourceCardName: string;
-  sourceCardId: string | null;
+  sourceSid: string | null;
+  sourceBId: string | null;
   callChannel: 'ghost-link-voip';
   callType: 'audio' | 'video';
   storyState: 'none' | 'normal' | 'vip';
@@ -1339,12 +1360,12 @@ export type CallHistoryRow = {
   updatedAt: string;
 };
 
-export async function listCallsHistory(params: { ownerUid: string }): Promise<{ count: number; history: CallHistoryRow[] }> {
-  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+export async function listCallsHistory(params: { uid: string }): Promise<{ count: number; history: CallHistoryRow[] }> {
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
   const response = await axios.get(`${auth.baseUrl}/api/qr/calls/history`, {
     params: {
-      ownerUid: params.ownerUid,
+      uid: params.uid,
     },
     headers: {
       'x-api-gateway-key': auth.gatewayKey,
@@ -1397,7 +1418,8 @@ export async function listCallsHistory(params: { ownerUid: string }): Promise<{ 
       peerPersonalName,
       userAvatarUrl,
       sourceCardName,
-      sourceCardId: row?.sourceCardId ? String(row.sourceCardId) : null,
+      sourceSid: row?.sourceSid != null && String(row.sourceSid).trim() ? String(row.sourceSid) : null,
+      sourceBId: row?.sourceBId != null && String(row.sourceBId).trim() ? String(row.sourceBId) : null,
       callChannel: 'ghost-link-voip' as const,
       callType: row?.callType === 'video' ? 'video' : 'audio' as const,
       storyState: row?.storyState === 'vip' ? 'vip' : row?.storyState === 'normal' ? 'normal' : 'none',
@@ -1418,7 +1440,7 @@ export async function listCallsHistory(params: { ownerUid: string }): Promise<{ 
 }
 
 export async function createCallLog(params: {
-  ownerUid: string;
+  uid: string;
   peerUid: string;
   direction: 'incoming' | 'outgoing' | 'missed';
   status: 'completed' | 'missed' | 'rejected';
@@ -1427,17 +1449,18 @@ export async function createCallLog(params: {
   voiceNoteUri?: string | null;
   voiceNoteName?: string | null;
   sourceCardName?: string;
-  sourceCardId?: string | null;
+  sourceSid?: string | null;
+  sourceBId?: string | null;
   callChannel?: 'ghost-link-voip';
   callType?: 'audio' | 'video';
   isBusinessCard?: boolean;
 }): Promise<{ callId: string }> {
-  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
   const response = await axios.post(
     `${auth.baseUrl}/api/qr/calls/logs`,
     {
-      ownerUid: params.ownerUid,
+      uid: params.uid,
       peerUid: params.peerUid,
       direction: params.direction,
       status: params.status,
@@ -1446,7 +1469,8 @@ export async function createCallLog(params: {
       voiceNoteUri: params.voiceNoteUri ?? null,
       voiceNoteName: params.voiceNoteName ?? null,
       sourceCardName: params.sourceCardName ? String(params.sourceCardName) : 'Tarjeta Social',
-      sourceCardId: params.sourceCardId ?? null,
+      sourceSid: params.sourceSid ?? null,
+      sourceBId: params.sourceBId ?? null,
       callChannel: params.callChannel || 'ghost-link-voip',
       callType: params.callType || 'audio',
       isBusinessCard: Boolean(params.isBusinessCard),
@@ -1466,18 +1490,18 @@ export async function createCallLog(params: {
 }
 
 export async function patchCallLogMeta(params: {
-  ownerUid: string;
+  uid: string;
   callId: string;
   tags?: string[];
   voiceNoteUri?: string | null;
   voiceNoteName?: string | null;
 }): Promise<{ ok: boolean }> {
-  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
   await axios.patch(
     `${auth.baseUrl}/api/qr/calls/logs/${encodeURIComponent(params.callId)}`,
     {
-      ownerUid: params.ownerUid,
+      uid: params.uid,
       tags: params.tags,
       voiceNoteUri: params.voiceNoteUri,
       voiceNoteName: params.voiceNoteName,
@@ -1495,22 +1519,25 @@ export async function patchCallLogMeta(params: {
 }
 
 export type CardAnalyticsSummary = {
-  cardId: string;
+  sid: string | null;
+  bId: string | null;
   totalViews: number;
   topIcons: Array<{ iconType: string; count: number }>;
 };
 
 export async function trackCardAnalyticsEvent(params: {
-  ownerUid: string;
-  cardId: string;
+  uid: string;
+  sid?: string;
+  bId?: string;
   iconType: string;
   source: 'search' | 'story' | 'card' | 'qr_scan';
 }): Promise<void> {
-  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
   await axios.post(
     `${auth.baseUrl}/api/qr/analytics/track`,
     {
-      cardId: params.cardId,
+      ...(params.sid ? { sid: params.sid } : {}),
+      ...(params.bId ? { bId: params.bId } : {}),
       iconType: params.iconType,
       source: params.source,
       timestamp: new Date().toISOString(),
@@ -1526,15 +1553,15 @@ export async function trackCardAnalyticsEvent(params: {
 }
 
 export async function getCardAnalyticsSummary(params: {
-  ownerUid: string;
-  cardId: string;
+  uid: string;
+  cardRef: string;
 }): Promise<CardAnalyticsSummary> {
-  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
   const response = await axios.get(
-    `${auth.baseUrl}/api/qr/analytics/card/${encodeURIComponent(params.cardId)}/summary`,
+    `${auth.baseUrl}/api/qr/analytics/card/${encodeURIComponent(params.cardRef)}/summary`,
     {
-      params: { ownerUid: params.ownerUid },
+      params: { uid: params.uid },
       headers: {
         'x-api-gateway-key': auth.gatewayKey,
         Authorization: `Bearer ${auth.token}`,
@@ -1545,7 +1572,8 @@ export async function getCardAnalyticsSummary(params: {
 
   const top = Array.isArray(response?.data?.topIcons) ? response.data.topIcons : [];
   return {
-    cardId: String(response?.data?.cardId || params.cardId),
+    sid: response?.data?.sid != null && String(response.data.sid).trim() ? String(response.data.sid) : null,
+    bId: response?.data?.bId != null && String(response.data.bId).trim() ? String(response.data.bId) : null,
     totalViews: Number(response?.data?.totalViews || 0) || 0,
     topIcons: top.map((row: any) => ({
       iconType: String(row?.iconType || ''),
@@ -1556,16 +1584,16 @@ export async function getCardAnalyticsSummary(params: {
 
 /**
  * Obtiene holdersCount real (desde share_permissions) para un conjunto de business cards.
- * Retorna mapa { cardId: holdersCount }.
+ * Retorna mapa { bId: holdersCount }.
  */
 export async function fetchBusinessCardHolderCounts(params: {
-  ownerUid: string;
-  cardIds: string[];
+  uid: string;
+  keys: string[];
 }): Promise<Record<string, number>> {
-  if (!params.ownerUid || !params.cardIds.length) return {};
-  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+  if (!params.uid || !params.keys.length) return {};
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
   const response = await axios.get(`${auth.baseUrl}/api/qr/business-holders`, {
-    params: { uid: params.ownerUid, cardIds: params.cardIds.join(',') },
+    params: { uid: params.uid, keys: params.keys.join(',') },
     headers: {
       'x-api-gateway-key': auth.gatewayKey,
       Authorization: `Bearer ${auth.token}`,

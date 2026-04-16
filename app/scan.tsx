@@ -35,8 +35,9 @@ import palette from './theme';
 
 type ClassificationPayload = {
   token: string;
-  ownerUid: string;
-  cardId: string;
+  issuerUid: string;
+  sid: string | null;
+  bId: string | null;
   issuerFullName: string;
 };
 
@@ -46,8 +47,8 @@ export default function ScanScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
     resumeToken?: string;
-    resumeCardId?: string;
-    resumeOwnerUid?: string;
+    resumeIssuerUid?: string;
+    resumeBId?: string;
   }>();
   const { language } = useLanguage();
   const tr = (es: string, en: string) => (language === 'en' ? en : es);
@@ -213,8 +214,9 @@ export default function ScanScreen() {
         setQrPreview(p);
         setClassification({
           token: p.token,
-          ownerUid: p.ownerUid,
-          cardId: p.cardId,
+          issuerUid: p.uid,
+          sid: p.sid,
+          bId: p.bId,
           issuerFullName: p.ownerDisplayName,
         });
         setModalVisible(true);
@@ -268,8 +270,9 @@ export default function ScanScreen() {
         setUniversalCard(card);
         setClassification({
           token: opaqueToken,
-          ownerUid: card.ownerUid,
-          cardId: card.cardId,
+          issuerUid: card.uid,
+          sid: card.sid,
+          bId: card.bId,
           issuerFullName: String(card.ownerDisplayName || '').trim(),
         });
         setModalVisible(true);
@@ -292,7 +295,7 @@ export default function ScanScreen() {
   );
 
   const openBusinessClassification = useCallback(
-    async (ownerUid: string, cardId: string) => {
+    async (issuerUid: string, bId: string) => {
       setUniversalCard(null);
       setIncomingScanMode('business_permanent');
       setIncomingPreviewOverride(null);
@@ -300,13 +303,13 @@ export default function ScanScreen() {
       const locale = language === 'es' ? 'es' : 'en';
       const okLabel = tr('Aceptar', 'OK');
       try {
-        const preview = await fetchPublicBusinessCardPreview({ ownerUid, cardId, locale });
+        const preview = await fetchPublicBusinessCardPreview({ uid: issuerUid, bId, locale });
         if (!preview.ok) {
-          const bSnap = await getDoc(doc(db, 'businessCards', cardId));
+          const bSnap = await getDoc(doc(db, 'businessCards', bId));
           if (bSnap.exists()) {
             const raw = bSnap.data() as Record<string, unknown>;
-            if (String(raw?.ownerUid || '').trim() === ownerUid) {
-              const payload = businessFirestoreDocToMyCardsPayload(raw, cardId, tr);
+            if (String(raw?.uid || '').trim() === issuerUid) {
+              const payload = businessFirestoreDocToMyCardsPayload(raw, bId, tr);
               setIncomingPreviewOverride(payload);
               const far = new Date();
               far.setFullYear(far.getFullYear() + 10);
@@ -315,8 +318,9 @@ export default function ScanScreen() {
                 String(idn.bcContactName || idn.bcName || '').trim() ||
                 String(payload.cardName || '').trim();
               setQrPreview({
-                ownerUid,
-                cardId,
+                uid: issuerUid,
+                sid: null,
+                bId,
                 token: '',
                 expiresAt: far.toISOString(),
                 ownerDisplayName: issuer,
@@ -335,8 +339,9 @@ export default function ScanScreen() {
               });
               setClassification({
                 token: '',
-                ownerUid,
-                cardId,
+                issuerUid,
+                sid: null,
+                bId,
                 issuerFullName: issuer,
               });
               setModalVisible(true);
@@ -355,8 +360,9 @@ export default function ScanScreen() {
         setQrPreview(p);
         setClassification({
           token: '',
-          ownerUid: p.ownerUid,
-          cardId: p.cardId,
+          issuerUid: p.uid,
+          sid: p.sid,
+          bId: p.bId,
           issuerFullName: p.ownerDisplayName,
         });
         setModalVisible(true);
@@ -395,18 +401,18 @@ export default function ScanScreen() {
       if (!uid) {
         await savePendingBunkerScan({
           kind: 'business_permanent',
-          ownerUid: business.ownerUid,
-          cardId: business.cardId,
+          uid: business.uid,
+          bId: business.bId,
         });
         router.replace('/signin');
         return;
       }
-      await openBusinessClassification(business.ownerUid, business.cardId);
+      await openBusinessClassification(business.uid, business.bId);
       return;
     }
 
     const dyn = parseDynamicAppQrJson(normalized);
-    if (!dyn || dyn.kind !== 'dynamic_app' || !dyn.token || !dyn.cardId) {
+    if (!dyn || dyn.kind !== 'dynamic_app' || !dyn.token) {
       const uni = parseUniversalWebQrUrl(normalized);
       if (uni?.token) {
         setScanLocked(true);
@@ -445,7 +451,6 @@ export default function ScanScreen() {
       await savePendingBunkerScan({
         kind: 'dynamic_qr',
         token: dyn.token,
-        cardId: dyn.cardId,
       });
       router.replace('/signin');
       return;
@@ -456,11 +461,11 @@ export default function ScanScreen() {
 
   useEffect(() => {
     const rt = params.resumeToken != null ? String(params.resumeToken).trim() : '';
-    const rc = params.resumeCardId != null ? String(params.resumeCardId).trim() : '';
-    const ro = params.resumeOwnerUid != null ? String(params.resumeOwnerUid).trim() : '';
+    const rb = params.resumeBId != null ? String(params.resumeBId).trim() : '';
+    const ri = params.resumeIssuerUid != null ? String(params.resumeIssuerUid).trim() : '';
 
-    const businessResume = Boolean(ro && rc);
-    const dynamicResume = Boolean(rt && rc);
+    const businessResume = Boolean(ri && rb);
+    const dynamicResume = Boolean(rt);
 
     if (!businessResume && !dynamicResume) {
       resumeHandledRef.current = false;
@@ -479,7 +484,7 @@ export default function ScanScreen() {
       setReceiverUid(uid);
       setScanLocked(true);
       if (businessResume) {
-        await openBusinessClassification(ro, rc);
+        await openBusinessClassification(ri, rb);
       } else {
         await openClassification(rt);
       }
@@ -490,8 +495,8 @@ export default function ScanScreen() {
   }, [
     openBusinessClassification,
     openClassification,
-    params.resumeCardId,
-    params.resumeOwnerUid,
+    params.resumeBId,
+    params.resumeIssuerUid,
     params.resumeToken,
   ]);
 
@@ -502,9 +507,9 @@ export default function ScanScreen() {
     }
     const uid =
       incomingScanMode === 'universal' && universalCard
-        ? String(universalCard.ownerUid || '').trim()
+        ? String(universalCard.uid || '').trim()
         : incomingScanMode === 'dynamic_qr' && qrPreview
-          ? String(qrPreview.ownerUid || '').trim()
+          ? String(qrPreview.uid || '').trim()
           : '';
     if (!uid) {
       setIssuerProfileAvatarUrl(null);
@@ -518,7 +523,7 @@ export default function ScanScreen() {
     return () => {
       cancelled = true;
     };
-  }, [incomingPreviewOverride, incomingScanMode, qrPreview?.ownerUid, universalCard?.ownerUid]);
+  }, [incomingPreviewOverride, incomingScanMode, qrPreview?.uid, universalCard?.uid]);
 
   const scanPreviewPayload = useMemo(() => {
     if (incomingPreviewOverride) {
@@ -614,8 +619,9 @@ export default function ScanScreen() {
           visible={modalVisible}
           mode={incomingScanMode}
           token={classification.token}
-          ownerUid={classification.ownerUid}
-          cardId={classification.cardId}
+          issuerUid={classification.issuerUid}
+          sid={classification.sid}
+          bId={classification.bId}
           issuerFullName={classification.issuerFullName}
           receiverUid={receiverUid}
           previewPayload={scanPreviewPayload}

@@ -9,9 +9,10 @@ export type PublicSlot = {
 };
 
 export type CardData = {
-  cardId: string;
+  sid?: string;
+  bId?: string;
   /** Titular (Ghost-Link / contexto de app). */
-  ownerUid?: string;
+  uid?: string;
   /** Título de la tarjeta (alineado con Mongo `smart_cards.scName`). */
   scName: string;
   layout: 'vertical' | 'horizontal';

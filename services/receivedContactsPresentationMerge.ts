@@ -32,14 +32,17 @@ const VISUAL_KEYS = new Set([
 /** Fila con identidad estable y marca temporal opcional del diseño en servidor. */
 export type PresentationMergeRow = {
   uid: string;
-  cardId?: string | null;
+  sid?: string | null;
+  bId?: string | null;
   cardUpdatedAt?: string | null;
 } & Record<string, unknown>;
 
 /** Clave estable por vínculo recibido: mismo emisor, varias tarjetas → varias filas. */
-export function receivedContactMergeKey(row: { uid: string; cardId?: string | null | undefined }): string {
-  const cid = row.cardId != null && String(row.cardId).trim() ? String(row.cardId).trim() : '';
-  return `${String(row.uid || '').trim()}::${cid}`;
+export function receivedContactMergeKey(row: { uid: string; sid?: string | null | undefined; bId?: string | null | undefined }): string {
+  const sid = row.sid != null && String(row.sid).trim() ? String(row.sid).trim() : '';
+  const bId = row.bId != null && String(row.bId).trim() ? String(row.bId).trim() : '';
+  const ref = sid || bId;
+  return `${String(row.uid || '').trim()}::${ref}`;
 }
 
 function pickVisualSnapshot(row: PresentationMergeRow): Partial<PresentationMergeRow> {

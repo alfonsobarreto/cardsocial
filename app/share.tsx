@@ -113,8 +113,8 @@ export default function ShareScreen() {
         <View style={styles.noticeBox}>
           <Text style={styles.noticeText}>
             {tr(
-              'Comparte acceso por tarjeta (cardId), no datos directos.',
-              'Share card-scoped access (cardId), not raw data.'
+              'Comparte acceso por tarjeta (sid / bId), no datos directos.',
+              'Share card-scoped access (sid / bId), not raw data.'
             )}
           </Text>
         </View>

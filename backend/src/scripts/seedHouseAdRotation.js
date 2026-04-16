@@ -14,14 +14,14 @@ function parseArgs(argv) {
   return flags;
 }
 
-function resolveOwnerUid(flags) {
-  const byFlag = String(flags.ownerUid || '').trim();
+function resolveHouseAdUid(flags) {
+  const byFlag = String(flags.uid || '').trim();
   const byEnv = String(process.env.HOUSE_AD_OWNER_UID || '').trim();
   return byFlag || byEnv;
 }
 
-function getHouseCatalog(ownerUid) {
-  const slug = String(ownerUid || 'owner').slice(0, 8);
+function getHouseCatalog(uid) {
+  const slug = String(uid || 'owner').slice(0, 8);
   return [
     {
       id: `mism-${slug}-001`,
@@ -68,15 +68,15 @@ async function run() {
   }
 
   const flags = parseArgs(process.argv);
-  const ownerUid = resolveOwnerUid(flags);
-  if (!ownerUid) {
-    throw new Error('ownerUid is required. Use --ownerUid=<uid> or HOUSE_AD_OWNER_UID env var.');
+  const uid = resolveHouseAdUid(flags);
+  if (!uid) {
+    throw new Error('uid is required. Use --uid=<uid> or HOUSE_AD_OWNER_UID env var.');
   }
 
   const dayShift = Number(flags['day-shift'] || 0);
   const apply = String(flags.apply || 'true').toLowerCase() !== 'false';
 
-  const catalog = getHouseCatalog(ownerUid);
+  const catalog = getHouseCatalog(uid);
   const serial = daySerialUtc(Number.isFinite(dayShift) ? dayShift : 0);
   const index = ((serial % catalog.length) + catalog.length) % catalog.length;
   const selected = catalog[index];
@@ -90,10 +90,10 @@ async function run() {
   const now = new Date();
 
   await db.collection('stories_house_ads_catalog').findOneAndUpdate(
-    { ownerUid },
+    { uid },
     {
       $set: {
-        ownerUid,
+        uid,
         catalog,
         activeIndex: index,
         activeAdId: selected.id,
@@ -112,10 +112,10 @@ async function run() {
 
   if (apply) {
     await db.collection('stories_house_ads').findOneAndUpdate(
-      { ownerUid },
+      { uid },
       {
         $set: {
-          ownerUid,
+          uid,
           title: selected.title,
           subtitle: selected.subtitle,
           priceLabel: selected.priceLabel,
@@ -140,7 +140,7 @@ async function run() {
 
   console.log(JSON.stringify({
     ok: true,
-    ownerUid,
+    uid,
     dayShift,
     appliedToStoriesAd: apply,
     selectedIndex: index,

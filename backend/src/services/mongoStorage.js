@@ -148,7 +148,7 @@ function createMongoStorage({ uri, dbName }) {
    * Sube archivo moderado a Spaces (objeto privado) y registra metadatos para el proxy /api/vault/file/:id.
    * @returns {{ fileId: string, spacesKey: string, spacesBucket: string }}
    */
-  async function uploadVaultFilePrivate({ fileBuffer, filename, mimeType, ownerUid, label }) {
+  async function uploadVaultFilePrivate({ fileBuffer, filename, mimeType, uid, label }) {
     if (!spaces) {
       throw new Error(formatSpacesEnvMissingError());
     }
@@ -173,7 +173,7 @@ function createMongoStorage({ uri, dbName }) {
         spacesKey,
         spacesBucket: bucket_name,
         mimeType: contentType,
-        ownerUid: String(ownerUid || "").trim(),
+        uid: String(uid || "").trim(),
         label: String(label || "").trim(),
         originalFilename: filename,
         size: fileBuffer.length,

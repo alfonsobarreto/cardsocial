@@ -66,7 +66,8 @@ import Toast from 'react-native-toast-message';
 
 type Contact = {
   uid: string;
-  cardId?: string | null;
+  sid?: string | null;
+  bId?: string | null;
   userFullName: string;
   userNickName: string;
   userAvatarUrl: string | null;
@@ -257,7 +258,7 @@ function ContactsContent() {
     await AsyncStorage.setItem(GROUP_FAVORITES_STORAGE_KEY, JSON.stringify(next));
   };
 
-  const getContactsCacheKey = (ownerUid: string) => `${CONTACTS_CACHE_STORAGE_KEY}_${ownerUid}`;
+  const getContactsCacheKey = (viewerUid: string) => `${CONTACTS_CACHE_STORAGE_KEY}_${viewerUid}`;
 
   const persistMetaMap = async (next: Record<string, ContactMeta>) => {
     setMetaMap(next);
@@ -292,8 +293,12 @@ function ContactsContent() {
         : legacy.photoUrl != null && String(legacy.photoUrl).trim()
           ? String(legacy.photoUrl)
           : null;
+    const sidFromRow = row.sid != null && String(row.sid).trim() ? String(row.sid).trim() : null;
+    const bIdFromRow = row.bId != null && String(row.bId).trim() ? String(row.bId).trim() : null;
     return {
       ...row,
+      sid: sidFromRow,
+      bId: bIdFromRow,
       userFullName,
       userNickName,
       userAvatarUrl,
@@ -330,14 +335,14 @@ function ContactsContent() {
     try {
       const existingMeta = await loadMetaMap();
       await loadGroupFavorites();
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) {
+      const viewerUid = await getActiveUserId();
+      if (!viewerUid) {
         setContacts([]);
         setLoading(false);
         return;
       }
 
-      const cacheKey = getContactsCacheKey(ownerUid);
+      const cacheKey = getContactsCacheKey(viewerUid);
       try {
         const cachedRaw = await AsyncStorage.getItem(cacheKey);
         const parsed = cachedRaw ? (JSON.parse(cachedRaw) as Contact[]) : [];
@@ -357,7 +362,7 @@ function ContactsContent() {
 
       let normalized: Contact[] = [];
       try {
-        const response = await listReceivedContacts({ ownerUid });
+        const response = await listReceivedContacts({ uid: viewerUid });
         normalized = (Array.isArray(response.contacts) ? response.contacts : []).map((c) => normalizeContactRow(c as Contact));
         await AsyncStorage.setItem(cacheKey, JSON.stringify(normalized));
       } catch {
@@ -510,10 +515,11 @@ function ContactsContent() {
     const qExpanded = buildExpandedMarketQuery(qRaw) || qRaw;
 
     return orderByDeepSearchWithExpandedQuery(withMeta, qExpanded, (row) =>
-           collectStringsReceivedContact(
+      collectStringsReceivedContact(
         {
           uid: row.uid,
-          cardId: row.cardId ?? null,
+          sid: row.sid ?? null,
+          bId: row.bId ?? null,
           userFullName: row.userFullName,
           userNickName: row.userNickName,
           cardName: row.cardName,
@@ -674,11 +680,11 @@ function ContactsContent() {
 
   const persistContactsCache = async (nextContacts: Contact[]) => {
     try {
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) {
+      const viewerUid = await getActiveUserId();
+      if (!viewerUid) {
         return;
       }
-      await AsyncStorage.setItem(getContactsCacheKey(ownerUid), JSON.stringify(nextContacts));
+      await AsyncStorage.setItem(getContactsCacheKey(viewerUid), JSON.stringify(nextContacts));
     } catch {
       /* cache best-effort */
     }
@@ -740,15 +746,17 @@ function ContactsContent() {
 
   const handleDeleteContact = async (contact: Contact) => {
     try {
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) {
+      const viewerUid = await getActiveUserId();
+      if (!viewerUid) {
         return;
       }
-      const scopedCardId = contact.cardId != null && String(contact.cardId).trim() ? String(contact.cardId).trim() : '';
+      const sid = contact.sid != null && String(contact.sid).trim() ? String(contact.sid).trim() : '';
+      const bId = contact.bId != null && String(contact.bId).trim() ? String(contact.bId).trim() : '';
       await removeRelationship({
-        ownerUid,
+        uid: viewerUid,
         targetUid: contact.uid,
-        ...(scopedCardId ? { cardId: scopedCardId } : {}),
+        ...(sid ? { sid } : {}),
+        ...(bId ? { bId } : {}),
       });
       await purgeReceivedCardLinkFromUi(contact);
       Toast.show({
@@ -788,11 +796,11 @@ function ContactsContent() {
 
   const handleBlockContact = async (uid: string) => {
     try {
-      const ownerUid = await getActiveUserId();
-      if (!ownerUid) {
+      const viewerUid = await getActiveUserId();
+      if (!viewerUid) {
         return;
       }
-      await blockRelationship({ ownerUid, targetUid: uid });
+      await blockRelationship({ uid: viewerUid, targetUid: uid });
       await purgeAllReceivedFromIssuerInUi(uid);
       Toast.show({
         type: 'info',
@@ -834,8 +842,10 @@ function ContactsContent() {
     if (!viewerUid) {
       return;
     }
-    const cardId = contact.cardId ? String(contact.cardId).trim() : '';
-    if (!cardId) {
+    const cardRef =
+      (contact.bId != null && String(contact.bId).trim() ? String(contact.bId).trim() : '') ||
+      (contact.sid != null && String(contact.sid).trim() ? String(contact.sid).trim() : '');
+    if (!cardRef) {
       Alert.alert(
         tr('No se puede silenciar', 'Cannot mute'),
         tr('No hay una tarjeta vinculada a este contacto.', 'There is no card linked to this contact.'),
@@ -847,7 +857,7 @@ function ContactsContent() {
       await setSubscriberSelfCardMute({
         viewerUid,
         issuerUid: contact.uid,
-        cardId,
+        cardRef,
         muted: nextMuted,
       });
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -885,12 +895,15 @@ function ContactsContent() {
   };
 
   const openReceptorModal = async (contact: Contact) => {
-    if (!contact.uid || !contact.cardId) return;
+    const ref =
+      (contact.bId != null && String(contact.bId).trim() ? String(contact.bId).trim() : '') ||
+      (contact.sid != null && String(contact.sid).trim() ? String(contact.sid).trim() : '');
+    if (!contact.uid || !ref) return;
     setReceptorContact(contact);
     setReceptorModalVisible(true);
     setReceptorLoading(true);
     try {
-      const response = await listCardSubscribers({ ownerUid: contact.uid, cardId: contact.cardId });
+      const response = await listCardSubscribers({ uid: contact.uid, cardRef: ref });
       setReceptorSubscribers(response.subscribers);
     } catch {
       setReceptorSubscribers([]);
@@ -1465,7 +1478,8 @@ function ContactsContent() {
         variant="receiver"
         payload={contactPayload}
         ghostTargetUid={selectedContact?.uid}
-        sourceCardId={selectedContact?.cardId ?? null}
+        sourceSid={selectedContact?.sid ?? null}
+        sourceBId={selectedContact?.bId ?? null}
         sourceCardName={selectedContact?.cardName}
         peerDisplayName={selectedContact?.userNickName || selectedContact?.userFullName || 'contacto'}
         ratingCardType={selectedContact?.cardType ?? 'smart'}
@@ -1504,9 +1518,9 @@ function ContactsContent() {
                 style: 'destructive',
                 onPress: async () => {
                   try {
-                    const ownerUid = await getActiveUserId();
-                    if (!ownerUid) return;
-                    await blockRelationship({ ownerUid, targetUid });
+                    const viewerUid = await getActiveUserId();
+                    if (!viewerUid) return;
+                    await blockRelationship({ uid: viewerUid, targetUid });
                     setReceptorSubscribers((prev) => prev.filter((r) => r.uid !== targetUid));
                   } catch (e: any) {
                     Alert.alert(tr('Error', 'Error'), e?.message || tr('No se pudo bloquear.', 'Could not block.'));

@@ -1668,7 +1668,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const uploadFileToModerationBackend = async (
     fileUri: string,
     fileLabel: string,
-    ownerUid: string
+    uid: string
   ): Promise<{ fileId: string; publicUrl: string | null; mimeType: string | null }> => {
     try {
       if (!fileUri.startsWith('file://')) {
@@ -1700,7 +1700,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
       const uploadResult = await uploadFileWithModeration({
         fileUri,
-        ownerUid,
+        uid,
         label: fileLabel,
         fileName,
         mimeType,

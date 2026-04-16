@@ -86,8 +86,9 @@ export type MyCardsPayload = {
 export type MyCardsIncomingRedeem = {
   mode: 'universal' | 'dynamic_qr' | 'business_permanent';
   token: string;
-  ownerUid: string;
-  cardId: string;
+  issuerUid: string;
+  sid: string | null;
+  bId: string | null;
   receiverUid: string;
   onSuccess: () => void;
 };
@@ -105,7 +106,8 @@ export type MyCardsPreviewModalProps = {
   /** Obligatorio si variant === 'incoming'. */
   incomingRedeem?: MyCardsIncomingRedeem | null;
   ghostTargetUid?: string | null;
-  sourceCardId?: string | null;
+  sourceSid?: string | null;
+  sourceBId?: string | null;
   sourceCardName?: string;
   peerDisplayName?: string;
   /** Tipo de tarjeta para el modal de medallas ('smart' | 'business'). No aplica a variant=issuer. */
@@ -129,7 +131,8 @@ export function MyCardsPreviewModal({
   onEditCard,
   incomingRedeem,
   ghostTargetUid,
-  sourceCardId,
+  sourceSid,
+  sourceBId,
   sourceCardName,
   peerDisplayName,
   ratingCardType,
@@ -174,22 +177,23 @@ export function MyCardsPreviewModal({
 
   const canRate = variant !== 'issuer' && !!ratingCardType;
   const showMedals = !!ratingCardType;  // issuer ve sus medallas, contacts pueden votar
-  const cardIdForMedals = sourceCardId ?? incomingRedeem?.cardId ?? null;
-  const cardOwnerUidForMedals = ghostTargetUid ?? incomingRedeem?.ownerUid ?? null;
+  const sidOrBIdForMedals =
+    [sourceBId, incomingRedeem?.bId, sourceSid, incomingRedeem?.sid].find((v) => v != null && String(v).trim()) ?? null;
+  const issuerUidForMedals = ghostTargetUid ?? incomingRedeem?.issuerUid ?? null;
 
   useEffect(() => {
-    if (!visible || !showMedals || !cardIdForMedals) return;
+    if (!visible || !showMedals || !sidOrBIdForMedals) return;
     void (async () => {
       try {
         const uid = await getActiveUserId();
         if (!uid) return;
-        const data = await getMedalData(cardIdForMedals, uid);
+        const data = await getMedalData(String(sidOrBIdForMedals).trim(), uid);
         setMedalCounts(data.counts);
       } catch {
         // no-op — medallas no críticas
       }
     })();
-  }, [visible, showMedals, cardIdForMedals]);
+  }, [visible, showMedals, sidOrBIdForMedals]);
 
   const medalPillDefs = ratingCardType === 'business' ? BUSINESS_MEDALS : SOCIAL_MEDALS;
   const medalPills = showMedals
@@ -202,22 +206,29 @@ export function MyCardsPreviewModal({
 
   useEffect(() => {
     if (!visible) { setAlreadyInBunker(false); return; }
-    let ownerUid = '';
-    let cardId = '';
-    if (variant === 'incoming' && incomingRedeem?.ownerUid && incomingRedeem?.cardId) {
-      ownerUid = incomingRedeem.ownerUid;
-      cardId = incomingRedeem.cardId;
-    } else if (variant === 'receiver' && ghostTargetUid && sourceCardId) {
-      ownerUid = ghostTargetUid;
-      cardId = sourceCardId;
+    let issuerUid = '';
+    let sid: string | null = null;
+    let bId: string | null = null;
+    if (
+      variant === 'incoming' &&
+      incomingRedeem?.issuerUid &&
+      (incomingRedeem.sid || incomingRedeem.bId)
+    ) {
+      issuerUid = incomingRedeem.issuerUid;
+      sid = incomingRedeem.sid;
+      bId = incomingRedeem.bId;
+    } else if (variant === 'receiver' && ghostTargetUid && (sourceSid || sourceBId)) {
+      issuerUid = ghostTargetUid;
+      sid = sourceSid ?? null;
+      bId = sourceBId ?? null;
     }
-    if (!ownerUid || !cardId) { setAlreadyInBunker(false); return; }
+    if (!issuerUid || (!sid && !bId)) { setAlreadyInBunker(false); return; }
     void (async () => {
       try {
         const raw = await AsyncStorage.getItem(CONTACT_META_STORAGE_KEY);
         if (!raw) { setAlreadyInBunker(false); return; }
         const map = JSON.parse(raw) as Record<string, { group?: string } | unknown>;
-        const key = receivedContactMergeKey({ uid: ownerUid, cardId });
+        const key = receivedContactMergeKey({ uid: issuerUid, sid, bId });
         const isIn = key in map;
         setAlreadyInBunker(isIn);
         // Pre-load the stored group so the dropdown shows the correct current value
@@ -233,7 +244,7 @@ export function MyCardsPreviewModal({
         setAlreadyInBunker(false);
       }
     })();
-  }, [visible, variant, incomingRedeem, ghostTargetUid, sourceCardId]);
+  }, [visible, variant, incomingRedeem, ghostTargetUid, sourceSid, sourceBId]);
 
   const handleClose = useCallback(() => {
     onClose();
@@ -281,20 +292,22 @@ export function MyCardsPreviewModal({
 
   /* Handle "Add to Bunker" from receiver (Social Market) */
   const handleReceiverAdd = useCallback(async () => {
-    if (variant !== 'receiver' || !ghostTargetUid || !sourceCardId) return;
+    const bId = sourceBId != null && String(sourceBId).trim() ? String(sourceBId).trim() : '';
+    if (variant !== 'receiver' || !ghostTargetUid || !bId) return;
     setReceiverAddBusy(true);
     try {
       const uid = await getActiveUserId();
       if (!uid) throw new Error(tr('No autenticado', 'Not authenticated'));
       await grantBusinessShareFromQr({
         receiverUid: uid,
-        ownerUid: ghostTargetUid,
-        cardId: sourceCardId,
+        uid: ghostTargetUid,
+        bId,
         locale: language === 'en' ? 'en' : 'es',
       });
       await seedMetaForIncomingCard({
         issuerUid: ghostTargetUid,
-        cardId: sourceCardId,
+        sid: null,
+        bId,
         group: receiverGroup,
         scanThemeId: payload?.themeId?.trim() ? payload.themeId : null,
       });
@@ -312,11 +325,11 @@ export function MyCardsPreviewModal({
     } finally {
       setReceiverAddBusy(false);
     }
-  }, [variant, ghostTargetUid, sourceCardId, receiverGroup, language, payload?.themeId, tr, handleClose]);
+  }, [variant, ghostTargetUid, sourceBId, receiverGroup, language, payload?.themeId, tr, handleClose]);
 
   useEffect(() => {
     if (variant !== 'incoming' || !visible) return;
-    if (!incomingRedeem?.ownerUid || !incomingRedeem?.cardId) return;
+    if (!incomingRedeem?.issuerUid || (!incomingRedeem.sid && !incomingRedeem.bId)) return;
     let cancelled = false;
     void (async () => {
       try {
@@ -339,29 +352,33 @@ export function MyCardsPreviewModal({
       }
     })();
     return () => { cancelled = true; };
-  }, [variant, visible, incomingRedeem?.ownerUid, incomingRedeem?.cardId, language]);
+  }, [variant, visible, incomingRedeem?.issuerUid, incomingRedeem?.sid, incomingRedeem?.bId, language]);
 
   /* Cambiar grupo de una tarjeta ya existente en el Búnker (Caso 2 y Caso 3) */
   const handleChangeGroup = useCallback(async () => {
-    let ownerUid = '';
-    let cardId = '';
+    let issuerUid = '';
+    let sid: string | null = null;
+    let bId: string | null = null;
     let group = incomingGroup;
     if (variant === 'incoming' && incomingRedeem) {
-      ownerUid = incomingRedeem.ownerUid;
-      cardId = incomingRedeem.cardId;
+      issuerUid = incomingRedeem.issuerUid;
+      sid = incomingRedeem.sid;
+      bId = incomingRedeem.bId;
       group = incomingGroup;
-    } else if (variant === 'receiver' && ghostTargetUid && sourceCardId) {
-      ownerUid = ghostTargetUid;
-      cardId = sourceCardId;
+    } else if (variant === 'receiver' && ghostTargetUid && (sourceSid || sourceBId)) {
+      issuerUid = ghostTargetUid;
+      sid = sourceSid ?? null;
+      bId = sourceBId ?? null;
       group = receiverGroup;
     }
-    if (!ownerUid || !cardId) { handleClose(); return; }
+    if (!issuerUid || (!sid && !bId)) { handleClose(); return; }
     if (variant === 'incoming') setIncomingBusy(true);
     else setReceiverAddBusy(true);
     try {
       await seedMetaForIncomingCard({
-        issuerUid: ownerUid,
-        cardId,
+        issuerUid,
+        sid,
+        bId,
         group,
         scanThemeId: payload?.themeId?.trim() ? payload.themeId : null,
       });
@@ -380,7 +397,7 @@ export function MyCardsPreviewModal({
       if (variant === 'incoming') setIncomingBusy(false);
       else setReceiverAddBusy(false);
     }
-  }, [variant, incomingRedeem, ghostTargetUid, sourceCardId, incomingGroup, receiverGroup, language, payload?.themeId, tr, handleClose]);
+  }, [variant, incomingRedeem, ghostTargetUid, sourceSid, sourceBId, incomingGroup, receiverGroup, language, payload?.themeId, tr, handleClose]);
 
   const handleAddNewGroup = useCallback(async (target: 'incoming' | 'receiver') => {
     const trimmed = newGroupInput.trim();
@@ -408,8 +425,8 @@ export function MyCardsPreviewModal({
   const handleIncomingAccept = useCallback(async () => {
     const r = incomingRedeem;
     if (!r || variant !== 'incoming') return;
-    const { token, ownerUid, cardId, mode, onSuccess } = r;
-    if (!ownerUid || !cardId) return;
+    const { token, issuerUid, sid, bId, mode, onSuccess } = r;
+    if (!issuerUid || (!sid && !bId)) return;
     if (mode !== 'business_permanent' && !String(token || '').trim()) return;
     // Resolve the receiver UID on the spot — the prop may have been empty on first render.
     const receiverUid = r.receiverUid || (await getActiveUserId()) || '';
@@ -419,38 +436,44 @@ export function MyCardsPreviewModal({
       if (mode === 'universal') {
         await redeemTemporaryAccessToken({ receiverUid, token, locale: language });
       } else if (mode === 'business_permanent') {
-        await grantBusinessShareFromQr({ receiverUid, ownerUid, cardId, locale: language });
+        const bizId = String(bId || '').trim();
+        if (!bizId) throw new Error(tr('Tarjeta inválida', 'Invalid card'));
+        await grantBusinessShareFromQr({ receiverUid, uid: issuerUid, bId: bizId, locale: language });
       } else {
         await consumeDynamicQrToken({ receiverUid, token, locale: language });
       }
       await seedMetaForIncomingCard({
-        issuerUid: ownerUid,
-        cardId,
+        issuerUid,
+        sid,
+        bId,
         group: incomingGroup,
         scanThemeId: payload?.themeId?.trim() ? payload.themeId : null,
       });
 
       // --- NUEVO: persistir localmente en Contactos ---
       if (mode === 'business_permanent' && payload) {
-        const { cardName, subtitle, avatarUrl, themeId, wallpaperUrl, layout, holdersCount, ratingAvg, totalRatings, enableParallax, slots } = payload;
-        await upsertSmartCardInDb({
-          ownerUid: receiverUid,
-          card: {
-            cardId,
-            scName: cardName,
-            layout: layout === 'horizontal' ? 'horizontal' : 'vertical',
-            themeId,
-            wallpaperUrl,
-            holdersCount,
-            ratingAvg,
-            totalRatings,
-            enableParallax,
-            ownerDisplayName: subtitle,
-            ownerPhotoUrl: avatarUrl ?? null,
-            itemIds: Array.isArray(slots) ? slots.map((s: any) => String(s.id ?? s.itemId ?? '')) : [],
-            cardType: 'business',
-          }
-        });
+        const bizId = String(bId || '').trim();
+        if (bizId) {
+          const { cardName, subtitle, avatarUrl, themeId, wallpaperUrl, layout, holdersCount, ratingAvg, totalRatings, enableParallax, slots } = payload;
+          await upsertSmartCardInDb({
+            uid: receiverUid,
+            card: {
+              bId: bizId,
+              scName: cardName,
+              layout: layout === 'horizontal' ? 'horizontal' : 'vertical',
+              themeId,
+              wallpaperUrl,
+              holdersCount,
+              ratingAvg,
+              totalRatings,
+              enableParallax,
+              ownerDisplayName: subtitle,
+              ownerPhotoUrl: avatarUrl ?? null,
+              itemIds: Array.isArray(slots) ? slots.map((s: any) => String(s.id ?? s.itemId ?? '')) : [],
+              cardType: 'business',
+            },
+          });
+        }
       }
       // --- FIN NUEVO ---
 
@@ -475,7 +498,7 @@ export function MyCardsPreviewModal({
     } finally {
       setIncomingBusy(false);
     }
-  }, [incomingRedeem, variant, incomingGroup, language, payload?.themeId, tr, handleClose]);
+  }, [incomingRedeem, variant, incomingGroup, language, payload, tr, handleClose]);
 
   const openDocumentViewer = useCallback((item: MirrorVaultItem) => {
     setViewerItem(item);
@@ -492,7 +515,8 @@ export function MyCardsPreviewModal({
         ghostTargetUid: ghostTargetUid ?? null,
         sourceCardName:
           sourceCardName || payload?.cardName || 'Tarjeta Social',
-        sourceCardId: sourceCardId ?? null,
+        sourceSid: sourceSid ?? null,
+        sourceBId: sourceBId ?? null,
         peerDisplayName: peerDisplayName || tr('contacto', 'contact'),
         dismissParentModal: handleClose,
         peerPhotoUrl: payload?.avatarUrl ?? null,
@@ -505,7 +529,8 @@ export function MyCardsPreviewModal({
       openDocumentViewer,
       ghostTargetUid,
       sourceCardName,
-      sourceCardId,
+      sourceSid,
+      sourceBId,
       peerDisplayName,
       payload?.cardName,
       payload?.avatarUrl,
@@ -871,8 +896,8 @@ export function MyCardsPreviewModal({
           visible={medalModalVisible}
           onClose={() => setMedalModalVisible(false)}
           cardType={ratingCardType!}
-          cardId={cardIdForMedals ?? ''}
-          cardOwnerUid={cardOwnerUidForMedals ?? ''}
+          sidOrBId={sidOrBIdForMedals != null ? String(sidOrBIdForMedals).trim() : ''}
+          issuerUid={issuerUidForMedals ?? ''}
           cardOwnerName={peerDisplayName ?? sourceCardName ?? ''}
           onCountsChanged={setMedalCounts}
           useNativeModalOnAndroid={medalRatingUseNativeAndroidModal ?? true}

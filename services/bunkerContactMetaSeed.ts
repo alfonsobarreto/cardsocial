@@ -8,7 +8,8 @@ const GROUP_DEFAULT = 'Random';
 
 export async function seedMetaForIncomingCard(params: {
   issuerUid: string;
-  cardId: string | null;
+  sid?: string | null;
+  bId?: string | null;
   group: string;
   /** Tema visto al escanear (Smart / Business) para no perder la paleta en la lista. */
   scanThemeId?: string | null;
@@ -17,8 +18,9 @@ export async function seedMetaForIncomingCard(params: {
   if (!issuerUid) {
     return;
   }
-  const cardId = params.cardId != null && String(params.cardId).trim() ? String(params.cardId).trim() : null;
-  const linkKey = receivedContactMergeKey({ uid: issuerUid, cardId });
+  const sid = params.sid != null && String(params.sid).trim() ? String(params.sid).trim() : null;
+  const bId = params.bId != null && String(params.bId).trim() ? String(params.bId).trim() : null;
+  const linkKey = receivedContactMergeKey({ uid: issuerUid, sid, bId });
   const group = String(params.group || '').trim() || GROUP_DEFAULT;
   const nowIso = new Date().toISOString();
 
