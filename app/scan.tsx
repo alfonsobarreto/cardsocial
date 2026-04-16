@@ -540,7 +540,7 @@ export default function ScanScreen() {
     if (incomingScanMode === 'business_permanent') {
       return { ...base, noAvatarIcon: 'storefront-outline' as const };
     }
-    return { ...base, avatarUrl: issuerProfileAvatarUrl };
+    return { ...base, avatarUrl: issuerProfileAvatarUrl ?? base.avatarUrl };
   }, [incomingPreviewOverride, incomingScanMode, universalCard, qrPreview, tr, issuerProfileAvatarUrl]);
 
   /** Android: no montar CameraView hasta granted === true; siempre ofrecer botón explícito si no hay permiso. */

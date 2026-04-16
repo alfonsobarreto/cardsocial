@@ -122,6 +122,8 @@ type ContactMeta = {
   icons?: Icon[]; // Add icons property to support icon search
   /** Tema capturado al aceptar por QR (prioridad sobre default del API si faltó smart_cards). */
   scanThemeId?: string;
+  /** Avatar visto al aceptar (preview); solo si el API no devolvió userAvatarUrl. */
+  seedAvatarUrl?: string;
 };
 
 type Icon = {
@@ -501,8 +503,18 @@ function ContactsContent() {
           firstSeenAt: contact.addedAt || new Date().toISOString(),
         };
       const scanTheme = meta.scanThemeId && String(meta.scanThemeId).trim();
+      const apiAvatar =
+        contact.userAvatarUrl != null && String(contact.userAvatarUrl).trim()
+          ? String(contact.userAvatarUrl).trim()
+          : '';
+      const seedAv =
+        meta.seedAvatarUrl != null && String(meta.seedAvatarUrl).trim()
+          ? String(meta.seedAvatarUrl).trim()
+          : '';
+      const userAvatarUrl = apiAvatar || seedAv || null;
       return {
         ...contact,
+        userAvatarUrl,
         ...(scanTheme ? { themeId: scanTheme } : {}),
         meta,
       };

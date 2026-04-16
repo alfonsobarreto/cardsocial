@@ -93,6 +93,12 @@ export type MyCardsIncomingRedeem = {
   onSuccess: () => void;
 };
 
+function seedAvatarUrlFromPreviewPayload(payload: MyCardsPayload | null): string | undefined {
+  const u = payload?.avatarUrl;
+  if (u == null || !String(u).trim()) return undefined;
+  return String(u).trim().slice(0, 4096);
+}
+
 /* ------------------------------------------------------------------ */
 /*  Props del modal                                                    */
 /* ------------------------------------------------------------------ */
@@ -310,6 +316,7 @@ export function MyCardsPreviewModal({
         bId,
         group: receiverGroup,
         scanThemeId: payload?.themeId?.trim() ? payload.themeId : null,
+        seedAvatarUrl: seedAvatarUrlFromPreviewPayload(payload),
       });
       try {
         await trackBunkerGroupUsage({ viewerUid: uid, groupName: receiverGroup, locale: language === 'en' ? 'en' : 'es' });
@@ -325,7 +332,7 @@ export function MyCardsPreviewModal({
     } finally {
       setReceiverAddBusy(false);
     }
-  }, [variant, ghostTargetUid, sourceBId, receiverGroup, language, payload?.themeId, tr, handleClose]);
+  }, [variant, ghostTargetUid, sourceBId, receiverGroup, language, payload, tr, handleClose]);
 
   useEffect(() => {
     if (variant !== 'incoming' || !visible) return;
@@ -381,6 +388,7 @@ export function MyCardsPreviewModal({
         bId,
         group,
         scanThemeId: payload?.themeId?.trim() ? payload.themeId : null,
+        seedAvatarUrl: seedAvatarUrlFromPreviewPayload(payload),
       });
       try {
         const uid = await getActiveUserId();
@@ -397,7 +405,7 @@ export function MyCardsPreviewModal({
       if (variant === 'incoming') setIncomingBusy(false);
       else setReceiverAddBusy(false);
     }
-  }, [variant, incomingRedeem, ghostTargetUid, sourceSid, sourceBId, incomingGroup, receiverGroup, language, payload?.themeId, tr, handleClose]);
+  }, [variant, incomingRedeem, ghostTargetUid, sourceSid, sourceBId, incomingGroup, receiverGroup, language, payload, tr, handleClose]);
 
   const handleAddNewGroup = useCallback(async (target: 'incoming' | 'receiver') => {
     const trimmed = newGroupInput.trim();
@@ -448,6 +456,7 @@ export function MyCardsPreviewModal({
         bId,
         group: incomingGroup,
         scanThemeId: payload?.themeId?.trim() ? payload.themeId : null,
+        seedAvatarUrl: seedAvatarUrlFromPreviewPayload(payload),
       });
 
       // --- NUEVO: persistir localmente en Contactos ---

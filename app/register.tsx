@@ -102,6 +102,13 @@ export default function RegisterScreen() {
   const [country, setCountry] = useState('');
   const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
+  /** Android: confirmar foto en modal antes de aplicar (perfil o selfie). */
+  const [androidPhotoPending, setAndroidPhotoPending] = useState<
+    | null
+    | { kind: 'profile'; uri: string }
+    | { kind: 'verification'; uri: string; width?: number; height?: number }
+  >(null);
+  const [androidPhotoConfirmBusy, setAndroidPhotoConfirmBusy] = useState(false);
   const [photoUri, setPhotoUri] = useState('');
   const [cropperVisible, setCropperVisible] = useState(false);
   const [rawPhotoUri, setRawPhotoUri] = useState('');
@@ -455,13 +462,18 @@ export default function RegisterScreen() {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
+      allowsEditing: Platform.OS !== 'android',
+      ...(Platform.OS !== 'android' ? { aspect: [1, 1] as [number, number] } : {}),
       quality: 0.8,
     });
 
     if (!result.canceled && result.assets[0]?.uri) {
-      setPhotoUri(result.assets[0].uri);
+      const uri = result.assets[0].uri;
+      if (Platform.OS === 'android') {
+        setAndroidPhotoPending({ kind: 'profile', uri });
+      } else {
+        setPhotoUri(uri);
+      }
     }
   };
 
@@ -477,13 +489,18 @@ export default function RegisterScreen() {
 
     const result = await ImagePicker.launchCameraAsync({
       cameraType: ImagePicker.CameraType.front,
-      allowsEditing: true,
-      aspect: [1, 1],
+      allowsEditing: Platform.OS !== 'android',
+      ...(Platform.OS !== 'android' ? { aspect: [1, 1] as [number, number] } : {}),
       quality: 0.8,
     });
 
     if (!result.canceled && result.assets[0]?.uri) {
-      setPhotoUri(result.assets[0].uri);
+      const uri = result.assets[0].uri;
+      if (Platform.OS === 'android') {
+        setAndroidPhotoPending({ kind: 'profile', uri });
+      } else {
+        setPhotoUri(uri);
+      }
     }
   };
 
@@ -500,13 +517,22 @@ export default function RegisterScreen() {
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       cameraType: ImagePicker.CameraType.front,
-      allowsEditing: true,
-      aspect: [1, 1],
+      allowsEditing: Platform.OS !== 'android',
+      ...(Platform.OS !== 'android' ? { aspect: [1, 1] as [number, number] } : {}),
       quality: 0.8,
     });
 
     if (!result.canceled && result.assets[0]?.uri) {
       const asset = result.assets[0];
+      if (Platform.OS === 'android') {
+        setAndroidPhotoPending({
+          kind: 'verification',
+          uri: asset.uri,
+          width: asset.width,
+          height: asset.height,
+        });
+        return;
+      }
       const hasClearFace = await hasClearlyVisibleFace(asset.uri, asset.width, asset.height);
       if (!hasClearFace) {
         Alert.alert(
@@ -559,6 +585,40 @@ export default function RegisterScreen() {
       console.warn('Local face detection threw error (expected):', String(error).slice(0, 50));
       // Always fallback to Azure backend moderation
       return true;
+    }
+  };
+
+  const cancelAndroidPhotoPending = () => {
+    setAndroidPhotoPending(null);
+    setAndroidPhotoConfirmBusy(false);
+  };
+
+  const confirmAndroidPhotoPending = async () => {
+    const pending = androidPhotoPending;
+    if (!pending) return;
+    if (pending.kind === 'profile') {
+      setPhotoUri(pending.uri);
+      cancelAndroidPhotoPending();
+      return;
+    }
+    setAndroidPhotoConfirmBusy(true);
+    try {
+      const hasClearFace = await hasClearlyVisibleFace(pending.uri, pending.width, pending.height);
+      if (!hasClearFace) {
+        Alert.alert(
+          tr('Selfie no valida aun', 'Selfie not valid yet'),
+          tr(
+            'No detectamos tu rostro con claridad. Intenta una selfie frontal con sonrisa o guino.',
+            'We could not clearly detect your face. Try a front selfie with a smile or wink.',
+          ),
+        );
+        cancelAndroidPhotoPending();
+        return;
+      }
+      setVerificationSelfieUri(pending.uri);
+      cancelAndroidPhotoPending();
+    } finally {
+      setAndroidPhotoConfirmBusy(false);
     }
   };
 
@@ -1301,6 +1361,60 @@ export default function RegisterScreen() {
           </View>
         </Modal>
 
+        <Modal
+          visible={Platform.OS === 'android' && androidPhotoPending != null}
+          transparent
+          animationType="fade"
+          onRequestClose={cancelAndroidPhotoPending}
+        >
+          <View style={styles.androidPhotoConfirmOverlay}>
+            <View style={styles.androidPhotoConfirmCard}>
+              <Text style={styles.androidPhotoConfirmTitle}>
+                {androidPhotoPending?.kind === 'verification'
+                  ? tr('Confirmar selfie de verificacion', 'Confirm verification selfie')
+                  : tr('Confirmar foto de perfil', 'Confirm profile photo')}
+              </Text>
+              <Text style={styles.androidPhotoConfirmHint}>
+                {tr(
+                  'Revisa la imagen. Cancelar descarta y puedes elegir otra.',
+                  'Review the image. Cancel discards it so you can pick another.',
+                )}
+              </Text>
+              {androidPhotoPending ? (
+                <Image
+                  source={{ uri: androidPhotoPending.uri }}
+                  style={styles.androidPhotoConfirmPreview}
+                  resizeMode="contain"
+                />
+              ) : null}
+              <View style={styles.androidPhotoConfirmActions}>
+                <TouchableOpacity
+                  style={[styles.androidPhotoConfirmButton, styles.androidPhotoConfirmButtonSecondary]}
+                  onPress={cancelAndroidPhotoPending}
+                  disabled={androidPhotoConfirmBusy}
+                >
+                  <Text style={styles.androidPhotoConfirmButtonSecondaryText}>
+                    {tr('Cancelar', 'Cancel')}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.androidPhotoConfirmButton, styles.androidPhotoConfirmButtonPrimary]}
+                  onPress={() => void confirmAndroidPhotoPending()}
+                  disabled={androidPhotoConfirmBusy}
+                >
+                  {androidPhotoConfirmBusy ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.androidPhotoConfirmButtonPrimaryText}>
+                      {tr('Aceptar', 'Accept')}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
         <LuxuryModerationModal
           visible={moderationAlertVisible}
           title="Exclusividad de Seguridad"
@@ -1484,6 +1598,72 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 2,
     borderColor: '#7BC2EC',
+  },
+  androidPhotoConfirmOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  androidPhotoConfirmCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#D8EAF6',
+    maxHeight: '88%',
+  },
+  androidPhotoConfirmTitle: {
+    color: '#0A2540',
+    fontWeight: '800',
+    fontSize: 17,
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  androidPhotoConfirmHint: {
+    color: '#4A4A4A',
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 14,
+    lineHeight: 18,
+  },
+  androidPhotoConfirmPreview: {
+    width: '100%',
+    height: 280,
+    borderRadius: 12,
+    backgroundColor: '#EEF6FC',
+    marginBottom: 16,
+  },
+  androidPhotoConfirmActions: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  androidPhotoConfirmButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  androidPhotoConfirmButtonSecondary: {
+    backgroundColor: 'rgba(13,77,138,0.08)',
+    borderWidth: 1,
+    borderColor: '#7BC2EC',
+  },
+  androidPhotoConfirmButtonSecondaryText: {
+    color: '#0D4D8A',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  androidPhotoConfirmButtonPrimary: {
+    backgroundColor: '#0D4D8A',
+  },
+  androidPhotoConfirmButtonPrimaryText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 15,
   },
   uploadedFileText: {
     color: '#FFFFFF',

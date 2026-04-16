@@ -18,7 +18,8 @@ function isSyntheticMongoUserName(name, uid) {
  * @param {object} profile - { uid, name, nickname, userAvatarUrl }
  * @param {string} uid
  * @param {object|null} cardDoc - fragmento smart_cards
- * @returns {object} profile enriquecido + ownerOccupation desde tarjeta si existe
+ * @returns {object} profile enriquecido + ownerOccupation desde tarjeta si existe;
+ *   tarjeta smart: userAvatarUrl hace fallback a cardDoc.ownerPhotoUrl si el perfil no trae foto.
  */
 function mergeContactProfileFromCard(profile, uid, cardDoc) {
   const display = cardDoc?.ownerDisplayName ? String(cardDoc.ownerDisplayName).trim().slice(0, 240) : '';
@@ -58,12 +59,19 @@ function mergeContactProfileFromCard(profile, uid, cardDoc) {
     }
   }
 
+  // Avatar: perfil Mongo; si falta, ownerPhotoUrl de smart_cards (alineado con preview QR).
+  const mongoAvatar = String(profile.userAvatarUrl || '').trim();
+  const cardAvatar =
+    cardDoc?.ownerPhotoUrl != null && String(cardDoc.ownerPhotoUrl).trim()
+      ? String(cardDoc.ownerPhotoUrl).trim().slice(0, 4096)
+      : '';
+
   return {
     ...profile,
     fullName: name,
     name,
     nickname,
-    userAvatarUrl: profile.userAvatarUrl || null,
+    userAvatarUrl: mongoAvatar || cardAvatar || null,
     ownerOccupation: occupation || profile.ownerOccupation || null,
   };
 }
