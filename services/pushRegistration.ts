@@ -19,18 +19,39 @@ function getGatewayKey(): string {
 async function getQrScopedJwt(ownerUid: string): Promise<string> {
   const response = await axios.post(
     `${getApiBaseUrl()}/api/auth/token`,
-    { ownerUid, scope: 'qr.access' },
+    { uid: ownerUid, scope: 'qr.access' },
     { headers: { 'x-api-gateway-key': getGatewayKey() }, timeout: 15000 },
   );
   return String(response?.data?.token || '').trim();
 }
 
+function isGhostLinkVoipNotificationData(data: Record<string, unknown> | undefined): boolean {
+  const t = String(data?.type ?? '').trim();
+  return t === 'ghost-link-incoming' || t === 'ghost-link-cancelled' || t.startsWith('ghost-link');
+}
+
+/**
+ * `NotificationBehavior` exige `shouldShowBanner` / `shouldShowList` (Expo SDK 50+).
+ * Sin ellas, Android puede mostrar un diálogo/alert nativo roto (p. ej. “Cancelar” ilegible)
+ * encima de `GhostLinkCallOverlay` cuando llega el push en primer plano.
+ */
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
     const data = notification.request.content.data as Record<string, unknown> | undefined;
-    const isGhostLink = data?.type === 'ghost-link-incoming';
+    const isGhost = isGhostLinkVoipNotificationData(data);
+    if (isGhost) {
+      return {
+        shouldShowAlert: false,
+        shouldShowBanner: false,
+        shouldShowList: false,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+      };
+    }
     return {
-      shouldShowAlert: !isGhostLink,
+      shouldShowAlert: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
       shouldPlaySound: true,
       shouldSetBadge: false,
     };

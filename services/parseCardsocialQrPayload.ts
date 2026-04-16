@@ -90,3 +90,47 @@ export function parseDynamicAppQrJson(data: string): ParsedDynamicAppQr | null {
   }
   return null;
 }
+
+export type ParsedUniversalWebQr = {
+  kind: 'universal_web';
+  token: string;
+};
+
+/**
+ * QR web24h: el payload suele ser `https://…/u/{token}?…` (misma forma que abre la cámara del sistema).
+ * Dentro de la app del receptor debemos extraer el token y canjearlo in-app, sin abrir el navegador.
+ */
+export function parseUniversalWebQrUrl(data: string): ParsedUniversalWebQr | null {
+  const raw = String(data || '')
+    .replace(/^\uFEFF/, '')
+    .trim();
+  if (!raw) return null;
+
+  const deep = raw.match(/(?:card-social|cardsocial):\/\/u\/([^?#]+)/i);
+  if (deep) {
+    const token = decodeURIComponent(String(deep[1] || '').trim());
+    if (token) return { kind: 'universal_web', token };
+  }
+
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    try {
+      url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+    } catch {
+      return null;
+    }
+  }
+
+  if (!/^https?:$/i.test(url.protocol)) {
+    return null;
+  }
+
+  const path = url.pathname.replace(/\/+$/, '');
+  const m = path.match(/\/u\/([^/]+)$/);
+  if (!m) return null;
+  const token = decodeURIComponent(String(m[1] || '').trim());
+  if (!token) return null;
+  return { kind: 'universal_web', token };
+}

@@ -58,16 +58,16 @@ function createQrScopeMiddleware() {
 
 function createTokenIssuer({ jwtSecret, jwtIssuer, jwtAudience }) {
   return function issueUploadToken(payload) {
-    const ownerUid = String(payload.ownerUid || '').trim();
-    if (!ownerUid) {
-      throw new Error('ownerUid is required to issue token');
+    const uid = String(payload.uid || payload.ownerUid || '').trim();
+    if (!uid) {
+      throw new Error('uid is required to issue token');
     }
 
     const scope = String(payload.scope || 'moderation.upload').trim();
 
     return jwt.sign(
       {
-        sub: ownerUid,
+        sub: uid,
         scope,
       },
       jwtSecret,

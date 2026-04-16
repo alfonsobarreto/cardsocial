@@ -11,6 +11,7 @@ import { inferMciIconFromContext } from '@/services/searchFacetIcons';
 import {
     collection,
     deleteDoc,
+    deleteField,
     doc,
     getDoc,
     getDocs,
@@ -28,12 +29,27 @@ const TRIAL_DAYS = 14;
 export const MAX_BUSINESS_VAULT_DATA_SLOTS = 12;
 
 /**
+ * Lee identidad de tarjeta business desde Firestore.
+ */
+export function readBusinessCardIdentityFields(data: Record<string, unknown>): {
+  bcName: string;
+  bcContactName: string;
+  bcLogoUrl: string;
+} {
+  return {
+    bcName: String(data.bcName ?? '').trim(),
+    bcContactName: String(data.bcContactName ?? '').trim(),
+    bcLogoUrl: String(data.bcLogoUrl ?? '').trim(),
+  };
+}
+
+/**
  * Resuelve vault link IDs del owner → facetas denormalizadas para el Social Market.
  * Se guarda como `marketFacets` en el doc de businessCards para que cualquier
  * usuario autenticado pueda ver los iconos sin acceder al vault ajeno.
  */
 async function resolveMarketFacets(
-  ownerUid: string,
+  uid: string,
   linkIds: string[],
 ): Promise<Array<{ type: string; label: string; value: string; iconName?: string }>> {
   const unique = [...new Set(linkIds.filter(Boolean))].slice(0, MAX_BUSINESS_VAULT_DATA_SLOTS);
@@ -49,7 +65,7 @@ async function resolveMarketFacets(
   const results = await Promise.all(
     unique.map(async (linkId) => {
       try {
-        const snap = await withTimeout(getDoc(doc(db, 'users', ownerUid, 'links', linkId)), 4000);
+        const snap = await withTimeout(getDoc(doc(db, 'users', uid, 'links', linkId)), 4000);
         if (snap && snap.exists()) {
           const row = snap.data() as Record<string, unknown>;
           const type = String(row.type ?? '').trim();
@@ -79,11 +95,11 @@ async function resolveMarketFacets(
 }
 
 export interface BusinessCardCreateInput {
-  ownerUid: string;
-  /** IDs en users/{ownerUid}/links — datos públicos salen de la Bóveda */
+  uid: string;
+  /** IDs en users/{uid}/links — datos públicos salen de la Bóveda */
   vaultLinkIds?: string[];
-  businessName: string;
-  ownerName: string;
+  bcName: string;
+  bcContactName: string;
   /** Texto opcional de referencia (no sustituye coordenadas GPS) */
   physicalAddress?: string;
   latitude: number;
@@ -91,7 +107,7 @@ export interface BusinessCardCreateInput {
   /** Origen de las coordenadas (p. ej. device_gps | geocode_forward). */
   locationSource?: string;
   keywords: string[];
-  businessLogo?: string;
+  bcLogoUrl?: string;
   kycDocumentUrl?: string;
   kycTermsAccepted: boolean;
   businessTermsAccepted: boolean;
@@ -106,14 +122,14 @@ export async function createBusinessCard(
   data: BusinessCardCreateInput
 ): Promise<{
   success: boolean;
-  cardId?: string;
+  bId?: string;
   message: string;
   licenseWarning?: boolean;
 }> {
   try {
-    const cardId = newEntityId();
+    const bId = newEntityId();
 
-    const businessCardRef = doc(db, 'businessCards', cardId);
+    const businessCardRef = doc(db, 'businessCards', bId);
 
     const searchWords = (data.keywords || []).slice(0, 20);
 
@@ -121,8 +137,8 @@ export async function createBusinessCard(
     const trialEnds = new Date(now.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
 
     const businessCardData = {
-      id: cardId,
-      ownerUid: data.ownerUid,
+      bId,
+      uid: data.uid,
       ...(Array.isArray(data.vaultLinkIds) && data.vaultLinkIds.length > 0
         ? {
             vaultLinkIds: data.vaultLinkIds
@@ -131,12 +147,12 @@ export async function createBusinessCard(
           }
         : {}),
       type: 'business',
-      businessName: data.businessName,
-      ownerName: data.ownerName,
+      bcName: data.bcName,
+      bcContactName: data.bcContactName,
       physicalAddress: (data.physicalAddress || '').trim(),
       keywords: searchWords,
       elevatorPitchWords: searchWords,
-      businessLogo: data.businessLogo || '',
+      bcLogoUrl: data.bcLogoUrl || '',
       latitude: data.latitude,
       longitude: data.longitude,
       locationSource: data.locationSource || 'device_gps',
@@ -171,7 +187,7 @@ export async function createBusinessCard(
     // Resolve vault links → marketFacets BEFORE persisting so the document is
     // consistent from the start. resolveMarketFacets is capped at 3.5 s total.
     if (Array.isArray(data.vaultLinkIds) && data.vaultLinkIds.length > 0) {
-      businessCardData.marketFacets = await resolveMarketFacets(data.ownerUid, data.vaultLinkIds);
+      businessCardData.marketFacets = await resolveMarketFacets(data.uid, data.vaultLinkIds);
     }
 
     await setDoc(businessCardRef, businessCardData);
@@ -180,8 +196,8 @@ export async function createBusinessCard(
     // isBusinessCardMarketEligible and appears in Social Market search.
     try {
       await activateOrRenewBusinessLicense({
-        userId: data.ownerUid,
-        cardId,
+        uid: data.uid,
+        bId,
         annualPriceUsd: 0,
         cashbackCreditsGranted: 0,
       });
@@ -189,7 +205,7 @@ export async function createBusinessCard(
       console.warn('[createBusinessCard] trial license write failed:', licErr);
       return {
         success: true,
-        cardId,
+        bId,
         licenseWarning: true,
         message:
           'Tarjeta creada, pero la licencia de prueba no pudo activarse automáticamente. Activála desde la pantalla de tu tarjeta.',
@@ -198,7 +214,7 @@ export async function createBusinessCard(
 
     return {
       success: true,
-      cardId,
+      bId,
       message: 'Tarjeta de negocio creada. Periodo de prueba de 14 días iniciado.',
     };
   } catch (error: any) {
@@ -210,12 +226,12 @@ export async function createBusinessCard(
 }
 
 export type BusinessCardListRow = {
-  id: string;
-  businessName: string;
+  bId: string;
+  bcName: string;
   createdAtMs: number;
   themeId: string;
-  ownerName: string;
-  businessLogo: string;
+  bcContactName: string;
+  bcLogoUrl: string;
   /** IDs en Bóveda (users/{uid}/links), mismo orden que en la tarjeta. */
   vaultLinkIds: string[];
   isFavorite: boolean;
@@ -235,41 +251,37 @@ function isRenderableImageUriString(value: string | null | undefined): boolean {
 }
 
 /**
- * Firestore puede ir vacío en `businessLogo` mientras el espejo en Mongo (`smart_cards` con
+ * Firestore puede ir vacío en `bcLogoUrl` mientras el espejo en Mongo (`smart_cards` con
  * `cardType: 'business'`) ya tiene `ownerPhotoUrl` (p. ej. logo vía vault-proxy). Misma prioridad
  * que el detalle / web: URL usable en Firestore primero, si no la de Mongo.
  */
 export function mergeBusinessCardRowsWithMongoOwnerPhoto(
   rows: BusinessCardListRow[],
-  mongoCards: Array<{ cardId: string; cardType?: string; ownerPhotoUrl?: string | null }>,
+  mongoCards: Array<{ bId?: string | null; cardType?: string; ownerPhotoUrl?: string | null }>,
 ): BusinessCardListRow[] {
   const photoById = new Map<string, string>();
   for (const c of mongoCards) {
     if (String(c.cardType || '') !== 'business') continue;
     const u = String(c.ownerPhotoUrl || '').trim();
     if (isRenderableImageUriString(u)) {
-      photoById.set(String(c.cardId || '').trim(), u);
+      const key = String(c.bId || '').trim();
+      if (key) photoById.set(key, u);
     }
   }
   if (photoById.size === 0) return rows;
   return rows.map((r) => {
-    if (isRenderableImageUriString(r.businessLogo)) return r;
-    const fallback = photoById.get(r.id);
-    return fallback ? { ...r, businessLogo: fallback } : r;
+    if (isRenderableImageUriString(r.bcLogoUrl)) return r;
+    const fallback = photoById.get(r.bId);
+    return fallback ? { ...r, bcLogoUrl: fallback } : r;
   });
 }
 
 /** Tarjetas de negocio del usuario (colección `businessCards`, distinta de Smart Cards). */
-export async function listBusinessCardsByOwner(ownerUid: string): Promise<BusinessCardListRow[]> {
-  const q = query(collection(db, 'businessCards'), where('ownerUid', '==', ownerUid));
+export async function listBusinessCardsByOwner(uid: string): Promise<BusinessCardListRow[]> {
+  const q = query(collection(db, 'businessCards'), where('uid', '==', uid));
   const snap = await getDocs(q);
   const rows: BusinessCardListRow[] = snap.docs.map((d) => {
-    const data = d.data() as {
-      businessName?: string;
-      ownerName?: string;
-      businessLogo?: string;
-      /** Algunos flujos antiguos podían duplicar el logo aquí. */
-      ownerPhotoUrl?: string;
+    const data = d.data() as Record<string, unknown> & {
       themeId?: string;
       vaultLinkIds?: unknown;
       isFavorite?: boolean;
@@ -278,6 +290,7 @@ export async function listBusinessCardsByOwner(ownerUid: string): Promise<Busine
       averageRating?: number;
       createdAt?: Timestamp | Date | { toMillis?: () => number; seconds?: number };
     };
+    const idn = readBusinessCardIdentityFields(data);
     let createdAtMs = 0;
     const ca = data.createdAt as Timestamp | undefined;
     if (ca && typeof (ca as Timestamp).toMillis === 'function') {
@@ -291,10 +304,10 @@ export async function listBusinessCardsByOwner(ownerUid: string): Promise<Busine
       .filter(Boolean)
       .slice(0, MAX_BUSINESS_VAULT_DATA_SLOTS);
     return {
-      id: d.id,
-      businessName: String(data.businessName ?? '').trim() || d.id,
-      ownerName: String(data.ownerName ?? '').trim(),
-      businessLogo: String(data.businessLogo ?? data.ownerPhotoUrl ?? '').trim(),
+      bId: d.id,
+      bcName: idn.bcName || d.id,
+      bcContactName: idn.bcContactName,
+      bcLogoUrl: idn.bcLogoUrl,
       vaultLinkIds,
       createdAtMs,
       themeId: String(data.themeId ?? 'deep_teal').trim() || 'deep_teal',
@@ -309,17 +322,17 @@ export async function listBusinessCardsByOwner(ownerUid: string): Promise<Busine
 }
 
 export async function deleteBusinessCard(
-  ownerUid: string,
-  cardId: string,
+  uid: string,
+  bId: string,
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const cardRef = doc(db, 'businessCards', cardId);
+    const cardRef = doc(db, 'businessCards', bId);
     const snap = await getDoc(cardRef);
     if (!snap.exists()) {
       return { success: false, message: 'Tarjeta no encontrada.' };
     }
-    const row = snap.data() as { ownerUid?: string };
-    if (String(row.ownerUid) !== ownerUid) {
+    const row = snap.data() as { uid?: string };
+    if (String(row.uid) !== uid) {
       return { success: false, message: 'No autorizado.' };
     }
     await deleteDoc(cardRef);
@@ -330,18 +343,18 @@ export async function deleteBusinessCard(
 }
 
 export async function setBusinessCardFavorite(
-  ownerUid: string,
-  cardId: string,
+  uid: string,
+  bId: string,
   isFavorite: boolean,
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const cardRef = doc(db, 'businessCards', cardId);
+    const cardRef = doc(db, 'businessCards', bId);
     const snap = await getDoc(cardRef);
     if (!snap.exists()) {
       return { success: false, message: 'Tarjeta no encontrada.' };
     }
-    const row = snap.data() as { ownerUid?: string };
-    if (String(row.ownerUid) !== ownerUid) {
+    const row = snap.data() as { uid?: string };
+    if (String(row.uid) !== uid) {
       return { success: false, message: 'No autorizado.' };
     }
     await updateDoc(cardRef, { isFavorite, lastUpdated: new Date() });
@@ -352,12 +365,12 @@ export async function setBusinessCardFavorite(
 }
 
 export type BusinessCardUpdatePayload = {
-  businessName?: string;
-  ownerName?: string;
+  bcName?: string;
+  bcContactName?: string;
   vaultLinkIds?: string[];
   themeId?: string;
   keywords?: string[];
-  businessLogo?: string;
+  bcLogoUrl?: string;
   physicalAddress?: string;
   latitude?: number;
   longitude?: number;
@@ -365,23 +378,23 @@ export type BusinessCardUpdatePayload = {
 };
 
 export async function updateBusinessCard(
-  ownerUid: string,
-  cardId: string,
+  uid: string,
+  bId: string,
   data: BusinessCardUpdatePayload,
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const cardRef = doc(db, 'businessCards', cardId);
+    const cardRef = doc(db, 'businessCards', bId);
     const snap = await getDoc(cardRef);
     if (!snap.exists()) {
       return { success: false, message: 'Tarjeta no encontrada.' };
     }
-    const row = snap.data() as { ownerUid?: string };
-    if (String(row.ownerUid) !== ownerUid) {
+    const row = snap.data() as { uid?: string };
+    if (String(row.uid) !== uid) {
       return { success: false, message: 'No autorizado.' };
     }
     const payload: Record<string, unknown> = { lastUpdated: new Date() };
-    if (data.businessName !== undefined) payload.businessName = data.businessName;
-    if (data.ownerName !== undefined) payload.ownerName = data.ownerName;
+    if (data.bcName !== undefined) payload.bcName = data.bcName;
+    if (data.bcContactName !== undefined) payload.bcContactName = data.bcContactName;
     if (data.vaultLinkIds !== undefined) {
       const sanitized = data.vaultLinkIds
         .slice(0, MAX_BUSINESS_VAULT_DATA_SLOTS)
@@ -391,7 +404,7 @@ export async function updateBusinessCard(
       // Links changed → resolve facets NOW, before updateDoc, so the document
       // is always consistent. resolveMarketFacets is capped at 3.5 s total.
       payload.marketFacets = sanitized.length > 0
-        ? await resolveMarketFacets(ownerUid, sanitized)
+        ? await resolveMarketFacets(uid, sanitized)
         : [];
     }
     // If vaultLinkIds is NOT in the payload the user didn't change the links,
@@ -405,7 +418,12 @@ export async function updateBusinessCard(
       payload.keywords = searchWords;
       payload.elevatorPitchWords = searchWords;
     }
-    if (data.businessLogo !== undefined) payload.businessLogo = data.businessLogo;
+    if (data.bcLogoUrl !== undefined) payload.bcLogoUrl = data.bcLogoUrl;
+    if (data.bcName !== undefined || data.bcContactName !== undefined || data.bcLogoUrl !== undefined) {
+      payload.businessName = deleteField();
+      payload.ownerName = deleteField();
+      payload.businessLogo = deleteField();
+    }
     if (data.physicalAddress !== undefined) payload.physicalAddress = data.physicalAddress;
     if (data.latitude !== undefined) payload.latitude = data.latitude;
     if (data.longitude !== undefined) payload.longitude = data.longitude;
@@ -420,19 +438,19 @@ export async function updateBusinessCard(
 
 /** Actualiza estado de suscripción en el documento de la tarjeta (UI + reglas; sin RevenueCat). */
 export async function updateBusinessCardSubscriptionStatus(
-  ownerUid: string,
-  cardId: string,
+  uid: string,
+  bId: string,
   status: 'trial' | 'active' | 'dull',
   options?: { subscriptionExpiresAt?: Date | null },
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const cardRef = doc(db, 'businessCards', cardId);
+    const cardRef = doc(db, 'businessCards', bId);
     const snap = await getDoc(cardRef);
     if (!snap.exists()) {
       return { success: false, message: 'Tarjeta no encontrada.' };
     }
-    const row = snap.data() as { ownerUid?: string };
-    if (String(row.ownerUid) !== ownerUid) {
+    const row = snap.data() as { uid?: string };
+    if (String(row.uid) !== uid) {
       return { success: false, message: 'No autorizado.' };
     }
     const payload: Record<string, unknown> = {
@@ -451,18 +469,18 @@ export async function updateBusinessCardSubscriptionStatus(
 }
 
 export async function updateBusinessCardMarketVisibility(
-  ownerUid: string,
-  cardId: string,
+  uid: string,
+  bId: string,
   isPublishedToMarket: boolean,
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const cardRef = doc(db, 'businessCards', cardId);
+    const cardRef = doc(db, 'businessCards', bId);
     const snap = await getDoc(cardRef);
     if (!snap.exists()) {
       return { success: false, message: 'Tarjeta no encontrada.' };
     }
-    const data = snap.data() as { ownerUid?: string };
-    if (String(data.ownerUid) !== ownerUid) {
+    const data = snap.data() as { uid?: string };
+    if (String(data.uid) !== uid) {
       return { success: false, message: 'No autorizado.' };
     }
     await updateDoc(cardRef, {
@@ -490,7 +508,7 @@ export async function getVerifiedBusinessCards(): Promise<any[]> {
     );
 
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    return snapshot.docs.map((doc) => ({ bId: doc.id, ...doc.data() }));
   } catch (error) {
     console.error('Error getting verified business cards:', error);
     return [];
@@ -500,9 +518,9 @@ export async function getVerifiedBusinessCards(): Promise<any[]> {
 /**
  * Incrementar contador de visualizaciones
  */
-export async function incrementViewCount(cardId: string): Promise<void> {
+export async function incrementViewCount(bId: string): Promise<void> {
   try {
-    const cardRef = doc(db, 'businessCards', cardId);
+    const cardRef = doc(db, 'businessCards', bId);
     await updateDoc(cardRef, {
       viewCount: increment(1),
     });
@@ -515,7 +533,7 @@ export async function incrementViewCount(cardId: string): Promise<void> {
  * Agregar calificación a tarjeta de negocio
  */
 export async function rateBusinessCard(
-  cardId: string,
+  bId: string,
   rating: number, // 1-5 stars
 ): Promise<{
   success: boolean;
@@ -529,18 +547,18 @@ export async function rateBusinessCard(
       };
     }
 
-    const cardRef = doc(db, 'businessCards', cardId);
+    const cardRef = doc(db, 'businessCards', bId);
 
-    const cardSnapshot = await getDocs(query(collection(db, 'businessCards'), where('id', '==', cardId)));
+    const cardSnap = await getDoc(cardRef);
 
-    if (cardSnapshot.empty) {
+    if (!cardSnap.exists()) {
       return {
         success: false,
         message: 'Tarjeta no encontrada.',
       };
     }
 
-    const card = cardSnapshot.docs[0].data();
+    const card = cardSnap.data();
     const newTotalRatings = (card.totalRatings || 0) + 1;
     const currentSum = (card.averageRating || 5) * (card.totalRatings || 0);
     const newAverage = (currentSum + rating) / newTotalRatings;
@@ -578,14 +596,14 @@ export async function rateBusinessCard(
 
 /** Resuelve filas de bóveda por ID para UI (Smart/Business) sin duplicar texto en la tarjeta. */
 export async function fetchVaultLinksByIds(
-  ownerUid: string,
+  uid: string,
   linkIds: string[],
 ): Promise<Map<string, { title?: string; value?: string; type?: string; iconVaultId?: string }>> {
   const map = new Map<string, { title?: string; value?: string; type?: string; iconVaultId?: string }>();
   const unique = [...new Set(linkIds.filter(Boolean))];
   await Promise.all(
     unique.map(async (linkId) => {
-      const snap = await getDoc(doc(db, 'users', ownerUid, 'links', linkId));
+      const snap = await getDoc(doc(db, 'users', uid, 'links', linkId));
       if (snap.exists()) {
         const row = snap.data() as Record<string, unknown>;
         map.set(linkId, {

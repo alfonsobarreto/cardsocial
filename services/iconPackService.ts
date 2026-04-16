@@ -228,9 +228,12 @@ export async function purchaseIconPack(userId: string, packId: string): Promise<
     // Los coleccionables siguen decrementando el supply (regla 99/100):
     // poseer el serial #X/100 tiene valor — no se puede saltear eso.
     const userDocForRole = await getDoc(doc(db, 'users', userId));
+    const ud = userDocForRole.data() as Record<string, unknown> | undefined;
+    const nickLower = String(ud?.userNickNameLower ?? ud?.nicknameLower ?? '')
+      .trim()
+      .toLowerCase();
     const isSuperAdminClaim =
-      String(userDocForRole.data()?.role || '') === 'super_admin' ||
-      String(userDocForRole.data()?.nicknameLower || '') === 'pochobs_admin';
+      String(ud?.role || '') === 'super_admin' || nickLower === 'pochobs_admin';
 
     if (isSuperAdminClaim) {
       console.log('👑 super_admin claim: saltando deducción de créditos');

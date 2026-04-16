@@ -7,11 +7,11 @@ import type { PublicCardSlotPayload } from '@/services/qrApi';
 import type { IssuerSmartCardPresentation } from '@/types/sharedCardPresentation';
 
 export interface BusinessCard {
-  id: string;
-  ownerUid: string;
+  bId: string;
+  uid: string;
   type: 'business';
-  businessName: string;
-  ownerName: string;
+  bcName: string;
+  bcContactName: string;
   ownerEmail?: string;
   ownerPhone?: string;
   
@@ -29,7 +29,8 @@ export interface BusinessCard {
   
   // Información adicional
   businessDescription?: string;
-  businessLogo?: string; // URL a Azure Blob Storage
+  /** URL pública del logo / icono de la tarjeta business. */
+  bcLogoUrl?: string;
   permanent_business_link?: string;
   mapsLink?: string;
   professionalVault?: {
@@ -93,8 +94,8 @@ export interface BusinessCard {
 }
 
 export interface KYCValidation {
-  businessName: string;
-  ownerFullName: string;
+  bcName: string;
+  bcContactName: string;
   documentType: 'passport' | 'license' | 'id_card';
   documentUrl: string; // Foto subida
   physicalAddress: string;
@@ -118,7 +119,9 @@ export interface BusinessCardSearchResult {
   /** Suscriptores de la tarjeta del emisor (solo filas `received_contact`). */
   receivedHoldersCount?: number;
   /** Tarjeta del emisor que posee el viewer (canal Stories / lookup). */
-  receivedSourceCardId?: string | null;
+  /** Tarjeta smart del emisor en contactos recibidos (null si solo business). */
+  receivedSourceSid?: string | null;
+  receivedSourceBId?: string | null;
   receivedChannelMuted?: boolean;
   /** Slots públicos del emisor (misma carga que Contactos → wireframe espejo). */
   receivedPublicCardSlots?: PublicCardSlotPayload[];

@@ -276,8 +276,8 @@ export async function purchaseBusinessCard(
         cashbackCredits = BUSINESS_CARD_CASHBACK_CS;
         await addCredits(userId, cashbackCredits, 'business_card_annual_cashback');
         await activateOrRenewBusinessLicense({
-          userId,
-          cardId,
+          uid: userId,
+          bId: cardId,
           purchaseId,
           platform,
           annualPriceUsd: pricing.finalPrice,

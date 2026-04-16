@@ -9,7 +9,6 @@ import { SharedCardSkeletonList } from '@/components/SharedCardRowSkeleton';
 import { type WireframeEditSlot } from '@/components/smartCard/IsolatedWireframeCard';
 import { ThemedSharedCardSurface } from '@/components/ThemedSharedCardSurface';
 import { MEDIA_PLACEHOLDER } from '@/constants/mediaPlaceholders';
-import { adaptBusinessCardSearchResultToMyCardsPayload } from '@/services/adaptBusinessCardMarketPremium';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { ExportBusinessQR, generatePermanentBusinessLink } from '@/services/brandedQrService';
@@ -37,6 +36,7 @@ import {
   resolveSearchRowStoryState,
   storyChannelKey,
 } from '@/services/storiesPhase1Logic';
+import { resolvePillForegroundColor } from '@/services/pillForegroundColor';
 import { getCardRowTheme } from '@/services/useActiveTheme';
 import { BusinessCardSearchResult } from '@/types/businessCard';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -180,8 +180,8 @@ export default function SearchScreen() {
   const [receptorLoading, setReceptorLoading] = useState(false);
 
   const openReceptorModal = async (item: BusinessCardSearchResult) => {
-    const cardId = item.receivedSourceCardId ?? '';
-    const uid = item.card?.ownerUid ?? '';
+    const cardId = String(item.receivedSourceBId ?? item.receivedSourceSid ?? '').trim();
+    const uid = String(item.card?.uid ?? '').trim();
     if (!uid || !cardId) return;
     setReceptorItem(item);
     setReceptorModalVisible(true);
@@ -209,7 +209,6 @@ export default function SearchScreen() {
   const [marketCardDetail, setMarketCardDetail] = useState<BusinessCardSearchResult | null>(null);
   /** Payload real obtenido de MongoDB (Single Source of Truth). */
   const [marketFetchedPayload, setMarketFetchedPayload] = useState<MyCardsPayload | null>(null);
-  const [marketFetching, setMarketFetching] = useState(false);
 
   const [viewerUid, setViewerUid] = useState<string | null>(null);
   useEffect(() => { void getActiveUserId().then(setViewerUid); }, []);
@@ -261,16 +260,16 @@ export default function SearchScreen() {
     const isBusiness = d.card.type === 'business';
     const nickRaw = String(d.receivedIssuerNickname || 'user').trim() || 'user';
     const cardNm = String(d.receivedContactCardName || '').trim();
-    const person = String(d.card.businessName || d.card.ownerName || '').trim();
+    const person = String(d.card.bcName || d.card.bcContactName || '').trim();
     const occ = String(d.receivedOwnerOccupation || '').trim();
-    // Business: subtitle = ownerName (no @). Personal: @nickname.
+    // Business: subtitle = bcContactName (no @). Personal: @nickname.
     const subtitle = isBusiness
-      ? String(d.card.ownerName || occ || '').trim()
+      ? String(d.card.bcContactName || occ || '').trim()
       : nickRaw.startsWith('@') ? nickRaw : `@${nickRaw}`;
     return {
       cardName: (cardNm || person || occ || tr('Tarjeta Social', 'Social Card')).trim(),
       subtitle,
-      avatarUrl: d.card.businessLogo ?? null,
+      avatarUrl: d.card.bcLogoUrl ?? null,
       themeId: d.issuerPresentation?.themeId || '',
       wallpaperUrl: d.issuerPresentation?.wallpaperUrl ?? undefined,
       layout: d.issuerPresentation?.layout === 'horizontal' ? 'horizontal' : 'vertical',
@@ -283,12 +282,9 @@ export default function SearchScreen() {
   }, [receivedCardDetail, searchMirrorPreviewSlots, tr]);
 
   const marketPremiumPayload = useMemo<MyCardsPayload | null>(() => {
-    // Single Source of Truth: preferir el payload real de MongoDB.
-    // Fallback a adaptBusinessCardSearchResult solo si el fetch falla.
-    if (marketFetchedPayload) return marketFetchedPayload;
-    if (!marketCardDetail) return null;
-    return adaptBusinessCardSearchResultToMyCardsPayload(marketCardDetail, tr);
-  }, [marketFetchedPayload, marketCardDetail, tr]);
+    if (!marketCardDetail || !marketFetchedPayload) return null;
+    return marketFetchedPayload;
+  }, [marketFetchedPayload, marketCardDetail]);
 
   const onSearchScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     searchScrollYRef.current = e.nativeEvent.contentOffset.y;
@@ -328,16 +324,15 @@ export default function SearchScreen() {
 
   const displaySectionBusinesses = useMemo(() => {
     // 1. ELIMINAR DUPLICADOS: Filtramos los negocios del Market que ya están en Contactos.
-    // Los contactos usan card.id = "received-contact:uid:cardId", por eso comparamos
-    // con receivedSourceCardId (el cardId real) vs el Firestore doc id del negocio.
+    // Los contactos pueden traer receivedSourceBId / receivedSourceSid; el mercado usa card.bId.
     const contactCardIds = new Set(
-      sectionContacts.map((c) => c.receivedSourceCardId).filter(Boolean)
+      sectionContacts.flatMap((c) => [c.receivedSourceBId, c.receivedSourceSid].filter(Boolean) as string[]),
     );
-    // 2. ELIMINAR PROPIAS: No mostrar tarjetas cuyo ownerUid sea el usuario activo.
+    // 2. ELIMINAR PROPIAS: No mostrar tarjetas cuyo uid sea el usuario activo.
     const uniqueBusinesses = sectionBusinesses.filter(
       (business) =>
-        !contactCardIds.has(business.card.id) &&
-        (viewerUid == null || business.card.ownerUid !== viewerUid)
+        !contactCardIds.has(business.card.bId) &&
+        (viewerUid == null || business.card.uid !== viewerUid)
     );
 
     // 2. APLICAR ORDENAMIENTO (Distancia o Valoración) a la lista limpia
@@ -390,7 +385,7 @@ export default function SearchScreen() {
 
     const loadLicenseStatus = async () => {
       const marketOnly = allMarketRows.filter(
-        (r) => r.rowSource === 'social_market' && r.card.ownerUid && r.card.ownerUid !== '__vault_local__',
+        (r) => r.rowSource === 'social_market' && r.card.uid && r.card.uid !== '__vault_local__',
       );
       if (!marketOnly.length) {
         setLicenseStatus({});
@@ -399,8 +394,8 @@ export default function SearchScreen() {
 
       const statuses = await Promise.all(
         marketOnly.map(async (result) => {
-          const active = await hasActiveBusinessLicense(result.card.ownerUid, result.card.id);
-          return [result.card.id, active] as const;
+          const active = await hasActiveBusinessLicense(result.card.uid, result.card.bId);
+          return [result.card.bId, active] as const;
         }),
       );
 
@@ -456,10 +451,10 @@ export default function SearchScreen() {
         return {
         uid: c.uid,
         cardId: c.cardId,
-        name: c.name,
-        nickname: c.nickname,
+        userFullName: c.userFullName,
+        userNickName: c.userNickName,
         cardName: c.cardName,
-        photoUrl: c.photoUrl,
+        userAvatarUrl: c.userAvatarUrl,
         ratingAvg: c.ratingAvg,
         totalRatings: c.totalRatings,
         holdersCount: c.holdersCount,
@@ -695,7 +690,7 @@ export default function SearchScreen() {
 
   const renderResultCard = ({ item }: { item: BusinessCardSearchResult }) => {
     const isMarketBusiness = item.rowSource === 'social_market';
-    const hasLicense = licenseStatus[item.card.id] ?? true;
+    const hasLicense = licenseStatus[item.card.bId] ?? true;
     const dm = item.distanceMiles;
     /** Sin NaN, sin ∞, sin 0.0 mi (solo distancia estrictamente positiva). */
     const milesOk = typeof dm === 'number' && Number.isFinite(dm) && dm > 0;
@@ -703,7 +698,7 @@ export default function SearchScreen() {
     const permanentLink = !isMarketBusiness
       ? 'https://cardsocial.app'
       : (item.card as any).permanent_business_link ||
-        generatePermanentBusinessLink(item.card.id, item.card.ownerUid || 'owner');
+        generatePermanentBusinessLink(item.card.bId, item.card.uid || 'owner');
 
     const handleExportBusinessQr = async () => {
       if (!isMarketBusiness) {
@@ -711,10 +706,10 @@ export default function SearchScreen() {
       }
       try {
         const result = await ExportBusinessQR({
-          businessId: item.card.id,
-          businessName: item.card.businessName,
+          businessId: item.card.bId,
+          bcName: item.card.bcName,
           permanentBusinessLink: permanentLink,
-          businessLogoUri: item.card.businessLogo,
+          bcLogo: item.card.bcLogoUrl,
           format: 'png',
         });
 
@@ -734,15 +729,20 @@ export default function SearchScreen() {
     if (!isMarketBusiness) {
       const pres = item.issuerPresentation;
       const chest = getCardRowTheme(pres?.themeId);
+      const lightChipFg = resolvePillForegroundColor({
+        cardGradient: chest.gradient,
+        pillBackground: 'rgba(255,255,255,0.72)',
+        preferredColor: chest.iconColor,
+      });
       const reviewCount = Number(item.card.totalRatings) || 0;
       const rating = reviewCount > 0 ? Number(item.card.averageRating) || 0 : 0;
       const holders = item.receivedHoldersCount ?? 0;
-      const cardTitle = String(item.receivedContactCardName || '').trim() || item.card.businessName;
+      const cardTitle = String(item.receivedContactCardName || '').trim() || item.card.bcName;
 
       const ringState = resolveSearchRowStoryState(
         {
-          uid: item.card.ownerUid,
-          cardId: item.receivedSourceCardId ?? null,
+          uid: item.card.uid,
+          cardId: item.receivedSourceBId ?? item.receivedSourceSid ?? null,
           channelMuted: item.receivedChannelMuted,
         },
         storyLookupMaps
@@ -752,7 +752,7 @@ export default function SearchScreen() {
         if (ringState === 'none') {
           return;
         }
-        const sourceCardId = String(item.receivedSourceCardId || '').trim();
+        const sourceCardId = String(item.receivedSourceBId ?? item.receivedSourceSid ?? '').trim();
         if (!sourceCardId) {
           Alert.alert(
             tr('Historia no disponible', 'Story unavailable'),
@@ -763,7 +763,7 @@ export default function SearchScreen() {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         router.push({
           pathname: '/(tabs)/stories',
-          params: { openStory: storyChannelKey(item.card.ownerUid, sourceCardId) },
+          params: { openStory: storyChannelKey(item.card.uid, sourceCardId) },
         });
       };
 
@@ -810,7 +810,7 @@ export default function SearchScreen() {
       const facets = item.receivedContactFacets || [];
 
       return (
-        <Animated.View style={{ transform: [{ scale: pressScaleForRow(item.card.id) }] }}>
+        <Animated.View style={{ transform: [{ scale: pressScaleForRow(item.card.bId) }] }}>
           <ThemedSharedCardSurface
             themeId={pres?.themeId}
             wallpaperUrl={pres?.wallpaperUrl || undefined}
@@ -826,9 +826,9 @@ export default function SearchScreen() {
                   accessibilityLabel={tr('Abrir historia', 'Open story')}
                 >
                   <View style={[styles.searchAvatarRing, ringStyle]}>
-                    {item.card.businessLogo ? (
+                    {item.card.bcLogoUrl ? (
                       <ExpoImage
-                        source={{ uri: item.card.businessLogo }}
+                        source={{ uri: item.card.bcLogoUrl }}
                         style={[styles.searchAvatarInner, { backgroundColor: shell.avatarPlaceholderBg }]}
                         cachePolicy="disk"
                       />
@@ -856,8 +856,8 @@ export default function SearchScreen() {
                 <Pressable
                   style={[styles.marketReceivedTextCol, { flex: 1 }]}
                   onPress={openCardBody}
-                  onPressIn={() => rowPressIn(item.card.id)}
-                  onPressOut={() => rowPressOut(item.card.id)}
+                  onPressIn={() => rowPressIn(item.card.bId)}
+                  onPressOut={() => rowPressOut(item.card.bId)}
                 >
                   <Text
                     style={[
@@ -871,7 +871,7 @@ export default function SearchScreen() {
                     ]}
                     numberOfLines={2}
                   >
-                    {item.card.businessName}
+                    {item.card.bcName}
                   </Text>
                   <Text
                     style={[
@@ -890,8 +890,8 @@ export default function SearchScreen() {
                   <View style={styles.mrRowStatsRow}>
                     {showMiles && milesLabel ? (
                       <View style={[styles.mrDistancePill, { backgroundColor: 'rgba(255,255,255,0.72)', borderColor: chest.borderColor }]}>
-                        <MaterialCommunityIcons name="map-marker-radius-outline" size={11} color={chest.titleColor} />
-                        <Text style={[styles.mrDistancePillText, { color: chest.titleColor }]}>{milesLabel}</Text>
+                        <MaterialCommunityIcons name="map-marker-radius-outline" size={11} color={lightChipFg} />
+                        <Text style={[styles.mrDistancePillText, { color: lightChipFg }]}>{milesLabel}</Text>
                       </View>
                     ) : null}
                     <TouchableOpacity
@@ -901,8 +901,8 @@ export default function SearchScreen() {
                       ]}
                       onPress={() => { void openReceptorModal(item); }}
                     >
-                      <MaterialCommunityIcons name="account-group-outline" size={12} color={chest.titleColor} />
-                      <Text style={[styles.mrRecipientsPillNum, { color: chest.titleColor }]}>{holders}</Text>
+                      <MaterialCommunityIcons name="account-group-outline" size={12} color={lightChipFg} />
+                      <Text style={[styles.mrRecipientsPillNum, { color: lightChipFg }]}>{holders}</Text>
                     </TouchableOpacity>
                   </View>
                 </Pressable>
@@ -923,11 +923,11 @@ export default function SearchScreen() {
                           type: f.type,
                           label: f.label,
                           value: f.value,
-                          issuerUid: item.card.ownerUid,
+                          issuerUid: item.card.uid,
                           issuerCardName: cardTitle,
-                          issuerCardId: item.receivedSourceCardId ?? null,
-                          issuerDisplayName: item.card.businessName,
-                          issuerCardPhoto: item.card.businessLogo ?? null,
+                          issuerCardId: item.receivedSourceBId ?? item.receivedSourceSid ?? null,
+                          issuerDisplayName: item.card.bcName,
+                          issuerCardPhoto: item.card.bcLogoUrl ?? null,
                           issuerCardType: 'business',
                         })
                       }
@@ -952,6 +952,11 @@ export default function SearchScreen() {
     const marketRingState = marketSearchStoryRingState(card);
     const marketFacets = buildMarketCardSearchFacets(card);
     const chest = getCardRowTheme(card.themeId);
+    const lightChipFg = resolvePillForegroundColor({
+      cardGradient: chest.gradient,
+      pillBackground: 'rgba(255,255,255,0.72)',
+      preferredColor: chest.iconColor,
+    });
     const reviewCount = Number(card.totalRatings) || 0;
     const ratingRaw = Number(card.averageRating ?? 0);
     const rating = reviewCount > 0 && Number.isFinite(ratingRaw) ? Math.max(0, Math.min(5, ratingRaw)) : 0;
@@ -992,7 +997,7 @@ export default function SearchScreen() {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       router.push({
         pathname: '/(tabs)/stories',
-        params: { openMarketVip: card.id },
+        params: { openMarketVip: card.bId },
       });
     };
 
@@ -1003,35 +1008,36 @@ export default function SearchScreen() {
           return;
         }
         savedSearchScrollYRef.current = searchScrollYRef.current;
-        // Abrir modal inmediatamente con el resultado de búsqueda (UX: sin wait).
-        setMarketCardDetail(item);
-        setMarketFetchedPayload(null);
-        // Fetch real: Single Source of Truth desde MongoDB (publicCardSlots reales).
         try {
-          setMarketFetching(true);
           const res = await fetchPublicBusinessCardPreview({
-            ownerUid: card.ownerUid,
-            cardId: card.id,
+            ownerUid: card.uid,
+            cardId: card.bId,
             locale: language === 'es' ? 'es' : 'en',
           });
-          if (res.ok) {
-            const realPayload = myCardsPayloadFromQrPreview(res.preview, tr);
-            // Preservar datos de Firestore que el preview público no tiene.
-            realPayload.avatarUrl = realPayload.avatarUrl || card.businessLogo || null;
-            realPayload.cardName = realPayload.cardName || String(card.businessName || '').trim() || tr('Negocio', 'Business');
-            if (!realPayload.subtitle) {
-              realPayload.subtitle =
-                String(card.ownerName || '').trim().slice(0, 60) ||
-                String(card.businessDescription || '').trim().slice(0, 120) ||
-                tr('Mercado Social', 'Social Market');
-            }
-            realPayload.noAvatarIcon = 'storefront-outline';
-            setMarketFetchedPayload(realPayload);
+          if (!res.ok) {
+            Alert.alert(
+              tr('Error', 'Error'),
+              tr('No se pudo cargar la tarjeta.', 'Could not load the card.')
+            );
+            return;
           }
+          const realPayload = myCardsPayloadFromQrPreview(res.preview, tr);
+          realPayload.avatarUrl = realPayload.avatarUrl || card.bcLogoUrl || null;
+          realPayload.cardName = realPayload.cardName || String(card.bcName || '').trim() || tr('Negocio', 'Business');
+          if (!realPayload.subtitle) {
+            realPayload.subtitle =
+              String(card.bcContactName || '').trim().slice(0, 60) ||
+              String(card.businessDescription || '').trim().slice(0, 120) ||
+              tr('Mercado Social', 'Social Market');
+          }
+          realPayload.noAvatarIcon = 'storefront-outline';
+          setMarketFetchedPayload(realPayload);
+          setMarketCardDetail(item);
         } catch {
-          // Fetch falló — el modal sigue con el fallback de marketFacets.
-        } finally {
-          setMarketFetching(false);
+          Alert.alert(
+            tr('Error', 'Error'),
+            tr('No se pudo cargar la tarjeta.', 'Could not load the card.')
+          );
         }
       })();
     };
@@ -1046,11 +1052,11 @@ export default function SearchScreen() {
         type: 'teléfono',
         label: tr('Teléfono', 'Phone'),
         value: phone,
-        issuerUid: card.ownerUid,
-        issuerCardName: card.businessName,
-        issuerCardId: card.id,
-        issuerDisplayName: card.businessName,
-        issuerCardPhoto: card.businessLogo ?? null,
+        issuerUid: card.uid,
+        issuerCardName: card.bcName,
+        issuerCardId: card.bId,
+        issuerDisplayName: card.bcName,
+        issuerCardPhoto: card.bcLogoUrl ?? null,
         issuerCardType: 'business',
       });
     };
@@ -1066,15 +1072,15 @@ export default function SearchScreen() {
         type: 'whatsapp',
         label: 'WhatsApp',
         value: digits ? `https://wa.me/${digits}` : phone,
-        issuerUid: card.ownerUid,
-        issuerCardName: card.businessName,
-        issuerCardId: card.id,
-        issuerDisplayName: card.businessName,
+        issuerUid: card.uid,
+        issuerCardName: card.bcName,
+        issuerCardId: card.bId,
+        issuerDisplayName: card.bcName,
       });
     };
 
     return (
-      <Animated.View style={{ transform: [{ scale: pressScaleForRow(item.card.id) }] }}>
+      <Animated.View style={{ transform: [{ scale: pressScaleForRow(item.card.bId) }] }}>
         <ThemedSharedCardSurface
           themeId={card.themeId}
           borderRadius={14}
@@ -1083,8 +1089,8 @@ export default function SearchScreen() {
           <Pressable
             style={styles.marketReceivedPressable}
             onPress={openMarketCardBody}
-            onPressIn={() => rowPressIn(item.card.id)}
-            onPressOut={() => rowPressOut(item.card.id)}
+            onPressIn={() => rowPressIn(item.card.bId)}
+            onPressOut={() => rowPressOut(item.card.bId)}
           >
             <View style={styles.marketReceivedMainRow}>
               {/* Logo (square) */}
@@ -1095,9 +1101,9 @@ export default function SearchScreen() {
                 accessibilityLabel={tr('Abrir historia', 'Open story')}
               >
                 <View style={[styles.searchAvatarRing, marketRingStyle]}>
-                  {item.card.businessLogo ? (
+                  {item.card.bcLogoUrl ? (
                     <ExpoImage
-                      source={{ uri: item.card.businessLogo }}
+                      source={{ uri: item.card.bcLogoUrl }}
                       style={[
                         styles.searchMarketLogoInner,
                         { backgroundColor: shell.avatarPlaceholderBg },
@@ -1137,7 +1143,7 @@ export default function SearchScreen() {
                   ]}
                   numberOfLines={2}
                 >
-                  {card.businessName}
+                  {card.bcName}
                 </Text>
                 <Text
                   style={[
@@ -1146,13 +1152,13 @@ export default function SearchScreen() {
                   ]}
                   numberOfLines={1}
                 >
-                  {card.ownerName?.trim() || card.businessDescription || ''}
+                  {card.bcContactName?.trim() || card.businessDescription || ''}
                 </Text>
                 <View style={styles.mrRowStatsRow}>
                   {showMiles && milesLabel ? (
                     <View style={[styles.mrDistancePill, { backgroundColor: 'rgba(255,255,255,0.72)', borderColor: chest.borderColor }]}>
-                      <MaterialCommunityIcons name="map-marker-radius-outline" size={11} color={chest.titleColor} />
-                      <Text style={[styles.mrDistancePillText, { color: chest.titleColor }]}>{milesLabel}</Text>
+                      <MaterialCommunityIcons name="map-marker-radius-outline" size={11} color={lightChipFg} />
+                      <Text style={[styles.mrDistancePillText, { color: lightChipFg }]}>{milesLabel}</Text>
                     </View>
                   ) : null}
                   <TouchableOpacity
@@ -1164,8 +1170,8 @@ export default function SearchScreen() {
                     activeOpacity={0.7}
                     hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
                   >
-                    <MaterialCommunityIcons name="account-group-outline" size={12} color={chest.titleColor} />
-                    <Text style={[styles.mrRecipientsPillNum, { color: chest.titleColor }]}>{holders}</Text>
+                    <MaterialCommunityIcons name="account-group-outline" size={12} color={lightChipFg} />
+                    <Text style={[styles.mrRecipientsPillNum, { color: lightChipFg }]}>{holders}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1178,8 +1184,8 @@ export default function SearchScreen() {
                   color="#0A2540"
                   backgroundColor="#FFFFFF"
                   ecl="H"
-                  {...(item.card.businessLogo
-                    ? { logo: { uri: item.card.businessLogo }, logoSize: 14, logoMargin: 2, logoBackgroundColor: '#FFFFFF' }
+                  {...(item.card.bcLogoUrl
+                    ? { logo: { uri: item.card.bcLogoUrl }, logoSize: 14, logoMargin: 2, logoBackgroundColor: '#FFFFFF' }
                     : {})}
                 />
               </View>
@@ -1202,11 +1208,11 @@ export default function SearchScreen() {
                         type: f.type,
                         label: f.label,
                         value: f.value,
-                        issuerUid: card.ownerUid,
-                        issuerCardName: card.businessName,
-                        issuerCardId: card.id,
-                        issuerDisplayName: card.businessName,
-                        issuerCardPhoto: card.businessLogo ?? null,
+                        issuerUid: card.uid,
+                        issuerCardName: card.bcName,
+                        issuerCardId: card.bId,
+                        issuerDisplayName: card.bcName,
+                        issuerCardPhoto: card.bcLogoUrl ?? null,
                         issuerCardType: 'business',
                       })
                     }
@@ -1238,7 +1244,7 @@ export default function SearchScreen() {
         sections={listSections}
         onScroll={onSearchScroll}
         scrollEventThrottle={16}
-        keyExtractor={(item) => `${item.rowSource ?? 'm'}:${item.card.id}`}
+        keyExtractor={(item) => `${item.rowSource ?? 'm'}:${item.card.bId}`}
         renderItem={renderResultCard}
         renderSectionHeader={({ section: { title } }) => (
           <View
@@ -1305,44 +1311,46 @@ export default function SearchScreen() {
       ) : null}
 
       <MyCardsPreviewModal
-        key={receivedCardDetail ? `search-received-${receivedCardDetail.card.id}` : 'search-received-closed'}
+        key={receivedCardDetail ? `search-received-${receivedCardDetail.card.bId}` : 'search-received-closed'}
         visible={Boolean(receivedCardDetail && receivedCardDetail.rowSource === 'received_contact')}
         onClose={closeReceivedCardDetail}
         variant="receiver"
         payload={searchReceivedPayload}
-        ghostTargetUid={receivedCardDetail?.card?.ownerUid}
-        sourceCardId={receivedCardDetail?.receivedSourceCardId ?? null}
+        ghostTargetUid={receivedCardDetail?.card?.uid}
+        sourceCardId={receivedCardDetail?.receivedSourceBId ?? receivedCardDetail?.receivedSourceSid ?? null}
         sourceCardName={
           String(receivedCardDetail?.receivedContactCardName || '').trim() ||
-          receivedCardDetail?.card?.businessName ||
+          receivedCardDetail?.card?.bcName ||
           undefined
         }
         peerDisplayName={
           String(receivedCardDetail?.receivedIssuerNickname || '').trim() ||
-          receivedCardDetail?.card?.businessName ||
+          receivedCardDetail?.card?.bcName ||
           undefined
         }
         ratingCardType='business'
+        medalRatingUseNativeAndroidModal={Platform.OS === 'android'}
       />
 
       <MyCardsPreviewModal
-        key={marketCardDetail ? `search-market-${marketCardDetail.card.id}` : 'search-market-closed'}
+        key={marketCardDetail ? `search-market-${marketCardDetail.card.bId}` : 'search-market-closed'}
         visible={Boolean(marketCardDetail)}
         onClose={closeMarketCardDetail}
         variant="incoming"
         payload={marketPremiumPayload}
-        ghostTargetUid={marketCardDetail?.card.ownerUid ?? null}
-        sourceCardId={marketCardDetail?.card.id ?? null}
-        sourceCardName={marketCardDetail?.card.businessName}
+        ghostTargetUid={marketCardDetail?.card.uid ?? null}
+        sourceCardId={marketCardDetail?.card.bId ?? null}
+        sourceCardName={marketCardDetail?.card.bcName}
         peerDisplayName={
-          String(marketCardDetail?.card.businessName || '').trim() ||
+          String(marketCardDetail?.card.bcName || '').trim() ||
           tr('Negocio', 'Business')
         }
+        medalRatingUseNativeAndroidModal={Platform.OS === 'android'}
         incomingRedeem={marketCardDetail ? {
           mode: 'business_permanent',
           token: '',
-          ownerUid: marketCardDetail.card.ownerUid ?? '',
-          cardId: marketCardDetail.card.id ?? '',
+          ownerUid: marketCardDetail.card.uid ?? '',
+          cardId: marketCardDetail.card.bId ?? '',
           receiverUid: viewerUid ?? '',
           onSuccess: closeMarketCardDetail,
         } : null}
@@ -1418,9 +1426,9 @@ export default function SearchScreen() {
       visible={receptorModalVisible}
       onClose={() => { setReceptorModalVisible(false); setReceptorItem(null); setReceptorSubscribers([]); }}
       owner={{
-        displayName: receptorItem?.card?.businessName || tr('Tarjeta', 'Card'),
+        displayName: receptorItem?.card?.bcName || tr('Tarjeta', 'Card'),
         occupation: receptorItem?.receivedContactCardName || '',
-        photoUrl: receptorItem?.card?.businessLogo || null,
+        userAvatarUrl: receptorItem?.card?.bcLogoUrl || null,
       }}
       subscribers={receptorSubscribers}
       totalCount={receptorItem?.receivedHoldersCount ?? receptorSubscribers.length}

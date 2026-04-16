@@ -10,6 +10,7 @@
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { getActiveUserId } from '@/services/authSession';
 import { db } from '@/services/firebaseConfig';
+import { readUserFullName, readUserNickName } from '@/services/userIdentityFields';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import {
@@ -30,6 +31,7 @@ import {
     BackHandler,
     Keyboard,
     KeyboardAvoidingView,
+    Modal,
     Platform,
     ScrollView,
     StyleSheet,
@@ -52,6 +54,11 @@ export interface MedalRatingModalProps {
   cardOwnerUid: string;
   cardOwnerName: string;
   onCountsChanged?: (counts: MedalCounts) => void;
+  /**
+   * Android only: mount inside RN `Modal` so this layer stacks above another `Modal` (card preview).
+   * Ignored on iOS (uses FullWindowOverlay). Defaults to true.
+   */
+  useNativeModalOnAndroid?: boolean;
 }
 
 // â”€â”€â”€ Componente â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -66,6 +73,7 @@ export function MedalRatingModal({
   cardOwnerUid,
   cardOwnerName,
   onCountsChanged,
+  useNativeModalOnAndroid = true,
 }: MedalRatingModalProps) {
   const { language } = useLanguage();
   const { resolvedMode } = useLookMode();
@@ -101,12 +109,10 @@ export function MedalRatingModal({
         if (cardOwnerUid) {
           try {
             const profileSnap = await getDoc(doc(db, 'users', cardOwnerUid));
-            const pData = profileSnap.data() as any;
+            const pData = profileSnap.data() as Record<string, unknown>;
             if (pData) {
-              const fName = String(pData.firstName || '').trim();
-              const lName = String(pData.lastName || '').trim();
-              const full = String(pData.fullName || `${fName} ${lName}`.trim() || '').trim();
-              const nick = String(pData.nickname || '').trim();
+              const full = readUserFullName(pData);
+              const nick = readUserNickName(pData);
               setOwnerProfileName(nick ? `${full} (@${nick})` : full);
             }
           } catch { /* silencia */ }
@@ -390,6 +396,21 @@ export function MedalRatingModal({
   if (Platform.OS === 'ios') {
     return <FullWindowOverlay>{content}</FullWindowOverlay>;
   }
+
+  if (Platform.OS === 'android' && useNativeModalOnAndroid) {
+    return (
+      <Modal
+        visible={visible}
+        transparent
+        animationType="none"
+        onRequestClose={handleClose}
+        statusBarTranslucent
+      >
+        {content}
+      </Modal>
+    );
+  }
+
   return content;
 }
 

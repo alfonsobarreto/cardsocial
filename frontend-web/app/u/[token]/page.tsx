@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: 'Card-Social — Enlace expirado' };
   }
   const { card } = result;
-  const name = card.ownerDisplayName || card.name || 'Card-Social';
+  const name = card.ownerDisplayName || card.scName || 'Card-Social';
   return {
     title: `${name} — Card-Social`,
     description: card.ownerOccupation ?? 'Tarjeta digital inteligente',

@@ -136,10 +136,11 @@ export function useAgoraRtc(params: UseAgoraRtcParams): UseAgoraRtcResult {
     setIsRemoteVideoEnabled(false);
   }, []);
 
+  /** Publicar / cortar vídeo local también si la llamada empezó en audio (upgrade a FaceCall). */
   useEffect(() => {
-    if (!getGhostLinkAgoraEngine() || !enableVideo || !shouldJoin) return;
+    if (!getGhostLinkAgoraEngine() || !shouldJoin) return;
     setGhostLinkAgoraVideo(localVideoOn);
-  }, [localVideoOn, enableVideo, shouldJoin]);
+  }, [localVideoOn, shouldJoin]);
 
   useEffect(() => {
     if (!isGhostLinkAgoraNativeAvailable() || !shouldJoin || !creds) {
@@ -200,9 +201,7 @@ export function useAgoraRtc(params: UseAgoraRtcParams): UseAgoraRtcResult {
       try {
         setGhostLinkAgoraMuted(isMutedRef.current);
         setGhostLinkAgoraSpeaker(isSpeakerphoneOnRef.current);
-        if (enableVideo) {
-          setGhostLinkAgoraVideo(localVideoOnRef.current);
-        }
+        setGhostLinkAgoraVideo(localVideoOnRef.current);
       } catch {
         /* noop */
       }
@@ -261,11 +260,11 @@ export function useAgoraRtc(params: UseAgoraRtcParams): UseAgoraRtcResult {
 
   const applyLocalCameraPinchScale = useCallback(
     (relativeScale: number) => {
-      if (!enableVideo || !shouldJoin) return;
+      if (!shouldJoin || !localVideoOn) return;
       const next = pinchAnchorZoomRef.current * relativeScale;
       localCameraZoomRef.current = setGhostLinkAgoraCameraZoom(next);
     },
-    [enableVideo, shouldJoin],
+    [shouldJoin, localVideoOn],
   );
 
   return {

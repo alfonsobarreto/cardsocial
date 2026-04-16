@@ -101,6 +101,9 @@ const light = {
 
   callsCardBg: 'rgba(255,255,255,0.94)',
   callsCardBorder: pl.border,
+  /** Texto secundario/muted sobre tarjetas Calls (evitar gris oscuro sobre gris en noche). */
+  callsOnCardSecondary: pl.textSecondary,
+  callsOnCardMuted: pl.muted,
   textChannel: pl.textSecondary,
   headerBtnBg: pl.text,
   voiceBtnBg: pl.text,
@@ -281,6 +284,9 @@ const dark = {
 
   callsCardBg: 'rgba(44,44,46,0.94)',
   callsCardBorder: pd.border,
+  /** Sobre fondo oscuro: tonos claros translúcidos (WCAG frente a gris #2C2C2E). */
+  callsOnCardSecondary: 'rgba(235, 235, 245, 0.78)',
+  callsOnCardMuted: 'rgba(235, 235, 245, 0.58)',
   textChannel: pd.textSecondary,
   headerBtnBg: pd.accent,
   voiceBtnBg: pd.accent,

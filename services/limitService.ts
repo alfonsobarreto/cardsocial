@@ -10,6 +10,7 @@
 import { FREE_TIER_POLICY } from '@/constants/freeTierPolicy';
 import { db } from '@/services/firebaseConfig';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { readUserNickNameLower } from '@/services/userIdentityFields';
 
 const PRIVILEGED_NICKNAMES = new Set(['pochobs_admin']);
 
@@ -57,7 +58,7 @@ export async function isPremiumUser(userId: string): Promise<boolean> {
       userData = querySnapshot.docs[0].data();
     }
 
-    const nicknameLower = String(userData?.nicknameLower || '').trim().toLowerCase();
+    const nicknameLower = readUserNickNameLower(userData as Record<string, unknown>);
     const role = String(userData?.role || '').trim().toLowerCase();
 
     if (PRIVILEGED_NICKNAMES.has(nicknameLower) || role === 'super_admin') {

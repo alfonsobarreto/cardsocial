@@ -53,7 +53,7 @@ function mapQrNetworkError(error: any, baseUrl: string): Error {
   return error instanceof Error ? error : new Error(message || 'QR request failed');
 }
 
-async function getScopedJwtToken(ownerUid: string, scope: 'moderation.upload' | 'qr.access') {
+async function getScopedJwtToken(uid: string, scope: 'moderation.upload' | 'qr.access') {
   const baseUrl = getApiBaseUrl();
   const gatewayKey = getGatewayKey();
 
@@ -61,7 +61,7 @@ async function getScopedJwtToken(ownerUid: string, scope: 'moderation.upload' | 
   try {
     response = await axios.post(
       `${baseUrl}/api/auth/token`,
-      { ownerUid, scope },
+      { uid, scope },
       {
         headers: {
           'x-api-gateway-key': gatewayKey,
@@ -152,7 +152,7 @@ export type PublicUniversalCardSlot = {
 export type PublicUniversalCardPayload = {
   cardId: string;
   ownerUid: string;
-  name: string;
+  scName: string;
   layout: 'vertical' | 'horizontal';
   themeId: string | null;
   fontId: string | null;
@@ -518,12 +518,11 @@ export async function trackBunkerGroupUsage(params: {
 
 export type CardSubscriberRow = {
   uid: string;
+  /** Igual que `userFullName` (línea principal en listas). */
   name: string;
-  fullName: string;
-  /** @handle desde Mongo (`nickname` / `nicknameLower`); sin inventar desde el nombre. */
-  username: string;
-  nickname: string;
-  photoUrl: string | null;
+  userFullName: string;
+  userNickName: string;
+  userAvatarUrl: string | null;
   ownerOccupation: string | null;
   isAmixes: boolean;
   userRating: number;
@@ -554,17 +553,21 @@ export async function listCardSubscribers(params: { ownerUid: string; cardId: st
   return {
     count: Number(response?.data?.count || rows.length || 0),
     subscribers: rows.map((row: any) => {
-      const fullName = String(row?.fullName || row?.name || '').trim();
-      const username = String(row?.username ?? row?.nickname ?? '')
+      const userFullName = String(row?.userFullName ?? row?.fullName ?? row?.name ?? '').trim();
+      const userNickName = String(row?.userNickName ?? row?.username ?? row?.nickname ?? '')
         .trim()
         .replace(/^@+/g, '');
       return {
       uid: String(row?.uid || ''),
-      name: fullName,
-      fullName,
-      username,
-      nickname: username,
-      photoUrl: row?.photoUrl ? String(row.photoUrl) : null,
+      name: userFullName,
+      userFullName,
+      userNickName,
+      userAvatarUrl:
+        row?.userAvatarUrl != null && String(row.userAvatarUrl).trim()
+          ? String(row.userAvatarUrl)
+          : row?.photoUrl != null && String(row.photoUrl).trim()
+            ? String(row.photoUrl)
+            : null,
       ownerOccupation: row?.ownerOccupation ? String(row.ownerOccupation).trim() : null,
       isAmixes: Boolean(row?.isAmixes),
       userRating: Number.isFinite(Number(row?.userRating)) ? Number(row.userRating) : 0,
@@ -741,7 +744,7 @@ export async function removeRelationship(params: {
 
 export async function listBlockedRelations(params: { ownerUid: string }): Promise<{
   count: number;
-  blockedUsers: Array<{ uid: string; name: string; photoUrl: string | null; blockedByUid: string; createdAt: string | null; blockedAt: string | null }>;
+  blockedUsers: Array<{ uid: string; name: string; userAvatarUrl: string | null; blockedByUid: string; createdAt: string | null; blockedAt: string | null }>;
 }> {
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
 
@@ -762,7 +765,12 @@ export async function listBlockedRelations(params: { ownerUid: string }): Promis
     blockedUsers: rows.map((row: any) => ({
       uid: String(row?.uid || ''),
       name: String(row?.name || 'Usuario bloqueado'),
-      photoUrl: row?.photoUrl ? String(row.photoUrl) : null,
+      userAvatarUrl:
+        row?.userAvatarUrl != null && String(row.userAvatarUrl).trim()
+          ? String(row.userAvatarUrl)
+          : row?.photoUrl != null && String(row.photoUrl).trim()
+            ? String(row.photoUrl)
+            : null,
       blockedByUid: String(row?.blockedByUid || ''),
       createdAt: row?.createdAt ? String(row.createdAt) : null,
       blockedAt: row?.blockedAt ? String(row.blockedAt) : null,
@@ -813,7 +821,11 @@ export type PublicCardSlotPayload = {
 
 export type SmartCardPayload = {
   cardId: string;
-  name: string;
+  /** Tarjeta personal en Mongo (mismo valor que cardId cuando viene del listado). */
+  sid?: string;
+  /** Espejo business en Mongo: id de tarjeta de negocio (Firestore doc id). */
+  bId?: string;
+  scName: string;
   layout: 'vertical' | 'horizontal';
   themeId?: string;
   fontId?: string;
@@ -847,14 +859,14 @@ export type SmartCardPayload = {
   publicCardSlots?: PublicCardSlotPayload[];
 };
 
-export async function listSmartCardsFromDb(params: { ownerUid: string }): Promise<{
+export async function listSmartCardsFromDb(params: { uid: string }): Promise<{
   cards: Array<SmartCardPayload & { createdAt: string; updatedAt: string }>;
 }> {
-  const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
   const response = await axios.get(`${auth.baseUrl}/api/qr/cards`, {
     params: {
-      ownerUid: params.ownerUid,
+      uid: params.uid,
     },
     headers: {
       'x-api-gateway-key': auth.gatewayKey,
@@ -866,8 +878,8 @@ export async function listSmartCardsFromDb(params: { ownerUid: string }): Promis
   const rows = Array.isArray(response?.data?.cards) ? response.data.cards : [];
   return {
     cards: rows.map((row: any) => ({
-      cardId: String(row?.cardId || ''),
-      name: String(row?.name || 'Smart Card'),
+      cardId: String(row?.cardId || row?.sid || row?.bId || ''),
+      scName: String(row?.scName ?? 'Smart Card'),
       layout: String(row?.layout || 'vertical') === 'horizontal' ? 'horizontal' : 'vertical',
       themeId: row?.themeId ? String(row.themeId) : undefined,
       fontId: row?.fontId ? String(row.fontId) : undefined,
@@ -890,6 +902,8 @@ export async function listSmartCardsFromDb(params: { ownerUid: string }): Promis
       ownerPhotoUrl: row?.ownerPhotoUrl ? String(row.ownerPhotoUrl) : null,
       ownerOccupation: row?.ownerOccupation != null ? String(row.ownerOccupation) : undefined,
       cardType: row?.cardType === 'business' ? 'business' : 'smart',
+      bId: row?.cardType === 'business' ? String(row?.bId ?? row?.cardId ?? '') : undefined,
+      sid: row?.cardType === 'business' ? undefined : String(row?.sid ?? row?.cardId ?? ''),
       searchFacets: Array.isArray(row?.searchFacets)
         ? row.searchFacets.map((f: any) => ({
             type: String(f?.type || ''),
@@ -926,6 +940,7 @@ export async function upsertSmartCardInDb(params: { ownerUid: string; card: Smar
   await axios.put(
     `${auth.baseUrl}/api/qr/cards/${encodeURIComponent(params.card.cardId)}`,
     {
+      uid: params.ownerUid,
       ownerUid: params.ownerUid,
       ...params.card,
     },
@@ -946,6 +961,7 @@ export async function deleteSmartCardInDb(params: { ownerUid: string; cardId: st
 
   const response = await axios.delete(`${auth.baseUrl}/api/qr/cards/${encodeURIComponent(params.cardId)}`, {
     data: {
+      uid: params.ownerUid,
       ownerUid: params.ownerUid,
     },
     headers: {
@@ -963,9 +979,9 @@ export async function deleteSmartCardInDb(params: { ownerUid: string; cardId: st
 export type ReceivedContactRow = {
   uid: string;
   cardId: string | null;
-  name: string;
-  nickname: string;
-  photoUrl: string | null;
+  userFullName: string;
+  userNickName: string;
+  userAvatarUrl: string | null;
   ownerOccupation?: string | null;
   ratingAvg: number;
   cardName: string;
@@ -1004,7 +1020,7 @@ export async function listReceivedContacts(params: { ownerUid: string }): Promis
   try {
     const response = await axios.get(`${auth.baseUrl}/api/qr/contacts/received`, {
       params: {
-        ownerUid: params.ownerUid,
+        uid: params.ownerUid,
       },
       headers: {
         'x-api-gateway-key': auth.gatewayKey,
@@ -1024,12 +1040,22 @@ export async function listReceivedContacts(params: { ownerUid: string }): Promis
         const ratingAvg =
           totalRatings > 0 && Number.isFinite(ratingAvgRaw) ? ratingAvgRaw : 0;
         const slotRows = Array.isArray(row?.publicCardSlots) ? row.publicCardSlots : [];
+        const userFullName = String(row?.userFullName ?? row?.name ?? 'Contacto').trim();
+        const userNickName = String(row?.userNickName ?? row?.nickname ?? 'user')
+          .trim()
+          .replace(/^@+/g, '');
+        const userAvatarUrl =
+          row?.userAvatarUrl != null && String(row.userAvatarUrl).trim()
+            ? String(row.userAvatarUrl)
+            : row?.photoUrl != null && String(row.photoUrl).trim()
+              ? String(row.photoUrl)
+              : null;
         return {
           uid: String(row?.uid || ''),
           cardId: row?.cardId != null && String(row.cardId).trim() ? String(row.cardId).trim() : null,
-          name: String(row?.name || 'Contacto'),
-          nickname: String(row?.nickname || 'user'),
-          photoUrl: row?.photoUrl ? String(row.photoUrl) : null,
+          userFullName,
+          userNickName: userNickName || 'user',
+          userAvatarUrl,
           ownerOccupation: row?.ownerOccupation != null && String(row.ownerOccupation).trim() ? String(row.ownerOccupation).trim() : null,
           ratingAvg,
           cardName: String(row?.cardName || 'Tarjeta Social'),
@@ -1290,9 +1316,14 @@ export async function upsertStoriesHouseAd(params: {
 export type CallHistoryRow = {
   callId: string;
   peerUid: string;
-  name: string;
-  nickname: string;
-  photoUrl: string | null;
+  displayCardName: string;
+  /** Tarjeta emisora en el log (Ghost-Link). */
+  isBusinessCard: boolean;
+  /** Tipo de tarjeta del título en Calls (entrante: tu tarjeta; saliente: tarjeta desde la que llamaste). */
+  displayCardIsBusiness?: boolean;
+  peerFullName: string;
+  peerPersonalName: string;
+  userAvatarUrl: string | null;
   sourceCardName: string;
   sourceCardId: string | null;
   callChannel: 'ghost-link-voip';
@@ -1323,17 +1354,51 @@ export async function listCallsHistory(params: { ownerUid: string }): Promise<{ 
   });
 
   const rows = Array.isArray(response?.data?.history) ? response.data.history : [];
-  return {
-    count: Number(response?.data?.count || rows.length || 0),
-    history: rows.map((row: any) => ({
+  const history: CallHistoryRow[] = rows.map((row: any) => {
+    const displayCardName =
+      row?.displayCardName != null && String(row.displayCardName).trim()
+        ? String(row.displayCardName).trim()
+        : '';
+    const sourceCardName =
+      row?.sourceCardName != null && String(row.sourceCardName).trim()
+        ? String(row.sourceCardName).trim()
+        : '';
+    const peerFullName =
+      row?.peerFullName != null && String(row.peerFullName).trim()
+        ? String(row.peerFullName).trim()
+        : '';
+    const peerPersonalName =
+      row?.peerPersonalName != null && String(row.peerPersonalName).trim()
+        ? String(row.peerPersonalName).trim()
+        : '';
+    const userAvatarUrl =
+      row?.userAvatarUrl != null && String(row.userAvatarUrl).trim()
+        ? String(row.userAvatarUrl)
+        : row?.avatarUrl != null && String(row.avatarUrl).trim()
+          ? String(row.avatarUrl)
+          : row?.photoUrl != null && String(row.photoUrl).trim()
+            ? String(row.photoUrl)
+            : null;
+    const isBusinessCard = row?.isBusinessCard === true || row?.isBusinessCard === 'true';
+    const dcb = row?.displayCardIsBusiness;
+    const displayCardIsBusiness =
+      dcb === true || dcb === 'true'
+        ? true
+        : dcb === false || dcb === 'false'
+          ? false
+          : isBusinessCard;
+    return {
       callId: String(row?.callId || ''),
       peerUid: String(row?.peerUid || ''),
-      name: String(row?.name || 'Contacto'),
-      nickname: String(row?.nickname || 'user'),
-      photoUrl: row?.photoUrl ? String(row.photoUrl) : null,
-      sourceCardName: String(row?.sourceCardName || 'Tarjeta Social'),
+      displayCardName,
+      isBusinessCard,
+      displayCardIsBusiness,
+      peerFullName,
+      peerPersonalName,
+      userAvatarUrl,
+      sourceCardName,
       sourceCardId: row?.sourceCardId ? String(row.sourceCardId) : null,
-      callChannel: 'ghost-link-voip',
+      callChannel: 'ghost-link-voip' as const,
       callType: row?.callType === 'video' ? 'video' : 'audio' as const,
       storyState: row?.storyState === 'vip' ? 'vip' : row?.storyState === 'normal' ? 'normal' : 'none',
       direction: row?.direction === 'outgoing' ? 'outgoing' : row?.direction === 'missed' ? 'missed' : 'incoming',
@@ -1344,7 +1409,11 @@ export async function listCallsHistory(params: { ownerUid: string }): Promise<{ 
       voiceNoteName: row?.voiceNoteName ? String(row.voiceNoteName) : null,
       createdAt: String(row?.createdAt || new Date().toISOString()),
       updatedAt: String(row?.updatedAt || new Date().toISOString()),
-    })),
+    };
+  });
+  return {
+    count: Number(response?.data?.count ?? history.length),
+    history,
   };
 }
 
@@ -1361,6 +1430,7 @@ export async function createCallLog(params: {
   sourceCardId?: string | null;
   callChannel?: 'ghost-link-voip';
   callType?: 'audio' | 'video';
+  isBusinessCard?: boolean;
 }): Promise<{ callId: string }> {
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
 
@@ -1379,6 +1449,7 @@ export async function createCallLog(params: {
       sourceCardId: params.sourceCardId ?? null,
       callChannel: params.callChannel || 'ghost-link-voip',
       callType: params.callType || 'audio',
+      isBusinessCard: Boolean(params.isBusinessCard),
     },
     {
       headers: {
@@ -1494,7 +1565,7 @@ export async function fetchBusinessCardHolderCounts(params: {
   if (!params.ownerUid || !params.cardIds.length) return {};
   const auth = await getScopedJwtToken(params.ownerUid, 'qr.access');
   const response = await axios.get(`${auth.baseUrl}/api/qr/business-holders`, {
-    params: { ownerUid: params.ownerUid, cardIds: params.cardIds.join(',') },
+    params: { uid: params.ownerUid, cardIds: params.cardIds.join(',') },
     headers: {
       'x-api-gateway-key': auth.gatewayKey,
       Authorization: `Bearer ${auth.token}`,

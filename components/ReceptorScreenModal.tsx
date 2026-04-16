@@ -7,9 +7,10 @@
 
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import type { CardSubscriberRow } from '@/services/qrApi';
+import { fetchUserProfilePhotoUrl } from '@/services/userProfilePhoto';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Dimensions,
@@ -29,7 +30,7 @@ import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 export type ReceptorOwnerInfo = {
   displayName: string;
   occupation: string;
-  photoUrl: string | null;
+  userAvatarUrl: string | null;
 };
 
 export type ReceptorScreenModalProps = {
@@ -88,16 +89,16 @@ function initialsFrom(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-/** Título: `fullName` / `name` desde la API; vacío si no hay (iniciales ? en avatar). */
+/** Título: nombre completo canónico desde la API. */
 function subscriberTitle(item: CardSubscriberRow): string {
-  return (item.fullName || item.name || '').trim();
+  return (item.userFullName || item.name || '').trim();
 }
 
 /**
- * Subtítulo: `@username` desde Mongo. Sin username: ocupación si difiere del título (evita duplicar la tarjeta en ambas líneas).
+ * Subtítulo: `@userNickName`. Sin handle: ocupación si difiere del título (evita duplicar la tarjeta en ambas líneas).
  */
 function subscriberSubtitleLine(item: CardSubscriberRow, primary: string): string {
-  const u = String(item.username || item.nickname || '')
+  const u = String(item.userNickName || '')
     .replace(/^@+/g, '')
     .trim();
   if (u) {
@@ -202,6 +203,8 @@ export default function ReceptorScreenModal({
 }: ReceptorScreenModalProps) {
   const modalFooterBottomPad = useModalFooterBottomPad();
   const [sortMode, setSortMode] = useState<SortMode>('date');
+  /** Avatar de cada receptor: `users/{uid}.userAvatarUrl` vía fetch (no snapshot de API). */
+  const [subscriberProfilePhotoByUid, setSubscriberProfilePhotoByUid] = useState<Record<string, string | null>>({});
   const c = useMemo(() => getColors(isDark), [isDark]);
   const swipeRefs = useRef<Map<string, any>>(new Map());
   const closeAllSwipes = useCallback(() => {
@@ -240,6 +243,33 @@ export default function ReceptorScreenModal({
     return byDate.slice(0, 15);
   }, [subscribers]);
 
+  const subscriberUidKey = useMemo(() => {
+    if (!visible) return '';
+    const uids = [
+      ...new Set(subscribers.map((s) => String(s.uid || '').trim()).filter(Boolean)),
+    ].sort();
+    return uids.join('|');
+  }, [visible, subscribers]);
+
+  useEffect(() => {
+    if (!visible || !subscriberUidKey) {
+      setSubscriberProfilePhotoByUid({});
+      return;
+    }
+    const uids = subscriberUidKey.split('|').filter(Boolean);
+    let cancelled = false;
+    void (async () => {
+      const pairs = await Promise.all(
+        uids.map(async (uid) => [uid, await fetchUserProfilePhotoUrl(uid)] as const),
+      );
+      if (cancelled) return;
+      setSubscriberProfilePhotoByUid(Object.fromEntries(pairs));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, subscriberUidKey]);
+
   const toggleSort = useCallback(() => {
     setSortMode((prev) => (prev === 'date' ? 'alpha' : 'date'));
   }, []);
@@ -249,11 +279,17 @@ export default function ReceptorScreenModal({
       const timeLabel = relativeTimeLabel(item.addedAt, tr);
       const primary = subscriberTitle(item);
       const subtitle = subscriberSubtitleLine(item, primary);
+      const profileAvatar = subscriberProfilePhotoByUid[item.uid] ?? null;
 
       const rowContent = (
         <View style={[s.listRow, { backgroundColor: c.rowBg, borderBottomColor: c.rowBorder }, item.muted && { opacity: 0.5 }]}>
-          {item.photoUrl ? (
-            <ExpoImage source={{ uri: item.photoUrl }} style={[s.listAvatar, { borderColor: c.avatarRing }]} cachePolicy="disk" />
+          {profileAvatar ? (
+            <ExpoImage
+              source={{ uri: profileAvatar }}
+              style={[s.listAvatar, { borderColor: c.avatarRing }]}
+              cachePolicy="none"
+              key={`${item.uid}-${profileAvatar}`}
+            />
           ) : (
             <View style={[s.listAvatarFallback, { backgroundColor: c.surface, borderColor: c.avatarRing }]}>
               <Text style={[s.listAvatarInitials, { color: c.muted }]}>{initialsFrom(primary)}</Text>
@@ -343,7 +379,7 @@ export default function ReceptorScreenModal({
         </SwipeableRow>
       );
     },
-    [c, tr, hasOwnerActions, hasExternalAction, onRevoke, onMute, onBlock, onBlockExternal, closeAllSwipes],
+    [c, tr, hasOwnerActions, hasExternalAction, onRevoke, onMute, onBlock, onBlockExternal, closeAllSwipes, subscriberProfilePhotoByUid],
   );
 
   const keyExtractor = useCallback((item: CardSubscriberRow) => item.uid, []);
@@ -354,8 +390,13 @@ export default function ReceptorScreenModal({
         {/* ── Header ────────────────────────────────────────────── */}
         <View style={s.header}>
           <View style={s.headerLeft}>
-            {owner.photoUrl ? (
-              <ExpoImage source={{ uri: owner.photoUrl }} style={s.headerAvatar} cachePolicy="disk" />
+            {owner.userAvatarUrl ? (
+              <ExpoImage
+                source={{ uri: owner.userAvatarUrl }}
+                style={s.headerAvatar}
+                cachePolicy="none"
+                key={owner.userAvatarUrl}
+              />
             ) : (
               <View style={[s.headerAvatarFallback, { backgroundColor: c.surface }]}>
                 <MaterialCommunityIcons name="account" size={20} color={c.muted} />
@@ -427,14 +468,16 @@ export default function ReceptorScreenModal({
               {recentSubscribers.map((sub) => {
                 const title = subscriberTitle(sub);
                 const parts = title.split(/\s+/).filter(Boolean);
+                const profileAvatar = subscriberProfilePhotoByUid[sub.uid] ?? null;
                 return (
                 <View key={`carousel-${sub.uid}`} style={s.carouselItem}>
                   <View style={[s.carouselAvatarRing, { borderColor: c.gold }]}>
-                    {sub.photoUrl ? (
+                    {profileAvatar ? (
                       <ExpoImage
-                        source={{ uri: sub.photoUrl }}
+                        source={{ uri: profileAvatar }}
                         style={s.carouselAvatar}
-                        cachePolicy="disk"
+                        cachePolicy="none"
+                        key={`${sub.uid}-${profileAvatar}`}
                       />
                     ) : (
                       <View style={[s.carouselAvatarFallback, { backgroundColor: c.surface }]}>

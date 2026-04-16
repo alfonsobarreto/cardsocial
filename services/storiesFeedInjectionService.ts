@@ -4,13 +4,14 @@
  */
 
 import { collection, getDocs, limit, query, where } from 'firebase/firestore';
+import { readBusinessCardIdentityFields } from '@/services/businessCardService';
 import { db } from '@/services/firebaseConfig';
 import type { BusinessCard } from '@/types/businessCard';
 
 export type VipMarketStorySlot = {
   id: string;
   businessCardId: string;
-  businessName: string;
+  bcName: string;
   photoUrl: string | null;
   subtitle: string;
   distanceMiles: number | null;
@@ -87,14 +88,18 @@ export async function fetchVipMarketStorySlots(params: {
     const businessCardsRef = collection(db, 'businessCards');
     const q = query(businessCardsRef, where('isActive', '==', true), where('isPublishedToMarket', '==', true), limit(100));
     const snapshot = await getDocs(q);
-    const cards: BusinessCard[] = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as BusinessCard));
+    const cards: BusinessCard[] = snapshot.docs.map((d) => {
+      const raw = d.data() as Record<string, unknown>;
+      const idn = readBusinessCardIdentityFields(raw);
+      return { ...raw, ...idn, bId: d.id, uid: String((raw as { uid?: string }).uid ?? '') } as BusinessCard;
+    });
 
     const rows = cards
       .filter((c) => c.kycVerified === true)
       .filter((c) => Boolean(c.hasActiveStory) && Boolean(c.isPremiumStory))
       .filter((c) => storyStillActive(c))
       .filter((c) => {
-        const ou = String(c.ownerUid || '').trim();
+        const ou = String(c.uid || '').trim();
         return ou && ou !== viewer && !contactSet.has(ou);
       })
       .map((card) => {
@@ -129,10 +134,10 @@ export async function fetchVipMarketStorySlots(params: {
           ? `https://www.google.com/maps?q=${card.latitude},${card.longitude}`
           : '');
       return {
-        id: `vip-market-${card.id}-${i}`,
-        businessCardId: card.id,
-        businessName: String(card.businessName || '').trim() || 'Negocio',
-        photoUrl: card.businessLogo ? String(card.businessLogo) : null,
+        id: `vip-market-${card.bId}-${i}`,
+        businessCardId: card.bId,
+        bcName: String(card.bcName || '').trim() || 'Negocio',
+        photoUrl: card.bcLogoUrl ? String(card.bcLogoUrl) : null,
         subtitle: String(card.businessDescription || '').trim().slice(0, 140) || '',
         distanceMiles,
         ctaLabel: 'CardSocial Market',

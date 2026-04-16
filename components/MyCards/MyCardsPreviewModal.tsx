@@ -21,7 +21,6 @@ import {
     CARD_THEMES as CHEST_THEMES,
     getThemeById,
 } from '@/constants/themeChest';
-import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { getActiveUserId } from '@/services/authSession';
 import type { MirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
 import { CONTACT_META_STORAGE_KEY, seedMetaForIncomingCard } from '@/services/bunkerContactMetaSeed';
@@ -111,6 +110,11 @@ export type MyCardsPreviewModalProps = {
   peerDisplayName?: string;
   /** Tipo de tarjeta para el modal de medallas ('smart' | 'business'). No aplica a variant=issuer. */
   ratingCardType?: 'smart' | 'business';
+  /**
+   * Android: medal rating uses RN Modal above the card mirror (Contacts / Social Market).
+   * No effect on iOS. Omit for default (true on Android).
+   */
+  medalRatingUseNativeAndroidModal?: boolean;
 };
 
 /* ------------------------------------------------------------------ */
@@ -129,13 +133,13 @@ export function MyCardsPreviewModal({
   sourceCardName,
   peerDisplayName,
   ratingCardType,
+  medalRatingUseNativeAndroidModal,
 }: MyCardsPreviewModalProps) {
   const { resolvedMode } = useLookMode();
   const isDark = resolvedMode === 'noche';
   const shell = appPalette[isDark ? 'dark' : 'light'];
   const { language } = useLanguage();
   const tr = (es: string, en: string) => (language === 'en' ? en : es);
-  const sheetFooterPad = useModalFooterBottomPad();
   const { height: screenHeight } = useWindowDimensions();
 
   const parallaxX = useRef(new Animated.Value(0)).current;
@@ -433,7 +437,7 @@ export function MyCardsPreviewModal({
           ownerUid: receiverUid,
           card: {
             cardId,
-            name: cardName,
+            scName: cardName,
             layout: layout === 'horizontal' ? 'horizontal' : 'vertical',
             themeId,
             wallpaperUrl,
@@ -581,7 +585,7 @@ export function MyCardsPreviewModal({
             }}
           >
             <Pressable
-              style={[incomingStyles.sheetCard, { backgroundColor: shell.modalBg, borderColor: shell.border, paddingBottom: sheetFooterPad }]}
+              style={[incomingStyles.sheetCard, { backgroundColor: shell.modalBg, borderColor: shell.border }]}
               onPress={(e) => e.stopPropagation()}
             >
               <Text style={[incomingStyles.sheetTitle, { color: shell.textPrimary }]}>
@@ -698,7 +702,7 @@ export function MyCardsPreviewModal({
             }}
           >
             <Pressable
-              style={[incomingStyles.sheetCard, { backgroundColor: shell.modalBg, borderColor: shell.border, paddingBottom: sheetFooterPad }]}
+              style={[incomingStyles.sheetCard, { backgroundColor: shell.modalBg, borderColor: shell.border }]}
               onPress={(e) => e.stopPropagation()}
             >
               <Text style={[incomingStyles.sheetTitle, { color: shell.textPrimary }]}>
@@ -871,6 +875,7 @@ export function MyCardsPreviewModal({
           cardOwnerUid={cardOwnerUidForMedals ?? ''}
           cardOwnerName={peerDisplayName ?? sourceCardName ?? ''}
           onCountsChanged={setMedalCounts}
+          useNativeModalOnAndroid={medalRatingUseNativeAndroidModal ?? true}
         />
       ) : null}
 
@@ -919,6 +924,7 @@ const incomingStyles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     paddingTop: 14,
+    paddingBottom: 12,
     paddingHorizontal: 12,
     maxHeight: 360,
   },

@@ -10,6 +10,7 @@
 import {
     collection,
     deleteDoc,
+    deleteField,
     doc,
     getDocs,
     query,
@@ -18,6 +19,7 @@ import {
     Timestamp,
     where,
 } from 'firebase/firestore';
+import { readUserAvatarUrl } from '@/services/userIdentityFields';
 import { db } from './firebaseConfig';
 import { blockRelationship, unblockRelationship } from './qrApi';
 
@@ -26,7 +28,7 @@ export type RelationshipStatus = 'muted' | 'restricted' | 'blocked';
 export type RelationshipEntry = {
   uid: string;
   name: string;
-  photoUrl: string | null;
+  userAvatarUrl: string | null;
   status: RelationshipStatus;
   updatedAt: string | null;
 };
@@ -45,12 +47,13 @@ function relCollectionRef(ownerUid: string) {
 
 export async function muteUser(
   ownerUid: string,
-  target: { uid: string; name: string; photoUrl: string | null },
+  target: { uid: string; name: string; userAvatarUrl: string | null },
 ): Promise<void> {
   await setDoc(relDocRef(ownerUid, target.uid), {
     status: 'muted',
     name: target.name,
-    photoUrl: target.photoUrl ?? null,
+    userAvatarUrl: target.userAvatarUrl ?? null,
+    photoUrl: deleteField(),
     updatedAt: serverTimestamp(),
   });
 }
@@ -59,12 +62,13 @@ export async function muteUser(
 
 export async function restrictUser(
   ownerUid: string,
-  target: { uid: string; name: string; photoUrl: string | null },
+  target: { uid: string; name: string; userAvatarUrl: string | null },
 ): Promise<void> {
   await setDoc(relDocRef(ownerUid, target.uid), {
     status: 'restricted',
     name: target.name,
-    photoUrl: target.photoUrl ?? null,
+    userAvatarUrl: target.userAvatarUrl ?? null,
+    photoUrl: deleteField(),
     updatedAt: serverTimestamp(),
   });
 }
@@ -73,7 +77,7 @@ export async function restrictUser(
 
 export async function blockUser(
   ownerUid: string,
-  target: { uid: string; name: string; photoUrl: string | null },
+  target: { uid: string; name: string; userAvatarUrl: string | null },
 ): Promise<void> {
   // Backend handles severing links
   await blockRelationship({ ownerUid, targetUid: target.uid });
@@ -81,7 +85,8 @@ export async function blockUser(
   await setDoc(relDocRef(ownerUid, target.uid), {
     status: 'blocked',
     name: target.name,
-    photoUrl: target.photoUrl ?? null,
+    userAvatarUrl: target.userAvatarUrl ?? null,
+    photoUrl: deleteField(),
     updatedAt: serverTimestamp(),
   });
 }
@@ -103,7 +108,7 @@ export async function removeRelationship(
 
 export async function changeRelationshipTier(
   ownerUid: string,
-  target: { uid: string; name: string; photoUrl: string | null },
+  target: { uid: string; name: string; userAvatarUrl: string | null },
   newStatus: RelationshipStatus,
 ): Promise<void> {
   if (newStatus === 'blocked') {
@@ -117,7 +122,8 @@ export async function changeRelationshipTier(
     await setDoc(relDocRef(ownerUid, target.uid), {
       status: newStatus,
       name: target.name,
-      photoUrl: target.photoUrl ?? null,
+      userAvatarUrl: target.userAvatarUrl ?? null,
+      photoUrl: deleteField(),
       updatedAt: serverTimestamp(),
     });
   }
@@ -137,7 +143,7 @@ export async function listRelationshipsByStatus(
     return {
       uid: d.id,
       name: String(data.name || ''),
-      photoUrl: data.photoUrl ? String(data.photoUrl) : null,
+      userAvatarUrl: readUserAvatarUrl(data as Record<string, unknown>) || null,
       status: data.status as RelationshipStatus,
       updatedAt: ts?.toDate?.()?.toISOString?.() ?? null,
     };
@@ -156,7 +162,7 @@ export async function listAllRelationships(
     return {
       uid: d.id,
       name: String(data.name || ''),
-      photoUrl: data.photoUrl ? String(data.photoUrl) : null,
+      userAvatarUrl: readUserAvatarUrl(data as Record<string, unknown>) || null,
       status: data.status as RelationshipStatus,
       updatedAt: ts?.toDate?.()?.toISOString?.() ?? null,
     };

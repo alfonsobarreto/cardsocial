@@ -3,6 +3,8 @@
  * Orden: ownerDisplayName en smart_cards → users/profiles (fullName, displayName, name) → fallback neutral.
  */
 
+const { readSmartCardScName } = require('./smartCardScName');
+
 /** Fallback neutral cuando no hay nombre resoluble (app global; sin personas fijas). */
 const RESPECT_FALLBACK_NAME = 'Card owner';
 
@@ -45,10 +47,10 @@ async function resolvePublicIdentity(db, ownerUid, cardId) {
 
   const card = await db.collection('smart_cards').findOne(
     { ownerUid: ou, cardId: cid },
-    { projection: { ownerDisplayName: 1, name: 1 } },
+    { projection: { ownerDisplayName: 1, scName: 1 } },
   );
 
-  const cardTitle = String(card?.name || '').trim() || 'Card-Social';
+  const cardTitle = String(readSmartCardScName(card) || '').trim() || 'Card-Social';
 
   const fromCard = pickFirstNonGeneric(card?.ownerDisplayName);
   if (fromCard) {

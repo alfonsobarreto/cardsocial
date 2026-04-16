@@ -6,6 +6,7 @@ import { useLanguageOptional } from '@/services/language';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, SocialProviderId } from '@/services/socialAuth';
 import { grantStudentPackCreditsIfEligible } from '@/services/studentPackService';
+import { firestoreFirstUserDocByNickLower, firestoreUserAvatarUrlWrite } from '@/services/userIdentityFields';
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { Picker } from '@react-native-picker/picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -292,15 +293,13 @@ export default function RegisterScreen() {
     const timeout = setTimeout(() => {
       void (async () => {
         try {
-          const usersRef = collection(db, 'users');
-          const snapshot = await getDocs(query(usersRef, where('nicknameLower', '==', nicknameLower), limit(1)));
+          const found = await firestoreFirstUserDocByNickLower(db, nicknameLower);
           const currentUid = auth.currentUser?.uid;
-          if (snapshot.empty) {
+          if (!found) {
             setNicknameStatus('available');
             return;
           }
 
-          const found = snapshot.docs[0];
           setNicknameStatus(found.id === currentUid ? 'available' : 'taken');
         } catch {
           setNicknameStatus('idle');
@@ -634,13 +633,13 @@ export default function RegisterScreen() {
   ) => {
     const usersRef = collection(db, 'users');
 
-    const [nicknameSnap, emailSnap, phoneSnap] = await Promise.all([
-      getDocs(query(usersRef, where('nicknameLower', '==', nicknameLower), limit(1))),
+    const [nickDoc, emailSnap, phoneSnap] = await Promise.all([
+      firestoreFirstUserDocByNickLower(db, nicknameLower),
       getDocs(query(usersRef, where('emailLower', '==', emailLower), limit(1))),
       getDocs(query(usersRef, where('phoneNormalized', '==', phoneNormalized), limit(1))),
     ]);
 
-    if (!nicknameSnap.empty && nicknameSnap.docs[0].id !== ignoreUid) {
+    if (nickDoc && nickDoc.id !== ignoreUid) {
       throw new Error(tr('El nickname ya esta en uso.', 'This nickname is already in use.'));
     }
     if (!emailSnap.empty && emailSnap.docs[0].id !== ignoreUid) {
@@ -890,6 +889,9 @@ export default function RegisterScreen() {
             uid,
             firstName: normalizedFirstName,
             lastName: normalizedLastName,
+            userFullName: fullName,
+            userNickName: normalizedNickname,
+            userNickNameLower: nicknameLower,
             fullName,
             nickname: normalizedNickname,
             nicknameLower,
@@ -904,7 +906,7 @@ export default function RegisterScreen() {
             stateRegion: normalizedStateRegion,
             country: normalizedCountry,
             timezone,
-            photoUrl: moderatedPhotoPublicUrl?.trim() || '',
+            ...firestoreUserAvatarUrlWrite(moderatedPhotoPublicUrl?.trim() || null),
             profilePhotoFileId: moderatedPhotoFileId,
             verificationSelfieFileId: moderatedVerificationSelfieFileId,
             verificationStatus: 'verified',

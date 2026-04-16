@@ -15,7 +15,7 @@ function isSyntheticMongoUserName(name, uid) {
 }
 
 /**
- * @param {object} profile - { uid, name, nickname, photoUrl }
+ * @param {object} profile - { uid, name, nickname, userAvatarUrl }
  * @param {string} uid
  * @param {object|null} cardDoc - fragmento smart_cards
  * @returns {object} profile enriquecido + ownerOccupation desde tarjeta si existe
@@ -23,7 +23,6 @@ function isSyntheticMongoUserName(name, uid) {
 function mergeContactProfileFromCard(profile, uid, cardDoc) {
   const display = cardDoc?.ownerDisplayName ? String(cardDoc.ownerDisplayName).trim().slice(0, 240) : '';
   const cardNick = cardDoc?.ownerNickname ? String(cardDoc.ownerNickname).trim().slice(0, 240) : '';
-  const cardPhoto = cardDoc?.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl).trim() : '';
   const occupation = cardDoc?.ownerOccupation ? String(cardDoc.ownerOccupation).trim().slice(0, 240) : '';
 
   // Business cards must never blend with the personal profile.
@@ -35,15 +34,13 @@ function mergeContactProfileFromCard(profile, uid, cardDoc) {
       name: brand || profile.name,
       fullName: brand || profile.fullName || profile.name,
       nickname: String(profile.username || profile.nickname || cardNick || '').trim(),
-      photoUrl: cardPhoto || profile.photoUrl || null,
+      userAvatarUrl: profile.userAvatarUrl || null,
       ownerOccupation: occupation || profile.ownerOccupation || null,
     };
   }
 
   let name = profile.name;
   let nickname = profile.nickname;
-  let photoUrl = profile.photoUrl;
-
   const weakName =
     isSyntheticMongoUserName(profile.name, uid) ||
     String(profile.name || '').trim() === 'Usuario' ||
@@ -60,16 +57,13 @@ function mergeContactProfileFromCard(profile, uid, cardDoc) {
       nickname = String(cardNick).toLowerCase().replace(/\s+/g, '_');
     }
   }
-  if (!photoUrl && cardPhoto) {
-    photoUrl = cardPhoto;
-  }
 
   return {
     ...profile,
     fullName: name,
     name,
     nickname,
-    photoUrl,
+    userAvatarUrl: profile.userAvatarUrl || null,
     ownerOccupation: occupation || profile.ownerOccupation || null,
   };
 }
@@ -77,7 +71,7 @@ function mergeContactProfileFromCard(profile, uid, cardDoc) {
 /**
  * Receptores (GET …/subscribers): perfil Mongo + última smart_card del suscriptor.
  * Limpia etiquetas genéricas; si falta nombre, `ownerDisplayName` de su tarjeta (y marca en business).
- * username: Mongo; si falta, `ownerNickname` de la tarjeta. Foto: perfil o tarjeta.
+ * username: Mongo; si falta, `ownerNickname` de la tarjeta. Avatar: solo perfil (`userAvatarUrl`).
  * @param {object} profile - resultado de resolveUserProfileExtended
  * @param {object|null} cardDoc - smart_cards (proyección acotada)
  */
@@ -120,14 +114,13 @@ function enrichSubscriberProfileFromCard(profile, cardDoc) {
     };
   }
 
-  const cardPhoto = cardDoc.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl).trim() : '';
   const occupation = cardDoc.ownerOccupation ? String(cardDoc.ownerOccupation).trim().slice(0, 240) : '';
 
   if (!username && cardNick) {
     username = String(cardNick).trim().replace(/^@+/g, '');
   }
 
-  const photoUrl = String(profile.photoUrl || '').trim() || cardPhoto || null;
+  const userAvatarUrl = String(profile.userAvatarUrl || '').trim() || null;
 
   return {
     ...profile,
@@ -135,7 +128,7 @@ function enrichSubscriberProfileFromCard(profile, cardDoc) {
     name: fullName,
     username,
     nickname: username,
-    photoUrl,
+    userAvatarUrl,
     ownerOccupation: occupation || profile.ownerOccupation || null,
   };
 }

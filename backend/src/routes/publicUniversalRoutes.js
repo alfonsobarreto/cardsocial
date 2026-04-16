@@ -7,6 +7,7 @@ const express = require('express');
 const { clientLocaleIsSpanish } = require('../lib/httpRequestLocale');
 const { parseAndValidateTemporaryAccess } = require('../lib/temporaryAccessToken');
 const { resolvePublicIdentity } = require('../lib/resolvePublicIdentity');
+const { readSmartCardScName } = require('../lib/smartCardScName');
 
 const QR_SCAN_SOURCE = 'qr_scan';
 
@@ -190,7 +191,7 @@ function createPublicUniversalRoutes({ storage }) {
         { ownerUid, cardId },
         {
           projection: {
-            name: 1,
+            scName: 1,
             layout: 1,
             themeId: 1,
             fontId: 1,
@@ -248,7 +249,7 @@ function createPublicUniversalRoutes({ storage }) {
       const payload = {
         cardId,
         ownerUid,
-        name: String(cardDoc.name || idn.cardTitle || 'Smart Card'),
+        scName: String(readSmartCardScName(cardDoc) || idn.cardTitle || 'Smart Card'),
         layout: String(cardDoc.layout || 'vertical') === 'horizontal' ? 'horizontal' : 'vertical',
         themeId: cardDoc.themeId || null,
         fontId: cardDoc.fontId ? String(cardDoc.fontId) : null,
@@ -326,7 +327,7 @@ function createPublicUniversalRoutes({ storage }) {
         { ownerUid, cardId },
         {
           projection: {
-            name: 1,
+            scName: 1,
             ownerNickname: 1,
             ownerPhotoUrl: 1,
             ownerOccupation: 1,
@@ -361,7 +362,7 @@ function createPublicUniversalRoutes({ storage }) {
         token: '',
         expiresAt: far.toISOString(),
         ownerDisplayName: idn.fullName,
-        cardName: String(cardDoc.name || idn.cardTitle || ''),
+        cardName: String(readSmartCardScName(cardDoc) || idn.cardTitle || ''),
         ownerNickname: cardDoc.ownerNickname ? String(cardDoc.ownerNickname) : null,
         ownerPhotoUrl: cardDoc.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl) : null,
         ownerOccupation: cardDoc.ownerOccupation ? String(cardDoc.ownerOccupation) : null,
@@ -438,7 +439,7 @@ function createPublicUniversalRoutes({ storage }) {
         { ownerUid, cardId },
         {
           projection: {
-            name: 1,
+            scName: 1,
             ownerNickname: 1,
             ownerPhotoUrl: 1,
             ownerOccupation: 1,
@@ -471,7 +472,7 @@ function createPublicUniversalRoutes({ storage }) {
         token,
         expiresAt: exp.toISOString(),
         ownerDisplayName: idn.fullName,
-        cardName: String(cardDoc.name || idn.cardTitle || ''),
+        cardName: String(readSmartCardScName(cardDoc) || idn.cardTitle || ''),
         ownerNickname: cardDoc.ownerNickname ? String(cardDoc.ownerNickname) : null,
         ownerPhotoUrl: cardDoc.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl) : null,
         ownerOccupation: cardDoc.ownerOccupation ? String(cardDoc.ownerOccupation) : null,

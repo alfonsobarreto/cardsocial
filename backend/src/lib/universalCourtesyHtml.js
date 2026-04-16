@@ -440,7 +440,7 @@ function buildValidCourtesyPageHtml(opts) {
       var photo = c.ownerPhotoUrl ? '<img class="avatar" src="'+esc(c.ownerPhotoUrl)+'" alt=""/>' : '<div class="avatar-ph">★</div>';
       var nickRaw = String(c.ownerNickname || '').trim();
       var nick = nickRaw ? (nickRaw.charAt(0) === '@' ? esc(nickRaw) : '@'+esc(nickRaw)) : '';
-      var cardNm = String(c.name || '').trim();
+      var cardNm = String(c.scName || '').trim();
       var person = String(c.ownerDisplayName || '').trim();
       var occ = String(c.ownerOccupation || '').trim();
       var dispName = cardNm || person || occ || 'Card-Social';

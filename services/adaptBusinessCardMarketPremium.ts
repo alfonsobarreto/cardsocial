@@ -7,6 +7,7 @@ import { normalizeMaterialIconName } from '@/app/components/iconNameValidation';
 import type { MyCardsPayload } from '@/components/MyCards';
 import type { WireframeEditSlot } from '@/components/smartCard/IsolatedWireframeCard';
 import type { MirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
+import { readBusinessCardIdentityFields } from '@/services/businessCardService';
 import { buildMarketCardSearchFacets } from '@/services/searchPhase2Logic';
 import type { BusinessCard, BusinessCardSearchResult } from '@/types/businessCard';
 
@@ -93,15 +94,15 @@ export function adaptBusinessCardSearchResultToMyCardsPayload(
 
   const slots = wireframeSlotsFromBusinessCard(card);
   const subtitle =
-    String(card.ownerName || '').trim().slice(0, 60) ||
+    String(card.bcContactName || '').trim().slice(0, 60) ||
     String(card.businessDescription || '').trim().slice(0, 120) ||
     tr('Mercado Social', 'Social Market');
 
   const themeFromCard = String(card.themeId || '').trim();
   return {
-    cardName: String(card.businessName || '').trim() || tr('Negocio', 'Business'),
+    cardName: String(card.bcName || '').trim() || tr('Negocio', 'Business'),
     subtitle,
-    avatarUrl: card.businessLogo ?? null,
+    avatarUrl: card.bcLogoUrl ?? null,
     themeId: themeFromCard || MARKET_PREMIUM_WIREFRAME_THEME_ID,
     layout: 'vertical',
     holdersCount: Math.max(0, Math.floor(Number(card.holdersCount ?? 0))),
@@ -118,19 +119,20 @@ export function businessFirestoreDocToMyCardsPayload(
   cardId: string,
   tr: (es: string, en: string) => string,
 ): MyCardsPayload {
+  const idn = readBusinessCardIdentityFields(raw);
   const card = {
-    id: String(raw.id || cardId),
-    ownerUid: String(raw.ownerUid || ''),
+    bId: String(raw.bId || cardId),
+    uid: String(raw.uid ?? ''),
     type: 'business' as const,
-    businessName: String(raw.businessName || ''),
-    ownerName: String(raw.ownerName || ''),
+    bcName: idn.bcName,
+    bcContactName: idn.bcContactName,
     physicalAddress: String(raw.physicalAddress || ''),
     latitude: Number(raw.latitude ?? 0),
     longitude: Number(raw.longitude ?? 0),
     city: String(raw.city || ''),
     postalCode: String(raw.postalCode || ''),
     keywords: Array.isArray(raw.keywords) ? (raw.keywords as string[]).map(String) : [],
-    businessLogo: raw.businessLogo != null ? String(raw.businessLogo) : '',
+    bcLogoUrl: idn.bcLogoUrl || undefined,
     marketFacets: Array.isArray(raw.marketFacets) ? raw.marketFacets as Array<{ type: string; label: string; value: string; iconName?: string }> : [],
     averageRating: Number(raw.averageRating ?? 5),
     totalRatings: Number(raw.totalRatings ?? 0),
@@ -154,16 +156,16 @@ export function businessFirestoreDocToMyCardsPayload(
 
   const slots = wireframeSlotsFromBusinessCard(card);
   const subBase =
-    String(card.ownerName || '').trim().slice(0, 60) ||
+    String(card.bcContactName || '').trim().slice(0, 60) ||
     String((raw.businessDescription as string) || '').trim().slice(0, 120) ||
     tr('Mercado Social', 'Social Market');
 
   const themeId = String(raw.themeId || '').trim() || MARKET_PREMIUM_WIREFRAME_THEME_ID;
 
   return {
-    cardName: String(card.businessName || '').trim() || tr('Negocio', 'Business'),
+    cardName: String(card.bcName || '').trim() || tr('Negocio', 'Business'),
     subtitle: subBase,
-    avatarUrl: card.businessLogo ? String(card.businessLogo) : null,
+    avatarUrl: card.bcLogoUrl ? String(card.bcLogoUrl) : null,
     themeId,
     layout: 'vertical',
     holdersCount: Math.max(0, Math.floor(Number(raw.holdersCount ?? 0))),

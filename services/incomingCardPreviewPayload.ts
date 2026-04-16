@@ -22,7 +22,7 @@ export function myCardsPayloadFromUniversalCard(
   tr: (es: string, en: string) => string,
 ): MyCardsPayload {
   const nick = String(card.ownerNickname || '').trim();
-  const cardNm = String(card.name || '').trim();
+  const cardNm = String(card.scName || '').trim();
   const person = String(card.ownerDisplayName || '').trim();
   const occ = String(card.ownerOccupation || '').trim();
   const subtitle = nick ? (nick.startsWith('@') ? nick : `@${nick}`) : '';

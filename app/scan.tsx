@@ -3,20 +3,25 @@ import type { MyCardsPayload } from '@/components/MyCards';
 import { savePendingBunkerScan } from '@/services/bunkerPendingScan';
 import { getActiveUserId } from '@/services/authSession';
 import { businessFirestoreDocToMyCardsPayload } from '@/services/adaptBusinessCardMarketPremium';
+import { readBusinessCardIdentityFields } from '@/services/businessCardService';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
-import { myCardsPayloadFromQrPreview } from '@/services/incomingCardPreviewPayload';
+import { myCardsPayloadFromQrPreview, myCardsPayloadFromUniversalCard } from '@/services/incomingCardPreviewPayload';
 import { db } from '@/services/firebaseConfig';
+import { fetchUserProfilePhotoUrl } from '@/services/userProfilePhoto';
 import {
   fetchPublicBusinessCardPreview,
   fetchPublicQrTokenPreview,
+  fetchPublicUniversalCardByToken,
   type PublicQrTokenPreview,
+  type PublicUniversalCardPayload,
 } from '@/services/qrApi';
 import {
   normalizeQrScanPayload,
   parseBrandedBusinessQrUrl,
   parseDynamicAppQrJson,
   parsePermanentBusinessQr,
+  parseUniversalWebQrUrl,
 } from '@/services/parseCardsocialQrPayload';
 import { doc, getDoc } from 'firebase/firestore';
 import axios from 'axios';
@@ -35,7 +40,7 @@ type ClassificationPayload = {
   issuerFullName: string;
 };
 
-type IncomingScanMode = 'dynamic_qr' | 'business_permanent';
+type IncomingScanMode = 'dynamic_qr' | 'business_permanent' | 'universal';
 
 export default function ScanScreen() {
   const router = useRouter();
@@ -161,6 +166,10 @@ export default function ScanScreen() {
   const [incomingScanMode, setIncomingScanMode] = useState<IncomingScanMode>('dynamic_qr');
   /** Vista previa Firestore (`businessCards`) si el API público Mongo no tiene la tarjeta. */
   const [incomingPreviewOverride, setIncomingPreviewOverride] = useState<MyCardsPayload | null>(null);
+  /** QR web24h escaneado in-app: payload público del token (misma API que `/u/[token]`). */
+  const [universalCard, setUniversalCard] = useState<PublicUniversalCardPayload | null>(null);
+  /** QR dinámico (smart): avatar del emisor desde `users/{uid}.userAvatarUrl`, no el snapshot del token. */
+  const [issuerProfileAvatarUrl, setIssuerProfileAvatarUrl] = useState<string | null>(null);
   const resumeHandledRef = useRef(false);
 
   const canScan = useMemo(() => {
@@ -175,10 +184,13 @@ export default function ScanScreen() {
     setQrPreview(null);
     setIncomingScanMode('dynamic_qr');
     setIncomingPreviewOverride(null);
+    setUniversalCard(null);
+    setIssuerProfileAvatarUrl(null);
   }, []);
 
   const openClassification = useCallback(
     async (token: string) => {
+      setUniversalCard(null);
       setIncomingScanMode('dynamic_qr');
       setIncomingPreviewOverride(null);
       setProcessing(true);
@@ -224,8 +236,64 @@ export default function ScanScreen() {
     [tr, language, resetScanUi],
   );
 
+  const openUniversalClassification = useCallback(
+    async (opaqueToken: string) => {
+      setClassification(null);
+      setModalVisible(false);
+      setUniversalCard(null);
+      setQrPreview(null);
+      setIncomingPreviewOverride(null);
+      setIncomingScanMode('universal');
+      setProcessing(true);
+      const locale = language === 'es' ? 'es' : 'en';
+      const okLabel = tr('Aceptar', 'OK');
+      try {
+        const res = await fetchPublicUniversalCardByToken({
+          token: opaqueToken,
+          source: 'qr_scan',
+          locale,
+        });
+        if (!res.ok) {
+          Alert.alert(
+            tr('QR no disponible', 'QR unavailable'),
+            res.expired
+              ? tr('El enlace expiró o ya no es válido.', 'This link expired or is no longer valid.')
+              : tr('No se pudo cargar la vista previa.', 'Could not load preview.'),
+            [{ text: okLabel, onPress: resetScanUi }],
+          );
+          setScanLocked(false);
+          return;
+        }
+        const card = res.card;
+        setUniversalCard(card);
+        setClassification({
+          token: opaqueToken,
+          ownerUid: card.ownerUid,
+          cardId: card.cardId,
+          issuerFullName: String(card.ownerDisplayName || '').trim(),
+        });
+        setModalVisible(true);
+      } catch (e: unknown) {
+        if (__DEV__) {
+          if (axios.isAxiosError(e)) {
+            console.error('[Scan openUniversalClassification] axios', e.message, e.code, e.response?.data ?? e.response?.status);
+          } else {
+            console.error('[Scan openUniversalClassification]', e instanceof Error ? e.message : e);
+          }
+        }
+        const msg = e instanceof Error ? e.message : tr('Error de red.', 'Network error.');
+        Alert.alert(tr('No se pudo escanear', 'Could not scan'), msg, [{ text: okLabel, onPress: resetScanUi }]);
+        setScanLocked(false);
+      } finally {
+        setProcessing(false);
+      }
+    },
+    [tr, language, resetScanUi],
+  );
+
   const openBusinessClassification = useCallback(
     async (ownerUid: string, cardId: string) => {
+      setUniversalCard(null);
       setIncomingScanMode('business_permanent');
       setIncomingPreviewOverride(null);
       setProcessing(true);
@@ -242,8 +310,9 @@ export default function ScanScreen() {
               setIncomingPreviewOverride(payload);
               const far = new Date();
               far.setFullYear(far.getFullYear() + 10);
+              const idn = readBusinessCardIdentityFields(raw);
               const issuer =
-                String(raw.ownerName || raw.businessName || '').trim() ||
+                String(idn.bcContactName || idn.bcName || '').trim() ||
                 String(payload.cardName || '').trim();
               setQrPreview({
                 ownerUid,
@@ -338,6 +407,19 @@ export default function ScanScreen() {
 
     const dyn = parseDynamicAppQrJson(normalized);
     if (!dyn || dyn.kind !== 'dynamic_app' || !dyn.token || !dyn.cardId) {
+      const uni = parseUniversalWebQrUrl(normalized);
+      if (uni?.token) {
+        setScanLocked(true);
+        const uid = await getActiveUserId();
+        setReceiverUid(uid);
+        if (!uid) {
+          await savePendingBunkerScan({ kind: 'universal', token: uni.token });
+          router.replace('/signin');
+          return;
+        }
+        await openUniversalClassification(uni.token);
+        return;
+      }
       Alert.alert(
         tr('QR inválido', 'Invalid QR'),
         tr('Este QR no pertenece a Card-Social o está corrupto.', 'This QR does not belong to Card-Social or is corrupted.'),
@@ -413,9 +495,38 @@ export default function ScanScreen() {
     params.resumeToken,
   ]);
 
+  useEffect(() => {
+    if (incomingPreviewOverride) {
+      setIssuerProfileAvatarUrl(null);
+      return;
+    }
+    const uid =
+      incomingScanMode === 'universal' && universalCard
+        ? String(universalCard.ownerUid || '').trim()
+        : incomingScanMode === 'dynamic_qr' && qrPreview
+          ? String(qrPreview.ownerUid || '').trim()
+          : '';
+    if (!uid) {
+      setIssuerProfileAvatarUrl(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const url = await fetchUserProfilePhotoUrl(uid);
+      if (!cancelled) setIssuerProfileAvatarUrl(url);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [incomingPreviewOverride, incomingScanMode, qrPreview?.ownerUid, universalCard?.ownerUid]);
+
   const scanPreviewPayload = useMemo(() => {
     if (incomingPreviewOverride) {
       return incomingPreviewOverride;
+    }
+    if (incomingScanMode === 'universal' && universalCard) {
+      const base = myCardsPayloadFromUniversalCard(universalCard, tr);
+      return { ...base, avatarUrl: issuerProfileAvatarUrl ?? base.avatarUrl };
     }
     if (!qrPreview) {
       return null;
@@ -424,8 +535,8 @@ export default function ScanScreen() {
     if (incomingScanMode === 'business_permanent') {
       return { ...base, noAvatarIcon: 'storefront-outline' as const };
     }
-    return base;
-  }, [incomingPreviewOverride, incomingScanMode, qrPreview, tr]);
+    return { ...base, avatarUrl: issuerProfileAvatarUrl };
+  }, [incomingPreviewOverride, incomingScanMode, universalCard, qrPreview, tr, issuerProfileAvatarUrl]);
 
   /** Android: no montar CameraView hasta granted === true; siempre ofrecer botón explícito si no hay permiso. */
   if (permission?.granted !== true) {
@@ -498,7 +609,7 @@ export default function ScanScreen() {
         </View>
       </LinearGradient>
 
-      {classification && receiverUid && qrPreview ? (
+      {classification && receiverUid && (qrPreview || universalCard) ? (
         <BunkerClassificationModal
           visible={modalVisible}
           mode={incomingScanMode}
@@ -512,17 +623,21 @@ export default function ScanScreen() {
             setModalVisible(false);
             setClassification(null);
             setQrPreview(null);
+            setUniversalCard(null);
             setScanLocked(false);
             setIncomingScanMode('dynamic_qr');
             setIncomingPreviewOverride(null);
+            setIssuerProfileAvatarUrl(null);
           }}
           onSuccess={() => {
             setModalVisible(false);
             setClassification(null);
             setQrPreview(null);
+            setUniversalCard(null);
             setScanLocked(false);
             setIncomingScanMode('dynamic_qr');
             setIncomingPreviewOverride(null);
+            setIssuerProfileAvatarUrl(null);
             router.replace('/(tabs)/contacts');
           }}
         />

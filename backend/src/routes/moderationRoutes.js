@@ -97,7 +97,7 @@ function createModerationRoutes({ azureSafety, storage, limits, middlewares = []
         });
       }
 
-      const ownerUid = String(req.body?.ownerUid || "").trim();
+      const ownerUid = String(req.body?.uid || req.body?.ownerUid || "").trim();
       const label = String(req.body?.label || "").trim();
       const resolvedMime = normalizeVaultMimeType(file.mimetype, file.originalname);
 

@@ -7,6 +7,14 @@ import Subscription from '@/components/Subscription';
 import ThemeChest from '@/components/ThemeChest';
 import { getActiveUserId } from '@/services/authSession';
 import { auth, db } from '@/services/firebaseConfig';
+import {
+  firestoreUserFullNameWrite,
+  firestoreUserNickNameWrite,
+  readUserAvatarUrl,
+  readUserFullName,
+  readUserNickName,
+  readUserNickNameLower,
+} from '@/services/userIdentityFields';
 import { requestLocationPermission } from '@/services/geolocationService';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
@@ -21,10 +29,11 @@ import { isSuperAdmin } from '@/services/roleService';
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Image as ExpoImage } from 'expo-image';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Tabs, useRouter } from 'expo-router';
-import { signOut } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import {
     collection,
     doc,
@@ -37,9 +46,10 @@ import {
 } from 'firebase/firestore';
 import { CreditCard, Database, Phone, PlayCircle, Search, Users } from 'lucide-react-native';
 import type { ComponentType } from 'react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     Alert,
+    AppState,
     Image,
     Keyboard,
     KeyboardAvoidingView,
@@ -61,7 +71,7 @@ import palette from '../theme';
 type BlockedUser = {
   uid: string;
   name: string;
-  photoUrl: string | null;
+  userAvatarUrl: string | null;
   createdAt: string | null;
 };
 
@@ -103,11 +113,11 @@ function PremiumTabIcon({
 
 type EditableProfile = {
   uid: string;
-  fullName: string;
+  userFullName: string;
   firstName: string;
   lastName: string;
-  nickname: string;
-  nicknameLower: string;
+  userNickName: string;
+  userNickNameLower: string;
   email: string;
   phone: string;
   lastNicknameChange: string | null;
@@ -143,7 +153,56 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const shell = palette[resolvedMode === 'noche' ? 'dark' : 'light'];
   const insets = useSafeAreaInsets();
+  /** Android a veces reporta bottom=0 con nav de 3 botones; igualamos aire arriba/abajo del tab bar. */
+  const tabBarInnerVerticalPad = 10;
+  const tabBarBottomSafe = useMemo(() => {
+    if (Platform.OS === 'ios') {
+      return Math.max(insets.bottom, 12);
+    }
+    return Math.max(insets.bottom, 28);
+  }, [insets.bottom]);
   const modalFooterBottomPad = useModalFooterBottomPad();
+  const [headerAvatarUrl, setHeaderAvatarUrl] = useState<string | null>(null);
+
+  const refreshHeaderAvatar = useCallback(async () => {
+    const user = auth.currentUser;
+    if (!user) {
+      setHeaderAvatarUrl(null);
+      return;
+    }
+    try {
+      const snap = await getDoc(doc(db, 'users', user.uid));
+      const data = snap.exists() ? (snap.data() as Record<string, unknown>) : null;
+      const fromDoc = String(readUserAvatarUrl(data ?? {}) ?? '').trim();
+      const fallbackAuth = user.photoURL ? String(user.photoURL).trim() : '';
+      const uri =
+        fromDoc && /^https?:\/\//i.test(fromDoc)
+          ? fromDoc
+          : fallbackAuth && /^https?:\/\//i.test(fallbackAuth)
+            ? fallbackAuth
+            : null;
+      setHeaderAvatarUrl(uri);
+    } catch {
+      const u = auth.currentUser?.photoURL;
+      setHeaderAvatarUrl(u && /^https?:\/\//i.test(String(u)) ? String(u) : null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshHeaderAvatar();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void refreshHeaderAvatar();
+      }
+    });
+    const authUnsub = onAuthStateChanged(auth, () => {
+      void refreshHeaderAvatar();
+    });
+    return () => {
+      sub.remove();
+      authUnsub();
+    };
+  }, [refreshHeaderAvatar]);
 
   const panelTitle = useMemo(() => {
     if (activePanel === 'profile') return tr('Perfil', 'Profile');
@@ -234,7 +293,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
         response.blockedUsers.map((row) => ({
           uid: row.uid,
           name: row.name,
-          photoUrl: row.photoUrl,
+          userAvatarUrl: row.userAvatarUrl,
           createdAt: row.createdAt,
         }))
       );
@@ -302,33 +361,37 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const data = userSnap.data() as any;
+      const data = userSnap.data() as Record<string, unknown>;
       const firstName = String(data?.firstName || '').trim();
       const lastName = String(data?.lastName || '').trim();
-      const fullName = String(data?.fullName || `${firstName} ${lastName}`.trim() || 'Usuario').trim();
-      const nickname = String(data?.nickname || '').trim();
-      const lastNicknameChangeRaw = data?.lastNicknameChange || data?.nicknameChangedAt;
-      const lastNicknameChange = lastNicknameChangeRaw?.toDate
-        ? lastNicknameChangeRaw.toDate().toISOString()
-        : lastNicknameChangeRaw
-          ? String(lastNicknameChangeRaw)
-          : null;
+      const userFullName = readUserFullName(data);
+      const userNickName = readUserNickName(data);
+      const userNickNameLower = readUserNickNameLower(data);
+      const lastNicknameChangeRaw = data?.lastNicknameChange ?? data?.nicknameChangedAt;
+      const lastNicknameChange =
+        lastNicknameChangeRaw &&
+        typeof lastNicknameChangeRaw === 'object' &&
+        typeof (lastNicknameChangeRaw as { toDate?: () => Date }).toDate === 'function'
+          ? (lastNicknameChangeRaw as { toDate: () => Date }).toDate().toISOString()
+          : lastNicknameChangeRaw != null
+            ? String(lastNicknameChangeRaw)
+            : null;
 
       const nextProfile: EditableProfile = {
         uid: ownerUid,
-        fullName,
+        userFullName,
         firstName,
         lastName,
-        nickname,
-        nicknameLower: String(data?.nicknameLower || nickname.toLowerCase()),
+        userNickName,
+        userNickNameLower,
         email: String(data?.email || auth.currentUser?.email || ''),
         phone: String(data?.phone || ''),
         lastNicknameChange,
       };
 
       setProfileData(nextProfile);
-      setEditFullName(nextProfile.fullName);
-      setEditNickname(nextProfile.nickname);
+      setEditFullName(nextProfile.userFullName);
+      setEditNickname(nextProfile.userNickName);
     } catch {
       setProfileData(null);
     } finally {
@@ -360,8 +423,8 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
       Alert.alert(tr('Perfil no disponible', 'Profile unavailable'), tr('No se pudo cargar tu perfil en este momento.', 'Could not load your profile right now.'));
       return;
     }
-    setEditFullName(profileData.fullName);
-    setEditNickname(profileData.nickname);
+    setEditFullName(profileData.userFullName);
+    setEditNickname(profileData.userNickName);
     setProfileModalVisible(true);
   };
 
@@ -383,7 +446,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const nicknameChanged = nextNicknameLower !== profileData.nicknameLower;
+    const nicknameChanged = nextNicknameLower !== profileData.userNickNameLower;
 
     try {
       setProfileSaving(true);
@@ -425,12 +488,17 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
       const nextFirstName = splitParts[0] || profileData.firstName || '';
       const nextLastName = splitParts.slice(1).join(' ') || profileData.lastName || '';
 
-      const updates: Record<string, any> = {
-        fullName: nextFullName,
+      const updates: Record<string, unknown> = {
+        ...firestoreUserFullNameWrite(nextFullName),
         firstName: nextFirstName,
         lastName: nextLastName,
         updatedAt: serverTimestamp(),
       };
+      if (nicknameChanged) {
+        Object.assign(updates, firestoreUserNickNameWrite(nextNickname), {
+          lastNicknameChange: serverTimestamp(),
+        });
+      }
 
       await updateDoc(doc(db, 'users', profileData.uid), updates);
 
@@ -440,11 +508,11 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
         }
         return {
           ...prev,
-          fullName: nextFullName,
+          userFullName: nextFullName,
           firstName: nextFirstName,
           lastName: nextLastName,
-          nickname: nicknameChanged ? nextNickname : prev.nickname,
-          nicknameLower: nicknameChanged ? nextNicknameLower : prev.nicknameLower,
+          userNickName: nicknameChanged ? nextNickname : prev.userNickName,
+          userNickNameLower: nicknameChanged ? nextNicknameLower : prev.userNickNameLower,
           lastNicknameChange: nicknameChanged ? new Date().toISOString() : prev.lastNicknameChange,
         };
       });
@@ -577,13 +645,18 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
             marginTop: 2,
           },
           tabBarItemStyle: {
-            paddingTop: 4,
+            paddingTop: 0,
+            paddingBottom: 0,
+            justifyContent: 'center',
           },
           tabBarStyle: {
             backgroundColor: '#0C0C0E',
-            minHeight: Platform.OS === 'ios' ? 84 : 88,
-            paddingTop: 8,
-            paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 12 : 10),
+            minHeight:
+              Platform.OS === 'ios'
+                ? 72 + tabBarInnerVerticalPad * 2 + tabBarBottomSafe
+                : 64 + tabBarInnerVerticalPad * 2 + tabBarBottomSafe,
+            paddingTop: tabBarInnerVerticalPad,
+            paddingBottom: tabBarInnerVerticalPad + tabBarBottomSafe,
             borderTopWidth: 0,
             marginHorizontal: 0,
             width: '100%' as const,
@@ -659,7 +732,16 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                     accessibilityLabel={tr('Mi perfil', 'My profile')}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
-                    <MaterialCommunityIcons name="account-circle-outline" size={26} color={shell.ctaAccent} />
+                    {headerAvatarUrl ? (
+                      <ExpoImage
+                        source={{ uri: headerAvatarUrl }}
+                        style={[styles.headerProfileAvatar, { borderColor: shell.ctaAccent }]}
+                        cachePolicy="none"
+                        key={headerAvatarUrl}
+                      />
+                    ) : (
+                      <MaterialCommunityIcons name="account-circle-outline" size={36} color={shell.ctaAccent} />
+                    )}
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1073,10 +1155,10 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                                   <View style={[styles.profileCard, { backgroundColor: shell.surfaceMuted, borderColor: shell.modalBorder }]}>
                                                   {/* ...existing code... */}
                           <Text style={[styles.profileLabel, { color: shell.ctaAccent }]}>{tr('Nombre', 'Name')}</Text>
-                          <Text style={[styles.profileValue, { color: shell.text }]}>{profileData.fullName}</Text>
+                          <Text style={[styles.profileValue, { color: shell.text }]}>{profileData.userFullName}</Text>
 
                           <Text style={[styles.profileLabel, { color: shell.ctaAccent }]}>{tr('Nickname único', 'Unique Nickname')}</Text>
-                          <Text style={[styles.profileValue, { color: shell.text }]}>@{profileData.nickname}</Text>
+                          <Text style={[styles.profileValue, { color: shell.text }]}>@{profileData.userNickName}</Text>
 
                           <Text style={[styles.profileLabel, { color: shell.ctaAccent }]}>{tr('Email (solo lectura)', 'Email (read-only)')}</Text>
                           <Text style={[styles.profileReadonly, { color: shell.textSecondary }]}>{profileData.email || tr('No disponible', 'Not available')}</Text>
@@ -1166,8 +1248,8 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                             style={[styles.blockedRow, { backgroundColor: shell.surfaceMuted, borderColor: shell.modalBorder }]}
                           >
                             <View style={styles.blockedIdentity}>
-                              {entry.photoUrl ? (
-                                <Image source={{ uri: entry.photoUrl }} style={styles.blockedAvatar} />
+                              {entry.userAvatarUrl ? (
+                                <Image source={{ uri: entry.userAvatarUrl }} style={styles.blockedAvatar} />
                               ) : (
                                 <View style={[styles.blockedAvatarFallback, { backgroundColor: shell.inputBg, borderColor: shell.modalBorder }]}>
                                   <MaterialCommunityIcons name="account" size={15} color={shell.ctaAccent} />
@@ -1300,8 +1382,8 @@ const styles = StyleSheet.create({
   tabBarIconFocusedWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 50,
-    paddingTop: 10,
+    minHeight: 44,
+    paddingVertical: 0,
   },
   /** Halo ligero alrededor del glifo; sin relleno sólido. */
   tabBarIconGlowWrap: {
@@ -1314,8 +1396,8 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   tabBarIconInactiveWrap: {
-    minHeight: 50,
-    paddingTop: 10,
+    minHeight: 44,
+    paddingVertical: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1329,7 +1411,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minHeight: 48,
     paddingHorizontal: 4,
-    paddingBottom: 6,
+    paddingTop: 0,
+    paddingBottom: 0,
   },
   /** Ancho mínimo simétrico: la marca vive en `headerBrandCenter` (flex 1) y no queda pegada al toggle. */
   headerBarEdge: {
@@ -1356,12 +1439,21 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     zIndex: 0,
   },
+  /** Misma huella que antes del agrandado del glifo; 36px cabe con borde dentro de 40. */
   headerIconHit: {
     position: 'relative',
     width: 40,
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  /** Mismo tamaño que `headerBrandLogo` (36×36). */
+  headerProfileAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    overflow: 'hidden',
   },
   headerBrandWrap: {
     flexDirection: 'row',
@@ -1372,9 +1464,9 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   headerBrandLogo: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
+    width: 36,
+    height: 36,
+    borderRadius: 8,
     flexShrink: 0,
   },
   headerBrandText: {

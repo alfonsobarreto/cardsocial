@@ -1,4 +1,5 @@
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BusinessCardKeywordTags } from '@/components/BusinessCardKeywordTags';
 import { ThemedSharedCardSurface } from '@/components/ThemedSharedCardSurface';
 import { CARD_THEMES as CHEST_THEMES, getThemeById, TIER_META, type CardTheme as ChestCardTheme, type ThemeTier } from '@/constants/themeChest';
@@ -7,6 +8,7 @@ import { generatePermanentBusinessLink } from '@/services/brandedQrService';
 import {
   createBusinessCard,
   MAX_BUSINESS_VAULT_DATA_SLOTS,
+  readBusinessCardIdentityFields,
   updateBusinessCard,
   updateBusinessCardMarketVisibility,
   updateBusinessCardSubscriptionStatus,
@@ -17,6 +19,7 @@ import {
   hasActiveBusinessLicense,
 } from '@/services/businessLicenseService';
 import { db } from '@/services/firebaseConfig';
+import { readUserAvatarUrl, readUserFullName } from '@/services/userIdentityFields';
 import { getUserIconVaultMap, type IconVaultEntry } from '@/services/iconVaultService';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
@@ -33,10 +36,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   FlatList,
   Image,
   InteractionManager,
@@ -68,24 +72,25 @@ const MAX_LOGO_BYTES = 2 * 1024 * 1024;
  */
 async function syncBusinessCardToMongo(params: {
   ownerUid: string;
-  cardId: string;
-  businessName: string;
-  ownerName: string;
+  bId: string;
+  bcName: string;
+  bcContactName: string;
   themeId: string;
-  businessLogo: string;
+  bcLogoUrl: string;
   vaultLinkIds: string[];
 }) {
-  const { ownerUid, cardId, businessName, ownerName, themeId, businessLogo, vaultLinkIds } = params;
+  const { ownerUid, bId, bcName, bcContactName, themeId, bcLogoUrl, vaultLinkIds } = params;
 
   const basePayload = {
-    cardId,
-    name: businessName,
+    cardId: bId,
+    bId,
+    scName: bcName,
     layout: 'vertical' as const,
     themeId: themeId || 'deep_teal',
     cardType: 'business' as const,
-    ownerDisplayName: ownerName || undefined,
-    ownerNickname: ownerName || undefined,
-    ownerPhotoUrl: businessLogo || null,
+    ownerDisplayName: bcContactName || undefined,
+    ownerNickname: bcContactName || undefined,
+    ownerPhotoUrl: bcLogoUrl || null,
     itemIds: [...vaultLinkIds],
     holdersCount: 0,
     ratingAvg: 5,
@@ -281,6 +286,7 @@ export default function CreateBusinessCardScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ cardId?: string }>();
   const paramCardId = typeof params.cardId === 'string' ? params.cardId : params.cardId?.[0] || '';
+  const safeInsets = useSafeAreaInsets();
   const { language } = useLanguage();
   const tr = (es: string, en: string) => (language === 'en' ? en : es);
   const modalFooterBottomPad = useModalFooterBottomPad();
@@ -297,8 +303,8 @@ export default function CreateBusinessCardScreen() {
   const [tempVaultLinkIds, setTempVaultLinkIds] = useState<string[]>([]);
   const [vaultSelectorLimitReached, setVaultSelectorLimitReached] = useState(false);
   const [profileFullName, setProfileFullName] = useState('');
-  const [businessName, setBusinessName] = useState('');
-  const [ownerName, setOwnerName] = useState('');
+  const [bcName, setBcName] = useState('');
+  const [bcContactName, setBcContactName] = useState('');
   const [addressSearchQuery, setAddressSearchQuery] = useState('');
   const [geocodeCandidates, setGeocodeCandidates] = useState<Location.LocationGeocodedLocation[]>([]);
   const [geocodeLabels, setGeocodeLabels] = useState<string[]>([]);
@@ -314,8 +320,8 @@ export default function CreateBusinessCardScreen() {
   const [activatingLicense, setActivatingLicense] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionUi>(null);
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
-  const [pendingSquareLogoUri, setPendingSquareLogoUri] = useState<string | null>(null);
-  const [uploadedLogoUrl, setUploadedLogoUrl] = useState<string | null>(null);
+  const [bcLogo, setBcLogo] = useState<string | null>(null);
+  const [bcLogoUrl, setBcLogoUrl] = useState<string | null>(null);
   const [pickingLogo, setPickingLogo] = useState(false);
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
@@ -324,7 +330,13 @@ export default function CreateBusinessCardScreen() {
   const [simulatingDull, setSimulatingDull] = useState(false);
   const [businessThemeId, setBusinessThemeId] = useState<string>(DEFAULT_BIZ_THEME_ID);
   const [themesPickerVisible, setThemesPickerVisible] = useState(false);
-  const [loadingExistingCard, setLoadingExistingCard] = useState(false);
+  /** Si hay cardId en la ruta, mostramos loading hasta hidratar Firestore (evita baseline “vacío” antes de cargar). */
+  const [loadingExistingCard, setLoadingExistingCard] = useState(() => Boolean(String(paramCardId || '').trim()));
+
+  const formBaselineRef = useRef<string | null>(null);
+  /** Evita resetear el baseline en cada tecla: solo al terminar carga o primer montaje en “crear”. */
+  const prevLoadingExistingRef = useRef<boolean | null>(null);
+  const handleCreateRef = useRef<() => Promise<void>>(async () => {});
 
   const loadLinks = useCallback(async () => {
     const uid = await getActiveUserId();
@@ -336,17 +348,9 @@ export default function CreateBusinessCardScreen() {
 
       const userSnap = await getDoc(doc(db, 'users', uid));
       if (userSnap.exists()) {
-        const u = userSnap.data() as {
-          photoUrl?: string;
-          fullName?: string;
-          firstName?: string;
-          lastName?: string;
-        };
-        setProfilePhotoUrl(toRenderableImageUri(u.photoUrl));
-        const fn = u.firstName != null ? String(u.firstName).trim() : '';
-        const ln = u.lastName != null ? String(u.lastName).trim() : '';
-        const full = String(u.fullName || '').trim() || [fn, ln].filter(Boolean).join(' ').trim();
-        setProfileFullName(full);
+        const u = userSnap.data() as Record<string, unknown>;
+        setProfilePhotoUrl(toRenderableImageUri(readUserAvatarUrl(u) || undefined));
+        setProfileFullName(readUserFullName(u));
       } else {
         setProfileFullName('');
       }
@@ -422,8 +426,8 @@ export default function CreateBusinessCardScreen() {
           // 2. Limpia los estados del formulario
           setCreatedCardId(null);
           setOwnerUidState(null);
-          setBusinessName('');
-          setOwnerName('');
+          setBcName('');
+          setBcContactName('');
           setKeywordTags([]);
           setBusinessThemeId(DEFAULT_BIZ_THEME_ID);
           setSelectedVaultLinkIds(new Set());
@@ -431,8 +435,8 @@ export default function CreateBusinessCardScreen() {
           setLongitude(null);
           setResolvedAddressLabel('');
           setLocationCoordSource(null);
-          setUploadedLogoUrl(null);
-          setPendingSquareLogoUri(null);
+          setBcLogoUrl(null);
+          setBcLogo(null);
           setBusinessTermsAccepted(false);
           setSubscriptionStatus(null);
           // 3. Alerta bilingüe al usuario
@@ -447,15 +451,16 @@ export default function CreateBusinessCardScreen() {
           return;
         }
         const d = snap.data() as Record<string, unknown>;
-        if (String(d.ownerUid) !== uid) {
+        if (String(d.uid) !== uid) {
           Alert.alert(tr('Acceso', 'Access'), tr('Esta tarjeta no es tuya.', 'This card is not yours.'));
           return;
         }
         if (cancelled) return;
         setCreatedCardId(paramCardId);
         setOwnerUidState(uid);
-        setBusinessName(String(d.businessName ?? ''));
-        setOwnerName(String(d.ownerName ?? ''));
+        const idn = readBusinessCardIdentityFields(d as Record<string, unknown>);
+        setBcName(idn.bcName);
+        setBcContactName(idn.bcContactName);
         setKeywordTags(Array.isArray(d.keywords) ? (d.keywords as string[]).map(String) : []);
         setBusinessThemeId(String(d.themeId ?? DEFAULT_BIZ_THEME_ID).trim() || DEFAULT_BIZ_THEME_ID);
         const vids = Array.isArray(d.vaultLinkIds) ? (d.vaultLinkIds as unknown[]).map(String) : [];
@@ -467,13 +472,12 @@ export default function CreateBusinessCardScreen() {
         setResolvedAddressLabel(String(d.physicalAddress ?? ''));
         const ls = d.locationSource;
         setLocationCoordSource(ls === 'device_gps' || ls === 'geocode_forward' ? ls : null);
-        const logo = d.businessLogo;
-        if (typeof logo === 'string' && logo.trim()) {
-          setUploadedLogoUrl(logo.trim());
+        if (idn.bcLogoUrl) {
+          setBcLogoUrl(idn.bcLogoUrl);
         } else {
-          setUploadedLogoUrl(null);
+          setBcLogoUrl(null);
         }
-        setPendingSquareLogoUri(null);
+        setBcLogo(null);
         setBusinessTermsAccepted(Boolean(d.businessTermsAccepted));
         const st = d.subscriptionStatus;
         if (st === 'trial' || st === 'active' || st === 'dull') {
@@ -540,12 +544,12 @@ export default function CreateBusinessCardScreen() {
       );
       return;
     }
-    setOwnerName(n);
+    setBcContactName(n);
   };
 
   const displayLogoUri = useMemo(() => {
-    return pendingSquareLogoUri || uploadedLogoUrl || profilePhotoUrl || null;
-  }, [pendingSquareLogoUri, uploadedLogoUrl, profilePhotoUrl]);
+    return bcLogo || bcLogoUrl || profilePhotoUrl || null;
+  }, [bcLogo, bcLogoUrl, profilePhotoUrl]);
 
   const qrPayload = useMemo(() => {
     const uid = ownerUidState || 'owner';
@@ -556,6 +560,100 @@ export default function CreateBusinessCardScreen() {
   }, [createdCardId, ownerUidState]);
 
   const isDullPreview = subscriptionStatus === 'dull';
+
+  const computeFormSnapshot = useCallback(() => {
+    return JSON.stringify({
+      bcN: bcName.trim(),
+      bcC: bcContactName.trim(),
+      kw: [...keywordTags].sort().join('|'),
+      v: [...selectedVaultLinkIds].sort().join('|'),
+      th: businessThemeId,
+      lp: bcLogo || '',
+      ul: bcLogoUrl || '',
+      lat: latitude,
+      lng: longitude,
+      ad: resolvedAddressLabel.trim(),
+      aq: addressSearchQuery.trim(),
+      ls: locationCoordSource,
+      tm: businessTermsAccepted,
+    });
+  }, [
+    bcName,
+    bcContactName,
+    keywordTags,
+    selectedVaultLinkIds,
+    businessThemeId,
+    bcLogo,
+    bcLogoUrl,
+    latitude,
+    longitude,
+    resolvedAddressLabel,
+    addressSearchQuery,
+    locationCoordSource,
+    businessTermsAccepted,
+  ]);
+
+  /** Restaura el formulario al último baseline (última carga o último guardado). */
+  const applyFormSnapshotFromBaselineJson = useCallback((json: string) => {
+    try {
+      const s = JSON.parse(json) as {
+        bcN?: string;
+        bcC?: string;
+        bn?: string;
+        on?: string;
+        kw?: string;
+        v?: string;
+        th?: string;
+        lp?: string;
+        ul?: string;
+        lat?: number | null;
+        lng?: number | null;
+        ad?: string;
+        aq?: string;
+        ls?: 'device_gps' | 'geocode_forward' | null;
+        tm?: boolean;
+      };
+      setBcName(String(s.bcN ?? s.bn ?? ''));
+      setBcContactName(String(s.bcC ?? s.on ?? ''));
+      const kwRaw = String(s.kw ?? '');
+      setKeywordTags(kwRaw ? kwRaw.split('|') : []);
+      const vRaw = String(s.v ?? '');
+      setSelectedVaultLinkIds(new Set(vRaw ? vRaw.split('|').filter(Boolean) : []));
+      setBusinessThemeId(String(s.th ?? '').trim() || DEFAULT_BIZ_THEME_ID);
+      const lp = String(s.lp ?? '').trim();
+      setBcLogo(lp || null);
+      const ul = String(s.ul ?? '').trim();
+      setBcLogoUrl(ul || null);
+      setLatitude(typeof s.lat === 'number' ? s.lat : null);
+      setLongitude(typeof s.lng === 'number' ? s.lng : null);
+      setResolvedAddressLabel(String(s.ad ?? ''));
+      setAddressSearchQuery(String(s.aq ?? ''));
+      const ls = s.ls;
+      setLocationCoordSource(ls === 'device_gps' || ls === 'geocode_forward' ? ls : null);
+      setBusinessTermsAccepted(Boolean(s.tm));
+      setGeocodeCandidates([]);
+      setGeocodeLabels([]);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  /** En tabs, `replace` a veces hace JUMP_TO y cae en otra pestaña (p. ej. Vault). `navigate` fija Cards. */
+  const goToCardsTab = useCallback(() => {
+    router.navigate('/(tabs)/cards' as any);
+  }, [router]);
+
+  useEffect(() => {
+    if (loadingExistingCard) {
+      prevLoadingExistingRef.current = true;
+      return;
+    }
+    const prev = prevLoadingExistingRef.current;
+    prevLoadingExistingRef.current = false;
+    if (prev === true || prev === null) {
+      formBaselineRef.current = computeFormSnapshot();
+    }
+  }, [loadingExistingCard, computeFormSnapshot]);
 
   const pickBusinessLogo = async () => {
     setPickingLogo(true);
@@ -600,8 +698,8 @@ export default function CreateBusinessCardScreen() {
       } else {
         nextUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
       }
-      setPendingSquareLogoUri(nextUri);
-      setUploadedLogoUrl(null);
+      setBcLogo(nextUri);
+      setBcLogoUrl(null);
     } catch (e: any) {
       Alert.alert(tr('Error', 'Error'), e?.message || tr('No se pudo procesar la imagen.', 'Could not process image.'));
     } finally {
@@ -610,8 +708,8 @@ export default function CreateBusinessCardScreen() {
   };
 
   const clearCustomLogo = () => {
-    setPendingSquareLogoUri(null);
-    setUploadedLogoUrl(null);
+    setBcLogo(null);
+    setBcLogoUrl(null);
   };
 
   const useDeviceLocation = async () => {
@@ -706,13 +804,13 @@ export default function CreateBusinessCardScreen() {
 
   const resolveLogoForSave = async (uid: string): Promise<string | null> => {
     console.log('[BusinessCard] resolveLogoForSave', {
-      hayPendiente: Boolean(pendingSquareLogoUri),
-      haySubido: Boolean(uploadedLogoUrl),
+      hayPendiente: Boolean(bcLogo),
+      haySubido: Boolean(bcLogoUrl),
     });
-    if (pendingSquareLogoUri) {
+    if (bcLogo) {
       try {
         console.log('[BusinessCard] optimizando logo antes de subir…');
-        const optimizedUri = await optimizePhoto(pendingSquareLogoUri);
+        const optimizedUri = await optimizePhoto(bcLogo);
         console.log('[BusinessCard] llamando uploadFileWithModeration (business_logo)…');
         const result = await uploadFileWithModeration({
           fileUri: optimizedUri,
@@ -724,8 +822,8 @@ export default function CreateBusinessCardScreen() {
         const newPhotoUrl = result?.publicUrl || null;
         if (newPhotoUrl) {
           console.log('[BusinessCard] logo subido OK, publicUrl=', newPhotoUrl);
-          setUploadedLogoUrl(newPhotoUrl);
-          setPendingSquareLogoUri(null);
+          setBcLogoUrl(newPhotoUrl);
+          setBcLogo(null);
           return newPhotoUrl;
         }
         console.warn('[BusinessCard] upload respondió sin publicUrl', result);
@@ -735,11 +833,11 @@ export default function CreateBusinessCardScreen() {
         return null;
       }
     }
-    if (uploadedLogoUrl) {
+    if (bcLogoUrl) {
       console.log('[BusinessCard] reutilizando logo ya subido (sin nuevo pending)');
-      return uploadedLogoUrl;
+      return bcLogoUrl;
     }
-    console.log('[BusinessCard] sin logo pendiente ni URL previa → businessLogo vacío');
+    console.log('[BusinessCard] sin logo pendiente ni URL previa → bcLogoUrl vacío');
     return null;
   };
 
@@ -749,10 +847,10 @@ export default function CreateBusinessCardScreen() {
       Alert.alert(tr('Sesión', 'Session'), tr('Inicia sesión de nuevo.', 'Please sign in again.'));
       return;
     }
-    if (!businessName.trim() || !ownerName.trim()) {
+    if (!bcName.trim() || !bcContactName.trim()) {
       Alert.alert(
         tr('Datos incompletos', 'Missing fields'),
-        tr('Indica nombre del negocio y tu nombre.', 'Enter business name and your name.'),
+        tr('Indica el nombre de la tarjeta y el nombre de contacto.', 'Enter the card name and contact name.'),
       );
       return;
     }
@@ -792,34 +890,35 @@ export default function CreateBusinessCardScreen() {
     try {
       console.log('[BusinessCard] handleCreate: resolviendo logo…');
       const resolvedLogo = await resolveLogoForSave(uid);
-      const businessLogo = resolvedLogo ?? '';
-      console.log('[BusinessCard] handleCreate: businessLogo length=', businessLogo.length);
+      const resolvedBcLogoUrl = resolvedLogo ?? '';
+      console.log('[BusinessCard] handleCreate: bcLogoUrl length=', resolvedBcLogoUrl.length);
 
 
       const kwTags = kw.ok ? kw.tags : [];
 
       if (editingCardId) {
         const res = await updateBusinessCard(uid, editingCardId, {
-          businessName: businessName.trim(),
-          ownerName: ownerName.trim(),
+          bcName: bcName.trim(),
+          bcContactName: bcContactName.trim(),
           vaultLinkIds: [...selectedVaultLinkIds],
           themeId: businessThemeId,
           keywords: kwTags,
-          businessLogo,
+          bcLogoUrl: resolvedBcLogoUrl,
           physicalAddress: resolvedAddressLabel.trim(),
           latitude,
           longitude,
           locationSource: locationCoordSource || 'device_gps',
         });
         if (res.success) {
+          formBaselineRef.current = computeFormSnapshot();
           try {
             await syncBusinessCardToMongo({
               ownerUid: uid,
-              cardId: editingCardId!,
-              businessName: businessName.trim(),
-              ownerName: ownerName.trim(),
+              bId: editingCardId!,
+              bcName: bcName.trim(),
+              bcContactName: bcContactName.trim(),
               themeId: businessThemeId || 'deep_teal',
-              businessLogo,
+              bcLogoUrl: resolvedBcLogoUrl,
               vaultLinkIds: [...selectedVaultLinkIds],
             });
           } catch {
@@ -836,7 +935,7 @@ export default function CreateBusinessCardScreen() {
           Alert.alert(tr('Listo', 'Done'), tr('Cambios guardados.', 'Changes saved.'), [
             {
               text: tr('OK', 'OK'),
-              onPress: () => router.replace('/(tabs)/cards' as any),
+              onPress: goToCardsTab,
             },
           ]);
           void refreshCreatedCardMeta();
@@ -845,34 +944,35 @@ export default function CreateBusinessCardScreen() {
         }
       } else {
         const res = await createBusinessCard({
-          ownerUid: uid,
+          uid,
           vaultLinkIds: [...selectedVaultLinkIds],
-          businessName: businessName.trim(),
-          ownerName: ownerName.trim(),
+          bcName: bcName.trim(),
+          bcContactName: bcContactName.trim(),
           physicalAddress: resolvedAddressLabel.trim(),
           latitude,
           longitude,
           locationSource: locationCoordSource || 'device_gps',
           keywords: kwTags,
-          businessLogo,
+          bcLogoUrl: resolvedBcLogoUrl,
           kycDocumentUrl: '',
           kycTermsAccepted: businessTermsAccepted,
           businessTermsAccepted,
           themeId: businessThemeId,
         });
-        if (res.success && res.cardId) {
-          setCreatedCardId(res.cardId);
+        if (res.success && res.bId) {
+          setCreatedCardId(res.bId);
           setOwnerUidState(uid);
           setMarketVisible(false);
           setSubscriptionStatus('trial');
+          formBaselineRef.current = computeFormSnapshot();
           try {
             await syncBusinessCardToMongo({
               ownerUid: uid,
-              cardId: res.cardId!,
-              businessName: businessName.trim(),
-              ownerName: ownerName.trim(),
+              bId: res.bId!,
+              bcName: bcName.trim(),
+              bcContactName: bcContactName.trim(),
               themeId: businessThemeId || 'deep_teal',
-              businessLogo,
+              bcLogoUrl: resolvedBcLogoUrl,
               vaultLinkIds: [...selectedVaultLinkIds],
             });
           } catch {
@@ -900,7 +1000,7 @@ export default function CreateBusinessCardScreen() {
           Alert.alert(tr('Listo', 'Done'), res.message, [
             {
               text: tr('OK', 'OK'),
-              onPress: () => router.replace('/(tabs)/cards' as any),
+              onPress: goToCardsTab,
             },
           ]);
           void refreshCreatedCardMeta();
@@ -915,14 +1015,62 @@ export default function CreateBusinessCardScreen() {
     }
   };
 
+  handleCreateRef.current = handleCreate;
+
+  const tryLeaveBusinessCardScreen = useCallback(() => {
+    if (submitting) {
+      return;
+    }
+    const baseline = formBaselineRef.current;
+    if (baseline === null) {
+      goToCardsTab();
+      return;
+    }
+    const dirty = computeFormSnapshot() !== baseline;
+    if (!dirty) {
+      goToCardsTab();
+      return;
+    }
+    Alert.alert(
+      tr('Cambios sin guardar', 'Unsaved changes'),
+      tr(
+        'Si sales ahora, perderás lo que modificaste; no se guarda solo. ¿Quieres guardar antes de salir?',
+        'If you leave now, you will lose your edits; nothing is saved automatically. Do you want to save before leaving?',
+      ),
+      [
+        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+        {
+          text: tr('No guardar', "Don't save"),
+          style: 'destructive',
+          onPress: () => {
+            applyFormSnapshotFromBaselineJson(baseline);
+            goToCardsTab();
+          },
+        },
+        {
+          text: tr('Guardar', 'Save'),
+          onPress: () => void handleCreateRef.current(),
+        },
+      ],
+    );
+  }, [applyFormSnapshotFromBaselineJson, computeFormSnapshot, goToCardsTab, submitting, tr]);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      tryLeaveBusinessCardScreen();
+      return true;
+    });
+    return () => sub.remove();
+  }, [tryLeaveBusinessCardScreen]);
+
   const handleDemoLicense = async () => {
     const uid = await getActiveUserId();
     if (!uid || !createdCardId) return;
     setActivatingLicense(true);
     try {
       const lic = await activateOrRenewBusinessLicense({
-        userId: uid,
-        cardId: createdCardId,
+        uid,
+        bId: createdCardId,
         annualPriceUsd: 99,
         cashbackCreditsGranted: 0,
       });
@@ -1006,7 +1154,19 @@ export default function CreateBusinessCardScreen() {
     <KeyboardAvoidingView style={[styles.root, { backgroundColor: bg }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
-          <MaterialCommunityIcons name="card-account-details-outline" size={40} color={border} />
+          <View style={[styles.heroHeaderRow, { paddingTop: safeInsets.top + 6 }]}>
+            <MaterialCommunityIcons name="card-account-details-outline" size={40} color={border} />
+            <TouchableOpacity
+              onPress={tryLeaveBusinessCardScreen}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityRole="button"
+              accessibilityLabel={tr('Cerrar', 'Close')}
+              disabled={submitting}
+              style={[styles.heroCloseBtn, { opacity: submitting ? 0.45 : 1 }]}
+            >
+              <MaterialCommunityIcons name="close" size={26} color={border} />
+            </TouchableOpacity>
+          </View>
           <Text style={[styles.title, { color: text }]}>{tr('Tarjeta de negocio', 'Business card')}</Text>
           <Text style={[styles.sub, { color: sub }]}>
             {tr(
@@ -1050,7 +1210,7 @@ export default function CreateBusinessCardScreen() {
                       ]}
                       numberOfLines={2}
                     >
-                      {businessName.trim() || tr('Nombre del negocio', 'Business name')}
+                      {bcName.trim() || tr('Nombre de la tarjeta', 'Card name')}
                     </Text>
                     <Text
                       style={[
@@ -1063,7 +1223,7 @@ export default function CreateBusinessCardScreen() {
                       ]}
                       numberOfLines={1}
                     >
-                      {ownerName.trim() || tr('Tu nombre', 'Your name')}
+                      {bcContactName.trim() || tr('Nombre de contacto', 'Contact name')}
                     </Text>
                   </View>
                   <View style={styles.previewQr}>
@@ -1102,20 +1262,20 @@ export default function CreateBusinessCardScreen() {
         </View>
 
         <View style={[styles.cardBlock, { backgroundColor: card, borderColor: border }]}>
-          <Text style={[styles.label, { color: text }]}>{tr('Nombre del negocio', 'Business name')}</Text>
+          <Text style={[styles.label, { color: text }]}>{tr('Nombre de la tarjeta', 'Card name')}</Text>
           <TextInput
             style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: border }]}
-            value={businessName}
-            onChangeText={setBusinessName}
+            value={bcName}
+            onChangeText={setBcName}
             placeholder={tr('Mi empresa', 'My company')}
             placeholderTextColor={sub}
           />
 
-          <Text style={[styles.label, { color: text, marginTop: 12 }]}>{tr('Tu nombre', 'Your name')}</Text>
+          <Text style={[styles.label, { color: text, marginTop: 12 }]}>{tr('Nombre de contacto', 'Contact name')}</Text>
           <TextInput
             style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: border }]}
-            value={ownerName}
-            onChangeText={setOwnerName}
+            value={bcContactName}
+            onChangeText={setBcContactName}
             placeholder={tr('Nombre completo', 'Full name')}
             placeholderTextColor={sub}
           />
@@ -1165,7 +1325,7 @@ export default function CreateBusinessCardScreen() {
                   </Text>
                 )}
               </TouchableOpacity>
-              {(pendingSquareLogoUri || uploadedLogoUrl) && (
+              {(bcLogo || bcLogoUrl) && (
                 <TouchableOpacity onPress={clearCustomLogo} style={styles.clearLogoBtn}>
                   <Text style={{ color: sub, fontSize: 13 }}>{tr('Usar solo avatar', 'Use avatar only')}</Text>
                 </TouchableOpacity>
@@ -1387,11 +1547,6 @@ export default function CreateBusinessCardScreen() {
 
         {editingCardId ? (
           <View style={[styles.cardBlock, { backgroundColor: card, borderColor: border, marginTop: 20 }]}>
-            <Text style={[styles.label, { color: sub }]}>UUID</Text>
-            <Text selectable style={[styles.uuid, { color: text }]}>
-              {editingCardId}
-            </Text>
-
             <View style={styles.switchRow}>
               <View style={{ flex: 1, paddingRight: 12 }}>
                 <Text style={[styles.label, { color: text }]}>{tr('Visibilidad en Social Market', 'Social Market visibility')}</Text>
@@ -1664,6 +1819,18 @@ export default function CreateBusinessCardScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { padding: 20, paddingBottom: 48 },
+  heroHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  heroCloseBtn: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   hero: { marginBottom: 16 },
   title: { fontSize: 22, fontWeight: '800', marginTop: 10 },
   sub: { fontSize: 13, lineHeight: 18, marginTop: 6 },
@@ -2181,7 +2348,6 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   primaryBtnText: { fontWeight: '800', fontSize: 16 },
-  uuid: { fontSize: 13, fontWeight: '600' },
   switchRow: { flexDirection: 'row', alignItems: 'center', marginTop: 16 },
   secondaryBtn: {
     marginTop: 14,

@@ -170,7 +170,7 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
       {
         cardOwnerUid: String(card.ownerUid || '').trim(),
         cardId: String(card.cardId || '').trim(),
-        sourceCardName: String(card.name || '').trim() || 'Card-Social',
+        sourceCardName: String(card.scName || '').trim() || 'Card-Social',
       },
     );
     setSlotAction({ plan, slot });
@@ -208,7 +208,7 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
     return row;
   });
 
-  const cardNm = String(card.name || '').trim();
+  const cardNm = String(card.scName || '').trim();
   const person = String(card.ownerDisplayName || '').trim();
   const occ = String(card.ownerOccupation || '').trim();
   const dispName = (cardNm || person || occ || 'Card-Social').trim();

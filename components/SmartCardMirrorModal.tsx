@@ -1,5 +1,4 @@
 import { getPreviewModalStackSize } from '@/components/smartCard/wireframeMath';
-import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { BlurView } from 'expo-blur';
 import React from 'react';
 import { ActivityIndicator, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -118,12 +117,12 @@ export function SmartCardMirrorModal({
   children,
 }: SmartCardMirrorModalProps) {
   const insets = useSafeAreaInsets();
-  const footerPad = useModalFooterBottomPad();
   const stack = getPreviewModalStackSize(screenHeight, iconSlotCount);
   const c = footer.colors;
   /** Mínimo generoso si no hay SafeAreaProvider; + extra para que la tarjeta no roce el status bar. */
   const overlayPadTop = Math.max(insets.top, 28) + 20;
-  const overlayPadBottom = 12;
+  /** Safe area once at screen edge — avoid stacking extra padding on the button pill. */
+  const overlayPadBottom = Math.max(12, insets.bottom);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onRequestClose}>
@@ -158,7 +157,6 @@ export function SmartCardMirrorModal({
                   paddingVertical: 12,
                   paddingHorizontal: 16,
                   borderColor: c.modalBorder,
-                  paddingBottom: 12 + footerPad,
                 },
               ]}
             >

@@ -15,6 +15,15 @@ import { getActiveUserId } from '@/services/authSession';
 import { getUserCreditsBalance } from '@/services/creditsService';
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { auth, db } from '@/services/firebaseConfig';
+import {
+  firestoreUserAvatarUrlWrite,
+  firestoreUserFullNameWrite,
+  firestoreUserNickNameWrite,
+  readUserAvatarUrl,
+  readUserFullName,
+  readUserNickName,
+  readUserNickNameLower,
+} from '@/services/userIdentityFields';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
@@ -40,6 +49,7 @@ import {
     InteractionManager,
     Keyboard,
     KeyboardAvoidingView,
+    Modal,
     Platform,
     ScrollView,
     StyleSheet,
@@ -98,14 +108,14 @@ async function optimizePhoto(uri: string): Promise<string> {
 
 type UserProfile = {
   uid: string;
-  fullName: string;
+  userFullName: string;
   firstName: string;
   lastName: string;
-  nickname: string;
-  nicknameLower: string;
+  userNickName: string;
+  userNickNameLower: string;
   email: string;
   phone: string;
-  photoUrl: string | null;
+  userAvatarUrl: string | null;
   verificationStatus: string;
   authProvider: string;
   lastNicknameChange: string | null;
@@ -154,6 +164,8 @@ export default function MyProfileScreen() {
   // Photo upload
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [localPhotoUri, setLocalPhotoUri] = useState<string | null>(null);
+  /** Android: vista previa antes de subir (evita recorte nativo roto + confirma con Aceptar). */
+  const [androidPhotoPreviewUri, setAndroidPhotoPreviewUri] = useState<string | null>(null);
 
   // Password change
   const [pwSection, setPwSection] = useState(false);
@@ -193,8 +205,9 @@ export default function MyProfileScreen() {
 
       const lastName = String(data.lastName || '').trim();
       const firstName = String(data.firstName || '').trim();
-      const fullName = String(data.fullName || `${firstName} ${lastName}`.trim() || 'Usuario').trim();
-      const nickname = String(data.nickname || '').trim();
+      const userFullName = readUserFullName(data as Record<string, unknown>);
+      const userNickName = readUserNickName(data as Record<string, unknown>);
+      const userNickNameLower = readUserNickNameLower(data as Record<string, unknown>);
       const lastNicknameChangeRaw = data.lastNicknameChange || data.nicknameChangedAt;
       const lastNicknameChange = lastNicknameChangeRaw?.toDate
         ? lastNicknameChangeRaw.toDate().toISOString()
@@ -202,14 +215,17 @@ export default function MyProfileScreen() {
 
       const p: UserProfile = {
         uid,
-        fullName,
+        userFullName,
         firstName,
         lastName,
-        nickname,
-        nicknameLower: String(data.nicknameLower || nickname.toLowerCase()),
+        userNickName,
+        userNickNameLower,
         email: String(data.email || auth.currentUser?.email || ''),
         phone: String(data.phone || ''),
-        photoUrl: toRenderableImageUri(data.photoUrl) || toRenderableImageUri(auth.currentUser?.photoURL) || null,
+        userAvatarUrl:
+          toRenderableImageUri(readUserAvatarUrl(data as Record<string, unknown>)) ||
+          toRenderableImageUri(auth.currentUser?.photoURL) ||
+          null,
         verificationStatus: String(data.verificationStatus || 'unverified'),
         authProvider: String(data.authProvider || 'password'),
         lastNicknameChange,
@@ -217,8 +233,8 @@ export default function MyProfileScreen() {
       };
 
       setProfile(p);
-      setEditName(p.fullName);
-      setEditNickname(p.nickname);
+      setEditName(p.userFullName);
+      setEditNickname(p.userNickName);
       setEditBio(p.bio);
 
       // Load stats
@@ -306,6 +322,17 @@ export default function MyProfileScreen() {
       Alert.alert(tr('Permiso requerido', 'Permission required'), tr('Activa acceso a fotos en Configuración.', 'Enable photo access in Settings.'));
       return;
     }
+    if (Platform.OS === 'android') {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.9,
+      });
+      if (!result.canceled && result.assets[0]?.uri) {
+        setAndroidPhotoPreviewUri(result.assets[0].uri);
+      }
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -323,6 +350,17 @@ export default function MyProfileScreen() {
       Alert.alert(tr('Permiso requerido', 'Permission required'), tr('Activa acceso a la cámara en Configuración.', 'Enable camera access in Settings.'));
       return;
     }
+    if (Platform.OS === 'android') {
+      const result = await ImagePicker.launchCameraAsync({
+        cameraType: ImagePicker.CameraType.front,
+        allowsEditing: false,
+        quality: 0.9,
+      });
+      if (!result.canceled && result.assets[0]?.uri) {
+        setAndroidPhotoPreviewUri(result.assets[0].uri);
+      }
+      return;
+    }
     const result = await ImagePicker.launchCameraAsync({
       cameraType: ImagePicker.CameraType.front,
       allowsEditing: true,
@@ -332,6 +370,18 @@ export default function MyProfileScreen() {
     if (!result.canceled && result.assets[0]) {
       await handlePhotoSelected(result.assets[0].uri);
     }
+  };
+
+  const confirmAndroidPhotoPreview = () => {
+    const uri = androidPhotoPreviewUri;
+    setAndroidPhotoPreviewUri(null);
+    if (uri) {
+      void handlePhotoSelected(uri);
+    }
+  };
+
+  const cancelAndroidPhotoPreview = () => {
+    setAndroidPhotoPreviewUri(null);
   };
 
   const handlePhotoSelected = async (uri: string) => {
@@ -355,12 +405,20 @@ export default function MyProfileScreen() {
       const newPhotoUrl = toRenderableImageUri(result.publicUrl);
 
       await updateDoc(doc(db, 'users', profile.uid), {
-        photoUrl: newPhotoUrl,
+        ...firestoreUserAvatarUrlWrite(newPhotoUrl),
         profilePhotoFileId: result.fileId,
         updatedAt: serverTimestamp(),
       });
 
-      setProfile((prev) => prev ? { ...prev, photoUrl: newPhotoUrl } : prev);
+      const freshSnap = await getDoc(doc(db, 'users', profile.uid));
+      const freshData = freshSnap.data() as Record<string, unknown> | undefined;
+      const avatarFromDb = toRenderableImageUri(
+        freshData ? readUserAvatarUrl(freshData) || null : null,
+      );
+      const avatar =
+        avatarFromDb || toRenderableImageUri(auth.currentUser?.photoURL) || null;
+      setProfile((prev) => (prev ? { ...prev, userAvatarUrl: avatar } : prev));
+      setLocalPhotoUri(null);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (newPhotoUrl) {
         Alert.alert(tr('Foto actualizada', 'Photo updated'), tr('Tu foto de perfil fue guardada correctamente.', 'Your profile photo was saved successfully.'));
@@ -394,7 +452,7 @@ export default function MyProfileScreen() {
       Alert.alert(tr('Nombre requerido', 'Name required'), tr('El nombre no puede estar vacío.', 'Name cannot be empty.'));
       return;
     }
-    if (next === profile.fullName) {
+    if (next === profile.userFullName) {
       Alert.alert('', tr('No hay cambios.', 'No changes.'));
       return;
     }
@@ -404,12 +462,12 @@ export default function MyProfileScreen() {
       const firstName = parts[0] || profile.firstName;
       const lastName = parts.slice(1).join(' ') || profile.lastName;
       await updateDoc(doc(db, 'users', profile.uid), {
-        fullName: next,
+        ...firestoreUserFullNameWrite(next),
         firstName,
         lastName,
         updatedAt: serverTimestamp(),
       });
-      setProfile((prev) => prev ? { ...prev, fullName: next, firstName, lastName } : prev);
+      setProfile((prev) => prev ? { ...prev, userFullName: next, firstName, lastName } : prev);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(tr('Nombre actualizado', 'Name updated'), '');
     } catch (e: any) {
@@ -427,7 +485,7 @@ export default function MyProfileScreen() {
       Alert.alert(tr('Nickname requerido', 'Nickname required'), '');
       return;
     }
-    if (next.toLowerCase() === profile.nicknameLower) {
+    if (next.toLowerCase() === profile.userNickNameLower) {
       Alert.alert('', tr('No hay cambios.', 'No changes.'));
       return;
     }
@@ -474,8 +532,20 @@ export default function MyProfileScreen() {
       }
 
       const now = new Date().toISOString();
+      await updateDoc(doc(db, 'users', profile.uid), {
+        ...firestoreUserNickNameWrite(next),
+        lastNicknameChange: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
       setProfile((prev) =>
-        prev ? { ...prev, nickname: next, nicknameLower: next.toLowerCase(), lastNicknameChange: now } : prev
+        prev
+          ? {
+              ...prev,
+              userNickName: next,
+              userNickNameLower: next.toLowerCase(),
+              lastNicknameChange: now,
+            }
+          : prev
       );
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(tr('Nickname actualizado', 'Nickname updated'), '');
@@ -566,12 +636,15 @@ export default function MyProfileScreen() {
     );
   }
 
-  const displayPhoto = localPhotoUri || profile?.photoUrl;
+  const displayPhoto = localPhotoUri || profile?.userAvatarUrl;
   const isPasswordUser = (profile?.authProvider || 'password') === 'password';
   const unlock = nicknameUnlockDate(profile?.lastNicknameChange ?? null);
   const nicknameLocked = unlock !== null && unlock > new Date();
 
+  const photoPickerBusy = uploadingPhoto || Boolean(androidPhotoPreviewUri);
+
   return (
+    <>
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <KeyboardAvoidingView
         style={{ flex: 1, backgroundColor: bg }}
@@ -606,10 +679,16 @@ export default function MyProfileScreen() {
 
             {/* ── Avatar ─────────────────────────────────────────────────────── */}
             <View style={styles.avatarSection}>
-              <TouchableOpacity onPress={pickPhoto} disabled={uploadingPhoto} activeOpacity={0.8}>
+              <TouchableOpacity onPress={pickPhoto} disabled={photoPickerBusy} activeOpacity={0.8}>
                 <View style={[styles.avatarRing, { borderColor: accent }]}>
                   {displayPhoto ? (
-                    <ExpoImage source={{ uri: displayPhoto }} style={styles.avatarImg} cachePolicy="disk" transition={200} />
+                    <ExpoImage
+                      key={displayPhoto}
+                      source={{ uri: displayPhoto }}
+                      style={styles.avatarImg}
+                      cachePolicy="none"
+                      transition={200}
+                    />
                   ) : (
                     <View style={[styles.avatarFallback, { backgroundColor: inputBg }]}>
                       <MaterialCommunityIcons name="account" size={56} color={accent} />
@@ -628,8 +707,8 @@ export default function MyProfileScreen() {
                 </View>
               </TouchableOpacity>
 
-              <Text style={[styles.avatarName, { color: textPrimary }]}>{profile?.fullName || '—'}</Text>
-              <Text style={[styles.avatarHandle, { color: textSecondary }]}>@{profile?.nickname || '—'}</Text>
+              <Text style={[styles.avatarName, { color: textPrimary }]}>{profile?.userFullName || '—'}</Text>
+              <Text style={[styles.avatarHandle, { color: textSecondary }]}>@{profile?.userNickName || '—'}</Text>
 
               {profile?.verificationStatus === 'verified' && (
                 <View
@@ -937,6 +1016,58 @@ export default function MyProfileScreen() {
         </LinearGradient>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
+
+    {Platform.OS === 'android' && (
+      <Modal
+        visible={Boolean(androidPhotoPreviewUri)}
+        animationType="fade"
+        transparent
+        statusBarTranslucent
+        onRequestClose={cancelAndroidPhotoPreview}
+      >
+        <View style={[styles.photoPreviewBackdrop, { backgroundColor: shell.overlayScrim }]}>
+          <View style={[styles.photoPreviewCard, { backgroundColor: card, borderColor: border }]}>
+            <Text style={[styles.photoPreviewTitle, { color: textPrimary }]}>
+              {tr('Vista previa', 'Preview')}
+            </Text>
+            <Text style={[styles.photoPreviewSubtitle, { color: textSecondary }]}>
+              {tr('¿Quieres usar esta foto de perfil?', 'Use this as your profile photo?')}
+            </Text>
+            {androidPhotoPreviewUri ? (
+              <ExpoImage
+                source={{ uri: androidPhotoPreviewUri }}
+                style={styles.photoPreviewImage}
+                contentFit="contain"
+                cachePolicy="none"
+              />
+            ) : null}
+            <View style={styles.photoPreviewActions}>
+              <TouchableOpacity
+                style={[styles.photoPreviewBtnSecondary, { borderColor: border }]}
+                onPress={cancelAndroidPhotoPreview}
+                disabled={uploadingPhoto}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.photoPreviewBtnSecondaryText, { color: textSecondary }]}>
+                  {tr('Cancelar', 'Cancel')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.photoPreviewBtnPrimary, { backgroundColor: accent }]}
+                onPress={confirmAndroidPhotoPreview}
+                disabled={uploadingPhoto}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.photoPreviewBtnPrimaryText, { color: shell.emptyCtaText }]}>
+                  {tr('Aceptar', 'Accept')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    )}
+    </>
   );
 }
 
@@ -949,6 +1080,65 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 15,
+  },
+  photoPreviewBackdrop: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  photoPreviewCard: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 20,
+    gap: 12,
+  },
+  photoPreviewTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  photoPreviewSubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  photoPreviewImage: {
+    width: '100%',
+    aspectRatio: 1,
+    maxHeight: 320,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+  },
+  photoPreviewActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 4,
+  },
+  photoPreviewBtnSecondary: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoPreviewBtnSecondaryText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  photoPreviewBtnPrimary: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoPreviewBtnPrimaryText: {
+    fontSize: 16,
+    fontWeight: '700',
   },
   header: {
     flexDirection: 'row',

@@ -64,7 +64,7 @@ const isContactOfUser = async (cardId: string, userId: string): Promise<boolean>
 
 const searchSocialMarket = async (keywords: string[], contacts: string[], lat: number, lon: number, radius: number): Promise<any[]> => {
   return [{
-    card: { businessName: 'Nails & Spa Beauty' },
+       card: { bcName: 'Nails & Spa Beauty' },
     relevanceScore: 85, // Higher score for fuzzy match
   }];
 };
@@ -123,8 +123,8 @@ const confirmReset = async (code: string, newPassword: string): Promise<any> => 
 const TEST_A_CONFIG = {
   businessCard: {
     id: 'bcard_juan_coffee_test_a',
-    businessName: "Juan's Coffee Shop",
-    ownerName: 'Juan Pérez',
+    bcName: "Juan's Coffee Shop",
+    bcContactName: 'Juan Pérez',
     latitude: 40.7128,
     longitude: -74.0060,
     keywords: ['café', 'espresso', 'desayuno'],
@@ -179,7 +179,7 @@ async function test_A_stories_in_feed() {
 const TEST_B_CONFIG = {
   businessCard: {
     id: 'bcard_nails_spa_test_b',
-    businessName: 'Nails & Spa Beauty',
+    bcName: 'Nails & Spa Beauty',
     keywords: ['nails', 'spa', 'belleza', 'manicura', 'pedicura'],
   },
   searchTerm: 'Nayls',
@@ -200,7 +200,7 @@ async function test_B_fuzzy_search_typo() {
     15
   );
   
-  const nailsFound = searchResults.some(r => r.card?.businessName?.includes('Nails'));
+  const nailsFound = searchResults.some(r => r.card?.bcName?.includes('Nails'));
   const score = searchResults[0]?.relevanceScore || 0;
   const levDistance = levenshteinDistance('nayls', 'nails');
   

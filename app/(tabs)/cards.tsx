@@ -43,6 +43,12 @@ import {
     orderByDeepSearchWithExpandedQuery,
 } from '@/services/deepSearch';
 import { auth, db } from '@/services/firebaseConfig';
+import {
+  readUserAvatarUrl,
+  readUserFullName,
+  readUserNickName,
+  readUserNickNameLower,
+} from '@/services/userIdentityFields';
 import { type CardFontItem, type FontTier } from '@/services/fontLibraryService';
 import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
 import { getUserIconVaultMap, type IconVaultEntry } from '@/services/iconVaultService';
@@ -69,6 +75,7 @@ import {
     type PublicCardSlotPayload,
     type SmartCardPayload,
 } from '@/services/qrApi';
+import { resolvePillForegroundColor } from '@/services/pillForegroundColor';
 import { getCardRowTheme, useActiveTheme } from '@/services/useActiveTheme';
 import {
     cardsTabFeedOrderStorageKey,
@@ -117,6 +124,7 @@ import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from 'react-
 import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import QRCode from 'react-native-qrcode-svg';
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { ActionController } from '../../services/ActionController';
 import {
@@ -285,6 +293,43 @@ async function loadVaultSnapshotForSync(ownerUid: string): Promise<{
   return { vaultItems: itemsMigrated as VaultItem[], iconVaultById: iconMap };
 }
 
+type Universal24hQrCacheRow = {
+  universalUrl: string;
+  expiresAt: number;
+  /** Misma ventana que al emitir (barra de progreso al reabrir). */
+  qrWindowMs: number;
+};
+
+function universal24hQrStorageKey(ownerUid: string, cardId: string) {
+  return `@cs_universal24h_${ownerUid}_${cardId}`;
+}
+
+async function readUniversal24hQrCache(ownerUid: string, cardId: string): Promise<Universal24hQrCacheRow | null> {
+  try {
+    const raw = await AsyncStorage.getItem(universal24hQrStorageKey(ownerUid, cardId));
+    if (!raw) return null;
+    const p = JSON.parse(raw) as Partial<Universal24hQrCacheRow>;
+    const universalUrl = String(p.universalUrl || '').trim();
+    const expiresAt = Number(p.expiresAt || 0);
+    const qrWindowMs = Math.max(1000, Number(p.qrWindowMs || 0));
+    if (!universalUrl || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+      await AsyncStorage.removeItem(universal24hQrStorageKey(ownerUid, cardId));
+      return null;
+    }
+    return { universalUrl, expiresAt, qrWindowMs };
+  } catch {
+    return null;
+  }
+}
+
+async function writeUniversal24hQrCache(ownerUid: string, cardId: string, row: Universal24hQrCacheRow) {
+  try {
+    await AsyncStorage.setItem(universal24hQrStorageKey(ownerUid, cardId), JSON.stringify(row));
+  } catch {
+    /* ignore */
+  }
+}
+
 /**
  * Smart Card: la lista pública de datos es solo `itemIds` (subset de la Bóveda).
  * Ítems indelebles en Bóveda (p. ej. Ghost-Link bootstrap / vaultProtected) no se añaden solos a la tarjeta:
@@ -292,7 +337,7 @@ async function loadVaultSnapshotForSync(ownerUid: string): Promise<{
  */
 type SmartCard = {
   id: string;
-  name: string;
+  scName: string;
   layout: 'vertical' | 'horizontal';
   themeId?: string;
   fontId?: string;
@@ -366,7 +411,7 @@ type CardsFeedListItem =
   | { kind: 'smart'; card: SmartCard };
 
 function cardsFeedItemKey(item: CardsFeedListItem): string {
-  return item.kind === 'business' ? `b:${item.id}` : `s:${item.card.id}`;
+  return item.kind === 'business' ? `b:${item.bId}` : `s:${item.card.id}`;
 }
 
 function applyCardsManualFeedOrder(feed: CardsFeedListItem[], savedKeys: string[] | null): CardsFeedListItem[] {
@@ -404,6 +449,7 @@ type EditSlot = {
 
 export default function CardsFactoryScreen() {
   const modalFooterBottomPad = useModalFooterBottomPad();
+  const safeAreaInsets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const { resolvedMode } = useLookMode();
@@ -454,10 +500,10 @@ export default function CardsFactoryScreen() {
   const [qrVisible, setQrVisible] = useState(false);
   const [qrBusinessContext, setQrBusinessContext] = useState<null | {
     cardId: string;
-    businessName: string;
-    ownerName: string;
+    bcName: string;
+    bcContactName: string;
     ownerUid: string;
-    logoUrl: string | null;
+    bcLogoUrl: string | null;
   }>(null);
   // Limit Reached Modal States
   const [limitReachedVisible, setLimitReachedVisible] = useState(false);
@@ -535,6 +581,44 @@ export default function CardsFactoryScreen() {
 
   const isChestThemeUnlocked = (t: ChestCardTheme) => !t.locked || unlockedIds.has(t.id);
 
+  const loadOwnerProfile = useCallback(async () => {
+    const user = auth.currentUser;
+    if (!user) {
+      return;
+    }
+    const authFallback = user.displayName
+      ? user.displayName
+      : user.email
+        ? String(user.email).split('@')[0]
+        : `user_${String(user.uid).slice(0, 6)}`;
+    try {
+      const userSnap = await getDoc(doc(db, 'users', user.uid));
+      const userData = userSnap.data() as Record<string, unknown>;
+      if (userData) {
+        const display = readUserFullName(userData);
+        setOwnerDisplayName(
+          display === 'Usuario' ? String(userData.firstName || '').trim() || authFallback : display
+        );
+        setOwnerNickname(
+          readUserNickName(userData) || readUserNickNameLower(userData) || authFallback
+        );
+        setOwnerPhotoUrl(
+          toRenderableImageUri(readUserAvatarUrl(userData) || undefined) ||
+            toRenderableImageUri(user.photoURL) ||
+            null
+        );
+      } else {
+        setOwnerDisplayName(authFallback);
+        setOwnerNickname(authFallback);
+        setOwnerPhotoUrl(toRenderableImageUri(user.photoURL) || null);
+      }
+    } catch {
+      setOwnerDisplayName(authFallback);
+      setOwnerNickname(authFallback);
+      setOwnerPhotoUrl(toRenderableImageUri(user.photoURL) || null);
+    }
+  }, []);
+
   useFocusEffect(
     React.useCallback(() => {
       const verifyAccess = async () => {
@@ -551,6 +635,7 @@ export default function CardsFactoryScreen() {
         void refreshThemes();
 
         InteractionManager.runAfterInteractions(() => {
+          void loadOwnerProfile();
           loadVaultItems();
           loadSmartCards();
           void loadBusinessCardsFeed();
@@ -558,42 +643,14 @@ export default function CardsFactoryScreen() {
       };
 
       void verifyAccess();
-    }, [refreshThemes])
+    }, [refreshThemes, loadOwnerProfile])
   );
 
   useEffect(() => {
-    const user = auth.currentUser;
-    if (user) {
-      const authFallback = user.displayName
-        ? user.displayName
-        : user.email
-        ? String(user.email).split('@')[0]
-        : `user_${String(user.uid).slice(0, 6)}`;
-      const loadProfile = async () => {
-        try {
-          const userSnap = await getDoc(doc(db, 'users', user.uid));
-          const userData = userSnap.data() as any;
-          if (userData) {
-            setOwnerDisplayName(userData.fullName || userData.firstName || authFallback);
-            setOwnerNickname(userData.nickname || userData.nicknameLower || authFallback);
-            setOwnerPhotoUrl(toRenderableImageUri(userData.photoUrl) || toRenderableImageUri(user.photoURL) || null);
-          } else {
-            setOwnerDisplayName(authFallback);
-            setOwnerNickname(authFallback);
-            setOwnerPhotoUrl(toRenderableImageUri(user.photoURL) || null);
-          }
-        } catch {
-          setOwnerDisplayName(authFallback);
-          setOwnerNickname(authFallback);
-          setOwnerPhotoUrl(toRenderableImageUri(user.photoURL) || null);
-        }
-      };
-      void loadProfile();
-    }
-
+    void loadOwnerProfile();
     loadVaultItems();
     loadSmartCards();
-  }, []);
+  }, [loadOwnerProfile]);
 
   useEffect(() => {
     if (!enableParallax) {
@@ -628,14 +685,16 @@ export default function CardsFactoryScreen() {
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
+        void loadOwnerProfile();
         loadVaultItems();
-        loadSmartCards();
+        void loadSmartCards();
+        void loadBusinessCardsFeed();
       }
     });
     return () => {
       sub.remove();
     };
-  }, []);
+  }, [loadOwnerProfile]);
 
   useEffect(() => {
     if (!qrVisible || qrExpiresAt <= 0) {
@@ -689,33 +748,31 @@ export default function CardsFactoryScreen() {
     }
   };
 
-  const loadSmartCards = async () => {
+  const loadSmartCards = async (): Promise<SmartCard[]> => {
     const ownerUid = await getActiveUserId();
     if (!ownerUid) {
       setSmartCards([]);
-      return;
+      return [];
     }
 
-    // 1. Lectura optimista: mostrar cache local inmediatamente (cero latencia)
-    let cachedJson = '';
+    let lastList: SmartCard[] = [];
     try {
       const raw = await readSmartCardsJsonWithLegacyMigration(ownerUid);
-      cachedJson = raw || '';
       const cached = raw ? (JSON.parse(raw) as SmartCard[]) : [];
-      if (cached.length > 0) {
-        setSmartCards(
-          dedupeSmartCardsById(cached.map((card) => ({ ...card, isFavorite: Boolean(card.isFavorite) }))),
-        );
+      lastList = dedupeSmartCardsById(cached.map((card) => ({ ...card, isFavorite: Boolean(card.isFavorite) })));
+      if (lastList.length > 0) {
+        setSmartCards(lastList);
       }
-    } catch { /* ignora — la nube actualiza a continuación */ }
+    } catch {
+      /* ignora — la nube actualiza a continuación */
+    }
 
-    // 2. Refresco silencioso — actualiza estado solo si los datos cambiaron
     try {
-      const remote = await listSmartCardsFromDb({ ownerUid });
+      const remote = await listSmartCardsFromDb({ uid: ownerUid });
       const smartOnly = remote.cards.filter((c) => (c.cardType || 'smart') !== 'business');
       const mapped = smartOnly.map((card) => ({
         id: card.cardId,
-        name: card.name,
+        scName: card.scName,
         layout: card.layout,
         themeId: card.themeId || 'deep_teal',
         fontId: card.fontId,
@@ -739,46 +796,63 @@ export default function CardsFactoryScreen() {
       }));
 
       const deduped = dedupeSmartCardsById(mapped);
-      const cloudJson = JSON.stringify(deduped);
-      if (cloudJson !== cachedJson) {
-        setSmartCards(deduped);
-        await AsyncStorage.setItem(smartCardsStorageKey(ownerUid), cloudJson);
-      }
+      setSmartCards(deduped);
+      await AsyncStorage.setItem(smartCardsStorageKey(ownerUid), JSON.stringify(deduped));
+      return deduped;
     } catch {
-      // Cache ya pintado — no hacer nada
+      return lastList;
     }
   };
 
-  const loadBusinessCardsFeed = async () => {
+  const loadBusinessCardsFeed = async (): Promise<BusinessCardListRow[]> => {
     const ownerUid = await getActiveUserId();
     if (!ownerUid) {
       setBusinessCardsFeed([]);
-      return;
+      return [];
     }
     try {
       let rows = await listBusinessCardsByOwner(ownerUid);
       try {
-        const { cards: mongoMirror } = await listSmartCardsFromDb({ ownerUid });
+        const { cards: mongoMirror } = await listSmartCardsFromDb({ uid: ownerUid });
         rows = mergeBusinessCardRowsWithMongoOwnerPhoto(rows, mongoMirror);
       } catch {
         /* sin espejo Mongo: se usa solo Firestore */
       }
       /* Obtener holdersCount real desde share_permissions (MongoDB) */
-      const cardIds = rows.map((r) => r.id);
+      const cardIds = rows.map((r) => r.bId);
       if (cardIds.length) {
         try {
           const counts = await fetchBusinessCardHolderCounts({ ownerUid, cardIds });
           for (const r of rows) {
-            if (counts[r.id] !== undefined) {
-              r.holdersCount = counts[r.id];
+            if (counts[r.bId] !== undefined) {
+              r.holdersCount = counts[r.bId];
             }
           }
         } catch { /* Firestore fallback si el backend no responde */ }
       }
       setBusinessCardsFeed(rows);
+      return rows;
     } catch {
       setBusinessCardsFeed([]);
+      return [];
     }
+  };
+
+  /** Otro dispositivo puede haber guardado en la nube: vuelve a leer sin cambiar de pestaña. */
+  const refreshCardsTabFromServer = () => {
+    InteractionManager.runAfterInteractions(() => {
+      void loadSmartCards();
+      void loadBusinessCardsFeed();
+    });
+  };
+
+  const closeFactoryModalAndSync = () => {
+    Keyboard.dismiss();
+    InteractionManager.runAfterInteractions(() => {
+      setFactoryVisible(false);
+      void loadSmartCards();
+      void loadBusinessCardsFeed();
+    });
   };
 
   /** Payload para `smart_cards` en Mongo (incl. `publicCardSlots` que consume la web del QR24h). */
@@ -793,7 +867,7 @@ export default function CardsFactoryScreen() {
     const publicCardSlots = buildPublicCardSlotsForPersist(vItems, card.itemIds, vIcons);
     return {
       cardId: card.id,
-      name: card.name,
+      scName: card.scName,
       layout: card.layout,
       themeId: card.themeId || 'deep_teal',
       fontId: card.fontId,
@@ -947,7 +1021,7 @@ export default function CardsFactoryScreen() {
 
   const openEditFactory = (card: SmartCard) => {
     setSelectedCard(card);
-    setCardName(card.name);
+    setCardName(card.scName);
     setLayoutMode(card.layout);
     setThemeId(card.themeId || 'deep_teal');
     setEnableParallax(Boolean(card.enableParallax));
@@ -956,7 +1030,8 @@ export default function CardsFactoryScreen() {
       card.fontId
         ? {
             id: card.fontId,
-            name: card.fontName || card.name,
+            /** Etiqueta del pack tipográfico (no es `scName` de la tarjeta). */
+            name: String(card.fontName || card.fontId || '').trim() || 'font',
             family: card.fontFamily || `font-${card.fontId}`,
             tier: card.fontTier || 'free',
             fileUrl: '',
@@ -967,7 +1042,7 @@ export default function CardsFactoryScreen() {
       card.wallpaperUrl
         ? {
             id: card.wallpaperId || `custom-${card.id}`,
-            name: card.name,
+            name: String(card.wallpaperId || `custom-${card.id}`).trim() || 'wallpaper',
             orientation: card.layout,
             tier: card.wallpaperTier || 'free',
             fullUrl: card.wallpaperUrl,
@@ -1029,7 +1104,7 @@ export default function CardsFactoryScreen() {
       if (selectedCard && card.id === selectedCard.id) {
         return false;
       }
-      return String(card.name || '').trim().toLowerCase() === normalizedCardName;
+      return String(card.scName || '').trim().toLowerCase() === normalizedCardName;
     });
 
     if (duplicatedName) {
@@ -1040,7 +1115,9 @@ export default function CardsFactoryScreen() {
       return;
     }
 
-    const normalizedItemIds = selectedItemIds.slice(0, MAX_CARD_SLOTS);
+    const normalizedItemIds = selectedItemIds
+      .filter((id) => vaultItems.some((vi) => vi.id === id))
+      .slice(0, MAX_CARD_SLOTS);
 
     if (normalizedItemIds.length === 0) {
       Alert.alert(tr('Sin datos', 'No data'), tr('Selecciona al menos un dato del Vault para tu tarjeta.', 'Select at least one Vault item for your card.'));
@@ -1057,7 +1134,7 @@ export default function CardsFactoryScreen() {
           card.id === selectedCard.id
             ? {
                 ...card,
-                name: cardName.trim(),
+                scName: cardName.trim(),
                 layout: 'vertical' as const,
                 themeId,
                 fontId: selectedFont?.id,
@@ -1090,7 +1167,7 @@ export default function CardsFactoryScreen() {
 
       const newCard: SmartCard = {
         id: createSmartCardId(),
-        name: cardName.trim(),
+        scName: cardName.trim(),
         layout: 'vertical',
         themeId,
         fontId: selectedFont?.id,
@@ -1296,6 +1373,7 @@ export default function CardsFactoryScreen() {
 
   const openBusinessSubscribersModal = async (row: BusinessCardListRow) => {
     try {
+      void loadOwnerProfile();
       setSubscribersVisible(true);
       setSubscribersLoading(true);
       setSubscribersBusinessRow(row);
@@ -1304,12 +1382,12 @@ export default function CardsFactoryScreen() {
       const ownerUid = await getActiveUserId();
       if (!ownerUid) throw new Error('No active session.');
 
-      const response = await listCardSubscribers({ ownerUid, cardId: row.id });
+      const response = await listCardSubscribers({ ownerUid, cardId: row.bId });
       setSubscribers(response.subscribers);
 
       setBusinessCardsFeed((prev) =>
         prev.map((entry) =>
-          entry.id === row.id ? { ...entry, holdersCount: response.count } : entry
+          entry.bId === row.bId ? { ...entry, holdersCount: response.count } : entry
         )
       );
     } catch (error: any) {
@@ -1322,6 +1400,7 @@ export default function CardsFactoryScreen() {
 
   const openSubscribersModal = async (card: SmartCard) => {
     try {
+      void loadOwnerProfile();
       setSubscribersVisible(true);
       setSubscribersLoading(true);
       setSubscribersCard(card);
@@ -1557,8 +1636,8 @@ export default function CardsFactoryScreen() {
     Alert.alert(
       tr('Crear QR', 'Create QR'),
       tr(
-        `¿Deseas generar el QR de la tarjeta "${card.name}"?`,
-        `Do you want to generate the QR for card "${card.name}"?`
+        `¿Deseas generar el QR de la tarjeta "${card.scName}"?`,
+        `Do you want to generate the QR for card "${card.scName}"?`
       ),
       [
         { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
@@ -1600,9 +1679,31 @@ export default function CardsFactoryScreen() {
     try {
       const authenticated = await hardLockCheck(tr('QR web 24 h de tarjeta', '24h web QR for card'));
       if (!authenticated) return;
-      setIssuingUniversalLink(true);
       const ownerUid = await getActiveUserId();
       if (!ownerUid) throw new Error(tr('No se pudo obtener tu sesión.', 'Could not get your session.'));
+
+      const cached = await readUniversal24hQrCache(ownerUid, card.id);
+      if (cached) {
+        setQrBusinessContext(null);
+        setSelectedCard(card);
+        setQrToken('');
+        setQrUniversalWebUrl(cached.universalUrl);
+        setQrExpiresAt(cached.expiresAt);
+        setQrWindowMs(cached.qrWindowMs);
+        setQrActiveCardId(card.id);
+        setQrVisible(true);
+        void (async () => {
+          try {
+            const snap = await loadVaultSnapshotForSync(ownerUid);
+            await upsertSmartCardInDb({ ownerUid, card: buildSmartCardDbPayload(card, snap) });
+          } catch {
+            /* mejor esfuerzo */
+          }
+        })();
+        return;
+      }
+
+      setIssuingUniversalLink(true);
       // Leer Bóveda desde disco (no solo estado React): si no, publicCardSlots podía ir vacío y la web sin iconos.
       const vaultSnap = await loadVaultSnapshotForSync(ownerUid);
       const cardPayload = buildSmartCardDbPayload(card, vaultSnap);
@@ -1648,6 +1749,11 @@ export default function CardsFactoryScreen() {
       setQrWindowMs(visibleWindowMs);
       setQrActiveCardId(card.id);
       setQrVisible(true);
+      await writeUniversal24hQrCache(ownerUid, card.id, {
+        universalUrl: url,
+        expiresAt: nextExpiresAt,
+        qrWindowMs: visibleWindowMs,
+      });
     } catch (error: any) {
       const msg = String(error?.message || '');
       if (msg && !msg.includes('cancel')) {
@@ -1684,13 +1790,14 @@ export default function CardsFactoryScreen() {
         await upsertSmartCardInDb({
           ownerUid,
           card: {
-            cardId: row.id,
-            name: row.businessName,
+            cardId: row.bId,
+            bId: row.bId,
+            scName: row.bcName,
             layout: 'vertical',
             themeId: row.themeId || 'deep_teal',
-            ownerDisplayName: row.ownerName || undefined,
+            ownerDisplayName: row.bcContactName || undefined,
             ownerNickname: undefined,
-            ownerPhotoUrl: row.businessLogo ? toRenderableImageUri(row.businessLogo) : null,
+            ownerPhotoUrl: row.bcLogoUrl ? toRenderableImageUri(row.bcLogoUrl) : null,
             itemIds: row.vaultLinkIds,
             publicCardSlots,
             holdersCount: Number(row.holdersCount || 0),
@@ -1705,11 +1812,11 @@ export default function CardsFactoryScreen() {
       }
 
       setQrBusinessContext({
-        cardId: row.id,
-        businessName: row.businessName,
-        ownerName: row.ownerName,
+        cardId: row.bId,
+        bcName: row.bcName,
+        bcContactName: row.bcContactName,
         ownerUid,
-        logoUrl: toRenderableImageUri(row.businessLogo),
+        bcLogoUrl: toRenderableImageUri(row.bcLogoUrl),
       });
       setSelectedCard(null);
       setQrToken('');
@@ -1733,8 +1840,8 @@ export default function CardsFactoryScreen() {
     Alert.alert(
       tr('Crear QR', 'Create QR'),
       tr(
-        `¿Deseas mostrar el QR permanente de "${row.businessName}"?`,
-        `Do you want to show the permanent QR for "${row.businessName}"?`,
+        `¿Deseas mostrar el QR permanente de "${row.bcName}"?`,
+        `Do you want to show the permanent QR for "${row.bcName}"?`,
       ),
       [
         { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
@@ -1756,10 +1863,10 @@ export default function CardsFactoryScreen() {
     let previous: BusinessCardListRow[] = [];
     setBusinessCardsFeed((p) => {
       previous = p;
-      return p.filter((c) => c.id !== row.id);
+      return p.filter((c) => c.bId !== row.bId);
     });
     try {
-      const r = await removeBusinessCardFromFirestore(ownerUid, row.id);
+      const r = await removeBusinessCardFromFirestore(ownerUid, row.bId);
       if (!r.success) {
         throw new Error(r.message);
       }
@@ -1774,9 +1881,9 @@ export default function CardsFactoryScreen() {
     try {
       const ownerUid = await getActiveUserId();
       if (!ownerUid) return;
-      await setCardSilenced({ ownerUid, cardId: row.id, silenced: next });
+      await setCardSilenced({ ownerUid, cardId: row.bId, silenced: next });
       setBusinessCardsFeed((prev) =>
-        prev.map((r) => (r.id === row.id ? { ...r, silenced: next } : r)),
+        prev.map((r) => (r.bId === row.bId ? { ...r, silenced: next } : r)),
       );
     } catch (e: any) {
       Alert.alert(tr('Error', 'Error'), e?.message || tr('No se pudo actualizar.', 'Could not update.'));
@@ -1789,21 +1896,23 @@ export default function CardsFactoryScreen() {
       return;
     }
     const next = !row.isFavorite;
-    setBusinessCardsFeed((p) => p.map((c) => (c.id === row.id ? { ...c, isFavorite: next } : c)));
+    setBusinessCardsFeed((p) => p.map((c) => (c.bId === row.bId ? { ...c, isFavorite: next } : c)));
     try {
-      const r = await setBusinessCardFavorite(ownerUid, row.id, next);
+      const r = await setBusinessCardFavorite(ownerUid, row.bId, next);
       if (!r.success) {
         throw new Error(r.message);
       }
     } catch {
-      setBusinessCardsFeed((p) => p.map((c) => (c.id === row.id ? { ...c, isFavorite: row.isFavorite } : c)));
+      setBusinessCardsFeed((p) => p.map((c) => (c.bId === row.bId ? { ...c, isFavorite: row.isFavorite } : c)));
     }
   };
 
   const openPreviewBusinessCard = async (row: BusinessCardListRow) => {
     const uid = (await getActiveUserId()) ?? sessionOwnerUid ?? '';
+    const rows = await loadBusinessCardsFeed();
+    const fresh = rows.find((r) => r.bId === row.bId) ?? row;
     setPreviewBusinessOwnerUid(uid);
-    setPreviewBusiness(row);
+    setPreviewBusiness(fresh);
     setPreviewLayout(width > height ? 'horizontal' : 'vertical');
     setPreviewBusinessVisible(true);
   };
@@ -1843,6 +1952,21 @@ export default function CardsFactoryScreen() {
     return Math.max(1, getWireframeIconRowPlan(n).length);
   }, [editSlots]);
 
+  const factoryResolvedDataCount = useMemo(
+    () => editSlots.filter((s) => s.item !== null).length,
+    [editSlots],
+  );
+
+  useEffect(() => {
+    if (!factoryVisible || vaultItems.length === 0) {
+      return;
+    }
+    setSelectedItemIds((prev) => {
+      const next = prev.filter((id) => vaultItems.some((v) => v.id === id));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [vaultItems, factoryVisible]);
+
   // Handle upgrade button press (limit reached modal)
   const handleUpgradePress = async () => {
     try {
@@ -1868,7 +1992,7 @@ export default function CardsFactoryScreen() {
   const previewPayload = useMemo<MyCardsPayload | null>(() => {
     if (!previewCard) return null;
     return {
-      cardName: (previewCard.name || cardName || 'Nueva Tarjeta').trim(),
+      cardName: (previewCard.scName || cardName || 'Nueva Tarjeta').trim(),
       subtitle: `@${(ownerNickname || 'user').toLowerCase()}`,
       avatarUrl: ownerPhotoUrl,
       themeId: previewCard.themeId || '',
@@ -1896,9 +2020,9 @@ export default function CardsFactoryScreen() {
   const businessPreviewPayload = useMemo<MyCardsPayload | null>(() => {
     if (!previewBusiness) return null;
     return {
-      cardName: previewBusiness.businessName.trim(),
-      subtitle: previewBusiness.ownerName.trim(),
-      avatarUrl: toRenderableImageUri(previewBusiness.businessLogo),
+      cardName: previewBusiness.bcName.trim(),
+      subtitle: previewBusiness.bcContactName.trim(),
+      avatarUrl: toRenderableImageUri(previewBusiness.bcLogoUrl),
       themeId: previewBusiness.themeId || '',
       layout: previewLayout,
       holdersCount: previewBusiness.holdersCount ?? 0,
@@ -1949,7 +2073,7 @@ export default function CardsFactoryScreen() {
       if (favDiff !== 0) {
         return favDiff;
       }
-      return String(a.name || '').localeCompare(String(b.name || ''), 'es', { sensitivity: 'base' });
+      return String(a.scName || '').localeCompare(String(b.scName || ''), 'es', { sensitivity: 'base' });
     });
   }, [smartCards]);
 
@@ -1988,16 +2112,16 @@ export default function CardsFactoryScreen() {
     const bizFiltered = orderedBaseFeed.filter((b): b is CardsFeedListItem & { kind: 'business' } => {
       if (b.kind !== 'business') return false;
       return (
-        b.businessName.toLowerCase().includes(qLower) ||
-        b.id.toLowerCase().includes(qLower) ||
-        b.ownerName.toLowerCase().includes(qLower)
+        b.bcName.toLowerCase().includes(qLower) ||
+        b.bId.toLowerCase().includes(qLower) ||
+        b.bcContactName.toLowerCase().includes(qLower)
       );
     });
     const smartOrdered = orderedBaseFeed
       .filter((x): x is { kind: 'smart'; card: SmartCard } => x.kind === 'smart')
       .map((x) => x.card);
     const smartFiltered = orderByDeepSearchWithExpandedQuery(smartOrdered, qExpanded, (card) =>
-      collectStringsSmartCard({ name: card.name, itemIds: card.itemIds }, vaultItems, false),
+      collectStringsSmartCard({ scName: card.scName, itemIds: card.itemIds }, vaultItems, false),
     );
     return [...bizFiltered, ...smartFiltered.map((card) => ({ kind: 'smart' as const, card }))];
   }, [orderedBaseFeed, cardSearchQuery, vaultItems]);
@@ -2075,14 +2199,13 @@ export default function CardsFactoryScreen() {
   }, [cardsReorderMode, isLandscape, cancelCardsReorder]);
 
   const openPreviewCard = (card: SmartCard) => {
-    setPreviewCard(card);
-    // Detecta orientación actual
-    if (width > height) {
-      setPreviewLayout('horizontal');
-    } else {
-      setPreviewLayout('vertical');
-    }
-    setPreviewVisible(true);
+    void (async () => {
+      const list = await loadSmartCards();
+      const fresh = list.find((c) => c.id === card.id) ?? card;
+      setPreviewLayout(width > height ? 'horizontal' : 'vertical');
+      setPreviewCard(fresh);
+      setPreviewVisible(true);
+    })();
   };
 
   // Efecto para actualizar orientación en tiempo real mientras el modal de vista previa está abierto
@@ -2097,12 +2220,13 @@ export default function CardsFactoryScreen() {
     setPreviewBusinessVisible(false);
     setPreviewBusiness(null);
     setPreviewBusinessOwnerUid('');
+    refreshCardsTabFromServer();
   }, []);
 
   const openDataPopover = async (item: VaultItem) => {
     const activeCard =
       previewBusinessVisible && previewBusiness
-        ? { id: previewBusiness.id, name: previewBusiness.businessName }
+        ? { id: previewBusiness.bId, scName: previewBusiness.bcName }
         : previewVisible && previewCard
           ? previewCard
           : selectedCard;
@@ -2113,7 +2237,7 @@ export default function CardsFactoryScreen() {
         openDocumentViewer(it as VaultItem);
       },
       ghostTargetUid: issuerUid,
-      sourceCardName: activeCard?.name ?? cardName ?? 'Tarjeta Social',
+      sourceCardName: activeCard?.scName ?? cardName ?? 'Tarjeta Social',
       sourceCardId: activeCard?.id ?? null,
       peerDisplayName: ownerNickname || 'este contacto',
       dismissParentModal: dismissCardPreviewModals,
@@ -2141,7 +2265,7 @@ export default function CardsFactoryScreen() {
     try {
       const activeCard =
         previewBusinessVisible && previewBusiness
-          ? { id: previewBusiness.id, name: previewBusiness.businessName }
+          ? { id: previewBusiness.bId, scName: previewBusiness.bcName }
           : previewVisible && previewCard
             ? previewCard
             : selectedCard;
@@ -2152,7 +2276,7 @@ export default function CardsFactoryScreen() {
           openDocumentViewer(it as VaultItem);
         },
         ghostTargetUid: issuerUid,
-        sourceCardName: activeCard?.name ?? cardName ?? 'Tarjeta Social',
+        sourceCardName: activeCard?.scName ?? cardName ?? 'Tarjeta Social',
         sourceCardId: activeCard?.id ?? null,
         peerDisplayName: ownerNickname || 'este contacto',
         dismissParentModal: dismissCardPreviewModals,
@@ -2217,7 +2341,7 @@ export default function CardsFactoryScreen() {
             <MaterialCommunityIcons name="account" size={compact ? 22 : 32} color="#0D4D8A" />
           </View>
         )}
-        <AutoScaleText style={compact ? styles.wireNameSm : styles.wireName}>{(selectedCard?.name || previewCard?.name || cardName || 'Nueva Tarjeta').trim()}</AutoScaleText>
+        <AutoScaleText style={compact ? styles.wireNameSm : styles.wireName}>{(selectedCard?.scName || previewCard?.scName || cardName || 'Nueva Tarjeta').trim()}</AutoScaleText>
         <AutoScaleText style={compact ? styles.wireNickSm : styles.wireNick}>@{(ownerNickname || 'user').toLowerCase()}</AutoScaleText>
         <View style={styles.wireStatsRowInline}>
           <View style={styles.wireUsersPill}>
@@ -2262,7 +2386,7 @@ export default function CardsFactoryScreen() {
   }) => {
     const { layout, slots, editable, theme, wallpaperUrl, wireIdentity } = params;
     const wId = wireIdentity;
-    const dispName = wId?.cardTitle ?? (selectedCard?.name || previewCard?.name || cardName || 'Nueva Tarjeta').trim();
+    const dispName = wId?.cardTitle ?? (selectedCard?.scName || previewCard?.scName || cardName || 'Nueva Tarjeta').trim();
     const dispSub = wId ? wId.subtitle : `@${(ownerNickname || 'user').toLowerCase()}`;
     const dispAvatar = wId ? wId.avatarUri : ownerPhotoUrl;
     const dispHolders = wId ? wId.holdersCount : (selectedCard?.holdersCount ?? previewCard?.holdersCount ?? 0);
@@ -2293,8 +2417,13 @@ export default function CardsFactoryScreen() {
     const chestTheme = getCardRowTheme(row.themeId);
     const themeMeta = getThemeById(row.themeId || '') ?? CHEST_THEMES[0];
     const holders = row.holdersCount ?? 0;
-    const logoUri = toRenderableImageUri(row.businessLogo);
-    const sk = businessSwipeKey(row.id);
+    const metricPillFg = resolvePillForegroundColor({
+      cardGradient: chestTheme.gradient,
+      pillBackground: 'rgba(255,255,255,0.72)',
+      preferredColor: chestTheme.iconColor,
+    });
+    const logoUri = toRenderableImageUri(row.bcLogoUrl);
+    const sk = businessSwipeKey(row.bId);
     const closeBusinessRowSwipe = () => {
       swipeableMethodsByCardIdRef.current.get(sk)?.close();
     };
@@ -2319,7 +2448,7 @@ export default function CardsFactoryScreen() {
               style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.swipeStripEditBg }]}
               onPress={() => {
                 closeBusinessRowSwipe();
-                router.push({ pathname: '/(tabs)/createBusinessCard', params: { cardId: row.id } } as any);
+                router.push({ pathname: '/(tabs)/createBusinessCard', params: { cardId: row.bId } } as any);
               }}
               accessibilityLabel={tr('Editar tarjeta', 'Edit card')}
             >
@@ -2419,11 +2548,11 @@ export default function CardsFactoryScreen() {
                     maxLines={2}
                     style={[styles.cardTitle, styles.businessListTitle, { color: chestTheme.titleColor }]}
                   >
-                    {row.businessName}
+                    {row.bcName}
                   </AutoScaleText>
                   <Text style={[styles.businessListSubtitle, { color: chestTheme.metaColor }]} numberOfLines={1}>
-                    {row.ownerName.trim()
-                      ? row.ownerName
+                    {row.bcContactName.trim()
+                      ? row.bcContactName
                       : themeMeta.name}
                   </Text>
                   <View style={styles.businessCardStatsRow}>
@@ -2436,15 +2565,15 @@ export default function CardsFactoryScreen() {
                       accessibilityLabel={tr('Personas con tu tarjeta', 'People with your card')}
                       onPress={() => { void openBusinessSubscribersModal(row); }}
                     >
-                      <MaterialCommunityIcons name="account-group-outline" size={13} color={chestTheme.titleColor} />
-                      <Text style={[styles.metricPillText, { color: chestTheme.titleColor }]}>{holders}</Text>
+                      <MaterialCommunityIcons name="account-group-outline" size={13} color={metricPillFg} />
+                      <Text style={[styles.metricPillText, { color: metricPillFg }]}>{holders}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
                 {sessionOwnerUid ? (
                   <View style={styles.businessListQrWrap} pointerEvents="none">
                     <QRCode
-                      value={generatePermanentBusinessLink(row.id, sessionOwnerUid)}
+                      value={generatePermanentBusinessLink(row.bId, sessionOwnerUid)}
                       size={64}
                       color="#0A2540"
                       backgroundColor="#FFFFFF"
@@ -2489,6 +2618,11 @@ export default function CardsFactoryScreen() {
   const renderCard = ({ item }: { item: SmartCard }) => {
     const chestTheme = getCardRowTheme(item.themeId);
     const holders = item.holdersCount ?? 0;
+    const metricPillFg = resolvePillForegroundColor({
+      cardGradient: chestTheme.gradient,
+      pillBackground: 'rgba(255,255,255,0.72)',
+      preferredColor: chestTheme.iconColor,
+    });
     const reviewCount = item.totalRatings ?? 0;
     const ratingRaw = Number(item.ratingAvg ?? 0);
     const rating =
@@ -2616,7 +2750,7 @@ export default function CardsFactoryScreen() {
                   item.fontFamily ? { fontFamily: item.fontFamily } : null,
                 ]}
               >
-                {item.name}
+                {item.scName}
               </AutoScaleText>
               <Text style={[styles.cardRowThemeSubtitle, { color: chestTheme.metaColor }]} numberOfLines={1}>
                 {themeLabel}
@@ -2632,8 +2766,8 @@ export default function CardsFactoryScreen() {
                     openSubscribersModal(item);
                   }}
                 >
-                  <MaterialCommunityIcons name="account-group-outline" size={13} color={chestTheme.titleColor} />
-                  <Text style={[styles.metricPillText, { color: chestTheme.titleColor }]}>{holders}</Text>
+                  <MaterialCommunityIcons name="account-group-outline" size={13} color={metricPillFg} />
+                  <Text style={[styles.metricPillText, { color: metricPillFg }]}>{holders}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -2677,11 +2811,16 @@ export default function CardsFactoryScreen() {
       const chestTheme = getCardRowTheme(row.themeId);
       const themeMeta = getThemeById(row.themeId || '') ?? CHEST_THEMES[0];
       const holders = row.holdersCount ?? 0;
+      const metricPillFg = resolvePillForegroundColor({
+        cardGradient: chestTheme.gradient,
+        pillBackground: 'rgba(255,255,255,0.72)',
+        preferredColor: chestTheme.iconColor,
+      });
       const reviewCount = row.totalRatings ?? 0;
       const ratingRaw = Number(row.ratingAvg ?? 0);
       const rating =
         reviewCount > 0 && Number.isFinite(ratingRaw) ? Math.max(0, Math.min(5, ratingRaw)) : 0;
-      const logoUri = toRenderableImageUri(row.businessLogo);
+      const logoUri = toRenderableImageUri(row.bcLogoUrl);
       return (
         <ScaleDecorator>
           <TouchableOpacity
@@ -2730,10 +2869,10 @@ export default function CardsFactoryScreen() {
                         maxLines={2}
                         style={[styles.cardTitle, styles.businessListTitle, { color: chestTheme.titleColor }]}
                       >
-                        {row.businessName}
+                        {row.bcName}
                       </AutoScaleText>
                       <Text style={[styles.businessListSubtitle, { color: chestTheme.metaColor }]} numberOfLines={1}>
-                        {row.ownerName.trim() ? row.ownerName : themeMeta.name}
+                        {row.bcContactName.trim() ? row.bcContactName : themeMeta.name}
                       </Text>
                       <View style={styles.businessCardStatsRow}>
                         <View
@@ -2743,8 +2882,8 @@ export default function CardsFactoryScreen() {
                           ]}
                           accessibilityRole="text"
                         >
-                          <MaterialCommunityIcons name="account-group-outline" size={13} color={chestTheme.titleColor} />
-                          <Text style={[styles.metricPillText, { color: chestTheme.titleColor }]}>{holders}</Text>
+                          <MaterialCommunityIcons name="account-group-outline" size={13} color={metricPillFg} />
+                          <Text style={[styles.metricPillText, { color: metricPillFg }]}>{holders}</Text>
                         </View>
                         <View style={styles.statsRatingStack}>
                           <View style={styles.businessRatingStarsWrap}>{renderWireframeDetailedRatingStars(rating)}</View>
@@ -2757,7 +2896,7 @@ export default function CardsFactoryScreen() {
                     {sessionOwnerUid ? (
                       <View style={styles.businessListQrWrap} pointerEvents="none">
                         <QRCode
-                          value={generatePermanentBusinessLink(row.id, sessionOwnerUid)}
+                          value={generatePermanentBusinessLink(row.bId, sessionOwnerUid)}
                           size={64}
                           color="#0A2540"
                           backgroundColor="#FFFFFF"
@@ -2788,6 +2927,11 @@ export default function CardsFactoryScreen() {
     const card = item.card;
     const chestTheme = getCardRowTheme(card.themeId);
     const holders = card.holdersCount ?? 0;
+    const metricPillFg = resolvePillForegroundColor({
+      cardGradient: chestTheme.gradient,
+      pillBackground: 'rgba(255,255,255,0.72)',
+      preferredColor: chestTheme.iconColor,
+    });
     const themeMeta = getThemeById(card.themeId || '') ?? CHEST_THEMES[0];
     const themeLabel = themeMeta.name;
 
@@ -2841,7 +2985,7 @@ export default function CardsFactoryScreen() {
                     card.fontFamily ? { fontFamily: card.fontFamily } : null,
                   ]}
                 >
-                  {card.name}
+                  {card.scName}
                 </AutoScaleText>
                 <Text style={[styles.cardRowThemeSubtitle, { color: chestTheme.metaColor }]} numberOfLines={1}>
                   {themeLabel}
@@ -2853,8 +2997,8 @@ export default function CardsFactoryScreen() {
                       { borderColor: chestTheme.borderColor, backgroundColor: 'rgba(255,255,255,0.72)' },
                     ]}
                   >
-                    <MaterialCommunityIcons name="account-group-outline" size={13} color={chestTheme.titleColor} />
-                    <Text style={[styles.metricPillText, { color: chestTheme.titleColor }]}>{holders}</Text>
+                    <MaterialCommunityIcons name="account-group-outline" size={13} color={metricPillFg} />
+                    <Text style={[styles.metricPillText, { color: metricPillFg }]}>{holders}</Text>
                   </View>
 
                 </View>
@@ -3111,10 +3255,19 @@ export default function CardsFactoryScreen() {
         <Text style={[styles.createFabText, { color: cardsTheme.fabText }]}>{tr('Crear', 'Create')}</Text>
       </TouchableOpacity>
 
-      <Modal visible={factoryVisible} transparent animationType="slide" onRequestClose={() => { Keyboard.dismiss(); InteractionManager.runAfterInteractions(() => setFactoryVisible(false)); }}>
+      <Modal visible={factoryVisible} transparent animationType="slide" onRequestClose={closeFactoryModalAndSync}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}>
-                <View style={[styles.factoryModal, { backgroundColor: cardsTheme.modalBg, borderColor: cardsTheme.modalBorder }]}>
+                <View
+                  style={[
+                    styles.factoryModal,
+                    {
+                      backgroundColor: cardsTheme.modalBg,
+                      borderColor: cardsTheme.modalBorder,
+                      paddingTop: 16 + safeAreaInsets.top,
+                    },
+                  ]}
+                >
 
                   {/* Header */}
                   <View style={styles.factoryHeaderRow}>
@@ -3122,7 +3275,7 @@ export default function CardsFactoryScreen() {
                       {selectedCard ? tr('Editar Smart Card', 'Edit Smart Card') : tr('Nueva Smart Card', 'New Smart Card')}
                     </Text>
                     <TouchableOpacity
-                      onPress={() => { Keyboard.dismiss(); InteractionManager.runAfterInteractions(() => setFactoryVisible(false)); }}
+                      onPress={closeFactoryModalAndSync}
                       hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                       accessibilityLabel={tr('Cerrar', 'Close')}
                     >
@@ -3171,9 +3324,9 @@ export default function CardsFactoryScreen() {
                     >
                       <MaterialCommunityIcons name="database-plus-outline" size={18} color={cardsTheme.icon} />
                       <Text style={[styles.factoryActionBtnText, { color: cardsTheme.text }]}>{tr('Agregar DATA', 'Add DATA')}</Text>
-                      {selectedItemIds.length > 0 && (
+                      {factoryResolvedDataCount > 0 && (
                         <View style={styles.factoryActionBadge}>
-                          <Text style={styles.factoryActionBadgeText}>{selectedItemIds.length}</Text>
+                          <Text style={styles.factoryActionBadgeText}>{factoryResolvedDataCount}</Text>
                         </View>
                       )}
                     </TouchableOpacity>
@@ -3196,7 +3349,7 @@ export default function CardsFactoryScreen() {
                     </TouchableOpacity>
                   </View>
 
-                  {/* Card preview — fills remaining height */}
+                  {/* Card preview — solo el interior del marco hace scroll */}
                   <View style={styles.factoryPreviewWrap}>
                     <View style={[styles.factoryPreviewStage, { backgroundColor: isDark ? 'rgba(8,18,30,0.72)' : 'rgba(255,255,255,0.36)', borderColor: cardsTheme.modalBorder }] }>
                       <View
@@ -3208,40 +3361,48 @@ export default function CardsFactoryScreen() {
                             : { minHeight: Math.min(height * 0.34, 380) },
                         ]}
                       >
-                        {editSlots.filter((s) => s.item !== null).length === 0 ? (
-                          <View style={styles.factoryPreviewEmpty}>
-                            <MaterialCommunityIcons name="card-plus-outline" size={38} color={isDark ? 'rgba(184,231,255,0.3)' : 'rgba(13,77,138,0.18)'} />
-                            <Text style={[styles.factoryPreviewEmptyText, { color: cardsTheme.sectionLabel }]}>
-                              {tr('Agrega DATA para ver tu tarjeta aquí', 'Add DATA to see your card here')}
-                            </Text>
-                          </View>
-                        ) : (
-                          renderWireframeCard({
-                            layout: isLandscape ? 'horizontal' : 'vertical',
-                            slots: editSlots.filter((s) => s.item !== null),
-                            editable: false,
-                            theme: resolveTheme(themeId),
-                            wallpaperUrl: selectedWallpaper?.fullUrl,
-                          })
-                        )}
+                        <ScrollView
+                          style={styles.factoryPreviewInnerScroll}
+                          contentContainerStyle={styles.factoryPreviewInnerScrollContent}
+                          keyboardShouldPersistTaps="handled"
+                          showsVerticalScrollIndicator
+                          nestedScrollEnabled
+                          bounces
+                        >
+                          {editSlots.filter((s) => s.item !== null).length === 0 ? (
+                            <View style={styles.factoryPreviewEmpty}>
+                              <MaterialCommunityIcons name="card-plus-outline" size={38} color={isDark ? 'rgba(184,231,255,0.3)' : 'rgba(13,77,138,0.18)'} />
+                              <Text style={[styles.factoryPreviewEmptyText, { color: cardsTheme.sectionLabel }]}>
+                                {tr('Agrega DATA para ver tu tarjeta aquí', 'Add DATA to see your card here')}
+                              </Text>
+                            </View>
+                          ) : (
+                            renderWireframeCard({
+                              layout: isLandscape ? 'horizontal' : 'vertical',
+                              slots: editSlots.filter((s) => s.item !== null),
+                              editable: false,
+                              theme: resolveTheme(themeId),
+                              wallpaperUrl: selectedWallpaper?.fullUrl,
+                            })
+                          )}
+                        </ScrollView>
                       </View>
                     </View>
                   </View>
 
                   {/* Footer buttons — respect system nav / home indicator (Android + iOS) */}
-                  {/* DEBUG Android: quitar `backgroundColor` rojo tras confirmar build en dispositivo */}
                   <View
                     style={[
                       styles.modalActions,
                       {
                         paddingBottom: modalFooterBottomPad,
-                        backgroundColor: Platform.OS === 'android' ? '#FF0000' : 'transparent',
+                        backgroundColor: cardsTheme.modalBg,
                       },
                     ]}
                   >
                     <TouchableOpacity
                       style={[styles.ghostBtn, { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder }]}
-                      onPress={() => { Keyboard.dismiss(); InteractionManager.runAfterInteractions(() => setFactoryVisible(false)); }}
+                      onPress={closeFactoryModalAndSync}
                     >
                       <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>{tr('Cancelar', 'Cancel')}</Text>
                     </TouchableOpacity>
@@ -3484,6 +3645,7 @@ export default function CardsFactoryScreen() {
         onClose={() => {
           setPreviewVisible(false);
           setPreviewCard(null);
+          refreshCardsTabFromServer();
         }}
         variant="issuer"
         payload={previewPayload}
@@ -3496,26 +3658,27 @@ export default function CardsFactoryScreen() {
             : undefined
         }
         sourceCardId={previewCard?.id ?? null}
-        sourceCardName={previewCard?.name ?? cardName ?? 'Tarjeta Social'}
+        sourceCardName={previewCard?.scName ?? cardName ?? 'Tarjeta Social'}
         peerDisplayName={ownerNickname || 'este contacto'}
         ghostTargetUid={sessionOwnerUid}
         ratingCardType='smart'
       />
 
       <MyCardsPreviewModal
-        key={previewBusinessVisible && previewBusiness ? `my-cards-biz-${previewBusiness.id}` : 'my-cards-biz-closed'}
+        key={previewBusinessVisible && previewBusiness ? `my-cards-biz-${previewBusiness.bId}` : 'my-cards-biz-closed'}
         visible={Boolean(previewBusinessVisible && previewBusiness)}
         onClose={() => {
           setPreviewBusinessVisible(false);
           setPreviewBusiness(null);
           setPreviewBusinessOwnerUid('');
+          refreshCardsTabFromServer();
         }}
         variant="issuer"
         payload={businessPreviewPayload}
         onEditCard={
           previewBusiness
             ? () => {
-                const id = previewBusiness.id;
+                const id = previewBusiness.bId;
                 setPreviewBusinessVisible(false);
                 setPreviewBusiness(null);
                 setPreviewBusinessOwnerUid('');
@@ -3523,8 +3686,8 @@ export default function CardsFactoryScreen() {
               }
             : undefined
         }
-        sourceCardId={previewBusiness?.id ?? null}
-        sourceCardName={previewBusiness?.businessName ?? tr('Negocio', 'Business')}
+        sourceCardId={previewBusiness?.bId ?? null}
+        sourceCardName={previewBusiness?.bcName ?? tr('Negocio', 'Business')}
         peerDisplayName={ownerNickname || 'este contacto'}
         ghostTargetUid={previewBusinessOwnerUid || sessionOwnerUid}
         ratingCardType='business'
@@ -3673,13 +3836,13 @@ export default function CardsFactoryScreen() {
           setSubscribers([]);
         }}
         owner={{
-          displayName: subscribersBusinessRow
-            ? (subscribersBusinessRow.businessName || tr('Mi Negocio', 'My Business'))
+                   displayName: subscribersBusinessRow
+            ? (subscribersBusinessRow.bcName || tr('Mi Negocio', 'My Business'))
             : (ownerDisplayName || tr('Mi Tarjeta', 'My Card')),
           occupation: subscribersBusinessRow
-            ? (subscribersBusinessRow.ownerName || '')
+            ? (subscribersBusinessRow.bcContactName || '')
             : (() => {
-                const cardNm = String(subscribersCard?.name || '').trim();
+                const cardNm = String(subscribersCard?.scName || '').trim();
                 const who = String(ownerDisplayName || '').trim();
                 if (cardNm && who && cardNm.localeCompare(who, undefined, { sensitivity: 'accent' }) === 0) {
                   const h = String(ownerNickname || '')
@@ -3690,7 +3853,7 @@ export default function CardsFactoryScreen() {
                 }
                 return cardNm;
               })(),
-          photoUrl: subscribersBusinessRow?.businessLogo || ownerPhotoUrl,
+          userAvatarUrl: subscribersBusinessRow?.bcLogoUrl || ownerPhotoUrl,
         }}
         subscribers={subscribers}
         totalCount={
@@ -3782,7 +3945,7 @@ export default function CardsFactoryScreen() {
                     style={[styles.factoryTitle, styles.qrModalTitleText, { color: cardsTheme.modalTitle }]}
                     numberOfLines={2}
                   >
-                    {selectedCard?.name || 'Smart Card'}
+                    {selectedCard?.scName || 'Smart Card'}
                   </Text>
                   <TouchableOpacity
                     onPress={async () => {
@@ -3810,8 +3973,8 @@ export default function CardsFactoryScreen() {
               ) : (
                 <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle }]}>
                   {qrBusinessContext
-                    ? qrBusinessContext.businessName
-                    : selectedCard?.name || 'Smart Card'}
+                    ? qrBusinessContext.bcName
+                    : selectedCard?.scName || 'Smart Card'}
                 </Text>
               )}
               <Text style={[styles.qrSubtitle, { color: cardsTheme.modalSubtitle }]}>
@@ -3848,11 +4011,11 @@ export default function CardsFactoryScreen() {
                       color={isDark ? '#E8D4A3' : '#0D4D8A'}
                       backgroundColor={isDark ? '#1C1C1E' : '#FFFFFF'}
                       logo={
-                        qrBusinessContext?.logoUrl ? { uri: qrBusinessContext.logoUrl } : brandCsIconLogo
+                        qrBusinessContext?.bcLogoUrl ? { uri: qrBusinessContext.bcLogoUrl } : brandCsIconLogo
                       }
-                      logoSize={qrBusinessContext?.logoUrl ? 48 : 42}
+                      logoSize={qrBusinessContext?.bcLogoUrl ? 48 : 42}
                       logoBackgroundColor={isDark ? '#1C1C1E' : '#FFFFFF'}
-                      logoMargin={qrBusinessContext?.logoUrl ? 2 : 4}
+                      logoMargin={qrBusinessContext?.bcLogoUrl ? 2 : 4}
                       ecl="H"
                     />
 
@@ -4028,7 +4191,7 @@ export default function CardsFactoryScreen() {
               </TouchableOpacity>
             </View>
             <Text style={[styles.cardStatsCardName, { color: cardsTheme.text }]} numberOfLines={2}>
-              {cardStatsTarget?.name || '—'}
+              {cardStatsTarget?.scName || '—'}
             </Text>
             {cardStatsLoading ? (
               <ActivityIndicator style={{ marginVertical: 24 }} color={cardsTheme.ctaAccent} />
@@ -5488,6 +5651,14 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     overflow: 'hidden',
     backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  factoryPreviewInnerScroll: {
+    flex: 1,
+    minHeight: 0,
+  },
+  factoryPreviewInnerScrollContent: {
+    flexGrow: 1,
+    paddingBottom: 6,
   },
   factoryPreviewEmpty: {
     flex: 1,

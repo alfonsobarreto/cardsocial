@@ -15,7 +15,9 @@ import { getPremiumStoryCost, getUserCreditsBalance, purchasePremiumStoryWithCre
 import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
+import { db } from '@/services/firebaseConfig';
 import { getMyStoryState, getStoriesHouseAd, listReceivedContacts, listSmartCardsFromDb, setMyStoryState, type HouseAdStory } from '@/services/qrApi';
+import { readUserAvatarUrl, readUserFullName } from '@/services/userIdentityFields';
 import { receivedContactMergeKey } from '@/services/receivedContactsPresentationMerge';
 import { fetchVipMarketStorySlots, type VipMarketStorySlot } from '@/services/storiesFeedInjectionService';
 import { storyChannelKey } from '@/services/storiesPhase1Logic';
@@ -34,6 +36,7 @@ import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
+import { doc, getDoc } from 'firebase/firestore';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -71,7 +74,7 @@ type ViewerFeedItem =
       cardName: string;
       /** Tarjeta que el viewer recibió del emisor (canal de confianza). */
       sourceCardId: string | null;
-      photoUrl: string | null;
+      userAvatarUrl: string | null;
       storyState: StoryState;
       isFavorite: boolean;
       localStory: LocalStory | null;
@@ -91,7 +94,7 @@ type ViewerFeedItem =
       kind: 'market_vip';
       id: string;
       businessCardId: string;
-      businessName: string;
+      bcName: string;
       photoUrl: string | null;
       subtitle: string;
       distanceMiles: number | null;
@@ -110,15 +113,15 @@ type VaultItem = {
 
 type SmartCard = {
   cardId: string;
-  name: string;
+  scName: string;
   itemIds: string[];
 };
 
 type ContactRow = {
   uid: string;
-  name: string;
-  nickname: string;
-  photoUrl: string | null;
+  userFullName: string;
+  userNickName: string;
+  userAvatarUrl: string | null;
   cardName: string;
   /** cardId de la tarjeta que este usuario tiene del contacto (share_permissions). */
   sourceCardId: string | null;
@@ -129,7 +132,7 @@ type LocalStory = {
   id: string;
   ownerUid: string;
   ownerName: string;
-  ownerPhotoUrl: string | null;
+  ownerUserAvatar: string | null;
   cardId: string;
   cardName: string;
   storyType: StoryAssetType;
@@ -155,7 +158,7 @@ type GridStoryItem = {
   displayName: string;
   cardName: string;
   sourceCardId: string | null;
-  photoUrl: string | null;
+  userAvatarUrl: string | null;
   storyState: StoryState;
   isFavorite: boolean;
   localStory: LocalStory | null;
@@ -192,9 +195,9 @@ function mapCachedSmartCardsToStoryRows(raw: string): SmartCard[] {
       return [];
     }
     const rows = parsed
-      .map((c: { cardId?: string; id?: string; name?: string; itemIds?: unknown }) => ({
+      .map((c: { cardId?: string; id?: string; scName?: string; itemIds?: unknown }) => ({
         cardId: String(c?.cardId || c?.id || ''),
-        name: String(c?.name || 'Smart Card'),
+        scName: String(c?.scName ?? '').trim() || 'Smart Card',
         itemIds: Array.isArray(c?.itemIds) ? c.itemIds.map((id) => String(id)) : [],
       }))
       .filter((row) => row.cardId.length > 0);
@@ -278,7 +281,7 @@ export default function StoriesPage() {
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [ownerUid, setOwnerUid] = useState('');
   const [ownerName, setOwnerName] = useState('Mi Story');
-  const [ownerPhotoUrl, setOwnerPhotoUrl] = useState<string | null>(null);
+  const [ownerUserAvatar, setOwnerUserAvatar] = useState<string | null>(null);
 
   const [contacts, setContacts] = useState<ContactRow[]>([]);
   const [favoritesByUid, setFavoritesByUid] = useState<Record<string, boolean>>({});
@@ -418,10 +421,10 @@ export default function StoriesPage() {
       }
       return {
         uid: row.uid,
-        displayName: row.name,
+        displayName: row.userFullName,
         cardName: row.cardName,
         sourceCardId: row.sourceCardId,
-        photoUrl: row.photoUrl,
+        userAvatarUrl: row.userAvatarUrl,
         storyState,
         isFavorite: Boolean(
           favoritesByUid[receivedContactMergeKey({ uid: row.uid, cardId: row.sourceCardId })] ||
@@ -440,9 +443,9 @@ export default function StoriesPage() {
       rows.push({
         uid: ownerUid,
         displayName: ownerName,
-        cardName: hubCardRow?.name ?? localSelfStory?.cardName ?? tr('Mi tarjeta', 'My card'),
+        cardName: hubCardRow?.scName ?? localSelfStory?.cardName ?? tr('Mi tarjeta', 'My card'),
         sourceCardId: hubCardId,
-        photoUrl: ownerPhotoUrl,
+        userAvatarUrl: ownerUserAvatar,
         storyState: effectiveSelfState,
         isFavorite: false,
         localStory: localSelfStory,
@@ -476,7 +479,7 @@ export default function StoriesPage() {
     language,
     localStories,
     ownerName,
-    ownerPhotoUrl,
+    ownerUserAvatar,
     ownerUid,
     smartCards,
     storyHubCardId,
@@ -518,7 +521,7 @@ export default function StoriesPage() {
           displayName: item.displayName,
           cardName: item.cardName,
           sourceCardId: item.sourceCardId,
-          photoUrl: item.photoUrl,
+          userAvatarUrl: item.userAvatarUrl,
           storyState,
           isFavorite: item.isFavorite,
           localStory: item.localStory,
@@ -539,7 +542,7 @@ export default function StoriesPage() {
             kind: 'market_vip',
             id: vip.id,
             businessCardId: vip.businessCardId,
-            businessName: vip.businessName,
+            bcName: vip.bcName,
             photoUrl: vip.photoUrl,
             subtitle: vip.subtitle,
             distanceMiles: vip.distanceMiles,
@@ -738,7 +741,7 @@ export default function StoriesPage() {
 
       setOwnerUid(uid);
       setOwnerName(tr('Mi Story', 'My Story'));
-      setOwnerPhotoUrl(null);
+      setOwnerUserAvatar(null);
 
       try {
         const cardsCacheRaw = await readSmartCardsJsonWithLegacyMigration(uid);
@@ -754,7 +757,7 @@ export default function StoriesPage() {
 
       const [contactsResponse, cardsResponse, houseAdResponse] = await Promise.all([
         listReceivedContacts({ ownerUid: uid }),
-        listSmartCardsFromDb({ ownerUid: uid }),
+        listSmartCardsFromDb({ uid }),
         getStoriesHouseAd({ ownerUid: uid }),
       ]);
 
@@ -763,7 +766,7 @@ export default function StoriesPage() {
           .filter((row) => (row.cardType || 'smart') !== 'business')
           .map((row) => ({
             cardId: row.cardId,
-            name: row.name,
+            scName: String(row.scName ?? 'Smart Card'),
             itemIds: row.itemIds,
           })),
       );
@@ -773,8 +776,15 @@ export default function StoriesPage() {
 
       const loadNow = Date.now();
       const storiesRawEarly = await AsyncStorage.getItem(getStoriesStorageKey(uid));
-      const storiesParsedEarly = storiesRawEarly ? (JSON.parse(storiesRawEarly) as LocalStory[]) : [];
-      const activeStoriesEarly = (Array.isArray(storiesParsedEarly) ? storiesParsedEarly : []).filter((story) => {
+      const storiesParsedRaw = storiesRawEarly ? (JSON.parse(storiesRawEarly) as unknown[]) : [];
+      const storiesParsedEarly = (Array.isArray(storiesParsedRaw) ? storiesParsedRaw : []).map((raw) => {
+        const s = raw as LocalStory & { ownerPhotoUrl?: string | null };
+        return {
+          ...s,
+          ownerUserAvatar: s.ownerUserAvatar ?? s.ownerPhotoUrl ?? null,
+        };
+      });
+      const activeStoriesEarly = storiesParsedEarly.filter((story) => {
         const exp = Date.parse(String(story.expiresAt || ''));
         return Number.isFinite(exp) && exp > loadNow;
       });
@@ -790,14 +800,26 @@ export default function StoriesPage() {
       setContacts(
         contactsResponse.contacts.map((row) => ({
           uid: row.uid,
-          name: row.name,
-          nickname: row.nickname,
-          photoUrl: row.photoUrl,
+          userFullName: row.userFullName,
+          userNickName: row.userNickName,
+          userAvatarUrl: row.userAvatarUrl,
           cardName: row.cardName,
           sourceCardId: row.cardId ?? null,
           storyState: row.storyState || 'none',
         }))
       );
+
+      try {
+        const profSnap = await getDoc(doc(db, 'users', uid));
+        const pd = profSnap.data() as Record<string, unknown> | undefined;
+        if (pd) {
+          setOwnerName(readUserFullName(pd));
+          const av = readUserAvatarUrl(pd);
+          setOwnerUserAvatar(av ? av : null);
+        }
+      } catch {
+        /* perfil opcional */
+      }
       setHouseAd(houseAdResponse.ad || FALLBACK_HOUSE_AD);
 
       let lat: number | null = null;
@@ -1162,9 +1184,9 @@ export default function StoriesPage() {
         id: `${now}`,
         ownerUid,
         ownerName,
-        ownerPhotoUrl,
+        ownerUserAvatar,
         cardId: selectedCard.cardId,
-        cardName: selectedCard.name,
+        cardName: selectedCard.scName,
         storyType: selectedType,
         mediaUri: selectedType === 'text' ? String(selectedMediaUri).trim() : selectedMediaUri,
         mediaName:
@@ -1287,8 +1309,8 @@ export default function StoriesPage() {
         sourceCardName: story.cardName,
         sourceCardId: story.cardId,
         userName: story.ownerName || tr('este contacto', 'this contact'),
-        cardPhoto: story.ownerPhotoUrl,
-        peerPhotoUrl: story.ownerPhotoUrl,
+        cardPhoto: story.ownerUserAvatar,
+        peerPhotoUrl: story.ownerUserAvatar,
       });
       return;
     }
@@ -1299,8 +1321,8 @@ export default function StoriesPage() {
         sourceCardName: story.cardName,
         sourceCardId: story.cardId,
         userName: story.ownerName || tr('este contacto', 'this contact'),
-        cardPhoto: story.ownerPhotoUrl,
-        peerPhotoUrl: story.ownerPhotoUrl,
+        cardPhoto: story.ownerUserAvatar,
+        peerPhotoUrl: story.ownerUserAvatar,
       });
       return;
     }
@@ -1355,7 +1377,7 @@ export default function StoriesPage() {
       source: 'story',
     });
     if (!item.ctaUrl) {
-      Alert.alert(item.businessName, item.subtitle || tr('Sin enlace publicado.', 'No link published.'));
+      Alert.alert(item.bcName, item.subtitle || tr('Sin enlace publicado.', 'No link published.'));
       return;
     }
     try {
@@ -1525,7 +1547,7 @@ export default function StoriesPage() {
       return item.title;
     }
     if (item.kind === 'market_vip') {
-      return item.businessName;
+      return item.bcName;
     }
     return item.displayName || item.cardName;
   }, [selectedViewerItem]);
@@ -1569,8 +1591,8 @@ export default function StoriesPage() {
     return (
       <TouchableOpacity style={styles.gridItem} onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openStoryViewer(item); }}>
         <View style={[styles.gridAvatarRing, ringStyle]}>
-          {item.photoUrl ? (
-            <ExpoImage source={{ uri: item.photoUrl }} style={styles.gridAvatar} cachePolicy="disk" />
+          {item.userAvatarUrl ? (
+            <ExpoImage source={{ uri: item.userAvatarUrl }} style={styles.gridAvatar} cachePolicy="disk" />
           ) : (
             <View style={[styles.gridAvatarFallback, { backgroundColor: shell.avatarFallbackBg, borderColor: shell.avatarFallbackBorder }]}>
               <MaterialCommunityIcons name="account" size={20} color={shell.iconColor} />
@@ -1762,7 +1784,7 @@ export default function StoriesPage() {
                     }}
                   >
                     <Text style={[styles.cardCarouselName, { color: shell.textPrimary }]} numberOfLines={2}>
-                      {c.name}
+                      {c.scName}
                     </Text>
                     <Text style={[styles.cardCarouselMeta, { color: emptyIcons ? shell.ctaAccent : shell.textSecondary }]}>
                       {emptyIcons
@@ -1803,8 +1825,8 @@ export default function StoriesPage() {
             <Text style={[styles.vaultMirrorSubtitle, { color: shell.textSecondary }]}>
               {selectedCard
                 ? tr(
-                    `Solo datos ya asignados a «${selectedCard.name}».`,
-                    `Only fields already on «${selectedCard.name}».`,
+                    `Solo datos ya asignados a «${selectedCard.scName}».`,
+                    `Only fields already on «${selectedCard.scName}».`,
                   )
                 : tr('Elige un solo icono como CTA.', 'Pick one icon as CTA.')}
             </Text>
@@ -1878,7 +1900,7 @@ export default function StoriesPage() {
                   <Text style={[styles.publishingAsLabel, { color: shell.textSecondary }]}>
                     {tr('Publicando como', 'Publishing as')}
                   </Text>
-                  <Text style={[styles.publishingAsName, { color: shell.ctaAccent }]}>{selectedCard.name}</Text>
+                  <Text style={[styles.publishingAsName, { color: shell.ctaAccent }]}>{selectedCard.scName}</Text>
                   <TouchableOpacity
                     style={styles.changeAnchorBtn}
                     onPress={() => {
@@ -2156,7 +2178,7 @@ export default function StoriesPage() {
                     ) : (
                       <MaterialCommunityIcons name="storefront-outline" size={72} color="rgba(212,175,55,0.95)" />
                     )}
-                    <Text style={styles.marketVipTitle}>{selectedViewerItem.businessName}</Text>
+                    <Text style={styles.marketVipTitle}>{selectedViewerItem.bcName}</Text>
                     {selectedViewerItem.subtitle ? (
                       <Text style={styles.marketVipSubtitle} numberOfLines={3}>
                         {selectedViewerItem.subtitle}
@@ -2235,7 +2257,7 @@ export default function StoriesPage() {
                   ? tr('Mi Sueño Mexicano', 'My Mexican Dream')
                   : selectedViewerItem.title
                 : selectedViewerItem?.kind === 'market_vip'
-                  ? selectedViewerItem.businessName
+                  ? selectedViewerItem.bcName
                   : selectedViewerItem?.cardName || tr('Historia', 'Story')}
             </Text>
             {selectedViewerItem?.kind === 'story' ? (

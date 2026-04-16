@@ -167,17 +167,17 @@ const otpHash = (emailLower, code) => {
 
   app.post("/api/auth/token", gatewayKeyMiddleware, (req, res) => {
     try {
-      const ownerUid = String(req.body?.ownerUid || "").trim();
+      const uid = String(req.body?.uid || req.body?.ownerUid || "").trim();
       const requestedScope = String(req.body?.scope || "moderation.upload").trim();
       const allowedScopes = new Set(["moderation.upload", "qr.access"]);
-      if (!ownerUid) {
-        return res.status(400).json({ ok: false, error: "ownerUid is required" });
+      if (!uid) {
+        return res.status(400).json({ ok: false, error: "uid is required" });
       }
       if (!allowedScopes.has(requestedScope)) {
         return res.status(400).json({ ok: false, error: "scope is not allowed" });
       }
 
-      const token = issueUploadToken({ ownerUid, scope: requestedScope });
+      const token = issueUploadToken({ uid, scope: requestedScope });
       return res.status(200).json({ ok: true, token });
     } catch (error) {
       return res.status(500).json({ ok: false, error: error.message });

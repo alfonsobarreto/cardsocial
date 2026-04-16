@@ -112,6 +112,12 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
     }
 
+    // Ghost-Link VoIP: señales efímeras de consentimiento cámara (audio → video).
+    // sessionId opaco por llamada; solo usuarios autenticados (riesgo bajo si no adivinan el id).
+    match /ghostLinkVoipSignals/{sessionId} {
+      allow read, write: if isSignedIn();
+    }
+
     // Medal system: counts readable by all signed-in users; votes owner-only.
     match /medals/{cardId} {
       allow read: if isSignedIn();

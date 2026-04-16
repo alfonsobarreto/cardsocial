@@ -30,7 +30,7 @@ function getGatewayKey(): string {
 async function getUploadJwtToken(baseUrl: string, ownerUid: string, gatewayKey: string): Promise<string> {
   const response = await axios.post(
     `${baseUrl}/api/auth/token`,
-    { ownerUid },
+    { uid: ownerUid },
     {
       headers: {
         'x-api-gateway-key': gatewayKey,
@@ -55,6 +55,7 @@ export async function uploadFileWithModeration(params: {
 }): Promise<{ fileId: string; filename: string; publicUrl: string | null; mimeType: string | null }> {
   return retryWithBackoff(async () => {
     const formData = new FormData();
+    formData.append('uid', params.ownerUid);
     formData.append('ownerUid', params.ownerUid);
     formData.append('label', params.label);
     const partMime = String(params.mimeType || '').trim() || 'application/octet-stream';

@@ -15,7 +15,8 @@ const { buildGhostLinkAgoraInvite } = require('../lib/agoraGhostLink');
 const { sendPushToUser } = require('../lib/pushNotifications');
 const { mergeContactProfileFromCard, enrichSubscriberProfileFromCard } = require('../lib/contactIdentityMerge');
 const { buildMongoExtendedProfileFields, mergeUsersAndProfilesDocuments } = require('../lib/extendedUserIdentity');
-const { pickFirstNonGeneric } = require('../lib/resolvePublicIdentity');
+const { pickFirstNonGeneric, isGenericUserLabel } = require('../lib/resolvePublicIdentity');
+const { readSmartCardScName } = require('../lib/smartCardScName');
 const { clientLocaleIsSpanish } = require('../lib/httpRequestLocale');
 const { parseAndValidateTemporaryAccess } = require('../lib/temporaryAccessToken');
 const { env } = require('../config');
@@ -214,17 +215,22 @@ function createQrRoutes({ storage }) {
         return res.status(403).json({ ok: false, error: 'Solo puedes cambiar tu nombre de usuario cada 30 días', nextAllowed });
       }
       // Validar unicidad
-      const exists = await db.collection('users').findOne({ nicknameLower: newNickname.toLowerCase() });
-      if (exists && String(exists.uid) !== uid) {
+      const lower = newNickname.toLowerCase();
+      const exists = await db.collection('users').findOne({
+        uid: { $ne: uid },
+        $or: [{ nicknameLower: lower }, { userNickNameLower: lower }],
+      });
+      if (exists) {
         return res.status(409).json({ ok: false, error: 'Ese nombre de usuario ya está en uso' });
       }
-      // Actualizar nickname y lastUsernameChange
       await db.collection('users').updateOne(
         { uid },
         {
           $set: {
+            userNickName: newNickname,
+            userNickNameLower: lower,
             nickname: newNickname,
-            nicknameLower: newNickname.toLowerCase(),
+            nicknameLower: lower,
             lastUsernameChange: now,
             updatedAt: now,
           },
@@ -317,10 +323,16 @@ function createQrRoutes({ storage }) {
   async function resolveUserProfile(db, uid) {
     const safeUid = String(uid || '').trim();
     if (!safeUid) {
-      return { uid: '', name: 'Usuario', photoUrl: null };
+      return { uid: '', name: 'Usuario', userAvatarUrl: null };
     }
 
-    const profileProj = { displayName: 1, name: 1, fullName: 1, photoUrl: 1, avatarUrl: 1, profilePhoto: 1 };
+    const profileProj = {
+      displayName: 1,
+      name: 1,
+      userFullName: 1,
+      fullName: 1,
+      userAvatarUrl: 1,
+    };
     const [usersDoc, profilesDoc] = await Promise.all([
       db.collection('users').findOne({ uid: safeUid }, { projection: profileProj }),
       db.collection('profiles').findOne({ uid: safeUid }, { projection: profileProj }),
@@ -329,16 +341,17 @@ function createQrRoutes({ storage }) {
     const merged = mergeUsersAndProfilesDocuments(usersDoc, profilesDoc);
     const name =
       pickFirstNonGeneric(
+        merged?.userFullName,
         merged?.fullName,
         merged?.displayName,
         merged?.name,
       ) || 'Usuario';
-    const photoUrl = String(merged?.photoUrl || merged?.avatarUrl || merged?.profilePhoto || '').trim() || null;
+    const userAvatarUrl = String(merged?.userAvatarUrl || '').trim() || null;
 
     return {
       uid: safeUid,
       name,
-      photoUrl,
+      userAvatarUrl,
     };
   }
 
@@ -351,7 +364,7 @@ function createQrRoutes({ storage }) {
         username: '',
         name: 'Usuario',
         nickname: '',
-        photoUrl: null,
+        userAvatarUrl: null,
         ownerOccupation: null,
       };
     }
@@ -359,14 +372,15 @@ function createQrRoutes({ storage }) {
     const extendedProj = {
       displayName: 1,
       name: 1,
+      userFullName: 1,
       fullName: 1,
       firstName: 1,
       lastName: 1,
+      userNickName: 1,
       nickname: 1,
+      userNickNameLower: 1,
       nicknameLower: 1,
-      photoUrl: 1,
-      avatarUrl: 1,
-      profilePhoto: 1,
+      userAvatarUrl: 1,
     };
     const [usersDoc, profilesDoc] = await Promise.all([
       db.collection('users').findOne({ uid: safeUid }, { projection: extendedProj }),
@@ -380,7 +394,7 @@ function createQrRoutes({ storage }) {
   router.post('/push/register', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.ownerUid || authUid || '').trim();
+      const ownerUid = String(req.body?.uid || req.body?.ownerUid || authUid || '').trim();
       const token = String(req.body?.token || '').trim();
 
       if (!ownerUid || !token) {
@@ -406,7 +420,7 @@ function createQrRoutes({ storage }) {
   router.post('/voip/ghost-link/start', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.ownerUid || authUid || '').trim();
+      const ownerUid = String(req.body?.uid || req.body?.ownerUid || authUid || '').trim();
       const targetUid = String(req.body?.targetUid || '').trim();
       const sourceCardName = String(req.body?.sourceCardName || '').trim();
       const sourceCardId = normalizeString(req.body?.sourceCardId, null);
@@ -464,7 +478,7 @@ function createQrRoutes({ storage }) {
           { cardId: sourceCardId, ownerUid },
           {
             projection: {
-              cardId: 1, name: 1, cardType: 1,
+              cardId: 1, scName: 1, cardType: 1,
               ownerDisplayName: 1, ownerPhotoUrl: 1,
             },
           },
@@ -482,7 +496,7 @@ function createQrRoutes({ storage }) {
       }
 
       let cardName = String(
-        sharedCard?.ownerDisplayName || sharedCard?.name || sourceCardName || 'Tarjeta Social',
+        sharedCard?.ownerDisplayName || readSmartCardScName(sharedCard) || sourceCardName || 'Tarjeta Social',
       ).trim();
       if (hintedDisplayName && !sharedCard) {
         cardName = hintedDisplayName;
@@ -494,7 +508,7 @@ function createQrRoutes({ storage }) {
         if (mongoCardKind === 'business') {
           cardPhoto = hintedPhoto;
         } else {
-          cardPhoto = caller.photoUrl;
+          cardPhoto = caller.userAvatarUrl;
         }
       }
 
@@ -553,12 +567,12 @@ function createQrRoutes({ storage }) {
             callerDisplay: {
               name: caller.name,
               nickname: caller.nickname,
-              photoUrl: caller.photoUrl,
+              userAvatarUrl: caller.userAvatarUrl,
             },
             receiverDisplay: {
               name: receiver.name,
               nickname: receiver.nickname,
-              photoUrl: receiver.photoUrl,
+              userAvatarUrl: receiver.userAvatarUrl,
             },
             status: 'ringing',
             createdAt: now,
@@ -603,12 +617,12 @@ function createQrRoutes({ storage }) {
         callerDisplay: {
           name: caller.name,
           nickname: caller.nickname,
-          photoUrl: caller.photoUrl,
+          userAvatarUrl: caller.userAvatarUrl,
         },
         receiverDisplay: {
           name: receiver.name,
           nickname: receiver.nickname,
-          photoUrl: receiver.photoUrl,
+          userAvatarUrl: receiver.userAvatarUrl,
         },
         ...(agoraInvite
           ? {
@@ -629,7 +643,7 @@ function createQrRoutes({ storage }) {
   router.get('/voip/ghost-link/incoming', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.query?.ownerUid || authUid || '').trim();
+      const ownerUid = String(req.query?.uid || req.query?.ownerUid || authUid || '').trim();
 
       if (!ownerUid) {
         return res.status(400).json({ ok: false, error: 'ownerUid is required' });
@@ -705,12 +719,12 @@ function createQrRoutes({ storage }) {
           callerDisplay: {
             name: String(invite?.callerDisplay?.name || 'Contacto'),
             nickname: String(invite?.callerDisplay?.nickname || 'user'),
-            photoUrl: normalizeString(invite?.callerDisplay?.photoUrl, null),
+            userAvatarUrl: normalizeString(invite?.callerDisplay?.userAvatarUrl, null),
           },
           receiverDisplay: {
             name: String(invite?.receiverDisplay?.name || 'Contacto'),
             nickname: String(invite?.receiverDisplay?.nickname || 'user'),
-            photoUrl: normalizeString(invite?.receiverDisplay?.photoUrl, null),
+            userAvatarUrl: normalizeString(invite?.receiverDisplay?.userAvatarUrl, null),
           },
           createdAt: invite.createdAt ? new Date(invite.createdAt).toISOString() : null,
           updatedAt: invite.updatedAt ? new Date(invite.updatedAt).toISOString() : null,
@@ -727,7 +741,7 @@ function createQrRoutes({ storage }) {
   router.get('/voip/ghost-link/outgoing-invite', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.query?.ownerUid || authUid || '').trim();
+      const ownerUid = String(req.query?.uid || req.query?.ownerUid || authUid || '').trim();
       const inviteId = String(req.query?.inviteId || '').trim();
 
       if (!ownerUid || !inviteId) {
@@ -768,7 +782,7 @@ function createQrRoutes({ storage }) {
   router.post('/voip/ghost-link/respond', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.ownerUid || authUid || '').trim();
+      const ownerUid = String(req.body?.uid || req.body?.ownerUid || authUid || '').trim();
       const inviteId = String(req.body?.inviteId || '').trim();
       const action = String(req.body?.action || '').trim().toLowerCase();
 
@@ -848,7 +862,7 @@ function createQrRoutes({ storage }) {
 
   router.post('/issue', async (req, res) => {
     try {
-      const ownerUid = String(req.body?.ownerUid || req.auth?.sub || '').trim();
+      const ownerUid = String(req.body?.uid || req.body?.ownerUid || req.auth?.sub || '').trim();
       const cardId = String(req.body?.cardId || '').trim();
 
       if (!ownerUid) {
@@ -894,7 +908,7 @@ function createQrRoutes({ storage }) {
    */
   async function issueTemporaryUniversalAccessRoute(req, res) {
     try {
-      const ownerUid = String(req.body?.ownerUid || req.auth?.sub || '').trim();
+      const ownerUid = String(req.body?.uid || req.body?.ownerUid || req.auth?.sub || '').trim();
       const cardId = String(req.body?.cardId || '').trim();
 
       if (!ownerUid) {
@@ -911,6 +925,43 @@ function createQrRoutes({ storage }) {
       }
 
       const now = new Date();
+
+      /** Un solo enlace vigente por tarjeta: reutilizar el token hasta que expire (evita 100 QR distintos en 24 h). */
+      const existing = await db.collection('temporary_access').findOne(
+        {
+          ownerUid,
+          cardId,
+          source: UNIVERSAL_QR_SOURCE,
+          expiresAt: { $gt: now },
+        },
+        { sort: { expiresAt: -1 } },
+      );
+
+      if (existing && String(existing.token || '').trim()) {
+        const token = String(existing.token).trim();
+        const exp = existing.expiresAt instanceof Date ? existing.expiresAt : new Date(existing.expiresAt);
+        const ttlMs = Math.max(0, exp.getTime() - now.getTime());
+        /** Borra otros tokens 24h de la misma tarjeta (p. ej. emitidos antes del fix); solo debe quedar uno vigente. */
+        await db.collection('temporary_access').deleteMany({
+          ownerUid,
+          cardId,
+          source: UNIVERSAL_QR_SOURCE,
+          token: { $ne: token },
+        });
+        const base = getPublicUniversalCardBaseUrl();
+        const universalUrl = `${base}/u/${encodeURIComponent(token)}?source=${encodeURIComponent(UNIVERSAL_QR_SOURCE)}`;
+
+        return res.status(200).json({
+          ok: true,
+          token,
+          universalUrl,
+          ttlSec: Math.max(1, Math.floor(ttlMs / 1000)),
+          expiresAt: exp.toISOString(),
+          source: UNIVERSAL_QR_SOURCE,
+          reused: true,
+        });
+      }
+
       const expiresAt = new Date(now.getTime() + TEMPORARY_ACCESS_TTL_MS);
       const token = crypto.randomBytes(24).toString('hex');
 
@@ -923,6 +974,13 @@ function createQrRoutes({ storage }) {
         expiresAt,
       });
 
+      await db.collection('temporary_access').deleteMany({
+        ownerUid,
+        cardId,
+        source: UNIVERSAL_QR_SOURCE,
+        token: { $ne: token },
+      });
+
       const base = getPublicUniversalCardBaseUrl();
       const universalUrl = `${base}/u/${encodeURIComponent(token)}?source=${encodeURIComponent(UNIVERSAL_QR_SOURCE)}`;
 
@@ -933,6 +991,7 @@ function createQrRoutes({ storage }) {
         ttlSec: Math.floor(TEMPORARY_ACCESS_TTL_MS / 1000),
         expiresAt: expiresAt.toISOString(),
         source: UNIVERSAL_QR_SOURCE,
+        reused: false,
       });
     } catch (error) {
       return res.status(500).json({ ok: false, error: error.message });
@@ -1278,7 +1337,7 @@ function createQrRoutes({ storage }) {
     try {
       const isEs = clientLocaleIsSpanish(req);
       const receiverUid = String(req.body?.receiverUid || req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.ownerUid || '').trim();
+      const ownerUid = String(req.body?.uid || req.body?.ownerUid || '').trim();
       const cardId = String(req.body?.cardId || '').trim();
 
       if (!receiverUid) {
@@ -1364,10 +1423,10 @@ function createQrRoutes({ storage }) {
    */
   router.get('/business-holders', async (req, res) => {
     try {
-      const ownerUid = String(req.query?.ownerUid || req.auth?.sub || '').trim();
+      const ownerUid = String(req.query?.uid || req.query?.ownerUid || req.auth?.sub || '').trim();
       const rawIds = String(req.query?.cardIds || '').trim();
       if (!ownerUid || !rawIds) {
-        return res.status(400).json({ ok: false, error: 'ownerUid and cardIds required' });
+        return res.status(400).json({ ok: false, error: 'uid and cardIds required' });
       }
       const cardIds = rawIds.split(',').map((s) => s.trim()).filter(Boolean);
       if (!cardIds.length) {
@@ -1404,12 +1463,12 @@ function createQrRoutes({ storage }) {
   router.get('/cards', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.query?.ownerUid || authUid || '').trim();
+      const ownerUid = String(req.query?.uid || req.query?.ownerUid || authUid || '').trim();
       if (!ownerUid) {
-        return res.status(400).json({ ok: false, error: 'ownerUid is required' });
+        return res.status(400).json({ ok: false, error: 'uid is required' });
       }
       if (authUid && authUid !== ownerUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: ownerUid does not match authenticated user' });
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
       }
 
       const db = await storage.connect();
@@ -1418,20 +1477,22 @@ function createQrRoutes({ storage }) {
       // fusionar `ownerPhotoUrl` (logo vault) con la lista de Firestore. Mis Tarjetas filtra
       // `cardType !== 'business'` al hidratar Smart Cards.
       const cards = await db.collection('smart_cards').find(
-        { ownerUid },
+        { $or: [{ ownerUid }, { uid: ownerUid }] },
         { sort: { updatedAt: -1 } }
       ).toArray();
 
-      const cardIdList = cards.map((c) => String(c.cardId || c._id || '').trim()).filter(Boolean);
+      const cardIdList = cards.map((c) => String(c.cardId || c.sid || c.bId || c._id || '').trim()).filter(Boolean);
       const receiverCountByCardId = await aggregateActiveReceiverCountByCardId(db, ownerUid, cardIdList, now);
 
       return res.status(200).json({
         ok: true,
         cards: cards.map((card) => {
-          const cid = String(card.cardId || card._id || '').trim();
+          const cid = String(card.cardId || card.sid || card.bId || card._id || '').trim();
+          const isBiz = card.cardType === 'business';
           return {
           cardId: cid,
-          name: String(card.name || 'Smart Card'),
+          ...(isBiz ? { bId: cid } : { sid: cid }),
+          scName: String(readSmartCardScName(card) || 'Smart Card'),
           layout: String(card.layout || 'vertical') === 'horizontal' ? 'horizontal' : 'vertical',
           themeId: card.themeId || null,
           fontId: card.fontId || null,
@@ -1468,7 +1529,7 @@ function createQrRoutes({ storage }) {
   router.put('/cards/:cardId', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.ownerUid || authUid || '').trim();
+      const ownerUid = String(req.body?.uid || req.body?.ownerUid || authUid || '').trim();
       const cardId = String(req.params?.cardId || req.body?.cardId || '').trim();
 
       if (!ownerUid || !cardId) {
@@ -1481,8 +1542,11 @@ function createQrRoutes({ storage }) {
       const now = new Date();
       const db = await storage.connect();
 
+      const scNameVal = String(req.body?.scName ?? 'Smart Card').trim() || 'Smart Card';
+
       const setDoc = {
-        name: String(req.body?.name || 'Smart Card').trim(),
+        uid: ownerUid,
+        scName: scNameVal,
         layout: String(req.body?.layout || 'vertical') === 'horizontal' ? 'horizontal' : 'vertical',
         fontId: req.body?.fontId ? String(req.body.fontId) : null,
         fontName: req.body?.fontName ? String(req.body.fontName) : null,
@@ -1525,9 +1589,11 @@ function createQrRoutes({ storage }) {
           $set: setDoc,
           $setOnInsert: {
             ownerUid,
+            uid: ownerUid,
             cardId,
             createdAt: now,
           },
+          $unset: { name: '' },
         },
         {
           upsert: true,
@@ -1545,7 +1611,7 @@ function createQrRoutes({ storage }) {
   router.delete('/cards/:cardId', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.ownerUid || req.query?.ownerUid || authUid || '').trim();
+      const ownerUid = String(req.body?.uid || req.body?.ownerUid || req.query?.uid || req.query?.ownerUid || authUid || '').trim();
       const cardId = String(req.params?.cardId || '').trim();
 
       if (!ownerUid || !cardId) {
@@ -1575,7 +1641,7 @@ function createQrRoutes({ storage }) {
   router.get('/contacts/received', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.query?.ownerUid || authUid || '').trim();
+      const ownerUid = String(req.query?.uid || req.query?.ownerUid || authUid || '').trim();
       if (!ownerUid) {
         return res.status(400).json({ ok: false, error: 'ownerUid is required' });
       }
@@ -1765,7 +1831,7 @@ function createQrRoutes({ storage }) {
             },
             {
               projection: {
-                name: 1,
+                scName: 1,
                 holdersCount: 1,
                 ratingAvg: 1,
                 searchFacets: 1,
@@ -1796,7 +1862,7 @@ function createQrRoutes({ storage }) {
           cardDocForProfile = cardDoc;
 
           if (cardDoc) {
-            cardName = String(cardDoc.name || 'Tarjeta Social');
+            cardName = String(readSmartCardScName(cardDoc) || 'Tarjeta Social');
             avg = Number(cardDoc.ratingAvg || 5);
             searchFacets = sanitizeSearchFacets(cardDoc.searchFacets);
             totalRatings = Number(cardDoc.totalRatings ?? 0);
@@ -1851,9 +1917,9 @@ function createQrRoutes({ storage }) {
         contacts.push({
           uid,
           cardId: cardIdForStory || null,
-          name: profile.name,
-          nickname: profile.nickname,
-          photoUrl: profile.photoUrl,
+          userFullName: profile.name,
+          userNickName: profile.nickname,
+          userAvatarUrl: profile.userAvatarUrl,
           ownerOccupation: profile.ownerOccupation != null ? profile.ownerOccupation : null,
           ratingAvg: Number.isFinite(avg) ? avg : 5,
           cardName,
@@ -1892,7 +1958,7 @@ function createQrRoutes({ storage }) {
   router.post('/relationships/remove', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.ownerUid || authUid || '').trim();
+      const ownerUid = String(req.body?.uid || req.body?.ownerUid || authUid || '').trim();
       const targetUid = String(req.body?.targetUid || '').trim();
       const cardIdScoped = String(req.body?.cardId || '').trim();
 
@@ -1937,7 +2003,7 @@ function createQrRoutes({ storage }) {
   router.post('/stories/state', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.ownerUid || authUid || '').trim();
+      const ownerUid = String(req.body?.uid || req.body?.ownerUid || authUid || '').trim();
       const incomingState = String(req.body?.state || 'none').trim().toLowerCase();
       const incomingPaidExternal = req.body?.isPaidExternal === true;
       const incomingSourceRaw = normalizeString(req.body?.vipSource, 'manual');
@@ -2066,7 +2132,7 @@ function createQrRoutes({ storage }) {
   router.post('/stories/vip/manual', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.ownerUid || '').trim();
+      const ownerUid = String(req.body?.uid || req.body?.ownerUid || '').trim();
       const paidChannel = normalizeString(req.body?.paidChannel, 'offline_partner');
       const manualReason = normalizeString(req.body?.manualReason, 'Pago confirmado fuera de app');
       const isPaidExternal = req.body?.isPaidExternal !== false;
@@ -2125,7 +2191,7 @@ function createQrRoutes({ storage }) {
   router.get('/stories/state', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.query?.ownerUid || authUid || '').trim();
+      const ownerUid = String(req.query?.uid || req.query?.ownerUid || authUid || '').trim();
       const cardIdQuery = normalizeString(req.query?.cardId, null);
 
       if (!ownerUid) {
@@ -2186,7 +2252,7 @@ function createQrRoutes({ storage }) {
   router.get('/stories/ads/house', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.query?.ownerUid || authUid || '').trim();
+      const ownerUid = String(req.query?.uid || req.query?.ownerUid || authUid || '').trim();
 
       if (!ownerUid) {
         return res.status(400).json({ ok: false, error: 'ownerUid is required' });
@@ -2224,7 +2290,7 @@ function createQrRoutes({ storage }) {
   router.put('/stories/ads/house', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.ownerUid || authUid || '').trim();
+      const ownerUid = String(req.body?.uid || req.body?.ownerUid || authUid || '').trim();
 
       if (!ownerUid) {
         return res.status(400).json({ ok: false, error: 'ownerUid is required' });
@@ -2352,7 +2418,7 @@ function createQrRoutes({ storage }) {
   router.get('/analytics/card/:cardId/summary', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.query?.ownerUid || authUid || '').trim();
+      const ownerUid = String(req.query?.uid || req.query?.ownerUid || authUid || '').trim();
       const cardId = String(req.params?.cardId || '').trim();
 
       if (!ownerUid) {
@@ -2411,7 +2477,7 @@ function createQrRoutes({ storage }) {
   router.get('/cards/:cardId/subscribers', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.query?.ownerUid || authUid || '').trim();
+      const ownerUid = String(req.query?.uid || req.query?.ownerUid || authUid || '').trim();
       const cardId = String(req.params?.cardId || '').trim();
 
       if (!ownerUid) {
@@ -2492,8 +2558,8 @@ function createQrRoutes({ storage }) {
         const mutualPreviewPhotos = [];
         for (const mid of mutualIds.slice(0, 3)) {
           const mp = await resolveUserProfile(db, mid);
-          if (mp.photoUrl) {
-            mutualPreviewPhotos.push(mp.photoUrl);
+          if (mp.userAvatarUrl) {
+            mutualPreviewPhotos.push(mp.userAvatarUrl);
           }
         }
         const userRating = ratingBySub.has(uid) ? ratingBySub.get(uid) : 0;
@@ -2505,7 +2571,7 @@ function createQrRoutes({ storage }) {
           username: profile.username || '',
           name: profile.fullName || profile.name,
           nickname: profile.username || '',
-          photoUrl: profile.photoUrl,
+          userAvatarUrl: profile.userAvatarUrl,
           ownerOccupation: profile.ownerOccupation || null,
           isAmixes: amixesSet.has(uid),
           userRating: Number.isFinite(userRating) ? userRating : 0,
@@ -2531,7 +2597,7 @@ function createQrRoutes({ storage }) {
   router.delete('/cards/:cardId/subscribers/:targetUid', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.ownerUid || req.query?.ownerUid || authUid || '').trim();
+      const ownerUid = String(req.body?.uid || req.body?.ownerUid || req.query?.uid || req.query?.ownerUid || authUid || '').trim();
       const cardId = String(req.params?.cardId || '').trim();
       const targetUid = String(req.params?.targetUid || req.body?.targetUid || '').trim();
 
@@ -2586,7 +2652,7 @@ function createQrRoutes({ storage }) {
   router.post('/cards/:cardId/subscribers/:targetUid/mute', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.ownerUid || req.query?.ownerUid || authUid || '').trim();
+      const ownerUid = String(req.body?.uid || req.body?.ownerUid || req.query?.uid || req.query?.ownerUid || authUid || '').trim();
       const cardId = String(req.params?.cardId || '').trim();
       const targetUid = String(req.params?.targetUid || '').trim();
       const muted = req.body?.muted === true;
@@ -2645,7 +2711,7 @@ function createQrRoutes({ storage }) {
   router.post('/cards/:cardId/silence', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.ownerUid || req.query?.ownerUid || authUid || '').trim();
+      const ownerUid = String(req.body?.uid || req.body?.ownerUid || req.query?.uid || req.query?.ownerUid || authUid || '').trim();
       const cardId = String(req.params?.cardId || '').trim();
       const silenced = req.body?.silenced === true;
 
@@ -2671,7 +2737,7 @@ function createQrRoutes({ storage }) {
   router.post('/relationships/block', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.ownerUid || authUid || '').trim();
+      const ownerUid = String(req.body?.uid || req.body?.ownerUid || authUid || '').trim();
       const targetUid = String(req.body?.targetUid || '').trim();
 
       if (!ownerUid || !targetUid) {
@@ -2728,7 +2794,7 @@ function createQrRoutes({ storage }) {
   router.get('/relationships/blocked', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.query?.ownerUid || authUid || '').trim();
+      const ownerUid = String(req.query?.uid || req.query?.ownerUid || authUid || '').trim();
 
       if (!ownerUid) {
         return res.status(400).json({ ok: false, error: 'ownerUid is required' });
@@ -2766,7 +2832,7 @@ function createQrRoutes({ storage }) {
         blockedUsers.push({
           uid: otherUid,
           name: profile.name,
-          photoUrl: profile.photoUrl,
+          userAvatarUrl: profile.userAvatarUrl,
           blockedByUid: String(row.blockedByUid || ''),
           createdAt: row.createdAt || null,
           blockedAt: row.updatedAt || row.createdAt || null,
@@ -2787,7 +2853,7 @@ function createQrRoutes({ storage }) {
   router.delete('/relationships/blocked/:targetUid', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.ownerUid || req.query?.ownerUid || authUid || '').trim();
+      const ownerUid = String(req.body?.uid || req.body?.ownerUid || req.query?.uid || req.query?.ownerUid || authUid || '').trim();
       const targetUid = String(req.params?.targetUid || req.body?.targetUid || '').trim();
 
       if (!ownerUid || !targetUid) {
@@ -2812,10 +2878,16 @@ function createQrRoutes({ storage }) {
     }
   });
 
+  /**
+   * Historial de llamadas: lee `call_logs` y enriquece con perfil + `smart_cards`.
+   * - `isBusinessCard`: tarjeta emisora guardada en el log (Ghost-Link).
+   * - `displayCardIsBusiness`: tipo del título mostrado en la app (entrante = tu tarjeta; saliente = la tuya desde la que llamaste).
+   * Si una fila falla al enriquecer, se devuelve una entrada mínima para no vaciar la lista.
+   */
   router.get('/calls/history', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.query?.ownerUid || authUid || '').trim();
+      const ownerUid = String(req.query?.uid || req.query?.ownerUid || authUid || '').trim();
 
       if (!ownerUid) {
         return res.status(400).json({ ok: false, error: 'ownerUid is required' });
@@ -2827,27 +2899,28 @@ function createQrRoutes({ storage }) {
       const db = await storage.connect();
       const now = new Date();
 
-      const rows = await db.collection('call_logs').find(
-        { ownerUid },
-        {
-          projection: {
-            callId: 1,
-            peerUid: 1,
-            sourceCardName: 1,
-            sourceCardId: 1,
-            callChannel: 1,
-            direction: 1,
-            status: 1,
-            durationSec: 1,
-            tags: 1,
-            voiceNoteUri: 1,
-            voiceNoteName: 1,
-            createdAt: 1,
-            updatedAt: 1,
-          },
-          sort: { createdAt: -1 },
-        }
-      ).toArray();
+      const rows = await db.collection('call_logs')
+        .find({ ownerUid })
+        .project({
+          ownerUid: 1,
+          callId: 1,
+          peerUid: 1,
+          sourceCardName: 1,
+          sourceCardId: 1,
+          callChannel: 1,
+          direction: 1,
+          status: 1,
+          durationSec: 1,
+          tags: 1,
+          voiceNoteUri: 1,
+          voiceNoteName: 1,
+          callType: 1,
+          isBusinessCard: 1,
+          createdAt: 1,
+          updatedAt: 1,
+        })
+        .sort({ createdAt: -1 })
+        .toArray();
 
       const peerUids = Array.from(new Set(rows.map((row) => String(row.peerUid || '').trim()).filter(Boolean)));
       const activeStories = await db.collection('story_states').find(
@@ -2875,23 +2948,23 @@ function createQrRoutes({ storage }) {
         }
       }
 
-      const history = [];
-      for (const row of rows) {
-        const peerUid = String(row.peerUid || '').trim();
-        let profile = await resolveUserProfileExtended(db, peerUid);
-        const peerCard = await fetchLatestCardIdentityDoc(db, peerUid);
-        profile = mergeContactProfileFromCard(profile, peerUid, peerCard);
-
-        history.push({
+      function fallbackCallHistoryItem(row, storyMap) {
+        const peerUidF = String(row.peerUid || '').trim();
+        const isBiz = row.isBusinessCard === true || row.isBusinessCard === 'true';
+        return {
           callId: String(row.callId || ''),
-          peerUid,
-          name: profile.name,
-          nickname: profile.nickname,
-          photoUrl: profile.photoUrl,
+          peerUid: peerUidF,
+          displayCardName: String(row.sourceCardName || 'Tarjeta Social').trim(),
+          isBusinessCard: isBiz,
+          displayCardIsBusiness: isBiz,
+          peerFullName: 'Usuario',
+          peerPersonalName: 'Usuario',
+          userAvatarUrl: null,
           sourceCardName: String(row.sourceCardName || 'Tarjeta Social'),
           sourceCardId: normalizeString(row.sourceCardId, null),
           callChannel: 'ghost-link-voip',
-          storyState: storyByOwner.get(peerUid) || 'none',
+          callType: String(row.callType || '').trim() === 'video' ? 'video' : 'audio',
+          storyState: storyMap.get(peerUidF) || 'none',
           direction: String(row.direction || 'incoming'),
           status: String(row.status || 'completed'),
           durationSec: Number(row.durationSec || 0),
@@ -2900,7 +2973,139 @@ function createQrRoutes({ storage }) {
           voiceNoteName: row.voiceNoteName ? String(row.voiceNoteName) : null,
           createdAt: row.createdAt ? new Date(row.createdAt).toISOString() : new Date().toISOString(),
           updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : new Date().toISOString(),
-        });
+        };
+      }
+
+      const history = [];
+      for (const row of rows) {
+        try {
+          const logOwnerUid = String(row.ownerUid || ownerUid || '').trim();
+          const peerUid = String(row.peerUid || '').trim();
+          const direction = String(row.direction || '').trim().toLowerCase();
+          const incomingLike = direction === 'incoming' || direction === 'missed';
+          /** Tarjeta “puente” Ghost-Link: saliente → tarjeta del que llama (dueño del log); entrante → tarjeta del caller. */
+          const cardEmitterUid = direction === 'outgoing' ? logOwnerUid : peerUid;
+
+          let sourceCard = null;
+          if (row.sourceCardId && cardEmitterUid) {
+            sourceCard = await db.collection('smart_cards').findOne(
+              { cardId: String(row.sourceCardId), ownerUid: cardEmitterUid },
+              { projection: { scName: 1, ownerDisplayName: 1, ownerPhotoUrl: 1, cardType: 1 } },
+            );
+          }
+          let emitterIsBusiness = row.isBusinessCard === true || row.isBusinessCard === 'true';
+          if (row.isBusinessCard !== true && row.isBusinessCard !== false && sourceCard) {
+            emitterIsBusiness = String(sourceCard.cardType || '').toLowerCase() === 'business';
+          }
+
+          const profile = await resolveUserProfileExtended(db, peerUid);
+          let profileFullName =
+            pickFirstNonGeneric(profile.fullName, profile.name) ||
+            String(profile.name || '').trim() ||
+            '';
+          const userAvatarUrl = String(profile.userAvatarUrl || '').trim() || null;
+
+          /** Misma identidad “primaria” que fetchPersonalCardIdentityDoc (smart antes que business). */
+          let peerPrimaryDoc = null;
+          if (!emitterIsBusiness && peerUid) {
+            peerPrimaryDoc = await fetchPersonalCardIdentityDoc(db, peerUid);
+            if (peerPrimaryDoc) {
+              const fromCard = String(peerPrimaryDoc.ownerDisplayName || '').trim();
+              if (
+                fromCard &&
+                (!profileFullName ||
+                  isGenericUserLabel(profileFullName) ||
+                  profileFullName === 'Usuario')
+              ) {
+                profileFullName = pickFirstNonGeneric(fromCard, profileFullName) || fromCard;
+              }
+            }
+          }
+
+          if (!profileFullName) {
+            profileFullName = 'Usuario';
+          }
+
+          const peerPersonalName = profileFullName;
+
+          let localViewerCard = null;
+          if (incomingLike && logOwnerUid) {
+            localViewerCard = await db.collection('smart_cards').findOne(
+              { ownerUid: logOwnerUid, cardType: { $ne: 'business' } },
+              { sort: { updatedAt: -1 }, projection: { scName: 1, cardType: 1 } },
+            );
+            if (!localViewerCard) {
+              localViewerCard = await db.collection('smart_cards').findOne(
+                { ownerUid: logOwnerUid },
+                { sort: { updatedAt: -1 }, projection: { scName: 1, cardType: 1 } },
+              );
+            }
+          }
+
+          let displayCardName = readSmartCardScName(sourceCard)
+            ? readSmartCardScName(sourceCard)
+            : String(row.sourceCardName || 'Tarjeta Social').trim();
+          let uiIsBusiness = emitterIsBusiness;
+          if (incomingLike && localViewerCard) {
+            const localName = readSmartCardScName(localViewerCard);
+            if (localName) {
+              displayCardName = localName;
+            }
+            uiIsBusiness = String(localViewerCard.cardType || '').toLowerCase() === 'business';
+          } else if (!incomingLike && sourceCard) {
+            displayCardName = readSmartCardScName(sourceCard) || displayCardName;
+            uiIsBusiness = String(sourceCard.cardType || '').toLowerCase() === 'business';
+          }
+
+          let peerFullName = peerPersonalName;
+          if (incomingLike) {
+            peerFullName = peerPersonalName;
+          } else {
+            /**
+             * Saliente: una sola fuente (`fetchPersonalCardIdentityDoc`) decide smart vs business.
+             * Si el usuario tiene tarjeta personal, NO mezclar el ownerDisplayName del negocio como “full name”.
+             */
+            const peerPrimary =
+              peerPrimaryDoc || (peerUid ? await fetchPersonalCardIdentityDoc(db, peerUid) : null);
+            const primaryIsBusiness =
+              peerPrimary && String(peerPrimary.cardType || '').toLowerCase() === 'business';
+            if (primaryIsBusiness) {
+              const pub = String(peerPrimary.ownerDisplayName || '').trim();
+              peerFullName = pub || peerPersonalName;
+            } else {
+              peerFullName = peerPersonalName;
+            }
+          }
+
+          const callType = String(row.callType || '').trim() === 'video' ? 'video' : 'audio';
+
+          history.push({
+            callId: String(row.callId || ''),
+            peerUid,
+            displayCardName,
+            isBusinessCard: emitterIsBusiness,
+            displayCardIsBusiness: uiIsBusiness,
+            peerFullName,
+            peerPersonalName,
+            userAvatarUrl,
+            sourceCardName: String(row.sourceCardName || 'Tarjeta Social'),
+            sourceCardId: normalizeString(row.sourceCardId, null),
+            callChannel: 'ghost-link-voip',
+            callType,
+            storyState: storyByOwner.get(peerUid) || 'none',
+            direction: String(row.direction || 'incoming'),
+            status: String(row.status || 'completed'),
+            durationSec: Number(row.durationSec || 0),
+            tags: Array.isArray(row.tags) ? row.tags.map((tag) => String(tag)) : [],
+            voiceNoteUri: row.voiceNoteUri ? String(row.voiceNoteUri) : null,
+            voiceNoteName: row.voiceNoteName ? String(row.voiceNoteName) : null,
+            createdAt: row.createdAt ? new Date(row.createdAt).toISOString() : new Date().toISOString(),
+            updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : new Date().toISOString(),
+          });
+        } catch (rowErr) {
+          console.warn('[calls/history] row enrich failed', String(row?.callId || ''), rowErr?.message || rowErr);
+          history.push(fallbackCallHistoryItem(row, storyByOwner));
+        }
       }
 
       return res.status(200).json({
@@ -2917,7 +3122,7 @@ function createQrRoutes({ storage }) {
   router.post('/calls/logs', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.ownerUid || authUid || '').trim();
+      const ownerUid = String(req.body?.uid || req.body?.ownerUid || authUid || '').trim();
       const peerUid = String(req.body?.peerUid || '').trim();
       const direction = String(req.body?.direction || 'incoming').trim().toLowerCase();
       const status = String(req.body?.status || 'completed').trim().toLowerCase();
@@ -2928,6 +3133,10 @@ function createQrRoutes({ storage }) {
       const sourceCardName = normalizeString(req.body?.sourceCardName, 'Tarjeta Social');
       const sourceCardId = normalizeString(req.body?.sourceCardId, null);
       const callChannel = 'ghost-link-voip';
+      const callType = ['audio', 'video'].includes(String(req.body?.callType || '').trim())
+        ? String(req.body.callType).trim()
+        : 'audio';
+      const isBusinessCard = req.body?.isBusinessCard === true || req.body?.isBusinessCard === 'true';
 
       if (!ownerUid || !peerUid) {
         return res.status(400).json({ ok: false, error: 'ownerUid and peerUid are required' });
@@ -2959,6 +3168,8 @@ function createQrRoutes({ storage }) {
         sourceCardName,
         sourceCardId,
         callChannel,
+        callType,
+        isBusinessCard,
         createdAt: now,
         updatedAt: now,
       });
@@ -2972,7 +3183,7 @@ function createQrRoutes({ storage }) {
   router.patch('/calls/logs/:callId', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();
-      const ownerUid = String(req.body?.ownerUid || authUid || '').trim();
+      const ownerUid = String(req.body?.uid || req.body?.ownerUid || authUid || '').trim();
       const callId = String(req.params?.callId || req.body?.callId || '').trim();
 
       if (!ownerUid || !callId) {

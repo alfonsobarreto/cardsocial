@@ -5,30 +5,16 @@ import ReceptorScreenModal from '@/components/ReceptorScreenModal';
 import { SharedCardSkeletonList } from '@/components/SharedCardRowSkeleton';
 import { type WireframeEditSlot } from '@/components/smartCard/IsolatedWireframeCard';
 import { ThemedSharedCardSurface } from '@/components/ThemedSharedCardSurface';
-import { brandCsIconLogoBgTransparent } from '@/constants/brandAssets';
 import { MEDIA_PLACEHOLDER } from '@/constants/mediaPlaceholders';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { buildMirrorVaultItemsForContact } from '@/services/buildReceiverPreviewVaultItems';
 import { collectStringsReceivedContact, orderByDeepSearchWithExpandedQuery } from '@/services/deepSearch';
-import {
-    joinGhostLinkAgoraSession,
-    leaveGhostLinkAgoraSession,
-    setGhostLinkAgoraMuted,
-    setGhostLinkAgoraSpeaker,
-} from '@/services/ghostLinkAgoraSession';
-import {
-    getIncomingGhostLinkInvite,
-    respondGhostLinkInvite,
-    type GhostLinkAgoraRtc,
-    type GhostLinkIncomingInvite,
-} from '@/services/ghostLinkVoip';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
 import {
     blockRelationship,
-    createCallLog,
     listCardSubscribers,
     listReceivedContacts,
     removeRelationship,
@@ -40,6 +26,7 @@ import {
     mergeReceivedContactRows,
     receivedContactMergeKey,
 } from '@/services/receivedContactsPresentationMerge';
+import { resolvePillForegroundColor } from '@/services/pillForegroundColor';
 import { getCardRowTheme } from '@/services/useActiveTheme';
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { makeContactsStyles } from '@/styles/_contacts.styles';
@@ -64,6 +51,7 @@ import {
     Platform,
     Pressable,
     ScrollView,
+    StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
@@ -79,9 +67,9 @@ import Toast from 'react-native-toast-message';
 type Contact = {
   uid: string;
   cardId?: string | null;
-  name: string;
-  nickname: string;
-  photoUrl: string | null;
+  userFullName: string;
+  userNickName: string;
+  userAvatarUrl: string | null;
   /** Cargo del emisor persistido en smart_cards. */
   ownerOccupation?: string | null;
   ratingAvg: number;
@@ -149,28 +137,6 @@ const GROUP_DEFAULT = 'Random';
 const GROUP_PRESETS = ['Random', 'Family', 'Social', 'Work'];
 const RATING_ALERT = 3.5;
 
-type ActiveGhostCallView = {
-  inviteId?: string;
-  sessionId: string;
-  sourceCardName: string;
-  peerName: string;
-  peerNickname: string;
-  peerPhotoUrl: string | null;
-  direction: 'incoming' | 'outgoing';
-  agora?: GhostLinkAgoraRtc;
-};
-
-type IncomingGhostCallView = {
-  inviteId: string;
-  sessionId: string;
-  sourceCardName: string;
-  callerUid: string;
-  callerName: string;
-  callerNickname: string;
-  callerPhotoUrl: string | null;
-  agora?: GhostLinkAgoraRtc;
-};
-
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
@@ -194,7 +160,7 @@ function ContactsContent() {
   const isNight = resolvedMode === 'noche';
   const shell = appPalette[isNight ? 'dark' : 'light'];
   const styles = useMemo(() => makeContactsStyles(shell), [shell]);
-  const tr = (es: string, en: string) => language === 'en' ? en : es;
+  const tr = useCallback((es: string, en: string) => (language === 'en' ? en : es), [language]);
   const modalFooterBottomPad = useModalFooterBottomPad();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [metaMap, setMetaMap] = useState<Record<string, ContactMeta>>({});
@@ -214,10 +180,6 @@ function ContactsContent() {
   const [groupPickerVisible, setGroupPickerVisible] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
 
-  const [activeGhostCall, setActiveGhostCall] = useState<ActiveGhostCallView | null>(null);
-  const [incomingGhostCall, setIncomingGhostCall] = useState<IncomingGhostCallView | null>(null);
-  const [ghostCallMuted, setGhostCallMuted] = useState(false);
-  const [ghostCallSpeaker, setGhostCallSpeaker] = useState(false);
 
   /* Receptor modal state */
   const [receptorModalVisible, setReceptorModalVisible] = useState(false);
@@ -265,20 +227,6 @@ function ContactsContent() {
       tension: 220,
     }).start();
   };
-
-  useEffect(() => {
-    if (!activeGhostCall?.agora) {
-      return;
-    }
-    setGhostLinkAgoraMuted(ghostCallMuted);
-  }, [activeGhostCall?.agora, ghostCallMuted]);
-
-  useEffect(() => {
-    if (!activeGhostCall?.agora) {
-      return;
-    }
-    setGhostLinkAgoraSpeaker(ghostCallSpeaker);
-  }, [activeGhostCall?.agora, ghostCallSpeaker]);
 
   const loadMetaMap = async () => {
     try {
@@ -333,8 +281,22 @@ function ContactsContent() {
         ...(vm ? { vaultMimeType: vm.slice(0, 120) } : {}),
       };
     });
+    const legacy = row as Contact & { name?: string; nickname?: string; photoUrl?: string | null };
+    const userFullName = String(legacy.userFullName ?? legacy.name ?? '').trim();
+    const userNickName = String(legacy.userNickName ?? legacy.nickname ?? 'user')
+      .trim()
+      .replace(/^@+/g, '');
+    const userAvatarUrl =
+      legacy.userAvatarUrl != null && String(legacy.userAvatarUrl).trim()
+        ? String(legacy.userAvatarUrl)
+        : legacy.photoUrl != null && String(legacy.photoUrl).trim()
+          ? String(legacy.photoUrl)
+          : null;
     return {
       ...row,
+      userFullName,
+      userNickName,
+      userAvatarUrl,
       ownerOccupation:
         row.ownerOccupation != null && String(row.ownerOccupation).trim()
           ? String(row.ownerOccupation).trim()
@@ -464,77 +426,6 @@ function ContactsContent() {
     };
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const normalizeIncomingInvite = (invite: GhostLinkIncomingInvite): IncomingGhostCallView | null => {
-      const inviteId = String(invite?.inviteId || '').trim();
-      const sessionId = String(invite?.sessionId || '').trim();
-      const callerUid = String(invite?.ownerUid || '').trim();
-      if (!inviteId || !sessionId || !callerUid) {
-        return null;
-      }
-
-      return {
-        inviteId,
-        sessionId,
-        sourceCardName: String(invite?.sourceCardName || 'Tarjeta Social').trim(),
-        callerUid,
-        callerName: String(invite?.callerDisplay?.name || 'Contacto').trim(),
-        callerNickname: String(invite?.callerDisplay?.nickname || 'user').trim(),
-        callerPhotoUrl: invite?.callerDisplay?.photoUrl ? String(invite.callerDisplay.photoUrl) : null,
-        agora: invite.agora,
-      };
-    };
-
-    const pollIncomingGhostLink = async () => {
-      try {
-        if (cancelled || Boolean(activeGhostCall)) {
-          return;
-        }
-
-        const ownerUid = await getActiveUserId();
-        if (!ownerUid) {
-          return;
-        }
-
-        const invite = await getIncomingGhostLinkInvite({ ownerUid });
-        if (cancelled) {
-          return;
-        }
-
-        if (!invite) {
-          setIncomingGhostCall(null);
-          return;
-        }
-
-        const normalized = normalizeIncomingInvite(invite);
-        if (!normalized) {
-          return;
-        }
-
-        setIncomingGhostCall((prev) => {
-          if (prev?.inviteId === normalized.inviteId) {
-            return prev;
-          }
-          return normalized;
-        });
-      } catch {
-        // Silent polling error: non-blocking for core contacts UX.
-      }
-    };
-
-    void pollIncomingGhostLink();
-    const timer = setInterval(() => {
-      void pollIncomingGhostLink();
-    }, 4000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [activeGhostCall]);
-
   const mirrorVaultItems = useMemo(() => {
     if (!selectedContact) {
       return [];
@@ -554,18 +445,18 @@ function ContactsContent() {
     if (!selectedContact) return null;
     const c = selectedContact;
     const isBusiness = c.cardType === 'business';
-    const nick = String(c.nickname || 'user').trim() || 'user';
+    const nick = String(c.userNickName || 'user').trim() || 'user';
     const cardNm = String(c.cardName || '').trim();
-    const person = String(c.name || '').trim();
+    const person = String(c.userFullName || '').trim();
     const occ = String(c.ownerOccupation || '').trim();
-    // Business cards: subtitle = ownerName (no @ prefix). Personal: @nickname.
+    // Business: subtítulo desde nombre/ocupación del contacto en API (no @). Personal: @nickname.
     const subtitle = isBusiness
       ? person || occ || ''
       : nick.startsWith('@') ? nick : `@${nick}`;
     return {
       cardName: (cardNm || person || occ || tr('Tarjeta Social', 'Social Card')).trim(),
       subtitle,
-      avatarUrl: c.photoUrl,
+      avatarUrl: c.userAvatarUrl,
       themeId: c.themeId || '',
       wallpaperUrl: c.wallpaperUrl ?? undefined,
       layout: c.layout === 'horizontal' ? 'horizontal' : 'vertical',
@@ -619,12 +510,12 @@ function ContactsContent() {
     const qExpanded = buildExpandedMarketQuery(qRaw) || qRaw;
 
     return orderByDeepSearchWithExpandedQuery(withMeta, qExpanded, (row) =>
-      collectStringsReceivedContact(
+           collectStringsReceivedContact(
         {
           uid: row.uid,
           cardId: row.cardId ?? null,
-          name: row.name,
-          nickname: row.nickname,
+          userFullName: row.userFullName,
+          userNickName: row.userNickName,
           cardName: row.cardName,
           ownerOccupation: row.ownerOccupation ?? null,
           searchFacets: row.searchFacets,
@@ -676,7 +567,7 @@ function ContactsContent() {
         if (favDiff !== 0) {
           return favDiff;
         }
-        return String(a.name).localeCompare(String(b.name), 'es', { sensitivity: 'base' });
+        return String(a.userFullName).localeCompare(String(b.userFullName), 'es', { sensitivity: 'base' });
       });
       return rows;
     }
@@ -686,7 +577,7 @@ function ContactsContent() {
       if (favDiff !== 0) {
         return favDiff;
       }
-      return String(a.name).localeCompare(String(b.name), 'es', { sensitivity: 'base' });
+      return String(a.userFullName).localeCompare(String(b.userFullName), 'es', { sensitivity: 'base' });
     });
 
     return rows;
@@ -763,30 +654,6 @@ function ContactsContent() {
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
     return `${parts[0][0] ?? ''}${parts[parts.length - 1][0] ?? ''}`.toUpperCase() || '?';
   };
-
-  const renderGhostLinkBrandLogo = () => (
-    <View style={styles.ghostBrandLogoWrap} accessibilityRole="image" accessibilityLabel={tr('Card Social', 'Card Social')}>
-      <ExpoImage
-        source={brandCsIconLogoBgTransparent}
-        style={styles.ghostBrandLogoImage}
-        contentFit="contain"
-      />
-    </View>
-  );
-
-  const renderGhostAvatarGlowing = (uri: string | null) => (
-    <View style={styles.ghostAvatarGlowOuter}>
-      <View style={styles.ghostAvatarGlowInner}>
-        {uri ? (
-          <ExpoImage source={{ uri }} style={styles.ghostAvatarImage} cachePolicy="disk" />
-        ) : (
-          <View style={styles.ghostAvatarImageFallback}>
-            <MaterialCommunityIcons name="account" size={40} color={shell.ghostLinkOnGradient} />
-          </View>
-        )}
-      </View>
-    </View>
-  );
 
   const updateContactMeta = async (contact: Contact, updater: (prev: ContactMeta) => ContactMeta) => {
     const linkKey = receivedContactMergeKey(contact);
@@ -1038,133 +905,6 @@ function ContactsContent() {
     setSelectedContact(null);
   };
 
-  const endActiveGhostCall = () => {
-    void leaveGhostLinkAgoraSession();
-    void (async () => {
-      try {
-        const inviteId = String(activeGhostCall?.inviteId || '').trim();
-        if (inviteId) {
-          const ownerUid = await getActiveUserId();
-          if (ownerUid) {
-            await respondGhostLinkInvite({
-              ownerUid,
-              inviteId,
-              action: 'end',
-            });
-          }
-        }
-      } catch {
-        // End-call control is best-effort; local teardown still proceeds.
-      }
-    })();
-
-    setActiveGhostCall(null);
-    setGhostCallMuted(false);
-    setGhostCallSpeaker(false);
-  };
-
-  const rejectIncomingGhostCall = () => {
-    void (async () => {
-      try {
-        if (!incomingGhostCall) {
-          return;
-        }
-
-        const ownerUid = await getActiveUserId();
-        if (!ownerUid) {
-          return;
-        }
-
-        await respondGhostLinkInvite({
-          ownerUid,
-          inviteId: incomingGhostCall.inviteId,
-          action: 'reject',
-        });
-
-        await createCallLog({
-          ownerUid,
-          peerUid: incomingGhostCall.callerUid,
-          direction: 'incoming',
-          status: 'rejected',
-          durationSec: 0,
-          tags: ['Ghost-Link'],
-          sourceCardName: incomingGhostCall.sourceCardName,
-          sourceCardId: null,
-          callChannel: 'ghost-link-voip',
-        });
-      } catch {
-        // no-op
-      } finally {
-        setIncomingGhostCall(null);
-      }
-    })();
-  };
-
-  const acceptIncomingGhostCall = () => {
-    void (async () => {
-      try {
-        if (!incomingGhostCall) {
-          return;
-        }
-
-        const ownerUid = await getActiveUserId();
-        if (!ownerUid) {
-          return;
-        }
-
-        const authenticated = await hardLockCheck('aceptar llamada Ghost-Link');
-        if (!authenticated) {
-          return;
-        }
-
-        await respondGhostLinkInvite({
-          ownerUid,
-          inviteId: incomingGhostCall.inviteId,
-          action: 'accept',
-        });
-
-        if (incomingGhostCall.agora) {
-          try {
-            await joinGhostLinkAgoraSession(incomingGhostCall.agora);
-          } catch (agoraErr) {
-            if (__DEV__) {
-              console.warn('Ghost-Link Agora (callee join):', agoraErr);
-            }
-          }
-        }
-
-        setActiveGhostCall({
-          inviteId: incomingGhostCall.inviteId,
-          sessionId: incomingGhostCall.sessionId,
-          sourceCardName: incomingGhostCall.sourceCardName,
-          peerName: incomingGhostCall.callerName,
-          peerNickname: incomingGhostCall.callerNickname,
-          peerPhotoUrl: incomingGhostCall.callerPhotoUrl,
-          direction: 'incoming',
-          agora: incomingGhostCall.agora,
-        });
-        setGhostCallMuted(false);
-        setGhostCallSpeaker(false);
-
-        await createCallLog({
-          ownerUid,
-          peerUid: incomingGhostCall.callerUid,
-          direction: 'incoming',
-          status: 'completed',
-          durationSec: 0,
-          tags: ['Ghost-Link'],
-          sourceCardName: incomingGhostCall.sourceCardName,
-          sourceCardId: null,
-          callChannel: 'ghost-link-voip',
-        });
-
-        setIncomingGhostCall(null);
-      } catch (error: any) {
-        Alert.alert(tr('No se pudo aceptar la llamada', 'Could not accept call'), error?.message || tr('Intenta de nuevo.', 'Try again.'));
-      }
-    })();
-  };
-
   const onLongPressRow = (contact: Contact) => {
     setLongPressContact(contact);
     setLongPressVisible(true);
@@ -1264,6 +1004,11 @@ function ContactsContent() {
                 const rowLinkKey = receivedContactMergeKey(row);
                 const holders = row.holdersCount ?? 0;
                 const chest = getCardRowTheme(row.themeId);
+                const lightChipFg = resolvePillForegroundColor({
+                  cardGradient: chest.gradient,
+                  pillBackground: 'rgba(255,255,255,0.72)',
+                  preferredColor: chest.iconColor,
+                });
                 const issuerFont = row.fontFamily ? { fontFamily: row.fontFamily } : null;
                 const closeRowSwipe = () => {
                   swipeableByContactLinkRef.current.get(rowLinkKey)?.close();
@@ -1378,8 +1123,8 @@ function ContactsContent() {
                                 : styles.avatarRingNone,
                           ]}
                         >
-                          {row.photoUrl ? (
-                            <ExpoImage source={{ uri: row.photoUrl }} style={styles.avatarLg} cachePolicy="disk" />
+                          {row.userAvatarUrl ? (
+                            <ExpoImage source={{ uri: row.userAvatarUrl }} style={styles.avatarLg} cachePolicy="disk" />
                           ) : (
                             <View
                               style={[
@@ -1394,7 +1139,7 @@ function ContactsContent() {
                                 style={[styles.avatarInitials, { color: MEDIA_PLACEHOLDER.personIconLight }]}
                                 numberOfLines={1}
                               >
-                                {initialsFromDisplayName(row.name)}
+                                {initialsFromDisplayName(row.userFullName)}
                               </Text>
                             </View>
                           )}
@@ -1413,7 +1158,7 @@ function ContactsContent() {
                             ]}
                             numberOfLines={2}
                           >
-                            {row.name}
+                            {row.userFullName}
                           </Text>
                           {row.ownerOccupation ? (
                             <Text
@@ -1456,8 +1201,8 @@ function ContactsContent() {
                               activeOpacity={0.7}
                               hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
                             >
-                              <MaterialCommunityIcons name="account-group-outline" size={11} color={chest.titleColor} />
-                              <Text style={[styles.mutualCountPillText, { color: chest.titleColor }]}>{holders}</Text>
+                              <MaterialCommunityIcons name="account-group-outline" size={11} color={lightChipFg} />
+                              <Text style={[styles.mutualCountPillText, { color: lightChipFg }]}>{holders}</Text>
                             </TouchableOpacity>
                           </View>
                         </View>
@@ -1562,7 +1307,7 @@ function ContactsContent() {
       <Modal visible={longPressVisible} transparent animationType="fade" onRequestClose={() => setLongPressVisible(false)}>
         <Pressable style={[styles.modalOverlay, { backgroundColor: shell.overlayScrim }]} onPress={() => setLongPressVisible(false)}>
           <Pressable onPress={() => {}} style={[styles.actionModalCard, { backgroundColor: shell.modalBg, borderColor: shell.modalBorder, paddingBottom: modalFooterBottomPad }]}>
-            <Text style={[styles.actionModalTitle, { color: shell.textPrimary }]}>{longPressContact?.name || tr('Contacto', 'Contact')}</Text>
+            <Text style={[styles.actionModalTitle, { color: shell.textPrimary }]}>{longPressContact?.userFullName || tr('Contacto', 'Contact')}</Text>
             {longPressContact?.cardName ? (
               <Text style={[styles.contactSubtitleCardName, { color: shell.textSecondary, marginBottom: 8, textAlign: 'center' }]} numberOfLines={2}>
                 {longPressContact.cardName}
@@ -1722,124 +1467,10 @@ function ContactsContent() {
         ghostTargetUid={selectedContact?.uid}
         sourceCardId={selectedContact?.cardId ?? null}
         sourceCardName={selectedContact?.cardName}
-        peerDisplayName={selectedContact?.nickname || selectedContact?.name || 'contacto'}
+        peerDisplayName={selectedContact?.userNickName || selectedContact?.userFullName || 'contacto'}
         ratingCardType={selectedContact?.cardType ?? 'smart'}
+        medalRatingUseNativeAndroidModal={Platform.OS === 'android'}
       />
-
-      <Modal
-        visible={Boolean(activeGhostCall)}
-        transparent
-        animationType="fade"
-        onRequestClose={endActiveGhostCall}
-      >
-        <LinearGradient
-          colors={[...shell.tabShellGradient]}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          style={styles.ghostFullBleedGradient}
-        >
-          <SafeAreaView style={styles.ghostSafeArea} edges={['top', 'bottom']}>
-            <View style={styles.ghostLogoTopSlot}>{renderGhostLinkBrandLogo()}</View>
-            <View style={styles.ghostActiveBody}>
-              {renderGhostAvatarGlowing(activeGhostCall?.peerPhotoUrl ?? null)}
-              <Text style={styles.ghostActiveHeroNick}>@{activeGhostCall?.peerNickname || 'user'}</Text>
-              <Text style={styles.ghostActiveStatusLine}>
-                {activeGhostCall?.direction === 'incoming'
-                  ? tr('En llamada', 'On call')
-                  : tr('Llamando...', 'Calling...')}
-              </Text>
-              <View style={styles.ghostGoldIdentityPill}>
-                <Text style={styles.ghostGoldIdentityPillText} numberOfLines={2}>
-                  {activeGhostCall?.direction === 'incoming'
-                    ? `${tr('Desde su tarjeta', 'From their card')}: ${activeGhostCall?.sourceCardName || tr('Tarjeta Social', 'Social Card')}`
-                    : `${tr('Su Tarjeta', 'Your card')}: ${activeGhostCall?.sourceCardName || tr('Tarjeta Social', 'Social Card')}`}
-                </Text>
-              </View>
-              {activeGhostCall?.direction === 'incoming' && activeGhostCall?.peerName ? (
-                <Text style={styles.ghostActiveFullNameSub}>{activeGhostCall.peerName}</Text>
-              ) : null}
-              <View style={styles.ghostActiveControlRow}>
-                <TouchableOpacity
-                  style={[styles.ghostControlBtn, ghostCallMuted && styles.ghostControlBtnActive]}
-                  onPress={() => setGhostCallMuted((prev) => !prev)}
-                  activeOpacity={0.9}
-                >
-                  <MaterialCommunityIcons
-                    name={ghostCallMuted ? 'microphone-off' : 'microphone'}
-                    size={22}
-                    color={shell.ghostLinkOnGradient}
-                  />
-                  <Text style={styles.ghostControlText}>{tr('Silencio', 'Mute')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.ghostControlBtn, ghostCallSpeaker && styles.ghostControlBtnActive]}
-                  onPress={() => setGhostCallSpeaker((prev) => !prev)}
-                  activeOpacity={0.9}
-                >
-                  <MaterialCommunityIcons
-                    name={ghostCallSpeaker ? 'volume-high' : 'volume-medium'}
-                    size={22}
-                    color={shell.ghostLinkOnGradient}
-                  />
-                  <Text style={styles.ghostControlText}>{tr('Altavoz', 'Speaker')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.ghostControlBtn} activeOpacity={0.9}>
-                  <MaterialCommunityIcons name="dialpad" size={22} color={shell.ghostLinkOnGradient} />
-                  <Text style={styles.ghostControlText}>{tr('Teclado', 'Keypad')}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            <View style={styles.ghostActiveFooterColumn}>
-              <TouchableOpacity style={styles.ghostEndBtn} onPress={endActiveGhostCall} activeOpacity={0.9}>
-                <Text style={styles.ghostEndBtnText}>{tr('Finalizar llamada', 'End call')}</Text>
-              </TouchableOpacity>
-              <Text style={styles.ghostActivePrivacy}>
-                {tr('Enlace exclusivo', 'Exclusive Link')}
-              </Text>
-            </View>
-          </SafeAreaView>
-        </LinearGradient>
-      </Modal>
-
-      <Modal
-        visible={Boolean(incomingGhostCall) && !Boolean(activeGhostCall)}
-        transparent
-        animationType="fade"
-        onRequestClose={rejectIncomingGhostCall}
-      >
-        <LinearGradient
-          colors={[...shell.tabShellGradient]}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          style={styles.ghostFullBleedGradient}
-        >
-          <SafeAreaView style={styles.ghostSafeArea} edges={['top', 'bottom']}>
-            <View style={styles.ghostLogoTopSlot}>{renderGhostLinkBrandLogo()}</View>
-            <View style={styles.ghostIncomingScreenBody}>
-              <View style={styles.ghostIncomingCardFrosted}>
-                {renderGhostAvatarGlowing(incomingGhostCall?.callerPhotoUrl ?? null)}
-                <Text style={styles.ghostIncomingNick}>@{incomingGhostCall?.callerNickname || 'user'}</Text>
-                <Text style={styles.ghostIncomingTitle}>{tr('Llamada entrante…', 'Incoming call…')}</Text>
-                <Text style={styles.ghostIncomingGoldLine} numberOfLines={2}>
-                  {tr('Desde su tarjeta', 'From their card')}:{' '}
-                  {incomingGhostCall?.sourceCardName || tr('Tarjeta Social', 'Social Card')}
-                </Text>
-                <Text style={styles.ghostIncomingFullNameLine}>
-                  {tr('Nombre completo', 'Full name')}: {incomingGhostCall?.callerName || tr('Contacto', 'Contact')}
-                </Text>
-                <View style={styles.ghostIncomingActionsRow}>
-                  <TouchableOpacity style={styles.ghostIncomingAcceptBtn} onPress={acceptIncomingGhostCall} activeOpacity={0.9}>
-                    <Text style={styles.ghostIncomingAcceptText}>{tr('[ACEPTAR]', '[ACCEPT]')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.ghostIncomingRejectBtn} onPress={rejectIncomingGhostCall} activeOpacity={0.9}>
-                    <Text style={styles.ghostIncomingRejectText}>{tr('[RECHAZAR]', '[DECLINE]')}</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </SafeAreaView>
-        </LinearGradient>
-      </Modal>
     </LinearGradient>
 
       <ReceptorScreenModal
@@ -1850,9 +1481,9 @@ function ContactsContent() {
           setReceptorSubscribers([]);
         }}
         owner={{
-          displayName: receptorContact?.name || '',
+          displayName: receptorContact?.userFullName || '',
           occupation: receptorContact?.ownerOccupation || receptorContact?.cardName || '',
-          photoUrl: receptorContact?.photoUrl ?? null,
+          userAvatarUrl: receptorContact?.userAvatarUrl ?? null,
         }}
         subscribers={receptorSubscribers}
         totalCount={receptorContact?.holdersCount ?? receptorSubscribers.length}

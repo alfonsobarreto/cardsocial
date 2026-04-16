@@ -10,9 +10,10 @@ import QRCode from 'qrcode';
 
 export interface BrandedQrGenerationParams {
   cardId: string;
-  businessName: string;
+  bcName: string;
   ownerUid: string;
-  logoImageUri?: string; // URI de la imagen del logo del negocio
+  /** URI local del logo (preview / centro del QR). */
+  bcLogo?: string;
   cardQrDataUrl: string; // Payload del QR o data URL
   format: 'png' | 'pdf'; // Formato de descarga
 }
@@ -27,9 +28,9 @@ export interface BrandedQrResult {
 
 export interface ExportBusinessQrParams {
   businessId: string;
-  businessName: string;
+  bcName: string;
   permanentBusinessLink: string;
-  businessLogoUri?: string;
+  bcLogo?: string;
   format: 'png' | 'pdf';
 }
 
@@ -42,10 +43,10 @@ const DEFAULT_EXPORT_PX = Math.max(1200, MIN_QR_PX_AT_300_DPI);
 
 /**
  * Genera URL de QR con parámetros codificados
- * Formato: card-social://qr/{cardId}?business={businessName}&owner={ownerUid}
+ * Formato: card-social://qr/{cardId}?business={bcName}&owner={ownerUid}
  */
-export function generateQrDataUrl(cardId: string, businessName: string, ownerUid: string): string {
-  const encodedBusiness = encodeURIComponent(businessName);
+export function generateQrDataUrl(cardId: string, bcName: string, ownerUid: string): string {
+  const encodedBusiness = encodeURIComponent(bcName);
   return `card-social://qr/${cardId}?business=${encodedBusiness}&owner=${ownerUid}`;
 }
 
@@ -61,18 +62,18 @@ export function generatePermanentBusinessLink(cardId: string, ownerUid: string):
  * 
  * Parámetros:
  * - cardQrDataUrl: SVG o imagen base64 del QR generado
- * - businessName: Nombre del negocio (para nombre del archivo)
+ * - bcName: Título de la tarjeta business (para nombre del archivo)
  * - format: 'png' o 'pdf'
- * - logoImageUri: (Opcional) Logo para embeber en el centro del QR
+ * - bcLogo: (Opcional) Logo para embeber en el centro del QR
  */
 export async function downloadBrandedQr(
   params: BrandedQrGenerationParams
 ): Promise<BrandedQrResult> {
   try {
-    const { cardId, businessName, ownerUid, cardQrDataUrl, format, logoImageUri } = params;
+    const { cardId, bcName, ownerUid, cardQrDataUrl, format, bcLogo } = params;
 
-    // Sanitizar nombre de negocio para el archivo
-    const sanitizedName = businessName
+    // Sanitizar nombre para el archivo
+    const sanitizedName = bcName
       .replace(/[^a-zA-Z0-9]/g, '_')
       .substring(0, 30);
     const fileName = `QR_${sanitizedName}_${Date.now()}.${format}`;
@@ -86,7 +87,7 @@ export async function downloadBrandedQr(
     // 1. GENERAR QR DE ALTA RESOLUCION CON ERROR CORRECTION H
     const qrPayload =
       cardQrDataUrl.startsWith('data:') || cardQrDataUrl.startsWith('file://')
-        ? generateQrDataUrl(cardId, businessName, ownerUid)
+        ? generateQrDataUrl(cardId, bcName, ownerUid)
         : cardQrDataUrl;
 
     let finalQrData = await QRCode.toDataURL(qrPayload, {
@@ -101,9 +102,9 @@ export async function downloadBrandedQr(
     });
 
     // 2. Si hay logo, intentar leerlo para futura composición de branded QR
-    if (logoImageUri && format === 'png') {
+    if (bcLogo && format === 'png') {
       try {
-        await FileSystem.readAsStringAsync(logoImageUri, {
+        await FileSystem.readAsStringAsync(bcLogo, {
           encoding: 'base64',
         } as any);
 
@@ -152,7 +153,7 @@ export async function ExportBusinessQR(
   params: ExportBusinessQrParams
 ): Promise<BrandedQrResult> {
   try {
-    const sanitizedName = String(params.businessName || 'business')
+    const sanitizedName = String(params.bcName || 'business')
       .replace(/[^a-zA-Z0-9]/g, '_')
       .substring(0, 30);
     const fileName = `PERMANENT_QR_${sanitizedName}_${Date.now()}.${params.format}`;
@@ -201,8 +202,8 @@ export async function ExportBusinessQR(
  */
 export function generateQrPreviewUrl(
   qrDataUrl: string,
-  logoImageUri?: string,
-  includeBusinessName?: string
+  bcLogo?: string,
+  includeBcName?: string
 ): string {
   // En una app real, esto generaría un canvas combinado
   // Por ahora, retorna el QR base
@@ -254,12 +255,12 @@ export function getPrintSpecifications(businessType: 'retail' | 'service' | 'res
  */
 export async function shareQrCode(
   fileUri: string,
-  businessName: string
+  bcName: string
 ): Promise<boolean> {
   try {
     // En React Native, usarías Share.share() de react-native
     // Esta es una abstracción placeholder
-    console.log(`Compartiendo QR de ${businessName} desde ${fileUri}`);
+    console.log(`Compartiendo QR de ${bcName} desde ${fileUri}`);
     return true;
   } catch (error) {
     console.error('Error sharing QR:', error);

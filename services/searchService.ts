@@ -3,6 +3,7 @@
  */
 
 import { collection, getDocs, limit, query, where } from 'firebase/firestore';
+import { readBusinessCardIdentityFields } from '@/services/businessCardService';
 import { isBusinessCardMarketEligible } from '@/services/businessCardMarketEligibility';
 import { db } from '@/services/firebaseConfig';
 import {
@@ -19,10 +20,10 @@ import type { PublicCardSlotPayload } from '@/services/qrApi';
 export type ReceivedContactForMarketSearch = {
   uid: string;
   cardId: string | null;
-  name: string;
-  nickname: string;
+  userFullName: string;
+  userNickName: string;
+  userAvatarUrl: string | null;
   cardName: string;
-  photoUrl: string | null;
   ratingAvg: number;
   totalRatings?: number;
   holdersCount?: number;
@@ -102,14 +103,14 @@ export function issuerPresentationFromRow(row: ReceivedContactForMarketSearch): 
 
 export function createReceivedContactBusinessCard(row: ReceivedContactForMarketSearch): BusinessCard {
   const now = new Date();
-  const title = String(row.name || row.cardName || '').trim() || '—';
+  const title = String(row.userFullName || row.cardName || '').trim() || '—';
   const cid = row.cardId != null && String(row.cardId).trim() ? String(row.cardId).trim() : 'legacy';
   return {
-    id: `received-contact:${row.uid}:${cid}`,
-    ownerUid: row.uid,
+    bId: `received-contact:${row.uid}:${cid}`,
+    uid: row.uid,
     type: 'business',
-    businessName: title,
-    ownerName: '',
+    bcName: title,
+    bcContactName: '',
     ownerEmail: '',
     ownerPhone: '',
     physicalAddress: '',
@@ -118,8 +119,8 @@ export function createReceivedContactBusinessCard(row: ReceivedContactForMarketS
     city: '',
     postalCode: '',
     keywords: [],
-    businessDescription: `@${String(row.nickname || 'user').trim()} · ${String(row.cardName || '').trim()}`,
-    businessLogo: row.photoUrl || undefined,
+    businessDescription: `@${String(row.userNickName || 'user').trim()} · ${String(row.cardName || '').trim()}`,
+    bcLogoUrl: row.userAvatarUrl || undefined,
     kycVerified: false,
     kycTermsAccepted: false,
     vaultDataIds: [],
@@ -143,7 +144,7 @@ function stringsForBusinessCard(card: BusinessCard): string[] {
       out.push(t);
     }
   };
-  push(card.businessName);
+  push(card.bcName);
   push(card.businessDescription);
   push(card.physicalAddress);
   push(card.city);
@@ -185,8 +186,8 @@ function searchReceivedContactsForMarket(
       {
         uid: row.uid,
         cardId: row.cardId,
-        name: row.name,
-        nickname: row.nickname,
+        userFullName: row.userFullName,
+        userNickName: row.userNickName,
         cardName: row.cardName,
         searchFacets: row.searchFacets,
       },
@@ -205,11 +206,12 @@ function searchReceivedContactsForMarket(
     receivedContactCardName: row.cardName,
     issuerPresentation: issuerPresentationFromRow(row),
     receivedHoldersCount: Number(row.holdersCount ?? 0) || 0,
-    receivedSourceCardId: row.cardId ?? null,
+    receivedSourceSid: row.cardId ?? null,
+    receivedSourceBId: null,
     receivedChannelMuted: Boolean(row.channelMuted),
     receivedPublicCardSlots: Array.isArray(row.publicCardSlots) ? row.publicCardSlots : [],
     receivedOwnerOccupation: row.ownerOccupation ?? null,
-    receivedIssuerNickname: String(row.nickname || '').trim() || undefined,
+    receivedIssuerNickname: String(row.userNickName || '').trim() || undefined,
   }));
 }
 
@@ -243,9 +245,11 @@ export async function searchSocialMarket(
     );
 
     const snapshot = await getDocs(q);
-    const businessCards: BusinessCard[] = snapshot.docs.map(
-      (doc) => ({ id: doc.id, ...doc.data() } as BusinessCard),
-    );
+    const businessCards: BusinessCard[] = snapshot.docs.map((dSnap) => {
+      const raw = dSnap.data() as Record<string, unknown>;
+      const idn = readBusinessCardIdentityFields(raw);
+      return { ...raw, ...idn, bId: dSnap.id, uid: String((raw as { uid?: string }).uid ?? '') } as BusinessCard;
+    });
 
     let candidates = businessCards;
     if (hasLocation) {
@@ -336,7 +340,11 @@ export async function findNearbyBusinesses(
     );
 
     const snapshot = await getDocs(q);
-    const allCards: BusinessCard[] = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as BusinessCard));
+    const allCards: BusinessCard[] = snapshot.docs.map((dSnap) => {
+      const raw = dSnap.data() as Record<string, unknown>;
+      const idn = readBusinessCardIdentityFields(raw);
+      return { ...raw, ...idn, bId: dSnap.id, uid: String((raw as { uid?: string }).uid ?? '') } as BusinessCard;
+    });
 
     const inRadius = allCards
       .map((card) => ({
@@ -354,7 +362,9 @@ export async function findNearbyBusinesses(
       .filter((x) => x.ok)
       .map(({ card, distanceMiles }) => ({ card, distanceMiles }));
 
-    const withDistances = eligiblePairs.sort((a, b) => a.distanceMiles - b.distanceMiles).slice(0, limit_results);
+    const withDistances = eligiblePairs
+      .sort((a, b) => Number(a.distanceMiles ?? 0) - Number(b.distanceMiles ?? 0))
+      .slice(0, limit_results);
 
     return withDistances.map((item) => {
       const dm = safeDistanceMiles(item.distanceMiles);

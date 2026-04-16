@@ -13,11 +13,11 @@ import { buildStoryLookupFromReceivedContacts, resolveSearchRowStoryState } from
 import type { BusinessCard } from '../types/businessCard';
 
 /** Stub mínimo para probar solo campos usados por la Fase 2. */
-function stubCard(p: Partial<BusinessCard> & Pick<BusinessCard, 'id' | 'ownerUid' | 'businessName'>): BusinessCard {
+function stubCard(p: Partial<BusinessCard> & Pick<BusinessCard, 'bId' | 'uid' | 'bcName'>): BusinessCard {
   const now = new Date();
   return {
     type: 'business',
-    ownerName: '',
+    bcContactName: '',
     ownerEmail: '',
     ownerPhone: '',
     physicalAddress: '',
@@ -63,9 +63,9 @@ function run() {
   assert.equal(
     marketSearchStoryRingState(
       stubCard({
-        id: 'm1',
-        ownerUid: 'ou',
-        businessName: 'B',
+        bId: 'm1',
+        uid: 'ou',
+        bcName: 'B',
         hasActiveStory: false,
       }),
     ),
@@ -75,9 +75,9 @@ function run() {
   assert.equal(
     marketSearchStoryRingState(
       stubCard({
-        id: 'm2',
-        ownerUid: 'ou',
-        businessName: 'B',
+        bId: 'm2',
+        uid: 'ou',
+        bcName: 'B',
         hasActiveStory: true,
         isPremiumStory: true,
       }),
@@ -88,9 +88,9 @@ function run() {
   assert.equal(
     marketSearchStoryRingState(
       stubCard({
-        id: 'm3',
-        ownerUid: 'ou',
-        businessName: 'B',
+        bId: 'm3',
+        uid: 'ou',
+        bcName: 'B',
         hasActiveStory: true,
         isPremiumStory: false,
       }),
@@ -102,9 +102,9 @@ function run() {
   assert.equal(
     marketSearchStoryRingState(
       stubCard({
-        id: 'm4',
-        ownerUid: 'ou',
-        businessName: 'B',
+        bId: 'm4',
+        uid: 'ou',
+        bcName: 'B',
         hasActiveStory: true,
         isPremiumStory: true,
         storyExpiresAt: past,
@@ -118,41 +118,41 @@ function run() {
   assert.equal(
     parseStoryExpiryMs(
       stubCard({
-        id: 'm5',
-        ownerUid: 'ou',
-        businessName: 'B',
+        bId: 'm5',
+        uid: 'ou',
+        bcName: 'B',
         storyExpiresAt: { seconds: futureSec } as unknown as Date,
       }),
     ),
     futureSec * 1000,
   );
 
-  // --- Facetas mercado (orden y mapa por coordenadas si no hay mapsLink) ---
+  // --- Facetas mercado: solo lo guardado en `marketFacets` (sin inventar desde campos planos) ---
+  const sampleFacets = [
+    { type: 'email', label: 'Correo', value: 'a@b.co', iconName: 'email-outline' },
+    { type: 'teléfono', label: 'Tel', value: '+1 234', iconName: 'phone-in-talk' },
+    {
+      type: 'mapa',
+      label: 'Ubicación',
+      value: 'https://www.google.com/maps?q=10.5,-66.9',
+      iconName: 'map-marker',
+    },
+    { type: 'pdf', label: 'Doc', value: 'https://x/p.pdf', iconName: 'file-pdf-box' },
+    { type: 'enlace', label: 'Web', value: 'https://biz.example', iconName: 'link-variant' },
+  ];
   const facets = buildMarketCardSearchFacets(
     stubCard({
-      id: 'f1',
-      ownerUid: 'ou',
-      businessName: 'Salón',
-      ownerEmail: 'a@b.co',
-      ownerPhone: '+1 234',
-      mapsLink: '',
-      latitude: 10.5,
-      longitude: -66.9,
-      professionalVault: { contractsPdf: 'https://x/p.pdf' },
-      permanent_business_link: 'https://biz.example',
+      bId: 'f1',
+      uid: 'ou',
+      bcName: 'Salón',
+      marketFacets: sampleFacets,
     }),
   );
-  const types = facets.map((f) => f.type);
-  assert.ok(types.includes('email'));
-  assert.ok(types.includes('teléfono'));
-  assert.ok(types.includes('mapa'));
-  assert.ok(facets.some((f) => f.type === 'mapa' && f.value.includes('10.5') && f.value.includes('-66.9')));
-  assert.ok(types.includes('pdf'));
-  assert.ok(types.includes('enlace'));
+  assert.deepEqual(facets, sampleFacets);
 
   assert.deepEqual(
     buildMarketCardSearchFacets(
-      stubCard({ id: 'f2', ownerUid: 'ou', businessName: 'Empty', latitude: 0, longitude: 0 }),
+      stubCard({ bId: 'f2', uid: 'ou', bcName: 'Empty', latitude: 0, longitude: 0 }),
     ),
     [],
   );

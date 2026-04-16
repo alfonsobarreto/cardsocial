@@ -8,6 +8,7 @@ import {
 } from '@/components/smartCard/wireframeMath';
 import { brandCsIconLogo } from '@/constants/brandAssets';
 import type { CardTheme as ChestCardTheme } from '@/constants/themeChest';
+import { resolvePillForegroundColor } from '@/services/pillForegroundColor';
 import { getWallpaperResizeMode } from '@/services/wallpaperService';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
@@ -110,6 +111,11 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
   const subStyle = theme.subtitle;
   const extraStyle = theme.extraText;
   const iconMeta = theme.icon;
+  const wireUsersPillFg = resolvePillForegroundColor({
+    cardGradient: theme.background,
+    pillBackground: theme.bubble.backgroundColor,
+    preferredColor: iconMeta.color,
+  });
 
   /** Modal / espejo: alineado con web (`WireframeUniversalCard`): cabecera compacta, cápsula de rating, rejilla centrada. */
   const mirror = !editable;
@@ -125,6 +131,16 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
     const captionSize = Math.max(7, Math.round(captionSizeBase * s));
     const holdersIconSize = starSize;
     const holdersCountFontSize = Math.max(10, Math.round(holdersIconSize * 0.75));
+    const mirrorReceiversFg = resolvePillForegroundColor({
+      cardGradient: theme.background,
+      pillBackground: 'rgba(255,255,255,0.12)',
+      preferredColor: iconMeta.color,
+    });
+    const mirrorPlusFg = resolvePillForegroundColor({
+      cardGradient: theme.background,
+      pillBackground: 'rgba(255,255,255,0.22)',
+      preferredColor: iconMeta.color,
+    });
 
     const capsuleStyle = {
       flexDirection: 'row' as const,
@@ -163,8 +179,8 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
             ) : (
               visiblePills.map((p) => (
                 <View key={p.key} style={{ flexDirection: 'row', alignItems: 'center', gap: Math.max(2, Math.round(3 * s)) }}>
-                  <MaterialCommunityIcons name={p.icon as any} size={Math.round(starSizeBase * 1.5)} color={iconMeta.color} />
-                  <Text style={{ color: titleStyle.color, fontSize: Math.round(captionSizeBase * 1.5), fontWeight: '600' }}>{p.count}</Text>
+                  <MaterialCommunityIcons name={p.icon as any} size={Math.round(starSizeBase * 1.5)} color={mirrorReceiversFg} />
+                  <Text style={{ color: mirrorReceiversFg, fontSize: Math.round(captionSizeBase * 1.5), fontWeight: '600' }}>{p.count}</Text>
                 </View>
               ))
             )}
@@ -186,7 +202,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
                 accessibilityRole="button"
                 accessibilityLabel={tr('Calificar', 'Rate')}
               >
-                <Text style={{ color: iconMeta.color, fontSize: Math.max(14, Math.round(captionSize * 1.2)), fontWeight: '700', lineHeight: Math.max(16, Math.round(captionSize * 1.4)) }}>+</Text>
+                <Text style={{ color: mirrorPlusFg, fontSize: Math.max(14, Math.round(captionSize * 1.2)), fontWeight: '700', lineHeight: Math.max(16, Math.round(captionSize * 1.4)) }}>+</Text>
               </TouchableOpacity>
             ) : null}
           </View>
@@ -204,8 +220,8 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
         }}
       >
         <View style={[capsuleStyle, { justifyContent: 'center', gap: Math.max(3, Math.round(4 * s)) }]}>
-          <MaterialCommunityIcons name="account-outline" size={holdersIconSize} color={iconMeta.color} />
-          <Text style={{ color: titleStyle.color, fontSize: holdersCountFontSize, fontWeight: '300' }}>{dispHolders}</Text>
+          <MaterialCommunityIcons name="account-outline" size={holdersIconSize} color={mirrorReceiversFg} />
+          <Text style={{ color: mirrorReceiversFg, fontSize: holdersCountFontSize, fontWeight: '300' }}>{dispHolders}</Text>
         </View>
       </View>
     );
@@ -335,8 +351,8 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
                   </Text>
                 </View>
                 <View style={[wf.wireUsersPill, { borderColor: bd.color, backgroundColor: theme.bubble.backgroundColor }]}>
-                  <MaterialCommunityIcons name="account-outline" size={hStatsFontSize} color={iconMeta.color} />
-                  <Text style={[wf.wireUsersPillText, { color: titleStyle.color, fontSize: hStatsFontSize }]}>{dispHolders}</Text>
+                  <MaterialCommunityIcons name="account-outline" size={hStatsFontSize} color={wireUsersPillFg} />
+                  <Text style={[wf.wireUsersPillText, { color: wireUsersPillFg, fontSize: hStatsFontSize }]}>{dispHolders}</Text>
                 </View>
               </View>
             )}
@@ -573,8 +589,8 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
                 </Text>
               </View>
               <View style={[wf.wireUsersPill, { borderColor: bd.color, backgroundColor: theme.bubble.backgroundColor }]}>
-                <MaterialCommunityIcons name="account-outline" size={statsFontSize} color={iconMeta.color} />
-                <Text style={[wf.wireUsersPillText, { color: titleStyle.color, fontSize: statsFontSize }]}>{dispHolders}</Text>
+                <MaterialCommunityIcons name="account-outline" size={statsFontSize} color={wireUsersPillFg} />
+                <Text style={[wf.wireUsersPillText, { color: wireUsersPillFg, fontSize: statsFontSize }]}>{dispHolders}</Text>
               </View>
             </View>
           </View>

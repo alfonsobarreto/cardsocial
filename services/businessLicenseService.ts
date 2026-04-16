@@ -2,8 +2,8 @@ import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from 
 import { db } from '@/services/firebaseConfig';
 
 export interface BusinessCardLicense {
-  userId: string;
-  cardId: string;
+  uid: string;
+  bId: string;
   annualPriceUsd: number;
   startedAt: string;
   expiresAt: string;
@@ -17,8 +17,8 @@ export interface BusinessCardLicense {
 const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 
 export async function activateOrRenewBusinessLicense(params: {
-  userId: string;
-  cardId: string;
+  uid: string;
+  bId: string;
   purchaseId?: string;
   platform?: 'ios' | 'android';
   annualPriceUsd: number;
@@ -26,13 +26,13 @@ export async function activateOrRenewBusinessLicense(params: {
 }): Promise<BusinessCardLicense> {
   const now = new Date();
   const nowIso = now.toISOString();
-  const userLicenseRef = doc(db, 'users', params.userId, 'business_card_licenses', params.cardId);
+  const userLicenseRef = doc(db, 'users', params.uid, 'business_card_licenses', params.bId);
 
   let currentExpiresAt = now.getTime();
   const existing = await getDocs(
     query(
-      collection(db, 'users', params.userId, 'business_card_licenses'),
-      where('cardId', '==', params.cardId),
+      collection(db, 'users', params.uid, 'business_card_licenses'),
+      where('bId', '==', params.bId),
     ),
   );
   if (!existing.empty) {
@@ -45,8 +45,8 @@ export async function activateOrRenewBusinessLicense(params: {
 
   const nextExpires = new Date(currentExpiresAt + ONE_YEAR_MS).toISOString();
   const license: BusinessCardLicense = {
-    userId: params.userId,
-    cardId: params.cardId,
+    uid: params.uid,
+    bId: params.bId,
     annualPriceUsd: params.annualPriceUsd,
     startedAt: nowIso,
     expiresAt: nextExpires,
@@ -68,7 +68,7 @@ export async function activateOrRenewBusinessLicense(params: {
   await setDoc(userLicenseRef, licenseForFirestore, { merge: true });
 
   await setDoc(
-    doc(db, 'business_card_licenses', `${params.userId}_${params.cardId}`),
+    doc(db, 'business_card_licenses', `${params.uid}_${params.bId}`),
     licenseForFirestore,
     { merge: true },
   );
@@ -76,12 +76,12 @@ export async function activateOrRenewBusinessLicense(params: {
   return license;
 }
 
-export async function hasActiveBusinessLicense(userId: string, cardId: string): Promise<boolean> {
+export async function hasActiveBusinessLicense(uid: string, bId: string): Promise<boolean> {
   try {
     const snap = await getDocs(
       query(
-        collection(db, 'users', userId, 'business_card_licenses'),
-        where('cardId', '==', cardId),
+        collection(db, 'users', uid, 'business_card_licenses'),
+        where('bId', '==', bId),
       ),
     );
     if (snap.empty) {

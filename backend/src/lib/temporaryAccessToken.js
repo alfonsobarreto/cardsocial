@@ -37,6 +37,20 @@ async function parseAndValidateTemporaryAccess(db, token) {
     return { ok: false, reason: 'invalid_payload' };
   }
 
+  /**
+   * Un solo enlace 24h vigente por tarjeta en web y app. Si quedaron filas duplicadas (emisión previa),
+   * la primera visita con un token válido elimina las demás; el otro enlace deja de funcionar en la siguiente petición.
+   */
+  try {
+    await db.collection('temporary_access').deleteMany({
+      ownerUid,
+      cardId,
+      token: { $ne: trimmed },
+    });
+  } catch (e) {
+    console.warn('[temporary_access] dedupe by card failed:', e?.message || e);
+  }
+
   return { ok: true, ownerUid, cardId, expiresAt };
 }
 

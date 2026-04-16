@@ -8,6 +8,7 @@ import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { getSearchableStringsFromVaultLikeItem, orderByDeepSearchWithExpandedQuery } from '@/services/deepSearch';
 import { db } from '@/services/firebaseConfig';
+import { readUserFullName, readUserNickName } from '@/services/userIdentityFields';
 import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
 import { useLanguage } from '@/services/language';
 import { validateVaultItemCreation } from '@/services/limitService';
@@ -237,12 +238,16 @@ const VaultScreen = () => {
       }
 
       const userSnapshot = await getDoc(doc(db, 'users', userId));
-      const userData = userSnapshot.data() as any;
+      const userData = userSnapshot.data() as Record<string, unknown>;
       if (!userData) {
         return;
       }
 
-      const displayName = userData.fullName || userData.nickname || userData.firstName || 'Usuario';
+      let displayName = readUserFullName(userData);
+      if (displayName === 'Usuario') {
+        displayName =
+          readUserNickName(userData) || String(userData.firstName || '').trim() || 'Usuario';
+      }
       const verified = userData.verificationStatus === 'verified' || Boolean(userData.verificationSelfieFileId);
       setProfileDisplayName(displayName);
       setIsUserVerified(verified);

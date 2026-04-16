@@ -40,17 +40,59 @@ export async function readVaultJsonWithLegacyMigration(uid: string): Promise<str
   return null;
 }
 
+/** Migra caché local `name` → `scName` (misma clave que Mongo/API). */
+export function migrateSmartCardsJsonNameToScName(json: string | null): string | null {
+  if (json == null) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(json) as unknown;
+    if (!Array.isArray(parsed)) {
+      return json;
+    }
+    let changed = false;
+    const next = parsed.map((row: Record<string, unknown>) => {
+      if (!row || typeof row !== 'object') {
+        return row;
+      }
+      if (!('name' in row)) {
+        if ('scName' in row) {
+          return row;
+        }
+        changed = true;
+        return { ...row, scName: 'Smart Card' };
+      }
+      const legacy = row.name;
+      const sc =
+        row.scName != null && String(row.scName).trim() !== ''
+          ? String(row.scName).trim()
+          : String(legacy ?? '').trim();
+      const { name: _drop, ...rest } = row;
+      changed = true;
+      return { ...rest, scName: sc };
+    });
+    return changed ? JSON.stringify(next) : json;
+  } catch {
+    return json;
+  }
+}
+
 export async function readSmartCardsJsonWithLegacyMigration(uid: string): Promise<string | null> {
   const key = smartCardsStorageKey(uid);
   const scoped = await AsyncStorage.getItem(key);
   if (scoped != null) {
-    return scoped;
+    const migrated = migrateSmartCardsJsonNameToScName(scoped);
+    if (migrated !== scoped) {
+      await AsyncStorage.setItem(key, migrated!);
+    }
+    return migrated;
   }
   const legacy = await AsyncStorage.getItem(LEGACY_SMART_CARDS_STORAGE_KEY);
   if (legacy != null) {
-    await AsyncStorage.setItem(key, legacy);
+    const migrated = migrateSmartCardsJsonNameToScName(legacy) ?? legacy;
+    await AsyncStorage.setItem(key, migrated);
     await AsyncStorage.removeItem(LEGACY_SMART_CARDS_STORAGE_KEY);
-    return legacy;
+    return migrated;
   }
   return null;
 }

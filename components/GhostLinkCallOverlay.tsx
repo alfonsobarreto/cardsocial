@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { GhostLinkKeypadSheet } from '@/components/voip/GhostLinkKeypadSheet';
 import {
   Animated,
   Image,
@@ -170,7 +171,8 @@ function FloatingCallBubble() {
 
   if (!callData) return null;
 
-  const isVideo = callData.callType === 'video' && videoEnabled;
+  /** Incluye FaceCall nativo y upgrade audio→video (`callType` sigue `audio`). */
+  const showRemoteVideoInBubble = videoEnabled;
   const showRemoteSurface = remoteUid != null && isRemoteVideoEnabled;
   const avatarUri = resolveCallAvatarUri(callData.peerPhotoUrl, callData.card.cardPhoto);
 
@@ -203,7 +205,7 @@ function FloatingCallBubble() {
           },
         ]}
       >
-        {isVideo && showRemoteSurface && RtcSurfaceView ? (
+        {showRemoteVideoInBubble && showRemoteSurface && RtcSurfaceView ? (
           <View style={bubbleStyles.videoBox}>
             <RtcSurfaceView style={bubbleStyles.remoteVideo} canvas={{ uid: remoteUid! }} />
             <View style={[bubbleStyles.durationPill, { backgroundColor: shell.ghostLinkVideoControlFrost }]}>
@@ -493,28 +495,29 @@ function OutgoingView() {
   const callData = useDisplayGhostCallData();
   const shell = useGhostLinkShell();
   const tr = useTr();
+  const [keypadOpen, setKeypadOpen] = useState(false);
   if (!callData) return null;
 
   const isRinging = phase === VoIPCallPhase.RingingOutgoing;
-  const isVideo = callData.callType === 'video' && videoEnabled;
+  const showRingingLocalVideoBackdrop = callData.callType === 'video' && videoEnabled && isRinging;
   const statusText = isRinging
     ? tr('Llamando...', 'Calling...')
     : `${tr('En llamada', 'On call')} · ${formatDuration(callDurationSec)}`;
   const avatarUri = resolveCallAvatarUri(callData.peerPhotoUrl, callData.card.cardPhoto);
 
-  if (isVideo && !isRinging && RtcSurfaceView) {
+  if (videoEnabled && !isRinging && RtcSurfaceView) {
     return <ActiveVideoView />;
   }
 
   return (
     <View style={styles.fullScreenStack}>
-      {isVideo && isRinging ? <RingingLocalVideoBackdrop /> : null}
+      {showRingingLocalVideoBackdrop ? <RingingLocalVideoBackdrop /> : null}
       <View style={[styles.centered, styles.fullScreenForeground]}>
-        {!isRinging ? <CallChromeMinimizeButton /> : null}
+        <CallChromeMinimizeButton />
         <View style={styles.logoSlot}>
           <BrandLogoMark />
         </View>
-        {!(isVideo && isRinging && localPreviewActive) ? (
+        {!(showRingingLocalVideoBackdrop && localPreviewActive) ? (
           <PulsingRing size={130} active={isRinging}>
             <GoldAvatarRing uri={avatarUri} size={130} />
           </PulsingRing>
@@ -523,10 +526,31 @@ function OutgoingView() {
         <CardBadge label={ghostCallParticipantBadgeLabel(callData, tr)} />
         <Text style={[styles.statusText, { color: shell.ghostLinkTextSecondary }]}>{statusText}</Text>
 
-        <View style={styles.controls}>
-          <ControlButton icon="microphone-off" label={tr('Silencio', 'Mute')} active={muted} onPress={toggleMute} />
-          <ControlButton icon="volume-high" label={tr('Altavoz', 'Speaker')} active={speaker} onPress={toggleSpeaker} />
-          <ControlButton icon="video" label={tr('Cámara', 'Camera')} active={videoEnabled} onPress={toggleVideo} />
+        <View style={[styles.controls, styles.controlsWrap]}>
+          <ControlButton
+            icon={muted ? 'microphone-off' : 'microphone'}
+            label={tr('Silencio', 'Mute')}
+            active={muted}
+            onPress={toggleMute}
+          />
+          <ControlButton
+            icon={speaker ? 'volume-high' : 'volume-low'}
+            label={tr('Altavoz', 'Speaker')}
+            active={speaker}
+            onPress={toggleSpeaker}
+          />
+          <ControlButton
+            icon={videoEnabled ? 'video' : 'video-off'}
+            label={tr('Cámara', 'Camera')}
+            active={videoEnabled}
+            onPress={() => void toggleVideo()}
+          />
+          <ControlButton
+            icon="dialpad"
+            label={tr('Teclado', 'Keypad')}
+            active={keypadOpen}
+            onPress={() => setKeypadOpen(true)}
+          />
         </View>
 
         <TouchableOpacity
@@ -541,6 +565,20 @@ function OutgoingView() {
           {tr('Enlace exclusivo', 'Exclusive Link')}
         </Text>
       </View>
+      <GhostLinkKeypadSheet
+        visible={keypadOpen}
+        onClose={() => setKeypadOpen(false)}
+        tr={tr}
+        colors={{
+          backdrop: shell.overlayScrim,
+          sheetBg: shell.modalBg,
+          sheetBorder: shell.border,
+          keyBg: shell.ghostLinkControlFrost,
+          keyText: shell.ghostLinkTextPrimary,
+          closeIcon: shell.ghostLinkTextSecondary,
+          title: shell.ghostLinkTextPrimary,
+        }}
+      />
     </View>
   );
 }
@@ -610,44 +648,81 @@ function ActiveIncomingView() {
   const callData = useDisplayGhostCallData();
   const shell = useGhostLinkShell();
   const tr = useTr();
+  const [keypadOpen, setKeypadOpen] = useState(false);
   if (!callData) return null;
 
-  const isVideo = callData.callType === 'video' && videoEnabled;
-  if (isVideo && RtcSurfaceView) {
+  if (videoEnabled && RtcSurfaceView) {
     return <ActiveVideoView />;
   }
 
   return (
-    <View style={styles.centered}>
-      <CallChromeMinimizeButton />
-      <View style={styles.logoSlot}>
-        <BrandLogoMark />
-      </View>
-      <GoldAvatarRing uri={resolveCallAvatarUri(callData.peerPhotoUrl, callData.card.cardPhoto)} size={130} />
-      <Text style={[styles.nameText, { color: shell.ghostLinkTextPrimary }]}>{callData.peerName}</Text>
-      <CardBadge label={`${tr('Desde tu tarjeta', 'From your card')}: ${callData.card.cardName}`} />
-      <Text style={[styles.statusText, { color: shell.ghostLinkTextSecondary }]}>
-        {tr('En llamada', 'On call')} · {formatDuration(callDurationSec)}
-      </Text>
+    <>
+      <View style={styles.centered}>
+        <CallChromeMinimizeButton />
+        <View style={styles.logoSlot}>
+          <BrandLogoMark />
+        </View>
+        <GoldAvatarRing uri={resolveCallAvatarUri(callData.peerPhotoUrl, callData.card.cardPhoto)} size={130} />
+        <Text style={[styles.nameText, { color: shell.ghostLinkTextPrimary }]}>{callData.peerName}</Text>
+        <CardBadge label={`${tr('Desde tu tarjeta', 'From your card')}: ${callData.card.cardName}`} />
+        <Text style={[styles.statusText, { color: shell.ghostLinkTextSecondary }]}>
+          {tr('En llamada', 'On call')} · {formatDuration(callDurationSec)}
+        </Text>
 
-      <View style={styles.controls}>
-        <ControlButton icon="microphone-off" label={tr('Silencio', 'Mute')} active={muted} onPress={toggleMute} />
-        <ControlButton icon="volume-high" label={tr('Altavoz', 'Speaker')} active={speaker} onPress={toggleSpeaker} />
-        <ControlButton icon="video" label={tr('Cámara', 'Camera')} active={videoEnabled} onPress={toggleVideo} />
-      </View>
+        <View style={[styles.controls, styles.controlsWrap]}>
+          <ControlButton
+            icon={muted ? 'microphone-off' : 'microphone'}
+            label={tr('Silencio', 'Mute')}
+            active={muted}
+            onPress={toggleMute}
+          />
+          <ControlButton
+            icon={speaker ? 'volume-high' : 'volume-low'}
+            label={tr('Altavoz', 'Speaker')}
+            active={speaker}
+            onPress={toggleSpeaker}
+          />
+          <ControlButton
+            icon={videoEnabled ? 'video' : 'video-off'}
+            label={tr('Cámara', 'Camera')}
+            active={videoEnabled}
+            onPress={() => void toggleVideo()}
+          />
+          <ControlButton
+            icon="dialpad"
+            label={tr('Teclado', 'Keypad')}
+            active={keypadOpen}
+            onPress={() => setKeypadOpen(true)}
+          />
+        </View>
 
-      <TouchableOpacity
-        style={[styles.endCallBtn, { backgroundColor: shell.danger }]}
-        onPress={endCall}
-        activeOpacity={0.8}
-      >
-        <MaterialCommunityIcons name="phone-hangup" size={28} color={shell.ghostLinkOnHangup} />
-        <Text style={[styles.endCallText, { color: shell.ghostLinkOnHangup }]}>{tr('Colgar', 'End Call')}</Text>
-      </TouchableOpacity>
-      <Text style={[styles.footerText, { color: shell.ghostLinkTextMuted }]}>
-        {tr('Enlace exclusivo', 'Exclusive Link')}
-      </Text>
-    </View>
+        <TouchableOpacity
+          style={[styles.endCallBtn, { backgroundColor: shell.danger }]}
+          onPress={endCall}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons name="phone-hangup" size={28} color={shell.ghostLinkOnHangup} />
+          <Text style={[styles.endCallText, { color: shell.ghostLinkOnHangup }]}>{tr('Colgar', 'End Call')}</Text>
+        </TouchableOpacity>
+        <Text style={[styles.footerText, { color: shell.ghostLinkTextMuted }]}>
+          {tr('Enlace exclusivo', 'Exclusive Link')}
+        </Text>
+      </View>
+      <GhostLinkKeypadSheet
+        visible={keypadOpen}
+        onClose={() => setKeypadOpen(false)}
+        tr={tr}
+        colors={{
+          backdrop: shell.overlayScrim,
+          sheetBg: shell.modalBg,
+          sheetBorder: shell.border,
+          keyBg: shell.ghostLinkControlFrost,
+          keyText: shell.ghostLinkTextPrimary,
+          closeIcon: shell.ghostLinkTextSecondary,
+          title: shell.ghostLinkTextPrimary,
+        }}
+      />
+    </>
   );
 }
 
@@ -749,25 +824,25 @@ function ActiveVideoView() {
       </View>
 
       {/* Bottom controls */}
-      <View style={videoStyles.bottomBar}>
+           <View style={videoStyles.bottomBar}>
         <ControlButton
           chrome="onVideo"
-          icon="microphone-off"
+          icon={muted ? 'microphone-off' : 'microphone'}
           label={tr('Silencio', 'Mute')}
           active={muted}
           onPress={toggleMute}
         />
         <ControlButton
           chrome="onVideo"
-          icon="video-off"
+          icon={videoEnabled ? 'video' : 'video-off'}
           label={tr('Cámara', 'Camera')}
-          active={!videoEnabled}
-          onPress={toggleVideo}
+          active={videoEnabled}
+          onPress={() => void toggleVideo()}
         />
         <ControlButton chrome="onVideo" icon="camera-flip" label={tr('Voltear', 'Flip')} onPress={flipCamera} />
         <ControlButton
           chrome="onVideo"
-          icon="volume-high"
+          icon={speaker ? 'volume-high' : 'volume-low'}
           label={tr('Altavoz', 'Speaker')}
           active={speaker}
           onPress={toggleSpeaker}
@@ -816,7 +891,10 @@ export default function GhostLinkCallOverlay() {
   const { phase, callData, isMinimized } = useGhostLinkCall();
   const { resolvedMode } = useLookMode();
   const shell = palette[resolvedMode === 'noche' ? 'dark' : 'light'];
-  const minimizedUi = isMinimized && phase === VoIPCallPhase.Active && !!callData;
+  const minimizedUi =
+    isMinimized &&
+    !!callData &&
+    (phase === VoIPCallPhase.Active || phase === VoIPCallPhase.RingingOutgoing);
 
   if (
     phase === VoIPCallPhase.Idle ||
@@ -896,6 +974,10 @@ const styles = StyleSheet.create({
     right: 16,
     zIndex: 20,
     padding: 4,
+    ...Platform.select({
+      android: { elevation: 14 },
+      default: {},
+    }),
   },
   fullScreenStack: {
     flex: 1,
@@ -963,6 +1045,13 @@ const styles = StyleSheet.create({
     gap: 36,
     marginTop: 32,
     marginBottom: 28,
+  },
+  controlsWrap: {
+    flexWrap: 'wrap',
+    maxWidth: 400,
+    rowGap: 18,
+    columnGap: 28,
+    paddingHorizontal: 8,
   },
   controlBtn: {
     alignItems: 'center',

@@ -433,7 +433,7 @@ export function vaultLikeItemMatchesDeepQuery(item: VaultLikeItem, queryRaw: str
 }
 
 export type SmartCardLike = {
-  name: string;
+  scName: string;
   itemIds: string[];
 };
 
@@ -443,7 +443,7 @@ export function collectStringsSmartCard(
   contactMode: boolean,
 ): string[] {
   const out: string[] = [];
-  const name = String(card.name || '').trim();
+  const name = String(card.scName || '').trim();
   if (name) {
     out.push(name);
   }
@@ -530,8 +530,8 @@ export function deriveOwnerOccupationFromFacets(facets: CardSearchFacet[]): stri
 export type ReceivedContactSearchRow = {
   uid: string;
   cardId?: string | null;
-  name: string;
-  nickname: string;
+  userFullName: string;
+  userNickName: string;
   cardName: string;
   ownerOccupation?: string | null;
   searchFacets?: CardSearchFacet[] | null;
@@ -553,8 +553,8 @@ export function collectStringsReceivedContact(
   if (contact.cardId) {
     push(String(contact.cardId));
   }
-  push(contact.name);
-  push(contact.nickname);
+  push(contact.userFullName);
+  push(contact.userNickName);
   push(contact.cardName);
   push(contact.ownerOccupation);
   push(metaGroup);

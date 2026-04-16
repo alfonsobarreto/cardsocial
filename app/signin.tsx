@@ -3,6 +3,7 @@ import { brandCsIconLogoBgTransparent } from '@/constants/brandAssets';
 import { initiateAccountRecovery } from '@/services/accountRecoveryService';
 import { saveCachedCredentials } from '@/services/credentialVault';
 import { auth, db } from '@/services/firebaseConfig';
+import { firestoreFirstUserDocByNickLower } from '@/services/userIdentityFields';
 import { useLanguageOptional } from '@/services/language';
 import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, SocialProviderId } from '@/services/socialAuth';
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
@@ -53,12 +54,9 @@ export default function SignInScreen() {
     }
 
     const usersRef = collection(db, 'users');
-    const byNicknameLower = await getDocs(
-      query(usersRef, where('nicknameLower', '==', normalizedUsername), limit(1))
-    );
-
-    if (!byNicknameLower.empty) {
-      const userData = byNicknameLower.docs[0].data() as { email?: string; emailLower?: string };
+    const byLowerDoc = await firestoreFirstUserDocByNickLower(db, normalizedUsername);
+    if (byLowerDoc) {
+      const userData = byLowerDoc.data() as { email?: string; emailLower?: string };
       return String(userData.emailLower || userData.email || '').trim().toLowerCase() || null;
     }
 
@@ -67,6 +65,14 @@ export default function SignInScreen() {
     );
     if (!byNickname.empty) {
       const userData = byNickname.docs[0].data() as { email?: string; emailLower?: string };
+      return String(userData.emailLower || userData.email || '').trim().toLowerCase() || null;
+    }
+
+    const byUserNick = await getDocs(
+      query(usersRef, where('userNickName', '==', rawUsername.trim()), limit(1))
+    );
+    if (!byUserNick.empty) {
+      const userData = byUserNick.docs[0].data() as { email?: string; emailLower?: string };
       return String(userData.emailLower || userData.email || '').trim().toLowerCase() || null;
     }
 

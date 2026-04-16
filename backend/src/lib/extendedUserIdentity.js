@@ -25,14 +25,15 @@ function mergeUsersAndProfilesDocuments(usersDoc, profilesDoc) {
   return {
     displayName: pick('displayName'),
     name: pick('name'),
+    userFullName: pick('userFullName'),
     fullName: pick('fullName'),
     firstName: pick('firstName'),
     lastName: pick('lastName'),
+    userNickName: pick('userNickName'),
     nickname: pick('nickname'),
+    userNickNameLower: pick('userNickNameLower'),
     nicknameLower: pick('nicknameLower'),
-    photoUrl: pick('photoUrl'),
-    avatarUrl: pick('avatarUrl'),
-    profilePhoto: pick('profilePhoto'),
+    userAvatarUrl: pick('userAvatarUrl'),
   };
 }
 
@@ -50,7 +51,7 @@ function buildMongoExtendedProfileFields(safeUid, usersDoc, profilesDoc) {
       username: '',
       name: '',
       nickname: '',
-      photoUrl: null,
+      userAvatarUrl: null,
       ownerOccupation: null,
     };
   }
@@ -59,21 +60,26 @@ function buildMongoExtendedProfileFields(safeUid, usersDoc, profilesDoc) {
   const lastName = String(merged.lastName || '').trim();
   const composedFull = `${firstName} ${lastName}`.trim();
 
-  /** Persona: priorizar first+last; si no hay, no “apagar” displayName/name del documento Mongo. */
+  /** Priorizar userFullName canónico; luego first+last y legacy. */
   let fullName = pickFirstNonGeneric(
+    merged.userFullName,
     composedFull,
     merged.fullName,
     merged.displayName,
     merged.name,
   );
   if (!fullName) {
-    fullName = String(merged.displayName || merged.name || merged.fullName || '').trim();
+    fullName = String(
+      merged.userFullName || merged.displayName || merged.name || merged.fullName || '',
+    ).trim();
   }
 
-  const username = String(merged.nickname || merged.nicknameLower || '')
+  const username = String(
+    merged.userNickName || merged.nickname || merged.userNickNameLower || merged.nicknameLower || '',
+  )
     .trim()
     .replace(/^@+/g, '');
-  const photoUrl = String(merged.photoUrl || merged.avatarUrl || merged.profilePhoto || '').trim() || null;
+  const userAvatarUrl = String(merged.userAvatarUrl || '').trim() || null;
 
   return {
     uid: safeUid,
@@ -81,7 +87,7 @@ function buildMongoExtendedProfileFields(safeUid, usersDoc, profilesDoc) {
     username,
     name: fullName,
     nickname: username,
-    photoUrl,
+    userAvatarUrl,
     ownerOccupation: null,
   };
 }

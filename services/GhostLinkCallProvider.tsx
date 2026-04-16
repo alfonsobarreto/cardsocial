@@ -41,6 +41,8 @@ import { ensureVoipPermissions } from '@/services/voip/ensureVoipPermissions';
 import { VoIPCallPhase } from '@/services/voip/VoIPCallPhase';
 import { isGhostLinkAgoraNativeAvailable } from '@/services/expoGoAgoraGuard';
 import { setGhostLinkAgoraSpeaker } from '@/services/ghostLinkAgoraSession';
+import { clearGhostLinkCameraSignal } from '@/services/ghostLinkVoipCameraSignal';
+import { useGhostLinkCameraConsent } from '@/hooks/useGhostLinkCameraConsent';
 import { useLanguage } from '@/services/language';
 
 /** @deprecated Use `VoIPCallPhase` (enum) en código nuevo. */
@@ -254,7 +256,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
             card: invite.card,
             peerName: invite.callerDisplay.name,
             peerNickname: invite.callerDisplay.nickname,
-            peerPhotoUrl: invite.callerDisplay.photoUrl,
+            peerPhotoUrl: invite.callerDisplay.userAvatarUrl,
             peerUid: invite.ownerUid,
             agora: invite.agora,
             ownerUid,
@@ -434,6 +436,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
         sourceCardId: cd.sourceCardId ?? undefined,
         callChannel: 'ghost-link-voip',
         callType: cd.callType || 'audio',
+        isBusinessCard: cd.card.cardType === 'business',
       });
     },
     [callData],
@@ -449,6 +452,10 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
   }, []);
 
   const resetCall = useCallback(() => {
+    const sid = callDataRef.current?.sessionId;
+    if (sid) {
+      void clearGhostLinkCameraSignal(sid);
+    }
     if (outgoingJoinWatchdogRef.current != null) {
       clearTimeout(outgoingJoinWatchdogRef.current);
       outgoingJoinWatchdogRef.current = null;
@@ -825,7 +832,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
               callType: started.callType,
               card: started.card,
               peerName: started.receiverDisplay.name,
-              peerPhotoUrl: started.receiverDisplay.photoUrl,
+              peerPhotoUrl: started.receiverDisplay.userAvatarUrl,
             }
           : prev,
       );
@@ -940,9 +947,14 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
     await finalizeCallEnding('local');
   }, [finalizeCallEnding]);
 
-  const toggleVideo = useCallback(() => {
-    setVideoEnabled((prev) => !prev);
-  }, []);
+  const { toggleVideoWithConsent: toggleVideo } = useGhostLinkCameraConsent({
+    sessionId: callData?.sessionId,
+    handshakeActive: phase === VoIPCallPhase.Active,
+    callType: callData?.callType ?? 'audio',
+    videoEnabled,
+    setVideoEnabled,
+    tr,
+  });
 
   const flipCamera = useCallback(() => {
     switchCamera();

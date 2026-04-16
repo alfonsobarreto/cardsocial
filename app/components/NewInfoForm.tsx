@@ -250,9 +250,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const [faviconUrl, setFaviconUrl] = useState('');
   const [faviconSuggestionVisible, setFaviconSuggestionVisible] = useState(false);
   const [faviconLoading, setFaviconLoading] = useState(false);
-  const [faviconPromptVisible, setFaviconPromptVisible] = useState(false);
-  const [faviconPromptDomain, setFaviconPromptDomain] = useState('');
-  const [lastFaviconDomain, setLastFaviconDomain] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isPicking, setIsPicking] = useState(false);
   const [fileTypeModalVisible, setFileTypeModalVisible] = useState(false);
@@ -279,8 +276,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const [retryCountdownSec, setRetryCountdownSec] = useState(0);
   const faviconLookupTokenRef = useRef(0);
   const faviconLifecycleClosedRef = useRef(false);
-  const faviconPromptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const dismissedFaviconPromptDomainsRef = useRef<Set<string>>(new Set());
   const closeGenerationRef = useRef(0);
   const isPickingRef = useRef(false);
   const pickerLockTimestampRef = useRef<number | null>(null);
@@ -336,10 +331,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     pickerLockTimestampRef.current = null;
     fileTypeModalDismissResolverRef.current = null;
     isPickingRef.current = false;
-    if (faviconPromptTimerRef.current) {
-      clearTimeout(faviconPromptTimerRef.current);
-      faviconPromptTimerRef.current = null;
-    }
     pendingTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
     pendingTimeoutsRef.current = [];
     pendingInteractionTasksRef.current.forEach((task) => {
@@ -442,7 +433,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setFaviconSuggestionVisible(false);
     if (clearSuggestion) {
       setFaviconUrl('');
-      setLastFaviconDomain('');
     }
   };
 
@@ -505,10 +495,12 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     }
   };
 
-  const runFaviconLookup = async (domainOverride?: string) => {
+  const linkFaviconDomain = useMemo(() => extractDomainFromLink(dataValue.trim()), [dataValue]);
+
+  const runFaviconLookup = async () => {
     const sessionToken = closeGenerationRef.current;
     const sourceValue = dataValue.trim();
-    const domain = (domainOverride || extractDomainFromLink(sourceValue)).trim();
+    const domain = extractDomainFromLink(sourceValue).trim();
     if (!domain || isSessionClosed(sessionToken)) return;
 
     const lookupToken = ++faviconLookupTokenRef.current;
@@ -518,7 +510,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       if (faviconCache.current[domain]) {
         if (isSessionClosed(sessionToken) || lookupToken !== faviconLookupTokenRef.current) return;
         setFaviconUrl(faviconCache.current[domain]);
-        setLastFaviconDomain(domain);
         setFaviconSuggestionVisible(true);
         setFaviconLoading(false);
         return;
@@ -539,8 +530,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       if (!fetchedIcon) {
         setFaviconLoading(false);
         setFaviconUrl('');
-        setLastFaviconDomain(domain);
-        dismissedFaviconPromptDomainsRef.current.add(domain);
         Alert.alert(
           tr('Sin favicon disponible', 'No favicon available'),
           tr(
@@ -564,7 +553,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       }
 
       faviconCache.current[domain] = fetchedIcon;
-      setLastFaviconDomain(domain);
       setFaviconUrl(fetchedIcon);
       setFaviconSuggestionVisible(true);
       setFaviconLoading(false);
@@ -574,29 +562,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       setFaviconSuggestionVisible(false);
       setFaviconUrl('');
     }
-  };
-
-  const scheduleFaviconPrompt = () => {
-    if (faviconPromptTimerRef.current) {
-      clearTimeout(faviconPromptTimerRef.current);
-      faviconPromptTimerRef.current = null;
-    }
-    if (editingData?.id || dataType !== 'Enlaces') return;
-    const domain = extractDomainFromLink(dataValue);
-    if (!domain) return;
-    if (
-      domain === lastFaviconDomain ||
-      dismissedFaviconPromptDomainsRef.current.has(domain) ||
-      faviconSuggestionVisible ||
-      faviconLoading
-    ) {
-      return;
-    }
-    faviconPromptTimerRef.current = setTimeout(() => {
-      if (!isMountedRef.current || faviconLifecycleClosedRef.current) return;
-      setFaviconPromptDomain(domain);
-      setFaviconPromptVisible(true);
-    }, 2000);
   };
 
   const getLinkPlaceholder = () => {
@@ -624,11 +589,16 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           placeholderTextColor={formTheme.inputPlaceholder}
           value={dataValue}
           onChangeText={(text) => {
+            const prevDomain = extractDomainFromLink(dataValue.trim());
+            const nextDomain = extractDomainFromLink(text.trim());
             setDataValue(text);
-            setFaviconPromptVisible(false);
-            setFaviconPromptDomain('');
+            if (prevDomain !== nextDomain) {
+              closeFaviconSuggestion({ clearSuggestion: true });
+              if (selectedIcon === 'favicon') {
+                setSelectedIcon(DEFAULT_ICON_STABLE);
+              }
+            }
           }}
-          onBlur={() => scheduleFaviconPrompt()}
           autoCapitalize="none"
           autoCorrect={false}
         />
@@ -697,35 +667,45 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           </View>
         </LinearGradient>
       )}
-      {dataType === 'Enlaces' && faviconPromptVisible && !!faviconPromptDomain && !faviconLoading && (
+      {dataType === 'Enlaces' && !!linkFaviconDomain && (
         <View style={styles.faviconPromptCard}>
           <Text style={styles.faviconPromptTitle}>
             {tr('¿Buscar favicon de esta web?', 'Find this website favicon?')}
           </Text>
           <Text style={styles.faviconPromptSubtitle}>
-            {faviconPromptDomain}
+            {linkFaviconDomain}
           </Text>
-          <View style={styles.faviconPromptActions}>
-            <TouchableOpacity
-              style={[styles.faviconPromptBtn, styles.faviconPromptGhostBtn]}
-              onPress={() => {
-                dismissedFaviconPromptDomainsRef.current.add(faviconPromptDomain);
-                setFaviconPromptVisible(false);
-              }}
-            >
-              <Text style={styles.faviconPromptGhostBtnText}>{tr('No, gracias', 'No, thanks')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.faviconPromptBtn, styles.faviconPromptPrimaryBtn]}
-              onPress={() => {
-                const domain = faviconPromptDomain;
-                setFaviconPromptVisible(false);
-                void runFaviconLookup(domain);
-              }}
-            >
-              <Text style={styles.faviconPromptPrimaryBtnText}>{tr('Buscar favicon ahora', 'Find favicon now')}</Text>
-            </TouchableOpacity>
-          </View>
+          {faviconLoading ? (
+            <View style={styles.faviconPromptLoading}>
+              <BrandedSpinner size={36} color="#D4AF37" />
+              <Text style={[styles.faviconPromptLoadingText, { color: formTheme.textSecondary }]}>
+                {tr('Buscando favicon…', 'Searching for favicon…')}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.faviconPromptActions}>
+              <TouchableOpacity
+                style={[styles.faviconPromptBtn, styles.faviconPromptGhostBtn]}
+                onPress={() => {
+                  closeFaviconSuggestion({ clearSuggestion: true });
+                  setFaviconUrl('');
+                  if (selectedIcon === 'favicon') {
+                    setSelectedIcon(DEFAULT_ICON_STABLE);
+                  }
+                }}
+              >
+                <Text style={styles.faviconPromptGhostBtnText}>{tr('No, gracias', 'No, thanks')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.faviconPromptBtn, styles.faviconPromptPrimaryBtn]}
+                onPress={() => {
+                  void runFaviconLookup();
+                }}
+              >
+                <Text style={styles.faviconPromptPrimaryBtnText}>{tr('Buscar favicon ahora', 'Find favicon now')}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       )}
       {faviconUrl && (
@@ -749,53 +729,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     </View>
   );
 
-  useEffect(() => {
-    if (faviconPromptTimerRef.current) {
-      clearTimeout(faviconPromptTimerRef.current);
-      faviconPromptTimerRef.current = null;
-    }
-
-    if (editingData?.id || dataType !== 'Enlaces') {
-      setFaviconPromptVisible(false);
-      setFaviconPromptDomain('');
-      return;
-    }
-
-    const domain = extractDomainFromLink(dataValue);
-    if (!domain) {
-      setFaviconPromptVisible(false);
-      setFaviconPromptDomain('');
-      return;
-    }
-
-    if (faviconPromptVisible && faviconPromptDomain && faviconPromptDomain !== domain) {
-      setFaviconPromptVisible(false);
-      setFaviconPromptDomain('');
-    }
-
-    if (
-      domain === lastFaviconDomain ||
-      dismissedFaviconPromptDomainsRef.current.has(domain) ||
-      faviconSuggestionVisible ||
-      faviconLoading
-    ) {
-      return;
-    }
-
-    faviconPromptTimerRef.current = setTimeout(() => {
-      if (!isMountedRef.current || faviconLifecycleClosedRef.current) return;
-      setFaviconPromptDomain(domain);
-      setFaviconPromptVisible(true);
-    }, 2000);
-
-    return () => {
-      if (faviconPromptTimerRef.current) {
-        clearTimeout(faviconPromptTimerRef.current);
-        faviconPromptTimerRef.current = null;
-      }
-    };
-  }, [dataValue, dataType, editingData?.id, faviconPromptVisible, faviconPromptDomain, faviconSuggestionVisible, faviconLoading, lastFaviconDomain]);
-
   // Reset icon and URL when data type changes (but NOT if we're editing)
   const prevDataTypeRef = useRef<DataType>(dataType);
   useEffect(() => {
@@ -803,10 +736,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     if (prevDataTypeRef.current === dataType) return;
     prevDataTypeRef.current = dataType;
     closeFaviconSuggestion();
-    setFaviconPromptVisible(false);
-    setFaviconPromptDomain('');
-    dismissedFaviconPromptDomainsRef.current.clear();
-    setLastFaviconDomain('');
     if (dataType === GHOST_LINK_VAULT_TYPE) {
       setDataValue(GHOST_LINK_VAULT_VALUE);
       setSelectedIcon(defaultGhostLinkIconStable);
@@ -863,8 +792,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setPendingAsset(null);
     documentUploadMetaRef.current = null;
     closeFaviconSuggestion();
-    setFaviconPromptVisible(false);
-    setFaviconPromptDomain('');
     setFaviconLoading(false);
     setUploadModalVisible(false);
     setIsUploading(false);
@@ -885,10 +812,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setCountryCode('+1');
     setFaviconUrl('');
     closeFaviconSuggestion();
-    setFaviconPromptVisible(false);
-    setFaviconPromptDomain('');
-    dismissedFaviconPromptDomainsRef.current.clear();
-    setLastFaviconDomain('');
     setAutoTypeSuggestion(null);
     savedLinkIdRef.current = null;
     savedUserIdRef.current = null;
@@ -3431,6 +3354,15 @@ const styles = StyleSheet.create({
   },
   faviconPromptSubtitle: {
     color: '#1E567B',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  faviconPromptLoading: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    gap: 10,
+  },
+  faviconPromptLoadingText: {
     fontSize: 12,
     fontWeight: '600',
   },

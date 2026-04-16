@@ -33,8 +33,13 @@ export function normalizeUniversalCardPayload(raw: unknown): CardData {
     };
   });
 
+  const merged = { ...(c as Record<string, unknown>) };
+  const scName = String(merged.scName ?? '').trim();
+  delete merged.name;
+  merged.scName = scName;
+
   return {
-    ...(c as CardData),
+    ...(merged as unknown as CardData),
     slots,
   };
 }

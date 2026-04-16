@@ -84,12 +84,12 @@ export type GhostLinkCallStartResult = {
   callerDisplay: {
     name: string;
     nickname: string;
-    photoUrl: string | null;
+    userAvatarUrl: string | null;
   };
   receiverDisplay: {
     name: string;
     nickname: string;
-    photoUrl: string | null;
+    userAvatarUrl: string | null;
   };
 };
 
@@ -107,12 +107,12 @@ export type GhostLinkIncomingInvite = {
   callerDisplay: {
     name: string;
     nickname: string;
-    photoUrl: string | null;
+    userAvatarUrl: string | null;
   };
   receiverDisplay: {
     name: string;
     nickname: string;
-    photoUrl: string | null;
+    userAvatarUrl: string | null;
   };
   createdAt: string | null;
   updatedAt: string | null;
@@ -138,7 +138,7 @@ function getGatewayKey(): string {
 async function getQrScopedJwt(ownerUid: string): Promise<string> {
   const response = await axios.post(
     `${getApiBaseUrl()}/api/auth/token`,
-    { ownerUid, scope: 'qr.access' },
+    { uid: ownerUid, scope: 'qr.access' },
     {
       headers: {
         'x-api-gateway-key': getGatewayKey(),
@@ -223,12 +223,18 @@ export async function startGhostLinkVoipCall(
     callerDisplay: {
       name: String(response?.data?.callerDisplay?.name || 'Emisor'),
       nickname: String(response?.data?.callerDisplay?.nickname || 'user'),
-      photoUrl: response?.data?.callerDisplay?.photoUrl ? String(response.data.callerDisplay.photoUrl) : null,
+      userAvatarUrl:
+        response?.data?.callerDisplay?.userAvatarUrl != null && String(response.data.callerDisplay.userAvatarUrl).trim()
+          ? String(response.data.callerDisplay.userAvatarUrl)
+          : null,
     },
     receiverDisplay: {
       name: String(response?.data?.receiverDisplay?.name || 'Receptor'),
       nickname: String(response?.data?.receiverDisplay?.nickname || 'user'),
-      photoUrl: response?.data?.receiverDisplay?.photoUrl ? String(response.data.receiverDisplay.photoUrl) : null,
+      userAvatarUrl:
+        response?.data?.receiverDisplay?.userAvatarUrl != null && String(response.data.receiverDisplay.userAvatarUrl).trim()
+          ? String(response.data.receiverDisplay.userAvatarUrl)
+          : null,
     },
   };
 }
@@ -278,12 +284,18 @@ export async function getIncomingGhostLinkInvite(params: {
       callerDisplay: {
         name: String(invite?.callerDisplay?.name || 'Contacto'),
         nickname: String(invite?.callerDisplay?.nickname || 'user'),
-        photoUrl: invite?.callerDisplay?.photoUrl ? String(invite.callerDisplay.photoUrl) : null,
+        userAvatarUrl:
+          invite?.callerDisplay?.userAvatarUrl != null && String(invite.callerDisplay.userAvatarUrl).trim()
+            ? String(invite.callerDisplay.userAvatarUrl)
+            : null,
       },
       receiverDisplay: {
         name: String(invite?.receiverDisplay?.name || 'Contacto'),
         nickname: String(invite?.receiverDisplay?.nickname || 'user'),
-        photoUrl: invite?.receiverDisplay?.photoUrl ? String(invite.receiverDisplay.photoUrl) : null,
+        userAvatarUrl:
+          invite?.receiverDisplay?.userAvatarUrl != null && String(invite.receiverDisplay.userAvatarUrl).trim()
+            ? String(invite.receiverDisplay.userAvatarUrl)
+            : null,
       },
       createdAt: invite?.createdAt ? String(invite.createdAt) : null,
       updatedAt: invite?.updatedAt ? String(invite.updatedAt) : null,

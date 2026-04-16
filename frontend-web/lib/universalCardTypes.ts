@@ -12,7 +12,8 @@ export type CardData = {
   cardId: string;
   /** Titular (Ghost-Link / contexto de app). */
   ownerUid?: string;
-  name: string;
+  /** Título de la tarjeta (alineado con Mongo `smart_cards.scName`). */
+  scName: string;
   layout: 'vertical' | 'horizontal';
   themeId: string | null;
   wallpaperUrl: string | null;
