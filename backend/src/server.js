@@ -435,51 +435,57 @@ const otpHash = (emailLower, code) => {
       // Next.js llama directo al backend Express en localhost para evitar loop de proxy
       INTERNAL_API_URL: `http://127.0.0.1:${env.port}`,
     };
-    // Producción: servidor empaquetado `server.js` (copia standalone) o `next start` si solo hay build en .next.
-    // Desarrollo: `next dev` (no requiere build previo).
+    // Selección del modo Next por presencia de archivos, no por NODE_ENV
+    // (Azure App Service no siempre expone NODE_ENV='production' al proceso padre,
+    //  y el launcher standalone ya fija internamente NODE_ENV='production').
+    // Orden de preferencia:
+    //   1) standalone launcher `server.js` + `.next/BUILD_ID` → producción real (lo que CI sube a Azure)
+    //   2) `next dev` si hay código fuente (`app/` o `pages/`) y CLI disponible → dev local
+    //   3) `next start` si hay build de producción real (`.next/BUILD_ID`) y CLI disponible
+    // Nota: `.next/` puede existir como cache de `next dev` SIN ser un build de producción.
+    //       Por eso detectamos build válido por la presencia de `.next/BUILD_ID`.
     const nextBuildDir = pathMod.join(nextWebDir, '.next');
-    const useStandaloneNext =
-      process.env.NODE_ENV === 'production' && fs.existsSync(nextBuildDir);
+    const nextBuildIdFile = pathMod.join(nextBuildDir, 'BUILD_ID');
+    const standaloneLauncher = pathMod.join(nextWebDir, 'server.js');
+    const nextBin = pathMod.join(nextWebDir, 'node_modules', 'next', 'dist', 'bin', 'next');
+    const hasProdBuild = fs.existsSync(nextBuildIdFile);
+    const hasStandalone = hasProdBuild && fs.existsSync(standaloneLauncher);
+    const hasNextCli = fs.existsSync(nextBin);
+    const hasSource =
+      fs.existsSync(pathMod.join(nextWebDir, 'app')) ||
+      fs.existsSync(pathMod.join(nextWebDir, 'pages'));
 
     let nextServer = null;
-    if (useStandaloneNext) {
-      const standaloneLauncher = pathMod.join(nextWebDir, 'server.js');
-      if (fs.existsSync(standaloneLauncher)) {
-        nextServer = spawn('node', ['server.js'], {
-          cwd: nextWebDir,
-          env: nextEnv,
-          stdio: 'inherit',
-        });
-      } else {
-        const nextBin = pathMod.join(nextWebDir, 'node_modules', 'next', 'dist', 'bin', 'next');
-        if (fs.existsSync(nextBin)) {
-          nextServer = spawn(process.execPath, [nextBin, 'start', '-p', String(NEXT_PORT)], {
-            cwd: nextWebDir,
-            env: { ...nextEnv, NODE_ENV: 'production' },
-            stdio: 'inherit',
-          });
-        } else {
-          console.warn('[next-web] Producción: falta `server.js` o el paquete `next` en node_modules.');
-        }
-      }
-    } else if (process.env.NODE_ENV === 'production') {
-      console.warn(
-        '[next-web] NODE_ENV=production pero falta `frontend-web/.next`. Ejecuta `npm run build` en la carpeta `frontend-web` del repo.',
-      );
+    if (hasStandalone) {
+      nextServer = spawn('node', ['server.js'], {
+        cwd: nextWebDir,
+        env: nextEnv,
+        stdio: 'inherit',
+      });
+      console.log('[next-web] standalone server.js spawned at', nextWebDir);
+    } else if (hasSource && hasNextCli) {
+      nextServer = spawn(process.execPath, [nextBin, 'dev', '-p', String(NEXT_PORT)], {
+        cwd: nextWebDir,
+        env: nextEnv,
+        stdio: 'inherit',
+      });
+      console.log('[next-web] next dev spawned at', nextWebDir);
+    } else if (hasProdBuild && hasNextCli) {
+      nextServer = spawn(process.execPath, [nextBin, 'start', '-p', String(NEXT_PORT)], {
+        cwd: nextWebDir,
+        env: { ...nextEnv, NODE_ENV: 'production' },
+        stdio: 'inherit',
+      });
+      console.log('[next-web] next start spawned at', nextWebDir);
     } else {
-      // Desarrollo: `next dev` vía `node` + CLI local (evita `shell: true`, DEP0190, y "next no reconocido" si falta PATH).
-      const nextBin = pathMod.join(nextWebDir, 'node_modules', 'next', 'dist', 'bin', 'next');
-      if (fs.existsSync(nextBin)) {
-        nextServer = spawn(process.execPath, [nextBin, 'dev', '-p', String(NEXT_PORT)], {
-          cwd: nextWebDir,
-          env: nextEnv,
-          stdio: 'inherit',
-        });
-      } else {
-        console.warn(
-          '[next-web] No está instalado Next. Ejecuta `npm install` en la carpeta `frontend-web` del repositorio.',
-        );
-      }
+      console.warn(
+        '[next-web] No se pudo arrancar Next. dir=%s hasProdBuild=%s hasStandalone=%s hasNextCli=%s hasSource=%s',
+        nextWebDir,
+        hasProdBuild,
+        hasStandalone,
+        hasNextCli,
+        hasSource,
+      );
     }
     if (nextServer) {
       nextServer.on('error', (e) => console.warn('[next-web] spawn error:', e.message));

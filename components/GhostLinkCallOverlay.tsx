@@ -152,6 +152,42 @@ function deriveCallDisplay(callData: GhostCallData): CallDisplayCard {
   });
 }
 
+/**
+ * Identidad que la UI de llamada debe mostrar según la dirección.
+ *
+ * Reglas (ver `docs/GHOSTLINK_VOIP_FLOW.md` §Resumen de identidad por pantalla):
+ *   - Caller (outgoing): ve la **tarjeta** (display.displayPhoto / displayTitle).
+ *   - Receptor (incoming / activeIncoming): ve al **otro participante = caller**
+ *     (peerPhotoUrl / peerFullName || peerName).
+ *
+ * El badge "Desde tu tarjeta: X" siempre toma `card.cardName` (estable en ambos
+ * lados), no `display.displayTitle` — que en incoming-smart coincide con el peer.
+ */
+function deriveCallFace(callData: GhostCallData): {
+  avatar: string | null;
+  title: string;
+  subtitle: string | null;
+  cardLabel: string;
+} {
+  const display = deriveCallDisplay(callData);
+  const cardLabel = String(callData.card.cardName || display.displayTitle || '').trim();
+  if (callData.direction === 'incoming') {
+    const peerTitle = String(callData.peerFullName ?? '').trim() || String(callData.peerName ?? '').trim();
+    return {
+      avatar: callData.peerPhotoUrl ?? null,
+      title: peerTitle,
+      subtitle: null,
+      cardLabel,
+    };
+  }
+  return {
+    avatar: display.displayPhoto,
+    title: display.displayTitle,
+    subtitle: display.displaySubtitle,
+    cardLabel,
+  };
+}
+
 function formatDuration(sec: number): string {
   const m = Math.floor(sec / 60);
   const s = sec % 60;
@@ -188,7 +224,8 @@ function FloatingCallBubble() {
   /** Incluye FaceCall nativo y upgrade audio→video (`callType` sigue `audio`). */
   const showRemoteVideoInBubble = videoEnabled;
   const showRemoteSurface = remoteUid != null && isRemoteVideoEnabled;
-  const display = deriveCallDisplay(callData);
+  /** Burbuja representa al otro participante: caller si soy receptor, tarjeta si soy caller. */
+  const face = deriveCallFace(callData);
 
   return (
     <TouchableOpacity
@@ -230,12 +267,12 @@ function FloatingCallBubble() {
           </View>
         ) : (
           <View style={bubbleStyles.audioCol}>
-            <GoldAvatarRing uri={display.displayPhoto} size={56} />
+            <GoldAvatarRing uri={face.avatar} size={56} />
             <Text style={[bubbleStyles.timeText, { color: shell.ghostLinkTextPrimary }]}>
               {formatDuration(callDurationSec)}
             </Text>
             <Text numberOfLines={1} style={[bubbleStyles.nameSmall, { color: shell.ghostLinkTextMuted }]}>
-              {display.displayTitle}
+              {face.title}
             </Text>
           </View>
         )}
@@ -615,7 +652,8 @@ function IncomingView() {
   const statusLabel = isVideo
     ? tr('Videollamada Entrante...', 'Incoming Video Call...')
     : tr('Llamada Entrante...', 'Incoming Call...');
-  const display = deriveCallDisplay(callData);
+  /** Receptor: avatar/nombre del **caller** (peer); badge con nombre de la tarjeta compartida. */
+  const face = deriveCallFace(callData);
 
   return (
     <View style={styles.fullScreenStack}>
@@ -625,10 +663,10 @@ function IncomingView() {
           <BrandLogoMark />
         </View>
         <PulsingRing size={130} active>
-          <GoldAvatarRing uri={display.displayPhoto} size={130} />
+          <GoldAvatarRing uri={face.avatar} size={130} />
         </PulsingRing>
         <Text style={[styles.nameText, { color: shell.ghostLinkTextPrimary }]}>@{callData.peerNickname}</Text>
-        <Text style={[styles.fullNameText, { color: shell.ghostLinkTextSecondary }]}>{callData.peerName}</Text>
+        <Text style={[styles.fullNameText, { color: shell.ghostLinkTextSecondary }]}>{face.title || callData.peerName}</Text>
         {isVideo && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
             <MaterialCommunityIcons name="video" size={18} color={shell.tint} />
@@ -637,7 +675,7 @@ function IncomingView() {
         )}
         <Text style={[styles.statusText, { color: shell.ghostLinkTextSecondary }]}>{statusLabel}</Text>
         <CardBadge
-          label={`${tr('Desde tu tarjeta', 'From your card')}: ${display.displayTitle || callData.card.cardName}`}
+          label={`${tr('Desde tu tarjeta', 'From your card')}: ${face.cardLabel}`}
         />
 
         <View style={styles.incomingActions}>
@@ -679,7 +717,8 @@ function ActiveIncomingView() {
     return <ActiveVideoView />;
   }
 
-  const display = deriveCallDisplay(callData);
+  /** Receptor en activa: mostrar al **caller** (peer) y badge "Desde tu tarjeta: [nombre tarjeta]". */
+  const face = deriveCallFace(callData);
 
   return (
     <>
@@ -688,12 +727,12 @@ function ActiveIncomingView() {
         <View style={styles.logoSlot}>
           <BrandLogoMark />
         </View>
-        <GoldAvatarRing uri={display.displayPhoto} size={130} />
+        <GoldAvatarRing uri={face.avatar} size={130} />
         <Text style={[styles.nameText, { color: shell.ghostLinkTextPrimary }]}>
-          {display.displayTitle || callData.peerName}
+          {face.title || callData.peerName}
         </Text>
         <CardBadge
-          label={`${tr('Desde tu tarjeta', 'From your card')}: ${display.displayTitle || callData.card.cardName}`}
+          label={`${tr('Desde tu tarjeta', 'From your card')}: ${face.cardLabel}`}
         />
         <Text style={[styles.statusText, { color: shell.ghostLinkTextSecondary }]}>
           {tr('En llamada', 'On call')} · {formatDuration(callDurationSec)}
@@ -778,7 +817,11 @@ function ActiveVideoView() {
 
   if (!callData || !RtcSurfaceView) return null;
 
-  const display = deriveCallDisplay(callData);
+  /**
+   * Cara = lo que se pinta en placeholder (cámara remota apagada) y top bar.
+   * Receptor (incoming) → caller; Caller (outgoing) → tarjeta del receptor.
+   */
+  const face = deriveCallFace(callData);
 
   const pinchGesture = useMemo(
     () =>
@@ -806,7 +849,7 @@ function ActiveVideoView() {
         <View
           style={[videoStyles.remoteVideoPlaceholder, { backgroundColor: shell.ghostLinkRemoteVideoPlaceholderBg }]}
         >
-          <GoldAvatarRing uri={display.displayPhoto} size={100} />
+          <GoldAvatarRing uri={face.avatar} size={100} />
           <Text style={[videoStyles.waitingText, { color: shell.ghostLinkVideoWaitingText }]}>
             {remotePlaceholderLabel}
           </Text>
@@ -848,11 +891,11 @@ function ActiveVideoView() {
         <BrandLogoMark compact />
         <View style={{ flex: 1, marginLeft: 10 }}>
           <Text style={[videoStyles.topName, { color: shell.ghostLinkVideoTopBarText }]}>
-            {display.displayTitle || callData.peerName}
+            {face.title || callData.peerName}
           </Text>
           <Text style={[videoStyles.topStatus, { color: shell.ghostLinkVideoTopBarMuted }]}>
-            {display.displaySubtitle
-              ? `${display.displaySubtitle} · ${formatDuration(callDurationSec)}`
+            {face.subtitle
+              ? `${face.subtitle} · ${formatDuration(callDurationSec)}`
               : formatDuration(callDurationSec)}
           </Text>
         </View>
