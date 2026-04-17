@@ -499,10 +499,20 @@ const otpHash = (emailLower, code) => {
      * `req.baseUrl + req.url` reconstruye siempre la ruta pública (/legal/privacidad).
      */
     const nextProxy = (req, res) => {
-      const pathWithQuery =
-        req.baseUrl != null && req.baseUrl !== '' && typeof req.url === 'string'
-          ? `${req.baseUrl}${req.url.startsWith('/') ? '' : '/'}${req.url}`
-          : req.originalUrl || req.url;
+      let pathWithQuery;
+      if (req.baseUrl != null && req.baseUrl !== '' && typeof req.url === 'string') {
+        const tail = req.url;
+        // Montajes exactos (p. ej. app.use('/icon.png')) suelen llegar con tail '' o '/'.
+        if (tail === '' || tail === '/') {
+          pathWithQuery = req.baseUrl;
+        } else if (tail.startsWith('/')) {
+          pathWithQuery = `${req.baseUrl}${tail}`;
+        } else {
+          pathWithQuery = `${req.baseUrl}/${tail}`;
+        }
+      } else {
+        pathWithQuery = req.originalUrl || req.url;
+      }
       const options = {
         hostname: '127.0.0.1',
         port: NEXT_PORT,
@@ -523,6 +533,12 @@ const otpHash = (emailLower, code) => {
     app.use('/u', nextProxy);
     app.use('/legal', nextProxy);
     app.use('/_next', nextProxy);
+    // File conventions del App Router (metadata): sin proxy el navegador pide /icon.png y Express no lo reenvía a Next.
+    app.use('/icon.png', nextProxy);
+    app.use('/apple-icon.png', nextProxy);
+    app.get('/favicon.ico', (_req, res) => {
+      res.redirect(302, '/icon.png');
+    });
   } else {
     // Fallback: legacy HTML courtesy page
     app.use("/", createUniversalEntryHttpRoutes({ storage }));
