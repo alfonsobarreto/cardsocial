@@ -15,6 +15,11 @@ export function runSearchFacetQuickAction(params: {
   issuerSid: string | null;
   issuerBId: string | null;
   issuerDisplayName: string;
+  /** Nombre completo del titular (smart) o etiqueta humana; pastilla VoIP. */
+  issuerPeerFullName?: string;
+  /** Negocio: bcContactName para pastilla (no repetir título). */
+  issuerCardContactName?: string | null;
+  issuerPeerNickname?: string;
   issuerCardPhoto?: string | null;
   issuerCardType?: 'business' | 'personal';
 }): void {
@@ -32,6 +37,9 @@ export function runSearchFacetQuickAction(params: {
     .normalize('NFD')
     .replace(/\p{M}/gu, '');
 
+  const biz = params.issuerCardType === 'business';
+  const issuerBcContact = String(params.issuerCardContactName ?? '').trim() || null;
+
   if (isGhostLinkVaultType(type)) {
     void ActionController.ActionGhostLinkVaultItem({
       targetUid: issuerUid,
@@ -39,6 +47,11 @@ export function runSearchFacetQuickAction(params: {
       sourceSid: issuerSid,
       sourceBId: issuerBId,
       userName: issuerDisplayName,
+      peerFullName: params.issuerPeerFullName ?? issuerDisplayName,
+      peerNickname: params.issuerPeerNickname,
+      bcLogoUrl: biz ? params.issuerCardPhoto ?? null : null,
+      bcName: biz ? issuerCardName || null : null,
+      bcContactName: biz ? issuerBcContact : null,
       cardPhoto: params.issuerCardPhoto ?? null,
       peerPhotoUrl: params.issuerCardPhoto ?? null,
       cardType: params.issuerCardType ?? 'personal',
@@ -68,6 +81,11 @@ export function runSearchFacetQuickAction(params: {
       sourceSid: issuerSid,
       sourceBId: issuerBId,
       userName: issuerDisplayName,
+      peerFullName: params.issuerPeerFullName ?? issuerDisplayName,
+      peerNickname: params.issuerPeerNickname,
+      bcLogoUrl: biz ? params.issuerCardPhoto ?? null : null,
+      bcName: biz ? issuerCardName || null : null,
+      bcContactName: biz ? issuerBcContact : null,
       cardPhoto: params.issuerCardPhoto ?? null,
       cardType: params.issuerCardType ?? 'personal',
     });

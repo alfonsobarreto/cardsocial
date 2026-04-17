@@ -1,5 +1,5 @@
 import { Platform, StyleSheet } from "react-native";
-import type { AppShellTheme } from "../theme";
+import type { AppShellTheme } from "../app/theme";
 
 export function makeContactsStyles(shell: AppShellTheme) {
   return StyleSheet.create({

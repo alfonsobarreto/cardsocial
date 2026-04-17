@@ -15,58 +15,12 @@ import { View } from 'react-native';
 import type { WireframeEditSlot, WireframeVaultItem } from '@/components/smartCard/IsolatedWireframeCard';
 import { WireframeSlotTile } from '@/components/smartCard/WireframeSlotTile';
 
-/** Igual que `renderDetailedRatingStars` en app/(tabs)/cards.tsx */
-export function renderWireframeDetailedRatingStars(rating: number, starSize = 14, starColor = '#C5A065') {
-  const r = Math.max(0, Math.min(5, Number(rating) || 0));
-  const gap = Math.max(1, Math.round(starSize * 0.12));
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap }}>
-      {Array.from({ length: 5 }).map((_, index) => {
-        const threshold = index + 1;
-        let name: 'star' | 'star-half-full' | 'star-outline' = 'star-outline';
-        if (r >= threshold) name = 'star';
-        else if (r >= threshold - 0.5) name = 'star-half-full';
-        return (
-          <MaterialCommunityIcons key={`wf-dstar-${index}`} name={name} size={starSize} color={starColor} />
-        );
-      })}
-    </View>
-  );
-}
-
 /**
- * Vista espejo / web: siempre glifo `star` (macizo); vacías atenuadas — alinea con WireRatingStars de la web.
+ * NOTA: antes había dos helpers `renderWireframeDetailedRatingStars` y
+ * `renderWireframeMirrorRatingStars` que pintaban estrellas tipo Amazon. Se
+ * eliminaron — el rating oficial son las **medallas** (`medalPills` en
+ * `IsolatedWireframeCard.renderMirrorStatsCapsule`).
  */
-export function renderWireframeMirrorRatingStars(rating: number, starSize = 24, starColor = '#C5A065') {
-  const r = Math.max(0, Math.min(5, Number(rating) || 0));
-  const gap = Math.max(1, Math.round(starSize * 0.12));
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap }}>
-      {Array.from({ length: 5 }).map((_, index) => {
-        const threshold = index + 1;
-        if (r >= threshold) {
-          return (
-            <MaterialCommunityIcons key={`wf-mstar-${index}`} name="star" size={starSize} color={starColor} />
-          );
-        }
-        if (r >= threshold - 0.5) {
-          return (
-            <MaterialCommunityIcons key={`wf-mstar-${index}`} name="star-half-full" size={starSize} color={starColor} />
-          );
-        }
-        return (
-          <MaterialCommunityIcons
-            key={`wf-mstar-${index}`}
-            name="star"
-            size={starSize}
-            color={starColor}
-            style={{ opacity: 0.28 }}
-          />
-        );
-      })}
-    </View>
-  );
-}
 
 export type IconVaultLookup = MaterialIconVaultLookup | null | undefined;
 

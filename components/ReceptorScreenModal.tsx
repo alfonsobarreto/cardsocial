@@ -7,7 +7,6 @@
 
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import type { CardSubscriberRow } from '@/services/qrApi';
-import { fetchUserProfilePhotoUrl } from '@/services/userProfilePhoto';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -203,8 +202,6 @@ export default function ReceptorScreenModal({
 }: ReceptorScreenModalProps) {
   const modalFooterBottomPad = useModalFooterBottomPad();
   const [sortMode, setSortMode] = useState<SortMode>('date');
-  /** Avatar de cada receptor: `users/{uid}.userAvatarUrl` vía fetch (no snapshot de API). */
-  const [subscriberProfilePhotoByUid, setSubscriberProfilePhotoByUid] = useState<Record<string, string | null>>({});
   const c = useMemo(() => getColors(isDark), [isDark]);
   const swipeRefs = useRef<Map<string, any>>(new Map());
   const closeAllSwipes = useCallback(() => {
@@ -243,33 +240,6 @@ export default function ReceptorScreenModal({
     return byDate.slice(0, 15);
   }, [subscribers]);
 
-  const subscriberUidKey = useMemo(() => {
-    if (!visible) return '';
-    const uids = [
-      ...new Set(subscribers.map((s) => String(s.uid || '').trim()).filter(Boolean)),
-    ].sort();
-    return uids.join('|');
-  }, [visible, subscribers]);
-
-  useEffect(() => {
-    if (!visible || !subscriberUidKey) {
-      setSubscriberProfilePhotoByUid({});
-      return;
-    }
-    const uids = subscriberUidKey.split('|').filter(Boolean);
-    let cancelled = false;
-    void (async () => {
-      const pairs = await Promise.all(
-        uids.map(async (uid) => [uid, await fetchUserProfilePhotoUrl(uid)] as const),
-      );
-      if (cancelled) return;
-      setSubscriberProfilePhotoByUid(Object.fromEntries(pairs));
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [visible, subscriberUidKey]);
-
   const toggleSort = useCallback(() => {
     setSortMode((prev) => (prev === 'date' ? 'alpha' : 'date'));
   }, []);
@@ -279,7 +249,7 @@ export default function ReceptorScreenModal({
       const timeLabel = relativeTimeLabel(item.addedAt, tr);
       const primary = subscriberTitle(item);
       const subtitle = subscriberSubtitleLine(item, primary);
-      const profileAvatar = subscriberProfilePhotoByUid[item.uid] ?? null;
+      const profileAvatar = item.userAvatarUrl;
 
       const rowContent = (
         <View style={[s.listRow, { backgroundColor: c.rowBg, borderBottomColor: c.rowBorder }, item.muted && { opacity: 0.5 }]}>
@@ -379,7 +349,7 @@ export default function ReceptorScreenModal({
         </SwipeableRow>
       );
     },
-    [c, tr, hasOwnerActions, hasExternalAction, onRevoke, onMute, onBlock, onBlockExternal, closeAllSwipes, subscriberProfilePhotoByUid],
+    [c, tr, hasOwnerActions, hasExternalAction, onRevoke, onMute, onBlock, onBlockExternal, closeAllSwipes],
   );
 
   const keyExtractor = useCallback((item: CardSubscriberRow) => item.uid, []);
@@ -468,7 +438,7 @@ export default function ReceptorScreenModal({
               {recentSubscribers.map((sub) => {
                 const title = subscriberTitle(sub);
                 const parts = title.split(/\s+/).filter(Boolean);
-                const profileAvatar = subscriberProfilePhotoByUid[sub.uid] ?? null;
+                const profileAvatar = sub.userAvatarUrl;
                 return (
                 <View key={`carousel-${sub.uid}`} style={s.carouselItem}>
                   <View style={[s.carouselAvatarRing, { borderColor: c.gold }]}>

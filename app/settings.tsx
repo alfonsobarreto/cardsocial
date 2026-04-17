@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Image as ExpoImage } from 'expo-image';
 import * as LocalAuthentication from 'expo-local-authentication';
 // expo-notifications is imported lazily below to avoid a crash on Android (Expo Go)
@@ -249,7 +249,6 @@ export default function SettingsScreen() {
       const userDoc = await getDoc(doc(db, 'users', uid));
       if (!userDoc.exists()) throw new Error('No data');
       const stringData = JSON.stringify(userDoc.data(), null, 2);
-      // @ts-expect-error: Propiedad no tipada pero existe en runtime
       const fileUri = FileSystem.documentDirectory + 'CardSocial_MisDatos.json';
       await FileSystem.writeAsStringAsync(fileUri, stringData);
       await Sharing.shareAsync(fileUri, { dialogTitle: 'Tus datos de Card-Social' });

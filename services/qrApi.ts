@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { fromWireCallDisplayCard, type CallDisplayCard } from './callDisplayCard';
 
 function getApiBaseUrl(): string {
   const envUrl = process.env.EXPO_PUBLIC_MODERATION_API_URL?.trim();
@@ -235,6 +236,16 @@ export type PublicQrTokenPreview = {
   ownerNickname: string | null;
   ownerPhotoUrl: string | null;
   ownerOccupation: string | null;
+  /**
+   * Identidad REAL del dueño (issuer) — distinta del negocio en Business Cards.
+   * `ownerPhotoUrl` puede ser el `bcLogoUrl` (logo del comercio); estos campos
+   * son la persona: su `userAvatarUrl`, `userFullName`, `userNickName`. El
+   * receptor los usa para listar al dueño como contacto personal y para
+   * pintar el avatar real en Ghost-Link VoIP cuando reciba/haga una llamada.
+   */
+  userFullName: string | null;
+  userNickName: string | null;
+  userAvatarUrl: string | null;
   /** Tema Chest / smart_cards (vista previa fiel al emisor). */
   themeId: string;
   layout: 'vertical' | 'horizontal';
@@ -272,6 +283,9 @@ function mapPublicQrPreviewResponse(
     ownerNickname: d.ownerNickname != null ? String(d.ownerNickname) : null,
     ownerPhotoUrl: d.ownerPhotoUrl != null ? String(d.ownerPhotoUrl) : null,
     ownerOccupation: d.ownerOccupation != null ? String(d.ownerOccupation) : null,
+    userFullName: d.userFullName != null ? String(d.userFullName) : null,
+    userNickName: d.userNickName != null ? String(d.userNickName) : null,
+    userAvatarUrl: d.userAvatarUrl != null ? String(d.userAvatarUrl) : null,
     themeId: d.themeId != null ? String(d.themeId) : '',
     layout,
     wallpaperUrl: d.wallpaperUrl != null ? String(d.wallpaperUrl) : undefined,
@@ -829,6 +843,30 @@ export type PublicCardSlotPayload = {
   vaultMimeType?: string;
 };
 
+/** Whitelist segura dentro de `issuerSnapshot` (Mongo `smart_cards`). */
+export type IssuerVaultPickedItem = {
+  itemId: string;
+  type: string;
+  title: string;
+  icon?: string;
+  publicValue?: string;
+};
+
+/** Snapshot denormalizado del emisor en la tarjeta (Phase 1). */
+export type IssuerSnapshotPayload = {
+  uid: string;
+  userFullName: string;
+  userNickName: string;
+  userAvatarUrl: string | null;
+  userVaultPicked: IssuerVaultPickedItem[];
+  snapshotVersion: number;
+  snapshotAt: string;
+  /** Extensiones opcionales (p. ej. historial de llamadas denormalizado). */
+  bcLogoUrl?: string | null;
+  bcName?: string;
+  scName?: string;
+};
+
 export type SmartCardPayload = {
   /** Tarjeta personal en Mongo. */
   sid?: string;
@@ -866,6 +904,11 @@ export type SmartCardPayload = {
    * El backend filtra `isPrivate` / `visibility: private`.
    */
   publicCardSlots?: PublicCardSlotPayload[];
+  /**
+   * Snapshot del emisor (opcional en cliente; el API `PUT /cards` lo recalcula desde Mongo + slots).
+   * Útil para caché local / depuración.
+   */
+  issuerSnapshot?: IssuerSnapshotPayload;
 };
 
 export async function listSmartCardsFromDb(params: { uid: string }): Promise<{
@@ -936,9 +979,50 @@ export async function listSmartCardsFromDb(params: { uid: string }): Promise<{
             };
           })
         : undefined,
+      issuerSnapshot: parseIssuerSnapshotFromApi(row?.issuerSnapshot),
       createdAt: String(row?.createdAt || new Date().toISOString()),
       updatedAt: String(row?.updatedAt || new Date().toISOString()),
     })),
+  };
+}
+
+function parseIssuerSnapshotFromApi(raw: unknown): IssuerSnapshotPayload | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const o = raw as Record<string, unknown>;
+  const uid = String(o.uid || '').trim();
+  if (!uid) return undefined;
+  const pickedRaw = Array.isArray(o.userVaultPicked) ? o.userVaultPicked : [];
+  const userVaultPicked: IssuerVaultPickedItem[] = pickedRaw
+    .map((p: any) => {
+      const itemId = String(p?.itemId || '').trim();
+      if (!itemId) return null;
+      const type = String(p?.type || 'link').trim();
+      const title = String(p?.title || '').trim();
+      const icon = p?.icon != null && String(p.icon).trim() ? String(p.icon).trim() : undefined;
+      const publicValue =
+        p?.publicValue != null && String(p.publicValue).trim() ? String(p.publicValue).trim() : undefined;
+      const it: IssuerVaultPickedItem = { itemId, type, title };
+      if (icon) it.icon = icon;
+      if (publicValue) it.publicValue = publicValue;
+      return it;
+    })
+    .filter(Boolean) as IssuerVaultPickedItem[];
+  const bcLogoRaw = o.bcLogoUrl;
+  const bcLogoUrl =
+    bcLogoRaw != null && String(bcLogoRaw).trim() ? String(bcLogoRaw).trim() : undefined;
+  const bcName = o.bcName != null && String(o.bcName).trim() ? String(o.bcName).trim() : undefined;
+  const scName = o.scName != null && String(o.scName).trim() ? String(o.scName).trim() : undefined;
+  return {
+    uid,
+    userFullName: String(o.userFullName || '').trim(),
+    userNickName: String(o.userNickName || '').trim(),
+    userAvatarUrl: o.userAvatarUrl != null && String(o.userAvatarUrl).trim() ? String(o.userAvatarUrl).trim() : null,
+    userVaultPicked,
+    snapshotVersion: Number.isFinite(Number(o.snapshotVersion)) ? Number(o.snapshotVersion) : 1,
+    snapshotAt: String(o.snapshotAt || new Date().toISOString()),
+    ...(bcLogoUrl !== undefined ? { bcLogoUrl } : {}),
+    ...(bcName !== undefined ? { bcName } : {}),
+    ...(scName !== undefined ? { scName } : {}),
   };
 }
 
@@ -1341,6 +1425,15 @@ export type CallHistoryRow = {
   isBusinessCard: boolean;
   /** Tipo de tarjeta del título en Calls (entrante: tu tarjeta; saliente: tarjeta desde la que llamaste). */
   displayCardIsBusiness?: boolean;
+  /** Denormalizado: 'business' | 'smart' cuando el API lo envía. */
+  cardType?: 'business' | 'smart';
+  bcLogoUrl?: string | null;
+  bcName?: string | null;
+  bcContactName?: string | null;
+  scName?: string | null;
+  cardName?: string | null;
+  /** Saliente + negocio: nombre de contacto en la tarjeta emisora (≈ bcContactName / Mongo ownerDisplayName). */
+  emitterCardContactName?: string | null;
   peerFullName: string;
   peerPersonalName: string;
   userAvatarUrl: string | null;
@@ -1358,6 +1451,15 @@ export type CallHistoryRow = {
   voiceNoteName: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Si el API lo envía: snapshot del emisor en la tarjeta (Mongo); Calls usa campos acordados (sin nick en UI). */
+  issuerSnapshot?: IssuerSnapshotPayload;
+  /**
+   * Contrato canónico de UI de llamada (ver `services/callDisplayCard.ts`).
+   * El backend (`/api/qr/calls/history`) lo calcula por fila: la UI lo consume
+   * sin ramificar por `cardType` ni leer `bc*`/`user*`. `null` si el API no lo
+   * envía todavía (tolerancia a backends viejos durante rollout).
+   */
+  display: CallDisplayCard | null;
 };
 
 export async function listCallsHistory(params: { uid: string }): Promise<{ count: number; history: CallHistoryRow[] }> {
@@ -1408,12 +1510,35 @@ export async function listCallsHistory(params: { uid: string }): Promise<{ count
         : dcb === false || dcb === 'false'
           ? false
           : isBusinessCard;
+    const emitterCardContactNameRaw = row?.emitterCardContactName;
+    const emitterCardContactName =
+      emitterCardContactNameRaw != null && String(emitterCardContactNameRaw).trim()
+        ? String(emitterCardContactNameRaw).trim()
+        : null;
+    const ct = row?.cardType;
+    const cardType = ct === 'business' || ct === 'smart' ? ct : undefined;
+    const bcLogoUrl =
+      row?.bcLogoUrl != null && String(row.bcLogoUrl).trim() ? String(row.bcLogoUrl).trim() : null;
+    const bcName = row?.bcName != null && String(row.bcName).trim() ? String(row.bcName).trim() : null;
+    const bcContactName =
+      row?.bcContactName != null && String(row.bcContactName).trim()
+        ? String(row.bcContactName).trim()
+        : null;
+    const scName = row?.scName != null && String(row.scName).trim() ? String(row.scName).trim() : null;
+    const cardName = row?.cardName != null && String(row.cardName).trim() ? String(row.cardName).trim() : null;
     return {
       callId: String(row?.callId || ''),
       peerUid: String(row?.peerUid || ''),
       displayCardName,
       isBusinessCard,
       displayCardIsBusiness,
+      cardType,
+      bcLogoUrl,
+      bcName,
+      bcContactName,
+      scName,
+      cardName,
+      emitterCardContactName,
       peerFullName,
       peerPersonalName,
       userAvatarUrl,
@@ -1431,6 +1556,8 @@ export async function listCallsHistory(params: { uid: string }): Promise<{ count
       voiceNoteName: row?.voiceNoteName ? String(row.voiceNoteName) : null,
       createdAt: String(row?.createdAt || new Date().toISOString()),
       updatedAt: String(row?.updatedAt || new Date().toISOString()),
+      issuerSnapshot: parseIssuerSnapshotFromApi(row?.issuerSnapshot),
+      display: fromWireCallDisplayCard(row?.display),
     };
   });
   return {
@@ -1454,6 +1581,8 @@ export async function createCallLog(params: {
   callChannel?: 'ghost-link-voip';
   callType?: 'audio' | 'video';
   isBusinessCard?: boolean;
+  /** Foto/logo de la tarjeta emisora al colgar (saliente: logo negocio o avatar smart). */
+  emitterCardPhotoUrl?: string | null;
 }): Promise<{ callId: string }> {
   const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
@@ -1474,6 +1603,10 @@ export async function createCallLog(params: {
       callChannel: params.callChannel || 'ghost-link-voip',
       callType: params.callType || 'audio',
       isBusinessCard: Boolean(params.isBusinessCard),
+      emitterCardPhotoUrl:
+        params.emitterCardPhotoUrl != null && String(params.emitterCardPhotoUrl).trim()
+          ? String(params.emitterCardPhotoUrl).trim()
+          : null,
     },
     {
       headers: {

@@ -73,7 +73,8 @@ function galleryItemByStableOrLegacy(sel: string) {
   );
 }
 
-const CLOUD_SYNC_TIMEOUT_MS = 8000;
+/** Sync Firestore tras guardar en Búnker: sin límite agresivo (antes 8s). */
+const CLOUD_SYNC_TIMEOUT_MS = 120000;
 
 type DataType = 'Enlaces' | 'Teléfono' | 'Ghost-Link' | 'Email' | 'Texto Plain' | 'Documento';
 
@@ -167,8 +168,10 @@ const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
 const VAULT_IMAGE_MAX_LONG_EDGE = 2000;
 const VAULT_JPEG_QUALITY_INITIAL = 0.8;
 const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024; // 20 MB
-const PICKER_LAUNCH_TIMEOUT_MS = 14000;
-const PICKER_STALE_LOCK_MS = 20000;
+/** Galería/cámara pueden tardar en dispositivos lentos; tope de seguridad 2 min. */
+const PICKER_LAUNCH_TIMEOUT_MS = 120000;
+/** Watchdog del mutex del picker: mismo tope (antes 20s forzaba desbloqueo). */
+const PICKER_STALE_LOCK_MS = 120000;
 
 const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingData?: Link }) => {
   const { resolvedMode } = useLookMode();
@@ -384,7 +387,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const registerModerationReject = () => {
     const attempts = rejectionAttempts + 1;
     if (attempts >= 3) {
-      setRetryLockedUntil(Date.now() + 5 * 60 * 1000);
+      setRetryLockedUntil(Date.now() + 2 * 60 * 1000);
       setRejectionAttempts(0);
       setModerationAlertMessage(retryLockMessage);
       setModerationAlertVisible(true);

@@ -930,7 +930,16 @@ export default function SearchScreen() {
                           issuerCardName: cardTitle,
                           issuerSid: item.receivedSourceSid ?? null,
                           issuerBId: item.receivedSourceBId ?? null,
-                          issuerDisplayName: item.card.bcName,
+                          issuerDisplayName:
+                            String(item.card.bcContactName || item.card.bcName || '').trim() || item.card.bcName,
+                          issuerPeerFullName:
+                            String(
+                              (item.card as { userFullName?: string }).userFullName ||
+                                item.card.bcContactName ||
+                                item.card.bcName ||
+                                '',
+                            ).trim() || item.card.bcName,
+                          issuerCardContactName: String(item.card.bcContactName || '').trim() || null,
                           issuerCardPhoto: item.card.bcLogoUrl ?? null,
                           issuerCardType: 'business',
                         })
@@ -1060,7 +1069,9 @@ export default function SearchScreen() {
         issuerCardName: card.bcName,
         issuerSid: null,
         issuerBId: card.bId,
-        issuerDisplayName: card.bcName,
+        issuerDisplayName: String(card.bcContactName || card.bcName || '').trim() || card.bcName,
+        issuerPeerFullName: String(card.bcContactName || card.bcName || '').trim() || card.bcName,
+        issuerCardContactName: String(card.bcContactName || '').trim() || null,
         issuerCardPhoto: card.bcLogoUrl ?? null,
         issuerCardType: 'business',
       });
@@ -1081,7 +1092,9 @@ export default function SearchScreen() {
         issuerCardName: card.bcName,
         issuerSid: null,
         issuerBId: card.bId,
-        issuerDisplayName: card.bcName,
+        issuerDisplayName: String(card.bcContactName || card.bcName || '').trim() || card.bcName,
+        issuerPeerFullName: String(card.bcContactName || card.bcName || '').trim() || card.bcName,
+        issuerCardContactName: String(card.bcContactName || '').trim() || null,
         issuerCardType: 'business',
       });
     };
@@ -1219,7 +1232,9 @@ export default function SearchScreen() {
                         issuerCardName: card.bcName,
                         issuerSid: null,
                         issuerBId: card.bId,
-                        issuerDisplayName: card.bcName,
+                        issuerDisplayName: String(card.bcContactName || card.bcName || '').trim() || card.bcName,
+                        issuerPeerFullName: String(card.bcContactName || card.bcName || '').trim() || card.bcName,
+                        issuerCardContactName: String(card.bcContactName || '').trim() || null,
                         issuerCardPhoto: card.bcLogoUrl ?? null,
                         issuerCardType: 'business',
                       })
@@ -1337,6 +1352,13 @@ export default function SearchScreen() {
           receivedCardDetail?.card?.bcName ||
           undefined
         }
+        peerFullName={undefined}
+        peerNickname={
+          String(receivedCardDetail?.receivedIssuerNickname || '').trim() || undefined
+        }
+        ghostCardContactName={
+          String(receivedCardDetail?.card?.bcContactName || '').trim() || null
+        }
         ratingCardType='business'
         medalRatingUseNativeAndroidModal={Platform.OS === 'android'}
       />
@@ -1354,6 +1376,13 @@ export default function SearchScreen() {
         peerDisplayName={
           String(marketCardDetail?.card.bcName || '').trim() ||
           tr('Negocio', 'Business')
+        }
+        peerFullName={
+          String(marketCardDetail?.card.bcContactName || '').trim() || undefined
+        }
+        peerNickname={undefined}
+        ghostCardContactName={
+          marketCardDetail ? String(marketCardDetail.card.bcContactName || '').trim() || null : null
         }
         medalRatingUseNativeAndroidModal={Platform.OS === 'android'}
         incomingRedeem={marketCardDetail ? {

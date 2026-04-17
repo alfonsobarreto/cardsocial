@@ -116,6 +116,12 @@ export type MyCardsPreviewModalProps = {
   sourceBId?: string | null;
   sourceCardName?: string;
   peerDisplayName?: string;
+  /** Nombre canónico VoIP (userFullName / Firestore); se pasa al Ghost-Link al tocar un dato. */
+  peerFullName?: string;
+  /** userNickName del titular; solo trazabilidad en UI + se envía a Ghost-Link. */
+  peerNickname?: string;
+  /** Negocio: bcContactName para la pastilla Ghost-Link. */
+  ghostCardContactName?: string | null;
   /** Tipo de tarjeta para el modal de medallas ('smart' | 'business'). No aplica a variant=issuer. */
   ratingCardType?: 'smart' | 'business';
   /**
@@ -141,6 +147,9 @@ export function MyCardsPreviewModal({
   sourceBId,
   sourceCardName,
   peerDisplayName,
+  peerFullName,
+  peerNickname,
+  ghostCardContactName,
   ratingCardType,
   medalRatingUseNativeAndroidModal,
 }: MyCardsPreviewModalProps) {
@@ -527,6 +536,16 @@ export function MyCardsPreviewModal({
         sourceSid: sourceSid ?? null,
         sourceBId: sourceBId ?? null,
         peerDisplayName: peerDisplayName || tr('contacto', 'contact'),
+        peerFullName,
+        peerNickname,
+        bcLogoUrl:
+          ratingCardType === 'business' ? payload?.avatarUrl ?? null : null,
+        bcName:
+          ratingCardType === 'business' ? payload?.cardName ?? null : null,
+        bcContactName:
+          ratingCardType === 'business' && ghostCardContactName != null && String(ghostCardContactName).trim()
+            ? String(ghostCardContactName).trim()
+            : null,
         dismissParentModal: handleClose,
         peerPhotoUrl: payload?.avatarUrl ?? null,
         cardPhoto: payload?.avatarUrl ?? null,
@@ -541,6 +560,9 @@ export function MyCardsPreviewModal({
       sourceSid,
       sourceBId,
       peerDisplayName,
+      peerFullName,
+      peerNickname,
+      ghostCardContactName,
       payload?.cardName,
       payload?.avatarUrl,
       handleClose,
@@ -873,29 +895,31 @@ export function MyCardsPreviewModal({
         }}
       >
         {payload ? (
-          <IsolatedWireframeCard
-            layout={payload.layout}
-            slots={payload.slots}
-            editable={false}
-            theme={theme}
-            wallpaperUrl={payload.wallpaperUrl}
-            dispName={payload.cardName}
-            dispSub={payload.subtitle}
-            dispAvatar={payload.avatarUrl}
-            dispHolders={Math.max(
-              0,
-              Math.floor(Number(payload.holdersCount ?? 0)),
-            )}
-            noAvatarIconName={payload.noAvatarIcon ?? 'account'}
-            enableParallax={payload.enableParallax}
-            parallaxX={parallaxX}
-            parallaxY={parallaxY}
-            renderSlotContent={renderSlotContent}
-            tr={tr}
-            mirrorStatsCapsuleScale={mirrorScale}
-            medalPills={medalPills}
-            onRate={canRate ? () => setMedalModalVisible(true) : undefined}
-          />
+          <>
+            <IsolatedWireframeCard
+              layout={payload.layout}
+              slots={payload.slots}
+              editable={false}
+              theme={theme}
+              wallpaperUrl={payload.wallpaperUrl}
+              dispName={payload.cardName}
+              dispSub={payload.subtitle}
+              dispAvatar={payload.avatarUrl}
+              dispHolders={Math.max(
+                0,
+                Math.floor(Number(payload.holdersCount ?? 0)),
+              )}
+              noAvatarIconName={payload.noAvatarIcon ?? 'account'}
+              enableParallax={payload.enableParallax}
+              parallaxX={parallaxX}
+              parallaxY={parallaxY}
+              renderSlotContent={renderSlotContent}
+              tr={tr}
+              mirrorStatsCapsuleScale={mirrorScale}
+              medalPills={medalPills}
+              onRate={canRate ? () => setMedalModalVisible(true) : undefined}
+            />
+          </>
         ) : null}
       </SmartCardMirrorModal>
 

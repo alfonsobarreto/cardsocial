@@ -125,7 +125,17 @@ export function SmartCardMirrorModal({
   const overlayPadBottom = Math.max(12, insets.bottom);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onRequestClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onRequestClose}
+      // Android: los modales hijos (VaultDocumentViewer, MedalRating) usan
+      // statusBarTranslucent. Si el padre NO lo usa, Android apila el hijo
+      // DETRÁS del padre (cada Dialog nativo ocupa ventanas con insets
+      // distintos). Alinear este flag deja al Dialog hijo apilar encima.
+      statusBarTranslucent
+    >
       <View
         style={[
           shellStyles.modalOverlay,

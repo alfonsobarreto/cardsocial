@@ -5,6 +5,7 @@ import {
   ensureWebUrl,
   getMirrorVaultOpenPlan,
 } from '@/services/mirrorVaultItemOpenPlan';
+import type { IssuerSnapshotPayload } from '@/services/qrApi';
 
 export { ensureWebUrl } from '@/services/mirrorVaultItemOpenPlan';
 
@@ -20,6 +21,18 @@ export type OpenVaultPreviewItemDeps = {
   sourceSid: string | null;
   sourceBId: string | null;
   peerDisplayName: string;
+  peerFullName?: string;
+  peerNickname?: string;
+  /** Business only: logo del negocio (= `businessCards.bcLogoUrl`). */
+  bcLogoUrl?: string | null;
+  /** Business only: nombre comercial (= `businessCards.bcName`). */
+  bcName?: string | null;
+  /** Business only: contacto en tarjeta (= `businessCards.bcContactName`). */
+  bcContactName?: string | null;
+  /** Business: snapshot del emisor (mirror de `item.issuerSnapshot` en Calls). */
+  issuerSnapshot?: IssuerSnapshotPayload | null;
+  /** Business: avatar del receptor (mirror de `item.userAvatarUrl` en Calls). */
+  userAvatarUrl?: string | null;
   /**
    * Cierra el modal de vista previa (tarjeta flotante) antes de Ghost-Link.
    * En iOS, dos Modal superpuestos puede congelar la UI si no se cierra el primero.
@@ -67,6 +80,13 @@ export async function openVaultPreviewItem(item: MirrorVaultItem, deps: OpenVaul
         sourceSid: deps.sourceSid,
         sourceBId: deps.sourceBId,
         userName: deps.peerDisplayName,
+        peerFullName: deps.peerFullName ?? deps.peerDisplayName,
+        peerNickname: deps.peerNickname,
+        bcLogoUrl: deps.bcLogoUrl ?? null,
+        bcName: deps.bcName ?? null,
+        bcContactName: deps.bcContactName ?? null,
+        issuerSnapshot: deps.issuerSnapshot ?? null,
+        userAvatarUrl: deps.userAvatarUrl ?? photo,
         cardPhoto: deps.cardPhoto ?? photo,
         peerPhotoUrl: photo,
         cardType: deps.cardType ?? 'personal',

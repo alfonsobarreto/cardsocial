@@ -35,7 +35,7 @@ async function getUploadJwtToken(baseUrl: string, uid: string, gatewayKey: strin
       headers: {
         'x-api-gateway-key': gatewayKey,
       },
-      timeout: 30000,
+      timeout: 120000,
     }
   );
 

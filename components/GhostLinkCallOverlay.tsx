@@ -24,6 +24,10 @@ import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useGhostLinkCall, type GhostCallData } from '@/services/GhostLinkCallProvider';
+import {
+  toCallDisplayCardFromGhostCall,
+  type CallDisplayCard,
+} from '@/services/callDisplayCard';
 import { VoIPCallPhase } from '@/services/voip/VoIPCallPhase';
 
 /** Tras `sessionId`, congela nombre/foto peer + tarjeta para que re-renders no sustituyan identidad en mitad de llamada. */
@@ -123,19 +127,29 @@ function useTr() {
   return (es: string, en: string) => (language === 'en' ? en : es);
 }
 
-/** Pastilla bajo el título: nombre de la persona (social) o nombre del negocio (business). */
-function ghostCallParticipantBadgeLabel(
-  callData: GhostCallData,
-  tr: (es: string, en: string) => string,
-): string {
-  if (callData.card.cardType === 'business') {
-    const n = String(callData.card.cardName || '').trim();
-    return n || tr('Negocio', 'Business');
-  }
-  const full = String(callData.peerName || '').trim();
-  if (full) return full;
-  const nick = String(callData.peerNickname || '').replace(/^@/, '').trim();
-  return nick || tr('Contacto', 'Contact');
+/**
+ * Flattens the live Ghost-Link state (`callData`) into a `CallDisplayCard`.
+ * The overlay consumes ONLY this shape for title/avatar/badge; it never reads
+ * `bc*` or `card*` fields directly, never branches on `cardType` to pick a
+ * source. This is the single UI boundary for VoIP display.
+ */
+function deriveCallDisplay(callData: GhostCallData): CallDisplayCard {
+  const { card, peerUid, peerFullName, peerName, peerPhotoUrl } = callData;
+  return toCallDisplayCardFromGhostCall({
+    cardType: card.cardType,
+    key: card.cardType === 'business'
+      ? String(card.bId || '')
+      : String(card.sid || ''),
+    ownerUid: String(peerUid || ''),
+    bcName: card.bcName,
+    bcLogoUrl: card.bcLogoUrl,
+    bcContactName: card.bcContactName,
+    peerFullName,
+    peerName,
+    peerPhotoUrl,
+    cardName: card.cardName,
+    cardPhoto: card.cardPhoto,
+  });
 }
 
 function formatDuration(sec: number): string {
@@ -174,7 +188,7 @@ function FloatingCallBubble() {
   /** Incluye FaceCall nativo y upgrade audio→video (`callType` sigue `audio`). */
   const showRemoteVideoInBubble = videoEnabled;
   const showRemoteSurface = remoteUid != null && isRemoteVideoEnabled;
-  const avatarUri = resolveCallAvatarUri(callData.peerPhotoUrl, callData.card.cardPhoto);
+  const display = deriveCallDisplay(callData);
 
   return (
     <TouchableOpacity
@@ -216,12 +230,12 @@ function FloatingCallBubble() {
           </View>
         ) : (
           <View style={bubbleStyles.audioCol}>
-            <GoldAvatarRing uri={avatarUri} size={56} />
+            <GoldAvatarRing uri={display.displayPhoto} size={56} />
             <Text style={[bubbleStyles.timeText, { color: shell.ghostLinkTextPrimary }]}>
               {formatDuration(callDurationSec)}
             </Text>
             <Text numberOfLines={1} style={[bubbleStyles.nameSmall, { color: shell.ghostLinkTextMuted }]}>
-              {callData.peerName}
+              {display.displayTitle}
             </Text>
           </View>
         )}
@@ -247,14 +261,6 @@ function RingingLocalVideoBackdrop() {
       />
     </View>
   );
-}
-
-/** Foto del contacto (VoIP) con prioridad sobre miniatura de tarjeta. */
-function resolveCallAvatarUri(peerPhotoUrl: string | null | undefined, cardPhoto: string | null | undefined): string | null {
-  const a = String(peerPhotoUrl || '').trim();
-  if (a) return a;
-  const b = String(cardPhoto || '').trim();
-  return b || null;
 }
 
 function GoldAvatarRing({ uri, size = 130 }: { uri: string | null; size?: number }) {
@@ -387,6 +393,8 @@ function PulsingRing({ size, active, children }: { size: number; active: boolean
 
 function CardBadge({ label }: { label: string }) {
   const shell = useGhostLinkShell();
+  /** Si no hay etiqueta útil, no pintamos pastilla (Business sin `bcContactName`). */
+  if (!String(label || '').trim()) return null;
   return (
     <View style={[styles.badge, { backgroundColor: shell.typeBadgeBg, borderColor: shell.pillBorder }]}>
       <Text
@@ -444,17 +452,23 @@ function ConfirmView() {
   const tr = useTr();
   if (!callData) return null;
 
-  const badgeLabel = ghostCallParticipantBadgeLabel(callData, tr);
-  const avatarUri = resolveCallAvatarUri(callData.peerPhotoUrl, callData.card.cardPhoto);
+  const display = deriveCallDisplay(callData);
+
+  console.log('🖼️ MODAL CONFIRM_VIEW DATA:', {
+    cardType: display.cardType,
+    displayTitle: display.displayTitle,
+    displayPhoto: display.displayPhoto,
+    displaySubtitle: display.displaySubtitle,
+  });
 
   return (
     <View style={styles.centered}>
       <View style={styles.logoSlot}>
         <BrandLogoMark />
       </View>
-      <GoldAvatarRing uri={avatarUri} size={130} />
-      <Text style={[styles.nameText, { color: shell.ghostLinkTextPrimary }]}>{callData.card.cardName}</Text>
-      <CardBadge label={badgeLabel} />
+      <GoldAvatarRing uri={display.displayPhoto} size={130} />
+      <Text style={[styles.nameText, { color: shell.ghostLinkTextPrimary }]}>{display.displayTitle}</Text>
+      <CardBadge label={display.displaySubtitle ?? ''} />
       <Text style={[styles.subtitleText, { color: shell.ghostLinkTextSecondary }]}>
         {tr('Privacidad total', 'Total Privacy')}
       </Text>
@@ -503,7 +517,14 @@ function OutgoingView() {
   const statusText = isRinging
     ? tr('Llamando...', 'Calling...')
     : `${tr('En llamada', 'On call')} · ${formatDuration(callDurationSec)}`;
-  const avatarUri = resolveCallAvatarUri(callData.peerPhotoUrl, callData.card.cardPhoto);
+  const display = deriveCallDisplay(callData);
+
+  console.log('📞 MODAL OUTGOING_VIEW DATA:', {
+    cardType: display.cardType,
+    displayTitle: display.displayTitle,
+    displayPhoto: display.displayPhoto,
+    displaySubtitle: display.displaySubtitle,
+  });
 
   if (videoEnabled && !isRinging && RtcSurfaceView) {
     return <ActiveVideoView />;
@@ -519,11 +540,11 @@ function OutgoingView() {
         </View>
         {!(showRingingLocalVideoBackdrop && localPreviewActive) ? (
           <PulsingRing size={130} active={isRinging}>
-            <GoldAvatarRing uri={avatarUri} size={130} />
+            <GoldAvatarRing uri={display.displayPhoto} size={130} />
           </PulsingRing>
         ) : null}
-        <Text style={[styles.nameText, { color: shell.ghostLinkTextPrimary }]}>{callData.card.cardName}</Text>
-        <CardBadge label={ghostCallParticipantBadgeLabel(callData, tr)} />
+        <Text style={[styles.nameText, { color: shell.ghostLinkTextPrimary }]}>{display.displayTitle}</Text>
+        <CardBadge label={display.displaySubtitle ?? ''} />
         <Text style={[styles.statusText, { color: shell.ghostLinkTextSecondary }]}>{statusText}</Text>
 
         <View style={[styles.controls, styles.controlsWrap]}>
@@ -594,6 +615,7 @@ function IncomingView() {
   const statusLabel = isVideo
     ? tr('Videollamada Entrante...', 'Incoming Video Call...')
     : tr('Llamada Entrante...', 'Incoming Call...');
+  const display = deriveCallDisplay(callData);
 
   return (
     <View style={styles.fullScreenStack}>
@@ -603,7 +625,7 @@ function IncomingView() {
           <BrandLogoMark />
         </View>
         <PulsingRing size={130} active>
-          <GoldAvatarRing uri={resolveCallAvatarUri(callData.peerPhotoUrl, callData.card.cardPhoto)} size={130} />
+          <GoldAvatarRing uri={display.displayPhoto} size={130} />
         </PulsingRing>
         <Text style={[styles.nameText, { color: shell.ghostLinkTextPrimary }]}>@{callData.peerNickname}</Text>
         <Text style={[styles.fullNameText, { color: shell.ghostLinkTextSecondary }]}>{callData.peerName}</Text>
@@ -614,7 +636,9 @@ function IncomingView() {
           </View>
         )}
         <Text style={[styles.statusText, { color: shell.ghostLinkTextSecondary }]}>{statusLabel}</Text>
-        <CardBadge label={`${tr('Desde tu tarjeta', 'From your card')}: ${callData.card.cardName}`} />
+        <CardBadge
+          label={`${tr('Desde tu tarjeta', 'From your card')}: ${display.displayTitle || callData.card.cardName}`}
+        />
 
         <View style={styles.incomingActions}>
           <TouchableOpacity
@@ -655,6 +679,8 @@ function ActiveIncomingView() {
     return <ActiveVideoView />;
   }
 
+  const display = deriveCallDisplay(callData);
+
   return (
     <>
       <View style={styles.centered}>
@@ -662,9 +688,13 @@ function ActiveIncomingView() {
         <View style={styles.logoSlot}>
           <BrandLogoMark />
         </View>
-        <GoldAvatarRing uri={resolveCallAvatarUri(callData.peerPhotoUrl, callData.card.cardPhoto)} size={130} />
-        <Text style={[styles.nameText, { color: shell.ghostLinkTextPrimary }]}>{callData.peerName}</Text>
-        <CardBadge label={`${tr('Desde tu tarjeta', 'From your card')}: ${callData.card.cardName}`} />
+        <GoldAvatarRing uri={display.displayPhoto} size={130} />
+        <Text style={[styles.nameText, { color: shell.ghostLinkTextPrimary }]}>
+          {display.displayTitle || callData.peerName}
+        </Text>
+        <CardBadge
+          label={`${tr('Desde tu tarjeta', 'From your card')}: ${display.displayTitle || callData.card.cardName}`}
+        />
         <Text style={[styles.statusText, { color: shell.ghostLinkTextSecondary }]}>
           {tr('En llamada', 'On call')} · {formatDuration(callDurationSec)}
         </Text>
@@ -748,6 +778,8 @@ function ActiveVideoView() {
 
   if (!callData || !RtcSurfaceView) return null;
 
+  const display = deriveCallDisplay(callData);
+
   const pinchGesture = useMemo(
     () =>
       Gesture.Pinch()
@@ -774,7 +806,7 @@ function ActiveVideoView() {
         <View
           style={[videoStyles.remoteVideoPlaceholder, { backgroundColor: shell.ghostLinkRemoteVideoPlaceholderBg }]}
         >
-          <GoldAvatarRing uri={resolveCallAvatarUri(callData.peerPhotoUrl, callData.card.cardPhoto)} size={100} />
+          <GoldAvatarRing uri={display.displayPhoto} size={100} />
           <Text style={[videoStyles.waitingText, { color: shell.ghostLinkVideoWaitingText }]}>
             {remotePlaceholderLabel}
           </Text>
@@ -815,9 +847,13 @@ function ActiveVideoView() {
       <View style={videoStyles.topBar}>
         <BrandLogoMark compact />
         <View style={{ flex: 1, marginLeft: 10 }}>
-          <Text style={[videoStyles.topName, { color: shell.ghostLinkVideoTopBarText }]}>{callData.peerName}</Text>
+          <Text style={[videoStyles.topName, { color: shell.ghostLinkVideoTopBarText }]}>
+            {display.displayTitle || callData.peerName}
+          </Text>
           <Text style={[videoStyles.topStatus, { color: shell.ghostLinkVideoTopBarMuted }]}>
-            {callData.card.cardName} · {formatDuration(callDurationSec)}
+            {display.displaySubtitle
+              ? `${display.displaySubtitle} · ${formatDuration(callDurationSec)}`
+              : formatDuration(callDurationSec)}
           </Text>
         </View>
         <CallChromeMinimizeButton videoChrome />

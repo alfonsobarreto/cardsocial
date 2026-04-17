@@ -29,6 +29,25 @@ export function readUserFullName(data: Record<string, unknown> | undefined | nul
   return String(data.displayName ?? data.name ?? '').trim() || 'Usuario';
 }
 
+/**
+ * Nombre para VoIP / pastilla Ghost-Link: solo campos “nombre real”, nunca un texto que coincida con el @nick.
+ * Todos los candidatos (userFullName, composed, legacy fullName) se comparan contra el nickname.
+ */
+export function readVoipCanonicalFullName(data: Record<string, unknown> | undefined | null): string {
+  if (!data) return '';
+  const nick = readUserNickName(data).toLowerCase().replace(/\s+/g, '');
+  const notNick = (s: string) => s.length > 0 && s.toLowerCase().replace(/\s+/g, '') !== nick;
+  const u = String(data.userFullName ?? '').trim();
+  if (notNick(u)) return u;
+  const fn = String(data.firstName ?? '').trim();
+  const ln = String(data.lastName ?? '').trim();
+  const composed = `${fn} ${ln}`.trim();
+  if (notNick(composed)) return composed;
+  const legacy = String(data.fullName ?? '').trim();
+  if (notNick(legacy)) return legacy;
+  return '';
+}
+
 export function readUserNickName(data: Record<string, unknown> | undefined | null): string {
   if (!data) return '';
   return String(data.userNickName ?? data.nickname ?? '').trim().replace(/^@+/g, '');

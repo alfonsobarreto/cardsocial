@@ -10,11 +10,11 @@ import { auth, db } from '@/services/firebaseConfig';
 import {
   firestoreUserFullNameWrite,
   firestoreUserNickNameWrite,
-  readUserAvatarUrl,
   readUserFullName,
   readUserNickName,
   readUserNickNameLower,
 } from '@/services/userIdentityFields';
+import { resolveProfileAvatarDisplayUri } from '@/services/userProfilePhoto';
 import { requestLocationPermission } from '@/services/geolocationService';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
@@ -39,6 +39,7 @@ import {
     doc,
     getDoc,
     getDocs,
+    onSnapshot,
     query,
     serverTimestamp,
     updateDoc,
@@ -163,6 +164,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   }, [insets.bottom]);
   const modalFooterBottomPad = useModalFooterBottomPad();
   const [headerAvatarUrl, setHeaderAvatarUrl] = useState<string | null>(null);
+  const headerAvatarFsUnsubRef = useRef<(() => void) | undefined>(undefined);
 
   const refreshHeaderAvatar = useCallback(async () => {
     const user = auth.currentUser;
@@ -173,34 +175,42 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
     try {
       const snap = await getDoc(doc(db, 'users', user.uid));
       const data = snap.exists() ? (snap.data() as Record<string, unknown>) : null;
-      const fromDoc = String(readUserAvatarUrl(data ?? {}) ?? '').trim();
-      const fallbackAuth = user.photoURL ? String(user.photoURL).trim() : '';
-      const uri =
-        fromDoc && /^https?:\/\//i.test(fromDoc)
-          ? fromDoc
-          : fallbackAuth && /^https?:\/\//i.test(fallbackAuth)
-            ? fallbackAuth
-            : null;
-      setHeaderAvatarUrl(uri);
+      setHeaderAvatarUrl(resolveProfileAvatarDisplayUri(data, user.photoURL));
     } catch {
-      const u = auth.currentUser?.photoURL;
-      setHeaderAvatarUrl(u && /^https?:\/\//i.test(String(u)) ? String(u) : null);
+      setHeaderAvatarUrl(resolveProfileAvatarDisplayUri(null, user.photoURL));
     }
   }, []);
 
   useEffect(() => {
-    void refreshHeaderAvatar();
+    const unsubAuth = onAuthStateChanged(auth, (user) => {
+      headerAvatarFsUnsubRef.current?.();
+      headerAvatarFsUnsubRef.current = undefined;
+      if (!user) {
+        setHeaderAvatarUrl(null);
+        return;
+      }
+      headerAvatarFsUnsubRef.current = onSnapshot(
+        doc(db, 'users', user.uid),
+        (snap) => {
+          const data = snap.exists() ? (snap.data() as Record<string, unknown>) : null;
+          setHeaderAvatarUrl(resolveProfileAvatarDisplayUri(data, auth.currentUser?.photoURL));
+        },
+        (err) => {
+          console.warn('[tabs] header avatar snapshot', err);
+          void refreshHeaderAvatar();
+        }
+      );
+    });
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         void refreshHeaderAvatar();
       }
     });
-    const authUnsub = onAuthStateChanged(auth, () => {
-      void refreshHeaderAvatar();
-    });
     return () => {
       sub.remove();
-      authUnsub();
+      unsubAuth();
+      headerAvatarFsUnsubRef.current?.();
+      headerAvatarFsUnsubRef.current = undefined;
     };
   }, [refreshHeaderAvatar]);
 
@@ -736,7 +746,9 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                       <ExpoImage
                         source={{ uri: headerAvatarUrl }}
                         style={[styles.headerProfileAvatar, { borderColor: shell.ctaAccent }]}
-                        cachePolicy="none"
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                        transition={120}
                         key={headerAvatarUrl}
                       />
                     ) : (

@@ -36,6 +36,82 @@ function ensureVaultSpacesLeafName(filename, mimeType) {
   return ext ? `${base}${ext}`.slice(0, 200) : base.slice(0, 200);
 }
 
+/**
+ * Detecta el MIME real de un buffer mirando los primeros bytes. Devuelve
+ * `null` si no reconoce la firma; usado para corregir archivos de vault cuyo
+ * `mimeType` almacenado quedó como `application/octet-stream`.
+ */
+function sniffMimeFromBuffer(buf) {
+  if (!Buffer.isBuffer(buf) || buf.length < 4) return null;
+  // JPEG: FF D8 FF
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "image/jpeg";
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (
+    buf[0] === 0x89 &&
+    buf[1] === 0x50 &&
+    buf[2] === 0x4e &&
+    buf[3] === 0x47
+  ) {
+    return "image/png";
+  }
+  // GIF87a / GIF89a
+  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x38) {
+    return "image/gif";
+  }
+  // WebP: "RIFF"...."WEBP"
+  if (
+    buf.length >= 12 &&
+    buf[0] === 0x52 &&
+    buf[1] === 0x49 &&
+    buf[2] === 0x46 &&
+    buf[3] === 0x46 &&
+    buf[8] === 0x57 &&
+    buf[9] === 0x45 &&
+    buf[10] === 0x42 &&
+    buf[11] === 0x50
+  ) {
+    return "image/webp";
+  }
+  // HEIC/HEIF: "ftypheic" / "ftypheix" / "ftypmif1" / "ftypmsf1" en offset 4..12
+  if (buf.length >= 12 && buf[4] === 0x66 && buf[5] === 0x74 && buf[6] === 0x79 && buf[7] === 0x70) {
+    const brand = buf.slice(8, 12).toString("ascii").toLowerCase();
+    if (brand === "heic" || brand === "heix" || brand === "mif1" || brand === "msf1" || brand === "heis") {
+      return "image/heic";
+    }
+  }
+  // PDF: "%PDF"
+  if (buf[0] === 0x25 && buf[1] === 0x50 && buf[2] === 0x44 && buf[3] === 0x46) {
+    return "application/pdf";
+  }
+  return null;
+}
+
+/** Fallback por extensión cuando no tenemos ni `storedMime` ni magic bytes. */
+function mimeFromExt(name) {
+  const m = String(name || "").toLowerCase().match(/\.([a-z0-9]{2,6})(?:\?|$)/);
+  if (!m) return null;
+  switch (m[1]) {
+    case "jpg":
+    case "jpeg":
+      return "image/jpeg";
+    case "png":
+      return "image/png";
+    case "webp":
+      return "image/webp";
+    case "gif":
+      return "image/gif";
+    case "heic":
+    case "heif":
+      return "image/heic";
+    case "pdf":
+      return "application/pdf";
+    case "txt":
+      return "text/plain";
+    default:
+      return null;
+  }
+}
+
 /** S3 solo si las cinco `DO_SPACES_*` están en `config` (mapeadas desde `process.env`). */
 function createSpacesClient() {
   if (getSpacesMissingEnvVars().length > 0) {
@@ -252,49 +328,78 @@ function createMongoStorage({ uri, dbName }) {
     }
 
     try {
-      let mime = String(meta.mimeType || out.ContentType || "").trim() || "application/octet-stream";
-      const orig = String(meta.originalFilename || "");
-      const keyTail = String(meta.spacesKey || "").split("/").pop() || "";
-      const pathLooksPdf = /\.pdf(\?|$)/i.test(orig) || /\.pdf(\?|$)/i.test(keyTail);
-      if (
-        pathLooksPdf &&
-        (mime === "application/octet-stream" || mime === "binary/octet-stream" || !mime.includes("/"))
-      ) {
-        mime = "application/pdf";
-      }
-      res.setHeader("Content-Type", mime);
-      res.setHeader("X-Content-Type-Options", "nosniff");
-      res.setHeader("Cache-Control", "private, max-age=300");
-      if (out.ContentLength != null) {
-        res.setHeader("Content-Length", String(out.ContentLength));
-      }
-      const safeName = String(meta.originalFilename || "file").replace(/[^\w.\-]+/g, "_").slice(0, 180);
-      res.setHeader("Content-Disposition", `inline; filename="${safeName}"`);
-
       const body = out.Body;
       if (!body) {
         console.warn("[vault proxy] empty Body for:", fileId);
         return false;
       }
-      if (typeof body.pipe === "function") {
-        body.on("error", (err) => {
-          console.warn("[vault proxy] stream error:", err?.message || err);
-          if (!res.headersSent) {
-            res.status(500).end("Stream error");
-          } else {
-            res.destroy(err);
-          }
-        });
-        body.pipe(res);
-        return true;
-      }
+
+      /**
+       * Cargamos el cuerpo a memoria para poder sniffear magic bytes y setear
+       * el `Content-Type` correcto ANTES de escribir la respuesta. Los
+       * archivos de vault son avatars y adjuntos pequeños (<15 MB), está
+       * dentro del budget aceptable de un proceso Node.
+       *
+       * iOS ExpoImage es estricto: si el `Content-Type` viene como
+       * `application/octet-stream` y además ve `X-Content-Type-Options:
+       * nosniff`, se niega a renderizar la imagen aunque los bytes sean un
+       * JPEG válido. Android es más laxo y hace sniffing por su cuenta. Por
+       * eso el mismo avatar cargaba en Android pero no en iPhone.
+       */
+      let buffer = null;
       if (typeof body.transformToByteArray === "function") {
         const bytes = await body.transformToByteArray();
-        res.end(Buffer.from(bytes));
-        return true;
+        buffer = Buffer.from(bytes);
+      } else if (typeof body.pipe === "function") {
+        buffer = await new Promise((resolve, reject) => {
+          const chunks = [];
+          body.on("data", (chunk) => chunks.push(chunk));
+          body.on("end", () => resolve(Buffer.concat(chunks)));
+          body.on("error", (err) => reject(err));
+        });
+      } else {
+        console.warn("[vault proxy] unsupported S3 Body type for:", fileId);
+        return false;
       }
-      console.warn("[vault proxy] unsupported S3 Body type for:", fileId);
-      return false;
+
+      const storedMime = String(meta.mimeType || out.ContentType || "").trim();
+      const orig = String(meta.originalFilename || "");
+      const keyTail = String(meta.spacesKey || "").split("/").pop() || "";
+
+      /** Magic-byte sniffer: cuando `storedMime` es genérico o ausente, miramos los primeros bytes. */
+      const sniffedMime = sniffMimeFromBuffer(buffer);
+      const extMime = mimeFromExt(orig) || mimeFromExt(keyTail) || null;
+
+      const isGenericStored =
+        !storedMime ||
+        storedMime === "application/octet-stream" ||
+        storedMime === "binary/octet-stream" ||
+        !storedMime.includes("/");
+
+      /**
+       * Prioridad: MIME válido almacenado > sniff por magic bytes > extensión
+       * del nombre de archivo > fallback octet-stream. Con esto, un avatar
+       * subido hace meses con MIME `application/octet-stream` queda
+       * correctamente etiquetado como `image/jpeg` si el cuerpo lo es.
+       */
+      const finalMime = !isGenericStored
+        ? storedMime
+        : sniffedMime || extMime || storedMime || "application/octet-stream";
+
+      res.setHeader("Content-Type", finalMime);
+      /**
+       * No usamos `X-Content-Type-Options: nosniff` a propósito. Ya sniffeamos
+       * nosotros (arriba) y seteamos el MIME correcto; dejar a iOS/Android
+       * hacer su propio sniffing de respaldo no introduce riesgo adicional
+       * porque el contenido proviene exclusivamente de nuestro bucket privado.
+       */
+      res.setHeader("Cache-Control", "private, max-age=300");
+      res.setHeader("Content-Length", String(buffer.length));
+      const safeName = String(meta.originalFilename || "file").replace(/[^\w.\-]+/g, "_").slice(0, 180);
+      res.setHeader("Content-Disposition", `inline; filename="${safeName}"`);
+
+      res.end(buffer);
+      return true;
     } catch (e) {
       const code = e?.name || e?.Code || e?.code || "";
       console.warn("[vault proxy] respuesta GetObject OK pero fallo al escribir al cliente:", fileId, code, e?.message || e);

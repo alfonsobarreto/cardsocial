@@ -239,11 +239,6 @@ export default function RegisterScreen() {
 
   const isRetryLocked = retryLockedUntil !== null && retryLockedUntil > Date.now();
 
-  const loadFaceDetectorModule = () => {
-    // DISABLED (A4): Always return null. Backend Azure Content Safety is the single truth.
-    return null;
-  };
-
   useEffect(() => {
     if (!retryLockedUntil) {
       setRetryCountdownSec(0);
@@ -402,7 +397,7 @@ export default function RegisterScreen() {
   const registerModerationReject = () => {
     const attempts = rejectionAttempts + 1;
     if (attempts >= 3) {
-      setRetryLockedUntil(Date.now() + 5 * 60 * 1000);
+      setRetryLockedUntil(Date.now() + 2 * 60 * 1000);
       setRejectionAttempts(0);
       setModerationAlertMessage(retryLockMessage);
       setModerationAlertVisible(true);
@@ -546,46 +541,19 @@ export default function RegisterScreen() {
     }
   };
 
-  const hasClearlyVisibleFace = async (uri: string, imageWidth?: number, imageHeight?: number) => {
-    try {
-      const FaceDetector = loadFaceDetectorModule();
-      // Triple-guard: if null, if no method, or if anything fails -> fallback to Azure
-      if (!FaceDetector) {
-        console.log('FaceDetector unavailable (expected in Expo Go). Relying on backend Azure moderation.');
-        return true;
-      }
-      if (typeof FaceDetector.detectFacesAsync !== 'function') {
-        console.log('detectFacesAsync not available. Relying on backend Azure moderation.');
-        return true;
-      }
-
-      const detection = await FaceDetector.detectFacesAsync(uri, {
-        mode: FaceDetector.FaceDetectorMode.fast,
-        detectLandmarks: FaceDetector.FaceDetectorLandmarks.none,
-        runClassifications: FaceDetector.FaceDetectorClassifications.none,
-      });
-
-      const faces = detection?.faces || [];
-      if (faces.length === 0) {
-        return false;
-      }
-
-      if (!imageWidth || !imageHeight) {
-        return true;
-      }
-
-      const imageArea = imageWidth * imageHeight;
-      return faces.some((face: any) => {
-        const faceWidth = Number(face.bounds?.size?.width || 0);
-        const faceHeight = Number(face.bounds?.size?.height || 0);
-        const faceArea = faceWidth * faceHeight;
-        return faceArea / imageArea >= 0.08;
-      });
-    } catch (error) {
-      console.warn('Local face detection threw error (expected):', String(error).slice(0, 50));
-      // Always fallback to Azure backend moderation
-      return true;
-    }
+  const hasClearlyVisibleFace = async (
+    _uri: string,
+    _imageWidth?: number,
+    _imageHeight?: number,
+  ): Promise<boolean> => {
+    /**
+     * Local FaceDetector is disabled (A4): Azure Content Safety (backend) is
+     * the single source of truth for face-presence + moderation. This helper
+     * always returns `true` so the flow proceeds to the backend check; the
+     * previous implementation tried to load `expo-face-detector` dynamically
+     * but the module was always `null`, producing dead code and TS errors.
+     */
+    return true;
   };
 
   const cancelAndroidPhotoPending = () => {

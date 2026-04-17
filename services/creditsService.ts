@@ -334,50 +334,15 @@ export async function createDefaultCards(userId: string): Promise<void> {
 }
 
 /**
- * Inicializa 3 datos por defecto en Vault: Teléfono, Email, Red Social
- * Free users máximo 10 datos en Vault
+ * DEPRECATED: Antes sembraba 3 docs en `users/{uid}/vault` (phone/email/social)
+ * con `inputData: ''`. Eran los "3 items fantasma vacíos" que aparecían en
+ * Firebase sin que el usuario hubiera escrito nada. La bóveda real vive en
+ * `users/{uid}/links` (que pronto migrará a Mongo `vault_slots`); sembrar
+ * placeholders vacíos en otra colección sólo contaminaba la consola.
+ *
+ * La función se conserva como no-op para mantener la firma de `register.tsx`
+ * sin cambios; cuando se migre el vault a Mongo podrá eliminarse del todo.
  */
 export async function createDefaultVaultData(userId: string): Promise<void> {
-  try {
-    const vaultRef = collection(db, `users/${userId}/vault`);
-
-    const defaultVaultData = [
-      {
-        type: 'phone',
-        nameOfData: 'Teléfono',
-        inputData: '', // Usuario lo completa
-        icon: 'phone', // MaterialCommunityIcons
-        isFavorite: false,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      },
-      {
-        type: 'email',
-        nameOfData: 'Email',
-        inputData: '', // Usuario lo completa
-        icon: 'email', // MaterialCommunityIcons
-        isFavorite: false,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      },
-      {
-        type: 'social',
-        nameOfData: 'Red Social',
-        inputData: '', // Usuario lo completa
-        icon: 'share-social', // MaterialCommunityIcons
-        isFavorite: false,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      },
-    ];
-
-    // Crear los 3 datos por defecto
-    for (const data of defaultVaultData) {
-      await addDoc(vaultRef, data);
-    }
-
-    console.log(`✅ Default vault data created for user ${userId}`);
-  } catch (error) {
-    console.error('Error creating default vault data:', error);
-  }
+  console.log('[creditsService] createDefaultVaultData is a no-op (vault seed removed) for', userId);
 }

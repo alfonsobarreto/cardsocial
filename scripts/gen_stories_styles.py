@@ -77,7 +77,7 @@ out = re.sub(r"'rgba\(255,255,255,[^']+\)'", "shell.surfaceMuted", out)
 out = re.sub(r"'rgba\(10,37,64,[^']+\)'", "shell.overlayScrim", out)
 
 header = """import { StyleSheet } from \"react-native\";
-import type { AppShellTheme } from \"../theme\";
+import type { AppShellTheme } from \"../app/theme\";
 
 export function makeStoriesStyles(shell: AppShellTheme) {
   return StyleSheet.create("""

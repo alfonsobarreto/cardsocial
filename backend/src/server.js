@@ -8,6 +8,9 @@ const { createMongoStorage } = require("./services/mongoStorage");
 const { createModerationRoutes } = require("./routes/moderationRoutes");
 const { createVaultFileProxyRoutes } = require("./routes/vaultFileProxyRoutes");
 const { createQrRoutes } = require("./routes/qrRoutes");
+const { createBusinessCardsRoutes } = require("./routes/businessCardsRoutes");
+const { createBusinessLicensesRoutes } = require("./routes/businessLicensesRoutes");
+const { createSmartCardsRoutes } = require("./routes/smartCardsRoutes");
 const { createPublicUniversalRoutes } = require("./routes/publicUniversalRoutes");
 const { createUniversalEntryHttpRoutes } = require("./routes/universalEntryHttpRoutes");
 const revenueCatRoutes = require("./routes/revenueCatRoutes");
@@ -404,25 +407,84 @@ const otpHash = (emailLower, code) => {
 
   app.use("/api/public", createPublicUniversalRoutes({ storage }));
 
-  // Next.js frontend-web: proxy /u/:token and /_next/* to Next.js standalone server
-  const nextWebDir = require('path').join(__dirname, '..', 'frontend-web');
+  // Next.js frontend-web: proxy /u/:token y /_next/* al servidor Next (puerto NEXT_PORT).
+  // En monorepo la app real suele estar en `repo/frontend-web`; `backend/frontend-web` a veces es solo stub de deploy.
+  const pathMod = require('path');
   const fs = require('fs');
+  const resolveNextWebDir = () => {
+    const candidates = [
+      pathMod.join(__dirname, '..', '..', 'frontend-web'),
+      pathMod.join(__dirname, '..', 'frontend-web'),
+    ];
+    const hasRoutes = (dir) =>
+      fs.existsSync(dir) &&
+      (fs.existsSync(pathMod.join(dir, 'app')) || fs.existsSync(pathMod.join(dir, 'pages')));
+    for (const dir of candidates) {
+      if (hasRoutes(dir)) return dir;
+    }
+    return candidates.find((d) => fs.existsSync(d)) ?? candidates[1];
+  };
+  const nextWebDir = resolveNextWebDir();
   if (fs.existsSync(nextWebDir)) {
     const { spawn } = require('child_process');
     const NEXT_PORT = 3001;
-    const nextServer = spawn('node', ['server.js'], {
-      cwd: nextWebDir,
-      env: {
-        ...process.env,
-        PORT: String(NEXT_PORT),
-        HOSTNAME: '127.0.0.1',
-        // Next.js llama directo al backend Express en localhost para evitar loop de proxy
-        INTERNAL_API_URL: `http://127.0.0.1:${env.port}`,
-      },
-      stdio: 'inherit',
-    });
-    nextServer.on('error', (e) => console.warn('[next-web] spawn error:', e.message));
-    process.on('exit', () => nextServer.kill());
+    const nextEnv = {
+      ...process.env,
+      PORT: String(NEXT_PORT),
+      HOSTNAME: '127.0.0.1',
+      // Next.js llama directo al backend Express en localhost para evitar loop de proxy
+      INTERNAL_API_URL: `http://127.0.0.1:${env.port}`,
+    };
+    // Producción: servidor empaquetado `server.js` (copia standalone) o `next start` si solo hay build en .next.
+    // Desarrollo: `next dev` (no requiere build previo).
+    const nextBuildDir = pathMod.join(nextWebDir, '.next');
+    const useStandaloneNext =
+      process.env.NODE_ENV === 'production' && fs.existsSync(nextBuildDir);
+
+    let nextServer = null;
+    if (useStandaloneNext) {
+      const standaloneLauncher = pathMod.join(nextWebDir, 'server.js');
+      if (fs.existsSync(standaloneLauncher)) {
+        nextServer = spawn('node', ['server.js'], {
+          cwd: nextWebDir,
+          env: nextEnv,
+          stdio: 'inherit',
+        });
+      } else {
+        const nextBin = pathMod.join(nextWebDir, 'node_modules', 'next', 'dist', 'bin', 'next');
+        if (fs.existsSync(nextBin)) {
+          nextServer = spawn(process.execPath, [nextBin, 'start', '-p', String(NEXT_PORT)], {
+            cwd: nextWebDir,
+            env: { ...nextEnv, NODE_ENV: 'production' },
+            stdio: 'inherit',
+          });
+        } else {
+          console.warn('[next-web] Producción: falta `server.js` o el paquete `next` en node_modules.');
+        }
+      }
+    } else if (process.env.NODE_ENV === 'production') {
+      console.warn(
+        '[next-web] NODE_ENV=production pero falta `frontend-web/.next`. Ejecuta `npm run build` en la carpeta `frontend-web` del repo.',
+      );
+    } else {
+      // Desarrollo: `next dev` vía `node` + CLI local (evita `shell: true`, DEP0190, y "next no reconocido" si falta PATH).
+      const nextBin = pathMod.join(nextWebDir, 'node_modules', 'next', 'dist', 'bin', 'next');
+      if (fs.existsSync(nextBin)) {
+        nextServer = spawn(process.execPath, [nextBin, 'dev', '-p', String(NEXT_PORT)], {
+          cwd: nextWebDir,
+          env: nextEnv,
+          stdio: 'inherit',
+        });
+      } else {
+        console.warn(
+          '[next-web] No está instalado Next. Ejecuta `npm install` en la carpeta `frontend-web` del repositorio.',
+        );
+      }
+    }
+    if (nextServer) {
+      nextServer.on('error', (e) => console.warn('[next-web] spawn error:', e.message));
+      process.on('exit', () => nextServer.kill());
+    }
 
     const http = require('http');
     /**
@@ -480,6 +542,30 @@ const otpHash = (emailLower, code) => {
   app.use("/api/qr", gatewayKeyMiddleware, jwtAuthMiddleware, qrScopeMiddleware, createQrRoutes({
     storage,
   }));
+
+  app.use(
+    "/api/business-cards",
+    gatewayKeyMiddleware,
+    jwtAuthMiddleware,
+    qrScopeMiddleware,
+    createBusinessCardsRoutes({ storage }),
+  );
+
+  app.use(
+    "/api/smart-cards",
+    gatewayKeyMiddleware,
+    jwtAuthMiddleware,
+    qrScopeMiddleware,
+    createSmartCardsRoutes({ storage }),
+  );
+
+  app.use(
+    "/api/business-card-licenses",
+    gatewayKeyMiddleware,
+    jwtAuthMiddleware,
+    qrScopeMiddleware,
+    createBusinessLicensesRoutes({ storage }),
+  );
 
   // RevenueCat webhook routes (no auth middleware - validates API key internally)
   app.use("/api/revenueCat", revenueCatRoutes);

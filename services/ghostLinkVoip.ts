@@ -33,13 +33,27 @@ export type GhostLinkCardContext = {
   sourceCardDisplayName?: string | null;
 };
 
-/** Datos de la tarjeta compartida (el puente entre caller y receptor). */
+/**
+ * Datos de la tarjeta compartida (el puente entre caller y receptor).
+ *
+ * Reglas por `cardType`:
+ * - `personal` (Smart Card): se usan `cardName` y `cardPhoto`. Los 3 campos `bc*` quedan `null`.
+ * - `business` (Business Card): se usan EXCLUSIVAMENTE `bcLogoUrl`, `bcName`, `bcContactName`
+ *   (mismos 3 nombres con los que se crea y guarda en Firestore `businessCards/{bId}`).
+ *   `cardName` y `cardPhoto` NO los lee la UI para Business; quedan sólo como eco genérico.
+ */
 export type GhostLinkSharedCard = {
   sid: string | null;
   bId: string | null;
   cardName: string;
   cardPhoto: string | null;
   cardType: 'business' | 'personal';
+  /** Business only: logo del negocio (= `businessCards.bcLogoUrl`, = `item.bcLogoUrl` en Calls). */
+  bcLogoUrl?: string | null;
+  /** Business only: nombre comercial (= `businessCards.bcName`, = `item.bcName` en Calls). */
+  bcName?: string | null;
+  /** Business only: contacto en la tarjeta (= `businessCards.bcContactName`, = `item.bcContactName` en Calls). */
+  bcContactName?: string | null;
 };
 
 export type GhostLinkCallType = 'audio' | 'video';

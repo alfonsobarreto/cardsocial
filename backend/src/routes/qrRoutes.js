@@ -19,6 +19,7 @@ const { pickFirstNonGeneric, isGenericUserLabel } = require('../lib/resolvePubli
 const { readSmartCardScName } = require('../lib/smartCardScName');
 const { clientLocaleIsSpanish } = require('../lib/httpRequestLocale');
 const { parseAndValidateTemporaryAccess } = require('../lib/temporaryAccessToken');
+const { composeIssuerSnapshot } = require('../lib/issuerSnapshot');
 const { env } = require('../config');
 
 function normalizeString(value, fallback = null) {
@@ -1582,6 +1583,9 @@ function createQrRoutes({ storage }) {
           cardType: card.cardType === 'business' ? 'business' : 'smart',
           searchFacets: sanitizeSearchFacets(card.searchFacets),
           publicCardSlots: sanitizePublicCardSlots(card.publicCardSlots),
+          ...(card.issuerSnapshot && typeof card.issuerSnapshot === 'object'
+            ? { issuerSnapshot: card.issuerSnapshot }
+            : {}),
           createdAt: card.createdAt ? new Date(card.createdAt).toISOString() : new Date().toISOString(),
           updatedAt: card.updatedAt ? new Date(card.updatedAt).toISOString() : new Date().toISOString(),
         };
@@ -1614,6 +1618,18 @@ function createQrRoutes({ storage }) {
       const sid = cardType === 'business' ? null : cardRef;
       const bId = cardType === 'business' ? cardRef : null;
 
+      const filter = cardType === 'business' ? { uid: userUid, bId: cardRef } : { uid: userUid, sid: cardRef };
+
+      const itemIdsArr = Array.isArray(req.body?.itemIds) ? req.body.itemIds.map((id) => String(id)) : [];
+
+      let sanitizedSlotsForSnapshot = [];
+      if (req.body != null && 'publicCardSlots' in req.body) {
+        sanitizedSlotsForSnapshot = sanitizePublicCardSlots(req.body.publicCardSlots);
+      } else {
+        const existingSlotsDoc = await db.collection('smart_cards').findOne(filter, { projection: { publicCardSlots: 1 } });
+        sanitizedSlotsForSnapshot = sanitizePublicCardSlots(existingSlotsDoc?.publicCardSlots || []);
+      }
+
       const setDoc = {
         uid: userUid,
         sid,
@@ -1631,7 +1647,7 @@ function createQrRoutes({ storage }) {
         wallpaperPriceCredits: Number(req.body?.wallpaperPriceCredits || 0),
         enableParallax: Boolean(req.body?.enableParallax),
         isFavorite: Boolean(req.body?.isFavorite),
-        itemIds: Array.isArray(req.body?.itemIds) ? req.body.itemIds.map((id) => String(id)) : [],
+        itemIds: itemIdsArr,
         holdersCount: Number(req.body?.holdersCount || 0),
         ratingAvg: Number(req.body?.ratingAvg || 5),
         ownerDisplayName: req.body?.ownerDisplayName ? String(req.body.ownerDisplayName).trim().slice(0, 240) : null,
@@ -1652,10 +1668,11 @@ function createQrRoutes({ storage }) {
       }
       // Incluir si el cliente envía la clave (incl. array vacío). `in` evita fallos raros con hasOwnProperty en body parseado.
       if (req.body != null && 'publicCardSlots' in req.body) {
-        setDoc.publicCardSlots = sanitizePublicCardSlots(req.body.publicCardSlots);
+        setDoc.publicCardSlots = sanitizedSlotsForSnapshot;
       }
 
-      const filter = cardType === 'business' ? { uid: userUid, bId: cardRef } : { uid: userUid, sid: cardRef };
+      const issuerProfile = await resolveUserProfileExtended(db, userUid);
+      setDoc.issuerSnapshot = composeIssuerSnapshot(userUid, issuerProfile, sanitizedSlotsForSnapshot, itemIdsArr);
 
       await db.collection('smart_cards').findOneAndUpdate(
         filter,
@@ -3030,6 +3047,7 @@ function createQrRoutes({ storage }) {
    * Historial de llamadas: lee `call_logs` y enriquece con perfil + `smart_cards`.
    * - `isBusinessCard`: tarjeta emisora guardada en el log (Ghost-Link).
    * - `displayCardIsBusiness`: tipo del título mostrado en la app (entrante = tu tarjeta; saliente = la tuya desde la que llamaste).
+   * Saliente UI: imagen = logo negocio (solo logo) o avatar del emisor (sid); título = scName de esa tarjeta; subtítulo negocio = ownerDisplayName, smart = nombre del receptor.
    * Si una fila falla al enriquecer, se devuelve una entrada mínima para no vaciar la lista.
    */
   router.get('/calls/history', async (req, res) => {
@@ -3065,6 +3083,7 @@ function createQrRoutes({ storage }) {
           voiceNoteName: 1,
           callType: 1,
           isBusinessCard: 1,
+          emitterCardPhotoUrl: 1,
           createdAt: 1,
           updatedAt: 1,
         })
@@ -3106,6 +3125,7 @@ function createQrRoutes({ storage }) {
           displayCardName: String(row.sourceCardName || 'Tarjeta Social').trim(),
           isBusinessCard: isBiz,
           displayCardIsBusiness: isBiz,
+          emitterCardContactName: null,
           peerFullName: 'Usuario',
           peerPersonalName: 'Usuario',
           userAvatarUrl: null,
@@ -3123,6 +3143,58 @@ function createQrRoutes({ storage }) {
           voiceNoteName: row.voiceNoteName ? String(row.voiceNoteName) : null,
           createdAt: row.createdAt ? new Date(row.createdAt).toISOString() : new Date().toISOString(),
           updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : new Date().toISOString(),
+          display: {
+            cardType: isBiz ? 'business' : 'smart',
+            key: normalizeString(row.sourceBId, null) || normalizeString(row.sourceSid, null) || '',
+            ownerUid: peerUidF,
+            displayTitle: String(row.sourceCardName || 'Tarjeta Social').trim(),
+            displayPhoto: null,
+            displaySubtitle: null,
+          },
+        };
+      }
+
+      /**
+       * Contrato `CallDisplayCard` (ver `services/callDisplayCard.ts`).
+       *
+       * Regla única:
+       *   Business → avatar = bcLogoUrl (aquí: userAvatarUrl ya resuelto en
+       *              modo business), title = bcName (scName), subtitle = bcContactName.
+       *   Smart    → avatar = userAvatarUrl, title = userFullName, subtitle = null.
+       *
+       * El frontend (`calls.tsx`, VoIP overlay) consume estos 3 campos sin
+       * ramificar por cardType ni leer `bc*` directamente.
+       */
+      function buildDisplayForHistoryRow({
+        uiIsBusiness,
+        sourceBIdNorm,
+        sourceSidNorm,
+        peerUid,
+        displayCardName,
+        userAvatarUrl,
+        emitterCardContactName,
+        peerFullName,
+      }) {
+        const title = String(displayCardName || '').trim();
+        const photo = String(userAvatarUrl || '').trim() || null;
+        if (uiIsBusiness) {
+          const subtitle = String(emitterCardContactName || peerFullName || '').trim() || null;
+          return {
+            cardType: 'business',
+            key: sourceBIdNorm || sourceSidNorm || '',
+            ownerUid: String(peerUid || '').trim(),
+            displayTitle: title,
+            displayPhoto: photo,
+            displaySubtitle: subtitle,
+          };
+        }
+        return {
+          cardType: 'smart',
+          key: sourceSidNorm || sourceBIdNorm || '',
+          ownerUid: String(peerUid || '').trim(),
+          displayTitle: String(peerFullName || title || '').trim(),
+          displayPhoto: photo,
+          displaySubtitle: null,
         };
       }
 
@@ -3142,7 +3214,15 @@ function createQrRoutes({ storage }) {
           if (bridgeKey && cardEmitterUid) {
             sourceCard = await db.collection('smart_cards').findOne(
               smartCardKeyQuery(cardEmitterUid, bridgeKey),
-              { projection: { scName: 1, ownerDisplayName: 1, ownerPhotoUrl: 1, cardType: 1 } },
+              {
+                projection: {
+                  scName: 1,
+                  ownerDisplayName: 1,
+                  ownerPhotoUrl: 1,
+                  userAvatarUrl: 1,
+                  cardType: 1,
+                },
+              },
             );
           }
           let emitterIsBusiness = row.isBusinessCard === true || row.isBusinessCard === 'true';
@@ -3150,35 +3230,71 @@ function createQrRoutes({ storage }) {
             emitterIsBusiness = String(sourceCard.cardType || '').toLowerCase() === 'business';
           }
 
-          const profile = await resolveUserProfileExtended(db, peerUid);
+          const peerProfile = await resolveUserProfileExtended(db, peerUid);
+          /** Prioridad estricta (sin filtros): userFullName -> fullName -> name. */
           let profileFullName =
-            pickFirstNonGeneric(profile.fullName, profile.name) ||
-            String(profile.name || '').trim() ||
-            '';
-          const userAvatarUrl = String(profile.userAvatarUrl || '').trim() || null;
+            String(peerProfile.userFullName || peerProfile.fullName || peerProfile.name || '').trim();
+
+          /** Avatar en lista: entrante/missed → peer; saliente → negocio: solo logo (bcLogoUrl); smart: perfiles vía userAvatarUrl. */
+          let userAvatarUrl = String(peerProfile.userAvatarUrl || '').trim() || null;
+          if (direction === 'outgoing') {
+            const emitterProfile = await resolveUserProfileExtended(db, logViewerUid);
+            const cardPhotoRaw = sourceCard
+              ? String(sourceCard.userAvatarUrl || sourceCard.ownerPhotoUrl || '').trim()
+              : '';
+            const cardPhoto = cardPhotoRaw || null;
+            const snapEmitter = String(row.emitterCardPhotoUrl || '').trim() || null;
+            const peerAv = String(peerProfile.userAvatarUrl || '').trim() || null;
+            if (emitterIsBusiness) {
+              userAvatarUrl = cardPhoto || snapEmitter || null;
+            } else {
+              /**
+               * Smart saliente: foto tarjeta (`userAvatarUrl` | `ownerPhotoUrl`) → log → perfil receptor → perfil emisor.
+               */
+              const fromProfile = String(emitterProfile.userAvatarUrl || '').trim() || null;
+              userAvatarUrl = cardPhoto || snapEmitter || peerAv || fromProfile || null;
+            }
+          } else if (incomingLike && sourceCard) {
+            const cardPhoto = String(sourceCard.userAvatarUrl || sourceCard.ownerPhotoUrl || '').trim();
+            if (emitterIsBusiness) {
+              userAvatarUrl = cardPhoto || userAvatarUrl;
+            } else if (cardPhoto) {
+              userAvatarUrl = cardPhoto || userAvatarUrl;
+            }
+          }
+
+          if (!userAvatarUrl && peerUid) {
+            const peerCard = await db.collection('smart_cards').findOne(
+              { uid: peerUid },
+              { projection: { userAvatarUrl: 1, ownerPhotoUrl: 1 } },
+            );
+            if (peerCard) {
+              userAvatarUrl =
+                String(peerCard.userAvatarUrl || peerCard.ownerPhotoUrl || userAvatarUrl || '').trim() || null;
+            }
+          }
 
           /** Misma identidad “primaria” que fetchPersonalCardIdentityDoc (smart antes que business). */
           let peerPrimaryDoc = null;
           if (!emitterIsBusiness && peerUid) {
             peerPrimaryDoc = await fetchPersonalCardIdentityDoc(db, peerUid);
-            if (peerPrimaryDoc) {
+            if (peerPrimaryDoc && !profileFullName) {
               const fromCard = String(peerPrimaryDoc.ownerDisplayName || '').trim();
-              if (
-                fromCard &&
-                (!profileFullName ||
-                  isGenericUserLabel(profileFullName) ||
-                  profileFullName === 'Usuario')
-              ) {
-                profileFullName = pickFirstNonGeneric(fromCard, profileFullName) || fromCard;
+              if (fromCard) {
+                profileFullName = fromCard;
               }
             }
           }
 
-          if (!profileFullName) {
-            profileFullName = 'Usuario';
+          /** Último intento: `sourceCard.ownerDisplayName` si aún no hay nombre real. */
+          if (!profileFullName && sourceCard) {
+            const fromSource = String(sourceCard.ownerDisplayName || '').trim();
+            if (fromSource) {
+              profileFullName = fromSource;
+            }
           }
 
-          const peerPersonalName = profileFullName;
+          const peerPersonalName = profileFullName || 'Usuario';
 
           let localViewerCard = null;
           if (incomingLike && logViewerUid) {
@@ -3205,13 +3321,22 @@ function createQrRoutes({ storage }) {
             }
             uiIsBusiness = String(localViewerCard.cardType || '').toLowerCase() === 'business';
           } else if (!incomingLike && sourceCard) {
-            displayCardName = readSmartCardScName(sourceCard) || displayCardName;
             uiIsBusiness = String(sourceCard.cardType || '').toLowerCase() === 'business';
+            displayCardName = readSmartCardScName(sourceCard) || displayCardName;
+          } else if (!incomingLike && !sourceCard) {
+            uiIsBusiness = emitterIsBusiness;
           }
 
-          let peerFullName = peerPersonalName;
+          /** Saliente + tarjeta negocio: subtítulo = contacto en tarjeta (Mongo ownerDisplayName ≈ bcContactName). */
+          let emitterCardContactName = null;
+          if (!incomingLike && uiIsBusiness && sourceCard) {
+            const ec = String(sourceCard.ownerDisplayName || '').trim();
+            emitterCardContactName = ec || null;
+          }
+
+          let peerFullName = profileFullName;
           if (incomingLike) {
-            peerFullName = peerPersonalName;
+            peerFullName = profileFullName;
           } else {
             /**
              * Saliente: una sola fuente (`fetchPersonalCardIdentityDoc`) decide smart vs business.
@@ -3223,13 +3348,27 @@ function createQrRoutes({ storage }) {
               peerPrimary && String(peerPrimary.cardType || '').toLowerCase() === 'business';
             if (primaryIsBusiness) {
               const pub = String(peerPrimary.ownerDisplayName || '').trim();
-              peerFullName = pub || peerPersonalName;
+              peerFullName = pub || profileFullName;
             } else {
-              peerFullName = peerPersonalName;
+              peerFullName = profileFullName;
             }
           }
 
           const callType = String(row.callType || '').trim() === 'video' ? 'video' : 'audio';
+
+          const sourceSidNorm = normalizeString(row.sourceSid, null);
+          const sourceBIdNorm = normalizeString(row.sourceBId, null);
+
+          const display = buildDisplayForHistoryRow({
+            uiIsBusiness,
+            sourceBIdNorm,
+            sourceSidNorm,
+            peerUid,
+            displayCardName,
+            userAvatarUrl,
+            emitterCardContactName,
+            peerFullName,
+          });
 
           history.push({
             callId: String(row.callId || ''),
@@ -3237,12 +3376,13 @@ function createQrRoutes({ storage }) {
             displayCardName,
             isBusinessCard: emitterIsBusiness,
             displayCardIsBusiness: uiIsBusiness,
+            emitterCardContactName,
             peerFullName,
             peerPersonalName,
             userAvatarUrl,
             sourceCardName: String(row.sourceCardName || 'Tarjeta Social'),
-            sourceSid: normalizeString(row.sourceSid, null),
-            sourceBId: normalizeString(row.sourceBId, null),
+            sourceSid: sourceSidNorm,
+            sourceBId: sourceBIdNorm,
             callChannel: 'ghost-link-voip',
             callType,
             storyState: storyByOwner.get(peerUid) || 'none',
@@ -3254,6 +3394,7 @@ function createQrRoutes({ storage }) {
             voiceNoteName: row.voiceNoteName ? String(row.voiceNoteName) : null,
             createdAt: row.createdAt ? new Date(row.createdAt).toISOString() : new Date().toISOString(),
             updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : new Date().toISOString(),
+            display,
           });
         } catch (rowErr) {
           console.warn('[calls/history] row enrich failed', String(row?.callId || ''), rowErr?.message || rowErr);
@@ -3291,6 +3432,9 @@ function createQrRoutes({ storage }) {
         ? String(req.body.callType).trim()
         : 'audio';
       const isBusinessCard = req.body?.isBusinessCard === true || req.body?.isBusinessCard === 'true';
+      const emitterCardPhotoUrl = req.body?.emitterCardPhotoUrl
+        ? String(req.body.emitterCardPhotoUrl).trim()
+        : null;
 
       if (!userUid || !peerUid) {
         return res.status(400).json({ ok: false, error: 'uid and peerUid are required' });
@@ -3325,6 +3469,7 @@ function createQrRoutes({ storage }) {
         callChannel,
         callType,
         isBusinessCard,
+        emitterCardPhotoUrl: emitterCardPhotoUrl || null,
         createdAt: now,
         updatedAt: now,
       });

@@ -19,35 +19,14 @@ async function ensureCollection(db, name, validator) {
 }
 
 async function ensureMongoHardening(db) {
-  const cardsValidator = {
-    $jsonSchema: {
-      bsonType: 'object',
-      required: ['uid', 'name', 'layout', 'version', 'isActive', 'items', 'createdAt', 'updatedAt'],
-      properties: {
-        uid: { bsonType: 'string', minLength: 3 },
-        name: { bsonType: 'string', minLength: 1, maxLength: 120 },
-        layout: { enum: ['vertical', 'horizontal'] },
-        version: { bsonType: 'int', minimum: 1 },
-        isActive: { bsonType: 'bool' },
-        items: {
-          bsonType: 'array',
-          maxItems: 16,
-          items: {
-            bsonType: 'object',
-            required: ['vaultDataId', 'label'],
-            properties: {
-              vaultDataId: { bsonType: 'string', minLength: 6 },
-              label: { bsonType: 'string', minLength: 1, maxLength: 60 },
-              order: { bsonType: ['int', 'null'] },
-              isVisible: { bsonType: ['bool', 'null'] },
-            },
-          },
-        },
-        createdAt: { bsonType: 'date' },
-        updatedAt: { bsonType: 'date' },
-      },
-    },
-  };
+  /**
+   * NOTA: El validator antiguo `cards` (que exigía `name`, `version`, `items`)
+   * se eliminó porque quedó huérfano tras la migración a `smart_cards` /
+   * `business_cards`. Nadie escribe a `cards` y mantener su validator provocaba
+   * confusión. Dejamos la colección sin validator estricto para no romper docs
+   * actuales (scName, itemIds, publicCardSlots, etc.); el shape se valida en la
+   * capa de rutas (`qrRoutes.js` y `smartCardsRoutes.js`).
+   */
 
   const qrTokensValidator = {
     $jsonSchema: {
@@ -244,6 +223,26 @@ async function ensureMongoHardening(db) {
     },
   };
 
+  const businessCardLicensesValidator = {
+    $jsonSchema: {
+      bsonType: 'object',
+      required: ['uid', 'bId', 'annualPriceUsd', 'isActive', 'expiresAt', 'updatedAt'],
+      properties: {
+        uid: { bsonType: 'string', minLength: 3 },
+        bId: { bsonType: 'string', minLength: 3 },
+        annualPriceUsd: { bsonType: ['double', 'int', 'long'], minimum: 0 },
+        startedAt: { bsonType: ['date', 'null'] },
+        expiresAt: { bsonType: 'date' },
+        isActive: { bsonType: 'bool' },
+        purchaseId: { bsonType: ['string', 'null'], maxLength: 240 },
+        platform: { enum: ['ios', 'android', null] },
+        cashbackCreditsGranted: { bsonType: ['double', 'int', 'long'], minimum: 0 },
+        createdAt: { bsonType: ['date', 'null'] },
+        updatedAt: { bsonType: 'date' },
+      },
+    },
+  };
+
   const emailOtpsValidator = {
     $jsonSchema: {
       bsonType: 'object',
@@ -263,7 +262,6 @@ async function ensureMongoHardening(db) {
     },
   };
 
-  await ensureCollection(db, 'cards', cardsValidator);
   await ensureCollection(db, 'qr_tokens', qrTokensValidator);
   await ensureCollection(db, 'share_permissions', sharePermissionsValidator);
   await ensureCollection(db, 'blocked_relations', blockedRelationsValidator);
@@ -275,9 +273,28 @@ async function ensureMongoHardening(db) {
   await ensureCollection(db, 'email_otps', emailOtpsValidator);
   await ensureCollection(db, 'temporary_access', temporaryAccessValidator);
   await ensureCollection(db, 'bunker_groups', bunkerGroupsValidator);
+  await ensureCollection(db, 'business_card_licenses', businessCardLicensesValidator);
 
-  await db.collection('cards').createIndex({ uid: 1, isActive: 1, updatedAt: -1 }, { name: 'idx_cards_uid_active_updated' });
-  await db.collection('cards').createIndex({ uid: 1, version: -1 }, { name: 'idx_cards_uid_version' });
+  /**
+   * Índices autoritativos para `smart_cards` y `business_cards` (antes no se
+   * hardenizaban). `uq_smart_cards_uid_sid`/`uq_business_cards_uid_bid`
+   * garantizan idempotencia del upsert PUT `/api/qr/cards/:cardRef`.
+   */
+  await db.collection('smart_cards').createIndex(
+    { uid: 1, sid: 1 },
+    { unique: true, partialFilterExpression: { sid: { $type: 'string' } }, name: 'uq_smart_cards_uid_sid' },
+  );
+  await db.collection('smart_cards').createIndex(
+    { uid: 1, bId: 1 },
+    { unique: true, partialFilterExpression: { bId: { $type: 'string' } }, name: 'uq_smart_cards_uid_bid' },
+  );
+  await db.collection('smart_cards').createIndex({ uid: 1, updatedAt: -1 }, { name: 'idx_smart_cards_uid_updated' });
+
+  await db.collection('business_cards').createIndex(
+    { uid: 1, bId: 1 },
+    { unique: true, partialFilterExpression: { bId: { $type: 'string' } }, name: 'uq_business_cards_uid_bid' },
+  );
+  await db.collection('business_cards').createIndex({ uid: 1, updatedAt: -1 }, { name: 'idx_business_cards_uid_updated' });
 
   await db.collection('qr_tokens').createIndex({ token: 1 }, { unique: true, name: 'uq_qr_token' });
   await db.collection('qr_tokens').createIndex({ uid: 1, status: 1, expiresAt: 1 }, { name: 'idx_qr_uid_status_exp' });
@@ -323,6 +340,15 @@ async function ensureMongoHardening(db) {
   await db.collection('bunker_groups').createIndex(
     { viewerUid: 1, groupName: 1 },
     { unique: true, name: 'uq_bunker_groups_viewer_name' },
+  );
+
+  await db.collection('business_card_licenses').createIndex(
+    { uid: 1, bId: 1 },
+    { unique: true, name: 'uq_bcl_uid_bid' },
+  );
+  await db.collection('business_card_licenses').createIndex(
+    { uid: 1, expiresAt: 1 },
+    { name: 'idx_bcl_uid_expires' },
   );
 }
 

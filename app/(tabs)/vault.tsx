@@ -11,6 +11,7 @@ import { db } from '@/services/firebaseConfig';
 import { readUserFullName, readUserNickName } from '@/services/userIdentityFields';
 import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
 import { useLanguage } from '@/services/language';
+import { listBusinessLicenses } from '@/services/businessLicenseService';
 import { validateVaultItemCreation } from '@/services/limitService';
 import { useLookMode } from '@/services/lookMode';
 import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
@@ -213,12 +214,16 @@ const VaultScreen = () => {
         return false;
       }
 
-      const licensesSnapshot = await getDocs(collection(db, 'users', userId, 'business_card_licenses'));
-      const hasExpiredLicense = licensesSnapshot.docs.some((licenseDoc) => {
-        const row = licenseDoc.data() as any;
-        const isActive = row?.isActive !== false;
-        const expiresTs = Date.parse(String(row?.expiresAt || ''));
-        return isActive && Number.isFinite(expiresTs) && expiresTs <= Date.now();
+      /**
+       * Migrado a Mongo: las licencias de business cards ahora viven en
+       * `business_card_licenses` y se consultan vía el REST
+       * `/api/business-card-licenses/` (ver `services/businessLicenseService.ts`).
+       * La regla de dull-mode sigue igual: hay licencia expirada activa.
+       */
+      const licenses = await listBusinessLicenses(userId);
+      const hasExpiredLicense = licenses.some((row) => {
+        const expiresTs = Date.parse(String(row.expiresAt || ''));
+        return row.isActive && Number.isFinite(expiresTs) && expiresTs <= Date.now();
       });
 
       setIsDullMode(hasExpiredLicense);

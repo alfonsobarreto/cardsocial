@@ -366,6 +366,21 @@ function ContactsContent() {
       try {
         const response = await listReceivedContacts({ uid: viewerUid });
         normalized = (Array.isArray(response.contacts) ? response.contacts : []).map((c) => normalizeContactRow(c as Contact));
+        // Diagnóstico: smart cards a veces no pintan avatar en iOS pero sí
+        // en Android. Así sabemos si el backend ya trae `userAvatarUrl` o
+        // si llega null (bug del sync users/profiles) o si llega URL pero
+        // el renderer iOS la rechaza.
+        console.log(
+          '[CONTACTS_LOAD] received',
+          normalized.length,
+          'contacts → avatars:',
+          normalized.map((c) => ({
+            uid: String(c.uid).slice(0, 8),
+            cardType: (c as Contact & { cardType?: string }).cardType ?? null,
+            userFullName: c.userFullName,
+            userAvatarUrl: c.userAvatarUrl,
+          })),
+        );
         await AsyncStorage.setItem(cacheKey, JSON.stringify(normalized));
       } catch {
         normalized = cachedContacts;

@@ -11,10 +11,7 @@ import { VaultDocumentViewerModal } from '@/components/VaultDocumentViewerModal'
 import { IsolatedWireframeCard, type WireframeEditSlot } from '@/components/smartCard/IsolatedWireframeCard';
 import { WireframeSlotTile } from '@/components/smartCard/WireframeSlotTile';
 import { getWireframeIconRowPlan } from '@/components/smartCard/wireframeMath';
-import {
-    renderWireframeDetailedRatingStars,
-    renderWireframeMiniIcon,
-} from '@/components/smartCard/wireframeMirrorRendering';
+import { renderWireframeMiniIcon } from '@/components/smartCard/wireframeMirrorRendering';
 import { brandCsIconLogo } from '@/constants/brandAssets';
 import { isGhostLinkVaultType } from '@/constants/ghostLinkVault';
 import {
@@ -29,12 +26,50 @@ import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { generatePermanentBusinessLink } from '@/services/brandedQrService';
 import {
-    listBusinessCardsByOwner,
-    mergeBusinessCardRowsWithMongoOwnerPhoto,
-    deleteBusinessCard as removeBusinessCardFromFirestore,
-    setBusinessCardFavorite,
-    type BusinessCardListRow,
-} from '@/services/businessCardService';
+    listMyBusinessCards,
+    deleteBusinessCard as deleteBusinessCardViaApi,
+    updateBusinessCard as updateBusinessCardViaApi,
+} from '@/services/businessCardsRepo';
+import type { BusinessCardDoc } from '@/services/types/cards';
+
+/**
+ * UI-facing view of a business card row. This is a flat, minimal shape that
+ * only the cards.tsx screen consumes; it is built from `BusinessCardDoc` by
+ * `toBusinessCardListRow` below. Keeping it local lets us retire
+ * `businessCardService` without churning the UI code beneath.
+ */
+type BusinessCardListRow = {
+  bId: string;
+  bcName: string;
+  createdAtMs: number;
+  themeId: string;
+  bcContactName: string;
+  bcLogoUrl: string;
+  /** IDs en Bóveda (users/{uid}/links). */
+  vaultLinkIds: string[];
+  isFavorite: boolean;
+  holdersCount: number;
+  totalRatings: number;
+  ratingAvg: number;
+  silenced?: boolean;
+};
+
+function toBusinessCardListRow(doc: BusinessCardDoc): BusinessCardListRow {
+  const createdMs = Date.parse(doc.createdAt);
+  return {
+    bId: doc.bId,
+    bcName: doc.bcName || doc.bId,
+    createdAtMs: Number.isFinite(createdMs) ? createdMs : 0,
+    themeId: doc.themeId || 'deep_teal',
+    bcContactName: doc.bcContactName || '',
+    bcLogoUrl: doc.bcLogoUrl || '',
+    vaultLinkIds: [...(doc.vaultItemIds || [])],
+    isFavorite: Boolean(doc.isFavorite),
+    holdersCount: Number(doc.holdersCount || 0),
+    totalRatings: Number(doc.totalRatings || 0),
+    ratingAvg: Number(doc.averageRating || 5),
+  };
+}
 import { type VaultCollectibleCertificate } from '@/services/collectibleService';
 import {
     buildSearchFacetsForSharedCard,
@@ -48,6 +83,7 @@ import {
   readUserFullName,
   readUserNickName,
   readUserNickNameLower,
+  readVoipCanonicalFullName,
 } from '@/services/userIdentityFields';
 import { type CardFontItem, type FontTier } from '@/services/fontLibraryService';
 import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
@@ -58,6 +94,7 @@ import { useLookMode } from '@/services/lookMode';
 import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
 import { newEntityId } from '@/services/newEntityId';
 import { openVaultPreviewItem } from '@/services/openVaultPreviewItem';
+import { buildIssuerSnapshotFromPublicSlots } from '@/services/issuerSnapshotPayload';
 import {
     blockRelationship,
     deleteSmartCardInDb,
@@ -72,6 +109,7 @@ import {
     setCardSubscriberMute,
     upsertSmartCardInDb,
     type CardSubscriberRow,
+    type IssuerSnapshotPayload,
     type PublicCardSlotPayload,
     type SmartCardPayload,
 } from '@/services/qrApi';
@@ -330,6 +368,35 @@ async function writeUniversal24hQrCache(uid: string, sid: string, row: Universal
   }
 }
 
+/** Firestore `users/{uid}` → nombre VoIP al momento de abrir (sin refs obsoletos). */
+async function fetchVoipCanonicalFullNameForUid(uid: string): Promise<string> {
+  const ou = String(uid || '').trim();
+  if (!ou) return '';
+  try {
+    const snap = await getDoc(doc(db, 'users', ou));
+    return readVoipCanonicalFullName(snap.data() as Record<string, unknown> | undefined);
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Tras resolver uid: prioriza Firestore (`readVoipCanonicalFullName` en `users/{uid}`); si falta, respaldo Mongo de la tarjeta (sid).
+ * Se pasa el nickname conocido al objeto sintético para que `readVoipCanonicalFullName` descarte candidatos iguales al nick.
+ */
+function ghostPeerVoipFullName(
+  firestoreCanonical: string,
+  cardOwnerDisplayName: string | undefined,
+  ownerNickname?: string,
+): string {
+  const fs = String(firestoreCanonical || '').trim();
+  if (fs) return fs;
+  const card = String(cardOwnerDisplayName || '').trim();
+  if (!card) return '';
+  const nickRaw = String(ownerNickname || '').trim().replace(/^@+/g, '');
+  return readVoipCanonicalFullName({ userFullName: card, userNickName: nickRaw });
+}
+
 /**
  * Smart Card: la lista pública de datos es solo `itemIds` (subset de la Bóveda).
  * Ítems indelebles en Bóveda (p. ej. Ghost-Link bootstrap / vaultProtected) no se añaden solos a la tarjeta:
@@ -362,6 +429,10 @@ type SmartCard = {
   silenced?: boolean;
   createdAt: string;
   updatedAt: string;
+  /** Espejo Mongo (`smart_cards.ownerDisplayName`) al hidratar desde API; respaldo de nombre para VoIP. */
+  ownerDisplayName?: string;
+  /** Snapshot denormalizado del emisor (Mongo Phase 1). */
+  issuerSnapshot?: IssuerSnapshotPayload;
 };
 
 /** Una sola fila por `sid` (evita claves duplicadas en listas y orden manual). */
@@ -543,6 +614,9 @@ export default function CardsFactoryScreen() {
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const [ownerNickname, setOwnerNickname] = useState('');
   const [ownerDisplayName, setOwnerDisplayName] = useState('');
+  /** Nombre completo real para Ghost-Link (no caer en displayName = nick). */
+  const ownerVoipFullNameRef = useRef('');
+  const [ownerVoipFullName, setOwnerVoipFullName] = useState('');
   const [ownerPhotoUrl, setOwnerPhotoUrl] = useState<string | null>(null);
   const parallaxX = useRef(new Animated.Value(0)).current;
   const parallaxY = useRef(new Animated.Value(0)).current;
@@ -599,6 +673,9 @@ export default function CardsFactoryScreen() {
         setOwnerDisplayName(
           display === 'Usuario' ? String(userData.firstName || '').trim() || authFallback : display
         );
+        const voipCanon = readVoipCanonicalFullName(userData);
+        ownerVoipFullNameRef.current = voipCanon;
+        setOwnerVoipFullName(voipCanon);
         setOwnerNickname(
           readUserNickName(userData) || readUserNickNameLower(userData) || authFallback
         );
@@ -609,11 +686,15 @@ export default function CardsFactoryScreen() {
         );
       } else {
         setOwnerDisplayName(authFallback);
+        ownerVoipFullNameRef.current = '';
+        setOwnerVoipFullName('');
         setOwnerNickname(authFallback);
         setOwnerPhotoUrl(toRenderableImageUri(user.photoURL) || null);
       }
     } catch {
       setOwnerDisplayName(authFallback);
+      ownerVoipFullNameRef.current = '';
+      setOwnerVoipFullName('');
       setOwnerNickname(authFallback);
       setOwnerPhotoUrl(toRenderableImageUri(user.photoURL) || null);
     }
@@ -801,13 +882,54 @@ export default function CardsFactoryScreen() {
         searchFacets: card.searchFacets,
         createdAt: card.createdAt,
         updatedAt: card.updatedAt,
+        ownerDisplayName: card.ownerDisplayName ? String(card.ownerDisplayName).trim() : undefined,
+        issuerSnapshot: card.issuerSnapshot,
       }));
 
       const deduped = dedupeSmartCardsBySid(mapped);
+
+      /**
+       * Reconciliación local → Mongo. Si el caché local tiene sids que no
+       * aparecen en el backend, significa que un `persistCards` anterior
+       * falló silenciosamente (ej. token expirado, 5xx) y las cards quedaron
+       * sólo en AsyncStorage. Hacemos un force-upsert de cada card huérfana
+       * para que la BD recupere el estado del dispositivo. Es idempotente:
+       * si la card ya existe en Mongo con mismo `sid`, `findOneAndUpdate`
+       * simplemente refresca `updatedAt`.
+       */
+      const remoteSids = new Set(deduped.map((c) => c.sid));
+      const orphanLocal = lastList.filter((c) => c.sid && !remoteSids.has(c.sid));
+      if (orphanLocal.length > 0) {
+        console.log('[Card] loadSmartCards: reconciling', orphanLocal.length, 'local-only cards');
+        for (const card of orphanLocal) {
+          try {
+            await upsertSmartCardInDb({
+              uid,
+              card: buildSmartCardDbPayload(card, undefined, uid),
+            });
+            deduped.push(card);
+          } catch (reconErr: unknown) {
+            const anyErr = reconErr as { response?: { status?: number }; message?: string };
+            console.log(
+              '[Card] loadSmartCards: reconcile FAILED sid=',
+              card.sid,
+              anyErr?.response?.status ?? '?',
+              anyErr?.message || reconErr,
+            );
+          }
+        }
+      }
+
       setSmartCards(deduped);
       await AsyncStorage.setItem(smartCardsStorageKey(uid), JSON.stringify(deduped));
       return deduped;
-    } catch {
+    } catch (remoteErr) {
+      /**
+       * Antes este catch era silencioso (`catch {}`) por lo que nunca sabíamos
+       * por qué el backend "no devolvía nada". Ahora dejamos traza explícita
+       * para poder diagnosticar fallos de auth/JWT en un segundo.
+       */
+      console.log('[Card] loadSmartCards: remote FAILED', (remoteErr as { message?: string })?.message || remoteErr);
       return lastList;
     }
   };
@@ -819,24 +941,24 @@ export default function CardsFactoryScreen() {
       return [];
     }
     try {
-      let rows = await listBusinessCardsByOwner(uid);
-      try {
-        const { cards: mongoMirror } = await listSmartCardsFromDb({ uid: uid });
-        rows = mergeBusinessCardRowsWithMongoOwnerPhoto(rows, mongoMirror);
-      } catch {
-        /* sin espejo Mongo: se usa solo Firestore */
-      }
-      /* Obtener holdersCount real desde share_permissions (MongoDB) */
+      const docs = await listMyBusinessCards(uid);
+      const rows = docs
+        .map(toBusinessCardListRow)
+        .sort((a, b) => b.createdAtMs - a.createdAtMs);
+
+      // Authoritative holdersCount from share_permissions (MongoDB via backend).
       const bIds = rows.map((r) => r.bId);
       if (bIds.length) {
         try {
-          const counts = await fetchBusinessCardHolderCounts({ uid: uid, keys: bIds });
+          const counts = await fetchBusinessCardHolderCounts({ uid, keys: bIds });
           for (const r of rows) {
             if (counts[r.bId] !== undefined) {
               r.holdersCount = counts[r.bId];
             }
           }
-        } catch { /* Firestore fallback si el backend no responde */ }
+        } catch {
+          /* fallback al valor denormalizado del doc */
+        }
       }
       setBusinessCardsFeed(rows);
       return rows;
@@ -867,12 +989,14 @@ export default function CardsFactoryScreen() {
   const buildSmartCardDbPayload = (
     card: SmartCard,
     vaultSnap?: { vaultItems: VaultItem[]; iconVaultById: Record<string, IconVaultEntry> },
+    ownerUid?: string | null,
   ): SmartCardPayload => {
     const vItems = vaultSnap?.vaultItems ?? vaultItems;
     const vIcons = vaultSnap?.iconVaultById ?? iconVaultById;
     const searchFacets = buildSearchFacetsForSharedCard(vItems, card.itemIds);
     const occ = deriveOwnerOccupationFromFacets(searchFacets).trim();
     const publicCardSlots = buildPublicCardSlotsForPersist(vItems, card.itemIds, vIcons);
+    const ownerUidTrim = String(ownerUid || '').trim();
     return {
       sid: card.sid,
       cardType: 'smart' as const,
@@ -899,6 +1023,18 @@ export default function CardsFactoryScreen() {
       ownerOccupation: occ || undefined,
       searchFacets,
       publicCardSlots,
+      ...(ownerUidTrim
+        ? {
+            issuerSnapshot: buildIssuerSnapshotFromPublicSlots({
+              uid: ownerUidTrim,
+              userFullName: (ownerDisplayName || '').trim(),
+              userNickName: (ownerNickname || '').trim(),
+              userAvatarUrl: ownerPhotoUrl ?? null,
+              publicCardSlots,
+              itemIds: card.itemIds,
+            }),
+          }
+        : {}),
     };
   };
 
@@ -926,17 +1062,48 @@ export default function CardsFactoryScreen() {
         ? nextCards.filter((c) => changedCardIds.includes(c.sid))
         : nextCards;
 
+      const failures: Array<{ sid: string; message: string }> = [];
       for (const card of cardsToSync) {
         console.log('[Card] persistCards: Antes de upsertSmartCardInDb', card.sid);
-        await upsertSmartCardInDb({
-          uid: uid,
-          card: buildSmartCardDbPayload(card),
+        try {
+          await upsertSmartCardInDb({
+            uid: uid,
+            card: buildSmartCardDbPayload(card, undefined, uid),
+          });
+          console.log('[Card] persistCards: Después de upsertSmartCardInDb', card.sid);
+        } catch (cardErr: unknown) {
+          /**
+           * Antes este catch vivía fuera del loop y silenciaba cualquier fallo
+           * devolviendo la card a AsyncStorage sin avisar — por eso las cards
+           * "existían" en la app pero nunca aparecían en Mongo. Ahora reportamos
+           * cada sid fallido con el mensaje real (status HTTP + body) y
+           * mostramos un Toast rojo para que el usuario pueda actuar en vez de
+           * descubrirlo horas después mirando la consola.
+           */
+          const anyErr = cardErr as { response?: { status?: number; data?: unknown }; message?: string };
+          const msg = anyErr?.response
+            ? `HTTP ${anyErr.response.status ?? '?'} ${JSON.stringify(anyErr.response.data ?? {}).slice(0, 200)}`
+            : anyErr?.message || String(cardErr);
+          console.log('[Card] persistCards: ERROR upsert sid=', card.sid, msg);
+          failures.push({ sid: card.sid, message: msg });
+        }
+      }
+      if (failures.length > 0) {
+        Toast.show({
+          type: 'error',
+          text1: 'Sync fallida',
+          text2: `No se pudieron guardar ${failures.length} tarjeta(s) en Mongo`,
+          visibilityTime: 5000,
         });
-        console.log('[Card] persistCards: Después de upsertSmartCardInDb', card.sid);
       }
     } catch (e) {
-      // Keep local cache as fallback when backend is not reachable.
-      console.log('[Card] persistCards: ERROR', e);
+      console.log('[Card] persistCards: ERROR global', e);
+      Toast.show({
+        type: 'error',
+        text1: 'Error al sincronizar tarjetas',
+        text2: String((e as { message?: string })?.message || e),
+        visibilityTime: 5000,
+      });
     }
     console.log('[Card] persistCards: FIN');
   };
@@ -1574,7 +1741,7 @@ export default function CardsFactoryScreen() {
       // o con el tema incorrecto si el documento en MongoDB está desactualizado.
       try {
         const vaultSnap = await loadVaultSnapshotForSync(uid);
-        await upsertSmartCardInDb({ uid: uid, card: buildSmartCardDbPayload(card, vaultSnap) });
+        await upsertSmartCardInDb({ uid: uid, card: buildSmartCardDbPayload(card, vaultSnap, uid) });
       } catch {
         // Mejor esfuerzo: el QR se emite igualmente; el receptor verá el snapshot anterior si falla la red.
       }
@@ -1677,7 +1844,7 @@ export default function CardsFactoryScreen() {
           const uid = await getActiveUserId();
           if (uid) {
             const snap = await loadVaultSnapshotForSync(uid);
-            await upsertSmartCardInDb({ uid, card: buildSmartCardDbPayload(card, snap) });
+            await upsertSmartCardInDb({ uid, card: buildSmartCardDbPayload(card, snap, uid) });
           }
         } catch {
           // Mejor esfuerzo: el enlace ya existía; la web puede seguir mostrando un snapshot antiguo si falla la red.
@@ -1705,7 +1872,7 @@ export default function CardsFactoryScreen() {
         void (async () => {
           try {
             const snap = await loadVaultSnapshotForSync(uid);
-            await upsertSmartCardInDb({ uid: uid, card: buildSmartCardDbPayload(card, snap) });
+            await upsertSmartCardInDb({ uid: uid, card: buildSmartCardDbPayload(card, snap, uid) });
           } catch {
             /* mejor esfuerzo */
           }
@@ -1716,7 +1883,7 @@ export default function CardsFactoryScreen() {
       setIssuingUniversalLink(true);
       // Leer Bóveda desde disco (no solo estado React): si no, publicCardSlots podía ir vacío y la web sin iconos.
       const vaultSnap = await loadVaultSnapshotForSync(uid);
-      const cardPayload = buildSmartCardDbPayload(card, vaultSnap);
+      const cardPayload = buildSmartCardDbPayload(card, vaultSnap, uid);
       const slotN = cardPayload.publicCardSlots?.length ?? 0;
       const needN = card.itemIds.length;
       if (needN > 0 && slotN === 0) {
@@ -1775,50 +1942,71 @@ export default function CardsFactoryScreen() {
   };
 
   const issueQrForBusiness = async (row: BusinessCardListRow) => {
+    // Fijamos el flag ANTES que cualquier await. Cualquier path de salida (return,
+    // throw, finally) lo baja. Así evitamos quedar con `issuingQr=true` trapped
+    // si algún await cuelga y el UI queda con los botones bloqueados.
+    console.log('[QR_FLOW] issueQrForBusiness: START', { bId: row.bId, bcName: row.bcName });
+    setIssuingQr(true);
     try {
       const authenticated = await hardLockCheck('generar QR y compartir tu tarjeta');
+      console.log('[QR_FLOW] hardLockCheck →', authenticated);
       if (!authenticated) {
         return;
       }
 
-      setIssuingQr(true);
       const uid = await getActiveUserId();
+      console.log('[QR_FLOW] getActiveUserId →', uid);
       if (!uid) {
         throw new Error(tr('No se pudo obtener tu sesión.', 'Could not get your session.'));
       }
 
-      // Sincroniza el snapshot de la Business Card en MongoDB (smart_cards) antes de mostrar el QR permanente.
-      // Sin esto, el receptor siempre ve 404 en /business-card-preview y cae en el fallback de Firestore,
-      // que no incluye los vault items (vaultLinkIds) del propietario.
+      // Sync a smart_cards (espejo legacy) es best-effort y ACOTADO EN TIEMPO.
+      // Si el backend tarda >4s, seguimos y abrimos el QR igual. El receptor
+      // leerá el snapshot anterior en el peor caso. Paso 13 elimina este espejo.
       try {
-        const vaultSnap = await loadVaultSnapshotForSync(uid);
-        const publicCardSlots = buildPublicCardSlotsForPersist(
-          vaultSnap.vaultItems,
-          row.vaultLinkIds,
-          vaultSnap.iconVaultById,
+        const syncPromise = (async () => {
+          const vaultSnap = await loadVaultSnapshotForSync(uid);
+          const publicCardSlots = buildPublicCardSlotsForPersist(
+            vaultSnap.vaultItems,
+            row.vaultLinkIds,
+            vaultSnap.iconVaultById,
+          );
+          await upsertSmartCardInDb({
+            uid: uid,
+            card: {
+              bId: row.bId,
+              cardType: 'business',
+              scName: row.bcName,
+              layout: 'vertical',
+              themeId: row.themeId || 'deep_teal',
+              ownerDisplayName: row.bcContactName || undefined,
+              ownerNickname: undefined,
+              ownerPhotoUrl: row.bcLogoUrl ? toRenderableImageUri(row.bcLogoUrl) : null,
+              itemIds: row.vaultLinkIds,
+              publicCardSlots,
+              holdersCount: Number(row.holdersCount || 0),
+              ratingAvg: Number(row.ratingAvg || 5),
+              totalRatings: Number(row.totalRatings || 0),
+              enableParallax: false,
+              isFavorite: Boolean(row.isFavorite),
+              issuerSnapshot: buildIssuerSnapshotFromPublicSlots({
+                uid,
+                userFullName: (ownerDisplayName || '').trim(),
+                userNickName: (ownerNickname || '').trim(),
+                userAvatarUrl: ownerPhotoUrl ?? null,
+                publicCardSlots,
+                itemIds: row.vaultLinkIds,
+              }),
+            },
+          });
+        })();
+        const timeoutPromise = new Promise<'timeout'>((resolve) =>
+          setTimeout(() => resolve('timeout'), 4000),
         );
-        await upsertSmartCardInDb({
-          uid: uid,
-          card: {
-            bId: row.bId,
-            cardType: 'business',
-            scName: row.bcName,
-            layout: 'vertical',
-            themeId: row.themeId || 'deep_teal',
-            ownerDisplayName: row.bcContactName || undefined,
-            ownerNickname: undefined,
-            ownerPhotoUrl: row.bcLogoUrl ? toRenderableImageUri(row.bcLogoUrl) : null,
-            itemIds: row.vaultLinkIds,
-            publicCardSlots,
-            holdersCount: Number(row.holdersCount || 0),
-            ratingAvg: Number(row.ratingAvg || 5),
-            totalRatings: Number(row.totalRatings || 0),
-            enableParallax: false,
-            isFavorite: Boolean(row.isFavorite),
-          },
-        });
-      } catch {
-        // Mejor esfuerzo: el QR se muestra igualmente; el receptor verá el snapshot anterior (o 404 + fallback).
+        const winner = await Promise.race([syncPromise.then(() => 'ok'), timeoutPromise]);
+        console.log('[QR_FLOW] legacy mirror sync →', winner);
+      } catch (syncErr: any) {
+        console.log('[QR_FLOW] legacy mirror sync FAILED (ignoring):', String(syncErr?.message || syncErr));
       }
 
       setQrBusinessContext({
@@ -1836,10 +2024,13 @@ export default function CardsFactoryScreen() {
       setRemainingMs(0);
       setRemainingSec(0);
       setQrVisible(true);
+      console.log('[QR_FLOW] issueQrForBusiness: QR modal opened');
     } catch (error: any) {
+      console.log('[QR_FLOW] issueQrForBusiness: ERROR', String(error?.message || error));
       Alert.alert(tr('Error de QR', 'QR error'), String(error?.message || ''));
     } finally {
       setIssuingQr(false);
+      console.log('[QR_FLOW] issueQrForBusiness: DONE');
     }
   };
 
@@ -1876,10 +2067,7 @@ export default function CardsFactoryScreen() {
       return p.filter((c) => c.bId !== row.bId);
     });
     try {
-      const r = await removeBusinessCardFromFirestore(uid, row.bId);
-      if (!r.success) {
-        throw new Error(r.message);
-      }
+      await deleteBusinessCardViaApi(uid, row.bId);
     } catch {
       setBusinessCardsFeed(previous);
       Alert.alert(tr('Error', 'Error'), tr('No se pudo eliminar la tarjeta de negocio.', 'Could not delete the business card.'));
@@ -1908,10 +2096,7 @@ export default function CardsFactoryScreen() {
     const next = !row.isFavorite;
     setBusinessCardsFeed((p) => p.map((c) => (c.bId === row.bId ? { ...c, isFavorite: next } : c)));
     try {
-      const r = await setBusinessCardFavorite(uid, row.bId, next);
-      if (!r.success) {
-        throw new Error(r.message);
-      }
+      await updateBusinessCardViaApi(uid, row.bId, { isFavorite: next });
     } catch {
       setBusinessCardsFeed((p) => p.map((c) => (c.bId === row.bId ? { ...c, isFavorite: row.isFavorite } : c)));
     }
@@ -2241,6 +2426,35 @@ export default function CardsFactoryScreen() {
           ? previewCard.scName
           : selectedCard?.scName ?? cardName;
     const issuerUid = await getActiveUserId();
+    const activeSmartForGhost = previewBusinessVisible
+      ? null
+      : (() => {
+          const sidKey = String(previewCard?.sid ?? selectedCard?.sid ?? '').trim();
+          if (!sidKey) return previewCard ?? selectedCard;
+          return smartCards.find((c) => c.sid === sidKey) ?? previewCard ?? selectedCard;
+        })();
+    const fromFs = issuerUid ? await fetchVoipCanonicalFullNameForUid(issuerUid) : '';
+    const voipName = ghostPeerVoipFullName(
+      fromFs,
+      activeSmartForGhost?.ownerDisplayName,
+      ownerNickname,
+    ).trim();
+    if (voipName) {
+      ownerVoipFullNameRef.current = voipName;
+    }
+    /** Mirror exacto de `calls.tsx` para Business: logo explícito + fallback a foto de usuario. */
+    const bizLogo = previewBusinessVisible
+      ? String(previewBusiness?.bcLogoUrl || '').trim() || null
+      : null;
+    const bizName = previewBusinessVisible
+      ? String(previewBusiness?.bcName || '').trim() || null
+      : null;
+    const bizContact = previewBusinessVisible
+      ? String(previewBusiness?.bcContactName || '').trim() || null
+      : null;
+    const bizCardPhoto = previewBusinessVisible
+      ? bizLogo ?? ownerPhotoUrl ?? null
+      : ownerPhotoUrl ?? null;
     await openVaultPreviewItem(item, {
       tr,
       openDocumentViewer: (it) => {
@@ -2250,10 +2464,16 @@ export default function CardsFactoryScreen() {
       sourceCardName: activeScName ?? cardName ?? 'Tarjeta Social',
       sourceSid: previewBusinessVisible ? null : String(previewCard?.sid ?? selectedCard?.sid ?? '').trim() || null,
       sourceBId: previewBusinessVisible ? String(previewBusiness?.bId ?? '').trim() || null : null,
-      peerDisplayName: ownerNickname || 'este contacto',
+      peerDisplayName: voipName || tr('este contacto', 'this contact'),
+      peerFullName: voipName || undefined,
+      peerNickname: ownerNickname || undefined,
+      bcLogoUrl: bizLogo,
+      bcName: bizName,
+      bcContactName: bizContact,
+      userAvatarUrl: ownerPhotoUrl ?? null,
       dismissParentModal: dismissCardPreviewModals,
       peerPhotoUrl: ownerPhotoUrl ?? null,
-      cardPhoto: ownerPhotoUrl ?? null,
+      cardPhoto: bizCardPhoto,
       cardType: previewBusinessVisible ? 'business' : 'personal',
     });
   };
@@ -2281,6 +2501,35 @@ export default function CardsFactoryScreen() {
             ? previewCard.scName
             : selectedCard?.scName ?? cardName;
       const issuerUid = await getActiveUserId();
+      const activeSmartForGhost = previewBusinessVisible
+        ? null
+        : (() => {
+            const sidKey = String(previewCard?.sid ?? selectedCard?.sid ?? '').trim();
+            if (!sidKey) return previewCard ?? selectedCard;
+            return smartCards.find((c) => c.sid === sidKey) ?? previewCard ?? selectedCard;
+          })();
+      const fromFs = issuerUid ? await fetchVoipCanonicalFullNameForUid(issuerUid) : '';
+      const voipName = ghostPeerVoipFullName(
+        fromFs,
+        activeSmartForGhost?.ownerDisplayName,
+        ownerNickname,
+      ).trim();
+      if (voipName) {
+        ownerVoipFullNameRef.current = voipName;
+      }
+      /** Mirror exacto de `calls.tsx` para Business: logo explícito + fallback a foto de usuario. */
+      const bizLogo = previewBusinessVisible
+        ? String(previewBusiness?.bcLogoUrl || '').trim() || null
+        : null;
+      const bizName = previewBusinessVisible
+        ? String(previewBusiness?.bcName || '').trim() || null
+        : null;
+      const bizContact = previewBusinessVisible
+        ? String(previewBusiness?.bcContactName || '').trim() || null
+        : null;
+      const bizCardPhoto = previewBusinessVisible
+        ? bizLogo ?? ownerPhotoUrl ?? null
+        : ownerPhotoUrl ?? null;
       await openVaultPreviewItem(item, {
         tr,
         openDocumentViewer: (it) => {
@@ -2290,10 +2539,16 @@ export default function CardsFactoryScreen() {
         sourceCardName: activeScName ?? cardName ?? 'Tarjeta Social',
         sourceSid: previewBusinessVisible ? null : String(previewCard?.sid ?? selectedCard?.sid ?? '').trim() || null,
         sourceBId: previewBusinessVisible ? String(previewBusiness?.bId ?? '').trim() || null : null,
-        peerDisplayName: ownerNickname || 'este contacto',
+        peerDisplayName: voipName || tr('este contacto', 'this contact'),
+        peerFullName: voipName || undefined,
+        peerNickname: ownerNickname || undefined,
+        bcLogoUrl: bizLogo,
+        bcName: bizName,
+        bcContactName: bizContact,
+        userAvatarUrl: ownerPhotoUrl ?? null,
         dismissParentModal: dismissCardPreviewModals,
         peerPhotoUrl: ownerPhotoUrl ?? null,
-        cardPhoto: ownerPhotoUrl ?? null,
+        cardPhoto: bizCardPhoto,
         cardType: previewBusinessVisible ? 'business' : 'personal',
       });
     } catch {
@@ -2450,8 +2705,15 @@ export default function CardsFactoryScreen() {
         }}
         onSwipeableOpen={(direction) => {
           if (direction === 'right') {
+            // Cerramos primero el swipe para que el gesture handler no quede
+            // atrapado con la strip abierta mientras el Alert consume el foco.
+            // Diferimos el Alert al siguiente frame para dar tiempo a la
+            // animación de close() y evitar UI "congelada" si el usuario
+            // cancela o el flujo QR tarda.
             swipeableMethodsByCardIdRef.current.get(sk)?.close();
-            confirmAndIssueQrForBusiness(row);
+            requestAnimationFrame(() => {
+              confirmAndIssueQrForBusiness(row);
+            });
           }
         }}
         renderRightActions={() => (
@@ -2635,10 +2897,6 @@ export default function CardsFactoryScreen() {
       pillBackground: 'rgba(255,255,255,0.72)',
       preferredColor: chestTheme.iconColor,
     });
-    const reviewCount = item.totalRatings ?? 0;
-    const ratingRaw = Number(item.ratingAvg ?? 0);
-    const rating =
-      reviewCount > 0 && Number.isFinite(ratingRaw) ? Math.max(0, Math.min(5, ratingRaw)) : 0;
     const themeMeta = getThemeById(item.themeId || '') ?? CHEST_THEMES[0];
     const themeLabel = themeMeta.name;
     const closeSmartCardRowSwipe = () => {
@@ -2828,10 +3086,6 @@ export default function CardsFactoryScreen() {
         pillBackground: 'rgba(255,255,255,0.72)',
         preferredColor: chestTheme.iconColor,
       });
-      const reviewCount = row.totalRatings ?? 0;
-      const ratingRaw = Number(row.ratingAvg ?? 0);
-      const rating =
-        reviewCount > 0 && Number.isFinite(ratingRaw) ? Math.max(0, Math.min(5, ratingRaw)) : 0;
       const logoUri = toRenderableImageUri(row.bcLogoUrl);
       return (
         <ScaleDecorator>
@@ -2886,6 +3140,14 @@ export default function CardsFactoryScreen() {
                       <Text style={[styles.businessListSubtitle, { color: chestTheme.metaColor }]} numberOfLines={1}>
                         {row.bcContactName.trim() ? row.bcContactName : themeMeta.name}
                       </Text>
+                      {/*
+                        Lista de MIS businesscards: antes había una fila con
+                        pill de holders + estrellitas tipo Amazon + "X.X · N
+                        reseñas". Se eliminó el rating por estrellas (el
+                        sistema oficial son las medallas, que viven en el
+                        modal de preview). El pill de holders se mantiene
+                        porque sí da info útil sin entrar al modal.
+                      */}
                       <View style={styles.businessCardStatsRow}>
                         <View
                           style={[
@@ -2896,12 +3158,6 @@ export default function CardsFactoryScreen() {
                         >
                           <MaterialCommunityIcons name="account-group-outline" size={13} color={metricPillFg} />
                           <Text style={[styles.metricPillText, { color: metricPillFg }]}>{holders}</Text>
-                        </View>
-                        <View style={styles.statsRatingStack}>
-                          <View style={styles.businessRatingStarsWrap}>{renderWireframeDetailedRatingStars(rating)}</View>
-                          <Text style={[styles.ratingStackCaption, { color: chestTheme.metaColor }]} numberOfLines={2}>
-                            {rating.toFixed(1)} · {reviewCount} {tr('reseñas', 'reviews')}
-                          </Text>
                         </View>
                       </View>
                     </View>
@@ -3672,7 +3928,10 @@ export default function CardsFactoryScreen() {
         sourceSid={previewCard?.sid ?? null}
         sourceBId={null}
         sourceCardName={previewCard?.scName ?? cardName ?? 'Tarjeta Social'}
-        peerDisplayName={ownerNickname || 'este contacto'}
+        peerDisplayName={ownerVoipFullName || ownerDisplayName || tr('este contacto', 'this contact')}
+        peerFullName={ownerVoipFullName || undefined}
+        peerNickname={ownerNickname || undefined}
+        ghostCardContactName={null}
         ghostTargetUid={sessionUid}
         ratingCardType='smart'
       />
@@ -3702,7 +3961,10 @@ export default function CardsFactoryScreen() {
         sourceSid={null}
         sourceBId={previewBusiness?.bId ?? null}
         sourceCardName={previewBusiness?.bcName ?? tr('Negocio', 'Business')}
-        peerDisplayName={ownerNickname || 'este contacto'}
+        peerDisplayName={ownerVoipFullName || ownerDisplayName || tr('este contacto', 'this contact')}
+        peerFullName={ownerVoipFullName || undefined}
+        peerNickname={ownerNickname || undefined}
+        ghostCardContactName={String(previewBusiness?.bcContactName || '').trim() || null}
         ghostTargetUid={previewBusinessOwnerUid || sessionUid}
         ratingCardType='business'
       />
@@ -3945,7 +4207,17 @@ export default function CardsFactoryScreen() {
           setQrBusinessContext(null);
         }}
       >
-        <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}>
+        <Pressable
+          style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}
+          onPress={() => {
+            // Tap en el backdrop (fuera del card del modal) cierra el QR.
+            // Garantía de salida por si el botón "Cerrar" queda tapado por el
+            // QR, el logo remoto demora, o el layout se rompe en algún device.
+            setQrVisible(false);
+            setQrBusinessContext(null);
+          }}
+        >
+          <Pressable onPress={() => {}}>
           <LinearGradient
             colors={[...cardsTheme.luxuryFrameGradient]}
             start={{ x: 0, y: 0 }}
@@ -4166,7 +4438,8 @@ export default function CardsFactoryScreen() {
               </View>
             </View>
           </LinearGradient>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
 
       <Modal

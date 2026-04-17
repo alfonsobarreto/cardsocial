@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import type { AppShellTheme } from "../theme";
+import type { AppShellTheme } from "../app/theme";
 
 export function makeStoriesStyles(shell: AppShellTheme) {
   return StyleSheet.create({

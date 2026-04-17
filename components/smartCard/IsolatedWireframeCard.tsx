@@ -111,11 +111,6 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
   const subStyle = theme.subtitle;
   const extraStyle = theme.extraText;
   const iconMeta = theme.icon;
-  const wireUsersPillFg = resolvePillForegroundColor({
-    cardGradient: theme.background,
-    pillBackground: theme.bubble.backgroundColor,
-    preferredColor: iconMeta.color,
-  });
 
   /** Modal / espejo: alineado con web (`WireframeUniversalCard`): cabecera compacta, cápsula de rating, rejilla centrada. */
   const mirror = !editable;
@@ -328,34 +323,14 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
             <Text style={[wf.horizNick, { color: subStyle.color, fontSize: hNickFontSize }, thin]} numberOfLines={1} adjustsFontSizeToFit>
               {dispSub}
             </Text>
-            {mirror ? (
-              renderMirrorStatsCapsule(hWireStarSize, hReviewCaptionSize)
-            ) : (
-              <View style={wf.wireStatsRowInline}>
-                <View style={wf.wireStatsRatingStack}>
-                  {renderDetailedRatingStars(dispStarsValue, hWireStarSize, iconMeta.color)}
-                  <Text
-                    style={[
-                      wf.wireStatsReviewCaption,
-                      {
-                        color: extraStyle.color,
-                        fontSize: hReviewCaptionSize,
-                        fontWeight: extraStyle.fontWeight,
-                        fontStyle: extraStyle.fontStyle,
-                        textAlign: 'center',
-                      },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {dispStarsValue.toFixed(1)} · {dispReviewCount} {tr('reseñas', 'reviews')}
-                  </Text>
-                </View>
-                <View style={[wf.wireUsersPill, { borderColor: bd.color, backgroundColor: theme.bubble.backgroundColor }]}>
-                  <MaterialCommunityIcons name="account-outline" size={hStatsFontSize} color={wireUsersPillFg} />
-                  <Text style={[wf.wireUsersPillText, { color: wireUsersPillFg, fontSize: hStatsFontSize }]}>{dispHolders}</Text>
-                </View>
-              </View>
-            )}
+            {/*
+              Modo mirror (preview): cápsula de medallas / receivers
+              (`renderMirrorStatsCapsule`). En modo editor (editable=true) NO
+              se muestra ninguna fila de stats: la tarjeta aún no se ha
+              publicado, así que no tiene sentido enseñar rating ni holders.
+              El rating oficial son las `medalPills` del mirror.
+            */}
+            {mirror ? renderMirrorStatsCapsule(hWireStarSize, hReviewCaptionSize) : null}
           </View>
         </View>
 
@@ -402,9 +377,6 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
 
   const nameFontSize = vertInfoBoxLayout.h > 0 ? Math.round(vertInfoBoxLayout.h * 0.28) : 18;
   const nickFontSize = vertInfoBoxLayout.h > 0 ? Math.round(vertInfoBoxLayout.h * 0.18) : 12;
-  const statsFontSize = vertInfoBoxLayout.h > 0 ? Math.round(vertInfoBoxLayout.h * 0.12) : 10;
-  const vWireStarSize = Math.max(20, Math.min(28, Math.round(statsFontSize * 2.15)));
-  const vReviewCaptionSize = Math.max(8, Math.round(statsFontSize * 0.65));
   const brandFontSize = vertHeaderH > 0 ? Math.round(vertHeaderH * 0.45) : 13;
   const brandLogoSize = vertHeaderH > 0 ? Math.round(vertHeaderH * 0.55) : 18;
 
@@ -569,30 +541,11 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
             <Text style={[wf.vertNick, { color: subStyle.color, fontSize: nickFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
               {dispSub}
             </Text>
-            <View style={wf.wireStatsRowInline}>
-              <View style={wf.wireStatsRatingStack}>
-                {renderDetailedRatingStars(dispStarsValue, vWireStarSize, iconMeta.color)}
-                <Text
-                  style={[
-                    wf.wireStatsReviewCaption,
-                    {
-                      color: extraStyle.color,
-                      fontSize: vReviewCaptionSize,
-                      fontWeight: extraStyle.fontWeight,
-                      fontStyle: extraStyle.fontStyle,
-                      textAlign: 'center',
-                    },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {dispStarsValue.toFixed(1)} · {dispReviewCount} {tr('reseñas', 'reviews')}
-                </Text>
-              </View>
-              <View style={[wf.wireUsersPill, { borderColor: bd.color, backgroundColor: theme.bubble.backgroundColor }]}>
-                <MaterialCommunityIcons name="account-outline" size={statsFontSize} color={wireUsersPillFg} />
-                <Text style={[wf.wireUsersPillText, { color: wireUsersPillFg, fontSize: statsFontSize }]}>{dispHolders}</Text>
-              </View>
-            </View>
+            {/*
+              Editor vertical (editable=true): sin fila de stats. El rating
+              oficial son las `medalPills` del mirror (ver la rama `mirror`
+              más arriba y `renderMirrorStatsCapsule`).
+            */}
           </View>
         </View>
       )}

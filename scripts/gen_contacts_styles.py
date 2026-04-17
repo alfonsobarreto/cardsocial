@@ -108,7 +108,7 @@ out = re.sub(r"'rgba\(10,37,64,[^']+\)'", "shell.overlayScrim", out)
 out = re.sub(r"'rgba\(0, 0, 0,[^']+\)'", "shell.subtleShadow", out)
 
 header = """import { Platform, StyleSheet } from \"react-native\";
-import type { AppShellTheme } from \"../theme\";
+import type { AppShellTheme } from \"../app/theme\";
 
 export function makeContactsStyles(shell: AppShellTheme) {
   return StyleSheet.create("""

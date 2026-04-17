@@ -328,6 +328,16 @@ export default function ScanScreen() {
                 ownerNickname: null,
                 ownerPhotoUrl: payload.avatarUrl,
                 ownerOccupation: null,
+                /**
+                 * Identidad real del issuer: aquí no tenemos perfil Mongo
+                 * (estamos en el branch de fallback Firestore), así que
+                 * nulleamos los 3 campos. Quien lea `userAvatarUrl` para
+                 * Ghost-Link VoIP caerá a `ownerPhotoUrl` (bcLogoUrl) como
+                 * antes del rebuild.
+                 */
+                userFullName: null,
+                userNickName: null,
+                userAvatarUrl: null,
                 themeId: payload.themeId,
                 layout: payload.layout,
                 wallpaperUrl: payload.wallpaperUrl,

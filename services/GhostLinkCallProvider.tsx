@@ -55,6 +55,8 @@ export type GhostCallData = {
   callType: GhostLinkCallType;
   card: GhostLinkSharedCard;
   peerName: string;
+  /** Nombre completo del receptor (smart); pastilla saliente si difiere del nick. */
+  peerFullName?: string;
   peerNickname: string;
   peerPhotoUrl: string | null;
   peerUid: string;
@@ -95,8 +97,15 @@ type GhostLinkCallContextValue = {
     cardType: 'business' | 'personal';
     callType?: GhostLinkCallType;
     peerName: string;
+    peerFullName?: string;
     peerNickname: string;
     peerPhotoUrl: string | null;
+    /** Business only: logo del negocio (= `businessCards.bcLogoUrl`). */
+    bcLogoUrl?: string | null;
+    /** Business only: nombre comercial (= `businessCards.bcName`). */
+    bcName?: string | null;
+    /** Business only: contacto en la tarjeta (= `businessCards.bcContactName`). */
+    bcContactName?: string | null;
   }) => void;
   confirmCall: () => Promise<void>;
   confirmVideoCall: () => Promise<void>;
@@ -442,6 +451,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
         callChannel: 'ghost-link-voip',
         callType: cd.callType || 'audio',
         isBusinessCard: cd.card.cardType === 'business',
+        emitterCardPhotoUrl: cd.card.cardPhoto ?? null,
       });
     },
     [callData],
@@ -757,10 +767,22 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
       cardType: 'business' | 'personal';
       callType?: GhostLinkCallType;
       peerName: string;
+      peerFullName?: string;
       peerNickname: string;
       peerPhotoUrl: string | null;
+      bcLogoUrl?: string | null;
+      bcName?: string | null;
+      bcContactName?: string | null;
     }) => {
       const ct: GhostLinkCallType = params.callType || 'audio';
+      const biz = params.cardType === 'business';
+      /**
+       * Business: los 3 campos explícitos son la ÚNICA fuente de verdad para la UI.
+       * Mismos 3 nombres con los que se crea/guarda en Firestore `businessCards/{bId}`.
+       */
+      const bcLogoMirror = biz ? String(params.bcLogoUrl ?? '').trim() || null : null;
+      const bcNameMirror = biz ? String(params.bcName ?? '').trim() || null : null;
+      const bcContactMirror = biz ? String(params.bcContactName ?? '').trim() || null : null;
       pendingParamsRef.current = {
         uid: '',
         targetUid: params.targetUid,
@@ -773,6 +795,23 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
         },
         callType: ct,
       };
+      const trimmedPeerFullName = String(params.peerFullName ?? '').trim() || undefined;
+      console.log('☎️ VOIP REQUEST_CALL DATA:', biz
+        ? {
+            cardType: 'business',
+            bcLogoUrl: bcLogoMirror,
+            bcName: bcNameMirror,
+            bcContactName: bcContactMirror,
+            peerFullName: trimmedPeerFullName,
+            peerPhotoUrl: params.peerPhotoUrl,
+          }
+        : {
+            cardType: 'personal',
+            cardName: params.sourceCardName,
+            cardPhoto: params.cardPhoto,
+            peerFullName: trimmedPeerFullName,
+            peerPhotoUrl: params.peerPhotoUrl,
+          });
       setCallData({
         direction: 'outgoing',
         callType: ct,
@@ -782,8 +821,12 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
           cardName: params.sourceCardName,
           cardPhoto: params.cardPhoto,
           cardType: params.cardType,
+          bcLogoUrl: bcLogoMirror,
+          bcName: bcNameMirror,
+          bcContactName: bcContactMirror,
         },
         peerName: params.peerName,
+        peerFullName: trimmedPeerFullName,
         peerNickname: params.peerNickname,
         peerPhotoUrl: params.peerPhotoUrl,
         peerUid: params.targetUid,
@@ -841,8 +884,16 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
               sourceSid: started.card.sid ?? null,
               sourceBId: started.card.bId ?? null,
               callType: started.callType,
-              card: started.card,
+              card: {
+                ...started.card,
+                /** El backend actual no devuelve los 3 campos Business explícitos: preservar los del caller. */
+                bcLogoUrl: prev.card.bcLogoUrl ?? started.card.bcLogoUrl ?? null,
+                bcName: prev.card.bcName ?? started.card.bcName ?? null,
+                bcContactName: prev.card.bcContactName ?? started.card.bcContactName ?? null,
+              },
+              peerFullName: prev.peerFullName,
               peerName: started.receiverDisplay.name,
+              peerNickname: prev.peerNickname,
               peerPhotoUrl: started.receiverDisplay.userAvatarUrl,
             }
           : prev,

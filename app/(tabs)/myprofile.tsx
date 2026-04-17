@@ -27,6 +27,7 @@ import {
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
+import { toRenderableImageUri } from '@/services/userProfilePhoto';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
@@ -133,15 +134,6 @@ function nicknameUnlockDate(lastChange: string | null): Date | null {
 
 function formatDate(d: Date) {
   return new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }).format(d);
-}
-
-function toRenderableImageUri(value: string | null | undefined): string | null {
-  const uri = String(value || '').trim();
-  if (!uri) return null;
-  if (uri.startsWith('https://') || uri.startsWith('http://')) return uri;
-  if (uri.startsWith('file://')) return uri;
-  if (uri.startsWith('data:image/')) return uri;
-  return null;
 }
 
 export default function MyProfileScreen() {

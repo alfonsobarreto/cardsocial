@@ -10,6 +10,7 @@ import {
     Animated,
     BackHandler,
     Dimensions,
+    Modal,
     Platform,
     Pressable,
     ScrollView,
@@ -214,12 +215,31 @@ export default function PremiumDataPanelHost() {
     </View>
   );
 
-  // iOS: FullWindowOverlay crea un UIWindow nativo encima de TODOS los Modal.
-  // Android: View absoluta es suficiente (los Modal nativos no bloquean z-index).
+  /**
+   * iOS: `FullWindowOverlay` crea un UIWindow nativo encima de TODOS los
+   * Modal (incluyendo `MyCardsPreviewModal`, `SmartCardMirrorModal`, etc.).
+   *
+   * Android: los Modal RN son Dialog nativos con ventana propia — un `View`
+   * absoluto en el árbol padre NO puede pintarse encima de un Modal hijo.
+   * Antes el comentario decía lo contrario y el sheet se abría DEBAJO del
+   * modal de tarjeta al tocar un iconData en Contactos. Solución: envolverlo
+   * en su propio `Modal` con `statusBarTranslucent` para que Android lo
+   * coloque por encima del modal padre.
+   */
   if (Platform.OS === 'ios') {
     return <FullWindowOverlay>{content}</FullWindowOverlay>;
   }
-  return content;
+  return (
+    <Modal
+      visible
+      transparent
+      animationType="none"
+      statusBarTranslucent
+      onRequestClose={backdropDismiss ? close : undefined}
+    >
+      {content}
+    </Modal>
+  );
 }
 
 const styles = StyleSheet.create({

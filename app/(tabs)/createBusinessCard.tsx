@@ -7,12 +7,14 @@ import { getActiveUserId } from '@/services/authSession';
 import { generatePermanentBusinessLink } from '@/services/brandedQrService';
 import {
   createBusinessCard,
-  MAX_BUSINESS_VAULT_DATA_SLOTS,
-  readBusinessCardIdentityFields,
+  getBusinessCard,
   updateBusinessCard,
-  updateBusinessCardMarketVisibility,
-  updateBusinessCardSubscriptionStatus,
-} from '@/services/businessCardService';
+} from '@/services/businessCardsRepo';
+import { resolveBusinessMarketFacets } from '@/services/businessMarketFacets';
+import type { BusinessCardDoc } from '@/services/types/cards';
+
+/** Igual que Smart Cards (12 slots): máx. ítems de Bóveda por tarjeta de negocio. */
+const MAX_BUSINESS_VAULT_DATA_SLOTS = 12;
 import { validateBusinessKeywordList } from '@/services/businessKeywordValidation';
 import {
   activateOrRenewBusinessLicense,
@@ -24,7 +26,6 @@ import { getUserIconVaultMap, type IconVaultEntry } from '@/services/iconVaultSe
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { uploadFileWithModeration } from '@/services/moderationApi';
-import { upsertSmartCardInDb, type PublicCardSlotPayload } from '@/services/qrApi';
 import { getCardRowTheme, useActiveTheme } from '@/services/useActiveTheme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -66,50 +67,33 @@ const DEFAULT_BIZ_THEME_ID = 'deep_teal';
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 
 /**
- * Sync BusinessCard data → MongoDB smart_cards so /contacts/received finds it.
- * Phase 1: essential data (no Firestore reads, guaranteed).
- * Phase 2: vault slots enrichment (best-effort, can fail silently).
+ * Build `publicCardSlots` for a BusinessCard payload. Runs entirely client-side
+ * (reads the user's own vault + icon vault in Firestore) and returns a compact
+ * array that the backend stores as-is.
  */
-async function syncBusinessCardToMongo(params: {
-  uid: string;
-  bId: string;
-  bcName: string;
-  bcContactName: string;
-  themeId: string;
-  bcLogoUrl: string;
-  vaultLinkIds: string[];
-}) {
-  const { uid, bId, bcName, bcContactName, themeId, bcLogoUrl, vaultLinkIds } = params;
-
-  const basePayload = {
-    bId,
-    scName: bcName,
-    layout: 'vertical' as const,
-    themeId: themeId || 'deep_teal',
-    cardType: 'business' as const,
-    ownerDisplayName: bcContactName || undefined,
-    ownerNickname: bcContactName || undefined,
-    ownerPhotoUrl: bcLogoUrl || null,
-    itemIds: [...vaultLinkIds],
-    holdersCount: 0,
-    ratingAvg: 5,
-    totalRatings: 0,
-    enableParallax: false,
-    isFavorite: false,
-  };
-
-  // Phase 1 — essential data. Throws on failure so callers surface the error.
-  await upsertSmartCardInDb({ uid, card: basePayload });
-
-  // Phase 2 — enrich with public card slots (vault + icons). Fails silently;
-  // essentials are already committed in Phase 1.
+async function buildPublicCardSlots(
+  uid: string,
+  vaultLinkIds: string[],
+): Promise<
+  Array<{
+    itemId: string;
+    type: string;
+    label: string;
+    value: string;
+    iconName?: string;
+    icon?: string;
+  }>
+> {
   try {
     const vaultSnap = await getDocs(collection(db, 'users', uid, 'links'));
-    const vaultAll: Array<Record<string, unknown> & { id: string }> = vaultSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, unknown>) }));
+    const vaultAll: Array<Record<string, unknown> & { id: string }> = vaultSnap.docs.map((d) => ({
+      id: d.id,
+      ...(d.data() as Record<string, unknown>),
+    }));
     const iconMap: Record<string, IconVaultEntry> = await getUserIconVaultMap(uid)
       .then((m) => Object.fromEntries(m))
-      .catch(() => ({} as Record<string, IconVaultEntry>));
-    const slots: PublicCardSlotPayload[] = vaultLinkIds.slice(0, 24).flatMap((lid) => {
+      .catch(() => ({}));
+    return vaultLinkIds.slice(0, MAX_BUSINESS_VAULT_DATA_SLOTS).flatMap((lid) => {
       const it = vaultAll.find((v) => v.id === lid);
       if (!it) return [];
       const iconVaultId = it.iconVaultId as string | undefined;
@@ -117,34 +101,28 @@ async function syncBusinessCardToMongo(params: {
       const iconRaw = String(it.icon || '').trim();
       const iconUrl = /^https?:\/\//i.test(iconRaw) ? iconRaw : undefined;
 
-      // Full resolution chain matching renderVaultLinkTileIcon:
-      // vault materialIconName → stored icon (non-HTTP) → iconName field
-      // Use '' fallback so invalid names don't produce 'help-circle' in stored data.
       const fromVault = iconEntry?.materialIconName
         ? sanitizeMaterialCommunityIconName(iconEntry.materialIconName, '')
         : '';
-      const fromStored = iconRaw && !iconUrl
-        ? sanitizeMaterialCommunityIconName(iconRaw, '')
-        : '';
+      const fromStored = iconRaw && !iconUrl ? sanitizeMaterialCommunityIconName(iconRaw, '') : '';
       const fromName = (it.iconName as string | undefined)
         ? sanitizeMaterialCommunityIconName(it.iconName as string, '')
         : '';
       const glyphName = fromVault || fromStored || fromName || undefined;
 
-      return [{
-        itemId: String(it.id),
-        type: String(it.type || 'link'),
-        label: String(it.title || ''),
-        value: String(it.value || ''),
-        ...(glyphName ? { iconName: glyphName } : {}),
-        ...(iconUrl ? { icon: iconUrl } : {}),
-      } as PublicCardSlotPayload];
+      return [
+        {
+          itemId: String(it.id),
+          type: String(it.type || 'link'),
+          label: String(it.title || ''),
+          value: String(it.value || ''),
+          ...(glyphName ? { iconName: glyphName } : {}),
+          ...(iconUrl ? { icon: iconUrl } : {}),
+        },
+      ];
     });
-    if (slots.length > 0) {
-      await upsertSmartCardInDb({ uid, card: { ...basePayload, publicCardSlots: slots } });
-    }
   } catch {
-    // Vault enrichment failed; essentials already committed in Phase 1.
+    return [];
   }
 }
 
@@ -383,13 +361,14 @@ export default function CreateBusinessCardScreen() {
     const uid = await getActiveUserId();
     if (!uid) return;
     try {
-      const snap = await getDoc(doc(db, 'businessCards', createdBId));
-      if (snap.exists()) {
-        const d = snap.data() as { isPublishedToMarket?: boolean; subscriptionStatus?: string };
-        setMarketVisible(Boolean(d.isPublishedToMarket));
-        const st = d.subscriptionStatus;
-        if (st === 'trial' || st === 'active' || st === 'dull') {
+      const card = await getBusinessCard(uid, createdBId);
+      if (card) {
+        setMarketVisible(Boolean(card.isPublishedToMarket));
+        const st = card.subscriptionStatus;
+        if (st === 'trial' || st === 'active') {
           setSubscriptionStatus(st);
+        } else if (st === 'expired') {
+          setSubscriptionStatus('dull');
         }
       }
     } catch {
@@ -413,16 +392,19 @@ export default function CreateBusinessCardScreen() {
         return;
       }
       try {
-        const snap = await getDoc(doc(db, 'businessCards', routeBId));
+        let card: BusinessCardDoc | null = null;
+        try {
+          card = await getBusinessCard(uid, routeBId);
+        } catch {
+          card = null;
+        }
         if (cancelled) return;
-        if (!snap.exists()) {
-          // 1. Elimina la tarjeta fantasma de la base de datos local o caché
+        if (!card) {
           try {
             await AsyncStorage.removeItem(`@smartcard_${routeBId}`);
           } catch {
-            // Ignorar errores de borrado local
+            /* ignore */
           }
-          // 2. Limpia los estados del formulario
           setCreatedBId(null);
           setUidState(null);
           setBcName('');
@@ -438,58 +420,39 @@ export default function CreateBusinessCardScreen() {
           setBcLogo(null);
           setBusinessTermsAccepted(false);
           setSubscriptionStatus(null);
-          // 3. Alerta bilingüe al usuario
           Alert.alert(
             tr('Tarjeta no encontrada', 'Card not found'),
             tr(
               'Tu tarjeta anterior ya no existe en el servidor. El formulario ha sido limpiado para que puedas crear una nueva.',
-              'Your previous card no longer exists on the server. The form has been cleared so you can create a new one.'
-            )
+              'Your previous card no longer exists on the server. The form has been cleared so you can create a new one.',
+            ),
           );
           setLoadingExistingCard(false);
-          return;
-        }
-        const d = snap.data() as Record<string, unknown>;
-        if (String(d.uid) !== uid) {
-          Alert.alert(tr('Acceso', 'Access'), tr('Esta tarjeta no es tuya.', 'This card is not yours.'));
           return;
         }
         if (cancelled) return;
         setCreatedBId(routeBId);
         setUidState(uid);
-        const idn = readBusinessCardIdentityFields(d as Record<string, unknown>);
-        setBcName(idn.bcName);
-        setBcContactName(idn.bcContactName);
-        setKeywordTags(Array.isArray(d.keywords) ? (d.keywords as string[]).map(String) : []);
-        setBusinessThemeId(String(d.themeId ?? DEFAULT_BIZ_THEME_ID).trim() || DEFAULT_BIZ_THEME_ID);
-        const vids = Array.isArray(d.vaultLinkIds) ? (d.vaultLinkIds as unknown[]).map(String) : [];
-        setSelectedVaultLinkIds(new Set(vids.slice(0, MAX_BUSINESS_VAULT_DATA_SLOTS)));
-        const lat = d.latitude;
-        const lng = d.longitude;
-        setLatitude(typeof lat === 'number' ? lat : null);
-        setLongitude(typeof lng === 'number' ? lng : null);
-        setResolvedAddressLabel(String(d.physicalAddress ?? ''));
-        const ls = d.locationSource;
+        setBcName(card.bcName || '');
+        setBcContactName(card.bcContactName || '');
+        setKeywordTags(card.bcKeywords || []);
+        setBusinessThemeId(card.themeId || DEFAULT_BIZ_THEME_ID);
+        setSelectedVaultLinkIds(new Set((card.vaultItemIds || []).slice(0, MAX_BUSINESS_VAULT_DATA_SLOTS)));
+        setLatitude(Number.isFinite(card.bcLatitude) ? card.bcLatitude : null);
+        setLongitude(Number.isFinite(card.bcLongitude) ? card.bcLongitude : null);
+        setResolvedAddressLabel(card.bcPhysicalAddress || '');
+        const ls = card.bcLocationSource;
         setLocationCoordSource(ls === 'device_gps' || ls === 'geocode_forward' ? ls : null);
-        if (idn.bcLogoUrl) {
-          setBcLogoUrl(idn.bcLogoUrl);
-        } else {
-          setBcLogoUrl(null);
-        }
+        setBcLogoUrl(card.bcLogoUrl || null);
         setBcLogo(null);
-        setBusinessTermsAccepted(Boolean(d.businessTermsAccepted));
-        const st = d.subscriptionStatus;
-        if (st === 'trial' || st === 'active' || st === 'dull') {
+        setBusinessTermsAccepted(Boolean(card.businessTermsAccepted));
+        const st = card.subscriptionStatus;
+        if (st === 'trial' || st === 'active') {
           setSubscriptionStatus(st);
+        } else if (st === 'expired') {
+          setSubscriptionStatus('dull');
         } else {
           setSubscriptionStatus(null);
-        }
-        // Auto-migrate: denormalize vault facets if missing OR if saved as empty array
-        const needsMigration =
-          vids.length > 0 &&
-          (!Array.isArray(d.marketFacets) || (d.marketFacets as unknown[]).length === 0);
-        if (needsMigration) {
-          void updateBusinessCard(uid, routeBId, { vaultLinkIds: vids }).catch(() => {});
         }
       } finally {
         if (!cancelled) setLoadingExistingCard(false);
@@ -892,120 +855,107 @@ export default function CreateBusinessCardScreen() {
       const resolvedBcLogoUrl = resolvedLogo ?? '';
       console.log('[BusinessCard] handleCreate: bcLogoUrl length=', resolvedBcLogoUrl.length);
 
-
       const kwTags = kw.ok ? kw.tags : [];
+      const vaultIds = [...selectedVaultLinkIds];
+
+      const [facets, slots] = await Promise.all([
+        resolveBusinessMarketFacets(uid, vaultIds),
+        buildPublicCardSlots(uid, vaultIds),
+      ]);
 
       if (editingBId) {
-        const res = await updateBusinessCard(uid, editingBId, {
+        await updateBusinessCard(uid, editingBId, {
           bcName: bcName.trim(),
           bcContactName: bcContactName.trim(),
-          vaultLinkIds: [...selectedVaultLinkIds],
-          themeId: businessThemeId,
-          keywords: kwTags,
-          bcLogoUrl: resolvedBcLogoUrl,
-          physicalAddress: resolvedAddressLabel.trim(),
-          latitude,
-          longitude,
-          locationSource: locationCoordSource || 'device_gps',
+          bcLogoUrl: resolvedBcLogoUrl || null,
+          bcPhysicalAddress: resolvedAddressLabel.trim(),
+          bcLatitude: latitude ?? 0,
+          bcLongitude: longitude ?? 0,
+          bcLocationSource: (locationCoordSource || 'device_gps') as 'device_gps' | 'geocode_forward' | 'manual',
+          bcKeywords: kwTags,
+          bcMarketFacets: facets,
+          vaultItemIds: vaultIds,
+          publicCardSlots: slots,
+          themeId: businessThemeId || 'deep_teal',
         });
-        if (res.success) {
-          formBaselineRef.current = computeFormSnapshot();
-          try {
-            await syncBusinessCardToMongo({
-              uid: uid,
-              bId: editingBId!,
-              bcName: bcName.trim(),
-              bcContactName: bcContactName.trim(),
-              themeId: businessThemeId || 'deep_teal',
-              bcLogoUrl: resolvedBcLogoUrl,
-              vaultLinkIds: [...selectedVaultLinkIds],
-            });
-          } catch {
-            Toast.show({
-              type: 'info',
-              text1: tr('Tarjeta guardada', 'Card saved'),
-              text2: tr(
-                'No se pudo sincronizar con el servidor. Tus contactos verán los datos actualizados en el próximo acceso.',
-                'Could not sync with server. Your contacts will see updated data on next access.',
-              ),
-              visibilityTime: 5000,
-            });
-          }
-          Alert.alert(tr('Listo', 'Done'), tr('Cambios guardados.', 'Changes saved.'), [
-            {
-              text: tr('OK', 'OK'),
-              onPress: goToCardsTab,
-            },
-          ]);
-          void refreshCreatedCardMeta();
-        } else {
-          Alert.alert(tr('Error', 'Error'), res.message);
-        }
+        formBaselineRef.current = computeFormSnapshot();
+        Alert.alert(tr('Listo', 'Done'), tr('Cambios guardados.', 'Changes saved.'), [
+          { text: tr('OK', 'OK'), onPress: goToCardsTab },
+        ]);
+        void refreshCreatedCardMeta();
       } else {
-        const res = await createBusinessCard({
-          uid,
-          vaultLinkIds: [...selectedVaultLinkIds],
+        const card = await createBusinessCard(uid, {
           bcName: bcName.trim(),
           bcContactName: bcContactName.trim(),
-          physicalAddress: resolvedAddressLabel.trim(),
-          latitude,
-          longitude,
-          locationSource: locationCoordSource || 'device_gps',
-          keywords: kwTags,
-          bcLogoUrl: resolvedBcLogoUrl,
-          kycDocumentUrl: '',
+          bcLogoUrl: resolvedBcLogoUrl || null,
+          bcPhysicalAddress: resolvedAddressLabel.trim(),
+          bcLatitude: latitude ?? 0,
+          bcLongitude: longitude ?? 0,
+          bcLocationSource: (locationCoordSource || 'device_gps') as 'device_gps' | 'geocode_forward' | 'manual',
+          bcKeywords: kwTags,
+          vaultItemIds: vaultIds,
+          themeId: businessThemeId || 'deep_teal',
+          fontId: null,
+          wallpaperId: null,
+          iconPackId: null,
+          enableParallax: false,
+          layout: 'vertical',
+          kycDocumentUrl: null,
           kycTermsAccepted: businessTermsAccepted,
           businessTermsAccepted,
-          themeId: businessThemeId,
         });
-        if (res.success && res.bId) {
-          setCreatedBId(res.bId);
-          setUidState(uid);
-          setMarketVisible(false);
-          setSubscriptionStatus('trial');
-          formBaselineRef.current = computeFormSnapshot();
+
+        // Market facets + slots go in via immediate PATCH (create input is lean;
+        // the server didn't read any Firestore to compute them).
+        if (facets.length || slots.length) {
           try {
-            await syncBusinessCardToMongo({
-              uid: uid,
-              bId: res.bId!,
-              bcName: bcName.trim(),
-              bcContactName: bcContactName.trim(),
-              themeId: businessThemeId || 'deep_teal',
-              bcLogoUrl: resolvedBcLogoUrl,
-              vaultLinkIds: [...selectedVaultLinkIds],
+            await updateBusinessCard(uid, card.bId, {
+              bcMarketFacets: facets,
+              publicCardSlots: slots,
             });
           } catch {
-            Toast.show({
-              type: 'info',
-              text1: tr('Tarjeta creada', 'Card created'),
-              text2: tr(
-                'No se pudo sincronizar con el servidor. Tus contactos verán los datos reales en el próximo acceso.',
-                'Could not sync with server. Your contacts will see real data on next access.',
-              ),
-              visibilityTime: 5000,
-            });
+            /* non-fatal: the card itself was created */
           }
-          if ((res as any).licenseWarning) {
-            Toast.show({
-              type: 'error',
-              text1: tr('Licencia trial no activada', 'Trial license not activated'),
-              text2: tr(
-                'La tarjeta se guardó pero no aparecerá en el Mercado Social. Activa la licencia desde la pantalla de tu tarjeta.',
-                "Card saved but won't appear in Social Market. Activate the license from your card screen.",
-              ),
-              visibilityTime: 7000,
-            });
-          }
-          Alert.alert(tr('Listo', 'Done'), res.message, [
-            {
-              text: tr('OK', 'OK'),
-              onPress: goToCardsTab,
-            },
-          ]);
-          void refreshCreatedCardMeta();
-        } else {
-          Alert.alert(tr('Error', 'Error'), res.message);
         }
+
+        setCreatedBId(card.bId);
+        setUidState(uid);
+        setMarketVisible(false);
+        setSubscriptionStatus('trial');
+        formBaselineRef.current = computeFormSnapshot();
+
+        // Activate trial license in Firestore (deliberately kept there for now).
+        let licenseWarning = false;
+        try {
+          await activateOrRenewBusinessLicense({
+            uid,
+            bId: card.bId,
+            annualPriceUsd: 0,
+            cashbackCreditsGranted: 0,
+          });
+        } catch (licErr) {
+          console.warn('[createBusinessCard] trial license write failed:', licErr);
+          licenseWarning = true;
+        }
+
+        if (licenseWarning) {
+          Toast.show({
+            type: 'error',
+            text1: tr('Licencia trial no activada', 'Trial license not activated'),
+            text2: tr(
+              'La tarjeta se guardó pero no aparecerá en el Mercado Social. Activa la licencia desde la pantalla de tu tarjeta.',
+              "Card saved but won't appear in Social Market. Activate the license from your card screen.",
+            ),
+            visibilityTime: 7000,
+          });
+        }
+
+        Alert.alert(
+          tr('Listo', 'Done'),
+          tr('Tarjeta de negocio creada. Periodo de prueba de 14 días iniciado.', 'Business card created. 14-day trial started.'),
+          [{ text: tr('OK', 'OK'), onPress: goToCardsTab }],
+        );
+        void refreshCreatedCardMeta();
       }
     } catch (e: any) {
       Alert.alert(tr('Error', 'Error'), e?.message || '');
@@ -1073,36 +1023,46 @@ export default function CreateBusinessCardScreen() {
         annualPriceUsd: 99,
         cashbackCreditsGranted: 0,
       });
-      const exp = Date.parse(String(lic.expiresAt || ''));
-      await updateBusinessCardSubscriptionStatus(uid, createdBId, 'active', {
-        subscriptionExpiresAt: Number.isFinite(exp) ? new Date(exp) : null,
-      });
+      const expMs = Date.parse(String(lic.expiresAt || ''));
+      try {
+        await updateBusinessCard(uid, createdBId, {
+          subscriptionStatus: 'active',
+          subscriptionExpiresAt: Number.isFinite(expMs) ? new Date(expMs).toISOString() : null,
+        });
+      } catch (e) {
+        Alert.alert(tr('Error', 'Error'), (e as Error)?.message || '');
+        return;
+      }
       setSubscriptionStatus('active');
       setLicenseActive(await hasActiveBusinessLicense(uid, createdBId));
       Alert.alert(
         tr('Licencia activa', 'License active'),
-        tr('Estado en Firestore: active. Puedes publicar en Social Market.', 'Firestore status: active. You can publish to Social Market.'),
+        tr('Estado: active. Puedes publicar en Social Market.', 'Status: active. You can publish to Social Market.'),
       );
     } finally {
       setActivatingLicense(false);
     }
   };
 
+  /**
+   * "Dull" is a LOCAL UI preview state only — it is not persisted. The backend
+   * schema's subscriptionStatus is 'trial' | 'active' | 'expired'. Hitting this
+   * button just dims the preview for the current session so you can see how the
+   * card looks when the subscription lapses.
+   */
   const handleSimulateDull = async () => {
     const uid = await getActiveUserId();
     if (!uid || !createdBId) return;
     setSimulatingDull(true);
     try {
-      const r = await updateBusinessCardSubscriptionStatus(uid, createdBId, 'dull');
-      if (r.success) {
-        setSubscriptionStatus('dull');
-        Alert.alert(
-          tr('Modo Dull', 'Dull mode'),
-          tr('La vista previa muestra la tarjeta atenuada.', 'Preview shows the dimmed card state.'),
-        );
-      } else {
-        Alert.alert(tr('Error', 'Error'), r.message);
-      }
+      setSubscriptionStatus('dull');
+      Alert.alert(
+        tr('Modo Dull (preview)', 'Dull mode (preview)'),
+        tr(
+          'Vista previa atenuada. No se persiste; al refrescar vuelve al estado real.',
+          'Dimmed preview only. Not persisted; refreshing restores the real state.',
+        ),
+      );
     } finally {
       setSimulatingDull(false);
     }
@@ -1119,11 +1079,11 @@ export default function CreateBusinessCardScreen() {
       );
       return;
     }
-    const r = await updateBusinessCardMarketVisibility(uid, createdBId, value);
-    if (r.success) {
+    try {
+      await updateBusinessCard(uid, createdBId, { isPublishedToMarket: value });
       setMarketVisible(value);
-    } else {
-      Alert.alert(tr('Error', 'Error'), r.message);
+    } catch (e) {
+      Alert.alert(tr('Error', 'Error'), (e as Error)?.message || '');
     }
   };
 
