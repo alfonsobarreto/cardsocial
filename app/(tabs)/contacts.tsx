@@ -6,7 +6,6 @@ import { SharedCardSkeletonList } from '@/components/SharedCardRowSkeleton';
 import { type WireframeEditSlot } from '@/components/smartCard/IsolatedWireframeCard';
 import { ThemedSharedCardSurface } from '@/components/ThemedSharedCardSurface';
 import { MEDIA_PLACEHOLDER } from '@/constants/mediaPlaceholders';
-import { logIdentityTest } from '@/services/identityManualTestLogs';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { buildMirrorVaultItemsForContact } from '@/services/buildReceiverPreviewVaultItems';
@@ -405,21 +404,6 @@ function ContactsContent() {
       try {
         const response = await listReceivedContacts({ uid: viewerUid });
         normalized = (Array.isArray(response.contacts) ? response.contacts : []).map((c) => normalizeContactRow(c as Contact));
-        // Diagnóstico: smart cards a veces no pintan avatar en iOS pero sí
-        // en Android. Así sabemos si el backend ya trae `userAvatarUrl` o
-        // si llega null (bug del sync users/profiles) o si llega URL pero
-        // el renderer iOS la rechaza.
-        console.log(
-          '[CONTACTS_LOAD] received',
-          normalized.length,
-          'contacts → avatars:',
-          normalized.map((c) => ({
-            uid: String(c.uid).slice(0, 8),
-            cardType: (c as Contact & { cardType?: string }).cardType ?? null,
-            userFullName: c.userFullName,
-            userAvatarUrl: c.userAvatarUrl,
-          })),
-        );
         await AsyncStorage.setItem(cacheKey, JSON.stringify(normalized));
       } catch {
         normalized = cachedContacts;
@@ -536,53 +520,6 @@ function ContactsContent() {
       slots: mirrorPreviewSlots,
     };
   }, [selectedContact, mirrorPreviewSlots, tr]);
-
-  /** Prueba manual — lista y modal receptor (ver docs/MANUAL_TEST_IDENTITY_LOGS.md). */
-  useEffect(() => {
-    if (loading) {
-      return;
-    }
-    logIdentityTest('contacts:tab — lista agregada', {
-      count: contacts.length,
-      rows: contacts.map((c) => ({
-        linkKey: receivedContactMergeKey(c),
-        cardType: c.cardType,
-        userFullName: c.userFullName,
-        userNickName: c.userNickName,
-        userAvatarUrl: c.userAvatarUrl,
-        cardName: c.cardName,
-        bcName: c.bcName,
-        bcContactName: c.bcContactName,
-        bcLogoUrl: c.bcLogoUrl,
-        ownerPhotoUrl: c.ownerPhotoUrl,
-      })),
-    });
-  }, [contacts, loading]);
-
-  useEffect(() => {
-    if (!floatingVisible || !selectedContact) {
-      return;
-    }
-    const c = selectedContact;
-    logIdentityTest('contacts:modal — MyCardsPreview receptor', {
-      linkKey: receivedContactMergeKey(c),
-      cardType: c.cardType,
-      userFullName: c.userFullName,
-      userNickName: c.userNickName,
-      userAvatarUrl: c.userAvatarUrl,
-      cardName: c.cardName,
-      bcName: c.bcName,
-      bcContactName: c.bcContactName,
-      bcLogoUrl: c.bcLogoUrl,
-      payloadPreview: contactPayload
-        ? {
-            cardName: contactPayload.cardName,
-            subtitle: contactPayload.subtitle,
-            avatarUrl: contactPayload.avatarUrl,
-          }
-        : null,
-    });
-  }, [floatingVisible, selectedContact, contactPayload]);
 
   const allGroups = useMemo(() => {
     const dynamic = Object.values(metaMap)

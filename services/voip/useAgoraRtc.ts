@@ -95,6 +95,10 @@ export function useAgoraRtc(params: UseAgoraRtcParams): UseAgoraRtcResult {
   const localVideoOnRef = useRef(localVideoOn);
   localVideoOnRef.current = localVideoOn;
 
+  /** Último valor para `joinGhostLinkAgoraSession` — no va en deps del efecto principal (evita teardown al cambiar modo vídeo UI). */
+  const enableVideoRef = useRef(enableVideo);
+  enableVideoRef.current = enableVideo;
+
   const localCameraZoomRef = useRef(1);
   const pinchAnchorZoomRef = useRef(1);
 
@@ -116,7 +120,8 @@ export function useAgoraRtc(params: UseAgoraRtcParams): UseAgoraRtcResult {
   useEffect(() => {
     if (shouldJoin && !prevShouldJoinRef.current) {
       setIsMuted(false);
-      setIsSpeakerphoneOn(initialSpeakerphoneOn);
+      /** No resetear `isSpeakerphoneOn` aquí: si el usuario activó altavoz en timbre (`ringing_*`),
+       *  debe persistir al join; `initialSpeakerphoneOn` forzaría OFF y desincroniza UI ↔ hardware. */
     }
     if (!shouldJoin) {
       setRemoteUid(null);
@@ -128,7 +133,7 @@ export function useAgoraRtc(params: UseAgoraRtcParams): UseAgoraRtcResult {
       }
     }
     prevShouldJoinRef.current = shouldJoin;
-  }, [shouldJoin, initialSpeakerphoneOn]);
+  }, [shouldJoin]);
 
   const endRtcSession = useCallback(async () => {
     await leaveGhostLinkAgoraSession();
@@ -181,7 +186,7 @@ export function useAgoraRtc(params: UseAgoraRtcParams): UseAgoraRtcResult {
 
     void (async () => {
       try {
-        await joinGhostLinkAgoraSession(creds, enableVideo);
+        await joinGhostLinkAgoraSession(creds, enableVideoRef.current);
       } catch {
         return;
       }
@@ -207,6 +212,11 @@ export function useAgoraRtc(params: UseAgoraRtcParams): UseAgoraRtcResult {
       }
 
       if (!cancelled) {
+        try {
+          setGhostLinkAgoraSpeaker(isSpeakerphoneOnRef.current);
+        } catch {
+          /* noop */
+        }
         onLocalJoinedRef.current?.();
       }
     })();
@@ -223,8 +233,8 @@ export function useAgoraRtc(params: UseAgoraRtcParams): UseAgoraRtcResult {
       }
       void leaveGhostLinkAgoraSession();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- join solo al armar creds/shouldJoin/video
-  }, [shouldJoin, creds?.appId, creds?.channelName, creds?.token, creds?.uid, enableVideo]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- join solo al armar creds/shouldJoin; no `enableVideo` (toggle cámara / modo no debe leaveChannel)
+  }, [shouldJoin, creds?.appId, creds?.channelName, creds?.token, creds?.uid]);
 
   useEffect(() => {
     if (!getGhostLinkAgoraEngine()) return;

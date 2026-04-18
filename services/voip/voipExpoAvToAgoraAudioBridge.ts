@@ -84,18 +84,13 @@ export async function prepareIosAndroidAudioSessionForVoipRtc(): Promise<void> {
 export async function runVoipConnectingAudioHandoff(releaseExpoAvRing: () => Promise<void>): Promise<void> {
   try {
     await releaseExpoAvRing();
-  } catch (e) {
-    if (__DEV__) {
-      console.warn('[VoIP handoff] releaseExpoAvRing failed (continuing to prepare session)', e);
-    }
+  } catch {
+    /* continuar: preparar sesión de audio */
   }
 
   try {
     await prepareIosAndroidAudioSessionForVoipRtc();
-  } catch (e) {
-    if (__DEV__) {
-      console.warn('[VoIP handoff] prepareIosAndroidAudioSessionForVoipRtc failed', e);
-    }
+  } catch {
     /* No relanzar: el join de Agora puede reconfigurar la sesión; evitar dejar la UI colgada. */
   }
 }

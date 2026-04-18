@@ -7,7 +7,6 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { GhostLinkKeypadSheet } from '@/components/voip/GhostLinkKeypadSheet';
 import {
   Animated,
   Image,
@@ -24,7 +23,6 @@ import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useGhostLinkCall, type GhostCallData } from '@/services/GhostLinkCallProvider';
-import { logIdentityTest } from '@/services/identityManualTestLogs';
 import {
   outgoingMirrorFromGhostCallData,
   OUTGOING_CALL_EMPTY_LINE,
@@ -471,20 +469,6 @@ function ConfirmView() {
   const shell = useGhostLinkShell();
   const tr = useTr();
 
-  useEffect(() => {
-    if (!callData) {
-      return;
-    }
-    const om = outgoingMirrorFromGhostCallData(callData);
-    logIdentityTest('voip:call_view — confirm', {
-      isBusiness: om.isBusiness,
-      titleBold: om.titleBold,
-      subtitleLine: om.subtitleLine,
-      bcContactName: om.bcContactName,
-      ringUrl: om.ringUrl,
-    });
-  }, [callData]);
-
   if (!callData) return null;
 
   const om = outgoingMirrorFromGhostCallData(callData);
@@ -544,22 +528,6 @@ function OutgoingView() {
   const callData = useDisplayGhostCallData();
   const shell = useGhostLinkShell();
   const tr = useTr();
-  const [keypadOpen, setKeypadOpen] = useState(false);
-
-  useEffect(() => {
-    if (!callData) {
-      return;
-    }
-    const om = outgoingMirrorFromGhostCallData(callData);
-    logIdentityTest('voip:call_view — outgoing', {
-      phase,
-      isBusiness: om.isBusiness,
-      titleBold: om.titleBold,
-      subtitleLine: om.subtitleLine,
-      bcContactName: om.bcContactName,
-      ringUrl: om.ringUrl,
-    });
-  }, [callData, phase]);
 
   if (!callData) return null;
 
@@ -616,12 +584,6 @@ function OutgoingView() {
             active={videoEnabled}
             onPress={() => void toggleVideo()}
           />
-          <ControlButton
-            icon="dialpad"
-            label={tr('Teclado', 'Keypad')}
-            active={keypadOpen}
-            onPress={() => setKeypadOpen(true)}
-          />
         </View>
 
         <TouchableOpacity
@@ -636,20 +598,6 @@ function OutgoingView() {
           {tr('Enlace exclusivo', 'Exclusive Link')}
         </Text>
       </View>
-      <GhostLinkKeypadSheet
-        visible={keypadOpen}
-        onClose={() => setKeypadOpen(false)}
-        tr={tr}
-        colors={{
-          backdrop: shell.overlayScrim,
-          sheetBg: shell.modalBg,
-          sheetBorder: shell.border,
-          keyBg: shell.ghostLinkControlFrost,
-          keyText: shell.ghostLinkTextPrimary,
-          closeIcon: shell.ghostLinkTextSecondary,
-          title: shell.ghostLinkTextPrimary,
-        }}
-      />
     </View>
   );
 }
@@ -728,7 +676,6 @@ function ActiveIncomingView() {
   const callData = useDisplayGhostCallData();
   const shell = useGhostLinkShell();
   const tr = useTr();
-  const [keypadOpen, setKeypadOpen] = useState(false);
   if (!callData) return null;
 
   if (videoEnabled && RtcSurfaceView) {
@@ -781,12 +728,6 @@ function ActiveIncomingView() {
             active={videoEnabled}
             onPress={() => void toggleVideo()}
           />
-          <ControlButton
-            icon="dialpad"
-            label={tr('Teclado', 'Keypad')}
-            active={keypadOpen}
-            onPress={() => setKeypadOpen(true)}
-          />
         </View>
 
         <TouchableOpacity
@@ -801,20 +742,6 @@ function ActiveIncomingView() {
           {tr('Enlace exclusivo', 'Exclusive Link')}
         </Text>
       </View>
-      <GhostLinkKeypadSheet
-        visible={keypadOpen}
-        onClose={() => setKeypadOpen(false)}
-        tr={tr}
-        colors={{
-          backdrop: shell.overlayScrim,
-          sheetBg: shell.modalBg,
-          sheetBorder: shell.border,
-          keyBg: shell.ghostLinkControlFrost,
-          keyText: shell.ghostLinkTextPrimary,
-          closeIcon: shell.ghostLinkTextSecondary,
-          title: shell.ghostLinkTextPrimary,
-        }}
-      />
     </>
   );
 }

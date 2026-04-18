@@ -195,9 +195,6 @@ export async function joinGhostLinkAgoraSession(creds: GhostLinkAgoraRtc, enable
 
   const joinCode = e.joinChannel(creds.token, creds.channelName, creds.uid, options);
   if (joinCode !== 0) {
-    if (__DEV__) {
-      console.warn('[Ghost-Link Agora] joinChannel code', joinCode);
-    }
     await leaveGhostLinkAgoraSession();
     return;
   }

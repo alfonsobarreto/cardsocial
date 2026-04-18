@@ -22,7 +22,6 @@ import {
     type CardTheme as ChestCardTheme,
     type ThemeTier,
 } from '@/constants/themeChest';
-import { logIdentityTest } from '@/services/identityManualTestLogs';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { generatePermanentBusinessLink } from '@/services/brandedQrService';
@@ -645,74 +644,6 @@ export default function CardsFactoryScreen() {
     }
   }, [subscribersVisible]);
 
-  /** Evita repetir el mismo log cuando `issuerIdentity` se reemplaza por referencia sin cambiar los campos mostrados. */
-  const lastCardsTabListLogDigestRef = useRef<string>('');
-
-  /** Prueba manual — contrato identidad en tab Mis Tarjetas (ver docs/MANUAL_TEST_IDENTITY_LOGS.md). */
-  useEffect(() => {
-    const payload = {
-      issuer: {
-        userFullName: issuerIdentity.userFullName,
-        userNickName: issuerIdentity.userNickName,
-        userAvatarUrl: issuerIdentity.userAvatarUrl,
-        voipCanonicalFullName: issuerIdentity.voipCanonicalFullName,
-      },
-      smartCards: smartCards.map((c) => ({
-        sid: c.sid,
-        scName: c.scName,
-        ownerDisplayName: c.ownerDisplayName,
-        issuerSnapshotUserAvatarUrl: c.issuerSnapshot?.userAvatarUrl ?? null,
-      })),
-      businessCards: businessCardsFeed.map((b) => ({
-        bId: b.bId,
-        bcName: b.bcName,
-        bcContactName: b.bcContactName,
-        bcLogoUrl: b.bcLogoUrl,
-      })),
-    };
-    const digest = JSON.stringify(payload);
-    if (digest === lastCardsTabListLogDigestRef.current) {
-      return;
-    }
-    lastCardsTabListLogDigestRef.current = digest;
-    logIdentityTest('cards:tab — listas (Smart + Business + emisor)', payload);
-  }, [
-    smartCards,
-    businessCardsFeed,
-    issuerIdentity.userFullName,
-    issuerIdentity.userNickName,
-    issuerIdentity.userAvatarUrl,
-    issuerIdentity.voipCanonicalFullName,
-  ]);
-
-  useEffect(() => {
-    if (!previewVisible || !previewCard) {
-      return;
-    }
-    logIdentityTest('cards:modal — preview Smart (MyCards)', {
-      sid: previewCard.sid,
-      scName: previewCard.scName,
-      ownerDisplayName: previewCard.ownerDisplayName,
-      issuerSnapshot: previewCard.issuerSnapshot
-        ? {
-            userAvatarUrl: previewCard.issuerSnapshot.userAvatarUrl ?? null,
-            userFullName: previewCard.issuerSnapshot.userFullName ?? null,
-          }
-        : null,
-    });
-  }, [previewVisible, previewCard]);
-
-  useEffect(() => {
-    if (!previewBusinessVisible || !previewBusiness) {
-      return;
-    }
-    logIdentityTest('cards:modal — preview Business', {
-      bId: previewBusiness.bId,
-      bcName: previewBusiness.bcName,
-      bcContactName: previewBusiness.bcContactName,
-      bcLogoUrl: previewBusiness.bcLogoUrl,
-    });
-  }, [previewBusinessVisible, previewBusiness]);
   /** Tras cerrar selector de datos / temas, reabrir el factory si estaba abierto (evita 2 Modals superpuestos en Android). */
   const resumeFactoryAfterAuxModalRef = useRef(false);
 

@@ -469,5 +469,5 @@ export async function respondGhostLinkInvite(params: {
   const status = String(response?.data?.status || '').trim().toLowerCase();
   return {
     status: status === 'rejected' ? 'rejected' : status === 'ended' ? 'ended' : 'accepted',
-  };
+  } as { status: 'accepted' | 'rejected' | 'ended' };
 }

@@ -1,4 +1,3 @@
-import { logIdentityTest } from '@/services/identityManualTestLogs';
 import { getActiveUserId } from '@/services/authSession';
 import { requestGhostLinkCallImperative } from '@/services/GhostLinkCallProvider';
 import { useLanguage } from '@/services/language';
@@ -448,49 +447,6 @@ export default function CallsPage() {
     return map;
   }, [contacts]);
 
-  /** Prueba manual — historial + modal + acción Llamar (ver docs/MANUAL_TEST_IDENTITY_LOGS.md). */
-  useEffect(() => {
-    if (loading) {
-      return;
-    }
-    const rows = history.map((item) => {
-      const contact = contactByUid.get(item.peerUid);
-      const ui = callsHistoryRowUi(item, contact, tr);
-      const row: Record<string, unknown> = {
-        callId: item.callId,
-        direction: item.direction,
-        cardType: item.cardType,
-        peerUid: item.peerUid,
-        ui: {
-          titleBold: ui.titleBold,
-          subtitleLine: ui.subtitleLine,
-          avatarPrimary: ui.avatarPrimary,
-          kindBadge: ui.kindBadge,
-          logLine: ui.logLine,
-        },
-        raw: {
-          userAvatarUrl: item.userAvatarUrl,
-          peerFullName: item.peerFullName,
-          userFullName: item.userFullName,
-          cardName: item.cardName,
-          scName: item.scName,
-          displayCardName: item.displayCardName,
-          bcName: item.bcName,
-          display: item.display,
-        },
-      };
-      if (item.direction === 'outgoing' && contact) {
-        row.outgoingMirror = outgoingMirrorFromCallHistoryOutgoing(item, contact);
-      }
-      return row;
-    });
-    logIdentityTest('calls:tab — historial', {
-      historyCount: history.length,
-      contactsMapped: contacts.length,
-      rows,
-    });
-  }, [loading, history, contacts, contactByUid, tr]);
-
   const loadData = async (opts?: { silent?: boolean }) => {
     const silent = Boolean(opts?.silent);
     try {
@@ -523,6 +479,10 @@ export default function CallsPage() {
             userNickName: row.userNickName,
             userAvatarUrl: row.userAvatarUrl,
             cardName: row.cardName,
+            bcContactName:
+              row.bcContactName != null && String(row.bcContactName).trim()
+                ? String(row.bcContactName).trim()
+                : null,
             holdersCount: row.holdersCount,
             ratingAvg: row.ratingAvg,
             storyState: row.storyState,
@@ -716,16 +676,6 @@ export default function CallsPage() {
           <TouchableOpacity
             style={[styles.voiceBtn, { backgroundColor: '#C8A84E' }]}
             onPress={() => {
-              logIdentityTest('calls:action — Llamar (video)', {
-                callId: item.callId,
-                direction: item.direction,
-                callType: 'video',
-                imperativeBase,
-                outgoingMirror:
-                  item.direction === 'outgoing' && contact
-                    ? outgoingMirrorFromCallHistoryOutgoing(item, contact)
-                    : null,
-              });
               requestGhostLinkCallImperative({
                 ...imperativeBase,
                 callType: 'video',
@@ -738,16 +688,6 @@ export default function CallsPage() {
           <TouchableOpacity
             style={[styles.voiceBtn, { backgroundColor: '#1B6B3A' }]}
             onPress={() => {
-              logIdentityTest('calls:action — Llamar (audio)', {
-                callId: item.callId,
-                direction: item.direction,
-                callType: 'audio',
-                imperativeBase,
-                outgoingMirror:
-                  item.direction === 'outgoing' && contact
-                    ? outgoingMirrorFromCallHistoryOutgoing(item, contact)
-                    : null,
-              });
               requestGhostLinkCallImperative({
                 ...imperativeBase,
                 callType: 'audio',
@@ -768,24 +708,6 @@ export default function CallsPage() {
     detailUi != null
       ? toRenderableImageUri(detailUi.avatarPrimary) ?? toRenderableImageUri(detailUi.avatarFallback ?? null)
       : null;
-
-  useEffect(() => {
-    if (!detailVisible || !selectedCall) {
-      return;
-    }
-    const contact = contactByUid.get(selectedCall.peerUid);
-    const ui = callsHistoryRowUi(selectedCall, contact, tr);
-    logIdentityTest('calls:modal — detalle llamada', {
-      callId: selectedCall.callId,
-      direction: selectedCall.direction,
-      ui,
-      display: selectedCall.display,
-      outgoingMirror:
-        selectedCall.direction === 'outgoing' && contact
-          ? outgoingMirrorFromCallHistoryOutgoing(selectedCall, contact)
-          : undefined,
-    });
-  }, [detailVisible, selectedCall, contactByUid, tr]);
 
   return (
     <LinearGradient colors={[...shell.callsShellGradient]} style={styles.container}>
