@@ -1,12 +1,17 @@
 /**
  * Construye el payload del modal de vista previa al aceptar una tarjeta entrante
  * (token universal / QR dinámico), misma forma que Contactos / Mis Tarjetas.
+ * Identidad siempre desde objeto raíz (`CanonicalIssuerIdentity`), no campos sueltos.
  */
 
 import type { WireframeEditSlot } from '@/components/smartCard/IsolatedWireframeCard';
 import type { MyCardsPayload } from '@/components/MyCards/MyCardsPreviewModal';
 import { publicSlotToMirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
 import type { PublicCardSlotPayload, PublicQrTokenPreview, PublicUniversalCardPayload } from '@/services/qrApi';
+import {
+  buildCanonicalIssuerIdentityFromPublicUniversalCard,
+  buildCanonicalIssuerIdentityFromQrPreview,
+} from '@/types/canonicalIssuerIdentity';
 
 function slotsToWireframeSlots(slots: PublicCardSlotPayload[]): WireframeEditSlot[] {
   const items = slots.map((s) => publicSlotToMirrorVaultItem(s));
@@ -21,16 +26,17 @@ export function myCardsPayloadFromUniversalCard(
   card: PublicUniversalCardPayload,
   tr: (es: string, en: string) => string,
 ): MyCardsPayload {
-  const nick = String(card.ownerNickname || '').trim();
+  const idn = buildCanonicalIssuerIdentityFromPublicUniversalCard(card);
+  const nick = String(idn.userNickName || '').trim();
   const cardNm = String(card.scName || '').trim();
-  const person = String(card.ownerDisplayName || '').trim();
+  const person = String(idn.userFullName || '').trim();
   const occ = String(card.ownerOccupation || '').trim();
   const subtitle = nick ? (nick.startsWith('@') ? nick : `@${nick}`) : '';
   const slotRows = Array.isArray(card.slots) ? (card.slots as unknown as PublicCardSlotPayload[]) : [];
   return {
     cardName: (cardNm || person || occ || tr('Tarjeta Social', 'Social Card')).trim(),
     subtitle,
-    avatarUrl: card.ownerPhotoUrl,
+    avatarUrl: idn.userAvatarUrl,
     themeId: card.themeId || '',
     wallpaperUrl: card.wallpaperUrl ?? undefined,
     layout: card.layout === 'horizontal' ? 'horizontal' : 'vertical',
@@ -46,9 +52,10 @@ export function myCardsPayloadFromQrPreview(
   p: PublicQrTokenPreview,
   tr: (es: string, en: string) => string,
 ): MyCardsPayload {
-  const nick = String(p.ownerNickname || '').trim();
+  const idn = buildCanonicalIssuerIdentityFromQrPreview(p);
+  const nick = String(idn.userNickName || '').trim();
   const cardNm = String(p.cardName || '').trim();
-  const person = String(p.ownerDisplayName || '').trim();
+  const person = String(idn.userFullName || '').trim();
   const occ = String(p.ownerOccupation || '').trim();
   const subtitle = nick ? (nick.startsWith('@') ? nick : `@${nick}`) : '';
   const raw = Array.isArray(p.slots) ? p.slots : [];
@@ -66,7 +73,7 @@ export function myCardsPayloadFromQrPreview(
   return {
     cardName: (cardNm || person || occ || tr('Tarjeta Social', 'Social Card')).trim(),
     subtitle,
-    avatarUrl: p.ownerPhotoUrl,
+    avatarUrl: idn.userAvatarUrl,
     themeId,
     layout,
     wallpaperUrl: p.wallpaperUrl,

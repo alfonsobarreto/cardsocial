@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { fromWireCallDisplayCard, type CallDisplayCard } from './callDisplayCard';
 
-function getApiBaseUrl(): string {
+/** Base URL del backend QR (misma que usa axios). Exportada para resolver URLs de medios (vault) en el device. */
+export function getApiBaseUrl(): string {
   const envUrl = process.env.EXPO_PUBLIC_MODERATION_API_URL?.trim();
   if (!envUrl) {
     throw new Error('Missing EXPO_PUBLIC_MODERATION_API_URL. Set it in your Expo environment.');
@@ -170,8 +171,13 @@ export type PublicUniversalCardPayload = {
   enableParallax: boolean;
   ownerDisplayName: string | null;
   ownerNickname: string | null;
+  /** Foto en documento `smart_cards` (wireframe; en business a menudo logo). */
   ownerPhotoUrl: string | null;
   ownerOccupation: string | null;
+  /** Persona real (Mongo); añadido en API pública 2026 — opcional por caché viejo. */
+  userFullName?: string | null;
+  userNickName?: string | null;
+  userAvatarUrl?: string | null;
   searchFacets: Array<{ type: string; label: string; value: string }>;
   holdersCount: number;
   ratingAvg: number;
@@ -180,6 +186,29 @@ export type PublicUniversalCardPayload = {
   slots: PublicUniversalCardSlot[];
   expiresAt: string;
 };
+
+/**
+ * Fase D — API pública puede mandar solo espejos Mongo (`ownerDisplayName` / `ownerNickname`)
+ * o también persona (`userFullName` / `userNickName` / `userAvatarUrl`). Unifica en cliente
+ * para que downstream no duplique fallbacks. **No** usa `ownerPhotoUrl` como avatar de persona.
+ */
+export function normalizePublicUniversalCardPayload(card: PublicUniversalCardPayload): PublicUniversalCardPayload {
+  const userFullName =
+    String(card.userFullName ?? '').trim() ||
+    String(card.ownerDisplayName ?? '').trim() ||
+    null;
+  const userNickName =
+    String(card.userNickName ?? '').trim() ||
+    String(card.ownerNickname ?? '').trim() ||
+    null;
+  const userAvatarUrl = String(card.userAvatarUrl ?? '').trim() || null;
+  return {
+    ...card,
+    userFullName,
+    userNickName,
+    userAvatarUrl,
+  };
+}
 
 function publicApiAcceptLanguage(locale?: 'en' | 'es'): { 'Accept-Language': string } {
   return { 'Accept-Language': locale === 'es' ? 'es' : 'en' };
@@ -218,9 +247,10 @@ export async function fetchPublicUniversalCardByToken(params: {
     };
   }
 
+  const raw = response.data.card as PublicUniversalCardPayload;
   return {
     ok: true,
-    card: response.data.card as PublicUniversalCardPayload,
+    card: normalizePublicUniversalCardPayload(raw),
     source: response.data.source != null ? String(response.data.source) : null,
   };
 }
@@ -297,6 +327,20 @@ function mapPublicQrPreviewResponse(
   };
 }
 
+/** Misma idea que `normalizePublicUniversalCardPayload`: persona canónica sin depender de duplicar lógica en cada pantalla. */
+export function normalizePublicQrTokenPreview(p: PublicQrTokenPreview): PublicQrTokenPreview {
+  const userFullName =
+    String(p.userFullName ?? '').trim() ||
+    String(p.ownerDisplayName ?? '').trim() ||
+    null;
+  const userNickName =
+    String(p.userNickName ?? '').trim() ||
+    String(p.ownerNickname ?? '').trim() ||
+    null;
+  const userAvatarUrl = String(p.userAvatarUrl ?? '').trim() || null;
+  return { ...p, userFullName, userNickName, userAvatarUrl };
+}
+
 /** Vista previa del QR dinámico sin consumir (modal de clasificación). */
 export async function fetchPublicQrTokenPreview(params: {
   token: string;
@@ -342,7 +386,7 @@ export async function fetchPublicQrTokenPreview(params: {
   const d = response.data as Record<string, unknown>;
   return {
     ok: true,
-    preview: mapPublicQrPreviewResponse(d, params.token),
+    preview: normalizePublicQrTokenPreview(mapPublicQrPreviewResponse(d, params.token)),
   };
 }
 
@@ -419,7 +463,7 @@ export async function fetchPublicBusinessCardPreview(params: {
   const d = response.data as Record<string, unknown>;
   return {
     ok: true,
-    preview: mapPublicQrPreviewResponse(d, ''),
+    preview: normalizePublicQrTokenPreview(mapPublicQrPreviewResponse(d, '')),
   };
 }
 
@@ -864,6 +908,8 @@ export type IssuerSnapshotPayload = {
   /** Extensiones opcionales (p. ej. historial de llamadas denormalizado). */
   bcLogoUrl?: string | null;
   bcName?: string;
+  /** Línea de contacto en negocio (opcional en snapshot extendido). */
+  bcContactName?: string | null;
   scName?: string;
 };
 
@@ -1011,6 +1057,11 @@ function parseIssuerSnapshotFromApi(raw: unknown): IssuerSnapshotPayload | undef
   const bcLogoUrl =
     bcLogoRaw != null && String(bcLogoRaw).trim() ? String(bcLogoRaw).trim() : undefined;
   const bcName = o.bcName != null && String(o.bcName).trim() ? String(o.bcName).trim() : undefined;
+  const bcContactNameRaw = o.bcContactName;
+  const bcContactName =
+    bcContactNameRaw != null && String(bcContactNameRaw).trim()
+      ? String(bcContactNameRaw).trim()
+      : undefined;
   const scName = o.scName != null && String(o.scName).trim() ? String(o.scName).trim() : undefined;
   return {
     uid,
@@ -1022,6 +1073,7 @@ function parseIssuerSnapshotFromApi(raw: unknown): IssuerSnapshotPayload | undef
     snapshotAt: String(o.snapshotAt || new Date().toISOString()),
     ...(bcLogoUrl !== undefined ? { bcLogoUrl } : {}),
     ...(bcName !== undefined ? { bcName } : {}),
+    ...(bcContactName !== undefined ? { bcContactName } : {}),
     ...(scName !== undefined ? { scName } : {}),
   };
 }
@@ -1048,6 +1100,38 @@ export async function upsertSmartCardInDb(params: { uid: string; card: SmartCard
     }
   );
 
+  return { ok: true };
+}
+
+/**
+ * Escribe `userAvatarUrl` en Mongo (`users` + `profiles`) y refresca `issuerSnapshot`
+ * en las smart cards del dueño. Firestore ya se actualiza en la app; sin esto, receptores
+ * y listas que leen solo Mongo no ven el avatar.
+ */
+export async function syncProfileAvatarUrlToMongo(params: {
+  uid: string;
+  userAvatarUrl: string;
+}): Promise<{ ok: boolean }> {
+  const uid = String(params.uid || '').trim();
+  const userAvatarUrl = String(params.userAvatarUrl || '').trim();
+  if (!uid) {
+    throw new Error('syncProfileAvatarUrlToMongo: uid is required');
+  }
+  if (!userAvatarUrl) {
+    throw new Error('syncProfileAvatarUrlToMongo: userAvatarUrl is required');
+  }
+  const auth = await getScopedJwtToken(uid, 'qr.access');
+  await axios.put(
+    `${auth.baseUrl}/api/qr/users/${encodeURIComponent(uid)}/profile-avatar`,
+    { userAvatarUrl },
+    {
+      headers: {
+        'x-api-gateway-key': auth.gatewayKey,
+        Authorization: `Bearer ${auth.token}`,
+      },
+      timeout: 15000,
+    }
+  );
   return { ok: true };
 }
 
@@ -1078,6 +1162,14 @@ export type ReceivedContactRow = {
   userNickName: string;
   userAvatarUrl: string | null;
   ownerOccupation?: string | null;
+  /** Nombre comercial canónico (`business_cards.bcName`); solo business — alineado con emisor / Mis Tarjetas. */
+  bcName?: string | null;
+  /** Nombre de contacto en tarjeta negocio (`business_cards`); solo business. */
+  bcContactName?: string | null;
+  /** Logo de marca (`business_cards.bcLogoUrl`); solo business — no usar `userAvatarUrl` del perfil. */
+  bcLogoUrl?: string | null;
+  /** Espejo Mongo: logo en doc smart (solo smart / QR legacy). Business: usar `bcLogoUrl`. */
+  ownerPhotoUrl?: string | null;
   ratingAvg: number;
   cardName: string;
   holdersCount: number;
@@ -1135,12 +1227,19 @@ export async function listReceivedContacts(params: { uid: string }): Promise<{
         const ratingAvg =
           totalRatings > 0 && Number.isFinite(ratingAvgRaw) ? ratingAvgRaw : 0;
         const slotRows = Array.isArray(row?.publicCardSlots) ? row.publicCardSlots : [];
-        const userFullName = String(row?.userFullName ?? row?.name ?? 'Contacto').trim();
-        const userNickName = String(row?.userNickName ?? row?.nickname ?? 'user')
-          .trim()
-          .replace(/^@+/g, '');
-        const userAvatarUrl =
-          row?.userAvatarUrl != null && String(row.userAvatarUrl).trim()
+        const cardTypeRow = row?.cardType === 'business' ? ('business' as const) : ('smart' as const);
+        const isBizRow = cardTypeRow === 'business';
+        const userFullName = isBizRow
+          ? ''
+          : String(row?.userFullName ?? row?.name ?? 'Contacto').trim();
+        const userNickName = isBizRow
+          ? ''
+          : String(row?.userNickName ?? row?.nickname ?? 'user')
+              .trim()
+              .replace(/^@+/g, '');
+        const userAvatarUrl = isBizRow
+          ? null
+          : row?.userAvatarUrl != null && String(row.userAvatarUrl).trim()
             ? String(row.userAvatarUrl)
             : row?.photoUrl != null && String(row.photoUrl).trim()
               ? String(row.photoUrl)
@@ -1150,9 +1249,30 @@ export async function listReceivedContacts(params: { uid: string }): Promise<{
           sid: row?.sid != null && String(row.sid).trim() ? String(row.sid).trim() : null,
           bId: row?.bId != null && String(row.bId).trim() ? String(row.bId).trim() : null,
           userFullName,
-          userNickName: userNickName || 'user',
+          userNickName: isBizRow ? '' : userNickName || 'user',
           userAvatarUrl,
-          ownerOccupation: row?.ownerOccupation != null && String(row.ownerOccupation).trim() ? String(row.ownerOccupation).trim() : null,
+          ownerOccupation:
+            isBizRow
+              ? null
+              : row?.ownerOccupation != null && String(row.ownerOccupation).trim()
+                ? String(row.ownerOccupation).trim()
+                : null,
+          bcName:
+            isBizRow && row?.bcName != null && String(row.bcName).trim()
+              ? String(row.bcName).trim()
+              : null,
+          bcContactName:
+            row?.bcContactName != null && String(row.bcContactName).trim()
+              ? String(row.bcContactName).trim()
+              : null,
+          bcLogoUrl:
+            row?.bcLogoUrl != null && String(row.bcLogoUrl).trim() ? String(row.bcLogoUrl).trim() : null,
+          ownerPhotoUrl:
+            isBizRow
+              ? null
+              : row?.ownerPhotoUrl != null && String(row.ownerPhotoUrl).trim()
+                ? String(row.ownerPhotoUrl).trim()
+                : null,
           ratingAvg,
           cardName: String(row?.cardName || 'Tarjeta Social'),
           holdersCount: Number(row?.holdersCount || 0),
@@ -1195,7 +1315,7 @@ export async function listReceivedContacts(params: { uid: string }): Promise<{
           enableParallax: Boolean(row?.enableParallax),
           itemIds: Array.isArray(row?.itemIds) ? row.itemIds.map((id: any) => String(id)) : [],
           cardUpdatedAt: row?.cardUpdatedAt ? String(row.cardUpdatedAt) : null,
-          cardType: row?.cardType === 'business' ? 'business' as const : 'smart' as const,
+          cardType: cardTypeRow,
         };
       }),
     };
@@ -1436,6 +1556,8 @@ export type CallHistoryRow = {
   emitterCardContactName?: string | null;
   peerFullName: string;
   peerPersonalName: string;
+  /** Nombre completo perfil del caller (paridad con Smart Card; en business entrante = subtítulo). */
+  userFullName?: string | null;
   userAvatarUrl: string | null;
   sourceCardName: string;
   sourceSid: string | null;
@@ -1494,6 +1616,10 @@ export async function listCallsHistory(params: { uid: string }): Promise<{ count
       row?.peerPersonalName != null && String(row.peerPersonalName).trim()
         ? String(row.peerPersonalName).trim()
         : '';
+    const userFullName =
+      row?.userFullName != null && String(row.userFullName).trim()
+        ? String(row.userFullName).trim()
+        : peerFullName;
     const userAvatarUrl =
       row?.userAvatarUrl != null && String(row.userAvatarUrl).trim()
         ? String(row.userAvatarUrl)
@@ -1541,6 +1667,7 @@ export async function listCallsHistory(params: { uid: string }): Promise<{ count
       emitterCardContactName,
       peerFullName,
       peerPersonalName,
+      userFullName,
       userAvatarUrl,
       sourceCardName,
       sourceSid: row?.sourceSid != null && String(row.sourceSid).trim() ? String(row.sourceSid) : null,

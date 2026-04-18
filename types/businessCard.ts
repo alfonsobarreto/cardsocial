@@ -128,6 +128,11 @@ export interface BusinessCardSearchResult {
   receivedOwnerOccupation?: string | null;
   /** @nickname del emisor (texto del contacto recibido). */
   receivedIssuerNickname?: string;
+  /**
+   * Solo `rowSource === 'received_contact'`: foto de perfil del emisor (Mongo `userAvatarUrl`).
+   * No reutilizar `card.bcLogoUrl` para esto — el logo de negocio es otro campo.
+   */
+  receivedIssuerUserAvatarUrl?: string | null;
 }
 
 export interface SocialMarketSearchParams {

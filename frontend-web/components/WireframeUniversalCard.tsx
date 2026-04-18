@@ -364,7 +364,7 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
     <MirrorActionModals
       plan={slotAction?.plan ?? null}
       slot={slotAction?.slot ?? null}
-      callInterstitialProfile={{ name: dispName, photoUrl: card.ownerPhotoUrl }}
+      callInterstitialProfile={{ name: dispName, photoUrl: card.cardWireframeImageUrl }}
       onClose={() => setSlotAction(null)}
       tr={tr}
       accent={theme.border.color}
@@ -442,8 +442,8 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
                   justifyContent: 'center',
                 }}
               >
-                {card.ownerPhotoUrl ? (
-                  <Image src={card.ownerPhotoUrl} alt="" width={88} height={88} style={{ objectFit: 'cover' }} unoptimized />
+                {card.cardWireframeImageUrl ? (
+                  <Image src={card.cardWireframeImageUrl} alt="" width={88} height={88} style={{ objectFit: 'cover' }} unoptimized />
                 ) : (
                   <svg width={44} height={44} viewBox="0 0 24 24" fill={theme.title.color}>
                     <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
@@ -569,8 +569,8 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
                 boxShadow: `0 4px 16px ${bd.color}44`,
               }}
             >
-              {card.ownerPhotoUrl ? (
-                <Image src={card.ownerPhotoUrl} alt="" width={96} height={96} style={{ objectFit: 'cover', width: '100%', height: '100%' }} unoptimized />
+              {card.cardWireframeImageUrl ? (
+                <Image src={card.cardWireframeImageUrl} alt="" width={96} height={96} style={{ objectFit: 'cover', width: '100%', height: '100%' }} unoptimized />
               ) : (
                 <svg width={48} height={48} viewBox="0 0 24 24" fill={theme.title.color}>
                   <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />

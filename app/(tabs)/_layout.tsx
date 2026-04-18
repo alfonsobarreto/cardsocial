@@ -19,6 +19,7 @@ import { requestLocationPermission } from '@/services/geolocationService';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { listBlockedRelations, unblockRelationship } from '@/services/qrApi';
+import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
 import {
     type RelationshipEntry,
     type RelationshipStatus,
@@ -1261,7 +1262,12 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                           >
                             <View style={styles.blockedIdentity}>
                               {entry.userAvatarUrl ? (
-                                <Image source={{ uri: entry.userAvatarUrl }} style={styles.blockedAvatar} />
+                                <Image
+                                  source={{
+                                    uri: resolveVaultMediaUrlForApp(entry.userAvatarUrl) ?? entry.userAvatarUrl,
+                                  }}
+                                  style={styles.blockedAvatar}
+                                />
                               ) : (
                                 <View style={[styles.blockedAvatarFallback, { backgroundColor: shell.inputBg, borderColor: shell.modalBorder }]}>
                                   <MaterialCommunityIcons name="account" size={15} color={shell.ctaAccent} />

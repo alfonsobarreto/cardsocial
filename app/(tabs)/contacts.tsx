@@ -6,6 +6,7 @@ import { SharedCardSkeletonList } from '@/components/SharedCardRowSkeleton';
 import { type WireframeEditSlot } from '@/components/smartCard/IsolatedWireframeCard';
 import { ThemedSharedCardSurface } from '@/components/ThemedSharedCardSurface';
 import { MEDIA_PLACEHOLDER } from '@/constants/mediaPlaceholders';
+import { logIdentityTest } from '@/services/identityManualTestLogs';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { buildMirrorVaultItemsForContact } from '@/services/buildReceiverPreviewVaultItems';
@@ -63,6 +64,10 @@ import {
 import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
+import { generatePermanentBusinessLink } from '@/services/brandedQrService';
+import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
+import { toRenderableImageUri } from '@/services/userProfilePhoto';
+import QRCode from 'react-native-qrcode-svg';
 
 type Contact = {
   uid: string;
@@ -102,6 +107,14 @@ type Contact = {
   publicCardSlots?: PublicCardSlotPayload[];
   /** 'business' para BusinessCard corporativa; 'smart' para tarjeta personal. */
   cardType?: 'business' | 'smart';
+  /** Espejo Mongo: imagen en doc tarjeta (logo business en QR / wireframe). */
+  ownerPhotoUrl?: string | null;
+  /** Nombre comercial (`business_cards.bcName`); solo business — misma verdad que Mis Tarjetas. */
+  bcName?: string | null;
+  /** Nombre de contacto en tarjeta negocio (`business_cards.bcContactName`); solo business. */
+  bcContactName?: string | null;
+  /** Logo de marca (`business_cards.bcLogoUrl`); solo business — no usar `userAvatarUrl` del perfil. */
+  bcLogoUrl?: string | null;
   meta?: {
     group: string;
     isFavorite: boolean;
@@ -120,7 +133,7 @@ type ContactMeta = {
   firstSeenAt: string;
   storyState?: 'none' | 'normal' | 'vip';
   icons?: Icon[]; // Add icons property to support icon search
-  /** Tema capturado al aceptar por QR (prioridad sobre default del API si faltó smart_cards). */
+  /** Legacy: ya no pisa `themeId` del API en lista (evita tema congelado al actualizar la tarjeta). */
   scanThemeId?: string;
   /** Avatar visto al aceptar (preview); solo si el API no devolvió userAvatarUrl. */
   seedAvatarUrl?: string;
@@ -139,6 +152,15 @@ const GROUP_FAVORITES_STORAGE_KEY = 'contacts_group_favorites_v1';
 const GROUP_DEFAULT = 'Random';
 const GROUP_PRESETS = ['Random', 'Family', 'Social', 'Work'];
 const RATING_ALERT = 3.5;
+
+/** Orden “por nombre”: negocio = nombre de tarjeta; smart = persona. */
+function contactSortPrimaryName(c: Pick<Contact, 'cardType' | 'cardName' | 'bcName' | 'userFullName'>): string {
+  if (c.cardType === 'business') {
+    const bn = String(c.bcName || '').trim();
+    return bn || String(c.cardName || '').trim();
+  }
+  return String(c.userFullName || '').trim();
+}
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -284,19 +306,27 @@ function ContactsContent() {
         ...(vm ? { vaultMimeType: vm.slice(0, 120) } : {}),
       };
     });
+    /** Caché antigua podía traer `photoUrl`; la API actual usa `userAvatarUrl`. Business: sin datos de perfil. */
     const legacy = row as Contact & { name?: string; nickname?: string; photoUrl?: string | null };
-    const userFullName = String(legacy.userFullName ?? legacy.name ?? '').trim();
-    const userNickName = String(legacy.userNickName ?? legacy.nickname ?? 'user')
-      .trim()
-      .replace(/^@+/g, '');
-    const userAvatarUrl =
-      legacy.userAvatarUrl != null && String(legacy.userAvatarUrl).trim()
+    const isBiz = row.cardType === 'business';
+    const userFullName = isBiz ? '' : String(legacy.userFullName ?? legacy.name ?? '').trim();
+    const userNickName = isBiz
+      ? ''
+      : String(legacy.userNickName ?? legacy.nickname ?? 'user')
+          .trim()
+          .replace(/^@+/g, '');
+    const userAvatarUrl = isBiz
+      ? null
+      : legacy.userAvatarUrl != null && String(legacy.userAvatarUrl).trim()
         ? String(legacy.userAvatarUrl)
         : legacy.photoUrl != null && String(legacy.photoUrl).trim()
           ? String(legacy.photoUrl)
           : null;
     const sidFromRow = row.sid != null && String(row.sid).trim() ? String(row.sid).trim() : null;
     const bIdFromRow = row.bId != null && String(row.bId).trim() ? String(row.bId).trim() : null;
+    const ownerPhotoRaw = (row as Contact & { ownerPhotoUrl?: string | null }).ownerPhotoUrl;
+    const ownerPhotoUrl =
+      ownerPhotoRaw != null && String(ownerPhotoRaw).trim() ? String(ownerPhotoRaw).trim() : null;
     return {
       ...row,
       sid: sidFromRow,
@@ -304,10 +334,19 @@ function ContactsContent() {
       userFullName,
       userNickName,
       userAvatarUrl,
+      ownerPhotoUrl,
       ownerOccupation:
         row.ownerOccupation != null && String(row.ownerOccupation).trim()
           ? String(row.ownerOccupation).trim()
           : null,
+      bcName:
+        row.bcName != null && String(row.bcName).trim() ? String(row.bcName).trim() : null,
+      bcContactName:
+        row.bcContactName != null && String(row.bcContactName).trim()
+          ? String(row.bcContactName).trim()
+          : null,
+      bcLogoUrl:
+        row.bcLogoUrl != null && String(row.bcLogoUrl).trim() ? String(row.bcLogoUrl).trim() : null,
       mutualContactsCount: Number(row.mutualContactsCount ?? 0),
       totalRatings: Number(row.totalRatings ?? 0),
       channelMuted: Boolean(row.channelMuted),
@@ -469,18 +508,26 @@ function ContactsContent() {
     const isBusiness = c.cardType === 'business';
     const nick = String(c.userNickName || 'user').trim() || 'user';
     const cardNm = String(c.cardName || '').trim();
-    const person = String(c.userFullName || '').trim();
-    const occ = String(c.ownerOccupation || '').trim();
-    // Business: subtítulo desde nombre/ocupación del contacto en API (no @). Personal: @nickname.
-    const subtitle = isBusiness
-      ? person || occ || ''
-      : nick.startsWith('@') ? nick : `@${nick}`;
+    const bcNameBiz = String(c.bcName || '').trim();
+    const bcContact = String(c.bcContactName || '').trim();
+    const logoUrl = String(c.bcLogoUrl || '').trim();
+    // Business: solo datos guardados en la tarjeta (sin @, sin perfil). Smart: subtítulo @nickname.
+    const subtitle = isBusiness ? bcContact : nick.startsWith('@') ? nick : `@${nick}`;
+    /** Smart: `ownerOccupation` solo en doc tarjeta (facetas); business: no leer ese campo. */
+    const cardTitle = isBusiness
+      ? bcNameBiz || cardNm
+      : (() => {
+          const person = String(c.userFullName || '').trim();
+          const occ = String(c.ownerOccupation || '').trim();
+          return (cardNm || person || occ || tr('Tarjeta Social', 'Social Card')).trim();
+        })();
     return {
-      cardName: (cardNm || person || occ || tr('Tarjeta Social', 'Social Card')).trim(),
+      cardName: cardTitle,
       subtitle,
-      avatarUrl: c.userAvatarUrl,
+      avatarUrl: isBusiness ? (logoUrl || null) : c.userAvatarUrl,
+      noAvatarIcon: isBusiness ? 'storefront-outline' : undefined,
       themeId: c.themeId || '',
-      wallpaperUrl: c.wallpaperUrl ?? undefined,
+      wallpaperUrl: isBusiness ? undefined : c.wallpaperUrl ?? undefined,
       layout: c.layout === 'horizontal' ? 'horizontal' : 'vertical',
       holdersCount: Math.max(0, Math.floor(Number(c.holdersCount ?? 0))),
       ratingAvg: Number(c.ratingAvg),
@@ -489,6 +536,53 @@ function ContactsContent() {
       slots: mirrorPreviewSlots,
     };
   }, [selectedContact, mirrorPreviewSlots, tr]);
+
+  /** Prueba manual — lista y modal receptor (ver docs/MANUAL_TEST_IDENTITY_LOGS.md). */
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+    logIdentityTest('contacts:tab — lista agregada', {
+      count: contacts.length,
+      rows: contacts.map((c) => ({
+        linkKey: receivedContactMergeKey(c),
+        cardType: c.cardType,
+        userFullName: c.userFullName,
+        userNickName: c.userNickName,
+        userAvatarUrl: c.userAvatarUrl,
+        cardName: c.cardName,
+        bcName: c.bcName,
+        bcContactName: c.bcContactName,
+        bcLogoUrl: c.bcLogoUrl,
+        ownerPhotoUrl: c.ownerPhotoUrl,
+      })),
+    });
+  }, [contacts, loading]);
+
+  useEffect(() => {
+    if (!floatingVisible || !selectedContact) {
+      return;
+    }
+    const c = selectedContact;
+    logIdentityTest('contacts:modal — MyCardsPreview receptor', {
+      linkKey: receivedContactMergeKey(c),
+      cardType: c.cardType,
+      userFullName: c.userFullName,
+      userNickName: c.userNickName,
+      userAvatarUrl: c.userAvatarUrl,
+      cardName: c.cardName,
+      bcName: c.bcName,
+      bcContactName: c.bcContactName,
+      bcLogoUrl: c.bcLogoUrl,
+      payloadPreview: contactPayload
+        ? {
+            cardName: contactPayload.cardName,
+            subtitle: contactPayload.subtitle,
+            avatarUrl: contactPayload.avatarUrl,
+          }
+        : null,
+    });
+  }, [floatingVisible, selectedContact, contactPayload]);
 
   const allGroups = useMemo(() => {
     const dynamic = Object.values(metaMap)
@@ -517,7 +611,6 @@ function ContactsContent() {
           isFavorite: false,
           firstSeenAt: contact.addedAt || new Date().toISOString(),
         };
-      const scanTheme = meta.scanThemeId && String(meta.scanThemeId).trim();
       const apiAvatar =
         contact.userAvatarUrl != null && String(contact.userAvatarUrl).trim()
           ? String(contact.userAvatarUrl).trim()
@@ -526,11 +619,12 @@ function ContactsContent() {
         meta.seedAvatarUrl != null && String(meta.seedAvatarUrl).trim()
           ? String(meta.seedAvatarUrl).trim()
           : '';
-      const userAvatarUrl = apiAvatar || seedAv || null;
+      const isBusiness = contact.cardType === 'business';
+      /** Negocio: sin foto de perfil en lista (solo `bcLogoUrl` en el render). Smart: API + seed si hace falta. */
+      const userAvatarUrl = isBusiness ? null : (apiAvatar || seedAv) || null;
       return {
         ...contact,
         userAvatarUrl,
-        ...(scanTheme ? { themeId: scanTheme } : {}),
         meta,
       };
     });
@@ -551,6 +645,9 @@ function ContactsContent() {
           userNickName: row.userNickName,
           cardName: row.cardName,
           ownerOccupation: row.ownerOccupation ?? null,
+          bcName: row.bcName ?? null,
+          bcContactName: row.bcContactName ?? null,
+          bcLogoUrl: row.bcLogoUrl ?? null,
           searchFacets: row.searchFacets,
         },
         row.meta.group,
@@ -600,7 +697,7 @@ function ContactsContent() {
         if (favDiff !== 0) {
           return favDiff;
         }
-        return String(a.userFullName).localeCompare(String(b.userFullName), 'es', { sensitivity: 'base' });
+        return contactSortPrimaryName(a).localeCompare(contactSortPrimaryName(b), 'es', { sensitivity: 'base' });
       });
       return rows;
     }
@@ -610,7 +707,7 @@ function ContactsContent() {
       if (favDiff !== 0) {
         return favDiff;
       }
-      return String(a.userFullName).localeCompare(String(b.userFullName), 'es', { sensitivity: 'base' });
+      return contactSortPrimaryName(a).localeCompare(contactSortPrimaryName(b), 'es', { sensitivity: 'base' });
     });
 
     return rows;
@@ -1050,6 +1147,10 @@ function ContactsContent() {
                   preferredColor: chest.iconColor,
                 });
                 const issuerFont = row.fontFamily ? { fontFamily: row.fontFamily } : null;
+                const bizLogoUri =
+                  row.cardType === 'business' && row.bcLogoUrl
+                    ? toRenderableImageUri(row.bcLogoUrl) ?? row.bcLogoUrl
+                    : null;
                 const closeRowSwipe = () => {
                   swipeableByContactLinkRef.current.get(rowLinkKey)?.close();
                 };
@@ -1163,8 +1264,37 @@ function ContactsContent() {
                                 : styles.avatarRingNone,
                           ]}
                         >
-                          {row.userAvatarUrl ? (
-                            <ExpoImage source={{ uri: row.userAvatarUrl }} style={styles.avatarLg} cachePolicy="disk" />
+                          {row.cardType === 'business' && bizLogoUri ? (
+                            <ExpoImage
+                              source={{ uri: resolveVaultMediaUrlForApp(bizLogoUri) ?? bizLogoUri }}
+                              style={styles.avatarLg}
+                              cachePolicy="disk"
+                            />
+                          ) : row.cardType === 'business' ? (
+                            <View
+                              style={[
+                                styles.avatarFallbackLg,
+                                {
+                                  backgroundColor: MEDIA_PLACEHOLDER.personBgLight,
+                                  borderColor: MEDIA_PLACEHOLDER.personBorderLight,
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[styles.avatarInitials, { color: MEDIA_PLACEHOLDER.personIconLight }]}
+                                numberOfLines={1}
+                              >
+                                {initialsFromDisplayName(
+                                  String(row.bcName || '').trim() || String(row.cardName || '').trim(),
+                                )}
+                              </Text>
+                            </View>
+                          ) : row.userAvatarUrl ? (
+                            <ExpoImage
+                              source={{ uri: resolveVaultMediaUrlForApp(row.userAvatarUrl) ?? row.userAvatarUrl }}
+                              style={styles.avatarLg}
+                              cachePolicy="disk"
+                            />
                           ) : (
                             <View
                               style={[
@@ -1186,51 +1316,88 @@ function ContactsContent() {
                         </View>
 
                         <View style={styles.contactCardBody}>
-                          <Text
-                            style={[
-                              styles.contactTitleName,
-                              {
-                                color: chest.titleColor,
-                                fontWeight: chest.titleFontWeight,
-                                fontStyle: chest.titleFontStyle,
-                              },
-                              issuerFont,
-                            ]}
-                            numberOfLines={2}
-                          >
-                            {row.userFullName}
-                          </Text>
-                          {row.ownerOccupation ? (
-                            <Text
-                              style={[
-                                styles.contactOccupationLine,
-                                {
-                                  color: chest.extraColor,
-                                  fontSize: chest.extraFontSize,
-                                  fontWeight: chest.extraFontWeight,
-                                  fontStyle: chest.extraFontStyle,
-                                },
-                                issuerFont,
-                              ]}
-                              numberOfLines={2}
-                            >
-                              {row.ownerOccupation}
-                            </Text>
-                          ) : null}
-                          <Text
-                            style={[
-                              styles.contactSubtitleCardName,
-                              {
-                                color: chest.metaColor,
-                                fontWeight: chest.subtitleFontWeight,
-                                fontStyle: chest.subtitleFontStyle,
-                              },
-                              issuerFont,
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {row.cardName}
-                          </Text>
+                          {row.cardType === 'business' ? (
+                            <>
+                              <Text
+                                style={[
+                                  styles.contactTitleName,
+                                  {
+                                    color: chest.titleColor,
+                                    fontWeight: chest.titleFontWeight,
+                                    fontStyle: chest.titleFontStyle,
+                                  },
+                                  issuerFont,
+                                ]}
+                                numberOfLines={2}
+                              >
+                                {String(row.bcName || '').trim() || row.cardName}
+                              </Text>
+                              {row.bcContactName ? (
+                                <Text
+                                  style={[
+                                    styles.contactSubtitleCardName,
+                                    {
+                                      color: chest.metaColor,
+                                      fontWeight: chest.subtitleFontWeight,
+                                      fontStyle: chest.subtitleFontStyle,
+                                    },
+                                    issuerFont,
+                                  ]}
+                                  numberOfLines={2}
+                                >
+                                  {String(row.bcContactName).trim()}
+                                </Text>
+                              ) : null}
+                            </>
+                          ) : (
+                            <>
+                              <Text
+                                style={[
+                                  styles.contactTitleName,
+                                  {
+                                    color: chest.titleColor,
+                                    fontWeight: chest.titleFontWeight,
+                                    fontStyle: chest.titleFontStyle,
+                                  },
+                                  issuerFont,
+                                ]}
+                                numberOfLines={2}
+                              >
+                                {row.userFullName}
+                              </Text>
+                              {row.ownerOccupation ? (
+                                <Text
+                                  style={[
+                                    styles.contactOccupationLine,
+                                    {
+                                      color: chest.extraColor,
+                                      fontSize: chest.extraFontSize,
+                                      fontWeight: chest.extraFontWeight,
+                                      fontStyle: chest.extraFontStyle,
+                                    },
+                                    issuerFont,
+                                  ]}
+                                  numberOfLines={2}
+                                >
+                                  {row.ownerOccupation}
+                                </Text>
+                              ) : null}
+                              <Text
+                                style={[
+                                  styles.contactSubtitleCardName,
+                                  {
+                                    color: chest.metaColor,
+                                    fontWeight: chest.subtitleFontWeight,
+                                    fontStyle: chest.subtitleFontStyle,
+                                  },
+                                  issuerFont,
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {row.cardName}
+                              </Text>
+                            </>
+                          )}
                           <View style={styles.contactRowStatsRow}>
                             <TouchableOpacity
                               style={[
@@ -1246,6 +1413,28 @@ function ContactsContent() {
                             </TouchableOpacity>
                           </View>
                         </View>
+                        {row.cardType === 'business' && row.bId ? (
+                          <View style={styles.contactBusinessQrWrap} pointerEvents="none">
+                            <QRCode
+                              value={generatePermanentBusinessLink(
+                                String(row.bId).trim(),
+                                String(row.uid).trim(),
+                              )}
+                              size={64}
+                              color="#0A2540"
+                              backgroundColor="#FFFFFF"
+                              ecl="H"
+                              {...(bizLogoUri
+                                ? {
+                                    logo: { uri: bizLogoUri },
+                                    logoSize: 16,
+                                    logoMargin: 2,
+                                    logoBackgroundColor: '#FFFFFF',
+                                  }
+                                : {})}
+                            />
+                          </View>
+                        ) : null}
                       </Pressable>
                     </ThemedSharedCardSurface>
                     </Animated.View>
@@ -1347,8 +1536,23 @@ function ContactsContent() {
       <Modal visible={longPressVisible} transparent animationType="fade" onRequestClose={() => setLongPressVisible(false)}>
         <Pressable style={[styles.modalOverlay, { backgroundColor: shell.overlayScrim }]} onPress={() => setLongPressVisible(false)}>
           <Pressable onPress={() => {}} style={[styles.actionModalCard, { backgroundColor: shell.modalBg, borderColor: shell.modalBorder, paddingBottom: modalFooterBottomPad }]}>
-            <Text style={[styles.actionModalTitle, { color: shell.textPrimary }]}>{longPressContact?.userFullName || tr('Contacto', 'Contact')}</Text>
-            {longPressContact?.cardName ? (
+            <Text style={[styles.actionModalTitle, { color: shell.textPrimary }]}>
+              {longPressContact?.cardType === 'business'
+                ? String(longPressContact.bcName || '').trim() ||
+                  longPressContact.cardName ||
+                  tr('Contacto', 'Contact')
+                : longPressContact?.userFullName || tr('Contacto', 'Contact')}
+            </Text>
+            {longPressContact?.cardType === 'business' ? (
+              longPressContact.bcContactName ? (
+                <Text
+                  style={[styles.contactSubtitleCardName, { color: shell.textSecondary, marginBottom: 8, textAlign: 'center' }]}
+                  numberOfLines={2}
+                >
+                  {longPressContact.bcContactName}
+                </Text>
+              ) : null
+            ) : longPressContact?.cardName ? (
               <Text style={[styles.contactSubtitleCardName, { color: shell.textSecondary, marginBottom: 8, textAlign: 'center' }]} numberOfLines={2}>
                 {longPressContact.cardName}
               </Text>
@@ -1508,7 +1712,21 @@ function ContactsContent() {
         sourceSid={selectedContact?.sid ?? null}
         sourceBId={selectedContact?.bId ?? null}
         sourceCardName={selectedContact?.cardName}
-        peerDisplayName={selectedContact?.userNickName || selectedContact?.userFullName || 'contacto'}
+        ghostCardContactName={
+          selectedContact?.cardType === 'business'
+            ? (selectedContact.bcContactName != null && String(selectedContact.bcContactName).trim()
+                ? String(selectedContact.bcContactName).trim()
+                : null)
+            : null
+        }
+        peerDisplayName={
+          selectedContact?.cardType === 'business'
+            ? String(selectedContact.bcName || '').trim() ||
+              selectedContact.cardName ||
+              selectedContact.bcContactName ||
+              '—'
+            : selectedContact?.userNickName || selectedContact?.userFullName || 'contacto'
+        }
         ratingCardType={selectedContact?.cardType ?? 'smart'}
         medalRatingUseNativeAndroidModal={Platform.OS === 'android'}
       />
@@ -1521,11 +1739,21 @@ function ContactsContent() {
           setReceptorContact(null);
           setReceptorSubscribers([]);
         }}
-        owner={{
-          displayName: receptorContact?.userFullName || '',
-          occupation: receptorContact?.ownerOccupation || receptorContact?.cardName || '',
-          userAvatarUrl: receptorContact?.userAvatarUrl ?? null,
-        }}
+        owner={
+          receptorContact?.cardType === 'business'
+            ? {
+                displayName:
+                  String(receptorContact.bcName || '').trim() || receptorContact.cardName || '',
+                occupation: String(receptorContact.bcContactName || '').trim(),
+                userAvatarUrl: null,
+                brandLogoUrl: receptorContact.bcLogoUrl ?? null,
+              }
+            : {
+                displayName: receptorContact?.userFullName || '',
+                occupation: receptorContact?.ownerOccupation || receptorContact?.cardName || '',
+                userAvatarUrl: receptorContact?.userAvatarUrl ?? null,
+              }
+        }
         subscribers={receptorSubscribers}
         totalCount={receptorContact?.holdersCount ?? receptorSubscribers.length}
         loading={receptorLoading}

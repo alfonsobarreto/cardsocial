@@ -56,6 +56,38 @@ export type GhostLinkSharedCard = {
   bcContactName?: string | null;
 };
 
+function parseGhostLinkSharedCard(
+  raw: Record<string, unknown> | null | undefined,
+  fallbacks: { sourceSid: string | null; sourceBId: string | null; sourceCardName: string },
+): GhostLinkSharedCard {
+  const outSid =
+    raw?.sid != null && String(raw.sid).trim() ? String(raw.sid).trim() : fallbacks.sourceSid;
+  const outBId =
+    raw?.bId != null && String(raw.bId).trim() ? String(raw.bId).trim() : fallbacks.sourceBId;
+  const cardType: 'business' | 'personal' =
+    String(raw?.cardType || '').toLowerCase() === 'business' ? 'business' : 'personal';
+  const card: GhostLinkSharedCard = {
+    sid: outSid || null,
+    bId: outBId || null,
+    cardName: String(raw?.cardName || fallbacks.sourceCardName || 'Tarjeta Social'),
+    cardPhoto: raw?.cardPhoto != null && String(raw.cardPhoto).trim() ? String(raw.cardPhoto) : null,
+    cardType,
+  };
+  if (cardType === 'business') {
+    const bcName = raw?.bcName != null && String(raw.bcName).trim() ? String(raw.bcName).trim() : null;
+    const bcLogoUrl =
+      raw?.bcLogoUrl != null && String(raw.bcLogoUrl).trim() ? String(raw.bcLogoUrl).trim() : null;
+    const bcContactName =
+      raw?.bcContactName != null && String(raw.bcContactName).trim()
+        ? String(raw.bcContactName).trim()
+        : null;
+    if (bcName) card.bcName = bcName;
+    if (bcLogoUrl) card.bcLogoUrl = bcLogoUrl;
+    if (bcContactName) card.bcContactName = bcContactName;
+  }
+  return card;
+}
+
 export type GhostLinkCallType = 'audio' | 'video';
 
 export type GhostLinkCallStartParams = {
@@ -101,6 +133,8 @@ export type GhostLinkCallStartResult = {
     name: string;
     nickname: string;
     userAvatarUrl: string | null;
+    /** Perfil caller (paridad con `userFullName` en historial). */
+    userFullName?: string | null;
   };
   receiverDisplay: {
     name: string;
@@ -125,6 +159,8 @@ export type GhostLinkIncomingInvite = {
     name: string;
     nickname: string;
     userAvatarUrl: string | null;
+    /** Perfil caller (paridad con `userFullName` en historial). */
+    userFullName?: string | null;
   };
   receiverDisplay: {
     name: string;
@@ -228,12 +264,23 @@ export async function startGhostLinkVoipCall(
   const engineRaw = String(response?.data?.engine || '').trim();
   const engine: 'agora' | 'signaling-only' = engineRaw === 'agora' ? 'agora' : 'signaling-only';
 
-  const rawCard = response?.data?.card;
+  const rawCard = response?.data?.card as Record<string, unknown> | undefined;
   const respCallType: GhostLinkCallType = response?.data?.callType === 'video' ? 'video' : 'audio';
   const outSid =
     rawCard?.sid != null && String(rawCard.sid).trim() ? String(rawCard.sid).trim() : sourceSid;
   const outBId =
     rawCard?.bId != null && String(rawCard.bId).trim() ? String(rawCard.bId).trim() : sourceBId;
+  const cardParsed = parseGhostLinkSharedCard(rawCard, {
+    sourceSid: outSid || null,
+    sourceBId: outBId || null,
+    sourceCardName,
+  });
+  const callerName = String(response?.data?.callerDisplay?.name || 'Emisor');
+  const callerUserFullName =
+    response?.data?.callerDisplay?.userFullName != null &&
+    String(response.data.callerDisplay.userFullName).trim()
+      ? String(response.data.callerDisplay.userFullName)
+      : callerName;
   return {
     inviteId: response?.data?.inviteId ? String(response.data.inviteId) : undefined,
     sessionId: String(response?.data?.sessionId || ''),
@@ -241,20 +288,15 @@ export async function startGhostLinkVoipCall(
     agora: parseAgoraRtc(response?.data?.agora),
     callChannel: 'ghost-link-voip',
     callType: respCallType,
-    card: {
-      sid: outSid || null,
-      bId: outBId || null,
-      cardName: String(rawCard?.cardName || sourceCardName || 'Tarjeta Social'),
-      cardPhoto: rawCard?.cardPhoto ? String(rawCard.cardPhoto) : null,
-      cardType: rawCard?.cardType === 'business' ? 'business' : 'personal',
-    },
+    card: cardParsed,
     callerDisplay: {
-      name: String(response?.data?.callerDisplay?.name || 'Emisor'),
+      name: callerName,
       nickname: String(response?.data?.callerDisplay?.nickname || 'user'),
       userAvatarUrl:
         response?.data?.callerDisplay?.userAvatarUrl != null && String(response.data.callerDisplay.userAvatarUrl).trim()
           ? String(response.data.callerDisplay.userAvatarUrl)
           : null,
+      userFullName: callerUserFullName,
     },
     receiverDisplay: {
       name: String(response?.data?.receiverDisplay?.name || 'Receptor'),
@@ -291,35 +333,41 @@ export async function getIncomingGhostLinkInvite(params: {
       return null;
     }
 
-    const invCard = invite?.card;
+    const invCard = invite?.card as Record<string, unknown> | undefined;
     const invCallType: GhostLinkCallType = invite?.callType === 'video' ? 'video' : 'audio';
     const srcSid = invite?.sourceSid != null && String(invite.sourceSid).trim() ? String(invite.sourceSid) : null;
     const srcBId = invite?.sourceBId != null && String(invite.sourceBId).trim() ? String(invite.sourceBId) : null;
+    const sourceCardName = String(invite?.sourceCardName || 'Tarjeta Social');
+    const cardParsed = parseGhostLinkSharedCard(invCard, {
+      sourceSid: srcSid,
+      sourceBId: srcBId,
+      sourceCardName,
+    });
+    const callerNameIn = String(invite?.callerDisplay?.name || 'Contacto');
+    const callerUserFullNameIn =
+      invite?.callerDisplay?.userFullName != null && String(invite.callerDisplay.userFullName).trim()
+        ? String(invite.callerDisplay.userFullName)
+        : callerNameIn;
     return {
       inviteId: String(invite?.inviteId || ''),
       sessionId: String(invite?.sessionId || ''),
       callerUid: String(invite?.callerUid || ''),
       targetUid: String(invite?.targetUid || ''),
-      sourceCardName: String(invite?.sourceCardName || 'Tarjeta Social'),
+      sourceCardName,
       sourceSid: srcSid,
       sourceBId: srcBId,
       callChannel: 'ghost-link-voip',
       callType: invCallType,
       agora: parseAgoraRtc(invite?.agora),
-      card: {
-        sid: invCard?.sid != null && String(invCard.sid).trim() ? String(invCard.sid) : srcSid,
-        bId: invCard?.bId != null && String(invCard.bId).trim() ? String(invCard.bId) : srcBId,
-        cardName: String(invCard?.cardName || invite?.sourceCardName || 'Tarjeta Social'),
-        cardPhoto: invCard?.cardPhoto ? String(invCard.cardPhoto) : null,
-        cardType: invCard?.cardType === 'business' ? 'business' : 'personal',
-      },
+      card: cardParsed,
       callerDisplay: {
-        name: String(invite?.callerDisplay?.name || 'Contacto'),
+        name: callerNameIn,
         nickname: String(invite?.callerDisplay?.nickname || 'user'),
         userAvatarUrl:
           invite?.callerDisplay?.userAvatarUrl != null && String(invite.callerDisplay.userAvatarUrl).trim()
             ? String(invite.callerDisplay.userAvatarUrl)
             : null,
+        userFullName: callerUserFullNameIn,
       },
       receiverDisplay: {
         name: String(invite?.receiverDisplay?.name || 'Contacto'),

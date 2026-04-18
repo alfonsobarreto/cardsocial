@@ -4,7 +4,7 @@
     "slug": "card-social",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/cs-app-icon-ios.png",
+    "icon": "./assets/icon.png",
     "scheme": "cardsocial",
     "userInterfaceStyle": "automatic",
     "splash": {
@@ -57,7 +57,7 @@
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
-        "foregroundImage": "./assets/images/cs-app-icon-android-fg.png"
+        "foregroundImage": "./assets/adaptive-icon.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.cardsocial.app",

@@ -4,6 +4,8 @@
  */
 
 const express = require('express');
+const { env } = require('../config');
+const { rewritePublicCardMediaUrls } = require('../lib/vaultPublicUrlRewrite');
 const { clientLocaleIsSpanish } = require('../lib/httpRequestLocale');
 const { parseAndValidateTemporaryAccess } = require('../lib/temporaryAccessToken');
 const { resolvePublicIdentity } = require('../lib/resolvePublicIdentity');
@@ -254,6 +256,49 @@ function createPublicUniversalRoutes({ storage }) {
 
       const slots = normalizePublicCardSlotsForUniversal(cardDoc.publicCardSlots);
 
+      // Identidad real del emisor (users + profiles), misma forma que business-card-preview:
+      // `ownerPhotoUrl` sigue siendo la foto en el doc de tarjeta (wireframe / logo business);
+      // `userAvatarUrl` es la foto de persona en Mongo (lista contactos / Ghost-Link).
+      const [usersDoc, profilesDoc] = await Promise.all([
+        db.collection('users').findOne(
+          { uid: issuerUid },
+          {
+            projection: {
+              userFullName: 1,
+              displayName: 1,
+              name: 1,
+              fullName: 1,
+              firstName: 1,
+              lastName: 1,
+              userNickName: 1,
+              nickname: 1,
+              userNickNameLower: 1,
+              nicknameLower: 1,
+              userAvatarUrl: 1,
+            },
+          },
+        ),
+        db.collection('profiles').findOne(
+          { uid: issuerUid },
+          {
+            projection: {
+              userFullName: 1,
+              displayName: 1,
+              name: 1,
+              fullName: 1,
+              firstName: 1,
+              lastName: 1,
+              userNickName: 1,
+              nickname: 1,
+              userNickNameLower: 1,
+              nicknameLower: 1,
+              userAvatarUrl: 1,
+            },
+          },
+        ),
+      ]);
+      const issuer = buildMongoExtendedProfileFields(issuerUid, usersDoc, profilesDoc);
+
       const payload = {
         uid: issuerUid,
         sid,
@@ -274,6 +319,9 @@ function createPublicUniversalRoutes({ storage }) {
         ownerNickname: cardDoc.ownerNickname ? String(cardDoc.ownerNickname) : null,
         ownerPhotoUrl: cardDoc.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl) : null,
         ownerOccupation: cardDoc.ownerOccupation ? String(cardDoc.ownerOccupation) : null,
+        userFullName: issuer.fullName ? String(issuer.fullName) : null,
+        userNickName: issuer.nickname ? String(issuer.nickname) : null,
+        userAvatarUrl: issuer.userAvatarUrl || null,
         searchFacets: sanitizeSearchFacetsPublic(cardDoc.searchFacets),
         holdersCount: Number(cardDoc.holdersCount || 0),
         ratingAvg: Number(cardDoc.ratingAvg || 5),
@@ -294,7 +342,7 @@ function createPublicUniversalRoutes({ storage }) {
       return res.status(200).json({
         ok: true,
         source: source || null,
-        card: payload,
+        card: rewritePublicCardMediaUrls(payload, env.publicVaultFileBaseUrl),
       });
     } catch (error) {
       const isEs = clientLocaleIsSpanish(req);
@@ -383,23 +431,28 @@ function createPublicUniversalRoutes({ storage }) {
       ]);
       const issuer = buildMongoExtendedProfileFields(uid, usersDoc, profilesDoc);
 
-      return res.status(200).json({
-        ok: true,
-        uid,
-        bId,
-        token: '',
-        expiresAt: far.toISOString(),
-        ownerDisplayName: idn.fullName,
-        cardName: String(readSmartCardScName(cardDoc) || idn.cardTitle || ''),
-        ownerNickname: cardDoc.ownerNickname ? String(cardDoc.ownerNickname) : null,
-        ownerPhotoUrl: cardDoc.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl) : null,
-        ownerOccupation: cardDoc.ownerOccupation ? String(cardDoc.ownerOccupation) : null,
-        userFullName: issuer.fullName || null,
-        userNickName: issuer.nickname || null,
-        userAvatarUrl: issuer.userAvatarUrl || null,
-        slots,
-        ...style,
-      });
+      return res.status(200).json(
+        rewritePublicCardMediaUrls(
+          {
+            ok: true,
+            uid,
+            bId,
+            token: '',
+            expiresAt: far.toISOString(),
+            ownerDisplayName: idn.fullName,
+            cardName: String(readSmartCardScName(cardDoc) || idn.cardTitle || ''),
+            ownerNickname: cardDoc.ownerNickname ? String(cardDoc.ownerNickname) : null,
+            ownerPhotoUrl: cardDoc.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl) : null,
+            ownerOccupation: cardDoc.ownerOccupation ? String(cardDoc.ownerOccupation) : null,
+            userFullName: issuer.fullName || null,
+            userNickName: issuer.nickname || null,
+            userAvatarUrl: issuer.userAvatarUrl || null,
+            slots,
+            ...style,
+          },
+          env.publicVaultFileBaseUrl,
+        ),
+      );
     } catch (error) {
       const isEs = clientLocaleIsSpanish(req);
       return res.status(500).json({
@@ -498,21 +551,26 @@ function createPublicUniversalRoutes({ storage }) {
       const slots = normalizePublicCardSlotsForUniversal(cardDoc.publicCardSlots);
       const style = previewStyleFromSmartCardDoc(cardDoc);
 
-      return res.status(200).json({
-        ok: true,
-        uid: issuerUid,
-        sid,
-        bId,
-        token,
-        expiresAt: exp.toISOString(),
-        ownerDisplayName: idn.fullName,
-        cardName: String(readSmartCardScName(cardDoc) || idn.cardTitle || ''),
-        ownerNickname: cardDoc.ownerNickname ? String(cardDoc.ownerNickname) : null,
-        ownerPhotoUrl: cardDoc.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl) : null,
-        ownerOccupation: cardDoc.ownerOccupation ? String(cardDoc.ownerOccupation) : null,
-        slots,
-        ...style,
-      });
+      return res.status(200).json(
+        rewritePublicCardMediaUrls(
+          {
+            ok: true,
+            uid: issuerUid,
+            sid,
+            bId,
+            token,
+            expiresAt: exp.toISOString(),
+            ownerDisplayName: idn.fullName,
+            cardName: String(readSmartCardScName(cardDoc) || idn.cardTitle || ''),
+            ownerNickname: cardDoc.ownerNickname ? String(cardDoc.ownerNickname) : null,
+            ownerPhotoUrl: cardDoc.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl) : null,
+            ownerOccupation: cardDoc.ownerOccupation ? String(cardDoc.ownerOccupation) : null,
+            slots,
+            ...style,
+          },
+          env.publicVaultFileBaseUrl,
+        ),
+      );
     } catch (error) {
       const isEs = clientLocaleIsSpanish(req);
       return res.status(500).json({

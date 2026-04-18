@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
+import { resolvePublicVaultUrlForWeb } from '@/lib/resolvePublicVaultMediaUrl';
 import type { SlotIconDef } from '@/lib/slotIcons';
 
 type Tr = (es: string, en: string) => string;
@@ -250,7 +251,14 @@ export function InterstitialAvatar({
       }}
     >
       {photoUrl ? (
-        <Image src={photoUrl} alt="" width={size} height={size} style={{ objectFit: 'cover', width: '100%', height: '100%' }} unoptimized />
+        <Image
+          src={resolvePublicVaultUrlForWeb(photoUrl) ?? photoUrl}
+          alt=""
+          width={size}
+          height={size}
+          style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+          unoptimized
+        />
       ) : (
         <svg width={size * 0.45} height={size * 0.45} viewBox="0 0 24 24" fill={accent}>
           <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />

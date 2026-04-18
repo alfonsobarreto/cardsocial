@@ -7,6 +7,10 @@ import { readBusinessCardIdentityFields } from '@/services/businessCardService';
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { myCardsPayloadFromQrPreview, myCardsPayloadFromUniversalCard } from '@/services/incomingCardPreviewPayload';
+import {
+  buildCanonicalIssuerIdentityFromPublicUniversalCard,
+  buildCanonicalIssuerIdentityFromQrPreview,
+} from '@/types/canonicalIssuerIdentity';
 import { db } from '@/services/firebaseConfig';
 import { fetchUserProfilePhotoUrl } from '@/services/userProfilePhoto';
 import {
@@ -217,7 +221,7 @@ export default function ScanScreen() {
           issuerUid: p.uid,
           sid: p.sid,
           bId: p.bId,
-          issuerFullName: p.ownerDisplayName,
+          issuerFullName: buildCanonicalIssuerIdentityFromQrPreview(p).userFullName,
         });
         setModalVisible(true);
       } catch (e: unknown) {
@@ -326,14 +330,12 @@ export default function ScanScreen() {
                 ownerDisplayName: issuer,
                 cardName: payload.cardName,
                 ownerNickname: null,
+                /** Campo de tarjeta en Mongo (`smart_cards.ownerPhotoUrl`), p. ej. logo; no es `userAvatarUrl` de persona. */
                 ownerPhotoUrl: payload.avatarUrl,
                 ownerOccupation: null,
                 /**
-                 * Identidad real del issuer: aquí no tenemos perfil Mongo
-                 * (estamos en el branch de fallback Firestore), así que
-                 * nulleamos los 3 campos. Quien lea `userAvatarUrl` para
-                 * Ghost-Link VoIP caerá a `ownerPhotoUrl` (bcLogoUrl) como
-                 * antes del rebuild.
+                 * Fallback Firestore: sin perfil Mongo; identidad persona en null.
+                 * VoIP puede usar `ownerPhotoUrl` solo como imagen de tarjeta si aplica.
                  */
                 userFullName: null,
                 userNickName: null,
@@ -373,7 +375,7 @@ export default function ScanScreen() {
           issuerUid: p.uid,
           sid: p.sid,
           bId: p.bId,
-          issuerFullName: p.ownerDisplayName,
+          issuerFullName: buildCanonicalIssuerIdentityFromQrPreview(p).userFullName,
         });
         setModalVisible(true);
       } catch (e: unknown) {

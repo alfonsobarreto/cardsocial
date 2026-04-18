@@ -20,7 +20,12 @@ export function runSearchFacetQuickAction(params: {
   /** Negocio: bcContactName para pastilla (no repetir título). */
   issuerCardContactName?: string | null;
   issuerPeerNickname?: string;
+  /** @deprecated Preferir `issuerUserAvatarUrl` + `issuerBusinessLogoUrl` (no mezclar logo con persona). */
   issuerCardPhoto?: string | null;
+  /** Foto de perfil del emisor (Mongo / contactos). */
+  issuerUserAvatarUrl?: string | null;
+  /** Logo de negocio en doc tarjeta (solo business). */
+  issuerBusinessLogoUrl?: string | null;
   issuerCardType?: 'business' | 'personal';
 }): void {
   const { type, label, value, issuerUid, issuerCardName, issuerSid, issuerBId, issuerDisplayName } = params;
@@ -39,6 +44,18 @@ export function runSearchFacetQuickAction(params: {
 
   const biz = params.issuerCardType === 'business';
   const issuerBcContact = String(params.issuerCardContactName ?? '').trim() || null;
+  const peerFace =
+    params.issuerUserAvatarUrl != null && String(params.issuerUserAvatarUrl).trim()
+      ? String(params.issuerUserAvatarUrl).trim()
+      : !biz && params.issuerCardPhoto
+        ? String(params.issuerCardPhoto).trim()
+        : null;
+  const brandLogo =
+    biz && params.issuerBusinessLogoUrl != null && String(params.issuerBusinessLogoUrl).trim()
+      ? String(params.issuerBusinessLogoUrl).trim()
+      : biz && params.issuerCardPhoto
+        ? String(params.issuerCardPhoto).trim()
+        : null;
 
   if (isGhostLinkVaultType(type)) {
     void ActionController.ActionGhostLinkVaultItem({
@@ -49,11 +66,11 @@ export function runSearchFacetQuickAction(params: {
       userName: issuerDisplayName,
       peerFullName: params.issuerPeerFullName ?? issuerDisplayName,
       peerNickname: params.issuerPeerNickname,
-      bcLogoUrl: biz ? params.issuerCardPhoto ?? null : null,
+      bcLogoUrl: brandLogo,
       bcName: biz ? issuerCardName || null : null,
       bcContactName: biz ? issuerBcContact : null,
       cardPhoto: params.issuerCardPhoto ?? null,
-      peerPhotoUrl: params.issuerCardPhoto ?? null,
+      peerPhotoUrl: peerFace,
       cardType: params.issuerCardType ?? 'personal',
     });
     return;
@@ -83,10 +100,11 @@ export function runSearchFacetQuickAction(params: {
       userName: issuerDisplayName,
       peerFullName: params.issuerPeerFullName ?? issuerDisplayName,
       peerNickname: params.issuerPeerNickname,
-      bcLogoUrl: biz ? params.issuerCardPhoto ?? null : null,
+      bcLogoUrl: brandLogo,
       bcName: biz ? issuerCardName || null : null,
       bcContactName: biz ? issuerBcContact : null,
       cardPhoto: params.issuerCardPhoto ?? null,
+      peerPhotoUrl: peerFace,
       cardType: params.issuerCardType ?? 'personal',
     });
     return;

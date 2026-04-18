@@ -25,6 +25,7 @@ export type ReceivedContactForMarketSearch = {
   userNickName: string;
   userAvatarUrl: string | null;
   cardName: string;
+  bcName?: string | null;
   ratingAvg: number;
   totalRatings?: number;
   holdersCount?: number;
@@ -49,6 +50,8 @@ export type ReceivedContactForMarketSearch = {
   channelMuted?: boolean;
   publicCardSlots?: PublicCardSlotPayload[];
   ownerOccupation?: string | null;
+  bcContactName?: string | null;
+  bcLogoUrl?: string | null;
 };
 
 export type SocialMarketSearchSections = {
@@ -104,18 +107,24 @@ export function issuerPresentationFromRow(row: ReceivedContactForMarketSearch): 
 
 export function createReceivedContactBusinessCard(row: ReceivedContactForMarketSearch): BusinessCard {
   const now = new Date();
-  const title = String(row.userFullName || row.cardName || '').trim() || '—';
+  /** Contacto recibido tipo negocio: solo datos de tarjeta (sin perfil emisor). */
+  const title =
+    String(row.bcName || '').trim() || String(row.cardName || '').trim() || '—';
   const link = row.sid != null && String(row.sid).trim()
     ? String(row.sid).trim()
     : row.bId != null && String(row.bId).trim()
       ? String(row.bId).trim()
       : 'legacy';
+  const contactLine = String(row.bcContactName || '').trim();
+  const cardLine = String(row.bcName || '').trim() || String(row.cardName || '').trim();
+  const bizDesc = [contactLine, cardLine].filter(Boolean).join(' · ') || '—';
   return {
     bId: `received-contact:${row.uid}:${link}`,
     uid: row.uid,
     type: 'business',
     bcName: title,
-    bcContactName: '',
+    bcContactName: contactLine,
+    bcLogoUrl: row.bcLogoUrl != null && String(row.bcLogoUrl).trim() ? String(row.bcLogoUrl).trim() : undefined,
     ownerEmail: '',
     ownerPhone: '',
     physicalAddress: '',
@@ -124,8 +133,7 @@ export function createReceivedContactBusinessCard(row: ReceivedContactForMarketS
     city: '',
     postalCode: '',
     keywords: [],
-    businessDescription: `@${String(row.userNickName || 'user').trim()} · ${String(row.cardName || '').trim()}`,
-    bcLogoUrl: row.userAvatarUrl || undefined,
+    businessDescription: bizDesc,
     kycVerified: false,
     kycTermsAccepted: false,
     vaultDataIds: [],
@@ -195,6 +203,10 @@ function searchReceivedContactsForMarket(
         userFullName: row.userFullName,
         userNickName: row.userNickName,
         cardName: row.cardName,
+        ownerOccupation: row.ownerOccupation ?? null,
+        bcName: row.bcName ?? null,
+        bcContactName: row.bcContactName ?? null,
+        bcLogoUrl: row.bcLogoUrl ?? null,
         searchFacets: row.searchFacets,
       },
       row.metaGroup,
@@ -210,6 +222,7 @@ function searchReceivedContactsForMarket(
     rowSource: 'received_contact' as const,
     receivedContactFacets: row.searchFacets,
     receivedContactCardName: row.cardName,
+    receivedIssuerUserAvatarUrl: row.userAvatarUrl,
     issuerPresentation: issuerPresentationFromRow(row),
     receivedHoldersCount: Number(row.holdersCount ?? 0) || 0,
     receivedSourceSid: row.sid ?? null,

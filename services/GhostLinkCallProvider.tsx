@@ -260,6 +260,9 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
         if (invite) {
           const incomingCallType: GhostLinkCallType = invite.callType || 'audio';
           pollingRef.current = false;
+          const callerFull =
+            String(invite.callerDisplay.userFullName ?? '').trim() ||
+            String(invite.callerDisplay.name ?? '').trim();
           setCallData({
             inviteId: invite.inviteId,
             sessionId: invite.sessionId,
@@ -267,6 +270,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
             callType: incomingCallType,
             card: invite.card,
             peerName: invite.callerDisplay.name,
+            peerFullName: callerFull || undefined,
             peerNickname: invite.callerDisplay.nickname,
             peerPhotoUrl: invite.callerDisplay.userAvatarUrl,
             peerUid: invite.callerUid,
@@ -890,6 +894,15 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
                 bcLogoUrl: prev.card.bcLogoUrl ?? started.card.bcLogoUrl ?? null,
                 bcName: prev.card.bcName ?? started.card.bcName ?? null,
                 bcContactName: prev.card.bcContactName ?? started.card.bcContactName ?? null,
+                /** Smart: título saliente = `cardName` de la tarjeta desde la que llamas (paridad lista / Confirm). */
+                ...(prev.card.cardType !== 'business'
+                  ? {
+                      cardName:
+                        String(prev.card.cardName || '').trim() ||
+                        String(started.card.cardName || '').trim() ||
+                        'Tarjeta Social',
+                    }
+                  : {}),
               },
               peerFullName: prev.peerFullName,
               peerName: started.receiverDisplay.name,

@@ -12,7 +12,9 @@
     "test:stories-phase1": "node scripts/test-stories-phase1.mjs",
     "test:search-phase2": "tsx scripts/test-search-phase2.ts",
     "backend:seed:house-ad": "node backend/src/scripts/seedHouseAdRotation.js",
-    "backend:seed:house-ad:tomorrow": "node backend/src/scripts/seedHouseAdRotation.js --day-shift=1"
+    "backend:seed:house-ad:tomorrow": "node backend/src/scripts/seedHouseAdRotation.js --day-shift=1",
+    "icons:generate": "node scripts/generate-app-icons.mjs",
+    "audit:identity": "node scripts/audit-identity-phase-d.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1016.0",
@@ -104,6 +106,7 @@
     "@types/react-is": "^19.2.0",
     "@types/uuid": "^10.0.0",
     "expo-module-scripts": "^55.0.2",
+    "sharp": "^0.34.5",
     "tsx": "^4.19.3",
     "typescript": "~5.9.2"
   },

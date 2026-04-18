@@ -32,67 +32,56 @@ La unica diferencia es que FaceCall activa la camara y muestra video remoto + Pi
 
 | Aspecto | **Business Card** | **Smart Card (personal)** |
 |---|---|---|
-| Avatar en llamada | Logo / imagen custom del negocio | Foto de perfil del dueno |
-| Nombre en llamada | Nombre del negocio (ej: "RESTAURANTE BARRETO") | Nombre de la tarjeta personal (ej: "Alfonso Barreto") |
-| Logica del flujo | Identica | Identica |
+| Avatar en llamada (outgoing) | Logo / `bcLogoUrl` | Foto del **peer** (`peerPhotoUrl`) en Confirm/Outgoing (ver tabla abajo) |
+| Título en Confirm/Outgoing | Nombre comercial (`bcName` / `cardName`) | Nombre **persona** (`peerFullName` / `peerName`), no el nombre de tarjeta |
+| Lógica de sesión | Igual (Agora, permisos, fases) | Igual |
+
+La tabla detallada por dirección está en **«Identidad en UI — OUTGOING»** e **«Identidad en UI — INCOMING»** más abajo.
 
 ---
 
 ## Flujo completo paso a paso
 
-### Paso 1 — Iniciar llamada (Caller)
+### OUTGOING — Paso 1 — Iniciar llamada (caller)
 
-- El caller esta viendo la tarjeta del receptor en su vault.
-- Toca el **icono VoIP (Ghost-Link)** o el **icono Video (FaceCall)**.
-- Se abre un **modal de confirmacion** (`ConfirmView`):
-  - **Avatar**: foto/logo de **la tarjeta**.
-  - **Nombre**: nombre de **la tarjeta**.
-  - **Dos botones** siempre visibles:
-    - **"Llamada de voz"** (verde) — inicia llamada de audio.
-    - **"FaceCall"** (dorado) — inicia videollamada.
-  - Boton terciario: **"Cancelar"**.
+- El caller está viendo la tarjeta del receptor (modal, vault, etc.).
+- Toca el **icono VoIP (Ghost-Link)** o **FaceCall**.
+- Se abre **`ConfirmView`**:
+  - **Business:** avatar = logo negocio; título = nombre comercial; pastilla = `bcContactName` (si existe); línea fija «Privacidad total».
+  - **Smart:** avatar = foto del **receptor** (peer); título = nombre completo / nick del **receptor**; sin pastilla de contacto negocio; línea fija «Privacidad total».
+  - Botones: **Llamada de voz** | **FaceCall** | **Cancelar**.
 
-### Paso 2 — Marcando (Caller confirma)
+### OUTGOING — Paso 2 — Marcando (caller confirma)
 
-- El caller toca el boton de confirmar.
-- **Permisos**: si es FaceCall, se pide permiso de camara. Si se niega, baja a audio.
-- Se abre **pantalla completa** de llamada (`OutgoingView`):
-  - **Avatar**: foto/logo de **la tarjeta**.
-  - **Nombre**: nombre de **la tarjeta**.
-  - Estado: **"Llamando..."**
-  - Controles: **Mute** | **Speaker** | **Camera** (toggle on/off)
-  - Boton rojo: **"Colgar / End Call"**
-  - Pie: _"Tu numero real esta 100% oculto"_
-  - **Tono**: ringback de audio o video segun tipo de llamada.
+- Tras confirmar, **permisos** (cámara si es video).
+- Pantalla **`OutgoingView`** (full screen):
+  - Misma identidad que Confirm (`deriveCallDisplay` → `toCallDisplayCardFromGhostCall` en `services/callDisplayCard.ts`).
+  - Estado: **«Llamando…»** luego **«En llamada · MM:SS»**.
+  - Controles: Mute | Speaker | Camera | Teclado | Colgar.
+  - Pie: «Enlace exclusivo» (copy de producto).
 
-### Paso 3 — Llamada entrante (Receptor)
+### INCOMING — Paso 3 — Llamada entrante (receptor)
 
-- El receptor ve la **pantalla de llamada entrante** (`IncomingView`):
-  - **Avatar**: foto de perfil **del caller**.
-  - **Nombre**: `@nickname` + nombre completo **del caller**.
-  - **Badge FaceCall** (solo video): icono camara dorado + "FaceCall".
-  - **Texto**: "Llamada Entrante..." o "Videollamada Entrante..."
-  - **Badge tarjeta**: "Desde tu tarjeta: [NOMBRE DE LA TARJETA]"
-  - Botones: **[ACEPTAR]** (con icono phone o video) | **[RECHAZAR]**
-  - **Tono**: ringtone de audio o video segun tipo de llamada.
-  - **Vibracion**: patron repetitivo hasta aceptar/rechazar.
-  - **Volumen (-)**: primer press silencia tono+vibracion, segundo press rechaza.
+- Pantalla **`IncomingView`**:
+  - **Avatar:** foto del **caller** (`peerPhotoUrl`).
+  - **Líneas de nombre:** `@peerNickname` + nombre completo del **caller** (`peerFullName` / `peerName`).
+  - **FaceCall:** badge dorado + texto «FaceCall».
+  - **Estado:** «Llamada entrante…» / «Videollamada entrante…».
+  - **Badge tarjeta:** «Desde tu tarjeta: [cardName]».
+  - Botones **ACEPTAR** | **RECHAZAR**; tono + vibración; volumen (−) según reglas documentadas.
 
-### Paso 4 — Llamada conectada (Receptor acepta)
+### INCOMING — Paso 4 — Llamada conectada (receptor acepta)
 
-**Llamada de voz** (`ActiveIncomingView` / `OutgoingView`):
-- Avatar del **otro** participante.
-- Nombre del **otro** participante.
-- Nombre de la tarjeta en comun visible para ambos.
-- Timer: `En llamada · 00:00`
-- Controles: **Mute** | **Speaker** | **Camera** (upgrade mid-call) | **End Call**
+**Voz — `ActiveIncomingView` (receptor) / `OutgoingView` (caller tras conectar):**
 
-**FaceCall** (`ActiveVideoView`):
-- **Video remoto**: pantalla completa de fondo.
-- **PiP local**: esquina superior derecha, borde dorado, 110x150px.
-- **Barra superior**: logo CS + nombre del peer + nombre tarjeta + timer.
-- Controles: **Mute** | **Camera off** | **Flip camera** | **Speaker**
-- Boton rojo circular: **End Call**
+- **Caller (outgoing):** sigue viendo identidad de **tarjeta** (`displayTitle` / `displayPhoto` / `displaySubtitle` según business vs smart en `deriveCallDisplay`).
+- **Receptor (incoming activo):** avatar + título = **caller**; badge «Desde tu tarjeta: …».
+- Timer `En llamada · MM:SS`; controles habituales.
+
+**FaceCall — `ActiveVideoView`:**
+
+- Video remoto a pantalla completa; PiP local; barra superior (logo + peer + duración).
+- **Outgoing** y **incoming** comparten componente; la identidad en barra usa `deriveCallFace` / `deriveCallDisplay` según fase.
 
 ### Paso 5 — Fin de llamada
 
@@ -123,23 +112,60 @@ La unica diferencia es que FaceCall activa la camara y muestra video remoto + Pi
 
 ---
 
-## Resumen de identidad por pantalla
+## Identidad en UI — OUTGOING (`direction === 'outgoing'`)
 
-### Caller (el que llama) ve:
+Fuente única en vivo: `outgoingMirrorFromGhostCallData` → `OutgoingCallUiMirror` (`services/outgoingCallUiMirror.ts`); UI en `ConfirmView` / `OutgoingView` / FaceCall (`GhostLinkCallOverlay.tsx`). Historial: `outgoingMirrorFromCallHistoryOutgoing` (misma semántica).
 
-| Campo | Valor |
-|---|---|
-| Avatar | Foto/logo de **la tarjeta** |
-| Nombre | Nombre de **la tarjeta** |
-| Badge | Nombre de la tarjeta a quien llama |
+| Slot | **Business** | **Smart** |
+|---|---|---|
+| **Imagen** | `bcLogoUrl` (fallback `cardPhoto` en espejo) | **`userAvatarUrl` del contacto** — sólo `peerPhotoUrl` en sesión (no `cardPhoto` como avatar) |
+| **Título** | `bcName` → `cardName` | **`cardName`** (`card.cardName` / historial: `cardName` → `scName` → `displayCardName` → `sourceCardName`) |
+| **Subtítulo** | `bcContactName` (pastilla) | **`userFullName`** (`peerFullName` / `peerName`) |
+| **Pastilla** | `bcContactName` | Texto plano vía `CardBadge` (mismo subtítulo que espejo) |
+| **Otra línea** | Confirm: «Privacidad total». Outgoing: «Llamando…» / «En llamada · …» | Igual |
 
-### Receptor (el dueno de la tarjeta) ve:
+### Historial en **Calls** (fila **saliente**)
 
-| Campo | Valor |
-|---|---|
-| Avatar | Foto de perfil **del caller** |
-| Nombre | Nombre **del caller** |
-| Badge | "Desde tu tarjeta: [NOMBRE TARJETA]" |
+`callsHistoryOutgoingRowUi` en `app/(tabs)/calls.tsx` — alineado al espejo anterior.
+
+| Slot | **Business** | **Smart** |
+|---|---|---|
+| **Imagen** | Logo negocio / snapshot | **`userAvatarUrl`** (fila → contacto → `issuerSnapshot`) |
+| **Título** | `bcName` / `displayCardName` | **`cardName`** (prioridad API arriba) |
+| **Subtítulo** | `bcContactName` | **`userFullName`** → `peerFullName` → `peerPersonalName` |
+
+---
+
+## Identidad en UI — INCOMING (`direction === 'incoming'`)
+
+`deriveCallFace` en `GhostLinkCallOverlay.tsx`. **Business** y **Smart** (`cardType === 'personal'`) difieren: Smart usa título = **tu** tarjeta (`card.cardName`, invite enriquecido en `GET /voip/ghost-link/incoming`); Business usa `bcName` y pastilla «Desde tu tarjeta».
+
+### Ringing — `IncomingView`
+
+| Slot | **Business** | **Smart** |
+|---|---|---|
+| **Imagen** | `peerPhotoUrl` (caller) | Igual |
+| **Título** | `bcName` / `cardName` | **`cardName`** = smart card **receptora** (tu `scName` vía Mongo en API incoming) |
+| **Subtítulo** | Nombre caller (`peerFullName`) | **`userFullName`** caller (`peerFullName` / `peerName`) |
+| **Badge** | «Desde tu tarjeta: …» | **Oculto** (el título ya es la tarjeta; evita duplicar) |
+| **Estado** | «Llamada entrante…» / FaceCall | Igual |
+
+### Activa — `ActiveIncomingView` (voz)
+
+Misma tabla que ringing; timer «En llamada · MM:SS».
+
+### Historial en **Calls** (fila **entrante** o **perdida**)
+
+`callsHistoryIncomingRowUi`: **Business** — avatar caller, título `bcName`, subtítulo caller. **Smart** — avatar caller, título **tu tarjeta** (`cardName` → `scName` → …), subtítulo **`userFullName`** caller.
+
+---
+
+## Resumen rápido OUTGOING vs INCOMING
+
+| Quién | Rol | Smart — cara principal |
+|---|---|---|
+| **Outgoing** | Caller | **Tarjeta** (título) + **userFullName** del contacto (subtítulo) + su **userAvatarUrl** |
+| **Incoming** | Receptor | **Tu tarjeta** (título) + **userFullName** del caller (subtítulo) + **userAvatarUrl** del caller |
 
 ---
 
@@ -154,10 +180,10 @@ La unica diferencia es que FaceCall activa la camara y muestra video remoto + Pi
 
 ### Smart Card personal — FaceCall
 
-> Alfonso le compartio su tarjeta personal a Carlos.
+> Alfonso le compartio su tarjeta personal a Carlos. Contrato: **imagen** = `userAvatarUrl` del otro lado; **título** = `cardName`; **subtítulo** = `userFullName` (ver secciones OUTGOING / INCOMING arriba).
 
-- **Carlos videollama**: foto de Alfonso + "Alfonso Barreto" + badge dorado "FaceCall"
-- **Alfonso recibe**: foto de Carlos + "Videollamada Entrante..." + badge dorado "FaceCall"
+- **Carlos videollama (outgoing)**: foto de Alfonso (avatar del contacto) + título = **nombre de la tarjeta de Carlos** + subtítulo = **Alfonso Barreto** + badge dorado "FaceCall"
+- **Alfonso recibe (incoming)**: foto de Carlos + título = **nombre de la tarjeta de Alfonso** (tu smart card) + subtítulo = **nombre completo de Carlos** + badge dorado "FaceCall" (sin duplicar la tarjeta en pastilla; el título ya es la tarjeta)
 - **Conectados**: Carlos ve video de Alfonso en fullscreen, su PiP arriba-derecha. Alfonso igual.
 
 ---

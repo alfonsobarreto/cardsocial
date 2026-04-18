@@ -55,6 +55,21 @@ function pickVisualSnapshot(row: PresentationMergeRow): Partial<PresentationMerg
   return out;
 }
 
+/** Compara solo diseño (sin `cardUpdatedAt`): si el API trae tema distinto pero el timestamp empató en el mismo segundo, igual hay que aplicar el remoto. */
+function visualPresentationChanged(old: PresentationMergeRow, remote: PresentationMergeRow): boolean {
+  for (const k of VISUAL_KEYS) {
+    if (k === 'cardUpdatedAt') {
+      continue;
+    }
+    const a = old[k];
+    const b = remote[k];
+    if (JSON.stringify(a) !== JSON.stringify(b)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
  * `remote` es la lista autoritativa de miembros (misma longitud/orden que API).
  * Si la tarjeta del contacto no cambió en servidor, se conserva el snapshot visual local para evitar parpadeos de wallpaper/tema.
@@ -69,10 +84,22 @@ export function mergeReceivedContactRows<T extends PresentationMergeRow>(prev: T
     const tNew = parseCardUpdatedMs(r.cardUpdatedAt);
     const tOld = parseCardUpdatedMs(old.cardUpdatedAt);
     const serverNewer = tNew > tOld || (tOld === 0 && tNew > 0);
-    if (serverNewer) {
+    /** Mismo `updatedAt` en el mismo segundo pero tema/layout cambió en servidor → aplicar remoto. */
+    const sameOrNewerTime = tNew >= tOld && tOld > 0;
+    const remoteDesignDiffers = sameOrNewerTime && visualPresentationChanged(old, r);
+    if (serverNewer || remoteDesignDiffers) {
       return r;
     }
     const visual = pickVisualSnapshot(old);
-    return { ...r, ...visual } as T;
+    const merged = { ...r, ...visual } as T;
+    /** Nombre/foto de perfil vienen del API (Mongo users), no del snapshot visual — si no, un tema viejo podría “congelar” identidad por error. */
+    const anyR = r as Record<string, unknown>;
+    const anyM = merged as Record<string, unknown>;
+    if ('userAvatarUrl' in anyR) anyM.userAvatarUrl = anyR.userAvatarUrl;
+    if ('userFullName' in anyR) anyM.userFullName = anyR.userFullName;
+    if ('userNickName' in anyR) anyM.userNickName = anyR.userNickName;
+    if ('bcContactName' in anyR) anyM.bcContactName = anyR.bcContactName;
+    if ('bcLogoUrl' in anyR) anyM.bcLogoUrl = anyR.bcLogoUrl;
+    return merged as T;
   });
 }

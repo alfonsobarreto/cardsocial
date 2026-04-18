@@ -18,10 +18,22 @@ export type CardData = {
   layout: 'vertical' | 'horizontal';
   themeId: string | null;
   wallpaperUrl: string | null;
+  /**
+   * Nombre persona canónico (API `userFullName`); si la API solo manda espejo Mongo,
+   * `normalizeUniversalCardPayload` rellena desde `ownerDisplayName`.
+   */
+  userFullName?: string | null;
+  userNickName?: string | null;
   ownerDisplayName: string;
   ownerNickname: string | null;
-  ownerPhotoUrl: string | null;
+  /**
+   * Imagen en el documento de tarjeta (API `ownerPhotoUrl` / Mongo `smart_cards`).
+   * No es `userAvatarUrl`: en business suele ser logo; en smart, foto de la tarjeta.
+   */
+  cardWireframeImageUrl: string | null;
   ownerOccupation: string | null;
+  /** Persona (Mongo users/profiles). */
+  userAvatarUrl?: string | null;
   holdersCount: number;
   ratingAvg: number;
   totalRatings: number;

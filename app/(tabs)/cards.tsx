@@ -22,6 +22,7 @@ import {
     type CardTheme as ChestCardTheme,
     type ThemeTier,
 } from '@/constants/themeChest';
+import { logIdentityTest } from '@/services/identityManualTestLogs';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { generatePermanentBusinessLink } from '@/services/brandedQrService';
@@ -85,6 +86,11 @@ import {
   readUserNickNameLower,
   readVoipCanonicalFullName,
 } from '@/services/userIdentityFields';
+import {
+  buildCanonicalIssuerIdentityFromFirestore,
+  emptyCanonicalIssuerIdentity,
+  type CanonicalIssuerIdentity,
+} from '@/types/canonicalIssuerIdentity';
 import { type CardFontItem, type FontTier } from '@/services/fontLibraryService';
 import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
 import { getUserIconVaultMap, type IconVaultEntry } from '@/services/iconVaultService';
@@ -387,13 +393,13 @@ async function fetchVoipCanonicalFullNameForUid(uid: string): Promise<string> {
 function ghostPeerVoipFullName(
   firestoreCanonical: string,
   cardOwnerDisplayName: string | undefined,
-  ownerNickname?: string,
+  peerNick?: string,
 ): string {
   const fs = String(firestoreCanonical || '').trim();
   if (fs) return fs;
   const card = String(cardOwnerDisplayName || '').trim();
   if (!card) return '';
-  const nickRaw = String(ownerNickname || '').trim().replace(/^@+/g, '');
+  const nickRaw = String(peerNick || '').trim().replace(/^@+/g, '');
   return readVoipCanonicalFullName({ userFullName: card, userNickName: nickRaw });
 }
 
@@ -612,12 +618,10 @@ export default function CardsFactoryScreen() {
   const enterCardsReorderRef = useRef<(() => void) | null>(null);
   const [rotateHintVisible, setRotateHintVisible] = useState(false);
   const rotateAnim = useRef(new Animated.Value(0)).current;
-  const [ownerNickname, setOwnerNickname] = useState('');
-  const [ownerDisplayName, setOwnerDisplayName] = useState('');
-  /** Nombre completo real para Ghost-Link (no caer en displayName = nick). */
-  const ownerVoipFullNameRef = useRef('');
-  const [ownerVoipFullName, setOwnerVoipFullName] = useState('');
-  const [ownerPhotoUrl, setOwnerPhotoUrl] = useState<string | null>(null);
+  /** Una sola raíz de identidad del emisor (Firestore `users/{uid}`), no variables paralelas. */
+  const [issuerIdentity, setIssuerIdentity] = useState<CanonicalIssuerIdentity>(() =>
+    emptyCanonicalIssuerIdentity(''),
+  );
   const parallaxX = useRef(new Animated.Value(0)).current;
   const parallaxY = useRef(new Animated.Value(0)).current;
   const qrTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -640,6 +644,75 @@ export default function CardsFactoryScreen() {
       subscriberSwipeableMethodsRef.current.clear();
     }
   }, [subscribersVisible]);
+
+  /** Evita repetir el mismo log cuando `issuerIdentity` se reemplaza por referencia sin cambiar los campos mostrados. */
+  const lastCardsTabListLogDigestRef = useRef<string>('');
+
+  /** Prueba manual — contrato identidad en tab Mis Tarjetas (ver docs/MANUAL_TEST_IDENTITY_LOGS.md). */
+  useEffect(() => {
+    const payload = {
+      issuer: {
+        userFullName: issuerIdentity.userFullName,
+        userNickName: issuerIdentity.userNickName,
+        userAvatarUrl: issuerIdentity.userAvatarUrl,
+        voipCanonicalFullName: issuerIdentity.voipCanonicalFullName,
+      },
+      smartCards: smartCards.map((c) => ({
+        sid: c.sid,
+        scName: c.scName,
+        ownerDisplayName: c.ownerDisplayName,
+        issuerSnapshotUserAvatarUrl: c.issuerSnapshot?.userAvatarUrl ?? null,
+      })),
+      businessCards: businessCardsFeed.map((b) => ({
+        bId: b.bId,
+        bcName: b.bcName,
+        bcContactName: b.bcContactName,
+        bcLogoUrl: b.bcLogoUrl,
+      })),
+    };
+    const digest = JSON.stringify(payload);
+    if (digest === lastCardsTabListLogDigestRef.current) {
+      return;
+    }
+    lastCardsTabListLogDigestRef.current = digest;
+    logIdentityTest('cards:tab — listas (Smart + Business + emisor)', payload);
+  }, [
+    smartCards,
+    businessCardsFeed,
+    issuerIdentity.userFullName,
+    issuerIdentity.userNickName,
+    issuerIdentity.userAvatarUrl,
+    issuerIdentity.voipCanonicalFullName,
+  ]);
+
+  useEffect(() => {
+    if (!previewVisible || !previewCard) {
+      return;
+    }
+    logIdentityTest('cards:modal — preview Smart (MyCards)', {
+      sid: previewCard.sid,
+      scName: previewCard.scName,
+      ownerDisplayName: previewCard.ownerDisplayName,
+      issuerSnapshot: previewCard.issuerSnapshot
+        ? {
+            userAvatarUrl: previewCard.issuerSnapshot.userAvatarUrl ?? null,
+            userFullName: previewCard.issuerSnapshot.userFullName ?? null,
+          }
+        : null,
+    });
+  }, [previewVisible, previewCard]);
+
+  useEffect(() => {
+    if (!previewBusinessVisible || !previewBusiness) {
+      return;
+    }
+    logIdentityTest('cards:modal — preview Business', {
+      bId: previewBusiness.bId,
+      bcName: previewBusiness.bcName,
+      bcContactName: previewBusiness.bcContactName,
+      bcLogoUrl: previewBusiness.bcLogoUrl,
+    });
+  }, [previewBusinessVisible, previewBusiness]);
   /** Tras cerrar selector de datos / temas, reabrir el factory si estaba abierto (evita 2 Modals superpuestos en Android). */
   const resumeFactoryAfterAuxModalRef = useRef(false);
 
@@ -667,36 +740,24 @@ export default function CardsFactoryScreen() {
         : `user_${String(user.uid).slice(0, 6)}`;
     try {
       const userSnap = await getDoc(doc(db, 'users', user.uid));
-      const userData = userSnap.data() as Record<string, unknown>;
-      if (userData) {
-        const display = readUserFullName(userData);
-        setOwnerDisplayName(
-          display === 'Usuario' ? String(userData.firstName || '').trim() || authFallback : display
-        );
-        const voipCanon = readVoipCanonicalFullName(userData);
-        ownerVoipFullNameRef.current = voipCanon;
-        setOwnerVoipFullName(voipCanon);
-        setOwnerNickname(
-          readUserNickName(userData) || readUserNickNameLower(userData) || authFallback
-        );
-        setOwnerPhotoUrl(
-          toRenderableImageUri(readUserAvatarUrl(userData) || undefined) ||
-            toRenderableImageUri(user.photoURL) ||
-            null
-        );
-      } else {
-        setOwnerDisplayName(authFallback);
-        ownerVoipFullNameRef.current = '';
-        setOwnerVoipFullName('');
-        setOwnerNickname(authFallback);
-        setOwnerPhotoUrl(toRenderableImageUri(user.photoURL) || null);
-      }
+      const userData = userSnap.data() as Record<string, unknown> | undefined;
+      setIssuerIdentity(
+        buildCanonicalIssuerIdentityFromFirestore({
+          uid: user.uid,
+          userDoc: userData,
+          authDisplayNameFallback: authFallback,
+          authPhotoUrlFallback: user.photoURL,
+        }),
+      );
     } catch {
-      setOwnerDisplayName(authFallback);
-      ownerVoipFullNameRef.current = '';
-      setOwnerVoipFullName('');
-      setOwnerNickname(authFallback);
-      setOwnerPhotoUrl(toRenderableImageUri(user.photoURL) || null);
+      setIssuerIdentity(
+        buildCanonicalIssuerIdentityFromFirestore({
+          uid: user.uid,
+          userDoc: undefined,
+          authDisplayNameFallback: authFallback,
+          authPhotoUrlFallback: user.photoURL,
+        }),
+      );
     }
   }, []);
 
@@ -1017,9 +1078,9 @@ export default function CardsFactoryScreen() {
       itemIds: card.itemIds,
       holdersCount: Number(card.holdersCount || 0),
       ratingAvg: Number(card.ratingAvg || 5),
-      ownerDisplayName: (ownerDisplayName || '').trim() || undefined,
-      ownerNickname: (ownerNickname || '').trim() || undefined,
-      ownerPhotoUrl,
+      ownerDisplayName: (issuerIdentity.userFullName || '').trim() || undefined,
+      ownerNickname: (issuerIdentity.userNickName || '').trim() || undefined,
+      ownerPhotoUrl: issuerIdentity.userAvatarUrl,
       ownerOccupation: occ || undefined,
       searchFacets,
       publicCardSlots,
@@ -1027,9 +1088,9 @@ export default function CardsFactoryScreen() {
         ? {
             issuerSnapshot: buildIssuerSnapshotFromPublicSlots({
               uid: ownerUidTrim,
-              userFullName: (ownerDisplayName || '').trim(),
-              userNickName: (ownerNickname || '').trim(),
-              userAvatarUrl: ownerPhotoUrl ?? null,
+              userFullName: (issuerIdentity.userFullName || '').trim(),
+              userNickName: (issuerIdentity.userNickName || '').trim(),
+              userAvatarUrl: issuerIdentity.userAvatarUrl ?? null,
               publicCardSlots,
               itemIds: card.itemIds,
             }),
@@ -1487,7 +1548,30 @@ export default function CardsFactoryScreen() {
 
   const closeThemesPickerModal = () => {
     setThemesPlaceholderVisible(false);
-    requestAnimationFrame(() => restoreFactoryAfterAuxModal());
+    void (async () => {
+      try {
+        /**
+         * Antes solo se guardaba `themeId` al pulsar «Guardar» en el factory. Si el usuario
+         * elegía tema y «Aceptar» en el modal, Mongo no recibía el cambio → el otro celular
+         * seguía viendo el tema viejo en contactos/receptores.
+         */
+        if (selectedCard) {
+          const sid = selectedCard.sid;
+          const nextThemeId = themeId;
+          const nowIso = new Date().toISOString();
+          const nextCards = smartCards.map((c) =>
+            c.sid === sid ? { ...c, themeId: nextThemeId, updatedAt: nowIso } : c,
+          );
+          await persistCards(nextCards, [sid]);
+          const merged = nextCards.find((c) => c.sid === sid);
+          if (merged) {
+            setSelectedCard(merged);
+          }
+        }
+      } finally {
+        requestAnimationFrame(() => restoreFactoryAfterAuxModal());
+      }
+    })();
   };
 
   const handlePreviewIconLongPress = (slot: EditSlot) => {
@@ -1991,9 +2075,9 @@ export default function CardsFactoryScreen() {
               isFavorite: Boolean(row.isFavorite),
               issuerSnapshot: buildIssuerSnapshotFromPublicSlots({
                 uid,
-                userFullName: (ownerDisplayName || '').trim(),
-                userNickName: (ownerNickname || '').trim(),
-                userAvatarUrl: ownerPhotoUrl ?? null,
+                userFullName: (issuerIdentity.userFullName || '').trim(),
+                userNickName: (issuerIdentity.userNickName || '').trim(),
+                userAvatarUrl: issuerIdentity.userAvatarUrl ?? null,
                 publicCardSlots,
                 itemIds: row.vaultLinkIds,
               }),
@@ -2188,8 +2272,8 @@ export default function CardsFactoryScreen() {
     if (!previewCard) return null;
     return {
       cardName: (previewCard.scName || cardName || 'Nueva Tarjeta').trim(),
-      subtitle: `@${(ownerNickname || 'user').toLowerCase()}`,
-      avatarUrl: ownerPhotoUrl,
+      subtitle: `@${(issuerIdentity.userNickName || 'user').toLowerCase()}`,
+      avatarUrl: issuerIdentity.userAvatarUrl,
       themeId: previewCard.themeId || '',
       wallpaperUrl: previewCard.wallpaperUrl,
       layout: previewLayout,
@@ -2200,7 +2284,7 @@ export default function CardsFactoryScreen() {
       slots: previewSlots as unknown as WireframeEditSlot[],
       iconVaultById,
     };
-  }, [previewCard, cardName, ownerNickname, ownerPhotoUrl, previewLayout, enableParallax, previewSlots, iconVaultById]);
+  }, [previewCard, cardName, issuerIdentity.userNickName, issuerIdentity.userAvatarUrl, previewLayout, enableParallax, previewSlots, iconVaultById]);
 
   const businessPreviewSlots = useMemo<EditSlot[]>(() => {
     if (!previewBusiness?.vaultLinkIds?.length) {
@@ -2437,10 +2521,10 @@ export default function CardsFactoryScreen() {
     const voipName = ghostPeerVoipFullName(
       fromFs,
       activeSmartForGhost?.ownerDisplayName,
-      ownerNickname,
+      issuerIdentity.userNickName,
     ).trim();
     if (voipName) {
-      ownerVoipFullNameRef.current = voipName;
+      setIssuerIdentity((prev) => ({ ...prev, voipCanonicalFullName: voipName }));
     }
     /** Mirror exacto de `calls.tsx` para Business: logo explícito + fallback a foto de usuario. */
     const bizLogo = previewBusinessVisible
@@ -2453,8 +2537,8 @@ export default function CardsFactoryScreen() {
       ? String(previewBusiness?.bcContactName || '').trim() || null
       : null;
     const bizCardPhoto = previewBusinessVisible
-      ? bizLogo ?? ownerPhotoUrl ?? null
-      : ownerPhotoUrl ?? null;
+      ? bizLogo ?? issuerIdentity.userAvatarUrl ?? null
+      : issuerIdentity.userAvatarUrl ?? null;
     await openVaultPreviewItem(item, {
       tr,
       openDocumentViewer: (it) => {
@@ -2466,13 +2550,13 @@ export default function CardsFactoryScreen() {
       sourceBId: previewBusinessVisible ? String(previewBusiness?.bId ?? '').trim() || null : null,
       peerDisplayName: voipName || tr('este contacto', 'this contact'),
       peerFullName: voipName || undefined,
-      peerNickname: ownerNickname || undefined,
+      peerNickname: issuerIdentity.userNickName || undefined,
       bcLogoUrl: bizLogo,
       bcName: bizName,
       bcContactName: bizContact,
-      userAvatarUrl: ownerPhotoUrl ?? null,
+      userAvatarUrl: issuerIdentity.userAvatarUrl ?? null,
       dismissParentModal: dismissCardPreviewModals,
-      peerPhotoUrl: ownerPhotoUrl ?? null,
+      peerPhotoUrl: issuerIdentity.userAvatarUrl ?? null,
       cardPhoto: bizCardPhoto,
       cardType: previewBusinessVisible ? 'business' : 'personal',
     });
@@ -2512,10 +2596,10 @@ export default function CardsFactoryScreen() {
       const voipName = ghostPeerVoipFullName(
         fromFs,
         activeSmartForGhost?.ownerDisplayName,
-        ownerNickname,
+        issuerIdentity.userNickName,
       ).trim();
       if (voipName) {
-        ownerVoipFullNameRef.current = voipName;
+        setIssuerIdentity((prev) => ({ ...prev, voipCanonicalFullName: voipName }));
       }
       /** Mirror exacto de `calls.tsx` para Business: logo explícito + fallback a foto de usuario. */
       const bizLogo = previewBusinessVisible
@@ -2528,8 +2612,8 @@ export default function CardsFactoryScreen() {
         ? String(previewBusiness?.bcContactName || '').trim() || null
         : null;
       const bizCardPhoto = previewBusinessVisible
-        ? bizLogo ?? ownerPhotoUrl ?? null
-        : ownerPhotoUrl ?? null;
+        ? bizLogo ?? issuerIdentity.userAvatarUrl ?? null
+        : issuerIdentity.userAvatarUrl ?? null;
       await openVaultPreviewItem(item, {
         tr,
         openDocumentViewer: (it) => {
@@ -2541,13 +2625,13 @@ export default function CardsFactoryScreen() {
         sourceBId: previewBusinessVisible ? String(previewBusiness?.bId ?? '').trim() || null : null,
         peerDisplayName: voipName || tr('este contacto', 'this contact'),
         peerFullName: voipName || undefined,
-        peerNickname: ownerNickname || undefined,
+        peerNickname: issuerIdentity.userNickName || undefined,
         bcLogoUrl: bizLogo,
         bcName: bizName,
         bcContactName: bizContact,
-        userAvatarUrl: ownerPhotoUrl ?? null,
+        userAvatarUrl: issuerIdentity.userAvatarUrl ?? null,
         dismissParentModal: dismissCardPreviewModals,
-        peerPhotoUrl: ownerPhotoUrl ?? null,
+        peerPhotoUrl: issuerIdentity.userAvatarUrl ?? null,
         cardPhoto: bizCardPhoto,
         cardType: previewBusinessVisible ? 'business' : 'personal',
       });
@@ -2601,15 +2685,15 @@ export default function CardsFactoryScreen() {
     const capSize = compact ? 11 : 13;
     return (
       <>
-        {ownerPhotoUrl ? (
-          <ExpoImage source={{ uri: ownerPhotoUrl }} style={compact ? styles.wireAvatarSm : styles.wireAvatar} cachePolicy="disk" />
+        {issuerIdentity.userAvatarUrl ? (
+          <ExpoImage source={{ uri: issuerIdentity.userAvatarUrl }} style={compact ? styles.wireAvatarSm : styles.wireAvatar} cachePolicy="disk" />
         ) : (
           <View style={compact ? styles.wireAvatarFallbackSm : styles.wireAvatarFallback}>
             <MaterialCommunityIcons name="account" size={compact ? 22 : 32} color="#0D4D8A" />
           </View>
         )}
         <AutoScaleText style={compact ? styles.wireNameSm : styles.wireName}>{(selectedCard?.scName || previewCard?.scName || cardName || 'Nueva Tarjeta').trim()}</AutoScaleText>
-        <AutoScaleText style={compact ? styles.wireNickSm : styles.wireNick}>@{(ownerNickname || 'user').toLowerCase()}</AutoScaleText>
+        <AutoScaleText style={compact ? styles.wireNickSm : styles.wireNick}>@{(issuerIdentity.userNickName || 'user').toLowerCase()}</AutoScaleText>
         <View style={styles.wireStatsRowInline}>
           <View style={styles.wireUsersPill}>
             <MaterialCommunityIcons name="account-outline" size={capSize} color="#0A2540" />
@@ -2654,8 +2738,8 @@ export default function CardsFactoryScreen() {
     const { layout, slots, editable, theme, wallpaperUrl, wireIdentity } = params;
     const wId = wireIdentity;
     const dispName = wId?.cardTitle ?? (selectedCard?.scName || previewCard?.scName || cardName || 'Nueva Tarjeta').trim();
-    const dispSub = wId ? wId.subtitle : `@${(ownerNickname || 'user').toLowerCase()}`;
-    const dispAvatar = wId ? wId.avatarUri : ownerPhotoUrl;
+    const dispSub = wId ? wId.subtitle : `@${(issuerIdentity.userNickName || 'user').toLowerCase()}`;
+    const dispAvatar = wId ? wId.avatarUri : issuerIdentity.userAvatarUrl;
     const dispHolders = wId ? wId.holdersCount : (selectedCard?.holdersCount ?? previewCard?.holdersCount ?? 0);
     const noAvatarIconName = (wId?.noAvatarIcon ?? 'account') as 'account' | 'storefront-outline';
 
@@ -2762,8 +2846,8 @@ export default function CardsFactoryScreen() {
               }}
               accessibilityLabel={tr('Favorito', 'Favorite')}
             >
-              <MaterialCommunityIcons name={row.isFavorite ? 'star' : 'star-outline'} size={16} color="#FFFFFF" />
-              <Text style={styles.swipeActionText}>{row.isFavorite ? '★' : '☆'}</Text>
+              <MaterialCommunityIcons name={row.isFavorite ? 'heart' : 'heart-outline'} size={16} color="#FFFFFF" />
+              <Text style={styles.swipeActionText}>{row.isFavorite ? '♥' : '♡'}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.swipeDeleteBtn, { backgroundColor: cardsTheme.swipeDeleteBg }]}
@@ -3553,8 +3637,8 @@ export default function CardsFactoryScreen() {
 
                   {/* Identity — read-only */}
                   <View style={[styles.identityAutoRow, { backgroundColor: cardsTheme.inputBg, borderColor: cardsTheme.modalBorder }]}>
-                    {ownerPhotoUrl ? (
-                      <ExpoImage source={{ uri: ownerPhotoUrl }} style={styles.identityAvatarLg} cachePolicy="disk" />
+                    {issuerIdentity.userAvatarUrl ? (
+                      <ExpoImage source={{ uri: issuerIdentity.userAvatarUrl }} style={styles.identityAvatarLg} cachePolicy="disk" />
                     ) : (
                       <View style={styles.identityAvatarLgFallback}>
                         <MaterialCommunityIcons name="account" size={32} color={cardsTheme.ctaAccent} />
@@ -3562,10 +3646,10 @@ export default function CardsFactoryScreen() {
                     )}
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.identityFullName, { color: cardsTheme.text }]} numberOfLines={1}>
-                        {ownerDisplayName || tr('Nombre Completo', 'Full Name')}
+                        {issuerIdentity.userFullName || tr('Nombre Completo', 'Full Name')}
                       </Text>
                       <Text style={[styles.identityHandle, { color: cardsTheme.sectionLabel }]} numberOfLines={1}>
-                        @{String(ownerNickname || 'user').toLowerCase().replace(/\s+/g, '')}
+                        @{String(issuerIdentity.userNickName || 'user').toLowerCase().replace(/\s+/g, '')}
                       </Text>
                     </View>
                   </View>
@@ -3928,9 +4012,11 @@ export default function CardsFactoryScreen() {
         sourceSid={previewCard?.sid ?? null}
         sourceBId={null}
         sourceCardName={previewCard?.scName ?? cardName ?? 'Tarjeta Social'}
-        peerDisplayName={ownerVoipFullName || ownerDisplayName || tr('este contacto', 'this contact')}
-        peerFullName={ownerVoipFullName || undefined}
-        peerNickname={ownerNickname || undefined}
+        peerDisplayName={
+          issuerIdentity.voipCanonicalFullName || issuerIdentity.userFullName || tr('este contacto', 'this contact')
+        }
+        peerFullName={issuerIdentity.voipCanonicalFullName || undefined}
+        peerNickname={issuerIdentity.userNickName || undefined}
         ghostCardContactName={null}
         ghostTargetUid={sessionUid}
         ratingCardType='smart'
@@ -3961,9 +4047,11 @@ export default function CardsFactoryScreen() {
         sourceSid={null}
         sourceBId={previewBusiness?.bId ?? null}
         sourceCardName={previewBusiness?.bcName ?? tr('Negocio', 'Business')}
-        peerDisplayName={ownerVoipFullName || ownerDisplayName || tr('este contacto', 'this contact')}
-        peerFullName={ownerVoipFullName || undefined}
-        peerNickname={ownerNickname || undefined}
+        peerDisplayName={
+          issuerIdentity.voipCanonicalFullName || issuerIdentity.userFullName || tr('este contacto', 'this contact')
+        }
+        peerFullName={issuerIdentity.voipCanonicalFullName || undefined}
+        peerNickname={issuerIdentity.userNickName || undefined}
         ghostCardContactName={String(previewBusiness?.bcContactName || '').trim() || null}
         ghostTargetUid={previewBusinessOwnerUid || sessionUid}
         ratingCardType='business'
@@ -4114,14 +4202,14 @@ export default function CardsFactoryScreen() {
         owner={{
                    displayName: subscribersBusinessRow
             ? (subscribersBusinessRow.bcName || tr('Mi Negocio', 'My Business'))
-            : (ownerDisplayName || tr('Mi Tarjeta', 'My Card')),
+            : (issuerIdentity.userFullName || tr('Mi Tarjeta', 'My Card')),
           occupation: subscribersBusinessRow
             ? (subscribersBusinessRow.bcContactName || '')
             : (() => {
                 const cardNm = String(subscribersCard?.scName || '').trim();
-                const who = String(ownerDisplayName || '').trim();
+                const who = String(issuerIdentity.userFullName || '').trim();
                 if (cardNm && who && cardNm.localeCompare(who, undefined, { sensitivity: 'accent' }) === 0) {
-                  const h = String(ownerNickname || '')
+                  const h = String(issuerIdentity.userNickName || '')
                     .trim()
                     .replace(/^@+/g, '')
                     .replace(/\s+/g, '');
@@ -4129,7 +4217,8 @@ export default function CardsFactoryScreen() {
                 }
                 return cardNm;
               })(),
-          userAvatarUrl: subscribersBusinessRow?.bcLogoUrl || ownerPhotoUrl,
+          userAvatarUrl: issuerIdentity.userAvatarUrl ?? null,
+          brandLogoUrl: subscribersBusinessRow ? subscribersBusinessRow.bcLogoUrl || null : null,
         }}
         subscribers={subscribers}
         totalCount={

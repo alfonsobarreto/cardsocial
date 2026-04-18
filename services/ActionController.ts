@@ -302,8 +302,12 @@ export const ActionController = {
     const finalBcName = biz
       ? (String(bcName ?? '') || String(snapBcName ?? '') || '').trim() || null
       : null;
+    const snapBcContactName =
+      biz && issuerSnapshot?.bcContactName != null && String(issuerSnapshot.bcContactName).trim()
+        ? String(issuerSnapshot.bcContactName).trim()
+        : null;
     const finalBcContactName = biz
-      ? String(bcContactName ?? '').trim() || null
+      ? String(bcContactName ?? '').trim() || snapBcContactName || null
       : null;
 
     /**

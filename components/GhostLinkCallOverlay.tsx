@@ -24,10 +24,11 @@ import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useGhostLinkCall, type GhostCallData } from '@/services/GhostLinkCallProvider';
+import { logIdentityTest } from '@/services/identityManualTestLogs';
 import {
-  toCallDisplayCardFromGhostCall,
-  type CallDisplayCard,
-} from '@/services/callDisplayCard';
+  outgoingMirrorFromGhostCallData,
+  OUTGOING_CALL_EMPTY_LINE,
+} from '@/services/outgoingCallUiMirror';
 import { VoIPCallPhase } from '@/services/voip/VoIPCallPhase';
 
 /** Tras `sessionId`, congela nombre/foto peer + tarjeta para que re-renders no sustituyan identidad en mitad de llamada. */
@@ -128,40 +129,9 @@ function useTr() {
 }
 
 /**
- * Flattens the live Ghost-Link state (`callData`) into a `CallDisplayCard`.
- * The overlay consumes ONLY this shape for title/avatar/badge; it never reads
- * `bc*` or `card*` fields directly, never branches on `cardType` to pick a
- * source. This is the single UI boundary for VoIP display.
- */
-function deriveCallDisplay(callData: GhostCallData): CallDisplayCard {
-  const { card, peerUid, peerFullName, peerName, peerPhotoUrl } = callData;
-  return toCallDisplayCardFromGhostCall({
-    cardType: card.cardType,
-    key: card.cardType === 'business'
-      ? String(card.bId || '')
-      : String(card.sid || ''),
-    ownerUid: String(peerUid || ''),
-    bcName: card.bcName,
-    bcLogoUrl: card.bcLogoUrl,
-    bcContactName: card.bcContactName,
-    peerFullName,
-    peerName,
-    peerPhotoUrl,
-    cardName: card.cardName,
-    cardPhoto: card.cardPhoto,
-  });
-}
-
-/**
- * Identidad que la UI de llamada debe mostrar según la dirección.
- *
- * Reglas (ver `docs/GHOSTLINK_VOIP_FLOW.md` §Resumen de identidad por pantalla):
- *   - Caller (outgoing): ve la **tarjeta** (display.displayPhoto / displayTitle).
- *   - Receptor (incoming / activeIncoming): ve al **otro participante = caller**
- *     (peerPhotoUrl / peerFullName || peerName).
- *
- * El badge "Desde tu tarjeta: X" siempre toma `card.cardName` (estable en ambos
- * lados), no `display.displayTitle` — que en incoming-smart coincide con el peer.
+ * Identidad en UI. **Outgoing:** `outgoingMirrorFromGhostCallData` (misma lista Calls).
+ * **Incoming Smart (`personal`):** avatar = caller `userAvatarUrl`; título = **tu** `cardName`; subtítulo = caller `userFullName`.
+ * **Incoming Business:** ver rama `business`.
  */
 function deriveCallFace(callData: GhostCallData): {
   avatar: string | null;
@@ -169,21 +139,34 @@ function deriveCallFace(callData: GhostCallData): {
   subtitle: string | null;
   cardLabel: string;
 } {
-  const display = deriveCallDisplay(callData);
-  const cardLabel = String(callData.card.cardName || display.displayTitle || '').trim();
   if (callData.direction === 'incoming') {
-    const peerTitle = String(callData.peerFullName ?? '').trim() || String(callData.peerName ?? '').trim();
+    const callerFullName =
+      String(callData.peerFullName ?? '').trim() || String(callData.peerName ?? '').trim();
+    const cardNameRaw = String(callData.card.cardName || '').trim();
+    if (callData.card.cardType === 'business') {
+      const titleBiz = String(callData.card.bcName ?? callData.card.cardName ?? '').trim();
+      const labelBiz = String(callData.card.bcName ?? callData.card.cardName ?? '').trim();
+      return {
+        avatar: callData.peerPhotoUrl ?? null,
+        title: titleBiz || callerFullName,
+        subtitle: callerFullName.length > 0 ? callerFullName : null,
+        cardLabel: labelBiz || cardNameRaw,
+      };
+    }
+    /** Smart entrante: sin pastilla duplicada (`cardLabel` vacío); título ya es la tarjeta. */
     return {
       avatar: callData.peerPhotoUrl ?? null,
-      title: peerTitle,
-      subtitle: null,
-      cardLabel,
+      title: cardNameRaw || 'Tarjeta Social',
+      subtitle: callerFullName.length > 0 ? callerFullName : null,
+      cardLabel: '',
     };
   }
+  const om = outgoingMirrorFromGhostCallData(callData);
+  const cardLabel = String(callData.card.cardName || om.titleBold || '').trim();
   return {
-    avatar: display.displayPhoto,
-    title: display.displayTitle,
-    subtitle: display.displaySubtitle,
+    avatar: om.ringUrl,
+    title: om.titleBold,
+    subtitle: om.subtitleLine === OUTGOING_CALL_EMPTY_LINE ? null : om.subtitleLine,
     cardLabel,
   };
 }
@@ -487,25 +470,40 @@ function ConfirmView() {
   const callData = useDisplayGhostCallData();
   const shell = useGhostLinkShell();
   const tr = useTr();
+
+  useEffect(() => {
+    if (!callData) {
+      return;
+    }
+    const om = outgoingMirrorFromGhostCallData(callData);
+    logIdentityTest('voip:call_view — confirm', {
+      isBusiness: om.isBusiness,
+      titleBold: om.titleBold,
+      subtitleLine: om.subtitleLine,
+      bcContactName: om.bcContactName,
+      ringUrl: om.ringUrl,
+    });
+  }, [callData]);
+
   if (!callData) return null;
 
-  const display = deriveCallDisplay(callData);
-
-  console.log('🖼️ MODAL CONFIRM_VIEW DATA:', {
-    cardType: display.cardType,
-    displayTitle: display.displayTitle,
-    displayPhoto: display.displayPhoto,
-    displaySubtitle: display.displaySubtitle,
-  });
+  const om = outgoingMirrorFromGhostCallData(callData);
+  /** Misma línea que entrante (`fullNameText`): Smart = persona; Business = `bcContactName` (ver `outgoingMirrorFromGhostCallData`). */
+  const outgoingSubtitleLine =
+    om.subtitleLine === OUTGOING_CALL_EMPTY_LINE ? null : om.subtitleLine;
 
   return (
     <View style={styles.centered}>
       <View style={styles.logoSlot}>
         <BrandLogoMark />
       </View>
-      <GoldAvatarRing uri={display.displayPhoto} size={130} />
-      <Text style={[styles.nameText, { color: shell.ghostLinkTextPrimary }]}>{display.displayTitle}</Text>
-      <CardBadge label={display.displaySubtitle ?? ''} />
+      <GoldAvatarRing uri={(om.bcLogoUrl ?? om.userAvatarUrl) ?? om.ringUrl} size={130} />
+      <Text style={[styles.nameText, { color: shell.ghostLinkTextPrimary }]}>
+        {om.isBusiness ? om.bcName || om.displayCardName || om.titleBold : om.titleBold}
+      </Text>
+      {outgoingSubtitleLine ? (
+        <Text style={[styles.fullNameText, { color: shell.ghostLinkTextSecondary }]}>{outgoingSubtitleLine}</Text>
+      ) : null}
       <Text style={[styles.subtitleText, { color: shell.ghostLinkTextSecondary }]}>
         {tr('Privacidad total', 'Total Privacy')}
       </Text>
@@ -547,6 +545,22 @@ function OutgoingView() {
   const shell = useGhostLinkShell();
   const tr = useTr();
   const [keypadOpen, setKeypadOpen] = useState(false);
+
+  useEffect(() => {
+    if (!callData) {
+      return;
+    }
+    const om = outgoingMirrorFromGhostCallData(callData);
+    logIdentityTest('voip:call_view — outgoing', {
+      phase,
+      isBusiness: om.isBusiness,
+      titleBold: om.titleBold,
+      subtitleLine: om.subtitleLine,
+      bcContactName: om.bcContactName,
+      ringUrl: om.ringUrl,
+    });
+  }, [callData, phase]);
+
   if (!callData) return null;
 
   const isRinging = phase === VoIPCallPhase.RingingOutgoing;
@@ -554,14 +568,9 @@ function OutgoingView() {
   const statusText = isRinging
     ? tr('Llamando...', 'Calling...')
     : `${tr('En llamada', 'On call')} · ${formatDuration(callDurationSec)}`;
-  const display = deriveCallDisplay(callData);
-
-  console.log('📞 MODAL OUTGOING_VIEW DATA:', {
-    cardType: display.cardType,
-    displayTitle: display.displayTitle,
-    displayPhoto: display.displayPhoto,
-    displaySubtitle: display.displaySubtitle,
-  });
+  const om = outgoingMirrorFromGhostCallData(callData);
+  const outgoingSubtitleLine =
+    om.subtitleLine === OUTGOING_CALL_EMPTY_LINE ? null : om.subtitleLine;
 
   if (videoEnabled && !isRinging && RtcSurfaceView) {
     return <ActiveVideoView />;
@@ -577,11 +586,15 @@ function OutgoingView() {
         </View>
         {!(showRingingLocalVideoBackdrop && localPreviewActive) ? (
           <PulsingRing size={130} active={isRinging}>
-            <GoldAvatarRing uri={display.displayPhoto} size={130} />
+            <GoldAvatarRing uri={(om.bcLogoUrl ?? om.userAvatarUrl) ?? om.ringUrl} size={130} />
           </PulsingRing>
         ) : null}
-        <Text style={[styles.nameText, { color: shell.ghostLinkTextPrimary }]}>{display.displayTitle}</Text>
-        <CardBadge label={display.displaySubtitle ?? ''} />
+        <Text style={[styles.nameText, { color: shell.ghostLinkTextPrimary }]}>
+          {om.isBusiness ? om.bcName || om.displayCardName || om.titleBold : om.titleBold}
+        </Text>
+        {outgoingSubtitleLine ? (
+          <Text style={[styles.fullNameText, { color: shell.ghostLinkTextSecondary }]}>{outgoingSubtitleLine}</Text>
+        ) : null}
         <Text style={[styles.statusText, { color: shell.ghostLinkTextSecondary }]}>{statusText}</Text>
 
         <View style={[styles.controls, styles.controlsWrap]}>
@@ -654,6 +667,7 @@ function IncomingView() {
     : tr('Llamada Entrante...', 'Incoming Call...');
   /** Receptor: avatar/nombre del **caller** (peer); badge con nombre de la tarjeta compartida. */
   const face = deriveCallFace(callData);
+  const incomingBusiness = callData.card.cardType === 'business';
 
   return (
     <View style={styles.fullScreenStack}>
@@ -665,8 +679,10 @@ function IncomingView() {
         <PulsingRing size={130} active>
           <GoldAvatarRing uri={face.avatar} size={130} />
         </PulsingRing>
-        <Text style={[styles.nameText, { color: shell.ghostLinkTextPrimary }]}>@{callData.peerNickname}</Text>
-        <Text style={[styles.fullNameText, { color: shell.ghostLinkTextSecondary }]}>{face.title || callData.peerName}</Text>
+        <Text style={[styles.nameText, { color: shell.ghostLinkTextPrimary }]}>{face.title || callData.peerName}</Text>
+        {face.subtitle ? (
+          <Text style={[styles.fullNameText, { color: shell.ghostLinkTextSecondary }]}>{face.subtitle}</Text>
+        ) : null}
         {isVideo && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
             <MaterialCommunityIcons name="video" size={18} color={shell.tint} />
@@ -674,9 +690,11 @@ function IncomingView() {
           </View>
         )}
         <Text style={[styles.statusText, { color: shell.ghostLinkTextSecondary }]}>{statusLabel}</Text>
-        <CardBadge
-          label={`${tr('Desde tu tarjeta', 'From your card')}: ${face.cardLabel}`}
-        />
+        {incomingBusiness && face.cardLabel ? (
+          <CardBadge
+            label={`${tr('Desde tu tarjeta', 'From your card')}: ${face.cardLabel}`}
+          />
+        ) : null}
 
         <View style={styles.incomingActions}>
           <TouchableOpacity
@@ -717,8 +735,9 @@ function ActiveIncomingView() {
     return <ActiveVideoView />;
   }
 
-  /** Receptor en activa: mostrar al **caller** (peer) y badge "Desde tu tarjeta: [nombre tarjeta]". */
+  /** Receptor en activa: Smart = `cardName` + caller `userFullName`; Business = badge tarjeta. */
   const face = deriveCallFace(callData);
+  const incomingBusiness = callData.card.cardType === 'business';
 
   return (
     <>
@@ -731,9 +750,14 @@ function ActiveIncomingView() {
         <Text style={[styles.nameText, { color: shell.ghostLinkTextPrimary }]}>
           {face.title || callData.peerName}
         </Text>
-        <CardBadge
-          label={`${tr('Desde tu tarjeta', 'From your card')}: ${face.cardLabel}`}
-        />
+        {face.subtitle ? (
+          <Text style={[styles.fullNameText, { color: shell.ghostLinkTextSecondary }]}>{face.subtitle}</Text>
+        ) : null}
+        {incomingBusiness && face.cardLabel ? (
+          <CardBadge
+            label={`${tr('Desde tu tarjeta', 'From your card')}: ${face.cardLabel}`}
+          />
+        ) : null}
         <Text style={[styles.statusText, { color: shell.ghostLinkTextSecondary }]}>
           {tr('En llamada', 'On call')} · {formatDuration(callDurationSec)}
         </Text>

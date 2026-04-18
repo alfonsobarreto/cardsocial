@@ -90,6 +90,7 @@ En `expo.android.permissions` se declaran, entre otros:
 1. `npx expo prebuild --clean` (si aplica) y verificar `AndroidManifest.xml` tras plugins.
 2. Probar en dispositivo físico: pinch zoom, minimizar burbuja, navegación + Atrás Android, BT + interrupción GSM.
 3. EAS / pipeline Azure: mismas variables de entorno que backend (tokens Agora, API).
+4. Contrato UI Smart/Business en VoIP: `docs/GHOSTLINK_VOIP_FLOW.md` y `docs/CONTRACT_SMART_CARDS.md`; en local `npm run audit:identity` + `npx tsc --noEmit`; en GitHub Actions el workflow **Identity audit and TypeScript** (en **todo** PR; push a `main`/`develop`; ejecución manual).
 
 ---
 

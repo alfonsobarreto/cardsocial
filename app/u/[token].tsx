@@ -4,6 +4,7 @@ import { getActiveUserId } from '@/services/authSession';
 import { useLanguage } from '@/services/language';
 import { myCardsPayloadFromUniversalCard } from '@/services/incomingCardPreviewPayload';
 import { fetchPublicUniversalCardByToken, type PublicUniversalCardPayload } from '@/services/qrApi';
+import { buildCanonicalIssuerIdentityFromPublicUniversalCard } from '@/types/canonicalIssuerIdentity';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
@@ -97,7 +98,7 @@ export default function UniversalTokenScreen() {
         issuerUid={card.uid}
         sid={card.sid}
         bId={card.bId}
-        issuerFullName={card.ownerDisplayName || ''}
+        issuerFullName={buildCanonicalIssuerIdentityFromPublicUniversalCard(card).userFullName}
         receiverUid={receiverUid || ''}
         previewPayload={previewPayload}
         onClose={() => {

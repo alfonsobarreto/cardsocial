@@ -8,6 +8,9 @@ const nextConfig = {
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '**' },
+      /** Contenido mixto / dev: avatars con http:// en Mongo */
+      { protocol: 'http', hostname: 'localhost' },
+      { protocol: 'http', hostname: '127.0.0.1' },
     ],
   },
 };

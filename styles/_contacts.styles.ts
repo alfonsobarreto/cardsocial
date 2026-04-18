@@ -244,6 +244,19 @@ export function makeContactsStyles(shell: AppShellTheme) {
     fontSize: 10,
     fontWeight: '800',
   },
+  /** Misma idea que `cards.tsx` → `businessListQrWrap`: QR permanente negocio en fila contacto. */
+  contactBusinessQrWrap: {
+    marginLeft: 'auto',
+    width: 68,
+    height: 68,
+    padding: 2,
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
   avatar: {
     width: 44,
     height: 44,

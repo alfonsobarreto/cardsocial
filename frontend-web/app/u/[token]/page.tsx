@@ -38,14 +38,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: 'Card-Social — Enlace expirado' };
   }
   const { card } = result;
-  const name = card.ownerDisplayName || card.scName || 'Card-Social';
+  const name = card.userFullName || card.ownerDisplayName || card.scName || 'Card-Social';
   return {
     title: `${name} — Card-Social`,
     description: card.ownerOccupation ?? 'Tarjeta digital inteligente',
     openGraph: {
       title: `${name} — Card-Social`,
       description: card.ownerOccupation ?? 'Tarjeta digital inteligente',
-      images: card.ownerPhotoUrl ? [{ url: card.ownerPhotoUrl }] : [],
+      images: (() => {
+        const og = card.userAvatarUrl || card.cardWireframeImageUrl;
+        return og ? [{ url: og }] : [];
+      })(),
     },
   };
 }

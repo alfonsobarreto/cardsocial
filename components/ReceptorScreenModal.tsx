@@ -7,6 +7,7 @@
 
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import type { CardSubscriberRow } from '@/services/qrApi';
+import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -29,7 +30,10 @@ import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 export type ReceptorOwnerInfo = {
   displayName: string;
   occupation: string;
+  /** Foto de persona (Mongo / perfil); no es logo de negocio. */
   userAvatarUrl: string | null;
+  /** Logo de marca (tarjeta business); no sustituye a `userAvatarUrl` para persona. */
+  brandLogoUrl?: string | null;
 };
 
 export type ReceptorScreenModalProps = {
@@ -362,10 +366,21 @@ export default function ReceptorScreenModal({
           <View style={s.headerLeft}>
             {owner.userAvatarUrl ? (
               <ExpoImage
-                source={{ uri: owner.userAvatarUrl }}
+                source={{
+                  uri: resolveVaultMediaUrlForApp(owner.userAvatarUrl) ?? owner.userAvatarUrl,
+                }}
                 style={s.headerAvatar}
                 cachePolicy="none"
                 key={owner.userAvatarUrl}
+              />
+            ) : owner.brandLogoUrl ? (
+              <ExpoImage
+                source={{
+                  uri: resolveVaultMediaUrlForApp(owner.brandLogoUrl) ?? owner.brandLogoUrl,
+                }}
+                style={s.headerAvatar}
+                cachePolicy="disk"
+                key={`brand-${owner.brandLogoUrl}`}
               />
             ) : (
               <View style={[s.headerAvatarFallback, { backgroundColor: c.surface }]}>
@@ -438,7 +453,9 @@ export default function ReceptorScreenModal({
               {recentSubscribers.map((sub) => {
                 const title = subscriberTitle(sub);
                 const parts = title.split(/\s+/).filter(Boolean);
-                const profileAvatar = sub.userAvatarUrl;
+                const profileAvatar = sub.userAvatarUrl
+                  ? resolveVaultMediaUrlForApp(sub.userAvatarUrl) ?? sub.userAvatarUrl
+                  : null;
                 return (
                 <View key={`carousel-${sub.uid}`} style={s.carouselItem}>
                   <View style={[s.carouselAvatarRing, { borderColor: c.gold }]}>

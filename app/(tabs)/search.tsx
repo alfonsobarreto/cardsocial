@@ -37,6 +37,7 @@ import {
   storyChannelKey,
 } from '@/services/storiesPhase1Logic';
 import { resolvePillForegroundColor } from '@/services/pillForegroundColor';
+import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
 import { getCardRowTheme } from '@/services/useActiveTheme';
 import { BusinessCardSearchResult } from '@/types/businessCard';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -456,6 +457,7 @@ export default function SearchScreen() {
         userFullName: c.userFullName,
         userNickName: c.userNickName,
         cardName: c.cardName,
+        bcName: c.bcName ?? null,
         userAvatarUrl: c.userAvatarUrl,
         ratingAvg: c.ratingAvg,
         totalRatings: c.totalRatings,
@@ -481,6 +483,8 @@ export default function SearchScreen() {
         channelMuted: Boolean(c.channelMuted),
         publicCardSlots: Array.isArray(c.publicCardSlots) ? c.publicCardSlots : [],
         ownerOccupation: c.ownerOccupation ?? null,
+        bcContactName: c.bcContactName ?? null,
+        bcLogoUrl: c.bcLogoUrl ?? null,
       };
       });
       setReceivedContactsLookupRows(merged);
@@ -829,9 +833,13 @@ export default function SearchScreen() {
                   accessibilityLabel={tr('Abrir historia', 'Open story')}
                 >
                   <View style={[styles.searchAvatarRing, ringStyle]}>
-                    {item.card.bcLogoUrl ? (
+                    {item.receivedIssuerUserAvatarUrl ? (
                       <ExpoImage
-                        source={{ uri: item.card.bcLogoUrl }}
+                        source={{
+                          uri:
+                            resolveVaultMediaUrlForApp(item.receivedIssuerUserAvatarUrl) ??
+                            item.receivedIssuerUserAvatarUrl,
+                        }}
                         style={[styles.searchAvatarInner, { backgroundColor: shell.avatarPlaceholderBg }]}
                         cachePolicy="disk"
                       />
@@ -941,6 +949,8 @@ export default function SearchScreen() {
                             ).trim() || item.card.bcName,
                           issuerCardContactName: String(item.card.bcContactName || '').trim() || null,
                           issuerCardPhoto: item.card.bcLogoUrl ?? null,
+                          issuerUserAvatarUrl: item.receivedIssuerUserAvatarUrl ?? null,
+                          issuerBusinessLogoUrl: item.card.bcLogoUrl ?? null,
                           issuerCardType: 'business',
                         })
                       }
@@ -1073,6 +1083,8 @@ export default function SearchScreen() {
         issuerPeerFullName: String(card.bcContactName || card.bcName || '').trim() || card.bcName,
         issuerCardContactName: String(card.bcContactName || '').trim() || null,
         issuerCardPhoto: card.bcLogoUrl ?? null,
+        issuerBusinessLogoUrl: card.bcLogoUrl ?? null,
+        issuerUserAvatarUrl: null,
         issuerCardType: 'business',
       });
     };
@@ -1236,6 +1248,8 @@ export default function SearchScreen() {
                         issuerPeerFullName: String(card.bcContactName || card.bcName || '').trim() || card.bcName,
                         issuerCardContactName: String(card.bcContactName || '').trim() || null,
                         issuerCardPhoto: card.bcLogoUrl ?? null,
+                        issuerBusinessLogoUrl: card.bcLogoUrl ?? null,
+                        issuerUserAvatarUrl: null,
                         issuerCardType: 'business',
                       })
                     }
@@ -1462,14 +1476,19 @@ export default function SearchScreen() {
       </Modal>
     </View>
 
-    <ReceptorScreenModal
-      visible={receptorModalVisible}
-      onClose={() => { setReceptorModalVisible(false); setReceptorItem(null); setReceptorSubscribers([]); }}
-      owner={{
-        displayName: receptorItem?.card?.bcName || tr('Tarjeta', 'Card'),
-        occupation: receptorItem?.receivedContactCardName || '',
-        userAvatarUrl: receptorItem?.card?.bcLogoUrl || null,
-      }}
+      <ReceptorScreenModal
+        visible={receptorModalVisible}
+        onClose={() => { setReceptorModalVisible(false); setReceptorItem(null); setReceptorSubscribers([]); }}
+        owner={{
+          displayName: receptorItem?.card?.bcName || tr('Tarjeta', 'Card'),
+          occupation: receptorItem?.receivedContactCardName || '',
+          userAvatarUrl:
+            receptorItem?.rowSource === 'received_contact'
+              ? receptorItem.receivedIssuerUserAvatarUrl ?? null
+              : null,
+          brandLogoUrl:
+            receptorItem?.rowSource === 'social_market' ? receptorItem?.card?.bcLogoUrl ?? null : null,
+        }}
       subscribers={receptorSubscribers}
       totalCount={receptorItem?.receivedHoldersCount ?? receptorSubscribers.length}
       loading={receptorLoading}

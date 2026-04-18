@@ -1,3 +1,4 @@
+import { logIdentityTest } from '@/services/identityManualTestLogs';
 import { getActiveUserId } from '@/services/authSession';
 import { requestGhostLinkCallImperative } from '@/services/GhostLinkCallProvider';
 import { useLanguage } from '@/services/language';
@@ -8,6 +9,7 @@ import {
     listCallsHistory,
     listReceivedContacts,
 } from '@/services/qrApi';
+import { outgoingMirrorFromCallHistoryOutgoing } from '@/services/outgoingCallUiMirror';
 import { receivedContactMergeKey } from '@/services/receivedContactsPresentationMerge';
 import { toRenderableImageUri } from '@/services/userProfilePhoto';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -36,6 +38,8 @@ type ContactRow = {
   userNickName: string;
   userAvatarUrl: string | null;
   cardName: string;
+  /** Solo business — línea de contacto en tarjeta (`bcContactName`). */
+  bcContactName?: string | null;
   holdersCount: number;
   ratingAvg: number;
   storyState: 'none' | 'normal' | 'vip';
@@ -86,9 +90,39 @@ function callsHistoryNonEmptyUrl(s: string | null | undefined): string | null {
 }
 
 /**
- * Slots UI historial Calls: reglas estrictas Business vs Smart (sin nicknames).
+ * Slots UI historial Calls — SOLO `direction === 'outgoing'`.
+ * Espejo único: `outgoingMirrorFromCallHistoryOutgoing` (mismos campos que Confirm / Outgoing VoIP).
  */
-function callsHistoryRowUi(
+function callsHistoryOutgoingRowUi(
+  item: CallHistoryRow,
+  contact: ContactRow | undefined,
+  tr: (es: string, en: string) => string,
+): {
+  avatarPrimary: string | null;
+  avatarFallback: string | null;
+  titleBold: string;
+  kindBadge: string;
+  subtitleLine: string;
+  logLine: string;
+} {
+  const logLine = callsHistoryLogLine(item, tr);
+  const om = outgoingMirrorFromCallHistoryOutgoing(item, contact);
+  return {
+    avatarPrimary: om.ringUrl,
+    avatarFallback: null,
+    titleBold: om.titleBold,
+    kindBadge: om.isBusiness ? tr('Negocio', 'Business') : tr('Smart Card', 'Smart Card'),
+    subtitleLine: om.subtitleLine,
+    logLine,
+  };
+}
+
+/**
+ * Slots UI historial Calls — `incoming` o `missed` (no saliente).
+ * Business entrante: avatar = caller (`userAvatarUrl`), título = `bcName`, subtítulo = `userFullName` (caller).
+ * Smart entrante: imagen = `userAvatarUrl` caller; título = **tu** tarjeta (`cardName` → `scName` → …); subtítulo = `userFullName` caller.
+ */
+function callsHistoryIncomingRowUi(
   item: CallHistoryRow,
   contact: ContactRow | undefined,
   tr: (es: string, en: string) => string,
@@ -104,22 +138,21 @@ function callsHistoryRowUi(
   const snap = item.issuerSnapshot;
 
   if (isCallsHistoryBusinessRow(item)) {
-    const logo =
-      callsHistoryNonEmptyUrl(item.bcLogoUrl) ??
-      callsHistoryNonEmptyUrl(snap?.bcLogoUrl ?? undefined) ??
-      null;
-    const avatarPrimary = logo ?? callsHistoryNonEmptyUrl(item.userAvatarUrl) ?? null;
+    const rowAvatar = callsHistoryNonEmptyUrl(item.userAvatarUrl);
+    const contactAvatar = contact ? callsHistoryNonEmptyUrl(contact.userAvatarUrl) : null;
+    const snapAvatar = callsHistoryNonEmptyUrl(snap?.userAvatarUrl ?? undefined);
+    const avatarPrimary = rowAvatar ?? contactAvatar ?? snapAvatar ?? null;
     const titleRaw =
       (item.bcName != null && String(item.bcName).trim() ? String(item.bcName).trim() : '') ||
       (item.displayCardName || '').trim() ||
       '';
     const titleBold = titleRaw.length > 0 ? titleRaw : CALLS_LINE_EMPTY;
-    const contactRaw =
-      (item.emitterCardContactName != null && String(item.emitterCardContactName).trim()
-        ? String(item.emitterCardContactName).trim()
-        : '') ||
-      (item.bcContactName != null && String(item.bcContactName).trim() ? String(item.bcContactName).trim() : '');
-    const subtitleLine = contactRaw.length > 0 ? subtitleStripAt(contactRaw) : CALLS_LINE_EMPTY;
+    const caller =
+      (item.userFullName || '').trim() ||
+      (item.peerFullName || '').trim() ||
+      (item.peerPersonalName || '').trim();
+    const subtitleLine =
+      caller.length > 0 ? subtitleStripAt(caller) : CALLS_LINE_EMPTY;
     return {
       avatarPrimary,
       avatarFallback: null,
@@ -134,10 +167,17 @@ function callsHistoryRowUi(
   const contactAvatar = contact ? callsHistoryNonEmptyUrl(contact.userAvatarUrl) : null;
   const snapAvatar = callsHistoryNonEmptyUrl(snap?.userAvatarUrl ?? undefined);
   const avatarPrimary = rowAvatar ?? contactAvatar ?? snapAvatar ?? null;
-  const titleRaw = (item.displayCardName || '').trim() || (item.sourceCardName || '').trim();
-  const titleBold = titleRaw.length > 0 ? titleRaw : CALLS_LINE_EMPTY;
-  const fullRaw = (item.peerFullName || '').trim() || (item.peerPersonalName || '').trim();
-  const subtitleLine = fullRaw.length > 0 ? subtitleStripAt(fullRaw) : CALLS_LINE_EMPTY;
+  const cardName =
+    (item.cardName != null && String(item.cardName).trim() ? String(item.cardName).trim() : '') ||
+    (item.scName != null && String(item.scName).trim() ? String(item.scName).trim() : '') ||
+    (item.displayCardName || '').trim() ||
+    (item.sourceCardName || '').trim();
+  const titleBold = cardName.length > 0 ? cardName : CALLS_LINE_EMPTY;
+  const userFullName =
+    (item.userFullName || '').trim() ||
+    (item.peerFullName || '').trim() ||
+    (item.peerPersonalName || '').trim();
+  const subtitleLine = userFullName.length > 0 ? subtitleStripAt(userFullName) : CALLS_LINE_EMPTY;
 
   return {
     avatarPrimary,
@@ -147,6 +187,24 @@ function callsHistoryRowUi(
     subtitleLine,
     logLine,
   };
+}
+
+function callsHistoryRowUi(
+  item: CallHistoryRow,
+  contact: ContactRow | undefined,
+  tr: (es: string, en: string) => string,
+): {
+  avatarPrimary: string | null;
+  avatarFallback: string | null;
+  titleBold: string;
+  kindBadge: string;
+  subtitleLine: string;
+  logLine: string;
+} {
+  if (item.direction === 'outgoing') {
+    return callsHistoryOutgoingRowUi(item, contact, tr);
+  }
+  return callsHistoryIncomingRowUi(item, contact, tr);
 }
 
 export default function CallsPage() {
@@ -390,6 +448,49 @@ export default function CallsPage() {
     return map;
   }, [contacts]);
 
+  /** Prueba manual — historial + modal + acción Llamar (ver docs/MANUAL_TEST_IDENTITY_LOGS.md). */
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+    const rows = history.map((item) => {
+      const contact = contactByUid.get(item.peerUid);
+      const ui = callsHistoryRowUi(item, contact, tr);
+      const row: Record<string, unknown> = {
+        callId: item.callId,
+        direction: item.direction,
+        cardType: item.cardType,
+        peerUid: item.peerUid,
+        ui: {
+          titleBold: ui.titleBold,
+          subtitleLine: ui.subtitleLine,
+          avatarPrimary: ui.avatarPrimary,
+          kindBadge: ui.kindBadge,
+          logLine: ui.logLine,
+        },
+        raw: {
+          userAvatarUrl: item.userAvatarUrl,
+          peerFullName: item.peerFullName,
+          userFullName: item.userFullName,
+          cardName: item.cardName,
+          scName: item.scName,
+          displayCardName: item.displayCardName,
+          bcName: item.bcName,
+          display: item.display,
+        },
+      };
+      if (item.direction === 'outgoing' && contact) {
+        row.outgoingMirror = outgoingMirrorFromCallHistoryOutgoing(item, contact);
+      }
+      return row;
+    });
+    logIdentityTest('calls:tab — historial', {
+      historyCount: history.length,
+      contactsMapped: contacts.length,
+      rows,
+    });
+  }, [loading, history, contacts, contactByUid, tr]);
+
   const loadData = async (opts?: { silent?: boolean }) => {
     const silent = Boolean(opts?.silent);
     try {
@@ -464,14 +565,24 @@ export default function CallsPage() {
       (item.bcName != null && String(item.bcName).trim() ? String(item.bcName).trim() : '') ||
       (item.displayCardName || '').trim() ||
       null;
-    const bizTitle = bizName || item.peerFullName;
+    const bizTitle = (bizName || item.displayCardName || '').trim() || null;
     const smartCardTitle =
       (item.scName != null && String(item.scName).trim() ? String(item.scName).trim() : '') ||
       (item.cardName != null && String(item.cardName).trim() ? String(item.cardName).trim() : '') ||
       item.sourceCardName ||
       tr('Tarjeta Social', 'Social Card');
     const smartPeerFull = (item.peerFullName || '').trim() || undefined;
-    const bizCardContact = (item.bcContactName || item.emitterCardContactName || '').trim() || null;
+    const bizCardContact = (item.bcContactName || '').trim() || null;
+    const contactBcForRow =
+      biz &&
+      item.direction === 'outgoing' &&
+      contact?.cardType === 'business' &&
+      item.sourceBId &&
+      contact.bId === item.sourceBId
+        ? (contact.bcContactName != null && String(contact.bcContactName).trim()
+            ? String(contact.bcContactName).trim()
+            : null)
+        : null;
 
     /**
      * `CallDisplayCard` canónico emitido por el backend (paso 13 del rebuild).
@@ -484,57 +595,52 @@ export default function CallsPage() {
     const displayTitle = display?.displayTitle ? String(display.displayTitle).trim() : '';
     const displaySubtitle = display?.displaySubtitle ? String(display.displaySubtitle).trim() || null : null;
     const displayIsBusiness = display?.cardType === 'business';
-    if (__DEV__) {
-      console.log('[CALLS_HISTORY_ROW]', {
-        callId: item.callId,
-        displayPresent: Boolean(display),
-        displayCardType: display?.cardType ?? null,
-        displayTitle: display?.displayTitle ?? null,
-        displayPhoto: display?.displayPhoto ?? null,
-        displaySubtitle: display?.displaySubtitle ?? null,
-      });
-    }
 
+    const incomingLikeRow = item.direction === 'incoming' || item.direction === 'missed';
     const imperativeBase = {
       targetUid: item.peerUid,
       sourceSid: item.sourceSid,
       sourceBId: item.sourceBId,
       sourceCardName: item.sourceCardName || tr('Tarjeta Social', 'Social Card'),
       cardPhoto: biz
-        ? displayPhoto ?? bizLogo ?? item.userAvatarUrl ?? null
+        ? incomingLikeRow
+          ? bizLogo ?? callsHistoryNonEmptyUrl(snap?.bcLogoUrl ?? undefined) ?? null
+          : displayPhoto ?? bizLogo ?? null
         : displayPhoto ??
           callsHistoryNonEmptyUrl(item.userAvatarUrl) ??
           callsHistoryNonEmptyUrl(snap?.userAvatarUrl ?? undefined) ??
           null,
       cardType: biz ? ('business' as const) : ('personal' as const),
       peerName: biz
-        ? (displayIsBusiness && displayTitle ? displayTitle : bizTitle)
+        ? (displayIsBusiness && displayTitle ? displayTitle : bizTitle || item.displayCardName || tr('Negocio', 'Business'))
         : (!displayIsBusiness && displayTitle ? displayTitle : smartCardTitle),
       peerFullName: biz
-        ? (displaySubtitle ?? ((item.bcContactName || item.emitterCardContactName || item.peerFullName || '').trim() || undefined))
+        ? (displaySubtitle || undefined)
         : (displayTitle || '').trim() || smartPeerFull,
-      peerNickname: biz
-        ? (item.bcContactName || item.emitterCardContactName || '')
-            .trim()
-            .split(/\s+/)[0]
-            ?.toLowerCase()
-            .replace(/[^a-z0-9_]/g, '') || peerNicknameSlug
-        : (contact?.userNickName || '').trim() || peerNicknameSlug,
+      peerNickname: biz ? peerNicknameSlug : (contact?.userNickName || '').trim() || peerNicknameSlug,
       peerPhotoUrl: biz
-        ? contact?.userAvatarUrl ?? displayPhoto ?? item.userAvatarUrl ?? null
+        ? incomingLikeRow
+          ? displayPhoto ??
+            callsHistoryNonEmptyUrl(item.userAvatarUrl) ??
+            callsHistoryNonEmptyUrl(snap?.userAvatarUrl ?? undefined) ??
+            bizLogo ??
+            null
+          : displayPhoto ?? bizLogo ?? null
         : displayPhoto ??
           callsHistoryNonEmptyUrl(item.userAvatarUrl) ??
           callsHistoryNonEmptyUrl(snap?.userAvatarUrl ?? undefined) ??
           contact?.userAvatarUrl ??
           null,
       /**
-       * Business usa EXCLUSIVAMENTE los 3 campos `bc*`. Si el backend envía
-       * `display` (CallDisplayCard), ese es el source of truth; si no,
-       * fallback a los cálculos locales históricos.
+       * Business: logo de marca (`bcLogoUrl`); en entrante `display.displayPhoto` es el caller — no mezclar.
        */
-      bcLogoUrl: biz ? displayPhoto ?? bizLogo ?? null : null,
+      bcLogoUrl: biz ? bizLogo ?? callsHistoryNonEmptyUrl(snap?.bcLogoUrl ?? undefined) ?? null : null,
       bcName: biz ? (displayTitle || bizName || null) : null,
-      bcContactName: biz ? (displaySubtitle ?? bizCardContact) : null,
+      bcContactName: biz
+        ? item.direction === 'outgoing'
+          ? bizCardContact || contactBcForRow || null
+          : null
+        : null,
     };
 
     return (
@@ -610,6 +716,16 @@ export default function CallsPage() {
           <TouchableOpacity
             style={[styles.voiceBtn, { backgroundColor: '#C8A84E' }]}
             onPress={() => {
+              logIdentityTest('calls:action — Llamar (video)', {
+                callId: item.callId,
+                direction: item.direction,
+                callType: 'video',
+                imperativeBase,
+                outgoingMirror:
+                  item.direction === 'outgoing' && contact
+                    ? outgoingMirrorFromCallHistoryOutgoing(item, contact)
+                    : null,
+              });
               requestGhostLinkCallImperative({
                 ...imperativeBase,
                 callType: 'video',
@@ -622,6 +738,16 @@ export default function CallsPage() {
           <TouchableOpacity
             style={[styles.voiceBtn, { backgroundColor: '#1B6B3A' }]}
             onPress={() => {
+              logIdentityTest('calls:action — Llamar (audio)', {
+                callId: item.callId,
+                direction: item.direction,
+                callType: 'audio',
+                imperativeBase,
+                outgoingMirror:
+                  item.direction === 'outgoing' && contact
+                    ? outgoingMirrorFromCallHistoryOutgoing(item, contact)
+                    : null,
+              });
               requestGhostLinkCallImperative({
                 ...imperativeBase,
                 callType: 'audio',
@@ -642,6 +768,24 @@ export default function CallsPage() {
     detailUi != null
       ? toRenderableImageUri(detailUi.avatarPrimary) ?? toRenderableImageUri(detailUi.avatarFallback ?? null)
       : null;
+
+  useEffect(() => {
+    if (!detailVisible || !selectedCall) {
+      return;
+    }
+    const contact = contactByUid.get(selectedCall.peerUid);
+    const ui = callsHistoryRowUi(selectedCall, contact, tr);
+    logIdentityTest('calls:modal — detalle llamada', {
+      callId: selectedCall.callId,
+      direction: selectedCall.direction,
+      ui,
+      display: selectedCall.display,
+      outgoingMirror:
+        selectedCall.direction === 'outgoing' && contact
+          ? outgoingMirrorFromCallHistoryOutgoing(selectedCall, contact)
+          : undefined,
+    });
+  }, [detailVisible, selectedCall, contactByUid, tr]);
 
   return (
     <LinearGradient colors={[...shell.callsShellGradient]} style={styles.container}>

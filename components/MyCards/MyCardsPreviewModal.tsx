@@ -94,7 +94,10 @@ export type MyCardsIncomingRedeem = {
 };
 
 function seedAvatarUrlFromPreviewPayload(payload: MyCardsPayload | null): string | undefined {
-  const u = payload?.avatarUrl;
+  if (!payload) return undefined;
+  /** Negocio: el círculo no es foto de persona; el logo va al wireframe — no sembrar como avatar de contacto. */
+  if (payload.noAvatarIcon === 'storefront-outline') return undefined;
+  const u = payload.avatarUrl;
   if (u == null || !String(u).trim()) return undefined;
   return String(u).trim().slice(0, 4096);
 }
@@ -486,6 +489,7 @@ export function MyCardsPreviewModal({
               totalRatings,
               enableParallax,
               ownerDisplayName: subtitle,
+              /** Clave Mongo `smart_cards.ownerPhotoUrl` (imagen en doc de tarjeta); valor viene del preview (`avatarUrl`). */
               ownerPhotoUrl: avatarUrl ?? null,
               itemIds: Array.isArray(slots) ? slots.map((s: any) => String(s.id ?? s.itemId ?? '')) : [],
               cardType: 'business',

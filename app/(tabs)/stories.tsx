@@ -17,6 +17,7 @@ import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { db } from '@/services/firebaseConfig';
 import { getMyStoryState, getStoriesHouseAd, listReceivedContacts, listSmartCardsFromDb, setMyStoryState, type HouseAdStory } from '@/services/qrApi';
+import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
 import { readUserAvatarUrl, readUserFullName } from '@/services/userIdentityFields';
 import { receivedContactMergeKey } from '@/services/receivedContactsPresentationMerge';
 import { fetchVipMarketStorySlots, type VipMarketStorySlot } from '@/services/storiesFeedInjectionService';
@@ -803,12 +804,12 @@ export default function StoriesPage() {
         const LEGACY_SID_KEY = 'card' + 'Id';
         const uid = String(legacy.uid ?? (legacy as Record<string, unknown>)[LEGACY_UID_KEY] ?? '').trim();
         const sid = String(legacy.sid ?? (legacy as Record<string, unknown>)[LEGACY_SID_KEY] ?? '').trim();
-        const s = raw as LocalStory & { ownerPhotoUrl?: string | null };
+        const s = raw as LocalStory & { ownerPhotoUrl?: string | null; userAvatarUrl?: string | null };
         return {
           ...s,
           uid: uid || s.uid,
           sid: sid || s.sid,
-          ownerUserAvatar: s.ownerUserAvatar ?? s.ownerPhotoUrl ?? null,
+          ownerUserAvatar: s.ownerUserAvatar ?? s.userAvatarUrl ?? s.ownerPhotoUrl ?? null,
         };
       });
       const activeStoriesEarly = storiesParsedEarly.filter((story) => {
@@ -1636,7 +1637,13 @@ export default function StoriesPage() {
       <TouchableOpacity style={styles.gridItem} onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openStoryViewer(item); }}>
         <View style={[styles.gridAvatarRing, ringStyle]}>
           {item.userAvatarUrl ? (
-            <ExpoImage source={{ uri: item.userAvatarUrl }} style={styles.gridAvatar} cachePolicy="disk" />
+            <ExpoImage
+              source={{
+                uri: resolveVaultMediaUrlForApp(item.userAvatarUrl) ?? item.userAvatarUrl,
+              }}
+              style={styles.gridAvatar}
+              cachePolicy="disk"
+            />
           ) : (
             <View style={[styles.gridAvatarFallback, { backgroundColor: shell.avatarFallbackBg, borderColor: shell.avatarFallbackBorder }]}>
               <MaterialCommunityIcons name="account" size={20} color={shell.iconColor} />

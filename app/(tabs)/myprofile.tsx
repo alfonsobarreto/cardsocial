@@ -27,6 +27,8 @@ import {
 import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
+import { syncProfileAvatarUrlToMongo } from '@/services/qrApi';
+import { propagateUserIdentityAcrossSmartCards } from '@/services/smartCardsRepo';
 import { toRenderableImageUri } from '@/services/userProfilePhoto';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -401,6 +403,17 @@ export default function MyProfileScreen() {
         profilePhotoFileId: result.fileId,
         updatedAt: serverTimestamp(),
       });
+
+      if (newPhotoUrl && /^https?:\/\//i.test(String(newPhotoUrl))) {
+        try {
+          await syncProfileAvatarUrlToMongo({ uid: profile.uid, userAvatarUrl: newPhotoUrl });
+          await propagateUserIdentityAcrossSmartCards(profile.uid);
+        } catch (syncErr) {
+          if (__DEV__) {
+            console.warn('[myprofile] Mongo avatar sync / smart-cards propagate failed', syncErr);
+          }
+        }
+      }
 
       const freshSnap = await getDoc(doc(db, 'users', profile.uid));
       const freshData = freshSnap.data() as Record<string, unknown> | undefined;

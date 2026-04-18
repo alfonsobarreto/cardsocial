@@ -1,6 +1,10 @@
 /**
  * Identidad en contactos / relaciones: si Mongo users/profiles no tiene nombre real,
  * prevalecen los campos guardados en smart_cards (preview del emisor).
+ *
+ * Avatar en API de contactos: solo `userAvatarUrl` del perfil Mongo (`resolveUserProfileExtended`).
+ * No se usa `ownerPhotoUrl` de la tarjeta como sustituto de avatar de persona — evita duplicar
+ * semánticas (logo business vs foto perfil). Si falta foto, hay que tenerla en users/profiles.
  */
 
 const { isGenericUserLabel, pickFirstNonGeneric } = require('./resolvePublicIdentity');
@@ -15,19 +19,19 @@ function isSyntheticMongoUserName(name, uid) {
 }
 
 /**
- * @param {object} profile - { uid, name, nickname, userAvatarUrl }
+ * @param {object} profile - { uid, name, nickname, userAvatarUrl } desde Mongo
  * @param {string} uid
  * @param {object|null} cardDoc - fragmento smart_cards
- * @returns {object} profile enriquecido + ownerOccupation desde tarjeta si existe;
- *   tarjeta smart: userAvatarUrl hace fallback a cardDoc.ownerPhotoUrl si el perfil no trae foto.
+ * @returns {object} profile enriquecido + ownerOccupation desde tarjeta si existe
  */
 function mergeContactProfileFromCard(profile, uid, cardDoc) {
   const display = cardDoc?.ownerDisplayName ? String(cardDoc.ownerDisplayName).trim().slice(0, 240) : '';
   const cardNick = cardDoc?.ownerNickname ? String(cardDoc.ownerNickname).trim().slice(0, 240) : '';
   const occupation = cardDoc?.ownerOccupation ? String(cardDoc.ownerOccupation).trim().slice(0, 240) : '';
 
-  // Business cards must never blend with the personal profile.
-  // Use the business identity (ownerDisplayName / ownerPhotoUrl) exclusively.
+  const avatarFromProfile = String(profile.userAvatarUrl || '').trim() || null;
+
+  // Business: nombre/marca desde la tarjeta; avatar = solo perfil Mongo (`userAvatarUrl`).
   if (cardDoc?.cardType === 'business') {
     const brand = String(display || cardNick || profile.name || '').trim();
     return {
@@ -35,7 +39,7 @@ function mergeContactProfileFromCard(profile, uid, cardDoc) {
       name: brand || profile.name,
       fullName: brand || profile.fullName || profile.name,
       nickname: String(profile.username || profile.nickname || cardNick || '').trim(),
-      userAvatarUrl: profile.userAvatarUrl || null,
+      userAvatarUrl: avatarFromProfile,
       ownerOccupation: occupation || profile.ownerOccupation || null,
     };
   }
@@ -59,19 +63,12 @@ function mergeContactProfileFromCard(profile, uid, cardDoc) {
     }
   }
 
-  // Avatar: perfil Mongo; si falta, ownerPhotoUrl de smart_cards (alineado con preview QR).
-  const mongoAvatar = String(profile.userAvatarUrl || '').trim();
-  const cardAvatar =
-    cardDoc?.ownerPhotoUrl != null && String(cardDoc.ownerPhotoUrl).trim()
-      ? String(cardDoc.ownerPhotoUrl).trim().slice(0, 4096)
-      : '';
-
   return {
     ...profile,
     fullName: name,
     name,
     nickname,
-    userAvatarUrl: mongoAvatar || cardAvatar || null,
+    userAvatarUrl: avatarFromProfile,
     ownerOccupation: occupation || profile.ownerOccupation || null,
   };
 }
@@ -79,7 +76,7 @@ function mergeContactProfileFromCard(profile, uid, cardDoc) {
 /**
  * Receptores (GET …/subscribers): perfil Mongo + última smart_card del suscriptor.
  * Limpia etiquetas genéricas; si falta nombre, `ownerDisplayName` de su tarjeta (y marca en business).
- * username: Mongo; si falta, `ownerNickname` de la tarjeta. Avatar: solo perfil (`userAvatarUrl`).
+ * username: Mongo; si falta, `ownerNickname` de la tarjeta. Avatar: solo `userAvatarUrl` Mongo.
  * @param {object} profile - resultado de resolveUserProfileExtended
  * @param {object|null} cardDoc - smart_cards (proyección acotada)
  */
@@ -112,6 +109,8 @@ function enrichSubscriberProfileFromCard(profile, cardDoc) {
     fullName = String(profile.displayName || profile.fullName || profile.name || '').trim();
   }
 
+  const userAvatarUrl = String(profile.userAvatarUrl || '').trim() || null;
+
   if (!cardDoc) {
     return {
       ...profile,
@@ -119,6 +118,7 @@ function enrichSubscriberProfileFromCard(profile, cardDoc) {
       name: fullName,
       username,
       nickname: username,
+      userAvatarUrl,
     };
   }
 
@@ -127,8 +127,6 @@ function enrichSubscriberProfileFromCard(profile, cardDoc) {
   if (!username && cardNick) {
     username = String(cardNick).trim().replace(/^@+/g, '');
   }
-
-  const userAvatarUrl = String(profile.userAvatarUrl || '').trim() || null;
 
   return {
     ...profile,

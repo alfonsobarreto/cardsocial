@@ -23,6 +23,13 @@ import type {
   CallDisplayCard,
   SmartCardDoc,
 } from './types/cards';
+import {
+  outgoingMirrorFromGhostWireInput,
+  OUTGOING_CALL_EMPTY_LINE,
+  type GhostCallWireInput,
+} from '@/services/outgoingCallUiMirror';
+
+export type { GhostCallWireInput };
 
 /**
  * Re-exporta el tipo canónico `CallDisplayCard` desde este módulo. Los
@@ -77,55 +84,26 @@ export function toCallDisplayCardFromSmart(card: SmartCardDoc): CallDisplayCard 
  *
  * Empty string is treated as "missing". The UI hides whatever slot is null.
  */
-export type GhostCallWireInput = {
-  cardType: 'business' | 'smart' | 'personal';
-  key: string;
-  ownerUid: string;
-  bcName?: string | null;
-  bcLogoUrl?: string | null;
-  bcContactName?: string | null;
-  peerFullName?: string | null;
-  peerName?: string | null;
-  peerPhotoUrl?: string | null;
-  cardName?: string | null;
-  cardPhoto?: string | null;
-};
-
-function coerceDisplayString(value: unknown): string | null {
-  const trimmed = String(value ?? '').trim().replace(/^@+/, '').trim();
-  return trimmed || null;
+export function toCallDisplayCardFromGhostCall(input: GhostCallWireInput): CallDisplayCard {
+  return toOutgoingCallerDisplayCard(input);
 }
 
-export function toCallDisplayCardFromGhostCall(input: GhostCallWireInput): CallDisplayCard {
-  const isBusiness = input.cardType === 'business';
-  if (isBusiness) {
-    return {
-      cardType: 'business',
-      key: String(input.key || ''),
-      ownerUid: String(input.ownerUid || ''),
-      displayTitle:
-        coerceDisplayString(input.bcName) ??
-        coerceDisplayString(input.cardName) ??
-        '',
-      displayPhoto:
-        coerceDisplayString(input.bcLogoUrl) ??
-        coerceDisplayString(input.cardPhoto),
-      displaySubtitle: coerceDisplayString(input.bcContactName),
-    };
-  }
+/**
+ * Derivado del espejo único `outgoingMirrorFromGhostWireInput` (misma lista Calls saliente).
+ */
+export function toOutgoingCallerDisplayCard(input: GhostCallWireInput): CallDisplayCard {
+  const m = outgoingMirrorFromGhostWireInput(input);
+  const sub =
+    m.subtitleLine === OUTGOING_CALL_EMPTY_LINE || !String(m.subtitleLine || '').trim()
+      ? null
+      : m.subtitleLine;
   return {
-    cardType: 'smart',
+    cardType: m.isBusiness ? 'business' : 'smart',
     key: String(input.key || ''),
     ownerUid: String(input.ownerUid || ''),
-    displayTitle:
-      coerceDisplayString(input.peerFullName) ??
-      coerceDisplayString(input.peerName) ??
-      coerceDisplayString(input.cardName) ??
-      '',
-    displayPhoto:
-      coerceDisplayString(input.peerPhotoUrl) ??
-      coerceDisplayString(input.cardPhoto),
-    displaySubtitle: null,
+    displayTitle: m.titleBold === OUTGOING_CALL_EMPTY_LINE ? '' : m.titleBold,
+    displayPhoto: m.ringUrl,
+    displaySubtitle: sub,
   };
 }
 

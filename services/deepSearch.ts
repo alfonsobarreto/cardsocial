@@ -535,6 +535,9 @@ export type ReceivedContactSearchRow = {
   userNickName: string;
   cardName: string;
   ownerOccupation?: string | null;
+  bcName?: string | null;
+  bcContactName?: string | null;
+  bcLogoUrl?: string | null;
   searchFacets?: CardSearchFacet[] | null;
 };
 
@@ -561,6 +564,9 @@ export function collectStringsReceivedContact(
   push(contact.userNickName);
   push(contact.cardName);
   push(contact.ownerOccupation);
+  push(contact.bcName);
+  push(contact.bcContactName);
+  push(contact.bcLogoUrl);
   push(metaGroup);
   if (iconRows?.length) {
     for (const ic of iconRows) {
