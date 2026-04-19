@@ -4,7 +4,7 @@ import { savePendingBunkerScan } from '@/services/bunkerPendingScan';
 import { getActiveUserId } from '@/services/authSession';
 import { businessFirestoreDocToMyCardsPayload } from '@/services/adaptBusinessCardMarketPremium';
 import { readBusinessCardIdentityFields } from '@/services/businessCardService';
-import { useLanguage } from '@/services/language';
+import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { myCardsPayloadFromQrPreview, myCardsPayloadFromUniversalCard } from '@/services/incomingCardPreviewPayload';
 import {
@@ -55,7 +55,7 @@ export default function ScanScreen() {
     resumeBId?: string;
   }>();
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => (language === 'en' ? en : es);
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const { resolvedMode } = useLookMode();
   const isDark = resolvedMode === 'noche';
   const shell = palette[isDark ? 'dark' : 'light'];

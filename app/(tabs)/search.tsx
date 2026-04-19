@@ -15,7 +15,7 @@ import { ExportBusinessQR, generatePermanentBusinessLink } from '@/services/bran
 import { buildMirrorVaultItemsForContact } from '@/services/buildReceiverPreviewVaultItems';
 import { hasActiveBusinessLicense } from '@/services/businessLicenseService';
 import { myCardsPayloadFromQrPreview } from '@/services/incomingCardPreviewPayload';
-import { useLanguage } from '@/services/language';
+import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { blockRelationship, fetchPublicBusinessCardPreview, listCardSubscribers, listReceivedContacts, type CardSubscriberRow } from '@/services/qrApi';
 import {
@@ -151,7 +151,7 @@ export default function SearchScreen() {
   const isDark = resolvedMode === 'noche';
   const shell = appPalette[isDark ? 'dark' : 'light'];
   const { language } = useLanguage();
-  const tr = useCallback((es: string, en: string) => (language === 'en' ? en : es), [language]);
+  const tr = useCallback((es: string, en: string) => trEsEn(es, en, language), [language]);
   const modalFooterBottomPad = useModalFooterBottomPad();
   /** Última consulta enviada (IR / Intro); el campo de texto vive en SocialMarketSearchBar. */
   const [submittedQuery, setSubmittedQuery] = useState('');

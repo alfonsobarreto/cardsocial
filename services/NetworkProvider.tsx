@@ -4,7 +4,7 @@
  * Pausa operaciones de red hasta que vuelva la conectividad.
  */
 
-import { useLanguage } from '@/services/language';
+import { trEsEn, useLanguage } from '@/services/language';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -22,7 +22,7 @@ export function useNetwork() {
 export function NetworkProvider({ children }: { children: React.ReactNode }) {
   const [isConnected, setIsConnected] = useState(true);
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => (language === 'en' ? en : es);
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {

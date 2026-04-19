@@ -3,7 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useLanguage } from '@/services/language';
+import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import palette from './theme';
@@ -11,7 +11,7 @@ import palette from './theme';
 export default function ShareScreen() {
   const router = useRouter();
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => language === 'en' ? en : es;
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const { resolvedMode } = useLookMode();
   const isDark = resolvedMode === 'noche';
   const shell = palette[isDark ? 'dark' : 'light'];

@@ -4,7 +4,7 @@ import '@/i18n';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import PremiumDataPanelHost from '@/components/PremiumDataPanelHost';
 import { PendingBunkerRedeemGate } from '@/components/PendingBunkerRedeemGate';
-import { LanguageProvider, useLanguage } from '@/services/language';
+import { LanguageProvider, trEsEn, useLanguage } from '@/services/language';
 import { LookModeProvider } from '@/services/lookMode';
 import { NetworkProvider } from '@/services/NetworkProvider';
 import { GhostLinkCallProvider } from '@/services/GhostLinkCallProvider';
@@ -82,7 +82,7 @@ function RootNavigator() {
       }),
     [shell]
   );
-  const tr = (es: string, en: string) => (language === 'en' ? en : es);
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
 
   // Función para lanzar biometría
   const handleBiometricAuth = async () => {

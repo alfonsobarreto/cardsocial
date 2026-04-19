@@ -6,7 +6,7 @@ import { Image as ExpoImage } from 'expo-image';
 import * as LocalAuthentication from 'expo-local-authentication';
 // expo-notifications is imported lazily below to avoid a crash on Android (Expo Go)
 // where the module calls addPushTokenListener at module-load time.
-import { useLanguage } from '@/services/language';
+import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
@@ -24,7 +24,7 @@ export default function SettingsScreen() {
   const isDark = resolvedMode === 'noche';
   const shell = palette[isDark ? 'dark' : 'light'];
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => (language === 'en' ? en : es);
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const router = useRouter();
 
   const styles = useMemo(

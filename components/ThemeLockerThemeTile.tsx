@@ -22,7 +22,9 @@ export const THEME_LOCKER_TILE_GAP = 10;
 
 /** Ancho de cada tile en una fila de 3 dentro de un contenedor con padding ya restado. */
 export function computeThemeLockerTileWidth(containerContentWidth: number): number {
-  return Math.max(76, (containerContentWidth - THEME_LOCKER_TILE_GAP * 2) / 3);
+  const w = Math.max(0, containerContentWidth);
+  // Floor evita que 3 tiles + 2 gaps excedan el ancho por decimales y pasen a 2 columnas.
+  return Math.max(76, Math.floor((w - THEME_LOCKER_TILE_GAP * 2) / 3));
 }
 
 type Props = {

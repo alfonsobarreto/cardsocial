@@ -26,6 +26,13 @@ import {
 } from 'react-native';
 // import { PDFDocument } from 'pdf-lib'; // [SILENCIADO POR ERROR DE DEPENDENCIA]
 import BrandedSpinner from '@/components/BrandedSpinner';
+import CountryDialPickerModal from '@/components/CountryDialPickerModal';
+import {
+  buildE164,
+  getNationalDigitBounds,
+  parsePhoneIntoDialAndNational,
+  sanitizeNationalDigits,
+} from '@/constants/countryDialCodes';
 import { GHOST_LINK_VAULT_TYPE, GHOST_LINK_VAULT_VALUE } from '@/constants/ghostLinkVault';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
@@ -37,7 +44,7 @@ import {
     getOwnedIconVaultKeySet,
     stableKeyForCatalogIcon,
 } from '@/services/iconVaultService';
-import { useLanguage } from '@/services/language';
+import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import { newEntityId } from '@/services/newEntityId';
@@ -123,44 +130,7 @@ try {
 }
 
 // ICON_GALLERY viene de CardStudioVault — única fuente de verdad
-
-const COUNTRY_CODES = [
-  { code: '+1', country: 'USA / Canadá' },
-  { code: '+34', country: 'España' },
-  { code: '+52', country: 'México' },
-  { code: '+44', country: 'UK' },
-  { code: '+33', country: 'Francia' },
-  { code: '+49', country: 'Alemania' },
-  { code: '+55', country: 'Brasil' },
-  { code: '+39', country: 'Italia' },
-  { code: '+61', country: 'Australia' },
-  { code: '+81', country: 'Japón' },
-  { code: '+57', country: 'Colombia' },
-  { code: '+54', country: 'Argentina' },
-  { code: '+56', country: 'Chile' },
-  { code: '+51', country: 'Perú' },
-  { code: '+58', country: 'Venezuela' },
-  { code: '+593', country: 'Ecuador' },
-  { code: '+591', country: 'Bolivia' },
-  { code: '+595', country: 'Paraguay' },
-  { code: '+598', country: 'Uruguay' },
-  { code: '+506', country: 'Costa Rica' },
-  { code: '+503', country: 'El Salvador' },
-  { code: '+502', country: 'Guatemala' },
-  { code: '+507', country: 'Panamá' },
-  { code: '+1-809', country: 'Rep. Dominicana' },
-  { code: '+91', country: 'India' },
-  { code: '+86', country: 'China' },
-  { code: '+82', country: 'Corea del Sur' },
-  { code: '+7', country: 'Rusia' },
-  { code: '+90', country: 'Turquía' },
-  { code: '+966', country: 'Arabia Saudita' },
-  { code: '+971', country: 'Emiratos Árabes' },
-  { code: '+234', country: 'Nigeria' },
-  { code: '+27', country: 'Sudáfrica' },
-  { code: '+63', country: 'Filipinas' },
-  { code: '+66', country: 'Tailandia' },
-];
+// Países / prefijos: `constants/countryDialCodes.ts` + `CountryDialPickerModal`
 
 // Tamaño máximo de imágenes en Búnker (alineado con Historias + backend moderation `imageMaxBytes`)
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
@@ -176,7 +146,10 @@ const PICKER_STALE_LOCK_MS = 120000;
 const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingData?: Link }) => {
   const { resolvedMode } = useLookMode();
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => language === 'en' ? en : es;
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  /** Ejemplos de URL en inputs: no usan fragmentos i18n (evita ~6 claves ui.* por idioma). ES vs resto en inglés. */
+  const socialUrlPlaceholder = (esExample: string, enExample: string) =>
+    language === 'es' ? esExample : enExample;
   const isNight = resolvedMode === 'noche';
   const formTheme = useMemo(
     () => ({
@@ -412,7 +385,15 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       const type = editingData.type as DataType;
       setDataType(type);
       setDataName(editingData.title);
-      setDataValue(type === GHOST_LINK_VAULT_TYPE ? GHOST_LINK_VAULT_VALUE : editingData.value);
+      if (type === GHOST_LINK_VAULT_TYPE) {
+        setDataValue(GHOST_LINK_VAULT_VALUE);
+      } else if (type === 'Teléfono') {
+        const parsed = parsePhoneIntoDialAndNational(String(editingData.value || ''));
+        setCountryCode(parsed.dial);
+        setDataValue(parsed.national);
+      } else {
+        setDataValue(editingData.value);
+      }
       
       if (editingData.icon?.startsWith('http')) {
         setSelectedIcon('favicon');
@@ -569,12 +550,18 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
   const getLinkPlaceholder = () => {
     const n = dataName.trim().toLowerCase();
-    if (n.includes('instagram')) return tr('https://instagram.com/tu_usuario', 'https://instagram.com/your_user');
-    if (n.includes('linkedin')) return tr('https://linkedin.com/in/tu-perfil', 'https://linkedin.com/in/your-profile');
-    if (n.includes('facebook') || n.includes('fb')) return tr('https://facebook.com/tu_pagina', 'https://facebook.com/your_page');
-    if (n.includes('twitter') || n.includes(' x ')) return tr('https://x.com/tu_usuario', 'https://x.com/your_user');
-    if (n.includes('tiktok')) return tr('https://tiktok.com/@tu_usuario', 'https://tiktok.com/@your_user');
-    if (n.includes('youtube') || n.includes('yt')) return tr('https://youtube.com/@tu_canal', 'https://youtube.com/@your_channel');
+    if (n.includes('instagram'))
+      return socialUrlPlaceholder('https://instagram.com/tu_usuario', 'https://instagram.com/your_user');
+    if (n.includes('linkedin'))
+      return socialUrlPlaceholder('https://linkedin.com/in/tu-perfil', 'https://linkedin.com/in/your-profile');
+    if (n.includes('facebook') || n.includes('fb'))
+      return socialUrlPlaceholder('https://facebook.com/tu_pagina', 'https://facebook.com/your_page');
+    if (n.includes('twitter') || n.includes(' x '))
+      return socialUrlPlaceholder('https://x.com/tu_usuario', 'https://x.com/your_user');
+    if (n.includes('tiktok'))
+      return socialUrlPlaceholder('https://tiktok.com/@tu_usuario', 'https://tiktok.com/@your_user');
+    if (n.includes('youtube') || n.includes('yt'))
+      return socialUrlPlaceholder('https://youtube.com/@tu_canal', 'https://youtube.com/@your_channel');
     return 'https://example.com';
   };
 
@@ -1764,9 +1751,19 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       Alert.alert('❌ Error', tr('Introduce un email válido', 'Enter a valid email'));
       return;
     }
-    if (dataType === 'Teléfono' && dataValue.replace(/[^\d]/g, '').length < 7) {
-      Alert.alert('❌ Error', tr('El número debe tener al menos 7 dígitos', 'Number must have at least 7 digits'));
-      return;
+    if (dataType === 'Teléfono') {
+      const n = sanitizeNationalDigits(dataValue);
+      const { min, max } = getNationalDigitBounds(countryCode);
+      if (n.length < min || n.length > max) {
+        Alert.alert(
+          '❌ Error',
+          tr(
+            `Introduce entre ${min} y ${max} dígitos (sin prefijo).`,
+            `Enter between ${min} and ${max} digits (without country code).`,
+          ),
+        );
+        return;
+      }
     }
     if (dataType === 'Enlaces') {
       let testUrl = dataValue.trim();
@@ -1848,11 +1845,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       } else if (dataType === 'Enlaces' && !/^https?:\/\//i.test(dataValue.trim())) {
         preNormalized = 'https://' + dataValue.trim();
       }
-      // #25 Phone formatting with country code
+      // #25 Phone: E.164 desde prefijo + parte nacional
       const normalizedValue =
-        dataType === 'Teléfono' && !preNormalized.startsWith('+')
-          ? `${countryCode} ${preNormalized.replace(/^\s+/, '')}`
-          : preNormalized;
+        dataType === 'Teléfono' ? buildE164(countryCode, preNormalized) : preNormalized;
       const shouldUploadFile =
         dataType === 'Documento' && normalizedValue.startsWith('file://');
       let finalValue = normalizedValue;
@@ -2081,7 +2076,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             )}
           </Text>
         );
-      case 'Teléfono':
+      case 'Teléfono': {
+        const { min: natMin, max: natMax } = getNationalDigitBounds(countryCode);
         return (
           <View style={styles.phoneRow}>
             <LinearGradient
@@ -2106,15 +2102,17 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             >
               <TextInput
                 style={[styles.input, { flex: 1, backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderWidth: 0 }]}
-                placeholder="123 456 7890"
+                placeholder={tr(`${natMin}–${natMax} dígitos`, `${natMin}–${natMax} digits`)}
                 placeholderTextColor={formTheme.inputPlaceholder}
                 value={dataValue}
-                onChangeText={setDataValue}
+                onChangeText={(t) => setDataValue(sanitizeNationalDigits(t).slice(0, natMax))}
                 keyboardType="phone-pad"
+                maxLength={natMax}
               />
             </LinearGradient>
           </View>
         );
+      }
       case 'Email':
         return (
           <LinearGradient
@@ -2658,45 +2656,23 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           </TouchableWithoutFeedback>
         </Modal>
 
-        {/* MODAL: COUNTRY CODE */}
-        <Modal
+        <CountryDialPickerModal
           visible={countryModalVisible}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setCountryModalVisible(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { backgroundColor: formTheme.surfaceBg, borderTopColor: formTheme.border }]}>
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: formTheme.textPrimary }]}>{tr('País', 'Country')}</Text>
-                <TouchableOpacity onPress={() => setCountryModalVisible(false)}>
-                  <MaterialCommunityIcons name="close" color={formTheme.textPrimary} size={24} />
-                </TouchableOpacity>
-              </View>
-              <FlatList
-                data={COUNTRY_CODES}
-                keyExtractor={item => item.code}
-                removeClippedSubviews={true}
-                scrollEventThrottle={16}
-                bounces={false}
-                overScrollMode="never"
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={styles.modalItem}
-                    onPress={() => {
-                      setCountryCode(item.code);
-                      setCountryModalVisible(false);
-                    }}
-                  >
-                    <Text style={[styles.modalItemText, { color: isNight ? '#F0F4F8' : formTheme.textPrimary }]}>
-                      {item.code} {item.country}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              />
-            </View>
-          </View>
-        </Modal>
+          onClose={() => setCountryModalVisible(false)}
+          onSelect={(entry) => {
+            setCountryCode(entry.code);
+            setDataValue((prev) => sanitizeNationalDigits(prev).slice(0, entry.maxDigits));
+          }}
+          title={tr('Código de país', 'Country code')}
+          topSectionTitle={tr('Destacados', 'Top')}
+          restSectionTitle={tr('Todos los países', 'All countries')}
+          searchPlaceholder={tr('Buscar país o prefijo…', 'Search country or code…')}
+          surfaceBg={formTheme.surfaceBg}
+          textPrimary={formTheme.textPrimary}
+          textSecondary={formTheme.textSecondary}
+          border={formTheme.border}
+          inputBg={formTheme.inputBg}
+        />
 
         {/* MODAL: ICON GALLERY — CardStudioVault */}
         <CardStudioVault

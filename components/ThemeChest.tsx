@@ -24,7 +24,7 @@ import {
     type ThemeTier
 } from '@/constants/themeChest';
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
-import { useLanguage } from '@/services/language';
+import { trEsEn, useLanguage } from '@/services/language';
 import { setActiveThemeId, useActiveTheme } from '@/services/useActiveTheme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -54,7 +54,7 @@ type Props = {
 export default function ThemeChest({ onNavigateToForge }: Props) {
   const modalFooterBottomPad = useModalFooterBottomPad();
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => (language === 'en' ? en : es);
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
 
   const { activeTheme, unlockedIds } = useActiveTheme();
   const [selectedThemeId, setSelectedThemeId] = useState<string>(activeTheme.id);

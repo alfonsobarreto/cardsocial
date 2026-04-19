@@ -24,7 +24,7 @@ import {
 import { getActiveUserId } from '@/services/authSession';
 import type { MirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
 import { CONTACT_META_STORAGE_KEY, seedMetaForIncomingCard } from '@/services/bunkerContactMetaSeed';
-import { useLanguage } from '@/services/language';
+import { toApiLocale, trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import {
     BUSINESS_MEDALS,
@@ -160,7 +160,7 @@ export function MyCardsPreviewModal({
   const isDark = resolvedMode === 'noche';
   const shell = appPalette[isDark ? 'dark' : 'light'];
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => (language === 'en' ? en : es);
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const { height: screenHeight } = useWindowDimensions();
 
   const parallaxX = useRef(new Animated.Value(0)).current;
@@ -291,7 +291,7 @@ export function MyCardsPreviewModal({
       try {
         const uid = await getActiveUserId();
         if (!uid || cancelled) return;
-        const g = await fetchBunkerGroups(uid, language);
+        const g = await fetchBunkerGroups(uid, toApiLocale(language));
         if (!cancelled) {
           const base = Array.isArray(g) && g.length > 0 ? g : INCOMING_BASE_GROUPS;
           const preLoaded = preLoadedGroupRef.current;
@@ -320,7 +320,7 @@ export function MyCardsPreviewModal({
         receiverUid: uid,
         uid: ghostTargetUid,
         bId,
-        locale: language === 'en' ? 'en' : 'es',
+        locale: toApiLocale(language),
       });
       await seedMetaForIncomingCard({
         issuerUid: ghostTargetUid,
@@ -331,7 +331,7 @@ export function MyCardsPreviewModal({
         seedAvatarUrl: seedAvatarUrlFromPreviewPayload(payload),
       });
       try {
-        await trackBunkerGroupUsage({ viewerUid: uid, groupName: receiverGroup, locale: language === 'en' ? 'en' : 'es' });
+        await trackBunkerGroupUsage({ viewerUid: uid, groupName: receiverGroup, locale: toApiLocale(language) });
       } catch { /* non-blocking */ }
       Alert.alert(
         tr('Agregado', 'Added'),
@@ -354,7 +354,7 @@ export function MyCardsPreviewModal({
       try {
         const selfUid = await getActiveUserId();
         if (!selfUid || cancelled) return;
-        const g = await fetchBunkerGroups(selfUid, language);
+        const g = await fetchBunkerGroups(selfUid, toApiLocale(language));
         if (!cancelled) {
           const base = Array.isArray(g) && g.length > 0 ? g : INCOMING_BASE_GROUPS;
           const preLoaded = preLoadedGroupRef.current;
@@ -404,7 +404,7 @@ export function MyCardsPreviewModal({
       });
       try {
         const uid = await getActiveUserId();
-        if (uid) await trackBunkerGroupUsage({ viewerUid: uid, groupName: group, locale: language === 'en' ? 'en' : 'es' });
+        if (uid) await trackBunkerGroupUsage({ viewerUid: uid, groupName: group, locale: toApiLocale(language) });
       } catch { /* non-blocking */ }
       if (variant === 'incoming' && incomingRedeem?.onSuccess) {
         incomingRedeem.onSuccess();
@@ -437,7 +437,7 @@ export function MyCardsPreviewModal({
     const uid = await getActiveUserId();
     if (uid) {
       try {
-        await trackBunkerGroupUsage({ viewerUid: uid, groupName: trimmed, locale: language === 'en' ? 'en' : 'es' });
+        await trackBunkerGroupUsage({ viewerUid: uid, groupName: trimmed, locale: toApiLocale(language) });
       } catch { /* non-blocking */ }
     }
   }, [newGroupInput, language]);
@@ -454,13 +454,13 @@ export function MyCardsPreviewModal({
     setIncomingBusy(true);
     try {
       if (mode === 'universal') {
-        await redeemTemporaryAccessToken({ receiverUid, token, locale: language });
+        await redeemTemporaryAccessToken({ receiverUid, token, locale: toApiLocale(language) });
       } else if (mode === 'business_permanent') {
         const bizId = String(bId || '').trim();
         if (!bizId) throw new Error(tr('Tarjeta inválida', 'Invalid card'));
-        await grantBusinessShareFromQr({ receiverUid, uid: issuerUid, bId: bizId, locale: language });
+        await grantBusinessShareFromQr({ receiverUid, uid: issuerUid, bId: bizId, locale: toApiLocale(language) });
       } else {
-        await consumeDynamicQrToken({ receiverUid, token, locale: language });
+        await consumeDynamicQrToken({ receiverUid, token, locale: toApiLocale(language) });
       }
       await seedMetaForIncomingCard({
         issuerUid,
@@ -500,7 +500,7 @@ export function MyCardsPreviewModal({
       // --- FIN NUEVO ---
 
       try {
-        await trackBunkerGroupUsage({ viewerUid: receiverUid, groupName: incomingGroup, locale: language });
+        await trackBunkerGroupUsage({ viewerUid: receiverUid, groupName: incomingGroup, locale: toApiLocale(language) });
       } catch {
         /* no bloquear */
       }

@@ -10,7 +10,7 @@ import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { buildMirrorVaultItemsForContact } from '@/services/buildReceiverPreviewVaultItems';
 import { collectStringsReceivedContact, orderByDeepSearchWithExpandedQuery } from '@/services/deepSearch';
-import { useLanguage } from '@/services/language';
+import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
 import {
@@ -184,7 +184,7 @@ function ContactsContent() {
   const isNight = resolvedMode === 'noche';
   const shell = appPalette[isNight ? 'dark' : 'light'];
   const styles = useMemo(() => makeContactsStyles(shell), [shell]);
-  const tr = useCallback((es: string, en: string) => (language === 'en' ? en : es), [language]);
+  const tr = useCallback((es: string, en: string) => trEsEn(es, en, language), [language]);
   const modalFooterBottomPad = useModalFooterBottomPad();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [metaMap, setMetaMap] = useState<Record<string, ContactMeta>>({});

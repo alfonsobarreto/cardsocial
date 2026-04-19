@@ -1587,16 +1587,21 @@ export type CallHistoryRow = {
 export async function listCallsHistory(params: { uid: string }): Promise<{ count: number; history: CallHistoryRow[] }> {
   const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
-  const response = await axios.get(`${auth.baseUrl}/api/qr/calls/history`, {
-    params: {
-      uid: params.uid,
-    },
-    headers: {
-      'x-api-gateway-key': auth.gatewayKey,
-      Authorization: `Bearer ${auth.token}`,
-    },
-    timeout: 15000,
-  });
+  let response: any;
+  try {
+    response = await axios.get(`${auth.baseUrl}/api/qr/calls/history`, {
+      params: {
+        uid: params.uid,
+      },
+      headers: {
+        'x-api-gateway-key': auth.gatewayKey,
+        Authorization: `Bearer ${auth.token}`,
+      },
+      timeout: 15000,
+    });
+  } catch (error: any) {
+    throw mapQrNetworkError(error, auth.baseUrl);
+  }
 
   const rows = Array.isArray(response?.data?.history) ? response.data.history : [];
   const history: CallHistoryRow[] = rows.map((row: any) => {

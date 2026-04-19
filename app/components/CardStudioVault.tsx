@@ -15,7 +15,7 @@ import {
     purchaseStudioIconUnlock,
     stableKeyForCatalogIcon,
 } from '@/services/iconVaultService';
-import { useLanguage } from '@/services/language';
+import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import {
     purchaseThemeBundle,
@@ -387,8 +387,9 @@ export default function CardStudioVault({
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
   const { language } = useLanguage();
-  const isEN = language === 'en';
-  const tr = (es: string, en: string) => isEN ? en : es;
+  /** Catálogo de iconos tiene pares ES/EN; fuera de ES usamos etiquetas EN (fr/it/pt). */
+  const useEnCatalog = language !== 'es';
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const modalFooterBottomPad = useModalFooterBottomPad();
   const [storeModalVisible, setStoreModalVisible] = useState(false);
   const [recentIconIds, setRecentIconIds] = useState<string[]>([]);
@@ -462,12 +463,12 @@ export default function CardStudioVault({
     for (let i = 0; i < recentItems.length; i += 5)
       recentRows.push(recentItems.slice(i, i + 5));
     const recentSection: IconSection = {
-      title: isEN ? 'Recent' : 'Recientes',
+      title: useEnCatalog ? 'Recent' : 'Recientes',
       titleEn: 'Recent',
       data: recentRows,
     };
     return [recentSection, ...catalogSections];
-  }, [recentItemsResolved, isEN, catalogSections]);
+  }, [recentItemsResolved, useEnCatalog, catalogSections]);
 
   // Mapa plano de offsets para getItemLayout — VirtualizedSectionList cuenta 1 header + N rows + 1 footer por sección.
   const sectionLayouts = useMemo(() => {
@@ -700,7 +701,7 @@ export default function CardStudioVault({
       ]}
     >
       <Text style={[styles.sectionTitle, { color: theme.labelGold }]}>
-        {isEN ? section.titleEn : section.title}
+        {useEnCatalog ? section.titleEn : section.title}
       </Text>
       {section.isPremium && (
         <View style={[styles.premiumBadge, { backgroundColor: theme.premiumBadgeBg }]}>
@@ -742,7 +743,7 @@ export default function CardStudioVault({
                 style={!unlocked ? { opacity: 0.55 } : undefined}
               />
               <Text style={[styles.iconLabel, { color: labelColor }]} numberOfLines={1}>
-                {isEN ? item.labelEn : item.label}
+                {useEnCatalog ? item.labelEn : item.label}
               </Text>
             </>
           );
@@ -813,7 +814,7 @@ export default function CardStudioVault({
           size={28}
         />
         <Text style={[styles.emptyLabel, { color: theme.textSecondary }]}>
-          {isEN ? (section.emptyLabelEn ?? section.emptyLabel) : section.emptyLabel}
+          {useEnCatalog ? (section.emptyLabelEn ?? section.emptyLabel) : section.emptyLabel}
         </Text>
       </View>
     );
@@ -998,7 +999,7 @@ export default function CardStudioVault({
                       >
                         <View style={{ flex: 1 }}>
                           <Text style={[styles.bundleName, { color: theme.textPrimary }]}>
-                            {isEN ? b.nameEn : b.nameEs}
+                            {useEnCatalog ? b.nameEn : b.nameEs}
                           </Text>
                           <Text style={[styles.bundleMeta, { color: theme.bundleMeta }]}>
                             {tr(

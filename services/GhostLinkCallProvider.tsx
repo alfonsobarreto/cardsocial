@@ -43,7 +43,7 @@ import { isGhostLinkAgoraNativeAvailable } from '@/services/expoGoAgoraGuard';
 import { getGhostLinkAgoraEngine, setGhostLinkAgoraSpeaker } from '@/services/ghostLinkAgoraSession';
 import { clearGhostLinkCameraSignal } from '@/services/ghostLinkVoipCameraSignal';
 import { useGhostLinkCameraConsent } from '@/hooks/useGhostLinkCameraConsent';
-import { useLanguage } from '@/services/language';
+import { trEsEn, useLanguage } from '@/services/language';
 
 /** @deprecated Use `VoIPCallPhase` (enum) en código nuevo. */
 export type GhostCallPhase = VoIPCallPhase;
@@ -159,7 +159,7 @@ export function requestGhostLinkCallImperative(params: Parameters<NonNullable<Im
 
 export function GhostLinkCallProvider({ children }: { children: React.ReactNode }) {
   const { language } = useLanguage();
-  const tr = useCallback((es: string, en: string) => (language === 'en' ? en : es), [language]);
+  const tr = useCallback((es: string, en: string) => trEsEn(es, en, language), [language]);
 
   const [phase, setPhase] = useState<VoIPCallPhase>(VoIPCallPhase.Idle);
   const [callData, setCallData] = useState<GhostCallData | null>(null);
@@ -461,7 +461,9 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
       status: 'completed' | 'missed' | 'rejected',
       durationSec: number,
     ) => {
-      const cd = callData;
+      // Siempre ref: tras `await` en finalize/poll, el state `callData` del closure puede estar vacío
+      // y se saltaba el POST → llamada “vivida” pero sin fila en `call_logs` / historial.
+      const cd = callDataRef.current;
       if (!cd?.uid) return;
       void createCallLog({
         uid: cd.uid,
@@ -477,9 +479,11 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
         callType: cd.callType || 'audio',
         isBusinessCard: cd.card.cardType === 'business',
         emitterCardPhotoUrl: cd.card.cardPhoto ?? null,
+      }).catch((err) => {
+        console.warn('[GhostLink] createCallLog failed', err);
       });
     },
-    [callData],
+    [],
   );
 
   // ── Reset helpers ──
