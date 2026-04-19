@@ -14,9 +14,31 @@
  */
 
 import axios from 'axios';
+import { Platform } from 'react-native';
+
 import { resolveExpoPublicApiBaseUrl } from '@/services/expoPublicApiBaseUrl';
 
 export type BackendScope = 'moderation.upload' | 'qr.access';
+
+/**
+ * Solo __DEV__: escribe en la consola de Metro (no en producción). Sin API keys ni JWT.
+ * Úsalo cuando un `axios` falle y quieras ver código/mensaje/URL base.
+ */
+export function logBackendNetworkDebug(tag: string, error: unknown, baseUrl: string): void {
+  if (!__DEV__ || typeof console === 'undefined') return;
+  const e = error as {
+    message?: string;
+    code?: string;
+    response?: { status?: number; data?: unknown };
+  };
+  console.warn(`[CardSocial][net] ${tag}`, {
+    baseUrl,
+    axiosCode: e?.code ?? null,
+    message: String(e?.message || '').slice(0, 280),
+    httpStatus: Number(e?.response?.status || 0) || null,
+    platform: Platform.OS,
+  });
+}
 
 export function getApiBaseUrl(): string {
   return resolveExpoPublicApiBaseUrl();
@@ -47,11 +69,13 @@ export function mapBackendNetworkError(error: unknown, baseUrl: string): Error {
     /timeout/i.test(message);
 
   if (isNetwork) {
-    const cleartextHint = /^http:\/\//i.test(baseUrl)
-      ? ' Desarrollo Android: añade `android.usesCleartextTraffic: true` en app.json y reconstruye el dev client.'
-      : '';
+    logBackendNetworkDebug('mapBackendNetworkError', error, baseUrl);
+    const androidHttpHint =
+      Platform.OS === 'android' && /^http:\/\//i.test(baseUrl)
+        ? ' En Android con HTTP en la LAN hace falta `android.usesCleartextTraffic: true` en app.json y volver a generar el dev client.'
+        : '';
     return new Error(
-      `No se pudo conectar con el backend (${baseUrl}). Verifica IP/puerto, misma red Wi-Fi y backend activo.${cleartextHint}`,
+      `No se pudo conectar con el backend (${baseUrl}). Verifica IP/puerto, misma red Wi-Fi y que el backend esté en marcha.${androidHttpHint}`,
     );
   }
   if (status === 401) return new Error(backendError || 'Sesión inválida o expirada. Vuelve a intentarlo.');

@@ -85,18 +85,17 @@ const CLOUD_SYNC_TIMEOUT_MS = 120000;
 
 type DataType = 'Enlaces' | 'Teléfono' | 'Ghost-Link' | 'Email' | 'Texto Plain' | 'Documento';
 
-const DATA_TYPE_OPTIONS: Array<{
+/** Solo key + icono; las etiquetas van con `tr()` para pt/fr/it vía fragmentos i18n. */
+const DATA_TYPE_OPTION_DEFS: Array<{
   key: DataType;
-  label: string;
-  labelEn: string;
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
 }> = [
-  { key: 'Enlaces', label: 'Enlace', labelEn: 'Link', icon: 'link-variant' },
-  { key: 'Email', label: 'Email', labelEn: 'Email', icon: 'email-outline' },
-  { key: 'Teléfono', label: 'Teléfono', labelEn: 'Phone', icon: 'phone-outline' },
-  { key: 'Texto Plain', label: 'Texto', labelEn: 'Text', icon: 'text-box-outline' },
-  { key: 'Documento', label: 'Documento', labelEn: 'Document', icon: 'file-document-outline' },
-  { key: 'Ghost-Link', label: 'Ghost Link', labelEn: 'Ghost Link', icon: 'phone-in-talk' },
+  { key: 'Enlaces', icon: 'link-variant' },
+  { key: 'Email', icon: 'email-outline' },
+  { key: 'Teléfono', icon: 'phone-outline' },
+  { key: 'Texto Plain', icon: 'text-box-outline' },
+  { key: 'Documento', icon: 'file-document-outline' },
+  { key: 'Ghost-Link', icon: 'phone-in-talk' },
 ];
 
 const defaultGhostLinkIconStable = (() => {
@@ -147,6 +146,40 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const { resolvedMode } = useLookMode();
   const { language } = useLanguage();
   const tr = (es: string, en: string) => trEsEn(es, en, language);
+  /** Literales `tr('es','en')` para que `npm run i18n:extract` genere `ui.x*` en fragmentos (pt/fr/it). */
+  const dataTypeOptions = useMemo(
+    () =>
+      DATA_TYPE_OPTION_DEFS.map((o) => {
+        let label: string;
+        switch (o.key) {
+          case 'Enlaces':
+            label = tr('Enlace', 'Link');
+            break;
+          case 'Email':
+            label = tr('Email', 'Email');
+            break;
+          case 'Teléfono':
+            label = tr('Teléfono', 'Phone');
+            break;
+          case 'Texto Plain':
+            label = tr('Texto', 'Text');
+            break;
+          case 'Documento':
+            label = tr('Documento', 'Document');
+            break;
+          case 'Ghost-Link':
+            label = tr('Ghost Link', 'Ghost Link');
+            break;
+          default: {
+            const _exhaustive: never = o.key;
+            label = String(_exhaustive);
+            break;
+          }
+        }
+        return { ...o, label };
+      }),
+    [tr, language],
+  );
   /** Ejemplos de URL en inputs: no usan fragmentos i18n (evita ~6 claves ui.* por idioma). ES vs resto en inglés. */
   const socialUrlPlaceholder = (esExample: string, enExample: string) =>
     language === 'es' ? esExample : enExample;
@@ -2288,9 +2321,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               {tr('TIPO DE DATO', 'DATA TYPE')} {editingData?.id && tr('(No editable)', '(Read-only)')}
             </Text>
             <View style={styles.typeChipGrid}>
-              {DATA_TYPE_OPTIONS.map((option) => {
+              {dataTypeOptions.map((option) => {
                 const isActive = dataType === option.key;
-                const chipLabel = language === 'en' ? option.labelEn : option.label;
                 const disabledChip = !!editingData?.id;
                 const onSelectType = () => {
                   if (disabledChip) return;
@@ -2339,7 +2371,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                         >
                           <MaterialCommunityIcons name={option.icon} size={18} color={iconColor} />
                           <Text style={[styles.typeChipLabel, { color: labelColor }]} numberOfLines={2}>
-                            {chipLabel}
+                            {option.label}
                           </Text>
                         </TouchableOpacity>
                       </LinearGradient>
@@ -2359,7 +2391,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                       >
                         <MaterialCommunityIcons name={option.icon} size={18} color={iconColor} />
                         <Text style={[styles.typeChipLabel, { color: labelColor }]} numberOfLines={2}>
-                          {chipLabel}
+                          {option.label}
                         </Text>
                       </TouchableOpacity>
                     )}
@@ -2390,7 +2422,11 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               >
                 <MaterialCommunityIcons name="swap-horizontal" color={formTheme.labelGold} size={16} />
                 <Text style={[styles.autoTypeBannerText, { color: formTheme.textPrimary }]}>
-                  {tr(`¿Cambiar a ${autoTypeSuggestion}?`, `Switch to ${autoTypeSuggestion}?`)}
+                  {(() => {
+                    const sug =
+                      dataTypeOptions.find((o) => o.key === autoTypeSuggestion)?.label ?? String(autoTypeSuggestion);
+                    return tr(`¿Cambiar a ${sug}?`, `Switch to ${sug}?`);
+                  })()}
                 </Text>
                 <TouchableOpacity onPress={() => setAutoTypeSuggestion(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <MaterialCommunityIcons name="close" color={formTheme.labelGold} size={14} />
@@ -2421,7 +2457,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           {/* DATA */}
           <View style={styles.section}>
             <Text style={[styles.stepLabel, { color: formTheme.labelGold }]}>
-              {dataType === GHOST_LINK_VAULT_TYPE ? tr('GHOST LINK', 'GHOST LINK') : 'DATA'}
+              {dataType === GHOST_LINK_VAULT_TYPE ? tr('GHOST LINK', 'GHOST LINK') : tr('DATO', 'DATA')}
             </Text>
             {renderDataField()}
           </View>
@@ -2597,9 +2633,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                         dataType === item && { color: formTheme.selectedPillText },
                       ]}
                     >
-                      {language === 'en'
-                        ? DATA_TYPE_OPTIONS.find((o) => o.key === item)?.labelEn ?? item
-                        : DATA_TYPE_OPTIONS.find((o) => o.key === item)?.label ?? item}
+                      {dataTypeOptions.find((o) => o.key === item)?.label ?? item}
                     </Text>
                     {dataType === item && (
                       <MaterialCommunityIcons name="check" color={formTheme.selectedPillText} size={20} />

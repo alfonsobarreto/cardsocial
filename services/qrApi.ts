@@ -1,4 +1,7 @@
 import axios from 'axios';
+import { Platform } from 'react-native';
+
+import { logBackendNetworkDebug } from '@/services/backendAuth';
 import { resolveExpoPublicApiBaseUrl } from '@/services/expoPublicApiBaseUrl';
 import { fromWireCallDisplayCard, type CallDisplayCard } from './callDisplayCard';
 import { toAcceptLanguageHeader, type AppLanguage } from './language';
@@ -31,11 +34,13 @@ function mapQrNetworkError(error: any, baseUrl: string): Error {
     /timeout/i.test(message);
 
   if (isNetwork) {
-    const cleartextHint = /^http:\/\//i.test(baseUrl)
-      ? ' Desarrollo Android: sin esto, HTTP LAN falla; usa `android.usesCleartextTraffic: true` en app.json y reconstruye el dev client / APK.'
-      : '';
+    logBackendNetworkDebug('mapQrNetworkError', error, baseUrl);
+    const androidHttpHint =
+      Platform.OS === 'android' && /^http:\/\//i.test(baseUrl)
+        ? ' En Android con HTTP en la LAN hace falta `android.usesCleartextTraffic: true` en app.json y volver a generar el dev client.'
+        : '';
     return new Error(
-      `No se pudo conectar con el backend QR (${baseUrl}). Verifica IP/puerto, misma red Wi-Fi y backend activo.${cleartextHint}`
+      `No se pudo conectar con el backend QR (${baseUrl}). Verifica IP/puerto, misma red Wi-Fi y que el backend esté en marcha.${androidHttpHint}`,
     );
   }
   if (status === 401) {
@@ -1577,7 +1582,15 @@ export type CallHistoryRow = {
 };
 
 export async function listCallsHistory(params: { uid: string }): Promise<{ count: number; history: CallHistoryRow[] }> {
+  if (__DEV__) {
+    console.log('[qrApi][listCallsHistory] pidiendo token…', { baseUrl: getApiBaseUrl() });
+  }
   const auth = await getScopedJwtToken(params.uid, 'qr.access');
+  if (__DEV__) {
+    console.log('[qrApi][listCallsHistory] token OK → GET /api/qr/calls/history', {
+      url: `${auth.baseUrl}/api/qr/calls/history`,
+    });
+  }
 
   let response: any;
   try {

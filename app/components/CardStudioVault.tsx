@@ -348,6 +348,21 @@ function buildIconSections(): IconSection[] {
 
 const ICON_SECTIONS: IconSection[] = buildIconSections();
 
+const STUDIO_SECTION_TITLE_SEP = ' · ';
+
+/** Pares ES/EN del catálogo → `tr()` para pt/fr/it (antes solo EN fuera de ES). */
+function translateStudioSectionTitle(section: IconSection, tr: (es: string, en: string) => string): string {
+  const enTitle = section.titleEn ?? section.title;
+  if (section.title.includes(STUDIO_SECTION_TITLE_SEP) && enTitle.includes(STUDIO_SECTION_TITLE_SEP)) {
+    const esParts = section.title.split(STUDIO_SECTION_TITLE_SEP);
+    const enParts = enTitle.split(STUDIO_SECTION_TITLE_SEP);
+    if (esParts.length === enParts.length && esParts.length > 1) {
+      return esParts.map((es, i) => tr(es.trim(), enParts[i].trim())).join(STUDIO_SECTION_TITLE_SEP);
+    }
+  }
+  return tr(section.title, enTitle);
+}
+
 export const ICON_GALLERY: IconItem[] = ICON_SECTIONS.flatMap((sec) =>
   sec.data.flatMap((row) => row),
 );
@@ -387,8 +402,6 @@ export default function CardStudioVault({
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
   const { language } = useLanguage();
-  /** Catálogo de iconos tiene pares ES/EN; fuera de ES usamos etiquetas EN (fr/it/pt). */
-  const useEnCatalog = language !== 'es';
   const tr = (es: string, en: string) => trEsEn(es, en, language);
   const modalFooterBottomPad = useModalFooterBottomPad();
   const [storeModalVisible, setStoreModalVisible] = useState(false);
@@ -436,6 +449,26 @@ export default function CardStudioVault({
 
   const catalogSections = ICON_SECTIONS;
 
+  const studioHeaderSuffix = useMemo(() => {
+    const t = (es: string, en: string) => trEsEn(es, en, language);
+    switch (dataType) {
+      case 'Enlaces':
+        return t('Enlaces', 'Links');
+      case 'Teléfono':
+        return t('Teléfono', 'Phone');
+      case 'Ghost-Link':
+        return t('Ghost Link', 'Ghost Link');
+      case 'Email':
+        return t('Email', 'Email');
+      case 'Texto Plain':
+        return t('Texto', 'Text');
+      case 'Documento':
+        return t('Documento', 'Document');
+      default:
+        return String(dataType);
+    }
+  }, [dataType, language]);
+
   const recentItemsResolved = useMemo(() => {
     return recentIconIds
       .map((rawId) => {
@@ -463,12 +496,12 @@ export default function CardStudioVault({
     for (let i = 0; i < recentItems.length; i += 5)
       recentRows.push(recentItems.slice(i, i + 5));
     const recentSection: IconSection = {
-      title: useEnCatalog ? 'Recent' : 'Recientes',
+      title: 'Recientes',
       titleEn: 'Recent',
       data: recentRows,
     };
     return [recentSection, ...catalogSections];
-  }, [recentItemsResolved, useEnCatalog, catalogSections]);
+  }, [recentItemsResolved, catalogSections]);
 
   // Mapa plano de offsets para getItemLayout — VirtualizedSectionList cuenta 1 header + N rows + 1 footer por sección.
   const sectionLayouts = useMemo(() => {
@@ -701,7 +734,7 @@ export default function CardStudioVault({
       ]}
     >
       <Text style={[styles.sectionTitle, { color: theme.labelGold }]}>
-        {useEnCatalog ? section.titleEn : section.title}
+        {translateStudioSectionTitle(section, tr)}
       </Text>
       {section.isPremium && (
         <View style={[styles.premiumBadge, { backgroundColor: theme.premiumBadgeBg }]}>
@@ -743,7 +776,7 @@ export default function CardStudioVault({
                 style={!unlocked ? { opacity: 0.55 } : undefined}
               />
               <Text style={[styles.iconLabel, { color: labelColor }]} numberOfLines={1}>
-                {useEnCatalog ? item.labelEn : item.label}
+                {tr(item.label, item.labelEn)}
               </Text>
             </>
           );
@@ -814,7 +847,9 @@ export default function CardStudioVault({
           size={28}
         />
         <Text style={[styles.emptyLabel, { color: theme.textSecondary }]}>
-          {useEnCatalog ? (section.emptyLabelEn ?? section.emptyLabel) : section.emptyLabel}
+          {section.emptyLabel != null
+            ? tr(section.emptyLabel, section.emptyLabelEn ?? section.emptyLabel)
+            : ''}
         </Text>
       </View>
     );
@@ -882,7 +917,7 @@ export default function CardStudioVault({
                 <View style={styles.header}>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.title, { color: theme.titleColor }]}>
-                      Card-Studio — {dataType}
+                      {tr('Card-Studio', 'Card-Studio')} — {studioHeaderSuffix}
                     </Text>
                     {STUDIO_CATALOG_VECTOR_ICONS_PAID ? (
                       <Text style={[styles.creditsLine, { color: theme.textSecondary }]}>
@@ -999,7 +1034,7 @@ export default function CardStudioVault({
                       >
                         <View style={{ flex: 1 }}>
                           <Text style={[styles.bundleName, { color: theme.textPrimary }]}>
-                            {useEnCatalog ? b.nameEn : b.nameEs}
+                            {tr(b.nameEs, b.nameEn)}
                           </Text>
                           <Text style={[styles.bundleMeta, { color: theme.bundleMeta }]}>
                             {tr(

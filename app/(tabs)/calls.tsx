@@ -1,10 +1,12 @@
 import { getActiveUserId } from '@/services/authSession';
+import { logBackendNetworkDebug } from '@/services/backendAuth';
 import { requestGhostLinkCallImperative } from '@/services/GhostLinkCallProvider';
 import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import appPalette from '../theme';
 import {
     type CallHistoryRow,
+    getApiBaseUrl,
     listCallsHistory,
     listReceivedContacts,
 } from '@/services/qrApi';
@@ -449,12 +451,28 @@ export default function CallsPage() {
 
   const loadData = async (opts?: { silent?: boolean }) => {
     const silent = Boolean(opts?.silent);
+    let apiBaseLog = '';
+    try {
+      apiBaseLog = getApiBaseUrl();
+    } catch (e) {
+      apiBaseLog = `(getApiBaseUrl falló: ${String((e as Error)?.message || e)})`;
+    }
+    if (__DEV__) {
+      console.log('[Calls][loadData] inicio', {
+        silent,
+        apiBaseUrl: apiBaseLog,
+        hint: 'Historial: GET /api/qr/calls/history (misma base que ves en el error del Alert)',
+      });
+    }
     try {
       if (!silent) {
         setLoading(true);
       }
       const uid = await getActiveUserId();
       if (!uid) {
+        if (__DEV__) {
+          console.warn('[Calls][loadData] sin uid — no se llama al backend');
+        }
         setHistory([]);
         setContacts([]);
         return;
@@ -462,9 +480,29 @@ export default function CallsPage() {
 
       let historyRows: CallHistoryRow[] = [];
       try {
+        if (__DEV__) {
+          console.log('[Calls][loadData] listCallsHistory →', {
+            endpoint: `${apiBaseLog}/api/qr/calls/history`,
+            uidPrefix: `${uid.slice(0, 6)}…`,
+          });
+        }
         const historyResponse = await listCallsHistory({ uid });
         historyRows = historyResponse.history;
+        if (__DEV__) {
+          console.log('[Calls][loadData] listCallsHistory OK', { filas: historyRows.length });
+        }
       } catch (error: any) {
+        if (__DEV__) {
+          console.warn('[Calls][loadData] listCallsHistory ERROR', {
+            message: String(error?.message || ''),
+            apiBaseUrl: apiBaseLog,
+          });
+          try {
+            logBackendNetworkDebug('CallsPage:listCallsHistory', error, getApiBaseUrl());
+          } catch {
+            logBackendNetworkDebug('CallsPage:listCallsHistory', error, apiBaseLog);
+          }
+        }
         Alert.alert(
           tr('No se pudo cargar Calls', 'Could not load Calls'),
           error?.message || tr('Intenta de nuevo.', 'Try again.'),
@@ -477,6 +515,9 @@ export default function CallsPage() {
       setHistory(historyRows);
 
       try {
+        if (__DEV__) {
+          console.log('[Calls][loadData] listReceivedContacts →', { apiBaseUrl: apiBaseLog });
+        }
         const contactsResponse = await listReceivedContacts({ uid });
         setContacts(
           contactsResponse.contacts.map((row) => {
@@ -502,10 +543,33 @@ export default function CallsPage() {
             };
           }),
         );
-      } catch {
+        if (__DEV__) {
+          console.log('[Calls][loadData] listReceivedContacts OK', {
+            contactos: contactsResponse.contacts.length,
+          });
+        }
+      } catch (contactErr: any) {
+        if (__DEV__) {
+          console.warn('[Calls][loadData] listReceivedContacts ERROR (se deja historial)', {
+            message: String(contactErr?.message || ''),
+          });
+          try {
+            logBackendNetworkDebug('CallsPage:listReceivedContacts', contactErr, getApiBaseUrl());
+          } catch {
+            logBackendNetworkDebug('CallsPage:listReceivedContacts', contactErr, apiBaseLog);
+          }
+        }
         setContacts([]);
       }
     } catch (error: any) {
+      if (__DEV__) {
+        console.warn('[Calls][loadData] error general', { message: String(error?.message || '') });
+        try {
+          logBackendNetworkDebug('CallsPage:loadData(outer)', error, getApiBaseUrl());
+        } catch {
+          logBackendNetworkDebug('CallsPage:loadData(outer)', error, apiBaseLog);
+        }
+      }
       Alert.alert(tr('No se pudo cargar Calls', 'Could not load Calls'), error?.message || tr('Intenta de nuevo.', 'Try again.'));
     } finally {
       if (!silent) {
@@ -727,7 +791,7 @@ export default function CallsPage() {
   return (
     <LinearGradient colors={[...shell.callsShellGradient]} style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={styles.title}>Calls</Text>
+        <Text style={styles.title}>{tr('Llamadas', 'Calls')}</Text>
       </View>
 
       {loading ? (

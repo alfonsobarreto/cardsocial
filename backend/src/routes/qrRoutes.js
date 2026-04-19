@@ -3446,6 +3446,20 @@ function createQrRoutes({ storage }) {
           let profileFullName =
             String(peerProfile.userFullName || peerProfile.fullName || peerProfile.name || '').trim();
 
+          /**
+           * Entrante/perdida a TU negocio (`emitterIsBusiness`): antes solo rellenábamos el nombre del caller
+           * desde users/profiles. Si están vacíos (migración Firebase, perfil incompleto), la UI caía en
+           * `peerPersonalName || 'Usuario'`. Misma fuente que smart entrante: `ownerDisplayName` de la
+           * smart card personal más reciente del peer.
+           */
+          if (!profileFullName && incomingLike && emitterIsBusiness && peerUid) {
+            const callerIdentity = await fetchPersonalCardIdentityDoc(db, peerUid);
+            const fromCallerCard = String(callerIdentity?.ownerDisplayName || '').trim();
+            if (fromCallerCard) {
+              profileFullName = fromCallerCard;
+            }
+          }
+
           /** Smart: foto de perfil / tarjeta. Business entrante: avatar del caller (paridad UI con subtítulo). */
           let userAvatarUrl = null;
           if (!emitterIsBusiness) {

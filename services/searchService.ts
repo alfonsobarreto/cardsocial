@@ -1,11 +1,14 @@
 /**
  * Social Market: Fuse/deepSearch + sinónimos + contactos recibidos + negocios (regla única licencia OK).
+ * Negocios del mercado: Mongo `business_cards` vía GET /api/business-cards/market-catalog (ya no Firestore).
  */
 
-import { collection, getDocs, limit, query, where } from 'firebase/firestore';
+import axios from 'axios';
+
+import { getActiveUserId } from '@/services/authSession';
+import { getScopedJwtToken } from '@/services/backendAuth';
 import { readBusinessCardIdentityFields } from '@/services/businessCardService';
 import { isBusinessCardMarketEligible } from '@/services/businessCardMarketEligibility';
-import { db } from '@/services/firebaseConfig';
 import {
   collectStringsReceivedContact,
   haystackMatchesDeepSearchQuery,
@@ -84,6 +87,78 @@ function safeDistanceMiles(miles: number | null | undefined): number | null {
 
 function toRad(deg: number): number {
   return deg * (Math.PI / 180);
+}
+
+/**
+ * Convierte el wire `BusinessCardDoc` del backend a la forma legacy `BusinessCard`
+ * que usan `stringsForBusinessCard` / distancia (physicalAddress, latitude, …).
+ */
+function wireBusinessCardToMarketShape(row: Record<string, unknown>): BusinessCard {
+  const idn = readBusinessCardIdentityFields(row);
+  const facets = Array.isArray(row.bcMarketFacets)
+    ? (row.bcMarketFacets as Array<{ label?: unknown; value?: unknown }>)
+    : [];
+  const facetBits = facets
+    .map((f) => [String(f.label ?? '').trim(), String(f.value ?? '').trim()].filter(Boolean).join(' '))
+    .filter(Boolean);
+  const businessDescription =
+    [idn.bcContactName, idn.bcName, ...facetBits].filter(Boolean).join(' · ') || '—';
+  const now = new Date();
+  const uid = String(row.ownerUid ?? '').trim();
+  const bId = String(row.bId ?? '').trim();
+  const kw = Array.isArray(row.bcKeywords) ? row.bcKeywords.map((k) => String(k)) : [];
+  const elevatorPitchWords = [...kw, ...facetBits];
+
+  return {
+    bId,
+    uid,
+    type: 'business',
+    bcName: idn.bcName,
+    bcContactName: idn.bcContactName,
+    bcLogoUrl: idn.bcLogoUrl || undefined,
+    ownerEmail: '',
+    ownerPhone: '',
+    physicalAddress: String(row.bcPhysicalAddress ?? '').trim(),
+    latitude: Number(row.bcLatitude) || 0,
+    longitude: Number(row.bcLongitude) || 0,
+    city: '',
+    postalCode: '',
+    keywords: kw,
+    businessDescription,
+    elevatorPitchWords,
+    kycVerified: Boolean(row.kycVerified),
+    kycTermsAccepted: Boolean(row.kycTermsAccepted),
+    vaultDataIds: Array.isArray(row.vaultItemIds) ? row.vaultItemIds.map(String) : [],
+    averageRating: Number(row.averageRating) || 0,
+    totalRatings: Number(row.totalRatings) || 0,
+    negativeRatingsCount: Number(row.negativeRatingsCount) || 0,
+    isActive: row.isActive !== false,
+    isPublishedToMarket: Boolean(row.isPublishedToMarket),
+    lastUpdated: now,
+    createdAt: now,
+    viewCount: Number(row.viewCount) || 0,
+    searchRankScore: Number(row.searchRankScore) || 0,
+  };
+}
+
+async function fetchMongoMarketBusinessCards(): Promise<BusinessCard[]> {
+  const uid = await getActiveUserId();
+  if (!uid) return [];
+  try {
+    const auth = await getScopedJwtToken(uid, 'qr.access');
+    const response = await axios.get(`${auth.baseUrl}/api/business-cards/market-catalog`, {
+      headers: {
+        'x-api-gateway-key': auth.gatewayKey,
+        Authorization: `Bearer ${auth.token}`,
+      },
+      timeout: 20000,
+    });
+    const raw = Array.isArray(response?.data?.cards) ? response.data.cards : [];
+    return raw.map((c: unknown) => wireBusinessCardToMarketShape(c as Record<string, unknown>));
+  } catch (e) {
+    console.warn('[searchService] fetchMongoMarketBusinessCards:', e);
+    return [];
+  }
 }
 
 export function issuerPresentationFromRow(row: ReceivedContactForMarketSearch): IssuerSmartCardPresentation {
@@ -235,7 +310,7 @@ function searchReceivedContactsForMarket(
 }
 
 /**
- * Social Market: contactos recibidos + negocios Firestore filtrados solo por isBusinessCardMarketEligible.
+ * Social Market: contactos recibidos + negocios Mongo (publicados) filtrados por isBusinessCardMarketEligible.
  */
 export async function searchSocialMarket(
   queryRaw: string,
@@ -255,20 +330,7 @@ export async function searchSocialMarket(
   }
 
   try {
-    const businessCardsRef = collection(db, 'businessCards');
-    const q = query(
-      businessCardsRef,
-      where('isActive', '==', true),
-      where('isPublishedToMarket', '==', true),
-      limit(80),
-    );
-
-    const snapshot = await getDocs(q);
-    const businessCards: BusinessCard[] = snapshot.docs.map((dSnap) => {
-      const raw = dSnap.data() as Record<string, unknown>;
-      const idn = readBusinessCardIdentityFields(raw);
-      return { ...raw, ...idn, bId: dSnap.id, uid: String((raw as { uid?: string }).uid ?? '') } as BusinessCard;
-    });
+    const businessCards = await fetchMongoMarketBusinessCards();
 
     let candidates = businessCards;
     if (hasLocation) {
@@ -350,20 +412,7 @@ export async function findNearbyBusinesses(
   limit_results = 20,
 ): Promise<BusinessCardSearchResult[]> {
   try {
-    const businessCardsRef = collection(db, 'businessCards');
-    const q = query(
-      businessCardsRef,
-      where('isActive', '==', true),
-      where('isPublishedToMarket', '==', true),
-      limit(80),
-    );
-
-    const snapshot = await getDocs(q);
-    const allCards: BusinessCard[] = snapshot.docs.map((dSnap) => {
-      const raw = dSnap.data() as Record<string, unknown>;
-      const idn = readBusinessCardIdentityFields(raw);
-      return { ...raw, ...idn, bId: dSnap.id, uid: String((raw as { uid?: string }).uid ?? '') } as BusinessCard;
-    });
+    const allCards = await fetchMongoMarketBusinessCards();
 
     const inRadius = allCards
       .map((card) => ({

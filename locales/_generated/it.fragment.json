@@ -335,7 +335,7 @@
   "ui.x5248abb3": "Cerca nel mercato",
   "ui.xc77fe36": "VAI",
   "ui.x55283fd0": "Prima i contatti",
-  "ui.x6398ee92": "Social Market",
+  "ui.x6398ee92": "Mercato Sociale",
   "ui.x2e382ff8": "Ricerca non completata",
   "ui.x7d080ab0": "Controlla la connessione e riprova. Se il problema persiste, riprova più tardi.",
   "ui.xe9dddc45": "Filtro attivo:",
@@ -1094,5 +1094,17 @@
   "ui.xfca9f2af": "Chiama",
   "ui.xecade8b0": "Attendi che la chiamata sia connessa.",
   "ui.x251c448d": "Video",
-  "ui.x6c5395f1": "In attesa del tuo contatto…"
+  "ui.x6c5395f1": "In attesa del tuo contatto…",
+  "ui.x60dc82d": "Ordine",
+  "ui.xf3b508a5": "Link",
+  "ui.x5c03a65": "E-mail",
+  "ui.xee72fb0a": "Testo",
+  "ui.xe8ef439b": "Codice paese",
+  "ui.xc20bfdb3": "In evidenza",
+  "ui.x911b280": "Tutti i paesi",
+  "ui.x33cc860a": "Cerca paese o prefisso…",
+  "ui.x4e655704": "Essenziali",
+  "ui.x63f29e5": "Telefoni",
+  "ui.x2c885d2a": "Documenti",
+  "ui.x1561f265": "Collegamenti"
 }

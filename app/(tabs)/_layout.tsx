@@ -791,7 +791,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
         <Tabs.Screen
           name="search"
           options={{
-            title: tr('Mercado', 'Market'),
+            title: tr('Mercado Social', 'Social Market'),
             tabBarIcon: ({ focused }) => (
               <PremiumTabIcon Icon={Search} focused={focused} accent={shell.ctaAccent} onAccent={shell.emptyCtaText} />
             ),

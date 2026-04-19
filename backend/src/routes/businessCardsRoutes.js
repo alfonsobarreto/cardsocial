@@ -10,6 +10,7 @@
  *
  * Endpoints:
  *   GET    /                   → list own business cards (newest first)
+ *   GET    /market-catalog     → published+active cards for Social Market (Mongo; replaces legacy Firestore)
  *   GET    /:bId               → read one (owner only in v1)
  *   POST   /                   → create (generates bId, starts 14d trial)
  *   PATCH  /:bId               → partial update
@@ -239,6 +240,30 @@ function createBusinessCardsRoutes({ storage }) {
     } catch (error) {
       console.error('[businessCards] GET / failed:', error);
       return res.status(500).json({ ok: false, error: error.message || 'list failed' });
+    }
+  });
+
+  // ───────────────────────── GET /market-catalog (before /:bId) ───────────
+  router.get('/market-catalog', async (req, res) => {
+    try {
+      const uid = String(req.auth?.sub || '').trim();
+      if (!uid) return res.status(401).json({ ok: false, error: 'Unauthenticated' });
+
+      const db = req.app.locals.db || (await storage.connect());
+      const docs = await db
+        .collection('business_cards')
+        .find({
+          isActive: { $ne: false },
+          isPublishedToMarket: true,
+        })
+        .sort({ updatedAt: -1 })
+        .limit(200)
+        .toArray();
+
+      return res.status(200).json({ ok: true, cards: docs.map(toWireBusinessCard) });
+    } catch (error) {
+      console.error('[businessCards] GET /market-catalog failed:', error);
+      return res.status(500).json({ ok: false, error: error.message || 'market catalog failed' });
     }
   });
 

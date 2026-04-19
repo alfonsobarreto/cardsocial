@@ -335,7 +335,7 @@
   "ui.x5248abb3": "Buscar no mercado",
   "ui.xc77fe36": "IR",
   "ui.x55283fd0": "Contatos primeiro",
-  "ui.x6398ee92": "Social Market",
+  "ui.x6398ee92": "Mercado Social",
   "ui.x2e382ff8": "A busca não pôde ser concluída",
   "ui.x7d080ab0": "Verifique sua conexão e tente novamente. Se o erro persistir, tente mais tarde.",
   "ui.xe9dddc45": "Filtro ativo:",
@@ -1094,5 +1094,17 @@
   "ui.xfca9f2af": "Ligar",
   "ui.xecade8b0": "Aguarde até a chamada ser conectada.",
   "ui.x251c448d": "Vídeo",
-  "ui.x6c5395f1": "Aguardando seu contato…"
+  "ui.x6c5395f1": "Aguardando seu contato…",
+  "ui.x60dc82d": "Ordenação",
+  "ui.xf3b508a5": "Link",
+  "ui.x5c03a65": "E-mail",
+  "ui.xee72fb0a": "Texto",
+  "ui.xe8ef439b": "Código do país",
+  "ui.xc20bfdb3": "Principais",
+  "ui.x911b280": "Todos os países",
+  "ui.x33cc860a": "Pesquisar país ou código…",
+  "ui.x4e655704": "Essenciais",
+  "ui.x63f29e5": "Telefones",
+  "ui.x2c885d2a": "Documentos",
+  "ui.x1561f265": "Links"
 }

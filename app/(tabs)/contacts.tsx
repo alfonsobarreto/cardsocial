@@ -992,7 +992,7 @@ function ContactsContent() {
         <Text style={[styles.headerTitle, { color: shell.textPrimary }]}>{tr('Mis Contactos', 'My Contacts')}</Text>
         <TouchableOpacity
           style={[styles.sortBtn, { backgroundColor: shell.utilBtnBg, borderColor: shell.utilBtnBorder }]} onPress={() => setSortVisible(true)} activeOpacity={0.86}>
-          <Text style={[styles.sortBtnText, { color: shell.textPrimary }]}>Sort</Text>
+          <Text style={[styles.sortBtnText, { color: shell.textPrimary }]}>{tr('Orden', 'Sort')}</Text>
         </TouchableOpacity>
       </View>
 

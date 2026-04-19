@@ -1791,10 +1791,18 @@ export default function CardsFactoryScreen() {
         /network error/i.test(rawMessage) ||
         /failed to fetch/i.test(rawMessage) ||
         /timeout/i.test(rawMessage);
+      const androidLanHintEs =
+        Platform.OS === 'android'
+          ? '\n• Android: HTTP en la LAN requiere `android.usesCleartextTraffic: true` en app.json y volver a generar el dev client.'
+          : '';
+      const androidLanHintEn =
+        Platform.OS === 'android'
+          ? '\n• Android: HTTP over LAN needs `android.usesCleartextTraffic: true` in app.json and a rebuilt dev client.'
+          : '';
       const diagnosticMessage = likelyNetworkError
         ? tr(
-            'No se pudo conectar al backend de QR.\n\nChecklist rápido:\n• EXPO_PUBLIC_MODERATION_API_URL con IP LAN (no localhost)\n• Backend activo en puerto 4000\n• Móvil y PC en la misma Wi‑Fi\n• EXPO_PUBLIC_MODERATION_GATEWAY_KEY igual a API_GATEWAY_KEY del backend',
-            'Could not connect to the QR backend.\n\nQuick checklist:\n• EXPO_PUBLIC_MODERATION_API_URL uses LAN IP (not localhost)\n• Backend is running on port 4000\n• Phone and PC are on the same Wi‑Fi\n• EXPO_PUBLIC_MODERATION_GATEWAY_KEY matches backend API_GATEWAY_KEY'
+            `No se pudo conectar al backend de QR.\n\nChecklist rápido:\n• EXPO_PUBLIC_MODERATION_API_URL con IP LAN (no localhost)\n• Backend activo en puerto 4000\n• Móvil y PC en la misma Wi‑Fi\n• EXPO_PUBLIC_MODERATION_GATEWAY_KEY igual a API_GATEWAY_KEY del backend${androidLanHintEs}`,
+            `Could not connect to the QR backend.\n\nQuick checklist:\n• EXPO_PUBLIC_MODERATION_API_URL uses LAN IP (not localhost)\n• Backend is running on port 4000\n• Phone and PC are on the same Wi‑Fi\n• EXPO_PUBLIC_MODERATION_GATEWAY_KEY matches backend API_GATEWAY_KEY${androidLanHintEn}`,
           )
         : rawMessage || tr('No se pudo emitir el QR.', 'Could not issue QR.');
       Alert.alert(tr('Error de QR', 'QR error'), diagnosticMessage);
@@ -2778,10 +2786,16 @@ export default function CardsFactoryScreen() {
                 closeBusinessRowSwipe();
                 void toggleFavoriteBusinessCard(row);
               }}
-              accessibilityLabel={tr('Favorito', 'Favorite')}
+              accessibilityLabel={
+                row.isFavorite
+                  ? tr('Quitar de favoritos', 'Remove from favorites')
+                  : tr('Marcar favorito', 'Mark as favorite')
+              }
             >
               <MaterialCommunityIcons name={row.isFavorite ? 'heart' : 'heart-outline'} size={16} color="#FFFFFF" />
-              <Text style={styles.swipeActionText}>{row.isFavorite ? '♥' : '♡'}</Text>
+              <Text style={[styles.swipeActionText, styles.swipeFavoriteSwipeLabel]} numberOfLines={2}>
+                {row.isFavorite ? tr('Quitar favorito', 'Unfavorite') : tr('Marcar favorito', 'Favorite')}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.swipeDeleteBtn, { backgroundColor: cardsTheme.swipeDeleteBg }]}
@@ -2932,8 +2946,12 @@ export default function CardsFactoryScreen() {
         }}
         onSwipeableOpen={(direction) => {
           if (direction === 'right') {
+            // Igual que negocio: cerrar el swipe y diferir el Alert un frame para que
+            // RNGH termine la animación; si no, el Alert + modal pueden “congelar” la lista.
             swipeableMethodsByCardIdRef.current.get(item.sid)?.close();
-            confirmAndIssueQrForCard(item);
+            requestAnimationFrame(() => {
+              confirmAndIssueQrForCard(item);
+            });
           }
         }}
         renderRightActions={() => (
@@ -2980,10 +2998,16 @@ export default function CardsFactoryScreen() {
                 closeSmartCardRowSwipe();
                 toggleFavoriteCard(item);
               }}
-              accessibilityLabel={tr('Favorito', 'Favorite')}
+              accessibilityLabel={
+                item.isFavorite
+                  ? tr('Quitar de favoritos', 'Remove from favorites')
+                  : tr('Marcar favorito', 'Mark as favorite')
+              }
             >
               <MaterialCommunityIcons name={item.isFavorite ? 'star' : 'star-outline'} size={16} color="#FFFFFF" />
-              <Text style={styles.swipeActionText}>{item.isFavorite ? '★' : '☆'}</Text>
+              <Text style={[styles.swipeActionText, styles.swipeFavoriteSwipeLabel]} numberOfLines={2}>
+                {item.isFavorite ? tr('Quitar favorito', 'Unfavorite') : tr('Marcar favorito', 'Favorite')}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.swipeDeleteBtn, { backgroundColor: cardsTheme.swipeDeleteBg }]}
@@ -4744,6 +4768,12 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '700',
+  },
+  /** Swipe “favorito”: ancho fijo 64px; dos líneas evitan duplicar icono con símbolo ♥/★. */
+  swipeFavoriteSwipeLabel: {
+    fontSize: 9,
+    lineHeight: 10,
+    textAlign: 'center',
   },
   cardMetricRow: {
     marginTop: 8,
