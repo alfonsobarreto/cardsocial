@@ -1035,7 +1035,7 @@ export default function SearchScreen() {
           const res = await fetchPublicBusinessCardPreview({
             uid: card.uid,
             bId: card.bId,
-            locale: language === 'es' ? 'es' : 'en',
+            locale: language,
           });
           if (!res.ok) {
             Alert.alert(

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { fromWireCallDisplayCard, type CallDisplayCard } from './callDisplayCard';
+import { toAcceptLanguageHeader, type AppLanguage } from './language';
 
 /** Base URL del backend QR (misma que usa axios). Exportada para resolver URLs de medios (vault) en el device. */
 export function getApiBaseUrl(): string {
@@ -210,8 +211,8 @@ export function normalizePublicUniversalCardPayload(card: PublicUniversalCardPay
   };
 }
 
-function publicApiAcceptLanguage(locale?: 'en' | 'es'): { 'Accept-Language': string } {
-  return { 'Accept-Language': locale === 'es' ? 'es' : 'en' };
+function publicApiAcceptLanguage(locale?: AppLanguage): { 'Accept-Language': string } {
+  return toAcceptLanguageHeader(locale ?? 'en');
 }
 
 /** Sin JWT: el token opaco es el secreto. Usar en Expo Web para `/u/[token]`. */
@@ -219,7 +220,7 @@ export async function fetchPublicUniversalCardByToken(params: {
   token: string;
   source?: string;
   /** Alinea mensajes JSON con el idioma de la app (header Accept-Language). */
-  locale?: 'en' | 'es';
+  locale?: AppLanguage;
 }): Promise<
   | { ok: true; card: PublicUniversalCardPayload; source: string | null }
   | { ok: false; expired: boolean; error?: string }
@@ -344,7 +345,7 @@ export function normalizePublicQrTokenPreview(p: PublicQrTokenPreview): PublicQr
 /** Vista previa del QR dinámico sin consumir (modal de clasificación). */
 export async function fetchPublicQrTokenPreview(params: {
   token: string;
-  locale?: 'en' | 'es';
+  locale?: AppLanguage;
 }): Promise<{ ok: true; preview: PublicQrTokenPreview } | { ok: false; expired: boolean; error?: string }> {
   const baseUrl = getApiBaseUrl();
   let response;
@@ -393,7 +394,7 @@ export async function fetchPublicQrTokenPreview(params: {
 export async function consumeDynamicQrToken(params: {
   receiverUid: string;
   token: string;
-  locale?: 'en' | 'es';
+  locale?: AppLanguage;
 }): Promise<{ uid: string; receiverUid: string; sid: string | null; bId: string | null; shareGranted: boolean }> {
   const auth = await getScopedJwtToken(params.receiverUid, 'qr.access');
 
@@ -425,7 +426,7 @@ export async function consumeDynamicQrToken(params: {
 export async function fetchPublicBusinessCardPreview(params: {
   uid: string;
   bId: string;
-  locale?: 'en' | 'es';
+  locale?: AppLanguage;
 }): Promise<{ ok: true; preview: PublicQrTokenPreview } | { ok: false; error?: string }> {
   const baseUrl = getApiBaseUrl();
   let response;
@@ -471,7 +472,7 @@ export async function grantBusinessShareFromQr(params: {
   receiverUid: string;
   uid: string;
   bId: string;
-  locale?: 'en' | 'es';
+  locale?: AppLanguage;
 }): Promise<{ uid: string; receiverUid: string; bId: string; shareGranted: boolean }> {
   const auth = await getScopedJwtToken(params.receiverUid, 'qr.access');
 
@@ -504,7 +505,7 @@ export async function grantBusinessShareFromQr(params: {
 export async function redeemTemporaryAccessToken(params: {
   receiverUid: string;
   token: string;
-  locale?: 'en' | 'es';
+  locale?: AppLanguage;
 }): Promise<{ uid: string; receiverUid: string; sid: string | null; bId: string | null; shareGranted: boolean }> {
   const auth = await getScopedJwtToken(params.receiverUid, 'qr.access');
 
@@ -534,7 +535,7 @@ export async function redeemTemporaryAccessToken(params: {
 }
 
 /** Grupos del Búnker: valores por defecto + personalizados guardados en Mongo (`bunker_groups`). */
-export async function fetchBunkerGroups(viewerUid: string, locale?: 'en' | 'es'): Promise<string[]> {
+export async function fetchBunkerGroups(viewerUid: string, locale?: AppLanguage): Promise<string[]> {
   const auth = await getScopedJwtToken(viewerUid, 'qr.access');
 
   const response = await axios.get(`${auth.baseUrl}/api/qr/bunker/groups`, {
@@ -558,7 +559,7 @@ export async function fetchBunkerGroups(viewerUid: string, locale?: 'en' | 'es')
 export async function trackBunkerGroupUsage(params: {
   viewerUid: string;
   groupName: string;
-  locale?: 'en' | 'es';
+  locale?: AppLanguage;
 }): Promise<void> {
   const auth = await getScopedJwtToken(params.viewerUid, 'qr.access');
   const groupName = String(params.groupName || '').trim().slice(0, 60);

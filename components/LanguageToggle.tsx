@@ -167,7 +167,17 @@ export default function LanguageToggle() {
 
         <Animated.View style={[styles.toastContainer, { transform: [{ translateY: slideAnim }] }]}>
           <View style={styles.toastHandle} />
-          <Text style={styles.toastTitle}>{language === 'es' ? 'Idioma' : 'Language'}</Text>
+          <Text style={styles.toastTitle}>
+            {language === 'es'
+              ? 'Idioma'
+              : language === 'fr'
+                ? 'Langue'
+                : language === 'it'
+                  ? 'Lingua'
+                  : language === 'pt'
+                    ? 'Idioma'
+                    : 'Language'}
+          </Text>
 
           {SUPPORTED_LANGUAGES.map((lang) => {
             const isActive = lang.code === language;

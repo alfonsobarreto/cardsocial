@@ -199,7 +199,7 @@ export default function ScanScreen() {
       setIncomingScanMode('dynamic_qr');
       setIncomingPreviewOverride(null);
       setProcessing(true);
-      const locale = language === 'es' ? 'es' : 'en';
+      const locale = language;
       const okLabel = tr('Aceptar', 'OK');
       try {
         const preview = await fetchPublicQrTokenPreview({ token, locale });
@@ -251,7 +251,7 @@ export default function ScanScreen() {
       setIncomingPreviewOverride(null);
       setIncomingScanMode('universal');
       setProcessing(true);
-      const locale = language === 'es' ? 'es' : 'en';
+      const locale = language;
       const okLabel = tr('Aceptar', 'OK');
       try {
         const res = await fetchPublicUniversalCardByToken({
@@ -304,7 +304,7 @@ export default function ScanScreen() {
       setIncomingScanMode('business_permanent');
       setIncomingPreviewOverride(null);
       setProcessing(true);
-      const locale = language === 'es' ? 'es' : 'en';
+      const locale = language;
       const okLabel = tr('Aceptar', 'OK');
       try {
         const preview = await fetchPublicBusinessCardPreview({ uid: issuerUid, bId, locale });

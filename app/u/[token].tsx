@@ -16,7 +16,7 @@ export default function UniversalTokenScreen() {
   const { language } = useLanguage();
 
   const tr = useCallback((es: string, en: string) => (language === 'es' ? es : en), [language]);
-  const locale = language === 'es' ? 'es' : 'en';
+  const locale = language;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
