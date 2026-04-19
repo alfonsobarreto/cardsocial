@@ -1,11 +1,8 @@
 import axios from 'axios';
+import { resolveExpoPublicApiBaseUrl } from '@/services/expoPublicApiBaseUrl';
 
 function getApiBaseUrl(): string {
-  const envUrl = process.env.EXPO_PUBLIC_MODERATION_API_URL?.trim();
-  if (!envUrl) {
-    throw new Error('Missing EXPO_PUBLIC_MODERATION_API_URL. Set it in your Expo environment.');
-  }
-  return envUrl.replace(/\/+$/, '');
+  return resolveExpoPublicApiBaseUrl();
 }
 
 function getGatewayKey(): string {

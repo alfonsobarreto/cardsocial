@@ -45,12 +45,6 @@
           "NSAllowsArbitraryLoads": false,
           "NSAllowsLocalNetworking": true,
           "NSExceptionDomains": {
-            "192.168.12.96": {
-              "NSIncludesSubdomains": false,
-              "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
-              "NSTemporaryExceptionMinimumTLSVersion": "TLSv1.0",
-              "NSTemporaryExceptionAllowsInsecureHTTPSLoads": false
-            },
             "localhost": {
               "NSTemporaryExceptionAllowsInsecureHTTPLoads": true
             }

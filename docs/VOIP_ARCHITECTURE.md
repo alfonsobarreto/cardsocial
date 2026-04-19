@@ -2,8 +2,10 @@
 
 Este documento define la arquitectura estricta, el ciclo de vida y las "Reglas de Oro" del motor de llamadas de voz y video. Diseñado para evitar *race conditions*, fugas de memoria (motores zombie), colisiones de audio nativo y parpadeos de cámara (camera flickering).
 
+> **Actualización (repo):** La arquitectura se simplificó a favor del **flujo directo `GhostLinkCallProvider` + Agora**. Se eliminaron el esqueleto `VoIPCallContext`, los tipos `voipCallMachine.types.ts` y el mapa `ghostLinkToVoipPhaseMap.ts` (no estaban montados en runtime). El estado de producto vive en el provider con el enum **`VoIPCallPhase`**; el RTC lo concentra **`useAgoraRtc`** y `ghostLinkAgoraSession.ts`.
+
 ## 1. La Filosofía del Sistema (Single Source of Truth)
-El motor de llamadas está desacoplado de la UI previa. Utiliza un estricto Contexto Reactivo (`VoIPCallContext`) y un hook especializado (`useAgoraRtc`) para gobernar el estado de la llamada. 
+El motor de llamadas está concentrado en **`GhostLinkCallProvider`**: fases UI (`VoIPCallPhase`), signaling hacia el backend, timbre `expo-av`, y el hook **`useAgoraRtc`** para gobernar **join/handlers/teardown** de Agora tras el handoff de audio.
 
 **No usamos Agora RTM para el Signaling.** El "timbre" (Signaling) está gobernado por nuestro backend (Node + MongoDB `ghost_link_invites` + Expo Push Notifications/Polling). Agora entra en acción *después* o *durante* la aceptación de la llamada.
 
@@ -59,17 +61,18 @@ Esta sección enlaza la "Biblia" conceptual con los símbolos TypeScript y archi
 
 ### A.1 Nombres de fases en código
 
-* Las fases **IDLE**, **OUTGOING_CALLING**, **INCOMING_RINGING**, **CONNECTING**, **IN_CALL**, **ENDING** del §2 corresponden al tipo **`VoIPFsmPhase`** en `services/voip/voipCallMachine.types.ts` (máquina agnóstica / esqueleto `VoIPCallContext`).
-* Las fases de **UI Ghost-Link** (`idle`, `ringing_outgoing`, `active`, …) viven en el enum **`VoIPCallPhase`** en `services/voip/VoIPCallPhase.ts` y las consume `GhostLinkCallProvider`.
-* El puente entre ambas está en **`ghostPhaseToVoIPPhase()`** (`services/voip/ghostLinkToVoipPhaseMap.ts`).
+* Las fases nombradas en el §2 (**IDLE**, **OUTGOING_CALLING**, **CONNECTING**, **IN_CALL**, etc.) son **conceptuales** en este documento; en código el enum único de producto es **`VoIPCallPhase`** (`services/voip/VoIPCallPhase.ts`: `idle`, `ringing_outgoing`, `active`, …), consumido por **`GhostLinkCallProvider`** y **`GhostLinkCallOverlay`**. La transición “CONNECTING” en la práctica es el tramo cubierto por **`runVoipConnectingAudioHandoff`** + `shouldJoin` en **`useAgoraRtc`**, no un estado enum separado.
+* ~~`VoIPFsmPhase` / `VoIPCallContext` / `ghostLinkToVoipPhaseMap`~~ — **retirados**; evitaban duplicar el modelo sin estar cableados.
 
-### A.2 Single source of truth RTC* **`useAgoraRtc`** (`services/voip/useAgoraRtc.ts`): join, handlers, mic/altavoz, vídeo local/remoto (`isRemoteVideoEnabled`), `endRtcSession`.
+### A.2 Single source of truth RTC
+
+* **`useAgoraRtc`** (`services/voip/useAgoraRtc.ts`): join, handlers, mic/altavoz, vídeo local/remoto (`isRemoteVideoEnabled`), `endRtcSession`.
 * **`ghostLinkAgoraSession.ts`**: singleton `IRtcEngine`, `joinGhostLinkAgoraSession`, `leaveGhostLinkAgoraSession`, preview **`startGhostLinkLocalVideoPreview`** / **`stopGhostLinkLocalVideoPreview`**, reutilización preview→join con **`ghostLinkEnginePreviewOnly`** + **`lastPreviewAppId`**.
 
 ### A.3 Preview en timbre
 
 * Hook **`useGhostLinkRingingVideoPreview`** (`services/voip/useGhostLinkRingingVideoPreview.ts`): activa preview solo con `agora.appId`, mientras suena el timbre y **`!rtcHandoffComplete`**; el cleanup llama **`stopGhostLinkLocalVideoPreview`** (teardown del motor si aún no hay join).
-* Contexto expone **`localPreviewActive`** para la UI (`RingingLocalVideoBackdrop` en `components/GhostLinkCallOverlay.tsx`).
+* El **provider** y este hook alimentan la UI (`RingingLocalVideoBackdrop` en `components/GhostLinkCallOverlay.tsx`); no hay un `VoIPCallContext` intermedio.
 
 ### A.4 Teardown unificado y referencias circulares
 

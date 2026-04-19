@@ -1,4 +1,5 @@
 import { retryWithBackoff } from '@/services/retryWithBackoff';
+import { resolveExpoPublicApiBaseUrl } from '@/services/expoPublicApiBaseUrl';
 import axios from 'axios';
 
 export class ModerationRejectedError extends Error {
@@ -12,11 +13,7 @@ export class ModerationRejectedError extends Error {
 }
 
 function getApiBaseUrl(): string {
-  const envUrl = process.env.EXPO_PUBLIC_MODERATION_API_URL?.trim();
-  if (!envUrl) {
-    throw new Error('Missing EXPO_PUBLIC_MODERATION_API_URL. Set it in your Expo environment.');
-  }
-  return envUrl.replace(/\/+$/, '');
+  return resolveExpoPublicApiBaseUrl();
 }
 
 function getGatewayKey(): string {
