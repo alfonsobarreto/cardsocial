@@ -12,6 +12,7 @@ import {
   signInWithPopup,
 } from 'firebase/auth';
 import { auth } from '@/services/firebaseConfig';
+import { resolveExpoPublicApiBaseUrl } from '@/services/expoPublicApiBaseUrl';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -49,16 +50,7 @@ const getGoogleClientId = (): string => {
   return resolved;
 };
 
-const getBackendBaseUrl = (): string => {
-  const explicitBackend = process.env.EXPO_PUBLIC_BACKEND_BASE_URL?.trim();
-  const moderationApi = process.env.EXPO_PUBLIC_MODERATION_API_URL?.trim();
-  const resolved = explicitBackend || moderationApi;
-  if (!resolved) {
-    throw new Error('Falta EXPO_PUBLIC_BACKEND_BASE_URL o EXPO_PUBLIC_MODERATION_API_URL.');
-  }
-
-  return resolved.replace(/\/+$/, '');
-};
+const getBackendBaseUrl = (): string => resolveExpoPublicApiBaseUrl();
 
 const getGatewayKey = (): string => {
   const key = process.env.EXPO_PUBLIC_MODERATION_GATEWAY_KEY?.trim();

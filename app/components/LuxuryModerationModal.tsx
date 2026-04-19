@@ -4,7 +4,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
-import { useLanguage } from '@/services/language';
+import { trEsEn, useLanguage } from '@/services/language';
 
 type LuxuryModerationModalProps = {
   visible: boolean;
@@ -36,7 +36,7 @@ export default function LuxuryModerationModal({
 }: LuxuryModerationModalProps) {
   const { language } = useLanguage();
   const modalFooterBottomPad = useModalFooterBottomPad();
-  const tr = (es: string, en: string) => language === 'en' ? en : es;
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>

@@ -6,7 +6,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getActiveUserId } from '@/services/authSession';
 import { redeemQRGift } from '@/services/qrGiftService';
 import { ConfettiAnimation } from '../components/ConfettiAnimation';
-import { useLanguage } from '@/services/language';
+import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import palette from './theme';
 
@@ -18,7 +18,7 @@ export default function RedeemScreen() {
   const router = useRouter();
   const { code } = useLocalSearchParams();
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => language === 'en' ? en : es;
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const { resolvedMode } = useLookMode();
   const isDark = resolvedMode === 'noche';
   const shell = palette[isDark ? 'dark' : 'light'];

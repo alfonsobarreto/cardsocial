@@ -11,7 +11,7 @@ import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { getActiveUserId } from '@/services/authSession';
 import { db } from '@/services/firebaseConfig';
 import { readUserFullName, readUserNickName } from '@/services/userIdentityFields';
-import { useLanguage } from '@/services/language';
+import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import {
     BUSINESS_MEDALS,
@@ -82,7 +82,7 @@ export function MedalRatingModal({
   const P = isDark ? PT.dark : PT.light;
   const modalFooterBottomPad = useModalFooterBottomPad();
 
-  const tr = (es: string, en: string) => (language === 'en' ? en : es);
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
 
   // â”€â”€ estado â”€â”€
   const [myUid, setMyUid]         = useState<string | null>(null);

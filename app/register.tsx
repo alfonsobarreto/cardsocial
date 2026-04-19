@@ -1,8 +1,14 @@
 import ActivityIndicator from '@/components/BrandedSpinner';
+import CountryDialPickerModal from '@/components/CountryDialPickerModal';
 import { FREE_TIER_POLICY } from '@/constants/freeTierPolicy';
+import {
+  buildE164,
+  getNationalDigitBounds,
+  sanitizeNationalDigits,
+} from '@/constants/countryDialCodes';
 import { saveCachedCredentials } from '@/services/credentialVault';
 import { createDefaultCards, createDefaultVaultData, initializeUserCredits } from '@/services/creditsService';
-import { useLanguageOptional } from '@/services/language';
+import { trEsEn, useLanguageOptional } from '@/services/language';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, SocialProviderId } from '@/services/socialAuth';
 import { grantStudentPackCreditsIfEligible } from '@/services/studentPackService';
@@ -88,14 +94,17 @@ async function optimizePhotoForUpload(uri: string): Promise<string> {
 
 export default function RegisterScreen() {
   const langCtx = useLanguageOptional();
-  const language = langCtx?.language ?? 'es';
-  const tr = (es: string, en: string) => (language === 'en' ? en : es);
+  const language = langCtx?.language ?? 'en';
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const modalFooterBottomPad = useModalFooterBottomPad();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [nickname, setNickname] = useState('');
   const [email, setEmail] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [phoneDialCode, setPhoneDialCode] = useState('+1');
+  const [phoneNational, setPhoneNational] = useState('');
+  const [countryPickerVisible, setCountryPickerVisible] = useState(false);
+  const phoneNumber = useMemo(() => buildE164(phoneDialCode, phoneNational), [phoneDialCode, phoneNational]);
   const [birthDate, setBirthDate] = useState('');
   const [city, setCity] = useState('');
   const [stateRegion, setStateRegion] = useState('');
@@ -353,13 +362,15 @@ export default function RegisterScreen() {
 
   useEffect(() => {
     const phoneNormalized = phoneNumber.replace(/[^\d+]/g, '');
+    const national = sanitizeNationalDigits(phoneNational);
+    const { min, max } = getNationalDigitBounds(phoneDialCode);
 
-    if (!phoneNormalized) {
+    if (!national) {
       setPhoneStatus('idle');
       return;
     }
 
-    if (phoneNormalized.replace(/\D/g, '').length < 8) {
+    if (national.length < min || national.length > max) {
       setPhoneStatus('invalid');
       return;
     }
@@ -385,7 +396,7 @@ export default function RegisterScreen() {
     }, 450);
 
     return () => clearTimeout(timeout);
-  }, [phoneNumber]);
+  }, [phoneNumber, phoneDialCode, phoneNational]);
 
   useEffect(() => {
     if (city.trim() || stateRegion.trim() || country.trim()) {
@@ -741,6 +752,10 @@ export default function RegisterScreen() {
     const fullName = `${normalizedFirstName} ${normalizedLastName}`.trim();
     const nicknameLower = normalizedNickname.toLowerCase();
     const emailLower = email.trim().toLowerCase();
+    const phoneNationalClean = sanitizeNationalDigits(phoneNational);
+    const phoneBounds = getNationalDigitBounds(phoneDialCode);
+    const phoneComplete =
+      phoneNationalClean.length >= phoneBounds.min && phoneNationalClean.length <= phoneBounds.max;
     const phoneNormalized = normalizePhone(phoneNumber);
     const parsedBirthDate = parseBirthDate(birthDate);
 
@@ -757,7 +772,7 @@ export default function RegisterScreen() {
       !normalizedLastName ||
       !normalizedNickname ||
       !email.trim() ||
-      !phoneNormalized ||
+      !phoneComplete ||
       !birthDate.trim() ||
       !normalizedCity ||
       !normalizedStateRegion ||
@@ -1168,17 +1183,33 @@ export default function RegisterScreen() {
           </Text>
 
           <Text style={styles.label}>{tr('Telefono (Unico)', 'Phone (Unique)')}</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="+1 000 000 0000"
-            placeholderTextColor="#8E8E93"
-            keyboardType="phone-pad"
-            value={phoneNumber}
-            onChangeText={setPhoneNumber}
-            autoComplete="off"
-            textContentType="none"
-            importantForAutofill="no"
-          />
+          <View style={styles.phoneRow}>
+            <TouchableOpacity
+              style={styles.phoneDialButton}
+              onPress={() => setCountryPickerVisible(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.phoneDialText}>{phoneDialCode}</Text>
+              <Text style={styles.phoneDialChevron}>▼</Text>
+            </TouchableOpacity>
+            <TextInput
+              style={[styles.input, styles.phoneNationalInput]}
+              placeholder={(() => {
+                const { min, max } = getNationalDigitBounds(phoneDialCode);
+                return tr(`${min}–${max} dígitos`, `${min}–${max} digits`);
+              })()}
+              placeholderTextColor="#8E8E93"
+              keyboardType="phone-pad"
+              value={phoneNational}
+              onChangeText={(t) =>
+                setPhoneNational(sanitizeNationalDigits(t).slice(0, getNationalDigitBounds(phoneDialCode).max))
+              }
+              maxLength={getNationalDigitBounds(phoneDialCode).max}
+              autoComplete="off"
+              textContentType="none"
+              importantForAutofill="no"
+            />
+          </View>
           <Text
             style={[
               styles.validationText,
@@ -1193,7 +1224,10 @@ export default function RegisterScreen() {
                 : phoneStatus === 'taken'
                   ? tr('Numero ya existe', 'This phone number already exists')
                   : phoneStatus === 'invalid'
-                    ? tr('Numero invalido (minimo 8 digitos)', 'Invalid phone number (minimum 8 digits)')
+                    ? tr(
+                        'Numero invalido para el prefijo elegido.',
+                        'Invalid phone number for the selected country code.',
+                      )
                     : tr('Ingresa tu numero para validar disponibilidad', 'Enter your phone number to check availability')}
           </Text>
 
@@ -1401,6 +1435,24 @@ export default function RegisterScreen() {
             setSuccessTransitionVisible(false);
             router.replace('/(tabs)/vault');
           }}
+        />
+
+        <CountryDialPickerModal
+          visible={countryPickerVisible}
+          onClose={() => setCountryPickerVisible(false)}
+          onSelect={(entry) => {
+            setPhoneDialCode(entry.code);
+            setPhoneNational((prev) => sanitizeNationalDigits(prev).slice(0, entry.maxDigits));
+          }}
+          title={tr('Código de país', 'Country code')}
+          topSectionTitle={tr('Destacados', 'Top')}
+          restSectionTitle={tr('Todos los países', 'All countries')}
+          searchPlaceholder={tr('Buscar país o prefijo…', 'Search country or code…')}
+          surfaceBg="#FFFFFF"
+          textPrimary="#0A2540"
+          textSecondary="#8E8E93"
+          border="#7BC2EC"
+          inputBg="rgba(255,255,255,0.95)"
         />
 
         <Modal
@@ -1719,6 +1771,37 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     color: '#0A2540',
     fontSize: 16,
+  },
+  phoneRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 20,
+  },
+  phoneDialButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 18,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#7BC2EC',
+    gap: 6,
+  },
+  phoneDialText: {
+    color: '#0A2540',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  phoneDialChevron: {
+    color: '#0D4D8A',
+    fontSize: 10,
+  },
+  phoneNationalInput: {
+    flex: 1,
+    marginBottom: 0,
   },
   passwordRow: {
     width: '100%',

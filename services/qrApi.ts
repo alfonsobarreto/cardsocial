@@ -1,20 +1,11 @@
 import axios from 'axios';
+import { resolveExpoPublicApiBaseUrl } from '@/services/expoPublicApiBaseUrl';
 import { fromWireCallDisplayCard, type CallDisplayCard } from './callDisplayCard';
 import { toAcceptLanguageHeader, type AppLanguage } from './language';
 
 /** Base URL del backend QR (misma que usa axios). Exportada para resolver URLs de medios (vault) en el device. */
 export function getApiBaseUrl(): string {
-  const envUrl = process.env.EXPO_PUBLIC_MODERATION_API_URL?.trim();
-  if (!envUrl) {
-    throw new Error('Missing EXPO_PUBLIC_MODERATION_API_URL. Set it in your Expo environment.');
-  }
-  const normalized = envUrl.replace(/\/+$/, '');
-  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(normalized)) {
-    throw new Error(
-      'EXPO_PUBLIC_MODERATION_API_URL no puede ser localhost en móvil físico. Usa IP LAN (ej. http://192.168.x.x:4000) o URL HTTPS pública.'
-    );
-  }
-  return normalized;
+  return resolveExpoPublicApiBaseUrl();
 }
 
 function getGatewayKey(): string {
@@ -1588,16 +1579,21 @@ export type CallHistoryRow = {
 export async function listCallsHistory(params: { uid: string }): Promise<{ count: number; history: CallHistoryRow[] }> {
   const auth = await getScopedJwtToken(params.uid, 'qr.access');
 
-  const response = await axios.get(`${auth.baseUrl}/api/qr/calls/history`, {
-    params: {
-      uid: params.uid,
-    },
-    headers: {
-      'x-api-gateway-key': auth.gatewayKey,
-      Authorization: `Bearer ${auth.token}`,
-    },
-    timeout: 15000,
-  });
+  let response: any;
+  try {
+    response = await axios.get(`${auth.baseUrl}/api/qr/calls/history`, {
+      params: {
+        uid: params.uid,
+      },
+      headers: {
+        'x-api-gateway-key': auth.gatewayKey,
+        Authorization: `Bearer ${auth.token}`,
+      },
+      timeout: 15000,
+    });
+  } catch (error: any) {
+    throw mapQrNetworkError(error, auth.baseUrl);
+  }
 
   const rows = Array.isArray(response?.data?.history) ? response.data.history : [];
   const history: CallHistoryRow[] = rows.map((row: any) => {

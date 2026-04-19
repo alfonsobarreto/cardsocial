@@ -1,6 +1,6 @@
 import { getActiveUserId } from '@/services/authSession';
 import { requestGhostLinkCallImperative } from '@/services/GhostLinkCallProvider';
-import { useLanguage } from '@/services/language';
+import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import appPalette from '../theme';
 import {
@@ -208,7 +208,7 @@ function callsHistoryRowUi(
 
 export default function CallsPage() {
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => language === 'en' ? en : es;
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
   const shell = appPalette[isNight ? 'dark' : 'light'];
@@ -460,36 +460,51 @@ export default function CallsPage() {
         return;
       }
 
-      const [historyResponse, contactsResponse] = await Promise.all([
-        listCallsHistory({ uid }),
-        listReceivedContacts({ uid }),
-      ]);
+      let historyRows: CallHistoryRow[] = [];
+      try {
+        const historyResponse = await listCallsHistory({ uid });
+        historyRows = historyResponse.history;
+      } catch (error: any) {
+        Alert.alert(
+          tr('No se pudo cargar Calls', 'Could not load Calls'),
+          error?.message || tr('Intenta de nuevo.', 'Try again.'),
+        );
+        setHistory([]);
+        setContacts([]);
+        return;
+      }
 
-      setHistory(historyResponse.history);
-      setContacts(
-        contactsResponse.contacts.map((row) => {
-          const sid = row.sid != null && String(row.sid).trim() ? String(row.sid).trim() : null;
-          const bId = row.bId != null && String(row.bId).trim() ? String(row.bId).trim() : null;
-          return {
-            linkKey: receivedContactMergeKey({ uid: row.uid, sid, bId }),
-            uid: row.uid,
-            sid,
-            bId,
-            userFullName: row.userFullName,
-            userNickName: row.userNickName,
-            userAvatarUrl: row.userAvatarUrl,
-            cardName: row.cardName,
-            bcContactName:
-              row.bcContactName != null && String(row.bcContactName).trim()
-                ? String(row.bcContactName).trim()
-                : null,
-            holdersCount: row.holdersCount,
-            ratingAvg: row.ratingAvg,
-            storyState: row.storyState,
-            cardType: row.cardType === 'business' ? 'business' : row.cardType === 'smart' ? 'smart' : undefined,
-          };
-        }),
-      );
+      setHistory(historyRows);
+
+      try {
+        const contactsResponse = await listReceivedContacts({ uid });
+        setContacts(
+          contactsResponse.contacts.map((row) => {
+            const sid = row.sid != null && String(row.sid).trim() ? String(row.sid).trim() : null;
+            const bId = row.bId != null && String(row.bId).trim() ? String(row.bId).trim() : null;
+            return {
+              linkKey: receivedContactMergeKey({ uid: row.uid, sid, bId }),
+              uid: row.uid,
+              sid,
+              bId,
+              userFullName: row.userFullName,
+              userNickName: row.userNickName,
+              userAvatarUrl: row.userAvatarUrl,
+              cardName: row.cardName,
+              bcContactName:
+                row.bcContactName != null && String(row.bcContactName).trim()
+                  ? String(row.bcContactName).trim()
+                  : null,
+              holdersCount: row.holdersCount,
+              ratingAvg: row.ratingAvg,
+              storyState: row.storyState,
+              cardType: row.cardType === 'business' ? 'business' : row.cardType === 'smart' ? 'smart' : undefined,
+            };
+          }),
+        );
+      } catch {
+        setContacts([]);
+      }
     } catch (error: any) {
       Alert.alert(tr('No se pudo cargar Calls', 'Could not load Calls'), error?.message || tr('Intenta de nuevo.', 'Try again.'));
     } finally {

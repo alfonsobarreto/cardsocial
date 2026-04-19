@@ -13,7 +13,7 @@ import { hasActiveBusinessLicense } from '@/services/businessLicenseService';
 import { trackCardAnalyticsFireAndForget } from '@/services/cardAnalytics';
 import { getPremiumStoryCost, getUserCreditsBalance, purchasePremiumStoryWithCredits } from '@/services/creditsService';
 import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
-import { useLanguage } from '@/services/language';
+import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { db } from '@/services/firebaseConfig';
 import { getMyStoryState, getStoriesHouseAd, listReceivedContacts, listSmartCardsFromDb, setMyStoryState, type HouseAdStory } from '@/services/qrApi';
@@ -268,7 +268,7 @@ function resolveStoryHubCardId(uid: string, cardsRows: SmartCard[], activeStorie
 
 export default function StoriesPage() {
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => language === 'en' ? en : es;
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
   const shell = appPalette[isNight ? 'dark' : 'light'];

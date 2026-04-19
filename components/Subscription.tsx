@@ -1,6 +1,6 @@
 import { getActiveUserId } from '@/services/authSession';
 import { purchaseBusinessCard } from '@/services/businessCardPaywallService';
-import { useLanguage } from '@/services/language';
+import { useTr } from '@/services/language';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
@@ -18,12 +18,6 @@ import Purchases from 'react-native-purchases';
 import GoldenRingButton from './GoldenRingButton';
 
 const { width } = Dimensions.get('window');
-
-// Traducción local
-const useTr = () => {
-  const { language } = useLanguage();
-  return (es: string, en: string) => language === 'en' ? en : es;
-};
 
 interface SubscriptionProps {
   onClose?: () => void;

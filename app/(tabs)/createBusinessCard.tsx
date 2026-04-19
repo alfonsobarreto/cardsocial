@@ -2,7 +2,12 @@ import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BusinessCardKeywordTags } from '@/components/BusinessCardKeywordTags';
 import { ThemedSharedCardSurface } from '@/components/ThemedSharedCardSurface';
-import { CARD_THEMES as CHEST_THEMES, getThemeById, TIER_META, type CardTheme as ChestCardTheme, type ThemeTier } from '@/constants/themeChest';
+import {
+  computeThemeLockerTileWidth,
+  THEME_LOCKER_TILE_GAP,
+  ThemeLockerThemeTile,
+} from '@/components/ThemeLockerThemeTile';
+import { getThemeById, getThemesByTier, TIER_META, type CardTheme as ChestCardTheme, type ThemeTier } from '@/constants/themeChest';
 import { getActiveUserId } from '@/services/authSession';
 import { generatePermanentBusinessLink } from '@/services/brandedQrService';
 import {
@@ -23,7 +28,7 @@ import {
 import { db } from '@/services/firebaseConfig';
 import { readUserAvatarUrl, readUserFullName } from '@/services/userIdentityFields';
 import { getUserIconVaultMap, type IconVaultEntry } from '@/services/iconVaultService';
-import { useLanguage } from '@/services/language';
+import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { uploadFileWithModeration } from '@/services/moderationApi';
 import { getCardRowTheme, useActiveTheme } from '@/services/useActiveTheme';
@@ -55,6 +60,7 @@ import {
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
@@ -265,13 +271,21 @@ export default function CreateBusinessCardScreen() {
   const routeBId = typeof params.bId === 'string' ? params.bId : params.bId?.[0] || '';
   const safeInsets = useSafeAreaInsets();
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => (language === 'en' ? en : es);
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const modalFooterBottomPad = useModalFooterBottomPad();
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
   const shell = palette[isNight ? 'dark' : 'light'];
+  const { width: windowWidth } = useWindowDimensions();
   const { unlockedIds, refreshThemes } = useActiveTheme();
   const isChestThemeUnlocked = (t: ChestCardTheme) => !t.locked || unlockedIds.has(t.id);
+  const [bizThemesModalContentW, setBizThemesModalContentW] = useState<number | null>(null);
+  const bizThemesTileWidth = useMemo(() => {
+    const boxOuter = Math.min(380, windowWidth * 0.85);
+    const fallbackInner = Math.max(200, boxOuter - 32);
+    const inner = bizThemesModalContentW ?? fallbackInner;
+    return computeThemeLockerTileWidth(inner);
+  }, [windowWidth, bizThemesModalContentW]);
 
   const [links, setLinks] = useState<VaultLinkRow[]>([]);
   const [iconVaultById, setIconVaultById] = useState<Record<string, IconVaultEntry>>({});
@@ -1695,32 +1709,51 @@ export default function CreateBusinessCardScreen() {
                   <MaterialCommunityIcons name="close" size={22} color={sub} />
                 </TouchableOpacity>
               </View>
-              <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
+              <ScrollView
+                style={{ maxHeight: 440 }}
+                contentContainerStyle={{ paddingBottom: 8 }}
+                showsVerticalScrollIndicator={false}
+                onLayout={(e) => {
+                  const w = e.nativeEvent.layout.width;
+                  if (w > 0) {
+                    setBizThemesModalContentW((prev) => (Math.abs((prev ?? 0) - w) > 0.5 ? w : prev));
+                  }
+                }}
+              >
                 {(['fresh', 'moderno', 'luxury'] as ThemeTier[]).map((tier) => {
                   const meta = TIER_META[tier];
-                  const tierThemes = CHEST_THEMES.filter((t) => t.tier === tier);
+                  const tierThemes = getThemesByTier(tier);
                   return (
-                    <View key={tier} style={{ marginBottom: 12 }}>
-                      <Text style={[styles.themeTierLabel, { color: text }]}>
-                        {meta.emoji} {language === 'en' ? meta.label[1] : meta.label[0]}
-                      </Text>
-                      <View style={styles.themesPlaceholderGrid}>
+                    <View key={tier} style={styles.bizThemesTierSection}>
+                      <View style={styles.bizThemesTierHeader}>
+                        <Text style={styles.bizThemesTierEmoji}>{meta.emoji}</Text>
+                        <Text style={[styles.bizThemesTierLabel, { color: text }]}>
+                          {language === 'en' ? meta.label[1] : meta.label[0]}
+                        </Text>
+                        <View
+                          style={[
+                            styles.bizThemesTierLine,
+                            { backgroundColor: tier === 'luxury' ? '#D4AF37' : border },
+                          ]}
+                        />
+                      </View>
+                      <View style={[styles.bizThemesTierGrid, { gap: THEME_LOCKER_TILE_GAP }]}>
                         {tierThemes.map((t) => (
-                          <TouchableOpacity
+                          <ThemeLockerThemeTile
                             key={t.id}
-                            style={[
-                              styles.themePlaceholderTile,
-                              businessThemeId === t.id && { borderWidth: 3, borderColor: '#C5A065', borderRadius: 14 },
-                              !isChestThemeUnlocked(t) ? { opacity: 0.5 } : null,
-                            ]}
+                            theme={t}
+                            isActive={businessThemeId === t.id}
+                            isUnlocked={isChestThemeUnlocked(t)}
+                            tileWidth={bizThemesTileWidth}
+                            reviewsLabel={tr('4.8 · 12 reseñas', '4.8 · 12 reviews')}
                             onPress={() => {
                               if (!isChestThemeUnlocked(t)) {
                                 Toast.show({
                                   type: 'info',
                                   text1: tr('Tema bloqueado', 'Theme locked'),
                                   text2: tr(
-                                    'Desbloquéalo en Card-Studio (boutique).',
-                                    'Unlock it in Card-Studio (boutique).',
+                                    'Desbloquéalo en Locker de Estilos o La Fragua.',
+                                    'Unlock it in Theme Locker or The Forge.',
                                   ),
                                   position: 'bottom',
                                   visibilityTime: 2800,
@@ -1730,30 +1763,7 @@ export default function CreateBusinessCardScreen() {
                               setBusinessThemeId(t.id);
                               void Haptics.selectionAsync();
                             }}
-                            activeOpacity={0.75}
-                          >
-                            <LinearGradient
-                              colors={t.background}
-                              style={[
-                                styles.themePlaceholderSwatch,
-                                { borderColor: t.border.color, borderWidth: t.border.width, borderRadius: 12 },
-                              ]}
-                            />
-                            <View style={styles.themePlaceholderIconRow}>
-                              <MaterialCommunityIcons name={t.icon.name as any} size={18} color={t.icon.color} />
-                              {t.locked && !unlockedIds.has(t.id) ? (
-                                <MaterialCommunityIcons name="lock-outline" size={12} color={t.border.color} />
-                              ) : null}
-                            </View>
-                            <Text style={[styles.themePlaceholderName, { color: t.title.color }]} numberOfLines={1}>
-                              {t.name}
-                            </Text>
-                            {businessThemeId === t.id ? (
-                              <View style={styles.themePlaceholderLock}>
-                                <MaterialCommunityIcons name="check-circle" size={20} color="#C5A065" />
-                              </View>
-                            ) : null}
-                          </TouchableOpacity>
+                          />
                         ))}
                       </View>
                     </View>
@@ -1853,49 +1863,34 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  themeTierLabel: {
-    fontSize: 13,
-    fontWeight: '800',
-    marginBottom: 8,
-    marginTop: 2,
+  bizThemesTierSection: {
+    marginBottom: 16,
   },
-  themesPlaceholderGrid: {
+  bizThemesTierHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  bizThemesTierEmoji: {
+    fontSize: 18,
+  },
+  bizThemesTierLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  bizThemesTierLine: {
+    flex: 1,
+    height: 1,
+    marginLeft: 8,
+  },
+  bizThemesTierGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 4,
-  },
-  themePlaceholderTile: {
-    width: '30%',
-    borderRadius: 12,
-    overflow: 'visible',
-    position: 'relative',
-    alignItems: 'center',
-    paddingBottom: 4,
-  },
-  themePlaceholderSwatch: {
-    width: '100%',
-    height: 70,
-    borderRadius: 12,
-  },
-  themePlaceholderIconRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 4,
-  },
-  themePlaceholderLock: {
-    position: 'absolute',
-    top: 28,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  themePlaceholderName: {
-    marginTop: 6,
-    fontSize: 10,
-    fontWeight: '700',
-    textAlign: 'center',
+    justifyContent: 'flex-start',
+    alignContent: 'flex-start',
   },
   label: { fontSize: 13, fontWeight: '700', marginBottom: 6 },
   input: {

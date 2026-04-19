@@ -1,4 +1,5 @@
 import { isGhostLinkAgoraNativeAvailable } from '@/services/expoGoAgoraGuard';
+import { resolveExpoPublicApiBaseUrl } from '@/services/expoPublicApiBaseUrl';
 import axios from 'axios';
 import { Alert } from 'react-native';
 
@@ -173,11 +174,7 @@ export type GhostLinkIncomingInvite = {
 };
 
 function getApiBaseUrl(): string {
-  const envUrl = process.env.EXPO_PUBLIC_MODERATION_API_URL?.trim();
-  if (!envUrl) {
-    throw new Error('Missing EXPO_PUBLIC_MODERATION_API_URL.');
-  }
-  return envUrl.replace(/\/+$/, '');
+  return resolveExpoPublicApiBaseUrl();
 }
 
 function getGatewayKey(): string {

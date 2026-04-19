@@ -14,21 +14,12 @@
  */
 
 import axios from 'axios';
+import { resolveExpoPublicApiBaseUrl } from '@/services/expoPublicApiBaseUrl';
 
 export type BackendScope = 'moderation.upload' | 'qr.access';
 
 export function getApiBaseUrl(): string {
-  const envUrl = process.env.EXPO_PUBLIC_MODERATION_API_URL?.trim();
-  if (!envUrl) {
-    throw new Error('Missing EXPO_PUBLIC_MODERATION_API_URL. Set it in your Expo environment.');
-  }
-  const normalized = envUrl.replace(/\/+$/, '');
-  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(normalized)) {
-    throw new Error(
-      'EXPO_PUBLIC_MODERATION_API_URL no puede ser localhost en móvil físico. Usa IP LAN (ej. http://192.168.x.x:4000) o URL HTTPS pública.',
-    );
-  }
-  return normalized;
+  return resolveExpoPublicApiBaseUrl();
 }
 
 export function getApiGatewayKey(): string {

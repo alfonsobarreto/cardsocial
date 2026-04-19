@@ -3,7 +3,7 @@
  */
 
 import { getUserCreditsBalance } from '@/services/creditsService';
-import { useLanguage } from '@/services/language';
+import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -16,8 +16,8 @@ interface CreditsIndicatorProps {
 }
 
 export const CreditsIndicator: React.FC<CreditsIndicatorProps> = ({ userId, refreshTrigger }) => {
-  const { language } = useLanguage ? useLanguage() : { language: 'es' };
-  const tr = (es: string, en: string) => (language === 'en' ? en : es);
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const { resolvedMode } = useLookMode();
   const shell = palette[resolvedMode === 'noche' ? 'dark' : 'light'];
   const colors = useMemo(

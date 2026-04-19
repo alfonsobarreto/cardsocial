@@ -4,7 +4,7 @@ import { initiateAccountRecovery } from '@/services/accountRecoveryService';
 import { saveCachedCredentials } from '@/services/credentialVault';
 import { auth, db } from '@/services/firebaseConfig';
 import { firestoreFirstUserDocByNickLower } from '@/services/userIdentityFields';
-import { useLanguageOptional } from '@/services/language';
+import { trEsEn, useLanguageOptional } from '@/services/language';
 import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, SocialProviderId } from '@/services/socialAuth';
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -32,8 +32,8 @@ import {
 export default function SignInScreen() {
   const router = useRouter();
   const langCtx = useLanguageOptional();
-  const language = langCtx?.language ?? 'es';
-  const tr = (es: string, en: string) => (language === 'en' ? en : es);
+  const language = langCtx?.language ?? 'en';
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);

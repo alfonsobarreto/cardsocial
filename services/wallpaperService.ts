@@ -1,4 +1,5 @@
 import { db, storage } from '@/services/firebaseConfig';
+import { resolveExpoPublicApiBaseUrl } from '@/services/expoPublicApiBaseUrl';
 import {
   collection,
   doc,
@@ -184,12 +185,11 @@ export async function uploadWallpaperAsAdmin(params: {
   // de DO Spaces en su .env. El frontend nunca toca S3 directamente.
   // ─────────────────────────────────────────────────────────────────────────
   try {
-    const backendUrl =
-      process.env.EXPO_PUBLIC_MODERATION_API_URL?.replace(/\/+$/, '') ||
-      process.env.EXPO_PUBLIC_BACKEND_BASE_URL?.replace(/\/+$/, '');
-
-    if (!backendUrl) {
-      return { success: false, error: 'EXPO_PUBLIC_MODERATION_API_URL no configurada' };
+    let backendUrl: string;
+    try {
+      backendUrl = resolveExpoPublicApiBaseUrl();
+    } catch {
+      return { success: false, error: 'EXPO_PUBLIC_BACKEND_BASE_URL / EXPO_PUBLIC_MODERATION_API_URL no configurada' };
     }
 
     // Construir multipart/form-data

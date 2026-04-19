@@ -10,7 +10,7 @@ import { getSearchableStringsFromVaultLikeItem, orderByDeepSearchWithExpandedQue
 import { db } from '@/services/firebaseConfig';
 import { readUserFullName, readUserNickName } from '@/services/userIdentityFields';
 import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
-import { useLanguage } from '@/services/language';
+import { trEsEn, useLanguage } from '@/services/language';
 import { listBusinessLicenses } from '@/services/businessLicenseService';
 import { validateVaultItemCreation } from '@/services/limitService';
 import { useLookMode } from '@/services/lookMode';
@@ -82,7 +82,7 @@ const VaultScreen = () => {
   const router = useRouter();
   const { language } = useLanguage();
   const { resolvedMode } = useLookMode();
-  const tr = (es: string, en: string) => language === 'en' ? en : es;
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const isNight = resolvedMode === 'noche';
   const vaultTheme = appPalette[isNight ? 'dark' : 'light'];
   const [links, setLinks] = useState<Link[]>([]);

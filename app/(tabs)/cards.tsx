@@ -93,7 +93,7 @@ import {
 import { type CardFontItem, type FontTier } from '@/services/fontLibraryService';
 import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
 import { getUserIconVaultMap, type IconVaultEntry } from '@/services/iconVaultService';
-import { useLanguage } from '@/services/language';
+import { trEsEn, useLanguage } from '@/services/language';
 import { validateCardCreation } from '@/services/limitService';
 import { useLookMode } from '@/services/lookMode';
 import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
@@ -533,7 +533,7 @@ export default function CardsFactoryScreen() {
   const cardsTheme = palette[isDark ? 'dark' : 'light'];
   const router = useRouter();
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => language === 'en' ? en : es;
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const [vaultItems, setVaultItems] = useState<VaultItem[]>([]);
   const [iconVaultById, setIconVaultById] = useState<Record<string, IconVaultEntry>>({});
   const [smartCards, setSmartCards] = useState<SmartCard[]>([]);
@@ -543,12 +543,15 @@ export default function CardsFactoryScreen() {
   const [cardName, setCardName] = useState('');
   const [layoutMode, setLayoutMode] = useState<'vertical' | 'horizontal'>('vertical');
   const [themeId, setThemeId] = useState<string>('deep_teal');
-  /** Ancho de tile del modal Temas (misma fórmula que Locker de Estilos, caja 85% / max 380 menos padding). */
+  /** Ancho real del área scroll del modal Temas (evita desfase vs % del modal → 2 columnas). */
+  const [themesModalContentW, setThemesModalContentW] = useState<number | null>(null);
+  /** Misma fórmula que Locker: 3 tiles por fila según ancho medido o fallback al ancho de pantalla. */
   const themesModalTileWidth = useMemo(() => {
     const boxOuter = Math.min(400, width * 0.92);
-    const contentInner = Math.max(200, boxOuter - 32);
-    return computeThemeLockerTileWidth(contentInner);
-  }, [width]);
+    const fallbackInner = Math.max(200, boxOuter - 32);
+    const inner = themesModalContentW ?? fallbackInner;
+    return computeThemeLockerTileWidth(inner);
+  }, [width, themesModalContentW]);
   const [selectedFont, setSelectedFont] = useState<CardFontItem | null>(null);
   const [resolvedFontFamily, setResolvedFontFamily] = useState<string | null>(null);
   const [selectedWallpaper, setSelectedWallpaper] = useState<WallpaperItem | null>(null);
@@ -3857,6 +3860,12 @@ export default function CardsFactoryScreen() {
                   showsVerticalScrollIndicator={false}
                   bounces={false}
                   overScrollMode="never"
+                  onLayout={(e) => {
+                    const w = e.nativeEvent.layout.width;
+                    if (w > 0) {
+                      setThemesModalContentW((prev) => (Math.abs((prev ?? 0) - w) > 0.5 ? w : prev));
+                    }
+                  }}
                 >
                   {(['fresh', 'moderno', 'luxury'] as ThemeTier[]).map((tier) => {
                     const meta = TIER_META[tier];
@@ -6146,6 +6155,8 @@ const styles = StyleSheet.create({
   themesLockerTierGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    alignContent: 'flex-start',
   },
   themesPlaceholderModal: {
     width: '100%',

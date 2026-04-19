@@ -89,7 +89,7 @@ function useDisplayGhostCallData(): GhostCallData | null {
   return idCtx.mergeDisplay(callData);
 }
 import { isGhostLinkAgoraNativeAvailable } from '@/services/expoGoAgoraGuard';
-import { useLanguage } from '@/services/language';
+import { useTr } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import palette, { type AppShellTheme } from '@/app/theme';
 import { brandCsIconLogoBgTransparent } from '@/constants/brandAssets';
@@ -119,11 +119,6 @@ if (isGhostLinkAgoraNativeAvailable()) {
   } catch {
     /* Expo Go — skip */
   }
-}
-
-function useTr() {
-  const { language } = useLanguage();
-  return (es: string, en: string) => (language === 'en' ? en : es);
 }
 
 /**

@@ -1,26 +1,31 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import en from './locales/en.json';
-import es from './locales/es.json';
-import fr from './locales/fr.json';
-import it from './locales/it.json';
-import pt from './locales/pt.json';
+import enBase from './locales/en.json';
+import enUi from './locales/_generated/en.fragment.json';
+import esBase from './locales/es.json';
+import esUi from './locales/_generated/es.fragment.json';
+import frBase from './locales/fr.json';
+import frUi from './locales/_generated/fr.fragment.json';
+import itBase from './locales/it.json';
+import itUi from './locales/_generated/it.fragment.json';
+import ptBase from './locales/pt.json';
+import ptUi from './locales/_generated/pt.fragment.json';
 
 const resources = {
-  es: { translation: es },
-  en: { translation: en },
-  fr: { translation: fr },
-  it: { translation: it },
-  pt: { translation: pt },
+  en: { translation: { ...enBase, ...enUi } },
+  es: { translation: { ...esBase, ...esUi } },
+  fr: { translation: { ...frBase, ...frUi } },
+  it: { translation: { ...itBase, ...itUi } },
+  pt: { translation: { ...ptBase, ...ptUi } },
 };
 
-i18n
-  .use(initReactI18next)
-  .init({
-    resources,
-    lng: 'es',
-    fallbackLng: 'en',
-    interpolation: { escapeValue: false },
-  });
+i18n.use(initReactI18next).init({
+  resources,
+  lng: 'en',
+  fallbackLng: 'en',
+  supportedLngs: ['en', 'es', 'fr', 'it', 'pt'],
+  interpolation: { escapeValue: false },
+  returnEmptyString: false,
+});
 
 export default i18n;

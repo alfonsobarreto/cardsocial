@@ -16,7 +16,7 @@ import {
 } from '@/services/userIdentityFields';
 import { resolveProfileAvatarDisplayUri } from '@/services/userProfilePhoto';
 import { requestLocationPermission } from '@/services/geolocationService';
-import { useLanguage } from '@/services/language';
+import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { listBlockedRelations, unblockRelationship } from '@/services/qrApi';
 import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
@@ -128,7 +128,7 @@ type EditableProfile = {
 export default function TabLayout({ children }: { children: React.ReactNode }) {
   const { mode, resolvedMode, setMode, autoStatusText } = useLookMode();
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => (language === 'en' ? en : es);
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [activePanel, setActivePanel] = useState<'menu' | 'profile' | 'terms' | 'policy' | 'about' | 'privacy' | 'subscription' | 'icon_store' | 'blocked_users' | 'theme_chest'>('menu');
   const [creditsRefreshTrigger, setCreditsRefreshTrigger] = useState(0);
@@ -791,7 +791,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
         <Tabs.Screen
           name="search"
           options={{
-            title: tr('Mercado', 'MS'),
+            title: tr('Mercado', 'Market'),
             tabBarIcon: ({ focused }) => (
               <PremiumTabIcon Icon={Search} focused={focused} accent={shell.ctaAccent} onAccent={shell.emptyCtaText} />
             ),

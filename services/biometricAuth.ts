@@ -2,8 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Alert } from 'react-native';
 
-import type { AppLanguage } from '@/services/language';
-import { APP_LANGUAGE_STORAGE_KEY } from '@/services/language';
+import { APP_LANGUAGE_STORAGE_KEY, type AppLanguage, trEsEn } from '@/services/language';
 
 async function getStoredAppLanguage(): Promise<AppLanguage> {
   try {
@@ -14,7 +13,7 @@ async function getStoredAppLanguage(): Promise<AppLanguage> {
   } catch {
     /* ignore */
   }
-  return 'es';
+  return 'en';
 }
 
 interface BiometricAvailability {
@@ -66,18 +65,22 @@ export async function authenticateWithBiometric(
 
 export async function hardLockCheck(actionLabel: string = 'acceso'): Promise<boolean> {
   const lang = await getStoredAppLanguage();
-  const reasonEn = `Authorize access to ${actionLabel} in Card-Social`;
-  const reasonEs = `Autoriza acceso a ${actionLabel} en Card-Social`;
-  const reason = lang === 'en' ? reasonEn : reasonEs;
+  const reason = trEsEn(
+    `Autoriza acceso a ${actionLabel} en Card-Social`,
+    `Authorize access to ${actionLabel} in Card-Social`,
+    lang,
+  );
   const authenticated = await authenticateWithBiometric(reason, true);
 
   if (!authenticated) {
-    const title = lang === 'en' ? 'Access denied' : 'Acceso denegado';
-    const body =
-      lang === 'en'
-        ? `We couldn't verify your identity for ${actionLabel}. Use Face ID, fingerprint, or your device PIN or password.`
-        : `No se pudo verificar tu identidad para ${actionLabel}. Usa Face ID, huella o PIN/contraseña del dispositivo.`;
-    Alert.alert(title, body);
+    Alert.alert(
+      trEsEn('Acceso denegado', 'Access denied', lang),
+      trEsEn(
+        `No se pudo verificar tu identidad para ${actionLabel}. Usa Face ID, huella o PIN/contraseña del dispositivo.`,
+        `We couldn't verify your identity for ${actionLabel}. Use Face ID, fingerprint, or your device PIN or password.`,
+        lang,
+      ),
+    );
   }
 
   return authenticated;

@@ -14,7 +14,7 @@
 import { getActiveUserId } from '@/services/authSession';
 import { getUserCreditsBalance } from '@/services/creditsService';
 import { getAvailableIconPacks, getUserPurchasedPacks, IconPack, purchaseIconPack } from '@/services/iconPackService';
-import { useLanguage } from '@/services/language';
+import { useTr } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -34,11 +34,6 @@ import {
 
 const { width } = Dimensions.get('window');
 
-// Traducción local
-const useTr = () => {
-  const { language } = useLanguage();
-  return (es: string, en: string) => language === 'en' ? en : es;
-};
 const CARD_WIDTH = (width - 32) / 2; // 2 columnas con padding
 
 interface IconStoreCardProps {

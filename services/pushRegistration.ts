@@ -3,11 +3,10 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import axios from 'axios';
 import { getActiveUserId } from '@/services/authSession';
+import { resolveExpoPublicApiBaseUrl } from '@/services/expoPublicApiBaseUrl';
 
 function getApiBaseUrl(): string {
-  const envUrl = process.env.EXPO_PUBLIC_MODERATION_API_URL?.trim();
-  if (!envUrl) throw new Error('Missing EXPO_PUBLIC_MODERATION_API_URL.');
-  return envUrl.replace(/\/+$/, '');
+  return resolveExpoPublicApiBaseUrl();
 }
 
 function getGatewayKey(): string {

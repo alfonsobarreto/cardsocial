@@ -24,7 +24,7 @@ import {
   readUserNickName,
   readUserNickNameLower,
 } from '@/services/userIdentityFields';
-import { useLanguage } from '@/services/language';
+import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import { syncProfileAvatarUrlToMongo } from '@/services/qrApi';
@@ -140,7 +140,7 @@ function formatDate(d: Date) {
 
 export default function MyProfileScreen() {
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => (language === 'en' ? en : es);
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const { resolvedMode } = useLookMode();
   const isDark = resolvedMode === 'noche';
   const router = useRouter();

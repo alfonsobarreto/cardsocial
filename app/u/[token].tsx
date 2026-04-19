@@ -1,7 +1,7 @@
 import { BunkerClassificationModal } from '@/components/BunkerClassificationModal';
 import { clearPendingBunkerScan, savePendingBunkerScan } from '@/services/bunkerPendingScan';
 import { getActiveUserId } from '@/services/authSession';
-import { useLanguage } from '@/services/language';
+import { trEsEn, useLanguage } from '@/services/language';
 import { myCardsPayloadFromUniversalCard } from '@/services/incomingCardPreviewPayload';
 import { fetchPublicUniversalCardByToken, type PublicUniversalCardPayload } from '@/services/qrApi';
 import { buildCanonicalIssuerIdentityFromPublicUniversalCard } from '@/types/canonicalIssuerIdentity';
@@ -15,7 +15,7 @@ export default function UniversalTokenScreen() {
   const router = useRouter();
   const { language } = useLanguage();
 
-  const tr = useCallback((es: string, en: string) => (language === 'es' ? es : en), [language]);
+  const tr = useCallback((es: string, en: string) => trEsEn(es, en, language), [language]);
   const locale = language;
 
   const [loading, setLoading] = useState(true);
