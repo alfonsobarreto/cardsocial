@@ -116,6 +116,8 @@ export interface BusinessCardSearchResult {
   receivedContactCardName?: string;
   /** Look de la Smart Card del emisor (contactos recibidos en Social Market). */
   issuerPresentation?: IssuerSmartCardPresentation;
+  /** `received_contact`: tarjeta de negocio vs smart (UI no mezcla avatar de perfil con negocio). */
+  receivedContactCardType?: 'business' | 'smart';
   /** Suscriptores de la tarjeta del emisor (solo filas `received_contact`). */
   receivedHoldersCount?: number;
   /** Tarjeta del emisor que posee el viewer (canal Stories / lookup). */
@@ -129,8 +131,8 @@ export interface BusinessCardSearchResult {
   /** @nickname del emisor (texto del contacto recibido). */
   receivedIssuerNickname?: string;
   /**
-   * Solo `rowSource === 'received_contact'`: foto de perfil del emisor (Mongo `userAvatarUrl`).
-   * No reutilizar `card.bcLogoUrl` para esto — el logo de negocio es otro campo.
+   * Solo `rowSource === 'received_contact'` y `receivedContactCardType === 'smart'`:
+   * foto de perfil del emisor (Mongo `userAvatarUrl`). En negocio se deja en null.
    */
   receivedIssuerUserAvatarUrl?: string | null;
 }

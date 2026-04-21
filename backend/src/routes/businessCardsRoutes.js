@@ -19,6 +19,7 @@
 
 const crypto = require('crypto');
 const express = require('express');
+const { scheduleBusinessCardEmbeddingSync } = require('../services/cardVectorEmbedding');
 
 const TRIAL_DAYS = 14;
 const MAX_VAULT_ITEMS = 12;
@@ -368,6 +369,7 @@ function createBusinessCardsRoutes({ storage }) {
 
       const db = req.app.locals.db || (await storage.connect());
       await db.collection('business_cards').insertOne(doc);
+      scheduleBusinessCardEmbeddingSync(db, doc);
       return res.status(201).json({ ok: true, card: toWireBusinessCard(doc) });
     } catch (error) {
       console.error('[businessCards] POST / failed:', error);
@@ -465,6 +467,7 @@ function createBusinessCardsRoutes({ storage }) {
       if (!doc || !doc.bId) {
         return res.status(404).json({ ok: false, error: 'Card not found or not authorized' });
       }
+      scheduleBusinessCardEmbeddingSync(db, doc);
       return res.status(200).json({ ok: true, card: toWireBusinessCard(doc) });
     } catch (error) {
       console.error('[businessCards] PATCH /:bId failed:', error);

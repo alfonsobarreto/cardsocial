@@ -59,6 +59,23 @@ const env = {
   spacesEndpoint: normalizeSpacesEndpointHost(process.env.DO_SPACES_ENDPOINT),
   spacesRegion: String(process.env.DO_SPACES_REGION || "").trim(),
   spacesBucket: String(process.env.DO_SPACES_BUCKET || "").trim(),
+
+  /** OpenAI / Gemini — embeddings para Atlas Vector Search (opcionales hasta que actives el mercado semántico). */
+  embeddingProvider: String(process.env.EMBEDDING_PROVIDER || "openai").toLowerCase(),
+  openAiApiKey: String(process.env.OPENAI_API_KEY || "").trim(),
+  openAiEmbeddingModel: String(process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small").trim(),
+  geminiApiKey: String(process.env.GEMINI_API_KEY || "").trim(),
+  geminiEmbeddingModel: String(process.env.GEMINI_EMBEDDING_MODEL || "text-embedding-004").trim(),
+  /** Forzar dimensión del vector (p. ej. 768 con Gemini); si vacío, la infiere el proveedor. */
+  embeddingDimensions: (() => {
+    const n = Number(process.env.EMBEDDING_DIMENSIONS);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  })(),
+  atlasVectorIndexBusinessCards: String(
+    process.env.ATLAS_VECTOR_INDEX_BUSINESS_CARDS || "business_cards_vector",
+  ).trim(),
+  atlasVectorIndexSmartCards: String(process.env.ATLAS_VECTOR_INDEX_SMART_CARDS || "smart_cards_vector").trim(),
+  marketEmbeddingField: String(process.env.MARKET_EMBEDDING_FIELD || "marketEmbedding").trim(),
 };
 
 /** Lista nombres `DO_SPACES_*` ausentes o vacíos (todas obligatorias para inicializar S3). */

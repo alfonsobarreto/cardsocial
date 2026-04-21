@@ -128,10 +128,26 @@ function createSpacesClient() {
   });
 }
 
+/** Opciones de pool orientadas a tráfico interactivo (baja latencia percibida, failover del driver). */
+function createMongoClient(uri) {
+  return new MongoClient(uri, {
+    maxPoolSize: 50,
+    minPoolSize: 2,
+    maxIdleTimeMS: 60_000,
+    waitQueueTimeoutMS: 10_000,
+    serverSelectionTimeoutMS: 10_000,
+    connectTimeoutMS: 10_000,
+    socketTimeoutMS: 45_000,
+    retryReads: true,
+    retryWrites: true,
+    heartbeatFrequencyMS: 10_000,
+  });
+}
+
 function createMongoStorage({ uri, dbName }) {
   logSpacesVariablesLoaded();
 
-  const client = new MongoClient(uri);
+  const client = createMongoClient(uri);
   let db;
   const spaces = createSpacesClient();
 

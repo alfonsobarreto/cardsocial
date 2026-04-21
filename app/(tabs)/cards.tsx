@@ -2452,13 +2452,39 @@ export default function CardsFactoryScreen() {
           ? previewCard.scName
           : selectedCard?.scName ?? cardName;
     const issuerUid = await getActiveUserId();
-    const activeSmartForGhost = previewBusinessVisible
-      ? null
-      : (() => {
-          const sidKey = String(previewCard?.sid ?? selectedCard?.sid ?? '').trim();
-          if (!sidKey) return previewCard ?? selectedCard;
-          return smartCards.find((c) => c.sid === sidKey) ?? previewCard ?? selectedCard;
-        })();
+    if (previewBusinessVisible && previewBusiness) {
+      const bizLogo = String(previewBusiness.bcLogoUrl || '').trim() || null;
+      const bizName = String(previewBusiness.bcName || '').trim() || null;
+      const bizContact = String(previewBusiness.bcContactName || '').trim() || null;
+      const displayForPeer = bizName || bizContact || tr('Negocio', 'Business');
+      await openVaultPreviewItem(item, {
+        tr,
+        openDocumentViewer: (it) => {
+          openDocumentViewer(it as VaultItem);
+        },
+        ghostTargetUid: issuerUid,
+        sourceCardName: String(previewBusiness.bcName || activeScName || cardName || 'Tarjeta Social'),
+        sourceSid: null,
+        sourceBId: String(previewBusiness.bId || '').trim() || null,
+        peerDisplayName: displayForPeer,
+        peerFullName: bizContact || undefined,
+        peerNickname: undefined,
+        bcLogoUrl: bizLogo,
+        bcName: bizName,
+        bcContactName: bizContact,
+        userAvatarUrl: null,
+        dismissParentModal: dismissCardPreviewModals,
+        peerPhotoUrl: bizLogo,
+        cardPhoto: bizLogo,
+        cardType: 'business',
+      });
+      return;
+    }
+    const activeSmartForGhost = (() => {
+      const sidKey = String(previewCard?.sid ?? selectedCard?.sid ?? '').trim();
+      if (!sidKey) return previewCard ?? selectedCard;
+      return smartCards.find((c) => c.sid === sidKey) ?? previewCard ?? selectedCard;
+    })();
     const fromFs = issuerUid ? await fetchVoipCanonicalFullNameForUid(issuerUid) : '';
     const voipName = ghostPeerVoipFullName(
       fromFs,
@@ -2468,19 +2494,6 @@ export default function CardsFactoryScreen() {
     if (voipName) {
       setIssuerIdentity((prev) => ({ ...prev, voipCanonicalFullName: voipName }));
     }
-    /** Mirror exacto de `calls.tsx` para Business: logo explícito + fallback a foto de usuario. */
-    const bizLogo = previewBusinessVisible
-      ? String(previewBusiness?.bcLogoUrl || '').trim() || null
-      : null;
-    const bizName = previewBusinessVisible
-      ? String(previewBusiness?.bcName || '').trim() || null
-      : null;
-    const bizContact = previewBusinessVisible
-      ? String(previewBusiness?.bcContactName || '').trim() || null
-      : null;
-    const bizCardPhoto = previewBusinessVisible
-      ? bizLogo ?? issuerIdentity.userAvatarUrl ?? null
-      : issuerIdentity.userAvatarUrl ?? null;
     await openVaultPreviewItem(item, {
       tr,
       openDocumentViewer: (it) => {
@@ -2488,19 +2501,19 @@ export default function CardsFactoryScreen() {
       },
       ghostTargetUid: issuerUid,
       sourceCardName: activeScName ?? cardName ?? 'Tarjeta Social',
-      sourceSid: previewBusinessVisible ? null : String(previewCard?.sid ?? selectedCard?.sid ?? '').trim() || null,
-      sourceBId: previewBusinessVisible ? String(previewBusiness?.bId ?? '').trim() || null : null,
+      sourceSid: String(previewCard?.sid ?? selectedCard?.sid ?? '').trim() || null,
+      sourceBId: null,
       peerDisplayName: voipName || tr('este contacto', 'this contact'),
       peerFullName: voipName || undefined,
       peerNickname: issuerIdentity.userNickName || undefined,
-      bcLogoUrl: bizLogo,
-      bcName: bizName,
-      bcContactName: bizContact,
+      bcLogoUrl: null,
+      bcName: null,
+      bcContactName: null,
       userAvatarUrl: issuerIdentity.userAvatarUrl ?? null,
       dismissParentModal: dismissCardPreviewModals,
       peerPhotoUrl: issuerIdentity.userAvatarUrl ?? null,
-      cardPhoto: bizCardPhoto,
-      cardType: previewBusinessVisible ? 'business' : 'personal',
+      cardPhoto: issuerIdentity.userAvatarUrl ?? null,
+      cardType: 'personal',
     });
   };
 
@@ -2527,13 +2540,39 @@ export default function CardsFactoryScreen() {
             ? previewCard.scName
             : selectedCard?.scName ?? cardName;
       const issuerUid = await getActiveUserId();
-      const activeSmartForGhost = previewBusinessVisible
-        ? null
-        : (() => {
-            const sidKey = String(previewCard?.sid ?? selectedCard?.sid ?? '').trim();
-            if (!sidKey) return previewCard ?? selectedCard;
-            return smartCards.find((c) => c.sid === sidKey) ?? previewCard ?? selectedCard;
-          })();
+      if (previewBusinessVisible && previewBusiness) {
+        const bizLogo = String(previewBusiness.bcLogoUrl || '').trim() || null;
+        const bizName = String(previewBusiness.bcName || '').trim() || null;
+        const bizContact = String(previewBusiness.bcContactName || '').trim() || null;
+        const displayForPeer = bizName || bizContact || tr('Negocio', 'Business');
+        await openVaultPreviewItem(item, {
+          tr,
+          openDocumentViewer: (it) => {
+            openDocumentViewer(it as VaultItem);
+          },
+          ghostTargetUid: issuerUid,
+          sourceCardName: String(previewBusiness.bcName || activeScName || cardName || 'Tarjeta Social'),
+          sourceSid: null,
+          sourceBId: String(previewBusiness.bId || '').trim() || null,
+          peerDisplayName: displayForPeer,
+          peerFullName: bizContact || undefined,
+          peerNickname: undefined,
+          bcLogoUrl: bizLogo,
+          bcName: bizName,
+          bcContactName: bizContact,
+          userAvatarUrl: null,
+          dismissParentModal: dismissCardPreviewModals,
+          peerPhotoUrl: bizLogo,
+          cardPhoto: bizLogo,
+          cardType: 'business',
+        });
+        return;
+      }
+      const activeSmartForGhost = (() => {
+        const sidKey = String(previewCard?.sid ?? selectedCard?.sid ?? '').trim();
+        if (!sidKey) return previewCard ?? selectedCard;
+        return smartCards.find((c) => c.sid === sidKey) ?? previewCard ?? selectedCard;
+      })();
       const fromFs = issuerUid ? await fetchVoipCanonicalFullNameForUid(issuerUid) : '';
       const voipName = ghostPeerVoipFullName(
         fromFs,
@@ -2543,19 +2582,6 @@ export default function CardsFactoryScreen() {
       if (voipName) {
         setIssuerIdentity((prev) => ({ ...prev, voipCanonicalFullName: voipName }));
       }
-      /** Mirror exacto de `calls.tsx` para Business: logo explícito + fallback a foto de usuario. */
-      const bizLogo = previewBusinessVisible
-        ? String(previewBusiness?.bcLogoUrl || '').trim() || null
-        : null;
-      const bizName = previewBusinessVisible
-        ? String(previewBusiness?.bcName || '').trim() || null
-        : null;
-      const bizContact = previewBusinessVisible
-        ? String(previewBusiness?.bcContactName || '').trim() || null
-        : null;
-      const bizCardPhoto = previewBusinessVisible
-        ? bizLogo ?? issuerIdentity.userAvatarUrl ?? null
-        : issuerIdentity.userAvatarUrl ?? null;
       await openVaultPreviewItem(item, {
         tr,
         openDocumentViewer: (it) => {
@@ -2563,19 +2589,19 @@ export default function CardsFactoryScreen() {
         },
         ghostTargetUid: issuerUid,
         sourceCardName: activeScName ?? cardName ?? 'Tarjeta Social',
-        sourceSid: previewBusinessVisible ? null : String(previewCard?.sid ?? selectedCard?.sid ?? '').trim() || null,
-        sourceBId: previewBusinessVisible ? String(previewBusiness?.bId ?? '').trim() || null : null,
+        sourceSid: String(previewCard?.sid ?? selectedCard?.sid ?? '').trim() || null,
+        sourceBId: null,
         peerDisplayName: voipName || tr('este contacto', 'this contact'),
         peerFullName: voipName || undefined,
         peerNickname: issuerIdentity.userNickName || undefined,
-        bcLogoUrl: bizLogo,
-        bcName: bizName,
-        bcContactName: bizContact,
+        bcLogoUrl: null,
+        bcName: null,
+        bcContactName: null,
         userAvatarUrl: issuerIdentity.userAvatarUrl ?? null,
         dismissParentModal: dismissCardPreviewModals,
         peerPhotoUrl: issuerIdentity.userAvatarUrl ?? null,
-        cardPhoto: bizCardPhoto,
-        cardType: previewBusinessVisible ? 'business' : 'personal',
+        cardPhoto: issuerIdentity.userAvatarUrl ?? null,
+        cardType: 'personal',
       });
     } catch {
       Alert.alert(tr('No se pudo abrir', 'Could not open'), tr('El dispositivo no pudo abrir este dato en app nativa.', 'Device could not open this data in native app.'));

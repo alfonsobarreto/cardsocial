@@ -8,6 +8,7 @@ import type { WireframeEditSlot } from '@/components/smartCard/IsolatedWireframe
 import type { MyCardsPayload } from '@/components/MyCards/MyCardsPreviewModal';
 import { publicSlotToMirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
 import type { PublicCardSlotPayload, PublicQrTokenPreview, PublicUniversalCardPayload } from '@/services/qrApi';
+import { toRenderableImageUri } from '@/services/userProfilePhoto';
 import {
   buildCanonicalIssuerIdentityFromPublicUniversalCard,
   buildCanonicalIssuerIdentityFromQrPreview,
@@ -70,10 +71,19 @@ export function myCardsPayloadFromQrPreview(
   }));
   const layout = p.layout === 'horizontal' ? 'horizontal' : 'vertical';
   const themeId = String(p.themeId || '').trim();
+  /** Business cards: círculo = logo en doc de tarjeta (`ownerPhotoUrl`, p. ej. `bcLogoUrl`); nunca `userAvatarUrl` de persona. */
+  const isBusiness = String(p.bId || '').trim() !== '';
+  const businessLogoRaw = String(p.ownerPhotoUrl ?? '').trim();
+  const circleAvatarUrl = isBusiness
+    ? toRenderableImageUri(businessLogoRaw || undefined) || businessLogoRaw || null
+    : idn.userAvatarUrl;
+  const subtitleOut = isBusiness
+    ? String(p.ownerDisplayName || p.cardName || '').trim() || subtitle
+    : subtitle;
   return {
     cardName: (cardNm || person || occ || tr('Tarjeta Social', 'Social Card')).trim(),
-    subtitle,
-    avatarUrl: idn.userAvatarUrl,
+    subtitle: subtitleOut,
+    avatarUrl: circleAvatarUrl,
     themeId,
     layout,
     wallpaperUrl: p.wallpaperUrl,
@@ -82,5 +92,6 @@ export function myCardsPayloadFromQrPreview(
     totalRatings: Math.max(0, Math.floor(Number(p.totalRatings ?? 0))),
     enableParallax: Boolean(p.enableParallax),
     slots: slotsToWireframeSlots(slotRows),
+    ...(isBusiness ? { noAvatarIcon: 'storefront-outline' as const } : {}),
   };
 }

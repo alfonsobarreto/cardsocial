@@ -55,6 +55,8 @@ export type ReceivedContactForMarketSearch = {
   ownerOccupation?: string | null;
   bcContactName?: string | null;
   bcLogoUrl?: string | null;
+  /** Misma verdad que Contactos / `listReceivedContacts` — discrimina fila en Mercado. */
+  cardType?: 'business' | 'smart';
 };
 
 export type SocialMarketSearchSections = {
@@ -108,6 +110,8 @@ function wireBusinessCardToMarketShape(row: Record<string, unknown>): BusinessCa
   const bId = String(row.bId ?? '').trim();
   const kw = Array.isArray(row.bcKeywords) ? row.bcKeywords.map((k) => String(k)) : [];
   const elevatorPitchWords = [...kw, ...facetBits];
+  const themeRaw = row.themeId != null && String(row.themeId).trim() ? String(row.themeId).trim() : '';
+  const holdersN = row.holdersCount != null ? Math.max(0, Math.floor(Number(row.holdersCount))) : 0;
 
   return {
     bId,
@@ -116,6 +120,8 @@ function wireBusinessCardToMarketShape(row: Record<string, unknown>): BusinessCa
     bcName: idn.bcName,
     bcContactName: idn.bcContactName,
     bcLogoUrl: idn.bcLogoUrl || undefined,
+    ...(themeRaw ? { themeId: themeRaw } : {}),
+    holdersCount: holdersN,
     ownerEmail: '',
     ownerPhone: '',
     physicalAddress: String(row.bcPhysicalAddress ?? '').trim(),
@@ -288,16 +294,20 @@ function searchReceivedContactsForMarket(
       row.metaIcons,
     ),
   );
-  return ordered.map((row) => ({
+  return ordered.map((row) => {
+    const resolvedRecType: 'business' | 'smart' = row.cardType === 'business' ? 'business' : 'smart';
+    return {
     card: createReceivedContactBusinessCard(row),
     distanceMiles: null,
     relevanceScore: 100,
     matchedKeywords: [],
     showDistance: false,
     rowSource: 'received_contact' as const,
+    receivedContactCardType: resolvedRecType,
     receivedContactFacets: row.searchFacets,
     receivedContactCardName: row.cardName,
-    receivedIssuerUserAvatarUrl: row.userAvatarUrl,
+    /** Solo tarjetas smart: en negocio nunca se usa foto de perfil del emisor en UI. */
+    receivedIssuerUserAvatarUrl: resolvedRecType === 'business' ? null : row.userAvatarUrl,
     issuerPresentation: issuerPresentationFromRow(row),
     receivedHoldersCount: Number(row.holdersCount ?? 0) || 0,
     receivedSourceSid: row.sid ?? null,
@@ -306,7 +316,8 @@ function searchReceivedContactsForMarket(
     receivedPublicCardSlots: Array.isArray(row.publicCardSlots) ? row.publicCardSlots : [],
     receivedOwnerOccupation: row.ownerOccupation ?? null,
     receivedIssuerNickname: String(row.userNickName || '').trim() || undefined,
-  }));
+  };
+  });
 }
 
 /**

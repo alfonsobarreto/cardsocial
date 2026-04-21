@@ -9,6 +9,7 @@ const { createModerationRoutes } = require("./routes/moderationRoutes");
 const { createVaultFileProxyRoutes } = require("./routes/vaultFileProxyRoutes");
 const { createQrRoutes } = require("./routes/qrRoutes");
 const { createBusinessCardsRoutes } = require("./routes/businessCardsRoutes");
+const { createMarketVectorRoutes } = require("./routes/marketVectorRoutes");
 const { createBusinessLicensesRoutes } = require("./routes/businessLicensesRoutes");
 const { createSmartCardsRoutes } = require("./routes/smartCardsRoutes");
 const { createPublicUniversalRoutes } = require("./routes/publicUniversalRoutes");
@@ -571,6 +572,14 @@ const otpHash = (emailLower, code) => {
     jwtAuthMiddleware,
     qrScopeMiddleware,
     createBusinessCardsRoutes({ storage }),
+  );
+
+  app.use(
+    "/api/market",
+    gatewayKeyMiddleware,
+    jwtAuthMiddleware,
+    qrScopeMiddleware,
+    createMarketVectorRoutes({ storage }),
   );
 
   app.use(

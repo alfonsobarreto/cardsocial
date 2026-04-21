@@ -100,6 +100,7 @@ export function mergeReceivedContactRows<T extends PresentationMergeRow>(prev: T
     if ('userNickName' in anyR) anyM.userNickName = anyR.userNickName;
     if ('bcContactName' in anyR) anyM.bcContactName = anyR.bcContactName;
     if ('bcLogoUrl' in anyR) anyM.bcLogoUrl = anyR.bcLogoUrl;
+    if ('cardType' in anyR) anyM.cardType = anyR.cardType;
     return merged as T;
   });
 }

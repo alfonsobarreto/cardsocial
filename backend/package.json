@@ -7,7 +7,8 @@
     "start": "node src/server.js",
     "dev": "nodemon --watch src src/server.js",
     "build": "echo 'Backend is pure JS, no build needed'",
-    "lint": "eslint src --ext .js"
+    "lint": "eslint src --ext .js",
+    "backfill:embeddings": "node scripts/backfill-market-embeddings.js"
   },
   "keywords": [
     "card-social",

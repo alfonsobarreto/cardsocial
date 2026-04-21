@@ -39,6 +39,7 @@ import {
 import { resolvePillForegroundColor } from '@/services/pillForegroundColor';
 import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
 import { getCardRowTheme } from '@/services/useActiveTheme';
+import { toRenderableImageUri } from '@/services/userProfilePhoto';
 import { BusinessCardSearchResult } from '@/types/businessCard';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -76,6 +77,20 @@ const GROUP_DEFAULT = 'Random';
 const MAX_MARKET_RADIUS_MILES = 20;
 
 type ContactMetaLite = { group?: string; icons?: Array<{ name: string; url: string }> };
+
+/** Fila "Contactos" en Mercado: negocio = datos `bc*` / logo, nunca avatar o nombre de perfil del emisor. */
+function isMarketReceivedContactBusiness(row: BusinessCardSearchResult): boolean {
+  if (row.rowSource !== 'received_contact') {
+    return false;
+  }
+  if (row.receivedContactCardType === 'business') {
+    return true;
+  }
+  if (row.receivedContactCardType === 'smart') {
+    return false;
+  }
+  return String(row.receivedSourceBId || '').trim() !== '';
+}
 
 /**
  * Barra de búsqueda con texto en estado local: el padre no re-renderiza en cada tecla,
@@ -259,19 +274,28 @@ export default function SearchScreen() {
   const searchReceivedPayload = useMemo<MyCardsPayload | null>(() => {
     if (!receivedCardDetail || receivedCardDetail.rowSource !== 'received_contact') return null;
     const d = receivedCardDetail;
-    const isBusiness = d.card.type === 'business';
+    const isBusiness = isMarketReceivedContactBusiness(d);
     const nickRaw = String(d.receivedIssuerNickname || 'user').trim() || 'user';
     const cardNm = String(d.receivedContactCardName || '').trim();
     const person = String(d.card.bcName || d.card.bcContactName || '').trim();
     const occ = String(d.receivedOwnerOccupation || '').trim();
-    // Business: subtitle = bcContactName (no @). Personal: @nickname.
+    // Business: solo datos de tarjeta. Smart: @nickname.
     const subtitle = isBusiness
       ? String(d.card.bcContactName || occ || '').trim()
       : nickRaw.startsWith('@') ? nickRaw : `@${nickRaw}`;
+    const cardNameLine = isBusiness
+      ? String(d.card.bcName || d.receivedContactCardName || '').trim() || tr('Negocio', 'Business')
+      : (cardNm || person || occ || tr('Tarjeta Social', 'Social Card')).trim();
+    const logoUrl = String(d.card.bcLogoUrl || '').trim();
+    const avatarUrl = isBusiness
+      ? (logoUrl ? logoUrl : null)
+      : d.receivedIssuerUserAvatarUrl != null && String(d.receivedIssuerUserAvatarUrl).trim()
+        ? String(d.receivedIssuerUserAvatarUrl).trim()
+        : null;
     return {
-      cardName: (cardNm || person || occ || tr('Tarjeta Social', 'Social Card')).trim(),
+      cardName: cardNameLine,
       subtitle,
-      avatarUrl: d.card.bcLogoUrl ?? null,
+      avatarUrl,
       themeId: d.issuerPresentation?.themeId || '',
       wallpaperUrl: d.issuerPresentation?.wallpaperUrl ?? undefined,
       layout: d.issuerPresentation?.layout === 'horizontal' ? 'horizontal' : 'vertical',
@@ -280,6 +304,7 @@ export default function SearchScreen() {
       totalRatings: Math.max(0, Math.floor(Number(d.card.totalRatings ?? 0))),
       enableParallax: Boolean(d.issuerPresentation?.enableParallax),
       slots: searchMirrorPreviewSlots,
+      ...(isBusiness ? { noAvatarIcon: 'storefront-outline' as const } : {}),
     };
   }, [receivedCardDetail, searchMirrorPreviewSlots, tr]);
 
@@ -485,6 +510,7 @@ export default function SearchScreen() {
         ownerOccupation: c.ownerOccupation ?? null,
         bcContactName: c.bcContactName ?? null,
         bcLogoUrl: c.bcLogoUrl ?? null,
+        cardType: c.cardType === 'business' ? 'business' : 'smart',
       };
       });
       setReceivedContactsLookupRows(merged);
@@ -733,6 +759,7 @@ export default function SearchScreen() {
         : '';
 
     if (!isMarketBusiness) {
+      const receivedIsBiz = isMarketReceivedContactBusiness(item);
       const pres = item.issuerPresentation;
       const chest = getCardRowTheme(pres?.themeId);
       const lightChipFg = resolvePillForegroundColor({
@@ -815,6 +842,10 @@ export default function SearchScreen() {
               };
 
       const facets = item.receivedContactFacets || [];
+      const bizListLogo =
+        receivedIsBiz && item.card.bcLogoUrl
+          ? toRenderableImageUri(String(item.card.bcLogoUrl)) ?? String(item.card.bcLogoUrl)
+          : null;
 
       return (
         <Animated.View style={{ transform: [{ scale: pressScaleForRow(item.card.bId) }] }}>
@@ -833,7 +864,33 @@ export default function SearchScreen() {
                   accessibilityLabel={tr('Abrir historia', 'Open story')}
                 >
                   <View style={[styles.searchAvatarRing, ringStyle]}>
-                    {item.receivedIssuerUserAvatarUrl ? (
+                    {receivedIsBiz ? (
+                      bizListLogo ? (
+                        <ExpoImage
+                          source={{ uri: resolveVaultMediaUrlForApp(bizListLogo) ?? bizListLogo }}
+                          style={[styles.searchAvatarInner, { backgroundColor: shell.avatarPlaceholderBg }]}
+                          cachePolicy="disk"
+                        />
+                      ) : (
+                        <View
+                          style={[
+                            styles.searchAvatarInner,
+                            styles.cardImagePlaceholder,
+                            {
+                              backgroundColor: MEDIA_PLACEHOLDER.businessBgLight,
+                              borderWidth: 1,
+                              borderColor: MEDIA_PLACEHOLDER.businessBorderLight,
+                            },
+                          ]}
+                        >
+                          <MaterialCommunityIcons
+                            name={MEDIA_PLACEHOLDER.businessIconName}
+                            size={32}
+                            color={MEDIA_PLACEHOLDER.businessIconLight}
+                          />
+                        </View>
+                      )
+                    ) : item.receivedIssuerUserAvatarUrl ? (
                       <ExpoImage
                         source={{
                           uri:
@@ -940,18 +997,19 @@ export default function SearchScreen() {
                           issuerBId: item.receivedSourceBId ?? null,
                           issuerDisplayName:
                             String(item.card.bcContactName || item.card.bcName || '').trim() || item.card.bcName,
-                          issuerPeerFullName:
-                            String(
-                              (item.card as { userFullName?: string }).userFullName ||
-                                item.card.bcContactName ||
-                                item.card.bcName ||
-                                '',
-                            ).trim() || item.card.bcName,
+                          issuerPeerFullName: receivedIsBiz
+                            ? String(item.card.bcContactName || item.card.bcName || '').trim() || String(item.card.bcName)
+                            : String(
+                                (item.card as { userFullName?: string }).userFullName ||
+                                  item.card.bcContactName ||
+                                  item.card.bcName ||
+                                  '',
+                              ).trim() || item.card.bcName,
                           issuerCardContactName: String(item.card.bcContactName || '').trim() || null,
                           issuerCardPhoto: item.card.bcLogoUrl ?? null,
-                          issuerUserAvatarUrl: item.receivedIssuerUserAvatarUrl ?? null,
+                          issuerUserAvatarUrl: receivedIsBiz ? null : (item.receivedIssuerUserAvatarUrl ?? null),
                           issuerBusinessLogoUrl: item.card.bcLogoUrl ?? null,
-                          issuerCardType: 'business',
+                          issuerCardType: receivedIsBiz ? 'business' : 'personal',
                         })
                       }
                       accessibilityLabel={f.label}
@@ -1045,7 +1103,10 @@ export default function SearchScreen() {
             return;
           }
           const realPayload = myCardsPayloadFromQrPreview(res.preview, tr);
-          realPayload.avatarUrl = realPayload.avatarUrl || card.bcLogoUrl || null;
+          /** Regla business: logo de tarjeta; si el preview no trae `ownerPhotoUrl`, usa el del catálogo. */
+          const businessLogo = String(res.preview.ownerPhotoUrl || card.bcLogoUrl || '').trim() || null;
+          realPayload.avatarUrl = businessLogo;
+          realPayload.noAvatarIcon = 'storefront-outline';
           realPayload.cardName = realPayload.cardName || String(card.bcName || '').trim() || tr('Negocio', 'Business');
           if (!realPayload.subtitle) {
             realPayload.subtitle =
@@ -1362,18 +1423,24 @@ export default function SearchScreen() {
           undefined
         }
         peerDisplayName={
-          String(receivedCardDetail?.receivedIssuerNickname || '').trim() ||
-          receivedCardDetail?.card?.bcName ||
-          undefined
+          receivedCardDetail && isMarketReceivedContactBusiness(receivedCardDetail)
+            ? String(receivedCardDetail.card.bcName || '').trim() || tr('Negocio', 'Business')
+            : String(receivedCardDetail?.receivedIssuerNickname || '').trim() ||
+              receivedCardDetail?.card?.bcName ||
+              undefined
         }
         peerFullName={undefined}
         peerNickname={
-          String(receivedCardDetail?.receivedIssuerNickname || '').trim() || undefined
+          receivedCardDetail && isMarketReceivedContactBusiness(receivedCardDetail)
+            ? undefined
+            : String(receivedCardDetail?.receivedIssuerNickname || '').trim() || undefined
         }
         ghostCardContactName={
           String(receivedCardDetail?.card?.bcContactName || '').trim() || null
         }
-        ratingCardType='business'
+        ratingCardType={
+          receivedCardDetail && isMarketReceivedContactBusiness(receivedCardDetail) ? 'business' : 'smart'
+        }
         medalRatingUseNativeAndroidModal={Platform.OS === 'android'}
       />
 
@@ -1479,16 +1546,28 @@ export default function SearchScreen() {
       <ReceptorScreenModal
         visible={receptorModalVisible}
         onClose={() => { setReceptorModalVisible(false); setReceptorItem(null); setReceptorSubscribers([]); }}
-        owner={{
-          displayName: receptorItem?.card?.bcName || tr('Tarjeta', 'Card'),
-          occupation: receptorItem?.receivedContactCardName || '',
-          userAvatarUrl:
-            receptorItem?.rowSource === 'received_contact'
-              ? receptorItem.receivedIssuerUserAvatarUrl ?? null
-              : null,
-          brandLogoUrl:
-            receptorItem?.rowSource === 'social_market' ? receptorItem?.card?.bcLogoUrl ?? null : null,
-        }}
+        owner={(() => {
+          const it = receptorItem;
+          if (!it) {
+            return { displayName: tr('Tarjeta', 'Card'), occupation: '', userAvatarUrl: null as string | null };
+          }
+          const isRecBiz = isMarketReceivedContactBusiness(it);
+          if (it.rowSource === 'social_market' || isRecBiz) {
+            return {
+              displayName: String(it.card.bcName || '').trim() || tr('Tarjeta', 'Card'),
+              occupation:
+                String(it.card.bcContactName || '').trim() || String(it.receivedContactCardName || '').trim() || '',
+              userAvatarUrl: null,
+              brandLogoUrl: it.card.bcLogoUrl ?? null,
+            };
+          }
+          return {
+            displayName: it.card.bcName || tr('Tarjeta', 'Card'),
+            occupation: it.receivedContactCardName || '',
+            userAvatarUrl: it.receivedIssuerUserAvatarUrl ?? null,
+            brandLogoUrl: null,
+          };
+        })()}
       subscribers={receptorSubscribers}
       totalCount={receptorItem?.receivedHoldersCount ?? receptorSubscribers.length}
       loading={receptorLoading}
