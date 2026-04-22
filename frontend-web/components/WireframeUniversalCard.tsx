@@ -558,7 +558,7 @@ export default function WireframeUniversalCard({ card, theme, locale, previewVar
             <span style={{ fontSize: 14, lineHeight: 1, color: theme.subtitle.color, fontWeight: 700 }} aria-hidden>
               ★
             </span>
-            <span style={{ fontWeight: 700, color: theme.subtitle.color, fontSize: 13 }}>Card-Social</span>
+            <span style={{ fontWeight: 700, color: theme.subtitle.color, fontSize: 13 }}>SOY EL FRONTEND</span>
           </div>
 
           <div
@@ -710,7 +710,7 @@ export default function WireframeUniversalCard({ card, theme, locale, previewVar
           <span style={{ fontSize: 14, lineHeight: 1, color: theme.subtitle.color, fontWeight: 700 }} aria-hidden>
             ★
           </span>
-          <span style={{ fontWeight: 700, color: theme.subtitle.color, fontSize: 13 }}>Card-Social</span>
+          <span style={{ fontWeight: 700, color: theme.subtitle.color, fontSize: 13 }}>SOY EL FRONTEND</span>
         </div>
 
         <div style={{ flex: '2.9 1 0', minHeight: 0, display: 'flex', flexDirection: 'column' }}>

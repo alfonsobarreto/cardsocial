@@ -92,7 +92,7 @@ function buildValidCourtesyPageHtml(opts) {
 
   const SITE = 'https://cardsocial.me';
   const t = {
-    title: isEs ? 'Card-Social' : 'Card-Social',
+    title: isEs ? 'SOY EL BACKEND' : 'SOY EL BACKEND',
     countdown: isEs ? 'Acceso temporal:' : 'Temporary access:',
     remaining: isEs ? 'restantes' : 'remaining',
     addContacts: isEs ? 'Descargar Card-Social' : 'Download Card-Social',
@@ -451,7 +451,7 @@ function buildValidCourtesyPageHtml(opts) {
       }).join('');
       if (!grid) grid = '<p style="text-align:center;opacity:0.7;font-size:0.85rem;padding:0 24px;">—</p>';
       document.getElementById('root').innerHTML =
-        '<div class="card-header"><span>★</span> Card-Social</div>'+
+        '<div class="card-header"><span>★</span> SOY EL BACKEND</div>'+
         '<div class="card-top">'+
           '<div class="avatar-box">'+photo+'</div>'+
           '<div class="card-info">'+
