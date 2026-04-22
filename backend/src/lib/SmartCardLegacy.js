@@ -146,12 +146,16 @@ function buildValidCourtesyPageHtml(opts) {
       gap: 6px; padding: 6px 8px; font-weight: 700; font-size: 0.82rem;
       opacity: 0.85; color: var(--tc);
     }
+    /* Marca Card-Social: marco 1.1× el logo (32px = unidad 1) */
     .card-header-logo {
-      width: 32px; height: 32px; border-radius: 8px; overflow: hidden; flex-shrink: 0;
+      width: calc(32px * 1.1);
+      height: calc(32px * 1.1);
+      border-radius: calc(8px * 1.1);
+      flex-shrink: 0;
       display: flex; align-items: center; justify-content: center; background: #fff;
     }
     .card-header-logo img {
-      width: 100%; height: 100%; object-fit: cover; display: block; transform: scale(1.12);
+      width: 32px; height: 32px; object-fit: cover; display: block;
     }
     .card-top { display: flex; flex-direction: column; padding: 0 8px; }
     .avatar-box { display: flex; justify-content: center; padding: 4px 0 10px; }

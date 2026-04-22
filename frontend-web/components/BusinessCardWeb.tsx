@@ -20,6 +20,42 @@ import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 /** Si el cálculo devuelve 0 con slots, forzar tamaño mínimo (Safari / flex raro). */
 const WIREFRAME_MIN_BUBBLE_WHEN_SLOTS = 48;
 
+/**
+ * Cabecera "Card-Social": el marco blanco mide 1.1× el logo (logo = 1, bubble = 1.1).
+ * El `borderRadius` del marco escala con el mismo factor que el alto del logo.
+ */
+const HEADER_BRAND_LOGO_PX = 32;
+const HEADER_BUBBLE_SCALE = 1.1;
+
+function CardSocialBrandMark() {
+  const logo = HEADER_BRAND_LOGO_PX;
+  const bubble = logo * HEADER_BUBBLE_SCALE;
+  const corner = (8 * bubble) / logo;
+  return (
+    <div
+      style={{
+        width: bubble,
+        height: bubble,
+        borderRadius: corner,
+        flexShrink: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#fff',
+      }}
+    >
+      <Image
+        src="/icon.png"
+        alt=""
+        width={logo}
+        height={logo}
+        style={{ objectFit: 'cover', display: 'block' }}
+        unoptimized
+      />
+    </div>
+  );
+}
+
 function slotLabelForWeb(label: string, type: string): string {
   return String(label || type || '—').trim() || '—';
 }
@@ -352,8 +388,12 @@ type Props = {
   theme: CardTheme;
   locale: 'es' | 'en';
   /**
-   * `business` = páginas `/b/…` (alinear métricas de rejilla y tile con la columna vertical / Smart).
-   * `universal` = enlaces 24h: sin cambios de estilo frente a antes.
+   * `universal` = smart / 24h (`/u/…`): rejilla de wireframe (`iconGrid` + `WebWireframeSlotTile` según
+   * `getWireframeIconRowPlan`). A más iconos, más filas: el bloque de slots crece en altura y el borde
+   * de la tarjeta (contenedor flex) se alarga; sin altura fija rígida.
+   * `business` = `/b/…`: `LegacySlotGrid` (paridad con `SmartCardLegacy.js`, grid 3 col). En layout los bloques
+   * de cabecera + ficha y la rejilla usan `flex: 0 0 auto` (sin `shrink` en el grid) para que la altura
+   * total siga a los iconos, igual que al crecer filas en smart/legacy.
    */
   previewVariant?: 'universal' | 'business';
 };
@@ -649,7 +689,17 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
             <Image src={card.wallpaperUrl} alt="" fill style={{ objectFit: 'cover' }} unoptimized />
           </div>
         ) : null}
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', flex: 1, minHeight: 480 }}>
+        <div
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            flex: isBusinessPreview ? '0 0 auto' : 1,
+            minHeight: isBusinessPreview ? undefined : 480,
+            width: '100%',
+          }}
+        >
           <div
             style={{
               display: 'flex',
@@ -662,40 +712,14 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
               opacity: 0.85,
             }}
           >
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 8,
-                overflow: 'hidden',
-                flexShrink: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: '#fff',
-              }}
-            >
-              <Image
-                src="/icon.png"
-                alt=""
-                width={32}
-                height={32}
-                style={{
-                  objectFit: 'cover',
-                  width: '100%',
-                  height: '100%',
-                  transform: 'scale(1.12)',
-                }}
-                unoptimized
-              />
-            </div>
+            <CardSocialBrandMark />
             <span style={{ fontWeight: 700, color: theme.subtitle.color, fontSize: 13 }}>Card-Social</span>
           </div>
 
           <div
             style={{
-              flex: '2.85 1 0',
-              minHeight: 0,
+              flex: isBusinessPreview ? '0 0 auto' : '2.85 1 0',
+              minHeight: isBusinessPreview ? undefined : 0,
               display: 'flex',
               flexDirection: 'row',
               alignItems: 'center',
@@ -767,19 +791,20 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
           <div
             ref={horizIconsBoxRef}
             style={{
-              flex: '2.95 1 0',
-              minHeight: isBusinessPreview ? 200 : 180,
+              flex: isBusinessPreview ? '0 0 auto' : '2.95 1 0',
+              minHeight: isBusinessPreview ? undefined : 180,
               marginTop: 12,
               paddingTop: 2,
               paddingBottom: isBusinessPreview ? 22 : 6,
-              overflow: 'hidden',
+              overflow: isBusinessPreview ? 'visible' : 'hidden',
               display: 'flex',
               flexDirection: 'column',
+              flexShrink: isBusinessPreview ? 0 : undefined,
             }}
           >
             <div
               style={{
-                flex: 1,
+                flex: isBusinessPreview ? '0 0 auto' : 1,
                 width: '100%',
                 boxSizing: 'border-box',
                 paddingLeft: isBusinessPreview ? 0 : 24,
@@ -828,7 +853,17 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
         </div>
       ) : null}
 
-      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', flex: 1, minHeight: 520 }}>
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          flex: isBusinessPreview ? '0 0 auto' : 1,
+          minHeight: isBusinessPreview ? undefined : 520,
+          width: '100%',
+        }}
+      >
         <div
           style={{
             display: 'flex',
@@ -841,37 +876,18 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
             opacity: 0.85,
           }}
         >
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              overflow: 'hidden',
-              flexShrink: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: '#fff',
-            }}
-          >
-            <Image
-              src="/icon.png"
-              alt=""
-              width={32}
-              height={32}
-              style={{
-                objectFit: 'cover',
-                width: '100%',
-                height: '100%',
-                transform: 'scale(1.12)',
-              }}
-              unoptimized
-            />
-          </div>
+          <CardSocialBrandMark />
           <span style={{ fontWeight: 700, color: theme.subtitle.color, fontSize: 13 }}>Card-Social</span>
         </div>
 
-        <div style={{ flex: '2.9 1 0', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <div
+          style={{
+            flex: isBusinessPreview ? '0 0 auto' : '2.9 1 0',
+            minHeight: isBusinessPreview ? undefined : 0,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
           <div
             style={{
               flex: '1.85 1 0',
@@ -950,19 +966,20 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
         <div
           ref={vertIconsBoxRef}
           style={{
-            flex: '2.35 1 0',
-            minHeight: 200,
+            flex: isBusinessPreview ? '0 0 auto' : '2.35 1 0',
+            minHeight: isBusinessPreview ? undefined : 200,
             marginTop: 12,
             paddingTop: 2,
             paddingBottom: 22,
-            overflow: 'hidden',
+            overflow: isBusinessPreview ? 'visible' : 'hidden',
             display: 'flex',
             flexDirection: 'column',
+            flexShrink: isBusinessPreview ? 0 : undefined,
           }}
         >
           <div
             style={{
-              flex: 1,
+              flex: isBusinessPreview ? '0 0 auto' : 1,
               width: '100%',
               boxSizing: 'border-box',
               paddingLeft: isBusinessPreview ? 0 : 24,
