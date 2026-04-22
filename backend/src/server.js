@@ -410,9 +410,7 @@ const otpHash = (emailLower, code) => {
 
   app.use("/api/public", createPublicUniversalRoutes({ storage }));
 
-  // Next.js frontend-web: proxy /u/*, /legal/* y /_next/* al servidor Next (puerto NEXT_PORT).
-  // Nota: GET /b/* lo sirve Express (universalEntryHttpRoutes + businessPublicHtml) para que
-  // producción no dependa del proceso Next; el front Next sigue útil en dev (puerto 3001).
+  // Next.js frontend-web: /u, /b, /legal, /_next → mismo proceso Next (misma UI ficha pública + legal).
   // En monorepo la app real suele estar en `repo/frontend-web`; `backend/frontend-web` a veces es solo stub de deploy.
   const pathMod = require('path');
   const fs = require('fs');
@@ -536,6 +534,7 @@ const otpHash = (emailLower, code) => {
     };
 
     app.use('/u', nextProxy);
+    app.use('/b', nextProxy);
     app.use('/legal', nextProxy);
     app.use('/_next', nextProxy);
     // File conventions del App Router (metadata): sin proxy el navegador pide /icon.png y Express no lo reenvía a Next.
