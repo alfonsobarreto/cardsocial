@@ -74,15 +74,18 @@ function WebWireframeSlotTile({
   bubbleSize,
   theme,
   onPress,
+  previewVariant = 'universal',
 }: {
   slot: PublicSlot;
   bubbleSize: number;
   theme: CardTheme;
   onPress: (slot: PublicSlot) => void;
+  /** `business`: zona de icono 1:1 (preview `/b/…`); `universal` = enlaces 24h, sin cambio. */
+  previewVariant?: 'universal' | 'business';
 }) {
   const [iconUrlFailed, setIconUrlFailed] = useState(false);
   const bubble = Math.max(26, Math.floor(bubbleSize));
-  /** Icono en la mitad superior del cuadro; la etiqueta va **dentro** de la misma caja (Stitch / referencia). */
+  /** Misma fórmula en web que la columna vertical Smart (0.48×); el `bubble` ya se alinea vía contenedor en business. */
   const iconSize = Math.max(20, Math.round(bubble * 0.48));
   const il = theme.iconLabel;
   const labelFontSize = Math.max(9, Math.min(15, Math.round(Math.min(bubble * 0.155, il.fontSize + 5))));
@@ -100,6 +103,8 @@ function WebWireframeSlotTile({
   const labelText = compactSlotLabelForWeb(
     slotLabelForWeb(String(slot.label || ''), String(slot.type || '')),
   );
+
+  const isBusinessPreview = previewVariant === 'business';
 
   return (
     <div
@@ -138,14 +143,25 @@ function WebWireframeSlotTile({
         }}
       >
         <div
-          style={{
-            flex: '0 0 auto',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: Math.max(32, Math.round(bubble * 0.5)),
-            width: '100%',
-          }}
+          style={
+            isBusinessPreview
+              ? {
+                  flex: '0 0 auto',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '100%',
+                  aspectRatio: 1,
+                }
+              : {
+                  flex: '0 0 auto',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: Math.max(32, Math.round(bubble * 0.5)),
+                  width: '100%',
+                }
+          }
         >
           <SlotGlyph
             visual={visual}
@@ -227,9 +243,14 @@ type Props = {
   card: CardData;
   theme: CardTheme;
   locale: 'es' | 'en';
+  /**
+   * `business` = páginas `/b/…` (alinear métricas de rejilla y tile con la columna vertical / Smart).
+   * `universal` = enlaces 24h: sin cambios de estilo frente a antes.
+   */
+  previewVariant?: 'universal' | 'business';
 };
 
-export default function WireframeUniversalCard({ card, theme, locale }: Props) {
+export default function WireframeUniversalCard({ card, theme, locale, previewVariant = 'universal' }: Props) {
   const tr = (es: string, en: string) => (locale === 'es' ? es : en);
   const [slotAction, setSlotAction] = useState<{ plan: MirrorOpenPlan; slot: PublicSlot } | null>(null);
 
@@ -420,7 +441,13 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
                   justifyContent: 'center',
                 }}
               >
-                <WebWireframeSlotTile slot={slot} bubbleSize={bubble} theme={theme} onPress={handleSlotPress} />
+                <WebWireframeSlotTile
+                  slot={slot}
+                  bubbleSize={bubble}
+                  theme={theme}
+                  onPress={handleSlotPress}
+                  previewVariant={previewVariant}
+                />
               </div>
             ))}
           </div>
@@ -491,6 +518,8 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
       accent={theme.border.color}
     />
   );
+
+  const isBusinessPreview = previewVariant === 'business';
 
   if (layout === 'horizontal') {
     return (
@@ -605,11 +634,11 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
           <div
             ref={horizIconsBoxRef}
             style={{
-              flex: '2.95 1 0',
-              minHeight: 180,
+              flex: isBusinessPreview ? '2.35 1 0' : '2.95 1 0',
+              minHeight: isBusinessPreview ? 200 : 180,
               marginTop: 12,
               paddingTop: 2,
-              paddingBottom: 6,
+              paddingBottom: isBusinessPreview ? 22 : 6,
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',

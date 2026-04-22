@@ -83,7 +83,12 @@ export default function CardPreview(props: Props) {
         )}
       </div>
 
-      <WireframeUniversalCard card={card} theme={theme} locale={locale} />
+      <WireframeUniversalCard
+        card={card}
+        theme={theme}
+        locale={locale}
+        previewVariant={isBusiness ? 'business' : 'universal'}
+      />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 20 }}>
         <a
