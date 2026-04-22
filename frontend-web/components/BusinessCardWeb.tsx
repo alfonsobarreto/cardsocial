@@ -70,25 +70,144 @@ function SlotGlyph({
   );
 }
 
+/** Mismas medidas que `.slot-grid` / `.slot` / `.slot-ic` / `.slot-lb` en `SmartCardLegacy.js` (paridad Business). */
+const LEGACY_ICON_PX = 28;
+
+function LegacyGridSlot({
+  slot,
+  theme,
+  onPress,
+}: {
+  slot: PublicSlot;
+  theme: CardTheme;
+  onPress: (s: PublicSlot) => void;
+}) {
+  const [iconUrlFailed, setIconUrlFailed] = useState(false);
+  const il = theme.iconLabel;
+  const bd = theme.border;
+  const baseVisual = resolveSlotVisual(slot);
+  const visual =
+    iconUrlFailed && baseVisual.kind === 'url' ? resolveSlotVisual({ ...slot, icon: null }) : baseVisual;
+  const voip = String(slot.type || '')
+    .toLowerCase()
+    .includes('voip');
+  const labelText = compactSlotLabelForWeb(
+    slotLabelForWeb(String(slot.label || ''), String(slot.type || '')),
+  );
+  return (
+    <div
+      role="button"
+      tabIndex={voip ? -1 : 0}
+      onClick={() => {
+        if (!voip) onPress(slot);
+      }}
+      onKeyDown={(e) => {
+        if (voip) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onPress(slot);
+        }
+      }}
+      style={{
+        border: `1px solid ${bd.color}`,
+        borderRadius: 12,
+        padding: '10px 6px',
+        minHeight: 72,
+        backgroundColor: theme.bubble.backgroundColor,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: voip ? 'not-allowed' : 'pointer',
+        opacity: voip ? 0.45 : 1,
+        boxSizing: 'border-box',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 4,
+          color: theme.icon.color,
+        }}
+      >
+        <SlotGlyph
+          visual={visual}
+          size={LEGACY_ICON_PX}
+          color={theme.icon.color}
+          onUrlError={() => setIconUrlFailed(true)}
+        />
+      </div>
+      <div
+        style={{
+          width: '100%',
+          textAlign: 'center',
+          fontSize: '0.62rem',
+          lineHeight: 1.2,
+          color: il.color,
+          opacity: 0.85,
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical' as const,
+          overflow: 'hidden',
+          wordBreak: 'break-word',
+        }}
+      >
+        {labelText}
+      </div>
+    </div>
+  );
+}
+
+function LegacySlotGrid({
+  slots,
+  theme,
+  onPress,
+}: {
+  slots: PublicSlot[];
+  theme: CardTheme;
+  onPress: (s: PublicSlot) => void;
+}) {
+  const list = (slots ?? []).slice(0, 24);
+  if (list.length === 0) return null;
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, 1fr)',
+        gap: 12,
+        width: '100%',
+        boxSizing: 'border-box',
+        padding: '12px 24px 22px',
+      }}
+    >
+      {list.map((slot, idx) => (
+        <LegacyGridSlot
+          key={`${slot.itemId || slot.label || 'slot'}-${idx}`}
+          slot={slot}
+          theme={theme}
+          onPress={onPress}
+        />
+      ))}
+    </div>
+  );
+}
+
 function WebWireframeSlotTile({
   slot,
   bubbleSize,
   theme,
   onPress,
-  previewVariant = 'universal',
 }: {
   slot: PublicSlot;
   bubbleSize: number;
   theme: CardTheme;
   onPress: (slot: PublicSlot) => void;
-  /** `business`: zona de icono 1:1 (preview `/b/…`); `universal` = enlaces 24h, sin cambio. */
-  previewVariant?: 'universal' | 'business';
 }) {
   const [iconUrlFailed, setIconUrlFailed] = useState(false);
   const bubble = Math.max(26, Math.floor(bubbleSize));
-  const isBusinessPreview = previewVariant === 'business';
-  /** Business: 28px fijos como `SmartCardLegacy` (grid); universal: 0.48× burbuja. */
-  const iconSize = isBusinessPreview ? 28 : Math.max(20, Math.round(bubble * 0.48));
+  const iconSize = Math.max(20, Math.round(bubble * 0.48));
   const il = theme.iconLabel;
   const labelFontSize = Math.max(9, Math.min(15, Math.round(Math.min(bubble * 0.155, il.fontSize + 5))));
   const labelLineHeight = Math.ceil(labelFontSize * 1.22);
@@ -143,25 +262,14 @@ function WebWireframeSlotTile({
         }}
       >
         <div
-          style={
-            isBusinessPreview
-              ? {
-                  flex: '0 0 auto',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '100%',
-                  aspectRatio: 1,
-                }
-              : {
-                  flex: '0 0 auto',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minHeight: Math.max(32, Math.round(bubble * 0.5)),
-                  width: '100%',
-                }
-          }
+          style={{
+            flex: '0 0 auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: Math.max(32, Math.round(bubble * 0.5)),
+            width: '100%',
+          }}
         >
           <SlotGlyph
             visual={visual}
@@ -446,7 +554,6 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
                   bubbleSize={bubble}
                   theme={theme}
                   onPress={handleSlotPress}
-                  previewVariant={previewVariant}
                 />
               </div>
             ))}
@@ -555,7 +662,33 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
               opacity: 0.85,
             }}
           >
-            <Image src="/icon.png" alt="" width={18} height={18} unoptimized />
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                overflow: 'hidden',
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: '#fff',
+              }}
+            >
+              <Image
+                src="/icon.png"
+                alt=""
+                width={32}
+                height={32}
+                style={{
+                  objectFit: 'cover',
+                  width: '100%',
+                  height: '100%',
+                  transform: 'scale(1.12)',
+                }}
+                unoptimized
+              />
+            </div>
             <span style={{ fontWeight: 700, color: theme.subtitle.color, fontSize: 13 }}>Card-Social</span>
           </div>
 
@@ -649,8 +782,8 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
                 flex: 1,
                 width: '100%',
                 boxSizing: 'border-box',
-                paddingLeft: 24,
-                paddingRight: 24,
+                paddingLeft: isBusinessPreview ? 0 : 24,
+                paddingRight: isBusinessPreview ? 0 : 24,
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'flex-start',
@@ -659,6 +792,8 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
             >
               {showSlotsSkeleton ? (
                 <IconSlotsSkeleton theme={theme} slotCount={slots.length} accent={bd.color} />
+              ) : isBusinessPreview && slots.length > 0 ? (
+                <LegacySlotGrid slots={slots} theme={theme} onPress={handleSlotPress} />
               ) : (
                 iconGrid(horizBubble)
               )}
@@ -706,7 +841,33 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
             opacity: 0.85,
           }}
         >
-          <Image src="/icon.png" alt="" width={18} height={18} unoptimized />
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              overflow: 'hidden',
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: '#fff',
+            }}
+          >
+            <Image
+              src="/icon.png"
+              alt=""
+              width={32}
+              height={32}
+              style={{
+                objectFit: 'cover',
+                width: '100%',
+                height: '100%',
+                transform: 'scale(1.12)',
+              }}
+              unoptimized
+            />
+          </div>
           <span style={{ fontWeight: 700, color: theme.subtitle.color, fontSize: 13 }}>Card-Social</span>
         </div>
 
@@ -804,8 +965,8 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
               flex: 1,
               width: '100%',
               boxSizing: 'border-box',
-              paddingLeft: 24,
-              paddingRight: 24,
+              paddingLeft: isBusinessPreview ? 0 : 24,
+              paddingRight: isBusinessPreview ? 0 : 24,
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'flex-start',
@@ -814,6 +975,8 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
           >
             {showSlotsSkeleton ? (
               <IconSlotsSkeleton theme={theme} slotCount={slots.length} accent={bd.color} />
+            ) : isBusinessPreview && slots.length > 0 ? (
+              <LegacySlotGrid slots={slots} theme={theme} onPress={handleSlotPress} />
             ) : (
               iconGrid(vertBubble)
             )}

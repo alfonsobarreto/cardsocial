@@ -92,7 +92,7 @@ function buildValidCourtesyPageHtml(opts) {
 
   const SITE = 'https://cardsocial.me';
   const t = {
-    title: isEs ? 'SOY EL BACKEND' : 'SOY EL BACKEND',
+    title: isEs ? 'Card-Social' : 'Card-Social',
     countdown: isEs ? 'Acceso temporal:' : 'Temporary access:',
     remaining: isEs ? 'restantes' : 'remaining',
     addContacts: isEs ? 'Descargar Card-Social' : 'Download Card-Social',
@@ -145,6 +145,13 @@ function buildValidCourtesyPageHtml(opts) {
       display: flex; align-items: center; justify-content: center;
       gap: 6px; padding: 6px 8px; font-weight: 700; font-size: 0.82rem;
       opacity: 0.85; color: var(--tc);
+    }
+    .card-header-logo {
+      width: 32px; height: 32px; border-radius: 8px; overflow: hidden; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; background: #fff;
+    }
+    .card-header-logo img {
+      width: 100%; height: 100%; object-fit: cover; display: block; transform: scale(1.12);
     }
     .card-top { display: flex; flex-direction: column; padding: 0 8px; }
     .avatar-box { display: flex; justify-content: center; padding: 4px 0 10px; }
@@ -451,7 +458,7 @@ function buildValidCourtesyPageHtml(opts) {
       }).join('');
       if (!grid) grid = '<p style="text-align:center;opacity:0.7;font-size:0.85rem;padding:0 24px;">—</p>';
       document.getElementById('root').innerHTML =
-        '<div class="card-header"><span>★</span> SOY EL BACKEND</div>'+
+        '<div class="card-header"><span class="card-header-logo"><img src="/icon.png" alt=""/></span><span>Card-Social</span></div>'+
         '<div class="card-top">'+
           '<div class="avatar-box">'+photo+'</div>'+
           '<div class="card-info">'+
