@@ -13,10 +13,8 @@ import {
 } from '@/lib/wireframeMath';
 import { getMirrorVaultOpenPlan, type MirrorOpenPlan } from '@card-social/services/mirrorVaultItemOpenPlan';
 import Image from 'next/image';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
-/** Ancho útil típico del preview (~maxWidth 420 − paddings) hasta que ResizeObserver mida el contenedor. */
-const WIREFRAME_FALLBACK_USABLE_W = 304;
 /** Si el cálculo devuelve 0 con slots, forzar tamaño mínimo (Safari / flex raro). */
 const WIREFRAME_MIN_BUBBLE_WHEN_SLOTS = 48;
 
@@ -143,6 +141,50 @@ function WebWireframeSlotTile({
   );
 }
 
+/** Placeholder hasta primera medida síncrona (ResizeObserver llega después del paint → causaba el “grande y luego chico”). */
+function IconSlotsSkeleton({
+  theme,
+  slotCount,
+  accent,
+}: {
+  theme: CardTheme;
+  slotCount: number;
+  accent: string;
+}) {
+  const n = Math.min(6, Math.max(1, slotCount));
+  const bd = theme.border;
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: WIREFRAME_STITCH_GAP,
+        width: '100%',
+        minHeight: 160,
+        padding: '8px 0 12px',
+        boxSizing: 'border-box',
+      }}
+    >
+      {Array.from({ length: n }, (_, i) => (
+        <div
+          key={i}
+          style={{
+            width: 52,
+            height: 52,
+            borderRadius: Math.min(14, 26),
+            backgroundColor: theme.bubble.backgroundColor,
+            border: `${Math.max(1, theme.border.width)}px solid ${bd.color}33`,
+            boxShadow: `inset 0 0 0 1px ${accent}1a`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 type Props = {
   card: CardData;
   theme: CardTheme;
@@ -179,23 +221,56 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
   const [vertBox, setVertBox] = useState({ w: 0, h: 0 });
   const [horizBox, setHorizBox] = useState({ w: 0, h: 0 });
 
-  useLayoutEffect(() => {
+  const syncReadIconBoxes = useCallback(() => {
     const el = vertIconsBoxRef.current;
     const elH = horizIconsBoxRef.current;
-    const ro = new ResizeObserver(() => {
-      if (el) {
-        const r = el.getBoundingClientRect();
-        setVertBox({ w: r.width, h: r.height });
-      }
-      if (elH) {
-        const r = elH.getBoundingClientRect();
-        setHorizBox({ w: r.width, h: r.height });
-      }
-    });
+    if (el) {
+      const r = el.getBoundingClientRect();
+      setVertBox((p) =>
+        Math.abs(p.w - r.width) < 0.5 && Math.abs(p.h - r.height) < 0.5 ? p : { w: r.width, h: r.height },
+      );
+    } else {
+      setVertBox({ w: 0, h: 0 });
+    }
+    if (elH) {
+      const r = elH.getBoundingClientRect();
+      setHorizBox((p) =>
+        Math.abs(p.w - r.width) < 0.5 && Math.abs(p.h - r.height) < 0.5 ? p : { w: r.width, h: r.height },
+      );
+    } else {
+      setHorizBox({ w: 0, h: 0 });
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    const read = () => {
+      syncReadIconBoxes();
+    };
+    read();
+    const el = vertIconsBoxRef.current;
+    const elH = horizIconsBoxRef.current;
+    const wV = el ? el.getBoundingClientRect().width : 0;
+    const wHv = elH ? elH.getBoundingClientRect().width : 0;
+    const needsRaf = (el && wV < 1) || (elH && wHv < 1);
+    let raf0 = 0;
+    let raf1 = 0;
+    if (needsRaf) {
+      raf0 = requestAnimationFrame(() => {
+        read();
+        raf1 = requestAnimationFrame(() => {
+          read();
+        });
+      });
+    }
+    const ro = new ResizeObserver(read);
     if (el) ro.observe(el);
     if (elH) ro.observe(elH);
-    return () => ro.disconnect();
-  }, [card.layout, card.slots?.length]);
+    return () => {
+      cancelAnimationFrame(raf0);
+      cancelAnimationFrame(raf1);
+      ro.disconnect();
+    };
+  }, [card.layout, card.slots?.length, syncReadIconBoxes]);
 
   const slots = (card.slots ?? []).slice(0, 24);
   const rowPlan = getWireframeIconRowPlan(slots.length);
@@ -223,17 +298,13 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
 
   const layout = card.layout === 'horizontal' ? 'horizontal' : 'vertical';
 
-  /** Alineado con `minHeight` de la caja de iconos (abajo). Si h=0, el math de wireframe
-   *  usa solo ancho → burbujas ~112px y luego al medir con RO encogen (salto visual). */
-  const VERT_ICONS_REGION_MIN_H = 200;
-  const HORIZ_ICONS_REGION_MIN_H = 180;
-
   const vertMeasuredW = Math.max(0, vertBox.w - WIREFRAME_STITCH_HORIZONTAL_INSET);
-  const vertUsableW =
-    vertMeasuredW > 0 ? vertMeasuredW : slots.length > 0 ? WIREFRAME_FALLBACK_USABLE_W : 0;
-  const vertGridH = vertBox.h > 0 ? vertBox.h : VERT_ICONS_REGION_MIN_H;
+  const vertUsableW = vertMeasuredW;
+  const vertGridH = vertBox.h;
+  const vertIconAreaReady = vertBox.w > 0.5 && vertBox.h > 0.5;
+
   const vertBubbleRaw =
-    vertUsableW > 0 && rowPlan.length
+    vertIconAreaReady && vertUsableW > 0 && rowPlan.length
       ? computeStitchWireframeBubbleSide(
           vertUsableW,
           vertGridH,
@@ -244,16 +315,17 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
         )
       : 0;
   const vertBubble =
-    slots.length > 0 && rowPlan.length > 0
+    slots.length > 0 && rowPlan.length > 0 && vertIconAreaReady
       ? Math.max(vertBubbleRaw, vertBubbleRaw > 0 ? 0 : WIREFRAME_MIN_BUBBLE_WHEN_SLOTS)
       : 0;
 
   const horizMeasuredW = Math.max(0, horizBox.w - WIREFRAME_STITCH_HORIZONTAL_INSET);
-  const horizUsableW =
-    horizMeasuredW > 0 ? horizMeasuredW : slots.length > 0 ? WIREFRAME_FALLBACK_USABLE_W : 0;
-  const horizGridH = horizBox.h > 0 ? horizBox.h : HORIZ_ICONS_REGION_MIN_H;
+  const horizUsableW = horizMeasuredW;
+  const horizGridH = horizBox.h;
+  const horizIconAreaReady = horizBox.w > 0.5 && horizBox.h > 0.5;
+
   const horizBubbleRaw =
-    horizUsableW > 0 && rowPlan.length
+    horizIconAreaReady && horizUsableW > 0 && rowPlan.length
       ? computeStitchWireframeBubbleSide(
           horizUsableW,
           horizGridH,
@@ -264,9 +336,13 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
         )
       : 0;
   const horizBubble =
-    slots.length > 0 && rowPlan.length > 0
+    slots.length > 0 && rowPlan.length > 0 && horizIconAreaReady
       ? Math.max(horizBubbleRaw, horizBubbleRaw > 0 ? 0 : WIREFRAME_MIN_BUBBLE_WHEN_SLOTS)
       : 0;
+
+  const showSlotsSkeleton =
+    slots.length > 0 &&
+    (layout === 'vertical' ? !vertIconAreaReady : !horizIconAreaReady);
 
   const iconGrid = (bubble: number) =>
     bubble > 0 ? (
@@ -500,7 +576,11 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
                 alignItems: 'stretch',
               }}
             >
-              {iconGrid(horizBubble)}
+              {showSlotsSkeleton ? (
+                <IconSlotsSkeleton theme={theme} slotCount={slots.length} accent={bd.color} />
+              ) : (
+                iconGrid(horizBubble)
+              )}
             </div>
           </div>
         </div>
@@ -648,7 +728,11 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
               alignItems: 'stretch',
             }}
           >
-            {iconGrid(vertBubble)}
+            {showSlotsSkeleton ? (
+              <IconSlotsSkeleton theme={theme} slotCount={slots.length} accent={bd.color} />
+            ) : (
+              iconGrid(vertBubble)
+            )}
           </div>
         </div>
       </div>
