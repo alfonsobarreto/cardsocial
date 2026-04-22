@@ -20,12 +20,8 @@ const WIREFRAME_FALLBACK_USABLE_W = 304;
 /** Si el cálculo devuelve 0 con slots, forzar tamaño mínimo (Safari / flex raro). */
 const WIREFRAME_MIN_BUBBLE_WHEN_SLOTS = 48;
 
-function compactSlotLabel(label: string): string {
-  return String(label || '')
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .join(' ');
+function slotLabelForWeb(label: string, type: string): string {
+  return String(label || type || '—').trim() || '—';
 }
 
 function SlotGlyph({
@@ -81,8 +77,8 @@ function WebWireframeSlotTile({
   const iconSize = Math.round(bubble * 0.9);
   const il = theme.iconLabel;
   const labelFontSize = Math.max(9, Math.min(15, Math.round(Math.min(bubble * 0.155, il.fontSize + 5))));
-  const labelLineHeight = Math.ceil(labelFontSize * 1.22);
-  const minTileH = bubble + 8 + labelLineHeight * 2 + 8 + 6;
+  const labelLineHeight = Math.ceil(labelFontSize * 1.25);
+  const minTileH = bubble + 8 + labelLineHeight * 3 + 10;
   const bubbleR = Math.min(theme.bubble.borderRadius, bubble / 2);
   const baseVisual = resolveSlotVisual(slot);
   const visual =
@@ -128,19 +124,20 @@ function WebWireframeSlotTile({
           marginTop: 2,
           textAlign: 'center',
           width: '100%',
-          maxWidth: bubble + 8,
+          maxWidth: Math.max(bubble + 8, 72),
           fontSize: labelFontSize,
           lineHeight: `${labelLineHeight}px`,
           color: il.color,
           fontWeight: 300,
           fontStyle: il.fontStyle,
           display: '-webkit-box',
-          WebkitLineClamp: 2,
+          WebkitLineClamp: 3,
           WebkitBoxOrient: 'vertical' as const,
           overflow: 'hidden',
+          wordBreak: 'break-word',
         }}
       >
-        {compactSlotLabel(slot.label || slot.type || '—')}
+        {slotLabelForWeb(String(slot.label || ''), String(slot.type || ''))}
       </div>
     </div>
   );
@@ -405,7 +402,7 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
               flex: '0 0 auto',
             }}
           >
-            <Image src="/cs-icon-logo.png" alt="" width={18} height={18} unoptimized />
+            <Image src="/icon.png" alt="" width={18} height={18} unoptimized />
             <span style={{ fontWeight: 300, opacity: 0.85, color: theme.subtitle.color, fontSize: 13 }}>Card-Social</span>
           </div>
 
@@ -540,7 +537,7 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
             flex: '0 0 auto',
           }}
         >
-          <Image src="/cs-icon-logo.png" alt="" width={18} height={18} unoptimized />
+          <Image src="/icon.png" alt="" width={18} height={18} unoptimized />
           <span style={{ fontWeight: 300, opacity: 0.85, color: theme.subtitle.color, fontSize: 13 }}>Card-Social</span>
         </div>
 

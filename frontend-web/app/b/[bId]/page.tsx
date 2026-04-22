@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import BusinessCardWebPublic from '@/components/BusinessCardWebPublic';
+import CardPreview from '@/components/CardPreview';
 import type { CardData } from '@/lib/universalCardTypes';
 import { normalizeUniversalCardPayload } from '@/lib/normalizeUniversalCard';
 import { getThemeById } from '@/lib/themes';
@@ -115,7 +115,14 @@ export default async function PublicBusinessPage({ params, searchParams }: Props
         padding: '24px 16px 48px',
       }}
     >
-      <BusinessCardWebPublic card={card} theme={theme} appDeepLink={appDeepLink} locale="es" />
+      <CardPreview
+        variant="business"
+        card={card}
+        theme={theme}
+        expiresAt={card.expiresAt}
+        locale="es"
+        appDeepLink={appDeepLink}
+      />
     </main>
   );
 }

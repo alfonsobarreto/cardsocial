@@ -8,24 +8,41 @@ import { CardTheme } from '@/lib/themes';
 
 export type { CardData, PublicSlot } from '@/lib/universalCardTypes';
 
-type Props = {
-  card: CardData;
-  theme: CardTheme;
-  expiresAt: string;
-  locale: 'es' | 'en';
-  /** Token del enlace universal (`/u/{token}`), para deep link en la copia. */
-  universalToken: string;
-};
+type Props =
+  | {
+      card: CardData;
+      theme: CardTheme;
+      expiresAt: string;
+      locale: 'es' | 'en';
+      /** Enlace universal 24h (`/u/…`). */
+      variant?: 'universal';
+      /** Token del enlace universal (`/u/{token}`), para deep link. */
+      universalToken: string;
+    }
+  | {
+      card: CardData;
+      theme: CardTheme;
+      expiresAt: string;
+      locale: 'es' | 'en';
+      /** Misma ficha pública que el 24h, sin cuenta regresiva. */
+      variant: 'business';
+      appDeepLink: string;
+    };
 
-export default function CardPreview({ card, theme, expiresAt, locale, universalToken }: Props) {
+export default function CardPreview(props: Props) {
+  const { card, theme, expiresAt, locale } = props;
+  const isBusiness = props.variant === 'business';
   const tr = (es: string, en: string) => (locale === 'es' ? es : en);
   const bd = theme.border;
 
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
+    if (isBusiness) {
+      return;
+    }
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
-  }, []);
+  }, [isBusiness]);
 
   const expiresDate = new Date(expiresAt);
   const msLeft = Math.max(0, expiresDate.getTime() - now);
@@ -36,7 +53,7 @@ export default function CardPreview({ card, theme, expiresAt, locale, universalT
   const pad = (n: number) => (n < 10 ? `0${n}` : String(n));
   const cdStr = `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
 
-  const deepLink = `cardsocial://u/${universalToken}`;
+  const deepLink = isBusiness ? props.appDeepLink : `cardsocial://u/${props.universalToken}`;
   const storeUrl = 'https://cardsocial.me';
 
   return (
@@ -54,8 +71,16 @@ export default function CardPreview({ card, theme, expiresAt, locale, universalT
           fontWeight: 300,
         }}
       >
-        {tr('Acceso temporal', 'Temporary access')}: <span style={{ fontVariantNumeric: 'tabular-nums' }}>{cdStr}</span>{' '}
-        {tr('restantes', 'remaining')}.
+        {isBusiness ? (
+          <>
+            {tr('Tarjeta de negocio pública (permanente)', 'Public business card (permanent)')}
+          </>
+        ) : (
+          <>
+            {tr('Acceso temporal', 'Temporary access')}: <span style={{ fontVariantNumeric: 'tabular-nums' }}>{cdStr}</span>{' '}
+            {tr('restantes', 'remaining')}.
+          </>
+        )}
       </div>
 
       <WireframeUniversalCard card={card} theme={theme} locale={locale} />
@@ -71,7 +96,8 @@ export default function CardPreview({ card, theme, expiresAt, locale, universalT
             padding: '14px 24px',
             borderRadius: 14,
             backgroundColor: bd.color,
-            color: theme.background[0],
+            /** `background[0]` a veces es casi el mismo tono que `bd` (poco contraste en temas claros). */
+            color: theme.title.color,
             fontWeight: 400,
             fontSize: 16,
             textDecoration: 'none',

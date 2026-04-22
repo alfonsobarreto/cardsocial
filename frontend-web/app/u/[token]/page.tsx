@@ -76,6 +76,7 @@ export default async function UniversalCardPage({ params }: Props) {
       padding: '24px 16px 48px',
     }}>
       <CardPreview
+        variant="universal"
         card={card}
         theme={theme}
         expiresAt={card.expiresAt}
