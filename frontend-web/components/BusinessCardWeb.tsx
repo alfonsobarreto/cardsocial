@@ -681,7 +681,7 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
           display: 'flex',
           flexDirection: 'column',
           width: '100%',
-          minHeight: 480,
+          minHeight: isBusinessPreview ? undefined : 480,
         }}
       >
         {card.wallpaperUrl ? (
@@ -728,7 +728,7 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
           >
             <div
               style={{
-                flex: '1.2 1 0',
+                flex: isBusinessPreview ? '0 0 auto' : '1.2 1 0',
                 padding: 8,
                 paddingRight: 4,
                 display: 'flex',
@@ -760,7 +760,8 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
             </div>
             <div
               style={{
-                flex: '2.6 1 0',
+                flex: isBusinessPreview ? '0 0 auto' : '2.6 1 0',
+                minWidth: isBusinessPreview ? undefined : 0,
                 padding: 8,
                 paddingLeft: 4,
                 display: 'flex',
@@ -844,7 +845,7 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
         display: 'flex',
         flexDirection: 'column',
         width: '100%',
-        minHeight: 520,
+        minHeight: isBusinessPreview ? undefined : 520,
       }}
     >
       {card.wallpaperUrl ? (
@@ -890,7 +891,7 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
         >
           <div
             style={{
-              flex: '1.85 1 0',
+              flex: isBusinessPreview ? '0 0 auto' : '1.85 1 0',
               minHeight: 96,
               padding: '4px 8px 10px',
               display: 'flex',
@@ -924,8 +925,8 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
 
           <div
             style={{
-              flex: '1.55 1 0',
-              minHeight: 0,
+              flex: isBusinessPreview ? '0 0 auto' : '1.55 1 0',
+              minHeight: isBusinessPreview ? undefined : 0,
               padding: '8px 8px 12px',
               display: 'flex',
               flexDirection: 'column',
