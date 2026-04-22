@@ -223,14 +223,20 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
 
   const layout = card.layout === 'horizontal' ? 'horizontal' : 'vertical';
 
+  /** Alineado con `minHeight` de la caja de iconos (abajo). Si h=0, el math de wireframe
+   *  usa solo ancho → burbujas ~112px y luego al medir con RO encogen (salto visual). */
+  const VERT_ICONS_REGION_MIN_H = 200;
+  const HORIZ_ICONS_REGION_MIN_H = 180;
+
   const vertMeasuredW = Math.max(0, vertBox.w - WIREFRAME_STITCH_HORIZONTAL_INSET);
   const vertUsableW =
     vertMeasuredW > 0 ? vertMeasuredW : slots.length > 0 ? WIREFRAME_FALLBACK_USABLE_W : 0;
+  const vertGridH = vertBox.h > 0 ? vertBox.h : VERT_ICONS_REGION_MIN_H;
   const vertBubbleRaw =
     vertUsableW > 0 && rowPlan.length
       ? computeStitchWireframeBubbleSide(
           vertUsableW,
-          vertBox.h,
+          vertGridH,
           rowPlan,
           WIREFRAME_STITCH_GAP,
           WIREFRAME_STITCH_GAP,
@@ -245,11 +251,12 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
   const horizMeasuredW = Math.max(0, horizBox.w - WIREFRAME_STITCH_HORIZONTAL_INSET);
   const horizUsableW =
     horizMeasuredW > 0 ? horizMeasuredW : slots.length > 0 ? WIREFRAME_FALLBACK_USABLE_W : 0;
+  const horizGridH = horizBox.h > 0 ? horizBox.h : HORIZ_ICONS_REGION_MIN_H;
   const horizBubbleRaw =
     horizUsableW > 0 && rowPlan.length
       ? computeStitchWireframeBubbleSide(
           horizUsableW,
-          horizBox.h,
+          horizGridH,
           rowPlan,
           WIREFRAME_STITCH_GAP,
           WIREFRAME_STITCH_GAP,
