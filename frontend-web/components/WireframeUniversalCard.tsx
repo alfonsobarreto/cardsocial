@@ -6,10 +6,11 @@ import { resolveSlotVisual } from '@/lib/slotVisual';
 import { CardTheme } from '@/lib/themes';
 import type { CardData, PublicSlot } from '@/lib/universalCardTypes';
 import {
-    computeStitchWireframeBubbleSide,
-    getWireframeIconRowPlan,
-    WIREFRAME_STITCH_GAP,
-    WIREFRAME_STITCH_HORIZONTAL_INSET,
+  computeStitchWireframeBubbleSide,
+  getWireframeIconRowPlan,
+  wireframeSlotBelowBubbleHeight,
+  WIREFRAME_STITCH_GAP,
+  WIREFRAME_STITCH_HORIZONTAL_INSET,
 } from '@/lib/wireframeMath';
 import { getMirrorVaultOpenPlan, type MirrorOpenPlan } from '@card-social/services/mirrorVaultItemOpenPlan';
 import Image from 'next/image';
@@ -20,6 +21,15 @@ const WIREFRAME_MIN_BUBBLE_WHEN_SLOTS = 48;
 
 function slotLabelForWeb(label: string, type: string): string {
   return String(label || type || '—').trim() || '—';
+}
+
+/** Igual que `compactSlotLabel` en la app: máx. 2 palabras para el chip. */
+function compactSlotLabelForWeb(label: string): string {
+  return String(label || '')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .join(' ');
 }
 
 function SlotGlyph({
@@ -72,36 +82,53 @@ function WebWireframeSlotTile({
 }) {
   const [iconUrlFailed, setIconUrlFailed] = useState(false);
   const bubble = Math.max(26, Math.floor(bubbleSize));
-  const iconSize = Math.round(bubble * 0.9);
+  /** Icono en la mitad superior del cuadro; la etiqueta va **dentro** de la misma caja (Stitch / referencia). */
+  const iconSize = Math.max(20, Math.round(bubble * 0.48));
   const il = theme.iconLabel;
   const labelFontSize = Math.max(9, Math.min(15, Math.round(Math.min(bubble * 0.155, il.fontSize + 5))));
-  const labelLineHeight = Math.ceil(labelFontSize * 1.25);
-  const minTileH = bubble + 8 + labelLineHeight * 3 + 10;
-  const bubbleR = Math.min(theme.bubble.borderRadius, bubble / 2);
+  const labelLineHeight = Math.ceil(labelFontSize * 1.22);
+  const minTileH = bubble + wireframeSlotBelowBubbleHeight(bubble, il.fontSize);
+  const bubbleR = Math.min(theme.bubble.borderRadius, Math.max(8, Math.round(bubble * 0.2)));
   const baseVisual = resolveSlotVisual(slot);
   const visual =
     iconUrlFailed && baseVisual.kind === 'url'
       ? resolveSlotVisual({ ...slot, icon: null })
       : baseVisual;
+  const voip = String(slot.type || '')
+    .toLowerCase()
+    .includes('voip');
+  const labelText = compactSlotLabelForWeb(
+    slotLabelForWeb(String(slot.label || ''), String(slot.type || '')),
+  );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: minTileH, width: bubble }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        width: bubble,
+        minHeight: minTileH,
+        boxSizing: 'border-box',
+      }}
+    >
       <button
         type="button"
         onClick={() => onPress(slot)}
-        disabled={String(slot.type || '').toLowerCase().includes('voip')}
+        disabled={voip}
         style={{
-          width: bubble,
-          height: bubble,
+          width: '100%',
+          minHeight: minTileH,
           borderRadius: bubbleR,
           backgroundColor: theme.bubble.backgroundColor,
           border: `${Math.max(1, theme.border.width)}px solid ${theme.border.color}`,
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'center',
-          cursor: String(slot.type || '').toLowerCase().includes('voip') ? 'not-allowed' : 'pointer',
-          opacity: String(slot.type || '').toLowerCase().includes('voip') ? 0.45 : 1,
-          padding: 0,
+          justifyContent: 'space-between',
+          cursor: voip ? 'not-allowed' : 'pointer',
+          opacity: voip ? 0.45 : 1,
+          padding: '6px 6px 8px',
           boxSizing: 'border-box',
           ...(theme.shadowStyle === 'drop'
             ? { boxShadow: `0 3px 10px ${theme.border.color}55` }
@@ -110,33 +137,44 @@ function WebWireframeSlotTile({
               : {}),
         }}
       >
-        <SlotGlyph
-          visual={visual}
-          size={iconSize}
-          color={theme.icon.color}
-          onUrlError={() => setIconUrlFailed(true)}
-        />
+        <div
+          style={{
+            flex: '0 0 auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: Math.max(32, Math.round(bubble * 0.5)),
+            width: '100%',
+          }}
+        >
+          <SlotGlyph
+            visual={visual}
+            size={iconSize}
+            color={theme.icon.color}
+            onUrlError={() => setIconUrlFailed(true)}
+          />
+        </div>
+        <div
+          style={{
+            width: '100%',
+            textAlign: 'center',
+            fontSize: labelFontSize,
+            lineHeight: `${labelLineHeight}px`,
+            color: il.color,
+            fontWeight: 300,
+            fontStyle: il.fontStyle,
+            display: '-webkit-box',
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical' as const,
+            overflow: 'hidden',
+            wordBreak: 'break-word',
+            marginTop: 2,
+            flexShrink: 0,
+          }}
+        >
+          {labelText}
+        </div>
       </button>
-      <div
-        style={{
-          marginTop: 2,
-          textAlign: 'center',
-          width: '100%',
-          maxWidth: Math.max(bubble + 8, 72),
-          fontSize: labelFontSize,
-          lineHeight: `${labelLineHeight}px`,
-          color: il.color,
-          fontWeight: 300,
-          fontStyle: il.fontStyle,
-          display: '-webkit-box',
-          WebkitLineClamp: 3,
-          WebkitBoxOrient: 'vertical' as const,
-          overflow: 'hidden',
-          wordBreak: 'break-word',
-        }}
-      >
-        {slotLabelForWeb(String(slot.label || ''), String(slot.type || ''))}
-      </div>
     </div>
   );
 }
@@ -285,11 +323,14 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
   const person = String(card.ownerDisplayName || '').trim();
   const occ = String(card.ownerOccupation || '').trim();
   const dispName = (cardNm || person || occ || 'Card-Social').trim();
-  const dispSub = card.ownerNickname
-    ? card.ownerNickname.startsWith('@')
-      ? card.ownerNickname
-      : `@${card.ownerNickname}`
-    : '';
+  const bcContact = String(card.bcContactName || '').trim();
+  const dispSub = bcContact
+    ? bcContact
+    : card.ownerNickname
+      ? card.ownerNickname.startsWith('@')
+        ? card.ownerNickname
+        : `@${card.ownerNickname}`
+      : '';
 
   const reviewCount = Math.max(0, Math.floor(card.totalRatings ?? 0));
 
@@ -361,7 +402,7 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
             style={{
               display: 'flex',
               flexDirection: 'row',
-              alignItems: 'flex-start',
+              alignItems: 'center',
               justifyContent: 'center',
               gap: WIREFRAME_STITCH_GAP,
               flexWrap: 'nowrap',
@@ -545,7 +586,17 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
             >
               <div style={{ color: theme.title.color, fontWeight: 300, fontSize: 18, textAlign: 'center' }}>{dispName}</div>
               {dispSub ? (
-                <div style={{ color: theme.subtitle.color, fontWeight: 300, fontSize: 12, textAlign: 'center' }}>{dispSub}</div>
+                <div
+                  style={{
+                    color: theme.subtitle.color,
+                    fontWeight: 300,
+                    fontSize: bcContact ? 14 : 12,
+                    textAlign: 'center',
+                    lineHeight: 1.35,
+                  }}
+                >
+                  {dispSub}
+                </div>
               ) : null}
               {statsBlock(22, 8, 10)}
             </div>
@@ -691,9 +742,10 @@ export default function WireframeUniversalCard({ card, theme, locale }: Props) {
               <div
                 style={{
                   color: theme.subtitle.color,
-                  fontSize: 13,
+                  fontSize: bcContact ? 15 : 13,
                   fontWeight: theme.subtitle.fontWeight,
                   textAlign: 'center',
+                  lineHeight: 1.35,
                 }}
               >
                 {dispSub}

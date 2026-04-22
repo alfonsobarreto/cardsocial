@@ -15,6 +15,11 @@ export type CardData = {
   uid?: string;
   /** Título de la tarjeta (alineado con Mongo `smart_cards.scName`). */
   scName: string;
+  /**
+   * Business: `business_cards.bcContactName` (línea bajo el título en wireframe).
+   * No es el nickname; la API pública la envía en `business-card-preview`.
+   */
+  bcContactName?: string | null;
   layout: 'vertical' | 'horizontal';
   themeId: string | null;
   wallpaperUrl: string | null;

@@ -17,6 +17,7 @@ type Props = {
 function mapBusinessApiJsonToCardData(data: Record<string, unknown>): CardData {
   return normalizeUniversalCardPayload({
     scName: String(data.cardName ?? data.scName ?? ''),
+    bcContactName: data.bcContactName ?? null,
     ownerDisplayName: String(data.ownerDisplayName ?? ''),
     ownerNickname: data.ownerNickname ?? null,
     ownerPhotoUrl: data.ownerPhotoUrl ?? null,

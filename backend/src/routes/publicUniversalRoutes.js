@@ -407,6 +407,18 @@ function createPublicUniversalRoutes({ storage }) {
       }
 
       const idn = await resolvePublicIdentity(db, uid, bId);
+      const bizDoc = await db.collection('business_cards').findOne(
+        { bId, ownerUid: uid },
+        { projection: { bcName: 1, bcContactName: 1, bcLogoUrl: 1 } },
+      );
+      const bcNamePub =
+        bizDoc && bizDoc.bcName != null && String(bizDoc.bcName).trim()
+          ? String(bizDoc.bcName).trim()
+          : null;
+      const bcContactNamePub =
+        bizDoc && bizDoc.bcContactName != null && String(bizDoc.bcContactName).trim()
+          ? String(bizDoc.bcContactName).trim()
+          : null;
       const slots = normalizePublicCardSlotsForUniversal(cardDoc.publicCardSlots);
       const style = previewStyleFromSmartCardDoc(cardDoc);
       const far = new Date();
@@ -440,7 +452,9 @@ function createPublicUniversalRoutes({ storage }) {
             token: '',
             expiresAt: far.toISOString(),
             ownerDisplayName: idn.fullName,
-            cardName: String(readSmartCardScName(cardDoc) || idn.cardTitle || ''),
+            cardName: String(bcNamePub || readSmartCardScName(cardDoc) || idn.cardTitle || ''),
+            /** Subtítulo en cabecera (tarjeta negocio) — solo `business_cards.bcContactName`. */
+            bcContactName: bcContactNamePub,
             ownerNickname: cardDoc.ownerNickname ? String(cardDoc.ownerNickname) : null,
             ownerPhotoUrl: cardDoc.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl) : null,
             ownerOccupation: cardDoc.ownerOccupation ? String(cardDoc.ownerOccupation) : null,

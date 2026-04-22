@@ -75,10 +75,15 @@ export function normalizeUniversalCardPayload(raw: unknown): CardData {
       ? resolvePublicVaultUrlForWeb(String(rawWallpaper)) ?? String(rawWallpaper)
       : null;
 
+  const bcContactRaw = c?.bcContactName;
+  const bcContactName =
+    bcContactRaw != null && String(bcContactRaw).trim() ? String(bcContactRaw).trim() : null;
+
   return {
     ...base,
     cardWireframeImageUrl,
     userAvatarUrl,
     wallpaperUrl,
+    ...(bcContactName ? { bcContactName } : {}),
   };
 }
