@@ -23,7 +23,7 @@ export function getWireframeIconRowPlan(count: number): number[] {
 export const WIREFRAME_SLOT_LABEL_RESERVE = 36;
 export const WIREFRAME_STITCH_GAP = 12;
 export const WIREFRAME_STITCH_HORIZONTAL_INSET = 48;
-/** Vista previa espejo: mismo inset que la web (`WireframeUniversalCard` padding 24+24). */
+/** Vista previa espejo: mismo inset que la web (`BusinessCardWeb` padding 24+24). */
 export const WIREFRAME_STITCH_HORIZONTAL_INSET_PREVIEW = 48;
 export const WIREFRAME_STITCH_SINGLE_MAX_SIDE = 112;
 

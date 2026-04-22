@@ -1,6 +1,6 @@
 /**
- * Página HTML única para GET /u/:token (token válido): vista pública + countdown + CTA tienda.
- * Solo datos ya expuestos por /api/public/universal-card (publicCardSlots).
+ * SmartCardLegacy: HTML estático de cortesía 24h (GET /u/:token) cuando aplica.
+ * Misma API: /api/public/universal-card (publicCardSlots). Ver también `BusinessCardWeb` (Next).
  */
 
 const { acceptLanguageHeaderIsSpanish } = require('./httpRequestLocale');

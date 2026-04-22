@@ -214,7 +214,7 @@ export function SafeDataViewerSheet({
   );
 }
 
-/** Helper: render glyph desde SlotIconDef (misma familia que WireframeUniversalCard). */
+/** Helper: render glyph desde SlotIconDef (misma familia que BusinessCardWeb). */
 export function slotDefToGlyph(def: SlotIconDef, size: number, color: string) {
   return (
     <svg width={size} height={size} viewBox={def.viewBox ?? '0 0 24 24'} style={{ display: 'block', color }}>

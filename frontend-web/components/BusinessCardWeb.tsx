@@ -1,4 +1,5 @@
 'use client';
+/** Vista pública en React (Next): `/u/…` y `/b/…` vía `CardPreview`. */
 
 import { MirrorActionModals } from '@/components/MirrorActionModals';
 import type { SlotIconDef } from '@/lib/slotIcons';
@@ -85,8 +86,9 @@ function WebWireframeSlotTile({
 }) {
   const [iconUrlFailed, setIconUrlFailed] = useState(false);
   const bubble = Math.max(26, Math.floor(bubbleSize));
-  /** Misma fórmula en web que la columna vertical Smart (0.48×); el `bubble` ya se alinea vía contenedor en business. */
-  const iconSize = Math.max(20, Math.round(bubble * 0.48));
+  const isBusinessPreview = previewVariant === 'business';
+  /** Business: 28px fijos como `SmartCardLegacy` (grid); universal: 0.48× burbuja. */
+  const iconSize = isBusinessPreview ? 28 : Math.max(20, Math.round(bubble * 0.48));
   const il = theme.iconLabel;
   const labelFontSize = Math.max(9, Math.min(15, Math.round(Math.min(bubble * 0.155, il.fontSize + 5))));
   const labelLineHeight = Math.ceil(labelFontSize * 1.22);
@@ -103,8 +105,6 @@ function WebWireframeSlotTile({
   const labelText = compactSlotLabelForWeb(
     slotLabelForWeb(String(slot.label || ''), String(slot.type || '')),
   );
-
-  const isBusinessPreview = previewVariant === 'business';
 
   return (
     <div
@@ -250,7 +250,7 @@ type Props = {
   previewVariant?: 'universal' | 'business';
 };
 
-export default function WireframeUniversalCard({ card, theme, locale, previewVariant = 'universal' }: Props) {
+export default function BusinessCardWeb({ card, theme, locale, previewVariant = 'universal' }: Props) {
   const tr = (es: string, en: string) => (locale === 'es' ? es : en);
   const [slotAction, setSlotAction] = useState<{ plan: MirrorOpenPlan; slot: PublicSlot } | null>(null);
 
@@ -555,10 +555,8 @@ export default function WireframeUniversalCard({ card, theme, locale, previewVar
               opacity: 0.85,
             }}
           >
-            <span style={{ fontSize: 14, lineHeight: 1, color: theme.subtitle.color, fontWeight: 700 }} aria-hidden>
-              ★
-            </span>
-            <span style={{ fontWeight: 700, color: theme.subtitle.color, fontSize: 13 }}>SOY EL FRONTEND</span>
+            <Image src="/icon.png" alt="" width={18} height={18} unoptimized />
+            <span style={{ fontWeight: 700, color: theme.subtitle.color, fontSize: 13 }}>Card-Social</span>
           </div>
 
           <div
@@ -636,7 +634,7 @@ export default function WireframeUniversalCard({ card, theme, locale, previewVar
           <div
             ref={horizIconsBoxRef}
             style={{
-              flex: isBusinessPreview ? '2.35 1 0' : '2.95 1 0',
+              flex: '2.95 1 0',
               minHeight: isBusinessPreview ? 200 : 180,
               marginTop: 12,
               paddingTop: 2,
@@ -650,6 +648,7 @@ export default function WireframeUniversalCard({ card, theme, locale, previewVar
               style={{
                 flex: 1,
                 width: '100%',
+                boxSizing: 'border-box',
                 paddingLeft: 24,
                 paddingRight: 24,
                 display: 'flex',
@@ -707,10 +706,8 @@ export default function WireframeUniversalCard({ card, theme, locale, previewVar
             opacity: 0.85,
           }}
         >
-          <span style={{ fontSize: 14, lineHeight: 1, color: theme.subtitle.color, fontWeight: 700 }} aria-hidden>
-            ★
-          </span>
-          <span style={{ fontWeight: 700, color: theme.subtitle.color, fontSize: 13 }}>SOY EL FRONTEND</span>
+          <Image src="/icon.png" alt="" width={18} height={18} unoptimized />
+          <span style={{ fontWeight: 700, color: theme.subtitle.color, fontSize: 13 }}>Card-Social</span>
         </div>
 
         <div style={{ flex: '2.9 1 0', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
@@ -806,6 +803,7 @@ export default function WireframeUniversalCard({ card, theme, locale, previewVar
             style={{
               flex: 1,
               width: '100%',
+              boxSizing: 'border-box',
               paddingLeft: 24,
               paddingRight: 24,
               display: 'flex',

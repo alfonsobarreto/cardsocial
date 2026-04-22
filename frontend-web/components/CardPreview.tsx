@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import WireframeUniversalCard from '@/components/WireframeUniversalCard';
+import BusinessCardWeb from '@/components/BusinessCardWeb';
 import PublicLegalFooter from '@/components/PublicLegalFooter';
 import type { CardData } from '@/lib/universalCardTypes';
 import { CardTheme } from '@/lib/themes';
@@ -83,7 +83,7 @@ export default function CardPreview(props: Props) {
         )}
       </div>
 
-      <WireframeUniversalCard
+      <BusinessCardWeb
         card={card}
         theme={theme}
         locale={locale}

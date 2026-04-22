@@ -112,7 +112,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
   const extraStyle = theme.extraText;
   const iconMeta = theme.icon;
 
-  /** Modal / espejo: alineado con web (`WireframeUniversalCard`): cabecera compacta, cápsula de rating, rejilla centrada. */
+  /** Modal / espejo: alineado con web (`BusinessCardWeb`): cabecera compacta, cápsula de rating, rejilla centrada. */
   const mirror = !editable;
   const mStatsScale = mirror ? (mirrorStatsCapsuleScale ?? 1) : 1;
   const thin = mirror ? { fontWeight: '300' as const } : {};

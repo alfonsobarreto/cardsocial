@@ -9,7 +9,7 @@ import {
   wireframeWebBubbleBorderRadius,
 } from '@/components/smartCard/wireframeMath';
 
-/** Igual que `compactSlotLabel` en `WebWireframeUniversalCard` (máx. 2 palabras). */
+/** Igual que `compactSlotLabel` en `BusinessCardWeb` (máx. 2 palabras). */
 function compactSlotLabel(label: string): string {
   return String(label || '')
     .trim()

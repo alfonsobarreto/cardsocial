@@ -10,13 +10,13 @@ const {
   acceptLanguageIsSpanish,
   buildExpiredHtml,
   buildValidCourtesyPageHtml,
-} = require('../lib/universalCourtesyHtml');
+} = require('../lib/SmartCardLegacy');
 
 function createUniversalEntryHttpRoutes({ storage }) {
   const router = express.Router();
 
   /**
-   * GET /b/:bId no se define aquí: lo sirve Next.js (proxy en server.js) con WireframeUniversalCard,
+   * GET /b/:bId no se define aquí: lo sirve Next.js (proxy en server.js) con BusinessCardWeb,
    * misma línea visual que /u/ y la app. El 24h sigue en /u/:token abajo.
    */
 

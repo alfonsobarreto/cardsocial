@@ -22,7 +22,7 @@
 | **Clipboard / bunker** | `components/PendingBunkerRedeemGate.tsx` | `fetchPublicUniversalCardByToken`, `fetchPublicQrTokenPreview` | Puente de token sin pasar por scan UI |
 | **Preview emisor (modal)** | `components/MyCards/MyCardsPreviewModal.tsx` | `upsertSmartCardInDb` (flujo receptor/guardado) | Payloads alineados con `SmartCardPayload` / Mongo |
 | **Payload entrante unificado** | `services/incomingCardPreviewPayload.ts` | — | **`buildCanonicalIssuerIdentityFromPublicUniversalCard` / `FromQrPreview`** → un objeto; fallback legado `ownerDisplayName` en API |
-| **Web universal** | `frontend-web/app/u/[token]/page.tsx`, `frontend-web/components/WireframeUniversalCard.tsx`, `frontend-web/lib/universalCardTypes.ts` | `GET /api/public/universal-card` | Misma forma `ownerDisplayName` / slots; **paridad** con app móvil al renombrar campos públicos |
+| **Web universal** | `frontend-web/app/u/[token]/page.tsx`, `frontend-web/components/BusinessCardWeb.tsx`, `frontend-web/lib/universalCardTypes.ts` | `GET /api/public/universal-card` | Misma forma `ownerDisplayName` / slots; **paridad** con app móvil al renombrar campos públicos |
 
 ---
 
