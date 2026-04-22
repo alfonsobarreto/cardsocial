@@ -53,7 +53,9 @@ async function bootstrap() {
     res.json({
       applinks: {
         apps: [],
-        details: [{ appID: 'APPLE_TEAM_ID.com.cardsocial.app', paths: ['/u/*'] }],
+        details: [
+          { appID: 'APPLE_TEAM_ID.com.cardsocial.app', paths: ['/u/*', '/b/*'] },
+        ],
       },
     });
   });
@@ -408,7 +410,9 @@ const otpHash = (emailLower, code) => {
 
   app.use("/api/public", createPublicUniversalRoutes({ storage }));
 
-  // Next.js frontend-web: proxy /u/:token y /_next/* al servidor Next (puerto NEXT_PORT).
+  // Next.js frontend-web: proxy /u/*, /legal/* y /_next/* al servidor Next (puerto NEXT_PORT).
+  // Nota: GET /b/* lo sirve Express (universalEntryHttpRoutes + businessPublicHtml) para que
+  // producción no dependa del proceso Next; el front Next sigue útil en dev (puerto 3001).
   // En monorepo la app real suele estar en `repo/frontend-web`; `backend/frontend-web` a veces es solo stub de deploy.
   const pathMod = require('path');
   const fs = require('fs');

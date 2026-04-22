@@ -24,7 +24,7 @@ import {
 } from '@/constants/themeChest';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
-import { generatePermanentBusinessLink } from '@/services/brandedQrService';
+import { ExportBusinessQR, generatePublicBusinessWebUrl } from '@/services/brandedQrService';
 import {
     listMyBusinessCards,
     deleteBusinessCard as deleteBusinessCardViaApi,
@@ -2258,7 +2258,7 @@ export default function CardsFactoryScreen() {
 
   const qrPayload = useMemo(() => {
     if (qrBusinessContext) {
-      return generatePermanentBusinessLink(qrBusinessContext.bId, qrBusinessContext.uid);
+      return generatePublicBusinessWebUrl(qrBusinessContext.bId, qrBusinessContext.uid);
     }
     if (!selectedCard) {
       return '';
@@ -2905,7 +2905,7 @@ export default function CardsFactoryScreen() {
                 {sessionUid ? (
                   <View style={styles.businessListQrWrap} pointerEvents="none">
                     <QRCode
-                      value={generatePermanentBusinessLink(row.bId, sessionUid)}
+                      value={generatePublicBusinessWebUrl(row.bId, sessionUid)}
                       size={64}
                       color="#0A2540"
                       backgroundColor="#FFFFFF"
@@ -3232,7 +3232,7 @@ export default function CardsFactoryScreen() {
                     {sessionUid ? (
                       <View style={styles.businessListQrWrap} pointerEvents="none">
                         <QRCode
-                          value={generatePermanentBusinessLink(row.bId, sessionUid)}
+                          value={generatePublicBusinessWebUrl(row.bId, sessionUid)}
                           size={64}
                           color="#0A2540"
                           backgroundColor="#FFFFFF"
@@ -4409,15 +4409,94 @@ export default function CardsFactoryScreen() {
 
               <View style={[styles.modalActions, styles.qrModalActions, { paddingBottom: modalFooterBottomPad }]}>
               {qrBusinessContext ? (
-                <TouchableOpacity
-                  style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary, flex: 1 }]}
-                  onPress={() => {
-                    setQrVisible(false);
-                    setQrBusinessContext(null);
-                  }}
-                >
-                  <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>{tr('Cerrar', 'Close')}</Text>
-                </TouchableOpacity>
+                <>
+                  <View style={{ flexDirection: 'row', gap: 10, width: '100%', marginBottom: 10 }}>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.ghostBtn,
+                        {
+                          flex: 1,
+                          borderColor: pressed ? cardsTheme.btnPrimary : cardsTheme.modalBorder,
+                          backgroundColor: pressed ? cardsTheme.btnPrimary : cardsTheme.btnGhost,
+                        },
+                      ]}
+                      onPress={async () => {
+                        const link = generatePublicBusinessWebUrl(qrBusinessContext.bId, qrBusinessContext.uid);
+                        try {
+                          await Clipboard.setStringAsync(link);
+                          Toast.show({
+                            type: 'success',
+                            text1: tr('Enlace web copiado', 'Web link copied'),
+                            text2: tr('Pégalo en web o e-mail.', 'Paste on web or email.'),
+                          });
+                        } catch {
+                          Toast.show({ type: 'error', text1: tr('No se pudo copiar', 'Could not copy') });
+                        }
+                      }}
+                    >
+                      {({ pressed }) => (
+                        <Text
+                          style={[
+                            styles.ghostBtnText,
+                            { textAlign: 'center', color: pressed ? cardsTheme.btnPrimaryText : cardsTheme.btnGhostText },
+                          ]}
+                          numberOfLines={2}
+                        >
+                          {tr('Copiar enlace web', 'Copy web link')}
+                        </Text>
+                      )}
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.ghostBtn,
+                        {
+                          flex: 1,
+                          borderColor: pressed ? cardsTheme.btnPrimary : cardsTheme.modalBorder,
+                          backgroundColor: pressed ? cardsTheme.btnPrimary : cardsTheme.btnGhost,
+                        },
+                      ]}
+                      onPress={async () => {
+                        const link = generatePublicBusinessWebUrl(qrBusinessContext.bId, qrBusinessContext.uid);
+                        try {
+                          const result = await ExportBusinessQR({
+                            businessId: qrBusinessContext.bId,
+                            bcName: qrBusinessContext.bcName,
+                            permanentBusinessLink: link,
+                            bcLogo: qrBusinessContext.bcLogoUrl || undefined,
+                            format: 'png',
+                          });
+                          Alert.alert(
+                            tr('QR', 'QR'),
+                            result.message || (result.success ? tr('Listo', 'Done') : tr('Error', 'Error')),
+                          );
+                        } catch (e: unknown) {
+                          Alert.alert(tr('Error', 'Error'), e instanceof Error ? e.message : '');
+                        }
+                      }}
+                    >
+                      {({ pressed }) => (
+                        <Text
+                          style={[
+                            styles.ghostBtnText,
+                            { textAlign: 'center', color: pressed ? cardsTheme.btnPrimaryText : cardsTheme.btnGhostText },
+                          ]}
+                          numberOfLines={2}
+                        >
+                          {tr('Descargar QR', 'Download QR')}
+                        </Text>
+                      )}
+                    </Pressable>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary, flex: 1, width: '100%' }]}
+                    onPress={() => {
+                      setQrVisible(false);
+                      setQrBusinessContext(null);
+                    }}
+                  >
+                    <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>{tr('Cerrar', 'Close')}</Text>
+                  </TouchableOpacity>
+                </>
               ) : (
                 <>
                   <Pressable

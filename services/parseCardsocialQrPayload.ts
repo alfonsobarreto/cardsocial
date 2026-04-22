@@ -58,6 +58,58 @@ export function parsePermanentBusinessQr(data: string): ParsedBusinessDeepLink |
 }
 
 /** `card-social://qr/{bId}?business=...&uid=...` (legacy: `owner=`) */
+/**
+ * `https://cardsocial.me/b/{bId}?uid=...` (QR impreso / cámara del sistema).
+ * Misma identidad que `card-social://business/...` para canje en app.
+ */
+export function parsePublicBusinessWebUrl(data: string): ParsedBusinessDeepLink | null {
+  const raw = String(data || '')
+    .replace(/^\uFEFF/, '')
+    .trim();
+  if (!raw) {
+    return null;
+  }
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    try {
+      url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+    } catch {
+      return null;
+    }
+  }
+  if (!/^https?:$/i.test(url.protocol)) {
+    return null;
+  }
+  const host = url.hostname.toLowerCase();
+  const allowed =
+    host === 'cardsocial.me' ||
+    host === 'www.cardsocial.me' ||
+    host === 'cardsocial.app' ||
+    host === 'www.cardsocial.app' ||
+    host === 'localhost' ||
+    host === '127.0.0.1';
+  if (!allowed) {
+    return null;
+  }
+  const path = url.pathname.replace(/\/+$/, '');
+  const m = path.match(/\/b\/([^/]+)$/);
+  if (!m) {
+    return null;
+  }
+  const bId = decodeParam(m[1]);
+  const uidRaw = url.searchParams.get('uid') || url.searchParams.get('owner');
+  if (!bId || !uidRaw) {
+    return null;
+  }
+  const uid = decodeParam(uidRaw);
+  if (!uid) {
+    return null;
+  }
+  return { kind: 'business_deep_link', uid, bId };
+}
+
 export function parseBrandedBusinessQrUrl(data: string): ParsedBusinessDeepLink | null {
   const raw = normalizeQrScanPayload(data);
   if (!raw) return null;

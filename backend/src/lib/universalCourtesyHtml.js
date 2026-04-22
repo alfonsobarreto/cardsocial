@@ -508,4 +508,5 @@ module.exports = {
   acceptLanguageIsSpanish,
   buildExpiredHtml,
   buildValidCourtesyPageHtml,
+  resolveCourtesyTheme,
 };

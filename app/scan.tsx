@@ -25,6 +25,7 @@ import {
   parseBrandedBusinessQrUrl,
   parseDynamicAppQrJson,
   parsePermanentBusinessQr,
+  parsePublicBusinessWebUrl,
   parseUniversalWebQrUrl,
 } from '@/services/parseCardsocialQrPayload';
 import { doc, getDoc } from 'firebase/firestore';
@@ -405,7 +406,11 @@ export default function ScanScreen() {
     const invalidButtons = [{ text: okLabel, onPress: resetScanUi }];
     const normalized = normalizeQrScanPayload(data);
 
-    const business = parsePermanentBusinessQr(normalized) || parseBrandedBusinessQrUrl(normalized);
+    const business =
+      parsePublicBusinessWebUrl(data) ||
+      parsePublicBusinessWebUrl(normalized) ||
+      parsePermanentBusinessQr(normalized) ||
+      parseBrandedBusinessQrUrl(normalized);
     if (business) {
       setScanLocked(true);
       const uid = await getActiveUserId();

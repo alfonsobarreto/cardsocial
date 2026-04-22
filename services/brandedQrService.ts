@@ -4,9 +4,63 @@
  * Para Business Cards: QR permanente + logo del negocio en el centro
  */
 
-import * as FileSystem from 'expo-file-system';
-import { Alert } from 'react-native';
-import QRCode from 'qrcode';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
+import { Platform, Share } from 'react-native';
+
+/**
+ * En React Native no hay canvas ni módulos Node (`stream` en pngjs). Solo usamos
+ * `qrcode` core + render SVG (sin pngjs, sin `qrcode/lib/server`).
+ */
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const QRCore: { create: (data: string, options?: QrCreateOpts) => QrData } = require('qrcode/lib/core/qrcode');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const QRSvg: { render: (qrData: QrData, options?: QrRenderOpts) => string } = require('qrcode/lib/renderer/svg-tag');
+
+type QrCreateOpts = { errorCorrectionLevel?: 'L' | 'M' | 'Q' | 'H' };
+type QrData = { modules: { size: number; data: Uint8Array } };
+type QrRenderOpts = {
+  errorCorrectionLevel?: string;
+  margin?: number;
+  color?: { dark?: string; light?: string };
+  width?: number;
+};
+
+function buildQrSvgString(data: string, widthPx: number): string {
+  const opts: QrRenderOpts = {
+    errorCorrectionLevel: 'H',
+    margin: 1,
+    color: { dark: '#0A2540', light: '#FFFFFF' },
+    width: widthPx,
+  };
+  const qr = QRCore.create(String(data), { errorCorrectionLevel: 'H' });
+  return QRSvg.render(qr, opts);
+}
+
+/** Misma idea que Gift Mint: el archivo no “aparece” solo; hay que abrir el panel del sistema. */
+async function tryShareExportedFile(
+  fileUri: string,
+  opts: { mimeType: string; dialogTitle: string }
+): Promise<boolean> {
+  try {
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(fileUri, { mimeType: opts.mimeType, dialogTitle: opts.dialogTitle });
+      return true;
+    }
+  } catch (e) {
+    console.warn('[brandedQrService] shareAsync', e);
+  }
+  if (Platform.OS === 'android') {
+    try {
+      const url = fileUri.startsWith('file://') ? fileUri : `file://${fileUri}`;
+      await Share.share({ url, title: opts.dialogTitle });
+      return true;
+    } catch (e) {
+      console.warn('[brandedQrService] Share.share', e);
+    }
+  }
+  return false;
+}
 
 export interface BrandedQrGenerationParams {
   bId: string;
@@ -34,6 +88,16 @@ export interface ExportBusinessQrParams {
   format: 'png' | 'pdf';
 }
 
+/** Directorio escribible (iOS/Android); nunca usar `/tmp/...` — no es válido en RN. */
+function getQrExportDirectory(): string {
+  const base = FileSystem.cacheDirectory ?? FileSystem.documentDirectory;
+  if (!base) {
+    throw new Error('No hay directorio de caché disponible para exportar el QR.');
+  }
+  const normalized = base.endsWith('/') ? base : `${base}/`;
+  return `${normalized}QRCodes/`;
+}
+
 const TARGET_DPI = 300;
 const MIN_QR_CM = 2;
 const CM_TO_INCH = 2.54;
@@ -50,8 +114,33 @@ export function generateQrDataUrl(bId: string, bcName: string, uid: string): str
   return `card-social://qr/${bId}?business=${encodedBusiness}&uid=${encodeURIComponent(uid)}`;
 }
 
+const DEFAULT_PUBLIC_BUSINESS_WEB_BASE = 'https://cardsocial.me';
+
 /**
- * Enlace perpetuo para identidad de negocio (no expira y no usa Ghost-Link).
+ * Base pública (HTTPS) para el QR de negocio: abre en navegador y en App Links.
+ * Override: `EXPO_PUBLIC_BUSINESS_WEB_BASE` (sin barra final).
+ */
+export function getPublicBusinessWebBaseUrl(): string {
+  const fromEnv =
+    typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_BUSINESS_WEB_BASE
+      ? String(process.env.EXPO_PUBLIC_BUSINESS_WEB_BASE).trim()
+      : '';
+  return (fromEnv || DEFAULT_PUBLIC_BUSINESS_WEB_BASE).replace(/\/+$/, '');
+}
+
+/**
+ * URL HTTPS permanente: misma ficha pública en web; la app sigue canjeando con uid + bId.
+ * Impresión / cámara del sistema abren el navegador; la app in-app reconoce la misma URL.
+ */
+export function generatePublicBusinessWebUrl(bId: string, uid: string): string {
+  const b = encodeURIComponent(String(bId || '').trim());
+  const u = encodeURIComponent(String(uid || '').trim());
+  return `${getPublicBusinessWebBaseUrl()}/b/${b}?uid=${u}`;
+}
+
+/**
+ * Deep link de app (legacy / intent filters). Sigue soportado por el escáner.
+ * Preferir `generatePublicBusinessWebUrl` en QRs mostrados al usuario.
  */
 export function generatePermanentBusinessLink(bId: string, uid: string): string {
   return `card-social://business/${bId}?uid=${encodeURIComponent(uid)}&mode=permanent`;
@@ -76,65 +165,45 @@ export async function downloadBrandedQr(
     const sanitizedName = bcName
       .replace(/[^a-zA-Z0-9]/g, '_')
       .substring(0, 30);
-    const fileName = `QR_${sanitizedName}_${Date.now()}.${format}`;
+    const fileName = `QR_${sanitizedName}_${Date.now()}.svg`;
 
-    // Crear directorio temporal para guardar QR
-    const downloadDir = '/tmp/QRCodes/';
+    const downloadDir = getQrExportDirectory();
     await FileSystem.makeDirectoryAsync(downloadDir, { intermediates: true });
 
     const filePath = `${downloadDir}${fileName}`;
 
-    // 1. GENERAR QR DE ALTA RESOLUCION CON ERROR CORRECTION H
     const qrPayload =
       cardQrDataUrl.startsWith('data:') || cardQrDataUrl.startsWith('file://')
         ? generateQrDataUrl(bId, bcName, uid)
         : cardQrDataUrl;
 
-    let finalQrData = await QRCode.toDataURL(qrPayload, {
-      errorCorrectionLevel: 'H',
-      width: 1200,
-      margin: 1,
-      type: 'image/png',
-      color: {
-        dark: '#0A2540',
-        light: '#FFFFFF',
-      },
-    });
-
-    // 2. Si hay logo, intentar leerlo para futura composición de branded QR
     if (bcLogo && format === 'png') {
       try {
         await FileSystem.readAsStringAsync(bcLogo, {
           encoding: 'base64',
         } as any);
-
-        // Pendiente composición pixel-level del logo sobre el QR.
-        // El QR ya se genera con nivel H para tolerar un logo central.
+        // Composición de logo: pendiente; el QR usa nivel H.
       } catch (logoError) {
         console.warn('Logo embedding failed, using base QR', logoError);
       }
     }
 
-    // 3. GUARDAR EN FORMATO SOLICITADO
-    const base64Data = finalQrData.split(',')[1] || finalQrData;
-    if (format === 'png') {
-      await FileSystem.writeAsStringAsync(filePath, base64Data, {
-        encoding: 'base64',
-      } as any);
-    } else if (format === 'pdf') {
-      // Placeholder MVP: se guarda contenido base del QR para exportación posterior a PDF real.
-      await FileSystem.writeAsStringAsync(filePath, base64Data, {
-        encoding: 'base64',
-      } as any);
-    }
+    const svg = buildQrSvgString(qrPayload, 1200);
+    await FileSystem.writeAsStringAsync(filePath, svg, { encoding: FileSystem.EncodingType.UTF8 });
+    const shared = await tryShareExportedFile(filePath, {
+      mimeType: 'image/svg+xml',
+      dialogTitle: 'Card-Social — QR',
+    });
+    const shareHint = shared
+      ? 'Se abrió el menú del sistema: elegí "Guardar en Archivos" (iOS) o compartir el SVG.\n\n'
+      : 'No se pudo abrir el menú. Podés abrir un gestor de archivos; el SVG está en caché de la app.\n\n';
 
-    // 4. REGRESAR RESULTADO
     return {
       success: true,
       fileUri: filePath,
-      fileName: fileName,
-      mimeType: format === 'pdf' ? 'application/pdf' : 'image/png',
-      message: `QR descargado como ${format.toUpperCase()} ✓\n${fileName}\n\nCalidad: alta resolución\nCorrección: nivel H\n\nGuardado en:\n${filePath}`,
+      fileName,
+      mimeType: 'image/svg+xml',
+      message: `${shareHint}Archivo: ${fileName}\nNivel de corrección: H (vectorial)`,
     };
   } catch (error) {
     console.error('Error downloading branded QR:', error);
@@ -156,38 +225,30 @@ export async function ExportBusinessQR(
     const sanitizedName = String(params.bcName || 'business')
       .replace(/[^a-zA-Z0-9]/g, '_')
       .substring(0, 30);
-    const fileName = `PERMANENT_QR_${sanitizedName}_${Date.now()}.${params.format}`;
+    const fileName = `PERMANENT_QR_${sanitizedName}_${Date.now()}.svg`;
 
-    const downloadDir = '/tmp/QRCodes/';
+    const downloadDir = getQrExportDirectory();
     await FileSystem.makeDirectoryAsync(downloadDir, { intermediates: true });
     const filePath = `${downloadDir}${fileName}`;
 
-    const qrData = await QRCode.toDataURL(params.permanentBusinessLink, {
-      errorCorrectionLevel: 'H',
-      width: DEFAULT_EXPORT_PX,
-      margin: 1,
-      type: 'image/png',
-      color: {
-        dark: '#0A2540',
-        light: '#FFFFFF',
-      },
+    const svg = buildQrSvgString(params.permanentBusinessLink, DEFAULT_EXPORT_PX);
+    await FileSystem.writeAsStringAsync(filePath, svg, { encoding: FileSystem.EncodingType.UTF8 });
+    const shared = await tryShareExportedFile(filePath, {
+      mimeType: 'image/svg+xml',
+      dialogTitle: 'Card-Social — QR permanente',
     });
-
-    const base64Data = qrData.split(',')[1] || qrData;
-    await FileSystem.writeAsStringAsync(filePath, base64Data, {
-      encoding: 'base64',
-    } as any);
+    const shareHint = shared
+      ? 'Se abrió el menú del sistema: guardá o compartí el SVG (p. ej. "Guardar en Archivos" en iPhone).\n\n'
+      : 'No se pudo abrir el menú de compartir. El archivo sí se generó; ruta en caché de la app abajo.\n\n';
 
     return {
       success: true,
       fileUri: filePath,
       fileName,
-      mimeType: params.format === 'pdf' ? 'application/pdf' : 'image/png',
+      mimeType: 'image/svg+xml',
       message:
-        `QR permanente exportado (${params.format.toUpperCase()})\n` +
-        `Resolución: ${DEFAULT_EXPORT_PX}px\n` +
-        `DPI objetivo: ${TARGET_DPI}\n` +
-        `Tamaño mínimo garantizado: ${MIN_QR_CM}cm x ${MIN_QR_CM}cm`,
+        `${shareHint}QR vectorial: ${DEFAULT_EXPORT_PX}px; corrección H. Referencia imprenta: ≥ ${MIN_QR_CM}cm a ${TARGET_DPI} DPI.\n` +
+        `Archivo: ${fileName}`,
     };
   } catch (error) {
     return {

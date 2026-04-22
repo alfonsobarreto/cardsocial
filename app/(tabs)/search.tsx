@@ -11,7 +11,7 @@ import { ThemedSharedCardSurface } from '@/components/ThemedSharedCardSurface';
 import { MEDIA_PLACEHOLDER } from '@/constants/mediaPlaceholders';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
-import { ExportBusinessQR, generatePermanentBusinessLink } from '@/services/brandedQrService';
+import { ExportBusinessQR, generatePublicBusinessWebUrl } from '@/services/brandedQrService';
 import { buildMirrorVaultItemsForContact } from '@/services/buildReceiverPreviewVaultItems';
 import { hasActiveBusinessLicense } from '@/services/businessLicenseService';
 import { myCardsPayloadFromQrPreview } from '@/services/incomingCardPreviewPayload';
@@ -730,7 +730,7 @@ export default function SearchScreen() {
     const permanentLink = !isMarketBusiness
       ? 'https://cardsocial.app'
       : (item.card as any).permanent_business_link ||
-        generatePermanentBusinessLink(item.card.bId, item.card.uid || 'owner');
+        generatePublicBusinessWebUrl(item.card.bId, item.card.uid || 'owner');
 
     const handleExportBusinessQr = async () => {
       if (!isMarketBusiness) {

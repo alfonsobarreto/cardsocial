@@ -69,6 +69,11 @@
               "scheme": "https",
               "host": "cardsocial.me",
               "pathPrefix": "/u"
+            },
+            {
+              "scheme": "https",
+              "host": "cardsocial.me",
+              "pathPrefix": "/b"
             }
           ],
           "category": [
