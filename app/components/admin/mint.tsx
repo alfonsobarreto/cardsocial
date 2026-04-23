@@ -5,7 +5,7 @@ import { isSuperAdmin } from '@/services/roleService';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
@@ -16,10 +16,14 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { trEsEn, useLanguage } from '@/services/language';
 
 type MintTab = 'generate' | 'history' | 'audit';
 
 export default function AdminMintScreen() {
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const intlLocale = language === 'pt' ? 'pt-BR' : language;
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<MintTab>('generate');
   const [pochobsUid, setPochobsUid] = useState('');
@@ -59,11 +63,14 @@ export default function AdminMintScreen() {
   const totalRedeemed = qrHistory.reduce((s, q) => s + q.creditsPerUse * q.redeemedUsers.length, 0);
   const activeQRs = qrHistory.filter(q => q.status === 'active').length;
 
-  const TABS: { key: MintTab; label: string; icon: string }[] = [
-    { key: 'generate', label: 'Generar', icon: 'crown' },
-    { key: 'history', label: 'Historial', icon: 'qrcode' },
-    { key: 'audit', label: 'Auditoría', icon: 'file-document' },
-  ];
+  const TABS: { key: MintTab; label: string; icon: string }[] = useMemo(
+    () => [
+      { key: 'generate', label: tr('Generar', 'Generate'), icon: 'crown' },
+      { key: 'history', label: tr('Historial', 'History'), icon: 'qrcode' },
+      { key: 'audit', label: tr('Auditoría', 'Audit'), icon: 'file-document' },
+    ],
+    [language],
+  );
 
   if (loading) {
     return (
@@ -83,7 +90,7 @@ export default function AdminMintScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.qrCardId}>{item.id.substring(0, 20)}...</Text>
             <Text style={styles.qrCardDate}>
-              {item.createdAt ? new Date(item.createdAt.toMillis()).toLocaleDateString('es') : 'N/A'}
+              {item.createdAt ? new Date(item.createdAt.toMillis()).toLocaleDateString(intlLocale) : 'N/A'}
             </Text>
           </View>
           <View style={[styles.statusBadge, item.status === 'active' && styles.statusActive, item.status === 'depleted' && styles.statusDepleted]}>
@@ -93,11 +100,15 @@ export default function AdminMintScreen() {
         <View style={styles.qrStats}>
           <View style={styles.qrStat}>
             <MaterialCommunityIcons name="cash" size={14} color="#C5A065" />
-            <Text style={styles.qrStatText}>{item.creditsPerUse} CS/uso</Text>
+            <Text style={styles.qrStatText}>
+              {item.creditsPerUse} {tr('CS/uso', 'CS per use')}
+            </Text>
           </View>
           <View style={styles.qrStat}>
             <MaterialCommunityIcons name="account-group" size={14} color="#3498DB" />
-            <Text style={styles.qrStatText}>{item.redeemedUsers.length}/{item.maxUses} canjeados</Text>
+            <Text style={styles.qrStatText}>
+              {item.redeemedUsers.length}/{item.maxUses} {tr('canjeados', 'redeemed')}
+            </Text>
           </View>
           <View style={styles.qrStat}>
             <MaterialCommunityIcons name="calendar" size={14} color="#9B59B6" />
@@ -122,7 +133,7 @@ export default function AdminMintScreen() {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <MaterialCommunityIcons name="crown" size={18} color="#C5A065" />
-          <Text style={styles.headerTitle}>MINT</Text>
+          <Text style={styles.headerTitle}>{tr('MINT', 'MINT')}</Text>
         </View>
         <View style={{ width: 36 }} />
       </LinearGradient>
@@ -131,17 +142,17 @@ export default function AdminMintScreen() {
       <View style={styles.kpiStrip}>
         <View style={styles.kpi}>
           <Text style={styles.kpiValue}>{activeQRs}</Text>
-          <Text style={styles.kpiLabel}>Activos</Text>
+          <Text style={styles.kpiLabel}>{tr('Activos', 'Active')}</Text>
         </View>
         <View style={styles.kpiDivider} />
         <View style={styles.kpi}>
-          <Text style={styles.kpiValue}>{totalGifted.toLocaleString()}</Text>
-          <Text style={styles.kpiLabel}>CS Gifted</Text>
+          <Text style={styles.kpiValue}>{totalGifted.toLocaleString(intlLocale)}</Text>
+          <Text style={styles.kpiLabel}>{tr('CS regalados', 'CS gifted')}</Text>
         </View>
         <View style={styles.kpiDivider} />
         <View style={styles.kpi}>
-          <Text style={styles.kpiValue}>{totalRedeemed.toLocaleString()}</Text>
-          <Text style={styles.kpiLabel}>CS Canjeados</Text>
+          <Text style={styles.kpiValue}>{totalRedeemed.toLocaleString(intlLocale)}</Text>
+          <Text style={styles.kpiLabel}>{tr('CS canjeados', 'CS redeemed')}</Text>
         </View>
       </View>
 
@@ -173,9 +184,11 @@ export default function AdminMintScreen() {
 
         {activeTab === 'history' && (
           <>
-            <Text style={styles.sectionTitle}>QRs Generados ({qrHistory.length})</Text>
+            <Text style={styles.sectionTitle}>
+              {tr('QRs generados', 'Generated QRs')} ({qrHistory.length})
+            </Text>
             {qrHistory.length === 0 ? (
-              <Text style={styles.emptyText}>No hay QRs generados aún.</Text>
+              <Text style={styles.emptyText}>{tr('No hay QRs generados aún.', 'No QRs generated yet.')}</Text>
             ) : (
               <FlatList
                 data={qrHistory}
@@ -189,9 +202,11 @@ export default function AdminMintScreen() {
 
         {activeTab === 'audit' && (
           <>
-            <Text style={styles.sectionTitle}>Registro de Auditoría ({auditLog.length})</Text>
+            <Text style={styles.sectionTitle}>
+              {tr('Registro de auditoría', 'Audit log')} ({auditLog.length})
+            </Text>
             {auditLog.length === 0 ? (
-              <Text style={styles.emptyText}>No hay registros aún.</Text>
+              <Text style={styles.emptyText}>{tr('No hay registros aún.', 'No records yet.')}</Text>
             ) : (
               auditLog.map((entry, idx) => (
                 <View key={idx} style={styles.auditRow}>
@@ -200,10 +215,10 @@ export default function AdminMintScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.auditAction}>
-                      QR Generado · ID: {entry.giftId?.substring(0, 12)}...
+                      {tr('QR generado', 'QR generated')} · {tr('ID', 'ID')}: {entry.giftId?.substring(0, 12)}...
                     </Text>
                     <Text style={styles.auditDate}>
-                      {entry.timestamp ? new Date(entry.timestamp.toMillis()).toLocaleString('es') : 'N/A'}
+                      {entry.timestamp ? new Date(entry.timestamp.toMillis()).toLocaleString(intlLocale) : 'N/A'}
                     </Text>
                   </View>
                   <Text style={styles.auditAmount}>-{entry.creditsDeducted} CS</Text>

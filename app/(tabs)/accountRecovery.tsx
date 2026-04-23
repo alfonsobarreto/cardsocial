@@ -205,21 +205,25 @@ export default function AccountRecoveryScreen({ onClose }: { onClose: () => void
           <TouchableOpacity onPress={onClose}>
             <MaterialCommunityIcons name="close" size={28} color={chevronColor} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Recuperar Cuenta</Text>
+          <Text style={styles.headerTitle}>{tr('Recuperar cuenta', 'Recover account')}</Text>
           <View style={{ width: 28 }} />
         </View>
 
         {step === 'method-select' && (
           <View style={styles.content}>
             <MaterialCommunityIcons name="shield-lock" size={64} color={accent} style={styles.icon} />
-            <Text style={styles.title}>¿Perdiste acceso a tu cuenta?</Text>
-            <Text style={styles.subtitle}>Elige cómo deseas recuperar tu cuenta</Text>
+            <Text style={styles.title}>{tr('¿Perdiste acceso a tu cuenta?', 'Lost access to your account?')}</Text>
+            <Text style={styles.subtitle}>
+              {tr('Elige cómo deseas recuperar tu cuenta', 'Choose how you want to recover your account')}
+            </Text>
 
             <TouchableOpacity style={styles.methodButton} onPress={() => setStep('email-recovery')}>
               <MaterialCommunityIcons name="email" size={32} color={accent} />
               <View style={styles.methodTextContainer}>
-                <Text style={styles.methodTitle}>Récupera por Email</Text>
-                <Text style={styles.methodSubtitle}>Recibirás un link para resetear tu contraseña</Text>
+                <Text style={styles.methodTitle}>{tr('Recupera por email', 'Recover by email')}</Text>
+                <Text style={styles.methodSubtitle}>
+                  {tr('Recibirás un enlace para restablecer tu contraseña', "You'll get a link to reset your password")}
+                </Text>
               </View>
               <MaterialCommunityIcons name="chevron-right" size={24} color={chevronColor} />
             </TouchableOpacity>
@@ -227,8 +231,10 @@ export default function AccountRecoveryScreen({ onClose }: { onClose: () => void
             <TouchableOpacity style={styles.methodButton} onPress={() => setStep('ticket-status')}>
               <MaterialCommunityIcons name="file-document" size={32} color={accent} />
               <View style={styles.methodTextContainer}>
-                <Text style={styles.methodTitle}>Verificación Manual</Text>
-                <Text style={styles.methodSubtitle}>Verifica tu identidad con documento</Text>
+                <Text style={styles.methodTitle}>{tr('Verificación manual', 'Manual verification')}</Text>
+                <Text style={styles.methodSubtitle}>
+                  {tr('Verifica tu identidad con un documento', 'Verify your identity with a document')}
+                </Text>
               </View>
               <MaterialCommunityIcons name="chevron-right" size={24} color={chevronColor} />
             </TouchableOpacity>
@@ -239,15 +245,17 @@ export default function AccountRecoveryScreen({ onClose }: { onClose: () => void
           <View style={styles.content}>
             <TouchableOpacity onPress={() => setStep('method-select')} style={styles.backButton}>
               <MaterialCommunityIcons name="chevron-left" size={24} color={chevronColor} />
-              <Text style={styles.backButtonText}>Volver</Text>
+              <Text style={styles.backButtonText}>{tr('Volver', 'Back')}</Text>
             </TouchableOpacity>
 
-            <Text style={styles.title}>Ingresa tu Email</Text>
-            <Text style={styles.subtitle}>Enviaremos un link a tu email para resetear tu contraseña</Text>
+            <Text style={styles.title}>{tr('Ingresa tu email', 'Enter your email')}</Text>
+            <Text style={styles.subtitle}>
+              {tr('Enviaremos un enlace a tu email para restablecer tu contraseña', "We'll email you a link to reset your password")}
+            </Text>
 
             <TextInput
               style={styles.input}
-              placeholder="tu@email.com"
+              placeholder={tr('tu@email.com', 'you@email.com')}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -262,7 +270,9 @@ export default function AccountRecoveryScreen({ onClose }: { onClose: () => void
             >
               <LinearGradient colors={[shell.ctaPrimary, shell.refreshAccent]} style={styles.primaryButtonInner}>
                 <Text style={styles.primaryButtonText}>
-                  {loading ? 'Enviando...' : 'Enviar Link de Recuperación'}
+                  {loading
+                    ? tr('Enviando…', 'Sending…')
+                    : tr('Enviar enlace de recuperación', 'Send recovery link')}
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -273,15 +283,20 @@ export default function AccountRecoveryScreen({ onClose }: { onClose: () => void
           <View style={styles.content}>
             <TouchableOpacity onPress={() => setStep('method-select')} style={styles.backButton}>
               <MaterialCommunityIcons name="chevron-left" size={24} color={chevronColor} />
-              <Text style={styles.backButtonText}>Volver</Text>
+              <Text style={styles.backButtonText}>{tr('Volver', 'Back')}</Text>
             </TouchableOpacity>
 
-            <Text style={styles.title}>Verfifica tu ID de Ticket</Text>
-            <Text style={styles.subtitle}>Ingresa el ID de tu solicitud de verificación para ver el estado</Text>
+            <Text style={styles.title}>{tr('Verifica tu ID de ticket', 'Verify your ticket ID')}</Text>
+            <Text style={styles.subtitle}>
+              {tr(
+                'Ingresa el ID de tu solicitud de verificación para ver el estado',
+                'Enter your verification request ID to check the status',
+              )}
+            </Text>
 
             <TextInput
               style={styles.input}
-              placeholder="REC-4021-xya2b3c4"
+              placeholder={tr('REC-4021-xya2b3c4', 'REC-4021-xya2b3c4')}
               value={ticketId}
               onChangeText={setTicketId}
               editable={!loading}
@@ -294,7 +309,9 @@ export default function AccountRecoveryScreen({ onClose }: { onClose: () => void
               disabled={loading}
             >
               <LinearGradient colors={[shell.ctaPrimary, shell.refreshAccent]} style={styles.primaryButtonInner}>
-                <Text style={styles.primaryButtonText}>{loading ? 'Verificando...' : 'Verificar Estado'}</Text>
+                <Text style={styles.primaryButtonText}>
+                  {loading ? tr('Verificando…', 'Verifying…') : tr('Verificar estado', 'Check status')}
+                </Text>
               </LinearGradient>
             </TouchableOpacity>
 

@@ -120,7 +120,13 @@ export default function SettingsScreen() {
   const toggleNotifications = async () => {
     const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
     if (isExpoGo) {
-      Alert.alert('No disponible', 'Las notificaciones push requieren un development build. No están disponibles en Expo Go.');
+      Alert.alert(
+        tr('No disponible', 'Not available'),
+        tr(
+          'Las notificaciones push requieren un development build. No están disponibles en Expo Go.',
+          'Push notifications require a development build. They are not available in Expo Go.',
+        ),
+      );
       return;
     }
     if (!isNotificationsEnabled) {
@@ -130,19 +136,22 @@ export default function SettingsScreen() {
         setIsNotificationsEnabled(true);
       } else {
         setIsNotificationsEnabled(false);
-        Alert.alert('Permiso requerido', 'Debes habilitar las notificaciones en la configuración de tu dispositivo.');
+        Alert.alert(
+          tr('Permiso requerido', 'Permission required'),
+          tr('Debes habilitar las notificaciones en la configuración de tu dispositivo.', 'Enable notifications in your device settings.'),
+        );
       }
     } else {
       Alert.alert(
-        'Desactivar notificaciones',
-        'Para desactivar las notificaciones, por favor ve a la Configuración de tu dispositivo.',
+        tr('Desactivar notificaciones', 'Turn off notifications'),
+        tr('Para desactivar las notificaciones, abre Ajustes del dispositivo.', 'To turn off notifications, open your device Settings.'),
         [
           {
-            text: 'Ir a Configuración',
+            text: tr('Ir a Configuración', 'Open Settings'),
             onPress: () => Linking.openSettings(),
           },
-          { text: 'Cancelar', style: 'cancel' },
-        ]
+          { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+        ],
       );
     }
   };
@@ -152,15 +161,21 @@ export default function SettingsScreen() {
       const hasHardware = await LocalAuthentication.hasHardwareAsync();
       const isEnrolled = await LocalAuthentication.isEnrolledAsync();
       if (!hasHardware || !isEnrolled) {
-        Alert.alert('No disponible', 'Tu dispositivo no soporta autenticación biométrica.');
+        Alert.alert(
+          tr('No disponible', 'Not available'),
+          tr('Tu dispositivo no soporta autenticación biométrica.', 'Your device does not support biometric authentication.'),
+        );
         return;
       }
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'Autentica para activar el bloqueo de app',
-        fallbackLabel: 'Usar código',
+        promptMessage: tr('Autentica para activar el bloqueo de app', 'Authenticate to enable app lock'),
+        fallbackLabel: tr('Usar código', 'Use passcode'),
       });
       if (!result.success) {
-        Alert.alert('Error', 'No se pudo activar el bloqueo de app.');
+        Alert.alert(
+          tr('Error', 'Error'),
+          tr('No se pudo activar el bloqueo de app.', 'Could not enable app lock.'),
+        );
         return;
       }
     }
@@ -168,10 +183,16 @@ export default function SettingsScreen() {
       await AsyncStorage.setItem('APP_LOCK_ENABLED', value ? 'true' : 'false');
       setAppLockEnabled(value);
       if (!value) {
-        Alert.alert('Desactivado', 'El bloqueo de app ha sido desactivado.');
+        Alert.alert(
+          tr('Desactivado', 'Disabled'),
+          tr('El bloqueo de app ha sido desactivado.', 'App lock has been turned off.'),
+        );
       }
     } catch {
-      Alert.alert('Error', 'No se pudo guardar la configuración.');
+      Alert.alert(
+        tr('Error', 'Error'),
+        tr('No se pudo guardar la configuración.', 'Could not save settings.'),
+      );
     }
   };
 
@@ -179,7 +200,10 @@ export default function SettingsScreen() {
     try {
       await Linking.openURL('mailto:soporte@card-social.com?subject=Soporte%20Card-Social');
     } catch {
-      Alert.alert('Error', 'No se encontró una aplicación de correo instalada en este dispositivo.');
+      Alert.alert(
+        tr('Error', 'Error'),
+        tr('No se encontró una aplicación de correo instalada en este dispositivo.', 'No email app was found on this device.'),
+      );
     }
   };
 
@@ -228,7 +252,7 @@ export default function SettingsScreen() {
             } catch (e: any) {
               console.error('Sign out error:', e);
               Alert.alert(
-                'Error',
+                tr('Error', 'Error'),
                 tr('No se pudo cerrar la sesión. Intenta de nuevo.', 'Could not sign out. Try again.'),
               );
             } finally {
@@ -251,22 +275,28 @@ export default function SettingsScreen() {
       const stringData = JSON.stringify(userDoc.data(), null, 2);
       const fileUri = FileSystem.documentDirectory + 'CardSocial_MisDatos.json';
       await FileSystem.writeAsStringAsync(fileUri, stringData);
-      await Sharing.shareAsync(fileUri, { dialogTitle: 'Tus datos de Card-Social' });
+      await Sharing.shareAsync(fileUri, { dialogTitle: tr('Tus datos de Card-Social', 'Your Card-Social data') });
     } catch {
-      Alert.alert('Error', 'No se pudieron exportar los datos.');
+      Alert.alert(
+        tr('Error', 'Error'),
+        tr('No se pudieron exportar los datos.', 'Could not export data.'),
+      );
     } finally {
       setIsExporting(false);
     }
   };
 
   const handleActiveSessions = () => {
-    const marca = Device.brand || 'Desconocida';
-    const modelo = Device.modelName || 'Desconocido';
-    const sistema = Device.osName || 'Desconocido';
+    const marca = Device.brand || tr('Desconocida', 'Unknown');
+    const modelo = Device.modelName || tr('Desconocido', 'Unknown');
+    const sistema = Device.osName || tr('Desconocido', 'Unknown');
     Alert.alert(
-      'Sesión Actual',
-      `Estás conectado de forma segura en este dispositivo:\n\nMarca: ${marca}\nModelo: ${modelo}\nSistema: ${sistema}\n\nPor seguridad, si necesitas desconectar otros dispositivos, te recomendamos cambiar tu contraseña.`,
-      [{ text: 'Entendido' }]
+      tr('Sesión actual', 'Current session'),
+      tr(
+        `Estás conectado de forma segura en este dispositivo:\n\nMarca: ${marca}\nModelo: ${modelo}\nSistema: ${sistema}\n\nPor seguridad, si necesitas desconectar otros dispositivos, te recomendamos cambiar tu contraseña.`,
+        `You are securely signed in on this device:\n\nBrand: ${marca}\nModel: ${modelo}\nOS: ${sistema}\n\nFor your security, to disconnect other devices we recommend changing your password.`,
+      ),
+      [{ text: tr('Entendido', 'OK') }],
     );
   };
 
@@ -278,10 +308,10 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Section title="Seguridad y Privacidad">
+      <Section title={tr('Seguridad y privacidad', 'Security & privacy')}>
         <View style={styles.item}>
           <MaterialCommunityIcons name="lock-outline" size={20} color={iconTint} />
-          <Text style={styles.itemText}>Bloqueo de App</Text>
+          <Text style={styles.itemText}>{tr('Bloqueo de app', 'App lock')}</Text>
           {isLoadingAppLock ? (
             <ActivityIndicator size="small" color={iconTint} style={{ marginLeft: 12 }} />
           ) : (
@@ -295,14 +325,14 @@ export default function SettingsScreen() {
         </View>
         <TouchableOpacity style={styles.item} onPress={handleActiveSessions}>
           <MaterialCommunityIcons name="account-multiple-outline" size={20} color={iconTint} />
-          <Text style={styles.itemText}>Sesiones Activas</Text>
+          <Text style={styles.itemText}>{tr('Sesiones activas', 'Active sessions')}</Text>
         </TouchableOpacity>
       </Section>
 
-      <Section title="Preferencias">
+      <Section title={tr('Preferencias', 'Preferences')}>
         <View style={styles.item}>
           <MaterialCommunityIcons name="bell-outline" size={20} color={iconTint} />
-          <Text style={styles.itemText}>Notificaciones</Text>
+          <Text style={styles.itemText}>{tr('Notificaciones', 'Notifications')}</Text>
           <Switch
             value={isNotificationsEnabled}
             onValueChange={toggleNotifications}
@@ -312,16 +342,16 @@ export default function SettingsScreen() {
         </View>
       </Section>
 
-      <Section title="Datos">
+      <Section title={tr('Datos', 'Data')}>
         <TouchableOpacity style={styles.item} onPress={handleExportData} disabled={isExporting}>
           <MaterialCommunityIcons name="export-variant" size={20} color={iconTint} />
           {isExporting ? (
             <>
               <ActivityIndicator size="small" color={iconTint} style={{ marginLeft: 12, marginRight: 6 }} />
-              <Text style={styles.itemText}>Recopilando datos...</Text>
+              <Text style={styles.itemText}>{tr('Recopilando datos…', 'Collecting data…')}</Text>
             </>
           ) : (
-            <Text style={styles.itemText}>Exportar mi informacion</Text>
+            <Text style={styles.itemText}>{tr('Exportar mi información', 'Export my data')}</Text>
           )}
         </TouchableOpacity>
         <TouchableOpacity style={styles.item} onPress={handleClearCache} disabled={isClearingCache}>
@@ -329,23 +359,23 @@ export default function SettingsScreen() {
           {isClearingCache ? (
             <>
               <ActivityIndicator size="small" color={iconTint} style={{ marginLeft: 12, marginRight: 6 }} />
-              <Text style={styles.itemText}>Limpiando...</Text>
+              <Text style={styles.itemText}>{tr('Limpiando…', 'Clearing…')}</Text>
             </>
           ) : (
-            <Text style={styles.itemText}>Limpiar Cache</Text>
+            <Text style={styles.itemText}>{tr('Limpiar caché', 'Clear cache')}</Text>
           )}
         </TouchableOpacity>
       </Section>
 
-      <Section title="Soporte y Legal">
+      <Section title={tr('Soporte y legal', 'Support & legal')}>
         <TouchableOpacity style={styles.item} onPress={handleSupportPress}>
           <MaterialCommunityIcons name="lifebuoy" size={20} color={iconTint} />
-          <Text style={styles.itemText}>Soporte</Text>
+          <Text style={styles.itemText}>{tr('Soporte', 'Support')}</Text>
         </TouchableOpacity>
       </Section>
 
       <View style={styles.versionBox}>
-        <Text style={styles.versionText}>Version 1.0.0</Text>
+        <Text style={styles.versionText}>{tr('Versión 1.0.0', 'Version 1.0.0')}</Text>
       </View>
     </ScrollView>
   );

@@ -348,7 +348,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
               await removeRelEntry(actorUid, entry.uid, entry.status);
               setRelEntries((prev) => prev.filter((e) => e.uid !== entry.uid));
             } catch (err: any) {
-              Alert.alert('Error', err?.message || tr('No se pudo restaurar.', 'Could not restore.'));
+              Alert.alert(tr('Error', 'Error'), err?.message || tr('No se pudo restaurar.', 'Could not restore.'));
             }
           },
         },

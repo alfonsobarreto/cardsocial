@@ -13,7 +13,7 @@ import { hasActiveBusinessLicense } from '@/services/businessLicenseService';
 import { trackCardAnalyticsFireAndForget } from '@/services/cardAnalytics';
 import { getPremiumStoryCost, getUserCreditsBalance, purchasePremiumStoryWithCredits } from '@/services/creditsService';
 import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
-import { trEsEn, useLanguage } from '@/services/language';
+import { trAction, trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { db } from '@/services/firebaseConfig';
 import { getMyStoryState, getStoriesHouseAd, listReceivedContacts, listSmartCardsFromDb, setMyStoryState, type HouseAdStory } from '@/services/qrApi';
@@ -207,7 +207,7 @@ function mapCachedSmartCardsToStoryRows(raw: string): SmartCard[] {
         const sid = isBiz && rawB ? rawB : String(rawS || c?.id || '').trim();
         return {
           sid,
-          scName: String(c?.scName ?? '').trim() || 'Smart Card',
+          scName: String(c?.scName ?? '').trim() || trAction('Smart Card', 'Smart Card'),
           itemIds: Array.isArray(c?.itemIds) ? c.itemIds.map((id) => String(id)) : [],
           bId: isBiz && rawB ? rawB : null,
         };
@@ -785,7 +785,7 @@ export default function StoriesPage() {
           const sid = isBiz ? String(row.bId || '').trim() : String(row.sid || '').trim();
           return {
             sid,
-            scName: String(row.scName ?? 'Smart Card'),
+            scName: String(row.scName ?? trAction('Smart Card', 'Smart Card')),
             itemIds: row.itemIds,
             bId: isBiz ? String(row.bId || '').trim() || null : null,
           };

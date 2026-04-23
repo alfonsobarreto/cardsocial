@@ -240,7 +240,7 @@ export default function MyProfileScreen() {
         setCreditsBalance(await getUserCreditsBalance(uid));
       } catch { /* stats are non-critical */ }
     } catch (e: any) {
-      Alert.alert(tr('Error', 'Error'), e?.message || 'No se pudo cargar el perfil.');
+      Alert.alert(tr('Error', 'Error'), e?.message || tr('No se pudo cargar el perfil.', 'Could not load profile.'));
     } finally {
       setLoading(false);
     }
@@ -441,7 +441,7 @@ export default function MyProfileScreen() {
           tr('La imagen no cumple las políticas de contenido de Card-Social.', 'The image does not meet Card-Social content policies.')
         );
       } else {
-        Alert.alert(tr('Error subiendo foto', 'Error uploading photo'), e?.message || '');
+        Alert.alert(tr('Error subiendo foto', 'Error uploading photo'), e?.message || tr('Inténtalo de nuevo.', 'Please try again.'));
       }
     } finally {
       setUploadingPhoto(false);
@@ -458,7 +458,7 @@ export default function MyProfileScreen() {
       return;
     }
     if (next === profile.userFullName) {
-      Alert.alert('', tr('No hay cambios.', 'No changes.'));
+      Alert.alert(tr('Aviso', 'Notice'), tr('No hay cambios.', 'No changes.'));
       return;
     }
     try {
@@ -474,9 +474,9 @@ export default function MyProfileScreen() {
       });
       setProfile((prev) => prev ? { ...prev, userFullName: next, firstName, lastName } : prev);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(tr('Nombre actualizado', 'Name updated'), '');
+      Alert.alert(tr('Nombre actualizado', 'Name updated'), tr('Cambios guardados.', 'Changes saved.'));
     } catch (e: any) {
-      Alert.alert(tr('Error', 'Error'), e?.message || '');
+      Alert.alert(tr('Error', 'Error'), e?.message || tr('Inténtalo de nuevo.', 'Please try again.'));
     } finally {
       setSavingName(false);
     }
@@ -487,11 +487,11 @@ export default function MyProfileScreen() {
     if (!profile) return;
     const next = editNickname.trim();
     if (!next) {
-      Alert.alert(tr('Nickname requerido', 'Nickname required'), '');
+      Alert.alert(tr('Nickname requerido', 'Nickname required'), tr('Ingresa un nickname.', 'Enter a nickname.'));
       return;
     }
     if (next.toLowerCase() === profile.userNickNameLower) {
-      Alert.alert('', tr('No hay cambios.', 'No changes.'));
+      Alert.alert(tr('Aviso', 'Notice'), tr('No hay cambios.', 'No changes.'));
       return;
     }
     if (!/^[a-z0-9._-]{3,24}$/i.test(next)) {
@@ -553,9 +553,9 @@ export default function MyProfileScreen() {
           : prev
       );
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(tr('Nickname actualizado', 'Nickname updated'), '');
+      Alert.alert(tr('Nickname actualizado', 'Nickname updated'), tr('Cambios guardados.', 'Changes saved.'));
     } catch (e: any) {
-      Alert.alert(tr('Error', 'Error'), e?.message || '');
+      Alert.alert(tr('Error', 'Error'), e?.message || tr('Inténtalo de nuevo.', 'Please try again.'));
     } finally {
       setSavingNickname(false);
     }
@@ -573,7 +573,7 @@ export default function MyProfileScreen() {
       try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {}
       Alert.alert(tr('Listo', 'Done'), tr('Bio actualizada.', 'Bio updated.'));
     } catch (e: any) {
-      Alert.alert(tr('Error', 'Error'), e?.message || 'No se pudo guardar.');
+      Alert.alert(tr('Error', 'Error'), e?.message || tr('No se pudo guardar.', 'Could not save.'));
     } finally {
       setSavingBio(false);
     }
@@ -615,7 +615,7 @@ export default function MyProfileScreen() {
       } else if (code === 'auth/requires-recent-login') {
         Alert.alert(tr('Sesión expirada', 'Session expired'), tr('Cierra sesión y vuelve a entrar.', 'Sign out and sign back in.'));
       } else {
-        Alert.alert(tr('Error', 'Error'), e?.message || '');
+        Alert.alert(tr('Error', 'Error'), e?.message || tr('Inténtalo de nuevo.', 'Please try again.'));
       }
     } finally {
       setSavingPw(false);

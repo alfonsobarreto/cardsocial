@@ -3,6 +3,7 @@
  * Muestra una pantalla de fallback en lugar de crashear la app.
  */
 
+import { trAction } from '@/services/language';
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -38,13 +39,13 @@ export default class ErrorBoundary extends Component<Props, State> {
       return (
         <View style={styles.container}>
           <Text style={styles.emoji}>⚠️</Text>
-          <Text style={styles.title}>Algo salió mal</Text>
-          <Text style={styles.subtitle}>Something went wrong</Text>
+          <Text style={styles.title}>{trAction('Algo salió mal', 'Something went wrong')}</Text>
+          <Text style={styles.subtitle}>{trAction('Vuelve a intentarlo.', 'Please try again.')}</Text>
           <Text style={styles.detail} numberOfLines={4}>
-            {this.state.error?.message || 'Unknown error'}
+            {this.state.error?.message || trAction('Error desconocido', 'Unknown error')}
           </Text>
           <TouchableOpacity style={styles.retryBtn} onPress={this.handleRetry} activeOpacity={0.8}>
-            <Text style={styles.retryText}>Reintentar / Retry</Text>
+            <Text style={styles.retryText}>{trAction('Reintentar', 'Try again')}</Text>
           </TouchableOpacity>
         </View>
       );

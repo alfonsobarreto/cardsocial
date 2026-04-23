@@ -14,8 +14,11 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getActiveUserId } from '@/services/authSession';
 import { getFontFolderPaths, uploadFontAsAdmin, type FontTier } from '@/services/fontLibraryService';
+import { trEsEn, useLanguage } from '@/services/language';
 
 const AdminFontUploader: React.FC = () => {
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const [userId, setUserId] = useState<string | null>(null);
   const [fileUri, setFileUri] = useState<string | null>(null);
   const [fileName, setFileName] = useState('');
@@ -47,13 +50,19 @@ const AdminFontUploader: React.FC = () => {
       setFileName(file.name || 'font.ttf');
       setDisplayName((file.name || 'font').replace(/\.(ttf|otf)$/i, ''));
     } catch {
-      Alert.alert('Error', 'No se pudo seleccionar el archivo de fuente.');
+      Alert.alert(
+        tr('Error', 'Error'),
+        tr('No se pudo seleccionar el archivo de fuente.', 'Could not select the font file.'),
+      );
     }
   };
 
   const upload = async () => {
     if (!userId || !fileUri || !fileName || !displayName.trim()) {
-      Alert.alert('Campos requeridos', 'Selecciona fuente y nombre visible.');
+      Alert.alert(
+        tr('Campos requeridos', 'Required fields'),
+        tr('Selecciona fuente y nombre visible.', 'Select a font and display name.'),
+      );
       return;
     }
 
@@ -68,11 +77,14 @@ const AdminFontUploader: React.FC = () => {
       });
 
       if (!res.success) {
-        Alert.alert('Error', res.error || 'No se pudo subir la fuente.');
+        Alert.alert(tr('Error', 'Error'), res.error || tr('No se pudo subir la fuente.', 'Could not upload the font.'));
         return;
       }
 
-      Alert.alert('Fuente subida', `Disponible en fonts/${tier}`);
+      Alert.alert(
+        tr('Fuente subida', 'Font uploaded'),
+        tr(`Disponible en fonts/${tier}`, `Available at fonts/${tier}`),
+      );
       setFileUri(null);
       setFileName('');
       setDisplayName('');
@@ -85,50 +97,62 @@ const AdminFontUploader: React.FC = () => {
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <LinearGradient colors={['#0A2540', '#1A3D5C']} style={styles.header}>
         <MaterialCommunityIcons name="format-font" size={28} color="#C5A065" />
-        <Text style={styles.headerTitle}>Font Uploader</Text>
-        <Text style={styles.headerSub}>Sube .ttf o .otf y clasifica Free/Premium</Text>
+        <Text style={styles.headerTitle}>{tr('Font Uploader', 'Font Uploader')}</Text>
+        <Text style={styles.headerSub}>
+          {tr('Sube .ttf o .otf y clasifica Gratis/Premium', 'Upload .ttf or .otf and set Free/Premium')}
+        </Text>
       </LinearGradient>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>1) Archivo de fuente</Text>
+        <Text style={styles.sectionTitle}>{tr('1) Archivo de fuente', '1) Font file')}</Text>
         <TouchableOpacity style={styles.pickBtn} onPress={pickFont}>
           <MaterialCommunityIcons name="file-upload-outline" size={24} color="#0A2540" />
-          <Text style={styles.pickText}>{fileName || 'Seleccionar .ttf o .otf'}</Text>
+          <Text style={styles.pickText}>
+            {fileName || tr('Seleccionar .ttf o .otf', 'Select .ttf or .otf')}
+          </Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>2) Nombre visible</Text>
+        <Text style={styles.sectionTitle}>{tr('2) Nombre visible', '2) Display name')}</Text>
         <TextInput
           style={styles.input}
           value={displayName}
           onChangeText={setDisplayName}
-          placeholder="Ej: Luxe Serif"
+          placeholder={tr('Ej: Luxe Serif', 'E.g. Luxe Serif')}
           placeholderTextColor="#7A9AB0"
         />
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>3) Nivel</Text>
+        <Text style={styles.sectionTitle}>{tr('3) Nivel', '3) Tier')}</Text>
         <View style={styles.row}>
           <TouchableOpacity style={[styles.chip, tier === 'free' && styles.chipActive]} onPress={() => setTier('free')}>
-            <Text style={[styles.chipText, tier === 'free' && styles.chipTextActive]}>Free</Text>
+            <Text style={[styles.chipText, tier === 'free' && styles.chipTextActive]}>
+              {tr('Gratis', 'Free')}
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.chip, tier === 'premium' && styles.chipActive]} onPress={() => setTier('premium')}>
-            <Text style={[styles.chipText, tier === 'premium' && styles.chipTextActive]}>Premium</Text>
+            <Text style={[styles.chipText, tier === 'premium' && styles.chipTextActive]}>
+              {tr('Premium', 'Premium')}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.pathsBox}>
-        <Text style={styles.pathsTitle}>Rutas de Cloud Fonts</Text>
+        <Text style={styles.pathsTitle}>{tr('Rutas de cloud fonts', 'Cloud font paths')}</Text>
         {getFontFolderPaths().map((path) => (
           <Text key={path} style={styles.pathLine}>{path}</Text>
         ))}
       </View>
 
       <TouchableOpacity style={styles.submitBtn} onPress={upload} disabled={loading}>
-        {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.submitText}>Subir Fuente</Text>}
+        {loading ? (
+          <ActivityIndicator color="#FFFFFF" />
+        ) : (
+          <Text style={styles.submitText}>{tr('Subir fuente', 'Upload font')}</Text>
+        )}
       </TouchableOpacity>
     </ScrollView>
   );

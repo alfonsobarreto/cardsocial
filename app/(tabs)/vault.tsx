@@ -17,12 +17,12 @@ import { useLookMode } from '@/services/lookMode';
 import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
 import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
 import { isVaultDocumentImage, isVaultDocumentPdf } from '@/services/vaultMimeGuards';
+import { presentPremiumDataPanel, dismissPremiumDataPanel } from '@/services/premiumDataPanelController';
 import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
 import { isClassicPhoneVaultType } from '@/services/vaultItemTypeGuards';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
-import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
 import { Image as ExpoImage } from 'expo-image';
@@ -91,7 +91,7 @@ const VaultScreen = () => {
   const [formModalVisible, setFormModalVisible] = useState(false);
   const [formRenderNonce, setFormRenderNonce] = useState(0);
   const [editingData, setEditingData] = useState<Link | undefined>(undefined);
-  const [profileDisplayName, setProfileDisplayName] = useState('Usuario');
+  const [profileDisplayName, setProfileDisplayName] = useState(() => tr('Usuario', 'User'));
   const [searchQuery, setSearchQuery] = useState('');
   const [isUserVerified, setIsUserVerified] = useState(false);
   const [limitReachedVisible, setLimitReachedVisible] = useState(false);
@@ -106,8 +106,6 @@ const VaultScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [contextMenuItem, setContextMenuItem] = useState<Link | null>(null);
-  const [textValueModalVisible, setTextValueModalVisible] = useState(false);
-  const [activeTextItem, setActiveTextItem] = useState<Link | null>(null);
   const formSheetTranslateY = useRef(new Animated.Value(0)).current;
 
   const closeFormModal = () => {
@@ -116,8 +114,6 @@ const VaultScreen = () => {
     setFormModalVisible(false);
     setEditingData(undefined);
     setContextMenuVisible(false);
-    setTextValueModalVisible(false);
-    setActiveTextItem(null);
   };
 
   useEffect(() => {
@@ -251,9 +247,10 @@ const VaultScreen = () => {
       }
 
       let displayName = readUserFullName(userData);
-      if (displayName === 'Usuario') {
+      const defaultName = tr('Usuario', 'User');
+      if (displayName === 'Usuario' || displayName === 'User' || displayName === defaultName) {
         displayName =
-          readUserNickName(userData) || String(userData.firstName || '').trim() || 'Usuario';
+          readUserNickName(userData) || String(userData.firstName || '').trim() || defaultName;
       }
       const verified = userData.verificationStatus === 'verified' || Boolean(userData.verificationSelfieFileId);
       setProfileDisplayName(displayName);
@@ -276,7 +273,7 @@ const VaultScreen = () => {
         );
         return;
       }
-      const biometricOk = await hardLockCheck('eliminar datos del Búnker');
+      const biometricOk = await hardLockCheck(tr('eliminar datos del Búnker', 'delete Bunker data'));
       if (!biometricOk) {
         return;
       }
@@ -321,7 +318,7 @@ const VaultScreen = () => {
   // Toggle favorito
   const toggleFavorite = async (link: Link) => {
     try {
-      const biometricOk = await hardLockCheck('marcar favorito en el Búnker');
+      const biometricOk = await hardLockCheck(tr('marcar favorito en el Búnker', 'toggle Bunker favorite'));
       if (!biometricOk) {
         return;
       }
@@ -526,10 +523,19 @@ const VaultScreen = () => {
     }
   };
 
-  const openTextValueModal = (link: Link) => {
-    setActiveTextItem(link);
-    setTextValueModalVisible(true);
+  const openSovereignTextPanel = (link: Link) => {
+    const text = String(link.value || '');
     triggerSuccessHaptic();
+    presentPremiumDataPanel({
+      presentation: 'sovereign-text',
+      title: link.title || tr('Texto', 'Text'),
+      body: text || '—',
+      icon: 'text-box-outline',
+      copyText: text,
+      actions: [
+        { label: tr('Cerrar', 'Close'), variant: 'secondary', onPress: dismissPremiumDataPanel },
+      ],
+    });
   };
 
   /** Opción B: descarga el PDF a caché y lo abre con el visor nativo del sistema. */
@@ -543,7 +549,7 @@ const VaultScreen = () => {
         visibilityTime: 2000,
         autoHide: true,
       });
-      const safeName = `${link.title || 'documento'}-${Date.now()}`.replace(/[^a-zA-Z0-9-_]/g, '_');
+      const safeName = `${link.title || tr('documento', 'document')}-${Date.now()}`.replace(/[^a-zA-Z0-9-_]/g, '_');
       const targetUri = `${FileSystem.cacheDirectory}${safeName}.pdf`;
       const fileUrl = resolveVaultMediaUrlForApp(link.value) ?? link.value;
       await FileSystem.downloadAsync(fileUrl, targetUri);
@@ -552,7 +558,7 @@ const VaultScreen = () => {
         await Sharing.shareAsync(targetUri, {
           mimeType: 'application/pdf',
           UTI: 'com.adobe.pdf',
-          dialogTitle: link.title || 'Documento PDF',
+          dialogTitle: link.title || tr('Documento PDF', 'PDF document'),
         });
       } else {
         // Fallback: abrir URL directamente en el browser
@@ -572,7 +578,9 @@ const VaultScreen = () => {
   };
 
   const openDocumentViewer = async (link: Link) => {
-    const biometricOk = await hardLockCheck('abrir el visor de documentos del Búnker');
+    const biometricOk = await hardLockCheck(
+      tr('abrir el visor de documentos del Búnker', 'open the Bunker document viewer'),
+    );
     if (!biometricOk) {
       return;
     }
@@ -595,7 +603,7 @@ const VaultScreen = () => {
 
     try {
       setIsDownloadingViewerFile(true);
-      const fileNameSafe = `${viewerItem.title || 'archivo'}-${Date.now()}`.replace(/[^a-zA-Z0-9-_]/g, '_');
+      const fileNameSafe = `${viewerItem.title || tr('archivo', 'file')}-${Date.now()}`.replace(/[^a-zA-Z0-9-_]/g, '_');
       const extension = isVaultDocumentPdf(viewerItem.value, viewerItem.vaultMimeType) ? 'pdf' : 'jpg';
       const targetUri = `${FileSystem.cacheDirectory}${fileNameSafe}.${extension}`;
 
@@ -608,7 +616,7 @@ const VaultScreen = () => {
           mimeType: isVaultDocumentPdf(viewerItem.value, viewerItem.vaultMimeType)
             ? 'application/pdf'
             : 'image/jpeg',
-          dialogTitle: 'Descargar archivo del Búnker',
+          dialogTitle: tr('Descargar archivo del Búnker', 'Download Bunker file'),
         });
       }
 
@@ -682,7 +690,7 @@ const VaultScreen = () => {
         return;
       }
 
-      openTextValueModal(link);
+      openSovereignTextPanel(link);
     } catch (error) {
       console.error('Error running action:', error);
       Alert.alert(tr('❌ Error', '❌ Error'), tr('No se pudo ejecutar la acción', 'Could not execute the action'));
@@ -833,7 +841,7 @@ const VaultScreen = () => {
       return;
     }
 
-    const biometricOk = await hardLockCheck('editar datos del Búnker');
+    const biometricOk = await hardLockCheck(tr('editar datos del Búnker', 'edit Bunker data'));
     if (!biometricOk) {
       return;
     }
@@ -1176,59 +1184,6 @@ const VaultScreen = () => {
         },
         contextDeleteText: {
           color: vaultTheme.danger,
-        },
-        floatingOverlay: {
-          flex: 1,
-          backgroundColor: vaultTheme.modalOverlay,
-          justifyContent: 'center',
-          alignItems: 'center',
-          paddingHorizontal: 20,
-        },
-        floatingModalCard: {
-          width: '100%',
-          maxWidth: 420,
-          borderRadius: 18,
-          padding: 16,
-          borderWidth: 1,
-        },
-        floatingModalTitle: {
-          fontWeight: '800',
-          fontSize: 16,
-          marginBottom: 8,
-        },
-        floatingModalBody: {
-          fontSize: 13,
-          lineHeight: 18,
-          marginBottom: 14,
-        },
-        floatingActionsRow: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 10,
-        },
-        floatingCopyButton: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 6,
-          paddingHorizontal: 12,
-          paddingVertical: 10,
-          borderRadius: 999,
-        },
-        floatingCopyText: {
-          fontWeight: '700',
-          fontSize: 12,
-        },
-        floatingCloseButton: {
-          paddingHorizontal: 12,
-          paddingVertical: 10,
-          borderRadius: 999,
-          alignSelf: 'flex-end',
-          marginTop: 8,
-        },
-        floatingCloseText: {
-          fontWeight: '700',
-          fontSize: 12,
         },
         emailClientButton: {
           paddingVertical: 10,
@@ -1709,72 +1664,6 @@ const VaultScreen = () => {
         onClose={() => setLimitReachedVisible(false)}
         onUpgradePress={handleUpgradePress}
       />
-
-      <Modal
-        visible={textValueModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
-          setTextValueModalVisible(false);
-          setActiveTextItem(null);
-        }}
-      >
-        <TouchableWithoutFeedback
-          onPress={() => {
-            setTextValueModalVisible(false);
-            setActiveTextItem(null);
-          }}
-        >
-          <View style={styles.floatingOverlay}>
-            <TouchableWithoutFeedback>
-              <View style={[styles.floatingModalCard, { backgroundColor: vaultTheme.floatingCardBg, borderColor: vaultTheme.floatingCardBorder }]}>
-                <Text style={[styles.floatingModalTitle, { color: vaultTheme.floatingTitle }]}>{activeTextItem?.title || 'Dato'}</Text>
-                <Text style={[styles.floatingModalBody, { color: vaultTheme.floatingBody }]}>{activeTextItem?.value || ''}</Text>
-
-                <View style={styles.floatingActionsRow}>
-                  <TouchableOpacity
-                    style={[
-                      styles.floatingCopyButton,
-                      {
-                        backgroundColor: vaultTheme.selectedActionBg,
-                        shadowColor: vaultTheme.selectedActionGlow,
-                        shadowOpacity: 0.2,
-                        shadowRadius: 6,
-                        elevation: 4,
-                      },
-                    ]}
-                    onPress={async () => {
-                      await Clipboard.setStringAsync(String(activeTextItem?.value || ''));
-                      triggerSuccessHaptic();
-                      Toast.show({
-                        type: 'success',
-                        text1: tr('📋 Copiado al portapapeles', '📋 Copied to clipboard'),
-                        text2: activeTextItem?.title,
-                        position: 'bottom',
-                        visibilityTime: 1500,
-                        autoHide: true,
-                      });
-                    }}
-                  >
-                    <MaterialCommunityIcons name="content-copy" color={vaultTheme.selectedActionText} size={16} />
-                    <Text style={[styles.floatingCopyText, { color: vaultTheme.selectedActionText }]}>{tr('Copiar', 'Copy')}</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.floatingCloseButton, { backgroundColor: vaultTheme.floatingCloseBg }]}
-                    onPress={() => {
-                      setTextValueModalVisible(false);
-                      setActiveTextItem(null);
-                    }}
-                  >
-                    <Text style={[styles.floatingCloseText, { color: vaultTheme.floatingCloseText }]}>{tr('Cerrar', 'Close')}</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
 
     </View>
   );

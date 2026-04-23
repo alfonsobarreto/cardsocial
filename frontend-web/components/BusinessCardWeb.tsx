@@ -1,13 +1,15 @@
 'use client';
 /** Vista pública en React (Next): `/u/…` y `/b/…` vía `CardPreview`. */
 
-import { SafeDataViewerSheet, slotDefToGlyph } from '@/components/SafeDataViewerSheet';
+import { MirrorActionModals } from '@/components/MirrorActionModals';
 import type { SlotIconDef } from '@/lib/slotIcons';
+import { runPublicWebSlotAction } from '@/lib/runPublicWebSlotAction';
 import { resolveSlotVisual } from '@/lib/slotVisual';
 import { CardTheme } from '@/lib/themes';
 import type { CardData, PublicSlot } from '@/lib/universalCardTypes';
+import type { MirrorOpenPlan } from '@card-social/services/mirrorVaultItemOpenPlan';
 import Image from 'next/image';
-import { useState, type CSSProperties } from 'react';
+import { useCallback, useState, type CSSProperties } from 'react';
 
 /**
  * Cabecera "Card-Social": el marco blanco mide 1.1× el slot del icono (logo=1, bubble=1.1).
@@ -103,47 +105,6 @@ function SlotGlyph({
   );
 }
 
-function slotHeaderGlyphForSheet(slot: PublicSlot, accent: string) {
-  const v = resolveSlotVisual(slot);
-  if (v.kind === 'url') {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={v.url} alt="" width={28} height={28} style={{ borderRadius: 8, objectFit: 'cover' }} />;
-  }
-  return slotDefToGlyph(v.def, 26, accent);
-}
-
-type TrFn = (es: string, en: string) => string;
-
-function PublicWebSlotDetailSheet({
-  slot,
-  onClose,
-  tr,
-  theme,
-}: {
-  slot: PublicSlot | null;
-  onClose: () => void;
-  tr: TrFn;
-  theme: CardTheme;
-}) {
-  const accent = theme.border.color;
-  const title = slot
-    ? slotLabelForWeb(String(slot.label || ''), String(slot.type || ''))
-    : '';
-  const raw = slot ? String(slot.value || '').trim() : '';
-  const body = raw || (slot ? tr('Sin contenido', 'No content') : '');
-  return (
-    <SafeDataViewerSheet
-      open={slot != null}
-      onClose={onClose}
-      title={title}
-      body={body}
-      tr={tr}
-      accent={accent}
-      headerGlyph={slot ? slotHeaderGlyphForSheet(slot, accent) : undefined}
-    />
-  );
-}
-
 /** Mismas medidas que `.slot-grid` / `.slot` / `.slot-ic` / `.slot-lb` en `SmartCardLegacy.js` (paridad Business). */
 const LEGACY_ICON_PX = 28;
 
@@ -229,9 +190,10 @@ function LegacyGridSlot({
       </div>
     </>
   );
-  if (onSelect) {
+  const press = voip ? undefined : onSelect;
+  if (press) {
     return (
-      <button type="button" onClick={onSelect} style={shellStyle}>
+      <button type="button" onClick={press} style={shellStyle}>
         {inner}
       </button>
     );
@@ -278,14 +240,24 @@ type Props = {
   theme: CardTheme;
   locale: 'es' | 'en';
   /**
-   * `universal` = `/u/…`; `business` = `/b/…` (misma interacción en la rejilla de iconos).
+   * `universal` = `/u/…`; `business` = `/b/…`. Acción de slots = misma que Smart (`getMirrorVaultOpenPlan` + app).
    */
   previewVariant?: 'universal' | 'business';
 };
 
 export default function BusinessCardWeb({ card, theme, locale, previewVariant = 'universal' }: Props) {
   const tr = (es: string, en: string) => (locale === 'es' ? es : en);
-  const [activeSlot, setActiveSlot] = useState<PublicSlot | null>(null);
+  const [ghostPlan, setGhostPlan] = useState<Extract<MirrorOpenPlan, { kind: 'ghost' }> | null>(null);
+
+  const handleSlotPress = useCallback(
+    (slot: PublicSlot) => {
+      const r = runPublicWebSlotAction(card, slot);
+      if (r.kind === 'ghost') {
+        setGhostPlan(r.plan);
+      }
+    },
+    [card],
+  );
 
   const slots = (card.slots ?? []).slice(0, 24);
 
@@ -501,12 +473,21 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
             }}
           >
             {slots.length > 0 ? (
-              <LegacySlotGrid slots={slots} theme={theme} onSlotPress={setActiveSlot} />
+              <LegacySlotGrid slots={slots} theme={theme} onSlotPress={handleSlotPress} />
             ) : null}
           </div>
         </div>
       </div>
-      <PublicWebSlotDetailSheet slot={activeSlot} onClose={() => setActiveSlot(null)} tr={tr} theme={theme} />
+      <MirrorActionModals
+        plan={ghostPlan}
+        onClose={() => setGhostPlan(null)}
+        tr={tr}
+        accent={theme.border.color}
+        callInterstitialProfile={{
+          name: String(card.userFullName || card.ownerDisplayName || tr('Contacto', 'Contact')).trim(),
+          photoUrl: card.userAvatarUrl ?? null,
+        }}
+      />
       </>
     );
   }
@@ -659,12 +640,21 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
           }}
         >
           {slots.length > 0 ? (
-            <LegacySlotGrid slots={slots} theme={theme} onSlotPress={setActiveSlot} />
+            <LegacySlotGrid slots={slots} theme={theme} onSlotPress={handleSlotPress} />
           ) : null}
         </div>
       </div>
     </div>
-    <PublicWebSlotDetailSheet slot={activeSlot} onClose={() => setActiveSlot(null)} tr={tr} theme={theme} />
+    <MirrorActionModals
+      plan={ghostPlan}
+      onClose={() => setGhostPlan(null)}
+      tr={tr}
+      accent={theme.border.color}
+      callInterstitialProfile={{
+        name: String(card.userFullName || card.ownerDisplayName || tr('Contacto', 'Contact')).trim(),
+        photoUrl: card.userAvatarUrl ?? null,
+      }}
+    />
     </>
   );
 }

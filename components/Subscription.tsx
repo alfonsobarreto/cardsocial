@@ -104,7 +104,11 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
             tr('Monedas CS para gastar en tienda.', 'CS Coins to spend in the store.')
         );
       } else {
-        Alert.alert(tr('Error', 'Error'), result.message);
+        const msg = String(result.message || '').trim();
+        Alert.alert(
+          tr('Error', 'Error'),
+          msg || tr('No se pudo completar la compra.', 'Could not complete the purchase.'),
+        );
       }
     } catch (error) {
       console.error('Business card purchase error:', error);

@@ -6,6 +6,7 @@ import { getActiveUserId } from '@/services/authSession';
 import AdminDashboard from '@/components/AdminDashboard';
 import { validateAdminAccess, getAdminPremiumStatus } from '@/services/adminAuthGuard';
 import { LinearGradient } from 'expo-linear-gradient';
+import { trEsEn, useLanguage } from '@/services/language';
 
 /**
  * Admin Dashboard (Protected Route)
@@ -21,6 +22,8 @@ import { LinearGradient } from 'expo-linear-gradient';
  */
 
 export default function AdminDashboardScreen() {
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
@@ -39,7 +42,10 @@ export default function AdminDashboardScreen() {
       const currentUserId = await getActiveUserId();
       if (!currentUserId) {
         console.error('[AdminGuard] No authenticated user found');
-        Alert.alert('Error', 'Sesión no válida. Por favor, inicia sesión nuevamente.');
+        Alert.alert(
+          tr('Error', 'Error'),
+          tr('Sesión no válida. Por favor, inicia sesión nuevamente.', 'Invalid session. Please sign in again.'),
+        );
         router.replace('/');
         return;
       }
@@ -54,15 +60,24 @@ export default function AdminDashboardScreen() {
 
         if (!accessResult.isSuperAdmin) {
           Alert.alert(
-            '❌ Acceso Denegado',
-            'Solo los administradores pueden acceder al panel de control.',
-            [{ text: 'OK', onPress: () => router.replace('/') }]
+            tr('❌ Acceso denegado', '❌ Access denied'),
+            tr(
+              'Solo los administradores pueden acceder al panel de control.',
+              'Only administrators can access the control panel.',
+            ),
+            [{ text: tr('OK', 'OK'), onPress: () => router.replace('/') }],
           );
         } else if (!accessResult.biometricAuthorized) {
           Alert.alert(
-            '🔐 Verificación Requerida',
-            'La verificación biométrica es obligatoria. Por favor, inténtalo nuevamente.',
-            [{ text: 'Reintentar', onPress: validateAccess }, { text: 'Cancelar', onPress: () => router.back() }]
+            tr('🔐 Verificación requerida', '🔐 Verification required'),
+            tr(
+              'La verificación biométrica es obligatoria. Por favor, inténtalo nuevamente.',
+              'Biometric verification is required. Please try again.',
+            ),
+            [
+              { text: tr('Reintentar', 'Retry'), onPress: validateAccess },
+              { text: tr('Cancelar', 'Cancel'), onPress: () => router.back() },
+            ],
           );
         }
         return;
@@ -76,7 +91,10 @@ export default function AdminDashboardScreen() {
       setAuthorized(true);
     } catch (error) {
       console.error('[AdminGuard] Validation error:', error);
-      Alert.alert('Error', 'Hubo un error al validar el acceso.');
+      Alert.alert(
+        tr('Error', 'Error'),
+        tr('Hubo un error al validar el acceso.', 'There was an error validating access.'),
+      );
       router.replace('/');
     } finally {
       setLoading(false);
@@ -88,7 +106,7 @@ export default function AdminDashboardScreen() {
       <LinearGradient colors={['#F8F9FA', '#E8F0F8']} style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#0A2540" />
-          <Text style={styles.loadingText}>Validando acceso...</Text>
+          <Text style={styles.loadingText}>{tr('Validando acceso…', 'Validating access…')}</Text>
         </View>
       </LinearGradient>
     );
@@ -98,9 +116,11 @@ export default function AdminDashboardScreen() {
     return (
       <LinearGradient colors={['#F8F9FA', '#E8F0F8']} style={styles.container}>
         <View style={styles.deniedContainer}>
-          <Text style={styles.deniedTitle}>❌ Acceso Denegado</Text>
+          <Text style={styles.deniedTitle}>
+            {tr('❌ Acceso denegado', '❌ Access denied')}
+          </Text>
           <Text style={styles.deniedMessage}>
-            No tienes permisos para acceder a este panel.
+            {tr('No tienes permisos para acceder a este panel.', "You don't have access to this panel.")}
           </Text>
         </View>
       </LinearGradient>

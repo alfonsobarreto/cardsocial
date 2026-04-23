@@ -1,7 +1,7 @@
 /**
  * Rellena fragmentos ui.* desde en.fragment.json vía MyMemory (gratis, límite diario).
  *
- * Por defecto solo it + pt para no sobrescribir fr.fragment.json (curado en POEditor).
+ * Por defecto solo it + pt; para regenerar fr: LANGS=fr,it,pt
  * Incluir francés: LANGS=fr,it,pt node scripts/fill-ui-fragments.mjs
  *
  * Uso: node scripts/fill-ui-fragments.mjs

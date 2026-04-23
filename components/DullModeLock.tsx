@@ -1,13 +1,12 @@
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
-import React from 'react';
+import { trEsEn, useLanguage } from '@/services/language';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Modal,
   TouchableOpacity,
-  Image,
-  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -31,30 +30,53 @@ const DullModeLock: React.FC<DullModeLockProps> = ({
   lockType,
   itemName,
 }) => {
-  const lockMessages = {
-    pdf: {
-      title: '📄 Documento Bloqueado',
-      subtitle: 'Dull Mode activo por anualidad pendiente',
-      description: 'Activa o renueva la anualidad de la tarjeta para recuperar archivos, diseño completo y funciones visuales.',
-    },
-    extra_card: {
-      title: '🎯 Tarjeta en Dull Mode',
-      subtitle: 'La anualidad de esta tarjeta de negocio expiró',
-      description: 'El QR permanente sigue funcionando, pero el estilo queda en escala de grises hasta renovar la anualidad.',
-    },
-    feature: {
-      title: '⭐ Función en Pausa Visual',
-      subtitle: `${itemName || 'Esta función'} depende de anualidad activa`,
-      description: 'Renueva la tarjeta de negocio para salir de Dull Mode y restaurar efectos visuales.',
-    },
-    icon: {
-      title: '🎨 Estilo Desactivado',
-      subtitle: `${itemName || 'Este recurso'} está en Dull Mode`,
-      description: 'Con anualidad vencida, la tarjeta se muestra minimalista en gris y sin efectos hasta renovar.',
-    },
-  };
-
-  const config = lockMessages[lockType];
+  const { language } = useLanguage();
+  const config = useMemo(() => {
+    const tr = (es: string, en: string) => trEsEn(es, en, language);
+    const trimmed = (itemName || '').trim();
+    const featEs = trimmed || 'Esta función';
+    const featEn = trimmed || 'This feature';
+    const resEs = trimmed || 'Este recurso';
+    const resEn = trimmed || 'This item';
+    const lockMessages = {
+      pdf: {
+        title: tr('📄 Documento bloqueado', '📄 Document locked'),
+        subtitle: tr('Dull Mode activo por anualidad pendiente', 'Dull Mode: subscription pending'),
+        description: tr(
+          'Activa o renueva la anualidad de la tarjeta para recuperar archivos, diseño completo y funciones visuales.',
+          'Activate or renew your business card subscription to restore files, full design, and visual features.',
+        ),
+      },
+      extra_card: {
+        title: tr('🎯 Tarjeta en Dull Mode', '🎯 Card in Dull Mode'),
+        subtitle: tr('La anualidad de esta tarjeta de negocio expiró', 'This business card subscription expired'),
+        description: tr(
+          'El QR permanente sigue funcionando, pero el estilo queda en escala de grises hasta renovar la anualidad.',
+          'Your permanent QR still works, but the style stays grayscale until you renew.',
+        ),
+      },
+      feature: {
+        title: tr('⭐ Función en pausa visual', '⭐ Visual feature paused'),
+        subtitle: tr(
+          `${featEs} depende de anualidad activa`,
+          `${featEn} requires an active subscription`,
+        ),
+        description: tr(
+          'Renueva la tarjeta de negocio para salir de Dull Mode y restaurar efectos visuales.',
+          'Renew your business card to exit Dull Mode and restore visual effects.',
+        ),
+      },
+      icon: {
+        title: tr('🎨 Estilo desactivado', '🎨 Style disabled'),
+        subtitle: tr(`${resEs} está en Dull Mode`, `${resEn} is in Dull Mode`),
+        description: tr(
+          'Con anualidad vencida, la tarjeta se muestra minimalista en gris y sin efectos hasta renovar.',
+          'With an expired subscription, the card shows in minimal gray with no effects until you renew.',
+        ),
+      },
+    };
+    return lockMessages[lockType];
+  }, [lockType, itemName, language]);
   const modalFooterBottomPad = useModalFooterBottomPad();
 
   return (
@@ -98,20 +120,30 @@ const DullModeLock: React.FC<DullModeLockProps> = ({
                   color="#C5A065"
                   style={styles.buttonIcon}
                 />
-                <Text style={styles.premiumButtonText}>Renovar Anualidad</Text>
+                <Text style={styles.premiumButtonText}>
+                  {trEsEn('Renovar anualidad', 'Renew subscription', language)}
+                </Text>
               </TouchableOpacity>
             </LinearGradient>
 
             {/* Botón Cerrar (Gris) */}
             <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Text style={styles.closeButtonText}>No, Gracias</Text>
+              <Text style={styles.closeButtonText}>
+                {trEsEn('No, gracias', 'No thanks', language)}
+              </Text>
             </TouchableOpacity>
           </View>
 
           {/* Footer con garantía */}
           <View style={styles.footer}>
             <MaterialCommunityIcons name="shield-check" size={16} color="#2ECC71" />
-            <Text style={styles.footerText}>QR permanente activo • Estilo completo al renovar</Text>
+            <Text style={styles.footerText}>
+              {trEsEn(
+                'QR permanente activo · Estilo completo al renovar',
+                'Permanent QR stays active · Full style when you renew',
+                language,
+              )}
+            </Text>
           </View>
         </View>
       </View>

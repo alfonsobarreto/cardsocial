@@ -49,6 +49,7 @@ import { useLookMode } from '@/services/lookMode';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import { newEntityId } from '@/services/newEntityId';
 import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
+import { splitSovereignText } from '@/utils/sovereignTextSplit';
 import { premiumTheme } from '@/styles/_premiumTheme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
@@ -1776,12 +1777,12 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       return;
     }
     if (!dataName.trim() || (!dataValue.trim() && dataType !== GHOST_LINK_VAULT_TYPE)) {
-      Alert.alert('❌ Error', tr('Completa todos los campos', 'Fill in all fields'));
+      Alert.alert(tr('❌ Error', '❌ Error'), tr('Completa todos los campos', 'Fill in all fields'));
       return;
     }
     // #16 Format validation per type
     if (dataType === 'Email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dataValue.trim())) {
-      Alert.alert('❌ Error', tr('Introduce un email válido', 'Enter a valid email'));
+      Alert.alert(tr('❌ Error', '❌ Error'), tr('Introduce un email válido', 'Enter a valid email'));
       return;
     }
     if (dataType === 'Teléfono') {
@@ -1789,7 +1790,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       const { min, max } = getNationalDigitBounds(countryCode);
       if (n.length < min || n.length > max) {
         Alert.alert(
-          '❌ Error',
+          tr('❌ Error', '❌ Error'),
           tr(
             `Introduce entre ${min} y ${max} dígitos (sin prefijo).`,
             `Enter between ${min} and ${max} digits (without country code).`,
@@ -1802,14 +1803,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       let testUrl = dataValue.trim();
       if (!/^https?:\/\//i.test(testUrl)) testUrl = 'https://' + testUrl;
       if (!/^https?:\/\/[^\s]+\.[^\s]+/.test(testUrl)) {
-        Alert.alert('❌ Error', tr('Introduce una URL válida', 'Enter a valid URL'));
+        Alert.alert(tr('❌ Error', '❌ Error'), tr('Introduce una URL válida', 'Enter a valid URL'));
         return;
       }
     }
     if (dataType === 'Texto Plain') {
       const wordCount = dataValue.split(/\s+/).filter(w => w).length;
       if (wordCount > 200) {
-        Alert.alert('❌ Error', tr('Máximo 200 palabras permitidas', 'Maximum 200 words allowed'));
+        Alert.alert(tr('❌ Error', '❌ Error'), tr('Máximo 200 palabras permitidas', 'Maximum 200 words allowed'));
         return;
       }
     }
@@ -1836,7 +1837,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       const userId = await getActiveUserId();
       console.log('[Vault] handleCreate: Después de getActiveUserId', userId);
       if (!userId) {
-        Alert.alert('❌ Error', tr('No se pudo identificar al usuario activo', 'Could not identify active user'));
+        Alert.alert(tr('❌ Error', '❌ Error'), tr('No se pudo identificar al usuario activo', 'Could not identify active user'));
         return;
       }
       console.log('[Vault] handleCreate: Antes de AsyncStorage.getItem');
@@ -2167,7 +2168,13 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             />
           </LinearGradient>
         );
-      case 'Texto Plain':
+      case 'Texto Plain': {
+        const { headline: headLine, body: restBody } = splitSovereignText(dataValue || '');
+        const lineH = 22;
+        const fontBody = 15;
+        const fontHead = 17;
+        const hPad = 14;
+        const vPad = 12;
         return (
           <View>
             <LinearGradient
@@ -2176,23 +2183,97 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               end={{ x: 1, y: 1 }}
               style={{ borderRadius: 10, padding: 4 }}
             >
-              <TextInput
-                style={[styles.input, { minHeight: 100, backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderWidth: 0 }]}
-                placeholder={tr('Escribe aquí...', 'Write here...')}
-                placeholderTextColor={formTheme.inputPlaceholder}
-                value={dataValue}
-                onChangeText={(text) => {
-                  const words = text.split(/\s+/).filter(w => w).length;
-                  if (words <= 200 || text.length < dataValue.length) setDataValue(text);
+              <View
+                style={{
+                  minHeight: 100,
+                  backgroundColor: formTheme.inputBg,
+                  borderRadius: 6,
+                  position: 'relative',
                 }}
-                multiline
-              />
+              >
+                <View
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    zIndex: 0,
+                    paddingHorizontal: hPad,
+                    paddingVertical: vPad,
+                  }}
+                  pointerEvents="none"
+                >
+                  {headLine ? (
+                    <Text>
+                      <Text
+                        style={{
+                          fontSize: fontHead,
+                          lineHeight: lineH,
+                          fontWeight: '700',
+                          color: formTheme.inputText,
+                        }}
+                      >
+                        {headLine}
+                      </Text>
+                      {restBody ? (
+                        <Text
+                          style={{
+                            fontSize: fontBody,
+                            lineHeight: lineH,
+                            fontWeight: '400',
+                            color: formTheme.inputText,
+                          }}
+                        >
+                          {`\n${restBody}`}
+                        </Text>
+                      ) : null}
+                    </Text>
+                  ) : restBody ? (
+                    <Text
+                      style={{
+                        fontSize: fontBody,
+                        lineHeight: lineH,
+                        fontWeight: '400',
+                        color: formTheme.inputText,
+                      }}
+                    >
+                      {restBody}
+                    </Text>
+                  ) : null}
+                </View>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      minHeight: 100,
+                      backgroundColor: 'transparent',
+                      color: 'transparent',
+                      borderWidth: 0,
+                      fontSize: fontBody,
+                      lineHeight: lineH,
+                      zIndex: 1,
+                    },
+                  ]}
+                  placeholder={tr('Escribe aquí...', 'Write here...')}
+                  placeholderTextColor={formTheme.inputPlaceholder}
+                  value={dataValue}
+                  onChangeText={(text) => {
+                    const words = text.split(/\s+/).filter((w) => w).length;
+                    if (words <= 200 || text.length < dataValue.length) setDataValue(text);
+                  }}
+                  multiline
+                  textAlignVertical="top"
+                  selectionColor={formTheme.labelGold}
+                  scrollEnabled
+                />
+              </View>
             </LinearGradient>
-            <Text style={[styles.wordCount, dataValue.split(/\s+/).filter(w => w).length > 190 && { color: '#E53935' }]}>
-              {dataValue.split(/\s+/).filter(w => w).length} / 200 {tr('palabras', 'words')}
+            <Text style={[styles.wordCount, dataValue.split(/\s+/).filter((w) => w).length > 190 && { color: '#E53935' }]}>
+              {dataValue.split(/\s+/).filter((w) => w).length} / 200 {tr('palabras', 'words')}
             </Text>
           </View>
         );
+      }
       case 'Documento':
         return (
           <View>

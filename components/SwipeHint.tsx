@@ -8,6 +8,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLookMode } from '@/services/lookMode';
+import { trEsEn, useLanguage } from '@/services/language';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import palette from '../app/theme';
@@ -25,6 +26,8 @@ export function SwipeHint({
   message,
   onDismiss,
 }: SwipeHintProps) {
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
   const shell = palette[isNight ? 'dark' : 'light'];
@@ -112,9 +115,10 @@ export function SwipeHint({
   if (!visible) return null;
 
   const defaultMsg =
-    direction === 'left'
-      ? 'Desliza a la izquierda para ver acciones'
-      : 'Desliza a la derecha para ver acciones';
+    message ||
+    (direction === 'left'
+      ? tr('Desliza a la izquierda para ver acciones', 'Swipe left for actions')
+      : tr('Desliza a la derecha para ver acciones', 'Swipe right for actions'));
 
   return (
     <Animated.View style={[styles.overlay, { opacity }]}>
@@ -126,9 +130,9 @@ export function SwipeHint({
             color={shell.fabText}
           />
         </Animated.View>
-        <Text style={styles.message}>{message || defaultMsg}</Text>
+        <Text style={styles.message}>{defaultMsg}</Text>
         <TouchableOpacity style={styles.gotIt} onPress={() => void dismiss()} activeOpacity={0.8}>
-          <Text style={styles.gotItText}>Entendido</Text>
+          <Text style={styles.gotItText}>{tr('Entendido', 'Got it')}</Text>
         </TouchableOpacity>
       </View>
     </Animated.View>

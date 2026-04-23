@@ -92,7 +92,8 @@ type LanguageContextValue = {
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<AppLanguage>('es');
+  /** Primer paint: idioma del dispositivo (Intl); si no es uno de los 5, deviceDefaultLanguage() ya devuelve `en`. */
+  const [language, setLanguageState] = useState<AppLanguage>(() => deviceDefaultLanguage());
 
   useEffect(() => {
     void (async () => {
@@ -110,7 +111,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         }
         setLanguageState(next);
       } catch {
-        /* ignore storage read failures */
+        setLanguageState(deviceDefaultLanguage());
       }
     })();
   }, []);
@@ -158,4 +159,19 @@ export function useTr() {
 /** Pantallas de auth o código que puede montar antes del provider; default EN. */
 export function useLanguageOptional(): LanguageContextValue | null {
   return useContext(LanguageContext);
+}
+
+/**
+ * Idioma de UI alineado con i18n (`LanguageProvider` hace `changeLanguage` al guardar en AsyncStorage).
+ * Para módulos sin React (p. ej. `ActionController`) cuando se abren paneles y toasts.
+ */
+export function getCurrentI18nAppLanguage(): AppLanguage {
+  const raw = String(i18n.resolvedLanguage || i18n.language || 'en');
+  const code = raw.split(/[-_]/)[0]?.toLowerCase() ?? 'en';
+  if (isAppLanguage(code)) return code;
+  return 'en';
+}
+
+export function trAction(es: string, en: string): string {
+  return trEsEn(es, en, getCurrentI18nAppLanguage());
 }

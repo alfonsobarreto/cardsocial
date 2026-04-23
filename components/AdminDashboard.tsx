@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { getActiveUserId } from '@/services/authSession';
 import { getQRHistory } from '@/services/qrGiftService';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/services/firebaseConfig';
+import { trEsEn, useLanguage } from '@/services/language';
 
 const { width } = Dimensions.get('window');
 const CARD_W = (width - 48) / 2;
@@ -27,6 +28,9 @@ interface QuickStats {
 }
 
 const AdminDashboard: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const intlLocale = language === 'pt' ? 'pt-BR' : language;
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<QuickStats>({ balance: 0, pendingReports: 0, totalUsers: 0, activeQRs: 0 });
@@ -66,54 +70,60 @@ const AdminDashboard: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     }
   };
 
-  const MODULES = [
-    {
-      id: 'mint',
-      title: 'MINT',
-      subtitle: 'QR Gifts · Activaciones · Historial',
-      icon: 'crown' as const,
-      colors: ['#0A2540', '#1A3D5C'] as [string, string],
-      badge: stats.activeQRs > 0 ? `${stats.activeQRs} activos` : null,
-      alert: false,
-      route: '/admin/mint',
-    },
-    {
-      id: 'stats',
-      title: 'ESTADÍSTICAS',
-      subtitle: 'Usuarios · CS Coins · Costos',
-      icon: 'chart-bar' as const,
-      colors: ['#1A3D5C', '#0D4D8A'] as [string, string],
-      badge: `${stats.totalUsers.toLocaleString()} usuarios`,
-      alert: false,
-      route: '/admin/stats',
-    },
-    {
-      id: 'support',
-      title: 'SOPORTE',
-      subtitle: 'Reportes · Denuncias · Bans',
-      icon: 'shield-alert' as const,
-      colors: (stats.pendingReports > 0 ? ['#7B1818', '#A51D1D'] : ['#1A3D5C', '#0D4D8A']) as [string, string],
-      badge: stats.pendingReports > 0 ? `${stats.pendingReports} pendientes` : 'Sin pendientes',
-      alert: stats.pendingReports > 0,
-      route: '/admin/moderation',
-    },
-    {
-      id: 'studio',
-      title: 'CARD-STUDIO',
-      subtitle: 'Iconos · Wallpapers · Fonts',
-      icon: 'palette' as const,
-      colors: ['#2D1A5C', '#4A2080'] as [string, string],
-      badge: null,
-      alert: false,
-      route: '/admin/studio',
-    },
-  ];
+  const MODULES = useMemo(
+    () => [
+      {
+        id: 'mint',
+        title: 'MINT',
+        subtitle: tr('QR Gifts · Activaciones · Historial', 'QR Gifts · Activations · History'),
+        icon: 'crown' as const,
+        colors: ['#0A2540', '#1A3D5C'] as [string, string],
+        badge: stats.activeQRs > 0 ? `${stats.activeQRs} ${tr('activos', 'active')}` : null,
+        alert: false,
+        route: '/admin/mint',
+      },
+      {
+        id: 'stats',
+        title: tr('ESTADÍSTICAS', 'STATISTICS'),
+        subtitle: tr('Usuarios · CS Coins · Costos', 'Users · CS coins · Costs'),
+        icon: 'chart-bar' as const,
+        colors: ['#1A3D5C', '#0D4D8A'] as [string, string],
+        badge: `${stats.totalUsers.toLocaleString(intlLocale)} ${tr('usuarios', 'users')}`,
+        alert: false,
+        route: '/admin/stats',
+      },
+      {
+        id: 'support',
+        title: tr('SOPORTE', 'SUPPORT'),
+        subtitle: tr('Reportes · Denuncias · Bans', 'Reports · Flags · Bans'),
+        icon: 'shield-alert' as const,
+        colors: (stats.pendingReports > 0 ? ['#7B1818', '#A51D1D'] : ['#1A3D5C', '#0D4D8A']) as [string, string],
+        badge:
+          stats.pendingReports > 0
+            ? `${stats.pendingReports} ${tr('pendientes', 'pending')}`
+            : tr('Sin pendientes', 'None pending'),
+        alert: stats.pendingReports > 0,
+        route: '/admin/moderation',
+      },
+      {
+        id: 'studio',
+        title: 'CARD-STUDIO',
+        subtitle: tr('Iconos · Wallpapers · Fonts', 'Icons · Wallpapers · Fonts'),
+        icon: 'palette' as const,
+        colors: ['#2D1A5C', '#4A2080'] as [string, string],
+        badge: null,
+        alert: false,
+        route: '/admin/studio',
+      },
+    ],
+    [language, intlLocale, stats.activeQRs, stats.pendingReports, stats.totalUsers],
+  );
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#C5A065" />
-        <Text style={styles.loadingText}>Cargando The Mint...</Text>
+        <Text style={styles.loadingText}>{tr('Cargando The Mint...', 'Loading The Mint...')}</Text>
       </View>
     );
   }
@@ -130,7 +140,7 @@ const AdminDashboard: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
           ) : <View style={{ width: 36 }} />}
           <View style={styles.headerTitleRow}>
             <MaterialCommunityIcons name="crown" size={20} color="#C5A065" />
-            <Text style={styles.headerTitle}>THE MINT</Text>
+            <Text style={styles.headerTitle}>{tr('THE MINT', 'THE MINT')}</Text>
           </View>
           <View style={{ width: 36 }} />
         </View>
@@ -142,14 +152,18 @@ const AdminDashboard: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
           <View style={styles.balanceDivider} />
           <View style={styles.balanceItem}>
             <MaterialCommunityIcons name="account-group" size={14} color="#C5A065" />
-            <Text style={styles.balanceText}>{stats.totalUsers.toLocaleString()} usuarios</Text>
+            <Text style={styles.balanceText}>
+              {stats.totalUsers.toLocaleString(intlLocale)} {tr('usuarios', 'users')}
+            </Text>
           </View>
           {stats.pendingReports > 0 && (
             <>
               <View style={styles.balanceDivider} />
               <View style={styles.balanceItem}>
                 <MaterialCommunityIcons name="alert-circle" size={14} color="#E74C3C" />
-                <Text style={[styles.balanceText, { color: '#E74C3C' }]}>{stats.pendingReports} reportes</Text>
+                <Text style={[styles.balanceText, { color: '#E74C3C' }]}>
+                  {stats.pendingReports} {tr('reportes', 'reports')}
+                </Text>
               </View>
             </>
           )}
@@ -187,8 +201,10 @@ const AdminDashboard: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
           <LinearGradient colors={['#1A1A2E', '#16213E']} style={styles.cardGradientFull} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
             <MaterialCommunityIcons name="cog" size={26} color="#C5A065" />
             <View style={styles.cardFullText}>
-              <Text style={styles.cardTitle}>SYS CONFIG</Text>
-              <Text style={[styles.cardSubtitle, { opacity: 0.65 }]}>Límites · Broadcast · Feature flags</Text>
+              <Text style={styles.cardTitle}>{tr('CONFIG SIST', 'SYS CONFIG')}</Text>
+              <Text style={[styles.cardSubtitle, { opacity: 0.65 }]}>
+                {tr('Límites · Broadcast · Feature flags', 'Limits · Broadcast · Feature flags')}
+              </Text>
             </View>
             <MaterialCommunityIcons name="chevron-right" size={22} color="rgba(197,160,101,0.4)" />
           </LinearGradient>

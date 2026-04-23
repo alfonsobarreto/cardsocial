@@ -998,7 +998,16 @@ function ContactsContent() {
 
       {/* Active sort pill */}
       <View style={styles.activeSortPillWrap}>
-        <Text style={[styles.activeSortPill, { color: shell.textPrimary, backgroundColor: shell.filterPillBg }]}>Filtro activo: {sortMode === 'name' ? 'Nombre' : sortMode === 'card' ? 'Nombre Tarjeta' : sortMode === 'date' ? 'Fecha' : 'Grupos'}</Text>
+        <Text style={[styles.activeSortPill, { color: shell.textPrimary, backgroundColor: shell.filterPillBg }]}>
+          {tr('Filtro activo:', 'Active filter:')}{' '}
+          {sortMode === 'name'
+            ? tr('Nombre', 'Name')
+            : sortMode === 'card'
+              ? tr('Nombre tarjeta', 'Card name')
+              : sortMode === 'date'
+                ? tr('Fecha', 'Date')
+                : tr('Grupos', 'Groups')}
+        </Text>
       </View>
 
       {/* Scrollable contacts list */}
@@ -1432,7 +1441,9 @@ function ContactsContent() {
       <Modal visible={sortVisible} transparent animationType="slide" onRequestClose={() => setSortVisible(false)}>
         <Pressable style={[styles.modalOverlay, { backgroundColor: shell.overlayScrim }]} onPress={() => setSortVisible(false)}>
           <Pressable style={[styles.sortModalCard, { backgroundColor: shell.modalBg, borderColor: shell.modalBorder, paddingBottom: modalFooterBottomPad }]}>
-            <Text style={[styles.sortModalTitle, { color: shell.textPrimary }]}>Ordenar contactos</Text>
+            <Text style={[styles.sortModalTitle, { color: shell.textPrimary }]}>
+              {tr('Ordenar contactos', 'Sort contacts')}
+            </Text>
             {[
               { key: 'name', label: tr('Nombre (A-Z, favoritos arriba)', 'Name (A-Z, favorites first)') },
               { key: 'card', label: tr('Nombre de Tarjeta', 'Card Name') },
@@ -1575,7 +1586,9 @@ function ContactsContent() {
       <Modal visible={groupPickerVisible} transparent animationType="fade" onRequestClose={() => setGroupPickerVisible(false)}>
         <View style={[styles.modalOverlay, { backgroundColor: shell.overlayScrim }]}>
           <View style={[styles.groupPickerCard, { backgroundColor: shell.modalBg, borderColor: shell.border, paddingBottom: modalFooterBottomPad }]}>
-            <Text style={[styles.sortModalTitle, { color: shell.textPrimary }]}>Selecciona Grupo</Text>
+            <Text style={[styles.sortModalTitle, { color: shell.textPrimary }]}>
+              {tr('Selecciona grupo', 'Select group')}
+            </Text>
             {allGroups.map((groupName) => (
               <View key={groupName} style={styles.groupRowWrap}>
                 <TouchableOpacity

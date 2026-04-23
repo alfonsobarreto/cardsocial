@@ -13,6 +13,11 @@ export type PremiumPanelAction = {
 
 export type PremiumDataPanelPayload = {
   title: string;
+  /**
+   * `sovereign-text`: vista búnker (negro, primera línea como titular); solo para cuerpos multi-línea de texto.
+   * Default: hoja inferior existente.
+   */
+  presentation?: 'default' | 'sovereign-text';
   /** Texto principal (p. ej. URL truncada, texto largo). */
   body?: string;
   /** Nombre de icono MaterialCommunityIcons. */

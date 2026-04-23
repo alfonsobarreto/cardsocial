@@ -18,7 +18,6 @@
     "i18n:extract": "node scripts/extract-tr-pairs.mjs",
     "i18n:fill": "node scripts/fill-ui-fragments.mjs",
     "i18n:repair": "node scripts/repair-ui-fragments.mjs",
-    "i18n:gaps": "node scripts/export-untranslated-fragment-gaps.mjs",
     "i18n:prune": "node scripts/prune-fragments-to-en-keys.mjs"
   },
   "dependencies": {

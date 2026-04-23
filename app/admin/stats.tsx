@@ -7,7 +7,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { collection, getDocs } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     ScrollView,
@@ -17,6 +17,7 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { trEsEn, useLanguage } from '@/services/language';
 
 type StatsTab = 'users' | 'coins' | 'students' | 'costs';
 type CoinsPeriod = 'month' | 'year' | 'all';
@@ -43,6 +44,9 @@ interface StudentStats {
 }
 
 export default function AdminStatsScreen() {
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const intlLocale = language === 'pt' ? 'pt-BR' : language;
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<StatsTab>('users');
   const [coinsPeriod, setCoinsPeriod] = useState<CoinsPeriod>('month');
@@ -124,12 +128,57 @@ export default function AdminStatsScreen() {
     }
   };
 
-  const TABS: { key: StatsTab; label: string; icon: string }[] = [
-    { key: 'users', label: 'Usuarios', icon: 'account-group' },
-    { key: 'coins', label: 'CS Coins', icon: 'cash-multiple' },
-    { key: 'students', label: 'Student Pack', icon: 'school' },
-    { key: 'costs', label: 'Costos', icon: 'server' },
-  ];
+  const TABS: { key: StatsTab; label: string; icon: string }[] = useMemo(
+    () => [
+      { key: 'users', label: tr('Usuarios', 'Users'), icon: 'account-group' },
+      { key: 'coins', label: 'CS Coins', icon: 'cash-multiple' },
+      { key: 'students', label: 'Student Pack', icon: 'school' },
+      { key: 'costs', label: tr('Costos', 'Costs'), icon: 'server' },
+    ],
+    [language],
+  );
+
+  const costServices = useMemo(
+    () => [
+      {
+        name: tr('Azure Blob Storage', 'Azure Blob Storage'),
+        desc: tr('Archivos de usuarios (fotos, docs, QRs)', 'User files (photos, docs, QRs)'),
+        icon: 'microsoft-azure' as const,
+        color: '#0078D4' as const,
+      },
+      {
+        name: tr('Azure Computer Vision', 'Azure Computer Vision'),
+        desc: tr('Moderación de contenido (imágenes)', 'Content moderation (images)'),
+        icon: 'eye-check' as const,
+        color: '#0078D4' as const,
+      },
+      {
+        name: 'Firebase Firestore',
+        desc: tr('Base de datos principal', 'Main database'),
+        icon: 'database' as const,
+        color: '#FFA000' as const,
+      },
+      {
+        name: 'Firebase Auth',
+        desc: tr('Autenticación de usuarios', 'User authentication'),
+        icon: 'shield-lock' as const,
+        color: '#FFA000' as const,
+      },
+      {
+        name: 'Firebase Storage',
+        desc: tr('Assets del mercado de íconos', 'Icon marketplace assets'),
+        icon: 'folder-multiple' as const,
+        color: '#FFA000' as const,
+      },
+      {
+        name: 'Expo EAS',
+        desc: tr('Build y distribución de la app', 'App build and distribution'),
+        icon: 'cellphone-arrow-down' as const,
+        color: '#4630EB' as const,
+      },
+    ],
+    [language],
+  );
 
   const coinsDisplay = coinsPeriod === 'month' ? coinsStats.thisMonth
     : coinsPeriod === 'year' ? coinsStats.thisYear
@@ -149,7 +198,7 @@ export default function AdminStatsScreen() {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <MaterialCommunityIcons name="chart-bar" size={18} color="#C5A065" />
-          <Text style={styles.headerTitle}>ESTADÍSTICAS</Text>
+          <Text style={styles.headerTitle}>{tr('ESTADÍSTICAS', 'STATISTICS')}</Text>
         </View>
         <View style={{ width: 36 }} />
       </LinearGradient>
@@ -173,20 +222,20 @@ export default function AdminStatsScreen() {
         {/* ── USUARIOS ── */}
         {activeTab === 'users' && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Distribución de Usuarios</Text>
+            <Text style={styles.sectionTitle}>{tr('Distribución de Usuarios', 'User distribution')}</Text>
             <View style={styles.kpiGrid}>
-              <KpiCard icon="account-multiple" label="Total Usuarios" value={userStats.total.toLocaleString()} color="#0D4D8A" />
-              <KpiCard icon="star-circle" label="Premium" value={userStats.premium.toLocaleString()} color="#C5A065" />
-              <KpiCard icon="card-account-details" label="Business Cards" value={userStats.business.toLocaleString()} color="#27AE60" />
-              <KpiCard icon="card-off" label="Cards Vacías" value={userStats.businessNull.toLocaleString()} color="#E74C3C" />
+              <KpiCard icon="account-multiple" label={tr('Total Usuarios', 'Total users')} value={userStats.total.toLocaleString(intlLocale)} color="#0D4D8A" />
+              <KpiCard icon="star-circle" label="Premium" value={userStats.premium.toLocaleString(intlLocale)} color="#C5A065" />
+              <KpiCard icon="card-account-details" label="Business Cards" value={userStats.business.toLocaleString(intlLocale)} color="#27AE60" />
+              <KpiCard icon="card-off" label={tr('Cards Vacías', 'Empty cards')} value={userStats.businessNull.toLocaleString(intlLocale)} color="#E74C3C" />
             </View>
             <View style={styles.progressSection}>
-              <Text style={styles.progressLabel}>Premium vs Free</Text>
+              <Text style={styles.progressLabel}>{tr('Premium vs Free', 'Premium vs free')}</Text>
               <View style={styles.progressTrack}>
                 <View style={[styles.progressFill, { width: `${userStats.total > 0 ? (userStats.premium / userStats.total) * 100 : 0}%`, backgroundColor: '#C5A065' }]} />
               </View>
               <Text style={styles.progressCaption}>
-                {userStats.premium} premium · {userStats.total - userStats.premium} free
+                {userStats.premium} {tr('premium', 'premium')} · {userStats.total - userStats.premium} {tr('gratis', 'free')}
               </Text>
             </View>
           </View>
@@ -195,7 +244,7 @@ export default function AdminStatsScreen() {
         {/* ── CS COINS ── */}
         {activeTab === 'coins' && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>CS Coins Canjeados</Text>
+            <Text style={styles.sectionTitle}>{tr('CS Coins Canjeados', 'CS coins redeemed')}</Text>
             <View style={styles.periodRow}>
               {(['month', 'year', 'all'] as CoinsPeriod[]).map(p => (
                 <TouchableOpacity
@@ -204,20 +253,20 @@ export default function AdminStatsScreen() {
                   onPress={() => setCoinsPeriod(p)}
                 >
                   <Text style={[styles.periodText, coinsPeriod === p && styles.periodTextActive]}>
-                    {p === 'month' ? 'Este mes' : p === 'year' ? 'Este año' : 'Total'}
+                    {p === 'month' ? tr('Este mes', 'This month') : p === 'year' ? tr('Este año', 'This year') : tr('Total', 'Total')}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
             <View style={styles.bigKpi}>
-              <Text style={styles.bigKpiValue}>{coinsDisplay.toLocaleString()}</Text>
-              <Text style={styles.bigKpiLabel}>CS Coins canjeados</Text>
+              <Text style={styles.bigKpiValue}>{coinsDisplay.toLocaleString(intlLocale)}</Text>
+              <Text style={styles.bigKpiLabel}>{tr('CS Coins canjeados', 'CS coins redeemed')}</Text>
             </View>
             <View style={styles.kpiGrid}>
-              <KpiCard icon="gift" label="Total Gifted (histórico)" value={coinsStats.totalGifted.toLocaleString()} color="#9B59B6" />
-              <KpiCard icon="check-all" label="Total Canjeado (histórico)" value={coinsStats.totalRedeemed.toLocaleString()} color="#27AE60" />
-              <KpiCard icon="calendar-month" label="Canjeado este mes" value={coinsStats.thisMonth.toLocaleString()} color="#0D4D8A" />
-              <KpiCard icon="calendar" label="Canjeado este año" value={coinsStats.thisYear.toLocaleString()} color="#C5A065" />
+              <KpiCard icon="gift" label={tr('Total Gifted (histórico)', 'Total gifted (all-time)')} value={coinsStats.totalGifted.toLocaleString(intlLocale)} color="#9B59B6" />
+              <KpiCard icon="check-all" label={tr('Total Canjeado (histórico)', 'Total redeemed (all-time)')} value={coinsStats.totalRedeemed.toLocaleString(intlLocale)} color="#27AE60" />
+              <KpiCard icon="calendar-month" label={tr('Canjeado este mes', 'Redeemed this month')} value={coinsStats.thisMonth.toLocaleString(intlLocale)} color="#0D4D8A" />
+              <KpiCard icon="calendar" label={tr('Canjeado este año', 'Redeemed this year')} value={coinsStats.thisYear.toLocaleString(intlLocale)} color="#C5A065" />
             </View>
           </View>
         )}
@@ -225,15 +274,15 @@ export default function AdminStatsScreen() {
         {/* ── STUDENT PACK ── */}
         {activeTab === 'students' && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Student Pack (.edu)</Text>
+            <Text style={styles.sectionTitle}>{tr('Student Pack (.edu)', 'Student Pack (.edu)')}</Text>
             <View style={styles.kpiGrid}>
-              <KpiCard icon="school-outline" label="Grants Otorgados" value={studentStats.totalGrants.toLocaleString()} color="#27AE60" />
-              <KpiCard icon="cash-multiple" label="CS Entregados" value={studentStats.totalCS.toLocaleString()} color="#C5A065" />
-              <KpiCard icon="github" label="Vía GitHub" value={studentStats.github.toLocaleString()} color="#333" />
-              <KpiCard icon="google" label="Vía Google" value={studentStats.google.toLocaleString()} color="#EA4335" />
+              <KpiCard icon="school-outline" label={tr('Grants Otorgados', 'Grants given')} value={studentStats.totalGrants.toLocaleString(intlLocale)} color="#27AE60" />
+              <KpiCard icon="cash-multiple" label={tr('CS Entregados', 'CS given')} value={studentStats.totalCS.toLocaleString(intlLocale)} color="#C5A065" />
+              <KpiCard icon="github" label={tr('Vía GitHub', 'Via GitHub')} value={studentStats.github.toLocaleString(intlLocale)} color="#333" />
+              <KpiCard icon="google" label={tr('Vía Google', 'Via Google')} value={studentStats.google.toLocaleString(intlLocale)} color="#EA4335" />
             </View>
             {studentRows.length === 0 ? (
-              <Text style={styles.emptyText}>No hay grants registrados aún.</Text>
+              <Text style={styles.emptyText}>{tr('No hay grants registrados aún.', 'No grants recorded yet.')}</Text>
             ) : (
               studentRows.slice(0, 50).map((item: any) => (
                 <View key={item.uid} style={styles.studentRow}>
@@ -243,7 +292,11 @@ export default function AdminStatsScreen() {
                     <Text style={styles.studentMeta}>{item.provider} · {item.source} · {item.grantedAtText}</Text>
                   </View>
                   <View style={[styles.studentBadge, !item.granted && styles.studentBadgeDenied]}>
-                    <Text style={styles.studentBadgeText}>{item.granted ? `+${item.amount} CS` : 'Denegado'}</Text>
+                    <Text style={styles.studentBadgeText}>
+                      {item.granted
+                        ? `+${item.amount} CS`
+                        : tr('Denegado', 'Denied')}
+                    </Text>
                   </View>
                 </View>
               ))
@@ -254,19 +307,14 @@ export default function AdminStatsScreen() {
         {/* ── COSTOS ── */}
         {activeTab === 'costs' && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Infraestructura & Costos</Text>
+            <Text style={styles.sectionTitle}>{tr('Infraestructura y Costos', 'Infrastructure and costs')}</Text>
             <Text style={styles.costsNote}>
-              Los costos en tiempo real están disponibles en el panel web (cardsocial.me/admin).
-              Aquí se muestran las referencias de los servicios activos.
+              {tr(
+                'Los costos en tiempo real están disponibles en el panel web (cardsocial.me/admin). Aquí se muestran las referencias de los servicios activos.',
+                'Real-time costs are available on the web panel (cardsocial.me/admin). This shows the active service references.',
+              )}
             </Text>
-            {[
-              { name: 'Azure Blob Storage', desc: 'Archivos de usuarios (fotos, docs, QRs)', icon: 'microsoft-azure', color: '#0078D4' },
-              { name: 'Azure Computer Vision', desc: 'Moderación de contenido (imágenes)', icon: 'eye-check', color: '#0078D4' },
-              { name: 'Firebase Firestore', desc: 'Base de datos principal', icon: 'database', color: '#FFA000' },
-              { name: 'Firebase Auth', desc: 'Autenticación de usuarios', icon: 'shield-lock', color: '#FFA000' },
-              { name: 'Firebase Storage', desc: 'Assets del mercado de íconos', icon: 'folder-multiple', color: '#FFA000' },
-              { name: 'Expo EAS', desc: 'Build y distribución de la app', icon: 'cellphone-arrow-down', color: '#4630EB' },
-            ].map(svc => (
+            {costServices.map(svc => (
               <View key={svc.name} style={styles.costRow}>
                 <View style={[styles.costIconBox, { backgroundColor: svc.color + '20' }]}>
                   <MaterialCommunityIcons name={svc.icon as any} size={20} color={svc.color} />
@@ -276,7 +324,7 @@ export default function AdminStatsScreen() {
                   <Text style={styles.costDesc}>{svc.desc}</Text>
                 </View>
                 <View style={styles.costActiveBadge}>
-                  <Text style={styles.costActiveText}>ACTIVO</Text>
+                  <Text style={styles.costActiveText}>{tr('ACTIVO', 'ACTIVE')}</Text>
                 </View>
               </View>
             ))}
@@ -285,7 +333,9 @@ export default function AdminStatsScreen() {
               onPress={() => {/* deep link or open browser */}}
             >
               <MaterialCommunityIcons name="open-in-new" size={15} color="#0D4D8A" />
-              <Text style={styles.webLinkText}>Ver costos detallados en cardsocial.me/admin</Text>
+              <Text style={styles.webLinkText}>
+                {tr('Ver costos detallados en cardsocial.me/admin', 'View detailed costs at cardsocial.me/admin')}
+              </Text>
             </TouchableOpacity>
           </View>
         )}

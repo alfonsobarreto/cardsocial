@@ -3,8 +3,11 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'reac
 import { useRouter } from 'expo-router';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '@/services/firebaseConfig';
+import { trEsEn, useLanguage } from '@/services/language';
 
 export default function RegisterScreen() {
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -12,7 +15,7 @@ export default function RegisterScreen() {
 
   const handleSendCode = async () => {
     if (!name || !phoneNumber) {
-      Alert.alert('Error', 'Por favor, complete todos los campos.');
+      Alert.alert(tr('Error', 'Error'), tr('Por favor, complete todos los campos.', 'Please fill in all fields.'));
       return;
     }
 
@@ -26,27 +29,33 @@ export default function RegisterScreen() {
         createdAt: new Date(),
       });
 
-      Alert.alert('Registro exitoso', 'Usuario guardado correctamente.');
+      Alert.alert(
+        tr('Registro exitoso', 'Registration successful'),
+        tr('Usuario guardado correctamente.', 'User saved successfully.'),
+      );
       router.replace('/(tabs)/cards');
     } catch (error) {
-      Alert.alert('Error', 'No se pudo guardar el usuario. Intente nuevamente.');
+      Alert.alert(
+        tr('Error', 'Error'),
+        tr('No se pudo guardar el usuario. Intente nuevamente.', 'Could not save the user. Please try again.'),
+      );
       console.error('Firestore error:', error);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Registrar mi Identidad</Text>
+      <Text style={styles.title}>{tr('Registrar mi identidad', 'Register my identity')}</Text>
       <TextInput
         style={styles.input}
-        placeholder="Nombre Completo"
+        placeholder={tr('Nombre completo', 'Full name')}
         placeholderTextColor="#8E8E93"
         value={name}
         onChangeText={setName}
       />
       <TextInput
         style={styles.input}
-        placeholder="Correo Electrónico"
+        placeholder={tr('Correo electrónico', 'Email')}
         placeholderTextColor="#8E8E93"
         keyboardType="email-address"
         value={email}
@@ -54,14 +63,14 @@ export default function RegisterScreen() {
       />
       <TextInput
         style={styles.input}
-        placeholder="Teléfono"
+        placeholder={tr('Teléfono', 'Phone')}
         placeholderTextColor="#8E8E93"
         keyboardType="phone-pad"
         value={phoneNumber}
         onChangeText={setPhoneNumber}
       />
       <TouchableOpacity style={styles.registerButton} onPress={handleSendCode}>
-        <Text style={styles.registerButtonText}>Enviar Código</Text>
+        <Text style={styles.registerButtonText}>{tr('Enviar código', 'Send code')}</Text>
       </TouchableOpacity>
     </View>
   );

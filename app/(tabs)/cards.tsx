@@ -706,7 +706,7 @@ export default function CardsFactoryScreen() {
   useFocusEffect(
     React.useCallback(() => {
       const verifyAccess = async () => {
-        const authenticated = await hardLockCheck('acceso a Business Cards');
+        const authenticated = await hardLockCheck(tr('acceso a Business Cards', 'access to Business Cards'));
         setIsCardsUnlocked(authenticated);
         if (!authenticated) {
           setSessionUid(null);
@@ -1094,8 +1094,11 @@ export default function CardsFactoryScreen() {
       if (failures.length > 0) {
         Toast.show({
           type: 'error',
-          text1: 'Sync fallida',
-          text2: `No se pudieron guardar ${failures.length} tarjeta(s) en Mongo`,
+          text1: tr('Sync fallida', 'Sync failed'),
+          text2: tr(
+            `No se pudieron guardar ${failures.length} tarjeta(s) en el servidor`,
+            `Could not save ${failures.length} card(s) on the server`,
+          ),
           visibilityTime: 5000,
         });
       }
@@ -1103,7 +1106,7 @@ export default function CardsFactoryScreen() {
       console.log('[Card] persistCards: ERROR global', e);
       Toast.show({
         type: 'error',
-        text1: 'Error al sincronizar tarjetas',
+        text1: tr('Error al sincronizar tarjetas', 'Failed to sync cards'),
         text2: String((e as { message?: string })?.message || e),
         visibilityTime: 5000,
       });
@@ -1548,29 +1551,37 @@ export default function CardsFactoryScreen() {
       await updateCardItemIds(card, next);
     };
 
-    Alert.alert('Gestionar icono', 'Elige la accion para este dato de la tarjeta.', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Editar', onPress: onEdit },
-      {
-        text: 'Mover',
-        onPress: () => {
-          Alert.alert('Mover icono', 'Selecciona la direccion de movimiento.', [
-            { text: 'Cancelar', style: 'cancel' },
-            { text: 'Atras', onPress: () => { void onMoveBack(); } },
-            { text: 'Adelante', onPress: () => { void onMoveForward(); } },
-          ]);
+    Alert.alert(
+      tr('Gestionar icono', 'Manage icon'),
+      tr('Elige la acción para este dato de la tarjeta.', 'Choose an action for this card item.'),
+      [
+        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+        { text: tr('Editar', 'Edit'), onPress: onEdit },
+        {
+          text: tr('Mover', 'Move'),
+          onPress: () => {
+            Alert.alert(
+              tr('Mover icono', 'Move icon'),
+              tr('Selecciona la dirección de movimiento.', 'Choose a direction to move.'),
+              [
+                { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+                { text: tr('Atrás', 'Back'), onPress: () => { void onMoveBack(); } },
+                { text: tr('Adelante', 'Forward'), onPress: () => { void onMoveForward(); } },
+              ],
+            );
+          },
         },
-      },
-      {
-        text: 'Agregar nuevo dato',
-        onPress: () => openAddDataFlowFromPreview(card),
-      },
-      {
-        text: 'Eliminar',
-        style: 'destructive',
-        onPress: () => { void onDelete(); },
-      },
-    ]);
+        {
+          text: tr('Agregar nuevo dato', 'Add new data'),
+          onPress: () => openAddDataFlowFromPreview(card),
+        },
+        {
+          text: tr('Eliminar', 'Delete'),
+          style: 'destructive',
+          onPress: () => { void onDelete(); },
+        },
+      ],
+    );
   };
 
   const openBusinessSubscribersModal = async (row: BusinessCardListRow) => {
@@ -1734,7 +1745,7 @@ export default function CardsFactoryScreen() {
     }
   };
 
-  const issueQrForCard = async (card: SmartCard) => {
+  const issueQrForCard = async (card: SmartCard, options?: { forceNew?: boolean }) => {
     try {
       const authenticated = await hardLockCheck(tr('generar QR y compartir tu tarjeta', 'generate QR and share your card'));
       if (!authenticated) {
@@ -1742,7 +1753,9 @@ export default function CardsFactoryScreen() {
       }
 
       // Mismo QR dinámico (app↔app) aún válido: solo reabrir modal con countdown, sin nueva emisión.
+      // forceNew: el usuario eligió "Nuevo QR" dentro del modal y debe recibir un token distinto.
       if (
+        !options?.forceNew &&
         qrActiveSid === card.sid &&
         qrExpiresAt > Date.now() &&
         Boolean(qrToken) &&
@@ -1840,7 +1853,7 @@ export default function CardsFactoryScreen() {
     })();
   };
 
-  const confirmAndIssueQrForCard = (card: SmartCard) => {
+  const confirmAndIssueQrForCard = (card: SmartCard, options?: { forceNew?: boolean }) => {
     if (issuingQr) {
       return;
     }
@@ -1855,7 +1868,7 @@ export default function CardsFactoryScreen() {
         {
           text: tr('Aceptar', 'Accept'),
           onPress: () => {
-            void issueQrForCard(card);
+            void issueQrForCard(card, options);
           },
         },
       ]
@@ -1982,7 +1995,7 @@ export default function CardsFactoryScreen() {
     console.log('[QR_FLOW] issueQrForBusiness: START', { bId: row.bId, bcName: row.bcName });
     setIssuingQr(true);
     try {
-      const authenticated = await hardLockCheck('generar QR y compartir tu tarjeta');
+      const authenticated = await hardLockCheck(tr('generar QR y compartir tu tarjeta', 'generate QR and share your card'));
       console.log('[QR_FLOW] hardLockCheck →', authenticated);
       if (!authenticated) {
         return;
@@ -2061,7 +2074,11 @@ export default function CardsFactoryScreen() {
       console.log('[QR_FLOW] issueQrForBusiness: QR modal opened');
     } catch (error: any) {
       console.log('[QR_FLOW] issueQrForBusiness: ERROR', String(error?.message || error));
-      Alert.alert(tr('Error de QR', 'QR error'), String(error?.message || ''));
+      const msg = error?.message?.trim();
+      Alert.alert(
+        tr('Error de QR', 'QR error'),
+        msg ? String(msg) : tr('No se pudo generar el QR.', 'Could not generate the QR code.'),
+      );
     } finally {
       setIssuingQr(false);
       console.log('[QR_FLOW] issueQrForBusiness: DONE');
@@ -2201,8 +2218,11 @@ export default function CardsFactoryScreen() {
     try {
       setLimitReachedVisible(false);
       Alert.alert(
-        'Modelo actualizado',
-        'No existe suscripcion global. Si quieres funciones de negocio, activa anualidad por cada Tarjeta de Negocio en Create Business Card.',
+        tr('Modelo actualizado', 'Model updated'),
+        tr(
+          'No existe suscripción global. Si quieres funciones de negocio, activa anualidad por cada Tarjeta de Negocio en Crear tarjeta de negocio.',
+          'There is no global subscription. For business features, activate the yearly plan per business card in Create business card.',
+        ),
       );
     } catch (error) {
       console.error('Error upgrading:', error);
@@ -2221,7 +2241,7 @@ export default function CardsFactoryScreen() {
   const previewPayload = useMemo<MyCardsPayload | null>(() => {
     if (!previewCard) return null;
     return {
-      cardName: (previewCard.scName || cardName || 'Nueva Tarjeta').trim(),
+      cardName: (previewCard.scName || cardName || tr('Nueva Tarjeta', 'New Card')).trim(),
       subtitle: `@${(issuerIdentity.userNickName || 'user').toLowerCase()}`,
       avatarUrl: issuerIdentity.userAvatarUrl,
       themeId: previewCard.themeId || '',
@@ -2234,7 +2254,7 @@ export default function CardsFactoryScreen() {
       slots: previewSlots as unknown as WireframeEditSlot[],
       iconVaultById,
     };
-  }, [previewCard, cardName, issuerIdentity.userNickName, issuerIdentity.userAvatarUrl, previewLayout, enableParallax, previewSlots, iconVaultById]);
+  }, [previewCard, cardName, issuerIdentity.userNickName, issuerIdentity.userAvatarUrl, previewLayout, enableParallax, previewSlots, iconVaultById, language]);
 
   const businessPreviewSlots = useMemo<EditSlot[]>(() => {
     if (!previewBusiness?.vaultLinkIds?.length) {
@@ -2471,7 +2491,9 @@ export default function CardsFactoryScreen() {
           openDocumentViewer(it as VaultItem);
         },
         ghostTargetUid: issuerUid,
-        sourceCardName: String(previewBusiness.bcName || activeScName || cardName || 'Tarjeta Social'),
+        sourceCardName: String(
+          previewBusiness.bcName || activeScName || cardName || tr('Tarjeta Social', 'Social Card'),
+        ),
         sourceSid: null,
         sourceBId: String(previewBusiness.bId || '').trim() || null,
         peerDisplayName: displayForPeer,
@@ -2508,7 +2530,7 @@ export default function CardsFactoryScreen() {
         openDocumentViewer(it as VaultItem);
       },
       ghostTargetUid: issuerUid,
-      sourceCardName: activeScName ?? cardName ?? 'Tarjeta Social',
+      sourceCardName: activeScName ?? cardName ?? tr('Tarjeta Social', 'Social Card'),
       sourceSid: String(previewCard?.sid ?? selectedCard?.sid ?? '').trim() || null,
       sourceBId: null,
       peerDisplayName: voipName || tr('este contacto', 'this contact'),
@@ -2559,7 +2581,9 @@ export default function CardsFactoryScreen() {
             openDocumentViewer(it as VaultItem);
           },
           ghostTargetUid: issuerUid,
-          sourceCardName: String(previewBusiness.bcName || activeScName || cardName || 'Tarjeta Social'),
+          sourceCardName: String(
+            previewBusiness.bcName || activeScName || cardName || tr('Tarjeta Social', 'Social Card'),
+          ),
           sourceSid: null,
           sourceBId: String(previewBusiness.bId || '').trim() || null,
           peerDisplayName: displayForPeer,
@@ -2596,7 +2620,7 @@ export default function CardsFactoryScreen() {
           openDocumentViewer(it as VaultItem);
         },
         ghostTargetUid: issuerUid,
-        sourceCardName: activeScName ?? cardName ?? 'Tarjeta Social',
+        sourceCardName: activeScName ?? cardName ?? tr('Tarjeta Social', 'Social Card'),
         sourceSid: String(previewCard?.sid ?? selectedCard?.sid ?? '').trim() || null,
         sourceBId: null,
         peerDisplayName: voipName || tr('este contacto', 'this contact'),
@@ -2682,7 +2706,9 @@ export default function CardsFactoryScreen() {
             <MaterialCommunityIcons name="account" size={compact ? 22 : 32} color="#0D4D8A" />
           </View>
         )}
-        <AutoScaleText style={compact ? styles.wireNameSm : styles.wireName}>{(selectedCard?.scName || previewCard?.scName || cardName || 'Nueva Tarjeta').trim()}</AutoScaleText>
+        <AutoScaleText style={compact ? styles.wireNameSm : styles.wireName}>
+          {(selectedCard?.scName || previewCard?.scName || cardName || tr('Nueva Tarjeta', 'New Card')).trim()}
+        </AutoScaleText>
         <AutoScaleText style={compact ? styles.wireNickSm : styles.wireNick}>@{(issuerIdentity.userNickName || 'user').toLowerCase()}</AutoScaleText>
         <View style={styles.wireStatsRowInline}>
           <View style={styles.wireUsersPill}>
@@ -2727,7 +2753,7 @@ export default function CardsFactoryScreen() {
   }) => {
     const { layout, slots, editable, theme, wallpaperUrl, wireIdentity } = params;
     const wId = wireIdentity;
-    const dispName = wId?.cardTitle ?? (selectedCard?.scName || previewCard?.scName || cardName || 'Nueva Tarjeta').trim();
+    const dispName = wId?.cardTitle ?? (selectedCard?.scName || previewCard?.scName || cardName || tr('Nueva Tarjeta', 'New Card')).trim();
     const dispSub = wId ? wId.subtitle : `@${(issuerIdentity.userNickName || 'user').toLowerCase()}`;
     const dispAvatar = wId ? wId.avatarUri : issuerIdentity.userAvatarUrl;
     const dispHolders = wId ? wId.holdersCount : (selectedCard?.holdersCount ?? previewCard?.holdersCount ?? 0);
@@ -3381,12 +3407,16 @@ export default function CardsFactoryScreen() {
       >
         <View style={styles.emptyWrap}>
           <MaterialCommunityIcons name="shield-lock-outline" size={56} color={cardsTheme.icon} />
-          <Text style={[styles.emptyTitle, { color: cardsTheme.text }]}>Acceso biométrico requerido</Text>
-          <Text style={[styles.emptyText, { color: cardsTheme.modalSubtitle }]}>Autoriza FaceID/TouchID para entrar a Business Cards.</Text>
+          <Text style={[styles.emptyTitle, { color: cardsTheme.text }]}>
+            {tr('Acceso biométrico requerido', 'Biometric access required')}
+          </Text>
+          <Text style={[styles.emptyText, { color: cardsTheme.modalSubtitle }]}>
+            {tr('Autoriza Face ID o Touch ID para entrar a Mis tarjetas.', 'Authorize Face ID or Touch ID to open My Cards.')}
+          </Text>
           <TouchableOpacity
             style={[styles.firstQrBtn, { backgroundColor: cardsTheme.btnPrimary }]}
             onPress={async () => {
-              const authenticated = await hardLockCheck('acceso a Business Cards');
+              const authenticated = await hardLockCheck(tr('acceso a Business Cards', 'access to Business Cards'));
               setIsCardsUnlocked(authenticated);
               if (authenticated) {
                 const uid = await getActiveUserId();
@@ -3398,7 +3428,7 @@ export default function CardsFactoryScreen() {
             }}
           >
             <MaterialCommunityIcons name="fingerprint" size={18} color={cardsTheme.btnPrimaryText} />
-            <Text style={[styles.firstQrBtnText, { color: cardsTheme.btnPrimaryText }]}>Desbloquear</Text>
+            <Text style={[styles.firstQrBtnText, { color: cardsTheme.btnPrimaryText }]}>{tr('Desbloquear', 'Unlock')}</Text>
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -4029,7 +4059,7 @@ export default function CardsFactoryScreen() {
         }
         sourceSid={previewCard?.sid ?? null}
         sourceBId={null}
-        sourceCardName={previewCard?.scName ?? cardName ?? 'Tarjeta Social'}
+        sourceCardName={previewCard?.scName ?? cardName ?? tr('Tarjeta Social', 'Social Card')}
         peerDisplayName={
           issuerIdentity.voipCanonicalFullName || issuerIdentity.userFullName || tr('este contacto', 'this contact')
         }
@@ -4086,9 +4116,11 @@ export default function CardsFactoryScreen() {
       >
         <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}> 
           <View style={[styles.slotPickerCard, { backgroundColor: cardsTheme.modalBg, borderColor: cardsTheme.modalBorder }]}> 
-            <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle }]}>Elegir dato para slot</Text>
+            <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle }]}>
+              {tr('Elegir dato para el slot', 'Choose data for the slot')}
+            </Text>
             <Text style={[styles.slotPickerSubtitle, { color: cardsTheme.modalSubtitle }]}> 
-              Slot #{activeSlotIndex !== null ? activeSlotIndex + 1 : '-'}
+              {tr('Slot', 'Slot')} #{activeSlotIndex !== null ? activeSlotIndex + 1 : '-'}
             </Text>
 
             <FlatList
@@ -4113,7 +4145,7 @@ export default function CardsFactoryScreen() {
                 setActiveSlotIndex(null);
               }}
             >
-              <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>Cerrar</Text>
+              <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>{tr('Cerrar', 'Close')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -4134,8 +4166,12 @@ export default function CardsFactoryScreen() {
             <View style={styles.dataPopoverTop}>
               <View style={styles.previewIconBubble}>{renderVaultMiniIcon(focusedDataItem as VaultItem, 24)}</View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.dataPopoverTitle, { color: cardsTheme.modalTitle }]}>{focusedDataItem?.title || 'Dato'}</Text>
-                <Text style={[styles.dataPopoverType, { color: cardsTheme.sectionLabel }]}>{focusedDataItem?.type || 'Vault'}</Text>
+                <Text style={[styles.dataPopoverTitle, { color: cardsTheme.modalTitle }]}>
+                  {focusedDataItem?.title || tr('Dato', 'Item')}
+                </Text>
+                <Text style={[styles.dataPopoverType, { color: cardsTheme.sectionLabel }]}>
+                  {focusedDataItem?.type || tr('Bóveda', 'Vault')}
+                </Text>
               </View>
             </View>
 
@@ -4150,9 +4186,13 @@ export default function CardsFactoryScreen() {
 
             {focusedCertificate ? (
               <View style={styles.authCertBox}>
-                <Text style={styles.authCertTitle}>Certificado de Autenticidad</Text>
+                <Text style={styles.authCertTitle}>
+                  {tr('Certificado de autenticidad', 'Certificate of authenticity')}
+                </Text>
                 <Text style={styles.authCertText}>{focusedCertificate.value}</Text>
-                <Text style={styles.authCertToken}>Asset ID: {focusedCertificate.assetToken || 'N/A'}</Text>
+                <Text style={styles.authCertToken}>
+                  {tr('ID del activo', 'Asset ID')}: {focusedCertificate.assetToken || 'N/A'}
+                </Text>
               </View>
             ) : null}
 
@@ -4163,7 +4203,9 @@ export default function CardsFactoryScreen() {
                   await tryOpenInApp(focusedDataItem);
                 }}
               >
-                <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>Abrir en app</Text>
+                <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>
+                  {tr('Abrir en app', 'Open in app')}
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary }]}
@@ -4171,7 +4213,9 @@ export default function CardsFactoryScreen() {
                   await openInBrowser(focusedDataItem);
                 }}
               >
-                <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>Ver en navegador</Text>
+                <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>
+                  {tr('Ver en navegador', 'View in browser')}
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -4183,7 +4227,7 @@ export default function CardsFactoryScreen() {
                 setFocusedCertificate(null);
               }}
             >
-              <Text style={[styles.popoverCloseText, { color: cardsTheme.btnGhostText }]}>Cerrar</Text>
+              <Text style={[styles.popoverCloseText, { color: cardsTheme.btnGhostText }]}>{tr('Cerrar', 'Close')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -4339,7 +4383,7 @@ export default function CardsFactoryScreen() {
                     style={[styles.factoryTitle, styles.qrModalTitleText, { color: cardsTheme.modalTitle }]}
                     numberOfLines={2}
                   >
-                    {selectedCard?.scName || 'Smart Card'}
+                    {selectedCard?.scName || tr('Smart Card', 'Smart Card')}
                   </Text>
                   <TouchableOpacity
                     onPress={async () => {
@@ -4368,7 +4412,7 @@ export default function CardsFactoryScreen() {
                 <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle }]}>
                   {qrBusinessContext
                     ? qrBusinessContext.bcName
-                    : selectedCard?.scName || 'Smart Card'}
+                    : selectedCard?.scName || tr('Smart Card', 'Smart Card')}
                 </Text>
               )}
               <Text style={[styles.qrSubtitle, { color: cardsTheme.modalSubtitle }]}>
@@ -4568,7 +4612,7 @@ export default function CardsFactoryScreen() {
                     ]}
                     onPress={() => {
                       if (selectedCard) {
-                        confirmAndIssueQrForCard(selectedCard);
+                        confirmAndIssueQrForCard(selectedCard, { forceNew: true });
                       }
                     }}
                   >

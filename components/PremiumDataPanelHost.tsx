@@ -3,6 +3,8 @@ import {
     type PremiumDataPanelPayload,
     subscribePremiumDataPanel,
 } from '@/services/premiumDataPanelController';
+import { trEsEn, useLanguage } from '@/services/language';
+import { splitSovereignText } from '@/utils/sovereignTextSplit';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -31,6 +33,11 @@ const { height: SCREEN_H } = Dimensions.get('window');
 
 export default function PremiumDataPanelHost() {
   const insets = useSafeAreaInsets();
+  const { language } = useLanguage();
+  const tr = useCallback(
+    (es: string, en: string) => trEsEn(es, en, language),
+    [language],
+  );
   const [payload, setPayload] = useState<PremiumDataPanelPayload | null>(null);
   const [copied, setCopied] = useState(false);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -93,7 +100,88 @@ export default function PremiumDataPanelHost() {
 
   if (!visible) return null;
 
-  const content = (
+  const isSovereign = Boolean(
+    p && p.presentation === 'sovereign-text' && p.body != null,
+  );
+  const copySovereign = String(p?.copyText ?? p?.body ?? '');
+  const showCopySovereign = !p?.hideCopy && Boolean(copySovereign.trim());
+  const closeLabelSovereign =
+    p?.actions?.find((a) => a.variant === 'secondary' || a.label.toLowerCase().includes('cerrar'))?.label ??
+    tr('Cerrar', 'Close');
+
+  const sovereign = isSovereign && p ? (
+    <View style={styles.sovereignRoot}>
+      <Pressable style={StyleSheet.absoluteFill} onPress={backdropDismiss ? close : undefined} />
+      <Animated.View
+        style={[
+          styles.sovereignCard,
+          {
+            paddingTop: Math.max(insets.top, 20),
+            paddingBottom: Math.max(insets.bottom, 24),
+            transform: [{ translateY: slide }],
+          },
+        ]}
+      >
+        <View style={styles.sovereignTopAccent} />
+        <ScrollView
+          style={styles.sovereignScroll}
+          contentContainerStyle={styles.sovereignScrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          {(() => {
+            const { headline, body: bodyRest } = splitSovereignText(String(p.body || ''));
+            if (headline && bodyRest) {
+              return (
+                <>
+                  <Text style={styles.sovereignTitle} selectable>
+                    {headline}
+                  </Text>
+                  <Text style={styles.sovereignBody} selectable>
+                    {bodyRest}
+                  </Text>
+                </>
+              );
+            }
+            if (headline) {
+              return (
+                <Text style={styles.sovereignTitle} selectable>
+                  {headline}
+                </Text>
+              );
+            }
+            return (
+              <Text style={styles.sovereignBody} selectable>
+                {bodyRest || '—'}
+              </Text>
+            );
+          })()}
+        </ScrollView>
+        <View style={styles.sovereignBar}>
+          <Pressable onPress={close} hitSlop={12} style={styles.sovereignBarBtn}>
+            <Text style={styles.sovereignCloseTxt}>{closeLabelSovereign}</Text>
+          </Pressable>
+          {showCopySovereign ? (
+            <Pressable
+              onPress={() => void handleCopy(copySovereign)}
+              hitSlop={12}
+              style={styles.sovereignBarBtn}
+            >
+              <MaterialCommunityIcons
+                name={copied ? 'check-circle' : 'content-copy'}
+                size={16}
+                color={copied ? '#86efac' : ACCENT}
+              />
+              <Text style={styles.sovereignCopyTxt}>
+                {copied ? tr('Copiado', 'Copied') : tr('Copiar', 'Copy')}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+      </Animated.View>
+    </View>
+  ) : null;
+
+  const defaultSheet = !isSovereign ? (
     <View style={styles.root}>
       <Pressable
         style={StyleSheet.absoluteFill}
@@ -166,7 +254,7 @@ export default function PremiumDataPanelHost() {
                     color={copied ? '#22c55e' : ACCENT}
                   />
                   <Text style={[styles.copyBtnText, copied && styles.copyBtnTextDone]}>
-                    {copied ? 'Copiado' : 'Copiar al portapapeles'}
+                    {copied ? tr('Copiado', 'Copied') : tr('Copiar al portapapeles', 'Copy to clipboard')}
                   </Text>
                 </TouchableOpacity>
               ) : null}
@@ -206,14 +294,16 @@ export default function PremiumDataPanelHost() {
                 </View>
               ) : p.emailOptions && p.emailOptions.length > 0 ? null : (
                 <TouchableOpacity style={styles.closeOnly} onPress={close} activeOpacity={0.88}>
-                  <Text style={styles.closeOnlyText}>Cerrar</Text>
+                  <Text style={styles.closeOnlyText}>{tr('Cerrar', 'Close')}</Text>
                 </TouchableOpacity>
               )}
             </>
           ) : null}
         </Animated.View>
     </View>
-  );
+  ) : null;
+
+  const content = isSovereign ? sovereign : defaultSheet;
 
   /**
    * iOS: `FullWindowOverlay` crea un UIWindow nativo encima de TODOS los
@@ -360,4 +450,83 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.06)',
   },
   closeOnlyText: { color: TEXT_MUTED, fontSize: 16, fontWeight: '500' },
+  sovereignRoot: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#000000',
+    zIndex: 99999,
+    elevation: 99999,
+  },
+  sovereignCard: {
+    flex: 1,
+    marginHorizontal: 20,
+    marginVertical: 12,
+    backgroundColor: '#000000',
+    borderRadius: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(201, 162, 39, 0.45)',
+    paddingHorizontal: 22,
+    maxHeight: SCREEN_H * 0.92,
+  },
+  sovereignTopAccent: {
+    position: 'absolute',
+    top: 0,
+    left: 22,
+    right: 22,
+    height: 1,
+    backgroundColor: 'rgba(201, 162, 39, 0.35)',
+  },
+  sovereignScroll: { flex: 1 },
+  sovereignScrollContent: {
+    flexGrow: 1,
+    paddingTop: 12,
+    paddingBottom: 8,
+    justifyContent: 'flex-start',
+  },
+  sovereignTitle: {
+    color: ACCENT,
+    fontSize: 26,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    lineHeight: 32,
+    marginBottom: 20,
+    textAlign: 'center',
+    ...Platform.select({
+      ios: { fontFamily: 'Georgia' },
+      android: { fontFamily: 'serif' },
+      default: {},
+    }),
+  },
+  sovereignBody: {
+    color: 'rgba(244, 244, 245, 0.92)',
+    fontSize: 16,
+    lineHeight: 26,
+    fontWeight: '400',
+    textAlign: 'left',
+  },
+  sovereignBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(201, 162, 39, 0.2)',
+  },
+  sovereignBarBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+  },
+  sovereignCloseTxt: {
+    color: TEXT_MUTED,
+    fontSize: 14,
+    fontWeight: '500',
+    letterSpacing: 0.8,
+  },
+  sovereignCopyTxt: {
+    color: ACCENT,
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+  },
 });

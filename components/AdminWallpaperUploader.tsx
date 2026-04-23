@@ -20,6 +20,7 @@ import {
   type WallpaperOrientation,
   type WallpaperTier,
 } from '@/services/wallpaperService';
+import { trEsEn, useLanguage } from '@/services/language';
 
 type UploadState = {
   fileUri: string | null;
@@ -31,6 +32,8 @@ type UploadState = {
 };
 
 const AdminWallpaperUploader: React.FC = () => {
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const [state, setState] = useState<UploadState>({
     fileUri: null,
     fileName: '',
@@ -74,13 +77,16 @@ const AdminWallpaperUploader: React.FC = () => {
         }));
       }
     } catch {
-      Alert.alert('Error', 'No se pudo seleccionar la imagen.');
+      Alert.alert(tr('Error', 'Error'), tr('No se pudo seleccionar la imagen.', 'Could not select the image.'));
     }
   };
 
   const submitUpload = async () => {
     if (!userId || !state.fileUri) {
-      Alert.alert('Faltan datos', 'Selecciona un archivo antes de subir.');
+      Alert.alert(
+        tr('Faltan datos', 'Missing data'),
+        tr('Selecciona un archivo antes de subir.', 'Select a file before uploading.'),
+      );
       return;
     }
 
@@ -96,14 +102,23 @@ const AdminWallpaperUploader: React.FC = () => {
       });
 
       if (!result.success) {
-        Alert.alert('Error al subir', result.error || 'No se pudo subir el wallpaper.');
+        Alert.alert(
+          tr('Error al subir', 'Upload error'),
+          result.error || tr('No se pudo subir el wallpaper.', 'Could not upload the wallpaper.'),
+        );
         return;
       }
 
       Alert.alert(
-        'Upload exitoso',
-        `Guardado en assets/wallpapers/${state.orientation}/${state.tier === 'premium' ? 'legendary' : 'common'}/full y thumbs` +
-          (state.tier === 'premium' ? `\nPrecio: ${resolvedPrice} CS` : ''),
+        tr('Subida correcta', 'Upload successful'),
+        tr(
+          `Guardado en assets/wallpapers/${state.orientation}/${state.tier === 'premium' ? 'legendary' : 'common'}/full y thumbs${
+            state.tier === 'premium' ? `\nPrecio: ${resolvedPrice} CS` : ''
+          }`,
+          `Saved to assets/wallpapers/${state.orientation}/${state.tier === 'premium' ? 'legendary' : 'common'}/full and thumbs${
+            state.tier === 'premium' ? `\nPrice: ${resolvedPrice} CS` : ''
+          }`,
+        ),
       );
 
       setState((prev) => ({
@@ -113,7 +128,10 @@ const AdminWallpaperUploader: React.FC = () => {
         loading: false,
       }));
     } catch (error: any) {
-      Alert.alert('Error', error?.message || 'No se pudo subir el wallpaper.');
+      Alert.alert(
+        tr('Error', 'Error'),
+        error?.message || tr('No se pudo subir el wallpaper.', 'Could not upload the wallpaper.'),
+      );
       setState((prev) => ({ ...prev, loading: false }));
       return;
     }
@@ -125,59 +143,71 @@ const AdminWallpaperUploader: React.FC = () => {
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <LinearGradient colors={['#0A2540', '#1A3D5C']} style={styles.header}>
         <MaterialCommunityIcons name="image-multiple" size={28} color="#C5A065" />
-        <Text style={styles.headerTitle}>Wallpaper Uploader</Text>
-        <Text style={styles.headerSub}>Alta resolución + thumbnails automáticos</Text>
+        <Text style={styles.headerTitle}>{tr('Wallpaper Uploader', 'Wallpaper Uploader')}</Text>
+        <Text style={styles.headerSub}>
+          {tr('Alta resolución + miniaturas automáticas', 'High resolution + auto thumbnails')}
+        </Text>
       </LinearGradient>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>1) Imagen Base</Text>
+        <Text style={styles.sectionTitle}>{tr('1) Imagen base', '1) Base image')}</Text>
         <TouchableOpacity style={styles.uploadBtn} onPress={pickWallpaper}>
           <MaterialCommunityIcons name="cloud-upload-outline" size={28} color="#0A2540" />
-          <Text style={styles.uploadText}>{state.fileName || 'Seleccionar wallpaper (JPG/PNG)'}</Text>
+          <Text style={styles.uploadText}>
+            {state.fileName || tr('Seleccionar wallpaper (JPG/PNG)', 'Select wallpaper (JPG/PNG)')}
+          </Text>
         </TouchableOpacity>
 
         {state.fileUri ? <Image source={{ uri: state.fileUri }} style={styles.preview} resizeMode="cover" /> : null}
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>2) Orientación</Text>
+        <Text style={styles.sectionTitle}>{tr('2) Orientación', '2) Orientation')}</Text>
         <View style={styles.row}>
           <TouchableOpacity
             style={[styles.chip, state.orientation === 'vertical' && styles.chipActive]}
             onPress={() => setState((prev) => ({ ...prev, orientation: 'vertical' }))}
           >
-            <Text style={[styles.chipText, state.orientation === 'vertical' && styles.chipTextActive]}>Vertical</Text>
+            <Text style={[styles.chipText, state.orientation === 'vertical' && styles.chipTextActive]}>
+              {tr('Vertical', 'Vertical')}
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.chip, state.orientation === 'horizontal' && styles.chipActive]}
             onPress={() => setState((prev) => ({ ...prev, orientation: 'horizontal' }))}
           >
-            <Text style={[styles.chipText, state.orientation === 'horizontal' && styles.chipTextActive]}>Horizontal</Text>
+            <Text style={[styles.chipText, state.orientation === 'horizontal' && styles.chipTextActive]}>
+              {tr('Horizontal', 'Horizontal')}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>3) Nivel</Text>
+        <Text style={styles.sectionTitle}>{tr('3) Nivel', '3) Tier')}</Text>
         <View style={styles.row}>
           <TouchableOpacity
             style={[styles.chip, state.tier === 'free' && styles.chipActive]}
             onPress={() => setState((prev) => ({ ...prev, tier: 'free', priceCredits: '0' }))}
           >
-            <Text style={[styles.chipText, state.tier === 'free' && styles.chipTextActive]}>Free</Text>
+            <Text style={[styles.chipText, state.tier === 'free' && styles.chipTextActive]}>
+              {tr('Gratis', 'Free')}
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.chip, state.tier === 'premium' && styles.chipActive]}
             onPress={() => setState((prev) => ({ ...prev, tier: 'premium', priceCredits: prev.priceCredits || '40' }))}
           >
-            <Text style={[styles.chipText, state.tier === 'premium' && styles.chipTextActive]}>Premium</Text>
+            <Text style={[styles.chipText, state.tier === 'premium' && styles.chipTextActive]}>
+              {tr('Premium', 'Premium')}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {state.tier === 'premium' ? (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>4) Precio (Créditos CS)</Text>
+          <Text style={styles.sectionTitle}>{tr('4) Precio (créditos CS)', '4) Price (CS credits)')}</Text>
           <TextInput
             value={state.priceCredits}
             onChangeText={(value) => setState((prev) => ({ ...prev, priceCredits: value.replace(/[^0-9]/g, '') }))}
@@ -190,7 +220,7 @@ const AdminWallpaperUploader: React.FC = () => {
       ) : null}
 
       <View style={styles.pathsBox}>
-        <Text style={styles.pathsTitle}>Rutas activas de Cloud Wallpapers</Text>
+        <Text style={styles.pathsTitle}>{tr('Rutas activas de cloud wallpapers', 'Active cloud wallpaper paths')}</Text>
         {getWallpaperFolderPaths().map((path) => (
           <Text key={path} style={styles.pathLine}>{path}</Text>
         ))}
@@ -202,7 +232,7 @@ const AdminWallpaperUploader: React.FC = () => {
         ) : (
           <>
             <MaterialCommunityIcons name="content-save" size={18} color="#FFFFFF" />
-            <Text style={styles.submitText}>Subir Wallpaper</Text>
+            <Text style={styles.submitText}>{tr('Subir wallpaper', 'Upload wallpaper')}</Text>
           </>
         )}
       </TouchableOpacity>

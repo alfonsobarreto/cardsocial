@@ -544,7 +544,7 @@ export function MyCardsPreviewModal({
         },
         ghostTargetUid: ghostTargetUid ?? null,
         sourceCardName:
-          sourceCardName || payload?.cardName || 'Tarjeta Social',
+          sourceCardName || payload?.cardName || tr('Tarjeta Social', 'Social Card'),
         sourceSid: sourceSid ?? null,
         sourceBId: sourceBId ?? null,
         peerDisplayName: peerDisplayName || tr('contacto', 'contact'),

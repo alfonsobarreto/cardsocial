@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadIconAsAdmin, getIconCategories } from '@/services/iconLibraryService';
 import { getActiveUserId } from '@/services/authSession';
+import { trEsEn, useLanguage } from '@/services/language';
 import { createIconPack, type IconPack } from '@/services/iconPackService';
 
 /**
@@ -64,6 +65,8 @@ const AdminIconUploader: React.FC = () => {
   const [showCategoryInput, setShowCategoryInput] = useState(false);
   const [newCategory, setNewCategory] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const modalFooterBottomPad = useModalFooterBottomPad();
 
   useEffect(() => {
@@ -100,13 +103,13 @@ const AdminIconUploader: React.FC = () => {
         }));
       }
     } catch (error) {
-      Alert.alert('Error', 'No se pudo seleccionar la imagen');
+      Alert.alert(tr('Error', 'Error'), tr('No se pudo seleccionar la imagen', 'Could not select the image'));
     }
   };
 
   const handleAddCategory = () => {
     if (!newCategory.trim()) {
-      Alert.alert('Error', 'Ingresa un nombre de categoría');
+      Alert.alert(tr('Error', 'Error'), tr('Ingresa un nombre de categoría', 'Enter a category name'));
       return;
     }
 
@@ -122,7 +125,7 @@ const AdminIconUploader: React.FC = () => {
 
   const handleUpload = async () => {
     if (!state.file || !state.fileName || !state.category || !userId) {
-      Alert.alert('Error', 'Por favor completa todos los campos');
+      Alert.alert(tr('Error', 'Error'), tr('Por favor completa todos los campos', 'Please fill in all fields'));
       return;
     }
 
@@ -157,7 +160,9 @@ const AdminIconUploader: React.FC = () => {
           const stock = Math.max(1, Number(state.dropStock || 100));
           await createIconPack(userId, {
             name: state.dropName.trim() || state.fileName.replace(/\.[^/.]+$/, ''),
-            description: state.dropDescription.trim() || `Drop exclusivo de ${state.dropBrand || 'Card-Social'}`,
+            description:
+              state.dropDescription.trim() ||
+              tr('Drop exclusivo de', 'Exclusive drop from') + ` ${state.dropBrand || 'Card-Social'}`,
             category: categoryMap[state.category] || 'custom',
             iconCount: 1,
             creditsPrice,
@@ -178,10 +183,16 @@ const AdminIconUploader: React.FC = () => {
         }
 
         Alert.alert(
-          '✅ Éxito',
+          tr('✅ Éxito', '✅ Success'),
           state.createDrop
-            ? `Icono + Drop limitados listos en /${state.type}-icons/${state.category}/`
-            : `Icono subido exitosamente a /${state.type}-icons/${state.category}/`
+            ? tr(
+                `Icono + drop limitados listos en /${state.type}-icons/${state.category}/`,
+                `Icon + limited drop ready at /${state.type}-icons/${state.category}/`,
+              )
+            : tr(
+                `Icono subido exitosamente a /${state.type}-icons/${state.category}/`,
+                `Icon uploaded successfully to /${state.type}-icons/${state.category}/`,
+              ),
         );
 
         // Reset form
@@ -202,10 +213,13 @@ const AdminIconUploader: React.FC = () => {
           dropSection: state.dropSection,
         });
       } else {
-        Alert.alert('Error', result.error || 'Error al subir el icono');
+        Alert.alert(tr('Error', 'Error'), result.error || tr('Error al subir el icono', 'Error uploading icon'));
       }
     } catch (error) {
-      Alert.alert('Error', error instanceof Error ? error.message : 'Error desconocido');
+      Alert.alert(
+        tr('Error', 'Error'),
+        error instanceof Error ? error.message : tr('Error desconocido', 'Unknown error'),
+      );
     } finally {
       setState((prev) => ({ ...prev, loading: false }));
     }
@@ -225,13 +239,15 @@ const AdminIconUploader: React.FC = () => {
         style={styles.header}
       >
         <MaterialCommunityIcons name="palette-advanced" size={32} color="#C5A065" />
-        <Text style={styles.headerTitle}>Icon Library Manager</Text>
-        <Text style={styles.headerSubtitle}>Sube diseños PNG/GIF a Firebase Storage</Text>
+        <Text style={styles.headerTitle}>{tr('Icon Library Manager', 'Icon Library Manager')}</Text>
+        <Text style={styles.headerSubtitle}>
+          {tr('Sube diseños PNG/GIF a Firebase Storage', 'Upload PNG/GIF designs to Firebase Storage')}
+        </Text>
       </LinearGradient>
 
       {/* FILE PICKER */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>📷 Seleccionar Imagen</Text>
+        <Text style={styles.sectionTitle}>{tr('📷 Seleccionar imagen', '📷 Select image')}</Text>
 
         {state.file ? (
           <View style={styles.selectedFileBox}>
@@ -244,15 +260,19 @@ const AdminIconUploader: React.FC = () => {
         ) : (
           <TouchableOpacity style={styles.uploadButton} onPress={pickImage}>
             <MaterialCommunityIcons name="cloud-upload-outline" size={32} color="#C5A065" />
-            <Text style={styles.uploadButtonText}>Toca para seleccionar imagen</Text>
-            <Text style={styles.uploadButtonHint}>PNG o GIF recomendado</Text>
+            <Text style={styles.uploadButtonText}>
+              {tr('Toca para seleccionar imagen', 'Tap to select an image')}
+            </Text>
+            <Text style={styles.uploadButtonHint}>
+              {tr('PNG o GIF recomendado', 'PNG or GIF recommended')}
+            </Text>
           </TouchableOpacity>
         )}
       </View>
 
       {/* TYPE SELECTOR */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🏷️ Tipo de Icono</Text>
+        <Text style={styles.sectionTitle}>{tr('🏷️ Tipo de icono', '🏷️ Icon type')}</Text>
 
         <View style={styles.typeSelector}>
           <TouchableOpacity
@@ -273,7 +293,7 @@ const AdminIconUploader: React.FC = () => {
                 state.type === 'free' && styles.typeButtonTextActive,
               ]}
             >
-              Gratis
+              {tr('Gratis', 'Free')}
             </Text>
           </TouchableOpacity>
 
@@ -295,7 +315,7 @@ const AdminIconUploader: React.FC = () => {
                 state.type === 'premium' && styles.typeButtonTextActive,
               ]}
             >
-              Premium
+              {tr('Premium', 'Premium')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -304,15 +324,15 @@ const AdminIconUploader: React.FC = () => {
           <MaterialCommunityIcons name="information-outline" size={16} color="#3498DB" />
           <Text style={styles.typeInfoText}>
             {state.type === 'free'
-              ? 'Disponible para todos los usuarios'
-                : 'También visible para todos en modo Lujo Masivo'}
+              ? tr('Disponible para todos los usuarios', 'Available to all users')
+              : tr('También visible para todos en modo lujo masivo', 'Visible to all in mass luxury mode')}
           </Text>
         </View>
       </View>
 
       {/* CATEGORY SELECTOR */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>📁 Categoría</Text>
+        <Text style={styles.sectionTitle}>{tr('📁 Categoría', '📁 Category')}</Text>
 
         <View style={styles.categoryList}>
           {categories.map((cat) => (
@@ -347,13 +367,13 @@ const AdminIconUploader: React.FC = () => {
       {/* LIMITED DROP CONFIG */}
       <View style={styles.section}>
         <View style={styles.dropHeaderRow}>
-          <Text style={styles.sectionTitle}>🚀 Drop Exclusivo por Marca</Text>
+          <Text style={styles.sectionTitle}>{tr('🚀 Drop exclusivo por marca', '🚀 Branded exclusive drop')}</Text>
           <TouchableOpacity
             style={[styles.dropToggle, state.createDrop && styles.dropToggleActive]}
             onPress={() => setState((prev) => ({ ...prev, createDrop: !prev.createDrop }))}
           >
             <Text style={[styles.dropToggleText, state.createDrop && styles.dropToggleTextActive]}>
-              {state.createDrop ? 'ACTIVO' : 'OFF'}
+              {state.createDrop ? tr('ACTIVO', 'ON') : 'OFF'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -362,21 +382,21 @@ const AdminIconUploader: React.FC = () => {
           <View style={styles.dropCard}>
             <TextInput
               style={styles.dropInput}
-              placeholder="Nombre del drop (ej. Legend Gold #1)"
+              placeholder={tr('Nombre del drop (ej. Legend Gold #1)', 'Drop name (e.g. Legend Gold #1)')}
               placeholderTextColor="#999"
               value={state.dropName}
               onChangeText={(v) => setState((prev) => ({ ...prev, dropName: v }))}
             />
             <TextInput
               style={styles.dropInput}
-              placeholder="Marca (ej. Pochobs Atelier)"
+              placeholder={tr('Marca (ej. Pochobs Atelier)', 'Brand (e.g. Pochobs Atelier)')}
               placeholderTextColor="#999"
               value={state.dropBrand}
               onChangeText={(v) => setState((prev) => ({ ...prev, dropBrand: v }))}
             />
             <TextInput
               style={styles.dropInput}
-              placeholder="Descripción"
+              placeholder={tr('Descripción', 'Description')}
               placeholderTextColor="#999"
               value={state.dropDescription}
               onChangeText={(v) => setState((prev) => ({ ...prev, dropDescription: v }))}
@@ -385,7 +405,7 @@ const AdminIconUploader: React.FC = () => {
               <TextInput
                 style={[styles.dropInput, styles.dropInputHalf]}
                 keyboardType="numeric"
-                placeholder="Precio CS"
+                placeholder={tr('Precio CS', 'CS price')}
                 placeholderTextColor="#999"
                 value={state.dropCredits}
                 onChangeText={(v) => setState((prev) => ({ ...prev, dropCredits: v }))}
@@ -393,20 +413,25 @@ const AdminIconUploader: React.FC = () => {
               <TextInput
                 style={[styles.dropInput, styles.dropInputHalf]}
                 keyboardType="numeric"
-                placeholder="Stock"
+                placeholder={tr('Stock', 'Stock')}
                 placeholderTextColor="#999"
                 value={state.dropStock}
                 onChangeText={(v) => setState((prev) => ({ ...prev, dropStock: v }))}
               />
             </View>
-            <Text style={styles.dropHint}>Este drop creará límite real de stock en la tienda.</Text>
+            <Text style={styles.dropHint}>
+              {tr(
+                'Este drop creará límite real de stock en la tienda.',
+                'This drop will set a real stock limit in the store.',
+              )}
+            </Text>
             <View style={styles.sectionPickerRow}>
               {[
-                { id: 'featured', label: 'Featured' },
-                { id: 'newest', label: 'Newest' },
-                { id: 'most_popular', label: 'Popular' },
-                { id: 'collectible', label: 'Collectible' },
-                { id: 'retail', label: 'Retail' },
+                { id: 'featured', label: tr('Destacado', 'Featured') },
+                { id: 'newest', label: tr('Novedades', 'Newest') },
+                { id: 'most_popular', label: tr('Popular', 'Popular') },
+                { id: 'collectible', label: tr('Coleccionable', 'Collectible') },
+                { id: 'retail', label: tr('Tienda', 'Retail') },
               ].map((section) => (
                 <TouchableOpacity
                   key={section.id}
@@ -446,13 +471,15 @@ const AdminIconUploader: React.FC = () => {
           <>
             <ActivityIndicator color="#FFF" size="small" />
             <Text style={styles.uploadActionButtonText}>
-              Subiendo... {state.uploadProgress}%
+              {tr('Subiendo…', 'Uploading…')} {state.uploadProgress}%
             </Text>
           </>
         ) : (
           <>
             <MaterialCommunityIcons name="cloud-upload" size={20} color="#FFF" />
-            <Text style={styles.uploadActionButtonText}>Subir Icono a Firebase</Text>
+            <Text style={styles.uploadActionButtonText}>
+              {tr('Subir icono a Firebase', 'Upload icon to Firebase')}
+            </Text>
           </>
         )}
       </TouchableOpacity>
@@ -461,9 +488,9 @@ const AdminIconUploader: React.FC = () => {
       <View style={styles.infoBox}>
         <MaterialCommunityIcons name="server" size={20} color="#3498DB" />
         <View style={styles.infoContent}>
-          <Text style={styles.infoTitle}>Ruta en Firebase Storage</Text>
+          <Text style={styles.infoTitle}>{tr('Ruta en Firebase Storage', 'Path in Firebase Storage')}</Text>
           <Text style={styles.infoPath}>
-            /assets/icons/{state.category}/{state.dropRarity}/{state.fileName || 'archivo'}
+            /assets/icons/{state.category}/{state.dropRarity}/{state.fileName || tr('archivo', 'file')}
           </Text>
         </View>
       </View>
@@ -477,11 +504,11 @@ const AdminIconUploader: React.FC = () => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Nueva Categoría</Text>
+            <Text style={styles.modalTitle}>{tr('Nueva categoría', 'New category')}</Text>
 
             <TextInput
               style={styles.modalInput}
-              placeholder="Ej: payment, social, communication"
+              placeholder={tr('Ej: payment, social, communication', 'E.g. payment, social, communication')}
               placeholderTextColor="#999"
               value={newCategory}
               onChangeText={setNewCategory}
@@ -495,14 +522,14 @@ const AdminIconUploader: React.FC = () => {
                   setNewCategory('');
                 }}
               >
-                <Text style={styles.modalButtonText}>Cancelar</Text>
+                <Text style={styles.modalButtonText}>{tr('Cancelar', 'Cancel')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.modalButtonConfirm}
                 onPress={handleAddCategory}
               >
-                <Text style={[styles.modalButtonText, { color: '#FFF' }]}>Crear</Text>
+                <Text style={[styles.modalButtonText, { color: '#FFF' }]}>{tr('Crear', 'Create')}</Text>
               </TouchableOpacity>
             </View>
           </View>

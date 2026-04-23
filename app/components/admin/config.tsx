@@ -6,7 +6,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -19,6 +19,7 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { trEsEn, useLanguage } from '@/services/language';
 
 interface FeatureFlags {
   studentPackEnabled: boolean;
@@ -28,6 +29,8 @@ interface FeatureFlags {
 }
 
 export default function AdminConfigScreen() {
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
@@ -89,9 +92,12 @@ export default function AdminConfigScreen() {
           updatedAt: serverTimestamp(),
         },
       }, { merge: true });
-      Alert.alert('✅ Guardado', 'Mensaje de broadcast actualizado.');
+      Alert.alert(
+        tr('✅ Guardado', '✅ Saved'),
+        tr('Mensaje de broadcast actualizado.', 'Broadcast message updated.'),
+      );
     } catch {
-      Alert.alert('Error', 'No se pudo guardar el mensaje.');
+      Alert.alert(tr('Error', 'Error'), tr('No se pudo guardar el mensaje.', 'Could not save the message.'));
     } finally {
       setSaving(false);
     }
@@ -107,18 +113,60 @@ export default function AdminConfigScreen() {
         },
       }, { merge: true });
     } catch {
-      Alert.alert('Error', 'No se pudo actualizar el flag.');
+      Alert.alert(tr('Error', 'Error'), tr('No se pudo actualizar el flag.', 'Could not update the flag.'));
     }
   };
+
+  const FLAG_CONFIG = useMemo(
+    () =>
+      [
+        {
+          key: 'studentPackEnabled' as const,
+          label: 'Student Pack',
+          desc: tr('Permite grants automáticos a emails .edu', 'Allows automatic grants to .edu emails'),
+          icon: 'school' as const,
+          danger: false,
+        },
+        {
+          key: 'businessCardEnabled' as const,
+          label: 'Business Cards',
+          desc: tr('Permite crear tarjetas de negocio', 'Allows creating business cards'),
+          icon: 'card-account-details' as const,
+          danger: false,
+        },
+        {
+          key: 'iconStoreEnabled' as const,
+          label: 'Icon Store',
+          desc: tr('Permite comprar packs de íconos', 'Allows buying icon packs'),
+          icon: 'store' as const,
+          danger: false,
+        },
+        {
+          key: 'maintenanceMode' as const,
+          label: tr('Modo Mantenimiento', 'Maintenance mode'),
+          desc: tr('Bloquea acceso general a la app', 'Blocks general access to the app'),
+          icon: 'wrench' as const,
+          danger: true,
+        },
+      ] as const,
+    [language],
+  );
 
   const toggleFlag = (key: keyof FeatureFlags) => {
     if (key === 'maintenanceMode' && !flags[key]) {
       Alert.alert(
-        '⚠️ Modo Mantenimiento',
-        '¿Activar modo mantenimiento? Los usuarios verán una pantalla de mantenimiento.',
+        tr('⚠️ Modo mantenimiento', '⚠️ Maintenance mode'),
+        tr(
+          '¿Activar modo mantenimiento? Los usuarios verán una pantalla de mantenimiento.',
+          'Enable maintenance mode? Users will see a maintenance screen.',
+        ),
         [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Activar', style: 'destructive', onPress: () => saveFlags({ ...flags, [key]: true }) },
+          { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+          {
+            text: tr('Activar', 'Enable'),
+            style: 'destructive',
+            onPress: () => saveFlags({ ...flags, [key]: true }),
+          },
         ]
       );
     } else {
@@ -131,13 +179,6 @@ export default function AdminConfigScreen() {
   }
   if (!authorized) return null;
 
-  const FLAG_CONFIG: { key: keyof FeatureFlags; label: string; desc: string; icon: string; danger?: boolean }[] = [
-    { key: 'studentPackEnabled', label: 'Student Pack', desc: 'Permite grants automáticos a emails .edu', icon: 'school' },
-    { key: 'businessCardEnabled', label: 'Business Cards', desc: 'Permite crear tarjetas de negocio', icon: 'card-account-details' },
-    { key: 'iconStoreEnabled', label: 'Icon Store', desc: 'Permite comprar packs de íconos', icon: 'store' },
-    { key: 'maintenanceMode', label: 'Modo Mantenimiento', desc: 'Bloquea acceso general a la app', icon: 'wrench', danger: true },
-  ];
-
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* HEADER */}
@@ -147,7 +188,7 @@ export default function AdminConfigScreen() {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <MaterialCommunityIcons name="cog" size={18} color="#C5A065" />
-          <Text style={styles.headerTitle}>SYS CONFIG</Text>
+          <Text style={styles.headerTitle}>{tr('CONFIG SIST', 'SYS CONFIG')}</Text>
         </View>
         <View style={{ width: 36 }} />
       </LinearGradient>
@@ -158,24 +199,26 @@ export default function AdminConfigScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <MaterialCommunityIcons name="lock-outline" size={16} color="#0D4D8A" />
-            <Text style={styles.cardTitle}>Límites Free Tier</Text>
+            <Text style={styles.cardTitle}>{tr('Límites Free Tier', 'Free tier limits')}</Text>
             <View style={styles.readOnlyBadge}>
-              <Text style={styles.readOnlyText}>Sólo código</Text>
+              <Text style={styles.readOnlyText}>{tr('Sólo código', 'Code only')}</Text>
             </View>
           </View>
           <Text style={styles.cardNote}>
-            Para cambiar estos valores edita <Text style={styles.codeRef}>constants/freeTierPolicy.ts</Text> y redeploya.
+            {tr('Para cambiar estos valores edita', 'To change these values, edit')}{' '}
+            <Text style={styles.codeRef}>constants/freeTierPolicy.ts</Text>
+            {tr(' y redeploya.', ' and redeploy.')}
           </Text>
           <View style={styles.limitRow}>
             <View style={styles.limitBox}>
               <MaterialCommunityIcons name="cards" size={20} color="#0D4D8A" />
               <Text style={styles.limitValue}>{FREE_TIER_POLICY.cards}</Text>
-              <Text style={styles.limitLabel}>Tarjetas sociales</Text>
+              <Text style={styles.limitLabel}>{tr('Tarjetas sociales', 'Social cards')}</Text>
             </View>
             <View style={styles.limitBox}>
               <MaterialCommunityIcons name="database" size={20} color="#0D4D8A" />
               <Text style={styles.limitValue}>{FREE_TIER_POLICY.vaultItems}</Text>
-              <Text style={styles.limitLabel}>Items en Búnker</Text>
+              <Text style={styles.limitLabel}>{tr('Items en Búnker', 'Bunker items')}</Text>
             </View>
           </View>
         </View>
@@ -184,13 +227,13 @@ export default function AdminConfigScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <MaterialCommunityIcons name="bullhorn" size={16} color="#E67E22" />
-            <Text style={styles.cardTitle}>Mensaje de Broadcast</Text>
+            <Text style={styles.cardTitle}>{tr('Mensaje de Broadcast', 'Broadcast message')}</Text>
           </View>
           <Text style={styles.cardNote}>
-            Aparecerá como banner en la app para todos los usuarios activos.
+            {tr('Aparecerá como banner en la app para todos los usuarios activos.', 'Shown as a banner in the app for all active users.')}
           </Text>
           <View style={styles.activeRow}>
-            <Text style={styles.activeLabel}>Mostrar mensaje</Text>
+            <Text style={styles.activeLabel}>{tr('Mostrar mensaje', 'Show message')}</Text>
             <Switch
               value={broadcastActive}
               onValueChange={(v) => setBroadcastActive(v)}
@@ -202,7 +245,7 @@ export default function AdminConfigScreen() {
             style={[styles.textInput, !broadcastActive && styles.textInputDisabled]}
             value={broadcastMsg}
             onChangeText={setBroadcastMsg}
-            placeholder="Ej: Mantenimiento programado el viernes..."
+            placeholder={tr('Ej: Mantenimiento programado el viernes...', 'E.g. Scheduled maintenance Friday...')}
             placeholderTextColor="#BBB"
             multiline
             numberOfLines={3}
@@ -217,7 +260,7 @@ export default function AdminConfigScreen() {
           >
             {saving
               ? <ActivityIndicator size="small" color="#FFF" />
-              : <Text style={styles.saveBtnText}>Guardar Broadcast</Text>
+              : <Text style={styles.saveBtnText}>{tr('Guardar Broadcast', 'Save broadcast')}</Text>
             }
           </TouchableOpacity>
         </View>
@@ -226,9 +269,11 @@ export default function AdminConfigScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <MaterialCommunityIcons name="toggle-switch" size={16} color="#9B59B6" />
-            <Text style={styles.cardTitle}>Feature Flags</Text>
+            <Text style={styles.cardTitle}>{tr('Feature Flags', 'Feature flags')}</Text>
           </View>
-          <Text style={styles.cardNote}>Los cambios se aplican en tiempo real sin redeploy.</Text>
+          <Text style={styles.cardNote}>
+            {tr('Los cambios se aplican en tiempo real sin redeploy.', 'Changes apply in real time without redeploy.')}
+          </Text>
           {FLAG_CONFIG.map(flag => (
             <View key={flag.key} style={[styles.flagRow, flag.danger && styles.flagRowDanger]}>
               <View style={[styles.flagIcon, flag.danger && styles.flagIconDanger]}>
@@ -252,20 +297,23 @@ export default function AdminConfigScreen() {
         <View style={[styles.card, styles.dangerCard]}>
           <View style={styles.cardHeader}>
             <MaterialCommunityIcons name="alert-octagon" size={16} color="#E74C3C" />
-            <Text style={[styles.cardTitle, { color: '#E74C3C' }]}>Zona de Peligro</Text>
+            <Text style={[styles.cardTitle, { color: '#E74C3C' }]}>{tr('Zona de Peligro', 'Danger zone')}</Text>
           </View>
           <Text style={styles.dangerNote}>
-            Las siguientes acciones son irreversibles. Para operaciones destructivas usa la consola de Firebase directamente.
+            {tr(
+              'Las siguientes acciones son irreversibles. Para operaciones destructivas usa la consola de Firebase directamente.',
+              'The following actions are irreversible. For destructive operations use the Firebase console directly.',
+            )}
           </Text>
           <View style={styles.dangerLinks}>
             {[
-              { label: 'Consola Firebase', icon: 'firebase' },
-              { label: 'Azure Portal', icon: 'microsoft-azure' },
-              { label: 'Expo Dashboard', icon: 'cellphone-arrow-down' },
+              { es: 'Consola Firebase', en: 'Firebase Console', icon: 'firebase' as const },
+              { es: 'Azure Portal', en: 'Azure Portal', icon: 'microsoft-azure' as const },
+              { es: 'Expo Dashboard', en: 'Expo Dashboard', icon: 'cellphone-arrow-down' as const },
             ].map(link => (
-              <View key={link.label} style={styles.dangerLink}>
+              <View key={link.en} style={styles.dangerLink}>
                 <MaterialCommunityIcons name={link.icon as any} size={16} color="#E74C3C" />
-                <Text style={styles.dangerLinkText}>{link.label}</Text>
+                <Text style={styles.dangerLinkText}>{tr(link.es, link.en)}</Text>
                 <MaterialCommunityIcons name="open-in-new" size={13} color="#E74C3C" />
               </View>
             ))}

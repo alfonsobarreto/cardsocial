@@ -12,6 +12,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ConfettiAnimation, ConfettiAnimationRef } from '@/components/ConfettiAnimation';
+import { trEsEn, useLanguage } from '@/services/language';
 
 export interface LimitReachedModalProps {
   visible: boolean;
@@ -30,6 +31,8 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
   onClose,
   onUpgradePress,
 }) => {
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const modalFooterBottomPad = useModalFooterBottomPad();
   const confettiRef = useRef<ConfettiAnimationRef>(null);
 
@@ -42,16 +45,17 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
     }
   }, [visible]);
 
-  const getTitle = () => {
-    return limitType === 'cards' ? 'Tarjetas Llenas' : 'Bóveda Llena';
-  };
-
   const getDescription = () => {
     if (limitType === 'cards') {
-      return `Has alcanzado el límite de ${maxLimit} tarjetas en tu cuenta gratuita.`;
-    } else {
-      return `Has alcanzado el límite de ${maxLimit} datos en tu Bóveda.`;
+      return tr(
+        `Has alcanzado el límite de ${maxLimit} tarjetas en tu cuenta gratuita.`,
+        `You have reached the limit of ${maxLimit} cards on your free account.`,
+      );
     }
+    return tr(
+      `Has alcanzado el límite de ${maxLimit} datos en tu Bóveda.`,
+      `You have reached the limit of ${maxLimit} items in your Vault.`,
+    );
   };
 
   const getIconName = () => {
@@ -61,19 +65,18 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
   const getPremiumBenefits = () => {
     if (limitType === 'cards') {
       return [
-        '✓ Tarjetas ilimitadas',
-        '✓ 100 Créditos CS de bienvenida',
-        '✓ Historias VIP por 7 días',
-        '✓ Protección Premium',
-      ];
-    } else {
-      return [
-        '✓ Datos ilimitados',
-        '✓ 100 Créditos CS de bienvenida',
-        '✓ Historias VIP por 7 días',
-        '✓ Protección Premium',
+        tr('✓ Tarjetas ilimitadas', '✓ Unlimited cards'),
+        tr('✓ 100 créditos CS de bienvenida', '✓ 100 welcome CS credits'),
+        tr('✓ Historias VIP por 7 días', '✓ VIP stories for 7 days'),
+        tr('✓ Protección Premium', '✓ Premium protection'),
       ];
     }
+    return [
+      tr('✓ Datos ilimitados', '✓ Unlimited data'),
+      tr('✓ 100 créditos CS de bienvenida', '✓ 100 welcome CS credits'),
+      tr('✓ Historias VIP por 7 días', '✓ VIP stories for 7 days'),
+      tr('✓ Protección Premium', '✓ Premium protection'),
+    ];
   };
 
   return (
@@ -109,13 +112,13 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
               </View>
 
               {/* Title */}
-              <Text style={styles.title}>¡Búnker al Límite!</Text>
+              <Text style={styles.title}>{tr('¡Búnker al límite!', 'Vault at the limit!')}</Text>
 
               {/* Progress Bar */}
               <View style={styles.progressContainer}>
                 <View style={styles.progressLabel}>
                   <Text style={styles.progressText}>
-                    {currentCount} de {maxLimit}
+                    {currentCount} {tr('de', 'of')} {maxLimit}
                   </Text>
                 </View>
                 <View style={styles.progressBarOuter}>
@@ -142,13 +145,15 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
                   style={{ marginRight: 8 }}
                 />
                 <Text style={styles.messageText}>
-                  Activa tu suscripción para obtener tarjetas ilimitadas, 100 créditos CS y
-                  protección total.
+                  {tr(
+                    'Activa tu suscripción para obtener tarjetas ilimitadas, 100 créditos CS y protección total.',
+                    'Activate your subscription for unlimited cards, 100 CS credits, and full protection.',
+                  )}
                 </Text>
               </View>
 
               {/* Premium Benefits */}
-              <Text style={styles.benefitsTitle}>Ventajas Premium:</Text>
+              <Text style={styles.benefitsTitle}>{tr('Ventajas Premium:', 'Premium benefits:')}</Text>
               <View style={styles.benefitsList}>
                 {getPremiumBenefits().map((benefit, idx) => (
                   <Text key={idx} style={styles.benefitItem}>
@@ -159,8 +164,10 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
 
               {/* Price Tag */}
               <View style={styles.priceContainer}>
-                <Text style={styles.priceText}>$4.99 USD / mes</Text>
-                <Text style={styles.subtext}>30 días de prueba sin cobro</Text>
+                <Text style={styles.priceText}>{tr('$4.99 USD / mes', '$4.99 USD / month')}</Text>
+                <Text style={styles.subtext}>
+                  {tr('30 días de prueba sin cobro', '30-day free trial')}
+                </Text>
               </View>
             </ScrollView>
 
@@ -170,7 +177,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
                 style={[styles.button, styles.cancelButton]}
                 onPress={onClose}
               >
-                <Text style={styles.cancelButtonText}>Más Tarde</Text>
+                <Text style={styles.cancelButtonText}>{tr('Más tarde', 'Maybe later')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -178,7 +185,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
                 onPress={onUpgradePress}
               >
                 <MaterialCommunityIcons name="crown" size={18} color="#0A2540" />
-                <Text style={styles.upgradeButtonText}>Activar Premium</Text>
+                <Text style={styles.upgradeButtonText}>{tr('Activar Premium', 'Activate Premium')}</Text>
               </TouchableOpacity>
             </View>
           </LinearGradient>

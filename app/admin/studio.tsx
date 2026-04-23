@@ -6,7 +6,7 @@ import { isSuperAdmin } from '@/services/roleService';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     ScrollView,
@@ -16,10 +16,13 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { trEsEn, useLanguage } from '@/services/language';
 
 type StudioTab = 'icons' | 'wallpapers' | 'fonts';
 
 export default function AdminStudioScreen() {
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<StudioTab>('icons');
   const [loading, setLoading] = useState(true);
@@ -44,11 +47,14 @@ export default function AdminStudioScreen() {
     }
   };
 
-  const TABS: { key: StudioTab; label: string; icon: string }[] = [
-    { key: 'icons', label: 'Iconos 3D', icon: 'cube-outline' },
-    { key: 'wallpapers', label: 'Wallpapers', icon: 'image-multiple' },
-    { key: 'fonts', label: 'Fonts', icon: 'format-font' },
-  ];
+  const TABS: { key: StudioTab; label: string; icon: string }[] = useMemo(
+    () => [
+      { key: 'icons', label: tr('Iconos 3D', '3D icons'), icon: 'cube-outline' },
+      { key: 'wallpapers', label: 'Wallpapers', icon: 'image-multiple' },
+      { key: 'fonts', label: 'Fonts', icon: 'format-font' },
+    ],
+    [language],
+  );
 
   if (loading) {
     return <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#C5A065" /></View>;
@@ -64,7 +70,7 @@ export default function AdminStudioScreen() {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <MaterialCommunityIcons name="palette" size={18} color="#C5A065" />
-          <Text style={styles.headerTitle}>CARD-STUDIO</Text>
+          <Text style={styles.headerTitle}>{tr('CARD-STUDIO', 'CARD-STUDIO')}</Text>
         </View>
         <View style={{ width: 36 }} />
       </LinearGradient>
@@ -73,7 +79,10 @@ export default function AdminStudioScreen() {
       <View style={styles.infoBanner}>
         <MaterialCommunityIcons name="information-outline" size={14} color="#4A2080" />
         <Text style={styles.infoBannerText}>
-          Para themes y coleccionables completos usa cardsocial.me/admin (drag-drop + preview).
+          {tr(
+            'Para themes y coleccionables completos usa cardsocial.me/admin (arrastrar y soltar + vista previa).',
+            'For full themes and collectibles, use cardsocial.me/admin (drag-and-drop + preview).',
+          )}
         </Text>
       </View>
 

@@ -871,7 +871,7 @@ export default function CardStudioVault({
         style={styles.storeButtonGradient}
       >
         <MaterialCommunityIcons name="store" color={theme.selectedText} size={22} />
-        <Text style={[styles.storeButtonText, { color: theme.selectedText }]}>Card-Studio</Text>
+        <Text style={[styles.storeButtonText, { color: theme.selectedText }]}>{tr('Card-Studio', 'Card-Studio')}</Text>
         <MaterialCommunityIcons name="chevron-right" color={theme.selectedText} size={20} />
       </LinearGradient>
     </TouchableOpacity>
@@ -1012,7 +1012,7 @@ export default function CardStudioVault({
             <TouchableWithoutFeedback onPress={() => {}}>
               <View style={[styles.storeSheet, { backgroundColor: theme.storeSheetBg, borderColor: theme.border, paddingBottom: modalFooterBottomPad }]}>
                 <MaterialCommunityIcons name="store" color={theme.labelGold} size={48} />
-                <Text style={[styles.storeTitle, { color: theme.labelGold }]}>Card-Studio</Text>
+                <Text style={[styles.storeTitle, { color: theme.labelGold }]}>{tr('Card-Studio', 'Card-Studio')}</Text>
                 <Text style={[styles.storeSubtitle, { marginBottom: 8, color: theme.textPrimary }]}>
                   {tr(`Saldo: ${creditsBalance} CS`, `Balance: ${creditsBalance} CS`)}
                 </Text>

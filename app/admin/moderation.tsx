@@ -16,6 +16,7 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { trEsEn, useLanguage } from '@/services/language';
 
 type FilterTab = 'pending' | 'reviewed' | 'dismissed';
 
@@ -32,6 +33,8 @@ interface Report {
 }
 
 export default function AdminModerationScreen() {
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<FilterTab>('pending');
   const [reports, setReports] = useState<Report[]>([]);
@@ -72,15 +75,19 @@ export default function AdminModerationScreen() {
   const handleAction = (report: Report, action: 'reviewed' | 'dismissed' | 'ban') => {
     if (action === 'ban') {
       Alert.alert(
-        '⚠️ Banear Usuario',
-        `¿Estás seguro que deseas banear al usuario ${report.reportedUserId?.substring(0, 12)}...?`,
+        tr('⚠️ Banear usuario', '⚠️ Ban user'),
+        tr(
+          `¿Seguro que deseas banear al usuario ${report.reportedUserId?.substring(0, 12)}...?`,
+          `Are you sure you want to ban user ${report.reportedUserId?.substring(0, 12)}...?`,
+        ),
         [
-          { text: 'Cancelar', style: 'cancel' },
+          { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
           {
-            text: 'Banear', style: 'destructive',
+            text: tr('Banear', 'Ban'),
+            style: 'destructive',
             onPress: () => performBan(report),
           },
-        ]
+        ],
       );
     } else {
       performUpdate(report.id, action);
@@ -95,7 +102,7 @@ export default function AdminModerationScreen() {
       });
       setReports(prev => prev.map(r => r.id === reportId ? { ...r, status } : r));
     } catch (err) {
-      Alert.alert('Error', 'No se pudo actualizar el reporte.');
+      Alert.alert(tr('Error', 'Error'), tr('No se pudo actualizar el reporte.', 'Could not update the report.'));
     }
   };
 
@@ -109,18 +116,21 @@ export default function AdminModerationScreen() {
         });
       }
       await performUpdate(report.id, 'reviewed');
-      Alert.alert('✅ Usuario baneado correctamente.');
+      Alert.alert(
+        tr('✅ Usuario baneado correctamente', '✅ User banned successfully'),
+        tr('El usuario quedó baneado.', 'The user has been banned.'),
+      );
     } catch (err) {
-      Alert.alert('Error', 'No se pudo banear al usuario.');
+      Alert.alert(tr('Error', 'Error'), tr('No se pudo banear al usuario.', 'Could not ban the user.'));
     }
   };
 
-  const filtered = reports.filter(r => r.status === activeFilter);
+  const filtered = reports.filter((r) => r.status === activeFilter);
 
-  const FILTERS: { key: FilterTab; label: string; icon: string }[] = [
-    { key: 'pending', label: 'Pendientes', icon: 'clock-alert' },
-    { key: 'reviewed', label: 'Revisados', icon: 'check-circle' },
-    { key: 'dismissed', label: 'Desestimados', icon: 'close-circle' },
+  const filterTabs: { key: FilterTab; label: string; icon: string }[] = [
+    { key: 'pending', label: tr('Pendientes', 'Pending'), icon: 'clock-alert' },
+    { key: 'reviewed', label: tr('Revisados', 'Reviewed'), icon: 'check-circle' },
+    { key: 'dismissed', label: tr('Desestimados', 'Dismissed'), icon: 'close-circle' },
   ];
 
   const TYPE_COLORS: Record<string, string> = {
@@ -129,10 +139,11 @@ export default function AdminModerationScreen() {
     support: '#3498DB',
   };
 
-  const TYPE_LABELS: Record<string, string> = {
-    card: 'Tarjeta',
-    profile: 'Perfil',
-    support: 'Soporte',
+  const typeLabel = (t: string) => {
+    if (t === 'card') return tr('Tarjeta', 'Card');
+    if (t === 'profile') return tr('Perfil', 'Profile');
+    if (t === 'support') return tr('Soporte', 'Support');
+    return t;
   };
 
   if (loading) {
@@ -154,7 +165,7 @@ export default function AdminModerationScreen() {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <MaterialCommunityIcons name="shield-alert" size={18} color="#C5A065" />
-          <Text style={styles.headerTitle}>SOPORTE</Text>
+          <Text style={styles.headerTitle}>{tr('SOPORTE', 'SUPPORT')}</Text>
           {pendingCount > 0 && (
             <View style={styles.countBadge}>
               <Text style={styles.countBadgeText}>{pendingCount}</Text>
@@ -166,7 +177,7 @@ export default function AdminModerationScreen() {
 
       {/* FILTER TABS */}
       <View style={styles.tabBar}>
-        {FILTERS.map(f => (
+        {filterTabs.map((f) => (
           <TouchableOpacity
             key={f.key}
             style={[styles.tab, activeFilter === f.key && styles.tabActive]}
@@ -194,10 +205,16 @@ export default function AdminModerationScreen() {
           <View style={styles.emptyState}>
             <MaterialCommunityIcons name="shield-check" size={48} color="#27AE60" />
             <Text style={styles.emptyTitle}>
-              {activeFilter === 'pending' ? '¡Sin pendientes!' : `No hay reportes ${activeFilter === 'reviewed' ? 'revisados' : 'desestimados'}.`}
+              {activeFilter === 'pending'
+                ? tr('¡Sin pendientes!', 'All clear!')
+                : activeFilter === 'reviewed'
+                  ? tr('No hay reportes revisados.', 'No reviewed reports.')
+                  : tr('No hay reportes desestimados.', 'No dismissed reports.')}
             </Text>
             <Text style={styles.emptySubtitle}>
-              {activeFilter === 'pending' ? 'No hay denuncias esperando revisión.' : 'Los reportes aparecerán aquí.'}
+              {activeFilter === 'pending'
+                ? tr('No hay denuncias esperando revisión.', 'No reports waiting for review.')
+                : tr('Los reportes aparecerán aquí.', 'Reports will show up here.')}
             </Text>
           </View>
         ) : (
@@ -206,11 +223,15 @@ export default function AdminModerationScreen() {
               <View style={styles.reportHeader}>
                 <View style={[styles.typeBadge, { backgroundColor: (TYPE_COLORS[report.type] ?? '#999') + '20' }]}>
                   <Text style={[styles.typeText, { color: TYPE_COLORS[report.type] ?? '#999' }]}>
-                    {TYPE_LABELS[report.type] ?? report.type}
+                    {typeLabel(report.type)}
                   </Text>
                 </View>
                 <Text style={styles.reportDate}>
-                  {report.createdAt ? new Date(report.createdAt.toMillis()).toLocaleDateString('es') : 'Sin fecha'}
+                  {report.createdAt
+                    ? new Date(report.createdAt.toMillis()).toLocaleDateString(
+                        language === 'en' ? 'en' : language === 'pt' ? 'pt-BR' : language === 'fr' ? 'fr' : language === 'it' ? 'it' : 'es',
+                      )
+                    : tr('Sin fecha', 'No date')}
                 </Text>
               </View>
 
@@ -222,12 +243,14 @@ export default function AdminModerationScreen() {
               <View style={styles.reportMeta}>
                 {report.reportedUserId && (
                   <Text style={styles.reportMetaText}>
-                    Reportado: <Text style={styles.reportMetaValue}>{report.reportedUserId.substring(0, 14)}...</Text>
+                    {tr('Reportado:', 'Reported:')}{' '}
+                    <Text style={styles.reportMetaValue}>{report.reportedUserId.substring(0, 14)}...</Text>
                   </Text>
                 )}
                 {report.reporterUserId && (
                   <Text style={styles.reportMetaText}>
-                    Por: <Text style={styles.reportMetaValue}>{report.reporterUserId.substring(0, 14)}...</Text>
+                    {tr('Por:', 'By:')}{' '}
+                    <Text style={styles.reportMetaValue}>{report.reporterUserId.substring(0, 14)}...</Text>
                   </Text>
                 )}
               </View>
@@ -239,14 +262,14 @@ export default function AdminModerationScreen() {
                     onPress={() => handleAction(report, 'dismissed')}
                   >
                     <MaterialCommunityIcons name="close" size={14} color="#777" />
-                    <Text style={styles.dismissBtnText}>Desestimar</Text>
+                    <Text style={styles.dismissBtnText}>{tr('Desestimar', 'Dismiss')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.actionBtn, styles.reviewBtn]}
                     onPress={() => handleAction(report, 'reviewed')}
                   >
                     <MaterialCommunityIcons name="check" size={14} color="#27AE60" />
-                    <Text style={styles.reviewBtnText}>Marcar Revisado</Text>
+                    <Text style={styles.reviewBtnText}>{tr('Marcar revisado', 'Mark reviewed')}</Text>
                   </TouchableOpacity>
                   {report.reportedUserId && (
                     <TouchableOpacity
@@ -254,7 +277,7 @@ export default function AdminModerationScreen() {
                       onPress={() => handleAction(report, 'ban')}
                     >
                       <MaterialCommunityIcons name="account-cancel" size={14} color="#FFF" />
-                      <Text style={styles.banBtnText}>Banear</Text>
+                      <Text style={styles.banBtnText}>{tr('Banear', 'Ban')}</Text>
                     </TouchableOpacity>
                   )}
                 </View>

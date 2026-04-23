@@ -41,6 +41,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -271,7 +272,8 @@ export default function CreateBusinessCardScreen() {
   const routeBId = typeof params.bId === 'string' ? params.bId : params.bId?.[0] || '';
   const safeInsets = useSafeAreaInsets();
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  /** Estable: si no, el efecto de carga (deps incluían `tr`) se re-ejecutaba cada render, cancelaba el fetch y el `finally` no ponía `loadingExistingCard` en false. */
+  const tr = useCallback((es: string, en: string) => trEsEn(es, en, language), [language]);
   const modalFooterBottomPad = useModalFooterBottomPad();
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
@@ -329,9 +331,40 @@ export default function CreateBusinessCardScreen() {
   const prevLoadingExistingRef = useRef<boolean | null>(null);
   const handleCreateRef = useRef<() => Promise<void>>(async () => {});
 
-  const loadLinks = useCallback(async () => {
+  /**
+   * El borrador de negocio vive en estado React; no hay otra caché. Si el servidor ya no tiene la
+   * tarjeta, hay que vaciar el formulario o seguirían mostrándose el último nombre, datos, iconos, etc.
+   */
+  const resetBusinessCardFormForNewCreation = useCallback((uidForPreview: string) => {
+    setCreatedBId(null);
+    setUidState(uidForPreview);
+    setBcName('');
+    setBcContactName('');
+    setKeywordTags([]);
+    setBusinessThemeId(DEFAULT_BIZ_THEME_ID);
+    setSelectedVaultLinkIds(new Set());
+    setTempVaultLinkIds([]);
+    setLatitude(null);
+    setLongitude(null);
+    setResolvedAddressLabel('');
+    setAddressSearchQuery('');
+    setLocationCoordSource(null);
+    setBcLogoUrl(null);
+    setBcLogo(null);
+    setBusinessTermsAccepted(false);
+    setSubscriptionStatus(null);
+    setMarketVisible(false);
+    setLicenseActive(false);
+    setGeocodeCandidates([]);
+    setGeocodeLabels([]);
+    setGeocodingInProgress(false);
+    setVaultSelectorVisible(false);
+    setVaultSelectorLimitReached(false);
+  }, []);
+
+  const loadLinks = useCallback(async (): Promise<VaultLinkRow[] | null> => {
     const uid = await getActiveUserId();
-    if (!uid) return;
+    if (!uid) return null;
     setUidState(uid);
     try {
       const vaultMap = await getUserIconVaultMap(uid);
@@ -346,29 +379,26 @@ export default function CreateBusinessCardScreen() {
         setProfileFullName('');
       }
       const snap = await getDocs(collection(db, 'users', uid, 'links'));
-      setLinks(
-        snap.docs.map((d) => {
-          const row = d.data() as Record<string, unknown>;
-          return {
-            id: d.id,
-            title: row.title != null ? String(row.title) : d.id,
-            type: row.type != null ? String(row.type) : '',
-            iconName: row.iconName != null ? String(row.iconName) : 'link-variant',
-            icon: row.icon != null ? String(row.icon) : undefined,
-            iconVaultId: row.iconVaultId != null ? String(row.iconVaultId) : undefined,
-          };
-        }),
-      );
+      const next: VaultLinkRow[] = snap.docs.map((d) => {
+        const row = d.data() as Record<string, unknown>;
+        return {
+          id: d.id,
+          title: row.title != null ? String(row.title) : d.id,
+          type: row.type != null ? String(row.type) : '',
+          iconName: row.iconName != null ? String(row.iconName) : 'link-variant',
+          icon: row.icon != null ? String(row.icon) : undefined,
+          iconVaultId: row.iconVaultId != null ? String(row.iconVaultId) : undefined,
+        };
+      });
+      setLinks(next);
+      return next;
     } catch {
       setLinks([]);
       setIconVaultById({});
       setProfileFullName('');
+      return null;
     }
   }, []);
-
-  useEffect(() => {
-    void loadLinks();
-  }, [loadLinks]);
 
   const refreshCreatedCardMeta = useCallback(async () => {
     if (!createdBId) return;
@@ -396,7 +426,11 @@ export default function CreateBusinessCardScreen() {
   }, [refreshCreatedCardMeta]);
 
   useEffect(() => {
-    if (!routeBId) return;
+    const bId = String(routeBId || '').trim();
+    if (!bId) {
+      setLoadingExistingCard(false);
+      return;
+    }
     let cancelled = false;
     setLoadingExistingCard(true);
     void (async () => {
@@ -408,32 +442,24 @@ export default function CreateBusinessCardScreen() {
       try {
         let card: BusinessCardDoc | null = null;
         try {
-          card = await getBusinessCard(uid, routeBId);
+          card = await getBusinessCard(uid, bId);
         } catch {
           card = null;
         }
         if (cancelled) return;
         if (!card) {
           try {
-            await AsyncStorage.removeItem(`@smartcard_${routeBId}`);
+            await AsyncStorage.removeItem(`@smartcard_${bId}`);
           } catch {
             /* ignore */
           }
-          setCreatedBId(null);
-          setUidState(null);
-          setBcName('');
-          setBcContactName('');
-          setKeywordTags([]);
-          setBusinessThemeId(DEFAULT_BIZ_THEME_ID);
-          setSelectedVaultLinkIds(new Set());
-          setLatitude(null);
-          setLongitude(null);
-          setResolvedAddressLabel('');
-          setLocationCoordSource(null);
-          setBcLogoUrl(null);
-          setBcLogo(null);
-          setBusinessTermsAccepted(false);
-          setSubscriptionStatus(null);
+          resetBusinessCardFormForNewCreation(uid);
+          // Quitar ?bId= de la ruta: si no, `routeBId` seguía activo y el guardado hacía PATCH a un bId borrado.
+          try {
+            router.replace('/(tabs)/createBusinessCard' as any);
+          } catch {
+            /* ignore */
+          }
           Alert.alert(
             tr('Tarjeta no encontrada', 'Card not found'),
             tr(
@@ -445,7 +471,7 @@ export default function CreateBusinessCardScreen() {
           return;
         }
         if (cancelled) return;
-        setCreatedBId(routeBId);
+        setCreatedBId(bId);
         setUidState(uid);
         setBcName(card.bcName || '');
         setBcContactName(card.bcContactName || '');
@@ -475,15 +501,19 @@ export default function CreateBusinessCardScreen() {
     return () => {
       cancelled = true;
     };
-  }, [routeBId]);
+  }, [routeBId, resetBusinessCardFormForNewCreation, router, tr]);
 
   const editingBId = routeBId || createdBId;
 
   const openVaultLinkSelector = () => {
-    const valid = [...selectedVaultLinkIds].filter((id) => links.some((l) => l.id === id));
-    setTempVaultLinkIds(valid);
     setVaultSelectorLimitReached(false);
-    setVaultSelectorVisible(true);
+    void (async () => {
+      const fresh = await loadLinks();
+      const pool = fresh ?? links;
+      const valid = [...selectedVaultLinkIds].filter((id) => pool.some((l) => l.id === id));
+      setTempVaultLinkIds(valid);
+      setVaultSelectorVisible(true);
+    })();
   };
 
   const toggleVaultLinkInSelector = (itemId: string) => {
@@ -618,6 +648,67 @@ export default function CreateBusinessCardScreen() {
   const goToCardsTab = useCallback(() => {
     router.navigate('/(tabs)/cards' as any);
   }, [router]);
+
+  /**
+   * Tras eliminar la tarjeta en "Tarjetas", el estado local podía seguir con `createdBId` (POST no
+   * añade ?bId= en la URL). Sin esto, Guardar hacía PATCH a un bId borrado → 404.
+   */
+  const reconcileIfCardNoLongerOnServer = useCallback(async () => {
+    if (loadingExistingCard) return;
+    const id = String(routeBId || createdBId || '').trim();
+    if (!id) return;
+    const uid = await getActiveUserId();
+    if (!uid) return;
+    let card: BusinessCardDoc | null = null;
+    try {
+      card = await getBusinessCard(uid, id);
+    } catch {
+      return;
+    }
+    if (card) return;
+    try {
+      await AsyncStorage.removeItem(`@smartcard_${id}`);
+    } catch {
+      /* ignore */
+    }
+    if (routeBId) {
+      try {
+        router.replace('/(tabs)/createBusinessCard' as any);
+      } catch {
+        /* ignore */
+      }
+    }
+    resetBusinessCardFormForNewCreation(uid);
+    setTimeout(() => {
+      formBaselineRef.current = computeFormSnapshot();
+    }, 0);
+    Toast.show({
+      type: 'info',
+      text1: tr('Formulario vaciado', 'Form cleared'),
+      text2: tr(
+        'Esa tarjeta ya no existe. Completa los datos de una nueva tarjeta.',
+        'That card no longer exists. Enter details for a new business card.',
+      ),
+      position: 'bottom',
+      visibilityTime: 5000,
+    });
+  }, [
+    loadingExistingCard,
+    routeBId,
+    createdBId,
+    router,
+    tr,
+    computeFormSnapshot,
+    resetBusinessCardFormForNewCreation,
+  ]);
+
+  // Bóveda al volver + comprobar que el bId siga existiendo (p. ej. eliminaste la tarjeta en otra pestaña).
+  useFocusEffect(
+    useCallback(() => {
+      void loadLinks();
+      void reconcileIfCardNoLongerOnServer();
+    }, [loadLinks, reconcileIfCardNoLongerOnServer]),
+  );
 
   useEffect(() => {
     if (loadingExistingCard) {
@@ -864,6 +955,40 @@ export default function CreateBusinessCardScreen() {
 
     setSubmitting(true);
     try {
+      const idFromState = String(editingBId || '').trim() || null;
+      if (idFromState) {
+        const stillThere = await getBusinessCard(uid, idFromState);
+        if (!stillThere) {
+          try {
+            await AsyncStorage.removeItem(`@smartcard_${idFromState}`);
+          } catch {
+            /* ignore */
+          }
+          if (routeBId) {
+            try {
+              router.replace('/(tabs)/createBusinessCard' as any);
+            } catch {
+              /* ignore */
+            }
+          }
+          resetBusinessCardFormForNewCreation(uid);
+          setTimeout(() => {
+            formBaselineRef.current = computeFormSnapshot();
+          }, 0);
+          Toast.show({
+            type: 'info',
+            text1: tr('Formulario vaciado', 'Form cleared'),
+            text2: tr(
+              'Esa tarjeta ya no existe. Completa los datos y guarda de nuevo.',
+              'That card no longer exists. Fill the form again and save.',
+            ),
+            position: 'bottom',
+            visibilityTime: 5000,
+          });
+          return;
+        }
+      }
+
       console.log('[BusinessCard] handleCreate: resolviendo logo…');
       const resolvedLogo = await resolveLogoForSave(uid);
       const resolvedBcLogoUrl = resolvedLogo ?? '';
@@ -877,8 +1002,8 @@ export default function CreateBusinessCardScreen() {
         buildPublicCardSlots(uid, vaultIds),
       ]);
 
-      if (editingBId) {
-        await updateBusinessCard(uid, editingBId, {
+      if (idFromState) {
+        await updateBusinessCard(uid, idFromState, {
           bcName: bcName.trim(),
           bcContactName: bcContactName.trim(),
           bcLogoUrl: resolvedBcLogoUrl || null,
@@ -972,7 +1097,10 @@ export default function CreateBusinessCardScreen() {
         void refreshCreatedCardMeta();
       }
     } catch (e: any) {
-      Alert.alert(tr('Error', 'Error'), e?.message || '');
+      Alert.alert(
+        tr('Error', 'Error'),
+        (e as Error)?.message?.trim() ? String((e as Error).message) : tr('Inténtalo de nuevo.', 'Please try again.'),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -1044,7 +1172,11 @@ export default function CreateBusinessCardScreen() {
           subscriptionExpiresAt: Number.isFinite(expMs) ? new Date(expMs).toISOString() : null,
         });
       } catch (e) {
-        Alert.alert(tr('Error', 'Error'), (e as Error)?.message || '');
+        const msg = (e as Error)?.message?.trim();
+        Alert.alert(
+          tr('Error', 'Error'),
+          msg ? String(msg) : tr('Inténtalo de nuevo.', 'Please try again.'),
+        );
         return;
       }
       setSubscriptionStatus('active');
@@ -1097,7 +1229,11 @@ export default function CreateBusinessCardScreen() {
       await updateBusinessCard(uid, createdBId, { isPublishedToMarket: value });
       setMarketVisible(value);
     } catch (e) {
-      Alert.alert(tr('Error', 'Error'), (e as Error)?.message || '');
+      const msg = (e as Error)?.message?.trim();
+      Alert.alert(
+        tr('Error', 'Error'),
+        msg ? String(msg) : tr('Inténtalo de nuevo.', 'Please try again.'),
+      );
     }
   };
 

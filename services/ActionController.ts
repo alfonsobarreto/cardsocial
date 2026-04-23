@@ -10,6 +10,7 @@ import {
 import { db } from '@/services/firebaseConfig';
 import type { IssuerSnapshotPayload } from '@/services/qrApi';
 import { readUserFullName } from '@/services/userIdentityFields';
+import { trAction } from '@/services/language';
 import { doc, getDoc } from 'firebase/firestore';
 import { Linking, Platform } from 'react-native';
 import Toast from 'react-native-toast-message';
@@ -34,36 +35,50 @@ export const ActionController = {
     const raw = String(value || '').trim();
     if (!raw) {
       presentPremiumDataPanel({
-        title: 'Enlace inválido',
-        body: 'No hay URL para abrir.',
+        title: trAction('Enlace inválido', 'Invalid link'),
+        body: trAction('No hay URL para abrir.', 'No URL to open.'),
         icon: 'link-variant',
-        actions: [{ label: 'Cerrar', variant: 'secondary', onPress: dismissPremiumDataPanel }],
+        actions: [
+          { label: trAction('Cerrar', 'Close'), variant: 'secondary', onPress: dismissPremiumDataPanel },
+        ],
       });
       return;
     }
     const url = encodeURI(raw);
+    // Paridad con /u y /b en el navegador: abrir en pestaña sin panel intermedio.
+    if (Platform.OS === 'web' && typeof globalThis !== 'undefined') {
+      const w = globalThis as unknown as { open?: (u: string, t: string, f: string) => void };
+      if (typeof w.open === 'function') {
+        try {
+          w.open(url, '_blank', 'noopener,noreferrer');
+        } catch {
+          void Linking.openURL(url).catch(() => Toast.show({ type: 'error', text1: trAction('Error', 'Error'), text2: trAction('No se pudo abrir el enlace.', 'Could not open the link.') }));
+        }
+        return;
+      }
+    }
     const displayUrl = url.length > 42 ? `${url.slice(0, 39)}...` : url;
     presentPremiumDataPanel({
-      title: title || 'Abrir enlace',
+      title: title || trAction('Abrir enlace', 'Open link'),
       body: displayUrl,
       icon: 'link-variant',
       copyText: url,
       actions: [
         {
-          label: 'Abrir',
+          label: trAction('Abrir', 'Open'),
           variant: 'primary',
           onPress: () => {
             dismissPremiumDataPanel();
             void Linking.openURL(url).catch(() =>
               Toast.show({
                 type: 'error',
-                text1: 'Error',
-                text2: 'No se pudo abrir el enlace.',
+                text1: trAction('Error', 'Error'),
+                text2: trAction('No se pudo abrir el enlace.', 'Could not open the link.'),
               }),
             );
           },
         },
-        { label: 'Cancelar', variant: 'secondary', onPress: dismissPremiumDataPanel },
+        { label: trAction('Cancelar', 'Cancel'), variant: 'secondary', onPress: dismissPremiumDataPanel },
       ],
     });
   },
@@ -79,10 +94,12 @@ export const ActionController = {
     const email = String(value || '').trim();
     if (!email) {
       presentPremiumDataPanel({
-        title: 'Correo inválido',
-        body: 'No hay un correo válido para abrir.',
+        title: trAction('Correo inválido', 'Invalid email'),
+        body: trAction('No hay un correo válido para abrir.', 'No valid email to open.'),
         icon: 'email-outline',
-        actions: [{ label: 'Cerrar', variant: 'secondary', onPress: dismissPremiumDataPanel }],
+        actions: [
+          { label: trAction('Cerrar', 'Close'), variant: 'secondary', onPress: dismissPremiumDataPanel },
+        ],
       });
       return;
     }
@@ -95,8 +112,8 @@ export const ActionController = {
       await Linking.openURL(mailto).catch(() =>
         Toast.show({
           type: 'error',
-          text1: 'Error',
-          text2: 'No se pudo abrir la app de correo.',
+          text1: trAction('Error', 'Error'),
+          text2: trAction('No se pudo abrir la app de correo.', 'Could not open the mail app.'),
         }),
       );
       return;
@@ -124,11 +141,15 @@ export const ActionController = {
     // Apple Mail: siempre disponible en iOS vía mailto:.
     rows.push({
       key: 'apple-mail',
-      label: 'Apple Mail',
+      label: trAction('Apple Mail', 'Apple Mail'),
       onPress: () => {
         dismissPremiumDataPanel();
         void Linking.openURL(mailto).catch(() =>
-          Toast.show({ type: 'error', text1: 'Error', text2: 'No se pudo abrir Apple Mail.' }),
+          Toast.show({
+            type: 'error',
+            text1: trAction('Error', 'Error'),
+            text2: trAction('No se pudo abrir Apple Mail.', 'Could not open Apple Mail.'),
+          }),
         );
       },
     });
@@ -141,7 +162,11 @@ export const ActionController = {
           dismissPremiumDataPanel();
           void Linking.openURL(client.url).catch(() =>
             void Linking.openURL(mailto).catch(() =>
-              Toast.show({ type: 'error', text1: 'Error', text2: 'No se pudo abrir el correo.' }),
+              Toast.show({
+                type: 'error',
+                text1: trAction('Error', 'Error'),
+                text2: trAction('No se pudo abrir el correo.', 'Could not open email.'),
+              }),
             ),
           );
         },
@@ -150,12 +175,12 @@ export const ActionController = {
 
     rows.push({
       key: 'cancel',
-      label: 'Cancelar',
+      label: trAction('Cancelar', 'Cancel'),
       onPress: () => dismissPremiumDataPanel(),
     });
 
     presentPremiumDataPanel({
-      title: 'Selecciona app de correo',
+      title: trAction('Selecciona app de correo', 'Choose mail app'),
       email,
       icon: 'email-outline',
       copyText: email,
@@ -180,10 +205,12 @@ export const ActionController = {
     const tel = normalizeTelDialString(value);
     if (!tel) {
       presentPremiumDataPanel({
-        title: 'Teléfono inválido',
-        body: 'No es un número válido para marcar.',
+        title: trAction('Teléfono inválido', 'Invalid phone'),
+        body: trAction('No es un número válido para marcar.', 'Not a valid number to dial.'),
         icon: 'phone-alert',
-        actions: [{ label: 'Cerrar', variant: 'secondary', onPress: dismissPremiumDataPanel }],
+        actions: [
+          { label: trAction('Cerrar', 'Close'), variant: 'secondary', onPress: dismissPremiumDataPanel },
+        ],
       });
       return;
     }
@@ -193,8 +220,8 @@ export const ActionController = {
     } catch {
       Toast.show({
         type: 'error',
-        text1: 'Error',
-        text2: 'No se pudo abrir el marcador del sistema.',
+        text1: trAction('Error', 'Error'),
+        text2: trAction('No se pudo abrir el marcador del sistema.', 'Could not open the phone app.'),
       });
     }
   },
@@ -248,10 +275,15 @@ export const ActionController = {
 
     if (!normalizedTargetUid) {
       presentPremiumDataPanel({
-        title: 'Ghost-Link',
-        body: 'No se puede iniciar la llamada: falta el identificador del titular de la tarjeta.',
+        title: trAction('Ghost-Link', 'Ghost-Link'),
+        body: trAction(
+          'No se puede iniciar la llamada: falta el identificador del titular de la tarjeta.',
+          'Call cannot start: the card owner identifier is missing.',
+        ),
         icon: 'shield-lock-outline',
-        actions: [{ label: 'Entendido', variant: 'secondary', onPress: dismissPremiumDataPanel }],
+        actions: [
+          { label: trAction('Entendido', 'OK'), variant: 'secondary', onPress: dismissPremiumDataPanel },
+        ],
       });
       return;
     }
@@ -259,20 +291,27 @@ export const ActionController = {
     const sessionUid = await getActiveUserId();
     if (!sessionUid) {
       presentPremiumDataPanel({
-        title: 'Sesión requerida',
-        body: 'Inicia sesión para usar Ghost-Link.',
+        title: trAction('Sesión requerida', 'Sign in required'),
+        body: trAction('Inicia sesión para usar Ghost-Link.', 'Sign in to use Ghost-Link.'),
         icon: 'account-lock-outline',
-        actions: [{ label: 'Cerrar', variant: 'secondary', onPress: dismissPremiumDataPanel }],
+        actions: [
+          { label: trAction('Cerrar', 'Close'), variant: 'secondary', onPress: dismissPremiumDataPanel },
+        ],
       });
       return;
     }
 
     if (sessionUid === normalizedTargetUid) {
       presentPremiumDataPanel({
-        title: 'Vista previa',
-        body: 'Al compartir tu tarjeta, tus contactos podrán llamarte por Ghost-Link desde la app. Aquí no se inicia una llamada contigo mismo.',
+        title: trAction('Vista previa', 'Preview'),
+        body: trAction(
+          'Al compartir tu tarjeta, tus contactos podrán llamarte por Ghost-Link desde la app. Aquí no se inicia una llamada contigo mismo.',
+          'When you share your card, contacts can call you via Ghost-Link from the app. You cannot start a call with yourself here.',
+        ),
         icon: 'eye-outline',
-        actions: [{ label: 'Cerrar', variant: 'secondary', onPress: dismissPremiumDataPanel }],
+        actions: [
+          { label: trAction('Cerrar', 'Close'), variant: 'secondary', onPress: dismissPremiumDataPanel },
+        ],
       });
       return;
     }
@@ -396,11 +435,14 @@ export const ActionController = {
   async ActionText({ value, title }: { value: string; title?: string }) {
     const text = String(value || '');
     presentPremiumDataPanel({
-      title: title || 'Texto',
+      presentation: 'sovereign-text',
+      title: title || trAction('Texto', 'Text'),
       body: text || '—',
       icon: 'text-box-outline',
       copyText: text,
-      actions: [{ label: 'Cerrar', variant: 'secondary', onPress: dismissPremiumDataPanel }],
+      actions: [
+        { label: trAction('Cerrar', 'Close'), variant: 'secondary', onPress: dismissPremiumDataPanel },
+      ],
     });
   },
 
@@ -434,19 +476,21 @@ export const ActionController = {
       } catch {
         Toast.show({
           type: 'error',
-          text1: 'Documento',
-          text2: 'No se pudo abrir el documento.',
+          text1: trAction('Documento', 'Document'),
+          text2: trAction('No se pudo abrir el documento.', 'Could not open the document.'),
         });
       }
       return;
     }
 
     presentPremiumDataPanel({
-      title: 'Documento',
-      body: url || 'No hay documento disponible.',
+      title: trAction('Documento', 'Document'),
+      body: url || trAction('No hay documento disponible.', 'No document available.'),
       icon: 'file-document-outline',
       copyText: url || undefined,
-      actions: [{ label: 'Cerrar', variant: 'secondary', onPress: dismissPremiumDataPanel }],
+      actions: [
+        { label: trAction('Cerrar', 'Close'), variant: 'secondary', onPress: dismissPremiumDataPanel },
+      ],
     });
   },
 

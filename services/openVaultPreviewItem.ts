@@ -1,10 +1,8 @@
 import { InteractionManager, Platform } from 'react-native';
 import { ActionController } from '@/services/ActionController';
 import type { MirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
-import {
-  ensureWebUrl,
-  getMirrorVaultOpenPlan,
-} from '@/services/mirrorVaultItemOpenPlan';
+import { buildLinkOpenCandidates, getMirrorVaultOpenPlan } from '@/services/mirrorVaultItemOpenPlan';
+import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
 import type { IssuerSnapshotPayload } from '@/services/qrApi';
 
 export { ensureWebUrl } from '@/services/mirrorVaultItemOpenPlan';
@@ -63,6 +61,38 @@ export async function openVaultPreviewItem(item: MirrorVaultItem, deps: OpenVaul
       sourceCardName: deps.sourceCardName,
     },
   );
+
+  // Navegador (Expo web / RN Web): documentos y enlaces en nueva pestaña, sin modales
+  // (misma idea que `frontend-web` `runPublicWebSlotAction` en /u y /b).
+  if (Platform.OS === 'web' && typeof globalThis !== 'undefined') {
+    const w = globalThis as unknown as { open?: (u: string, t: string, f: string) => void };
+    if (typeof w.open === 'function') {
+      if (plan.kind === 'link') {
+        const candidates = buildLinkOpenCandidates(plan.url);
+        const httpsUrl = candidates[candidates.length - 1];
+        if (httpsUrl) {
+          try {
+            w.open(httpsUrl, '_blank', 'noopener,noreferrer');
+          } catch {
+            // ignore
+          }
+        }
+        return;
+      }
+      if (plan.kind === 'document') {
+        const uRaw = String(plan.value || '').trim();
+        const u = resolveVaultMediaUrlForApp(uRaw) ?? uRaw;
+        if (u.startsWith('http://') || u.startsWith('https://')) {
+          try {
+            w.open(u, '_blank', 'noopener,noreferrer');
+          } catch {
+            // ignore
+          }
+        }
+        return;
+      }
+    }
+  }
 
   switch (plan.kind) {
     case 'ghost':

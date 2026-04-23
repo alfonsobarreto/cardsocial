@@ -101,7 +101,7 @@ fs.writeFileSync(
   JSON.stringify(
     {
       count: pairs.size,
-      note: 'IT/PT: npm run i18n:fill (solo it,pt por defecto; LANGS=fr,... si hace falta). FR suele ir por POEditor.',
+      note: 'Tras extraer: npm run i18n:prune alinea fr/it/pt; i18n:fill traduce desde en (LANGS=fr,it,pt opcional).',
     },
     null,
     2,

@@ -3,6 +3,7 @@ import { Animated, Modal, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { trEsEn, useLanguage } from '@/services/language';
 
 type PremiumSuccessTransitionProps = {
   visible: boolean;
@@ -15,6 +16,8 @@ export default function PremiumSuccessTransition({
   onDone,
   durationMs = 1800,
 }: PremiumSuccessTransitionProps) {
+  const { language } = useLanguage();
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const burstScale = useRef(new Animated.Value(0.2)).current;
   const burstOpacity = useRef(new Animated.Value(0)).current;
@@ -160,8 +163,8 @@ export default function PremiumSuccessTransition({
               />
               <MaterialCommunityIcons name="shield-check" size={46} color="#FFFFFF" />
             </LinearGradient>
-            <Text style={styles.title}>Verificación Aprobada</Text>
-            <Text style={styles.subtitle}>Abriendo tu bóveda premium...</Text>
+            <Text style={styles.title}>{tr('Verificación aprobada', 'Verification approved')}</Text>
+            <Text style={styles.subtitle}>{tr('Abriendo tu bóveda premium...', 'Opening your premium vault...')}</Text>
           </Animated.View>
         </BlurView>
       </Animated.View>

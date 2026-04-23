@@ -22,8 +22,11 @@ const resources = {
 i18n.use(initReactI18next).init({
   resources,
   lng: 'en',
+  /** Sin traducción o idioma raro: inglés (recursos en en.json + en.fragment.json). */
   fallbackLng: 'en',
   supportedLngs: ['en', 'es', 'fr', 'it', 'pt'],
+  nonExplicitSupportedLngs: true,
+  load: 'languageOnly',
   interpolation: { escapeValue: false },
   returnEmptyString: false,
 });
