@@ -1,12 +1,13 @@
 'use client';
 /** Vista pública en React (Next): `/u/…` y `/b/…` vía `CardPreview`. */
 
+import { SafeDataViewerSheet, slotDefToGlyph } from '@/components/SafeDataViewerSheet';
 import type { SlotIconDef } from '@/lib/slotIcons';
 import { resolveSlotVisual } from '@/lib/slotVisual';
 import { CardTheme } from '@/lib/themes';
 import type { CardData, PublicSlot } from '@/lib/universalCardTypes';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 
 /**
  * Cabecera "Card-Social": el marco blanco mide 1.1× el slot del icono (logo=1, bubble=1.1).
@@ -102,16 +103,59 @@ function SlotGlyph({
   );
 }
 
+function slotHeaderGlyphForSheet(slot: PublicSlot, accent: string) {
+  const v = resolveSlotVisual(slot);
+  if (v.kind === 'url') {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={v.url} alt="" width={28} height={28} style={{ borderRadius: 8, objectFit: 'cover' }} />;
+  }
+  return slotDefToGlyph(v.def, 26, accent);
+}
+
+type TrFn = (es: string, en: string) => string;
+
+function PublicWebSlotDetailSheet({
+  slot,
+  onClose,
+  tr,
+  theme,
+}: {
+  slot: PublicSlot | null;
+  onClose: () => void;
+  tr: TrFn;
+  theme: CardTheme;
+}) {
+  const accent = theme.border.color;
+  const title = slot
+    ? slotLabelForWeb(String(slot.label || ''), String(slot.type || ''))
+    : '';
+  const raw = slot ? String(slot.value || '').trim() : '';
+  const body = raw || (slot ? tr('Sin contenido', 'No content') : '');
+  return (
+    <SafeDataViewerSheet
+      open={slot != null}
+      onClose={onClose}
+      title={title}
+      body={body}
+      tr={tr}
+      accent={accent}
+      headerGlyph={slot ? slotHeaderGlyphForSheet(slot, accent) : undefined}
+    />
+  );
+}
+
 /** Mismas medidas que `.slot-grid` / `.slot` / `.slot-ic` / `.slot-lb` en `SmartCardLegacy.js` (paridad Business). */
 const LEGACY_ICON_PX = 28;
 
-/** Vista pública web: solo visual (misma idea que smart sin abrir modales / acciones). */
 function LegacyGridSlot({
   slot,
   theme,
+  onSelect,
 }: {
   slot: PublicSlot;
   theme: CardTheme;
+  /** Al pulsar: ver / copiar dato público (misma pista que en `/u/…` y `/b/…`). */
+  onSelect?: () => void;
 }) {
   const [iconUrlFailed, setIconUrlFailed] = useState(false);
   const il = theme.iconLabel;
@@ -125,23 +169,31 @@ function LegacyGridSlot({
   const labelText = compactSlotLabelForWeb(
     slotLabelForWeb(String(slot.label || ''), String(slot.type || '')),
   );
-  return (
-    <div
-      style={{
-        border: `1px solid ${bd.color}`,
-        borderRadius: 12,
-        padding: '10px 6px',
-        minHeight: 72,
-        backgroundColor: theme.bubble.backgroundColor,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: 'default',
-        opacity: voip ? 0.45 : 1,
-        boxSizing: 'border-box',
-      }}
-    >
+  const shellStyle: CSSProperties = {
+    border: `1px solid ${bd.color}`,
+    borderRadius: 12,
+    padding: '10px 6px',
+    minHeight: 72,
+    backgroundColor: theme.bubble.backgroundColor,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: onSelect ? 'pointer' : 'default',
+    opacity: voip ? 0.45 : 1,
+    boxSizing: 'border-box',
+    width: '100%',
+    ...(onSelect
+      ? {
+          borderStyle: 'solid',
+          font: 'inherit',
+          textAlign: 'center' as const,
+          color: 'inherit',
+        }
+      : {}),
+  };
+  const inner = (
+    <>
       <div
         style={{
           display: 'flex',
@@ -175,11 +227,27 @@ function LegacyGridSlot({
       >
         {labelText}
       </div>
-    </div>
+    </>
   );
+  if (onSelect) {
+    return (
+      <button type="button" onClick={onSelect} style={shellStyle}>
+        {inner}
+      </button>
+    );
+  }
+  return <div style={shellStyle}>{inner}</div>;
 }
 
-function LegacySlotGrid({ slots, theme }: { slots: PublicSlot[]; theme: CardTheme }) {
+function LegacySlotGrid({
+  slots,
+  theme,
+  onSlotPress,
+}: {
+  slots: PublicSlot[];
+  theme: CardTheme;
+  onSlotPress?: (slot: PublicSlot) => void;
+}) {
   const list = (slots ?? []).slice(0, 24);
   if (list.length === 0) return null;
   return (
@@ -198,6 +266,7 @@ function LegacySlotGrid({ slots, theme }: { slots: PublicSlot[]; theme: CardThem
           key={`${slot.itemId || slot.label || 'slot'}-${idx}`}
           slot={slot}
           theme={theme}
+          onSelect={onSlotPress ? () => onSlotPress(slot) : undefined}
         />
       ))}
     </div>
@@ -209,13 +278,14 @@ type Props = {
   theme: CardTheme;
   locale: 'es' | 'en';
   /**
-   * `universal` = `/u/…`; `business` = `/b/…`. Iconos en solo lectura (sin modales ni acciones en web pública).
+   * `universal` = `/u/…`; `business` = `/b/…` (misma interacción en la rejilla de iconos).
    */
   previewVariant?: 'universal' | 'business';
 };
 
 export default function BusinessCardWeb({ card, theme, locale, previewVariant = 'universal' }: Props) {
   const tr = (es: string, en: string) => (locale === 'es' ? es : en);
+  const [activeSlot, setActiveSlot] = useState<PublicSlot | null>(null);
 
   const slots = (card.slots ?? []).slice(0, 24);
 
@@ -430,10 +500,13 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
               boxSizing: 'border-box',
             }}
           >
-            {slots.length > 0 ? <LegacySlotGrid slots={slots} theme={theme} /> : null}
+            {slots.length > 0 ? (
+              <LegacySlotGrid slots={slots} theme={theme} onSlotPress={setActiveSlot} />
+            ) : null}
           </div>
         </div>
       </div>
+      <PublicWebSlotDetailSheet slot={activeSlot} onClose={() => setActiveSlot(null)} tr={tr} theme={theme} />
       </>
     );
   }
@@ -585,10 +658,13 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
             boxSizing: 'border-box',
           }}
         >
-          {slots.length > 0 ? <LegacySlotGrid slots={slots} theme={theme} /> : null}
+          {slots.length > 0 ? (
+            <LegacySlotGrid slots={slots} theme={theme} onSlotPress={setActiveSlot} />
+          ) : null}
         </div>
       </div>
     </div>
+    <PublicWebSlotDetailSheet slot={activeSlot} onClose={() => setActiveSlot(null)} tr={tr} theme={theme} />
     </>
   );
 }
