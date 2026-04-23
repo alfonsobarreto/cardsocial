@@ -1,14 +1,12 @@
 'use client';
 /** Vista pública en React (Next): `/u/…` y `/b/…` vía `CardPreview`. */
 
-import { MirrorActionModals } from '@/components/MirrorActionModals';
 import type { SlotIconDef } from '@/lib/slotIcons';
 import { resolveSlotVisual } from '@/lib/slotVisual';
 import { CardTheme } from '@/lib/themes';
 import type { CardData, PublicSlot } from '@/lib/universalCardTypes';
-import { getMirrorVaultOpenPlan, type MirrorOpenPlan } from '@card-social/services/mirrorVaultItemOpenPlan';
 import Image from 'next/image';
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 
 /**
  * Cabecera "Card-Social": el marco blanco mide 1.1× el slot del icono (logo=1, bubble=1.1).
@@ -107,14 +105,13 @@ function SlotGlyph({
 /** Mismas medidas que `.slot-grid` / `.slot` / `.slot-ic` / `.slot-lb` en `SmartCardLegacy.js` (paridad Business). */
 const LEGACY_ICON_PX = 28;
 
+/** Vista pública web: solo visual (misma idea que smart sin abrir modales / acciones). */
 function LegacyGridSlot({
   slot,
   theme,
-  onPress,
 }: {
   slot: PublicSlot;
   theme: CardTheme;
-  onPress: (s: PublicSlot) => void;
 }) {
   const [iconUrlFailed, setIconUrlFailed] = useState(false);
   const il = theme.iconLabel;
@@ -130,18 +127,6 @@ function LegacyGridSlot({
   );
   return (
     <div
-      role="button"
-      tabIndex={voip ? -1 : 0}
-      onClick={() => {
-        if (!voip) onPress(slot);
-      }}
-      onKeyDown={(e) => {
-        if (voip) return;
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onPress(slot);
-        }
-      }}
       style={{
         border: `1px solid ${bd.color}`,
         borderRadius: 12,
@@ -152,7 +137,7 @@ function LegacyGridSlot({
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        cursor: voip ? 'not-allowed' : 'pointer',
+        cursor: 'default',
         opacity: voip ? 0.45 : 1,
         boxSizing: 'border-box',
       }}
@@ -194,15 +179,7 @@ function LegacyGridSlot({
   );
 }
 
-function LegacySlotGrid({
-  slots,
-  theme,
-  onPress,
-}: {
-  slots: PublicSlot[];
-  theme: CardTheme;
-  onPress: (s: PublicSlot) => void;
-}) {
+function LegacySlotGrid({ slots, theme }: { slots: PublicSlot[]; theme: CardTheme }) {
   const list = (slots ?? []).slice(0, 24);
   if (list.length === 0) return null;
   return (
@@ -221,7 +198,6 @@ function LegacySlotGrid({
           key={`${slot.itemId || slot.label || 'slot'}-${idx}`}
           slot={slot}
           theme={theme}
-          onPress={onPress}
         />
       ))}
     </div>
@@ -233,36 +209,13 @@ type Props = {
   theme: CardTheme;
   locale: 'es' | 'en';
   /**
-   * `universal` = smart / 24h (`/u/…`); `business` = `/b/…`. La rejilla pública de iconos y el modal
-   * al tocar (MirrorActionModals) son la misma — `LegacySlotGrid` (3 columnas, paridad con HTML legacy + business).
+   * `universal` = `/u/…`; `business` = `/b/…`. Iconos en solo lectura (sin modales ni acciones en web pública).
    */
   previewVariant?: 'universal' | 'business';
 };
 
 export default function BusinessCardWeb({ card, theme, locale, previewVariant = 'universal' }: Props) {
   const tr = (es: string, en: string) => (locale === 'es' ? es : en);
-  const [slotAction, setSlotAction] = useState<{ plan: MirrorOpenPlan; slot: PublicSlot } | null>(null);
-
-  const handleSlotPress = useCallback((slot: PublicSlot) => {
-    if (String(slot.type || '').toLowerCase().includes('voip')) {
-      return;
-    }
-    const plan = getMirrorVaultOpenPlan(
-      {
-        type: slot.type,
-        value: slot.value,
-        title: slot.label,
-        vaultMimeType: slot.vaultMimeType ?? undefined,
-      },
-      {
-        cardOwnerUid: String(card.uid || '').trim(),
-        sid: String(card.sid || '').trim(),
-        bId: String(card.bId || '').trim(),
-        sourceCardName: String(card.scName || '').trim() || 'Card-Social',
-      },
-    );
-    setSlotAction({ plan, slot });
-  }, [card.uid, card.sid, card.bId, card.scName]);
 
   const slots = (card.slots ?? []).slice(0, 24);
 
@@ -337,17 +290,6 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
       : theme.shadowStyle === 'inner'
         ? `inset 0 2px 16px ${bd.color}22, 0 4px 24px rgba(0,0,0,0.4)`
         : '0 4px 20px rgba(0,0,0,0.3)';
-
-  const mirrorModals = (
-    <MirrorActionModals
-      plan={slotAction?.plan ?? null}
-      slot={slotAction?.slot ?? null}
-      callInterstitialProfile={{ name: dispName, photoUrl: card.cardWireframeImageUrl }}
-      onClose={() => setSlotAction(null)}
-      tr={tr}
-      accent={theme.border.color}
-    />
-  );
 
   const isBusinessPreview = previewVariant === 'business';
 
@@ -488,11 +430,10 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
               boxSizing: 'border-box',
             }}
           >
-            {slots.length > 0 ? <LegacySlotGrid slots={slots} theme={theme} onPress={handleSlotPress} /> : null}
+            {slots.length > 0 ? <LegacySlotGrid slots={slots} theme={theme} /> : null}
           </div>
         </div>
       </div>
-      {mirrorModals}
       </>
     );
   }
@@ -644,11 +585,10 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
             boxSizing: 'border-box',
           }}
         >
-          {slots.length > 0 ? <LegacySlotGrid slots={slots} theme={theme} onPress={handleSlotPress} /> : null}
+          {slots.length > 0 ? <LegacySlotGrid slots={slots} theme={theme} /> : null}
         </div>
       </div>
     </div>
-    {mirrorModals}
     </>
   );
 }
