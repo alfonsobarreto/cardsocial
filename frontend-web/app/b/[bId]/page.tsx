@@ -1,8 +1,11 @@
 import { Metadata } from 'next';
+import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import CardPreview from '@/components/CardPreview';
+import DocumentHtmlLang from '@/components/DocumentHtmlLang';
 import type { CardData } from '@/lib/universalCardTypes';
 import { normalizeUniversalCardPayload } from '@/lib/normalizeUniversalCard';
+import { resolvePublicLocale, type PublicLocale } from '@/lib/resolvePublicLocale';
 import { getThemeById } from '@/lib/themes';
 import PublicLegalFooter from '@/components/PublicLegalFooter';
 
@@ -86,12 +89,17 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 }
 
 export default async function PublicBusinessPage({ params, searchParams }: Props) {
-  const { bId } = await params;
+  const headerList = await headers();
   const sp = await searchParams;
+  const locale = resolvePublicLocale({
+    searchParams: sp,
+    acceptLanguage: headerList.get('accept-language'),
+  });
+  const { bId } = await params;
   const rawUid = sp.uid ?? sp.owner;
   const uid = Array.isArray(rawUid) ? rawUid[0] : rawUid;
   if (!uid || typeof uid !== 'string' || !String(uid).trim()) {
-    return <MissingUidPage />;
+    return <MissingUidPage locale={locale} />;
   }
 
   const u = String(uid).trim();
@@ -121,14 +129,15 @@ export default async function PublicBusinessPage({ params, searchParams }: Props
         card={card}
         theme={theme}
         expiresAt={card.expiresAt}
-        locale="es"
+        locale={locale}
         appDeepLink={appDeepLink}
       />
     </main>
   );
 }
 
-function MissingUidPage() {
+function MissingUidPage({ locale }: { locale: PublicLocale }) {
+  const tr = (es: string, en: string) => (locale === 'es' ? es : en);
   return (
     <main
       style={{
@@ -142,15 +151,18 @@ function MissingUidPage() {
         textAlign: 'center',
       }}
     >
+      <DocumentHtmlLang locale={locale} />
       <h1 style={{ color: '#00695C', fontSize: 22, fontWeight: 400, marginBottom: 8 }}>
-        Enlace incompleto
+        {tr('Enlace incompleto', 'Incomplete link')}
       </h1>
       <p style={{ color: '#4E7570', fontSize: 15, maxWidth: 360, lineHeight: 1.6 }}>
-        Falta el parámetro <code>uid</code> en la URL. Usa el enlace completo que comparte el negocio
-        (incluye <code>?uid=…</code>).
+        {tr(
+          'Falta el parámetro uid en la URL. Usa el enlace completo que comparte el negocio (incluye ?uid=…).',
+          'The uid parameter is missing from the URL. Use the full link from the business (it includes ?uid=…).',
+        )}
       </p>
       <div style={{ width: '100%', maxWidth: 420, marginTop: 32 }}>
-        <PublicLegalFooter locale="es" accentColor="#00695C" />
+        <PublicLegalFooter locale={locale} accentColor="#00695C" />
       </div>
     </main>
   );

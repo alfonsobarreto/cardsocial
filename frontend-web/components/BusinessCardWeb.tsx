@@ -21,11 +21,13 @@ import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 const WIREFRAME_MIN_BUBBLE_WHEN_SLOTS = 48;
 
 /**
- * Cabecera "Card-Social": el marco blanco mide 1.1× el logo (logo = 1, bubble = 1.1).
- * El `borderRadius` del marco escala con el mismo factor que el alto del logo.
+ * Cabecera "Card-Social": el marco blanco mide 1.1× el slot del icono (logo=1, bubble=1.1).
+ * `icon.png` deja aire optico; ASSET_ZOOM recorta con overflow para que el motivo rellene el marco
+ * (misma lógica que `SmartCardLegacy.js` .card-header-logo).
  */
 const HEADER_BRAND_LOGO_PX = 32;
 const HEADER_BUBBLE_SCALE = 1.1;
+const HEADER_BRAND_ASSET_ZOOM = 1.35;
 
 function CardSocialBrandMark() {
   const logo = HEADER_BRAND_LOGO_PX;
@@ -42,6 +44,7 @@ function CardSocialBrandMark() {
         alignItems: 'center',
         justifyContent: 'center',
         background: '#fff',
+        overflow: 'hidden',
       }}
     >
       <Image
@@ -49,7 +52,12 @@ function CardSocialBrandMark() {
         alt=""
         width={logo}
         height={logo}
-        style={{ objectFit: 'cover', display: 'block' }}
+        style={{
+          objectFit: 'cover',
+          display: 'block',
+          transform: `scale(${HEADER_BRAND_ASSET_ZOOM})`,
+          transformOrigin: 'center',
+        }}
         unoptimized
       />
     </div>

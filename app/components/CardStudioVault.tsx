@@ -3,6 +3,8 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * Galería categorizada de íconos para el Vault y Card-Studio.
  * Todos los íconos activos son vectoriales (MaterialCommunityIcons) — cero PNGs.
+ * Al añadir un icono a STUDIO_FOLDERS (nombre en `icon:`), añade su path en
+ * `frontend-web/lib/cardStudioFreeIconPaths` y vuelve a generar `backend/…/cardStudioMatPaths.js` (build-cardStudioMatPaths.cjs) para business/web y smart HTML.
  * Secciones premium vacías se muestran como colecciones futuras con badge 🔒.
  */
 

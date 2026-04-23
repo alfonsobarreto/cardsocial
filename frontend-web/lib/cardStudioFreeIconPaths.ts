@@ -1,17 +1,25 @@
 /**
- * Iconos vectoriales del Card Studio (carpeta Esenciales en CardStudioVault).
- * Rutas MDI (@mdi/js) para que la web coincida con MaterialCommunityIcons en la app.
- * Mantener alineado con `app/components/CardStudioVault.tsx` → STUDIO_FOLDERS esenciales.
+ * Iconos vectoriales del Card Studio (Misma lógica que el vault: MaterialCommunityIcons).
+ * Rutas MDI (@mdi/js) — misma apariencia que en la app en business / universal.
+ *
+ * Cobertura (claves = nombre MCI; ver `app/components/CardStudioVault.tsx`):
+ * - `STUDIO_FOLDERS` → esenciales: Enlaces, Teléfonos, Emails, Texto, Seguridad, Documentos
+ * - Tema "Texas Longhorns" (`constants/texasLonghornsPack.ts`)
+ * Si añades un icono al vault, añade aquí su path MDI.
  */
 
 import type { SlotIconDef } from '@/lib/slotIcons';
 import {
+  mdiAccountGroup,
   mdiAndroid,
   mdiApple,
   mdiAt,
+  mdiBasketball,
+  mdiBullhorn,
   mdiCardText,
   mdiCellphone,
   mdiCertificate,
+  mdiClipboardTextOutline,
   mdiContacts,
   mdiCrown,
   mdiDiamondStone,
@@ -28,20 +36,33 @@ import {
   mdiFileVideo,
   mdiFileWord,
   mdiFingerprint,
+  mdiFire,
+  mdiFlag,
   mdiFlash,
   mdiFolderLock,
   mdiFolderZip,
+  mdiFootball,
+  mdiFormatParagraph,
+  mdiFormatQuoteClose,
+  mdiFormatText,
   mdiGmail,
   mdiHeart,
   mdiHelpCircle,
+  mdiHorse,
   mdiInstagram,
   mdiKey,
   mdiLinkedin,
   mdiLinkVariant,
   mdiLock,
   mdiMailbox,
+  mdiMapMarker,
+  mdiMedal,
+  mdiMessageTextOutline,
   mdiMicrosoftOutlook,
   mdiMusicNote,
+  mdiNoteTextOutline,
+  mdiPen,
+  mdiPencilOutline,
   mdiPhone,
   mdiPhoneClassic,
   mdiPhoneInTalk,
@@ -49,19 +70,25 @@ import {
   mdiPresentation,
   mdiSend,
   mdiShieldCheck,
+  mdiShieldHalfFull,
+  mdiSilverwareForkKnife,
   mdiSnapchat,
   mdiStar,
   mdiTabletCellphone,
+  mdiText,
+  mdiTextBoxOutline,
+  mdiTrophy,
   mdiTwitter,
   mdiVibrate,
   mdiWeb,
   mdiWhatsapp,
+  mdiWhiteBalanceSunny,
   mdiYahoo,
   mdiYoutube,
   mdiZipBox,
 } from '@mdi/js';
 
-/** Mismos alias que `app/components/iconNameValidation.ts` ICON_NAME_ALIASES (resolución web). */
+/** Mismos alias que `app/components/iconNameValidation.ts` → ICON_NAME_ALIASES (resolución web). */
 const ICON_NAME_ALIASES: Record<string, string> = {
   'file-presentation': 'presentation',
   'alternate-email': 'email',
@@ -94,8 +121,7 @@ function applyAliases(key: string): string {
 }
 
 /**
- * Claves canónicas (post-alias) → path MDI.
- * Una entrada por icono distinto en Esenciales (sin duplicar whatsapp).
+ * Claves canónicas (post-alias) → path MDI. Paridad con galería CardStudioVault + Texas Longhorns.
  */
 const PATH_BY_KEY: Record<string, string> = {
   linkedin: mdiLinkedin,
@@ -128,6 +154,16 @@ const PATH_BY_KEY: Record<string, string> = {
   certificate: mdiCertificate,
   at: mdiAt,
   email: mdiEmail,
+  'text-box-outline': mdiTextBoxOutline,
+  'format-text': mdiFormatText,
+  'note-text-outline': mdiNoteTextOutline,
+  'message-text-outline': mdiMessageTextOutline,
+  'clipboard-text-outline': mdiClipboardTextOutline,
+  text: mdiText,
+  'format-paragraph': mdiFormatParagraph,
+  'format-quote-close': mdiFormatQuoteClose,
+  pen: mdiPen,
+  'pencil-outline': mdiPencilOutline,
   key: mdiKey,
   'shield-check': mdiShieldCheck,
   lock: mdiLock,
@@ -151,6 +187,19 @@ const PATH_BY_KEY: Record<string, string> = {
   'folder-zip': mdiFolderZip,
   'card-text': mdiCardText,
   'help-circle': mdiHelpCircle,
+  football: mdiFootball,
+  trophy: mdiTrophy,
+  bullhorn: mdiBullhorn,
+  flag: mdiFlag,
+  'map-marker': mdiMapMarker,
+  fire: mdiFire,
+  'shield-half-full': mdiShieldHalfFull,
+  'account-group': mdiAccountGroup,
+  'silverware-fork-knife': mdiSilverwareForkKnife,
+  'white-balance-sunny': mdiWhiteBalanceSunny,
+  medal: mdiMedal,
+  basketball: mdiBasketball,
+  horse: mdiHorse,
 };
 
 function defFromPath(path: string): SlotIconDef {

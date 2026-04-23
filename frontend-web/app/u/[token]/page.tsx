@@ -1,10 +1,13 @@
 import { Metadata } from 'next';
+import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import CardPreview from '@/components/CardPreview';
 import type { CardData } from '@/lib/universalCardTypes';
 import { normalizeUniversalCardPayload } from '@/lib/normalizeUniversalCard';
+import { resolvePublicLocale, type PublicLocale } from '@/lib/resolvePublicLocale';
 import { getThemeById } from '@/lib/themes';
 import PublicLegalFooter from '@/components/PublicLegalFooter';
+import DocumentHtmlLang from '@/components/DocumentHtmlLang';
 
 // En producción (Azure) el Next.js corre como proceso hijo del backend Express.
 // Llamamos directo a localhost para evitar el loop proxy → Next.js → proxy.
@@ -14,7 +17,10 @@ const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ??
   'https://cardsocial.me';
 
-type Props = { params: Promise<{ token: string }> };
+type Props = {
+  params: Promise<{ token: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
 async function fetchCard(token: string): Promise<{ card: CardData } | null> {
   try {
@@ -53,12 +59,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function UniversalCardPage({ params }: Props) {
+export default async function UniversalCardPage({ params, searchParams }: Props) {
+  const headerList = await headers();
+  const sp = await searchParams;
+  const locale = resolvePublicLocale({
+    searchParams: sp,
+    acceptLanguage: headerList.get('accept-language'),
+  });
   const { token } = await params;
   const result = await fetchCard(token);
 
   if (!result) {
-    return <ExpiredPage />;
+    return <ExpiredPage locale={locale} />;
   }
 
   const { card } = result;
@@ -80,14 +92,15 @@ export default async function UniversalCardPage({ params }: Props) {
         card={card}
         theme={theme}
         expiresAt={card.expiresAt}
-        locale="es"
+        locale={locale}
         universalToken={token}
       />
     </main>
   );
 }
 
-function ExpiredPage() {
+function ExpiredPage({ locale }: { locale: PublicLocale }) {
+  const tr = (es: string, en: string) => (locale === 'es' ? es : en);
   return (
     <main style={{
       minHeight: '100vh',
@@ -99,12 +112,16 @@ function ExpiredPage() {
       padding: '24px 16px',
       textAlign: 'center',
     }}>
+      <DocumentHtmlLang locale={locale} />
       <div style={{ fontSize: 48, marginBottom: 16 }}>⏱</div>
       <h1 style={{ color: '#00695C', fontSize: 24, fontWeight: '400', marginBottom: 8 }}>
-        Enlace expirado
+        {tr('Enlace expirado', 'Link expired')}
       </h1>
       <p style={{ color: '#4E7570', fontSize: 15, maxWidth: 320, lineHeight: 1.6 }}>
-        Este acceso temporal ha expirado. Pide al emisor que genere un nuevo enlace desde la app.
+        {tr(
+          'Este acceso temporal ha expirado. Pide al emisor que genere un nuevo enlace desde la app.',
+          'This temporary access has expired. Ask the sender to create a new link from the app.',
+        )}
       </p>
       <a
         href="https://cardsocial.me"
@@ -120,10 +137,10 @@ function ExpiredPage() {
           textDecoration: 'none',
         }}
       >
-        Descargar Card-Social
+        {tr('Descargar Card-Social', 'Download Card-Social')}
       </a>
       <div style={{ width: '100%', maxWidth: 420, marginTop: 8 }}>
-        <PublicLegalFooter locale="es" accentColor="#00695C" />
+        <PublicLegalFooter locale={locale} accentColor="#00695C" />
       </div>
     </main>
   );

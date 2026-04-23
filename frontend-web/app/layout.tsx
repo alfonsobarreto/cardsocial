@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Card-Social',
-  description: 'Tu tarjeta digital inteligente',
+  description: 'Your smart digital card',
   icons: {
     icon: [{ url: '/icon.png', type: 'image/png' }],
     apple: [{ url: '/apple-icon.png', type: 'image/png' }],
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es">
+    <html lang="en">
       <body style={{
         margin: 0,
         padding: 0,

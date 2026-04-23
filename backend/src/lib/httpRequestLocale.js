@@ -1,6 +1,6 @@
 /**
  * Preferencia de idioma del cliente (Accept-Language).
- * Regla de producto: si no es estrictamente español → inglés.
+ * Regla: solo español (primer tag `es*`). Cualquier otro (en, de, zh, fr, vacío) → tratar como inglés (fallback USA).
  */
 
 function acceptLanguageHeaderIsSpanish(acceptLanguageHeader) {

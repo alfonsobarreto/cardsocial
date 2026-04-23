@@ -4,6 +4,7 @@
  */
 
 const { acceptLanguageHeaderIsSpanish } = require('./httpRequestLocale');
+const CARD_STUDIO_MAT_PATHS = require('./cardStudioMatPaths.js');
 
 /** Tabla mínima de temas — misma lista que constants/themeChest.ts y frontend-web/lib/themes.ts. */
 const THEME_TABLE = {
@@ -110,6 +111,7 @@ function buildValidCourtesyPageHtml(opts) {
   const safeToken = JSON.stringify(token);
   const safeExpires = JSON.stringify(expiresAtIso);
   const safeApi = JSON.stringify(apiBase);
+  const matPathJson = JSON.stringify(CARD_STUDIO_MAT_PATHS);
 
   return `<!DOCTYPE html>
 <html lang="${isEs ? 'es' : 'en'}">
@@ -146,16 +148,19 @@ function buildValidCourtesyPageHtml(opts) {
       gap: 6px; padding: 6px 8px; font-weight: 700; font-size: 0.82rem;
       opacity: 0.85; color: var(--tc);
     }
-    /* Marca Card-Social: marco 1.1× el logo (32px = unidad 1) */
+    /* Marco 1.1× el slot; zoom PNG alineado con cabecera Card-Social en la web (icon.png) */
     .card-header-logo {
       width: calc(32px * 1.1);
       height: calc(32px * 1.1);
       border-radius: calc(8px * 1.1);
       flex-shrink: 0;
+      overflow: hidden;
       display: flex; align-items: center; justify-content: center; background: #fff;
     }
     .card-header-logo img {
       width: 32px; height: 32px; object-fit: cover; display: block;
+      transform: scale(1.35);
+      transform-origin: center;
     }
     .card-top { display: flex; flex-direction: column; padding: 0 8px; }
     .avatar-box { display: flex; justify-content: center; padding: 4px 0 10px; }
@@ -260,6 +265,7 @@ function buildValidCourtesyPageHtml(opts) {
   var API_PREFIX = ${safeApi};
   var IS_ES = ${isEs ? 'true' : 'false'};
   var T = ${JSON.stringify(t)};
+  var MAT_PATH = ${matPathJson};
   var THEMES = ${JSON.stringify(THEME_TABLE)};
   var DEFAULT_TID = ${JSON.stringify(DEFAULT_THEME_ID)};
   function applyTheme(tid) {
@@ -307,7 +313,7 @@ function buildValidCourtesyPageHtml(opts) {
 
   function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
 
-  /** Mismos paths que frontend-web/lib/slotIcons.ts (prioridad: icon URL → iconName → type). */
+  /** Fallback por tipo; con icon/iconName Material se usa MAT_PATH (misma matriz que cardStudioFreeIconPaths y el vault). */
   var SLOT_PATH = {
     phone: 'M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z',
     email: 'M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z',
@@ -370,10 +376,30 @@ function buildValidCourtesyPageHtml(opts) {
     };
     return alias[raw] || raw;
   }
+  var MAT_ALIAS = { 'file-presentation': 'presentation', 'alternate-email': 'email', stamp: 'certificate', sello: 'certificate', classic: 'card-text', clasico: 'card-text', 'cl\\u00e1sico': 'card-text' };
+  var MAT_EXTRA = { tiktok: 'music-note' };
+  function toMatKey(n) { return String(n || '').trim().toLowerCase().replace(/\\s+/g, '-').replace(/^mdi-/, ''); }
+  function applyMatAlias(x) { var k = toMatKey(x); return MAT_EXTRA[k] || MAT_ALIAS[k] || k; }
+  function matPathForSlot(s) {
+    var ic = String(s.icon || '').trim();
+    var cands = [];
+    if (ic && !/^https?:\\/\\//i.test(ic)) cands.push(ic);
+    if (s.iconName) cands.push(String(s.iconName));
+    for (var i = 0; i < cands.length; i++) {
+      var k = applyMatAlias(toMatKey(cands[i]));
+      k = toMatKey(k);
+      if (MAT_PATH[k]) return MAT_PATH[k];
+    }
+    return null;
+  }
   function slotIconHtml(s) {
     var ic = String(s.icon || '').trim();
     if (/^https?:\\/\\//i.test(ic)) {
       return '<img src="'+esc(ic)+'" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover"/>';
+    }
+    var mpath = matPathForSlot(s);
+    if (mpath) {
+      return '<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="currentColor" d="'+mpath+'"/></svg>';
     }
     var k = s.iconName ? normIconName(s.iconName) : '';
     var typeRaw = String(s.type || 'link').toLowerCase();

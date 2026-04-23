@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import BusinessCardWeb from '@/components/BusinessCardWeb';
+import DocumentHtmlLang from '@/components/DocumentHtmlLang';
 import PublicLegalFooter from '@/components/PublicLegalFooter';
 import type { CardData } from '@/lib/universalCardTypes';
 import { CardTheme } from '@/lib/themes';
@@ -58,6 +59,7 @@ export default function CardPreview(props: Props) {
 
   return (
     <div style={{ width: '100%', maxWidth: 420, margin: '0 auto' }}>
+      <DocumentHtmlLang locale={locale} />
       <div
         style={{
           background: `${bd.color}26`,
