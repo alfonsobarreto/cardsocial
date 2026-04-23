@@ -24,7 +24,11 @@ import {
 } from '@/constants/themeChest';
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
-import { ExportBusinessQR, generatePublicBusinessWebUrl } from '@/services/brandedQrService';
+import {
+  ExportBusinessQR,
+  generatePublicBusinessWebUrl,
+  shareBusinessQrPngDataUrl,
+} from '@/services/brandedQrService';
 import {
     listMyBusinessCards,
     deleteBusinessCard as deleteBusinessCardViaApi,
@@ -627,6 +631,10 @@ export default function CardsFactoryScreen() {
   const parallaxX = useRef(new Animated.Value(0)).current;
   const parallaxY = useRef(new Animated.Value(0)).current;
   const qrTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** `react-native-qrcode-svg` pasa el ref al `Svg` de react-native-svg (`toDataURL` → PNG). */
+  const permanentBusinessQrSvgRef = useRef<{
+    toDataURL?: (cb: (dataUrl: string) => void) => void;
+  } | null>(null);
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerItem, setViewerItem] = useState<VaultItem | null>(null);
   const swipeableMethodsByCardIdRef = useRef<Map<string, SwipeableMethods>>(new Map());
@@ -4392,6 +4400,9 @@ export default function CardsFactoryScreen() {
                 {qrPayload ? (
                   <View style={styles.qrLayerContainer}>
                     <QRCode
+                      getRef={(c) => {
+                        permanentBusinessQrSvgRef.current = c;
+                      }}
                       value={qrPayload}
                       size={210}
                       color={isDark ? '#E8D4A3' : '#0D4D8A'}
@@ -4478,7 +4489,7 @@ export default function CardsFactoryScreen() {
                       ]}
                       onPress={async () => {
                         const link = generatePublicBusinessWebUrl(qrBusinessContext.bId, qrBusinessContext.uid);
-                        try {
+                        const runSvgVectorFallback = async () => {
                           const result = await ExportBusinessQR({
                             businessId: qrBusinessContext.bId,
                             bcName: qrBusinessContext.bcName,
@@ -4490,9 +4501,34 @@ export default function CardsFactoryScreen() {
                             tr('QR', 'QR'),
                             result.message || (result.success ? tr('Listo', 'Done') : tr('Error', 'Error')),
                           );
-                        } catch (e: unknown) {
-                          Alert.alert(tr('Error', 'Error'), e instanceof Error ? e.message : '');
+                        };
+                        const svg = permanentBusinessQrSvgRef.current;
+                        if (svg && typeof svg.toDataURL === 'function') {
+                          try {
+                            svg.toDataURL(async (dataUrl: string) => {
+                              try {
+                                const result = await shareBusinessQrPngDataUrl(
+                                  dataUrl,
+                                  qrBusinessContext.bcName,
+                                );
+                                if (result.success) {
+                                  Alert.alert(
+                                    tr('QR', 'QR'),
+                                    result.message || tr('Listo', 'Done'),
+                                  );
+                                } else {
+                                  await runSvgVectorFallback();
+                                }
+                              } catch {
+                                await runSvgVectorFallback();
+                              }
+                            });
+                          } catch {
+                            await runSvgVectorFallback();
+                          }
+                          return;
                         }
+                        await runSvgVectorFallback();
                       }}
                     >
                       {({ pressed }) => (

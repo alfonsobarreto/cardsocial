@@ -62,6 +62,81 @@ async function tryShareExportedFile(
   return false;
 }
 
+/**
+ * Acepta `data:image/png;base64,...` o base64 puro. En `react-native-svg` 15, `Svg#toDataURL`
+ * entrega al callback un string **solo base64** (ver `RNSVGSvgViewModule` / `svg.tsx`); si solo
+ * buscábamos el prefijo `data:...`, el parse fallaba y se caía al fallback SVG.
+ */
+function extractPngBase64ForWrite(src: string): string | null {
+  const trimmed = String(src || '').trim();
+  if (!trimmed) return null;
+  const m = trimmed.match(/^data:image\/png;base64,([\s\S]+)$/i);
+  if (m?.[1]) {
+    return m[1].replace(/\s/g, '');
+  }
+  if (trimmed.toLowerCase().startsWith('data:') && trimmed.includes('base64,')) {
+    const i = trimmed.indexOf('base64,');
+    const b = trimmed.slice(i + 'base64,'.length).replace(/\s/g, '');
+    if (b) return b;
+  }
+  const noWs = trimmed.replace(/\s/g, '');
+  if (noWs.length > 32 && /^[A-Za-z0-9+/=_-]+$/.test(noWs)) {
+    return noWs;
+  }
+  return null;
+}
+
+/**
+ * Graba un PNG a partir de un data URL o base64 puro (p. ej. `react-native-qrcode-svg` + `getRef`
+ * → `toDataURL`) y abre el menú de compartir. Si falla, el caller puede seguir con {@link ExportBusinessQR}.
+ */
+export async function shareBusinessQrPngDataUrl(
+  dataUrl: string,
+  bcName: string
+): Promise<BrandedQrResult> {
+  try {
+    const base64 = extractPngBase64ForWrite(dataUrl);
+    if (!base64) {
+      return {
+        success: false,
+        message: 'Formato de imagen no válido (se esperaba PNG en base64 o data URL).',
+      };
+    }
+    const sanitizedName = String(bcName || 'business')
+      .replace(/[^a-zA-Z0-9]/g, '_')
+      .substring(0, 30);
+    const fileName = `PERMANENT_QR_${sanitizedName}_${Date.now()}.png`;
+
+    const downloadDir = getQrExportDirectory();
+    await FileSystem.makeDirectoryAsync(downloadDir, { intermediates: true });
+    const filePath = `${downloadDir}${fileName}`;
+
+    await FileSystem.writeAsStringAsync(filePath, base64, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    const shared = await tryShareExportedFile(filePath, {
+      mimeType: 'image/png',
+      dialogTitle: 'Card-Social — QR permanente',
+    });
+    const shareHint = shared
+      ? 'Se abrió el menú del sistema: podés guardar en Fotos, Archivos o compartir el PNG.\n\n'
+      : 'No se pudo abrir el menú. El PNG se generó en caché de la app; podés reintentar compartir.\n\n';
+
+    return {
+      success: true,
+      fileUri: filePath,
+      fileName,
+      mimeType: 'image/png',
+      message: `${shareHint}Archivo: ${fileName} (raster)`,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: `Error al exportar PNG: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    };
+  }
+}
+
 export interface BrandedQrGenerationParams {
   bId: string;
   bcName: string;
@@ -215,8 +290,11 @@ export async function downloadBrandedQr(
 }
 
 /**
- * Exporta QR permanente de negocio (PNG/PDF) con calidad de impresión.
- * Garantiza un tamaño mínimo de 2cm x 2cm a 300 DPI.
+ * Exporta QR permanente de negocio como **SVG** (vector) con `qrcode` (core + svg-tag).
+ * `format` se conserva en la API por compatibilidad; el raster **PNG** del mismo QR
+ * con logo (misma apariencia que en pantalla) se obtiene con `getRef` + `toDataURL` y
+ * {@link shareBusinessQrPngDataUrl}.
+ * Garantiza ancho de export vectorial mín. ~2 cm a 300 DPI.
  */
 export async function ExportBusinessQR(
   params: ExportBusinessQrParams
