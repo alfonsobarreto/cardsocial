@@ -953,7 +953,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                         }}
                       >
                         <MaterialCommunityIcons name="crown" size={20} color={shell.ctaAccent} />
-                        <Text style={[styles.drawerItemText, { color: shell.text }]}>The Mint</Text>
+                        <Text style={[styles.drawerItemText, { color: shell.text }]}>{tr('Card-Studio', 'Card-Studio')}</Text>
                       </TouchableOpacity>
                     )}
 

@@ -524,7 +524,15 @@ export function MyCardsPreviewModal({
 
   const openDocumentViewer = useCallback((item: MirrorVaultItem) => {
     setViewerItem(item);
-    setViewerVisible(true);
+    if (Platform.OS === 'ios') {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setViewerVisible(true);
+        });
+      });
+    } else {
+      setViewerVisible(true);
+    }
   }, []);
 
   const handleSlotPress = useCallback(
@@ -849,7 +857,7 @@ export function MyCardsPreviewModal({
   return (
     <>
       <SmartCardMirrorModal
-        visible={visible && payload != null}
+        visible={Boolean(visible && payload != null && !viewerVisible)}
         onRequestClose={handleClose}
         screenHeight={screenHeight}
         iconSlotCount={payload?.slots.length ?? 0}

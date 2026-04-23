@@ -2644,8 +2644,22 @@ export default function CardsFactoryScreen() {
   const openDocumentViewer = (item: VaultItem) => {
     setDataPopoverVisible(false);
     setFocusedCertificate(null);
+    const wasFactory = factoryVisible;
+    if (wasFactory) {
+      resumeFactoryAfterAuxModalRef.current = true;
+      setFactoryVisible(false);
+    }
     setViewerItem(item);
-    setViewerVisible(true);
+    // iOS: dejar que el modal del editor cierre (animación) antes de mostrar el visor; si no, a veces no se ve.
+    if (Platform.OS === 'ios' && wasFactory) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setViewerVisible(true);
+        });
+      });
+    } else {
+      setViewerVisible(true);
+    }
   };
 
   const renderIdentityBadge = (compact = false) => {
@@ -3591,7 +3605,13 @@ export default function CardsFactoryScreen() {
         <Text style={[styles.createFabText, { color: cardsTheme.fabText }]}>{tr('Crear', 'Create')}</Text>
       </TouchableOpacity>
 
-      <Modal visible={factoryVisible} transparent animationType="slide" onRequestClose={closeFactoryModalAndSync}>
+      <Modal
+        visible={factoryVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={closeFactoryModalAndSync}
+        statusBarTranslucent
+      >
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}>
                 <View
@@ -4271,6 +4291,7 @@ export default function CardsFactoryScreen() {
           onClose={() => {
             setViewerVisible(false);
             setViewerItem(null);
+            requestAnimationFrame(() => restoreFactoryAfterAuxModal());
           }}
           tr={tr}
           fallbackMutedColor={cardsTheme.sectionLabel}

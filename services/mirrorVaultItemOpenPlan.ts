@@ -5,6 +5,11 @@
  */
 
 import { isGhostLinkVaultType } from '../constants/ghostLinkVault';
+import {
+  isVaultDocumentImage,
+  isVaultDocumentPdf,
+  isVaultProxyFileUrl,
+} from './vaultMimeGuards';
 
 export type MirrorItemLike = {
   type: string;
@@ -82,24 +87,6 @@ function isLikelyEmail(value: string): boolean {
 function isLikelyUrl(value: string): boolean {
   const raw = String(value || '').trim();
   return /^https?:\/\//i.test(raw) || /^(www\.)/i.test(raw) || /\.[a-z]{2,}(\/|\?|$)/i.test(raw);
-}
-
-function isPdfValue(value: string, mimeHint?: string): boolean {
-  if (String(mimeHint || '').toLowerCase().includes('pdf')) {
-    return true;
-  }
-  return /\.pdf(\?|$)/i.test(String(value || ''));
-}
-
-function isImageValue(value: string, mimeHint?: string): boolean {
-  if (String(mimeHint || '').toLowerCase().startsWith('image/')) {
-    return true;
-  }
-  const v = String(value || '');
-  return (
-    /\.(jpg|jpeg|png|gif|webp|bmp|heic)(\?|$)/i.test(v) ||
-    (v.startsWith('file://') && !v.toLowerCase().endsWith('.pdf'))
-  );
 }
 
 /** URLs de app nativa primero (mismo criterio que vault `buildDeepLinkCandidates`), luego HTTPS. */
@@ -182,6 +169,14 @@ export function getMirrorVaultOpenPlan(item: MirrorItemLike, ctx: MirrorOpenPlan
     return { kind: 'ghost', ctx };
   }
 
+  /**
+   * Archivos del búnker (siempre vía …/api/qr/vault-proxy/file/:id o …/api/vault/file/:id).
+   * Debe ir antes de email o `isLikelyUrl`, para no abrirlos como enlace o como maps.
+   */
+  if (value && isVaultProxyFileUrl(value)) {
+    return { kind: 'document', value, title: title || 'Documento', vaultMimeType: mimeHint || undefined };
+  }
+
   if (type.includes('email') || isLikelyEmail(value)) {
     return { kind: 'email', value };
   }
@@ -210,11 +205,14 @@ export function getMirrorVaultOpenPlan(item: MirrorItemLike, ctx: MirrorOpenPlan
 
   if (
     typeNorm.includes('documento') ||
+    typeNorm.includes('document') ||
+    typeNorm.includes('imagen') ||
+    typeNorm.includes('image') ||
     typeNorm.includes('pdf') ||
-    isPdfValue(value, mimeHint) ||
-    isImageValue(value, mimeHint) ||
-    /\/api\/vault\/file\//i.test(value) ||
-    (value.startsWith('http') && (isPdfValue(value, mimeHint) || isImageValue(value, mimeHint)))
+    isVaultDocumentImage(value, mimeHint) ||
+    isVaultDocumentPdf(value, mimeHint) ||
+    (value.startsWith('http') &&
+      (isVaultDocumentPdf(value, mimeHint) || isVaultDocumentImage(value, mimeHint)))
   ) {
     return { kind: 'document', value, title: title || 'Documento', vaultMimeType: mimeHint || undefined };
   }

@@ -15,6 +15,8 @@ import { listBusinessLicenses } from '@/services/businessLicenseService';
 import { validateVaultItemCreation } from '@/services/limitService';
 import { useLookMode } from '@/services/lookMode';
 import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
+import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
+import { isVaultDocumentImage, isVaultDocumentPdf } from '@/services/vaultMimeGuards';
 import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
 import { isClassicPhoneVaultType } from '@/services/vaultItemTypeGuards';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -543,7 +545,8 @@ const VaultScreen = () => {
       });
       const safeName = `${link.title || 'documento'}-${Date.now()}`.replace(/[^a-zA-Z0-9-_]/g, '_');
       const targetUri = `${FileSystem.cacheDirectory}${safeName}.pdf`;
-      await FileSystem.downloadAsync(link.value, targetUri);
+      const fileUrl = resolveVaultMediaUrlForApp(link.value) ?? link.value;
+      await FileSystem.downloadAsync(fileUrl, targetUri);
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
         await Sharing.shareAsync(targetUri, {
@@ -553,7 +556,8 @@ const VaultScreen = () => {
         });
       } else {
         // Fallback: abrir URL directamente en el browser
-        await Linking.openURL(link.value);
+        const fileUrl = resolveVaultMediaUrlForApp(link.value) ?? link.value;
+        await Linking.openURL(fileUrl);
       }
     } catch {
       Toast.show({
@@ -573,7 +577,7 @@ const VaultScreen = () => {
       return;
     }
 
-    if (isPdfValue(link.value)) {
+    if (isVaultDocumentPdf(link.value, link.vaultMimeType)) {
       // PDFs: visor nativo del sistema vía expo-sharing (funciona en Expo Go y builds).
       await openPdfWithSystemViewer(link);
       return;
@@ -592,15 +596,18 @@ const VaultScreen = () => {
     try {
       setIsDownloadingViewerFile(true);
       const fileNameSafe = `${viewerItem.title || 'archivo'}-${Date.now()}`.replace(/[^a-zA-Z0-9-_]/g, '_');
-      const extension = isPdfValue(viewerItem.value) ? 'pdf' : 'jpg';
+      const extension = isVaultDocumentPdf(viewerItem.value, viewerItem.vaultMimeType) ? 'pdf' : 'jpg';
       const targetUri = `${FileSystem.cacheDirectory}${fileNameSafe}.${extension}`;
 
-      await FileSystem.downloadAsync(viewerItem.value, targetUri);
+      const fileUrl = resolveVaultMediaUrlForApp(viewerItem.value) ?? viewerItem.value;
+      await FileSystem.downloadAsync(fileUrl, targetUri);
 
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
         await Sharing.shareAsync(targetUri, {
-          mimeType: isPdfValue(viewerItem.value) ? 'application/pdf' : 'image/jpeg',
+          mimeType: isVaultDocumentPdf(viewerItem.value, viewerItem.vaultMimeType)
+            ? 'application/pdf'
+            : 'image/jpeg',
           dialogTitle: 'Descargar archivo del Búnker',
         });
       }
@@ -661,8 +668,8 @@ const VaultScreen = () => {
       if (
         normalizedType === 'documento' ||
         normalizedType === 'imagen' ||
-        isImageValue(rawValue) ||
-        isPdfValue(rawValue)
+        isVaultDocumentImage(rawValue, link.vaultMimeType) ||
+        isVaultDocumentPdf(rawValue, link.vaultMimeType)
       ) {
         await openDocumentViewer(link);
         triggerSuccessHaptic();
@@ -1579,7 +1586,7 @@ const VaultScreen = () => {
 
           <View style={styles.viewerBody}>
             {viewerItem ? (
-              isImageValue(viewerItem.value) ? (
+              isVaultDocumentImage(viewerItem.value, viewerItem.vaultMimeType) ? (
                 <TouchableWithoutFeedback
                   onLongPress={() => {
                     void handleDownloadFromViewer();
@@ -1596,7 +1603,7 @@ const VaultScreen = () => {
                     bouncesZoom
                   >
                     <ExpoImage
-                      source={{ uri: viewerItem.value }}
+                      source={{ uri: resolveVaultMediaUrlForApp(viewerItem.value) ?? viewerItem.value }}
                       style={styles.viewerImage}
                       contentFit="contain"
                       cachePolicy="disk"
@@ -1605,7 +1612,7 @@ const VaultScreen = () => {
                     />
                   </ScrollView>
                 </TouchableWithoutFeedback>
-              ) : isPdfValue(viewerItem.value) ? (
+              ) : isVaultDocumentPdf(viewerItem.value, viewerItem.vaultMimeType) ? (
                 <View style={styles.viewerFallback}>
                   <MaterialCommunityIcons name="file-pdf-box" color={vaultTheme.ctaAccent} size={54} />
                   <Text style={[styles.viewerFallbackText, { color: vaultTheme.viewerFallbackText }]}>

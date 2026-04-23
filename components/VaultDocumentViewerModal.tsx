@@ -19,38 +19,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Sharing from 'expo-sharing';
 import Toast from 'react-native-toast-message';
 import type { MirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
+import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
+import { isVaultDocumentImage, isVaultDocumentPdf } from '@/services/vaultMimeGuards';
 
 let PdfComponent: any = null;
 try {
   PdfComponent = require('react-native-pdf').default;
 } catch {
   PdfComponent = null;
-}
-
-function isVaultProxyUrl(value: string) {
-  return /\/api\/vault\/file\//i.test(String(value || ''));
-}
-
-function isImageValue(value: string, mimeHint?: string) {
-  const m = String(mimeHint || '').toLowerCase();
-  if (m.startsWith('image/')) {
-    return true;
-  }
-  return (
-    /\.(jpg|jpeg|png|gif|webp|bmp|heic)(\?|$)/i.test(value) ||
-    (value.startsWith('file://') && !value.toLowerCase().endsWith('.pdf'))
-  );
-}
-
-function isPdfValue(value: string, mimeHint?: string) {
-  const m = String(mimeHint || '').toLowerCase();
-  if (m.includes('pdf') || m === 'application/pdf') {
-    return true;
-  }
-  if (isVaultProxyUrl(value)) {
-    return !m.startsWith('image/');
-  }
-  return /\.pdf(\?|$)/i.test(value);
 }
 
 const styles = StyleSheet.create({
@@ -135,6 +111,14 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
   const { width: winW, height: winH } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
+  /** Misma reescritura que avatares: Mongo puede tener LAN u host viejo; el GET público es …/api/qr/vault-proxy/file/:id. */
+  const displayUri = useMemo(() => {
+    if (!item?.value) {
+      return '';
+    }
+    return resolveVaultMediaUrlForApp(item.value) ?? item.value;
+  }, [item?.value]);
+
   /** Altura aproximada de la franja superior (safe area + botones) para dar alto fijo al PDF. */
   const topBarReserve = useMemo(() => Math.max(insets.top, Platform.OS === 'ios' ? 47 : 24) + 56 + 20, [insets.top]);
 
@@ -150,24 +134,24 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
 
   useEffect(() => {
     setPdfLoadError(null);
-  }, [item?.value]);
+  }, [displayUri]);
 
   const handleDownload = async () => {
-    if (!item?.value) {
+    if (!item?.value || !displayUri) {
       return;
     }
     const mimeHint = item.vaultMimeType;
     try {
       setDownloading(true);
       const fileNameSafe = `${item.title || 'archivo'}-${Date.now()}`.replace(/[^a-zA-Z0-9-_]/g, '_');
-      const extension = isPdfValue(item.value, mimeHint) ? 'pdf' : 'jpg';
+      const extension = isVaultDocumentPdf(item.value, mimeHint) ? 'pdf' : 'jpg';
       const targetUri = `${FileSystem.cacheDirectory}${fileNameSafe}.${extension}`;
 
-      await FileSystem.downloadAsync(item.value, targetUri);
+      await FileSystem.downloadAsync(displayUri, targetUri);
 
       const canShare = await Sharing.isAvailableAsync();
       const shareMime =
-        (mimeHint && mimeHint.includes('/')) ? mimeHint : isPdfValue(item.value, mimeHint) ? 'application/pdf' : 'image/jpeg';
+        (mimeHint && mimeHint.includes('/')) ? mimeHint : isVaultDocumentPdf(item.value, mimeHint) ? 'application/pdf' : 'image/jpeg';
       if (canShare) {
         await Sharing.shareAsync(targetUri, {
           mimeType: shareMime,
@@ -213,8 +197,9 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
 
   const showPdf =
     Boolean(item) &&
-    isPdfValue(item!.value, item!.vaultMimeType) &&
-    !isImageValue(item!.value, item!.vaultMimeType);
+    isVaultDocumentPdf(item!.value, item!.vaultMimeType) &&
+    !isVaultDocumentImage(item!.value, item!.vaultMimeType) &&
+    Boolean(displayUri);
 
   return (
     <Modal
@@ -223,6 +208,8 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
       animationType="fade"
       onRequestClose={onClose}
       statusBarTranslucent
+      // iOS: sin esto, un segundo Modal puede quedar bajo el modal del editor / preview
+      presentationStyle={Platform.OS === 'ios' ? 'overFullScreen' : undefined}
     >
       <View style={[styles.viewerOverlay, { width: winW, minHeight: winH }]}>
         <View style={[styles.viewerTopBar, { paddingTop: Math.max(insets.top, Platform.OS === 'ios' ? 8 : 4) }]}>
@@ -242,7 +229,7 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
 
         <View style={[styles.viewerBody, { height: pdfSize.height, minHeight: 280 }]}>
           {item ? (
-            isImageValue(item.value, item.vaultMimeType) ? (
+            isVaultDocumentImage(item.value, item.vaultMimeType) ? (
               <TouchableWithoutFeedback onLongPress={handleLongPress} delayLongPress={550}>
                 <ScrollView
                   maximumZoomScale={6}
@@ -255,7 +242,7 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
                   style={{ width: winW, height: pdfSize.height }}
                 >
                   <ExpoImage
-                    source={{ uri: item.value }}
+                    source={{ uri: displayUri }}
                     style={[styles.viewerImage, { width: winW, minHeight: pdfSize.height * 0.85 }]}
                     contentFit="contain"
                     cachePolicy="disk"
@@ -280,7 +267,7 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
                   <TouchableWithoutFeedback onLongPress={handleLongPress} delayLongPress={550}>
                     <View style={[styles.viewerPdfWrapper, pdfSize]}>
                       <PdfComponent
-                        source={{ uri: item.value }}
+                        source={{ uri: displayUri }}
                         style={[styles.viewerPdf, pdfSize]}
                         minScale={1}
                         maxScale={3}

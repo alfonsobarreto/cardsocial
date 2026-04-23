@@ -8,6 +8,7 @@ import {
   type MirrorOpenPlan,
 } from '@card-social/services/mirrorVaultItemOpenPlan';
 import type { PublicSlot } from '@/lib/universalCardTypes';
+import { resolvePublicVaultUrlForWeb } from '@/lib/resolvePublicVaultMediaUrl';
 import { resolveSlotVisual } from '@/lib/slotVisual';
 import {
   InterstitialAvatar,
@@ -314,7 +315,8 @@ export function MirrorActionModals({
   }
 
   if (plan.kind === 'document') {
-    const u = plan.value.trim();
+    const uRaw = plan.value.trim();
+    const u = resolvePublicVaultUrlForWeb(uRaw) ?? uRaw;
     const mime = String(plan.vaultMimeType || '').toLowerCase();
     const isPdf = mime.includes('pdf') || /\.pdf(\?|$)/i.test(u);
     const isImg =
