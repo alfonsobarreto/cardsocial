@@ -103,10 +103,11 @@ export default async function PublicBusinessPage({ params, searchParams }: Props
   }
 
   const u = String(uid).trim();
-  const card = await fetchPublicBusinessCard(bId, u);
-  if (!card) {
+  const cardOrNull = await fetchPublicBusinessCard(bId, u);
+  if (!cardOrNull) {
     notFound();
   }
+  const card: CardData = cardOrNull;
 
   const theme = getThemeById(card.themeId);
   const bgGradient = `linear-gradient(180deg, ${theme.background[0]}, ${theme.background[1]}, ${theme.background[2]})`;
