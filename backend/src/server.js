@@ -411,7 +411,9 @@ const otpHash = (emailLower, code) => {
 
   app.use("/api/public", createPublicUniversalRoutes({ storage }));
 
-  // Next.js frontend-web: /u, /b, /legal, /_next → mismo proceso Next (misma UI ficha pública + legal).
+  // Next.js frontend-web: ficha pública, legal, Card Studio, login, assets.
+  // Sin estos montajes Express responde 404 aunque Next esté levantado (p. ej. /studio, /login).
+  // /api/studio/* es Route Handler en Next (p. ej. resolve-username); debe ir a Next antes de app.use("/api", …).
   // En monorepo la app real suele estar en `repo/frontend-web`; `backend/frontend-web` a veces es solo stub de deploy.
   const pathMod = require('path');
   const fs = require('fs');
@@ -537,6 +539,9 @@ const otpHash = (emailLower, code) => {
     app.use('/u', nextProxy);
     app.use('/b', nextProxy);
     app.use('/legal', nextProxy);
+    app.use('/studio', nextProxy);
+    app.use('/login', nextProxy);
+    app.use('/api/studio', nextProxy);
     app.use('/_next', nextProxy);
     // File conventions del App Router (metadata): sin proxy el navegador pide /icon.png y Express no lo reenvía a Next.
     app.use('/icon.png', nextProxy);
