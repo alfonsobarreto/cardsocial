@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
@@ -23,25 +23,28 @@ export default function StudioLoginShell() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [nextPath, setNextPath] = useState('/studio/bunker');
 
   const t = useCallback((k: string, vars?: Record<string, string | number>) => studioT(locale, k, vars), [locale]);
+
+  const bootRedirectDone = useRef(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
-    setNextPath(readSafeNextPath(params.get('next')));
     setLocale(studioLocaleFromQuery(params.get('lang')) ?? readStoredLocale() ?? readBrowserLocale());
   }, []);
 
   useEffect(() => {
     return onAuthStateChanged(getStudioAuth(), (user) => {
-      if (user) {
-        setStudioAuthCookie(true);
-        router.replace(nextPath);
-      }
+      if (!user) return;
+      setStudioAuthCookie(true);
+      if (typeof window === 'undefined' || window.location.pathname !== '/login') return;
+      if (bootRedirectDone.current) return;
+      bootRedirectDone.current = true;
+      const go = new URLSearchParams(window.location.search).get('next');
+      router.replace(readSafeNextPath(go));
     });
-  }, [nextPath, router]);
+  }, [router]);
 
   const onSignIn = useCallback(async () => {
     setError(null);
@@ -89,13 +92,15 @@ export default function StudioLoginShell() {
         /* Do not block sign-in if the restoration check cannot run. */
       }
       setStudioAuthCookie(true);
-      router.replace(nextPath);
+      const go =
+        typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('next') : null;
+      router.replace(readSafeNextPath(go));
     } catch {
       setError(t('login.error'));
     } finally {
       setLoading(false);
     }
-  }, [nextPath, password, router, t, username]);
+  }, [password, router, t, username]);
 
   return (
     <StudioLogin

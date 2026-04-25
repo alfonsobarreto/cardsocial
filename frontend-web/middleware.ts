@@ -1,19 +1,17 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { STUDIO_AUTH_COOKIE } from '@/lib/studioAuthShared';
 
+/**
+ * /studio: solo reglas de ruta. La autenticación la resuelve el cliente (Firebase + cookie de apoyo);
+ * exigir cookie aquí hacía que gente con sesión persistente en el navegador cayera en /login
+ * aun con UID válido, y el `next` nunca debía reenviar a otra origen (p. ej. localhost:3001 en prod).
+ */
 export function middleware(req: NextRequest) {
-  const { pathname, search } = req.nextUrl;
+  const { pathname } = req.nextUrl;
   if (!pathname.startsWith('/studio')) {
     return NextResponse.next();
   }
-  if (pathname === '/studio') {
+  if (pathname === '/studio' || pathname === '/studio/') {
     return NextResponse.redirect(new URL('/studio/bunker', req.url));
-  }
-  const hasStudioSession = req.cookies.get(STUDIO_AUTH_COOKIE)?.value === '1';
-  if (!hasStudioSession) {
-    const login = new URL('/login', req.url);
-    login.searchParams.set('next', `${pathname}${search}`);
-    return NextResponse.redirect(login);
   }
   return NextResponse.next();
 }

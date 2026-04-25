@@ -13,9 +13,14 @@ function getApiBase(): string {
 }
 
 function getGatewayKey(): string {
-  const k = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_MODERATION_GATEWAY_KEY?.trim() : '';
+  const k =
+    (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_MODERATION_GATEWAY_KEY?.trim()) ||
+    (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_GATEWAY_KEY?.trim()) ||
+    '';
   if (!k) {
-    throw new Error('Set NEXT_PUBLIC_MODERATION_GATEWAY_KEY for document upload (same as Expo).');
+    throw new Error(
+      'Falta la clave del API: define NEXT_PUBLIC_MODERATION_GATEWAY_KEY o NEXT_PUBLIC_API_GATEWAY_KEY (misma que en la app / build de Next).',
+    );
   }
   return k;
 }

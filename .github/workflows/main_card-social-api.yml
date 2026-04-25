@@ -82,6 +82,9 @@ jobs:
           NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
           NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
           NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+          # Subida de perfil / documentos en Studio (misma clave que el gateway del backend, como en Expo).
+          NEXT_PUBLIC_MODERATION_GATEWAY_KEY: ${{ secrets.NEXT_PUBLIC_MODERATION_GATEWAY_KEY }}
+          NEXT_PUBLIC_API_GATEWAY_KEY: ${{ secrets.NEXT_PUBLIC_API_GATEWAY_KEY }}
 
       - name: Copy Next.js standalone into backend
         run: |

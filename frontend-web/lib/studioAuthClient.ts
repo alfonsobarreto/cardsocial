@@ -9,10 +9,37 @@ export function setStudioAuthCookie(active: boolean): void {
   document.cookie = `${STUDIO_AUTH_COOKIE}=${active ? '1' : ''}; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
 }
 
+const DEFAULT_STUDIO = '/studio/bunker';
+
+/**
+ * Ruta relativa de retorno (solo bajo /studio) tras login.
+ * Acepta path (`/studio/bunker`) o URL absoluta (dev `http://localhost:.../studio/...`, prod `https://cardsocial.me/...`)
+ * y devuelve siempre un path + query del **origen actual** al navegar (nunca otra base como localhost:3001).
+ */
 export function readSafeNextPath(raw: string | null | undefined): string {
-  const value = String(raw || '').trim();
-  if (!value || !value.startsWith('/') || value.startsWith('//')) {
-    return '/studio/bunker';
+  const s = String(raw || '').trim();
+  if (!s) return DEFAULT_STUDIO;
+  if (s.startsWith('//')) return DEFAULT_STUDIO;
+
+  let pathWithQuery: string;
+  if (/^https?:\/\//i.test(s)) {
+    try {
+      const u = new URL(s);
+      pathWithQuery = `${u.pathname || ''}${u.search || ''}`;
+    } catch {
+      return DEFAULT_STUDIO;
+    }
+  } else {
+    pathWithQuery = s;
   }
-  return value;
+
+  if (!pathWithQuery.startsWith('/')) return DEFAULT_STUDIO;
+  if (pathWithQuery.startsWith('//')) return DEFAULT_STUDIO;
+  if (pathWithQuery === '/login' || pathWithQuery.startsWith('/login?')) {
+    return DEFAULT_STUDIO;
+  }
+  if (!pathWithQuery.startsWith('/studio')) {
+    return DEFAULT_STUDIO;
+  }
+  return pathWithQuery;
 }

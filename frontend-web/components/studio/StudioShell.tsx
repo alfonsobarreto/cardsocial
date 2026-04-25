@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { doc, getDoc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
@@ -35,6 +35,9 @@ export default function StudioShell() {
   const pathname = usePathname();
 
   const [user, setUser] = useState<User | null>(null);
+  /** Evita tratar un null "transitorio" de Firebase (antes de restaurar la sesión) como cierre de sesión. */
+  const signOutDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const SIGNED_OUT_DELAY_MS = 200;
   const [locale, setLocale] = useState<StudioLocale>('en');
 
   const [links, setLinks] = useState<StudioVaultLink[]>([]);
@@ -93,16 +96,36 @@ export default function StudioShell() {
   );
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     const auth = getStudioAuth();
+    const clearDebounce = () => {
+      if (signOutDebounce.current) {
+        clearTimeout(signOutDebounce.current);
+        signOutDebounce.current = null;
+      }
+    };
     const unsub = onAuthStateChanged(auth, (u) => {
-      setStudioAuthCookie(Boolean(u));
-      setUser(u);
-      if (!u) {
+      if (u) {
+        clearDebounce();
+        setStudioAuthCookie(true);
+        setUser(u);
+        return;
+      }
+      setUser(null);
+      signOutDebounce.current = setTimeout(() => {
+        signOutDebounce.current = null;
+        if (getStudioAuth().currentUser) {
+          return;
+        }
+        setStudioAuthCookie(false);
         const next = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
         router.replace(`/login?next=${next}`);
-      }
+      }, SIGNED_OUT_DELAY_MS);
     });
-    return () => unsub();
+    return () => {
+      clearDebounce();
+      unsub();
+    };
   }, [router]);
 
   useEffect(() => {
@@ -228,8 +251,21 @@ export default function StudioShell() {
 
   const onSignOut = useCallback(() => {
     setStudioAuthCookie(false);
-    void signOut(getStudioAuth());
-  }, []);
+    // Importante: ir a /login *después* de signOut. Si navegamos antes, /login aún ve sesión
+    // en Firebase, StudioLoginShell te devuelve a /studio y se produce ERR_TOO_MANY_REDIRECTS.
+    void (async () => {
+      try {
+        await signOut(getStudioAuth());
+      } catch {
+        /* aun sin red: forzar ida a login */
+      } finally {
+        if (typeof window !== 'undefined') {
+          const next = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
+          router.replace(`/login?next=${next}`);
+        }
+      }
+    })();
+  }, [router]);
 
   const openProfile = useCallback(() => {
     setLeftPanel('profile');
@@ -310,7 +346,20 @@ export default function StudioShell() {
   }, [locale, t, user]);
 
   if (!user) {
-    return null;
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'grid',
+          placeItems: 'center',
+          background: studioTheme.bg,
+          color: studioTheme.gold,
+          fontSize: 14,
+        }}
+      >
+        {t('studio.sessionLoading')}
+      </div>
+    );
   }
 
   return (
