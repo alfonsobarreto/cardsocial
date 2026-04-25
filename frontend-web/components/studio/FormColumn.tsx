@@ -10,7 +10,6 @@ import {
   sanitizeNationalDigits,
 } from '@card-social/constants/countryDialCodes';
 import { isVaultDocumentImage, isVaultDocumentPdf } from '@card-social/services/vaultMimeGuards';
-import { splitSovereignText } from '@card-social/utils/sovereignTextSplit';
 import { uploadVaultDocumentWeb } from '@/lib/studioModerationClient';
 import { extractDomainFromLink, fetchStudioFavicon } from '@/lib/studioFaviconClient';
 import { resolvePublicVaultUrlForWeb } from '@/lib/resolvePublicVaultMediaUrl';
@@ -337,7 +336,6 @@ export default function FormColumn({
 
   const docIsPdf = isVaultDocumentPdf(data, localMime);
   const docIsImg = isVaultDocumentImage(data, localMime);
-  const sovereignText = splitSovereignText(data);
   const docUrl = resolvePublicVaultUrlForWeb(data) || data;
   const hasViewableDocUrl = /^https?:\/\//i.test(String(docUrl || ''));
 
@@ -687,6 +685,7 @@ export default function FormColumn({
                 overflow: 'hidden',
               }}
             >
+              {/* Espejo con las mismas métricas que el textarea; negrita/tamaño distinto desalineaba el caret. */}
               <div
                 aria-hidden
                 style={{
@@ -698,21 +697,13 @@ export default function FormColumn({
                   overflowWrap: 'break-word',
                   fontSize: 15,
                   lineHeight: '22px',
+                  fontWeight: 400,
+                  fontFamily:
+                    'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif',
                   color: data ? studioTheme.text : studioTheme.textSubtle,
                 }}
               >
-                {data ? (
-                  <>
-                    {sovereignText.headline ? (
-                      <div style={{ fontSize: 17, lineHeight: '22px', fontWeight: 800 }}>{sovereignText.headline}</div>
-                    ) : null}
-                    {sovereignText.body ? (
-                      <div style={{ fontSize: 15, lineHeight: '22px', fontWeight: 400 }}>{sovereignText.body}</div>
-                    ) : null}
-                  </>
-                ) : (
-                  t('form.textPh')
-                )}
+                {data || t('form.textPh')}
               </div>
               <textarea
                 value={data}
@@ -740,6 +731,10 @@ export default function FormColumn({
                   caretColor: studioTheme.gold,
                   fontSize: 15,
                   lineHeight: '22px',
+                  fontWeight: 400,
+                  fontFamily:
+                    'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif',
+                  fontSynthesis: 'none',
                   resize: 'vertical',
                 }}
               />

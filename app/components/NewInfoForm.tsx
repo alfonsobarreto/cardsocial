@@ -49,7 +49,6 @@ import { useLookMode } from '@/services/lookMode';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import { newEntityId } from '@/services/newEntityId';
 import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
-import { splitSovereignText } from '@/utils/sovereignTextSplit';
 import { premiumTheme } from '@/styles/_premiumTheme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
@@ -2169,12 +2168,19 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           </LinearGradient>
         );
       case 'Texto Plain': {
-        const { headline: headLine, body: restBody } = splitSovereignText(dataValue || '');
+        // La capa espejo y el TextInput deben compartir el mismo fontSize, lineHeight y fontWeight
+        // (sin negrita en la primera línea) para que el caret y la selección coincidan con lo visible.
         const lineH = 22;
         const fontBody = 15;
-        const fontHead = 17;
         const hPad = 14;
         const vPad = 12;
+        const fieldTypo = {
+          fontSize: fontBody,
+          lineHeight: lineH,
+          fontWeight: '400' as const,
+          color: formTheme.inputText,
+          ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
+        };
         return (
           <View>
             <LinearGradient
@@ -2203,43 +2209,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                   }}
                   pointerEvents="none"
                 >
-                  {headLine ? (
-                    <Text>
-                      <Text
-                        style={{
-                          fontSize: fontHead,
-                          lineHeight: lineH,
-                          fontWeight: '700',
-                          color: formTheme.inputText,
-                        }}
-                      >
-                        {headLine}
-                      </Text>
-                      {restBody ? (
-                        <Text
-                          style={{
-                            fontSize: fontBody,
-                            lineHeight: lineH,
-                            fontWeight: '400',
-                            color: formTheme.inputText,
-                          }}
-                        >
-                          {`\n${restBody}`}
-                        </Text>
-                      ) : null}
-                    </Text>
-                  ) : restBody ? (
-                    <Text
-                      style={{
-                        fontSize: fontBody,
-                        lineHeight: lineH,
-                        fontWeight: '400',
-                        color: formTheme.inputText,
-                      }}
-                    >
-                      {restBody}
-                    </Text>
-                  ) : null}
+                  {dataValue ? <Text style={fieldTypo}>{dataValue}</Text> : null}
                 </View>
                 <TextInput
                   style={[
@@ -2251,7 +2221,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                       borderWidth: 0,
                       fontSize: fontBody,
                       lineHeight: lineH,
+                      fontWeight: '400',
                       zIndex: 1,
+                      ...(Platform.OS === 'android' ? { includeFontPadding: false } : null),
                     },
                   ]}
                   placeholder={tr('Escribe aquí...', 'Write here...')}
