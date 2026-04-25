@@ -1,6 +1,6 @@
 import ActivityIndicator from '@/components/BrandedSpinner';
 import { brandCsIconLogoBgTransparent } from '@/constants/brandAssets';
-import { initiateAccountRecovery } from '@/services/accountRecoveryService';
+import { initiateAccountRecovery, requestUsernameRecoveryByPhone } from '@/services/accountRecoveryService';
 import { saveCachedCredentials } from '@/services/credentialVault';
 import { auth, db } from '@/services/firebaseConfig';
 import { firestoreFirstUserDocByNickLower } from '@/services/userIdentityFields';
@@ -39,8 +39,13 @@ export default function SignInScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRecoveringPassword, setIsRecoveringPassword] = useState(false);
+  const [isRecoveringUsername, setIsRecoveringUsername] = useState(false);
   const [isResendingVerification, setIsResendingVerification] = useState(false);
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState('');
+  const [recoveryMode, setRecoveryMode] = useState<'password' | 'username' | null>(null);
+  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [recoveryPhone, setRecoveryPhone] = useState('');
+  const [maskedRecoveryEmail, setMaskedRecoveryEmail] = useState('');
 
   const welcomeTitle = useMemo(
     () => tr('Card-Social, donde tus datos son solo tuyos', 'Card-Social, your data stays yours'),
@@ -77,6 +82,17 @@ export default function SignInScreen() {
     }
 
     return null;
+  };
+
+  const maskEmail = (email: string) => {
+    const [localRaw, domainRaw] = email.split('@');
+    const local = localRaw || '';
+    const domain = domainRaw || '';
+    const first = local.slice(0, 1);
+    const last = local.length > 2 ? local.slice(-1) : '';
+    const domainParts = domain.split('.');
+    const tld = domainParts.length > 1 ? domainParts.pop() : '';
+    return `${first}${'*'.repeat(Math.max(4, local.length - 2))}${last}@${'*'.repeat(Math.max(5, domainParts.join('.').length))}${tld ? `.${tld}` : ''}`;
   };
 
   const handleSignIn = async () => {
@@ -167,23 +183,49 @@ export default function SignInScreen() {
 
   const handleForgotPassword = async () => {
     const normalizedUsername = username.trim();
-    if (!normalizedUsername) {
-      Alert.alert(tr('Usuario requerido', 'Username required'), tr('Escribe tu usuario para enviarte el enlace de recuperacion.', 'Enter your username to receive a recovery link.'));
+    setRecoveryEmail('');
+    setMaskedRecoveryEmail('');
+    if (normalizedUsername) {
+      const resolvedEmail = await resolveEmailFromUsername(normalizedUsername).catch(() => null);
+      if (resolvedEmail) setMaskedRecoveryEmail(maskEmail(resolvedEmail));
+    }
+    setRecoveryMode('password');
+  };
+
+  const submitForgotPassword = async () => {
+    const email = recoveryEmail.trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      Alert.alert(tr('Email requerido', 'Email required'), tr('Escribe el email completo de tu cuenta.', 'Enter your full account email.'));
       return;
     }
-
-    const resolvedEmail = await resolveEmailFromUsername(normalizedUsername);
-    if (!resolvedEmail) {
-      Alert.alert(tr('Usuario no encontrado', 'Username not found'), tr('No encontramos una cuenta con ese usuario.', 'We could not find an account with that username.'));
-      return;
-    }
-
     setIsRecoveringPassword(true);
     try {
-      const response = await initiateAccountRecovery(resolvedEmail);
-      Alert.alert(response.success ? tr('Recuperacion enviada', 'Recovery email sent') : tr('No se pudo iniciar recuperacion', 'Could not start recovery'), response.message);
+      const response = await initiateAccountRecovery(email);
+      setRecoveryMode(null);
+      Alert.alert(tr('Revisa tu correo', 'Check your email'), tr(response.message, 'If the email matches an account, we will send a recovery link.'));
     } finally {
       setIsRecoveringPassword(false);
+    }
+  };
+
+  const openForgotUsername = () => {
+    setRecoveryPhone('');
+    setRecoveryMode('username');
+  };
+
+  const submitForgotUsername = async () => {
+    const phone = recoveryPhone.trim();
+    if (phone.replace(/[^\d]/g, '').length < 8) {
+      Alert.alert(tr('Telefono requerido', 'Phone required'), tr('Escribe el numero de celular completo de tu cuenta.', 'Enter the full phone number on your account.'));
+      return;
+    }
+    setIsRecoveringUsername(true);
+    try {
+      const response = await requestUsernameRecoveryByPhone(phone);
+      setRecoveryMode(null);
+      Alert.alert(tr('Revisa tu correo', 'Check your email'), tr(response.message, 'If we find an account with that phone, we will send the username to the registered email.'));
+    } finally {
+      setIsRecoveringUsername(false);
     }
   };
 
@@ -328,6 +370,18 @@ export default function SignInScreen() {
               )}
             </TouchableOpacity>
 
+            <TouchableOpacity
+              onPress={openForgotUsername}
+              style={styles.secondaryLinkWrap}
+              disabled={isRecoveringUsername}
+            >
+              {isRecoveringUsername ? (
+                <ActivityIndicator size="small" color="#0A2540" />
+              ) : (
+                <Text style={styles.secondaryLink}>{tr('Olvide mi usuario', 'Forgot my username')}</Text>
+              )}
+            </TouchableOpacity>
+
             {(pendingVerificationEmail || username.trim()) ? (
               <TouchableOpacity
                 onPress={() => {
@@ -362,6 +416,70 @@ export default function SignInScreen() {
               <Text style={styles.submitOverlayText}>{tr('Validando acceso seguro...', 'Validating secure access...')}</Text>
             </View>
           </View>
+        </Modal>
+
+        <Modal
+          visible={recoveryMode !== null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setRecoveryMode(null)}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.submitOverlay}>
+              <View style={styles.recoveryCard}>
+                <Text style={styles.recoveryTitle}>
+                  {recoveryMode === 'password'
+                    ? tr('Recuperar contrasena', 'Recover password')
+                    : tr('Recuperar usuario', 'Recover username')}
+                </Text>
+                <Text style={styles.recoveryBody}>
+                  {recoveryMode === 'password'
+                    ? maskedRecoveryEmail
+                      ? tr(
+                          `Escribe completo el email de tu cuenta (${maskedRecoveryEmail}) para enviarte el enlace de recuperacion.`,
+                          `Enter your full account email (${maskedRecoveryEmail}) to receive the recovery link.`,
+                        )
+                      : tr(
+                          'Escribe completo el email de tu cuenta para enviarte el enlace de recuperacion.',
+                          'Enter your full account email to receive the recovery link.',
+                        )
+                    : tr(
+                        'Escribe el numero de celular de tu cuenta. Si coincide, enviaremos tu usuario al email registrado.',
+                        'Enter the phone number on your account. If it matches, we will send your username to the registered email.',
+                      )}
+                </Text>
+                <View style={styles.recoveryInputWrap}>
+                  <TextInput
+                    style={styles.recoveryInput}
+                    value={recoveryMode === 'password' ? recoveryEmail : recoveryPhone}
+                    onChangeText={recoveryMode === 'password' ? setRecoveryEmail : setRecoveryPhone}
+                    placeholder={recoveryMode === 'password' ? 'name@example.com' : '+1 555 000 0000'}
+                    placeholderTextColor="#8E8E93"
+                    keyboardType={recoveryMode === 'password' ? 'email-address' : 'phone-pad'}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
+                <TouchableOpacity
+                  style={styles.primaryButton}
+                  onPress={() => {
+                    if (recoveryMode === 'password') void submitForgotPassword();
+                    else void submitForgotUsername();
+                  }}
+                  disabled={isRecoveringPassword || isRecoveringUsername}
+                >
+                  <Text style={styles.primaryButtonText}>
+                    {isRecoveringPassword || isRecoveringUsername
+                      ? tr('Enviando...', 'Sending...')
+                      : tr('Continuar', 'Continue')}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.secondaryLinkWrap} onPress={() => setRecoveryMode(null)}>
+                  <Text style={styles.secondaryLink}>{tr('Cancelar', 'Cancel')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
         </Modal>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
@@ -519,5 +637,41 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 14,
     textAlign: 'center',
+  },
+  recoveryCard: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBE7F8',
+    padding: 20,
+  },
+  recoveryTitle: {
+    color: '#0A2540',
+    fontSize: 20,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  recoveryBody: {
+    marginTop: 10,
+    color: '#4A4A4A',
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  recoveryInputWrap: {
+    marginTop: 16,
+    backgroundColor: '#F8FBFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#DCE9F2',
+    minHeight: 50,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+  },
+  recoveryInput: {
+    color: '#0A2540',
+    fontSize: 15,
   },
 });

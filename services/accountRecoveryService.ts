@@ -18,25 +18,62 @@ export async function initiateAccountRecovery(email: string): Promise<{
   success: boolean;
   message: string;
 }> {
+  const genericMessage = 'Si el email coincide con una cuenta, enviaremos un enlace de recuperación.';
   try {
-    // Verificar que el email existe en Firebase Auth
     await sendPasswordResetEmail(auth, email);
 
     return {
       success: true,
-      message: 'Email de recuperación enviado. Revisa tu bandeja de entrada.',
+      message: genericMessage,
     };
   } catch (error: any) {
-    if (error.code === 'auth/user-not-found') {
-      return {
-        success: false,
-        message: 'Email no registrado en Card-Social. Verifica e intenta de nuevo.',
-      };
-    }
     return {
-      success: false,
-      message: error.message || 'Error enviando email de recuperación.',
+      success: true,
+      message: genericMessage,
     };
+  }
+}
+
+function getApiBase(): string {
+  return (
+    process.env.EXPO_PUBLIC_MODERATION_API_URL?.trim() ||
+    process.env.EXPO_PUBLIC_API_URL?.trim() ||
+    process.env.EXPO_PUBLIC_BACKEND_BASE_URL?.trim() ||
+    ''
+  ).replace(/\/+$/, '');
+}
+
+function getGatewayKey(): string {
+  return (
+    process.env.EXPO_PUBLIC_MODERATION_GATEWAY_KEY?.trim() ||
+    process.env.EXPO_PUBLIC_API_GATEWAY_KEY?.trim() ||
+    process.env.EXPO_PUBLIC_GATEWAY_KEY?.trim() ||
+    ''
+  );
+}
+
+export async function requestUsernameRecoveryByPhone(phone: string): Promise<{
+  success: boolean;
+  message: string;
+}> {
+  const genericMessage = 'Si encontramos una cuenta con ese teléfono, enviaremos el usuario al email registrado.';
+  const baseUrl = getApiBase();
+  const gatewayKey = getGatewayKey();
+  if (!baseUrl || !gatewayKey) {
+    return { success: false, message: 'Servicio de recuperación no configurado.' };
+  }
+  try {
+    await fetch(`${baseUrl}/api/recovery/username`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-gateway-key': gatewayKey,
+      },
+      body: JSON.stringify({ phone }),
+    });
+    return { success: true, message: genericMessage };
+  } catch {
+    return { success: true, message: genericMessage };
   }
 }
 

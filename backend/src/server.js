@@ -74,6 +74,7 @@ async function bootstrap() {
   // --- Action Token Model ---
   const { createActionTokenModel } = require('./models/actionToken');
   const actionTokenModel = createActionTokenModel(db);
+  const { sendEmail, usernameRecoveryTemplate } = require('./services/email.service');
 
   const gatewayKeyMiddleware = createGatewayKeyMiddleware({
     apiGatewayKey: env.apiGatewayKey,
@@ -562,6 +563,49 @@ const otpHash = (emailLower, code) => {
     middlewares: [gatewayKeyMiddleware, jwtAuthMiddleware, uploadScopeMiddleware],
     buildVaultAccessUrl,
   }));
+
+  app.post("/api/recovery/username", gatewayKeyMiddleware, async (req, res) => {
+    const generic = {
+      ok: true,
+      message: "Si encontramos una cuenta con ese telefono, enviaremos el usuario al email registrado.",
+    };
+    try {
+      const rawPhone = String(req.body?.phone || "").trim();
+      const phoneNormalized = rawPhone.replace(/[^\d+]/g, "");
+      if (!phoneNormalized || phoneNormalized.length < 8 || phoneNormalized.length > 18) {
+        return res.status(200).json(generic);
+      }
+      const candidates = Array.from(
+        new Set([
+          phoneNormalized,
+          phoneNormalized.startsWith("+") ? phoneNormalized.slice(1) : `+${phoneNormalized}`,
+          rawPhone,
+        ].filter(Boolean)),
+      );
+      const user = await db.collection("users").findOne({
+        $or: [
+          { phoneNormalized: { $in: candidates } },
+          { phone: { $in: candidates } },
+        ],
+      });
+      if (user) {
+        const email = String(user.emailLower || user.email || "").trim().toLowerCase();
+        const username = String(user.userNickName || user.nickname || "").trim().replace(/^@+/, "");
+        if (email && username) {
+          await sendEmail({
+            to: email,
+            subject: "Tu usuario de Card-Social",
+            html: usernameRecoveryTemplate({ username }),
+            text: `Tu usuario de Card-Social es @${username}. Si no solicitaste esta ayuda, ignora este correo.`,
+          });
+        }
+      }
+      return res.status(200).json(generic);
+    } catch (error) {
+      console.error("[recovery/username]", error);
+      return res.status(200).json(generic);
+    }
+  });
 
   app.use("/api/qr/vault-proxy", vaultFileProxyRouter);
 

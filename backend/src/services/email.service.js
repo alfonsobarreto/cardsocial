@@ -66,6 +66,17 @@ ${renderButton('RESTABLECER MI CONTRASEÑA', url)}<br><br>
   });
 }
 
+function usernameRecoveryTemplate({ username }) {
+  return renderBaseTemplate({
+    subject: 'Tu usuario de Card-Social',
+    bodyHtml: `Hola,<br><br>
+Recibimos una solicitud para recordar el usuario asociado a este correo.<br><br>
+Tu usuario de Card-Social es:<br><br>
+<div style="font-size:22px;font-weight:700;color:#222;background:#f4f8fb;border-radius:8px;padding:14px 18px;text-align:center;">@${username}</div><br>
+Si no solicitaste esta ayuda, puedes ignorar este correo.`
+  });
+}
+
 async function sendEmail({ to, subject, html, text }) {
   const client = getEmailClient();
   const message = {
@@ -131,4 +142,5 @@ module.exports = {
   sendEmail,
   welcomeTemplate,
   passwordResetTemplate,
+  usernameRecoveryTemplate,
 };

@@ -43,6 +43,7 @@ import {
     reauthenticateWithCredential,
     signOut,
     updatePassword,
+    verifyBeforeUpdateEmail,
 } from 'firebase/auth';
 import { collection, doc, getDoc, getDocs, serverTimestamp, updateDoc } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
@@ -52,6 +53,7 @@ import {
     InteractionManager,
     Keyboard,
     KeyboardAvoidingView,
+    Linking,
     Modal,
     Platform,
     ScrollView,
@@ -171,6 +173,13 @@ export default function MyProfileScreen() {
   const [showNewPw, setShowNewPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
 
+  // Email change
+  const [emailSection, setEmailSection] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailPw, setEmailPw] = useState('');
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [showEmailPw, setShowEmailPw] = useState(false);
+
   // Bio
   const [editBio, setEditBio] = useState('');
   const [savingBio, setSavingBio] = useState(false);
@@ -193,9 +202,29 @@ export default function MyProfileScreen() {
       const uid = await getActiveUserId();
       if (!uid) return;
 
-      const snap = await getDoc(doc(db, 'users', uid));
+      const userDocRef = doc(db, 'users', uid);
+      const snap = await getDoc(userDocRef);
       const data = snap.data() as any;
       if (!data) return;
+      try {
+        await auth.currentUser?.reload();
+        const authEmail = String(auth.currentUser?.email || '').trim().toLowerCase();
+        const storedEmail = String(data.emailLower || data.email || '').trim().toLowerCase();
+        if (authEmail && authEmail !== storedEmail) {
+          await updateDoc(userDocRef, {
+            email: authEmail,
+            emailLower: authEmail,
+            pendingEmail: null,
+            pendingEmailLower: null,
+            emailChangedAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+          data.email = authEmail;
+          data.emailLower = authEmail;
+        }
+      } catch {
+        /* Email sync is best-effort; profile still loads. */
+      }
 
       const lastName = String(data.lastName || '').trim();
       const firstName = String(data.firstName || '').trim();
@@ -579,6 +608,83 @@ export default function MyProfileScreen() {
     }
   };
 
+  // ── Change email ────────────────────────────────────────────────────────────
+  const requestEmailChange = async () => {
+    const user = auth.currentUser;
+    if (!profile || !user || !user.email) return;
+    const next = newEmail.trim().toLowerCase();
+    const current = String(user.email || profile.email || '').trim().toLowerCase();
+    if (!next || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next)) {
+      Alert.alert(tr('Email inválido', 'Invalid email'), tr('Escribe un email válido.', 'Enter a valid email.'));
+      return;
+    }
+    if (next === current) {
+      Alert.alert(tr('Aviso', 'Notice'), tr('Ese ya es tu email actual.', 'That is already your current email.'));
+      return;
+    }
+    if (!emailPw) {
+      Alert.alert(tr('Contraseña requerida', 'Password required'), tr('Escribe tu contraseña actual para confirmar.', 'Enter your current password to confirm.'));
+      return;
+    }
+    try {
+      setSavingEmail(true);
+      const credential = EmailAuthProvider.credential(user.email, emailPw);
+      await reauthenticateWithCredential(user, credential);
+      await verifyBeforeUpdateEmail(user, next);
+      await updateDoc(doc(db, 'users', profile.uid), {
+        pendingEmail: next,
+        pendingEmailLower: next,
+        emailChangeRequestedAt: serverTimestamp(),
+        emailChangeRequestedFrom: 'mobile',
+        updatedAt: serverTimestamp(),
+      });
+      setNewEmail('');
+      setEmailPw('');
+      setEmailSection(false);
+      Alert.alert(
+        tr('Verifica tu nuevo email', 'Verify your new email'),
+        tr(
+          'Te enviamos un enlace al nuevo correo. El cambio se aplicará cuando confirmes ese enlace.',
+          'We sent a link to the new email. The change will apply after you confirm that link.',
+        ),
+      );
+    } catch (e: any) {
+      const code = String(e?.code || '');
+      if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+        Alert.alert(tr('Contraseña incorrecta', 'Wrong password'), tr('La contraseña actual es incorrecta.', 'Current password is incorrect.'));
+      } else if (code === 'auth/email-already-in-use') {
+        Alert.alert(tr('Email en uso', 'Email in use'), tr('Ese email ya pertenece a otra cuenta.', 'That email already belongs to another account.'));
+      } else if (code === 'auth/requires-recent-login') {
+        Alert.alert(tr('Sesión expirada', 'Session expired'), tr('Cierra sesión y vuelve a entrar.', 'Sign out and sign back in.'));
+      } else {
+        Alert.alert(tr('No se pudo enviar verificación', 'Could not send verification'), e?.message || tr('Inténtalo de nuevo.', 'Please try again.'));
+      }
+    } finally {
+      setSavingEmail(false);
+    }
+  };
+
+  const openPhoneSupportTicket = async () => {
+    const subject = encodeURIComponent('Cambio de teléfono - Card-Social');
+    const body = encodeURIComponent(
+      `Hola soporte Card-Social,\n\nQuiero solicitar cambio de teléfono en mi cuenta.\n\nUID: ${profile?.uid || ''}\nEmail: ${profile?.email || ''}\nTeléfono actual: ${profile?.phone || ''}\n\nEntiendo que el ticket se resuelve en máximo 3 días hábiles.\n`,
+    );
+    const url = `mailto:support@cardsocial.me?subject=${subject}&body=${body}`;
+    try {
+      const ok = await Linking.canOpenURL(url);
+      if (!ok) throw new Error('No mail client');
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert(
+        tr('Abrir ticket', 'Open ticket'),
+        tr(
+          'Escríbenos a support@cardsocial.me. Los cambios de teléfono se resuelven en máximo 3 días hábiles.',
+          'Email us at support@cardsocial.me. Phone change requests are resolved within 3 business days.',
+        ),
+      );
+    }
+  };
+
   // ── Change password ─────────────────────────────────────────────────────────
   const changePassword = async () => {
     const user = auth.currentUser;
@@ -846,22 +952,79 @@ export default function MyProfileScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* ── Email — solo lectura ──────────────────────────────────────────── */}
+            {/* ── Email — cambio verificado ─────────────────────────────────────── */}
             <View style={[styles.card, { backgroundColor: card, borderColor: border }]}>
-              <View style={styles.cardHeader}>
+              <TouchableOpacity
+                style={styles.cardHeader}
+                onPress={() => {
+                  if (isPasswordUser) setEmailSection((s) => !s);
+                }}
+                activeOpacity={0.8}
+              >
                 <MaterialCommunityIcons name="email-outline" size={18} color={accent} />
                 <Text style={[styles.cardTitle, { color: textPrimary }]}>{tr('Correo electrónico', 'Email')}</Text>
-                <View style={[styles.roChip, { backgroundColor: shell.gridCardBg, borderColor: border }]}>
-                  <MaterialCommunityIcons name="lock-outline" size={11} color={textSecondary} />
-                  <Text style={[styles.roChipText, { color: textSecondary }]}>{tr('Solo lectura', 'Read only')}</Text>
-                </View>
-              </View>
+                {isPasswordUser ? (
+                  <MaterialCommunityIcons
+                    name={emailSection ? 'chevron-up' : 'chevron-down'}
+                    size={18}
+                    color={textSecondary}
+                    style={{ marginLeft: 'auto' }}
+                  />
+                ) : (
+                  <View style={[styles.roChip, { backgroundColor: shell.gridCardBg, borderColor: border }]}>
+                    <MaterialCommunityIcons name="lock-outline" size={11} color={textSecondary} />
+                    <Text style={[styles.roChipText, { color: textSecondary }]}>{tr('Social', 'Social')}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
               <View style={[styles.readonlyField, { backgroundColor: inputBg, borderColor: border }]}>
                 <Text style={[styles.readonlyText, { color: textSecondary }]}>{profile?.email || tr('No disponible', 'Not available')}</Text>
               </View>
               <Text style={[styles.hintText, { color: textSecondary }]}>
-                {tr('Para cambiar tu email contacta soporte desde Configuración.', 'To change your email contact support from Settings.')}
+                {isPasswordUser
+                  ? tr('El cambio requiere tu contraseña y confirmar un enlace enviado al nuevo email.', 'Changing email requires your password and confirming a link sent to the new email.')
+                  : tr('Tu email se gestiona desde tu proveedor social.', 'Your email is managed by your social provider.')}
               </Text>
+              {isPasswordUser && emailSection && (
+                <View style={styles.pwForm}>
+                  <Text style={[styles.inputLabel, { color: textSecondary }]}>{tr('Nuevo email', 'New email')}</Text>
+                  <TextInput
+                    style={[styles.input, { backgroundColor: inputBg, color: textPrimary, borderColor: border }]}
+                    value={newEmail}
+                    onChangeText={setNewEmail}
+                    placeholder="name@example.com"
+                    placeholderTextColor={textSecondary}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                  <Text style={[styles.inputLabel, { color: textSecondary }]}>{tr('Contraseña actual', 'Current password')}</Text>
+                  <View style={[styles.pwInputWrap, { backgroundColor: inputBg, borderColor: border }]}>
+                    <TextInput
+                      style={[styles.pwInput, { color: textPrimary }]}
+                      value={emailPw}
+                      onChangeText={setEmailPw}
+                      secureTextEntry={!showEmailPw}
+                      placeholder="••••••••"
+                      placeholderTextColor={textSecondary}
+                    />
+                    <TouchableOpacity onPress={() => setShowEmailPw((s) => !s)} accessibilityLabel={tr('Mostrar contraseña', 'Toggle password visibility')}>
+                      <MaterialCommunityIcons name={showEmailPw ? 'eye-off-outline' : 'eye-outline'} size={18} color={textSecondary} />
+                    </TouchableOpacity>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.saveBtn, { backgroundColor: accent }, savingEmail && styles.saveBtnDisabled]}
+                    onPress={requestEmailChange}
+                    disabled={savingEmail}
+                    activeOpacity={0.82}
+                  >
+                    <MaterialCommunityIcons name="email-check-outline" size={16} color={shell.emptyCtaText} />
+                    <Text style={[styles.saveBtnText, { color: shell.emptyCtaText }]}>
+                      {savingEmail ? tr('Enviando…', 'Sending…') : tr('Enviar verificación', 'Send verification')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
 
             {/* ── Teléfono — solo lectura ───────────────────────────────────────── */}
@@ -878,8 +1041,16 @@ export default function MyProfileScreen() {
                 <Text style={[styles.readonlyText, { color: textSecondary }]}>{profile?.phone || tr('No disponible', 'Not available')}</Text>
               </View>
               <Text style={[styles.hintText, { color: textSecondary }]}>
-                {tr('El teléfono está ligado a tu verificación de identidad y no puede cambiarse.', 'Phone is tied to your identity verification and cannot be changed.')}
+                {tr('Para cambiar tu teléfono abre un ticket. Se resuelve en máximo 3 días hábiles.', 'To change your phone, open a ticket. It is resolved within 3 business days.')}
               </Text>
+              <TouchableOpacity
+                style={[styles.saveBtn, { backgroundColor: accent }]}
+                onPress={openPhoneSupportTicket}
+                activeOpacity={0.82}
+              >
+                <MaterialCommunityIcons name="lifebuoy" size={16} color={shell.emptyCtaText} />
+                <Text style={[styles.saveBtnText, { color: shell.emptyCtaText }]}>{tr('Abrir ticket', 'Open ticket')}</Text>
+              </TouchableOpacity>
             </View>
 
             {/* ── Contraseña (solo usuarios password) ──────────────────────────── */}

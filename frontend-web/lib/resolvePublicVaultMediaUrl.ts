@@ -16,6 +16,11 @@ export function getPublicVaultBaseUrl(): string {
 export function resolvePublicVaultUrlForWeb(raw: string | null | undefined): string | null {
   const s = String(raw ?? '').trim();
   if (!s) return null;
+  const direct = s.match(VAULT_FILE_RE);
+  if (direct?.[1]) {
+    const base = getPublicVaultBaseUrl();
+    return `${base}/api/qr/vault-proxy/file/${direct[1]}`;
+  }
   let parsed: URL;
   try {
     parsed = new URL(s);

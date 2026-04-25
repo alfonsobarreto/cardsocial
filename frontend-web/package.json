@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@mdi/js": "^7.4.47",
+    "firebase": "^11.10.0",
+    "firebase-admin": "^12.7.0",
     "next": "14.2.29",
     "react": "18.3.1",
     "react-dom": "18.3.1"
