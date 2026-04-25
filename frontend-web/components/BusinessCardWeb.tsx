@@ -2,6 +2,7 @@
 /** Vista pública en React (Next): `/u/…` y `/b/…` vía `CardPreview`. */
 
 import { MirrorActionModals } from '@/components/MirrorActionModals';
+import { PublicTextSlotModal } from '@/components/PublicTextSlotModal';
 import type { SlotIconDef } from '@/lib/slotIcons';
 import { runPublicWebSlotAction } from '@/lib/runPublicWebSlotAction';
 import { resolveSlotVisual } from '@/lib/slotVisual';
@@ -248,12 +249,15 @@ type Props = {
 export default function BusinessCardWeb({ card, theme, locale, previewVariant = 'universal' }: Props) {
   const tr = (es: string, en: string) => (locale === 'es' ? es : en);
   const [ghostPlan, setGhostPlan] = useState<Extract<MirrorOpenPlan, { kind: 'ghost' }> | null>(null);
+  const [textSheet, setTextSheet] = useState<{ title: string; value: string } | null>(null);
 
   const handleSlotPress = useCallback(
     (slot: PublicSlot) => {
       const r = runPublicWebSlotAction(card, slot);
       if (r.kind === 'ghost') {
         setGhostPlan(r.plan);
+      } else if (r.kind === 'text_sheet') {
+        setTextSheet({ title: r.title, value: r.value });
       }
     },
     [card],
@@ -488,6 +492,14 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
           photoUrl: card.userAvatarUrl ?? null,
         }}
       />
+      <PublicTextSlotModal
+        open={Boolean(textSheet)}
+        title={textSheet?.title ?? ''}
+        value={textSheet?.value ?? ''}
+        onClose={() => setTextSheet(null)}
+        tr={tr}
+        accent={theme.border.color}
+      />
       </>
     );
   }
@@ -654,6 +666,14 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
         name: String(card.userFullName || card.ownerDisplayName || tr('Contacto', 'Contact')).trim(),
         photoUrl: card.userAvatarUrl ?? null,
       }}
+    />
+    <PublicTextSlotModal
+      open={Boolean(textSheet)}
+      title={textSheet?.title ?? ''}
+      value={textSheet?.value ?? ''}
+      onClose={() => setTextSheet(null)}
+      tr={tr}
+      accent={theme.border.color}
     />
     </>
   );

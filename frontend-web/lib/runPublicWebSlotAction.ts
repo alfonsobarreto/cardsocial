@@ -23,7 +23,10 @@ function buildContext(card: CardData): MirrorOpenPlanContext {
   };
 }
 
-export type RunPublicWebSlotResult = { kind: 'done' } | { kind: 'ghost'; plan: Extract<MirrorOpenPlan, { kind: 'ghost' }> };
+export type RunPublicWebSlotResult =
+  | { kind: 'done' }
+  | { kind: 'ghost'; plan: Extract<MirrorOpenPlan, { kind: 'ghost' }> }
+  | { kind: 'text_sheet'; title: string; value: string };
 
 /**
  * @returns `ghost` si el caller debe montar `MirrorActionModals`; si no, acción ya ejecutada.
@@ -79,8 +82,12 @@ export function runPublicWebSlotAction(card: CardData, slot: PublicSlot): RunPub
 
   if (plan.kind === 'text' || plan.kind === 'raw') {
     const t = String(plan.value || '').trim();
-    if (t && typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-      void navigator.clipboard.writeText(t);
+    if (t) {
+      return {
+        kind: 'text_sheet',
+        title: plan.title || '—',
+        value: t,
+      };
     }
     return { kind: 'done' };
   }

@@ -19,6 +19,7 @@ import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
 import { isVaultDocumentImage, isVaultDocumentPdf } from '@/services/vaultMimeGuards';
 import { presentPremiumDataPanel, dismissPremiumDataPanel } from '@/services/premiumDataPanelController';
 import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
+import { buildLinkOpenCandidates, ensureWebUrl } from '@/services/mirrorVaultItemOpenPlan';
 import { isClassicPhoneVaultType } from '@/services/vaultItemTypeGuards';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -398,59 +399,44 @@ const VaultScreen = () => {
     }
   };
 
-  const ensureWebUrl = (raw: string) => {
-    const value = String(raw || '').trim();
-    if (!value) {
-      return '';
-    }
-    if (value.startsWith('http://') || value.startsWith('https://')) {
-      return value;
-    }
-    return `https://${value}`;
-  };
-
-  const buildDeepLinkCandidates = (url: string) => {
-    const list: string[] = [];
-    const safeUrl = ensureWebUrl(url);
-
-    try {
-      const parsed = new URL(safeUrl);
-      const host = parsed.hostname.replace(/^www\./i, '').toLowerCase();
-
-      if (host.includes('instagram.com')) {
-        list.push('instagram://app');
-      } else if (host.includes('wa.me') || host.includes('whatsapp.com')) {
-        list.push('whatsapp://app');
-      } else if (host.includes('youtube.com') || host.includes('youtu.be')) {
-        list.push('vnd.youtube://');
-      } else if (host.includes('linkedin.com')) {
-        list.push('linkedin://');
-      } else if (host.includes('x.com') || host.includes('twitter.com')) {
-        list.push('twitter://');
-      }
-    } catch {
-      // If parsing fails we still try opening the web URL as fallback.
-    }
-
-    list.push(safeUrl);
-    return list;
-  };
-
+  /**
+   * Misma secuencia que `buildLinkOpenCandidates` (web / modales) pero aquí
+   * intentamos apps nativas primero. En iOS hace falta `LSApplicationQueriesSchemes`
+   * (ver app.json) y aun así `openURL` puede fallar (URL mínima, build viejo, etc.):
+   * usamos try/catch por candidato y caemos al HTTPS.
+   * Los modales usan `ActionController.ActionLink` y abren el enlace `https` desde el
+   * panel, por eso no chocaban con `vnd.youtube://` al primer toque.
+   */
   const openUrlWithNativeFallback = async (rawUrl: string) => {
-    const candidates = buildDeepLinkCandidates(rawUrl);
+    const candidates = buildLinkOpenCandidates(rawUrl);
 
     for (const candidate of candidates) {
-      const canOpen = await Linking.canOpenURL(candidate);
-      if (canOpen) {
+      try {
+        const canOpen = await Linking.canOpenURL(candidate);
+        if (!canOpen) continue;
         await Linking.openURL(candidate);
         triggerSuccessHaptic();
         return;
+      } catch {
+        // p. ej. iOS: scheme no declarado, o deep link inválido — probar siguiente
+        continue;
       }
     }
 
     const browserUrl = ensureWebUrl(rawUrl);
-    await Linking.openURL(browserUrl);
-    triggerSuccessHaptic();
+    try {
+      await Linking.openURL(browserUrl);
+      triggerSuccessHaptic();
+    } catch {
+      Toast.show({
+        type: 'error',
+        text1: tr('❌ Error', '❌ Error'),
+        text2: tr('No se pudo abrir el enlace.', 'Could not open the link.'),
+        position: 'bottom',
+        visibilityTime: 3000,
+        autoHide: true,
+      });
+    }
   };
 
   const openNativeEmailComposer = async (email: string) => {

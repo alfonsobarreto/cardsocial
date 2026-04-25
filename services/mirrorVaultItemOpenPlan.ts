@@ -217,12 +217,25 @@ export function getMirrorVaultOpenPlan(item: MirrorItemLike, ctx: MirrorOpenPlan
     return { kind: 'document', value, title: title || 'Documento', vaultMimeType: mimeHint || undefined };
   }
 
-  if (typeNorm.includes('enlace') || typeNorm.includes('link') || typeNorm.includes('web') || isLikelyUrl(value)) {
-    return { kind: 'link', url: ensureWebUrl(value), title: title || 'Enlace' };
+  if (typeNorm.includes('texto') || typeNorm === 'text') {
+    return { kind: 'text', value, title: title || 'Texto' };
   }
 
-  if (typeNorm.includes('texto')) {
-    return { kind: 'text', value, title: title || 'Texto' };
+  /**
+   * En el vault, `type` a menudo defaultea a "link" (`buildPublicCardSlots`: `it.type || 'link'`).
+   * Si el valor no parece URL, no forzar `ensureWebUrl` (evita abrir `https://...` con texto plano en la web).
+   */
+  if (typeNorm.includes('link')) {
+    if (value && isLikelyUrl(value)) {
+      return { kind: 'link', url: ensureWebUrl(value), title: title || 'Enlace' };
+    }
+    if (value) {
+      return { kind: 'raw', value, title: title || 'Dato' };
+    }
+  }
+
+  if (typeNorm.includes('enlace') || typeNorm.includes('web') || isLikelyUrl(value)) {
+    return { kind: 'link', url: ensureWebUrl(value), title: title || 'Enlace' };
   }
 
   return { kind: 'raw', value, title: title || 'Dato' };
