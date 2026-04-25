@@ -67,6 +67,30 @@ function previewStyleFromSmartCardDoc(cardDoc) {
   };
 }
 
+/** Estilo público de business_cards: fuente canónica para `/b/...` y QR business. */
+function previewStyleFromBusinessCardDoc(cardDoc) {
+  if (!cardDoc) {
+    return {
+      themeId: '',
+      layout: 'vertical',
+      wallpaperUrl: null,
+      enableParallax: false,
+      holdersCount: 0,
+      ratingAvg: 0,
+      totalRatings: 0,
+    };
+  }
+  return {
+    themeId: cardDoc.themeId ? String(cardDoc.themeId) : '',
+    layout: String(cardDoc.layout || 'vertical') === 'horizontal' ? 'horizontal' : 'vertical',
+    wallpaperUrl: null,
+    enableParallax: Boolean(cardDoc.enableParallax),
+    holdersCount: Math.max(0, Math.floor(Number(cardDoc.holdersCount ?? 0))),
+    ratingAvg: Number.isFinite(Number(cardDoc.averageRating)) ? Number(cardDoc.averageRating) : 0,
+    totalRatings: Math.max(0, Math.floor(Number(cardDoc.totalRatings ?? 0))),
+  };
+}
+
 function normalizePublicCardSlotsForUniversal(raw) {
   if (!Array.isArray(raw)) {
     return [];
@@ -195,42 +219,66 @@ function createPublicUniversalRoutes({ storage }) {
       const bId = valBId != null && String(valBId).trim() ? String(valBId).trim() : null;
       const cardKey = sid || bId;
 
-      const cardDoc = await db.collection('smart_cards').findOne(
-        { uid: issuerUid, $or: [{ sid: cardKey }, { bId: cardKey }] },
-        {
-          projection: {
-            scName: 1,
-            layout: 1,
-            themeId: 1,
-            fontId: 1,
-            fontName: 1,
-            fontFamily: 1,
-            fontTier: 1,
-            wallpaperId: 1,
-            wallpaperUrl: 1,
-            wallpaperThumbUrl: 1,
-            wallpaperTier: 1,
-            enableParallax: 1,
-            ownerDisplayName: 1,
-            ownerNickname: 1,
-            ownerPhotoUrl: 1,
-            ownerOccupation: 1,
-            searchFacets: 1,
-            holdersCount: 1,
-            ratingAvg: 1,
-            totalRatings: 1,
-            publicCardSlots: 1,
-            updatedAt: 1,
+      const [cardDoc, bizDoc] = await Promise.all([
+        db.collection('smart_cards').findOne(
+          { uid: issuerUid, $or: [{ sid: cardKey }, { bId: cardKey }] },
+          {
+            projection: {
+              scName: 1,
+              layout: 1,
+              themeId: 1,
+              fontId: 1,
+              fontName: 1,
+              fontFamily: 1,
+              fontTier: 1,
+              wallpaperId: 1,
+              wallpaperUrl: 1,
+              wallpaperThumbUrl: 1,
+              wallpaperTier: 1,
+              enableParallax: 1,
+              ownerDisplayName: 1,
+              ownerNickname: 1,
+              ownerPhotoUrl: 1,
+              ownerOccupation: 1,
+              searchFacets: 1,
+              holdersCount: 1,
+              ratingAvg: 1,
+              totalRatings: 1,
+              publicCardSlots: 1,
+              updatedAt: 1,
+            },
           },
-        },
-      );
+        ),
+        bId
+          ? db.collection('business_cards').findOne(
+              { ownerUid: issuerUid, bId },
+              {
+                projection: {
+                  bcName: 1,
+                  bcContactName: 1,
+                  bcLogoUrl: 1,
+                  publicCardSlots: 1,
+                  themeId: 1,
+                  layout: 1,
+                  enableParallax: 1,
+                  holdersCount: 1,
+                  averageRating: 1,
+                  totalRatings: 1,
+                  updatedAt: 1,
+                },
+              },
+            )
+          : Promise.resolve(null),
+      ]);
 
-      if (!cardDoc) {
+      if (!cardDoc && !bizDoc) {
         return res.status(404).json({
           ok: false,
           error: isEs ? 'No se encontró la tarjeta.' : 'Card not found.',
         });
       }
+      const isBusinessCard = Boolean(bId && bizDoc);
+      const style = isBusinessCard ? previewStyleFromBusinessCardDoc(bizDoc) : previewStyleFromSmartCardDoc(cardDoc);
 
       const idn = await resolvePublicIdentity(db, issuerUid, cardKey);
 
@@ -254,7 +302,9 @@ function createPublicUniversalRoutes({ storage }) {
         }
       }
 
-      const slots = normalizePublicCardSlotsForUniversal(cardDoc.publicCardSlots);
+      const slots = normalizePublicCardSlotsForUniversal(
+        isBusinessCard ? bizDoc.publicCardSlots : cardDoc.publicCardSlots,
+      );
 
       // Identidad real del emisor (users + profiles), misma forma que business-card-preview:
       // `ownerPhotoUrl` sigue siendo la foto en el doc de tarjeta (wireframe / logo business);
@@ -303,29 +353,35 @@ function createPublicUniversalRoutes({ storage }) {
         uid: issuerUid,
         sid,
         bId,
-        scName: String(readSmartCardScName(cardDoc) || idn.cardTitle || 'Smart Card'),
-        layout: String(cardDoc.layout || 'vertical') === 'horizontal' ? 'horizontal' : 'vertical',
-        themeId: cardDoc.themeId || null,
-        fontId: cardDoc.fontId ? String(cardDoc.fontId) : null,
-        fontName: cardDoc.fontName ? String(cardDoc.fontName) : null,
-        fontFamily: cardDoc.fontFamily ? String(cardDoc.fontFamily) : null,
-        fontTier: cardDoc.fontTier === 'premium' ? 'premium' : cardDoc.fontTier === 'free' ? 'free' : null,
-        wallpaperId: cardDoc.wallpaperId ? String(cardDoc.wallpaperId) : null,
-        wallpaperUrl: cardDoc.wallpaperUrl ? String(cardDoc.wallpaperUrl) : null,
-        wallpaperThumbUrl: cardDoc.wallpaperThumbUrl ? String(cardDoc.wallpaperThumbUrl) : null,
-        wallpaperTier: cardDoc.wallpaperTier === 'premium' ? 'premium' : cardDoc.wallpaperTier === 'free' ? 'free' : null,
-        enableParallax: Boolean(cardDoc.enableParallax),
+        scName: String(
+          (isBusinessCard && bizDoc.bcName ? String(bizDoc.bcName).trim() : '') ||
+            readSmartCardScName(cardDoc) ||
+            idn.cardTitle ||
+            'Smart Card',
+        ),
+        layout: style.layout,
+        themeId: style.themeId || null,
+        fontId: cardDoc?.fontId ? String(cardDoc.fontId) : null,
+        fontName: cardDoc?.fontName ? String(cardDoc.fontName) : null,
+        fontFamily: cardDoc?.fontFamily ? String(cardDoc.fontFamily) : null,
+        fontTier: cardDoc?.fontTier === 'premium' ? 'premium' : cardDoc?.fontTier === 'free' ? 'free' : null,
+        wallpaperId: cardDoc?.wallpaperId ? String(cardDoc.wallpaperId) : null,
+        wallpaperUrl: style.wallpaperUrl || null,
+        wallpaperThumbUrl: cardDoc?.wallpaperThumbUrl ? String(cardDoc.wallpaperThumbUrl) : null,
+        wallpaperTier: cardDoc?.wallpaperTier === 'premium' ? 'premium' : cardDoc?.wallpaperTier === 'free' ? 'free' : null,
+        enableParallax: style.enableParallax,
         ownerDisplayName: idn.fullName,
-        ownerNickname: cardDoc.ownerNickname ? String(cardDoc.ownerNickname) : null,
-        ownerPhotoUrl: cardDoc.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl) : null,
-        ownerOccupation: cardDoc.ownerOccupation ? String(cardDoc.ownerOccupation) : null,
+        bcContactName: isBusinessCard && bizDoc.bcContactName ? String(bizDoc.bcContactName).trim() : null,
+        ownerNickname: cardDoc?.ownerNickname ? String(cardDoc.ownerNickname) : null,
+        ownerPhotoUrl: isBusinessCard && bizDoc.bcLogoUrl ? String(bizDoc.bcLogoUrl) : cardDoc?.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl) : null,
+        ownerOccupation: cardDoc?.ownerOccupation ? String(cardDoc.ownerOccupation) : null,
         userFullName: issuer.fullName ? String(issuer.fullName) : null,
         userNickName: issuer.nickname ? String(issuer.nickname) : null,
         userAvatarUrl: issuer.userAvatarUrl || null,
-        searchFacets: sanitizeSearchFacetsPublic(cardDoc.searchFacets),
-        holdersCount: Number(cardDoc.holdersCount || 0),
-        ratingAvg: Number(cardDoc.ratingAvg || 5),
-        totalRatings: Number.isFinite(Number(cardDoc.totalRatings)) ? Math.max(0, Math.floor(Number(cardDoc.totalRatings))) : 0,
+        searchFacets: sanitizeSearchFacetsPublic(cardDoc?.searchFacets),
+        holdersCount: style.holdersCount,
+        ratingAvg: style.ratingAvg || 5,
+        totalRatings: style.totalRatings,
         storyState,
         slots,
         expiresAt: expiresAt.toISOString(),
@@ -380,26 +436,45 @@ function createPublicUniversalRoutes({ storage }) {
       }
 
       const db = await storage.connect();
-      const cardDoc = await db.collection('smart_cards').findOne(
-        { uid, bId },
-        {
-          projection: {
-            scName: 1,
-            ownerNickname: 1,
-            ownerPhotoUrl: 1,
-            ownerOccupation: 1,
-            publicCardSlots: 1,
-            themeId: 1,
-            layout: 1,
-            wallpaperUrl: 1,
-            enableParallax: 1,
-            holdersCount: 1,
-            ratingAvg: 1,
-            totalRatings: 1,
+      const [bizDoc, cardDoc] = await Promise.all([
+        db.collection('business_cards').findOne(
+          { bId, ownerUid: uid },
+          {
+            projection: {
+              bcName: 1,
+              bcContactName: 1,
+              bcLogoUrl: 1,
+              publicCardSlots: 1,
+              themeId: 1,
+              layout: 1,
+              enableParallax: 1,
+              holdersCount: 1,
+              averageRating: 1,
+              totalRatings: 1,
+            },
           },
-        },
-      );
-      if (!cardDoc) {
+        ),
+        db.collection('smart_cards').findOne(
+          { uid, bId },
+          {
+            projection: {
+              scName: 1,
+              ownerNickname: 1,
+              ownerPhotoUrl: 1,
+              ownerOccupation: 1,
+              publicCardSlots: 1,
+              themeId: 1,
+              layout: 1,
+              wallpaperUrl: 1,
+              enableParallax: 1,
+              holdersCount: 1,
+              ratingAvg: 1,
+              totalRatings: 1,
+            },
+          },
+        ),
+      ]);
+      if (!bizDoc) {
         return res.status(404).json({
           ok: false,
           error: isEs ? 'No se encontró la tarjeta.' : 'Card not found.',
@@ -407,20 +482,13 @@ function createPublicUniversalRoutes({ storage }) {
       }
 
       const idn = await resolvePublicIdentity(db, uid, bId);
-      const bizDoc = await db.collection('business_cards').findOne(
-        { bId, ownerUid: uid },
-        { projection: { bcName: 1, bcContactName: 1, bcLogoUrl: 1 } },
-      );
-      const bcNamePub =
-        bizDoc && bizDoc.bcName != null && String(bizDoc.bcName).trim()
-          ? String(bizDoc.bcName).trim()
-          : null;
+      const bcNamePub = bizDoc.bcName != null && String(bizDoc.bcName).trim() ? String(bizDoc.bcName).trim() : null;
       const bcContactNamePub =
-        bizDoc && bizDoc.bcContactName != null && String(bizDoc.bcContactName).trim()
+        bizDoc.bcContactName != null && String(bizDoc.bcContactName).trim()
           ? String(bizDoc.bcContactName).trim()
           : null;
-      const slots = normalizePublicCardSlotsForUniversal(cardDoc.publicCardSlots);
-      const style = previewStyleFromSmartCardDoc(cardDoc);
+      const slots = normalizePublicCardSlotsForUniversal(bizDoc.publicCardSlots);
+      const style = previewStyleFromBusinessCardDoc(bizDoc);
       const far = new Date();
       far.setFullYear(far.getFullYear() + 10);
 
@@ -455,9 +523,9 @@ function createPublicUniversalRoutes({ storage }) {
             cardName: String(bcNamePub || readSmartCardScName(cardDoc) || idn.cardTitle || ''),
             /** Subtítulo en cabecera (tarjeta negocio) — solo `business_cards.bcContactName`. */
             bcContactName: bcContactNamePub,
-            ownerNickname: cardDoc.ownerNickname ? String(cardDoc.ownerNickname) : null,
-            ownerPhotoUrl: cardDoc.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl) : null,
-            ownerOccupation: cardDoc.ownerOccupation ? String(cardDoc.ownerOccupation) : null,
+            ownerNickname: cardDoc?.ownerNickname ? String(cardDoc.ownerNickname) : null,
+            ownerPhotoUrl: bizDoc.bcLogoUrl ? String(bizDoc.bcLogoUrl) : cardDoc?.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl) : null,
+            ownerOccupation: cardDoc?.ownerOccupation ? String(cardDoc.ownerOccupation) : null,
             userFullName: issuer.fullName || null,
             userNickName: issuer.nickname || null,
             userAvatarUrl: issuer.userAvatarUrl || null,
