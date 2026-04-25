@@ -10,6 +10,7 @@ import {
   sanitizeNationalDigits,
 } from '@card-social/constants/countryDialCodes';
 import { isVaultDocumentImage, isVaultDocumentPdf } from '@card-social/services/vaultMimeGuards';
+import { optimizeVaultUploadFileForWeb } from '@/lib/studioFileOptimizer';
 import { uploadVaultDocumentWeb } from '@/lib/studioModerationClient';
 import { extractDomainFromLink, fetchStudioFavicon } from '@/lib/studioFaviconClient';
 import { resolvePublicVaultUrlForWeb } from '@/lib/resolvePublicVaultMediaUrl';
@@ -170,13 +171,14 @@ export default function FormColumn({
     setFormError(null);
     setBusy(true);
     try {
-      const up = await uploadVaultDocumentWeb(file, userId, name.trim() || 'document');
+      const optimized = await optimizeVaultUploadFileForWeb(file);
+      const up = await uploadVaultDocumentWeb(optimized, userId, name.trim() || 'document');
       const url = String(up.publicUrl || '').trim();
       if (!url) {
         throw new Error(t('form.uploadNoUrl'));
       }
       setData(url);
-      setLocalMime(String(up.mimeType || file.type || '').trim() || undefined);
+      setLocalMime(String(up.mimeType || optimized.type || file.type || '').trim() || undefined);
       markDirty();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : t('form.uploadError'));

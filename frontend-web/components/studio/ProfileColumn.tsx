@@ -15,6 +15,7 @@ import {
   firestoreStudioUserNickNameWrite,
 } from '@/lib/studioUserIdentityFields';
 import { getStudioDb } from '@/lib/studioFirebase';
+import { optimizeProfilePhotoForWeb } from '@/lib/studioFileOptimizer';
 import { uploadProfilePhotoWeb } from '@/lib/studioModerationClient';
 import {
   propagateUserIdentityAcrossSmartCardsWeb,
@@ -194,7 +195,8 @@ export default function ProfileColumn({ locale, profile, onBack, onDeleteAccount
     if (!file || !file.type.startsWith('image/')) return showMessage(t('profile.photoImageOnly'));
     setBusy('photo');
     try {
-      const result = await uploadProfilePhotoWeb(file, user.uid);
+      const optimized = await optimizeProfilePhotoForWeb(file);
+      const result = await uploadProfilePhotoWeb(optimized, user.uid);
       const newPhotoUrl = String(result.publicUrl || '').trim();
       if (!newPhotoUrl) throw new Error(t('profile.photoNoUrl'));
       await updateDoc(doc(getStudioDb(), 'users', user.uid), {

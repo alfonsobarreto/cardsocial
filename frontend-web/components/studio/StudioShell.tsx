@@ -37,6 +37,7 @@ export default function StudioShell() {
   const [user, setUser] = useState<User | null>(null);
   /** Evita tratar un null "transitorio" de Firebase (antes de restaurar la sesión) como cierre de sesión. */
   const signOutDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const signOutInProgress = useRef(false);
   const SIGNED_OUT_DELAY_MS = 200;
   const [locale, setLocale] = useState<StudioLocale>('en');
 
@@ -58,7 +59,7 @@ export default function StudioShell() {
     (params: URLSearchParams, route?: string) => {
       if (typeof window === 'undefined') return;
       const qs = params.toString();
-      router.replace(`${route || '/studio/bunker'}${qs ? `?${qs}` : ''}`);
+      router.replace(`${route || window.location.pathname || '/studio/bunker'}${qs ? `?${qs}` : ''}`);
     },
     [router],
   );
@@ -114,6 +115,7 @@ export default function StudioShell() {
       setUser(null);
       signOutDebounce.current = setTimeout(() => {
         signOutDebounce.current = null;
+        if (signOutInProgress.current) return;
         if (getStudioAuth().currentUser) {
           return;
         }
@@ -250,6 +252,7 @@ export default function StudioShell() {
   }, [replaceBunkerUrl]);
 
   const onSignOut = useCallback(() => {
+    signOutInProgress.current = true;
     setStudioAuthCookie(false);
     // Importante: ir a /login *después* de signOut. Si navegamos antes, /login aún ve sesión
     // en Firebase, StudioLoginShell te devuelve a /studio y se produce ERR_TOO_MANY_REDIRECTS.
@@ -260,9 +263,9 @@ export default function StudioShell() {
         /* aun sin red: forzar ida a login */
       } finally {
         if (typeof window !== 'undefined') {
-          const next = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
-          router.replace(`/login?next=${next}`);
+          router.replace('/login?signedOut=1');
         }
+        signOutInProgress.current = false;
       }
     })();
   }, [router]);
@@ -306,14 +309,14 @@ export default function StudioShell() {
     setIconOpen(true);
     const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
     params.set('icons', '1');
-    replaceBunkerUrl(params);
+    replaceBunkerUrl(params, typeof window !== 'undefined' ? window.location.pathname : '/studio/bunker');
   }, [replaceBunkerUrl]);
 
   const closeIconSelector = useCallback(() => {
     setIconOpen(false);
     const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
     params.delete('icons');
-    replaceBunkerUrl(params);
+    replaceBunkerUrl(params, typeof window !== 'undefined' ? window.location.pathname : '/studio/bunker');
   }, [replaceBunkerUrl]);
 
   const onDeleteAccount = useCallback(async () => {

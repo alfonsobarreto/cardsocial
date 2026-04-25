@@ -25,16 +25,26 @@ function getGatewayKey(): string {
   return k;
 }
 
+async function readUploadError(r: Response): Promise<string> {
+  const raw = await r.text();
+  if (!raw) return `Upload failed: ${r.status}`;
+  try {
+    const parsed = JSON.parse(raw) as { error?: unknown; message?: unknown };
+    const msg = String(parsed.error || parsed.message || '').trim();
+    if (msg) return msg;
+  } catch {
+    // Plain-text backend errors are also valid here.
+  }
+  return raw;
+}
+
 async function getUploadJwtToken(baseUrl: string, uid: string, gatewayKey: string): Promise<string> {
   const r = await fetch(`${baseUrl}/api/auth/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-gateway-key': gatewayKey },
     body: JSON.stringify({ uid, scope: 'moderation.upload' }),
   });
-  if (!r.ok) {
-    const t = await r.text();
-    throw new Error(`Token exchange failed: ${r.status} ${t}`);
-  }
+  if (!r.ok) throw new Error(`Token exchange failed: ${r.status} ${await readUploadError(r)}`);
   const j = (await r.json()) as { token?: string };
   const token = String(j?.token || '').trim();
   if (!token) {
@@ -66,11 +76,8 @@ export async function uploadVaultDocumentWeb(
   });
 
   if (!r.ok) {
-    const errText = await r.text();
-    if (r.status === 403) {
-      throw new Error('File blocked by content moderation');
-    }
-    throw new Error(errText || `Upload failed: ${r.status}`);
+    if (r.status === 403) throw new Error('File blocked by content moderation');
+    throw new Error(await readUploadError(r));
   }
   const data = (await r.json()) as { fileId?: string; publicUrl?: string | null; mimeType?: string | null };
   return {

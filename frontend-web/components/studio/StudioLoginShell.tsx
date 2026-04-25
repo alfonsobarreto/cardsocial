@@ -37,11 +37,17 @@ export default function StudioLoginShell() {
   useEffect(() => {
     return onAuthStateChanged(getStudioAuth(), (user) => {
       if (!user) return;
+      const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      if (params?.get('signedOut') === '1') {
+        setStudioAuthCookie(false);
+        void signOut(getStudioAuth()).catch(() => null);
+        return;
+      }
       setStudioAuthCookie(true);
       if (typeof window === 'undefined' || window.location.pathname !== '/login') return;
       if (bootRedirectDone.current) return;
       bootRedirectDone.current = true;
-      const go = new URLSearchParams(window.location.search).get('next');
+      const go = params?.get('next') || null;
       router.replace(readSafeNextPath(go));
     });
   }, [router]);
