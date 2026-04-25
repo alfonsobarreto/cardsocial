@@ -268,8 +268,10 @@ async function cropImageToSquare(uri: string): Promise<string> {
 
 export default function CreateBusinessCardScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ bId?: string }>();
+  const params = useLocalSearchParams<{ bId?: string; mode?: string; fresh?: string }>();
   const routeBId = typeof params.bId === 'string' ? params.bId : params.bId?.[0] || '';
+  const routeMode = typeof params.mode === 'string' ? params.mode : params.mode?.[0] || '';
+  const routeFresh = typeof params.fresh === 'string' ? params.fresh : params.fresh?.[0] || '';
   const safeInsets = useSafeAreaInsets();
   const { language } = useLanguage();
   /** Estable: si no, el efecto de carga (deps incluían `tr`) se re-ejecutaba cada render, cancelaba el fetch y el `finally` no ponía `loadingExistingCard` en false. */
@@ -329,6 +331,8 @@ export default function CreateBusinessCardScreen() {
   const formBaselineRef = useRef<string | null>(null);
   /** Evita resetear el baseline en cada tecla: solo al terminar carga o primer montaje en “crear”. */
   const prevLoadingExistingRef = useRef<boolean | null>(null);
+  /** Señal explícita del chip Business Card: cada `fresh` abre un formulario nuevo limpio. */
+  const lastNewFormResetKeyRef = useRef<string | null>(null);
   const handleCreateRef = useRef<() => Promise<void>>(async () => {});
 
   /**
@@ -721,6 +725,34 @@ export default function CreateBusinessCardScreen() {
       formBaselineRef.current = computeFormSnapshot();
     }
   }, [loadingExistingCard, computeFormSnapshot]);
+
+  useEffect(() => {
+    if (String(routeBId || '').trim()) {
+      return;
+    }
+    const isExplicitNewBusiness = String(routeMode || '').trim() === 'new';
+    const resetKey = isExplicitNewBusiness ? String(routeFresh || 'new') : 'initial-create';
+    if (lastNewFormResetKeyRef.current === resetKey) {
+      return;
+    }
+    lastNewFormResetKeyRef.current = resetKey;
+    let cancelled = false;
+    void (async () => {
+      const uid = await getActiveUserId();
+      if (!uid || cancelled) {
+        return;
+      }
+      resetBusinessCardFormForNewCreation(uid);
+      setTimeout(() => {
+        if (!cancelled) {
+          formBaselineRef.current = computeFormSnapshot();
+        }
+      }, 0);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [routeBId, routeMode, routeFresh, resetBusinessCardFormForNewCreation, computeFormSnapshot]);
 
   const pickBusinessLogo = async () => {
     setPickingLogo(true);

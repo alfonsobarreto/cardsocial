@@ -3454,11 +3454,16 @@ export default function CardsFactoryScreen() {
         </View>
         <View style={styles.headerActionsRow}>
           <TouchableOpacity
-            onPress={() => router.push('/(tabs)/createBusinessCard' as any)}
+            onPress={() =>
+              router.push({
+                pathname: '/(tabs)/createBusinessCard',
+                params: { mode: 'new', fresh: String(Date.now()) },
+              } as any)
+            }
             activeOpacity={0.9}
             style={styles.businessCtaWrap}
             accessibilityRole="button"
-            accessibilityLabel={tr('Abrir Business Card', 'Open Business Card')}
+            accessibilityLabel={tr('Crear Business Card', 'Create Business Card')}
           >
             <LinearGradient
               colors={[...cardsTheme.vipBannerGradient]}
@@ -3471,7 +3476,6 @@ export default function CardsFactoryScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.businessCtaTitle}>{tr('Tarjeta de Negocio', 'Business Card')}</Text>
-                <Text style={styles.businessCtaSub}>{tr('Lujo', 'Luxury')}</Text>
               </View>
               <MaterialCommunityIcons name="chevron-right" size={16} color={cardsTheme.vipBannerChevron} />
             </LinearGradient>
@@ -4847,12 +4851,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.2,
-  },
-  businessCtaSub: {
-    marginTop: 1,
-    color: '#E9D8B0',
-    fontSize: 10,
-    fontWeight: '700',
   },
 
 
