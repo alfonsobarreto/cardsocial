@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { doc, getDoc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { readUserAvatarUrl, readUserFullName, readUserNickName } from '@card-social/services/userIdentityFields';
 import { getStudioAuth } from '@/lib/studioFirebase';
 import { getStudioDb } from '@/lib/studioFirebase';
 import { subscribeVaultLinks } from '@/lib/studioVaultService';
@@ -19,6 +18,7 @@ import {
 } from '@/lib/studioI18n';
 import { studioTheme } from '@/lib/studioTheme';
 import { setStudioAuthCookie } from '@/lib/studioAuthClient';
+import { readStudioUserAvatarUrl, readStudioUserFullName, readStudioUserNickName } from '@/lib/studioUserIdentityFields';
 import FormColumn from '@/components/studio/FormColumn';
 import IconSelectorColumn from '@/components/studio/IconSelectorColumn';
 import ProfileColumn, { type StudioProfile } from '@/components/studio/ProfileColumn';
@@ -187,11 +187,11 @@ export default function StudioShell() {
               : null;
       const provider = user.providerData[0]?.providerId || 'password';
       setProfile({
-        userFullName: readUserFullName(data),
-        userNickName: readUserNickName(data),
+        userFullName: readStudioUserFullName(data),
+        userNickName: readStudioUserNickName(data),
         email: String(user.email || data.email || data.emailLower || '').trim(),
         phone: String(data.phone || data.phoneNumber || data.phoneNormalized || '').trim(),
-        userAvatarUrl: readUserAvatarUrl(data) || user.photoURL || '',
+        userAvatarUrl: readStudioUserAvatarUrl(data) || user.photoURL || '',
         firstName: String(data.firstName || '').trim(),
         lastName: String(data.lastName || '').trim(),
         bio: String(data.bio || '').trim(),

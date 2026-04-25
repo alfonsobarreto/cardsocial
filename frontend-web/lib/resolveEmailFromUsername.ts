@@ -3,7 +3,7 @@
  * resuelve el email de Firebase a partir de Firestore.
  */
 import { collection, getDocs, limit, query, where } from 'firebase/firestore';
-import { firestoreFirstUserDocByNickLower } from '@card-social/services/userIdentityFields';
+import { firestoreFirstStudioUserDocByNickLower } from '@/lib/studioUserIdentityFields';
 import { getStudioDb } from '@/lib/studioFirebase';
 
 export async function resolveEmailFromUsername(rawUsername: string): Promise<string | null> {
@@ -13,7 +13,7 @@ export async function resolveEmailFromUsername(rawUsername: string): Promise<str
     return null;
   }
 
-  const byLowerDoc = await firestoreFirstUserDocByNickLower(db, normalizedUsername);
+  const byLowerDoc = await firestoreFirstStudioUserDocByNickLower(db, normalizedUsername);
   if (byLowerDoc) {
     const userData = byLowerDoc.data() as { email?: string; emailLower?: string };
     return String(userData.emailLower || userData.email || '').trim().toLowerCase() || null;

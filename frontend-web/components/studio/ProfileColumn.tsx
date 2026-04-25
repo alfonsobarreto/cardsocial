@@ -10,10 +10,10 @@ import {
 } from 'firebase/auth';
 import { collection, doc, getCountFromServer, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import {
-  firestoreUserAvatarUrlWrite,
-  firestoreUserFullNameWrite,
-  firestoreUserNickNameWrite,
-} from '@card-social/services/userIdentityFields';
+  firestoreStudioUserAvatarUrlWrite,
+  firestoreStudioUserFullNameWrite,
+  firestoreStudioUserNickNameWrite,
+} from '@/lib/studioUserIdentityFields';
 import { getStudioDb } from '@/lib/studioFirebase';
 import { uploadProfilePhotoWeb } from '@/lib/studioModerationClient';
 import {
@@ -137,7 +137,7 @@ export default function ProfileColumn({ locale, profile, onBack, onDeleteAccount
     try {
       const parts = splitFullName(next, profile.firstName, profile.lastName);
       await updateDoc(doc(getStudioDb(), 'users', user.uid), {
-        ...firestoreUserFullNameWrite(next),
+        ...firestoreStudioUserFullNameWrite(next),
         ...parts,
         updatedAt: serverTimestamp(),
       });
@@ -175,7 +175,7 @@ export default function ProfileColumn({ locale, profile, onBack, onDeleteAccount
     try {
       await updateNicknameViaBackend(user.uid, next);
       await updateDoc(doc(getStudioDb(), 'users', user.uid), {
-        ...firestoreUserNickNameWrite(next),
+        ...firestoreStudioUserNickNameWrite(next),
         lastNicknameChange: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -198,7 +198,7 @@ export default function ProfileColumn({ locale, profile, onBack, onDeleteAccount
       const newPhotoUrl = String(result.publicUrl || '').trim();
       if (!newPhotoUrl) throw new Error(t('profile.photoNoUrl'));
       await updateDoc(doc(getStudioDb(), 'users', user.uid), {
-        ...firestoreUserAvatarUrlWrite(newPhotoUrl),
+        ...firestoreStudioUserAvatarUrlWrite(newPhotoUrl),
         profilePhotoFileId: result.fileId,
         updatedAt: serverTimestamp(),
       });
