@@ -9,12 +9,12 @@ import {
   wireframeWebBubbleBorderRadius,
 } from '@/components/smartCard/wireframeMath';
 
-/** Igual que `compactSlotLabel` en `BusinessCardWeb` (máx. 2 palabras). */
+/** Igual que `compactSlotLabel` en `BusinessCardWeb` (máx. 4 palabras). */
 function compactSlotLabel(label: string): string {
   return String(label || '')
     .trim()
     .split(/\s+/)
-    .slice(0, 2)
+    .slice(0, 4)
     .join(' ');
 }
 
@@ -165,7 +165,7 @@ export function WireframeSlotTile({
             fontWeight: '300',
             fontStyle: il.fontStyle,
           }}
-          numberOfLines={2}
+          numberOfLines={3}
           ellipsizeMode="tail"
         >
           {compactLabel}
@@ -210,7 +210,7 @@ export function WireframeSlotTile({
             fontStyle: il.fontStyle,
           },
         ]}
-        numberOfLines={2}
+        numberOfLines={3}
         ellipsizeMode="tail"
       >
         {compactSlotLabel(slot.item ? String(slot.item.title || '') : tr('Agregar', 'Add'))}

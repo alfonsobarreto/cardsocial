@@ -60,12 +60,12 @@ function slotLabelForWeb(label: string, type: string): string {
   return String(label || type || '—').trim() || '—';
 }
 
-/** Igual que `compactSlotLabel` en la app: máx. 2 palabras para el chip. */
+/** Igual que `compactSlotLabel` en la app: máx. 4 palabras para el chip. */
 function compactSlotLabelForWeb(label: string): string {
   return String(label || '')
     .trim()
     .split(/\s+/)
-    .slice(0, 2)
+    .slice(0, 4)
     .join(' ');
 }
 
@@ -181,7 +181,7 @@ function LegacyGridSlot({
           color: il.color,
           opacity: 0.85,
           display: '-webkit-box',
-          WebkitLineClamp: 2,
+          WebkitLineClamp: 3,
           WebkitBoxOrient: 'vertical' as const,
           overflow: 'hidden',
           wordBreak: 'break-word',

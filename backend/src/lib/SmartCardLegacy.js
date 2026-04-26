@@ -215,7 +215,7 @@ function buildValidCourtesyPageHtml(opts) {
     .slot-ic { font-size: 1.2rem; margin-bottom: 4px; display: flex; align-items: center; justify-content: center; color: var(--ic); }
     .slot-ic svg { display: block; }
     .slot-ic img { display: block; }
-    .slot-lb { font-size: 0.62rem; color: var(--ic); opacity: 0.85; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .slot-lb { font-size: 0.62rem; color: var(--ic); opacity: 0.85; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
     .actions { margin-top: 22px; display: flex; flex-direction: column; gap: 10px; }
     .btn {
       display: block; width: 100%; padding: 14px 16px; border-radius: 12px; font-weight: 800; font-size: 0.95rem;
@@ -411,7 +411,7 @@ function buildValidCourtesyPageHtml(opts) {
     return '<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="currentColor" d="'+path+'"/></svg>';
   }
   function compactLb(s) {
-    return String(s.label || s.type || '—').trim().split(/\\s+/).slice(0, 2).join(' ');
+    return String(s.label || s.type || '—').trim().split(/\\s+/).slice(0, 4).join(' ');
   }
 
   function normType(t) {

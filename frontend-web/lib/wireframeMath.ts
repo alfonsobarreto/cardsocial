@@ -19,7 +19,7 @@ export function getWireframeIconRowPlan(count: number): number[] {
   return [4, 4, 4];
 }
 
-export const WIREFRAME_SLOT_LABEL_RESERVE = 36;
+export const WIREFRAME_SLOT_LABEL_RESERVE = 48;
 export const WIREFRAME_STITCH_GAP = 12;
 export const WIREFRAME_STITCH_HORIZONTAL_INSET = 48;
 export const WIREFRAME_STITCH_SINGLE_MAX_SIDE = 112;
@@ -30,7 +30,7 @@ export function wireframeSlotBelowBubbleHeight(bubbleSize: number, iconLabelFont
     Math.min(15, Math.round(Math.min(bubbleSize * 0.155, iconLabelFontSize + 5))),
   );
   const labelLineHeight = Math.ceil(labelFontSize * 1.22);
-  return 8 + labelLineHeight * 2 + 8 + 6;
+  return 8 + labelLineHeight * 3 + 8 + 6;
 }
 
 function sideFromWidth(usableW: number, rowPlan: number[], gap: number): number {
