@@ -488,8 +488,8 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
         tr={tr}
         accent={theme.border.color}
         callInterstitialProfile={{
-          name: String(card.userFullName || card.ownerDisplayName || tr('Contacto', 'Contact')).trim(),
-          photoUrl: card.userAvatarUrl ?? null,
+          name: String(isBusinessPreview ? (card.scName || card.bcContactName) : (card.userFullName || card.ownerDisplayName) || tr('Contacto', 'Contact')).trim(),
+          photoUrl: isBusinessPreview ? card.cardWireframeImageUrl : (card.userAvatarUrl ?? null),
         }}
       />
       <PublicTextSlotModal
@@ -663,8 +663,8 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
       tr={tr}
       accent={theme.border.color}
       callInterstitialProfile={{
-        name: String(card.userFullName || card.ownerDisplayName || tr('Contacto', 'Contact')).trim(),
-        photoUrl: card.userAvatarUrl ?? null,
+        name: String(isBusinessPreview ? (card.scName || card.bcContactName) : (card.userFullName || card.ownerDisplayName) || tr('Contacto', 'Contact')).trim(),
+        photoUrl: isBusinessPreview ? card.cardWireframeImageUrl : (card.userAvatarUrl ?? null),
       }}
     />
     <PublicTextSlotModal

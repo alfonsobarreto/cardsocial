@@ -492,25 +492,6 @@ function createPublicUniversalRoutes({ storage }) {
       const far = new Date();
       far.setFullYear(far.getFullYear() + 10);
 
-      // Identidad real del dueño (issuer) — NO confundir con el negocio.
-      // En Business Cards, `cardDoc.ownerPhotoUrl` guarda el `bcLogoUrl` (logo
-      // del comercio), así que NO sirve para representar a la persona dueña.
-      // El receptor (User2) necesita el avatar real del User1 para listarlo
-      // como contacto personal y para pintarlo en Ghost-Link VoIP cuando
-      // llame usando esta tarjeta. Se busca en users + profiles y se envía
-      // como `userAvatarUrl` separado del `ownerPhotoUrl` (logo del negocio).
-      const [usersDoc, profilesDoc] = await Promise.all([
-        db.collection('users').findOne(
-          { uid },
-          { projection: { userFullName: 1, displayName: 1, name: 1, fullName: 1, firstName: 1, lastName: 1, userNickName: 1, nickname: 1, userNickNameLower: 1, nicknameLower: 1, userAvatarUrl: 1 } },
-        ),
-        db.collection('profiles').findOne(
-          { uid },
-          { projection: { userFullName: 1, displayName: 1, name: 1, fullName: 1, firstName: 1, lastName: 1, userNickName: 1, nickname: 1, userNickNameLower: 1, nicknameLower: 1, userAvatarUrl: 1 } },
-        ),
-      ]);
-      const issuer = buildMongoExtendedProfileFields(uid, usersDoc, profilesDoc);
-
       return res.status(200).json(
         rewritePublicCardMediaUrls(
           {
@@ -519,16 +500,18 @@ function createPublicUniversalRoutes({ storage }) {
             bId,
             token: '',
             expiresAt: far.toISOString(),
-            ownerDisplayName: idn.fullName,
+            // Business public payload is brand/card identity only. Do not expose
+            // or bind the owner's personal profile fields to a BusinessCard.
+            ownerDisplayName: bcContactNamePub || bcNamePub || '',
             cardName: String(bcNamePub || readSmartCardScName(cardDoc) || idn.cardTitle || ''),
             /** Subtítulo en cabecera (tarjeta negocio) — solo `business_cards.bcContactName`. */
             bcContactName: bcContactNamePub,
-            ownerNickname: cardDoc?.ownerNickname ? String(cardDoc.ownerNickname) : null,
+            ownerNickname: null,
             ownerPhotoUrl: bizDoc.bcLogoUrl ? String(bizDoc.bcLogoUrl) : cardDoc?.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl) : null,
-            ownerOccupation: cardDoc?.ownerOccupation ? String(cardDoc.ownerOccupation) : null,
-            userFullName: issuer.fullName || null,
-            userNickName: issuer.nickname || null,
-            userAvatarUrl: issuer.userAvatarUrl || null,
+            ownerOccupation: null,
+            userFullName: null,
+            userNickName: null,
+            userAvatarUrl: null,
             slots,
             ...style,
           },

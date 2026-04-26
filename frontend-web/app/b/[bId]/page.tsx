@@ -27,7 +27,8 @@ function mapBusinessApiJsonToCardData(data: Record<string, unknown>): CardData {
     ownerOccupation: data.ownerOccupation ?? null,
     userFullName: data.userFullName ?? null,
     userNickName: data.userNickName ?? null,
-    userAvatarUrl: data.userAvatarUrl ?? null,
+    // Business pages must never bind the owner's personal avatar to the card.
+    userAvatarUrl: null,
     slots: data.slots ?? [],
     themeId: data.themeId ?? null,
     layout: data.layout === 'horizontal' ? 'horizontal' : 'vertical',
@@ -81,7 +82,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       title: `${name} — Card-Social`,
       description: card.ownerOccupation ?? 'Tarjeta de negocio',
       images: (() => {
-        const og = card.userAvatarUrl || card.cardWireframeImageUrl;
+        const og = card.cardWireframeImageUrl;
         return og ? [{ url: og }] : [];
       })(),
     },
