@@ -167,10 +167,10 @@ const otpHash = (emailLower, code) => {
   /** QR universal: validación TTL en servidor antes de servir la SPA (ver README — proxy Azure). */
   app.use(createUniversalEntryHttpRoutes({ storage }));
 
-  // Azure warmup probe commonly targets '/'. Keep it lightweight and always 200.
-  app.get("/", (_req, res) => {
-    res.status(200).send("ok");
-  });
+  /**
+   * La raíz `/` la sirve Next (landing `frontend-web/app/page.tsx`).
+   * Health / probes: usar `GET /api/health` (JSON), no `/` con texto "ok".
+   */
 
   app.post("/api/auth/token", gatewayKeyMiddleware, (req, res) => {
     try {
@@ -549,6 +549,7 @@ const otpHash = (emailLower, code) => {
     app.get('/favicon.ico', (_req, res) => {
       res.redirect(302, '/icon.png');
     });
+    app.get('/', nextProxy);
   } else {
     // Fallback: legacy HTML courtesy page
     app.use("/", createUniversalEntryHttpRoutes({ storage }));

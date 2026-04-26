@@ -17,7 +17,7 @@ import {
   type StudioLocale,
 } from '@/lib/studioI18n';
 import { studioTheme } from '@/lib/studioTheme';
-import { setStudioAuthCookie } from '@/lib/studioAuthClient';
+import { assignStudioLoginPage, setStudioAuthCookie } from '@/lib/studioAuthClient';
 import { readStudioUserAvatarUrl, readStudioUserFullName, readStudioUserNickName } from '@/lib/studioUserIdentityFields';
 import FormColumn from '@/components/studio/FormColumn';
 import IconSelectorColumn from '@/components/studio/IconSelectorColumn';
@@ -39,6 +39,8 @@ export default function StudioShell() {
   const signOutDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const signOutInProgress = useRef(false);
   const SIGNED_OUT_DELAY_MS = 200;
+  /** Tras un sign-out explícito, el debounce de `onAuthStateChanged` no debe correr aún (evita doble `router.replace` a /login y errores de navegación). */
+  const SIGN_OUT_UI_GUARD_MS = 400;
   const [locale, setLocale] = useState<StudioLocale>('en');
 
   const [links, setLinks] = useState<StudioVaultLink[]>([]);
@@ -119,9 +121,13 @@ export default function StudioShell() {
         if (getStudioAuth().currentUser) {
           return;
         }
+        if (typeof window !== 'undefined' && window.location.pathname.startsWith('/login')) {
+          return;
+        }
         setStudioAuthCookie(false);
-        const next = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
-        router.replace(`/login?next=${next}`);
+        assignStudioLoginPage({
+          returnPathWithQuery: `${window.location.pathname}${window.location.search}`,
+        });
       }, SIGNED_OUT_DELAY_MS);
     });
     return () => {
@@ -252,6 +258,10 @@ export default function StudioShell() {
   }, [replaceBunkerUrl]);
 
   const onSignOut = useCallback(() => {
+    if (signOutDebounce.current) {
+      clearTimeout(signOutDebounce.current);
+      signOutDebounce.current = null;
+    }
     signOutInProgress.current = true;
     setStudioAuthCookie(false);
     // Importante: ir a /login *después* de signOut. Si navegamos antes, /login aún ve sesión
@@ -263,12 +273,16 @@ export default function StudioShell() {
         /* aun sin red: forzar ida a login */
       } finally {
         if (typeof window !== 'undefined') {
-          router.replace('/login?signedOut=1');
+          assignStudioLoginPage({ signedOut: true });
         }
-        signOutInProgress.current = false;
+        // No bajar `signOutInProgress` al instante: onAuthStateChanged agenda un debounce
+        // que podría duplicar la ida a /login (assignStudioLoginPage / next).
+        setTimeout(() => {
+          signOutInProgress.current = false;
+        }, SIGN_OUT_UI_GUARD_MS);
       }
     })();
-  }, [router]);
+  }, []);
 
   const openProfile = useCallback(() => {
     setLeftPanel('profile');

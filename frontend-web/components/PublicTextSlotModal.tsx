@@ -1,24 +1,44 @@
 'use client';
 
 /**
- * Texto en tarjeta pública (web): la app abre hoja; en el navegador hacía solo
- * `clipboard.writeText` silencioso. Aquí se muestra el valor y se copia con feedback.
+ * Texto en tarjeta pública (web): paridad con `PremiumDataPanelHost` “sovereign-text”
+ * (app): `splitSovereignText` sobre el **valor** — la primera línea = titular oro (Georgia);
+ * el resto con la **primera línea** en negrita (misma jerarquía que la app).
+ * No repetimos el `label` del slot como título aparte (evita duplicar el “nombre de data” con la 1ª línea).
  */
-import React, { useCallback, useState } from 'react';
+import { splitSovereignText } from '@card-social/utils/sovereignTextSplit';
+import React, { useCallback, useMemo, useState } from 'react';
+
+/** Alineado con `PremiumDataPanelHost` (app). */
+const ACCENT = '#C9A227';
+const TEXT_MUTED = '#A1A1AA';
+const SHEET_BG = '#000000';
+
+/** Primera línea del bloque “cuerpo” en negrita; resto tipografía normal. */
+function splitBodyFirstLine(body: string): { lead: string; rest: string } {
+  const s = String(body ?? '');
+  const i = s.indexOf('\n');
+  if (i === -1) {
+    return { lead: s, rest: '' };
+  }
+  return { lead: s.slice(0, i), rest: s.slice(i + 1) };
+}
 
 export function PublicTextSlotModal({
   open,
-  title,
+  title: _ariaTitle,
   value,
   onClose,
   tr,
-  accent = '#D4AF37',
+  accent = ACCENT,
 }: {
   open: boolean;
+  /** Label del slot (solo accesibilidad / fallback); el layout “lujo” usa solo `value`. */
   title: string;
   value: string;
   onClose: () => void;
   tr: (es: string, en: string) => string;
+  /** Borde del panel; el oro del titular sigue `ACCENT` de la app. */
   accent?: string;
 }) {
   const [copied, setCopied] = useState(false);
@@ -30,14 +50,23 @@ export function PublicTextSlotModal({
       if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(t);
         setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        setTimeout(() => setCopied(false), 2200);
       }
     } catch {
       setCopied(false);
     }
   }, [value]);
 
+  const blocks = useMemo(() => {
+    const raw = String(value || '');
+    const { headline, body: bodyRest } = splitSovereignText(raw);
+    const { lead, rest } = splitBodyFirstLine(bodyRest);
+    return { headline, bodyRest, lead, rest };
+  }, [value]);
+
   if (!open) return null;
+
+  const ariaLabel = _ariaTitle?.trim() || blocks.headline || tr('Texto', 'Text');
 
   return (
     <div
@@ -49,107 +78,175 @@ export function PublicTextSlotModal({
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 24,
-        background: 'rgba(5,5,8,0.86)',
+        padding: 20,
+        background: 'rgba(0,0,0,0.92)',
       }}
       role="dialog"
       aria-modal
-      aria-label={title}
+      aria-label={ariaLabel}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label={tr('Cerrar', 'Close')}
-        style={{
-          position: 'absolute',
-          top: 16,
-          right: 16,
-          width: 40,
-          height: 40,
-          borderRadius: 12,
-          border: '1px solid rgba(255,255,255,0.12)',
-          background: 'rgba(255,255,255,0.06)',
-          color: '#a1a1aa',
-          fontSize: 22,
-          lineHeight: 1,
-          cursor: 'pointer',
-        }}
-      >
-        ×
-      </button>
-
       <div
         style={{
           width: '100%',
-          maxWidth: 400,
-          borderRadius: 16,
-          border: `1px solid ${accent}44`,
-          background: 'linear-gradient(180deg, #141418 0%, #0a0a0f 100%)',
-          padding: '20px 18px 18px',
-          boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
+          maxWidth: 440,
+          flex: 1,
+          maxHeight: 'min(92vh, 720px)',
+          margin: '12px 0',
+          display: 'flex',
+          flexDirection: 'column',
+          backgroundColor: SHEET_BG,
+          borderRadius: 2,
+          border: `1px solid ${accent}73`,
+          boxShadow: '0 8px 40px rgba(0,0,0,0.65)',
+          overflow: 'hidden',
         }}
+        onClick={(e) => e.stopPropagation()}
       >
-        <h2
-          style={{
-            margin: '0 0 12px',
-            fontSize: 15,
-            fontWeight: 600,
-            color: '#e4e4e7',
-            letterSpacing: 0.3,
-          }}
-        >
-          {title || tr('Texto', 'Text')}
-        </h2>
         <div
           style={{
-            maxHeight: 'min(50vh, 320px)',
+            height: 1,
+            backgroundColor: `${accent}59`,
+            marginLeft: 22,
+            marginRight: 22,
+            flexShrink: 0,
+          }}
+        />
+
+        <div
+          style={{
+            flex: 1,
             overflow: 'auto',
-            padding: 12,
-            borderRadius: 10,
-            background: 'rgba(0,0,0,0.35)',
-            color: '#fafafa',
-            fontSize: 15,
-            lineHeight: 1.5,
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-            marginBottom: 14,
+            padding: '12px 22px 8px',
+            WebkitOverflowScrolling: 'touch',
           }}
         >
-          {value}
+          {blocks.headline && blocks.bodyRest ? (
+            <>
+              <h2
+                style={{
+                  margin: '0 0 20px',
+                  color: ACCENT,
+                  fontSize: 26,
+                  fontWeight: 700,
+                  letterSpacing: 0.4,
+                  lineHeight: 1.23,
+                  textAlign: 'center',
+                  fontFamily: 'Georgia, "Times New Roman", serif',
+                }}
+              >
+                {blocks.headline}
+              </h2>
+              <div
+                style={{
+                  color: 'rgba(244, 244, 245, 0.92)',
+                  fontSize: 16,
+                  lineHeight: 1.625,
+                  textAlign: 'left',
+                  fontFamily:
+                    'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                }}
+              >
+                {blocks.lead ? (
+                  <div style={{ fontWeight: 700, marginBottom: blocks.rest ? 0 : 0 }}>{blocks.lead}</div>
+                ) : null}
+                {blocks.rest ? (
+                  <div
+                    style={{
+                      fontWeight: 400,
+                      marginTop: blocks.lead ? 10 : 0,
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {blocks.rest}
+                  </div>
+                ) : null}
+              </div>
+            </>
+          ) : blocks.headline ? (
+            <h2
+              style={{
+                margin: 0,
+                color: ACCENT,
+                fontSize: 26,
+                fontWeight: 700,
+                letterSpacing: 0.4,
+                lineHeight: 1.23,
+                textAlign: 'center',
+                fontFamily: 'Georgia, "Times New Roman", serif',
+              }}
+            >
+              {blocks.headline}
+            </h2>
+          ) : (
+            <p
+              style={{
+                margin: 0,
+                color: 'rgba(244, 244, 245, 0.92)',
+                fontSize: 16,
+                lineHeight: 1.625,
+                fontWeight: 400,
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+              }}
+            >
+              {blocks.bodyRest || '—'}
+            </p>
+          )}
         </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={() => void copy()}
-            style={{
-              flex: 1,
-              minWidth: 120,
-              padding: '10px 14px',
-              borderRadius: 10,
-              border: 'none',
-              background: `linear-gradient(180deg, ${accent} 0%, ${accent}cc 100%)`,
-              color: '#0a0a0f',
-              fontWeight: 600,
-              fontSize: 14,
-              cursor: 'pointer',
-            }}
-          >
-            {copied ? tr('Copiado', 'Copied') : tr('Copiar', 'Copy')}
-          </button>
+
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '10px 22px max(10px, env(safe-area-inset-bottom, 0px))',
+            borderTop: `1px solid ${accent}33`,
+            flexShrink: 0,
+            gap: 12,
+          }}
+        >
           <button
             type="button"
             onClick={onClose}
             style={{
-              padding: '10px 14px',
-              borderRadius: 10,
-              border: '1px solid rgba(255,255,255,0.15)',
-              background: 'transparent',
-              color: '#a1a1aa',
+              background: 'none',
+              border: 'none',
+              color: TEXT_MUTED,
               fontSize: 14,
+              fontWeight: 500,
+              letterSpacing: 0.8,
               cursor: 'pointer',
+              padding: '8px 0',
             }}
           >
             {tr('Cerrar', 'Close')}
+          </button>
+          <button
+            type="button"
+            onClick={() => void copy()}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              background: 'none',
+              border: 'none',
+              color: copied ? '#86efac' : ACCENT,
+              fontSize: 14,
+              fontWeight: 600,
+              letterSpacing: 0.3,
+              cursor: 'pointer',
+              padding: '8px 0',
+            }}
+          >
+            <span aria-hidden style={{ fontSize: 16 }}>
+              {copied ? '✓' : '⧉'}
+            </span>
+            {copied ? tr('Copiado', 'Copied') : tr('Copiar', 'Copy')}
           </button>
         </div>
       </div>

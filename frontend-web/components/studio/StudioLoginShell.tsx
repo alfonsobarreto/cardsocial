@@ -13,8 +13,27 @@ import {
   studioT,
   type StudioLocale,
 } from '@/lib/studioI18n';
-import { readSafeNextPath, setStudioAuthCookie } from '@/lib/studioAuthClient';
+import {
+  clearStudioSigningOutFlag,
+  readStudioSigningOutFlag,
+  readSafeNextPath,
+  setStudioAuthCookie,
+} from '@/lib/studioAuthClient';
 import StudioLogin from '@/components/studio/StudioLogin';
+
+function stripSignedOutQueryFromUrl(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const p = new URLSearchParams(window.location.search);
+    if (!p.get('signedOut')) return;
+    p.delete('signedOut');
+    const q = p.toString();
+    const path = window.location.pathname || '/login';
+    window.history.replaceState({}, '', q ? `${path}?${q}` : path);
+  } catch {
+    /* ignore */
+  }
+}
 
 export default function StudioLoginShell() {
   const router = useRouter();
@@ -36,18 +55,40 @@ export default function StudioLoginShell() {
 
   useEffect(() => {
     return onAuthStateChanged(getStudioAuth(), (user) => {
-      if (!user) return;
-      const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-      if (params?.get('signedOut') === '1') {
-        setStudioAuthCookie(false);
-        void signOut(getStudioAuth()).catch(() => null);
+      if (typeof window === 'undefined') return;
+      const params = new URLSearchParams(window.location.search);
+      const legacySignedOut = params.get('signedOut') === '1';
+      const storageSigningOut = readStudioSigningOutFlag();
+
+      if (!user) {
+        bootRedirectDone.current = false;
+        clearStudioSigningOutFlag();
+        stripSignedOutQueryFromUrl();
         return;
       }
+
+      /** Cerrar sesión forzado (Salir en Studio o query legada) — nunca redirigir a /studio hasta quedar sin usuario. */
+      if (legacySignedOut || storageSigningOut) {
+        bootRedirectDone.current = true;
+        setStudioAuthCookie(false);
+        void (async () => {
+          try {
+            await signOut(getStudioAuth());
+          } catch {
+            /* ignore */
+          } finally {
+            clearStudioSigningOutFlag();
+            stripSignedOutQueryFromUrl();
+          }
+        })();
+        return;
+      }
+
       setStudioAuthCookie(true);
-      if (typeof window === 'undefined' || window.location.pathname !== '/login') return;
+      if (window.location.pathname !== '/login') return;
       if (bootRedirectDone.current) return;
       bootRedirectDone.current = true;
-      const go = params?.get('next') || null;
+      const go = params.get('next') || null;
       router.replace(readSafeNextPath(go));
     });
   }, [router]);

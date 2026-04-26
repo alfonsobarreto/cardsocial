@@ -43,3 +43,46 @@ export function readSafeNextPath(raw: string | null | undefined): string {
   }
   return pathWithQuery;
 }
+
+const SIGNING_OUT_KEY = 'csStudioSigningOut';
+
+/**
+ * Navegación completa a `https://<host>/login` (mismo origen que la página).
+ * `signedOut`: marca `sessionStorage` en lugar de `?signedOut=1` (ese query
+ * re-disparaba `onAuth` + redirecciones y podía provocar ERR_TOO_MANY_REDIRECTS).
+ */
+export function assignStudioLoginPage(options?: {
+  /** Tras pulsar Salir: marca sesión; **no** añade query `signedOut=1`. */
+  signedOut?: boolean;
+  returnPathWithQuery?: string;
+}): void {
+  if (typeof window === 'undefined') return;
+  if (options?.signedOut) {
+    try {
+      sessionStorage.setItem(SIGNING_OUT_KEY, '1');
+    } catch {
+      /* private mode, etc. */
+    }
+  }
+  const u = new URL('/login', window.location.origin);
+  if (options?.returnPathWithQuery) u.searchParams.set('next', options.returnPathWithQuery);
+  window.location.assign(u.href);
+}
+
+export function readStudioSigningOutFlag(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return sessionStorage.getItem(SIGNING_OUT_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function clearStudioSigningOutFlag(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.removeItem(SIGNING_OUT_KEY);
+  } catch {
+    /* ignore */
+  }
+}

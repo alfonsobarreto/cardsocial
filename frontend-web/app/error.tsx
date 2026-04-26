@@ -1,8 +1,14 @@
 'use client';
 
+import { useCallback } from 'react';
 import { studioTheme } from '@/lib/studioTheme';
 
 export default function AppError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  const goLogin = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    window.location.assign(new URL('/login', window.location.origin).href);
+  }, []);
+
   return (
     <main
       style={{
@@ -29,22 +35,40 @@ export default function AppError({ error, reset }: { error: Error & { digest?: s
         <p style={{ margin: '0 0 18px', color: studioTheme.textMuted, lineHeight: 1.5 }}>
           {error?.message || 'The page could not be rendered.'}
         </p>
-        <button
-          type="button"
-          onClick={reset}
-          style={{
-            width: '100%',
-            border: 'none',
-            borderRadius: 12,
-            padding: '12px 14px',
-            background: studioTheme.gold,
-            color: studioTheme.bg,
-            fontWeight: 900,
-            cursor: 'pointer',
-          }}
-        >
-          Try again
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <button
+            type="button"
+            onClick={goLogin}
+            style={{
+              width: '100%',
+              border: 'none',
+              borderRadius: 12,
+              padding: '12px 14px',
+              background: studioTheme.gold,
+              color: studioTheme.bg,
+              fontWeight: 900,
+              cursor: 'pointer',
+            }}
+          >
+            Go to sign in
+          </button>
+          <button
+            type="button"
+            onClick={reset}
+            style={{
+              width: '100%',
+              border: `1px solid ${studioTheme.border}`,
+              borderRadius: 12,
+              padding: '12px 14px',
+              background: 'transparent',
+              color: studioTheme.text,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Try again
+          </button>
+        </div>
       </div>
     </main>
   );

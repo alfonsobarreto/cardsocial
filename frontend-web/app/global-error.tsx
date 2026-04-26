@@ -20,22 +20,44 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
             <p style={{ margin: '0 0 18px', color: 'rgba(255,255,255,0.62)', lineHeight: 1.5 }}>
               {error?.message || 'The application could not recover automatically.'}
             </p>
-            <button
-              type="button"
-              onClick={reset}
-              style={{
-                width: '100%',
-                border: 'none',
-                borderRadius: 12,
-                padding: '12px 14px',
-                background: '#D4AF37',
-                color: '#000',
-                fontWeight: 900,
-                cursor: 'pointer',
-              }}
-            >
-              Try again
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    window.location.assign(new URL('/login', window.location.origin).href);
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  border: 'none',
+                  borderRadius: 12,
+                  padding: '12px 14px',
+                  background: '#D4AF37',
+                  color: '#000',
+                  fontWeight: 900,
+                  cursor: 'pointer',
+                }}
+              >
+                Go to sign in
+              </button>
+              <button
+                type="button"
+                onClick={reset}
+                style={{
+                  width: '100%',
+                  border: '1px solid rgba(212,175,55,0.4)',
+                  borderRadius: 12,
+                  padding: '12px 14px',
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.85)',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Try again
+              </button>
+            </div>
           </div>
         </main>
       </body>
