@@ -17,7 +17,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { auth } from '@/services/firebaseConfig';
-import { trEsEn, useLanguage } from '@/services/language';
+import { trEsEn, useLanguage, type AppLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { listMyBusinessCards } from '@/services/businessCardsRepo';
 import { listSmartCardsFromDb } from '@/services/qrApi';
@@ -67,13 +67,140 @@ function formatIsoForUi(value: string | null | undefined): string | null {
   return d.toLocaleString();
 }
 
+type NfcExtraLanguage = Exclude<AppLanguage, 'es' | 'en'>;
+
+const NFC_TRANSLATIONS: Record<string, Record<NfcExtraLanguage, string>> = {
+  Activa: { fr: 'Active', it: 'Attiva', pt: 'Ativa' },
+  Pausada: { fr: 'En pause', it: 'In pausa', pt: 'Pausada' },
+  Perdida: { fr: 'Perdue', it: 'Smarrita', pt: 'Perdida' },
+  Bloqueada: { fr: 'Bloquée', it: 'Bloccata', pt: 'Bloqueada' },
+  'Sin vincular': { fr: 'Non liée', it: 'Non collegata', pt: 'Não vinculada' },
+  Metal: { fr: 'Métal', it: 'Metallo', pt: 'Metal' },
+  Madera: { fr: 'Bois', it: 'Legno', pt: 'Madeira' },
+  'Plástico mate': { fr: 'Plastique mat', it: 'Plastica opaca', pt: 'Plástico fosco' },
+  'Material no definido': { fr: 'Matériau non défini', it: 'Materiale non definito', pt: 'Material não definido' },
+  Permanente: { fr: 'Permanent', it: 'Permanente', pt: 'Permanente' },
+  'Temporal - 24h': { fr: 'Temporaire - 24 h', it: 'Temporanea - 24 h', pt: 'Temporário - 24h' },
+  pendiente: { fr: 'en attente', it: 'in attesa', pt: 'pendente' },
+  'mismo destino': { fr: 'même destination', it: 'stessa destinazione', pt: 'mesmo destino' },
+  'No se pudo cargar NFC': { fr: 'Impossible de charger NFC', it: 'Impossibile caricare NFC', pt: 'Não foi possível carregar NFC' },
+  'Intenta nuevamente.': { fr: 'Réessaie.', it: 'Riprova.', pt: 'Tente novamente.' },
+  'ID requerido': { fr: 'ID requis', it: 'ID richiesto', pt: 'ID obrigatório' },
+  'Escanea o escribe el identificador NFC.': { fr: "Scanne ou saisis l'identifiant NFC.", it: "Scansiona o digita l'identificativo NFC.", pt: 'Escaneie ou digite o identificador NFC.' },
+  'PIN requerido': { fr: 'PIN requis', it: 'PIN richiesto', pt: 'PIN obrigatório' },
+  'Escribe el PIN de activación impreso con tu tarjeta.': { fr: "Saisis le PIN d'activation imprimé avec ta carte.", it: 'Inserisci il PIN di attivazione stampato con la tua carta.', pt: 'Digite o PIN de ativação impresso com o seu cartão.' },
+  'Tarjeta vinculada': { fr: 'Carte liée', it: 'Carta collegata', pt: 'Cartão vinculado' },
+  'Ahora puedes montar una identidad.': { fr: 'Tu peux maintenant monter une identité.', it: "Ora puoi montare un'identità.", pt: 'Agora você pode montar uma identidade.' },
+  'No se pudo vincular': { fr: 'Impossible de lier', it: 'Impossibile collegare', pt: 'Não foi possível vincular' },
+  'Sin destino': { fr: 'Aucune destination', it: 'Nessuna destinazione', pt: 'Sem destino' },
+  'Esta tarjeta aún no tiene identidad montada.': { fr: "Cette carte n'a pas encore d'identité montée.", it: "Questa carta non ha ancora un'identità montata.", pt: 'Este cartão ainda não tem uma identidade montada.' },
+  'No se pudo abrir': { fr: "Impossible d'ouvrir", it: 'Impossibile aprire', pt: 'Não foi possível abrir' },
+  'Fallback requerido': { fr: 'Fallback requis', it: 'Fallback richiesto', pt: 'Fallback obrigatório' },
+  'Crea o selecciona una BusinessCard permanente antes de montar una SmartCard 24 h.': { fr: 'Crée ou sélectionne une BusinessCard permanente avant de monter une SmartCard 24 h.', it: 'Crea o seleziona una BusinessCard permanente prima di montare una SmartCard 24 h.', pt: 'Crie ou selecione uma BusinessCard permanente antes de montar uma SmartCard 24h.' },
+  'Crea una BusinessCard permanente antes de montar una SmartCard 24 h.': { fr: 'Crée une BusinessCard permanente avant de monter une SmartCard 24 h.', it: 'Crea una BusinessCard permanente prima di montare una SmartCard 24 h.', pt: 'Crie uma BusinessCard permanente antes de montar uma SmartCard 24h.' },
+  'No se pudo montar': { fr: 'Impossible de monter', it: 'Impossibile montare', pt: 'Não foi possível montar' },
+  'No se pudo actualizar': { fr: 'Impossible de mettre à jour', it: 'Impossibile aggiornare', pt: 'Não foi possível atualizar' },
+  Volver: { fr: 'Retour', it: 'Indietro', pt: 'Voltar' },
+  'Menú NFC': { fr: 'Menu NFC', it: 'Menu NFC', pt: 'Menu NFC' },
+  'Hardware inteligente': { fr: 'Matériel intelligent', it: 'Hardware intelligente', pt: 'Hardware inteligente' },
+  'Vincula tarjetas físicas y monta la identidad que deben abrir ahora mismo. La tarjeta conserva un enlace fijo; Card-Social cambia el destino.': { fr: "Lie des cartes physiques et monte l'identité qu'elles doivent ouvrir maintenant. La carte garde un lien fixe; Card-Social change la destination.", it: "Collega carte fisiche e monta l'identità che devono aprire in questo momento. La carta mantiene un link fisso; Card-Social cambia la destinazione.", pt: 'Vincule cartões físicos e monte a identidade que eles devem abrir agora. O cartão mantém um link fixo; o Card-Social muda o destino.' },
+  'Vincular nueva NFC': { fr: 'Lier une nouvelle NFC', it: 'Collega nuova NFC', pt: 'Vincular novo NFC' },
+  'Escanea el QR o ingresa el ID de la tarjeta junto con su PIN de activación.': { fr: "Scanne le QR ou saisis l'ID de la carte avec son PIN d'activation.", it: "Scansiona il QR o inserisci l'ID della carta insieme al PIN di attivazione.", pt: 'Escaneie o QR ou digite o ID do cartão junto com o PIN de ativação.' },
+  'Vincular tarjeta física': { fr: 'Lier une carte physique', it: 'Collega carta fisica', pt: 'Vincular cartão físico' },
+  'Cargando tarjetas NFC...': { fr: 'Chargement des cartes NFC...', it: 'Caricamento carte NFC...', pt: 'Carregando cartões NFC...' },
+  'No hay tarjetas vinculadas': { fr: 'Aucune carte liée', it: 'Nessuna carta collegata', pt: 'Nenhum cartão vinculado' },
+  'Vincula la primera tarjeta física usando el ID impreso o el QR de manufactura.': { fr: "Lie la première carte physique avec l'ID imprimé ou le QR de fabrication.", it: "Collega la prima carta fisica usando l'ID stampato o il QR di produzione.", pt: 'Vincule o primeiro cartão físico usando o ID impresso ou o QR de fabricação.' },
+  'Montado ahora': { fr: 'Monté maintenant', it: 'Montato ora', pt: 'Montado agora' },
+  'Página de recuperación segura': { fr: 'Page de récupération sécurisée', it: 'Pagina di recupero sicura', pt: 'Página de recuperação segura' },
+  'Pendiente de confirmación del servidor.': { fr: 'En attente de confirmation du serveur.', it: 'In attesa di conferma del server.', pt: 'Aguardando confirmação do servidor.' },
+  Montar: { fr: 'Monter', it: 'Monta', pt: 'Montar' },
+  Probar: { fr: 'Tester', it: 'Prova', pt: 'Testar' },
+  Activar: { fr: 'Activer', it: 'Attiva', pt: 'Ativar' },
+  Pausar: { fr: 'Mettre en pause', it: 'Metti in pausa', pt: 'Pausar' },
+  'Backend integrado: /api/nfc administra tarjetas y /n/{nfcCardId} resuelve con redirección temporal.': { fr: 'Backend intégré: /api/nfc gère les cartes et /n/{nfcCardId} résout avec une redirection temporaire.', it: 'Backend integrato: /api/nfc gestisce le carte e /n/{nfcCardId} risolve con reindirizzamento temporaneo.', pt: 'Backend integrado: /api/nfc administra cartões e /n/{nfcCardId} resolve com redirecionamento temporário.' },
+  'Pega el ID o la URL /n impresa en la tarjeta y escribe el PIN de activación.': { fr: "Colle l'ID ou l'URL /n imprimée sur la carte et saisis le PIN d'activation.", it: "Incolla l'ID o l'URL /n stampata sulla carta e inserisci il PIN di attivazione.", pt: 'Cole o ID ou a URL /n impressa no cartão e digite o PIN de ativação.' },
+  'PIN de activación': { fr: "PIN d'activation", it: 'PIN di attivazione', pt: 'PIN de ativação' },
+  'Tarjeta 1': { fr: 'Carte 1', it: 'Carta 1', pt: 'Cartão 1' },
+  'Vinculando...': { fr: 'Liaison...', it: 'Collegamento...', pt: 'Vinculando...' },
+  Vincular: { fr: 'Lier', it: 'Collega', pt: 'Vincular' },
+  Cancelar: { fr: 'Annuler', it: 'Annulla', pt: 'Cancelar' },
+  'Montar identidad': { fr: "Monter l'identité", it: "Monta identità", pt: 'Montar identidade' },
+  'BusinessCards aparecen primero. Las SmartCards generan URL temporal de 24 h y requieren fallback.': { fr: "Les BusinessCards apparaissent d'abord. Les SmartCards génèrent une URL temporaire de 24 h et exigent un fallback.", it: 'Le BusinessCards appaiono per prime. Le SmartCards generano un URL temporaneo di 24 h e richiedono un fallback.', pt: 'As BusinessCards aparecem primeiro. As SmartCards geram URL temporária de 24h e exigem fallback.' },
+  'No hay tarjetas disponibles para montar.': { fr: 'Aucune carte disponible à monter.', it: 'Nessuna carta disponibile da montare.', pt: 'Nenhum cartão disponível para montar.' },
+  'BusinessCards permanentes': { fr: 'BusinessCards permanentes', it: 'BusinessCards permanenti', pt: 'BusinessCards permanentes' },
+  'SmartCards temporales': { fr: 'SmartCards temporaires', it: 'SmartCards temporanee', pt: 'SmartCards temporários' },
+  'Temporal - 24h · requiere fallback permanente': { fr: 'Temporaire - 24 h · fallback permanent requis', it: 'Temporanea - 24 h · fallback permanente richiesto', pt: 'Temporário - 24h · exige fallback permanente' },
+  'Elegir fallback': { fr: 'Choisir le fallback', it: 'Scegli fallback', pt: 'Escolher fallback' },
+  'Fallback permanente': { fr: 'Fallback permanent', it: 'Fallback permanente', pt: 'Fallback permanente' },
+};
+
+function trNfc(es: string, en: string, lang: AppLanguage): string {
+  if (lang === 'fr' || lang === 'it' || lang === 'pt') {
+    return NFC_TRANSLATIONS[es]?.[lang] || trEsEn(es, en, lang);
+  }
+  return trEsEn(es, en, lang);
+}
+
+function nfcRecoveryRouteText(label: string, lang: AppLanguage): string {
+  if (lang === 'es') return `Canal elegido: ${label}. No se expone el perfil completo.`;
+  if (lang === 'fr') return `Canal choisi: ${label}. Le profil complet n'est pas exposé.`;
+  if (lang === 'it') return `Canale scelto: ${label}. Il profilo completo non viene esposto.`;
+  if (lang === 'pt') return `Canal escolhido: ${label}. O perfil completo não é exposto.`;
+  return `Selected channel: ${label}. Full profile is not exposed.`;
+}
+
+function nfcTemporaryTargetText(expiresAt: string | null | undefined, fallbackName: string, lang: AppLanguage): string {
+  const expires = expiresAt || (lang === 'es' ? 'Expiración pendiente' : lang === 'fr' ? 'Expiration en attente' : lang === 'it' ? 'Scadenza in attesa' : lang === 'pt' ? 'Expiração pendente' : 'Expiration pending');
+  if (lang === 'es') return `${expires}. Fallback obligatorio: ${fallbackName}.`;
+  if (lang === 'fr') return `${expires}. Fallback obligatoire: ${fallbackName}.`;
+  if (lang === 'it') return `${expires}. Fallback obbligatorio: ${fallbackName}.`;
+  if (lang === 'pt') return `${expires}. Fallback obrigatório: ${fallbackName}.`;
+  return `${expires}. Required fallback: ${fallbackName}.`;
+}
+
+function nfcPermanentTargetText(fallbackName: string, lang: AppLanguage): string {
+  if (lang === 'es') return `Destino permanente. Fallback: ${fallbackName}.`;
+  if (lang === 'fr') return `Destination permanente. Fallback: ${fallbackName}.`;
+  if (lang === 'it') return `Destinazione permanente. Fallback: ${fallbackName}.`;
+  if (lang === 'pt') return `Destino permanente. Fallback: ${fallbackName}.`;
+  return `Permanent destination. Fallback: ${fallbackName}.`;
+}
+
+function nfcServerConfirmedText(value: string, lang: AppLanguage): string {
+  if (lang === 'es') return `Confirmado por servidor: ${value}`;
+  if (lang === 'fr') return `Confirmé par le serveur: ${value}`;
+  if (lang === 'it') return `Confermato dal server: ${value}`;
+  if (lang === 'pt') return `Confirmado pelo servidor: ${value}`;
+  return `Server confirmed: ${value}`;
+}
+
+function nfcLastScanText(value: string, lang: AppLanguage): string {
+  if (lang === 'es') return `Último escaneo: ${value}`;
+  if (lang === 'fr') return `Dernier scan: ${value}`;
+  if (lang === 'it') return `Ultima scansione: ${value}`;
+  if (lang === 'pt') return `Último escaneamento: ${value}`;
+  return `Last scan: ${value}`;
+}
+
+function nfcSmartFallbackPrompt(name: string, lang: AppLanguage): string {
+  if (lang === 'es') return `La SmartCard "${name}" expira en 24 h. Elige una BusinessCard permanente para cuando venza.`;
+  if (lang === 'fr') return `La SmartCard "${name}" expire dans 24 h. Choisis une BusinessCard permanente pour son expiration.`;
+  if (lang === 'it') return `La SmartCard "${name}" scade tra 24 h. Scegli una BusinessCard permanente per quando scadrà.`;
+  if (lang === 'pt') return `A SmartCard "${name}" expira em 24h. Escolha uma BusinessCard permanente para quando vencer.`;
+  return `The SmartCard "${name}" expires in 24h. Choose a permanent BusinessCard for when it expires.`;
+}
+
 export default function NfcScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { language } = useLanguage();
   const { resolvedMode } = useLookMode();
   const shell = palette[resolvedMode === 'noche' ? 'dark' : 'light'];
-  const tr = useCallback((es: string, en: string) => trEsEn(es, en, language), [language]);
+  const headerOnBanner = '#FFFFFF';
+  const headerOnBannerMuted = 'rgba(255,255,255,0.78)';
+  const headerBackButtonBg = 'rgba(255,255,255,0.14)';
+  const headerBackButtonBorder = 'rgba(255,255,255,0.18)';
+  const tr = useCallback((es: string, en: string) => trNfc(es, en, language), [language]);
   const [cards, setCards] = useState<NfcCardDoc[]>([]);
   const [mountOptions, setMountOptions] = useState<NfcMountOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -176,9 +303,9 @@ export default function NfcScreen() {
           borderRadius: 20,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: shell.surface,
+          backgroundColor: headerBackButtonBg,
           borderWidth: StyleSheet.hairlineWidth,
-          borderColor: shell.border,
+          borderColor: headerBackButtonBorder,
         },
         headerCopy: {
           flex: 1,
@@ -192,13 +319,13 @@ export default function NfcScreen() {
           marginBottom: 4,
         },
         title: {
-          color: shell.textPrimary,
+          color: headerOnBanner,
           fontSize: 24,
           fontWeight: '800',
           letterSpacing: 0.2,
         },
         subtitle: {
-          color: shell.textSecondary,
+          color: headerOnBannerMuted,
           fontSize: 13,
           lineHeight: 19,
           marginTop: 8,
@@ -406,7 +533,7 @@ export default function NfcScreen() {
           minWidth: 0,
         },
       }),
-    [insets.bottom, insets.top, shell],
+    [headerBackButtonBg, headerBackButtonBorder, headerOnBanner, headerOnBannerMuted, insets.bottom, insets.top, shell],
   );
 
   const toneColors: Record<'good' | 'muted' | 'warn' | 'danger', { fg: string; bg: string; border: string }> = {
@@ -542,7 +669,7 @@ export default function NfcScreen() {
             accessibilityRole="button"
             accessibilityLabel={tr('Volver', 'Back')}
           >
-            <MaterialCommunityIcons name="chevron-left" size={24} color={shell.ctaAccent} />
+            <MaterialCommunityIcons name="chevron-left" size={24} color={headerOnBanner} />
           </TouchableOpacity>
           <View style={styles.headerCopy}>
             <Text style={styles.eyebrow}>{tr('Menú NFC', 'NFC Menu')}</Text>
@@ -621,28 +748,19 @@ export default function NfcScreen() {
                 </Text>
                 <Text style={styles.routeText}>
                   {card.status === 'lost'
-                    ? tr(
-                        `Canal elegido: ${card.recoveryContact?.label || 'pendiente'}. No se expone el perfil completo.`,
-                        `Selected channel: ${card.recoveryContact?.label || 'pending'}. Full profile is not exposed.`,
-                      )
+                    ? nfcRecoveryRouteText(card.recoveryContact?.label || tr('pendiente', 'pending'), language)
                     : card.mountedTarget?.isTemporary
-                      ? tr(
-                          `${card.mountedTarget.expiresAt}. Fallback obligatorio: ${card.fallbackTarget?.displayName || 'pendiente'}.`,
-                          `${card.mountedTarget.expiresAt}. Required fallback: ${card.fallbackTarget?.displayName || 'pending'}.`,
-                        )
-                      : tr(
-                          `Destino permanente. Fallback: ${card.fallbackTarget?.displayName || 'mismo destino'}.`,
-                          `Permanent destination. Fallback: ${card.fallbackTarget?.displayName || 'same destination'}.`,
-                        )}
+                      ? nfcTemporaryTargetText(card.mountedTarget.expiresAt, card.fallbackTarget?.displayName || tr('pendiente', 'pending'), language)
+                      : nfcPermanentTargetText(card.fallbackTarget?.displayName || tr('mismo destino', 'same destination'), language)}
                 </Text>
                 <Text style={styles.routeText}>
                   {formatIsoForUi(card.lastConfirmedAt)
-                    ? tr(`Confirmado por servidor: ${formatIsoForUi(card.lastConfirmedAt)}`, `Server confirmed: ${formatIsoForUi(card.lastConfirmedAt)}`)
+                    ? nfcServerConfirmedText(formatIsoForUi(card.lastConfirmedAt) || '', language)
                     : tr('Pendiente de confirmación del servidor.', 'Pending server confirmation.')}
                 </Text>
                 {formatIsoForUi(card.lastResolvedAt) ? (
                   <Text style={styles.routeText}>
-                    {tr(`Último escaneo: ${formatIsoForUi(card.lastResolvedAt)}`, `Last scan: ${formatIsoForUi(card.lastResolvedAt)}`)}
+                    {nfcLastScanText(formatIsoForUi(card.lastResolvedAt) || '', language)}
                   </Text>
                 ) : null}
               </View>
@@ -804,10 +922,7 @@ export default function NfcScreen() {
             <Text style={styles.modalTitle}>{tr('Elegir fallback', 'Choose fallback')}</Text>
             <Text style={styles.heroText}>
               {pendingSmartMount
-                ? tr(
-                    `La SmartCard "${pendingSmartMount.option.displayName}" expira en 24 h. Elige una BusinessCard permanente para cuando venza.`,
-                    `The SmartCard "${pendingSmartMount.option.displayName}" expires in 24h. Choose a permanent BusinessCard for when it expires.`,
-                  )
+                ? nfcSmartFallbackPrompt(pendingSmartMount.option.displayName, language)
                 : null}
             </Text>
             <ScrollView style={{ marginTop: 6 }}>

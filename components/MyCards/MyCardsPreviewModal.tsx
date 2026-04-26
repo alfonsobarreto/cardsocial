@@ -40,6 +40,7 @@ import {
     redeemTemporaryAccessToken,
     trackBunkerGroupUsage,
     upsertSmartCardInDb,
+    listReceivedContacts,
 } from '@/services/qrApi';
 import { receivedContactMergeKey } from '@/services/receivedContactsPresentationMerge';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -241,14 +242,31 @@ export function MyCardsPreviewModal({
       bId = sourceBId ?? null;
     }
     if (!issuerUid || (!sid && !bId)) { setAlreadyInBunker(false); return; }
+    let cancelled = false;
     void (async () => {
       try {
+        const selfUid = await getActiveUserId();
+        if (!selfUid || cancelled) return;
+        const { contacts } = await listReceivedContacts({ uid: selfUid });
+        const backendHasContact = contacts.some((row) => (
+          String(row.uid || '').trim() === issuerUid &&
+          (bId
+            ? String(row.bId || '').trim() === bId
+            : String(row.sid || '').trim() === String(sid || '').trim())
+        ));
+        if (cancelled) return;
+        if (!backendHasContact) {
+          setAlreadyInBunker(false);
+          preLoadedGroupRef.current = '';
+          return;
+        }
+
         const raw = await AsyncStorage.getItem(CONTACT_META_STORAGE_KEY);
-        if (!raw) { setAlreadyInBunker(false); return; }
+        if (!raw) { setAlreadyInBunker(true); return; }
         const map = JSON.parse(raw) as Record<string, { group?: string } | unknown>;
         const key = receivedContactMergeKey({ uid: issuerUid, sid, bId });
         const isIn = key in map;
-        setAlreadyInBunker(isIn);
+        setAlreadyInBunker(backendHasContact);
         // Pre-load the stored group so the dropdown shows the correct current value
         if (isIn) {
           const meta = map[key] as { group?: string } | undefined;
@@ -262,6 +280,7 @@ export function MyCardsPreviewModal({
         setAlreadyInBunker(false);
       }
     })();
+    return () => { cancelled = true; };
   }, [visible, variant, incomingRedeem, ghostTargetUid, sourceSid, sourceBId]);
 
   const handleClose = useCallback(() => {
