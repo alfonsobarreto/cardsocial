@@ -175,6 +175,7 @@ function RootNavigator() {
         />
         <Stack.Screen name="register" options={{ title: language === 'en' ? 'Sign Up' : 'Registro' }} />
         <Stack.Screen name="scan" options={{ title: language === 'en' ? 'Scan Card' : 'Escanear Tarjeta', headerShown: false }} />
+        <Stack.Screen name="nfc" options={{ headerShown: false }} />
         <Stack.Screen name="u" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>

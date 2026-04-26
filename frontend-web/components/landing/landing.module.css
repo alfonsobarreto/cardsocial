@@ -1,15 +1,25 @@
-/* Luxurious landing — mobile first */
+/* Alineado a `styles/_premiumTheme.ts` (dark) + botón oro app (btnPrimary / Editar tarjeta) */
 .root {
-  --bg: #070708;
-  --surface: #101012;
-  --surface-elevated: #16161a;
-  --text: #fafaf9;
-  --muted: #a1a1aa;
-  --subtle: #52525b;
-  --gold: #d4af37;
-  --gold-mid: #b8860b;
-  --gold-glow: rgba(212, 175, 55, 0.12);
-  --line: rgba(255, 255, 255, 0.06);
+  /* premiumTheme.dark */
+  --bg: #000000;
+  --surface: #1c1c1e;
+  --surface-elevated: #2c2c2e;
+  --text: #ffffff;
+  --muted: #8e8e93;
+  --subtle: #48484a;
+  --border-app: #3a3a3c;
+  --line: rgba(58, 58, 60, 0.95);
+  /* Acentos luxury bronce / cálido (wireframe, chips) */
+  --bronze: #c5a065;
+  --bronze-mid: #b8942e;
+  --bronze-dim: rgba(197, 160, 101, 0.16);
+  --bronze-glow: rgba(197, 160, 101, 0.12);
+  /* CTA primario = pd.accent + pd.onAccent (mismo que “Editar tarjeta” en espejo) */
+  --cta-gold: #d4af37;
+  --cta-gold-mid: #c5a028;
+  --cta-gold-top: #f2ca50;
+  --on-cta: #0c0c0c;
+  --accent-glow: rgba(212, 175, 55, 0.14);
   --font-display: var(--font-playfair), ui-serif, Georgia, serif;
   --font-body: var(--font-dm), ui-sans-serif, system-ui, sans-serif;
 
@@ -55,7 +65,7 @@
   font-size: 0.6875rem;
   text-transform: uppercase;
   letter-spacing: 0.2em;
-  color: var(--gold);
+  color: var(--bronze);
   font-weight: 600;
   margin: 0 0 1rem;
 }
@@ -64,7 +74,9 @@
 .hero {
   position: relative;
   padding: 3rem 0 3.5rem;
-  background: radial-gradient(ellipse 80% 50% at 50% -20%, var(--gold-glow), transparent);
+  background:
+    radial-gradient(ellipse 90% 55% at 50% -15%, var(--bronze-dim) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 40% at 80% 20%, var(--accent-glow) 0%, transparent 45%);
 }
 
 @media (min-width: 1024px) {
@@ -90,7 +102,7 @@
   font-size: clamp(2rem, 6vw, 3.25rem);
   line-height: 1.1;
   margin: 0 0 1rem;
-  background: linear-gradient(180deg, #fff 0%, #d4d4d8 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #b8b8bd 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -109,20 +121,22 @@
   align-items: center;
   justify-content: center;
   padding: 0.9rem 1.75rem;
-  background: linear-gradient(145deg, var(--gold) 0%, var(--gold-mid) 100%);
-  color: #0a0a0b;
+  /* Mismo oro sólido / ligero relieve que el botón de acción primaria en app */
+  background: linear-gradient(180deg, var(--cta-gold-top) 0%, var(--cta-gold) 42%, var(--cta-gold-mid) 100%);
+  color: var(--on-cta);
   font-weight: 600;
   font-size: 0.9375rem;
   text-decoration: none;
   border-radius: 2px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 8px 32px rgba(212, 175, 55, 0.15);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 24px rgba(212, 175, 55, 0.22);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 
 .ctaPrimary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 12px 40px rgba(212, 175, 55, 0.22);
+  box-shadow: 0 8px 32px rgba(212, 175, 55, 0.28);
+  filter: brightness(1.02);
 }
 
 .ctaSecondary {
@@ -137,13 +151,13 @@
   text-decoration: none;
   border: 1px solid var(--line);
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.03);
   transition: border-color 0.2s, background 0.2s;
 }
 
 .ctaSecondary:hover {
-  border-color: rgba(212, 175, 55, 0.35);
-  background: var(--gold-glow);
+  border-color: rgba(197, 160, 101, 0.45);
+  background: var(--bronze-dim);
 }
 
 .mockupWrap {
@@ -185,21 +199,21 @@
   object-fit: contain;
   width: 100%;
   height: 100%;
-  opacity: 0.85;
-  filter: grayscale(0.2) contrast(1.05);
+  opacity: 0.9;
+  filter: grayscale(0.15) contrast(1.05);
 }
 
 .mockupFrame {
   position: absolute;
   inset: 0;
-  border: 1px solid rgba(212, 175, 55, 0.15);
+  border: 1px solid rgba(197, 160, 101, 0.22);
   border-radius: 8px;
   pointer-events: none;
 }
 
-/* Social proof */
+/* Social (iconos industria) */
 .social {
-  background: #0b0b0c;
+  background: var(--bg);
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   padding: 2rem 0;
@@ -210,22 +224,48 @@
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: center;
-  gap: 1.5rem 2rem;
+  gap: 1.5rem 1.75rem;
 }
 
-.logoCell {
+.industryCell {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.4rem;
-  min-width: 88px;
+  gap: 0.5rem;
+  min-width: 80px;
 }
 
-.logoLabel {
+.industryIconWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  color: var(--muted);
+  opacity: 0.9;
+  transition: color 0.2s, opacity 0.2s, transform 0.2s;
+}
+
+.industryCell:hover .industryIconWrap {
+  color: #aeaeb2;
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+.industrySvg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.industryLabel {
   font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--subtle);
+  text-align: center;
+  max-width: 96px;
+  line-height: 1.25;
 }
 
 .socialCaption {
@@ -250,24 +290,6 @@
   }
 }
 
-.logoSlot {
-  position: relative;
-  height: 32px;
-  width: 100px;
-  opacity: 0.45;
-  filter: grayscale(100%) contrast(0.9);
-  transition: opacity 0.2s;
-}
-
-.logoSlot:hover {
-  opacity: 0.7;
-}
-
-.logoImg {
-  object-fit: contain;
-  object-position: center;
-}
-
 /* Value grid */
 .valueGrid {
   display: grid;
@@ -290,8 +312,8 @@
 }
 
 .valueCard:hover {
-  border-color: rgba(212, 175, 55, 0.2);
-  box-shadow: 0 0 0 1px var(--gold-glow);
+  border-color: rgba(197, 160, 101, 0.28);
+  box-shadow: 0 0 0 1px var(--bronze-glow);
 }
 
 .valueIcon {
@@ -301,7 +323,7 @@
   align-items: center;
   justify-content: center;
   border: 1px solid var(--line);
-  color: var(--gold);
+  color: var(--bronze);
   font-size: 1.25rem;
   margin-bottom: 1rem;
   border-radius: 2px;
@@ -321,7 +343,7 @@
 
 /* Hardware */
 .hardware {
-  background: linear-gradient(180deg, var(--bg) 0%, #0c0c0e 50%, var(--bg) 100%);
+  background: linear-gradient(180deg, var(--bg) 0%, #0a0a0b 50%, var(--bg) 100%);
 }
 
 .hwGrid {
@@ -347,7 +369,7 @@
 
 .hwImgWrap {
   aspect-ratio: 4/3;
-  background: #121214;
+  background: var(--surface-elevated);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -403,9 +425,9 @@
 }
 
 .priceCardFeatured {
-  border-color: rgba(212, 175, 55, 0.45);
-  background: linear-gradient(180deg, rgba(212, 175, 55, 0.06) 0%, var(--surface) 40%);
-  box-shadow: 0 0 40px var(--gold-glow);
+  border-color: rgba(197, 160, 101, 0.4);
+  background: linear-gradient(180deg, var(--bronze-dim) 0%, var(--surface) 38%);
+  box-shadow: 0 0 32px var(--bronze-glow);
   transform: scale(1.02);
   z-index: 1;
 }
@@ -429,8 +451,8 @@
   font-size: 0.62rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: #0a0a0b;
-  background: var(--gold);
+  color: var(--on-cta);
+  background: var(--cta-gold);
   padding: 0.25rem 0.5rem;
   font-weight: 700;
   border-radius: 1px;
@@ -495,18 +517,18 @@
 }
 
 .priceCta:hover {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(212, 175, 55, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(197, 160, 101, 0.35);
 }
 
 .priceCtaGold {
-  background: linear-gradient(145deg, var(--gold) 0%, var(--gold-mid) 100%);
-  color: #0a0a0b;
-  border: none;
+  background: linear-gradient(180deg, var(--cta-gold-top) 0%, var(--cta-gold) 45%, var(--cta-gold-mid) 100%);
+  color: var(--on-cta);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .priceCtaGold:hover {
-  filter: brightness(1.05);
+  filter: brightness(1.04);
 }
 
 .disclaimer {
@@ -520,7 +542,7 @@
 /* Footer */
 .footer {
   border-top: 1px solid var(--line);
-  background: #050506;
+  background: #000000;
   padding: 2.5rem 0 2rem;
 }
 
@@ -574,7 +596,7 @@
 }
 
 .footerLink:hover {
-  color: var(--gold);
+  color: var(--bronze);
 }
 
 .sectionTitle {

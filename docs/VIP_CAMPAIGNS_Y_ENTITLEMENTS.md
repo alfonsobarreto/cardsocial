@@ -10,7 +10,7 @@ Documento maestro (Card-Social): visión técnica, **estrategia comercial**, dec
 |------|----------|
 | **Límites (todos los tiers)** | **Ningún** tope de IconData, SmartCards o BusinessCards debe ir **fijo en código**. El sistema **consulta** los valores en una **colección de configuración global** (objetivo: **Firestore**), editable desde el **panel SuperAdmin** en **tiempo real** (ver **§2** y **§7**). Incluye **Gratis, Influencer, Negocio** y, para **Enterprise**, filas *custom* o overrides operativos. |
 | **Modelo de negocio** | **Cuatro tiers**; números de referencia y beneficios de marketing en **§2**. |
-| **Hardware NFC** | **Add-on** opcional, **independiente** del SaaS. Tiers de pago: **“Pedir tarjeta física”** desde el **Vault**; el usuario cubre **manufactura y envío**; margen vía producto *hardware* (ver **§8**). |
+| **Hardware NFC** | **Add-on** opcional, **independiente** del SaaS. Tiers de pago: **“Pedir tarjeta física”** desde el **Vault**; el usuario cubre **manufactura y envío**; margen vía producto *hardware*. La tarjeta física usa **redirección dinámica** bajo `/n/{nfcCardId}`: el usuario **vincula** hardware nuevo y **monta** el destino activo desde el menú **NFC** (ver **§8**). |
 | **Campaña VIP (QR) + expiración** | Acceso inmediato a **Influencer/Negocio** por **365 días**; el **día 366** sin pago/renovación: **downgrade automático** a **Gratis** (ver **§4**). |
 | **Datos al superar límite Free (post–día 366)** | Criterio comercial: el **exceso sobre el límite de IconData del Free** (hoy 8, configurable) entra en **“Modo lectura”** — **sigue visible al público**; para el **dueño** se muestra **bloqueado / gris / candado** (sin edición). Las **BusinessCards** que dejen de ser válidas (extra frente a lo permitido en Free) se **desactivan visualmente** (público/UX: sin tratamiento de “alta” activa). *SmartCards* en exceso del límite Free: **mismo patrón que IconData** (modo lectura público + candado en Vault) **salvo** que el producto defina otra excepción. |
 | **Baneo / suspensión — público** | *“Perfil no disponible”* genérico. |
@@ -104,18 +104,152 @@ Documento maestro (Card-Social): visión técnica, **estrategia comercial**, dec
 
 ---
 
-## 8. Hardware NFC (add-on opcional)
+## 8. Hardware NFC y redirección dinámica (add-on opcional)
 
-- La **tarjeta NFC física** es un producto **independiente** del **SaaS** (cobro y margen vía **manufactura + envío**).
-- Usuarios en **tiers de pago** (según reglas de la config): acción **“Pedir / solicitar tarjeta física”** desde el **Vault** (y flujos de pago/fulfillment a definir en ops).
-- En UI es posible mostrar al usuario **doble partida** (suscripción / software vs **pedido de hardware**).
+La **tarjeta NFC física** es un producto **independiente** del **SaaS** (cobro y margen vía **manufactura + envío**). Usuarios en **tiers de pago** (según reglas de la config) pueden solicitar hardware; en UI es posible mostrar **doble partida**: suscripción/software vs **pedido de hardware**.
+
+### 8.1 Terminología definitiva
+
+- **Vincular:** registrar una tarjeta física nueva en la cuenta del usuario. El sistema reconoce el hardware por un identificador único.
+- **Montar:** asignar qué identidad/destino abre esa tarjeta física en este momento.
+- **Tarjeta física:** objeto NFC con URL estable. **No** queda “casada” para siempre con un perfil.
+- **Destino montado:** perfil o URL pública activa que abre la tarjeta al escanearla.
+- **Fallback:** destino permanente de respaldo cuando el destino montado es temporal y deja de ser válido.
+
+### 8.2 Principio técnico
+
+La tarjeta NFC debe escribir/guardar siempre una URL estable:
+
+`https://cardsocial.me/n/{nfcCardId}`
+
+Ese enlace **no cambia**. Lo que cambia es la resolución del servidor:
+
+`nfcCardId -> estado -> destino montado -> fallback -> respuesta pública`
+
+El resolver público de `/n/{nfcCardId}` debe responder con redirección **temporal** (`302` o `307`), **nunca `301`**, para evitar caché permanente en teléfonos/navegadores que rompería la conmutación dinámica.
+
+### 8.3 Menú NFC (app)
+
+La función vive en una sección dedicada del **Menu Bar** llamada **NFC**, sin mezclarla con Vault, editor de tarjetas o Studio.
+
+Pantallas mínimas:
+
+- **Dashboard NFC:** lista de tarjetas físicas del usuario (`Tarjeta 1`, `Tarjeta Metal`, etc.) con estado, destino montado, fallback, último cambio confirmado y acciones.
+- **Vincular nueva NFC:** escanear/tocar tarjeta física, reclamarla si está disponible, asignar nombre y elegir destino inicial.
+- **Montar identidad:** seleccionar destino entre BusinessCards, SmartCards y otros perfiles permitidos por entitlement.
+- **Probar redirección:** abrir la URL pública actual para confirmar qué verá una persona al escanear.
+- **Modo perdida:** activar/desactivar estado de recuperación segura.
+
+Orden recomendado al montar:
+
+1. **BusinessCards permanentes** (primeras; destino recomendado para hardware físico).
+2. SmartCards / links temporales de **24 h** (marcados visualmente como temporales y con contador de vencimiento).
+3. Otros destinos permitidos por producto/plan.
+
+### 8.4 Fallback obligatorio para SmartCards 24 h
+
+Si el usuario monta una SmartCard o URL temporal de **24 h**, el flujo debe exigir un **fallback obligatorio** antes de guardar.
+
+Opciones de fallback:
+
+- BusinessCard permanente.
+- SmartCard/perfil permanente permitido.
+- Página de expiración controlada (solo si producto lo aprueba).
+- Pausar tarjeta (no recomendado como default).
+
+Regla aprobada: si el token temporal vence, el resolver **no deja la NFC en blanco**. Aplica el fallback y mantiene utilidad pública.
+
+### 8.5 Kill Switch: estado “Perdida” con recuperación segura
+
+El estado **Perdida** no debe simplemente “matar” la tarjeta. Debe cambiar la respuesta pública a una **página de recuperación segura**.
+
+Comportamiento:
+
+- Mensaje público: *“Esta Card-Social pertenece a {nombre}. Si la encontraste, por favor contacta por este canal.”*
+- El canal de contacto se toma de un **IconData elegido por el usuario** (por ejemplo `wa.me`, email, teléfono o link permitido).
+- La página de recuperación **no** muestra todo el perfil ni expone datos extra; solo el canal seleccionado.
+- Si no hay canal elegido o ya no es válido, mostrar fallback seguro de soporte/recuperación (copy a definir).
+
+Estados de tarjeta física:
+
+| Estado | Público / resolver |
+| :--- | :--- |
+| `active` | Redirige al destino montado, aplicando fallback si el destino temporal expiró. |
+| `paused` | Muestra página controlada: tarjeta temporalmente desactivada. |
+| `lost` | Muestra página de recuperación segura con canal elegido. |
+| `blocked` | Bloqueo administrativo/seguridad; no muestra identidad. |
+| `unclaimed` | Flujo de vinculación o página neutra según producción. |
+
+### 8.6 Modelo de datos sugerido
+
+Colección/documento `nfcCards` (nombre final TBD):
+
+- `nfcCardId`: identificador público opaco usado en `/n/{nfcCardId}`.
+- `ownerUid`: dueño actual.
+- `label`: nombre visible (`Tarjeta 1`, `Metal Black`, etc.).
+- `status`: `active | paused | lost | blocked | unclaimed`.
+- `mountedTargetType`: `businessCard | smartCard | publicProfile | url`.
+- `mountedTargetId`: id interno del destino.
+- `mountedPublicUrl`: URL pública resuelta o referencia canónica.
+- `mountedExpiresAt`: fecha de expiración si el destino es temporal.
+- `fallbackTargetType`, `fallbackTargetId`, `fallbackPublicUrl`.
+- `recoveryContactIconDataId`: IconData elegido para estado `lost`.
+- `lastMountedAt`, `lastResolvedAt`, `updatedAt`.
+- `version`: entero/etag para concurrencia y auditoría.
+
+Auditoría recomendada:
+
+- `nfcCardEvents`: `linked`, `mounted`, `fallback_used`, `lost_enabled`, `lost_disabled`, `paused`, `blocked`, `resolved`, con `uid`, timestamp, IP/user-agent si aplica y valores anteriores/nuevos.
+
+### 8.7 Arquitectura de resolución instantánea
+
+Objetivo: cuando el usuario cambia el destino en la app, el siguiente escaneo en la calle debe ver el destino nuevo con latencia mínima.
+
+Resolver `/n/{nfcCardId}`:
+
+1. Lee estado y destino desde una capa rápida (cache/Redis/Firestore optimizado según infraestructura).
+2. Si `status = lost`, renderiza página de recuperación segura.
+3. Si `status = paused`, renderiza página de tarjeta desactivada.
+4. Si `status = blocked`, renderiza página genérica sin identidad.
+5. Si el destino montado es temporal y sigue vigente, responde `302/307` al destino temporal.
+6. Si el destino montado expiró, responde `302/307` al fallback y registra `fallback_used`.
+7. Si el destino es permanente y válido, responde `302/307` al destino montado.
+
+Escritura desde app:
+
+- Al **montar** un destino, el backend valida ownership, entitlement, vigencia y fallback.
+- Luego actualiza DB y cache en modalidad *write-through*.
+- La UI solo muestra “confirmado” cuando el servidor responde con la versión nueva.
+
+Cabeceras públicas:
+
+- Usar `Cache-Control: no-store` o TTL muy corto para respuestas de `/n/*`.
+- No usar `301`.
+- Si se usa CDN, excluir `/n/*` de caché permanente o cachear únicamente con invalidación/versionado explícito.
+
+### 8.8 Estados UI obligatorios
+
+La interfaz debe decir con certeza qué identidad está montada:
+
+- **Activa:** “Ahora mismo, Tarjeta 1 abre: Business Card · Alfonso Studio.”
+- **Temporal:** “Montada en SmartCard 24 h · vence en 18 h 42 min · fallback: Business Card.”
+- **Actualizando:** “Cambiando destino…”
+- **Confirmada:** “Actualizado por servidor hace X segundos.”
+- **Sin destino:** “Esta tarjeta no abre ningún perfil todavía.”
+- **Pausada:** “Esta tarjeta no redirige públicamente.”
+- **Perdida:** “Modo recuperación activo. Canal: WhatsApp / Email / etc.”
+- **Offline pendiente:** “Cambio pendiente de conexión; último estado confirmado: {destino}.”
+- **Error de propiedad:** “Esta tarjeta pertenece a otra cuenta.”
+- **Plan requerido:** “Este destino requiere Influencer/Negocio/Enterprise.”
+
+Regla UX: mostrar siempre **destino montado actual**, **fallback** y **última confirmación del servidor**.
 
 ---
 
 ## 9. Vault, perfil público y alineación con “modo lectura”
 
 - Tras el **día 366** y con **exceso** sobre el **Free**, hace falta **ordenar** o **puntuar** qué recursos compiten por los 8+5+0 (u otros límites leídos de config): *qué* entra en “dentro de cuota” vs “modo lectura / candado” (regla de *ranking* o *FIFO*: **TBD** de implementación, pero el **estado** visual es: público = lectura; dueño = candado/CTA).
-- **NFC (§8):** el **pedido** de hardware queda alineado con tiers vía la misma config/ *feature availability* en servidor.
+- **NFC (§8):** el **pedido** de hardware, la acción **Vincular** y la acción **Montar** quedan alineados con tiers vía la misma config/ *feature availability* en servidor.
 
 ---
 
@@ -125,7 +259,7 @@ Documento maestro (Card-Social): visión técnica, **estrategia comercial**, dec
 2. **Escritura acotada** en API según techos; **día 366** + *modo lectura* y BC desactivadas.
 3. **Público / baneo** ( **§6** ) y *resolver* con límites dinámicos.
 4. **Admin** (móvil + web): **config global** por **tier**, campañas, QR, asientos, listados ( **§5** ).
-5. **Enterprise** (onboarding) y **NFC** (pedidos, estados).
+5. **Enterprise** (onboarding) y **NFC** (pedidos, estados, **Vincular**, **Montar**, fallback y resolver `/n/{nfcCardId}`).
 
 ---
 
@@ -150,6 +284,8 @@ Documento maestro (Card-Social): visión técnica, **estrategia comercial**, dec
 - **Canales** de preaviso (día 366).
 - **Normalización** del *username* en el modal de destrucción.
 - Múltiples *grants* simultáneos (futuro).
+- Copy final de páginas públicas NFC: `paused`, `lost`, `blocked`, `unclaimed`.
+- Infra final de cache para `/n/*` (Redis/Upstash/Firestore optimizado/CDN bypass) según despliegue.
 
 ---
 
@@ -159,10 +295,10 @@ Documento maestro (Card-Social): visión técnica, **estrategia comercial**, dec
 - [ ] **Esquema** Firestore: `tierLimits` / *platform config*, campañas, grants, *referrals*.
 - [ ] **API** `getEffectiveLimits` + resolución de *modo lectura* (público) vs *candado* (dueño) + BC desactivada.
 - [ ] **Admin** — **config global de todos los tiers** + campañas/QR; **móvil**; confirmación destrucción.
-- [ ] **NFC** — pedido, pago, fulfillment.
+- [ ] **NFC** — pedido, pago, fulfillment, menú NFC, **Vincular**, **Montar**, fallback obligatorio para SmartCards 24 h, página `lost` y resolver `/n/{nfcCardId}` con `302/307`.
 - [ ] **Enterprise** — contrato, límites *custom* en la misma config o colección aislada.
 - [ ] **Observabilidad** y auditoría.
 
 ---
 
-*Última actualización: **Firestore** como fuente de límites por **todos** los tiers; filosofía *luxury* / **freemium 4 niveles**; **día 366** + **modo lectura** (público ve, dueño con candado) + **BusinessCards** extra desactivadas visualmente; **Configuración global** en Admin (límites en tiempo real); **NFC** como add-on (coste de manufactura y envío a cargo del usuario).*
+*Última actualización: **Firestore** como fuente de límites por **todos** los tiers; filosofía *luxury* / **freemium 4 niveles**; **día 366** + **modo lectura** (público ve, dueño con candado) + **BusinessCards** extra desactivadas visualmente; **Configuración global** en Admin (límites en tiempo real); **NFC** como add-on con redirección dinámica `/n/{nfcCardId}`, acciones **Vincular/Montar**, fallback obligatorio para SmartCards 24 h y modo **Perdida** con recuperación segura vía IconData.*

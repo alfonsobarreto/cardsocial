@@ -944,6 +944,11 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                       <Text style={[styles.drawerItemText, { color: shell.text }]}>{tr('Locker de Estilos', 'Theme Locker')}</Text>
                     </TouchableOpacity>
 
+                    <TouchableOpacity style={styles.drawerItem} onPress={() => { setDrawerVisible(false); router.push('/nfc'); }}>
+                      <MaterialCommunityIcons name="contactless-payment-circle-outline" size={20} color={shell.ctaAccent} />
+                      <Text style={[styles.drawerItemText, { color: shell.text }]}>{tr('NFC', 'NFC')}</Text>
+                    </TouchableOpacity>
+
                     {userIsSuperAdmin && (
                       <TouchableOpacity
                         style={styles.drawerItem}

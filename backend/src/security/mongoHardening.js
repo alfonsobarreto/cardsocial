@@ -262,6 +262,53 @@ async function ensureMongoHardening(db) {
     },
   };
 
+  const nfcCardsValidator = {
+    $jsonSchema: {
+      bsonType: 'object',
+      required: ['nfcCardId', 'label', 'status', 'isClaimed', 'createdAt', 'updatedAt', 'version'],
+      properties: {
+        nfcCardId: { bsonType: 'string', minLength: 6, maxLength: 96 },
+        ownerUid: { bsonType: ['string', 'null'], minLength: 3 },
+        label: { bsonType: 'string', minLength: 1, maxLength: 120 },
+        material: { enum: ['plastic_matte', 'wood', 'metal', 'unknown', null] },
+        status: { enum: ['active', 'paused', 'lost', 'blocked', 'unclaimed'] },
+        activationPin: { bsonType: ['string', 'null'], minLength: 4, maxLength: 12 },
+        isClaimed: { bsonType: 'bool' },
+        activatedAt: { bsonType: ['date', 'null'] },
+        mountedTarget: { bsonType: ['object', 'null'] },
+        fallbackTarget: { bsonType: ['object', 'null'] },
+        recoveryContact: { bsonType: ['object', 'null'] },
+        lastMountedAt: { bsonType: ['date', 'null'] },
+        lastConfirmedAt: { bsonType: ['date', 'null'] },
+        lastResolvedAt: { bsonType: ['date', 'null'] },
+        createdAt: { bsonType: 'date' },
+        updatedAt: { bsonType: 'date' },
+        version: { bsonType: ['int', 'long'], minimum: 0 },
+      },
+    },
+  };
+
+  const nfcCardEventsValidator = {
+    $jsonSchema: {
+      bsonType: 'object',
+      required: ['nfcCardId', 'type', 'createdAt'],
+      properties: {
+        nfcCardId: { bsonType: 'string', minLength: 6, maxLength: 96 },
+        type: {
+          enum: ['linked', 'mounted', 'fallback_used', 'lost_enabled', 'lost_disabled', 'paused', 'blocked', 'resolved'],
+        },
+        actorUid: { bsonType: ['string', 'null'], maxLength: 128 },
+        previousStatus: { enum: ['active', 'paused', 'lost', 'blocked', 'unclaimed', null] },
+        nextStatus: { enum: ['active', 'paused', 'lost', 'blocked', 'unclaimed', null] },
+        previousTarget: { bsonType: ['object', 'null'] },
+        nextTarget: { bsonType: ['object', 'null'] },
+        ip: { bsonType: ['string', 'null'], maxLength: 120 },
+        userAgent: { bsonType: ['string', 'null'], maxLength: 500 },
+        createdAt: { bsonType: 'date' },
+      },
+    },
+  };
+
   await ensureCollection(db, 'qr_tokens', qrTokensValidator);
   await ensureCollection(db, 'share_permissions', sharePermissionsValidator);
   await ensureCollection(db, 'blocked_relations', blockedRelationsValidator);
@@ -274,6 +321,8 @@ async function ensureMongoHardening(db) {
   await ensureCollection(db, 'temporary_access', temporaryAccessValidator);
   await ensureCollection(db, 'bunker_groups', bunkerGroupsValidator);
   await ensureCollection(db, 'business_card_licenses', businessCardLicensesValidator);
+  await ensureCollection(db, 'nfc_cards', nfcCardsValidator);
+  await ensureCollection(db, 'nfc_card_events', nfcCardEventsValidator);
 
   /**
    * Índices autoritativos para `smart_cards` y `business_cards` (antes no se
@@ -350,6 +399,13 @@ async function ensureMongoHardening(db) {
     { uid: 1, expiresAt: 1 },
     { name: 'idx_bcl_uid_expires' },
   );
+
+  await db.collection('nfc_cards').createIndex({ nfcCardId: 1 }, { unique: true, name: 'uq_nfc_cards_id' });
+  await db.collection('nfc_cards').createIndex({ isClaimed: 1, activationPin: 1 }, { name: 'idx_nfc_cards_claim_pin' });
+  await db.collection('nfc_cards').createIndex({ ownerUid: 1, updatedAt: -1 }, { name: 'idx_nfc_cards_owner_updated' });
+  await db.collection('nfc_cards').createIndex({ status: 1, updatedAt: -1 }, { name: 'idx_nfc_cards_status_updated' });
+  await db.collection('nfc_card_events').createIndex({ nfcCardId: 1, createdAt: -1 }, { name: 'idx_nfc_events_card_created' });
+  await db.collection('nfc_card_events').createIndex({ actorUid: 1, createdAt: -1 }, { name: 'idx_nfc_events_actor_created' });
 }
 
 module.exports = {

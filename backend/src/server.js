@@ -14,6 +14,8 @@ const { createBusinessLicensesRoutes } = require("./routes/businessLicensesRoute
 const { createSmartCardsRoutes } = require("./routes/smartCardsRoutes");
 const { createPublicUniversalRoutes } = require("./routes/publicUniversalRoutes");
 const { createUniversalEntryHttpRoutes } = require("./routes/universalEntryHttpRoutes");
+const { createNfcRoutes } = require("./routes/nfcRoutes");
+const { createNfcPublicRoutes } = require("./routes/nfcPublicRoutes");
 const revenueCatRoutes = require("./routes/revenueCatRoutes");
 const { createAdminRoutes } = require("./routes/adminRoutes");
 const { ensureMongoHardening } = require("./security/mongoHardening");
@@ -410,6 +412,7 @@ const otpHash = (emailLower, code) => {
   app.use("/api/admin", createAdminRoutes());
 
   app.use("/api/public", createPublicUniversalRoutes({ storage }));
+  app.use("/n", createNfcPublicRoutes({ storage }));
 
   // Next.js frontend-web: ficha pública, legal, Card Studio, login, assets.
   // Sin estos montajes Express responde 404 aunque Next esté levantado (p. ej. /studio, /login).
@@ -618,6 +621,14 @@ const otpHash = (emailLower, code) => {
   app.use("/api/qr", gatewayKeyMiddleware, jwtAuthMiddleware, qrScopeMiddleware, createQrRoutes({
     storage,
   }));
+
+  app.use(
+    "/api/nfc",
+    gatewayKeyMiddleware,
+    jwtAuthMiddleware,
+    qrScopeMiddleware,
+    createNfcRoutes({ storage }),
+  );
 
   app.use(
     "/api/business-cards",
