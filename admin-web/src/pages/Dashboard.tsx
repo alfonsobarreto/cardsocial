@@ -1,11 +1,61 @@
-const statCards = [
-  { label: 'Usuarios', value: '--', hint: 'Pendiente de conectar API' },
-  { label: 'Reportes', value: '--', hint: 'Moderacion y Trust & Safety' },
-  { label: 'Campanas VIP', value: '--', hint: 'Influencers y Businesses' },
-  { label: 'NFC activas', value: '--', hint: 'Inventario fisico' },
-];
+import { useEffect, useMemo, useState } from 'react';
+import { getDashboardStats, type DashboardStats } from '../services/dashboardService';
 
 export default function Dashboard() {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadStats() {
+      try {
+        setLoading(true);
+        setLoadError(false);
+        const nextStats = await getDashboardStats();
+
+        if (isMounted) {
+          setStats(nextStats);
+        }
+      } catch (error) {
+        console.error('[Dashboard] Failed to load Firestore stats:', error);
+
+        if (isMounted) {
+          setLoadError(true);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadStats();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const statCards = useMemo(
+    () => [
+      {
+        label: 'Usuarios',
+        value: loading ? 'Cargando...' : (stats?.usersCount.toLocaleString() ?? '--'),
+        hint: 'Total en Firestore users',
+      },
+      {
+        label: 'Reportes',
+        value: loading ? 'Cargando...' : (stats?.reportsCount.toLocaleString() ?? '--'),
+        hint: 'Total en Firestore reports',
+      },
+      { label: 'Campanas VIP', value: '--', hint: 'Influencers y Businesses' },
+      { label: 'NFC activas', value: '--', hint: 'Inventario fisico' },
+    ],
+    [loading, stats],
+  );
+
   return (
     <div className="space-y-8">
       <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
@@ -30,6 +80,13 @@ export default function Dashboard() {
           </article>
         ))}
       </section>
+
+      {loadError && (
+        <section className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+          No se pudieron cargar las estadisticas de Firestore. Revisa reglas temporales,
+          permisos del usuario o configuracion de Firebase.
+        </section>
+      )}
 
       <section className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6">
         <h2 className="text-lg font-semibold text-slate-900">Modulos preparados en navegacion</h2>

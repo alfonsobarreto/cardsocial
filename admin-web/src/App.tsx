@@ -2,7 +2,9 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import AdminLayout from './layout/AdminLayout';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
+import Moderation from './pages/Moderation';
 import PlaceholderPage from './pages/PlaceholderPage';
+import RulesTiers from './pages/RulesTiers';
 import PrivateRoute from './routes/PrivateRoute';
 
 function App() {
@@ -12,8 +14,8 @@ function App() {
       <Route element={<PrivateRoute />}>
         <Route element={<AdminLayout />}>
           <Route index element={<Dashboard />} />
-          <Route path="moderacion" element={<PlaceholderPage />} />
-          <Route path="rules-tiers" element={<PlaceholderPage />} />
+          <Route path="moderacion" element={<Moderation />} />
+          <Route path="rules-tiers" element={<RulesTiers />} />
           <Route path="campanas-vip" element={<PlaceholderPage />} />
           <Route path="studio" element={<PlaceholderPage />} />
           <Route path="finanzas" element={<PlaceholderPage />} />

@@ -2,7 +2,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 
 export default function PrivateRoute() {
-  const { loading, user } = useAuth();
+  const { isSuperAdmin, loading, user } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -15,7 +15,7 @@ export default function PrivateRoute() {
     );
   }
 
-  if (!user) {
+  if (!user || !isSuperAdmin(user)) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 

@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 
 type LocationState = {
@@ -12,13 +12,18 @@ export default function Login() {
   const { login, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const state = location.state as LocationState | null;
   const redirectTo = state?.from?.pathname || '/';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(
+    searchParams.get('error') === 'access_denied'
+      ? 'Acceso denegado. No tienes permisos de Super Administrador.'
+      : '',
+  );
 
   if (user) {
     return <Navigate to="/" replace />;
@@ -32,8 +37,12 @@ export default function Login() {
     try {
       await login(email.trim(), password);
       navigate(redirectTo, { replace: true });
-    } catch {
-      setError('No se pudo iniciar sesion. Revisa el email y la contrasena.');
+    } catch (err) {
+      const message =
+        err instanceof Error && err.message === 'super-admin-access-denied'
+          ? 'Acceso denegado. No tienes permisos de Super Administrador.'
+          : 'No se pudo iniciar sesion. Revisa el email y la contrasena.';
+      setError(message);
     } finally {
       setSubmitting(false);
     }
