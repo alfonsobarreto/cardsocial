@@ -6,6 +6,7 @@ import Campaigns from './pages/Campaigns';
 import Moderation from './pages/Moderation';
 import PlaceholderPage from './pages/PlaceholderPage';
 import RulesTiers from './pages/RulesTiers';
+import Studio from './pages/Studio';
 import PrivateRoute from './routes/PrivateRoute';
 
 function App() {
@@ -18,7 +19,7 @@ function App() {
           <Route path="moderacion" element={<Moderation />} />
           <Route path="rules-tiers" element={<RulesTiers />} />
           <Route path="campanas-vip" element={<Campaigns />} />
-          <Route path="studio" element={<PlaceholderPage />} />
+          <Route path="studio" element={<Studio />} />
           <Route path="finanzas" element={<PlaceholderPage />} />
           <Route path="nfc-ops" element={<PlaceholderPage />} />
         </Route>
