@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import AdminLayout from './layout/AdminLayout';
 import Compliance from './pages/Compliance';
 import Dashboard from './pages/Dashboard';
+import IdentityRisk from './pages/IdentityRisk';
 import Login from './pages/Login';
 import Campaigns from './pages/Campaigns';
 import Moderation from './pages/Moderation';
@@ -20,6 +21,7 @@ function App() {
           <Route index element={<Dashboard />} />
           <Route path="moderacion" element={<Moderation />} />
           <Route path="compliance" element={<Compliance />} />
+          <Route path="identity-risk" element={<IdentityRisk />} />
           <Route path="rules-tiers" element={<RulesTiers />} />
           <Route path="campanas-vip" element={<Campaigns />} />
           <Route path="studio" element={<Studio />} />

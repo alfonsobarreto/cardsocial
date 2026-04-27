@@ -5,6 +5,7 @@ const navItems = [
   { label: 'Dashboard', to: '/' },
   { label: 'Moderacion', to: '/moderacion' },
   { label: 'Legal & Compliance', to: '/compliance' },
+  { label: 'Identity & Anti-Abuso', to: '/identity-risk' },
   { label: 'Rules & Tiers', to: '/rules-tiers' },
   { label: 'Campanas VIP', to: '/campanas-vip' },
   { label: 'Studio', to: '/studio' },
