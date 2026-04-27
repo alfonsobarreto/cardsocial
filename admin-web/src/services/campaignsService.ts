@@ -17,6 +17,7 @@ export type VipCampaign = {
   name: string;
   type: VipCampaignType;
   grantedTier: VipGrantedTier;
+  durationDays: number;
   maxUses: number;
   currentUses: number;
   active: boolean;
@@ -60,6 +61,7 @@ function normalizeCampaign(id: string, data: Partial<VipCampaignDoc>): VipCampai
     name: String(data.name ?? ''),
     type: (data.type === 'Business' ? 'Business' : 'Influencer') as VipCampaignType,
     grantedTier: (data.grantedTier === 'business' ? 'business' : 'influencer') as VipGrantedTier,
+    durationDays: Math.max(1, Number(data.durationDays) || 365),
     maxUses: Math.max(0, Number(data.maxUses) || 0),
     currentUses: Math.max(0, Number(data.currentUses) || 0),
     active: data.active !== false,
@@ -90,6 +92,7 @@ export async function createCampaign(input: CreateCampaignInput): Promise<string
     name: input.name.trim(),
     type: input.type,
     grantedTier: input.grantedTier,
+    durationDays: 365,
     maxUses: Math.max(1, input.maxUses),
     currentUses: 0,
     active: true,
