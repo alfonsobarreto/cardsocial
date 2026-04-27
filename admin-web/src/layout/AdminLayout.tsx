@@ -7,6 +7,7 @@ const navItems = [
   { label: 'Legal & Compliance', to: '/compliance' },
   { label: 'Identity & Anti-Abuso', to: '/identity-risk' },
   { label: 'B2B & Enterprise', to: '/b2b-enterprise' },
+  { label: 'Growth & Afiliados', to: '/growth' },
   { label: 'Rules & Tiers', to: '/rules-tiers' },
   { label: 'Campanas VIP', to: '/campanas-vip' },
   { label: 'Studio', to: '/studio' },

@@ -3,6 +3,7 @@ import AdminLayout from './layout/AdminLayout';
 import Compliance from './pages/Compliance';
 import Dashboard from './pages/Dashboard';
 import Enterprise from './pages/Enterprise';
+import Growth from './pages/Growth';
 import IdentityRisk from './pages/IdentityRisk';
 import Login from './pages/Login';
 import Campaigns from './pages/Campaigns';
@@ -24,6 +25,7 @@ function App() {
           <Route path="compliance" element={<Compliance />} />
           <Route path="identity-risk" element={<IdentityRisk />} />
           <Route path="b2b-enterprise" element={<Enterprise />} />
+          <Route path="growth" element={<Growth />} />
           <Route path="rules-tiers" element={<RulesTiers />} />
           <Route path="campanas-vip" element={<Campaigns />} />
           <Route path="studio" element={<Studio />} />
