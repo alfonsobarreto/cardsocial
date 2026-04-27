@@ -329,7 +329,11 @@ export default function Studio() {
           <div className="mt-5 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-950">
             <div className="font-semibold">Inventario objetivo</div>
             <div className="mt-1 font-mono text-xs">
-              {activeTab === 'font' ? 'font_library' : activeTab === 'icon' ? 'icon_library' : 'wallpapers'}
+              {activeTab === 'font'
+                ? 'font_library'
+                : activeTab === 'icon'
+                  ? 'icon_library'
+                  : 'wallpaper_library'}
             </div>
           </div>
 

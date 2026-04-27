@@ -59,7 +59,7 @@ export type UploadVisualAssetInput = {
 
 const FONT_COLLECTION = 'font_library';
 const ICON_COLLECTION = 'icon_library';
-const WALLPAPER_COLLECTION = 'wallpapers';
+const WALLPAPER_COLLECTION = 'wallpaper_library';
 
 function sanitizeName(value: string) {
   return String(value || 'asset')

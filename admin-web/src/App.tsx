@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Campaigns from './pages/Campaigns';
 import Moderation from './pages/Moderation';
+import NfcOps from './pages/NfcOps';
 import PlaceholderPage from './pages/PlaceholderPage';
 import RulesTiers from './pages/RulesTiers';
 import Studio from './pages/Studio';
@@ -21,7 +22,7 @@ function App() {
           <Route path="campanas-vip" element={<Campaigns />} />
           <Route path="studio" element={<Studio />} />
           <Route path="finanzas" element={<PlaceholderPage />} />
-          <Route path="nfc-ops" element={<PlaceholderPage />} />
+          <Route path="nfc-ops" element={<NfcOps />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
