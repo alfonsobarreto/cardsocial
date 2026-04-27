@@ -23,6 +23,7 @@ import {
     type ThemeTier,
 } from '@/constants/themeChest';
 import { getActiveUserId } from '@/services/authSession';
+import { hasUnlimitedAdminUi } from '@/services/roleService';
 import { hardLockCheck } from '@/services/biometricAuth';
 import {
   ExportBusinessQR,
@@ -34,6 +35,7 @@ import {
     deleteBusinessCard as deleteBusinessCardViaApi,
     updateBusinessCard as updateBusinessCardViaApi,
 } from '@/services/businessCardsRepo';
+import { getBusinessCardSlotAvailability } from '@/services/businessCardSlotsGate';
 import type { BusinessCardDoc } from '@/services/types/cards';
 
 /**
@@ -610,6 +612,8 @@ export default function CardsFactoryScreen() {
   const [issuingUniversalLink, setIssuingUniversalLink] = useState(false);
   /** UID de la sesión en Mis Tarjetas (QR permanente en filas de negocio). */
   const [sessionUid, setSessionUid] = useState<string | null>(null);
+  /** super_admin / cuenta Pochobs: subtítulo “ilimitado” en cabecera. */
+  const [misTarjetasUnlimited, setMisTarjetasUnlimited] = useState(false);
   const [cardSearchQuery, setCardSearchQuery] = useState('');
   const [cardStatsVisible, setCardStatsVisible] = useState(false);
   const [cardStatsTarget, setCardStatsTarget] = useState<SmartCard | null>(null);
@@ -710,11 +714,17 @@ export default function CardsFactoryScreen() {
         setIsCardsUnlocked(authenticated);
         if (!authenticated) {
           setSessionUid(null);
+          setMisTarjetasUnlimited(false);
           return;
         }
 
         const uid = await getActiveUserId();
         setSessionUid(uid ?? null);
+        if (uid) {
+          setMisTarjetasUnlimited(await hasUnlimitedAdminUi(uid));
+        } else {
+          setMisTarjetasUnlimited(false);
+        }
 
         void refreshThemes();
 
@@ -3446,20 +3456,38 @@ export default function CardsFactoryScreen() {
         <View>
           <Text style={[styles.headerTitle, { color: cardsTheme.text }]}>{tr('Mis Tarjetas', 'My Cards')}</Text>
           <Text style={[styles.headerSubtitle, { color: cardsTheme.sectionLabel }]}>
-            {smartCards.length + businessCardsFeed.length} {tr('tarjetas', 'cards')}
-            {businessCardsFeed.length > 0 && smartCards.length > 0
-              ? ` (${smartCards.length} Smart · ${businessCardsFeed.length} ${tr('negocio', 'business')})`
-              : ''}
+            {misTarjetasUnlimited
+              ? tr(
+                  `Ilimitado — ${smartCards.length} Smart · ${businessCardsFeed.length} negocio`,
+                  `Unlimited — ${smartCards.length} Smart · ${businessCardsFeed.length} business`,
+                )
+              : [
+                  `${smartCards.length + businessCardsFeed.length} ${tr('tarjetas', 'cards')}`,
+                  businessCardsFeed.length > 0 && smartCards.length > 0
+                    ? ` (${smartCards.length} Smart · ${businessCardsFeed.length} ${tr('negocio', 'business')})`
+                    : '',
+                ].join('')}
           </Text>
         </View>
         <View style={styles.headerActionsRow}>
           <TouchableOpacity
-            onPress={() =>
-              router.push({
-                pathname: '/(tabs)/createBusinessCard',
-                params: { mode: 'new', fresh: String(Date.now()) },
-              } as any)
-            }
+            onPress={() => {
+              void (async () => {
+                const uid = await getActiveUserId();
+                if (!uid) {
+                  return;
+                }
+                const slots = await getBusinessCardSlotAvailability(uid);
+                if (!slots.canCreate) {
+                  router.push('/vault_store' as never);
+                  return;
+                }
+                router.push({
+                  pathname: '/(tabs)/createBusinessCard',
+                  params: { mode: 'new', fresh: String(Date.now()) },
+                } as any);
+              })();
+            }}
             activeOpacity={0.9}
             style={styles.businessCtaWrap}
             accessibilityRole="button"

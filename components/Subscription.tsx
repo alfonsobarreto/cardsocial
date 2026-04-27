@@ -1,21 +1,29 @@
+import GoldenRingButton from '@/components/GoldenRingButton';
+import palette from '@/app/theme';
 import { getActiveUserId } from '@/services/authSession';
-import { purchaseBusinessCard } from '@/services/businessCardPaywallService';
-import { useTr } from '@/services/language';
+import {
+  getBusinessCardPackageForPlatform,
+  purchaseBusinessCard,
+} from '@/services/businessCardPaywallService';
+import { useLanguage, useTr } from '@/services/language';
+import { useLookMode } from '@/services/lookMode';
+import { getTiersConfig, type TierKey, type TiersConfig } from '@/services/tiersConfigService';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    Alert,
-    Dimensions,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import Purchases from 'react-native-purchases';
-import GoldenRingButton from './GoldenRingButton';
 
 const { width } = Dimensions.get('window');
 
@@ -24,17 +32,30 @@ interface SubscriptionProps {
 }
 
 /**
- * Tienda del Búnker / Vault Store - Panel comercial
- * Muestra Base Gratis vs Licencia Anual por Tarjeta, packs de créditos y activación de negocio
+ * Tienda / planes: precios y límites desde `system_config/tiers` (CMS admin),
+ * más compras in-app (RevenueCat) y licencia anual de tarjeta de negocio.
  */
 const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
   const tr = useTr();
-  const [userId, setUserId] = useState<string>('');
+  const { language } = useLanguage();
+  const { resolvedMode } = useLookMode();
+  const shell = palette[resolvedMode === 'noche' ? 'dark' : 'light'];
+  const router = useRouter();
+  const intlLocale = language === 'en' ? 'en-US' : 'es-MX';
+
+  const fmtUsd = useCallback(
+    (n: number) =>
+      new Intl.NumberFormat(intlLocale, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n),
+    [intlLocale],
+  );
+
+  const [userId, setUserId] = useState('');
   const [loading, setLoading] = useState(true);
+  const [tiers, setTiers] = useState<TiersConfig | null>(null);
+  const [tiersLoading, setTiersLoading] = useState(true);
   const [subscribingPack, setSubscribingPack] = useState<string | null>(null);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
 
-  // Credit packs: $1 = 10 CS
   const creditPacks = [
     { id: 'pack_100', credits: 100, price: 9.99, displayPrice: '$9.99', productId: 'card_social_credits_100' },
     { id: 'pack_500', credits: 500, price: 39.99, displayPrice: '$39.99', productId: 'card_social_credits_500' },
@@ -42,40 +63,194 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
     { id: 'pack_5000', credits: 5000, price: 349.99, displayPrice: '$349.99', productId: 'card_social_credits_5000' },
   ];
 
-  const businessCardPriceAnnual = 49.99;
+  const bizPackage = useMemo(() => getBusinessCardPackageForPlatform(Platform.OS as 'ios' | 'android'), []);
 
   useEffect(() => {
-    loadUserData();
+    let mounted = true;
+    (async () => {
+      try {
+        const uid = await getActiveUserId();
+        if (mounted && uid) setUserId(uid);
+      } catch {
+        /* ignore */
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  const loadUserData = async () => {
-    try {
-      const uid = await getActiveUserId();
-      if (!uid) return;
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const cfg = await getTiersConfig();
+        if (mounted) setTiers(cfg);
+      } finally {
+        if (mounted) setTiersLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
-      setUserId(uid);
-    } catch (error) {
-      console.error('Error loading user data:', error);
-    } finally {
-      setLoading(false);
-    }
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: { flex: 1, backgroundColor: shell.backgroundSolid },
+        content: { paddingBottom: 32 },
+        header: {
+          paddingHorizontal: 20,
+          paddingVertical: 22,
+          alignItems: 'center',
+          marginBottom: 16,
+        },
+        headerCloseRow: { width: '100%', flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 4 },
+        headerCloseHit: { padding: 6 },
+        headerTitle: { fontSize: 22, fontWeight: '700', color: shell.fabText, marginTop: 10, textAlign: 'center' },
+        headerSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.88)', marginTop: 6, textAlign: 'center' },
+        section: { paddingHorizontal: 16, marginBottom: 22 },
+        sectionTitle: { fontSize: 17, fontWeight: '700', color: shell.textPrimary, marginBottom: 10 },
+        sectionHint: { fontSize: 12, color: shell.textSecondary, marginBottom: 12, lineHeight: 18 },
+        tierCard: {
+          borderRadius: 14,
+          padding: 14,
+          marginBottom: 10,
+          backgroundColor: shell.surfaceMuted,
+          borderWidth: 1,
+          borderColor: shell.modalBorder,
+        },
+        tierCardHighlight: {
+          borderColor: shell.ctaAccent,
+          borderWidth: 2,
+        },
+        tierName: { fontSize: 16, fontWeight: '700', color: shell.textPrimary },
+        tierPrice: { fontSize: 15, fontWeight: '600', color: shell.ctaAccent, marginTop: 4 },
+        tierMeta: { fontSize: 12, color: shell.textSecondary, marginTop: 8, lineHeight: 18 },
+        tierCta: {
+          marginTop: 10,
+          alignSelf: 'flex-start',
+          paddingVertical: 8,
+          paddingHorizontal: 14,
+          borderRadius: 10,
+          backgroundColor: shell.ctaAccent,
+        },
+        tierCtaText: { fontSize: 12, fontWeight: '700', color: shell.emptyCtaText },
+        addonRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingVertical: 12,
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: shell.modalBorder,
+        },
+        addonTitle: { fontSize: 14, fontWeight: '600', color: shell.textPrimary, flex: 1, paddingRight: 8 },
+        addonPrice: { fontSize: 14, fontWeight: '700', color: shell.ctaAccent },
+        addonNote: { fontSize: 11, color: shell.textMuted, marginTop: 4, flex: 1 },
+        businessBlock: {
+          borderRadius: 14,
+          overflow: 'hidden',
+          marginTop: 8,
+        },
+        businessInner: { padding: 16 },
+        businessTitle: { fontSize: 16, fontWeight: '700', color: shell.fabText },
+        businessSub: { fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 4 },
+        legalBox: {
+          marginTop: 8,
+          padding: 12,
+          borderRadius: 12,
+          backgroundColor: shell.surfaceMuted,
+          borderWidth: 1,
+          borderColor: shell.modalBorder,
+        },
+        legalTitle: { fontSize: 13, fontWeight: '700', color: shell.textPrimary, marginBottom: 6 },
+        legalText: { fontSize: 11, color: shell.textSecondary, lineHeight: 17 },
+        restoreBtn: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          paddingVertical: 12,
+          marginTop: 14,
+          backgroundColor: shell.ctaAccent,
+          borderRadius: 10,
+        },
+        restoreTxt: { fontSize: 13, fontWeight: '600', color: shell.emptyCtaText },
+        packGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' },
+        packCard: {
+          width: (width - 52) / 2,
+          borderRadius: 12,
+          paddingVertical: 14,
+          paddingHorizontal: 10,
+          alignItems: 'center',
+          borderWidth: 1,
+          borderColor: shell.modalBorder,
+          backgroundColor: shell.surfaceMuted,
+        },
+        packPopular: { borderColor: shell.ctaAccent, borderWidth: 2 },
+        packCredits: { fontSize: 22, fontWeight: '700', color: shell.ctaAccent, marginTop: 6 },
+        packLabel: { fontSize: 11, color: shell.textSecondary, marginBottom: 8 },
+        packPrice: { fontSize: 16, fontWeight: '700', color: shell.textPrimary, marginBottom: 8 },
+        nfcBtn: {
+          marginTop: 12,
+          paddingVertical: 10,
+          paddingHorizontal: 14,
+          borderRadius: 10,
+          borderWidth: 1,
+          borderColor: shell.ctaAccent,
+          alignSelf: 'flex-start',
+        },
+        nfcBtnText: { fontSize: 13, fontWeight: '600', color: shell.ctaAccent },
+        loadingRow: { paddingVertical: 20, alignItems: 'center' },
+      }),
+    [shell],
+  );
+
+  const tierLabel = (key: TierKey) => {
+    if (key === 'free') return tr('Gratis', 'Free');
+    if (key === 'influencer') return tr('Influencer', 'Influencer');
+    return tr('Business', 'Business');
   };
 
-  const handleBuyCreditPack = async (pack: typeof creditPacks[0]) => {
+  const tierLines = (key: TierKey, t: TiersConfig) => {
+    const lim = t[key];
+    return [
+      tr('Iconos (IconData)', 'Icons (IconData)') + `: ${lim.iconDataLimit}`,
+      tr('Smart Cards', 'Smart Cards') + `: ${lim.smartCardsLimit}`,
+      tr('Tarjetas negocio', 'Business cards') + `: ${lim.businessCardsLimit}`,
+      lim.premiumThemes ? tr('Temas premium', 'Premium themes') : tr('Temas premium', 'Premium themes') + ': —',
+    ].join('\n');
+  };
+
+  const onTierCta = (key: TierKey) => {
+    if (key === 'free') {
+      Alert.alert(tr('Plan Gratis', 'Free plan'), tr('Ya incluido con tu cuenta.', 'Already included with your account.'));
+      return;
+    }
+    Alert.alert(
+      tr('Ascenso de plan', 'Upgrade plan'),
+      tr(
+        `Precio publicado: ${fmtUsd(tiers?.[key].monthlyPriceUsd ?? 0)} / mes (prueba ${tiers?.[key].freeTrialDays ?? 0} días según CMS). La compra nativa por tier se conectará a RevenueCat; también puedes canjear un QR VIP de campaña si tu equipo te lo envió.`,
+        `Listed price: ${fmtUsd(tiers?.[key].monthlyPriceUsd ?? 0)} / month (${tiers?.[key].freeTrialDays ?? 0}-day trial per CMS). Native tier purchase will link to RevenueCat; you can also redeem a VIP campaign QR from your team.`,
+      ),
+    );
+  };
+
+  const handleBuyCreditPack = async (pack: (typeof creditPacks)[0]) => {
     try {
       setSubscribingPack(pack.id);
-
-      // Use RevenueCat to purchase the credit pack
       const purchaseResult = await Purchases.purchaseProduct(pack.productId);
-      
       if (purchaseResult.customerInfo.entitlements.active[pack.productId]) {
-        Alert.alert('✅ ' + tr('¡Éxito!', 'Success!'), tr('Se acreditaron', 'You received') + ` ${pack.credits} CS ` + tr('a tu cuenta', 'to your account'));
-        // TODO: Call backend to add credits to user account
+        Alert.alert(
+          '✅ ' + tr('¡Éxito!', 'Success!'),
+          tr('Se acreditaron', 'You received') + ` ${pack.credits} CS ` + tr('a tu cuenta', 'to your account'),
+        );
       }
     } catch (error: any) {
-      if (error.userCancelled) {
-        // User cancelled
-      } else {
+      if (!error.userCancelled) {
         Alert.alert(tr('Error', 'Error'), tr('No se pudo procesar la compra', 'Could not process purchase'));
         console.error('Purchase error:', error);
       }
@@ -85,30 +260,24 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
   };
 
   const handleUpgradeBusinessCard = async () => {
+    if (!userId) {
+      Alert.alert(tr('Sesión', 'Session'), tr('Inicia sesión para continuar.', 'Sign in to continue.'));
+      return;
+    }
     try {
       setUpgradeLoading(true);
       const platform = Platform.OS as 'ios' | 'android';
-      
-      const result = await purchaseBusinessCard(
-        platform,
-        false,
-        `business_annual_${Date.now()}`,
-        userId
-      );
-
+      const result = await purchaseBusinessCard(platform, false, `business_annual_${Date.now()}`, userId);
       if (result.success) {
         Alert.alert(
           '✅ ' + tr('¡Tarjeta de Negocio Activada!', 'Business Card Activated!'),
           tr('Tu licencia anual quedó activa. Recibiste', 'Your annual license is now active. You received') +
             ` ${result.cashbackCredits || 1000} ` +
-            tr('Monedas CS para gastar en tienda.', 'CS Coins to spend in the store.')
+            tr('Monedas CS para gastar en tienda.', 'CS Coins to spend in the store.'),
         );
       } else {
         const msg = String(result.message || '').trim();
-        Alert.alert(
-          tr('Error', 'Error'),
-          msg || tr('No se pudo completar la compra.', 'Could not complete the purchase.'),
-        );
+        Alert.alert(tr('Error', 'Error'), msg || tr('No se pudo completar la compra.', 'Could not complete the purchase.'));
       }
     } catch (error) {
       console.error('Business card purchase error:', error);
@@ -121,477 +290,190 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
   const handleRestorePurchases = async () => {
     try {
       await Purchases.restorePurchases();
-      Alert.alert('✅ ' + tr('Restaurado', 'Restored'), tr('Se han restaurado tus compras anteriores', 'Your previous purchases have been restored'));
+      Alert.alert(
+        '✅ ' + tr('Restaurado', 'Restored'),
+        tr('Se han restaurado tus compras anteriores', 'Your previous purchases have been restored'),
+      );
     } catch (error) {
       console.error('Restore purchases error:', error);
       Alert.alert(tr('Error', 'Error'), tr('No se pudieron restaurar las compras', 'Could not restore purchases'));
     }
   };
 
+  const cfg = tiers ?? null;
+
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      bounces={false}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* HEADER */}
-      <LinearGradient colors={['#0A2540', '#1A3D5C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
-        <MaterialCommunityIcons name="store" size={32} color="#C5A065" />
-        <Text style={styles.headerTitle}>{tr('Suscripción', 'Subscription')}</Text>
-        <Text style={styles.headerSubtitle}>{tr('Créditos y Licencias Anuales por Tarjeta', 'Credits and Annual Licenses per Card')}</Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} bounces={false} showsVerticalScrollIndicator={false}>
+      <LinearGradient colors={[...shell.vipBannerGradient]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
+        {onClose ? (
+          <View style={styles.headerCloseRow}>
+            <TouchableOpacity
+              style={styles.headerCloseHit}
+              onPress={onClose}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityRole="button"
+              accessibilityLabel={tr('Cerrar', 'Close')}
+            >
+              <MaterialCommunityIcons name="close" size={24} color={shell.fabText} />
+            </TouchableOpacity>
+          </View>
+        ) : null}
+        <MaterialCommunityIcons name="storefront-outline" size={30} color={shell.ctaAccent} />
+        <Text style={styles.headerTitle}>{tr('Planes y tienda', 'Plans & store')}</Text>
+        <Text style={styles.headerSubtitle}>
+          {tr('Precios y límites desde el panel admin (Firestore). Compras reales vía App Store / Play.', 'Pricing and limits from the admin CMS (Firestore). Purchases via App Store / Play.')}
+        </Text>
       </LinearGradient>
 
-      {/* COMPARISON TABLE: Base Gratis vs Licencia Anual */}
-      <View style={styles.tableSection}>
-        <Text style={styles.sectionTitle}>{tr('Compara tu Acceso', 'Compare your Access')}</Text>
-
-        <View style={styles.comparisonTable}>
-          {/* Header Row */}
-          <View style={styles.tableRow}>
-            <View style={[styles.tableCell, { flex: 2 }]}> 
-              {/* Empty cell */}
-            </View>
-            <LinearGradient
-              colors={['#F8F9FA', '#E8EAED']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={[styles.tableCell, styles.tableCellFree]}
-            >
-              <Text style={styles.tableCellHeader}>{tr('Gratuito', 'Free')}</Text>
-            </LinearGradient>
-            <LinearGradient
-              colors={['#C5A065', '#B8944C']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={[styles.tableCell, styles.tableCellPremium]}
-            >
-              <Text style={[styles.tableCellHeader, { color: '#0A2540', fontWeight: 'bold' }]}>{tr('Licencia Anual', 'Annual License')}</Text>
-            </LinearGradient>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{tr('Suscripciones (tiers)', 'Subscriptions (tiers)')}</Text>
+        <Text style={styles.sectionHint}>
+          {tr(
+            'Gratis, Influencer y Business: límites y precio mensual publicados. Los SKUs de tier en RevenueCat se pueden enlazar en una siguiente iteración.',
+            'Free, Influencer and Business: published limits and monthly price. RevenueCat tier SKUs can be wired in a follow-up.',
+          )}
+        </Text>
+        {tiersLoading || !cfg ? (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator color={shell.ctaAccent} />
           </View>
-
-          {/* Feature Rows */}
-          {[
-            { feature: tr('Editor y Constructor', 'Editor & Builder'), free: tr('Completo', 'Full'), premium: tr('Completo', 'Full') },
-            { feature: tr('Skins/Íconos comprados', 'Purchased Skins/Icons'), free: tr('Activos', 'Active'), premium: tr('Activos', 'Active') },
-            { feature: tr('Stories CTA de Negocio', 'Business CTA Stories'), free: tr('No', 'No'), premium: tr('Sí', 'Yes') },
-            { feature: tr('Prioridad Social Market', 'Social Market Priority'), free: tr('No', 'No'), premium: tr('Sí', 'Yes') },
-            { feature: tr('QR Branded + Descarga', 'Branded QR + Download'), free: tr('No', 'No'), premium: tr('Sí', 'Yes') },
-            { feature: tr('Cashback por Activación', 'Activation Cashback'), free: '0 CS', premium: '1,000 CS' },
-            { feature: tr('Modelo de Cobro', 'Billing Model'), free: tr('Sin suscripción global', 'No global subscription'), premium: tr('$49.99/año por tarjeta', '$49.99/year per card') },
-          ].map((row, idx) => (
-            <View key={idx} style={[styles.tableRow, idx % 2 === 1 && styles.tableRowAlt]}>
-              <View style={[styles.tableCell, { flex: 2 }]}> 
-                <Text style={styles.featureName}>{row.feature}</Text>
-              </View>
-              <View style={[styles.tableCell, styles.tableCellFree]}>
-                <Text style={styles.featureValue}>{row.free}</Text>
-              </View>
-              <View style={[styles.tableCell, styles.tableCellPremium]}>
-                <Text style={[styles.featureValue, { color: '#0A2540', fontWeight: '600' }]}>{row.premium}</Text>
-              </View>
+        ) : (
+          (['free', 'influencer', 'business'] as TierKey[]).map((key) => (
+            <View key={key} style={[styles.tierCard, key === 'business' && styles.tierCardHighlight]}>
+              <Text style={styles.tierName}>{tierLabel(key)}</Text>
+              <Text style={styles.tierPrice}>
+                {key === 'free'
+                  ? fmtUsd(0)
+                  : `${fmtUsd(cfg[key].monthlyPriceUsd)} ${tr('/ mes', '/ month')}`}
+                {cfg[key].freeTrialDays > 0
+                  ? ` · ${cfg[key].freeTrialDays} ${tr('días prueba', 'day trial')}`
+                  : ''}
+              </Text>
+              <Text style={styles.tierMeta}>{tierLines(key, cfg)}</Text>
+              <TouchableOpacity style={styles.tierCta} onPress={() => onTierCta(key)} activeOpacity={0.85}>
+                <Text style={styles.tierCtaText}>
+                  {key === 'free' ? tr('Incluido', 'Included') : tr('Cómo obtenerlo', 'How to get it')}
+                </Text>
+              </TouchableOpacity>
             </View>
-          ))}
-        </View>
+          ))
+        )}
       </View>
 
-      {/* CREDIT PACKS SECTION */}
-      <View style={styles.creditsSection}>
-        <Text style={styles.sectionTitle}>{tr('Packs de Créditos', 'Credit Packs')}</Text>
-        <Text style={styles.sectionSubtitle}>{tr('$1 USD = 10 CS • Úsalos en Stories VIP y más', '$1 USD = 10 CS • Use them in VIP Stories and more')}</Text>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{tr('Tarjetas de negocio y NFC', 'Business cards & NFC')}</Text>
+        <Text style={styles.sectionHint}>
+          {tr(
+            'Precios de add-ons desde el CMS (hardware y slots extra). La licencia anual de negocio sigue pasando por la tienda nativa.',
+            'Add-on prices from CMS (hardware and extra slots). Annual business license still goes through native store.',
+          )}
+        </Text>
+        {cfg ? (
+          <>
+            <View style={styles.addonRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.addonTitle}>{tr('Tarjeta de negocio adicional', 'Extra business card slot')}</Text>
+                <Text style={styles.addonNote}>{tr('Por slot según CMS (facturación en app cuando aplique).', 'Per slot per CMS (in-app billing when applicable).')}</Text>
+              </View>
+              <Text style={styles.addonPrice}>{fmtUsd(cfg.addOns.singleBusinessCardExtraUsd)}</Text>
+            </View>
+            <View style={styles.addonRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.addonTitle}>{tr('NFC PVC (tarjeta física)', 'NFC PVC (physical card)')}</Text>
+                <Text style={styles.addonNote}>{tr('Precio orientativo; inventario y envío vía operaciones.', 'Guide price; inventory and shipping via ops.')}</Text>
+              </View>
+              <Text style={styles.addonPrice}>{fmtUsd(cfg.addOns.physicalPvcCardUsd)}</Text>
+            </View>
+            <View style={styles.addonRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.addonTitle}>{tr('NFC metal (tarjeta física)', 'NFC metal (physical card)')}</Text>
+                <Text style={styles.addonNote}>{tr('Premium físico; consulta stock en soporte.', 'Physical premium; check stock with support.')}</Text>
+              </View>
+              <Text style={styles.addonPrice}>{fmtUsd(cfg.addOns.physicalMetalCardUsd)}</Text>
+            </View>
+          </>
+        ) : null}
 
+        <TouchableOpacity style={styles.nfcBtn} onPress={() => router.push('/nfc' as never)} activeOpacity={0.85}>
+          <Text style={styles.nfcBtnText}>{tr('Operaciones NFC en la app', 'NFC operations in the app')}</Text>
+        </TouchableOpacity>
+
+        <LinearGradient colors={[...shell.vipBannerGradient]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.businessBlock}>
+          <View style={styles.businessInner}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <MaterialCommunityIcons name="briefcase-check" size={26} color={shell.ctaAccent} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.businessTitle}>{tr('Licencia anual — Tarjeta de negocio', 'Annual license — Business card')}</Text>
+                <Text style={styles.businessSub}>
+                  {bizPackage
+                    ? `${fmtUsd(bizPackage.priceUsd)} ${tr('/ año vía tienda', '/ year via store')}`
+                    : tr('Precio en tienda', 'Store price')}
+                </Text>
+              </View>
+            </View>
+            <GoldenRingButton
+              label={upgradeLoading ? tr('Comprando...', 'Purchasing...') : tr('Activar negocio (tienda)', 'Activate business (store)')}
+              onPress={handleUpgradeBusinessCard}
+              icon={upgradeLoading ? 'loading' : 'badge-account'}
+              disabled={upgradeLoading || loading || !userId}
+              loading={upgradeLoading}
+              style={{ width: '100%', marginTop: 14 }}
+            />
+          </View>
+        </LinearGradient>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{tr('Packs de créditos CS', 'CS credit packs')}</Text>
+        <Text style={styles.sectionHint}>{tr('$1 USD ≈ 10 CS · RevenueCat', '$1 USD ≈ 10 CS · RevenueCat')}</Text>
         <View style={styles.packGrid}>
           {creditPacks.map((pack) => (
-            <View
-              key={pack.id}
-              style={[
-                styles.packCard,
-                pack.popular && styles.packCardPopular,
-              ]}
-            >
-              {pack.popular && (
-                <LinearGradient
-                  colors={['#C5A065', '#E8C547']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.popularBadge}
-                >
-                  <Text style={styles.popularBadgeText}>{tr('POPULAR', 'POPULAR')}</Text>
-                </LinearGradient>
-              )}
-
+            <View key={pack.id} style={[styles.packCard, pack.popular && styles.packPopular]}>
+              {pack.popular ? (
+                <Text style={{ fontSize: 10, fontWeight: '800', color: shell.ctaAccent, marginBottom: 4 }}>POPULAR</Text>
+              ) : null}
               <Text style={styles.packCredits}>{pack.credits}</Text>
-              <Text style={styles.packCreditsLabel}>{tr('Créditos', 'Credits')}</Text>
-
-              <View style={styles.packDivider} />
-
+              <Text style={styles.packLabel}>{tr('Créditos', 'Credits')}</Text>
               <Text style={styles.packPrice}>{pack.displayPrice}</Text>
-
               <GoldenRingButton
                 label={subscribingPack === pack.id ? tr('Comprando...', 'Purchasing...') : tr('Comprar', 'Buy')}
-                onPress={() => handleBuyCreditPack(pack)}
+                onPress={() => void handleBuyCreditPack(pack)}
                 icon={subscribingPack === pack.id ? 'loading' : 'shopping-outline'}
                 disabled={subscribingPack !== null}
                 loading={subscribingPack === pack.id}
-                style={styles.packButton}
+                style={{ width: '100%' }}
               />
             </View>
           ))}
         </View>
       </View>
 
-      {/* BUSINESS CARD UPGRADE */}
-      <View style={styles.businessSection}>
-        <LinearGradient colors={['#1A3D5C', '#0A2540']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.businessCard}>
-          <View style={styles.businessHeader}>
-            <MaterialCommunityIcons name="briefcase-check" size={28} color="#C5A065" />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.businessTitle}>{tr('Tarjeta de Negocio Anual', 'Annual Business Card')}</Text>
-              <Text style={styles.businessSubtitle}>{tr('Acceso prioritario a Social Market', 'Priority access to Social Market')}</Text>
-            </View>
-          </View>
-
-          <View style={styles.businessDetails}>
-            <View style={styles.businessBenefit}>
-              <MaterialCommunityIcons name="check-circle" size={16} color="#2ECC71" />
-              <Text style={styles.businessBenefitText}>{tr('Presencia en Social Market', 'Presence in Social Market')}</Text>
-            </View>
-            <View style={styles.businessBenefit}>
-              <MaterialCommunityIcons name="check-circle" size={16} color="#2ECC71" />
-              <Text style={styles.businessBenefitText}>{tr('Geolocalización automática', 'Automatic geolocation')}</Text>
-            </View>
-            <View style={styles.businessBenefit}>
-              <MaterialCommunityIcons name="check-circle" size={16} color="#2ECC71" />
-              <Text style={styles.businessBenefitText}>{tr('Analytics y métricas', 'Analytics and metrics')}</Text>
-            </View>
-            <View style={styles.businessBenefit}>
-              <MaterialCommunityIcons name="check-circle" size={16} color="#2ECC71" />
-              <Text style={styles.businessBenefitText}>{tr('Calificaciones de clientes', 'Customer ratings')}</Text>
-            </View>
-            <View style={styles.businessBenefit}>
-              <MaterialCommunityIcons name="check-circle" size={16} color="#2ECC71" />
-              <Text style={styles.businessBenefitText}>{tr('Cashback inmediato: 1,000 Monedas CS', 'Instant cashback: 1,000 CS Coins')}</Text>
-            </View>
-          </View>
-
-          <View style={styles.businessPricingContainer}>
-            <View style={styles.businessPricingRow}>
-              <Text style={styles.businessPriceLabel}>{tr('Pago anual único:', 'One-time annual payment:')}</Text>
-              <Text style={styles.businessPriceRegular}>{`$${businessCardPriceAnnual.toFixed(2)}`}{tr('/año', '/year')}</Text>
-            </View>
-            <View
-              style={[
-                styles.businessPricingRow,
-                { backgroundColor: 'rgba(46, 204, 113, 0.2)', paddingVertical: 8, marginVertical: 8, borderRadius: 8 },
-              ]}
-            >
-              <Text style={styles.businessPriceLabel}>{tr('Retorno en CS:', 'Return in CS:')}</Text>
-              <Text
-                style={[
-                  styles.businessPrice,
-                  { color: '#2ECC71', fontWeight: '700', fontSize: 18 },
-                ]}
-              >
-                +1000 CS (100%)
-              </Text>
-            </View>
-          </View>
-
-          <GoldenRingButton
-            label={upgradeLoading ? tr('Comprando...', 'Purchasing...') : tr('Activar Negocio', 'Activate Business')}
-            onPress={handleUpgradeBusinessCard}
-            icon={upgradeLoading ? 'loading' : 'badge-account'}
-            disabled={upgradeLoading}
-            loading={upgradeLoading}
-            style={styles.businessButton}
-          />
-        </LinearGradient>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{tr('Próximamente en tienda', 'Coming soon in store')}</Text>
+        <View style={styles.legalBox}>
+          <Text style={styles.legalText}>
+            {tr(
+              '• Fuente / tipografía premium del Studio\n• Paquetes de iconos del mercado\n• Wallpapers animados\n• Diamantes (moneda comprada) junto a CS Coins\n• Más SKUs NFC por lote',
+              '• Premium fonts from Studio\n• Icon packs from marketplace\n• Animated wallpapers\n• Diamonds (purchased currency) alongside CS Coins\n• More NFC batch SKUs',
+            )}
+          </Text>
+        </View>
       </View>
 
-      {/* LEGAL & RESTORE */}
-      <View style={styles.legalSection}>
-        <Text style={styles.legalTitle}>{tr('Términos Comerciales', 'Commercial Terms')}</Text>
+      <View style={styles.section}>
+        <Text style={styles.legalTitle}>{tr('Términos comerciales', 'Commercial terms')}</Text>
         <Text style={styles.legalText}>
-          • {tr('Cada tarjeta de negocio se licencia por 12 meses desde su activación.', 'Each business card is licensed for 12 months from activation.')} {'\n'}
-          • {tr('Los precios pueden variar según tu país y tipo de dispositivo.', 'Prices may vary depending on your country and device type.')} {'\n'}
-          • {tr('Al comprar, aceptas nuestros Términos y Condiciones.', 'By purchasing, you accept our Terms and Conditions.')} {'\n'}
-          • {tr('Los créditos no son reembolsables ni transferibles.', 'Credits are non-refundable and non-transferable.')} {'\n'}
-          • {tr('Card-Social se reserva el derecho de cambiar precios con notificación previa.', 'Card-Social reserves the right to change prices with prior notice.')}
+          • {tr('Los precios del CMS son orientativos; el cobro final es el de la tienda.', 'CMS prices are indicative; final charge is from the store.')} {'\n'}
+          • {tr('Al comprar, aceptas los Términos y Condiciones.', 'By purchasing, you accept the Terms & Conditions.')} {'\n'}
+          • {tr('Restaurar compras (requerido por Apple).', 'Restore purchases (Apple requirement).')}
         </Text>
-
-        <TouchableOpacity style={styles.restoreButton} onPress={handleRestorePurchases}>
-          <MaterialCommunityIcons name="history" size={18} color="#0A2540" />
-          <Text style={styles.restoreButtonText}>{tr('Restaurar Compras (Obligatorio Apple)', 'Restore Purchases (Apple Required)')}</Text>
+        <TouchableOpacity style={styles.restoreBtn} onPress={handleRestorePurchases}>
+          <MaterialCommunityIcons name="history" size={18} color={shell.emptyCtaText} />
+          <Text style={styles.restoreTxt}>{tr('Restaurar compras', 'Restore purchases')}</Text>
         </TouchableOpacity>
       </View>
-
-      {/* FOOTER PADDING */}
-      <View style={{ height: 40 }} />
     </ScrollView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8F9FA',
-  },
-  contentContainer: {
-    paddingBottom: 20,
-  },
-
-  // HEADER
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 24,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#0A2540',
-    marginTop: 12,
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    color: '#666',
-    marginTop: 4,
-  },
-
-  // COMPARISON TABLE
-  tableSection: {
-    paddingHorizontal: 16,
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0A2540',
-    marginBottom: 12,
-  },
-  sectionSubtitle: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 12,
-  },
-  comparisonTable: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    minHeight: 44,
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8EAED',
-  },
-  tableRowAlt: {
-    backgroundColor: '#F5F5F5',
-  },
-  tableCell: {
-    flex: 1,
-    paddingHorizontal: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: 44,
-  },
-  tableCellFree: {
-    backgroundColor: '#F8F9FA',
-  },
-  tableCellPremium: {
-    backgroundColor: 'rgba(197, 160, 101, 0.15)',
-  },
-  tableCellHeader: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0A2540',
-  },
-  featureName: {
-    fontSize: 13,
-    color: '#333',
-    fontWeight: '500',
-    textAlign: 'left',
-  },
-  featureValue: {
-    fontSize: 12,
-    color: '#666',
-  },
-
-  // CREDIT PACKS
-  creditsSection: {
-    paddingHorizontal: 16,
-    marginBottom: 24,
-  },
-  packGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    justifyContent: 'space-between',
-  },
-  packCard: {
-    width: (width - 52) / 2,
-    borderRadius: 12,
-    backgroundColor: '#FFF',
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    position: 'relative',
-  },
-  packCardPopular: {
-    borderColor: '#C5A065',
-    borderWidth: 2,
-    shadowColor: '#C5A065',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  popularBadge: {
-    position: 'absolute',
-    top: -10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  popularBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#0A2540',
-    letterSpacing: 1,
-  },
-  packCredits: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#C5A065',
-    marginTop: 8,
-  },
-  packCreditsLabel: {
-    fontSize: 11,
-    color: '#999',
-    marginBottom: 12,
-  },
-  packDivider: {
-    width: '80%',
-    height: 1,
-    backgroundColor: '#E0E0E0',
-    marginVertical: 12,
-  },
-  packPrice: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0A2540',
-    marginBottom: 10,
-  },
-  packButton: {
-    width: '90%',
-    marginTop: 10,
-  },
-
-  // BUSINESS CARD
-  businessSection: {
-    paddingHorizontal: 16,
-    marginBottom: 24,
-  },
-  businessCard: {
-    borderRadius: 16,
-    padding: 20,
-    overflow: 'hidden',
-  },
-  businessHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 16,
-  },
-  businessTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFF',
-  },
-  businessSubtitle: {
-    fontSize: 12,
-    color: '#CCC',
-    marginTop: 2,
-  },
-  businessDetails: {
-    marginVertical: 16,
-    gap: 8,
-  },
-  businessBenefit: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  businessBenefitText: {
-    fontSize: 12,
-    color: '#E8EAED',
-  },
-  businessPricingContainer: {
-    marginVertical: 16,
-    paddingHorizontal: 12,
-  },
-  businessPricingRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  businessPriceLabel: {
-    fontSize: 12,
-    color: '#CCC',
-    fontWeight: '500',
-  },
-  businessPriceRegular: {
-    fontSize: 14,
-    color: '#FFF',
-    fontWeight: '600',
-    textDecorationLine: 'line-through',
-  },
-  businessPrice: {
-    fontSize: 16,
-    color: '#C5A065',
-    fontWeight: '700',
-  },
-  businessButton: {
-    width: '100%',
-    marginTop: 12,
-  },
-
-  // LEGAL
-  legalSection: {
-    paddingHorizontal: 16,
-  },
-  legalTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0A2540',
-    marginBottom: 8,
-  },
-  legalText: {
-    fontSize: 11,
-    color: '#666',
-    lineHeight: 18,
-    marginBottom: 16,
-  },
-  restoreButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#C5A065',
-    borderRadius: 8,
-  },
-  restoreButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#0A2540',
-  },
-});
 
 export default Subscription;

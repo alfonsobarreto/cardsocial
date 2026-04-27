@@ -7,13 +7,15 @@ export type DashboardStats = {
 };
 
 export async function getDashboardStats(): Promise<DashboardStats> {
-  const [usersSnapshot, reportsSnapshot] = await Promise.all([
+  const [usersSnapshot, reportsSnapshot, legacyReportsSnapshot] = await Promise.all([
     getCountFromServer(collection(db, 'users')),
     getCountFromServer(collection(db, 'reports')),
+    getCountFromServer(collection(db, 'userReports')).catch(() => null),
   ]);
 
   return {
     usersCount: usersSnapshot.data().count,
-    reportsCount: reportsSnapshot.data().count,
+    reportsCount:
+      reportsSnapshot.data().count + (legacyReportsSnapshot?.data().count ?? 0),
   };
 }

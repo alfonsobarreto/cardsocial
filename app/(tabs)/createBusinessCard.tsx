@@ -15,6 +15,7 @@ import {
   getBusinessCard,
   updateBusinessCard,
 } from '@/services/businessCardsRepo';
+import { getBusinessCardSlotAvailability } from '@/services/businessCardSlotsGate';
 import { resolveBusinessMarketFacets } from '@/services/businessMarketFacets';
 import type { BusinessCardDoc } from '@/services/types/cards';
 
@@ -712,6 +713,31 @@ export default function CreateBusinessCardScreen() {
       void loadLinks();
       void reconcileIfCardNoLongerOnServer();
     }, [loadLinks, reconcileIfCardNoLongerOnServer]),
+  );
+
+  /** Sin bId = flujo crear nueva: si no hay cupo, solo pestaña de suscripción (sin tocar su UI interna). */
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      void (async () => {
+        const bId = String(routeBId || '').trim();
+        if (bId) {
+          return;
+        }
+        const uid = await getActiveUserId();
+        if (!uid || cancelled) {
+          return;
+        }
+        const slots = await getBusinessCardSlotAvailability(uid);
+        if (cancelled || slots.canCreate) {
+          return;
+        }
+        router.replace('/vault_store' as never);
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [routeBId, router]),
   );
 
   useEffect(() => {

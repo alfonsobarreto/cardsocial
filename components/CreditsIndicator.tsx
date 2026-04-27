@@ -4,6 +4,7 @@
 
 import { getUserCreditsBalance } from '@/services/creditsService';
 import { trEsEn, useLanguage } from '@/services/language';
+import { hasUnlimitedAdminUi } from '@/services/roleService';
 import { useLookMode } from '@/services/lookMode';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -31,11 +32,17 @@ export const CreditsIndicator: React.FC<CreditsIndicatorProps> = ({ userId, refr
   );
 
   const [creditsBalance, setCreditsBalance] = useState<number>(0);
+  const [unlimitedAdmin, setUnlimitedAdmin] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
     const fetchCredits = async () => {
       try {
+        const unlimited = await hasUnlimitedAdminUi(userId);
+        setUnlimitedAdmin(unlimited);
+        if (unlimited) {
+          return;
+        }
         const balance = await getUserCreditsBalance(userId);
         setCreditsBalance(balance);
       } catch (error) {
@@ -51,7 +58,9 @@ export const CreditsIndicator: React.FC<CreditsIndicatorProps> = ({ userId, refr
         <MaterialCommunityIcons name="cash" size={22} color={colors.icon} style={styles.icon} />
         <View style={styles.textCol}>
           <Text style={[styles.label, { color: colors.label }]}>{tr('Créditos CS', 'CS Credits')}</Text>
-          <Text style={[styles.balance, { color: colors.balance }]}>{creditsBalance}</Text>
+          <Text style={[styles.balance, { color: colors.balance }]}>
+            {unlimitedAdmin ? tr('Ilimitado', 'Unlimited') : creditsBalance}
+          </Text>
         </View>
       </View>
     </View>

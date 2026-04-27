@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getActiveUserId } from '@/services/authSession';
 import { redeemQRGift } from '@/services/qrGiftService';
+import { redeemVipCampaign, type VipCampaignRedeemResult } from '@/services/vipCampaignService';
 import { ConfettiAnimation } from '../components/ConfettiAnimation';
 import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
@@ -16,7 +17,7 @@ interface ConfettiRef {
 
 export default function RedeemScreen() {
   const router = useRouter();
-  const { code } = useLocalSearchParams();
+  const { code, campaignCode } = useLocalSearchParams();
   const { language } = useLanguage();
   const tr = (es: string, en: string) => trEsEn(es, en, language);
   const { resolvedMode } = useLookMode();
@@ -119,11 +120,12 @@ export default function RedeemScreen() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rewardDetails, setRewardDetails] = useState<{ credits: number; months: number } | null>(null);
+  const [campaignReward, setCampaignReward] = useState<VipCampaignRedeemResult | null>(null);
   const confettiRef = useRef<ConfettiRef>(null);
 
   useEffect(() => {
     handleRedemption();
-  }, [code]);
+  }, [code, campaignCode]);
 
   const handleRedemption = async () => {
     try {
@@ -136,13 +138,41 @@ export default function RedeemScreen() {
         return;
       }
 
-      if (!code || typeof code !== 'string') {
+      const giftCode = typeof code === 'string' ? code : '';
+      const vipCampaignCode = typeof campaignCode === 'string' ? campaignCode : '';
+
+      if (!giftCode && !vipCampaignCode) {
         setError(tr('Código de regalo inválido', 'Invalid gift code'));
         setLoading(false);
         return;
       }
 
-      const ok = await redeemQRGift(code, userId);
+      if (vipCampaignCode) {
+        const result = await redeemVipCampaign(vipCampaignCode, userId);
+        const tierLabel = result.grantedTier === 'business' ? 'Business' : 'Influencer';
+        setCampaignReward(result);
+        setSuccess(true);
+        setLoading(false);
+
+        Alert.alert(
+          tr('¡Felicidades!', 'Congratulations!'),
+          tr(
+            `¡Felicidades! Has sido ascendido al nivel ${tierLabel} por ${result.durationDays} días.`,
+            `Congratulations! You have been upgraded to ${tierLabel} for ${result.durationDays} days.`,
+          ),
+        );
+
+        if (confettiRef.current) {
+          confettiRef.current.trigger();
+        }
+
+        setTimeout(() => {
+          router.back();
+        }, 3500);
+        return;
+      }
+
+      const ok = await redeemQRGift(giftCode, userId);
 
       if (ok) {
         setRewardDetails({ credits: 500, months: 1 });
@@ -220,6 +250,50 @@ export default function RedeemScreen() {
 
           <Text style={styles.thankYouText}>
             {tr('Gracias por ser parte de la comunidad Card-Social 💙', 'Thank you for being part of the Card-Social community 💙')}
+          </Text>
+
+          <Text style={styles.autoCloseText}>{tr('Cerrando en 3 segundos...', 'Closing in 3 seconds...')}</Text>
+        </View>
+      </LinearGradient>
+    );
+  }
+
+  if (success && campaignReward) {
+    const tierLabel = campaignReward.grantedTier === 'business' ? 'Business' : 'Influencer';
+    return (
+      <LinearGradient colors={shell.vipBannerGradient} style={styles.container}>
+        <ConfettiAnimation ref={confettiRef} />
+
+        <View style={styles.centerContent}>
+          <MaterialCommunityIcons name="crown" size={86} color={shell.ctaAccent} />
+
+          <Text style={styles.successTitle}>{tr('🎉 ¡Ascenso VIP!', '🎉 VIP Upgrade!')}</Text>
+
+          <View style={styles.rewardBox}>
+            <View style={styles.rewardItem}>
+              <MaterialCommunityIcons name="star-circle" size={28} color={shell.ctaAccent} />
+              <Text style={styles.rewardValue}>{tierLabel}</Text>
+              <Text style={styles.rewardLabel}>{tr('Nuevo nivel', 'New tier')}</Text>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.rewardItem}>
+              <MaterialCommunityIcons name="calendar-check" size={28} color={shell.ctaAccent} />
+              <Text style={styles.rewardValue}>{campaignReward.durationDays}</Text>
+              <Text style={styles.rewardLabel}>{tr('Días', 'Days')}</Text>
+            </View>
+          </View>
+
+          <Text style={styles.successMessage}>
+            {tr(
+              `¡Felicidades! Has sido ascendido al nivel ${tierLabel} por ${campaignReward.durationDays} días.`,
+              `Congratulations! You have been upgraded to ${tierLabel} for ${campaignReward.durationDays} days.`,
+            )}
+          </Text>
+
+          <Text style={styles.thankYouText}>
+            {tr('Tu beneficio ya está activo en Card-Social.', 'Your benefit is now active in Card-Social.')}
           </Text>
 
           <Text style={styles.autoCloseText}>{tr('Cerrando en 3 segundos...', 'Closing in 3 seconds...')}</Text>

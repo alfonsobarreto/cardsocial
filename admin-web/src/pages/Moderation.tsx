@@ -372,7 +372,7 @@ export default function Moderation() {
                             void performAction(
                               `reviewed:${report.id}`,
                               'Reporte marcado como revisado.',
-                              () => markReportReviewed(report.id, adminEmail),
+                              () => markReportReviewed(report.id, adminEmail, report.sourceCollection),
                             )
                           }
                         >
@@ -386,7 +386,7 @@ export default function Moderation() {
                             void performAction(
                               `dismiss:${report.id}`,
                               'Reporte desestimado correctamente.',
-                              () => dismissReport(report.id, adminEmail),
+                              () => dismissReport(report.id, adminEmail, report.sourceCollection),
                             )
                           }
                         >

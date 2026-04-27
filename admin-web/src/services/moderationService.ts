@@ -19,6 +19,7 @@ export type ModerationReport = {
   reportedUserId?: string;
   reporterUserId?: string;
   targetCardId?: string;
+  sourceCollection?: 'reports' | 'userReports';
   reason: string;
   details?: string;
   createdAt?: Date | string | { toDate?: () => Date; seconds?: number } | null;
@@ -29,6 +30,11 @@ export type ModerationReport = {
 };
 
 type ReportDocument = Omit<ModerationReport, 'id'>;
+type LegacyUserReportDocument = Partial<ReportDocument> & {
+  targetIssuerUid?: string;
+  targetSidOrBId?: string;
+  text?: string;
+};
 
 export type ModerationUserProfile = {
   uid: string;
@@ -60,16 +66,23 @@ export type UserInvestigation = {
   vault: ModerationVaultItem[];
 };
 
-function normalizeReport(id: string, data: Partial<ReportDocument>): ModerationReport {
+function normalizeReport(
+  id: string,
+  data: Partial<ReportDocument> | LegacyUserReportDocument,
+  sourceCollection: 'reports' | 'userReports' = 'reports',
+): ModerationReport {
+  const legacy = data as LegacyUserReportDocument;
+
   return {
     id,
-    type: data.type || 'support',
+    type: sourceCollection === 'userReports' ? 'card' : data.type || 'support',
     status: data.status || 'pending',
-    reportedUserId: data.reportedUserId,
+    reportedUserId: data.reportedUserId || legacy.targetIssuerUid,
     reporterUserId: data.reporterUserId,
-    targetCardId: data.targetCardId,
-    reason: data.reason || 'Sin motivo registrado',
-    details: data.details,
+    targetCardId: data.targetCardId || legacy.targetSidOrBId,
+    sourceCollection,
+    reason: data.reason || (sourceCollection === 'userReports' ? 'Reporte de tarjeta' : 'Sin motivo registrado'),
+    details: data.details || legacy.text,
     createdAt: data.createdAt,
     reviewedBy: data.reviewedBy,
     reviewedAt: data.reviewedAt,
@@ -125,9 +138,19 @@ function toMillis(value: ModerationReport['createdAt']) {
 }
 
 export async function listReports(): Promise<ModerationReport[]> {
-  const snapshot = await getDocs(collection(db, 'reports'));
-  const reports = snapshot.docs
-    .map((item) => normalizeReport(item.id, item.data() as Partial<ReportDocument>))
+  const [reportsSnapshot, legacyReportsSnapshot] = await Promise.all([
+    getDocs(collection(db, 'reports')),
+    getDocs(collection(db, 'userReports')),
+  ]);
+
+  const reports = [
+    ...reportsSnapshot.docs.map((item) =>
+      normalizeReport(item.id, item.data() as Partial<ReportDocument>, 'reports'),
+    ),
+    ...legacyReportsSnapshot.docs.map((item) =>
+      normalizeReport(`userReports:${item.id}`, item.data() as LegacyUserReportDocument, 'userReports'),
+    ),
+  ]
     .sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt));
 
   const userIds = Array.from(new Set(reports.map((report) => report.reportedUserId).filter(Boolean)));
@@ -175,16 +198,28 @@ export async function investigateUser(uid: string): Promise<UserInvestigation> {
   return { profile, links, iconVault, vault };
 }
 
-export async function markReportReviewed(reportId: string, reviewedBy: string) {
-  await updateDoc(doc(db, 'reports', reportId), {
+function reportDocRef(reportId: string, sourceCollection: 'reports' | 'userReports' = 'reports') {
+  return doc(db, sourceCollection, reportId.replace(/^userReports:/, ''));
+}
+
+export async function markReportReviewed(
+  reportId: string,
+  reviewedBy: string,
+  sourceCollection: 'reports' | 'userReports' = 'reports',
+) {
+  await updateDoc(reportDocRef(reportId, sourceCollection), {
     status: 'reviewed',
     reviewedBy,
     reviewedAt: serverTimestamp(),
   });
 }
 
-export async function dismissReport(reportId: string, reviewedBy: string) {
-  await updateDoc(doc(db, 'reports', reportId), {
+export async function dismissReport(
+  reportId: string,
+  reviewedBy: string,
+  sourceCollection: 'reports' | 'userReports' = 'reports',
+) {
+  await updateDoc(reportDocRef(reportId, sourceCollection), {
     status: 'dismissed',
     reviewedBy,
     reviewedAt: serverTimestamp(),
@@ -197,7 +232,7 @@ export async function banReportedUser(report: ModerationReport, reviewedBy: stri
   }
 
   const batch = writeBatch(db);
-  const reportRef = doc(db, 'reports', report.id);
+  const reportRef = reportDocRef(report.id, report.sourceCollection);
   const userRef = doc(db, 'users', report.reportedUserId);
 
   batch.update(userRef, {
@@ -222,7 +257,7 @@ export async function warnReportedUser(report: ModerationReport, reviewedBy: str
   }
 
   const batch = writeBatch(db);
-  const reportRef = doc(db, 'reports', report.id);
+  const reportRef = reportDocRef(report.id, report.sourceCollection);
   const userRef = doc(db, 'users', report.reportedUserId);
 
   batch.update(userRef, {
@@ -249,7 +284,7 @@ export async function hardBanReportedUser(report: ModerationReport, reviewedBy: 
 
   const profile = await getUserProfile(report.reportedUserId);
   const batch = writeBatch(db);
-  const reportRef = doc(db, 'reports', report.id);
+  const reportRef = reportDocRef(report.id, report.sourceCollection);
   const userRef = doc(db, 'users', report.reportedUserId);
   const bannedIdentityRef = doc(db, 'banned_identities', report.reportedUserId);
 

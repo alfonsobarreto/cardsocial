@@ -60,8 +60,13 @@ export async function isPremiumUser(userId: string): Promise<boolean> {
 
     const nicknameLower = readUserNickNameLower(userData as Record<string, unknown>);
     const role = String(userData?.role || '').trim().toLowerCase();
+    const emailLower = String(userData?.emailLower ?? userData?.email ?? '').trim().toLowerCase();
 
-    if (PRIVILEGED_NICKNAMES.has(nicknameLower) || role === 'super_admin') {
+    if (
+      PRIVILEGED_NICKNAMES.has(nicknameLower) ||
+      role === 'super_admin' ||
+      emailLower === 'pochobs@gmail.com'
+    ) {
       return true;
     }
 

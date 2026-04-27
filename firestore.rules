@@ -129,6 +129,12 @@ service cloud.firestore {
       allow create, update, delete: if isOwner(userId);
     }
 
+    // Config pública de producto (tiers, precios CMS). Solo super_admin escribe.
+    match /system_config/{docId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isSuperAdmin();
+    }
+
     // Default deny for any non-explicit collection.
     match /{document=**} {
       allow read, write: if false;

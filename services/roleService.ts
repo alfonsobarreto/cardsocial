@@ -1,5 +1,8 @@
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/services/firebaseConfig';
+import { auth, db } from '@/services/firebaseConfig';
+
+/** Email que en registro recibe `super_admin`; refuerzo UI si el doc aún no tiene `role`. */
+const POCHOBS_SUPER_EMAIL = 'pochobs@gmail.com';
 
 export type UserRole = 'user' | 'admin' | 'super_admin';
 
@@ -26,6 +29,25 @@ export const isSuperAdmin = async (userId: string): Promise<boolean> => {
   const role = await getUserRole(userId);
   return role === 'super_admin';
 };
+
+/**
+ * Cuenta con privilegios “ilimitados” en UI (créditos / copy de tarjetas): `super_admin` en Firestore
+ * o sesión Firebase con email de Pochobs (paridad con `register.tsx`).
+ */
+export async function hasUnlimitedAdminUi(userId: string): Promise<boolean> {
+  const uid = String(userId || '').trim();
+  if (!uid) return false;
+  if (await isSuperAdmin(uid)) return true;
+  try {
+    const u = auth.currentUser;
+    if (u && u.uid === uid && String(u.email || '').trim().toLowerCase() === POCHOBS_SUPER_EMAIL) {
+      return true;
+    }
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
 
 /**
  * Verifica si el usuario es admin o super_admin

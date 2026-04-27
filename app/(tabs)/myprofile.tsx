@@ -27,7 +27,7 @@ import {
 import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
-import { syncProfileAvatarUrlToMongo } from '@/services/qrApi';
+import { listReceivedContacts, listSmartCardsFromDb, syncProfileAvatarUrlToMongo } from '@/services/qrApi';
 import { propagateUserIdentityAcrossSmartCards } from '@/services/smartCardsRepo';
 import { toRenderableImageUri } from '@/services/userProfilePhoto';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -260,14 +260,32 @@ export default function MyProfileScreen() {
       setEditNickname(p.userNickName);
       setEditBio(p.bio);
 
-      // Load stats
+      // Load stats — tarjetas y contactos reales están en Mongo (API /api/qr/...), no en subcolecciones Firestore.
       try {
-        const cardsSnap = await getDocs(collection(db, 'users', uid, 'smartCards'));
-        setStatsCards(cardsSnap.size);
-        const contactsSnap = await getDocs(collection(db, 'users', uid, 'contacts'));
-        setStatsContacts(contactsSnap.size);
-        setCreditsBalance(await getUserCreditsBalance(uid));
-      } catch { /* stats are non-critical */ }
+        const [cardsDb, contactsDb] = await Promise.all([
+          listSmartCardsFromDb({ uid }),
+          listReceivedContacts({ uid }),
+        ]);
+        setStatsCards(cardsDb.cards.length);
+        setStatsContacts(contactsDb.contacts.length);
+      } catch {
+        try {
+          const cardsSnap = await getDocs(collection(db, 'users', uid, 'smartCards'));
+          setStatsCards(cardsSnap.size);
+          const contactsSnap = await getDocs(collection(db, 'users', uid, 'contacts'));
+          setStatsContacts(contactsSnap.size);
+        } catch {
+          /* legacy fallback failed */
+        }
+      }
+
+      try {
+        const ledgerCs = await getUserCreditsBalance(uid);
+        const rootCs = Number(data.creditsBalance ?? 0);
+        setCreditsBalance(Math.max(ledgerCs, rootCs));
+      } catch {
+        setCreditsBalance(Number(data.creditsBalance ?? 0));
+      }
     } catch (e: any) {
       Alert.alert(tr('Error', 'Error'), e?.message || tr('No se pudo cargar el perfil.', 'Could not load profile.'));
     } finally {

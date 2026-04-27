@@ -161,13 +161,16 @@ export function MedalRatingModal({
     if (!text || sending) return;
     setSending(true);
     try {
-      await addDoc(collection(db, 'userReports'), {
-        type: cardType === 'smart' ? 'user_report' : 'card_feedback',
+      await addDoc(collection(db, 'reports'), {
+        type: 'card',
         status: 'pending',
-        targetSidOrBId: sidOrBId,
-        targetIssuerUid: issuerUid,
+        targetCardId: sidOrBId,
+        reportedUserId: issuerUid,
+        reporterUserId: myUid || null,
+        reason: cardType === 'smart' ? 'Reporte de Smart Card' : 'Reporte de Business Card',
         details: text,
         anonymous: true,
+        source: 'medal_rating_modal',
         createdAt: serverTimestamp(),
       });
       Toast.show({

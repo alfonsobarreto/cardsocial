@@ -176,6 +176,17 @@ export async function redeemQRGift(giftId: string, userId: string): Promise<bool
       subscriptionStatus: 'active',
     });
 
+    await setDoc(
+      doc(db, `users/${userId}/credits/balance`),
+      {
+        userId,
+        creditsBalance: increment(gift.creditsPerUse),
+        totalCreditsEarned: increment(gift.creditsPerUse),
+        lastUpdated: serverTimestamp(),
+      },
+      { merge: true },
+    );
+
     // Actualizar regalo: agregar usuario a redeemedUsers
     const newUsageCount = gift.usageCount + 1;
     const newStatus = newUsageCount >= gift.maxUses ? 'depleted' : 'active';

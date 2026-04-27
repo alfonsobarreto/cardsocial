@@ -91,16 +91,21 @@ export async function getCsLedgerEvents(): Promise<CsLedgerEvent[]> {
     };
   });
 
-  const redemptionEvents: CsLedgerEvent[] = redemptionSnapshot.docs.map((item) => {
-    const data = item.data() as Record<string, unknown>;
-    return {
-      id: item.id,
-      date: data.redeemedAt,
-      action: 'QR Canjeado',
-      amountCs: Number(data.creditsAwarded || 0) || 0,
-      actor: pickString(data, ['redeemedBy', 'userId']) || 'usuario',
-    };
-  });
+  const redemptionEvents: CsLedgerEvent[] = redemptionSnapshot.docs
+    .filter((item) => {
+      const data = item.data() as Record<string, unknown>;
+      return data.redemptionType !== 'vip_campaign';
+    })
+    .map((item) => {
+      const data = item.data() as Record<string, unknown>;
+      return {
+        id: item.id,
+        date: data.redeemedAt,
+        action: 'QR Canjeado',
+        amountCs: Number(data.creditsAwarded || 0) || 0,
+        actor: pickString(data, ['redeemedBy', 'userId']) || 'usuario',
+      };
+    });
 
   return [...auditEvents, ...redemptionEvents]
     .sort((a, b) => toMillis(b.date) - toMillis(a.date))

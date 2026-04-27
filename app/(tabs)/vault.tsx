@@ -12,7 +12,8 @@ import { readUserFullName, readUserNickName } from '@/services/userIdentityField
 import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
 import { trEsEn, useLanguage } from '@/services/language';
 import { listBusinessLicenses } from '@/services/businessLicenseService';
-import { validateVaultItemCreation } from '@/services/limitService';
+import { isPremiumUser, validateVaultItemCreation } from '@/services/limitService';
+import { hasUnlimitedAdminUi } from '@/services/roleService';
 import { useLookMode } from '@/services/lookMode';
 import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
 import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
@@ -107,6 +108,8 @@ const VaultScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [contextMenuItem, setContextMenuItem] = useState<Link | null>(null);
+  /** Misma regla que `validateVaultItemCreation`: premium / super_admin → tope ∞ en UI. */
+  const [vaultCapUnlimited, setVaultCapUnlimited] = useState(false);
   const formSheetTranslateY = useRef(new Animated.Value(0)).current;
 
   const closeFormModal = () => {
@@ -136,7 +139,15 @@ const VaultScreen = () => {
     const userId = await getActiveUserId();
     if (!userId) {
       setLinks([]);
+      setVaultCapUnlimited(false);
       return;
+    }
+
+    try {
+      const [premium, adminUi] = await Promise.all([isPremiumUser(userId), hasUnlimitedAdminUi(userId)]);
+      setVaultCapUnlimited(premium || adminUi);
+    } catch {
+      setVaultCapUnlimited(false);
     }
 
     // 1. Lectura optimista: mostrar cache local inmediatamente (cero latencia)
@@ -1359,9 +1370,6 @@ const VaultScreen = () => {
     return renderEmptyVaultOnboarding();
   };
 
-  const isUnlimitedVault = true; // Forzar ilimitado para admin pochobs
-  const usageProgress = 1;
-
   return (
     <View style={[styles.container, { backgroundColor: vaultTheme.motherBg }]}>
       {/* Header */}
@@ -1381,7 +1389,9 @@ const VaultScreen = () => {
             adjustsFontSizeToFit
             minimumFontScale={0.62}
           >
-            {tr(`${links.length} / 50`, `${links.length} / 50`)}
+            {vaultCapUnlimited
+              ? tr(`${links.length} · Ilimitado`, `${links.length} · Unlimited`)
+              : tr(`${links.length} / ${FREE_TIER_POLICY.vaultItems}`, `${links.length} / ${FREE_TIER_POLICY.vaultItems}`)}
           </Text>
           {/* Barra de progreso: oculta para usuarios 50 */}
           {/* No mostrar barra de progreso para admin pochobs */}

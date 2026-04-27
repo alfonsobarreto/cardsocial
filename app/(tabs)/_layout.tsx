@@ -4,7 +4,6 @@ import { CreditsIndicator } from '@/components/CreditsIndicator';
 import IconStore from '@/components/IconStore';
 import LanguageToggle from '@/components/LanguageToggle';
 import Subscription from '@/components/Subscription';
-import ThemeChest from '@/components/ThemeChest';
 import { getActiveUserId } from '@/services/authSession';
 import { auth, db } from '@/services/firebaseConfig';
 import {
@@ -130,7 +129,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const { language } = useLanguage();
   const tr = (es: string, en: string) => trEsEn(es, en, language);
   const [drawerVisible, setDrawerVisible] = useState(false);
-  const [activePanel, setActivePanel] = useState<'menu' | 'profile' | 'terms' | 'policy' | 'about' | 'privacy' | 'subscription' | 'icon_store' | 'blocked_users' | 'theme_chest'>('menu');
+  const [activePanel, setActivePanel] = useState<'menu' | 'profile' | 'terms' | 'policy' | 'about' | 'privacy' | 'subscription' | 'icon_store' | 'blocked_users'>('menu');
   const [creditsRefreshTrigger, setCreditsRefreshTrigger] = useState(0);
   const [welcomeBonusApplied, setWelcomeBonusApplied] = useState(false);
   const [userIsSuperAdmin, setUserIsSuperAdmin] = useState(false);
@@ -223,7 +222,6 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
     if (activePanel === 'privacy') return tr('Privacidad', 'Privacy');
     if (activePanel === 'subscription') return tr('Suscripción', 'Subscription');
     if (activePanel === 'icon_store') return tr('Estudio de Tarjetas', 'Card Studio');
-    if (activePanel === 'theme_chest') return tr('Locker de Estilos', 'Theme Locker');
     if (activePanel === 'blocked_users') return tr('Gestión de Relaciones', 'Relationship Manager');
     return tr('Menú', 'Menu');
   }, [activePanel, language]);
@@ -939,11 +937,6 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                       <Text style={[styles.drawerItemText, { color: shell.text }]}>{tr('Estudio de Tarjetas', 'Card Studio')}</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.drawerItem} onPress={() => { setDrawerVisible(false); router.push('/theme_locker'); }}>
-                      <MaterialCommunityIcons name="treasure-chest" size={20} color={shell.ctaAccent} />
-                      <Text style={[styles.drawerItemText, { color: shell.text }]}>{tr('Locker de Estilos', 'Theme Locker')}</Text>
-                    </TouchableOpacity>
-
                     <TouchableOpacity style={styles.drawerItem} onPress={() => { setDrawerVisible(false); router.push('/nfc'); }}>
                       <MaterialCommunityIcons name="contactless-payment-circle-outline" size={20} color={shell.ctaAccent} />
                       <Text style={[styles.drawerItemText, { color: shell.text }]}>{tr('NFC', 'NFC')}</Text>
@@ -1200,8 +1193,6 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                   <Subscription onClose={() => setActivePanel('menu')} />
                 ) : activePanel === 'icon_store' ? (
                   <IconStore />
-                ) : activePanel === 'theme_chest' ? (
-                  <ThemeChest onNavigateToForge={() => setActivePanel('subscription')} />
                 ) : activePanel === 'blocked_users' ? (
                   <View style={styles.legalScroll}>
                     {/* ── 3-tab selector ──────────────────────────────────────── */}
