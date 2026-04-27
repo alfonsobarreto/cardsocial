@@ -4,6 +4,7 @@ import { useAuth } from '../auth/useAuth';
 const navItems = [
   { label: 'Dashboard', to: '/' },
   { label: 'Moderacion', to: '/moderacion' },
+  { label: 'Legal & Compliance', to: '/compliance' },
   { label: 'Rules & Tiers', to: '/rules-tiers' },
   { label: 'Campanas VIP', to: '/campanas-vip' },
   { label: 'Studio', to: '/studio' },
