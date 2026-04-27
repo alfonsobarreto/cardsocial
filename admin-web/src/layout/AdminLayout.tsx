@@ -11,7 +11,7 @@ const navItems = [
   { label: 'Rules & Tiers', to: '/rules-tiers' },
   { label: 'Campanas VIP', to: '/campanas-vip' },
   { label: 'Studio', to: '/studio' },
-  { label: 'Finanzas', to: '/finanzas' },
+  { label: 'Finanzas & Revenue', to: '/finance' },
   { label: 'NFC Ops', to: '/nfc-ops' },
 ];
 
