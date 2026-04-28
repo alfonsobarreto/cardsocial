@@ -12,37 +12,48 @@ import {
   BrainCircuit,
   ChevronDown,
   Diamond,
-  ImageIcon,
+  Folder,
+  Image as ImageIcon,
   Layers,
   LayoutGrid,
   Loader2,
   MonitorSmartphone,
   Palette,
+  Rocket,
   Sparkles,
   Type,
+  Upload,
   Wand,
+  X,
 } from 'lucide-react';
 import {
+  type ChangeEvent,
   type ComponentType,
   type CSSProperties,
+  type DragEvent,
   type ReactNode,
   useCallback,
   useEffect,
   useMemo,
   useReducer,
+  useRef,
   useState,
 } from 'react';
+import { useAuth } from '../auth/useAuth';
 import {
   generateAIIconsBatch,
   generateAIWallpaper,
   generateThemeLogic,
   type GeneratedThemeLogic,
+  type IconShapeId,
+  type IconStyleId,
 } from '../services/aiStudioService';
 import {
   getStudioFonts,
   listStudioIconPacks,
   listStudioSkins,
   listStudioThemes,
+  publishAdminStudioIcon,
   type StudioFont,
   type StudioIconPackDoc,
   type StudioSkinDoc,
@@ -60,7 +71,24 @@ const GOOGLE_FONT_OPTIONS = [
   { id: 'Manrope', label: 'Manrope' },
 ] as const;
 
-const ICON_GROUPS = ['2D', '3D', 'Neon', 'Glass', 'Metal', 'Mascots'] as const;
+const ICON_FOLDER_DEFAULTS = ['2D', '3D', 'Neon', 'Glass', 'Metal', 'Mascots'] as const;
+const NEW_FOLDER_VALUE = '__create__';
+
+const ICON_STYLE_OPTIONS: Array<{ id: IconStyleId; label: string }> = [
+  { id: 'flat', label: 'Flat' },
+  { id: '3d', label: '3D' },
+  { id: 'neumorphism', label: 'Neumorfismo' },
+  { id: 'minimalist', label: 'Minimalista' },
+  { id: 'neon', label: 'Neon' },
+  { id: 'hand-drawn', label: 'Hand-drawn' },
+];
+
+const ICON_SHAPE_OPTIONS: Array<{ id: IconShapeId; label: string }> = [
+  { id: 'square', label: 'Cuadrado' },
+  { id: 'rounded', label: 'Redondeado' },
+  { id: 'circle', label: 'Circular' },
+  { id: 'transparent', label: 'Transparente' },
+];
 
 const AI_ICON_GRADIENTS = [
   'from-cyan-300 via-blue-500 to-indigo-700',
@@ -88,14 +116,29 @@ type AiIconCandidate = {
 };
 
 type AiIconState = {
+  // Zone A — generator parameters
   prompt: string;
   count: number;
+  style: IconStyleId;
+  shape: IconShapeId;
+  colorPrimary: string;
+  colorSecondary: string;
+  colorBackground: string;
+
+  // Generation lifecycle
   generating: boolean;
   candidates: AiIconCandidate[];
+
+  // Zone D — inspector & publish
   selectedId: string;
-  group: (typeof ICON_GROUPS)[number];
-  priceUsd: string;
+  uploadedFile: File | null;
+  uploadedFilePreview: string;
   name: string;
+  folder: string;
+  newFolder: string;
+  priceDiamonds: string;
+  priceCoins: string;
+  publishing: boolean;
 };
 
 type AiSkinState = {
@@ -132,7 +175,15 @@ type ForgeAction =
   | { type: 'ICON_PATCH'; patch: Partial<AiIconState> }
   | { type: 'SKIN_PATCH'; patch: Partial<AiSkinState> }
   | { type: 'LAYOUT_PATCH'; patch: Partial<LayoutState> }
-  | { type: 'SET_GENERATED_ICONS'; candidates: AiIconCandidate[] }
+  | {
+      type: 'SET_GENERATED_ICONS';
+      candidates: AiIconCandidate[];
+      suggestedName: string;
+      suggestedPriceDiamonds: number;
+      suggestedPriceCSCoins: number;
+    }
+  | { type: 'SELECT_ICON_CANDIDATE'; id: string }
+  | { type: 'SET_UPLOADED_ICON'; file: File | null; preview: string }
   | { type: 'APPLY_THEME_LOGIC'; logic: GeneratedThemeLogic; wallpaperUrl: string };
 
 const initialState: ForgeState = {
@@ -140,12 +191,22 @@ const initialState: ForgeState = {
   icons: {
     prompt: '',
     count: 4,
+    style: '3d',
+    shape: 'rounded',
+    colorPrimary: '#6366F1',
+    colorSecondary: '#22D3EE',
+    colorBackground: '#0B1220',
     generating: false,
     candidates: [],
     selectedId: '',
-    group: '3D',
-    priceUsd: '4.99',
+    uploadedFile: null,
+    uploadedFilePreview: '',
     name: '',
+    folder: '3D',
+    newFolder: '',
+    priceDiamonds: '5',
+    priceCoins: '500',
+    publishing: false,
   },
   skin: {
     prompt: '',
@@ -208,6 +269,16 @@ function alignmentToPadding(alignment: GeneratedThemeLogic['layoutAlignment']) {
   return 20;
 }
 
+function folderDocsToNames(packs: StudioIconPackDoc[], currentFolder: string, newFolder: string): string[] {
+  const list: string[] = [];
+  for (const pack of packs) {
+    if (pack.name && pack.name.trim().length > 0) list.push(pack.name.trim());
+  }
+  if (currentFolder && currentFolder !== NEW_FOLDER_VALUE) list.push(currentFolder);
+  if (newFolder && newFolder.trim().length > 0) list.push(newFolder.trim());
+  return list;
+}
+
 function forgeReducer(state: ForgeState, action: ForgeAction): ForgeState {
   switch (action.type) {
     case 'SET_TAB':
@@ -227,7 +298,38 @@ function forgeReducer(state: ForgeState, action: ForgeAction): ForgeState {
           generating: false,
           candidates,
           selectedId: candidates[0]?.id ?? '',
-          name: candidates[0]?.name ?? '',
+          uploadedFile: null,
+          uploadedFilePreview: '',
+          name: action.suggestedName || candidates[0]?.name || '',
+          priceDiamonds: String(action.suggestedPriceDiamonds),
+          priceCoins: String(action.suggestedPriceCSCoins),
+        },
+      };
+    }
+    case 'SELECT_ICON_CANDIDATE': {
+      const candidate = state.icons.candidates.find((entry) => entry.id === action.id);
+      return {
+        ...state,
+        icons: {
+          ...state.icons,
+          selectedId: action.id,
+          uploadedFile: null,
+          uploadedFilePreview: '',
+          name: state.icons.name || candidate?.name || '',
+        },
+      };
+    }
+    case 'SET_UPLOADED_ICON': {
+      const baseName = action.file
+        ? action.file.name.replace(/\.[^/.]+$/, '').replace(/[-_]+/g, ' ').trim()
+        : '';
+      return {
+        ...state,
+        icons: {
+          ...state.icons,
+          uploadedFile: action.file,
+          uploadedFilePreview: action.preview,
+          name: state.icons.name || baseName,
         },
       };
     }
@@ -413,129 +515,313 @@ function IconArtwork({ candidate, selected }: { candidate: AiIconCandidate; sele
   );
 }
 
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ id: string; label: string }>;
+}) {
+  return (
+    <div className="space-y-2">
+      <FieldLabel>{label}</FieldLabel>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm font-bold text-slate-100 outline-none focus:ring-4 focus:ring-cyan-500/10"
+      >
+        {options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function AiIconPanel({
   state,
   dispatch,
+  folderOptions,
   onGenerateIcons,
+  onUploadFile,
+  onPublish,
 }: {
   state: ForgeState;
   dispatch: React.Dispatch<ForgeAction>;
+  folderOptions: string[];
   onGenerateIcons: () => void;
+  onUploadFile: (file: File | null) => void;
+  onPublish: () => void;
 }) {
-  const selected = state.icons.candidates.find((candidate) => candidate.id === state.icons.selectedId);
+  const ic = state.icons;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const selectedCandidate = ic.candidates.find((candidate) => candidate.id === ic.selectedId) ?? null;
+  const previewUrl = ic.uploadedFilePreview || selectedCandidate?.imageUrl || '';
+  const previewLabel = ic.uploadedFile ? `Diseno propio · ${ic.uploadedFile.name}` : selectedCandidate?.name ?? 'Sin seleccion';
+  const previewSource = ic.uploadedFile ? 'Manual' : selectedCandidate ? 'IA Gemini Pro' : null;
+
+  const handleFileInput = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    onUploadFile(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setDragActive(false);
+    const file = event.dataTransfer.files?.[0] ?? null;
+    if (file) onUploadFile(file);
+  };
 
   return (
     <div className="space-y-5">
-      <PanelCard title="Generador por Lotes" eyebrow="AI Icon Lab" icon={BrainCircuit}>
-        <div className="grid gap-3 xl:grid-cols-[1fr_auto_auto]">
-          <TextInput
-            value={state.icons.prompt}
-            onChange={(prompt) => dispatch({ type: 'ICON_PATCH', patch: { prompt } })}
-            placeholder="Describe los iconos (ej. Iconos 3D de email)"
-          />
-          <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-2">
-            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Cantidad</span>
-            <input
-              type="number"
-              min={1}
-              max={12}
-              value={state.icons.count}
-              onChange={(event) => {
-                const next = Math.max(1, Math.min(12, Math.round(Number(event.target.value)) || 1));
-                dispatch({ type: 'ICON_PATCH', patch: { count: next } });
-              }}
-              className="w-14 bg-transparent text-center text-base font-black text-white outline-none"
+      <PanelCard title="Parametros del Generador" eyebrow="Zone A · Inputs" icon={BrainCircuit}>
+        <div className="grid gap-4">
+          <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
+            <div className="space-y-2">
+              <FieldLabel>Concepto</FieldLabel>
+              <TextInput
+                value={ic.prompt}
+                onChange={(prompt) => dispatch({ type: 'ICON_PATCH', patch: { prompt } })}
+                placeholder='Ej. "Iconos para una app de fitness boutique"'
+              />
+            </div>
+            <div className="space-y-2">
+              <FieldLabel>Cantidad</FieldLabel>
+              <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3">
+                <input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={ic.count}
+                  onChange={(event) => {
+                    const next = Math.max(1, Math.min(10, Math.round(Number(event.target.value)) || 1));
+                    dispatch({ type: 'ICON_PATCH', patch: { count: next } });
+                  }}
+                  className="w-16 bg-transparent text-center text-base font-black text-white outline-none"
+                />
+                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">/10</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <SelectField
+              label="Estilo"
+              value={ic.style}
+              onChange={(value) => dispatch({ type: 'ICON_PATCH', patch: { style: value as IconStyleId } })}
+              options={ICON_STYLE_OPTIONS}
+            />
+            <SelectField
+              label="Forma del Contenedor"
+              value={ic.shape}
+              onChange={(value) => dispatch({ type: 'ICON_PATCH', patch: { shape: value as IconShapeId } })}
+              options={ICON_SHAPE_OPTIONS}
             />
           </div>
+
+          <div className="grid gap-3 md:grid-cols-3">
+            <ColorPill
+              label="Principal"
+              value={ic.colorPrimary}
+              onChange={(colorPrimary) => dispatch({ type: 'ICON_PATCH', patch: { colorPrimary } })}
+            />
+            <ColorPill
+              label="Secundario"
+              value={ic.colorSecondary}
+              onChange={(colorSecondary) => dispatch({ type: 'ICON_PATCH', patch: { colorSecondary } })}
+            />
+            <ColorPill
+              label="Fondo"
+              value={ic.colorBackground}
+              onChange={(colorBackground) => dispatch({ type: 'ICON_PATCH', patch: { colorBackground } })}
+            />
+          </div>
+
+          <button
+            type="button"
+            disabled
+            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-3 text-xs font-black uppercase tracking-[0.2em] text-slate-500"
+          >
+            <ImageIcon className="h-4 w-4" />
+            Subir Imagen de Referencia para IA · Fase 2
+          </button>
+
           <button
             type="button"
             onClick={onGenerateIcons}
-            disabled={state.icons.generating}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-600 px-5 py-3 text-sm font-black text-white shadow-xl shadow-cyan-500/20 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={ic.generating}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-rose-500 px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-white shadow-xl shadow-fuchsia-500/30 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {state.icons.generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand className="h-4 w-4" />}
-            Generar {state.icons.count} {state.icons.count === 1 ? 'Opcion' : 'Opciones'}
+            {ic.generating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wand className="h-5 w-5" />}
+            Generar con Gemini Pro
           </button>
-        </div>
-
-        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-5">
-          {(state.icons.candidates.length ? state.icons.candidates : createIconCandidates('').slice(0, state.icons.count)).map((candidate) => (
-            <button
-              key={candidate.id}
-              type="button"
-              onClick={() =>
-                dispatch({
-                  type: 'ICON_PATCH',
-                  patch: { selectedId: candidate.id, name: candidate.name },
-                })
-              }
-              className="group rounded-[1.6rem] border border-white/10 bg-slate-950/60 p-2 text-left transition hover:-translate-y-1 hover:border-cyan-300/40"
-            >
-              <IconArtwork candidate={candidate} selected={state.icons.selectedId === candidate.id} />
-              <p className="mt-2 truncate px-1 text-xs font-bold text-slate-300">{candidate.name}</p>
-            </button>
-          ))}
         </div>
       </PanelCard>
 
-      <PanelCard title="Configuracion del Icono Seleccionado" eyebrow={selected ? selected.name : 'Select one'} icon={Layers}>
-        <div className="grid gap-4 xl:grid-cols-[180px_1fr]">
-          <div className="rounded-[1.8rem] border border-white/10 bg-slate-950/60 p-3">
-            <IconArtwork candidate={selected ?? createIconCandidates('')[0]} selected />
+      <PanelCard title="Cuadricula de Resultados" eyebrow="Zone C · Gallery" icon={LayoutGrid}>
+        {ic.candidates.length === 0 ? (
+          <div className="flex min-h-[180px] items-center justify-center rounded-2xl border border-dashed border-white/15 bg-slate-950/60 px-4 py-8 text-center text-xs font-bold text-slate-500">
+            Genera con Gemini Pro para ver tus iconos aqui.
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-5">
+            {ic.candidates.map((candidate) => {
+              const isSelected = ic.selectedId === candidate.id && !ic.uploadedFile;
+              return (
+                <button
+                  key={candidate.id}
+                  type="button"
+                  onClick={() => dispatch({ type: 'SELECT_ICON_CANDIDATE', id: candidate.id })}
+                  className={`group rounded-[1.6rem] border bg-slate-950/60 p-2 text-left transition hover:-translate-y-1 ${
+                    isSelected ? 'border-cyan-300/60 shadow-lg shadow-cyan-500/20' : 'border-white/10 hover:border-cyan-300/40'
+                  }`}
+                >
+                  <IconArtwork candidate={candidate} selected={isSelected} />
+                  <p className="mt-2 truncate px-1 text-xs font-bold text-slate-300">{candidate.name}</p>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </PanelCard>
+
+      <PanelCard title="Inspector & Uploader Manual" eyebrow="Zone D · Publish" icon={Layers}>
+        <div className="grid gap-5 lg:grid-cols-[220px_1fr]">
+          <div
+            onDragEnter={(event) => {
+              event.preventDefault();
+              setDragActive(true);
+            }}
+            onDragOver={(event) => event.preventDefault()}
+            onDragLeave={() => setDragActive(false)}
+            onDrop={handleDrop}
+            className={`relative flex aspect-square flex-col items-center justify-center overflow-hidden rounded-[1.8rem] border-2 border-dashed bg-slate-950/60 p-4 text-center transition ${
+              dragActive ? 'border-cyan-300 bg-cyan-950/40' : 'border-white/15'
+            }`}
+          >
+            {previewUrl ? (
+              <>
+                <img src={previewUrl} alt={previewLabel} className="absolute inset-0 h-full w-full object-cover" />
+                <div className="absolute inset-x-2 bottom-2 z-10 flex items-center justify-between gap-2 rounded-xl bg-black/60 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-lg backdrop-blur">
+                  <span className="truncate">{previewSource}</span>
+                  {ic.uploadedFile ? (
+                    <button
+                      type="button"
+                      onClick={() => onUploadFile(null)}
+                      className="rounded-full bg-white/15 p-1 text-white hover:bg-white/30"
+                      title="Quitar archivo subido"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  ) : null}
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center gap-2 text-slate-500">
+                <Upload className="h-8 w-8" />
+                <p className="text-xs font-black uppercase tracking-[0.2em]">Arrastra o sube</p>
+                <p className="text-[10px] font-semibold">Selecciona uno generado o sube tu propio diseno</p>
+              </div>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".png,.svg,.jpg,.jpeg,.webp,image/png,image/svg+xml,image/jpeg,image/webp"
+              onChange={handleFileInput}
+              className="absolute inset-0 cursor-pointer opacity-0"
+              aria-label="Subir diseno propio"
+            />
+          </div>
+
+          <div className="grid gap-4">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-slate-200 transition hover:bg-white/10"
+            >
+              <Upload className="h-4 w-4" />
+              Subir Diseno Propio (.PNG / .SVG)
+            </button>
+
             <div className="space-y-2">
-              <FieldLabel>Asignar a Grupo/Carpeta</FieldLabel>
+              <FieldLabel>Nombre del Icono</FieldLabel>
+              <TextInput
+                value={ic.name}
+                onChange={(name) => dispatch({ type: 'ICON_PATCH', patch: { name } })}
+                placeholder="Autocompletado por Gemini"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <FieldLabel>Asignar a Grupo / Carpeta</FieldLabel>
               <select
-                value={state.icons.group}
-                onChange={(event) =>
+                value={ic.folder}
+                onChange={(event) => {
+                  const next = event.target.value;
                   dispatch({
                     type: 'ICON_PATCH',
-                    patch: { group: event.target.value as AiIconState['group'] },
-                  })
-                }
+                    patch: { folder: next, newFolder: next === NEW_FOLDER_VALUE ? '' : ic.newFolder },
+                  });
+                }}
                 className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm font-bold text-slate-100 outline-none focus:ring-4 focus:ring-cyan-500/10"
               >
-                {ICON_GROUPS.map((group) => (
-                  <option key={group} value={group}>
-                    {group}
+                {folderOptions.map((folder) => (
+                  <option key={folder} value={folder}>
+                    {folder}
                   </option>
                 ))}
+                <option value={NEW_FOLDER_VALUE}>+ Crear Nueva Carpeta...</option>
               </select>
+              {ic.folder === NEW_FOLDER_VALUE ? (
+                <div className="flex items-center gap-2 rounded-2xl border border-cyan-300/30 bg-cyan-500/5 px-3 py-2">
+                  <Folder className="h-4 w-4 text-cyan-300" />
+                  <input
+                    autoFocus
+                    value={ic.newFolder}
+                    onChange={(event) => dispatch({ type: 'ICON_PATCH', patch: { newFolder: event.target.value } })}
+                    placeholder="Nombre de la nueva carpeta"
+                    className="w-full bg-transparent text-sm font-bold text-cyan-100 outline-none placeholder:text-cyan-300/40"
+                  />
+                </div>
+              ) : null}
             </div>
-            <div className="space-y-2">
-              <FieldLabel>Precio (USD)</FieldLabel>
-              <div className="flex gap-2">
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <FieldLabel>Precio (Diamantes)</FieldLabel>
                 <TextInput
                   type="number"
-                  value={state.icons.priceUsd}
-                  onChange={(priceUsd) => dispatch({ type: 'ICON_PATCH', patch: { priceUsd } })}
-                />
-                <MagicButton
-                  label="Sugerir precio"
-                  onClick={() => dispatch({ type: 'ICON_PATCH', patch: { priceUsd: state.icons.group === '3D' ? '5.99' : '3.99' } })}
+                  value={ic.priceDiamonds}
+                  onChange={(priceDiamonds) => dispatch({ type: 'ICON_PATCH', patch: { priceDiamonds } })}
                 />
               </div>
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <FieldLabel>Nombre</FieldLabel>
-              <div className="flex gap-2">
+              <div className="space-y-2">
+                <FieldLabel>Precio (CS Coins)</FieldLabel>
                 <TextInput
-                  value={state.icons.name}
-                  onChange={(name) => dispatch({ type: 'ICON_PATCH', patch: { name } })}
-                  placeholder="Nombre del icono"
-                />
-                <MagicButton
-                  label="Sugerir nombre"
-                  onClick={() =>
-                    dispatch({
-                      type: 'ICON_PATCH',
-                      patch: { name: `${titleCaseFromPrompt(state.icons.prompt, 'Prisma Icon')} ${state.icons.group}` },
-                    })
-                  }
+                  type="number"
+                  value={ic.priceCoins}
+                  onChange={(priceCoins) => dispatch({ type: 'ICON_PATCH', patch: { priceCoins } })}
                 />
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={onPublish}
+              disabled={ic.publishing}
+              className="inline-flex items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500 px-6 py-5 text-base font-black uppercase tracking-[0.22em] text-slate-950 shadow-2xl shadow-emerald-500/30 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {ic.publishing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Rocket className="h-5 w-5" />}
+              Publicar en la Tienda
+            </button>
           </div>
         </div>
       </PanelCard>
@@ -866,7 +1152,7 @@ function LivePreview({
                         {state.skin.name || 'AI Visual Skin'}
                       </p>
                       <p className="truncate text-xs font-bold opacity-80" style={{ color: 'var(--preview-text)' }}>
-                        ${state.skin.priceUsd} · {state.icons.group}
+                        ${state.skin.priceUsd} · {ICON_STYLE_OPTIONS.find((option) => option.id === state.icons.style)?.label ?? '3D'}
                       </p>
                     </div>
                   </div>
@@ -920,14 +1206,17 @@ function LivePreview({
   );
 }
 
+type ToastState = { kind: 'success' | 'error'; message: string };
+
 export default function Studio() {
+  const { user } = useAuth();
   const [state, dispatch] = useReducer(forgeReducer, initialState);
   const [fonts, setFonts] = useState<StudioFont[]>([]);
   const [themes, setThemes] = useState<StudioThemeDoc[]>([]);
   const [packs, setPacks] = useState<StudioIconPackDoc[]>([]);
   const [skins, setSkins] = useState<StudioSkinDoc[]>([]);
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -944,7 +1233,7 @@ export default function Studio() {
       setSkins(nextSkins);
     } catch (error) {
       console.error(error);
-      setToast('No se pudieron sincronizar los assets de La Forja.');
+      setToast({ kind: 'error', message: 'No se pudieron sincronizar los assets de La Forja.' });
     } finally {
       setLoading(false);
     }
@@ -968,24 +1257,117 @@ export default function Studio() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
+  useEffect(() => {
+    const preview = state.icons.uploadedFilePreview;
+    if (!preview) return;
+    return () => URL.revokeObjectURL(preview);
+  }, [state.icons.uploadedFilePreview]);
+
+  const folderOptions = useMemo(() => {
+    const set = new Set<string>(ICON_FOLDER_DEFAULTS as readonly string[]);
+    for (const folder of folderDocsToNames(packs, state.icons.folder, state.icons.newFolder)) {
+      if (folder) set.add(folder);
+    }
+    return Array.from(set);
+  }, [packs, state.icons.folder, state.icons.newFolder]);
+
   const handleGenerateIcons = useCallback(async () => {
     dispatch({ type: 'ICON_PATCH', patch: { generating: true } });
     try {
-      const generated = await generateAIIconsBatch(state.icons.prompt, state.icons.count);
-      const candidates = generated.map((icon, index): AiIconCandidate => ({
-        id: `pollinations-icon-${Date.now()}-${index}`,
+      const briefing = await generateAIIconsBatch({
+        prompt: state.icons.prompt,
+        count: state.icons.count,
+        style: state.icons.style,
+        shape: state.icons.shape,
+        colorPrimary: state.icons.colorPrimary,
+        colorSecondary: state.icons.colorSecondary,
+        colorBackground: state.icons.colorBackground,
+      });
+      const candidates = briefing.icons.map((icon, index): AiIconCandidate => ({
+        id: `gemini-pro-${Date.now()}-${index}`,
         name: titleCaseFromPrompt(icon.description, `AI Icon ${index + 1}`),
         prompt: icon.description,
         gradient: AI_ICON_GRADIENTS[index % AI_ICON_GRADIENTS.length],
         imageUrl: icon.url,
         seed: index + 1,
       }));
-      dispatch({ type: 'SET_GENERATED_ICONS', candidates });
+      dispatch({
+        type: 'SET_GENERATED_ICONS',
+        candidates,
+        suggestedName: briefing.suggestedName,
+        suggestedPriceDiamonds: briefing.suggestedPriceDiamonds,
+        suggestedPriceCSCoins: briefing.suggestedPriceCSCoins,
+      });
     } catch (error) {
       dispatch({ type: 'ICON_PATCH', patch: { generating: false } });
-      setToast(error instanceof Error ? error.message : 'Error generando iconos con la AI.');
+      setToast({ kind: 'error', message: error instanceof Error ? error.message : 'Error generando iconos con la AI.' });
     }
-  }, [state.icons.prompt, state.icons.count]);
+  }, [
+    state.icons.prompt,
+    state.icons.count,
+    state.icons.style,
+    state.icons.shape,
+    state.icons.colorPrimary,
+    state.icons.colorSecondary,
+    state.icons.colorBackground,
+  ]);
+
+  const handleUploadIconFile = useCallback((file: File | null) => {
+    if (!file) {
+      dispatch({ type: 'SET_UPLOADED_ICON', file: null, preview: '' });
+      return;
+    }
+    const preview = URL.createObjectURL(file);
+    dispatch({ type: 'SET_UPLOADED_ICON', file, preview });
+  }, []);
+
+  const handlePublishIcon = useCallback(async () => {
+    const ic = state.icons;
+    const name = ic.name.trim();
+    if (!name) {
+      setToast({ kind: 'error', message: 'Falta el nombre del icono.' });
+      return;
+    }
+
+    const folder = ic.folder === NEW_FOLDER_VALUE ? ic.newFolder.trim() : ic.folder;
+    if (!folder) {
+      setToast({ kind: 'error', message: 'Especifica una carpeta para el icono.' });
+      return;
+    }
+
+    let source: { kind: 'file'; file: File } | { kind: 'url'; url: string };
+    if (ic.uploadedFile) {
+      source = { kind: 'file', file: ic.uploadedFile };
+    } else {
+      const candidate = ic.candidates.find((entry) => entry.id === ic.selectedId);
+      if (!candidate?.imageUrl) {
+        setToast({ kind: 'error', message: 'Selecciona un icono o sube uno propio antes de publicar.' });
+        return;
+      }
+      source = { kind: 'url', url: candidate.imageUrl };
+    }
+
+    dispatch({ type: 'ICON_PATCH', patch: { publishing: true } });
+    try {
+      await publishAdminStudioIcon({
+        source,
+        name,
+        folder,
+        priceDiamonds: Number(ic.priceDiamonds) || 0,
+        priceCoins: Number(ic.priceCoins) || 0,
+        style: ic.style,
+        shape: ic.shape,
+        createdBy: user?.uid,
+        createdByEmail: user?.email,
+      });
+      dispatch({ type: 'ICON_PATCH', patch: { publishing: false, folder, newFolder: '' } });
+      setToast({ kind: 'success', message: `Icono "${name}" publicado en la tienda.` });
+      void refresh();
+    } catch (error) {
+      dispatch({ type: 'ICON_PATCH', patch: { publishing: false } });
+      setToast({ kind: 'error', message: error instanceof Error ? error.message : 'Error al publicar el icono.' });
+    }
+  }, [state.icons, refresh, user]);
 
   const handleForgeSkin = useCallback(async () => {
     dispatch({ type: 'SKIN_PATCH', patch: { generating: true } });
@@ -997,7 +1379,7 @@ export default function Studio() {
       dispatch({ type: 'APPLY_THEME_LOGIC', logic, wallpaperUrl });
     } catch (error) {
       dispatch({ type: 'SKIN_PATCH', patch: { generating: false } });
-      setToast(error instanceof Error ? error.message : 'Error forjando el skin con Gemini.');
+      setToast({ kind: 'error', message: error instanceof Error ? error.message : 'Error forjando el skin con Gemini.' });
     }
   }, [state.skin.prompt]);
 
@@ -1057,7 +1439,16 @@ export default function Studio() {
             ))}
           </div>
 
-          {state.tab === 'icons' ? <AiIconPanel state={state} dispatch={dispatch} onGenerateIcons={handleGenerateIcons} /> : null}
+          {state.tab === 'icons' ? (
+            <AiIconPanel
+              state={state}
+              dispatch={dispatch}
+              folderOptions={folderOptions}
+              onGenerateIcons={handleGenerateIcons}
+              onUploadFile={handleUploadIconFile}
+              onPublish={handlePublishIcon}
+            />
+          ) : null}
           {state.tab === 'skins' ? <AiSkinPanel state={state} dispatch={dispatch} fonts={fonts} onForgeSkin={handleForgeSkin} /> : null}
           {state.tab === 'layout' ? <LayoutPanel state={state} dispatch={dispatch} /> : null}
         </section>
@@ -1068,8 +1459,14 @@ export default function Studio() {
       </main>
 
       {toast ? (
-        <div className="fixed bottom-6 right-6 z-50 rounded-2xl border border-red-400/30 bg-red-950 px-5 py-4 text-sm font-bold text-red-100 shadow-2xl">
-          {toast}
+        <div
+          className={`fixed bottom-6 right-6 z-50 rounded-2xl border px-5 py-4 text-sm font-bold shadow-2xl ${
+            toast.kind === 'success'
+              ? 'border-emerald-300/30 bg-emerald-950 text-emerald-100'
+              : 'border-red-400/30 bg-red-950 text-red-100'
+          }`}
+        >
+          {toast.message}
         </div>
       ) : null}
     </div>

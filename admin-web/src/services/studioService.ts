@@ -280,6 +280,97 @@ export function uploadStudioWallpaper(input: UploadVisualAssetInput): Promise<St
   return uploadVisualAsset('wallpaper', WALLPAPER_COLLECTION, 'wallpapers', input);
 }
 
+export type AdminPublishIconSource =
+  | { kind: 'file'; file: File }
+  | { kind: 'url'; url: string };
+
+export type PublishAdminIconInput = {
+  source: AdminPublishIconSource;
+  name: string;
+  folder: string;
+  priceDiamonds: number;
+  priceCoins: number;
+  style: string;
+  shape: string;
+  createdBy?: string;
+  createdByEmail?: string | null;
+};
+
+function guessImageExtFromMime(mime: string) {
+  if (/png/i.test(mime)) return 'png';
+  if (/svg/i.test(mime)) return 'svg';
+  if (/webp/i.test(mime)) return 'webp';
+  return 'jpg';
+}
+
+async function adminSourceToFile(source: AdminPublishIconSource): Promise<File> {
+  if (source.kind === 'file') {
+    if (!/\.(png|jpe?g|svg|webp)$/i.test(source.file.name)) {
+      throw new Error('Solo se permiten imagenes .png, .jpg, .svg o .webp.');
+    }
+    return source.file;
+  }
+
+  const response = await fetch(source.url);
+  if (!response.ok) {
+    throw new Error(`No se pudo descargar la imagen IA (HTTP ${response.status}).`);
+  }
+  const blob = await response.blob();
+  const ext = guessImageExtFromMime(blob.type);
+  return new File([blob], `ai-icon-${Date.now()}.${ext}`, { type: blob.type || `image/${ext}` });
+}
+
+export async function publishAdminStudioIcon(input: PublishAdminIconInput): Promise<StudioVisualAsset> {
+  const name = stripExtension(input.name).trim();
+  if (!name) throw new Error('El nombre del icono es obligatorio.');
+
+  const folder = input.folder.trim() || 'general';
+  const file = await adminSourceToFile(input.source);
+
+  const safeFolder = sanitizeName(folder);
+  const path = `icons/${safeFolder}/${Date.now()}-${sanitizeName(file.name)}`;
+  const fileRef = ref(storage, path);
+  await uploadBytes(fileRef, file, { contentType: getImageContentType(file.name) });
+
+  const fileUrl = await getDownloadURL(fileRef);
+  const priceDiamonds = Math.max(0, Math.round(Number(input.priceDiamonds) || 0));
+  const priceCoins = Math.max(0, Math.floor(Number(input.priceCoins) || 0));
+
+  const docRef = await addDoc(collection(db, ICON_COLLECTION), {
+    name,
+    folder,
+    fileUrl,
+    thumbnailUrl: fileUrl,
+    imageUrl: fileUrl,
+    filePath: path,
+    priceCoins,
+    priceCredits: priceCoins,
+    priceDiamonds,
+    style: input.style,
+    shape: input.shape,
+    tier: 'premium',
+    status: 'published',
+    isActive: true,
+    createdBy: input.createdBy ?? null,
+    createdByEmail: input.createdByEmail ?? null,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+
+  return {
+    id: docRef.id,
+    type: 'icon',
+    name,
+    tier: 'premium',
+    fileUrl,
+    thumbnailUrl: fileUrl,
+    filePath: path,
+    priceCoins,
+    status: 'published',
+    isActive: true,
+  };
+}
+
 // ── The Forge: themes, icon_packs, skins (Firestore + Storage) ─────────────
 
 const THEMES_COLLECTION = 'studio_themes';

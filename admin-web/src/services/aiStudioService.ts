@@ -18,11 +18,80 @@ export type GeneratedIcon = {
   url: string;
 };
 
-const GEMINI_MODELS = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-pro'] as const;
+export type IconStyleId = 'flat' | '3d' | 'neumorphism' | 'minimalist' | 'neon' | 'hand-drawn';
+export type IconShapeId = 'square' | 'rounded' | 'circle' | 'transparent';
+
+export type GenerateIconsOptions = {
+  prompt: string;
+  count: number;
+  style: IconStyleId;
+  shape: IconShapeId;
+  colorPrimary: string;
+  colorSecondary: string;
+  colorBackground: string;
+};
+
+export type GeneratedIconBriefing = {
+  descriptions: string[];
+  icons: GeneratedIcon[];
+  suggestedName: string;
+  suggestedPriceDiamonds: number;
+  suggestedPriceCSCoins: number;
+};
+
+const ICON_STYLE_DESCRIPTORS: Record<IconStyleId, string> = {
+  flat: 'flat 2D vector',
+  '3d': 'soft 3D rendered glossy',
+  neumorphism: 'soft neumorphism',
+  minimalist: 'ultra minimalist outline',
+  neon: 'cyberpunk neon glow',
+  'hand-drawn': 'hand-drawn organic sketch',
+};
+
+const ICON_SHAPE_DESCRIPTORS: Record<IconShapeId, string> = {
+  square: 'inside a square frame with sharp corners',
+  rounded: 'inside a rounded-square iOS app icon frame',
+  circle: 'inside a perfect circular badge frame',
+  transparent: 'on a fully transparent background with no frame',
+};
+
+const ICON_STYLE_LABELS: Record<IconStyleId, string> = {
+  flat: 'Flat',
+  '3d': '3D',
+  neumorphism: 'Neumorfismo',
+  minimalist: 'Minimalista',
+  neon: 'Neon',
+  'hand-drawn': 'Hand-drawn',
+};
+
+const ICON_SHAPE_LABELS: Record<IconShapeId, string> = {
+  square: 'Cuadrado',
+  rounded: 'Redondeado',
+  circle: 'Circular',
+  transparent: 'Transparente',
+};
+
+// Keep this list Flash-only: Pro aliases are not available on every free-tier
+// API key/project and were causing the Studio toast to surface 404s.
+const GEMINI_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-flash-latest',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+] as const;
 const POLLINATIONS_BASE_URL = 'https://image.pollinations.ai/prompt';
 
 const HEX_PATTERN = /^#[0-9a-f]{6}$/i;
 const ALIGNMENTS = new Set<ThemeLayoutAlignment>(['start', 'center', 'end']);
+let availableGeminiModelsPromise: Promise<string[]> | null = null;
+
+type GeminiModelsResponse = {
+  models?: Array<{
+    name?: string;
+    supportedGenerationMethods?: string[];
+  }>;
+};
 
 const THEME_LOGIC_SYSTEM_PROMPT = [
   'You are the AI logic engine for "La Forja", a professional mobile skin builder.',
@@ -38,21 +107,57 @@ const THEME_LOGIC_SYSTEM_PROMPT = [
   '- layoutAlignment: one of start, center, end.',
 ].join('\n');
 
-const ICON_DESCRIPTIONS_SYSTEM_PROMPT = [
-  'You design icon sets for premium mobile apps.',
-  'Always reply with strict JSON. No markdown, no code fences, no prose.',
-  'Return ONLY a JSON array of short concrete English descriptions of single, isolated objects.',
-  'Each item must describe ONE element only. Never list multiple objects in the same item.',
-  'Forbidden: spritesheets, collages, grids, layouts, backgrounds, words, letters, text, UI mockups.',
-  'Each item must be 4 to 14 words and start with "A" or "An".',
+const ICON_ART_DIRECTOR_PROMPT = [
+  'Eres un Director de UI/UX para una marketplace mobile premium de iconos.',
+  'Tu unica salida valida es JSON estricto. Sin markdown, sin code fences, sin texto adicional.',
+  'El JSON debe tener EXACTAMENTE las claves: descriptions, suggestedName, suggestedPriceDiamonds, suggestedPriceCSCoins.',
+  'descriptions: array de prompts EN INGLES, uno por icono pedido, frases de 6 a 16 palabras, cada una describe UN UNICO objeto aislado.',
+  'No menciones layouts, spritesheets, grids, collages ni texto en las descripciones.',
+  'suggestedName: nombre comercial corto (1 a 4 palabras) en espanol o ingles.',
+  'suggestedPriceDiamonds: numero entero entre 1 y 50.',
+  'suggestedPriceCSCoins: numero entero entre 100 y 5000.',
 ].join('\n');
 
-function getGeminiClient() {
+function getGeminiApiKey() {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
   if (!apiKey?.trim()) {
     throw new Error('Falta VITE_GEMINI_API_KEY en las variables de entorno del admin.');
   }
+  return apiKey.trim();
+}
+
+function getGeminiClient() {
+  const apiKey = getGeminiApiKey();
   return new GoogleGenerativeAI(apiKey);
+}
+
+async function listAvailableGeminiModels(): Promise<string[]> {
+  if (!availableGeminiModelsPromise) {
+    availableGeminiModelsPromise = fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(getGeminiApiKey())}`,
+    )
+      .then(async (response) => {
+        if (!response.ok) return [];
+        const payload = (await response.json()) as GeminiModelsResponse;
+        return (payload.models ?? [])
+          .filter((model) => model.supportedGenerationMethods?.includes('generateContent'))
+          .map((model) => String(model.name ?? '').replace(/^models\//, ''))
+          .filter(Boolean);
+      })
+      .catch(() => []);
+  }
+
+  return availableGeminiModelsPromise;
+}
+
+async function getCandidateGeminiModels() {
+  const available = await listAvailableGeminiModels();
+  if (!available.length) return [...GEMINI_MODELS];
+
+  const availableSet = new Set(available);
+  const preferred = GEMINI_MODELS.filter((model) => availableSet.has(model));
+  const flashModels = available.filter((model) => /flash/i.test(model));
+  return preferred.length > 0 ? preferred : flashModels.length > 0 ? flashModels : [...GEMINI_MODELS];
 }
 
 function stripCodeFences(rawText: string) {
@@ -72,17 +177,6 @@ function extractJsonObject(rawText: string) {
   if (start >= 0 && end > start) return cleaned.slice(start, end + 1);
 
   throw new Error(`Gemini no devolvio un objeto JSON. Respuesta: ${rawText.trim().slice(0, 180)}`);
-}
-
-function extractJsonArray(rawText: string) {
-  const cleaned = stripCodeFences(rawText);
-  if (cleaned.startsWith('[') && cleaned.endsWith(']')) return cleaned;
-
-  const start = cleaned.indexOf('[');
-  const end = cleaned.lastIndexOf(']');
-  if (start >= 0 && end > start) return cleaned.slice(start, end + 1);
-
-  throw new Error(`Gemini no devolvio un array JSON. Respuesta: ${rawText.trim().slice(0, 180)}`);
 }
 
 function assertString(value: unknown, field: keyof GeneratedThemeLogic) {
@@ -147,8 +241,11 @@ async function callGeminiJsonText(
 ): Promise<string> {
   const client = getGeminiClient();
   let lastError: unknown = null;
+  const attemptedModels: string[] = [];
+  const candidateModels = await getCandidateGeminiModels();
 
-  for (const modelName of GEMINI_MODELS) {
+  for (const modelName of candidateModels) {
+    attemptedModels.push(modelName);
     try {
       const model = client.getGenerativeModel({
         model: modelName,
@@ -165,13 +262,16 @@ async function callGeminiJsonText(
       lastError = error;
       const message = error instanceof Error ? error.message : String(error);
       const canRetryWithFallback = /404|not found|not supported|not available|model/i.test(message);
-      if (!canRetryWithFallback || modelName === GEMINI_MODELS[GEMINI_MODELS.length - 1]) {
+      if (!canRetryWithFallback || modelName === candidateModels[candidateModels.length - 1]) {
         break;
       }
     }
   }
 
-  throw lastError instanceof Error ? lastError : new Error('No se pudo generar contenido con Gemini.');
+  const detail = lastError instanceof Error ? lastError.message : String(lastError ?? 'error desconocido');
+  throw new Error(
+    `No se pudo generar contenido con Gemini Flash. Modelos intentados: ${attemptedModels.join(', ') || 'ninguno disponible'}. Ultimo error: ${detail}`,
+  );
 }
 
 export async function generateThemeLogic(prompt: string): Promise<GeneratedThemeLogic> {
@@ -186,7 +286,13 @@ export async function generateThemeLogic(prompt: string): Promise<GeneratedTheme
 
 function clampIconCount(count: number) {
   if (!Number.isFinite(count)) return 4;
-  return Math.max(1, Math.min(12, Math.round(count)));
+  return Math.max(1, Math.min(10, Math.round(count)));
+}
+
+function clampNumber(value: unknown, min: number, max: number, fallback: number) {
+  const next = Number(value);
+  if (!Number.isFinite(next)) return fallback;
+  return Math.max(min, Math.min(max, Math.round(next)));
 }
 
 function fallbackIconDescriptions(prompt: string, expected: number): string[] {
@@ -194,37 +300,46 @@ function fallbackIconDescriptions(prompt: string, expected: number): string[] {
   return Array.from({ length: expected }, (_, index) => `A single minimalist icon related to ${seed} variation ${index + 1}`);
 }
 
-function parseIconDescriptions(rawText: string, expected: number, prompt: string): string[] {
-  const jsonText = extractJsonArray(rawText);
+function fallbackSetName(prompt: string) {
+  const cleaned = (prompt || 'AI Icon Set').replace(/[^a-zA-Z0-9\s]/g, ' ').trim();
+  if (!cleaned) return 'AI Icon Set';
+  const words = cleaned.split(/\s+/).slice(0, 3);
+  return words.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+}
 
-  let parsed: unknown;
+function parseIconBriefing(
+  rawText: string,
+  expected: number,
+  options: GenerateIconsOptions,
+): {
+  descriptions: string[];
+  suggestedName: string;
+  suggestedPriceDiamonds: number;
+  suggestedPriceCSCoins: number;
+} {
+  const jsonText = extractJsonObject(rawText);
+  let parsed: Record<string, unknown>;
   try {
-    parsed = JSON.parse(jsonText);
+    parsed = JSON.parse(jsonText) as Record<string, unknown>;
   } catch (error) {
     throw new Error(
       `Gemini devolvio JSON mal formateado: ${error instanceof Error ? error.message : 'parse error'}. Respuesta: ${rawText.slice(0, 180)}`,
     );
   }
 
-  let array: unknown[] = [];
-  if (Array.isArray(parsed)) {
-    array = parsed;
-  } else if (parsed && typeof parsed === 'object') {
-    const obj = parsed as Record<string, unknown>;
-    const found = Object.values(obj).find((value) => Array.isArray(value));
-    if (Array.isArray(found)) array = found;
-  }
-
+  const rawDescriptions = parsed.descriptions;
   const descriptions: string[] = [];
-  for (const value of array) {
-    if (typeof value === 'string' && value.trim().length > 0) {
-      descriptions.push(value.trim());
-    } else if (value && typeof value === 'object') {
-      const obj = value as Record<string, unknown>;
-      const candidate = [obj.description, obj.text, obj.name, obj.icon].find(
-        (entry): entry is string => typeof entry === 'string' && entry.trim().length > 0,
-      );
-      if (candidate) descriptions.push(candidate.trim());
+  if (Array.isArray(rawDescriptions)) {
+    for (const value of rawDescriptions) {
+      if (typeof value === 'string' && value.trim().length > 0) {
+        descriptions.push(value.trim());
+      } else if (value && typeof value === 'object') {
+        const obj = value as Record<string, unknown>;
+        const candidate = [obj.description, obj.text, obj.name].find(
+          (entry): entry is string => typeof entry === 'string' && entry.trim().length > 0,
+        );
+        if (candidate) descriptions.push(candidate.trim());
+      }
     }
   }
 
@@ -232,11 +347,22 @@ function parseIconDescriptions(rawText: string, expected: number, prompt: string
     throw new Error('Gemini no devolvio descripciones validas para los iconos.');
   }
 
-  const fallback = fallbackIconDescriptions(prompt, expected);
+  const fallback = fallbackIconDescriptions(options.prompt, expected);
   while (descriptions.length < expected) {
     descriptions.push(fallback[descriptions.length] ?? `A single minimalist isolated icon variation ${descriptions.length + 1}`);
   }
-  return descriptions.slice(0, expected);
+
+  const suggestedName =
+    typeof parsed.suggestedName === 'string' && parsed.suggestedName.trim().length > 0
+      ? parsed.suggestedName.trim()
+      : fallbackSetName(options.prompt);
+
+  return {
+    descriptions: descriptions.slice(0, expected),
+    suggestedName,
+    suggestedPriceDiamonds: clampNumber(parsed.suggestedPriceDiamonds, 1, 50, 5),
+    suggestedPriceCSCoins: clampNumber(parsed.suggestedPriceCSCoins, 100, 5000, 500),
+  };
 }
 
 function buildPollinationsUrl(prompt: string, width: number, height: number, seed: number) {
@@ -244,35 +370,64 @@ function buildPollinationsUrl(prompt: string, width: number, height: number, see
   return `${POLLINATIONS_BASE_URL}/${encodedPrompt}?width=${width}&height=${height}&nologo=true&seed=${seed}`;
 }
 
-function buildIconImagePrompt(description: string) {
-  return `A single, isolated, centered, minimalist iOS app icon of ${description}, solid background, vector style`;
+function buildIconImagePrompt(description: string, options: GenerateIconsOptions) {
+  return [
+    `${ICON_STYLE_DESCRIPTORS[options.style]} icon of ${description}`,
+    ICON_SHAPE_DESCRIPTORS[options.shape],
+    `primary color ${options.colorPrimary}`,
+    `secondary color ${options.colorSecondary}`,
+    `background color ${options.colorBackground}`,
+    'centered, single isolated subject, premium quality, no text, no letters',
+  ].join(', ');
 }
 
-export async function generateAIIconsBatch(prompt: string, count = 4): Promise<GeneratedIcon[]> {
-  const expected = clampIconCount(count);
-  const cleanPrompt = (prompt || 'a generic premium mobile app theme').trim();
+export async function generateAIIconsBatch(options: GenerateIconsOptions): Promise<GeneratedIconBriefing> {
+  const expected = clampIconCount(options.count);
+  const cleanPrompt = (options.prompt || 'a generic premium mobile app theme').trim();
+  const safeOptions: GenerateIconsOptions = { ...options, count: expected, prompt: cleanPrompt };
 
   const userPrompt = [
-    `The user wants a set of icons for a mobile app about this topic: "${cleanPrompt}".`,
-    `Return a JSON array with EXACTLY ${expected} concise English descriptions of individual elements.`,
-    'Each entry must describe a SINGLE isolated object, never a layout or a group.',
-    'Example for "Texas Longhorns": ["A single orange longhorn silhouette", "A lone star logo", "An american football"].',
+    `El cliente pide ${expected} iconos sobre "${cleanPrompt}".`,
+    `Estilo: ${ICON_STYLE_LABELS[safeOptions.style]}.`,
+    `Forma del contenedor: ${ICON_SHAPE_LABELS[safeOptions.shape]}.`,
+    `Colores: principal ${safeOptions.colorPrimary}, secundario ${safeOptions.colorSecondary}, fondo ${safeOptions.colorBackground}.`,
+    'Devuelve SOLO un JSON con este formato exacto:',
+    '{ "descriptions": ["prompt exacto en ingles para motor de imagenes 1", "..."], "suggestedName": "Nombre Comercial del Set", "suggestedPriceDiamonds": 5, "suggestedPriceCSCoins": 500 }',
   ].join('\n');
 
-  let descriptions: string[];
+  let briefing: {
+    descriptions: string[];
+    suggestedName: string;
+    suggestedPriceDiamonds: number;
+    suggestedPriceCSCoins: number;
+  };
+
   try {
-    const rawText = await callGeminiJsonText(ICON_DESCRIPTIONS_SYSTEM_PROMPT, userPrompt, 0.9);
-    descriptions = parseIconDescriptions(rawText, expected, cleanPrompt);
+    const rawText = await callGeminiJsonText(ICON_ART_DIRECTOR_PROMPT, userPrompt, 0.85);
+    briefing = parseIconBriefing(rawText, expected, safeOptions);
   } catch (error) {
-    console.warn('[aiStudioService] Gemini descripciones fallaron, usando fallback local:', error);
-    descriptions = fallbackIconDescriptions(cleanPrompt, expected);
+    console.warn('[aiStudioService] Gemini brief fallo, usando fallback local:', error);
+    briefing = {
+      descriptions: fallbackIconDescriptions(cleanPrompt, expected),
+      suggestedName: fallbackSetName(cleanPrompt),
+      suggestedPriceDiamonds: 5,
+      suggestedPriceCSCoins: 500,
+    };
   }
 
   const seedBase = Math.floor(Date.now() / 1000);
-  return descriptions.map((description, index) => ({
+  const icons: GeneratedIcon[] = briefing.descriptions.map((description, index) => ({
     description,
-    url: buildPollinationsUrl(buildIconImagePrompt(description), 256, 256, seedBase + index + 1),
+    url: buildPollinationsUrl(buildIconImagePrompt(description, safeOptions), 256, 256, seedBase + index + 1),
   }));
+
+  return {
+    descriptions: briefing.descriptions,
+    icons,
+    suggestedName: briefing.suggestedName,
+    suggestedPriceDiamonds: briefing.suggestedPriceDiamonds,
+    suggestedPriceCSCoins: briefing.suggestedPriceCSCoins,
+  };
 }
 
 export async function generateAIWallpaper(prompt: string): Promise<string> {
