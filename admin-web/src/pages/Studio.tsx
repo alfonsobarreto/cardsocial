@@ -20,6 +20,7 @@ import {
   MonitorSmartphone,
   Palette,
   Rocket,
+  ScanLine,
   Sparkles,
   Type,
   Upload,
@@ -41,9 +42,11 @@ import {
 } from 'react';
 import { useAuth } from '../auth/useAuth';
 import {
-  generateAIIconsBatch,
+  analyzeBrandReference,
   generateAIWallpaper,
+  generateIconPrompts,
   generateThemeLogic,
+  mapDescriptionsToPollinationsIcons,
   type ExtractedBrandColors,
   type GeneratedThemeLogic,
   type IconShapeId,
@@ -117,8 +120,9 @@ type AiIconCandidate = {
 };
 
 type AiIconState = {
-  // Zone A — generator parameters
-  prompt: string;
+  // Wizard — paso 2: briefing textual
+  brandContext: string;
+  iconItems: string;
   count: number;
   style: IconStyleId;
   shape: IconShapeId;
@@ -126,12 +130,14 @@ type AiIconState = {
   colorSecondary: string;
   colorBackground: string;
 
-  // Phase 2 — reference logo for Gemini Vision
+  // Paso 1 — referencia visual
   referencePreview: string;
   referenceBase64: string;
   referenceMime: string;
 
-  // Generation lifecycle
+  analyzingBrand: boolean;
+  analyzingMessage: string;
+
   generating: boolean;
   generatingMessage: string;
   candidates: AiIconCandidate[];
@@ -197,7 +203,8 @@ type ForgeAction =
 const initialState: ForgeState = {
   tab: 'icons',
   icons: {
-    prompt: '',
+    brandContext: '',
+    iconItems: '',
     count: 4,
     style: '3d',
     shape: 'rounded',
@@ -207,6 +214,8 @@ const initialState: ForgeState = {
     referencePreview: '',
     referenceBase64: '',
     referenceMime: 'image/png',
+    analyzingBrand: false,
+    analyzingMessage: '',
     generating: false,
     generatingMessage: '',
     candidates: [],
@@ -271,12 +280,13 @@ async function readFileAsRawBase64(file: File): Promise<{ rawBase64: string; mim
   return { rawBase64: dataUrl.slice(index + marker.length).trim(), mimeType };
 }
 
-function createIconCandidates(prompt: string): AiIconCandidate[] {
-  const base = titleCaseFromPrompt(prompt, 'AI Icon');
+function createIconCandidates(iconItems: string, brandContext: string): AiIconCandidate[] {
+  const seedText = (iconItems || brandContext || '').trim();
+  const base = titleCaseFromPrompt(seedText, 'AI Icon');
   return AI_ICON_GRADIENTS.map((gradient, index) => ({
     id: `ai-icon-${index + 1}`,
     name: `${base} ${String(index + 1).padStart(2, '0')}`,
-    prompt: prompt || 'Iconos premium generados por IA',
+    prompt: seedText || 'Iconos premium generados por IA',
     gradient,
     seed: index + 11,
   }));
@@ -531,6 +541,16 @@ function ColorPill({
 }
 
 function IconArtwork({ candidate, selected }: { candidate: AiIconCandidate; selected?: boolean }) {
+  const [mediaState, setMediaState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
+
+  useEffect(() => {
+    if (!candidate.imageUrl) {
+      setMediaState('idle');
+      return;
+    }
+    setMediaState('loading');
+  }, [candidate.imageUrl]);
+
   return (
     <div
       className={`relative flex aspect-square items-center justify-center overflow-hidden rounded-[1.35rem] bg-gradient-to-br ${candidate.gradient} ${
@@ -538,7 +558,32 @@ function IconArtwork({ candidate, selected }: { candidate: AiIconCandidate; sele
       }`}
     >
       {candidate.imageUrl ? (
-        <img src={candidate.imageUrl} alt={candidate.name} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+        <>
+          <img
+            key={candidate.imageUrl}
+            src={candidate.imageUrl}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+            onLoad={() => setMediaState('loaded')}
+            onError={() => setMediaState('error')}
+          />
+          {mediaState === 'loading' ? (
+            <div
+              className="absolute inset-0 flex items-center justify-center bg-black/35 backdrop-blur-[1px]"
+              aria-hidden
+            >
+              <Loader2 className="h-8 w-8 animate-spin text-white drop-shadow-md" />
+            </div>
+          ) : null}
+          {mediaState === 'error' ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/50 px-2 text-center">
+              <ImageIcon className="h-6 w-6 text-rose-200/90" aria-hidden />
+              <span className="text-[9px] font-bold leading-tight text-rose-100">No se pudo cargar</span>
+            </div>
+          ) : null}
+        </>
       ) : (
         <>
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_18%,rgba(255,255,255,.7),transparent_22%),radial-gradient(circle_at_78%_82%,rgba(0,0,0,.35),transparent_34%)]" />
@@ -587,6 +632,7 @@ function AiIconPanel({
   state,
   dispatch,
   folderOptions,
+  onAnalyzeBrand,
   onGenerateIcons,
   onUploadFile,
   onPublish,
@@ -594,6 +640,7 @@ function AiIconPanel({
   state: ForgeState;
   dispatch: React.Dispatch<ForgeAction>;
   folderOptions: string[];
+  onAnalyzeBrand: () => void;
   onGenerateIcons: () => void;
   onUploadFile: (file: File | null) => void;
   onPublish: () => void;
@@ -636,7 +683,7 @@ function AiIconPanel({
       if (referenceInputRef.current) referenceInputRef.current.value = '';
       return;
     }
-    if (!file.type.startsWith('image/')) {
+    if (file.type && !file.type.startsWith('image/')) {
       if (referenceInputRef.current) referenceInputRef.current.value = '';
       return;
     }
@@ -678,71 +725,19 @@ function AiIconPanel({
 
   return (
     <div className="space-y-5">
-      <PanelCard title="Parametros del Generador" eyebrow="Zone A · Inputs" icon={BrainCircuit}>
-        <div className="grid gap-4">
-          <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
-            <div className="space-y-2">
-              <FieldLabel>Concepto</FieldLabel>
-              <TextInput
-                value={ic.prompt}
-                onChange={(prompt) => dispatch({ type: 'ICON_PATCH', patch: { prompt } })}
-                placeholder='Ej. "Iconos para una app de fitness boutique"'
-              />
+      <PanelCard title="AI Icon Lab" eyebrow="Wizard · 2 pasos" icon={BrainCircuit}>
+        <div className="grid gap-6">
+          <div className="rounded-[1.35rem] border border-fuchsia-500/25 bg-gradient-to-br from-fuchsia-950/25 via-slate-950/50 to-slate-950 p-5 shadow-lg shadow-fuchsia-950/20">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-fuchsia-200">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-fuchsia-500/30 text-sm font-black text-white shadow-inner shadow-fuchsia-500/40">
+                  1
+                </span>
+                Analisis de marca
+              </p>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Gemini Vision · Flash</span>
             </div>
-            <div className="space-y-2">
-              <FieldLabel>Cantidad</FieldLabel>
-              <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3">
-                <input
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={ic.count}
-                  onChange={(event) => {
-                    const next = Math.max(1, Math.min(10, Math.round(Number(event.target.value)) || 1));
-                    dispatch({ type: 'ICON_PATCH', patch: { count: next } });
-                  }}
-                  className="w-16 bg-transparent text-center text-base font-black text-white outline-none"
-                />
-                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">/10</span>
-              </div>
-            </div>
-          </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <SelectField
-              label="Estilo"
-              value={ic.style}
-              onChange={(value) => dispatch({ type: 'ICON_PATCH', patch: { style: value as IconStyleId } })}
-              options={ICON_STYLE_OPTIONS}
-            />
-            <SelectField
-              label="Forma del Contenedor"
-              value={ic.shape}
-              onChange={(value) => dispatch({ type: 'ICON_PATCH', patch: { shape: value as IconShapeId } })}
-              options={ICON_SHAPE_OPTIONS}
-            />
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-3">
-            <ColorPill
-              label="Principal"
-              value={ic.colorPrimary}
-              onChange={(colorPrimary) => dispatch({ type: 'ICON_PATCH', patch: { colorPrimary } })}
-            />
-            <ColorPill
-              label="Secundario"
-              value={ic.colorSecondary}
-              onChange={(colorSecondary) => dispatch({ type: 'ICON_PATCH', patch: { colorSecondary } })}
-            />
-            <ColorPill
-              label="Fondo"
-              value={ic.colorBackground}
-              onChange={(colorBackground) => dispatch({ type: 'ICON_PATCH', patch: { colorBackground } })}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <FieldLabel>Referencia de marca (opcional)</FieldLabel>
             <input
               ref={referenceInputRef}
               type="file"
@@ -770,16 +765,16 @@ function AiIconPanel({
                 className={`flex min-w-0 flex-1 cursor-pointer flex-col gap-2 rounded-2xl border border-dashed px-4 py-3 transition ${
                   referenceDragActive
                     ? 'border-fuchsia-400/60 bg-fuchsia-500/10'
-                    : 'border-white/15 bg-white/[0.02] hover:border-white/25'
+                    : 'border-white/15 bg-white/[0.03] hover:border-white/25'
                 }`}
                 onClick={() => referenceInputRef.current?.click()}
               >
                 <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-200">
                   <ImageIcon className="h-4 w-4 shrink-0 text-fuchsia-300" />
-                  Subir imagen de referencia para IA
+                  Subir logo o imagen de referencia
                 </div>
                 <p className="text-[11px] font-semibold leading-snug text-slate-500">
-                  Logo o escudo: Gemini extrae HEX y la cuadricula adopta la paleta al generar.
+                  Paso 1: solo analisis visual y extraccion de colores. Sin generar iconos todavia.
                 </p>
               </div>
               {ic.referencePreview ? (
@@ -787,7 +782,7 @@ function AiIconPanel({
                   <img
                     src={ic.referencePreview}
                     alt="Referencia de marca"
-                    className="h-14 w-14 rounded-xl border border-white/15 object-cover"
+                    className="h-16 w-16 rounded-xl border border-white/15 object-cover"
                   />
                   <button
                     type="button"
@@ -803,27 +798,145 @@ function AiIconPanel({
                 </div>
               ) : null}
             </div>
+
+            {ic.analyzingBrand ? (
+              <div className="mt-4 space-y-2">
+                <progress className="h-2 w-full overflow-hidden rounded-full accent-fuchsia-400 [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-bar]:bg-white/10 [&::-webkit-progress-value]:rounded-full" />
+                <p className="text-center text-xs font-semibold text-fuchsia-100/95">
+                  {ic.analyzingMessage || 'Analizando imagen...'}
+                </p>
+              </div>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={onAnalyzeBrand}
+              disabled={!ic.referenceBase64.trim() || ic.analyzingBrand}
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-fuchsia-400/30 bg-fuchsia-500/15 px-5 py-4 text-sm font-black uppercase tracking-[0.16em] text-fuchsia-100 transition hover:bg-fuchsia-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {ic.analyzingBrand ? <Loader2 className="h-5 w-5 animate-spin" /> : <ScanLine className="h-5 w-5" />}
+              1. Analizar identidad de marca
+            </button>
           </div>
 
-          <button
-            type="button"
-            onClick={onGenerateIcons}
-            disabled={ic.generating}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-rose-500 px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-white shadow-xl shadow-fuchsia-500/30 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {ic.generating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wand className="h-5 w-5" />}
-            Generar con Gemini Pro
-          </button>
-          {ic.generating && ic.generatingMessage ? (
-            <p className="text-center text-xs font-semibold text-fuchsia-200/90">{ic.generatingMessage}</p>
-          ) : null}
+          <div className="rounded-[1.35rem] border border-cyan-500/25 bg-gradient-to-br from-cyan-950/20 via-slate-950/50 to-slate-950 p-5 shadow-lg shadow-cyan-950/15">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-cyan-200">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-cyan-500/30 text-sm font-black text-white shadow-inner shadow-cyan-500/40">
+                  2
+                </span>
+                Generacion de iconos
+              </p>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Gemini texto + Pollinations</span>
+            </div>
+
+            <div className="grid gap-4">
+              <div className="space-y-2">
+                <FieldLabel>Contexto / tema detectado</FieldLabel>
+                <textarea
+                  value={ic.brandContext}
+                  onChange={(event) => dispatch({ type: 'ICON_PATCH', patch: { brandContext: event.target.value } })}
+                  rows={3}
+                  placeholder="Editable: pega o ajusta el contexto de marca (se rellena al analizar el logo, o escribelo a mano)."
+                  className="w-full resize-y rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm font-semibold text-slate-100 outline-none placeholder:text-slate-600 focus:ring-4 focus:ring-cyan-500/15"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <FieldLabel>Elementos a dibujar</FieldLabel>
+                <TextInput
+                  value={ic.iconItems}
+                  onChange={(iconItems) => dispatch({ type: 'ICON_PATCH', patch: { iconItems } })}
+                  placeholder='Ej. "pelota, camiseta, hincha, telefono"'
+                />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <SelectField
+                  label="Estilo"
+                  value={ic.style}
+                  onChange={(value) => dispatch({ type: 'ICON_PATCH', patch: { style: value as IconStyleId } })}
+                  options={ICON_STYLE_OPTIONS}
+                />
+                <SelectField
+                  label="Forma del contenedor"
+                  value={ic.shape}
+                  onChange={(value) => dispatch({ type: 'ICON_PATCH', patch: { shape: value as IconShapeId } })}
+                  options={ICON_SHAPE_OPTIONS}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <FieldLabel>Cantidad</FieldLabel>
+                <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3">
+                  <input
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={ic.count}
+                    onChange={(event) => {
+                      const next = Math.max(1, Math.min(10, Math.round(Number(event.target.value)) || 1));
+                      dispatch({ type: 'ICON_PATCH', patch: { count: next } });
+                    }}
+                    className="w-16 bg-transparent text-center text-base font-black text-white outline-none"
+                  />
+                  <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">/10 iconos</span>
+                </div>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-3">
+                <ColorPill
+                  label="Principal"
+                  value={ic.colorPrimary}
+                  onChange={(colorPrimary) => dispatch({ type: 'ICON_PATCH', patch: { colorPrimary } })}
+                />
+                <ColorPill
+                  label="Secundario"
+                  value={ic.colorSecondary}
+                  onChange={(colorSecondary) => dispatch({ type: 'ICON_PATCH', patch: { colorSecondary } })}
+                />
+                <ColorPill
+                  label="Fondo"
+                  value={ic.colorBackground}
+                  onChange={(colorBackground) => dispatch({ type: 'ICON_PATCH', patch: { colorBackground } })}
+                />
+              </div>
+            </div>
+
+            {ic.generating ? (
+              <div className="mt-4 space-y-2">
+                <progress className="h-2 w-full overflow-hidden rounded-full accent-cyan-400 [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-bar]:bg-white/10 [&::-webkit-progress-value]:rounded-full" />
+                <p className="text-center text-xs font-semibold text-cyan-100/95">
+                  {ic.generatingMessage || 'Generando...'}
+                </p>
+              </div>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={onGenerateIcons}
+              disabled={ic.generating}
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-rose-500 px-5 py-4 text-sm font-black uppercase tracking-[0.15em] text-white shadow-xl shadow-fuchsia-500/30 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {ic.generating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wand className="h-5 w-5" />}
+              2. Generar {ic.count} iconos
+            </button>
+          </div>
         </div>
       </PanelCard>
 
       <PanelCard title="Cuadricula de Resultados" eyebrow="Zone C · Gallery" icon={LayoutGrid}>
+        {ic.analyzingBrand || ic.generating ? (
+          <div className="mb-4 space-y-2 rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3">
+            <progress className="h-1.5 w-full overflow-hidden rounded-full accent-cyan-400 [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-bar]:bg-white/10 [&::-webkit-progress-value]:rounded-full" />
+            <p className="text-center text-[11px] font-semibold text-slate-400">
+              {ic.analyzingMessage || ic.generatingMessage || 'En curso...'}
+            </p>
+          </div>
+        ) : null}
         {ic.candidates.length === 0 ? (
           <div className="flex min-h-[180px] items-center justify-center rounded-2xl border border-dashed border-white/15 bg-slate-950/60 px-4 py-8 text-center text-xs font-bold text-slate-500">
-            Genera con Gemini Pro para ver tus iconos aqui.
+            Completa el paso 2 para ver la cuadricula. Cada tile muestra un spinner hasta que Pollinations termina de pintar.
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-5">
@@ -1259,7 +1372,7 @@ function LivePreview({
   const previewIconSet =
     state.icons.candidates.length > 0
       ? state.icons.candidates
-      : createIconCandidates('').slice(0, Math.max(state.icons.count, 6));
+      : createIconCandidates(state.icons.iconItems, state.icons.brandContext).slice(0, Math.max(state.icons.count, 6));
 
   const iconBasis = `calc((100% - ${Math.max(0, state.layout.columns - 1) * state.layout.gap}px) / ${state.layout.columns})`;
   const cssVars = {
@@ -1431,56 +1544,105 @@ export default function Studio() {
     return Array.from(set);
   }, [packs, state.icons.folder, state.icons.newFolder]);
 
-  const handleGenerateIcons = useCallback(async () => {
-    dispatch({ type: 'ICON_PATCH', patch: { generating: true, generatingMessage: '' } });
+  const handleAnalyzeBrand = useCallback(async () => {
+    const data = state.icons.referenceBase64.trim();
+    const mime = state.icons.referenceMime.trim() || 'image/png';
+    if (!data) {
+      setToast({ kind: 'error', message: 'Sube una imagen de referencia para el paso 1.' });
+      return;
+    }
+    dispatch({
+      type: 'ICON_PATCH',
+      patch: { analyzingBrand: true, analyzingMessage: 'Analizando logo y extrayendo colores con Gemini...' },
+    });
     try {
-      const refB64 = state.icons.referenceBase64.trim();
-      const refMime = state.icons.referenceMime.trim();
-      const briefing = await generateAIIconsBatch({
-        prompt: state.icons.prompt,
+      const result = await analyzeBrandReference(data, mime);
+      dispatch({
+        type: 'ICON_PATCH',
+        patch: {
+          analyzingBrand: false,
+          analyzingMessage: '',
+          brandContext: result.contextDescription,
+          colorPrimary: result.primaryHex,
+          colorSecondary: result.secondaryHex,
+          colorBackground: result.bgHex,
+        },
+      });
+    } catch (error) {
+      dispatch({ type: 'ICON_PATCH', patch: { analyzingBrand: false, analyzingMessage: '' } });
+      setToast({
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'No se pudo analizar la marca.',
+      });
+    }
+  }, [state.icons.referenceBase64, state.icons.referenceMime]);
+
+  const handleGenerateIcons = useCallback(async () => {
+    if (!state.icons.brandContext.trim() && !state.icons.iconItems.trim()) {
+      setToast({
+        kind: 'error',
+        message: 'Indica el contexto de marca o los elementos a dibujar antes de generar.',
+      });
+      return;
+    }
+
+    dispatch({ type: 'ICON_PATCH', patch: { generating: true, generatingMessage: 'Generando prompts con Gemini...' } });
+    try {
+      const briefing = await generateIconPrompts({
+        context: state.icons.brandContext,
+        itemsRequested: state.icons.iconItems,
+        colors: {
+          primaryHex: state.icons.colorPrimary,
+          secondaryHex: state.icons.colorSecondary,
+          bgHex: state.icons.colorBackground,
+        },
+        style: state.icons.style,
+        shape: state.icons.shape,
         count: state.icons.count,
+      });
+
+      dispatch({
+        type: 'ICON_PATCH',
+        patch: { generatingMessage: 'Construyendo URLs de Pollinations y pintando la cuadricula...' },
+      });
+
+      const renderOpts = {
         style: state.icons.style,
         shape: state.icons.shape,
         colorPrimary: state.icons.colorPrimary,
         colorSecondary: state.icons.colorSecondary,
         colorBackground: state.icons.colorBackground,
-        ...(refB64 && refMime
-          ? { referenceImageBase64: refB64, referenceMimeType: refMime }
-          : {}),
-        onProgress: (message) => {
-          dispatch({ type: 'ICON_PATCH', patch: { generatingMessage: message } });
-        },
-      });
-      const candidates = briefing.icons.map((icon, index): AiIconCandidate => ({
-        id: `gemini-pro-${Date.now()}-${index}`,
-        name: titleCaseFromPrompt(icon.description, `AI Icon ${index + 1}`),
+      };
+      const pollinations = mapDescriptionsToPollinationsIcons(briefing.descriptions, renderOpts);
+      const candidates = pollinations.map((icon, index): AiIconCandidate => ({
+        id: `icon-${Date.now()}-${index}`,
+        name: titleCaseFromPrompt(icon.description, `Icon ${index + 1}`),
         prompt: icon.description,
         gradient: AI_ICON_GRADIENTS[index % AI_ICON_GRADIENTS.length],
         imageUrl: icon.url,
         seed: index + 1,
       }));
+
       dispatch({
         type: 'SET_GENERATED_ICONS',
         candidates,
         suggestedName: briefing.suggestedName,
         suggestedPriceDiamonds: briefing.suggestedPriceDiamonds,
         suggestedPriceCSCoins: briefing.suggestedPriceCSCoins,
-        ...(briefing.extractedColors ? { extractedColors: briefing.extractedColors } : {}),
       });
     } catch (error) {
       dispatch({ type: 'ICON_PATCH', patch: { generating: false, generatingMessage: '' } });
       setToast({ kind: 'error', message: error instanceof Error ? error.message : 'Error generando iconos con la AI.' });
     }
   }, [
-    state.icons.prompt,
+    state.icons.brandContext,
+    state.icons.iconItems,
     state.icons.count,
     state.icons.style,
     state.icons.shape,
     state.icons.colorPrimary,
     state.icons.colorSecondary,
     state.icons.colorBackground,
-    state.icons.referenceBase64,
-    state.icons.referenceMime,
   ]);
 
   const handleUploadIconFile = useCallback((file: File | null) => {
@@ -1615,6 +1777,7 @@ export default function Studio() {
               state={state}
               dispatch={dispatch}
               folderOptions={folderOptions}
+              onAnalyzeBrand={handleAnalyzeBrand}
               onGenerateIcons={handleGenerateIcons}
               onUploadFile={handleUploadIconFile}
               onPublish={handlePublishIcon}

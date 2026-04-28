@@ -21,18 +21,13 @@ export type GeneratedIcon = {
 export type IconStyleId = 'flat' | '3d' | 'neumorphism' | 'minimalist' | 'neon' | 'hand-drawn';
 export type IconShapeId = 'square' | 'rounded' | 'circle' | 'transparent';
 
-export type GenerateIconsOptions = {
-  prompt: string;
-  count: number;
+/** Options used when building Pollinations prompts (no API keys). */
+export type IconRenderOptions = {
   style: IconStyleId;
   shape: IconShapeId;
   colorPrimary: string;
   colorSecondary: string;
   colorBackground: string;
-  /** Raw base64 WITHOUT the `data:*;base64,` prefix */
-  referenceImageBase64?: string;
-  referenceMimeType?: string;
-  onProgress?: (message: string) => void;
 };
 
 export type ExtractedBrandColors = {
@@ -41,13 +36,24 @@ export type ExtractedBrandColors = {
   bgHex: string;
 };
 
-export type GeneratedIconBriefing = {
+export type BrandAnalysisResult = ExtractedBrandColors & {
+  contextDescription: string;
+};
+
+export type IconPromptBriefing = {
   descriptions: string[];
-  icons: GeneratedIcon[];
   suggestedName: string;
   suggestedPriceDiamonds: number;
   suggestedPriceCSCoins: number;
-  extractedColors?: ExtractedBrandColors;
+};
+
+export type GenerateIconPromptsInput = {
+  context: string;
+  itemsRequested: string;
+  colors: ExtractedBrandColors;
+  style: IconStyleId;
+  shape: IconShapeId;
+  count: number;
 };
 
 const ICON_STYLE_DESCRIPTORS: Record<IconStyleId, string> = {
@@ -60,10 +66,10 @@ const ICON_STYLE_DESCRIPTORS: Record<IconStyleId, string> = {
 };
 
 const ICON_SHAPE_DESCRIPTORS: Record<IconShapeId, string> = {
-  square: 'inside a square frame with sharp corners',
-  rounded: 'inside a rounded-square iOS app icon frame',
-  circle: 'inside a perfect circular badge frame',
-  transparent: 'on a fully transparent background with no frame',
+  square: 'square frame sharp corners',
+  rounded: 'rounded-square iOS app icon frame',
+  circle: 'circular badge frame',
+  transparent: 'transparent background no frame',
 };
 
 const ICON_STYLE_LABELS: Record<IconStyleId, string> = {
@@ -82,8 +88,6 @@ const ICON_SHAPE_LABELS: Record<IconShapeId, string> = {
   transparent: 'Transparente',
 };
 
-// Prefer Gemini 1.5 Flash for vision + JSON tooling in free tiers; keep fallbacks for keys
-// that only expose newer Flash aliases.
 const GEMINI_MODELS = [
   'gemini-1.5-flash',
   'gemini-2.5-flash',
@@ -91,7 +95,10 @@ const GEMINI_MODELS = [
   'gemini-flash-latest',
   'gemini-2.0-flash',
 ] as const;
+
 const POLLINATIONS_BASE_URL = 'https://image.pollinations.ai/prompt';
+/** Stay under typical proxy / browser URL limits (prompt is path-encoded). */
+const POLLINATIONS_URL_MAX_LEN = 1900;
 
 const HEX_PATTERN = /^#[0-9a-f]{6}$/i;
 const ALIGNMENTS = new Set<ThemeLayoutAlignment>(['start', 'center', 'end']);
@@ -118,19 +125,27 @@ const THEME_LOGIC_SYSTEM_PROMPT = [
   '- layoutAlignment: one of start, center, end.',
 ].join('\n');
 
-const BRAND_VISION_SYSTEM_PROMPT = [
-  'Eres un Brand & UI Designer dentro de "La Forja", un estudio de identidad visual para apps.',
-  'Tu unica salida valida es JSON estricto. Sin markdown, sin code fences, sin texto adicional.',
-  'Si recibes imagen, usala como referencia de marca real (logo, escudo, mood, contraste).',
-  'Devuelve EXACTAMENTE estas claves raiz: extractedColors, descriptions, suggestedName, suggestedPriceDiamonds, suggestedPriceCSCoins.',
-  'extractedColors: { primaryHex, secondaryHex, bgHex } con colores #RRGGBB (UPPERCASE).',
-  'Si NO hay imagen de referencia en el mensaje multimodal, usa extractedColors basados en el texto y estilo, pero dejalo coherente con el brief.',
-  'descriptions: array de EXACTAMENTE N prompts EN INGLES para un motor de imagenes, uno por icono.',
-  'Cada descripcion debe ser 10 a 22 palabras, describir UN UNICO objeto aislado y mencionar explicitamente los HEX extraidos (usa los 3 hex) y el vibe de la marca (sin inventar marcas trademark).',
-  'Prohibido: spritesheets, grids, collages, mockups, UI, texto visible, letras, palabras escritas, multiples objetos en la misma descripcion.',
-  'suggestedName: nombre comercial corto (1 a 4 palabras) en espanol o ingles.',
-  'suggestedPriceDiamonds: entero entre 1 y 50.',
-  'suggestedPriceCSCoins: entero entre 100 y 5000.',
+/** Vision call 1 — logo only, short JSON. */
+const ANALYZE_BRAND_SYSTEM_PROMPT = [
+  'You analyze brand logos for a design tool. Return ONLY strict JSON. No markdown, no code fences, no extra text.',
+  'Keys must be exactly: contextDescription, primaryHex, secondaryHex, bgHex.',
+  'contextDescription: Spanish, 1-3 short sentences: what the mark suggests (sport, club vibe, industry), mood, and visual personality.',
+  'Do NOT invent or name real trademarked clubs, teams, or brands unless clearly readable in the image; otherwise stay generic (e.g. "club deportivo clásico").',
+  'primaryHex, secondaryHex, bgHex: strings #RRGGBB UPPERCASE, the three dominant brand colors from the artwork (background may be a subtle neutral from the logo surround).',
+].join('\n');
+
+/** Text-only call 2 — icon prompts. */
+const ICON_PROMPTS_SYSTEM_PROMPT = [
+  'You write image prompts for a PNG icon generator.',
+  'Return ONLY strict JSON. No markdown, no code fences, no extra text.',
+  'Root keys exactly: descriptions, suggestedName, suggestedPriceDiamonds, suggestedPriceCSCoins.',
+  'descriptions: array of EXACTLY N strings in ENGLISH.',
+  'Each string MUST be one complete sentence, 14-22 words, naming exactly ONE concrete object/icon.',
+  'Each string MUST naturally include these three hex colors as uppercase tokens: PRIMARY SECONDARY BG (use the #RRGGBB values given in the user message).',
+  'Each string MUST reflect the brand context and item list; distribute items across icons, repeating only if N > number of items.',
+  'Forbidden in descriptions: grid, collage, sheet, mockup, UI screenshot, visible text, letters, words written on the icon, multiple unrelated objects in one icon.',
+  'suggestedName: short commercial set name, Spanish or English, 1-4 words.',
+  'suggestedPriceDiamonds: integer 1-50. suggestedPriceCSCoins: integer 100-5000.',
 ].join('\n');
 
 function getGeminiApiKey() {
@@ -306,40 +321,18 @@ function clampNumber(value: unknown, min: number, max: number, fallback: number)
   return Math.max(min, Math.min(max, Math.round(next)));
 }
 
-function fallbackIconDescriptions(prompt: string, expected: number): string[] {
-  const seed = (prompt || 'premium minimalist mobile app icon').replace(/[^a-zA-Z0-9\s]/g, ' ').trim();
-  return Array.from({ length: expected }, (_, index) => `A single minimalist icon related to ${seed} variation ${index + 1}`);
-}
-
-function fallbackSetName(prompt: string) {
-  const cleaned = (prompt || 'AI Icon Set').replace(/[^a-zA-Z0-9\s]/g, ' ').trim();
-  if (!cleaned) return 'AI Icon Set';
-  const words = cleaned.split(/\s+/).slice(0, 3);
-  return words.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
-}
-
 function normalizeBrandHex(value: unknown, field: string) {
   if (typeof value !== 'string' || !value.trim()) {
-    throw new Error(`Gemini devolvio extractedColors.${field} invalido.`);
+    throw new Error(`Gemini devolvio ${field} invalido.`);
   }
   const next = value.trim();
   if (!HEX_PATTERN.test(next)) {
-    throw new Error(`Gemini devolvio extractedColors.${field} con formato hex invalido: ${next}`);
+    throw new Error(`Gemini devolvio ${field} con formato hex invalido: ${next}`);
   }
   return next.toUpperCase();
 }
 
-function parseIconBriefing(
-  rawText: string,
-  expected: number,
-  options: GenerateIconsOptions,
-): {
-  descriptions: string[];
-  suggestedName: string;
-  suggestedPriceDiamonds: number;
-  suggestedPriceCSCoins: number;
-  extractedColors?: ExtractedBrandColors;
-} {
+function parseBrandAnalysis(rawText: string): BrandAnalysisResult {
   const jsonText = extractJsonObject(rawText);
   let parsed: Record<string, unknown>;
   try {
@@ -350,15 +343,34 @@ function parseIconBriefing(
     );
   }
 
-  let extractedColors: ExtractedBrandColors | undefined;
-  const colorsRaw = parsed.extractedColors;
-  if (colorsRaw && typeof colorsRaw === 'object') {
-    const colors = colorsRaw as Record<string, unknown>;
-    extractedColors = {
-      primaryHex: normalizeBrandHex(colors.primaryHex, 'primaryHex'),
-      secondaryHex: normalizeBrandHex(colors.secondaryHex, 'secondaryHex'),
-      bgHex: normalizeBrandHex(colors.bgHex, 'bgHex'),
-    };
+  const nested = parsed.extractedColors;
+  const c = nested && typeof nested === 'object' ? (nested as Record<string, unknown>) : null;
+
+  const primaryHex = normalizeBrandHex(c?.primaryHex ?? parsed.primaryHex, 'primaryHex');
+  const secondaryHex = normalizeBrandHex(c?.secondaryHex ?? parsed.secondaryHex, 'secondaryHex');
+  const bgHex = normalizeBrandHex(c?.bgHex ?? parsed.bgHex, 'bgHex');
+
+  if (typeof parsed.contextDescription !== 'string' || !parsed.contextDescription.trim()) {
+    throw new Error('Gemini no devolvio contextDescription valido.');
+  }
+
+  return {
+    contextDescription: parsed.contextDescription.trim(),
+    primaryHex,
+    secondaryHex,
+    bgHex,
+  };
+}
+
+function parseIconPromptsBriefing(rawText: string, expected: number): IconPromptBriefing {
+  const jsonText = extractJsonObject(rawText);
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(jsonText) as Record<string, unknown>;
+  } catch (error) {
+    throw new Error(
+      `Gemini devolvio JSON mal formateado: ${error instanceof Error ? error.message : 'parse error'}. Respuesta: ${rawText.slice(0, 180)}`,
+    );
   }
 
   const rawDescriptions = parsed.descriptions;
@@ -366,13 +378,13 @@ function parseIconBriefing(
   if (Array.isArray(rawDescriptions)) {
     for (const value of rawDescriptions) {
       if (typeof value === 'string' && value.trim().length > 0) {
-        descriptions.push(value.trim());
+        descriptions.push(value.trim().replace(/\s+/g, ' '));
       } else if (value && typeof value === 'object') {
         const obj = value as Record<string, unknown>;
         const candidate = [obj.description, obj.text, obj.name].find(
           (entry): entry is string => typeof entry === 'string' && entry.trim().length > 0,
         );
-        if (candidate) descriptions.push(candidate.trim());
+        if (candidate) descriptions.push(candidate.trim().replace(/\s+/g, ' '));
       }
     }
   }
@@ -381,135 +393,128 @@ function parseIconBriefing(
     throw new Error('Gemini no devolvio descripciones validas para los iconos.');
   }
 
-  const fallback = fallbackIconDescriptions(options.prompt, expected);
+  const filler = (i: number) =>
+    `A single premium mobile app icon variation ${i + 1} with bold shapes, soft studio lighting, and cohesive brand colors, one isolated subject only, no text`;
   while (descriptions.length < expected) {
-    descriptions.push(fallback[descriptions.length] ?? `A single minimalist isolated icon variation ${descriptions.length + 1}`);
+    descriptions.push(filler(descriptions.length));
   }
 
   const suggestedName =
     typeof parsed.suggestedName === 'string' && parsed.suggestedName.trim().length > 0
       ? parsed.suggestedName.trim()
-      : fallbackSetName(options.prompt);
+      : 'AI Icon Set';
 
   return {
     descriptions: descriptions.slice(0, expected),
     suggestedName,
     suggestedPriceDiamonds: clampNumber(parsed.suggestedPriceDiamonds, 1, 50, 5),
     suggestedPriceCSCoins: clampNumber(parsed.suggestedPriceCSCoins, 100, 5000, 500),
-    extractedColors,
   };
+}
+
+function toPalette(colors: ExtractedBrandColors): ExtractedBrandColors {
+  return {
+    primaryHex: colors.primaryHex.toUpperCase(),
+    secondaryHex: colors.secondaryHex.toUpperCase(),
+    bgHex: colors.bgHex.toUpperCase(),
+  };
+}
+
+export async function analyzeBrandReference(base64: string, mimeType: string): Promise<BrandAnalysisResult> {
+  const data = base64.trim();
+  const mime = (mimeType || 'image/png').trim();
+  if (!data) {
+    throw new Error('Falta la imagen en base64 para analizar la marca.');
+  }
+
+  const parts: Part[] = [
+    { inlineData: { mimeType: mime, data: data } },
+    {
+      text: [
+        'Analiza este logo o marca en la imagen.',
+        'Devuelve solo el JSON pedido: contexto en español y tres colores HEX exactos del arte.',
+      ].join('\n'),
+    },
+  ];
+
+  const rawText = await callGeminiJson(ANALYZE_BRAND_SYSTEM_PROMPT, parts, 0.35);
+  return parseBrandAnalysis(rawText);
+}
+
+export async function generateIconPrompts(input: GenerateIconPromptsInput): Promise<IconPromptBriefing> {
+  const count = clampIconCount(input.count);
+  const colors = toPalette(input.colors);
+  const ctx = (input.context || '').trim() || 'Tema general de marca deportiva o digital premium.';
+  const items = (input.itemsRequested || '').trim() || 'icono abstracto de energia y equipo';
+
+  const userText = [
+    `N (descriptions length) = ${count}.`,
+    `Brand context (Spanish, use as creative direction): ${ctx}`,
+    `Items to depict (comma or list, Spanish or English): ${items}`,
+    `Style for all icons: ${ICON_STYLE_LABELS[input.style]}. Container: ${ICON_SHAPE_LABELS[input.shape]}.`,
+    `PRIMARY color: ${colors.primaryHex}. SECONDARY color: ${colors.secondaryHex}. BG color: ${colors.bgHex}.`,
+    `Generate exactly ${count} English description strings as specified in the system rules.`,
+  ].join('\n');
+
+  const rawText = await callGeminiJson(ICON_PROMPTS_SYSTEM_PROMPT, [userText], 0.65);
+  return parseIconPromptsBriefing(rawText, count);
 }
 
 function buildPollinationsUrl(prompt: string, width: number, height: number, seed: number) {
-  const encodedPrompt = encodeURIComponent(prompt);
-  return `${POLLINATIONS_BASE_URL}/${encodedPrompt}?width=${width}&height=${height}&nologo=true&seed=${seed}`;
+  const suffix = `?width=${width}&height=${height}&nologo=true&seed=${seed}`;
+  const prefix = `${POLLINATIONS_BASE_URL}/`;
+
+  let normalized = prompt.replace(/\s+/g, ' ').trim();
+  if (!normalized.length) normalized = 'minimal abstract app icon, soft gradient, single subject';
+
+  while (
+    normalized.length > 40 &&
+    prefix.length + encodeURIComponent(normalized).length + suffix.length > POLLINATIONS_URL_MAX_LEN
+  ) {
+    normalized = normalized.slice(0, Math.floor(normalized.length * 0.92)).trimEnd();
+  }
+
+  const encodedPrompt = encodeURIComponent(normalized);
+  return `${prefix}${encodedPrompt}${suffix}`;
 }
 
-function buildIconImagePrompt(description: string, options: GenerateIconsOptions, palette?: ExtractedBrandColors) {
-  const primary = palette?.primaryHex ?? options.colorPrimary;
-  const secondary = palette?.secondaryHex ?? options.colorSecondary;
-  const background = palette?.bgHex ?? options.colorBackground;
+function buildIconImagePrompt(description: string, options: IconRenderOptions, palette: ExtractedBrandColors) {
+  const primary = palette.primaryHex;
+  const secondary = palette.secondaryHex;
+  const background = palette.bgHex;
+  let subject = description.replace(/\s+/g, ' ').trim();
+  if (subject.length < 16) {
+    subject = `Bold icon depicting ${subject}, single centered subject`;
+  }
 
   return [
-    `${ICON_STYLE_DESCRIPTORS[options.style]} icon of ${description}`,
+    `${ICON_STYLE_DESCRIPTORS[options.style]} app icon`,
+    subject,
     ICON_SHAPE_DESCRIPTORS[options.shape],
-    `primary color ${primary}`,
-    `secondary color ${secondary}`,
-    `background color ${background}`,
-    'centered, single isolated subject, premium quality, no text, no letters',
+    `use colors ${primary} ${secondary} and ${background}`,
+    'high detail, soft light, no text, no letters, one object only',
   ].join(', ');
 }
 
-export async function generateAIIconsBatch(options: GenerateIconsOptions): Promise<GeneratedIconBriefing> {
-  const expected = clampIconCount(options.count);
-  const cleanPrompt = (options.prompt || 'a generic premium mobile app theme').trim();
-  const onProgress = options.onProgress;
-  const safeOptions: GenerateIconsOptions = { ...options, count: expected, prompt: cleanPrompt };
+export function mapDescriptionsToPollinationsIcons(
+  descriptions: string[],
+  render: IconRenderOptions,
+  seedBase?: number,
+): GeneratedIcon[] {
+  const base = seedBase ?? Math.floor(Date.now() / 1000);
+  const palette = toPalette({
+    primaryHex: render.colorPrimary,
+    secondaryHex: render.colorSecondary,
+    bgHex: render.colorBackground,
+  });
 
-  const hasReference = Boolean(safeOptions.referenceImageBase64?.trim() && safeOptions.referenceMimeType?.trim());
-  const mimeType = hasReference ? String(safeOptions.referenceMimeType) : 'image/png';
-
-  const userText = [
-    `TE HE PASADO ${hasReference ? 'UNA IMAGEN DE REFERENCIA (logo/marca)' : 'UN BRIEF SOLO DE TEXTO'} y un texto del cliente.`,
-    `TAREA 1: ${hasReference ? 'Analiza la imagen y extrae la paleta EXACTA en HEX (#RRGGBB).' : 'Propone una paleta creible basada en el texto y el estilo.'}`,
-    `TAREA 2: Genera ${expected} descripciones de iconos basadas en el texto del cliente: "${cleanPrompt}".`,
-    `Estilo UI: ${ICON_STYLE_LABELS[safeOptions.style]}. Forma del contenedor: ${ICON_SHAPE_LABELS[safeOptions.shape]}.`,
-    hasReference
-      ? 'Colores manuales actuales (solo contexto, la imagen manda): principal ${P}, secundario ${S}, fondo ${B}.'
-          .replace('${P}', safeOptions.colorPrimary)
-          .replace('${S}', safeOptions.colorSecondary)
-          .replace('${B}', safeOptions.colorBackground)
-      : `Colores manuales actuales: principal ${safeOptions.colorPrimary}, secundario ${safeOptions.colorSecondary}, fondo ${safeOptions.colorBackground}.`,
-    'Devuelve JSON estricto con extractedColors + descriptions + suggestedName + suggestedPriceDiamonds + suggestedPriceCSCoins.',
-  ].join('\n');
-
-  let briefing: {
-    descriptions: string[];
-    suggestedName: string;
-    suggestedPriceDiamonds: number;
-    suggestedPriceCSCoins: number;
-    extractedColors?: ExtractedBrandColors;
-  };
-
-  try {
-    if (hasReference) {
-      onProgress?.('Analizando logo y extrayendo colores...');
-    } else {
-      onProgress?.('Generando briefing de marca con Gemini...');
-    }
-
-    const parts: Part[] = [];
-    if (hasReference) {
-      parts.push({
-        inlineData: {
-          mimeType,
-          data: String(safeOptions.referenceImageBase64),
-        },
-      });
-    }
-    parts.push({ text: userText });
-
-    const rawText = await callGeminiJson(BRAND_VISION_SYSTEM_PROMPT, parts, 0.85);
-    briefing = parseIconBriefing(rawText, expected, safeOptions);
-  } catch (error) {
-    console.warn('[aiStudioService] Gemini brief fallo, usando fallback local:', error);
-    briefing = {
-      descriptions: fallbackIconDescriptions(cleanPrompt, expected),
-      suggestedName: fallbackSetName(cleanPrompt),
-      suggestedPriceDiamonds: 5,
-      suggestedPriceCSCoins: 500,
-      extractedColors: undefined,
+  return descriptions.map((description, index) => {
+    const prompt = buildIconImagePrompt(description, render, palette);
+    return {
+      description,
+      url: buildPollinationsUrl(prompt, 256, 256, base + index + 1),
     };
-  }
-
-  onProgress?.('Renderizando iconos con Pollinations AI...');
-
-  const palette = briefing.extractedColors;
-  const paletteAwareOptions: GenerateIconsOptions = palette
-    ? {
-        ...safeOptions,
-        colorPrimary: palette.primaryHex,
-        colorSecondary: palette.secondaryHex,
-        colorBackground: palette.bgHex,
-      }
-    : safeOptions;
-
-  const seedBase = Math.floor(Date.now() / 1000);
-  const icons: GeneratedIcon[] = briefing.descriptions.map((description, index) => ({
-    description,
-    url: buildPollinationsUrl(buildIconImagePrompt(description, paletteAwareOptions, palette), 256, 256, seedBase + index + 1),
-  }));
-
-  onProgress?.('');
-
-  return {
-    descriptions: briefing.descriptions,
-    icons,
-    suggestedName: briefing.suggestedName,
-    suggestedPriceDiamonds: briefing.suggestedPriceDiamonds,
-    suggestedPriceCSCoins: briefing.suggestedPriceCSCoins,
-    extractedColors: briefing.extractedColors,
-  };
+  });
 }
 
 export async function generateAIWallpaper(prompt: string): Promise<string> {
