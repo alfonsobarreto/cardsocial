@@ -13,7 +13,7 @@ export type GeneratedThemeLogic = {
   layoutAlignment: ThemeLayoutAlignment;
 };
 
-const GEMINI_MODEL = 'gemini-1.5-pro-latest';
+const GEMINI_MODELS = ['gemini-1.5-pro', 'gemini-pro'] as const;
 const POLLINATIONS_BASE_URL = 'https://image.pollinations.ai/prompt';
 
 const HEX_PATTERN = /^#[0-9a-f]{6}$/i;
@@ -117,21 +117,37 @@ function parseThemeLogic(rawText: string): GeneratedThemeLogic {
 }
 
 export async function generateThemeLogic(prompt: string): Promise<GeneratedThemeLogic> {
-  const model = getGeminiClient().getGenerativeModel({
-    model: GEMINI_MODEL,
-    systemInstruction: THEME_LOGIC_SYSTEM_PROMPT,
-    generationConfig: {
-      temperature: 0.75,
-      responseMimeType: 'application/json',
-    },
-  });
+  const client = getGeminiClient();
+  let lastError: unknown = null;
 
-  const result = await model.generateContent([
-    `Prompt del admin: ${prompt || 'Skin premium profesional para Card-Social.'}`,
-    'Devuelve solo el JSON solicitado.',
-  ]);
+  for (const modelName of GEMINI_MODELS) {
+    try {
+      const model = client.getGenerativeModel({
+        model: modelName,
+        systemInstruction: THEME_LOGIC_SYSTEM_PROMPT,
+        generationConfig: {
+          temperature: 0.75,
+          responseMimeType: 'application/json',
+        },
+      });
 
-  return parseThemeLogic(result.response.text());
+      const result = await model.generateContent([
+        `Prompt del admin: ${prompt || 'Skin premium profesional para Card-Social.'}`,
+        'Devuelve solo el JSON solicitado.',
+      ]);
+
+      return parseThemeLogic(result.response.text());
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+      const canRetryWithFallback = /404|not found|not supported|not available|model/i.test(message);
+      if (!canRetryWithFallback || modelName === GEMINI_MODELS[GEMINI_MODELS.length - 1]) {
+        break;
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('No se pudo generar logica con Gemini.');
 }
 
 function buildPollinationsUrl(prompt: string, width: number, height: number, seed: number) {
