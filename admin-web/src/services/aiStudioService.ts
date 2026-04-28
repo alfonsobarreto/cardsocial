@@ -21,15 +21,6 @@ export type GeneratedIcon = {
 export type IconStyleId = 'flat' | '3d' | 'neumorphism' | 'minimalist' | 'neon' | 'hand-drawn';
 export type IconShapeId = 'square' | 'rounded' | 'circle' | 'transparent';
 
-/** Options used when building Pollinations prompts (no API keys). */
-export type IconRenderOptions = {
-  style: IconStyleId;
-  shape: IconShapeId;
-  colorPrimary: string;
-  colorSecondary: string;
-  colorBackground: string;
-};
-
 export type ExtractedBrandColors = {
   primaryHex: string;
   secondaryHex: string;
@@ -56,20 +47,16 @@ export type GenerateIconPromptsInput = {
   count: number;
 };
 
-const ICON_STYLE_DESCRIPTORS: Record<IconStyleId, string> = {
-  flat: 'flat 2D vector',
-  '3d': 'soft 3D rendered glossy',
-  neumorphism: 'soft neumorphism',
-  minimalist: 'ultra minimalist outline',
-  neon: 'cyberpunk neon glow',
-  'hand-drawn': 'hand-drawn organic sketch',
+export type GenerateAIIconsBatchInput = GenerateIconPromptsInput & {
+  onProgress?: (message: string) => void;
 };
 
-const ICON_SHAPE_DESCRIPTORS: Record<IconShapeId, string> = {
-  square: 'square frame sharp corners',
-  rounded: 'rounded-square iOS app icon frame',
-  circle: 'circular badge frame',
-  transparent: 'transparent background no frame',
+export type GeneratedIconBriefing = {
+  descriptions: string[];
+  icons: GeneratedIcon[];
+  suggestedName: string;
+  suggestedPriceDiamonds: number;
+  suggestedPriceCSCoins: number;
 };
 
 const ICON_STYLE_LABELS: Record<IconStyleId, string> = {
@@ -96,9 +83,8 @@ const GEMINI_MODELS = [
   'gemini-2.0-flash',
 ] as const;
 
-const POLLINATIONS_BASE_URL = 'https://image.pollinations.ai/prompt';
-/** Stay under typical proxy / browser URL limits (prompt is path-encoded). */
-const POLLINATIONS_URL_MAX_LEN = 1900;
+const VERTEX_IMAGEN_LOCATION = 'us-central1';
+const VERTEX_IMAGEN_MODEL = 'imagegeneration@006';
 
 const HEX_PATTERN = /^#[0-9a-f]{6}$/i;
 const ALIGNMENTS = new Set<ThemeLayoutAlignment>(['start', 'center', 'end']);
@@ -136,7 +122,7 @@ const ANALYZE_BRAND_SYSTEM_PROMPT = [
 
 /** Text-only call 2 — icon prompts. */
 const ICON_PROMPTS_SYSTEM_PROMPT = [
-  'You write image prompts for a PNG icon generator.',
+  'You write short English prompts for Google Vertex AI Imagen (app icons).',
   'Return ONLY strict JSON. No markdown, no code fences, no extra text.',
   'Root keys exactly: descriptions, suggestedName, suggestedPriceDiamonds, suggestedPriceCSCoins.',
   'descriptions: array of EXACTLY N strings in ENGLISH.',
@@ -460,65 +446,132 @@ export async function generateIconPrompts(input: GenerateIconPromptsInput): Prom
   return parseIconPromptsBriefing(rawText, count);
 }
 
-function buildPollinationsUrl(prompt: string, width: number, height: number, seed: number) {
-  const suffix = `?width=${width}&height=${height}&nologo=true&seed=${seed}`;
-  const prefix = `${POLLINATIONS_BASE_URL}/`;
-
-  let normalized = prompt.replace(/\s+/g, ' ').trim();
-  if (!normalized.length) normalized = 'minimal abstract app icon, soft gradient, single subject';
-
-  while (
-    normalized.length > 40 &&
-    prefix.length + encodeURIComponent(normalized).length + suffix.length > POLLINATIONS_URL_MAX_LEN
-  ) {
-    normalized = normalized.slice(0, Math.floor(normalized.length * 0.92)).trimEnd();
-  }
-
-  const encodedPrompt = encodeURIComponent(normalized);
-  return `${prefix}${encodedPrompt}${suffix}`;
+function getVertexEnv() {
+  const projectId = (import.meta.env.VITE_GCP_PROJECT_ID as string | undefined)?.trim() ?? '';
+  const accessToken = (import.meta.env.VITE_GCP_ACCESS_TOKEN as string | undefined)?.trim() ?? '';
+  return { projectId, accessToken };
 }
 
-function buildIconImagePrompt(description: string, options: IconRenderOptions, palette: ExtractedBrandColors) {
-  const primary = palette.primaryHex;
-  const secondary = palette.secondaryHex;
-  const background = palette.bgHex;
-  let subject = description.replace(/\s+/g, ' ').trim();
-  if (subject.length < 16) {
-    subject = `Bold icon depicting ${subject}, single centered subject`;
-  }
-
-  return [
-    `${ICON_STYLE_DESCRIPTORS[options.style]} app icon`,
-    subject,
-    ICON_SHAPE_DESCRIPTORS[options.shape],
-    `use colors ${primary} ${secondary} and ${background}`,
-    'high detail, soft light, no text, no letters, one object only',
-  ].join(', ');
+function vertexIconPendingDataUrl(): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+    <rect fill="#64748b" width="256" height="256"/>
+    <text x="128" y="132" text-anchor="middle" fill="#f1f5f9" font-family="system-ui,sans-serif" font-size="11" font-weight="700">Vertex AI Pending Config</text>
+  </svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
-export function mapDescriptionsToPollinationsIcons(
-  descriptions: string[],
-  render: IconRenderOptions,
-  seedBase?: number,
-): GeneratedIcon[] {
-  const base = seedBase ?? Math.floor(Date.now() / 1000);
-  const palette = toPalette({
-    primaryHex: render.colorPrimary,
-    secondaryHex: render.colorSecondary,
-    bgHex: render.colorBackground,
-  });
+function vertexWallpaperPendingDataUrl(): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="700" viewBox="0 0 400 700">
+    <rect fill="#64748b" width="400" height="700"/>
+    <text x="200" y="352" text-anchor="middle" fill="#f1f5f9" font-family="system-ui,sans-serif" font-size="13" font-weight="700">Vertex AI Pending Config</text>
+  </svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
 
-  return descriptions.map((description, index) => {
-    const prompt = buildIconImagePrompt(description, render, palette);
-    return {
-      description,
-      url: buildPollinationsUrl(prompt, 256, 256, base + index + 1),
-    };
-  });
+function vertexImagenPredictUrl(projectId: string) {
+  return `https://${VERTEX_IMAGEN_LOCATION}-aiplatform.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/locations/${VERTEX_IMAGEN_LOCATION}/publishers/google/models/${VERTEX_IMAGEN_MODEL}:predict`;
+}
+
+type VertexPredictionRaw = {
+  bytes?: string;
+  bytesBase64Encoded?: string;
+  mimeType?: string;
+};
+
+async function vertexImagenPredict(
+  instancePrompt: string,
+  parameters: { sampleCount: number; aspectRatio: string },
+): Promise<string | null> {
+  const { projectId, accessToken } = getVertexEnv();
+  if (!projectId || !accessToken) return null;
+
+  const url = vertexImagenPredictUrl(projectId);
+  const body = {
+    instances: [{ prompt: instancePrompt }],
+    parameters,
+  };
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      console.warn('[Vertex Imagen] predict failed:', response.status, errText.slice(0, 400));
+      return null;
+    }
+
+    const data = (await response.json()) as { predictions?: VertexPredictionRaw[] };
+    const pred = data.predictions?.[0];
+    const rawB64 = pred?.bytes ?? pred?.bytesBase64Encoded;
+    if (!rawB64 || typeof rawB64 !== 'string') {
+      console.warn('[Vertex Imagen] missing predictions[0].bytes / bytesBase64Encoded');
+      return null;
+    }
+    const mime = pred?.mimeType && typeof pred.mimeType === 'string' ? pred.mimeType : 'image/png';
+    return `data:${mime};base64,${rawB64}`;
+  } catch (error) {
+    console.warn('[Vertex Imagen] request error:', error);
+    return null;
+  }
+}
+
+export async function generateIconWithVertexAI(prompt: string, hexColorBackground: string): Promise<string> {
+  const { projectId, accessToken } = getVertexEnv();
+  if (!projectId || !accessToken) {
+    return vertexIconPendingDataUrl();
+  }
+
+  let bg = (hexColorBackground || '#0B1220').trim();
+  if (!HEX_PATTERN.test(bg)) bg = '#0B1220';
+
+  const safePrompt = prompt.replace(/\s+/g, ' ').trim() || 'abstract premium app symbol';
+  const instancePrompt = `A minimalist flat vector iOS app icon of ${safePrompt}, centered, solid background color ${bg}, dribbble style, high quality`;
+
+  const dataUrl = await vertexImagenPredict(instancePrompt, { sampleCount: 1, aspectRatio: '1:1' });
+  return dataUrl ?? vertexIconPendingDataUrl();
+}
+
+export async function generateAIIconsBatch(input: GenerateAIIconsBatchInput): Promise<GeneratedIconBriefing> {
+  const onProgress = input.onProgress;
+  onProgress?.('Gemini: generando descripciones de iconos...');
+
+  const briefing = await generateIconPrompts(input);
+  const bgHex = toPalette(input.colors).bgHex;
+
+  onProgress?.('Vertex AI (Imagen): generando imagenes...');
+
+  const urls = await Promise.all(briefing.descriptions.map((desc) => generateIconWithVertexAI(desc, bgHex)));
+
+  const icons: GeneratedIcon[] = briefing.descriptions.map((description, index) => ({
+    description,
+    url: urls[index] ?? vertexIconPendingDataUrl(),
+  }));
+
+  onProgress?.('');
+
+  return {
+    descriptions: briefing.descriptions,
+    icons,
+    suggestedName: briefing.suggestedName,
+    suggestedPriceDiamonds: briefing.suggestedPriceDiamonds,
+    suggestedPriceCSCoins: briefing.suggestedPriceCSCoins,
+  };
 }
 
 export async function generateAIWallpaper(prompt: string): Promise<string> {
-  const wallpaperPrompt = `${prompt || 'premium mobile wallpaper'} vertical mobile wallpaper, clean gradients, professional visual identity, no text`;
-  const seed = Math.floor(Date.now() / 1000) + 77;
-  return buildPollinationsUrl(wallpaperPrompt, 1024, 1792, seed);
+  const { projectId, accessToken } = getVertexEnv();
+  if (!projectId || !accessToken) {
+    return vertexWallpaperPendingDataUrl();
+  }
+
+  const instancePrompt = `${prompt || 'premium mobile wallpaper'}, vertical mobile wallpaper, clean gradients, professional visual identity, no text, no letters`;
+  const dataUrl = await vertexImagenPredict(instancePrompt, { sampleCount: 1, aspectRatio: '9:16' });
+  return dataUrl ?? vertexWallpaperPendingDataUrl();
 }

@@ -48,9 +48,8 @@ import { useAuth } from '../auth/useAuth';
 import {
   analyzeBrandReference,
   generateAIWallpaper,
-  generateIconPrompts,
+  generateAIIconsBatch,
   generateThemeLogic,
-  mapDescriptionsToPollinationsIcons,
   type ExtractedBrandColors,
   type GeneratedThemeLogic,
   type IconShapeId,
@@ -456,16 +455,24 @@ function PanelCard({
   icon: Icon,
   children,
   defaultOpen = true,
+  accentHex,
 }: {
   title: string;
   eyebrow: string;
   icon: ComponentType<{ className?: string; size?: number }>;
   children: ReactNode;
   defaultOpen?: boolean;
+  /** Acento de marca (ej. Labels del skin): borde izquierdo del panel */
+  accentHex?: string;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <section className="overflow-hidden rounded-[1.6rem] border border-white/10 bg-slate-900/70 shadow-2xl shadow-black/20 backdrop-blur">
+    <section
+      className={`overflow-hidden rounded-[1.6rem] border border-white/10 bg-slate-900/70 shadow-2xl shadow-black/20 backdrop-blur ${
+        accentHex ? 'border-l-4' : ''
+      }`}
+      style={accentHex ? { borderLeftColor: accentHex } : undefined}
+    >
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -715,7 +722,7 @@ function AiIconPanel({
   const selectedCandidate = ic.candidates.find((candidate) => candidate.id === ic.selectedId) ?? null;
   const previewUrl = ic.uploadedFilePreview || selectedCandidate?.imageUrl || '';
   const previewLabel = ic.uploadedFile ? `Diseno propio · ${ic.uploadedFile.name}` : selectedCandidate?.name ?? 'Sin seleccion';
-  const previewSource = ic.uploadedFile ? 'Manual' : selectedCandidate ? 'IA Gemini Pro' : null;
+  const previewSource = ic.uploadedFile ? 'Archivo manual' : selectedCandidate ? 'Icono IA · tienda' : null;
 
   const handleFileInput = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
@@ -889,7 +896,7 @@ function AiIconPanel({
                 </span>
                 Generacion de iconos
               </p>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Gemini texto + Pollinations</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Gemini + Vertex Imagen</span>
             </div>
 
             <div className="grid gap-4">
@@ -987,7 +994,35 @@ function AiIconPanel({
         </div>
       </PanelCard>
 
-      <PanelCard title="Cuadricula de Resultados" eyebrow="Zone C · Gallery" icon={LayoutGrid}>
+      <div
+        className="rounded-2xl border px-4 py-3.5 text-left text-xs leading-relaxed"
+        style={{
+          borderColor: `${state.skin.labelsHex}66`,
+          background: `linear-gradient(125deg, ${state.skin.labelsHex}18 0%, rgba(15,23,42,0.92) 52%, transparent 100%)`,
+        }}
+      >
+        <p className="font-black uppercase tracking-[0.14em] text-slate-400">Esto no sustituye tu tarjeta sola</p>
+        <p className="mt-2 text-slate-300">
+          <strong className="text-white">Zone C y Zone D</strong> sirven para producir y publicar{' '}
+          <strong className="text-white">un icono suelto</strong> en la tienda (PNG en un pack). No es el mock completo del perfil Card-Social.
+        </p>
+        <p className="mt-2 text-slate-300">
+          La tarjeta con <strong className="text-white">avatar, titulo, medallas y bloque de iconos</strong> esta en la{' '}
+          <strong className="text-white">columna derecha</strong>. El asistente de marca esta arriba: expande <strong className="text-white">AI Icon Lab</strong> si lo
+          cerraste; ahi estan el <strong className="text-white">Paso 1</strong> (logo) y <strong className="text-white">Paso 2</strong> (contexto + generar).
+        </p>
+        <p className="mt-2 text-[11px] text-slate-500">
+          Si el titular del tile no coincide con el nombre comercial, ajusta contexto o elementos en el paso 2, o edita el nombre antes de publicar. Vertex Imagen usa el
+          prompt en ingles que devuelve Gemini.
+        </p>
+      </div>
+
+      <PanelCard
+        title="Cuadricula de Resultados"
+        eyebrow="Zone C · Gallery"
+        icon={LayoutGrid}
+        accentHex={state.skin.labelsHex}
+      >
         {ic.analyzingBrand || ic.generating ? (
           <div className="mb-4 space-y-2 rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3">
             <progress className="h-1.5 w-full overflow-hidden rounded-full accent-cyan-400 [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-bar]:bg-white/10 [&::-webkit-progress-value]:rounded-full" />
@@ -998,7 +1033,7 @@ function AiIconPanel({
         ) : null}
         {ic.candidates.length === 0 ? (
           <div className="flex min-h-[180px] items-center justify-center rounded-2xl border border-dashed border-white/15 bg-slate-950/60 px-4 py-8 text-center text-xs font-bold text-slate-500">
-            Completa el paso 2 para ver la cuadricula. Cada tile muestra un spinner hasta que Pollinations termina de pintar.
+            Completa el paso 2 para ver la cuadricula. Cada tile muestra un spinner hasta que Vertex AI termina de generar el PNG.
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-5">
@@ -1022,7 +1057,12 @@ function AiIconPanel({
         )}
       </PanelCard>
 
-      <PanelCard title="Inspector & Uploader Manual" eyebrow="Zone D · Publish" icon={Layers}>
+      <PanelCard
+        title="Inspector & Uploader Manual"
+        eyebrow="Zone D · Publish"
+        icon={Layers}
+        accentHex={state.skin.labelsHex}
+      >
         <div className="grid gap-5 lg:grid-cols-[220px_1fr]">
           <div
             onDragEnter={(event) => {
@@ -1421,9 +1461,11 @@ function LayoutPanel({
 function LivePreview({
   state,
   fonts,
+  activeTab = 'icons',
 }: {
   state: ForgeState;
   fonts: StudioFont[];
+  activeTab?: ForgeTab;
 }) {
   const customFont = state.skin.customFontId ? fonts.find((font) => font.id === state.skin.customFontId) ?? null : null;
   const fontFamily =
@@ -1451,6 +1493,13 @@ function LivePreview({
     <aside className="relative flex min-h-[760px] items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_50%_0%,#0f172a_0,#020617_55%)] px-4 py-10">
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.03)_1px,transparent_1px)] bg-[size:32px_32px] opacity-40" />
       <div className="relative w-full max-w-[360px]">
+        {activeTab === 'icons' ? (
+          <p className="mb-3 rounded-2xl border border-white/10 bg-slate-900/50 px-3.5 py-2.5 text-[11px] font-semibold leading-snug text-slate-400">
+            Desde <span className="text-slate-200">Iconos AI</span>: la cuadricula de la izquierda son assets para la{' '}
+            <span className="text-slate-200">tienda</span>. Aqui ves como quedan incorporados en la{' '}
+            <span className="text-slate-200">tarjeta Card-Social</span> (seccion Iconos).
+          </p>
+        ) : null}
         <div className="mb-4 flex items-center justify-between rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3 backdrop-blur-md">
           <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">
             <CreditCard className="h-4 w-4 shrink-0" style={{ color: accent }} />
@@ -1670,9 +1719,9 @@ export default function Studio() {
       return;
     }
 
-    dispatch({ type: 'ICON_PATCH', patch: { generating: true, generatingMessage: 'Generando prompts con Gemini...' } });
+    dispatch({ type: 'ICON_PATCH', patch: { generating: true, generatingMessage: 'Gemini: generando prompts...' } });
     try {
-      const briefing = await generateIconPrompts({
+      const pack = await generateAIIconsBatch({
         context: state.icons.brandContext,
         itemsRequested: state.icons.iconItems,
         colors: {
@@ -1683,22 +1732,12 @@ export default function Studio() {
         style: state.icons.style,
         shape: state.icons.shape,
         count: state.icons.count,
+        onProgress: (message) => {
+          dispatch({ type: 'ICON_PATCH', patch: { generatingMessage: message } });
+        },
       });
 
-      dispatch({
-        type: 'ICON_PATCH',
-        patch: { generatingMessage: 'Construyendo URLs de Pollinations y pintando la cuadricula...' },
-      });
-
-      const renderOpts = {
-        style: state.icons.style,
-        shape: state.icons.shape,
-        colorPrimary: state.icons.colorPrimary,
-        colorSecondary: state.icons.colorSecondary,
-        colorBackground: state.icons.colorBackground,
-      };
-      const pollinations = mapDescriptionsToPollinationsIcons(briefing.descriptions, renderOpts);
-      const candidates = pollinations.map((icon, index): AiIconCandidate => ({
+      const candidates = pack.icons.map((icon, index): AiIconCandidate => ({
         id: `icon-${Date.now()}-${index}`,
         name: titleCaseFromPrompt(icon.description, `Icon ${index + 1}`),
         prompt: icon.description,
@@ -1710,9 +1749,9 @@ export default function Studio() {
       dispatch({
         type: 'SET_GENERATED_ICONS',
         candidates,
-        suggestedName: briefing.suggestedName,
-        suggestedPriceDiamonds: briefing.suggestedPriceDiamonds,
-        suggestedPriceCSCoins: briefing.suggestedPriceCSCoins,
+        suggestedName: pack.suggestedName,
+        suggestedPriceDiamonds: pack.suggestedPriceDiamonds,
+        suggestedPriceCSCoins: pack.suggestedPriceCSCoins,
       });
     } catch (error) {
       dispatch({ type: 'ICON_PATCH', patch: { generating: false, generatingMessage: '' } });
@@ -1872,7 +1911,7 @@ export default function Studio() {
         </section>
 
         <div className="lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto">
-          <LivePreview state={state} fonts={fonts} />
+          <LivePreview state={state} fonts={fonts} activeTab={state.tab} />
         </div>
       </main>
 
