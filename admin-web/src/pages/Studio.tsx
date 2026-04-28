@@ -44,6 +44,7 @@ import {
   generateAIIconsBatch,
   generateAIWallpaper,
   generateThemeLogic,
+  type ExtractedBrandColors,
   type GeneratedThemeLogic,
   type IconShapeId,
   type IconStyleId,
@@ -125,8 +126,14 @@ type AiIconState = {
   colorSecondary: string;
   colorBackground: string;
 
+  // Phase 2 — reference logo for Gemini Vision
+  referencePreview: string;
+  referenceBase64: string;
+  referenceMime: string;
+
   // Generation lifecycle
   generating: boolean;
+  generatingMessage: string;
   candidates: AiIconCandidate[];
 
   // Zone D — inspector & publish
@@ -181,6 +188,7 @@ type ForgeAction =
       suggestedName: string;
       suggestedPriceDiamonds: number;
       suggestedPriceCSCoins: number;
+      extractedColors?: ExtractedBrandColors;
     }
   | { type: 'SELECT_ICON_CANDIDATE'; id: string }
   | { type: 'SET_UPLOADED_ICON'; file: File | null; preview: string }
@@ -196,7 +204,11 @@ const initialState: ForgeState = {
     colorPrimary: '#6366F1',
     colorSecondary: '#22D3EE',
     colorBackground: '#0B1220',
+    referencePreview: '',
+    referenceBase64: '',
+    referenceMime: 'image/png',
     generating: false,
+    generatingMessage: '',
     candidates: [],
     selectedId: '',
     uploadedFile: null,
@@ -239,6 +251,24 @@ function titleCaseFromPrompt(prompt: string, fallback: string) {
     .slice(0, 4);
   if (!words.length) return fallback;
   return words.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+}
+
+async function readFileAsRawBase64(file: File): Promise<{ rawBase64: string; mimeType: string }> {
+  const mimeType = file.type && file.type.startsWith('image/') ? file.type : 'image/png';
+  const dataUrl: string = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('No se pudo leer la imagen de referencia.'));
+    reader.onload = () => resolve(String(reader.result ?? ''));
+    reader.readAsDataURL(file);
+  });
+
+  const marker = 'base64,';
+  const index = dataUrl.indexOf(marker);
+  if (index === -1) {
+    throw new Error('La imagen de referencia no pudo convertirse a base64.');
+  }
+
+  return { rawBase64: dataUrl.slice(index + marker.length).trim(), mimeType };
 }
 
 function createIconCandidates(prompt: string): AiIconCandidate[] {
@@ -291,11 +321,13 @@ function forgeReducer(state: ForgeState, action: ForgeAction): ForgeState {
       return { ...state, layout: { ...state.layout, ...action.patch } };
     case 'SET_GENERATED_ICONS': {
       const candidates = action.candidates;
+      const colors = action.extractedColors;
       return {
         ...state,
         icons: {
           ...state.icons,
           generating: false,
+          generatingMessage: '',
           candidates,
           selectedId: candidates[0]?.id ?? '',
           uploadedFile: null,
@@ -303,6 +335,13 @@ function forgeReducer(state: ForgeState, action: ForgeAction): ForgeState {
           name: action.suggestedName || candidates[0]?.name || '',
           priceDiamonds: String(action.suggestedPriceDiamonds),
           priceCoins: String(action.suggestedPriceCSCoins),
+          ...(colors
+            ? {
+                colorPrimary: colors.primaryHex,
+                colorSecondary: colors.secondaryHex,
+                colorBackground: colors.bgHex,
+              }
+            : {}),
         },
       };
     }
@@ -561,7 +600,9 @@ function AiIconPanel({
 }) {
   const ic = state.icons;
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const referenceInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [referenceDragActive, setReferenceDragActive] = useState(false);
   const selectedCandidate = ic.candidates.find((candidate) => candidate.id === ic.selectedId) ?? null;
   const previewUrl = ic.uploadedFilePreview || selectedCandidate?.imageUrl || '';
   const previewLabel = ic.uploadedFile ? `Diseno propio · ${ic.uploadedFile.name}` : selectedCandidate?.name ?? 'Sin seleccion';
@@ -578,6 +619,61 @@ function AiIconPanel({
     setDragActive(false);
     const file = event.dataTransfer.files?.[0] ?? null;
     if (file) onUploadFile(file);
+  };
+
+  const pickReferenceFile = async (file: File | null) => {
+    const prev = ic.referencePreview;
+    if (!file) {
+      if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
+      dispatch({
+        type: 'ICON_PATCH',
+        patch: {
+          referencePreview: '',
+          referenceBase64: '',
+          referenceMime: 'image/png',
+        },
+      });
+      if (referenceInputRef.current) referenceInputRef.current.value = '';
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      if (referenceInputRef.current) referenceInputRef.current.value = '';
+      return;
+    }
+    if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
+    try {
+      const { rawBase64, mimeType } = await readFileAsRawBase64(file);
+      const preview = URL.createObjectURL(file);
+      dispatch({
+        type: 'ICON_PATCH',
+        patch: {
+          referencePreview: preview,
+          referenceBase64: rawBase64,
+          referenceMime: mimeType,
+        },
+      });
+    } catch {
+      dispatch({
+        type: 'ICON_PATCH',
+        patch: {
+          referencePreview: '',
+          referenceBase64: '',
+          referenceMime: 'image/png',
+        },
+      });
+    }
+    if (referenceInputRef.current) referenceInputRef.current.value = '';
+  };
+
+  const handleReferenceInput = (event: ChangeEvent<HTMLInputElement>) => {
+    void pickReferenceFile(event.target.files?.[0] ?? null);
+  };
+
+  const handleReferenceDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setReferenceDragActive(false);
+    const file = event.dataTransfer.files?.[0] ?? null;
+    void pickReferenceFile(file);
   };
 
   return (
@@ -645,14 +741,69 @@ function AiIconPanel({
             />
           </div>
 
-          <button
-            type="button"
-            disabled
-            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-3 text-xs font-black uppercase tracking-[0.2em] text-slate-500"
-          >
-            <ImageIcon className="h-4 w-4" />
-            Subir Imagen de Referencia para IA · Fase 2
-          </button>
+          <div className="space-y-2">
+            <FieldLabel>Referencia de marca (opcional)</FieldLabel>
+            <input
+              ref={referenceInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleReferenceInput}
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <div
+                role="button"
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    referenceInputRef.current?.click();
+                  }
+                }}
+                onDragEnter={() => setReferenceDragActive(true)}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setReferenceDragActive(true);
+                }}
+                onDragLeave={() => setReferenceDragActive(false)}
+                onDrop={handleReferenceDrop}
+                className={`flex min-w-0 flex-1 cursor-pointer flex-col gap-2 rounded-2xl border border-dashed px-4 py-3 transition ${
+                  referenceDragActive
+                    ? 'border-fuchsia-400/60 bg-fuchsia-500/10'
+                    : 'border-white/15 bg-white/[0.02] hover:border-white/25'
+                }`}
+                onClick={() => referenceInputRef.current?.click()}
+              >
+                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-200">
+                  <ImageIcon className="h-4 w-4 shrink-0 text-fuchsia-300" />
+                  Subir imagen de referencia para IA
+                </div>
+                <p className="text-[11px] font-semibold leading-snug text-slate-500">
+                  Logo o escudo: Gemini extrae HEX y la cuadricula adopta la paleta al generar.
+                </p>
+              </div>
+              {ic.referencePreview ? (
+                <div className="relative shrink-0">
+                  <img
+                    src={ic.referencePreview}
+                    alt="Referencia de marca"
+                    className="h-14 w-14 rounded-xl border border-white/15 object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void pickReferenceFile(null);
+                    }}
+                    className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full border border-white/20 bg-slate-950 text-white shadow-lg transition hover:bg-rose-600"
+                    aria-label="Quitar imagen de referencia"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </div>
 
           <button
             type="button"
@@ -663,6 +814,9 @@ function AiIconPanel({
             {ic.generating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wand className="h-5 w-5" />}
             Generar con Gemini Pro
           </button>
+          {ic.generating && ic.generatingMessage ? (
+            <p className="text-center text-xs font-semibold text-fuchsia-200/90">{ic.generatingMessage}</p>
+          ) : null}
         </div>
       </PanelCard>
 
@@ -1263,6 +1417,12 @@ export default function Studio() {
     return () => URL.revokeObjectURL(preview);
   }, [state.icons.uploadedFilePreview]);
 
+  useEffect(() => {
+    const preview = state.icons.referencePreview;
+    if (!preview || !preview.startsWith('blob:')) return;
+    return () => URL.revokeObjectURL(preview);
+  }, [state.icons.referencePreview]);
+
   const folderOptions = useMemo(() => {
     const set = new Set<string>(ICON_FOLDER_DEFAULTS as readonly string[]);
     for (const folder of folderDocsToNames(packs, state.icons.folder, state.icons.newFolder)) {
@@ -1272,8 +1432,10 @@ export default function Studio() {
   }, [packs, state.icons.folder, state.icons.newFolder]);
 
   const handleGenerateIcons = useCallback(async () => {
-    dispatch({ type: 'ICON_PATCH', patch: { generating: true } });
+    dispatch({ type: 'ICON_PATCH', patch: { generating: true, generatingMessage: '' } });
     try {
+      const refB64 = state.icons.referenceBase64.trim();
+      const refMime = state.icons.referenceMime.trim();
       const briefing = await generateAIIconsBatch({
         prompt: state.icons.prompt,
         count: state.icons.count,
@@ -1282,6 +1444,12 @@ export default function Studio() {
         colorPrimary: state.icons.colorPrimary,
         colorSecondary: state.icons.colorSecondary,
         colorBackground: state.icons.colorBackground,
+        ...(refB64 && refMime
+          ? { referenceImageBase64: refB64, referenceMimeType: refMime }
+          : {}),
+        onProgress: (message) => {
+          dispatch({ type: 'ICON_PATCH', patch: { generatingMessage: message } });
+        },
       });
       const candidates = briefing.icons.map((icon, index): AiIconCandidate => ({
         id: `gemini-pro-${Date.now()}-${index}`,
@@ -1297,9 +1465,10 @@ export default function Studio() {
         suggestedName: briefing.suggestedName,
         suggestedPriceDiamonds: briefing.suggestedPriceDiamonds,
         suggestedPriceCSCoins: briefing.suggestedPriceCSCoins,
+        ...(briefing.extractedColors ? { extractedColors: briefing.extractedColors } : {}),
       });
     } catch (error) {
-      dispatch({ type: 'ICON_PATCH', patch: { generating: false } });
+      dispatch({ type: 'ICON_PATCH', patch: { generating: false, generatingMessage: '' } });
       setToast({ kind: 'error', message: error instanceof Error ? error.message : 'Error generando iconos con la AI.' });
     }
   }, [
@@ -1310,6 +1479,8 @@ export default function Studio() {
     state.icons.colorPrimary,
     state.icons.colorSecondary,
     state.icons.colorBackground,
+    state.icons.referenceBase64,
+    state.icons.referenceMime,
   ]);
 
   const handleUploadIconFile = useCallback((file: File | null) => {

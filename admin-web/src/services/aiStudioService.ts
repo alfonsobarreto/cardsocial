@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, type Part } from '@google/generative-ai';
 
 export type ThemeLayoutAlignment = 'start' | 'center' | 'end';
 
@@ -29,6 +29,16 @@ export type GenerateIconsOptions = {
   colorPrimary: string;
   colorSecondary: string;
   colorBackground: string;
+  /** Raw base64 WITHOUT the `data:*;base64,` prefix */
+  referenceImageBase64?: string;
+  referenceMimeType?: string;
+  onProgress?: (message: string) => void;
+};
+
+export type ExtractedBrandColors = {
+  primaryHex: string;
+  secondaryHex: string;
+  bgHex: string;
 };
 
 export type GeneratedIconBriefing = {
@@ -37,6 +47,7 @@ export type GeneratedIconBriefing = {
   suggestedName: string;
   suggestedPriceDiamonds: number;
   suggestedPriceCSCoins: number;
+  extractedColors?: ExtractedBrandColors;
 };
 
 const ICON_STYLE_DESCRIPTORS: Record<IconStyleId, string> = {
@@ -71,14 +82,14 @@ const ICON_SHAPE_LABELS: Record<IconShapeId, string> = {
   transparent: 'Transparente',
 };
 
-// Keep this list Flash-only: Pro aliases are not available on every free-tier
-// API key/project and were causing the Studio toast to surface 404s.
+// Prefer Gemini 1.5 Flash for vision + JSON tooling in free tiers; keep fallbacks for keys
+// that only expose newer Flash aliases.
 const GEMINI_MODELS = [
+  'gemini-1.5-flash',
   'gemini-2.5-flash',
   'gemini-2.5-flash-lite',
   'gemini-flash-latest',
   'gemini-2.0-flash',
-  'gemini-1.5-flash',
 ] as const;
 const POLLINATIONS_BASE_URL = 'https://image.pollinations.ai/prompt';
 
@@ -107,15 +118,19 @@ const THEME_LOGIC_SYSTEM_PROMPT = [
   '- layoutAlignment: one of start, center, end.',
 ].join('\n');
 
-const ICON_ART_DIRECTOR_PROMPT = [
-  'Eres un Director de UI/UX para una marketplace mobile premium de iconos.',
+const BRAND_VISION_SYSTEM_PROMPT = [
+  'Eres un Brand & UI Designer dentro de "La Forja", un estudio de identidad visual para apps.',
   'Tu unica salida valida es JSON estricto. Sin markdown, sin code fences, sin texto adicional.',
-  'El JSON debe tener EXACTAMENTE las claves: descriptions, suggestedName, suggestedPriceDiamonds, suggestedPriceCSCoins.',
-  'descriptions: array de prompts EN INGLES, uno por icono pedido, frases de 6 a 16 palabras, cada una describe UN UNICO objeto aislado.',
-  'No menciones layouts, spritesheets, grids, collages ni texto en las descripciones.',
+  'Si recibes imagen, usala como referencia de marca real (logo, escudo, mood, contraste).',
+  'Devuelve EXACTAMENTE estas claves raiz: extractedColors, descriptions, suggestedName, suggestedPriceDiamonds, suggestedPriceCSCoins.',
+  'extractedColors: { primaryHex, secondaryHex, bgHex } con colores #RRGGBB (UPPERCASE).',
+  'Si NO hay imagen de referencia en el mensaje multimodal, usa extractedColors basados en el texto y estilo, pero dejalo coherente con el brief.',
+  'descriptions: array de EXACTAMENTE N prompts EN INGLES para un motor de imagenes, uno por icono.',
+  'Cada descripcion debe ser 10 a 22 palabras, describir UN UNICO objeto aislado y mencionar explicitamente los HEX extraidos (usa los 3 hex) y el vibe de la marca (sin inventar marcas trademark).',
+  'Prohibido: spritesheets, grids, collages, mockups, UI, texto visible, letras, palabras escritas, multiples objetos en la misma descripcion.',
   'suggestedName: nombre comercial corto (1 a 4 palabras) en espanol o ingles.',
-  'suggestedPriceDiamonds: numero entero entre 1 y 50.',
-  'suggestedPriceCSCoins: numero entero entre 100 y 5000.',
+  'suggestedPriceDiamonds: entero entre 1 y 50.',
+  'suggestedPriceCSCoins: entero entre 100 y 5000.',
 ].join('\n');
 
 function getGeminiApiKey() {
@@ -234,11 +249,7 @@ function parseThemeLogic(rawText: string): GeneratedThemeLogic {
   };
 }
 
-async function callGeminiJsonText(
-  systemInstruction: string,
-  userPrompt: string,
-  temperature: number,
-): Promise<string> {
+async function callGeminiJson(systemInstruction: string, userParts: Array<string | Part>, temperature: number): Promise<string> {
   const client = getGeminiClient();
   let lastError: unknown = null;
   const attemptedModels: string[] = [];
@@ -256,7 +267,7 @@ async function callGeminiJsonText(
         },
       });
 
-      const result = await model.generateContent(userPrompt);
+      const result = await model.generateContent(userParts);
       return result.response.text();
     } catch (error) {
       lastError = error;
@@ -270,7 +281,7 @@ async function callGeminiJsonText(
 
   const detail = lastError instanceof Error ? lastError.message : String(lastError ?? 'error desconocido');
   throw new Error(
-    `No se pudo generar contenido con Gemini Flash. Modelos intentados: ${attemptedModels.join(', ') || 'ninguno disponible'}. Ultimo error: ${detail}`,
+    `No se pudo generar contenido con Gemini. Modelos intentados: ${attemptedModels.join(', ') || 'ninguno disponible'}. Ultimo error: ${detail}`,
   );
 }
 
@@ -280,7 +291,7 @@ export async function generateThemeLogic(prompt: string): Promise<GeneratedTheme
     'Devuelve solo el JSON solicitado.',
   ].join('\n');
 
-  const rawText = await callGeminiJsonText(THEME_LOGIC_SYSTEM_PROMPT, userPrompt, 0.75);
+  const rawText = await callGeminiJson(THEME_LOGIC_SYSTEM_PROMPT, [userPrompt], 0.75);
   return parseThemeLogic(rawText);
 }
 
@@ -307,6 +318,17 @@ function fallbackSetName(prompt: string) {
   return words.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
 }
 
+function normalizeBrandHex(value: unknown, field: string) {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new Error(`Gemini devolvio extractedColors.${field} invalido.`);
+  }
+  const next = value.trim();
+  if (!HEX_PATTERN.test(next)) {
+    throw new Error(`Gemini devolvio extractedColors.${field} con formato hex invalido: ${next}`);
+  }
+  return next.toUpperCase();
+}
+
 function parseIconBriefing(
   rawText: string,
   expected: number,
@@ -316,6 +338,7 @@ function parseIconBriefing(
   suggestedName: string;
   suggestedPriceDiamonds: number;
   suggestedPriceCSCoins: number;
+  extractedColors?: ExtractedBrandColors;
 } {
   const jsonText = extractJsonObject(rawText);
   let parsed: Record<string, unknown>;
@@ -325,6 +348,17 @@ function parseIconBriefing(
     throw new Error(
       `Gemini devolvio JSON mal formateado: ${error instanceof Error ? error.message : 'parse error'}. Respuesta: ${rawText.slice(0, 180)}`,
     );
+  }
+
+  let extractedColors: ExtractedBrandColors | undefined;
+  const colorsRaw = parsed.extractedColors;
+  if (colorsRaw && typeof colorsRaw === 'object') {
+    const colors = colorsRaw as Record<string, unknown>;
+    extractedColors = {
+      primaryHex: normalizeBrandHex(colors.primaryHex, 'primaryHex'),
+      secondaryHex: normalizeBrandHex(colors.secondaryHex, 'secondaryHex'),
+      bgHex: normalizeBrandHex(colors.bgHex, 'bgHex'),
+    };
   }
 
   const rawDescriptions = parsed.descriptions;
@@ -362,6 +396,7 @@ function parseIconBriefing(
     suggestedName,
     suggestedPriceDiamonds: clampNumber(parsed.suggestedPriceDiamonds, 1, 50, 5),
     suggestedPriceCSCoins: clampNumber(parsed.suggestedPriceCSCoins, 100, 5000, 500),
+    extractedColors,
   };
 }
 
@@ -370,13 +405,17 @@ function buildPollinationsUrl(prompt: string, width: number, height: number, see
   return `${POLLINATIONS_BASE_URL}/${encodedPrompt}?width=${width}&height=${height}&nologo=true&seed=${seed}`;
 }
 
-function buildIconImagePrompt(description: string, options: GenerateIconsOptions) {
+function buildIconImagePrompt(description: string, options: GenerateIconsOptions, palette?: ExtractedBrandColors) {
+  const primary = palette?.primaryHex ?? options.colorPrimary;
+  const secondary = palette?.secondaryHex ?? options.colorSecondary;
+  const background = palette?.bgHex ?? options.colorBackground;
+
   return [
     `${ICON_STYLE_DESCRIPTORS[options.style]} icon of ${description}`,
     ICON_SHAPE_DESCRIPTORS[options.shape],
-    `primary color ${options.colorPrimary}`,
-    `secondary color ${options.colorSecondary}`,
-    `background color ${options.colorBackground}`,
+    `primary color ${primary}`,
+    `secondary color ${secondary}`,
+    `background color ${background}`,
     'centered, single isolated subject, premium quality, no text, no letters',
   ].join(', ');
 }
@@ -384,15 +423,24 @@ function buildIconImagePrompt(description: string, options: GenerateIconsOptions
 export async function generateAIIconsBatch(options: GenerateIconsOptions): Promise<GeneratedIconBriefing> {
   const expected = clampIconCount(options.count);
   const cleanPrompt = (options.prompt || 'a generic premium mobile app theme').trim();
+  const onProgress = options.onProgress;
   const safeOptions: GenerateIconsOptions = { ...options, count: expected, prompt: cleanPrompt };
 
-  const userPrompt = [
-    `El cliente pide ${expected} iconos sobre "${cleanPrompt}".`,
-    `Estilo: ${ICON_STYLE_LABELS[safeOptions.style]}.`,
-    `Forma del contenedor: ${ICON_SHAPE_LABELS[safeOptions.shape]}.`,
-    `Colores: principal ${safeOptions.colorPrimary}, secundario ${safeOptions.colorSecondary}, fondo ${safeOptions.colorBackground}.`,
-    'Devuelve SOLO un JSON con este formato exacto:',
-    '{ "descriptions": ["prompt exacto en ingles para motor de imagenes 1", "..."], "suggestedName": "Nombre Comercial del Set", "suggestedPriceDiamonds": 5, "suggestedPriceCSCoins": 500 }',
+  const hasReference = Boolean(safeOptions.referenceImageBase64?.trim() && safeOptions.referenceMimeType?.trim());
+  const mimeType = hasReference ? String(safeOptions.referenceMimeType) : 'image/png';
+
+  const userText = [
+    `TE HE PASADO ${hasReference ? 'UNA IMAGEN DE REFERENCIA (logo/marca)' : 'UN BRIEF SOLO DE TEXTO'} y un texto del cliente.`,
+    `TAREA 1: ${hasReference ? 'Analiza la imagen y extrae la paleta EXACTA en HEX (#RRGGBB).' : 'Propone una paleta creible basada en el texto y el estilo.'}`,
+    `TAREA 2: Genera ${expected} descripciones de iconos basadas en el texto del cliente: "${cleanPrompt}".`,
+    `Estilo UI: ${ICON_STYLE_LABELS[safeOptions.style]}. Forma del contenedor: ${ICON_SHAPE_LABELS[safeOptions.shape]}.`,
+    hasReference
+      ? 'Colores manuales actuales (solo contexto, la imagen manda): principal ${P}, secundario ${S}, fondo ${B}.'
+          .replace('${P}', safeOptions.colorPrimary)
+          .replace('${S}', safeOptions.colorSecondary)
+          .replace('${B}', safeOptions.colorBackground)
+      : `Colores manuales actuales: principal ${safeOptions.colorPrimary}, secundario ${safeOptions.colorSecondary}, fondo ${safeOptions.colorBackground}.`,
+    'Devuelve JSON estricto con extractedColors + descriptions + suggestedName + suggestedPriceDiamonds + suggestedPriceCSCoins.',
   ].join('\n');
 
   let briefing: {
@@ -400,10 +448,28 @@ export async function generateAIIconsBatch(options: GenerateIconsOptions): Promi
     suggestedName: string;
     suggestedPriceDiamonds: number;
     suggestedPriceCSCoins: number;
+    extractedColors?: ExtractedBrandColors;
   };
 
   try {
-    const rawText = await callGeminiJsonText(ICON_ART_DIRECTOR_PROMPT, userPrompt, 0.85);
+    if (hasReference) {
+      onProgress?.('Analizando logo y extrayendo colores...');
+    } else {
+      onProgress?.('Generando briefing de marca con Gemini...');
+    }
+
+    const parts: Part[] = [];
+    if (hasReference) {
+      parts.push({
+        inlineData: {
+          mimeType,
+          data: String(safeOptions.referenceImageBase64),
+        },
+      });
+    }
+    parts.push({ text: userText });
+
+    const rawText = await callGeminiJson(BRAND_VISION_SYSTEM_PROMPT, parts, 0.85);
     briefing = parseIconBriefing(rawText, expected, safeOptions);
   } catch (error) {
     console.warn('[aiStudioService] Gemini brief fallo, usando fallback local:', error);
@@ -412,14 +478,29 @@ export async function generateAIIconsBatch(options: GenerateIconsOptions): Promi
       suggestedName: fallbackSetName(cleanPrompt),
       suggestedPriceDiamonds: 5,
       suggestedPriceCSCoins: 500,
+      extractedColors: undefined,
     };
   }
+
+  onProgress?.('Renderizando iconos con Pollinations AI...');
+
+  const palette = briefing.extractedColors;
+  const paletteAwareOptions: GenerateIconsOptions = palette
+    ? {
+        ...safeOptions,
+        colorPrimary: palette.primaryHex,
+        colorSecondary: palette.secondaryHex,
+        colorBackground: palette.bgHex,
+      }
+    : safeOptions;
 
   const seedBase = Math.floor(Date.now() / 1000);
   const icons: GeneratedIcon[] = briefing.descriptions.map((description, index) => ({
     description,
-    url: buildPollinationsUrl(buildIconImagePrompt(description, safeOptions), 256, 256, seedBase + index + 1),
+    url: buildPollinationsUrl(buildIconImagePrompt(description, paletteAwareOptions, palette), 256, 256, seedBase + index + 1),
   }));
+
+  onProgress?.('');
 
   return {
     descriptions: briefing.descriptions,
@@ -427,6 +508,7 @@ export async function generateAIIconsBatch(options: GenerateIconsOptions): Promi
     suggestedName: briefing.suggestedName,
     suggestedPriceDiamonds: briefing.suggestedPriceDiamonds,
     suggestedPriceCSCoins: briefing.suggestedPriceCSCoins,
+    extractedColors: briefing.extractedColors,
   };
 }
 
