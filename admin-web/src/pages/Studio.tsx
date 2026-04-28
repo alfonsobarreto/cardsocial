@@ -89,6 +89,7 @@ type AiIconCandidate = {
 
 type AiIconState = {
   prompt: string;
+  count: number;
   generating: boolean;
   candidates: AiIconCandidate[];
   selectedId: string;
@@ -138,6 +139,7 @@ const initialState: ForgeState = {
   tab: 'icons',
   icons: {
     prompt: '',
+    count: 4,
     generating: false,
     candidates: [],
     selectedId: '',
@@ -425,25 +427,39 @@ function AiIconPanel({
   return (
     <div className="space-y-5">
       <PanelCard title="Generador por Lotes" eyebrow="AI Icon Lab" icon={BrainCircuit}>
-        <div className="grid gap-3 xl:grid-cols-[1fr_auto]">
+        <div className="grid gap-3 xl:grid-cols-[1fr_auto_auto]">
           <TextInput
             value={state.icons.prompt}
             onChange={(prompt) => dispatch({ type: 'ICON_PATCH', patch: { prompt } })}
             placeholder="Describe los iconos (ej. Iconos 3D de email)"
           />
+          <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-2">
+            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Cantidad</span>
+            <input
+              type="number"
+              min={1}
+              max={12}
+              value={state.icons.count}
+              onChange={(event) => {
+                const next = Math.max(1, Math.min(12, Math.round(Number(event.target.value)) || 1));
+                dispatch({ type: 'ICON_PATCH', patch: { count: next } });
+              }}
+              className="w-14 bg-transparent text-center text-base font-black text-white outline-none"
+            />
+          </div>
           <button
             type="button"
             onClick={onGenerateIcons}
             disabled={state.icons.generating}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-600 px-5 py-3 text-sm font-black text-white shadow-xl shadow-cyan-500/20 transition hover:-translate-y-0.5"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-600 px-5 py-3 text-sm font-black text-white shadow-xl shadow-cyan-500/20 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {state.icons.generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand className="h-4 w-4" />}
-            Generar 10 Opciones
+            Generar {state.icons.count} {state.icons.count === 1 ? 'Opcion' : 'Opciones'}
           </button>
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-5">
-          {(state.icons.candidates.length ? state.icons.candidates : createIconCandidates('')).map((candidate) => (
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-5">
+          {(state.icons.candidates.length ? state.icons.candidates : createIconCandidates('').slice(0, state.icons.count)).map((candidate) => (
             <button
               key={candidate.id}
               type="button"
@@ -794,12 +810,16 @@ function LivePreview({
   state: ForgeState;
   fonts: StudioFont[];
 }) {
-  const selectedIcon = state.icons.candidates.find((candidate) => candidate.id === state.icons.selectedId) ?? createIconCandidates('')[0];
   const customFont = state.skin.customFontId ? fonts.find((font) => font.id === state.skin.customFontId) ?? null : null;
   const fontFamily =
     state.skin.fontSource === 'custom' && customFont
       ? `'${customFont.family}', system-ui, sans-serif`
       : `'${state.skin.googleFont.replace(/\+/g, ' ')}', system-ui, sans-serif`;
+
+  const previewIconSet =
+    state.icons.candidates.length > 0
+      ? state.icons.candidates
+      : createIconCandidates('').slice(0, Math.max(state.icons.count, 6));
 
   const iconBasis = `calc((100% - ${Math.max(0, state.layout.columns - 1) * state.layout.gap}px) / ${state.layout.columns})`;
   const cssVars = {
@@ -876,16 +896,18 @@ function LivePreview({
                     padding: state.layout.padding,
                   }}
                 >
-                  {Array.from({ length: 12 }, (_, index) => (
+                  {previewIconSet.map((candidate) => (
                     <div
-                      key={index}
-                      className="min-w-4 overflow-hidden rounded-2xl"
+                      key={candidate.id}
+                      className={`min-w-4 overflow-hidden rounded-2xl transition ${
+                        state.icons.selectedId === candidate.id ? 'ring-2 ring-white/70' : ''
+                      }`}
                       style={{
                         flex: `0 0 ${iconBasis}`,
                         maxWidth: iconBasis,
                       }}
                     >
-                      <IconArtwork candidate={selectedIcon} />
+                      <IconArtwork candidate={candidate} />
                     </div>
                   ))}
                 </div>
@@ -949,22 +971,21 @@ export default function Studio() {
   const handleGenerateIcons = useCallback(async () => {
     dispatch({ type: 'ICON_PATCH', patch: { generating: true } });
     try {
-      const urls = await generateAIIconsBatch(state.icons.prompt);
-      const baseName = titleCaseFromPrompt(state.icons.prompt, 'AI Icon');
-      const candidates = urls.map((url, index): AiIconCandidate => ({
+      const generated = await generateAIIconsBatch(state.icons.prompt, state.icons.count);
+      const candidates = generated.map((icon, index): AiIconCandidate => ({
         id: `pollinations-icon-${Date.now()}-${index}`,
-        name: `${baseName} ${String(index + 1).padStart(2, '0')}`,
-        prompt: state.icons.prompt || 'Iconos premium generados por IA',
+        name: titleCaseFromPrompt(icon.description, `AI Icon ${index + 1}`),
+        prompt: icon.description,
         gradient: AI_ICON_GRADIENTS[index % AI_ICON_GRADIENTS.length],
-        imageUrl: url,
+        imageUrl: icon.url,
         seed: index + 1,
       }));
       dispatch({ type: 'SET_GENERATED_ICONS', candidates });
     } catch (error) {
       dispatch({ type: 'ICON_PATCH', patch: { generating: false } });
-      setToast(error instanceof Error ? error.message : 'Error generando iconos con Pollinations AI.');
+      setToast(error instanceof Error ? error.message : 'Error generando iconos con la AI.');
     }
-  }, [state.icons.prompt]);
+  }, [state.icons.prompt, state.icons.count]);
 
   const handleForgeSkin = useCallback(async () => {
     dispatch({ type: 'SKIN_PATCH', patch: { generating: true } });
