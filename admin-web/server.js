@@ -1,4 +1,6 @@
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import express from 'express';
+import multer from 'multer';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -10,6 +12,48 @@ const distPath = path.join(__dirname, 'dist');
 
 const VERTEX_LOCATION = 'us-central1';
 const VERTEX_MODEL = 'imagegeneration@006';
+
+function sanitizeUploadBaseName(originalName) {
+  const base = path.basename(String(originalName || 'file'), path.extname(String(originalName || '')))
+    .replace(/\s+/g, '-')
+    .replace(/[^a-zA-Z0-9_-]/g, '')
+    .slice(0, 80);
+  return base || 'file';
+}
+
+function getSpacesConfig() {
+  const endpoint = process.env.DO_SPACES_ENDPOINT?.trim();
+  const key = process.env.DO_SPACES_KEY?.trim();
+  const secret = process.env.DO_SPACES_SECRET?.trim();
+  const bucket = process.env.DO_SPACES_BUCKET?.trim();
+  const region = process.env.DO_SPACES_REGION?.trim() || 'nyc3';
+  if (!endpoint || !key || !secret || !bucket) return null;
+  return { endpoint: endpoint.replace(/\/$/, ''), key, secret, bucket, region };
+}
+
+/** @param {string} bucket
+ * @param {string} endpointUrl */
+function publicObjectUrl(bucket, endpointUrl, key) {
+  try {
+    const base = endpointUrl.startsWith('http') ? endpointUrl : `https://${endpointUrl}`;
+    const { host } = new URL(base);
+    const encodedKey = key.split('/').map(encodeURIComponent).join('/');
+    return `https://${bucket}.${host}/${encodedKey}`;
+  } catch {
+    return `https://${bucket}.digitaloceanspaces.com/${key}`;
+  }
+}
+
+const spacesUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 30 * 1024 * 1024, files: 36 },
+  fileFilter: (_req, file, cb) => {
+    const name = file.originalname || '';
+    const mime = file.mimetype || '';
+    const ok = /\.(png|svg|jpe?g|webp)$/i.test(name) || /^image\//.test(mime);
+    cb(null, ok);
+  },
+});
 
 app.use(express.json());
 
@@ -83,14 +127,81 @@ app.post('/api/vertex-proxy', async (req, res) => {
   }
 });
 
+app.post('/api/upload-spaces', spacesUpload.array('files', 32), async (req, res) => {
+  const cfg = getSpacesConfig();
+  if (!cfg) {
+    return res.status(503).json({
+      error:
+        'DigitalOcean Spaces no configurado: defina DO_SPACES_ENDPOINT, DO_SPACES_KEY, DO_SPACES_SECRET, DO_SPACES_BUCKET (y opcional DO_SPACES_REGION).',
+    });
+  }
+
+  const files = req.files;
+  if (!Array.isArray(files) || files.length === 0) {
+    return res.status(400).json({ error: 'Envia uno o mas archivos en el campo multipart "files".' });
+  }
+
+  const client = new S3Client({
+    region: cfg.region,
+    endpoint: cfg.endpoint.startsWith('http') ? cfg.endpoint : `https://${cfg.endpoint}`,
+    credentials: {
+      accessKeyId: cfg.key,
+      secretAccessKey: cfg.secret,
+    },
+    forcePathStyle: false,
+  });
+
+  const urls = [];
+  const prefix = `forge/${new Date().toISOString().slice(0, 10)}`;
+
+  try {
+    for (const file of files) {
+      const ext = path.extname(file.originalname || '').toLowerCase() || '.bin';
+      const base = sanitizeUploadBaseName(file.originalname);
+      const key = `${prefix}/${Date.now()}-${Math.random().toString(16).slice(2)}-${base}${ext}`;
+      const contentType =
+        file.mimetype && file.mimetype !== 'application/octet-stream'
+          ? file.mimetype
+          : ext === '.svg'
+            ? 'image/svg+xml'
+            : ext === '.jpg' || ext === '.jpeg'
+              ? 'image/jpeg'
+              : ext === '.webp'
+                ? 'image/webp'
+                : 'image/png';
+
+      await client.send(
+        new PutObjectCommand({
+          Bucket: cfg.bucket,
+          Key: key,
+          Body: file.buffer,
+          ACL: 'public-read',
+          ContentType: contentType,
+          CacheControl: 'public, max-age=31536000',
+        }),
+      );
+
+      urls.push(publicObjectUrl(cfg.bucket, cfg.endpoint, key));
+    }
+
+    return res.json({ urls });
+  } catch (err) {
+    console.error('[upload-spaces]', err);
+    return res.status(500).json({
+      error: err instanceof Error ? err.message : 'upload-spaces failed',
+    });
+  }
+});
+
 app.use(express.static(distPath));
 
-app.use((req, res, next) => {
-  if (req.method !== 'GET' && req.method !== 'HEAD') {
-    return res.status(404).send('Not Found');
-  }
-  res.sendFile(path.join(distPath, 'index.html'));
-});
+const indexHtml = path.resolve(__dirname, 'dist', 'index.html');
+const sendSpaIndex = (_req, res) => {
+  res.sendFile(indexHtml);
+};
+// Express 5 / path-to-regexp: `*` alone is invalid; use a named splat for SPA fallback.
+app.get('/{*path}', sendSpaIndex);
+app.head('/{*path}', sendSpaIndex);
 
 app.listen(port, () => {
   console.log(`Admin Web listening on port ${port}`);

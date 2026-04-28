@@ -20,6 +20,7 @@ import {
   Layers,
   LayoutGrid,
   Loader2,
+  Package,
   Palette,
   Rocket,
   ScanLine,
@@ -56,11 +57,18 @@ import {
   type IconStyleId,
 } from '../services/aiStudioService';
 import {
+  createForgeIconPackDocument,
   getStudioFonts,
+  listForgeIconPacksForStudio,
+  listForgeSkinsForStudio,
   listStudioIconPacks,
   listStudioSkins,
   listStudioThemes,
   publishAdminStudioIcon,
+  publishForgeSkinDocument,
+  uploadFilesToDigitalOceanSpaces,
+  type ForgeIconPackOption,
+  type ForgeSkinListItem,
   type StudioFont,
   type StudioIconPackDoc,
   type StudioSkinDoc,
@@ -110,7 +118,7 @@ const AI_ICON_GRADIENTS = [
   'from-slate-100 via-slate-400 to-slate-900',
 ] as const;
 
-type ForgeTab = 'icons' | 'skins' | 'layout';
+type ForgeTab = 'icons' | 'packs' | 'skins' | 'layout';
 type JustifyMode = 'flex-start' | 'center' | 'flex-end' | 'space-between';
 
 type AiIconCandidate = {
@@ -160,6 +168,11 @@ type AiIconState = {
 type AiSkinState = {
   prompt: string;
   generating: boolean;
+  skinLogoPreview: string;
+  skinLogoBase64: string;
+  skinLogoMime: string;
+  analyzingBrand: boolean;
+  analyzingMessage: string;
   name: string;
   priceUsd: string;
   priceCoins: number;
@@ -167,6 +180,9 @@ type AiSkinState = {
   labelsHex: string;
   vectorHex: string;
   wallpaperCss: string;
+  wallpaperFile: File | null;
+  wallpaperPreview: string;
+  selectedIconPackId: string;
   fontSource: 'google' | 'custom';
   googleFont: string;
   customFontId: string;
@@ -235,6 +251,11 @@ const initialState: ForgeState = {
   skin: {
     prompt: '',
     generating: false,
+    skinLogoPreview: '',
+    skinLogoBase64: '',
+    skinLogoMime: 'image/png',
+    analyzingBrand: false,
+    analyzingMessage: '',
     name: 'Lone Star Voltage',
     priceUsd: '9.99',
     priceCoins: 1200,
@@ -242,6 +263,9 @@ const initialState: ForgeState = {
     labelsHex: '#f97316',
     vectorHex: '#ffffff',
     wallpaperCss: 'radial-gradient(circle at 20% 20%, #f97316 0 8%, transparent 32%), linear-gradient(145deg, #1a1a1a, #050505)',
+    wallpaperFile: null,
+    wallpaperPreview: '',
+    selectedIconPackId: '',
     fontSource: 'google',
     googleFont: 'Space+Grotesk',
     customFontId: '',
@@ -406,6 +430,8 @@ function forgeReducer(state: ForgeState, action: ForgeAction): ForgeState {
           labelsHex: action.logic.labelHex,
           vectorHex: action.logic.vectorHex,
           wallpaperCss: `linear-gradient(rgba(0,0,0,.08), rgba(0,0,0,.18)), url("${action.wallpaperUrl}") center/cover no-repeat, ${action.logic.wallpaperHex}`,
+          wallpaperFile: null,
+          wallpaperPreview: '',
           fontSource: 'google',
           customFontId: '',
           googleFont: fontLabelToGoogleId(action.logic.fontFamily),
@@ -1198,54 +1224,450 @@ function AiIconPanel({
   );
 }
 
+function IconPacksBulkPanel({
+  currentUser,
+  onToast,
+  onSaved,
+}: {
+  currentUser: { uid?: string; email?: string | null } | null;
+  onToast: (toast: ToastState) => void;
+  onSaved: () => void;
+}) {
+  const [files, setFiles] = useState<File[]>([]);
+  const [objectUrls, setObjectUrls] = useState<string[]>([]);
+  const [packName, setPackName] = useState('');
+  const [priceUsd, setPriceUsd] = useState('12.99');
+  const [priceCs, setPriceCs] = useState('750');
+  const [saving, setSaving] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const urls = files.map((file) => URL.createObjectURL(file));
+    setObjectUrls(urls);
+    return () => urls.forEach((url) => URL.revokeObjectURL(url));
+  }, [files]);
+
+  const addFiles = useCallback((list: FileList | null) => {
+    if (!list?.length) return;
+    const next = Array.from(list).filter((f) => /\.(png|svg)$/i.test(f.name));
+    if (!next.length) {
+      onToast({ kind: 'error', message: 'Solo .png o .svg para este pack.' });
+      return;
+    }
+    setFiles((prev) => [...prev, ...next].slice(0, 24));
+  }, [onToast]);
+
+  const removeAt = useCallback((index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const handleSave = useCallback(async () => {
+    const name = packName.trim();
+    if (!name) {
+      onToast({ kind: 'error', message: 'Indica el nombre del pack.' });
+      return;
+    }
+    if (files.length < 1) {
+      onToast({ kind: 'error', message: 'Arrastra entre 1 y 24 archivos.' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const urls = await uploadFilesToDigitalOceanSpaces(files);
+      const icons = urls.map((url, index) => ({ url, fileName: files[index]?.name || `icon-${index}.png` }));
+      await createForgeIconPackDocument({
+        name,
+        priceUsd: Number(priceUsd) || 0,
+        creditsPrice: Number(priceCs) || 0,
+        icons,
+        createdBy: currentUser?.uid,
+        createdByEmail: currentUser?.email ?? null,
+      });
+      setFiles([]);
+      setPackName('');
+      onToast({ kind: 'success', message: `Pack "${name}" guardado en icon_packs con ${icons.length} URLs Spaces.` });
+      onSaved();
+    } catch (error) {
+      onToast({ kind: 'error', message: error instanceof Error ? error.message : 'Error guardando el pack.' });
+    } finally {
+      setSaving(false);
+    }
+  }, [files, packName, priceUsd, priceCs, currentUser, onToast, onSaved]);
+
+  return (
+    <div className="space-y-5">
+      <PanelCard title="Icon Packs · DO Spaces" eyebrow="Carga masiva 15–20 assets" icon={Package}>
+        <p className="mb-4 text-xs font-semibold leading-relaxed text-slate-400">
+          Arrastra PNG/SVG; el servidor los sube con ACL pública. Las llaves de Spaces nunca pasan por Vite: solo{' '}
+          <span className="text-cyan-200">POST /api/upload-spaces</span> en Express.
+        </p>
+
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".png,.svg,image/png,image/svg+xml"
+          multiple
+          className="hidden"
+          onChange={(event) => {
+            addFiles(event.target.files);
+            event.target.value = '';
+          }}
+        />
+
+        <div
+          role="button"
+          tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              inputRef.current?.click();
+            }
+          }}
+          onDragEnter={() => setDragOver(true)}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragOver(true);
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDragOver(false);
+            addFiles(event.dataTransfer.files);
+          }}
+          onClick={() => inputRef.current?.click()}
+          className={`mb-5 cursor-pointer rounded-[1.5rem] border-2 border-dashed px-6 py-10 text-center transition ${
+            dragOver ? 'border-cyan-300/70 bg-cyan-500/10' : 'border-white/15 bg-slate-950/50 hover:border-white/25'
+          }`}
+        >
+          <Upload className="mx-auto mb-3 h-10 w-10 text-slate-500" />
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-200">Arrastra y suelta (masivo)</p>
+          <p className="mt-2 text-xs text-slate-500">.png / .svg · hasta 24 archivos · max ~30MB c/u</p>
+        </div>
+
+        {files.length > 0 ? (
+          <div className="mb-5 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+            {files.map((file, index) => (
+              <div
+                key={`${file.name}-${index}-${file.size}`}
+                className="group relative aspect-square overflow-hidden rounded-2xl border border-white/10 bg-slate-900"
+              >
+                <img src={objectUrls[index]} alt="" className="h-full w-full object-cover" />
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    removeAt(index);
+                  }}
+                  className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-white opacity-0 transition group-hover:opacity-100 hover:bg-rose-600"
+                  aria-label="Quitar archivo"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+                <p className="absolute inset-x-0 bottom-0 truncate bg-black/60 px-1 py-0.5 text-[9px] font-bold text-white">
+                  {file.name}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mb-5 text-center text-xs font-semibold text-slate-600">Aún no hay archivos en esta tanda.</p>
+        )}
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="space-y-2 sm:col-span-1">
+            <FieldLabel>Nombre del Pack</FieldLabel>
+            <TextInput value={packName} onChange={setPackName} placeholder="Ej. NFL Sunday Elite" />
+          </div>
+          <div className="space-y-2">
+            <FieldLabel>Precio USD</FieldLabel>
+            <TextInput type="number" value={priceUsd} onChange={setPriceUsd} />
+          </div>
+          <div className="space-y-2">
+            <FieldLabel>Precio CS (créditos)</FieldLabel>
+            <TextInput type="number" value={priceCs} onChange={setPriceCs} />
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => void handleSave()}
+          disabled={saving || files.length < 1}
+          className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 px-6 py-4 text-sm font-black uppercase tracking-[0.18em] text-white shadow-xl shadow-fuchsia-500/25 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Rocket className="h-5 w-5" />}
+          Guardar pack en Firestore
+        </button>
+      </PanelCard>
+    </div>
+  );
+}
+
 function AiSkinPanel({
   state,
   dispatch,
   fonts,
-  onForgeSkin,
+  forgePacks,
+  onAnalyzeSkinBrand,
+  onGenerateSkinAi,
+  onForgeSkinPersist,
+  skinForgeSaving,
 }: {
   state: ForgeState;
   dispatch: React.Dispatch<ForgeAction>;
   fonts: StudioFont[];
-  onForgeSkin: () => void;
+  forgePacks: ForgeIconPackOption[];
+  onAnalyzeSkinBrand: () => void;
+  onGenerateSkinAi: () => void;
+  onForgeSkinPersist: () => void;
+  skinForgeSaving: boolean;
 }) {
+  const skinLogoInputRef = useRef<HTMLInputElement>(null);
+  const wallpaperInputRef = useRef<HTMLInputElement>(null);
+  const [logoDrag, setLogoDrag] = useState(false);
+  const [wallDrag, setWallDrag] = useState(false);
+  const sk = state.skin;
+
+  const skinBackdrop =
+    sk.wallpaperPreview && sk.wallpaperPreview.length > 0
+      ? `linear-gradient(rgba(0,0,0,.08), rgba(0,0,0,.18)), url("${sk.wallpaperPreview}") center/cover no-repeat, ${sk.wallpaperHex}`
+      : sk.wallpaperCss || sk.wallpaperHex;
+
+  const pickSkinLogo = useCallback(
+    async (file: File | null) => {
+      if (!file) {
+        dispatch({
+          type: 'SKIN_PATCH',
+          patch: { skinLogoPreview: '', skinLogoBase64: '', skinLogoMime: 'image/png' },
+        });
+        return;
+      }
+      if (skinLogoInputRef.current) skinLogoInputRef.current.value = '';
+      const preview = URL.createObjectURL(file);
+      try {
+        const { rawBase64, mimeType } = await readFileAsRawBase64(file);
+        dispatch({
+          type: 'SKIN_PATCH',
+          patch: { skinLogoPreview: preview, skinLogoBase64: rawBase64, skinLogoMime: mimeType },
+        });
+      } catch {
+        URL.revokeObjectURL(preview);
+        dispatch({
+          type: 'SKIN_PATCH',
+          patch: { skinLogoPreview: '', skinLogoBase64: '', skinLogoMime: 'image/png' },
+        });
+      }
+    },
+    [dispatch],
+  );
+
+  useEffect(() => {
+    const preview = sk.skinLogoPreview;
+    if (!preview || !preview.startsWith('blob:')) return;
+    return () => URL.revokeObjectURL(preview);
+  }, [sk.skinLogoPreview]);
+
+  const onWallpaperPick = useCallback(
+    (file: File | null) => {
+      if (wallpaperInputRef.current) wallpaperInputRef.current.value = '';
+      if (!file) {
+        dispatch({ type: 'SKIN_PATCH', patch: { wallpaperFile: null, wallpaperPreview: '' } });
+        return;
+      }
+      if (!/\.(png|svg|jpe?g|webp)$/i.test(file.name)) {
+        return;
+      }
+      const preview = URL.createObjectURL(file);
+      dispatch({ type: 'SKIN_PATCH', patch: { wallpaperFile: file, wallpaperPreview: preview } });
+    },
+    [dispatch],
+  );
+
+  useEffect(() => {
+    const preview = sk.wallpaperPreview;
+    if (!preview || !preview.startsWith('blob:')) return;
+    return () => URL.revokeObjectURL(preview);
+  }, [sk.wallpaperPreview]);
+
   return (
     <div className="space-y-5">
+      <PanelCard title="Gemini Vision · Skin" eyebrow="Fase 1 · Marca" icon={ScanLine}>
+        <input
+          ref={skinLogoInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(event) => void pickSkinLogo(event.target.files?.[0] ?? null)}
+        />
+        <div className="flex flex-wrap items-start gap-3">
+          <div
+            role="button"
+            tabIndex={0}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                skinLogoInputRef.current?.click();
+              }
+            }}
+            onDragEnter={() => setLogoDrag(true)}
+            onDragOver={(event) => {
+              event.preventDefault();
+              setLogoDrag(true);
+            }}
+            onDragLeave={() => setLogoDrag(false)}
+            onDrop={(event) => {
+              event.preventDefault();
+              setLogoDrag(false);
+              void pickSkinLogo(event.dataTransfer.files?.[0] ?? null);
+            }}
+            onClick={() => skinLogoInputRef.current?.click()}
+            className={`flex min-w-0 flex-1 cursor-pointer flex-col gap-2 rounded-2xl border border-dashed px-4 py-3 transition ${
+              logoDrag ? 'border-fuchsia-400/60 bg-fuchsia-500/10' : 'border-white/15 bg-white/[0.03]'
+            }`}
+          >
+            <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-200">
+              <ImageIcon className="h-4 w-4 text-fuchsia-300" />
+              Subir imagen de referencia (logo)
+            </span>
+            <p className="text-[11px] font-semibold text-slate-500">
+              Misma idea que en Iconos: extraemos HEX para fondo, acentos y texto.
+            </p>
+          </div>
+          {sk.skinLogoPreview ? (
+            <div className="relative shrink-0">
+              <img src={sk.skinLogoPreview} alt="" className="h-16 w-16 rounded-xl border border-white/15 object-cover" />
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void pickSkinLogo(null);
+                }}
+                className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full border border-white/20 bg-slate-950 text-white hover:bg-rose-600"
+                aria-label="Quitar referencia"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : null}
+        </div>
+
+        {sk.analyzingBrand ? (
+          <div className="mt-4 space-y-2">
+            <progress className="h-2 w-full overflow-hidden rounded-full accent-fuchsia-400 [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-bar]:bg-white/10 [&::-webkit-progress-value]:rounded-full" />
+            <p className="text-center text-xs font-semibold text-fuchsia-100/90">
+              {sk.analyzingMessage || 'Analizando...'}
+            </p>
+          </div>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={onAnalyzeSkinBrand}
+          disabled={!sk.skinLogoBase64.trim() || sk.analyzingBrand}
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-fuchsia-400/35 bg-fuchsia-500/15 px-5 py-4 text-sm font-black uppercase tracking-[0.14em] text-fuchsia-100 transition hover:bg-fuchsia-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {sk.analyzingBrand ? <Loader2 className="h-5 w-5 animate-spin" /> : <BrainCircuit className="h-5 w-5" />}
+          Analizar Marca
+        </button>
+      </PanelCard>
+
       <PanelCard title="El Master Builder" eyebrow="AI Skin Forge" icon={Diamond}>
         <div className="grid gap-3 xl:grid-cols-[1fr_auto]">
           <TextInput
-            value={state.skin.prompt}
+            value={sk.prompt}
             onChange={(prompt) => dispatch({ type: 'SKIN_PATCH', patch: { prompt } })}
             placeholder="Describe el Skin (ej. Colores Texas Longhorns, sans-serif)"
           />
           <button
             type="button"
-            onClick={onForgeSkin}
-            disabled={state.skin.generating}
+            onClick={onGenerateSkinAi}
+            disabled={sk.generating}
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-300 via-orange-500 to-rose-600 px-5 py-3 text-sm font-black text-slate-950 shadow-xl shadow-orange-500/25 transition hover:-translate-y-0.5"
           >
-            {state.skin.generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand className="h-4 w-4" />}
-            Forjar Skin con IA
+            {sk.generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand className="h-4 w-4" />}
+            Sugerir Skin con IA
           </button>
         </div>
 
         <div className="mt-5 grid gap-4 lg:grid-cols-3">
           <ColorPill
-            label="Wallpaper Hex"
-            value={state.skin.wallpaperHex}
+            label="Fondo (wallpaper hex)"
+            value={sk.wallpaperHex}
             onChange={(wallpaperHex) => dispatch({ type: 'SKIN_PATCH', patch: { wallpaperHex } })}
           />
           <ColorPill
-            label="Labels Hex"
-            value={state.skin.labelsHex}
+            label="Botones / labels"
+            value={sk.labelsHex}
             onChange={(labelsHex) => dispatch({ type: 'SKIN_PATCH', patch: { labelsHex } })}
           />
           <ColorPill
-            label="Vector Hex"
-            value={state.skin.vectorHex}
+            label="Textos / vector"
+            value={sk.vectorHex}
             onChange={(vectorHex) => dispatch({ type: 'SKIN_PATCH', patch: { vectorHex } })}
           />
         </div>
+      </PanelCard>
+
+      <PanelCard title="Wallpaper a Spaces" eyebrow="Archivo final" icon={ImageIcon}>
+        <input
+          ref={wallpaperInputRef}
+          type="file"
+          accept=".png,.svg,.jpg,.jpeg,.webp,image/*"
+          className="hidden"
+          onChange={(event) => onWallpaperPick(event.target.files?.[0] ?? null)}
+        />
+        <div
+          role="button"
+          tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              wallpaperInputRef.current?.click();
+            }
+          }}
+          onDragEnter={() => setWallDrag(true)}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setWallDrag(true);
+          }}
+          onDragLeave={() => setWallDrag(false)}
+          onDrop={(event) => {
+            event.preventDefault();
+            setWallDrag(false);
+            onWallpaperPick(event.dataTransfer.files?.[0] ?? null);
+          }}
+          onClick={() => wallpaperInputRef.current?.click()}
+          className={`flex min-h-[120px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-4 py-6 transition ${
+            wallDrag ? 'border-cyan-400/60 bg-cyan-500/10' : 'border-white/15 bg-slate-950/50'
+          }`}
+        >
+          <Upload className="h-8 w-8 text-slate-500" />
+          <p className="mt-2 text-xs font-black uppercase tracking-[0.18em] text-slate-300">Wallpaper → POST /api/upload-spaces</p>
+          {sk.wallpaperFile ? (
+            <p className="mt-2 truncate text-[11px] font-semibold text-cyan-200/90">{sk.wallpaperFile.name}</p>
+          ) : null}
+        </div>
+      </PanelCard>
+
+      <PanelCard title="Icon Pack del catálogo" eyebrow="Firestore · icon_packs" icon={Layers}>
+        <FieldLabel>Elegir pack (creado en pestaña Icon Packs)</FieldLabel>
+        <select
+          value={sk.selectedIconPackId}
+          onChange={(event) => dispatch({ type: 'SKIN_PATCH', patch: { selectedIconPackId: event.target.value } })}
+          className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm font-bold text-slate-100 outline-none"
+        >
+          <option value="">Selecciona un pack…</option>
+          {forgePacks.map((pack) => (
+            <option key={pack.id} value={pack.id}>
+              {pack.name} ({pack.iconUrls.length} urls)
+            </option>
+          ))}
+        </select>
+        {forgePacks.length === 0 ? (
+          <p className="mt-3 text-xs text-amber-200/80">
+            Aún no hay packs en<code className="mx-1 rounded bg-white/10 px-1">icon_packs</code>. Crea uno en la pestaña Icon Packs.
+          </p>
+        ) : null}
       </PanelCard>
 
       <PanelCard title="Naming, Precio y Tipografia" eyebrow="Commercial AI" icon={Type}>
@@ -1253,13 +1675,13 @@ function AiSkinPanel({
           <div className="space-y-2">
             <FieldLabel>Nombre</FieldLabel>
             <div className="flex gap-2">
-              <TextInput value={state.skin.name} onChange={(name) => dispatch({ type: 'SKIN_PATCH', patch: { name } })} />
+              <TextInput value={sk.name} onChange={(name) => dispatch({ type: 'SKIN_PATCH', patch: { name } })} />
               <MagicButton
                 label="Sugerir nombre"
                 onClick={() =>
                   dispatch({
                     type: 'SKIN_PATCH',
-                    patch: { name: `${titleCaseFromPrompt(state.skin.prompt, 'Forge Skin')} Pro` },
+                    patch: { name: `${titleCaseFromPrompt(sk.prompt, 'Forge Skin')} Pro` },
                   })
                 }
               />
@@ -1270,20 +1692,17 @@ function AiSkinPanel({
             <div className="flex gap-2">
               <TextInput
                 type="number"
-                value={state.skin.priceUsd}
+                value={sk.priceUsd}
                 onChange={(priceUsd) => dispatch({ type: 'SKIN_PATCH', patch: { priceUsd } })}
               />
-              <MagicButton
-                label="Sugerir precio"
-                onClick={() => dispatch({ type: 'SKIN_PATCH', patch: { priceUsd: '14.99' } })}
-              />
+              <MagicButton label="Sugerir precio" onClick={() => dispatch({ type: 'SKIN_PATCH', patch: { priceUsd: '14.99' } })} />
             </div>
           </div>
           <div className="space-y-2">
             <FieldLabel>Precio (Coins)</FieldLabel>
             <TextInput
               type="number"
-              value={String(state.skin.priceCoins)}
+              value={String(sk.priceCoins)}
               onChange={(priceCoins) =>
                 dispatch({
                   type: 'SKIN_PATCH',
@@ -1295,7 +1714,7 @@ function AiSkinPanel({
           <div className="space-y-2">
             <FieldLabel>Fuente del Skin</FieldLabel>
             <select
-              value={state.skin.fontSource}
+              value={sk.fontSource}
               onChange={(event) =>
                 dispatch({
                   type: 'SKIN_PATCH',
@@ -1309,10 +1728,10 @@ function AiSkinPanel({
             </select>
           </div>
           <div className="space-y-2">
-            <FieldLabel>{state.skin.fontSource === 'custom' ? 'Font Uploader' : 'Google Font'}</FieldLabel>
-            {state.skin.fontSource === 'custom' ? (
+            <FieldLabel>{sk.fontSource === 'custom' ? 'Font Uploader' : 'Google Font'}</FieldLabel>
+            {sk.fontSource === 'custom' ? (
               <select
-                value={state.skin.customFontId}
+                value={sk.customFontId}
                 onChange={(event) => dispatch({ type: 'SKIN_PATCH', patch: { customFontId: event.target.value } })}
                 className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm font-bold text-slate-100 outline-none"
               >
@@ -1325,7 +1744,7 @@ function AiSkinPanel({
               </select>
             ) : (
               <select
-                value={state.skin.googleFont}
+                value={sk.googleFont}
                 onChange={(event) => dispatch({ type: 'SKIN_PATCH', patch: { googleFont: event.target.value } })}
                 className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm font-bold text-slate-100 outline-none"
               >
@@ -1340,10 +1759,25 @@ function AiSkinPanel({
         </div>
       </PanelCard>
 
-      <PanelCard title="Wallpaper Generado" eyebrow="Mock Render" icon={ImageIcon}>
+      <PanelCard title="Ensamblaje" eyebrow="Persistir en Firestore" icon={Rocket}>
+        <button
+          type="button"
+          onClick={onForgeSkinPersist}
+          disabled={skinForgeSaving || !sk.wallpaperFile || !sk.selectedIconPackId || !sk.name.trim()}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500 px-6 py-5 text-base font-black uppercase tracking-[0.2em] text-slate-950 shadow-2xl shadow-emerald-500/30 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {skinForgeSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+          Forjar Skin
+        </button>
+        <p className="mt-3 text-center text-[11px] font-semibold text-slate-500">
+          Guarda en<code className="mx-1 rounded bg-white/10 px-1">skins</code> con wallpaper en Spaces y referencia al pack.
+        </p>
+      </PanelCard>
+
+      <PanelCard title="Wallpaper preview" eyebrow="Mock Render" icon={ImageIcon}>
         <div
           className="min-h-[180px] rounded-[2rem] border border-white/10 shadow-2xl shadow-black/30"
-          style={{ background: state.skin.wallpaperCss || state.skin.wallpaperHex }}
+          style={{ background: skinBackdrop }}
         />
       </PanelCard>
     </div>
@@ -1475,6 +1909,11 @@ function LivePreview({
 
   const accent = state.skin.labelsHex;
 
+  const skinBackdrop =
+    state.skin.wallpaperPreview && state.skin.wallpaperPreview.length > 0
+      ? `linear-gradient(rgba(0,0,0,.08), rgba(0,0,0,.18)), url("${state.skin.wallpaperPreview}") center/cover no-repeat, ${state.skin.wallpaperHex}`
+      : state.skin.wallpaperCss || state.skin.wallpaperHex;
+
   const previewIconSet =
     state.icons.candidates.length > 0
       ? state.icons.candidates
@@ -1529,7 +1968,7 @@ function LivePreview({
               className="mx-auto mb-4 h-[5.5rem] w-[5.5rem] overflow-hidden rounded-[1.35rem] border-[3px] shadow-sm sm:h-28 sm:w-28 sm:rounded-[1.5rem]"
               style={{
                 borderColor: accent,
-                background: state.skin.wallpaperCss || state.skin.wallpaperHex,
+                background: skinBackdrop,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
               }}
@@ -1615,22 +2054,29 @@ export default function Studio() {
   const [themes, setThemes] = useState<StudioThemeDoc[]>([]);
   const [packs, setPacks] = useState<StudioIconPackDoc[]>([]);
   const [skins, setSkins] = useState<StudioSkinDoc[]>([]);
+  const [forgePacks, setForgePacks] = useState<ForgeIconPackOption[]>([]);
+  const [forgeSkins, setForgeSkins] = useState<ForgeSkinListItem[]>([]);
+  const [skinForgeSaving, setSkinForgeSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<ToastState | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [nextFonts, nextThemes, nextPacks, nextSkins] = await Promise.all([
+      const [nextFonts, nextThemes, nextPacks, nextSkins, nextForgePacks, nextForgeSkins] = await Promise.all([
         getStudioFonts(),
         listStudioThemes(),
         listStudioIconPacks(),
         listStudioSkins(),
+        listForgeIconPacksForStudio(),
+        listForgeSkinsForStudio(),
       ]);
       setFonts(nextFonts);
       setThemes(nextThemes);
       setPacks(nextPacks);
       setSkins(nextSkins);
+      setForgePacks(nextForgePacks);
+      setForgeSkins(nextForgeSkins);
     } catch (error) {
       console.error(error);
       setToast({ kind: 'error', message: 'No se pudieron sincronizar los assets de La Forja.' });
@@ -1674,8 +2120,11 @@ export default function Studio() {
     for (const folder of folderDocsToNames(packs, state.icons.folder, state.icons.newFolder)) {
       if (folder) set.add(folder);
     }
+    for (const forgePack of forgePacks) {
+      if (forgePack.name?.trim()) set.add(forgePack.name.trim());
+    }
     return Array.from(set);
-  }, [packs, state.icons.folder, state.icons.newFolder]);
+  }, [packs, forgePacks, state.icons.folder, state.icons.newFolder]);
 
   const handleAnalyzeBrand = useCallback(async () => {
     const data = state.icons.referenceBase64.trim();
@@ -1825,7 +2274,7 @@ export default function Studio() {
     }
   }, [state.icons, refresh, user]);
 
-  const handleForgeSkin = useCallback(async () => {
+  const handleGenerateSkinAi = useCallback(async () => {
     dispatch({ type: 'SKIN_PATCH', patch: { generating: true } });
     try {
       const [logic, wallpaperUrl] = await Promise.all([
@@ -1839,10 +2288,99 @@ export default function Studio() {
     }
   }, [state.skin.prompt]);
 
+  const handleAnalyzeSkinBrand = useCallback(async () => {
+    const data = state.skin.skinLogoBase64.trim();
+    const mime = state.skin.skinLogoMime.trim() || 'image/png';
+    if (!data) {
+      setToast({ kind: 'error', message: 'Sube un logo o referencia para analizar la marca.' });
+      return;
+    }
+    dispatch({
+      type: 'SKIN_PATCH',
+      patch: { analyzingBrand: true, analyzingMessage: 'Gemini Vision: extrayendo paleta y contexto...' },
+    });
+    try {
+      const result = await analyzeBrandReference(data, mime);
+      dispatch({
+        type: 'SKIN_PATCH',
+        patch: {
+          analyzingBrand: false,
+          analyzingMessage: '',
+          prompt: state.skin.prompt.trim() ? state.skin.prompt : result.contextDescription,
+          wallpaperHex: result.bgHex,
+          labelsHex: result.primaryHex,
+          vectorHex: result.secondaryHex,
+        },
+      });
+    } catch (error) {
+      dispatch({ type: 'SKIN_PATCH', patch: { analyzingBrand: false, analyzingMessage: '' } });
+      setToast({
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'No se pudo analizar la marca del skin.',
+      });
+    }
+  }, [state.skin.prompt, state.skin.skinLogoBase64, state.skin.skinLogoMime]);
+
+  const handleForgeSkinPersist = useCallback(async () => {
+    const sk = state.skin;
+    if (!sk.name.trim()) {
+      setToast({ kind: 'error', message: 'Indica el nombre del skin.' });
+      return;
+    }
+    if (!sk.wallpaperFile) {
+      setToast({ kind: 'error', message: 'Sube un archivo de wallpaper para enviarlo a Spaces.' });
+      return;
+    }
+    if (!sk.selectedIconPackId) {
+      setToast({ kind: 'error', message: 'Selecciona un Icon Pack del catálogo (icon_packs).' });
+      return;
+    }
+    setSkinForgeSaving(true);
+    try {
+      const [wallpaperUrl] = await uploadFilesToDigitalOceanSpaces([sk.wallpaperFile]);
+      const wallpaperCss = `linear-gradient(rgba(0,0,0,.08), rgba(0,0,0,.18)), url("${wallpaperUrl}") center/cover no-repeat, ${sk.wallpaperHex}`;
+      await publishForgeSkinDocument({
+        name: sk.name.trim(),
+        wallpaperUrl,
+        iconPackId: sk.selectedIconPackId,
+        wallpaperHex: sk.wallpaperHex,
+        labelsHex: sk.labelsHex,
+        vectorHex: sk.vectorHex,
+        wallpaperCss,
+        priceUsd: Number(sk.priceUsd) || 0,
+        priceCoins: sk.priceCoins,
+        fontSource: sk.fontSource,
+        googleFont: sk.googleFont,
+        customFontId: sk.customFontId,
+        prompt: sk.prompt,
+        createdBy: user?.uid,
+        createdByEmail: user?.email ?? null,
+      });
+      dispatch({
+        type: 'SKIN_PATCH',
+        patch: {
+          wallpaperFile: null,
+          wallpaperPreview: '',
+          wallpaperCss,
+        },
+      });
+      setToast({ kind: 'success', message: 'Skin forjado: documento guardado en la colección skins.' });
+      void refresh();
+    } catch (error) {
+      setToast({
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'No se pudo guardar el skin.',
+      });
+    } finally {
+      setSkinForgeSaving(false);
+    }
+  }, [state.skin, refresh, user]);
+
   const tabs: Array<{ id: ForgeTab; label: string; icon: ComponentType<{ className?: string }> }> = [
     { id: 'icons', label: 'Iconos AI', icon: Wand },
-    { id: 'skins', label: 'Skins AI', icon: Palette },
-    { id: 'layout', label: 'Layout Controls', icon: LayoutGrid },
+    { id: 'packs', label: 'Icon Packs', icon: Package },
+    { id: 'skins', label: 'Skins', icon: Palette },
+    { id: 'layout', label: 'Layout', icon: LayoutGrid },
   ];
 
   return (
@@ -1860,7 +2398,10 @@ export default function Studio() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-black text-slate-300">
-              Fonts {fonts.length} · Themes {themes.length} · Packs {packs.length} · Skins {skins.length}
+              Fonts {fonts.length} · Themes {themes.length} · Catálogo {forgePacks.length} · Skins {forgeSkins.length}{' '}
+              <span className="text-slate-500">
+                · studio packs {packs.length} · studio skins {skins.length}
+              </span>
             </span>
             <button
               type="button"
@@ -1877,7 +2418,7 @@ export default function Studio() {
 
       <main className="mx-auto grid max-w-[1720px] lg:grid-cols-[minmax(0,1fr)_440px] xl:grid-cols-[minmax(0,1fr)_500px]">
         <section className="border-r border-white/10 bg-[radial-gradient(circle_at_15%_0,rgba(14,165,233,.16),transparent_32%),#020617] px-4 py-6 sm:px-6 lg:min-h-[calc(100vh-89px)]">
-          <div className="mb-6 grid gap-2 rounded-[1.4rem] border border-white/10 bg-slate-900/70 p-1.5 sm:grid-cols-3">
+          <div className="mb-6 grid gap-2 rounded-[1.4rem] border border-white/10 bg-slate-900/70 p-1.5 sm:grid-cols-2 lg:grid-cols-4">
             {tabs.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
@@ -1906,7 +2447,25 @@ export default function Studio() {
               onPublish={handlePublishIcon}
             />
           ) : null}
-          {state.tab === 'skins' ? <AiSkinPanel state={state} dispatch={dispatch} fonts={fonts} onForgeSkin={handleForgeSkin} /> : null}
+          {state.tab === 'packs' ? (
+            <IconPacksBulkPanel
+              currentUser={user ? { uid: user.uid, email: user.email } : null}
+              onToast={(t) => setToast(t)}
+              onSaved={() => void refresh()}
+            />
+          ) : null}
+          {state.tab === 'skins' ? (
+            <AiSkinPanel
+              state={state}
+              dispatch={dispatch}
+              fonts={fonts}
+              forgePacks={forgePacks}
+              onAnalyzeSkinBrand={handleAnalyzeSkinBrand}
+              onGenerateSkinAi={handleGenerateSkinAi}
+              onForgeSkinPersist={handleForgeSkinPersist}
+              skinForgeSaving={skinForgeSaving}
+            />
+          ) : null}
           {state.tab === 'layout' ? <LayoutPanel state={state} dispatch={dispatch} /> : null}
         </section>
 

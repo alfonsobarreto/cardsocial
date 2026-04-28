@@ -87,6 +87,12 @@ service cloud.firestore {
       allow create, update, delete: if isSuperAdmin();
     }
 
+    // Skins forjados desde La Forja admin (wallpaper Spaces + icon pack + colores).
+    match /skins/{skinId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isSuperAdmin();
+    }
+
     // Student Pack grants are immutable auditable records.
     match /student_pack_grants/{uid} {
       allow read: if isSignedIn() && (request.auth.uid == uid || isSuperAdmin());

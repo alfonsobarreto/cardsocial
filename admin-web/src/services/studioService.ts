@@ -749,3 +749,167 @@ export async function publishStudioSkin(input: PublishSkinInput): Promise<Studio
     status,
   };
 }
+
+// ── La Forja · catálogo `icon_packs` + skins `skins` (DigitalOcean Spaces) ───
+
+/** Misma colección que consume la app móvil (`icon_packs`). */
+const MARKET_ICON_PACKS_COLLECTION = 'icon_packs';
+const FORGE_SKINS_COLLECTION = 'skins';
+
+export async function uploadFilesToDigitalOceanSpaces(files: File[]): Promise<string[]> {
+  if (!files.length) throw new Error('No hay archivos para subir a Spaces.');
+  const body = new FormData();
+  for (const f of files) body.append('files', f);
+  const response = await fetch('/api/upload-spaces', { method: 'POST', body });
+  const text = await response.text();
+  let data: { urls?: string[]; error?: string };
+  try {
+    data = JSON.parse(text) as { urls?: string[]; error?: string };
+  } catch {
+    throw new Error(`Spaces: respuesta no JSON (HTTP ${response.status}).`);
+  }
+  if (!response.ok) {
+    throw new Error(data.error || `Error subiendo a Spaces (HTTP ${response.status}).`);
+  }
+  if (!Array.isArray(data.urls) || data.urls.length === 0) {
+    throw new Error('Spaces no devolvió URLs públicas.');
+  }
+  return data.urls;
+}
+
+export type CreateForgeIconPackInput = {
+  name: string;
+  priceUsd: number;
+  creditsPrice: number;
+  icons: Array<{ url: string; fileName: string }>;
+  createdBy?: string;
+  createdByEmail?: string | null;
+};
+
+/** Un documento en `icon_packs` con URLs ya públicas en DigitalOcean Spaces. */
+export async function createForgeIconPackDocument(input: CreateForgeIconPackInput): Promise<string> {
+  const name = String(input.name || '').trim();
+  if (!name) throw new Error('El nombre del pack es obligatorio.');
+  if (!input.icons.length) throw new Error('El pack necesita al menos un icono.');
+
+  const urls = input.icons.map((row) => row.url);
+  const previewImages = urls.slice(0, 15);
+
+  const docRef = await addDoc(collection(db, MARKET_ICON_PACKS_COLLECTION), {
+    name,
+    description: `${name} — pack masivo La Forja (DigitalOcean Spaces).`,
+    category: 'premium',
+    iconCount: input.icons.length,
+    creditsPrice: Math.max(0, Math.floor(Number(input.creditsPrice) || 0)),
+    priceUsd: Math.max(0, Number(input.priceUsd) || 0),
+    previewImages,
+    forgeIconAssetUrls: urls,
+    folderPath: 'digitalocean-spaces',
+    rarity: 'epic',
+    isActive: true,
+    totalSales: 0,
+    grantedIconVaultKeys: [],
+    createdBy: input.createdBy ?? null,
+    createdByEmail: input.createdByEmail ?? null,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+
+  return docRef.id;
+}
+
+export type ForgeIconPackOption = {
+  id: string;
+  name: string;
+  iconUrls: string[];
+};
+
+function extractForgePackUrls(data: Record<string, unknown>): string[] {
+  const forge = data.forgeIconAssetUrls;
+  if (Array.isArray(forge)) {
+    const list = forge.filter((x): x is string => typeof x === 'string' && x.length > 0);
+    if (list.length) return list;
+  }
+  const prev = data.previewImages;
+  if (Array.isArray(prev)) {
+    return prev.filter((x): x is string => typeof x === 'string' && x.length > 0);
+  }
+  return [];
+}
+
+export async function listForgeIconPacksForStudio(): Promise<ForgeIconPackOption[]> {
+  const snapshot = await getDocs(collection(db, MARKET_ICON_PACKS_COLLECTION));
+  return snapshot.docs
+    .map((d) => {
+      const data = d.data() as Record<string, unknown>;
+      return {
+        id: d.id,
+        name: String(data.name || 'Pack'),
+        iconUrls: extractForgePackUrls(data),
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, 'es'));
+}
+
+export type PublishForgeSkinInput = {
+  name: string;
+  wallpaperUrl: string;
+  iconPackId: string;
+  wallpaperHex: string;
+  labelsHex: string;
+  vectorHex: string;
+  wallpaperCss: string;
+  priceUsd: number;
+  priceCoins: number;
+  fontSource: 'google' | 'custom';
+  googleFont: string;
+  customFontId: string;
+  prompt?: string;
+  createdBy?: string;
+  createdByEmail?: string | null;
+};
+
+export async function publishForgeSkinDocument(input: PublishForgeSkinInput): Promise<string> {
+  const name = String(input.name || '').trim();
+  if (!name) throw new Error('El nombre del skin es obligatorio.');
+  const wallpaperUrl = String(input.wallpaperUrl || '').trim();
+  if (!wallpaperUrl) throw new Error('Falta la URL del wallpaper en Spaces.');
+  const iconPackId = String(input.iconPackId || '').trim();
+  if (!iconPackId) throw new Error('Selecciona un Icon Pack del catálogo.');
+
+  const docRef = await addDoc(collection(db, FORGE_SKINS_COLLECTION), {
+    name,
+    wallpaperUrl,
+    iconPackId,
+    wallpaperHex: input.wallpaperHex,
+    labelsHex: input.labelsHex,
+    vectorHex: input.vectorHex,
+    wallpaperCss: input.wallpaperCss,
+    priceUsd: Math.max(0, Number(input.priceUsd) || 0),
+    priceCoins: Math.max(0, Math.floor(Number(input.priceCoins) || 0)),
+    fontSource: input.fontSource,
+    googleFont: input.fontSource === 'google' ? input.googleFont : null,
+    customFontId: input.fontSource === 'custom' ? input.customFontId || null : null,
+    prompt: input.prompt?.trim() || null,
+    status: 'published',
+    isActive: true,
+    createdBy: input.createdBy ?? null,
+    createdByEmail: input.createdByEmail ?? null,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+
+  return docRef.id;
+}
+
+export type ForgeSkinListItem = { id: string; name: string };
+
+export async function listForgeSkinsForStudio(): Promise<ForgeSkinListItem[]> {
+  const snapshot = await getDocs(collection(db, FORGE_SKINS_COLLECTION));
+  return snapshot.docs
+    .map((d) => ({
+      id: d.id,
+      name: String((d.data() as { name?: string }).name || 'Skin'),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'es'));
+}

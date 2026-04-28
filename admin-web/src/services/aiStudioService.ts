@@ -463,9 +463,8 @@ type VertexProxyBody =
   | { prompt: string; hexColorBackground: string }
   | { instancePrompt: string; parameters: { sampleCount: number; aspectRatio: string } };
 
-function vertexImagenPredictUrl(): string {
-  return '/api/vertex-proxy';
-}
+/** Origen absolute path so fetch never resolves relative to the current page URL. */
+const VERTEX_PROXY_PATH = '/api/vertex-proxy' as const;
 
 type VertexPredictionRaw = {
   bytes?: string;
@@ -474,9 +473,8 @@ type VertexPredictionRaw = {
 };
 
 async function vertexImagenPredictViaProxy(body: VertexProxyBody): Promise<string | null> {
-  const url = vertexImagenPredictUrl();
   try {
-    const response = await fetch(url, {
+    const response = await fetch(VERTEX_PROXY_PATH, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
