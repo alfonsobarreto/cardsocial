@@ -50,6 +50,7 @@ import { useLookMode } from '@/services/lookMode';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import { newEntityId } from '@/services/newEntityId';
 import { syncVaultLinkToMongoCardsAfterSave } from '@/services/syncVaultLinkToMongoCards';
+import { emitVaultLinkSaved } from '@/services/vaultLinkSavedBus';
 import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
 import { premiumTheme } from '@/styles/_premiumTheme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -2007,9 +2008,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       console.log('[Vault] handleCreate: Antes de AsyncStorage.setItem');
       await AsyncStorage.setItem(vaultStorageKey(userId), JSON.stringify(dataArray));
       console.log('[Vault] handleCreate: Después de AsyncStorage.setItem');
-      void syncVaultLinkToMongoCardsAfterSave(userId, uniqueId!).catch((err) =>
-        console.warn('[Vault] mongo publicCardSlots sync:', err),
-      );
+      void (async () => {
+        try {
+          await syncVaultLinkToMongoCardsAfterSave(userId, uniqueId!);
+        } catch (err) {
+          console.warn('[Vault] mongo publicCardSlots sync:', err);
+        }
+        emitVaultLinkSaved({ uid: userId, linkId: String(uniqueId || '') });
+      })();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Toast.show({
         type: 'success',
@@ -2032,6 +2038,12 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               'Cloud sync timeout'
             );
             console.log('[Vault] handleCreate: Background cloud sync done');
+            try {
+              await syncVaultLinkToMongoCardsAfterSave(userId, uniqueId!);
+            } catch (mongoSyncErr) {
+              console.warn('[Vault] mongo sync after cloud failed:', mongoSyncErr);
+            }
+            emitVaultLinkSaved({ uid: userId, linkId: String(uniqueId || '') });
             Toast.show({
               type: 'success',
               text1: tr('☁️ Sincronización completada', '☁️ Cloud sync completed'),

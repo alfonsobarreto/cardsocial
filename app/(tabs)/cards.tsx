@@ -149,6 +149,7 @@ import {
     Alert,
     Animated,
     AppState,
+    DeviceEventEmitter,
     FlatList,
     InteractionManager,
     Keyboard,
@@ -174,6 +175,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { ActionController } from '../../services/ActionController';
 import { loadVaultSnapshotForSlotSync } from '@/services/loadVaultSnapshotForSlotSync';
+import { VAULT_LINK_SAVED_EVENT } from '@/services/vaultLinkSavedBus';
 import { buildPublicCardSlotsForPersist } from '@/services/vaultPublicCardSlots';
 import palette from '../theme';
 
@@ -660,6 +662,14 @@ export default function CardsFactoryScreen() {
       sub.remove();
     };
   }, [loadOwnerProfile]);
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener(VAULT_LINK_SAVED_EVENT, () => {
+      refreshCardsTabFromServer();
+      void loadVaultItems();
+    });
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     if (!qrVisible || qrExpiresAt <= 0) {

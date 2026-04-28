@@ -16,6 +16,7 @@ import { extractDomainFromLink, fetchStudioFavicon } from '@/lib/studioFaviconCl
 import { resolvePublicVaultUrlForWeb } from '@/lib/resolvePublicVaultMediaUrl';
 import { saveVaultLink, newStudioItemId } from '@/lib/studioVaultService';
 import { syncStudioVaultLinkToMongoCards } from '@/lib/studioVaultCardSync';
+import { presentQrPayloadStudioWeb, scanQrFromImageUrlStudio } from '@/lib/studioDocImageQrScan';
 import type { StudioVaultLink } from '@/lib/studioVaultTypes';
 import {
   CREATE_TYPES,
@@ -86,6 +87,7 @@ export default function FormColumn({
   const [faviconDismissedForDomain, setFaviconDismissedForDomain] = useState('');
   const [dragActive, setDragActive] = useState(false);
   const documentInputRef = useRef<HTMLInputElement | null>(null);
+  const docQrLongPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!editing) {
@@ -353,6 +355,30 @@ export default function FormColumn({
   const docIsImg = isVaultDocumentImage(data, localMime);
   const docUrl = resolvePublicVaultUrlForWeb(data) || data;
   const hasViewableDocUrl = /^https?:\/\//i.test(String(docUrl || ''));
+
+  const runDocImageQrScan = useCallback(async () => {
+    if (!docIsImg || !hasViewableDocUrl) return;
+    try {
+      const raw = await scanQrFromImageUrlStudio(String(docUrl));
+      if (!raw) {
+        window.alert(t('qr.noCode'));
+        return;
+      }
+      presentQrPayloadStudioWeb(raw, (k) => t(k));
+    } catch {
+      window.alert(t('qr.noCode'));
+    }
+  }, [docIsImg, hasViewableDocUrl, docUrl, t]);
+
+  useEffect(
+    () => () => {
+      if (docQrLongPressTimerRef.current) {
+        clearTimeout(docQrLongPressTimerRef.current);
+        docQrLongPressTimerRef.current = null;
+      }
+    },
+    [],
+  );
 
   return (
     <div
@@ -825,8 +851,45 @@ export default function FormColumn({
             {data && hasViewableDocUrl ? (
               <div style={{ marginBottom: 8, padding: 12, borderRadius: 10, background: studioTheme.bg, border: `1px solid ${studioTheme.border}` }}>
                 {docIsImg ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={docUrl} alt="" style={{ maxWidth: '100%', maxHeight: 160, objectFit: 'contain' }} />
+                  <div
+                    style={{ position: 'relative', userSelect: 'none', touchAction: 'manipulation' }}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      void runDocImageQrScan();
+                    }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={docUrl}
+                      alt=""
+                      draggable={false}
+                      style={{ maxWidth: '100%', maxHeight: 160, objectFit: 'contain' }}
+                      onTouchStart={() => {
+                        if (docQrLongPressTimerRef.current) {
+                          clearTimeout(docQrLongPressTimerRef.current);
+                        }
+                        docQrLongPressTimerRef.current = setTimeout(() => {
+                          docQrLongPressTimerRef.current = null;
+                          void runDocImageQrScan();
+                        }, 1100);
+                      }}
+                      onTouchEnd={() => {
+                        if (docQrLongPressTimerRef.current) {
+                          clearTimeout(docQrLongPressTimerRef.current);
+                          docQrLongPressTimerRef.current = null;
+                        }
+                      }}
+                      onTouchCancel={() => {
+                        if (docQrLongPressTimerRef.current) {
+                          clearTimeout(docQrLongPressTimerRef.current);
+                          docQrLongPressTimerRef.current = null;
+                        }
+                      }}
+                    />
+                    <p style={{ fontSize: 10, color: studioTheme.textMuted, margin: '6px 0 0', lineHeight: 1.35 }}>
+                      {t('form.documentQrHint')}
+                    </p>
+                  </div>
                 ) : null}
                 <p style={{ fontSize: 12, color: studioTheme.textMuted, margin: '8px 0' }}>{displayDocumentName(data)}</p>
                 <button
