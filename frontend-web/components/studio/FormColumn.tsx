@@ -210,9 +210,12 @@ export default function FormColumn({
       setBusy(true);
       try {
         await saveVaultLink(userId, pl);
-        void syncStudioVaultLinkToMongoCards(userId, pl).catch((err) =>
-          console.warn('[studio] vault→mongo sync', err),
-        );
+        try {
+          await syncStudioVaultLinkToMongoCards(userId, pl);
+        } catch (err) {
+          console.warn('[studio] vault→mongo sync', err);
+          setFormError(t('form.syncPublicCardFailed'));
+        }
         onDirtyChange(false);
         onSaveSuccess();
       } catch {
@@ -312,9 +315,12 @@ export default function FormColumn({
     setBusy(true);
     try {
       await saveVaultLink(userId, pl);
-      void syncStudioVaultLinkToMongoCards(userId, pl).catch((err) =>
-        console.warn('[studio] vault→mongo sync', err),
-      );
+      try {
+        await syncStudioVaultLinkToMongoCards(userId, pl);
+      } catch (err) {
+        console.warn('[studio] vault→mongo sync', err);
+        setFormError(t('form.syncPublicCardFailed'));
+      }
       onDirtyChange(false);
       onSaveSuccess();
     } catch {

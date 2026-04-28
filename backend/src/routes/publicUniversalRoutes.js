@@ -41,9 +41,24 @@ function sanitizeAnalyticsSegmentKey(raw) {
 }
 
 /**
- * Slots públicos para web/app: forma estable + itemId sintético si faltara (datos viejos en Mongo).
+ * `smart_cards` mezcla legado (`uid` + `itemIds`) y API REST (`ownerUid` + `vaultItemIds`).
+ * Sin este filtro, el QR / universal-card no encuentra la fila o lee slots desactualizados.
  */
-/** Estilo público de smart_cards para vista previa QR (tema / layout / ratings). */
+function smartCardPublicFindFilter(issuerUid, cardKey) {
+  const u = String(issuerUid || '').trim();
+  const k = String(cardKey || '').trim();
+  if (!u || !k) return null;
+  return {
+    $and: [
+      { $or: [{ uid: u }, { ownerUid: u }] },
+      { $or: [{ sid: k }, { bId: k }] },
+    ],
+  };
+}
+
+/**
+ * Estilo público de smart_cards para vista previa QR (tema / layout / ratings).
+ */
 function previewStyleFromSmartCardDoc(cardDoc) {
   if (!cardDoc) {
     return {
@@ -218,10 +233,12 @@ function createPublicUniversalRoutes({ storage }) {
       const sid = valSid != null && String(valSid).trim() ? String(valSid).trim() : null;
       const bId = valBId != null && String(valBId).trim() ? String(valBId).trim() : null;
       const cardKey = sid || bId;
+      const cardKeyFilter = smartCardPublicFindFilter(issuerUid, cardKey);
 
       const [cardDoc, bizDoc] = await Promise.all([
-        db.collection('smart_cards').findOne(
-          { uid: issuerUid, $or: [{ sid: cardKey }, { bId: cardKey }] },
+        cardKeyFilter
+          ? db.collection('smart_cards').findOne(
+          cardKeyFilter,
           {
             projection: {
               scName: 1,
@@ -248,7 +265,8 @@ function createPublicUniversalRoutes({ storage }) {
               updatedAt: 1,
             },
           },
-        ),
+        )
+          : Promise.resolve(null),
         bId
           ? db.collection('business_cards').findOne(
               { ownerUid: issuerUid, bId },
@@ -284,8 +302,8 @@ function createPublicUniversalRoutes({ storage }) {
 
       const storyRow = await db.collection('story_card_states').findOne(
         {
-          uid: issuerUid,
           $and: [
+            { $or: [{ uid: issuerUid }, { ownerUid: issuerUid }] },
             { $or: [{ sid: cardKey }, { bId: cardKey }] },
             { expiresAt: { $gt: now } },
           ],
@@ -455,7 +473,7 @@ function createPublicUniversalRoutes({ storage }) {
           },
         ),
         db.collection('smart_cards').findOne(
-          { uid, bId },
+          { $and: [{ $or: [{ uid }, { ownerUid: uid }] }, { bId }] },
           {
             projection: {
               scName: 1,
@@ -586,35 +604,59 @@ function createPublicUniversalRoutes({ storage }) {
         });
       }
 
-      const cardDoc = await db.collection('smart_cards').findOne(
-        { uid: issuerUid, $or: [{ sid: cardKey }, { bId: cardKey }] },
-        {
-          projection: {
-            scName: 1,
-            ownerNickname: 1,
-            ownerPhotoUrl: 1,
-            ownerOccupation: 1,
-            publicCardSlots: 1,
-            themeId: 1,
-            layout: 1,
-            wallpaperUrl: 1,
-            enableParallax: 1,
-            holdersCount: 1,
-            ratingAvg: 1,
-            totalRatings: 1,
-          },
-        },
-      );
-      if (!cardDoc) {
+      const tkFilter = smartCardPublicFindFilter(issuerUid, cardKey);
+      const smartProjection = {
+        scName: 1,
+        ownerNickname: 1,
+        ownerPhotoUrl: 1,
+        ownerOccupation: 1,
+        publicCardSlots: 1,
+        themeId: 1,
+        layout: 1,
+        wallpaperUrl: 1,
+        enableParallax: 1,
+        holdersCount: 1,
+        ratingAvg: 1,
+        totalRatings: 1,
+      };
+      const bizProjection = {
+        bcName: 1,
+        bcContactName: 1,
+        bcLogoUrl: 1,
+        publicCardSlots: 1,
+        themeId: 1,
+        layout: 1,
+        enableParallax: 1,
+        holdersCount: 1,
+        averageRating: 1,
+        totalRatings: 1,
+      };
+      const [cardDoc, bizDoc] = await Promise.all([
+        tkFilter ? db.collection('smart_cards').findOne(tkFilter, { projection: smartProjection }) : Promise.resolve(null),
+        bId
+          ? db.collection('business_cards').findOne({ ownerUid: issuerUid, bId }, { projection: bizProjection })
+          : Promise.resolve(null),
+      ]);
+      if (!cardDoc && !bizDoc) {
         return res.status(404).json({
           ok: false,
           error: isEs ? 'No se encontró la tarjeta.' : 'Card not found.',
         });
       }
+      const isBusinessCard = Boolean(bId && bizDoc);
 
       const idn = await resolvePublicIdentity(db, issuerUid, cardKey);
-      const slots = normalizePublicCardSlotsForUniversal(cardDoc.publicCardSlots);
-      const style = previewStyleFromSmartCardDoc(cardDoc);
+      const slots = normalizePublicCardSlotsForUniversal(
+        isBusinessCard ? bizDoc.publicCardSlots : cardDoc.publicCardSlots,
+      );
+      const style = isBusinessCard ? previewStyleFromBusinessCardDoc(bizDoc) : previewStyleFromSmartCardDoc(cardDoc);
+
+      const bcNamePub =
+        isBusinessCard && bizDoc.bcName != null && String(bizDoc.bcName).trim() ? String(bizDoc.bcName).trim() : null;
+      const bcContactNamePub =
+        isBusinessCard && bizDoc.bcContactName != null && String(bizDoc.bcContactName).trim()
+          ? String(bizDoc.bcContactName).trim()
+          : null;
 
       return res.status(200).json(
         rewritePublicCardMediaUrls(
@@ -625,11 +667,27 @@ function createPublicUniversalRoutes({ storage }) {
             bId,
             token,
             expiresAt: exp.toISOString(),
-            ownerDisplayName: idn.fullName,
-            cardName: String(readSmartCardScName(cardDoc) || idn.cardTitle || ''),
-            ownerNickname: cardDoc.ownerNickname ? String(cardDoc.ownerNickname) : null,
-            ownerPhotoUrl: cardDoc.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl) : null,
-            ownerOccupation: cardDoc.ownerOccupation ? String(cardDoc.ownerOccupation) : null,
+            ownerDisplayName: isBusinessCard
+              ? bcContactNamePub || bcNamePub || ''
+              : idn.fullName,
+            cardName: String(
+              (isBusinessCard && bcNamePub) ||
+                readSmartCardScName(cardDoc) ||
+                idn.cardTitle ||
+                '',
+            ),
+            bcContactName: isBusinessCard ? bcContactNamePub : null,
+            ownerNickname: isBusinessCard ? null : cardDoc?.ownerNickname ? String(cardDoc.ownerNickname) : null,
+            ownerPhotoUrl: isBusinessCard
+              ? bizDoc.bcLogoUrl
+                ? String(bizDoc.bcLogoUrl)
+                : cardDoc?.ownerPhotoUrl
+                  ? String(cardDoc.ownerPhotoUrl)
+                  : null
+              : cardDoc?.ownerPhotoUrl
+                ? String(cardDoc.ownerPhotoUrl)
+                : null,
+            ownerOccupation: isBusinessCard ? null : cardDoc?.ownerOccupation ? String(cardDoc.ownerOccupation) : null,
             slots,
             ...style,
           },

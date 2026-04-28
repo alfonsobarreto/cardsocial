@@ -76,6 +76,8 @@ const EN: Record<string, string> = {
   'form.errorGhostCreate': 'Ghost‑Link is added once by Card‑Social. Edit the existing one in the list.',
   'form.vaultLimit': 'Vault is full (free tier). Remove an item in the app to add more.',
   'form.uploadError': 'Upload failed. Check API URL and gateway key, or try again later.',
+  'form.syncPublicCardFailed':
+    'Vault saved, but updating your public card / QR on the server failed. Deploy the latest API and ensure NEXT_PUBLIC_API_URL + gateway key are set. Details in the browser console.',
   'form.uploadNoUrl': 'No file URL returned from the server.',
   'favicon.promptTitle': 'Find this website favicon?',
   'favicon.noThanks': 'No, thanks',
@@ -250,6 +252,8 @@ const ES: Record<string, string> = {
   'form.errorGhostCreate': 'Card‑Social añade un Ghost‑Link único. Edita el de la lista.',
   'form.vaultLimit': 'Bóveda llena (nivel gratuito). Borra un ítem en la app para añadir más.',
   'form.uploadError': 'Fallo al subir. Revisa la URL de API y la clave, o reintenta.',
+  'form.syncPublicCardFailed':
+    'La bóveda se guardó, pero falló actualizar la tarjeta pública / QR en el servidor. Despliega la API más reciente y revisa NEXT_PUBLIC_API_URL y la clave. Detalles en la consola del navegador.',
   'form.uploadNoUrl': 'El servidor no devolvió URL del archivo.',
   'favicon.promptTitle': '¿Buscar favicon de esta web?',
   'favicon.noThanks': 'No, gracias',

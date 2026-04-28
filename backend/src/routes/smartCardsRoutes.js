@@ -108,6 +108,13 @@ function sanitizeVaultItemIds(raw) {
   return out;
 }
 
+/** API REST (`vaultItemIds`) + legado qrRoutes (`itemIds`). */
+function mergeVaultItemIdsForWire(doc) {
+  const a = Array.isArray(doc?.vaultItemIds) ? doc.vaultItemIds : [];
+  const b = Array.isArray(doc?.itemIds) ? doc.itemIds : [];
+  return sanitizeVaultItemIds([...a, ...b]);
+}
+
 /**
  * Pull user identity from Mongo `users`. Tolerates both legacy and modern
  * field names (userFullName / fullName, userAvatarUrl / avatarUrl, etc.).
@@ -140,7 +147,7 @@ function toWireSmartCard(doc) {
   if (!doc) return null;
   return {
     sid: String(doc.sid || ''),
-    ownerUid: String(doc.ownerUid || ''),
+    ownerUid: String(doc.ownerUid || doc.uid || ''),
     createdAt: toIso(doc.createdAt) || new Date(0).toISOString(),
     updatedAt: toIso(doc.updatedAt) || new Date(0).toISOString(),
 
@@ -149,7 +156,7 @@ function toWireSmartCard(doc) {
     userNickname: doc.userNickname ? String(doc.userNickname) : null,
     userOccupation: doc.userOccupation ? String(doc.userOccupation) : null,
 
-    vaultItemIds: Array.isArray(doc.vaultItemIds) ? doc.vaultItemIds.map(String) : [],
+    vaultItemIds: mergeVaultItemIdsForWire(doc),
     publicCardSlots: Array.isArray(doc.publicCardSlots) ? doc.publicCardSlots : [],
 
     themeId: doc.themeId ? String(doc.themeId) : null,
@@ -189,7 +196,7 @@ function createSmartCardsRoutes({ storage }) {
       const db = req.app.locals.db || (await storage.connect());
       const docs = await db
         .collection('smart_cards')
-        .find({ ownerUid: uid })
+        .find({ $or: [{ ownerUid: uid }, { uid }] })
         .sort({ createdAt: -1 })
         .toArray();
       return res.status(200).json({ ok: true, cards: docs.map(toWireSmartCard) });
@@ -210,7 +217,8 @@ function createSmartCardsRoutes({ storage }) {
       const db = req.app.locals.db || (await storage.connect());
       const doc = await db.collection('smart_cards').findOne({ sid });
       if (!doc) return res.status(404).json({ ok: false, error: 'Card not found' });
-      if (doc.ownerUid !== uid) {
+      const owner = String(doc.ownerUid || doc.uid || '').trim();
+      if (owner !== uid) {
         return res.status(403).json({ ok: false, error: 'Not authorized to read this card' });
       }
       return res.status(200).json({ ok: true, card: toWireSmartCard(doc) });
@@ -244,6 +252,7 @@ function createSmartCardsRoutes({ storage }) {
       const doc = {
         sid,
         ownerUid: uid,
+        uid,
         createdAt: now,
         updatedAt: now,
 
@@ -301,10 +310,12 @@ function createSmartCardsRoutes({ storage }) {
         return res.status(400).json({ ok: false, error: 'No updatable fields provided' });
       }
       set.updatedAt = new Date();
+      set.ownerUid = uid;
+      set.uid = uid;
 
       const db = req.app.locals.db || (await storage.connect());
       const result = await db.collection('smart_cards').findOneAndUpdate(
-        { sid, ownerUid: uid },
+        { sid, $or: [{ ownerUid: uid }, { uid }] },
         { $set: set },
         { returnDocument: 'after' },
       );
@@ -328,7 +339,10 @@ function createSmartCardsRoutes({ storage }) {
       if (!sid) return res.status(400).json({ ok: false, error: 'sid is required' });
 
       const db = req.app.locals.db || (await storage.connect());
-      const result = await db.collection('smart_cards').deleteOne({ sid, ownerUid: uid });
+      const result = await db.collection('smart_cards').deleteOne({
+        sid,
+        $or: [{ ownerUid: uid }, { uid }],
+      });
       if (result.deletedCount !== 1) {
         return res.status(404).json({ ok: false, error: 'Card not found or not authorized' });
       }
@@ -360,8 +374,8 @@ function createSmartCardsRoutes({ storage }) {
 
       const now = new Date();
       const result = await db.collection('smart_cards').updateMany(
-        { ownerUid: uid },
-        { $set: { ...identity, updatedAt: now } },
+        { $or: [{ ownerUid: uid }, { uid }] },
+        { $set: { ...identity, updatedAt: now, ownerUid: uid, uid } },
       );
       return res.status(200).json({
         ok: true,
