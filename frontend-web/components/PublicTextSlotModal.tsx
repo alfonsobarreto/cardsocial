@@ -7,6 +7,7 @@
  * No repetimos el `label` del slot como título aparte (evita duplicar el “nombre de data” con la 1ª línea).
  */
 import { splitSovereignText } from '@card-social/utils/sovereignTextSplit';
+import { hrefPlainTextUrlToken, splitPlainTextByUrls } from '@card-social/utils/plainTextUrlSplit';
 import React, { useCallback, useMemo, useState } from 'react';
 
 /** Alineado con `PremiumDataPanelHost` (app). */
@@ -22,6 +23,43 @@ function splitBodyFirstLine(body: string): { lead: string; rest: string } {
     return { lead: s, rest: '' };
   }
   return { lead: s.slice(0, i), rest: s.slice(i + 1) };
+}
+
+function AutolinkText({
+  text,
+  style,
+  linkColor = ACCENT,
+}: {
+  text: string;
+  style: React.CSSProperties;
+  linkColor?: string;
+}) {
+  const parts = splitPlainTextByUrls(text);
+  if (!text) {
+    return null;
+  }
+  if (parts.length === 1 && parts[0].kind === 'text') {
+    return <span style={style}>{text}</span>;
+  }
+  return (
+    <span style={{ ...style, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+      {parts.map((p, i) =>
+        p.kind === 'url' ? (
+          <a
+            key={i}
+            href={hrefPlainTextUrlToken(p.s)}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: linkColor, textDecoration: 'underline', fontWeight: 'inherit' }}
+          >
+            {p.s}
+          </a>
+        ) : (
+          <span key={i}>{p.s}</span>
+        ),
+      )}
+    </span>
+  );
 }
 
 export function PublicTextSlotModal({
@@ -137,7 +175,19 @@ export function PublicTextSlotModal({
                   fontFamily: 'Georgia, "Times New Roman", serif',
                 }}
               >
-                {blocks.headline}
+                <AutolinkText
+                  text={blocks.headline}
+                  style={{
+                    display: 'block',
+                    color: ACCENT,
+                    fontSize: 26,
+                    fontWeight: 700,
+                    letterSpacing: 0.4,
+                    lineHeight: 1.23,
+                    textAlign: 'center',
+                    fontFamily: 'Georgia, "Times New Roman", serif',
+                  }}
+                />
               </h2>
               <div
                 style={{
@@ -150,18 +200,40 @@ export function PublicTextSlotModal({
                 }}
               >
                 {blocks.lead ? (
-                  <div style={{ fontWeight: 700, marginBottom: blocks.rest ? 0 : 0 }}>{blocks.lead}</div>
+                  <div style={{ fontWeight: 700, marginBottom: blocks.rest ? 0 : 0 }}>
+                    <AutolinkText
+                      text={blocks.lead}
+                      style={{
+                        color: 'rgba(244, 244, 245, 0.92)',
+                        fontSize: 16,
+                        lineHeight: 1.625,
+                        fontWeight: 700,
+                        textAlign: 'left',
+                        fontFamily:
+                          'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                      }}
+                    />
+                  </div>
                 ) : null}
                 {blocks.rest ? (
                   <div
                     style={{
                       fontWeight: 400,
                       marginTop: blocks.lead ? 10 : 0,
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
                     }}
                   >
-                    {blocks.rest}
+                    <AutolinkText
+                      text={blocks.rest}
+                      style={{
+                        color: 'rgba(244, 244, 245, 0.92)',
+                        fontSize: 16,
+                        lineHeight: 1.625,
+                        fontWeight: 400,
+                        textAlign: 'left',
+                        fontFamily:
+                          'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                      }}
+                    />
                   </div>
                 ) : null}
               </div>
@@ -179,7 +251,19 @@ export function PublicTextSlotModal({
                 fontFamily: 'Georgia, "Times New Roman", serif',
               }}
             >
-              {blocks.headline}
+              <AutolinkText
+                text={blocks.headline}
+                style={{
+                  display: 'block',
+                  color: ACCENT,
+                  fontSize: 26,
+                  fontWeight: 700,
+                  letterSpacing: 0.4,
+                  lineHeight: 1.23,
+                  textAlign: 'center',
+                  fontFamily: 'Georgia, "Times New Roman", serif',
+                }}
+              />
             </h2>
           ) : (
             <p
@@ -189,11 +273,19 @@ export function PublicTextSlotModal({
                 fontSize: 16,
                 lineHeight: 1.625,
                 fontWeight: 400,
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
               }}
             >
-              {blocks.bodyRest || '—'}
+              <AutolinkText
+                text={blocks.bodyRest || '—'}
+                style={{
+                  color: 'rgba(244, 244, 245, 0.92)',
+                  fontSize: 16,
+                  lineHeight: 1.625,
+                  fontWeight: 400,
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                }}
+              />
             </p>
           )}
         </div>

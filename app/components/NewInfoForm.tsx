@@ -14,6 +14,7 @@ import {
     InteractionManager,
     Keyboard,
     KeyboardAvoidingView,
+    Linking,
     Modal,
     Platform,
     ScrollView,
@@ -71,6 +72,41 @@ const DEFAULT_ICON_STABLE = LINK_FALLBACK_GALLERY_ITEM
 function legacyIdToStableKey(legacyId: string): string {
   const it = ICON_GALLERY.find((i) => i.id === legacyId);
   return it ? stableKeyForCatalogIcon(it) : legacyId;
+}
+
+/** Detecta http(s) y www. en Texto Plain para espejo y apertura con el sistema. */
+const PLAIN_TEXT_URL_RE = /\b(https?:\/\/[^\s]+)|(www\.[^\s]+)/gi;
+
+function splitPlainTextByUrls(text: string): Array<{ kind: 'text' | 'url'; s: string }> {
+  if (!text) return [];
+  const parts: Array<{ kind: 'text' | 'url'; s: string }> = [];
+  let last = 0;
+  PLAIN_TEXT_URL_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = PLAIN_TEXT_URL_RE.exec(text)) !== null) {
+    const full = m[0];
+    if (!full) continue;
+    if (m.index > last) {
+      parts.push({ kind: 'text', s: text.slice(last, m.index) });
+    }
+    parts.push({ kind: 'url', s: full });
+    last = m.index + full.length;
+  }
+  if (last < text.length) {
+    parts.push({ kind: 'text', s: text.slice(last) });
+  }
+  PLAIN_TEXT_URL_RE.lastIndex = 0;
+  return parts;
+}
+
+function openDetectedPlainTextUrl(raw: string) {
+  const trimmed = raw.replace(/[),.;:!?]+$/g, '').trim();
+  if (!trimmed) return;
+  let href = trimmed;
+  if (!/^https?:\/\//i.test(href)) {
+    href = 'https://' + href;
+  }
+  void Linking.openURL(href);
 }
 
 function galleryItemByStableOrLegacy(sel: string) {
@@ -1956,10 +1992,12 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       savedLinkIdRef.current = uniqueId;
       savedUserIdRef.current = userId;
       if (editingData?.id) {
-        // ACTUALIZAR: reemplazar el elemento existente
+        // ACTUALIZAR: reemplazar el elemento existente (o insertar si no estaba en caché local)
         const index = dataArray.findIndex((item: any) => item.id === editingData.id);
         if (index !== -1) {
           dataArray[index] = dataPayload;
+        } else {
+          dataArray.push(dataPayload);
         }
       } else {
         // CREAR: agregar nuevo elemento
@@ -2207,9 +2245,28 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                     paddingHorizontal: hPad,
                     paddingVertical: vPad,
                   }}
-                  pointerEvents="none"
+                  pointerEvents="box-none"
                 >
-                  {dataValue ? <Text style={fieldTypo}>{dataValue}</Text> : null}
+                  {dataValue ? (
+                    <Text style={fieldTypo} selectable>
+                      {splitPlainTextByUrls(dataValue).map((part, i) =>
+                        part.kind === 'url' ? (
+                          <Text
+                            key={`u-${i}`}
+                            style={[
+                              fieldTypo,
+                              { color: formTheme.labelGold, textDecorationLine: 'underline' },
+                            ]}
+                            onPress={() => openDetectedPlainTextUrl(part.s)}
+                          >
+                            {part.s}
+                          </Text>
+                        ) : (
+                          <Text key={`t-${i}`}>{part.s}</Text>
+                        ),
+                      )}
+                    </Text>
+                  ) : null}
                 </View>
                 <TextInput
                   style={[

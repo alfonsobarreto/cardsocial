@@ -17,6 +17,7 @@
     "components/**/*.tsx",
     "services/**/*.ts",
     "services/**/*.tsx",
+    "utils/**/*.ts",
     "constants/**/*.ts",
     "types/**/*.ts",
     "scripts/**/*.ts",

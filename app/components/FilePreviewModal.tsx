@@ -1,11 +1,13 @@
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
+import { presentDetectedQrFromT, scanQrFromImageUri } from '@/services/vaultImageQrScan';
 import { useLookMode } from '@/services/lookMode';
 import palette from '../theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+    ActivityIndicator,
     Dimensions,
     Image,
     Modal,
@@ -17,6 +19,7 @@ import {
     TouchableWithoutFeedback,
     View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -50,6 +53,8 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
+  const [qrAnalyzing, setQrAnalyzing] = useState(false);
+  const qrGenRef = useRef(0);
   const modalFooterBottomPad = useModalFooterBottomPad();
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
@@ -82,8 +87,80 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
   const fileName = asset?.name || 'Archivo';
   const hasAssetUri = Boolean(asset?.uri);
 
+  useEffect(() => {
+    if (!visible) {
+      setQrAnalyzing(false);
+      qrGenRef.current += 1;
+    }
+  }, [visible]);
+
+  const handleLongPressImageQr = useCallback(async () => {
+    if (!asset?.uri || isPdf) {
+      return;
+    }
+    const uri = asset.uri;
+    const session = ++qrGenRef.current;
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch {
+      /* web / sin hápticos */
+    }
+    setQrAnalyzing(true);
+    try {
+      const payload = await scanQrFromImageUri(uri);
+      if (session !== qrGenRef.current) {
+        return;
+      }
+      if (payload) {
+        try {
+          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch {
+          /* noop */
+        }
+        presentDetectedQrFromT(payload, t, () => {
+          Toast.show({
+            type: 'success',
+            text1: t('preview_copied'),
+            position: 'bottom',
+            visibilityTime: 1800,
+            autoHide: true,
+          });
+        });
+      } else {
+        try {
+          await Haptics.selectionAsync();
+        } catch {
+          /* noop */
+        }
+        Toast.show({
+          type: 'info',
+          text1: t('preview_qr_none_title'),
+          text2: t('preview_qr_none_body'),
+          position: 'bottom',
+          visibilityTime: 2200,
+          autoHide: true,
+        });
+      }
+    } catch {
+      if (session === qrGenRef.current) {
+        Toast.show({
+          type: 'info',
+          text1: t('preview_qr_none_title'),
+          text2: t('preview_qr_analyze_error'),
+          position: 'bottom',
+          visibilityTime: 2200,
+          autoHide: true,
+        });
+      }
+    } finally {
+      if (session === qrGenRef.current) {
+        setQrAnalyzing(false);
+      }
+    }
+  }, [asset?.uri, isPdf, t]);
+
   const handleAccept = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     onAccept();
   };
 
@@ -111,6 +188,12 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
 
               {/* ── Preview area ─────────────────────────────────── */}
               <View style={[styles.previewArea, { backgroundColor: theme.previewAreaBg }]}>
+                {qrAnalyzing ? (
+                  <View style={styles.qrScanOverlay} pointerEvents="auto">
+                    <ActivityIndicator size="large" color={shell.ctaAccent} />
+                    <Text style={styles.qrScanLabel}>{t('preview_qr_analyzing')}</Text>
+                  </View>
+                ) : null}
                 {isPdf ? (
                   hasAssetUri && PdfComponent ? (
                     <View style={styles.pdfPreviewWrap}>
@@ -140,22 +223,24 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
                 ) : (
                   /* Image preview with zoom */
                   hasAssetUri ? (
-                    <ScrollView
-                      style={styles.imageScroll}
-                      contentContainerStyle={styles.imageScrollContent}
-                      maximumZoomScale={6}
-                      minimumZoomScale={1}
-                      bounces={false}
-                      bouncesZoom
-                      overScrollMode="never"
-                      centerContent
-                    >
-                      <Image
-                        source={{ uri: asset!.uri }}
-                        style={styles.imagePreview}
-                        resizeMode="cover"
-                      />
-                    </ScrollView>
+                    <TouchableWithoutFeedback onLongPress={() => void handleLongPressImageQr()} delayLongPress={1800}>
+                      <ScrollView
+                        style={styles.imageScroll}
+                        contentContainerStyle={styles.imageScrollContent}
+                        maximumZoomScale={6}
+                        minimumZoomScale={1}
+                        bounces={false}
+                        bouncesZoom
+                        overScrollMode="never"
+                        centerContent
+                      >
+                        <Image
+                          source={{ uri: asset!.uri }}
+                          style={styles.imagePreview}
+                          resizeMode="cover"
+                        />
+                      </ScrollView>
+                    </TouchableWithoutFeedback>
                   ) : (
                     <View style={styles.pdfContainer}>
                       <MaterialCommunityIcons name="file-alert-outline" color={theme.accentPdfIcon} size={88} />
@@ -249,6 +334,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+  },
+  qrScanOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 15,
+    gap: 12,
+  },
+  qrScanLabel: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+    paddingHorizontal: 20,
+    textAlign: 'center',
   },
   imagePreview: {
     width: SCREEN_WIDTH,

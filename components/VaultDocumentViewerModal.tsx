@@ -1,7 +1,8 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as Haptics from 'expo-haptics';
 import { Image as ExpoImage } from 'expo-image';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -20,6 +21,7 @@ import * as Sharing from 'expo-sharing';
 import Toast from 'react-native-toast-message';
 import type { MirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
 import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
+import { presentDetectedQrAlert, scanQrFromImageUri } from '@/services/vaultImageQrScan';
 import { isVaultDocumentImage, isVaultDocumentPdf } from '@/services/vaultMimeGuards';
 
 let PdfComponent: any = null;
@@ -39,7 +41,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    zIndex: 4,
+    zIndex: 50,
   },
   viewerDownloadButton: {
     minHeight: 38,
@@ -95,6 +97,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
+  qrScanOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+    gap: 12,
+  },
+  qrScanLabel: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+    paddingHorizontal: 20,
+    textAlign: 'center',
+  },
 });
 
 type Props = {
@@ -108,6 +125,8 @@ type Props = {
 export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackMutedColor }: Props) {
   const [downloading, setDownloading] = useState(false);
   const [pdfLoadError, setPdfLoadError] = useState<string | null>(null);
+  const [qrAnalyzing, setQrAnalyzing] = useState(false);
+  const qrScanGenRef = useRef(0);
   const { width: winW, height: winH } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
@@ -135,6 +154,13 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
   useEffect(() => {
     setPdfLoadError(null);
   }, [displayUri]);
+
+  useEffect(() => {
+    if (!visible) {
+      setQrAnalyzing(false);
+      qrScanGenRef.current += 1;
+    }
+  }, [visible]);
 
   const handleDownload = async () => {
     if (!item?.value || !displayUri) {
@@ -180,7 +206,7 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
     }
   };
 
-  const handleLongPress = () => {
+  const handleLongPressPdf = () => {
     if (!item) return;
     Alert.alert(
       tr('Guardar archivo', 'Save file'),
@@ -194,6 +220,70 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
       ],
     );
   };
+
+  const handleLongPressImageQr = useCallback(async () => {
+    if (!item || !displayUri || !isVaultDocumentImage(item.value, item.vaultMimeType)) {
+      return;
+    }
+    const session = ++qrScanGenRef.current;
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch {
+      /* noop */
+    }
+    setQrAnalyzing(true);
+    try {
+      const payload = await scanQrFromImageUri(displayUri);
+      if (session !== qrScanGenRef.current) {
+        return;
+      }
+      if (payload) {
+        try {
+          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch {
+          /* noop */
+        }
+        presentDetectedQrAlert(payload, tr, () => {
+          Toast.show({
+            type: 'success',
+            text1: tr('Copiado', 'Copied'),
+            position: 'bottom',
+            visibilityTime: 1800,
+            autoHide: true,
+          });
+        });
+      } else {
+        try {
+          await Haptics.selectionAsync();
+        } catch {
+          /* noop */
+        }
+        Toast.show({
+          type: 'info',
+          text1: tr('Sin código detectado', 'No code detected'),
+          text2: tr('No se encontró un QR en esta imagen.', 'No QR was found in this image.'),
+          position: 'bottom',
+          visibilityTime: 2200,
+          autoHide: true,
+        });
+      }
+    } catch {
+      if (session === qrScanGenRef.current) {
+        Toast.show({
+          type: 'info',
+          text1: tr('Sin código detectado', 'No code detected'),
+          text2: tr('No se pudo analizar la imagen.', 'Could not analyze the image.'),
+          position: 'bottom',
+          visibilityTime: 2200,
+          autoHide: true,
+        });
+      }
+    } finally {
+      if (session === qrScanGenRef.current) {
+        setQrAnalyzing(false);
+      }
+    }
+  }, [displayUri, item, tr]);
 
   const showPdf =
     Boolean(item) &&
@@ -212,6 +302,14 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
       presentationStyle={Platform.OS === 'ios' ? 'overFullScreen' : undefined}
     >
       <View style={[styles.viewerOverlay, { width: winW, minHeight: winH }]}>
+        {qrAnalyzing ? (
+          <View style={styles.qrScanOverlay} pointerEvents="auto">
+            <ActivityIndicator size="large" color="#F2CA50" />
+            <Text style={styles.qrScanLabel}>
+              {tr('Analizando imagen…', 'Analyzing image…')}
+            </Text>
+          </View>
+        ) : null}
         <View style={[styles.viewerTopBar, { paddingTop: Math.max(insets.top, Platform.OS === 'ios' ? 8 : 4) }]}>
           <TouchableOpacity style={styles.viewerDownloadButton} onPress={() => void handleDownload()} disabled={downloading}>
             {downloading ? (
@@ -230,7 +328,7 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
         <View style={[styles.viewerBody, { height: pdfSize.height, minHeight: 280 }]}>
           {item ? (
             isVaultDocumentImage(item.value, item.vaultMimeType) ? (
-              <TouchableWithoutFeedback onLongPress={handleLongPress} delayLongPress={550}>
+              <TouchableWithoutFeedback onLongPress={() => void handleLongPressImageQr()} delayLongPress={1800}>
                 <ScrollView
                   maximumZoomScale={6}
                   minimumZoomScale={1}
@@ -264,7 +362,7 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
                     </Text>
                   </View>
                 ) : (
-                  <TouchableWithoutFeedback onLongPress={handleLongPress} delayLongPress={550}>
+                  <TouchableWithoutFeedback onLongPress={handleLongPressPdf} delayLongPress={550}>
                     <View style={[styles.viewerPdfWrapper, pdfSize]}>
                       <PdfComponent
                         source={{ uri: displayUri }}

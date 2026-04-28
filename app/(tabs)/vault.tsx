@@ -22,6 +22,7 @@ import { presentPremiumDataPanel, dismissPremiumDataPanel } from '@/services/pre
 import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
 import { buildLinkOpenCandidates, ensureWebUrl } from '@/services/mirrorVaultItemOpenPlan';
 import { isClassicPhoneVaultType } from '@/services/vaultItemTypeGuards';
+import { presentDetectedQrAlert, scanQrFromImageUri } from '@/services/vaultImageQrScan';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
@@ -80,6 +81,38 @@ interface Link {
   vaultMimeType?: string;
 }
 
+function vaultItemUpdatedAtMs(item: Link): number {
+  const t = Date.parse(String(item.updatedAt || ''));
+  return Number.isFinite(t) ? t : 0;
+}
+
+/**
+ * Tras guardar en local, `loadVaultData` podía leer la nube antes de que terminara `setDoc`
+ * y pisar AsyncStorage con el documento viejo. Por ítem gana la copia con `updatedAt` más reciente.
+ */
+function mergeVaultLinksPreferNewest(localItems: Link[], cloudItems: Link[]): Link[] {
+  const byId = new Map<string, Link>();
+  for (const c of cloudItems) {
+    const id = String(c?.id || '').trim();
+    if (id) byId.set(id, c);
+  }
+  for (const l of localItems) {
+    const id = String(l?.id || '').trim();
+    if (!id) continue;
+    const existing = byId.get(id);
+    if (!existing) {
+      byId.set(id, l);
+      continue;
+    }
+    const tLocal = vaultItemUpdatedAtMs(l);
+    const tCloud = vaultItemUpdatedAtMs(existing);
+    if (tLocal >= tCloud) {
+      byId.set(id, l);
+    }
+  }
+  return Array.from(byId.values());
+}
+
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
 const VaultScreen = () => {
@@ -105,6 +138,8 @@ const VaultScreen = () => {
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerItem, setViewerItem] = useState<Link | null>(null);
   const [isDownloadingViewerFile, setIsDownloadingViewerFile] = useState(false);
+  const [viewerQrAnalyzing, setViewerQrAnalyzing] = useState(false);
+  const viewerQrScanGenRef = useRef(0);
   const [refreshing, setRefreshing] = useState(false);
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [contextMenuItem, setContextMenuItem] = useState<Link | null>(null);
@@ -125,6 +160,13 @@ const VaultScreen = () => {
       formSheetTranslateY.setValue(0);
     }
   }, [formModalVisible, formSheetTranslateY]);
+
+  useEffect(() => {
+    if (!viewerVisible) {
+      setViewerQrAnalyzing(false);
+      viewerQrScanGenRef.current += 1;
+    }
+  }, [viewerVisible]);
 
   const sortLinks = (items: Link[]) => {
     return [...items].sort((a, b) => {
@@ -152,13 +194,14 @@ const VaultScreen = () => {
 
     // 1. Lectura optimista: mostrar cache local inmediatamente (cero latencia)
     let cachedJsonForCompare = '';
+    let withBuiltinLocal: Link[] = [];
     try {
       const raw = await readVaultJsonWithLegacyMigration(userId);
       const cached = raw ? (JSON.parse(raw) as Link[]) : [];
-      const withBuiltin = await mergeBuiltinGhostLinkIntoVault(userId, cached);
-      cachedJsonForCompare = JSON.stringify(withBuiltin);
-      if (withBuiltin.length > 0) {
-        setLinks(sortLinks(withBuiltin as Link[]));
+      withBuiltinLocal = (await mergeBuiltinGhostLinkIntoVault(userId, cached)) as Link[];
+      cachedJsonForCompare = JSON.stringify(withBuiltinLocal);
+      if (withBuiltinLocal.length > 0) {
+        setLinks(sortLinks(withBuiltinLocal));
       }
     } catch { /* ignora — la nube actualiza a continuación */ }
 
@@ -171,10 +214,11 @@ const VaultScreen = () => {
       })) as Link[];
 
       const cloudMerged = (await mergeBuiltinGhostLinkIntoVault(userId, cloudItems)) as Link[];
-      const cloudJson = JSON.stringify(cloudMerged);
-      if (cloudJson !== cachedJsonForCompare) {
-        await AsyncStorage.setItem(vaultStorageKey(userId), cloudJson);
-        setLinks(sortLinks(cloudMerged));
+      const merged = mergeVaultLinksPreferNewest(withBuiltinLocal, cloudMerged);
+      const mergedJson = JSON.stringify(merged);
+      if (mergedJson !== cachedJsonForCompare) {
+        await AsyncStorage.setItem(vaultStorageKey(userId), mergedJson);
+        setLinks(sortLinks(merged));
       }
     } catch (cloudError) {
       console.warn('Cloud read failed, keeping cached data:', cloudError);
@@ -592,6 +636,71 @@ const VaultScreen = () => {
     setViewerItem(link);
     setViewerVisible(true);
   };
+
+  const handleLongPressViewerImageQr = React.useCallback(async () => {
+    if (!viewerItem?.value || !isVaultDocumentImage(viewerItem.value, viewerItem.vaultMimeType)) {
+      return;
+    }
+    const displayUri = resolveVaultMediaUrlForApp(viewerItem.value) ?? viewerItem.value;
+    const session = ++viewerQrScanGenRef.current;
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch {
+      /* noop */
+    }
+    setViewerQrAnalyzing(true);
+    try {
+      const payload = await scanQrFromImageUri(displayUri);
+      if (session !== viewerQrScanGenRef.current) {
+        return;
+      }
+      if (payload) {
+        try {
+          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch {
+          /* noop */
+        }
+        presentDetectedQrAlert(payload, tr, () => {
+          Toast.show({
+            type: 'success',
+            text1: tr('Copiado', 'Copied'),
+            position: 'bottom',
+            visibilityTime: 1800,
+            autoHide: true,
+          });
+        });
+      } else {
+        try {
+          await Haptics.selectionAsync();
+        } catch {
+          /* noop */
+        }
+        Toast.show({
+          type: 'info',
+          text1: tr('Sin código detectado', 'No code detected'),
+          text2: tr('No se encontró un QR en esta imagen.', 'No QR was found in this image.'),
+          position: 'bottom',
+          visibilityTime: 2200,
+          autoHide: true,
+        });
+      }
+    } catch {
+      if (session === viewerQrScanGenRef.current) {
+        Toast.show({
+          type: 'info',
+          text1: tr('Sin código detectado', 'No code detected'),
+          text2: tr('No se pudo analizar la imagen.', 'Could not analyze the image.'),
+          position: 'bottom',
+          visibilityTime: 2200,
+          autoHide: true,
+        });
+      }
+    } finally {
+      if (session === viewerQrScanGenRef.current) {
+        setViewerQrAnalyzing(false);
+      }
+    }
+  }, [tr, viewerItem]);
 
   const handleDownloadFromViewer = async () => {
     if (!viewerItem?.value) {
@@ -1075,12 +1184,28 @@ const VaultScreen = () => {
           flex: 1,
           backgroundColor: vaultTheme.storiesModalOverlayBg,
         },
+        viewerQrScanOverlay: {
+          ...StyleSheet.absoluteFillObject,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10,
+          gap: 12,
+        },
+        viewerQrScanLabel: {
+          color: '#fff',
+          fontSize: 14,
+          fontWeight: '700',
+          paddingHorizontal: 20,
+          textAlign: 'center',
+        },
         viewerTopBar: {
           marginTop: 42,
           paddingHorizontal: 16,
           flexDirection: 'row',
           justifyContent: 'space-between',
           alignItems: 'center',
+          zIndex: 50,
         },
         viewerDownloadButton: {
           borderRadius: 999,
@@ -1511,6 +1636,14 @@ const VaultScreen = () => {
         onRequestClose={() => setViewerVisible(false)}
       >
         <View style={styles.viewerOverlay}>
+          {viewerQrAnalyzing ? (
+            <View style={styles.viewerQrScanOverlay} pointerEvents="auto">
+              <ActivityIndicator size="large" color={vaultTheme.ctaAccent} />
+              <Text style={styles.viewerQrScanLabel}>
+                {tr('Analizando imagen…', 'Analyzing image…')}
+              </Text>
+            </View>
+          ) : null}
           <View style={styles.viewerTopBar}>
 <TouchableOpacity
               style={[styles.viewerDownloadButton, { backgroundColor: vaultTheme.viewerDownloadBg }]}
@@ -1539,10 +1672,8 @@ const VaultScreen = () => {
             {viewerItem ? (
               isVaultDocumentImage(viewerItem.value, viewerItem.vaultMimeType) ? (
                 <TouchableWithoutFeedback
-                  onLongPress={() => {
-                    void handleDownloadFromViewer();
-                  }}
-                  delayLongPress={550}
+                  onLongPress={() => void handleLongPressViewerImageQr()}
+                  delayLongPress={1800}
                 >
                   <ScrollView
                     maximumZoomScale={6}
