@@ -11,17 +11,22 @@ import {
   AlignHorizontalSpaceBetween,
   BrainCircuit,
   ChevronDown,
+  CreditCard,
+  Crown,
   Diamond,
   Folder,
+  Handshake,
   Image as ImageIcon,
   Layers,
   LayoutGrid,
   Loader2,
-  MonitorSmartphone,
   Palette,
   Rocket,
   ScanLine,
+  ShieldCheck,
   Sparkles,
+  Star,
+  Trophy,
   Type,
   Upload,
   Wand,
@@ -30,7 +35,6 @@ import {
 import {
   type ChangeEvent,
   type ComponentType,
-  type CSSProperties,
   type DragEvent,
   type ReactNode,
   useCallback,
@@ -292,6 +296,14 @@ function createIconCandidates(iconItems: string, brandContext: string): AiIconCa
   }));
 }
 
+const CARD_SOCIAL_MEDAL_ICONS = [Handshake, Star, ShieldCheck, Crown, Trophy] as const;
+
+function cardSocialSubtitle(skin: AiSkinState): string {
+  const raw = skin.prompt.replace(/\s+/g, ' ').trim();
+  if (raw.length > 0) return raw.length > 52 ? `${raw.slice(0, 49)}…` : raw;
+  return `USD ${skin.priceUsd} · ${skin.priceCoins} monedas`;
+}
+
 function fontLabelToGoogleId(fontFamily: string) {
   const normalized = fontFamily.trim().toLowerCase();
   return GOOGLE_FONT_OPTIONS.find((font) => font.label.toLowerCase() === normalized || font.id.toLowerCase() === normalized)?.id ?? 'Inter';
@@ -540,7 +552,15 @@ function ColorPill({
   );
 }
 
-function IconArtwork({ candidate, selected }: { candidate: AiIconCandidate; selected?: boolean }) {
+function IconArtwork({
+  candidate,
+  selected,
+  hideSeed,
+}: {
+  candidate: AiIconCandidate;
+  selected?: boolean;
+  hideSeed?: boolean;
+}) {
   const [mediaState, setMediaState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
 
   useEffect(() => {
@@ -592,9 +612,51 @@ function IconArtwork({ candidate, selected }: { candidate: AiIconCandidate; sele
           </div>
         </>
       )}
-      <span className="absolute bottom-2 right-2 rounded-full bg-black/35 px-2 py-0.5 text-[10px] font-black text-white/90">
-        {candidate.seed}
-      </span>
+      {!hideSeed ? (
+        <span className="absolute bottom-2 right-2 rounded-full bg-black/35 px-2 py-0.5 text-[10px] font-black text-white/90">
+          {candidate.seed}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function CardSocialIconTile({
+  candidate,
+  selected,
+  accent,
+}: {
+  candidate: AiIconCandidate;
+  selected: boolean;
+  accent: string;
+}) {
+  return (
+    <div
+      className="flex w-full min-w-0 flex-col items-center gap-1"
+      style={
+        selected
+          ? {
+              boxShadow: `0 0 0 2px ${accent}`,
+              borderRadius: '0.9rem',
+            }
+          : undefined
+      }
+    >
+      <div
+        className="w-full overflow-hidden rounded-2xl border-2 bg-white"
+        style={{ borderColor: accent, aspectRatio: '1' }}
+      >
+        <div className="h-full min-h-0 w-full overflow-hidden rounded-[0.65rem]">
+          <IconArtwork candidate={candidate} hideSeed />
+        </div>
+      </div>
+      <p
+        className="w-full truncate px-0.5 text-center text-[8px] font-semibold leading-tight sm:text-[9px]"
+        style={{ color: accent }}
+        title={candidate.name}
+      >
+        {candidate.name}
+      </p>
     </div>
   );
 }
@@ -1369,102 +1431,124 @@ function LivePreview({
       ? `'${customFont.family}', system-ui, sans-serif`
       : `'${state.skin.googleFont.replace(/\+/g, ' ')}', system-ui, sans-serif`;
 
+  const accent = state.skin.labelsHex;
+
   const previewIconSet =
     state.icons.candidates.length > 0
       ? state.icons.candidates
       : createIconCandidates(state.icons.iconItems, state.icons.brandContext).slice(0, Math.max(state.icons.count, 6));
 
-  const iconBasis = `calc((100% - ${Math.max(0, state.layout.columns - 1) * state.layout.gap}px) / ${state.layout.columns})`;
-  const cssVars = {
-    '--preview-text': state.skin.labelsHex,
-    '--preview-vector': state.skin.vectorHex,
-    '--preview-font': fontFamily,
-  } as CSSProperties;
+  const gridJustifyItems =
+    state.layout.justify === 'flex-start'
+      ? 'start'
+      : state.layout.justify === 'flex-end'
+        ? 'end'
+        : state.layout.justify === 'center'
+          ? 'center'
+          : 'stretch';
 
   return (
-    <aside className="relative flex min-h-[760px] items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top,#1e293b_0,#020617_58%)] px-5 py-10">
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.04)_1px,transparent_1px)] bg-[size:40px_40px] opacity-30" />
-      <div className="relative w-full max-w-[380px]">
-        <div className="mb-5 flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur">
-          <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.24em] text-slate-400">
-            <MonitorSmartphone className="h-4 w-4 text-cyan-300" />
-            iPhone 15 Pro
+    <aside className="relative flex min-h-[760px] items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_50%_0%,#0f172a_0,#020617_55%)] px-4 py-10">
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.03)_1px,transparent_1px)] bg-[size:32px_32px] opacity-40" />
+      <div className="relative w-full max-w-[360px]">
+        <div className="mb-4 flex items-center justify-between rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3 backdrop-blur-md">
+          <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">
+            <CreditCard className="h-4 w-4 shrink-0" style={{ color: accent }} />
+            Vista previa Card-Social
           </span>
-          <span className="rounded-full bg-emerald-400/10 px-3 py-1 text-[10px] font-black text-emerald-200">Live CSS</span>
+          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-black text-slate-400">Modal</span>
         </div>
 
-        <div className="rounded-[3rem] bg-gradient-to-br from-zinc-500 via-zinc-950 to-zinc-700 p-[3px] shadow-2xl shadow-cyan-950/50">
-          <div className="relative overflow-hidden rounded-[2.82rem] bg-black p-2 ring-1 ring-white/10">
-            <div className="absolute left-1/2 top-4 z-30 h-8 w-32 -translate-x-1/2 rounded-full bg-black shadow-lg ring-1 ring-white/10" />
+        <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/80 p-4 shadow-2xl shadow-black/50 backdrop-blur-xl sm:p-5">
+          <div
+            className="rounded-[1.35rem] border-[3px] bg-white px-4 pb-5 pt-4 shadow-inner sm:px-5"
+            style={{ borderColor: accent, fontFamily }}
+          >
+            <div className="mb-4 flex items-center justify-center gap-2">
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-full border-2 bg-slate-50"
+                style={{ borderColor: accent }}
+              >
+                <CreditCard className="h-4 w-4" style={{ color: accent }} strokeWidth={2.2} />
+              </div>
+              <span className="text-sm font-bold" style={{ color: accent }}>
+                Card-Social
+              </span>
+            </div>
+
             <div
-              className="relative aspect-[9/19.5] overflow-hidden rounded-[2.35rem]"
+              className="mx-auto mb-4 h-[5.5rem] w-[5.5rem] overflow-hidden rounded-[1.35rem] border-[3px] shadow-sm sm:h-28 sm:w-28 sm:rounded-[1.5rem]"
               style={{
-                ...cssVars,
+                borderColor: accent,
                 background: state.skin.wallpaperCss || state.skin.wallpaperHex,
-                fontFamily: 'var(--preview-font)',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}
+            />
+
+            <h2
+              className="mb-1 text-center text-xl font-bold leading-snug text-balance sm:text-2xl"
+              style={{ color: accent }}
+            >
+              {state.skin.name || 'Nombre de la tarjeta'}
+            </h2>
+            <p
+              className="mx-auto mb-5 max-w-[280px] text-center text-xs font-medium leading-relaxed text-balance opacity-80 sm:text-sm"
+              style={{ color: accent }}
+            >
+              {cardSocialSubtitle(state.skin)}
+            </p>
+
+            <div
+              className="mb-5 flex items-center justify-between gap-0.5 rounded-full border-2 bg-white px-1.5 py-2 sm:gap-1 sm:px-3 sm:py-2.5"
+              style={{ borderColor: accent }}
+            >
+              {CARD_SOCIAL_MEDAL_ICONS.map((Icon, index) => (
+                <div key={index} className="flex min-w-0 flex-1 flex-col items-center gap-0.5">
+                  <Icon className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" style={{ color: accent }} strokeWidth={2} />
+                  <span className="text-[9px] font-bold tabular-nums sm:text-[10px]" style={{ color: accent }}>
+                    0
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <p className="mb-2 text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: accent }}>
+              Iconos
+            </p>
+            <div
+              className="grid w-full min-w-0"
+              style={{
+                gridTemplateColumns: `repeat(${state.layout.columns}, minmax(0, 1fr))`,
+                gap: state.layout.gap,
+                padding: state.layout.padding,
+                justifyItems: gridJustifyItems,
               }}
             >
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0,rgba(255,255,255,.22),transparent_30%)]" />
-              <div className="relative z-10 flex h-full flex-col px-4 pb-6 pt-14">
-                <div className="rounded-[1.5rem] border border-white/20 bg-black/20 p-3 shadow-2xl backdrop-blur-xl">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/30 text-lg font-black shadow-lg"
-                      style={{ backgroundColor: state.skin.vectorHex, color: state.skin.wallpaperHex }}
-                    >
-                      CS
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-base font-black" style={{ color: 'var(--preview-text)' }}>
-                        {state.skin.name || 'AI Visual Skin'}
-                      </p>
-                      <p className="truncate text-xs font-bold opacity-80" style={{ color: 'var(--preview-text)' }}>
-                        ${state.skin.priceUsd} · {ICON_STYLE_OPTIONS.find((option) => option.id === state.icons.style)?.label ?? '3D'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+              {previewIconSet.map((candidate) => (
+                <CardSocialIconTile
+                  key={candidate.id}
+                  candidate={candidate}
+                  selected={state.icons.selectedId === candidate.id}
+                  accent={accent}
+                />
+              ))}
+            </div>
+          </div>
 
-                <div className="mt-4 grid gap-2">
-                  {['Website', 'Book Now', 'Portfolio'].map((label) => (
-                    <button
-                      key={label}
-                      type="button"
-                      className="rounded-2xl border border-white/20 bg-white/15 py-3 text-sm font-black shadow-lg backdrop-blur"
-                      style={{ color: 'var(--preview-text)' }}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-
-                <p className="mt-4 text-[10px] font-black uppercase tracking-[0.24em]" style={{ color: 'var(--preview-text)' }}>
-                  Icon Layout
-                </p>
-                <div
-                  className="mt-2 flex flex-wrap rounded-[1.4rem] border border-white/15 bg-black/20 backdrop-blur-md"
-                  style={{
-                    justifyContent: state.layout.justify,
-                    gap: state.layout.gap,
-                    padding: state.layout.padding,
-                  }}
-                >
-                  {previewIconSet.map((candidate) => (
-                    <div
-                      key={candidate.id}
-                      className={`min-w-4 overflow-hidden rounded-2xl transition ${
-                        state.icons.selectedId === candidate.id ? 'ring-2 ring-white/70' : ''
-                      }`}
-                      style={{
-                        flex: `0 0 ${iconBasis}`,
-                        maxWidth: iconBasis,
-                      }}
-                    >
-                      <IconArtwork candidate={candidate} />
-                    </div>
-                  ))}
-                </div>
-              </div>
+          <div className="mt-4 flex gap-3">
+            <div
+              className="flex flex-1 select-none items-center justify-center rounded-full bg-slate-700 py-3 text-center text-xs font-bold text-white shadow-lg"
+              role="presentation"
+            >
+              Cerrar
+            </div>
+            <div
+              className="flex flex-1 select-none items-center justify-center rounded-full py-3 text-center text-xs font-bold text-slate-900 shadow-lg"
+              style={{ backgroundColor: '#FACC15' }}
+              role="presentation"
+            >
+              Editar tarjeta
             </div>
           </div>
         </div>
