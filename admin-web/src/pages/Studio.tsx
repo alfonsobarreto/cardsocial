@@ -1,6 +1,6 @@
 /**
  * LA FORJA — AI Visual Engine (admin)
- * Mock AI actions with centralized reducer state and a live iPhone layout preview.
+ * Free AI actions with centralized reducer state and a live iPhone layout preview.
  */
 
 import { HexColorInput } from 'react-colorful';
@@ -32,6 +32,12 @@ import {
   useReducer,
   useState,
 } from 'react';
+import {
+  generateAIIconsBatch,
+  generateAIWallpaper,
+  generateThemeLogic,
+  type GeneratedThemeLogic,
+} from '../services/aiStudioService';
 import {
   getStudioFonts,
   listStudioIconPacks,
@@ -77,6 +83,7 @@ type AiIconCandidate = {
   name: string;
   prompt: string;
   gradient: string;
+  imageUrl?: string;
   seed: number;
 };
 
@@ -95,6 +102,7 @@ type AiSkinState = {
   generating: boolean;
   name: string;
   priceUsd: string;
+  priceCoins: number;
   wallpaperHex: string;
   labelsHex: string;
   vectorHex: string;
@@ -123,8 +131,8 @@ type ForgeAction =
   | { type: 'ICON_PATCH'; patch: Partial<AiIconState> }
   | { type: 'SKIN_PATCH'; patch: Partial<AiSkinState> }
   | { type: 'LAYOUT_PATCH'; patch: Partial<LayoutState> }
-  | { type: 'GENERATE_ICONS' }
-  | { type: 'FORGE_SKIN'; fontId?: string };
+  | { type: 'SET_GENERATED_ICONS'; candidates: AiIconCandidate[] }
+  | { type: 'APPLY_THEME_LOGIC'; logic: GeneratedThemeLogic; wallpaperUrl: string };
 
 const initialState: ForgeState = {
   tab: 'icons',
@@ -142,6 +150,7 @@ const initialState: ForgeState = {
     generating: false,
     name: 'Lone Star Voltage',
     priceUsd: '9.99',
+    priceCoins: 1200,
     wallpaperHex: '#1a1a1a',
     labelsHex: '#f97316',
     vectorHex: '#ffffff',
@@ -180,6 +189,23 @@ function createIconCandidates(prompt: string): AiIconCandidate[] {
   }));
 }
 
+function fontLabelToGoogleId(fontFamily: string) {
+  const normalized = fontFamily.trim().toLowerCase();
+  return GOOGLE_FONT_OPTIONS.find((font) => font.label.toLowerCase() === normalized || font.id.toLowerCase() === normalized)?.id ?? 'Inter';
+}
+
+function alignmentToJustify(alignment: GeneratedThemeLogic['layoutAlignment']): JustifyMode {
+  if (alignment === 'start') return 'flex-start';
+  if (alignment === 'end') return 'flex-end';
+  return 'center';
+}
+
+function alignmentToPadding(alignment: GeneratedThemeLogic['layoutAlignment']) {
+  if (alignment === 'start') return 12;
+  if (alignment === 'end') return 28;
+  return 20;
+}
+
 function forgeReducer(state: ForgeState, action: ForgeAction): ForgeState {
   switch (action.type) {
     case 'SET_TAB':
@@ -190,8 +216,8 @@ function forgeReducer(state: ForgeState, action: ForgeAction): ForgeState {
       return { ...state, skin: { ...state.skin, ...action.patch } };
     case 'LAYOUT_PATCH':
       return { ...state, layout: { ...state.layout, ...action.patch } };
-    case 'GENERATE_ICONS': {
-      const candidates = createIconCandidates(state.icons.prompt);
+    case 'SET_GENERATED_ICONS': {
+      const candidates = action.candidates;
       return {
         ...state,
         icons: {
@@ -200,27 +226,30 @@ function forgeReducer(state: ForgeState, action: ForgeAction): ForgeState {
           candidates,
           selectedId: candidates[0]?.id ?? '',
           name: candidates[0]?.name ?? '',
-          priceUsd: '4.99',
         },
       };
     }
-    case 'FORGE_SKIN': {
-      const name = titleCaseFromPrompt(state.skin.prompt, 'Lone Star Voltage');
+    case 'APPLY_THEME_LOGIC': {
       return {
         ...state,
         skin: {
           ...state.skin,
           generating: false,
-          name,
-          priceUsd: '12.99',
-          wallpaperHex: '#bf5700',
-          labelsHex: '#fff7ed',
-          vectorHex: '#1f2937',
-          wallpaperCss:
-            'radial-gradient(circle at 25% 18%, rgba(255,247,237,.95) 0 8%, transparent 29%), radial-gradient(circle at 78% 14%, rgba(249,115,22,.7) 0 13%, transparent 34%), linear-gradient(145deg, #bf5700 0%, #5f1d05 46%, #111827 100%)',
-          fontSource: action.fontId ? 'custom' : 'google',
-          customFontId: action.fontId ?? state.skin.customFontId,
-          googleFont: action.fontId ? state.skin.googleFont : 'Sora',
+          name: action.logic.name,
+          priceUsd: action.logic.priceUSD.toFixed(2),
+          priceCoins: action.logic.priceCoins,
+          wallpaperHex: action.logic.wallpaperHex,
+          labelsHex: action.logic.labelHex,
+          vectorHex: action.logic.vectorHex,
+          wallpaperCss: `linear-gradient(rgba(0,0,0,.08), rgba(0,0,0,.18)), url("${action.wallpaperUrl}") center/cover no-repeat, ${action.logic.wallpaperHex}`,
+          fontSource: 'google',
+          customFontId: '',
+          googleFont: fontLabelToGoogleId(action.logic.fontFamily),
+        },
+        layout: {
+          ...state.layout,
+          justify: alignmentToJustify(action.logic.layoutAlignment),
+          padding: alignmentToPadding(action.logic.layoutAlignment),
         },
       };
     }
@@ -365,10 +394,16 @@ function IconArtwork({ candidate, selected }: { candidate: AiIconCandidate; sele
         selected ? 'ring-2 ring-cyan-300 ring-offset-2 ring-offset-slate-950' : ''
       }`}
     >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_18%,rgba(255,255,255,.7),transparent_22%),radial-gradient(circle_at_78%_82%,rgba(0,0,0,.35),transparent_34%)]" />
-      <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl border border-white/35 bg-white/20 shadow-2xl backdrop-blur-md">
-        <Sparkles className="h-7 w-7 text-white drop-shadow" />
-      </div>
+      {candidate.imageUrl ? (
+        <img src={candidate.imageUrl} alt={candidate.name} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+      ) : (
+        <>
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_18%,rgba(255,255,255,.7),transparent_22%),radial-gradient(circle_at_78%_82%,rgba(0,0,0,.35),transparent_34%)]" />
+          <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl border border-white/35 bg-white/20 shadow-2xl backdrop-blur-md">
+            <Sparkles className="h-7 w-7 text-white drop-shadow" />
+          </div>
+        </>
+      )}
       <span className="absolute bottom-2 right-2 rounded-full bg-black/35 px-2 py-0.5 text-[10px] font-black text-white/90">
         {candidate.seed}
       </span>
@@ -379,9 +414,11 @@ function IconArtwork({ candidate, selected }: { candidate: AiIconCandidate; sele
 function AiIconPanel({
   state,
   dispatch,
+  onGenerateIcons,
 }: {
   state: ForgeState;
   dispatch: React.Dispatch<ForgeAction>;
+  onGenerateIcons: () => void;
 }) {
   const selected = state.icons.candidates.find((candidate) => candidate.id === state.icons.selectedId);
 
@@ -396,10 +433,8 @@ function AiIconPanel({
           />
           <button
             type="button"
-            onClick={() => {
-              dispatch({ type: 'ICON_PATCH', patch: { generating: true } });
-              window.setTimeout(() => dispatch({ type: 'GENERATE_ICONS' }), 450);
-            }}
+            onClick={onGenerateIcons}
+            disabled={state.icons.generating}
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-600 px-5 py-3 text-sm font-black text-white shadow-xl shadow-cyan-500/20 transition hover:-translate-y-0.5"
           >
             {state.icons.generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand className="h-4 w-4" />}
@@ -496,10 +531,12 @@ function AiSkinPanel({
   state,
   dispatch,
   fonts,
+  onForgeSkin,
 }: {
   state: ForgeState;
   dispatch: React.Dispatch<ForgeAction>;
   fonts: StudioFont[];
+  onForgeSkin: () => void;
 }) {
   return (
     <div className="space-y-5">
@@ -512,10 +549,8 @@ function AiSkinPanel({
           />
           <button
             type="button"
-            onClick={() => {
-              dispatch({ type: 'SKIN_PATCH', patch: { generating: true } });
-              window.setTimeout(() => dispatch({ type: 'FORGE_SKIN', fontId: fonts[0]?.id }), 500);
-            }}
+            onClick={onForgeSkin}
+            disabled={state.skin.generating}
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-300 via-orange-500 to-rose-600 px-5 py-3 text-sm font-black text-slate-950 shadow-xl shadow-orange-500/25 transition hover:-translate-y-0.5"
           >
             {state.skin.generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand className="h-4 w-4" />}
@@ -572,6 +607,19 @@ function AiSkinPanel({
                 onClick={() => dispatch({ type: 'SKIN_PATCH', patch: { priceUsd: '14.99' } })}
               />
             </div>
+          </div>
+          <div className="space-y-2">
+            <FieldLabel>Precio (Coins)</FieldLabel>
+            <TextInput
+              type="number"
+              value={String(state.skin.priceCoins)}
+              onChange={(priceCoins) =>
+                dispatch({
+                  type: 'SKIN_PATCH',
+                  patch: { priceCoins: Math.max(0, Math.round(Number(priceCoins) || 0)) },
+                })
+              }
+            />
           </div>
           <div className="space-y-2">
             <FieldLabel>Fuente del Skin</FieldLabel>
@@ -898,6 +946,40 @@ export default function Studio() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
+  const handleGenerateIcons = useCallback(async () => {
+    dispatch({ type: 'ICON_PATCH', patch: { generating: true } });
+    try {
+      const urls = await generateAIIconsBatch(state.icons.prompt);
+      const baseName = titleCaseFromPrompt(state.icons.prompt, 'AI Icon');
+      const candidates = urls.map((url, index): AiIconCandidate => ({
+        id: `pollinations-icon-${Date.now()}-${index}`,
+        name: `${baseName} ${String(index + 1).padStart(2, '0')}`,
+        prompt: state.icons.prompt || 'Iconos premium generados por IA',
+        gradient: AI_ICON_GRADIENTS[index % AI_ICON_GRADIENTS.length],
+        imageUrl: url,
+        seed: index + 1,
+      }));
+      dispatch({ type: 'SET_GENERATED_ICONS', candidates });
+    } catch (error) {
+      dispatch({ type: 'ICON_PATCH', patch: { generating: false } });
+      setToast(error instanceof Error ? error.message : 'Error generando iconos con Pollinations AI.');
+    }
+  }, [state.icons.prompt]);
+
+  const handleForgeSkin = useCallback(async () => {
+    dispatch({ type: 'SKIN_PATCH', patch: { generating: true } });
+    try {
+      const [logic, wallpaperUrl] = await Promise.all([
+        generateThemeLogic(state.skin.prompt),
+        generateAIWallpaper(state.skin.prompt),
+      ]);
+      dispatch({ type: 'APPLY_THEME_LOGIC', logic, wallpaperUrl });
+    } catch (error) {
+      dispatch({ type: 'SKIN_PATCH', patch: { generating: false } });
+      setToast(error instanceof Error ? error.message : 'Error forjando el skin con Gemini.');
+    }
+  }, [state.skin.prompt]);
+
   const tabs: Array<{ id: ForgeTab; label: string; icon: ComponentType<{ className?: string }> }> = [
     { id: 'icons', label: 'Iconos AI', icon: Wand },
     { id: 'skins', label: 'Skins AI', icon: Palette },
@@ -954,8 +1036,8 @@ export default function Studio() {
             ))}
           </div>
 
-          {state.tab === 'icons' ? <AiIconPanel state={state} dispatch={dispatch} /> : null}
-          {state.tab === 'skins' ? <AiSkinPanel state={state} dispatch={dispatch} fonts={fonts} /> : null}
+          {state.tab === 'icons' ? <AiIconPanel state={state} dispatch={dispatch} onGenerateIcons={handleGenerateIcons} /> : null}
+          {state.tab === 'skins' ? <AiSkinPanel state={state} dispatch={dispatch} fonts={fonts} onForgeSkin={handleForgeSkin} /> : null}
           {state.tab === 'layout' ? <LayoutPanel state={state} dispatch={dispatch} /> : null}
         </section>
 
