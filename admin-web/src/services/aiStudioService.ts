@@ -83,9 +83,6 @@ const GEMINI_MODELS = [
   'gemini-2.0-flash',
 ] as const;
 
-const VERTEX_IMAGEN_LOCATION = 'us-central1';
-const VERTEX_IMAGEN_MODEL = 'imagegeneration@006';
-
 const HEX_PATTERN = /^#[0-9a-f]{6}$/i;
 const ALIGNMENTS = new Set<ThemeLayoutAlignment>(['start', 'center', 'end']);
 let availableGeminiModelsPromise: Promise<string[]> | null = null;
@@ -446,12 +443,6 @@ export async function generateIconPrompts(input: GenerateIconPromptsInput): Prom
   return parseIconPromptsBriefing(rawText, count);
 }
 
-function getVertexEnv() {
-  const projectId = (import.meta.env.VITE_GCP_PROJECT_ID as string | undefined)?.trim() ?? '';
-  const accessToken = (import.meta.env.VITE_GCP_ACCESS_TOKEN as string | undefined)?.trim() ?? '';
-  return { projectId, accessToken };
-}
-
 function vertexIconPendingDataUrl(): string {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
     <rect fill="#64748b" width="256" height="256"/>
@@ -468,8 +459,12 @@ function vertexWallpaperPendingDataUrl(): string {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
-function vertexImagenPredictUrl(projectId: string) {
-  return `https://${VERTEX_IMAGEN_LOCATION}-aiplatform.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/locations/${VERTEX_IMAGEN_LOCATION}/publishers/google/models/${VERTEX_IMAGEN_MODEL}:predict`;
+type VertexProxyBody =
+  | { prompt: string; hexColorBackground: string }
+  | { instancePrompt: string; parameters: { sampleCount: number; aspectRatio: string } };
+
+function vertexImagenPredictUrl(): string {
+  return '/api/vertex-proxy';
 }
 
 type VertexPredictionRaw = {
@@ -478,63 +473,50 @@ type VertexPredictionRaw = {
   mimeType?: string;
 };
 
-async function vertexImagenPredict(
-  instancePrompt: string,
-  parameters: { sampleCount: number; aspectRatio: string },
-): Promise<string | null> {
-  const { projectId, accessToken } = getVertexEnv();
-  if (!projectId || !accessToken) return null;
-
-  const url = vertexImagenPredictUrl(projectId);
-  const body = {
-    instances: [{ prompt: instancePrompt }],
-    parameters,
-  };
-
+async function vertexImagenPredictViaProxy(body: VertexProxyBody): Promise<string | null> {
+  const url = vertexImagenPredictUrl();
   try {
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
 
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      console.warn('[Vertex Imagen] predict failed:', response.status, errText.slice(0, 400));
+    const text = await response.text();
+    let data: { predictions?: VertexPredictionRaw[]; error?: string };
+    try {
+      data = JSON.parse(text) as { predictions?: VertexPredictionRaw[]; error?: string };
+    } catch {
+      console.error('[Vertex proxy] respuesta no JSON. HTTP', response.status, text.slice(0, 600));
       return null;
     }
 
-    const data = (await response.json()) as { predictions?: VertexPredictionRaw[] };
+    if (!response.ok) {
+      console.error('[Vertex proxy] error HTTP', response.status, data ?? text.slice(0, 600));
+      return null;
+    }
+
     const pred = data.predictions?.[0];
     const rawB64 = pred?.bytes ?? pred?.bytesBase64Encoded;
     if (!rawB64 || typeof rawB64 !== 'string') {
-      console.warn('[Vertex Imagen] missing predictions[0].bytes / bytesBase64Encoded');
+      console.error('[Vertex proxy] falta predictions[0].bytes o bytesBase64Encoded:', data);
       return null;
     }
     const mime = pred?.mimeType && typeof pred.mimeType === 'string' ? pred.mimeType : 'image/png';
     return `data:${mime};base64,${rawB64}`;
   } catch (error) {
-    console.warn('[Vertex Imagen] request error:', error);
+    console.error('[Vertex proxy] fetch / parse error:', error);
     return null;
   }
 }
 
 export async function generateIconWithVertexAI(prompt: string, hexColorBackground: string): Promise<string> {
-  const { projectId, accessToken } = getVertexEnv();
-  if (!projectId || !accessToken) {
-    return vertexIconPendingDataUrl();
-  }
-
   let bg = (hexColorBackground || '#0B1220').trim();
   if (!HEX_PATTERN.test(bg)) bg = '#0B1220';
 
   const safePrompt = prompt.replace(/\s+/g, ' ').trim() || 'abstract premium app symbol';
-  const instancePrompt = `A minimalist flat vector iOS app icon of ${safePrompt}, centered, solid background color ${bg}, dribbble style, high quality`;
 
-  const dataUrl = await vertexImagenPredict(instancePrompt, { sampleCount: 1, aspectRatio: '1:1' });
+  const dataUrl = await vertexImagenPredictViaProxy({ prompt: safePrompt, hexColorBackground: bg });
   return dataUrl ?? vertexIconPendingDataUrl();
 }
 
@@ -566,12 +548,10 @@ export async function generateAIIconsBatch(input: GenerateAIIconsBatchInput): Pr
 }
 
 export async function generateAIWallpaper(prompt: string): Promise<string> {
-  const { projectId, accessToken } = getVertexEnv();
-  if (!projectId || !accessToken) {
-    return vertexWallpaperPendingDataUrl();
-  }
-
   const instancePrompt = `${prompt || 'premium mobile wallpaper'}, vertical mobile wallpaper, clean gradients, professional visual identity, no text, no letters`;
-  const dataUrl = await vertexImagenPredict(instancePrompt, { sampleCount: 1, aspectRatio: '9:16' });
+  const dataUrl = await vertexImagenPredictViaProxy({
+    instancePrompt,
+    parameters: { sampleCount: 1, aspectRatio: '9:16' },
+  });
   return dataUrl ?? vertexWallpaperPendingDataUrl();
 }
