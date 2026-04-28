@@ -13,7 +13,7 @@ function getGatewayKey(): string {
   return raw;
 }
 
-async function getJwt(uid: string, scope: 'qr.access' | 'moderation.upload' = 'qr.access') {
+export async function getJwt(uid: string, scope: 'qr.access' | 'moderation.upload' = 'qr.access') {
   const baseUrl = getApiBase();
   const gatewayKey = getGatewayKey();
   const r = await fetch(`${baseUrl}/api/auth/token`, {

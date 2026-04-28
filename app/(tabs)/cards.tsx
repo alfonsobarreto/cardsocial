@@ -97,7 +97,6 @@ import {
   type CanonicalIssuerIdentity,
 } from '@/types/canonicalIssuerIdentity';
 import { type CardFontItem, type FontTier } from '@/services/fontLibraryService';
-import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
 import { getUserIconVaultMap, type IconVaultEntry } from '@/services/iconVaultService';
 import { trEsEn, useLanguage } from '@/services/language';
 import { validateCardCreation } from '@/services/limitService';
@@ -129,9 +128,7 @@ import { getCardRowTheme, useActiveTheme } from '@/services/useActiveTheme';
 import {
     cardsTabFeedOrderStorageKey,
     readSmartCardsJsonWithLegacyMigration,
-    readVaultJsonWithLegacyMigration,
     smartCardsStorageKey,
-    vaultStorageKey,
 } from '@/services/userScopedStorage';
 import { isClassicPhoneVaultType } from '@/services/vaultItemTypeGuards';
 import { getWallpaperResizeMode, type WallpaperItem, type WallpaperTier } from '@/services/wallpaperService';
@@ -176,10 +173,8 @@ import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { ActionController } from '../../services/ActionController';
-import {
-    resolveMaterialGlyphFromVaultLikeFields,
-    sanitizeMaterialCommunityIconName,
-} from '../components/iconNameValidation';
+import { loadVaultSnapshotForSlotSync } from '@/services/loadVaultSnapshotForSlotSync';
+import { buildPublicCardSlotsForPersist } from '@/services/vaultPublicCardSlots';
 import palette from '../theme';
 
 type CardThemeId = string;
@@ -217,130 +212,6 @@ type VaultItem = {
   isFavorite: boolean;
   vaultMimeType?: string;
 };
-
-function buildPublicCardSlotsForPersist(
-  vaultItems: VaultItem[],
-  itemIds: string[],
-  iconVaultById: Record<string, IconVaultEntry>,
-): PublicCardSlotPayload[] {
-  const out: PublicCardSlotPayload[] = [];
-  const seen = new Set<string>();
-  for (const id of itemIds) {
-    const trimmedId = String(id || '').trim();
-    if (!trimmedId || seen.has(trimmedId)) {
-      continue;
-    }
-    seen.add(trimmedId);
-    const it = vaultItems.find((v) => String(v.id || '').trim() === trimmedId);
-    if (!it) {
-      continue;
-    }
-    const iconRaw = String(it.icon || '').trim();
-    const iconUrl = /^https?:\/\//i.test(iconRaw) ? iconRaw.slice(0, 4000) : undefined;
-    const resolvedGlyph = resolveMaterialGlyphFromVaultLikeFields(
-      {
-        icon: it.icon,
-        iconName: it.iconName,
-        iconVaultId: it.iconVaultId,
-      },
-      iconVaultById,
-    );
-    const value = isGhostLinkVaultType(it.type) ? '' : String(it.value || '').trim();
-    const row: PublicCardSlotPayload = {
-      itemId: trimmedId,
-      type: String(it.type || 'link').slice(0, 64),
-      label: String(it.title || '').slice(0, 200),
-      value: value.slice(0, 4000),
-    };
-    if (iconUrl) {
-      row.icon = iconUrl;
-    }
-    if (resolvedGlyph) {
-      row.iconName = resolvedGlyph.slice(0, 120);
-    }
-    const vm = String((it as { vaultMimeType?: string }).vaultMimeType || '').trim();
-    if (vm) {
-      row.vaultMimeType = vm.slice(0, 120);
-    }
-    out.push(row);
-  }
-  return out.slice(0, 24);
-}
-
-function migrateVaultIconsForStorage(items: any[]) {
-  return items.map((item) => {
-    if (item.iconName === 'alternate-email') return { ...item, iconName: 'email' };
-    if (item.iconName === 'file-presentation') return { ...item, iconName: 'file-document' };
-    if (item.iconName === 'Gmail') return { ...item, iconName: 'gmail' };
-    if (item.iconName === 'Stamp') return { ...item, iconName: 'certificate' };
-    if (item.iconName === 'Classic') return { ...item, iconName: 'card-text' };
-    if (!item.iconName || item.iconName.includes(' ') || item.iconName === '') {
-      return { ...item, iconName: 'link-variant' };
-    }
-    return { ...item, iconName: sanitizeMaterialCommunityIconName(item.iconName) };
-  });
-}
-
-/**
- * Misma fuente que `loadVaultItems`, pero devuelve datos sin depender del estado React.
- * QR24h debe usar esto antes del upsert: si `vaultItems` en memoria va vacío, `publicCardSlots` salía [] y la web sin iconos.
- */
-async function loadVaultSnapshotForSync(uid: string): Promise<{
-  vaultItems: VaultItem[];
-  iconVaultById: Record<string, IconVaultEntry>;
-}> {
-  const raw = await readVaultJsonWithLegacyMigration(uid);
-  let parsed = raw ? (JSON.parse(raw) as any[]) : [];
-  let itemsMigrated = migrateVaultIconsForStorage(parsed);
-  if (JSON.stringify(itemsMigrated) !== JSON.stringify(parsed)) {
-    await AsyncStorage.setItem(vaultStorageKey(uid), JSON.stringify(itemsMigrated));
-  }
-
-  /** Unión local + Firestore por `id`: si el caché local no tiene algún link, la tarjeta igual muestra iconos en app pero publicCardSlots salía []. */
-  const byId = new Map<string, any>();
-  for (const it of itemsMigrated) {
-    const id = String(it?.id || '').trim();
-    if (id) {
-      byId.set(id, it);
-    }
-  }
-  try {
-    const cloudSnapshot = await getDocs(collection(db, 'users', uid, 'links'));
-    for (const itemDoc of cloudSnapshot.docs) {
-      const id = String(itemDoc.id || '').trim();
-      if (!id || byId.has(id)) {
-        continue;
-      }
-      byId.set(id, { id: itemDoc.id, ...itemDoc.data() });
-    }
-  } catch {
-    /* sin red */
-  }
-  itemsMigrated = migrateVaultIconsForStorage([...byId.values()]);
-
-  if (itemsMigrated.length === 0) {
-    try {
-      const cloudSnapshot = await getDocs(collection(db, 'users', uid, 'links'));
-      const cloudItems = cloudSnapshot.docs.map((itemDoc) => ({
-        id: itemDoc.id,
-        ...itemDoc.data(),
-      })) as any[];
-      itemsMigrated = migrateVaultIconsForStorage(cloudItems);
-      await AsyncStorage.setItem(vaultStorageKey(uid), JSON.stringify(itemsMigrated));
-    } catch {
-      /* sin red */
-    }
-  }
-  itemsMigrated = await mergeBuiltinGhostLinkIntoVault(uid, itemsMigrated);
-  let iconMap: Record<string, IconVaultEntry> = {};
-  try {
-    const vaultMap = await getUserIconVaultMap(uid);
-    iconMap = Object.fromEntries(vaultMap);
-  } catch {
-    iconMap = {};
-  }
-  return { vaultItems: itemsMigrated as VaultItem[], iconVaultById: iconMap };
-}
 
 type Universal24hQrCacheRow = {
   universalUrl: string;
@@ -833,7 +704,7 @@ export default function CardsFactoryScreen() {
         setIconVaultById({});
         return;
       }
-      const snap = await loadVaultSnapshotForSync(uid);
+      const snap = await loadVaultSnapshotForSlotSync(uid);
       setVaultItems(snap.vaultItems);
       setIconVaultById(snap.iconVaultById);
     } catch {
@@ -1789,7 +1660,7 @@ export default function CardsFactoryScreen() {
       // igual que el flujo de QR web 24h. Sin esto, el receptor ve la tarjeta vacía
       // o con el tema incorrecto si el documento en MongoDB está desactualizado.
       try {
-        const vaultSnap = await loadVaultSnapshotForSync(uid);
+        const vaultSnap = await loadVaultSnapshotForSlotSync(uid);
         await upsertSmartCardInDb({ uid: uid, card: buildSmartCardDbPayload(card, vaultSnap, uid) });
       } catch {
         // Mejor esfuerzo: el QR se emite igualmente; el receptor verá el snapshot anterior si falla la red.
@@ -1900,7 +1771,7 @@ export default function CardsFactoryScreen() {
         try {
           const uid = await getActiveUserId();
           if (uid) {
-            const snap = await loadVaultSnapshotForSync(uid);
+            const snap = await loadVaultSnapshotForSlotSync(uid);
             await upsertSmartCardInDb({ uid, card: buildSmartCardDbPayload(card, snap, uid) });
           }
         } catch {
@@ -1928,7 +1799,7 @@ export default function CardsFactoryScreen() {
         setQrVisible(true);
         void (async () => {
           try {
-            const snap = await loadVaultSnapshotForSync(uid);
+            const snap = await loadVaultSnapshotForSlotSync(uid);
             await upsertSmartCardInDb({ uid: uid, card: buildSmartCardDbPayload(card, snap, uid) });
           } catch {
             /* mejor esfuerzo */
@@ -1939,7 +1810,7 @@ export default function CardsFactoryScreen() {
 
       setIssuingUniversalLink(true);
       // Leer Bóveda desde disco (no solo estado React): si no, publicCardSlots podía ir vacío y la web sin iconos.
-      const vaultSnap = await loadVaultSnapshotForSync(uid);
+      const vaultSnap = await loadVaultSnapshotForSlotSync(uid);
       const cardPayload = buildSmartCardDbPayload(card, vaultSnap, uid);
       const slotN = cardPayload.publicCardSlots?.length ?? 0;
       const needN = card.itemIds.length;
@@ -2022,7 +1893,7 @@ export default function CardsFactoryScreen() {
       // leerá el snapshot anterior en el peor caso. Paso 13 elimina este espejo.
       try {
         const syncPromise = (async () => {
-          const vaultSnap = await loadVaultSnapshotForSync(uid);
+          const vaultSnap = await loadVaultSnapshotForSlotSync(uid);
           const publicCardSlots = buildPublicCardSlotsForPersist(
             vaultSnap.vaultItems,
             row.vaultLinkIds,

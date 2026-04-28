@@ -15,6 +15,7 @@ import { uploadVaultDocumentWeb } from '@/lib/studioModerationClient';
 import { extractDomainFromLink, fetchStudioFavicon } from '@/lib/studioFaviconClient';
 import { resolvePublicVaultUrlForWeb } from '@/lib/resolvePublicVaultMediaUrl';
 import { saveVaultLink, newStudioItemId } from '@/lib/studioVaultService';
+import { syncStudioVaultLinkToMongoCards } from '@/lib/studioVaultCardSync';
 import type { StudioVaultLink } from '@/lib/studioVaultTypes';
 import {
   CREATE_TYPES,
@@ -209,6 +210,9 @@ export default function FormColumn({
       setBusy(true);
       try {
         await saveVaultLink(userId, pl);
+        void syncStudioVaultLinkToMongoCards(userId, pl).catch((err) =>
+          console.warn('[studio] vault→mongo sync', err),
+        );
         onDirtyChange(false);
         onSaveSuccess();
       } catch {
@@ -308,6 +312,9 @@ export default function FormColumn({
     setBusy(true);
     try {
       await saveVaultLink(userId, pl);
+      void syncStudioVaultLinkToMongoCards(userId, pl).catch((err) =>
+        console.warn('[studio] vault→mongo sync', err),
+      );
       onDirtyChange(false);
       onSaveSuccess();
     } catch {

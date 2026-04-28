@@ -49,6 +49,7 @@ import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import { newEntityId } from '@/services/newEntityId';
+import { syncVaultLinkToMongoCardsAfterSave } from '@/services/syncVaultLinkToMongoCards';
 import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
 import { premiumTheme } from '@/styles/_premiumTheme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -2006,6 +2007,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       console.log('[Vault] handleCreate: Antes de AsyncStorage.setItem');
       await AsyncStorage.setItem(vaultStorageKey(userId), JSON.stringify(dataArray));
       console.log('[Vault] handleCreate: Después de AsyncStorage.setItem');
+      void syncVaultLinkToMongoCardsAfterSave(userId, uniqueId!).catch((err) =>
+        console.warn('[Vault] mongo publicCardSlots sync:', err),
+      );
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Toast.show({
         type: 'success',
