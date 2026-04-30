@@ -472,4 +472,31 @@ router.get('/billing-status', verifyAdminToken, async (req, res) => {
   }
 });
 
+/**
+ * 📦 GET /api/admin/nfc/cards
+ * Fetch the general inventory of NFC cards
+ */
+router.get('/nfc/cards', gatewayKeyMiddleware, async (req, res) => {
+  try {
+    const db = req.app.locals.db;
+
+    // Validate admin scope
+    const adminUid = String(req.auth?.sub || '').trim();
+    if (!adminUid || !req.auth?.scope?.includes('admin.system')) {
+      return res.status(403).json({ ok: false, error: 'Admin access required.' });
+    }
+
+    // Fetch NFC cards inventory
+    const nfcCards = await db.collection('nfc_cards')
+      .find({})
+      .sort({ updatedAt: -1 })
+      .toArray();
+
+    return res.status(200).json({ ok: true, nfcCards });
+  } catch (error) {
+    console.error('[admin/nfc/cards]', error);
+    return res.status(500).json({ ok: false, error: 'Failed to fetch NFC cards inventory.' });
+  }
+});
+
 module.exports = { createAdminRoutes: () => router };
