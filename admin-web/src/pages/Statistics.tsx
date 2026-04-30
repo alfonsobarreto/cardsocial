@@ -24,6 +24,10 @@ import {
 } from '../services/statsService';
 import { type SystemStatsResponse, fetchSystemStats } from '../services/systemStatsService';
 
+type SystemStatsFetchResult =
+  | { ok: true; m: SystemStatsResponse }
+  | { ok: false; err: string };
+
 function formatInt(n: number): string {
   return n.toLocaleString('es-ES');
 }
@@ -88,15 +92,18 @@ export default function Statistics() {
       const [growth, mongoResult] = await Promise.all([
         getStatisticsGrowth(),
         fetchSystemStats(user)
-          .then((m) => ({ ok: true as const, m }))
-          .catch((e) => ({ ok: false as const, err: (e as Error).message })),
+          .then((m): SystemStatsFetchResult => ({ ok: true, m }))
+          .catch((e): SystemStatsFetchResult => ({
+            ok: false,
+            err: (e as Error).message,
+          })),
       ]);
       setData(growth);
-      if (mongoResult.ok) {
-        setSystemStats(mongoResult.m);
-      } else {
+      if (mongoResult.ok === false) {
         setSystemStats(null);
         setSystemStatsError(mongoResult.err);
+      } else {
+        setSystemStats(mongoResult.m);
       }
     } catch (e) {
       setLoadError((e as Error).message);
@@ -337,7 +344,10 @@ export default function Statistics() {
                         ))}
                       </Pie>
                       <Tooltip
-                        formatter={(v: number) => [formatInt(v), 'Usuarios']}
+                        formatter={(value) => [
+                          formatInt(typeof value === 'number' ? value : Number(value) || 0),
+                          'Usuarios',
+                        ]}
                         contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0' }}
                       />
                       <Legend
