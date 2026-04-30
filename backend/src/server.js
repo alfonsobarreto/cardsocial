@@ -29,6 +29,7 @@ const {
   createQrScopeMiddleware,
   createTokenIssuer,
 } = require("./middleware/strongAuth");
+const cors = require('cors');
 
 async function bootstrap() {
 
