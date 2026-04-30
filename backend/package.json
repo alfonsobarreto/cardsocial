@@ -2,7 +2,7 @@
   "name": "card-social-backend",
   "version": "1.0.0",
   "engines": {
-    "node": "20.x"
+    "node": "22.x"
   },
   "description": "Card-Social Express.js Backend",
   "main": "src/server.js",
