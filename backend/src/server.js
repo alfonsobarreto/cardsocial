@@ -29,7 +29,7 @@ const {
   createQrScopeMiddleware,
   createTokenIssuer,
 } = require("./middleware/strongAuth");
-const cors = require('cors');
+const { createAdminWebCorsMiddleware } = require("./middleware/adminWebCors");
 
 async function bootstrap() {
 
@@ -50,14 +50,8 @@ async function bootstrap() {
   await ensureMongoHardening(db);
 
   const app = express();
-  app.use(cors({
-    origin: 'https://cardsocial-admin-890673da6872.herokuapp.com',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-gateway-key'],
-    credentials: true,
-    preflightContinue: false,
-    optionsSuccessStatus: 204,
-  }));
+  /** Debe ir antes de express.json y de las rutas para que OPTIONS (preflight) reciba cabeceras CORS. */
+  app.use(createAdminWebCorsMiddleware());
   app.use(express.json({ limit: "2mb" }));
   app.locals.db = db;
 

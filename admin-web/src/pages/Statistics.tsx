@@ -144,7 +144,7 @@ export default function Statistics() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="min-h-0 space-y-8">
       <section className="rounded-3xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/80 p-8 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
@@ -325,9 +325,9 @@ export default function Statistics() {
               <p className="mt-1 text-sm text-slate-500">
                 Usuarios escaneados: {formatInt(data.segmentation.usersScanned)}
               </p>
-              <div className="mt-4 h-72 w-full">
+              <div className="mt-4 h-72 min-h-0 w-full">
                 {pieData.length ? (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minHeight={1}>
                     <PieChart>
                       <Pie
                         data={pieData}
@@ -411,8 +411,8 @@ export default function Statistics() {
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-950">Usuarios — nuevas altas por día</h2>
             <p className="mt-1 text-sm text-slate-500">Últimos 30 días (UTC)</p>
-            <div className="mt-6 h-80 w-full">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="mt-6 h-80 min-h-0 w-full">
+              <ResponsiveContainer width="100%" height="100%" minHeight={1}>
                 <AreaChart data={data.usersDaily} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="fillUsers" x1="0" y1="0" x2="0" y2="1">
@@ -445,8 +445,8 @@ export default function Statistics() {
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-950">Usuarios — nuevas altas por semana</h2>
             <p className="mt-1 text-sm text-slate-500">Semanas en lunes UTC — últimas 12</p>
-            <div className="mt-6 h-80 w-full">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="mt-6 h-80 min-h-0 w-full">
+              <ResponsiveContainer width="100%" height="100%" minHeight={1}>
                 <BarChart data={data.usersWeekly} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="#64748b" />
@@ -469,8 +469,8 @@ export default function Statistics() {
               Nuevos documentos últimos 30 d · últimos 7 d:{' '}
               <strong>{formatInt(data.overview.newBusinessCardsLast7d)}</strong>
             </p>
-            <div className="mt-6 h-72 w-full">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="mt-6 h-72 min-h-0 w-full">
+              <ResponsiveContainer width="100%" height="100%" minHeight={1}>
                 <AreaChart data={data.businessCardsDaily} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="fillBc" x1="0" y1="0" x2="0" y2="1">
@@ -503,8 +503,8 @@ export default function Statistics() {
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-950">Tarjetas de negocio (Firestore) — por semana</h2>
             <p className="mt-1 text-sm text-slate-500">Últimas 12 semanas (lunes UTC)</p>
-            <div className="mt-6 h-72 w-full">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="mt-6 h-72 min-h-0 w-full">
+              <ResponsiveContainer width="100%" height="100%" minHeight={1}>
                 <BarChart data={data.businessCardsWeekly} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="#64748b" />
