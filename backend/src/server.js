@@ -84,6 +84,7 @@ async function bootstrap() {
   const actionTokenModel = createActionTokenModel(db);
   const { sendEmail, usernameRecoveryTemplate } = require('./services/email.service');
 
+  /** Una sola fuente: `env.apiGatewayKey` ← `process.env.API_GATEWAY_KEY` (Portal Azure). */
   const gatewayKeyMiddleware = createGatewayKeyMiddleware({
     apiGatewayKey: env.apiGatewayKey,
   });

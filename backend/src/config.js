@@ -19,7 +19,12 @@ const env = {
   azureEndpoint: (process.env.AZURE_CONTENT_SAFETY_ENDPOINT || "").replace(/\/+$/, ""),
   azureApiKey: process.env.AZURE_CONTENT_SAFETY_KEY || "",
   azureApiVersion: process.env.AZURE_CONTENT_SAFETY_API_VERSION || "2024-09-01",
-  apiGatewayKey: process.env.API_GATEWAY_KEY || "",
+  /**
+   * Header `x-api-gateway-key` en rutas protegidas. Azure App Service / Container Apps:
+   * definir **Application setting** `API_GATEWAY_KEY` (mismo nombre; sin prefijo VITE).
+   * Se normaliza con trim por si el portal guarda espacios finales.
+   */
+  apiGatewayKey: String(process.env.API_GATEWAY_KEY ?? "").trim(),
   jwtSecret: process.env.MODERATION_JWT_SECRET || "",
   jwtIssuer: process.env.MODERATION_JWT_ISSUER || "cardsocial-gateway",
   jwtAudience: process.env.MODERATION_JWT_AUDIENCE || "cardsocial-moderation",

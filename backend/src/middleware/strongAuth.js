@@ -8,9 +8,14 @@ function getBearerToken(authHeader) {
 }
 
 function createGatewayKeyMiddleware({ apiGatewayKey }) {
+  const expected = String(apiGatewayKey ?? '').trim();
   return function gatewayKeyMiddleware(req, res, next) {
     const provided = String(req.header('x-api-gateway-key') || '').trim();
-    if (!provided || provided !== apiGatewayKey) {
+    if (!expected) {
+      console.error('[gatewayKeyMiddleware] API_GATEWAY_KEY is empty — check Azure Application settings');
+      return res.status(500).json({ ok: false, error: 'Server misconfiguration: API gateway key not set' });
+    }
+    if (!provided || provided !== expected) {
       return res.status(401).json({ ok: false, error: 'Missing or invalid API Gateway key' });
     }
     return next();
