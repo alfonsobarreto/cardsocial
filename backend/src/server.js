@@ -50,6 +50,11 @@ async function bootstrap() {
   await ensureMongoHardening(db);
 
   const app = express();
+  app.use(cors({
+    origin: 'https://cardsocial-admin-890673da6872.herokuapp.com',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  }));
   app.use(express.json({ limit: "2mb" }));
   app.locals.db = db;
 
