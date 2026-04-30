@@ -53,7 +53,7 @@ async function bootstrap() {
   app.use(cors({
     origin: 'https://cardsocial-admin-890673da6872.herokuapp.com',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-gateway-key'],
     credentials: true,
     preflightContinue: false,
     optionsSuccessStatus: 204,
@@ -467,7 +467,14 @@ const otpHash = (emailLower, code) => {
   );
 
   // Admin Routes (Marketing, Asset Minting, Stats)
-  app.use("/api/admin", createAdminRoutes());
+  app.use(
+    "/api/admin",
+    createAdminRoutes({
+      gatewayKeyMiddleware,
+      jwtAuthMiddleware,
+      adminSystemScopeMiddleware,
+    }),
+  );
 
   app.use("/api/public", createPublicUniversalRoutes({ storage }));
   app.use("/n", createNfcPublicRoutes({ storage }));
@@ -725,6 +732,12 @@ const otpHash = (emailLower, code) => {
 
   app.use((err, _req, res, _next) => {
     res.status(500).json({ ok: false, error: err.message || "Unexpected error" });
+  });
+
+  // Error logging middleware
+  app.use((err, req, res, next) => {
+    console.error('[Error Middleware]', err.stack || err.message || err);
+    res.status(500).json({ ok: false, error: 'Internal Server Error' });
   });
 
   const { runStorySpacesAssetCleanup } = require("./jobs/storySpacesCleanup");

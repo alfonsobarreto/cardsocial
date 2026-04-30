@@ -253,7 +253,9 @@ export default function ReceptorScreenModal({
       const timeLabel = relativeTimeLabel(item.addedAt, tr);
       const primary = subscriberTitle(item);
       const subtitle = subscriberSubtitleLine(item, primary);
-      const profileAvatar = item.userAvatarUrl;
+      const profileAvatar = item.userAvatarUrl
+        ? resolveVaultMediaUrlForApp(item.userAvatarUrl) ?? item.userAvatarUrl
+        : null;
 
       const rowContent = (
         <View style={[s.listRow, { backgroundColor: c.rowBg, borderBottomColor: c.rowBorder }, item.muted && { opacity: 0.5 }]}>

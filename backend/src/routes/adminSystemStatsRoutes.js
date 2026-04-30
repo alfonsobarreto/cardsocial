@@ -1,7 +1,18 @@
 /**
  * GET /api/admin/system-stats
  * Requiere: x-api-gateway-key, Authorization Bearer (JWT scope admin.system).
+ * Autorización: `req.auth.sub` (uid del JWT emitido por POST /api/auth/token) debe estar en
+ * `ADMIN_SYSTEM_STATS_UIDS` del entorno del backend (process.env, sin prefijo VITE).
  */
+
+function parseAdminSystemStatsUidAllowlist() {
+  return new Set(
+    String(process.env.ADMIN_SYSTEM_STATS_UIDS || '')
+      .split(/[,;\s]+/)
+      .map((s) => s.trim())
+      .filter(Boolean),
+  );
+}
 
 function toSubscriptionLabel(id) {
   if (id === null || id === undefined) return '(sin plan)';
@@ -47,6 +58,16 @@ function createAdminSystemStatsHandler({ getMongoDb }) {
         } catch (e) {
           console.warn('[admin/system-stats] subscription aggregation skipped:', e?.message || e);
           mongo_users_by_subscription_plan = [];
+        }
+
+        const uid = String(req.auth?.sub || '').trim();
+        const allowedUids = parseAdminSystemStatsUidAllowlist();
+
+        if (!uid || !allowedUids.has(uid)) {
+          return res.status(403).json({
+            ok: false,
+            error: 'Unauthorized: JWT sub not listed in ADMIN_SYSTEM_STATS_UIDS',
+          });
         }
 
         return res.status(200).json({
