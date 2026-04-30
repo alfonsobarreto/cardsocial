@@ -52,8 +52,11 @@ async function bootstrap() {
   const app = express();
   app.use(cors({
     origin: 'https://cardsocial-admin-890673da6872.herokuapp.com',
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   }));
   app.use(express.json({ limit: "2mb" }));
   app.locals.db = db;
