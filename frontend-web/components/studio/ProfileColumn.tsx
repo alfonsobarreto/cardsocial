@@ -36,6 +36,7 @@ export type StudioProfile = {
   lastName?: string;
   bio?: string;
   verificationStatus?: string;
+  verificationSelfieFileId?: string | null;
   authProvider?: string;
   lastNicknameChange?: string | null;
 };

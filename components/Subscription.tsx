@@ -24,6 +24,7 @@ import {
   View,
 } from 'react-native';
 import Purchases from 'react-native-purchases';
+import { BUSINESS_CARD_CASHBACK_CS, CS_CREDITS_PER_USD } from '@/constants/csEconomy';
 
 const { width } = Dimensions.get('window');
 
@@ -56,12 +57,16 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
   const [subscribingPack, setSubscribingPack] = useState<string | null>(null);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
 
-  const creditPacks = [
-    { id: 'pack_100', credits: 100, price: 9.99, displayPrice: '$9.99', productId: 'card_social_credits_100' },
-    { id: 'pack_500', credits: 500, price: 39.99, displayPrice: '$39.99', productId: 'card_social_credits_500' },
-    { id: 'pack_1000', credits: 1000, price: 79.99, displayPrice: '$79.99', productId: 'card_social_credits_1000', popular: true },
-    { id: 'pack_5000', credits: 5000, price: 349.99, displayPrice: '$349.99', productId: 'card_social_credits_5000' },
+  const creditPackDefs = [
+    { id: 'pack_100', price: 9.99, displayPrice: '$9.99', productId: 'card_social_credits_100' },
+    { id: 'pack_500', price: 39.99, displayPrice: '$39.99', productId: 'card_social_credits_500' },
+    { id: 'pack_1000', price: 79.99, displayPrice: '$79.99', productId: 'card_social_credits_1000', popular: true as const },
+    { id: 'pack_5000', price: 349.99, displayPrice: '$349.99', productId: 'card_social_credits_5000' },
   ];
+  const creditPacks = creditPackDefs.map((p) => ({
+    ...p,
+    credits: Math.round(p.price * CS_CREDITS_PER_USD),
+  }));
 
   const bizPackage = useMemo(() => getBusinessCardPackageForPlatform(Platform.OS as 'ios' | 'android'), []);
 
@@ -272,7 +277,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
         Alert.alert(
           '✅ ' + tr('¡Tarjeta de Negocio Activada!', 'Business Card Activated!'),
           tr('Tu licencia anual quedó activa. Recibiste', 'Your annual license is now active. You received') +
-            ` ${result.cashbackCredits || 1000} ` +
+            ` ${result.cashbackCredits ?? BUSINESS_CARD_CASHBACK_CS} ` +
             tr('Monedas CS para gastar en tienda.', 'CS Coins to spend in the store.'),
         );
       } else {
@@ -425,7 +430,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{tr('Packs de créditos CS', 'CS credit packs')}</Text>
-        <Text style={styles.sectionHint}>{tr('$1 USD ≈ 10 CS · RevenueCat', '$1 USD ≈ 10 CS · RevenueCat')}</Text>
+        <Text style={styles.sectionHint}>{tr('100 CS = 1 USD · RevenueCat', '100 CS = 1 USD · RevenueCat')}</Text>
         <View style={styles.packGrid}>
           {creditPacks.map((pack) => (
             <View key={pack.id} style={[styles.packCard, pack.popular && styles.packPopular]}>

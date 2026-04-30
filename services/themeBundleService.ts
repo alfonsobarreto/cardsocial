@@ -6,6 +6,7 @@ import {
   TEXAS_LONGHORNS_BUNDLE_ID,
   TEXAS_LONGHORNS_ICON_SEEDS,
 } from '@/constants/texasLonghornsPack';
+import { csCreditsFromUsd } from '@/constants/csEconomy';
 import { db } from '@/services/firebaseConfig';
 import { deductCredits } from '@/services/creditsService';
 import {
@@ -31,7 +32,7 @@ export const THEME_BUNDLES: ThemeBundleDefinition[] = [
     id: TEXAS_LONGHORNS_BUNDLE_ID,
     nameEs: 'Texas Longhorns',
     nameEn: 'Texas Longhorns',
-    creditsPrice: 320,
+    creditsPrice: csCreditsFromUsd(32),
     themeIds: ['texas_burnt_orange', 'texas_whiteout', 'texas_night_game'],
     iconSeeds: TEXAS_LONGHORNS_ICON_SEEDS,
   },

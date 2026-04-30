@@ -18,6 +18,9 @@ export const studioTheme = {
   fabText: '#0A0A0A',
   error: '#FF6B6B',
   success: '#4ECDC4',
+  iconCircleBg: '#1C1C1E',
+  typeBadgeBg: 'rgba(212, 175, 55, 0.14)',
+  typeBadgeText: '#E9D8B0',
 } as const;
 
 export const studioGradients = {

@@ -1,5 +1,5 @@
-/** Precio en Créditos CS por icono (solo si `STUDIO_CATALOG_VECTOR_ICONS_PAID` es true). */
-export const STUDIO_ICON_CREDIT_PRICE = 25;
+/** Precio en Créditos CS por icono (solo si `STUDIO_CATALOG_VECTOR_ICONS_PAID` es true). Ver `constants/csEconomy`. */
+export { STUDIO_ICON_CREDIT_PRICE } from '@/constants/csEconomy';
 
 /**
  * Si es false, todo el catálogo vectorial del modal Card-Studio se elige sin candado ni CS.

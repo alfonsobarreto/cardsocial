@@ -4,9 +4,22 @@ import {
   GHOST_LINK_VAULT_VALUE,
   isGhostLinkVaultType,
 } from '@card-social/constants/ghostLinkVault';
-import { collection, doc, onSnapshot, setDoc, type Unsubscribe } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  setDoc,
+  updateDoc,
+  type DocumentData,
+  type Unsubscribe,
+} from 'firebase/firestore';
 import { getStudioDb } from '@/lib/studioFirebase';
 import type { StudioVaultLink } from '@/lib/studioVaultTypes';
+import {
+  syncStudioVaultDeleteAcrossFirestoreCards,
+  syncStudioVaultUpdateAcrossFirestoreCards,
+} from '@/lib/studioVaultFirestoreCardSync';
 
 function sortVault(items: StudioVaultLink[]): StudioVaultLink[] {
   return [...items].sort((a, b) => {
@@ -90,4 +103,23 @@ export function newStudioItemId(): string {
     return crypto.randomUUID();
   }
   return `cs_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+}
+
+export async function deleteStudioVaultLink(uid: string, linkId: string): Promise<void> {
+  const db = getStudioDb();
+  await deleteDoc(doc(db, 'users', uid, 'links', linkId));
+  await syncStudioVaultDeleteAcrossFirestoreCards(uid, linkId);
+}
+
+export async function toggleStudioVaultFavorite(uid: string, link: StudioVaultLink, nextFavorite: boolean): Promise<void> {
+  const db = getStudioDb();
+  const now = new Date().toISOString();
+  const ref = doc(db, 'users', uid, 'links', link.id);
+  const next: StudioVaultLink = { ...link, isFavorite: nextFavorite, updatedAt: now };
+  try {
+    await updateDoc(ref, { isFavorite: nextFavorite, updatedAt: now } as DocumentData);
+  } catch {
+    await setDoc(ref, next as DocumentData, { merge: true });
+  }
+  await syncStudioVaultUpdateAcrossFirestoreCards(uid, next);
 }

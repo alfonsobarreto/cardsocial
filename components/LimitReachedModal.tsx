@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ConfettiAnimation, ConfettiAnimationRef } from '@/components/ConfettiAnimation';
 import { trEsEn, useLanguage } from '@/services/language';
+import { WELCOME_BONUS_CS } from '@/constants/csEconomy';
 
 export interface LimitReachedModalProps {
   visible: boolean;
@@ -66,14 +67,14 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
     if (limitType === 'cards') {
       return [
         tr('✓ Tarjetas ilimitadas', '✓ Unlimited cards'),
-        tr('✓ 100 créditos CS de bienvenida', '✓ 100 welcome CS credits'),
+        tr(`✓ ${WELCOME_BONUS_CS.toLocaleString()} créditos CS de bienvenida`, `✓ ${WELCOME_BONUS_CS.toLocaleString()} welcome CS credits`),
         tr('✓ Historias VIP por 7 días', '✓ VIP stories for 7 days'),
         tr('✓ Protección Premium', '✓ Premium protection'),
       ];
     }
     return [
       tr('✓ Datos ilimitados', '✓ Unlimited data'),
-      tr('✓ 100 créditos CS de bienvenida', '✓ 100 welcome CS credits'),
+      tr(`✓ ${WELCOME_BONUS_CS.toLocaleString()} créditos CS de bienvenida`, `✓ ${WELCOME_BONUS_CS.toLocaleString()} welcome CS credits`),
       tr('✓ Historias VIP por 7 días', '✓ VIP stories for 7 days'),
       tr('✓ Protección Premium', '✓ Premium protection'),
     ];
@@ -146,8 +147,8 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
                 />
                 <Text style={styles.messageText}>
                   {tr(
-                    'Activa tu suscripción para obtener tarjetas ilimitadas, 100 créditos CS y protección total.',
-                    'Activate your subscription for unlimited cards, 100 CS credits, and full protection.',
+                    `Activa tu suscripción para obtener tarjetas ilimitadas, ${WELCOME_BONUS_CS.toLocaleString()} créditos CS y protección total.`,
+                    `Activate your subscription for unlimited cards, ${WELCOME_BONUS_CS.toLocaleString()} CS credits, and full protection.`,
                   )}
                 </Text>
               </View>

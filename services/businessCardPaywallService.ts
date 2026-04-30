@@ -4,16 +4,16 @@
  * 
  * Modelo Lujo Masivo:
  * - Pago anual único: $49.99 USD
- * - Cashback inmediato: 1,000 Monedas CS por activacion/renovacion
+ * - Cashback inmediato: BUSINESS_CARD_CASHBACK_CS Monedas CS por activacion/renovacion
  */
 
 // Servicios de terceros (RevenueCat, Firebase) se integran en tiempo de ejecución
 import Purchases from 'react-native-purchases';
 import { addCredits } from '@/services/creditsService';
 import { activateOrRenewBusinessLicense } from '@/services/businessLicenseService';
+import { BUSINESS_CARD_CASHBACK_CS } from '@/constants/csEconomy';
 
 const BUSINESS_CARD_ANNUAL_PRICE_USD = 49.99;
-const BUSINESS_CARD_CASHBACK_CS = 1000;
 
 /**
  * PackageOffering para Business Cards
@@ -106,7 +106,7 @@ export function calculatePriceWithPremiumDiscount(
     discountPercentage: 0,
     discountAmount: parseFloat(discountAmount.toFixed(2)),
     finalPrice: parseFloat(finalPrice.toFixed(2)),
-    savingsLabel: 'Cashback fijo de 1,000 CS al confirmar compra',
+    savingsLabel: `Cashback fijo de ${BUSINESS_CARD_CASHBACK_CS.toLocaleString('es-MX')} CS al confirmar compra`,
   };
 }
 
@@ -231,7 +231,7 @@ export function prepareCheckoutData(
 
 /**
  * Procesa la compra mediante RevenueCat
- * ⚠️ Modelo Lujo de Acceso Masivo: aplica cashback fijo de 1,000 CS por licencia anual
+ * ⚠️ Modelo Lujo de Acceso Masivo: aplica cashback fijo (`BUSINESS_CARD_CASHBACK_CS`) por licencia anual
  * Retorna true si exitoso, false en caso contrario
  */
 export async function purchaseBusinessCard(
@@ -354,5 +354,5 @@ export function generateDiscountLabel(discount: PriceCalculation): string {
  * Obtiene la descripción del beneficio principal
  */
 export function getMainBenefit(isPremiumUser: boolean): string {
-  return 'Licencia anual por tarjeta: Social Market + Stories CTA + 1,000 CS cashback';
+  return `Licencia anual por tarjeta: Social Market + Stories CTA + ${BUSINESS_CARD_CASHBACK_CS.toLocaleString('es-MX')} CS cashback`;
 }

@@ -227,6 +227,11 @@ export default function StudioShell() {
         lastName: String(data.lastName || '').trim(),
         bio: String(data.bio || '').trim(),
         verificationStatus: String(data.verificationStatus || 'unverified'),
+        verificationSelfieFileId: data.verificationSelfieFileId
+          ? String(data.verificationSelfieFileId)
+          : data.verificationSelfieFileId === null
+            ? null
+            : undefined,
         authProvider: String(data.authProvider || provider).includes('password') ? 'password' : String(data.authProvider || provider),
         lastNicknameChange,
       });
@@ -556,6 +561,8 @@ export default function StudioShell() {
               links={links}
               onSelectLink={openExistingIconData}
               onAddClick={openNewIconData}
+              userId={user.uid}
+              profile={profile}
             />
           )}
           {formOpen ? (

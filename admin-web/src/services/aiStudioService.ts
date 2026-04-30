@@ -128,7 +128,7 @@ const ICON_PROMPTS_SYSTEM_PROMPT = [
   'Each string MUST reflect the brand context and item list; distribute items across icons, repeating only if N > number of items.',
   'Forbidden in descriptions: grid, collage, sheet, mockup, UI screenshot, visible text, letters, words written on the icon, multiple unrelated objects in one icon.',
   'suggestedName: short commercial set name, Spanish or English, 1-4 words.',
-  'suggestedPriceDiamonds: integer 1-50. suggestedPriceCSCoins: integer 100-5000.',
+  'suggestedPriceDiamonds: integer 1-50. suggestedPriceCSCoins: integer 100-500000 (100 CS = 1 USD).',
 ].join('\n');
 
 function getGeminiApiKey() {

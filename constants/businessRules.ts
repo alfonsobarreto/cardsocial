@@ -1,6 +1,7 @@
 import type { SocialProviderId } from '@/services/socialAuth';
+import { STUDENT_PACK_BONUS_CS } from '@/constants/csEconomy';
 
-export const STUDENT_PACK_BONUS_CS = 1000;
+export { STUDENT_PACK_BONUS_CS };
 
 export const STUDENT_PACK_ELIGIBLE_PROVIDERS = Object.freeze([
   'github.com',

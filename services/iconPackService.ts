@@ -10,7 +10,8 @@
  *   se decrementa igual (regla 99/100) — poseer el serial es parte del
  *   valor del activo, no un bypass de la economía.
  * 
- * Conversión: 1 Pack ≈ 50-100 Créditos CS (configurable por Pochobs)
+ * Conversión oficial: 100 CS = 1 USD (`constants/csEconomy.ts`).
+ * 1 Pack ≈ 50–100 USD en CS a tipo actual (configurable por Pochobs)
  */
 
 import { deductCredits, recordCreditTransaction } from '@/services/creditsService';

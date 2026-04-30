@@ -55,7 +55,7 @@ const AdminIconUploader: React.FC = () => {
     dropName: '',
     dropDescription: '',
     dropBrand: 'Card-Social',
-    dropCredits: '90',
+    dropCredits: '900',
     dropStock: '100',
     dropRarity: 'legendary',
     dropSection: 'collectible',
@@ -156,7 +156,7 @@ const AdminIconUploader: React.FC = () => {
             custom: 'custom',
             premium: 'premium',
           };
-          const creditsPrice = Math.max(1, Number(state.dropCredits || 90));
+          const creditsPrice = Math.max(1, Number(state.dropCredits || 900));
           const stock = Math.max(1, Number(state.dropStock || 100));
           await createIconPack(userId, {
             name: state.dropName.trim() || state.fileName.replace(/\.[^/.]+$/, ''),
