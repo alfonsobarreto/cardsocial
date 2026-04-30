@@ -11,18 +11,10 @@ export default function AdminLayout() {
     <Stack>
       <Stack.Screen
         name="dashboard"
-        options={{ title: 'The Mint 👑', headerShown: false, animation: 'default' }}
-      />
-      <Stack.Screen
-        name="mint"
-        options={{ headerShown: false, animation: 'slide_from_right' }}
+        options={{ title: 'Admin', headerShown: false, animation: 'default' }}
       />
       <Stack.Screen
         name="stats"
-        options={{ headerShown: false, animation: 'slide_from_right' }}
-      />
-      <Stack.Screen
-        name="studio"
         options={{ headerShown: false, animation: 'slide_from_right' }}
       />
       <Stack.Screen

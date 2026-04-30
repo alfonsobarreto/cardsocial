@@ -3,6 +3,8 @@ import { useAuth } from '../auth/useAuth';
 
 const navItems = [
   { label: 'Dashboard', to: '/' },
+  { label: 'Communication Hub', to: '/communication' },
+  { label: 'Estadisticas', to: '/estadisticas' },
   { label: 'Moderacion', to: '/moderacion' },
   { label: 'Legal & Compliance', to: '/compliance' },
   { label: 'Identity & Anti-Abuso', to: '/identity-risk' },

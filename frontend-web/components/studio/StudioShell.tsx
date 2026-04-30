@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { doc, getDoc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
@@ -18,6 +18,14 @@ import {
 } from '@/lib/studioI18n';
 import { studioTheme } from '@/lib/studioTheme';
 import { assignStudioLoginPage, setStudioAuthCookie } from '@/lib/studioAuthClient';
+import {
+  DEFAULT_TIERS_CONFIG,
+  effectiveStudioTierKey,
+  isStudioSuperAdminFirestoreRole,
+  mergeTiersConfigFromFirestore,
+  type TierKey,
+  type TiersConfig,
+} from '@/lib/studioTierPolicy';
 import { readStudioUserAvatarUrl, readStudioUserFullName, readStudioUserNickName } from '@/lib/studioUserIdentityFields';
 import FormColumn from '@/components/studio/FormColumn';
 import IconSelectorColumn from '@/components/studio/IconSelectorColumn';
@@ -45,6 +53,9 @@ export default function StudioShell() {
 
   const [links, setLinks] = useState<StudioVaultLink[]>([]);
   const [profile, setProfile] = useState<StudioProfile | null>(null);
+  const [vaultUnlimited, setVaultUnlimited] = useState(false);
+  const [studioTierKey, setStudioTierKey] = useState<TierKey>('free');
+  const [tiersConfig, setTiersConfig] = useState<TiersConfig>(DEFAULT_TIERS_CONFIG);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [leftPanel, setLeftPanel] = useState<'vault' | 'profile'>('vault');
   const [vaultSearch, setVaultSearch] = useState('');
@@ -79,7 +90,7 @@ export default function StudioShell() {
   }, []);
 
   const setLocaleAndStore = useCallback(
-    (l: StudioLocale) => {
+    async (l: StudioLocale) => {
       setLocale(l);
       writeStoredLocale(l);
       if (typeof window === 'undefined') {
@@ -94,6 +105,19 @@ export default function StudioShell() {
       const qs = next.toString();
       const path = pathname || window.location.pathname;
       router.replace(qs ? `${path}?${qs}` : path);
+
+      const u = getStudioAuth().currentUser;
+      if (u) {
+        try {
+          await updateDoc(doc(getStudioDb(), 'users', u.uid), {
+            language: l,
+            appLanguage: l,
+            updatedAt: serverTimestamp(),
+          });
+        } catch {
+          /* ignore */
+        }
+      }
     },
     [pathname, router],
   );
@@ -165,6 +189,8 @@ export default function StudioShell() {
     if (!user) {
       setLinks([]);
       setProfile(null);
+      setVaultUnlimited(false);
+      setStudioTierKey('free');
       return;
     }
     return subscribeVaultLinks(user.uid, setLinks);
@@ -203,6 +229,24 @@ export default function StudioShell() {
   }, [user]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const ref = doc(getStudioDb(), 'system_config', 'tiers');
+    return onSnapshot(
+      ref,
+      (snap) => {
+        if (!snap.exists()) {
+          setTiersConfig(DEFAULT_TIERS_CONFIG);
+          return;
+        }
+        setTiersConfig(mergeTiersConfigFromFirestore(snap.data()));
+      },
+      () => {
+        setTiersConfig(DEFAULT_TIERS_CONFIG);
+      },
+    );
+  }, []);
+
+  useEffect(() => {
     if (!user) return;
     const ref = doc(getStudioDb(), 'users', user.uid);
     return onSnapshot(ref, (snap) => {
@@ -217,6 +261,8 @@ export default function StudioShell() {
               ? String(lastNicknameChangeRaw)
               : null;
       const provider = user.providerData[0]?.providerId || 'password';
+      setVaultUnlimited(isStudioSuperAdminFirestoreRole(data));
+      setStudioTierKey(effectiveStudioTierKey(data));
       setProfile({
         userFullName: readStudioUserFullName(data),
         userNickName: readStudioUserNickName(data),
@@ -237,6 +283,11 @@ export default function StudioShell() {
       });
     });
   }, [user]);
+
+  const vaultIconDataMax = useMemo(
+    () => tiersConfig[studioTierKey].iconDataLimit,
+    [tiersConfig, studioTierKey],
+  );
 
   const tryCloseForm = useCallback(() => {
     if (formDirty) {
@@ -563,6 +614,8 @@ export default function StudioShell() {
               onAddClick={openNewIconData}
               userId={user.uid}
               profile={profile}
+              vaultUnlimited={vaultUnlimited}
+              vaultItemMax={vaultIconDataMax}
             />
           )}
           {formOpen ? (
@@ -572,6 +625,8 @@ export default function StudioShell() {
               userId={user.uid}
               editing={editingLink}
               allLinks={links}
+              vaultUnlimited={vaultUnlimited}
+              vaultItemMax={vaultIconDataMax}
               formIconMci={formIconMci}
               onIconChange={(icon) => setFormIconMci(icon)}
               onClose={tryCloseForm}

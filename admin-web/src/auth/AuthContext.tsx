@@ -11,13 +11,13 @@ import {
   signOut,
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
+import { isSuperAdminUser } from './adminAuthGuard';
 import { AuthContext, type AuthContextValue } from './useAuth';
 
-const SUPER_ADMIN_EMAIL = 'pochobs@gmail.com';
 const ACCESS_DENIED_REDIRECT = '/login?error=access_denied';
 
 function isSuperAdmin(user: User | null) {
-  return user?.email?.toLowerCase() === SUPER_ADMIN_EMAIL;
+  return isSuperAdminUser(user);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

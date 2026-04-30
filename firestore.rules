@@ -23,10 +23,10 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin';
     }
 
-    // User profile: only owner can create/update/read own profile.
+    // User profile: owner read/write; super_admin read (dashboard).
     // Enforces that unique key docs belong to same uid in the post-transaction state.
     match /users/{uid} {
-      allow read: if isOwner(uid);
+      allow read: if isOwner(uid) || isSuperAdmin();
 
       allow create, update: if isOwner(uid)
         && request.resource.data.uid == uid
@@ -42,7 +42,8 @@ service cloud.firestore {
 
     // Owner-only access for all user-scoped subcollections
     match /users/{uid}/{document=**} {
-      allow read, write: if isOwner(uid);
+      allow read: if isOwner(uid) || isSuperAdmin();
+      allow write: if isOwner(uid);
     }
 
     // Unique-key registry (nickname/email/phone) used by transactional registration.

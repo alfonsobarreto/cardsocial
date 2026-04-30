@@ -1,7 +1,7 @@
 import DullModeLock from '@/components/DullModeLock';
 import LimitReachedModal from '@/components/LimitReachedModal';
 import VerificationBadge from '@/components/VerificationBadge';
-import { FREE_TIER_POLICY } from '@/constants/freeTierPolicy';
+import { DEFAULT_TIERS_CONFIG } from '@/services/tiersConfigService';
 import { isGhostLinkVaultDeletionProtected, isGhostLinkVaultType } from '@/constants/ghostLinkVault';
 import { ActionController } from '@/services/ActionController';
 import { getActiveUserId } from '@/services/authSession';
@@ -12,8 +12,8 @@ import { readUserFullName, readUserNickName } from '@/services/userIdentityField
 import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
 import { trEsEn, useLanguage } from '@/services/language';
 import { listBusinessLicenses } from '@/services/businessLicenseService';
-import { isPremiumUser, validateVaultItemCreation } from '@/services/limitService';
-import { hasUnlimitedAdminUi } from '@/services/roleService';
+import { validateVaultItemCreation } from '@/services/limitService';
+import { isSuperAdmin } from '@/services/roleService';
 import { useLookMode } from '@/services/lookMode';
 import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
 import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
@@ -131,7 +131,7 @@ const VaultScreen = () => {
   const [isUserVerified, setIsUserVerified] = useState(false);
   const [limitReachedVisible, setLimitReachedVisible] = useState(false);
   const [limitItemCount, setLimitItemCount] = useState(0);
-  const [limitMaxItems, setLimitMaxItems] = useState<number>(FREE_TIER_POLICY.vaultItems);
+  const [limitMaxItems, setLimitMaxItems] = useState<number>(DEFAULT_TIERS_CONFIG.free.iconDataLimit);
   const [isVaultUnlocked, setIsVaultUnlocked] = useState(false);
   const [isDullMode, setIsDullMode] = useState(false);
   const [dullModeLockVisible, setDullModeLockVisible] = useState(false);
@@ -143,7 +143,7 @@ const VaultScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [contextMenuItem, setContextMenuItem] = useState<Link | null>(null);
-  /** Misma regla que `validateVaultItemCreation`: premium / super_admin → tope ∞ en UI. */
+  /** Solo `super_admin` en Firestore: etiqueta «Ilimitado» en el contador del búnker. */
   const [vaultCapUnlimited, setVaultCapUnlimited] = useState(false);
   const formSheetTranslateY = useRef(new Animated.Value(0)).current;
 
@@ -186,8 +186,11 @@ const VaultScreen = () => {
     }
 
     try {
-      const [premium, adminUi] = await Promise.all([isPremiumUser(userId), hasUnlimitedAdminUi(userId)]);
-      setVaultCapUnlimited(premium || adminUi);
+      const [admin, vaultLimits] = await Promise.all([isSuperAdmin(userId), validateVaultItemCreation(userId)]);
+      setVaultCapUnlimited(admin);
+      if (Number.isFinite(vaultLimits.maxLimit)) {
+        setLimitMaxItems(vaultLimits.maxLimit);
+      }
     } catch {
       setVaultCapUnlimited(false);
     }
@@ -1516,7 +1519,7 @@ const VaultScreen = () => {
           >
             {vaultCapUnlimited
               ? tr(`${links.length} · Ilimitado`, `${links.length} · Unlimited`)
-              : tr(`${links.length} / ${FREE_TIER_POLICY.vaultItems}`, `${links.length} / ${FREE_TIER_POLICY.vaultItems}`)}
+              : tr(`${links.length} / ${limitMaxItems}`, `${links.length} / ${limitMaxItems}`)}
           </Text>
           {/* Barra de progreso: oculta para usuarios 50 */}
           {/* No mostrar barra de progreso para admin pochobs */}

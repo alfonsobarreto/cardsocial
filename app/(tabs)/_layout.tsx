@@ -1,7 +1,6 @@
 import { ConfettiAnimation, ConfettiAnimationRef } from '@/components/ConfettiAnimation';
 import { brandCsIconLogo } from '@/constants/brandAssets';
 import { CreditsIndicator } from '@/components/CreditsIndicator';
-import IconStore from '@/components/IconStore';
 import LanguageToggle from '@/components/LanguageToggle';
 import Subscription from '@/components/Subscription';
 import { getActiveUserId } from '@/services/authSession';
@@ -129,7 +128,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const { language } = useLanguage();
   const tr = (es: string, en: string) => trEsEn(es, en, language);
   const [drawerVisible, setDrawerVisible] = useState(false);
-  const [activePanel, setActivePanel] = useState<'menu' | 'profile' | 'terms' | 'policy' | 'about' | 'privacy' | 'subscription' | 'icon_store' | 'blocked_users'>('menu');
+  const [activePanel, setActivePanel] = useState<'menu' | 'profile' | 'terms' | 'policy' | 'about' | 'privacy' | 'subscription' | 'blocked_users'>('menu');
   const [creditsRefreshTrigger, setCreditsRefreshTrigger] = useState(0);
   const [welcomeBonusApplied, setWelcomeBonusApplied] = useState(false);
   const [userIsSuperAdmin, setUserIsSuperAdmin] = useState(false);
@@ -221,7 +220,6 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
     if (activePanel === 'about') return tr('Acerca de Card-Social', 'About Card-Social');
     if (activePanel === 'privacy') return tr('Privacidad', 'Privacy');
     if (activePanel === 'subscription') return tr('Suscripción', 'Subscription');
-    if (activePanel === 'icon_store') return tr('Estudio de Tarjetas', 'Card Studio');
     if (activePanel === 'blocked_users') return tr('Gestión de Relaciones', 'Relationship Manager');
     return tr('Menú', 'Menu');
   }, [activePanel, language]);
@@ -932,28 +930,10 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                       <Text style={[styles.drawerItemText, { color: shell.text }]}>{tr('Suscripción', 'Subscription')}</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.drawerItem} onPress={() => { setDrawerVisible(false); router.push('/icon_store'); }}>
-                      <MaterialCommunityIcons name="palette-outline" size={20} color={shell.ctaAccent} />
-                      <Text style={[styles.drawerItemText, { color: shell.text }]}>{tr('Estudio de Tarjetas', 'Card Studio')}</Text>
-                    </TouchableOpacity>
-
                     <TouchableOpacity style={styles.drawerItem} onPress={() => { setDrawerVisible(false); router.push('/nfc'); }}>
                       <MaterialCommunityIcons name="contactless-payment-circle-outline" size={20} color={shell.ctaAccent} />
                       <Text style={[styles.drawerItemText, { color: shell.text }]}>{tr('NFC', 'NFC')}</Text>
                     </TouchableOpacity>
-
-                    {userIsSuperAdmin && (
-                      <TouchableOpacity
-                        style={styles.drawerItem}
-                        onPress={() => {
-                          setDrawerVisible(false);
-                          router.push('/admin/dashboard');
-                        }}
-                      >
-                        <MaterialCommunityIcons name="crown" size={20} color={shell.ctaAccent} />
-                        <Text style={[styles.drawerItemText, { color: shell.text }]}>{tr('Card-Studio', 'Card-Studio')}</Text>
-                      </TouchableOpacity>
-                    )}
 
                     <TouchableOpacity style={styles.drawerItem} onPress={() => { setDrawerVisible(false); router.push('/settings'); }}>
                       <MaterialCommunityIcons name="cog-outline" size={20} color={shell.ctaAccent} />
@@ -1191,8 +1171,6 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                   </ScrollView>
                 ) : activePanel === 'subscription' ? (
                   <Subscription onClose={() => setActivePanel('menu')} />
-                ) : activePanel === 'icon_store' ? (
-                  <IconStore />
                 ) : activePanel === 'blocked_users' ? (
                   <View style={styles.legalScroll}>
                     {/* ── 3-tab selector ──────────────────────────────────────── */}

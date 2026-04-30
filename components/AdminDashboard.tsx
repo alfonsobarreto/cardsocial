@@ -12,7 +12,6 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { getActiveUserId } from '@/services/authSession';
-import { getQRHistory } from '@/services/qrGiftService';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/services/firebaseConfig';
 import { trEsEn, useLanguage } from '@/services/language';
@@ -24,7 +23,6 @@ interface QuickStats {
   balance: number;
   pendingReports: number;
   totalUsers: number;
-  activeQRs: number;
 }
 
 const AdminDashboard: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
@@ -33,7 +31,7 @@ const AdminDashboard: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const intlLocale = language === 'pt' ? 'pt-BR' : language;
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<QuickStats>({ balance: 0, pendingReports: 0, totalUsers: 0, activeQRs: 0 });
+  const [stats, setStats] = useState<QuickStats>({ balance: 0, pendingReports: 0, totalUsers: 0 });
 
   useEffect(() => {
     loadQuickStats();
@@ -44,15 +42,13 @@ const AdminDashboard: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
       const uid = await getActiveUserId();
       if (!uid) return;
 
-      const [userDocSnap, qrHistory, usersSnap] = await Promise.all([
+      const [userDocSnap, usersSnap] = await Promise.all([
         getDoc(doc(db, 'users', uid)),
-        getQRHistory(uid),
         getDocs(collection(db, 'users')),
       ]);
 
       const balance = userDocSnap.exists() ? (userDocSnap.data().creditsBalance || 0) : 0;
       const totalUsers = usersSnap.size;
-      const activeQRs = qrHistory.filter(q => q.status === 'active').length;
 
       let pendingReports = 0;
       try {
@@ -62,7 +58,7 @@ const AdminDashboard: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         // collection may not exist yet
       }
 
-      setStats({ balance, pendingReports, totalUsers, activeQRs });
+      setStats({ balance, pendingReports, totalUsers });
     } catch (error) {
       console.error('[AdminDashboard] Error loading stats:', error);
     } finally {
@@ -72,16 +68,6 @@ const AdminDashboard: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
   const MODULES = useMemo(
     () => [
-      {
-        id: 'mint',
-        title: 'MINT',
-        subtitle: tr('QR Gifts · Activaciones · Historial', 'QR Gifts · Activations · History'),
-        icon: 'crown' as const,
-        colors: ['#0A2540', '#1A3D5C'] as [string, string],
-        badge: stats.activeQRs > 0 ? `${stats.activeQRs} ${tr('activos', 'active')}` : null,
-        alert: false,
-        route: '/admin/mint',
-      },
       {
         id: 'stats',
         title: tr('ESTADÍSTICAS', 'STATISTICS'),
@@ -105,25 +91,15 @@ const AdminDashboard: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         alert: stats.pendingReports > 0,
         route: '/admin/moderation',
       },
-      {
-        id: 'studio',
-        title: 'CARD-STUDIO',
-        subtitle: tr('Iconos · Wallpapers · Fonts', 'Icons · Wallpapers · Fonts'),
-        icon: 'palette' as const,
-        colors: ['#2D1A5C', '#4A2080'] as [string, string],
-        badge: null,
-        alert: false,
-        route: '/admin/studio',
-      },
     ],
-    [language, intlLocale, stats.activeQRs, stats.pendingReports, stats.totalUsers],
+    [language, intlLocale, stats.pendingReports, stats.totalUsers],
   );
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#C5A065" />
-        <Text style={styles.loadingText}>{tr('Cargando The Mint...', 'Loading The Mint...')}</Text>
+        <Text style={styles.loadingText}>{tr('Cargando panel…', 'Loading panel…')}</Text>
       </View>
     );
   }
@@ -140,7 +116,7 @@ const AdminDashboard: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
           ) : <View style={{ width: 36 }} />}
           <View style={styles.headerTitleRow}>
             <MaterialCommunityIcons name="crown" size={20} color="#C5A065" />
-            <Text style={styles.headerTitle}>{tr('THE MINT', 'THE MINT')}</Text>
+            <Text style={styles.headerTitle}>{tr('PANEL ADMIN', 'ADMIN PANEL')}</Text>
           </View>
           <View style={{ width: 36 }} />
         </View>

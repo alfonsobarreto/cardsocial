@@ -10,6 +10,8 @@
 import { FREE_TIER_POLICY } from '@/constants/freeTierPolicy';
 import { db } from '@/services/firebaseConfig';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { isSuperAdmin } from '@/services/roleService';
+import { effectiveTierKeyFromUserData, getTiersConfig } from '@/services/tiersConfigService';
 import { readUserNickNameLower } from '@/services/userIdentityFields';
 
 const PRIVILEGED_NICKNAMES = new Set(['pochobs_admin']);
@@ -139,23 +141,40 @@ export async function validateCardCreation(userId: string): Promise<LimitValidat
 
 /**
  * VALIDACIÓN PRINCIPAL: ¿Puede crear un nuevo dato en Vault?
+ * Tope = `system_config/tiers` + tier efectivo; solo `super_admin` tiene cupo ilimitado.
  */
 export async function validateVaultItemCreation(userId: string): Promise<LimitValidationResult> {
   try {
-    const isPremium = await isPremiumUser(userId);
-    const currentCount = await countVaultItems(userId);
-    const maxLimit = isPremium ? LIMITS.PREMIUM.vaultItems : LIMITS.FREE.vaultItems;
+    const uid = String(userId || '').trim();
+    const currentCount = await countVaultItems(uid);
 
+    if (await isSuperAdmin(uid)) {
+      const maxLimit = LIMITS.PREMIUM.vaultItems;
+      return {
+        canCreate: true,
+        currentCount,
+        maxLimit,
+        isFreeUser: false,
+        message: `✅ Dato #${currentCount + 1} de ∞ disponible`,
+      };
+    }
+
+    const userRef = doc(db, 'users', uid);
+    const userSnap = await getDoc(userRef);
+    const userData = userSnap.exists() ? (userSnap.data() as Record<string, unknown>) : {};
+    const tiers = await getTiersConfig();
+    const tier = effectiveTierKeyFromUserData(userData);
+    const maxLimit = Math.max(0, tiers[tier].iconDataLimit);
     const canCreate = currentCount < maxLimit;
 
     return {
       canCreate,
       currentCount,
       maxLimit,
-      isFreeUser: !isPremium,
+      isFreeUser: tier === 'free',
       message: canCreate
-        ? `✅ Dato #${currentCount + 1} de ${maxLimit >= Infinity ? '∞' : maxLimit} disponible`
-        : `🛑 Límite alcanzado: ${currentCount}/${maxLimit} datos del bunker.`
+        ? `✅ Dato #${currentCount + 1} de ${maxLimit} disponible`
+        : `🛑 Límite alcanzado: ${currentCount}/${maxLimit} datos del bunker.`,
     };
   } catch (error) {
     console.error('Error validating vault item creation:', error);
@@ -191,7 +210,9 @@ export async function getUserLimitInfo(userId: string) {
       vault: {
         current: vaultValidation.currentCount,
         max: vaultValidation.maxLimit,
-        remaining: Math.max(0, vaultValidation.maxLimit - vaultValidation.currentCount),
+        remaining: Number.isFinite(vaultValidation.maxLimit)
+          ? Math.max(0, vaultValidation.maxLimit - vaultValidation.currentCount)
+          : Number.MAX_SAFE_INTEGER,
         canCreate: vaultValidation.canCreate,
       },
     };

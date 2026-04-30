@@ -25,7 +25,6 @@ import {
   type FormDataType,
 } from '@/lib/studioFormTypes';
 import { studioGradients, studioTheme } from '@/lib/studioTheme';
-import { FREE_TIER_POLICY } from '@card-social/constants/freeTierPolicy';
 import type { StudioLocale } from '@/lib/studioI18n';
 import { studioT } from '@/lib/studioI18n';
 import StudioMdiGlyph from '@/components/studio/StudioMdiGlyph';
@@ -35,6 +34,9 @@ type Props = {
   userId: string;
   editing: StudioVaultLink | undefined;
   allLinks: StudioVaultLink[];
+  /** Paridad con admin: `system_config/tiers` + tier del usuario. Ilimitado solo `super_admin`. */
+  vaultUnlimited?: boolean;
+  vaultItemMax: number;
   formIconMci: string;
   onIconChange: (icon: string) => void;
   onClose: () => void;
@@ -64,6 +66,8 @@ export default function FormColumn({
   userId,
   editing,
   allLinks,
+  vaultUnlimited = false,
+  vaultItemMax,
   formIconMci,
   onIconChange,
   onClose,
@@ -233,8 +237,9 @@ export default function FormColumn({
       setFormError(t('form.errorName'));
       return;
     }
-    if (!isEdit) {
-      if (allLinks.length >= FREE_TIER_POLICY.vaultItems) {
+    if (!isEdit && !vaultUnlimited) {
+      const cap = Math.max(0, vaultItemMax);
+      if (allLinks.length >= cap) {
         setFormError(t('form.vaultLimit'));
         return;
       }

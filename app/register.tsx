@@ -950,6 +950,8 @@ export default function RegisterScreen() {
             city: normalizedCity,
             stateRegion: normalizedStateRegion,
             country: normalizedCountry,
+            language,
+            appLanguage: language,
             timezone,
             ...firestoreUserAvatarUrlWrite(moderatedPhotoPublicUrl?.trim() || null),
             profilePhotoFileId: moderatedPhotoFileId,

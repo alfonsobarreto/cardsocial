@@ -7,7 +7,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/services/firebaseConfig';
 import { listMyBusinessCards } from '@/services/businessCardsRepo';
 import { isSuperAdmin } from '@/services/roleService';
-import { getTiersConfig, type TierKey } from '@/services/tiersConfigService';
+import { effectiveTierKeyFromUserData, getTiersConfig } from '@/services/tiersConfigService';
 
 export type BusinessCardSlotAvailability = {
   used: number;
@@ -15,38 +15,6 @@ export type BusinessCardSlotAvailability = {
   remaining: number;
   canCreate: boolean;
 };
-
-function normalizeTierKey(value: unknown): TierKey | null {
-  const t = String(value ?? '').trim().toLowerCase();
-  if (t === 'free' || t === 'influencer' || t === 'business') return t;
-  return null;
-}
-
-function subscriptionTierActive(data: Record<string, unknown>): boolean {
-  const untilRaw = data.premiumUntil ?? data.subscriptionExpiresAt;
-  if (untilRaw != null && untilRaw !== '') {
-    const d = untilRaw instanceof Date ? untilRaw : new Date(String(untilRaw));
-    if (!Number.isNaN(d.getTime()) && d.getTime() > Date.now()) {
-      return true;
-    }
-  }
-  const st = String(data.subscriptionStatus ?? '').trim().toLowerCase();
-  if (st === 'active' && data.isPremium === true) {
-    return true;
-  }
-  return false;
-}
-
-function effectiveTierForSlots(data: Record<string, unknown>): TierKey {
-  if (!subscriptionTierActive(data)) {
-    return 'free';
-  }
-  const t = normalizeTierKey(data.tier ?? data.currentTier ?? data.subscriptionTier);
-  if (t === 'influencer' || t === 'business') {
-    return t;
-  }
-  return 'free';
-}
 
 export async function getBusinessCardSlotAvailability(userId: string): Promise<BusinessCardSlotAvailability> {
   const uid = String(userId || '').trim();
@@ -69,7 +37,7 @@ export async function getBusinessCardSlotAvailability(userId: string): Promise<B
 
   const snap = await getDoc(doc(db, 'users', uid));
   const data = snap.exists() ? (snap.data() as Record<string, unknown>) : {};
-  const tier = effectiveTierForSlots(data);
+  const tier = effectiveTierKeyFromUserData(data);
   const max = Math.max(0, tiers[tier].businessCardsLimit);
   const remaining = Math.max(0, max - used);
   return { used, max, remaining, canCreate: remaining > 0 };

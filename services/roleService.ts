@@ -27,7 +27,7 @@ export const getUserRole = async (userId: string): Promise<UserRole> => {
  */
 export const isSuperAdmin = async (userId: string): Promise<boolean> => {
   const role = await getUserRole(userId);
-  return role === 'super_admin';
+  return String(role || '').trim().toLowerCase() === 'super_admin';
 };
 
 /**

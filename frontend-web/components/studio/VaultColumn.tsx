@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isGhostLinkVaultDeletionProtected, isGhostLinkVaultType } from '@card-social/constants/ghostLinkVault';
-import { FREE_TIER_POLICY } from '@card-social/constants/freeTierPolicy';
 import type { StudioLocale } from '@/lib/studioI18n';
 import { studioT } from '@/lib/studioI18n';
 import type { StudioVaultLink } from '@/lib/studioVaultTypes';
@@ -20,7 +19,9 @@ type Props = {
   onSelectLink: (link: StudioVaultLink) => void;
   userId: string;
   profile: StudioProfile | null;
-  /** Si true, muestra contador tipo app premium (`n · Ilimitado`). */
+  /** Límite IconData según `system_config/tiers` y tier del usuario (no aplica si `vaultUnlimited`). */
+  vaultItemMax: number;
+  /** Solo `super_admin` en Firestore: texto «ilimitado» y sin tope en UI. */
   vaultUnlimited?: boolean;
 };
 
@@ -70,13 +71,14 @@ export default function VaultColumn({
   onSelectLink,
   userId,
   profile,
+  vaultItemMax,
   vaultUnlimited = false,
 }: Props) {
   const t = useCallback((k: string, vars?: Record<string, string | number>) => studioT(locale, k, vars), [locale]);
   const q = searchQuery.trim().toLowerCase();
   const filtered = !q ? links : links.filter((l) => searchableBlob(l).includes(q));
   const n = links.length;
-  const max = FREE_TIER_POLICY.vaultItems;
+  const max = Math.max(0, vaultItemMax);
 
   const displayName = String(profile?.userFullName || '').trim() || '—';
   const verified = profile?.verificationStatus === 'verified' || Boolean(profile?.verificationSelfieFileId);
@@ -197,17 +199,55 @@ export default function VaultColumn({
             </span>
           ) : null}
         </div>
-        <p
+        <div
           style={{
             margin: '12px 0 0',
-            fontSize: 22,
-            fontWeight: 800,
-            color: studioTheme.gold,
-            lineHeight: 1.25,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 12,
+            flexWrap: 'wrap',
           }}
         >
-          {counterLabel}
-        </p>
+          <p
+            style={{
+              margin: 0,
+              fontSize: 22,
+              fontWeight: 800,
+              color: studioTheme.gold,
+              lineHeight: 1.25,
+            }}
+          >
+            {counterLabel}
+          </p>
+          <button
+            type="button"
+            onClick={onAddClick}
+            disabled={n >= max && !vaultUnlimited}
+            aria-label={t('vault.fab')}
+            title={t('vault.fab')}
+            style={{
+              flexShrink: 0,
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              border: `1px solid ${studioTheme.borderStrong}`,
+              cursor: n >= max && !vaultUnlimited ? 'not-allowed' : 'pointer',
+              opacity: n >= max && !vaultUnlimited ? 0.45 : 1,
+              background: studioGradients.cta,
+              color: studioTheme.fabText,
+              fontSize: 26,
+              fontWeight: 300,
+              lineHeight: 1,
+              boxShadow: '0 6px 18px rgba(197, 160, 101, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            +
+          </button>
+        </div>
       </div>
 
       {links.length > 0 ? (
@@ -263,7 +303,7 @@ export default function VaultColumn({
       ) : null}
 
       <div style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
-        <div style={{ height: '100%', overflowY: 'auto', padding: '12px 12px 100px' }}>
+        <div style={{ height: '100%', overflowY: 'auto', padding: '12px 12px 16px' }}>
           {filtered.length === 0 ? (
             <p style={{ color: studioTheme.textMuted, fontSize: 14, lineHeight: 1.5, margin: '24px 8px' }}>{t('vault.empty')}</p>
           ) : (
@@ -525,35 +565,6 @@ export default function VaultColumn({
             </div>
           )}
         </div>
-
-        <button
-          type="button"
-          onClick={onAddClick}
-          disabled={n >= max && !vaultUnlimited}
-          aria-label={t('vault.fab')}
-          style={{
-            position: 'absolute',
-            right: 18,
-            bottom: 24,
-            width: 60,
-            height: 60,
-            borderRadius: 30,
-            border: `1px solid ${studioTheme.borderStrong}`,
-            cursor: n >= max && !vaultUnlimited ? 'not-allowed' : 'pointer',
-            opacity: n >= max && !vaultUnlimited ? 0.45 : 1,
-            background: studioGradients.cta,
-            color: studioTheme.fabText,
-            fontSize: 30,
-            fontWeight: 300,
-            lineHeight: 1,
-            boxShadow: '0 8px 24px rgba(197, 160, 101, 0.35)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          +
-        </button>
       </div>
     </div>
   );

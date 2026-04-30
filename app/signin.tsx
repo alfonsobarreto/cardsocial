@@ -10,7 +10,7 @@ import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { sendEmailVerification, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { collection, getDocs, limit, query, where } from 'firebase/firestore';
+import { collection, doc, getDocs, limit, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { Eye, EyeOff, Lock, User } from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
 import {
@@ -158,6 +158,17 @@ export default function SignInScreen() {
       }
       // --- END SOFT DELETE RESTORE LOGIC ---
 
+      try {
+        const userDocRef = doc(db, 'users', credential.user.uid);
+        await updateDoc(userDocRef, {
+          language,
+          appLanguage: language,
+          updatedAt: serverTimestamp(),
+        });
+      } catch {
+        /* ignore language sync */
+      }
+
       if (!credential.user.emailVerified) {
         setPendingVerificationEmail(resolvedEmail);
         Alert.alert(
@@ -285,6 +296,20 @@ export default function SignInScreen() {
           )
         );
         return;
+      }
+
+      try {
+        const uid = credential.user.uid;
+        if (uid) {
+          const userDocRef = doc(db, 'users', uid);
+          await updateDoc(userDocRef, {
+            language,
+            appLanguage: language,
+            updatedAt: serverTimestamp(),
+          });
+        }
+      } catch {
+        /* ignore language sync */
       }
 
       router.replace('/(tabs)/cards');

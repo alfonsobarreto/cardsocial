@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { getStudioAuth, getStudioDb } from '@/lib/studioFirebase';
 import { resolveSignInEmail } from '@/lib/resolveSignInEmail';
@@ -138,6 +138,15 @@ export default function StudioLoginShell() {
       } catch {
         /* Do not block sign-in if the restoration check cannot run. */
       }
+      try {
+        await updateDoc(userDocRef, {
+          language: locale,
+          appLanguage: locale,
+          updatedAt: serverTimestamp(),
+        });
+      } catch {
+        /* ignore profile merge (StudioRegisterShell / login path) */
+      }
       setStudioAuthCookie(true);
       const go =
         typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('next') : null;
@@ -147,7 +156,7 @@ export default function StudioLoginShell() {
     } finally {
       setLoading(false);
     }
-  }, [password, router, t, username]);
+  }, [locale, password, router, t, username]);
 
   return (
     <StudioLogin

@@ -1,9 +1,7 @@
 /**
- * Lectura de pricing / límites publicados en Firestore (`system_config/tiers`).
- * Misma forma que admin-web `rulesService.ts` para paridad CMS ↔ app.
+ * Paridad con `services/tiersConfigService.ts` y `services/businessCardSlotsGate.ts`:
+ * límites publicados en Firestore `system_config/tiers` + tier efectivo del doc `users/{uid}`.
  */
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/services/firebaseConfig';
 
 export type TierKey = 'free' | 'influencer' | 'business';
 
@@ -25,8 +23,6 @@ export type AddOnsConfig = {
 export type TiersConfig = Record<TierKey, TierLimits> & {
   addOns: AddOnsConfig;
 };
-
-const TIERS_REF = doc(db, 'system_config', 'tiers');
 
 export const DEFAULT_TIERS_CONFIG: TiersConfig = {
   free: {
@@ -108,16 +104,12 @@ function mergeWithDefaults(
   };
 }
 
-export async function getTiersConfig(): Promise<TiersConfig> {
-  try {
-    const snap = await getDoc(TIERS_REF);
-    if (!snap.exists()) {
-      return { ...DEFAULT_TIERS_CONFIG };
-    }
-    return mergeWithDefaults(snap.data() as Partial<Record<TierKey, unknown>> & { addOns?: unknown });
-  } catch {
+/** Normaliza el snapshot de `system_config/tiers` o devuelve defaults. */
+export function mergeTiersConfigFromFirestore(raw: unknown): TiersConfig {
+  if (!raw || typeof raw !== 'object') {
     return { ...DEFAULT_TIERS_CONFIG };
   }
+  return mergeWithDefaults(raw as Partial<Record<TierKey, unknown>> & { addOns?: unknown });
 }
 
 function normalizeTierKey(value: unknown): TierKey | null {
@@ -141,10 +133,8 @@ function subscriptionTierActive(data: Record<string, unknown>): boolean {
   return false;
 }
 
-/**
- * Tier efectivo a partir del doc `users/{uid}` (misma regla que business cards / Card Studio web).
- */
-export function effectiveTierKeyFromUserData(data: Record<string, unknown>): TierKey {
+/** Igual que `effectiveTierForSlots` en `businessCardSlotsGate.ts` (sin rama super_admin aquí). */
+export function effectiveStudioTierKey(data: Record<string, unknown>): TierKey {
   if (!subscriptionTierActive(data)) {
     return 'free';
   }
@@ -153,4 +143,9 @@ export function effectiveTierKeyFromUserData(data: Record<string, unknown>): Tie
     return t;
   }
   return 'free';
+}
+
+/** Solo rol en Firestore; Card Studio web no usa refuerzo por email para «ilimitado». */
+export function isStudioSuperAdminFirestoreRole(data: Record<string, unknown>): boolean {
+  return String(data.role || '').trim().toLowerCase() === 'super_admin';
 }

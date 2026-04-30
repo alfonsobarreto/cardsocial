@@ -18,10 +18,13 @@ const { createNfcRoutes } = require("./routes/nfcRoutes");
 const { createNfcPublicRoutes } = require("./routes/nfcPublicRoutes");
 const revenueCatRoutes = require("./routes/revenueCatRoutes");
 const { createAdminRoutes } = require("./routes/adminRoutes");
+const { createAdminSystemStatsHandler } = require("./routes/adminSystemStatsRoutes");
+const { createBroadcastRouter } = require("./routes/broadcastRoutes");
 const { ensureMongoHardening } = require("./security/mongoHardening");
 const {
   createGatewayKeyMiddleware,
   createJwtAuthMiddleware,
+  createScopeMiddleware,
   createUploadScopeMiddleware,
   createQrScopeMiddleware,
   createTokenIssuer,
@@ -93,6 +96,23 @@ async function bootstrap() {
     jwtIssuer: env.jwtIssuer,
     jwtAudience: env.jwtAudience,
   });
+
+  const adminConsoleUidAllowlist = new Set(
+    [
+      ...String(process.env.ADMIN_SYSTEM_STATS_UIDS || "")
+        .split(/[,;\s]+/)
+        .map((s) => s.trim())
+        .filter(Boolean),
+      ...String(process.env.ADMIN_BROADCAST_UIDS || "")
+        .split(/[,;\s]+/)
+        .map((s) => s.trim())
+        .filter(Boolean),
+    ],
+  );
+  const adminSystemStatsHandler = createAdminSystemStatsHandler({ getMongoDb: () => db });
+  const adminSystemScopeMiddleware = createScopeMiddleware("admin.system");
+  const adminBroadcastScopeMiddleware = createScopeMiddleware("admin.broadcast");
+  const broadcastRouter = createBroadcastRouter({ getMongoDb: () => db });
 
   // --- Endpoint: Reset Password Link ---
   app.get('/reset-password', async (req, res) => {
@@ -178,12 +198,21 @@ const otpHash = (emailLower, code) => {
     try {
       const uid = String(req.body?.uid || "").trim();
       const requestedScope = String(req.body?.scope || "moderation.upload").trim();
-      const allowedScopes = new Set(["moderation.upload", "qr.access"]);
+      const allowedScopes = new Set(["moderation.upload", "qr.access", "admin.system", "admin.broadcast"]);
       if (!uid) {
         return res.status(400).json({ ok: false, error: "uid is required" });
       }
       if (!allowedScopes.has(requestedScope)) {
         return res.status(400).json({ ok: false, error: "scope is not allowed" });
+      }
+      if (requestedScope === "admin.system" || requestedScope === "admin.broadcast") {
+        if (!adminConsoleUidAllowlist.has(uid)) {
+          return res.status(403).json({
+            ok: false,
+            error:
+              "admin console scope not allowed for this uid (set ADMIN_SYSTEM_STATS_UIDS and/or ADMIN_BROADCAST_UIDS)",
+          });
+        }
       }
 
       const token = issueUploadToken({ uid, scope: requestedScope });
@@ -407,6 +436,26 @@ const otpHash = (emailLower, code) => {
   app.get(['/admin', '/admin/'], (_req, res) => {
     res.sendFile(_adminHtmlPath);
   });
+
+  /**
+   * Estadísticas sistema (Mongo) para admin-web Growth.
+   Auth: API gateway key + JWT emitido por POST /api/auth/token con scope admin.system.
+   */
+  app.get(
+    "/api/admin/system-stats",
+    gatewayKeyMiddleware,
+    jwtAuthMiddleware,
+    adminSystemScopeMiddleware,
+    adminSystemStatsHandler,
+  );
+
+  app.use(
+    "/api/admin/broadcast",
+    gatewayKeyMiddleware,
+    jwtAuthMiddleware,
+    adminBroadcastScopeMiddleware,
+    broadcastRouter,
+  );
 
   // Admin Routes (Marketing, Asset Minting, Stats)
   app.use("/api/admin", createAdminRoutes());
