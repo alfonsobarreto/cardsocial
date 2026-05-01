@@ -19,6 +19,7 @@ const { createNfcPublicRoutes } = require("./routes/nfcPublicRoutes");
 const revenueCatRoutes = require("./routes/revenueCatRoutes");
 const { createAdminRoutes } = require("./routes/adminRoutes");
 const { createAdminSystemStatsHandler } = require("./routes/adminSystemStatsRoutes");
+const { createAdminBudgetHandlers } = require("./routes/adminBudgetRoutes");
 const { createBroadcastRouter } = require("./routes/broadcastRoutes");
 const { ensureMongoHardening } = require("./security/mongoHardening");
 const {
@@ -114,6 +115,9 @@ async function bootstrap() {
     ],
   );
   const adminSystemStatsHandler = createAdminSystemStatsHandler({ getMongoDb: () => db });
+  const { budgetSummaryHandler, budgetSettingsPutHandler } = createAdminBudgetHandlers({
+    getMongoDb: () => db,
+  });
   const adminSystemScopeMiddleware = createScopeMiddleware("admin.system");
   const adminBroadcastScopeMiddleware = createScopeMiddleware("admin.broadcast");
   const broadcastRouter = createBroadcastRouter({ getMongoDb: () => db });
@@ -451,6 +455,21 @@ const otpHash = (emailLower, code) => {
     jwtAuthMiddleware,
     adminSystemScopeMiddleware,
     adminSystemStatsHandler,
+  );
+
+  app.get(
+    "/api/admin/budget-summary",
+    gatewayKeyMiddleware,
+    jwtAuthMiddleware,
+    adminSystemScopeMiddleware,
+    budgetSummaryHandler,
+  );
+  app.put(
+    "/api/admin/budget-settings",
+    gatewayKeyMiddleware,
+    jwtAuthMiddleware,
+    adminSystemScopeMiddleware,
+    budgetSettingsPutHandler,
   );
 
   app.use(

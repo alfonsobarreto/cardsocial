@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useAuth } from '../auth/useAuth';
 import {
   type NfcBatch,
   type NfcCard,
@@ -38,6 +39,7 @@ function downloadCsv(batch: NfcBatch) {
 }
 
 export default function NfcOps() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<NfcTab>('factory');
   const [quantity, setQuantity] = useState(100);
   const [lastBatch, setLastBatch] = useState<NfcBatch | null>(null);
@@ -54,10 +56,11 @@ export default function NfcOps() {
     return cards.filter((card) => card.status === statusFilter);
   }, [cards, statusFilter]);
 
-  async function refreshCards() {
+  const refreshCards = useCallback(async () => {
+    if (!user) return;
     try {
       setLoading(true);
-      const list = await listNfcCards();
+      const list = await listNfcCards(user);
       setCards((prev) => {
         const byId = new Map<string, NfcCard>();
         for (const card of [...list, ...prev]) {
@@ -71,11 +74,11 @@ export default function NfcOps() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [user]);
 
   useEffect(() => {
-    void refreshCards();
-  }, []);
+    if (user) void refreshCards();
+  }, [user, refreshCards]);
 
   useEffect(() => {
     if (!toast || toast.type !== 'success') return;
@@ -84,11 +87,15 @@ export default function NfcOps() {
   }, [toast]);
 
   const handleGenerateBatch = async () => {
+    if (!user) {
+      setToast({ type: 'error', message: 'Inicia sesión para generar lotes NFC.' });
+      return;
+    }
     setGenerating(true);
     setToast(null);
 
     try {
-      const batch = await generateNfcBatch(quantity);
+      const batch = await generateNfcBatch(user, quantity);
       setLastBatch(batch);
       setCards((prev) => [...batch.cards, ...prev]);
       setToast({
@@ -107,11 +114,15 @@ export default function NfcOps() {
   };
 
   const handleStatusUpdate = async (card: NfcCard, status: Extract<NfcStatus, 'lost' | 'blocked'>) => {
+    if (!user) {
+      setToast({ type: 'error', message: 'Inicia sesión para actualizar el inventario.' });
+      return;
+    }
     setUpdatingId(card.nfcCardId);
     setToast(null);
 
     try {
-      await updateNfcCardStatus(card.nfcCardId, status);
+      await updateNfcCardStatus(user, card.nfcCardId, status);
       setCards((prev) =>
         prev.map((item) => (item.nfcCardId === card.nfcCardId ? { ...item, status } : item)),
       );
@@ -180,7 +191,7 @@ export default function NfcOps() {
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-xl font-semibold text-slate-950">Generar lote NFC</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Cada tarjeta sale como <code>unclaimed</code> con PIN de activación de 6 dígitos.
+              Cada tarjeta sale como <code>unclaimed</code> con PIN de activación de 6 caracteres (A–Z / 0–9).
             </p>
 
             <label className="mt-5 block">

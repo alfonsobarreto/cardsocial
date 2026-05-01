@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@mdi/js": "^7.4.47",
+    "@revenuecat/purchases-js": "^1.38.0",
     "firebase": "^11.10.0",
     "firebase-admin": "^12.7.0",
     "jsqr": "^1.4.0",

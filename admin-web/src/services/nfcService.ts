@@ -1,3 +1,7 @@
+import type { User } from 'firebase/auth';
+
+import { adminBearer, readErrBody } from './adminApiAuth';
+
 export type NfcStatus = 'unclaimed' | 'active' | 'paused' | 'lost' | 'blocked';
 
 export type NfcCard = {
@@ -15,7 +19,7 @@ export type NfcBatch = {
   source: 'api' | 'mock';
 };
 
-const API_BASE = `${String(import.meta.env.VITE_BACKEND_API_URL || '').replace(/\/+$/, '')}/api/admin/nfc`;
+const API_PREFIX = '/api/admin/nfc';
 
 function randomDigits(length: number) {
   const cryptoObj = globalThis.crypto;
@@ -67,21 +71,25 @@ function normalizeCard(raw: Partial<NfcCard> & Record<string, unknown>): NfcCard
   };
 }
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  if (!import.meta.env.VITE_BACKEND_API_URL) {
-    throw new Error('VITE_BACKEND_API_URL is not configured');
-  }
-
-  const response = await fetch(`${API_BASE}${path}`, {
+async function nfcAdminFetch<T>(
+  firebaseUser: User,
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
+  const { base, key, token } = await adminBearer(firebaseUser, 'admin.system');
+  const url = `${base}${API_PREFIX}${path}`;
+  const response = await fetch(url, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
+      'x-api-gateway-key': key,
+      Authorization: `Bearer ${token}`,
       ...(init?.headers ?? {}),
     },
   });
 
   if (!response.ok) {
-    throw new Error(`NFC admin API failed: ${response.status}`);
+    throw new Error(`NFC admin API failed: ${response.status} ${await readErrBody(response)}`);
   }
 
   return response.json() as Promise<T>;
@@ -105,9 +113,9 @@ export function generateMockNfcBatch(quantity: number): NfcBatch {
   };
 }
 
-export async function generateNfcBatch(quantity: number): Promise<NfcBatch> {
+export async function generateNfcBatch(firebaseUser: User, quantity: number): Promise<NfcBatch> {
   try {
-    const data = await apiFetch<{ batchId?: string; cards?: unknown[] }>('/batches', {
+    const data = await nfcAdminFetch<{ batchId?: string; cards?: unknown[] }>(firebaseUser, '/batches', {
       method: 'POST',
       body: JSON.stringify({ quantity }),
     });
@@ -125,11 +133,11 @@ export async function generateNfcBatch(quantity: number): Promise<NfcBatch> {
   }
 }
 
-export async function listNfcCards(): Promise<NfcCard[]> {
+export async function listNfcCards(firebaseUser: User): Promise<NfcCard[]> {
   try {
-    const data = await apiFetch<{ cards?: unknown[] }>('/cards');
-    if (!Array.isArray(data.cards)) return [];
-    return data.cards.map((item) => normalizeCard(item as Partial<NfcCard> & Record<string, unknown>));
+    const data = await nfcAdminFetch<{ cards?: unknown[]; nfcCards?: unknown[] }>(firebaseUser, '/cards');
+    const raw = Array.isArray(data.cards) ? data.cards : Array.isArray(data.nfcCards) ? data.nfcCards : [];
+    return raw.map((item) => normalizeCard(item as Partial<NfcCard> & Record<string, unknown>));
   } catch (error) {
     console.warn('[nfcService] Falling back to mock inventory:', error);
     return [
@@ -161,14 +169,19 @@ export async function listNfcCards(): Promise<NfcCard[]> {
   }
 }
 
-export async function updateNfcCardStatus(nfcCardId: string, status: Extract<NfcStatus, 'lost' | 'blocked'>) {
+export async function updateNfcCardStatus(
+  firebaseUser: User,
+  nfcCardId: string,
+  status: Extract<NfcStatus, 'lost' | 'blocked'>,
+) {
   try {
-    await apiFetch(`/cards/${encodeURIComponent(nfcCardId)}/status`, {
+    await nfcAdminFetch(firebaseUser, `/cards/${encodeURIComponent(nfcCardId)}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     });
   } catch (error) {
-    console.warn('[nfcService] Mock status update:', error);
+    console.warn('[nfcService] status update failed:', error);
+    throw error;
   }
 }
 

@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 
+import { RevenueCatWebProvider } from '@/components/RevenueCatWebProvider';
+
 export const metadata: Metadata = {
   title: 'Card-Social',
   description: 'Your smart digital card',
@@ -19,7 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         minHeight: '100vh',
       }}>
-        {children}
+        <RevenueCatWebProvider>{children}</RevenueCatWebProvider>
       </body>
     </html>
   );

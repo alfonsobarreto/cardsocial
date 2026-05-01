@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
+import DashboardBudgetTrafficLight from '../components/DashboardBudgetTrafficLight';
+import { useAuth } from '../auth/useAuth';
+import { isSuperAdminUser } from '../auth/adminAuthGuard';
 import { getDashboardStats, type DashboardStats } from '../services/dashboardService';
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -70,6 +74,14 @@ export default function Dashboard() {
           principal. Los modulos operativos se conectaran despues de definir APIs y permisos.
         </p>
       </section>
+
+      {user && isSuperAdminUser(user) ? (
+        <DashboardBudgetTrafficLight user={user} />
+      ) : (
+        <section className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
+          El semáforo financiero solo visible para la cuenta superadmin (misma política que estadísticas Mongo).
+        </section>
+      )}
 
       <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         {statCards.map((card) => (

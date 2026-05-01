@@ -1,5 +1,7 @@
 import Link from 'next/link';
+
 import styles from '../landing.module.css';
+import { WebRcSubscriptionCards } from './WebRcSubscriptionCards';
 
 type Tier = {
   name: string;
@@ -69,6 +71,16 @@ export function PricingSection() {
         <p className={styles.sectionLead}>
           Referencia de límites; los valores vivos y promociones activas viven en la app y en operaciones.
         </p>
+
+        <p className={styles.rcSectionLabel}>Checkout web (RevenueCat)</p>
+        <p className={styles.sectionLead}>
+          Aquí se listan los <strong>paquetes del offering actual</strong> en RevenueCat Web Billing (nombre y precio
+          reales). No sustituye al CMS de tiers: ese sigue dictando límites y la referencia mensual de Influencer/Negocio
+          en la app.
+        </p>
+        <WebRcSubscriptionCards />
+
+        <p className={styles.rcSectionLabel}>Límites por tier en la app</p>
         <div className={styles.pricingGrid}>
           {tiers.map((t) => (
             <div

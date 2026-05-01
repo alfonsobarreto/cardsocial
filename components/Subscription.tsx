@@ -24,7 +24,19 @@ import {
   View,
 } from 'react-native';
 import Purchases from 'react-native-purchases';
+
+import { CARD_SOCIAL_PRO_ENTITLEMENT_ID } from '@/constants/revenueCat';
 import { BUSINESS_CARD_CASHBACK_CS, CS_CREDITS_PER_USD } from '@/constants/csEconomy';
+import {
+  describeCurrentOfferingPackages,
+  formatRevenueCatPurchaseError,
+  presentCardSocialProPaywall,
+  presentCardSocialProPaywallIfNeeded,
+  paywallResultIndicatesUnlock,
+  presentRevenueCatCustomerCenter,
+  refreshCardSocialProActive,
+  syncRevenueCatWithFirebaseUid,
+} from '@/services/revenueCatProSubscription';
 
 const { width } = Dimensions.get('window');
 
@@ -56,6 +68,10 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
   const [tiersLoading, setTiersLoading] = useState(true);
   const [subscribingPack, setSubscribingPack] = useState<string | null>(null);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [proActive, setProActive] = useState(false);
+  const [proLoading, setProLoading] = useState(false);
+  const [proActionLoading, setProActionLoading] = useState(false);
+  const [offeringDebugLines, setOfferingDebugLines] = useState<string[]>([]);
 
   const creditPackDefs = [
     { id: 'pack_100', price: 9.99, displayPrice: '$9.99', productId: 'card_social_credits_100' },
@@ -101,6 +117,27 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setProLoading(true);
+      try {
+        await syncRevenueCatWithFirebaseUid(userId.trim() ? userId : null);
+        const active = await refreshCardSocialProActive();
+        if (!cancelled) setProActive(active);
+        if (__DEV__) {
+          const lines = await describeCurrentOfferingPackages();
+          if (!cancelled) setOfferingDebugLines(lines);
+        }
+      } finally {
+        if (!cancelled) setProLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   const styles = useMemo(
     () =>
@@ -295,6 +332,8 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
   const handleRestorePurchases = async () => {
     try {
       await Purchases.restorePurchases();
+      const active = await refreshCardSocialProActive();
+      setProActive(active);
       Alert.alert(
         '✅ ' + tr('Restaurado', 'Restored'),
         tr('Se han restaurado tus compras anteriores', 'Your previous purchases have been restored'),
@@ -302,6 +341,53 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
     } catch (error) {
       console.error('Restore purchases error:', error);
       Alert.alert(tr('Error', 'Error'), tr('No se pudieron restaurar las compras', 'Could not restore purchases'));
+    }
+  };
+
+  const runProPaywall = async (mode: 'ifNeeded' | 'always') => {
+    if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+      Alert.alert(tr('No disponible', 'Not available'), tr('Compras in-app solo en iOS/Android.', 'In-app purchases on iOS/Android only.'));
+      return;
+    }
+    try {
+      setProActionLoading(true);
+      const result =
+        mode === 'ifNeeded' ? await presentCardSocialProPaywallIfNeeded() : await presentCardSocialProPaywall();
+      const active = await refreshCardSocialProActive();
+      setProActive(active);
+      if (paywallResultIndicatesUnlock(result)) {
+        Alert.alert(
+          tr('Card-Social Pro', 'Card-Social Pro'),
+          tr('Suscripción actualizada. ¡Gracias!', 'Subscription updated. Thank you!'),
+        );
+      }
+    } catch (error) {
+      const { cancelled, message } = formatRevenueCatPurchaseError(error);
+      if (!cancelled && message) {
+        Alert.alert(tr('Error', 'Error'), message);
+      }
+    } finally {
+      setProActionLoading(false);
+    }
+  };
+
+  const runCustomerCenter = async () => {
+    if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+      Alert.alert(tr('No disponible', 'Not available'), tr('Solo en app iOS/Android.', 'iOS/Android app only.'));
+      return;
+    }
+    try {
+      setProActionLoading(true);
+      await presentRevenueCatCustomerCenter();
+      const active = await refreshCardSocialProActive();
+      setProActive(active);
+    } catch (error) {
+      const { cancelled, message } = formatRevenueCatPurchaseError(error);
+      if (!cancelled && message) {
+        Alert.alert(tr('Error', 'Error'), message);
+      }
+    } finally {
+      setProActionLoading(false);
     }
   };
 
@@ -329,6 +415,65 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
           {tr('Precios y límites desde el panel admin (Firestore). Compras reales vía App Store / Play.', 'Pricing and limits from the admin CMS (Firestore). Purchases via App Store / Play.')}
         </Text>
       </LinearGradient>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{tr('Card-Social Pro', 'Card-Social Pro')}</Text>
+        <Text style={styles.sectionHint}>
+          {tr(
+            `RevenueCat entitlement: "${CARD_SOCIAL_PRO_ENTITLEMENT_ID}". Crea en el dashboard un offering (current o EXPO_PUBLIC_REVENUECAT_OFFERING_ID) con paquetes lifetime, yearly y monthly ligados a ese entitlement; luego diseña el Paywall en RevenueCat → Paywalls.`,
+            `RevenueCat entitlement: "${CARD_SOCIAL_PRO_ENTITLEMENT_ID}". Create a dashboard offering (current or EXPO_PUBLIC_REVENUECAT_OFFERING_ID) with lifetime, yearly and monthly packages linked to that entitlement; then design the Paywall under RevenueCat → Paywalls.`,
+          )}
+        </Text>
+        <View style={[styles.tierCard, proActive && styles.tierCardHighlight]}>
+          {proLoading ? (
+            <View style={styles.loadingRow}>
+              <ActivityIndicator color={shell.ctaAccent} />
+            </View>
+          ) : (
+            <>
+              <Text style={styles.tierName}>{proActive ? tr('Pro activo', 'Pro active') : tr('Pro inactivo', 'Pro inactive')}</Text>
+              <Text style={styles.tierMeta}>
+                {userId
+                  ? tr('Compras asociadas a tu usuario (Firebase UID en RevenueCat).', 'Purchases linked to your user (Firebase UID in RevenueCat).')
+                  : tr('Inicia sesión para unificar compras con tu cuenta.', 'Sign in to unify purchases with your account.')}
+              </Text>
+              <View style={{ marginTop: 12, gap: 10 }}>
+                <GoldenRingButton
+                  label={
+                    proActionLoading
+                      ? tr('Abriendo…', 'Opening…')
+                      : tr('Mejorar con paywall (si aplica)', 'Upgrade with paywall (if needed)')
+                  }
+                  onPress={() => void runProPaywall('ifNeeded')}
+                  icon="crown-outline"
+                  disabled={proActionLoading}
+                  loading={proActionLoading}
+                  style={{ width: '100%' }}
+                />
+                <GoldenRingButton
+                  label={proActionLoading ? tr('Abriendo…', 'Opening…') : tr('Ver paywall de planes', 'View plans paywall')}
+                  onPress={() => void runProPaywall('always')}
+                  icon="cart-outline"
+                  disabled={proActionLoading}
+                  loading={proActionLoading}
+                  style={{ width: '100%' }}
+                />
+                <TouchableOpacity
+                  style={styles.nfcBtn}
+                  onPress={() => void runCustomerCenter()}
+                  disabled={proActionLoading}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.nfcBtnText}>{tr('Centro del cliente RevenueCat', 'RevenueCat Customer Center')}</Text>
+                </TouchableOpacity>
+              </View>
+              {__DEV__ && offeringDebugLines.length > 0 ? (
+                <Text style={[styles.sectionHint, { marginTop: 12 }]}>{offeringDebugLines.join('\n')}</Text>
+              ) : null}
+            </>
+          )}
+        </View>
+      </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{tr('Suscripciones (tiers)', 'Subscriptions (tiers)')}</Text>

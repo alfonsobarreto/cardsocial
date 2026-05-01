@@ -9,16 +9,30 @@
  */
 
 const express = require('express');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
 
 const { env } = require('../config');
+const { normalizeNfcCardId } = require('../lib/nfcCards');
 const {
   createGatewayKeyMiddleware,
   createJwtAuthMiddleware,
   createScopeMiddleware,
 } = require('../middleware/strongAuth');
+
+function randomFromAlphabet(length, alphabet) {
+  const bytes = crypto.randomBytes(length);
+  let out = '';
+  for (let i = 0; i < length; i += 1) {
+    out += alphabet[bytes[i] % alphabet.length];
+  }
+  return out;
+}
+
+const NFC_ID_SUFFIX_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const NFC_PIN_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 function toSafeFloat(value, fallback = 0) {
   const parsed = Number.parseFloat(String(value ?? fallback));
@@ -507,10 +521,120 @@ function createAdminRoutes(options = {}) {
           .sort({ updatedAt: -1 })
           .toArray();
 
-        return res.status(200).json({ ok: true, nfcCards });
+        return res.status(200).json({ ok: true, nfcCards, cards: nfcCards });
       } catch (error) {
         console.error('[admin/nfc/cards]', error);
         return res.status(500).json({ ok: false, error: 'Failed to fetch NFC cards inventory.' });
+      }
+    },
+  );
+
+  /**
+   * POST /api/admin/nfc/batches — provisionar líneas físicas (Mongo `nfc_cards`, estado unclaimed).
+   */
+  router.post(
+    '/nfc/batches',
+    gatewayKeyMiddleware,
+    jwtAuthMiddleware,
+    adminSystemScopeMiddleware,
+    async (req, res) => {
+      try {
+        const db = req.app.locals.db;
+        const qty = Math.max(1, Math.min(5000, Math.floor(Number(req.body?.quantity) || 0)));
+        if (!qty) {
+          return res.status(400).json({ ok: false, error: 'quantity must be between 1 and 5000' });
+        }
+
+        const now = new Date();
+        const batchId = `batch_${now.getTime()}_${crypto.randomBytes(4).toString('hex')}`;
+        const docs = [];
+        const cardsOut = [];
+
+        for (let i = 0; i < qty; i += 1) {
+          const suffix = randomFromAlphabet(10, NFC_ID_SUFFIX_ALPHABET);
+          const nfcCardId = `CS-${suffix}`;
+          const activationPin = randomFromAlphabet(6, NFC_PIN_ALPHABET);
+          docs.push({
+            nfcCardId,
+            activationPin,
+            status: 'unclaimed',
+            isClaimed: false,
+            label: '',
+            material: 'unknown',
+            version: 0,
+            createdAt: now,
+            updatedAt: now,
+          });
+          cardsOut.push({
+            nfcCardId,
+            activationPin,
+            status: 'unclaimed',
+            owner: null,
+            mountedUrl: null,
+            createdAt: now.toISOString(),
+          });
+        }
+
+        try {
+          await db.collection('nfc_cards').insertMany(docs, { ordered: false });
+        } catch (insertErr) {
+          const we = insertErr?.writeErrors;
+          const onlyDupKey =
+            Number(insertErr?.code) === 11000
+            || (Array.isArray(we)
+              && we.length > 0
+              && we.every((w) => Number(w?.code) === 11000));
+          if (!onlyDupKey) throw insertErr;
+        }
+
+        return res.status(201).json({ ok: true, batchId, cards: cardsOut });
+      } catch (error) {
+        console.error('[admin/nfc/batches]', error);
+        return res.status(500).json({ ok: false, error: 'Failed to provision NFC batch.' });
+      }
+    },
+  );
+
+  /**
+   * PATCH /api/admin/nfc/cards/:nfcCardId/status — operaciones logísticas (sin ser dueño de la tarjeta).
+   */
+  router.patch(
+    '/nfc/cards/:nfcCardId/status',
+    gatewayKeyMiddleware,
+    jwtAuthMiddleware,
+    adminSystemScopeMiddleware,
+    async (req, res) => {
+      try {
+        const db = req.app.locals.db;
+        const nfcCardId = normalizeNfcCardId(req.params.nfcCardId);
+        if (!nfcCardId) {
+          return res.status(400).json({ ok: false, error: 'Invalid NFC card id.' });
+        }
+        const rawStatus = String(req.body?.status || '').trim();
+        if (!['lost', 'blocked'].includes(rawStatus)) {
+          return res.status(400).json({ ok: false, error: 'status must be lost or blocked' });
+        }
+
+        const result = await db.collection('nfc_cards').updateOne(
+          { nfcCardId },
+          { $set: { status: rawStatus, updatedAt: new Date() }, $inc: { version: 1 } },
+        );
+        if (!result.matchedCount) {
+          return res.status(404).json({ ok: false, error: 'NFC card not found.' });
+        }
+
+        await db.collection('nfc_card_events').insertOne({
+          nfcCardId,
+          type: 'admin_status',
+          actorUid: String(req.auth?.sub || '').trim() || null,
+          createdAt: new Date(),
+          nextStatus: rawStatus,
+        }).catch(() => null);
+
+        return res.status(200).json({ ok: true });
+      } catch (error) {
+        console.error('[admin/nfc/cards/status]', error);
+        return res.status(500).json({ ok: false, error: 'Failed to update NFC card status.' });
       }
     },
   );

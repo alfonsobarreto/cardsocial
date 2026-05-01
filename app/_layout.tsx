@@ -10,6 +10,7 @@ import { NetworkProvider } from '@/services/NetworkProvider';
 import { GhostLinkCallProvider } from '@/services/GhostLinkCallProvider';
 import GhostLinkCallOverlay from '@/components/GhostLinkCallOverlay';
 import { registerPushToken } from '@/services/pushRegistration';
+import { initRevenueCatOnce } from '@/services/revenueCatInit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Stack } from 'expo-router';
@@ -131,6 +132,10 @@ function RootNavigator() {
     });
 
     return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
+    initRevenueCatOnce();
   }, []);
 
   useEffect(() => {

@@ -9,6 +9,7 @@
 
 // Servicios de terceros (RevenueCat, Firebase) se integran en tiempo de ejecución
 import Purchases from 'react-native-purchases';
+import { CARD_SOCIAL_PRO_ENTITLEMENT_LOOKUP_KEYS } from '@/constants/revenueCat';
 import { addCredits } from '@/services/creditsService';
 import { activateOrRenewBusinessLicense } from '@/services/businessLicenseService';
 import { BUSINESS_CARD_CASHBACK_CS } from '@/constants/csEconomy';
@@ -53,7 +54,7 @@ export interface BusinessCardPurchaseState {
   purchaseId?: string;
 }
 
-const PREMIUM_ENTITLEMENT_KEYS = ['premium', 'premium_card', 'card_social_premium'];
+const PREMIUM_ENTITLEMENT_KEYS = [...CARD_SOCIAL_PRO_ENTITLEMENT_LOOKUP_KEYS, 'premium', 'premium_card', 'card_social_premium'];
 
 const BUSINESS_CARD_PACKAGES: Record<string, BusinessCardPackage> = {
   // iOS

@@ -539,6 +539,110 @@
   max-width: 40rem;
 }
 
+/* RevenueCat Web — tres planes en landing */
+.rcSectionLabel {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--bronze);
+  font-weight: 600;
+  margin: 2.25rem 0 0.5rem;
+}
+
+.rcBlock {
+  margin-top: 1.5rem;
+}
+
+.rcGrid {
+  display: grid;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .rcGrid {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    align-items: stretch;
+  }
+}
+
+.rcLoading {
+  font-size: 0.875rem;
+  color: var(--muted);
+  margin: 0 0 0.75rem;
+}
+
+.rcError {
+  font-size: 0.875rem;
+  color: #ffb4b4;
+  margin: 0 0 0.75rem;
+}
+
+.rcBannerMuted {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 2px;
+  padding: 1rem 1.25rem;
+  font-size: 0.8125rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.rcBannerMuted strong {
+  color: var(--text);
+}
+
+.rcBannerHint {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  color: var(--subtle);
+}
+
+.rcProductTitle {
+  font-size: 0.8125rem;
+  color: var(--text);
+  margin: 0 0 0.5rem;
+  line-height: 1.4;
+}
+
+.rcPackId {
+  font-size: 0.68rem;
+  color: var(--subtle);
+  margin: 0 0 0.5rem;
+  line-height: 1.4;
+}
+
+.rcPackId code {
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+
+.rcHint {
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin: 0 0 1rem;
+  line-height: 1.45;
+  flex: 1;
+}
+
+.rcFootnote {
+  font-size: 0.72rem;
+  color: var(--subtle);
+  margin: 1.25rem 0 0;
+  line-height: 1.5;
+}
+
+.rcFootnote a {
+  color: var(--bronze);
+}
+
+.priceCtaButton {
+  cursor: pointer;
+  font: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 /* Footer */
 .footer {
   border-top: 1px solid var(--line);
