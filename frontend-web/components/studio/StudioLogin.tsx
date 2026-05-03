@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { getStudioAuth } from '@/lib/studioFirebase';
-import { studioGradients, studioTheme } from '@/lib/studioTheme';
+import { studioTheme } from '@/lib/studioTheme';
 import type { StudioLocale } from '@/lib/studioI18n';
 import { studioT } from '@/lib/studioI18n';
 
@@ -96,7 +96,7 @@ export default function StudioLogin({
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 24,
+        padding: '0 16px',
         background: studioTheme.bg,
         color: studioTheme.text,
       }}
@@ -104,21 +104,39 @@ export default function StudioLogin({
       <div
         style={{
           width: '100%',
-          maxWidth: 400,
-          padding: 28,
-          borderRadius: 16,
+          maxWidth: 392,
+          padding: '22px 20px 18px',
+          borderRadius: 12,
           border: `1px solid ${studioTheme.border}`,
-          background: studioTheme.surface,
-          boxShadow: `0 12px 48px rgba(0,0,0,0.55)`,
+          background: '#111111',
+          boxShadow: '0 24px 60px rgba(0, 0, 0, 0.65)',
+          boxSizing: 'border-box',
         }}
       >
-        <p style={{ margin: 0, fontSize: 12, letterSpacing: 2, color: studioTheme.gold, fontWeight: 700 }}>
-          {t('studio.subtitle')}
+        <p
+          style={{
+            margin: '0 0 16px',
+            fontSize: 18,
+            fontWeight: 700,
+            color: studioTheme.text,
+            textAlign: 'center',
+            lineHeight: 1.35,
+          }}
+        >
+          Welcome to the Bunker
+          <br />
+          <span style={{ display: 'block', fontWeight: 600, fontSize: 14, marginTop: 8, color: studioTheme.goldLight }}>
+            where you can create your IconDatas much faster.
+          </span>
+          <span style={{ display: 'block', fontWeight: 700, fontSize: 16, marginTop: 12 }}>
+            Sign in to Card-Social
+          </span>
         </p>
-        <h1 style={{ margin: '12px 0 8px', fontSize: 22, fontWeight: 300 }}>{t('login.title')}</h1>
-        <p style={{ margin: '0 0 20px', fontSize: 13, color: studioTheme.textMuted, lineHeight: 1.5 }}>{t('login.hint')}</p>
+        <p style={{ margin: '0 0 20px', fontSize: 13, color: studioTheme.textMuted, lineHeight: 1.5, textAlign: 'center' }}>
+          {t('login.hint')}
+        </p>
 
-        <label style={{ display: 'block', fontSize: 11, color: studioTheme.goldLight, marginBottom: 6 }}>{t('login.username')}</label>
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: studioTheme.goldLight, marginBottom: 6 }}>{t('login.username')}</label>
         <input
           type="text"
           name="username"
@@ -128,18 +146,18 @@ export default function StudioLogin({
           style={{
             width: '100%',
             boxSizing: 'border-box',
-            marginBottom: 14,
+            marginBottom: 12,
             padding: '12px 14px',
             borderRadius: 10,
-            border: `1px solid ${studioTheme.borderStrong}`,
-            background: studioTheme.surfaceElevated,
+            border: `1px solid ${studioTheme.border}`,
+            background: '#1C1C1E',
             color: studioTheme.text,
-            fontSize: 15,
+            fontSize: 14,
           }}
         />
 
-        <label style={{ display: 'block', fontSize: 11, color: studioTheme.goldLight, marginBottom: 6 }}>{t('login.password')}</label>
-        <div style={{ position: 'relative', marginBottom: 18 }}>
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: studioTheme.goldLight, marginBottom: 6 }}>{t('login.password')}</label>
+        <div style={{ position: 'relative', marginBottom: 14 }}>
           <input
             type={showPassword ? 'text' : 'password'}
             autoComplete="current-password"
@@ -151,10 +169,10 @@ export default function StudioLogin({
               boxSizing: 'border-box',
               padding: '12px 48px 12px 14px',
               borderRadius: 10,
-              border: `1px solid ${studioTheme.borderStrong}`,
-              background: studioTheme.surfaceElevated,
+              border: `1px solid ${studioTheme.border}`,
+              background: '#1C1C1E',
               color: studioTheme.text,
-              fontSize: 15,
+              fontSize: 14,
             }}
           />
           <button
@@ -167,12 +185,12 @@ export default function StudioLogin({
               right: 4,
               top: '50%',
               transform: 'translateY(-50%)',
-              width: 40,
-              height: 40,
+              width: 38,
+              height: 38,
               border: 'none',
               borderRadius: 8,
               background: 'transparent',
-              color: studioTheme.gold,
+              color: studioTheme.textMuted,
               cursor: 'pointer',
               fontSize: 18,
             }}
@@ -198,15 +216,15 @@ export default function StudioLogin({
           onClick={onSubmit}
           style={{
             width: '100%',
-            padding: '14px 18px',
-            borderRadius: 12,
+            padding: '12px 14px',
+            borderRadius: 10,
             border: 'none',
-            fontSize: 15,
-            fontWeight: 700,
+            fontSize: 14,
+            fontWeight: 800,
             cursor: loading ? 'not-allowed' : 'pointer',
             opacity: loading ? 0.75 : 1,
-            background: studioGradients.cta,
-            color: studioTheme.fabText,
+            background: studioTheme.gold,
+            color: '#111111',
           }}
         >
           {loading ? t('login.signingIn') : t('login.submit')}

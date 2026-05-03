@@ -1,5 +1,6 @@
 import ActivityIndicator from '@/components/BrandedSpinner';
 import CountryDialPickerModal from '@/components/CountryDialPickerModal';
+import { registerFormLook } from '@/constants/authPremiumLook';
 import { FREE_TIER_POLICY } from '@/constants/freeTierPolicy';
 import {
   buildE164,
@@ -25,6 +26,7 @@ import { useRouter } from 'expo-router';
 import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
 import { collection, doc, getDocs, limit, query, runTransaction, serverTimestamp, where } from 'firebase/firestore';
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
+import { useLookMode } from '@/services/lookMode';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
     Alert,
@@ -97,6 +99,9 @@ export default function RegisterScreen() {
   const language = langCtx?.language ?? 'en';
   const tr = (es: string, en: string) => trEsEn(es, en, language);
   const modalFooterBottomPad = useModalFooterBottomPad();
+  const { resolvedMode } = useLookMode();
+  const isNight = resolvedMode === 'noche';
+  const look = useMemo(() => registerFormLook(isNight), [isNight]);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [nickname, setNickname] = useState('');
@@ -1049,7 +1054,7 @@ export default function RegisterScreen() {
         style={styles.container}
       >
         <LinearGradient
-          colors={['#EAF7FF', '#CDEFFF', '#B8E7FF']}
+          colors={[...look.gradient]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.gradientBg}
@@ -1062,26 +1067,26 @@ export default function RegisterScreen() {
             bounces={false}
             overScrollMode="never"
           >
-          <Text style={styles.title}>{tr('Crea tu Identidad', 'Create your Identity')}</Text>
+          <Text style={[styles.title, { color: look.title }]}>{tr('Crea tu Identidad', 'Create your Identity')}</Text>
 
-          <Text style={styles.socialHelper}>{tr('O puedes completar el formulario manualmente para mayor control sobre tu identidad.', 'Or you can complete the form manually for more control over your identity.')}</Text>
+          <Text style={[styles.socialHelper, { color: look.helper }]}>{tr('O puedes completar el formulario manualmente para mayor control sobre tu identidad.', 'Or you can complete the form manually for more control over your identity.')}</Text>
           {/* Social login buttons hidden for MVP - only native registration enabled */}
           {socialProviderId ? (
-            <Text style={styles.socialStateText}>
+            <Text style={[styles.socialStateText, { color: look.socialState }]}>
               {tr('Registro conectado con', 'Sign up connected with')} {getProviderLabel(socialProviderId)}. {tr('Debes completar el resto de campos obligatorios.', 'Complete the remaining required fields.')}
             </Text>
           ) : null}
 
-          <Text style={styles.label}>{tr('Foto de Perfil', 'Profile Photo')}</Text>
+          <Text style={[styles.label, { color: look.label }]}>{tr('Foto de Perfil', 'Profile Photo')}</Text>
           <View style={styles.photoRow}>
-            <TouchableOpacity style={styles.photoButton} onPress={requestCameraPhoto}>
-              <Text style={styles.photoButtonText}>{tr('Abrir camara', 'Open camera')}</Text>
+            <TouchableOpacity style={[styles.photoButton, { backgroundColor: look.photoBtnBg, borderColor: look.photoBtnBorder }]} onPress={requestCameraPhoto}>
+              <Text style={[styles.photoButtonText, { color: look.photoBtnText }]}>{tr('Abrir camara', 'Open camera')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.photoButton} onPress={requestGalleryPhoto}>
-              <Text style={styles.photoButtonText}>{tr('Elegir imagen', 'Choose image')}</Text>
+            <TouchableOpacity style={[styles.photoButton, { backgroundColor: look.photoBtnBg, borderColor: look.photoBtnBorder }]} onPress={requestGalleryPhoto}>
+              <Text style={[styles.photoButtonText, { color: look.photoBtnText }]}>{tr('Elegir imagen', 'Choose image')}</Text>
             </TouchableOpacity>
           </View>
-          {photoUri ? <Image source={{ uri: photoUri }} style={styles.photoPreview} /> : null}
+          {photoUri ? <Image source={{ uri: photoUri }} style={[styles.photoPreview, { borderColor: look.photoBtnBorder }]} /> : null}
 
           {/* Circular photo cropper */}
           <CircularPhotoCropper
@@ -1100,36 +1105,36 @@ export default function RegisterScreen() {
             onClose={() => setCropperVisible(false)}
           />
 
-          <Text style={styles.label}>{tr('Selfie de Verificacion', 'Verification Selfie')}</Text>
-          <Text style={styles.helperText}>{tr('Para proteger la comunidad, toma una selfie con una sonrisa o un guino. Solo valida que eres humano.', 'To protect the community, take a selfie with a smile or a wink. This only validates that you are human.')}</Text>
-          <TouchableOpacity style={styles.photoButton} onPress={requestVerificationSelfie}>
-            <Text style={styles.photoButtonText}>{tr('Tomar selfie de verificacion', 'Take verification selfie')}</Text>
+          <Text style={[styles.label, { color: look.label }]}>{tr('Selfie de Verificacion', 'Verification Selfie')}</Text>
+          <Text style={[styles.helperText, { color: look.helper }]}>{tr('Para proteger la comunidad, toma una selfie con una sonrisa o un guino. Solo valida que eres humano.', 'To protect the community, take a selfie with a smile or a wink. This only validates that you are human.')}</Text>
+          <TouchableOpacity style={[styles.photoButton, { backgroundColor: look.photoBtnBg, borderColor: look.photoBtnBorder }]} onPress={requestVerificationSelfie}>
+            <Text style={[styles.photoButtonText, { color: look.photoBtnText }]}>{tr('Tomar selfie de verificacion', 'Take verification selfie')}</Text>
           </TouchableOpacity>
-          {verificationSelfieUri ? <Image source={{ uri: verificationSelfieUri }} style={styles.photoPreview} /> : null}
+          {verificationSelfieUri ? <Image source={{ uri: verificationSelfieUri }} style={[styles.photoPreview, { borderColor: look.photoBtnBorder }]} /> : null}
 
-          <Text style={styles.label}>{tr('Nombre', 'First Name')}</Text>
+          <Text style={[styles.label, { color: look.label }]}>{tr('Nombre', 'First Name')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
             placeholder={tr('Ej: Carlos', 'Ex: John')}
-            placeholderTextColor="#8E8E93"
+            placeholderTextColor={look.placeholderColor}
             value={firstName}
             onChangeText={setFirstName}
           />
 
-          <Text style={styles.label}>{tr('Apellido', 'Last Name')}</Text>
+          <Text style={[styles.label, { color: look.label }]}>{tr('Apellido', 'Last Name')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
             placeholder={tr('Ej: Ramírez', 'Ex: Carter')}
-            placeholderTextColor="#8E8E93"
+            placeholderTextColor={look.placeholderColor}
             value={lastName}
             onChangeText={setLastName}
           />
 
-          <Text style={styles.label}>{tr('NickName (Unico)', 'Nickname (Unique)')}</Text>
+          <Text style={[styles.label, { color: look.label }]}>{tr('NickName (Unico)', 'Nickname (Unique)')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
             placeholder={tr('Ej: carlos.ramirez', 'Ex: john.carter')}
-            placeholderTextColor="#8E8E93"
+            placeholderTextColor={look.placeholderColor}
             autoCapitalize="none"
             value={nickname}
             onChangeText={setNickname}
@@ -1137,6 +1142,7 @@ export default function RegisterScreen() {
           <Text
             style={[
               styles.validationText,
+              { color: look.validationMuted },
               nicknameStatus === 'available' && styles.validationOk,
               (nicknameStatus === 'taken' || nicknameStatus === 'invalid') && styles.validationError,
             ]}
@@ -1152,11 +1158,11 @@ export default function RegisterScreen() {
                     : tr('Ingresa un nickname para validar disponibilidad', 'Enter a nickname to check availability')}
           </Text>
 
-          <Text style={styles.label}>{tr('Email (Unico)', 'Email (Unique)')}</Text>
+          <Text style={[styles.label, { color: look.label }]}>{tr('Email (Unico)', 'Email (Unique)')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
             placeholder={tr('correo@ejemplo.com', 'email@example.com')}
-            placeholderTextColor="#8E8E93"
+            placeholderTextColor={look.placeholderColor}
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="off"
@@ -1169,6 +1175,7 @@ export default function RegisterScreen() {
           <Text
             style={[
               styles.validationText,
+              { color: look.validationMuted },
               emailStatus === 'available' && styles.validationOk,
               (emailStatus === 'taken' || emailStatus === 'invalid') && styles.validationError,
             ]}
@@ -1184,23 +1191,23 @@ export default function RegisterScreen() {
                     : tr('Ingresa un email para validar disponibilidad', 'Enter an email to check availability')}
           </Text>
 
-          <Text style={styles.label}>{tr('Telefono (Unico)', 'Phone (Unique)')}</Text>
+          <Text style={[styles.label, { color: look.label }]}>{tr('Telefono (Unico)', 'Phone (Unique)')}</Text>
           <View style={styles.phoneRow}>
             <TouchableOpacity
-              style={styles.phoneDialButton}
+              style={[styles.phoneDialButton, { backgroundColor: look.phoneDialBg, borderColor: look.phoneDialBorder }]}
               onPress={() => setCountryPickerVisible(true)}
               activeOpacity={0.7}
             >
-              <Text style={styles.phoneDialText}>{phoneDialCode}</Text>
-              <Text style={styles.phoneDialChevron}>▼</Text>
+              <Text style={[styles.phoneDialText, { color: look.phoneDialText }]}>{phoneDialCode}</Text>
+              <Text style={[styles.phoneDialChevron, { color: look.phoneChevron }]}>▼</Text>
             </TouchableOpacity>
             <TextInput
-              style={[styles.input, styles.phoneNationalInput]}
+              style={[styles.input, styles.phoneNationalInput, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
               placeholder={(() => {
                 const { min, max } = getNationalDigitBounds(phoneDialCode);
                 return tr(`${min}–${max} dígitos`, `${min}–${max} digits`);
               })()}
-              placeholderTextColor="#8E8E93"
+              placeholderTextColor={look.placeholderColor}
               keyboardType="phone-pad"
               value={phoneNational}
               onChangeText={(t) =>
@@ -1215,6 +1222,7 @@ export default function RegisterScreen() {
           <Text
             style={[
               styles.validationText,
+              { color: look.validationMuted },
               phoneStatus === 'available' && styles.validationOk,
               (phoneStatus === 'taken' || phoneStatus === 'invalid') && styles.validationError,
             ]}
@@ -1233,68 +1241,68 @@ export default function RegisterScreen() {
                     : tr('Ingresa tu numero para validar disponibilidad', 'Enter your phone number to check availability')}
           </Text>
 
-          <Text style={styles.label}>{tr('Fecha de Nacimiento', 'Birth Date')}</Text>
+          <Text style={[styles.label, { color: look.label }]}>{tr('Fecha de Nacimiento', 'Birth Date')}</Text>
           <View style={styles.dateInputRow}>
             <TextInput
-              style={[styles.input, styles.dateInput]}
+              style={[styles.input, styles.dateInput, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
               placeholder="MM-DD-YYYY"
-              placeholderTextColor="#8E8E93"
+              placeholderTextColor={look.placeholderColor}
               keyboardType="number-pad"
               maxLength={10}
               value={birthDate}
               onChangeText={(value) => setBirthDate(formatBirthDateInput(value))}
             />
-            <TouchableOpacity style={styles.calendarButton} onPress={openBirthPicker}>
+            <TouchableOpacity style={[styles.calendarButton, { backgroundColor: look.calendarBg, borderColor: look.calendarBorder }]} onPress={openBirthPicker}>
               <Text style={styles.calendarButtonIcon}>📅</Text>
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.label}>{tr('Ciudad', 'City')}</Text>
+          <Text style={[styles.label, { color: look.label }]}>{tr('Ciudad', 'City')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
             placeholder={tr('Ej: Houston', 'Ex: Houston')}
-            placeholderTextColor="#8E8E93"
+            placeholderTextColor={look.placeholderColor}
             value={city}
             onChangeText={setCity}
           />
 
-          <Text style={styles.label}>{tr('Estado', 'State')}</Text>
+          <Text style={[styles.label, { color: look.label }]}>{tr('Estado', 'State')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
             placeholder={tr('Ej: Texas', 'Ex: Texas')}
-            placeholderTextColor="#8E8E93"
+            placeholderTextColor={look.placeholderColor}
             value={stateRegion}
             onChangeText={setStateRegion}
           />
 
-          <Text style={styles.label}>{tr('Pais', 'Country')}</Text>
+          <Text style={[styles.label, { color: look.label }]}>{tr('Pais', 'Country')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
             placeholder={tr('Ej: Estados Unidos', 'Ex: United States')}
-            placeholderTextColor="#8E8E93"
+            placeholderTextColor={look.placeholderColor}
             value={country}
             onChangeText={setCountry}
           />
 
-          <TouchableOpacity style={styles.geoButton} onPress={() => void autofillLocationFromDevice()} disabled={isAutofillingLocation}>
+          <TouchableOpacity style={[styles.geoButton, { backgroundColor: look.geoBtnBg, borderColor: look.geoBtnBorder }]} onPress={() => void autofillLocationFromDevice()} disabled={isAutofillingLocation}>
             {isAutofillingLocation ? (
-              <ActivityIndicator size="small" color="#0D4D8A" />
+              <ActivityIndicator size="small" color={look.spinnerColor} />
             ) : (
-              <Text style={styles.geoButtonText}>{tr('Autocompletar ubicacion', 'Autofill location')}</Text>
+              <Text style={[styles.geoButtonText, { color: look.geoBtnText }]}>{tr('Autocompletar ubicacion', 'Autofill location')}</Text>
             )}
           </TouchableOpacity>
 
-          <Text style={styles.label}>{tr('Horario detectado', 'Detected timezone')}</Text>
-          <Text style={styles.readOnlyValue}>{timezone}</Text>
+          <Text style={[styles.label, { color: look.label }]}>{tr('Horario detectado', 'Detected timezone')}</Text>
+          <Text style={[styles.readOnlyValue, { backgroundColor: look.readOnlyBg, borderColor: look.readOnlyBorder, color: look.readOnlyText }]}>{timezone}</Text>
 
           {!socialProviderId ? (
             <>
-              <Text style={styles.label}>{tr('Contrasena', 'Password')}</Text>
-              <View style={styles.passwordRow}>
+              <Text style={[styles.label, { color: look.label }]}>{tr('Contrasena', 'Password')}</Text>
+              <View style={[styles.passwordRow, { backgroundColor: look.passwordRowBg, borderColor: look.passwordRowBorder, borderWidth: 1 }]}>
                 <TextInput
-                  style={styles.passwordInput}
+                  style={[styles.passwordInput, { color: look.inputText }]}
                   placeholder={tr('Minimo 8 caracteres', 'Minimum 8 characters')}
-                  placeholderTextColor="#8E8E93"
+                  placeholderTextColor={look.placeholderColor}
                   secureTextEntry={!passwordVisible}
                   autoComplete="off"
                   textContentType="none"
@@ -1316,7 +1324,7 @@ export default function RegisterScreen() {
                   <MaterialCommunityIcons
                     name={passwordVisible ? 'eye-off-outline' : 'eye-outline'}
                     size={24}
-                    color="#0A2540"
+                    color={look.eyeIcon}
                   />
                 </TouchableOpacity>
               </View>
@@ -1326,27 +1334,34 @@ export default function RegisterScreen() {
           <TouchableOpacity
             style={[
               styles.registerButton,
+              { backgroundColor: look.registerBtnBg },
               (!acceptedLegal || isSubmitting || isRetryLocked || nicknameStatus !== 'available' || emailStatus !== 'available' || phoneStatus !== 'available') && styles.registerButtonDisabled,
             ]}
             onPress={handleRegister}
             disabled={isSubmitting || !acceptedLegal || isRetryLocked || nicknameStatus !== 'available' || emailStatus !== 'available' || phoneStatus !== 'available'}
           >
             {isSubmitting ? (
-              <ActivityIndicator color="#0A2540" />
+              <ActivityIndicator color={look.registerBtnText} />
             ) : (
-              <Text style={styles.registerButtonText}>{tr('CONFIRMAR REGISTRO', 'CONFIRM SIGN UP')}</Text>
+              <Text style={[styles.registerButtonText, { color: look.registerBtnText }]}>{tr('CONFIRMAR REGISTRO', 'CONFIRM SIGN UP')}</Text>
             )}
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.legalRow} onPress={() => setAcceptedLegal((prev) => !prev)} activeOpacity={0.85}>
-            <View style={[styles.legalCheckbox, acceptedLegal && styles.legalCheckboxChecked]}>
+            <View
+              style={[
+                styles.legalCheckbox,
+                { backgroundColor: look.legalCheckboxBg, borderColor: look.legalBorder },
+                acceptedLegal && { backgroundColor: look.legalCheckedBg, borderColor: look.legalCheckedBorder },
+              ]}
+            >
               {acceptedLegal ? <Text style={styles.legalCheckmark}>✓</Text> : null}
             </View>
-            <Text style={styles.legalText}>{tr('Acepto Terminos y Condiciones + Politica de Privacidad', 'I accept Terms and Conditions + Privacy Policy')}</Text>
+            <Text style={[styles.legalText, { color: look.legalText }]}>{tr('Acepto Terminos y Condiciones + Politica de Privacidad', 'I accept Terms and Conditions + Privacy Policy')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
-            <Text style={{ color: 'white', opacity: 0.5 }}>{tr('Volver atras', 'Go back')}</Text>
+            <Text style={{ color: look.secondaryLink, opacity: 0.75 }}>{tr('Volver atras', 'Go back')}</Text>
           </TouchableOpacity>
           </ScrollView>
         </LinearGradient>
@@ -1358,9 +1373,9 @@ export default function RegisterScreen() {
           onRequestClose={() => {}}
         >
           <View style={styles.progressOverlay}>
-            <View style={styles.progressContainer}>
-              <ActivityIndicator size={140} color="#1EA7FF" />
-              <Text style={styles.uploadLabel}>{uploadStageLabel}</Text>
+            <View style={[styles.progressContainer, { backgroundColor: look.progressCardBg, borderColor: look.progressCardBorder }]}>
+              <ActivityIndicator size={140} color={look.spinnerColor} />
+              <Text style={[styles.uploadLabel, { color: look.progressLabel }]}>{uploadStageLabel}</Text>
             </View>
           </View>
         </Modal>
@@ -1450,11 +1465,11 @@ export default function RegisterScreen() {
           topSectionTitle={tr('Destacados', 'Top')}
           restSectionTitle={tr('Todos los países', 'All countries')}
           searchPlaceholder={tr('Buscar país o prefijo…', 'Search country or code…')}
-          surfaceBg="#FFFFFF"
-          textPrimary="#0A2540"
+          surfaceBg={look.countryPickerSurface}
+          textPrimary={look.countryPickerTextPrimary}
           textSecondary="#8E8E93"
-          border="#7BC2EC"
-          inputBg="rgba(255,255,255,0.95)"
+          border={look.countryPickerBorder}
+          inputBg={look.countryPickerInputBg}
         />
 
         <Modal

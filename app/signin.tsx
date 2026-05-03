@@ -1,10 +1,12 @@
 import ActivityIndicator from '@/components/BrandedSpinner';
+import { authScreenLook, AUTH_GOLD } from '@/constants/authPremiumLook';
 import { brandCsIconLogoBgTransparent } from '@/constants/brandAssets';
 import { initiateAccountRecovery, requestUsernameRecoveryByPhone } from '@/services/accountRecoveryService';
 import { saveCachedCredentials } from '@/services/credentialVault';
 import { auth, db } from '@/services/firebaseConfig';
 import { firestoreFirstUserDocByNickLower } from '@/services/userIdentityFields';
 import { trEsEn, useLanguageOptional } from '@/services/language';
+import { useLookMode } from '@/services/lookMode';
 import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, SocialProviderId } from '@/services/socialAuth';
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -34,6 +36,9 @@ export default function SignInScreen() {
   const langCtx = useLanguageOptional();
   const language = langCtx?.language ?? 'en';
   const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const { resolvedMode } = useLookMode();
+  const isNight = resolvedMode === 'noche';
+  const look = useMemo(() => authScreenLook(isNight), [isNight]);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -324,28 +329,38 @@ export default function SignInScreen() {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <LinearGradient colors={['#F8FBFF', '#E9F6FF', '#D6EEFF']} style={styles.gradient}>
+        <LinearGradient colors={[...look.gradient]} style={styles.gradient}>
           <ScrollView
             contentContainerStyle={styles.content}
             keyboardDismissMode="on-drag"
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.heroIconWrap}>
+            <View
+              style={[
+                styles.heroIconWrap,
+                {
+                  backgroundColor: look.heroRingBg,
+                  borderColor: look.heroRingBorder,
+                  shadowColor: isNight ? AUTH_GOLD : '#0A2540',
+                },
+              ]}
+            >
               <Image source={brandCsIconLogoBgTransparent} style={styles.heroLogo} resizeMode="contain" />
             </View>
-            <Text style={styles.title}>{welcomeTitle}</Text>
-            <Text style={styles.subtitle}>{tr('Inicia como prefieras, pero siempre con control total de tu identidad.', 'Sign in your way, always with full control of your identity.')}</Text>
+            <Text style={[styles.title, { color: look.title }]}>{welcomeTitle}</Text>
+            <Text style={[styles.subtitle, { color: look.subtitle }]}>{tr('Inicia como prefieras, pero siempre con control total de tu identidad.', 'Sign in your way, always with full control of your identity.')}</Text>
 
             {/* Social login buttons hidden for MVP - only native username/password enabled */}
 
-            <Text style={styles.socialTitle}>{tr('Inicia con usuario y contrasena', 'Sign in with username and password')}</Text>
+            <Text style={[styles.socialTitle, { color: look.socialTitle }]}>{tr('Inicia con usuario y contrasena', 'Sign in with username and password')}</Text>
 
-            <View style={styles.inputWrap}>
-              <User size={16} color="#4A4A4A" />
+            <View style={[styles.inputWrap, { backgroundColor: look.inputWrapBg, borderColor: look.inputWrapBorder }]}>
+              <User size={16} color={look.iconColor} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: look.inputText }]}
                 placeholder={tr('Usuario', 'Username')}
+                placeholderTextColor={look.placeholderColor}
                 keyboardType="default"
                 autoCapitalize="none"
                 autoComplete="off"
@@ -356,11 +371,12 @@ export default function SignInScreen() {
               />
             </View>
 
-            <View style={styles.inputWrap}>
-              <Lock size={16} color="#4A4A4A" />
+            <View style={[styles.inputWrap, { backgroundColor: look.inputWrapBg, borderColor: look.inputWrapBorder }]}>
+              <Lock size={16} color={look.iconColor} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: look.inputText }]}
                 placeholder={tr('Contrasena', 'Password')}
+                placeholderTextColor={look.placeholderColor}
                 secureTextEntry={!showPassword}
                 autoComplete="off"
                 textContentType="none"
@@ -373,12 +389,12 @@ export default function SignInScreen() {
                 style={styles.eyeButton}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                {showPassword ? <EyeOff size={18} color="#4A4A4A" /> : <Eye size={18} color="#4A4A4A" />}
+                {showPassword ? <EyeOff size={18} color={look.iconColor} /> : <Eye size={18} color={look.iconColor} />}
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={styles.primaryButton} onPress={handleSignIn} disabled={isSubmitting}>
-              <Text style={styles.primaryButtonText}>{tr('Iniciar sesion', 'Sign In')}</Text>
+            <TouchableOpacity style={[styles.primaryButton, { backgroundColor: look.primaryBtnBg }]} onPress={handleSignIn} disabled={isSubmitting}>
+              <Text style={[styles.primaryButtonText, { color: look.primaryBtnText }]}>{tr('Iniciar sesion', 'Sign In')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -389,9 +405,9 @@ export default function SignInScreen() {
               disabled={isRecoveringPassword}
             >
               {isRecoveringPassword ? (
-                <ActivityIndicator size="small" color="#0A2540" />
+                <ActivityIndicator size="small" color={look.spinnerColor} />
               ) : (
-                <Text style={styles.secondaryLink}>{tr('Olvide mi contrasena', 'Forgot my password')}</Text>
+                <Text style={[styles.secondaryLink, { color: look.secondaryLink }]}>{tr('Olvide mi contrasena', 'Forgot my password')}</Text>
               )}
             </TouchableOpacity>
 
@@ -401,9 +417,9 @@ export default function SignInScreen() {
               disabled={isRecoveringUsername}
             >
               {isRecoveringUsername ? (
-                <ActivityIndicator size="small" color="#0A2540" />
+                <ActivityIndicator size="small" color={look.spinnerColor} />
               ) : (
-                <Text style={styles.secondaryLink}>{tr('Olvide mi usuario', 'Forgot my username')}</Text>
+                <Text style={[styles.secondaryLink, { color: look.secondaryLink }]}>{tr('Olvide mi usuario', 'Forgot my username')}</Text>
               )}
             </TouchableOpacity>
 
@@ -416,15 +432,15 @@ export default function SignInScreen() {
                 disabled={isResendingVerification}
               >
                 {isResendingVerification ? (
-                  <ActivityIndicator size="small" color="#0A2540" />
+                  <ActivityIndicator size="small" color={look.spinnerColor} />
                 ) : (
-                  <Text style={styles.secondaryLink}>{tr('Reenviar email de verificacion', 'Resend verification email')}</Text>
+                  <Text style={[styles.secondaryLink, { color: look.secondaryLink }]}>{tr('Reenviar email de verificacion', 'Resend verification email')}</Text>
                 )}
               </TouchableOpacity>
             ) : null}
 
             <TouchableOpacity onPress={() => router.push('/register')} style={styles.footerLinkWrap}>
-              <Text style={styles.footerLink}>{tr('No tengo cuenta / Sign up', "Don't have an account? Sign up")}</Text>
+              <Text style={[styles.footerLink, { color: look.footerLink }]}>{tr('No tengo cuenta / Sign up', "Don't have an account? Sign up")}</Text>
             </TouchableOpacity>
           </ScrollView>
         </LinearGradient>
@@ -435,10 +451,10 @@ export default function SignInScreen() {
           animationType="fade"
           onRequestClose={() => {}}
         >
-          <View style={styles.submitOverlay}>
-            <View style={styles.submitOverlayCard}>
-              <ActivityIndicator size={120} color="#1EA7FF" />
-              <Text style={styles.submitOverlayText}>{tr('Validando acceso seguro...', 'Validating secure access...')}</Text>
+          <View style={[styles.submitOverlay, { backgroundColor: look.submitOverlay }]}>
+            <View style={[styles.submitOverlayCard, { backgroundColor: look.submitCardBg, borderColor: look.submitCardBorder }]}>
+              <ActivityIndicator size={120} color={look.spinnerColor} />
+              <Text style={[styles.submitOverlayText, { color: look.submitText }]}>{tr('Validando acceso seguro...', 'Validating secure access...')}</Text>
             </View>
           </View>
         </Modal>
@@ -450,14 +466,14 @@ export default function SignInScreen() {
           onRequestClose={() => setRecoveryMode(null)}
         >
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <View style={styles.submitOverlay}>
-              <View style={styles.recoveryCard}>
-                <Text style={styles.recoveryTitle}>
+            <View style={[styles.submitOverlay, { backgroundColor: look.submitOverlay }]}>
+              <View style={[styles.recoveryCard, { backgroundColor: look.recoveryCardBg, borderColor: look.recoveryCardBorder }]}>
+                <Text style={[styles.recoveryTitle, { color: look.recoveryTitle }]}>
                   {recoveryMode === 'password'
                     ? tr('Recuperar contrasena', 'Recover password')
                     : tr('Recuperar usuario', 'Recover username')}
                 </Text>
-                <Text style={styles.recoveryBody}>
+                <Text style={[styles.recoveryBody, { color: look.recoveryBody }]}>
                   {recoveryMode === 'password'
                     ? maskedRecoveryEmail
                       ? tr(
@@ -473,34 +489,34 @@ export default function SignInScreen() {
                         'Enter the phone number on your account. If it matches, we will send your username to the registered email.',
                       )}
                 </Text>
-                <View style={styles.recoveryInputWrap}>
+                <View style={[styles.recoveryInputWrap, { backgroundColor: look.recoveryInputWrapBg, borderColor: look.recoveryInputWrapBorder }]}>
                   <TextInput
-                    style={styles.recoveryInput}
+                    style={[styles.recoveryInput, { color: look.recoveryInputText }]}
                     value={recoveryMode === 'password' ? recoveryEmail : recoveryPhone}
                     onChangeText={recoveryMode === 'password' ? setRecoveryEmail : setRecoveryPhone}
                     placeholder={recoveryMode === 'password' ? 'name@example.com' : '+1 555 000 0000'}
-                    placeholderTextColor="#8E8E93"
+                    placeholderTextColor={look.placeholderColor}
                     keyboardType={recoveryMode === 'password' ? 'email-address' : 'phone-pad'}
                     autoCapitalize="none"
                     autoCorrect={false}
                   />
                 </View>
                 <TouchableOpacity
-                  style={styles.primaryButton}
+                  style={[styles.primaryButton, { backgroundColor: look.primaryBtnBg }]}
                   onPress={() => {
                     if (recoveryMode === 'password') void submitForgotPassword();
                     else void submitForgotUsername();
                   }}
                   disabled={isRecoveringPassword || isRecoveringUsername}
                 >
-                  <Text style={styles.primaryButtonText}>
+                  <Text style={[styles.primaryButtonText, { color: look.primaryBtnText }]}>
                     {isRecoveringPassword || isRecoveringUsername
                       ? tr('Enviando...', 'Sending...')
                       : tr('Continuar', 'Continue')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.secondaryLinkWrap} onPress={() => setRecoveryMode(null)}>
-                  <Text style={styles.secondaryLink}>{tr('Cancelar', 'Cancel')}</Text>
+                  <Text style={[styles.secondaryLink, { color: look.secondaryLink }]}>{tr('Cancelar', 'Cancel')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
