@@ -2284,6 +2284,10 @@ function createQrRoutes({ storage }) {
     }
   });
 
+  /**
+   * Stories API — legacy / compatibilidad.
+   * La app actual ya no consume estas rutas; se mantienen para datos existentes o clientes antiguos.
+   */
   router.post('/stories/state', async (req, res) => {
     try {
       const authUid = String(req.auth?.sub || '').trim();

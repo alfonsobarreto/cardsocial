@@ -1,15 +1,10 @@
 /**
- * Tests Search & Social Market Hub — Fase 2 (anillos contacto/mercado, facetas, iconos).
+ * Tests Search & Social Market Hub — Fase 2 (facetas Mercado, iconos).
  * Ejecutar: npm run test:search-phase2
  */
 import assert from 'node:assert/strict';
 import { facetIconNameForSearch } from '../services/searchFacetIcons';
-import {
-  buildMarketCardSearchFacets,
-  marketSearchStoryRingState,
-  parseStoryExpiryMs,
-} from '../services/searchPhase2Logic';
-import { buildStoryLookupFromReceivedContacts, resolveSearchRowStoryState } from '../services/storiesPhase1Logic';
+import { buildMarketCardSearchFacets } from '../services/searchPhase2Logic';
 import type { BusinessCard } from '../types/businessCard';
 
 /** Stub mínimo para probar solo campos usados por la Fase 2. */
@@ -43,90 +38,6 @@ function stubCard(p: Partial<BusinessCard> & Pick<BusinessCard, 'bId' | 'uid' | 
 }
 
 function run() {
-  // --- Fase 1 integración en filas Search (sid/bId + mute) ---
-  const lookup = buildStoryLookupFromReceivedContacts([
-    { uid: 'u1', sid: 'c1', bId: null, storyState: 'vip', channelMuted: false },
-    { uid: 'u2', sid: 'c2', bId: null, storyState: 'normal', channelMuted: true },
-  ]);
-
-  assert.equal(
-    resolveSearchRowStoryState({ uid: 'u1', sid: 'c1', bId: null, channelMuted: false }, lookup),
-    'vip',
-  );
-  assert.equal(
-    resolveSearchRowStoryState({ uid: 'u2', sid: 'c2', bId: null, channelMuted: true }, lookup),
-    'none',
-    'canal silenciado → sin anillo',
-  );
-
-  // --- Mercado: anillo VIP / normal / expirado ---
-  assert.equal(
-    marketSearchStoryRingState(
-      stubCard({
-        bId: 'm1',
-        uid: 'ou',
-        bcName: 'B',
-        hasActiveStory: false,
-      }),
-    ),
-    'none',
-  );
-
-  assert.equal(
-    marketSearchStoryRingState(
-      stubCard({
-        bId: 'm2',
-        uid: 'ou',
-        bcName: 'B',
-        hasActiveStory: true,
-        isPremiumStory: true,
-      }),
-    ),
-    'vip',
-  );
-
-  assert.equal(
-    marketSearchStoryRingState(
-      stubCard({
-        bId: 'm3',
-        uid: 'ou',
-        bcName: 'B',
-        hasActiveStory: true,
-        isPremiumStory: false,
-      }),
-    ),
-    'normal',
-  );
-
-  const past = new Date(Date.now() - 86_400_000);
-  assert.equal(
-    marketSearchStoryRingState(
-      stubCard({
-        bId: 'm4',
-        uid: 'ou',
-        bcName: 'B',
-        hasActiveStory: true,
-        isPremiumStory: true,
-        storyExpiresAt: past,
-      }),
-    ),
-    'none',
-    'historia caducada → sin anillo',
-  );
-
-  const futureSec = Math.floor(Date.now() / 1000) + 3600;
-  assert.equal(
-    parseStoryExpiryMs(
-      stubCard({
-        bId: 'm5',
-        uid: 'ou',
-        bcName: 'B',
-        storyExpiresAt: { seconds: futureSec } as unknown as Date,
-      }),
-    ),
-    futureSec * 1000,
-  );
-
   // --- Facetas mercado: solo lo guardado en `marketFacets` (sin inventar desde campos planos) ---
   const sampleFacets = [
     { type: 'email', label: 'Correo', value: 'a@b.co', iconName: 'email-outline' },

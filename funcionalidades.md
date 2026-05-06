@@ -45,9 +45,6 @@ Este documento resume el núcleo funcional actual para mantener alineado el comp
 
 **Dependencia:** `react-native-draggable-flatlist`.
 
-**Otros tabs:** `cards.tsx` no es el hub de Stories; solo texto de canal/suscriptores. Contactos y Stories comparten `storyState` vía `listReceivedContacts`. Search no muestra anillo de historia en negocios del market (pendiente si se requiere).
-
-## 3) Contactos + Calls (Ghost-Link VoIP)
 - La llamada se inicia por `Contacts`/`Calls` vía `ghost-link-voip`.
 - Flujo backend:
   - `POST /api/qr/voip/ghost-link/start`
@@ -56,7 +53,7 @@ Este documento resume el núcleo funcional actual para mantener alineado el comp
 - El número real del emisor no se revela al receptor.
 - El campo teléfono funciona como identificador interno, no como destino de `tel:`.
 
-## 4) Stories CTA
+## 4) CTA desde tarjetas (email, enlaces, documentos)
 - CTA puede invocar email/link/documento/texto.
 - CTA telefónico debe enrutarse por Ghost-Link, nunca por `tel:`.
 
@@ -72,9 +69,7 @@ Este documento resume el núcleo funcional actual para mantener alineado el comp
   - El backend hoy gestiona señalización/estado de invitación y bitácora de llamadas.
   - Recomendación: integrar SDK de Azure Communication Services Calling (o equivalente) para audio en tiempo real.
 
-## 7) Stories (resumen para no duplicar contexto)
-- Pantalla: `app/(tabs)/stories.tsx`, estilos `app/(tabs)/_stories.styles.ts` (prefijo `_` para que Expo Router no lo trate como ruta), tokens `stories*` en `app/theme.ts`.
-- API cliente: `getMyStoryState`, `setMyStoryState`, `listReceivedContacts`, `getStoriesHouseAd` en `services/qrApi.ts`.
-- Flujo creación: primero **tarjeta emisora** (carrusel), luego **mirror del Bunker filtrado** solo a `itemIds` de esa tarjeta; `setMyStoryState` siempre con `sid` / `bId`. En feed, `listReceivedContacts` devuelve `storyState` por canal **uid + sid/bId** del permiso recibido (sin mezclar historia global si ya hay tarjeta).
-- Estados de anillo: `none` | `normal` (24h) | `vip` (7d/30d + créditos en flujo publicación). Contactos reutilizan `storyState` en avatar (`app/(tabs)/contacts.tsx`).
-- Servicio **no cableado a la UI del tab**: `services/storiesFeedInjectionService.ts` (inyección de historias de negocio por distancia) — diseño futuro / market.
+## 7) Historias — retiradas del cliente (legacy API)
+
+La app ya **no** incluye tab ni UI de Stories. El backend puede seguir exponiendo rutas `/api/qr/stories/*` solo por compatibilidad con datos o clientes antiguos; nuevas versiones de la app no las consumen. `listReceivedContacts` puede seguir incluyendo el campo opcional `storyState` hasta que la API lo elimine por completo — la UI ya no muestra anillos ni navegación a historias.
+

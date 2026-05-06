@@ -67,7 +67,7 @@ const BUSINESS_CARD_PACKAGES: Record<string, BusinessCardPackage> = {
     billingPeriod: 'annual',
     features: [
       '✓ Publicación en Social Market',
-      '✓ Stories de 7 días (2x/mes)',
+      '✓ Visibilidad en Social Market durante 1 año',
       '✓ QR Branded con logo',
       '✓ Analytics de vistas',
       '✓ Soporte prioritario',
@@ -83,7 +83,7 @@ const BUSINESS_CARD_PACKAGES: Record<string, BusinessCardPackage> = {
     billingPeriod: 'annual',
     features: [
       '✓ Publicación en Social Market',
-      '✓ Stories de 7 días (2x/mes)',
+      '✓ Visibilidad en Social Market durante 1 año',
       '✓ QR Branded con logo',
       '✓ Analytics de vistas',
       '✓ Soporte prioritario',
@@ -355,5 +355,5 @@ export function generateDiscountLabel(discount: PriceCalculation): string {
  * Obtiene la descripción del beneficio principal
  */
 export function getMainBenefit(isPremiumUser: boolean): string {
-  return `Licencia anual por tarjeta: Social Market + Stories CTA + ${BUSINESS_CARD_CASHBACK_CS.toLocaleString('es-MX')} CS cashback`;
+  return `Licencia anual por tarjeta: Social Market destacado + ${BUSINESS_CARD_CASHBACK_CS.toLocaleString('es-MX')} CS cashback`;
 }

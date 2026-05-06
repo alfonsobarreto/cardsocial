@@ -4,11 +4,10 @@
  *
  * Conversión oficial: 100 Créditos CS = 1 USD (`constants/csEconomy.ts`).
  * Welcome Bonus: al confirmar pago (AppStore/PlayStore).
- * Gasto VIP Story: ver `PREMIUM_STORY_COST_CS`.
  * Zero-Balance: nuevo usuario comienza con 0 CS
  */
 
-import { PREMIUM_STORY_COST_CS, WELCOME_BONUS_CS } from '@/constants/csEconomy';
+import { WELCOME_BONUS_CS } from '@/constants/csEconomy';
 import { db } from '@/services/firebaseConfig';
 import { addDoc, collection, doc, getDoc, increment, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 
@@ -25,19 +24,8 @@ export interface UserCreditsState {
 export interface CreditTransaction {
   type: 'earn' | 'spend';
   amount: number;
-  reason: string; // 'welcome_bonus', 'story_vip', 'refund', etc.
+  reason: string; // 'welcome_bonus', 'refund', etc.
   timestamp: string;
-}
-
-export type PremiumStoryDuration = '7d' | '30d';
-
-const PREMIUM_STORY_COSTS: Record<PremiumStoryDuration, number> = {
-  '7d': PREMIUM_STORY_COST_CS['7d'],
-  '30d': PREMIUM_STORY_COST_CS['30d'],
-};
-
-export function getPremiumStoryCost(duration: PremiumStoryDuration): number {
-  return PREMIUM_STORY_COSTS[duration];
 }
 
 /**
@@ -145,26 +133,6 @@ export async function applyWelcomeBonus(userId: string): Promise<boolean> {
   }
 }
 
-/**
- * Deduce crédito por publicar una Historia VIP (coste según `PREMIUM_STORY_COST_CS`).
- */
-export async function deductCreditsForVipStory(userId: string): Promise<boolean> {
-  try {
-    return await purchasePremiumStoryWithCredits(userId, '7d');
-  } catch (error) {
-    console.error('Error deducting credits for VIP story:', error);
-    return false;
-  }
-}
-
-export async function purchasePremiumStoryWithCredits(
-  userId: string,
-  duration: PremiumStoryDuration,
-): Promise<boolean> {
-  const cost = getPremiumStoryCost(duration);
-  const reason = duration === '30d' ? 'story_premium_30days' : 'story_vip_7days';
-  return deductCredits(userId, cost, reason);
-}
 
 /**
  * Suma créditos manualmente (para reembolsos u otras razones)
@@ -194,7 +162,6 @@ export async function addCredits(
  * 
  * Uso:
  * - Icon Pack purchase: deductCredits(userId, 75, `icon_pack_purchase:packId`)
- * - VIP Story: deductCredits(userId, getPremiumStoryCost('7d'), 'story_vip_7days')
  * - Otros gastos futuros
  */
 export async function deductCredits(

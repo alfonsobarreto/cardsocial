@@ -14,7 +14,6 @@
 |------|----------------------|----------|---------------------|
 | **Contactos** | `app/(tabs)/contacts.tsx` | `listReceivedContacts`, `listCardSubscribers`, `blockRelationship`, `removeRelationship`, `setSubscriberSelfCardMute`; previews con `MyCardsPayload` | Facetas `receivedContactFacets` / búsqueda local (`deepSearch`); **no** lista `smart_cards` directamente; datos vienen del modelo “contacto recibido” |
 | **Búsqueda** | `app/(tabs)/search.tsx` | `listReceivedContacts`, `fetchPublicBusinessCardPreview`, `listCardSubscribers`, `blockRelationship`; `myCardsPayloadFromQrPreview` | Misma línea que contactos para filas + previews; negocio vía preview público |
-| **Stories** | `app/(tabs)/stories.tsx` | `listReceivedContacts`, `listSmartCardsFromDb`, `getMyStoryState` / `setMyStoryState`, `getStoriesHouseAd`; caché `readSmartCardsJsonWithLegacyMigration` | **Sí** alinea lista smart con Mongo + caché (mismo patrón que cards tab); vault local + `mergeBuiltinGhostLinkIntoVault` |
 | **Llamadas** | `app/(tabs)/calls.tsx` | `listCallsHistory`; `requestGhostLinkCallImperative` → `GhostLinkCallProvider` | Historial: filas Smart/Business con contrato en `callsHistoryIncomingRowUi` / `callsHistoryOutgoingRowUi`; acciones Ghost-Link |
 | **Ghost-Link VoIP** | `services/GhostLinkCallProvider.tsx`, `services/ghostLinkVoip.ts`, `components/GhostLinkCallOverlay.tsx`, **`services/outgoingCallUiMirror.ts`**, `app/(tabs)/cards.tsx` (`ghostPeerVoipFullName`) | `startGhostLinkVoipCall`, invites; `deriveCallFace`; espejo **saliente** unificado | **Saliente Smart:** `userAvatarUrl` / `cardName` / `userFullName` vía `outgoingMirrorFromGhostCallData` (ver cabecera en `outgoingCallUiMirror.ts`). **Entrante Smart:** avatar caller, título = tu `cardName`, subtítulo = caller `userFullName` (`deriveCallFace` + invite enriquecido en `qrRoutes.js`). **Híbrido nombre:** Firestore `users/{uid}` en `ActionController` cuando aplica |
 | **Scan (app)** | `app/scan.tsx` | `fetchPublicQrTokenPreview`, `fetchPublicUniversalCardByToken`; `myCardsPayloadFromUniversalCard` / `myCardsPayloadFromQrPreview` | Identidad pública: `ownerDisplayName` en payload API; `incomingCardPreviewPayload` ya centraliza con `CanonicalIssuerIdentity` |
@@ -30,11 +29,11 @@
 
 | Contrato | Definición | Consumidores típicos |
 |----------|------------|----------------------|
-| `SmartCardPayload` / lista Mongo | `services/qrApi.ts` | `cards.tsx`, `stories.tsx` (`listSmartCardsFromDb`), upsert desde `cards.tsx` y `MyCardsPreviewModal` |
-| Caché AsyncStorage smart | `smartCardsStorageKey`, `readSmartCardsJsonWithLegacyMigration` (`services/userScopedStorage.ts`) | `cards.tsx`, `stories.tsx` |
+| `SmartCardPayload` / lista Mongo | `services/qrApi.ts` | `cards.tsx`, upsert desde `cards.tsx` y `MyCardsPreviewModal` |
+| Caché AsyncStorage smart | `smartCardsStorageKey`, `readSmartCardsJsonWithLegacyMigration` (`services/userScopedStorage.ts`) | `cards.tsx` |
 | API pública universal | `fetchPublicUniversalCardByToken` → `PublicUniversalCardPayload` | `scan.tsx`, `app/u/[token].tsx`, `PendingBunkerRedeemGate`, web |
 | Preview QR ligero | `fetchPublicQrTokenPreview` | `scan.tsx`, `PendingBunkerRedeemGate` |
-| Contactos / facets | `listReceivedContacts` y derivados | `contacts.tsx`, `search.tsx`, `stories.tsx`, `calls.tsx` |
+| Contactos / facets | `listReceivedContacts` y derivados | `contacts.tsx`, `search.tsx`, `calls.tsx` |
 | Business Mongo/Firestore | `services/businessCardsRepo.ts` (`listMyBusinessCards`, …) | Principalmente `cards.tsx`, `createBusinessCard.tsx` |
 | Identidad canónica emisor (app) | `types/canonicalIssuerIdentity.ts` | Fábrica `cards.tsx` (Firestore `users/{uid}`); previews entrantes vía `incomingCardPreviewPayload` |
 

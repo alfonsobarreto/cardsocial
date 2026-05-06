@@ -28,14 +28,9 @@ import {
   startSearchLocationSession,
   subscribeSearchLocationSession,
 } from '@/services/searchLocationSession';
-import { buildMarketCardSearchFacets, marketSearchStoryRingState } from '@/services/searchPhase2Logic';
+import { buildMarketCardSearchFacets } from '@/services/searchPhase2Logic';
 import type { ReceivedContactForMarketSearch } from '@/services/searchService';
 import { searchSocialMarket } from '@/services/searchService';
-import {
-  buildStoryLookupFromReceivedContacts,
-  resolveSearchRowStoryState,
-  storyChannelKey,
-} from '@/services/storiesPhase1Logic';
 import { resolvePillForegroundColor } from '@/services/pillForegroundColor';
 import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
 import { getCardRowTheme } from '@/services/useActiveTheme';
@@ -46,7 +41,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { Image as ExpoImage } from 'expo-image';
-import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -220,7 +214,6 @@ export default function SearchScreen() {
     list?.scrollToOffset?.({ offset: Math.max(0, y), animated: false });
   }, []);
 
-  const [receivedContactsLookupRows, setReceivedContactsLookupRows] = useState<ReceivedContactForMarketSearch[]>([]);
   const [receivedCardDetail, setReceivedCardDetail] = useState<BusinessCardSearchResult | null>(null);
   const [marketCardDetail, setMarketCardDetail] = useState<BusinessCardSearchResult | null>(null);
   /** Payload real obtenido de MongoDB (Single Source of Truth). */
@@ -228,20 +221,6 @@ export default function SearchScreen() {
 
   const [viewerUid, setViewerUid] = useState<string | null>(null);
   useEffect(() => { void getActiveUserId().then(setViewerUid); }, []);
-
-  const storyLookupMaps = useMemo(
-    () =>
-      buildStoryLookupFromReceivedContacts(
-        receivedContactsLookupRows.map((r) => ({
-          uid: r.uid,
-          sid: r.sid,
-          bId: r.bId,
-          channelMuted: r.channelMuted,
-          storyState: r.storyState ?? 'none',
-        }))
-      ),
-    [receivedContactsLookupRows]
-  );
 
   const closeReceivedCardDetail = useCallback(() => {
     setReceivedCardDetail(null);
@@ -513,7 +492,6 @@ export default function SearchScreen() {
         cardType: c.cardType === 'business' ? 'business' : 'smart',
       };
       });
-      setReceivedContactsLookupRows(merged);
       setReceivedContactsForMarket((prev) => {
         if (!prev.length) {
           return merged;
@@ -772,35 +750,6 @@ export default function SearchScreen() {
       const holders = item.receivedHoldersCount ?? 0;
       const cardTitle = String(item.receivedContactCardName || '').trim() || item.card.bcName;
 
-      const ringState = resolveSearchRowStoryState(
-        {
-          uid: item.card.uid,
-          sid: item.receivedSourceSid ?? null,
-          bId: item.receivedSourceBId ?? null,
-          channelMuted: item.receivedChannelMuted,
-        },
-        storyLookupMaps
-      );
-
-      const openStoryFromAvatar = () => {
-        if (ringState === 'none') {
-          return;
-        }
-        const sidOrBId = String(item.receivedSourceBId ?? item.receivedSourceSid ?? '').trim();
-        if (!sidOrBId) {
-          Alert.alert(
-            tr('Historia no disponible', 'Story unavailable'),
-            tr('Falta la tarjeta de origen para abrir esta historia.', 'Missing source card to open this story.'),
-          );
-          return;
-        }
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        router.push({
-          pathname: '/(tabs)/stories',
-          params: { openStory: storyChannelKey(item.card.uid, sidOrBId) },
-        });
-      };
-
       const openCardBody = () => {
         void (async () => {
           const ok = await hardLockCheck('ver tarjeta desde busqueda');
@@ -812,34 +761,11 @@ export default function SearchScreen() {
         })();
       };
 
-      const ringStyle =
-        ringState === 'vip'
-          ? {
-              borderWidth: 2.6,
-              borderColor: shell.ctaAccent,
-              backgroundColor: isDark ? 'rgba(212,175,55,0.22)' : 'rgba(212,175,55,0.12)',
-              shadowColor: shell.ctaAccent,
-              shadowOpacity: 0.45,
-              shadowRadius: 12,
-              shadowOffset: { width: 0, height: 2 },
-              elevation: 5,
-            }
-          : ringState === 'normal'
-            ? {
-                borderWidth: 2.5,
-                borderColor: shell.success,
-                backgroundColor: isDark ? 'rgba(48,209,88,0.14)' : 'rgba(52,199,89,0.1)',
-                shadowColor: shell.success,
-                shadowOpacity: 0.28,
-                shadowRadius: 8,
-                shadowOffset: { width: 0, height: 2 },
-                elevation: 3,
-              }
-            : {
-                borderWidth: 1,
-                borderColor: 'rgba(255,255,255,0.1)',
-                backgroundColor: 'transparent',
-              };
+      const ringStyle = {
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+        backgroundColor: 'transparent',
+      };
 
       const facets = item.receivedContactFacets || [];
       const bizListLogo =
@@ -857,12 +783,7 @@ export default function SearchScreen() {
           >
             <View style={styles.marketReceivedPressable}>
               <View style={styles.marketReceivedMainRow}>
-                <TouchableOpacity
-                  activeOpacity={ringState === 'none' ? 1 : 0.88}
-                  onPress={openStoryFromAvatar}
-                  disabled={ringState === 'none'}
-                  accessibilityLabel={tr('Abrir historia', 'Open story')}
-                >
+                <View accessibilityRole="image" accessibilityLabel={tr('Avatar del contacto', 'Contact avatar')}>
                   <View style={[styles.searchAvatarRing, ringStyle]}>
                     {receivedIsBiz ? (
                       bizListLogo ? (
@@ -920,7 +841,7 @@ export default function SearchScreen() {
                       </View>
                     )}
                   </View>
-                </TouchableOpacity>
+                </View>
                 <Pressable
                   style={[styles.marketReceivedTextCol, { flex: 1 }]}
                   onPress={openCardBody}
@@ -1030,7 +951,6 @@ export default function SearchScreen() {
     }
 
     const card = item.card;
-    const marketRingState = marketSearchStoryRingState(card);
     const marketFacets = buildMarketCardSearchFacets(card);
     const chest = getCardRowTheme(card.themeId);
     const lightChipFg = resolvePillForegroundColor({
@@ -1042,44 +962,10 @@ export default function SearchScreen() {
     const ratingRaw = Number(card.averageRating ?? 0);
     const rating = reviewCount > 0 && Number.isFinite(ratingRaw) ? Math.max(0, Math.min(5, ratingRaw)) : 0;
     const holders = (card as any).holdersCount ?? 0;
-    const marketRingStyle =
-      marketRingState === 'vip'
-        ? {
-            borderWidth: 2.6,
-            borderColor: shell.ctaAccent,
-            backgroundColor: isDark ? 'rgba(212,175,55,0.22)' : 'rgba(212,175,55,0.12)',
-            shadowColor: shell.ctaAccent,
-            shadowOpacity: 0.45,
-            shadowRadius: 12,
-            shadowOffset: { width: 0, height: 2 },
-            elevation: 5,
-          }
-        : marketRingState === 'normal'
-          ? {
-              borderWidth: 2.5,
-              borderColor: shell.success,
-              backgroundColor: isDark ? 'rgba(48,209,88,0.14)' : 'rgba(52,199,89,0.1)',
-              shadowColor: shell.success,
-              shadowOpacity: 0.28,
-              shadowRadius: 8,
-              shadowOffset: { width: 0, height: 2 },
-              elevation: 3,
-            }
-          : {
-              borderWidth: 1,
-              borderColor: 'rgba(255,255,255,0.1)',
-              backgroundColor: 'transparent',
-            };
-
-    const openMarketStoryFromLogo = () => {
-      if (marketRingState === 'none') {
-        return;
-      }
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      router.push({
-        pathname: '/(tabs)/stories',
-        params: { openMarketVip: card.bId },
-      });
+    const marketLogoRingStyle = {
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.1)',
+      backgroundColor: 'transparent',
     };
 
     const openMarketCardBody = () => {
@@ -1187,13 +1073,12 @@ export default function SearchScreen() {
           >
             <View style={styles.marketReceivedMainRow}>
               {/* Logo (square) */}
-              <TouchableOpacity
-                activeOpacity={marketRingState === 'none' ? 1 : 0.88}
-                onPress={openMarketStoryFromLogo}
-                disabled={marketRingState === 'none'}
-                accessibilityLabel={tr('Abrir historia', 'Open story')}
+              <View
+                accessibilityRole="image"
+                accessibilityLabel={tr('Logo del negocio', 'Business logo')}
+                pointerEvents="none"
               >
-                <View style={[styles.searchAvatarRing, marketRingStyle]}>
+                <View style={[styles.searchAvatarRing, marketLogoRingStyle]}>
                   {item.card.bcLogoUrl ? (
                     <ExpoImage
                       source={{ uri: item.card.bcLogoUrl }}
@@ -1225,7 +1110,7 @@ export default function SearchScreen() {
                     </View>
                   )}
                 </View>
-              </TouchableOpacity>
+              </View>
 
               {/* Text column */}
               <View style={[styles.marketReceivedTextCol, { flex: 1 }]}>
@@ -1508,7 +1393,7 @@ export default function SearchScreen() {
                   },
                   marketSortMode === option.key && {
                     borderColor: shell.ctaPrimary,
-                    backgroundColor: shell.storiesControlActiveBg,
+                    backgroundColor: isDark ? 'rgba(212,175,55,0.18)' : 'rgba(212,175,55,0.10)',
                   },
                 ]}
                 onPress={() => {

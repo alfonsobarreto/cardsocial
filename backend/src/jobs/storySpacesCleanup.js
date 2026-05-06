@@ -1,5 +1,7 @@
 /**
- * Limpieza de archivos de historias en DigitalOcean Spaces tras expiración (Fase 3).
+ * [Legacy] Limpieza de archivos de historias en DigitalOcean Spaces tras expiración (Fase 3).
+ *
+ * El tab Stories se retiró del cliente; el job sigue aplicando a filas residuales en `story_cdn_assets`.
  *
  * Cuando el cliente suba media de Story a Spaces, debe insertar en Mongo:
  *   db.story_cdn_assets.insertOne({

@@ -10,7 +10,7 @@
 
 | Capacidad | Dónde persiste | Quién consume / notas |
 |-----------|----------------|------------------------|
-| **Lista Smart Cards** | `AsyncStorage` (`smartCardsStorageKey(uid)`); fuente remota `GET` vía `listSmartCardsFromDb` → Mongo `smart_cards` | Misma pantalla; `loadSmartCards` fusiona remoto + caché; Stories/otros leen caché opcional |
+| **Lista Smart Cards** | `AsyncStorage` (`smartCardsStorageKey(uid)`); fuente remota `GET` vía `listSmartCardsFromDb` → Mongo `smart_cards` | Misma pantalla; `loadSmartCards` fusiona remoto + caché; otros consumidores pueden leer la misma caché |
 | **Crear / editar / borrar Smart** | `persistCards` → AsyncStorage + `upsertSmartCardInDb` (`PUT /api/qr/cards/:ref`); borrado: `deleteSmartCardInDb` | Receptores vía API contactos/subscribers; universal QR lee `smart_cards` |
 | **Payload Mongo smart** | `buildSmartCardDbPayload` → `SmartCardPayload` (theme, slots, `issuerSnapshot`, `ownerPhotoUrl` según API) | Backend `qrRoutes` upsert; web `/api/public/universal-card` |
 | **Fábrica: nombre, datos vault, tema, fuente, wallpaper** | Smart local state → `persistCards` / `handleSaveCard`; tema al cerrar modal de temas también `persistCards` | Misma UI; receptores al refrescar listas |
@@ -55,6 +55,6 @@
 
 ## Siguiente fase (B)
 
-Mapear **consumidores externos** de estas rutas: `contacts`, `stories`, `search`, `calls`, `scan`, `GhostLink*`, web universal — ya parcialmente listado en columnas “consume”.
+Mapear **consumidores externos** de estas rutas: `contacts`, `search`, `calls`, `scan`, `GhostLink*`, web universal — ya parcialmente listado en columnas “consume”.
 
 **Hecho:** [PHASE_B_CONSUMERS.md](./PHASE_B_CONSUMERS.md).

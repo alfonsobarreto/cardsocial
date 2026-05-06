@@ -12,7 +12,6 @@
     "web": "expo start --web",
     "backend:start": "node backend/src/server.js",
     "smoke:test": "node scripts/smoke-test-all.mjs",
-    "test:stories-phase1": "node scripts/test-stories-phase1.mjs",
     "test:search-phase2": "tsx scripts/test-search-phase2.ts",
     "backend:seed:house-ad": "node backend/src/scripts/seedHouseAdRotation.js",
     "backend:seed:house-ad:tomorrow": "node backend/src/scripts/seedHouseAdRotation.js --day-shift=1",

@@ -67,10 +67,10 @@ export interface BusinessCard {
   lastUpdated: Date;
   createdAt: Date;
   
-  // Stories VIP
+  // Legacy Firestore / market: flags opcionales (la app ya no muestra UI de “historias VIP”).
   hasActiveStory?: boolean;
   storyExpiresAt?: Date;
-  isPremiumStory?: boolean; // Pagada por 7 días (naranja)
+  isPremiumStory?: boolean; // histórico: promoción pagada
   
   // Metadata
   viewCount: number;
@@ -120,8 +120,7 @@ export interface BusinessCardSearchResult {
   receivedContactCardType?: 'business' | 'smart';
   /** Suscriptores de la tarjeta del emisor (solo filas `received_contact`). */
   receivedHoldersCount?: number;
-  /** Tarjeta del emisor que posee el viewer (canal Stories / lookup). */
-  /** Tarjeta smart del emisor en contactos recibidos (null si solo business). */
+  /** Tarjeta del emisor (sid/bId públicos) para filas contacto recibido. */
   receivedSourceSid?: string | null;
   receivedSourceBId?: string | null;
   receivedChannelMuted?: boolean;

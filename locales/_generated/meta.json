@@ -1,4 +1,4 @@
 {
-  "count": 1431,
+  "count": 1393,
   "note": "Tras extraer: npm run i18n:prune alinea fr/it/pt; i18n:fill traduce desde en (LANGS=fr,it,pt opcional)."
 }

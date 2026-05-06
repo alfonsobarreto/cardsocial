@@ -1,24 +1,17 @@
-# Infra y estado: Stories (media), VoIP Agora, Firebase, DigitalOcean
+# Infra: Stories (legacy backend), VoIP Agora, Firebase, DigitalOcean
 
-Documento para contexto de nuevos chats / planificación de fases. **Abril 2026.**
+Documento histórico y de contexto infra. **Actualizado mayo 2026.**
 
----
-
-## Pregunta frecuente: ¿El backend ya sube y entrega assets de Story vinculados a `storyState`?
-
-**Respuesta corta:** Los endpoints de **Stories bajo `/api/qr`** hoy gestionan **solo metadatos de estado** (`none` | `normal` | `vip`), expiración, `sid` / `bId` opcional y flags VIP. **No** incluyen subida de archivo ni un campo estándar `mediaUrl` enlazado a esa fila en la misma operación.
-
-**Qué sí existe para archivos (genérico, no específico de Story):**
-
-- `POST /api/upload` (rutas de moderación montadas en `/api` en `backend/src/server.js`).
-- Flujo: multipart `file` + moderación **Azure Content Safety** → con credenciales **DigitalOcean Spaces** (API S3-compatible), sube el binario a un prefijo privado (`vault-proxy/...`), registra metadatos en Mongo (`vault_file_registry`) y devuelve **`publicUrl`** = URL del **proxy** (`GET /api/vault/file/:fileId`, ver `vaultFileProxyRoutes.js`). Sin Spaces configurado, el upload responde error (no hay fallback local).
-- Código: `backend/src/routes/moderationRoutes.js`, almacenamiento `backend/src/services/mongoStorage.js` (`uploadVaultFilePrivate`, `pipeVaultFileToResponse`, `saveFileToSpaces` para otros flujos públicos).
-
-**Fase 1 razonable:** Sincronizar **metadatos** (URLs absolutas, `expiresAt` alineado al asset, tipo MIME, etc.) **asumiendo** que el binario ya está en Spaces (vía `/api/upload` o flujo futuro dedicado) **o** extender el modelo Mongo (`story_states` / `story_card_states` o colección nueva `story_assets`) y un endpoint que una `uid` + `sid` / `bId` + URL. Eso **no está implementado** hoy como contrato único “Story upload”.
-
-**App móvil (`app/(tabs)/stories.tsx`):** el contenido visible en demo suele ser **`LocalStory` en AsyncStorage** (`stories_hub_v1_<uid>`) con `mediaUri` local; el backend confirma estado con `setMyStoryState` / `getMyStoryState` pero **no** entrega el binario de la historia por esos endpoints.
+**Cliente móvil:** el producto **ya no** incluye el tab Stories ni llamadas cliente a `services/qrApi.ts` relacionadas con historias. Las rutas de backend siguen disponibles opcionalmente para datos legacy.
 
 ---
+
+## Estado producto vs backend (Stories)
+
+- **App RN:** pantalla Stories, estilos, `AsyncStorage stories_hub_*` y helpers de cliente **eliminados**; no existe flujo nuevo que publique ni consuma Stories.
+- **Backend:** las rutas bajo **`/api/qr/stories/*`** pueden permanecer activas como **noop / compatibilidad** (Mongo `story_states`, anuncios house, etc.). No asumir que clientes nuevos las invoquen.
+- **Histórico (antes del retiro del tab):** los endpoints Stories gestionaban **solo metadatos** (`none` | `normal` | `vip`), expiración, `sid` / `bId` y VIP; **no** subían multipart de story en la misma operación.
+
 
 ## Dónde está cada tecnología en el repo
 
@@ -56,7 +49,8 @@ Documento para contexto de nuevos chats / planificación de fases. **Abril 2026.
 | Estados de story, anuncios casa, contactos enriquecidos | `backend/src/routes/qrRoutes.js`, índices TTL en `backend/src/security/mongoHardening.js` |
 | Registro vault (metadatos + `spacesKey`, sin binario en Mongo) | `mongoStorage.js` — colección `vault_file_registry` |
 
-### Stories API (solo metadatos)
+### Stories API (legacy, solo metadatos en servidor)
+
 
 | Método | Ruta (tras prefijo `/api/qr`) | Notas |
 |--------|-------------------------------|--------|
@@ -86,7 +80,7 @@ Documento para contexto de nuevos chats / planificación de fases. **Abril 2026.
 
 ## Resumen para planificación
 
-1. **Story multimedia end-to-end:** Hoy = **estado en API + contenido local en app**. Para Fase 1 “solo metadatos” con URLs: coherente con el backend actual; habría que **definir contrato** (campos + quién llama a `/api/upload` y cuándo se hace `POST /stories/state`).
+1. ~~**Story multimedia end-to-end:**~~ fuera del alcance actual del cliente; backend puede conservar colecciones por migración gradual.
 2. **Almacenamiento “ya existe”** a nivel código: **Sí** para uploads genéricos moderados → **DO Spaces** (privado) + **proxy** `/api/vault/file/:id`. **No** está cableado automáticamente a `storyState`.
 3. **Firebase + DO + Azure + Mongo** conviven: Firebase en app; DO Spaces y Mongo en API Node; Azure para moderación (y email).
 
@@ -94,5 +88,5 @@ Documento para contexto de nuevos chats / planificación de fases. **Abril 2026.
 
 ## Referencias cruzadas en documentación del repo
 
-- Comportamiento tab Mis Tarjetas y Stories resumido: `funcionalidades.md`.
+- Comportamiento tab Mis Tarjetas resumido: `funcionalidades.md`.
 - Arranque backend y prefijos API: `README.md`.

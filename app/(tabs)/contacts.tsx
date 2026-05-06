@@ -934,8 +934,14 @@ function ContactsContent() {
         type: 'success',
         text1: nextMuted ? tr('Canal silenciado', 'Channel muted') : tr('Canal activo', 'Channel unmuted'),
         text2: nextMuted
-          ? tr('No verás historias de esta tarjeta hasta que reactives el canal.', 'You will not see stories from this card until you unmute the channel.')
-          : tr('Volverás a ver historias de esta tarjeta.', 'You will see stories from this card again.'),
+          ? tr(
+              'No recibirás actualizaciones de esta tarjeta hasta que reactives el canal.',
+              'You will not receive updates from this card until you unmute the channel.',
+            )
+          : tr(
+              'Volverás a recibir actualizaciones de esta tarjeta.',
+              'You will receive updates from this card again.',
+            ),
         position: 'bottom',
         visibilityTime: 2800,
       });
@@ -1192,24 +1198,7 @@ function ContactsContent() {
                             </Text>
                           </View>
                         ) : null}
-                        <View
-                          style={[
-                            styles.avatarRingLg,
-                            row.storyState === 'vip' || row.meta?.storyState === 'vip'
-                              ? {
-                                  borderWidth: 2.4,
-                                  borderColor: shell.ctaAccent,
-                                  backgroundColor: isNight ? 'rgba(212,175,55,0.16)' : 'rgba(212,175,55,0.1)',
-                                }
-                              : row.storyState === 'normal' || row.meta?.storyState === 'normal'
-                                ? {
-                                    borderWidth: 2.4,
-                                    borderColor: shell.success,
-                                    backgroundColor: isNight ? 'rgba(48,209,88,0.12)' : 'rgba(52,199,89,0.09)',
-                                  }
-                                : styles.avatarRingNone,
-                          ]}
-                        >
+                        <View style={[styles.avatarRingLg, styles.avatarRingNone]}>
                           {row.cardType === 'business' && bizLogoUri ? (
                             <ExpoImage
                               source={{ uri: resolveVaultMediaUrlForApp(bizLogoUri) ?? bizLogoUri }}
@@ -1455,7 +1444,7 @@ function ContactsContent() {
                   styles.sortOptionRow,
                   sortMode === option.key && styles.sortOptionRowActive,
                   {
-                    backgroundColor: sortMode === option.key ? shell.storiesControlActiveBg : shell.modalRowBg,
+                    backgroundColor: sortMode === option.key ? (isNight ? 'rgba(212,175,55,0.18)' : shell.modalRowBg) : shell.modalRowBg,
                     borderColor: sortMode === option.key ? shell.ctaAccent : shell.modalRowBorder,
                   },
                 ]}

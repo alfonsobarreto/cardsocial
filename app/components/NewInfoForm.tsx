@@ -169,7 +169,7 @@ try {
 // ICON_GALLERY viene de CardStudioVault — única fuente de verdad
 // Países / prefijos: `constants/countryDialCodes.ts` + `CountryDialPickerModal`
 
-// Tamaño máximo de imágenes en Búnker (alineado con Historias + backend moderation `imageMaxBytes`)
+// Tamaño máximo de imágenes en Búnker (alineado con backend moderation `imageMaxBytes`)
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
 /** Borde largo tras compresión (tarjeta nítida sin peso excesivo). */
 const VAULT_IMAGE_MAX_LONG_EDGE = 2000;

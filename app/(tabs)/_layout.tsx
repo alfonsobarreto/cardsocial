@@ -44,7 +44,7 @@ import {
     updateDoc,
     where
 } from 'firebase/firestore';
-import { CreditCard, Database, Phone, PlayCircle, Search, Users } from 'lucide-react-native';
+import { CreditCard, Database, Phone, Search, Users } from 'lucide-react-native';
 import type { ComponentType } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -790,15 +790,6 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
             title: tr('Mercado Social', 'Social Market'),
             tabBarIcon: ({ focused }) => (
               <PremiumTabIcon Icon={Search} focused={focused} accent={shell.ctaAccent} onAccent={shell.emptyCtaText} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="stories"
-          options={{
-            title: tr('Historias', 'Stories'),
-            tabBarIcon: ({ focused }) => (
-              <PremiumTabIcon Icon={PlayCircle} focused={focused} accent={shell.ctaAccent} onAccent={shell.emptyCtaText} />
             ),
           }}
         />

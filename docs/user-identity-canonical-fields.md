@@ -111,7 +111,7 @@ Los documentos pueden seguir teniendo campos legacy; la estrategia depende del c
 - **Al actualizar** identidad en `updateBusinessCard`, se envían `deleteField()` sobre `businessName`, `ownerName`, `businessLogo`.
 - **Sincronía con Mongo:** al subir/actualizar business, el payload de `smart_cards` usa **`scName: bcName`**, `ownerDisplayName` / `ownerNickname: bcContactName`, `ownerPhotoUrl: bcLogoUrl`.
 
-**Archivos clave:** `types/businessCard.ts`, `services/businessCardService.ts`, `app/(tabs)/createBusinessCard.tsx`, `app/(tabs)/cards.tsx`, `app/(tabs)/search.tsx`, `services/searchService.ts`, `services/storiesFeedInjectionService.ts`, `services/adaptBusinessCardMarketPremium.ts`, `services/brandedQrService.ts`, `app/scan.tsx`, tests `scripts/test-search-phase2.ts`, `__tests__/qaExpressFieldTests.ts`.
+**Archivos clave:** `types/businessCard.ts`, `services/businessCardService.ts`, `app/(tabs)/createBusinessCard.tsx`, `app/(tabs)/cards.tsx`, `app/(tabs)/search.tsx`, `services/searchService.ts`, `services/adaptBusinessCardMarketPremium.ts`, `services/brandedQrService.ts`, `app/scan.tsx`, tests `scripts/test-search-phase2.ts`, `__tests__/qaExpressFieldTests.ts`.
 
 ---
 

@@ -19,6 +19,7 @@ import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
 import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
 import { isVaultDocumentImage, isVaultDocumentPdf } from '@/services/vaultMimeGuards';
 import { presentPremiumDataPanel, dismissPremiumDataPanel } from '@/services/premiumDataPanelController';
+import { syncVaultDeletionToMongoCards } from '@/services/syncVaultLinkToMongoCards';
 import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
 import { buildLinkOpenCandidates, ensureWebUrl } from '@/services/mirrorVaultItemOpenPlan';
 import { isClassicPhoneVaultType } from '@/services/vaultItemTypeGuards';
@@ -346,6 +347,9 @@ const VaultScreen = () => {
         if (userId) {
           await deleteDoc(doc(db, 'users', userId, 'links', link.id));
           await syncVaultDeleteAcrossCards(userId, link.id);
+          void syncVaultDeletionToMongoCards(userId, link.id).catch((mongoSyncErr: unknown) => {
+            console.warn('Vault delete: Mongo cards sync failed:', mongoSyncErr);
+          });
           cloudOk = true;
         }
       } catch (cloudError) {
@@ -1185,7 +1189,7 @@ const VaultScreen = () => {
         },
         viewerOverlay: {
           flex: 1,
-          backgroundColor: vaultTheme.storiesModalOverlayBg,
+          backgroundColor: vaultTheme.modalOverlay,
         },
         viewerQrScanOverlay: {
           ...StyleSheet.absoluteFillObject,

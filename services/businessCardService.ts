@@ -13,7 +13,6 @@
  * `bcLogoUrl`) de un objeto arbitrario, y que aún se usa en:
  *
  *   - services/adaptBusinessCardMarketPremium.ts
- *   - services/storiesFeedInjectionService.ts
  *   - services/searchService.ts
  *   - app/scan.tsx
  *

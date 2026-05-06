@@ -6,7 +6,7 @@ export function trackCardAnalyticsFireAndForget(params: {
   sid?: string | null | undefined;
   bId?: string | null | undefined;
   iconType: string;
-  source: 'search' | 'story' | 'card' | 'qr_scan';
+  source: 'search' | 'card' | 'qr_scan';
 }): void {
   const sid = String(params.sid || '').trim();
   const bId = String(params.bId || '').trim();

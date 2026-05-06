@@ -68,14 +68,14 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
       return [
         tr('✓ Tarjetas ilimitadas', '✓ Unlimited cards'),
         tr(`✓ ${WELCOME_BONUS_CS.toLocaleString()} créditos CS de bienvenida`, `✓ ${WELCOME_BONUS_CS.toLocaleString()} welcome CS credits`),
-        tr('✓ Historias VIP por 7 días', '✓ VIP stories for 7 days'),
+        tr('✓ Herramientas Premium adicionales', '✓ Extra Premium perks'),
         tr('✓ Protección Premium', '✓ Premium protection'),
       ];
     }
     return [
       tr('✓ Datos ilimitados', '✓ Unlimited data'),
       tr(`✓ ${WELCOME_BONUS_CS.toLocaleString()} créditos CS de bienvenida`, `✓ ${WELCOME_BONUS_CS.toLocaleString()} welcome CS credits`),
-      tr('✓ Historias VIP por 7 días', '✓ VIP stories for 7 days'),
+      tr('✓ Herramientas Premium adicionales', '✓ Extra Premium perks'),
       tr('✓ Protección Premium', '✓ Premium protection'),
     ];
   };

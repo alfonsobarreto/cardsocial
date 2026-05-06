@@ -145,7 +145,7 @@ export default function AccountRecoveryScreen({ onClose }: { onClose: () => void
           paddingHorizontal: 12,
           paddingVertical: 12,
           borderRadius: 8,
-          backgroundColor: shell.storiesNormalBtnBg,
+          backgroundColor: isDark ? 'rgba(48,209,88,0.14)' : 'rgba(52,199,89,0.12)',
           borderLeftWidth: 4,
           borderLeftColor: shell.success,
         },
@@ -155,7 +155,7 @@ export default function AccountRecoveryScreen({ onClose }: { onClose: () => void
           fontWeight: '500',
         },
       }),
-    [shell]
+    [shell, isDark]
   );
 
   const [step, setStep] = useState<RecoveryStep>('method-select');

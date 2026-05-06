@@ -37,7 +37,7 @@ export function SwipeHint({
       StyleSheet.create({
         overlay: {
           ...StyleSheet.absoluteFillObject,
-          backgroundColor: shell.storiesModalOverlayBg,
+          backgroundColor: shell.modalOverlay,
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 999,

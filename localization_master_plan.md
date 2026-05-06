@@ -88,7 +88,7 @@
 | 334–351 | Restaurar usuario / Restore user dialog | `menu.blocked.restoreTitle`, `menu.blocked.restoreBody`, `common.restore` | — |
 | 434–538 | Profile save / nickname errors | `profile.errors.*` | Alerts. |
 | 627–637 | Bloqueado: date formatting | `relationships.blockedDate` + interpolation | Narrow column — short template. |
-| 703–812 | Tab bar: Bóveda, Tarjetas, Contactos, Mercado (MS), Historias, Llamadas | `tabs.vault`, `tabs.cards`, `tabs.contacts`, `tabs.market`, `tabs.stories`, `tabs.calls` | **Tab labels:** “Mercado” → “MS” in EN — FR/IT need short labels or icon-only. |
+| 703–812 | Tab bar: Bóveda, Tarjetas, Contactos, Mercado (MS), Llamadas | `tabs.vault`, `tabs.cards`, `tabs.contacts`, `tabs.market`, `tabs.calls` | **Tab labels:** “Mercado” → “MS” in EN — FR/IT need short labels or icon-only. |
 | 859–1074 | Drawer: Cuenta, Suscripción, Estudio, Locker, Configuración, legal links, Apariencia Día/Noche, Cerrar Sesión, Política de Privacidad, Descarga de datos, Eliminar cuenta | `menu.drawer.*`, `menu.appearance.*` | List rows — OK for longer strings with `numberOfLines`. |
 | 1052–1062 | Appearance helper uses keys `tr('auto_gps', …)` matching **i18n** keys | Mixed: duplicates `locales/en.json` keys | Unify under `appearance.status.*` (see §8). |
 | 1205–1231 | Relationship tabs: Silenciados / Muted; Restringidos / Restricted; Bloqueados / Blocked | `relationships.tabs.*` | Three equal columns — **risk of truncation** in FR/IT. |
@@ -143,30 +143,16 @@
 | 272, 420–426 | Tarjeta Social fallback; Conocidos primero; Mercado Social | `market.mode.contactsFirst`, `market.title` | Headers. |
 | 535–536 | Search failure (multi-line `tr`) | `market.error.searchFailed` | Alert. |
 | 638–724 | Filters, sort, results count, QR export | `market.*` | Chips — watch overflow. |
-| 765–767 | Story unavailable | `market.story.unavailableTitle`, `market.story.unavailableBody` | Alert. |
-| 1317–1332 | Empty / prompt copy | `market.empty.*` | — |
 
 ---
 
-## 4. Social Market (hub: discovery, commerce, stories monetization)
+## 4. Social Market (hub: discovery, commerce)
 
-*This audit groups **market-facing** surfaces: Search tab market UI (§3.2), **Stories** tab, **Icon Store**, **Subscription**, **Theme Chest**.*
+*Surfaces mercado: pestaña Mercado (`search.tsx`), **Icon Store**, **Subscription**, **Theme Chest**. El tab Stories fue retirado; las claves `stories.*` en locales pueden depurarse con `npm run i18n:extract` / `npm run i18n:prune` cuando convenga.*
 
-### 4.1 `app/(tabs)/stories.tsx`
+### 4.1 ~~`app/(tabs)/stories.tsx`~~ (eliminado)
 
-**Current system:** `tr` (**high count**, ~130+ lines with `tr`).
-
-**Representative groups:**
-
-| Line range | Content summary | Proposed namespace |
-|------------|-----------------|-------------------|
-| 693–718 | No cards / no icons alerts; navigation to My Cards | `stories.onboarding.*` |
-| 961–1304 | Permissions, validation, publish flow, VIP, credits | `stories.publish.*`, `stories.errors.*` |
-| 1191–1214 | CTA type labels; business license gating | `stories.cta.*`, `stories.paywall.*` |
-| 1666–1779 | Hub title, empty list, dev/simulation rows (if shipped) | `stories.hub.*` |
-| 1804–2126 | Create-story wizard: steps, pickers, VIP tiers, Publish | `stories.wizard.*` |
-
-**UI constraint:** Story creation modal uses **dense button grids** (Foto galeria, etc.) — FR/IT will need abbreviated labels or two-line buttons.
+Ya no existe pantalla RN con ese bloque `tr`; el plan de namespaces histórico con `stories.*` puede archivarse o borrarse de fragmentos cuando se ejecute pruning.
 
 ### 4.2 `components/IconStore.tsx`
 

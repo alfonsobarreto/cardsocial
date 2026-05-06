@@ -16,7 +16,7 @@ type ThemeProps = {
 export type TextProps = ThemeProps & DefaultText['props'];
 export type ViewProps = ThemeProps & DefaultView['props'];
 
-/** Solo tokens de color string (excluye tuplas como `storiesGlowGradient`). */
+/** Solo tokens de color string (excluye tuplas como gradients en el tema). */
 type StringColorKey<T> = {
   [K in keyof T]: T[K] extends string ? K : never;
 }[keyof T];

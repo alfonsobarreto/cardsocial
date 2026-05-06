@@ -32,6 +32,7 @@ import {
 } from '@/services/brandedQrService';
 import {
     listMyBusinessCards,
+    getBusinessCard,
     deleteBusinessCard as deleteBusinessCardViaApi,
     updateBusinessCard as updateBusinessCardViaApi,
 } from '@/services/businessCardsRepo';
@@ -2044,14 +2045,40 @@ export default function CardsFactoryScreen() {
     }
   };
 
-  const openPreviewBusinessCard = async (row: BusinessCardListRow) => {
-    const uid = (await getActiveUserId()) ?? sessionUid ?? '';
-    const rows = await loadBusinessCardsFeed();
-    const fresh = rows.find((r) => r.bId === row.bId) ?? row;
-    setPreviewBusinessOwnerUid(uid);
-    setPreviewBusiness(fresh);
-    setPreviewLayout(width > height ? 'horizontal' : 'vertical');
-    setPreviewBusinessVisible(true);
+  /** Abre el modal al instante; refresca la fila en segundo plano (evita UI “congelada” si el GET masivo o holders tardan). */
+  const openPreviewBusinessCard = (row: BusinessCardListRow) => {
+    void (async () => {
+      const uid = (await getActiveUserId()) ?? sessionUid ?? '';
+      setPreviewBusinessOwnerUid(uid);
+      setPreviewBusiness(row);
+      setPreviewLayout(width > height ? 'horizontal' : 'vertical');
+      setPreviewBusinessVisible(true);
+
+      if (!String(uid).trim()) return;
+      try {
+        const doc = await getBusinessCard(uid, row.bId);
+        if (!doc) return;
+        let fresh = toBusinessCardListRow(doc);
+        try {
+          const counts = await fetchBusinessCardHolderCounts({ uid, keys: [fresh.bId] });
+          if (counts[fresh.bId] !== undefined) {
+            fresh = { ...fresh, holdersCount: counts[fresh.bId] };
+          }
+        } catch {
+          /* holders opcional */
+        }
+        setPreviewBusiness((prev) => (prev?.bId === fresh.bId ? fresh : prev));
+        setBusinessCardsFeed((prev) => {
+          const idx = prev.findIndex((c) => c.bId === fresh.bId);
+          if (idx < 0) return prev;
+          const next = [...prev];
+          next[idx] = fresh;
+          return next;
+        });
+      } catch {
+        /* mantener fila optimista */
+      }
+    })();
   };
 
   const businessSwipeKey = (id: string) => `business:${id}`;
@@ -2339,12 +2366,15 @@ export default function CardsFactoryScreen() {
   }, [cardsReorderMode, isLandscape, cancelCardsReorder]);
 
   const openPreviewCard = (card: SmartCard) => {
+    setPreviewLayout(width > height ? 'horizontal' : 'vertical');
+    setPreviewCard(card);
+    setPreviewVisible(true);
     void (async () => {
       const list = await loadSmartCards();
-      const fresh = list.find((c) => c.sid === card.sid) ?? card;
-      setPreviewLayout(width > height ? 'horizontal' : 'vertical');
-      setPreviewCard(fresh);
-      setPreviewVisible(true);
+      const fresh = list.find((c) => c.sid === card.sid);
+      if (fresh) {
+        setPreviewCard((prev) => (prev?.sid === fresh.sid ? fresh : prev));
+      }
     })();
   };
 
@@ -2792,8 +2822,10 @@ export default function CardsFactoryScreen() {
           <TouchableOpacity
             style={styles.cardRowTouchable}
             onPress={() => {
-              closeAllCardSwipes();
-              void openPreviewBusinessCard(row);
+              requestAnimationFrame(() => {
+                closeAllCardSwipes();
+                openPreviewBusinessCard(row);
+              });
             }}
             onLongPress={() => enterCardsReorderRef.current?.()}
             delayLongPress={420}
@@ -3010,8 +3042,10 @@ export default function CardsFactoryScreen() {
           <TouchableOpacity
             style={styles.cardRowTouchable}
             onPress={() => {
-              closeAllCardSwipes();
-              openPreviewCard(item);
+              requestAnimationFrame(() => {
+                closeAllCardSwipes();
+                openPreviewCard(item);
+              });
             }}
             onLongPress={() => enterCardsReorderRef.current?.()}
             delayLongPress={420}
