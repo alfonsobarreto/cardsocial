@@ -3,31 +3,53 @@ import i18n from '@/i18n';
 import { hashUiPair } from '@/services/uiStringHash';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-export type AppLanguage = 'en' | 'es' | 'fr' | 'it' | 'pt';
+export type AppLanguage = 'en' | 'es' | 'fr' | 'it' | 'pt' | 'de';
 
 export const SUPPORTED_LANGUAGES: { code: AppLanguage; flag: string; label: string }[] = [
   { code: 'es', flag: '🇪🇸', label: 'Español' },
   { code: 'en', flag: '🇺🇸', label: 'English' },
+  { code: 'de', flag: '🇩🇪', label: 'Deutsch' },
   { code: 'fr', flag: '🇫🇷', label: 'Français' },
   { code: 'it', flag: '🇮🇹', label: 'Italiano' },
   /** pt-BR; código interno `pt`. */
   { code: 'pt', flag: '🇧🇷', label: 'Português (Brasil)' },
 ];
 
-function isAppLanguage(value: string | null | undefined): value is AppLanguage {
-  return value === 'en' || value === 'es' || value === 'fr' || value === 'it' || value === 'pt';
+export function isAppLanguage(value: string | null | undefined): value is AppLanguage {
+  return value === 'en' || value === 'es' || value === 'fr' || value === 'it' || value === 'pt' || value === 'de';
 }
 
-/** Header Accept-Language para APIs (QR / público) con los 5 idiomas de la app. */
+/** Header Accept-Language para APIs (QR / público) con los idiomas de la app. */
 export function toAcceptLanguageHeader(lang: AppLanguage): { 'Accept-Language': string } {
   const map: Record<AppLanguage, string> = {
     es: 'es',
     en: 'en',
+    de: 'de',
     fr: 'fr',
     it: 'it',
     pt: 'pt',
   };
   return { 'Accept-Language': map[lang] };
+}
+
+/**
+ * Locale BCP 47 para `Intl`/`toLocale*` sin cambiar el comportamiento de fr/it/pt
+ * (siguen usando `es-MX` donde antes era “no inglés”).
+ */
+export function intlLocaleTagForAppLanguage(lang: AppLanguage): string {
+  if (lang === 'en') return 'en-US';
+  if (lang === 'de') return 'de-DE';
+  return 'es-MX';
+}
+
+/** Locale para listas administrativas (fecha legible por fila). */
+export function localeStringForReportDates(lang: AppLanguage): string {
+  if (lang === 'en') return 'en';
+  if (lang === 'pt') return 'pt-BR';
+  if (lang === 'fr') return 'fr';
+  if (lang === 'it') return 'it';
+  if (lang === 'de') return 'de';
+  return 'es';
 }
 
 /** Usado también por servicios fuera de React (p. ej. biometricAuth). */
@@ -56,6 +78,7 @@ function primaryLanguageCodeFromDevice(): string {
 export function deviceDefaultLanguage(): AppLanguage {
   const primary = primaryLanguageCodeFromDevice();
   if (primary === 'es') return 'es';
+  if (primary === 'de') return 'de';
   if (primary === 'fr') return 'fr';
   if (primary === 'it') return 'it';
   if (primary === 'pt') return 'pt';
@@ -92,7 +115,7 @@ type LanguageContextValue = {
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  /** Primer paint: idioma del dispositivo (Intl); si no es uno de los 5, deviceDefaultLanguage() ya devuelve `en`. */
+  /** Primer paint: idioma del dispositivo (Intl); si no es uno admitido → `deviceDefaultLanguage()`. */
   const [language, setLanguageState] = useState<AppLanguage>(() => deviceDefaultLanguage());
 
   useEffect(() => {

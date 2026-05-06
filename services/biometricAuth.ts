@@ -2,14 +2,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Alert } from 'react-native';
 
-import { APP_LANGUAGE_STORAGE_KEY, type AppLanguage, trEsEn } from '@/services/language';
+import { APP_LANGUAGE_STORAGE_KEY, type AppLanguage, isAppLanguage, trEsEn } from '@/services/language';
 
 async function getStoredAppLanguage(): Promise<AppLanguage> {
   try {
     const stored = await AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY);
-    if (stored === 'en' || stored === 'es' || stored === 'fr' || stored === 'it' || stored === 'pt') {
-      return stored;
-    }
+    if (stored && isAppLanguage(stored)) return stored;
   } catch {
     /* ignore */
   }

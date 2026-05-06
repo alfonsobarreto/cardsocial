@@ -174,12 +174,18 @@ function RootNavigator() {
         <Stack.Screen
           name="signin"
           options={{
-            title: language === 'en' ? 'Sign In' : 'Iniciar sesion',
+            title: language === 'en' || language === 'de' ? 'Sign In' : 'Iniciar sesion',
             headerStyle: { backgroundColor: '#fff' },
           }}
         />
-        <Stack.Screen name="register" options={{ title: language === 'en' ? 'Sign Up' : 'Registro' }} />
-        <Stack.Screen name="scan" options={{ title: language === 'en' ? 'Scan Card' : 'Escanear Tarjeta', headerShown: false }} />
+        <Stack.Screen
+          name="register"
+          options={{ title: language === 'en' || language === 'de' ? 'Sign Up' : 'Registro' }}
+        />
+        <Stack.Screen
+          name="scan"
+          options={{ title: language === 'en' || language === 'de' ? 'Scan Card' : 'Escanear Tarjeta', headerShown: false }}
+        />
         <Stack.Screen name="nfc" options={{ headerShown: false }} />
         <Stack.Screen name="u" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

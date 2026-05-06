@@ -5,7 +5,7 @@ import {
   getBusinessCardPackageForPlatform,
   purchaseBusinessCard,
 } from '@/services/businessCardPaywallService';
-import { useLanguage, useTr } from '@/services/language';
+import { intlLocaleTagForAppLanguage, useLanguage, useTr } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { getTiersConfig, type TierKey, type TiersConfig } from '@/services/tiersConfigService';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -54,7 +54,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ onClose }) => {
   const { resolvedMode } = useLookMode();
   const shell = palette[resolvedMode === 'noche' ? 'dark' : 'light'];
   const router = useRouter();
-  const intlLocale = language === 'en' ? 'en-US' : 'es-MX';
+  const intlLocale = intlLocaleTagForAppLanguage(language);
 
   const fmtUsd = useCallback(
     (n: number) =>

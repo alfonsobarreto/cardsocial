@@ -1,4 +1,5 @@
 import LegalSiteNav from '@/components/LegalSiteNav';
+import Link from 'next/link';
 import React from 'react';
 
 type Props = {
@@ -20,7 +21,7 @@ export default function LegalStaticPage({ title, children, showLegalNav = true }
       }}
     >
       <div style={{ maxWidth: 640, margin: '0 auto' }}>
-        <a
+        <Link
           href="/"
           style={{
             display: 'inline-block',
@@ -31,7 +32,7 @@ export default function LegalStaticPage({ title, children, showLegalNav = true }
           }}
         >
           ← Card-Social
-        </a>
+        </Link>
         <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 20px', lineHeight: 1.25 }}>{title}</h1>
         <div style={{ fontSize: 15, lineHeight: 1.65 }}>{children}</div>
         {showLegalNav ? <LegalSiteNav /> : null}

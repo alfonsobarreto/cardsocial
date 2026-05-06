@@ -16,7 +16,7 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { trEsEn, useLanguage } from '@/services/language';
+import { localeStringForReportDates, trEsEn, useLanguage } from '@/services/language';
 
 type FilterTab = 'pending' | 'reviewed' | 'dismissed';
 
@@ -228,9 +228,7 @@ export default function AdminModerationScreen() {
                 </View>
                 <Text style={styles.reportDate}>
                   {report.createdAt
-                    ? new Date(report.createdAt.toMillis()).toLocaleDateString(
-                        language === 'en' ? 'en' : language === 'pt' ? 'pt-BR' : language === 'fr' ? 'fr' : language === 'it' ? 'it' : 'es',
-                      )
+                    ? new Date(report.createdAt.toMillis()).toLocaleDateString(localeStringForReportDates(language))
                     : tr('Sin fecha', 'No date')}
                 </Text>
               </View>

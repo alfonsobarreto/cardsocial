@@ -3896,7 +3896,7 @@ export default function CardsFactoryScreen() {
                         <View style={styles.themesLockerTierHeader}>
                           <Text style={styles.themesLockerTierEmoji}>{meta.emoji}</Text>
                           <Text style={[styles.themesLockerTierLabel, { color: cardsTheme.text }]}>
-                            {language === 'en' ? meta.label[1] : meta.label[0]}
+                            {language === 'en' || language === 'de' ? meta.label[1] : meta.label[0]}
                           </Text>
                           <View
                             style={[

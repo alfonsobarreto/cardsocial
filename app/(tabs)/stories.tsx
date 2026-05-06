@@ -13,7 +13,7 @@ import { hasActiveBusinessLicense } from '@/services/businessLicenseService';
 import { trackCardAnalyticsFireAndForget } from '@/services/cardAnalytics';
 import { getPremiumStoryCost, getUserCreditsBalance, purchasePremiumStoryWithCredits } from '@/services/creditsService';
 import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
-import { trAction, trEsEn, useLanguage } from '@/services/language';
+import { intlLocaleTagForAppLanguage, trAction, trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { db } from '@/services/firebaseConfig';
 import { getMyStoryState, getStoriesHouseAd, listReceivedContacts, listSmartCardsFromDb, setMyStoryState, type HouseAdStory } from '@/services/qrApi';
@@ -481,7 +481,7 @@ export default function StoriesPage() {
       if (favDiff !== 0) {
         return favDiff;
       }
-      return String(a.cardName).localeCompare(String(b.cardName), language === 'en' ? 'en' : 'es', {
+      return String(a.cardName).localeCompare(String(b.cardName), language === 'es' ? 'es' : language === 'de' ? 'de' : 'en', {
         sensitivity: 'base',
       });
     });
@@ -915,7 +915,7 @@ export default function StoriesPage() {
 
   useEffect(() => {
     if (viewerUid) {
-      setOwnerName(language === 'en' ? 'My Story' : 'Mi Story');
+      setOwnerName(language === 'en' || language === 'de' ? 'My Story' : 'Mi Story');
     }
   }, [language, viewerUid]);
 
@@ -1564,7 +1564,7 @@ export default function StoriesPage() {
   }, [effectiveHubState, language]);
 
   const expiryLabel = useMemo(() => {
-    const prefix = language === 'en' ? 'Expires: ' : 'Expira: ';
+    const prefix = language === 'en' || language === 'de' ? 'Expires: ' : 'Expira: ';
     const empty = `${prefix}—`;
     if (!effectiveExpiresAt) {
       return empty;
@@ -1573,7 +1573,7 @@ export default function StoriesPage() {
     if (Number.isNaN(d.getTime())) {
       return empty;
     }
-    const locale = language === 'en' ? 'en-US' : 'es-MX';
+    const locale = intlLocaleTagForAppLanguage(language);
     const f = new Intl.DateTimeFormat(locale, {
       day: '2-digit',
       month: 'short',

@@ -26,7 +26,6 @@ import { useRouter } from 'expo-router';
 import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
 import { collection, doc, getDocs, limit, query, runTransaction, serverTimestamp, where } from 'firebase/firestore';
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
-import { useLookMode } from '@/services/lookMode';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
     Alert,
@@ -99,9 +98,7 @@ export default function RegisterScreen() {
   const language = langCtx?.language ?? 'en';
   const tr = (es: string, en: string) => trEsEn(es, en, language);
   const modalFooterBottomPad = useModalFooterBottomPad();
-  const { resolvedMode } = useLookMode();
-  const isNight = resolvedMode === 'noche';
-  const look = useMemo(() => registerFormLook(isNight), [isNight]);
+  const look = useMemo(() => registerFormLook(true), []);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [nickname, setNickname] = useState('');

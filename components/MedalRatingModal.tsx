@@ -227,7 +227,7 @@ export function MedalRatingModal({
         disabled={!!votingKey}
         accessibilityRole="button"
         accessibilityState={{ selected: isSelected }}
-        accessibilityLabel={language === 'en' ? item.labelEn : item.labelEs}
+        accessibilityLabel={language === 'en' || language === 'de' ? item.labelEn : item.labelEs}
       >
         {isLoading ? (
           <ActivityIndicator size="small" color={accent} />
@@ -242,7 +242,7 @@ export function MedalRatingModal({
           style={[styles.medalLabel, { color: isSelected ? accent : textPrimary }]}
           numberOfLines={2}
         >
-          {language === 'en' ? item.labelEn : item.labelEs}
+          {language === 'en' || language === 'de' ? item.labelEn : item.labelEs}
         </Text>
         {count > 0 && (
           <View style={[styles.medalCountBadge, { backgroundColor: isSelected ? accent : mutedColor }]}>

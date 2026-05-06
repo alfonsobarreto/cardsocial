@@ -67,7 +67,8 @@ function formatIsoForUi(value: string | null | undefined): string | null {
   return d.toLocaleString();
 }
 
-type NfcExtraLanguage = Exclude<AppLanguage, 'es' | 'en'>;
+/** Tabla NFC explícita: alemán va por `trEsEn` + `de.fragment` (mismo patrón que EN). */
+type NfcExtraLanguage = 'fr' | 'it' | 'pt';
 
 const NFC_TRANSLATIONS: Record<string, Record<NfcExtraLanguage, string>> = {
   Activa: { fr: 'Active', it: 'Attiva', pt: 'Ativa' },

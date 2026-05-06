@@ -14,7 +14,7 @@ import {
 } from '@/services/userIdentityFields';
 import { resolveProfileAvatarDisplayUri } from '@/services/userProfilePhoto';
 import { requestLocationPermission } from '@/services/geolocationService';
-import { trEsEn, useLanguage } from '@/services/language';
+import { intlLocaleTagForAppLanguage, trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { listBlockedRelations, unblockRelationship } from '@/services/qrApi';
 import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
@@ -418,7 +418,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   };
 
   const formatCooldownDate = (date: Date) => {
-    return new Intl.DateTimeFormat(language === 'en' ? 'en-US' : 'es-MX', {
+    return new Intl.DateTimeFormat(intlLocaleTagForAppLanguage(language), {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
@@ -626,7 +626,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
     if (Number.isNaN(parsed.getTime())) {
       return tr('Bloqueado: --', 'Blocked: --');
     }
-    const formatted = new Intl.DateTimeFormat(language === 'en' ? 'en-US' : 'es-MX', {
+    const formatted = new Intl.DateTimeFormat(intlLocaleTagForAppLanguage(language), {
       month: 'short',
       year: 'numeric',
     }).format(parsed);
@@ -1084,7 +1084,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                                 // Segundo mensaje
                                 const now = new Date();
                                 const deadline = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-                                const deadlineStr = deadline.toLocaleDateString(language === 'en' ? 'en-US' : 'es-MX', { year: 'numeric', month: 'long', day: '2-digit' });
+                                const deadlineStr = deadline.toLocaleDateString(intlLocaleTagForAppLanguage(language), { year: 'numeric', month: 'long', day: '2-digit' });
                                 Alert.alert(
                                   tr('Confirmar eliminación', 'Confirm deletion'),
                                   tr(

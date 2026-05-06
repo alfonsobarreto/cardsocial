@@ -1665,7 +1665,7 @@ export default function CreateBusinessCardScreen() {
           <Text style={[styles.sectionTitle, { color: text }]}>{tr('Términos y condiciones', 'Terms and conditions')}</Text>
           <ScrollView style={[styles.termsBox, { borderColor: border }]} nestedScrollEnabled showsVerticalScrollIndicator>
             <Text style={[styles.termsText, { color: sub }]}>
-              {language === 'en'
+              {language === 'en' || language === 'de'
                 ? `By creating a business card you agree not to use Card-Social to promote illegal gambling, explicit sexual content, hate speech, harassment, or deceptive scams. Keywords and visible content must comply with these rules. Card-Social may remove or restrict cards that violate policy. Payment and subscription terms will apply when billing is enabled; until then, trial/active/dull states are tracked for testing.`
                 : `Al crear una tarjeta de negocio te comprometes a no usar Card-Social para promover apuestas ilegales, contenido sexual explícito, discurso de odio, acoso o estafas. Las palabras clave y el contenido visible deben cumplir estas reglas. Card-Social puede retirar o restringir tarjetas que incumplan. Los términos de pago y suscripción aplicarán cuando se active la facturación; hasta entonces, los estados prueba/activa/dull son de seguimiento y pruebas.`}
             </Text>
@@ -1922,7 +1922,7 @@ export default function CreateBusinessCardScreen() {
                       <View style={styles.bizThemesTierHeader}>
                         <Text style={styles.bizThemesTierEmoji}>{meta.emoji}</Text>
                         <Text style={[styles.bizThemesTierLabel, { color: text }]}>
-                          {language === 'en' ? meta.label[1] : meta.label[0]}
+                          {language === 'en' || language === 'de' ? meta.label[1] : meta.label[0]}
                         </Text>
                         <View
                           style={[

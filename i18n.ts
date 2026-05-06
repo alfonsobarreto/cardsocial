@@ -10,6 +10,8 @@ import itBase from './locales/it.json';
 import itUi from './locales/_generated/it.fragment.json';
 import ptBase from './locales/pt.json';
 import ptUi from './locales/_generated/pt.fragment.json';
+import deBase from './locales/de.json';
+import deUi from './locales/_generated/de.fragment.json';
 
 const resources = {
   en: { translation: { ...enBase, ...enUi } },
@@ -17,6 +19,7 @@ const resources = {
   fr: { translation: { ...frBase, ...frUi } },
   it: { translation: { ...itBase, ...itUi } },
   pt: { translation: { ...ptBase, ...ptUi } },
+  de: { translation: { ...deBase, ...deUi } },
 };
 
 i18n.use(initReactI18next).init({
@@ -24,7 +27,7 @@ i18n.use(initReactI18next).init({
   lng: 'en',
   /** Sin traducción o idioma raro: inglés (recursos en en.json + en.fragment.json). */
   fallbackLng: 'en',
-  supportedLngs: ['en', 'es', 'fr', 'it', 'pt'],
+  supportedLngs: ['en', 'es', 'fr', 'it', 'pt', 'de'],
   nonExplicitSupportedLngs: true,
   load: 'languageOnly',
   interpolation: { escapeValue: false },
