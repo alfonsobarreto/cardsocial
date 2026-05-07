@@ -107,13 +107,15 @@ export default function LandingPage() {
 
         <section id="demo" className="mx-auto w-full max-w-6xl px-6 py-24 sm:px-8 lg:px-10">
           <div className="animate-[fadeInUp_0.85s_ease-out_both]">
-            {/* Video Placeholder: replace this glass frame with the final demo player */}
             <div className="group relative aspect-video overflow-hidden rounded-[2rem] border border-[#D4AF37]/35 bg-white/[0.04] shadow-[0_0_70px_rgba(212,175,55,0.12),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-2xl">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(212,175,55,0.18),transparent_30%),linear-gradient(135deg,rgba(255,255,255,0.08),transparent_34%)]" />
-              <div className="absolute inset-8 rounded-[1.5rem] border border-white/10" />
-              <div className="absolute left-1/2 top-1/2 grid h-24 w-24 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-[#F6DA87]/50 bg-[#D4AF37]/20 text-4xl text-[#F6DA87] shadow-[0_0_48px_rgba(212,175,55,0.34)] backdrop-blur-xl transition duration-300 group-hover:scale-105">
-                ▶
-              </div>
+              <iframe
+                className="absolute inset-0 h-full w-full"
+                src="https://www.youtube-nocookie.com/embed/JHe60TQuCGc?start=26&rel=0&modestbranding=1"
+                title="Video demo de Card-Social"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+              />
             </div>
             <p className="mx-auto mt-7 max-w-2xl text-center text-lg font-semibold leading-8 text-white/68">
               Descubre cómo convertimos un simple escaneo en Zero-Party Data para tu negocio.
