@@ -86,8 +86,8 @@ export function BusinessCardKeywordTags({
       <View style={styles.headerRow}>
         <Text style={[styles.hint, { color: subColor }]}>
           {tr(
-            'Máx. 20 palabras, separadas por coma. Invisibles en la tarjeta pública; activas en búsqueda.',
-            'Up to 20 words, comma-separated. Hidden on public card; active for search.',
+            'Optimización para Motores de Búsqueda. Máx. 20 palabras, separadas por coma. Invisibles en la tarjeta pública; activas en búsqueda.',
+            'Search Engine Optimization. Up to 20 words, comma-separated. Hidden on public card; active for search.',
           )}
         </Text>
         <Text style={[styles.counter, { color: textColor }]}>{countLabel}</Text>

@@ -22,6 +22,7 @@ import {
     getThemeById,
 } from '@/constants/themeChest';
 import { getActiveUserId } from '@/services/authSession';
+import { trackCardAction } from '@/services/analyticsService';
 import type { MirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
 import { CONTACT_META_STORAGE_KEY, seedMetaForIncomingCard } from '@/services/bunkerContactMetaSeed';
 import { toApiLocale, trEsEn, useLanguage } from '@/services/language';
@@ -199,6 +200,29 @@ export function MyCardsPreviewModal({
   const sidOrBIdForMedals =
     [sourceBId, incomingRedeem?.bId, sourceSid, incomingRedeem?.sid].find((v) => v != null && String(v).trim()) ?? null;
   const issuerUidForMedals = ghostTargetUid ?? incomingRedeem?.issuerUid ?? null;
+  const analyticsBId = sourceBId ?? incomingRedeem?.bId ?? null;
+  const analyticsSid = sourceSid ?? incomingRedeem?.sid ?? null;
+  const analyticsCardId =
+    [analyticsBId, analyticsSid].find((v) => v != null && String(v).trim()) ?? null;
+  const lastTrackedViewRef = useRef('');
+
+  useEffect(() => {
+    const cardId = analyticsCardId != null ? String(analyticsCardId).trim() : '';
+    if (!visible) {
+      lastTrackedViewRef.current = '';
+      return;
+    }
+    if (variant === 'issuer' || !cardId) return;
+    const key = `${variant}:${cardId}`;
+    if (lastTrackedViewRef.current === key) return;
+    lastTrackedViewRef.current = key;
+    void trackCardAction(cardId, 'view', {
+      subType: 'modal_open',
+      source: variant,
+      ...(analyticsBId ? { bId: analyticsBId } : {}),
+      ...(analyticsSid ? { sid: analyticsSid } : {}),
+    }).catch(() => undefined);
+  }, [visible, variant, analyticsCardId, analyticsBId, analyticsSid]);
 
   useEffect(() => {
     if (!visible || !showMedals || !sidOrBIdForMedals) return;
@@ -556,6 +580,19 @@ export function MyCardsPreviewModal({
 
   const handleSlotPress = useCallback(
     async (item: WireframeVaultItem) => {
+      const cardId = analyticsCardId != null ? String(analyticsCardId).trim() : '';
+      if (variant !== 'issuer' && cardId) {
+        const subType = String(item.type || item.iconName || item.title || 'unknown').trim() || 'unknown';
+        void trackCardAction(cardId, 'icon_click', {
+          subType,
+          iconType: subType,
+          source: variant,
+          slotId: item.id,
+          slotTitle: item.title,
+          ...(analyticsBId ? { bId: analyticsBId } : {}),
+          ...(analyticsSid ? { sid: analyticsSid } : {}),
+        }).catch(() => undefined);
+      }
       await openVaultPreviewItem(item as unknown as MirrorVaultItem, {
         tr,
         openDocumentViewer: (it) => {
@@ -598,6 +635,10 @@ export function MyCardsPreviewModal({
       payload?.avatarUrl,
       handleClose,
       ratingCardType,
+      analyticsCardId,
+      analyticsBId,
+      analyticsSid,
+      variant,
     ],
   );
 

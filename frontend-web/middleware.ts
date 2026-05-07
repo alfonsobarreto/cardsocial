@@ -7,15 +7,20 @@ import { NextResponse, type NextRequest } from 'next/server';
  */
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (!pathname.startsWith('/studio')) {
+  if (pathname.startsWith('/studio')) {
+    if (pathname === '/studio' || pathname === '/studio/') {
+      return NextResponse.redirect(new URL('/studio/bunker', req.url));
+    }
     return NextResponse.next();
   }
-  if (pathname === '/studio' || pathname === '/studio/') {
-    return NextResponse.redirect(new URL('/studio/bunker', req.url));
+
+  if (pathname.startsWith('/embed')) {
+    return NextResponse.next();
   }
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/studio/:path*'],
+  matcher: ['/studio/:path*', '/embed/:path*'],
 };

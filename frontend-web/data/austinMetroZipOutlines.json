@@ -1,0 +1,86 @@
+{
+  "type": "FeatureCollection",
+  "name": "card-social-austin-killeen-zip-outlines-demo",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "ZCTA": "78701", "label": "Downtown Austin" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-97.752, 30.259], [-97.728, 30.259], [-97.728, 30.279], [-97.752, 30.279], [-97.752, 30.259]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ZCTA": "78702", "label": "East Austin" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-97.728, 30.257], [-97.698, 30.257], [-97.698, 30.285], [-97.728, 30.285], [-97.728, 30.257]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ZCTA": "78704", "label": "South Austin" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-97.788, 30.232], [-97.746, 30.232], [-97.746, 30.268], [-97.788, 30.268], [-97.788, 30.232]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ZCTA": "78751", "label": "Hyde Park" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-97.748, 30.288], [-97.716, 30.288], [-97.716, 30.322], [-97.748, 30.322], [-97.748, 30.288]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ZCTA": "78758", "label": "North Austin" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-97.734, 30.358], [-97.686, 30.358], [-97.686, 30.402], [-97.734, 30.402], [-97.734, 30.358]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ZCTA": "78613", "label": "Cedar Park" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-97.854, 30.476], [-97.796, 30.476], [-97.796, 30.528], [-97.854, 30.528], [-97.854, 30.476]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ZCTA": "78641", "label": "Leander" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-97.942, 30.518], [-97.882, 30.518], [-97.882, 30.578], [-97.942, 30.578], [-97.942, 30.518]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ZCTA": "76542", "label": "Killeen" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-97.802, 31.052], [-97.698, 31.052], [-97.698, 31.128], [-97.802, 31.128], [-97.802, 31.052]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ZCTA": "76544", "label": "Fort Cavazos area" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-97.898, 31.088], [-97.762, 31.088], [-97.762, 31.198], [-97.898, 31.198], [-97.898, 31.088]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "ZCTA": "76543", "label": "Killeen east" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-97.698, 31.042], [-97.612, 31.042], [-97.612, 31.118], [-97.698, 31.118], [-97.698, 31.042]]]
+      }
+    }
+  ]
+}

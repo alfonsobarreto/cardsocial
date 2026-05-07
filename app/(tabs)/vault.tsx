@@ -32,7 +32,7 @@ import * as Haptics from 'expo-haptics';
 import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
-import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -82,38 +82,6 @@ interface Link {
   vaultMimeType?: string;
 }
 
-function vaultItemUpdatedAtMs(item: Link): number {
-  const t = Date.parse(String(item.updatedAt || ''));
-  return Number.isFinite(t) ? t : 0;
-}
-
-/**
- * Tras guardar en local, `loadVaultData` podía leer la nube antes de que terminara `setDoc`
- * y pisar AsyncStorage con el documento viejo. Por ítem gana la copia con `updatedAt` más reciente.
- */
-function mergeVaultLinksPreferNewest(localItems: Link[], cloudItems: Link[]): Link[] {
-  const byId = new Map<string, Link>();
-  for (const c of cloudItems) {
-    const id = String(c?.id || '').trim();
-    if (id) byId.set(id, c);
-  }
-  for (const l of localItems) {
-    const id = String(l?.id || '').trim();
-    if (!id) continue;
-    const existing = byId.get(id);
-    if (!existing) {
-      byId.set(id, l);
-      continue;
-    }
-    const tLocal = vaultItemUpdatedAtMs(l);
-    const tCloud = vaultItemUpdatedAtMs(existing);
-    if (tLocal >= tCloud) {
-      byId.set(id, l);
-    }
-  }
-  return Array.from(byId.values());
-}
-
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
 const VaultScreen = () => {
@@ -124,6 +92,7 @@ const VaultScreen = () => {
   const isNight = resolvedMode === 'noche';
   const vaultTheme = appPalette[isNight ? 'dark' : 'light'];
   const [links, setLinks] = useState<Link[]>([]);
+  const [, setVaultCloudReady] = useState(false);
   const [formModalVisible, setFormModalVisible] = useState(false);
   const [formRenderNonce, setFormRenderNonce] = useState(0);
   const [editingData, setEditingData] = useState<Link | undefined>(undefined);
@@ -182,6 +151,7 @@ const VaultScreen = () => {
     const userId = await getActiveUserId();
     if (!userId) {
       setLinks([]);
+      setVaultCloudReady(false);
       setVaultCapUnlimited(false);
       return;
     }
@@ -209,7 +179,8 @@ const VaultScreen = () => {
       }
     } catch { /* ignora — la nube actualiza a continuación */ }
 
-    // 2. Refresco silencioso — actualiza estado solo si los datos cambiaron
+    // 2. Refresco silencioso — Firestore es autoridad cuando responde.
+    // Esto permite que borrados hechos desde Studio Web eliminen también el caché local.
     try {
       const cloudSnapshot = await getDocs(collection(db, 'users', userId, 'links'));
       const cloudItems = cloudSnapshot.docs.map((itemDoc) => ({
@@ -217,13 +188,13 @@ const VaultScreen = () => {
         ...itemDoc.data(),
       })) as Link[];
 
-      const cloudMerged = (await mergeBuiltinGhostLinkIntoVault(userId, cloudItems)) as Link[];
-      const merged = mergeVaultLinksPreferNewest(withBuiltinLocal, cloudMerged);
-      const mergedJson = JSON.stringify(merged);
-      if (mergedJson !== cachedJsonForCompare) {
-        await AsyncStorage.setItem(vaultStorageKey(userId), mergedJson);
-        setLinks(sortLinks(merged));
+      const authoritative = sortLinks((await mergeBuiltinGhostLinkIntoVault(userId, cloudItems)) as Link[]);
+      const cloudJson = JSON.stringify(authoritative);
+      if (cloudJson !== cachedJsonForCompare) {
+        await AsyncStorage.setItem(vaultStorageKey(userId), cloudJson);
+        setLinks(authoritative);
       }
+      setVaultCloudReady(true);
     } catch (cloudError) {
       console.warn('Cloud read failed, keeping cached data:', cloudError);
       Toast.show({
@@ -244,6 +215,39 @@ const VaultScreen = () => {
     }
     setLinks(sortLinks(items));
   };
+
+  useEffect(() => {
+    let unsub: (() => void) | undefined;
+    let cancelled = false;
+    void (async () => {
+      const userId = await getActiveUserId();
+      if (!userId || cancelled) return;
+      unsub = onSnapshot(
+        collection(db, 'users', userId, 'links'),
+        (snapshot) => {
+          void (async () => {
+            const cloudItems = snapshot.docs.map((itemDoc) => ({
+              id: itemDoc.id,
+              ...itemDoc.data(),
+            })) as Link[];
+            const authoritative = sortLinks((await mergeBuiltinGhostLinkIntoVault(userId, cloudItems)) as Link[]);
+            await AsyncStorage.setItem(vaultStorageKey(userId), JSON.stringify(authoritative));
+            if (!cancelled) {
+              setLinks(authoritative);
+              setVaultCloudReady(true);
+            }
+          })();
+        },
+        (error) => {
+          console.warn('Vault live sync failed:', error);
+        },
+      );
+    })();
+    return () => {
+      cancelled = true;
+      unsub?.();
+    };
+  }, []);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -347,9 +351,7 @@ const VaultScreen = () => {
         if (userId) {
           await deleteDoc(doc(db, 'users', userId, 'links', link.id));
           await syncVaultDeleteAcrossCards(userId, link.id);
-          void syncVaultDeletionToMongoCards(userId, link.id).catch((mongoSyncErr: unknown) => {
-            console.warn('Vault delete: Mongo cards sync failed:', mongoSyncErr);
-          });
+          await syncVaultDeletionToMongoCards(userId, link.id);
           cloudOk = true;
         }
       } catch (cloudError) {

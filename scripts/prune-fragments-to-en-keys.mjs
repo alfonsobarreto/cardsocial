@@ -12,7 +12,7 @@ const root = process.cwd();
 const enPath = path.join(root, 'locales', '_generated', 'en.fragment.json');
 const en = JSON.parse(fs.readFileSync(enPath, 'utf8'));
 const keys = Object.keys(en);
-const targets = ['fr', 'it', 'pt'];
+const targets = ['fr', 'it', 'pt', 'de'];
 
 for (const lang of targets) {
   const p = path.join(root, 'locales', '_generated', `${lang}.fragment.json`);

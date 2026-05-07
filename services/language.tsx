@@ -39,6 +39,9 @@ export function toAcceptLanguageHeader(lang: AppLanguage): { 'Accept-Language': 
 export function intlLocaleTagForAppLanguage(lang: AppLanguage): string {
   if (lang === 'en') return 'en-US';
   if (lang === 'de') return 'de-DE';
+  if (lang === 'fr') return 'fr-FR';
+  if (lang === 'it') return 'it-IT';
+  if (lang === 'pt') return 'pt-BR';
   return 'es-MX';
 }
 

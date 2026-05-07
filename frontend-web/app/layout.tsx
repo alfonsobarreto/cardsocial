@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 import { RevenueCatWebProvider } from '@/components/RevenueCatWebProvider';
+import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Card-Social',
@@ -17,7 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body style={{
         margin: 0,
         padding: 0,
-        backgroundColor: '#E0F7FA',
+        backgroundColor: '#050505',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         minHeight: '100vh',
       }}>

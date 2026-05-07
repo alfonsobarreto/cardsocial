@@ -75,6 +75,22 @@ function normalizeLocationSource(value) {
   return 'device_gps';
 }
 
+function sanitizeGeoText(value, max = 120) {
+  const t = trimOrEmpty(value).replace(/\s+/g, ' ').slice(0, max);
+  return t ? t : null;
+}
+
+function sanitizeZipcode(value) {
+  const t = trimOrEmpty(value).replace(/[^\w-]/g, '').slice(0, 16).toUpperCase();
+  return t ? t : null;
+}
+
+function parseOptionalDate(value) {
+  if (!value) return null;
+  const d = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 function normalizeSubscriptionStatus(value) {
   const v = trimOrEmpty(value);
   if (v === 'active' || v === 'expired') return v;
@@ -169,6 +185,12 @@ function toWireBusinessCard(doc) {
     bcLatitude: toFiniteNumber(doc.bcLatitude, 0),
     bcLongitude: toFiniteNumber(doc.bcLongitude, 0),
     bcLocationSource: normalizeLocationSource(doc.bcLocationSource),
+    bcZipcode: sanitizeZipcode(doc.bcZipcode),
+    bcCity: sanitizeGeoText(doc.bcCity),
+    bcRegion: sanitizeGeoText(doc.bcRegion),
+    bcCountry: sanitizeGeoText(doc.bcCountry),
+    bcGeoLabel: sanitizeGeoText(doc.bcGeoLabel, 180),
+    bcLocationUpdatedAt: toIso(doc.bcLocationUpdatedAt),
 
     bcKeywords: Array.isArray(doc.bcKeywords) ? doc.bcKeywords.map(String) : [],
     bcMarketFacets: Array.isArray(doc.bcMarketFacets) ? doc.bcMarketFacets : [],
@@ -330,6 +352,12 @@ function createBusinessCardsRoutes({ storage }) {
         bcLatitude,
         bcLongitude,
         bcLocationSource: normalizeLocationSource(body.bcLocationSource),
+        bcZipcode: sanitizeZipcode(body.bcZipcode),
+        bcCity: sanitizeGeoText(body.bcCity),
+        bcRegion: sanitizeGeoText(body.bcRegion),
+        bcCountry: sanitizeGeoText(body.bcCountry),
+        bcGeoLabel: sanitizeGeoText(body.bcGeoLabel, 180),
+        bcLocationUpdatedAt: parseOptionalDate(body.bcLocationUpdatedAt) || now,
 
         bcKeywords: sanitizeKeywords(body.bcKeywords),
         bcMarketFacets: sanitizeMarketFacets(body.bcMarketFacets),
@@ -406,6 +434,27 @@ function createBusinessCardsRoutes({ storage }) {
         set.bcLongitude = n;
       }
       if (body.bcLocationSource !== undefined) set.bcLocationSource = normalizeLocationSource(body.bcLocationSource);
+      if (body.bcZipcode !== undefined) set.bcZipcode = sanitizeZipcode(body.bcZipcode);
+      if (body.bcCity !== undefined) set.bcCity = sanitizeGeoText(body.bcCity);
+      if (body.bcRegion !== undefined) set.bcRegion = sanitizeGeoText(body.bcRegion);
+      if (body.bcCountry !== undefined) set.bcCountry = sanitizeGeoText(body.bcCountry);
+      if (body.bcGeoLabel !== undefined) set.bcGeoLabel = sanitizeGeoText(body.bcGeoLabel, 180);
+      if (body.bcLocationUpdatedAt !== undefined) {
+        const d = parseOptionalDate(body.bcLocationUpdatedAt);
+        if (!d) return res.status(400).json({ ok: false, error: 'bcLocationUpdatedAt must be an ISO date or null' });
+        set.bcLocationUpdatedAt = d;
+      } else if (
+        body.bcPhysicalAddress !== undefined ||
+        body.bcLatitude !== undefined ||
+        body.bcLongitude !== undefined ||
+        body.bcZipcode !== undefined ||
+        body.bcCity !== undefined ||
+        body.bcRegion !== undefined ||
+        body.bcCountry !== undefined ||
+        body.bcGeoLabel !== undefined
+      ) {
+        set.bcLocationUpdatedAt = new Date();
+      }
 
       // Discoverability
       if (body.bcKeywords !== undefined) set.bcKeywords = sanitizeKeywords(body.bcKeywords);

@@ -6,6 +6,7 @@ import type { StudioLocale } from '@/lib/studioI18n';
 import { studioT } from '@/lib/studioI18n';
 import type { StudioVaultLink } from '@/lib/studioVaultTypes';
 import { deleteStudioVaultLink, toggleStudioVaultFavorite } from '@/lib/studioVaultService';
+import { syncStudioVaultDeleteToMongoCards } from '@/lib/studioVaultCardSync';
 import { studioGradients, studioTheme } from '@/lib/studioTheme';
 import StudioMdiGlyph from '@/components/studio/StudioMdiGlyph';
 import type { StudioProfile } from '@/components/studio/ProfileColumn';
@@ -126,6 +127,7 @@ export default function VaultColumn({
     setBusy(link.id);
     try {
       await deleteStudioVaultLink(userId, link.id);
+      await syncStudioVaultDeleteToMongoCards(userId, link.id);
     } catch (e) {
       console.warn(e);
       window.alert(t('vault.err.delete'));

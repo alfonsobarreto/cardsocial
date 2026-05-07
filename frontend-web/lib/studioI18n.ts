@@ -202,6 +202,65 @@ const EN: Record<string, string> = {
   'profile.socialAccount': 'Social account',
   'profile.socialHint': 'This account uses a social provider. Password is managed by that provider.',
   'profile.dangerZone': 'Danger Zone',
+
+  /** Market Radar — Mapbox cockpit (Hyper-Local intent) */
+  'marketRadar.nav': 'Hyper-Local Radar',
+  'marketRadar.pageTitle': 'Hyper-Local Market Intent',
+  'marketRadar.backStudio': 'Back to Studio vault',
+  'marketRadar.heroLine': 'Local SEO & CRO Performance · Hyper-Local Market Intent',
+  'marketRadar.heroSubtitle': 'Austin metro · Killeen / Fort Cavazos corridor (internal simulated corpus)',
+  'marketRadar.proprietaryDisclaimer':
+    'This map renders proprietary search-intent signals only — no external POIs. ZIP outlines are illustrative administrative boundaries shipped with Studio for bunker reference.',
+  'marketRadar.nicheFilterLabel': 'Niche filter · re-projects internal heat density',
+  'marketRadar.nicheAll': 'All sectors',
+  'marketRadar.niche.restaurants': 'Restaurants',
+  'marketRadar.niche.food_trucks': 'Food trucks',
+  'marketRadar.niche.barbershop': 'Barbershop',
+  'marketRadar.niche.real_estate': 'Real estate',
+  'marketRadar.niche.nails': 'Nails / nail art',
+  'marketRadar.niche.fitness': 'Fitness',
+  'marketRadar.niche.general': 'General intents',
+  'marketRadar.gapTitle': 'Market Gap Detection',
+  'marketRadar.gapBody':
+    'Dense golden clusters emphasize concentrated modeled demand; quieter rings may imply validation opportunities for supply positioning.',
+  'marketRadar.tooltipTitle': 'Elevated modeled demand',
+  'marketRadar.tooltipSignals': 'Proximity signal stack ≈ {n} weighted occurrences (nine-cell stencil).',
+  'marketRadar.tooltipNicheScoped': 'Active cohort: {niche}',
+  'marketRadar.tooltipIntentFilter': 'Intent keyword: "{q}"',
+  'marketRadar.noToken':
+    'Set NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN or REACT_APP_MAPBOX_ACCESS_TOKEN in frontend-web/.env.local.',
+
+  /** Native WebView `/embed/market-radar` (session via custom token, no HTML login gate) */
+  'embed.radarSyncing': 'Connecting your embedded session…',
+  'embed.radarHandshakeFailed': 'Could not open the embedded Market Radar.',
+  'embed.radarHandshakeHint':
+    'Return to the Card-Social app and open the Dashboard again. If this persists, Studio may need FIREBASE_SERVICE_ACCOUNT_JSON and STUDIO_EMBED_SECRET (server only) configured.',
+  'embed.radarNativeBadge': 'Native session · Vault bridge',
+
+  /** Interactive BI — geofence + keyword intent */
+  'marketRadar.locateCurrentZone': 'Locate Current Zone',
+  'marketRadar.intentKeywordSearch': 'Intent Keyword Search',
+  'marketRadar.intentPlaceholder': 'Comida Peruana, Lotes, Construcción…',
+  'marketRadar.intentApply': 'Apply intent',
+  'marketRadar.intentClear': 'Clear',
+  'marketRadar.locating': 'Resolving position…',
+  'marketRadar.geoDenied': 'Location permission denied or unavailable.',
+  'marketRadar.geoUnsupported': 'Geolocation is not available in this browser.',
+  'marketRadar.metricsStripTitle': 'Local SEO & CRO Performance (ZIP scope)',
+  'marketRadar.metricsZipLabel': 'ZIP',
+  'marketRadar.metricsModeledSignals': 'Modeled signals',
+  'marketRadar.metricsUniqueIntents': 'Distinct intent traces',
+  'marketRadar.metricsLocateHint': 'Use “Locate Current Zone” to bind metrics to your ZIP.',
+  'marketRadar.metricsOutsideRoi': 'Outside bundled ZIP demo — expand the Austin / Killeen cockpit to add coverage.',
+  'marketRadar.hybridMode': 'Hybrid Intelligence Mode',
+  'marketRadar.dataSourceLabel': 'Data source · live switch',
+  'marketRadar.dataSource.appNetwork': 'App Network Activity',
+  'marketRadar.dataSource.globalDemand': 'Global Market Demand',
+  'marketRadar.dataSource.appNetworkHint': 'Proprietary search-intent corpus from the Card-Social network (5k modeled events).',
+  'marketRadar.dataSource.globalDemandHint': 'Public demand index proxy (Google Trends · SerpApi). Wider geography, weighted by interest score.',
+  'marketRadar.dataSource.activeBadge': 'ACTIVE',
+  'marketRadar.dataSource.fetching': 'Pulling data feed…',
+  'marketRadar.dataSource.externalDisclaimer': 'External demand mock — wire NEXT_PUBLIC_TRENDS_PROXY_URL to switch to the live trends feed.',
 };
 
 const ES: Record<string, string> = {
@@ -397,6 +456,62 @@ const ES: Record<string, string> = {
   'profile.socialAccount': 'Cuenta social',
   'profile.socialHint': 'Esta cuenta usa un proveedor social. La contraseña se gestiona desde ese proveedor.',
   'profile.dangerZone': 'Zona de peligro',
+
+  'marketRadar.nav': 'Radar hiper-local',
+  'marketRadar.pageTitle': 'Hiper‑local Market Intent',
+  'marketRadar.backStudio': 'Volver al Studio / Bóveda',
+  'marketRadar.heroLine': 'SEO local & CRO · Intención de mercado hiper-local',
+  'marketRadar.heroSubtitle': 'Austin · corredor Killeen / Fort Cavazos (corpus interno simulado)',
+  'marketRadar.proprietaryDisclaimer':
+    'Este mapa solo muestra señales de intención de búsqueda propias — sin POIs externos. Los contornos ZIP son referencia administrativa ilustrativa incluida en Studio.',
+  'marketRadar.nicheFilterLabel': 'Filtro de nicho · reproyecta densidad térmica interna',
+  'marketRadar.nicheAll': 'Todos los segmentos',
+  'marketRadar.niche.restaurants': 'Restaurantes',
+  'marketRadar.niche.food_trucks': 'Food trucks',
+  'marketRadar.niche.barbershop': 'Barbería',
+  'marketRadar.niche.real_estate': 'Bienes raíces',
+  'marketRadar.niche.nails': 'Uñas / nail art',
+  'marketRadar.niche.fitness': 'Fitness',
+  'marketRadar.niche.general': 'Intenciones generales',
+  'marketRadar.gapTitle': 'Detección de huecos de mercado',
+  'marketRadar.gapBody':
+    'Clústers dorados marcan mayor demanda modelada concentrada; aledaños más tenues sugieren zonas donde validar oferta.',
+  'marketRadar.tooltipTitle': 'Demanda modelada elevada',
+  'marketRadar.tooltipSignals': 'Índice de señales en la zona ≈ {n} apariciones ponderadas (malla 9 celdas).',
+  'marketRadar.tooltipNicheScoped': 'Cohort activo: {niche}',
+  'marketRadar.tooltipIntentFilter': 'Keyword de intención: «{q}»',
+  'marketRadar.noToken':
+    'Configura NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN o REACT_APP_MAPBOX_ACCESS_TOKEN en frontend-web/.env.local.',
+
+  'embed.radarSyncing': 'Conectando la sesión embebida…',
+  'embed.radarHandshakeFailed': 'No se pudo abrir el Market Radar incrustado.',
+  'embed.radarHandshakeHint':
+    'Vuelve a Card-Social y abre el Panel otra vez. Si sigue igual, revisa FIREBASE_SERVICE_ACCOUNT_JSON y STUDIO_EMBED_SECRET (solo servidor) en Studio.',
+  'embed.radarNativeBadge': 'Sesión nativa · puente Vault',
+
+  'marketRadar.locateCurrentZone': 'Localizar zona actual',
+  'marketRadar.intentKeywordSearch': 'Búsqueda de intención (keyword)',
+  'marketRadar.intentPlaceholder': 'Comida peruana, lotes, construcción…',
+  'marketRadar.intentApply': 'Aplicar intención',
+  'marketRadar.intentClear': 'Limpiar',
+  'marketRadar.locating': 'Resolviendo posición…',
+  'marketRadar.geoDenied': 'Permiso de ubicación denegado o no disponible.',
+  'marketRadar.geoUnsupported': 'Este navegador no ofrece geolocalización.',
+  'marketRadar.metricsStripTitle': 'SEO local & CRO por código postal',
+  'marketRadar.metricsZipLabel': 'ZIP',
+  'marketRadar.metricsModeledSignals': 'Señales modeladas',
+  'marketRadar.metricsUniqueIntents': 'Intenciones distintas',
+  'marketRadar.metricsLocateHint': 'Usa «Localizar zona actual» para vincular métricas a tu ZIP.',
+  'marketRadar.metricsOutsideRoi': 'Fuera del demo de ZIP empaquetado — amplía el cockpit Austin / Killeen para cobertura.',
+  'marketRadar.hybridMode': 'Modo Inteligencia Híbrida',
+  'marketRadar.dataSourceLabel': 'Fuente de datos · cambio en vivo',
+  'marketRadar.dataSource.appNetwork': 'Actividad de la Red de la App',
+  'marketRadar.dataSource.globalDemand': 'Demanda Global de Mercado',
+  'marketRadar.dataSource.appNetworkHint': 'Corpus propio de intención de búsqueda de la red Card-Social (5k eventos modelados).',
+  'marketRadar.dataSource.globalDemandHint': 'Índice público de demanda (Google Trends · SerpApi). Geografía amplia, pesos por puntuación de interés.',
+  'marketRadar.dataSource.activeBadge': 'ACTIVO',
+  'marketRadar.dataSource.fetching': 'Cargando feed de datos…',
+  'marketRadar.dataSource.externalDisclaimer': 'Demanda externa simulada — define NEXT_PUBLIC_TRENDS_PROXY_URL para usar el feed de tendencias en vivo.',
 };
 
 const IT: Record<string, string> = {
@@ -470,6 +585,10 @@ const IT: Record<string, string> = {
   'profile.sendEmailVerification': 'Invia verifica',
   'profile.phoneHint': 'Per cambiare telefono apri un ticket. Si risolve entro 3 giorni lavorativi.',
   'profile.openTicket': 'Apri ticket',
+  'marketRadar.hybridMode': 'Modalità Hybrid Intelligence',
+  'marketRadar.dataSourceLabel': 'Sorgente dati · switch in tempo reale',
+  'marketRadar.dataSource.appNetwork': 'Attività della Rete dell’App',
+  'marketRadar.dataSource.globalDemand': 'Domanda Globale di Mercato',
 };
 
 const FR: Record<string, string> = {
@@ -543,6 +662,10 @@ const FR: Record<string, string> = {
   'profile.sendEmailVerification': 'Envoyer la vérification',
   'profile.phoneHint': 'Pour changer votre téléphone, ouvrez un ticket. Résolution sous 3 jours ouvrables maximum.',
   'profile.openTicket': 'Ouvrir un ticket',
+  'marketRadar.hybridMode': 'Mode Hybrid Intelligence',
+  'marketRadar.dataSourceLabel': 'Source de données · bascule en direct',
+  'marketRadar.dataSource.appNetwork': 'Activité du Réseau de l’App',
+  'marketRadar.dataSource.globalDemand': 'Demande Globale du Marché',
 };
 
 const PT: Record<string, string> = {
@@ -616,6 +739,10 @@ const PT: Record<string, string> = {
   'profile.sendEmailVerification': 'Enviar verificação',
   'profile.phoneHint': 'Para alterar o telefone, abra um ticket. É resolvido em até 3 dias úteis.',
   'profile.openTicket': 'Abrir ticket',
+  'marketRadar.hybridMode': 'Modo Hybrid Intelligence',
+  'marketRadar.dataSourceLabel': 'Fonte de dados · troca em tempo real',
+  'marketRadar.dataSource.appNetwork': 'Atividade da Rede do App',
+  'marketRadar.dataSource.globalDemand': 'Procura Global do Mercado',
 };
 
 const DICT: Record<StudioLocale, Record<string, string>> = {

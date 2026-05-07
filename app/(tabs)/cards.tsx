@@ -1793,7 +1793,7 @@ export default function CardsFactoryScreen() {
     }
 
     try {
-      const authenticated = await hardLockCheck(tr('QR web 24 h de tarjeta', '24h web QR for card'));
+      const authenticated = await hardLockCheck(tr('Motor de velocidad orgánica de instalación (PLG)', 'Organic Install Velocity Engine'));
       if (!authenticated) return;
       const uid = await getActiveUserId();
       if (!uid) throw new Error(tr('No se pudo obtener tu sesión.', 'Could not get your session.'));
@@ -4611,7 +4611,7 @@ export default function CardsFactoryScreen() {
                           },
                         ]}
                       >
-                        {issuingUniversalLink ? tr('Generando…', 'Generating…') : tr('QR24h', 'QR24h')}
+                        {issuingUniversalLink ? tr('Generando…', 'Generating…') : tr('Motor de velocidad orgánica de instalación (PLG)', 'Organic Install Velocity Engine')}
                       </Text>
                     )}
                   </Pressable>

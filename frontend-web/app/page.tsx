@@ -2,13 +2,13 @@ import type { Metadata } from 'next';
 import LandingPage from '@/components/landing/LandingPage';
 
 export const metadata: Metadata = {
-  title: 'Card-Social — Tu identidad digital, elevada',
+  title: 'Card-Social — Tu Identidad Protegida. Tu Mercado Dominado.',
   description:
-    'Networking premium sin contacto: NFC, QR y tarjeta física. Vault en vivo, plantillas exclusivas y planes Gratis, Influencer, Negocio y Enterprise.',
+    'Únete a la lista de espera privada de Card-Social: identidad protegida, tarjetas NFC premium, Social Market y radar hiperlocal de oportunidades.',
   openGraph: {
-    title: 'Card-Social — Tu identidad digital, elevada',
+    title: 'Card-Social — Tu Identidad Protegida. Tu Mercado Dominado.',
     description:
-      'Networking premium: software y tarjetas NFC. Crea tu perfil y conecta en un gesto.',
+      'La evolución del networking y la inteligencia local: privacidad, NFC premium, Social Market y heatmap de intención de búsqueda.',
     url: 'https://cardsocial.me/',
     siteName: 'Card-Social',
     locale: 'es',

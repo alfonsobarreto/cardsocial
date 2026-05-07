@@ -1586,6 +1586,228 @@ export type CardAnalyticsSummary = {
   topIcons: Array<{ iconType: string; count: number }>;
 };
 
+export type CardAnalyticsActionType = 'view' | 'icon_click' | 'qr_scan';
+export type CardAnalyticsPeriodMode = 'day' | 'week' | 'month' | 'year';
+
+export type CardAnalyticsPeriodSummary = CardAnalyticsSummary & {
+  cardId: string;
+  labels: string[];
+  points: number[];
+  totalClicks: number;
+  clickRate: number;
+  periodMode: CardAnalyticsPeriodMode;
+  periodOffset: number;
+  startAt: string;
+  endAt: string;
+};
+
+export type MarketSearchSeoRow = {
+  keyword: string;
+  keywordRoot: string;
+  totalSearches: number;
+  myClicks: number;
+  percent: number;
+};
+
+export type MarketSeoSummary = {
+  bId: string;
+  zipcode: string | null;
+  city: string | null;
+  locationMode: 'zipcode' | 'city' | 'all';
+  locationLabel: string;
+  locationSource: 'card_location' | 'explorer' | 'fallback';
+  cardLocationUpdatedAt: string | null;
+  niche: string;
+  rows: MarketSearchSeoRow[];
+  topNicheKeyword: string | null;
+  topNicheSearches: number;
+};
+
+export type MarketSeoHeatmapPoint = {
+  latitude: number;
+  longitude: number;
+  count: number;
+  intensity: number;
+  zipcode: string | null;
+  city: string | null;
+  region: string | null;
+  label: string | null;
+};
+
+export type MarketSeoHeatmap = {
+  keywordRoot: string;
+  periodMode: CardAnalyticsPeriodMode;
+  periodOffset: number;
+  startAt: string;
+  endAt: string;
+  locationQuery: string | null;
+  points: MarketSeoHeatmapPoint[];
+};
+
+export async function trackMarketSearch(params: {
+  uid: string;
+  q: string;
+  keywordRoot?: string;
+  zipcode?: string | null;
+  city?: string | null;
+  region?: string | null;
+  country?: string | null;
+  geoLabel?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  resultBIds?: string[];
+}): Promise<{ keywordRoot: string; zipcode: string | null; searchId: string }> {
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
+  const response = await axios.post(
+    `${auth.baseUrl}/api/market/searches/track`,
+    {
+      q: params.q,
+      keywordRoot: params.keywordRoot,
+      zipcode: params.zipcode || null,
+      city: params.city || null,
+      region: params.region || null,
+      country: params.country || null,
+      geoLabel: params.geoLabel || null,
+      latitude: params.latitude ?? null,
+      longitude: params.longitude ?? null,
+      resultBIds: params.resultBIds || [],
+      timestamp: new Date().toISOString(),
+    },
+    {
+      headers: {
+        'x-api-gateway-key': auth.gatewayKey,
+        Authorization: `Bearer ${auth.token}`,
+      },
+      timeout: 12000,
+    },
+  );
+  return {
+    keywordRoot: String(response?.data?.keywordRoot || ''),
+    zipcode: response?.data?.zipcode != null ? String(response.data.zipcode) : null,
+    searchId: String(response?.data?.searchId || ''),
+  };
+}
+
+export async function trackMarketSearchCardClick(params: {
+  uid: string;
+  bId: string;
+  q: string;
+  keywordRoot?: string;
+  zipcode?: string | null;
+  city?: string | null;
+  region?: string | null;
+  country?: string | null;
+  geoLabel?: string | null;
+}): Promise<void> {
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
+  await axios.post(
+    `${auth.baseUrl}/api/market/searches/click`,
+    {
+      bId: params.bId,
+      q: params.q,
+      keywordRoot: params.keywordRoot,
+      zipcode: params.zipcode || null,
+      city: params.city || null,
+      region: params.region || null,
+      country: params.country || null,
+      geoLabel: params.geoLabel || null,
+      timestamp: new Date().toISOString(),
+    },
+    {
+      headers: {
+        'x-api-gateway-key': auth.gatewayKey,
+        Authorization: `Bearer ${auth.token}`,
+      },
+      timeout: 12000,
+    },
+  );
+}
+
+export async function getMarketSeoSummary(params: {
+  uid: string;
+  bId: string;
+  locationQuery?: string | null;
+}): Promise<MarketSeoSummary> {
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
+  const response = await axios.get(
+    `${auth.baseUrl}/api/market/seo/card/${encodeURIComponent(params.bId)}/summary`,
+    {
+      params: {
+        uid: params.uid,
+        ...(params.locationQuery ? { locationQuery: params.locationQuery } : {}),
+      },
+      headers: {
+        'x-api-gateway-key': auth.gatewayKey,
+        Authorization: `Bearer ${auth.token}`,
+      },
+      timeout: 15000,
+    },
+  );
+  const rows = Array.isArray(response?.data?.rows) ? response.data.rows : [];
+  return {
+    bId: String(response?.data?.bId || params.bId),
+    zipcode: response?.data?.zipcode != null ? String(response.data.zipcode) : null,
+    city: response?.data?.city != null ? String(response.data.city) : null,
+    locationMode: (response?.data?.locationMode || 'all') as MarketSeoSummary['locationMode'],
+    locationLabel: String(response?.data?.locationLabel || 'Zona acumulada'),
+    locationSource: (response?.data?.locationSource || 'fallback') as MarketSeoSummary['locationSource'],
+    cardLocationUpdatedAt: response?.data?.cardLocationUpdatedAt != null ? String(response.data.cardLocationUpdatedAt) : null,
+    niche: String(response?.data?.niche || 'general'),
+    rows: rows.map((row: any) => ({
+      keyword: String(row?.keyword || ''),
+      keywordRoot: String(row?.keywordRoot || ''),
+      totalSearches: Number(row?.totalSearches || 0) || 0,
+      myClicks: Number(row?.myClicks || 0) || 0,
+      percent: Number(row?.percent || 0) || 0,
+    })),
+    topNicheKeyword: response?.data?.topNicheKeyword != null ? String(response.data.topNicheKeyword) : null,
+    topNicheSearches: Number(response?.data?.topNicheSearches || 0) || 0,
+  };
+}
+
+export async function getMarketSeoHeatmap(params: {
+  uid: string;
+  keyword: string;
+  periodMode: CardAnalyticsPeriodMode;
+  periodOffset: number;
+  locationQuery?: string | null;
+}): Promise<MarketSeoHeatmap> {
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
+  const response = await axios.get(`${auth.baseUrl}/api/market/seo/heatmap`, {
+    params: {
+      uid: params.uid,
+      keyword: params.keyword,
+      periodMode: params.periodMode,
+      periodOffset: params.periodOffset,
+      ...(params.locationQuery ? { locationQuery: params.locationQuery } : {}),
+    },
+    headers: {
+      'x-api-gateway-key': auth.gatewayKey,
+      Authorization: `Bearer ${auth.token}`,
+    },
+    timeout: 15000,
+  });
+  const points = Array.isArray(response?.data?.points) ? response.data.points : [];
+  return {
+    keywordRoot: String(response?.data?.keywordRoot || params.keyword),
+    periodMode: (response?.data?.periodMode || params.periodMode) as CardAnalyticsPeriodMode,
+    periodOffset: Number(response?.data?.periodOffset || params.periodOffset) || 0,
+    startAt: String(response?.data?.startAt || ''),
+    endAt: String(response?.data?.endAt || ''),
+    locationQuery: response?.data?.locationQuery != null ? String(response.data.locationQuery) : null,
+    points: points.map((point: any) => ({
+      latitude: Number(point?.latitude || 0) || 0,
+      longitude: Number(point?.longitude || 0) || 0,
+      count: Number(point?.count || 0) || 0,
+      intensity: Number(point?.intensity || 0) || 0,
+      zipcode: point?.zipcode != null ? String(point.zipcode) : null,
+      city: point?.city != null ? String(point.city) : null,
+      region: point?.region != null ? String(point.region) : null,
+      label: point?.label != null ? String(point.label) : null,
+    })),
+  };
+}
+
 export async function trackCardAnalyticsEvent(params: {
   uid: string;
   sid?: string;
@@ -1601,6 +1823,41 @@ export async function trackCardAnalyticsEvent(params: {
       ...(params.bId ? { bId: params.bId } : {}),
       iconType: params.iconType,
       source: params.source,
+      timestamp: new Date().toISOString(),
+    },
+    {
+      headers: {
+        'x-api-gateway-key': auth.gatewayKey,
+        Authorization: `Bearer ${auth.token}`,
+      },
+      timeout: 12000,
+    }
+  );
+}
+
+export async function trackCardAnalyticsAction(params: {
+  uid: string;
+  cardId: string;
+  actionType: CardAnalyticsActionType;
+  subType?: string | null;
+  metadata?: Record<string, unknown> | null;
+}): Promise<void> {
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
+  const cardId = String(params.cardId || '').trim();
+  if (!cardId) return;
+  const sourceBId = String(params.metadata?.bId || '').trim();
+  const sourceSid = String(params.metadata?.sid || '').trim();
+  const bId = sourceBId || (!sourceSid ? cardId : '');
+  await axios.post(
+    `${auth.baseUrl}/api/qr/analytics/track`,
+    {
+      cardId,
+      ...(bId ? { bId } : {}),
+      ...(sourceSid ? { sid: sourceSid } : {}),
+      type: params.actionType,
+      actionType: params.actionType,
+      subType: String(params.subType || params.metadata?.subType || params.actionType),
+      source: String(params.metadata?.source || 'app'),
       timestamp: new Date().toISOString(),
     },
     {
@@ -1636,6 +1893,52 @@ export async function getCardAnalyticsSummary(params: {
     sid: response?.data?.sid != null && String(response.data.sid).trim() ? String(response.data.sid) : null,
     bId: response?.data?.bId != null && String(response.data.bId).trim() ? String(response.data.bId) : null,
     totalViews: Number(response?.data?.totalViews || 0) || 0,
+    topIcons: top.map((row: any) => ({
+      iconType: String(row?.iconType || ''),
+      count: Number(row?.count || 0) || 0,
+    })),
+  };
+}
+
+export async function getCardAnalyticsPeriodSummary(params: {
+  uid: string;
+  cardRef: string;
+  periodMode: CardAnalyticsPeriodMode;
+  periodOffset: number;
+}): Promise<CardAnalyticsPeriodSummary> {
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
+  const response = await axios.get(
+    `${auth.baseUrl}/api/qr/analytics/card/${encodeURIComponent(params.cardRef)}/events-summary`,
+    {
+      params: {
+        uid: params.uid,
+        periodMode: params.periodMode,
+        periodOffset: params.periodOffset,
+      },
+      headers: {
+        'x-api-gateway-key': auth.gatewayKey,
+        Authorization: `Bearer ${auth.token}`,
+      },
+      timeout: 15000,
+    }
+  );
+
+  const top = Array.isArray(response?.data?.topIcons) ? response.data.topIcons : [];
+  const labels = Array.isArray(response?.data?.labels) ? response.data.labels : [];
+  const points = Array.isArray(response?.data?.points) ? response.data.points : [];
+  return {
+    sid: response?.data?.sid != null && String(response.data.sid).trim() ? String(response.data.sid) : null,
+    bId: response?.data?.bId != null && String(response.data.bId).trim() ? String(response.data.bId) : null,
+    cardId: String(response?.data?.cardId || params.cardRef),
+    totalViews: Number(response?.data?.totalViews || 0) || 0,
+    totalClicks: Number(response?.data?.totalClicks || 0) || 0,
+    clickRate: Number(response?.data?.clickRate || 0) || 0,
+    periodMode: (response?.data?.periodMode || params.periodMode) as CardAnalyticsPeriodMode,
+    periodOffset: Number(response?.data?.periodOffset || params.periodOffset) || 0,
+    startAt: String(response?.data?.startAt || ''),
+    endAt: String(response?.data?.endAt || ''),
+    labels: labels.map((label: unknown) => String(label)),
+    points: points.map((value: unknown) => Number(value || 0) || 0),
     topIcons: top.map((row: any) => ({
       iconType: String(row?.iconType || ''),
       count: Number(row?.count || 0) || 0,

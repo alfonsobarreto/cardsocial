@@ -140,6 +140,20 @@ function normalizePublicCardSlotsForUniversal(raw) {
   return out;
 }
 
+function publicSlotsForCurrentVaultIds(rawSlots, rawVaultItemIds) {
+  if (!Array.isArray(rawSlots)) {
+    return [];
+  }
+  if (!Array.isArray(rawVaultItemIds)) {
+    return rawSlots;
+  }
+  const activeIds = new Set(rawVaultItemIds.map((id) => String(id || '').trim()).filter(Boolean));
+  if (!activeIds.size) {
+    return [];
+  }
+  return rawSlots.filter((slot) => activeIds.has(String(slot?.itemId || '').trim()));
+}
+
 /**
  * Registra vista desde QR físico en la misma estructura que POST /api/qr/analytics/track.
  */
@@ -150,6 +164,18 @@ async function bumpUniversalQrScanAnalytics(db, cardKey, sid, bId) {
   const srcKey = sanitizeAnalyticsSegmentKey(QR_SCAN_SOURCE);
   const now = new Date();
   const iconType = sanitizeAnalyticsSegmentKey('universal_open');
+
+  await db.collection('card_analytics').insertOne({
+    _id: `e:${cardKey}:${ts.getTime()}:${Math.random().toString(16).slice(2, 10)}`,
+    cardId: cardKey,
+    type: 'qr_scan',
+    subType: iconType,
+    timestamp: ts,
+    sid: sid || null,
+    bId: bId || null,
+    source: srcKey,
+    createdAt: now,
+  });
 
   const dailyId = `d:${cardKey}:${dayKey}`;
   await db.collection('card_analytics').updateOne(
@@ -262,6 +288,7 @@ function createPublicUniversalRoutes({ storage }) {
               ratingAvg: 1,
               totalRatings: 1,
               publicCardSlots: 1,
+              vaultItemIds: 1,
               updatedAt: 1,
             },
           },
@@ -276,6 +303,7 @@ function createPublicUniversalRoutes({ storage }) {
                   bcContactName: 1,
                   bcLogoUrl: 1,
                   publicCardSlots: 1,
+                  vaultItemIds: 1,
                   themeId: 1,
                   layout: 1,
                   enableParallax: 1,
@@ -321,7 +349,10 @@ function createPublicUniversalRoutes({ storage }) {
       }
 
       const slots = normalizePublicCardSlotsForUniversal(
-        isBusinessCard ? bizDoc.publicCardSlots : cardDoc.publicCardSlots,
+        publicSlotsForCurrentVaultIds(
+          isBusinessCard ? bizDoc.publicCardSlots : cardDoc.publicCardSlots,
+          isBusinessCard ? bizDoc.vaultItemIds : cardDoc.vaultItemIds,
+        ),
       );
 
       // Identidad real del emisor (users + profiles), misma forma que business-card-preview:
@@ -463,6 +494,7 @@ function createPublicUniversalRoutes({ storage }) {
               bcContactName: 1,
               bcLogoUrl: 1,
               publicCardSlots: 1,
+              vaultItemIds: 1,
               themeId: 1,
               layout: 1,
               enableParallax: 1,
@@ -481,6 +513,7 @@ function createPublicUniversalRoutes({ storage }) {
               ownerPhotoUrl: 1,
               ownerOccupation: 1,
               publicCardSlots: 1,
+              vaultItemIds: 1,
               themeId: 1,
               layout: 1,
               wallpaperUrl: 1,
@@ -505,7 +538,9 @@ function createPublicUniversalRoutes({ storage }) {
         bizDoc.bcContactName != null && String(bizDoc.bcContactName).trim()
           ? String(bizDoc.bcContactName).trim()
           : null;
-      const slots = normalizePublicCardSlotsForUniversal(bizDoc.publicCardSlots);
+      const slots = normalizePublicCardSlotsForUniversal(
+        publicSlotsForCurrentVaultIds(bizDoc.publicCardSlots, bizDoc.vaultItemIds),
+      );
       const style = previewStyleFromBusinessCardDoc(bizDoc);
       const far = new Date();
       far.setFullYear(far.getFullYear() + 10);
@@ -611,6 +646,7 @@ function createPublicUniversalRoutes({ storage }) {
         ownerPhotoUrl: 1,
         ownerOccupation: 1,
         publicCardSlots: 1,
+        vaultItemIds: 1,
         themeId: 1,
         layout: 1,
         wallpaperUrl: 1,
@@ -624,6 +660,7 @@ function createPublicUniversalRoutes({ storage }) {
         bcContactName: 1,
         bcLogoUrl: 1,
         publicCardSlots: 1,
+        vaultItemIds: 1,
         themeId: 1,
         layout: 1,
         enableParallax: 1,
@@ -647,7 +684,10 @@ function createPublicUniversalRoutes({ storage }) {
 
       const idn = await resolvePublicIdentity(db, issuerUid, cardKey);
       const slots = normalizePublicCardSlotsForUniversal(
-        isBusinessCard ? bizDoc.publicCardSlots : cardDoc.publicCardSlots,
+        publicSlotsForCurrentVaultIds(
+          isBusinessCard ? bizDoc.publicCardSlots : cardDoc.publicCardSlots,
+          isBusinessCard ? bizDoc.vaultItemIds : cardDoc.vaultItemIds,
+        ),
       );
       const style = isBusinessCard ? previewStyleFromBusinessCardDoc(bizDoc) : previewStyleFromSmartCardDoc(cardDoc);
 

@@ -248,6 +248,25 @@ function formatReverseAddress(a?: Location.LocationGeocodedAddress | null): stri
   return parts.join(' · ');
 }
 
+type BusinessGeoMeta = {
+  zipcode: string | null;
+  city: string | null;
+  region: string | null;
+  country: string | null;
+  geoLabel: string | null;
+};
+
+function buildBusinessGeoMeta(a?: Location.LocationGeocodedAddress | null, fallbackLabel = ''): BusinessGeoMeta {
+  const zipcode = String(a?.postalCode || '').trim() || null;
+  const city = String(a?.city || a?.district || '').trim() || null;
+  const region = String(a?.region || '').trim() || null;
+  const country = String(a?.country || '').trim() || null;
+  const geoLabel = [city, region, zipcode].filter(Boolean).join(', ').replace(', ', ', ').trim() ||
+    String(fallbackLabel || '').trim() ||
+    null;
+  return { zipcode, city, region, country, geoLabel };
+}
+
 async function cropImageWithDims(uri: string, width: number, height: number): Promise<string> {
   const size = Math.min(width, height);
   const originX = Math.floor((width - size) / 2);
@@ -321,6 +340,13 @@ export default function CreateBusinessCardScreen() {
   const [pickingLogo, setPickingLogo] = useState(false);
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
+  const [businessGeoMeta, setBusinessGeoMeta] = useState<BusinessGeoMeta>({
+    zipcode: null,
+    city: null,
+    region: null,
+    country: null,
+    geoLabel: null,
+  });
   const [locationCoordSource, setLocationCoordSource] = useState<'device_gps' | 'geocode_forward' | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
   const [simulatingDull, setSimulatingDull] = useState(false);
@@ -351,6 +377,7 @@ export default function CreateBusinessCardScreen() {
     setTempVaultLinkIds([]);
     setLatitude(null);
     setLongitude(null);
+    setBusinessGeoMeta({ zipcode: null, city: null, region: null, country: null, geoLabel: null });
     setResolvedAddressLabel('');
     setAddressSearchQuery('');
     setLocationCoordSource(null);
@@ -486,6 +513,13 @@ export default function CreateBusinessCardScreen() {
         setLatitude(Number.isFinite(card.bcLatitude) ? card.bcLatitude : null);
         setLongitude(Number.isFinite(card.bcLongitude) ? card.bcLongitude : null);
         setResolvedAddressLabel(card.bcPhysicalAddress || '');
+        setBusinessGeoMeta({
+          zipcode: card.bcZipcode || null,
+          city: card.bcCity || null,
+          region: card.bcRegion || null,
+          country: card.bcCountry || null,
+          geoLabel: card.bcGeoLabel || null,
+        });
         const ls = card.bcLocationSource;
         setLocationCoordSource(ls === 'device_gps' || ls === 'geocode_forward' ? ls : null);
         setBcLogoUrl(card.bcLogoUrl || null);
@@ -585,6 +619,11 @@ export default function CreateBusinessCardScreen() {
       lng: longitude,
       ad: resolvedAddressLabel.trim(),
       aq: addressSearchQuery.trim(),
+      gz: businessGeoMeta.zipcode,
+      gc: businessGeoMeta.city,
+      gr: businessGeoMeta.region,
+      gn: businessGeoMeta.country,
+      gl: businessGeoMeta.geoLabel,
       ls: locationCoordSource,
       tm: businessTermsAccepted,
     });
@@ -600,6 +639,7 @@ export default function CreateBusinessCardScreen() {
     longitude,
     resolvedAddressLabel,
     addressSearchQuery,
+    businessGeoMeta,
     locationCoordSource,
     businessTermsAccepted,
   ]);
@@ -621,6 +661,11 @@ export default function CreateBusinessCardScreen() {
         lng?: number | null;
         ad?: string;
         aq?: string;
+        gz?: string | null;
+        gc?: string | null;
+        gr?: string | null;
+        gn?: string | null;
+        gl?: string | null;
         ls?: 'device_gps' | 'geocode_forward' | null;
         tm?: boolean;
       };
@@ -639,6 +684,13 @@ export default function CreateBusinessCardScreen() {
       setLongitude(typeof s.lng === 'number' ? s.lng : null);
       setResolvedAddressLabel(String(s.ad ?? ''));
       setAddressSearchQuery(String(s.aq ?? ''));
+      setBusinessGeoMeta({
+        zipcode: String(s.gz || '').trim() || null,
+        city: String(s.gc || '').trim() || null,
+        region: String(s.gr || '').trim() || null,
+        country: String(s.gn || '').trim() || null,
+        geoLabel: String(s.gl || '').trim() || null,
+      });
       const ls = s.ls;
       setLocationCoordSource(ls === 'device_gps' || ls === 'geocode_forward' ? ls : null);
       setBusinessTermsAccepted(Boolean(s.tm));
@@ -860,9 +912,13 @@ export default function CreateBusinessCardScreen() {
       setGeocodeLabels([]);
       try {
         const rev = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
-        setResolvedAddressLabel(formatReverseAddress(rev[0]) || `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+        const label = formatReverseAddress(rev[0]) || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        setResolvedAddressLabel(label);
+        setBusinessGeoMeta(buildBusinessGeoMeta(rev[0], label));
       } catch {
-        setResolvedAddressLabel(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+        const label = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        setResolvedAddressLabel(label);
+        setBusinessGeoMeta(buildBusinessGeoMeta(null, label));
       }
     } catch (e: any) {
       Alert.alert(tr('GPS', 'GPS'), e?.message || tr('No se pudo leer la ubicación.', 'Could not read location.'));
@@ -922,7 +978,11 @@ export default function CreateBusinessCardScreen() {
     setLatitude(r.latitude);
     setLongitude(r.longitude);
     setLocationCoordSource('geocode_forward');
-    setResolvedAddressLabel(geocodeLabels[index] || `${r.latitude.toFixed(5)}, ${r.longitude.toFixed(5)}`);
+    const label = geocodeLabels[index] || `${r.latitude.toFixed(5)}, ${r.longitude.toFixed(5)}`;
+    setResolvedAddressLabel(label);
+    void Location.reverseGeocodeAsync({ latitude: r.latitude, longitude: r.longitude })
+      .then((rev) => setBusinessGeoMeta(buildBusinessGeoMeta(rev[0], label)))
+      .catch(() => setBusinessGeoMeta(buildBusinessGeoMeta(null, label)));
     setGeocodeCandidates([]);
     setGeocodeLabels([]);
   };
@@ -1069,6 +1129,12 @@ export default function CreateBusinessCardScreen() {
           bcLatitude: latitude ?? 0,
           bcLongitude: longitude ?? 0,
           bcLocationSource: (locationCoordSource || 'device_gps') as 'device_gps' | 'geocode_forward' | 'manual',
+          bcZipcode: businessGeoMeta.zipcode,
+          bcCity: businessGeoMeta.city,
+          bcRegion: businessGeoMeta.region,
+          bcCountry: businessGeoMeta.country,
+          bcGeoLabel: businessGeoMeta.geoLabel,
+          bcLocationUpdatedAt: new Date().toISOString(),
           bcKeywords: kwTags,
           bcMarketFacets: facets,
           vaultItemIds: vaultIds,
@@ -1089,6 +1155,12 @@ export default function CreateBusinessCardScreen() {
           bcLatitude: latitude ?? 0,
           bcLongitude: longitude ?? 0,
           bcLocationSource: (locationCoordSource || 'device_gps') as 'device_gps' | 'geocode_forward' | 'manual',
+          bcZipcode: businessGeoMeta.zipcode,
+          bcCity: businessGeoMeta.city,
+          bcRegion: businessGeoMeta.region,
+          bcCountry: businessGeoMeta.country,
+          bcGeoLabel: businessGeoMeta.geoLabel,
+          bcLocationUpdatedAt: new Date().toISOString(),
           bcKeywords: kwTags,
           vaultItemIds: vaultIds,
           themeId: businessThemeId || 'deep_teal',
@@ -1337,8 +1409,8 @@ export default function CreateBusinessCardScreen() {
           <Text style={[styles.title, { color: text }]}>{tr('Tarjeta de negocio', 'Business card')}</Text>
           <Text style={[styles.sub, { color: sub }]}>
             {tr(
-              'Email, teléfono, enlaces y mapa salen de tu Bóveda. Aquí solo identidad de negocio, logo, ubicación GPS y palabras clave.',
-              'Email, phone, links and maps come from your Vault. Here: business identity, logo, GPS location and keywords only.',
+              'Protocolo de arquitectura Zero Trust: correo, teléfono, enlaces y mapa permanecen como datos soberanos en tu Bóveda; aquí solo identidad de negocio, marca, ubicación y palabras clave SEO.',
+              'Zero-Trust Architecture Protocol: email, phone, links, and maps stay sovereign in your Vault—this screen only governs business identity, brand, geo, and SEO keywords.',
             )}
           </Text>
         </View>
@@ -1599,7 +1671,7 @@ export default function CreateBusinessCardScreen() {
         </View>
 
         <View style={[styles.cardBlock, { backgroundColor: card, borderColor: border }]}>
-          <Text style={[styles.label, { color: text }]}>{tr('Palabras clave', 'Keywords')}</Text>
+          <Text style={[styles.label, { color: text }]}>{tr('Palabras Clave (SEO)', 'Keywords (SEO)')}</Text>
           <BusinessCardKeywordTags
             tags={keywordTags}
             onTagsChange={setKeywordTags}

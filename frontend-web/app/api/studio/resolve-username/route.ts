@@ -1,27 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getApps, initializeApp, cert, type App } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { getAdminApp } from '@/lib/firebaseAdminStudio';
 
 export const runtime = 'nodejs';
-
-function getAdminApp(): App | null {
-  if (getApps().length > 0) {
-    return getApps()[0]!;
-  }
-  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
-  if (!raw) {
-    return null;
-  }
-  try {
-    const credentials = JSON.parse(raw) as Record<string, unknown>;
-    return initializeApp({
-      credential: cert(credentials as Parameters<typeof cert>[0]),
-      projectId: typeof credentials.project_id === 'string' ? credentials.project_id : undefined,
-    });
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Misma lógica que la app móvil (`signin.tsx` / `userIdentityFields`) pero con Admin SDK

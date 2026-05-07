@@ -27,6 +27,7 @@ import {
   type TiersConfig,
 } from '@/lib/studioTierPolicy';
 import { readStudioUserAvatarUrl, readStudioUserFullName, readStudioUserNickName } from '@/lib/studioUserIdentityFields';
+import Link from 'next/link';
 import FormColumn from '@/components/studio/FormColumn';
 import IconSelectorColumn from '@/components/studio/IconSelectorColumn';
 import ProfileColumn, { type StudioProfile } from '@/components/studio/ProfileColumn';
@@ -527,6 +528,23 @@ export default function StudioShell() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Link
+            href={`/studio/market-radar?lang=${locale}`}
+            style={{
+              background: 'none',
+              border: `1px solid ${studioTheme.border}`,
+              color: studioTheme.gold,
+              padding: '6px 11px',
+              borderRadius: 8,
+              fontSize: 11,
+              fontWeight: 800,
+              letterSpacing: 0.35,
+              textDecoration: 'none',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {t('marketRadar.nav')}
+          </Link>
           <div
             style={{
               display: 'flex',

@@ -106,6 +106,12 @@ export type BusinessCardDoc = {
   bcLatitude: number;
   bcLongitude: number;
   bcLocationSource: BcLocationSource;
+  bcZipcode: string | null;
+  bcCity: string | null;
+  bcRegion: string | null;
+  bcCountry: string | null;
+  bcGeoLabel: string | null;
+  bcLocationUpdatedAt: string | null;
 
   // Discoverability (Social Market)
   bcKeywords: string[];
@@ -161,6 +167,12 @@ export type BusinessCardCreateInput = {
   bcLatitude: number;
   bcLongitude: number;
   bcLocationSource: BcLocationSource;
+  bcZipcode?: string | null;
+  bcCity?: string | null;
+  bcRegion?: string | null;
+  bcCountry?: string | null;
+  bcGeoLabel?: string | null;
+  bcLocationUpdatedAt?: string | null;
   bcKeywords: string[];
   vaultItemIds: string[];
   themeId: string | null;

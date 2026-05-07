@@ -10,6 +10,7 @@ import { type WireframeEditSlot } from '@/components/smartCard/IsolatedWireframe
 import { ThemedSharedCardSurface } from '@/components/ThemedSharedCardSurface';
 import { MEDIA_PLACEHOLDER } from '@/constants/mediaPlaceholders';
 import { getActiveUserId } from '@/services/authSession';
+import { trackMarketplaceCardClick, trackMarketplaceSearch } from '@/services/analyticsService';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { ExportBusinessQR, generatePublicBusinessWebUrl } from '@/services/brandedQrService';
 import { buildMirrorVaultItemsForContact } from '@/services/buildReceiverPreviewVaultItems';
@@ -165,7 +166,23 @@ export default function SearchScreen() {
   /** Última consulta enviada (IR / Intro); el campo de texto vive en SocialMarketSearchBar. */
   const [submittedQuery, setSubmittedQuery] = useState('');
   const searchQueryRef = useRef('');
-  const lastLocationRef = useRef<{ lat: number; lng: number } | null>(null);
+  const lastLocationRef = useRef<{
+    lat: number;
+    lng: number;
+    zipcode: string | null;
+    city: string | null;
+    region: string | null;
+    country: string | null;
+    geoLabel: string | null;
+  } | null>(null);
+  const lastMarketSearchRef = useRef<{
+    q: string;
+    zipcode: string | null;
+    city: string | null;
+    region: string | null;
+    country: string | null;
+    geoLabel: string | null;
+  } | null>(null);
   const [, setLocationSessionUiRev] = useState(0);
   const sessionWasActiveRef = useRef(false);
   const [sectionContacts, setSectionContacts] = useState<BusinessCardSearchResult[]>([]);
@@ -532,6 +549,29 @@ export default function SearchScreen() {
         );
         setSectionContacts(contacts);
         setSectionBusinesses(businesses);
+        const loc = lastLocationRef.current;
+        const zipcode = loc?.zipcode ?? null;
+        lastMarketSearchRef.current = {
+          q,
+          zipcode,
+          city: loc?.city ?? null,
+          region: loc?.region ?? null,
+          country: loc?.country ?? null,
+          geoLabel: loc?.geoLabel ?? null,
+        };
+        void trackMarketplaceSearch({
+          q,
+          zipcode,
+          city: loc?.city ?? null,
+          region: loc?.region ?? null,
+          country: loc?.country ?? null,
+          geoLabel: loc?.geoLabel ?? null,
+          latitude: latitude ?? null,
+          longitude: longitude ?? null,
+          resultBIds: businesses.map((row) => row.card.bId).filter(Boolean),
+        }).catch((trackError) => {
+          console.warn('[search] market search tracking failed:', trackError);
+        });
         setMarketSortMode('distance');
       } catch (error) {
         console.error('Error searching:', error);
@@ -555,7 +595,15 @@ export default function SearchScreen() {
       void (async () => {
         const r = await startSearchLocationSession();
         if (r.ok) {
-          lastLocationRef.current = { lat: r.latitude, lng: r.longitude };
+          lastLocationRef.current = {
+            lat: r.latitude,
+            lng: r.longitude,
+            zipcode: r.zipcode,
+            city: r.city,
+            region: r.region,
+            country: r.country,
+            geoLabel: r.geoLabel,
+          };
           await performMarketSearch(q, r.latitude, r.longitude);
         } else {
           const cached = lastLocationRef.current;
@@ -975,6 +1023,20 @@ export default function SearchScreen() {
           return;
         }
         savedSearchScrollYRef.current = searchScrollYRef.current;
+        const searchCtx = lastMarketSearchRef.current;
+        if (searchCtx?.q) {
+          void trackMarketplaceCardClick({
+            bId: card.bId,
+            q: searchCtx.q,
+            zipcode: searchCtx.zipcode,
+            city: searchCtx.city,
+            region: searchCtx.region,
+            country: searchCtx.country,
+            geoLabel: searchCtx.geoLabel,
+          }).catch((trackError) => {
+            console.warn('[search] market card click tracking failed:', trackError);
+          });
+        }
         try {
           const res = await fetchPublicBusinessCardPreview({
             uid: card.uid,

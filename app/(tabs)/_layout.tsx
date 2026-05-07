@@ -4,6 +4,7 @@ import { CreditsIndicator } from '@/components/CreditsIndicator';
 import LanguageToggle from '@/components/LanguageToggle';
 import Subscription from '@/components/Subscription';
 import { getActiveUserId } from '@/services/authSession';
+import { listMyBusinessCards } from '@/services/businessCardsRepo';
 import { auth, db } from '@/services/firebaseConfig';
 import {
   firestoreUserFullNameWrite,
@@ -24,7 +25,7 @@ import {
     listRelationshipsByStatus,
     removeRelationship as removeRelEntry
 } from '@/services/relationshipService';
-import { isSuperAdmin } from '@/services/roleService';
+import { hasUnlimitedAdminUi, isSuperAdmin } from '@/services/roleService';
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -111,6 +112,14 @@ function PremiumTabIcon({
   );
 }
 
+function DashboardTabGlyph({ color, size }: { color?: string; size?: number; strokeWidth?: number }) {
+  return <MaterialCommunityIcons name="chart-line-variant" size={size ?? 24} color={color ?? 'rgba(255,255,255,0.5)'} />;
+}
+
+function shouldShowDashboardTab(params: { isSuperAdmin: boolean; hasBusinessCardWithBId: boolean }) {
+  return params.isSuperAdmin || params.hasBusinessCardWithBId;
+}
+
 type EditableProfile = {
   uid: string;
   userFullName: string;
@@ -132,6 +141,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const [creditsRefreshTrigger, setCreditsRefreshTrigger] = useState(0);
   const [welcomeBonusApplied, setWelcomeBonusApplied] = useState(false);
   const [userIsSuperAdmin, setUserIsSuperAdmin] = useState(false);
+  const [userHasBusinessCardWithBId, setUserHasBusinessCardWithBId] = useState(false);
   const [adminPendingReports, setAdminPendingReports] = useState(0);
   const [adminTotalUsers, setAdminTotalUsers] = useState<number | null>(null);
   const [adminTodayRevenue, setAdminTodayRevenue] = useState<number | null>(null);
@@ -152,6 +162,10 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const [editNickname, setEditNickname] = useState('');
   const router = useRouter();
   const shell = palette[resolvedMode === 'noche' ? 'dark' : 'light'];
+  const dashboardTabVisible = shouldShowDashboardTab({
+    isSuperAdmin: userIsSuperAdmin,
+    hasBusinessCardWithBId: userHasBusinessCardWithBId,
+  });
   const insets = useSafeAreaInsets();
   /** Android a veces reporta bottom=0 con nav de 3 botones; igualamos aire arriba/abajo del tab bar. */
   const tabBarInnerVerticalPad = 10;
@@ -186,6 +200,8 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
       headerAvatarFsUnsubRef.current = undefined;
       if (!user) {
         setHeaderAvatarUrl(null);
+        setUserIsSuperAdmin(false);
+        setUserHasBusinessCardWithBId(false);
         return;
       }
       headerAvatarFsUnsubRef.current = onSnapshot(
@@ -199,10 +215,28 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
           void refreshHeaderAvatar();
         }
       );
+      void (async () => {
+        try {
+          const [isAdminUser, businessCards] = await Promise.all([
+            hasUnlimitedAdminUi(user.uid),
+            listMyBusinessCards(user.uid).catch(() => []),
+          ]);
+          setUserIsSuperAdmin(isAdminUser);
+          setUserHasBusinessCardWithBId(businessCards.some((card) => String(card?.bId || '').trim().length > 0));
+        } catch {
+          setUserHasBusinessCardWithBId(false);
+        }
+      })();
     });
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         void refreshHeaderAvatar();
+        const user = auth.currentUser;
+        if (user) {
+          void listMyBusinessCards(user.uid)
+            .then((cards) => setUserHasBusinessCardWithBId(cards.some((card) => String(card?.bId || '').trim().length > 0)))
+            .catch(() => undefined);
+        }
       }
     });
     return () => {
@@ -218,7 +252,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
     if (activePanel === 'terms') return tr('Términos y Condiciones', 'Terms & Conditions');
     if (activePanel === 'policy') return tr('Política de Uso', 'Usage Policy');
     if (activePanel === 'about') return tr('Acerca de Card-Social', 'About Card-Social');
-    if (activePanel === 'privacy') return tr('Privacidad', 'Privacy');
+    if (activePanel === 'privacy') return tr('Cumplimiento de datos Zero-Party y soberanía', 'Zero-Party Data Compliance & Sovereignty');
     if (activePanel === 'subscription') return tr('Suscripción', 'Subscription');
     if (activePanel === 'blocked_users') return tr('Gestión de Relaciones', 'Relationship Manager');
     return tr('Menú', 'Menu');
@@ -758,6 +792,16 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
           ),
         }}>
         <Tabs.Screen
+          name="dashboard"
+          options={{
+            title: tr('Analítica', 'Analytics'),
+            href: dashboardTabVisible ? undefined : null,
+            tabBarIcon: ({ focused }) => (
+              <PremiumTabIcon Icon={DashboardTabGlyph} focused={focused} accent={shell.ctaAccent} onAccent={shell.emptyCtaText} />
+            ),
+          }}
+        />
+        <Tabs.Screen
           name="vault"
           options={{
             title: tr('Bóveda', 'Vault'),
@@ -945,7 +989,9 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.drawerItem} onPress={() => { setActivePanel('privacy'); }}>
                       <MaterialCommunityIcons name="shield-account-outline" size={20} color={shell.ctaAccent} />
-                      <Text style={[styles.drawerItemText, { color: shell.text }]}>{tr('Privacidad', 'Privacy')}</Text>
+                      <Text style={[styles.drawerItemText, { color: shell.text }]}>
+                        {tr('Cumplimiento de datos Zero-Party y soberanía', 'Zero-Party Data Compliance & Sovereignty')}
+                      </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.drawerItem} onPress={() => { setActivePanel('blocked_users'); void loadRelEntries('blocked'); setRelTab('blocked'); }}>
@@ -1040,7 +1086,9 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                   </ScrollView>
                 ) : activePanel === 'privacy' ? (
                   <ScrollView style={styles.legalScroll} contentContainerStyle={styles.legalContentWrap}>
-                    <Text style={[styles.legalTitle, { color: shell.ctaAccent }]}>{tr('Política de Privacidad', 'Privacy Policy')}</Text>
+                    <Text style={[styles.legalTitle, { color: shell.ctaAccent }]}>
+                      {tr('Cumplimiento de datos Zero-Party y soberanía', 'Zero-Party Data Compliance & Sovereignty')}
+                    </Text>
                     <Text style={[styles.legalText, { color: shell.modalSubtitle }]}>
                       {tr(
                         'Tus datos personales (nombre, email, teléfono) solo se usan para el funcionamiento de Card-Social. No compartimos tu información con terceros sin tu consentimiento. Puedes solicitar la eliminación de tu cuenta y datos en cualquier momento. También puedes descargar una copia de tus datos personales.',

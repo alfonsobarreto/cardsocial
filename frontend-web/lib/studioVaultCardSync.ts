@@ -117,3 +117,68 @@ export async function syncStudioVaultLinkToMongoCards(
     }
   }
 }
+
+/**
+ * Studio web: tras borrar un dato de Bóveda, quitarlo también de Mongo.
+ * Sin esto `/b/...`, QR público y Dashboard siguen leyendo `publicCardSlots`
+ * viejos desde `business_cards` / `smart_cards`.
+ */
+export async function syncStudioVaultDeleteToMongoCards(
+  uid: string,
+  deletedLinkId: string,
+): Promise<void> {
+  const linkId = String(deletedLinkId || '').trim();
+  if (!linkId || !uid) return;
+
+  const { vaultItems, iconVaultById } = await loadVaultSnapshotForStudioWeb(uid);
+  const auth = await getJwt(uid, 'qr.access');
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'x-api-gateway-key': auth.gatewayKey,
+    Authorization: `Bearer ${auth.token}`,
+  };
+
+  const [smartRes, bizRes] = await Promise.all([
+    fetch(`${auth.baseUrl}/api/smart-cards`, { headers }),
+    fetch(`${auth.baseUrl}/api/business-cards`, { headers }),
+  ]);
+  if (!smartRes.ok || !bizRes.ok) {
+    throw new Error(`List cards failed (${smartRes.status} / ${bizRes.status})`);
+  }
+
+  const smartJson = (await smartRes.json()) as { cards?: SmartListRow[] };
+  const bizJson = (await bizRes.json()) as { cards?: BizListRow[] };
+  const smartCards = Array.isArray(smartJson.cards) ? smartJson.cards : [];
+  const businessCards = Array.isArray(bizJson.cards) ? bizJson.cards : [];
+
+  for (const card of smartCards) {
+    const ids = (card.vaultItemIds || []).map((id) => String(id).trim()).filter(Boolean);
+    if (!ids.includes(linkId)) continue;
+    const nextIds = ids.filter((id) => id !== linkId);
+    const slots = buildPublicCardSlotsForPersist(vaultItems, nextIds, iconVaultById);
+    const r = await fetch(`${auth.baseUrl}/api/smart-cards/${encodeURIComponent(card.sid)}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ vaultItemIds: nextIds, publicCardSlots: slots }),
+    });
+    if (!r.ok) {
+      console.warn('[studioVaultCardSync] smart delete PATCH failed', card.sid, r.status);
+    }
+  }
+
+  for (const card of businessCards) {
+    const ids = (card.vaultItemIds || []).map((id) => String(id).trim()).filter(Boolean);
+    if (!ids.includes(linkId)) continue;
+    const nextIds = ids.filter((id) => id !== linkId);
+    const slots = buildPublicCardSlotsForPersist(vaultItems, nextIds, iconVaultById);
+    const facets = buildBusinessMarketFacetsFromVaultItems(nextIds, vaultItems);
+    const r = await fetch(`${auth.baseUrl}/api/business-cards/${encodeURIComponent(card.bId)}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ vaultItemIds: nextIds, publicCardSlots: slots, bcMarketFacets: facets }),
+    });
+    if (!r.ok) {
+      console.warn('[studioVaultCardSync] business delete PATCH failed', card.bId, r.status);
+    }
+  }
+}

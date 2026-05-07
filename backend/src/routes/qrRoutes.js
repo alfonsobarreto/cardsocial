@@ -179,6 +179,63 @@ function sanitizeAnalyticsSegmentKey(raw) {
   return s || 'unknown';
 }
 
+function analyticsStartOfDay(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function analyticsAddPeriod(date, mode, offset) {
+  const d = new Date(date);
+  if (mode === 'day') d.setDate(d.getDate() + offset);
+  else if (mode === 'week') d.setDate(d.getDate() + offset * 7);
+  else if (mode === 'month') d.setMonth(d.getMonth() + offset);
+  else if (mode === 'year') d.setFullYear(d.getFullYear() + offset);
+  return d;
+}
+
+function analyticsPeriodWindow(modeRaw, offsetRaw) {
+  const mode = ['day', 'week', 'month', 'year'].includes(String(modeRaw)) ? String(modeRaw) : 'week';
+  const offset = Math.min(0, Number.parseInt(String(offsetRaw || '0'), 10) || 0);
+  const target = analyticsAddPeriod(new Date(), mode, offset);
+  let start;
+  let end;
+  let labels;
+
+  if (mode === 'day') {
+    start = analyticsStartOfDay(target);
+    end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    labels = Array.from({ length: 24 }, (_, i) => String(i));
+  } else if (mode === 'week') {
+    start = analyticsStartOfDay(target);
+    const day = start.getDay() || 7;
+    start.setDate(start.getDate() - day + 1);
+    end = new Date(start);
+    end.setDate(end.getDate() + 7);
+    labels = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+  } else if (mode === 'month') {
+    start = new Date(target.getFullYear(), target.getMonth(), 1);
+    end = new Date(target.getFullYear(), target.getMonth() + 1, 1);
+    labels = Array.from({ length: 30 }, (_, i) => String(i + 1));
+  } else {
+    start = new Date(target.getFullYear(), 0, 1);
+    end = new Date(target.getFullYear() + 1, 0, 1);
+    labels = ['E', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+  }
+
+  return { mode, offset, start, end, labels };
+}
+
+function analyticsBucketIndex(ts, mode, start) {
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return -1;
+  if (mode === 'day') return d.getHours();
+  if (mode === 'week') return Math.floor((analyticsStartOfDay(d).getTime() - start.getTime()) / 86_400_000);
+  if (mode === 'month') return Math.min(29, Math.max(0, d.getDate() - 1));
+  return d.getMonth();
+}
+
 function createQrRoutes({ storage }) {
   const router = express.Router();
 
@@ -2649,12 +2706,14 @@ function createQrRoutes({ storage }) {
         return res.status(400).json({ ok: false, error: 'sid or bId is required' });
       }
 
-      const iconType = sanitizeAnalyticsSegmentKey(req.body?.iconType);
-      const source = String(req.body?.source || '').trim();
-      const allowedSources = new Set(['search', 'story', 'card', 'qr_scan']);
-      if (!allowedSources.has(source)) {
-        return res.status(400).json({ ok: false, error: 'source must be search, story, card, or qr_scan' });
+      const type = sanitizeAnalyticsSegmentKey(req.body?.type || req.body?.actionType || 'icon_click');
+      const allowedTypes = new Set(['view', 'icon_click', 'qr_scan']);
+      if (!allowedTypes.has(type)) {
+        return res.status(400).json({ ok: false, error: 'type must be view, icon_click, or qr_scan' });
       }
+      const subType = sanitizeAnalyticsSegmentKey(req.body?.subType || req.body?.iconType || (type === 'view' ? 'modal_open' : type));
+      const iconType = subType;
+      const source = String(req.body?.source || type).trim().slice(0, 64);
 
       const ts = req.body?.timestamp ? new Date(req.body.timestamp) : new Date();
       if (Number.isNaN(ts.getTime())) {
@@ -2666,6 +2725,19 @@ function createQrRoutes({ storage }) {
       const srcKey = sanitizeAnalyticsSegmentKey(source);
       const db = await storage.connect();
       const now = new Date();
+
+      await db.collection('card_analytics').insertOne({
+        _id: `e:${cardKey}:${ts.getTime()}:${crypto.randomBytes(4).toString('hex')}`,
+        cardId: cardKey,
+        type,
+        subType,
+        timestamp: ts,
+        sid: sid || null,
+        bId: bId || null,
+        viewerUid: authUid,
+        source: srcKey,
+        createdAt: now,
+      });
 
       const dailyId = `d:${cardKey}:${dayKey}`;
       await db.collection('card_analytics').updateOne(
@@ -2769,6 +2841,84 @@ function createQrRoutes({ storage }) {
         ok: true,
         ...(isBiz ? { bId: cardRef } : { sid: cardRef }),
         totalViews,
+        topIcons,
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+  });
+
+  router.get('/analytics/card/:cardRef/events-summary', async (req, res) => {
+    try {
+      const authUid = String(req.auth?.sub || '').trim();
+      const userUid = String(req.query?.uid || authUid || '').trim();
+      const cardRef = String(req.params?.cardRef || '').trim();
+
+      if (!userUid) {
+        return res.status(400).json({ ok: false, error: 'uid is required' });
+      }
+      if (!cardRef) {
+        return res.status(400).json({ ok: false, error: 'card key is required' });
+      }
+      if (authUid && authUid !== userUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+      }
+
+      const db = await storage.connect();
+      const owns = await db.collection('smart_cards').findOne(smartCardKeyQuery(userUid, cardRef));
+      if (!owns) {
+        return res.status(404).json({ ok: false, error: 'Card not found for this owner' });
+      }
+
+      const window = analyticsPeriodWindow(req.query?.periodMode, req.query?.periodOffset);
+      const docs = await db
+        .collection('card_analytics')
+        .find({
+          $or: [{ cardId: cardRef }, { sid: cardRef }, { bId: cardRef }],
+          type: { $in: ['view', 'icon_click', 'qr_scan'] },
+          timestamp: { $gte: window.start, $lt: window.end },
+        })
+        .toArray();
+
+      const points = window.labels.map(() => 0);
+      const iconAgg = Object.create(null);
+      let totalViews = 0;
+      let totalClicks = 0;
+
+      for (const d of docs) {
+        const type = String(d.type || '').trim();
+        if (type === 'view' || type === 'qr_scan') {
+          totalViews += 1;
+          const bucket = analyticsBucketIndex(d.timestamp, window.mode, window.start);
+          if (bucket >= 0 && bucket < points.length) {
+            points[bucket] += 1;
+          }
+        } else if (type === 'icon_click') {
+          totalClicks += 1;
+          const subType = sanitizeAnalyticsSegmentKey(d.subType || 'unknown');
+          iconAgg[subType] = (iconAgg[subType] || 0) + 1;
+        }
+      }
+
+      const topIcons = Object.entries(iconAgg)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 12)
+        .map(([iconType, count]) => ({ iconType, count: Number(count) }));
+
+      const isBiz = owns.cardType === 'business';
+      return res.status(200).json({
+        ok: true,
+        cardId: cardRef,
+        ...(isBiz ? { bId: cardRef } : { sid: cardRef }),
+        periodMode: window.mode,
+        periodOffset: window.offset,
+        startAt: window.start.toISOString(),
+        endAt: window.end.toISOString(),
+        labels: window.labels,
+        points,
+        totalViews,
+        totalClicks,
+        clickRate: totalViews > 0 ? Math.round((totalClicks / totalViews) * 100) : 0,
         topIcons,
       });
     } catch (error) {
