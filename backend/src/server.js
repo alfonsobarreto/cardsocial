@@ -621,9 +621,13 @@ const otpHash = (emailLower, code) => {
     app.use('/u', nextProxy);
     app.use('/b', nextProxy);
     app.use('/legal', nextProxy);
+    app.use('/es', nextProxy);
     app.use('/studio', nextProxy);
     app.use('/login', nextProxy);
     app.use('/api/studio', nextProxy);
+    app.use('/api/waitlist', nextProxy);
+    app.use('/api/embed', nextProxy);
+    app.use('/embed', nextProxy);
     app.use('/_next', nextProxy);
     // File conventions del App Router (metadata): sin proxy el navegador pide /icon.png y Express no lo reenvía a Next.
     app.use('/icon.png', nextProxy);
