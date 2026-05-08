@@ -4,7 +4,8 @@ import { motion, type Variants } from 'framer-motion';
 import { Inter } from 'next/font/google';
 import { useState, type ReactNode } from 'react';
 
-import InvestorMetrics, { investorTocItems } from './InvestorMetrics';
+import InvestorMetrics, { getInvestorTocItems } from './InvestorMetrics';
+import copy, { type ExecLocale } from './investorCopy';
 import {
   EXECUTIVE_IMAGE_HINTS,
   executiveStrategicBlocks,
@@ -287,13 +288,41 @@ function renderSection(s: Section) {
   }
 }
 
+function rememberLocale(locale: ExecLocale) {
+  if (typeof window !== 'undefined') window.localStorage.setItem('card-social-exec-locale', locale);
+}
+
 export default function ExecutiveSummaryLanding() {
+  const [locale, setLocale] = useState<ExecLocale>('es');
+  const c = copy[locale];
+
   const toc = [
     ...executiveSummarySections.map((sec) => ({ id: `s${sec.num}`, label: `${sec.num}. ${sec.title}` })),
     ...executiveStrategicBlocks.map((b) => ({ id: `s${b.num}`, label: `${b.num}. ${b.title}` })),
-    { id: 'investor-divider', label: '─── Investor Relations ───', divider: true },
-    ...investorTocItems,
+    { id: 'investor-divider', label: `─── ${c.investorDivider} ───`, divider: true },
+    ...getInvestorTocItems(locale),
   ].filter((x, i, a) => a.findIndex((y) => y.id === x.id) === i) as Array<{ id: string; label: string; divider?: boolean }>;
+
+  function toggleLocale() {
+    const next: ExecLocale = locale === 'es' ? 'en' : 'es';
+    setLocale(next);
+    rememberLocale(next);
+  }
+
+  /* Restore preference on first render */
+  useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = window.localStorage.getItem('card-social-exec-locale');
+      if (saved === 'en' || saved === 'es') setLocale(saved);
+    }
+  });
+
+  /* Labels that are always in Spanish (BMC content was authored in ES) */
+  const blockQueEs     = locale === 'es' ? 'Qué es'           : 'What it is';
+  const blockComo      = locale === 'es' ? 'Cómo funciona'    : 'How it works';
+  const blockValor     = locale === 'es' ? 'Valor estratégico': 'Strategic value';
+  const blockModelo    = locale === 'es' ? 'Modelo de ingreso': 'Revenue model';
+  const motorLabel     = locale === 'es' ? 'Motor'            : 'Module';
 
   return (
     <div
@@ -311,13 +340,21 @@ export default function ExecutiveSummaryLanding() {
           </a>
           <div className="flex items-center gap-3">
             <span className="hidden rounded-full border border-[#D4AF37]/35 bg-[#D4AF37]/09 px-4 py-1.5 font-mono text-[10px] tracking-widest text-[#F6DA87]/90 sm:inline">
-              BMC · INTERNAL STRATEGIC
+              {c.navBadge}
             </span>
+            {/* Language toggle — same pattern as landing page */}
+            <button
+              type="button"
+              onClick={toggleLocale}
+              className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white/72 transition hover:border-[#D4AF37]/45 hover:text-[#F6DA87]"
+            >
+              {c.navSwitch}
+            </button>
             <a
-              href="/es#waitlist"
+              href={locale === 'es' ? '/es#waitlist' : '/#waitlist'}
               className="rounded-full bg-gradient-to-r from-[#F6DA87] via-[#D4AF37] to-[#A87B1F] px-5 py-2.5 text-[10px] font-black uppercase tracking-[0.2em] text-black shadow-[0_0_24px_rgba(212,175,55,0.28)]"
             >
-              Waitlist
+              {c.navWaitlist}
             </a>
           </div>
         </div>
@@ -325,7 +362,7 @@ export default function ExecutiveSummaryLanding() {
 
       <aside className="pointer-events-none fixed bottom-12 right-10 z-40 hidden xl:block xl:pointer-events-auto">
         <div className="max-h-[60vh] w-72 overflow-y-auto rounded-[1.85rem] border border-white/[0.08] bg-[#090909]/90 p-5 shadow-[0_34px_100px_rgba(0,0,0,0.55)] backdrop-blur-xl">
-          <p className="mb-5 text-[9px] font-black uppercase tracking-[0.42em] text-[#F6DA87]/80">Índice</p>
+          <p className="mb-5 text-[9px] font-black uppercase tracking-[0.42em] text-[#F6DA87]/80">{c.tocLabel}</p>
           <ol className="space-y-2.5 text-[11px] leading-snug">
             {toc.map((item) =>
               item.divider ? (
@@ -355,16 +392,16 @@ export default function ExecutiveSummaryLanding() {
           <div className="absolute -bottom-[30%] -right-[8%] h-[18rem] w-[18rem] rounded-full bg-[#246]/10 blur-[90px]" />
           <div className="relative overflow-hidden rounded-[2.85rem] border border-[#D4AF37]/35 bg-[#080808]/90 p-10 shadow-[0_0_120px_rgba(212,175,55,0.12),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-3xl sm:p-14 lg:p-16">
             <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(212,175,55,0.16)_0%,transparent_38%,transparent_62%,rgba(246,218,135,0.06)_100%)]" />
-            <p className="relative text-xs font-black uppercase tracking-[0.42em] text-[#F6DA87]">Documento estratégico</p>
+            <p className="relative text-xs font-black uppercase tracking-[0.42em] text-[#F6DA87]">{c.headerEyebrow}</p>
             <h1 className="relative mt-8 bg-gradient-to-br from-white via-[#fef7d9] to-[#c9a035] bg-clip-text text-[clamp(2.2rem,5.5vw,4.05rem)] font-black leading-[0.98] tracking-[-0.06em] text-transparent">
-              Business Model Canvas
+              {c.headerTitle}
             </h1>
             <p className="relative mt-10 max-w-3xl border-l-[3px] border-[#D4AF37] pl-7 text-xl font-semibold leading-8 text-white/78">
-              Card-Social — documento estratégico para equipo de marketing y desarrollo de marca.
+              {c.headerSubtitle}
             </p>
             <div className="relative mt-12 flex flex-wrap items-center gap-4">
               <div className="rounded-full border border-white/[0.1] px-6 py-2.5 text-[11px] font-bold uppercase tracking-[0.26em] text-white/52">
-              Confidencial · Inversionistas · Q2 2026
+                {c.headerStamp}
               </div>
               <div className="h-px flex-1 min-w-[3rem] bg-gradient-to-r from-[#D4AF37]/50 to-transparent" />
             </div>
@@ -373,19 +410,9 @@ export default function ExecutiveSummaryLanding() {
 
         <div className="relative mb-36 overflow-hidden rounded-[2.75rem] border border-white/[0.07] bg-[#090909]/60 p-10 backdrop-blur-2xl sm:p-14">
           <Reveal>
-            <p className="text-center text-xs font-black uppercase tracking-[0.34em] text-[#D4AF37]/90">Blueprint operativo — 01 → 09</p>
+            <p className="text-center text-xs font-black uppercase tracking-[0.34em] text-[#D4AF37]/90">{c.blueprintLabel}</p>
             <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {[
-                ['VP', 'Propuesta'],
-                ['CS', 'Segmentos'],
-                ['RS', 'Ingresos'],
-                ['CH', 'Canales'],
-                ['CR', 'Relaciones'],
-                ['KA', 'Actividades'],
-                ['KR', 'Recursos'],
-                ['KP', 'Alianzas'],
-                ['$', 'Costos'],
-              ].map(([code, word], idx) => (
+              {c.blueprintMotors.map(([code, word], idx) => (
                 <motion.div
                   key={code}
                   variants={reveal}
@@ -398,7 +425,7 @@ export default function ExecutiveSummaryLanding() {
                 >
                   <span className="grid h-12 w-12 place-items-center rounded-2xl border border-[#D4AF37]/35 bg-black/40 font-mono text-sm font-black text-[#F6DA87]">{code}</span>
                   <div>
-                    <p className="text-[11px] font-black uppercase tracking-[0.22em] text-white/42">Motor {idx + 1}</p>
+                    <p className="text-[11px] font-black uppercase tracking-[0.22em] text-white/42">{motorLabel} {idx + 1}</p>
                     <p className="mt-1 text-lg font-black text-white">{word}</p>
                   </div>
                 </motion.div>
@@ -416,15 +443,15 @@ export default function ExecutiveSummaryLanding() {
               {block.image ? <ExecutiveFigure assetKey={block.image} /> : null}
               <div className="mt-14 grid gap-6 lg:grid-cols-[1fr,1fr]">
                 <div className="rounded-[1.85rem] border border-white/[0.08] bg-[#111111]/72 p-7 backdrop-blur-2xl sm:p-8">
-                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#F6DA87]/75">Qué es</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#F6DA87]/75">{blockQueEs}</p>
                   <p className="mt-4 text-sm leading-8 text-white/66">{block.queEs}</p>
                   <div className="mt-10 h-px bg-white/[0.06]" />
-                  <p className="mt-8 text-[10px] font-black uppercase tracking-[0.24em] text-[#F6DA87]/75">Cómo funciona</p>
+                  <p className="mt-8 text-[10px] font-black uppercase tracking-[0.24em] text-[#F6DA87]/75">{blockComo}</p>
                   <p className="mt-4 text-sm leading-8 text-white/66">{block.comoFunciona}</p>
                 </div>
                 <div className="flex flex-col gap-6">
                   <div className="flex-1 rounded-[1.85rem] border border-[#D4AF37]/30 bg-[#18140e]/74 p-7 backdrop-blur-2xl sm:p-8">
-                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#F6DA87]/75">Valor estratégico</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#F6DA87]/75">{blockValor}</p>
                     <ul className="mt-5 grid gap-4">
                       {block.valorBullets.map((v, vi) => (
                         <li key={vi} className="flex gap-3 text-sm leading-7 text-white/67">
@@ -435,7 +462,7 @@ export default function ExecutiveSummaryLanding() {
                     </ul>
                   </div>
                   <div className="rounded-[1.85rem] border border-white/[0.08] bg-[#090909]/80 p-7 shadow-[inset_0_0_0_1px_rgba(212,175,55,0.08)] backdrop-blur-2xl sm:p-8">
-                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#F6DA87]/75">Modelo de ingreso</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#F6DA87]/75">{blockModelo}</p>
                     <p className="mt-5 text-base font-semibold leading-8 text-white/76">{block.modeloIngreso}</p>
                   </div>
                 </div>
@@ -444,25 +471,19 @@ export default function ExecutiveSummaryLanding() {
           ))}
         </motion.div>
 
-        <InvestorMetrics />
+        <InvestorMetrics locale={locale} />
 
         <Reveal>
           <footer className="mt-44 border-t border-white/[0.08] pt-16 text-center text-sm text-white/38">
             <p className="font-bold text-white/55">Card-Social®</p>
             <p className="mt-4 max-w-xl mx-auto">
-              Esta página es material de trabajo interno preparado para alineación de marca e inversionistas. Las imágenes de producto pueden añadirse en{' '}
+              {c.footerBody}{' '}
               <span className="font-mono text-[#D4AF37]/85">frontend-web/public/legal/executive-summary/</span>.
             </p>
             <div className="mt-12 flex justify-center gap-6 text-xs uppercase tracking-[0.2em]">
-              <a href="/legal/terms" className="text-[#F6DA87]/85 hover:underline">
-                Legal
-              </a>
-              <a href="/" className="text-[#F6DA87]/85 hover:underline">
-                Home
-              </a>
-              <a href="/es#waitlist" className="text-[#F6DA87]/85 hover:underline">
-                Lista de espera
-              </a>
+              <a href="/legal/terms" className="text-[#F6DA87]/85 hover:underline">{c.footerLegal}</a>
+              <a href="/" className="text-[#F6DA87]/85 hover:underline">{c.footerHome}</a>
+              <a href={locale === 'es' ? '/es#waitlist' : '/#waitlist'} className="text-[#F6DA87]/85 hover:underline">{c.footerWaitlist}</a>
             </div>
           </footer>
         </Reveal>
