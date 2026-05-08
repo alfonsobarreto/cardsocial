@@ -8,6 +8,7 @@
 import {
   ALL_CARD_THEME_IDS,
   CARD_THEMES,
+  DEFAULT_CARD_THEME_ID,
   getThemeById,
   type CardTheme,
   type ThemeFontStyle,
@@ -21,7 +22,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 const ACTIVE_THEME_KEY = 'card_social_active_theme';
 const UNLOCKED_THEMES_KEY = 'card_social_unlocked_themes';
-const DEFAULT_THEME_ID = 'deep_teal';
+const DEFAULT_THEME_ID = DEFAULT_CARD_THEME_ID;
 
 /** Catálogo completo siempre desbloqueado (temas gratis). */
 export const FREE_THEME_IDS = new Set(ALL_CARD_THEME_IDS);

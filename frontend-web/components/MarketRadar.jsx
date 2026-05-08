@@ -19,7 +19,14 @@ import {
   eventsToGeoJSON,
   heatmapPaintForSource,
 } from '@/lib/MarketTrendAggregator';
+import { marketRadarRequiresIntentBeforeData } from '@/lib/marketRadarBootstrap';
 import { studioTheme } from '@/lib/studioTheme';
+import {
+  isGlobalDemoModeEnv,
+  isGlobalDemoHeatmapEnabledClient,
+  setGlobalDemoHeatmapEnabledClient,
+} from '@/demo/searchDemand/demoSearchEvents';
+import { mdiTrashCanOutline } from '@mdi/js';
 
 const STYLE_URL = 'mapbox://styles/mapbox/dark-v11';
 
@@ -44,6 +51,26 @@ function TargetGlyph() {
   );
 }
 
+/** Altura unificada fila búsqueda (iOS/Android WebView). */
+const INTENT_ROW_H = 44;
+
+function IconSearchGo({ color = '#1B1205' }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="11" cy="11" r="8" stroke={color} strokeWidth="2" />
+      <path d="m21 21-4.3-4.3" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconClearIntent({ color = 'currentColor' }) {
+  return (
+    <svg width={24} height={24} viewBox="0 0 24 24" aria-hidden style={{ display: 'block' }}>
+      <path d={mdiTrashCanOutline} fill={color} />
+    </svg>
+  );
+}
+
 /**
  * Hyper-Local Market Intent heatmap (Mapbox GL). Renders proprietary / internal points only.
  * @param {{ t: TFn }} props
@@ -63,11 +90,17 @@ export default function MarketRadar({ t }) {
   const [intentDraft, setIntentDraft] = useState('');
   const [locatedPos, setLocatedPos] = useState(null);
   const [locating, setLocating] = useState(false);
-  const [geoError, setGeoError] = useState(null);
+  const [locateAvailable, setLocateAvailable] = useState(false);
 
-  const [dataSource, setDataSource] = useState(DATA_SOURCES.APP_NETWORK);
+  const [dataSource, setDataSource] = useState(() =>
+    typeof process !== 'undefined' && process.env.NEXT_PUBLIC_GLOBAL_DEMO_MODE === '1'
+      ? DATA_SOURCES.GLOBAL_DEMAND
+      : DATA_SOURCES.APP_NETWORK,
+  );
   const [activeEvents, setActiveEvents] = useState([]);
   const [sourceLoading, setSourceLoading] = useState(false);
+  const [demoHeatmapRev, setDemoHeatmapRev] = useState(0);
+  const [demoHeatmapOn, setDemoHeatmapOn] = useState(true);
   const dataSourceRef = useRef(dataSource);
   useEffect(() => {
     dataSourceRef.current = dataSource;
@@ -80,12 +113,49 @@ export default function MarketRadar({ t }) {
     aggregatorRef.current = new MarketTrendAggregator();
   }
 
-  /** Pull the active feed whenever the user changes source. */
+  useEffect(() => {
+    if (!isGlobalDemoModeEnv()) return;
+    setDemoHeatmapOn(isGlobalDemoHeatmapEnabledClient());
+  }, []);
+
+  /** Show locate control only when the browser / WebView can realistically use geolocation. */
+  useEffect(() => {
+    function compute() {
+      if (typeof window === 'undefined') return false;
+      const bridge = window.__CS_NATIVE_GEO__;
+      const hasApi = typeof navigator !== 'undefined' && !!navigator.geolocation;
+      if (!hasApi) return false;
+      if (bridge === 'denied') return false;
+      const hostname = window.location.hostname;
+      const secureOk = window.isSecureContext || hostname === 'localhost' || hostname === '127.0.0.1';
+      return secureOk || bridge === 'granted';
+    }
+    setLocateAvailable(compute());
+    if (typeof window === 'undefined') return undefined;
+    const id = window.setInterval(() => {
+      const next = compute();
+      setLocateAvailable((prev) => (prev === next ? prev : next));
+    }, 400);
+    const to = window.setTimeout(() => window.clearInterval(id), 12_000);
+    return () => {
+      window.clearInterval(id);
+      window.clearTimeout(to);
+    };
+  }, []);
+
+  /** Pull the active feed when source / niche / applied keyword / demo toggle change. */
   useEffect(() => {
     let cancelled = false;
+    const keyword = appliedIntentKeyword.trim();
+    if (marketRadarRequiresIntentBeforeData() && keyword.length < 2) {
+      setActiveEvents([]);
+      setSourceLoading(false);
+      return;
+    }
+
     setSourceLoading(true);
     aggregatorRef.current
-      .fetch(dataSource, {})
+      .fetch(dataSource, { niche, intentKeyword: keyword })
       .then((events) => {
         if (cancelled) return;
         setActiveEvents(events);
@@ -101,7 +171,7 @@ export default function MarketRadar({ t }) {
     return () => {
       cancelled = true;
     };
-  }, [dataSource]);
+  }, [dataSource, niche, appliedIntentKeyword, demoHeatmapRev]);
 
   /** Niche + keyword filters apply on top of the active source corpus. */
   const filteredEvents = useMemo(() => {
@@ -216,7 +286,7 @@ export default function MarketRadar({ t }) {
 
     mapRef.current = map;
 
-    map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
+    map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right');
     map.addControl(new mapboxgl.ScaleControl({ maxWidth: 100, unit: 'imperial' }), 'bottom-left');
 
     map.on('load', () => {
@@ -337,13 +407,35 @@ export default function MarketRadar({ t }) {
     }
   }
 
+  function readNativeGeoBridge() {
+    if (typeof window === 'undefined') return 'unset';
+    const v = window.__CS_NATIVE_GEO__;
+    if (v === 'granted' || v === 'denied') return v;
+    return 'unset';
+  }
+
+  /** Safari/Chrome block geolocation on http://LAN (non-secure). Localhost is an exception. WebView may still work if native injected `granted`. */
+  function isBrowserGeoBlockedOnHttp() {
+    if (typeof window === 'undefined') return false;
+    if (window.isSecureContext) return false;
+    const h = window.location.hostname;
+    if (h === 'localhost' || h === '127.0.0.1') return false;
+    return true;
+  }
+
   function handleLocateMe() {
-    setGeoError(null);
-    if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      setGeoError(t('marketRadar.geoUnsupported'));
-      return;
-    }
+    const nativeGeo = readNativeGeoBridge();
+    if (nativeGeo === 'denied') return;
+    if (nativeGeo === 'unset' && isBrowserGeoBlockedOnHttp()) return;
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return;
     setLocating(true);
+    try {
+      if (navigator.permissions?.query) {
+        void navigator.permissions.query({ name: 'geolocation' }).catch(() => {});
+      }
+    } catch {
+      /* ignore */
+    }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { longitude: lng, latitude: lat } = pos.coords;
@@ -352,10 +444,9 @@ export default function MarketRadar({ t }) {
         setLocating(false);
       },
       () => {
-        setGeoError(t('marketRadar.geoDenied'));
         setLocating(false);
       },
-      { enableHighAccuracy: true, maximumAge: 60_000, timeout: 15_000 },
+      { enableHighAccuracy: true, maximumAge: 60_000, timeout: 20_000 },
     );
   }
 
@@ -370,197 +461,174 @@ export default function MarketRadar({ t }) {
   }
 
   return (
-    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div
         style={{
           border: `1px solid ${studioTheme.border}`,
           borderRadius: 12,
-          padding: 14,
+          padding: '10px 12px',
           background: studioTheme.surfaceElevated,
         }}
       >
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: 10, marginBottom: 6 }}>
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 900, color: studioTheme.gold, letterSpacing: 0.6 }}>
-            {t('marketRadar.heroLine')}
-          </h2>
-          <span style={{ color: studioTheme.textMuted, fontSize: 12, fontWeight: 700 }}>{t('marketRadar.heroSubtitle')}</span>
+        <div style={{ fontSize: 9, fontWeight: 900, letterSpacing: 1.2, color: studioTheme.textSubtle, marginBottom: 8 }}>
+          {t('marketRadar.toolbarTitle')}
         </div>
-        <p style={{ margin: '0 0 12px', color: studioTheme.textMuted, fontSize: 12, lineHeight: 1.45, maxWidth: 780 }}>
-          {dataSource === DATA_SOURCES.GLOBAL_DEMAND
-            ? t('marketRadar.dataSource.globalDemandHint')
-            : t('marketRadar.proprietaryDisclaimer')}
-        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+          <CompactSourceSegment t={t} dataSource={dataSource} onChange={setDataSource} />
+          {sourceLoading ? (
+            <span style={{ fontSize: 10, fontWeight: 800, color: studioTheme.goldLight }}>{t('marketRadar.dataSource.fetching')}</span>
+          ) : null}
+        </div>
 
-        <DataSourceToggle
-          t={t}
-          dataSource={dataSource}
-          onChange={setDataSource}
-          loading={sourceLoading}
-        />
-
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'flex-end', marginBottom: 12, marginTop: 14 }}>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: '1 1 200px', minWidth: 180 }}>
-            <span style={{ fontSize: 10, fontWeight: 900, color: studioTheme.textSubtle, letterSpacing: 1.1 }}>
-              {t('marketRadar.nicheFilterLabel')}
-            </span>
-            <select
-              value={niche}
-              onChange={(e) => setNiche(e.target.value)}
-              style={{
-                padding: '10px 12px',
-                borderRadius: 10,
-                border: `1px solid ${studioTheme.border}`,
-                background: studioTheme.bg,
-                color: studioTheme.text,
-                fontSize: 13,
-                fontWeight: 700,
-              }}
-            >
-              {nicheOptions.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {t(o.labelKey)}
-                </option>
-              ))}
-            </select>
-          </label>
-
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            alignItems: 'stretch',
+            marginTop: 10,
+            width: '100%',
+          }}
+        >
+          <select
+            value={niche}
+            onChange={(e) => setNiche(e.target.value)}
+            aria-label={t('marketRadar.nicheFilterLabel')}
+            style={{
+              width: '100%',
+              height: INTENT_ROW_H,
+              paddingLeft: 12,
+              paddingRight: 12,
+              borderRadius: 10,
+              border: `1px solid ${studioTheme.border}`,
+              background: studioTheme.bg,
+              color: studioTheme.text,
+              fontSize: 16,
+              fontWeight: 700,
+              boxSizing: 'border-box',
+            }}
+          >
+            {nicheOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {t(o.labelKey)}
+              </option>
+            ))}
+          </select>
           <form
             onSubmit={submitIntent}
             style={{
               display: 'flex',
-              flexDirection: 'column',
-              gap: 6,
-              flex: '2 1 260px',
-              minWidth: 220,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              width: '100%',
+              flexWrap: 'nowrap',
             }}
           >
-            <span style={{ fontSize: 10, fontWeight: 900, color: studioTheme.textSubtle, letterSpacing: 1.1 }}>
-              {t('marketRadar.intentKeywordSearch')}
-            </span>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              <input
-                type="text"
-                value={intentDraft}
-                onChange={(e) => setIntentDraft(e.target.value)}
-                placeholder={t('marketRadar.intentPlaceholder')}
-                style={{
-                  flex: '1 1 140px',
-                  minWidth: 120,
-                  padding: '10px 12px',
-                  borderRadius: 10,
-                  border: `1px solid ${studioTheme.borderStrong}`,
-                  background: studioTheme.surface,
-                  color: studioTheme.text,
-                  fontSize: 13,
-                  outline: 'none',
-                }}
-              />
-              <button
-                type="submit"
-                style={{
-                  padding: '10px 16px',
-                  borderRadius: 10,
-                  border: `1px solid ${studioTheme.borderStrong}`,
-                  background: studioTheme.surfaceElevated,
-                  color: studioTheme.goldLight,
-                  fontWeight: 800,
-                  fontSize: 12,
-                  cursor: 'pointer',
-                }}
-              >
-                {t('marketRadar.intentApply')}
-              </button>
-              <button
-                type="button"
-                onClick={clearIntent}
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: 10,
-                  border: `1px solid ${studioTheme.border}`,
-                  background: 'transparent',
-                  color: studioTheme.textMuted,
-                  fontWeight: 700,
-                  fontSize: 12,
-                  cursor: 'pointer',
-                }}
-              >
-                {t('marketRadar.intentClear')}
-              </button>
-            </div>
-          </form>
-
-          <div
-            style={{
-              flex: '2 1 260px',
-              border: `1px solid ${studioTheme.borderStrong}`,
-              borderRadius: 10,
-              padding: '10px 14px',
-              background: studioTheme.surface,
-            }}
-          >
-            <div style={{ fontSize: 10, fontWeight: 900, color: studioTheme.goldLight, letterSpacing: 1, marginBottom: 4 }}>
-              {t('marketRadar.gapTitle')}
-            </div>
-            <div style={{ fontSize: 11, color: studioTheme.textMuted, lineHeight: 1.5 }}>{t('marketRadar.gapBody')}</div>
-          </div>
-        </div>
-
-        {/* Local SEO / CRO strip — gated on geolocation */}
-        <div
-          style={{
-            borderRadius: 10,
-            padding: '12px 14px',
-            background: studioTheme.surface,
-            border: `1px solid ${studioTheme.border}`,
-          }}
-        >
-          <div style={{ fontSize: 11, fontWeight: 900, color: studioTheme.gold, letterSpacing: 0.9, marginBottom: 10 }}>
-            {t('marketRadar.metricsStripTitle')}
-          </div>
-          {!locatedPos ? (
-            <div style={{ color: studioTheme.textMuted, fontSize: 12, lineHeight: 1.5 }}>{t('marketRadar.metricsLocateHint')}</div>
-          ) : !zipMetrics?.zip ? (
-            <div style={{ color: studioTheme.textMuted, fontSize: 12 }}>{t('marketRadar.metricsOutsideRoi')}</div>
-          ) : (
-            <div
+            <input
+              type="search"
+              enterKeyHint="search"
+              value={intentDraft}
+              onChange={(e) => setIntentDraft(e.target.value)}
+              placeholder={t('marketRadar.intentPlaceholder')}
+              autoCapitalize="none"
+              autoCorrect="off"
               style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-                gap: 12,
+                flex: 1,
+                minWidth: 0,
+                width: '100%',
+                height: INTENT_ROW_H,
+                paddingLeft: 12,
+                paddingRight: 12,
+                borderRadius: 10,
+                border: `1px solid ${studioTheme.borderStrong}`,
+                background: studioTheme.surface,
+                color: studioTheme.text,
+                fontSize: 16,
+                outline: 'none',
+                boxSizing: 'border-box',
+                WebkitAppearance: 'none',
+              }}
+            />
+            <button
+              type="submit"
+              aria-label={t('marketRadar.intentApply')}
+              title={t('marketRadar.intentApply')}
+              style={{
+                width: INTENT_ROW_H,
+                height: INTENT_ROW_H,
+                flexShrink: 0,
+                padding: 0,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 10,
+                border: `1px solid ${studioTheme.borderStrong}`,
+                background: studioTheme.gold,
+                cursor: 'pointer',
+                boxSizing: 'border-box',
+                WebkitAppearance: 'none',
+                appearance: 'none',
+                WebkitTapHighlightColor: 'transparent',
+                touchAction: 'manipulation',
               }}
             >
-              <MetricCell label={t('marketRadar.metricsZipLabel')} value={String(zipMetrics.zip)} sub={zipMetrics.zipLabel || ''} />
-              <MetricCell label={t('marketRadar.metricsModeledSignals')} value={String(zipMetrics.modeledSignals)} />
-              <MetricCell label={t('marketRadar.metricsUniqueIntents')} value={String(zipMetrics.uniqueIntents)} />
-            </div>
-          )}
-          {appliedIntentKeyword ? (
-            <div style={{ marginTop: 10, fontSize: 11, color: studioTheme.textSubtle }}>
-              {t('marketRadar.tooltipIntentFilter', { q: appliedIntentKeyword })}
-            </div>
-          ) : null}
+              <IconSearchGo color="#1B1205" />
+            </button>
+            <button
+              type="button"
+              aria-label={t('marketRadar.intentClear')}
+              title={t('marketRadar.intentClear')}
+              onClick={clearIntent}
+              style={{
+                width: INTENT_ROW_H,
+                height: INTENT_ROW_H,
+                flexShrink: 0,
+                padding: 0,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 10,
+                border: `1px solid ${studioTheme.borderStrong}`,
+                background: 'rgba(233, 216, 176, 0.08)',
+                color: studioTheme.goldLight,
+                cursor: 'pointer',
+                boxSizing: 'border-box',
+                WebkitAppearance: 'none',
+                appearance: 'none',
+                WebkitTapHighlightColor: 'transparent',
+                touchAction: 'manipulation',
+              }}
+            >
+              <IconClearIntent color={studioTheme.goldLight} />
+            </button>
+          </form>
         </div>
+
+        {isGlobalDemoModeEnv() ? (
+          <label
+            style={{
+              marginTop: 10,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              cursor: 'pointer',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={demoHeatmapOn}
+              onChange={(e) => {
+                const on = e.target.checked;
+                setGlobalDemoHeatmapEnabledClient(on);
+                setDemoHeatmapOn(on);
+                setDemoHeatmapRev((n) => n + 1);
+              }}
+            />
+            <span style={{ fontSize: 11, fontWeight: 700, color: studioTheme.textMuted }}>{t('marketRadar.demoPhase4Toggle')}</span>
+          </label>
+        ) : null}
       </div>
-
-      {geoError ? (
-        <div style={{ color: studioTheme.error, fontSize: 12, paddingLeft: 4 }}>
-          {geoError}
-        </div>
-      ) : null}
-
-      {!token ? (
-        <div
-          style={{
-            border: `1px solid ${studioTheme.error}`,
-            color: studioTheme.error,
-            borderRadius: 10,
-            padding: 14,
-            fontSize: 13,
-          }}
-        >
-          {t('marketRadar.noToken')}
-        </div>
-      ) : null}
 
       <div
         style={{
@@ -570,11 +638,11 @@ export default function MarketRadar({ t }) {
           overflow: 'hidden',
           border: `1px solid ${studioTheme.border}`,
           boxShadow: '0 20px 50px rgba(0,0,0,0.45)',
-          minHeight: 'min(70vh, 640px)',
-          height: 'min(70vh, 640px)',
+          minHeight: 'min(56vh, 560px)',
+          height: 'min(56vh, 560px)',
         }}
       >
-        {token ? (
+        {token && locateAvailable ? (
           <button
             type="button"
             onClick={handleLocateMe}
@@ -585,7 +653,7 @@ export default function MarketRadar({ t }) {
               position: 'absolute',
               left: 12,
               top: 12,
-              zIndex: 6,
+              zIndex: 10,
               width: 44,
               height: 44,
               display: 'grid',
@@ -599,6 +667,7 @@ export default function MarketRadar({ t }) {
               color: studioTheme.gold,
               boxShadow: '0 12px 32px rgba(0,0,0,0.45)',
               backdropFilter: 'blur(8px)',
+              touchAction: 'manipulation',
             }}
           >
             {locating ? (
@@ -614,31 +683,57 @@ export default function MarketRadar({ t }) {
           aria-live="polite"
           style={{
             position: 'absolute',
-            right: 14,
-            top: 14,
+            left: '50%',
+            bottom: 52,
+            transform: 'translateX(-50%)',
             zIndex: 6,
-            padding: '6px 10px',
+            padding: '5px 10px',
             borderRadius: 999,
             border: `1px solid ${studioTheme.borderStrong}`,
             background: 'rgba(12,12,12,0.78)',
             color: studioTheme.gold,
-            fontSize: 10,
+            fontSize: 9,
             fontWeight: 900,
-            letterSpacing: 0.8,
+            letterSpacing: 0.6,
             backdropFilter: 'blur(8px)',
             display: 'flex',
             alignItems: 'center',
             gap: 6,
+            pointerEvents: 'none',
+            maxWidth: 'calc(100% - 24px)',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
           }}
         >
           <span style={{ width: 6, height: 6, borderRadius: 3, background: studioTheme.gold, boxShadow: '0 0 8px rgba(212,175,55,0.85)' }} />
           {t(
             dataSource === DATA_SOURCES.GLOBAL_DEMAND
-              ? 'marketRadar.dataSource.globalDemand'
-              : 'marketRadar.dataSource.appNetwork',
+              ? 'marketRadar.dataSource.compactGoogle'
+              : 'marketRadar.dataSource.compactApp',
           )}
         </div>
-        <div ref={wrapRef} style={{ width: '100%', height: '100%' }} />
+        <div ref={wrapRef} style={{ width: '100%', height: '100%', background: studioTheme.surface }} />
+        {!token ? (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'grid',
+              placeItems: 'center',
+              padding: 20,
+              textAlign: 'center',
+              background: 'rgba(0,0,0,0.88)',
+              color: studioTheme.error,
+              fontSize: 13,
+              fontWeight: 700,
+              lineHeight: 1.45,
+              zIndex: 5,
+            }}
+          >
+            {t('marketRadar.noToken')}
+          </div>
+        ) : null}
         <div
           ref={hoverRef}
           style={{
@@ -656,150 +751,74 @@ export default function MarketRadar({ t }) {
           }}
         />
       </div>
-    </div>
-  );
-}
-
-function MetricCell({ label, value, sub }) {
-  return (
-    <div>
-      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.9, color: studioTheme.textSubtle }}>{label}</div>
-      <div style={{ fontSize: 20, fontWeight: 900, color: studioTheme.gold, marginTop: 2 }}>{value}</div>
-      {sub ? <div style={{ fontSize: 10, color: studioTheme.textMuted, marginTop: 2 }}>{sub}</div> : null}
+      {locatedPos && zipMetrics?.zip ? (
+        <p
+          style={{
+            fontSize: 10,
+            color: studioTheme.textMuted,
+            margin: '6px 0 0',
+            textAlign: 'center',
+            fontWeight: 700,
+          }}
+        >
+          {t('marketRadar.zipSummary', {
+            zip: String(zipMetrics.zip),
+            signals: String(zipMetrics.modeledSignals),
+            intents: String(zipMetrics.uniqueIntents),
+          })}
+        </p>
+      ) : null}
     </div>
   );
 }
 
 /**
- * Hybrid Intelligence Mode · two-segment data source toggle.
- * @param {{ t: TFn, dataSource: string, onChange: (next: string) => void, loading: boolean }} props
+ * Two-option source: app corpus vs external / Google-style demand.
+ * @param {{ t: TFn, dataSource: string, onChange: (next: string) => void }} props
  */
-function DataSourceToggle({ t, dataSource, onChange, loading }) {
+function CompactSourceSegment({ t, dataSource, onChange }) {
   const segments = [
-    {
-      id: DATA_SOURCES.APP_NETWORK,
-      label: t('marketRadar.dataSource.appNetwork'),
-      hint: t('marketRadar.dataSource.appNetworkHint'),
-      icon: '◎',
-    },
-    {
-      id: DATA_SOURCES.GLOBAL_DEMAND,
-      label: t('marketRadar.dataSource.globalDemand'),
-      hint: t('marketRadar.dataSource.globalDemandHint'),
-      icon: '◈',
-    },
+    { id: DATA_SOURCES.APP_NETWORK, labelKey: 'marketRadar.dataSource.compactApp' },
+    { id: DATA_SOURCES.GLOBAL_DEMAND, labelKey: 'marketRadar.dataSource.compactGoogle' },
   ];
   return (
     <div
+      role="tablist"
+      aria-label={t('marketRadar.dataSourceLabel')}
       style={{
-        marginTop: 4,
-        borderRadius: 14,
+        display: 'flex',
+        borderRadius: 10,
+        overflow: 'hidden',
         border: `1px solid ${studioTheme.borderStrong}`,
-        background: 'linear-gradient(135deg, rgba(212,175,55,0.08), rgba(0,0,0,0))',
-        padding: 12,
+        flex: '1 1 220px',
+        maxWidth: 360,
       }}
     >
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-        <span
-          style={{
-            fontSize: 9,
-            fontWeight: 900,
-            letterSpacing: 1.6,
-            color: studioTheme.gold,
-            textTransform: 'uppercase',
-          }}
-        >
-          ⌖ {t('marketRadar.hybridMode')}
-        </span>
-        <span style={{ fontSize: 10, fontWeight: 800, color: studioTheme.textSubtle, letterSpacing: 0.8 }}>
-          {t('marketRadar.dataSourceLabel')}
-        </span>
-        {loading ? (
-          <span
+      {segments.map((s) => {
+        const active = s.id === dataSource;
+        return (
+          <button
+            key={s.id}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(s.id)}
             style={{
-              fontSize: 9,
+              flex: 1,
+              padding: '9px 10px',
+              border: 'none',
+              cursor: 'pointer',
+              background: active ? 'rgba(212,175,55,0.28)' : studioTheme.surface,
+              color: active ? studioTheme.gold : studioTheme.textMuted,
               fontWeight: 900,
-              padding: '3px 8px',
-              borderRadius: 999,
-              border: `1px solid ${studioTheme.border}`,
-              color: studioTheme.goldLight,
-              letterSpacing: 0.6,
+              fontSize: 11,
+              letterSpacing: 0.2,
             }}
           >
-            {t('marketRadar.dataSource.fetching')}
-          </span>
-        ) : null}
-      </div>
-      <div
-        role="tablist"
-        aria-label={t('marketRadar.dataSourceLabel')}
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: 8,
-        }}
-      >
-        {segments.map((seg) => {
-          const active = seg.id === dataSource;
-          return (
-            <button
-              key={seg.id}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => onChange(seg.id)}
-              style={{
-                cursor: 'pointer',
-                padding: '12px 14px',
-                borderRadius: 12,
-                textAlign: 'left',
-                border: active
-                  ? `1.5px solid ${studioTheme.gold}`
-                  : `1px solid ${studioTheme.border}`,
-                background: active
-                  ? 'linear-gradient(135deg, rgba(212,175,55,0.22), rgba(212,175,55,0.04))'
-                  : studioTheme.surface,
-                color: active ? studioTheme.goldLight : studioTheme.text,
-                boxShadow: active ? '0 8px 22px rgba(212,175,55,0.18)' : 'none',
-                transition: 'all 140ms ease',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 4,
-              }}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 900, letterSpacing: 0.4 }}>
-                  <span style={{ marginRight: 6, opacity: active ? 1 : 0.6 }}>{seg.icon}</span>
-                  {seg.label}
-                </span>
-                {active ? (
-                  <span
-                    style={{
-                      fontSize: 8,
-                      fontWeight: 900,
-                      letterSpacing: 1.4,
-                      padding: '2px 7px',
-                      borderRadius: 999,
-                      background: studioTheme.gold,
-                      color: '#1B1205',
-                    }}
-                  >
-                    {t('marketRadar.dataSource.activeBadge')}
-                  </span>
-                ) : null}
-              </span>
-              <span style={{ fontSize: 10.5, fontWeight: 600, color: active ? studioTheme.gold : studioTheme.textMuted, lineHeight: 1.45 }}>
-                {seg.hint}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-      {dataSource === DATA_SOURCES.GLOBAL_DEMAND ? (
-        <div style={{ marginTop: 10, fontSize: 10, color: studioTheme.textSubtle, lineHeight: 1.5 }}>
-          {t('marketRadar.dataSource.externalDisclaimer')}
-        </div>
-      ) : null}
+            {t(s.labelKey)}
+          </button>
+        );
+      })}
     </div>
   );
 }

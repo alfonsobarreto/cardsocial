@@ -98,7 +98,7 @@ export default function StudioShell() {
         return;
       }
       const next = new URLSearchParams(window.location.search);
-      if (l === 'es' || l === 'en' || l === 'it' || l === 'fr' || l === 'pt') {
+      if (l === 'es' || l === 'en' || l === 'it' || l === 'fr' || l === 'pt' || l === 'de') {
         next.set('lang', l);
       } else {
         next.set('lang', 'en');

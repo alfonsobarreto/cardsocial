@@ -1,10 +1,11 @@
 /**
- * Card Studio: ES, EN, IT, FR, PT. Texto base en inglés; otras lenguas como copia con ajustes.
+ * Card Studio: ES, EN, IT, FR, PT, DE. Texto base en inglés; otras lenguas como copia con ajustes.
  */
-export type StudioLocale = 'es' | 'en' | 'it' | 'fr' | 'pt';
+export type StudioLocale = 'es' | 'en' | 'it' | 'fr' | 'pt' | 'de';
 
 const EN: Record<string, string> = {
   'studio.brand': 'Card-Social',
+  'studio.localeMenu': 'Language',
   'studio.subtitle': 'Card Studio',
   'studio.sessionLoading': 'Opening your session…',
   'login.title': 'Sign in to Studio',
@@ -23,6 +24,7 @@ const EN: Record<string, string> = {
   'lang.it': 'IT',
   'lang.fr': 'FR',
   'lang.pt': 'PT',
+  'lang.de': 'DE',
   'vault.title': 'Vault',
   'vault.search': 'Search all fields (title, type, link, value…)',
   'vault.empty': 'No icon-datas yet. Tap + to create.',
@@ -206,11 +208,6 @@ const EN: Record<string, string> = {
   /** Market Radar — Mapbox cockpit (Hyper-Local intent) */
   'marketRadar.nav': 'Hyper-Local Radar',
   'marketRadar.pageTitle': 'Hyper-Local Market Intent',
-  'marketRadar.backStudio': 'Back to Studio vault',
-  'marketRadar.heroLine': 'Local SEO & CRO Performance · Hyper-Local Market Intent',
-  'marketRadar.heroSubtitle': 'Austin metro · Killeen / Fort Cavazos corridor (internal simulated corpus)',
-  'marketRadar.proprietaryDisclaimer':
-    'This map renders proprietary search-intent signals only — no external POIs. ZIP outlines are illustrative administrative boundaries shipped with Studio for bunker reference.',
   'marketRadar.nicheFilterLabel': 'Niche filter · re-projects internal heat density',
   'marketRadar.nicheAll': 'All sectors',
   'marketRadar.niche.restaurants': 'Restaurants',
@@ -220,9 +217,6 @@ const EN: Record<string, string> = {
   'marketRadar.niche.nails': 'Nails / nail art',
   'marketRadar.niche.fitness': 'Fitness',
   'marketRadar.niche.general': 'General intents',
-  'marketRadar.gapTitle': 'Market Gap Detection',
-  'marketRadar.gapBody':
-    'Dense golden clusters emphasize concentrated modeled demand; quieter rings may imply validation opportunities for supply positioning.',
   'marketRadar.tooltipTitle': 'Elevated modeled demand',
   'marketRadar.tooltipSignals': 'Proximity signal stack ≈ {n} weighted occurrences (nine-cell stencil).',
   'marketRadar.tooltipNicheScoped': 'Active cohort: {niche}',
@@ -239,28 +233,16 @@ const EN: Record<string, string> = {
 
   /** Interactive BI — geofence + keyword intent */
   'marketRadar.locateCurrentZone': 'Locate Current Zone',
-  'marketRadar.intentKeywordSearch': 'Intent Keyword Search',
   'marketRadar.intentPlaceholder': 'Comida Peruana, Lotes, Construcción…',
   'marketRadar.intentApply': 'Apply intent',
   'marketRadar.intentClear': 'Clear',
-  'marketRadar.locating': 'Resolving position…',
-  'marketRadar.geoDenied': 'Location permission denied or unavailable.',
-  'marketRadar.geoUnsupported': 'Geolocation is not available in this browser.',
-  'marketRadar.metricsStripTitle': 'Local SEO & CRO Performance (ZIP scope)',
-  'marketRadar.metricsZipLabel': 'ZIP',
-  'marketRadar.metricsModeledSignals': 'Modeled signals',
-  'marketRadar.metricsUniqueIntents': 'Distinct intent traces',
-  'marketRadar.metricsLocateHint': 'Use “Locate Current Zone” to bind metrics to your ZIP.',
-  'marketRadar.metricsOutsideRoi': 'Outside bundled ZIP demo — expand the Austin / Killeen cockpit to add coverage.',
-  'marketRadar.hybridMode': 'Hybrid Intelligence Mode',
+  'marketRadar.demoPhase4Toggle': 'Admin · Phase 4 synthetic demand (in-memory buckets)',
+  'marketRadar.zipSummary': 'ZIP {zip} · {signals} signals · {intents} intents',
+  'marketRadar.dataSource.compactApp': 'App network',
+  'marketRadar.dataSource.compactGoogle': 'Google / API',
+  'marketRadar.toolbarTitle': 'Search & source',
   'marketRadar.dataSourceLabel': 'Data source · live switch',
-  'marketRadar.dataSource.appNetwork': 'App Network Activity',
-  'marketRadar.dataSource.globalDemand': 'Global Market Demand',
-  'marketRadar.dataSource.appNetworkHint': 'Proprietary search-intent corpus from the Card-Social network (5k modeled events).',
-  'marketRadar.dataSource.globalDemandHint': 'Public demand index proxy (Google Trends · SerpApi). Wider geography, weighted by interest score.',
-  'marketRadar.dataSource.activeBadge': 'ACTIVE',
   'marketRadar.dataSource.fetching': 'Pulling data feed…',
-  'marketRadar.dataSource.externalDisclaimer': 'External demand mock — wire NEXT_PUBLIC_TRENDS_PROXY_URL to switch to the live trends feed.',
 };
 
 const ES: Record<string, string> = {
@@ -277,6 +259,7 @@ const ES: Record<string, string> = {
   'header.signOut': 'Salir',
   'header.welcome': 'Bienvenido',
   'studio.subtitle': 'Estudio de tarjetas',
+  'studio.localeMenu': 'Idioma',
   'studio.sessionLoading': 'Abriendo tu sesión…',
   'vault.title': 'Bóveda',
   'vault.search': 'Buscar en todos los campos (título, tipo, enlace, valor…)',
@@ -459,11 +442,6 @@ const ES: Record<string, string> = {
 
   'marketRadar.nav': 'Radar hiper-local',
   'marketRadar.pageTitle': 'Hiper‑local Market Intent',
-  'marketRadar.backStudio': 'Volver al Studio / Bóveda',
-  'marketRadar.heroLine': 'SEO local & CRO · Intención de mercado hiper-local',
-  'marketRadar.heroSubtitle': 'Austin · corredor Killeen / Fort Cavazos (corpus interno simulado)',
-  'marketRadar.proprietaryDisclaimer':
-    'Este mapa solo muestra señales de intención de búsqueda propias — sin POIs externos. Los contornos ZIP son referencia administrativa ilustrativa incluida en Studio.',
   'marketRadar.nicheFilterLabel': 'Filtro de nicho · reproyecta densidad térmica interna',
   'marketRadar.nicheAll': 'Todos los segmentos',
   'marketRadar.niche.restaurants': 'Restaurantes',
@@ -473,9 +451,6 @@ const ES: Record<string, string> = {
   'marketRadar.niche.nails': 'Uñas / nail art',
   'marketRadar.niche.fitness': 'Fitness',
   'marketRadar.niche.general': 'Intenciones generales',
-  'marketRadar.gapTitle': 'Detección de huecos de mercado',
-  'marketRadar.gapBody':
-    'Clústers dorados marcan mayor demanda modelada concentrada; aledaños más tenues sugieren zonas donde validar oferta.',
   'marketRadar.tooltipTitle': 'Demanda modelada elevada',
   'marketRadar.tooltipSignals': 'Índice de señales en la zona ≈ {n} apariciones ponderadas (malla 9 celdas).',
   'marketRadar.tooltipNicheScoped': 'Cohort activo: {niche}',
@@ -490,28 +465,16 @@ const ES: Record<string, string> = {
   'embed.radarNativeBadge': 'Sesión nativa · puente Vault',
 
   'marketRadar.locateCurrentZone': 'Localizar zona actual',
-  'marketRadar.intentKeywordSearch': 'Búsqueda de intención (keyword)',
   'marketRadar.intentPlaceholder': 'Comida peruana, lotes, construcción…',
   'marketRadar.intentApply': 'Aplicar intención',
   'marketRadar.intentClear': 'Limpiar',
-  'marketRadar.locating': 'Resolviendo posición…',
-  'marketRadar.geoDenied': 'Permiso de ubicación denegado o no disponible.',
-  'marketRadar.geoUnsupported': 'Este navegador no ofrece geolocalización.',
-  'marketRadar.metricsStripTitle': 'SEO local & CRO por código postal',
-  'marketRadar.metricsZipLabel': 'ZIP',
-  'marketRadar.metricsModeledSignals': 'Señales modeladas',
-  'marketRadar.metricsUniqueIntents': 'Intenciones distintas',
-  'marketRadar.metricsLocateHint': 'Usa «Localizar zona actual» para vincular métricas a tu ZIP.',
-  'marketRadar.metricsOutsideRoi': 'Fuera del demo de ZIP empaquetado — amplía el cockpit Austin / Killeen para cobertura.',
-  'marketRadar.hybridMode': 'Modo Inteligencia Híbrida',
+  'marketRadar.demoPhase4Toggle': 'Admin · Demanda sintética Fase 4 (buckets en memoria)',
+  'marketRadar.zipSummary': 'ZIP {zip} · {signals} señales · {intents} intenciones',
+  'marketRadar.dataSource.compactApp': 'Red app',
+  'marketRadar.dataSource.compactGoogle': 'Google / API',
+  'marketRadar.toolbarTitle': 'Buscar y fuente',
   'marketRadar.dataSourceLabel': 'Fuente de datos · cambio en vivo',
-  'marketRadar.dataSource.appNetwork': 'Actividad de la Red de la App',
-  'marketRadar.dataSource.globalDemand': 'Demanda Global de Mercado',
-  'marketRadar.dataSource.appNetworkHint': 'Corpus propio de intención de búsqueda de la red Card-Social (5k eventos modelados).',
-  'marketRadar.dataSource.globalDemandHint': 'Índice público de demanda (Google Trends · SerpApi). Geografía amplia, pesos por puntuación de interés.',
-  'marketRadar.dataSource.activeBadge': 'ACTIVO',
   'marketRadar.dataSource.fetching': 'Cargando feed de datos…',
-  'marketRadar.dataSource.externalDisclaimer': 'Demanda externa simulada — define NEXT_PUBLIC_TRENDS_PROXY_URL para usar el feed de tendencias en vivo.',
 };
 
 const IT: Record<string, string> = {
@@ -585,10 +548,7 @@ const IT: Record<string, string> = {
   'profile.sendEmailVerification': 'Invia verifica',
   'profile.phoneHint': 'Per cambiare telefono apri un ticket. Si risolve entro 3 giorni lavorativi.',
   'profile.openTicket': 'Apri ticket',
-  'marketRadar.hybridMode': 'Modalità Hybrid Intelligence',
   'marketRadar.dataSourceLabel': 'Sorgente dati · switch in tempo reale',
-  'marketRadar.dataSource.appNetwork': 'Attività della Rete dell’App',
-  'marketRadar.dataSource.globalDemand': 'Domanda Globale di Mercato',
 };
 
 const FR: Record<string, string> = {
@@ -662,10 +622,7 @@ const FR: Record<string, string> = {
   'profile.sendEmailVerification': 'Envoyer la vérification',
   'profile.phoneHint': 'Pour changer votre téléphone, ouvrez un ticket. Résolution sous 3 jours ouvrables maximum.',
   'profile.openTicket': 'Ouvrir un ticket',
-  'marketRadar.hybridMode': 'Mode Hybrid Intelligence',
   'marketRadar.dataSourceLabel': 'Source de données · bascule en direct',
-  'marketRadar.dataSource.appNetwork': 'Activité du Réseau de l’App',
-  'marketRadar.dataSource.globalDemand': 'Demande Globale du Marché',
 };
 
 const PT: Record<string, string> = {
@@ -739,10 +696,47 @@ const PT: Record<string, string> = {
   'profile.sendEmailVerification': 'Enviar verificação',
   'profile.phoneHint': 'Para alterar o telefone, abra um ticket. É resolvido em até 3 dias úteis.',
   'profile.openTicket': 'Abrir ticket',
-  'marketRadar.hybridMode': 'Modo Hybrid Intelligence',
   'marketRadar.dataSourceLabel': 'Fonte de dados · troca em tempo real',
-  'marketRadar.dataSource.appNetwork': 'Atividade da Rede do App',
-  'marketRadar.dataSource.globalDemand': 'Procura Global do Mercado',
+};
+
+/** German: Market Radar + embed chrome; rest falls back to EN via `studioT`. */
+const DE: Record<string, string> = {
+  ...EN,
+  'studio.localeMenu': 'Sprache',
+  'studio.sessionLoading': 'Sitzung wird geöffnet…',
+  'marketRadar.nav': 'Hyperlokal-Radar',
+  'marketRadar.pageTitle': 'Hyperlokale Marktintention',
+  'marketRadar.nicheFilterLabel': 'Branchenfilter · projiziert interne Dichte neu',
+  'marketRadar.nicheAll': 'Alle Segmente',
+  'marketRadar.niche.restaurants': 'Gastronomie',
+  'marketRadar.niche.food_trucks': 'Food Trucks',
+  'marketRadar.niche.barbershop': 'Friseursalon',
+  'marketRadar.niche.real_estate': 'Immobilien',
+  'marketRadar.niche.nails': 'Nagelstudio / Nail-Art',
+  'marketRadar.niche.fitness': 'Fitness',
+  'marketRadar.niche.general': 'Allgemeine Intentionen',
+  'marketRadar.tooltipTitle': 'Erhöhte modellierte Nachfrage',
+  'marketRadar.tooltipSignals': 'Nähe-Signalstapel ≈ {n} gewichtete Vorkommen (9-Zellen-Schablone).',
+  'marketRadar.tooltipNicheScoped': 'Aktive Kohorte: {niche}',
+  'marketRadar.tooltipIntentFilter': 'Intent-Keyword: „{q}"',
+  'marketRadar.noToken':
+    'Setzen Sie NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN oder REACT_APP_MAPBOX_ACCESS_TOKEN in frontend-web/.env.local.',
+  'embed.radarSyncing': 'Eingebettete Sitzung wird verbunden…',
+  'embed.radarHandshakeFailed': 'Eingebetteter Market Radar konnte nicht geöffnet werden.',
+  'embed.radarHandshakeHint':
+    'Kehren Sie zur Card-Social-App zurück und öffnen Sie das Dashboard erneut. Falls das weiterhin auftritt, prüfen Sie FIREBASE_SERVICE_ACCOUNT_JSON und STUDIO_EMBED_SECRET (nur Server) in Studio.',
+  'embed.radarNativeBadge': 'Native Sitzung · Vault-Brücke',
+  'marketRadar.locateCurrentZone': 'Aktuelle Zone orten',
+  'marketRadar.intentPlaceholder': 'Peruanische Küche, Grundstücke, Bau…',
+  'marketRadar.intentApply': 'Intent anwenden',
+  'marketRadar.intentClear': 'Zurücksetzen',
+  'marketRadar.demoPhase4Toggle': 'Admin · Phase-4 synthetische Nachfrage (Buckets im Arbeitsspeicher)',
+  'marketRadar.zipSummary': 'PLZ {zip} · {signals} Signale · {intents} Intents',
+  'marketRadar.dataSource.compactApp': 'App-Netzwerk',
+  'marketRadar.dataSource.compactGoogle': 'Google / API',
+  'marketRadar.toolbarTitle': 'Suche & Quelle',
+  'marketRadar.dataSourceLabel': 'Datenquelle · Live-Umschaltung',
+  'marketRadar.dataSource.fetching': 'Datenfeed wird geladen…',
 };
 
 const DICT: Record<StudioLocale, Record<string, string>> = {
@@ -751,10 +745,11 @@ const DICT: Record<StudioLocale, Record<string, string>> = {
   it: IT,
   fr: FR,
   pt: PT,
+  de: DE,
 };
 
 function bucketForLocale(l: StudioLocale): StudioLocale {
-  if (l === 'es' || l === 'en' || l === 'it' || l === 'fr' || l === 'pt') return l;
+  if (l === 'es' || l === 'en' || l === 'it' || l === 'fr' || l === 'pt' || l === 'de') return l;
   return 'en';
 }
 
@@ -780,7 +775,7 @@ export function readBrowserLocale(): StudioLocale {
       : [navigator.language || 'en'];
   for (const raw of list) {
     const c = String(raw).toLowerCase().split('-')[0] ?? 'en';
-    if (c === 'es' || c === 'en' || c === 'it' || c === 'fr' || c === 'pt') {
+    if (c === 'es' || c === 'en' || c === 'it' || c === 'fr' || c === 'pt' || c === 'de') {
       return c;
     }
   }
@@ -791,7 +786,7 @@ export function readStoredLocale(): StudioLocale | null {
   if (typeof window === 'undefined') return null;
   try {
     const raw = window.localStorage.getItem(LOCALE_KEY);
-    if (raw === 'es' || raw === 'en' || raw === 'it' || raw === 'fr' || raw === 'pt') return raw;
+    if (raw === 'es' || raw === 'en' || raw === 'it' || raw === 'fr' || raw === 'pt' || raw === 'de') return raw;
   } catch {
     /* ignore */
   }
@@ -811,6 +806,6 @@ export function studioLocaleFromQuery(q: string | null | undefined): StudioLocal
   const v = String(q || '')
     .trim()
     .toLowerCase();
-  if (v === 'es' || v === 'en' || v === 'it' || v === 'fr' || v === 'pt') return v;
+  if (v === 'es' || v === 'en' || v === 'it' || v === 'fr' || v === 'pt' || v === 'de') return v;
   return null;
 }

@@ -1,8 +1,8 @@
 'use client';
 
-import { motion, type Variants } from 'framer-motion';
+import { AnimatePresence, motion, type Variants } from 'framer-motion';
 import { Inter } from 'next/font/google';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
 import InvestorMetrics, { getInvestorTocItems } from './InvestorMetrics';
 import copy, { type ExecLocale } from './investorCopy';
@@ -52,9 +52,19 @@ function ExecutiveFigure({
   aspectClass?: string;
 }) {
   const hint = EXECUTIVE_IMAGE_HINTS[assetKey];
+  const imgRef = useRef<HTMLImageElement | null>(null);
   const [loadedOk, setLoadedOk] = useState(false);
   const [broken, setBroken] = useState(false);
   const showPlaceholder = broken || !loadedOk;
+
+  /** Imágenes en caché suelen tener `complete` antes de registrar `onLoad`; sin esto el placeholder queda fijo para siempre. */
+  useLayoutEffect(() => {
+    const el = imgRef.current;
+    if (el?.complete && el.naturalWidth > 0) {
+      setBroken(false);
+      setLoadedOk(true);
+    }
+  }, [assetKey]);
 
   return (
     <figure className={`group relative mx-auto mt-10 w-full max-w-5xl overflow-hidden rounded-[2rem] border border-[#D4AF37]/30 bg-[#0A0A0A]/80 shadow-[0_0_70px_rgba(212,175,55,0.12)] ${aspectClass}`}>
@@ -73,6 +83,7 @@ function ExecutiveFigure({
       </div>
       {/* eslint-disable-next-line @next/next/no-img-element -- archivos opcionales en `public`; no queremos coupling al build */}
       <img
+        ref={imgRef}
         src={imageSrc(assetKey)}
         alt={hint.caption}
         decoding="async"
@@ -292,8 +303,11 @@ function rememberLocale(locale: ExecLocale) {
   if (typeof window !== 'undefined') window.localStorage.setItem('card-social-exec-locale', locale);
 }
 
+const STORAGE_TOC_OPEN = 'card-social-exec-toc-open';
+
 export default function ExecutiveSummaryLanding() {
   const [locale, setLocale] = useState<ExecLocale>('es');
+  const [tocOpen, setTocOpen] = useState(false);
   const c = copy[locale];
 
   const toc = [
@@ -309,13 +323,18 @@ export default function ExecutiveSummaryLanding() {
     rememberLocale(next);
   }
 
-  /* Restore preference on first render */
-  useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = window.localStorage.getItem('card-social-exec-locale');
-      if (saved === 'en' || saved === 'es') setLocale(saved);
-    }
-  });
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const savedLoc = window.localStorage.getItem('card-social-exec-locale');
+    if (savedLoc === 'en' || savedLoc === 'es') setLocale(savedLoc);
+    const savedToc = window.localStorage.getItem(STORAGE_TOC_OPEN);
+    if (savedToc === '1') setTocOpen(true);
+  }, []);
+
+  function setTocOpenPersist(next: boolean) {
+    setTocOpen(next);
+    if (typeof window !== 'undefined') window.localStorage.setItem(STORAGE_TOC_OPEN, next ? '1' : '0');
+  }
 
   /* Labels that are always in Spanish (BMC content was authored in ES) */
   const blockQueEs     = locale === 'es' ? 'Qué es'           : 'What it is';
@@ -360,25 +379,72 @@ export default function ExecutiveSummaryLanding() {
         </div>
       </nav>
 
-      <aside className="pointer-events-none fixed bottom-12 right-10 z-40 hidden xl:block xl:pointer-events-auto">
-        <div className="max-h-[60vh] w-72 overflow-y-auto rounded-[1.85rem] border border-white/[0.08] bg-[#090909]/90 p-5 shadow-[0_34px_100px_rgba(0,0,0,0.55)] backdrop-blur-xl">
-          <p className="mb-5 text-[9px] font-black uppercase tracking-[0.42em] text-[#F6DA87]/80">{c.tocLabel}</p>
-          <ol className="space-y-2.5 text-[11px] leading-snug">
-            {toc.map((item) =>
-              item.divider ? (
-                <li key={item.id} className="pt-3 pb-1">
-                  <span className="font-mono text-[9px] uppercase tracking-[0.3em] text-[#D4AF37]/55">{item.label}</span>
-                </li>
-              ) : (
-                <li key={item.id}>
-                  <a className="text-white/52 transition hover:text-[#F6DA87]" href={`#${item.id}`}>
-                    {item.label}
-                  </a>
-                </li>
-              ),
-            )}
-          </ol>
-        </div>
+      <aside className="fixed bottom-8 right-5 z-40 hidden flex-col items-end gap-3 xl:flex" aria-label={c.tocLabel}>
+        <AnimatePresence initial={false}>
+          {tocOpen ? (
+            <motion.div
+              key="exec-toc-panel"
+              id="exec-toc-panel"
+              role="region"
+              aria-label={c.tocLabel}
+              initial={{ opacity: 0, y: 14, scale: 0.97, filter: 'blur(4px)' }}
+              animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, y: 10, scale: 0.98, filter: 'blur(2px)' }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              className="w-[min(18rem,calc(100vw-2.5rem))] max-h-[min(56vh,28rem)] overflow-hidden rounded-[1.85rem] border border-[#D4AF37]/25 bg-[#070707]/95 shadow-[0_34px_100px_rgba(0,0,0,0.65),0_0_0_1px_rgba(212,175,55,0.08)] backdrop-blur-2xl"
+            >
+              <div className="flex items-center justify-between gap-3 border-b border-white/[0.06] px-4 py-3">
+                <p className="text-[9px] font-black uppercase tracking-[0.42em] text-[#F6DA87]/85">{c.tocLabel}</p>
+                <button
+                  type="button"
+                  onClick={() => setTocOpenPersist(false)}
+                  className="rounded-full border border-white/12 bg-white/[0.04] px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-white/55 transition hover:border-[#D4AF37]/45 hover:text-[#F6DA87]"
+                >
+                  {c.tocPanelDismiss}
+                </button>
+              </div>
+              <div className="max-h-[min(48vh,24rem)] overflow-y-auto overscroll-contain px-4 py-4">
+                <ol className="space-y-2.5 text-[11px] leading-snug">
+                  {toc.map((item) =>
+                    item.divider ? (
+                      <li key={item.id} className="pb-1 pt-2">
+                        <span className="font-mono text-[9px] uppercase tracking-[0.3em] text-[#D4AF37]/55">{item.label}</span>
+                      </li>
+                    ) : (
+                      <li key={item.id}>
+                        <a
+                          className="text-white/52 transition hover:text-[#F6DA87]"
+                          href={`#${item.id}`}
+                          onClick={() => setTocOpenPersist(false)}
+                        >
+                          {item.label}
+                        </a>
+                      </li>
+                    ),
+                  )}
+                </ol>
+              </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+
+        <button
+          type="button"
+          onClick={() => setTocOpenPersist(!tocOpen)}
+          aria-expanded={tocOpen}
+          aria-controls="exec-toc-panel"
+          className="group relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-2 border-[#D4AF37]/45 bg-[linear-gradient(145deg,rgba(212,175,55,0.22),rgba(8,8,8,0.96))] text-[#F6DA87] shadow-[0_0_32px_rgba(212,175,55,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:border-[#F6DA87]/55 hover:shadow-[0_0_44px_rgba(212,175,55,0.35)]"
+          title={tocOpen ? c.tocBubbleClose : c.tocBubbleOpen}
+        >
+          <span className="sr-only">{tocOpen ? c.tocBubbleClose : c.tocBubbleOpen}</span>
+          <span
+            aria-hidden
+            className="font-mono text-lg font-black leading-none tracking-tight transition group-hover:scale-105"
+          >
+            {tocOpen ? '×' : '≡'}
+          </span>
+          <span className="pointer-events-none absolute inset-0 rounded-full bg-[radial-gradient(circle_at_30%_20%,rgba(246,218,135,0.35),transparent_55%)] opacity-60" />
+        </button>
       </aside>
 
       <main className="relative mx-auto w-full max-w-[1180px] px-6 pb-40 pt-[7.75rem] sm:px-10">

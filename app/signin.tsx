@@ -338,8 +338,8 @@ export default function SignInScreen() {
               style={[
                 styles.heroIconWrap,
                 {
-                  backgroundColor: look.heroRingBg,
-                  borderColor: look.heroRingBorder,
+                  backgroundColor: '#FFFFFF',
+                  borderColor: 'rgba(10, 37, 64, 0.14)',
                   shadowColor: isNight ? AUTH_GOLD : '#0A2540',
                 },
               ]}

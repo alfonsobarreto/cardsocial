@@ -71,7 +71,7 @@ import { sanitizeMaterialCommunityIconName } from '../components/iconNameValidat
 import palette from '../theme';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-const DEFAULT_BIZ_THEME_ID = 'deep_teal';
+const DEFAULT_BIZ_THEME_ID = 'obsidian';
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 
 /**
@@ -317,6 +317,8 @@ export default function CreateBusinessCardScreen() {
   const [vaultSelectorVisible, setVaultSelectorVisible] = useState(false);
   const [tempVaultLinkIds, setTempVaultLinkIds] = useState<string[]>([]);
   const [vaultSelectorLimitReached, setVaultSelectorLimitReached] = useState(false);
+  const [vaultSelectorQuery, setVaultSelectorQuery] = useState('');
+  const [vaultSelectorSort, setVaultSelectorSort] = useState<'recent' | 'alpha'>('recent');
   const [profileFullName, setProfileFullName] = useState('');
   const [bcName, setBcName] = useState('');
   const [bcContactName, setBcContactName] = useState('');
@@ -544,8 +546,39 @@ export default function CreateBusinessCardScreen() {
 
   const editingBId = routeBId || createdBId;
 
+  const filteredVaultLinksForSelector = useMemo(() => {
+    const query = vaultSelectorQuery.trim().toLowerCase();
+    const indexed = links.map((item, index) => ({ item, index }));
+    const filtered = query
+      ? indexed.filter(({ item }) => {
+          const haystack = `${item.title} ${item.type} ${item.id}`.toLowerCase();
+          return haystack.includes(query);
+        })
+      : indexed;
+
+    if (vaultSelectorSort === 'alpha') {
+      return filtered
+        .slice()
+        .sort((a, b) => {
+          const byTitle = a.item.title.localeCompare(b.item.title, undefined, { sensitivity: 'base' });
+          return byTitle !== 0 ? byTitle : a.index - b.index;
+        })
+        .map(({ item }) => item);
+    }
+
+    return filtered.map(({ item }) => item);
+  }, [links, vaultSelectorQuery, vaultSelectorSort]);
+
+  const businessSelectorTheme = useMemo(
+    () =>
+      getThemeById(businessThemeId || DEFAULT_BIZ_THEME_ID) ??
+      (getThemeById(DEFAULT_BIZ_THEME_ID) as ChestCardTheme),
+    [businessThemeId],
+  );
+
   const openVaultLinkSelector = () => {
     setVaultSelectorLimitReached(false);
+    setVaultSelectorQuery('');
     void (async () => {
       const fresh = await loadLinks();
       const pool = fresh ?? links;
@@ -578,6 +611,27 @@ export default function CreateBusinessCardScreen() {
 
   const cancelVaultLinkSelector = () => {
     setVaultSelectorVisible(false);
+  };
+
+  const openVaultSelectorSortOptions = () => {
+    Alert.alert(
+      tr('Ordenar datos', 'Sort data'),
+      tr('Elige cómo ver tus datos.', 'Choose how to view your data.'),
+      [
+        {
+          text: tr('Recién agregado', 'Recently added'),
+          onPress: () => setVaultSelectorSort('recent'),
+        },
+        {
+          text: tr('Alfabético', 'Alphabetical'),
+          onPress: () => setVaultSelectorSort('alpha'),
+        },
+        {
+          text: tr('Cancelar', 'Cancel'),
+          style: 'cancel',
+        },
+      ],
+    );
   };
 
   const applyProfileFullName = () => {
@@ -1139,7 +1193,7 @@ export default function CreateBusinessCardScreen() {
           bcMarketFacets: facets,
           vaultItemIds: vaultIds,
           publicCardSlots: slots,
-          themeId: businessThemeId || 'deep_teal',
+          themeId: businessThemeId || DEFAULT_BIZ_THEME_ID,
         });
         formBaselineRef.current = computeFormSnapshot();
         Alert.alert(tr('Listo', 'Done'), tr('Cambios guardados.', 'Changes saved.'), [
@@ -1163,7 +1217,7 @@ export default function CreateBusinessCardScreen() {
           bcLocationUpdatedAt: new Date().toISOString(),
           bcKeywords: kwTags,
           vaultItemIds: vaultIds,
-          themeId: businessThemeId || 'deep_teal',
+          themeId: businessThemeId || DEFAULT_BIZ_THEME_ID,
           fontId: null,
           wallpaperId: null,
           iconPackId: null,
@@ -1385,8 +1439,6 @@ export default function CreateBusinessCardScreen() {
           : '—';
 
   const chestPreview = getCardRowTheme(businessThemeId);
-
-  const vaultTileIconColor = shell.textSecondary;
 
   return (
     <>
@@ -1831,7 +1883,16 @@ export default function CreateBusinessCardScreen() {
       onRequestClose={cancelVaultLinkSelector}
     >
       <View style={[styles.vaultModalOverlay, { backgroundColor: isNight ? 'rgba(0,0,0,0.58)' : 'rgba(7,33,54,0.38)' }]}>
-        <View style={[styles.vaultSelectorModal, { backgroundColor: card, borderColor: border }]}>
+        <View
+          style={[
+            styles.vaultSelectorModal,
+            {
+              backgroundColor: card,
+              borderColor: border,
+              paddingTop: 14 + safeInsets.top,
+            },
+          ]}
+        >
           <View style={styles.vaultSelectorHeader}>
             <Text style={[styles.vaultSelectorTitle, { color: text }]}>
               {tr('Selecciona datos', 'Select data')}
@@ -1852,6 +1913,41 @@ export default function CreateBusinessCardScreen() {
               accessibilityLabel={tr('Cerrar', 'Close')}
             >
               <MaterialCommunityIcons name="close" size={22} color={sub} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.vaultSelectorToolsRow}>
+            <View style={[styles.vaultSelectorSearchBox, { backgroundColor: inputBg, borderColor: border }]}>
+              <MaterialCommunityIcons name="magnify" size={18} color={sub} />
+              <TextInput
+                style={[styles.vaultSelectorSearchInput, { color: text }]}
+                placeholder={tr('Buscar dato...', 'Search data...')}
+                placeholderTextColor={sub}
+                value={vaultSelectorQuery}
+                onChangeText={setVaultSelectorQuery}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="search"
+              />
+              {vaultSelectorQuery.trim() ? (
+                <TouchableOpacity
+                  onPress={() => setVaultSelectorQuery('')}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  accessibilityLabel={tr('Limpiar búsqueda', 'Clear search')}
+                >
+                  <MaterialCommunityIcons name="close-circle" size={17} color={sub} />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+            <TouchableOpacity
+              style={[styles.vaultSelectorSortBtn, { backgroundColor: inputBg, borderColor: border }]}
+              onPress={openVaultSelectorSortOptions}
+              activeOpacity={0.82}
+            >
+              <MaterialCommunityIcons name="sort" size={17} color={border} />
+              <Text style={[styles.vaultSelectorSortText, { color: text }]}>
+                {vaultSelectorSort === 'alpha' ? tr('Alfabético', 'A-Z') : tr('Reciente', 'Recent')}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -1885,17 +1981,26 @@ export default function CreateBusinessCardScreen() {
                 )}
               </Text>
             </View>
+          ) : filteredVaultLinksForSelector.length === 0 ? (
+            <View style={styles.vaultSelectorEmpty}>
+              <MaterialCommunityIcons name="database-search-outline" size={40} color={sub} />
+              <Text style={[styles.vaultSelectorEmptyText, { color: sub }]}>
+                {tr('No encontramos datos con esa búsqueda.', 'No data matched that search.')}
+              </Text>
+            </View>
           ) : (
             <FlatList
-              data={links}
+              data={filteredVaultLinksForSelector}
               keyExtractor={(item) => item.id}
               numColumns={3}
               bounces={false}
               overScrollMode="never"
               style={styles.vaultSelectorGrid}
+              contentContainerStyle={styles.vaultSelectorGridContent}
               keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => {
-                const isSelected = tempVaultLinkIds.includes(item.id);
+                const selectedOrder = tempVaultLinkIds.indexOf(item.id) + 1;
+                const isSelected = selectedOrder > 0;
                 const tileBorder = isNight ? 'rgba(184,231,255,0.18)' : '#CFEFFF';
                 const tileBg = isNight ? 'rgba(255,255,255,0.05)' : '#FFFFFF';
                 return (
@@ -1910,21 +2015,25 @@ export default function CreateBusinessCardScreen() {
                   >
                     {isSelected ? (
                       <View style={styles.vaultTileCheck}>
-                        <MaterialCommunityIcons name="check-circle" size={17} color="#C5A065" />
+                        <Text style={styles.vaultTileOrderText}>{selectedOrder}</Text>
                       </View>
                     ) : null}
                     <View
                       style={[
                         styles.vaultTileIconCircle,
-                        { backgroundColor: isNight ? 'rgba(255,255,255,0.08)' : '#EAF7FF' },
+                        {
+                          backgroundColor: businessSelectorTheme.bubble.backgroundColor,
+                          borderColor: businessSelectorTheme.border.color,
+                          borderWidth: Math.max(1, businessSelectorTheme.border.width * 0.5),
+                        },
                       ]}
                     >
-                      {renderVaultLinkTileIcon(item, 26, iconVaultById, vaultTileIconColor)}
+                      {renderVaultLinkTileIcon(item, 26, iconVaultById, businessSelectorTheme.icon.color)}
                     </View>
-                    <Text style={[styles.vaultTileTitle, { color: text }]} numberOfLines={2}>
+                    <Text style={[styles.vaultTileTitle, { color: businessSelectorTheme.title.color }]} numberOfLines={2}>
                       {item.title}
                     </Text>
-                    <Text style={[styles.vaultTileType, { color: sub }]} numberOfLines={1}>
+                    <Text style={[styles.vaultTileType, { color: businessSelectorTheme.subtitle.color }]} numberOfLines={1}>
                       {item.type}
                     </Text>
                   </TouchableOpacity>
@@ -2407,14 +2516,14 @@ const styles = StyleSheet.create({
   },
   vaultModalOverlay: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 14,
+    justifyContent: 'flex-start',
+    alignItems: 'stretch',
+    paddingHorizontal: 0,
   },
   vaultSelectorModal: {
     width: '100%',
-    maxHeight: '88%',
-    borderRadius: 16,
+    height: '100%',
+    borderRadius: 0,
     borderWidth: 1,
     padding: 14,
   },
@@ -2436,6 +2545,42 @@ const styles = StyleSheet.create({
   },
   vaultSelectorCounter: {
     fontSize: 14,
+    fontWeight: '800',
+  },
+  vaultSelectorToolsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  vaultSelectorSearchBox: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+  },
+  vaultSelectorSearchInput: {
+    flex: 1,
+    minHeight: 40,
+    paddingVertical: 0,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  vaultSelectorSortBtn: {
+    minHeight: 42,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  vaultSelectorSortText: {
+    fontSize: 12,
     fontWeight: '800',
   },
   vaultLimitBanner: {
@@ -2467,8 +2612,11 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
   vaultSelectorGrid: {
-    maxHeight: 360,
+    flex: 1,
     marginBottom: 8,
+  },
+  vaultSelectorGridContent: {
+    paddingBottom: 10,
   },
   vaultTile: {
     flex: 1,
@@ -2489,6 +2637,18 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 6,
     right: 6,
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#C5A065',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+  },
+  vaultTileOrderText: {
+    color: '#0A2540',
+    fontSize: 12,
+    fontWeight: '900',
   },
   vaultTileIconCircle: {
     width: 46,

@@ -1,9 +1,10 @@
 'use client';
 
-import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { onAuthStateChanged, signInWithCustomToken, type User } from 'firebase/auth';
+import MarketRadar from '@/components/MarketRadar.jsx';
+import { StudioLocaleDropdown } from '@/components/studio/StudioLocaleDropdown';
 import { getStudioAuth } from '@/lib/studioFirebase';
 import {
   readBrowserLocale,
@@ -14,16 +15,11 @@ import {
   type StudioLocale,
 } from '@/lib/studioI18n';
 import { studioTheme } from '@/lib/studioTheme';
-import MarketRadar from '@/components/MarketRadar.jsx';
 
 type HandshakePhase = 'busy' | 'ready' | 'error';
 
 /**
  * Native WebView entry: `/embed/market-radar?et=…&lang=es`
- *
- * 1. `et` minted server-side (`/api/embed/mint-market-radar`) after Firebase ID token verification.
- * 2. Swapped here for a Firebase Auth custom token (`/api/embed/exchange`).
- * 3. `signInWithCustomToken` — shared Firebase project with Expo → no Studio HTML login gate.
  */
 export default function EmbedMarketRadarPage() {
   return (
@@ -47,7 +43,6 @@ function EmbedMarketRadarContent() {
   const [locale, setLocale] = useState<StudioLocale>('en');
   const [phase, setPhase] = useState<HandshakePhase>('busy');
 
-  /** After `exchange`, `history.replaceState` drops `et` so reloading keeps you signed in WebView-only. */
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const fromQ = studioLocaleFromQuery(langParam);
@@ -68,11 +63,15 @@ function EmbedMarketRadarContent() {
     let cancelled = false;
 
     void (async () => {
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
       try {
+        const controller = new AbortController();
+        timeoutId = setTimeout(() => controller.abort(), 35_000);
         const res = await fetch('/api/embed/exchange', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ et: etParam }),
+          signal: controller.signal,
         });
         if (!res.ok) throw new Error('exchange_failed');
         const data = (await res.json()) as { ok?: boolean; customToken?: string };
@@ -83,12 +82,15 @@ function EmbedMarketRadarContent() {
         const l = studioLocaleFromQuery(langParam) ?? readStoredLocale() ?? readBrowserLocale();
         const usp = new URLSearchParams({ lang: l });
         if (typeof window !== 'undefined') {
-          window.history.replaceState({}, '', `/embed/market-radar?${usp.toString()}`);
+          const embedPath = `${window.location.origin}/embed/market-radar?${usp.toString()}`;
+          window.history.replaceState({}, '', embedPath);
         }
 
         if (!cancelled) setPhase('ready');
       } catch {
         if (!cancelled) setPhase('error');
+      } finally {
+        if (timeoutId !== undefined) clearTimeout(timeoutId);
       }
     })();
 
@@ -111,7 +113,7 @@ function EmbedMarketRadarContent() {
     const usp = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
     usp.set('lang', l);
     if (typeof window !== 'undefined') {
-      window.history.replaceState({}, '', `${window.location.pathname}?${usp.toString()}`);
+      window.history.replaceState({}, '', `${window.location.origin}/embed/market-radar?${usp.toString()}`);
     }
   };
 
@@ -163,61 +165,24 @@ function EmbedMarketRadarContent() {
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 12,
-          padding: '12px 16px',
+          padding: '10px 14px',
           borderBottom: `1px solid ${studioTheme.border}`,
           background: 'linear-gradient(180deg, #0a0a0a 0%, #000 100%)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Link
-            href={`/studio/bunker?lang=${locale}`}
-            style={{
-              color: studioTheme.goldLight,
-              textDecoration: 'none',
-              fontSize: 12,
-              fontWeight: 700,
-              border: `1px solid ${studioTheme.border}`,
-              borderRadius: 8,
-              padding: '8px 12px',
-            }}
-          >
-            ← {t('marketRadar.backStudio')}
-          </Link>
-          <div>
-            <div style={{ fontSize: 10, letterSpacing: 1, fontWeight: 900, color: studioTheme.textSubtle }}>
-              {t('marketRadar.pageTitle')}
-            </div>
-            <div style={{ fontWeight: 900, fontSize: 13, color: studioTheme.gold }}>{studioT(locale, 'studio.brand')}</div>
-            <div style={{ fontSize: 9, marginTop: 2, color: studioTheme.goldLight, letterSpacing: 0.8 }}>
-              {t('embed.radarNativeBadge')}
-            </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 10, letterSpacing: 1, fontWeight: 900, color: studioTheme.textSubtle }}>
+            {t('marketRadar.pageTitle')}
+          </div>
+          <div style={{ fontWeight: 900, fontSize: 13, color: studioTheme.gold }}>{studioT(locale, 'studio.brand')}</div>
+          <div style={{ fontSize: 9, marginTop: 2, color: studioTheme.goldLight, letterSpacing: 0.8 }}>
+            {t('embed.radarNativeBadge')}
           </div>
         </div>
-
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {(['es', 'en', 'it', 'fr', 'pt'] as const).map((l) => (
-            <button
-              key={l}
-              type="button"
-              onClick={() => setLocaleChip(l)}
-              style={{
-                padding: '6px 10px',
-                border: `1px solid ${studioTheme.border}`,
-                cursor: 'pointer',
-                borderRadius: 8,
-                background: locale === l ? studioTheme.gold : 'transparent',
-                color: locale === l ? studioTheme.bg : studioTheme.textMuted,
-                fontSize: 11,
-                fontWeight: 700,
-              }}
-            >
-              {studioT(locale, `lang.${l}`)}
-            </button>
-          ))}
-        </div>
+        <StudioLocaleDropdown locale={locale} onChange={setLocaleChip} label={studioT(locale, 'studio.localeMenu')} />
       </header>
 
-      <main style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 16 }}>
+      <main style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 12 }}>
         <div style={{ width: '100%', maxWidth: 1200, margin: '0 auto' }}>
           <MarketRadar t={t} />
         </div>

@@ -25,6 +25,8 @@
       ],
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
+          "http",
+          "https",
           "googlegmail",
           "instagram",
           "linkedin",
@@ -37,14 +39,17 @@
         ],
         "NSMicrophoneUsageDescription": "Card-Social usa el micrófono para las llamadas de voz Ghost-Link (VoIP).",
         "NSCameraUsageDescription": "Card-Social usa la cámara para videollamadas FaceCall Ghost-Link.",
+        "NSLocationWhenInUseUsageDescription": "Card-Social usa tu ubicación cuando buscas en el mercado, usas el radar geo o guardas la ubicación de tu tarjeta; no hay rastreo continuo en segundo plano.",
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": [
           "audio",
           "voip"
         ],
+        "NSLocalNetworkUsageDescription": "Card-Social needs access to your local network to load Card Studio (market radar) from your development machine.",
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": false,
           "NSAllowsLocalNetworking": true,
+          "NSAllowsArbitraryLoadsInWebContent": true,
           "NSExceptionDomains": {
             "localhost": {
               "NSTemporaryExceptionAllowsInsecureHTTPLoads": true

@@ -49,6 +49,8 @@ frontend-admin/.env
 backend/.env
 backend/.env.local
 backend/.env.*.local
+# Firebase Admin downloads (use FIREBASE_SERVICE_ACCOUNT_PATH in frontend-web)
+frontend-web/firebase-adminsdk*.json
 # Also block any accidental secret files
 *.secret
 secrets/
@@ -66,3 +68,6 @@ moderate-request.json
 # generated native folders
 /ios
 /android
+
+#frontend-web
+firebase-admin.json

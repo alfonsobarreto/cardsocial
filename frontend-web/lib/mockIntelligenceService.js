@@ -201,7 +201,8 @@ export function generateSearchIntentEvents(total = 5000) {
 
 /**
  * Filters by free-text keyword against proprietary `intent_phrase` + `search_blob`.
- * Empty / short query ⇒ no narrowing (heatmap uses full corpus for current niche).
+ * Empty / short query ⇒ no narrowing (client-side full corpus for current niche).
+ * When `NEXT_PUBLIC_MARKET_RADAR_REQUIRE_INTENT=1`, `MarketRadar` may skip fetching until a query is applied.
  * @param {SearchIntentEvent[]} events
  * @param {string} rawQuery
  */

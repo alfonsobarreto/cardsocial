@@ -10,12 +10,13 @@ import {
 import { VaultDocumentViewerModal } from '@/components/VaultDocumentViewerModal';
 import { IsolatedWireframeCard, type WireframeEditSlot } from '@/components/smartCard/IsolatedWireframeCard';
 import { WireframeSlotTile } from '@/components/smartCard/WireframeSlotTile';
-import { getWireframeIconRowPlan } from '@/components/smartCard/wireframeMath';
+import { getPreviewModalStackSize, getWireframeIconRowPlan } from '@/components/smartCard/wireframeMath';
 import { renderWireframeMiniIcon } from '@/components/smartCard/wireframeMirrorRendering';
 import { brandCsIconLogo } from '@/constants/brandAssets';
 import { isGhostLinkVaultType } from '@/constants/ghostLinkVault';
 import {
     CARD_THEMES as CHEST_THEMES,
+    DEFAULT_CARD_THEME_ID,
     getThemeById,
     getThemesByTier,
     TIER_META,
@@ -67,7 +68,7 @@ function toBusinessCardListRow(doc: BusinessCardDoc): BusinessCardListRow {
     bId: doc.bId,
     bcName: doc.bcName || doc.bId,
     createdAtMs: Number.isFinite(createdMs) ? createdMs : 0,
-    themeId: doc.themeId || 'deep_teal',
+    themeId: doc.themeId || DEFAULT_CARD_THEME_ID,
     bcContactName: doc.bcContactName || '',
     bcLogoUrl: doc.bcLogoUrl || '',
     vaultLinkIds: [...(doc.vaultItemIds || [])],
@@ -103,6 +104,7 @@ import { trEsEn, useLanguage } from '@/services/language';
 import { validateCardCreation } from '@/services/limitService';
 import { useLookMode } from '@/services/lookMode';
 import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
+import { SOCIAL_MEDALS } from '@/services/medalService';
 import { newEntityId } from '@/services/newEntityId';
 import { openVaultPreviewItem } from '@/services/openVaultPreviewItem';
 import { buildIssuerSnapshotFromPublicSlots } from '@/services/issuerSnapshotPayload';
@@ -184,7 +186,7 @@ type CardThemeId = string;
 
 /** Resolves a themeId to its full ChestCardTheme object. Falls back to the first theme. */
 const resolveTheme = (id: string | undefined): ChestCardTheme => {
-  return getThemeById(id || '') ?? CHEST_THEMES[0];
+  return getThemeById(id || '') ?? getThemeById(DEFAULT_CARD_THEME_ID) ?? CHEST_THEMES[0];
 };
 
 const toRenderableImageUri = (value: string | null | undefined): string | null => {
@@ -422,7 +424,7 @@ export default function CardsFactoryScreen() {
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
   const [cardName, setCardName] = useState('');
   const [layoutMode, setLayoutMode] = useState<'vertical' | 'horizontal'>('vertical');
-  const [themeId, setThemeId] = useState<string>('deep_teal');
+  const [themeId, setThemeId] = useState<string>(DEFAULT_CARD_THEME_ID);
   /** Ancho real del área scroll del modal Temas (evita desfase vs % del modal → 2 columnas). */
   const [themesModalContentW, setThemesModalContentW] = useState<number | null>(null);
   /** Misma fórmula que Locker: 3 tiles por fila según ancho medido o fallback al ancho de pantalla. */
@@ -472,6 +474,8 @@ export default function CardsFactoryScreen() {
   const [dataSelectorVisible, setDataSelectorVisible] = useState(false);
   const [dataSelectorLimitReached, setDataSelectorLimitReached] = useState(false);
   const [tempSelectedIds, setTempSelectedIds] = useState<string[]>([]);
+  const [dataSelectorQuery, setDataSelectorQuery] = useState('');
+  const [dataSelectorSort, setDataSelectorSort] = useState<'recent' | 'alpha'>('recent');
   const [themesPlaceholderVisible, setThemesPlaceholderVisible] = useState(false);
   const [qrToken, setQrToken] = useState('');
   /** Si no está vacío, el QR codifica esta URL web (acceso universal 24h); si no, JSON in-app (`qrToken`). */
@@ -758,7 +762,7 @@ export default function CardsFactoryScreen() {
         sid: String(card.sid || ''),
         scName: card.scName,
         layout: card.layout,
-        themeId: card.themeId || 'deep_teal',
+        themeId: card.themeId || DEFAULT_CARD_THEME_ID,
         fontId: card.fontId,
         fontName: card.fontName,
         fontFamily: card.fontFamily,
@@ -897,7 +901,7 @@ export default function CardsFactoryScreen() {
       cardType: 'smart' as const,
       scName: card.scName,
       layout: card.layout,
-      themeId: card.themeId || 'deep_teal',
+      themeId: card.themeId || DEFAULT_CARD_THEME_ID,
       fontId: card.fontId,
       fontName: card.fontName,
       fontFamily: card.fontFamily,
@@ -1057,7 +1061,7 @@ export default function CardsFactoryScreen() {
     setCardName('');
     setSelectedItemIds([]);
     setLayoutMode('vertical');
-    setThemeId('deep_teal');
+    setThemeId(DEFAULT_CARD_THEME_ID);
     setSelectedWallpaper(null);
     setSelectedFont(null);
     setResolvedFontFamily(null);
@@ -1097,7 +1101,7 @@ export default function CardsFactoryScreen() {
     setSelectedCard(card);
     setCardName(card.scName);
     setLayoutMode(card.layout);
-    setThemeId(card.themeId || 'deep_teal');
+    setThemeId(card.themeId || DEFAULT_CARD_THEME_ID);
     setEnableParallax(Boolean(card.enableParallax));
     setResolvedFontFamily(card.fontFamily || null);
     setSelectedFont(
@@ -1347,6 +1351,7 @@ export default function CardsFactoryScreen() {
     const validIds = selectedItemIds.filter((id) => vaultItems.some((vi) => vi.id === id));
     setTempSelectedIds(validIds);
     setDataSelectorLimitReached(false);
+    setDataSelectorQuery('');
     resumeFactoryAfterAuxModalRef.current = factoryVisible;
     if (factoryVisible) {
       setFactoryVisible(false);
@@ -1381,6 +1386,27 @@ export default function CardsFactoryScreen() {
   const cancelDataSelector = () => {
     setDataSelectorVisible(false);
     requestAnimationFrame(() => restoreFactoryAfterAuxModal());
+  };
+
+  const openDataSelectorSortOptions = () => {
+    Alert.alert(
+      tr('Ordenar datos', 'Sort data'),
+      tr('Elige cómo ver tus datos.', 'Choose how to view your data.'),
+      [
+        {
+          text: tr('Recién agregado', 'Recently added'),
+          onPress: () => setDataSelectorSort('recent'),
+        },
+        {
+          text: tr('Alfabético', 'Alphabetical'),
+          onPress: () => setDataSelectorSort('alpha'),
+        },
+        {
+          text: tr('Cancelar', 'Cancel'),
+          style: 'cancel',
+        },
+      ],
+    );
   };
 
   const closeThemesPickerModal = () => {
@@ -1917,7 +1943,7 @@ export default function CardsFactoryScreen() {
               cardType: 'business',
               scName: row.bcName,
               layout: 'vertical',
-              themeId: row.themeId || 'deep_teal',
+              themeId: row.themeId || DEFAULT_CARD_THEME_ID,
               ownerDisplayName: row.bcContactName || undefined,
               ownerNickname: undefined,
               ownerPhotoUrl: row.bcLogoUrl ? toRenderableImageUri(row.bcLogoUrl) : null,
@@ -2120,6 +2146,59 @@ export default function CardsFactoryScreen() {
     () => editSlots.filter((s) => s.item !== null).length,
     [editSlots],
   );
+  const factorySmartMedalPills = useMemo(
+    () =>
+      SOCIAL_MEDALS.map((medal) => ({
+        key: medal.key,
+        icon: medal.icon,
+        count: 0,
+      })),
+    [],
+  );
+  const factoryPreviewMirrorScale = 0.8;
+  const factoryPreviewScaledCard = useMemo(() => {
+    const baseW = 420;
+    const modalCardH = Math.max(
+      560,
+      getPreviewModalStackSize(height, factoryResolvedDataCount).height - 96,
+    );
+    const availableW = Math.max(240, Math.min(width - 88, baseW));
+    const scale = Math.min(1, availableW / baseW);
+    const scaledW = Math.round(baseW * scale);
+    const scaledH = Math.round(modalCardH * scale);
+    return {
+      baseW,
+      baseH: modalCardH,
+      scale,
+      scaledW,
+      scaledH,
+      left: (scaledW - baseW) / 2,
+      top: (scaledH - modalCardH) / 2,
+    };
+  }, [height, width, factoryResolvedDataCount]);
+  const filteredVaultItemsForSelector = useMemo(() => {
+    const query = dataSelectorQuery.trim().toLowerCase();
+    const indexed = vaultItems.map((item, index) => ({ item, index }));
+    const filtered = query
+      ? indexed.filter(({ item }) => {
+          const haystack = `${item.title} ${item.type} ${item.value}`.toLowerCase();
+          return haystack.includes(query);
+        })
+      : indexed;
+
+    if (dataSelectorSort === 'alpha') {
+      return filtered
+        .slice()
+        .sort((a, b) => {
+          const byTitle = a.item.title.localeCompare(b.item.title, undefined, { sensitivity: 'base' });
+          return byTitle !== 0 ? byTitle : a.index - b.index;
+        })
+        .map(({ item }) => item);
+    }
+
+    return filtered.map(({ item }) => item);
+  }, [vaultItems, dataSelectorQuery, dataSelectorSort]);
+  const dataSelectorCardTheme = useMemo(() => resolveTheme(themeId), [themeId]);
 
   useEffect(() => {
     if (!factoryVisible || vaultItems.length === 0) {
@@ -2671,8 +2750,10 @@ export default function CardsFactoryScreen() {
       totalRatings?: number;
       noAvatarIcon: 'account' | 'storefront-outline';
     } | null;
+    mirrorStatsCapsuleScale?: number;
+    medalPills?: { key: string; icon: string; count: number }[];
   }) => {
-    const { layout, slots, editable, theme, wallpaperUrl, wireIdentity } = params;
+    const { layout, slots, editable, theme, wallpaperUrl, wireIdentity, mirrorStatsCapsuleScale, medalPills } = params;
     const wId = wireIdentity;
     const dispName = wId?.cardTitle ?? (selectedCard?.scName || previewCard?.scName || cardName || tr('Nueva Tarjeta', 'New Card')).trim();
     const dispSub = wId ? wId.subtitle : `@${(issuerIdentity.userNickName || 'user').toLowerCase()}`;
@@ -2697,6 +2778,8 @@ export default function CardsFactoryScreen() {
         parallaxY={parallaxY}
         renderSlotContent={renderSlotContent}
         tr={tr}
+        mirrorStatsCapsuleScale={mirrorStatsCapsuleScale}
+        medalPills={medalPills}
       />
     );
   };
@@ -3718,13 +3801,36 @@ export default function CardsFactoryScreen() {
                               </Text>
                             </View>
                           ) : (
-                            renderWireframeCard({
-                              layout: isLandscape ? 'horizontal' : 'vertical',
-                              slots: editSlots.filter((s) => s.item !== null),
-                              editable: false,
-                              theme: resolveTheme(themeId),
-                              wallpaperUrl: selectedWallpaper?.fullUrl,
-                            })
+                            <View
+                              style={[
+                                styles.factoryPreviewScaledOuter,
+                                {
+                                  width: factoryPreviewScaledCard.scaledW,
+                                  height: factoryPreviewScaledCard.scaledH,
+                                },
+                              ]}
+                            >
+                              <View
+                                style={{
+                                  position: 'absolute',
+                                  left: factoryPreviewScaledCard.left,
+                                  top: factoryPreviewScaledCard.top,
+                                  width: factoryPreviewScaledCard.baseW,
+                                  height: factoryPreviewScaledCard.baseH,
+                                  transform: [{ scale: factoryPreviewScaledCard.scale }],
+                                }}
+                              >
+                                {renderWireframeCard({
+                                  layout: isLandscape ? 'horizontal' : 'vertical',
+                                  slots: editSlots.filter((s) => s.item !== null),
+                                  editable: false,
+                                  theme: resolveTheme(themeId),
+                                  wallpaperUrl: selectedWallpaper?.fullUrl,
+                                  mirrorStatsCapsuleScale: factoryPreviewMirrorScale,
+                                  medalPills: factorySmartMedalPills,
+                                })}
+                              </View>
+                            </View>
                           )}
                         </ScrollView>
                       </View>
@@ -3764,8 +3870,17 @@ export default function CardsFactoryScreen() {
         animationType="slide"
         onRequestClose={cancelDataSelector}
       >
-        <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}>
-          <View style={[styles.dataSelectorModal, { backgroundColor: cardsTheme.modalBg, borderColor: cardsTheme.modalBorder }]}>
+        <View style={[styles.modalOverlay, styles.dataSelectorOverlay, { backgroundColor: cardsTheme.modalOverlay }]}>
+          <View
+            style={[
+              styles.dataSelectorModal,
+              {
+                backgroundColor: cardsTheme.modalBg,
+                borderColor: cardsTheme.modalBorder,
+                paddingTop: 14 + safeAreaInsets.top,
+              },
+            ]}
+          >
 
             {/* Header */}
             <View style={styles.dataSelectorHeader}>
@@ -3779,6 +3894,46 @@ export default function CardsFactoryScreen() {
               </View>
               <TouchableOpacity onPress={cancelDataSelector} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={tr('Cerrar', 'Close')}>
                 <MaterialCommunityIcons name="close" size={20} color={cardsTheme.sectionLabel} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.dataSelectorToolsRow}>
+              <View
+                style={[
+                  styles.dataSelectorSearchBox,
+                  { backgroundColor: cardsTheme.inputBg, borderColor: cardsTheme.modalBorder },
+                ]}
+              >
+                <MaterialCommunityIcons name="magnify" size={18} color={cardsTheme.sectionLabel} />
+                <TextInput
+                  style={[styles.dataSelectorSearchInput, { color: cardsTheme.inputText }]}
+                  placeholder={tr('Buscar dato...', 'Search data...')}
+                  placeholderTextColor={cardsTheme.sectionLabel}
+                  value={dataSelectorQuery}
+                  onChangeText={setDataSelectorQuery}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="search"
+                />
+                {dataSelectorQuery.trim() ? (
+                  <TouchableOpacity
+                    onPress={() => setDataSelectorQuery('')}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    accessibilityLabel={tr('Limpiar búsqueda', 'Clear search')}
+                  >
+                    <MaterialCommunityIcons name="close-circle" size={17} color={cardsTheme.sectionLabel} />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+              <TouchableOpacity
+                style={[styles.dataSelectorSortBtn, { backgroundColor: cardsTheme.inputBg, borderColor: cardsTheme.modalBorder }]}
+                onPress={openDataSelectorSortOptions}
+                activeOpacity={0.82}
+              >
+                <MaterialCommunityIcons name="sort" size={17} color={cardsTheme.icon} />
+                <Text style={[styles.dataSelectorSortText, { color: cardsTheme.text }]}>
+                  {dataSelectorSort === 'alpha' ? tr('Alfabético', 'A-Z') : tr('Reciente', 'Recent')}
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -3806,15 +3961,23 @@ export default function CardsFactoryScreen() {
                   {tr('Tu Vault está vacío.\nAgrega datos primero desde Bóveda.', 'Your Vault is empty.\nAdd data from Vault first.')}
                 </Text>
               </View>
+            ) : filteredVaultItemsForSelector.length === 0 ? (
+              <View style={styles.dataSelectorEmpty}>
+                <MaterialCommunityIcons name="database-search-outline" size={40} color={cardsTheme.sectionLabel} />
+                <Text style={[styles.dataSelectorEmptyText, { color: cardsTheme.sectionLabel }]}>
+                  {tr('No encontramos datos con esa búsqueda.', 'No data matched that search.')}
+                </Text>
+              </View>
             ) : (
               <FlatList
-                data={vaultItems}
+                data={filteredVaultItemsForSelector}
                 keyExtractor={(item) => item.id}
                 numColumns={3}
                 bounces={false}
                 overScrollMode="never"
                 renderItem={({ item }) => {
-                  const isSelected = tempSelectedIds.includes(item.id);
+                  const selectedOrder = tempSelectedIds.indexOf(item.id) + 1;
+                  const isSelected = selectedOrder > 0;
                   return (
                     <TouchableOpacity
                       style={[
@@ -3833,16 +3996,20 @@ export default function CardsFactoryScreen() {
                     >
                       {isSelected && (
                         <View style={styles.selectorCheckOverlay}>
-                          <MaterialCommunityIcons name="check-circle" size={17} color={cardsTheme.ctaAccent} />
+                          <Text style={styles.selectorOrderText}>{selectedOrder}</Text>
                         </View>
                       )}
                       <View
                         style={[
                           styles.selectorIconCircle,
-                          { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : cardsTheme.marketCtaPressedBg },
+                          {
+                            backgroundColor: dataSelectorCardTheme.bubble.backgroundColor,
+                            borderColor: dataSelectorCardTheme.border.color,
+                            borderWidth: Math.max(1, dataSelectorCardTheme.border.width * 0.5),
+                          },
                         ]}
                       >
-                        {renderVaultMiniIcon(item, 26)}
+                        {renderVaultMiniIcon(item, 26, dataSelectorCardTheme.icon.color)}
                       </View>
                       <Text style={[styles.selectorItemTitle, { color: cardsTheme.text }]} numberOfLines={2}>
                         {item.title}
@@ -3854,6 +4021,7 @@ export default function CardsFactoryScreen() {
                   );
                 }}
                 style={styles.selectorGrid}
+                contentContainerStyle={styles.selectorGridContent}
               />
             )}
 
@@ -6151,7 +6319,12 @@ const styles = StyleSheet.create({
   },
   factoryPreviewInnerScrollContent: {
     flexGrow: 1,
+    alignItems: 'center',
     paddingBottom: 6,
+  },
+  factoryPreviewScaledOuter: {
+    alignSelf: 'center',
+    position: 'relative',
   },
   factoryPreviewEmpty: {
     flex: 1,
@@ -6166,10 +6339,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   // ── DataSelector ───────────────────────────────────────────────────
+  dataSelectorOverlay: {
+    justifyContent: 'flex-start',
+    alignItems: 'stretch',
+    paddingHorizontal: 0,
+  },
   dataSelectorModal: {
     width: '100%',
-    maxHeight: '88%',
-    borderRadius: 16,
+    height: '100%',
+    borderRadius: 0,
     borderWidth: 1,
     padding: 14,
   },
@@ -6186,6 +6364,42 @@ const styles = StyleSheet.create({
   },
   dataSelectorCounter: {
     fontSize: 14,
+    fontWeight: '800',
+  },
+  dataSelectorToolsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  dataSelectorSearchBox: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+  },
+  dataSelectorSearchInput: {
+    flex: 1,
+    minHeight: 40,
+    paddingVertical: 0,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  dataSelectorSortBtn: {
+    minHeight: 42,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dataSelectorSortText: {
+    fontSize: 12,
     fontWeight: '800',
   },
   dataSelectorLimitBanner: {
@@ -6213,8 +6427,11 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   selectorGrid: {
-    maxHeight: 360,
+    flex: 1,
     marginBottom: 8,
+  },
+  selectorGridContent: {
+    paddingBottom: 10,
   },
   selectorItemTile: {
     flex: 1,
@@ -6238,6 +6455,18 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 6,
     right: 6,
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#C5A065',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+  },
+  selectorOrderText: {
+    color: '#0A2540',
+    fontSize: 12,
+    fontWeight: '900',
   },
   selectorIconCircle: {
     width: 46,

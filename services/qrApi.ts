@@ -1298,7 +1298,7 @@ export async function listReceivedContacts(params: { uid: string }): Promise<{
             : 0,
           totalRatings,
           channelMuted: Boolean(row?.channelMuted),
-          themeId: String(row?.themeId || 'deep_teal').trim() || 'deep_teal',
+          themeId: String(row?.themeId || 'obsidian').trim() || 'obsidian',
           layout: String(row?.layout || 'vertical') === 'horizontal' ? 'horizontal' : 'vertical',
           fontId: row?.fontId ? String(row.fontId) : null,
           fontName: row?.fontName ? String(row.fontName) : null,

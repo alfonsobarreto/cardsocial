@@ -5,8 +5,9 @@
  * 1. In `frontend-web`: `npm run dev -- --hostname 0.0.0.0 --port 3001` (or your chosen port).
  * 2. In project root `.env`: `EXPO_PUBLIC_STUDIO_WEB_URL=http://<YOUR_LAN_IP>:3001`
  *    (physical device cannot use `localhost`; use the host machine’s Wi‑Fi IP).
- * 3. Run Expo (`npx expo start`) on the same network. Android cleartext is allowed in app.json;
- *    iOS allows local networking via NSAllowsLocalNetworking.
+ * 3. Run Expo (`npx expo start`) on the same network. Android cleartext is allowed in app.json.
+ *    iOS: ATS must allow WKWebView to load HTTP to a LAN IP — use NSAllowsLocalNetworking plus
+ *    NSAllowsArbitraryLoadsInWebContent (see app.json). Rebuild the dev client after Info.plist changes.
  *
  * Prod: set to your deployed Studio origin (https), e.g. `https://studio.cardsocial.me`.
  *

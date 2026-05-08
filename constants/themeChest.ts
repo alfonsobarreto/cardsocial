@@ -7,6 +7,7 @@
 
 export type ThemeTier = 'fresh' | 'moderno' | 'luxury';
 export type ShadowStyle = 'drop' | 'inner' | 'none';
+export const DEFAULT_CARD_THEME_ID = 'obsidian';
 
 export type ThemeFontWeight = '400' | '500' | '600' | '700' | '800' | '900';
 export type ThemeFontStyle = 'normal' | 'italic';

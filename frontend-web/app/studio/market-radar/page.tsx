@@ -1,9 +1,10 @@
 'use client';
 
-import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { assignStudioLoginPage } from '@/lib/studioAuthClient';
+import { StudioLocaleDropdown } from '@/components/studio/StudioLocaleDropdown';
 import { getStudioAuth } from '@/lib/studioFirebase';
 import {
   readBrowserLocale,
@@ -16,7 +17,17 @@ import {
 import { studioTheme } from '@/lib/studioTheme';
 import MarketRadar from '@/components/MarketRadar.jsx';
 
-export default function MarketRadarPage() {
+function useStudioDevRadarBypass(searchParams: ReturnType<typeof useSearchParams>): boolean {
+  return useMemo(() => {
+    if (process.env.NODE_ENV !== 'development') return false;
+    if (process.env.NEXT_PUBLIC_STUDIO_DEV_OPEN_RADAR === '1') return true;
+    return searchParams.get('dev_open') === '1';
+  }, [searchParams]);
+}
+
+function MarketRadarPageInner() {
+  const searchParams = useSearchParams();
+  const devBypass = useStudioDevRadarBypass(searchParams);
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [locale, setLocale] = useState<StudioLocale>('en');
 
@@ -29,6 +40,10 @@ export default function MarketRadarPage() {
   }, []);
 
   useEffect(() => {
+    if (devBypass) {
+      setUser({ uid: 'studio-dev-open-radar', isAnonymous: true } as User);
+      return;
+    }
     const auth = getStudioAuth();
     const unsub = onAuthStateChanged(auth, (u) => {
       if (u) {
@@ -40,7 +55,7 @@ export default function MarketRadarPage() {
       });
     });
     return () => unsub();
-  }, []);
+  }, [devBypass]);
 
   const t = useCallback((k: string, vars?: Record<string, string | number>) => studioT(locale, k, vars), [locale]);
 
@@ -50,7 +65,7 @@ export default function MarketRadarPage() {
     const usp = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
     usp.set('lang', l);
     if (typeof window !== 'undefined') {
-      window.history.replaceState({}, '', `${window.location.pathname}?${usp.toString()}`);
+      window.history.replaceState({}, '', `${window.location.origin}/studio/market-radar?${usp.toString()}`);
     }
   };
 
@@ -83,55 +98,18 @@ export default function MarketRadarPage() {
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 12,
-          padding: '12px 16px',
+          padding: '10px 14px',
           borderBottom: `1px solid ${studioTheme.border}`,
           background: 'linear-gradient(180deg, #0a0a0a 0%, #000 100%)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Link
-            href={`/studio/bunker?lang=${locale}`}
-            style={{
-              color: studioTheme.goldLight,
-              textDecoration: 'none',
-              fontSize: 12,
-              fontWeight: 700,
-              border: `1px solid ${studioTheme.border}`,
-              borderRadius: 8,
-              padding: '8px 12px',
-            }}
-          >
-            ← {t('marketRadar.backStudio')}
-          </Link>
-          <div>
-            <div style={{ fontSize: 10, letterSpacing: 1, fontWeight: 900, color: studioTheme.textSubtle }}>
-              {t('marketRadar.pageTitle')}
-            </div>
-            <div style={{ fontWeight: 900, fontSize: 13, color: studioTheme.gold }}>{studioT(locale, 'studio.brand')}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 10, letterSpacing: 1, fontWeight: 900, color: studioTheme.textSubtle }}>
+            {t('marketRadar.pageTitle')}
           </div>
+          <div style={{ fontWeight: 900, fontSize: 13, color: studioTheme.gold }}>{studioT(locale, 'studio.brand')}</div>
         </div>
-
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {(['es', 'en', 'it', 'fr', 'pt'] as const).map((l) => (
-            <button
-              key={l}
-              type="button"
-              onClick={() => setLocaleChip(l)}
-              style={{
-                padding: '6px 10px',
-                border: `1px solid ${studioTheme.border}`,
-                cursor: 'pointer',
-                borderRadius: 8,
-                background: locale === l ? studioTheme.gold : 'transparent',
-                color: locale === l ? studioTheme.bg : studioTheme.textMuted,
-                fontSize: 11,
-                fontWeight: 700,
-              }}
-            >
-              {studioT(locale, `lang.${l}`)}
-            </button>
-          ))}
-        </div>
+        <StudioLocaleDropdown locale={locale} onChange={setLocaleChip} label={studioT(locale, 'studio.localeMenu')} />
       </header>
 
       <main style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 16 }}>
@@ -140,5 +118,31 @@ export default function MarketRadarPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+/**
+ * Desde la app móvil usa `/embed/market-radar?et=…` (botón “Abrir radar”).
+ * En `next dev`, `/studio/market-radar?dev_open=1` abre el mapa sin login (solo LAN; no uses en prod).
+ */
+export default function MarketRadarPage() {
+  return (
+    <Suspense
+      fallback={
+        <div
+          style={{
+            minHeight: '100vh',
+            display: 'grid',
+            placeItems: 'center',
+            background: studioTheme.bg,
+            color: studioTheme.gold,
+          }}
+        >
+          Loading…
+        </div>
+      }
+    >
+      <MarketRadarPageInner />
+    </Suspense>
   );
 }

@@ -152,6 +152,8 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
     if (medalPills !== undefined) {
       // Siempre mostrar las 5 medallas con su número (aunque sea 0)
       const visiblePills = medalPills;
+      const medalIconSize = Math.max(12, Math.round(starSizeBase * 1.5 * s));
+      const medalCountSize = Math.max(8, Math.round(captionSizeBase * 1.5 * s));
       return (
         <View
           style={{
@@ -173,9 +175,28 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
               </Text>
             ) : (
               visiblePills.map((p) => (
-                <View key={p.key} style={{ flexDirection: 'row', alignItems: 'center', gap: Math.max(2, Math.round(3 * s)) }}>
-                  <MaterialCommunityIcons name={p.icon as any} size={Math.round(starSizeBase * 1.5)} color={mirrorReceiversFg} />
-                  <Text style={{ color: mirrorReceiversFg, fontSize: Math.round(captionSizeBase * 1.5), fontWeight: '600' }}>{p.count}</Text>
+                <View
+                  key={p.key}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: Math.max(2, Math.round(3 * s)),
+                    flexShrink: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  <MaterialCommunityIcons name={p.icon as any} size={medalIconSize} color={mirrorReceiversFg} />
+                  <Text
+                    style={{
+                      color: mirrorReceiversFg,
+                      fontSize: medalCountSize,
+                      fontWeight: '600',
+                      flexShrink: 1,
+                    }}
+                    numberOfLines={1}
+                  >
+                    {p.count}
+                  </Text>
                 </View>
               ))
             )}
@@ -350,7 +371,13 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
                 {hIconRows.map((rowSlots, ri) => {
                   const cellW = hIconSize;
                   return (
-                    <View key={`h-ir-${ri}`} style={[wf.wireIconRow, !editable && { justifyContent: 'center' }]}>
+                    <View
+                      key={`h-ir-${ri}`}
+                      style={[
+                        wf.wireIconRow,
+                        !editable && { justifyContent: 'center' },
+                      ]}
+                    >
                       {rowSlots.map((slot) => (
                         <View
                           key={slot.id}
@@ -585,13 +612,19 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
               {vIconRows.map((rowSlots, ri) => {
                 const cellW = vertIconCellSize;
                 return (
-                  <View key={`v-ir-${ri}`} style={[wf.wireIconRow, !editable && { justifyContent: 'center' }]}>
+                  <View
+                    key={`v-ir-${ri}`}
+                    style={[
+                      wf.wireIconRow,
+                      !editable && { justifyContent: 'center' },
+                    ]}
+                  >
                     {rowSlots.map((slot) => (
                       <View
                         key={slot.id}
                         style={[wf.wireIconCell, { width: cellW, maxWidth: cellW, flexBasis: cellW }]}
                       >
-                        {renderSlotContent(slot, { size: cellW }, editable, theme)}
+                          {renderSlotContent(slot, { size: cellW }, editable, theme)}
                       </View>
                     ))}
                   </View>

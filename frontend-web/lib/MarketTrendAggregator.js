@@ -8,11 +8,20 @@
  *                      `mockIntelligenceService`). Replaceable by repository
  *                      fetch when production data is wired.
  *
- *  • ExternalSource  — public demand signal feed (Google Trends via SerpApi
- *                      proxy, structured for any equivalent provider). When
- *                      `NEXT_PUBLIC_TRENDS_PROXY_URL` is unset or the request
- *                      fails, returns a deterministic broad-spread mock so
- *                      the heatmap stays alive in offline / dev mode.
+ *  • ExternalSource (`DATA_SOURCES.GLOBAL_DEMAND`, UI: "Global Market Demand")
+ *      – Today this is NOT your production Social Market database.
+ *      – Optional live path: HTTP GET to `NEXT_PUBLIC_TRENDS_PROXY_URL` with
+ *        query params (engine=google_trends, q, geo, niche). Response must be
+ *        normalized by `normalizeExternalPayload` (see ~179–213), or extend
+ *        that function for your API shape.
+ *      – If the env URL is missing, the request fails, or JSON does not match
+ *        supported shapes → `globalDemandMockFallback` (bloque MOCK DATA abajo) añade
+ *        puntos sintéticos alrededor de `DEMAND_ANCHORS`.
+ *      – ▶ Fase 4 demo: `NEXT_PUBLIC_GLOBAL_DEMO_MODE=1` + toggle en Market Radar
+ *        (localStorage) sirve eventos in-memory desde `demo/searchDemand/demoSearchEvents`.
+ *      – ▶ Social Market (producción): replace or branch inside
+ *        `ExternalSource.fetch` to call your backend/DB, map rows to
+ *        `HybridEvent`, and return; remove the MOCK DATA block for production.
  *
  * Both sources emit the same event shape so the existing Mapbox heatmap
  * pipeline works unchanged. Weighted via a normalized `w ∈ [0..1]` field.
@@ -24,6 +33,11 @@ import {
   filterEventsByNiche,
   filterEventsByIntentKeyword,
 } from './mockIntelligenceService';
+
+import {
+  getGlobalDemoSearchDemandEvents,
+  isGlobalDemoHeatmapEnabledClient,
+} from '@/demo/searchDemand/demoSearchEvents';
 
 export const DATA_SOURCES = Object.freeze({
   APP_NETWORK: 'app_network',
@@ -75,22 +89,89 @@ export class InternalSource {
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
-/*  ExternalSource — Google Trends proxy (SerpApi-shaped)                     */
+/*  ExternalSource — GLOBAL_DEMAND / "Global Market Demand"                  */
+/*  Dev: SerpApi-shaped proxy OR deterministic mock (no Social Market DB).    */
 /* ────────────────────────────────────────────────────────────────────────── */
 
-/**
- * Anchors used for the external broad-spread mock. Real proxy responses
- * (Google Trends "interest by region") are normalized to the same shape.
- */
-const TX_DEMAND_ANCHORS = [
+// --- INICIO MOCK DATA (ELIMINAR PARA PRODUCCIÓN) ---
+/** Anchors ponderados para puntos sintéticos GLOBAL_DEMAND si falla la API proxy. */
+const DEMAND_ANCHORS = [
   { city: 'Austin', lat: 30.2672, lng: -97.7431, weight: 1.0, spread: 0.45 },
-  { city: 'Dallas', lat: 32.7767, lng: -96.7970, weight: 0.94, spread: 0.55 },
+  { city: 'Dallas', lat: 32.7767, lng: -96.797, weight: 0.94, spread: 0.55 },
   { city: 'Houston', lat: 29.7604, lng: -95.3698, weight: 0.92, spread: 0.6 },
   { city: 'San Antonio', lat: 29.4241, lng: -98.4936, weight: 0.81, spread: 0.5 },
   { city: 'Killeen / Fort Cavazos', lat: 31.1171, lng: -97.7278, weight: 0.55, spread: 0.4 },
   { city: 'Waco', lat: 31.5493, lng: -97.1467, weight: 0.46, spread: 0.35 },
   { city: 'Corpus Christi', lat: 27.8006, lng: -97.3964, weight: 0.4, spread: 0.45 },
+  { city: 'Miraflores, Perú', lat: -12.1211, lng: -77.0297, weight: 0.9, spread: 0.38 },
+  { city: 'Tarapoto, Perú', lat: -6.4876, lng: -76.3599, weight: 0.8, spread: 0.42 },
 ];
+
+function hashString(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function rng() {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function pickWeighted(items, rng) {
+  const total = items.reduce((acc, x) => acc + (x.weight ?? 1), 0);
+  let r = rng() * total;
+  for (const x of items) {
+    r -= x.weight ?? 1;
+    if (r <= 0) return x;
+  }
+  return items[items.length - 1];
+}
+
+/**
+ * Puntos sintéticos GLOBAL_DEMAND (relleno). Sustituir por respuesta real en producción.
+ * @param {{ niche?: string, intentKeyword?: string, mockSize?: number }} q
+ * @returns {HybridEvent[]}
+ */
+function globalDemandMockFallback({ niche = 'all', intentKeyword = '', mockSize = 1100 }) {
+  const seedSalt = `${niche}-${intentKeyword}`;
+  const rng = mulberry32(hashString(seedSalt) || 1);
+  const total = mockSize;
+  /** @type {HybridEvent[]} */
+  const out = [];
+
+  for (let i = 0; i < total; i++) {
+    const anchor = pickWeighted(DEMAND_ANCHORS, rng);
+    const lat = anchor.lat + (rng() - 0.5) * anchor.spread;
+    const lng = anchor.lng + (rng() - 0.5) * anchor.spread;
+    const nicheCategory =
+      niche !== 'all' && NICHE_CATEGORIES.includes(niche)
+        ? niche
+        : NICHE_CATEGORIES[Math.floor(rng() * NICHE_CATEGORIES.length)];
+
+    const interest = Math.min(1, anchor.weight * (0.55 + rng() * 0.6) + (rng() - 0.5) * 0.08);
+    const w = Math.max(0.18, interest);
+    const phrase = intentKeyword || `${nicheCategory.replace(/_/g, ' ')} ${anchor.city}`;
+    out.push({
+      lat,
+      lng,
+      niche_category: nicheCategory,
+      timestamp: new Date().toISOString(),
+      intent_phrase: phrase,
+      search_blob: `${phrase} ${nicheCategory.replace(/_/g, ' ')} ${anchor.city.toLowerCase()}`,
+      w,
+      source: DATA_SOURCES.GLOBAL_DEMAND,
+    });
+  }
+  return out;
+}
+// --- FIN MOCK DATA ---
 
 export class ExternalSource {
   /**
@@ -110,6 +191,15 @@ export class ExternalSource {
 
   /** @param {{ niche?: string, intentKeyword?: string, country?: string }} q */
   async fetch({ niche = 'all', intentKeyword = '', country } = {}) {
+    if (isGlobalDemoHeatmapEnabledClient()) {
+      return getGlobalDemoSearchDemandEvents({ niche, intentKeyword });
+    }
+    // ─── PRODUCTION HOOKUP (Social Market): prefer a server route or Card-Social API
+    // that returns lat/lng + weight + intent metadata. Map JSON → HybridEvent[] here
+    // (or add a sibling `fetchSocialMarketDemand()` and return its result), instead of
+    // relying on `NEXT_PUBLIC_TRENDS_PROXY_URL` + normalizeExternalPayload.
+    // Env `NEXT_PUBLIC_*` is browser-visible — prefer calling your backend from Next
+    // (server action / route handler) and keep secrets server-side.
     if (this.proxyUrl) {
       try {
         const url = new URL(this.proxyUrl);
@@ -131,50 +221,20 @@ export class ExternalSource {
       }
     }
 
-    return this._mockFallback({ niche, intentKeyword });
-  }
-
-  /** Deterministic-ish broad spread; visually distinct from internal density. */
-  _mockFallback({ niche = 'all', intentKeyword = '' }) {
-    const seedSalt = `${niche}-${intentKeyword}`;
-    const rng = mulberry32(hashString(seedSalt) || 1);
-    const total = this.mockSize;
-    /** @type {HybridEvent[]} */
-    const out = [];
-
-    for (let i = 0; i < total; i++) {
-      const anchor = pickWeighted(TX_DEMAND_ANCHORS, rng);
-      const lat = anchor.lat + (rng() - 0.5) * anchor.spread;
-      const lng = anchor.lng + (rng() - 0.5) * anchor.spread;
-      const nicheCategory =
-        niche !== 'all' && NICHE_CATEGORIES.includes(niche)
-          ? niche
-          : NICHE_CATEGORIES[Math.floor(rng() * NICHE_CATEGORIES.length)];
-
-      const interest = Math.min(
-        1,
-        anchor.weight * (0.55 + rng() * 0.6) + (rng() - 0.5) * 0.08,
-      );
-      const w = Math.max(0.18, interest);
-      const phrase = intentKeyword || `${nicheCategory.replace(/_/g, ' ')} ${anchor.city}`;
-      out.push({
-        lat,
-        lng,
-        niche_category: nicheCategory,
-        timestamp: new Date().toISOString(),
-        intent_phrase: phrase,
-        search_blob: `${phrase} ${nicheCategory.replace(/_/g, ' ')} ${anchor.city.toLowerCase()}`,
-        w,
-        source: DATA_SOURCES.GLOBAL_DEMAND,
-      });
-    }
-    return out;
+    // Depende de globalDemandMockFallback (bloque MOCK DATA arriba). Si eliminas ese bloque, sustituye por `return []` o tu API real.
+    return globalDemandMockFallback({
+      niche,
+      intentKeyword,
+      mockSize: this.mockSize,
+    });
   }
 }
 
 /**
- * Normalize an upstream Google-Trends-shaped payload into HybridEvent[].
- * Accepts both SerpApi `interest_by_region` and a generic `{points:[{lat,lng,score}]}` shape.
+ * Maps an external HTTP JSON body → HybridEvent[] for GLOBAL_DEMAND.
+ * Supported today: SerpApi-ish `interest_by_region` or generic `{ points: [...] }`.
+ * PRODUCTION: extend with branches for your Social Market API response, or replace
+ * this function calls with a dedicated mapper in `ExternalSource.fetch`.
  */
 function normalizeExternalPayload(payload, niche) {
   const niches = niche !== 'all' && NICHE_CATEGORIES.includes(niche) ? niche : 'general';
@@ -247,33 +307,6 @@ function clamp01(n) {
   if (n < 0) return 0;
   if (n > 1) return 1;
   return n;
-}
-
-function hashString(s) {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
-function mulberry32(seed) {
-  let a = seed >>> 0;
-  return function rng() {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function pickWeighted(items, rng) {
-  const total = items.reduce((acc, x) => acc + (x.weight ?? 1), 0);
-  let r = rng() * total;
-  for (const x of items) {
-    r -= x.weight ?? 1;
-    if (r <= 0) return x;
-  }
-  return items[items.length - 1];
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */

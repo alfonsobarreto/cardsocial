@@ -349,7 +349,7 @@ function ContactsContent() {
       mutualContactsCount: Number(row.mutualContactsCount ?? 0),
       totalRatings: Number(row.totalRatings ?? 0),
       channelMuted: Boolean(row.channelMuted),
-      themeId: String(row.themeId || 'deep_teal').trim() || 'deep_teal',
+      themeId: String(row.themeId || 'obsidian').trim() || 'obsidian',
       layout: row.layout === 'horizontal' ? 'horizontal' : 'vertical',
       fontId: row.fontId ?? null,
       fontName: row.fontName ?? null,

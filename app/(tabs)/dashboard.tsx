@@ -10,6 +10,7 @@ import { getActiveUserId } from '@/services/authSession';
 import { listMyBusinessCards, updateBusinessCard } from '@/services/businessCardsRepo';
 import { auth, db } from '@/services/firebaseConfig';
 import { mintMarketRadarEmbedUrl } from '@/services/mintMarketRadarEmbedUrl';
+import { marketRadarMintUserMessage } from '@/services/marketRadarMintMessages';
 import { getMarketRadarWebBaseUrl } from '@/services/marketRadarWebUrl';
 import { hasUnlimitedAdminUi } from '@/services/roleService';
 import { effectiveTierKeyFromUserData, type TierKey } from '@/services/tiersConfigService';
@@ -27,13 +28,14 @@ import { useLookMode } from '@/services/lookMode';
 import { doc, getDoc } from 'firebase/firestore';
 import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Animated,
   FlatList,
-  Linking,
   PanResponder,
   Pressable,
   ScrollView,
@@ -46,8 +48,8 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
+import { Map as LucideMap, Maximize2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { WebView } from 'react-native-webview';
 
 const GOLD = '#D4AF37';
 const INK = '#050505';
@@ -139,6 +141,7 @@ type DashboardChrome = {
   nicheChipInactiveText: string;
   nicheChipActiveText: string;
   seoExplorerResetFg: string;
+  collapsibleFrameBg: string;
   isNight: boolean;
 };
 
@@ -154,6 +157,7 @@ function buildDashboardChrome(shell: AppShellTheme, isNight: boolean): Dashboard
     panelBorder: isNight ? 'rgba(212,175,55,0.24)' : 'rgba(212,175,55,0.35)',
     collapsibleHeaderBg: isNight ? 'rgba(8,8,8,0.55)' : 'rgba(255,255,255,0.82)',
     collapsibleBorder: isNight ? 'rgba(212,175,55,0.22)' : 'rgba(212,175,55,0.32)',
+    collapsibleFrameBg: isNight ? PANEL_2 : 'rgba(255,252,248,0.98)',
     subtitleOnPanel: isNight ? 'rgba(255,255,255,0.72)' : palette.textSecondary,
     gold: palette.ctaAccent,
     iconGold: isNight ? '#F8E6A2' : palette.ctaAccent,
@@ -583,7 +587,7 @@ function DashboardBusinessCardItem({
   const { language } = useLanguage();
   const tr = useCallback((es: string, en: string) => trEsEn(es, en, language), [language]);
   const chestTheme = getCardRowTheme(item.themeId || undefined);
-  const themeMeta = getThemeById(item.themeId || '') ?? getThemeById('deep_teal');
+  const themeMeta = getThemeById(item.themeId || '') ?? getThemeById('obsidian');
   const logoUri = toRenderableImageUri(item.bcLogoUrl || '');
 
   return (
@@ -797,6 +801,7 @@ function CollapsibleSection({
   titleColor,
   iconTint,
   chevronTint,
+  frameBg,
   children,
 }: {
   title: string;
@@ -807,12 +812,19 @@ function CollapsibleSection({
   titleColor?: string;
   iconTint?: string;
   chevronTint?: string;
+  frameBg?: string;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <View style={[styles.collapsibleFrame, borderColor ? { borderColor } : undefined]}>
+    <View
+      style={[
+        styles.collapsibleFrame,
+        frameBg ? { backgroundColor: frameBg } : undefined,
+        borderColor ? { borderColor } : undefined,
+      ]}
+    >
       <Pressable
         style={[styles.collapsibleHeader, headerBg ? { backgroundColor: headerBg } : undefined]}
         onPress={() => setOpen((prev) => !prev)}
@@ -848,10 +860,6 @@ export default function DashboardScreen() {
   const [seoLocationQuery, setSeoLocationQuery] = useState('');
   const [seoLocationApplied, setSeoLocationApplied] = useState('');
   const [launchingRadar, setLaunchingRadar] = useState(false);
-  const [marketRadarWebLoading, setMarketRadarWebLoading] = useState(true);
-  const [marketRadarEmbedUrl, setMarketRadarEmbedUrl] = useState<string | null>(null);
-  const [embedMintLoading, setEmbedMintLoading] = useState(false);
-  const [webViewReloadKey, setWebViewReloadKey] = useState(0);
   const [seoExpanded, setSeoExpanded] = useState(false);
   const [showTopNicheKeyword, setShowTopNicheKeyword] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -984,61 +992,35 @@ export default function DashboardScreen() {
   const seoRows = activeSeo?.rows || [];
   const visibleSeoRows = seoExpanded || seoRows.length <= 6 ? seoRows : seoRows.slice(0, 5);
   const studioWebBase = useMemo(() => getMarketRadarWebBaseUrl(), []);
-  useEffect(() => {
-    if (!studioWebBase || !sessionUid) {
-      setMarketRadarEmbedUrl(null);
-      setEmbedMintLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setEmbedMintLoading(true);
-    void (async () => {
-      const minted = await mintMarketRadarEmbedUrl(language);
-      if (cancelled) return;
-      if (minted?.url) {
-        setMarketRadarEmbedUrl(minted.url);
-        setWebViewReloadKey((k) => k + 1);
-      } else {
-        setMarketRadarEmbedUrl(null);
-      }
-      setEmbedMintLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [studioWebBase, sessionUid, language]);
-  const marketRadarOriginLabel = useMemo(() => {
-    if (!studioWebBase) return '';
-    return studioWebBase.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
-  }, [studioWebBase]);
 
   const launchCommandCenter = useCallback(async () => {
     if (!studioWebBase || launchingRadar) return;
     setLaunchingRadar(true);
     try {
-      let uri = marketRadarEmbedUrl ?? (await mintMarketRadarEmbedUrl(language))?.url ?? null;
-      if (!uri) {
+      // Siempre nuevo `et` evita abrir Safari con ticket caducado; WebBrowser evita about:blank con http LAN en iOS.
+      const minted = await mintMarketRadarEmbedUrl(language);
+      if (!minted.ok) {
         Alert.alert(
           tr('Radar no disponible', 'Radar unavailable'),
-          tr(
-            'No se pudo obtener el acceso seguro al radar. Verifica Studio (STUDIO_EMBED_SECRET / Admin) y vuelve a intentar.',
-            'Could not get a secure radar link. Check Studio embed config (STUDIO_EMBED_SECRET / Admin) and try again.',
-          ),
+          marketRadarMintUserMessage(minted.issue, tr),
         );
         return;
       }
-      const supported = await Linking.canOpenURL(uri);
-      if (supported) {
-        await Linking.openURL(uri);
-      } else {
-        Alert.alert(tr('No se pudo abrir el navegador', 'Could not open the browser'), uri);
+      const url = minted.url.trim();
+      try {
+        await Linking.openURL(url);
+      } catch {
+        await WebBrowser.openBrowserAsync(url);
       }
-    } catch {
-      Alert.alert(tr('No se pudo abrir el navegador', 'Could not open the browser'), '');
+    } catch (e) {
+      Alert.alert(
+        tr('No se pudo abrir el navegador', 'Could not open the browser'),
+        (e as Error)?.message ?? '',
+      );
     } finally {
       setLaunchingRadar(false);
     }
-  }, [studioWebBase, launchingRadar, marketRadarEmbedUrl, language, tr]);
+  }, [studioWebBase, launchingRadar, language, tr]);
 
   const handleChangePeriod = (mode: PeriodMode) => {
     setPeriodMode(mode);
@@ -1218,6 +1200,7 @@ export default function DashboardScreen() {
         <CollapsibleSection
           title={tr('Tus IconoDatas más tocados', 'Your most tapped IconoDatas')}
           icon="format-list-numbered"
+          frameBg={chrome.collapsibleFrameBg}
           borderColor={chrome.collapsibleBorder}
           headerBg={chrome.collapsibleHeaderBg}
           titleColor={chrome.text}
@@ -1261,6 +1244,7 @@ export default function DashboardScreen() {
         <CollapsibleSection
           title={tr('Inteligencia de mercado SEO', 'SEO market intelligence')}
           icon="map-search-outline"
+          frameBg={chrome.collapsibleFrameBg}
           borderColor={chrome.collapsibleBorder}
           headerBg={chrome.collapsibleHeaderBg}
           titleColor={chrome.text}
@@ -1427,47 +1411,69 @@ export default function DashboardScreen() {
                   styles.marketRadarWebShell,
                   {
                     borderColor: isNight ? 'rgba(246,218,135,0.55)' : 'rgba(212,175,55,0.42)',
-                    backgroundColor: isNight ? 'rgba(8,8,8,0.96)' : 'rgba(246,243,237,0.96)',
+                    overflow: 'hidden',
                   },
                 ]}
               >
-                {embedMintLoading || (!!marketRadarEmbedUrl && marketRadarWebLoading) ? (
-                  <View style={styles.marketRadarWebLoading}>
-                    <ActivityIndicator size="large" color={chrome.gold} />
-                    <Text style={[styles.marketRadarWebLoadingText, { color: chrome.textMuted }]}>
-                      {embedMintLoading
-                        ? tr('Preparando sesión segura del radar…', 'Preparing secure radar session…')
-                        : tr('Sincronizando radar Mapbox…', 'Syncing Mapbox radar…')}
-                    </Text>
+                <LinearGradient
+                  colors={
+                    isNight
+                      ? (['#1a1610', '#100e0a', '#060504'] as const)
+                      : (['#f6f1e8', '#ece6da', '#e2dcd0'] as const)
+                  }
+                  start={{ x: 0.2, y: 0 }}
+                  end={{ x: 0.9, y: 1 }}
+                  style={StyleSheet.absoluteFillObject}
+                />
+                <View
+                  style={[StyleSheet.absoluteFillObject, styles.marketRadarPlaceholderWatermarkWrap]}
+                  pointerEvents="none"
+                  accessibilityElementsHidden
+                >
+                  <View style={styles.marketRadarPlaceholderRadarCore}>
+                    {[240, 175, 112].map((d) => (
+                      <View
+                        key={`ring-${d}`}
+                        style={[
+                          styles.marketRadarPlaceholderRing,
+                          {
+                            width: d,
+                            height: d,
+                            borderRadius: d / 2,
+                            borderColor: isNight ? 'rgba(246,218,135,0.12)' : 'rgba(180,145,60,0.16)',
+                          },
+                        ]}
+                      />
+                    ))}
+                    <LucideMap
+                      size={198}
+                      color={isNight ? 'rgba(246,218,135,0.07)' : 'rgba(100,78,28,0.1)'}
+                      strokeWidth={1}
+                    />
                   </View>
-                ) : null}
-                {marketRadarEmbedUrl ? (
-                  <WebView
-                    key={webViewReloadKey}
-                    source={{ uri: marketRadarEmbedUrl }}
-                    style={styles.marketRadarWebView}
-                    javaScriptEnabled
-                    domStorageEnabled
-                    sharedCookiesEnabled
-                    thirdPartyCookiesEnabled
-                    allowsBackForwardNavigationGestures
-                    mixedContentMode="always"
-                    setSupportMultipleWindows={false}
-                    onLoadStart={() => setMarketRadarWebLoading(true)}
-                    onLoadEnd={() => setMarketRadarWebLoading(false)}
-                    onError={() => setMarketRadarWebLoading(false)}
-                  />
-                ) : embedMintLoading ? null : (
-                  <View style={[styles.marketRadarWebLoading, { backgroundColor: 'transparent' }]}>
-                    <MaterialCommunityIcons name="shield-lock-outline" size={36} color={chrome.iconGold} />
-                    <Text style={[styles.marketRadarMissingText, { color: chrome.textSecondary, marginTop: 10 }]}>
-                      {tr(
-                        'No hubo enlace seguro para el radar. Comprueba que Studio tenga STUDIO_EMBED_SECRET y FIREBASE_SERVICE_ACCOUNT_JSON, o vuelve a abrir esta pestaña.',
-                        'Could not mint a secure embed link. Ensure Studio has STUDIO_EMBED_SECRET and FIREBASE_SERVICE_ACCOUNT_JSON, or reopen this tab.',
-                      )}
-                    </Text>
+                </View>
+                <View style={styles.marketRadarPlaceholderContent} pointerEvents="none">
+                  <View
+                    style={[
+                      styles.marketRadarPlaceholderIconRing,
+                      {
+                        borderColor: isNight ? 'rgba(246,218,135,0.5)' : 'rgba(212,175,55,0.45)',
+                        backgroundColor: isNight ? 'rgba(8,8,8,0.42)' : 'rgba(255,252,248,0.72)',
+                      },
+                    ]}
+                  >
+                    <LucideMap size={36} color={chrome.iconGold} strokeWidth={1.6} />
                   </View>
-                )}
+                  <Text style={[styles.marketRadarPlaceholderTitle, { color: chrome.text }]}>
+                    {tr('Optimización geográfica', 'Market Radar — Full experience')}
+                  </Text>
+                  <Text style={[styles.marketRadarPlaceholderSubtitle, { color: chrome.textSecondary }]}>
+                    {tr(
+                      'Para garantizar la máxima precisión y fluidez de los datos de mercado en tiempo real, el Radar se despliega en una interfaz inmersiva de pantalla completa.',
+                      'To deliver maximum accuracy and fluidity for live market intelligence, the Radar runs in a full-screen immersive interface.',
+                    )}
+                  </Text>
+                </View>
               </View>
             ) : (
               <View
@@ -1487,36 +1493,6 @@ export default function DashboardScreen() {
               </View>
             )}
 
-            <Text style={[styles.executiveRadarBody, { color: chrome.textSecondary }]}>
-              {tr(
-                'Heatmap Mapbox en vivo con códigos postales y nichos. Optimizado para el lienzo grande del navegador, donde la inteligencia geo respira.',
-                'Live Mapbox heatmap with ZIP-level data and niche overlays. Tuned for the large browser canvas where geo-intelligence breathes.',
-              )}
-            </Text>
-
-            <View style={styles.executiveRadarChips}>
-              {([
-                ['LIVE · Mapbox GL', 'rocket-launch'],
-                [tr('Austin / Dallas grid', 'Austin / Dallas grid'), 'map-marker-radius'],
-                [tr('Capas multi-nicho', 'Multi-niche overlay'), 'layers-triple'],
-              ] as const).map(([label, icon]) => (
-                <View
-                  key={label}
-                  style={[
-                    styles.executiveRadarChip,
-                    { borderColor: chrome.collapsibleBorder, backgroundColor: chrome.nicheChipInactiveBg },
-                  ]}
-                >
-                  <MaterialCommunityIcons
-                    name={icon as keyof typeof MaterialCommunityIcons.glyphMap}
-                    size={11}
-                    color={chrome.iconGold}
-                  />
-                  <Text style={[styles.executiveRadarChipText, { color: chrome.opportunityTitle }]}>{label}</Text>
-                </View>
-              ))}
-            </View>
-
             <TouchableOpacity
               style={[
                 styles.launchCommandButton,
@@ -1526,7 +1502,7 @@ export default function DashboardScreen() {
               disabled={!studioWebBase || launchingRadar}
               activeOpacity={0.86}
               accessibilityRole="button"
-              accessibilityLabel={tr('Lanzar el mapa Geo-Intelligence a pantalla completa', 'Launch the full-screen Geo-Intelligence Map')}
+              accessibilityLabel={tr('Explorar radar en pantalla completa', 'Explore radar in full screen')}
             >
               <LinearGradient
                 colors={studioWebBase ? ['#F6DA87', GOLD, '#A87B1F'] : ['rgba(150,120,60,0.4)', 'rgba(80,60,30,0.4)']}
@@ -1537,31 +1513,25 @@ export default function DashboardScreen() {
                 {launchingRadar ? (
                   <ActivityIndicator size="small" color="#1B1205" />
                 ) : (
-                  <MaterialCommunityIcons name="rocket-launch" size={18} color="#1B1205" />
+                  <Maximize2 size={18} color="#1B1205" strokeWidth={2.2} />
                 )}
                 <Text style={styles.launchCommandText} numberOfLines={2}>
-                  {tr(
-                    'Abrir radar a pantalla completa en el navegador',
-                    'Open radar in fullscreen browser',
-                  )}
+                  {tr('Explorar Radar en Pantalla Completa', 'Explore the radar in full screen')}
                 </Text>
                 <MaterialCommunityIcons name="arrow-top-right" size={16} color="#1B1205" />
               </LinearGradient>
             </TouchableOpacity>
 
-            <Text style={[styles.executiveRadarOriginCaption, { color: chrome.textMuted }]} numberOfLines={1}>
+            <Text style={[styles.executiveRadarOriginCaption, { color: chrome.textMuted, marginTop: 6 }]} numberOfLines={2}>
               {studioWebBase
-                ? `→ ${marketRadarOriginLabel}/embed/market-radar`
+                ? tr(
+                    'Mapbox y capas de intención en tu navegador, con la superficie que merecen.',
+                    'Mapbox and intent layers open in your browser at the scale they deserve.',
+                  )
                 : tr(
                     'Define EXPO_PUBLIC_STUDIO_WEB_URL para activar el lanzamiento.',
                     'Set EXPO_PUBLIC_STUDIO_WEB_URL to enable the launch.',
                   )}
-            </Text>
-            <Text style={[styles.executiveRadarHint, { color: chrome.textMuted }]}>
-              {tr(
-                'Se abre en tu navegador (Safari / Chrome) para mantener Mapbox a 60 fps. Esta tarjeta seguirá siendo tu puerta de control.',
-                'Opens in your browser (Safari / Chrome) to keep Mapbox at 60 fps. This card stays as your command door.',
-              )}
             </Text>
           </View>
         </CollapsibleSection>
@@ -1570,6 +1540,7 @@ export default function DashboardScreen() {
           title={tr('El camino Legacy', 'The Legacy path')}
           icon="diamond-stone"
           defaultOpen
+          frameBg={chrome.collapsibleFrameBg}
           borderColor={chrome.collapsibleBorder}
           headerBg={chrome.collapsibleHeaderBg}
           titleColor={chrome.text}
@@ -1593,7 +1564,7 @@ export default function DashboardScreen() {
             </View>
             <View style={styles.medalRow}>
               {([
-                ['silver', tr('Plata', 'Silver'), true],
+                ['medal-outline', tr('Plata', 'Silver'), true],
                 ['gold', tr('Oro', 'Gold'), false],
                 ['diamond-stone', tr('Diamante', 'Diamond'), false],
               ] as const).map(([icon, label, unlocked]) => (
@@ -2341,8 +2312,61 @@ const styles = StyleSheet.create({
     elevation: 10,
     position: 'relative',
   },
+  marketRadarPlaceholderContent: {
+    ...StyleSheet.absoluteFillObject,
+    paddingHorizontal: 22,
+    paddingVertical: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  marketRadarPlaceholderWatermarkWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  marketRadarPlaceholderRadarCore: {
+    width: 260,
+    height: 260,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  marketRadarPlaceholderRing: {
+    position: 'absolute',
+    borderWidth: StyleSheet.hairlineWidth * 2,
+  },
+  marketRadarPlaceholderIconRing: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    shadowColor: GOLD,
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  marketRadarPlaceholderTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    textAlign: 'center',
+    letterSpacing: 0.35,
+  },
+  marketRadarPlaceholderSubtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 20,
+    textAlign: 'center',
+    marginTop: 10,
+    maxWidth: 300,
+    paddingHorizontal: 6,
+    opacity: 0.92,
+  },
   marketRadarWebView: {
     flex: 1,
+    width: '100%',
+    minHeight: 320,
     backgroundColor: 'transparent',
   },
   marketRadarWebLoading: {

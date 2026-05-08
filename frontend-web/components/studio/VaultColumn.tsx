@@ -1,5 +1,6 @@
 'use client';
 
+import { mdiTrashCanOutline } from '@mdi/js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isGhostLinkVaultDeletionProtected, isGhostLinkVaultType } from '@card-social/constants/ghostLinkVault';
 import type { StudioLocale } from '@/lib/studioI18n';
@@ -555,7 +556,16 @@ export default function VaultColumn({
                                 textAlign: 'left',
                               }}
                             >
-                              🗑 {t('vault.menu.delete')}
+                              <svg
+                                width={18}
+                                height={18}
+                                viewBox="0 0 24 24"
+                                aria-hidden
+                                style={{ flexShrink: 0, display: 'block', color: studioTheme.error }}
+                              >
+                                <path d={mdiTrashCanOutline} fill="currentColor" />
+                              </svg>
+                              {t('vault.menu.delete')}
                             </button>
                           ) : null}
                         </div>

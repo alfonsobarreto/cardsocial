@@ -2099,7 +2099,7 @@ function createQrRoutes({ storage }) {
         let avg = 5;
         let searchFacets = [];
         let totalRatings = 0;
-        let themeId = 'deep_teal';
+        let themeId = 'obsidian';
         let layout = 'vertical';
         let fontId = null;
         let fontName = null;
@@ -2155,7 +2155,7 @@ function createQrRoutes({ storage }) {
             avg = Number(cardDoc.ratingAvg || 5);
             searchFacets = sanitizeSearchFacets(cardDoc.searchFacets);
             totalRatings = Number(cardDoc.totalRatings ?? 0);
-            themeId = String(cardDoc.themeId || 'deep_teal').trim() || 'deep_teal';
+            themeId = String(cardDoc.themeId || 'obsidian').trim() || 'obsidian';
             layout = String(cardDoc.layout || 'vertical') === 'horizontal' ? 'horizontal' : 'vertical';
             fontId = cardDoc.fontId ? String(cardDoc.fontId) : null;
             fontName = cardDoc.fontName ? String(cardDoc.fontName) : null;

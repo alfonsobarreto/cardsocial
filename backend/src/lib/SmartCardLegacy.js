@@ -21,7 +21,7 @@ const THEME_TABLE = {
   texas_whiteout:    { bg: ['#FFFFFF','#F5F5F5','#EEEEEE'], bc: '#BF5700', tc: '#BF5700', sc: '#5D4037', ic: '#8D4E37', bb: 'rgba(191,87,0,0.08)' },
   texas_night_game:  { bg: ['#0D1117','#161B22','#1F2937'], bc: '#BF5700', tc: '#BF5700', sc: '#9CA3AF', ic: '#D1D5DB', bb: 'rgba(191,87,0,0.12)' },
 };
-const DEFAULT_THEME_ID = 'deep_teal';
+const DEFAULT_THEME_ID = 'obsidian';
 
 function resolveCourtesyTheme(themeId) {
   return THEME_TABLE[themeId] || THEME_TABLE[DEFAULT_THEME_ID];

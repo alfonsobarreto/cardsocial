@@ -261,7 +261,7 @@ function createSmartCardsRoutes({ storage }) {
         vaultItemIds: sanitizeVaultItemIds(body.vaultItemIds),
         publicCardSlots: sanitizePublicCardSlots(body.publicCardSlots),
 
-        themeId: trimOrNull(body.themeId) || 'deep_teal',
+        themeId: trimOrNull(body.themeId) || 'obsidian',
         fontId: trimOrNull(body.fontId),
         wallpaperId: trimOrNull(body.wallpaperId),
         iconPackId: trimOrNull(body.iconPackId),
