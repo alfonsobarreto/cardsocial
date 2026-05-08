@@ -622,6 +622,7 @@ const otpHash = (emailLower, code) => {
     app.use('/b', nextProxy);
     app.use('/legal', nextProxy);
     app.use('/es', nextProxy);
+    app.use('/executive-summary', nextProxy);
     app.use('/studio', nextProxy);
     app.use('/login', nextProxy);
     app.use('/api/studio', nextProxy);
