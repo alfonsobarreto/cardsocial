@@ -6,6 +6,7 @@
 const express = require('express');
 const { env } = require('../config');
 const { rewritePublicCardMediaUrls } = require('../lib/vaultPublicUrlRewrite');
+const { sanitizeAnalyticsSegmentKey, recordCardAnalyticsEvent } = require('../services/cardAnalyticsRecord');
 const { clientLocaleIsSpanish } = require('../lib/httpRequestLocale');
 const { parseAndValidateTemporaryAccess } = require('../lib/temporaryAccessToken');
 const { resolvePublicIdentity } = require('../lib/resolvePublicIdentity');
@@ -46,6 +47,39 @@ function sanitizeSocialMedalCounts(raw) {
 
 const QR_SCAN_SOURCE = 'qr_scan';
 
+function publicAnalyticsClientIp(req) {
+  const xff = req.headers['x-forwarded-for'];
+  if (typeof xff === 'string' && xff.trim()) {
+    return xff.split(',')[0].trim().slice(0, 128);
+  }
+  const xri = req.headers['x-real-ip'];
+  if (typeof xri === 'string' && xri.trim()) {
+    return xri.trim().slice(0, 128);
+  }
+  const raw = req.ip || req.socket?.remoteAddress || '';
+  return String(raw || 'unknown').trim().slice(0, 128) || 'unknown';
+}
+
+/** Límite deslizante por IP+card+tarea (solo memoria proceso; suficiente con un App Service detrás de Front Door). */
+const PUBLIC_ANALYTICS_RATE_BUCKETS = new Map();
+
+function allowPublicAnalyticsRate(ip, bucketKey, maxHits, windowMs) {
+  const mapKey = `${String(ip)}::${String(bucketKey)}`;
+  const now = Date.now();
+  let arr = PUBLIC_ANALYTICS_RATE_BUCKETS.get(mapKey);
+  if (!Array.isArray(arr)) {
+    arr = [];
+  }
+  arr = arr.filter((t) => now - t < windowMs);
+  if (arr.length >= maxHits) {
+    PUBLIC_ANALYTICS_RATE_BUCKETS.set(mapKey, arr);
+    return false;
+  }
+  arr.push(now);
+  PUBLIC_ANALYTICS_RATE_BUCKETS.set(mapKey, arr);
+  return true;
+}
+
 function sanitizeSearchFacetsPublic(raw) {
   if (!Array.isArray(raw)) {
     return [];
@@ -61,15 +95,6 @@ function sanitizeSearchFacetsPublic(raw) {
     out.push({ type, label, value });
   }
   return out;
-}
-
-function sanitizeAnalyticsSegmentKey(raw) {
-  const s = String(raw || 'unknown')
-    .toLowerCase()
-    .replace(/[^a-z0-9_]/g, '_')
-    .replace(/_+/g, '_')
-    .slice(0, 64);
-  return s || 'unknown';
 }
 
 /**
@@ -825,6 +850,109 @@ function createPublicUniversalRoutes({ storage }) {
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept-Language');
     return res.status(204).end();
+  });
+
+  /**
+   * Tracking anónimo de vistas/clics desde `/b/:bId` (firma QR / web).
+   * No JWT: validamos que exista la business card; rate-limit por IP.
+   */
+  router.options('/analytics/track', (_req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Max-Age', '86400');
+    return res.status(204).end();
+  });
+
+  router.post('/analytics/track', express.json({ limit: '12kb' }), async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+
+    try {
+      const ownerUid = String(req.body?.uid || '').trim();
+      const bId = String(req.body?.bId || '').trim();
+      const eventRaw = String(req.body?.eventType || req.body?.type || '').trim().toLowerCase();
+      const ip = publicAnalyticsClientIp(req);
+
+      if (!ownerUid || ownerUid.length > 140 || !bId || bId.length > 140 || !eventRaw) {
+        return res.status(400).json({ ok: false, error: 'invalid_body' });
+      }
+
+      let mongoEventType = eventRaw === 'click' ? 'icon_click' : eventRaw === 'view' ? 'view' : '';
+      if (!mongoEventType) {
+        return res.status(400).json({ ok: false, error: 'invalid_event_type' });
+      }
+
+      const viewWindowMs = 60 * 1000;
+      const clickWindowMs = 60 * 1000;
+      const maxViewsPerMin = Math.max(
+        1,
+        Math.min(
+          60,
+          Number.parseInt(String(process.env.PUBLIC_ANALYTICS_VIEWS_PER_WINDOW || '12'), 10) || 12,
+        ),
+      );
+      const maxClicksPerMin = Math.max(
+        10,
+        Math.min(
+          200,
+          Number.parseInt(String(process.env.PUBLIC_ANALYTICS_CLICKS_PER_WINDOW || '45'), 10) || 45,
+        ),
+      );
+
+      if (mongoEventType === 'view') {
+        const okHit = allowPublicAnalyticsRate(ip, `view:${bId}`, maxViewsPerMin, viewWindowMs);
+        if (!okHit) {
+          return res.status(429).json({ ok: false, error: 'rate_limited' });
+        }
+      } else if (mongoEventType === 'icon_click') {
+        const okHit = allowPublicAnalyticsRate(ip, `click:${bId}`, maxClicksPerMin, clickWindowMs);
+        if (!okHit) {
+          return res.status(429).json({ ok: false, error: 'rate_limited' });
+        }
+      }
+
+      const db = await storage.connect();
+      const exists = await db.collection('business_cards').findOne(
+        { ownerUid, bId },
+        { projection: { _id: 1 } },
+      );
+      if (!exists) {
+        return res.status(404).json({ ok: false, error: 'not_found' });
+      }
+
+      const source = sanitizeAnalyticsSegmentKey(req.body?.source || 'public_web');
+      let subType;
+      if (mongoEventType === 'view') {
+        subType = sanitizeAnalyticsSegmentKey(req.body?.subType ?? 'modal_open');
+      } else {
+        subType = sanitizeAnalyticsSegmentKey(
+          req.body?.subType || req.body?.iconType || req.body?.slotType || 'unknown',
+        );
+      }
+
+      let ts = new Date();
+      if (req.body?.timestamp != null) {
+        const t2 = new Date(req.body.timestamp);
+        if (!Number.isNaN(t2.getTime())) {
+          ts = t2;
+        }
+      }
+
+      await recordCardAnalyticsEvent(db, {
+        cardKey: bId,
+        sid: null,
+        bId,
+        type: mongoEventType,
+        subType,
+        source,
+        viewerUid: null,
+        timestamp: ts,
+      });
+
+      return res.status(200).json({ ok: true });
+    } catch {
+      return res.status(500).json({ ok: false, error: 'server_error' });
+    }
   });
 
   return router;

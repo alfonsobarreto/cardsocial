@@ -7,6 +7,7 @@ import PublicLegalFooter from '@/components/PublicLegalFooter';
 import type { CardData } from '@/lib/universalCardTypes';
 import { CardTheme } from '@/lib/themes';
 import { earlyAccessPrimaryCtaStyle, earlyAccessPrimaryLabel } from '@/lib/publicEarlyAccessCta';
+import { trackPublicBusinessCardViewOncePerSession } from '@/lib/publicBusinessCardAnalytics';
 
 export type { CardData, PublicSlot } from '@/lib/universalCardTypes';
 
@@ -40,11 +41,16 @@ export default function CardPreview(props: Props) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (isBusiness) {
+      const ownerUid = String(card.uid || '').trim();
+      const bId = String(card.bId || '').trim();
+      if (ownerUid && bId) {
+        trackPublicBusinessCardViewOncePerSession(ownerUid, bId);
+      }
       return;
     }
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
-  }, [isBusiness]);
+  }, [isBusiness, card.uid, card.bId]);
 
   const expiresDate = new Date(expiresAt);
   const msLeft = Math.max(0, expiresDate.getTime() - now);

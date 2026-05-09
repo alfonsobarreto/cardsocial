@@ -9,6 +9,7 @@ import type { StudioVaultLink } from '@/lib/studioVaultTypes';
 import { deleteStudioVaultLink, toggleStudioVaultFavorite } from '@/lib/studioVaultService';
 import { syncStudioVaultDeleteToMongoCards } from '@/lib/studioVaultCardSync';
 import { studioGradients, studioTheme } from '@/lib/studioTheme';
+import { runStudioVaultItemPrimaryAction } from '@/lib/runStudioVaultItemPrimaryAction';
 import StudioMdiGlyph from '@/components/studio/StudioMdiGlyph';
 import type { StudioProfile } from '@/components/studio/ProfileColumn';
 
@@ -88,6 +89,8 @@ export default function VaultColumn({
   const [menuForId, setMenuForId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const [imagePreview, setImagePreview] = useState<{ url: string; title: string } | null>(null);
+  const [textPreview, setTextPreview] = useState<{ title: string; body: string } | null>(null);
 
   useEffect(() => {
     if (!menuForId) return;
@@ -101,7 +104,31 @@ export default function VaultColumn({
     return () => document.removeEventListener('mousedown', onDoc, true);
   }, [menuForId]);
 
+  useEffect(() => {
+    if (!imagePreview && !textPreview) return undefined;
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setImagePreview(null);
+        setTextPreview(null);
+      }
+    };
+    window.addEventListener('keydown', onEsc);
+    return () => window.removeEventListener('keydown', onEsc);
+  }, [imagePreview, textPreview]);
+
   const closeMenu = () => setMenuForId(null);
+
+  const execPrimaryAction = useCallback(
+    (link: StudioVaultLink) => {
+      runStudioVaultItemPrimaryAction(link, {
+        locale,
+        t,
+        openImageLightbox: setImagePreview,
+        openTextSheet: setTextPreview,
+      });
+    },
+    [locale, t],
+  );
 
   const onToggleFavorite = async (link: StudioVaultLink) => {
     closeMenu();
@@ -331,7 +358,13 @@ export default function VaultColumn({
                       <button
                         type="button"
                         disabled={isBusy}
-                        onClick={() => onSelectLink(l)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (!isBusy) {
+                            execPrimaryAction(l);
+                          }
+                        }}
                         style={{
                           alignItems: 'center',
                           background: 'transparent',
@@ -578,6 +611,209 @@ export default function VaultColumn({
           )}
         </div>
       </div>
+
+      {imagePreview ? (
+        <div
+          role="presentation"
+          onClick={() => setImagePreview(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 200,
+            background: 'rgba(0,0,0,0.82)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: 'min(96vw, 560px)',
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+              <span
+                style={{
+                  color: studioTheme.text,
+                  fontWeight: 700,
+                  fontSize: 14,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  flex: 1,
+                }}
+              >
+                {imagePreview.title}
+              </span>
+              <button
+                type="button"
+                onClick={() => setImagePreview(null)}
+                style={{
+                  flexShrink: 0,
+                  borderRadius: 10,
+                  border: `1px solid ${studioTheme.border}`,
+                  background: studioTheme.surfaceElevated,
+                  color: studioTheme.gold,
+                  fontWeight: 700,
+                  fontSize: 13,
+                  padding: '8px 14px',
+                  cursor: 'pointer',
+                }}
+              >
+                {t('vault.preview.close')}
+              </button>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imagePreview.url}
+              alt=""
+              style={{
+                width: '100%',
+                height: 'auto',
+                maxHeight: 'calc(92vh - 72px)',
+                objectFit: 'contain',
+                borderRadius: 12,
+                border: `1px solid ${studioTheme.border}`,
+                background: '#050505',
+              }}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {textPreview ? (
+        <div
+          role="presentation"
+          onClick={() => setTextPreview(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 200,
+            background: 'rgba(0,0,0,0.82)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="vault-text-preview-title"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: 440,
+              maxHeight: '88vh',
+              overflow: 'auto',
+              borderRadius: 18,
+              border: `1px solid ${studioTheme.border}`,
+              background: studioTheme.surfaceElevated,
+              padding: 20,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 14,
+              boxShadow: '0 20px 60px rgba(0,0,0,0.65)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+              <h2 id="vault-text-preview-title" style={{ margin: 0, fontSize: 17, fontWeight: 700, color: studioTheme.text, flex: 1 }}>
+                {textPreview.title}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setTextPreview(null)}
+                style={{
+                  flexShrink: 0,
+                  borderRadius: 10,
+                  border: `1px solid ${studioTheme.border}`,
+                  background: 'transparent',
+                  color: studioTheme.textMuted,
+                  fontWeight: 700,
+                  fontSize: 18,
+                  lineHeight: 1,
+                  width: 34,
+                  height: 34,
+                  cursor: 'pointer',
+                  display: 'grid',
+                  placeItems: 'center',
+                }}
+                aria-label={t('vault.preview.close')}
+              >
+                ×
+              </button>
+            </div>
+            <pre
+              style={{
+                margin: 0,
+                padding: 12,
+                borderRadius: 12,
+                background: 'rgba(0,0,0,0.35)',
+                border: `1px solid ${studioTheme.border}`,
+                color: studioTheme.text,
+                fontSize: 14,
+                lineHeight: 1.45,
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                maxHeight: '48vh',
+                overflow: 'auto',
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+              }}
+            >
+              {textPreview.body || '—'}
+            </pre>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(textPreview.body ?? '');
+                    window.alert(t('vault.preview.copied'));
+                  } catch {
+                    window.alert(t('vault.action.runFailed'));
+                  }
+                }}
+                style={{
+                  borderRadius: 10,
+                  border: `1px solid ${studioTheme.borderStrong}`,
+                  background: studioGradients.cta,
+                  color: studioTheme.fabText,
+                  fontWeight: 700,
+                  fontSize: 13,
+                  padding: '10px 18px',
+                  cursor: 'pointer',
+                }}
+              >
+                {t('vault.preview.copy')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setTextPreview(null)}
+                style={{
+                  borderRadius: 10,
+                  border: `1px solid ${studioTheme.border}`,
+                  background: 'transparent',
+                  color: studioTheme.text,
+                  fontWeight: 700,
+                  fontSize: 13,
+                  padding: '10px 18px',
+                  cursor: 'pointer',
+                }}
+              >
+                {t('vault.preview.close')}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -13,6 +13,7 @@ import type { MirrorOpenPlan, MirrorOpenPlanContext } from '@card-social/service
 import type { CardData, PublicSlot } from '@/lib/universalCardTypes';
 import { resolvePublicVaultUrlForWeb } from '@/lib/resolvePublicVaultMediaUrl';
 import { openUrlInNewTabReliably } from '@/lib/openUrlInNewTab';
+import { notifyPublicBusinessCardIconClick } from '@/lib/publicBusinessCardAnalytics';
 
 function buildContext(card: CardData): MirrorOpenPlanContext {
   return {
@@ -32,6 +33,14 @@ export type RunPublicWebSlotResult =
  * @returns `ghost` si el caller debe montar `MirrorActionModals`; si no, acción ya ejecutada.
  */
 export function runPublicWebSlotAction(card: CardData, slot: PublicSlot): RunPublicWebSlotResult {
+  const ownerUid = String(card.uid || '').trim();
+  const bizId = String(card.bId || '').trim();
+  if (ownerUid && bizId) {
+    notifyPublicBusinessCardIconClick(ownerUid, bizId, {
+      subType: String(slot.type || slot.label || 'unknown').trim() || 'unknown',
+    });
+  }
+
   const plan = getMirrorVaultOpenPlan(
     {
       type: slot.type,
