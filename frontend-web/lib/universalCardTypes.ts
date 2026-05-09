@@ -44,4 +44,8 @@ export type CardData = {
   totalRatings: number;
   slots: PublicSlot[];
   expiresAt: string;
+  /** Conteos `medals/{bId}.counts` (business: preview + universal con `bId`). */
+  businessMedalCounts?: Record<string, number>;
+  /** Conteos `medals/{sid}.counts` — claves sociales (universal smart, no negocio). */
+  socialMedalCounts?: Record<string, number>;
 };

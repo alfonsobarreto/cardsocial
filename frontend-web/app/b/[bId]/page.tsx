@@ -40,6 +40,7 @@ function mapBusinessApiJsonToCardData(data: Record<string, unknown>): CardData {
     expiresAt: String(data.expiresAt ?? ''),
     uid: data.uid,
     bId: data.bId,
+    businessMedalCounts: (data.businessMedalCounts ?? data.medalCounts) as Record<string, number> | undefined,
   });
 }
 

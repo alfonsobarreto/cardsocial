@@ -61,6 +61,28 @@ export function normalizeUniversalCardPayload(raw: unknown): CardData {
   delete merged.userAvatarUrl;
   delete merged.wallpaperUrl;
 
+  const bizKeys = ['compromiso', 'servicio', 'confianza', 'prestigio', 'excelencia'] as const;
+  const socKeys = ['creativo', 'conector', 'visionario', 'conversador', 'guru'] as const;
+
+  function parseMedalCounts(raw: unknown, keys: readonly string[]): Record<string, number> | undefined {
+    if (!raw || typeof raw !== 'object') return undefined;
+    const o: Record<string, number> = {};
+    for (const k of keys) {
+      const n = Math.max(0, Math.floor(Number((raw as Record<string, unknown>)[k] ?? 0)));
+      o[k] = Number.isFinite(n) ? n : 0;
+    }
+    return o;
+  }
+
+  const rawBiz = merged.businessMedalCounts ?? merged.medalCounts;
+  const businessMedalCounts = parseMedalCounts(rawBiz, bizKeys);
+  delete merged.medalCounts;
+  delete merged.businessMedalCounts;
+
+  const rawSoc = merged.socialMedalCounts;
+  const socialMedalCounts = parseMedalCounts(rawSoc, socKeys);
+  delete merged.socialMedalCounts;
+
   const base = { ...(merged as unknown as CardData), slots };
   const cardWireframeImageUrl =
     rawOwner != null && String(rawOwner).trim()
@@ -85,5 +107,7 @@ export function normalizeUniversalCardPayload(raw: unknown): CardData {
     userAvatarUrl,
     wallpaperUrl,
     ...(bcContactName ? { bcContactName } : {}),
+    ...(businessMedalCounts ? { businessMedalCounts } : {}),
+    ...(socialMedalCounts ? { socialMedalCounts } : {}),
   };
 }

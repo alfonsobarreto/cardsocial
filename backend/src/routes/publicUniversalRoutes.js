@@ -11,6 +11,38 @@ const { parseAndValidateTemporaryAccess } = require('../lib/temporaryAccessToken
 const { resolvePublicIdentity } = require('../lib/resolvePublicIdentity');
 const { readSmartCardScName } = require('../lib/smartCardScName');
 const { buildMongoExtendedProfileFields } = require('../lib/extendedUserIdentity');
+const { getFirestoreOptional } = require('../lib/firebaseAdminApp');
+
+const BUSINESS_MEDAL_KEYS = ['compromiso', 'servicio', 'confianza', 'prestigio', 'excelencia'];
+const SOCIAL_MEDAL_KEYS = ['creativo', 'conector', 'visionario', 'conversador', 'guru'];
+
+function sanitizeBusinessMedalCounts(raw) {
+  /** @type {Record<string, number>} */
+  const out = {};
+  for (const k of BUSINESS_MEDAL_KEYS) {
+    let n = 0;
+    if (raw && typeof raw === 'object' && raw[k] != null) {
+      n = Math.max(0, Math.floor(Number(raw[k])));
+      if (!Number.isFinite(n)) n = 0;
+    }
+    out[k] = n;
+  }
+  return out;
+}
+
+function sanitizeSocialMedalCounts(raw) {
+  /** @type {Record<string, number>} */
+  const out = {};
+  for (const k of SOCIAL_MEDAL_KEYS) {
+    let n = 0;
+    if (raw && typeof raw === 'object' && raw[k] != null) {
+      n = Math.max(0, Math.floor(Number(raw[k])));
+      if (!Number.isFinite(n)) n = 0;
+    }
+    out[k] = n;
+  }
+  return out;
+}
 
 const QR_SCAN_SOURCE = 'qr_scan';
 
@@ -436,6 +468,36 @@ function createPublicUniversalRoutes({ storage }) {
         expiresAt: expiresAt.toISOString(),
       };
 
+      /** Medallas públicas: mismo doc `medals/` que la app (`bId` negocio vs `sid` smart). */
+      let businessMedalCountsPack =
+        isBusinessCard && bId ? sanitizeBusinessMedalCounts(null) : undefined;
+      let socialMedalCountsPack =
+        !isBusinessCard && sid ? sanitizeSocialMedalCounts(null) : undefined;
+      const medalsDocKey =
+        isBusinessCard && bId ? bId : !isBusinessCard && sid ? sid : null;
+      try {
+        const fs = getFirestoreOptional();
+        if (fs && medalsDocKey) {
+          const medalSnap = await fs.collection('medals').doc(medalsDocKey).get();
+          if (medalSnap.exists) {
+            const rawC = medalSnap.data()?.counts;
+            if (isBusinessCard && bId) {
+              businessMedalCountsPack = sanitizeBusinessMedalCounts(rawC);
+            } else if (!isBusinessCard && sid) {
+              socialMedalCountsPack = sanitizeSocialMedalCounts(rawC);
+            }
+          }
+        }
+      } catch (_e) {
+        /* Firestore opcional */
+      }
+      if (businessMedalCountsPack !== undefined) {
+        payload.businessMedalCounts = businessMedalCountsPack;
+      }
+      if (socialMedalCountsPack !== undefined) {
+        payload.socialMedalCounts = socialMedalCountsPack;
+      }
+
       if (source === QR_SCAN_SOURCE) {
         try {
           await bumpUniversalQrScanAnalytics(db, cardKey, sid, bId);
@@ -545,6 +607,20 @@ function createPublicUniversalRoutes({ storage }) {
       const far = new Date();
       far.setFullYear(far.getFullYear() + 10);
 
+      let businessMedalCounts = sanitizeBusinessMedalCounts(null);
+      try {
+        const fs = getFirestoreOptional();
+        if (fs) {
+          const medalSnap = await fs.collection('medals').doc(bId).get();
+          if (medalSnap.exists) {
+            const mData = medalSnap.data();
+            businessMedalCounts = sanitizeBusinessMedalCounts(mData?.counts);
+          }
+        }
+      } catch (_e) {
+        /* Firestore opcional: sin conteos si falla */
+      }
+
       return res.status(200).json(
         rewritePublicCardMediaUrls(
           {
@@ -566,6 +642,7 @@ function createPublicUniversalRoutes({ storage }) {
             userNickName: null,
             userAvatarUrl: null,
             slots,
+            businessMedalCounts,
             ...style,
           },
           env.publicVaultFileBaseUrl,

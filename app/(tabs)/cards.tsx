@@ -3964,7 +3964,7 @@ export default function CardsFactoryScreen() {
             ) : filteredVaultItemsForSelector.length === 0 ? (
               <View style={styles.dataSelectorEmpty}>
                 <MaterialCommunityIcons name="database-search-outline" size={40} color={cardsTheme.sectionLabel} />
-                <Text style={[styles.dataSelectorEmptyText, { color: cardsTheme.sectionLabel }]}>
+                <Text style={[styles.dataSelectorEmpty, { color: cardsTheme.sectionLabel }]}>
                   {tr('No encontramos datos con esa búsqueda.', 'No data matched that search.')}
                 </Text>
               </View>

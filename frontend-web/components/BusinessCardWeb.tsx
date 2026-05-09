@@ -3,6 +3,9 @@
 
 import { MirrorActionModals } from '@/components/MirrorActionModals';
 import { PublicTextSlotModal } from '@/components/PublicTextSlotModal';
+import MedalCountsStrip from '@/components/MedalCountsStrip';
+import { PUBLIC_BUSINESS_MEDAL_DEFINITIONS } from '@/lib/businessMedalDefinitions';
+import { PUBLIC_SOCIAL_MEDAL_DEFINITIONS } from '@/lib/socialMedalDefinitions';
 import type { SlotIconDef } from '@/lib/slotIcons';
 import { runPublicWebSlotAction } from '@/lib/runPublicWebSlotAction';
 import { resolveSlotVisual } from '@/lib/slotVisual';
@@ -278,56 +281,10 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
         : `@${card.ownerNickname}`
       : '';
 
-  const reviewCount = Math.max(0, Math.floor(card.totalRatings ?? 0));
-
   const bg = theme.background;
   const bd = theme.border;
 
   const layout = card.layout === 'horizontal' ? 'horizontal' : 'vertical';
-
-  const statsBlock = (_starSize: number, captionSize: number, statsSize: number) => (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 8,
-        width: '100%',
-        maxWidth: '100%',
-        padding: '6px 2px 10px',
-        marginTop: 6,
-      }}
-    >
-      <span
-        style={{
-          color: theme.extraText.color,
-          fontSize: captionSize,
-          fontWeight: theme.extraText.fontWeight,
-          fontStyle: theme.extraText.fontStyle,
-        }}
-      >
-        {reviewCount} {tr('calificaciones', 'ratings')}
-      </span>
-        <div
-        style={{
-          display: 'inline-flex',
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 4,
-          borderRadius: 999,
-          border: `1px solid ${bd.color}`,
-          backgroundColor: theme.bubble.backgroundColor,
-          padding: '3px 8px',
-        }}
-      >
-        <span style={{ color: theme.title.color, fontSize: statsSize, fontWeight: 800 }}>
-          👤 {card.holdersCount ?? 0} {tr('receptores', 'holders')}
-        </span>
-      </div>
-    </div>
-  );
 
   const gradientBg = `linear-gradient(180deg, ${bg[0]} 0%, ${bg[1]} 50%, ${bg[2]} 100%)`;
   const cardShadow =
@@ -338,6 +295,22 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
         : '0 4px 20px rgba(0,0,0,0.3)';
 
   const isBusinessPreview = previewVariant === 'business';
+
+  const publicMedalStripe = card.businessMedalCounts ? (
+    <MedalCountsStrip
+      theme={theme}
+      locale={locale}
+      defs={PUBLIC_BUSINESS_MEDAL_DEFINITIONS}
+      medalCounts={card.businessMedalCounts}
+    />
+  ) : card.socialMedalCounts ? (
+    <MedalCountsStrip
+      theme={theme}
+      locale={locale}
+      defs={PUBLIC_SOCIAL_MEDAL_DEFINITIONS}
+      medalCounts={card.socialMedalCounts}
+    />
+  ) : null;
 
   if (layout === 'horizontal') {
     return (
@@ -457,7 +430,7 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
                   {dispSub}
                 </div>
               ) : null}
-              {statsBlock(22, 8, 10)}
+              {publicMedalStripe}
             </div>
           </div>
 
@@ -632,7 +605,7 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
                 {dispSub}
               </div>
             ) : null}
-            {statsBlock(24, 9, 11)}
+            {publicMedalStripe}
           </div>
         </div>
 
