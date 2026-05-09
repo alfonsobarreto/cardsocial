@@ -6,6 +6,7 @@ import DocumentHtmlLang from '@/components/DocumentHtmlLang';
 import PublicLegalFooter from '@/components/PublicLegalFooter';
 import type { CardData } from '@/lib/universalCardTypes';
 import { CardTheme } from '@/lib/themes';
+import { earlyAccessPrimaryCtaStyle, earlyAccessPrimaryLabel } from '@/lib/publicEarlyAccessCta';
 
 export type { CardData, PublicSlot } from '@/lib/universalCardTypes';
 
@@ -102,16 +103,13 @@ export default function CardPreview(props: Props) {
             textAlign: 'center',
             padding: '14px 24px',
             borderRadius: 14,
-            backgroundColor: bd.color,
-            /** `background[0]` a veces es casi el mismo tono que `bd` (poco contraste en temas claros). */
-            color: theme.title.color,
-            fontWeight: 400,
+            ...earlyAccessPrimaryCtaStyle(theme),
             fontSize: 16,
             textDecoration: 'none',
             letterSpacing: 0.3,
           }}
         >
-          {tr('Descargar Card-Social', 'Download Card-Social')}
+          {earlyAccessPrimaryLabel(locale)}
         </a>
         <a
           href={deepLink}

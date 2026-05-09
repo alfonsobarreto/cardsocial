@@ -13,21 +13,18 @@
  *
  * Optional override: `EXPO_PUBLIC_MARKET_RADAR_WEB_ORIGIN` (same shape, takes precedence).
  */
-import type { AppLanguage } from '@/services/language';
+import marketRadarStudioBaseFromEnv from './marketRadarStudioBaseFromEnv';
 
+/** Alineado con `AppLanguage` en `services/language.tsx` (evita importar ese módulo aquí y reduce ciclos Metro). */
+type AppLanguageLike = 'en' | 'es' | 'fr' | 'it' | 'pt' | 'de';
 export type StudioRadarLang = 'es' | 'en' | 'it' | 'fr' | 'pt';
 
 export function getMarketRadarWebBaseUrl(): string | null {
-  const raw =
-    process.env.EXPO_PUBLIC_MARKET_RADAR_WEB_ORIGIN ??
-    process.env.EXPO_PUBLIC_STUDIO_WEB_URL ??
-    '';
-  const s = typeof raw === 'string' ? raw.trim().replace(/\/+$/, '') : '';
-  return s.length > 0 ? s : null;
+  return marketRadarStudioBaseFromEnv();
 }
 
-export function appLanguageToRadarLang(lang: AppLanguage): StudioRadarLang {
-  const map: Record<AppLanguage, StudioRadarLang> = {
+export function appLanguageToRadarLang(lang: AppLanguageLike): StudioRadarLang {
+  const map: Record<AppLanguageLike, StudioRadarLang> = {
     es: 'es',
     en: 'en',
     fr: 'fr',
@@ -38,7 +35,7 @@ export function appLanguageToRadarLang(lang: AppLanguage): StudioRadarLang {
   return map[lang];
 }
 
-export function buildMarketRadarWebUri(baseUrl: string, lang: AppLanguage): string {
+export function buildMarketRadarWebUri(baseUrl: string, lang: AppLanguageLike): string {
   const q = new URLSearchParams({ lang: appLanguageToRadarLang(lang) });
   return `${baseUrl.replace(/\/+$/, '')}/studio/market-radar?${q.toString()}`;
 }

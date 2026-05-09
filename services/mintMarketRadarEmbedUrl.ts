@@ -1,6 +1,8 @@
 import { auth } from '@/services/firebaseConfig';
 import type { AppLanguage } from '@/services/language';
-import { appLanguageToRadarLang, getMarketRadarWebBaseUrl } from '@/services/marketRadarWebUrl';
+import { appLanguageToRadarLang } from '@/services/marketRadarWebUrl';
+
+import marketRadarStudioBaseFromEnv from './marketRadarStudioBaseFromEnv';
 
 async function waitAuthReady(): Promise<void> {
   const a = auth as { authStateReady?: () => Promise<void> };
@@ -37,7 +39,7 @@ function logMintDev(message: string, payload?: Record<string, unknown>): void {
  * Returns `/embed/market-radar?et=…` for WebView. El `et` tiene TTL largo en servidor; la sesión continúa con Firebase tras el exchange.
  */
 export async function mintMarketRadarEmbedUrl(lang: AppLanguage): Promise<MintMarketRadarResult> {
-  const base = getMarketRadarWebBaseUrl();
+  const base = marketRadarStudioBaseFromEnv();
   if (!base) {
     logMintDev('fail', { code: 'studio_url_missing' });
     return { ok: false, issue: { code: 'studio_url_missing' } };

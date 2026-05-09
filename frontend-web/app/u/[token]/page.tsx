@@ -8,6 +8,7 @@ import { resolvePublicLocale, type PublicLocale } from '@/lib/resolvePublicLocal
 import { getThemeById } from '@/lib/themes';
 import PublicLegalFooter from '@/components/PublicLegalFooter';
 import DocumentHtmlLang from '@/components/DocumentHtmlLang';
+import { earlyAccessPrimaryLabel } from '@/lib/publicEarlyAccessCta';
 
 // En producción (Azure) el Next.js corre como proceso hijo del backend Express.
 // Llamamos directo a localhost para evitar el loop proxy → Next.js → proxy.
@@ -130,14 +131,16 @@ function ExpiredPage({ locale }: { locale: PublicLocale }) {
           display: 'inline-block',
           padding: '14px 32px',
           borderRadius: 14,
-          backgroundColor: '#00E5FF',
-          color: '#00695C',
-          fontWeight: '400',
+          backgroundColor: '#0f172a',
+          color: '#ffffff',
+          border: '1px solid rgba(255,255,255,0.08)',
+          boxShadow: '0 10px 28px rgba(15, 23, 42, 0.35)',
+          fontWeight: 600,
           fontSize: 16,
           textDecoration: 'none',
         }}
       >
-        {tr('Descargar Card-Social', 'Download Card-Social')}
+        {earlyAccessPrimaryLabel(locale)}
       </a>
       <div style={{ width: '100%', maxWidth: 420, marginTop: 8 }}>
         <PublicLegalFooter locale={locale} accentColor="#00695C" />

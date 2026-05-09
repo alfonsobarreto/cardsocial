@@ -7,6 +7,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { Platform, Share } from 'react-native';
+import { resolveExpoPublicApiBaseUrl } from './expoPublicApiBaseUrl';
 
 /**
  * En React Native no hay canvas ni módulos Node (`stream` en pngjs). Solo usamos
@@ -201,6 +202,23 @@ export function getPublicBusinessWebBaseUrl(): string {
       ? String(process.env.EXPO_PUBLIC_BUSINESS_WEB_BASE).trim()
       : '';
   return (fromEnv || DEFAULT_PUBLIC_BUSINESS_WEB_BASE).replace(/\/+$/, '');
+}
+
+/**
+ * Host donde el correo carga `/api/qr/generate` (Express). En prod suele ser **api.cardsocial.me**,
+ * mientras `/b/...` vive en **cardsocial.me**. Override: `EXPO_PUBLIC_SIGNATURE_QR_IMAGE_BASE_URL`.
+ */
+export function getSignatureQrImageBaseUrl(): string {
+  const forced =
+    typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_SIGNATURE_QR_IMAGE_BASE_URL
+      ? String(process.env.EXPO_PUBLIC_SIGNATURE_QR_IMAGE_BASE_URL).trim()
+      : '';
+  if (forced) return forced.replace(/\/+$/, '');
+  try {
+    return resolveExpoPublicApiBaseUrl();
+  } catch {
+    return getPublicBusinessWebBaseUrl();
+  }
 }
 
 /**

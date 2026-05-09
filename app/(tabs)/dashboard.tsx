@@ -7,16 +7,20 @@ import {
   type MarketSeoSummary,
 } from '@/services/analyticsService';
 import { getActiveUserId } from '@/services/authSession';
+import { buildBusinessCardEmailSignatureHtml, buildBusinessCardEmailSignaturePlainText } from '@/services/businessCardEmailSignatureHtml';
+import { copyRichEmailSignatureToClipboard } from '@/services/copyRichEmailSignature';
+import { generatePublicBusinessWebUrl, getSignatureQrImageBaseUrl } from '@/services/brandedQrService';
 import { listMyBusinessCards, updateBusinessCard } from '@/services/businessCardsRepo';
 import { auth, db } from '@/services/firebaseConfig';
 import { mintMarketRadarEmbedUrl } from '@/services/mintMarketRadarEmbedUrl';
 import { marketRadarMintUserMessage } from '@/services/marketRadarMintMessages';
-import { getMarketRadarWebBaseUrl } from '@/services/marketRadarWebUrl';
+import { requestBusinessCardSignatureEmail } from '@/services/requestBusinessCardSignatureEmail';
 import { hasUnlimitedAdminUi } from '@/services/roleService';
 import { effectiveTierKeyFromUserData, type TierKey } from '@/services/tiersConfigService';
 import type { BusinessCardDoc, PublicCardSlot } from '@/services/types/cards';
 import { getCardRowTheme } from '@/services/useActiveTheme';
 import { toRenderableImageUri } from '@/services/userProfilePhoto';
+import * as Clipboard from 'expo-clipboard';
 import { getThemeById } from '@/constants/themeChest';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -37,6 +41,7 @@ import {
   Animated,
   FlatList,
   PanResponder,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -864,6 +869,7 @@ export default function DashboardScreen() {
   const [showTopNicheKeyword, setShowTopNicheKeyword] = useState(false);
   const [loading, setLoading] = useState(true);
   const [updatingBId, setUpdatingBId] = useState<string | null>(null);
+  const [signatureBusy, setSignatureBusy] = useState(false);
   const [periodMode, setPeriodMode] = useState<PeriodMode>('week');
   const [periodOffset, setPeriodOffset] = useState(0);
   const [headerInfo, setHeaderInfo] = useState<DashboardHeaderInfo>({
@@ -991,7 +997,14 @@ export default function DashboardScreen() {
   const topIconData = useMemo(() => topIconsForAnalytics(activeCard, activeAnalytics), [activeAnalytics, activeCard]);
   const seoRows = activeSeo?.rows || [];
   const visibleSeoRows = seoExpanded || seoRows.length <= 6 ? seoRows : seoRows.slice(0, 5);
-  const studioWebBase = useMemo(() => getMarketRadarWebBaseUrl(), []);
+  const studioWebBase = useMemo((): string | null => {
+    const raw =
+      process.env.EXPO_PUBLIC_MARKET_RADAR_WEB_ORIGIN ??
+      process.env.EXPO_PUBLIC_STUDIO_WEB_URL ??
+      '';
+    const s = typeof raw === 'string' ? raw.trim().replace(/\/+$/, '') : '';
+    return s.length > 0 ? s : null;
+  }, []);
 
   const launchCommandCenter = useCallback(async () => {
     if (!studioWebBase || launchingRadar) return;
@@ -1071,6 +1084,112 @@ export default function DashboardScreen() {
     }
   };
 
+  const handleCopyEmailSignature = useCallback(async () => {
+    if (!activeCard || !sessionUid || signatureBusy) return;
+    const themeMeta = getThemeById(activeCard.themeId || '') ?? getThemeById('obsidian');
+    const subtitleText = activeCard.bcContactName.trim()
+      ? activeCard.bcContactName
+      : themeMeta?.name || tr('Tarjeta de negocio', 'Business card');
+    const qrHostBase = getSignatureQrImageBaseUrl();
+    const publicUrl = generatePublicBusinessWebUrl(activeCard.bId, sessionUid);
+    const html = buildBusinessCardEmailSignatureHtml({
+      webBaseUrl: qrHostBase,
+      publicCardUrl: publicUrl,
+      bcName: activeCard.bcName,
+      subtitle: subtitleText,
+      logoUrl: toRenderableImageUri(activeCard.bcLogoUrl || '') ?? undefined,
+      themeId: activeCard.themeId ?? undefined,
+    });
+    const plain = buildBusinessCardEmailSignaturePlainText({
+      bcName: activeCard.bcName,
+      subtitle: subtitleText,
+      publicCardUrl: publicUrl,
+    });
+
+    try {
+      if (Platform.OS === 'web') {
+        const richOk = await copyRichEmailSignatureToClipboard(html, plain);
+        if (richOk) {
+          Alert.alert(
+            tr('Firma copiada', 'Signature copied'),
+            tr(
+              'Lista para pegar en Gmail u Outlook como diseño con formato (no como código fuente). En Gmail: Ajustes → Ver todos los ajustes de correo → Firma.',
+              'Ready to paste into Gmail or Outlook as rich formatted layout (not source code). In Gmail: Settings → See all settings → Signature.',
+            ),
+          );
+          return;
+        }
+        await Clipboard.setStringAsync(plain);
+        Alert.alert(
+          tr('Solo texto copiado', 'Plain text only'),
+          tr(
+            'Este navegador no permitió HTML enriquecido en el portapapeles. Copiamos solo texto plano; prueba desde Chrome en escritorio desde este mismo Dashboard para pegar la firma con diseño.',
+            'This browser blocked rich HTML on the clipboard. We copied plain text only; try again from Chrome on desktop in this Dashboard to paste a styled signature.',
+          ),
+        );
+        return;
+      }
+
+      setSignatureBusy(true);
+      try {
+        await requestBusinessCardSignatureEmail({
+          bId: activeCard.bId,
+          locale: language === 'es' ? 'es' : 'en',
+        });
+        Alert.alert(
+          tr('Revisa tu correo', 'Check your email'),
+          tr(
+            'Te enviamos tu firma. Ábrela en la computadora, selecciona el bloque visual (logo y QR) y cópiala en los ajustes de firma de Gmail u Outlook Web.',
+            'We emailed your signature. Open it on a computer, select the visual block (logo and QR), then paste it into Gmail or Outlook Web signature settings.',
+          ),
+        );
+      } catch (e) {
+        const code = String((e as Error)?.message || '');
+        if (code === 'email_not_available_on_account') {
+          Alert.alert(
+            tr('Correo no disponible', 'Email not linked'),
+            tr(
+              'Tu cuenta de inicio de sesión no tiene un correo asociado. Añade un email a tu cuenta o abre el Dashboard en la web (Chrome) para copiar la firma con formato.',
+              'Your sign-in account has no email address on file. Add an email to your account, or open the Dashboard in a web browser (Chrome) to copy a rich signature.',
+            ),
+          );
+        } else if (code === 'email_unconfigured') {
+          Alert.alert(
+            tr('Servicio en pausa', 'Service unavailable'),
+            tr('Envío por correo no está configurado del lado del servidor.', 'Outbound email is not configured on the server.'),
+          );
+        } else if (code === 'card_not_found_or_forbidden') {
+          Alert.alert(
+            tr('Tarjeta no disponible', 'Card unavailable'),
+            tr('No pudimos cargar esta tarjeta para enviar la firma. Actualiza o vuelve a intentar.', 'We could not load this card to send the signature. Refresh and try again.'),
+          );
+        } else if (code === 'AUTH_REQUIRED') {
+          Alert.alert(
+            tr('Sesión requerida', 'Sign in required'),
+            tr('Inicia sesión de nuevo e inténtalo otra vez.', 'Please sign in again and try once more.'),
+          );
+        } else if (code === 'send_failed' || code.startsWith('http_')) {
+          Alert.alert(
+            tr('No se pudo enviar', 'Could not send'),
+            tr('El servidor no pudo completar el envío. Inténtalo más tarde.', 'The server could not complete the send. Please try again later.'),
+          );
+        } else {
+          Alert.alert(
+            tr('No se pudo enviar', 'Could not send'),
+            (e as Error)?.message || tr('Inténtalo de nuevo.', 'Please try again.'),
+          );
+        }
+      } finally {
+        setSignatureBusy(false);
+      }
+    } catch (e) {
+      Alert.alert(
+        tr('Algo salió mal', 'Something went wrong'),
+        (e as Error)?.message || tr('Inténtalo de nuevo.', 'Please try again.'),
+      );
+      setSignatureBusy(false);
+    }
+  }, [activeCard, sessionUid, tr, signatureBusy, language]);
   const displayFirstName = headerInfo.firstName.trim() || tr('Usuario', 'User');
 
   return (
@@ -1164,6 +1283,39 @@ export default function DashboardScreen() {
             />
           ))}
         </View>
+
+        {activeCard && sessionUid ? (
+          <View style={styles.emailSignatureRow}>
+            <TouchableOpacity
+              style={[
+                styles.emailSignatureBtn,
+                {
+                  opacity: signatureBusy ? 0.72 : 1,
+                  backgroundColor: chrome.optimizeCtaBg,
+                  borderColor: chrome.optimizeCtaBorder,
+                },
+              ]}
+              onPress={() => void handleCopyEmailSignature()}
+              disabled={signatureBusy}
+              activeOpacity={0.85}
+            >
+              {signatureBusy ? (
+                <ActivityIndicator size="small" color={chrome.optimizeCtaIcon} />
+              ) : (
+                <MaterialCommunityIcons
+                  name={Platform.OS === 'web' ? 'content-copy' : 'send-outline'}
+                  size={16}
+                  color={chrome.optimizeCtaIcon}
+                />
+              )}
+              <Text style={[styles.emailSignatureBtnText, { color: chrome.optimizeCtaText }]} numberOfLines={2}>
+                {Platform.OS === 'web'
+                  ? tr('Copiar firma (Gmail / Outlook)', 'Copy signature (Gmail / Outlook)')
+                  : tr('Enviarme firma por correo', 'Email me my signature')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
 
         <View style={styles.blockTitleRow}>
           <Text style={[styles.blockTitle, { flex: 1, color: chrome.blockTitleColor }]}>
@@ -1877,7 +2029,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     marginTop: 10,
-    marginBottom: 14,
+    marginBottom: 6,
+  },
+  emailSignatureRow: {
+    paddingHorizontal: 4,
+    marginBottom: 12,
+    alignItems: 'stretch',
+  },
+  emailSignatureBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    minHeight: 44,
+  },
+  emailSignatureBtnText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 17,
   },
   pageDot: {
     width: 5,

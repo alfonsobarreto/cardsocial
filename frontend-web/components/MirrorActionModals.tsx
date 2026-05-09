@@ -191,7 +191,7 @@ function GhostCallInterstitial({
               cursor: 'pointer',
             }}
           >
-            {tr('Descargar app', 'Get the app')}
+            {tr('Obtener Acceso Anticipado', 'Get Early Access')}
           </button>
         </div>
       </div>

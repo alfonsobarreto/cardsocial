@@ -16,6 +16,7 @@ const { createPublicUniversalRoutes } = require("./routes/publicUniversalRoutes"
 const { createUniversalEntryHttpRoutes } = require("./routes/universalEntryHttpRoutes");
 const { createNfcRoutes } = require("./routes/nfcRoutes");
 const { createNfcPublicRoutes } = require("./routes/nfcPublicRoutes");
+const { attachPublicEmailSignatureQrRoute } = require("./routes/publicEmailSignatureQrRoutes");
 const revenueCatRoutes = require("./routes/revenueCatRoutes");
 const { createAdminRoutes } = require("./routes/adminRoutes");
 const { createAdminSystemStatsHandler } = require("./routes/adminSystemStatsRoutes");
@@ -627,6 +628,7 @@ const otpHash = (emailLower, code) => {
     app.use('/login', nextProxy);
     app.use('/api/studio', nextProxy);
     app.use('/api/waitlist', nextProxy);
+    app.use('/api/email-signature', nextProxy);
     app.use('/api/embed', nextProxy);
     app.use('/embed', nextProxy);
     app.use('/_next', nextProxy);
@@ -641,6 +643,13 @@ const otpHash = (emailLower, code) => {
     // Fallback: legacy HTML courtesy page
     app.use("/", createUniversalEntryHttpRoutes({ storage }));
   }
+
+  /**
+   * Firma HTML (correo): mismo PNG que Next (`/api/qr/generate`) pero generado aquí —
+   * no dependemos de proxear al proceso Next en :3001 (frágil en producción).
+   * Público, sin JWT. Debe registrar antes de `/api` y de `/api/qr` protegidos.
+   */
+  attachPublicEmailSignatureQrRoute(app);
 
   const vaultPublicBase = String(env.publicVaultFileBaseUrl || "https://api.cardsocial.me").replace(/\/+$/, "");
   /** Ruta bajo /api/qr/* para evitar bloqueos de infra en /api/vault/*. */
