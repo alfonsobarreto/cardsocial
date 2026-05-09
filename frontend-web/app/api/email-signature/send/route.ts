@@ -8,6 +8,11 @@ import {
   escapeHtmlForEmail,
   resolveAbsoluteImageUrlForEmail,
 } from '@card-social/services/businessCardEmailSignatureHtml';
+import {
+  resolveSignatureCardPublicOrigin,
+  resolveSignatureQrImageHostOrigin,
+  readSignatureOriginEnvFromProcess,
+} from '@card-social/services/emailSignaturePublicBase';
 import { getThemeById } from '@card-social/constants/themeChest';
 
 import { resolveAdminApp, shouldLogFirebaseAdmin } from '@/lib/firebaseAdminStudio';
@@ -55,13 +60,9 @@ function corsHeaders(): Record<string, string> {
   };
 }
 
+/** Origen público HTTPS para enlaces `/b/` en firma (no LAN / no `http` en desarrollo local). */
 function sitePublicBase(): string {
-  return (
-    process.env.PUBLIC_UNIVERSAL_CARD_BASE_URL?.trim() ||
-    process.env.NEXT_PUBLIC_BUSINESS_WEB_BASE?.trim() ||
-    process.env.EXPO_PUBLIC_BUSINESS_WEB_BASE?.trim() ||
-    'https://cardsocial.me'
-  ).replace(/\/+$/, '');
+  return resolveSignatureCardPublicOrigin(readSignatureOriginEnvFromProcess());
 }
 
 function internalApiPublicBase(): string {
@@ -72,13 +73,12 @@ function internalApiPublicBase(): string {
 }
 
 /**
- * Host del `<img src>` del QR: mismo esquema que `firma.html` — sitio público (`cardsocial.me`),
- * donde Next expone `GET /api/qr/generate`. Override env: `SIGNATURE_QR_IMAGE_BASE_URL`.
+ * Host del `<img src>` del QR (`/api/qr/generate`).
+ * Override: `SIGNATURE_QR_IMAGE_BASE_URL` cuando sea HTTPS público; si no, mismo origen canónico que la tarjeta.
  */
 function signatureQrImageBaseUrl(): string {
-  const configured = process.env.SIGNATURE_QR_IMAGE_BASE_URL?.trim().replace(/\/+$/, '');
-  if (configured) return configured;
-  return sitePublicBase();
+  const cardOrigin = resolveSignatureCardPublicOrigin(readSignatureOriginEnvFromProcess());
+  return resolveSignatureQrImageHostOrigin(cardOrigin, readSignatureOriginEnvFromProcess());
 }
 
 async function fetchBusinessPreviewPublic(bId: string, uid: string): Promise<Record<string, unknown> | null> {

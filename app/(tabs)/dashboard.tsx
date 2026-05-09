@@ -9,7 +9,11 @@ import {
 import { getActiveUserId } from '@/services/authSession';
 import { buildBusinessCardEmailSignatureHtml, buildBusinessCardEmailSignaturePlainText } from '@/services/businessCardEmailSignatureHtml';
 import { copyRichEmailSignatureToClipboard } from '@/services/copyRichEmailSignature';
-import { generatePublicBusinessWebUrl, getPublicBusinessWebBaseUrl, getSignatureQrImageBaseUrl } from '@/services/brandedQrService';
+import {
+  generatePublicBusinessWebUrlForEmailSignature,
+  getPublicBusinessWebBaseUrlForEmailSignature,
+  getSignatureQrImageBaseUrl,
+} from '@/services/brandedQrService';
 import { listMyBusinessCards, updateBusinessCard } from '@/services/businessCardsRepo';
 import { auth, db } from '@/services/firebaseConfig';
 import { mintMarketRadarEmbedUrl } from '@/services/mintMarketRadarEmbedUrl';
@@ -1092,11 +1096,11 @@ export default function DashboardScreen() {
       ? activeCard.bcContactName
       : themeMeta?.name || tr('Tarjeta de negocio', 'Business card');
     const qrHostBase = getSignatureQrImageBaseUrl();
-    const publicUrl = generatePublicBusinessWebUrl(activeCard.bId, sessionUid);
+    const publicUrl = generatePublicBusinessWebUrlForEmailSignature(activeCard.bId, sessionUid);
     let emailLogoNormalize: { siteOrigin: string; apiOrigin: string } | undefined;
     try {
       emailLogoNormalize = {
-        siteOrigin: getPublicBusinessWebBaseUrl(),
+        siteOrigin: getPublicBusinessWebBaseUrlForEmailSignature(),
         apiOrigin: resolveExpoPublicApiBaseUrl(),
       };
     } catch {

@@ -7,7 +7,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { Platform, Share } from 'react-native';
-import { resolveExpoPublicApiBaseUrl } from './expoPublicApiBaseUrl';
+import { resolveSignatureCardPublicOrigin, resolveSignatureQrImageHostOrigin } from './emailSignaturePublicBase';
 
 /**
  * En React Native no hay canvas ni módulos Node (`stream` en pngjs). Solo usamos
@@ -205,24 +205,27 @@ export function getPublicBusinessWebBaseUrl(): string {
 }
 
 /**
- * Host público HTTPS del PNG del QR en firma (`GET /api/qr/generate`).
- * Prioriza el **sitio marketing** (`EXPO_PUBLIC_BUSINESS_WEB_BASE` → cardsocial.me), igual que `firma.html`,
- * porque muchos clientes de correo cargan mejor ese host; override: `EXPO_PUBLIC_SIGNATURE_QR_IMAGE_BASE_URL`.
- * Si falta todo, mismo fallback que antes: backend API público (`resolveExpoPublicApiBaseUrl`).
+ * Origen HTTPS público solo para firma correo (`/b/…`), sin LAN/`http`.
+ * Override: `EXPO_PUBLIC_BUSINESS_SIGNATURE_PUBLIC_BASE` o `SIGNATURE_EMAIL_PUBLIC_SITE_BASE` (solo servidor Next).
+ */
+export function getPublicBusinessWebBaseUrlForEmailSignature(): string {
+  return resolveSignatureCardPublicOrigin();
+}
+
+/** Misma URL pública permanente pero forzando origen válido para clientes de correo. */
+export function generatePublicBusinessWebUrlForEmailSignature(bId: string, uid: string): string {
+  const b = encodeURIComponent(String(bId || '').trim());
+  const u = encodeURIComponent(String(uid || '').trim());
+  return `${resolveSignatureCardPublicOrigin()}/b/${b}?uid=${u}`;
+}
+
+/**
+ * Host del PNG del QR en firma (`GET /api/qr/generate`).
+ * Si la app está en LAN/`http`, usa `https://cardsocial.me` (o overrides públicos HTTPS).
  */
 export function getSignatureQrImageBaseUrl(): string {
-  const forced =
-    typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_SIGNATURE_QR_IMAGE_BASE_URL
-      ? String(process.env.EXPO_PUBLIC_SIGNATURE_QR_IMAGE_BASE_URL).trim()
-      : '';
-  if (forced) return forced.replace(/\/+$/, '');
-  const web = getPublicBusinessWebBaseUrl();
-  if (web && /^https:\/\//i.test(web)) return web;
-  try {
-    return resolveExpoPublicApiBaseUrl();
-  } catch {
-    return DEFAULT_PUBLIC_BUSINESS_WEB_BASE;
-  }
+  const cardOrigin = resolveSignatureCardPublicOrigin();
+  return resolveSignatureQrImageHostOrigin(cardOrigin);
 }
 
 /**
