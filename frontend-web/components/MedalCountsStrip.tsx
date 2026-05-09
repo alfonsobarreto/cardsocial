@@ -6,7 +6,14 @@
  */
 import type { CardTheme } from '@/lib/themes';
 import type { PublicMedalStripDef } from '@/lib/businessMedalDefinitions';
-import { averageCardBackgroundLuminance } from '@/lib/publicEarlyAccessCta';
+import { resolvePillForegroundColor } from '@card-social/services/pillForegroundColor';
+
+/** Igual que `IsolatedWireframeCard` cápsula espejo (`capsuleStyle`). */
+const MEDAL_CAPSULE_PILL_BG = 'rgba(255,255,255,0.12)';
+
+/** Proporción 5:4 (ancho × alto); antes el SVG era cuadrado. */
+const MEDAL_ICON_W = 20;
+const MEDAL_ICON_H = 16;
 
 type Props = {
   theme: CardTheme;
@@ -18,10 +25,12 @@ type Props = {
 
 export default function MedalCountsStrip({ theme, locale, defs, medalCounts }: Props) {
   const bd = theme.border;
-  const lum = averageCardBackgroundLuminance(theme);
-  const lightCard = lum >= 0.45;
-  const foreground = lightCard ? 'rgba(17,24,39,0.92)' : 'rgba(253,253,253,0.93)';
-  const capsuleBg = lightCard ? 'rgba(17,24,39,0.08)' : 'rgba(255,255,255,0.12)';
+  const fg = resolvePillForegroundColor({
+    cardGradient: theme.background,
+    pillBackground: MEDAL_CAPSULE_PILL_BG,
+    preferredColor: theme.icon.color,
+    minContrast: 3,
+  });
 
   const tr = (es: string, en: string) => (locale === 'es' ? es : en);
   const counts = medalCounts || {};
@@ -47,7 +56,7 @@ export default function MedalCountsStrip({ theme, locale, defs, medalCounts }: P
           flexWrap: 'nowrap',
           gap: 4,
           borderRadius: 999,
-          backgroundColor: capsuleBg,
+          backgroundColor: MEDAL_CAPSULE_PILL_BG,
           borderWidth: Math.max(1, bd.width),
           borderStyle: 'solid',
           borderColor: bd.color,
@@ -72,12 +81,19 @@ export default function MedalCountsStrip({ theme, locale, defs, medalCounts }: P
               }}
               title={`${label}: ${num}`}
             >
-              <svg width={17} height={17} viewBox="0 0 24 24" aria-hidden style={{ flexShrink: 0 }}>
-                <path fill={foreground} d={m.path} />
+              <svg
+                width={MEDAL_ICON_W}
+                height={MEDAL_ICON_H}
+                viewBox="0 0 24 24"
+                preserveAspectRatio="xMidYMid meet"
+                aria-hidden
+                style={{ flexShrink: 0 }}
+              >
+                <path fill={fg} d={m.path} />
               </svg>
               <span
                 style={{
-                  color: foreground,
+                  color: fg,
                   fontSize: 12,
                   fontWeight: 600,
                   lineHeight: 1,

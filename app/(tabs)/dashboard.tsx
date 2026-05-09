@@ -9,12 +9,13 @@ import {
 import { getActiveUserId } from '@/services/authSession';
 import { buildBusinessCardEmailSignatureHtml, buildBusinessCardEmailSignaturePlainText } from '@/services/businessCardEmailSignatureHtml';
 import { copyRichEmailSignatureToClipboard } from '@/services/copyRichEmailSignature';
-import { generatePublicBusinessWebUrl, getSignatureQrImageBaseUrl } from '@/services/brandedQrService';
+import { generatePublicBusinessWebUrl, getPublicBusinessWebBaseUrl, getSignatureQrImageBaseUrl } from '@/services/brandedQrService';
 import { listMyBusinessCards, updateBusinessCard } from '@/services/businessCardsRepo';
 import { auth, db } from '@/services/firebaseConfig';
 import { mintMarketRadarEmbedUrl } from '@/services/mintMarketRadarEmbedUrl';
 import { marketRadarMintUserMessage } from '@/services/marketRadarMintMessages';
 import { requestBusinessCardSignatureEmail } from '@/services/requestBusinessCardSignatureEmail';
+import { resolveExpoPublicApiBaseUrl } from '@/services/expoPublicApiBaseUrl';
 import { hasUnlimitedAdminUi } from '@/services/roleService';
 import { effectiveTierKeyFromUserData, type TierKey } from '@/services/tiersConfigService';
 import type { BusinessCardDoc, PublicCardSlot } from '@/services/types/cards';
@@ -1092,6 +1093,15 @@ export default function DashboardScreen() {
       : themeMeta?.name || tr('Tarjeta de negocio', 'Business card');
     const qrHostBase = getSignatureQrImageBaseUrl();
     const publicUrl = generatePublicBusinessWebUrl(activeCard.bId, sessionUid);
+    let emailLogoNormalize: { siteOrigin: string; apiOrigin: string } | undefined;
+    try {
+      emailLogoNormalize = {
+        siteOrigin: getPublicBusinessWebBaseUrl(),
+        apiOrigin: resolveExpoPublicApiBaseUrl(),
+      };
+    } catch {
+      emailLogoNormalize = undefined;
+    }
     const html = buildBusinessCardEmailSignatureHtml({
       webBaseUrl: qrHostBase,
       publicCardUrl: publicUrl,
@@ -1099,6 +1109,7 @@ export default function DashboardScreen() {
       subtitle: subtitleText,
       logoUrl: toRenderableImageUri(activeCard.bcLogoUrl || '') ?? undefined,
       themeId: activeCard.themeId ?? undefined,
+      emailLogoNormalize,
     });
     const plain = buildBusinessCardEmailSignaturePlainText({
       bcName: activeCard.bcName,

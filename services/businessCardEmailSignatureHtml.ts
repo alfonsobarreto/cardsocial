@@ -1,7 +1,10 @@
 import { getCardRowTheme } from './cardRowTheme';
 
 export type BusinessCardEmailSignatureParams = {
-  /** Host sin barra final donde exista `GET /api/qr/generate` (típico: API Express, p. ej. `https://api.cardsocial.me`). */
+  /**
+   * Host sin barra final donde exista `GET /api/qr/generate`.
+   * En producción es el mismo patrón que `firma.html`: `https://cardsocial.me` (Next) en lugar del API si el correo cargaba mal las imágenes desde el subdominio API.
+   */
   webBaseUrl: string;
   /** URL HTTPS de la tarjeta (misma que usa el QR en la lista «Mis tarjetas»). */
   publicCardUrl: string;
@@ -46,6 +49,30 @@ export function resolveAbsoluteImageUrlForEmail(
   return `${site}/${s.replace(/^\/+/, '')}`;
 }
 
+/** Extrae la clave después de `/api/qr/vault-proxy/file/` o `/api/vault/file/`. */
+const VAULT_FILE_ID_RE =
+  /^https?:\/\/[^/?#]+\/(?:api\/qr\/vault-proxy\/file|api\/vault\/file)\/([^/?#]+)/i;
+
+/**
+ * Correo solo carga bien imágenes HTTPS absolutas canónicas. Reescribe vault a `…/api/qr/vault-proxy/file/:id` en el API público.
+ */
+export function normalizeVaultLogoUrlForEmailSignature(
+  raw: string | null | undefined,
+  opts: { siteOrigin: string; apiOrigin: string },
+): string | null {
+  let abs = resolveAbsoluteImageUrlForEmail(raw, opts);
+  if (!abs) return null;
+  if (abs.startsWith('http://')) {
+    abs = `https://${abs.slice('http://'.length)}`;
+  }
+  const m = abs.match(VAULT_FILE_ID_RE);
+  const api = String(opts.apiOrigin || '').trim().replace(/\/+$/, '');
+  if (m?.[1] && api) {
+    return `${api}/api/qr/vault-proxy/file/${m[1]}`;
+  }
+  return /^https:\/\//i.test(abs) ? abs : /^http:\/\//i.test(abs) ? abs : null;
+}
+
 function initialsFromBcName(name: string): string {
   const parts = String(name || '')
     .trim()
@@ -79,7 +106,12 @@ export function buildSignatureQrImageUrl(
 /**
  * Firma en tabla, calca de lista business: logo (70) | textos | QR (64 + marco blanco).
  */
-export function buildBusinessCardEmailSignatureHtml(p: BusinessCardEmailSignatureParams): string {
+export function buildBusinessCardEmailSignatureHtml(
+  p: BusinessCardEmailSignatureParams & {
+    /** Normalizar logo vault a HTTPS en apiOrigin (p. ej. envío Resend / firma.html). */
+    emailLogoNormalize?: { siteOrigin: string; apiOrigin: string };
+  },
+): string {
   const chest = getCardRowTheme(p.themeId);
   const cardBg = chest.gradient[2] ?? chest.gradient[1] ?? chest.gradient[0] ?? '#EAF7FF';
   const borderStyle = `${chest.borderWidth}px solid ${chest.borderColor}`;
@@ -90,15 +122,21 @@ export function buildBusinessCardEmailSignatureHtml(p: BusinessCardEmailSignatur
   const linkHref = escapeHtmlForEmail(String(p.publicCardUrl || '').trim());
 
   const rawLogo = String(p.logoUrl || '').trim();
-  const logoOk = rawLogo.startsWith('https://') || rawLogo.startsWith('http://');
-  const logoSrc = escapeHtmlForEmail(rawLogo);
+  const normalizedLogo =
+    p.emailLogoNormalize != null
+      ? normalizeVaultLogoUrlForEmailSignature(rawLogo, p.emailLogoNormalize) ?? rawLogo
+      : rawLogo;
+  const logoForImg = String(normalizedLogo || '').trim();
+  const logoImgSrcOk = /^https:\/\//i.test(logoForImg);
+  const logoForQr = /^https:\/\//i.test(logoForImg) ? logoForImg : null;
+  const logoSrc = escapeHtmlForEmail(logoForImg);
   const initials = escapeHtmlForEmail(initialsFromBcName(p.bcName));
 
   const qrSrc = escapeHtmlForEmail(
-    buildSignatureQrImageUrl(p.webBaseUrl, p.publicCardUrl, 256, logoOk ? rawLogo : null),
+    buildSignatureQrImageUrl(p.webBaseUrl, p.publicCardUrl, 256, logoForQr),
   );
 
-  const logoInner = logoOk
+  const logoInner = logoImgSrcOk
     ? `<img src="${logoSrc}" alt="" width="70" height="70" style="display:block;width:70px;height:70px;border-radius:15px;border:${borderStyle};object-fit:cover;background-color:${chest.bubbleBackgroundColor};font-family:Arial,sans-serif;" />`
     : `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:70px;height:70px;border-collapse:collapse;border-radius:15px;border:${borderStyle};background-color:rgba(255,255,255,0.4);"><tr><td align="center" valign="middle" style="font-family:Arial,sans-serif;font-size:20px;font-weight:800;font-style:normal;color:${chest.titleColor};">${initials}</td></tr></table>`;
 

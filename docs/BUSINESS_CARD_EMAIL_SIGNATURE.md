@@ -6,7 +6,9 @@ Guía de producto y notas técnicas para la función **«Copiar firma HTML (corr
 
 ## Resumen
 
-Los dueños de **tarjetas de negocio** pueden generar una **firma de correo en HTML** que reproduce el diseño de la fila en la lista (logo, nombre, subtítulo, QR con el mismo enlace público web y logo centrado). El HTML se copia al **portapapeles** desde el **Dashboard** de la app móvil.
+Los dueños de **tarjetas de negocio** pueden generar una **firma de correo en HTML** que reproduce el diseño de la fila en la lista (logo, nombre, subtítulo, QR con el mismo enlace público web y logo centrado). El HTML se puede **copiar al portapapeles** desde el Dashboard en **web** (`text/html`), o solicitar envío por correo (**Resend**) desde **móvil**.
+
+El `<img>` del QR debe usar el **sitio público** (`https://cardsocial.me/api/qr/generate?…`) cuando sea posible, igual que una firma pegada desde `firma.html` de referencia; muchos clientes cargan ese host mejor que subdominio API.
 
 No se crea una tarjeta nueva ni un segundo enlace: el QR y el enlace apuntan a la **misma URL pública** que ya usa la tarjeta (`generatePublicBusinessWebUrl` → ruta web `/b/{bId}?uid=…`).
 
@@ -94,9 +96,8 @@ Los clientes de correo suelen tener un editor de **firma** que acepta HTML enriq
 
 ### Despliegue
 
-Para que las imágenes del QR en la firma funcionen en clientes de correo, el `src` del `<img>` debe apuntar al **mismo host donde Card-Social expone públicamente** `GET /api/qr/generate`:
+- En muchos despliegues el `<img>` del QR en la firma usa **`https://cardsocial.me/api/qr/generate?…`** (Next), no el API en subdominio, para paridad con `firma.html` y mejor carga en clientes de correo.
+- El logo debe ser **HTTPS** absoluto; las URLs vault se normalizan a `https://api…/api/qr/vault-proxy/file/:id`.
+- Override: `SIGNATURE_QR_IMAGE_BASE_URL` (servidor) o `EXPO_PUBLIC_SIGNATURE_QR_IMAGE_BASE_URL` (app).
 
-- En muchos despliegues el enlace de la tarjeta es `https://cardsocial.me/b/...` pero el **PNG del QR** se sirve desde **`https://api.cardsocial.me/api/qr/generate`** (Express), porque el subdominio API es el que recibe el backend.
-- La app usa por defecto **`getSignatureQrImageBaseUrl()`** (`EXPO_PUBLIC_BACKEND_BASE_URL` / `EXPO_PUBLIC_MODERATION_API_URL`, o `EXPO_PUBLIC_SIGNATURE_QR_IMAGE_BASE_URL` para forzar). Solo si no hay API configurada cae a `getPublicBusinessWebBaseUrl()`.
-
-El enlace clicable de la firma sigue siendo la **URL pública de la tarjeta** (`generatePublicBusinessWebUrl` → `cardsocial.me`).
+Valores legacy: si necesitas que el PNG salga sólo desde Express, fuerza cualquiera de esas vars al origen **`https://api.cardsocial.me`** (también expone `GET /api/qr/generate`).

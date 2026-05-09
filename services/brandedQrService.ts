@@ -205,8 +205,10 @@ export function getPublicBusinessWebBaseUrl(): string {
 }
 
 /**
- * Host donde el correo carga `/api/qr/generate` (Express). En prod suele ser **api.cardsocial.me**,
- * mientras `/b/...` vive en **cardsocial.me**. Override: `EXPO_PUBLIC_SIGNATURE_QR_IMAGE_BASE_URL`.
+ * Host público HTTPS del PNG del QR en firma (`GET /api/qr/generate`).
+ * Prioriza el **sitio marketing** (`EXPO_PUBLIC_BUSINESS_WEB_BASE` → cardsocial.me), igual que `firma.html`,
+ * porque muchos clientes de correo cargan mejor ese host; override: `EXPO_PUBLIC_SIGNATURE_QR_IMAGE_BASE_URL`.
+ * Si falta todo, mismo fallback que antes: backend API público (`resolveExpoPublicApiBaseUrl`).
  */
 export function getSignatureQrImageBaseUrl(): string {
   const forced =
@@ -214,10 +216,12 @@ export function getSignatureQrImageBaseUrl(): string {
       ? String(process.env.EXPO_PUBLIC_SIGNATURE_QR_IMAGE_BASE_URL).trim()
       : '';
   if (forced) return forced.replace(/\/+$/, '');
+  const web = getPublicBusinessWebBaseUrl();
+  if (web && /^https:\/\//i.test(web)) return web;
   try {
     return resolveExpoPublicApiBaseUrl();
   } catch {
-    return getPublicBusinessWebBaseUrl();
+    return DEFAULT_PUBLIC_BUSINESS_WEB_BASE;
   }
 }
 

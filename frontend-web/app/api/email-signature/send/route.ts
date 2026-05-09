@@ -72,22 +72,12 @@ function internalApiPublicBase(): string {
 }
 
 /**
- * Host absoluto donde vive `GET /api/qr/generate` para el `<img>` del QR en la firma.
- * Producción: define `SIGNATURE_QR_IMAGE_BASE_URL` como origen público HTTPS (p. ej. API).
+ * Host del `<img src>` del QR: mismo esquema que `firma.html` — sitio público (`cardsocial.me`),
+ * donde Next expone `GET /api/qr/generate`. Override env: `SIGNATURE_QR_IMAGE_BASE_URL`.
  */
 function signatureQrImageBaseUrl(): string {
   const configured = process.env.SIGNATURE_QR_IMAGE_BASE_URL?.trim().replace(/\/+$/, '');
   if (configured) return configured;
-
-  const api = process.env.INTERNAL_API_URL?.trim().replace(/\/+$/, '');
-  if (api) return api;
-
-  const modUrl = process.env.NEXT_PUBLIC_MODERATION_API_URL?.trim().replace(/\/+$/, '');
-  if (modUrl) return modUrl;
-
-  const nxApi = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/+$/, '');
-  if (nxApi) return nxApi;
-
   return sitePublicBase();
 }
 
@@ -126,7 +116,9 @@ function wrapCorporateSignatureEmail(signatureHtmlFragment: string, locale: Emai
     <h1 style="font-size:20px;line-height:1.3;margin:0 0 16px;color:#111;">${headline}</h1>
     <p style="font-size:15px;line-height:1.55;margin:0 0 12px;">${p1}</p>
     <p style="font-size:15px;line-height:1.55;margin:0 0 28px;color:#444;">${p2}</p>
-    <div style="background:#fff;border-radius:14px;padding:22px;border:1px solid #e5e7eb;display:inline-block;max-width:100%;">${signatureHtmlFragment}</div>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;margin:0;">
+      <tr><td style="padding:0;">${signatureHtmlFragment}</td></tr>
+    </table>
   </div>
 </body></html>`;
 }
@@ -210,6 +202,7 @@ export async function POST(req: Request) {
       subtitle,
       logoUrl,
       themeId,
+      emailLogoNormalize: { siteOrigin: publicCardSite, apiOrigin },
     });
 
     const plainCompanion = buildBusinessCardEmailSignaturePlainText({
