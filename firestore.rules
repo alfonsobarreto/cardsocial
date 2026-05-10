@@ -125,6 +125,34 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
 
+    // Referidos únicos por usuario nuevo: solo el cuenta creador (`referredUid`) puede crear su doc `{referrerUid,...}`.
+    match /referrals/{referredUid} {
+      allow read: if isSignedIn()
+        && (
+          resource.data.referrerUid == request.auth.uid
+          || resource.data.referredUid == request.auth.uid
+          || isSuperAdmin()
+        );
+
+      allow create: if isSignedIn()
+        && referredUid == request.auth.uid
+        && request.resource.data.referredUid == request.auth.uid
+        && request.resource.data.referrerUid is string
+        && request.resource.data.referrerUid != request.auth.uid
+        && request.resource.data.status == 'completed';
+
+      /** `setDoc(merge)` en doc existente cuenta como actualización — solo permite refrescar mismo referidor. */
+      allow update: if isSignedIn()
+        && referredUid == request.auth.uid
+        && resource.data.referredUid == request.auth.uid
+        && request.resource.data.referredUid == resource.data.referredUid
+        && resource.data.referrerUid == request.resource.data.referrerUid
+        && resource.data.status == 'completed'
+        && request.resource.data.status == 'completed';
+
+      allow delete: if false;
+    }
+
     // Medal system: counts readable by all signed-in users; votes owner-only.
     match /medals/{medalDocId} {
       allow read: if isSignedIn();

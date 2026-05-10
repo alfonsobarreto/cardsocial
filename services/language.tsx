@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import i18n from '@/i18n';
+import { dashboardUiLocaleExtra } from '@/services/dashboardUiLocaleExtra';
 import { hashUiPair } from '@/services/uiStringHash';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
@@ -94,6 +95,8 @@ export function deviceDefaultLanguage(): AppLanguage {
  * Añade entradas en `locales/_generated/{lang}.fragment.json` (p. ej. con `scripts/fill-ui-fragments.mjs`).
  */
 export function trEsEn(es: string, en: string, lang: AppLanguage): string {
+  const extra = dashboardUiLocaleExtra(es, en, lang);
+  if (extra !== null) return extra;
   const key = `ui.x${hashUiPair(es, en)}`;
   return String(
     i18n.t(key, {

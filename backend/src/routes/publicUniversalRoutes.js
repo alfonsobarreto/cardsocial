@@ -17,6 +17,12 @@ const { getFirestoreOptional } = require('../lib/firebaseAdminApp');
 const BUSINESS_MEDAL_KEYS = ['compromiso', 'servicio', 'confianza', 'prestigio', 'excelencia'];
 const SOCIAL_MEDAL_KEYS = ['creativo', 'conector', 'visionario', 'conversador', 'guru'];
 
+/** Insignia azul público cuando `users.{legacyTier}` ≥ Silver */
+function legacyOfficialPartnerFromFirestoreUser(raw) {
+  const t = String(raw?.legacyTier ?? '').trim().toLowerCase();
+  return ['silver', 'gold', 'platinum', 'diamond'].includes(t);
+}
+
 function sanitizeBusinessMedalCounts(raw) {
   /** @type {Record<string, number>} */
   const out = {};
@@ -114,7 +120,7 @@ function smartCardPublicFindFilter(issuerUid, cardKey) {
 }
 
 /**
- * Estilo público de smart_cards para vista previa QR (tema / layout / ratings).
+ * Estilo público de smart_cards para vista previa QR (tema / layout).
  */
 function previewStyleFromSmartCardDoc(cardDoc) {
   if (!cardDoc) {
@@ -123,9 +129,6 @@ function previewStyleFromSmartCardDoc(cardDoc) {
       layout: 'vertical',
       wallpaperUrl: null,
       enableParallax: false,
-      holdersCount: 0,
-      ratingAvg: 0,
-      totalRatings: 0,
     };
   }
   return {
@@ -133,9 +136,6 @@ function previewStyleFromSmartCardDoc(cardDoc) {
     layout: String(cardDoc.layout || 'vertical') === 'horizontal' ? 'horizontal' : 'vertical',
     wallpaperUrl: cardDoc.wallpaperUrl ? String(cardDoc.wallpaperUrl) : null,
     enableParallax: Boolean(cardDoc.enableParallax),
-    holdersCount: Math.max(0, Math.floor(Number(cardDoc.holdersCount ?? 0))),
-    ratingAvg: Number.isFinite(Number(cardDoc.ratingAvg)) ? Number(cardDoc.ratingAvg) : 0,
-    totalRatings: Math.max(0, Math.floor(Number(cardDoc.totalRatings ?? 0))),
   };
 }
 
@@ -147,9 +147,6 @@ function previewStyleFromBusinessCardDoc(cardDoc) {
       layout: 'vertical',
       wallpaperUrl: null,
       enableParallax: false,
-      holdersCount: 0,
-      ratingAvg: 0,
-      totalRatings: 0,
     };
   }
   return {
@@ -157,9 +154,6 @@ function previewStyleFromBusinessCardDoc(cardDoc) {
     layout: String(cardDoc.layout || 'vertical') === 'horizontal' ? 'horizontal' : 'vertical',
     wallpaperUrl: null,
     enableParallax: Boolean(cardDoc.enableParallax),
-    holdersCount: Math.max(0, Math.floor(Number(cardDoc.holdersCount ?? 0))),
-    ratingAvg: Number.isFinite(Number(cardDoc.averageRating)) ? Number(cardDoc.averageRating) : 0,
-    totalRatings: Math.max(0, Math.floor(Number(cardDoc.totalRatings ?? 0))),
   };
 }
 
@@ -485,9 +479,6 @@ function createPublicUniversalRoutes({ storage }) {
         userNickName: issuer.nickname ? String(issuer.nickname) : null,
         userAvatarUrl: issuer.userAvatarUrl || null,
         searchFacets: sanitizeSearchFacetsPublic(cardDoc?.searchFacets),
-        holdersCount: style.holdersCount,
-        ratingAvg: style.ratingAvg || 5,
-        totalRatings: style.totalRatings,
         storyState,
         slots,
         expiresAt: expiresAt.toISOString(),
@@ -522,6 +513,18 @@ function createPublicUniversalRoutes({ storage }) {
       if (socialMedalCountsPack !== undefined) {
         payload.socialMedalCounts = socialMedalCountsPack;
       }
+
+      let legacyOfficialPartner = false;
+      try {
+        const fsPartners = getFirestoreOptional();
+        if (fsPartners) {
+          const uSnap = await fsPartners.collection('users').doc(issuerUid).get();
+          legacyOfficialPartner = uSnap.exists ? legacyOfficialPartnerFromFirestoreUser(uSnap.data()) : false;
+        }
+      } catch (_p) {
+        /* Firestore opcional */
+      }
+      payload.legacyOfficialPartner = legacyOfficialPartner;
 
       if (source === QR_SCAN_SOURCE) {
         try {

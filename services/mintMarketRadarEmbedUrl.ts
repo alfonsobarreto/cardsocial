@@ -38,8 +38,13 @@ function logMintDev(message: string, payload?: Record<string, unknown>): void {
  * Calls Studio `POST /api/embed/mint-market-radar` with the app user's Firebase ID token.
  * Returns `/embed/market-radar?et=…` for WebView. El `et` tiene TTL largo en servidor; la sesión continúa con Firebase tras el exchange.
  */
-export async function mintMarketRadarEmbedUrl(lang: AppLanguage): Promise<MintMarketRadarResult> {
-  const base = marketRadarStudioBaseFromEnv();
+export async function mintMarketRadarEmbedUrl(
+  lang: AppLanguage,
+  options?: { originOverride?: string | null },
+): Promise<MintMarketRadarResult> {
+  const overrideRaw =
+    options?.originOverride != null ? String(options.originOverride).trim().replace(/\/+$/, '') : '';
+  const base = overrideRaw || marketRadarStudioBaseFromEnv();
   if (!base) {
     logMintDev('fail', { code: 'studio_url_missing' });
     return { ok: false, issue: { code: 'studio_url_missing' } };

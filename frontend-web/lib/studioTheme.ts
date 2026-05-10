@@ -6,9 +6,9 @@ export const studioTheme = {
   bg: '#000000',
   surface: '#0D0D0D',
   surfaceElevated: '#141414',
-  border: 'rgba(212, 175, 55, 0.35)',
-  borderStrong: 'rgba(212, 175, 55, 0.6)',
-  gold: '#D4AF37',
+  border: 'rgba(233, 195, 73, 0.35)',
+  borderStrong: 'rgba(233, 195, 73, 0.6)',
+  gold: '#E9C349',
   goldLight: '#E9D8B0',
   goldDeep: '#8B7355',
   text: '#FFFFFF',
@@ -19,7 +19,7 @@ export const studioTheme = {
   error: '#FF6B6B',
   success: '#4ECDC4',
   iconCircleBg: '#1C1C1E',
-  typeBadgeBg: 'rgba(212, 175, 55, 0.14)',
+  typeBadgeBg: 'rgba(233, 195, 73, 0.14)',
   typeBadgeText: '#E9D8B0',
 } as const;
 

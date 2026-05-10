@@ -346,8 +346,6 @@ export default function ScanScreen() {
                 wallpaperUrl: payload.wallpaperUrl,
                 enableParallax: payload.enableParallax,
                 holdersCount: payload.holdersCount,
-                ratingAvg: payload.ratingAvg,
-                totalRatings: payload.totalRatings,
                 slots: [],
               });
               setClassification({

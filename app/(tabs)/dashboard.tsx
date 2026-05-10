@@ -1,4 +1,5 @@
 import AutoScaleText from '@/components/AutoScaleText';
+import { LegacyPathGoalsSection } from '@/components/LegacyPathGoalsSection';
 import {
   getCardAnalyticsForPeriod,
   getSeoInsightsForCard,
@@ -16,9 +17,11 @@ import {
 } from '@/services/brandedQrService';
 import { listMyBusinessCards, updateBusinessCard } from '@/services/businessCardsRepo';
 import { auth, db } from '@/services/firebaseConfig';
+import { useLegacyPathEngine, LEGACY_DIAMOND_RADAR_STUDIO_FALLBACK_ORIGIN, LEGACY_REFERRALS_CEILING_UI } from '@/hooks/useLegacyPathEngine';
 import { mintMarketRadarEmbedUrl } from '@/services/mintMarketRadarEmbedUrl';
 import { marketRadarMintUserMessage } from '@/services/marketRadarMintMessages';
 import { requestBusinessCardSignatureEmail } from '@/services/requestBusinessCardSignatureEmail';
+import { tierIsDiamond } from '@/services/legacyPathEngine';
 import { resolveExpoPublicApiBaseUrl } from '@/services/expoPublicApiBaseUrl';
 import { hasUnlimitedAdminUi } from '@/services/roleService';
 import { effectiveTierKeyFromUserData, type TierKey } from '@/services/tiersConfigService';
@@ -37,6 +40,7 @@ import { useLookMode } from '@/services/lookMode';
 import { doc, getDoc } from 'firebase/firestore';
 import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SHELL_ACCENT_GOLD } from '@/styles/_premiumTheme';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -61,10 +65,6 @@ import {
 import { Map as LucideMap, Maximize2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const GOLD = '#D4AF37';
-const INK = '#050505';
-const PANEL = '#101010';
-const PANEL_2 = '#17130B';
 const CARD_GAP = 12;
 
 type ExpirationTone = 'green' | 'amber' | 'red';
@@ -91,7 +91,6 @@ type AnalyticsByBId = Record<string, CardAnalyticsPeriodSummary | undefined>;
 type SeoByBId = Record<string, MarketSeoSummary | undefined>;
 
 type DashboardChrome = {
-  gradient: readonly [string, string, ...string[]];
   text: string;
   textSecondary: string;
   textMuted: string;
@@ -155,72 +154,77 @@ type DashboardChrome = {
   isNight: boolean;
 };
 
-function buildDashboardChrome(shell: AppShellTheme, isNight: boolean): DashboardChrome {
-  const palette = shell as (typeof appPalette)['light'];
+function buildDashboardChrome(shellIn: AppShellTheme, isNight: boolean): DashboardChrome {
+  const shell = shellIn as typeof appPalette.light;
+
+  const accent = shell.ctaAccent;
+  /** 8‑digit `#RRGGBBAA` (React Native): acento sobre superficies shell. */
+  const a = (suffix: string) => `${accent}${suffix}` as const;
+
+  const sm = shell.surfaceMuted;
+  const sv = shell.surface;
+
   return {
-    gradient: palette.tabShellGradient,
-    text: palette.textPrimary,
-    textSecondary: palette.textSecondary,
-    textMuted: palette.textMuted ?? palette.textSecondary,
-    seoMutedLine: isNight ? 'rgba(255,236,200,0.9)' : palette.textSecondary,
-    panel: isNight ? 'rgba(16,16,16,0.9)' : 'rgba(255,255,255,0.94)',
-    panelBorder: isNight ? 'rgba(212,175,55,0.24)' : 'rgba(212,175,55,0.35)',
-    collapsibleHeaderBg: isNight ? 'rgba(8,8,8,0.55)' : 'rgba(255,255,255,0.82)',
-    collapsibleBorder: isNight ? 'rgba(212,175,55,0.22)' : 'rgba(212,175,55,0.32)',
-    collapsibleFrameBg: isNight ? PANEL_2 : 'rgba(255,252,248,0.98)',
-    subtitleOnPanel: isNight ? 'rgba(255,255,255,0.72)' : palette.textSecondary,
-    gold: palette.ctaAccent,
-    iconGold: isNight ? '#F8E6A2' : palette.ctaAccent,
-    headerStripe: isNight
-      ? (['rgba(212,175,55,0.22)', 'rgba(45,30,8,0.45)', 'rgba(12,12,12,0.98)'] as const)
-      : (['rgba(212,175,55,0.22)', '#FFF9ED', palette.backgroundSolid] as const),
-    helloColor: palette.textPrimary,
-    planColor: palette.ctaAccent,
-    loadingBorder: isNight ? 'rgba(212,175,55,0.25)' : 'rgba(212,175,55,0.35)',
-    loadingBoxBg: isNight ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.72)',
-    loadingText: palette.textSecondary,
-    paginationDot: isNight ? 'rgba(255,255,255,0.22)' : 'rgba(28,28,30,0.22)',
-    blockTitleColor: palette.textPrimary,
-    optimizeCtaBg: isNight ? 'rgba(6,6,6,0.72)' : palette.surfaceMuted,
-    optimizeCtaBorder: isNight ? 'rgba(246,220,150,0.55)' : palette.ctaAccent,
-    optimizeCtaIcon: isNight ? '#F8E6A2' : palette.ctaAccent,
-    optimizeCtaText: isNight ? '#FCECC0' : palette.textPrimary,
-    analyticsCardBg: isNight ? PANEL : 'rgba(255,255,255,0.92)',
-    analyticsCardBorder: isNight ? 'rgba(212,175,55,0.25)' : 'rgba(212,175,55,0.32)',
-    chartGridLine: isNight ? 'rgba(212,175,55,0.12)' : 'rgba(212,175,55,0.18)',
-    periodTabBg: isNight ? 'rgba(0,0,0,0.32)' : 'rgba(0,0,0,0.05)',
-    periodTabBorder: isNight ? 'rgba(212,175,55,0.2)' : 'rgba(212,175,55,0.28)',
-    periodTabText: isNight ? 'rgba(255,255,255,0.58)' : palette.textSecondary,
-    periodTabActiveText: isNight ? '#F6DA87' : palette.textPrimary,
-    periodTitleColor: palette.textPrimary,
-    periodArrowDisabled: isNight ? 'rgba(255,255,255,0.18)' : 'rgba(28,28,30,0.25)',
-    bigMetricColor: palette.textPrimary,
-    rankLabel: palette.textPrimary,
-    rankEmpty: palette.textSecondary,
-    seoCardBg: isNight ? 'rgba(5,5,5,0.72)' : 'rgba(255,252,246,0.95)',
-    seoCardBorder: isNight ? 'rgba(212,175,55,0.34)' : 'rgba(212,175,55,0.35)',
-    opportunityTitle: isNight ? '#F8E6A2' : palette.ctaAccent,
-    seoScopeMuted: isNight ? 'rgba(255,245,215,0.78)' : palette.textSecondary,
-    seoTransparency: isNight ? 'rgba(255,255,255,0.74)' : palette.textSecondary,
-    explorerBtnIcon: isNight ? '#1B1205' : palette.emptyCtaText ?? '#1B1205',
-    heatmapCardBg: isNight ? 'rgba(5,8,14,0.78)' : 'rgba(253,251,246,0.96)',
-    heatmapCanvasBg: isNight ? 'rgba(0,0,0,0.5)' : 'rgba(246,243,237,0.9)',
-    heatmapRoad: isNight ? 'rgba(246,218,135,0.16)' : 'rgba(212,175,55,0.25)',
-    heatmapCity: isNight ? 'rgba(255,255,255,0.55)' : palette.textMuted,
-    heatOrbText: isNight ? '#0A0703' : palette.textPrimary,
-    legacyTitle: palette.textPrimary,
-    legacyBody: palette.textSecondary,
-    medalLabel: palette.textSecondary,
-    seoInputBg: isNight ? 'rgba(0,0,0,0.42)' : (palette.inputBg ?? 'rgba(255,255,255,0.95)'),
-    seoInputBorder: isNight ? 'rgba(212,175,55,0.32)' : 'rgba(212,175,55,0.38)',
-    seoInputText: palette.inputText ?? palette.textPrimary,
-    seoInputPlaceholder: palette.searchPlaceholder ?? palette.textMuted ?? 'rgba(150,150,150,0.85)',
-    rankTrackBg: isNight ? 'rgba(255,255,255,0.1)' : 'rgba(28,28,30,0.12)',
-    nicheChipInactiveBg: isNight ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.75)',
-    nicheChipActiveBg: isNight ? 'rgba(212,175,55,0.22)' : 'rgba(212,175,55,0.2)',
-    nicheChipInactiveText: isNight ? 'rgba(255,255,255,0.68)' : palette.textSecondary,
-    nicheChipActiveText: isNight ? '#F6DA87' : palette.textPrimary,
-    seoExplorerResetFg: isNight ? '#F8E6A2' : palette.ctaAccent,
+    text: shell.textPrimary,
+    textSecondary: shell.textSecondary,
+    textMuted: shell.textMuted ?? shell.textSecondary,
+    seoMutedLine: shell.textSecondary,
+    panel: sm,
+    panelBorder: a('55'),
+    collapsibleHeaderBg: sm,
+    collapsibleBorder: shell.border,
+    collapsibleFrameBg: sm,
+    subtitleOnPanel: shell.textSecondary,
+    gold: accent,
+    iconGold: accent,
+    headerStripe: [sm, a('33'), shell.backgroundSolid],
+    helloColor: shell.textPrimary,
+    planColor: accent,
+    loadingBorder: a('59'),
+    loadingBoxBg: sm,
+    loadingText: shell.textSecondary,
+    paginationDot: a('66'),
+    blockTitleColor: shell.textPrimary,
+    optimizeCtaBg: sv,
+    optimizeCtaBorder: shell.border,
+    optimizeCtaIcon: accent,
+    optimizeCtaText: shell.textPrimary,
+    analyticsCardBg: sm,
+    analyticsCardBorder: a('55'),
+    chartGridLine: a('44'),
+    periodTabBg: sv,
+    periodTabBorder: shell.border,
+    periodTabText: shell.textSecondary,
+    periodTabActiveText: accent,
+    periodTitleColor: shell.textPrimary,
+    periodArrowDisabled: shell.textMuted ?? shell.textSecondary,
+    bigMetricColor: shell.textPrimary,
+    rankLabel: shell.textPrimary,
+    rankEmpty: shell.textSecondary,
+    seoCardBg: sm,
+    seoCardBorder: a('55'),
+    opportunityTitle: accent,
+    seoScopeMuted: shell.textSecondary,
+    seoTransparency: shell.textSecondary,
+    explorerBtnIcon: shell.btnPrimaryText,
+    heatmapCardBg: sm,
+    heatmapCanvasBg: sv,
+    heatmapRoad: a('44'),
+    heatmapCity: shell.textMuted ?? shell.textSecondary,
+    heatOrbText: shell.textPrimary,
+    legacyTitle: shell.textPrimary,
+    legacyBody: shell.textSecondary,
+    medalLabel: shell.textSecondary,
+    seoInputBg: shell.inputBg,
+    seoInputBorder: shell.border,
+    seoInputText: shell.inputText ?? shell.textPrimary,
+    seoInputPlaceholder: shell.searchPlaceholder ?? shell.textMuted ?? shell.textSecondary,
+    rankTrackBg: shell.modalRowBg,
+    nicheChipInactiveBg: sv,
+    nicheChipActiveBg: a('33'),
+    nicheChipInactiveText: shell.textSecondary,
+    nicheChipActiveText: accent,
+    seoExplorerResetFg: accent,
     isNight,
   };
 }
@@ -440,7 +444,7 @@ function MiniLineChart({
               return (
                 <View key={`${value}-${index}`} style={styles.barSlot}>
                   <LinearGradient
-                    colors={['rgba(255,222,128,0.95)', 'rgba(212,175,55,0.55)', 'rgba(80,53,14,0.25)']}
+                    colors={['rgba(255,222,128,0.95)', 'rgba(233,195,73,0.55)', 'rgba(80,53,14,0.25)']}
                     style={[styles.chartBar, { height: barHeight }]}
                   />
                 </View>
@@ -457,7 +461,7 @@ function MiniLineChart({
         </>
       ) : (
         <View style={styles.noViewsBox}>
-          <MaterialCommunityIcons name="chart-bell-curve-cumulative" size={22} color="rgba(212,175,55,0.68)" />
+          <MaterialCommunityIcons name="chart-bell-curve-cumulative" size={22} color="rgba(233,195,73,0.68)" />
           <Text style={[styles.noViewsText, { color: labelColor }]}>{emptyHint}</Text>
         </View>
       )}
@@ -479,8 +483,8 @@ function ExpirationBadge({
   const tone = toneForDays(daysLeft);
   const colors = unlimited
     ? {
-        glow: GOLD,
-        bg: 'rgba(212,175,55,0.16)',
+        glow: SHELL_ACCENT_GOLD,
+        bg: `${SHELL_ACCENT_GOLD}29`,
         border: 'rgba(246,218,135,0.58)',
         text: '#F6DA87',
         label: tr('ILIMITADO', 'UNLIMITED'),
@@ -550,26 +554,32 @@ function PremiumMarketToggle({
   onToggle: (nextValue: boolean) => void;
 }) {
   const { language } = useLanguage();
-  const labelOn = trEsEn('Encendido', 'On', language);
-  const labelOff = trEsEn('Apagado', 'Off', language);
+  const { resolvedMode } = useLookMode();
+  const shell = appPalette[resolvedMode === 'noche' ? 'dark' : 'light'];
+  const accent = shell.ctaAccent;
+  const trackOn = accent;
+  const trackOff = resolvedMode === 'noche' ? '#2E2E32' : '#4A4A4E';
   return (
     <TouchableOpacity
       activeOpacity={0.86}
       disabled={disabled}
       onPress={() => onToggle(!enabled)}
+      accessibilityRole="switch"
+      accessibilityLabel={trEsEn('Mercado social', 'Social Market', language)}
+      accessibilityState={{ checked: enabled, disabled }}
       style={[
         styles.premiumToggleShell,
         enabled ? styles.premiumToggleShellOn : styles.premiumToggleShellOff,
         disabled && styles.premiumToggleDisabled,
+        {
+          backgroundColor: enabled ? trackOn : trackOff,
+          borderColor: enabled ? `${accent}CC` : 'rgba(255,255,255,0.14)',
+          shadowColor: enabled ? accent : 'transparent',
+        },
       ]}
-      accessibilityRole="switch"
-      accessibilityState={{ checked: enabled, disabled }}
     >
-      <Text style={[styles.premiumToggleText, enabled ? styles.premiumToggleTextOn : styles.premiumToggleTextOff]}>
-        {enabled ? labelOn : labelOff}
-      </Text>
       <LinearGradient
-        colors={enabled ? ['#FFF4B8', '#D4AF37', '#8D651B'] : ['#4B4B4B', '#2A2A2A', '#121212']}
+        colors={enabled ? ['#FFF4B8', accent, '#8D651B'] : ['#5C5C5C', '#3A3A3A', '#1A1A1A']}
         start={{ x: 0.15, y: 0 }}
         end={{ x: 0.9, y: 1 }}
         style={[
@@ -723,7 +733,7 @@ function MetricPanel({
         <View style={styles.panelHeaderRow}>
           <Text style={[styles.sectionKicker, { color: chrome.textMuted }]}>{tr('Vistas de tarjeta', 'Card views')}</Text>
           {totalViews > 0 ? (
-            <View style={[styles.clickRateChip, { borderColor: chrome.panelBorder }]}>
+            <View style={[styles.clickRateChip, { borderColor: chrome.panelBorder, backgroundColor: chrome.rankTrackBg }]}>
               <Text style={[styles.clickRateChipLabel, { color: chrome.seoMutedLine }]} numberOfLines={2}>
                 {tr('Conversión búsqueda-acción (CTR)', 'Search-to-Action (CTR)')}
               </Text>
@@ -737,7 +747,15 @@ function MetricPanel({
           {periodOptions.map((option) => (
             <TouchableOpacity
               key={option.key}
-              style={[styles.periodTab, periodMode === option.key && styles.periodTabActive]}
+              style={[
+                styles.periodTab,
+                periodMode === option.key && styles.periodTabActive,
+                periodMode === option.key && {
+                  borderColor: `${chrome.gold}C7`,
+                  backgroundColor: `${chrome.gold}33`,
+                  shadowColor: chrome.gold,
+                },
+              ]}
               onPress={() => onChangePeriod(option.key)}
               activeOpacity={0.82}
             >
@@ -840,7 +858,7 @@ function CollapsibleSection({
         onPress={() => setOpen((prev) => !prev)}
       >
         <View style={styles.collapsibleTitleRow}>
-          <MaterialCommunityIcons name={icon} size={17} color={iconTint ?? GOLD} />
+          <MaterialCommunityIcons name={icon} size={17} color={iconTint ?? SHELL_ACCENT_GOLD} />
           <Text style={[styles.collapsibleTitle, titleColor ? { color: titleColor } : undefined]}>{title}</Text>
         </View>
         <MaterialCommunityIcons name={open ? 'chevron-up' : 'chevron-down'} size={20} color={chevronTint ?? '#A88A43'} />
@@ -886,10 +904,12 @@ export default function DashboardScreen() {
   const activeRenewalDate = headerInfo.isSuperAdmin || !activeCard ? null : expirationDateFor(activeCard);
   const activeDaysLeft = headerInfo.isSuperAdmin ? 999 : daysUntil(activeRenewalDate);
   const headerTone = headerInfo.isSuperAdmin
-    ? { ...toneColors('green'), glow: GOLD, border: 'rgba(246,218,135,0.58)' }
+    ? { ...toneColors('green'), glow: SHELL_ACCENT_GOLD, border: 'rgba(246,218,135,0.58)' }
     : toneColors(toneForDays(activeDaysLeft));
   const activeAnalytics = activeCard ? analyticsByBId[activeCard.bId] : undefined;
   const activeSeo = activeCard ? seoByBId[activeCard.bId] : undefined;
+
+  const legacyLive = useLegacyPathEngine(Boolean(sessionUid.trim()));
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
@@ -1011,12 +1031,20 @@ export default function DashboardScreen() {
     return s.length > 0 ? s : null;
   }, []);
 
+  const effectiveRadarBase = useMemo((): string | null => {
+    if (studioWebBase) return studioWebBase;
+    if (tierIsDiamond(legacyLive.legacyTier)) return LEGACY_DIAMOND_RADAR_STUDIO_FALLBACK_ORIGIN;
+    return null;
+  }, [studioWebBase, legacyLive.legacyTier]);
+
   const launchCommandCenter = useCallback(async () => {
-    if (!studioWebBase || launchingRadar) return;
+    if (!effectiveRadarBase || launchingRadar) return;
     setLaunchingRadar(true);
     try {
       // Siempre nuevo `et` evita abrir Safari con ticket caducado; WebBrowser evita about:blank con http LAN en iOS.
-      const minted = await mintMarketRadarEmbedUrl(language);
+      const mintOpts =
+        studioWebBase ? undefined : { originOverride: LEGACY_DIAMOND_RADAR_STUDIO_FALLBACK_ORIGIN };
+      const minted = await mintMarketRadarEmbedUrl(language, mintOpts);
       if (!minted.ok) {
         Alert.alert(
           tr('Radar no disponible', 'Radar unavailable'),
@@ -1038,7 +1066,13 @@ export default function DashboardScreen() {
     } finally {
       setLaunchingRadar(false);
     }
-  }, [studioWebBase, launchingRadar, language, tr]);
+  }, [
+    studioWebBase,
+    effectiveRadarBase,
+    launchingRadar,
+    language,
+    tr,
+  ]);
 
   const handleChangePeriod = (mode: PeriodMode) => {
     setPeriodMode(mode);
@@ -1208,7 +1242,7 @@ export default function DashboardScreen() {
   const displayFirstName = headerInfo.firstName.trim() || tr('Usuario', 'User');
 
   return (
-    <LinearGradient colors={chrome.gradient} style={[styles.root, { backgroundColor: shell.backgroundSolid }]}>
+    <View style={[styles.root, { backgroundColor: shell.backgroundSolid }]}>
       <ScrollView
         contentContainerStyle={[styles.content, { paddingTop: 8, paddingBottom: insets.bottom + 28 }]}
         showsVerticalScrollIndicator={false}
@@ -1391,7 +1425,7 @@ export default function DashboardScreen() {
                 <Text style={[styles.rankLabel, { color: chrome.rankLabel }]} numberOfLines={1}>{row.label}</Text>
                 <View style={[styles.rankTrack, { backgroundColor: chrome.rankTrackBg }]}>
                   <LinearGradient
-                    colors={['rgba(212,175,55,0.95)', 'rgba(212,175,55,0.28)']}
+                    colors={['rgba(233,195,73,0.95)', 'rgba(233,195,73,0.28)']}
                     style={[styles.rankFill, { width: `${row.percent}%` }]}
                   />
                 </View>
@@ -1493,7 +1527,7 @@ export default function DashboardScreen() {
                     </View>
                     <View style={[styles.rankTrack, { backgroundColor: chrome.rankTrackBg }]}>
                       <LinearGradient
-                        colors={['rgba(212,175,55,0.95)', 'rgba(212,175,55,0.28)']}
+                        colors={['rgba(233,195,73,0.95)', 'rgba(233,195,73,0.28)']}
                         style={[styles.rankFill, { width: `${row.percent}%` }]}
                       />
                     </View>
@@ -1556,7 +1590,7 @@ export default function DashboardScreen() {
 
           <View style={[styles.executiveRadarCard, { borderColor: chrome.seoCardBorder, backgroundColor: chrome.heatmapCardBg }]}>
             <LinearGradient
-              colors={['rgba(212,175,55,0.18)', 'rgba(8,8,8,0)']}
+              colors={['rgba(233,195,73,0.18)', 'rgba(8,8,8,0)']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={StyleSheet.absoluteFill}
@@ -1572,12 +1606,12 @@ export default function DashboardScreen() {
               {periodTitle(periodMode, periodOffset, language, tr)}
             </Text>
 
-            {studioWebBase ? (
+            {effectiveRadarBase ? (
               <View
                 style={[
                   styles.marketRadarWebShell,
                   {
-                    borderColor: isNight ? 'rgba(246,218,135,0.55)' : 'rgba(212,175,55,0.42)',
+                    borderColor: isNight ? 'rgba(246,218,135,0.55)' : 'rgba(233,195,73,0.42)',
                     overflow: 'hidden',
                   },
                 ]}
@@ -1624,7 +1658,7 @@ export default function DashboardScreen() {
                     style={[
                       styles.marketRadarPlaceholderIconRing,
                       {
-                        borderColor: isNight ? 'rgba(246,218,135,0.5)' : 'rgba(212,175,55,0.45)',
+                        borderColor: isNight ? 'rgba(246,218,135,0.5)' : 'rgba(233,195,73,0.45)',
                         backgroundColor: isNight ? 'rgba(8,8,8,0.42)' : 'rgba(255,252,248,0.72)',
                       },
                     ]}
@@ -1663,16 +1697,18 @@ export default function DashboardScreen() {
             <TouchableOpacity
               style={[
                 styles.launchCommandButton,
-                !studioWebBase && styles.launchCommandButtonDisabled,
+                !effectiveRadarBase && styles.launchCommandButtonDisabled,
               ]}
               onPress={launchCommandCenter}
-              disabled={!studioWebBase || launchingRadar}
+              disabled={!effectiveRadarBase || launchingRadar}
               activeOpacity={0.86}
               accessibilityRole="button"
               accessibilityLabel={tr('Explorar radar en pantalla completa', 'Explore radar in full screen')}
             >
               <LinearGradient
-                colors={studioWebBase ? ['#F6DA87', GOLD, '#A87B1F'] : ['rgba(150,120,60,0.4)', 'rgba(80,60,30,0.4)']}
+                colors={
+                  effectiveRadarBase ? ['#F6DA87', chrome.gold, '#A87B1F'] : ['rgba(150,120,60,0.4)', 'rgba(80,60,30,0.4)']
+                }
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.launchCommandGradient}
@@ -1689,15 +1725,20 @@ export default function DashboardScreen() {
               </LinearGradient>
             </TouchableOpacity>
 
-            <Text style={[styles.executiveRadarOriginCaption, { color: chrome.textMuted, marginTop: 6 }]} numberOfLines={2}>
-              {studioWebBase
-                ? tr(
-                    'Mapbox y capas de intención en tu navegador, con la superficie que merecen.',
-                    'Mapbox and intent layers open in your browser at the scale they deserve.',
-                  )
+            <Text style={[styles.executiveRadarOriginCaption, { color: chrome.textMuted, marginTop: 6 }]} numberOfLines={3}>
+              {effectiveRadarBase
+                ? studioWebBase
+                  ? tr(
+                      'Mapbox y capas de intención en tu navegador, con la superficie que merecen.',
+                      'Mapbox and intent layers open in your browser at the scale they deserve.',
+                    )
+                  : tr(
+                      'Acceso LEGACY Diamante: el Radar usa la Studio pública Card-Social (producción).',
+                      'Diamond LEGACY access: the Radar launches the live Card‑Social Studio (production origin).',
+                    )
                 : tr(
-                    'Define EXPO_PUBLIC_STUDIO_WEB_URL para activar el lanzamiento.',
-                    'Set EXPO_PUBLIC_STUDIO_WEB_URL to enable the launch.',
+                    'Define EXPO_PUBLIC_STUDIO_WEB_URL en .env y reinicia Metro para activar el radar.',
+                    'Set EXPO_PUBLIC_STUDIO_WEB_URL in .env and restart Metro to activate the radar.',
                   )}
             </Text>
           </View>
@@ -1714,53 +1755,28 @@ export default function DashboardScreen() {
           iconTint={chrome.iconGold}
           chevronTint={chrome.iconGold}
         >
-          <View style={styles.legacyRow}>
-            <View style={styles.legacyCopy}>
-              <Text style={[styles.legacyTitle, { color: chrome.legacyTitle }]}>
-                {tr(
-                  'Edita a 120 personas desde tu Medalla de Fundador Legacy Oro.',
-                  'Edit up to 120 people with your Legacy Gold founder medal.',
-                )}
-              </Text>
-              <View style={[styles.legacyTrack, { backgroundColor: chrome.rankTrackBg }]}>
-                <LinearGradient colors={[chrome.gold, '#F6DA87']} style={[styles.legacyFill, { width: '62%' }]} />
-              </View>
-              <Text style={[styles.legacyProgress, { color: chrome.legacyBody }]}>
-                {`950/1500 ${tr('alcance', 'reach')}`}
-              </Text>
-            </View>
-            <View style={styles.medalRow}>
-              {([
-                ['medal-outline', tr('Plata', 'Silver'), true],
-                ['gold', tr('Oro', 'Gold'), false],
-                ['diamond-stone', tr('Diamante', 'Diamond'), false],
-              ] as const).map(([icon, label, unlocked]) => (
-                <View key={label} style={styles.medalItem}>
-                  <View style={[styles.medalOrb, unlocked && styles.medalUnlocked]}>
-                    <MaterialCommunityIcons
-                      name={icon as keyof typeof MaterialCommunityIcons.glyphMap}
-                      size={18}
-                      color={unlocked ? '#FFFFFF' : GOLD}
-                    />
-                  </View>
-                  <Text style={[styles.medalLabel, { color: chrome.medalLabel }]}>{label}</Text>
-                  <Text style={[styles.medalState, { color: chrome.textMuted }]}>
-                    {unlocked ? tr('Desbloqueado', 'Unlocked') : tr('Bloqueado', 'Locked')}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </View>
+          <LegacyPathGoalsSection
+            tr={tr}
+            referralsCurrent={legacyLive.referralsCount}
+            referralsCeiling={LEGACY_REFERRALS_CEILING_UI}
+            palette={{
+              legacyTitleColor: chrome.legacyTitle,
+              legacyBodyColor: chrome.legacyBody,
+              rankTrackBg: chrome.rankTrackBg,
+              medalLabelColor: chrome.medalLabel,
+              textMuted: chrome.textMuted,
+            }}
+          />
         </CollapsibleSection>
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: INK,
+    backgroundColor: 'transparent',
   },
   content: {
     paddingHorizontal: 16,
@@ -1794,7 +1810,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   plan: {
-    color: GOLD,
+    color: 'transparent',
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.8,
@@ -1874,7 +1890,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   cardTitle: {
-    color: '#0D4D8A',
+    color: '#E9C349',
     fontSize: 18,
     fontWeight: '800',
     lineHeight: 20,
@@ -1938,15 +1954,12 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   premiumToggleShell: {
-    width: 66,
+    width: 52,
     height: 28,
     borderRadius: 999,
     borderWidth: 1,
     padding: 3,
     justifyContent: 'center',
-    backgroundColor: '#090909',
-    borderColor: 'rgba(212,175,55,0.55)',
-    shadowColor: GOLD,
     shadowOffset: { width: 0, height: 0 },
   },
   premiumToggleShellOn: {
@@ -1956,24 +1969,9 @@ const styles = StyleSheet.create({
   premiumToggleShellOff: {
     shadowOpacity: 0.12,
     shadowRadius: 3,
-    borderColor: 'rgba(212,175,55,0.28)',
   },
   premiumToggleDisabled: {
     opacity: 0.6,
-  },
-  premiumToggleText: {
-    position: 'absolute',
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  premiumToggleTextOn: {
-    left: 9,
-    color: 'rgba(255,244,184,0.96)',
-  },
-  premiumToggleTextOff: {
-    right: 8,
-    color: 'rgba(255,255,255,0.52)',
   },
   premiumToggleKnob: {
     width: 22,
@@ -1985,7 +1983,6 @@ const styles = StyleSheet.create({
   },
   premiumToggleKnobOn: {
     alignSelf: 'flex-end',
-    shadowColor: GOLD,
     shadowOpacity: 0.9,
     shadowRadius: 7,
   },
@@ -2005,7 +2002,7 @@ const styles = StyleSheet.create({
     minHeight: 120,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.25)',
+    borderColor: 'rgba(233,195,73,0.25)',
     backgroundColor: 'rgba(255,255,255,0.04)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2020,7 +2017,7 @@ const styles = StyleSheet.create({
     minHeight: 132,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.25)',
+    borderColor: 'rgba(233,195,73,0.25)',
     backgroundColor: 'rgba(255,255,255,0.04)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2075,7 +2072,6 @@ const styles = StyleSheet.create({
   },
   pageDotActive: {
     width: 18,
-    backgroundColor: GOLD,
   },
   blockTitleRow: {
     flexDirection: 'row',
@@ -2122,8 +2118,8 @@ const styles = StyleSheet.create({
     padding: 11,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.28)',
-    backgroundColor: 'rgba(212,175,55,0.06)',
+    borderColor: 'rgba(233,195,73,0.28)',
+    backgroundColor: 'rgba(233,195,73,0.06)',
     marginBottom: 10,
   },
   marketGapTitle: {
@@ -2144,10 +2140,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   analyticsCard: {
-    backgroundColor: PANEL,
+    backgroundColor: 'transparent',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.25)',
+    borderColor: 'rgba(233,195,73,0.25)',
     padding: 10,
   },
   analyticsCardFull: {
@@ -2169,7 +2165,7 @@ const styles = StyleSheet.create({
     minWidth: 68,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.28)',
+    borderColor: 'rgba(233,195,73,0.28)',
     backgroundColor: 'rgba(0,0,0,0.28)',
     paddingHorizontal: 9,
     paddingVertical: 4,
@@ -2197,7 +2193,7 @@ const styles = StyleSheet.create({
     padding: 3,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.2)',
+    borderColor: 'rgba(233,195,73,0.2)',
     backgroundColor: 'rgba(0,0,0,0.32)',
   },
   periodTab: {
@@ -2210,9 +2206,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   periodTabActive: {
-    borderColor: 'rgba(246,218,135,0.78)',
-    backgroundColor: 'rgba(212,175,55,0.2)',
-    shadowColor: GOLD,
     shadowOpacity: 0.22,
     shadowRadius: 7,
     elevation: 2,
@@ -2236,7 +2229,7 @@ const styles = StyleSheet.create({
     height: 26,
     borderRadius: 13,
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.24)',
+    borderColor: 'rgba(233,195,73,0.24)',
     backgroundColor: 'rgba(0,0,0,0.28)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2329,7 +2322,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.16)',
+    borderColor: 'rgba(233,195,73,0.16)',
     backgroundColor: 'rgba(255,255,255,0.025)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2340,11 +2333,11 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 21,
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.34)',
-    backgroundColor: 'rgba(212,175,55,0.08)',
+    borderColor: 'rgba(233,195,73,0.34)',
+    backgroundColor: 'rgba(233,195,73,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: GOLD,
+    shadowColor: SHELL_ACCENT_GOLD,
     shadowOpacity: 0.25,
     shadowRadius: 12,
   },
@@ -2364,9 +2357,9 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   collapsibleFrame: {
-    backgroundColor: PANEL_2,
+    backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.24)',
+    borderColor: 'rgba(233,195,73,0.24)',
     borderRadius: 14,
     marginTop: 10,
     overflow: 'hidden',
@@ -2393,7 +2386,7 @@ const styles = StyleSheet.create({
   collapsibleBody: {
     padding: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(212,175,55,0.18)',
+    borderTopColor: 'rgba(233,195,73,0.18)',
   },
   rankRow: {
     flexDirection: 'row',
@@ -2407,7 +2400,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(212,175,55,0.14)',
+    backgroundColor: 'rgba(233,195,73,0.14)',
     overflow: 'hidden',
   },
   rankIconImage: {
@@ -2449,9 +2442,9 @@ const styles = StyleSheet.create({
   seoConversionCard: {
     borderRadius: 12,
     padding: 12,
-    backgroundColor: 'rgba(212,175,55,0.12)',
+    backgroundColor: 'rgba(233,195,73,0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.3)',
+    borderColor: 'rgba(233,195,73,0.3)',
   },
   executiveRadarCard: {
     marginTop: 14,
@@ -2460,9 +2453,9 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     backgroundColor: 'rgba(5,5,5,0.86)',
     borderWidth: 1.5,
-    borderColor: 'rgba(212,175,55,0.5)',
+    borderColor: 'rgba(233,195,73,0.5)',
     overflow: 'hidden',
-    shadowColor: GOLD,
+    shadowColor: SHELL_ACCENT_GOLD,
     shadowOpacity: 0.32,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 6 },
@@ -2493,7 +2486,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1.5,
-    shadowColor: GOLD,
+    shadowColor: SHELL_ACCENT_GOLD,
     shadowOpacity: 0.45,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 7 },
@@ -2529,7 +2522,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
-    shadowColor: GOLD,
+    shadowColor: SHELL_ACCENT_GOLD,
     shadowOpacity: 0.22,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
@@ -2617,7 +2610,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     borderRadius: 14,
     overflow: 'hidden',
-    shadowColor: GOLD,
+    shadowColor: SHELL_ACCENT_GOLD,
     shadowOpacity: 0.55,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
@@ -2690,7 +2683,7 @@ const styles = StyleSheet.create({
     minHeight: 38,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.28)',
+    borderColor: 'rgba(233,195,73,0.28)',
     backgroundColor: 'rgba(0,0,0,0.24)',
     color: '#FFFFFF',
     fontSize: 12,
@@ -2703,7 +2696,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: GOLD,
+    backgroundColor: 'transparent',
   },
   seoExplorerReset: {
     width: 38,
@@ -2757,7 +2750,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.24)',
+    borderColor: 'rgba(233,195,73,0.24)',
     backgroundColor: 'rgba(0,0,0,0.18)',
   },
   showMoreText: {
@@ -2777,7 +2770,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 9,
-    backgroundColor: GOLD,
+    backgroundColor: 'transparent',
   },
   keywordButtonText: {
     color: '#1B1205',
@@ -2812,65 +2805,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 16,
     marginTop: 5,
-  },
-  legacyRow: {
-    gap: 12,
-  },
-  legacyCopy: {
-    gap: 7,
-  },
-  legacyTitle: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  legacyTrack: {
-    height: 9,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  legacyFill: {
-    height: '100%',
-    borderRadius: 999,
-  },
-  legacyProgress: {
-    color: '#C9A24A',
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  medalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  medalItem: {
-    alignItems: 'center',
-    minWidth: 78,
-  },
-  medalOrb: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.42)',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-  medalUnlocked: {
-    backgroundColor: 'rgba(212,175,55,0.32)',
-    shadowColor: GOLD,
-    shadowOpacity: 0.55,
-    shadowRadius: 10,
-  },
-  medalLabel: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-    marginTop: 5,
-  },
-  medalState: {
-    color: 'rgba(255,255,255,0.48)',
-    fontSize: 9,
   },
 });

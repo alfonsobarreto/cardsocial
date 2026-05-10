@@ -224,7 +224,7 @@ export default function AdminStatsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{tr('Distribución de Usuarios', 'User distribution')}</Text>
             <View style={styles.kpiGrid}>
-              <KpiCard icon="account-multiple" label={tr('Total Usuarios', 'Total users')} value={userStats.total.toLocaleString(intlLocale)} color="#0D4D8A" />
+              <KpiCard icon="account-multiple" label={tr('Total Usuarios', 'Total users')} value={userStats.total.toLocaleString(intlLocale)} color="#E9C349" />
               <KpiCard icon="star-circle" label="Premium" value={userStats.premium.toLocaleString(intlLocale)} color="#C5A065" />
               <KpiCard icon="card-account-details" label="Business Cards" value={userStats.business.toLocaleString(intlLocale)} color="#27AE60" />
               <KpiCard icon="card-off" label={tr('Cards Vacías', 'Empty cards')} value={userStats.businessNull.toLocaleString(intlLocale)} color="#E74C3C" />
@@ -265,7 +265,7 @@ export default function AdminStatsScreen() {
             <View style={styles.kpiGrid}>
               <KpiCard icon="gift" label={tr('Total Gifted (histórico)', 'Total gifted (all-time)')} value={coinsStats.totalGifted.toLocaleString(intlLocale)} color="#9B59B6" />
               <KpiCard icon="check-all" label={tr('Total Canjeado (histórico)', 'Total redeemed (all-time)')} value={coinsStats.totalRedeemed.toLocaleString(intlLocale)} color="#27AE60" />
-              <KpiCard icon="calendar-month" label={tr('Canjeado este mes', 'Redeemed this month')} value={coinsStats.thisMonth.toLocaleString(intlLocale)} color="#0D4D8A" />
+              <KpiCard icon="calendar-month" label={tr('Canjeado este mes', 'Redeemed this month')} value={coinsStats.thisMonth.toLocaleString(intlLocale)} color="#E9C349" />
               <KpiCard icon="calendar" label={tr('Canjeado este año', 'Redeemed this year')} value={coinsStats.thisYear.toLocaleString(intlLocale)} color="#C5A065" />
             </View>
           </View>
@@ -332,7 +332,7 @@ export default function AdminStatsScreen() {
               style={styles.webLink}
               onPress={() => {/* deep link or open browser */}}
             >
-              <MaterialCommunityIcons name="open-in-new" size={15} color="#0D4D8A" />
+              <MaterialCommunityIcons name="open-in-new" size={15} color="#E9C349" />
               <Text style={styles.webLinkText}>
                 {tr('Ver costos detallados en cardsocial.me/admin', 'View detailed costs at cardsocial.me/admin')}
               </Text>
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
   progressCaption: { fontSize: 11, color: '#777' },
   periodRow: { flexDirection: 'row', gap: 8 },
   periodBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#E8EDF2' },
-  periodBtnActive: { backgroundColor: '#0D4D8A' },
+  periodBtnActive: { backgroundColor: '#E9C349' },
   periodText: { fontSize: 12, fontWeight: '600', color: '#777' },
   periodTextActive: { color: '#FFF' },
   bigKpi: {
@@ -469,5 +469,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#D0E4FF',
   },
-  webLinkText: { fontSize: 13, color: '#0D4D8A', fontWeight: '600' },
+  webLinkText: { fontSize: 13, color: '#E9C349', fontWeight: '600' },
 });

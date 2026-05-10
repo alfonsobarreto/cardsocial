@@ -5,6 +5,7 @@
 
 const { acceptLanguageHeaderIsSpanish } = require('./httpRequestLocale');
 const CARD_STUDIO_MAT_PATHS = require('./cardStudioMatPaths.js');
+const PUBLIC_MEDAL_PATHS = require('./publicMedalPaths.cjs');
 
 /** Tabla mínima de temas — misma lista que constants/themeChest.ts y frontend-web/lib/themes.ts. */
 const THEME_TABLE = {
@@ -100,8 +101,6 @@ function buildValidCourtesyPageHtml(opts) {
     openApp: isEs ? 'Abrir en la app' : 'Open in app',
     loadErr: isEs ? 'No se pudo cargar la tarjeta.' : 'Could not load the card.',
     expired: isEs ? 'Este acceso ha expirado.' : 'This access has expired.',
-    holders: isEs ? 'receptores' : 'holders',
-    reviews: isEs ? 'reseñas' : 'reviews',
     footPrivacy: isEs ? 'Privacidad' : 'Privacy',
     footTerms: isEs ? 'Términos' : 'Terms',
     footUsage: isEs ? 'Uso' : 'Usage',
@@ -112,6 +111,10 @@ function buildValidCourtesyPageHtml(opts) {
   const safeExpires = JSON.stringify(expiresAtIso);
   const safeApi = JSON.stringify(apiBase);
   const matPathJson = JSON.stringify(CARD_STUDIO_MAT_PATHS);
+  const medalPathsForScript = JSON.stringify({
+    social: PUBLIC_MEDAL_PATHS.SOCIAL,
+    business: PUBLIC_MEDAL_PATHS.BUSINESS,
+  });
 
   return `<!DOCTYPE html>
 <html lang="${isEs ? 'es' : 'en'}">
@@ -184,17 +187,26 @@ function buildValidCourtesyPageHtml(opts) {
     h1 { margin: 0; font-size: 1.2rem; text-align: center; color: var(--tc); font-weight: 800; }
     .sub { text-align: center; color: var(--sc); opacity: 0.88; font-size: 0.82rem; margin: 0; }
     .cn { text-align: center; font-size: 0.88rem; font-weight: 700; margin: 0; color: var(--tc); }
-    .stats-row {
-      display: flex; flex-direction: row; align-items: center; justify-content: space-between;
-      flex-wrap: wrap; gap: 8px; width: 100%; padding: 0 2px; margin: 6px 0 10px;
-      font-size: 0.72rem; color: var(--sc);
+    .medal-strip {
+      width: 100%;
+      margin-top: 6px;
+      padding: 0 2px;
+      box-sizing: border-box;
     }
-    .stats-pill {
-      display: inline-flex; align-items: center; gap: 4px;
-      border-radius: 999px; border: 1px solid var(--bc);
-      background: var(--bb); padding: 3px 8px;
-      font-size: 0.72rem; font-weight: 800; color: var(--tc);
+    .medal-strip-inner {
+      display: flex; flex-direction: row; align-items: center; justify-content: space-evenly;
+      flex-wrap: nowrap; gap: 4px; border-radius: 999px;
+      background: rgba(255,255,255,0.12);
+      border: 2px solid var(--bc);
+      padding: 10px;
+      box-sizing: border-box;
     }
+    .medal-it {
+      display: inline-flex; flex-direction: row; align-items: center; gap: 3px;
+      flex-shrink: 1; min-width: 0;
+      font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ic);
+    }
+    .medal-it svg { flex-shrink: 0; display: block; }
     .slot-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -268,6 +280,9 @@ function buildValidCourtesyPageHtml(opts) {
   var MAT_PATH = ${matPathJson};
   var THEMES = ${JSON.stringify(THEME_TABLE)};
   var DEFAULT_TID = ${JSON.stringify(DEFAULT_THEME_ID)};
+  var MEDAL_PATHS = ${medalPathsForScript};
+  var SOCIAL_MEDAL_ORDER = ['creativo','conector','visionario','conversador','guru'];
+  var BUSINESS_MEDAL_ORDER = ['compromiso','servicio','confianza','prestigio','excelencia'];
   function applyTheme(tid) {
     var th = THEMES[tid] || THEMES[DEFAULT_TID];
     var r = document.documentElement.style;
@@ -312,6 +327,49 @@ function buildValidCourtesyPageHtml(opts) {
   tick();
 
   function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+  function normMedalCount(x) {
+    var n = Math.max(0, Math.floor(Number(x)));
+    return Number.isFinite(n) ? n : 0;
+  }
+  /** Misma prioridad que BusinessCardWeb + normalizeUniversalCard (smart /u/ usa medallas sociales). */
+  function buildMedalStripHtml(c) {
+    if (!c) return '';
+    var sid = c.sid != null && String(c.sid).trim();
+    var bid = c.bId != null && String(c.bId).trim();
+    var universalSmart = Boolean(sid && !bid);
+    var counts = null;
+    var order = null;
+    var pathMap = null;
+    if (universalSmart && c.socialMedalCounts) {
+      counts = c.socialMedalCounts;
+      order = SOCIAL_MEDAL_ORDER;
+      pathMap = MEDAL_PATHS.social;
+    } else if (c.businessMedalCounts) {
+      counts = c.businessMedalCounts;
+      order = BUSINESS_MEDAL_ORDER;
+      pathMap = MEDAL_PATHS.business;
+    } else if (c.socialMedalCounts) {
+      counts = c.socialMedalCounts;
+      order = SOCIAL_MEDAL_ORDER;
+      pathMap = MEDAL_PATHS.social;
+    } else {
+      return '';
+    }
+    var parts = [];
+    for (var i = 0; i < order.length; i++) {
+      var k = order[i];
+      var d = (pathMap && pathMap[k]) ? String(pathMap[k]) : '';
+      var num = normMedalCount(counts[k]);
+      parts.push(
+        '<div class="medal-it" title="'+esc(k)+': '+num+'">' +
+        '<svg viewBox="0 0 24 24" width="20" height="16" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><path fill="currentColor" d="'+esc(d)+'"/></svg>' +
+        '<span>'+num+'</span></div>'
+      );
+    }
+    return '<div class="medal-strip" role="region" aria-label="'+(IS_ES ? 'Medallas públicas' : 'Public medals')+'"><div class="medal-strip-inner">'+
+      parts.join('')+'</div></div>';
+  }
 
   /** Fallback por tipo; con icon/iconName Material se usa MAT_PATH (misma matriz que cardStudioFreeIconPaths y el vault). */
   var SLOT_PATH = {
@@ -494,13 +552,7 @@ function buildValidCourtesyPageHtml(opts) {
           '<div class="card-info">'+
             '<h1>'+esc(dispName)+'</h1>'+
             (nick ? '<div class="sub">'+nick+'</div>' : '')+
-            '<div class="stats-row">'+
-              '<span>'+
-                (c.ratingAvg!=null ? Number(c.ratingAvg).toFixed(1) : '—')+
-                ' · '+(c.totalRatings||0)+' '+T.reviews+
-              '</span>'+
-              '<span class="stats-pill">👤 '+(c.holdersCount||0)+' '+T.holders+'</span>'+
-            '</div>'+
+            buildMedalStripHtml(c)+
           '</div>'+
         '</div>'+
         '<div class="slot-grid">'+grid+'</div>';

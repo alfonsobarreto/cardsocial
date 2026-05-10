@@ -204,6 +204,27 @@ export function getPublicBusinessWebBaseUrl(): string {
   return (fromEnv || DEFAULT_PUBLIC_BUSINESS_WEB_BASE).replace(/\/+$/, '');
 }
 
+const LOOPBACK_SMART_UNIVERSAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+/**
+ * QR Smart 24 h (`/u/{token}`): si el servidor devolvió loopback, cambia el origen a
+ * `EXPO_PUBLIC_BUSINESS_WEB_BASE` (misma base que el QR de negocio “Copiar enlace web”) para que el
+ * enlace / QR sean usables en LAN desde el móvil.
+ */
+export function rewriteLoopbackSmartCardUniversalUrl(raw: string): string {
+  const s = String(raw || '').trim();
+  if (!s) return s;
+  try {
+    const u = new URL(s);
+    if (!/^https?:$/i.test(u.protocol)) return s;
+    if (!LOOPBACK_SMART_UNIVERSAL_HOSTS.has(u.hostname.toLowerCase())) return s;
+    const base = getPublicBusinessWebBaseUrl().replace(/\/+$/, '');
+    return `${base}${u.pathname}${u.search}${u.hash}`;
+  } catch {
+    return s;
+  }
+}
+
 /**
  * Origen HTTPS público solo para firma correo (`/b/…`), sin LAN/`http`.
  * Override: `EXPO_PUBLIC_BUSINESS_SIGNATURE_PUBLIC_BASE` o `SIGNATURE_EMAIL_PUBLIC_SITE_BASE` (solo servidor Next).

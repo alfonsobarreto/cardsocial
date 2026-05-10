@@ -162,6 +162,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const [editNickname, setEditNickname] = useState('');
   const router = useRouter();
   const shell = palette[resolvedMode === 'noche' ? 'dark' : 'light'];
+  const tabInactiveMuted = resolvedMode === 'noche' ? 'rgba(235,235,245,0.42)' : 'rgba(60,60,67,0.42)';
   const dashboardTabVisible = shouldShowDashboardTab({
     isSuperAdmin: userIsSuperAdmin,
     hasBusinessCardWithBId: userHasBusinessCardWithBId,
@@ -668,17 +669,12 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <LinearGradient
-      colors={['#EAF7FF', '#CDEFFF', '#B8E7FF']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={{ flex: 1 }}
-    >
+    <View style={[styles.tabRootShell, { backgroundColor: shell.backgroundSolid }]}>
       <Tabs
         initialRouteName="cards"
         screenOptions={{
           tabBarActiveTintColor: shell.ctaAccent,
-          tabBarInactiveTintColor: 'rgba(255,255,255,0.48)',
+          tabBarInactiveTintColor: tabInactiveMuted,
           tabBarLabelStyle: {
             fontSize: 10,
             fontWeight: '800',
@@ -691,7 +687,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
             justifyContent: 'center',
           },
           tabBarStyle: {
-            backgroundColor: '#0C0C0E',
+            backgroundColor: shell.surface,
             minHeight:
               Platform.OS === 'ios'
                 ? 72 + tabBarInnerVerticalPad * 2 + tabBarBottomSafe
@@ -797,7 +793,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
             title: tr('Analítica', 'Analytics'),
             href: dashboardTabVisible ? undefined : null,
             tabBarIcon: ({ focused }) => (
-              <PremiumTabIcon Icon={DashboardTabGlyph} focused={focused} accent={shell.ctaAccent} onAccent={shell.emptyCtaText} />
+              <PremiumTabIcon Icon={DashboardTabGlyph} focused={focused} accent={shell.ctaAccent} onAccent={shell.emptyCtaText} inactiveColor={tabInactiveMuted} />
             ),
           }}
         />
@@ -806,7 +802,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
           options={{
             title: tr('Bóveda', 'Vault'),
             tabBarIcon: ({ focused }) => (
-              <PremiumTabIcon Icon={Database} focused={focused} accent={shell.ctaAccent} onAccent={shell.emptyCtaText} />
+              <PremiumTabIcon Icon={Database} focused={focused} accent={shell.ctaAccent} onAccent={shell.emptyCtaText} inactiveColor={tabInactiveMuted} />
             ),
           }}
         />
@@ -815,7 +811,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
           options={{
             title: tr('Tarjetas', 'Cards'),
             tabBarIcon: ({ focused }) => (
-              <PremiumTabIcon Icon={CreditCard} focused={focused} accent={shell.ctaAccent} onAccent={shell.emptyCtaText} />
+              <PremiumTabIcon Icon={CreditCard} focused={focused} accent={shell.ctaAccent} onAccent={shell.emptyCtaText} inactiveColor={tabInactiveMuted} />
             ),
           }}
         />
@@ -824,7 +820,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
           options={{
             title: tr('Contactos', 'Contacts'),
             tabBarIcon: ({ focused }) => (
-              <PremiumTabIcon Icon={Users} focused={focused} accent={shell.ctaAccent} onAccent={shell.emptyCtaText} />
+              <PremiumTabIcon Icon={Users} focused={focused} accent={shell.ctaAccent} onAccent={shell.emptyCtaText} inactiveColor={tabInactiveMuted} />
             ),
           }}
         />
@@ -833,7 +829,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
           options={{
             title: tr('Mercado Social', 'Social Market'),
             tabBarIcon: ({ focused }) => (
-              <PremiumTabIcon Icon={Search} focused={focused} accent={shell.ctaAccent} onAccent={shell.emptyCtaText} />
+              <PremiumTabIcon Icon={Search} focused={focused} accent={shell.ctaAccent} onAccent={shell.emptyCtaText} inactiveColor={tabInactiveMuted} />
             ),
           }}
         />
@@ -842,7 +838,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
           options={{
             title: tr('Llamadas', 'Calls'),
             tabBarIcon: ({ focused }) => (
-              <PremiumTabIcon Icon={Phone} focused={focused} accent={shell.ctaAccent} onAccent={shell.emptyCtaText} />
+              <PremiumTabIcon Icon={Phone} focused={focused} accent={shell.ctaAccent} onAccent={shell.emptyCtaText} inactiveColor={tabInactiveMuted} />
             ),
           }}
         />
@@ -1405,11 +1401,14 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  tabRootShell: {
+    flex: 1,
+  },
   tabBarIconFocusedWrap: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -1543,7 +1542,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.35)',
+    borderColor: 'rgba(233,195,73,0.35)',
   },
   adminStatChipAlert: {
     backgroundColor: 'rgba(255,68,68,0.10)',
@@ -1678,7 +1677,7 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   backToMenuText: {
-    color: '#0D4D8A',
+    color: '#E9C349',
     fontWeight: '700',
   },
   blockedRow: {
@@ -1731,7 +1730,7 @@ const styles = StyleSheet.create({
   },
   unblockBtn: {
     borderRadius: 10,
-    backgroundColor: '#0D4D8A',
+    backgroundColor: '#E9C349',
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
@@ -1775,7 +1774,7 @@ const styles = StyleSheet.create({
   editProfileBtn: {
     marginTop: 10,
     borderRadius: 12,
-    backgroundColor: '#0D4D8A',
+    backgroundColor: '#E9C349',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1807,7 +1806,7 @@ const styles = StyleSheet.create({
     maxHeight: '86%',
   },
   profileModalTitle: {
-    color: '#0D4D8A',
+    color: '#E9C349',
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 10,
@@ -1858,14 +1857,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   profileGhostBtnText: {
-    color: '#0D4D8A',
+    color: '#E9C349',
     fontWeight: '700',
     fontSize: 13,
   },
   profileSaveBtn: {
     flex: 1,
     borderRadius: 10,
-    backgroundColor: '#0D4D8A',
+    backgroundColor: '#E9C349',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
@@ -1876,7 +1875,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   legalTitle: {
-    color: '#0D4D8A',
+    color: '#E9C349',
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 8,

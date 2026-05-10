@@ -34,9 +34,6 @@ function mapBusinessApiJsonToCardData(data: Record<string, unknown>): CardData {
     layout: data.layout === 'horizontal' ? 'horizontal' : 'vertical',
     wallpaperUrl: data.wallpaperUrl ?? null,
     enableParallax: Boolean(data.enableParallax),
-    holdersCount: data.holdersCount,
-    ratingAvg: data.ratingAvg,
-    totalRatings: data.totalRatings,
     expiresAt: String(data.expiresAt ?? ''),
     uid: data.uid,
     bId: data.bId,
@@ -145,7 +142,7 @@ function MissingUidPage({ locale }: { locale: PublicLocale }) {
     <main
       style={{
         minHeight: '100vh',
-        background: 'linear-gradient(180deg, #E0F7FA, #B2EBF2, #4DD0C8)',
+        background: '#F2F2F7',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -155,17 +152,17 @@ function MissingUidPage({ locale }: { locale: PublicLocale }) {
       }}
     >
       <DocumentHtmlLang locale={locale} />
-      <h1 style={{ color: '#00695C', fontSize: 22, fontWeight: 400, marginBottom: 8 }}>
+      <h1 style={{ color: '#1C1C1E', fontSize: 22, fontWeight: 400, marginBottom: 8 }}>
         {tr('Enlace incompleto', 'Incomplete link')}
       </h1>
-      <p style={{ color: '#4E7570', fontSize: 15, maxWidth: 360, lineHeight: 1.6 }}>
+      <p style={{ color: '#636366', fontSize: 15, maxWidth: 360, lineHeight: 1.6 }}>
         {tr(
           'Falta el parámetro uid en la URL. Usa el enlace completo que comparte el negocio (incluye ?uid=…).',
           'The uid parameter is missing from the URL. Use the full link from the business (it includes ?uid=…).',
         )}
       </p>
       <div style={{ width: '100%', maxWidth: 420, marginTop: 32 }}>
-        <PublicLegalFooter locale={locale} accentColor="#00695C" />
+        <PublicLegalFooter locale={locale} accentColor="#636366" />
       </div>
     </main>
   );

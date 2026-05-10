@@ -29,6 +29,7 @@ import { useLookMode } from '@/services/lookMode';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import { listReceivedContacts, listSmartCardsFromDb, syncProfileAvatarUrlToMongo } from '@/services/qrApi';
 import { propagateUserIdentityAcrossSmartCards } from '@/services/smartCardsRepo';
+import { tierMeetsSilver, parseLegacyTier } from '@/services/legacyPathEngine';
 import { toRenderableImageUri } from '@/services/userProfilePhoto';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -61,10 +62,10 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    TouchableWithoutFeedback,
     View,
 } from 'react-native';
 import palette from '../theme';
+import { PartnerBadge } from '@/components/PartnerBadge';
 
 // ─── Photo helpers ─────────────────────────────────────────────────────────────
 const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
@@ -125,6 +126,8 @@ type UserProfile = {
   authProvider: string;
   lastNicknameChange: string | null;
   bio: string;
+  /** Legacy Path ≥ Silver — insignia de socio en cabecera. */
+  partnerBadgeEligible: boolean;
 };
 
 const NICKNAME_COOLDOWN_DAYS = 28;
@@ -253,6 +256,7 @@ export default function MyProfileScreen() {
         authProvider: String(data.authProvider || 'password'),
         lastNicknameChange,
         bio: String(data.bio || ''),
+        partnerBadgeEligible: tierMeetsSilver(parseLegacyTier(data?.legacyTier)),
       };
 
       setProfile(p);
@@ -774,7 +778,6 @@ export default function MyProfileScreen() {
 
   return (
     <>
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <KeyboardAvoidingView
         style={{ flex: 1, backgroundColor: bg }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -791,10 +794,12 @@ export default function MyProfileScreen() {
 
           <ScrollView
             ref={scrollRef}
-            style={{ flex: 1 }}
+            style={{ flex: 1, backgroundColor: bg }}
             contentContainerStyle={[
               styles.scroll,
               {
+                flexGrow: 1,
+                backgroundColor: bg,
                 // Separación cómoda entre "Eliminar cuenta" y el tab bar.
                 paddingBottom: 56,
               },
@@ -836,7 +841,24 @@ export default function MyProfileScreen() {
                 </View>
               </TouchableOpacity>
 
-              <Text style={[styles.avatarName, { color: textPrimary }]}>{profile?.userFullName || '—'}</Text>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexWrap: 'wrap',
+                  gap: 10,
+                  paddingHorizontal: 8,
+                }}
+              >
+                <Text style={[styles.avatarName, { color: textPrimary }]}>{profile?.userFullName || '—'}</Text>
+                {profile?.partnerBadgeEligible ? (
+                  <PartnerBadge
+                    size={22}
+                    accessibilityLabel={tr('Socio oficial verificado', 'Verified official partner')}
+                  />
+                ) : null}
+              </View>
               <Text style={[styles.avatarHandle, { color: textSecondary }]}>@{profile?.userNickName || '—'}</Text>
 
               {profile?.verificationStatus === 'verified' && (
@@ -1209,7 +1231,6 @@ export default function MyProfileScreen() {
           </ScrollView>
         </LinearGradient>
       </KeyboardAvoidingView>
-    </TouchableWithoutFeedback>
 
     {Platform.OS === 'android' && (
       <Modal

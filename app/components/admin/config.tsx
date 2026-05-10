@@ -198,7 +198,7 @@ export default function AdminConfigScreen() {
         {/* ── FREE TIER LIMITS (read-only) ── */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <MaterialCommunityIcons name="lock-outline" size={16} color="#0D4D8A" />
+            <MaterialCommunityIcons name="lock-outline" size={16} color="#E9C349" />
             <Text style={styles.cardTitle}>{tr('Límites Free Tier', 'Free tier limits')}</Text>
             <View style={styles.readOnlyBadge}>
               <Text style={styles.readOnlyText}>{tr('Sólo código', 'Code only')}</Text>
@@ -211,12 +211,12 @@ export default function AdminConfigScreen() {
           </Text>
           <View style={styles.limitRow}>
             <View style={styles.limitBox}>
-              <MaterialCommunityIcons name="cards" size={20} color="#0D4D8A" />
+              <MaterialCommunityIcons name="cards" size={20} color="#E9C349" />
               <Text style={styles.limitValue}>{FREE_TIER_POLICY.cards}</Text>
               <Text style={styles.limitLabel}>{tr('Tarjetas sociales', 'Social cards')}</Text>
             </View>
             <View style={styles.limitBox}>
-              <MaterialCommunityIcons name="database" size={20} color="#0D4D8A" />
+              <MaterialCommunityIcons name="database" size={20} color="#E9C349" />
               <Text style={styles.limitValue}>{FREE_TIER_POLICY.vaultItems}</Text>
               <Text style={styles.limitLabel}>{tr('Items en Búnker', 'Bunker items')}</Text>
             </View>
@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
   cardNote: { fontSize: 12, color: '#888', lineHeight: 17 },
   readOnlyBadge: { backgroundColor: '#F0F0F0', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   readOnlyText: { fontSize: 10, fontWeight: '600', color: '#999' },
-  codeRef: { fontFamily: 'monospace', color: '#0D4D8A', fontWeight: '700' },
+  codeRef: { fontFamily: 'monospace', color: '#E9C349', fontWeight: '700' },
   limitRow: { flexDirection: 'row', gap: 12 },
   limitBox: {
     flex: 1,

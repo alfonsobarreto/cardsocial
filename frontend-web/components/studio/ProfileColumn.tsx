@@ -406,7 +406,7 @@ export default function ProfileColumn({ locale, profile, onBack, onDeleteAccount
                       borderRadius: 26,
                       objectFit: 'cover',
                       border: `2px solid ${studioTheme.gold}`,
-                      boxShadow: '0 0 24px rgba(212,175,55,0.2)',
+                      boxShadow: '0 0 24px rgba(233,195,73,0.2)',
                     }}
                   />
                 ) : (

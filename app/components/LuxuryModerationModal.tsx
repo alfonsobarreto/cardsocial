@@ -42,14 +42,14 @@ export default function LuxuryModerationModal({
       <View style={styles.overlay}>
         <BlurView intensity={48} tint="light" style={styles.blurLayer}>
           <LinearGradient
-            colors={['rgba(168,226,255,0.92)', 'rgba(255,255,255,0.98)', 'rgba(168,226,255,0.92)']}
+            colors={['rgba(233,195,73,0.22)', '#FFFFFF', 'rgba(242,242,247,0.98)']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.gradientBorder}
           >
             <View style={styles.cardInner}>
               <View style={styles.iconWrap}>
-                <MaterialCommunityIcons name="shield-crown" size={30} color="#0D4D8A" />
+                <MaterialCommunityIcons name="shield-crown" size={30} color="#E9C349" />
               </View>
 
               <Text style={styles.title}>{tr(title, title)}</Text>
@@ -91,7 +91,7 @@ export default function LuxuryModerationModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(10, 37, 64, 0.42)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 18,
@@ -116,18 +116,18 @@ const styles = StyleSheet.create({
     width: 62,
     height: 62,
     borderRadius: 31,
-    backgroundColor: '#EAF7FF',
+    backgroundColor: '#F2F2F7',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
-    shadowColor: '#74B9E6',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.22,
     shadowRadius: 12,
     elevation: 12,
   },
   title: {
-    color: '#0D4D8A',
+    color: '#E9C349',
     fontSize: 22,
     fontFamily: 'Georgia',
     fontWeight: '700',
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   message: {
-    color: '#2D6287',
+    color: '#636366',
     fontSize: 15,
     lineHeight: 22,
     textAlign: 'center',
@@ -143,21 +143,21 @@ const styles = StyleSheet.create({
   },
   lockPanel: {
     width: '100%',
-    backgroundColor: 'rgba(166,223,255,0.3)',
-    borderColor: 'rgba(90,157,204,0.45)',
+    backgroundColor: 'rgba(233,195,73,0.12)',
+    borderColor: 'rgba(233,195,73,0.35)',
     borderWidth: 1,
     borderRadius: 14,
     padding: 12,
     marginBottom: 14,
   },
   lockText: {
-    color: '#2A6288',
+    color: '#636366',
     fontSize: 13,
     lineHeight: 19,
     textAlign: 'center',
   },
   countdown: {
-    color: '#0D4D8A',
+    color: '#E9C349',
     fontSize: 20,
     fontWeight: '800',
     textAlign: 'center',
@@ -178,13 +178,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   secondaryButtonText: {
-    color: '#2B5D83',
+    color: '#636366',
     fontSize: 14,
     fontWeight: '600',
   },
   primaryButton: {
     flex: 1,
-    backgroundColor: '#0A2540',
+    backgroundColor: '#E9C349',
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   primaryButtonText: {
-    color: '#FFFFFF',
+    color: '#1C1C1E',
     fontSize: 15,
     fontWeight: '700',
   },

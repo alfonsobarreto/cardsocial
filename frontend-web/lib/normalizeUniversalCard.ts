@@ -60,15 +60,22 @@ export function normalizeUniversalCardPayload(raw: unknown): CardData {
   delete merged.ownerPhotoUrl;
   delete merged.userAvatarUrl;
   delete merged.wallpaperUrl;
+  delete merged.holdersCount;
+  delete merged.ratingAvg;
+  delete merged.totalRatings;
 
   const bizKeys = ['compromiso', 'servicio', 'confianza', 'prestigio', 'excelencia'] as const;
   const socKeys = ['creativo', 'conector', 'visionario', 'conversador', 'guru'] as const;
 
   function parseMedalCounts(raw: unknown, keys: readonly string[]): Record<string, number> | undefined {
     if (!raw || typeof raw !== 'object') return undefined;
+    const src = raw as Record<string, unknown>;
+    /** Sin al menos una clave conocida (`{}` o solo basura), no forzar un mapa lleno de ceros: ocultaba las medallas sociales en `/u/…`. */
+    const hasRelevantKey = keys.some((k) => Object.prototype.hasOwnProperty.call(src, k));
+    if (!hasRelevantKey) return undefined;
     const o: Record<string, number> = {};
     for (const k of keys) {
-      const n = Math.max(0, Math.floor(Number((raw as Record<string, unknown>)[k] ?? 0)));
+      const n = Math.max(0, Math.floor(Number(src[k] ?? 0)));
       o[k] = Number.isFinite(n) ? n : 0;
     }
     return o;
@@ -101,6 +108,8 @@ export function normalizeUniversalCardPayload(raw: unknown): CardData {
   const bcContactName =
     bcContactRaw != null && String(bcContactRaw).trim() ? String(bcContactRaw).trim() : null;
 
+  const legacyOfficialPartner = Boolean(merged.legacyOfficialPartner === true);
+
   return {
     ...base,
     cardWireframeImageUrl,
@@ -109,5 +118,6 @@ export function normalizeUniversalCardPayload(raw: unknown): CardData {
     ...(bcContactName ? { bcContactName } : {}),
     ...(businessMedalCounts ? { businessMedalCounts } : {}),
     ...(socialMedalCounts ? { socialMedalCounts } : {}),
+    ...(legacyOfficialPartner ? { legacyOfficialPartner: true } : {}),
   };
 }

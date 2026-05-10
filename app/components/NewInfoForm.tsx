@@ -14,6 +14,7 @@ import {
     InteractionManager,
     Keyboard,
     KeyboardAvoidingView,
+    LayoutAnimation,
     Linking,
     Modal,
     Platform,
@@ -23,6 +24,7 @@ import {
     TextInput,
     TouchableOpacity,
     TouchableWithoutFeedback,
+    UIManager,
     View
 } from 'react-native';
 // import { PDFDocument } from 'pdf-lib'; // [SILENCIADO POR ERROR DE DEPENDENCIA]
@@ -51,11 +53,18 @@ import { ModerationRejectedError, uploadFileWithModeration } from '@/services/mo
 import { newEntityId } from '@/services/newEntityId';
 import { syncVaultLinkToMongoCardsAfterSave } from '@/services/syncVaultLinkToMongoCards';
 import { emitVaultLinkSaved } from '@/services/vaultLinkSavedBus';
+import { runVaultMagneticSaveFeedback } from '@/services/magneticVaultSaveFeedback';
+import { viewerQualifiesVaultFerrariSensory } from '@/services/vaultSensoryTierGate';
+import {
+  appendVaultCategoryIfNew,
+  mergeVaultCategoriesFromFirestore,
+  vaultCategorySectionTitle,
+} from '@/services/vaultCategoriesService';
 import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
 import { premiumTheme } from '@/styles/_premiumTheme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
-import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 import Toast from 'react-native-toast-message';
 import CardStudioVault, { ICON_GALLERY } from './CardStudioVault';
 import FilePreviewModal from './FilePreviewModal';
@@ -63,6 +72,9 @@ import { sanitizeMaterialIconName } from './iconNameValidation';
 import LuxuryModerationModal from './LuxuryModerationModal';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
+
+/** Opción sentinel en la lista modal de carpetas (+ crear nueva categoría). */
+const VAULT_CATEGORY_CREATE_NEW = '__vault_create_new__';
 
 const LINK_FALLBACK_GALLERY_ITEM =
   ICON_GALLERY.find((icon) => icon.icon === 'link-variant') ?? ICON_GALLERY[0];
@@ -157,6 +169,8 @@ interface Link {
   updatedAt?: string;
   /** MIME del archivo (visor con URL proxy sin extensión). */
   vaultMimeType?: string;
+  /** Carpeta visible en la Bóveda (Fase 7). */
+  category?: string;
 }
 
 let PdfComponent: any = null;
@@ -230,14 +244,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       premiumElevated: isNight ? premiumTheme.dark.surfaceElevated : premiumTheme.light.surfaceElevated,
       chipInactiveBg: isNight ? '#161616' : '#F3EFE8',
       chipInactiveBorder: isNight ? 'rgba(153,144,124,0.4)' : 'rgba(92,77,50,0.22)',
-      border: '#D4AF37',
-      labelGold: '#D4AF37',
+      border: '#E9C349',
+      labelGold: '#E9C349',
       titleColor: isNight ? '#FFFFFF' : '#1A1510',
       textPrimary: isNight ? '#F2F0EB' : '#1C180F',
       textSecondary: isNight ? '#9A9388' : '#5C5346',
       inputBg: isNight ? '#101010' : '#FFFCF7',
       inputText: isNight ? '#F0EDE8' : '#1C180F',
-      inputPlaceholder: isNight ? 'rgba(212,175,55,0.42)' : 'rgba(92,77,50,0.45)',
+      inputPlaceholder: isNight ? 'rgba(233,195,73,0.42)' : 'rgba(92,77,50,0.45)',
       onLuxuryCta: '#0C0C0C',
       /** Icono fallback dentro del aro (fondo oscuro → trazo claro). */
       previewIconInCircle: isNight ? premiumTheme.dark.onVipBanner : premiumTheme.light.onAccent,
@@ -247,23 +261,23 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       selectedPillGlow: '#C9A227',
       selectedBgInput: isNight ? '#1C1810' : '#FFF3DC',
       iconPreviewCircleBg: isNight ? premiumTheme.dark.surfaceElevated : premiumTheme.light.surfaceElevated,
-      iconPreviewCircleBorder: isNight ? '#C5A065' : '#D4AF37',
+      iconPreviewCircleBorder: isNight ? '#C5A065' : '#E9C349',
       /** Marco de inputs (oro). */
       gradientColors: (isNight
         ? (['#5C4D32', '#B8942E', '#E8D4A3', '#C9A227', '#5C4D32'] as const)
-        : (['#A68B5B', '#D4AF37', '#F8EED0', '#D4AF37', '#8B7349'] as const)) as readonly [string, string, ...string[]],
+        : (['#A68B5B', '#E9C349', '#F8EED0', '#E9C349', '#8B7349'] as const)) as readonly [string, string, ...string[]],
       /** Chips activos (relleno metálico). */
       chipActiveFillGradient: (isNight
         ? (['#5A4820', '#C9A227', '#FFF2C4', '#E8D4A3', '#B8942E', '#5A4820'] as const)
         : (['#7A6528', '#E0C068', '#FFF8E8', '#F0D878', '#C9A227', '#7A6528'] as const)) as readonly [string, string, ...string[]],
       /** Botón CREAR. */
       ctaGradient: (isNight
-        ? (['#6B5420', '#B8942E', '#FFEFD0', '#F2CA50', '#D4AF37', '#6B5420'] as const)
-        : (['#8B7340', '#D4AF37', '#FFF4D8', '#F2CA50', '#C9A227', '#7A6228'] as const)) as readonly [string, string, ...string[]],
+        ? (['#6B5420', '#B8942E', '#FFEFD0', '#F2CA50', '#E9C349', '#6B5420'] as const)
+        : (['#8B7340', '#E9C349', '#FFF4D8', '#F2CA50', '#C9A227', '#7A6228'] as const)) as readonly [string, string, ...string[]],
       previewCardBg: isNight ? 'rgba(18,16,12,0.96)' : 'rgba(255,252,247,0.98)',
       previewCardBorder: (isNight
         ? (['#5C4D32', '#E8C76F', '#F2CA50', '#C9A227', '#5C4D32'] as const)
-        : (['#A68B5B', '#E8D0A0', '#F5E6C8', '#D4AF37', '#9A8358'] as const)) as readonly [string, string, ...string[]],
+        : (['#A68B5B', '#E8D0A0', '#F5E6C8', '#E9C349', '#9A8358'] as const)) as readonly [string, string, ...string[]],
     }),
     [isNight],
   );
@@ -294,6 +308,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const [typeModalVisible, setTypeModalVisible] = useState(false);
   const [countryModalVisible, setCountryModalVisible] = useState(false);
   const [iconModalVisible, setIconModalVisible] = useState(false);
+  const [vaultCategoriesResolved, setVaultCategoriesResolved] = useState<string[]>(() => [
+    ...mergeVaultCategoriesFromFirestore(undefined),
+  ]);
+  const [vaultCategoryModalVisible, setVaultCategoryModalVisible] = useState(false);
+  /** Escritura canónica igual que Firestore (`Negocios`, … o texto personalizado). */
+  const [selectedVaultCategoryCanon, setSelectedVaultCategoryCanon] = useState('');
+  const [creatingNewVaultCategory, setCreatingNewVaultCategory] = useState(false);
+  const [newVaultCategoryDraft, setNewVaultCategoryDraft] = useState('');
   const [faviconUrl, setFaviconUrl] = useState('');
   const [faviconSuggestionVisible, setFaviconSuggestionVisible] = useState(false);
   const [faviconLoading, setFaviconLoading] = useState(false);
@@ -447,6 +469,15 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   };
 
   useEffect(() => {
+    if (
+      Platform.OS === 'android' &&
+      typeof UIManager.setLayoutAnimationEnabledExperimental === 'function'
+    ) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+  }, []);
+
+  useEffect(() => {
     void refreshStudioEconomy();
   }, [refreshStudioEconomy]);
 
@@ -481,6 +512,91 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       }
     }
   }, [editingData]);
+
+  /** Carpetas Bóveda — `users.{vaultCategories}` + categoría del ítem al editar. */
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const uid = await getActiveUserId();
+      if (!uid || cancelled) return;
+      try {
+        const snap = await getDoc(doc(db, 'users', uid));
+        if (cancelled) return;
+        const merged = mergeVaultCategoriesFromFirestore(snap.data()?.vaultCategories);
+        setVaultCategoriesResolved(merged);
+        const pickDefault = merged[0] || '';
+        if (editingData?.id && editingData.category?.trim()) {
+          const want = editingData.category.trim();
+          const matchCanon =
+            merged.find((c) => c.toLowerCase() === want.toLowerCase()) ?? want;
+          setSelectedVaultCategoryCanon(matchCanon);
+          setCreatingNewVaultCategory(false);
+          setNewVaultCategoryDraft('');
+        } else if (editingData?.id) {
+          setSelectedVaultCategoryCanon(pickDefault);
+          setCreatingNewVaultCategory(false);
+          setNewVaultCategoryDraft('');
+        } else {
+          setCreatingNewVaultCategory(false);
+          setNewVaultCategoryDraft('');
+          setSelectedVaultCategoryCanon((prev) =>
+            prev && merged.some((c) => c.toLowerCase() === prev.toLowerCase())
+              ? prev
+              : pickDefault,
+          );
+        }
+      } catch {
+        if (!cancelled) {
+          const merged = mergeVaultCategoriesFromFirestore(undefined);
+          setVaultCategoriesResolved(merged);
+          const pickDefault = merged[0] || '';
+          setSelectedVaultCategoryCanon((prev) =>
+            prev && merged.some((c) => c.toLowerCase() === prev.toLowerCase())
+              ? prev
+              : pickDefault,
+          );
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [editingData?.id, editingData?.category]);
+
+  const vaultCategoryPrimaryLabel = useMemo(() => {
+    if (creatingNewVaultCategory) {
+      const d = newVaultCategoryDraft.trim();
+      return d ? d : tr('Nueva carpeta', 'New folder');
+    }
+    const sel = selectedVaultCategoryCanon.trim();
+    if (!sel) {
+      return tr('Seleccionar carpeta', 'Pick a folder');
+    }
+    return vaultCategorySectionTitle(sel, tr);
+  }, [
+    creatingNewVaultCategory,
+    newVaultCategoryDraft,
+    selectedVaultCategoryCanon,
+    language,
+  ]);
+
+  const vaultCategorySecondaryLabel = useMemo(() => {
+    if (creatingNewVaultCategory) {
+      return newVaultCategoryDraft.trim()
+        ? tr('Confirmá con CREAR', 'Confirm with CREATE')
+        : tr('Opcional: elegí otra desde el mismo selector', 'Or pick another from the same selector');
+    }
+    return tr('Agrupa tu Bóveda por carpetas', 'Organize your Vault into folders');
+  }, [creatingNewVaultCategory, newVaultCategoryDraft, language]);
+
+  const vaultCategoryLayoutAnimateSkipRef = useRef(true);
+  useEffect(() => {
+    if (vaultCategoryLayoutAnimateSkipRef.current) {
+      vaultCategoryLayoutAnimateSkipRef.current = false;
+      return;
+    }
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+  }, [creatingNewVaultCategory]);
 
   const closeFaviconSuggestion = ({ clearSuggestion = false }: { clearSuggestion?: boolean } = {}) => {
     faviconLookupTokenRef.current += 1;
@@ -738,7 +854,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           </Text>
           {faviconLoading ? (
             <View style={styles.faviconPromptLoading}>
-              <BrandedSpinner size={36} color="#D4AF37" />
+              <BrandedSpinner size={36} color="#E9C349" />
               <Text style={[styles.faviconPromptLoadingText, { color: formTheme.textSecondary }]}>
                 {tr('Buscando favicon…', 'Searching for favicon…')}
               </Text>
@@ -874,6 +990,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setFaviconUrl('');
     closeFaviconSuggestion();
     setAutoTypeSuggestion(null);
+    setVaultCategoryModalVisible(false);
+    setCreatingNewVaultCategory(false);
+    setNewVaultCategoryDraft('');
+    setSelectedVaultCategoryCanon(vaultCategoriesResolved[0] || '');
     savedLinkIdRef.current = null;
     savedUserIdRef.current = null;
     
@@ -1964,6 +2084,47 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       } else if (dataType === 'Documento' && editingData?.vaultMimeType) {
         vaultMimeForPayload = String(editingData.vaultMimeType).trim().slice(0, 120);
       }
+
+      let vaultCategoryCanon = '';
+      if (creatingNewVaultCategory) {
+        vaultCategoryCanon = newVaultCategoryDraft.trim();
+        if (!vaultCategoryCanon) {
+          Alert.alert(
+            tr('Nombre de carpeta obligatorio', 'Folder name required'),
+            tr(
+              'Escribí el nombre de la nueva categoría o elegí una existente.',
+              'Enter a new folder name or pick an existing one.',
+            ),
+          );
+          return;
+        }
+        if (vaultCategoryCanon.length > 64) {
+          Alert.alert(
+            tr('Nombre muy largo', 'Name too long'),
+            tr('Usa como máximo 64 caracteres.', 'Use up to 64 characters.'),
+          );
+          return;
+        }
+      } else {
+        vaultCategoryCanon = selectedVaultCategoryCanon.trim();
+      }
+      if (!vaultCategoryCanon && vaultCategoriesResolved.length > 0) {
+        vaultCategoryCanon = vaultCategoriesResolved[0];
+      }
+      const existingCanon = vaultCategoriesResolved.find(
+        (c) => c.toLowerCase() === vaultCategoryCanon.toLowerCase(),
+      );
+      const finalVaultCategory = existingCanon ?? vaultCategoryCanon;
+
+      try {
+        const nextCats = await appendVaultCategoryIfNew(userId, finalVaultCategory);
+        if (!isSessionClosed(saveSessionToken) && isMountedRef.current) {
+          setVaultCategoriesResolved(nextCats);
+        }
+      } catch (catErr) {
+        console.warn('[Vault] vaultCategories user update:', catErr);
+      }
+
       // Crear ID único evitando cualquier choque accidental local.
       const existingIds = new Set(
         dataArray.map((entry: any) => String(entry?.id || '')).filter(Boolean)
@@ -1989,6 +2150,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         isFavorite: editingData?.isFavorite || false,
         createdAt: editingData?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        category: finalVaultCategory,
       };
       // Store saved IDs for silent background favicon update
       savedLinkIdRef.current = uniqueId;
@@ -2008,15 +2170,20 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       console.log('[Vault] handleCreate: Antes de AsyncStorage.setItem');
       await AsyncStorage.setItem(vaultStorageKey(userId), JSON.stringify(dataArray));
       console.log('[Vault] handleCreate: Después de AsyncStorage.setItem');
+      const qualifiesPremiumSensory = await viewerQualifiesVaultFerrariSensory(userId);
+      await runVaultMagneticSaveFeedback(qualifiesPremiumSensory);
+      emitVaultLinkSaved({
+        uid: userId,
+        linkId: String(uniqueId || ''),
+        premiumSensory: !editingData?.id && qualifiesPremiumSensory,
+      });
       void (async () => {
         try {
           await syncVaultLinkToMongoCardsAfterSave(userId, uniqueId!);
         } catch (err) {
           console.warn('[Vault] mongo publicCardSlots sync:', err);
         }
-        emitVaultLinkSaved({ uid: userId, linkId: String(uniqueId || '') });
       })();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Toast.show({
         type: 'success',
         text1: tr('🛡️ ¡Dato guardado en el Búnker!', '🛡️ Data saved to Vault!'),
@@ -2043,7 +2210,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             } catch (mongoSyncErr) {
               console.warn('[Vault] mongo sync after cloud failed:', mongoSyncErr);
             }
-            emitVaultLinkSaved({ uid: userId, linkId: String(uniqueId || '') });
             Toast.show({
               type: 'success',
               text1: tr('☁️ Sincronización completada', '☁️ Cloud sync completed'),
@@ -2401,7 +2567,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <KeyboardAvoidingView
         style={styles.keyboardAvoiding}
         behavior={Platform.OS === 'ios' && dataType !== 'Documento' ? 'padding' : undefined}
@@ -2423,16 +2588,19 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             style={styles.closeButton}
           >
-            <MaterialCommunityIcons name="close" color="#D4AF37" size={28} />
+            <MaterialCommunityIcons name="close" color="#E9C349" size={28} />
           </TouchableOpacity>
         </View>
 
         <ScrollView
           key={editingData?.id ? `edit-${editingData.id}` : 'create'}
-          style={styles.scrollView}
-          contentContainerStyle={[styles.scrollContent, { flexGrow: 1 }]}
+          style={[styles.scrollView, { backgroundColor: formTheme.motherBg }]}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { flexGrow: 1, backgroundColor: formTheme.motherBg },
+          ]}
           keyboardDismissMode="on-drag"
-          keyboardShouldPersistTaps="always"
+          keyboardShouldPersistTaps="handled"
           nestedScrollEnabled
           automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
           contentInsetAdjustmentBehavior="automatic"
@@ -2533,9 +2701,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 style={[
                   styles.autoTypeBanner,
                   {
-                    backgroundColor: isNight ? 'rgba(212,175,55,0.16)' : 'rgba(212,175,55,0.22)',
+                    backgroundColor: isNight ? 'rgba(233,195,73,0.16)' : 'rgba(233,195,73,0.22)',
                     borderWidth: 1,
-                    borderColor: 'rgba(212,175,55,0.45)',
+                    borderColor: 'rgba(233,195,73,0.45)',
                   },
                 ]}
                 onPress={() => {
@@ -2559,6 +2727,84 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 </TouchableOpacity>
               </TouchableOpacity>
             )}
+          </View>
+
+          {/* CATEGORÍA / CARPETA (Bóveda) */}
+          <View style={styles.section}>
+            <Text style={[styles.stepLabel, { color: formTheme.labelGold }]}>{tr('CATEGORÍA', 'FOLDER')}</Text>
+            <TouchableOpacity
+              style={[
+                styles.iconLuxuryRow,
+                {
+                  backgroundColor: formTheme.surfaceBg,
+                  borderColor: creatingNewVaultCategory ? `${formTheme.labelGold}AA` : formTheme.chipInactiveBorder,
+                },
+                Platform.select({
+                  ios: {
+                    shadowColor: formTheme.labelGold,
+                    shadowOffset: { width: 0, height: 0 },
+                    shadowOpacity: isNight ? 0.14 : 0.1,
+                    shadowRadius: isNight ? 14 : 10,
+                  },
+                  android: { elevation: 4 },
+                  default: {},
+                }),
+              ]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setVaultCategoryModalVisible(true);
+              }}
+              activeOpacity={0.88}
+              accessibilityLabel={tr('Elegir categoría del Búnker', 'Pick Vault folder')}
+              accessibilityHint={vaultCategorySecondaryLabel}
+            >
+              <LinearGradient
+                colors={formTheme.chipActiveFillGradient as readonly [string, string, ...string[]]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.iconLuxuryThumbGradient}
+              >
+                <View style={[styles.iconLuxuryThumbInner, { backgroundColor: formTheme.iconPreviewCircleBg }]}>
+                  <MaterialCommunityIcons
+                    name={creatingNewVaultCategory ? 'folder-plus-outline' : 'folder-outline'}
+                    color={formTheme.previewIconInCircle}
+                    size={28}
+                  />
+                </View>
+              </LinearGradient>
+              <View style={styles.iconLuxuryTextCol}>
+                <Text style={[styles.iconLuxuryTitle, { color: formTheme.textPrimary }]} numberOfLines={2}>
+                  {vaultCategoryPrimaryLabel}
+                </Text>
+                <Text style={[styles.iconLuxurySubtitle, { color: formTheme.textSecondary }]} numberOfLines={2}>
+                  {vaultCategorySecondaryLabel}
+                </Text>
+              </View>
+              <Text style={[styles.iconLuxuryCta, { color: formTheme.labelGold }]}>{tr('CAMBIAR', 'CHANGE')}</Text>
+            </TouchableOpacity>
+
+            {creatingNewVaultCategory ? (
+              <LinearGradient
+                colors={formTheme.gradientColors}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[styles.vaultCategoryNewField, { padding: 4, marginTop: 12 }]}
+              >
+                <TextInput
+                  style={[
+                    styles.input,
+                    { backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderWidth: 0 },
+                  ]}
+                  placeholder={tr('Nombre de la nueva carpeta…', 'New folder name…')}
+                  placeholderTextColor={formTheme.inputPlaceholder}
+                  value={newVaultCategoryDraft}
+                  onChangeText={setNewVaultCategoryDraft}
+                  maxLength={64}
+                  editable={!isSaving}
+                  accessibilityLabel={tr('Nombre nueva categoría', 'New category name')}
+                />
+              </LinearGradient>
+            ) : null}
           </View>
 
           {/* NOMBRE DE DATA */}
@@ -2615,7 +2861,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               {faviconLoading && dataType === 'Enlaces' ? (
                 <View style={styles.iconLuxuryThumb}>
                   <View style={styles.spinnerPriorityLayer}>
-                    <BrandedSpinner size={40} color="#D4AF37" />
+                    <BrandedSpinner size={40} color="#E9C349" />
                   </View>
                 </View>
               ) : selectedIcon === 'favicon' && faviconUrl ? (
@@ -2772,6 +3018,138 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         </Modal>
 
         <Modal
+          visible={vaultCategoryModalVisible}
+          transparent
+          animationType="slide"
+          presentationStyle="overFullScreen"
+          statusBarTranslucent
+          hardwareAccelerated
+          onRequestClose={() => setVaultCategoryModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback onPress={() => setVaultCategoryModalVisible(false)}>
+              <View style={StyleSheet.absoluteFillObject} accessibilityRole="button" />
+            </TouchableWithoutFeedback>
+            <View
+              style={[styles.modalContent, { backgroundColor: formTheme.surfaceBg, borderTopColor: formTheme.border }]}
+            >
+                <View style={styles.bottomSheetDragHandleWrap}>
+                  <View style={[styles.bottomSheetDragHandle, { backgroundColor: formTheme.chipInactiveBorder }]} />
+                </View>
+                <View style={styles.modalHeader}>
+                  <Text style={[styles.modalTitle, { color: formTheme.textPrimary }]}>
+                    {tr('Elegí una carpeta', 'Choose a folder')}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setVaultCategoryModalVisible(false)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <MaterialCommunityIcons name="close" color={formTheme.labelGold} size={24} />
+                  </TouchableOpacity>
+                </View>
+                <FlatList
+                  data={[...vaultCategoriesResolved, VAULT_CATEGORY_CREATE_NEW]}
+                  keyboardShouldPersistTaps="handled"
+                  keyboardDismissMode="on-drag"
+                  keyExtractor={(row) =>
+                    row === VAULT_CATEGORY_CREATE_NEW ? '__create__' : String(row).toLowerCase().replace(/\s+/g, '-')
+                  }
+                  removeClippedSubviews={true}
+                  scrollEventThrottle={16}
+                  bounces={false}
+                  overScrollMode="never"
+                  contentContainerStyle={{ paddingBottom: 22 }}
+                  renderItem={({ item }) => {
+                    const isRowCreate = item === VAULT_CATEGORY_CREATE_NEW;
+                    const label = isRowCreate
+                      ? tr('+ Crear nueva categoría', '+ Create new folder')
+                      : vaultCategorySectionTitle(item, tr);
+                    const canonSelected =
+                      !creatingNewVaultCategory &&
+                      selectedVaultCategoryCanon.trim().toLowerCase() === String(item).trim().toLowerCase();
+                    const isActive = canonSelected || (isRowCreate && creatingNewVaultCategory);
+
+                    return (
+                      <TouchableOpacity
+                        style={[
+                          styles.modalItem,
+                          isActive && styles.modalItemActive,
+                          isActive && {
+                            backgroundColor: formTheme.selectedPillBg,
+                            shadowColor: formTheme.selectedPillGlow,
+                            shadowOpacity: 0.2,
+                            shadowRadius: 6,
+                            elevation: 3,
+                          },
+                          {
+                            overflow: 'hidden',
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                          },
+                          isRowCreate && { position: 'relative' },
+                          isRowCreate && {
+                            borderWidth: StyleSheet.hairlineWidth + 1,
+                            borderStyle: Platform.OS === 'ios' ? 'dashed' : 'solid',
+                            borderColor: 'rgba(233,195,73,0.55)',
+                          },
+                          isRowCreate && !isActive ? { opacity: Platform.OS === 'android' ? 0.92 : 1 } : undefined,
+                        ]}
+                        activeOpacity={0.88}
+                        onPress={() => {
+                          Haptics.selectionAsync();
+                          if (item === VAULT_CATEGORY_CREATE_NEW) {
+                            setCreatingNewVaultCategory(true);
+                            setSelectedVaultCategoryCanon('');
+                            setVaultCategoryModalVisible(false);
+                          } else {
+                            setCreatingNewVaultCategory(false);
+                            setNewVaultCategoryDraft('');
+                            setSelectedVaultCategoryCanon(item);
+                            setVaultCategoryModalVisible(false);
+                          }
+                        }}
+                      >
+                        {!isRowCreate ? null : (
+                          <LinearGradient
+                            colors={['rgba(233,195,73,0.18)', formTheme.surfaceBg]}
+                            style={[
+                              StyleSheet.absoluteFillObject,
+                              { borderRadius: 12, opacity: isActive ? 1 : 0.55 },
+                            ]}
+                          />
+                        )}
+                        {isRowCreate ? (
+                          <MaterialCommunityIcons
+                            name="plus-circle-outline"
+                            color={formTheme.labelGold}
+                            size={22}
+                            style={{ marginRight: 4 }}
+                          />
+                        ) : null}
+                        <Text
+                          style={[
+                            styles.modalItemText,
+                            isActive ? styles.modalItemTextActive : null,
+                            isActive ? { color: formTheme.selectedPillText } : { color: formTheme.textPrimary },
+                            isRowCreate && { fontWeight: '800', flex: 1 },
+                            !isRowCreate && { flex: 1 },
+                          ]}
+                          numberOfLines={2}
+                        >
+                          {label}
+                        </Text>
+                        {isActive ? (
+                          <MaterialCommunityIcons name="check" color={formTheme.selectedPillText} size={20} />
+                        ) : null}
+                      </TouchableOpacity>
+                    );
+                  }}
+                />
+            </View>
+          </View>
+        </Modal>
+
+        <Modal
           visible={faviconSuggestionVisible}
           transparent
           animationType="fade"
@@ -2784,7 +3162,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                   <Text style={styles.faviconPopupTitle}>{tr('¿Usar este icono?', 'Use this icon?')}</Text>
                   <View style={styles.faviconPopupPreviewBox}>
                     {faviconLoading ? (
-                      <BrandedSpinner size={44} color="#D4AF37" />
+                      <BrandedSpinner size={44} color="#E9C349" />
                     ) : faviconUrl ? (
                       <Image source={{ uri: faviconUrl }} style={styles.faviconPopupImage} />
                     ) : (
@@ -2928,7 +3306,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 },
               ]}
             >
-              <BrandedSpinner size={56} color="#D4AF37" />
+              <BrandedSpinner size={56} color="#E9C349" />
               <Text style={[styles.compressText, { color: formTheme.textPrimary }]}>
                 {isCompressing
                   ? tr('Optimizando archivo de forma segura...', 'Securely optimizing file...')
@@ -2938,14 +3316,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               </Text>
               {!isSaving && (
                 <TouchableOpacity
-                  style={{ marginTop: 16, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: 'rgba(212,175,55,0.2)' }}
+                  style={{ marginTop: 16, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: 'rgba(233,195,73,0.2)' }}
                   onPress={() => {
                     setIsCompressing(false);
                     setIsUploading(false);
                     setUploadModalVisible(false);
                   }}
                 >
-                  <Text style={{ color: '#D4AF37', fontWeight: '700', fontSize: 14 }}>{tr('Cancelar', 'Cancel')}</Text>
+                  <Text style={{ color: '#E9C349', fontWeight: '700', fontSize: 14 }}>{tr('Cancelar', 'Cancel')}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -2975,7 +3353,6 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         />
       </View>
       </KeyboardAvoidingView>
-    </TouchableWithoutFeedback>
   );
 };
 
@@ -3011,7 +3388,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 6,
     borderRadius: 999,
-    backgroundColor: 'rgba(212,175,55,0.55)',
+    backgroundColor: 'rgba(233,195,73,0.55)',
   },
   closeButton: {
     padding: 8,
@@ -3021,7 +3398,7 @@ const styles = StyleSheet.create({
   titleMain: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#D4AF37',
+    color: '#E9C349',
     marginTop: 20,
   },
   titleDragZone: {
@@ -3084,7 +3461,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 999,
     borderWidth: 4,
-    borderColor: '#D4AF37',
+    borderColor: '#E9C349',
     backgroundColor: PREMIUM_PANEL,
   },
   typePillActive: {
@@ -3255,9 +3632,14 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 0.9,
   },
+  vaultCategoryNewField: {
+    alignSelf: 'stretch',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
   dropdownButton: {
     backgroundColor: PREMIUM_PANEL,
-    borderColor: '#D4AF37',
+    borderColor: '#E9C349',
     borderWidth: 4,
     borderRadius: 12,
     paddingHorizontal: 16,
@@ -3284,7 +3666,7 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: PREMIUM_PANEL,
-    borderColor: '#D4AF37',
+    borderColor: '#E9C349',
     borderWidth: 4,
     borderRadius: 10,
     paddingHorizontal: 14,
@@ -3299,7 +3681,7 @@ const styles = StyleSheet.create({
   },
   countryCodeButton: {
     backgroundColor: PREMIUM_PANEL,
-    borderColor: '#D4AF37',
+    borderColor: '#E9C349',
     borderWidth: 4,
     borderRadius: 10,
     paddingHorizontal: 12,
@@ -3325,7 +3707,7 @@ const styles = StyleSheet.create({
     backgroundColor: PREMIUM_PANEL,
     borderRadius: 12,
     borderWidth: 4,
-    borderColor: '#D4AF37',
+    borderColor: '#E9C349',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
@@ -3342,7 +3724,7 @@ const styles = StyleSheet.create({
   },
   useFaviconButton: {
     backgroundColor: PREMIUM_PANEL,
-    borderColor: '#D4AF37',
+    borderColor: '#E9C349',
     borderWidth: 4,
     borderRadius: 10,
     paddingHorizontal: 16,
@@ -3373,7 +3755,7 @@ const styles = StyleSheet.create({
   },
   documentButton: {
     backgroundColor: PREMIUM_PANEL,
-    borderColor: '#D4AF37',
+    borderColor: '#E9C349',
     borderWidth: 4,
     borderStyle: 'dashed',
     borderRadius: 10,
@@ -3391,7 +3773,7 @@ const styles = StyleSheet.create({
     padding: 14,
     backgroundColor: PREMIUM_PANEL,
     borderRadius: 10,
-    borderColor: '#D4AF37',
+    borderColor: '#E9C349',
     borderWidth: 4,
   },
   previewLabel: {
@@ -3458,7 +3840,7 @@ const styles = StyleSheet.create({
     height: 96,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#D4AF37',
+    borderColor: '#E9C349',
     backgroundColor: 'rgba(84,193,251,0.92)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -3480,8 +3862,8 @@ const styles = StyleSheet.create({
     marginTop: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#D4AF37',
-    backgroundColor: 'rgba(212,175,55,0.1)',
+    borderColor: '#E9C349',
+    backgroundColor: 'rgba(233,195,73,0.1)',
     paddingHorizontal: 12,
     paddingVertical: 10,
     gap: 8,
@@ -3518,7 +3900,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   faviconPromptPrimaryBtn: {
-    backgroundColor: '#D4AF37',
+    backgroundColor: '#E9C349',
   },
   faviconPromptGhostBtn: {
     backgroundColor: '#E9EEF2',
@@ -3569,12 +3951,12 @@ const styles = StyleSheet.create({
   // Modal styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   faviconPopupOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
@@ -3633,7 +4015,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   faviconConfirmButton: {
-    backgroundColor: '#D4AF37',
+    backgroundColor: '#E9C349',
   },
   faviconCancelButton: {
     backgroundColor: '#E9EEF2',
@@ -3654,7 +4036,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     maxHeight: SCREEN_HEIGHT * 0.65,
     borderTopWidth: 3,
-    borderTopColor: '#D4AF37',
+    borderTopColor: '#E9C349',
   },
   bottomSheetDragHandleWrap: {
     width: '100%',
@@ -3666,7 +4048,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 5,
     borderRadius: 999,
-    backgroundColor: 'rgba(212,175,55,0.55)',
+    backgroundColor: 'rgba(233,195,73,0.55)',
   },
   iconModalHeader: {
     flexDirection: 'row',
@@ -3675,12 +4057,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(212,175,55,0.3)',
+    borderBottomColor: 'rgba(233,195,73,0.3)',
   },
   iconModalTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#D4AF37',
+    color: '#E9C349',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -3731,7 +4113,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: PREMIUM_PANEL,
     borderWidth: 0.5,
-    borderColor: '#D4AF37',
+    borderColor: '#E9C349',
   },
   iconItemSelected: {
     backgroundColor: PREMIUM_PANEL,
@@ -3793,7 +4175,7 @@ const styles = StyleSheet.create({
     minHeight: 150,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#D4AF37',
+    borderColor: '#E9C349',
     backgroundColor: PREMIUM_PANEL,
     alignItems: 'center',
     justifyContent: 'center',
@@ -3820,7 +4202,7 @@ const styles = StyleSheet.create({
     backgroundColor: PREMIUM_PANEL,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#D4AF37',
+    borderColor: '#E9C349',
     padding: 14,
   },
   assetPreviewTitle: {
@@ -3867,7 +4249,7 @@ const styles = StyleSheet.create({
   },
   assetConfirmButton: {
     flex: 1,
-    backgroundColor: '#D4AF37',
+    backgroundColor: '#E9C349',
     borderRadius: 999,
     minHeight: 46,
     alignItems: 'center',

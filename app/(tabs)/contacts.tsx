@@ -1,4 +1,5 @@
 import ErrorBoundary from '@/components/ErrorBoundary';
+import BunkerContactPremiumGlow from '@/components/BunkerContactPremiumGlow';
 import FlexGrid from '@/components/FlexGrid';
 import { MyCardsPreviewModal, type MyCardsPayload } from '@/components/MyCards';
 import ReceptorScreenModal from '@/components/ReceptorScreenModal';
@@ -26,6 +27,11 @@ import {
     mergeReceivedContactRows,
     receivedContactMergeKey,
 } from '@/services/receivedContactsPresentationMerge';
+import {
+  preloadAirEvaporationDeleteSound,
+  runAirEvaporationDeleteFeedback,
+} from '@/services/airEvaporationDeleteFeedback';
+import { BUNKER_CONTACT_PREMIUM_GLOW_EVENT } from '@/services/bunkerContactPremiumGlowBus';
 import { resolvePillForegroundColor } from '@/services/pillForegroundColor';
 import { getCardRowTheme } from '@/services/useActiveTheme';
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
@@ -44,6 +50,8 @@ import {
     Alert,
     Animated,
     AppState,
+    InteractionManager,
+    DeviceEventEmitter,
     Easing,
     Keyboard,
     LayoutAnimation,
@@ -77,12 +85,10 @@ type Contact = {
   userAvatarUrl: string | null;
   /** Cargo del emisor persistido en smart_cards. */
   ownerOccupation?: string | null;
-  ratingAvg: number;
   cardName: string;
   holdersCount: number;
   /** Conexiones en común en el grafo de compartidos (solo número, sin listas). */
   mutualContactsCount?: number;
-  totalRatings?: number;
   /** El receptor silenció historias de esta tarjeta. */
   channelMuted?: boolean;
   themeId?: string;
@@ -213,6 +219,7 @@ function ContactsContent() {
   const listEntrance = useRef(new Animated.Value(0)).current;
   const swipeableByContactLinkRef = useRef<Map<string, SwipeableMethods>>(new Map());
   const rowPressScaleRef = useRef<Map<string, Animated.Value>>(new Map());
+  const [premiumGlowByLinkKey, setPremiumGlowByLinkKey] = useState<Record<string, boolean>>({});
 
   const closeAllSwipes = useCallback(() => {
     for (const m of swipeableByContactLinkRef.current.values()) {
@@ -251,6 +258,25 @@ function ContactsContent() {
       tension: 220,
     }).start();
   };
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener(
+      BUNKER_CONTACT_PREMIUM_GLOW_EVENT,
+      (ev: { linkKey?: string }) => {
+        const k = String(ev?.linkKey || '').trim();
+        if (!k) return;
+        setPremiumGlowByLinkKey((prev) => ({ ...prev, [k]: true }));
+        setTimeout(() => {
+          setPremiumGlowByLinkKey((prev) => {
+            const next = { ...prev };
+            delete next[k];
+            return next;
+          });
+        }, 2800);
+      },
+    );
+    return () => sub.remove();
+  }, []);
 
   const loadMetaMap = async () => {
     try {
@@ -347,7 +373,6 @@ function ContactsContent() {
       bcLogoUrl:
         row.bcLogoUrl != null && String(row.bcLogoUrl).trim() ? String(row.bcLogoUrl).trim() : null,
       mutualContactsCount: Number(row.mutualContactsCount ?? 0),
-      totalRatings: Number(row.totalRatings ?? 0),
       channelMuted: Boolean(row.channelMuted),
       themeId: String(row.themeId || 'obsidian').trim() || 'obsidian',
       layout: row.layout === 'horizontal' ? 'horizontal' : 'vertical',
@@ -455,6 +480,9 @@ function ContactsContent() {
 
   useFocusEffect(
     React.useCallback(() => {
+      InteractionManager.runAfterInteractions(() => {
+        void preloadAirEvaporationDeleteSound();
+      });
       void loadContacts(true);
     }, [])
   );
@@ -514,8 +542,6 @@ function ContactsContent() {
       wallpaperUrl: isBusiness ? undefined : c.wallpaperUrl ?? undefined,
       layout: c.layout === 'horizontal' ? 'horizontal' : 'vertical',
       holdersCount: Math.max(0, Math.floor(Number(c.holdersCount ?? 0))),
-      ratingAvg: Number(c.ratingAvg),
-      totalRatings: Math.max(0, Math.floor(Number(c.totalRatings ?? 0))),
       enableParallax: Boolean(c.enableParallax),
       slots: mirrorPreviewSlots,
     };
@@ -820,6 +846,7 @@ function ContactsContent() {
         ...(bId ? { bId } : {}),
       });
       await purgeReceivedCardLinkFromUi(contact);
+      await runAirEvaporationDeleteFeedback();
       Toast.show({
         type: 'info',
         text1: tr('Tarjeta quitada', 'Card removed'),
@@ -1164,6 +1191,10 @@ function ContactsContent() {
                     )}
                   >
                     <Animated.View style={{ transform: [{ scale: pressScaleForContactLink(rowLinkKey) }] }}>
+                    <BunkerContactPremiumGlow
+                      visible={Boolean(premiumGlowByLinkKey[rowLinkKey])}
+                      accentColor={shell.ctaAccent}
+                    >
                     <ThemedSharedCardSurface
                       themeId={row.themeId}
                       wallpaperUrl={row.wallpaperUrl || undefined}
@@ -1372,6 +1403,7 @@ function ContactsContent() {
                         ) : null}
                       </Pressable>
                     </ThemedSharedCardSurface>
+                    </BunkerContactPremiumGlow>
                     </Animated.View>
                   </Swipeable>
                 );
@@ -1444,7 +1476,7 @@ function ContactsContent() {
                   styles.sortOptionRow,
                   sortMode === option.key && styles.sortOptionRowActive,
                   {
-                    backgroundColor: sortMode === option.key ? (isNight ? 'rgba(212,175,55,0.18)' : shell.modalRowBg) : shell.modalRowBg,
+                    backgroundColor: sortMode === option.key ? (isNight ? 'rgba(233,195,73,0.18)' : shell.modalRowBg) : shell.modalRowBg,
                     borderColor: sortMode === option.key ? shell.ctaAccent : shell.modalRowBorder,
                   },
                 ]}

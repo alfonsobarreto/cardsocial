@@ -31,7 +31,7 @@ function IconCell({ mciName, active, onPick }: { mciName: string; active: boolea
       style={{
         aspectRatio: '1',
         borderRadius: 12,
-        background: active ? 'rgba(212, 175, 55, 0.2)' : studioTheme.surfaceElevated,
+        background: active ? 'rgba(233, 195, 73, 0.2)' : studioTheme.surfaceElevated,
         border: active ? `2px solid ${studioTheme.gold}` : `1px solid ${studioTheme.border}`,
         display: 'flex',
         alignItems: 'center',

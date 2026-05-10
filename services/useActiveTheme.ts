@@ -202,7 +202,7 @@ export async function mergeUnlockedThemeIdsFromServer(userId: string, additional
  */
 export function getThemeGradient(themeId: string | undefined): [string, string, string] {
   const t = getThemeById(themeId ?? DEFAULT_THEME_ID);
-  if (!t) return ['#EAF7FF', '#CDEFFF', '#B8E7FF'];
+  if (!t) return ['#F2F2F7', '#F2F2F7', '#F2F2F7'];
   return [t.background[0], t.background[1], t.background[2]];
 }
 

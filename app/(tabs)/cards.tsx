@@ -29,6 +29,7 @@ import { hardLockCheck } from '@/services/biometricAuth';
 import {
   ExportBusinessQR,
   generatePublicBusinessWebUrl,
+  rewriteLoopbackSmartCardUniversalUrl,
   shareBusinessQrPngDataUrl,
 } from '@/services/brandedQrService';
 import {
@@ -234,12 +235,16 @@ async function readUniversal24hQrCache(uid: string, sid: string): Promise<Univer
     const raw = await AsyncStorage.getItem(universal24hQrStorageKey(uid, sid));
     if (!raw) return null;
     const p = JSON.parse(raw) as Partial<Universal24hQrCacheRow>;
-    const universalUrl = String(p.universalUrl || '').trim();
+    const rawUrl = String(p.universalUrl || '').trim();
+    const universalUrl = rewriteLoopbackSmartCardUniversalUrl(rawUrl);
     const expiresAt = Number(p.expiresAt || 0);
     const qrWindowMs = Math.max(1000, Number(p.qrWindowMs || 0));
     if (!universalUrl || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
       await AsyncStorage.removeItem(universal24hQrStorageKey(uid, sid));
       return null;
+    }
+    if (rawUrl && universalUrl !== rawUrl) {
+      void writeUniversal24hQrCache(uid, sid, { universalUrl, expiresAt, qrWindowMs });
     }
     return { universalUrl, expiresAt, qrWindowMs };
   } catch {
@@ -1819,7 +1824,7 @@ export default function CardsFactoryScreen() {
     }
 
     try {
-      const authenticated = await hardLockCheck(tr('Motor de velocidad orgánica de instalación (PLG)', 'Organic Install Velocity Engine'));
+      const authenticated = await hardLockCheck(tr('generar QR 24 Hr', 'generate QR 24h'));
       if (!authenticated) return;
       const uid = await getActiveUserId();
       if (!uid) throw new Error(tr('No se pudo obtener tu sesión.', 'Could not get your session.'));
@@ -2245,8 +2250,6 @@ export default function CardsFactoryScreen() {
       wallpaperUrl: previewCard.wallpaperUrl,
       layout: previewLayout,
       holdersCount: previewCard.holdersCount ?? 0,
-      ratingAvg: previewCard.ratingAvg ?? 5,
-      totalRatings: previewCard.totalRatings ?? 0,
       enableParallax,
       slots: previewSlots as unknown as WireframeEditSlot[],
       iconVaultById,
@@ -2272,8 +2275,6 @@ export default function CardsFactoryScreen() {
       themeId: previewBusiness.themeId || '',
       layout: previewLayout,
       holdersCount: previewBusiness.holdersCount ?? 0,
-      ratingAvg: Number(previewBusiness.ratingAvg ?? 0),
-      totalRatings: previewBusiness.totalRatings ?? 0,
       enableParallax,
       slots: businessPreviewSlots as unknown as WireframeEditSlot[],
       noAvatarIcon: 'storefront-outline',
@@ -2703,7 +2704,7 @@ export default function CardsFactoryScreen() {
           <ExpoImage source={{ uri: issuerIdentity.userAvatarUrl }} style={compact ? styles.wireAvatarSm : styles.wireAvatar} cachePolicy="disk" />
         ) : (
           <View style={compact ? styles.wireAvatarFallbackSm : styles.wireAvatarFallback}>
-            <MaterialCommunityIcons name="account" size={compact ? 22 : 32} color="#0D4D8A" />
+            <MaterialCommunityIcons name="account" size={compact ? 22 : 32} color="#636366" />
           </View>
         )}
         <AutoScaleText style={compact ? styles.wireNameSm : styles.wireName}>
@@ -2712,7 +2713,7 @@ export default function CardsFactoryScreen() {
         <AutoScaleText style={compact ? styles.wireNickSm : styles.wireNick}>@{(issuerIdentity.userNickName || 'user').toLowerCase()}</AutoScaleText>
         <View style={styles.wireStatsRowInline}>
           <View style={styles.wireUsersPill}>
-            <MaterialCommunityIcons name="account-outline" size={capSize} color="#0A2540" />
+            <MaterialCommunityIcons name="account-outline" size={capSize} color="#636366" />
             <Text style={styles.wireUsersPillText}>{holderCount}</Text>
           </View>
         </View>
@@ -2961,7 +2962,7 @@ export default function CardsFactoryScreen() {
                     <QRCode
                       value={generatePublicBusinessWebUrl(row.bId, sessionUid)}
                       size={64}
-                      color="#0A2540"
+                      color="#636366"
                       backgroundColor="#FFFFFF"
                       ecl="H"
                       {...(logoUri
@@ -3176,7 +3177,7 @@ export default function CardsFactoryScreen() {
             accessibilityRole="button"
             accessibilityLabel={tr('Estadísticas', 'Statistics')}
           >
-            <MaterialCommunityIcons name="chart-line-variant" size={17} color="rgba(212,175,55,0.95)" />
+            <MaterialCommunityIcons name="chart-line-variant" size={17} color="rgba(233,195,73,0.95)" />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.cardRowFavoriteBtn}
@@ -3290,7 +3291,7 @@ export default function CardsFactoryScreen() {
                         <QRCode
                           value={generatePublicBusinessWebUrl(row.bId, sessionUid)}
                           size={64}
-                          color="#0A2540"
+                          color="#636366"
                           backgroundColor="#FFFFFF"
                           ecl="H"
                           {...(logoUri
@@ -3407,12 +3408,7 @@ export default function CardsFactoryScreen() {
 
   if (!isCardsUnlocked) {
     return (
-      <LinearGradient
-        colors={[...cardsTheme.tabShellGradient]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.container}
-      >
+      <View style={[styles.container, { backgroundColor: cardsTheme.backgroundSolid }]}>
         <View style={styles.emptyWrap}>
           <MaterialCommunityIcons name="shield-lock-outline" size={56} color={cardsTheme.icon} />
           <Text style={[styles.emptyTitle, { color: cardsTheme.text }]}>
@@ -3439,17 +3435,12 @@ export default function CardsFactoryScreen() {
             <Text style={[styles.firstQrBtnText, { color: cardsTheme.btnPrimaryText }]}>{tr('Desbloquear', 'Unlock')}</Text>
           </TouchableOpacity>
         </View>
-      </LinearGradient>
+      </View>
     );
   }
 
   return (
-    <LinearGradient
-      colors={[...cardsTheme.tabShellGradient]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.container}
-    >
+    <View style={[styles.container, { backgroundColor: cardsTheme.backgroundSolid }]}>
       <View style={[styles.headerRow, { borderBottomColor: cardsTheme.divider }]}> 
         <View>
           <Text style={[styles.headerTitle, { color: cardsTheme.text }]}>{tr('Mis Tarjetas', 'My Cards')}</Text>
@@ -3795,7 +3786,7 @@ export default function CardsFactoryScreen() {
                         >
                           {editSlots.filter((s) => s.item !== null).length === 0 ? (
                             <View style={styles.factoryPreviewEmpty}>
-                              <MaterialCommunityIcons name="card-plus-outline" size={38} color={isDark ? 'rgba(184,231,255,0.3)' : 'rgba(13,77,138,0.18)'} />
+                              <MaterialCommunityIcons name="card-plus-outline" size={38} color={isDark ? 'rgba(235,235,245,0.32)' : 'rgba(28,28,30,0.18)'} />
                               <Text style={[styles.factoryPreviewEmptyText, { color: cardsTheme.sectionLabel }]}>
                                 {tr('Agrega DATA para ver tu tarjeta aquí', 'Add DATA to see your card here')}
                               </Text>
@@ -3983,7 +3974,7 @@ export default function CardsFactoryScreen() {
                       style={[
                         styles.selectorItemTile,
                         {
-                          borderColor: isDark ? 'rgba(184,231,255,0.18)' : cardsTheme.border,
+                          borderColor: cardsTheme.border,
                           backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : cardsTheme.surface,
                         },
                         isSelected && [
@@ -4103,7 +4094,7 @@ export default function CardsFactoryScreen() {
                           <View
                             style={[
                               styles.themesLockerTierLine,
-                              { backgroundColor: tier === 'luxury' ? '#D4AF37' : cardsTheme.divider },
+                              { backgroundColor: tier === 'luxury' ? '#E9C349' : cardsTheme.divider },
                             ]}
                           />
                         </View>
@@ -4115,7 +4106,6 @@ export default function CardsFactoryScreen() {
                               isActive={themeId === t.id}
                               isUnlocked={isChestThemeUnlocked(t)}
                               tileWidth={themesModalTileWidth}
-                              reviewsLabel={tr('4.8 · 12 reseñas', '4.8 · 12 reviews')}
                               onPress={() => {
                                 if (!isChestThemeUnlocked(t)) {
                                   Toast.show({
@@ -4564,7 +4554,7 @@ export default function CardsFactoryScreen() {
                       }}
                       value={qrPayload}
                       size={210}
-                      color={isDark ? '#E8D4A3' : '#0D4D8A'}
+                      color={isDark ? '#E8D4A3' : '#636366'}
                       backgroundColor={isDark ? '#1C1C1E' : '#FFFFFF'}
                       logo={
                         qrBusinessContext?.bcLogoUrl ? { uri: qrBusinessContext.bcLogoUrl } : brandCsIconLogo
@@ -4779,7 +4769,7 @@ export default function CardsFactoryScreen() {
                           },
                         ]}
                       >
-                        {issuingUniversalLink ? tr('Generando…', 'Generating…') : tr('Motor de velocidad orgánica de instalación (PLG)', 'Organic Install Velocity Engine')}
+                        {issuingUniversalLink ? tr('Generando…', 'Generating…') : tr('QR 24 Hr', 'QR 24h')}
                       </Text>
                     )}
                   </Pressable>
@@ -4878,7 +4868,7 @@ export default function CardsFactoryScreen() {
                         <Text style={[styles.cardStatsIconType, { color: cardsTheme.text }]} numberOfLines={1}>
                           {row.iconType}
                         </Text>
-                        <Text style={[styles.cardStatsIconCount, { color: 'rgba(212,175,55,0.95)' }]}>{row.count}</Text>
+                        <Text style={[styles.cardStatsIconCount, { color: cardsTheme.ctaAccent }]}>{row.count}</Text>
                       </View>
                     ))}
                   </View>
@@ -4898,7 +4888,7 @@ export default function CardsFactoryScreen() {
         onClose={() => setLimitReachedVisible(false)}
         onUpgradePress={handleUpgradePress}
       />
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -4915,7 +4905,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerTitle: {
-    color: '#0A2540',
+    color: '#1C1C1E',
     fontSize: 25,
     fontWeight: '800',
   },
@@ -4932,7 +4922,7 @@ const styles = StyleSheet.create({
   },
   businessCtaWrap: {
     borderRadius: 14,
-    shadowColor: '#0A2540',
+    shadowColor: '#000000',
     shadowOpacity: 0.2,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
@@ -4969,7 +4959,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#0A2540',
+    backgroundColor: '#1C1C1E',
     borderWidth: 1,
     borderColor: '#C5A065',
     alignItems: 'center',
@@ -4982,11 +4972,11 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 999,
     paddingHorizontal: 16,
-    backgroundColor: '#0A2540',
+    backgroundColor: '#1C1C1E',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
-    shadowColor: '#0A2540',
+    shadowColor: '#000000',
     shadowOpacity: 0.2,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 5 },
@@ -5253,7 +5243,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(13,77,138,0.18)',
   },
   metricPillText: {
-    color: '#0D4D8A',
+    color: '#1C1C1E',
     fontWeight: '700',
     fontSize: 12,
   },
@@ -5278,14 +5268,14 @@ const styles = StyleSheet.create({
   },
   cardItemLandscape: {
     minHeight: 88,
-    shadowColor: '#0A2540',
+    shadowColor: '#000000',
     shadowOpacity: 0.12,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 5,
   },
   cardTitle: {
-    color: '#0D4D8A',
+    color: '#1C1C1E',
     fontSize: 18,
     fontWeight: '800',
     lineHeight: 20,
@@ -5311,7 +5301,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     marginTop: 10,
-    color: '#0D4D8A',
+    color: '#1C1C1E',
     fontSize: 18,
     fontWeight: '700',
   },
@@ -5323,7 +5313,7 @@ const styles = StyleSheet.create({
   },
   firstQrBtn: {
     marginTop: 16,
-    backgroundColor: '#0A2540',
+    backgroundColor: '#1C1C1E',
     borderRadius: 999,
     paddingHorizontal: 16,
     minHeight: 44,
@@ -5564,14 +5554,14 @@ const styles = StyleSheet.create({
   },
   wireName: {
     marginTop: 2,
-    color: '#0A2540',
+    color: '#1C1C1E',
     fontWeight: '800',
     fontSize: 22,
     textAlign: 'left',
   },
   wireNameSm: {
     marginTop: 7,
-    color: '#0A2540',
+    color: '#1C1C1E',
     fontWeight: '800',
     fontSize: 15,
     textAlign: 'center',
@@ -5643,7 +5633,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   wireUsersPillText: {
-    color: '#0A2540',
+    color: '#1C1C1E',
     fontSize: 10,
     fontWeight: '800',
   },
@@ -5683,13 +5673,13 @@ const styles = StyleSheet.create({
     width: 19,
     height: 19,
     borderRadius: 9.5,
-    backgroundColor: '#0D4D8A',
+    backgroundColor: '#48484A',
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(10,45,76,0.25)',
+    backgroundColor: 'rgba(0,0,0,0.22)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 14,
@@ -5698,16 +5688,16 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '98%',
     flexDirection: 'column',
-    backgroundColor: '#F2FBFF',
+    backgroundColor: '#FFFFFF',
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#B8E7FF',
+    borderColor: '#E5E5EA',
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 14,
   },
   factoryTitle: {
-    color: '#0D4D8A',
+    color: '#1C1C1E',
     fontSize: 18,
     fontWeight: '800',
     marginBottom: 8,
@@ -5717,7 +5707,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     borderWidth: 1,
-    borderColor: '#CDEFFF',
+    borderColor: '#E5E5EA',
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     paddingHorizontal: 12,
@@ -5736,16 +5726,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#CDEFFF',
-    backgroundColor: '#EAF7FF',
+    borderColor: '#E5E5EA',
+    backgroundColor: '#F2F2F7',
   },
   identityLabel: {
-    color: '#4F7B9A',
+    color: '#636366',
     fontSize: 10,
     fontWeight: '600',
   },
   identityValue: {
-    color: '#0D4D8A',
+    color: '#1C1C1E',
     fontSize: 13,
     fontWeight: '700',
     marginTop: 1,
@@ -5753,9 +5743,9 @@ const styles = StyleSheet.create({
   input: {
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#B8E7FF',
+    borderColor: '#E5E5EA',
     backgroundColor: '#FFFFFF',
-    color: '#0D4D8A',
+    color: '#1C1C1E',
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 10,
@@ -5769,20 +5759,20 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#B8E7FF',
+    borderColor: '#E5E5EA',
     backgroundColor: '#FFFFFF',
     minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
   ghostBtnText: {
-    color: '#0D4D8A',
+    color: '#1C1C1E',
     fontWeight: '700',
   },
   saveBtn: {
     flex: 1,
     borderRadius: 10,
-    backgroundColor: '#0D4D8A',
+    backgroundColor: '#E9C349',
     minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
@@ -5895,7 +5885,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 4,
   },
   previewTitle: {
-    color: '#0D4D8A',
+    color: '#1C1C1E',
     fontSize: 21,
     fontWeight: '800',
   },
@@ -5923,11 +5913,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.8)',
     borderWidth: 1,
-    borderColor: '#B8E7FF',
+    borderColor: '#E5E5EA',
   },
   previewItemLabel: {
     marginTop: 4,
-    color: '#0D4D8A',
+    color: '#1C1C1E',
     fontSize: 10,
     fontWeight: '700',
   },
@@ -5935,8 +5925,8 @@ const styles = StyleSheet.create({
     width: '88%',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#B8E7FF',
-    backgroundColor: '#F2FBFF',
+    borderColor: '#E5E5EA',
+    backgroundColor: '#FFFFFF',
     padding: 14,
   },
   dataPopoverTop: {
@@ -5945,19 +5935,19 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   dataPopoverTitle: {
-    color: '#0D4D8A',
+    color: '#1C1C1E',
     fontSize: 16,
     fontWeight: '800',
   },
   dataPopoverType: {
-    color: '#4A7392',
+    color: '#636366',
     fontSize: 12,
     fontWeight: '600',
     marginTop: 2,
   },
   dataPopoverHint: {
     marginTop: 10,
-    color: '#3E6787',
+    color: '#636366',
     fontSize: 12,
   },
   authCertBox: {
@@ -5972,16 +5962,16 @@ const styles = StyleSheet.create({
   authCertTitle: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#0A2540',
+    color: '#1C1C1E',
   },
   authCertText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#244A66',
+    color: '#636366',
   },
   authCertToken: {
     fontSize: 10,
-    color: '#3D6787',
+    color: '#636366',
   },
   popoverCloseBtn: {
     marginTop: 10,
@@ -5990,7 +5980,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   popoverCloseText: {
-    color: '#0D4D8A',
+    color: '#1C1C1E',
     fontWeight: '700',
     fontSize: 12,
   },
@@ -6009,14 +5999,14 @@ const styles = StyleSheet.create({
   viewerDownloadButton: {
     minHeight: 38,
     borderRadius: 999,
-    backgroundColor: '#D4AF37',
+    backgroundColor: '#E9C349',
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
   viewerDownloadText: {
-    color: '#0A2540',
+    color: '#1C1C1E',
     fontSize: 12,
     fontWeight: '800',
   },
@@ -6047,7 +6037,7 @@ const styles = StyleSheet.create({
   },
   viewerPdf: {
     flex: 1,
-    backgroundColor: '#0E2236',
+    backgroundColor: '#000000',
   },
   viewerFallback: {
     flex: 1,
@@ -6066,12 +6056,12 @@ const styles = StyleSheet.create({
     maxHeight: '78%',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#B8E7FF',
-    backgroundColor: '#F2FBFF',
+    borderColor: '#E5E5EA',
+    backgroundColor: '#FFFFFF',
     padding: 14,
   },
   subscribersSubtitle: {
-    color: '#3D6C8D',
+    color: '#636366',
     fontWeight: '700',
     marginTop: -2,
     marginBottom: 8,
@@ -6080,14 +6070,14 @@ const styles = StyleSheet.create({
     maxHeight: 390,
   },
   subscribersLoadingText: {
-    color: '#406B8A',
+    color: '#8E8E93',
     fontSize: 13,
     paddingVertical: 14,
   },
   subscriberRow: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#CDEFFF',
+    borderColor: '#E5E5EA',
     backgroundColor: '#FFFFFF',
     padding: 10,
     marginBottom: 8,
@@ -6109,16 +6099,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#B8E7FF',
-    backgroundColor: '#EAF7FF',
+    borderColor: '#E5E5EA',
+    backgroundColor: '#F2F2F7',
   },
   subscriberName: {
-    color: '#0D4D8A',
+    color: '#1C1C1E',
     fontWeight: '800',
     fontSize: 13,
   },
   subscriberUid: {
-    color: '#5B809D',
+    color: '#8E8E93',
     fontSize: 10,
     marginTop: 1,
   },
@@ -6127,14 +6117,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     borderRadius: 999,
-    backgroundColor: '#DCEFFF',
+    backgroundColor: '#F2F2F7',
     borderWidth: 1,
-    borderColor: '#A4CAE8',
+    borderColor: '#E5E5EA',
     paddingHorizontal: 7,
     paddingVertical: 4,
   },
   amixesBadgeText: {
-    color: '#0A2540',
+    color: '#1C1C1E',
     fontSize: 10,
     fontWeight: '700',
   },
@@ -6161,8 +6151,8 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#0A2540',
-    backgroundColor: '#0A2540',
+    borderColor: '#3A3A3C',
+    backgroundColor: '#1C1C1E',
     alignItems: 'center',
     paddingVertical: 8,
   },
@@ -6176,12 +6166,12 @@ const styles = StyleSheet.create({
     maxHeight: '78%',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#B8E7FF',
-    backgroundColor: '#F2FBFF',
+    borderColor: '#E5E5EA',
+    backgroundColor: '#FFFFFF',
     padding: 14,
   },
   slotPickerSubtitle: {
-    color: '#3D6C8D',
+    color: '#636366',
     fontWeight: '700',
     marginTop: -2,
     marginBottom: 8,
@@ -6193,7 +6183,7 @@ const styles = StyleSheet.create({
   slotPickerRow: {
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#CFEFFF',
+    borderColor: '#E5E5EA',
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 10,
     paddingVertical: 10,
@@ -6204,12 +6194,12 @@ const styles = StyleSheet.create({
   },
   slotPickerTitle: {
     flex: 1,
-    color: '#0D4D8A',
+    color: '#1C1C1E',
     fontSize: 13,
     fontWeight: '700',
   },
   slotPickerType: {
-    color: '#4F7799',
+    color: '#8E8E93',
     fontSize: 11,
   },
   // ── Factory redesign ───────────────────────────────────────────────
@@ -6239,7 +6229,7 @@ const styles = StyleSheet.create({
     borderRadius: 36,
     borderWidth: 2,
     borderColor: '#C5A065',
-    backgroundColor: '#EAF7FF',
+    backgroundColor: '#F2F2F7',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -6286,7 +6276,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   factoryActionBadgeText: {
-    color: '#0A2540',
+    color: '#1C1C1E',
     fontSize: 10,
     fontWeight: '800',
   },
@@ -6302,7 +6292,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.36)',
     borderWidth: 1,
-    borderColor: 'rgba(184,231,255,0.72)',
+    borderColor: '#E5E5EA',
     paddingVertical: 8,
     paddingHorizontal: 6,
   },
@@ -6438,7 +6428,7 @@ const styles = StyleSheet.create({
     margin: 4,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#CFEFFF',
+    borderColor: '#E5E5EA',
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     paddingVertical: 10,
@@ -6464,7 +6454,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
   },
   selectorOrderText: {
-    color: '#0A2540',
+    color: '#1C1C1E',
     fontSize: 12,
     fontWeight: '900',
   },
@@ -6472,7 +6462,7 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: '#EAF7FF',
+    backgroundColor: '#F2F2F7',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 6,
@@ -6505,7 +6495,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   dataSelectorUpsellText: {
-    color: '#0A2540',
+    color: '#1C1C1E',
     fontSize: 13,
     fontWeight: '800',
   },
@@ -6618,7 +6608,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 10,
     fontWeight: '700',
-    color: '#0A2540',
+    color: '#1C1C1E',
     textAlign: 'center',
   },
   themesUpsellBtn: {
@@ -6638,7 +6628,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   themesUpsellText: {
-    color: '#0A2540',
+    color: '#1C1C1E',
     fontSize: 14,
     fontWeight: '800',
   },
@@ -6652,11 +6642,11 @@ const styles = StyleSheet.create({
     gap: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#B8E7FF',
+    borderColor: '#E5E5EA',
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 12,
     height: 42,
-    shadowColor: '#0A2540',
+    shadowColor: '#000000',
     shadowOpacity: 0.08,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
@@ -6670,7 +6660,7 @@ const styles = StyleSheet.create({
   },
   rotateHintOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(10, 37, 64, 0.88)',
+    backgroundColor: 'rgba(0,0,0,0.82)',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 24,

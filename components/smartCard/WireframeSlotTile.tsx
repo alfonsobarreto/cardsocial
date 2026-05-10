@@ -55,7 +55,7 @@ const slotStyles = StyleSheet.create({
     width: 19,
     height: 19,
     borderRadius: 9.5,
-    backgroundColor: '#0D4D8A',
+    backgroundColor: '#E9C349',
     alignItems: 'center',
     justifyContent: 'center',
   },

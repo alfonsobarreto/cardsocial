@@ -1,0 +1,428 @@
+/**
+ * Genera services/dashboard-ui-extra.json (claves = hashUiPair(es,en)).
+ * Ejecutar: node scripts/emit-dash-translations.mjs
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+/** @type {Record<string, { de: string; fr: string; it: string; pt: string }>} */
+const DATA = {
+  '10011de5': {
+    de: 'Noch nicht genügend Daten',
+    fr: 'Pas encore assez de données',
+    it: 'Dati ancora insufficienti',
+    pt: 'Ainda não há dados suficientes',
+  },
+  '17123ae5': {
+    de: 'Kostenlos',
+    fr: 'Gratuit',
+    it: 'Gratis',
+    pt: 'Grátis',
+  },
+  '17cb7bee': { de: 'Monat', fr: 'Mois', it: 'Mese', pt: 'Mês' },
+  '184d43dd': {
+    de: 'Suche-zu-Aktion (CTR)',
+    fr: 'Recherche → action (CTR)',
+    it: 'Ricerca → azione (CTR)',
+    pt: 'Busca → ação (CTR)',
+  },
+  '1d53a9b2': {
+    de: 'Sozialer Markt',
+    fr: 'Marché social',
+    it: 'Mercato sociale',
+    pt: 'Mercado social',
+  },
+  '24c87f96': {
+    de: 'Top-Nischen-Keyword',
+    fr: 'Mot-clé de niche principal',
+    it: 'Parola chiave di nicchia top',
+    pt: 'Palavra-chave principal do nicho',
+  },
+  '26dc12d4': {
+    de: 'Für maximale Präzision und fließende Live-Marktdaten öffnet sich der Radar in einer Vollbild-Immersivoberfläche.',
+    fr: 'Pour une précision maximale et une fluidité des données de marché en direct, le Radar s’affiche en interface immersive plein écran.',
+    it: 'Per la massima precisione e fluidità dei dati di mercato in tempo reale, il Radar si apre in un’interfaccia immersiva a schermo intero.',
+    pt: 'Para máxima precisão e fluidez dos dados de mercado em tempo real, o Radar abre numa interface imersiva a ecrã completo.',
+  },
+  '297c2514': {
+    de: 'Mapbox- und Intent-Layer im Browser – in der Größe, die sie verdienen.',
+    fr: 'Couches Mapbox et d’intention dans votre navigateur, à l’échelle qu’elles méritent.',
+    it: 'Livelli Mapbox e di intent nel browser, alla scala che meritano.',
+    pt: 'Camadas Mapbox e de intenção no browser, na escala que merecem.',
+  },
+  '35e406b8': {
+    de: 'Wenn der Marktplatz genug Nischensuchen hat, erscheint hier ein fehlendes Keyword, das du noch nicht nutzt.',
+    fr: 'Quand le marché rassemble assez de recherches de niche, un mot-clé manquant apparaîtra ici.',
+    it: 'Quando il marketplace avrà abbastanza ricerche di nicchia, qui apparirà una parola chiave che non usi ancora.',
+    pt: 'Quando o marketplace tiver buscas de nicho suficientes, aparecerá aqui uma palavra‑chave que ainda não usa.',
+  },
+  '3ae97d7a': {
+    de: 'Bereit zum Einfügen in Gmail oder Outlook als formatiertes Layout (kein Quellcode). In Gmail: Einst. → Alle Einstellungen → Signatur.',
+    fr: 'Prête à coller dans Gmail ou Outlook en mise en forme riche (pas en code source). Dans Gmail : Paramètres → Voir tous les paramètres → Signature.',
+    it: 'Pronta per incollare in Gmail o Outlook come layout formattato (non codice sorgente). In Gmail: Impostazioni → Mostra tutte → Firma.',
+    pt: 'Pronta para colar no Gmail ou Outlook como layout formatado (não código fonte). No Gmail: Definições → Ver todas → Assinatura.',
+  },
+  '44440af9': {
+    de: 'Browser konnte nicht geöffnet werden',
+    fr: 'Impossible d’ouvrir le navigateur',
+    it: 'Impossibile aprire il browser',
+    pt: 'Não foi possível abrir o navegador',
+  },
+  '45f8db43': {
+    de: 'Senden fehlgeschlagen',
+    fr: 'Envoi impossible',
+    it: 'Invio non riuscito',
+    pt: 'Envio falhou',
+  },
+  '465dca95': { de: 'Jahr', fr: 'Année', it: 'Anno', pt: 'Ano' },
+  '46b7c2a2': {
+    de: 'Karte nicht verfügbar',
+    fr: 'Carte indisponible',
+    it: 'Carta non disponibile',
+    pt: 'Cartão indisponível',
+  },
+  '46e488e3': { de: 'KRITISCH', fr: 'CRITIQUE', it: 'CRITICO', pt: 'CRÍTICO' },
+  '4da74164': {
+    de: 'E-Mail-Signatur senden',
+    fr: 'M’envoyer la signature par e-mail',
+    it: 'Inviami la firma via email',
+    pt: 'Enviar assinatura por e-mail',
+  },
+  '4f1600c5': { de: 'Plan', fr: 'Forfait', it: 'Piano', pt: 'Plano' },
+  '4fefe119': {
+    de: 'Explorermodus: Du siehst die Nachfrage in einer anderen Region.',
+    fr: 'Mode explorateur : vous consultez la demande dans une autre zone.',
+    it: 'Modalità esplora: stai vedendo la domanda in un’altra area.',
+    pt: 'Modo explorador: está a ver procura noutra zona.',
+  },
+  '5b46a971': { de: 'Weniger', fr: 'Moins', it: 'Meno', pt: 'Menos' },
+  '5c7b2764': {
+    de: 'Nur Klartext kopiert',
+    fr: 'Texte brut uniquement',
+    it: 'Solo testo semplice',
+    pt: 'Apenas texto simples',
+  },
+  '5db0eb3': {
+    de: 'Signatur kopieren (Gmail / Outlook)',
+    fr: 'Copier la signature (Gmail / Outlook)',
+    it: 'Copia firma (Gmail / Outlook)',
+    pt: 'Copiar assinatura (Gmail / Outlook)',
+  },
+  '5db637a3': {
+    de: 'Lokales SEO & CRO',
+    fr: 'Performance SEO local & CRO',
+    it: 'SEO locale e CRO',
+    pt: 'SEO local e CRO',
+  },
+  '5fcaff79': {
+    de: 'Metrik (eine für alle Zeilen): Such-zu-Aktion-Konversion — CTR.',
+    fr: 'Métrique (une seule pour toutes les lignes) : conversion recherche → action — CTR.',
+    it: 'Metrica (unica per tutte le righe): conversione ricerca → azione — CTR.',
+    pt: 'Métrica (uma para todas as linhas): conversão busca → ação — CTR.',
+  },
+  '61b7c95e': {
+    de: 'Wir haben deine Signatur per E-Mail gesendet. Öffne sie am Computer, wähle den visuellen Block (Logo und QR) und füge ihn in Gmail oder Outlook Web unter Signatur ein.',
+    fr: 'Nous avons envoyé votre signature par e-mail. Ouvrez-la sur un ordinateur, sélectionnez le bloc visuel (logo et QR), puis collez-le dans les réglages de signature Gmail ou Outlook Web.',
+    it: 'Abbiamo inviato la tua firma via email. Aprila su un computer, seleziona il blocco visivo (logo e QR) e incollala nelle impostazioni firma di Gmail o Outlook Web.',
+    pt: 'Enviámos a sua assinatura por e-mail. Abra-a num computador, selecione o bloco visual (logótipo e QR) e cole nas definições de assinatura do Gmail ou Outlook Web.',
+  },
+  '65b5e37d': {
+    de: 'Suchgetriebene Conversions (SEO)',
+    fr: 'Conversions issues de la recherche (SEO)',
+    it: 'Conversioni da ricerca (SEO)',
+    pt: 'Conversões vindas da pesquisa (SEO)',
+  },
+  '6681d767': {
+    de: 'Füge dieser Karte IconoDatas hinzu, um zu sehen, was am meisten angetippt wird.',
+    fr: 'Ajoutez des IconoDatas à cette carte pour voir ce qui est le plus tapé.',
+    it: 'Aggiungi IconoDatas a questa scheda per vedere cosa viene toccato di più.',
+    pt: 'Adicione IconoDatas a este cartão para ver o que é tocado com mais frequência.',
+  },
+  '6878ed80': { de: 'Aktiv seit', fr: 'Actif depuis', it: 'Attivo dal', pt: 'Ativo desde' },
+  '68fb4c59': {
+    de: 'Sozialer Markt konnte nicht aktualisiert werden',
+    fr: 'Impossible de mettre à jour le marché social',
+    it: 'Impossibile aggiornare il mercato sociale',
+    pt: 'Não foi possível atualizar o mercado social',
+  },
+  '6a662e2c': { de: 'Woche', fr: 'Semaine', it: 'Settimana', pt: 'Semana' },
+  '6b1d32b': {
+    de: 'Radar nicht verfügbar',
+    fr: 'Radar indisponible',
+    it: 'Radar non disponibile',
+    pt: 'Radar indisponível',
+  },
+  '6f1dbd15': {
+    de: 'Signatur kopiert',
+    fr: 'Signature copiée',
+    it: 'Firma copiata',
+    pt: 'Assinatura copiada',
+  },
+  '6ff6d63': {
+    de: 'Wie sich deine Keywords schlagen in ',
+    fr: 'Performance de vos mots-clés dans ',
+    it: 'Come vanno le tue parole chiave in ',
+    pt: 'Desempenho das suas palavras‑chave em ',
+  },
+  '7464af4e': {
+    de: 'Vorgeschlagenes Keyword',
+    fr: 'Mot-clé suggéré',
+    it: 'Parola chiave suggerita',
+    pt: 'Palavra-chave sugerida',
+  },
+  '76140f47': {
+    de: 'Etwas ist schiefgelaufen',
+    fr: 'Une erreur s’est produite',
+    it: 'Qualcosa è andato storto',
+    pt: 'Algo deu errado',
+  },
+  '7c26bf63': {
+    de: 'Kein Ablaufdatum',
+    fr: 'Sans expiration',
+    it: 'Senza scadenza',
+    pt: 'Sem expiração',
+  },
+  '7cf70703': { de: 'Erneuert:', fr: 'Renouvellement :', it: 'Rinnova:', pt: 'Renovação:' },
+  '828ccae2': {
+    de: 'Markt-Radar – Vollständiges Erlebnis',
+    fr: 'Radar marché — expérience complète',
+    it: 'Radar di mercato — esperienza completa',
+    pt: 'Radar de mercado — experiência completa',
+  },
+  '84b1038': {
+    de: 'Der Server konnte den Versand nicht abschließen. Bitte später erneut versuchen.',
+    fr: 'Le serveur n’a pas pu terminer l’envoi. Réessayez plus tard.',
+    it: 'Il server non ha completato l’invio. Riprova più tardi.',
+    pt: 'O servidor não concluiu o envio. Tente de novo mais tarde.',
+  },
+  '84d525ff': {
+    de: 'Radar im Vollbild erkunden',
+    fr: 'Explorer le radar en plein écran',
+    it: 'Esplora il radar a schermo intero',
+    pt: 'Explorar o radar em ecrã completo',
+  },
+  '880cac50': {
+    de: 'Diamant-LEGACY-Zugang: Der Radar startet die Live Card‑Social Studio (Produktions-Ursprung).',
+    fr: 'Accès LEGACY Diamant : le Radar lance le Studio Card‑Social en direct (origine production).',
+    it: 'Accesso LEGACY Diamond: il Radar avvia la Card‑Social Studio live (origine produzione).',
+    pt: 'Acesso LEGACY Diamond: o Radar abre a Card‑Social Studio em direto (origem de produção).',
+  },
+  '8875545e': {
+    de: 'Ausgehende E-Mail ist auf dem Server nicht konfiguriert.',
+    fr: 'L’e-mail sortant n’est pas configuré sur le serveur.',
+    it: 'L’email in uscita non è configurata sul server.',
+    pt: 'O e-mail de saída não está configurado no servidor.',
+  },
+  '8a36efad': {
+    de: 'Bitte melde dich erneut an und versuche es noch einmal.',
+    fr: 'Reconnectez-vous et réessayez.',
+    it: 'Accedi di nuovo e riprova.',
+    pt: 'Inicie sessão novamente e tente outra vez.',
+  },
+  '8c4549e6': {
+    de: 'Radar im Vollbild erkunden',
+    fr: 'Explorer le radar en plein écran',
+    it: 'Esplora il radar a schermo intero',
+    pt: 'Explorar radar em ecrã completo',
+  },
+  '8e79beda': {
+    de: 'SEO-Schlüsselwörter der Karte anpassen',
+    fr: 'Ajuster les mots-clés SEO de la carte',
+    it: 'Modifica parole chiave SEO della scheda',
+    pt: 'Ajustar palavras-chave SEO do cartão',
+  },
+  '92309fd3': {
+    de: 'Keine kürzliche Aktivität',
+    fr: 'Pas d’activité récente',
+    it: 'Nessuna attività recente',
+    pt: 'Sem atividade recente',
+  },
+  '9738c5a9': {
+    de: 'Deine meist angetippten IconoDatas',
+    fr: 'Vos IconoDatas les plus consultés',
+    it: 'I tuoi IconoDatas più toccati',
+    pt: 'Os seus IconoDatas mais tocados',
+  },
+  '9765ca39': {
+    de: 'Kartenaufrufe',
+    fr: 'Vues de la carte',
+    it: 'Visualizzazioni scheda',
+    pt: 'Visualizações do cartão',
+  },
+  '9ac82465': {
+    de: 'Füge dieser Karte SEO-Keywords hinzu, um Marktplatz-Suchanfragen zu messen.',
+    fr: 'Ajoutez des mots-clés SEO à cette carte pour mesurer les recherches du marché.',
+    it: 'Aggiungi parole chiave SEO a questa scheda per misurare le ricerche di mercato.',
+    pt: 'Adicione palavras-chave SEO a este cartão para medir pesquisas no mercado.',
+  },
+  '9c959370': {
+    de: 'Suchanfragen in dieser Nische oder Region, die noch nicht auf deiner Karte stehen.',
+    fr: 'recherches dans ce créneau ou cette zone qui ne sont pas encore sur votre carte.',
+    it: 'ricerche in questa nicchia o zona che non sono ancora sulla tua carta.',
+    pt: 'pesquisas neste nicho ou zona que ainda não estão no seu cartão.',
+  },
+  '9ca03633': {
+    de: 'Setze EXPO_PUBLIC_STUDIO_WEB_URL in .env und starte Metro neu, um den Radar zu aktivieren.',
+    fr: 'Définissez EXPO_PUBLIC_STUDIO_WEB_URL dans .env et redémarrez Metro pour activer le radar.',
+    it: 'Imposta EXPO_PUBLIC_STUDIO_WEB_URL in .env e riavvia Metro per attivare il radar.',
+    pt: 'Defina EXPO_PUBLIC_STUDIO_WEB_URL no .env e reinicie o Metro para ativar o radar.',
+  },
+  a28974ed: {
+    de: 'Quelle: in dieser Business Card gespeicherter Standort',
+    fr: 'Source : lieu enregistré sur cette carte de visite',
+    it: 'Fonte: posizione salvata su questa business card',
+    pt: 'Fonte: localização guardada neste cartão de negócio',
+  },
+  a35866ac: {
+    de: 'Noch keine Business-Karten in der Analyse',
+    fr: 'Pas encore de carte professionnelle pour les statistiques',
+    it: 'Nessuna business card per le statistiche',
+    pt: 'Ainda sem cartões de negócio para análises',
+  },
+  a6868a8d: { de: 'Hallo', fr: 'Bonjour', it: 'Ciao', pt: 'Olá' },
+  a7a5ae3: {
+    de: 'Prüfe deine E-Mail',
+    fr: 'Vérifiez votre e-mail',
+    it: 'Controlla l’email',
+    pt: 'Verifique o seu e-mail',
+  },
+  a8a42925: { de: 'Business', fr: 'Business', it: 'Business', pt: 'Business' },
+  ad7931c1: {
+    de: 'Anmeldung erforderlich',
+    fr: 'Connexion requise',
+    it: 'Accesso richiesto',
+    pt: 'Início de sessão necessário',
+  },
+  af2d9784: {
+    de: 'Kombinierte Zone',
+    fr: 'Zone combinée',
+    it: 'Zona combinata',
+    pt: 'Zona combinada',
+  },
+  b0c3e512: {
+    de: 'Deinem Konto ist keine E-Mail zugeordnet. Füge eine E-Mail hinzu oder öffne das Dashboard im Web (Chrome), um eine formatierte Signatur zu kopieren.',
+    fr: 'Aucun e-mail n’est associé à votre compte. Ajoutez un e-mail ou ouvrez le tableau de bord dans un navigateur (Chrome) pour copier une signature mise en forme.',
+    it: 'Al tuo account non è collegata alcuna email. Aggiungine una o apri la Dashboard nel browser (Chrome) per copiare una firma formattata.',
+    pt: 'A sua conta de início de sessão não tem e-mail associado. Adicione um e-mail ou abra o Dashboard no browser (Chrome) para copiar uma assinatura formatada.',
+  },
+  b485a78c: {
+    de: 'PLZ oder Stadt suchen',
+    fr: 'Rechercher un code postal ou une ville',
+    it: 'Cerca CAP o città',
+    pt: 'Pesquisar código postal ou cidade',
+  },
+  b65d3e97: {
+    de: 'Keine E-Mail verknüpft',
+    fr: 'E-mail non lié',
+    it: 'Email non collegata',
+    pt: 'E-mail não associado',
+  },
+  bb9442ed: {
+    de: 'Visitenkarte',
+    fr: 'Carte de visite',
+    it: 'Biglietto da visita',
+    pt: 'Cartão de visitas',
+  },
+  bc258e44: { de: 'WARNUNG', fr: 'ALERTE', it: 'AVVISO', pt: 'ALERTA' },
+  cd40115a: {
+    de: 'Keine kürzliche Aktivität. Teile deine Karte, um zu starten.',
+    fr: 'Pas d’activité récente. Partagez votre carte pour commencer.',
+    it: 'Nessuna attività recente. Condividi la carta per iniziare.',
+    pt: 'Sem atividade recente. Compartilhe seu cartão para começar.',
+  },
+  ce180645: { de: 'Influencer', fr: 'Influenceur', it: 'Influencer', pt: 'Influenciador' },
+  cee73138: {
+    de: 'Business-Karten werden geladen…',
+    fr: 'Chargement des cartes professionnelles…',
+    it: 'Caricamento biglietti da visita…',
+    pt: 'A carregar cartões de visita…',
+  },
+  cfdcde5: { de: 'OK', fr: 'OK', it: 'OK', pt: 'OK' },
+  d001b052: { de: 'Benutzer', fr: 'Utilisateur', it: 'Utente', pt: 'Utilizador' },
+  d3a2fcd0: {
+    de: 'Bitte erneut versuchen.',
+    fr: 'Veuillez réessayer.',
+    it: 'Riprova.',
+    pt: 'Tente novamente.',
+  },
+  d41c51b2: {
+    de: 'SEO-Marktintelligenz',
+    fr: 'Intelligence de marché SEO',
+    it: 'Intelligence di mercato SEO',
+    pt: 'Inteligência de mercado SEO',
+  },
+  d5592a5b: {
+    de: 'Wir konnten diese Karte nicht laden, um die Signatur zu senden. Aktualisiere die Seite und versuche es erneut.',
+    fr: 'Impossible de charger cette carte pour envoyer la signature. Actualisez et réessayez.',
+    it: 'Impossibile caricare questa scheda per inviare la firma. Aggiorna e riprova.',
+    pt: 'Não foi possível carregar este cartão para enviar a assinatura. Atualize e tente de novo.',
+  },
+  d80acc6: {
+    de: 'Erstelle eine Business-Karte, um KPIs auf Kartenebene freizuschalten.',
+    fr: 'Créez une carte professionnelle pour activer les métriques par carte.',
+    it: 'Crea una business card per sbloccare le metriche a livello di scheda.',
+    pt: 'Crie um cartão de negócio para ativar métricas ao nível do cartão.',
+  },
+  e2134c6b: {
+    de: 'Executive Market Radar',
+    fr: 'Radar marché exécutif',
+    it: 'Radar di mercato executive',
+    pt: 'Radar de mercado executivo',
+  },
+  e6fa1531: { de: 'Tag', fr: 'Jour', it: 'Giorno', pt: 'Dia' },
+  e7b139bf: {
+    de: 'Der Legacy-Pfad',
+    fr: 'Le parcours Legacy',
+    it: 'Il percorso Legacy',
+    pt: 'O caminho Legacy',
+  },
+  e829b148: { de: 'Mehr', fr: 'Plus', it: 'Altro', pt: 'Mais' },
+  e841e7eb: {
+    de: 'Geo Intelligence · Bunker',
+    fr: 'Intelligence géo · Bunker',
+    it: 'Intelligence geo · Bunker',
+    pt: 'Inteligência geo · Bunker',
+  },
+  e9794d3c: {
+    de: 'Unbegrenzt',
+    fr: 'Illimité',
+    it: 'Illimitato',
+    pt: 'Ilimitado',
+  },
+  f0a26d7c: {
+    de: 'UNBEGRENZT',
+    fr: 'ILLIMITÉ',
+    it: 'ILLIMITATO',
+    pt: 'ILIMITADO',
+  },
+  f220587d: {
+    de: 'Teile deine Karte, um echte Kennzahlen zu sehen.',
+    fr: 'Partagez votre carte pour voir des indicateurs réels.',
+    it: 'Condividi la tua carta per vedere metriche reali.',
+    pt: 'Compartilhe seu cartão para ver métricas reais.',
+  },
+  f5101f39: {
+    de: 'Dienst nicht verfügbar',
+    fr: 'Service indisponible',
+    it: 'Servizio non disponibile',
+    pt: 'Serviço indisponível',
+  },
+  fa21df2a: {
+    de: 'Dieser Browser hat kein Rich-HTML in der Zwischenablage zugelassen. Es wurde nur Klartext kopiert – versuche es auf dem Desktop in Chrome über dieselbe Dashboard-Ansicht, um eine gestaltete Signatur einzufügen.',
+    fr: 'Ce navigateur a bloqué le HTML enrichi dans le presse-papiers. Nous n’avons copié que du texte brut ; réessayez depuis Chrome sur le bureau dans ce même tableau de bord pour coller une signature mise en forme.',
+    it: 'Questo browser ha bloccato l’HTML ricco negli appunti. Abbiamo copiato solo testo normale; riprova da Chrome sul desktop in questa stessa Dashboard per incollare una firma formattata.',
+    pt: 'Este browser bloqueou HTML rico na área de transferência. Copiámos apenas texto simples; tente no Chrome no desktop neste mesmo Dashboard para colar uma assinatura formatada.',
+  },
+};
+
+const out = path.join(__dirname, '../services/dashboard-ui-extra.json');
+fs.writeFileSync(out, JSON.stringify(DATA, null, 2), 'utf8');
+const n = Object.keys(DATA).length;
+if (n !== 81) {
+  console.error('Expected 81 keys, got', n);
+  process.exit(1);
+}
+console.log('OK →', out, '(' + n + ' keys)');

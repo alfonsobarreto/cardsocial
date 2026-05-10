@@ -832,7 +832,7 @@ export default function FormColumn({
                 minHeight: 132,
                 borderRadius: 14,
                 border: `2px dashed ${dragActive ? studioTheme.gold : studioTheme.borderStrong}`,
-                background: dragActive ? 'rgba(212, 175, 55, 0.12)' : studioTheme.bg,
+                background: dragActive ? 'rgba(233, 195, 73, 0.12)' : studioTheme.bg,
                 color: studioTheme.text,
                 display: 'flex',
                 flexDirection: 'column',

@@ -2,11 +2,11 @@
 
 html {
   scroll-behavior: smooth;
-  background: #050505;
+  background: #000000;
 }
 
 body {
-  background: #050505;
+  background: #000000;
 }
 
 @keyframes fadeInUp {

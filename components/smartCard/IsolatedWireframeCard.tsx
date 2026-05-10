@@ -14,7 +14,14 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
-import { Animated, Image, Text, TouchableOpacity, View } from 'react-native';
+import {
+    Animated,
+    Image,
+    Platform,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 
 export type WireframeVaultItem = {
   id: string;
@@ -226,7 +233,10 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
       );
     }
 
-    // ── Modo por defecto: solo receptores ────────────────────────────────
+    // ── Modo por defecto: solo receptores (no en web: modal público sin contador) ─
+    if (Platform.OS === 'web') {
+      return null;
+    }
     return (
       <View
         style={{

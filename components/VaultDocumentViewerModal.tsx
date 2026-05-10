@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
   viewerDownloadButton: {
     minHeight: 38,
     borderRadius: 999,
-    backgroundColor: '#D4AF37',
+    backgroundColor: '#E9C349',
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',

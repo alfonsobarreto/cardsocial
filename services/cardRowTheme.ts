@@ -25,20 +25,20 @@ export type CardRowThemeResolved = {
 };
 
 const FALLBACK_CARD_ROW: CardRowThemeResolved = {
-  gradient: ['#EAF7FF', '#CDEFFF', '#B8E7FF'],
-  borderColor: 'rgba(13,77,138,0.2)',
+  gradient: ['#F2F2F7', '#F2F2F7', '#F2F2F7'],
+  borderColor: 'rgba(233,195,73,0.35)',
   borderWidth: 1,
-  titleColor: '#0D4D8A',
+  titleColor: '#1C1C1E',
   titleFontWeight: '800',
   titleFontStyle: 'normal',
-  metaColor: '#497499',
+  metaColor: '#636366',
   subtitleFontWeight: '600',
   subtitleFontStyle: 'normal',
-  extraColor: '#5A7A94',
+  extraColor: '#8E8E93',
   extraFontSize: 11,
   extraFontWeight: '500',
   extraFontStyle: 'italic',
-  iconColor: '#0D4D8A',
+  iconColor: '#E9C349',
   bubbleBackgroundColor: 'rgba(255,255,255,0.82)',
   bubbleBorderRadius: 14,
 };

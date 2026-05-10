@@ -8,6 +8,11 @@
  */
 
 import { FREE_TIER_POLICY } from '@/constants/freeTierPolicy';
+import {
+  LEGACY_FREE_SMART_CARD_BONUS_SILVER_PLUS,
+  parseLegacyTier,
+  tierMeetsSilver,
+} from '@/services/legacyPathEngine';
 import { db } from '@/services/firebaseConfig';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { isSuperAdmin } from '@/services/roleService';
@@ -114,7 +119,21 @@ export async function validateCardCreation(userId: string): Promise<LimitValidat
   try {
     const isPremium = await isPremiumUser(userId);
     const currentCount = await countUserCards(userId);
-    const maxLimit = isPremium ? LIMITS.PREMIUM.cards : LIMITS.FREE.cards;
+
+    let legacyBonus = 0;
+    if (!isPremium) {
+      const userRef = doc(db, 'users', String(userId || '').trim());
+      const snap = await getDoc(userRef).catch(() => null);
+      if (snap && snap.exists()) {
+        const raw = snap.data() as Record<string, unknown>;
+        const legacyTier = parseLegacyTier(raw.legacyTier);
+        if (tierMeetsSilver(legacyTier)) {
+          legacyBonus = LEGACY_FREE_SMART_CARD_BONUS_SILVER_PLUS;
+        }
+      }
+    }
+
+    const maxLimit = isPremium ? LIMITS.PREMIUM.cards : LIMITS.FREE.cards + legacyBonus;
 
     const canCreate = currentCount < maxLimit;
 

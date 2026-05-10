@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 
 import { logBackendNetworkDebug } from '@/services/backendAuth';
 import { resolveExpoPublicApiBaseUrl } from '@/services/expoPublicApiBaseUrl';
+import { rewriteLoopbackSmartCardUniversalUrl } from '@/services/brandedQrService';
 import { fromWireCallDisplayCard, type CallDisplayCard } from './callDisplayCard';
 import { toAcceptLanguageHeader, type AppLanguage } from './language';
 
@@ -135,7 +136,7 @@ export async function issueTemporaryUniversalAccess(params: {
 
   return {
     token: String(response?.data?.token || ''),
-    universalUrl: String(response?.data?.universalUrl || ''),
+    universalUrl: rewriteLoopbackSmartCardUniversalUrl(String(response?.data?.universalUrl || '')),
     ttlSec: Number(response?.data?.ttlSec || 86400),
     expiresAt: String(response?.data?.expiresAt || ''),
     source: String(response?.data?.source || 'qr_scan'),
@@ -176,12 +177,15 @@ export type PublicUniversalCardPayload = {
   userNickName?: string | null;
   userAvatarUrl?: string | null;
   searchFacets: Array<{ type: string; label: string; value: string }>;
-  holdersCount: number;
-  ratingAvg: number;
-  totalRatings: number;
+  /** Retirado del producto; opcional por respuestas cacheadas. */
+  holdersCount?: number;
+  ratingAvg?: number;
+  totalRatings?: number;
   storyState: 'none' | 'normal' | 'vip';
   slots: PublicUniversalCardSlot[];
   expiresAt: string;
+  /** Emisor con Legacy ≥ Silver (API pública / Firestore `users.legacyTier`). */
+  legacyOfficialPartner?: boolean;
 };
 
 /**
@@ -199,11 +203,16 @@ export function normalizePublicUniversalCardPayload(card: PublicUniversalCardPay
     String(card.ownerNickname ?? '').trim() ||
     null;
   const userAvatarUrl = String(card.userAvatarUrl ?? '').trim() || null;
+  const legacyOfficialPartner = card.legacyOfficialPartner === true;
   return {
     ...card,
+    holdersCount: Math.max(0, Math.floor(Number(card.holdersCount ?? 0))),
+    ratingAvg: Number.isFinite(Number(card.ratingAvg)) ? Number(card.ratingAvg) : 0,
+    totalRatings: Math.max(0, Math.floor(Number(card.totalRatings ?? 0))),
     userFullName,
     userNickName,
     userAvatarUrl,
+    ...(legacyOfficialPartner ? { legacyOfficialPartner: true } : {}),
   };
 }
 
@@ -279,8 +288,9 @@ export type PublicQrTokenPreview = {
   wallpaperUrl?: string;
   enableParallax: boolean;
   holdersCount: number;
-  ratingAvg: number;
-  totalRatings: number;
+  /** Producto: sin estrellas; opcional por respuestas antiguas. */
+  ratingAvg?: number;
+  totalRatings?: number;
   slots: Array<{
     itemId?: string;
     type?: string;
@@ -391,7 +401,14 @@ export async function consumeDynamicQrToken(params: {
   receiverUid: string;
   token: string;
   locale?: AppLanguage;
-}): Promise<{ uid: string; receiverUid: string; sid: string | null; bId: string | null; shareGranted: boolean }> {
+}): Promise<{
+  uid: string;
+  receiverUid: string;
+  sid: string | null;
+  bId: string | null;
+  shareGranted: boolean;
+  issuerPremiumExperience: boolean;
+}> {
   const auth = await getScopedJwtToken(params.receiverUid, 'qr.access');
 
   const response = await axios.post(
@@ -416,6 +433,7 @@ export async function consumeDynamicQrToken(params: {
     sid: response?.data?.sid != null && String(response.data.sid).trim() ? String(response.data.sid) : null,
     bId: response?.data?.bId != null && String(response.data.bId).trim() ? String(response.data.bId) : null,
     shareGranted: Boolean(response?.data?.shareGranted),
+    issuerPremiumExperience: Boolean(response?.data?.issuerPremiumExperience),
   };
 }
 
@@ -469,7 +487,13 @@ export async function grantBusinessShareFromQr(params: {
   uid: string;
   bId: string;
   locale?: AppLanguage;
-}): Promise<{ uid: string; receiverUid: string; bId: string; shareGranted: boolean }> {
+}): Promise<{
+  uid: string;
+  receiverUid: string;
+  bId: string;
+  shareGranted: boolean;
+  issuerPremiumExperience: boolean;
+}> {
   const auth = await getScopedJwtToken(params.receiverUid, 'qr.access');
 
   const response = await axios.post(
@@ -494,6 +518,7 @@ export async function grantBusinessShareFromQr(params: {
     receiverUid: String(response?.data?.receiverUid || ''),
     bId: String(response?.data?.bId || ''),
     shareGranted: Boolean(response?.data?.shareGranted),
+    issuerPremiumExperience: Boolean(response?.data?.issuerPremiumExperience),
   };
 }
 
@@ -502,7 +527,14 @@ export async function redeemTemporaryAccessToken(params: {
   receiverUid: string;
   token: string;
   locale?: AppLanguage;
-}): Promise<{ uid: string; receiverUid: string; sid: string | null; bId: string | null; shareGranted: boolean }> {
+}): Promise<{
+  uid: string;
+  receiverUid: string;
+  sid: string | null;
+  bId: string | null;
+  shareGranted: boolean;
+  issuerPremiumExperience: boolean;
+}> {
   const auth = await getScopedJwtToken(params.receiverUid, 'qr.access');
 
   const response = await axios.post(
@@ -527,6 +559,7 @@ export async function redeemTemporaryAccessToken(params: {
     sid: response?.data?.sid != null && String(response.data.sid).trim() ? String(response.data.sid) : null,
     bId: response?.data?.bId != null && String(response.data.bId).trim() ? String(response.data.bId) : null,
     shareGranted: Boolean(response?.data?.shareGranted),
+    issuerPremiumExperience: Boolean(response?.data?.issuerPremiumExperience),
   };
 }
 

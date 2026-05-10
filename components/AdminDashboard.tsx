@@ -73,7 +73,7 @@ const AdminDashboard: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         title: tr('ESTADÍSTICAS', 'STATISTICS'),
         subtitle: tr('Usuarios · CS Coins · Costos', 'Users · CS coins · Costs'),
         icon: 'chart-bar' as const,
-        colors: ['#1A3D5C', '#0D4D8A'] as [string, string],
+        colors: ['#2A2618', '#E9C349'] as [string, string],
         badge: `${stats.totalUsers.toLocaleString(intlLocale)} ${tr('usuarios', 'users')}`,
         alert: false,
         route: '/admin/stats',
@@ -83,7 +83,7 @@ const AdminDashboard: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         title: tr('SOPORTE', 'SUPPORT'),
         subtitle: tr('Reportes · Denuncias · Bans', 'Reports · Flags · Bans'),
         icon: 'shield-alert' as const,
-        colors: (stats.pendingReports > 0 ? ['#7B1818', '#A51D1D'] : ['#1A3D5C', '#0D4D8A']) as [string, string],
+        colors: (stats.pendingReports > 0 ? ['#7B1818', '#A51D1D'] : ['#2A2618', '#E9C349']) as [string, string],
         badge:
           stats.pendingReports > 0
             ? `${stats.pendingReports} ${tr('pendientes', 'pending')}`

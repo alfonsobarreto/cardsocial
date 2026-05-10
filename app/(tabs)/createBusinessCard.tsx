@@ -2108,7 +2108,7 @@ export default function CreateBusinessCardScreen() {
                         <View
                           style={[
                             styles.bizThemesTierLine,
-                            { backgroundColor: tier === 'luxury' ? '#D4AF37' : border },
+                            { backgroundColor: tier === 'luxury' ? '#E9C349' : border },
                           ]}
                         />
                       </View>
@@ -2120,7 +2120,6 @@ export default function CreateBusinessCardScreen() {
                             isActive={businessThemeId === t.id}
                             isUnlocked={isChestThemeUnlocked(t)}
                             tileWidth={bizThemesTileWidth}
-                            reviewsLabel={tr('4.8 · 12 reseñas', '4.8 · 12 reviews')}
                             onPress={() => {
                               if (!isChestThemeUnlocked(t)) {
                                 Toast.show({

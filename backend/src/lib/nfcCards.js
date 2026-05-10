@@ -233,9 +233,9 @@ function isExpired(target, now = new Date()) {
 function htmlPage({ title, body, ctaLabel, ctaHref }) {
   const safe = (s) => String(s || '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
   const btn = ctaHref
-    ? `<a href="${safe(ctaHref)}" style="display:inline-block;margin-top:22px;padding:13px 20px;border-radius:14px;background:#D4AF37;color:#0C0C0C;text-decoration:none;font-weight:800">${safe(ctaLabel || 'Abrir')}</a>`
+    ? `<a href="${safe(ctaHref)}" style="display:inline-block;margin-top:22px;padding:13px 20px;border-radius:14px;background:#E9C349;color:#0C0C0C;text-decoration:none;font-weight:800">${safe(ctaLabel || 'Abrir')}</a>`
     : '';
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>${safe(title)} · Card-Social</title></head><body style="margin:0;min-height:100vh;background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:grid;place-items:center;padding:24px"><main style="max-width:420px;text-align:center;border:1px solid #3A3A3C;background:#1C1C1E;border-radius:24px;padding:28px"><div style="font-size:42px;margin-bottom:10px">◈</div><h1 style="font-size:24px;margin:0 0 12px;color:#D4AF37">${safe(title)}</h1><p style="color:#AEAEB2;line-height:1.55;margin:0">${safe(body)}</p>${btn}<p style="margin-top:24px;color:#48484A;font-size:12px">Card-Social</p></main></body></html>`;
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>${safe(title)} · Card-Social</title></head><body style="margin:0;min-height:100vh;background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:grid;place-items:center;padding:24px"><main style="max-width:420px;text-align:center;border:1px solid #3A3A3C;background:#1C1C1E;border-radius:24px;padding:28px"><div style="font-size:42px;margin-bottom:10px">◈</div><h1 style="font-size:24px;margin:0 0 12px;color:#E9C349">${safe(title)}</h1><p style="color:#AEAEB2;line-height:1.55;margin:0">${safe(body)}</p>${btn}<p style="margin-top:24px;color:#48484A;font-size:12px">Card-Social</p></main></body></html>`;
 }
 
 module.exports = {

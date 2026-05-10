@@ -38,6 +38,8 @@ export type VaultLikeItem = {
   id?: string;
   title?: string;
   type?: string;
+  /** Carpeta/categoría de Bóveda (Fase 7). */
+  category?: string;
   value?: string;
   iconName?: string;
   icon?: string;
@@ -114,6 +116,7 @@ export function getSearchableStringsFromVaultLikeItem(item: VaultLikeItem): stri
   push(item.id);
   push(item.title);
   push(item.type);
+  push(item.category);
   if (!isGhostLinkVaultType(item.type)) {
     push(item.value);
   }

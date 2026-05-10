@@ -33,8 +33,6 @@ type Props = {
   isUnlocked: boolean;
   /** Ancho de la tarjeta (misma lógica que CARD_WIDTH en ThemeChest). */
   tileWidth: number;
-  /** Texto ya traducido, p. ej. "4.8 · 12 reseñas". */
-  reviewsLabel: string;
   onPress: () => void;
   onLongPress?: () => void;
   /** Muestra el nombre del theme bajo la tarjeta (como en Locker). */
@@ -46,7 +44,6 @@ export function ThemeLockerThemeTile({
   isActive,
   isUnlocked,
   tileWidth,
-  reviewsLabel,
   onPress,
   onLongPress,
   showNameBelow = true,
@@ -170,21 +167,6 @@ export function ThemeLockerThemeTile({
             >
               Icon
             </Text>
-
-            <Text
-              style={[
-                styles.cardExtraSample,
-                {
-                  color: theme.extraText.color,
-                  fontSize: theme.extraText.fontSize * 0.82,
-                  fontWeight: theme.extraText.fontWeight,
-                  fontStyle: theme.extraText.fontStyle,
-                },
-              ]}
-              numberOfLines={1}
-            >
-              {reviewsLabel}
-            </Text>
           </View>
 
           {!isUnlocked && (
@@ -253,11 +235,6 @@ const styles = StyleSheet.create({
   cardIconLabel: {
     marginTop: 3,
     textAlign: 'center',
-  },
-  cardExtraSample: {
-    marginTop: 2,
-    textAlign: 'center',
-    opacity: 0.95,
   },
   cardActive: {
     borderWidth: 4,

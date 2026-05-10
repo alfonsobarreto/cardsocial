@@ -706,7 +706,7 @@ export default function MarketRadar({ t }) {
             textOverflow: 'ellipsis',
           }}
         >
-          <span style={{ width: 6, height: 6, borderRadius: 3, background: studioTheme.gold, boxShadow: '0 0 8px rgba(212,175,55,0.85)' }} />
+          <span style={{ width: 6, height: 6, borderRadius: 3, background: studioTheme.gold, boxShadow: '0 0 8px rgba(233,195,73,0.85)' }} />
           {t(
             dataSource === DATA_SOURCES.GLOBAL_DEMAND
               ? 'marketRadar.dataSource.compactGoogle'
@@ -808,7 +808,7 @@ function CompactSourceSegment({ t, dataSource, onChange }) {
               padding: '9px 10px',
               border: 'none',
               cursor: 'pointer',
-              background: active ? 'rgba(212,175,55,0.28)' : studioTheme.surface,
+              background: active ? 'rgba(233,195,73,0.28)' : studioTheme.surface,
               color: active ? studioTheme.gold : studioTheme.textMuted,
               fontWeight: 900,
               fontSize: 11,

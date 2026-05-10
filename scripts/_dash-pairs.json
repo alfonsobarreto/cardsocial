@@ -1,0 +1,407 @@
+[
+  {
+    "es": "Business",
+    "en": "Business",
+    "h": "a8a42925"
+  },
+  {
+    "es": "Influencer",
+    "en": "Influencer",
+    "h": "ce180645"
+  },
+  {
+    "es": "Free",
+    "en": "Free",
+    "h": "17123ae5"
+  },
+  {
+    "es": "Día",
+    "en": "Day",
+    "h": "e6fa1531"
+  },
+  {
+    "es": "Semana",
+    "en": "Week",
+    "h": "6a662e2c"
+  },
+  {
+    "es": "Mes",
+    "en": "Month",
+    "h": "17cb7bee"
+  },
+  {
+    "es": "Año",
+    "en": "Year",
+    "h": "465dca95"
+  },
+  {
+    "es": "ILIMITADO",
+    "en": "UNLIMITED",
+    "h": "f0a26d7c"
+  },
+  {
+    "es": "CRÍTICO",
+    "en": "CRITICAL",
+    "h": "46e488e3"
+  },
+  {
+    "es": "ALERTA",
+    "en": "ALERT",
+    "h": "bc258e44"
+  },
+  {
+    "es": "OK",
+    "en": "OK",
+    "h": "cfdcde5"
+  },
+  {
+    "es": "Sin caducidad",
+    "en": "No expiration",
+    "h": "7c26bf63"
+  },
+  {
+    "es": "Renueva:",
+    "en": "Renews:",
+    "h": "7cf70703"
+  },
+  {
+    "es": "Tarjeta de negocio",
+    "en": "Business card",
+    "h": "bb9442ed"
+  },
+  {
+    "es": "Mercado social",
+    "en": "Social Market",
+    "h": "1d53a9b2"
+  },
+  {
+    "es": "Sin actividad reciente. Comparte tu tarjeta para empezar.",
+    "en": "No recent activity. Share your card to start.",
+    "h": "cd40115a"
+  },
+  {
+    "es": "Sin actividad reciente",
+    "en": "No activity yet",
+    "h": "92309fd3"
+  },
+  {
+    "es": "Comparte tu tarjeta para empezar a ver métricas reales.",
+    "en": "Share your card to start seeing metrics.",
+    "h": "f220587d"
+  },
+  {
+    "es": "Vistas de tarjeta",
+    "en": "Card views",
+    "h": "9765ca39"
+  },
+  {
+    "es": "Conversión búsqueda-acción (CTR)",
+    "en": "Search-to-Action (CTR)",
+    "h": "184d43dd"
+  },
+  {
+    "es": "Radar no disponible",
+    "en": "Radar unavailable",
+    "h": "6b1d32b"
+  },
+  {
+    "es": "No se pudo abrir el navegador",
+    "en": "Could not open the browser",
+    "h": "44440af9"
+  },
+  {
+    "es": "No se pudo actualizar el Mercado Social",
+    "en": "Could not update Social Market",
+    "h": "68fb4c59"
+  },
+  {
+    "es": "Inténtalo de nuevo.",
+    "en": "Please try again.",
+    "h": "d3a2fcd0"
+  },
+  {
+    "es": "Firma copiada",
+    "en": "Signature copied",
+    "h": "6f1dbd15"
+  },
+  {
+    "es": "Lista para pegar en Gmail u Outlook como diseño con formato (no como código fuente). En Gmail: Ajustes → Ver todos los ajustes de correo → Firma.",
+    "en": "Ready to paste into Gmail or Outlook as rich formatted layout (not source code). In Gmail: Settings → See all settings → Signature.",
+    "h": "3ae97d7a"
+  },
+  {
+    "es": "Solo texto copiado",
+    "en": "Plain text only",
+    "h": "5c7b2764"
+  },
+  {
+    "es": "Este navegador no permitió HTML enriquecido en el portapapeles. Copiamos solo texto plano; prueba desde Chrome en escritorio desde este mismo Dashboard para pegar la firma con diseño.",
+    "en": "This browser blocked rich HTML on the clipboard. We copied plain text only; try again from Chrome on desktop in this Dashboard to paste a styled signature.",
+    "h": "fa21df2a"
+  },
+  {
+    "es": "Revisa tu correo",
+    "en": "Check your email",
+    "h": "a7a5ae3"
+  },
+  {
+    "es": "Te enviamos tu firma. Ábrela en la computadora, selecciona el bloque visual (logo y QR) y cópiala en los ajustes de firma de Gmail u Outlook Web.",
+    "en": "We emailed your signature. Open it on a computer, select the visual block (logo and QR), then paste it into Gmail or Outlook Web signature settings.",
+    "h": "61b7c95e"
+  },
+  {
+    "es": "Correo no disponible",
+    "en": "Email not linked",
+    "h": "b65d3e97"
+  },
+  {
+    "es": "Tu cuenta de inicio de sesión no tiene un correo asociado. Añade un email a tu cuenta o abre el Dashboard en la web (Chrome) para copiar la firma con formato.",
+    "en": "Your sign-in account has no email address on file. Add an email to your account, or open the Dashboard in a web browser (Chrome) to copy a rich signature.",
+    "h": "b0c3e512"
+  },
+  {
+    "es": "Servicio en pausa",
+    "en": "Service unavailable",
+    "h": "f5101f39"
+  },
+  {
+    "es": "Envío por correo no está configurado del lado del servidor.",
+    "en": "Outbound email is not configured on the server.",
+    "h": "8875545e"
+  },
+  {
+    "es": "Tarjeta no disponible",
+    "en": "Card unavailable",
+    "h": "46b7c2a2"
+  },
+  {
+    "es": "No pudimos cargar esta tarjeta para enviar la firma. Actualiza o vuelve a intentar.",
+    "en": "We could not load this card to send the signature. Refresh and try again.",
+    "h": "d5592a5b"
+  },
+  {
+    "es": "Sesión requerida",
+    "en": "Sign in required",
+    "h": "ad7931c1"
+  },
+  {
+    "es": "Inicia sesión de nuevo e inténtalo otra vez.",
+    "en": "Please sign in again and try once more.",
+    "h": "8a36efad"
+  },
+  {
+    "es": "No se pudo enviar",
+    "en": "Could not send",
+    "h": "45f8db43"
+  },
+  {
+    "es": "El servidor no pudo completar el envío. Inténtalo más tarde.",
+    "en": "The server could not complete the send. Please try again later.",
+    "h": "84b1038"
+  },
+  {
+    "es": "Algo salió mal",
+    "en": "Something went wrong",
+    "h": "76140f47"
+  },
+  {
+    "es": "Usuario",
+    "en": "User",
+    "h": "d001b052"
+  },
+  {
+    "es": "Hola",
+    "en": "Hello",
+    "h": "a6868a8d"
+  },
+  {
+    "es": "Plan",
+    "en": "Plan",
+    "h": "4f1600c5"
+  },
+  {
+    "es": "Ilimitado",
+    "en": "Unlimited",
+    "h": "e9794d3c"
+  },
+  {
+    "es": "Cargando tarjetas de negocio…",
+    "en": "Loading business cards…",
+    "h": "cee73138"
+  },
+  {
+    "es": "Analítica sin tarjetas de negocio",
+    "en": "Analytics has no business cards yet",
+    "h": "a35866ac"
+  },
+  {
+    "es": "Crea una tarjeta de negocio para activar métricas por tarjeta.",
+    "en": "Create a business card to unlock card-level metrics.",
+    "h": "d80acc6"
+  },
+  {
+    "es": "Copiar firma (Gmail / Outlook)",
+    "en": "Copy signature (Gmail / Outlook)",
+    "h": "5db0eb3"
+  },
+  {
+    "es": "Enviarme firma por correo",
+    "en": "Email me my signature",
+    "h": "4da74164"
+  },
+  {
+    "es": "Rendimiento de SEO local y CRO",
+    "en": "Local SEO & CRO performance",
+    "h": "5db637a3"
+  },
+  {
+    "es": "Ajustar palabras SEO de la tarjeta",
+    "en": "Adjust the card SEO keywords",
+    "h": "8e79beda"
+  },
+  {
+    "es": "Tus IconoDatas más tocados",
+    "en": "Your most tapped IconoDatas",
+    "h": "9738c5a9"
+  },
+  {
+    "es": "Añade IconoDatas en esta tarjeta para ver qué elementos reciben más toques.",
+    "en": "Add IconoDatas to this card to see what people tap most.",
+    "h": "6681d767"
+  },
+  {
+    "es": "Inteligencia de mercado SEO",
+    "en": "SEO market intelligence",
+    "h": "d41c51b2"
+  },
+  {
+    "es": "Conversiones desde búsqueda (SEO)",
+    "en": "Search-driven conversions (SEO)",
+    "h": "65b5e37d"
+  },
+  {
+    "es": "Rendimiento de tus palabras clave en ",
+    "en": "How your keywords perform in ",
+    "h": "6ff6d63"
+  },
+  {
+    "es": "zona combinada",
+    "en": "combined zone",
+    "h": "af2d9784"
+  },
+  {
+    "es": "Modo explorador: estás viendo la demanda en otra zona.",
+    "en": "Explorer mode: you are viewing demand in another area.",
+    "h": "4fefe119"
+  },
+  {
+    "es": "Fuente: ubicación registrada en esta tarjeta de negocio",
+    "en": "Source: location saved on this business card",
+    "h": "a28974ed"
+  },
+  {
+    "es": "Activa desde",
+    "en": "Active since",
+    "h": "6878ed80"
+  },
+  {
+    "es": "Explorar código postal o ciudad",
+    "en": "Search ZIP or city",
+    "h": "b485a78c"
+  },
+  {
+    "es": "Métrica (una sola para todas las filas): conversión de búsqueda a acción — CTR.",
+    "en": "Metric (same for each row below): search-to-action conversion — CTR.",
+    "h": "5fcaff79"
+  },
+  {
+    "es": "Mostrar menos",
+    "en": "Show less",
+    "h": "5b46a971"
+  },
+  {
+    "es": "Mostrar más",
+    "en": "Show more",
+    "h": "e829b148"
+  },
+  {
+    "es": "Añade palabras SEO a esta tarjeta para medir búsquedas del mercado.",
+    "en": "Add SEO keywords to this card to measure marketplace searches.",
+    "h": "9ac82465"
+  },
+  {
+    "es": "Palabra top del nicho",
+    "en": "Top niche keyword",
+    "h": "24c87f96"
+  },
+  {
+    "es": "Palabra sugerida",
+    "en": "Suggested keyword",
+    "h": "7464af4e"
+  },
+  {
+    "es": "Sin datos suficientes",
+    "en": "Not enough data yet",
+    "h": "10011de5"
+  },
+  {
+    "es": "búsquedas en este nicho o zona que aún no están en tu tarjeta.",
+    "en": "searches in this niche or area that are not on your card yet.",
+    "h": "9c959370"
+  },
+  {
+    "es": "Cuando el mercado reúna búsquedas del nicho, verás aquí una palabra que aún no usas.",
+    "en": "When the marketplace has enough niche searches, a missing keyword will appear here.",
+    "h": "35e406b8"
+  },
+  {
+    "es": "Centro de inteligencia geo · Búnker",
+    "en": "Geo Intelligence · Bunker",
+    "h": "e841e7eb"
+  },
+  {
+    "es": "Radar de mercado ejecutivo",
+    "en": "Executive Market Radar",
+    "h": "e2134c6b"
+  },
+  {
+    "es": "Optimización geográfica",
+    "en": "Market Radar — Full experience",
+    "h": "828ccae2"
+  },
+  {
+    "es": "Para garantizar la máxima precisión y fluidez de los datos de mercado en tiempo real, el Radar se despliega en una interfaz inmersiva de pantalla completa.",
+    "en": "To deliver maximum accuracy and fluidity for live market intelligence, the Radar runs in a full-screen immersive interface.",
+    "h": "26dc12d4"
+  },
+  {
+    "es": "Define EXPO_PUBLIC_STUDIO_WEB_URL en .env y reinicia Metro para activar el radar.",
+    "en": "Set EXPO_PUBLIC_STUDIO_WEB_URL in .env and restart Metro to activate the radar.",
+    "h": "9ca03633"
+  },
+  {
+    "es": "Explorar radar en pantalla completa",
+    "en": "Explore radar in full screen",
+    "h": "8c4549e6"
+  },
+  {
+    "es": "Explorar Radar en Pantalla Completa",
+    "en": "Explore the radar in full screen",
+    "h": "84d525ff"
+  },
+  {
+    "es": "Mapbox y capas de intención en tu navegador, con la superficie que merecen.",
+    "en": "Mapbox and intent layers open in your browser at the scale they deserve.",
+    "h": "297c2514"
+  },
+  {
+    "es": "Acceso LEGACY Diamante: el Radar usa la Studio pública Card-Social (producción).",
+    "en": "Diamond LEGACY access: the Radar launches the live Card‑Social Studio (production origin).",
+    "h": "880cac50"
+  },
+  {
+    "es": "El camino Legacy",
+    "en": "The Legacy path",
+    "h": "e7b139bf"
+  }
+]

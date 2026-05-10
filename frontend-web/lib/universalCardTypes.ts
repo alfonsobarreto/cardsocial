@@ -39,13 +39,12 @@ export type CardData = {
   ownerOccupation: string | null;
   /** Persona (Mongo users/profiles). */
   userAvatarUrl?: string | null;
-  holdersCount: number;
-  ratingAvg: number;
-  totalRatings: number;
   slots: PublicSlot[];
   expiresAt: string;
   /** Conteos `medals/{bId}.counts` (business: preview + universal con `bId`). */
   businessMedalCounts?: Record<string, number>;
   /** Conteos `medals/{sid}.counts` — claves sociales (universal smart, no negocio). */
   socialMedalCounts?: Record<string, number>;
+  /** True si el emisor tiene nivel Legacy ≥ Silver (`users.legacyTier` en servidor). */
+  legacyOfficialPartner?: boolean;
 };

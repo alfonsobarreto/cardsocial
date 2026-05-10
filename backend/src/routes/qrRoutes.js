@@ -20,6 +20,7 @@ const { readSmartCardScName } = require('../lib/smartCardScName');
 const { clientLocaleIsSpanish } = require('../lib/httpRequestLocale');
 const { parseAndValidateTemporaryAccess } = require('../lib/temporaryAccessToken');
 const { composeIssuerSnapshot } = require('../lib/issuerSnapshot');
+const { resolveIssuerPremiumSaveExperience } = require('../lib/issuerPremiumSaveSignal');
 const { env } = require('../config');
 
 function normalizeString(value, fallback = null) {
@@ -1311,6 +1312,8 @@ function createQrRoutes({ storage }) {
         },
       );
 
+      const issuerPremiumExperience = await resolveIssuerPremiumSaveExperience(storage, issuerUid);
+
       return res.status(200).json({
         ok: true,
         uid: issuerUid,
@@ -1318,6 +1321,7 @@ function createQrRoutes({ storage }) {
         sid,
         bId,
         shareGranted: true,
+        issuerPremiumExperience,
       });
     } catch (error) {
       const isEs = clientLocaleIsSpanish(req);
@@ -1553,6 +1557,8 @@ function createQrRoutes({ storage }) {
         { $set: { sharePermissionId: permissionResult?._id || null } }
       );
 
+      const issuerPremiumExperience = await resolveIssuerPremiumSaveExperience(storage, issuerUid);
+
       return res.status(200).json({
         ok: true,
         uid: issuerUid,
@@ -1560,6 +1566,7 @@ function createQrRoutes({ storage }) {
         sid,
         bId,
         shareGranted: true,
+        issuerPremiumExperience,
       });
     } catch (error) {
       const isEs = clientLocaleIsSpanish(req);
@@ -1641,6 +1648,8 @@ function createQrRoutes({ storage }) {
       const countsMap = await aggregateActiveReceiverCountByKeys(db, userUid, [bId], now);
       const holdersCount = countsMap.get(bId) ?? 0;
 
+      const issuerPremiumExperience = await resolveIssuerPremiumSaveExperience(storage, userUid);
+
       return res.status(200).json({
         ok: true,
         uid: userUid,
@@ -1648,6 +1657,7 @@ function createQrRoutes({ storage }) {
         bId,
         shareGranted: true,
         holdersCount,
+        issuerPremiumExperience,
       });
     } catch (error) {
       const isEs = clientLocaleIsSpanish(req);

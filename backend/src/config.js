@@ -1,9 +1,54 @@
+const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
 
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
+/** Raíz del monorepo donde Expo suele tener `.env` con `EXPO_PUBLIC_*`. El backend sólo cargaba `backend/.env`. */
+const repoRootEnvPath = path.resolve(__dirname, '../../.env');
+const backendEnvPath = path.resolve(__dirname, '../.env');
+if (fs.existsSync(repoRootEnvPath)) {
+  dotenv.config({ path: repoRootEnvPath });
+}
+dotenv.config({ path: backendEnvPath, override: true });
 
 const MB = 1024 * 1024;
+
+/** `localhost`/loopback no sirven para QRs escaneados desde el móvil (no es la máquina del dev). */
+function isLoopbackOriginUrl(candidate) {
+  try {
+    const u = new URL(String(candidate || '').trim());
+    if (!/^https?:$/i.test(u.protocol)) return false;
+    const h = u.hostname.toLowerCase();
+    return h === 'localhost' || h === '127.0.0.1' || h === '[::1]';
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Base `/u/{token}` devuelta por POST `/api/qr/temporary-access/issue`.
+ * Respeta PUBLIC_UNIVERSAL_CARD_BASE_URL; si es localhost, usa EXPO_PUBLIC_BUSINESS_WEB_BASE (LAN) desde la `.env` raíz.
+ */
+function resolveUniversalQrPublicBaseUrl() {
+  const DEFAULT = 'https://cardsocial.me';
+  const candidates = [
+    process.env.PUBLIC_UNIVERSAL_CARD_BASE_URL,
+    process.env.EXPO_PUBLIC_BUSINESS_WEB_BASE,
+    DEFAULT,
+  ];
+
+  for (const raw of candidates) {
+    const s = String(raw ?? '')
+      .trim()
+      .replace(/\/+$/, '');
+    if (!s) continue;
+    if (isLoopbackOriginUrl(s)) continue;
+    return s;
+  }
+
+  return DEFAULT;
+}
+
+const universalQrPublicBaseUrl = resolveUniversalQrPublicBaseUrl();
 
 /** Host Spaces sin esquema (ej. `sfo3.digitaloceanspaces.com`) para S3 y URLs públicas. */
 function normalizeSpacesEndpointHost(raw) {
@@ -40,14 +85,14 @@ const env = {
   revenueCatApiKey: process.env.REVENUECAT_API_KEY || "",
   imageMaxBytes: 5 * MB,
   docMaxBytes: 20 * MB,
-  /** Base URL del sitio (Expo Web) para enlaces QR universales TTL; ej. https://cardsocial.me */
-  publicUniversalCardBaseUrl: (process.env.PUBLIC_UNIVERSAL_CARD_BASE_URL || "https://cardsocial.me").replace(/\/+$/, ""),
+  /** Base URL del sitio (Next/Expo Web) para enlaces QR universales TTL; fuerza LAN si la explícita es loopback */
+  publicUniversalCardBaseUrl: universalQrPublicBaseUrl,
   /**
    * Base URL del host donde Express sirve el proxy de vault (GET …/api/qr/vault-proxy/file/:id).
    * Si WAF no reenvía /api/vault/* al Node, usar el host del API (p. ej. https://api.cardsocial.me).
    */
   publicVaultFileBaseUrl: String(
-    process.env.PUBLIC_VAULT_FILE_BASE_URL || process.env.PUBLIC_UNIVERSAL_CARD_BASE_URL || "https://cardsocial.me"
+    process.env.PUBLIC_VAULT_FILE_BASE_URL || universalQrPublicBaseUrl || "https://cardsocial.me",
   ).replace(/\/+$/, ""),
   /**
    * Si es true, tras validar GET /u/:token se redirige a `/?universalToken=...` en lugar de `/u/...`.

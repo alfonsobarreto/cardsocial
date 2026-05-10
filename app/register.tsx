@@ -13,6 +13,7 @@ import { trEsEn, useLanguageOptional } from '@/services/language';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, SocialProviderId } from '@/services/socialAuth';
 import { grantStudentPackCreditsIfEligible } from '@/services/studentPackService';
+import { upsertSuccessfulReferralAttribution } from '@/services/referralsFirestoreService';
 import { firestoreFirstUserDocByNickLower, firestoreUserAvatarUrlWrite } from '@/services/userIdentityFields';
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { Picker } from '@react-native-picker/picker';
@@ -22,7 +23,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
 import { collection, doc, getDocs, limit, query, runTransaction, serverTimestamp, where } from 'firebase/firestore';
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
@@ -148,6 +149,12 @@ export default function RegisterScreen() {
   const [pickerDay, setPickerDay] = useState(1);
   const [isAutofillingLocation, setIsAutofillingLocation] = useState(false);
   const router = useRouter();
+  const signupParams = useLocalSearchParams<{ invite?: string | string[] }>();
+  const inviteReferrerUid = useMemo(() => {
+    const raw = signupParams.invite;
+    const single = Array.isArray(raw) ? raw[0] : raw;
+    return String(single || '').trim();
+  }, [signupParams.invite]);
   const timezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', []);
   const retryLockMessage =
     tr(
@@ -419,7 +426,10 @@ export default function RegisterScreen() {
 
     setRejectionAttempts(attempts);
     setModerationAlertMessage(
-      'Parece que tu sonrisa no se ve clara. Intenta de nuevo para asegurar tu acceso premium.'
+      tr(
+        'La imagen no cumple las políticas de la comunidad. Intenta con otra foto.',
+        'This image does not meet community policies. Try another photo.',
+      ),
     );
     setModerationAlertVisible(true);
   };
@@ -512,6 +522,64 @@ export default function RegisterScreen() {
     }
   };
 
+  /** Sonrisa ≥ umbral o guiño detectable (expo-face-detector). */
+  const SMILE_MIN = 0.7;
+  const EYE_CLOSED = 0.35;
+  const EYE_OPEN = 0.55;
+
+  const hasClearlyVisibleFace = async (
+    uri: string,
+    imageWidth?: number,
+    imageHeight?: number,
+  ): Promise<boolean> => {
+    try {
+      const FaceDetector = await import('expo-face-detector');
+      const detection = await FaceDetector.detectFacesAsync(uri, {
+        mode: FaceDetector.FaceDetectorMode.accurate,
+        detectLandmarks: FaceDetector.FaceDetectorLandmarks.none,
+        runClassifications: FaceDetector.FaceDetectorClassifications.all,
+      });
+
+      const faces = detection.faces || [];
+      if (faces.length === 0) {
+        return false;
+      }
+
+      const face = faces[0] as {
+        bounds?: { size?: { width?: number; height?: number } };
+        smilingProbability?: number;
+        leftEyeOpenProbability?: number;
+        rightEyeOpenProbability?: number;
+      };
+
+      const smile = Number(face.smilingProbability ?? 0);
+      const leftOpen = Number(face.leftEyeOpenProbability ?? 1);
+      const rightOpen = Number(face.rightEyeOpenProbability ?? 1);
+      const strongSmile = smile >= SMILE_MIN;
+      const winkLike =
+        (leftOpen <= EYE_CLOSED && rightOpen >= EYE_OPEN) ||
+        (rightOpen <= EYE_CLOSED && leftOpen >= EYE_OPEN);
+
+      if (!strongSmile && !winkLike) {
+        return false;
+      }
+
+      if (imageWidth && imageHeight) {
+        const imageArea = imageWidth * imageHeight;
+        const fw = Number(face.bounds?.size?.width || 0);
+        const fh = Number(face.bounds?.size?.height || 0);
+        if (imageArea <= 0 || fw <= 0 || fh <= 0) return false;
+        const ratio = (fw * fh) / imageArea;
+        if (ratio < 0.06) return false;
+      }
+      return true;
+    } catch (error) {
+      console.warn('expo-face-detector unavailable or failed:', error);
+      /* Sin MLKit en algunos entornos: no bloquear; el backend sigue moderando. */
+      return true;
+    }
+  };
+
   const requestVerificationSelfie = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (permission.status !== 'granted') {
@@ -545,28 +613,16 @@ export default function RegisterScreen() {
       if (!hasClearFace) {
         Alert.alert(
           tr('Selfie no valida aun', 'Selfie not valid yet'),
-          tr('No detectamos tu rostro con claridad. Intenta una selfie frontal con sonrisa o guino.', 'We could not clearly detect your face. Try a front selfie with a smile or wink.')
+          tr(
+            'Necesitamos una sonrisa clara o un guiño. En la app comprobamos la expresión (≥70% de confianza) antes de aceptar la foto.',
+            'We need a clear smile or a wink. The app checks the expression (≥70% confidence) before accepting the photo.',
+          ),
         );
         return;
       }
 
       setVerificationSelfieUri(asset.uri);
     }
-  };
-
-  const hasClearlyVisibleFace = async (
-    _uri: string,
-    _imageWidth?: number,
-    _imageHeight?: number,
-  ): Promise<boolean> => {
-    /**
-     * Local FaceDetector is disabled (A4): Azure Content Safety (backend) is
-     * the single source of truth for face-presence + moderation. This helper
-     * always returns `true` so the flow proceeds to the backend check; the
-     * previous implementation tried to load `expo-face-detector` dynamically
-     * but the module was always `null`, producing dead code and TS errors.
-     */
-    return true;
   };
 
   const cancelAndroidPhotoPending = () => {
@@ -589,8 +645,8 @@ export default function RegisterScreen() {
         Alert.alert(
           tr('Selfie no valida aun', 'Selfie not valid yet'),
           tr(
-            'No detectamos tu rostro con claridad. Intenta una selfie frontal con sonrisa o guino.',
-            'We could not clearly detect your face. Try a front selfie with a smile or wink.',
+            'Necesitamos una sonrisa clara o un guiño. En la app comprobamos la expresión (≥70% de confianza) antes de aceptar la foto.',
+            'We need a clear smile or a wink. The app checks the expression (≥70% confidence) before accepting the photo.',
           ),
         );
         cancelAndroidPhotoPending();
@@ -855,7 +911,10 @@ export default function RegisterScreen() {
       if (!selfieLooksValid) {
         Alert.alert(
           tr('Selfie no valida aun', 'Selfie not valid yet'),
-          tr('No detectamos un rostro visible en la selfie de verificacion. Intenta de nuevo con mejor luz y tu gesto.', 'We could not detect a visible face in the verification selfie. Try again with better lighting and your gesture.')
+          tr(
+            'No pudimos validar sonrisa o guiño en esta selfie. Intenta otra toma con buena luz.',
+            'We could not validate a smile or wink in this selfie. Try again with good lighting.',
+          ),
         );
         return;
       }
@@ -873,7 +932,7 @@ export default function RegisterScreen() {
 
       setUploadProgress(0.25);
       setUploadProgress(0.25);
-      setUploadStageLabel('Validando selfie de verificacion (sonrisa o guino)...');
+      setUploadStageLabel(tr('Validando selfie de verificación…', 'Validating verification selfie…'));
       const { fileId: moderatedVerificationSelfieFileId } = await uploadWithSafety(
         verificationSelfieUri,
         'verification-selfie',
@@ -1005,6 +1064,14 @@ export default function RegisterScreen() {
       // Create 3 default vault data: Teléfono, Email, Red Social
       await createDefaultVaultData(uid);
 
+      if (inviteReferrerUid) {
+        try {
+          await upsertSuccessfulReferralAttribution({ referredUid: uid, referrerUid: inviteReferrerUid });
+        } catch {
+          /* Atribución de referido: mejor esfuerzo — no debe bloquear el alta */
+        }
+      }
+
       if (!socialProviderId) {
         if (auth.currentUser) {
           await sendEmailVerification(auth.currentUser);
@@ -1066,7 +1133,6 @@ export default function RegisterScreen() {
           >
           <Text style={[styles.title, { color: look.title }]}>{tr('Crea tu Identidad', 'Create your Identity')}</Text>
 
-          <Text style={[styles.socialHelper, { color: look.helper }]}>{tr('O puedes completar el formulario manualmente para mayor control sobre tu identidad.', 'Or you can complete the form manually for more control over your identity.')}</Text>
           {/* Social login buttons hidden for MVP - only native registration enabled */}
           {socialProviderId ? (
             <Text style={[styles.socialStateText, { color: look.socialState }]}>
@@ -1074,10 +1140,11 @@ export default function RegisterScreen() {
             </Text>
           ) : null}
 
-          <Text style={[styles.label, { color: look.label }]}>{tr('Foto de Perfil', 'Profile Photo')}</Text>
+          <Text style={[styles.label, { color: look.label }]}>{tr('Foto de Perfil', 'Profile photo')}</Text>
+          <Text style={[styles.helperText, { color: look.helper }]}>{tr('Añade una foto clara para que tu red te reconozca.', 'Add a clear photo so your network can recognize you.')}</Text>
           <View style={styles.photoRow}>
             <TouchableOpacity style={[styles.photoButton, { backgroundColor: look.photoBtnBg, borderColor: look.photoBtnBorder }]} onPress={requestCameraPhoto}>
-              <Text style={[styles.photoButtonText, { color: look.photoBtnText }]}>{tr('Abrir camara', 'Open camera')}</Text>
+              <Text style={[styles.photoButtonText, { color: look.photoBtnText }]}>{tr('Abrir cámara', 'Open camera')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.photoButton, { backgroundColor: look.photoBtnBg, borderColor: look.photoBtnBorder }]} onPress={requestGalleryPhoto}>
               <Text style={[styles.photoButtonText, { color: look.photoBtnText }]}>{tr('Elegir imagen', 'Choose image')}</Text>
@@ -1102,10 +1169,15 @@ export default function RegisterScreen() {
             onClose={() => setCropperVisible(false)}
           />
 
-          <Text style={[styles.label, { color: look.label }]}>{tr('Selfie de Verificacion', 'Verification Selfie')}</Text>
-          <Text style={[styles.helperText, { color: look.helper }]}>{tr('Para proteger la comunidad, toma una selfie con una sonrisa o un guino. Solo valida que eres humano.', 'To protect the community, take a selfie with a smile or a wink. This only validates that you are human.')}</Text>
+          <Text style={[styles.label, { color: look.label }]}>{tr('Selfie de verificación', 'Verification selfie')}</Text>
+          <Text style={[styles.helperText, { color: look.helper }]}>
+            {tr(
+              'Sonríe o guiña; la app comprueba en el dispositivo que la expresión sea clara (≥70% de confianza) antes de subirla.',
+              'Smile or wink; the app verifies on-device that the expression is clear (≥70% confidence) before upload.',
+            )}
+          </Text>
           <TouchableOpacity style={[styles.photoButton, { backgroundColor: look.photoBtnBg, borderColor: look.photoBtnBorder }]} onPress={requestVerificationSelfie}>
-            <Text style={[styles.photoButtonText, { color: look.photoBtnText }]}>{tr('Tomar selfie de verificacion', 'Take verification selfie')}</Text>
+            <Text style={[styles.photoButtonText, { color: look.photoBtnText }]}>{tr('Tomar selfie de verificación', 'Take verification selfie')}</Text>
           </TouchableOpacity>
           {verificationSelfieUri ? <Image source={{ uri: verificationSelfieUri }} style={[styles.photoPreview, { borderColor: look.photoBtnBorder }]} /> : null}
 
@@ -1559,15 +1631,9 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#0D4D8A',
+    color: '#E9C349',
     marginBottom: 24,
     alignSelf: 'center',
-  },
-  socialHelper: {
-    color: '#2A6B97',
-    textAlign: 'center',
-    marginBottom: 8,
-    fontSize: 12,
   },
   socialRow: {
     flexDirection: 'row',
@@ -1600,7 +1666,7 @@ const styles = StyleSheet.create({
   },
   label: {
     alignSelf: 'flex-start',
-    color: '#0D4D8A',
+    color: '#E9C349',
     fontSize: 12,
     fontWeight: 'bold',
     marginBottom: 5,
@@ -1621,7 +1687,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   photoButtonText: {
-    color: '#0D4D8A',
+    color: '#E9C349',
     fontWeight: '700',
   },
   photoPreview: {
@@ -1687,12 +1753,12 @@ const styles = StyleSheet.create({
     borderColor: '#7BC2EC',
   },
   androidPhotoConfirmButtonSecondaryText: {
-    color: '#0D4D8A',
+    color: '#E9C349',
     fontWeight: '700',
     fontSize: 15,
   },
   androidPhotoConfirmButtonPrimary: {
-    backgroundColor: '#0D4D8A',
+    backgroundColor: '#E9C349',
   },
   androidPhotoConfirmButtonPrimaryText: {
     color: '#FFFFFF',
@@ -1810,7 +1876,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   phoneDialChevron: {
-    color: '#0D4D8A',
+    color: '#E9C349',
     fontSize: 10,
   },
   phoneNationalInput: {
@@ -1873,14 +1939,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   geoButtonText: {
-    color: '#0D4D8A',
+    color: '#E9C349',
     fontWeight: '700',
     fontSize: 12,
   },
   readOnlyValue: {
     width: '100%',
     backgroundColor: 'rgba(255,255,255,0.1)',
-    color: '#0D4D8A',
+    color: '#E9C349',
     borderColor: '#7BC2EC',
     borderWidth: 1,
     borderRadius: 12,
@@ -1937,7 +2003,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   dateSelectedBadgeText: {
-    color: '#0D4D8A',
+    color: '#E9C349',
     fontSize: 13,
     fontWeight: '800',
   },
@@ -1960,7 +2026,7 @@ const styles = StyleSheet.create({
     flex: 0.9,
   },
   datePickerLabel: {
-    color: '#0D4D8A',
+    color: '#E9C349',
     fontSize: 12,
     fontWeight: '700',
     paddingTop: 8,
@@ -1990,12 +2056,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   dateModalButtonGhostText: {
-    color: '#0D4D8A',
+    color: '#E9C349',
     fontWeight: '700',
   },
   dateModalButtonPrimary: {
     flex: 1,
-    backgroundColor: '#0D4D8A',
+    backgroundColor: '#E9C349',
     borderRadius: 10,
     alignItems: 'center',
     paddingHorizontal: 14,
@@ -2006,7 +2072,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   registerButton: {
-    backgroundColor: '#0D4D8A',
+    backgroundColor: '#E9C349',
     paddingVertical: 18,
     width: '100%',
     borderRadius: 12,
@@ -2070,7 +2136,7 @@ const styles = StyleSheet.create({
     borderColor: '#7BC2EC',
   },
   uploadPercentage: {
-    color: '#0D4D8A',
+    color: '#E9C349',
     fontSize: 32,
     fontWeight: '700',
     marginTop: 20,

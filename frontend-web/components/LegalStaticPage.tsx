@@ -14,8 +14,8 @@ export default function LegalStaticPage({ title, children, showLegalNav = true }
     <main
       style={{
         minHeight: '100vh',
-        background: 'linear-gradient(180deg, #E0F7FA, #B2EBF2, #4DD0C8)',
-        color: '#00695C',
+        background: '#F2F2F7',
+        color: '#1C1C1E',
         padding: '28px 18px 40px',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       }}
@@ -27,7 +27,7 @@ export default function LegalStaticPage({ title, children, showLegalNav = true }
             display: 'inline-block',
             marginBottom: 20,
             fontSize: 13,
-            color: '#00897B',
+            color: '#636366',
             textDecoration: 'underline',
           }}
         >

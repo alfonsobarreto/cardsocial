@@ -23,7 +23,7 @@ export function MirrorActionModals({
   callInterstitialProfile,
   onClose,
   tr,
-  accent = '#D4AF37',
+  accent = '#E9C349',
 }: {
   plan: GhostPlan | null;
   callInterstitialProfile?: CallInterstitialProfile | null;
@@ -174,7 +174,7 @@ function GhostCallInterstitial({
             boxShadow: `0 8px 28px ${accent}44`,
           }}
         >
-          {tr('Iniciar llamada segura', 'Start secure call')}
+          {tr('Abrir app para llamar de forma segura', 'Open the app to call securely')}
         </button>
 
         <div style={{ display: 'flex', gap: 12, marginTop: 18, flexWrap: 'wrap', justifyContent: 'center' }}>

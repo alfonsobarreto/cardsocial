@@ -42,12 +42,12 @@ import {
     InteractionManager,
     Modal,
     Platform,
+    Pressable,
     ScrollView,
     SectionList,
     StyleSheet,
     Text,
     TouchableOpacity,
-    TouchableWithoutFeedback,
     View,
 } from 'react-native';
 import { sanitizeMaterialIconName } from './iconNameValidation';
@@ -660,14 +660,14 @@ export default function CardStudioVault({
   const theme = useMemo(
     () => ({
       sheetBg: isNight ? '#121212' : '#FAF8F4',
-      border: '#D4AF37',
-      labelGold: '#D4AF37',
+      border: '#E9C349',
+      labelGold: '#E9C349',
       titleColor: isNight ? '#FFFFFF' : '#1A1510',
       textPrimary: isNight ? '#F2F0EB' : '#1C180F',
       textSecondary: isNight ? '#9A9388' : '#5C5346',
       /** Opaco #000: evita bleed-through bajo cabeceras sticky (día y noche). */
       sectionHeaderBg: '#000000',
-      sectionHeaderBorder: 'rgba(212,175,55,0.32)',
+      sectionHeaderBorder: 'rgba(233,195,73,0.32)',
       tileInactiveBg: isNight ? '#161616' : '#FFFFFF',
       tileInactiveBorder: isNight ? 'rgba(153,144,124,0.4)' : 'rgba(92,77,50,0.22)',
       selectedFillGradient: (isNight
@@ -676,16 +676,16 @@ export default function CardStudioVault({
       selectedText: '#0C0C0C',
       selectedIcon: '#0C0C0C',
       premiumBadgeBg: isNight ? '#221C12' : '#F3EBD4',
-      premiumBadgeText: '#D4AF37',
+      premiumBadgeText: '#E9C349',
       headerAccentGradient: (isNight
         ? (['#3D3018', '#C9A227', '#F2CA50', '#C9A227', '#3D3018'] as const)
-        : (['#8B7349', '#D4AF37', '#F5E6C8', '#D4AF37', '#9A8048'] as const)) as readonly [string, string, ...string[]],
+        : (['#8B7349', '#E9C349', '#F5E6C8', '#E9C349', '#9A8048'] as const)) as readonly [string, string, ...string[]],
       storeSheetBg: isNight ? '#141210' : '#FFFCF7',
       storeSubtitle: isNight ? '#B5ADA2' : '#5C5346',
       bundleMeta: isNight ? '#A8A090' : '#6B6258',
       ctaGradient: (isNight
-        ? (['#6B5420', '#B8942E', '#FFEFD0', '#F2CA50', '#D4AF37', '#6B5420'] as const)
-        : (['#8B7340', '#D4AF37', '#FFF4D8', '#F2CA50', '#C9A227', '#7A6228'] as const)) as readonly [string, string, ...string[]],
+        ? (['#6B5420', '#B8942E', '#FFEFD0', '#F2CA50', '#E9C349', '#6B5420'] as const)
+        : (['#8B7340', '#E9C349', '#FFF4D8', '#F2CA50', '#C9A227', '#7A6228'] as const)) as readonly [string, string, ...string[]],
     }),
     [isNight],
   );
@@ -740,7 +740,7 @@ export default function CardStudioVault({
       </Text>
       {section.isPremium && (
         <View style={[styles.premiumBadge, { backgroundColor: theme.premiumBadgeBg }]}>
-          <MaterialCommunityIcons name="crown" color="#D4AF37" size={12} />
+          <MaterialCommunityIcons name="crown" color="#E9C349" size={12} />
           <Text style={[styles.premiumBadgeText, { color: theme.premiumBadgeText }]}>
             {' '}Premium
           </Text>
@@ -845,7 +845,7 @@ export default function CardStudioVault({
       <View style={styles.emptySection}>
         <MaterialCommunityIcons
           name={section.isPremium ? 'lock' : 'image-plus'}
-          color="#D4AF37"
+          color="#E9C349"
           size={28}
         />
         <Text style={[styles.emptyLabel, { color: theme.textSecondary }]}>
@@ -890,8 +890,7 @@ export default function CardStudioVault({
           setTimeout(() => doAutoScroll(), 50);
         }}
       >
-        <TouchableWithoutFeedback onPress={() => {}}>
-          <View style={styles.overlay}>
+        <View style={styles.overlay}>
               <View
                 style={[
                   styles.sheet,
@@ -931,7 +930,7 @@ export default function CardStudioVault({
                     onPress={onClose}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
-                    <MaterialCommunityIcons name="close" color="#D4AF37" size={24} />
+                    <MaterialCommunityIcons name="close" color="#E9C349" size={24} />
                   </TouchableOpacity>
                 </View>
 
@@ -948,10 +947,10 @@ export default function CardStudioVault({
                 </Text>
 
                 {/* SectionList categorizado */}
-                <View style={styles.listViewport}>
+                <View style={[styles.listViewport, { backgroundColor: theme.sheetBg }]}>
                 <SectionList
                   ref={sectionListRef}
-                  style={styles.sectionListFlex}
+                  style={[styles.sectionListFlex, { backgroundColor: theme.sheetBg }]}
                   sections={displaySections}
                   keyExtractor={(row, idx) =>
                     Array.isArray(row) && row.length > 0
@@ -969,7 +968,11 @@ export default function CardStudioVault({
                   ListFooterComponent={<ListFooter />}
                   stickySectionHeadersEnabled
                   showsVerticalScrollIndicator={false}
-                  contentContainerStyle={styles.listContent}
+                  contentContainerStyle={[
+                    styles.listContent,
+                    { flexGrow: 1, backgroundColor: theme.sheetBg },
+                  ]}
+                  keyboardShouldPersistTaps="handled"
                   scrollEventThrottle={16}
                   removeClippedSubviews={false}
                   windowSize={12}
@@ -998,7 +1001,6 @@ export default function CardStudioVault({
                 </View>
               </View>
           </View>
-        </TouchableWithoutFeedback>
       </Modal>
 
       <Modal
@@ -1007,10 +1009,25 @@ export default function CardStudioVault({
         animationType="fade"
         onRequestClose={() => setStoreModalVisible(false)}
       >
-        <TouchableWithoutFeedback onPress={() => setStoreModalVisible(false)}>
-          <View style={styles.storeOverlay}>
-            <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={[styles.storeSheet, { backgroundColor: theme.storeSheetBg, borderColor: theme.border, paddingBottom: modalFooterBottomPad }]}>
+        <View style={styles.storeOverlay}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={tr('Cerrar fondo', 'Dismiss')}
+            style={StyleSheet.absoluteFillObject}
+            onPress={() => setStoreModalVisible(false)}
+          />
+          <View
+            style={[
+              styles.storeSheet,
+              {
+                backgroundColor: theme.storeSheetBg,
+                borderColor: theme.border,
+                paddingBottom: modalFooterBottomPad,
+                zIndex: 1,
+                elevation: 8,
+              },
+            ]}
+          >
                 <MaterialCommunityIcons name="store" color={theme.labelGold} size={48} />
                 <Text style={[styles.storeTitle, { color: theme.labelGold }]}>{tr('Card-Studio', 'Card-Studio')}</Text>
                 <Text style={[styles.storeSubtitle, { marginBottom: 8, color: theme.textPrimary }]}>
@@ -1023,7 +1040,18 @@ export default function CardStudioVault({
                   )}
                 </Text>
                 <ScrollView
-                  style={{ maxHeight: SCREEN_HEIGHT * 0.42, width: '100%', marginTop: 16 }}
+                  style={{
+                    maxHeight: SCREEN_HEIGHT * 0.42,
+                    width: '100%',
+                    marginTop: 16,
+                    backgroundColor: theme.storeSheetBg,
+                  }}
+                  contentContainerStyle={{
+                    flexGrow: 1,
+                    backgroundColor: theme.storeSheetBg,
+                    paddingBottom: 8,
+                  }}
+                  keyboardShouldPersistTaps="handled"
                   showsVerticalScrollIndicator={false}
                 >
                   {THEME_BUNDLES.map((b) => {
@@ -1071,9 +1099,7 @@ export default function CardStudioVault({
                   <Text style={styles.storeCloseBtnText}>{tr('Cerrar', 'Close')}</Text>
                 </TouchableOpacity>
               </View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
+        </View>
       </Modal>
     </>
   );
@@ -1107,7 +1133,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#D4AF37',
+    backgroundColor: '#E9C349',
     opacity: 0.5,
   },
   headerGoldLine: {
@@ -1228,7 +1254,7 @@ const styles = StyleSheet.create({
     top: 4,
     right: 4,
     zIndex: 1,
-    backgroundColor: '#D4AF37',
+    backgroundColor: '#E9C349',
     borderRadius: 8,
     padding: 2,
   },
@@ -1240,7 +1266,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '800',
     color: '#0A1A2F',
-    backgroundColor: 'rgba(212,175,55,0.35)',
+    backgroundColor: 'rgba(233,195,73,0.35)',
     paddingHorizontal: 4,
     paddingVertical: 1,
     borderRadius: 6,
@@ -1325,7 +1351,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
     paddingVertical: 12,
     paddingHorizontal: 32,
-    backgroundColor: '#D4AF37',
+    backgroundColor: '#E9C349',
     borderRadius: 12,
   },
   storeCloseBtnText: {
@@ -1354,7 +1380,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   bundleBuyBtn: {
-    backgroundColor: '#D4AF37',
+    backgroundColor: '#E9C349',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 10,

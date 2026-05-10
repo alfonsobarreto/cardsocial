@@ -110,7 +110,6 @@ export default function ThemeChest({ onNavigateToForge }: Props) {
         isActive={isActive}
         isUnlocked={isUnlocked}
         tileWidth={CARD_WIDTH}
-        reviewsLabel={tr('4.8 · 12 reseñas', '4.8 · 12 reviews')}
         onPress={() => void handleSelectTheme(theme)}
         onLongPress={() => {
           try {
@@ -134,7 +133,7 @@ export default function ThemeChest({ onNavigateToForge }: Props) {
         <View style={styles.tierHeader}>
           <Text style={styles.tierEmoji}>{meta.emoji}</Text>
           <Text style={styles.tierLabel}>{tr(meta.label[0], meta.label[1])}</Text>
-          <View style={[styles.tierLine, { backgroundColor: tier === 'luxury' ? '#D4AF37' : '#E0E0E0' }]} />
+          <View style={[styles.tierLine, { backgroundColor: tier === 'luxury' ? '#E9C349' : '#E0E0E0' }]} />
         </View>
         <View style={styles.tierGrid}>
           {themes.map(renderThemeCard)}
@@ -200,19 +199,19 @@ export default function ThemeChest({ onNavigateToForge }: Props) {
           }}
         >
           <LinearGradient
-            colors={['#1A1A2E', '#16213E', '#0F3460']}
+            colors={['#252525', '#1A1712', '#2A2618']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.forgeGradient}
           >
-            <MaterialCommunityIcons name="anvil" size={28} color="#D4AF37" />
+            <MaterialCommunityIcons name="anvil" size={28} color="#E9C349" />
             <View style={styles.forgeTextWrap}>
               <Text style={styles.forgeTitle}>{tr('La Fragua', 'The Forge')}</Text>
               <Text style={styles.forgeSubtitle}>
                 {tr('Crea tu propio theme exclusivo', 'Create your own exclusive theme')}
               </Text>
             </View>
-            <MaterialCommunityIcons name="chevron-right" size={22} color="#D4AF37" />
+            <MaterialCommunityIcons name="chevron-right" size={22} color="#E9C349" />
           </LinearGradient>
         </TouchableOpacity>
 
@@ -335,7 +334,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#0D4D8A',
+    color: '#1A1A1A',
   },
   scroll: {
     flex: 1,
@@ -361,7 +360,7 @@ const styles = StyleSheet.create({
   tierLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0D4D8A',
+    color: '#1A1A1A',
     textTransform: 'uppercase',
     letterSpacing: 1.2,
   },
@@ -393,7 +392,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   forgeTitle: {
-    color: '#D4AF37',
+    color: '#E9C349',
     fontSize: 17,
     fontWeight: '800',
     letterSpacing: 0.5,
@@ -438,7 +437,7 @@ const styles = StyleSheet.create({
   // ── Preview modal ──
   previewOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -489,7 +488,7 @@ const styles = StyleSheet.create({
   previewName: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#0D4D8A',
+    color: '#1A1A1A',
   },
   previewTier: {
     fontSize: 13,

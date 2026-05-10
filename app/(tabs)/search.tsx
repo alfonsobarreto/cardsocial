@@ -33,6 +33,10 @@ import { buildMarketCardSearchFacets } from '@/services/searchPhase2Logic';
 import type { ReceivedContactForMarketSearch } from '@/services/searchService';
 import { searchSocialMarket } from '@/services/searchService';
 import { resolvePillForegroundColor } from '@/services/pillForegroundColor';
+import {
+  devicePrefersMetricDistance,
+  formatMarketDistanceLabel,
+} from '@/services/marketDistanceFormat';
 import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
 import { getCardRowTheme } from '@/services/useActiveTheme';
 import { toRenderableImageUri } from '@/services/userProfilePhoto';
@@ -42,6 +46,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { Image as ExpoImage } from 'expo-image';
+import * as Localization from 'expo-localization';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -68,6 +73,8 @@ import appPalette, { type AppShellTheme } from '../theme';
 
 const CONTACT_META_STORAGE_KEY = 'contacts_meta_v2';
 const GROUP_DEFAULT = 'Random';
+/** Color de texto/icono del chip de distancia (alto contraste sobre fondo blanco semitransparente). */
+const MR_DISTANCE_CHIP_FG = '#0f172a';
 /** Radio de negocios en millas (búsqueda con ubicación y modo orden por distancia). */
 const MAX_MARKET_RADIUS_MILES = 20;
 
@@ -162,6 +169,8 @@ export default function SearchScreen() {
   const shell = appPalette[isDark ? 'dark' : 'light'];
   const { language } = useLanguage();
   const tr = useCallback((es: string, en: string) => trEsEn(es, en, language), [language]);
+  const locales = Localization.useLocales();
+  const prefersMetricDistance = useMemo(() => devicePrefersMetricDistance(locales), [locales]);
   const modalFooterBottomPad = useModalFooterBottomPad();
   /** Última consulta enviada (IR / Intro); el campo de texto vive en SocialMarketSearchBar. */
   const [submittedQuery, setSubmittedQuery] = useState('');
@@ -296,8 +305,6 @@ export default function SearchScreen() {
       wallpaperUrl: d.issuerPresentation?.wallpaperUrl ?? undefined,
       layout: d.issuerPresentation?.layout === 'horizontal' ? 'horizontal' : 'vertical',
       holdersCount: Math.max(0, Math.floor(Number(d.receivedHoldersCount ?? 0))),
-      ratingAvg: Number(d.card.averageRating),
-      totalRatings: Math.max(0, Math.floor(Number(d.card.totalRatings ?? 0))),
       enableParallax: Boolean(d.issuerPresentation?.enableParallax),
       slots: searchMirrorPreviewSlots,
       ...(isBusiness ? { noAvatarIcon: 'storefront-outline' as const } : {}),
@@ -777,11 +784,9 @@ export default function SearchScreen() {
       }
     };
 
-    const milesLabel =
+    const distanceLabel =
       showMiles && milesOk
-        ? dm < 1
-          ? tr('<1 mi', '<1 mi')
-          : `${dm.toFixed(1)} ${tr('mi', 'mi')}`
+        ? formatMarketDistanceLabel(dm, tr, prefersMetricDistance, 'miles')
         : '';
 
     if (!isMarketBusiness) {
@@ -925,10 +930,10 @@ export default function SearchScreen() {
                     {cardTitle}
                   </Text>
                   <View style={styles.mrRowStatsRow}>
-                    {showMiles && milesLabel ? (
+                    {showMiles && distanceLabel ? (
                       <View style={[styles.mrDistancePill, { backgroundColor: 'rgba(255,255,255,0.72)', borderColor: chest.borderColor }]}>
-                        <MaterialCommunityIcons name="map-marker-radius-outline" size={11} color={lightChipFg} />
-                        <Text style={[styles.mrDistancePillText, { color: lightChipFg }]}>{milesLabel}</Text>
+                        <MaterialCommunityIcons name="map-marker-radius-outline" size={14} color={MR_DISTANCE_CHIP_FG} />
+                        <Text style={[styles.mrDistancePillText, { color: MR_DISTANCE_CHIP_FG }]}>{distanceLabel}</Text>
                       </View>
                     ) : null}
                     <TouchableOpacity
@@ -986,7 +991,7 @@ export default function SearchScreen() {
                       <MaterialCommunityIcons
                         name={normalizeMaterialIconName(inferMciIconFromContext(f.type, f.label, f.value), 'card-account-details-outline') as 'help-circle'}
                         size={22}
-                        color="rgba(212,175,55,0.95)"
+                        color="rgba(233,195,73,0.95)"
                       />
                     </TouchableOpacity>
                   ))}
@@ -1195,10 +1200,10 @@ export default function SearchScreen() {
                   {card.bcContactName?.trim() || card.businessDescription || ''}
                 </Text>
                 <View style={styles.mrRowStatsRow}>
-                  {showMiles && milesLabel ? (
+                  {showMiles && distanceLabel ? (
                     <View style={[styles.mrDistancePill, { backgroundColor: 'rgba(255,255,255,0.72)', borderColor: chest.borderColor }]}>
-                      <MaterialCommunityIcons name="map-marker-radius-outline" size={11} color={lightChipFg} />
-                      <Text style={[styles.mrDistancePillText, { color: lightChipFg }]}>{milesLabel}</Text>
+                      <MaterialCommunityIcons name="map-marker-radius-outline" size={14} color={MR_DISTANCE_CHIP_FG} />
+                      <Text style={[styles.mrDistancePillText, { color: MR_DISTANCE_CHIP_FG }]}>{distanceLabel}</Text>
                     </View>
                   ) : null}
                   <TouchableOpacity
@@ -1266,7 +1271,7 @@ export default function SearchScreen() {
                     <MaterialCommunityIcons
                       name={(normalizeMaterialIconName(f.iconName, '') || normalizeMaterialIconName(inferMciIconFromContext(f.type, f.label, f.value), 'card-account-details-outline')) as 'card-account-details-outline'}
                       size={22}
-                      color="rgba(212,175,55,0.95)"
+                      color="rgba(233,195,73,0.95)"
                     />
                   </TouchableOpacity>
                 ))}
@@ -1455,7 +1460,7 @@ export default function SearchScreen() {
                   },
                   marketSortMode === option.key && {
                     borderColor: shell.ctaPrimary,
-                    backgroundColor: isDark ? 'rgba(212,175,55,0.18)' : 'rgba(212,175,55,0.10)',
+                    backgroundColor: isDark ? 'rgba(233,195,73,0.18)' : 'rgba(233,195,73,0.10)',
                   },
                 ]}
                 onPress={() => {
@@ -1848,15 +1853,16 @@ const styles = StyleSheet.create({
   mrDistancePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 4,
     borderRadius: 999,
     borderWidth: 1,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
   },
   mrDistancePillText: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
   receivedCardColumn: {
     width: '100%',

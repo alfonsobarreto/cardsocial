@@ -42,8 +42,6 @@ export function myCardsPayloadFromUniversalCard(
     wallpaperUrl: card.wallpaperUrl ?? undefined,
     layout: card.layout === 'horizontal' ? 'horizontal' : 'vertical',
     holdersCount: Math.max(0, Math.floor(Number(card.holdersCount ?? 0))),
-    ratingAvg: Number(card.ratingAvg),
-    totalRatings: Math.max(0, Math.floor(Number(card.totalRatings ?? 0))),
     enableParallax: Boolean(card.enableParallax),
     slots: slotsToWireframeSlots(slotRows),
   };
@@ -88,8 +86,6 @@ export function myCardsPayloadFromQrPreview(
     layout,
     wallpaperUrl: p.wallpaperUrl,
     holdersCount: Math.max(0, Math.floor(Number(p.holdersCount ?? 0))),
-    ratingAvg: Number.isFinite(Number(p.ratingAvg)) ? Number(p.ratingAvg) : 0,
-    totalRatings: Math.max(0, Math.floor(Number(p.totalRatings ?? 0))),
     enableParallax: Boolean(p.enableParallax),
     slots: slotsToWireframeSlots(slotRows),
     ...(isBusiness ? { noAvatarIcon: 'storefront-outline' as const } : {}),

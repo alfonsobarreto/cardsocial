@@ -1,5 +1,6 @@
 import DullModeLock from '@/components/DullModeLock';
 import LimitReachedModal from '@/components/LimitReachedModal';
+import VaultPremiumEntryGlow from '@/components/VaultPremiumEntryGlow';
 import VerificationBadge from '@/components/VerificationBadge';
 import { DEFAULT_TIERS_CONFIG } from '@/services/tiersConfigService';
 import { isGhostLinkVaultDeletionProtected, isGhostLinkVaultType } from '@/constants/ghostLinkVault';
@@ -18,8 +19,19 @@ import { useLookMode } from '@/services/lookMode';
 import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
 import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
 import { isVaultDocumentImage, isVaultDocumentPdf } from '@/services/vaultMimeGuards';
+import {
+  ensureVaultCategoriesSeedOnUser,
+  mergeVaultCategoriesFromFirestore,
+  vaultCategorySectionTitle,
+} from '@/services/vaultCategoriesService';
 import { presentPremiumDataPanel, dismissPremiumDataPanel } from '@/services/premiumDataPanelController';
+import {
+  preloadAirEvaporationDeleteSound,
+  runAirEvaporationDeleteFeedback,
+} from '@/services/airEvaporationDeleteFeedback';
+import { preloadMagneticVaultClosureSound } from '@/services/magneticVaultSaveFeedback';
 import { syncVaultDeletionToMongoCards } from '@/services/syncVaultLinkToMongoCards';
+import { VAULT_LINK_SAVED_EVENT, type VaultLinkSavedPayload } from '@/services/vaultLinkSavedBus';
 import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
 import { buildLinkOpenCandidates, ensureWebUrl } from '@/services/mirrorVaultItemOpenPlan';
 import { isClassicPhoneVaultType } from '@/services/vaultItemTypeGuards';
@@ -38,8 +50,8 @@ import {
     ActivityIndicator,
     Alert,
     Animated,
+    DeviceEventEmitter,
     Dimensions,
-    FlatList,
     InteractionManager,
     Keyboard,
     Linking,
@@ -48,6 +60,7 @@ import {
     Pressable,
     RefreshControl,
     ScrollView,
+    SectionList,
     StyleSheet,
     Text,
     TextInput,
@@ -80,6 +93,27 @@ interface Link {
   createdAt?: string;
   updatedAt?: string;
   vaultMimeType?: string;
+  /** Carpeta en la Bóveda (Fase 7). */
+  category?: string;
+}
+
+function chunkLinksForVaultGrid<T>(items: T[], chunkSize: number): T[][] {
+  const rows: T[][] = [];
+  for (let i = 0; i < items.length; i += chunkSize) {
+    rows.push(items.slice(i, i + chunkSize));
+  }
+  return rows;
+}
+
+interface VaultSectionRow {
+  rowKey: string;
+  items: Link[];
+}
+
+interface VaultGroupedSection {
+  title: string;
+  key: string;
+  data: VaultSectionRow[];
 }
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -115,6 +149,12 @@ const VaultScreen = () => {
   const [contextMenuItem, setContextMenuItem] = useState<Link | null>(null);
   /** Solo `super_admin` en Firestore: etiqueta «Ilimitado» en el contador del búnker. */
   const [vaultCapUnlimited, setVaultCapUnlimited] = useState(false);
+  /** Orden de carpetas en `users.{vaultCategories}`; la UI agrupa ítems que coinciden (± mayúsculas). */
+  const [vaultCategoriesOrdered, setVaultCategoriesOrdered] = useState<string[]>(() =>
+    mergeVaultCategoriesFromFirestore(undefined),
+  );
+  /** Ítems nuevos premium: destello dorado ~0,5 s en el grid. */
+  const [premiumRevealLinks, setPremiumRevealLinks] = useState<Record<string, true>>({});
   const formSheetTranslateY = useRef(new Animated.Value(0)).current;
 
   const closeFormModal = () => {
@@ -157,6 +197,11 @@ const VaultScreen = () => {
     }
 
     try {
+      try {
+        await ensureVaultCategoriesSeedOnUser(userId);
+      } catch (seedErr) {
+        console.warn('Vault categories seed skipped:', seedErr);
+      }
       const [admin, vaultLimits] = await Promise.all([isSuperAdmin(userId), validateVaultItemCreation(userId)]);
       setVaultCapUnlimited(admin);
       if (Number.isFinite(vaultLimits.maxLimit)) {
@@ -208,6 +253,11 @@ const VaultScreen = () => {
     }
   };
 
+  const loadVaultDataRef = useRef(loadVaultData);
+  useEffect(() => {
+    loadVaultDataRef.current = loadVaultData;
+  });
+
   const saveVaultData = async (items: Link[]) => {
     const uid = await getActiveUserId();
     if (uid) {
@@ -249,6 +299,52 @@ const VaultScreen = () => {
     };
   }, []);
 
+  useEffect(() => {
+    let unsub: (() => void) | undefined;
+    let cancelled = false;
+    void (async () => {
+      const userId = await getActiveUserId();
+      if (!userId || cancelled) return;
+      unsub = onSnapshot(
+        doc(db, 'users', userId),
+        (snapshot) => {
+          if (!snapshot.exists()) return;
+          const merged = mergeVaultCategoriesFromFirestore(snapshot.data()?.vaultCategories);
+          if (!cancelled) {
+            setVaultCategoriesOrdered(merged);
+          }
+        },
+        (error) => {
+          console.warn('Vault categories snapshot failed:', error);
+        },
+      );
+    })();
+    return () => {
+      cancelled = true;
+      unsub?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener(VAULT_LINK_SAVED_EVENT, (payload: VaultLinkSavedPayload) => {
+      void (async () => {
+        const self = await getActiveUserId();
+        if (!self || payload.uid !== self || !payload.linkId) return;
+        await loadVaultDataRef.current();
+        if (payload.premiumSensory !== true) return;
+        setPremiumRevealLinks((prev) => ({ ...prev, [payload.linkId]: true }));
+        setTimeout(() => {
+          setPremiumRevealLinks((prev) => {
+            const next = { ...prev };
+            delete next[payload.linkId];
+            return next;
+          });
+        }, 780);
+      })();
+    });
+    return () => sub.remove();
+  }, []);
+
   useFocusEffect(
     React.useCallback(() => {
       const verifyAccess = async () => {
@@ -256,6 +352,8 @@ const VaultScreen = () => {
         setIsVaultUnlocked(authenticated);
         if (authenticated) {
           InteractionManager.runAfterInteractions(() => {
+            void preloadMagneticVaultClosureSound();
+            void preloadAirEvaporationDeleteSound();
             void (async () => {
               await evaluateDullMode();
               loadVaultData();
@@ -344,6 +442,7 @@ const VaultScreen = () => {
 
       const updated = links.filter((item) => item.id !== link.id);
       await saveVaultData(updated);
+      await runAirEvaporationDeleteFeedback();
 
       let cloudOk = false;
       try {
@@ -991,9 +1090,53 @@ const VaultScreen = () => {
         value: l.value,
         iconName: l.iconName,
         icon: l.icon,
+        category: l.category,
       }),
     );
   }, [links, searchQuery]);
+
+  const vaultGroupedSections = useMemo((): VaultGroupedSection[] => {
+    const folders = vaultCategoriesOrdered;
+    const matchCanon = (raw: string, canon: string) =>
+      raw.trim().toLowerCase() === canon.trim().toLowerCase();
+
+    const out: VaultGroupedSection[] = [];
+    for (const folder of folders) {
+      const inFolder = filteredLinks.filter((lnk) => {
+        const raw = lnk.category?.trim();
+        if (!raw) return false;
+        return matchCanon(raw, folder);
+      });
+      if (inFolder.length === 0) continue;
+
+      const dataRows: VaultSectionRow[] = chunkLinksForVaultGrid(inFolder, 4).map((items, idx) => ({
+        rowKey: `${folder}:row:${idx}:${items.map((x) => x.id).join(':')}`,
+        items,
+      }));
+      out.push({
+        key: folder,
+        title: vaultCategorySectionTitle(folder, tr),
+        data: dataRows,
+      });
+    }
+
+    const uncategorized = filteredLinks.filter((lnk) => {
+      const raw = lnk.category?.trim();
+      if (!raw) return true;
+      return !folders.some((c) => matchCanon(raw, c));
+    });
+    if (uncategorized.length > 0) {
+      out.push({
+        key: '__uncategorized__',
+        title: tr('Sin categoría', 'Uncategorized'),
+        data: chunkLinksForVaultGrid(uncategorized, 4).map((items, idx) => ({
+          rowKey: `other:row:${idx}:${items.map((x) => x.id).join(':')}`,
+          items,
+        })),
+      });
+    }
+    return out;
+  }, [filteredLinks, vaultCategoriesOrdered, language]);
 
   const styles = useMemo(
     () =>
@@ -1346,6 +1489,29 @@ const VaultScreen = () => {
           fontSize: 14,
           paddingVertical: 0,
         },
+        sectionGridRow: {
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          width: '100%',
+        },
+        vaultSectionHeader: {
+          paddingTop: 14,
+          paddingBottom: 4,
+          paddingHorizontal: 6,
+          marginHorizontal: -2,
+        },
+        vaultSectionAccentLine: {
+          height: 2,
+          width: 42,
+          borderRadius: 2,
+          marginBottom: 8,
+        },
+        vaultSectionTitle: {
+          fontSize: 12,
+          fontWeight: '800',
+          letterSpacing: 1.08,
+          textTransform: 'uppercase',
+        },
         typeBadge: {
           flexDirection: 'row',
           alignItems: 'center',
@@ -1363,51 +1529,67 @@ const VaultScreen = () => {
     [vaultTheme, isNight],
   );
 
-  // Renderizar tarjeta en grid
-  const renderCard = ({ item }: { item: Link }) => {
+  const renderVaultCardCell = (item: Link) => {
     const badge = TYPE_BADGE_MAP[normalizeType(item.type)];
+    const revealPremiumGlow = premiumRevealLinks[item.id] === true;
     return (
-    <View style={styles.gridCell}>
-      <TouchableOpacity
-        style={[
-          styles.gridCard,
-          isDullMode && styles.cardDullMode,
-        ]}
-        onPress={() => handleCardAction(item)}
-        onLongPress={() => handleIconLongPress(item)}
-        delayLongPress={450}
-        activeOpacity={0.75}
-        accessibilityLabel={`${item.title}, ${badge?.label || item.type}`}
-      >
-        <View style={[
-          styles.iconBox,
-          { backgroundColor: vaultTheme.iconCircleBg },
-          isDullMode && { backgroundColor: 'rgba(140,140,140,0.18)' },
-        ]}>
-          {renderIcon(item)}
-          {item.isFavorite ? (
-            <View style={styles.favoriteBadge}>
-              <MaterialCommunityIcons name="star" color={vaultTheme.iconColor} size={10} />
+      <View style={styles.gridCell}>
+        <VaultPremiumEntryGlow active={revealPremiumGlow} accentColor={vaultTheme.ctaAccent}>
+          <TouchableOpacity
+            style={[
+              styles.gridCard,
+              isDullMode && styles.cardDullMode,
+            ]}
+            onPress={() => handleCardAction(item)}
+            onLongPress={() => handleIconLongPress(item)}
+            delayLongPress={450}
+            activeOpacity={0.75}
+            accessibilityLabel={`${item.title}, ${badge?.label || item.type}`}
+          >
+            <View style={[
+              styles.iconBox,
+              { backgroundColor: vaultTheme.iconCircleBg },
+              isDullMode && { backgroundColor: 'rgba(140,140,140,0.18)' },
+            ]}>
+              {renderIcon(item)}
+              {item.isFavorite ? (
+                <View style={styles.favoriteBadge}>
+                  <MaterialCommunityIcons name="star" color={vaultTheme.iconColor} size={10} />
+                </View>
+              ) : null}
+              {isGhostLinkVaultType(item.type) || item.vaultProtected ? (
+                <View style={styles.vaultProtectedBadge} pointerEvents="none">
+                  <MaterialCommunityIcons name="shield-check" size={12} color={vaultTheme.ctaAccent} />
+                </View>
+              ) : null}
             </View>
-          ) : null}
-          {isGhostLinkVaultType(item.type) || item.vaultProtected ? (
-            <View style={styles.vaultProtectedBadge} pointerEvents="none">
-              <MaterialCommunityIcons name="shield-check" size={12} color={vaultTheme.ctaAccent} />
-            </View>
-          ) : null}
-        </View>
 
-        <Text style={[styles.gridTitle, { color: vaultTheme.primaryText }]} numberOfLines={2}>
-          {item.title}
-        </Text>
-        {badge ? (
-          <View style={[styles.typeBadge, { backgroundColor: vaultTheme.typeBadgeBg }]}>
-            <MaterialCommunityIcons name={badge.icon as any} size={9} color={vaultTheme.typeBadgeText} />
-            <Text style={[styles.typeBadgeText, { color: vaultTheme.typeBadgeText }]}>{tr(badge.label, badge.labelEn)}</Text>
-          </View>
-        ) : null}
-      </TouchableOpacity>
-    </View>
+            <Text style={[styles.gridTitle, { color: vaultTheme.primaryText }]} numberOfLines={2}>
+              {item.title}
+            </Text>
+            {badge ? (
+              <View style={[styles.typeBadge, { backgroundColor: vaultTheme.typeBadgeBg }]}>
+                <MaterialCommunityIcons name={badge.icon as any} size={9} color={vaultTheme.typeBadgeText} />
+                <Text style={[styles.typeBadgeText, { color: vaultTheme.typeBadgeText }]}>{tr(badge.label, badge.labelEn)}</Text>
+              </View>
+            ) : null}
+          </TouchableOpacity>
+        </VaultPremiumEntryGlow>
+      </View>
+    );
+  };
+
+  const renderVaultGridRow = ({ item }: { item: VaultSectionRow }) => {
+    const padCount = Math.max(0, 4 - item.items.length);
+    return (
+      <View style={styles.sectionGridRow}>
+        {item.items.map((link) => (
+          <React.Fragment key={link.id}>{renderVaultCardCell(link)}</React.Fragment>
+        ))}
+        {Array.from({ length: padCount }).map((_, idx) => (
+          <View key={`pad-${item.rowKey}-${idx}`} style={styles.gridCell} />
+        ))}
+      </View>
     );
   };
 
@@ -1505,7 +1687,7 @@ const VaultScreen = () => {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: vaultTheme.motherBg }]}>
+    <View style={[styles.container, { backgroundColor: vaultTheme.backgroundSolid }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: 'transparent', borderBottomColor: vaultTheme.headerDivider }]}>
         <View style={styles.headerCenterBlock}>
@@ -1534,7 +1716,7 @@ const VaultScreen = () => {
 
       {/* Search bar (#5) */}
       {links.length > 0 ? (
-        <View style={[styles.searchRow, { backgroundColor: vaultTheme.motherBg }]}>
+        <View style={[styles.searchRow, { backgroundColor: vaultTheme.backgroundSolid }]}>
           <View style={[styles.searchInputWrap, { backgroundColor: vaultTheme.searchBg, borderColor: vaultTheme.searchBorder }]}>
             <MaterialCommunityIcons name="magnify" size={18} color={vaultTheme.searchPlaceholder} />
             <TextInput
@@ -1568,13 +1750,17 @@ const VaultScreen = () => {
       ) : null}
 
       {/* Lista de datos */}
-      <FlatList
-        data={filteredLinks}
-        keyExtractor={(item) => item.id}
-        renderItem={renderCard}
-        numColumns={4}
-        removeClippedSubviews={true}
-        scrollEventThrottle={16}
+      <SectionList<VaultSectionRow>
+        sections={vaultGroupedSections}
+        keyExtractor={(row) => row.rowKey}
+        renderItem={renderVaultGridRow}
+        renderSectionHeader={({ section: { title } }) => (
+          <View style={styles.vaultSectionHeader}>
+            <View style={[styles.vaultSectionAccentLine, { backgroundColor: vaultTheme.ctaAccent }]} />
+            <Text style={[styles.vaultSectionTitle, { color: vaultTheme.primaryText }]}>{title}</Text>
+          </View>
+        )}
+        stickySectionHeadersEnabled={false}
         keyboardDismissMode="on-drag"
         ListEmptyComponent={renderVaultListEmpty}
         contentContainerStyle={styles.listContainer}
@@ -1582,6 +1768,8 @@ const VaultScreen = () => {
         showsVerticalScrollIndicator={false}
         bounces={false}
         overScrollMode="never"
+        removeClippedSubviews={true}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

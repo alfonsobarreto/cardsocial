@@ -1,0 +1,81 @@
+10011de5	Sin datos suficientes	Not enough data yet
+17123ae5	Free	Free
+17cb7bee	Mes	Month
+184d43dd	Conversión búsqueda-acción (CTR)	Search-to-Action (CTR)
+1d53a9b2	Mercado social	Social Market
+24c87f96	Palabra top del nicho	Top niche keyword
+26dc12d4	Para garantizar la máxima precisión y fluidez de los datos de mercado en tiempo real, el Radar se despliega en una interfaz inmersiva de pantalla completa.	To deliver maximum accuracy and fluidity for live market intelligence, the Radar runs in a full-screen immersive interface.
+297c2514	Mapbox y capas de intención en tu navegador, con la superficie que merecen.	Mapbox and intent layers open in your browser at the scale they deserve.
+35e406b8	Cuando el mercado reúna búsquedas del nicho, verás aquí una palabra que aún no usas.	When the marketplace has enough niche searches, a missing keyword will appear here.
+3ae97d7a	Lista para pegar en Gmail u Outlook como diseño con formato (no como código fuente). En Gmail: Ajustes → Ver todos los ajustes de correo → Firma.	Ready to paste into Gmail or Outlook as rich formatted layout (not source code). In Gmail: Settings → See all settings → Signature.
+44440af9	No se pudo abrir el navegador	Could not open the browser
+45f8db43	No se pudo enviar	Could not send
+465dca95	Año	Year
+46b7c2a2	Tarjeta no disponible	Card unavailable
+46e488e3	CRÍTICO	CRITICAL
+4da74164	Enviarme firma por correo	Email me my signature
+4f1600c5	Plan	Plan
+4fefe119	Modo explorador: estás viendo la demanda en otra zona.	Explorer mode: you are viewing demand in another area.
+5b46a971	Mostrar menos	Show less
+5c7b2764	Solo texto copiado	Plain text only
+5db0eb3	Copiar firma (Gmail / Outlook)	Copy signature (Gmail / Outlook)
+5db637a3	Rendimiento de SEO local y CRO	Local SEO & CRO performance
+5fcaff79	Métrica (una sola para todas las filas): conversión de búsqueda a acción — CTR.	Metric (same for each row below): search-to-action conversion — CTR.
+61b7c95e	Te enviamos tu firma. Ábrela en la computadora, selecciona el bloque visual (logo y QR) y cópiala en los ajustes de firma de Gmail u Outlook Web.	We emailed your signature. Open it on a computer, select the visual block (logo and QR), then paste it into Gmail or Outlook Web signature settings.
+65b5e37d	Conversiones desde búsqueda (SEO)	Search-driven conversions (SEO)
+6681d767	Añade IconoDatas en esta tarjeta para ver qué elementos reciben más toques.	Add IconoDatas to this card to see what people tap most.
+6878ed80	Activa desde	Active since
+68fb4c59	No se pudo actualizar el Mercado Social	Could not update Social Market
+6a662e2c	Semana	Week
+6b1d32b	Radar no disponible	Radar unavailable
+6f1dbd15	Firma copiada	Signature copied
+6ff6d63	Rendimiento de tus palabras clave en 	How your keywords perform in 
+7464af4e	Palabra sugerida	Suggested keyword
+76140f47	Algo salió mal	Something went wrong
+7c26bf63	Sin caducidad	No expiration
+7cf70703	Renueva:	Renews:
+828ccae2	Optimización geográfica	Market Radar — Full experience
+84b1038	El servidor no pudo completar el envío. Inténtalo más tarde.	The server could not complete the send. Please try again later.
+84d525ff	Explorar Radar en Pantalla Completa	Explore the radar in full screen
+880cac50	Acceso LEGACY Diamante: el Radar usa la Studio pública Card-Social (producción).	Diamond LEGACY access: the Radar launches the live Card‑Social Studio (production origin).
+8875545e	Envío por correo no está configurado del lado del servidor.	Outbound email is not configured on the server.
+8a36efad	Inicia sesión de nuevo e inténtalo otra vez.	Please sign in again and try once more.
+8c4549e6	Explorar radar en pantalla completa	Explore radar in full screen
+8e79beda	Ajustar palabras SEO de la tarjeta	Adjust the card SEO keywords
+92309fd3	Sin actividad reciente	No activity yet
+9738c5a9	Tus IconoDatas más tocados	Your most tapped IconoDatas
+9765ca39	Vistas de tarjeta	Card views
+9ac82465	Añade palabras SEO a esta tarjeta para medir búsquedas del mercado.	Add SEO keywords to this card to measure marketplace searches.
+9c959370	búsquedas en este nicho o zona que aún no están en tu tarjeta.	searches in this niche or area that are not on your card yet.
+9ca03633	Define EXPO_PUBLIC_STUDIO_WEB_URL en .env y reinicia Metro para activar el radar.	Set EXPO_PUBLIC_STUDIO_WEB_URL in .env and restart Metro to activate the radar.
+a28974ed	Fuente: ubicación registrada en esta tarjeta de negocio	Source: location saved on this business card
+a35866ac	Analítica sin tarjetas de negocio	Analytics has no business cards yet
+a6868a8d	Hola	Hello
+a7a5ae3	Revisa tu correo	Check your email
+a8a42925	Business	Business
+ad7931c1	Sesión requerida	Sign in required
+af2d9784	zona combinada	combined zone
+b0c3e512	Tu cuenta de inicio de sesión no tiene un correo asociado. Añade un email a tu cuenta o abre el Dashboard en la web (Chrome) para copiar la firma con formato.	Your sign-in account has no email address on file. Add an email to your account, or open the Dashboard in a web browser (Chrome) to copy a rich signature.
+b485a78c	Explorar código postal o ciudad	Search ZIP or city
+b65d3e97	Correo no disponible	Email not linked
+bb9442ed	Tarjeta de negocio	Business card
+bc258e44	ALERTA	ALERT
+cd40115a	Sin actividad reciente. Comparte tu tarjeta para empezar.	No recent activity. Share your card to start.
+ce180645	Influencer	Influencer
+cee73138	Cargando tarjetas de negocio…	Loading business cards…
+cfdcde5	OK	OK
+d001b052	Usuario	User
+d3a2fcd0	Inténtalo de nuevo.	Please try again.
+d41c51b2	Inteligencia de mercado SEO	SEO market intelligence
+d5592a5b	No pudimos cargar esta tarjeta para enviar la firma. Actualiza o vuelve a intentar.	We could not load this card to send the signature. Refresh and try again.
+d80acc6	Crea una tarjeta de negocio para activar métricas por tarjeta.	Create a business card to unlock card-level metrics.
+e2134c6b	Radar de mercado ejecutivo	Executive Market Radar
+e6fa1531	Día	Day
+e7b139bf	El camino Legacy	The Legacy path
+e829b148	Mostrar más	Show more
+e841e7eb	Centro de inteligencia geo · Búnker	Geo Intelligence · Bunker
+e9794d3c	Ilimitado	Unlimited
+f0a26d7c	ILIMITADO	UNLIMITED
+f220587d	Comparte tu tarjeta para empezar a ver métricas reales.	Share your card to start seeing metrics.
+f5101f39	Servicio en pausa	Service unavailable
+fa21df2a	Este navegador no permitió HTML enriquecido en el portapapeles. Copiamos solo texto plano; prueba desde Chrome en escritorio desde este mismo Dashboard para pegar la firma con diseño.	This browser blocked rich HTML on the clipboard. We copied plain text only; try again from Chrome on desktop in this Dashboard to paste a styled signature.

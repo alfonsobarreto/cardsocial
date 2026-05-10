@@ -1,7 +1,7 @@
-import { premiumTheme } from '@/styles/_premiumTheme';
+import { premiumTheme, SHELL_ACCENT_GOLD } from '@/styles/_premiumTheme';
 
-/** Dorado oficial para pantallas auth / premium. */
-export const AUTH_GOLD = '#D4AF37' as const;
+/** Dorado oficial para pantallas auth / premium — alineado con acento cascarón. */
+export const AUTH_GOLD = SHELL_ACCENT_GOLD;
 export const AUTH_ON_GOLD_DARK = premiumTheme.dark.onAccent;
 
 export function oauthProviderLabel(id: string | null | undefined): string {

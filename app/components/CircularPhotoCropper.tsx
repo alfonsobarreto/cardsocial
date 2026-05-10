@@ -74,17 +74,17 @@ const CircularPhotoCropper: React.FC<CircularPhotoCropperProps> = ({
 
   // ── Theme ────────────────────────────────────────────
   const theme = {
-    overlayBg:     isNight ? '#040F1C'                : '#D5EAF5',
-    overlayDim:    isNight ? 'rgba(4,15,28,0.82)'     : 'rgba(0,45,75,0.55)',
-    titleColor:    isNight ? '#FFFFFF'                : '#002D4B',
-    hintColor:     isNight ? 'rgba(255,255,255,0.45)' : 'rgba(0,45,75,0.50)',
-    cardBg:        isNight ? '#0A1A2F'                : '#FFFFFF',
-    cardBorder:    isNight ? 'rgba(212,175,55,0.22)'  : 'rgba(0,150,200,0.18)',
-    ghostBorder:   isNight ? 'rgba(255,255,255,0.30)' : 'rgba(0,45,75,0.30)',
-    ghostText:     isNight ? '#FFFFFF'                : '#002D4B',
-    ringColor:     isNight ? '#D4AF37'                : '#0099CC',
-    closeBtnBg:    isNight ? 'rgba(255,255,255,0.18)' : 'rgba(0,45,75,0.14)',
-    closeIconColor:isNight ? '#FFFFFF'                : '#002D4B',
+    overlayBg:     isNight ? '#050505'                : '#F2F2F7',
+    overlayDim:    isNight ? 'rgba(0,0,0,0.82)'      : 'rgba(0,0,0,0.5)',
+    titleColor:    isNight ? '#FFFFFF'                : '#1C1C1E',
+    hintColor:     isNight ? 'rgba(255,255,255,0.45)' : 'rgba(28,28,30,0.55)',
+    cardBg:        isNight ? '#141414'                : '#FFFFFF',
+    cardBorder:    isNight ? 'rgba(233,195,73,0.22)' : 'rgba(233,195,73,0.18)',
+    ghostBorder:   isNight ? 'rgba(255,255,255,0.30)' : 'rgba(28,28,30,0.22)',
+    ghostText:     isNight ? '#FFFFFF'                : '#1C1C1E',
+    ringColor:     '#E9C349',
+    closeBtnBg:    isNight ? 'rgba(255,255,255,0.14)' : 'rgba(28,28,30,0.08)',
+    closeIconColor:isNight ? '#FFFFFF'                : '#1C1C1E',
   };
 
   // ── Animated state ───────────────────────────────────
@@ -439,12 +439,12 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 48,
     borderRadius: 12,
-    backgroundColor: '#D4AF37',
+    backgroundColor: '#E9C349',
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 6,
-    shadowColor: '#D4AF37',
+    shadowColor: '#E9C349',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.45,
     shadowRadius: 8,
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
   acceptBtnText: {
-    color: '#0A1A2F',
+    color: '#0C0C0C',
     fontSize: 14,
     fontWeight: '800',
   },

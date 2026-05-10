@@ -455,7 +455,7 @@ export default function StudioShell() {
           position: 'relative',
           padding: '12px 16px',
           borderBottom: `1px solid ${studioTheme.border}`,
-          background: 'linear-gradient(180deg, #0a0a0a 0%, #000 100%)',
+          background: '#000000',
         }}
       >
         <button

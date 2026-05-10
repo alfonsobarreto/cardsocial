@@ -9,7 +9,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
             style={{
               width: '100%',
               maxWidth: 460,
-              border: '1px solid rgba(212,175,55,0.35)',
+              border: '1px solid rgba(233,195,73,0.35)',
               borderRadius: 18,
               background: '#0D0D0D',
               padding: 28,
@@ -33,7 +33,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
                   border: 'none',
                   borderRadius: 12,
                   padding: '12px 14px',
-                  background: '#D4AF37',
+                  background: '#E9C349',
                   color: '#000',
                   fontWeight: 900,
                   cursor: 'pointer',
@@ -46,7 +46,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
                 onClick={reset}
                 style={{
                   width: '100%',
-                  border: '1px solid rgba(212,175,55,0.4)',
+                  border: '1px solid rgba(233,195,73,0.4)',
                   borderRadius: 12,
                   padding: '12px 14px',
                   background: 'transparent',

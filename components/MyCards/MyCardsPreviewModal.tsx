@@ -23,8 +23,14 @@ import {
 } from '@/constants/themeChest';
 import { getActiveUserId } from '@/services/authSession';
 import { trackCardAction } from '@/services/analyticsService';
+import {
+    mirrorNotifyPublicBizIconClick,
+    mirrorNotifyPublicBizView,
+} from '@/services/mirrorBusinessCardPublicAnalytics';
 import type { MirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
 import { CONTACT_META_STORAGE_KEY, seedMetaForIncomingCard } from '@/services/bunkerContactMetaSeed';
+import { runBunkerContactTieredSaveFeedback } from '@/services/bunkerContactTieredSaveFeedback';
+import { viewerQualifiesVaultFerrariSensory } from '@/services/vaultSensoryTierGate';
 import { toApiLocale, trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import {
@@ -77,8 +83,6 @@ export type MyCardsPayload = {
   wallpaperUrl?: string;
   layout: 'vertical' | 'horizontal';
   holdersCount: number;
-  ratingAvg: number;
-  totalRatings: number;
   enableParallax: boolean;
   slots: WireframeEditSlot[];
   noAvatarIcon?: 'account' | 'storefront-outline';
@@ -204,6 +208,13 @@ export function MyCardsPreviewModal({
   const analyticsSid = sourceSid ?? incomingRedeem?.sid ?? null;
   const analyticsCardId =
     [analyticsBId, analyticsSid].find((v) => v != null && String(v).trim()) ?? null;
+  const mirrorBizOwnerUid = useMemo(() => {
+    if (variant === 'incoming' && incomingRedeem?.issuerUid) {
+      return String(incomingRedeem.issuerUid).trim();
+    }
+    if (variant === 'receiver' && ghostTargetUid) return String(ghostTargetUid).trim();
+    return '';
+  }, [variant, incomingRedeem?.issuerUid, ghostTargetUid]);
   const lastTrackedViewRef = useRef('');
 
   useEffect(() => {
@@ -216,13 +227,32 @@ export function MyCardsPreviewModal({
     const key = `${variant}:${cardId}`;
     if (lastTrackedViewRef.current === key) return;
     lastTrackedViewRef.current = key;
-    void trackCardAction(cardId, 'view', {
-      subType: 'modal_open',
-      source: variant,
-      ...(analyticsBId ? { bId: analyticsBId } : {}),
-      ...(analyticsSid ? { sid: analyticsSid } : {}),
-    }).catch(() => undefined);
-  }, [visible, variant, analyticsCardId, analyticsBId, analyticsSid]);
+    void (async () => {
+      const bizBId = analyticsBId != null ? String(analyticsBId).trim() : '';
+      await trackCardAction(cardId, 'view', {
+        subType: 'modal_open',
+        source: variant,
+        ...(analyticsBId ? { bId: analyticsBId } : {}),
+        ...(analyticsSid ? { sid: analyticsSid } : {}),
+      }).catch(() => undefined);
+      const selfUid = await getActiveUserId();
+      if (
+        !selfUid &&
+        bizBId &&
+        mirrorBizOwnerUid &&
+        bizBId === cardId
+      ) {
+        mirrorNotifyPublicBizView(mirrorBizOwnerUid, bizBId, key);
+      }
+    })();
+  }, [
+    visible,
+    variant,
+    analyticsCardId,
+    analyticsBId,
+    analyticsSid,
+    mirrorBizOwnerUid,
+  ]);
 
   useEffect(() => {
     if (!visible || !showMedals || !sidOrBIdForMedals) return;
@@ -359,12 +389,15 @@ export function MyCardsPreviewModal({
     try {
       const uid = await getActiveUserId();
       if (!uid) throw new Error(tr('No autenticado', 'Not authenticated'));
-      await grantBusinessShareFromQr({
+      const share = await grantBusinessShareFromQr({
         receiverUid: uid,
         uid: ghostTargetUid,
         bId,
         locale: toApiLocale(language),
       });
+      const issuerPremiumExperience = share.issuerPremiumExperience;
+      const viewerIsFerrari = await viewerQualifiesVaultFerrariSensory(uid);
+      const premiumSensory = issuerPremiumExperience || viewerIsFerrari;
       await seedMetaForIncomingCard({
         issuerUid: ghostTargetUid,
         sid: null,
@@ -373,6 +406,8 @@ export function MyCardsPreviewModal({
         scanThemeId: payload?.themeId?.trim() ? payload.themeId : null,
         seedAvatarUrl: seedAvatarUrlFromPreviewPayload(payload),
       });
+      const linkKey = receivedContactMergeKey({ uid: ghostTargetUid, sid: null, bId });
+      await runBunkerContactTieredSaveFeedback({ premiumSensory, linkKey });
       try {
         await trackBunkerGroupUsage({ viewerUid: uid, groupName: receiverGroup, locale: toApiLocale(language) });
       } catch { /* non-blocking */ }
@@ -496,14 +531,27 @@ export function MyCardsPreviewModal({
     if (!receiverUid) return;
     setIncomingBusy(true);
     try {
+      let issuerPremiumExperience = false;
       if (mode === 'universal') {
-        await redeemTemporaryAccessToken({ receiverUid, token, locale: toApiLocale(language) });
+        const out = await redeemTemporaryAccessToken({
+          receiverUid,
+          token,
+          locale: toApiLocale(language),
+        });
+        issuerPremiumExperience = out.issuerPremiumExperience;
       } else if (mode === 'business_permanent') {
         const bizId = String(bId || '').trim();
         if (!bizId) throw new Error(tr('Tarjeta inválida', 'Invalid card'));
-        await grantBusinessShareFromQr({ receiverUid, uid: issuerUid, bId: bizId, locale: toApiLocale(language) });
+        const out = await grantBusinessShareFromQr({
+          receiverUid,
+          uid: issuerUid,
+          bId: bizId,
+          locale: toApiLocale(language),
+        });
+        issuerPremiumExperience = out.issuerPremiumExperience;
       } else {
-        await consumeDynamicQrToken({ receiverUid, token, locale: toApiLocale(language) });
+        const out = await consumeDynamicQrToken({ receiverUid, token, locale: toApiLocale(language) });
+        issuerPremiumExperience = out.issuerPremiumExperience;
       }
       await seedMetaForIncomingCard({
         issuerUid,
@@ -518,7 +566,7 @@ export function MyCardsPreviewModal({
       if (mode === 'business_permanent' && payload) {
         const bizId = String(bId || '').trim();
         if (bizId) {
-          const { cardName, subtitle, avatarUrl, themeId, wallpaperUrl, layout, holdersCount, ratingAvg, totalRatings, enableParallax, slots } = payload;
+          const { cardName, subtitle, avatarUrl, themeId, wallpaperUrl, layout, holdersCount, enableParallax, slots } = payload;
           await upsertSmartCardInDb({
             uid: receiverUid,
             card: {
@@ -528,8 +576,6 @@ export function MyCardsPreviewModal({
               themeId,
               wallpaperUrl,
               holdersCount,
-              ratingAvg,
-              totalRatings,
               enableParallax,
               ownerDisplayName: subtitle,
               /** Clave Mongo `smart_cards.ownerPhotoUrl` (imagen en doc de tarjeta); valor viene del preview (`avatarUrl`). */
@@ -541,6 +587,11 @@ export function MyCardsPreviewModal({
         }
       }
       // --- FIN NUEVO ---
+
+      const linkKey = receivedContactMergeKey({ uid: issuerUid, sid, bId });
+      const viewerIsFerrari = await viewerQualifiesVaultFerrariSensory(receiverUid);
+      const premiumSensory = issuerPremiumExperience || viewerIsFerrari;
+      await runBunkerContactTieredSaveFeedback({ premiumSensory, linkKey });
 
       try {
         await trackBunkerGroupUsage({ viewerUid: receiverUid, groupName: incomingGroup, locale: toApiLocale(language) });
@@ -583,15 +634,27 @@ export function MyCardsPreviewModal({
       const cardId = analyticsCardId != null ? String(analyticsCardId).trim() : '';
       if (variant !== 'issuer' && cardId) {
         const subType = String(item.type || item.iconName || item.title || 'unknown').trim() || 'unknown';
-        void trackCardAction(cardId, 'icon_click', {
-          subType,
-          iconType: subType,
-          source: variant,
-          slotId: item.id,
-          slotTitle: item.title,
-          ...(analyticsBId ? { bId: analyticsBId } : {}),
-          ...(analyticsSid ? { sid: analyticsSid } : {}),
-        }).catch(() => undefined);
+        const bizBIdTap = analyticsBId != null ? String(analyticsBId).trim() : '';
+        void (async () => {
+          await trackCardAction(cardId, 'icon_click', {
+            subType,
+            iconType: subType,
+            source: variant,
+            slotId: item.id,
+            slotTitle: item.title,
+            ...(analyticsBId ? { bId: analyticsBId } : {}),
+            ...(analyticsSid ? { sid: analyticsSid } : {}),
+          }).catch(() => undefined);
+          const selfTap = await getActiveUserId();
+          if (
+            !selfTap &&
+            bizBIdTap &&
+            mirrorBizOwnerUid &&
+            bizBIdTap === String(cardId).trim()
+          ) {
+            mirrorNotifyPublicBizIconClick(mirrorBizOwnerUid, bizBIdTap, { subType });
+          }
+        })();
       }
       await openVaultPreviewItem(item as unknown as MirrorVaultItem, {
         tr,
@@ -639,6 +702,7 @@ export function MyCardsPreviewModal({
       analyticsBId,
       analyticsSid,
       variant,
+      mirrorBizOwnerUid,
     ],
   );
 
@@ -977,10 +1041,11 @@ export function MyCardsPreviewModal({
               dispName={payload.cardName}
               dispSub={payload.subtitle}
               dispAvatar={payload.avatarUrl}
-              dispHolders={Math.max(
-                0,
-                Math.floor(Number(payload.holdersCount ?? 0)),
-              )}
+              dispHolders={
+                Platform.OS === 'web'
+                  ? 0
+                  : Math.max(0, Math.floor(Number(payload.holdersCount ?? 0)))
+              }
               noAvatarIconName={payload.noAvatarIcon ?? 'account'}
               enableParallax={payload.enableParallax}
               parallaxX={parallaxX}

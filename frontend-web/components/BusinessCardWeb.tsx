@@ -12,6 +12,7 @@ import { resolveSlotVisual } from '@/lib/slotVisual';
 import { CardTheme } from '@/lib/themes';
 import type { CardData, PublicSlot } from '@/lib/universalCardTypes';
 import type { MirrorOpenPlan } from '@card-social/services/mirrorVaultItemOpenPlan';
+import PartnerBadgeWeb from '@/components/PartnerBadgeWeb';
 import Image from 'next/image';
 import { useCallback, useState, type CSSProperties } from 'react';
 
@@ -296,7 +297,19 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
 
   const isBusinessPreview = previewVariant === 'business';
 
-  const publicMedalStripe = card.businessMedalCounts ? (
+  const sid = String(card.sid ?? '').trim();
+  const bId = String(card.bId ?? '').trim();
+  /** Enlace `/u/…` smart: priorizar medallas sociales (`medals/{sid}`), igual que la API; no dejar que `medalCounts` vacío/legacy pinte solo negocio. */
+  const universalSmart = previewVariant === 'universal' && Boolean(sid) && !bId;
+
+  const publicMedalStripe = universalSmart && card.socialMedalCounts ? (
+    <MedalCountsStrip
+      theme={theme}
+      locale={locale}
+      defs={PUBLIC_SOCIAL_MEDAL_DEFINITIONS}
+      medalCounts={card.socialMedalCounts}
+    />
+  ) : card.businessMedalCounts ? (
     <MedalCountsStrip
       theme={theme}
       locale={locale}
@@ -416,7 +429,20 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
                 gap: 4,
               }}
             >
-              <div style={{ color: theme.title.color, fontWeight: 300, fontSize: 18, textAlign: 'center' }}>{dispName}</div>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  flexWrap: 'wrap',
+                  width: '100%',
+                }}
+              >
+                <div style={{ color: theme.title.color, fontWeight: 300, fontSize: 18, textAlign: 'center' }}>{dispName}</div>
+                {card.legacyOfficialPartner ? <PartnerBadgeWeb sizePx={22} /> : null}
+              </div>
               {dispSub ? (
                 <div
                   style={{
@@ -582,15 +608,29 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
           >
             <div
               style={{
-                color: theme.title.color,
-                fontSize: 22,
-                fontWeight: theme.title.fontWeight,
-                fontStyle: theme.title.fontStyle,
-                textAlign: 'center',
-                lineHeight: 1.2,
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+                flexWrap: 'wrap',
+                paddingLeft: 8,
+                paddingRight: 8,
               }}
             >
-              {dispName}
+              <div
+                style={{
+                  color: theme.title.color,
+                  fontSize: 22,
+                  fontWeight: theme.title.fontWeight,
+                  fontStyle: theme.title.fontStyle,
+                  textAlign: 'center',
+                  lineHeight: 1.2,
+                }}
+              >
+                {dispName}
+              </div>
+              {card.legacyOfficialPartner ? <PartnerBadgeWeb sizePx={24} /> : null}
             </div>
             {dispSub ? (
               <div

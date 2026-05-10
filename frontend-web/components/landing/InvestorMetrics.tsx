@@ -15,7 +15,7 @@ import {
 import copy, { type ExecLocale } from './investorCopy';
 
 /* ─── Design tokens ─────────────────────────────────────────── */
-const GOLD = '#D4AF37';
+const GOLD = '#E9C349';
 const GOLD_LIGHT = '#F6DA87';
 const GOLD_DARK = '#A87B1F';
 
@@ -69,11 +69,11 @@ function Counter({ target, prefix = '', suffix = '' }: { target: number; prefix?
 function SectionLabel({ letter, eyebrow, title }: { letter: string; eyebrow: string; title: string }) {
   return (
     <div className="mb-10 flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-10">
-      <div className="flex h-[4.75rem] w-[4.75rem] shrink-0 items-center justify-center rounded-3xl border-2 border-[#D4AF37]/55 bg-gradient-to-br from-[#D4AF37]/22 to-transparent text-2xl font-black text-[#F6DA87] shadow-[0_0_40px_rgba(212,175,55,0.22)]">
+      <div className="flex h-[4.75rem] w-[4.75rem] shrink-0 items-center justify-center rounded-3xl border-2 border-[#E9C349]/55 bg-gradient-to-br from-[#E9C349]/22 to-transparent text-2xl font-black text-[#F6DA87] shadow-[0_0_40px_rgba(233,195,73,0.22)]">
         {letter}
       </div>
       <div className="min-w-0">
-        <p className="text-xs font-black uppercase tracking-[0.32em] text-[#D4AF37]">{eyebrow}</p>
+        <p className="text-xs font-black uppercase tracking-[0.32em] text-[#E9C349]">{eyebrow}</p>
         <h2 className="mt-3 text-[clamp(1.75rem,4vw,2.85rem)] font-black tracking-[-0.055em] text-white">{title}</h2>
       </div>
     </div>
@@ -110,7 +110,7 @@ function CapitalAllocation({ locale }: { locale: ExecLocale }) {
               <motion.div
                 key={row.code}
                 variants={reveal}
-                className={`group grid grid-cols-[3rem_1fr_auto] gap-x-6 border-b border-white/[0.05] px-7 py-5 transition-colors duration-200 hover:bg-[#D4AF37]/[0.04] sm:grid-cols-[3.5rem_1fr_8rem_7rem] ${i === 4 ? 'border-b-0' : ''}`}
+                className={`group grid grid-cols-[3rem_1fr_auto] gap-x-6 border-b border-white/[0.05] px-7 py-5 transition-colors duration-200 hover:bg-[#E9C349]/[0.04] sm:grid-cols-[3.5rem_1fr_8rem_7rem] ${i === 4 ? 'border-b-0' : ''}`}
               >
                 <div className="flex items-start pt-0.5">
                   <span style={{ borderColor: ACCENTS[i] + '55', color: ACCENTS[i] }} className="rounded-lg border px-2 py-0.5 font-mono text-[10px] font-black">{row.code}</span>
@@ -136,7 +136,7 @@ function CapitalAllocation({ locale }: { locale: ExecLocale }) {
               </motion.div>
             ))}
           </motion.div>
-          <div className="flex items-center justify-between border-t border-[#D4AF37]/22 bg-[#D4AF37]/[0.04] px-7 py-5">
+          <div className="flex items-center justify-between border-t border-[#E9C349]/22 bg-[#E9C349]/[0.04] px-7 py-5">
             <p className="text-xs font-black uppercase tracking-[0.28em] text-[#F6DA87]/70">{c.capTotalLabel}</p>
             <p className="font-mono text-xl font-black text-[#F6DA87]">$600,000</p>
           </div>
@@ -202,7 +202,7 @@ function LegacyProgram({ locale }: { locale: ExecLocale }) {
         <SectionLabel letter="C" eyebrow={c.legacyEyebrow} title={c.legacyTitle} />
         <p className="mb-14 max-w-3xl text-sm leading-7 text-white/46">{c.legacyIntro}</p>
         <div className="relative">
-          <div className="absolute bottom-0 left-[1.85rem] top-0 w-[2px] bg-gradient-to-b from-[#D4AF37]/55 via-[#D4AF37]/30 to-[#D4AF37]/08 sm:left-[2.1rem]" />
+          <div className="absolute bottom-0 left-[1.85rem] top-0 w-[2px] bg-gradient-to-b from-[#E9C349]/55 via-[#E9C349]/30 to-[#E9C349]/08 sm:left-[2.1rem]" />
           <div className="grid gap-6">
             {c.legacyMilestones.map((m, i) => {
               const color = MILESTONE_COLORS[i];
@@ -223,8 +223,8 @@ function LegacyProgram({ locale }: { locale: ExecLocale }) {
                     </div>
                   </div>
                   <div
-                    style={highlight ? { borderColor: `${GOLD}55`, background: 'linear-gradient(145deg,rgba(212,175,55,0.14),rgba(10,10,10,0.92) 55%)' } : {}}
-                    className={`mb-6 rounded-[1.85rem] border p-7 backdrop-blur-2xl sm:p-8 ${highlight ? 'shadow-[0_0_80px_rgba(212,175,55,0.14)]' : 'border-white/[0.08] bg-[#0e0e0e]/80 shadow-[0_24px_70px_rgba(0,0,0,0.38)]'}`}
+                    style={highlight ? { borderColor: `${GOLD}55`, background: 'linear-gradient(145deg,rgba(233,195,73,0.14),rgba(10,10,10,0.92) 55%)' } : {}}
+                    className={`mb-6 rounded-[1.85rem] border p-7 backdrop-blur-2xl sm:p-8 ${highlight ? 'shadow-[0_0_80px_rgba(233,195,73,0.14)]' : 'border-white/[0.08] bg-[#0e0e0e]/80 shadow-[0_24px_70px_rgba(0,0,0,0.38)]'}`}
                   >
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div>
@@ -244,7 +244,7 @@ function LegacyProgram({ locale }: { locale: ExecLocale }) {
                       ))}
                     </div>
                     {'note' in m && m.note && (
-                      <div className="mt-8 rounded-2xl border border-[#D4AF37]/30 bg-[#D4AF37]/06 px-6 py-4">
+                      <div className="mt-8 rounded-2xl border border-[#E9C349]/30 bg-[#E9C349]/06 px-6 py-4">
                         <p className="text-xs font-bold text-[#F6DA87]/80">{m.note}</p>
                       </div>
                     )}
@@ -270,7 +270,7 @@ function NetworkEffect({ locale }: { locale: ExecLocale }) {
       <section id="inv-network" className="scroll-mt-36">
         <SectionLabel letter="D" eyebrow={c.netEyebrow} title={c.netTitle} />
         <div className="grid gap-6 lg:grid-cols-[1.15fr_1fr]">
-          <div className="rounded-[1.85rem] border border-[#D4AF37]/28 bg-[linear-gradient(135deg,rgba(212,175,55,0.12),rgba(10,10,10,0.92))] p-8 shadow-[0_0_80px_rgba(212,175,55,0.10)] backdrop-blur-2xl sm:p-10">
+          <div className="rounded-[1.85rem] border border-[#E9C349]/28 bg-[linear-gradient(135deg,rgba(233,195,73,0.12),rgba(10,10,10,0.92))] p-8 shadow-[0_0_80px_rgba(233,195,73,0.10)] backdrop-blur-2xl sm:p-10">
             <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-[#F6DA87]/70">{c.netMoatLabel}</p>
             <h3 className="mt-5 text-3xl font-black tracking-[-0.05em] text-white">
               {line1}<br /><span className="text-[#F6DA87]">{line2}</span>
@@ -285,7 +285,7 @@ function NetworkEffect({ locale }: { locale: ExecLocale }) {
             </div>
             <div className="grid gap-0 divide-y divide-white/[0.06]">
               {c.netMetrics.map((m, i) => (
-                <div key={m.label} className="group flex items-center justify-between px-7 py-6 transition-colors duration-150 hover:bg-[#D4AF37]/[0.04]">
+                <div key={m.label} className="group flex items-center justify-between px-7 py-6 transition-colors duration-150 hover:bg-[#E9C349]/[0.04]">
                   <div>
                     <p className="text-sm font-semibold text-white/70 group-hover:text-white">{m.label}</p>
                     <p className="mt-0.5 text-[11px] text-white/30">{m.sub}</p>
@@ -294,7 +294,7 @@ function NetworkEffect({ locale }: { locale: ExecLocale }) {
                 </div>
               ))}
             </div>
-            <div className="border-t border-[#D4AF37]/18 bg-[#D4AF37]/[0.03] px-7 py-5">
+            <div className="border-t border-[#E9C349]/18 bg-[#E9C349]/[0.03] px-7 py-5">
               <p className="text-xs leading-6 text-[#F6DA87]/65">{c.netFooter}</p>
             </div>
           </div>
@@ -313,7 +313,7 @@ function DataMoat({ locale }: { locale: ExecLocale }) {
     <Reveal>
       <section id="inv-moat" className="scroll-mt-36">
         <SectionLabel letter="E" eyebrow={c.moatEyebrow} title={c.moatTitle} />
-        <p className="mb-14 max-w-3xl border-l-[3px] border-[#D4AF37] pl-7 text-lg font-semibold leading-8 text-white/72">{c.moatQuote}</p>
+        <p className="mb-14 max-w-3xl border-l-[3px] border-[#E9C349] pl-7 text-lg font-semibold leading-8 text-white/72">{c.moatQuote}</p>
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="overflow-hidden rounded-[1.85rem] border border-white/[0.08] bg-[#080808]/90 backdrop-blur-2xl">
             <div className="border-b border-white/[0.07] px-7 py-4">
@@ -324,12 +324,12 @@ function DataMoat({ locale }: { locale: ExecLocale }) {
                 <div
                   key={r.name}
                   style={r.highlight ? { borderLeftColor: GOLD, borderLeftWidth: '3px' } : {}}
-                  className={`group flex items-start gap-5 px-7 py-5 transition-colors duration-150 hover:bg-[#D4AF37]/[0.04] ${r.highlight ? 'bg-[#D4AF37]/[0.06]' : ''}`}
+                  className={`group flex items-start gap-5 px-7 py-5 transition-colors duration-150 hover:bg-[#E9C349]/[0.04] ${r.highlight ? 'bg-[#E9C349]/[0.06]' : ''}`}
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-3">
                       <p className={`text-sm font-bold ${r.highlight ? 'text-[#F6DA87]' : 'text-white/75'}`}>{r.name}</p>
-                      <span className={`rounded-full border px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest ${r.highlight ? 'border-[#D4AF37]/50 text-[#D4AF37]' : 'border-white/10 text-white/30'}`}>{r.chip}</span>
+                      <span className={`rounded-full border px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest ${r.highlight ? 'border-[#E9C349]/50 text-[#E9C349]' : 'border-white/10 text-white/30'}`}>{r.chip}</span>
                     </div>
                     <p className="mt-1 text-xs text-white/35">{r.what}</p>
                     <p className={`mt-1.5 text-xs font-semibold ${r.highlight ? 'text-[#F6DA87]/85' : 'text-white/30'}`}>{r.moat}</p>
@@ -339,7 +339,7 @@ function DataMoat({ locale }: { locale: ExecLocale }) {
             </div>
           </div>
           <div className="flex flex-col gap-5">
-            <div className="rounded-[1.85rem] border border-[#D4AF37]/28 bg-[linear-gradient(145deg,rgba(212,175,55,0.11),rgba(8,8,8,0.92))] p-8 backdrop-blur-2xl sm:p-9">
+            <div className="rounded-[1.85rem] border border-[#E9C349]/28 bg-[linear-gradient(145deg,rgba(233,195,73,0.11),rgba(8,8,8,0.92))] p-8 backdrop-blur-2xl sm:p-9">
               <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-[#F6DA87]/70">{c.moatThesisLabel}</p>
               <p className="mt-5 text-sm leading-8 text-white/62">{c.moatThesis1}</p>
               <p className="mt-5 text-sm leading-8 text-white/62">
@@ -356,7 +356,7 @@ function DataMoat({ locale }: { locale: ExecLocale }) {
               </div>
               <div className="divide-y divide-white/[0.05]">
                 {c.moatAcquirers.map((a) => (
-                  <div key={a.name} className="group px-7 py-5 transition-colors hover:bg-[#D4AF37]/[0.04]">
+                  <div key={a.name} className="group px-7 py-5 transition-colors hover:bg-[#E9C349]/[0.04]">
                     <p className="text-sm font-bold text-white/80 group-hover:text-[#F6DA87]">{a.name}</p>
                     <p className="mt-1.5 text-xs leading-5 text-white/38">{a.reason}</p>
                   </div>
@@ -381,17 +381,17 @@ export default function InvestorMetrics({ locale = 'es' }: { locale?: ExecLocale
     <>
       <Reveal>
         <div className="my-36 flex items-center gap-6">
-          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[#D4AF37]/35 to-transparent" />
-          <div className="shrink-0 rounded-full border border-[#D4AF37]/45 bg-[#D4AF37]/09 px-7 py-2.5 text-[10px] font-black uppercase tracking-[0.36em] text-[#F6DA87]">
+          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[#E9C349]/35 to-transparent" />
+          <div className="shrink-0 rounded-full border border-[#E9C349]/45 bg-[#E9C349]/09 px-7 py-2.5 text-[10px] font-black uppercase tracking-[0.36em] text-[#F6DA87]">
             {c.investorDivider}
           </div>
-          <div className="h-px flex-1 bg-gradient-to-l from-transparent via-[#D4AF37]/35 to-transparent" />
+          <div className="h-px flex-1 bg-gradient-to-l from-transparent via-[#E9C349]/35 to-transparent" />
         </div>
       </Reveal>
 
       <Reveal>
-        <div className="relative mb-28 overflow-hidden rounded-[2.4rem] border border-[#D4AF37]/35 bg-[#080808]/90 p-10 shadow-[0_0_120px_rgba(212,175,55,0.10),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-3xl sm:p-14">
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(212,175,55,0.14)_0%,transparent_40%,rgba(246,218,135,0.05)_100%)]" />
+        <div className="relative mb-28 overflow-hidden rounded-[2.4rem] border border-[#E9C349]/35 bg-[#080808]/90 p-10 shadow-[0_0_120px_rgba(233,195,73,0.10),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-3xl sm:p-14">
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(233,195,73,0.14)_0%,transparent_40%,rgba(246,218,135,0.05)_100%)]" />
           <div className="relative grid gap-10 lg:grid-cols-[1fr_auto] lg:items-center">
             <div>
               <p className="font-mono text-[10px] uppercase tracking-[0.44em] text-[#F6DA87]/70">{c.invHeroEyebrow}</p>
