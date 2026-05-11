@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, useMotionValue, useTransform, animate, type Variants } from 'framer-motion';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import {
   CompetitiveAnalysis,
@@ -32,7 +32,7 @@ const PCTS   = [30, 35, 15, 10, 10] as const;
 const USDS   = [150_000, 175_000, 75_000, 50_000, 50_000] as const;
 const ACCENTS = [GOLD, GOLD_LIGHT, '#94A3B8', '#7DD3FC', '#86EFAC'] as const;
 
-const MILESTONE_CONTACTS = [250, 1_000, 2_000] as const;
+const MILESTONE_CONTACTS = [500, 750, 1_000] as const;
 const MILESTONE_COLORS   = ['#94A3B8', GOLD_LIGHT, GOLD] as const;
 
 const STREAM_COLORS = [GOLD, '#7DD3FC', '#C084FC', '#86EFAC'] as const;
@@ -370,48 +370,126 @@ function NetworkEffect({ locale }: { locale: ExecLocale }) {
 /* ─────────────────────────────────────────────────────────────── *
  *  SECTION E — The Moat (Defensive Data Asset)                    *
  * ─────────────────────────────────────────────────────────────── */
+function defaultMoatIndex(rows: readonly { highlight: boolean }[]) {
+  const i = rows.findIndex((r) => r.highlight);
+  return i >= 0 ? i : rows.length - 1;
+}
+
+function MoatCardSocialThesis({ locale }: { locale: ExecLocale }) {
+  const c = copy[locale];
+  const goldEs = 'no se valuará por las suscripciones — se valuará por los datos.';
+  return (
+    <>
+      <p className="mt-5 text-sm leading-8 text-white/62">{c.moatThesis1}</p>
+      <p className="mt-5 text-sm leading-8 text-white/62">
+        {locale === 'es' ? (
+          (() => {
+            const [before, rest] = c.moatThesis2.split(goldEs);
+            let after = (rest ?? '').trimStart();
+            if (after.startsWith('.')) after = after.slice(1).trimStart();
+            return (
+              <>
+                {before}
+                <strong className="text-[#F6DA87]">{goldEs}</strong>
+                {after ? `. ${after}` : null}
+              </>
+            );
+          })()
+        ) : (
+          <>
+            {c.moatThesis2.split('won\'t').join('won\u2019t').split('subscriptions —')[0]}
+            <strong className="text-[#F6DA87]">won&apos;t be valued on subscriptions — it will be valued on data.</strong>
+            {' '}The comps for that transaction are in the hundreds of millions.
+          </>
+        )}
+      </p>
+    </>
+  );
+}
+
 function DataMoat({ locale }: { locale: ExecLocale }) {
   const c = copy[locale];
+  const [selectedMoatIdx, setSelectedMoatIdx] = useState(() => defaultMoatIndex(c.moatCompetitors));
+
+  useEffect(() => {
+    setSelectedMoatIdx(defaultMoatIndex(copy[locale].moatCompetitors));
+  }, [locale]);
+
+  const sel = c.moatCompetitors[selectedMoatIdx];
+  const showCardsocialThesis = Boolean(sel.highlight);
+
   return (
     <Reveal>
       <section id="inv-moat" className="scroll-mt-36">
         <SectionLabel letter="E" eyebrow={c.moatEyebrow} title={c.moatTitle} />
         <p className="mb-14 max-w-3xl border-l-[3px] border-[#E9C349] pl-7 text-lg font-semibold leading-8 text-white/72">{c.moatQuote}</p>
+        <p className="mb-10 font-mono text-[10px] uppercase tracking-[0.28em] text-[#F6DA87]/55">{c.moatInteractHint}</p>
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="overflow-hidden rounded-[1.85rem] border border-white/[0.08] bg-[#080808]/90 backdrop-blur-2xl">
             <div className="border-b border-white/[0.07] px-7 py-4">
               <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/30">{c.moatCompHeader}</p>
             </div>
             <div className="divide-y divide-white/[0.05]">
-              {c.moatCompetitors.map((r) => (
-                <div
-                  key={r.name}
-                  style={r.highlight ? { borderLeftColor: GOLD, borderLeftWidth: '3px' } : {}}
-                  className={`group flex items-start gap-5 px-7 py-5 transition-colors duration-150 hover:bg-[#E9C349]/[0.04] ${r.highlight ? 'bg-[#E9C349]/[0.06]' : ''}`}
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <p className={`text-sm font-bold ${r.highlight ? 'text-[#F6DA87]' : 'text-white/75'}`}>{r.name}</p>
-                      <span className={`rounded-full border px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest ${r.highlight ? 'border-[#E9C349]/50 text-[#E9C349]' : 'border-white/10 text-white/30'}`}>{r.chip}</span>
+              {c.moatCompetitors.map((r, i) => {
+                const active = selectedMoatIdx === i;
+                return (
+                  <button
+                    key={r.name}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setSelectedMoatIdx(i)}
+                    style={{ borderLeftColor: active ? GOLD : 'transparent', borderLeftWidth: '3px' }}
+                    className={`group flex w-full cursor-pointer items-start gap-5 px-7 py-5 text-left transition-colors duration-150 hover:bg-[#E9C349]/[0.04] focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#E9C349]/70 ${
+                      active ? 'bg-[#E9C349]/[0.06]' : ''
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <p className={`text-sm font-bold ${active ? 'text-[#F6DA87]' : 'text-white/75'}`}>{r.name}</p>
+                        <span
+                          className={`rounded-full border px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest ${
+                            active ? 'border-[#E9C349]/50 text-[#E9C349]' : 'border-white/10 text-white/30'
+                          }`}
+                        >
+                          {r.chip}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-white/35">{r.what}</p>
+                      <p className={`mt-1.5 text-xs font-semibold ${active ? 'text-[#F6DA87]/85' : 'text-white/30'}`}>{r.moat}</p>
+                      <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.2em] text-white/22 group-hover:text-[#F6DA87]/50">
+                        {active ? (
+                          <span className="text-[#F6DA87]/80">{locale === 'es' ? 'Seleccionado' : 'Selected'}</span>
+                        ) : (
+                          <span className="opacity-90">{locale === 'es' ? 'Ver tesis comparada →' : 'View comparative thesis →'}</span>
+                        )}
+                      </p>
                     </div>
-                    <p className="mt-1 text-xs text-white/35">{r.what}</p>
-                    <p className={`mt-1.5 text-xs font-semibold ${r.highlight ? 'text-[#F6DA87]/85' : 'text-white/30'}`}>{r.moat}</p>
-                  </div>
-                </div>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           </div>
           <div className="flex flex-col gap-5">
             <div className="rounded-[1.85rem] border border-[#E9C349]/28 bg-[linear-gradient(145deg,rgba(233,195,73,0.11),rgba(8,8,8,0.92))] p-8 backdrop-blur-2xl sm:p-9">
-              <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-[#F6DA87]/70">{c.moatThesisLabel}</p>
-              <p className="mt-5 text-sm leading-8 text-white/62">{c.moatThesis1}</p>
-              <p className="mt-5 text-sm leading-8 text-white/62">
-                {c.moatThesis2.split('won\'t').join('won\u2019t').split('subscriptions —')[0]}
-                <strong className="text-[#F6DA87]">
-                  {locale === 'es' ? 'no se valuará por las suscripciones — se valuará por los datos.' : "won\u2019t be valued on subscriptions — it will be valued on data."}
-                </strong>
-                {' '}{locale === 'es' ? 'Las comparaciones para esa transacción están en cientos de millones.' : 'The comps for that transaction are in the hundreds of millions.'}
-              </p>
+              <div className="flex flex-wrap items-end justify-between gap-3 border-b border-white/[0.08] pb-4">
+                <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-[#F6DA87]/70">{c.moatThesisLabel}</p>
+                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-white/38">{sel.name}</p>
+              </div>
+              <motion.div
+                key={`${locale}-${selectedMoatIdx}-${sel.name}`}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              >
+                {showCardsocialThesis ? (
+                  <MoatCardSocialThesis locale={locale} />
+                ) : (
+                  <>
+                    <p className="mt-5 text-sm leading-8 text-white/62">{sel.thesisP1}</p>
+                    <p className="mt-5 text-sm leading-8 text-white/62">{sel.thesisP2}</p>
+                  </>
+                )}
+              </motion.div>
             </div>
             <div className="overflow-hidden rounded-[1.85rem] border border-white/[0.08] bg-[#090909]/85 backdrop-blur-2xl">
               <div className="border-b border-white/[0.07] px-7 py-4">

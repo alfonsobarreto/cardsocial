@@ -26,7 +26,7 @@ export type TiersConfig = Record<TierKey, TierLimits> & {
 
 export const DEFAULT_TIERS_CONFIG: TiersConfig = {
   free: {
-    iconDataLimit: 8,
+    iconDataLimit: 10,
     smartCardsLimit: 5,
     businessCardsLimit: 0,
     premiumThemes: false,
@@ -38,19 +38,19 @@ export const DEFAULT_TIERS_CONFIG: TiersConfig = {
     smartCardsLimit: 10,
     businessCardsLimit: 1,
     premiumThemes: true,
-    monthlyPriceUsd: 19.99,
-    freeTrialDays: 14,
+    monthlyPriceUsd: 7.99,
+    freeTrialDays: 90,
   },
   business: {
     iconDataLimit: 50,
     smartCardsLimit: 10,
     businessCardsLimit: 5,
     premiumThemes: true,
-    monthlyPriceUsd: 49.99,
-    freeTrialDays: 14,
+    monthlyPriceUsd: 24.99,
+    freeTrialDays: 90,
   },
   addOns: {
-    singleBusinessCardExtraUsd: 9.99,
+    singleBusinessCardExtraUsd: 4.99,
     physicalPvcCardUsd: 29.99,
     physicalMetalCardUsd: 99.99,
   },

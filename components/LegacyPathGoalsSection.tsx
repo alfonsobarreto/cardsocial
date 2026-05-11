@@ -149,8 +149,8 @@ export function LegacyPathGoalsSection(props: LegacyPathGoalsSectionProps) {
         <View style={styles.legacyCopy}>
           <Text style={[styles.legacyHeroTitle, { color: palette.legacyTitleColor }]}>
             {tr(
-              'Metas cada 250 referidos hasta Diamante. Bóveda de Legado en marcha.',
-              'Milestones every 250 referrals up to Diamond. Your Legacy vault in motion.',
+              `Metas en ${LEGACY_TIER_THRESHOLDS.join(' · ')} referidos. Bóveda de Legado en marcha.`,
+              `Milestones at ${LEGACY_TIER_THRESHOLDS.join(' · ')} referrals. Your Legacy vault in motion.`,
             )}
           </Text>
           <View style={[styles.legacyTrack, { backgroundColor: palette.rankTrackBg }]}>

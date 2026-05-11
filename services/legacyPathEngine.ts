@@ -1,6 +1,6 @@
 /**
  * Motor Legacy Path — tiers almacenados en Firestore `users.{legacyTier}`
- * usando umbrales 250 · 500 · 750 · 1000 (alineados con Legacy Path UI).
+ * Umbrales Plata · Oro · Platino · Diamante: 500 · 750 · 1000 · 1500 (alineados con Legacy Path UI).
  */
 
 export type LegacyTierStored = 'none' | 'silver' | 'gold' | 'platinum' | 'diamond';
@@ -22,10 +22,10 @@ export const LEGACY_FREE_SMART_CARD_BONUS_SILVER_PLUS = 1;
 
 export function checkLegacyTier(successfulReferralCount: number): LegacyTierStored {
   const n = Math.max(0, Math.floor(Number(successfulReferralCount) || 0));
-  if (n >= 1000) return 'diamond';
-  if (n >= 750) return 'platinum';
-  if (n >= 500) return 'gold';
-  if (n >= 250) return 'silver';
+  if (n >= 1500) return 'diamond';
+  if (n >= 1000) return 'platinum';
+  if (n >= 750) return 'gold';
+  if (n >= 500) return 'silver';
   return 'none';
 }
 

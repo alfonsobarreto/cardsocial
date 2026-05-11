@@ -15,10 +15,10 @@ type Tier = {
 const tiers: Tier[] = [
   {
     name: 'Gratis',
-    amount: '$0',
+    amount: '$0 / mes',
     sub: 'Perfil esencial, temas estándar.',
     features: [
-      { label: 'IconData (máx.)', value: '8' },
+      { label: 'IconData (máx.)', value: '10' },
       { label: 'SmartCards', value: '5' },
       { label: 'BusinessCards', value: '0' },
     ],
@@ -26,8 +26,8 @@ const tiers: Tier[] = [
   },
   {
     name: 'Influencer',
-    amount: 'Plan destacado',
-    sub: 'Temas premium, soporte priorizado, campaña QR (365 días) y add-on NFC.',
+    amount: '$7.99 / mes',
+    sub: 'Temas premium, soporte priorizado, prueba 90 días (referencia CMS). Campaña QR y add-on NFC aparte.',
     features: [
       { label: 'IconData (máx.)', value: '20' },
       { label: 'SmartCards', value: '10' },
@@ -38,8 +38,8 @@ const tiers: Tier[] = [
   },
   {
     name: 'Negocio',
-    amount: 'Para equipos',
-    sub: 'Métricas básicas, gestión de equipo y NFC como add-on.',
+    amount: '$24.99 / mes',
+    sub: 'Equipos y métricas básicas; prueba 90 días (CMS). NFC y Card-Studio como add-ons publicados.',
     features: [
       { label: 'IconData (máx.)', value: '50' },
       { label: 'SmartCards', value: '10' },
@@ -69,7 +69,9 @@ export function PricingSection() {
           Cuatro niveles, un mismo producto
         </h2>
         <p className={styles.sectionLead}>
-          Referencia de límites; los valores vivos y promociones activas viven en la app y en operaciones.
+          Límites y precios mensuales según{' '}
+          <strong>system_config/tiers</strong> en Firestore. Add-ons públicos típicos: Business Card extra{' '}
+          <strong>$4.99</strong>, PVC <strong>$29.99</strong>, metal <strong>$99.99</strong> USD salvo campaña.
         </p>
 
         <p className={styles.rcSectionLabel}>Checkout web (RevenueCat)</p>

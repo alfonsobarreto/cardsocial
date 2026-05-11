@@ -98,7 +98,7 @@ const copy = {
         desc: 'MRR locked-in from Influencer, Business, and Corporate tiers. Predictable, compounding baseline revenue insulated from campaign volatility.',
         metrics: [
           { label: 'Free → Influencer Conv.', value: '~12%' },
-          { label: 'Avg. MRR per Business user', value: '$29' },
+          { label: 'Avg. MRR per Business user', value: '$24.99' },
           { label: 'Corporate contract floor', value: '$499/mo' },
         ],
       },
@@ -125,7 +125,7 @@ const copy = {
         title: 'Premium NFC Cards',
         desc: 'Physical product revenue from premium card sales. Upfront capital that also drives user activation — hardware ownership correlates with 4× higher retention.',
         metrics: [
-          { label: 'Unit price', value: '$34.99' },
+          { label: 'Unit price', value: '$29.99' },
           { label: 'Gross margin target', value: '~60%' },
         ],
       },
@@ -162,7 +162,7 @@ const copy = {
           'Full keyword analytics & local demand intelligence',
           'Permanent "Supreme" badge — highest social proof on the network',
         ],
-        note: "Supreme Market Radar is the product's most powerful feature. Making it the reward for 2,000 contacts turns every user into a salesperson with skin in the game.",
+        note: "Supreme Market Radar is the product's most powerful feature. Making it the reward at 1,000 contacts turns every user into a salesperson with skin in the game.",
       },
     ],
 
@@ -173,7 +173,7 @@ const copy = {
     netHeadline: 'CAC ≈ $0.\nUsers are the sales force.',
     netBody1: 'Traditional SaaS companies burn between $3–$30 acquiring each mobile user through paid media. Card-Social inverts this model entirely.',
     netBody2:
-      'Every user who wants Supreme Market Radar for free must network 2,000 people into the platform. That is 2,000 new registered users — acquired at zero media spend. The Legacy Program is not a loyalty gimmick; it is a structured viral engine with a quantifiable output per user.',
+      'Every user who wants Supreme Market Radar for free must bring 1,000 people onto the platform. That is 1,000 new registered users — acquired at zero media spend. The Legacy Program is not a loyalty gimmick; it is a structured viral engine with a quantifiable output per user.',
     netBody3:
       "As the network grows, each additional user increases the value of the Social Market for every existing user — a classic Metcalfe's Law compounding loop. The product gets more valuable the more people use it, without incremental infrastructure cost.",
     netTerminalLabel: 'CAC Benchmark · Live Calc',
@@ -181,7 +181,7 @@ const copy = {
     netMetrics: [
       { label: 'Industry avg. mobile app CAC', value: '$3.52', sub: 'Meta / Google Ads' },
       { label: 'Card-Social blended CAC', value: '~$0', sub: 'Legacy Program virality' },
-      { label: 'Legacy-driven contacts per user', value: '2,000', sub: 'before Supreme unlock' },
+      { label: 'Legacy-driven contacts per user', value: '1,000', sub: 'before Supreme unlock' },
       { label: 'Projected organic referral ratio', value: '1 : 8', sub: 'one user brings ~8 others' },
     ],
 
@@ -191,16 +191,55 @@ const copy = {
     moatQuote: 'V1CE and Popl sell plastic. We are acquiring the most accurate hyper-local dataset in the world — and we do it with user consent, at zero cost.',
     moatCompHeader: 'Competitive Landscape',
     moatThesisLabel: 'The Thesis',
+    moatInteractHint: 'Click a row to compare — Card-Social is the default thesis.',
     moatThesis1:
       'A real estate investor understands the value of land. Card-Social is buying digital land — hyper-local intent data that doesn\'t exist anywhere else, collected with full user consent (Zero-Party Data). After 3 years of user activity, our Social Market will hold the most precise real-time map of local economic demand ever assembled: who is searching for what, exactly where, right now.',
     moatThesis2:
       "In year 3+, our company won't be valued on subscriptions — it will be valued on data. The comps for that transaction are in the hundreds of millions.",
     moatAcquirersLabel: 'Potential Strategic Acquirers (Yr 3–5)',
     moatCompetitors: [
-      { name: 'V1CE / Popl', what: 'Sell premium NFC plastic', moat: 'None — no data layer', chip: 'Hardware', highlight: false },
-      { name: 'HiHello', what: 'Digital business card app', moat: 'Contact management only', chip: 'Contact Mgmt', highlight: false },
-      { name: 'Linktree', what: 'Link-in-bio aggregator', moat: 'Passive link clicks', chip: 'Links', highlight: false },
-      { name: 'Card-Social', what: 'Hyper-local Zero-Party Data OS', moat: '★ The land beneath the market', chip: 'Data Moat', highlight: true },
+      {
+        name: 'V1CE / Popl',
+        what: 'Sell premium NFC plastic',
+        moat: 'None — no data layer',
+        chip: 'Hardware',
+        highlight: false,
+        thesisP1:
+          'They convert taps into polished profiles and branding — legitimate hardware SKU with distribution. Valuation correlates with devices and churn in card upgrades, not with proprietary demand geography.',
+        thesisP2:
+          'Investors are not underwriting a plastics channel; they’re underwriting SaaS margins and a widening zero-party intent map. Select Card-Social on the left to see where the multiples actually compound.',
+      },
+      {
+        name: 'HiHello',
+        what: 'Digital business card app',
+        moat: 'Contact management only',
+        chip: 'Contact Mgmt',
+        highlight: false,
+        thesisP1:
+          'Solves paper → digital cleanly: scans, QR, inbox hygiene. Useful, but bounded: it organizes contacts—it does not synthesize searchable local intent with consent-backed depth.',
+        thesisP2:
+          'without a geo-aware Social Market, there is no compounding “digital land” layer. Card-Social’s moat deepens when relationships become signal, not just rows in a directory.',
+      },
+      {
+        name: 'Linktree',
+        what: 'Link-in-bio aggregator',
+        moat: 'Passive link clicks',
+        chip: 'Links',
+        highlight: false,
+        thesisP1:
+          'Best-in-class traffic router for creators: low friction, wide top-of-funnel. Moat is distribution of links, not identity vaults, NFC handshakes, or hyper-local keyword demand.',
+        thesisP2:
+          'Investors comparing us should ask: who owns the trust layer under the click? Linktree monetizes attention in transit; Card-Social monetizes trusted identity, analytics, and market intelligence.',
+      },
+      {
+        name: 'Card-Social',
+        what: 'Hyper-local Zero-Party Data OS',
+        moat: '★ The land beneath the market',
+        chip: 'Data Moat',
+        highlight: true,
+        thesisP1: '',
+        thesisP2: '',
+      },
     ],
     moatAcquirers: [
       { name: 'Zillow', reason: 'Local real estate demand signals — most precise geolocation data commercially available.' },
@@ -452,7 +491,7 @@ const copy = {
         desc: 'MRR asegurado de los tiers Influencer, Business y Corporativo. Ingreso base predecible y compuesto, aislado de la volatilidad de campañas.',
         metrics: [
           { label: 'Conv. Free → Influencer est.', value: '~12%' },
-          { label: 'MRR promedio por usuario Business', value: '$29' },
+          { label: 'MRR promedio por usuario Business', value: '$24.99' },
           { label: 'Piso de contrato Corporativo', value: '$499/mes' },
         ],
       },
@@ -479,7 +518,7 @@ const copy = {
         title: 'Tarjetas NFC Premium',
         desc: 'Ingreso de producto físico en venta única. Capital inicial que además impulsa la activación — la propiedad de hardware correlaciona con 4× mayor retención.',
         metrics: [
-          { label: 'Precio unitario', value: '$34.99' },
+          { label: 'Precio unitario', value: '$29.99' },
           { label: 'Margen bruto objetivo', value: '~60%' },
         ],
       },
@@ -516,7 +555,7 @@ const copy = {
           'Analítica completa de palabras clave e inteligencia de demanda local',
           'Insignia permanente "Supreme" — la mayor prueba social de la red',
         ],
-        note: 'El Market Radar Supreme es la función más poderosa del producto. Convertirlo en la recompensa de 2,000 contactos transforma a cada usuario en un vendedor con incentivos reales.',
+        note: 'El Market Radar Supreme es la función más poderosa del producto. Convertirlo en la recompensa a 1,000 contactos transforma a cada usuario en un vendedor con incentivos reales.',
       },
     ],
 
@@ -527,7 +566,7 @@ const copy = {
     netHeadline: 'CAC ≈ $0.\nLos usuarios son la fuerza de ventas.',
     netBody1: 'Las empresas SaaS tradicionales gastan entre $3 y $30 adquiriendo cada usuario móvil a través de medios pagados. Card-Social invierte completamente este modelo.',
     netBody2:
-      'Cada usuario que quiere el Supreme Market Radar gratis debe traer 2,000 personas a la plataforma. Eso son 2,000 nuevos usuarios registrados, adquiridos con gasto en medios igual a cero. El Programa Legacy no es un truco de lealtad; es un motor viral estructurado con una producción cuantificable por usuario.',
+      'Cada usuario que quiere el Supreme Market Radar gratis debe traer 1,000 personas a la plataforma. Eso son 1,000 nuevos usuarios registrados, adquiridos con gasto en medios igual a cero. El Programa Legacy no es un truco de lealtad; es un motor viral estructurado con una producción cuantificable por usuario.',
     netBody3:
       'A medida que la red crece, cada usuario adicional aumenta el valor del Social Market para todos los usuarios existentes — un clásico ciclo compuesto de la Ley de Metcalfe. El producto se vuelve más valioso cuanto más personas lo usan, sin costo incremental de infraestructura.',
     netTerminalLabel: 'Benchmark CAC · Cálculo en Vivo',
@@ -535,7 +574,7 @@ const copy = {
     netMetrics: [
       { label: 'CAC promedio app móvil (industria)', value: '$3.52', sub: 'Meta / Google Ads' },
       { label: 'CAC combinado Card-Social', value: '~$0', sub: 'Viralidad Programa Legacy' },
-      { label: 'Contactos por usuario (Legacy)', value: '2,000', sub: 'antes del desbloqueo Supreme' },
+      { label: 'Contactos por usuario (Legacy)', value: '1,000', sub: 'antes del desbloqueo Supreme' },
       { label: 'Ratio de referidos orgánicos proyectado', value: '1 : 8', sub: 'un usuario trae ~8 más' },
     ],
 
@@ -545,14 +584,53 @@ const copy = {
     moatQuote: 'V1CE y Popl venden plástico. Nosotros estamos adquiriendo el conjunto de datos hiperlocales más preciso del mundo — y lo hacemos con el consentimiento del usuario, a costo cero.',
     moatCompHeader: 'Panorama Competitivo',
     moatThesisLabel: 'La Tesis',
+    moatInteractHint: 'Toca una fila para comparar — por defecto se muestra la tesis Card-Social.',
     moatThesis1: 'Un inversionista inmobiliario entiende el valor de la tierra. Card-Social está comprando "tierra digital" — datos de intención hiperlocal que no existen en ningún otro lugar, recolectados con pleno consentimiento del usuario (Zero-Party Data). Después de 3 años de actividad, nuestro Social Market tendrá el mapa en tiempo real más preciso de la demanda económica local jamás construido: quién busca qué, exactamente dónde, ahora mismo.',
     moatThesis2: 'En el año 3+, nuestra empresa no se valuará por las suscripciones — se valuará por los datos. Las comparaciones para esa transacción están en cientos de millones.',
     moatAcquirersLabel: 'Posibles Adquirentes Estratégicos (Año 3–5)',
     moatCompetitors: [
-      { name: 'V1CE / Popl', what: 'Venden plástico NFC premium', moat: 'Ninguno — sin capa de datos', chip: 'Hardware', highlight: false },
-      { name: 'HiHello', what: 'App de tarjeta digital', moat: 'Solo gestión de contactos', chip: 'Contactos', highlight: false },
-      { name: 'Linktree', what: 'Agregador de links', moat: 'Clics pasivos de enlace', chip: 'Links', highlight: false },
-      { name: 'Card-Social', what: 'SO de Datos Zero-Party Hiperlocal', moat: '★ La tierra bajo el mercado', chip: 'Foso de Datos', highlight: true },
+      {
+        name: 'V1CE / Popl',
+        what: 'Venden plástico NFC premium',
+        moat: 'Ninguno — sin capa de datos',
+        chip: 'Hardware',
+        highlight: false,
+        thesisP1:
+          'Convierten el tap en un perfil limpio y branding premium — SKU de hardware real con distribución. La valuación sigue más a unidades y reemplazo de tarjeta que a un mapa propietario de intención local.',
+        thesisP2:
+          'Un inversionista de seed no apuesta solo a cadena de plástico; apuesta al margen SaaS y a datos zero-party que se espesan con el tiempo. Pulsa Card-Social a la izquierda para ver dónde viven los múltiplos.',
+      },
+      {
+        name: 'HiHello',
+        what: 'App de tarjeta digital',
+        moat: 'Solo gestión de contactos',
+        chip: 'Contactos',
+        highlight: false,
+        thesisP1:
+          'Resuelve papel → digital con muy buena ejecución: escaneos, QR, organización del inbox. Pero es un techo claro: ordena contactos; no modela intención local buscable con profundidad y consentimiento explícito.',
+        thesisP2:
+          'Sin un Social Market geo-consciente no hay “tierra digital” que se componga. El foso de Card-Social crece cuando la red deja de ser agenda y empieza a ser señal de mercado.',
+      },
+      {
+        name: 'Linktree',
+        what: 'Agregador de links',
+        moat: 'Clics pasivos de enlace',
+        chip: 'Links',
+        highlight: false,
+        thesisP1:
+          'Enrutan tráfico hacia creators con mínima fricción — amplio embudo superior. Su foso es la distribución de enlaces, no bóvedas de identidad, ni NFC cara a cara, ni demanda hiperlocal por palabras clave.',
+        thesisP2:
+          'La pregunta para inversionistas: ¿quién posee la capa de confianza bajo el clic? Linktree monetiza atención en tránsito; Card-Social monetiza identidad confiable, analítica e inteligencia de mercado.',
+      },
+      {
+        name: 'Card-Social',
+        what: 'SO de Datos Zero-Party Hiperlocal',
+        moat: '★ La tierra bajo el mercado',
+        chip: 'Foso de Datos',
+        highlight: true,
+        thesisP1: '',
+        thesisP2: '',
+      },
     ],
     moatAcquirers: [
       { name: 'Zillow', reason: 'Señales de demanda inmobiliaria local — los datos de geolocalización más precisos disponibles comercialmente.' },
