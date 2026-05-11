@@ -20,8 +20,9 @@ export function normalizeUniversalCardPayload(raw: unknown): CardData {
     const value = String(r?.value ?? '').trim().slice(0, 4000);
     const iconNameRaw = String(r?.iconName ?? '').trim();
     const iconName = iconNameRaw ? iconNameRaw.slice(0, 120) : null;
+    /** Misma regla que Expo: `icon` puede ser favicon HTTPS o nombre de glifo Material (p. ej. `linkedin`). */
     const iconStr = String(r?.icon ?? '').trim();
-    const icon = /^https?:\/\//i.test(iconStr) ? iconStr.slice(0, 4000) : null;
+    const icon = iconStr ? iconStr.slice(0, 4000) : null;
     const vaultMimeRaw = String(r?.vaultMimeType ?? '').trim();
     const vaultMimeType = vaultMimeRaw ? vaultMimeRaw.slice(0, 120) : null;
     return {

@@ -142,9 +142,40 @@ function subscriptionTierActive(data: Record<string, unknown>): boolean {
 }
 
 /**
+ * Closed Alpha / TestFlight: si está activo, todos los usuarios del binario reciben tier de lujo
+ * sin depender de Firestore ni suscripción (solo cliente; desactivar en store público).
+ *
+ * `EXPO_PUBLIC_CLOSED_ALPHA_FULL_TIER`:
+ * - vacío / `0` / `false` / `off` → desactivado
+ * - `1` / `true` / `yes` / `business` → `business`
+ * - `influencer` → `influencer`
+ */
+export function readClosedAlphaTierOverride(): TierKey | null {
+  try {
+    const raw = String(process.env.EXPO_PUBLIC_CLOSED_ALPHA_FULL_TIER ?? '').trim().toLowerCase();
+    if (!raw || raw === '0' || raw === 'false' || raw === 'off' || raw === 'no') {
+      return null;
+    }
+    if (raw === '1' || raw === 'true' || raw === 'yes' || raw === 'business') {
+      return 'business';
+    }
+    if (raw === 'influencer') {
+      return 'influencer';
+    }
+  } catch {
+    /* no env en runtime raro */
+  }
+  return null;
+}
+
+/**
  * Tier efectivo a partir del doc `users/{uid}` (misma regla que business cards / Card Studio web).
  */
 export function effectiveTierKeyFromUserData(data: Record<string, unknown>): TierKey {
+  const alphaTier = readClosedAlphaTierOverride();
+  if (alphaTier) {
+    return alphaTier;
+  }
   if (!subscriptionTierActive(data)) {
     return 'free';
   }

@@ -6,6 +6,48 @@ import { migrateVaultIconsForStorage, type VaultLinkSnapshotItem } from '@/servi
 import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+function linkHasAnyIconField(row: Record<string, unknown>): boolean {
+  return (
+    Boolean(String(row.iconVaultId ?? '').trim()) ||
+    Boolean(String(row.icon ?? '').trim()) ||
+    Boolean(String(row.iconName ?? '').trim())
+  );
+}
+
+/**
+ * Antes: si un `id` ya existía en AsyncStorage, **no** se mergeaba Firestore → quedaba caché
+ * vieja sin iconVaultId/icon y la vista previa + publicCardSlots salían vacíos aunque la nube
+ * estuviera bien. Ahora resolvemos por `updatedAt` y, en empate / sin fechas, rellenamos iconos
+ * desde la nube si el local no tiene ninguno.
+ */
+function mergeLocalLinkWithCloud(
+  local: Record<string, unknown>,
+  cloud: Record<string, unknown>,
+): Record<string, unknown> {
+  const lU = Date.parse(String(local.updatedAt ?? ''));
+  const cU = Date.parse(String(cloud.updatedAt ?? ''));
+  const lOk = Number.isFinite(lU);
+  const cOk = Number.isFinite(cU);
+  if (cOk && lOk && cU !== lU) {
+    return cU >= lU ? { ...local, ...cloud } : { ...cloud, ...local };
+  }
+  if (cOk && !lOk) {
+    return { ...local, ...cloud };
+  }
+  if (lOk && !cOk) {
+    return { ...cloud, ...local };
+  }
+  const localIcons = linkHasAnyIconField(local);
+  const cloudIcons = linkHasAnyIconField(cloud);
+  if (!localIcons && cloudIcons) {
+    return { ...local, ...cloud };
+  }
+  if (localIcons && !cloudIcons) {
+    return { ...cloud, ...local };
+  }
+  return { ...local, ...cloud };
+}
+
 /**
  * Misma fuente que `loadVaultItems` en cards.tsx, para reconstruir `publicCardSlots` sin estado React.
  */
@@ -31,10 +73,16 @@ export async function loadVaultSnapshotForSlotSync(uid: string): Promise<{
     const cloudSnapshot = await getDocs(collection(db, 'users', uid, 'links'));
     for (const itemDoc of cloudSnapshot.docs) {
       const id = String(itemDoc.id || '').trim();
-      if (!id || byId.has(id)) {
+      if (!id) {
         continue;
       }
-      byId.set(id, { id: itemDoc.id, ...itemDoc.data() });
+      const cloudRow: Record<string, unknown> = { id: itemDoc.id, ...itemDoc.data() };
+      const existing = byId.get(id);
+      if (!existing) {
+        byId.set(id, cloudRow);
+        continue;
+      }
+      byId.set(id, mergeLocalLinkWithCloud(existing as Record<string, unknown>, cloudRow));
     }
   } catch {
     /* sin red */
@@ -58,6 +106,12 @@ export async function loadVaultSnapshotForSlotSync(uid: string): Promise<{
     uid,
     itemsMigrated as unknown[],
   )) as VaultLinkSnapshotItem[];
+
+  try {
+    await AsyncStorage.setItem(vaultStorageKey(uid), JSON.stringify(itemsMigrated));
+  } catch {
+    /* ignore — caché opcional; la fusión con Firestore ya alinea memoria en runtime */
+  }
 
   let iconMap: Record<string, IconVaultEntry> = {};
   try {

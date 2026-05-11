@@ -7,6 +7,7 @@ import { auth, db } from '@/services/firebaseConfig';
 import { firestoreFirstUserDocByNickLower } from '@/services/userIdentityFields';
 import { trEsEn, useLanguageOptional } from '@/services/language';
 import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, SocialProviderId } from '@/services/socialAuth';
+import { useLookMode } from '@/services/lookMode';
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -35,8 +36,9 @@ export default function SignInScreen() {
   const langCtx = useLanguageOptional();
   const language = langCtx?.language ?? 'en';
   const tr = (es: string, en: string) => trEsEn(es, en, language);
-  const isNight = true;
-  const look = useMemo(() => authScreenLook(true), []);
+  const { resolvedMode } = useLookMode();
+  const isNight = resolvedMode === 'noche';
+  const look = useMemo(() => authScreenLook(isNight), [isNight]);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -451,7 +453,14 @@ export default function SignInScreen() {
         >
           <View style={[styles.submitOverlay, { backgroundColor: look.submitOverlay }]}>
             <View style={[styles.submitOverlayCard, { backgroundColor: look.submitCardBg, borderColor: look.submitCardBorder }]}>
-              <ActivityIndicator size={120} color={look.spinnerColor} />
+              <View
+                style={[
+                  styles.submitSpinnerWell,
+                  { backgroundColor: look.spinnerWellBg, borderColor: look.spinnerWellBorder },
+                ]}
+              >
+                <ActivityIndicator size={120} color={look.spinnerColor} />
+              </View>
               <Text style={[styles.submitOverlayText, { color: look.submitText }]}>{tr('Validando acceso seguro...', 'Validating secure access...')}</Text>
             </View>
           </View>
@@ -669,6 +678,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 28,
     paddingHorizontal: 20,
+  },
+  /** Fondo blanco detrás del GIF del spinner: evita el rectángulo oscuro del contenedor en Android/iOS. */
+  submitSpinnerWell: {
+    width: 132,
+    height: 132,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
   submitOverlayText: {
     marginTop: 14,

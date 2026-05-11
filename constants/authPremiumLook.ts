@@ -47,6 +47,9 @@ export type AuthScreenLook = {
   recoveryInputWrapBorder: string;
   recoveryInputText: string;
   spinnerColor: string;
+  /** Fondo del área del spinner (GIF) para evitar el “cuadrado negro” del contenedor nativo. */
+  spinnerWellBg: string;
+  spinnerWellBorder: string;
 };
 
 export type RegisterFormLook = AuthScreenLook & {
@@ -120,6 +123,8 @@ export function authScreenLook(isNight: boolean): AuthScreenLook {
       recoveryInputWrapBorder: AUTH_GOLD,
       recoveryInputText: '#FFFFFF',
       spinnerColor: AUTH_GOLD,
+      spinnerWellBg: '#FFFFFF',
+      spinnerWellBorder: `${AUTH_GOLD}44`,
     };
   }
 
@@ -151,6 +156,8 @@ export function authScreenLook(isNight: boolean): AuthScreenLook {
     recoveryInputWrapBorder: AUTH_GOLD,
     recoveryInputText: pl.text,
     spinnerColor: pl.text,
+    spinnerWellBg: '#FFFFFF',
+    spinnerWellBorder: `${AUTH_GOLD}33`,
   };
 }
 

@@ -11,9 +11,9 @@ import { resolvePillForegroundColor } from '@card-social/services/pillForeground
 /** Igual que `IsolatedWireframeCard` cápsula espejo (`capsuleStyle`). */
 const MEDAL_CAPSULE_PILL_BG = 'rgba(255,255,255,0.12)';
 
-/** Proporción 5:4 (ancho × alto); antes el SVG era cuadrado. */
-const MEDAL_ICON_W = 20;
-const MEDAL_ICON_H = 16;
+/** Proporción 5:4 (ancho × alto); escala visual ≈ 4/3 respecto al tamaño base. */
+const MEDAL_ICON_W = 27;
+const MEDAL_ICON_H = 21;
 
 type Props = {
   theme: CardTheme;
@@ -54,13 +54,13 @@ export default function MedalCountsStrip({ theme, locale, defs, medalCounts }: P
           alignItems: 'center',
           justifyContent: 'space-evenly',
           flexWrap: 'nowrap',
-          gap: 4,
+          gap: 5,
           borderRadius: 999,
           backgroundColor: MEDAL_CAPSULE_PILL_BG,
           borderWidth: Math.max(1, bd.width),
           borderStyle: 'solid',
           borderColor: bd.color,
-          padding: '10px 10px',
+          padding: '12px 12px',
           boxSizing: 'border-box',
         }}
       >
@@ -75,7 +75,7 @@ export default function MedalCountsStrip({ theme, locale, defs, medalCounts }: P
                 display: 'inline-flex',
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: 3,
+                gap: 4,
                 flexShrink: 1,
                 minWidth: 0,
               }}
@@ -94,7 +94,7 @@ export default function MedalCountsStrip({ theme, locale, defs, medalCounts }: P
               <span
                 style={{
                   color: fg,
-                  fontSize: 12,
+                  fontSize: 16,
                   fontWeight: 600,
                   lineHeight: 1,
                   fontVariantNumeric: 'tabular-nums',

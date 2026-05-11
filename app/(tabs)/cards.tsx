@@ -716,7 +716,7 @@ export default function CardsFactoryScreen() {
     };
   }, [qrVisible, qrExpiresAt]);
 
-  const loadVaultItems = async () => {
+  const loadVaultItems = useCallback(async () => {
     try {
       const uid = await getActiveUserId();
       if (!uid) {
@@ -731,7 +731,7 @@ export default function CardsFactoryScreen() {
       setVaultItems([]);
       setIconVaultById({});
     }
-  };
+  }, []);
 
   const loadSmartCards = async (): Promise<SmartCard[]> => {
     const uid = await getActiveUserId();
@@ -2076,13 +2076,14 @@ export default function CardsFactoryScreen() {
     }
   };
 
-  /** Abre el modal al instante; refresca la fila en segundo plano (evita UI “congelada” si el GET masivo o holders tardan). */
+  /** Refresca bóveda antes de mostrar el modal (mismas razones que openPreviewCard). */
   const openPreviewBusinessCard = (row: BusinessCardListRow) => {
     void (async () => {
       const uid = (await getActiveUserId()) ?? sessionUid ?? '';
       setPreviewBusinessOwnerUid(uid);
       setPreviewBusiness(row);
       setPreviewLayout(width > height ? 'horizontal' : 'vertical');
+      await loadVaultItems();
       setPreviewBusinessVisible(true);
 
       if (!String(uid).trim()) return;
@@ -2448,15 +2449,32 @@ export default function CardsFactoryScreen() {
   const openPreviewCard = (card: SmartCard) => {
     setPreviewLayout(width > height ? 'horizontal' : 'vertical');
     setPreviewCard(card);
-    setPreviewVisible(true);
     void (async () => {
-      const list = await loadSmartCards();
-      const fresh = list.find((c) => c.sid === card.sid);
-      if (fresh) {
-        setPreviewCard((prev) => (prev?.sid === fresh.sid ? fresh : prev));
+      /** Hidratar bóveda antes del primer paint del modal: si no, previewSlots = [] y el wireframe queda vacío hasta que React “despierte” con otro update. */
+      await loadVaultItems();
+      setPreviewVisible(true);
+      try {
+        const list = await loadSmartCards();
+        const fresh = list.find((c) => c.sid === card.sid);
+        if (fresh) {
+          setPreviewCard((prev) => (prev?.sid === fresh.sid ? fresh : prev));
+        }
+      } catch {
+        /* mantener card optimista */
       }
     })();
   };
+
+  /** Si la bóveda se rellena un tick después (red/Firestore), vuelve a cruzar itemIds × vaultItems sin cerrar el modal. */
+  useEffect(() => {
+    if (!previewVisible || !previewCard) return;
+    void loadVaultItems();
+  }, [previewVisible, previewCard?.sid, loadVaultItems]);
+
+  useEffect(() => {
+    if (!previewBusinessVisible || !previewBusiness) return;
+    void loadVaultItems();
+  }, [previewBusinessVisible, previewBusiness?.bId, loadVaultItems]);
 
   // Efecto para actualizar orientación en tiempo real mientras el modal de vista previa está abierto
   useEffect(() => {

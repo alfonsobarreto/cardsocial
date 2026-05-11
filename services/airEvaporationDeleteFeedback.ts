@@ -5,19 +5,15 @@
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 
+import { setVaultSensoryPlaybackAudioMode } from '@/services/vaultSensoryAudioMode';
+
 const SWIPE_DELETE_AUDIO = require('../assets/sounds/sound-swipe-delete.mp3');
 
 let deleteWhooshSound: Audio.Sound | null = null;
 
 async function ensurePlaybackMode(): Promise<void> {
   try {
-    await Audio.setAudioModeAsync({
-      playsInSilentModeIOS: true,
-      allowsRecordingIOS: false,
-      staysActiveInBackground: false,
-      shouldDuckAndroid: true,
-      playThroughEarpieceAndroid: false,
-    });
+    await setVaultSensoryPlaybackAudioMode();
   } catch {
     /* no bloquear borrado */
   }

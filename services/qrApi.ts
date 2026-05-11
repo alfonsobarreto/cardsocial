@@ -143,13 +143,72 @@ export async function issueTemporaryUniversalAccess(params: {
   };
 }
 
-export type PublicUniversalCardSlot = {
+/**
+ * Slots públicos (Mongo/API). `icon` puede ser favicon HTTPS **o** nombre de glifo Material
+ * (ej. `linkedin`): el wireframe usa `materialIconResolveShared` igual que Mis Tarjetas.
+ * Si solo se preservan URLs HTTPS, los glifos desaparecen en contactos / QR / universal.
+ */
+export type PublicCardSlotPayload = {
   itemId: string;
-  type: string;
-  label: string;
-  value: string;
-  iconName: string | null;
+  type?: string;
+  label?: string;
+  value?: string;
+  iconName?: string;
+  icon?: string;
+  /** Stable id en Firestore icon_vault; el receptor suele resolver vía iconName/icon. */
+  iconVaultId?: string;
+  isPrivate?: boolean;
+  visibility?: string;
+  vaultMimeType?: string;
 };
+
+export function normalizePublicCardSlotFromApi(s: unknown): PublicCardSlotPayload {
+  const r = s && typeof s === 'object' ? (s as Record<string, unknown>) : {};
+  const itemId = String(r.itemId ?? '').trim();
+  const type = (String(r.type ?? 'link').trim() || 'link').slice(0, 64);
+  const label = String(r.label ?? '').trim().slice(0, 400);
+  const value = String(r.value ?? '').trim().slice(0, 8000);
+  const iconRaw = r.icon != null ? String(r.icon).trim() : '';
+  const iconName = r.iconName != null ? String(r.iconName).trim() : '';
+  const vaultMimeType = r.vaultMimeType != null ? String(r.vaultMimeType).trim().slice(0, 120) : '';
+  const iconVaultId = r.iconVaultId != null ? String(r.iconVaultId).trim() : '';
+
+  const out: PublicCardSlotPayload = {
+    itemId,
+    type,
+    label,
+    value,
+  };
+
+  if (iconRaw) {
+    out.icon = iconRaw.slice(0, 4000);
+  }
+  if (iconName) {
+    out.iconName = iconName.slice(0, 200);
+  }
+  if (vaultMimeType) {
+    out.vaultMimeType = vaultMimeType;
+  }
+  if (iconVaultId) {
+    out.iconVaultId = iconVaultId.slice(0, 400);
+  }
+  if (r.isPrivate !== undefined) {
+    out.isPrivate = Boolean(r.isPrivate);
+  }
+  if (r.visibility != null && String(r.visibility).trim()) {
+    out.visibility = String(r.visibility).trim();
+  }
+  return out;
+}
+
+export function normalizePublicCardSlotsFromApi(arr: unknown): PublicCardSlotPayload[] {
+  if (!Array.isArray(arr)) {
+    return [];
+  }
+  return arr.map(normalizePublicCardSlotFromApi);
+}
+
+export type PublicUniversalCardSlot = PublicCardSlotPayload;
 
 export type PublicUniversalCardPayload = {
   uid: string;
@@ -204,8 +263,10 @@ export function normalizePublicUniversalCardPayload(card: PublicUniversalCardPay
     null;
   const userAvatarUrl = String(card.userAvatarUrl ?? '').trim() || null;
   const legacyOfficialPartner = card.legacyOfficialPartner === true;
+  const slots = normalizePublicCardSlotsFromApi(card.slots as unknown);
   return {
     ...card,
+    slots,
     holdersCount: Math.max(0, Math.floor(Number(card.holdersCount ?? 0))),
     ratingAvg: Number.isFinite(Number(card.ratingAvg)) ? Number(card.ratingAvg) : 0,
     totalRatings: Math.max(0, Math.floor(Number(card.totalRatings ?? 0))),
@@ -904,19 +965,6 @@ export type CardSearchFacetPayload = {
   value: string;
 };
 
-export type PublicCardSlotPayload = {
-  itemId: string;
-  type?: string;
-  label?: string;
-  value?: string;
-  iconName?: string;
-  icon?: string;
-  isPrivate?: boolean;
-  visibility?: string;
-  /** MIME para visor (proxy /api/vault/file/… sin extensión). */
-  vaultMimeType?: string;
-};
-
 /** Whitelist segura dentro de `issuerSnapshot` (Mongo `smart_cards`). */
 export type IssuerVaultPickedItem = {
   itemId: string;
@@ -1039,21 +1087,7 @@ export async function listSmartCardsFromDb(params: { uid: string }): Promise<{
           }))
         : undefined,
       publicCardSlots: Array.isArray(row?.publicCardSlots)
-        ? row.publicCardSlots.map((s: any) => {
-            const iconRaw = s?.icon != null ? String(s.icon).trim() : '';
-            const icon = /^https?:\/\//i.test(iconRaw) ? iconRaw : undefined;
-            const iconName = s?.iconName != null ? String(s.iconName).trim() : '';
-            return {
-              itemId: String(s?.itemId || ''),
-              type: String(s?.type || 'link'),
-              label: String(s?.label || ''),
-              value: String(s?.value || ''),
-              ...(icon ? { icon } : {}),
-              ...(iconName ? { iconName } : {}),
-              isPrivate: Boolean(s?.isPrivate),
-              visibility: s?.visibility != null ? String(s.visibility) : undefined,
-            };
-          })
+        ? row.publicCardSlots.map((s: unknown) => normalizePublicCardSlotFromApi(s))
         : undefined,
       issuerSnapshot: parseIssuerSnapshotFromApi(row?.issuerSnapshot),
       createdAt: String(row?.createdAt || new Date().toISOString()),
@@ -1313,19 +1347,7 @@ export async function listReceivedContacts(params: { uid: string }): Promise<{
             label: String(f?.label || ''),
             value: String(f?.value || ''),
           })),
-          publicCardSlots: slotRows.map((s: any) => {
-            const iconRaw = s?.icon != null ? String(s.icon).trim() : '';
-            const icon = /^https?:\/\//i.test(iconRaw) ? iconRaw : undefined;
-            const iconName = s?.iconName != null ? String(s.iconName).trim() : '';
-            return {
-              itemId: String(s?.itemId || ''),
-              type: String(s?.type || 'link'),
-              label: String(s?.label || ''),
-              value: String(s?.value || ''),
-              ...(icon ? { icon } : {}),
-              ...(iconName ? { iconName } : {}),
-            };
-          }),
+          publicCardSlots: normalizePublicCardSlotsFromApi(slotRows),
           mutualContactsCount: Number.isFinite(Number(row?.mutualContactsCount))
             ? Math.max(0, Math.floor(Number(row.mutualContactsCount)))
             : 0,

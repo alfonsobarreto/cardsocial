@@ -10,6 +10,7 @@ import {
 import { saveCachedCredentials } from '@/services/credentialVault';
 import { createDefaultCards, createDefaultVaultData, initializeUserCredits } from '@/services/creditsService';
 import { trEsEn, useLanguageOptional } from '@/services/language';
+import { useLookMode } from '@/services/lookMode';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, SocialProviderId } from '@/services/socialAuth';
 import { grantStudentPackCreditsIfEligible } from '@/services/studentPackService';
@@ -99,7 +100,9 @@ export default function RegisterScreen() {
   const language = langCtx?.language ?? 'en';
   const tr = (es: string, en: string) => trEsEn(es, en, language);
   const modalFooterBottomPad = useModalFooterBottomPad();
-  const look = useMemo(() => registerFormLook(true), []);
+  const { resolvedMode } = useLookMode();
+  const isNight = resolvedMode === 'noche';
+  const look = useMemo(() => registerFormLook(isNight), [isNight]);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [nickname, setNickname] = useState('');
@@ -1443,7 +1446,14 @@ export default function RegisterScreen() {
         >
           <View style={styles.progressOverlay}>
             <View style={[styles.progressContainer, { backgroundColor: look.progressCardBg, borderColor: look.progressCardBorder }]}>
-              <ActivityIndicator size={140} color={look.spinnerColor} />
+              <View
+                style={[
+                  styles.progressSpinnerWell,
+                  { backgroundColor: look.spinnerWellBg, borderColor: look.spinnerWellBorder },
+                ]}
+              >
+                <ActivityIndicator size={140} color={look.spinnerColor} />
+              </View>
               <Text style={[styles.uploadLabel, { color: look.progressLabel }]}>{uploadStageLabel}</Text>
             </View>
           </View>
@@ -2134,6 +2144,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#7BC2EC',
+  },
+  progressSpinnerWell: {
+    width: 152,
+    height: 152,
+    borderRadius: 24,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
   uploadPercentage: {
     color: '#E9C349',

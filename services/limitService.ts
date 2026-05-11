@@ -16,7 +16,11 @@ import {
 import { db } from '@/services/firebaseConfig';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { isSuperAdmin } from '@/services/roleService';
-import { effectiveTierKeyFromUserData, getTiersConfig } from '@/services/tiersConfigService';
+import {
+  effectiveTierKeyFromUserData,
+  getTiersConfig,
+  readClosedAlphaTierOverride,
+} from '@/services/tiersConfigService';
 import { readUserNickNameLower } from '@/services/userIdentityFields';
 
 const PRIVILEGED_NICKNAMES = new Set(['pochobs_admin']);
@@ -47,6 +51,9 @@ const LIMITS = {
  */
 export async function isPremiumUser(userId: string): Promise<boolean> {
   try {
+    if (readClosedAlphaTierOverride()) {
+      return true;
+    }
     // Ruta principal: documento directo por UID (patrón estándar del proyecto)
     const directRef = doc(db, 'users', userId);
     const directSnap = await getDoc(directRef);

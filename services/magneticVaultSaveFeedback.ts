@@ -5,6 +5,8 @@
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 
+import { setVaultSensoryPlaybackAudioMode } from '@/services/vaultSensoryAudioMode';
+
 /** Extensión `.mp3` en minúsculas: Metro solo registra `mp3` como asset (`.MP3` no resuelve). */
 const MAGNETIC_CLOSURE_METAL = require('../assets/sounds/Sound_Metal_Cool.mp3');
 
@@ -12,13 +14,7 @@ let metalSound: Audio.Sound | null = null;
 
 async function ensurePlaybackMode(): Promise<void> {
   try {
-    await Audio.setAudioModeAsync({
-      playsInSilentModeIOS: true,
-      allowsRecordingIOS: false,
-      staysActiveInBackground: false,
-      shouldDuckAndroid: true,
-      playThroughEarpieceAndroid: false,
-    });
+    await setVaultSensoryPlaybackAudioMode();
   } catch {
     /* no bloquear guardado */
   }

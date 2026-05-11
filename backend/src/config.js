@@ -76,6 +76,9 @@ const env = {
   githubClientId: process.env.GITHUB_OAUTH_CLIENT_ID || "",
   githubClientSecret: process.env.GITHUB_OAUTH_CLIENT_SECRET || "",
   emailOtpSecret: process.env.EMAIL_OTP_SECRET || "",
+  /** Resend → API Keys. Debe coincidir con lo que usa `email.service.js`. */
+  resendApiKey: String(process.env.RESEND_API_KEY ?? '').trim(),
+  /** Remitente verificado en Resend (FROM). */
   emailFrom: process.env.EMAIL_FROM || "",
   smtpHost: process.env.SMTP_HOST || "",
   smtpPort: Number(process.env.SMTP_PORT || 587),

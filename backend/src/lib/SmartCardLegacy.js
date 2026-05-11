@@ -97,7 +97,7 @@ function buildValidCourtesyPageHtml(opts) {
     title: isEs ? 'Card-Social' : 'Card-Social',
     countdown: isEs ? 'Acceso temporal:' : 'Temporary access:',
     remaining: isEs ? 'restantes' : 'remaining',
-    addContacts: isEs ? 'Descargar Card-Social' : 'Download Card-Social',
+    addContacts: isEs ? 'Obtener Acceso Anticipado' : 'Get Early Access',
     openApp: isEs ? 'Abrir en la app' : 'Open in app',
     loadErr: isEs ? 'No se pudo cargar la tarjeta.' : 'Could not load the card.',
     expired: isEs ? 'Este acceso ha expirado.' : 'This access has expired.',
@@ -195,16 +195,16 @@ function buildValidCourtesyPageHtml(opts) {
     }
     .medal-strip-inner {
       display: flex; flex-direction: row; align-items: center; justify-content: space-evenly;
-      flex-wrap: nowrap; gap: 4px; border-radius: 999px;
+      flex-wrap: nowrap; gap: 5px; border-radius: 999px;
       background: rgba(255,255,255,0.12);
       border: 2px solid var(--bc);
-      padding: 10px;
+      padding: 12px;
       box-sizing: border-box;
     }
     .medal-it {
-      display: inline-flex; flex-direction: row; align-items: center; gap: 3px;
+      display: inline-flex; flex-direction: row; align-items: center; gap: 4px;
       flex-shrink: 1; min-width: 0;
-      font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ic);
+      font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ic);
     }
     .medal-it svg { flex-shrink: 0; display: block; }
     .slot-grid {
@@ -233,8 +233,8 @@ function buildValidCourtesyPageHtml(opts) {
       display: block; width: 100%; padding: 14px 16px; border-radius: 12px; font-weight: 800; font-size: 0.95rem;
       text-align: center; text-decoration: none; cursor: pointer; border: none;
     }
-    .btn-primary { background: var(--bc); color: var(--bg0); }
-    .btn-ghost { background: transparent; color: var(--bc); border: 1px solid var(--bc); }
+    .btn-primary { background: var(--bc); color: var(--ic); font-weight: 800; }
+    .btn-ghost { background: rgba(255, 255, 255, 0.78); color: var(--ic); border: 2px solid var(--bc); font-weight: 600; }
     .err { text-align: center; padding: 24px; color: #c44; }
     .legal-foot {
       margin-top: 18px;
@@ -281,6 +281,7 @@ function buildValidCourtesyPageHtml(opts) {
   var THEMES = ${JSON.stringify(THEME_TABLE)};
   var DEFAULT_TID = ${JSON.stringify(DEFAULT_THEME_ID)};
   var MEDAL_PATHS = ${medalPathsForScript};
+  var HOME_URL = ${JSON.stringify(`${SITE}/`)};
   var SOCIAL_MEDAL_ORDER = ['creativo','conector','visionario','conversador','guru'];
   var BUSINESS_MEDAL_ORDER = ['compromiso','servicio','confianza','prestigio','excelencia'];
   function applyTheme(tid) {
@@ -297,11 +298,6 @@ function buildValidCourtesyPageHtml(opts) {
     var meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.content = th.bg[0];
   }
-  // TODO: reemplazar IOS_URL con el link real de App Store cuando la app esté publicada
-  // Ejemplo: 'https://apps.apple.com/app/card-social/id123456789'
-  var IOS_URL = 'https://cardsocial.me';
-  var AND_URL = 'https://play.google.com/store/apps/details?id=com.cardsocial.app';
-
   function apiUrl(path) {
     var p = API_PREFIX ? (API_PREFIX + path) : path;
     return p;
@@ -363,7 +359,7 @@ function buildValidCourtesyPageHtml(opts) {
       var num = normMedalCount(counts[k]);
       parts.push(
         '<div class="medal-it" title="'+esc(k)+': '+num+'">' +
-        '<svg viewBox="0 0 24 24" width="20" height="16" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><path fill="currentColor" d="'+esc(d)+'"/></svg>' +
+        '<svg viewBox="0 0 24 24" width="27" height="21" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><path fill="currentColor" d="'+esc(d)+'"/></svg>' +
         '<span>'+num+'</span></div>'
       );
     }
@@ -573,15 +569,7 @@ function buildValidCourtesyPageHtml(opts) {
       appLink.href = deep;
 
       document.getElementById('btn-store').onclick = function() {
-        var ua = navigator.userAgent || '';
-        var isIOS = /iPad|iPhone|iPod/.test(ua);
-        var dest = isIOS ? IOS_URL : AND_URL;
-        function go() { window.location.href = dest; }
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(String(TOKEN)).then(go).catch(go);
-        } else {
-          go();
-        }
+        window.location.href = HOME_URL;
       };
     })
     .catch(function(){

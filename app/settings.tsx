@@ -6,17 +6,16 @@ import { Image as ExpoImage } from 'expo-image';
 import * as LocalAuthentication from 'expo-local-authentication';
 // expo-notifications is imported lazily below to avoid a crash on Android (Expo Go)
 // where the module calls addPushTokenListener at module-load time.
+import { shareExportedUserProfileJson } from '@/services/exportUserProfileJson';
 import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { useRouter } from 'expo-router';
-import * as Sharing from 'expo-sharing';
 import { signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
 import React, { useMemo } from 'react';
 import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
-import { auth, db } from '../services/firebaseConfig';
+import { auth } from '../services/firebaseConfig';
 import palette from './theme';
 
 export default function SettingsScreen() {
@@ -268,14 +267,7 @@ export default function SettingsScreen() {
   const handleExportData = async () => {
     setIsExporting(true);
     try {
-      const uid = auth.currentUser?.uid;
-      if (!uid) throw new Error('No user');
-      const userDoc = await getDoc(doc(db, 'users', uid));
-      if (!userDoc.exists()) throw new Error('No data');
-      const stringData = JSON.stringify(userDoc.data(), null, 2);
-      const fileUri = FileSystem.documentDirectory + 'CardSocial_MisDatos.json';
-      await FileSystem.writeAsStringAsync(fileUri, stringData);
-      await Sharing.shareAsync(fileUri, { dialogTitle: tr('Tus datos de Card-Social', 'Your Card-Social data') });
+      await shareExportedUserProfileJson(tr('Tus datos de Card-Social', 'Your Card-Social data'));
     } catch {
       Alert.alert(
         tr('Error', 'Error'),

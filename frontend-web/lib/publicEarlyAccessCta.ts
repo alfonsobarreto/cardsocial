@@ -29,7 +29,7 @@ export function earlyAccessPrimaryCtaStyle(theme: CardTheme): EarlyAccessPrimary
   const color = resolvePillForegroundColor({
     cardGradient: theme.background,
     pillBackground: bgFill,
-    preferredColor: '#ffffff',
+    preferredColor: theme.icon.color,
     minContrast: 4.5,
   });
   const bd = theme.border.color;
@@ -38,6 +38,24 @@ export function earlyAccessPrimaryCtaStyle(theme: CardTheme): EarlyAccessPrimary
     color,
     boxShadow: `0 10px 28px ${bd}52`,
     border: '1px solid rgba(255,255,255,0.16)',
+    fontWeight: 600,
+  };
+}
+
+/**
+ * CTA secundario (p. ej. “Abrir en la app”): borde del theme + texto tipo icono sobre fondo claro semitransparente para contraste sobre gradientes claros.
+ */
+export function earlyAccessSecondaryCtaStyle(theme: CardTheme): {
+  color: string;
+  border: string;
+  backgroundColor: string;
+  fontWeight: number;
+} {
+  const bd = theme.border.color;
+  return {
+    color: theme.icon.color,
+    border: `2px solid ${bd}`,
+    backgroundColor: 'rgba(255, 255, 255, 0.78)',
     fontWeight: 600,
   };
 }

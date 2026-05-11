@@ -6,7 +6,7 @@
  */
 
 const express = require('express');
-const { sendEmail } = require('../services/email.service');
+const { sendEmail, isEmailSendConfigured } = require('../services/email.service');
 const { sendPushToUser } = require('../lib/pushNotifications');
 const { getFirestoreOptional } = require('../lib/firebaseAdminApp');
 const { resolveBroadcastRecipients, SEGMENTS } = require('../lib/broadcastSegments');
@@ -107,10 +107,11 @@ function createBroadcastRouter({ getMongoDb }) {
         return res.status(400).json({ ok: false, error: 'messages object required per language' });
       }
 
-      if (['email', 'both'].includes(channel) && !process.env.AZURE_EMAIL_CONNECTION_STRING) {
+      if (['email', 'both'].includes(channel) && !isEmailSendConfigured()) {
         return res.status(503).json({
           ok: false,
-          error: 'Email channel requires AZURE_EMAIL_CONNECTION_STRING',
+          error:
+            'Email channel requires RESEND_API_KEY and EMAIL_FROM (verified sender in Resend).',
         });
       }
 

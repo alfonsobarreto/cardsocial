@@ -18,6 +18,7 @@ import {
     blockRelationship,
     listCardSubscribers,
     listReceivedContacts,
+    normalizePublicCardSlotFromApi,
     removeRelationship,
     setSubscriberSelfCardMute,
     type CardSubscriberRow,
@@ -316,21 +317,7 @@ function ContactsContent() {
 
   const normalizeContactRow = (row: Contact): Contact => {
     const slotSource = Array.isArray(row.publicCardSlots) ? row.publicCardSlots : [];
-    const publicCardSlots: PublicCardSlotPayload[] = slotSource.map((s) => {
-      const iconRaw = s?.icon != null ? String(s.icon).trim() : '';
-      const icon = /^https?:\/\//i.test(iconRaw) ? iconRaw : undefined;
-      const iconName = s?.iconName != null ? String(s.iconName).trim() : '';
-      const vm = s?.vaultMimeType != null ? String(s.vaultMimeType).trim() : '';
-      return {
-        itemId: String(s?.itemId || ''),
-        type: String(s?.type || 'link'),
-        label: String(s?.label || ''),
-        value: String(s?.value || ''),
-        ...(icon ? { icon } : {}),
-        ...(iconName ? { iconName } : {}),
-        ...(vm ? { vaultMimeType: vm.slice(0, 120) } : {}),
-      };
-    });
+    const publicCardSlots: PublicCardSlotPayload[] = slotSource.map((s) => normalizePublicCardSlotFromApi(s));
     /** Caché antigua podía traer `photoUrl`; la API actual usa `userAvatarUrl`. Business: sin datos de perfil. */
     const legacy = row as Contact & { name?: string; nickname?: string; photoUrl?: string | null };
     const isBiz = row.cardType === 'business';

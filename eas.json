@@ -13,6 +13,12 @@
     },
     "production": {
       "autoIncrement": true
+    },
+    "alpha-testflight": {
+      "extends": "production",
+      "env": {
+        "EXPO_PUBLIC_CLOSED_ALPHA_FULL_TIER": "business"
+      }
     }
   },
   "submit": {

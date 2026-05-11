@@ -3,6 +3,12 @@ import { brandCsIconLogo } from '@/constants/brandAssets';
 import { CreditsIndicator } from '@/components/CreditsIndicator';
 import LanguageToggle from '@/components/LanguageToggle';
 import Subscription from '@/components/Subscription';
+import {
+  computeScheduledDeletionDeadline,
+  formatDeletionDeadlineDisplay,
+  markAccountPendingDeletionInFirestore,
+} from '@/services/accountDeletionClient';
+import { shareExportedUserProfileJson } from '@/services/exportUserProfileJson';
 import { getActiveUserId } from '@/services/authSession';
 import { listMyBusinessCards } from '@/services/businessCardsRepo';
 import { auth, db } from '@/services/firebaseConfig';
@@ -49,6 +55,7 @@ import { CreditCard, Database, Phone, Search, Users } from 'lucide-react-native'
 import type { ComponentType } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+    ActivityIndicator,
     Alert,
     AppState,
     Image,
@@ -149,6 +156,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const [adminQuickStatsOpen, setAdminQuickStatsOpen] = useState(false);
   const confettiRef = useRef<ConfettiAnimationRef>(null);
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
+  const [privacyExporting, setPrivacyExporting] = useState(false);
   const [loadingBlocked, setLoadingBlocked] = useState(false);
   type RelTab = 'muted' | 'restricted' | 'blocked';
   const [relTab, setRelTab] = useState<RelTab>('blocked');
@@ -1037,6 +1045,26 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                             {tr('Noche', 'Night')}
                           </Text>
                         </TouchableOpacity>
+                      </View>
+                      <View style={styles.lookModeRow}>
+                        <TouchableOpacity
+                          style={[
+                            styles.lookModeButton,
+                            { borderColor: shell.modalBorder, backgroundColor: 'transparent' },
+                            mode === 'sistema' && { backgroundColor: shell.ctaAccent, borderColor: shell.ctaAccent },
+                          ]}
+                          onPress={() => setMode('sistema')}
+                        >
+                          <Text
+                            style={[
+                              styles.lookModeButtonText,
+                              { color: shell.text },
+                              mode === 'sistema' && { color: shell.emptyCtaText },
+                            ]}
+                          >
+                            {tr('Sistema', 'System')}
+                          </Text>
+                        </TouchableOpacity>
                         <TouchableOpacity
                           style={[
                             styles.lookModeButton,
@@ -1052,25 +1080,32 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                               mode === 'auto' && { color: shell.emptyCtaText },
                             ]}
                           >
-                            Auto
+                            {tr('Auto GPS', 'Auto GPS')}
                           </Text>
                         </TouchableOpacity>
                       </View>
-                      {mode === 'auto' ? (
+                      {(mode === 'auto' || mode === 'sistema') ? (
                         <Text style={[styles.lookModeHint, { color: shell.textSecondary }]}>
-                          {(() => {
-                            if (mode === 'auto') {
-                              if (autoStatusText.includes('GPS')) return tr('auto_gps', 'auto_gps');
-                              if (autoStatusText.includes('ubicacion en cache')) return tr('auto_cached', 'auto_cached');
-                              if (autoStatusText.includes('cache sin red')) return tr('auto_cache_offline', 'auto_cache_offline');
-                              if (autoStatusText.includes('sin GPS')) return tr('auto_fallback', 'auto_fallback');
-                              return tr('auto_inactive', 'auto_inactive');
-                            }
-                            if (mode === 'dia') return tr('manual_day', 'manual_day');
-                            if (mode === 'noche') return tr('manual_night', 'manual_night');
-                            return '';
-                          })()}
-                          {mode === 'auto' ? `. ${tr('Resuelto', 'Resolved')}: ${tr(resolvedMode === 'noche' ? 'Noche' : 'Día', resolvedMode === 'noche' ? 'Night' : 'Day')}.` : ''}
+                          {mode === 'sistema' ? (
+                            <>
+                              {tr('Usa el modo claro u oscuro del dispositivo.', 'Uses your device light or dark appearance.')}
+                              {` ${tr('Resuelto', 'Resolved')}: ${tr(resolvedMode === 'noche' ? 'Noche' : 'Día', resolvedMode === 'noche' ? 'Night' : 'Day')}.`}
+                            </>
+                          ) : (
+                            <>
+                              {(() => {
+                                if (mode === 'auto') {
+                                  if (autoStatusText.includes('GPS')) return tr('auto_gps', 'auto_gps');
+                                  if (autoStatusText.includes('ubicacion en cache')) return tr('auto_cached', 'auto_cached');
+                                  if (autoStatusText.includes('cache sin red')) return tr('auto_cache_offline', 'auto_cache_offline');
+                                  if (autoStatusText.includes('sin GPS')) return tr('auto_fallback', 'auto_fallback');
+                                  return tr('auto_inactive', 'auto_inactive');
+                                }
+                                return '';
+                              })()}
+                              {mode === 'auto' ? `. ${tr('Resuelto', 'Resolved')}: ${tr(resolvedMode === 'noche' ? 'Noche' : 'Día', resolvedMode === 'noche' ? 'Night' : 'Day')}.` : ''}
+                            </>
+                          )}
                         </Text>
                       ) : null}
                     </View>
@@ -1093,76 +1128,114 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                     </Text>
                     <TouchableOpacity
                       style={[styles.editProfileBtn, { marginTop: 24, backgroundColor: shell.ctaAccent }]}
+                      disabled={privacyExporting}
                       onPress={() => {
-                        Alert.alert(
-                          tr('Descarga de datos', 'Download Data'),
-                          tr('Recibirás un archivo con tus datos personales próximamente.', 'You will receive a file with your personal data soon.')
-                        );
+                        void (async () => {
+                          setPrivacyExporting(true);
+                          try {
+                            await shareExportedUserProfileJson(
+                              tr('Tus datos de Card-Social', 'Your Card-Social data'),
+                            );
+                          } catch {
+                            Alert.alert(
+                              tr('Error', 'Error'),
+                              tr('No se pudieron exportar los datos.', 'Could not export data.'),
+                            );
+                          } finally {
+                            setPrivacyExporting(false);
+                          }
+                        })();
                       }}
                     >
-                      <MaterialCommunityIcons name="download" size={16} color={shell.emptyCtaText} />
+                      {privacyExporting ? (
+                        <ActivityIndicator size="small" color={shell.emptyCtaText} />
+                      ) : (
+                        <MaterialCommunityIcons name="download" size={16} color={shell.emptyCtaText} />
+                      )}
                       <Text style={[styles.editProfileBtnText, { color: shell.emptyCtaText }]}>{tr('Descargar mis datos', 'Download my data')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.editProfileBtn, { marginTop: 16, backgroundColor: '#B7343A' }]}
-                      onPress={async () => {
-                        // Primer mensaje
+                      onPress={() => {
                         Alert.alert(
                           tr('Eliminar cuenta', 'Delete account'),
-                          tr('Estás eliminando tu cuenta, esto puede borrar para siempre tus datos. ¿Deseas continuar?', 'You are deleting your account, this may permanently erase your data. Continue?'),
+                          tr(
+                            'Estás eliminando tu cuenta; tras confirmar, tus datos entrarán en hibernación 30 días. ¿Deseas continuar?',
+                            'You are deleting your account; after you confirm, your data enters a 30-day hibernation. Continue?',
+                          ),
                           [
                             { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
                             {
                               text: tr('Aceptar', 'Accept'),
                               style: 'destructive',
-                              onPress: async () => {
-                                // Segundo mensaje
-                                const now = new Date();
-                                const deadline = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-                                const deadlineStr = deadline.toLocaleDateString(intlLocaleTagForAppLanguage(language), { year: 'numeric', month: 'long', day: '2-digit' });
+                              onPress: () => {
+                                const user = auth.currentUser;
+                                if (!user) return;
+                                const scheduledDeadline = computeScheduledDeletionDeadline();
+                                const deadlineStr = formatDeletionDeadlineDisplay(scheduledDeadline, language);
                                 Alert.alert(
                                   tr('Confirmar eliminación', 'Confirm deletion'),
                                   tr(
-                                    `¿Seguro? Pensamos en ti: tienes hasta 30 días para volver a iniciar sesión y no perderás tus datos. Fecha límite: ${deadlineStr}.`,
-                                    `Are you sure? You have up to 30 days to log in again and keep your data. Deadline: ${deadlineStr}.`
+                                    `¿Seguro? Tienes hasta 30 días para iniciar sesión y conservar todo. Fecha límite de borrado definitivo: ${deadlineStr}.`,
+                                    `Are you sure? You have 30 days to sign in and keep everything. Final deletion date: ${deadlineStr}.`,
                                   ),
                                   [
                                     { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
                                     {
                                       text: tr('Aceptar', 'Accept'),
                                       style: 'destructive',
-                                      onPress: async () => {
-                                        try {
-                                          const user = auth.currentUser;
-                                          if (user) {
+                                      onPress: () => {
+                                        void (async () => {
+                                          try {
                                             const userId = user.uid;
-                                            // Marcar en Firestore como pendiente de eliminación
-                                            await updateDoc(doc(db, 'users', userId), {
-                                              pendingDeletion: true,
-                                              deletionRequestedAt: now,
-                                              deletionDeadline: deadline,
+                                            const firstNameSrc =
+                                              profileData?.userFullName ||
+                                              user.displayName ||
+                                              '';
+                                            await markAccountPendingDeletionInFirestore({
+                                              uid: userId,
+                                              language,
+                                              firstNameForEmail: firstNameSrc,
+                                              deadlineDate: scheduledDeadline,
                                             });
                                             Alert.alert(
                                               tr('Cuenta marcada para eliminación', 'Account marked for deletion'),
                                               tr(
-                                                `Tu cuenta está marcada para eliminación. Si vuelves a iniciar sesión antes del ${deadlineStr}, tu cuenta será restaurada automáticamente.`,
-                                                `Your account is marked for deletion. If you log in again before ${deadlineStr}, your account will be automatically restored.`
-                                              )
+                                                `Tu cuenta está en hibernación. Si inicias sesión antes del ${deadlineStr}, se restaurará al instante. Revisa tu correo para los detalles.`,
+                                                `Your account is in hibernation. If you sign in before ${deadlineStr}, it will be restored instantly. Check your email for details.`,
+                                              ),
+                                              [
+                                                {
+                                                  text: tr('Entendido', 'OK'),
+                                                  onPress: () => {
+                                                    void (async () => {
+                                                      setDrawerVisible(false);
+                                                      setActivePanel('menu');
+                                                      await clearLocalCachesForSignOut(userId);
+                                                      await signOut(auth);
+                                                      router.replace('/signin');
+                                                    })();
+                                                  },
+                                                },
+                                              ],
                                             );
-                                            setDrawerVisible(false);
-                                            setActivePanel('menu');
-                                            router.replace('/');
+                                          } catch {
+                                            Alert.alert(
+                                              tr('Error', 'Error'),
+                                              tr(
+                                                'No se pudo marcar la cuenta para eliminación. Intenta nuevamente.',
+                                                'Could not mark account for deletion. Please try again.',
+                                              ),
+                                            );
                                           }
-                                        } catch (err) {
-                                          Alert.alert(tr('Error', 'Error'), tr('No se pudo marcar la cuenta para eliminación. Intenta nuevamente.', 'Could not mark account for deletion. Please try again.'));
-                                        }
+                                        })();
                                       },
                                     },
-                                  ]
+                                  ],
                                 );
                               },
                             },
-                          ]
+                          ],
                         );
                       }}
                     >

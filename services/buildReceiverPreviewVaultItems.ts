@@ -16,6 +16,7 @@ export type MirrorVaultItem = {
 
 export function publicSlotToMirrorVaultItem(s: PublicCardSlotPayload): MirrorVaultItem {
   const vm = s.vaultMimeType != null ? String(s.vaultMimeType).trim() : '';
+  const iconVaultIdRaw = s.iconVaultId != null ? String(s.iconVaultId).trim() : '';
   return {
     id: String(s.itemId || '').trim(),
     title: String(s.label || ''),
@@ -25,6 +26,7 @@ export function publicSlotToMirrorVaultItem(s: PublicCardSlotPayload): MirrorVau
     icon: s.icon,
     isFavorite: false,
     ...(vm ? { vaultMimeType: vm } : {}),
+    ...(iconVaultIdRaw ? { iconVaultId: iconVaultIdRaw } : {}),
   };
 }
 

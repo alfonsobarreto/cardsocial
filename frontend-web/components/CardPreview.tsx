@@ -6,7 +6,7 @@ import DocumentHtmlLang from '@/components/DocumentHtmlLang';
 import PublicLegalFooter from '@/components/PublicLegalFooter';
 import type { CardData } from '@/lib/universalCardTypes';
 import { CardTheme } from '@/lib/themes';
-import { earlyAccessPrimaryCtaStyle, earlyAccessPrimaryLabel } from '@/lib/publicEarlyAccessCta';
+import { earlyAccessPrimaryCtaStyle, earlyAccessPrimaryLabel, earlyAccessSecondaryCtaStyle } from '@/lib/publicEarlyAccessCta';
 import { trackPublicBusinessCardViewOncePerSession } from '@/lib/publicBusinessCardAnalytics';
 
 export type { CardData, PublicSlot } from '@/lib/universalCardTypes';
@@ -62,7 +62,7 @@ export default function CardPreview(props: Props) {
   const cdStr = `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
 
   const deepLink = isBusiness ? props.appDeepLink : `cardsocial://u/${props.universalToken}`;
-  const storeUrl = 'https://cardsocial.me';
+  const storeUrl = 'https://cardsocial.me/';
 
   return (
     <div style={{ width: '100%', maxWidth: 420, margin: '0 auto' }}>
@@ -124,11 +124,9 @@ export default function CardPreview(props: Props) {
             textAlign: 'center',
             padding: '14px 24px',
             borderRadius: 14,
-            border: `2px solid ${bd.color}`,
-            color: bd.color,
-            fontWeight: 400,
             fontSize: 15,
             textDecoration: 'none',
+            ...earlyAccessSecondaryCtaStyle(theme),
           }}
         >
           {tr('Abrir en la app', 'Open in app')}

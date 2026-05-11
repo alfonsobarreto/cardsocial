@@ -26,6 +26,11 @@ import {
 } from '@/services/userIdentityFields';
 import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
+import {
+  computeScheduledDeletionDeadline,
+  formatDeletionDeadlineDisplay,
+  markAccountPendingDeletionInFirestore,
+} from '@/services/accountDeletionClient';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import { listReceivedContacts, listSmartCardsFromDb, syncProfileAvatarUrlToMongo } from '@/services/qrApi';
 import { propagateUserIdentityAcrossSmartCards } from '@/services/smartCardsRepo';
@@ -301,33 +306,73 @@ export default function MyProfileScreen() {
     Alert.alert(
       tr('Confirmar Eliminación', 'Confirm Delete'),
       tr(
-        'Tu cuenta será desactivada inmediatamente y eliminada de forma permanente en 30 días. Si inicias sesión antes, la eliminación se cancelará. ¿Deseas continuar?',
-        'Your account will be deactivated immediately and permanently deleted in 30 days. If you log in before then, deletion will be cancelled. Continue?'
+        'Tu cuenta entrará en hibernación 30 días y luego se eliminará por completo si no vuelves a iniciar sesión. ¿Continuar?',
+        'Your account will hibernate for 30 days, then be fully deleted if you do not sign in again. Continue?',
       ),
       [
         { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
         {
-          text: tr('Sí, eliminar cuenta', 'Yes, delete account'),
+          text: tr('Sí, continuar', 'Yes, continue'),
           style: 'destructive',
-          onPress: async () => {
-            try {
-              if (!profile) throw new Error('No user');
-              const uid = profile.uid;
-              const now = new Date();
-              const deadline = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-              await updateDoc(doc(db, 'users', uid), {
-                pendingDeletion: true,
-                deletionRequestedAt: now,
-                deletionDeadline: deadline,
-              });
-              await clearLocalCachesForSignOut(uid);
-              await signOut(auth);
-            } catch (e) {
-              Alert.alert(tr('Error', 'Error'), tr('No se pudo marcar la cuenta para eliminación.', 'Could not mark account for deletion.'));
-            }
+          onPress: () => {
+            const u = auth.currentUser;
+            if (!profile || !u) return;
+            const scheduledDeadline = computeScheduledDeletionDeadline();
+            const deadlineStr = formatDeletionDeadlineDisplay(scheduledDeadline, language);
+            Alert.alert(
+              tr('Confirmar eliminación', 'Confirm deletion'),
+              tr(
+                `Fecha límite de borrado definitivo: ${deadlineStr}. Puedes restaurar todo iniciando sesión antes de esa fecha.`,
+                `Final deletion date: ${deadlineStr}. You can restore everything by signing in before that date.`,
+              ),
+              [
+                { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+                {
+                  text: tr('Sí, eliminar cuenta', 'Yes, delete account'),
+                  style: 'destructive',
+                  onPress: () => {
+                    void (async () => {
+                      try {
+                        const uid = profile.uid;
+                        await markAccountPendingDeletionInFirestore({
+                          uid,
+                          language,
+                          firstNameForEmail: profile.userFullName,
+                          deadlineDate: scheduledDeadline,
+                        });
+                        Alert.alert(
+                          tr('Cuenta marcada para eliminación', 'Account marked for deletion'),
+                          tr(
+                            `Hibernación activa hasta el ${deadlineStr}. Revisa tu correo. Tras salir, usa “Entendido”.`,
+                            `Hibernation active until ${deadlineStr}. Check your email. Tap OK to sign out.`,
+                          ),
+                          [
+                            {
+                              text: tr('Entendido', 'OK'),
+                              onPress: () => {
+                                void (async () => {
+                                  await clearLocalCachesForSignOut(uid);
+                                  await signOut(auth);
+                                  router.replace('/signin');
+                                })();
+                              },
+                            },
+                          ],
+                        );
+                      } catch (e) {
+                        Alert.alert(
+                          tr('Error', 'Error'),
+                          tr('No se pudo marcar la cuenta para eliminación.', 'Could not mark account for deletion.'),
+                        );
+                      }
+                    })();
+                  },
+                },
+              ],
+            );
           },
         },
-      ]
+      ],
     );
   };
 

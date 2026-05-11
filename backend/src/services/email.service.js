@@ -1,16 +1,23 @@
-// email.service.js - Servicio centralizado de emails para Card-Social
-const { EmailClient } = require('@azure/communication-email');
+// email.service.js - Envío centralizado vía Resend (https://resend.com/docs/api-reference/emails/send-email)
+const { Resend } = require('resend');
 
 const CARD_SOCIAL_PRIMARY_COLOR = '#1EA7FF';
 const CARD_SOCIAL_LOGO_URL = 'https://cardsocial.me/assets/logo-cardsocial.png'; // Cambia por la URL real si es diferente
 const COMPANY_ADDRESS = 'Card-Social, CDMX, México'; // Actualiza si tienes dirección física oficial
 
-const EMAIL_FROM = process.env.EMAIL_FROM || 'DoNotReply@cardsocial.me';
-const AZURE_EMAIL_CONNECTION_STRING = process.env.AZURE_EMAIL_CONNECTION_STRING;
+const RESEND_API_KEY = String(process.env.RESEND_API_KEY ?? '').trim();
+/** Debe coincidir con un dominio/remitente verificado en Resend. */
+const EMAIL_FROM_DEFAULT = String(process.env.EMAIL_FROM ?? '').trim();
 
-function getEmailClient() {
-  if (!AZURE_EMAIL_CONNECTION_STRING) throw new Error('Falta AZURE_EMAIL_CONNECTION_STRING');
-  return new EmailClient(AZURE_EMAIL_CONNECTION_STRING);
+let resendSingleton = null;
+function getResendClient() {
+  if (!RESEND_API_KEY) {
+    throw new Error('Falta RESEND_API_KEY');
+  }
+  if (!resendSingleton) {
+    resendSingleton = new Resend(RESEND_API_KEY);
+  }
+  return resendSingleton;
 }
 
 function renderButton(text, url) {
@@ -77,49 +84,89 @@ Si no solicitaste esta ayuda, puedes ignorar este correo.`
   });
 }
 
-async function sendEmail({ to, subject, html, text }) {
-  const client = getEmailClient();
-  const message = {
-    senderAddress: EMAIL_FROM,
-    content: {
+/** escape mínimo para nombre en HTML */
+function escHtml(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/**
+ * Confirmación de solicitud de eliminación (hibernación 30 días).
+ * @param {{ firstName: string; deadlineFormatted: string; locale: 'es' | 'en' }} p
+ * @returns {{ html: string; text: string; subject: string }}
+ */
+function accountDeletionScheduledTemplate({ firstName, deadlineFormatted, locale }) {
+  const es = locale === 'es';
+  const name = escHtml(firstName).trim();
+  const subject = es
+    ? 'Solicitud de eliminación de cuenta — Card-Social'
+    : 'Account deletion request — Card-Social';
+
+  const greeting = name ? (es ? `Hola ${name},` : `Hello ${name},`) : es ? 'Hola,' : 'Hello,';
+
+  const bodyHtml = es
+    ? `${greeting}<br><br>Hemos recibido tu solicitud de eliminación. Tu cuenta y todos tus datos personales asociados entrarán en un periodo de hibernación de 30 días y se borrarán definitivamente el día <b>${escHtml(
+        deadlineFormatted
+      )}</b>.<br><br><b>Soberanía total:</b> si cambias de opinión, no tienes que escribirnos ni abrir tickets; tu cuenta sigue viva y solo necesitas iniciar sesión con tu contraseña antes de la fecha límite para restaurar todo instantáneamente.`
+    : `${greeting}<br><br>We have received your deletion request. Your account and all associated personal data will enter a 30-day hibernation period and will be permanently deleted on <b>${escHtml(
+        deadlineFormatted
+      )}</b>.<br><br><b>Full sovereignty:</b> if you change your mind, you do not need to email us or open a support ticket — your account remains active; simply sign in with your password before the deadline to restore everything instantly.`;
+
+  const plainName = String(firstName || '').trim();
+  const text = es
+    ? `${plainName ? `Hola ${plainName},` : 'Hola,'}\n\nHemos recibido tu solicitud de eliminación. Tu cuenta y todos tus datos personales asociados entrarán en un periodo de hibernación de 30 días y se borrarán definitivamente el día ${deadlineFormatted}.\n\nSoberanía total: si cambias de opinión, no tienes que escribirnos ni abrir tickets; tu cuenta sigue viva y solo necesitas iniciar sesión con tu contraseña antes de la fecha límite para restaurar todo instantáneamente.`
+    : `${plainName ? `Hello ${plainName},` : 'Hello,'}\n\nWe have received your deletion request. Your account and all associated personal data will enter a 30-day hibernation period and will be permanently deleted on ${deadlineFormatted}.\n\nFull sovereignty: if you change your mind, you do not need to email us or open a support ticket — your account remains active; simply sign in with your password before the deadline to restore everything instantly.`;
+
+  return {
+    subject,
+    html: renderBaseTemplate({ subject, bodyHtml }),
+    text,
+  };
+}
+
+/**
+ * @param {{ to: string; subject: string; html: string; text?: string; from?: string }} opts
+ */
+async function sendEmail({ to, subject, html, text, from }) {
+  const sender = String(from || EMAIL_FROM_DEFAULT).trim();
+  if (!sender) {
+    throw new Error('Falta EMAIL_FROM (remitente verificado en Resend)');
+  }
+  const recipient = String(to || '').trim();
+  if (!recipient) {
+    throw new Error('Falta destinatario');
+  }
+
+  const client = getResendClient();
+  let logDoc;
+
+  try {
+    const { data, error } = await client.emails.send({
+      from: sender,
+      to: recipient,
       subject,
       html,
-      plainText: text || '',
-    },
-    recipients: {
-      to: [{ address: to }],
-    },
-  };
-  let result, logDoc;
-  const { MongoClient } = require('mongodb');
-  const mongoUri = process.env.MONGO_URI;
-  const mongoDb = process.env.MONGO_DB_NAME || 'cardsocial';
-  try {
-    const poller = await client.beginSend(message);
-    result = await poller.pollUntilDone();
+      ...(text ? { text } : {}),
+    });
+
+    if (error) {
+      throw new Error(typeof error === 'object' ? error.message || JSON.stringify(error) : String(error));
+    }
+
     logDoc = {
       type: 'email',
-      to,
+      provider: 'resend',
+      to: recipient,
       subject,
-      status: result.status,
-      azureId: result.id || result.messageId || null,
+      status: 'sent',
+      messageId: data?.id ?? null,
       sentAt: new Date(),
       payload: { html, text },
       error: null,
     };
-  } catch (err) {
-    logDoc = {
-      type: 'email',
-      to,
-      subject,
-      status: 'error',
-      azureId: null,
-      sentAt: new Date(),
-      payload: { html, text },
-      error: err.message || String(err),
-    };
-    throw err;
-  } finally {
+
+    const { MongoClient } = require('mongodb');
+    const mongoUri = process.env.MONGO_URI;
+    const mongoDb = process.env.MONGO_DB_NAME || 'cardsocial';
     if (mongoUri) {
       try {
         const mongo = new MongoClient(mongoUri);
@@ -127,20 +174,52 @@ async function sendEmail({ to, subject, html, text }) {
         await mongo.db(mongoDb).collection('email_logs').insertOne(logDoc);
         await mongo.close();
       } catch (e) {
-        // Logging de email falló, pero no interrumpe el envío
         console.error('Error guardando log de email:', e);
       }
     }
+
+    return data;
+  } catch (err) {
+    logDoc = {
+      type: 'email',
+      provider: 'resend',
+      to: recipient,
+      subject,
+      status: 'error',
+      messageId: null,
+      sentAt: new Date(),
+      payload: { html, text },
+      error: err.message || String(err),
+    };
+
+    const { MongoClient } = require('mongodb');
+    const mongoUri = process.env.MONGO_URI;
+    const mongoDb = process.env.MONGO_DB_NAME || 'cardsocial';
+    if (mongoUri) {
+      try {
+        const mongo = new MongoClient(mongoUri);
+        await mongo.connect();
+        await mongo.db(mongoDb).collection('email_logs').insertOne(logDoc);
+        await mongo.close();
+      } catch (e) {
+        console.error('Error guardando log de email:', e);
+      }
+    }
+
+    throw err;
   }
-  if (result.status !== 'Succeeded') {
-    throw new Error(`Azure Email send failed: ${result.error?.message || result.status}`);
-  }
-  return result;
+}
+
+/** True si el backend puede enviar correo transaccional. */
+function isEmailSendConfigured() {
+  return Boolean(RESEND_API_KEY && EMAIL_FROM_DEFAULT);
 }
 
 module.exports = {
   sendEmail,
+  isEmailSendConfigured,
   welcomeTemplate,
   passwordResetTemplate,
   usernameRecoveryTemplate,
+  accountDeletionScheduledTemplate,
 };

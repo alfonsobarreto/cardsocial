@@ -42,7 +42,8 @@ function mapBusinessApiJsonToCardData(data: Record<string, unknown>): CardData {
 }
 
 function permanentAppDeepLink(bId: string, uid: string): string {
-  return `card-social://business/${encodeURIComponent(bId)}?uid=${encodeURIComponent(uid)}&mode=permanent`;
+  /** Mismo esquema que Expo (`app.json` scheme: cardsocial); `card-social://` no abre la app en el navegador. */
+  return `cardsocial://business/${encodeURIComponent(bId)}?uid=${encodeURIComponent(uid)}&mode=permanent`;
 }
 
 async function fetchPublicBusinessCard(bId: string, uid: string): Promise<CardData | null> {

@@ -59,7 +59,8 @@ Create a `.env`-style environment in your host with:
 - `GITHUB_OAUTH_CLIENT_ID`
 - `GITHUB_OAUTH_CLIENT_SECRET`
 - `EMAIL_OTP_SECRET`
-- `EMAIL_FROM`
+- `RESEND_API_KEY` — API key de [Resend](https://resend.com) (correo transaccional: OTP, borrado de cuenta, broadcast, recuperación de usuario).
+- `EMAIL_FROM` — remitente verificado en Resend (debe coincidir con el dashboard).
 - `SMTP_HOST`
 - `SMTP_PORT`
 - `SMTP_SECURE`

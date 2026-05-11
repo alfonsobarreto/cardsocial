@@ -1,6 +1,5 @@
 const express = require("express");
 const crypto = require('crypto');
-const { sendAzureEmail } = require('./services/azureEmail');
 
 const { env, assertRequiredConfig } = require("./config");
 const { createAzureSafetyClient } = require("./services/azureSafety");
@@ -84,7 +83,12 @@ async function bootstrap() {
   // --- Action Token Model ---
   const { createActionTokenModel } = require('./models/actionToken');
   const actionTokenModel = createActionTokenModel(db);
-  const { sendEmail, usernameRecoveryTemplate } = require('./services/email.service');
+  const {
+    sendEmail,
+    isEmailSendConfigured,
+    usernameRecoveryTemplate,
+    accountDeletionScheduledTemplate,
+  } = require('./services/email.service');
 
   /** Una sola fuente: `env.apiGatewayKey` ← `process.env.API_GATEWAY_KEY` (Portal Azure). */
   const gatewayKeyMiddleware = createGatewayKeyMiddleware({
@@ -153,16 +157,16 @@ async function bootstrap() {
     return res.redirect('https://cardsocial.me/verify-success');
   });
 
-  const otpMailer = (env.azureEmailConnectionString && env.emailFrom)
+  /** Mismo canal Resend que `email.service.sendEmail` (borrado de cuenta, broadcast, etc.). */
+  const otpMailer = isEmailSendConfigured()
     ? {
         sendMail: async ({ from, to, subject, text, html }) => {
-          return sendAzureEmail({
-            from,
+          await sendEmail({
             to,
             subject,
-            text,
-            html,
-            connectionString: env.azureEmailConnectionString,
+            html: html || `<p>${String(text || '').replace(/</g, '&lt;')}</p>`,
+            text: text || '',
+            from: from || env.emailFrom || undefined,
           });
         },
       }
@@ -282,7 +286,7 @@ const otpHash = (emailLower, code) => {
       if (!emailLower) {
         return res.status(400).json({ ok: false, error: 'email is required' });
       }
-      if (!otpMailer || !env.emailFrom) {
+      if (!otpMailer) {
         return res.status(500).json({ ok: false, error: 'Email OTP backend is not configured' });
       }
 
@@ -665,6 +669,86 @@ const otpHash = (emailLower, code) => {
     middlewares: [gatewayKeyMiddleware, jwtAuthMiddleware, uploadScopeMiddleware],
     buildVaultAccessUrl,
   }));
+
+  app.post('/api/account/deletion-scheduled-notify', gatewayKeyMiddleware, async (req, res) => {
+    const { verifyFirebaseIdToken } = require('./lib/firebaseAdminApp');
+    const { getFirestoreOptional } = require('./lib/firebaseAdminApp');
+
+    try {
+      const authHeader = String(req.headers.authorization || '');
+      const idToken = authHeader.toLowerCase().startsWith('bearer ')
+        ? authHeader.slice(7).trim()
+        : '';
+      if (!idToken) {
+        return res.status(401).json({ ok: false, error: 'missing_token' });
+      }
+
+      let decoded;
+      try {
+        decoded = await verifyFirebaseIdToken(idToken);
+      } catch (e) {
+        console.error('[account/deletion-scheduled-notify] token', e?.message || e);
+        return res.status(401).json({ ok: false, error: 'invalid_token' });
+      }
+
+      const uid = String(decoded.uid || '').trim();
+      const emailTo = String(decoded.email || '').trim().toLowerCase();
+      if (!uid || !emailTo) {
+        return res.status(400).json({ ok: false, error: 'no_email_on_token' });
+      }
+
+      const body = req.body || {};
+      const deadlineIso = String(body.deadlineIso || '').trim();
+      const locale = body.locale === 'en' ? 'en' : 'es';
+      const intlLocaleTag = String(body.intlLocaleTag || (locale === 'es' ? 'es-MX' : 'en-US')).slice(0, 32);
+      const firstName = String(body.firstName || '').trim().slice(0, 80);
+
+      if (!deadlineIso || Number.isNaN(Date.parse(deadlineIso))) {
+        return res.status(400).json({ ok: false, error: 'invalid_deadline_iso' });
+      }
+
+      const fs = getFirestoreOptional();
+      if (!fs) {
+        return res.status(503).json({ ok: false, error: 'firestore_admin_unavailable' });
+      }
+
+      const userRef = fs.collection('users').doc(uid);
+      const snap = await userRef.get();
+      if (!snap.exists || !snap.data()?.pendingDeletion) {
+        return res.status(409).json({ ok: false, error: 'not_marked_for_deletion' });
+      }
+
+      const dd = snap.data().deletionDeadline;
+      let deadlineMs;
+      if (dd && typeof dd.toMillis === 'function') deadlineMs = dd.toMillis();
+      else if (dd instanceof Date) deadlineMs = dd.getTime();
+      else deadlineMs = new Date(dd).getTime();
+
+      const isoMs = Date.parse(deadlineIso);
+      if (!Number.isFinite(deadlineMs) || !Number.isFinite(isoMs) || Math.abs(deadlineMs - isoMs) > 120000) {
+        return res.status(409).json({ ok: false, error: 'deadline_mismatch' });
+      }
+
+      const deadlineDate = new Date(deadlineIso);
+      const deadlineFormatted = deadlineDate.toLocaleDateString(intlLocaleTag, {
+        year: 'numeric',
+        month: 'long',
+        day: '2-digit',
+      });
+
+      const { html, text, subject } = accountDeletionScheduledTemplate({
+        firstName,
+        deadlineFormatted,
+        locale,
+      });
+
+      await sendEmail({ to: emailTo, subject, html, text });
+      return res.status(200).json({ ok: true });
+    } catch (error) {
+      console.error('[account/deletion-scheduled-notify]', error);
+      return res.status(500).json({ ok: false, error: 'send_failed' });
+    }
+  });
 
   app.post("/api/recovery/username", gatewayKeyMiddleware, async (req, res) => {
     const generic = {

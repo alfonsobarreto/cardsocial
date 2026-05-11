@@ -46,6 +46,11 @@ export function intlLocaleTagForAppLanguage(lang: AppLanguage): string {
   return 'es-MX';
 }
 
+/** Texto legal en correo de eliminación: español solo para `es`; resto en inglés (fecha sigue localizada con `intlLocaleTag`). */
+export function emailCopyLocaleFromAppLanguage(lang: AppLanguage): 'es' | 'en' {
+  return lang === 'es' ? 'es' : 'en';
+}
+
 /** Locale para listas administrativas (fecha legible por fila). */
 export function localeStringForReportDates(lang: AppLanguage): string {
   if (lang === 'en') return 'en';

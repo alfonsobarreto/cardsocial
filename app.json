@@ -66,6 +66,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.cardsocial.app",
+      "versionCode": 4,
       "intentFilters": [
         {
           "action": "VIEW",
@@ -97,7 +98,8 @@
         "android.permission.BLUETOOTH_CONNECT",
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.WAKE_LOCK",
-        "android.permission.INTERNET"
+        "android.permission.INTERNET",
+        "android.permission.VIBRATE"
       ]
     },
     "web": {

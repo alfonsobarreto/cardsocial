@@ -1,9 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AppState } from 'react-native';
+import { Appearance, AppState, useColorScheme as useSystemColorScheme } from 'react-native';
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { getCurrentLocation, hasLocationPermission } from '@/services/geolocationService';
 
-export type LookMode = 'dia' | 'noche' | 'auto';
+/** sí = tema claro/oscuro del SO · auto = amanecer/atardecer por GPS */
+export type LookMode = 'dia' | 'noche' | 'auto' | 'sistema';
 
 const LOOK_MODE_STORAGE_KEY = 'card-social:look-mode';
 const LOOK_MODE_SOLAR_CACHE_KEY = 'card-social:look-mode-solar-cache';
@@ -29,8 +30,11 @@ type LookModeContextValue = {
 const LookModeContext = createContext<LookModeContextValue | null>(null);
 
 export function LookModeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setModeState] = useState<LookMode>('noche');
-  const [resolvedMode, setResolvedMode] = useState<'dia' | 'noche'>('noche');
+  const systemScheme = useSystemColorScheme();
+  const [mode, setModeState] = useState<LookMode>('sistema');
+  const [resolvedMode, setResolvedMode] = useState<'dia' | 'noche'>(() =>
+    Appearance.getColorScheme() === 'dark' ? 'noche' : 'dia',
+  );
   const [autoStatusText, setAutoStatusText] = useState('Auto inactivo');
   const [autoPrecision, setAutoPrecision] = useState<AutoPrecision>('fallback');
   const [autoRefreshTick, setAutoRefreshTick] = useState(0);
@@ -40,7 +44,7 @@ export function LookModeProvider({ children }: { children: React.ReactNode }) {
     void (async () => {
       try {
         const stored = await AsyncStorage.getItem(LOOK_MODE_STORAGE_KEY);
-        if (stored === 'dia' || stored === 'noche' || stored === 'auto') {
+        if (stored === 'dia' || stored === 'noche' || stored === 'auto' || stored === 'sistema') {
           setModeState(stored);
         }
       } catch {
@@ -231,8 +235,21 @@ export function LookModeProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    if (mode === 'sistema') {
+      if (autoRefreshTimeoutRef.current) {
+        clearTimeout(autoRefreshTimeoutRef.current);
+        autoRefreshTimeoutRef.current = null;
+      }
+      const scheme = (systemScheme ?? Appearance.getColorScheme() ?? 'light') as 'light' | 'dark';
+      const isDark = scheme === 'dark';
+      setResolvedMode(isDark ? 'noche' : 'dia');
+      setAutoStatusText(isDark ? 'Sistema: oscuro' : 'Sistema: claro');
+      setAutoPrecision('fallback');
+      return;
+    }
+
     void resolveAutoMode();
-  }, [mode, autoRefreshTick]);
+  }, [mode, autoRefreshTick, systemScheme]);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (nextState) => {

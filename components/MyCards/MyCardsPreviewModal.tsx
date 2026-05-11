@@ -706,6 +706,15 @@ export function MyCardsPreviewModal({
     ],
   );
 
+  /** Clave estable de *contenido* de slots + ítems resueltos (no sólo ref del array), para que el renderer se actualice cuando la bóveda cruza después del primer paint. */
+  const previewSlotsResolvedKey = useMemo(
+    () =>
+      (payload?.slots ?? [])
+        .map((s) => `${String(s.id)}:${s.item?.id ?? 'null'}`)
+        .join('|'),
+    [payload?.slots],
+  );
+
   const renderSlotContent = useMemo(
     () =>
       createPreviewWireframeSlotRenderer({
@@ -713,7 +722,7 @@ export function MyCardsPreviewModal({
         onDataPress: (it) => void handleSlotPress(it as WireframeVaultItem),
         iconVaultById: payload?.iconVaultById,
       }),
-    [handleSlotPress, tr, payload?.iconVaultById],
+    [handleSlotPress, tr, payload?.iconVaultById, previewSlotsResolvedKey],
   );
 
   const footerColors =
