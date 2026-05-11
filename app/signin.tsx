@@ -1,4 +1,5 @@
 import ActivityIndicator from '@/components/BrandedSpinner';
+import { AuthSpinnerWell } from '@/components/AuthSpinnerWell';
 import { authScreenLook, AUTH_GOLD } from '@/constants/authPremiumLook';
 import { brandCsIconLogoBgTransparent } from '@/constants/brandAssets';
 import { initiateAccountRecovery, requestUsernameRecoveryByPhone } from '@/services/accountRecoveryService';
@@ -453,14 +454,13 @@ export default function SignInScreen() {
         >
           <View style={[styles.submitOverlay, { backgroundColor: look.submitOverlay }]}>
             <View style={[styles.submitOverlayCard, { backgroundColor: look.submitCardBg, borderColor: look.submitCardBorder }]}>
-              <View
-                style={[
-                  styles.submitSpinnerWell,
-                  { backgroundColor: look.spinnerWellBg, borderColor: look.spinnerWellBorder },
-                ]}
+              <AuthSpinnerWell
+                wellBg={look.spinnerWellBg}
+                wellBorder={look.spinnerWellBorder}
+                preset="signinModal"
               >
                 <ActivityIndicator size={120} color={look.spinnerColor} />
-              </View>
+              </AuthSpinnerWell>
               <Text style={[styles.submitOverlayText, { color: look.submitText }]}>{tr('Validando acceso seguro...', 'Validating secure access...')}</Text>
             </View>
           </View>
@@ -678,16 +678,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 28,
     paddingHorizontal: 20,
-  },
-  /** Fondo blanco detrás del GIF del spinner: evita el rectángulo oscuro del contenedor en Android/iOS. */
-  submitSpinnerWell: {
-    width: 132,
-    height: 132,
-    borderRadius: 22,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
   },
   submitOverlayText: {
     marginTop: 14,

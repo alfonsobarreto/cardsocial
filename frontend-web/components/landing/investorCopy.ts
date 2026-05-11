@@ -34,20 +34,45 @@ const copy = {
     footerWaitlist: 'Waitlist',
     investorDivider: 'Investor Relations',
 
+    /* ── Above-the-fold investment thesis (Executive Summary header zone) ── */
+    execThesisEyebrow: 'Investment thesis · Not a paper-card company',
+    execThesisTitle: 'The platform investors fund:\nidentity, CRM intelligence, and local demand data.',
+    execThesisLead:
+      'Card-Social is a subscription and analytics business. The NFC card is the key — the margin and the moat live in software, viral distribution, and proprietary intent data.',
+    execThesisChips: ['Evidence-first traction', 'LTV ≫ blended CAC', 'Enterprise-ready privacy'],
+    execCtaDeck: 'Download pitch deck',
+    execCtaDemo: 'Schedule a demo',
+    execThesisTocLabel: 'Investment thesis · CTAs',
+
     /* ── InvestorMetrics hero ───────────────────────────────── */
     invHeroEyebrow: 'Financial Intelligence · Q2 2026',
     invHeroTitle: 'Why This Investment\nCannot Lose.',
     invHeroBody:
-      "Five data-driven sections answering the only question that matters to capital: how does my money multiply, and what is the exit?",
+      'This is a seed-stage investment thesis: a SaaS + data platform for professional identity and hyper-local intent — with near-zero blended CAC at scale. Below: where the $500K goes, how we monetize, what makes it defensible, and what we need to prove next.',
     invHeroStats: [
-      { label: 'Seed Ask', value: '$600K' },
+      { label: 'Seed Ask', value: '$500K' },
       { label: 'Revenue Pillars', value: '4' },
       { label: 'Blended CAC', value: '≈ $0' },
       { label: 'Data Moat', value: 'Yr 3+' },
     ],
 
+    complianceNavLabel: 'Security & compliance',
+    complianceEyebrow: 'Enterprise readiness',
+    complianceTitle: 'Privacy by design — GDPR, CCPA & Texas buyers',
+    complianceBody:
+      'Profiles, contacts, and consent signals are structured for B2B procurement: data minimization in the Vault, controlled sharing, and a roadmap aligned with GDPR / CCPA expectations as we sell to larger teams in Texas and beyond.',
+
     /* ── A — Capital Allocation ─────────────────────────────── */
-    capEyebrow: 'Seed Round · $600k',
+    capEyebrow: 'Seed Round · $500k',
+    capMilestoneEyebrow: '12-month milestone tied to this round',
+    capMilestoneTitle: 'From evidence to density',
+    capMilestoneBody:
+      'Deploy the seed to ship product velocity, Austin / Texas GTM, and inventory — then measure weekly active users, paid conversion, and LOIs from local businesses. Investors should expect a clear dashboard of KPIs every quarter.',
+    capMilestoneFrom: '100',
+    capMilestoneTo: '10,000',
+    capMilestoneUnit: 'weekly engaged users (target)',
+    capMilestoneTimeframe: 'within 12 months post-close',
+    capMilestoneFoot: 'Figures are directional; we will replace with live ranges once internal stats and LOIs are finalized for diligence.',
     capTitle: 'Capital Allocation',
     capTerminalLabel: 'ALLOCATION · SEED ROUND · Q2-2026',
     capColCode: 'Code',
@@ -283,10 +308,20 @@ const copy = {
       { initials: 'CT', name: 'CTO / Co-Founder', role: 'Chief Technology Officer', tags: ['Engineering', 'Architecture', 'Security'] },
       { initials: 'CA', name: 'Commercial Advisor', role: 'Enterprise & Partnerships', tags: ['B2B', 'Enterprise', 'Real Estate'] },
     ],
+    teamBios: [
+      'Founder–market fit: military veteran and university-trained operator — execution under pressure, disciplined GTM, and a bias toward trust and follow-through. Building Card-Social where professionals actually network: Austin, Texas first.',
+      'Technical co-founder profile: full-stack architecture, mobile + cloud security mindset, shipping cadence that matches an enterprise roadmap — Vault-grade thinking from day one.',
+      'Commercial anchor: enterprise and partnership DNA for scalable B2B revenue — pipelines, pilot design, and the language procurement teams expect.',
+
+    ],
 
     /* ── J — Traction ───────────────────────────────────────── */
     tracEyebrow: 'Proof of Demand · As of Q2 2026',
     tracTitle: 'Traction & Roadmap',
+    tracLoiEyebrow: 'If revenue is still early',
+    tracLoiTitle: 'Letters of intent beat vanity metrics',
+    tracLoiBody:
+      'Austin investors fund evidence. If MRR is not yet the story, stack signed LOIs from local businesses — e.g. “When feature X ships, we intend to purchase N cards for our team.” That de-risks the hardware + rollout narrative faster than another slide of features.',
     tracUpdateNote: 'To complete: update values in TRACTION_STATS with real numbers before sending to investors.',
     tracStats: [
       { label: 'Waitlist Signups', note: 'UPDATE with real count', highlight: true },
@@ -304,14 +339,15 @@ const copy = {
 
     /* ── CTA ────────────────────────────────────────────────── */
     ctaEyebrow: 'The Ask',
-    ctaTitle: '$600,000 Seed Round.',
+    ctaTitle: '$500,000 Seed Round.',
     ctaBody1: 'This is not a feature. This is infrastructure. We are building the operating system for local commerce and professional identity — a network that grows itself, and a data asset that appreciates with every user interaction.',
     ctaBody2: 'In 3 years, when Zillow or Salesforce calls, they will want to buy the land.',
     ctaBody2Gold: 'You own a piece of that land today.',
     ctaBtnMeeting: 'Schedule a Meeting',
+    ctaBtnDeck: 'Download pitch deck',
     ctaBtnEmail: 'Send Direct Inquiry',
     ctaStats: [
-      { val: '$600K', label: 'Seed Ask' },
+      { val: '$500K', label: 'Seed Ask' },
       { val: '18 mo', label: 'Runway' },
       { val: '≈ $0', label: 'CAC' },
       { val: '4 Pillars', label: 'Revenue Streams' },
@@ -352,19 +388,45 @@ const copy = {
     footerWaitlist: 'Lista de espera',
     investorDivider: 'Relaciones con Inversionistas',
 
+    /* ── Above-the-fold investment thesis (Executive Summary header zone) ── */
+    execThesisEyebrow: 'Tesis de inversión · No somos “solo tarjetas”',
+    execThesisTitle: 'La plataforma que inviertes:\nidentidad, inteligencia tipo CRM y datos de demanda local.',
+    execThesisLead:
+      'Card-Social es un negocio SaaS y analítica. La tarjeta NFC es la llave; el margen y el foso viven en software, viralidad y datos de intención propietarios.',
+    execThesisChips: ['Tracción con evidencia', 'LTV ≫ CAC combinado', 'Privacidad lista para enterprise'],
+    execCtaDeck: 'Descargar pitch deck',
+    execCtaDemo: 'Agendar demo',
+    execThesisTocLabel: 'Tesis de inversión · CTAs',
+
     /* ── InvestorMetrics hero ───────────────────────────────── */
     invHeroEyebrow: 'Inteligencia Financiera · Q2 2026',
     invHeroTitle: 'Por Qué Esta Inversión\nNo Puede Perder.',
-    invHeroBody: 'Cinco secciones basadas en datos que responden la única pregunta que importa al capital: ¿cómo se multiplica mi dinero y cuál es la salida?',
+    invHeroBody:
+      'Esta página es una tesis de inversión en etapa seed: plataforma SaaS + datos para identidad profesional e intención hiperlocal, con CAC combinado cercano a cero a escala. Abajo: en qué va el medio millón, cómo monetizamos, qué nos defiende en el mercado y qué evidencia falta cerrar.',
     invHeroStats: [
-      { label: 'Ronda Semilla', value: '$600K' },
+      { label: 'Ronda Semilla', value: '$500K' },
       { label: 'Fuentes de Ingreso', value: '4' },
       { label: 'CAC Combinado', value: '≈ $0' },
       { label: 'Foso de Datos', value: 'Año 3+' },
     ],
 
+    complianceNavLabel: 'Seguridad y cumplimiento',
+    complianceEyebrow: 'Listo para empresas',
+    complianceTitle: 'Privacidad por diseño — GDPR, CCPA y compradores en Texas',
+    complianceBody:
+      'Perfiles, contactos y señales de consentimiento están planteados para compras B2B: minimización de datos en el Vault, compartición controlada y hoja de ruta alineada con expectativas GDPR / CCPA al vender a equipos grandes en Texas y más allá.',
+
     /* ── A — Capital Allocation ─────────────────────────────── */
-    capEyebrow: 'Ronda Semilla · $600k',
+    capEyebrow: 'Ronda Semilla · $500k',
+    capMilestoneEyebrow: 'Hito a 12 meses ligado a esta ronda',
+    capMilestoneTitle: 'De la evidencia a la densidad',
+    capMilestoneBody:
+      'Destinar el seed a velocidad de producto, GTM en Austin / Texas e inventario — y medir usuarios activos semanales, conversión a pago y cartas de intención (LOI) de negocios locales. Los inversionistas deben ver un tablero claro de KPIs cada trimestre.',
+    capMilestoneFrom: '100',
+    capMilestoneTo: '10,000',
+    capMilestoneUnit: 'usuarios activos semanales (meta)',
+    capMilestoneTimeframe: 'en los 12 meses posteriores al cierre',
+    capMilestoneFoot: 'Cifras orientativas; las reemplazaremos con rangos reales cuando las estadísticas internas y las LOI estén listas para due diligence.',
     capTitle: 'Asignación de Capital',
     capTerminalLabel: 'ASIGNACIÓN · RONDA SEMILLA · Q2-2026',
     capColCode: 'Código',
@@ -598,10 +660,20 @@ const copy = {
       { initials: 'CT', name: 'CTO / Co-Fundador', role: 'Director de Tecnología', tags: ['Ingeniería', 'Arquitectura', 'Seguridad'] },
       { initials: 'AC', name: 'Asesor Comercial', role: 'Enterprise y Alianzas', tags: ['B2B', 'Enterprise', 'Inmobiliario'] },
     ],
+    teamBios: [
+      'Founder–market fit: veterano militar y operador formado académicamente — ejecución bajo presión, GTM disciplinado y cultura de confianza. Construyendo Card-Social donde el networking es real: Austin, Texas primero.',
+      'Perfil técnico: arquitectura full-stack, mentalidad de seguridad móvil + nube, cadencia de releases alineada a un roadmap enterprise — pensamiento “Vault-grade” desde el día uno.',
+      'Ancla comercial: ADN de enterprise y alianzas para ingresos B2B escalables — pipelines, diseño de pilotos y el lenguaje que esperan equipos de procurement.',
+
+    ],
 
     /* ── J — Traction ───────────────────────────────────────── */
     tracEyebrow: 'Prueba de Demanda · Q2 2026',
     tracTitle: 'Tracción y Hoja de Ruta',
+    tracLoiEyebrow: 'Si el revenue aún es temprano',
+    tracLoiTitle: 'Las LOI ganan a métricas vanidosas',
+    tracLoiBody:
+      'En Austin se invierte en evidencia. Si el MRR aún no es la historia, apila cartas de intención firmadas por negocios locales — por ejemplo: “Cuando exista la función X, tenemos intención de comprar N tarjetas para el equipo.” Eso des-riesga hardware + despliegue más rápido que otra diapositiva de features.',
     tracUpdateNote: 'Para completar: actualiza los valores en TRACTION_STATS con los números reales antes de enviar a inversionistas.',
     tracStats: [
       { label: 'Registros en Lista de Espera', note: 'ACTUALIZAR con número real', highlight: true },
@@ -619,14 +691,15 @@ const copy = {
 
     /* ── CTA ────────────────────────────────────────────────── */
     ctaEyebrow: 'La Propuesta',
-    ctaTitle: 'Ronda Semilla: $600,000.',
+    ctaTitle: 'Ronda Semilla: $500,000.',
     ctaBody1: 'Esto no es una función. Es infraestructura. Estamos construyendo el sistema operativo para el comercio local y la identidad profesional — una red que crece sola, y un activo de datos que se aprecia con cada interacción de usuario.',
     ctaBody2: 'En 3 años, cuando llamen Zillow o Salesforce, van a querer comprar la tierra.',
     ctaBody2Gold: 'Tú posees una parte de esa tierra hoy.',
     ctaBtnMeeting: 'Agendar una Reunión',
+    ctaBtnDeck: 'Descargar pitch deck',
     ctaBtnEmail: 'Enviar Consulta Directa',
     ctaStats: [
-      { val: '$600K', label: 'Ronda Seed' },
+      { val: '$500K', label: 'Ronda Seed' },
       { val: '18 meses', label: 'Runway' },
       { val: '≈ $0', label: 'CAC' },
       { val: '4 Pilares', label: 'Fuentes de Ingreso' },

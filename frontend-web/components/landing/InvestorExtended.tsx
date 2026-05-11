@@ -4,6 +4,7 @@ import { motion, type Variants } from 'framer-motion';
 import { useEffect, useRef, type ReactNode } from 'react';
 
 import copy, { type ExecLocale } from './investorCopy';
+import { investorDemoHref, investorPitchDeckHref, pitchDeckOpensInNewTab } from './investorUrls';
 
 /* ─── tokens ──────────────────────────────────────────────────── */
 const G = '#E9C349';
@@ -328,32 +329,17 @@ export function FinancialProjections({ locale }: { locale: ExecLocale }) {
 /* ═══════════════════════════════════════════════════════════════ *
  *  I — TEAM                                                       *
  * ═══════════════════════════════════════════════════════════════ */
-const TEAM_BIOS_EN = [
-  'Replace with 2–3 sentences: background, domain expertise, why this problem.',
-  'Replace with 2–3 sentences: engineering background, tech stack mastery, relevant exits or projects.',
-  'Replace with 2–3 sentences: corporate sales experience, network in target verticals.',
-];
-const TEAM_BIOS_ES = [
-  'Reemplaza con 2–3 oraciones: trayectoria, dominio del problema, por qué esta persona.',
-  'Reemplaza con 2–3 oraciones: experiencia en ingeniería, stack tecnológico, proyectos o salidas relevantes.',
-  'Reemplaza con 2–3 oraciones: experiencia en ventas corporativas, red en verticales objetivo.',
-];
-
 export function TeamFounders({ locale }: { locale: ExecLocale }) {
   const c = copy[locale];
-  const bios = locale === 'es' ? TEAM_BIOS_ES : TEAM_BIOS_EN;
+  const bios = c.teamBios;
   return (
     <Rev>
       <section id="inv-team" className="scroll-mt-36">
         <SL letter="I" eyebrow={c.teamEyebrow} title={c.teamTitle} />
-        <div className="mb-10 rounded-[1.5rem] border border-[#E9C349]/25 bg-[#E9C349]/05 px-7 py-5">
-          <p className="text-xs leading-6 text-[#F6DA87]/70">
-            <strong className="font-black">{c.teamUpdateNote}</strong>{' '}
-            <span className="font-mono">components/landing/InvestorExtended.tsx</span>{' '}
-            {c.teamUpdateSuffix}{' '}
-            <span className="font-mono">public/legal/executive-summary/team-[name].webp</span>.
-          </p>
-        </div>
+        <p className="mb-10 max-w-2xl text-[11px] leading-6 text-white/28">
+          <span className="font-mono text-white/38">public/legal/executive-summary/</span>{' '}
+          — {locale === 'es' ? 'fotos opcionales por miembro (team-[nombre].webp).' : 'optional headshots per member (team-[name].webp).'}
+        </p>
         <motion.div variants={st} initial="hidden" whileInView="visible" viewport={{ once: true }} className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {c.teamMembers.map((m, i) => (
             <motion.article key={m.initials} variants={rv} className="group relative overflow-hidden rounded-[1.85rem] border border-white/[0.09] bg-[#0d0d0d]/85 p-7 backdrop-blur-2xl transition duration-300 hover:border-[#E9C349]/35">
@@ -364,7 +350,7 @@ export function TeamFounders({ locale }: { locale: ExecLocale }) {
                 </div>
                 <p className="text-xl font-black tracking-tight text-white">{m.name}</p>
                 <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.22em] text-[#E9C349]/75">{m.role}</p>
-                <p className="mt-5 text-sm italic leading-7 text-white/28">{bios[i]}</p>
+                <p className="mt-5 text-sm leading-7 text-white/62">{bios[i] ?? ''}</p>
                 <div className="mt-7 flex flex-wrap gap-2">
                   {m.tags.map((tag) => (
                     <span key={tag} className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white/35 group-hover:border-[#E9C349]/25 group-hover:text-[#F6DA87]/55">
@@ -395,6 +381,19 @@ export function TractionSlide({ locale }: { locale: ExecLocale }) {
     <Rev>
       <section id="inv-traction" className="scroll-mt-36">
         <SL letter="J" eyebrow={c.tracEyebrow} title={c.tracTitle} />
+        <motion.div
+          variants={rv}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          className="mb-12 grid gap-6 overflow-hidden rounded-[1.85rem] border border-emerald-500/25 bg-[linear-gradient(115deg,rgba(16,185,129,0.14),rgba(10,10,10,0.95))] p-8 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] lg:gap-10 lg:p-10"
+        >
+          <div>
+            <p className="font-mono text-[10px] font-black uppercase tracking-[0.34em] text-emerald-300/85">{c.tracLoiEyebrow}</p>
+            <h3 className="mt-4 text-2xl font-black tracking-[-0.04em] text-white">{c.tracLoiTitle}</h3>
+          </div>
+          <p className="text-sm leading-8 text-white/62">{c.tracLoiBody}</p>
+        </motion.div>
         <div className="mb-10 rounded-[1.5rem] border border-[#E9C349]/25 bg-[#E9C349]/05 px-7 py-5">
           <p className="text-xs leading-6 text-[#F6DA87]/70">
             <strong className="font-black">{locale === 'es' ? 'Para completar:' : 'To complete:'}</strong>{' '}
@@ -486,10 +485,17 @@ export function InvestorCTA({ locale }: { locale: ExecLocale }) {
             </p>
             <div className="mt-14 flex flex-wrap justify-center gap-4">
               <a
-                href="/es#waitlist"
+                href={investorDemoHref(locale)}
                 className="inline-flex min-h-14 items-center justify-center rounded-full bg-gradient-to-r from-[#F6DA87] via-[#E9C349] to-[#A87B1F] px-10 text-sm font-black uppercase tracking-[0.16em] text-black shadow-[0_0_44px_rgba(233,195,73,0.38)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_70px_rgba(233,195,73,0.55)]"
               >
                 {c.ctaBtnMeeting}
+              </a>
+              <a
+                href={investorPitchDeckHref()}
+                {...(pitchDeckOpensInNewTab() ? { target: '_blank' as const, rel: 'noopener noreferrer' } : {})}
+                className="inline-flex min-h-14 items-center justify-center rounded-full border border-[#E9C349]/50 bg-[#E9C349]/12 px-10 text-sm font-black uppercase tracking-[0.16em] text-[#F6DA87] transition duration-300 hover:border-[#F6DA87]/60 hover:bg-[#E9C349]/18"
+              >
+                {c.ctaBtnDeck}
               </a>
               <a
                 href="mailto:pochobs@gmail.com?subject=Card-Social Seed Round — Investment Inquiry"

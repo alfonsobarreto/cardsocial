@@ -1023,8 +1023,11 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                               { color: shell.text },
                               mode === 'dia' && { color: shell.emptyCtaText },
                             ]}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            minimumFontScale={0.78}
                           >
-                            {tr('Dia', 'Day')}
+                            {tr('Día', 'Day')}
                           </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -1041,6 +1044,9 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                               { color: shell.text },
                               mode === 'noche' && { color: shell.emptyCtaText },
                             ]}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            minimumFontScale={0.78}
                           >
                             {tr('Noche', 'Night')}
                           </Text>
@@ -1061,6 +1067,9 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                               { color: shell.text },
                               mode === 'sistema' && { color: shell.emptyCtaText },
                             ]}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            minimumFontScale={0.78}
                           >
                             {tr('Sistema', 'System')}
                           </Text>
@@ -1079,31 +1088,44 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                               { color: shell.text },
                               mode === 'auto' && { color: shell.emptyCtaText },
                             ]}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            minimumFontScale={0.78}
                           >
-                            {tr('Auto GPS', 'Auto GPS')}
+                            {tr('Sol', 'Sun')}
                           </Text>
                         </TouchableOpacity>
                       </View>
                       {(mode === 'auto' || mode === 'sistema') ? (
-                        <Text style={[styles.lookModeHint, { color: shell.textSecondary }]}>
+                        <Text
+                          style={[styles.lookModeHint, { color: shell.textSecondary }]}
+                          numberOfLines={3}
+                        >
                           {mode === 'sistema' ? (
                             <>
-                              {tr('Usa el modo claro u oscuro del dispositivo.', 'Uses your device light or dark appearance.')}
-                              {` ${tr('Resuelto', 'Resolved')}: ${tr(resolvedMode === 'noche' ? 'Noche' : 'Día', resolvedMode === 'noche' ? 'Night' : 'Day')}.`}
+                              {tr('Tema del teléfono', 'Phone theme')}
+                              {' · '}
+                              {tr(resolvedMode === 'noche' ? 'Oscuro' : 'Claro', resolvedMode === 'noche' ? 'Dark' : 'Light')}
                             </>
                           ) : (
                             <>
                               {(() => {
-                                if (mode === 'auto') {
-                                  if (autoStatusText.includes('GPS')) return tr('auto_gps', 'auto_gps');
-                                  if (autoStatusText.includes('ubicacion en cache')) return tr('auto_cached', 'auto_cached');
-                                  if (autoStatusText.includes('cache sin red')) return tr('auto_cache_offline', 'auto_cache_offline');
-                                  if (autoStatusText.includes('sin GPS')) return tr('auto_fallback', 'auto_fallback');
-                                  return tr('auto_inactive', 'auto_inactive');
+                                if (autoStatusText.includes('GPS')) {
+                                  return tr('Sol + ubicación', 'Sun + location');
                                 }
-                                return '';
+                                if (autoStatusText.includes('ubicacion en cache')) {
+                                  return tr('Sol (caché)', 'Sun (cache)');
+                                }
+                                if (autoStatusText.includes('cache sin red')) {
+                                  return tr('Sol sin red', 'Sun offline');
+                                }
+                                if (autoStatusText.includes('sin GPS')) {
+                                  return tr('Por hora local', 'Local hours');
+                                }
+                                return tr('Auto', 'Auto');
                               })()}
-                              {mode === 'auto' ? `. ${tr('Resuelto', 'Resolved')}: ${tr(resolvedMode === 'noche' ? 'Noche' : 'Día', resolvedMode === 'noche' ? 'Night' : 'Day')}.` : ''}
+                              {' · '}
+                              {tr(resolvedMode === 'noche' ? 'Noche' : 'Día', resolvedMode === 'noche' ? 'Night' : 'Day')}
                             </>
                           )}
                         </Text>

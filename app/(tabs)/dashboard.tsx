@@ -23,6 +23,11 @@ import { marketRadarMintUserMessage } from '@/services/marketRadarMintMessages';
 import { requestBusinessCardSignatureEmail } from '@/services/requestBusinessCardSignatureEmail';
 import { tierIsDiamond } from '@/services/legacyPathEngine';
 import { resolveExpoPublicApiBaseUrl } from '@/services/expoPublicApiBaseUrl';
+import {
+  effectiveDashboardDaysLeft,
+  effectiveDashboardRenewalDate,
+  isDashboardTestingGraceModeEnabled,
+} from '@/services/dashboardTestingGrace';
 import { hasUnlimitedAdminUi } from '@/services/roleService';
 import { effectiveTierKeyFromUserData, type TierKey } from '@/services/tiersConfigService';
 import type { BusinessCardDoc, PublicCardSlot } from '@/services/types/cards';
@@ -901,8 +906,19 @@ export default function DashboardScreen() {
     isSuperAdmin: false,
   });
   const activeCard = cards[activeIndex] ?? cards[0] ?? null;
-  const activeRenewalDate = headerInfo.isSuperAdmin || !activeCard ? null : expirationDateFor(activeCard);
-  const activeDaysLeft = headerInfo.isSuperAdmin ? 999 : daysUntil(activeRenewalDate);
+  const testingGrace = isDashboardTestingGraceModeEnabled();
+  const rawActiveRenewal =
+    headerInfo.isSuperAdmin || !activeCard ? null : expirationDateFor(activeCard);
+  const activeRenewalDate = effectiveDashboardRenewalDate(
+    rawActiveRenewal,
+    headerInfo.isSuperAdmin,
+    testingGrace,
+  );
+  const activeDaysLeft = effectiveDashboardDaysLeft(
+    rawActiveRenewal,
+    headerInfo.isSuperAdmin,
+    testingGrace,
+  );
   const headerTone = headerInfo.isSuperAdmin
     ? { ...toneColors('green'), glow: SHELL_ACCENT_GOLD, border: 'rgba(246,218,135,0.58)' }
     : toneColors(toneForDays(activeDaysLeft));

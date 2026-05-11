@@ -15,6 +15,8 @@ import {
   getBusinessCard,
   updateBusinessCard,
 } from '@/services/businessCardsRepo';
+import { isDashboardTestingGraceModeEnabled } from '@/services/dashboardTestingGrace';
+import { hasUnlimitedAdminUi } from '@/services/roleService';
 import { getBusinessCardSlotAvailability } from '@/services/businessCardSlotsGate';
 import { resolveBusinessMarketFacets } from '@/services/businessMarketFacets';
 import type { BusinessCardDoc } from '@/services/types/cards';
@@ -446,7 +448,11 @@ export default function CreateBusinessCardScreen() {
         if (st === 'trial' || st === 'active') {
           setSubscriptionStatus(st);
         } else if (st === 'expired') {
-          setSubscriptionStatus('dull');
+          let next: SubscriptionUi = 'dull';
+          if (isDashboardTestingGraceModeEnabled() && !(await hasUnlimitedAdminUi(uid))) {
+            next = 'active';
+          }
+          setSubscriptionStatus(next);
         }
       }
     } catch {
@@ -531,7 +537,11 @@ export default function CreateBusinessCardScreen() {
         if (st === 'trial' || st === 'active') {
           setSubscriptionStatus(st);
         } else if (st === 'expired') {
-          setSubscriptionStatus('dull');
+          let next: SubscriptionUi = 'dull';
+          if (isDashboardTestingGraceModeEnabled() && !(await hasUnlimitedAdminUi(uid))) {
+            next = 'active';
+          }
+          setSubscriptionStatus(next);
         } else {
           setSubscriptionStatus(null);
         }

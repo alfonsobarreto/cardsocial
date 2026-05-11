@@ -15,6 +15,9 @@
  *  onClose      – called on X-button press
  */
 
+import { AuthSpinnerWell } from '@/components/AuthSpinnerWell';
+import ActivityIndicator from '@/components/BrandedSpinner';
+import { AUTH_GOLD } from '@/constants/authPremiumLook';
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { useLookMode } from '@/services/lookMode';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -23,16 +26,15 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-    ActivityIndicator,
-    Animated,
-    Dimensions,
-    Modal,
-    PanResponder,
-    Platform,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Animated,
+  Dimensions,
+  Modal,
+  PanResponder,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 const { width: SW, height: SH } = Dimensions.get('window');
@@ -328,7 +330,9 @@ const CircularPhotoCropper: React.FC<CircularPhotoCropperProps> = ({
               disabled={isCropping}
             >
               {isCropping ? (
-                <ActivityIndicator color="#0A1A2F" size="small" />
+                <AuthSpinnerWell wellBg="#FFFFFF" wellBorder={`${AUTH_GOLD}44`} preset="cropperCta">
+                  <ActivityIndicator color={AUTH_GOLD} size="small" />
+                </AuthSpinnerWell>
               ) : (
                 <>
                   <MaterialCommunityIcons name="check-circle" color="#0A1A2F" size={18} />

@@ -6,6 +6,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 
 import InvestorMetrics, { getInvestorTocItems } from './InvestorMetrics';
 import copy, { type ExecLocale } from './investorCopy';
+import { investorDemoHref, investorPitchDeckHref, pitchDeckOpensInNewTab } from './investorUrls';
 import {
   EXECUTIVE_IMAGE_HINTS,
   executiveStrategicBlocks,
@@ -36,6 +37,62 @@ function Reveal({ children, className = '' }: { children: ReactNode; className?:
     <motion.div variants={reveal} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.15 }} className={className}>
       {children}
     </motion.div>
+  );
+}
+
+function ExecThesisBand({ locale }: { locale: ExecLocale }) {
+  const c = copy[locale];
+  const [title1, title2] = c.execThesisTitle.split('\n');
+  const deckHref = investorPitchDeckHref();
+  const demoHref = investorDemoHref(locale);
+  const deckTab = pitchDeckOpensInNewTab();
+  return (
+    <motion.section
+      id="exec-thesis-cta"
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1], delay: 0.08 }}
+      className="relative mb-28 overflow-hidden rounded-[2.5rem] border border-[#E9C349]/38 bg-[#060606]/92 p-8 shadow-[0_0_110px_rgba(233,195,73,0.16),inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-3xl sm:p-12"
+    >
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_60%_at_15%_0%,rgba(233,195,73,0.2),transparent_50%),linear-gradient(110deg,rgba(246,218,135,0.06),transparent_45%)]" />
+      <div className="pointer-events-none absolute -right-20 bottom-0 h-72 w-72 rounded-full bg-[#E9C349]/06 blur-[100px]" />
+      <div className="relative grid gap-12 lg:grid-cols-[1.2fr_1fr] lg:items-center">
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[0.42em] text-[#F6DA87]/85">{c.execThesisEyebrow}</p>
+          <h2 className="mt-5 bg-gradient-to-br from-white via-[#fef7d9] to-[#c9a035] bg-clip-text text-[clamp(1.5rem,4vw,2.65rem)] font-black leading-[1.06] tracking-[-0.05em] text-transparent">
+            {title1}
+            <br />
+            {title2}
+          </h2>
+          <p className="mt-6 max-w-xl text-sm leading-8 text-white/60">{c.execThesisLead}</p>
+          <div className="mt-8 flex flex-wrap gap-2">
+            {c.execThesisChips.map((chip) => (
+              <span
+                key={chip}
+                className="rounded-full border border-[#E9C349]/22 bg-[#E9C349]/07 px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#F6DA87]/88"
+              >
+                {chip}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="flex flex-col gap-4">
+          <a
+            href={demoHref}
+            className="inline-flex min-h-14 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[#F6DA87] via-[#E9C349] to-[#A87B1F] text-sm font-black uppercase tracking-[0.15em] text-black shadow-[0_0_40px_rgba(233,195,73,0.35)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_60px_rgba(233,195,73,0.5)]"
+          >
+            {c.execCtaDemo}
+          </a>
+          <a
+            href={deckHref}
+            {...(deckTab ? { target: '_blank' as const, rel: 'noopener noreferrer' } : {})}
+            className="inline-flex min-h-14 w-full items-center justify-center rounded-2xl border-2 border-[#E9C349]/45 bg-[#E9C349]/09 text-sm font-black uppercase tracking-[0.15em] text-[#F6DA87] transition duration-300 hover:border-[#F6DA87]/55 hover:bg-[#E9C349]/15"
+          >
+            {c.execCtaDeck}
+          </a>
+        </div>
+      </div>
+    </motion.section>
   );
 }
 
@@ -311,6 +368,7 @@ export default function ExecutiveSummaryLanding() {
   const c = copy[locale];
 
   const toc = [
+    { id: 'exec-thesis-cta', label: c.execThesisTocLabel },
     ...executiveSummarySections.map((sec) => ({ id: `s${sec.num}`, label: `${sec.num}. ${sec.title}` })),
     ...executiveStrategicBlocks.map((b) => ({ id: `s${b.num}`, label: `${b.num}. ${b.title}` })),
     { id: 'investor-divider', label: `─── ${c.investorDivider} ───`, divider: true },
@@ -473,6 +531,8 @@ export default function ExecutiveSummaryLanding() {
             </div>
           </div>
         </motion.header>
+
+        <ExecThesisBand locale={locale} />
 
         <div className="relative mb-36 overflow-hidden rounded-[2.75rem] border border-white/[0.07] bg-[#090909]/60 p-10 backdrop-blur-2xl sm:p-14">
           <Reveal>

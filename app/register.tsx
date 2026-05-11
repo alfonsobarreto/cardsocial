@@ -1,4 +1,5 @@
 import ActivityIndicator from '@/components/BrandedSpinner';
+import { AuthSpinnerWell } from '@/components/AuthSpinnerWell';
 import CountryDialPickerModal from '@/components/CountryDialPickerModal';
 import { registerFormLook } from '@/constants/authPremiumLook';
 import { FREE_TIER_POLICY } from '@/constants/freeTierPolicy';
@@ -1358,7 +1359,9 @@ export default function RegisterScreen() {
 
           <TouchableOpacity style={[styles.geoButton, { backgroundColor: look.geoBtnBg, borderColor: look.geoBtnBorder }]} onPress={() => void autofillLocationFromDevice()} disabled={isAutofillingLocation}>
             {isAutofillingLocation ? (
-              <ActivityIndicator size="small" color={look.spinnerColor} />
+              <AuthSpinnerWell wellBg={look.spinnerWellBg} wellBorder={look.spinnerWellBorder} preset="inline">
+                <ActivityIndicator size="small" color={look.spinnerColor} />
+              </AuthSpinnerWell>
             ) : (
               <Text style={[styles.geoButtonText, { color: look.geoBtnText }]}>{tr('Autocompletar ubicacion', 'Autofill location')}</Text>
             )}
@@ -1413,7 +1416,9 @@ export default function RegisterScreen() {
             disabled={isSubmitting || !acceptedLegal || isRetryLocked || nicknameStatus !== 'available' || emailStatus !== 'available' || phoneStatus !== 'available'}
           >
             {isSubmitting ? (
-              <ActivityIndicator color={look.registerBtnText} />
+              <AuthSpinnerWell wellBg={look.spinnerWellBg} wellBorder={look.spinnerWellBorder} preset="cta">
+                <ActivityIndicator color={look.spinnerColor} />
+              </AuthSpinnerWell>
             ) : (
               <Text style={[styles.registerButtonText, { color: look.registerBtnText }]}>{tr('CONFIRMAR REGISTRO', 'CONFIRM SIGN UP')}</Text>
             )}
@@ -1446,14 +1451,13 @@ export default function RegisterScreen() {
         >
           <View style={styles.progressOverlay}>
             <View style={[styles.progressContainer, { backgroundColor: look.progressCardBg, borderColor: look.progressCardBorder }]}>
-              <View
-                style={[
-                  styles.progressSpinnerWell,
-                  { backgroundColor: look.spinnerWellBg, borderColor: look.spinnerWellBorder },
-                ]}
+              <AuthSpinnerWell
+                wellBg={look.spinnerWellBg}
+                wellBorder={look.spinnerWellBorder}
+                preset="registerUpload"
               >
                 <ActivityIndicator size={140} color={look.spinnerColor} />
-              </View>
+              </AuthSpinnerWell>
               <Text style={[styles.uploadLabel, { color: look.progressLabel }]}>{uploadStageLabel}</Text>
             </View>
           </View>
@@ -1501,7 +1505,9 @@ export default function RegisterScreen() {
                   disabled={androidPhotoConfirmBusy}
                 >
                   {androidPhotoConfirmBusy ? (
-                    <ActivityIndicator color="#FFFFFF" />
+                    <AuthSpinnerWell wellBg={look.spinnerWellBg} wellBorder={look.spinnerWellBorder} preset="cta">
+                      <ActivityIndicator color={look.spinnerColor} />
+                    </AuthSpinnerWell>
                   ) : (
                     <Text style={styles.androidPhotoConfirmButtonPrimaryText}>
                       {tr('Aceptar', 'Accept')}
@@ -2144,15 +2150,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#7BC2EC',
-  },
-  progressSpinnerWell: {
-    width: 152,
-    height: 152,
-    borderRadius: 24,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
   },
   uploadPercentage: {
     color: '#E9C349',

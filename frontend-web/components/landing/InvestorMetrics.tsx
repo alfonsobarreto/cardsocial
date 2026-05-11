@@ -29,7 +29,7 @@ const stagger: Variants = {
 };
 
 const PCTS   = [30, 35, 15, 10, 10] as const;
-const USDS   = [180_000, 210_000, 90_000, 60_000, 60_000] as const;
+const USDS   = [150_000, 175_000, 75_000, 50_000, 50_000] as const;
 const ACCENTS = [GOLD, GOLD_LIGHT, '#94A3B8', '#7DD3FC', '#86EFAC'] as const;
 
 const MILESTONE_CONTACTS = [250, 1_000, 2_000] as const;
@@ -89,17 +89,18 @@ function CapitalAllocation({ locale }: { locale: ExecLocale }) {
     <Reveal>
       <section id="inv-capital" className="scroll-mt-36">
         <SectionLabel letter="A" eyebrow={c.capEyebrow} title={c.capTitle} />
-        <div className="overflow-hidden rounded-[1.85rem] border border-white/[0.08] bg-[#0a0a0a]/80 shadow-[0_30px_90px_rgba(0,0,0,0.45)] backdrop-blur-2xl">
-          <div className="flex items-center justify-between border-b border-white/[0.07] px-7 py-4">
+        <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:overflow-visible sm:px-0">
+          <div className="min-w-[36rem] overflow-hidden rounded-[1.85rem] border border-white/[0.08] bg-[#0a0a0a]/80 shadow-[0_30px_90px_rgba(0,0,0,0.45)] backdrop-blur-2xl sm:min-w-0">
+          <div className="flex items-center justify-between gap-3 border-b border-white/[0.07] px-5 py-4 sm:px-7">
             <div className="flex gap-2">
               {['#F87171', '#FBBF24', '#34D399'].map((col) => (
                 <span key={col} style={{ background: col }} className="inline-block h-3 w-3 rounded-full opacity-60" />
               ))}
             </div>
-            <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-white/28">{c.capTerminalLabel}</span>
-            <span className="font-mono text-[10px] text-[#F6DA87]/60">$600,000</span>
+            <span className="hidden truncate text-center font-mono text-[10px] uppercase tracking-[0.28em] text-white/28 sm:block">{c.capTerminalLabel}</span>
+            <span className="font-mono text-[10px] text-[#F6DA87]/60">$500,000</span>
           </div>
-          <div className="grid grid-cols-[3rem_1fr_auto_auto] gap-x-6 border-b border-white/[0.06] px-7 py-3 text-[9px] font-black uppercase tracking-[0.28em] text-white/30 sm:grid-cols-[3.5rem_1fr_8rem_7rem]">
+          <div className="grid grid-cols-[3rem_1fr_auto_auto] gap-x-6 border-b border-white/[0.06] px-5 py-3 text-[9px] font-black uppercase tracking-[0.28em] text-white/30 sm:grid-cols-[3.5rem_1fr_8rem_7rem] sm:px-7">
             <span>{c.capColCode}</span>
             <span>{c.capColItem}</span>
             <span className="hidden text-right sm:block">{c.capColPct}</span>
@@ -110,7 +111,7 @@ function CapitalAllocation({ locale }: { locale: ExecLocale }) {
               <motion.div
                 key={row.code}
                 variants={reveal}
-                className={`group grid grid-cols-[3rem_1fr_auto] gap-x-6 border-b border-white/[0.05] px-7 py-5 transition-colors duration-200 hover:bg-[#E9C349]/[0.04] sm:grid-cols-[3.5rem_1fr_8rem_7rem] ${i === 4 ? 'border-b-0' : ''}`}
+                className={`group grid grid-cols-[3rem_1fr_auto] gap-x-6 border-b border-white/[0.05] px-5 py-5 transition-colors duration-200 hover:bg-[#E9C349]/[0.04] sm:grid-cols-[3.5rem_1fr_8rem_7rem] sm:px-7 ${i === 4 ? 'border-b-0' : ''}`}
               >
                 <div className="flex items-start pt-0.5">
                   <span style={{ borderColor: ACCENTS[i] + '55', color: ACCENTS[i] }} className="rounded-lg border px-2 py-0.5 font-mono text-[10px] font-black">{row.code}</span>
@@ -136,9 +137,71 @@ function CapitalAllocation({ locale }: { locale: ExecLocale }) {
               </motion.div>
             ))}
           </motion.div>
-          <div className="flex items-center justify-between border-t border-[#E9C349]/22 bg-[#E9C349]/[0.04] px-7 py-5">
+          <div className="flex items-center justify-between gap-4 border-t border-[#E9C349]/22 bg-[#E9C349]/[0.04] px-5 py-5 sm:px-7">
             <p className="text-xs font-black uppercase tracking-[0.28em] text-[#F6DA87]/70">{c.capTotalLabel}</p>
-            <p className="font-mono text-xl font-black text-[#F6DA87]">$600,000</p>
+            <p className="font-mono text-xl font-black text-[#F6DA87]">$500,000</p>
+          </div>
+        </div>
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.55 }}
+          className="relative mt-10 overflow-hidden rounded-[1.85rem] border border-[#E9C349]/30 bg-[linear-gradient(135deg,rgba(233,195,73,0.14),rgba(10,10,10,0.95))] p-8 shadow-[0_0_70px_rgba(233,195,73,0.12)] backdrop-blur-xl sm:p-10"
+        >
+          <div className="pointer-events-none absolute -right-16 -top-24 h-56 w-56 rounded-full bg-[#E9C349]/12 blur-3xl" />
+          <div className="relative">
+            <p className="font-mono text-[10px] font-black uppercase tracking-[0.36em] text-[#F6DA87]/75">{c.capMilestoneEyebrow}</p>
+            <h3 className="mt-4 text-2xl font-black tracking-[-0.04em] text-white sm:text-3xl">{c.capMilestoneTitle}</h3>
+            <p className="mt-5 max-w-3xl text-sm leading-8 text-white/60">{c.capMilestoneBody}</p>
+            <div className="mt-10 flex flex-col items-stretch gap-6 sm:flex-row sm:items-end sm:justify-between">
+              <div className="flex flex-wrap items-end justify-center gap-4 sm:gap-10">
+                <div className="text-center">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/32">{c.capMilestoneTimeframe}</p>
+                  <p className="mt-2 font-mono text-4xl font-black text-white/90">{c.capMilestoneFrom}</p>
+                </div>
+                <div className="hidden h-px w-12 bg-gradient-to-r from-transparent via-[#E9C349]/55 to-transparent sm:block sm:h-16 sm:w-auto sm:bg-gradient-to-b" />
+                <div className="flex items-center justify-center gap-2 sm:hidden">
+                  <span className="text-2xl text-[#F6DA87]">↓</span>
+                </div>
+                <div className="text-center">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#F6DA87]/70">{c.capMilestoneUnit}</p>
+                  <p className="mt-2 font-mono text-5xl font-black text-[#F6DA87]">{c.capMilestoneTo}</p>
+                </div>
+              </div>
+              <div className="mx-auto h-3 w-full max-w-md overflow-hidden rounded-full bg-white/[0.06] sm:mx-0 sm:w-48">
+                <motion.div
+                  initial={{ scaleX: 0 }}
+                  whileInView={{ scaleX: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 1.1, ease: 'easeOut' }}
+                  className="h-full origin-left rounded-full bg-gradient-to-r from-[#A87B1F] via-[#E9C349] to-[#F6DA87]"
+                />
+              </div>
+            </div>
+            <p className="mt-8 text-[11px] leading-6 text-white/38">{c.capMilestoneFoot}</p>
+          </div>
+        </motion.div>
+      </section>
+    </Reveal>
+  );
+}
+
+function ComplianceStrip({ locale }: { locale: ExecLocale }) {
+  const c = copy[locale];
+  return (
+    <Reveal>
+      <section id="inv-compliance" className="scroll-mt-36 mb-16">
+        <div className="relative overflow-hidden rounded-[1.85rem] border border-cyan-500/25 bg-[linear-gradient(125deg,rgba(34,211,238,0.12),rgba(8,8,8,0.92))] p-8 shadow-[0_24px_80px_rgba(0,0,0,0.4)] backdrop-blur-2xl sm:p-9">
+          <div className="pointer-events-none absolute -left-10 bottom-0 h-40 w-40 rounded-full bg-cyan-500/10 blur-3xl" />
+          <div className="relative max-w-4xl">
+            <p className="inline-flex rounded-full border border-cyan-400/35 bg-cyan-500/10 px-4 py-1.5 font-mono text-[10px] font-black uppercase tracking-[0.28em] text-cyan-200/90">
+              {c.complianceEyebrow}
+            </p>
+            <h3 className="mt-6 text-xl font-black tracking-[-0.03em] text-white sm:text-2xl">{c.complianceTitle}</h3>
+            <p className="mt-4 text-sm leading-8 text-white/58">{c.complianceBody}</p>
           </div>
         </div>
       </section>
@@ -399,6 +462,16 @@ export default function InvestorMetrics({ locale = 'es' }: { locale?: ExecLocale
                 {heroLine1}<br />{heroLine2}
               </h2>
               <p className="mt-7 max-w-2xl text-sm leading-8 text-white/55">{c.invHeroBody}</p>
+              <div className="mt-8 flex flex-wrap gap-2">
+                {c.execThesisChips.map((chip) => (
+                  <span
+                    key={chip}
+                    className="rounded-full border border-[#E9C349]/25 bg-[#E9C349]/08 px-4 py-2 text-[10px] font-black uppercase tracking-[0.22em] text-[#F6DA87]/90"
+                  >
+                    {chip}
+                  </span>
+                ))}
+              </div>
             </div>
             <div className="grid shrink-0 grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-2">
               {c.invHeroStats.map((stat) => (
@@ -413,6 +486,7 @@ export default function InvestorMetrics({ locale = 'es' }: { locale?: ExecLocale
       </Reveal>
 
       <div className="grid gap-[7.5rem]">
+        <ComplianceStrip locale={locale} />
         <CapitalAllocation locale={locale} />
         <RevenueStreams locale={locale} />
         <LegacyProgram locale={locale} />
@@ -435,6 +509,7 @@ export default function InvestorMetrics({ locale = 'es' }: { locale?: ExecLocale
 export function getInvestorTocItems(locale: ExecLocale) {
   const c = copy[locale];
   return [
+    { id: 'inv-compliance', label: `✦ ${c.complianceNavLabel}` },
     { id: 'inv-capital', label: `A. ${c.capTitle}` },
     { id: 'inv-revenue', label: `B. ${c.revTitle}` },
     { id: 'inv-legacy', label: `C. ${c.legacyTitle}` },
