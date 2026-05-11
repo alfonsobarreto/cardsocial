@@ -39,7 +39,7 @@ import {
     updateBusinessCard as updateBusinessCardViaApi,
 } from '@/services/businessCardsRepo';
 import { getBusinessCardSlotAvailability } from '@/services/businessCardSlotsGate';
-import type { BusinessCardDoc } from '@/services/types/cards';
+import type { BusinessCardDoc, PublicCardSlot } from '@/services/types/cards';
 
 /**
  * UI-facing view of a business card row. This is a flat, minimal shape that
@@ -56,6 +56,8 @@ type BusinessCardListRow = {
   bcLogoUrl: string;
   /** IDs en Bóveda (users/{uid}/links). */
   vaultLinkIds: string[];
+  /** Copia Mongo `publicCardSlots` tras refrescar; respaldo si el preview cruza antes que la Bóveda local. */
+  publicCardSlots?: PublicCardSlot[];
   isFavorite: boolean;
   holdersCount: number;
   totalRatings: number;
@@ -73,6 +75,7 @@ function toBusinessCardListRow(doc: BusinessCardDoc): BusinessCardListRow {
     bcContactName: doc.bcContactName || '',
     bcLogoUrl: doc.bcLogoUrl || '',
     vaultLinkIds: [...(doc.vaultItemIds || [])],
+    publicCardSlots: Array.isArray(doc.publicCardSlots) ? [...doc.publicCardSlots] : undefined,
     isFavorite: Boolean(doc.isFavorite),
     holdersCount: Number(doc.holdersCount || 0),
     totalRatings: Number(doc.totalRatings || 0),
@@ -124,6 +127,7 @@ import {
     upsertSmartCardInDb,
     type CardSubscriberRow,
     type IssuerSnapshotPayload,
+    type IssuerVaultPickedItem,
     type PublicCardSlotPayload,
     type SmartCardPayload,
 } from '@/services/qrApi';
@@ -218,6 +222,32 @@ type VaultItem = {
   isFavorite: boolean;
   vaultMimeType?: string;
 };
+
+function vaultItemFromIssuerPicked(picked: IssuerVaultPickedItem, vaultId: string): VaultItem {
+  return {
+    id: vaultId,
+    title: String(picked.title || '').trim(),
+    type: String(picked.type || 'link').trim() || 'link',
+    value: String(picked.publicValue ?? '').trim(),
+    iconName: 'link-variant',
+    ...(picked.icon?.trim() ? { icon: picked.icon.trim() } : {}),
+    isFavorite: false,
+  };
+}
+
+function vaultItemFromPublicCardSlot(slot: PublicCardSlot): VaultItem {
+  const id = String(slot.itemId || '').trim();
+  const gn = String(slot.iconName || '').trim();
+  return {
+    id,
+    title: String(slot.label || '').trim(),
+    type: String(slot.type || 'link').trim() || 'link',
+    value: String(slot.value || '').trim(),
+    iconName: gn || 'link-variant',
+    ...(slot.icon != null && String(slot.icon).trim() ? { icon: String(slot.icon).trim() } : {}),
+    isFavorite: false,
+  };
+}
 
 type Universal24hQrCacheRow = {
   universalUrl: string;
@@ -2115,26 +2145,41 @@ export default function CardsFactoryScreen() {
 
   const businessSwipeKey = (id: string) => `business:${id}`;
 
-  const previewCardItems = useMemo(() => {
-    if (!previewCard) {
-      return [];
-    }
+  const previewSlots = useMemo<EditSlot[]>(() => {
+    if (!previewCard) return [];
+    const pickedRaw = previewCard.issuerSnapshot?.userVaultPicked ?? [];
+    const pickedById = new Map(
+      pickedRaw.map((p) => [String(p.itemId || '').trim(), p] as const),
+    );
     const idOrder = previewCard.itemIds.map((id) => String(id || '').trim()).filter(Boolean);
-    const byId = new Map(vaultItems.map((v) => [String(v.id || '').trim(), v]));
-    const out: VaultItem[] = [];
+    const slots: EditSlot[] = [];
+    let idx = 0;
     for (const id of idOrder) {
-      const item = byId.get(id);
+      let item: VaultItem | null =
+        vaultItems.find((v) => String(v.id || '').trim() === id) ?? null;
+      if (!item) {
+        const sp = pickedById.get(id);
+        if (sp) {
+          item = vaultItemFromIssuerPicked(sp, id);
+        }
+      }
       if (item) {
-        out.push(item);
+        slots.push({
+          id: `preview-slot-${id}-${idx}`,
+          index: idx,
+          item,
+        });
+        idx += 1;
       }
     }
-    return out;
+    return slots;
   }, [previewCard, vaultItems]);
 
   const editSlots = useMemo<EditSlot[]>(() => {
     return Array.from({ length: MAX_CARD_SLOTS }, (_, index) => {
-      const itemId = selectedItemIds[index];
-      const item = vaultItems.find((entry) => entry.id === itemId) || null;
+      const rawId = selectedItemIds[index];
+      const trimmed = String(rawId || '').trim();
+      const item = trimmed ? vaultItems.find((entry) => String(entry.id || '').trim() === trimmed) ?? null : null;
       return {
         id: `slot-${index}`,
         index,
@@ -2233,14 +2278,6 @@ export default function CardsFactoryScreen() {
     }
   };
 
-  const previewSlots = useMemo<EditSlot[]>(() => {
-    return previewCardItems.map((item, index) => ({
-      id: `preview-slot-${item.id}-${index}`,
-      index,
-      item,
-    }));
-  }, [previewCardItems]);
-
   const previewPayload = useMemo<MyCardsPayload | null>(() => {
     if (!previewCard) return null;
     return {
@@ -2261,10 +2298,28 @@ export default function CardsFactoryScreen() {
     if (!previewBusiness?.vaultLinkIds?.length) {
       return [];
     }
-    return previewBusiness.vaultLinkIds.map((linkId, index) => {
-      const item = vaultItems.find((v) => v.id === linkId) || null;
-      return { id: `biz-preview-${linkId}-${index}`, index, item };
-    });
+    const slotByItemId = new Map(
+      (previewBusiness.publicCardSlots ?? []).map((s) => [String(s.itemId || '').trim(), s] as const),
+    );
+    const out: EditSlot[] = [];
+    let idx = 0;
+    for (const raw of previewBusiness.vaultLinkIds) {
+      const linkId = String(raw || '').trim();
+      if (!linkId) continue;
+      let item: VaultItem | null =
+        vaultItems.find((v) => String(v.id || '').trim() === linkId) ?? null;
+      if (!item) {
+        const pub = slotByItemId.get(linkId);
+        if (pub) {
+          item = vaultItemFromPublicCardSlot(pub);
+        }
+      }
+      if (item) {
+        out.push({ id: `biz-preview-${linkId}-${idx}`, index: idx, item });
+        idx += 1;
+      }
+    }
+    return out;
   }, [previewBusiness, vaultItems]);
 
   const businessPreviewPayload = useMemo<MyCardsPayload | null>(() => {

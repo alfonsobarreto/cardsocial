@@ -1051,29 +1051,6 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                             {tr('Noche', 'Night')}
                           </Text>
                         </TouchableOpacity>
-                      </View>
-                      <View style={styles.lookModeRow}>
-                        <TouchableOpacity
-                          style={[
-                            styles.lookModeButton,
-                            { borderColor: shell.modalBorder, backgroundColor: 'transparent' },
-                            mode === 'sistema' && { backgroundColor: shell.ctaAccent, borderColor: shell.ctaAccent },
-                          ]}
-                          onPress={() => setMode('sistema')}
-                        >
-                          <Text
-                            style={[
-                              styles.lookModeButtonText,
-                              { color: shell.text },
-                              mode === 'sistema' && { color: shell.emptyCtaText },
-                            ]}
-                            numberOfLines={1}
-                            adjustsFontSizeToFit
-                            minimumFontScale={0.78}
-                          >
-                            {tr('Sistema', 'System')}
-                          </Text>
-                        </TouchableOpacity>
                         <TouchableOpacity
                           style={[
                             styles.lookModeButton,
@@ -1092,42 +1069,21 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                             adjustsFontSizeToFit
                             minimumFontScale={0.78}
                           >
-                            {tr('Sol', 'Sun')}
+                            {tr('Auto', 'Auto')}
                           </Text>
                         </TouchableOpacity>
                       </View>
-                      {(mode === 'auto' || mode === 'sistema') ? (
+                      {mode === 'auto' ? (
                         <Text
                           style={[styles.lookModeHint, { color: shell.textSecondary }]}
                           numberOfLines={3}
                         >
-                          {mode === 'sistema' ? (
-                            <>
-                              {tr('Tema del teléfono', 'Phone theme')}
-                              {' · '}
-                              {tr(resolvedMode === 'noche' ? 'Oscuro' : 'Claro', resolvedMode === 'noche' ? 'Dark' : 'Light')}
-                            </>
-                          ) : (
-                            <>
-                              {(() => {
-                                if (autoStatusText.includes('GPS')) {
-                                  return tr('Sol + ubicación', 'Sun + location');
-                                }
-                                if (autoStatusText.includes('ubicacion en cache')) {
-                                  return tr('Sol (caché)', 'Sun (cache)');
-                                }
-                                if (autoStatusText.includes('cache sin red')) {
-                                  return tr('Sol sin red', 'Sun offline');
-                                }
-                                if (autoStatusText.includes('sin GPS')) {
-                                  return tr('Por hora local', 'Local hours');
-                                }
-                                return tr('Auto', 'Auto');
-                              })()}
-                              {' · '}
-                              {tr(resolvedMode === 'noche' ? 'Noche' : 'Día', resolvedMode === 'noche' ? 'Night' : 'Day')}
-                            </>
+                          {tr(
+                            resolvedMode === 'noche' ? 'Aspecto actual: Noche' : 'Aspecto actual: Día',
+                            resolvedMode === 'noche' ? 'Current look: Night' : 'Current look: Day',
                           )}
+                          {' · '}
+                          {autoStatusText}
                         </Text>
                       ) : null}
                     </View>

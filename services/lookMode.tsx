@@ -1,10 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Appearance, AppState, useColorScheme as useSystemColorScheme } from 'react-native';
+import { Appearance, AppState } from 'react-native';
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { getCurrentLocation, hasLocationPermission } from '@/services/geolocationService';
 
-/** sí = tema claro/oscuro del SO · auto = amanecer/atardecer por GPS */
-export type LookMode = 'dia' | 'noche' | 'auto' | 'sistema';
+/** dia/noche manual · auto = amanecer/atardecer por GPS (ubicación) */
+export type LookMode = 'dia' | 'noche' | 'auto';
 
 const LOOK_MODE_STORAGE_KEY = 'card-social:look-mode';
 const LOOK_MODE_SOLAR_CACHE_KEY = 'card-social:look-mode-solar-cache';
@@ -30,8 +30,7 @@ type LookModeContextValue = {
 const LookModeContext = createContext<LookModeContextValue | null>(null);
 
 export function LookModeProvider({ children }: { children: React.ReactNode }) {
-  const systemScheme = useSystemColorScheme();
-  const [mode, setModeState] = useState<LookMode>('sistema');
+  const [mode, setModeState] = useState<LookMode>('dia');
   const [resolvedMode, setResolvedMode] = useState<'dia' | 'noche'>(() =>
     Appearance.getColorScheme() === 'dark' ? 'noche' : 'dia',
   );
@@ -44,8 +43,12 @@ export function LookModeProvider({ children }: { children: React.ReactNode }) {
     void (async () => {
       try {
         const stored = await AsyncStorage.getItem(LOOK_MODE_STORAGE_KEY);
-        if (stored === 'dia' || stored === 'noche' || stored === 'auto' || stored === 'sistema') {
+        if (stored === 'dia' || stored === 'noche' || stored === 'auto') {
           setModeState(stored);
+        } else if (stored === 'sistema') {
+          /** UX antigua: "seguir al SO"; ya no existe en UI — migramos a día fijo */
+          setModeState('dia');
+          await AsyncStorage.setItem(LOOK_MODE_STORAGE_KEY, 'dia');
         }
       } catch {
         // Keep default mode if storage fails.
@@ -235,21 +238,8 @@ export function LookModeProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (mode === 'sistema') {
-      if (autoRefreshTimeoutRef.current) {
-        clearTimeout(autoRefreshTimeoutRef.current);
-        autoRefreshTimeoutRef.current = null;
-      }
-      const scheme = (systemScheme ?? Appearance.getColorScheme() ?? 'light') as 'light' | 'dark';
-      const isDark = scheme === 'dark';
-      setResolvedMode(isDark ? 'noche' : 'dia');
-      setAutoStatusText(isDark ? 'Sistema: oscuro' : 'Sistema: claro');
-      setAutoPrecision('fallback');
-      return;
-    }
-
     void resolveAutoMode();
-  }, [mode, autoRefreshTick, systemScheme]);
+  }, [mode, autoRefreshTick]);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (nextState) => {
