@@ -1,5 +1,7 @@
+import { useRouter } from 'expo-router';
 import Subscription from '../components/Subscription';
 
 export default function VaultStoreScreen() {
-  return <Subscription />;
+  const router = useRouter();
+  return <Subscription onClose={() => router.back()} />;
 }

@@ -187,6 +187,8 @@ function RootNavigator() {
           options={{ title: language === 'en' || language === 'de' ? 'Scan Card' : 'Escanear Tarjeta', headerShown: false }}
         />
         <Stack.Screen name="nfc" options={{ headerShown: false }} />
+        <Stack.Screen name="vault_store" options={{ headerShown: false }} />
+        <Stack.Screen name="settings" options={{ headerShown: false }} />
         <Stack.Screen name="u" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>

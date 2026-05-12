@@ -952,6 +952,9 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
 
       outgoingRtcPrimedRef.current = false;
       setPhase(VoIPCallPhase.RingingOutgoing);
+      // Play ringback immediately — before the backend round-trip — to eliminate the 1-2 s silence
+      // that users heard while waiting for startGhostLinkVoipCall to resolve.
+      void playTone(outgoingType === 'video' ? RINGBACK_VIDEO_ASSET : RINGBACK_AUDIO_ASSET);
 
       const started = await startGhostLinkVoipCall(pending);
 
@@ -989,8 +992,6 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
             }
           : prev,
       );
-
-      await playTone(outgoingType === 'video' ? RINGBACK_VIDEO_ASSET : RINGBACK_AUDIO_ASSET);
     } catch (error: any) {
       if (isGhostLinkExpoGoAbortError(error)) {
         resetCall();

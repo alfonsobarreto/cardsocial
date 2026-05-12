@@ -89,6 +89,10 @@ export async function startGhostLinkLocalVideoPreview(appId: string): Promise<vo
 
   try {
     e.enableVideo();
+    // Preview-only phase: disable audio so Agora does NOT configure AVAudioSession
+    // (ChannelProfileCommunication sets PlayAndRecord which kills expo-av ringback on iOS).
+    // enableAudio() is called explicitly in joinGhostLinkAgoraSession before joinChannel.
+    e.disableAudio();
     e.startPreview();
     videoEnabledState = true;
     engine = e;

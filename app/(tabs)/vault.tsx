@@ -1196,12 +1196,9 @@ const VaultScreen = () => {
         formOverlay: {
           flex: 1,
           backgroundColor: vaultTheme.overlay,
-          justifyContent: 'flex-end',
         },
         formSheet: {
-          height: SCREEN_HEIGHT * 0.94,
-          borderTopLeftRadius: 22,
-          borderTopRightRadius: 22,
+          flex: 1,
           overflow: 'hidden',
         },
         formDragHandleWrap: {
@@ -1694,8 +1691,14 @@ const VaultScreen = () => {
           <View style={styles.headerUserRowCentered}>
             <Text style={[styles.headerSubtitle, { color: vaultTheme.primaryText }]}>{profileDisplayName}</Text>
             {isUserVerified ? (
-              <View style={styles.headerVerificationWrap}>
-                <VerificationBadge compact />
+              <View
+                style={[
+                  styles.headerVerificationWrap,
+                  { backgroundColor: 'rgba(30,167,255,0.12)', borderColor: vaultTheme.refreshAccent, borderWidth: 1, borderRadius: 999, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, gap: 4 },
+                ]}
+              >
+                <MaterialCommunityIcons name="check-decagram" size={14} color={vaultTheme.refreshAccent} />
+                <Text style={{ color: vaultTheme.refreshAccent, fontSize: 12, fontWeight: '700' }}>{tr('Verificado', 'Verified')}</Text>
               </View>
             ) : null}
           </View>
@@ -1811,9 +1814,6 @@ const VaultScreen = () => {
           <Animated.View
             style={[styles.formSheet, { transform: [{ translateY: formSheetTranslateY }] }]}
           >
-            <View style={styles.formDragHandleWrap}>
-              <View style={styles.formDragHandle} />
-            </View>
             <NewInfoForm
               key={`${formRenderNonce}-${editingData?.id ?? 'create'}`}
               editingData={editingData}

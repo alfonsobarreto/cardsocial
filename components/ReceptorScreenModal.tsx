@@ -539,7 +539,7 @@ export default function ReceptorScreenModal({
 const s = StyleSheet.create({
   root: {
     flex: 1,
-    paddingTop: Platform.OS === 'ios' ? 58 : 36,
+    paddingTop: Platform.OS === 'ios' ? 70 : 48,
   },
 
   /* Header */

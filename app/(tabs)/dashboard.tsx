@@ -184,7 +184,9 @@ function buildDashboardChrome(shellIn: AppShellTheme, isNight: boolean): Dashboa
     iconGold: accent,
     headerStripe: [sm, a('33'), shell.backgroundSolid],
     helloColor: shell.textPrimary,
-    planColor: accent,
+    // In day mode, gold (#E9C349) on white/light-gold backgrounds has ~1.7:1 contrast → invisible.
+    // Use dark-bronze '#7A5C10' which achieves ~5.5:1 on white and still reads as premium gold.
+    planColor: isNight ? accent : '#7A5C10',
     loadingBorder: a('59'),
     loadingBoxBg: sm,
     loadingText: shell.textSecondary,
@@ -192,7 +194,7 @@ function buildDashboardChrome(shellIn: AppShellTheme, isNight: boolean): Dashboa
     blockTitleColor: shell.textPrimary,
     optimizeCtaBg: sv,
     optimizeCtaBorder: shell.border,
-    optimizeCtaIcon: accent,
+    optimizeCtaIcon: isNight ? accent : '#7A5C10',
     optimizeCtaText: shell.textPrimary,
     analyticsCardBg: sm,
     analyticsCardBorder: a('55'),
@@ -200,7 +202,7 @@ function buildDashboardChrome(shellIn: AppShellTheme, isNight: boolean): Dashboa
     periodTabBg: sv,
     periodTabBorder: shell.border,
     periodTabText: shell.textSecondary,
-    periodTabActiveText: accent,
+    periodTabActiveText: isNight ? accent : '#7A5C10',
     periodTitleColor: shell.textPrimary,
     periodArrowDisabled: shell.textMuted ?? shell.textSecondary,
     bigMetricColor: shell.textPrimary,
@@ -208,7 +210,7 @@ function buildDashboardChrome(shellIn: AppShellTheme, isNight: boolean): Dashboa
     rankEmpty: shell.textSecondary,
     seoCardBg: sm,
     seoCardBorder: a('55'),
-    opportunityTitle: accent,
+    opportunityTitle: isNight ? accent : '#7A5C10',
     seoScopeMuted: shell.textSecondary,
     seoTransparency: shell.textSecondary,
     explorerBtnIcon: shell.btnPrimaryText,
@@ -228,8 +230,8 @@ function buildDashboardChrome(shellIn: AppShellTheme, isNight: boolean): Dashboa
     nicheChipInactiveBg: sv,
     nicheChipActiveBg: a('33'),
     nicheChipInactiveText: shell.textSecondary,
-    nicheChipActiveText: accent,
-    seoExplorerResetFg: accent,
+    nicheChipActiveText: isNight ? accent : '#7A5C10',
+    seoExplorerResetFg: isNight ? accent : '#7A5C10',
     isNight,
   };
 }
@@ -485,19 +487,27 @@ function ExpirationBadge({
 }) {
   const { language } = useLanguage();
   const tr = useCallback((es: string, en: string) => trEsEn(es, en, language), [language]);
+  const { resolvedMode: _badgeMode } = useLookMode();
+  const badgeIsNight = _badgeMode === 'noche';
   const tone = toneForDays(daysLeft);
   const colors = unlimited
     ? {
         glow: SHELL_ACCENT_GOLD,
         bg: `${SHELL_ACCENT_GOLD}29`,
         border: 'rgba(246,218,135,0.58)',
-        text: '#F6DA87',
+        // Day mode: pale-cream '#F6DA87' is invisible on light gold-tinted white.
+        // Use dark-bronze for contrast (≥5.5:1 on white).
+        text: badgeIsNight ? '#F6DA87' : '#7A5C10',
         label: tr('ILIMITADO', 'UNLIMITED'),
       }
     : (() => {
         const t = toneColors(tone);
+        // Day mode: pale pastel text colors designed for dark backgrounds are invisible.
+        const dayText =
+          tone === 'red' ? '#B02818' : tone === 'amber' ? '#8A5C00' : '#1A6B34';
         return {
           ...t,
+          text: badgeIsNight ? t.text : dayText,
           label:
             tone === 'red'
               ? tr('CRÍTICO', 'CRITICAL')
@@ -506,6 +516,9 @@ function ExpirationBadge({
                 : tr('OK', 'OK'),
         };
       })();
+  // 'Sin caducidad' / 'Renueva:' sub-text — hardcoded white in stylesheet.
+  // Override dynamically for day mode.
+  const expirationSubTextColor = badgeIsNight ? 'rgba(255,255,255,0.82)' : 'rgba(28,28,30,0.65)';
   const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -541,7 +554,7 @@ function ExpirationBadge({
       <Animated.View style={[styles.badgeGlowDot, { backgroundColor: colors.glow, opacity }]} />
       <View>
         <Text style={[styles.expirationStatus, { color: colors.text }]}>{colors.label}</Text>
-        <Text style={styles.expirationText}>
+        <Text style={[styles.expirationText, { color: expirationSubTextColor }]}>
           {unlimited ? tr('Sin caducidad', 'No expiration') : `${tr('Renueva:', 'Renews:')} ${renewsAt}`}
         </Text>
       </View>
@@ -1392,7 +1405,7 @@ export default function DashboardScreen() {
                 styles.optimizeKeywordsCta,
                 { backgroundColor: chrome.optimizeCtaBg, borderColor: chrome.optimizeCtaBorder },
               ]}
-              onPress={() => router.push('/(tabs)/createBusinessCard')}
+              onPress={() => router.push({ pathname: '/(tabs)/createBusinessCard', params: { bId: activeCard.bId } })}
               activeOpacity={0.85}
             >
               <MaterialCommunityIcons name="tune-variant" size={15} color={chrome.optimizeCtaIcon} />

@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import React, { useMemo } from 'react';
 import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth } from '../services/firebaseConfig';
 import palette from './theme';
 
@@ -23,6 +24,7 @@ export default function SettingsScreen() {
   const isDark = resolvedMode === 'noche';
   const shell = palette[isDark ? 'dark' : 'light'];
   const { language } = useLanguage();
+  const insets = useSafeAreaInsets();
   const tr = (es: string, en: string) => trEsEn(es, en, language);
   const router = useRouter();
 
@@ -299,7 +301,41 @@ export default function SettingsScreen() {
   const switchTrackOff = shell.surfaceMuted;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <View style={{ flex: 1, backgroundColor: shell.backgroundSolid }}>
+      {/* Header with back button */}
+      <View
+        style={{
+          paddingTop: insets.top + 8,
+          paddingBottom: 12,
+          paddingHorizontal: 16,
+          flexDirection: 'row',
+          alignItems: 'center',
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: shell.border,
+        }}
+      >
+        <TouchableOpacity
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0,0,0,0.06)',
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: shell.border,
+          }}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel={tr('Volver', 'Back')}
+        >
+          <MaterialCommunityIcons name="chevron-left" size={24} color={shell.ctaPrimary} />
+        </TouchableOpacity>
+        <Text style={{ flex: 1, fontSize: 18, fontWeight: '700', color: shell.textPrimary, marginLeft: 12 }}>
+          {tr('Configuración', 'Settings')}
+        </Text>
+      </View>
+      <ScrollView contentContainerStyle={styles.container}>
       <Section title={tr('Seguridad y privacidad', 'Security & privacy')}>
         <View style={styles.item}>
           <MaterialCommunityIcons name="lock-outline" size={20} color={iconTint} />
@@ -370,5 +406,6 @@ export default function SettingsScreen() {
         <Text style={styles.versionText}>{tr('Versión 1.0.0', 'Version 1.0.0')}</Text>
       </View>
     </ScrollView>
+    </View>
   );
 }

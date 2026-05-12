@@ -901,7 +901,6 @@ export default function CardStudioVault({
                     paddingBottom: modalFooterBottomPad,
                   },
                 ]}
-                onStartShouldSetResponder={() => true}
               >
                 {/* Drag handle + acento oro (misma línea visual que NewInfoForm) */}
                 <View style={styles.dragHandleWrap}>
@@ -980,6 +979,7 @@ export default function CardStudioVault({
                   initialNumToRender={50}
                   bounces={false}
                   overScrollMode="never"
+                  nestedScrollEnabled
                   getItemLayout={(_, flatIndex) => {
                     const item = sectionLayouts[flatIndex];
                     if (!item) return { length: 0, offset: 0, index: flatIndex };

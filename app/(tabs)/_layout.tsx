@@ -182,7 +182,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
     if (Platform.OS === 'ios') {
       return Math.max(insets.bottom, 12);
     }
-    return Math.max(insets.bottom, 28);
+    return Math.max(insets.bottom, 40);
   }, [insets.bottom]);
   const modalFooterBottomPad = useModalFooterBottomPad();
   const [headerAvatarUrl, setHeaderAvatarUrl] = useState<string | null>(null);
@@ -880,7 +880,6 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
         onRequestClose={() => setDrawerVisible(false)}
       >
         <View style={styles.drawerOverlay}>
-          <Pressable style={[styles.drawerBackdrop, { backgroundColor: shell.overlayScrim }]} onPress={() => setDrawerVisible(false)} />
           <BlurView intensity={resolvedMode === 'noche' ? 38 : 34} tint={resolvedMode === 'noche' ? 'dark' : 'light'} style={styles.drawerShell}>
             <LinearGradient
               colors={[...shell.luxuryFrameGradient]}
@@ -890,6 +889,16 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
             >
               <View style={[styles.drawerInner, { backgroundColor: shell.modalBg }]}>
                 <View style={[styles.drawerHeader, { borderBottomColor: shell.modalBorder }]}>
+                  {activePanel !== 'menu' ? (
+                    <TouchableOpacity
+                      style={styles.drawerBackBtn}
+                      onPress={() => setActivePanel('menu')}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityLabel={tr('Volver al menú', 'Back to menu')}
+                    >
+                      <MaterialCommunityIcons name="chevron-left" size={24} color={shell.ctaAccent} />
+                    </TouchableOpacity>
+                  ) : null}
                   <Text style={[styles.drawerTitle, { color: shell.modalTitle }]}>{panelTitle}</Text>
                   <TouchableOpacity onPress={() => setDrawerVisible(false)} accessibilityLabel={tr('Cerrar menú', 'Close menu')}>
                     <MaterialCommunityIcons name="close" size={24} color={shell.ctaAccent} />
@@ -1359,18 +1368,10 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                   </ScrollView>
                 )}
 
-                {activePanel !== 'menu' ? (
-                  <TouchableOpacity
-                    style={[styles.backToMenuBtn, { backgroundColor: shell.surfaceMuted, borderWidth: 1, borderColor: shell.ctaAccent }]}
-                    onPress={() => setActivePanel('menu')}
-                  >
-                    <MaterialCommunityIcons name="arrow-left" size={16} color={shell.ctaAccent} />
-                    <Text style={[styles.backToMenuText, { color: shell.ctaAccent }]}>{tr('Volver al menú', 'Back to menu')}</Text>
-                  </TouchableOpacity>
-                ) : null}
               </View>
             </LinearGradient>
           </BlurView>
+          <Pressable style={[styles.drawerBackdrop, { backgroundColor: shell.overlayScrim }]} onPress={() => setDrawerVisible(false)} />
         </View>
       </Modal>
 
@@ -1635,6 +1636,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(13,77,138,0.2)',
     paddingBottom: 12,
+  },
+  drawerBackBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(233,195,73,0.12)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(233,195,73,0.35)',
+    marginRight: 8,
   },
   drawerTitle: {
     fontSize: 20,
