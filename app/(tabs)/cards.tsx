@@ -2145,13 +2145,63 @@ export default function CardsFactoryScreen() {
 
   const businessSwipeKey = (id: string) => `business:${id}`;
 
+  /**
+   * Misma verdad que la lista y el editor: `previewCard` se fija al abrir el modal y NO
+   * se re-sincroniza al guardar en el factory; `smartCards` sí.
+   *
+   * Si el API devuelve `itemIds: []` pero el modal o caché local sí tenían ids, no pisan
+   * con lista vacía (caso típico tras `setPreviewCard(fresh)` desde `loadSmartCards`).
+   */
+  const effectiveIssuerPreviewSmartCard = useMemo((): SmartCard | null => {
+    if (!previewCard) return null;
+    const sid = String(previewCard.sid || '').trim();
+    if (!sid) return previewCard;
+    const fromList = smartCards.find((c) => String(c.sid || '').trim() === sid) ?? previewCard;
+    const idsFromList = Array.isArray(fromList.itemIds)
+      ? fromList.itemIds.map((x) => String(x || '').trim()).filter(Boolean)
+      : [];
+    const idsFromPreview = Array.isArray(previewCard.itemIds)
+      ? previewCard.itemIds.map((x) => String(x || '').trim()).filter(Boolean)
+      : [];
+    const itemIds = idsFromList.length > 0 ? idsFromList : idsFromPreview;
+    if (idsFromList.length > 0) {
+      return fromList;
+    }
+    if (idsFromPreview.length === 0) {
+      return fromList;
+    }
+    return { ...fromList, itemIds };
+  }, [previewCard, smartCards]);
+
+  const effectiveIssuerPreviewBusinessRow = useMemo((): BusinessCardListRow | null => {
+    if (!previewBusiness) return null;
+    const bid = String(previewBusiness.bId || '').trim();
+    if (!bid) return previewBusiness;
+    const fromFeed = businessCardsFeed.find((r) => String(r.bId || '').trim() === bid) ?? previewBusiness;
+    const idsFromFeed = Array.isArray(fromFeed.vaultLinkIds)
+      ? fromFeed.vaultLinkIds.map((x) => String(x || '').trim()).filter(Boolean)
+      : [];
+    const idsFromPreview = Array.isArray(previewBusiness.vaultLinkIds)
+      ? previewBusiness.vaultLinkIds.map((x) => String(x || '').trim()).filter(Boolean)
+      : [];
+    const vaultLinkIds = idsFromFeed.length > 0 ? idsFromFeed : idsFromPreview;
+    if (idsFromFeed.length > 0) {
+      return fromFeed;
+    }
+    if (idsFromPreview.length === 0) {
+      return fromFeed;
+    }
+    return { ...fromFeed, vaultLinkIds };
+  }, [previewBusiness, businessCardsFeed]);
+
   const previewSlots = useMemo<EditSlot[]>(() => {
-    if (!previewCard) return [];
-    const pickedRaw = previewCard.issuerSnapshot?.userVaultPicked ?? [];
+    if (!effectiveIssuerPreviewSmartCard) return [];
+    const card = effectiveIssuerPreviewSmartCard;
+    const pickedRaw = card.issuerSnapshot?.userVaultPicked ?? [];
     const pickedById = new Map(
       pickedRaw.map((p) => [String(p.itemId || '').trim(), p] as const),
     );
-    const idOrder = previewCard.itemIds.map((id) => String(id || '').trim()).filter(Boolean);
+    const idOrder = card.itemIds.map((id) => String(id || '').trim()).filter(Boolean);
     const slots: EditSlot[] = [];
     let idx = 0;
     for (const id of idOrder) {
@@ -2173,7 +2223,7 @@ export default function CardsFactoryScreen() {
       }
     }
     return slots;
-  }, [previewCard, vaultItems]);
+  }, [effectiveIssuerPreviewSmartCard, vaultItems]);
 
   const editSlots = useMemo<EditSlot[]>(() => {
     return Array.from({ length: MAX_CARD_SLOTS }, (_, index) => {
@@ -2279,31 +2329,43 @@ export default function CardsFactoryScreen() {
   };
 
   const previewPayload = useMemo<MyCardsPayload | null>(() => {
-    if (!previewCard) return null;
+    const src = effectiveIssuerPreviewSmartCard;
+    if (!src) return null;
     return {
-      cardName: (previewCard.scName || cardName || tr('Nueva Tarjeta', 'New Card')).trim(),
+      cardName: (src.scName || cardName || tr('Nueva Tarjeta', 'New Card')).trim(),
       subtitle: `@${(issuerIdentity.userNickName || 'user').toLowerCase()}`,
       avatarUrl: issuerIdentity.userAvatarUrl,
-      themeId: previewCard.themeId || '',
-      wallpaperUrl: previewCard.wallpaperUrl,
+      themeId: src.themeId || '',
+      wallpaperUrl: src.wallpaperUrl,
       layout: previewLayout,
-      holdersCount: previewCard.holdersCount ?? 0,
+      holdersCount: src.holdersCount ?? 0,
       enableParallax,
       slots: previewSlots as unknown as WireframeEditSlot[],
       iconVaultById,
     };
-  }, [previewCard, cardName, issuerIdentity.userNickName, issuerIdentity.userAvatarUrl, previewLayout, enableParallax, previewSlots, iconVaultById, language]);
+  }, [
+    effectiveIssuerPreviewSmartCard,
+    cardName,
+    issuerIdentity.userNickName,
+    issuerIdentity.userAvatarUrl,
+    previewLayout,
+    enableParallax,
+    previewSlots,
+    iconVaultById,
+    language,
+  ]);
 
   const businessPreviewSlots = useMemo<EditSlot[]>(() => {
-    if (!previewBusiness?.vaultLinkIds?.length) {
+    const row = effectiveIssuerPreviewBusinessRow;
+    if (!row?.vaultLinkIds?.length) {
       return [];
     }
     const slotByItemId = new Map(
-      (previewBusiness.publicCardSlots ?? []).map((s) => [String(s.itemId || '').trim(), s] as const),
+      (row.publicCardSlots ?? []).map((s) => [String(s.itemId || '').trim(), s] as const),
     );
     const out: EditSlot[] = [];
     let idx = 0;
-    for (const raw of previewBusiness.vaultLinkIds) {
+    for (const raw of row.vaultLinkIds) {
       const linkId = String(raw || '').trim();
       if (!linkId) continue;
       let item: VaultItem | null =
@@ -2320,23 +2382,24 @@ export default function CardsFactoryScreen() {
       }
     }
     return out;
-  }, [previewBusiness, vaultItems]);
+  }, [effectiveIssuerPreviewBusinessRow, vaultItems]);
 
   const businessPreviewPayload = useMemo<MyCardsPayload | null>(() => {
-    if (!previewBusiness) return null;
+    const src = effectiveIssuerPreviewBusinessRow;
+    if (!src) return null;
     return {
-      cardName: previewBusiness.bcName.trim(),
-      subtitle: previewBusiness.bcContactName.trim(),
-      avatarUrl: toRenderableImageUri(previewBusiness.bcLogoUrl),
-      themeId: previewBusiness.themeId || '',
+      cardName: src.bcName.trim(),
+      subtitle: src.bcContactName.trim(),
+      avatarUrl: toRenderableImageUri(src.bcLogoUrl),
+      themeId: src.themeId || '',
       layout: previewLayout,
-      holdersCount: previewBusiness.holdersCount ?? 0,
+      holdersCount: src.holdersCount ?? 0,
       enableParallax,
       slots: businessPreviewSlots as unknown as WireframeEditSlot[],
       noAvatarIcon: 'storefront-outline',
       iconVaultById,
     };
-  }, [previewBusiness, previewLayout, enableParallax, businessPreviewSlots, iconVaultById]);
+  }, [effectiveIssuerPreviewBusinessRow, previewLayout, enableParallax, businessPreviewSlots, iconVaultById]);
 
   const qrPayload = useMemo(() => {
     if (qrBusinessContext) {
@@ -2512,7 +2575,22 @@ export default function CardsFactoryScreen() {
         const list = await loadSmartCards();
         const fresh = list.find((c) => c.sid === card.sid);
         if (fresh) {
-          setPreviewCard((prev) => (prev?.sid === fresh.sid ? fresh : prev));
+          setPreviewCard((prev) => {
+            if (prev?.sid !== fresh.sid) return prev;
+            const prevIds = Array.isArray(prev.itemIds)
+              ? prev.itemIds.map((x) => String(x || '').trim()).filter(Boolean)
+              : [];
+            const freshIds = Array.isArray(fresh.itemIds)
+              ? fresh.itemIds.map((x) => String(x || '').trim()).filter(Boolean)
+              : [];
+            if (freshIds.length > 0) {
+              return fresh;
+            }
+            if (prevIds.length > 0) {
+              return { ...fresh, itemIds: prev.itemIds };
+            }
+            return fresh;
+          });
         }
       } catch {
         /* mantener card optimista */
@@ -4218,7 +4296,11 @@ export default function CardsFactoryScreen() {
       </Modal>
 
       <MyCardsPreviewModal
-        key={previewVisible && previewCard ? `my-cards-preview-${previewCard.sid}` : 'my-cards-preview-closed'}
+        key={
+          previewVisible && previewCard
+            ? `my-cards-preview-${previewCard.sid}-${(effectiveIssuerPreviewSmartCard?.itemIds ?? []).join(',')}`
+            : 'my-cards-preview-closed'
+        }
         visible={Boolean(previewVisible && previewCard)}
         onClose={() => {
           setPreviewVisible(false);
@@ -4228,10 +4310,10 @@ export default function CardsFactoryScreen() {
         variant="issuer"
         payload={previewPayload}
         onEditCard={
-          previewCard != null
+          effectiveIssuerPreviewSmartCard != null
             ? () => {
                 setPreviewVisible(false);
-                openEditFactory(previewCard);
+                openEditFactory(effectiveIssuerPreviewSmartCard);
               }
             : undefined
         }
@@ -4249,7 +4331,11 @@ export default function CardsFactoryScreen() {
       />
 
       <MyCardsPreviewModal
-        key={previewBusinessVisible && previewBusiness ? `my-cards-biz-${previewBusiness.bId}` : 'my-cards-biz-closed'}
+        key={
+          previewBusinessVisible && previewBusiness
+            ? `my-cards-biz-${previewBusiness.bId}-${(effectiveIssuerPreviewBusinessRow?.vaultLinkIds ?? []).join(',')}`
+            : 'my-cards-biz-closed'
+        }
         visible={Boolean(previewBusinessVisible && previewBusiness)}
         onClose={() => {
           setPreviewBusinessVisible(false);
@@ -4260,9 +4346,9 @@ export default function CardsFactoryScreen() {
         variant="issuer"
         payload={businessPreviewPayload}
         onEditCard={
-          previewBusiness
+          effectiveIssuerPreviewBusinessRow
             ? () => {
-                const id = previewBusiness.bId;
+                const id = effectiveIssuerPreviewBusinessRow.bId;
                 setPreviewBusinessVisible(false);
                 setPreviewBusiness(null);
                 setPreviewBusinessOwnerUid('');

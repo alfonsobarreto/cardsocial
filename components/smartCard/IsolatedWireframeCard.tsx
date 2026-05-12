@@ -276,11 +276,21 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
     return row;
   });
   const hGridInset = editable ? WIREFRAME_STITCH_HORIZONTAL_INSET : WIREFRAME_STITCH_HORIZONTAL_INSET_PREVIEW;
+  const hUsableW =
+    stitchUsableW > 0
+      ? stitchUsableW
+      : Math.max(0, horizIconGridLayout.w - hGridInset);
+  const hUsableH =
+    horizIconGridLayout.h > 0
+      ? horizIconGridLayout.h
+      : mirror
+        ? 160
+        : 0;
   const hIconSize =
-    stitchUsableW > 0 && horizIconGridLayout.h > 0
+    hUsableW > 0
       ? computeStitchWireframeBubbleSide(
-            stitchUsableW,
-            horizIconGridLayout.h,
+            hUsableW,
+            hUsableH,
             hRowPlan,
             WIREFRAME_STITCH_GAP,
             WIREFRAME_STITCH_GAP,
@@ -426,11 +436,21 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
     return row;
   });
   const vGridInset = editable ? WIREFRAME_STITCH_HORIZONTAL_INSET : WIREFRAME_STITCH_HORIZONTAL_INSET_PREVIEW;
+  const vUsableW =
+    stitchUsableW > 0
+      ? stitchUsableW
+      : Math.max(0, vertIconGridLayout.w - vGridInset);
+  const vUsableH =
+    vertIconGridLayout.h > 0
+      ? vertIconGridLayout.h
+      : mirror
+        ? 200
+        : 0;
   const vertIconCellSize =
-    stitchUsableW > 0 && vertIconGridLayout.h > 0
+    vUsableW > 0
       ? computeStitchWireframeBubbleSide(
-          stitchUsableW,
-          vertIconGridLayout.h,
+          vUsableW,
+          vUsableH,
           vRowPlan,
           WIREFRAME_STITCH_GAP,
           WIREFRAME_STITCH_GAP,
