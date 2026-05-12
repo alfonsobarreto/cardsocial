@@ -12,11 +12,6 @@
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
-    "deepLinks": [
-      "cardsocial://",
-      "cardsocial://redeem",
-      "cardsocial://redeem?code=*"
-    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.cardsocial.app",
@@ -59,7 +54,6 @@
       }
     },
     "android": {
-      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/adaptive-icon.png"
@@ -144,7 +138,15 @@
           ]
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
