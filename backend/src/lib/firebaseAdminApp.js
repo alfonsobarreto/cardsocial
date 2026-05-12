@@ -15,6 +15,14 @@ function ensureFirebaseAdminApp() {
   if (!raw) return null;
   try {
     const cred = JSON.parse(raw);
+    // Azure (and many CI/CD systems) store the JSON in a single env var and
+    // serialize literal newlines as the two-character sequence \n.  The Node.js
+    // crypto layer then receives a malformed PEM and throws
+    // "Unparsed DER bytes remain after ASN.1 parsing".
+    // Fix: unescape \n -> actual newline in private_key only (safe for all other fields).
+    if (typeof cred.private_key === 'string') {
+      cred.private_key = cred.private_key.replace(/\\n/g, '\n');
+    }
     admin.initializeApp({ credential: admin.credential.cert(cred) });
     return admin;
   } catch (e) {

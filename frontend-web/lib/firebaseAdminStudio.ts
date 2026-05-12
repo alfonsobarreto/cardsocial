@@ -83,10 +83,23 @@ function parseJsonObject(raw: string): Record<string, unknown> | null {
   }
 }
 
+function fixPrivateKeyNewlines(credentials: Record<string, unknown>): Record<string, unknown> {
+  // Azure App Service and many CI/CD systems serialize the JSON in a single
+  // env var and escape real newlines as the literal two-char sequence \n.
+  // Node's crypto layer then receives a malformed PEM and throws
+  // "Unparsed DER bytes remain after ASN.1 parsing".
+  // Fix: unescape \n -> actual newline in private_key only.
+  if (typeof credentials.private_key === 'string' && credentials.private_key.includes('\\n')) {
+    return { ...credentials, private_key: credentials.private_key.replace(/\\n/g, '\n') };
+  }
+  return credentials;
+}
+
 function tryCert(credentials: Record<string, unknown>): App {
+  const fixed = fixPrivateKeyNewlines(credentials);
   return initializeApp({
-    credential: cert(credentials as Parameters<typeof cert>[0]),
-    projectId: typeof credentials.project_id === 'string' ? credentials.project_id : undefined,
+    credential: cert(fixed as Parameters<typeof cert>[0]),
+    projectId: typeof fixed.project_id === 'string' ? fixed.project_id : undefined,
   });
 }
 

@@ -1,4 +1,4 @@
-import AutoScaleText from '@/components/AutoScaleText';
+﻿import AutoScaleText from '@/components/AutoScaleText';
 import LimitReachedModal from '@/components/LimitReachedModal';
 import { MyCardsPreviewModal, type MyCardsPayload } from '@/components/MyCards';
 import ReceptorScreenModal from '@/components/ReceptorScreenModal';
@@ -758,8 +758,9 @@ export default function CardsFactoryScreen() {
       setVaultItems(snap.vaultItems);
       setIconVaultById(snap.iconVaultById);
     } catch {
-      setVaultItems([]);
-      setIconVaultById({});
+      // Do NOT wipe existing vaultItems on a transient error.
+      // A failed reload (network blip, Firestore timeout) would otherwise clear
+      // correctly-cached items and cause the preview to render empty slots.
     }
   }, []);
 
@@ -820,7 +821,26 @@ export default function CardsFactoryScreen() {
         issuerSnapshot: card.issuerSnapshot,
       }));
 
-      const deduped = dedupeSmartCardsBySid(mapped);
+      const dedupedRaw = dedupeSmartCardsBySid(mapped);
+
+      /**
+       * Edge-case: el API puede devolver `itemIds: []` en una ventana de tiempo
+       * justo después de un `persistCards` (race entre escritura y lectura en Mongo).
+       * Si el caché local tiene `itemIds` no vacíos para esa tarjeta, los preservamos
+       * para evitar que el preview y los slots queden vacíos mientras la BD se
+       * estabiliza. El caché ya contiene los IDs correctos porque `persistCards`
+       * los escribió en AsyncStorage antes de llamar al API.
+       */
+      const localBySid = new Map(lastList.map((c) => [c.sid, c]));
+      const deduped = dedupedRaw.map((serverCard) => {
+        if (serverCard.itemIds.length === 0) {
+          const local = localBySid.get(serverCard.sid);
+          if (local && local.itemIds.length > 0) {
+            return { ...serverCard, itemIds: [...local.itemIds] };
+          }
+        }
+        return serverCard;
+      });
 
       /**
        * Reconciliación local → Mongo. Si el caché local tiene sids que no
@@ -1275,6 +1295,12 @@ export default function CardsFactoryScreen() {
           visibilityTime: 2200,
         });
         setFactoryVisible(false);
+        // Recargar desde el servidor para actualizar issuerSnapshot.userVaultPicked.
+        // Así la próxima apertura del preview tiene el snapshot correcto incluso si
+        // la bóveda tarda en cargar (fallback a issuerSnapshot).
+        InteractionManager.runAfterInteractions(() => {
+          void loadSmartCards();
+        });
         return;
       }
 
@@ -2111,9 +2137,14 @@ export default function CardsFactoryScreen() {
     void (async () => {
       const uid = (await getActiveUserId()) ?? sessionUid ?? '';
       setPreviewBusinessOwnerUid(uid);
+      /**
+       * Igual que openPreviewCard: cargar bóveda primero y luego fijar
+       * previewBusiness + abrir modal en la misma continuación async para
+       * garantizar que businessPreviewSlots se compute con vaultItems poblado.
+       */
+      await loadVaultItems();
       setPreviewBusiness(row);
       setPreviewLayout(width > height ? 'horizontal' : 'vertical');
-      await loadVaultItems();
       setPreviewBusinessVisible(true);
 
       if (!String(uid).trim()) return;
@@ -2566,10 +2597,13 @@ export default function CardsFactoryScreen() {
 
   const openPreviewCard = (card: SmartCard) => {
     setPreviewLayout(width > height ? 'horizontal' : 'vertical');
-    setPreviewCard(card);
     void (async () => {
-      /** Hidratar bóveda antes del primer paint del modal: si no, previewSlots = [] y el wireframe queda vacío hasta que React “despierte” con otro update. */
+      // Load vault BEFORE setting previewCard + opening the modal.
+      // All three setters (setVaultItems inside loadVaultItems, setPreviewCard,
+      // and setPreviewVisible) run in the same async continuation -> React 18
+      // batches them in one render -> first paint always has vaultItems populated.
       await loadVaultItems();
+      setPreviewCard(card);
       setPreviewVisible(true);
       try {
         const list = await loadSmartCards();
