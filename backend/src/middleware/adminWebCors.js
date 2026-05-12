@@ -12,7 +12,12 @@
  * y dejá solo este middleware, o alineá los orígenes allí con los mismos valores.
  */
 
-const DEFAULT_ADMIN_ORIGINS = ['https://cardsocial-admin-890673da6872.herokuapp.com'];
+const DEFAULT_ADMIN_ORIGINS = [
+  'https://cardsocial-admin-890673da6872.herokuapp.com',
+  // Dev local: Vite corre en 5173; 3000 por si se lanza el frontend con otro tooling
+  'http://localhost:5173',
+  'http://localhost:3000',
+];
 
 function normalizeOrigin(raw) {
   return String(raw || '')
