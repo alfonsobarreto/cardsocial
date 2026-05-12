@@ -60,7 +60,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.cardsocial.app",
-      "versionCode": 10,
+      "versionCode": 11,
       "intentFilters": [
         {
           "action": "VIEW",
