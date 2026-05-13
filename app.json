@@ -33,7 +33,8 @@
           "ymail"
         ],
         "NSMicrophoneUsageDescription": "Card-Social usa el micrófono para las llamadas de voz Ghost-Link (VoIP).",
-        "NSCameraUsageDescription": "Card-Social usa la cámara para videollamadas FaceCall Ghost-Link.",
+        "NSCameraUsageDescription": "Card-Social usa la cámara para tu foto de perfil, la selfie de verificación y las videollamadas FaceCall Ghost-Link.",
+        "NSPhotoLibraryUsageDescription": "Card-Social accede a tu galería para que puedas elegir la foto de perfil u otros archivos durante el registro.",
         "NSLocationWhenInUseUsageDescription": "Card-Social usa tu ubicación cuando buscas en el mercado, usas el radar geo o guardas la ubicación de tu tarjeta; no hay rastreo continuo en segundo plano.",
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": [
@@ -110,8 +111,15 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Card-Social usa la cámara para videollamadas FaceCall Ghost-Link.",
+          "cameraPermission": "Card-Social usa la cámara para tu foto de perfil, la selfie de verificación y las videollamadas FaceCall Ghost-Link.",
           "microphonePermission": "Card-Social usa el micrófono para llamadas Ghost-Link y FaceCall."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Card-Social accede a tu galería para que puedas elegir la foto de perfil u otros archivos durante el registro.",
+          "cameraPermission": "Card-Social usa la cámara para tu foto de perfil, la selfie de verificación y las videollamadas FaceCall Ghost-Link."
         }
       ],
       "expo-video",

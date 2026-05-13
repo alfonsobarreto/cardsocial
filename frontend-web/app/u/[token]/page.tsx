@@ -6,6 +6,7 @@ import type { CardData } from '@/lib/universalCardTypes';
 import { normalizeUniversalCardPayload } from '@/lib/normalizeUniversalCard';
 import { resolvePublicLocale, type PublicLocale } from '@/lib/resolvePublicLocale';
 import { getThemeById } from '@/lib/themes';
+import { publicSmartCardPageBackground } from '@/lib/publicCardPageBackground';
 import PublicLegalFooter from '@/components/PublicLegalFooter';
 import DocumentHtmlLang from '@/components/DocumentHtmlLang';
 import { earlyAccessPrimaryLabel } from '@/lib/publicEarlyAccessCta';
@@ -76,12 +77,11 @@ export default async function UniversalCardPage({ params, searchParams }: Props)
 
   const { card } = result;
   const theme = getThemeById(card.themeId);
-  const bgGradient = `linear-gradient(180deg, ${theme.background[0]}, ${theme.background[1]}, ${theme.background[2]})`;
 
   return (
     <main style={{
       minHeight: '100vh',
-      background: bgGradient,
+      background: publicSmartCardPageBackground(theme),
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',

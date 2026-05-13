@@ -7,6 +7,7 @@ import type { CardData } from '@/lib/universalCardTypes';
 import { normalizeUniversalCardPayload } from '@/lib/normalizeUniversalCard';
 import { resolvePublicLocale, type PublicLocale } from '@/lib/resolvePublicLocale';
 import { getThemeById } from '@/lib/themes';
+import { publicBusinessCardPageBackground } from '@/lib/publicCardPageBackground';
 import PublicLegalFooter from '@/components/PublicLegalFooter';
 
 const API_BASE =
@@ -110,14 +111,13 @@ export default async function PublicBusinessPage({ params, searchParams }: Props
   const card: CardData = cardOrNull;
 
   const theme = getThemeById(card.themeId);
-  const bgGradient = `linear-gradient(180deg, ${theme.background[0]}, ${theme.background[1]}, ${theme.background[2]})`;
   const appDeepLink = permanentAppDeepLink(bId, u);
 
   return (
     <main
       style={{
         minHeight: '100vh',
-        background: bgGradient,
+        background: publicBusinessCardPageBackground(theme),
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',

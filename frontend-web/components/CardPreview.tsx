@@ -8,6 +8,7 @@ import type { CardData } from '@/lib/universalCardTypes';
 import { CardTheme } from '@/lib/themes';
 import { earlyAccessPrimaryCtaStyle, earlyAccessPrimaryLabel, earlyAccessSecondaryCtaStyle } from '@/lib/publicEarlyAccessCta';
 import { trackPublicBusinessCardViewOncePerSession } from '@/lib/publicBusinessCardAnalytics';
+import { resolvePillForegroundColor } from '@card-social/services/pillForegroundColor';
 
 export type { CardData, PublicSlot } from '@/lib/universalCardTypes';
 
@@ -38,7 +39,8 @@ export default function CardPreview(props: Props) {
   const tr = (es: string, en: string) => (locale === 'es' ? es : en);
   const bd = theme.border;
 
-  const [now, setNow] = useState(() => Date.now());
+  /** Evita mismatch SSR/hidratación: no usar Date.now() en el primer paint. */
+  const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
     if (isBusiness) {
       const ownerUid = String(card.uid || '').trim();
@@ -48,12 +50,14 @@ export default function CardPreview(props: Props) {
       }
       return;
     }
-    const t = setInterval(() => setNow(Date.now()), 1000);
+    const tick = () => setNow(Date.now());
+    tick();
+    const t = setInterval(tick, 1000);
     return () => clearInterval(t);
   }, [isBusiness, card.uid, card.bId]);
 
   const expiresDate = new Date(expiresAt);
-  const msLeft = Math.max(0, expiresDate.getTime() - now);
+  const msLeft = now === null ? 0 : Math.max(0, expiresDate.getTime() - now);
   const sLeft = Math.floor(msLeft / 1000);
   const hh = Math.floor(sLeft / 3600);
   const mm = Math.floor((sLeft % 3600) / 60);
@@ -64,20 +68,36 @@ export default function CardPreview(props: Props) {
   const deepLink = isBusiness ? props.appDeepLink : `cardsocial://u/${props.universalToken}`;
   const storeUrl = 'https://cardsocial.me/';
 
+  const statusBannerBg = `${bd.color}26`;
+  const statusBannerTextColor = resolvePillForegroundColor({
+    cardGradient: theme.background,
+    pillBackground: statusBannerBg,
+    preferredColor: theme.title.color,
+    minContrast: 4.5,
+  });
+
+  const footerStripBg = `${bd.color}14`;
+  const footerTextColor = resolvePillForegroundColor({
+    cardGradient: theme.background,
+    pillBackground: footerStripBg,
+    preferredColor: theme.title.color,
+    minContrast: 4.5,
+  });
+
   return (
     <div style={{ width: '100%', maxWidth: 420, margin: '0 auto' }}>
       <DocumentHtmlLang locale={locale} />
       <div
         style={{
-          background: `${bd.color}26`,
+          background: statusBannerBg,
           border: `1px solid ${bd.color}44`,
           borderRadius: 10,
           padding: '8px 16px',
           marginBottom: 16,
           textAlign: 'center',
-          color: bd.color,
+          color: statusBannerTextColor,
           fontSize: 13,
-          fontWeight: 300,
+          fontWeight: 400,
         }}
       >
         {isBusiness ? (
@@ -86,7 +106,10 @@ export default function CardPreview(props: Props) {
           </>
         ) : (
           <>
-            {tr('Acceso temporal', 'Temporary access')}: <span style={{ fontVariantNumeric: 'tabular-nums' }}>{cdStr}</span>{' '}
+            {tr('Acceso temporal', 'Temporary access')}:{' '}
+            <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {now === null ? '––:––:––' : cdStr}
+            </span>{' '}
             {tr('restantes', 'remaining')}.
           </>
         )}
@@ -136,7 +159,8 @@ export default function CardPreview(props: Props) {
       <PublicLegalFooter
         locale={locale}
         accentColor={bd.color}
-        background={`${bd.color}14`}
+        background={footerStripBg}
+        textColor={footerTextColor}
       />
     </div>
   );

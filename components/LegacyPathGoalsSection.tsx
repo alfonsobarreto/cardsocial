@@ -91,14 +91,6 @@ function LegacyGoalsPremiumModal(props: {
             onPress={() => {}}
             accessibilityViewIsModal
           >
-            <LinearGradient
-              colors={[`${LEGACY_VIBRANT_GOLD}66`, LEGACY_MODAL_CANVAS_HEX]}
-              locations={[0, 0.18]}
-              start={{ x: 0.25, y: 0 }}
-              end={{ x: 0.9, y: 0.65 }}
-              style={StyleSheet.absoluteFillObject}
-              pointerEvents="none"
-            />
             <ScrollView showsVerticalScrollIndicator={false} bounces={false} contentContainerStyle={styles.modalScrollInner}>
               <View style={[styles.modalIconRing, unlocked && styles.modalIconRingActive]}>
                 <MaterialCommunityIcons name={tier.modalIconName as MaterialCommunityGlyph} size={40} color={tier.modalIconTint} />

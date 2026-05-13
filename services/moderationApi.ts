@@ -2,6 +2,9 @@ import { retryWithBackoff } from '@/services/retryWithBackoff';
 import { resolveExpoPublicApiBaseUrl } from '@/services/expoPublicApiBaseUrl';
 import axios from 'axios';
 
+/** Token + multipart hacia Azure; redes móviles lentas o imágenes grandes pueden tardar. */
+const MODERATION_HTTP_TIMEOUT_MS = 180_000;
+
 export class ModerationRejectedError extends Error {
   maxSeverity?: number;
 
@@ -17,9 +20,14 @@ function getApiBaseUrl(): string {
 }
 
 function getGatewayKey(): string {
-  const key = process.env.EXPO_PUBLIC_MODERATION_GATEWAY_KEY?.trim();
+  const key =
+    process.env.EXPO_PUBLIC_MODERATION_GATEWAY_KEY?.trim() ||
+    process.env.EXPO_PUBLIC_API_GATEWAY_KEY?.trim() ||
+    process.env.EXPO_PUBLIC_GATEWAY_KEY?.trim();
   if (!key) {
-    throw new Error('Missing EXPO_PUBLIC_MODERATION_GATEWAY_KEY. Set it in your Expo environment.');
+    throw new Error(
+      'Missing gateway key. Set EXPO_PUBLIC_MODERATION_GATEWAY_KEY, EXPO_PUBLIC_API_GATEWAY_KEY, or EXPO_PUBLIC_GATEWAY_KEY (same value as API_GATEWAY_KEY on the backend).',
+    );
   }
   return key;
 }
@@ -32,7 +40,7 @@ async function getUploadJwtToken(baseUrl: string, uid: string, gatewayKey: strin
       headers: {
         'x-api-gateway-key': gatewayKey,
       },
-      timeout: 120000,
+      timeout: MODERATION_HTTP_TIMEOUT_MS,
     }
   );
 
@@ -76,7 +84,7 @@ export async function uploadFileWithModeration(params: {
         'x-api-gateway-key': gatewayKey,
         Authorization: `Bearer ${uploadToken}`,
       },
-      timeout: 120000,
+      timeout: MODERATION_HTTP_TIMEOUT_MS,
     });
 
     if (params.label === 'business_logo') {
@@ -95,13 +103,13 @@ export async function uploadFileWithModeration(params: {
     const rawMessage = String(error?.message || '').toLowerCase();
     if (error?.code === 'ECONNABORTED' || rawMessage.includes('timeout')) {
       throw new Error(
-        'Timeout conectando con el escudo de seguridad (Azure). Verifica que el backend de moderacion este activo y accesible en EXPO_PUBLIC_MODERATION_API_URL.'
+        'Timeout conectando con el escudo de seguridad (Azure). Revisa red; la base debe ser EXPO_PUBLIC_BACKEND_BASE_URL o EXPO_PUBLIC_MODERATION_API_URL y el backend debe estar accesible.',
       );
     }
 
     if (rawMessage.includes('network error') || rawMessage.includes('failed to fetch')) {
       throw new Error(
-        'No se pudo conectar con el escudo de seguridad (Azure). Revisa red/LAN y la URL de EXPO_PUBLIC_MODERATION_API_URL.'
+        'No se pudo conectar con el escudo de seguridad (Azure). Revisa red/LAN y EXPO_PUBLIC_BACKEND_BASE_URL (o EXPO_PUBLIC_MODERATION_API_URL).',
       );
     }
 

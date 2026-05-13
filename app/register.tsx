@@ -1,8 +1,10 @@
 import ActivityIndicator from '@/components/BrandedSpinner';
 import { AuthSpinnerWell } from '@/components/AuthSpinnerWell';
 import CountryDialPickerModal from '@/components/CountryDialPickerModal';
+import VerificationSelfieCoachModal from '@/components/VerificationSelfieCoachModal';
 import { registerFormLook } from '@/constants/authPremiumLook';
 import { FREE_TIER_POLICY } from '@/constants/freeTierPolicy';
+import { verificationSelfieStrings } from '@/constants/verificationSelfieI18n';
 import {
   buildE164,
   getNationalDigitBounds,
@@ -104,6 +106,7 @@ export default function RegisterScreen() {
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
   const look = useMemo(() => registerFormLook(isNight), [isNight]);
+  const selfieCopy = useMemo(() => verificationSelfieStrings(language), [language]);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [nickname, setNickname] = useState('');
@@ -132,6 +135,7 @@ export default function RegisterScreen() {
   const [rawPhotoHeight, setRawPhotoHeight] = useState(1080);
   const cropperRetryFnRef = React.useRef<() => void>(() => {});
   const [verificationSelfieUri, setVerificationSelfieUri] = useState('');
+  const [selfieCoachVisible, setSelfieCoachVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -584,7 +588,7 @@ export default function RegisterScreen() {
     }
   };
 
-  const requestVerificationSelfie = async () => {
+  const launchVerificationSelfieCamera = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (permission.status !== 'granted') {
       Alert.alert(
@@ -615,13 +619,7 @@ export default function RegisterScreen() {
       }
       const hasClearFace = await hasClearlyVisibleFace(asset.uri, asset.width, asset.height);
       if (!hasClearFace) {
-        Alert.alert(
-          tr('Selfie no valida aun', 'Selfie not valid yet'),
-          tr(
-            'Necesitamos una sonrisa clara o un guiño. En la app comprobamos la expresión (≥70% de confianza) antes de aceptar la foto.',
-            'We need a clear smile or a wink. The app checks the expression (≥70% confidence) before accepting the photo.',
-          ),
-        );
+        Alert.alert(selfieCopy.invalidTitle, selfieCopy.invalidBody);
         return;
       }
 
@@ -646,13 +644,7 @@ export default function RegisterScreen() {
     try {
       const hasClearFace = await hasClearlyVisibleFace(pending.uri, pending.width, pending.height);
       if (!hasClearFace) {
-        Alert.alert(
-          tr('Selfie no valida aun', 'Selfie not valid yet'),
-          tr(
-            'Necesitamos una sonrisa clara o un guiño. En la app comprobamos la expresión (≥70% de confianza) antes de aceptar la foto.',
-            'We need a clear smile or a wink. The app checks the expression (≥70% confidence) before accepting the photo.',
-          ),
-        );
+        Alert.alert(selfieCopy.invalidTitle, selfieCopy.invalidBody);
         cancelAndroidPhotoPending();
         return;
       }
@@ -913,13 +905,7 @@ export default function RegisterScreen() {
 
       const selfieLooksValid = await hasClearlyVisibleFace(verificationSelfieUri);
       if (!selfieLooksValid) {
-        Alert.alert(
-          tr('Selfie no valida aun', 'Selfie not valid yet'),
-          tr(
-            'No pudimos validar sonrisa o guiño en esta selfie. Intenta otra toma con buena luz.',
-            'We could not validate a smile or wink in this selfie. Try again with good lighting.',
-          ),
-        );
+        Alert.alert(selfieCopy.invalidTitle, selfieCopy.invalidBody);
         return;
       }
 
@@ -1174,13 +1160,11 @@ export default function RegisterScreen() {
           />
 
           <Text style={[styles.label, { color: look.label }]}>{tr('Selfie de verificación', 'Verification selfie')}</Text>
-          <Text style={[styles.helperText, { color: look.helper }]}>
-            {tr(
-              'Sonríe o guiña; la app comprueba en el dispositivo que la expresión sea clara (≥70% de confianza) antes de subirla.',
-              'Smile or wink; the app verifies on-device that the expression is clear (≥70% confidence) before upload.',
-            )}
-          </Text>
-          <TouchableOpacity style={[styles.photoButton, { backgroundColor: look.photoBtnBg, borderColor: look.photoBtnBorder }]} onPress={requestVerificationSelfie}>
+          <Text style={[styles.helperText, { color: look.helper }]}>{selfieCopy.sectionHelper}</Text>
+          <TouchableOpacity
+            style={[styles.photoButton, { backgroundColor: look.photoBtnBg, borderColor: look.photoBtnBorder }]}
+            onPress={() => setSelfieCoachVisible(true)}
+          >
             <Text style={[styles.photoButtonText, { color: look.photoBtnText }]}>{tr('Tomar selfie de verificación', 'Take verification selfie')}</Text>
           </TouchableOpacity>
           {verificationSelfieUri ? <Image source={{ uri: verificationSelfieUri }} style={[styles.photoPreview, { borderColor: look.photoBtnBorder }]} /> : null}
@@ -1518,6 +1502,19 @@ export default function RegisterScreen() {
             </View>
           </View>
         </Modal>
+
+        <VerificationSelfieCoachModal
+          visible={selfieCoachVisible}
+          strings={selfieCopy}
+          isNight={isNight}
+          onClose={() => setSelfieCoachVisible(false)}
+          onContinue={() => {
+            setSelfieCoachVisible(false);
+            setTimeout(() => {
+              void launchVerificationSelfieCamera();
+            }, 380);
+          }}
+        />
 
         <LuxuryModerationModal
           visible={moderationAlertVisible}

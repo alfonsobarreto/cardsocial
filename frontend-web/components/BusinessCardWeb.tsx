@@ -13,6 +13,7 @@ import { CardTheme } from '@/lib/themes';
 import type { CardData, PublicSlot } from '@/lib/universalCardTypes';
 import type { MirrorOpenPlan } from '@card-social/services/mirrorVaultItemOpenPlan';
 import PartnerBadgeWeb from '@/components/PartnerBadgeWeb';
+import { publicCardPreviewExtraBoxShadow } from '@/lib/publicCardPageBackground';
 import Image from 'next/image';
 import { useCallback, useState, type CSSProperties } from 'react';
 
@@ -295,6 +296,13 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
         ? `inset 0 2px 16px ${bd.color}22, 0 4px 24px rgba(0,0,0,0.4)`
         : '0 4px 20px rgba(0,0,0,0.3)';
 
+  /** Vista `/u` y `/b`: sombras extra solo en web pública (no altera colores del tema). */
+  const previewLift =
+    previewVariant === 'universal' || previewVariant === 'business'
+      ? publicCardPreviewExtraBoxShadow(theme)
+      : '';
+  const cardShadowResolved = previewLift ? `${cardShadow}, ${previewLift}` : cardShadow;
+
   const isBusinessPreview = previewVariant === 'business';
 
   const sid = String(card.sid ?? '').trim();
@@ -335,7 +343,7 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
           background: gradientBg,
           overflow: 'hidden',
           position: 'relative',
-          boxShadow: cardShadow,
+          boxShadow: cardShadowResolved,
           display: 'flex',
           flexDirection: 'column',
           width: '100%',
@@ -512,7 +520,7 @@ export default function BusinessCardWeb({ card, theme, locale, previewVariant = 
         background: gradientBg,
         overflow: 'hidden',
         position: 'relative',
-        boxShadow: cardShadow,
+        boxShadow: cardShadowResolved,
         display: 'flex',
         flexDirection: 'column',
         width: '100%',

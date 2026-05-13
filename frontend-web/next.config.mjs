@@ -5,6 +5,17 @@ const nextConfig = {
   experimental: {
     externalDir: true,
   },
+  /**
+   * En Windows, la caché filesystem de Webpack (`*.pack.gz`) a veces falla al renombrar (ENOENT)
+   * y deja chunks de App Router incoherentes → hidratación rota / "Loading chunk … failed".
+   * `memory` en dev evita esos packfiles; en build (`NODE_ENV=production`) no aplica este callback igual.
+   */
+  webpack: (config, { dev }) => {
+    if (dev) {
+      config.cache = { type: 'memory' };
+    }
+    return config;
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '**' },
