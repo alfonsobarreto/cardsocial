@@ -1,10 +1,8 @@
 import ActivityIndicator from '@/components/BrandedSpinner';
 import { AuthSpinnerWell } from '@/components/AuthSpinnerWell';
 import CountryDialPickerModal from '@/components/CountryDialPickerModal';
-import VerificationSelfieCoachModal from '@/components/VerificationSelfieCoachModal';
 import { registerFormLook } from '@/constants/authPremiumLook';
 import { FREE_TIER_POLICY } from '@/constants/freeTierPolicy';
-import { verificationSelfieStrings } from '@/constants/verificationSelfieI18n';
 import {
   buildE164,
   getNationalDigitBounds,
@@ -106,7 +104,6 @@ export default function RegisterScreen() {
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
   const look = useMemo(() => registerFormLook(isNight), [isNight]);
-  const selfieCopy = useMemo(() => verificationSelfieStrings(language), [language]);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [nickname, setNickname] = useState('');
@@ -121,21 +118,14 @@ export default function RegisterScreen() {
   const [country, setCountry] = useState('');
   const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
-  /** Android: confirmar foto en modal antes de aplicar (perfil o selfie). */
-  const [androidPhotoPending, setAndroidPhotoPending] = useState<
-    | null
-    | { kind: 'profile'; uri: string }
-    | { kind: 'verification'; uri: string; width?: number; height?: number }
-  >(null);
-  const [androidPhotoConfirmBusy, setAndroidPhotoConfirmBusy] = useState(false);
+  /** Android: confirmar foto de perfil en modal antes de aplicar. */
+  const [androidPhotoPending, setAndroidPhotoPending] = useState<null | { kind: 'profile'; uri: string }>(null);
   const [photoUri, setPhotoUri] = useState('');
   const [cropperVisible, setCropperVisible] = useState(false);
   const [rawPhotoUri, setRawPhotoUri] = useState('');
   const [rawPhotoWidth, setRawPhotoWidth] = useState(1080);
   const [rawPhotoHeight, setRawPhotoHeight] = useState(1080);
   const cropperRetryFnRef = React.useRef<() => void>(() => {});
-  const [verificationSelfieUri, setVerificationSelfieUri] = useState('');
-  const [selfieCoachVisible, setSelfieCoachVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -530,129 +520,15 @@ export default function RegisterScreen() {
     }
   };
 
-  /** Sonrisa ≥ umbral o guiño detectable (expo-face-detector). */
-  const SMILE_MIN = 0.7;
-  const EYE_CLOSED = 0.35;
-  const EYE_OPEN = 0.55;
-
-  const hasClearlyVisibleFace = async (
-    uri: string,
-    imageWidth?: number,
-    imageHeight?: number,
-  ): Promise<boolean> => {
-    try {
-      const FaceDetector = await import('expo-face-detector');
-      const detection = await FaceDetector.detectFacesAsync(uri, {
-        mode: FaceDetector.FaceDetectorMode.accurate,
-        detectLandmarks: FaceDetector.FaceDetectorLandmarks.none,
-        runClassifications: FaceDetector.FaceDetectorClassifications.all,
-      });
-
-      const faces = detection.faces || [];
-      if (faces.length === 0) {
-        return false;
-      }
-
-      const face = faces[0] as {
-        bounds?: { size?: { width?: number; height?: number } };
-        smilingProbability?: number;
-        leftEyeOpenProbability?: number;
-        rightEyeOpenProbability?: number;
-      };
-
-      const smile = Number(face.smilingProbability ?? 0);
-      const leftOpen = Number(face.leftEyeOpenProbability ?? 1);
-      const rightOpen = Number(face.rightEyeOpenProbability ?? 1);
-      const strongSmile = smile >= SMILE_MIN;
-      const winkLike =
-        (leftOpen <= EYE_CLOSED && rightOpen >= EYE_OPEN) ||
-        (rightOpen <= EYE_CLOSED && leftOpen >= EYE_OPEN);
-
-      if (!strongSmile && !winkLike) {
-        return false;
-      }
-
-      if (imageWidth && imageHeight) {
-        const imageArea = imageWidth * imageHeight;
-        const fw = Number(face.bounds?.size?.width || 0);
-        const fh = Number(face.bounds?.size?.height || 0);
-        if (imageArea <= 0 || fw <= 0 || fh <= 0) return false;
-        const ratio = (fw * fh) / imageArea;
-        if (ratio < 0.06) return false;
-      }
-      return true;
-    } catch (error) {
-      console.warn('expo-face-detector unavailable or failed:', error);
-      /* Sin MLKit en algunos entornos: no bloquear; el backend sigue moderando. */
-      return true;
-    }
-  };
-
-  const launchVerificationSelfieCamera = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (permission.status !== 'granted') {
-      Alert.alert(
-        tr('Permiso denegado', 'Permission denied'),
-        tr('Necesitamos acceso a la camara para validar que eres una persona real.', 'We need camera access to validate that you are a real person.')
-      );
-      return;
-    }
-
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      cameraType: ImagePicker.CameraType.front,
-      allowsEditing: Platform.OS !== 'android',
-      ...(Platform.OS !== 'android' ? { aspect: [1, 1] as [number, number] } : {}),
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets[0]?.uri) {
-      const asset = result.assets[0];
-      if (Platform.OS === 'android') {
-        setAndroidPhotoPending({
-          kind: 'verification',
-          uri: asset.uri,
-          width: asset.width,
-          height: asset.height,
-        });
-        return;
-      }
-      const hasClearFace = await hasClearlyVisibleFace(asset.uri, asset.width, asset.height);
-      if (!hasClearFace) {
-        Alert.alert(selfieCopy.invalidTitle, selfieCopy.invalidBody);
-        return;
-      }
-
-      setVerificationSelfieUri(asset.uri);
-    }
-  };
-
   const cancelAndroidPhotoPending = () => {
     setAndroidPhotoPending(null);
-    setAndroidPhotoConfirmBusy(false);
   };
 
   const confirmAndroidPhotoPending = async () => {
     const pending = androidPhotoPending;
-    if (!pending) return;
-    if (pending.kind === 'profile') {
-      setPhotoUri(pending.uri);
-      cancelAndroidPhotoPending();
-      return;
-    }
-    setAndroidPhotoConfirmBusy(true);
-    try {
-      const hasClearFace = await hasClearlyVisibleFace(pending.uri, pending.width, pending.height);
-      if (!hasClearFace) {
-        Alert.alert(selfieCopy.invalidTitle, selfieCopy.invalidBody);
-        cancelAndroidPhotoPending();
-        return;
-      }
-      setVerificationSelfieUri(pending.uri);
-      cancelAndroidPhotoPending();
-    } finally {
-      setAndroidPhotoConfirmBusy(false);
-    }
+    if (!pending || pending.kind !== 'profile') return;
+    setPhotoUri(pending.uri);
+    cancelAndroidPhotoPending();
   };
 
   const inferMimeType = (uri: string, fallbackName?: string) => {
@@ -831,12 +707,11 @@ export default function RegisterScreen() {
       !normalizedCity ||
       !normalizedStateRegion ||
       !normalizedCountry ||
-      !photoUri ||
-      !verificationSelfieUri
+      !photoUri
     ) {
       Alert.alert(
         tr('Campos incompletos', 'Incomplete fields'),
-        tr('Completa todos los campos incluyendo tu selfie de verificacion.', 'Complete all fields including your verification selfie.')
+        tr('Completa todos los campos incluyendo tu foto de perfil.', 'Complete all fields including your profile photo.')
       );
       return;
     }
@@ -903,12 +778,6 @@ export default function RegisterScreen() {
     try {
       await checkUniqueness(nicknameLower, emailLower, phoneNormalized, auth.currentUser?.uid);
 
-      const selfieLooksValid = await hasClearlyVisibleFace(verificationSelfieUri);
-      if (!selfieLooksValid) {
-        Alert.alert(selfieCopy.invalidTitle, selfieCopy.invalidBody);
-        return;
-      }
-
       const onboardingOwner = `onboarding-${nicknameLower || Date.now()}`;
 
       setUploadStageLabel('Validando foto de perfil...');
@@ -921,15 +790,6 @@ export default function RegisterScreen() {
       );
 
       setUploadProgress(0.25);
-      setUploadProgress(0.25);
-      setUploadStageLabel(tr('Validando selfie de verificación…', 'Validating verification selfie…'));
-      const { fileId: moderatedVerificationSelfieFileId } = await uploadWithSafety(
-        verificationSelfieUri,
-        'verification-selfie',
-        onboardingOwner,
-        `verification-selfie-${Date.now()}.jpg`,
-        inferMimeType(verificationSelfieUri, 'verification-selfie.jpg')
-      );
 
       let uid = auth.currentUser?.uid;
       if (!socialProviderId) {
@@ -1006,9 +866,8 @@ export default function RegisterScreen() {
             timezone,
             ...firestoreUserAvatarUrlWrite(moderatedPhotoPublicUrl?.trim() || null),
             profilePhotoFileId: moderatedPhotoFileId,
-            verificationSelfieFileId: moderatedVerificationSelfieFileId,
-            verificationStatus: 'verified',
-            verificationApprovedAt: serverTimestamp(),
+            verificationSelfieFileId: null,
+            verificationStatus: 'unverified',
             authProvider: socialProviderId || 'password',
             role: userRole,
             creditsBalance,
@@ -1158,16 +1017,6 @@ export default function RegisterScreen() {
             }}
             onClose={() => setCropperVisible(false)}
           />
-
-          <Text style={[styles.label, { color: look.label }]}>{tr('Selfie de verificación', 'Verification selfie')}</Text>
-          <Text style={[styles.helperText, { color: look.helper }]}>{selfieCopy.sectionHelper}</Text>
-          <TouchableOpacity
-            style={[styles.photoButton, { backgroundColor: look.photoBtnBg, borderColor: look.photoBtnBorder }]}
-            onPress={() => setSelfieCoachVisible(true)}
-          >
-            <Text style={[styles.photoButtonText, { color: look.photoBtnText }]}>{tr('Tomar selfie de verificación', 'Take verification selfie')}</Text>
-          </TouchableOpacity>
-          {verificationSelfieUri ? <Image source={{ uri: verificationSelfieUri }} style={[styles.photoPreview, { borderColor: look.photoBtnBorder }]} /> : null}
 
           <Text style={[styles.label, { color: look.label }]}>{tr('Nombre', 'First Name')}</Text>
           <TextInput
@@ -1456,9 +1305,7 @@ export default function RegisterScreen() {
           <View style={styles.androidPhotoConfirmOverlay}>
             <View style={styles.androidPhotoConfirmCard}>
               <Text style={styles.androidPhotoConfirmTitle}>
-                {androidPhotoPending?.kind === 'verification'
-                  ? tr('Confirmar selfie de verificacion', 'Confirm verification selfie')
-                  : tr('Confirmar foto de perfil', 'Confirm profile photo')}
+                {tr('Confirmar foto de perfil', 'Confirm profile photo')}
               </Text>
               <Text style={styles.androidPhotoConfirmHint}>
                 {tr(
@@ -1477,7 +1324,6 @@ export default function RegisterScreen() {
                 <TouchableOpacity
                   style={[styles.androidPhotoConfirmButton, styles.androidPhotoConfirmButtonSecondary]}
                   onPress={cancelAndroidPhotoPending}
-                  disabled={androidPhotoConfirmBusy}
                 >
                   <Text style={styles.androidPhotoConfirmButtonSecondaryText}>
                     {tr('Cancelar', 'Cancel')}
@@ -1486,35 +1332,15 @@ export default function RegisterScreen() {
                 <TouchableOpacity
                   style={[styles.androidPhotoConfirmButton, styles.androidPhotoConfirmButtonPrimary]}
                   onPress={() => void confirmAndroidPhotoPending()}
-                  disabled={androidPhotoConfirmBusy}
                 >
-                  {androidPhotoConfirmBusy ? (
-                    <AuthSpinnerWell wellBg={look.spinnerWellBg} wellBorder={look.spinnerWellBorder} preset="cta">
-                      <ActivityIndicator color={look.spinnerColor} />
-                    </AuthSpinnerWell>
-                  ) : (
-                    <Text style={styles.androidPhotoConfirmButtonPrimaryText}>
-                      {tr('Aceptar', 'Accept')}
-                    </Text>
-                  )}
+                  <Text style={styles.androidPhotoConfirmButtonPrimaryText}>
+                    {tr('Aceptar', 'Accept')}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
         </Modal>
-
-        <VerificationSelfieCoachModal
-          visible={selfieCoachVisible}
-          strings={selfieCopy}
-          isNight={isNight}
-          onClose={() => setSelfieCoachVisible(false)}
-          onContinue={() => {
-            setSelfieCoachVisible(false);
-            setTimeout(() => {
-              void launchVerificationSelfieCamera();
-            }, 380);
-          }}
-        />
 
         <LuxuryModerationModal
           visible={moderationAlertVisible}

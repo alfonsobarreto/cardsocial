@@ -47,6 +47,14 @@ function permanentAppDeepLink(bId: string, uid: string): string {
   return `cardsocial://business/${encodeURIComponent(bId)}?uid=${encodeURIComponent(uid)}&mode=permanent`;
 }
 
+function canonicalBusinessCardWebUrl(headerList: Headers, bId: string, uid: string): string {
+  const host = headerList.get('x-forwarded-host')?.split(',')[0]?.trim() || headerList.get('host')?.trim();
+  const rawProto = headerList.get('x-forwarded-proto')?.split(',')[0]?.trim().toLowerCase();
+  const proto = rawProto === 'http' || rawProto === 'https' ? rawProto : 'https';
+  const origin = host ? `${proto}://${host}` : (process.env.NEXT_PUBLIC_SITE_ORIGIN?.replace(/\/+$/, '') || 'https://cardsocial.me');
+  return `${origin}/b/${encodeURIComponent(bId)}?uid=${encodeURIComponent(uid)}`;
+}
+
 async function fetchPublicBusinessCard(bId: string, uid: string): Promise<CardData | null> {
   try {
     const qs = new URLSearchParams({ bId, uid, source: 'web' });
@@ -112,6 +120,7 @@ export default async function PublicBusinessPage({ params, searchParams }: Props
 
   const theme = getThemeById(card.themeId);
   const appDeepLink = permanentAppDeepLink(bId, u);
+  const canonicalWebUrl = canonicalBusinessCardWebUrl(headerList, bId, u);
 
   return (
     <main
@@ -132,6 +141,7 @@ export default async function PublicBusinessPage({ params, searchParams }: Props
         expiresAt={card.expiresAt}
         locale={locale}
         appDeepLink={appDeepLink}
+        canonicalWebUrl={canonicalWebUrl}
       />
     </main>
   );

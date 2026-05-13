@@ -178,7 +178,7 @@ const copy = {
         'Luxury UI',
       ],
     ],
-    privacyTitle: 'Guardas la tarjeta, no al usuario.',
+    privacyTitle: 'Guardas la tarjeta, no el usuario.',
     privacyText:
       'En las apps tradicionales, guardas el perfil completo de una persona. En Card-Social, solo retienes lo que esa persona compartió específicamente contigo. Un usuario puede tener 20 tarjetas distintas para 20 negocios distintos, pero tu lista de contactos solo conserva la tarjeta específica y curada que te entregó. Segmentación absoluta. Cero ruido.',
     marketKicker: 'Ecosistema Social Market',

@@ -1,4 +1,5 @@
 import AutoScaleText from '@/components/AutoScaleText';
+import { BusinessReceiversMetricBlock } from '@/components/dashboard/BusinessReceiversMetricBlock';
 import { LegacyPathGoalsSection } from '@/components/LegacyPathGoalsSection';
 import {
   getCardAnalyticsForPeriod,
@@ -16,6 +17,7 @@ import {
   getSignatureQrImageBaseUrl,
 } from '@/services/brandedQrService';
 import { listMyBusinessCards, updateBusinessCard } from '@/services/businessCardsRepo';
+import { fetchBusinessCardHolderCounts } from '@/services/qrApi';
 import { auth, db } from '@/services/firebaseConfig';
 import { useLegacyPathEngine, LEGACY_DIAMOND_RADAR_STUDIO_FALLBACK_ORIGIN, LEGACY_REFERRALS_CEILING_UI } from '@/hooks/useLegacyPathEngine';
 import { mintMarketRadarEmbedUrl } from '@/services/mintMarketRadarEmbedUrl';
@@ -968,6 +970,22 @@ export default function DashboardScreen() {
         .sort((a, b) => Date.parse(b.createdAt || '') - Date.parse(a.createdAt || ''));
       setCards(businessCards);
       setActiveIndex((prev) => Math.max(0, Math.min(prev, Math.max(0, businessCards.length - 1))));
+      if (businessCards.length) {
+        try {
+          const counts = await fetchBusinessCardHolderCounts({
+            uid,
+            keys: businessCards.map((c) => String(c.bId || '').trim()).filter(Boolean),
+          });
+          setCards((prev) =>
+            prev.map((c) => ({
+              ...c,
+              holdersCount: counts[c.bId] ?? c.holdersCount ?? 0,
+            })),
+          );
+        } catch {
+          /* conserva holdersCount de Firestore si la API falla */
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -1347,6 +1365,33 @@ export default function DashboardScreen() {
             </Text>
           </View>
         )}
+
+        {cards.length > 0 && activeCard && sessionUid ? (
+          <BusinessReceiversMetricBlock
+            holdersCount={activeCard.holdersCount ?? 0}
+            cardTitle={String(activeCard.bcName || activeCard.bcContactName || '').trim() || '—'}
+            sessionUid={sessionUid}
+            bId={activeCard.bId}
+            chrome={{
+              text: chrome.text,
+              textSecondary: chrome.textSecondary,
+              textMuted: chrome.textMuted,
+              panel: chrome.panel,
+              panelBorder: chrome.panelBorder,
+              gold: chrome.gold,
+              iconGold: chrome.iconGold,
+              analyticsCardBg: chrome.analyticsCardBg,
+              analyticsCardBorder: chrome.analyticsCardBorder,
+              periodTabBg: chrome.periodTabBg,
+              periodTabBorder: chrome.periodTabBorder,
+              periodTabText: chrome.periodTabText,
+              periodTabActiveText: chrome.periodTabActiveText,
+              chartGridLine: chrome.chartGridLine,
+              isNight: chrome.isNight,
+            }}
+            language={language}
+          />
+        ) : null}
 
         <View style={styles.pagination}>
           {cards.map((card, index) => (

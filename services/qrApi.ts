@@ -2027,3 +2027,59 @@ export async function fetchBusinessCardHolderCounts(params: {
   }
   return result;
 }
+
+export type BusinessHoldersHistoryGranularity = 'daily' | 'monthly' | 'yearly';
+
+export async function fetchBusinessCardHoldersHistory(params: {
+  uid: string;
+  bId: string;
+  granularity: BusinessHoldersHistoryGranularity;
+  monthCursor?: number;
+  yearCursor?: number;
+}): Promise<{
+  totalActive: number;
+  sumInRange: number;
+  buckets: Array<{ key: string; count: number }>;
+  granularity: string;
+  startAt: string;
+  endAt: string;
+}> {
+  const { uid, bId, granularity, monthCursor = 0, yearCursor = 0 } = params;
+  if (!uid || !bId) {
+    return { totalActive: 0, sumInRange: 0, buckets: [], granularity, startAt: '', endAt: '' };
+  }
+  const auth = await getScopedJwtToken(uid, 'qr.access');
+  const response = await axios.get(`${auth.baseUrl}/api/qr/business-holders-history`, {
+    params: {
+      uid,
+      bId,
+      granularity,
+      monthCursor,
+      yearCursor,
+    },
+    headers: {
+      'x-api-gateway-key': auth.gatewayKey,
+      Authorization: `Bearer ${auth.token}`,
+    },
+    timeout: 20000,
+    validateStatus: () => true,
+  });
+  if (response.status !== 200 || !response?.data?.ok) {
+    throw new Error(String(response?.data?.error || 'History request failed'));
+  }
+  const d = response.data;
+  const buckets = Array.isArray(d.buckets)
+    ? d.buckets.map((row: { key?: string; count?: number }) => ({
+        key: String(row?.key || ''),
+        count: Number(row?.count || 0) || 0,
+      }))
+    : [];
+  return {
+    totalActive: Number(d.totalActive || 0) || 0,
+    sumInRange: Number(d.sumInRange || 0) || 0,
+    buckets,
+    granularity: String(d.granularity || granularity),
+    startAt: String(d.startAt || ''),
+    endAt: String(d.endAt || ''),
+  };
+}

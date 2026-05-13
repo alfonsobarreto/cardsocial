@@ -28,7 +28,7 @@ const STRINGS: Record<AppLanguage, VerificationSelfieStrings> = {
     coachLater: 'Ahora no',
     invalidTitle: 'Selfie no válida aún',
     invalidBody:
-      'Necesitamos una sonrisa clara o un guiño visible. La comprobación en el dispositivo pide al menos ~70 % de confianza. Intenta de nuevo con más luz.',
+      'La comprobación local pide una sonrisa o guiño muy suave (umbral ~10 %) y rostro visible. Si vuelve a fallar, podrás enviar la foto igual: Azure validará en el servidor. Mejora la luz y el encuadre.',
   },
   en: {
     sectionHelper:
@@ -43,7 +43,7 @@ const STRINGS: Record<AppLanguage, VerificationSelfieStrings> = {
     coachLater: 'Not now',
     invalidTitle: 'Selfie not valid yet',
     invalidBody:
-      'We need a clear smile or a visible wink. On-device checks aim for about ≥70% confidence. Try again with better lighting.',
+      'On-device check uses a low threshold (~10% smile or a visible wink) and a visible face. If it fails again, you can still upload — the server will verify. Try better lighting.',
   },
   fr: {
     sectionHelper:
@@ -58,7 +58,7 @@ const STRINGS: Record<AppLanguage, VerificationSelfieStrings> = {
     coachLater: 'Pas maintenant',
     invalidTitle: 'Selfie pas encore valide',
     invalidBody:
-      'Il nous faut un sourire clair ou un clin d’œil visible. Le contrôle sur l’appareil vise ~70 % de confiance. Réessayez avec plus de lumière.',
+      'Contrôle sur l’appareil : sourire/clin d’œil avec seuil bas (~10 %) et visage visible. Si ça échoue encore, l’envoi reste possible — vérification serveur. Réessayez avec plus de lumière.',
   },
   it: {
     sectionHelper:
@@ -73,7 +73,7 @@ const STRINGS: Record<AppLanguage, VerificationSelfieStrings> = {
     coachLater: 'Più tardi',
     invalidTitle: 'Selfie non ancora valida',
     invalidBody:
-      'Serve un sorriso chiaro o un ammiccare visibile. Il controllo sul dispositivo punta a ~70 % di confidenza. Riprova con più luce.',
+      'Il controllo locale usa una soglia bassa (~10 % sorriso o ammiccare) e volto visibile. Se fallisce di nuovo, puoi comunque inviare: validazione lato server. Riprova con più luce.',
   },
   pt: {
     sectionHelper:
@@ -88,7 +88,7 @@ const STRINGS: Record<AppLanguage, VerificationSelfieStrings> = {
     coachLater: 'Agora não',
     invalidTitle: 'Selfie ainda inválida',
     invalidBody:
-      'Precisamos de um sorriso claro ou piscadela visível. A checagem no aparelho busca ~70 % de confiança. Tente de novo com mais luz.',
+      'A checagem local usa limiar baixo (~10 % sorriso ou piscadela) e rosto visível. Se falhar de novo, ainda pode enviar — o servidor valida. Tente com mais luz.',
   },
   de: {
     sectionHelper:
@@ -103,7 +103,7 @@ const STRINGS: Record<AppLanguage, VerificationSelfieStrings> = {
     coachLater: 'Später',
     invalidTitle: 'Selfie noch ungültig',
     invalidBody:
-      'Wir brauchen ein klares Lächeln oder sichtbares Zwinkern. Die Geräteprüfung zielt auf ~70 % Konfidenz. Versuchen Sie es mit mehr Licht erneut.',
+      'Die Geräteprüfung nutzt eine niedrige Schwelle (~10 % Lächeln oder Zwinkern) und sichtbares Gesicht. Schlägt es erneut fehl, können Sie trotzdem hochladen — der Server prüft. Mehr Licht kann helfen.',
   },
 };
 

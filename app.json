@@ -2,7 +2,7 @@
   "expo": {
     "name": "card-social",
     "slug": "card-social",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "cardsocial",
@@ -13,6 +13,7 @@
       "backgroundColor": "#FFFFFF"
     },
     "ios": {
+      "buildNumber": "6",
       "supportsTablet": true,
       "bundleIdentifier": "com.cardsocial.app",
       "associatedDomains": [

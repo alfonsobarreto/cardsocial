@@ -151,6 +151,120 @@ async function aggregateActiveReceiverCountByKeys(db, issuerUid, cardKeys, now) 
   return map;
 }
 
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+
+/**
+ * Histórico de altas (share_permissions) por día / mes / año dentro de un rango.
+ * Fecha de evento: createdAt o, si falta, updatedAt.
+ */
+async function aggregateBusinessHolderHistoryBuckets(
+  db,
+  issuerUid,
+  bIdRaw,
+  granularity,
+  monthCursorRaw,
+  yearCursorRaw,
+) {
+  const u = String(issuerUid || '').trim();
+  const bId = String(bIdRaw || '').trim();
+  const mode = String(granularity || 'monthly').toLowerCase();
+  const monthCursor = Number(monthCursorRaw ?? 0) || 0;
+  const yearCursor = Number(yearCursorRaw ?? 0) || 0;
+
+  const now = new Date();
+  const buckets = [];
+  let start;
+  let end;
+  let dateFormat;
+  let periodLabelKey = '';
+
+  if (mode === 'daily') {
+    const base = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + monthCursor, 1));
+    start = base;
+    end = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() + 1, 0, 23, 59, 59, 999));
+    dateFormat = '%Y-%m-%d';
+    periodLabelKey = `${base.getUTCFullYear()}-${pad2(base.getUTCMonth() + 1)}`;
+    const y = base.getUTCFullYear();
+    const m = base.getUTCMonth();
+    const dim = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    for (let day = 1; day <= dim; day += 1) {
+      const key = `${y}-${pad2(m + 1)}-${pad2(day)}`;
+      buckets.push({ key, count: 0 });
+    }
+  } else if (mode === 'monthly') {
+    const y = now.getUTCFullYear() + yearCursor;
+    start = new Date(Date.UTC(y, 0, 1));
+    end = new Date(Date.UTC(y, 11, 31, 23, 59, 59, 999));
+    dateFormat = '%Y-%m';
+    periodLabelKey = String(y);
+    for (let m = 0; m < 12; m += 1) {
+      const key = `${y}-${pad2(m + 1)}`;
+      buckets.push({ key, count: 0 });
+    }
+  } else {
+    const endY = now.getUTCFullYear() + yearCursor;
+    const startY = endY - 5;
+    start = new Date(Date.UTC(startY, 0, 1));
+    end = new Date(Date.UTC(endY, 11, 31, 23, 59, 59, 999));
+    dateFormat = '%Y';
+    periodLabelKey = `${startY}-${endY}`;
+    for (let y = startY; y <= endY; y += 1) {
+      buckets.push({ key: String(y), count: 0 });
+    }
+  }
+
+  const countByKey = new Map(buckets.map((b) => [b.key, 0]));
+  const rows = await db
+    .collection('share_permissions')
+    .aggregate([
+      {
+        $match: {
+          uid: u,
+          bId,
+          $or: [{ sid: null }, { sid: { $exists: false } }],
+        },
+      },
+      {
+        $addFields: {
+          _eventAt: { $ifNull: ['$createdAt', '$updatedAt'] },
+        },
+      },
+      {
+        $match: {
+          _eventAt: { $gte: start, $lte: end },
+        },
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: dateFormat, date: '$_eventAt', timezone: 'UTC' } },
+          count: { $sum: 1 },
+        },
+      },
+    ])
+    .toArray();
+
+  for (const row of rows) {
+    const k = String(row?._id || '').trim();
+    if (k && countByKey.has(k)) {
+      countByKey.set(k, Number(row.count || 0) || 0);
+    }
+  }
+
+  const filled = buckets.map((b) => ({ key: b.key, count: countByKey.get(b.key) ?? 0 }));
+  const sumInRange = filled.reduce((acc, b) => acc + b.count, 0);
+
+  return {
+    buckets: filled,
+    sumInRange,
+    startAt: start.toISOString(),
+    endAt: end.toISOString(),
+    granularity: mode,
+    periodLabelKey,
+  };
+}
+
 /** Filtro único para `story_card_states`: visor + sid o bId (no ambos). */
 function storyCardScopeFilter(viewerUid, sidRaw, bIdRaw) {
   const u = String(viewerUid || '').trim();
@@ -1690,6 +1804,55 @@ function createQrRoutes({ storage }) {
         counts[cid] = n;
       }
       return res.status(200).json({ ok: true, counts });
+    } catch (error) {
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+  });
+
+  /**
+   * Histórico de receptores (altas por fecha) para una business card.
+   * GET /api/qr/business-holders-history?uid=&bId=&granularity=daily|monthly|yearly&monthCursor=0&yearCursor=0
+   */
+  router.get('/business-holders-history', async (req, res) => {
+    try {
+      const authUid = String(req.auth?.sub || '').trim();
+      const userUid = String(req.query?.uid || authUid || '').trim();
+      const bId = String(req.query?.bId || '').trim();
+      const granularity = String(req.query?.granularity || 'monthly');
+      const monthCursor = Number(req.query?.monthCursor ?? 0) || 0;
+      const yearCursor = Number(req.query?.yearCursor ?? 0) || 0;
+
+      if (!userUid || !bId) {
+        return res.status(400).json({ ok: false, error: 'uid and bId required' });
+      }
+      if (authUid && authUid !== userUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+      }
+
+      const db = await storage.connect();
+      const now = new Date();
+      const history = await aggregateBusinessHolderHistoryBuckets(
+        db,
+        userUid,
+        bId,
+        granularity,
+        monthCursor,
+        yearCursor,
+      );
+      const countsMap = await aggregateActiveReceiverCountByKeys(db, userUid, [bId], now);
+      const totalActive = countsMap.get(bId) ?? 0;
+
+      return res.status(200).json({
+        ok: true,
+        bId,
+        totalActive,
+        sumInRange: history.sumInRange,
+        granularity: history.granularity,
+        periodLabelKey: history.periodLabelKey,
+        startAt: history.startAt,
+        endAt: history.endAt,
+        buckets: history.buckets,
+      });
     } catch (error) {
       return res.status(500).json({ ok: false, error: error.message });
     }

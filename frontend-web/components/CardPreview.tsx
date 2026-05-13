@@ -9,6 +9,7 @@ import { CardTheme } from '@/lib/themes';
 import { earlyAccessPrimaryCtaStyle, earlyAccessPrimaryLabel, earlyAccessSecondaryCtaStyle } from '@/lib/publicEarlyAccessCta';
 import { trackPublicBusinessCardViewOncePerSession } from '@/lib/publicBusinessCardAnalytics';
 import { resolvePillForegroundColor } from '@card-social/services/pillForegroundColor';
+import SaveBusinessContactButton from '@/components/SaveBusinessContactButton';
 
 export type { CardData, PublicSlot } from '@/lib/universalCardTypes';
 
@@ -31,6 +32,8 @@ type Props =
       /** Misma ficha pública que el 24h, sin cuenta regresiva. */
       variant: 'business';
       appDeepLink: string;
+      /** URL absoluta de esta página (`/b/...?uid=`) para vCard / compartir. */
+      canonicalWebUrl: string;
     };
 
 export default function CardPreview(props: Props) {
@@ -123,6 +126,13 @@ export default function CardPreview(props: Props) {
       />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 20 }}>
+        {isBusiness ? (
+          <SaveBusinessContactButton
+            card={card}
+            canonicalWebUrl={props.canonicalWebUrl}
+            locale={locale}
+          />
+        ) : null}
         <a
           href={storeUrl}
           target="_blank"
