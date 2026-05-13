@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import type { CardData } from '@/lib/universalCardTypes';
 import type { PublicLocale } from '@/lib/resolvePublicLocale';
+import { CONTACT_SAVE_ANALYTICS_PHONE } from '@card-social/constants/contactSaveAnalyticsKeys';
+import { notifyPublicBusinessCardIconClick } from '@/lib/publicBusinessCardAnalytics';
 import {
   buildBusinessCardVcardBody,
   businessCardVcardFilename,
@@ -56,6 +58,8 @@ export default function SaveBusinessContactButton({ card, canonicalWebUrl, local
   if (!visible) return null;
 
   const download = () => {
+    const ownerUid = String(card.uid || '').trim();
+    const bId = String(card.bId || '').trim();
     try {
       const body = buildBusinessCardVcardBody(card, canonicalWebUrl);
       const blob = new Blob([body], { type: 'text/vcard;charset=utf-8' });
@@ -68,6 +72,9 @@ export default function SaveBusinessContactButton({ card, canonicalWebUrl, local
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
+      if (ownerUid && bId) {
+        notifyPublicBusinessCardIconClick(ownerUid, bId, { subType: CONTACT_SAVE_ANALYTICS_PHONE });
+      }
     } catch (e) {
       console.warn('[SaveBusinessContact]', e);
     }

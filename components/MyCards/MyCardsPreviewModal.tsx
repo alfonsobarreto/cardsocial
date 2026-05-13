@@ -33,6 +33,7 @@ import { runBunkerContactTieredSaveFeedback } from '@/services/bunkerContactTier
 import { viewerQualifiesVaultFerrariSensory } from '@/services/vaultSensoryTierGate';
 import { toApiLocale, trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
+import { CONTACT_SAVE_ANALYTICS_APP } from '@/constants/contactSaveAnalyticsKeys';
 import {
     BUSINESS_MEDALS,
     getMedalData,
@@ -597,6 +598,14 @@ export function MyCardsPreviewModal({
         await trackBunkerGroupUsage({ viewerUid: receiverUid, groupName: incomingGroup, locale: toApiLocale(language) });
       } catch {
         /* no bloquear */
+      }
+      const issuerCardBId = String(bId || '').trim();
+      if (issuerCardBId) {
+        void trackCardAction(issuerCardBId, 'icon_click', {
+          subType: CONTACT_SAVE_ANALYTICS_APP,
+          source: 'bunker_incoming',
+          bId: issuerCardBId,
+        }).catch(() => undefined);
       }
       if (mode === 'business_permanent') {
         Alert.alert(

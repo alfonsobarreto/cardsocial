@@ -1,0 +1,158 @@
+import {
+  CONTACT_SAVE_ANALYTICS_APP,
+  CONTACT_SAVE_ANALYTICS_PHONE,
+} from '@/constants/contactSaveAnalyticsKeys';
+import { trEsEn, type AppLanguage } from '@/services/language';
+import type { CardAnalyticsPeriodSummary } from '@/services/qrApi';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import React, { useMemo } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+
+function normalizeSubtype(value: unknown): string {
+  return (
+    String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, '_')
+      .replace(/_+/g, '_') || 'unknown'
+  );
+}
+
+function countForSubtype(summary: CardAnalyticsPeriodSummary | undefined, subtype: string): number {
+  const want = normalizeSubtype(subtype);
+  for (const row of summary?.topIcons || []) {
+    if (normalizeSubtype(row.iconType) === want) {
+      return Number(row.count || 0) || 0;
+    }
+  }
+  return 0;
+}
+
+type Props = {
+  analytics: CardAnalyticsPeriodSummary | undefined;
+  language: AppLanguage;
+  isNight: boolean;
+};
+
+/**
+ * “Guardaron tu tarjeta en Card-Social” vs “guardaron .vcf en el teléfono”.
+ * Lee conteos desde `topIcons` (subTypes en contactSaveAnalyticsKeys).
+ */
+export function ContactSavesMetricStrip({ analytics, language, isNight }: Props) {
+  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const appCount = useMemo(
+    () => countForSubtype(analytics, CONTACT_SAVE_ANALYTICS_APP),
+    [analytics],
+  );
+  const phoneCount = useMemo(
+    () => countForSubtype(analytics, CONTACT_SAVE_ANALYTICS_PHONE),
+    [analytics],
+  );
+
+  return (
+    <View style={styles.row}>
+      <View style={[styles.cardWrap, isNight ? styles.cardShadowNight : styles.cardShadowDay]}>
+        <LinearGradient
+          colors={isNight ? ['#4F46E5', '#6D28D9', '#5B21B6'] : ['#6366F1', '#7C3AED', '#6D28D9']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradient}
+        >
+          <View style={styles.iconBadge}>
+            <MaterialCommunityIcons name="card-account-details-star" size={26} color="rgba(255,255,255,0.98)" />
+          </View>
+          <Text style={styles.kicker}>{tr('En Card-Social', 'In Card-Social')}</Text>
+          <Text style={styles.bigNumber}>{appCount}</Text>
+          <Text style={styles.subtitle} numberOfLines={3}>
+            {tr('Te agregaron a su app (Búnker)', 'Added you in the app (Bunker)')}
+          </Text>
+        </LinearGradient>
+      </View>
+
+      <View style={[styles.cardWrap, isNight ? styles.cardShadowNight : styles.cardShadowDay]}>
+        <LinearGradient
+          colors={isNight ? ['#22C55E', '#16A34A', '#15803D'] : ['#34C759', '#22C55E', '#16A34A']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradient}
+        >
+          <View style={styles.iconBadge}>
+            <MaterialCommunityIcons name="cellphone-arrow-down" size={26} color="rgba(255,255,255,0.98)" />
+          </View>
+          <Text style={styles.kicker}>{tr('A su teléfono', 'To their phone')}</Text>
+          <Text style={styles.bigNumber}>{phoneCount}</Text>
+          <Text style={styles.subtitle} numberOfLines={3}>
+            {tr('Descargaron tu contacto (.vcf)', 'Downloaded your contact (.vcf)')}
+          </Text>
+        </LinearGradient>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 14,
+    paddingHorizontal: 2,
+  },
+  cardWrap: {
+    flex: 1,
+    minWidth: 0,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  cardShadowDay: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  cardShadowNight: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  gradient: {
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    minHeight: 148,
+  },
+  iconBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  kicker: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+    color: 'rgba(255,255,255,0.85)',
+  },
+  bigNumber: {
+    fontSize: 32,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+    letterSpacing: -0.5,
+    marginBottom: 6,
+    color: '#FFFFFF',
+  },
+  subtitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 16,
+    color: 'rgba(255,255,255,0.88)',
+  },
+});

@@ -1,5 +1,6 @@
 import AutoScaleText from '@/components/AutoScaleText';
 import { BusinessReceiversMetricBlock } from '@/components/dashboard/BusinessReceiversMetricBlock';
+import { ContactSavesMetricStrip } from '@/components/dashboard/ContactSavesMetricStrip';
 import { LegacyPathGoalsSection } from '@/components/LegacyPathGoalsSection';
 import {
   getCardAnalyticsForPeriod,
@@ -1367,30 +1368,33 @@ export default function DashboardScreen() {
         )}
 
         {cards.length > 0 && activeCard && sessionUid ? (
-          <BusinessReceiversMetricBlock
-            holdersCount={activeCard.holdersCount ?? 0}
-            cardTitle={String(activeCard.bcName || activeCard.bcContactName || '').trim() || '—'}
-            sessionUid={sessionUid}
-            bId={activeCard.bId}
-            chrome={{
-              text: chrome.text,
-              textSecondary: chrome.textSecondary,
-              textMuted: chrome.textMuted,
-              panel: chrome.panel,
-              panelBorder: chrome.panelBorder,
-              gold: chrome.gold,
-              iconGold: chrome.iconGold,
-              analyticsCardBg: chrome.analyticsCardBg,
-              analyticsCardBorder: chrome.analyticsCardBorder,
-              periodTabBg: chrome.periodTabBg,
-              periodTabBorder: chrome.periodTabBorder,
-              periodTabText: chrome.periodTabText,
-              periodTabActiveText: chrome.periodTabActiveText,
-              chartGridLine: chrome.chartGridLine,
-              isNight: chrome.isNight,
-            }}
-            language={language}
-          />
+          <>
+            <BusinessReceiversMetricBlock
+              holdersCount={activeCard.holdersCount ?? 0}
+              cardTitle={String(activeCard.bcName || activeCard.bcContactName || '').trim() || '—'}
+              sessionUid={sessionUid}
+              bId={activeCard.bId}
+              chrome={{
+                text: chrome.text,
+                textSecondary: chrome.textSecondary,
+                textMuted: chrome.textMuted,
+                panel: chrome.panel,
+                panelBorder: chrome.panelBorder,
+                gold: chrome.gold,
+                iconGold: chrome.iconGold,
+                analyticsCardBg: chrome.analyticsCardBg,
+                analyticsCardBorder: chrome.analyticsCardBorder,
+                periodTabBg: chrome.periodTabBg,
+                periodTabBorder: chrome.periodTabBorder,
+                periodTabText: chrome.periodTabText,
+                periodTabActiveText: chrome.periodTabActiveText,
+                chartGridLine: chrome.chartGridLine,
+                isNight: chrome.isNight,
+              }}
+              language={language}
+            />
+            <ContactSavesMetricStrip analytics={activeAnalytics} language={language} isNight={chrome.isNight} />
+          </>
         ) : null}
 
         <View style={styles.pagination}>
