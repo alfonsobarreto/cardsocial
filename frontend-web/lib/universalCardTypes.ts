@@ -45,6 +45,9 @@ export type CardData = {
   businessMedalCounts?: Record<string, number>;
   /** Conteos `medals/{sid}.counts` — claves sociales (universal smart, no negocio). */
   socialMedalCounts?: Record<string, number>;
+  /** Palabras SEO (`business_cards.bcKeywords`) en preview pública de negocio. */
+  bcKeywords?: string[];
   /** True si el emisor tiene nivel Legacy ≥ Silver (`users.legacyTier` en servidor). */
   legacyOfficialPartner?: boolean;
 };
+

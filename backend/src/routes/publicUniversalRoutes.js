@@ -103,6 +103,25 @@ function sanitizeSearchFacetsPublic(raw) {
   return out;
 }
 
+/** SEO en `business_cards.bcKeywords` — solo preview pública de negocio (no smart_cards). */
+function sanitizeBcKeywordsPublic(raw) {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const seen = new Set();
+  const out = [];
+  for (const kw of raw) {
+    const k = String(kw ?? '').trim().slice(0, 120);
+    if (!k) continue;
+    const lower = k.toLowerCase();
+    if (seen.has(lower)) continue;
+    seen.add(lower);
+    out.push(k);
+    if (out.length >= 20) break;
+  }
+  return out;
+}
+
 /**
  * `smart_cards` mezcla legado (`uid` + `itemIds`) y API REST (`ownerUid` + `vaultItemIds`).
  * Sin este filtro, el QR / universal-card no encuentra la fila o lee slots desactualizados.
@@ -583,6 +602,7 @@ function createPublicUniversalRoutes({ storage }) {
               bcName: 1,
               bcContactName: 1,
               bcLogoUrl: 1,
+              bcKeywords: 1,
               publicCardSlots: 1,
               vaultItemIds: 1,
               themeId: 1,
@@ -665,6 +685,7 @@ function createPublicUniversalRoutes({ storage }) {
             bcContactName: bcContactNamePub,
             ownerNickname: null,
             ownerPhotoUrl: bizDoc.bcLogoUrl ? String(bizDoc.bcLogoUrl) : cardDoc?.ownerPhotoUrl ? String(cardDoc.ownerPhotoUrl) : null,
+            bcKeywords: sanitizeBcKeywordsPublic(bizDoc?.bcKeywords),
             ownerOccupation: null,
             userFullName: null,
             userNickName: null,

@@ -39,6 +39,7 @@ function mapBusinessApiJsonToCardData(data: Record<string, unknown>): CardData {
     uid: data.uid,
     bId: data.bId,
     businessMedalCounts: (data.businessMedalCounts ?? data.medalCounts) as Record<string, number> | undefined,
+    bcKeywords: Array.isArray(data.bcKeywords) ? data.bcKeywords : undefined,
   });
 }
 

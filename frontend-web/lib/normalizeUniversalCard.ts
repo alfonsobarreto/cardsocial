@@ -111,12 +111,31 @@ export function normalizeUniversalCardPayload(raw: unknown): CardData {
 
   const legacyOfficialPartner = Boolean(merged.legacyOfficialPartner === true);
 
+  const bcKeywordsRaw = c?.bcKeywords;
+  let bcKeywords: string[] | undefined;
+  if (Array.isArray(bcKeywordsRaw)) {
+    const seen = new Set<string>();
+    const list: string[] = [];
+    for (const kw of bcKeywordsRaw) {
+      const k = String(kw ?? '').trim().slice(0, 120);
+      if (!k) continue;
+      const lower = k.toLowerCase();
+      if (seen.has(lower)) continue;
+      seen.add(lower);
+      list.push(k);
+      if (list.length >= 20) break;
+    }
+    if (list.length > 0) bcKeywords = list;
+  }
+  delete (merged as Record<string, unknown>).bcKeywords;
+
   return {
     ...base,
     cardWireframeImageUrl,
     userAvatarUrl,
     wallpaperUrl,
     ...(bcContactName ? { bcContactName } : {}),
+    ...(bcKeywords ? { bcKeywords } : {}),
     ...(businessMedalCounts ? { businessMedalCounts } : {}),
     ...(socialMedalCounts ? { socialMedalCounts } : {}),
     ...(legacyOfficialPartner ? { legacyOfficialPartner: true } : {}),
