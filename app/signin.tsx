@@ -9,13 +9,18 @@ import { firestoreFirstUserDocByNickLower } from '@/services/userIdentityFields'
 import { trEsEn, useLanguageOptional } from '@/services/language';
 import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, SocialProviderId } from '@/services/socialAuth';
 import { useLookMode } from '@/services/lookMode';
+import {
+  enforceInactivitySignOutIfNeeded,
+  firebaseUserMayEnterMainApp,
+  setTrustedDeviceSession,
+} from '@/services/sessionInactivity';
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { sendEmailVerification, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { onAuthStateChanged, sendEmailVerification, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, doc, getDocs, limit, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
-import { Eye, EyeOff, Lock, User } from 'lucide-react-native';
-import React, { useMemo, useState } from 'react';
+import { Check, Eye, EyeOff, Lock, User } from 'lucide-react-native';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     Alert,
     Image,
@@ -52,6 +57,17 @@ export default function SignInScreen() {
   const [recoveryEmail, setRecoveryEmail] = useState('');
   const [recoveryPhone, setRecoveryPhone] = useState('');
   const [maskedRecoveryEmail, setMaskedRecoveryEmail] = useState('');
+  const [trustThisDevice, setTrustThisDevice] = useState(false);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (!user || !firebaseUserMayEnterMainApp(user)) return;
+      const r = await enforceInactivitySignOutIfNeeded();
+      if (r === 'signed_out') return;
+      router.replace('/(tabs)/cards');
+    });
+    return () => unsub();
+  }, [router]);
 
   const welcomeTitle = useMemo(
     () => tr('Card-Social, donde tus datos son solo tuyos', 'Card-Social, your data stays yours'),
@@ -187,6 +203,7 @@ export default function SignInScreen() {
         return;
       }
 
+      await setTrustedDeviceSession(credential.user.uid, trustThisDevice);
       await saveCachedCredentials(resolvedEmail, normalizedPassword);
 
       router.replace('/(tabs)/cards');
@@ -318,6 +335,7 @@ export default function SignInScreen() {
         /* ignore language sync */
       }
 
+      await setTrustedDeviceSession(credential.user.uid, trustThisDevice);
       router.replace('/(tabs)/cards');
     } catch (error) {
       const message = error instanceof Error ? error.message : tr('No se pudo iniciar sesion con proveedor.', 'Could not sign in with provider.');
@@ -393,6 +411,27 @@ export default function SignInScreen() {
                 {showPassword ? <EyeOff size={18} color={look.iconColor} /> : <Eye size={18} color={look.iconColor} />}
               </TouchableOpacity>
             </View>
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => setTrustThisDevice((v) => !v)}
+              style={styles.trustRow}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: trustThisDevice }}
+            >
+              <View style={[styles.trustBox, { borderColor: look.inputWrapBorder }, trustThisDevice && { backgroundColor: look.primaryBtnBg, borderColor: look.primaryBtnBg }]}>
+                {trustThisDevice ? <Check size={16} color={look.primaryBtnText} strokeWidth={3} /> : null}
+              </View>
+              <View style={styles.trustTextCol}>
+                <Text style={[styles.trustTitle, { color: look.title }]}>{tr('Confío en este dispositivo', 'I trust this device')}</Text>
+                <Text style={[styles.trustHint, { color: look.subtitle }]}>
+                  {tr(
+                    'Si no lo activas, cerramos sesion tras 8 horas sin uso en este equipo (estilo banca).',
+                    'If off, we sign you out after 8 hours of inactivity on this device.',
+                  )}
+                </Text>
+              </View>
+            </TouchableOpacity>
 
             <TouchableOpacity style={[styles.primaryButton, { backgroundColor: look.primaryBtnBg }]} onPress={handleSignIn} disabled={isSubmitting}>
               <Text style={[styles.primaryButtonText, { color: look.primaryBtnText }]}>{tr('Iniciar sesion', 'Sign In')}</Text>
@@ -573,6 +612,36 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: 'center',
     marginBottom: 22,
+  },
+  trustRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginTop: 4,
+    marginBottom: 10,
+    paddingVertical: 4,
+  },
+  trustBox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  trustTextCol: {
+    flex: 1,
+  },
+  trustTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  trustHint: {
+    marginTop: 4,
+    fontSize: 12,
+    lineHeight: 17,
+    opacity: 0.92,
   },
   inputWrap: {
     backgroundColor: '#FFFFFF',

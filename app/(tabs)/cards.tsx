@@ -24,7 +24,6 @@ import {
     type ThemeTier,
 } from '@/constants/themeChest';
 import { getActiveUserId } from '@/services/authSession';
-import { hasUnlimitedAdminUi } from '@/services/roleService';
 import { hardLockCheck } from '@/services/biometricAuth';
 import {
   ExportBusinessQR,
@@ -82,6 +81,38 @@ function toBusinessCardListRow(doc: BusinessCardDoc): BusinessCardListRow {
     ratingAvg: Number(doc.averageRating || 5),
   };
 }
+function parseBusinessCardsFeedCache(json: string | null): BusinessCardListRow[] {
+  if (!json) return [];
+  try {
+    const raw = JSON.parse(json) as unknown;
+    if (!Array.isArray(raw)) return [];
+    const out: BusinessCardListRow[] = [];
+    for (const row of raw) {
+      if (!row || typeof row !== 'object') continue;
+      const r = row as Record<string, unknown>;
+      const bId = String(r.bId || '').trim();
+      if (!bId) continue;
+      out.push({
+        bId,
+        bcName: String(r.bcName || bId),
+        createdAtMs: Number(r.createdAtMs) || 0,
+        themeId: String(r.themeId || DEFAULT_CARD_THEME_ID),
+        bcContactName: String(r.bcContactName || ''),
+        bcLogoUrl: String(r.bcLogoUrl || ''),
+        vaultLinkIds: Array.isArray(r.vaultLinkIds) ? r.vaultLinkIds.map((x) => String(x)) : [],
+        publicCardSlots: Array.isArray(r.publicCardSlots) ? (r.publicCardSlots as PublicCardSlot[]) : undefined,
+        isFavorite: Boolean(r.isFavorite),
+        holdersCount: Number(r.holdersCount || 0),
+        totalRatings: Number(r.totalRatings || 0),
+        ratingAvg: Number(r.ratingAvg ?? 5),
+        silenced: r.silenced != null ? Boolean(r.silenced) : undefined,
+      });
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
 import { type VaultCollectibleCertificate } from '@/services/collectibleService';
 import {
     buildSearchFacetsForSharedCard,
@@ -137,6 +168,7 @@ import {
     cardsTabFeedOrderStorageKey,
     readSmartCardsJsonWithLegacyMigration,
     smartCardsStorageKey,
+    businessCardsFeedStorageKey,
 } from '@/services/userScopedStorage';
 import { isClassicPhoneVaultType } from '@/services/vaultItemTypeGuards';
 import { getWallpaperResizeMode, type WallpaperItem, type WallpaperTier } from '@/services/wallpaperService';
@@ -525,8 +557,12 @@ export default function CardsFactoryScreen() {
   const [issuingUniversalLink, setIssuingUniversalLink] = useState(false);
   /** UID de la sesión en Mis Tarjetas (QR permanente en filas de negocio). */
   const [sessionUid, setSessionUid] = useState<string | null>(null);
-  /** super_admin / cuenta Pochobs: subtítulo “ilimitado” en cabecera. */
-  const [misTarjetasUnlimited, setMisTarjetasUnlimited] = useState(false);
+  const [cardSlotCaps, setCardSlotCaps] = useState<{
+    smartCurrent: number;
+    smartMax: number;
+    businessUsed: number;
+    businessMax: number;
+  } | null>(null);
   const [cardSearchQuery, setCardSearchQuery] = useState('');
   const [cardStatsVisible, setCardStatsVisible] = useState(false);
   const [cardStatsTarget, setCardStatsTarget] = useState<SmartCard | null>(null);
@@ -627,16 +663,16 @@ export default function CardsFactoryScreen() {
         setIsCardsUnlocked(authenticated);
         if (!authenticated) {
           setSessionUid(null);
-          setMisTarjetasUnlimited(false);
+          setCardSlotCaps(null);
           return;
         }
 
         const uid = await getActiveUserId();
         setSessionUid(uid ?? null);
         if (uid) {
-          setMisTarjetasUnlimited(await hasUnlimitedAdminUi(uid));
+          void refreshCardSlotCaps();
         } else {
-          setMisTarjetasUnlimited(false);
+          setCardSlotCaps(null);
         }
 
         void refreshThemes();
@@ -650,7 +686,7 @@ export default function CardsFactoryScreen() {
       };
 
       void verifyAccess();
-    }, [refreshThemes, loadOwnerProfile])
+    }, [refreshThemes, loadOwnerProfile, refreshCardSlotCaps])
   );
 
   useEffect(() => {
@@ -764,10 +800,30 @@ export default function CardsFactoryScreen() {
     }
   }, []);
 
+  const refreshCardSlotCaps = useCallback(async () => {
+    const uid = await getActiveUserId();
+    if (!uid) {
+      setCardSlotCaps(null);
+      return;
+    }
+    try {
+      const [v, slots] = await Promise.all([validateCardCreation(uid), getBusinessCardSlotAvailability(uid)]);
+      setCardSlotCaps({
+        smartCurrent: v.currentCount,
+        smartMax: v.maxLimit,
+        businessUsed: slots.used,
+        businessMax: slots.max,
+      });
+    } catch {
+      setCardSlotCaps(null);
+    }
+  }, []);
+
   const loadSmartCards = async (): Promise<SmartCard[]> => {
     const uid = await getActiveUserId();
     if (!uid) {
       setSmartCards([]);
+      setCardSlotCaps(null);
       return [];
     }
 
@@ -876,6 +932,7 @@ export default function CardsFactoryScreen() {
 
       setSmartCards(deduped);
       await AsyncStorage.setItem(smartCardsStorageKey(uid), JSON.stringify(deduped));
+      void refreshCardSlotCaps();
       return deduped;
     } catch (remoteErr) {
       /**
@@ -884,6 +941,7 @@ export default function CardsFactoryScreen() {
        * para poder diagnosticar fallos de auth/JWT en un segundo.
        */
       console.log('[Card] loadSmartCards: remote FAILED', (remoteErr as { message?: string })?.message || remoteErr);
+      void refreshCardSlotCaps();
       return lastList;
     }
   };
@@ -892,8 +950,22 @@ export default function CardsFactoryScreen() {
     const uid = await getActiveUserId();
     if (!uid) {
       setBusinessCardsFeed([]);
+      setCardSlotCaps(null);
       return [];
     }
+    const cacheKey = businessCardsFeedStorageKey(uid);
+    let lastList: BusinessCardListRow[] = [];
+    try {
+      const raw = await AsyncStorage.getItem(cacheKey);
+      const cached = parseBusinessCardsFeedCache(raw);
+      lastList = cached;
+      if (lastList.length > 0) {
+        setBusinessCardsFeed(lastList);
+      }
+    } catch {
+      lastList = [];
+    }
+
     try {
       const docs = await listMyBusinessCards(uid);
       const rows = docs
@@ -915,9 +987,17 @@ export default function CardsFactoryScreen() {
         }
       }
       setBusinessCardsFeed(rows);
+      await AsyncStorage.setItem(cacheKey, JSON.stringify(rows));
+      void refreshCardSlotCaps();
       return rows;
     } catch {
+      if (lastList.length > 0) {
+        setBusinessCardsFeed(lastList);
+        void refreshCardSlotCaps();
+        return lastList;
+      }
       setBusinessCardsFeed([]);
+      void refreshCardSlotCaps();
       return [];
     }
   };
@@ -1135,8 +1215,7 @@ export default function CardsFactoryScreen() {
       // Validate card creation limits
       const validation = await validateCardCreation(userId);
       
-      if (!validation.canCreate && validation.isFreeUser) {
-        // Show limit reached modal
+      if (!validation.canCreate) {
         setLimitCardCount(validation.currentCount);
         setLimitMaxCards(validation.maxLimit);
         setLimitReachedVisible(true);
@@ -3624,23 +3703,18 @@ export default function CardsFactoryScreen() {
     );
   }
 
+  const businessSlotBlocked = Boolean(cardSlotCaps && cardSlotCaps.businessUsed >= cardSlotCaps.businessMax);
+  const smartSlotBlocked = Boolean(cardSlotCaps && cardSlotCaps.smartCurrent >= cardSlotCaps.smartMax);
+
   return (
     <View style={[styles.container, { backgroundColor: cardsTheme.backgroundSolid }]}>
       <View style={[styles.headerRow, { borderBottomColor: cardsTheme.divider }]}> 
         <View>
           <Text style={[styles.headerTitle, { color: cardsTheme.text }]}>{tr('Mis Tarjetas', 'My Cards')}</Text>
           <Text style={[styles.headerSubtitle, { color: cardsTheme.sectionLabel }]}>
-            {misTarjetasUnlimited
-              ? tr(
-                  `Ilimitado — ${smartCards.length} Smart · ${businessCardsFeed.length} negocio`,
-                  `Unlimited — ${smartCards.length} Smart · ${businessCardsFeed.length} business`,
-                )
-              : [
-                  `${smartCards.length + businessCardsFeed.length} ${tr('tarjetas', 'cards')}`,
-                  businessCardsFeed.length > 0 && smartCards.length > 0
-                    ? ` (${smartCards.length} Smart · ${businessCardsFeed.length} ${tr('negocio', 'business')})`
-                    : '',
-                ].join('')}
+            {cardSlotCaps
+              ? `${cardSlotCaps.smartCurrent}/${cardSlotCaps.smartMax} Smart · ${cardSlotCaps.businessUsed}/${cardSlotCaps.businessMax} ${tr('negocio', 'business')}`
+              : tr('Cargando límites…', 'Loading limits…')}
           </Text>
         </View>
         <View style={styles.headerActionsRow}>
@@ -3662,8 +3736,9 @@ export default function CardsFactoryScreen() {
                 } as any);
               })();
             }}
-            activeOpacity={0.9}
-            style={styles.businessCtaWrap}
+            activeOpacity={businessSlotBlocked ? 1 : 0.9}
+            disabled={businessSlotBlocked}
+            style={[styles.businessCtaWrap, businessSlotBlocked ? { opacity: 0.5 } : null]}
             accessibilityRole="button"
             accessibilityLabel={tr('Crear Business Card', 'Create Business Card')}
           >
@@ -3840,10 +3915,13 @@ export default function CardsFactoryScreen() {
       )}
 
       <TouchableOpacity
-        style={[styles.createFab, { backgroundColor: cardsTheme.fabBg, opacity: cardsReorderMode ? 0.35 : 1 }]}
+        style={[
+          styles.createFab,
+          { backgroundColor: cardsTheme.fabBg, opacity: cardsReorderMode ? 0.35 : smartSlotBlocked ? 0.45 : 1 },
+        ]}
         onPress={openCreateFactory}
         activeOpacity={0.82}
-        disabled={cardsReorderMode}
+        disabled={cardsReorderMode || smartSlotBlocked}
       >
         <MaterialCommunityIcons name="plus" size={20} color={cardsTheme.fabText} />
         <Text style={[styles.createFabText, { color: cardsTheme.fabText }]}>{tr('Crear', 'Create')}</Text>

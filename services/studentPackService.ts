@@ -1,6 +1,6 @@
 import { doc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/services/firebaseConfig';
-import { STUDENT_PACK_BONUS_CS, STUDENT_PACK_ELIGIBLE_PROVIDERS } from '@/constants/businessRules';
+import { STUDENT_PACK_ELIGIBLE_PROVIDERS } from '@/constants/businessRules';
 import type { SocialProviderId } from '@/services/socialAuth';
 
 const ELIGIBLE_SOCIAL_PROVIDERS = new Set(STUDENT_PACK_ELIGIBLE_PROVIDERS);
@@ -37,11 +37,17 @@ export async function grantStudentPackCreditsIfEligible(params: {
   }
 
   const userRef = doc(db, 'users', uid);
+  const economyRef = doc(db, 'system_config', 'cs_economy');
   const creditsRef = doc(db, `users/${uid}/credits/balance`);
   const grantRef = doc(db, 'student_pack_grants', uid);
 
   const txResult = await runTransaction(db, async (tx) => {
-    const [userSnap, creditsSnap, grantSnap] = await Promise.all([tx.get(userRef), tx.get(creditsRef), tx.get(grantRef)]);
+    const [userSnap, creditsSnap, grantSnap, economySnap] = await Promise.all([
+      tx.get(userRef),
+      tx.get(creditsRef),
+      tx.get(grantRef),
+      tx.get(economyRef),
+    ]);
 
     if (!userSnap.exists() || !creditsSnap.exists()) {
       throw new Error('No se encontró el perfil o balance para aplicar Student Pack.');
@@ -51,15 +57,20 @@ export async function grantStudentPackCreditsIfEligible(params: {
     const creditsData = creditsSnap.data() as Record<string, any>;
 
     if (userData.studentPackGrant?.granted === true || grantSnap.exists()) {
-      return 'already-granted' as const;
+      return { status: 'already-granted' as const, bonus: 0 };
     }
+
+    const bonusCs = Math.max(
+      0,
+      Math.floor(Number((economySnap.data() as Record<string, unknown> | undefined)?.studentPackBonusCs) || 0),
+    );
 
     const currentBalance = Number(creditsData.creditsBalance || 0);
     const currentEarned = Number(creditsData.totalCreditsEarned || 0);
 
     tx.update(creditsRef, {
-      creditsBalance: currentBalance + STUDENT_PACK_BONUS_CS,
-      totalCreditsEarned: currentEarned + STUDENT_PACK_BONUS_CS,
+      creditsBalance: currentBalance + bonusCs,
+      totalCreditsEarned: currentEarned + bonusCs,
       lastUpdated: serverTimestamp(),
     });
 
@@ -69,7 +80,7 @@ export async function grantStudentPackCreditsIfEligible(params: {
         eligible: true,
         emailLower,
         provider: authProvider,
-        amount: STUDENT_PACK_BONUS_CS,
+        amount: bonusCs,
         grantedAt: serverTimestamp(),
       },
       updatedAt: serverTimestamp(),
@@ -79,19 +90,19 @@ export async function grantStudentPackCreditsIfEligible(params: {
       uid,
       emailLower,
       provider: authProvider,
-      amount: STUDENT_PACK_BONUS_CS,
+      amount: bonusCs,
       granted: true,
       grantedAt: serverTimestamp(),
       source: 'signup',
     });
 
-    return 'granted' as const;
+    return { status: 'granted' as const, bonus: bonusCs };
   });
 
   return {
     eligible: true,
-    granted: txResult === 'granted',
-    reason: txResult,
-    bonusAmount: txResult === 'granted' ? STUDENT_PACK_BONUS_CS : 0,
+    granted: txResult.status === 'granted',
+    reason: txResult.status,
+    bonusAmount: txResult.status === 'granted' ? txResult.bonus : 0,
   };
 }

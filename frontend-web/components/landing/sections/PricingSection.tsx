@@ -15,46 +15,46 @@ type Tier = {
 const tiers: Tier[] = [
   {
     name: 'Gratis',
-    amount: '$0 / mes',
-    sub: 'Perfil esencial, temas estándar.',
+    amount: 'Según la app',
+    sub: 'Perfil esencial; límites exactos al usar Card-Social.',
     features: [
-      { label: 'IconData (máx.)', value: '10' },
-      { label: 'SmartCards', value: '5' },
-      { label: 'BusinessCards', value: '0' },
+      { label: 'IconData (máx.)', value: 'En app' },
+      { label: 'SmartCards', value: 'En app' },
+      { label: 'BusinessCards', value: 'En app' },
     ],
     cta: { label: 'Empezar', href: '/login' },
   },
   {
     name: 'Influencer',
-    amount: '$7.99 / mes',
-    sub: 'Temas premium, soporte priorizado, prueba 90 días (referencia CMS). Campaña QR y add-on NFC aparte.',
+    amount: 'Ver membresía',
+    sub: 'USD, CS, periodo de prueba y límites: todo en la página de planes.',
     features: [
-      { label: 'IconData (máx.)', value: '20' },
-      { label: 'SmartCards', value: '10' },
-      { label: 'BusinessCards', value: '1' },
+      { label: 'IconData (máx.)', value: 'En app' },
+      { label: 'SmartCards', value: 'En app' },
+      { label: 'BusinessCards', value: 'En app' },
     ],
-    cta: { label: 'Elegir Influencer', href: '/login' },
+    cta: { label: 'Planes y membresía', href: '/es/suscripciones' },
     featured: true,
   },
   {
     name: 'Negocio',
-    amount: '$24.99 / mes',
-    sub: 'Equipos y métricas básicas; prueba 90 días (CMS). NFC y Card-Studio como add-ons publicados.',
+    amount: 'Ver membresía',
+    sub: 'Complementos NFC y hardware con montos alineados a tu nivel.',
     features: [
-      { label: 'IconData (máx.)', value: '50' },
-      { label: 'SmartCards', value: '10' },
-      { label: 'BusinessCards', value: '5' },
+      { label: 'IconData (máx.)', value: 'En app' },
+      { label: 'SmartCards', value: 'En app' },
+      { label: 'BusinessCards', value: 'En app' },
     ],
-    cta: { label: 'Elegir Negocio', href: '/login' },
+    cta: { label: 'Planes y membresía', href: '/es/suscripciones' },
   },
   {
     name: 'Enterprise',
     amount: 'A medida',
     sub: 'Límites y base de datos según acuerdo; CRM e integración al alcance del contrato.',
     features: [
-      { label: 'IconData', value: 'Custom' },
-      { label: 'SmartCards', value: 'Custom' },
-      { label: 'BusinessCards', value: 'Custom' },
+      { label: 'IconData', value: 'A medida' },
+      { label: 'SmartCards', value: 'A medida' },
+      { label: 'BusinessCards', value: 'A medida' },
     ],
     cta: { label: 'Contactar', href: '/legal/contacto' },
   },
@@ -69,20 +69,41 @@ export function PricingSection() {
           Cuatro niveles, un mismo producto
         </h2>
         <p className={styles.sectionLead}>
-          Límites y precios mensuales según{' '}
-          <strong>system_config/tiers</strong> en Firestore. Add-ons públicos típicos: Business Card extra{' '}
-          <strong>$4.99</strong>, PVC <strong>$29.99</strong>, metal <strong>$99.99</strong> USD salvo campaña.
+          Tarifas vigentes y detalle por idioma:{' '}
+          <Link href="/suscripciones" className={styles.inlineLink}>
+            EN
+          </Link>
+          {' · '}
+          <Link href="/es/suscripciones" className={styles.inlineLink}>
+            ES
+          </Link>
+          {' · '}
+          <Link href="/de/suscripciones" className={styles.inlineLink}>
+            DE
+          </Link>
+          {' · '}
+          <Link href="/fr/suscripciones" className={styles.inlineLink}>
+            FR
+          </Link>
+          {' · '}
+          <Link href="/it/suscripciones" className={styles.inlineLink}>
+            IT
+          </Link>
+          {' · '}
+          <Link href="/pt/suscripciones" className={styles.inlineLink}>
+            PT
+          </Link>
+          .
         </p>
 
-        <p className={styles.rcSectionLabel}>Checkout web (RevenueCat)</p>
+        <p className={styles.rcSectionLabel}>Pago en la web</p>
         <p className={styles.sectionLead}>
-          Aquí se listan los <strong>paquetes del offering actual</strong> en RevenueCat Web Billing (nombre y precio
-          reales). No sustituye al CMS de tiers: ese sigue dictando límites y la referencia mensual de Influencer/Negocio
-          en la app.
+          Si está activado, aquí aparecen los planes disponibles para suscripción web con el importe mostrado por la
+          pasarela. Los límites de uso siguen definidos en la app.
         </p>
         <WebRcSubscriptionCards />
 
-        <p className={styles.rcSectionLabel}>Límites por tier en la app</p>
+        <p className={styles.rcSectionLabel}>Límites por nivel en la app</p>
         <div className={styles.pricingGrid}>
           {tiers.map((t) => (
             <div
@@ -110,9 +131,8 @@ export function PricingSection() {
           ))}
         </div>
         <p className={styles.disclaimer}>
-          Los límites numéricos son de referencia comercial. La fuente de verdad es la configuración de plataforma y tu
-          plan efectivo al iniciar sesión. Campañas con QR: vigencia 365 días; día 366 sin renovación, downgrade a
-          Gratis salvo arreglo comercial.
+          Cifras orientativas; el plan efectivo es el de tu sesión en Card-Social. Campañas con QR: vigencia 365 días;
+          día 366 sin renovación, retorno al nivel gratuito salvo acuerdo comercial.
         </p>
       </div>
     </section>

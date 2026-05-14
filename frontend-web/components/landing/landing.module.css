@@ -717,3 +717,13 @@
   margin: 0 auto;
   line-height: 1.6;
 }
+
+.inlineLink {
+  color: var(--cta-gold);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.inlineLink:hover {
+  color: var(--bronze);
+}

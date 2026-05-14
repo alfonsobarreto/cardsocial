@@ -7,7 +7,6 @@
  * Las tarjetas de negocio usan licencia anual por tarjeta y no dependen de este tope.
  */
 
-import { FREE_TIER_POLICY } from '@/constants/freeTierPolicy';
 import {
   LEGACY_FREE_SMART_CARD_BONUS_SILVER_PLUS,
   parseLegacyTier,
@@ -15,7 +14,6 @@ import {
 } from '@/services/legacyPathEngine';
 import { db } from '@/services/firebaseConfig';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
-import { isSuperAdmin } from '@/services/roleService';
 import {
   effectiveTierKeyFromUserData,
   getTiersConfig,
@@ -32,18 +30,6 @@ export interface LimitValidationResult {
   isFreeUser: boolean;
   message: string;
 }
-
-// Límites por tier
-const LIMITS = {
-  FREE: {
-    cards: FREE_TIER_POLICY.cards,
-    vaultItems: FREE_TIER_POLICY.vaultItems,
-  },
-  PREMIUM: {
-    cards: Infinity,
-    vaultItems: Infinity,
-  },
-};
 
 /**
  * Valida si el usuario es Premium o Free
@@ -124,34 +110,43 @@ export async function countVaultItems(userId: string): Promise<number> {
  */
 export async function validateCardCreation(userId: string): Promise<LimitValidationResult> {
   try {
-    const isPremium = await isPremiumUser(userId);
-    const currentCount = await countUserCards(userId);
+    const uid = String(userId || '').trim();
+    const currentCount = await countUserCards(uid);
+
+    const userRef = doc(db, 'users', uid);
+    const userSnap = await getDoc(userRef);
+    const userData = userSnap.exists() ? (userSnap.data() as Record<string, unknown>) : {};
 
     let legacyBonus = 0;
-    if (!isPremium) {
-      const userRef = doc(db, 'users', String(userId || '').trim());
-      const snap = await getDoc(userRef).catch(() => null);
-      if (snap && snap.exists()) {
-        const raw = snap.data() as Record<string, unknown>;
-        const legacyTier = parseLegacyTier(raw.legacyTier);
-        if (tierMeetsSilver(legacyTier)) {
-          legacyBonus = LEGACY_FREE_SMART_CARD_BONUS_SILVER_PLUS;
-        }
+    const tier = effectiveTierKeyFromUserData(userData);
+    if (tier === 'free') {
+      const legacyTier = parseLegacyTier(userData.legacyTier);
+      if (tierMeetsSilver(legacyTier)) {
+        legacyBonus = LEGACY_FREE_SMART_CARD_BONUS_SILVER_PLUS;
       }
     }
 
-    const maxLimit = isPremium ? LIMITS.PREMIUM.cards : LIMITS.FREE.cards + legacyBonus;
-
+    const tiers = await getTiersConfig();
+    if (!tiers) {
+      return {
+        canCreate: false,
+        currentCount,
+        maxLimit: 0,
+        isFreeUser: tier === 'free',
+        message: 'Límites no disponibles. Configura system_config/tiers en el panel.',
+      };
+    }
+    const maxLimit = Math.max(0, tiers[tier].smartCardsLimit) + legacyBonus;
     const canCreate = currentCount < maxLimit;
 
     return {
       canCreate,
       currentCount,
       maxLimit,
-      isFreeUser: !isPremium,
+      isFreeUser: tier === 'free',
       message: canCreate
-        ? `✅ Tarjeta #${currentCount + 1} de ${maxLimit >= Infinity ? '∞' : maxLimit} disponible`
-        : `🛑 Límite alcanzado: ${currentCount}/${maxLimit} tarjetas sociales/personales.`,
+        ? `✅ Smart Card #${currentCount + 1} de ${maxLimit} disponible`
+        : `🛑 Límite alcanzado: ${currentCount}/${maxLimit} Smart Cards.`,
     };
   } catch (error) {
     console.error('Error validating card creation:', error);
@@ -167,29 +162,27 @@ export async function validateCardCreation(userId: string): Promise<LimitValidat
 
 /**
  * VALIDACIÓN PRINCIPAL: ¿Puede crear un nuevo dato en Vault?
- * Tope = `system_config/tiers` + tier efectivo; solo `super_admin` tiene cupo ilimitado.
+ * Tope = `system_config/tiers` + tier efectivo del usuario.
  */
 export async function validateVaultItemCreation(userId: string): Promise<LimitValidationResult> {
   try {
     const uid = String(userId || '').trim();
     const currentCount = await countVaultItems(uid);
 
-    if (await isSuperAdmin(uid)) {
-      const maxLimit = LIMITS.PREMIUM.vaultItems;
-      return {
-        canCreate: true,
-        currentCount,
-        maxLimit,
-        isFreeUser: false,
-        message: `✅ Dato #${currentCount + 1} de ∞ disponible`,
-      };
-    }
-
     const userRef = doc(db, 'users', uid);
     const userSnap = await getDoc(userRef);
     const userData = userSnap.exists() ? (userSnap.data() as Record<string, unknown>) : {};
     const tiers = await getTiersConfig();
     const tier = effectiveTierKeyFromUserData(userData);
+    if (!tiers) {
+      return {
+        canCreate: false,
+        currentCount,
+        maxLimit: 0,
+        isFreeUser: tier === 'free',
+        message: 'Límites no disponibles. Configura system_config/tiers en el panel.',
+      };
+    }
     const maxLimit = Math.max(0, tiers[tier].iconDataLimit);
     const canCreate = currentCount < maxLimit;
 

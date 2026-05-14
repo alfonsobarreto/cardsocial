@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
 
 import { resolveAdminApp, shouldLogFirebaseAdmin } from '@/lib/firebaseAdminStudio';
 import { signStudioEmbedToken } from '@/lib/studioEmbedToken';
@@ -154,6 +155,31 @@ export async function POST(req: Request) {
       );
     }
     return NextResponse.json({ ok: false, error: 'invalid_or_expired_id_token' }, { status: 401 });
+  }
+
+  // ── PASO 4.5: negocio requerido + Market Radar Pro (precio y flags en Superadmin / users) ──
+  console.log(`${ts()} [mint-market-radar] PASO 4.5: Market Radar access (+${Date.now() - reqStart}ms)`);
+  try {
+    const fsdb = getFirestore(admin.app);
+    const userSnap = await fsdb.collection('users').doc(uid).get();
+    const u = userSnap.exists ? userSnap.data() : {};
+    const bc = Number((u as { businessCardsOwnedCount?: unknown }).businessCardsOwnedCount ?? 0);
+    if (!Number.isFinite(bc) || bc < 1) {
+      return NextResponse.json({ ok: false, error: 'market_radar_requires_business_card' }, { status: 403 });
+    }
+    const role = String((u as { role?: unknown }).role || '')
+      .trim()
+      .toLowerCase()
+      .replace(/-/g, '_');
+    const proActive = (u as { marketRadarProActive?: unknown }).marketRadarProActive === true;
+    const exp = (u as { marketRadarProExpiresAt?: { toMillis?: () => number } }).marketRadarProExpiresAt;
+    const proUntilOk = Boolean(exp && typeof exp.toMillis === 'function' && exp.toMillis() > Date.now());
+    if (role !== 'super_admin' && !proActive && !proUntilOk) {
+      return NextResponse.json({ ok: false, error: 'market_radar_pro_required' }, { status: 403 });
+    }
+  } catch (gateErr) {
+    console.error(`${ts()} [mint-market-radar] PASO 4.5 gate error`, gateErr);
+    return NextResponse.json({ ok: false, error: 'market_radar_gate_failed' }, { status: 503 });
   }
 
   // ── PASO 5: parsear body ───────────────────────────────────────────────────

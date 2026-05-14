@@ -20,6 +20,7 @@
 const crypto = require('crypto');
 const express = require('express');
 const { scheduleBusinessCardEmbeddingSync } = require('../services/cardVectorEmbedding');
+const { syncBusinessCardsOwnedCountForUser } = require('../lib/syncFirestoreUserCounters');
 
 const TRIAL_DAYS = 14;
 const MAX_VAULT_ITEMS = 12;
@@ -259,6 +260,7 @@ function createBusinessCardsRoutes({ storage }) {
         .find({ ownerUid: uid })
         .sort({ createdAt: -1 });
       const docs = await cursor.toArray();
+      void syncBusinessCardsOwnedCountForUser(uid, docs.length);
       return res.status(200).json({ ok: true, cards: docs.map(toWireBusinessCard) });
     } catch (error) {
       console.error('[businessCards] GET / failed:', error);
@@ -398,6 +400,12 @@ function createBusinessCardsRoutes({ storage }) {
       const db = req.app.locals.db || (await storage.connect());
       await db.collection('business_cards').insertOne(doc);
       scheduleBusinessCardEmbeddingSync(db, doc);
+      try {
+        const n = await db.collection('business_cards').countDocuments({ ownerUid: uid });
+        void syncBusinessCardsOwnedCountForUser(uid, n);
+      } catch {
+        void syncBusinessCardsOwnedCountForUser(uid, 1);
+      }
       return res.status(201).json({ ok: true, card: toWireBusinessCard(doc) });
     } catch (error) {
       console.error('[businessCards] POST / failed:', error);
@@ -538,6 +546,12 @@ function createBusinessCardsRoutes({ storage }) {
         return res.status(404).json({ ok: false, error: 'Card not found or not authorized' });
       }
       await cascadeBusinessCardDelete(db, bId);
+      try {
+        const n = await db.collection('business_cards').countDocuments({ ownerUid: uid });
+        void syncBusinessCardsOwnedCountForUser(uid, n);
+      } catch {
+        /* ignore */
+      }
       return res.status(200).json({ ok: true, deleted: true });
     } catch (error) {
       console.error('[businessCards] DELETE /:bId failed:', error);

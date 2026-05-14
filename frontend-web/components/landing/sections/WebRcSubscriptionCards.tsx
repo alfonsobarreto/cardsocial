@@ -1,8 +1,7 @@
 'use client';
 
 /**
- * Precios de checkout web = RevenueCat Web Billing (offering actual).
- * NO proviene del CMS Firestore `system_config/tiers` (ese CMS define límites y “precio mensual” de referencia por tier).
+ * Suscripción web: paquetes devueltos por la pasarela configurada en el proyecto.
  */
 
 import { ErrorCode, PackageType, type Package } from '@revenuecat/purchases-js';
@@ -30,7 +29,7 @@ function billingSubtitle(pkg: Package): string {
     case PackageType.TwoMonth:
       return 'Facturación bimestral';
     default:
-      return 'Plan en RevenueCat';
+      return 'Plan disponible';
   }
 }
 
@@ -61,10 +60,10 @@ export function WebRcSubscriptionCards() {
       const list = offerings?.current?.availablePackages ?? [];
       setPackages(list);
       if (list.length === 0 && offerings?.current == null) {
-        setError('No hay offering actual en RevenueCat o está vacío.');
+        setError('No hay planes disponibles en la pasarela en este momento.');
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al cargar ofertas');
+      setError(e instanceof Error ? e.message : 'No se pudieron cargar las ofertas.');
       setPackages([]);
     } finally {
       setLoading(false);
@@ -85,7 +84,7 @@ export function WebRcSubscriptionCards() {
     } catch (e: unknown) {
       const err = e as { errorCode?: ErrorCode };
       if (err?.errorCode === ErrorCode.UserCancelledError) return;
-      setError(e instanceof Error ? e.message : 'Error en el pago');
+      setError(e instanceof Error ? e.message : 'No se pudo completar el pago.');
     } finally {
       setPurchasingId(null);
     }
@@ -95,9 +94,9 @@ export function WebRcSubscriptionCards() {
     return (
       <div className={styles.rcBannerMuted}>
         <p>
-          <strong>Checkout web (RevenueCat):</strong> {disabledReason}
+          <strong>Aviso:</strong> {disabledReason}
         </p>
-        <p className={styles.rcBannerHint}>Define NEXT_PUBLIC_REVENUECAT_WEB_API_KEY para precios en vivo.</p>
+        <p className={styles.rcBannerHint}>Si necesitas ayuda, contacta con soporte.</p>
       </div>
     );
   }
@@ -105,7 +104,7 @@ export function WebRcSubscriptionCards() {
   if (!ready) {
     return (
       <div className={styles.rcBannerMuted}>
-        <p>Preparando pasarela de pago…</p>
+        <p>Preparando la pasarela de pago…</p>
       </div>
     );
   }
@@ -115,7 +114,7 @@ export function WebRcSubscriptionCards() {
 
   return (
     <div className={styles.rcBlock}>
-      {loading ? <p className={styles.rcLoading}>Cargando planes desde RevenueCat…</p> : null}
+      {loading ? <p className={styles.rcLoading}>Cargando planes…</p> : null}
       {error ? (
         <p className={styles.rcError} role="alert">
           {error}
@@ -125,8 +124,7 @@ export function WebRcSubscriptionCards() {
       {!loading && packages.length === 0 ? (
         <div className={styles.rcBannerMuted}>
           <p>
-            No hay paquetes publicados en el <strong>offering actual</strong> de RevenueCat Web Billing. Cuando los
-            añadas en el dashboard, aparecerán aquí con su nombre y precio reales.
+            Cuando los planes estén publicados en tu pasarela, aparecerán aquí con el nombre y precio actuales.
           </p>
         </div>
       ) : null}
@@ -147,7 +145,7 @@ export function WebRcSubscriptionCards() {
                 <p className={styles.priceSub}>{billingSubtitle(pkg)}</p>
                 <p className={styles.priceAmount}>{price}</p>
                 <p className={styles.rcPackId}>
-                  Paquete: <code>{pkg.identifier}</code>
+                  Referencia: <code>{pkg.identifier}</code>
                 </p>
                 {hint ? <p className={styles.rcHint}>{hint}</p> : null}
                 <button
@@ -165,8 +163,8 @@ export function WebRcSubscriptionCards() {
       ) : null}
 
       <p className={styles.rcFootnote}>
-        Los <strong>límites por tier</strong> (IconData, Smart Cards, etc.) los define el CMS de operaciones; esta
-        fila es solo la <strong>pasarela de pago</strong> (RevenueCat + Stripe). Puedes{' '}
+        Los límites por nivel en Card-Social (IconData, Smart Cards, etc.) se gestionan en la experiencia principal de la
+        app. Esta sección solo muestra la suscripción web cuando está habilitada. Puedes{' '}
         <Link href="/login">iniciar sesión</Link> antes si quieres unificar la compra con tu cuenta.
       </p>
     </div>

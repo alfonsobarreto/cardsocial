@@ -47,7 +47,7 @@ export function RevenueCatWebProvider({ children, authUserId = null }: Props) {
     const apiKey = getRevenueCatWebPublicApiKey();
     if (!apiKey) {
       setDisabledReason(
-        'Missing NEXT_PUBLIC_REVENUECAT_WEB_API_KEY (RevenueCat Web Billing public key, not Stripe).',
+        'Web checkout is not configured on this site. Add the public billing key to show plans here.',
       );
       setReady(false);
       setClient(null);
@@ -59,7 +59,7 @@ export function RevenueCatWebProvider({ children, authUserId = null }: Props) {
         const appUserId = getWebBillingAppUserId(authUserId);
         const instance = configureRevenueCatWebClient({ apiKey, appUserId });
         if (!instance) {
-          setDisabledReason('configure() returned null');
+          setDisabledReason('Could not start the payment gateway.');
           setReady(false);
           setClient(null);
           return;
@@ -80,9 +80,8 @@ export function RevenueCatWebProvider({ children, authUserId = null }: Props) {
           /* ignore */
         });
       }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setDisabledReason(msg);
+    } catch {
+      setDisabledReason('Could not prepare the payment gateway.');
       setReady(false);
       setClient(null);
     }

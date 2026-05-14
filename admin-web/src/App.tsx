@@ -10,7 +10,10 @@ import Login from './pages/Login';
 import BroadcastShell from './pages/BroadcastShell';
 import Campaigns from './pages/Campaigns';
 import Moderation from './pages/Moderation';
+import MarketRadarProSettings from './pages/MarketRadarProSettings';
 import NfcOps from './pages/NfcOps';
+import RulesCommerce from './pages/RulesCommerce';
+import RulesCsEconomy from './pages/RulesCsEconomy';
 import RulesTiers from './pages/RulesTiers';
 import Statistics from './pages/Statistics';
 import Studio from './pages/Studio';
@@ -28,7 +31,10 @@ function App() {
           <Route path="identity-risk" element={<IdentityRisk />} />
           <Route path="b2b-enterprise" element={<Enterprise />} />
           <Route path="growth" element={<Growth />} />
+          <Route path="market-radar-pro" element={<MarketRadarProSettings />} />
           <Route path="rules-tiers" element={<RulesTiers />} />
+          <Route path="rules-commerce" element={<RulesCommerce />} />
+          <Route path="rules-cs-economy" element={<RulesCsEconomy />} />
           <Route path="communication" element={<BroadcastShell />} />
           <Route path="campanas-vip" element={<Campaigns />} />
           <Route path="studio" element={<Studio />} />

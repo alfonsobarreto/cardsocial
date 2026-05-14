@@ -54,4 +54,22 @@ function buildGhostLinkAgoraInvite(params) {
   };
 }
 
-module.exports = { buildGhostLinkAgoraInvite };
+const { checkVoipGateForGhostLink } = require('./voipUsageService');
+
+/**
+ * Comprueba cupo VoIP del llamante antes de emitir tokens (independiente de si Agora está configurado).
+ * @param {*} storage — `createQrRoutes({ storage })`
+ * @param {{ callerUid: string; targetUid: string; channelName: string; ttlSeconds: number }} params
+ * @returns {Promise<null | ReturnType<typeof buildGhostLinkAgoraInvite>>}
+ */
+async function buildGhostLinkAgoraInviteWithVoipGate(storage, params) {
+  const gate = await checkVoipGateForGhostLink(storage, params.callerUid, params.targetUid);
+  if (!gate.ok) {
+    const err = new Error(String(gate.error || 'VOIP_MINUTES_EXHAUSTED'));
+    err.code = 'VOIP_MINUTES_EXHAUSTED';
+    throw err;
+  }
+  return buildGhostLinkAgoraInvite(params);
+}
+
+module.exports = { buildGhostLinkAgoraInvite, buildGhostLinkAgoraInviteWithVoipGate };

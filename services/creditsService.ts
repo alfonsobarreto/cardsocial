@@ -2,12 +2,11 @@
  * Credits Economy Service
  * Gestiona el balance de créditos (CS) del usuario
  *
- * Conversión oficial: 100 Créditos CS = 1 USD (`constants/csEconomy.ts`).
- * Welcome Bonus: al confirmar pago (AppStore/PlayStore).
+ * Welcome Bonus: monto en CS publicado en `system_config/cs_economy`.
  * Zero-Balance: nuevo usuario comienza con 0 CS
  */
 
-import { WELCOME_BONUS_CS } from '@/constants/csEconomy';
+import { getCsEconomyConfig } from '@/services/csEconomyConfigService';
 import { db } from '@/services/firebaseConfig';
 import { addDoc, collection, doc, getDoc, increment, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 
@@ -112,7 +111,12 @@ export async function applyWelcomeBonus(userId: string): Promise<boolean> {
       return false; // Ya fue usado
     }
 
-    const WELCOME_BONUS_AMOUNT = WELCOME_BONUS_CS;
+    const econ = await getCsEconomyConfig();
+    const WELCOME_BONUS_AMOUNT = Math.max(0, Math.floor(econ.welcomeBonusCs));
+    if (WELCOME_BONUS_AMOUNT <= 0) {
+      console.warn(`Welcome bonus amount is 0 (cs_economy); skipping grant for ${userId}`);
+      return false;
+    }
 
     // Actualizar balance (SOLO después de confirmar pago)
     await updateDoc(userCreditsRef, {

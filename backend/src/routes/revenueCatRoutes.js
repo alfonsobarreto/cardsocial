@@ -2,13 +2,15 @@
  * revenueCatRoutes.js - Webhook listener para RevenueCat
  * Recibe eventos de compra/suscripción desde RevenueCat
  * Actualiza isPremium en Firestore cuando el usuario activa la suscripción
+ * y acredita annualWelcomeGiftCs (CMS) solo en compras/renovaciones ANUALES.
  */
 
 const express = require('express');
 const router = express.Router();
 const { createMongoStorage } = require('../services/mongoStorage');
-const { admin } = require('../config');
 const { env } = require('../config');
+const { getFirestoreOptional } = require('../lib/firebaseAdminApp');
+const { grantAnnualWelcomeCsIfEligible } = require('../lib/annualSubscriptionWelcomeCs');
 
 const storage = createMongoStorage({
   uri: env.mongoUri,
@@ -16,30 +18,24 @@ const storage = createMongoStorage({
 });
 
 /**
+ * RevenueCat envía `event` anidado; soporta también el shape simplificado del stub interno.
+ */
+function extractRcWebhookPayload(reqBody) {
+  const body = reqBody || {};
+  const event = body.event && typeof body.event === 'object' ? body.event : body;
+  const appUserId = String(event.app_user_id || body.app_user_id || '').trim();
+  const productId = String(event.product_id || body.product_id || '').trim();
+  return { event, appUserId, productId };
+}
+
+/**
  * POST /revenueCat/webhook
- * 
- * Webhook recibido de RevenueCat cuando:
- * - Usuario inicia suscripción (INITIAL_PURCHASE)
- * - Usuario renueva suscripción (RENEWAL)
- * - Usuario canceala (CANCELLATION)
- * 
+ *
  * Headers esperados:
- * - Authorization: Bearer <RevenueCat API Key> (validación de RevenueCat)
- * 
- * Body:
- * {
- *   "event": {
- *     "type": "INITIAL_PURCHASE|RENEWAL|CANCELLATION",
- *     "purchase_date": "2026-03-21T10:00:00Z",
- *     "expiration_date": "2026-04-21T10:00:00Z"
- *   },
- *   "app_user_id": "user_uid_from_card_social",
- *   "product_id": "card_social_premium_monthly"
- * }
+ * - Authorization: Bearer <RevenueCat Secret API Key> (misma variable que usa el dashboard del webhook)
  */
 router.post('/webhook', async (req, res) => {
   try {
-    // 1. Validar que la request viene de RevenueCat (verificar API Key)
     const authHeader = req.headers.authorization || '';
     const bearerToken = authHeader.replace('Bearer ', '');
 
@@ -49,7 +45,7 @@ router.post('/webhook', async (req, res) => {
         'Expected:',
         env.revenueCatApiKey ? 'set' : 'NOT SET',
         'Got:',
-        bearerToken ? 'provided' : 'missing'
+        bearerToken ? 'provided' : 'missing',
       );
       return res.status(401).json({
         ok: false,
@@ -57,87 +53,107 @@ router.post('/webhook', async (req, res) => {
       });
     }
 
-    const { event, app_user_id, product_id } = req.body;
+    const { event, appUserId, productId } = extractRcWebhookPayload(req.body);
 
-    if (!event || !app_user_id) {
+    if (!event || !appUserId) {
       return res.status(400).json({
         ok: false,
         error: 'Missing event or app_user_id',
       });
     }
 
-    console.log('RevenueCat webhook received:', {
-      eventType: event.type,
-      userId: app_user_id,
-      productId: product_id,
-      purchaseDate: event.purchase_date,
-      expirationDate: event.expiration_date,
-    });
+    console.log(
+      'RevenueCat webhook received:',
+      JSON.stringify({
+        eventType: event.type,
+        userId: appUserId,
+        productId,
+        purchaseDate: event.purchase_date,
+        expirationDate: event.expiration_date,
+      }),
+    );
 
     const db = await storage.connect();
+    const fs = getFirestoreOptional();
 
-    // 2. Procesar evento de compra/renovación
     if (event.type === 'INITIAL_PURCHASE' || event.type === 'RENEWAL') {
-      // Usuario pagó → Activar Premium
-      console.log(`Activating premium for user: ${app_user_id}`);
+      console.log(`Activating premium for user: ${appUserId}`);
 
-      // Actualizar en Firestore (fuente primaria)
-      const firebaseUserRef = admin.firestore().collection('users').doc(app_user_id);
-      await firebaseUserRef.update({
+      const premiumPayload = {
         isPremium: true,
         subscriptionStatus: 'active-premium',
         subscriptionPlan: 'premium',
-        revenueCatSubscriptionId: app_user_id,
+        revenueCatSubscriptionId: appUserId,
         subscriptionStartedAt: event.purchase_date ? new Date(event.purchase_date) : new Date(),
-        subscriptionExpiresAt: event.expiration_date ? new Date(event.expiration_date) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        subscriptionExpiresAt: event.expiration_date
+          ? new Date(event.expiration_date)
+          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         updatedAt: new Date(),
-      });
+      };
 
-      // Espejo en MongoDB (para backend queries)
+      if (fs) {
+        await fs.collection('users').doc(appUserId).set(premiumPayload, { merge: true });
+
+        try {
+          const giftResult = await grantAnnualWelcomeCsIfEligible(fs, {
+            uid: appUserId,
+            rcEvent: event,
+            productId,
+          });
+          console.log('RevenueCat annual welcome CS:', giftResult);
+        } catch (grantErr) {
+          console.error('annualWelcomeGiftCs grant failed:', grantErr);
+        }
+      } else {
+        console.warn('[RevenueCat] Firestore Admin no configurado — no se actualizó users ni bono anual.');
+      }
+
       const usersCollection = db.collection('users');
       await usersCollection.updateOne(
-        { _id: app_user_id },
+        { _id: appUserId },
         {
           $set: {
             isPremium: true,
             subscriptionStatus: 'active-premium',
             subscriptionPlan: 'premium',
-            revenueCatSubscriptionId: app_user_id,
+            revenueCatSubscriptionId: appUserId,
             subscriptionExpiresAt: event.expiration_date
               ? new Date(event.expiration_date)
               : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
             updatedAt: new Date(),
           },
         },
-        { upsert: true }
+        { upsert: true },
       );
 
       return res.status(200).json({
         ok: true,
         message: 'Premium activated',
-        userId: app_user_id,
+        userId: appUserId,
         isPremium: true,
         subscriptionExpiresAt: event.expiration_date,
       });
     }
 
-    // 3. Procesar evento de cancelación
     if (event.type === 'CANCELLATION') {
-      // Usuario canceló → Volver a Dull Mode (isPremium = false)
-      console.log(`Canceling premium for user: ${app_user_id}`);
+      console.log(`Canceling premium for user: ${appUserId}`);
 
-      const firebaseUserRef = admin.firestore().collection('users').doc(app_user_id);
-      await firebaseUserRef.update({
-        isPremium: false,
-        subscriptionStatus: 'cancelled',
-        subscriptionPlan: 'free',
-        subscriptionExpiresAt: null,
-        updatedAt: new Date(),
-      });
+      if (fs) {
+        await fs.collection('users').doc(appUserId).set(
+          {
+            isPremium: false,
+            subscriptionStatus: 'cancelled',
+            subscriptionPlan: 'free',
+            subscriptionExpiresAt: null,
+            updatedAt: new Date(),
+          },
+          { merge: true },
+        );
+      }
 
       const usersCollection = db.collection('users');
       await usersCollection.updateOne(
-        { _id: app_user_id },
+        { _id: appUserId },
         {
           $set: {
             isPremium: false,
@@ -146,18 +162,17 @@ router.post('/webhook', async (req, res) => {
             subscriptionExpiresAt: null,
             updatedAt: new Date(),
           },
-        }
+        },
       );
 
       return res.status(200).json({
         ok: true,
         message: 'Premium cancelled - Dull Mode activated',
-        userId: app_user_id,
+        userId: appUserId,
         isPremium: false,
       });
     }
 
-    // Event type desconocido pero procesado sin error
     return res.status(200).json({
       ok: true,
       message: `Event type ${event.type} processed`,
@@ -172,11 +187,6 @@ router.post('/webhook', async (req, res) => {
   }
 });
 
-/**
- * GET /revenueCat/user/:uid/subscription-status
- * Endpoint para que frontend verifique estado de suscripción
- * Retorna isPremium exacto, expiración y estado
- */
 router.get('/user/:uid/subscription-status', async (req, res) => {
   try {
     const { uid } = req.params;
@@ -188,12 +198,12 @@ router.get('/user/:uid/subscription-status', async (req, res) => {
       });
     }
 
-    // Leer de Firestore (autoritativo)
-    const userDoc = await admin
-      .firestore()
-      .collection('users')
-      .doc(uid)
-      .get();
+    const fs = getFirestoreOptional();
+    if (!fs) {
+      return res.status(503).json({ ok: false, error: 'Firestore Admin not configured' });
+    }
+
+    const userDoc = await fs.collection('users').doc(uid).get();
 
     if (!userDoc.exists) {
       return res.status(404).json({
@@ -205,11 +215,12 @@ router.get('/user/:uid/subscription-status', async (req, res) => {
     const userData = userDoc.data();
     const isPremium = Boolean(userData?.isPremium);
     const expiresAt = userData?.subscriptionExpiresAt
-      ? new Date(userData.subscriptionExpiresAt)
+      ? userData.subscriptionExpiresAt.toDate
+        ? userData.subscriptionExpiresAt.toDate()
+        : new Date(userData.subscriptionExpiresAt)
       : null;
     const now = new Date();
 
-    // Validar fecha de expiración
     const isExpired = expiresAt && expiresAt < now;
     const actualPremium = isPremium && !isExpired;
 

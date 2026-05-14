@@ -44,8 +44,8 @@ function mapBusinessApiJsonToCardData(data: Record<string, unknown>): CardData {
 }
 
 function permanentAppDeepLink(bId: string, uid: string): string {
-  /** Mismo esquema que Expo (`app.json` scheme: cardsocial); `card-social://` no abre la app en el navegador. */
-  return `cardsocial://business/${encodeURIComponent(bId)}?uid=${encodeURIComponent(uid)}&mode=permanent`;
+  /** Debe coincidir con `app/b/[bId].tsx` (Expo Router: `cardsocial://b/…`, no `…/business/…`). */
+  return `cardsocial://b/${encodeURIComponent(bId)}?uid=${encodeURIComponent(uid)}&mode=permanent`;
 }
 
 function canonicalBusinessCardWebUrl(headerList: Headers, bId: string, uid: string): string {

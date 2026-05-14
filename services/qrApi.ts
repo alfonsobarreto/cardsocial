@@ -1605,6 +1605,40 @@ export async function createCallLog(params: {
   };
 }
 
+export type VoipMinutesSummaryWire = {
+  ok: boolean;
+  uid?: string;
+  unlimited: boolean;
+  cycleKey: string;
+  subscriptionUsedMinutes: number;
+  subscriptionIncludedMinutes: number;
+  purchasedMinutesRemaining: number;
+  totalAvailableMinutes: number;
+};
+
+export async function fetchVoipMinutesSummary(params: { uid: string }): Promise<VoipMinutesSummaryWire> {
+  const auth = await getScopedJwtToken(params.uid, 'qr.access');
+  const response = await axios.get(`${auth.baseUrl}/api/qr/voip/minutes-summary`, {
+    params: { uid: params.uid },
+    headers: {
+      'x-api-gateway-key': auth.gatewayKey,
+      Authorization: `Bearer ${auth.token}`,
+    },
+    timeout: 15000,
+  });
+  const d = response?.data || {};
+  return {
+    ok: d.ok === true,
+    uid: d.uid ? String(d.uid) : undefined,
+    unlimited: Boolean(d.unlimited),
+    cycleKey: String(d.cycleKey || ''),
+    subscriptionUsedMinutes: Number(d.subscriptionUsedMinutes ?? 0),
+    subscriptionIncludedMinutes: Number(d.subscriptionIncludedMinutes ?? 0),
+    purchasedMinutesRemaining: Number(d.purchasedMinutesRemaining ?? 0),
+    totalAvailableMinutes: Number(d.totalAvailableMinutes ?? 0),
+  };
+}
+
 export async function patchCallLogMeta(params: {
   uid: string;
   callId: string;

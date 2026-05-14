@@ -897,7 +897,7 @@ export default function RegisterScreen() {
         tx.set(phoneKeyRef, { uid, type: 'phone', value: phoneNormalized, updatedAt: serverTimestamp() }, { merge: true });
       });
 
-      // Initialize zero-balance credits (welcome CS amount on payment confirmation: see WELCOME_BONUS_CS)
+      // Zero-balance inicial; bono bienvenida: `system_config/cs_economy` al confirmar pago.
       await initializeUserCredits(uid);
 
       const authProvider = socialProviderId || 'password';

@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { sessionLastActivityKey, trustedDeviceSessionKey } from '@/services/sessionPolicyKeys';
+
 /** Pre–user-scoping keys (single-device shared; migrate away on read). */
 export const LEGACY_VAULT_STORAGE_KEY = 'vault_data';
 export const LEGACY_SMART_CARDS_STORAGE_KEY = 'smart_cards';
@@ -16,6 +18,11 @@ export function smartCardsStorageKey(uid: string): string {
 /** Orden manual de filas en Mis Tarjetas (Smart + negocio mezcladas), JSON string[]. */
 export function cardsTabFeedOrderStorageKey(uid: string): string {
   return `cards_tab_feed_order:${uid}`;
+}
+
+/** Caché local de filas de negocio en Mis Tarjetas (JSON filas planas compatibles con `BusinessCardListRow`). */
+export function businessCardsFeedStorageKey(uid: string): string {
+  return `business_cards_feed:${uid}`;
 }
 
 export function vaultRecentIconsStorageKey(uid: string): string {
@@ -128,6 +135,9 @@ export async function clearLocalCachesForSignOut(uid: string | null): Promise<vo
       smartCardsStorageKey(uid),
       vaultRecentIconsStorageKey(uid),
       cardsTabFeedOrderStorageKey(uid),
+      businessCardsFeedStorageKey(uid),
+      sessionLastActivityKey(uid),
+      trustedDeviceSessionKey(uid),
     );
   }
   await AsyncStorage.multiRemove(keys);

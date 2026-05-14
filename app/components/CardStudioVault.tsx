@@ -9,9 +9,10 @@
  */
 
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
-import { STUDIO_CATALOG_VECTOR_ICONS_PAID, STUDIO_ICON_CREDIT_PRICE } from '@/constants/studioEconomy';
+import { STUDIO_CATALOG_VECTOR_ICONS_PAID } from '@/constants/studioEconomy';
 import { TEXAS_LONGHORNS_ICON_SEEDS } from '@/constants/texasLonghornsPack';
 import { getActiveUserId } from '@/services/authSession';
+import { getCsEconomyConfig } from '@/services/csEconomyConfigService';
 import {
     isFreeStarterIconKey,
     purchaseStudioIconUnlock,
@@ -378,6 +379,7 @@ interface CardStudioVaultProps {
   /** Claves poseídas en Firestore icon_vault (incluye compras y packs). */
   ownedIconVaultKeys: Set<string>;
   creditsBalance: number;
+  /** Si se omite, se usa `system_config/cs_economy.studioIconCreditCs`. */
   iconCreditPrice?: number;
   onEconomyUpdated?: () => void;
 }
@@ -398,7 +400,7 @@ export default function CardStudioVault({
   selectedIcon,
   ownedIconVaultKeys,
   creditsBalance,
-  iconCreditPrice = STUDIO_ICON_CREDIT_PRICE,
+  iconCreditPrice: iconCreditPriceProp,
   onEconomyUpdated,
 }: CardStudioVaultProps) {
   const { resolvedMode } = useLookMode();
@@ -407,6 +409,9 @@ export default function CardStudioVault({
   const tr = (es: string, en: string) => trEsEn(es, en, language);
   const modalFooterBottomPad = useModalFooterBottomPad();
   const [storeModalVisible, setStoreModalVisible] = useState(false);
+  const [cmsIconCreditCs, setCmsIconCreditCs] = useState(0);
+  const [bundleCreditPrices, setBundleCreditPrices] = useState<Record<string, number>>({});
+  const effectiveIconCreditPrice = iconCreditPriceProp ?? cmsIconCreditCs;
   const [recentIconIds, setRecentIconIds] = useState<string[]>([]);
   const [bundleOwnedFlags, setBundleOwnedFlags] = useState<Record<string, boolean>>({});
   const [bundlePurchasingId, setBundlePurchasingId] = useState<string | null>(null);
@@ -420,6 +425,19 @@ export default function CardStudioVault({
       setStoreModalVisible(false);
     }
   }, [visible, storeModalVisible]);
+
+  useEffect(() => {
+    if (!visible) return;
+    void (async () => {
+      const e = await getCsEconomyConfig();
+      setCmsIconCreditCs(Math.max(0, Math.floor(e.studioIconCreditCs)));
+      const next: Record<string, number> = {};
+      for (const b of THEME_BUNDLES) {
+        next[b.id] = Math.max(0, Math.floor(e.themeBundles[b.id]?.creditsCs ?? 0));
+      }
+      setBundleCreditPrices(next);
+    })();
+  }, [visible]);
 
   useEffect(() => {
     if (!storeModalVisible) return;
@@ -583,8 +601,8 @@ export default function CardStudioVault({
       Alert.alert(
         tr('Desbloquear icono', 'Unlock icon'),
         tr(
-          `Incluye este icono en tu bóveda por ${iconCreditPrice} Créditos CS.`,
-          `Add this icon to your vault for ${iconCreditPrice} CS credits.`,
+          `Incluye este icono en tu bóveda por ${effectiveIconCreditPrice} Créditos CS.`,
+          `Add this icon to your vault for ${effectiveIconCreditPrice} CS credits.`,
         ),
         [
           { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
@@ -600,7 +618,7 @@ export default function CardStudioVault({
                     label: item.label,
                     labelEn: item.labelEn,
                   },
-                  iconCreditPrice,
+                  effectiveIconCreditPrice,
                 );
                 if (ok) {
                   onEconomyUpdated?.();
@@ -770,7 +788,7 @@ export default function CardStudioVault({
                   <MaterialCommunityIcons name="lock" size={11} color="#0A1A2F" />
                 </View>
               )}
-              {!unlocked && <Text style={styles.priceBadge}>{iconCreditPrice}</Text>}
+              {!unlocked && <Text style={styles.priceBadge}>{effectiveIconCreditPrice}</Text>}
               <MaterialCommunityIcons
                 name={sanitizeMaterialIconName(item.icon) as any}
                 color={iconColor}
@@ -1068,8 +1086,8 @@ export default function CardStudioVault({
                           </Text>
                           <Text style={[styles.bundleMeta, { color: theme.bundleMeta }]}>
                             {tr(
-                              `3 temas + ${b.iconSeeds.length} iconos · ${b.creditsPrice} CS`,
-                              `3 themes + ${b.iconSeeds.length} icons · ${b.creditsPrice} CS`,
+                              `3 temas + ${b.iconSeeds.length} iconos · ${bundleCreditPrices[b.id] ?? 0} CS`,
+                              `3 themes + ${b.iconSeeds.length} icons · ${bundleCreditPrices[b.id] ?? 0} CS`,
                             )}
                           </Text>
                         </View>

@@ -27,7 +27,7 @@ import {
   mountNfcCard,
   updateNfcCardStatus,
 } from '@/services/nfcCardsRepo';
-import type { NfcCardDoc, NfcCardStatus, NfcMountOption } from '@/services/types/nfc';
+import { requestSubscriptionPhysicalCardsSection } from '@/services/subscriptionNavigationIntent';
 import palette from './theme';
 
 type MaterialIconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -343,6 +343,36 @@ export default function NfcScreen() {
           borderColor: shell.modalBorder,
           backgroundColor: shell.surface,
           overflow: 'hidden',
+        },
+        physicalUpsell: {
+          borderRadius: 22,
+          padding: 16,
+          borderWidth: 2,
+          borderColor: shell.ctaAccent,
+          backgroundColor: shell.surface,
+        },
+        physicalUpsellTitle: {
+          color: shell.textPrimary,
+          fontSize: 17,
+          fontWeight: '800',
+          marginBottom: 6,
+        },
+        physicalUpsellText: {
+          color: shell.textSecondary,
+          fontSize: 13,
+          lineHeight: 19,
+        },
+        physicalUpsellBtn: {
+          marginTop: 14,
+          borderRadius: 14,
+          paddingVertical: 13,
+          alignItems: 'center',
+          backgroundColor: shell.ctaAccent,
+        },
+        physicalUpsellBtnText: {
+          color: shell.emptyCtaText,
+          fontSize: 14,
+          fontWeight: '800',
         },
         heroTitle: {
           color: shell.textPrimary,
@@ -686,6 +716,31 @@ export default function NfcScreen() {
       </LinearGradient>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.body}>
+        <View style={styles.physicalUpsell}>
+          <Text style={styles.physicalUpsellTitle}>
+            {tr('Compra tarjetas físicas NFC', 'Buy NFC physical cards')}
+          </Text>
+          <Text style={styles.physicalUpsellText}>
+            {tr(
+              'Abre Suscripción en el menú para ver precios de PVC y metal, slots extra y la licencia de negocio.',
+              'Open Subscription from the menu to see PVC and metal pricing, extra slots, and the business license.',
+            )}
+          </Text>
+          <TouchableOpacity
+            style={styles.physicalUpsellBtn}
+            onPress={() => {
+              router.back();
+              requestSubscriptionPhysicalCardsSection({ delayMs: 380 });
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={tr('Ir a comprar tarjetas físicas', 'Shop physical cards')}
+          >
+            <Text style={styles.physicalUpsellBtnText}>
+              {tr('Ir a comprar tarjetas físicas', 'Shop physical cards')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.heroCard}>
           <Text style={styles.heroTitle}>{tr('Vincular nueva NFC', 'Link new NFC')}</Text>
           <Text style={styles.heroText}>

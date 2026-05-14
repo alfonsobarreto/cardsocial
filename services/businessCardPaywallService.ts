@@ -1,39 +1,28 @@
 /**
  * Business Card Paywall Service
- * Gestiona pago anual y cashback para Business Cards
- * 
- * Modelo Lujo Masivo:
- * - Pago anual único: $49.99 USD
- * - Cashback inmediato: BUSINESS_CARD_CASHBACK_CS Monedas CS por activacion/renovacion
+ * Licencia anual por tarjeta: precio publicado en `system_config/tiers` → `business.annualPriceUsd`.
+ * Cashback al confirmar: monto en CS publicado en `system_config/cs_economy`.
  */
 
-// Servicios de terceros (RevenueCat, Firebase) se integran en tiempo de ejecución
 import Purchases from 'react-native-purchases';
 import { CARD_SOCIAL_PRO_ENTITLEMENT_LOOKUP_KEYS } from '@/constants/revenueCat';
 import { addCredits } from '@/services/creditsService';
 import { activateOrRenewBusinessLicense } from '@/services/businessLicenseService';
-import { BUSINESS_CARD_CASHBACK_CS } from '@/constants/csEconomy';
+import { getCsEconomyConfig } from '@/services/csEconomyConfigService';
+import { getTiersConfig } from '@/services/tiersConfigService';
 
-const BUSINESS_CARD_ANNUAL_PRICE_USD = 49.99;
-
-/**
- * PackageOffering para Business Cards
- */
 export interface BusinessCardPackage {
-  productId: string; // SKU del app store
+  productId: string;
   platform: 'ios' | 'android';
   title: string;
   description: string;
-  priceUsd: number; // Precio en USD
-  priceBefore?: number; // Precio original si hay descuento
-  discount?: number; // Porcentaje de descuento (ej: 30 para 30%)
+  priceUsd: number;
+  priceBefore?: number;
+  discount?: number;
   billingPeriod: 'annual' | 'monthly';
   features: string[];
 }
 
-/**
- * Resultado del cálculo de precio con descuento
- */
 export interface PriceCalculation {
   originalPrice: number;
   discountPercentage: number;
@@ -42,9 +31,6 @@ export interface PriceCalculation {
   savingsLabel: string;
 }
 
-/**
- * Información de compra de Business Card
- */
 export interface BusinessCardPurchaseState {
   userId: string;
   isPremiumUser: boolean;
@@ -56,14 +42,14 @@ export interface BusinessCardPurchaseState {
 
 const PREMIUM_ENTITLEMENT_KEYS = [...CARD_SOCIAL_PRO_ENTITLEMENT_LOOKUP_KEYS, 'premium', 'premium_card', 'card_social_premium'];
 
-const BUSINESS_CARD_PACKAGES: Record<string, BusinessCardPackage> = {
-  // iOS
+type BusinessCardTemplate = Omit<BusinessCardPackage, 'priceUsd'>;
+
+const BUSINESS_CARD_PACKAGE_TEMPLATES: Record<string, BusinessCardTemplate> = {
   ios_business_card_annual: {
     productId: 'card_social_business_annual_ios',
     platform: 'ios',
     title: 'Tarjeta de Negocio - Anual',
     description: 'Publica tu negocio en el Social Market por 1 año',
-    priceUsd: BUSINESS_CARD_ANNUAL_PRICE_USD,
     billingPeriod: 'annual',
     features: [
       '✓ Publicación en Social Market',
@@ -73,13 +59,11 @@ const BUSINESS_CARD_PACKAGES: Record<string, BusinessCardPackage> = {
       '✓ Soporte prioritario',
     ],
   },
-  // Android
   android_business_card_annual: {
     productId: 'card_social_business_annual_android',
     platform: 'android',
     title: 'Tarjeta de Negocio - Anual',
     description: 'Publica tu negocio en el Social Market por 1 año',
-    priceUsd: BUSINESS_CARD_ANNUAL_PRICE_USD,
     billingPeriod: 'annual',
     features: [
       '✓ Publicación en Social Market',
@@ -91,55 +75,57 @@ const BUSINESS_CARD_PACKAGES: Record<string, BusinessCardPackage> = {
   },
 };
 
-/**
- * Calcula el precio final para licencia anual por tarjeta
- */
 export function calculatePriceWithPremiumDiscount(
   basePrice: number,
-  isPremium: boolean
+  isPremium: boolean,
+  cashbackCs: number,
 ): PriceCalculation {
-  // Se mantiene la firma por compatibilidad; el modelo actual no usa descuento global.
+  void isPremium;
   const discountAmount = 0;
   const finalPrice = basePrice;
+  const cs = Math.max(0, Math.floor(cashbackCs));
 
   return {
     originalPrice: basePrice,
     discountPercentage: 0,
     discountAmount: parseFloat(discountAmount.toFixed(2)),
     finalPrice: parseFloat(finalPrice.toFixed(2)),
-    savingsLabel: `Cashback fijo de ${BUSINESS_CARD_CASHBACK_CS.toLocaleString('es-MX')} CS al confirmar compra`,
+    savingsLabel: `Cashback de ${cs.toLocaleString('es-MX')} CS al confirmar compra`,
   };
 }
 
 /**
- * Obtiene el paquete correcto basado en la plataforma actual
+ * Solo valores publicados en CMS; `null` si no hay doc tiers o el precio anual business es 0.
  */
-export function getBusinessCardPackageForPlatform(
-  platform: 'ios' | 'android'
-): BusinessCardPackage | null {
-  const key = `${platform}_business_card_annual`;
-  return (BUSINESS_CARD_PACKAGES as Record<string, BusinessCardPackage>)[key] || null;
+export async function loadBusinessCardAnnualPriceUsdFromCms(): Promise<number | null> {
+  const tiers = await getTiersConfig();
+  if (!tiers) return null;
+  const n = Math.max(0, tiers.business.annualPriceUsd);
+  return n > 0 ? n : null;
 }
 
-/**
- * Obtiene el SKU del producto anual por plataforma
- */
-export function getBusinessCardProductId(
+export async function loadBusinessCardPackageForPlatform(
   platform: 'ios' | 'android',
-  isPremium: boolean
-): string {
-  const pkg = getBusinessCardPackageForPlatform(platform);
-  if (!pkg) {
+): Promise<BusinessCardPackage | null> {
+  const key = `${platform}_business_card_annual`;
+  const tpl = BUSINESS_CARD_PACKAGE_TEMPLATES[key];
+  if (!tpl) return null;
+  const tiers = await getTiersConfig();
+  if (!tiers) return null;
+  const priceUsd = Math.max(0, tiers.business.annualPriceUsd);
+  if (priceUsd <= 0) return null;
+  return { ...tpl, priceUsd };
+}
+
+export function getBusinessCardProductId(platform: 'ios' | 'android'): string {
+  const key = `${platform}_business_card_annual`;
+  const tpl = BUSINESS_CARD_PACKAGE_TEMPLATES[key];
+  if (!tpl) {
     throw new Error(`No business card package found for platform: ${platform}`);
   }
-
-  // Se usa el mismo SKU anual para todos los usuarios (modelo free-to-use + licencia por tarjeta).
-  return pkg.productId;
+  return tpl.productId;
 }
 
-/**
- * Verifica estado Premium en tiempo real desde RevenueCat
- */
 export async function getRealtimePremiumStatus(): Promise<boolean> {
   try {
     const customerInfo = await Purchases.getCustomerInfo();
@@ -158,23 +144,11 @@ export async function getRealtimePremiumStatus(): Promise<boolean> {
   }
 }
 
-/**
- * Obtiene el estado de compra del usuario para Business Cards
- */
 export async function getBusinessCardPurchaseState(
   userId: string,
-  isPremiumUser: boolean
+  isPremiumUser: boolean,
 ): Promise<BusinessCardPurchaseState> {
-  // Aquí consultarías Firestore para verificar:
-  // - Si el usuario tiene una suscripción activa a Business Card
-  // - Fecha de expiración
-  // - bId asociado
-  
   try {
-    // PLACEHOLDER: En producción, consultarías Firestore
-    // const doc = await getDoc(doc(db, 'businessCardSubscriptions', userId));
-    // if (doc.exists()) { ... }
-
     return {
       userId,
       isPremiumUser,
@@ -193,24 +167,22 @@ export async function getBusinessCardPurchaseState(
   }
 }
 
-/**
- * Prepara los datos de checkout con el precio calculado
- */
-export function prepareCheckoutData(
+export async function prepareCheckoutData(
   bId: string,
   isPremiumUser: boolean,
-  platform: 'ios' | 'android'
-): {
+  platform: 'ios' | 'android',
+): Promise<{
   package: BusinessCardPackage;
   pricing: PriceCalculation;
   checkoutMetadata: Record<string, any>;
-} {
-  const pkg = getBusinessCardPackageForPlatform(platform);
+}> {
+  const pkg = await loadBusinessCardPackageForPlatform(platform);
   if (!pkg) {
     throw new Error(`Business card package not found for: ${platform}`);
   }
 
-  const pricing = calculatePriceWithPremiumDiscount(pkg.priceUsd, isPremiumUser);
+  const econ = await getCsEconomyConfig();
+  const pricing = calculatePriceWithPremiumDiscount(pkg.priceUsd, isPremiumUser, econ.businessCardCashbackCs);
 
   const checkoutMetadata = {
     bId,
@@ -230,16 +202,11 @@ export function prepareCheckoutData(
   };
 }
 
-/**
- * Procesa la compra mediante RevenueCat
- * ⚠️ Modelo Lujo de Acceso Masivo: aplica cashback fijo (`BUSINESS_CARD_CASHBACK_CS`) por licencia anual
- * Retorna true si exitoso, false en caso contrario
- */
 export async function purchaseBusinessCard(
   platform: 'ios' | 'android',
   isPremiumUser: boolean,
   bId: string,
-  userId?: string // Para aplicar Welcome Bonus en primer pago
+  userId?: string,
 ): Promise<{
   success: boolean;
   purchaseId?: string;
@@ -252,8 +219,17 @@ export async function purchaseBusinessCard(
 }> {
   try {
     const validatedPremium = await getRealtimePremiumStatus();
-    const productId = getBusinessCardProductId(platform, validatedPremium);
-    const pricing = calculatePriceWithPremiumDiscount(BUSINESS_CARD_ANNUAL_PRICE_USD, false);
+    const productId = getBusinessCardProductId(platform);
+    const listPriceUsd = await loadBusinessCardAnnualPriceUsdFromCms();
+    if (listPriceUsd == null) {
+      return {
+        success: false,
+        message: 'La licencia anual no está disponible en este momento. Inténtalo más tarde.',
+      };
+    }
+    const econ = await getCsEconomyConfig();
+    const cashbackConfigured = Math.max(0, Math.floor(econ.businessCardCashbackCs));
+    const pricing = calculatePriceWithPremiumDiscount(listPriceUsd, false, cashbackConfigured);
 
     const purchaseResult = await Purchases.purchaseProduct(productId);
 
@@ -263,18 +239,17 @@ export async function purchaseBusinessCard(
       `purchase_${Date.now()}`;
 
     console.log(`Compra iniciada: ${productId}`);
-    console.log(`Precio validado por RevenueCat: $${pricing.finalPrice.toFixed(2)}`);
+    console.log(`Precio CMS (referencia): $${pricing.finalPrice.toFixed(2)}`);
     console.log(`   🎫 bId: ${bId}`);
     if (validatedPremium !== isPremiumUser) {
       console.log(`Premium local desfasado. Local=${isPremiumUser} RevenueCat=${validatedPremium}`);
     }
 
-    // Cashback de poder fijo por activacion/renovacion de licencia anual.
     let welcomeBonusApplied = false;
     let cashbackCredits = 0;
     if (userId) {
       try {
-        cashbackCredits = BUSINESS_CARD_CASHBACK_CS;
+        cashbackCredits = cashbackConfigured;
         await addCredits(userId, cashbackCredits, 'business_card_annual_cashback');
         await activateOrRenewBusinessLicense({
           uid: userId,
@@ -290,7 +265,6 @@ export async function purchaseBusinessCard(
         }
       } catch (bonusError) {
         console.error('Error applying annual cashback:', bonusError);
-        // Don't fail purchase if bonus fails - bonus is secondary
       }
     }
 
@@ -313,36 +287,22 @@ export async function purchaseBusinessCard(
   }
 }
 
-/**
- * Valida si la compra está habilitada para este usuario
- */
 export async function validateBusinessCardPurchaseEligibility(
   userId: string,
-  isPremiumUser: boolean
+  isPremiumUser: boolean,
 ): Promise<{ eligible: boolean; reason?: string }> {
-  // Validaciones básicas
+  void isPremiumUser;
   if (!userId) {
     return { eligible: false, reason: 'Usuario no autenticado' };
   }
 
-  // Podría haber más validaciones:
-  // - Si el usuario ya tiene una tarjeta de negocio activa
-  // - Si está en "Dull Mode" (restricciones de cuenta)
-  // - Si su dispositivo está baneado
-
   return { eligible: true };
 }
 
-/**
- * Formatea el precio para mostrar en UI
- */
 export function formatPriceDisplay(priceUsd: number): string {
   return `$${priceUsd.toFixed(2)} USD`;
 }
 
-/**
- * Genera el label visual del descuento
- */
 export function generateDiscountLabel(discount: PriceCalculation): string {
   if (discount.discountPercentage === 0) {
     return '';
@@ -351,9 +311,8 @@ export function generateDiscountLabel(discount: PriceCalculation): string {
   return `🎁 AHORRO: ${discount.savingsLabel}`;
 }
 
-/**
- * Obtiene la descripción del beneficio principal
- */
-export function getMainBenefit(isPremiumUser: boolean): string {
-  return `Licencia anual por tarjeta: Social Market destacado + ${BUSINESS_CARD_CASHBACK_CS.toLocaleString('es-MX')} CS cashback`;
+export function getMainBenefit(isPremiumUser: boolean, cashbackCs: number): string {
+  void isPremiumUser;
+  const cs = Math.max(0, Math.floor(cashbackCs));
+  return `Licencia anual por tarjeta: Social Market destacado + ${cs.toLocaleString('es-MX')} CS cashback`;
 }

@@ -1,6 +1,6 @@
 /**
  * QR dinámico app: JSON `cardsocial-qr-v1` (ver scan.tsx).
- * Business / branded: deep links `card-social://business/...` o `card-social://qr/...`.
+ * Business / branded: `cardsocial://b/...` (Custom scheme), legacy `.../business/...`, o `.../qr/...`.
  */
 
 /** Limpia BOM, espacios y extrae un deep link embebido en texto o URL. */
@@ -37,15 +37,20 @@ function decodeParam(s: string): string {
   }
 }
 
-/** `card-social://business/{bId}?uid=...&mode=permanent` (legacy: `owner=`) */
+/** `cardsocial://b/{bId}?uid=...` (Expo Router) o legacy `…/business/{bId}?…` (`owner=` OK). */
 export function parsePermanentBusinessQr(data: string): ParsedBusinessDeepLink | null {
   const raw = normalizeQrScanPayload(data);
   if (!raw) return null;
   const lower = raw.toLowerCase();
-  if (!lower.includes('card-social://business/') && !lower.includes('cardsocial://business/')) {
+  const hasLegacyBusiness =
+    lower.includes('card-social://business/') || lower.includes('cardsocial://business/');
+  const hasBPath = lower.includes('card-social://b/') || lower.includes('cardsocial://b/');
+  if (!hasLegacyBusiness && !hasBPath) {
     return null;
   }
-  const mPath = raw.match(/(?:card-social|cardsocial):\/\/business\/([^?#]+)/i);
+  const mPath =
+    raw.match(/(?:card-social|cardsocial):\/\/business\/([^?#]+)/i) ||
+    raw.match(/(?:card-social|cardsocial):\/\/b\/([^?#]+)/i);
   if (!mPath) return null;
   const bId = decodeParam(mPath[1]);
   const mUid = raw.match(/[?&]uid=([^&]+)/i);
@@ -60,7 +65,7 @@ export function parsePermanentBusinessQr(data: string): ParsedBusinessDeepLink |
 /** `card-social://qr/{bId}?business=...&uid=...` (legacy: `owner=`) */
 /**
  * `https://cardsocial.me/b/{bId}?uid=...` (QR impreso / cámara del sistema).
- * Misma identidad que `card-social://business/...` para canje en app.
+ * Misma identidad que `cardsocial://b/...` / legacy `…/business/...` para canje en app.
  */
 export function parsePublicBusinessWebUrl(data: string): ParsedBusinessDeepLink | null {
   const raw = String(data || '')

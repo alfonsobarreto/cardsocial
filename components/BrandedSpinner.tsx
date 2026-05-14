@@ -30,9 +30,31 @@ export default function BrandedSpinner({ size = 'small', color = '#0A2540', styl
     []
   );
 
+  /** GIF con lienzo blanco: en modales grandes evita halo oscuro del sistema. */
+  const solidGifPad = pixelSize >= 48;
+
   const exhaustedAllGifSources = sourceIndex >= spinnerSources.length;
 
   if (exhaustedAllGifSources) {
+    if (solidGifPad) {
+      return (
+        <View
+          style={[
+            {
+              justifyContent: 'center',
+              alignItems: 'center',
+              width: pixelSize,
+              height: pixelSize,
+              backgroundColor: '#FFFFFF',
+              borderRadius: 6,
+            },
+            style,
+          ]}
+        >
+          <NativeActivityIndicator size={size} color={color} />
+        </View>
+      );
+    }
     return <NativeActivityIndicator size={size} color={color} style={style} />;
   }
 
@@ -40,7 +62,11 @@ export default function BrandedSpinner({ size = 'small', color = '#0A2540', styl
     <View style={[{ justifyContent: 'center', alignItems: 'center' }, style]}>
       <Image
         source={spinnerSources[sourceIndex]}
-        style={{ width: pixelSize, height: pixelSize }}
+        style={{
+          width: pixelSize,
+          height: pixelSize,
+          ...(solidGifPad ? { backgroundColor: '#FFFFFF', borderRadius: 6 } : null),
+        }}
         resizeMode="contain"
         onError={() => setSourceIndex((prev) => prev + 1)}
       />

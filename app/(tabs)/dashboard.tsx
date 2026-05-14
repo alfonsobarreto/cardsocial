@@ -20,11 +20,13 @@ import {
 import { listMyBusinessCards, updateBusinessCard } from '@/services/businessCardsRepo';
 import { fetchBusinessCardHolderCounts } from '@/services/qrApi';
 import { auth, db } from '@/services/firebaseConfig';
-import { useLegacyPathEngine, LEGACY_DIAMOND_RADAR_STUDIO_FALLBACK_ORIGIN, LEGACY_REFERRALS_CEILING_UI } from '@/hooks/useLegacyPathEngine';
+import { useLegacyPathEngine, LEGACY_REFERRALS_CEILING_UI } from '@/hooks/useLegacyPathEngine';
 import { mintMarketRadarEmbedUrl } from '@/services/mintMarketRadarEmbedUrl';
 import { marketRadarMintUserMessage } from '@/services/marketRadarMintMessages';
+import { getMarketRadarRemoteConfig } from '@/services/marketRadarConfigService';
+import { userHasMarketRadarProAccess } from '@/services/marketRadarEntitlement';
+import { requestSubscriptionPanel } from '@/services/subscriptionNavigationIntent';
 import { requestBusinessCardSignatureEmail } from '@/services/requestBusinessCardSignatureEmail';
-import { tierIsDiamond } from '@/services/legacyPathEngine';
 import { resolveExpoPublicApiBaseUrl } from '@/services/expoPublicApiBaseUrl';
 import {
   effectiveDashboardDaysLeft,
@@ -84,7 +86,6 @@ type DashboardBusinessCard = BusinessCardDoc & {
 type DashboardHeaderInfo = {
   firstName: string;
   planTier: TierKey;
-  isSuperAdmin: boolean;
 };
 type TopIconDataRow = {
   key: string;
@@ -919,25 +920,17 @@ export default function DashboardScreen() {
   const [headerInfo, setHeaderInfo] = useState<DashboardHeaderInfo>({
     firstName: '',
     planTier: 'free',
-    isSuperAdmin: false,
   });
+  const [opsAdmin, setOpsAdmin] = useState(false);
+  const [marketRadarProOk, setMarketRadarProOk] = useState(false);
+  const [marketRadarProPrice, setMarketRadarProPrice] = useState(0);
+  const [marketRadarProCs, setMarketRadarProCs] = useState(0);
   const activeCard = cards[activeIndex] ?? cards[0] ?? null;
   const testingGrace = isDashboardTestingGraceModeEnabled();
-  const rawActiveRenewal =
-    headerInfo.isSuperAdmin || !activeCard ? null : expirationDateFor(activeCard);
-  const activeRenewalDate = effectiveDashboardRenewalDate(
-    rawActiveRenewal,
-    headerInfo.isSuperAdmin,
-    testingGrace,
-  );
-  const activeDaysLeft = effectiveDashboardDaysLeft(
-    rawActiveRenewal,
-    headerInfo.isSuperAdmin,
-    testingGrace,
-  );
-  const headerTone = headerInfo.isSuperAdmin
-    ? { ...toneColors('green'), glow: SHELL_ACCENT_GOLD, border: 'rgba(246,218,135,0.58)' }
-    : toneColors(toneForDays(activeDaysLeft));
+  const rawActiveRenewal = !activeCard ? null : expirationDateFor(activeCard);
+  const activeRenewalDate = effectiveDashboardRenewalDate(rawActiveRenewal, false, testingGrace);
+  const activeDaysLeft = effectiveDashboardDaysLeft(rawActiveRenewal, false, testingGrace);
+  const headerTone = toneColors(toneForDays(activeDaysLeft));
   const activeAnalytics = activeCard ? analyticsByBId[activeCard.bId] : undefined;
   const activeSeo = activeCard ? seoByBId[activeCard.bId] : undefined;
 
@@ -952,18 +945,26 @@ export default function DashboardScreen() {
         setCards([]);
         setAnalyticsByBId({});
         setSeoByBId({});
+        setOpsAdmin(false);
+        setMarketRadarProOk(false);
+        setMarketRadarProPrice(0);
+        setMarketRadarProCs(0);
         return;
       }
       setSessionUid(uid);
-      const [isUnlimitedAdmin, userSnap] = await Promise.all([
+      const [isUnlimitedAdmin, userSnap, radarCfg] = await Promise.all([
         hasUnlimitedAdminUi(uid),
         getDoc(doc(db, 'users', uid)).catch(() => null),
+        getMarketRadarRemoteConfig(),
       ]);
       const userData = userSnap?.exists() ? (userSnap.data() as Record<string, unknown>) : null;
+      setMarketRadarProPrice(radarCfg.proPriceUsd);
+      setMarketRadarProCs(radarCfg.proEquivalentCs);
+      setOpsAdmin(isUnlimitedAdmin);
+      setMarketRadarProOk(userHasMarketRadarProAccess(userData, isUnlimitedAdmin));
       setHeaderInfo({
         firstName: readDashboardFirstName(userData),
         planTier: effectiveTierKeyFromUserData(userData || {}),
-        isSuperAdmin: isUnlimitedAdmin,
       });
       const businessCards = (await listMyBusinessCards(uid))
         .map(toDashboardBusinessCard)
@@ -1079,20 +1080,40 @@ export default function DashboardScreen() {
     return s.length > 0 ? s : null;
   }, []);
 
-  const effectiveRadarBase = useMemo((): string | null => {
-    if (studioWebBase) return studioWebBase;
-    if (tierIsDiamond(legacyLive.legacyTier)) return LEGACY_DIAMOND_RADAR_STUDIO_FALLBACK_ORIGIN;
-    return null;
-  }, [studioWebBase, legacyLive.legacyTier]);
-
   const launchCommandCenter = useCallback(async () => {
-    if (!effectiveRadarBase || launchingRadar) return;
+    if (!studioWebBase || launchingRadar) return;
+    if (!marketRadarProOk && !opsAdmin) {
+      const priceLine =
+        marketRadarProPrice > 0 || marketRadarProCs > 0
+          ? [
+              marketRadarProPrice > 0
+                ? new Intl.NumberFormat(intlLocaleTagForAppLanguage(language), {
+                    style: 'currency',
+                    currency: 'USD',
+                    maximumFractionDigits: 0,
+                  }).format(marketRadarProPrice)
+                : null,
+              marketRadarProCs > 0 ? `${marketRadarProCs.toLocaleString()} CS` : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')
+          : tr('el precio publicado en Suscripción', 'the price listed under Subscription');
+      Alert.alert(
+        tr('Market Radar Pro', 'Market Radar Pro'),
+        tr(
+          `Esta experiencia requiere la suscripción Market Radar Pro (${priceLine}). Puedes activarla desde el menú → Suscripción.`,
+          `This experience requires the Market Radar Pro subscription (${priceLine}). You can activate it from the menu → Subscription.`,
+        ),
+        [
+          { text: tr('Cerrar', 'Close'), style: 'cancel' },
+          { text: tr('Ir a Suscripción', 'Go to Subscription'), onPress: () => requestSubscriptionPanel() },
+        ],
+      );
+      return;
+    }
     setLaunchingRadar(true);
     try {
-      // Siempre nuevo `et` evita abrir Safari con ticket caducado; WebBrowser evita about:blank con http LAN en iOS.
-      const mintOpts =
-        studioWebBase ? undefined : { originOverride: LEGACY_DIAMOND_RADAR_STUDIO_FALLBACK_ORIGIN };
-      const minted = await mintMarketRadarEmbedUrl(language, mintOpts);
+      const minted = await mintMarketRadarEmbedUrl(language);
       if (!minted.ok) {
         Alert.alert(
           tr('Radar no disponible', 'Radar unavailable'),
@@ -1116,11 +1137,16 @@ export default function DashboardScreen() {
     }
   }, [
     studioWebBase,
-    effectiveRadarBase,
     launchingRadar,
     language,
     tr,
+    marketRadarProOk,
+    opsAdmin,
+    marketRadarProPrice,
+    marketRadarProCs,
   ]);
+
+  const radarLaunchBlockedByPro = Boolean(studioWebBase && !marketRadarProOk && !opsAdmin);
 
   const handleChangePeriod = (mode: PeriodMode) => {
     setPeriodMode(mode);
@@ -1308,15 +1334,14 @@ export default function DashboardScreen() {
                 {tr('Hola', 'Hello')}, {displayFirstName}
               </Text>
               <Text style={[styles.plan, { color: chrome.planColor }]} numberOfLines={1}>
-                {tr('Plan', 'Plan')}{' '}
-                {headerInfo.isSuperAdmin ? tr('Ilimitado', 'Unlimited') : planLabelFromTier(headerInfo.planTier, tr)}
+                {tr('Plan', 'Plan')} {planLabelFromTier(headerInfo.planTier, tr)}
               </Text>
             </View>
             {activeCard ? (
               <ExpirationBadge
                 daysLeft={activeDaysLeft}
                 renewsAt={formatRenewal(activeRenewalDate, language)}
-                unlimited={headerInfo.isSuperAdmin}
+                unlimited={false}
               />
             ) : null}
           </LinearGradient>
@@ -1684,7 +1709,7 @@ export default function DashboardScreen() {
               {periodTitle(periodMode, periodOffset, language, tr)}
             </Text>
 
-            {effectiveRadarBase ? (
+            {studioWebBase ? (
               <View
                 style={[
                   styles.marketRadarWebShell,
@@ -1765,8 +1790,8 @@ export default function DashboardScreen() {
                 <MaterialCommunityIcons name="radar" size={32} color={chrome.iconGold} />
                 <Text style={[styles.marketRadarMissingText, { color: chrome.textSecondary }]}>
                   {tr(
-                    'Define EXPO_PUBLIC_STUDIO_WEB_URL en .env y reinicia Metro para activar el radar.',
-                    'Set EXPO_PUBLIC_STUDIO_WEB_URL in .env and restart Metro to activate the radar.',
+                    'El radar en pantalla completa no está disponible en esta versión. Actualiza la app o inténtalo más tarde.',
+                    'Full-screen radar is not available in this build. Update the app or try again later.',
                   )}
                 </Text>
               </View>
@@ -1775,17 +1800,21 @@ export default function DashboardScreen() {
             <TouchableOpacity
               style={[
                 styles.launchCommandButton,
-                !effectiveRadarBase && styles.launchCommandButtonDisabled,
+                (!studioWebBase || launchingRadar) && styles.launchCommandButtonDisabled,
               ]}
               onPress={launchCommandCenter}
-              disabled={!effectiveRadarBase || launchingRadar}
+              disabled={!studioWebBase || launchingRadar}
               activeOpacity={0.86}
               accessibilityRole="button"
-              accessibilityLabel={tr('Explorar radar en pantalla completa', 'Explore radar in full screen')}
+              accessibilityLabel={
+                radarLaunchBlockedByPro
+                  ? tr('Market Radar Pro requerido', 'Market Radar Pro required')
+                  : tr('Explorar radar en pantalla completa', 'Explore radar in full screen')
+              }
             >
               <LinearGradient
                 colors={
-                  effectiveRadarBase ? ['#F6DA87', chrome.gold, '#A87B1F'] : ['rgba(150,120,60,0.4)', 'rgba(80,60,30,0.4)']
+                  studioWebBase ? ['#F6DA87', chrome.gold, '#A87B1F'] : ['rgba(150,120,60,0.4)', 'rgba(80,60,30,0.4)']
                 }
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -1797,26 +1826,31 @@ export default function DashboardScreen() {
                   <Maximize2 size={18} color="#1B1205" strokeWidth={2.2} />
                 )}
                 <Text style={styles.launchCommandText} numberOfLines={2}>
-                  {tr('Explorar Radar en Pantalla Completa', 'Explore the radar in full screen')}
+                  {radarLaunchBlockedByPro
+                    ? tr(
+                        'Explorar Radar (requiere suscripción Pro)',
+                        'Explore the radar (Pro subscription required)',
+                      )
+                    : tr('Explorar Radar en Pantalla Completa', 'Explore the radar in full screen')}
                 </Text>
                 <MaterialCommunityIcons name="arrow-top-right" size={16} color="#1B1205" />
               </LinearGradient>
             </TouchableOpacity>
 
-            <Text style={[styles.executiveRadarOriginCaption, { color: chrome.textMuted, marginTop: 6 }]} numberOfLines={3}>
-              {effectiveRadarBase
-                ? studioWebBase
+            <Text style={[styles.executiveRadarOriginCaption, { color: chrome.textMuted, marginTop: 6 }]} numberOfLines={4}>
+              {studioWebBase
+                ? radarLaunchBlockedByPro
                   ? tr(
+                      'Para abrir el Market Radar necesitas la suscripción Market Radar Pro (precio en Suscripción). Toca el botón para más información o para ir a la tienda.',
+                      'Opening Market Radar requires the Market Radar Pro subscription (pricing under Subscription). Tap the button for details or to open the store.',
+                    )
+                  : tr(
                       'Mapbox y capas de intención en tu navegador, con la superficie que merecen.',
                       'Mapbox and intent layers open in your browser at the scale they deserve.',
                     )
-                  : tr(
-                      'Acceso LEGACY Diamante: el Radar usa la Studio pública Card-Social (producción).',
-                      'Diamond LEGACY access: the Radar launches the live Card‑Social Studio (production origin).',
-                    )
                 : tr(
-                    'Define EXPO_PUBLIC_STUDIO_WEB_URL en .env y reinicia Metro para activar el radar.',
-                    'Set EXPO_PUBLIC_STUDIO_WEB_URL in .env and restart Metro to activate the radar.',
+                    'El radar en pantalla completa no está disponible en esta versión. Actualiza la app o inténtalo más tarde.',
+                    'Full-screen radar is not available in this build. Update the app or try again later.',
                   )}
             </Text>
           </View>

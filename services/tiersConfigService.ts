@@ -1,6 +1,6 @@
 /**
  * Lectura de pricing / límites publicados en Firestore (`system_config/tiers`).
- * Misma forma que admin-web `rulesService.ts` para paridad CMS ↔ app.
+ * Sin precios inventados: si no hay documento, retorna null. Coerción de campos faltantes usa solo ceros.
  */
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/services/firebaseConfig';
@@ -13,13 +13,28 @@ export type TierLimits = {
   businessCardsLimit: number;
   premiumThemes: boolean;
   monthlyPriceUsd: number;
+  /** Equivalente publicado en CS (Regla de los dos casilleros; no derivado de USD en código). */
+  monthlyEquivalentCs: number;
+  annualPriceUsd: number;
+  annualEquivalentCs: number;
+  voipMinutesIncluded: number;
+  annualWelcomeGiftCs: number;
   freeTrialDays: 0 | 14 | 30 | 90;
 };
 
 export type AddOnsConfig = {
   singleBusinessCardExtraUsd: number;
+  singleBusinessCardExtraCs: number;
   physicalPvcCardUsd: number;
+  physicalPvcCardCs: number;
   physicalMetalCardUsd: number;
+  physicalMetalCardCs: number;
+  shippingUsDomesticUsd: number;
+  shippingUsDomesticCs: number;
+  shippingMxCaUsd: number;
+  shippingMxCaCs: number;
+  shippingInternationalUsd: number;
+  shippingInternationalCs: number;
 };
 
 export type TiersConfig = Record<TierKey, TierLimits> & {
@@ -28,36 +43,41 @@ export type TiersConfig = Record<TierKey, TierLimits> & {
 
 const TIERS_REF = doc(db, 'system_config', 'tiers');
 
+const ZERO_TIER: TierLimits = {
+  iconDataLimit: 0,
+  smartCardsLimit: 0,
+  businessCardsLimit: 0,
+  premiumThemes: false,
+  monthlyPriceUsd: 0,
+  monthlyEquivalentCs: 0,
+  annualPriceUsd: 0,
+  annualEquivalentCs: 0,
+  voipMinutesIncluded: 0,
+  annualWelcomeGiftCs: 0,
+  freeTrialDays: 0,
+};
+
+const ZERO_ADDONS: AddOnsConfig = {
+  singleBusinessCardExtraUsd: 0,
+  singleBusinessCardExtraCs: 0,
+  physicalPvcCardUsd: 0,
+  physicalPvcCardCs: 0,
+  physicalMetalCardUsd: 0,
+  physicalMetalCardCs: 0,
+  shippingUsDomesticUsd: 0,
+  shippingUsDomesticCs: 0,
+  shippingMxCaUsd: 0,
+  shippingMxCaCs: 0,
+  shippingInternationalUsd: 0,
+  shippingInternationalCs: 0,
+};
+
+/** Estructura vacía (ceros) para formularios / estado inicial; no sustituye al CMS en runtime. */
 export const DEFAULT_TIERS_CONFIG: TiersConfig = {
-  free: {
-    iconDataLimit: 10,
-    smartCardsLimit: 5,
-    businessCardsLimit: 0,
-    premiumThemes: false,
-    monthlyPriceUsd: 0,
-    freeTrialDays: 0,
-  },
-  influencer: {
-    iconDataLimit: 20,
-    smartCardsLimit: 10,
-    businessCardsLimit: 1,
-    premiumThemes: true,
-    monthlyPriceUsd: 7.99,
-    freeTrialDays: 90,
-  },
-  business: {
-    iconDataLimit: 50,
-    smartCardsLimit: 10,
-    businessCardsLimit: 5,
-    premiumThemes: true,
-    monthlyPriceUsd: 24.99,
-    freeTrialDays: 90,
-  },
-  addOns: {
-    singleBusinessCardExtraUsd: 4.99,
-    physicalPvcCardUsd: 29.99,
-    physicalMetalCardUsd: 99.99,
-  },
+  free: { ...ZERO_TIER },
+  influencer: { ...ZERO_TIER },
+  business: { ...ZERO_TIER },
+  addOns: { ...ZERO_ADDONS },
 };
 
 function coerceTrialDays(value: unknown, fallback: TierLimits['freeTrialDays']): TierLimits['freeTrialDays'] {
@@ -67,33 +87,87 @@ function coerceTrialDays(value: unknown, fallback: TierLimits['freeTrialDays']):
   return fallback;
 }
 
-function coerceTierLimits(raw: unknown, fallback: TierLimits): TierLimits {
-  if (!raw || typeof raw !== 'object') return { ...fallback };
+function coerceTierLimits(raw: unknown, structuralFallback: TierLimits): TierLimits {
+  if (!raw || typeof raw !== 'object') return { ...structuralFallback };
   const o = raw as Record<string, unknown>;
+  const monthlyPriceUsd = Math.max(0, Number(o.monthlyPriceUsd ?? structuralFallback.monthlyPriceUsd) || 0);
+  const monthlyEqRaw = o.monthlyEquivalentCs;
+  const monthlyEquivalentCs =
+    monthlyEqRaw !== undefined && monthlyEqRaw !== null && String(monthlyEqRaw).trim() !== ''
+      ? Math.max(0, Math.floor(Number(monthlyEqRaw) || 0))
+      : Math.max(0, Math.floor(structuralFallback.monthlyEquivalentCs));
+  const annualRaw = o.annualPriceUsd;
+  const annualPriceUsd =
+    annualRaw !== undefined && annualRaw !== null && String(annualRaw).trim() !== ''
+      ? Math.max(0, Number(annualRaw) || 0)
+      : 0;
+  const annualEqRaw = o.annualEquivalentCs;
+  const annualEquivalentCs =
+    annualEqRaw !== undefined && annualEqRaw !== null && String(annualEqRaw).trim() !== ''
+      ? Math.max(0, Math.floor(Number(annualEqRaw) || 0))
+      : Math.max(0, Math.floor(structuralFallback.annualEquivalentCs));
+  const voipRaw = o.voipMinutesIncluded;
+  const voipMinutesIncluded =
+    voipRaw !== undefined && voipRaw !== null && String(voipRaw).trim() !== ''
+      ? Math.max(0, Math.floor(Number(voipRaw) || 0))
+      : Math.max(0, Math.floor(structuralFallback.voipMinutesIncluded));
+  const giftRaw = o.annualWelcomeGiftCs;
+  const annualWelcomeGiftCs =
+    giftRaw !== undefined && giftRaw !== null && String(giftRaw).trim() !== ''
+      ? Math.max(0, Math.floor(Number(giftRaw) || 0))
+      : Math.max(0, Math.floor(structuralFallback.annualWelcomeGiftCs));
   return {
-    iconDataLimit: Math.max(0, Number(o.iconDataLimit ?? fallback.iconDataLimit) || fallback.iconDataLimit),
-    smartCardsLimit: Math.max(0, Number(o.smartCardsLimit ?? fallback.smartCardsLimit) || fallback.smartCardsLimit),
+    iconDataLimit: Math.max(0, Number(o.iconDataLimit ?? structuralFallback.iconDataLimit) || 0),
+    smartCardsLimit: Math.max(0, Number(o.smartCardsLimit ?? structuralFallback.smartCardsLimit) || 0),
     businessCardsLimit: Math.max(
       0,
-      Number(o.businessCardsLimit ?? fallback.businessCardsLimit) || fallback.businessCardsLimit,
+      Number(o.businessCardsLimit ?? structuralFallback.businessCardsLimit) || 0,
     ),
-    premiumThemes: Boolean(o.premiumThemes ?? fallback.premiumThemes),
-    monthlyPriceUsd: Math.max(0, Number(o.monthlyPriceUsd ?? fallback.monthlyPriceUsd) || 0),
-    freeTrialDays: coerceTrialDays(o.freeTrialDays, fallback.freeTrialDays),
+    premiumThemes: Boolean(o.premiumThemes ?? structuralFallback.premiumThemes),
+    monthlyPriceUsd,
+    monthlyEquivalentCs,
+    annualPriceUsd,
+    annualEquivalentCs,
+    voipMinutesIncluded,
+    annualWelcomeGiftCs,
+    freeTrialDays: coerceTrialDays(o.freeTrialDays, structuralFallback.freeTrialDays),
   };
 }
 
 function coerceAddOns(raw: unknown): AddOnsConfig {
-  const fallback = DEFAULT_TIERS_CONFIG.addOns;
-  if (!raw || typeof raw !== 'object') return { ...fallback };
+  if (!raw || typeof raw !== 'object') return { ...ZERO_ADDONS };
   const o = raw as Record<string, unknown>;
   return {
     singleBusinessCardExtraUsd: Math.max(
       0,
-      Number(o.singleBusinessCardExtraUsd ?? fallback.singleBusinessCardExtraUsd) || 0,
+      Number(o.singleBusinessCardExtraUsd ?? ZERO_ADDONS.singleBusinessCardExtraUsd) || 0,
     ),
-    physicalPvcCardUsd: Math.max(0, Number(o.physicalPvcCardUsd ?? fallback.physicalPvcCardUsd) || 0),
-    physicalMetalCardUsd: Math.max(0, Number(o.physicalMetalCardUsd ?? fallback.physicalMetalCardUsd) || 0),
+    singleBusinessCardExtraCs: Math.max(
+      0,
+      Math.floor(Number(o.singleBusinessCardExtraCs ?? ZERO_ADDONS.singleBusinessCardExtraCs) || 0),
+    ),
+    physicalPvcCardUsd: Math.max(0, Number(o.physicalPvcCardUsd ?? ZERO_ADDONS.physicalPvcCardUsd) || 0),
+    physicalPvcCardCs: Math.max(0, Math.floor(Number(o.physicalPvcCardCs ?? ZERO_ADDONS.physicalPvcCardCs) || 0)),
+    physicalMetalCardUsd: Math.max(0, Number(o.physicalMetalCardUsd ?? ZERO_ADDONS.physicalMetalCardUsd) || 0),
+    physicalMetalCardCs: Math.max(0, Math.floor(Number(o.physicalMetalCardCs ?? ZERO_ADDONS.physicalMetalCardCs) || 0)),
+    shippingUsDomesticUsd: Math.max(
+      0,
+      Number(o.shippingUsDomesticUsd ?? ZERO_ADDONS.shippingUsDomesticUsd) || 0,
+    ),
+    shippingUsDomesticCs: Math.max(
+      0,
+      Math.floor(Number(o.shippingUsDomesticCs ?? ZERO_ADDONS.shippingUsDomesticCs) || 0),
+    ),
+    shippingMxCaUsd: Math.max(0, Number(o.shippingMxCaUsd ?? ZERO_ADDONS.shippingMxCaUsd) || 0),
+    shippingMxCaCs: Math.max(0, Math.floor(Number(o.shippingMxCaCs ?? ZERO_ADDONS.shippingMxCaCs) || 0)),
+    shippingInternationalUsd: Math.max(
+      0,
+      Number(o.shippingInternationalUsd ?? ZERO_ADDONS.shippingInternationalUsd) || 0,
+    ),
+    shippingInternationalCs: Math.max(
+      0,
+      Math.floor(Number(o.shippingInternationalCs ?? ZERO_ADDONS.shippingInternationalCs) || 0),
+    ),
   };
 }
 
@@ -101,22 +175,23 @@ function mergeWithDefaults(
   data: (Partial<Record<TierKey, unknown>> & { addOns?: unknown }) | undefined,
 ): TiersConfig {
   return {
-    free: coerceTierLimits(data?.free, DEFAULT_TIERS_CONFIG.free),
-    influencer: coerceTierLimits(data?.influencer, DEFAULT_TIERS_CONFIG.influencer),
-    business: coerceTierLimits(data?.business, DEFAULT_TIERS_CONFIG.business),
+    free: coerceTierLimits(data?.free, ZERO_TIER),
+    influencer: coerceTierLimits(data?.influencer, ZERO_TIER),
+    business: coerceTierLimits(data?.business, ZERO_TIER),
     addOns: coerceAddOns(data?.addOns),
   };
 }
 
-export async function getTiersConfig(): Promise<TiersConfig> {
+/** `null` si el documento no existe o falla la lectura (no hay datos de CMS). */
+export async function getTiersConfig(): Promise<TiersConfig | null> {
   try {
     const snap = await getDoc(TIERS_REF);
     if (!snap.exists()) {
-      return { ...DEFAULT_TIERS_CONFIG };
+      return null;
     }
     return mergeWithDefaults(snap.data() as Partial<Record<TierKey, unknown>> & { addOns?: unknown });
   } catch {
-    return { ...DEFAULT_TIERS_CONFIG };
+    return null;
   }
 }
 
@@ -141,15 +216,6 @@ function subscriptionTierActive(data: Record<string, unknown>): boolean {
   return false;
 }
 
-/**
- * Closed Alpha / TestFlight: si está activo, todos los usuarios del binario reciben tier de lujo
- * sin depender de Firestore ni suscripción (solo cliente; desactivar en store público).
- *
- * `EXPO_PUBLIC_CLOSED_ALPHA_FULL_TIER`:
- * - vacío / `0` / `false` / `off` → desactivado
- * - `1` / `true` / `yes` / `business` → `business`
- * - `influencer` → `influencer`
- */
 export function readClosedAlphaTierOverride(): TierKey | null {
   try {
     const raw = String(process.env.EXPO_PUBLIC_CLOSED_ALPHA_FULL_TIER ?? '').trim().toLowerCase();
@@ -168,9 +234,6 @@ export function readClosedAlphaTierOverride(): TierKey | null {
   return null;
 }
 
-/**
- * Tier efectivo a partir del doc `users/{uid}` (misma regla que business cards / Card Studio web).
- */
 export function effectiveTierKeyFromUserData(data: Record<string, unknown>): TierKey {
   const alphaTier = readClosedAlphaTierOverride();
   if (alphaTier) {

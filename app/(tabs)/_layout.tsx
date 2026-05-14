@@ -24,6 +24,7 @@ import { requestLocationPermission } from '@/services/geolocationService';
 import { intlLocaleTagForAppLanguage, trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { listBlockedRelations, unblockRelationship } from '@/services/qrApi';
+import { touchSessionActivityForNonTrusted } from '@/services/sessionInactivity';
 import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
 import {
     type RelationshipEntry,
@@ -33,6 +34,10 @@ import {
 } from '@/services/relationshipService';
 import { hasUnlimitedAdminUi, isSuperAdmin } from '@/services/roleService';
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
+import {
+  subscribeSubscriptionPanelOpen,
+  type SubscriptionScrollSection,
+} from '@/services/subscriptionNavigationIntent';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image as ExpoImage } from 'expo-image';
@@ -40,6 +45,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Tabs, useRouter } from 'expo-router';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { useNavigation } from '@react-navigation/native';
 import {
     collection,
     doc,
@@ -123,8 +129,8 @@ function DashboardTabGlyph({ color, size }: { color?: string; size?: number; str
   return <MaterialCommunityIcons name="chart-line-variant" size={size ?? 24} color={color ?? 'rgba(255,255,255,0.5)'} />;
 }
 
-function shouldShowDashboardTab(params: { isSuperAdmin: boolean; hasBusinessCardWithBId: boolean }) {
-  return params.isSuperAdmin || params.hasBusinessCardWithBId;
+function shouldShowDashboardTab(hasBusinessCardWithBId: boolean) {
+  return hasBusinessCardWithBId;
 }
 
 type EditableProfile = {
@@ -145,6 +151,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const tr = (es: string, en: string) => trEsEn(es, en, language);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [activePanel, setActivePanel] = useState<'menu' | 'profile' | 'terms' | 'policy' | 'about' | 'privacy' | 'subscription' | 'blocked_users'>('menu');
+  const [subscriptionScrollSection, setSubscriptionScrollSection] = useState<SubscriptionScrollSection | null>(null);
   const [creditsRefreshTrigger, setCreditsRefreshTrigger] = useState(0);
   const [welcomeBonusApplied, setWelcomeBonusApplied] = useState(false);
   const [userIsSuperAdmin, setUserIsSuperAdmin] = useState(false);
@@ -169,12 +176,10 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const [editFullName, setEditFullName] = useState('');
   const [editNickname, setEditNickname] = useState('');
   const router = useRouter();
+  const navigation = useNavigation();
   const shell = palette[resolvedMode === 'noche' ? 'dark' : 'light'];
   const tabInactiveMuted = resolvedMode === 'noche' ? 'rgba(235,235,245,0.42)' : 'rgba(60,60,67,0.42)';
-  const dashboardTabVisible = shouldShowDashboardTab({
-    isSuperAdmin: userIsSuperAdmin,
-    hasBusinessCardWithBId: userHasBusinessCardWithBId,
-  });
+  const dashboardTabVisible = shouldShowDashboardTab(userHasBusinessCardWithBId);
   const insets = useSafeAreaInsets();
   /** Android a veces reporta bottom=0 con nav de 3 botones; igualamos aire arriba/abajo del tab bar. */
   const tabBarInnerVerticalPad = 10;
@@ -255,6 +260,24 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
       headerAvatarFsUnsubRef.current = undefined;
     };
   }, [refreshHeaderAvatar]);
+
+  useEffect(() => {
+    const bumpActivity = () => {
+      const u = auth.currentUser?.uid;
+      if (u) void touchSessionActivityForNonTrusted(u);
+    };
+    bumpActivity();
+    const unsub = navigation.addListener('state', bumpActivity);
+    return unsub;
+  }, [navigation]);
+
+  useEffect(() => {
+    return subscribeSubscriptionPanelOpen((payload) => {
+      setSubscriptionScrollSection(payload.scrollSection ?? null);
+      setActivePanel('subscription');
+      setDrawerVisible(true);
+    });
+  }, []);
 
   const panelTitle = useMemo(() => {
     if (activePanel === 'profile') return tr('Perfil', 'Profile');
@@ -1265,7 +1288,14 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                     )}
                   </ScrollView>
                 ) : activePanel === 'subscription' ? (
-                  <Subscription onClose={() => setActivePanel('menu')} />
+                  <Subscription
+                    onClose={() => {
+                      setSubscriptionScrollSection(null);
+                      setActivePanel('menu');
+                    }}
+                    initialScrollSection={subscriptionScrollSection}
+                    onScrollIntentConsumed={() => setSubscriptionScrollSection(null)}
+                  />
                 ) : activePanel === 'blocked_users' ? (
                   <View style={styles.legalScroll}>
                     {/* ── 3-tab selector ──────────────────────────────────────── */}

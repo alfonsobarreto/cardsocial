@@ -49,7 +49,7 @@ export default function RulesTiers() {
       try {
         const [next, logs] = await Promise.all([getTiersConfig(), getPricingAuditLogs()]);
         if (isMounted) {
-          setConfig(next);
+          setConfig(next ?? DEFAULT_TIERS_CONFIG);
           setAuditLogs(logs);
         }
       } catch (error) {
@@ -211,6 +211,82 @@ export default function RulesTiers() {
                     </label>
 
                     <label className="block">
+                      <span className="text-sm font-medium text-slate-700">Equivalente mensual (CS)</span>
+                      <input
+                        type="number"
+                        min={0}
+                        className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
+                        value={tier.monthlyEquivalentCs}
+                        onChange={(e) =>
+                          updateTier(key, { monthlyEquivalentCs: Number.parseInt(e.target.value, 10) || 0 })
+                        }
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="text-sm font-medium text-slate-700">Precio anual (USD)</span>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        Publicado en app · típico: 12 meses al costo de 9 × mensual (editable).
+                      </p>
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
+                        value={tier.annualPriceUsd}
+                        onChange={(e) =>
+                          updateTier(key, { annualPriceUsd: Number.parseFloat(e.target.value) || 0 })
+                        }
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="text-sm font-medium text-slate-700">Equivalente anual (CS)</span>
+                      <input
+                        type="number"
+                        min={0}
+                        className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
+                        value={tier.annualEquivalentCs}
+                        onChange={(e) =>
+                          updateTier(key, { annualEquivalentCs: Number.parseInt(e.target.value, 10) || 0 })
+                        }
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="text-sm font-medium text-slate-700">Bono bienvenida anual (CS)</span>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        Una sola acreditación por evento de pago anual (activación o renovación). No hay regalo mensual
+                        recurrente. El backend aplica esto en el webhook de RevenueCat.
+                      </p>
+                      <input
+                        type="number"
+                        min={0}
+                        className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
+                        value={tier.annualWelcomeGiftCs}
+                        onChange={(e) =>
+                          updateTier(key, { annualWelcomeGiftCs: Number.parseInt(e.target.value, 10) || 0 })
+                        }
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="text-sm font-medium text-slate-700">Minutos Agora / mes (incluidos)</span>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        Cupo de Ghost-Link por ciclo UTC; minutos no usados no arrastran. Comprados ≠ suscripción (tienda futura).
+                      </p>
+                      <input
+                        type="number"
+                        min={0}
+                        className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
+                        value={tier.voipMinutesIncluded}
+                        onChange={(e) =>
+                          updateTier(key, { voipMinutesIncluded: Number.parseInt(e.target.value, 10) || 0 })
+                        }
+                      />
+                    </label>
+
+                    <label className="block">
                       <span className="text-sm font-medium text-slate-700">Free Trial</span>
                       <select
                         className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
@@ -268,9 +344,9 @@ export default function RulesTiers() {
               </p>
             </div>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-3">
-              <label className="block">
-                <span className="text-sm font-medium text-slate-700">Single Business Card Extra (USD)</span>
+            <div className="mt-6 grid gap-4 md:grid-cols-6">
+              <label className="block md:col-span-3">
+                <span className="text-sm font-medium text-slate-700">Single Business Card Extra — USD</span>
                 <input
                   type="number"
                   min={0}
@@ -280,9 +356,21 @@ export default function RulesTiers() {
                   onChange={(e) => updateAddOns({ singleBusinessCardExtraUsd: Number.parseFloat(e.target.value) || 0 })}
                 />
               </label>
+              <label className="block md:col-span-3">
+                <span className="text-sm font-medium text-slate-700">Single Business Card Extra — CS</span>
+                <input
+                  type="number"
+                  min={0}
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100"
+                  value={config.addOns.singleBusinessCardExtraCs}
+                  onChange={(e) =>
+                    updateAddOns({ singleBusinessCardExtraCs: Number.parseInt(e.target.value, 10) || 0 })
+                  }
+                />
+              </label>
 
-              <label className="block">
-                <span className="text-sm font-medium text-slate-700">Tarjeta Física PVC (USD)</span>
+              <label className="block md:col-span-3">
+                <span className="text-sm font-medium text-slate-700">Tarjeta Física PVC — USD</span>
                 <input
                   type="number"
                   min={0}
@@ -292,9 +380,19 @@ export default function RulesTiers() {
                   onChange={(e) => updateAddOns({ physicalPvcCardUsd: Number.parseFloat(e.target.value) || 0 })}
                 />
               </label>
+              <label className="block md:col-span-3">
+                <span className="text-sm font-medium text-slate-700">Tarjeta Física PVC — CS</span>
+                <input
+                  type="number"
+                  min={0}
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100"
+                  value={config.addOns.physicalPvcCardCs}
+                  onChange={(e) => updateAddOns({ physicalPvcCardCs: Number.parseInt(e.target.value, 10) || 0 })}
+                />
+              </label>
 
-              <label className="block">
-                <span className="text-sm font-medium text-slate-700">Tarjeta Física Metal (USD)</span>
+              <label className="block md:col-span-3">
+                <span className="text-sm font-medium text-slate-700">Tarjeta Física Metal — USD</span>
                 <input
                   type="number"
                   min={0}
@@ -304,6 +402,99 @@ export default function RulesTiers() {
                   onChange={(e) => updateAddOns({ physicalMetalCardUsd: Number.parseFloat(e.target.value) || 0 })}
                 />
               </label>
+              <label className="block md:col-span-3">
+                <span className="text-sm font-medium text-slate-700">Tarjeta Física Metal — CS</span>
+                <input
+                  type="number"
+                  min={0}
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100"
+                  value={config.addOns.physicalMetalCardCs}
+                  onChange={(e) => updateAddOns({ physicalMetalCardCs: Number.parseInt(e.target.value, 10) || 0 })}
+                />
+              </label>
+            </div>
+
+            <div className="mt-10 border-t border-slate-200 pt-8">
+              <h3 className="text-lg font-semibold text-slate-950">Costos NFC de Shipping y Handling</h3>
+              <p className="mt-2 text-sm text-slate-500">
+                Par USD + CS por zona (Regla de los dos casilleros). La app muestra ambos montos publicados.
+              </p>
+              <p className="mt-1 font-mono text-xs text-slate-400">
+                Firestore: addOns.shipping*Usd y addOns.shipping*Cs
+              </p>
+              <div className="mt-4 grid gap-4 md:grid-cols-6">
+                <label className="block md:col-span-3">
+                  <span className="text-sm font-medium text-slate-700">US domestic — USD</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100"
+                    value={config.addOns.shippingUsDomesticUsd}
+                    onChange={(e) =>
+                      updateAddOns({ shippingUsDomesticUsd: Number.parseFloat(e.target.value) || 0 })
+                    }
+                  />
+                </label>
+                <label className="block md:col-span-3">
+                  <span className="text-sm font-medium text-slate-700">US domestic — CS</span>
+                  <input
+                    type="number"
+                    min={0}
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100"
+                    value={config.addOns.shippingUsDomesticCs}
+                    onChange={(e) =>
+                      updateAddOns({ shippingUsDomesticCs: Number.parseInt(e.target.value, 10) || 0 })
+                    }
+                  />
+                </label>
+                <label className="block md:col-span-3">
+                  <span className="text-sm font-medium text-slate-700">MX / CA — USD</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100"
+                    value={config.addOns.shippingMxCaUsd}
+                    onChange={(e) => updateAddOns({ shippingMxCaUsd: Number.parseFloat(e.target.value) || 0 })}
+                  />
+                </label>
+                <label className="block md:col-span-3">
+                  <span className="text-sm font-medium text-slate-700">MX / CA — CS</span>
+                  <input
+                    type="number"
+                    min={0}
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100"
+                    value={config.addOns.shippingMxCaCs}
+                    onChange={(e) => updateAddOns({ shippingMxCaCs: Number.parseInt(e.target.value, 10) || 0 })}
+                  />
+                </label>
+                <label className="block md:col-span-3">
+                  <span className="text-sm font-medium text-slate-700">Internacional — USD</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100"
+                    value={config.addOns.shippingInternationalUsd}
+                    onChange={(e) =>
+                      updateAddOns({ shippingInternationalUsd: Number.parseFloat(e.target.value) || 0 })
+                    }
+                  />
+                </label>
+                <label className="block md:col-span-3">
+                  <span className="text-sm font-medium text-slate-700">Internacional — CS</span>
+                  <input
+                    type="number"
+                    min={0}
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100"
+                    value={config.addOns.shippingInternationalCs}
+                    onChange={(e) =>
+                      updateAddOns({ shippingInternationalCs: Number.parseInt(e.target.value, 10) || 0 })
+                    }
+                  />
+                </label>
+              </div>
             </div>
           </section>
 

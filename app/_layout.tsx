@@ -13,7 +13,8 @@ import { registerPushToken } from '@/services/pushRegistration';
 import { initRevenueCatOnce } from '@/services/revenueCatInit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
+import { checkInactivitySignOutWithoutTouch, enforceInactivitySignOutIfNeeded } from '@/services/sessionInactivity';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -42,6 +43,7 @@ export default function RootLayout() {
 
 
 function RootNavigator() {
+  const router = useRouter();
   const [isLocked, setIsLocked] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const appState = useRef(AppState.currentState);
@@ -95,6 +97,14 @@ function RootNavigator() {
       });
       if (result.success) {
         setIsLocked(false);
+        try {
+          const r = await enforceInactivitySignOutIfNeeded();
+          if (r === 'signed_out') {
+            router.replace('/signin');
+          }
+        } catch {
+          /* ignore */
+        }
       } else {
         setIsLocked(true);
       }
@@ -114,6 +124,14 @@ function RootNavigator() {
         await handleBiometricAuth();
       } else {
         setIsLocked(false);
+        try {
+          const r = await enforceInactivitySignOutIfNeeded();
+          if (r === 'signed_out') {
+            router.replace('/signin');
+          }
+        } catch {
+          /* ignore */
+        }
       }
     };
 
@@ -143,6 +161,24 @@ function RootNavigator() {
       void registerPushToken();
     }
   }, [isLocked]);
+
+  useEffect(() => {
+    if (isLocked) return;
+    const id = setInterval(() => {
+      if (AppState.currentState !== 'active') return;
+      void (async () => {
+        try {
+          const r = await checkInactivitySignOutWithoutTouch();
+          if (r === 'signed_out') {
+            router.replace('/signin');
+          }
+        } catch {
+          /* ignore */
+        }
+      })();
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [isLocked, router]);
 
   // UI de bloqueo
   if (isLocked) {

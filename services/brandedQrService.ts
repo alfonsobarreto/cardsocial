@@ -260,11 +260,11 @@ export function generatePublicBusinessWebUrl(bId: string, uid: string): string {
 }
 
 /**
- * Deep link de app (legacy / intent filters). Sigue soportado por el escáner.
- * Preferir `generatePublicBusinessWebUrl` en QRs mostrados al usuario.
+ * Custom scheme (`app.json`: `cardsocial`). Path `b/{bId}` alinea con Expo `app/b/[bId].tsx`.
+ * El escáner aún acepta legacy `…/business/…`.
  */
 export function generatePermanentBusinessLink(bId: string, uid: string): string {
-  return `card-social://business/${bId}?uid=${encodeURIComponent(uid)}&mode=permanent`;
+  return `cardsocial://b/${encodeURIComponent(String(bId || '').trim())}?uid=${encodeURIComponent(String(uid || '').trim())}&mode=permanent`;
 }
 
 /**

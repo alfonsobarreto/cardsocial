@@ -1,12 +1,13 @@
 /**
  * Bundles temáticos del Card-Studio: un pago desbloquea N variantes de color + pack de iconos vinculado.
+ * Precios en CS: `system_config/cs_economy.themeBundles` (Superadmin).
  */
 
 import {
   TEXAS_LONGHORNS_BUNDLE_ID,
   TEXAS_LONGHORNS_ICON_SEEDS,
 } from '@/constants/texasLonghornsPack';
-import { csCreditsFromUsd } from '@/constants/csEconomy';
+import { getCsEconomyConfig } from '@/services/csEconomyConfigService';
 import { db } from '@/services/firebaseConfig';
 import { deductCredits } from '@/services/creditsService';
 import {
@@ -21,7 +22,6 @@ export type ThemeBundleDefinition = {
   id: string;
   nameEs: string;
   nameEn: string;
-  creditsPrice: number;
   /** IDs en constants/themeChest.ts */
   themeIds: string[];
   iconSeeds: CatalogIconSeed[];
@@ -32,7 +32,6 @@ export const THEME_BUNDLES: ThemeBundleDefinition[] = [
     id: TEXAS_LONGHORNS_BUNDLE_ID,
     nameEs: 'Texas Longhorns',
     nameEn: 'Texas Longhorns',
-    creditsPrice: csCreditsFromUsd(32),
     themeIds: ['texas_burnt_orange', 'texas_whiteout', 'texas_night_game'],
     iconSeeds: TEXAS_LONGHORNS_ICON_SEEDS,
   },
@@ -40,6 +39,12 @@ export const THEME_BUNDLES: ThemeBundleDefinition[] = [
 
 export function getThemeBundleById(id: string): ThemeBundleDefinition | undefined {
   return THEME_BUNDLES.find((b) => b.id === id);
+}
+
+export async function resolveThemeBundleCreditsCs(bundleId: string): Promise<number> {
+  const econ = await getCsEconomyConfig();
+  const row = econ.themeBundles[bundleId];
+  return Math.max(0, Math.floor(row?.creditsCs ?? 0));
 }
 
 export async function userOwnsThemeBundle(userId: string, bundleId: string): Promise<boolean> {
@@ -59,7 +64,11 @@ export async function purchaseThemeBundle(userId: string, bundleId: string): Pro
   if (await userOwnsThemeBundle(userId, bundleId)) {
     return true;
   }
-  const ok = await deductCredits(userId, bundle.creditsPrice, `theme_bundle:${bundleId}`);
+  const creditsPrice = await resolveThemeBundleCreditsCs(bundleId);
+  if (creditsPrice <= 0) {
+    return false;
+  }
+  const ok = await deductCredits(userId, creditsPrice, `theme_bundle:${bundleId}`);
   if (!ok) {
     return false;
   }

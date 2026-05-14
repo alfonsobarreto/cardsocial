@@ -85,7 +85,7 @@ const EN: Record<string, string> = {
   'form.nationalPh': 'Digits only, no country code',
   'form.openPhone': 'Open phone dialer (same as the app)',
   'form.document': 'File',
-  'form.documentHint': 'Uploads go through the same moderation as the mobile app (needs NEXT_PUBLIC_API_URL + gateway key).',
+  'form.documentHint': 'Uploads use the same safety review as the mobile app.',
   'form.dropTitle': 'Drop a document here',
   'form.dropSubtitle': 'Drag and drop a PDF/image, or click to choose a file.',
   'form.dropReplace': 'Drop another file here, or click to replace it.',
@@ -105,9 +105,9 @@ const EN: Record<string, string> = {
   'form.errorDup': 'Another item already uses that name. Pick a different one.',
   'form.errorGhostCreate': 'Ghost‑Link is added once by Card‑Social. Edit the existing one in the list.',
   'form.vaultLimit': 'Vault is full (free tier). Remove an item in the app to add more.',
-  'form.uploadError': 'Upload failed. Check API URL and gateway key, or try again later.',
+  'form.uploadError': 'Upload failed. Check your connection and try again.',
   'form.syncPublicCardFailed':
-    'Vault saved, but updating your public card / QR on the server failed. Deploy the latest API and ensure NEXT_PUBLIC_API_URL + gateway key are set. Details in the browser console.',
+    'Vault saved, but your public card could not be updated. Try again in a few minutes or open Card-Social from your phone.',
   'form.documentQrHint': 'Long-press or right-click the image to scan a QR code inside it.',
   'qr.detectedTitle': 'QR detected',
   'qr.openConfirm': 'Open in a new tab?',
@@ -121,7 +121,8 @@ const EN: Record<string, string> = {
   'favicon.searching': 'Searching favicon…',
   'favicon.detected': 'Favicon detected',
   'favicon.none': 'No favicon found for this site.',
-  'login.hintService': 'Tip: you can also type your account email. Username on the web needs FIREBASE_SERVICE_ACCOUNT_JSON on the server to resolve in Firestore.',
+  'login.hintService':
+    'Tip: you can sign in with your account email. Username-only sign-in may require your organization to enable it on the web.',
   'recovery.forgotPassword': 'Forgot password?',
   'recovery.forgotUsername': 'Forgot username?',
   'recovery.passwordTitle': 'Recover password',
@@ -236,14 +237,13 @@ const EN: Record<string, string> = {
   'marketRadar.tooltipSignals': 'Proximity signal stack ≈ {n} weighted occurrences (nine-cell stencil).',
   'marketRadar.tooltipNicheScoped': 'Active cohort: {niche}',
   'marketRadar.tooltipIntentFilter': 'Intent keyword: "{q}"',
-  'marketRadar.noToken':
-    'Set NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN or REACT_APP_MAPBOX_ACCESS_TOKEN in frontend-web/.env.local.',
+  'marketRadar.noToken': 'The map is not available in this environment. Try again later.',
 
   /** Native WebView `/embed/market-radar` (session via custom token, no HTML login gate) */
   'embed.radarSyncing': 'Connecting your embedded session…',
   'embed.radarHandshakeFailed': 'Could not open the embedded Market Radar.',
   'embed.radarHandshakeHint':
-    'Return to the Card-Social app and open the Dashboard again. If this persists, Studio may need FIREBASE_SERVICE_ACCOUNT_JSON and STUDIO_EMBED_SECRET (server only) configured.',
+    'Return to Card-Social and open the Dashboard again. If it keeps happening, contact support.',
   'embed.radarNativeBadge': 'Native session · Vault bridge',
 
   /** Interactive BI — geofence + keyword intent */
@@ -335,7 +335,7 @@ const ES: Record<string, string> = {
   'form.nationalPh': 'Dígitos, sin prefijo +',
   'form.openPhone': 'Abrir marcador (como en la app)',
   'form.document': 'Archivo',
-  'form.documentHint': 'La subida pasa por el mismo escudo que la app móvil (requiere NEXT_PUBLIC_API_URL + clave de gateway).',
+  'form.documentHint': 'La subida usa la misma revisión de seguridad que la app móvil.',
   'form.dropTitle': 'Suelta un documento aquí',
   'form.dropSubtitle': 'Arrastra un PDF/imagen, o haz click para elegir archivo.',
   'form.dropReplace': 'Suelta otro archivo aquí, o haz click para reemplazarlo.',
@@ -355,9 +355,9 @@ const ES: Record<string, string> = {
   'form.errorDup': 'Ya existe un dato con ese nombre. Usa otro.',
   'form.errorGhostCreate': 'Card‑Social añade un Ghost‑Link único. Edita el de la lista.',
   'form.vaultLimit': 'Bóveda llena (nivel gratuito). Borra un ítem en la app para añadir más.',
-  'form.uploadError': 'Fallo al subir. Revisa la URL de API y la clave, o reintenta.',
+  'form.uploadError': 'Fallo al subir. Revisa la conexión e inténtalo de nuevo.',
   'form.syncPublicCardFailed':
-    'La bóveda se guardó, pero falló actualizar la tarjeta pública / QR en el servidor. Despliega la API más reciente y revisa NEXT_PUBLIC_API_URL y la clave. Detalles en la consola del navegador.',
+    'La bóveda se guardó, pero no pudimos actualizar tu tarjeta pública. Inténtalo en unos minutos o abre Card-Social desde el móvil.',
   'form.documentQrHint': 'Mantén pulsado o clic derecho en la imagen para leer un QR dentro de la imagen.',
   'qr.detectedTitle': 'QR detectado',
   'qr.openConfirm': '¿Abrir en una pestaña nueva?',
@@ -371,7 +371,8 @@ const ES: Record<string, string> = {
   'favicon.searching': 'Buscando favicon…',
   'favicon.detected': 'Favicon detectado',
   'favicon.none': 'No encontramos favicon para este sitio.',
-  'login.hintService': 'Puedes escribir tu email de la cuenta. El usuario (nick) en la web requiere FIREBASE_SERVICE_ACCOUNT_JSON en el servidor para resolverlo en Firestore.',
+  'login.hintService':
+    'Puedes entrar con el email de tu cuenta. El acceso solo con usuario puede requerir que tu organización lo active en la web.',
   'recovery.forgotPassword': '¿Olvidaste contraseña?',
   'recovery.forgotUsername': '¿Olvidaste usuario?',
   'recovery.passwordTitle': 'Recuperar contraseña',
@@ -485,13 +486,12 @@ const ES: Record<string, string> = {
   'marketRadar.tooltipSignals': 'Índice de señales en la zona ≈ {n} apariciones ponderadas (malla 9 celdas).',
   'marketRadar.tooltipNicheScoped': 'Cohort activo: {niche}',
   'marketRadar.tooltipIntentFilter': 'Keyword de intención: «{q}»',
-  'marketRadar.noToken':
-    'Configura NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN o REACT_APP_MAPBOX_ACCESS_TOKEN en frontend-web/.env.local.',
+  'marketRadar.noToken': 'El mapa no está disponible en este entorno. Inténtalo más tarde.',
 
   'embed.radarSyncing': 'Conectando la sesión embebida…',
   'embed.radarHandshakeFailed': 'No se pudo abrir el Market Radar incrustado.',
   'embed.radarHandshakeHint':
-    'Vuelve a Card-Social y abre el Panel otra vez. Si sigue igual, revisa FIREBASE_SERVICE_ACCOUNT_JSON y STUDIO_EMBED_SECRET (solo servidor) en Studio.',
+    'Vuelve a Card-Social y abre el Panel otra vez. Si continúa, contacta con soporte.',
   'embed.radarNativeBadge': 'Sesión nativa · puente Vault',
 
   'marketRadar.locateCurrentZone': 'Localizar zona actual',
@@ -749,12 +749,11 @@ const DE: Record<string, string> = {
   'marketRadar.tooltipSignals': 'Nähe-Signalstapel ≈ {n} gewichtete Vorkommen (9-Zellen-Schablone).',
   'marketRadar.tooltipNicheScoped': 'Aktive Kohorte: {niche}',
   'marketRadar.tooltipIntentFilter': 'Intent-Keyword: „{q}"',
-  'marketRadar.noToken':
-    'Setzen Sie NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN oder REACT_APP_MAPBOX_ACCESS_TOKEN in frontend-web/.env.local.',
+  'marketRadar.noToken': 'Die Karte ist in dieser Umgebung nicht verfügbar. Bitte später erneut versuchen.',
   'embed.radarSyncing': 'Eingebettete Sitzung wird verbunden…',
   'embed.radarHandshakeFailed': 'Eingebetteter Market Radar konnte nicht geöffnet werden.',
   'embed.radarHandshakeHint':
-    'Kehren Sie zur Card-Social-App zurück und öffnen Sie das Dashboard erneut. Falls das weiterhin auftritt, prüfen Sie FIREBASE_SERVICE_ACCOUNT_JSON und STUDIO_EMBED_SECRET (nur Server) in Studio.',
+    'Kehren Sie zu Card-Social zurück und öffnen Sie das Dashboard erneut. Wenn das weiterhin passiert, wenden Sie sich an den Support.',
   'embed.radarNativeBadge': 'Native Sitzung · Vault-Brücke',
   'marketRadar.locateCurrentZone': 'Aktuelle Zone orten',
   'marketRadar.intentPlaceholder': 'Peruanische Küche, Grundstücke, Bau…',

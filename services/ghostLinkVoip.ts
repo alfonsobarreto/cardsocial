@@ -256,7 +256,18 @@ export async function startGhostLinkVoipCall(
       },
       timeout: 20000,
     }
-  );
+  ).catch((err) => {
+    const status = Number(err?.response?.status || 0);
+    const code = String(err?.response?.data?.errorCode || '').trim();
+    const msg = String(err?.response?.data?.error || '').trim();
+    if (status === 403 && code === 'VOIP_MINUTES_EXHAUSTED') {
+      throw new Error(
+        msg ||
+          'Minutos de llamadas agotados. Los de suscripción se renuevan cada mes; podrás comprar minutos extra cuando abra la tienda.',
+      );
+    }
+    throw err;
+  });
 
   const engineRaw = String(response?.data?.engine || '').trim();
   const engine: 'agora' | 'signaling-only' = engineRaw === 'agora' ? 'agora' : 'signaling-only';

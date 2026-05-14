@@ -10,8 +10,7 @@
  *   se decrementa igual (regla 99/100) — poseer el serial es parte del
  *   valor del activo, no un bypass de la economía.
  * 
- * Conversión oficial: 100 CS = 1 USD (`constants/csEconomy.ts`).
- * 1 Pack ≈ 50–100 USD en CS a tipo actual (configurable por Pochobs)
+ * Costo en Créditos CS según el pack en Firestore / tienda (sin tipo de cambio fijo en código).
  */
 
 import { deductCredits, recordCreditTransaction } from '@/services/creditsService';

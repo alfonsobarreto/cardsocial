@@ -11,7 +11,8 @@ const GHOST_LINK_INVITE_TTL_SECONDS = 45;
 
 const DEFAULT_BUNKER_GROUPS = ['Random', 'Family', 'Social', 'Work'];
 
-const { buildGhostLinkAgoraInvite } = require('../lib/agoraGhostLink');
+const { buildGhostLinkAgoraInviteWithVoipGate } = require('../lib/agoraGhostLink');
+const { recordVoipUsageForGhostOutgoingLog, getVoipMinutesSummary } = require('../lib/voipUsageService');
 const { sendPushToUser } = require('../lib/pushNotifications');
 const { mergeContactProfileFromCard, enrichSubscriberProfileFromCard } = require('../lib/contactIdentityMerge');
 const { buildMongoExtendedProfileFields, mergeUsersAndProfilesDocuments } = require('../lib/extendedUserIdentity');
@@ -825,12 +826,24 @@ function createQrRoutes({ storage }) {
       const inviteId = crypto.randomBytes(16).toString('hex');
       const expiresAt = new Date(now.getTime() + GHOST_LINK_INVITE_TTL_SECONDS * 1000);
       const agoraChannelName = `gl_${inviteId}`;
-      const agoraInvite = buildGhostLinkAgoraInvite({
-        callerUid,
-        targetUid,
-        channelName: agoraChannelName,
-        ttlSeconds: GHOST_LINK_INVITE_TTL_SECONDS,
-      });
+      let agoraInvite = null;
+      try {
+        agoraInvite = await buildGhostLinkAgoraInviteWithVoipGate(storage, {
+          callerUid,
+          targetUid,
+          channelName: agoraChannelName,
+          ttlSeconds: GHOST_LINK_INVITE_TTL_SECONDS,
+        });
+      } catch (e) {
+        if (e && e.code === 'VOIP_MINUTES_EXHAUSTED') {
+          return res.status(403).json({
+            ok: false,
+            error: e.message || 'Minutos de llamadas agotados',
+            errorCode: 'VOIP_MINUTES_EXHAUSTED',
+          });
+        }
+        throw e;
+      }
 
       const outSid = sharedCard?.sid != null && String(sharedCard.sid).trim() ? String(sharedCard.sid).trim() : sourceSid;
       const outBId = sharedCard?.bId != null && String(sharedCard.bId).trim() ? String(sharedCard.bId).trim() : sourceBId;
@@ -948,6 +961,32 @@ function createQrRoutes({ storage }) {
               },
             }
           : {}),
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+  });
+
+  router.get('/voip/minutes-summary', async (req, res) => {
+    try {
+      const authUid = String(req.auth?.sub || '').trim();
+      const userUid = String(req.query?.uid || authUid || '').trim();
+      if (!userUid) {
+        return res.status(400).json({ ok: false, error: 'uid is required' });
+      }
+      if (authUid && authUid !== userUid) {
+        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+      }
+      const summary = await getVoipMinutesSummary(storage, userUid);
+      return res.status(200).json({
+        ok: true,
+        uid: userUid,
+        unlimited: Boolean(summary.unlimited),
+        cycleKey: summary.cycleKey,
+        subscriptionUsedMinutes: summary.subscriptionUsedMinutes,
+        subscriptionIncludedMinutes: summary.subscriptionIncludedMinutes,
+        purchasedMinutesRemaining: summary.purchasedMinutesRemaining,
+        totalAvailableMinutes: summary.totalAvailableMinutes,
       });
     } catch (error) {
       return res.status(500).json({ ok: false, error: error.message });
@@ -4024,6 +4063,18 @@ function createQrRoutes({ storage }) {
         createdAt: now,
         updatedAt: now,
       });
+
+      if (
+        callChannel === 'ghost-link-voip' &&
+        direction === 'outgoing' &&
+        status === 'completed'
+      ) {
+        try {
+          await recordVoipUsageForGhostOutgoingLog(storage, userUid, peerUid, durationSec);
+        } catch (voipErr) {
+          console.warn('[calls/logs] voip usage record failed', userUid, voipErr?.message || voipErr);
+        }
+      }
 
       return res.status(201).json({ ok: true, uid: userUid, callId });
     } catch (error) {

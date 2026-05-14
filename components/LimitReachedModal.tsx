@@ -1,5 +1,5 @@
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,9 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ConfettiAnimation, ConfettiAnimationRef } from '@/components/ConfettiAnimation';
-import { trEsEn, useLanguage } from '@/services/language';
-import { WELCOME_BONUS_CS } from '@/constants/csEconomy';
+import { trEsEn, useLanguage, intlLocaleTagForAppLanguage } from '@/services/language';
+import { getCsEconomyConfig } from '@/services/csEconomyConfigService';
+import { getTiersConfig } from '@/services/tiersConfigService';
 
 export interface LimitReachedModalProps {
   visible: boolean;
@@ -36,6 +37,32 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
   const tr = (es: string, en: string) => trEsEn(es, en, language);
   const modalFooterBottomPad = useModalFooterBottomPad();
   const confettiRef = useRef<ConfettiAnimationRef>(null);
+  const [welcomeBonusCs, setWelcomeBonusCs] = useState(0);
+  const [monthlyUsd, setMonthlyUsd] = useState(0);
+  const [monthlyCs, setMonthlyCs] = useState(0);
+  const [trialDays, setTrialDays] = useState(0);
+
+  useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    void (async () => {
+      const [econ, tiers] = await Promise.all([getCsEconomyConfig(), getTiersConfig()]);
+      if (cancelled) return;
+      setWelcomeBonusCs(Math.max(0, Math.floor(econ.welcomeBonusCs)));
+      if (tiers) {
+        setMonthlyUsd(Math.max(0, tiers.influencer.monthlyPriceUsd));
+        setMonthlyCs(Math.max(0, Math.floor(tiers.influencer.monthlyEquivalentCs)));
+        setTrialDays(Math.max(0, Math.floor(tiers.influencer.freeTrialDays)));
+      } else {
+        setMonthlyUsd(0);
+        setMonthlyCs(0);
+        setTrialDays(0);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [visible]);
 
   React.useEffect(() => {
     if (visible) {
@@ -64,17 +91,27 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
   };
 
   const getPremiumBenefits = () => {
+    const welcomeLine =
+      welcomeBonusCs > 0
+        ? tr(
+            `✓ ${welcomeBonusCs.toLocaleString()} créditos CS de bienvenida`,
+            `✓ ${welcomeBonusCs.toLocaleString()} welcome CS credits`,
+          )
+        : tr(
+            '✓ Créditos CS de bienvenida con tu membresía',
+            '✓ Welcome CS credits with your membership',
+          );
     if (limitType === 'cards') {
       return [
         tr('✓ Tarjetas ilimitadas', '✓ Unlimited cards'),
-        tr(`✓ ${WELCOME_BONUS_CS.toLocaleString()} créditos CS de bienvenida`, `✓ ${WELCOME_BONUS_CS.toLocaleString()} welcome CS credits`),
+        welcomeLine,
         tr('✓ Herramientas Premium adicionales', '✓ Extra Premium perks'),
         tr('✓ Protección Premium', '✓ Premium protection'),
       ];
     }
     return [
       tr('✓ Datos ilimitados', '✓ Unlimited data'),
-      tr(`✓ ${WELCOME_BONUS_CS.toLocaleString()} créditos CS de bienvenida`, `✓ ${WELCOME_BONUS_CS.toLocaleString()} welcome CS credits`),
+      welcomeLine,
       tr('✓ Herramientas Premium adicionales', '✓ Extra Premium perks'),
       tr('✓ Protección Premium', '✓ Premium protection'),
     ];
@@ -146,10 +183,15 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
                   style={{ marginRight: 8 }}
                 />
                 <Text style={styles.messageText}>
-                  {tr(
-                    `Activa tu suscripción para obtener tarjetas ilimitadas, ${WELCOME_BONUS_CS.toLocaleString()} créditos CS y protección total.`,
-                    `Activate your subscription for unlimited cards, ${WELCOME_BONUS_CS.toLocaleString()} CS credits, and full protection.`,
-                  )}
+                  {welcomeBonusCs > 0
+                    ? tr(
+                        `Activa tu suscripción para obtener tarjetas ilimitadas, ${welcomeBonusCs.toLocaleString()} créditos CS y protección total.`,
+                        `Activate your subscription for unlimited cards, ${welcomeBonusCs.toLocaleString()} CS credits, and full protection.`,
+                      )
+                    : tr(
+                        'Activa tu suscripción para tarjetas ilimitadas, créditos de bienvenida y protección total.',
+                        'Activate your subscription for unlimited cards, welcome credits, and full protection.',
+                      )}
                 </Text>
               </View>
 
@@ -165,9 +207,25 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
 
               {/* Price Tag */}
               <View style={styles.priceContainer}>
-                <Text style={styles.priceText}>{tr('$4.99 USD / mes', '$4.99 USD / month')}</Text>
+                <Text style={styles.priceText}>
+                  {monthlyUsd > 0 || monthlyCs > 0
+                    ? [
+                        monthlyUsd > 0
+                          ? new Intl.NumberFormat(intlLocaleTagForAppLanguage(language), {
+                              style: 'currency',
+                              currency: 'USD',
+                            }).format(monthlyUsd) + tr(' / mes', ' / mo')
+                          : null,
+                        monthlyCs > 0 ? `${monthlyCs.toLocaleString()} CS` : null,
+                      ]
+                          .filter(Boolean)
+                          .join(' · ')
+                    : tr('Consulta tarifas del plan Influencer en la app.', 'See Influencer plan rates in the app.')}
+                </Text>
                 <Text style={styles.subtext}>
-                  {tr('30 días de prueba sin cobro', '30-day free trial')}
+                  {trialDays > 0
+                    ? tr(`${trialDays} días de prueba incluidos`, `${trialDays}-day trial included`)
+                    : tr('Periodo de prueba según tu tienda', 'Trial period per store listing')}
                 </Text>
               </View>
             </ScrollView>
