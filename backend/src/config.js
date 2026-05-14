@@ -61,8 +61,18 @@ const env = {
   port: Number(process.env.PORT || 4000),
   mongoUri: process.env.MONGO_URI || "",
   mongoDbName: process.env.MONGO_DB_NAME || "cardsocial",
-  azureEndpoint: (process.env.AZURE_CONTENT_SAFETY_ENDPOINT || "").replace(/\/+$/, ""),
-  azureApiKey: process.env.AZURE_CONTENT_SAFETY_KEY || "",
+  /**
+   * Azure AI Content Safety (REST). Canónicos: AZURE_CONTENT_SAFETY_ENDPOINT / KEY.
+   * Alias por si en App Settings usaron otros nombres: CONTENT_SAFETY_ENDPOINT / CONTENT_SAFETY_KEY.
+   */
+  azureEndpoint: (
+    process.env.AZURE_CONTENT_SAFETY_ENDPOINT ||
+    process.env.CONTENT_SAFETY_ENDPOINT ||
+    ""
+  ).replace(/\/+$/, ""),
+  azureApiKey: String(
+    process.env.AZURE_CONTENT_SAFETY_KEY || process.env.CONTENT_SAFETY_KEY || "",
+  ).trim(),
   azureApiVersion: process.env.AZURE_CONTENT_SAFETY_API_VERSION || "2024-09-01",
   /**
    * Header `x-api-gateway-key` en rutas protegidas. Azure App Service / Container Apps:
@@ -162,8 +172,12 @@ function formatSpacesEnvMissingError() {
 function assertRequiredConfig() {
   const missing = [];
   if (!env.mongoUri) missing.push("MONGO_URI");
-  if (!env.azureEndpoint) missing.push("AZURE_CONTENT_SAFETY_ENDPOINT");
-  if (!env.azureApiKey) missing.push("AZURE_CONTENT_SAFETY_KEY");
+  if (!env.azureEndpoint) {
+    missing.push("AZURE_CONTENT_SAFETY_ENDPOINT or CONTENT_SAFETY_ENDPOINT");
+  }
+  if (!env.azureApiKey) {
+    missing.push("AZURE_CONTENT_SAFETY_KEY or CONTENT_SAFETY_KEY");
+  }
   if (!env.apiGatewayKey) missing.push("API_GATEWAY_KEY");
   if (!env.jwtSecret) missing.push("MODERATION_JWT_SECRET");
   if (!env.emailOtpSecret) missing.push("EMAIL_OTP_SECRET");

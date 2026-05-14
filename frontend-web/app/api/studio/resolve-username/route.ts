@@ -8,7 +8,20 @@ export const runtime = 'nodejs';
  * Misma lógica que la app móvil (`signin.tsx` / `userIdentityFields`) pero con Admin SDK
  * (las reglas de Firestore no permiten leer `users` sin ser el dueño).
  */
-async function resolveEmail(username: string): Promise<string | null> {
+function signInEmailsFromUserDoc(d: Record<string, unknown>): string[] {
+  const primary = String(d.emailLower || d.email || '')
+    .trim()
+    .toLowerCase();
+  const pending = String(d.pendingEmailLower || d.pendingEmail || '')
+    .trim()
+    .toLowerCase();
+  const out: string[] = [];
+  if (primary) out.push(primary);
+  if (pending && pending !== primary) out.push(pending);
+  return out;
+}
+
+async function resolveEmails(username: string): Promise<string[] | null> {
   const app = getAdminApp();
   if (!app) {
     return null;
@@ -22,10 +35,8 @@ async function resolveEmail(username: string): Promise<string | null> {
   const tryDoc = async (field: string, value: string) => {
     const snap = await db.collection('users').where(field, '==', value).limit(1).get();
     if (snap.empty) return null;
-    const d = snap.docs[0].data() as { emailLower?: string; email?: string };
-    return String(d.emailLower || d.email || '')
-      .trim()
-      .toLowerCase() || null;
+    const emails = signInEmailsFromUserDoc(snap.docs[0].data() as Record<string, unknown>);
+    return emails.length ? emails : null;
   };
 
   const byLower = await tryDoc('userNickNameLower', normalizedLower);
@@ -55,11 +66,11 @@ export async function POST(req: Request) {
         { status: 503 },
       );
     }
-    const email = await resolveEmail(username);
-    if (!email) {
+    const emails = await resolveEmails(username);
+    if (!emails?.length) {
       return NextResponse.json({ ok: false, error: 'not_found' }, { status: 404 });
     }
-    return NextResponse.json({ ok: true, email });
+    return NextResponse.json({ ok: true, emails, email: emails[0] });
   } catch (e) {
     console.error('[resolve-username]', e);
     return NextResponse.json({ ok: false, error: 'server' }, { status: 500 });

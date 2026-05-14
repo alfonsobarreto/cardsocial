@@ -1,17 +1,21 @@
-import { resolveEmailFromUsername } from '@/lib/resolveEmailFromUsername';
+import { resolveEmailCandidatesFromUsername } from '@/lib/resolveEmailFromUsername';
+
+const EMAIL_LIKE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * 1) Si parece email (`@`) → Firebase Auth directo.
  * 2) POST `/api/studio/resolve-username` (Admin Firestore; requiere `FIREBASE_SERVICE_ACCOUNT_JSON`).
  * 3) Fallback: lectura cliente (falla con reglas actuales salvo pruebas locales).
  */
-export async function resolveSignInEmail(raw: string): Promise<string | null> {
+export async function resolveSignInEmailCandidates(raw: string): Promise<string[] | null> {
   const t = raw.trim();
   if (!t) {
     return null;
   }
   if (t.includes('@')) {
-    return t.toLowerCase();
+    const lower = t.toLowerCase();
+    if (!EMAIL_LIKE.test(lower)) return null;
+    return [lower];
   }
 
   if (typeof window !== 'undefined') {
@@ -22,12 +26,18 @@ export async function resolveSignInEmail(raw: string): Promise<string | null> {
         body: JSON.stringify({ username: t }),
       });
       if (r.ok) {
-        const j = (await r.json()) as { email?: string };
+        const j = (await r.json()) as { emails?: unknown; email?: string };
+        if (Array.isArray(j?.emails) && j.emails.length) {
+          const list = j.emails
+            .map((e) => String(e).trim().toLowerCase())
+            .filter((e) => EMAIL_LIKE.test(e));
+          if (list.length) return list;
+        }
         const e = String(j?.email || '')
           .trim()
           .toLowerCase();
-        if (e) {
-          return e;
+        if (e && EMAIL_LIKE.test(e)) {
+          return [e];
         }
       }
     } catch {
@@ -35,5 +45,5 @@ export async function resolveSignInEmail(raw: string): Promise<string | null> {
     }
   }
 
-  return resolveEmailFromUsername(t);
+  return resolveEmailCandidatesFromUsername(t);
 }

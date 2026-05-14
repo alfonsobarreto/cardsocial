@@ -17,8 +17,14 @@ import {
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { onAuthStateChanged, sendEmailVerification, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { collection, doc, getDocs, limit, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
+import {
+  onAuthStateChanged,
+  sendEmailVerification,
+  signInWithEmailAndPassword,
+  signOut,
+  type UserCredential,
+} from 'firebase/auth';
+import { collection, doc, getDoc, getDocs, limit, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { Check, Eye, EyeOff, Lock, User } from 'lucide-react-native';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -36,6 +42,42 @@ import {
     TouchableWithoutFeedback,
     View,
 } from 'react-native';
+
+const EMAIL_LIKE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function signInEmailsFromFirestoreUser(data: Record<string, unknown>): string[] {
+  const primary = String(data.emailLower || data.email || '')
+    .trim()
+    .toLowerCase();
+  const pending = String(data.pendingEmailLower || data.pendingEmail || '')
+    .trim()
+    .toLowerCase();
+  const out: string[] = [];
+  if (primary) out.push(primary);
+  if (pending && pending !== primary) out.push(pending);
+  return out;
+}
+
+function authSignInUserMessage(error: unknown, tr: (es: string, en: string) => string): string {
+  const code = String((error as { code?: string })?.code || '');
+  if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') {
+    return tr('Usuario o contraseña incorrectos.', 'Incorrect username or password.');
+  }
+  if (code === 'auth/user-disabled') {
+    return tr('Esta cuenta no está disponible.', 'This account is not available.');
+  }
+  if (code === 'auth/too-many-requests') {
+    return tr('Demasiados intentos. Espera unos minutos e inténtalo de nuevo.', 'Too many attempts. Wait a few minutes and try again.');
+  }
+  if (code === 'auth/network-request-failed') {
+    return tr('Sin conexión. Revisa tu red e inténtalo de nuevo.', 'No connection. Check your network and try again.');
+  }
+  const msg = error instanceof Error ? error.message : '';
+  if (/auth\/|Firebase/i.test(msg)) {
+    return tr('No se pudo iniciar sesion. Inténtalo de nuevo.', 'Could not sign in. Please try again.');
+  }
+  return msg || tr('No se pudo iniciar sesion.', 'Could not sign in.');
+}
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -74,33 +116,34 @@ export default function SignInScreen() {
     [language]
   );
 
-  const resolveEmailFromUsername = async (rawUsername: string) => {
-    const normalizedUsername = rawUsername.trim().toLowerCase();
+  const resolveSignInEmailCandidates = async (rawUsername: string): Promise<string[] | null> => {
+    const trimmed = rawUsername.trim();
+    const normalizedUsername = trimmed.toLowerCase();
     if (!normalizedUsername) {
       return null;
+    }
+    if (normalizedUsername.includes('@')) {
+      if (!EMAIL_LIKE.test(normalizedUsername)) return null;
+      return [normalizedUsername];
     }
 
     const usersRef = collection(db, 'users');
     const byLowerDoc = await firestoreFirstUserDocByNickLower(db, normalizedUsername);
     if (byLowerDoc) {
-      const userData = byLowerDoc.data() as { email?: string; emailLower?: string };
-      return String(userData.emailLower || userData.email || '').trim().toLowerCase() || null;
+      const emails = signInEmailsFromFirestoreUser(byLowerDoc.data() as Record<string, unknown>);
+      return emails.length ? emails : null;
     }
 
-    const byNickname = await getDocs(
-      query(usersRef, where('nickname', '==', rawUsername.trim()), limit(1))
-    );
+    const byNickname = await getDocs(query(usersRef, where('nickname', '==', trimmed), limit(1)));
     if (!byNickname.empty) {
-      const userData = byNickname.docs[0].data() as { email?: string; emailLower?: string };
-      return String(userData.emailLower || userData.email || '').trim().toLowerCase() || null;
+      const emails = signInEmailsFromFirestoreUser(byNickname.docs[0].data() as Record<string, unknown>);
+      return emails.length ? emails : null;
     }
 
-    const byUserNick = await getDocs(
-      query(usersRef, where('userNickName', '==', rawUsername.trim()), limit(1))
-    );
+    const byUserNick = await getDocs(query(usersRef, where('userNickName', '==', trimmed), limit(1)));
     if (!byUserNick.empty) {
-      const userData = byUserNick.docs[0].data() as { email?: string; emailLower?: string };
-      return String(userData.emailLower || userData.email || '').trim().toLowerCase() || null;
+      const emails = signInEmailsFromFirestoreUser(byUserNick.docs[0].data() as Record<string, unknown>);
+      return emails.length ? emails : null;
     }
 
     return null;
@@ -133,13 +176,61 @@ export default function SignInScreen() {
         return;
       }
 
-      const resolvedEmail = await resolveEmailFromUsername(normalizedUsername);
-      if (!resolvedEmail) {
+      const candidates = await resolveSignInEmailCandidates(normalizedUsername);
+      if (!candidates?.length) {
         Alert.alert(tr('Usuario no encontrado', 'Username not found'), tr('No encontramos una cuenta con ese usuario.', 'We could not find an account with that username.'));
         return;
       }
 
-      const credential = await signInWithEmailAndPassword(auth, resolvedEmail, normalizedPassword);
+      let credential: UserCredential | null = null;
+      let lastError: unknown = null;
+      for (let i = 0; i < candidates.length; i++) {
+        const emailTry = candidates[i];
+        try {
+          credential = await signInWithEmailAndPassword(auth, emailTry, normalizedPassword);
+          break;
+        } catch (e) {
+          lastError = e;
+          const code = String((e as { code?: string })?.code || '');
+          const tryNext =
+            (code === 'auth/invalid-credential' || code === 'auth/wrong-password') && i < candidates.length - 1;
+          if (!tryNext) {
+            Alert.alert(tr('Error de acceso', 'Access error'), authSignInUserMessage(e, tr));
+            return;
+          }
+        }
+      }
+      if (!credential) {
+        Alert.alert(tr('Error de acceso', 'Access error'), authSignInUserMessage(lastError, tr));
+        return;
+      }
+
+      try {
+        await credential.user.reload();
+        const authEmail = String(credential.user.email || '').trim().toLowerCase();
+        if (authEmail) {
+          const userDocRef = doc(db, 'users', credential.user.uid);
+          const snap = await getDoc(userDocRef);
+          if (snap.exists()) {
+            const data = snap.data() as Record<string, unknown>;
+            const storedEmail = String(data.emailLower || data.email || '').trim().toLowerCase();
+            if (authEmail !== storedEmail) {
+              await updateDoc(userDocRef, {
+                email: authEmail,
+                emailLower: authEmail,
+                pendingEmail: null,
+                pendingEmailLower: null,
+                emailChangedAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+              });
+            }
+          }
+        }
+      } catch {
+        /* best-effort reconcile Firestore with Auth */
+      }
+
+      const sessionEmail = String(credential.user.email || '').trim().toLowerCase();
 
       // --- SOFT DELETE RESTORE LOGIC ---
       // Revisar si el usuario tiene pendingDeletion y si está dentro del periodo de gracia
@@ -192,7 +283,7 @@ export default function SignInScreen() {
       }
 
       if (!credential.user.emailVerified) {
-        setPendingVerificationEmail(resolvedEmail);
+        setPendingVerificationEmail(sessionEmail);
         Alert.alert(
           tr('Verificacion pendiente', 'Verification pending'),
           tr(
@@ -204,12 +295,11 @@ export default function SignInScreen() {
       }
 
       await setTrustedDeviceSession(credential.user.uid, trustThisDevice);
-      await saveCachedCredentials(resolvedEmail, normalizedPassword);
+      await saveCachedCredentials(sessionEmail, normalizedPassword);
 
       router.replace('/(tabs)/cards');
     } catch (error) {
-      const message = error instanceof Error ? error.message : tr('No se pudo iniciar sesion.', 'Could not sign in.');
-      Alert.alert(tr('Error de acceso', 'Access error'), message);
+      Alert.alert(tr('Error de acceso', 'Access error'), authSignInUserMessage(error, tr));
     } finally {
       setIsSubmitting(false);
     }
@@ -220,8 +310,8 @@ export default function SignInScreen() {
     setRecoveryEmail('');
     setMaskedRecoveryEmail('');
     if (normalizedUsername) {
-      const resolvedEmail = await resolveEmailFromUsername(normalizedUsername).catch(() => null);
-      if (resolvedEmail) setMaskedRecoveryEmail(maskEmail(resolvedEmail));
+      const list = await resolveSignInEmailCandidates(normalizedUsername).catch(() => null);
+      if (list?.length) setMaskedRecoveryEmail(maskEmail(list[0]));
     }
     setRecoveryMode('password');
   };
@@ -265,10 +355,14 @@ export default function SignInScreen() {
 
   const handleResendVerificationEmail = async () => {
     const normalizedUsername = username.trim();
-    const normalizedEmail = pendingVerificationEmail || (await resolveEmailFromUsername(normalizedUsername)) || '';
     const normalizedPassword = password;
 
-    if (!normalizedEmail) {
+    const fromPending = pendingVerificationEmail.trim().toLowerCase();
+    const candidates = fromPending && EMAIL_LIKE.test(fromPending)
+      ? [fromPending]
+      : (await resolveSignInEmailCandidates(normalizedUsername)) || [];
+
+    if (!candidates.length) {
       Alert.alert(tr('Usuario requerido', 'Username required'), tr('Escribe tu usuario para reenviar verificacion.', 'Enter your username to resend verification.'));
       return;
     }
@@ -276,12 +370,34 @@ export default function SignInScreen() {
     setIsResendingVerification(true);
     try {
       let user = auth.currentUser;
-      if (!user || String(user.email || '').trim().toLowerCase() !== normalizedEmail) {
+      const authEmail = String(user?.email || '').trim().toLowerCase();
+      const alreadyMatches = authEmail && candidates.includes(authEmail);
+      if (!alreadyMatches) {
         if (!normalizedPassword) {
           Alert.alert(tr('Contrasena requerida', 'Password required'), tr('Ingresa tu contrasena para reenviar el email de verificacion.', 'Enter your password to resend verification email.'));
           return;
         }
-        const credential = await signInWithEmailAndPassword(auth, normalizedEmail, normalizedPassword);
+        let credential: UserCredential | null = null;
+        let lastErr: unknown = null;
+        for (let i = 0; i < candidates.length; i++) {
+          try {
+            credential = await signInWithEmailAndPassword(auth, candidates[i], normalizedPassword);
+            break;
+          } catch (e) {
+            lastErr = e;
+            const code = String((e as { code?: string })?.code || '');
+            const tryNext =
+              (code === 'auth/invalid-credential' || code === 'auth/wrong-password') && i < candidates.length - 1;
+            if (!tryNext) {
+              Alert.alert(tr('Reenvio no disponible', 'Resend unavailable'), authSignInUserMessage(e, tr));
+              return;
+            }
+          }
+        }
+        if (!credential) {
+          Alert.alert(tr('Reenvio no disponible', 'Resend unavailable'), authSignInUserMessage(lastErr, tr));
+          return;
+        }
         user = credential.user;
       }
 
@@ -297,8 +413,7 @@ export default function SignInScreen() {
       await signOut(auth).catch(() => null);
       Alert.alert(tr('Email reenviado', 'Verification resent'), tr('Te enviamos un nuevo enlace de verificacion. Revisa tambien spam/promociones.', 'A new verification link was sent. Check spam/promotions too.'));
     } catch (error) {
-      const message = error instanceof Error ? error.message : tr('No se pudo reenviar el email de verificacion.', 'Could not resend verification email.');
-      Alert.alert(tr('Reenvio no disponible', 'Resend unavailable'), message);
+      Alert.alert(tr('Reenvio no disponible', 'Resend unavailable'), authSignInUserMessage(error, tr));
     } finally {
       setIsResendingVerification(false);
     }
