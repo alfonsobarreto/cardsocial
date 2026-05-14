@@ -104,7 +104,7 @@ export const CreditsIndicator: React.FC<CreditsIndicatorProps> = ({ userId, refr
       </View>
       {userId && (voipUnlimited || voipMainLine) ? (
         <View style={[styles.row, styles.voipRow, { borderTopColor: colors.hairline }]}>
-          <MaterialCommunityIcons name="phone-clock-outline" size={20} color={colors.icon} style={styles.icon} />
+          <MaterialCommunityIcons name="phone-in-talk" size={20} color={colors.icon} style={styles.icon} />
           <View style={styles.textCol}>
             <Text style={[styles.label, { color: colors.label }]}>{tr('Minutos llamadas', 'Call minutes')}</Text>
             <Text style={[styles.voipBalance, { color: colors.balance }]}>

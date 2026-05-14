@@ -656,6 +656,25 @@ export default function CardsFactoryScreen() {
     }
   }, []);
 
+  const refreshCardSlotCaps = useCallback(async () => {
+    const uid = await getActiveUserId();
+    if (!uid) {
+      setCardSlotCaps(null);
+      return;
+    }
+    try {
+      const [v, slots] = await Promise.all([validateCardCreation(uid), getBusinessCardSlotAvailability(uid)]);
+      setCardSlotCaps({
+        smartCurrent: v.currentCount,
+        smartMax: v.maxLimit,
+        businessUsed: slots.used,
+        businessMax: slots.max,
+      });
+    } catch {
+      setCardSlotCaps(null);
+    }
+  }, []);
+
   useFocusEffect(
     React.useCallback(() => {
       const verifyAccess = async () => {
@@ -797,25 +816,6 @@ export default function CardsFactoryScreen() {
       // Do NOT wipe existing vaultItems on a transient error.
       // A failed reload (network blip, Firestore timeout) would otherwise clear
       // correctly-cached items and cause the preview to render empty slots.
-    }
-  }, []);
-
-  const refreshCardSlotCaps = useCallback(async () => {
-    const uid = await getActiveUserId();
-    if (!uid) {
-      setCardSlotCaps(null);
-      return;
-    }
-    try {
-      const [v, slots] = await Promise.all([validateCardCreation(uid), getBusinessCardSlotAvailability(uid)]);
-      setCardSlotCaps({
-        smartCurrent: v.currentCount,
-        smartMax: v.maxLimit,
-        businessUsed: slots.used,
-        businessMax: slots.max,
-      });
-    } catch {
-      setCardSlotCaps(null);
     }
   }, []);
 

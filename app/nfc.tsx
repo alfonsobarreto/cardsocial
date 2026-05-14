@@ -27,6 +27,7 @@ import {
   mountNfcCard,
   updateNfcCardStatus,
 } from '@/services/nfcCardsRepo';
+import type { NfcCardDoc, NfcCardStatus, NfcMountOption } from '@/services/types/nfc';
 import { requestSubscriptionPhysicalCardsSection } from '@/services/subscriptionNavigationIntent';
 import palette from './theme';
 

@@ -401,6 +401,11 @@ export default function SignInScreen() {
         user = credential.user;
       }
 
+      if (!user) {
+        Alert.alert(tr('Reenvio no disponible', 'Resend unavailable'), tr('Sesion no disponible.', 'Session unavailable.'));
+        return;
+      }
+
       await user.reload().catch(() => null);
       if (user.emailVerified) {
         Alert.alert(tr('Cuenta verificada', 'Account verified'), tr('Tu correo ya esta verificado. Ya puedes iniciar sesion.', 'Your email is already verified. You can now sign in.'));
