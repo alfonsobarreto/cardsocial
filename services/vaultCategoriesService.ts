@@ -5,7 +5,9 @@
 
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 
+import { creationT } from '@/services/creationI18n';
 import { db } from '@/services/firebaseConfig';
+import type { AppLanguage } from '@/services/language';
 
 export const DEFAULT_VAULT_CATEGORIES = ['Negocios', 'Sociales', 'Personales', 'Destacados'] as const;
 
@@ -33,22 +35,22 @@ export function mergeVaultCategoriesFromFirestore(raw: unknown): string[] {
 }
 
 /** Título visible de sección: defaults conocidos ↔ i18n; categorías propias literal. */
-export function vaultCategorySectionTitle(canonicalLabel: string, tr: (es: string, en: string) => string): string {
+export function vaultCategorySectionTitle(canonicalLabel: string, lang: AppLanguage): string {
   const trimmed = String(canonicalLabel || '').trim();
   if (!trimmed) {
-    return tr('Otros', 'Other');
+return creationT('form_vault_cat_other', lang);
   }
   const normalized = trimmed.toLowerCase();
 
   switch (normalized) {
     case 'negocios':
-      return tr('Negocios', 'Business');
+      return creationT('form_vault_cat_business', lang);
     case 'sociales':
-      return tr('Sociales', 'Social');
+      return creationT('form_vault_cat_social', lang);
     case 'personales':
-      return tr('Personales', 'Personal');
+      return creationT('form_vault_cat_personal', lang);
     case 'destacados':
-      return tr('Destacados', 'Featured');
+      return creationT('form_vault_cat_featured', lang);
     default:
       return trimmed;
   }

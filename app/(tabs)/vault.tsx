@@ -10,6 +10,7 @@ import { getSearchableStringsFromVaultLikeItem, orderByDeepSearchWithExpandedQue
 import { db } from '@/services/firebaseConfig';
 import { readUserFullName, readUserNickName } from '@/services/userIdentityFields';
 import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
+import { creationT } from '@/services/creationI18n';
 import { trEsEn, useLanguage } from '@/services/language';
 import { listBusinessLicenses } from '@/services/businessLicenseService';
 import { validateVaultItemCreation } from '@/services/limitService';
@@ -1111,7 +1112,7 @@ const VaultScreen = () => {
       }));
       out.push({
         key: folder,
-        title: vaultCategorySectionTitle(folder, tr),
+        title: vaultCategorySectionTitle(folder, language),
         data: dataRows,
       });
     }
@@ -1124,7 +1125,7 @@ const VaultScreen = () => {
     if (uncategorized.length > 0) {
       out.push({
         key: '__uncategorized__',
-        title: tr('Sin categoría', 'Uncategorized'),
+        title: creationT('form_vault_uncategorized', language),
         data: chunkLinksForVaultGrid(uncategorized, 4).map((items, idx) => ({
           rowKey: `other:row:${idx}:${items.map((x) => x.id).join(':')}`,
           items,

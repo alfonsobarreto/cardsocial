@@ -1,4 +1,5 @@
 import { MAX_BUSINESS_KEYWORDS, isKeywordBlocked, validateBusinessKeywordList } from '@/services/businessKeywordValidation';
+import { useCreationT } from '@/services/creationI18n';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -6,7 +7,6 @@ import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'reac
 type Props = {
   tags: string[];
   onTagsChange: (next: string[]) => void;
-  tr: (es: string, en: string) => string;
   textColor: string;
   subColor: string;
   borderColor: string;
@@ -20,13 +20,13 @@ type Props = {
 export function BusinessCardKeywordTags({
   tags,
   onTagsChange,
-  tr,
   textColor,
   subColor,
   borderColor,
   inputBg,
   chipBg,
 }: Props) {
+  const tcx = useCreationT();
   const [draft, setDraft] = useState('');
 
   const countLabel = useMemo(
@@ -43,18 +43,15 @@ export function BusinessCardKeywordTags({
       for (const p of pieces) {
         if (next.length >= MAX_BUSINESS_KEYWORDS) {
           Alert.alert(
-            tr('Límite alcanzado', 'Limit reached'),
-            tr(`Máximo ${MAX_BUSINESS_KEYWORDS} palabras clave.`, `Maximum ${MAX_BUSINESS_KEYWORDS} keywords.`),
+            tcx('form_bc_keyword_limit_title'),
+            tcx('form_bc_keyword_limit_body', { max: MAX_BUSINESS_KEYWORDS }),
           );
           break;
         }
         if (isKeywordBlocked(p)) {
           Alert.alert(
-            tr('Palabra no permitida', 'Word not allowed'),
-            tr(
-              'Esta palabra clave no cumple las reglas de contenido (odio, explícito, apuestas, etc.).',
-              'This keyword does not meet content rules (hate, explicit, gambling, etc.).',
-            ),
+            tcx('form_bc_keyword_blocked_title'),
+            tcx('form_bc_keyword_blocked_body'),
           );
           continue;
         }
@@ -65,16 +62,19 @@ export function BusinessCardKeywordTags({
       const v = validateBusinessKeywordList(next);
       if (!v.ok) {
         if (v.reason === 'too_long') {
-          Alert.alert(tr('Demasiado largo', 'Too long'), tr('Cada etiqueta debe ser más corta.', 'Each tag must be shorter.'));
+          Alert.alert(tcx('form_bc_tag_too_long_title'), tcx('form_bc_tag_too_long_body'));
         } else if (v.reason === 'too_many') {
-          Alert.alert(tr('Límite', 'Limit'), tr(`Máximo ${MAX_BUSINESS_KEYWORDS} palabras clave.`, `Maximum ${MAX_BUSINESS_KEYWORDS} keywords.`));
+          Alert.alert(
+            tcx('create_limit_title'),
+            tcx('form_bc_keyword_limit_body', { max: MAX_BUSINESS_KEYWORDS }),
+          );
         }
         return;
       }
       onTagsChange(v.tags);
       setDraft('');
     },
-    [onTagsChange, tags, tr],
+    [onTagsChange, tags, tcx],
   );
 
   const removeAt = (index: number) => {
@@ -84,12 +84,7 @@ export function BusinessCardKeywordTags({
   return (
     <View>
       <View style={styles.headerRow}>
-        <Text style={[styles.hint, { color: subColor }]}>
-          {tr(
-            'Optimización para Motores de Búsqueda. Máx. 20 palabras, separadas por coma. Invisibles en la tarjeta pública; activas en búsqueda.',
-            'Search Engine Optimization. Up to 20 words, comma-separated. Hidden on public card; active for search.',
-          )}
-        </Text>
+        <Text style={[styles.hint, { color: subColor }]}>{tcx('form_bc_keyword_hint')}</Text>
         <Text style={[styles.counter, { color: textColor }]}>{countLabel}</Text>
       </View>
       <View style={[styles.inputRow, { borderColor, backgroundColor: inputBg }]}>
@@ -97,7 +92,7 @@ export function BusinessCardKeywordTags({
           style={[styles.input, { color: textColor }]}
           value={draft}
           onChangeText={setDraft}
-          placeholder={tr('ej. uñas, color, barbería…', 'e.g. nails, color, barber…')}
+          placeholder={tcx('form_bc_placeholder')}
           placeholderTextColor={subColor}
           onSubmitEditing={() => tryAdd(draft)}
           returnKeyType="done"
@@ -107,7 +102,7 @@ export function BusinessCardKeywordTags({
           style={[styles.addBtn, { borderColor }]}
           onPress={() => tryAdd(draft)}
           accessibilityRole="button"
-          accessibilityLabel={tr('Añadir etiqueta', 'Add tag')}
+          accessibilityLabel={tcx('form_bc_add_tag')}
         >
           <MaterialCommunityIcons name="plus" size={22} color={textColor} />
         </TouchableOpacity>
@@ -119,7 +114,7 @@ export function BusinessCardKeywordTags({
               <Text style={[styles.chipText, { color: textColor }]} numberOfLines={1}>
                 {t}
               </Text>
-              <TouchableOpacity onPress={() => removeAt(i)} hitSlop={8} accessibilityLabel={tr('Quitar', 'Remove')}>
+              <TouchableOpacity onPress={() => removeAt(i)} hitSlop={8} accessibilityLabel={tcx('form_bc_remove')}>
                 <MaterialCommunityIcons name="close-circle" size={18} color={subColor} />
               </TouchableOpacity>
             </View>

@@ -573,7 +573,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     if (!sel) {
       return tr('Seleccionar carpeta', 'Pick a folder');
     }
-    return vaultCategorySectionTitle(sel, tr);
+    return vaultCategorySectionTitle(sel, language);
   }, [
     creatingNewVaultCategory,
     newVaultCategoryDraft,
@@ -3069,7 +3069,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                     const isRowCreate = item === VAULT_CATEGORY_CREATE_NEW;
                     const label = isRowCreate
                       ? tr('+ Crear nueva categoría', '+ Create new folder')
-                      : vaultCategorySectionTitle(item, tr);
+                      : vaultCategorySectionTitle(item, language);
                     const canonSelected =
                       !creatingNewVaultCategory &&
                       selectedVaultCategoryCanon.trim().toLowerCase() === String(item).trim().toLowerCase();

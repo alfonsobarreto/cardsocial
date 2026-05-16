@@ -75,7 +75,10 @@ export default function FormColumn({
   onDirtyChange,
   onSaveSuccess,
 }: Props) {
-  const t = (k: string, vars?: Record<string, string | number>) => studioT(locale, k, vars);
+  const t = useCallback(
+    (k: string, vars?: Record<string, string | number>) => studioT(locale, k, vars),
+    [locale],
+  );
   const isEdit = Boolean(editing?.id);
   const isGhostEdit = isEdit && isGhostLinkVaultType(editing?.type);
 
@@ -342,7 +345,6 @@ export default function FormColumn({
     dataType,
     editing,
     formIconMci,
-    onIconChange,
     isEdit,
     isGhostEdit,
     localMime,
@@ -352,6 +354,8 @@ export default function FormColumn({
     phoneNational,
     t,
     userId,
+    vaultItemMax,
+    vaultUnlimited,
   ]);
 
   const typesToShow: FormDataType[] = isGhostEdit ? ['ghost'] : CREATE_TYPES;

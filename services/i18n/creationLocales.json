@@ -1,0 +1,2410 @@
+{
+  "create_card_not_found": {
+    "es": "Tarjeta no encontrada",
+    "en": "Card not found",
+    "it": "Carta non trovata",
+    "pt": "Cartão não encontrado",
+    "fr": "Carte introuvable",
+    "de": "Karte nicht gefunden"
+  },
+  "create_card_gone_server_body": {
+    "es": "Tu tarjeta anterior ya no existe en el servidor. El formulario ha sido limpiado para que puedas crear una nueva.",
+    "en": "Your previous card no longer exists on the server. The form has been cleared so you can create a new one.",
+    "it": "Your previous card no longer exists on the server. The form has been cleared so you can create a new one.",
+    "pt": "Your previous card no longer exists on the server. The form has been cleared so you can create a new one.",
+    "fr": "Your previous card no longer exists on the server. The form has been cleared so you can create a new one.",
+    "de": "Your previous card no longer exists on the server. The form has been cleared so you can create a new one."
+  },
+  "create_sort_data_title": {
+    "es": "Ordenar datos",
+    "en": "Sort data",
+    "it": "Sort data",
+    "pt": "Sort data",
+    "fr": "Sort data",
+    "de": "Sort data"
+  },
+  "create_sort_data_message": {
+    "es": "Elige cómo ver tus datos.",
+    "en": "Choose how to view your data.",
+    "it": "Choose how to view your data.",
+    "pt": "Choose how to view your data.",
+    "fr": "Choose how to view your data.",
+    "de": "Choose how to view your data."
+  },
+  "create_sort_recent": {
+    "es": "Recién agregado",
+    "en": "Recently added",
+    "it": "Recently added",
+    "pt": "Recently added",
+    "fr": "Recently added",
+    "de": "Recently added"
+  },
+  "create_sort_alphabetical": {
+    "es": "Alfabético",
+    "en": "Alphabetical",
+    "it": "Alphabetical",
+    "pt": "Alphabetical",
+    "fr": "Alphabetical",
+    "de": "Alphabetical"
+  },
+  "create_cancel": {
+    "es": "Cancelar",
+    "en": "Cancel",
+    "it": "Annulla",
+    "pt": "Cancelar",
+    "fr": "Annuler",
+    "de": "Abbrechen"
+  },
+  "create_profile_title": {
+    "es": "Perfil",
+    "en": "Profile",
+    "it": "Profilo",
+    "pt": "Perfil",
+    "fr": "Profil",
+    "de": "Profil"
+  },
+  "create_profile_missing_full_name": {
+    "es": "No hay nombre completo en tu perfil. Complétalo en Mi perfil.",
+    "en": "No full name on your profile. Complete it in My Profile.",
+    "it": "No full name on your profile. Complete it in My Profile.",
+    "pt": "No full name on your profile. Complete it in My Profile.",
+    "fr": "No full name on your profile. Complete it in My Profile.",
+    "de": "No full name on your profile. Complete it in My Profile."
+  },
+  "create_form_cleared_title": {
+    "es": "Formulario vaciado",
+    "en": "Form cleared",
+    "it": "Form cleared",
+    "pt": "Form cleared",
+    "fr": "Form cleared",
+    "de": "Form cleared"
+  },
+  "create_form_cleared_body_new": {
+    "es": "Esa tarjeta ya no existe. Completa los datos de una nueva tarjeta.",
+    "en": "That card no longer exists. Enter details for a new business card.",
+    "it": "That card no longer exists. Enter details for a new business card.",
+    "pt": "That card no longer exists. Enter details for a new business card.",
+    "fr": "That card no longer exists. Enter details for a new business card.",
+    "de": "That card no longer exists. Enter details for a new business card."
+  },
+  "create_form_cleared_body_save": {
+    "es": "Esa tarjeta ya no existe. Completa los datos y guarda de nuevo.",
+    "en": "That card no longer exists. Fill the form again and save.",
+    "it": "That card no longer exists. Fill the form again and save.",
+    "pt": "That card no longer exists. Fill the form again and save.",
+    "fr": "That card no longer exists. Fill the form again and save.",
+    "de": "That card no longer exists. Fill the form again and save."
+  },
+  "create_permission_title": {
+    "es": "Permiso",
+    "en": "Permission",
+    "it": "Autorizzazione",
+    "pt": "Permissão",
+    "fr": "Autorisation",
+    "de": "Berechtigung"
+  },
+  "create_permission_photos_logo": {
+    "es": "Necesitamos acceso a fotos para elegir el logo.",
+    "en": "We need photo access to pick a logo.",
+    "it": "We need photo access to pick a logo.",
+    "pt": "We need photo access to pick a logo.",
+    "fr": "We need photo access to pick a logo.",
+    "de": "We need photo access to pick a logo."
+  },
+  "create_error": {
+    "es": "Error",
+    "en": "Error",
+    "it": "Errore",
+    "pt": "Erro",
+    "fr": "Erreur",
+    "de": "Fehler"
+  },
+  "create_image_process_error": {
+    "es": "No se pudo procesar la imagen.",
+    "en": "Could not process image.",
+    "it": "Could not process image.",
+    "pt": "Could not process image.",
+    "fr": "Could not process image.",
+    "de": "Could not process image."
+  },
+  "create_location_title": {
+    "es": "Ubicación",
+    "en": "Location",
+    "it": "Posizione",
+    "pt": "Localização",
+    "fr": "Emplacement",
+    "de": "Standort"
+  },
+  "create_location_permission_body": {
+    "es": "Activa el permiso de ubicación para guardar coordenadas.",
+    "en": "Enable location permission to save coordinates.",
+    "it": "Enable location permission to save coordinates.",
+    "pt": "Enable location permission to save coordinates.",
+    "fr": "Enable location permission to save coordinates.",
+    "de": "Enable location permission to save coordinates."
+  },
+  "create_gps_title": {
+    "es": "GPS",
+    "en": "GPS",
+    "it": "GPS",
+    "pt": "GPS",
+    "fr": "GPS",
+    "de": "GPS"
+  },
+  "create_gps_read_error": {
+    "es": "No se pudo leer la ubicación.",
+    "en": "Could not read location.",
+    "it": "Could not read location.",
+    "pt": "Could not read location.",
+    "fr": "Could not read location.",
+    "de": "Could not read location."
+  },
+  "create_address_title": {
+    "es": "Dirección",
+    "en": "Address",
+    "it": "Indirizzo",
+    "pt": "Endereço",
+    "fr": "Adresse",
+    "de": "Adresse"
+  },
+  "create_address_search_hint": {
+    "es": "Escribe una dirección o lugar para buscar.",
+    "en": "Type an address or place to search.",
+    "it": "Type an address or place to search.",
+    "pt": "Type an address or place to search.",
+    "fr": "Type an address or place to search.",
+    "de": "Type an address or place to search."
+  },
+  "create_no_results": {
+    "es": "Sin resultados",
+    "en": "No results",
+    "it": "No results",
+    "pt": "No results",
+    "fr": "No results",
+    "de": "No results"
+  },
+  "create_geocode_no_place": {
+    "es": "No encontramos ese lugar. Prueba con más detalle (calle, ciudad, país).",
+    "en": "We could not find that place. Try more detail (street, city, country).",
+    "it": "We could not find that place. Try more detail (street, city, country).",
+    "pt": "We could not find that place. Try more detail (street, city, country).",
+    "fr": "We could not find that place. Try more detail (street, city, country).",
+    "de": "We could not find that place. Try more detail (street, city, country)."
+  },
+  "create_search_title": {
+    "es": "Búsqueda",
+    "en": "Search",
+    "it": "Ricerca",
+    "pt": "Busca",
+    "fr": "Recherche",
+    "de": "Suche"
+  },
+  "create_geocoder_fail": {
+    "es": "El geocodificador del dispositivo no pudo resolver la dirección.",
+    "en": "The device geocoder could not resolve the address.",
+    "it": "The device geocoder could not resolve the address.",
+    "pt": "The device geocoder could not resolve the address.",
+    "fr": "The device geocoder could not resolve the address.",
+    "de": "The device geocoder could not resolve the address."
+  },
+  "create_session_title": {
+    "es": "Sesión",
+    "en": "Session",
+    "it": "Sessione",
+    "pt": "Sessão",
+    "fr": "Session",
+    "de": "Sitzung"
+  },
+  "create_session_signin_again": {
+    "es": "Inicia sesión de nuevo.",
+    "en": "Please sign in again.",
+    "it": "Please sign in again.",
+    "pt": "Please sign in again.",
+    "fr": "Please sign in again.",
+    "de": "Please sign in again."
+  },
+  "create_missing_fields_title": {
+    "es": "Datos incompletos",
+    "en": "Missing fields",
+    "it": "Missing fields",
+    "pt": "Missing fields",
+    "fr": "Missing fields",
+    "de": "Missing fields"
+  },
+  "create_missing_fields_body": {
+    "es": "Indica el nombre de la tarjeta y el nombre de contacto.",
+    "en": "Enter the card name and contact name.",
+    "it": "Enter the card name and contact name.",
+    "pt": "Enter the card name and contact name.",
+    "fr": "Enter the card name and contact name.",
+    "de": "Enter the card name and contact name."
+  },
+  "create_location_required_title": {
+    "es": "Ubicación requerida",
+    "en": "Location required",
+    "it": "Location required",
+    "pt": "Location required",
+    "fr": "Location required",
+    "de": "Location required"
+  },
+  "create_location_required_body": {
+    "es": "Busca una dirección y elige un resultado de la lista, o usa “Mi ubicación actual”.",
+    "en": "Search for an address and pick a result from the list, or use “Use my current location”.",
+    "it": "Search for an address and pick a result from the list, or use “Use my current location”.",
+    "pt": "Search for an address and pick a result from the list, or use “Use my current location”.",
+    "fr": "Search for an address and pick a result from the list, or use “Use my current location”.",
+    "de": "Search for an address and pick a result from the list, or use “Use my current location”."
+  },
+  "create_keyword_blocked_title": {
+    "es": "Palabra no permitida",
+    "en": "Word not allowed",
+    "it": "Word not allowed",
+    "pt": "Word not allowed",
+    "fr": "Word not allowed",
+    "de": "Word not allowed"
+  },
+  "create_keyword_review": {
+    "es": "Revisa las palabras clave.",
+    "en": "Please review your keywords.",
+    "it": "Please review your keywords.",
+    "pt": "Please review your keywords.",
+    "fr": "Please review your keywords.",
+    "de": "Please review your keywords."
+  },
+  "create_limit_title": {
+    "es": "Límite",
+    "en": "Limit",
+    "it": "Limite",
+    "pt": "Limite",
+    "fr": "Limite",
+    "de": "Limit"
+  },
+  "create_keywords_max_20": {
+    "es": "Máximo 20 palabras clave.",
+    "en": "Maximum 20 keywords.",
+    "it": "Maximum 20 keywords.",
+    "pt": "Maximum 20 keywords.",
+    "fr": "Maximum 20 keywords.",
+    "de": "Maximum 20 keywords."
+  },
+  "create_keywords_title": {
+    "es": "Palabras clave",
+    "en": "Keywords",
+    "it": "Parole chiave",
+    "pt": "Palavras-chave",
+    "fr": "Mots clés",
+    "de": "Schlüsselwörter"
+  },
+  "create_keywords_format": {
+    "es": "Revisa el formato.",
+    "en": "Check the format.",
+    "it": "Check the format.",
+    "pt": "Check the format.",
+    "fr": "Check the format.",
+    "de": "Check the format."
+  },
+  "create_terms_alert_title": {
+    "es": "Términos",
+    "en": "Terms",
+    "it": "Termini",
+    "pt": "Termos",
+    "fr": "Conditions",
+    "de": "Bedingungen"
+  },
+  "create_terms_alert_body": {
+    "es": "Debes aceptar los términos y condiciones de la tarjeta de negocio.",
+    "en": "You must accept the business card terms and conditions.",
+    "it": "You must accept the business card terms and conditions.",
+    "pt": "You must accept the business card terms and conditions.",
+    "fr": "You must accept the business card terms and conditions.",
+    "de": "You must accept the business card terms and conditions."
+  },
+  "create_done_title": {
+    "es": "Listo",
+    "en": "Done",
+    "it": "Fatto",
+    "pt": "Pronto",
+    "fr": "Terminé",
+    "de": "Fertig"
+  },
+  "create_changes_saved_body": {
+    "es": "Cambios guardados.",
+    "en": "Changes saved.",
+    "it": "Changes saved.",
+    "pt": "Changes saved.",
+    "fr": "Changes saved.",
+    "de": "Changes saved."
+  },
+  "create_ok": {
+    "es": "OK",
+    "en": "OK",
+    "it": "OK",
+    "pt": "OK",
+    "fr": "OK",
+    "de": "OK"
+  },
+  "create_trial_license_warn_title": {
+    "es": "Licencia trial no activada",
+    "en": "Trial license not activated",
+    "it": "Trial license not activated",
+    "pt": "Trial license not activated",
+    "fr": "Trial license not activated",
+    "de": "Trial license not activated"
+  },
+  "create_trial_license_warn_body": {
+    "es": "La tarjeta se guardó pero no aparecerá en el Mercado Social. Activa la licencia desde la pantalla de tu tarjeta.",
+    "en": "Card saved but won't appear in Social Market. Activate the license from your card screen.",
+    "it": "Card saved but won't appear in Social Market. Activate the license from your card screen.",
+    "pt": "Card saved but won't appear in Social Market. Activate the license from your card screen.",
+    "fr": "Card saved but won't appear in Social Market. Activate the license from your card screen.",
+    "de": "Card saved but won't appear in Social Market. Activate the license from your card screen."
+  },
+  "create_card_created_body": {
+    "es": "Tarjeta de negocio creada. Periodo de prueba de 14 días iniciado.",
+    "en": "Business card created. 14-day trial started.",
+    "it": "Business card created. 14-day trial started.",
+    "pt": "Business card created. 14-day trial started.",
+    "fr": "Business card created. 14-day trial started.",
+    "de": "Business card created. 14-day trial started."
+  },
+  "create_try_again": {
+    "es": "Inténtalo de nuevo.",
+    "en": "Please try again.",
+    "it": "Please try again.",
+    "pt": "Please try again.",
+    "fr": "Please try again.",
+    "de": "Please try again."
+  },
+  "create_unsaved_title": {
+    "es": "Cambios sin guardar",
+    "en": "Unsaved changes",
+    "it": "Unsaved changes",
+    "pt": "Unsaved changes",
+    "fr": "Unsaved changes",
+    "de": "Unsaved changes"
+  },
+  "create_unsaved_body": {
+    "es": "Si sales ahora, perderás lo que modificaste; no se guarda solo. ¿Quieres guardar antes de salir?",
+    "en": "If you leave now, you will lose your edits; nothing is saved automatically. Do you want to save before leaving?",
+    "it": "If you leave now, you will lose your edits; nothing is saved automatically. Do you want to save before leaving?",
+    "pt": "If you leave now, you will lose your edits; nothing is saved automatically. Do you want to save before leaving?",
+    "fr": "If you leave now, you will lose your edits; nothing is saved automatically. Do you want to save before leaving?",
+    "de": "If you leave now, you will lose your edits; nothing is saved automatically. Do you want to save before leaving?"
+  },
+  "create_dont_save": {
+    "es": "No guardar",
+    "en": "Don't save",
+    "it": "Don't save",
+    "pt": "Don't save",
+    "fr": "Don't save",
+    "de": "Don't save"
+  },
+  "create_save": {
+    "es": "Guardar",
+    "en": "Save",
+    "it": "Salva",
+    "pt": "Salvar",
+    "fr": "Enregistrer",
+    "de": "Speichern"
+  },
+  "create_license_active_title": {
+    "es": "Licencia activa",
+    "en": "License active",
+    "it": "License active",
+    "pt": "License active",
+    "fr": "License active",
+    "de": "License active"
+  },
+  "create_license_active_body": {
+    "es": "Estado: active. Puedes publicar en Social Market.",
+    "en": "Status: active. You can publish to Social Market.",
+    "it": "Status: active. You can publish to Social Market.",
+    "pt": "Status: active. You can publish to Social Market.",
+    "fr": "Status: active. You can publish to Social Market.",
+    "de": "Status: active. You can publish to Social Market."
+  },
+  "create_dull_preview_title": {
+    "es": "Modo Dull (preview)",
+    "en": "Dull mode (preview)",
+    "it": "Dull mode (preview)",
+    "pt": "Dull mode (preview)",
+    "fr": "Dull mode (preview)",
+    "de": "Dull mode (preview)"
+  },
+  "create_dull_preview_body": {
+    "es": "Vista previa atenuada. No se persiste; al refrescar vuelve al estado real.",
+    "en": "Dimmed preview only. Not persisted; refreshing restores the real state.",
+    "it": "Dimmed preview only. Not persisted; refreshing restores the real state.",
+    "pt": "Dimmed preview only. Not persisted; refreshing restores the real state.",
+    "fr": "Dimmed preview only. Not persisted; refreshing restores the real state.",
+    "de": "Dimmed preview only. Not persisted; refreshing restores the real state."
+  },
+  "create_license_required_publishing_title": {
+    "es": "Licencia requerida",
+    "en": "License required",
+    "it": "License required",
+    "pt": "License required",
+    "fr": "License required",
+    "de": "License required"
+  },
+  "create_license_required_publishing_body": {
+    "es": "Activa la licencia (simulación) antes de publicar.",
+    "en": "Activate license (simulation) before publishing.",
+    "it": "Activate license (simulation) before publishing.",
+    "pt": "Activate license (simulation) before publishing.",
+    "fr": "Activate license (simulation) before publishing.",
+    "de": "Activate license (simulation) before publishing."
+  },
+  "create_sub_trial": {
+    "es": "Prueba (trial)",
+    "en": "Trial",
+    "it": "Trial",
+    "pt": "Trial",
+    "fr": "Trial",
+    "de": "Trial"
+  },
+  "create_sub_active": {
+    "es": "Activa",
+    "en": "Active",
+    "it": "Attiva",
+    "pt": "Ativa",
+    "fr": "Active",
+    "de": "Aktiv"
+  },
+  "create_sub_dull": {
+    "es": "Dull (atenuada)",
+    "en": "Dull (dimmed)",
+    "it": "Dull (dimmed)",
+    "pt": "Dull (dimmed)",
+    "fr": "Dull (dimmed)",
+    "de": "Dull (dimmed)"
+  },
+  "create_close": {
+    "es": "Cerrar",
+    "en": "Close",
+    "it": "Chiudi",
+    "pt": "Fechar",
+    "fr": "Fermer",
+    "de": "Schließen"
+  },
+  "create_business_card_title": {
+    "es": "Tarjeta de negocio",
+    "en": "Business card",
+    "it": "Business card",
+    "pt": "Business card",
+    "fr": "Business card",
+    "de": "Business card"
+  },
+  "create_zero_trust_intro": {
+    "es": "Protocolo de arquitectura Zero Trust: correo, teléfono, enlaces y mapa permanecen como datos soberanos en tu Bóveda; aquí solo identidad de negocio, marca, ubicación y palabras clave SEO.",
+    "en": "Zero-Trust Architecture Protocol: email, phone, links, and maps stay sovereign in your Vault—this screen only governs business identity, brand, geo, and SEO keywords.",
+    "it": "Zero-Trust Architecture Protocol: email, phone, links, and maps stay sovereign in your Vault—this screen only governs business identity, brand, geo, and SEO keywords.",
+    "pt": "Zero-Trust Architecture Protocol: email, phone, links, and maps stay sovereign in your Vault—this screen only governs business identity, brand, geo, and SEO keywords.",
+    "fr": "Zero-Trust Architecture Protocol: email, phone, links, and maps stay sovereign in your Vault—this screen only governs business identity, brand, geo, and SEO keywords.",
+    "de": "Zero-Trust Architecture Protocol: email, phone, links, and maps stay sovereign in your Vault—this screen only governs business identity, brand, geo, and SEO keywords."
+  },
+  "create_loading_card": {
+    "es": "Cargando tarjeta…",
+    "en": "Loading card…",
+    "it": "Loading card…",
+    "pt": "Loading card…",
+    "fr": "Loading card…",
+    "de": "Loading card…"
+  },
+  "create_preview": {
+    "es": "Vista previa",
+    "en": "Preview",
+    "it": "Anteprima",
+    "pt": "Pré-visualização",
+    "fr": "Aperçu",
+    "de": "Vorschau"
+  },
+  "create_card_name_placeholder": {
+    "es": "Nombre de la tarjeta",
+    "en": "Card name",
+    "it": "Card name",
+    "pt": "Card name",
+    "fr": "Card name",
+    "de": "Card name"
+  },
+  "create_contact_name_placeholder": {
+    "es": "Nombre de contacto",
+    "en": "Contact name",
+    "it": "Contact name",
+    "pt": "Contact name",
+    "fr": "Contact name",
+    "de": "Contact name"
+  },
+  "create_license_paused_dull": {
+    "es": "Licencia en pausa (Dull)",
+    "en": "License on hold (Dull)",
+    "it": "License on hold (Dull)",
+    "pt": "License on hold (Dull)",
+    "fr": "License on hold (Dull)",
+    "de": "License on hold (Dull)"
+  },
+  "create_subscription_status_label": {
+    "es": "Estado de suscripción:",
+    "en": "Subscription status:",
+    "it": "Subscription status:",
+    "pt": "Subscription status:",
+    "fr": "Subscription status:",
+    "de": "Subscription status:"
+  },
+  "create_placeholder_company": {
+    "es": "Mi empresa",
+    "en": "My company",
+    "it": "My company",
+    "pt": "My company",
+    "fr": "My company",
+    "de": "My company"
+  },
+  "create_placeholder_full_name": {
+    "es": "Nombre completo",
+    "en": "Full name",
+    "it": "Full name",
+    "pt": "Full name",
+    "fr": "Full name",
+    "de": "Full name"
+  },
+  "create_use_profile_name": {
+    "es": "Usar el mismo nombre de mi perfil",
+    "en": "Use my profile name",
+    "it": "Use my profile name",
+    "pt": "Use my profile name",
+    "fr": "Use my profile name",
+    "de": "Use my profile name"
+  },
+  "create_profile_prefix": {
+    "es": "Perfil:",
+    "en": "Profile:",
+    "it": "Profile:",
+    "pt": "Profile:",
+    "fr": "Profile:",
+    "de": "Profile:"
+  },
+  "create_business_logo": {
+    "es": "Logo del negocio",
+    "en": "Business logo",
+    "it": "Business logo",
+    "pt": "Business logo",
+    "fr": "Business logo",
+    "de": "Business logo"
+  },
+  "create_logo_help": {
+    "es": "Por defecto: tu foto de perfil. Sube una imagen; se recorta a cuadrado. Mismo logo para la tarjeta y el centro del QR (ECL H).",
+    "en": "Default: your profile photo. Upload an image; it is cropped square. Same logo for the card and QR center (ECL H).",
+    "it": "Default: your profile photo. Upload an image; it is cropped square. Same logo for the card and QR center (ECL H).",
+    "pt": "Default: your profile photo. Upload an image; it is cropped square. Same logo for the card and QR center (ECL H).",
+    "fr": "Default: your profile photo. Upload an image; it is cropped square. Same logo for the card and QR center (ECL H).",
+    "de": "Default: your profile photo. Upload an image; it is cropped square. Same logo for the card and QR center (ECL H)."
+  },
+  "create_pick_square_image": {
+    "es": "Elegir imagen (cuadrada)",
+    "en": "Pick image (square)",
+    "it": "Pick image (square)",
+    "pt": "Pick image (square)",
+    "fr": "Pick image (square)",
+    "de": "Pick image (square)"
+  },
+  "create_use_avatar_only": {
+    "es": "Usar solo avatar",
+    "en": "Use avatar only",
+    "it": "Use avatar only",
+    "pt": "Use avatar only",
+    "fr": "Use avatar only",
+    "de": "Use avatar only"
+  },
+  "create_location_search_title": {
+    "es": "Ubicación para búsqueda",
+    "en": "Location for search",
+    "it": "Location for search",
+    "pt": "Location for search",
+    "fr": "Location for search",
+    "de": "Location for search"
+  },
+  "create_location_search_help": {
+    "es": "Escribe una dirección (como en mapas): el dispositivo la convierte en lat/lng (geocodificador del sistema, sin API de pago). En el Mercado solo se usa distancia aproximada, no tu calle.",
+    "en": "Type an address (like in maps): your device turns it into lat/lng (system geocoder, no paid API). The Market only uses approximate distance, not your street.",
+    "it": "Type an address (like in maps): your device turns it into lat/lng (system geocoder, no paid API). The Market only uses approximate distance, not your street.",
+    "pt": "Type an address (like in maps): your device turns it into lat/lng (system geocoder, no paid API). The Market only uses approximate distance, not your street.",
+    "fr": "Type an address (like in maps): your device turns it into lat/lng (system geocoder, no paid API). The Market only uses approximate distance, not your street.",
+    "de": "Type an address (like in maps): your device turns it into lat/lng (system geocoder, no paid API). The Market only uses approximate distance, not your street."
+  },
+  "create_address_or_place": {
+    "es": "Dirección o lugar",
+    "en": "Address or place",
+    "it": "Address or place",
+    "pt": "Address or place",
+    "fr": "Address or place",
+    "de": "Address or place"
+  },
+  "create_address_placeholder": {
+    "es": "Calle, número, ciudad, país…",
+    "en": "Street, number, city, country…",
+    "it": "Street, number, city, country…",
+    "pt": "Street, number, city, country…",
+    "fr": "Street, number, city, country…",
+    "de": "Street, number, city, country…"
+  },
+  "create_map_results": {
+    "es": "Resultados en el mapa",
+    "en": "Map results",
+    "it": "Map results",
+    "pt": "Map results",
+    "fr": "Map results",
+    "de": "Map results"
+  },
+  "create_tap_set_coords": {
+    "es": "Toca para fijar coordenadas",
+    "en": "Tap to set coordinates",
+    "it": "Tap to set coordinates",
+    "pt": "Tap to set coordinates",
+    "fr": "Tap to set coordinates",
+    "de": "Tap to set coordinates"
+  },
+  "create_or_divider": {
+    "es": "— o —",
+    "en": "— or —",
+    "it": "— or —",
+    "pt": "— or —",
+    "fr": "— or —",
+    "de": "— or —"
+  },
+  "create_use_current_location": {
+    "es": "Usar mi ubicación actual",
+    "en": "Use my current location",
+    "it": "Use my current location",
+    "pt": "Use my current location",
+    "fr": "Use my current location",
+    "de": "Use my current location"
+  },
+  "create_lat": {
+    "es": "Lat",
+    "en": "Lat",
+    "it": "Lat",
+    "pt": "Lat",
+    "fr": "Lat",
+    "de": "Lat"
+  },
+  "create_lng": {
+    "es": "Lng",
+    "en": "Lng",
+    "it": "Lng",
+    "pt": "Lng",
+    "fr": "Lng",
+    "de": "Lng"
+  },
+  "create_keywords_seo": {
+    "es": "Palabras Clave (SEO)",
+    "en": "Keywords (SEO)",
+    "it": "Keywords (SEO)",
+    "pt": "Keywords (SEO)",
+    "fr": "Keywords (SEO)",
+    "de": "Keywords (SEO)"
+  },
+  "create_data_and_theme": {
+    "es": "Datos y tema",
+    "en": "Data and theme",
+    "it": "Data and theme",
+    "pt": "Data and theme",
+    "fr": "Data and theme",
+    "de": "Data and theme"
+  },
+  "create_data_theme_help": {
+    "es": "Igual que en Smart Cards: elige ítems de la Bóveda y un tema visual.",
+    "en": "Same as Smart Cards: pick Vault items and a visual theme.",
+    "it": "Same as Smart Cards: pick Vault items and a visual theme.",
+    "pt": "Same as Smart Cards: pick Vault items and a visual theme.",
+    "fr": "Same as Smart Cards: pick Vault items and a visual theme.",
+    "de": "Same as Smart Cards: pick Vault items and a visual theme."
+  },
+  "create_add_data": {
+    "es": "Agregar DATA",
+    "en": "Add DATA",
+    "it": "Add DATA",
+    "pt": "Add DATA",
+    "fr": "Add DATA",
+    "de": "Add DATA"
+  },
+  "create_add_themes": {
+    "es": "Agregar TEMAS",
+    "en": "Add THEMES",
+    "it": "Add THEMES",
+    "pt": "Add THEMES",
+    "fr": "Add THEMES",
+    "de": "Add THEMES"
+  },
+  "create_theme_label": {
+    "es": "Tema:",
+    "en": "Theme:",
+    "it": "Theme:",
+    "pt": "Theme:",
+    "fr": "Theme:",
+    "de": "Theme:"
+  },
+  "create_no_cloud_links": {
+    "es": "Sin enlaces en la nube. Agrega datos en Bóveda.",
+    "en": "No cloud links yet. Add data in Vault.",
+    "it": "No cloud links yet. Add data in Vault.",
+    "pt": "No cloud links yet. Add data in Vault.",
+    "fr": "No cloud links yet. Add data in Vault.",
+    "de": "No cloud links yet. Add data in Vault."
+  },
+  "create_terms_section_title": {
+    "es": "Términos y condiciones",
+    "en": "Terms and conditions",
+    "it": "Terms and conditions",
+    "pt": "Terms and conditions",
+    "fr": "Terms and conditions",
+    "de": "Terms and conditions"
+  },
+  "create_terms_accept_checkbox": {
+    "es": "He leído y acepto los términos y la política de contenido de la tarjeta de negocio.",
+    "en": "I have read and accept the business card terms and content policy.",
+    "it": "I have read and accept the business card terms and content policy.",
+    "pt": "I have read and accept the business card terms and content policy.",
+    "fr": "I have read and accept the business card terms and content policy.",
+    "de": "I have read and accept the business card terms and content policy."
+  },
+  "create_save_changes": {
+    "es": "Guardar cambios",
+    "en": "Save changes",
+    "it": "Save changes",
+    "pt": "Save changes",
+    "fr": "Save changes",
+    "de": "Save changes"
+  },
+  "create_create_card": {
+    "es": "Crear tarjeta",
+    "en": "Create card",
+    "it": "Create card",
+    "pt": "Create card",
+    "fr": "Create card",
+    "de": "Create card"
+  },
+  "create_market_visibility": {
+    "es": "Visibilidad en Social Market",
+    "en": "Social Market visibility",
+    "it": "Social Market visibility",
+    "pt": "Social Market visibility",
+    "fr": "Social Market visibility",
+    "de": "Social Market visibility"
+  },
+  "create_license_sim_active": {
+    "es": "Licencia anual activa (simulación).",
+    "en": "Annual license active (simulation).",
+    "it": "Annual license active (simulation).",
+    "pt": "Annual license active (simulation).",
+    "fr": "Annual license active (simulation).",
+    "de": "Annual license active (simulation)."
+  },
+  "create_license_required_hint": {
+    "es": "Requiere licencia activa para publicar.",
+    "en": "Active license required to publish.",
+    "it": "Active license required to publish.",
+    "pt": "Active license required to publish.",
+    "fr": "Active license required to publish.",
+    "de": "Active license required to publish."
+  },
+  "create_simulate_license_dev": {
+    "es": "Simular licencia anual (desarrollo)",
+    "en": "Simulate annual license (dev)",
+    "it": "Simulate annual license (dev)",
+    "pt": "Simulate annual license (dev)",
+    "fr": "Simulate annual license (dev)",
+    "de": "Simulate annual license (dev)"
+  },
+  "create_simulate_dull_dev": {
+    "es": "Simular estado Dull (desarrollo)",
+    "en": "Simulate Dull state (dev)",
+    "it": "Simulate Dull state (dev)",
+    "pt": "Simulate Dull state (dev)",
+    "fr": "Simulate Dull state (dev)",
+    "de": "Simulate Dull state (dev)"
+  },
+  "create_select_vault_data": {
+    "es": "Selecciona datos",
+    "en": "Select data",
+    "it": "Select data",
+    "pt": "Select data",
+    "fr": "Select data",
+    "de": "Select data"
+  },
+  "create_search_vault_placeholder": {
+    "es": "Buscar dato...",
+    "en": "Search data...",
+    "it": "Search data...",
+    "pt": "Search data...",
+    "fr": "Search data...",
+    "de": "Search data..."
+  },
+  "create_clear_search_a11y": {
+    "es": "Limpiar búsqueda",
+    "en": "Clear search",
+    "it": "Clear search",
+    "pt": "Clear search",
+    "fr": "Clear search",
+    "de": "Clear search"
+  },
+  "create_sort_az": {
+    "es": "Alfabético",
+    "en": "A-Z",
+    "it": "A-Z",
+    "pt": "A-Z",
+    "fr": "A-Z",
+    "de": "A-Z"
+  },
+  "create_sort_recent_short": {
+    "es": "Reciente",
+    "en": "Recent",
+    "it": "Recent",
+    "pt": "Recent",
+    "fr": "Recent",
+    "de": "Recent"
+  },
+  "create_vault_max_links_banner": {
+    "es": "Máximo {{maxSlots}} enlaces de bóveda",
+    "en": "Maximum {{maxSlots}} vault links",
+    "it": "Maximum {{maxSlots}} vault links",
+    "pt": "Maximum {{maxSlots}} vault links",
+    "fr": "Maximum {{maxSlots}} vault links",
+    "de": "Maximum {{maxSlots}} vault links"
+  },
+  "create_vault_empty_selector": {
+    "es": "Tu bóveda está vacía.\nAgrega datos primero en Bóveda.",
+    "en": "Your Vault is empty.\nAdd data from Vault first.",
+    "it": "Your Vault is empty.\nAdd data from Vault first.",
+    "pt": "Your Vault is empty.\nAdd data from Vault first.",
+    "fr": "Your Vault is empty.\nAdd data from Vault first.",
+    "de": "Your Vault is empty.\nAdd data from Vault first."
+  },
+  "create_vault_search_no_match": {
+    "es": "No encontramos datos con esa búsqueda.",
+    "en": "No data matched that search.",
+    "it": "No data matched that search.",
+    "pt": "No data matched that search.",
+    "fr": "No data matched that search.",
+    "de": "No data matched that search."
+  },
+  "create_confirm": {
+    "es": "Confirmar",
+    "en": "Confirm",
+    "it": "Conferma",
+    "pt": "Confirmar",
+    "fr": "Confirmer",
+    "de": "Bestätigen"
+  },
+  "create_confirm_with_count": {
+    "es": "Confirmar ({{count}})",
+    "en": "Confirm ({{count}})",
+    "it": "Confirm ({{count}})",
+    "pt": "Confirm ({{count}})",
+    "fr": "Confirm ({{count}})",
+    "de": "Confirm ({{count}})"
+  },
+  "create_card_themes_title": {
+    "es": "Temas de Tarjeta",
+    "en": "Card Themes",
+    "it": "Card Themes",
+    "pt": "Card Themes",
+    "fr": "Card Themes",
+    "de": "Card Themes"
+  },
+  "create_accept": {
+    "es": "Aceptar",
+    "en": "Accept",
+    "it": "Accetta",
+    "pt": "Aceitar",
+    "fr": "Accepter",
+    "de": "Akzeptieren"
+  },
+  "create_theme_locked_title": {
+    "es": "Tema bloqueado",
+    "en": "Theme locked",
+    "it": "Theme locked",
+    "pt": "Theme locked",
+    "fr": "Theme locked",
+    "de": "Theme locked"
+  },
+  "create_theme_locked_body": {
+    "es": "Desbloquéalo en Locker de Estilos o La Fragua.",
+    "en": "Unlock it in Theme Locker or The Forge.",
+    "it": "Unlock it in Theme Locker or The Forge.",
+    "pt": "Unlock it in Theme Locker or The Forge.",
+    "fr": "Unlock it in Theme Locker or The Forge.",
+    "de": "Unlock it in Theme Locker or The Forge."
+  },
+  "create_business_terms_body": {
+    "es": "Al crear una tarjeta de negocio te comprometes a no usar Card-Social para promover apuestas ilegales, contenido sexual explícito, discurso de odio, acoso o estafas. Las palabras clave y el contenido visible deben cumplir estas reglas. Card-Social puede retirar o restringir tarjetas que incumplan. Los términos de pago y suscripción aplicarán cuando se active la facturación; hasta entonces, los estados prueba/activa/dull son de seguimiento y pruebas.",
+    "en": "By creating a business card you agree not to use Card-Social to promote illegal gambling, explicit sexual content, hate speech, harassment, or deceptive scams. Keywords and visible content must comply with these rules. Card-Social may remove or restrict cards that violate policy. Payment and subscription terms will apply when billing is enabled; until then, trial/active/dull states are tracked for testing.",
+    "it": "By creating a business card you agree not to use Card-Social to promote illegal gambling, explicit sexual content, hate speech, harassment, or deceptive scams. Keywords and visible content must comply with these rules. Card-Social may remove or restrict cards that violate policy. Payment and subscription terms will apply when billing is enabled; until then, trial/active/dull states are tracked for testing.",
+    "pt": "By creating a business card you agree not to use Card-Social to promote illegal gambling, explicit sexual content, hate speech, harassment, or deceptive scams. Keywords and visible content must comply with these rules. Card-Social may remove or restrict cards that violate policy. Payment and subscription terms will apply when billing is enabled; until then, trial/active/dull states are tracked for testing.",
+    "fr": "By creating a business card you agree not to use Card-Social to promote illegal gambling, explicit sexual content, hate speech, harassment, or deceptive scams. Keywords and visible content must comply with these rules. Card-Social may remove or restrict cards that violate policy. Payment and subscription terms will apply when billing is enabled; until then, trial/active/dull states are tracked for testing.",
+    "de": "By creating a business card you agree not to use Card-Social to promote illegal gambling, explicit sexual content, hate speech, harassment, or deceptive scams. Keywords and visible content must comply with these rules. Card-Social may remove or restrict cards that violate policy. Payment and subscription terms will apply when billing is enabled; until then, trial/active/dull states are tracked for testing."
+  },
+  "form_vault_cat_other": {
+    "es": "Otros",
+    "en": "Other",
+    "it": "Altri",
+    "pt": "Outros",
+    "fr": "Autres",
+    "de": "Andere"
+  },
+  "form_vault_cat_business": {
+    "es": "Negocios",
+    "en": "Business",
+    "it": "Business",
+    "pt": "Negócios",
+    "fr": "Affaires",
+    "de": "Geschäftliches"
+  },
+  "form_vault_cat_social": {
+    "es": "Sociales",
+    "en": "Social",
+    "it": "Sociali",
+    "pt": "Sociais",
+    "fr": "Social",
+    "de": "Soziales"
+  },
+  "form_vault_cat_personal": {
+    "es": "Personales",
+    "en": "Personal",
+    "it": "Personali",
+    "pt": "Pessoais",
+    "fr": "Personnel",
+    "de": "Persönliches"
+  },
+  "form_vault_cat_featured": {
+    "es": "Destacados",
+    "en": "Featured",
+    "it": "In evidenza",
+    "pt": "Destaques",
+    "fr": "À la une",
+    "de": "Highlights"
+  },
+  "form_vault_uncategorized": {
+    "es": "Sin categoría",
+    "en": "Uncategorized",
+    "it": "Senza categoria",
+    "pt": "Sem categoria",
+    "fr": "Sans catégorie",
+    "de": "Ohne Kategorie"
+  },
+  "form_bc_keyword_hint": {
+    "es": "Optimización para Motores de Búsqueda. Máx. 20 palabras, separadas por coma. Invisibles en la tarjeta pública; activas en búsqueda.",
+    "en": "Search Engine Optimization. Up to 20 words, comma-separated. Hidden on public card; active for search.",
+    "it": "Search Engine Optimization. Up to 20 words, comma-separated. Hidden on public card; active for search.",
+    "pt": "Search Engine Optimization. Up to 20 words, comma-separated. Hidden on public card; active for search.",
+    "fr": "Search Engine Optimization. Up to 20 words, comma-separated. Hidden on public card; active for search.",
+    "de": "Search Engine Optimization. Up to 20 words, comma-separated. Hidden on public card; active for search."
+  },
+  "form_bc_keyword_limit_title": {
+    "es": "Límite alcanzado",
+    "en": "Limit reached",
+    "it": "Limit reached",
+    "pt": "Limit reached",
+    "fr": "Limit reached",
+    "de": "Limit reached"
+  },
+  "form_bc_keyword_limit_body": {
+    "es": "Máximo {{max}} palabras clave.",
+    "en": "Maximum {{max}} keywords.",
+    "it": "Maximum {{max}} keywords.",
+    "pt": "Maximum {{max}} keywords.",
+    "fr": "Maximum {{max}} keywords.",
+    "de": "Maximum {{max}} keywords."
+  },
+  "form_bc_keyword_blocked_title": {
+    "es": "Palabra no permitida",
+    "en": "Word not allowed",
+    "it": "Word not allowed",
+    "pt": "Word not allowed",
+    "fr": "Word not allowed",
+    "de": "Word not allowed"
+  },
+  "form_bc_keyword_blocked_body": {
+    "es": "Esta palabra clave no cumple las reglas de contenido (odio, explícito, apuestas, etc.).",
+    "en": "This keyword does not meet content rules (hate, explicit, gambling, etc.).",
+    "it": "This keyword does not meet content rules (hate, explicit, gambling, etc.).",
+    "pt": "This keyword does not meet content rules (hate, explicit, gambling, etc.).",
+    "fr": "This keyword does not meet content rules (hate, explicit, gambling, etc.).",
+    "de": "This keyword does not meet content rules (hate, explicit, gambling, etc.)."
+  },
+  "form_bc_tag_too_long_title": {
+    "es": "Demasiado largo",
+    "en": "Too long",
+    "it": "Too long",
+    "pt": "Too long",
+    "fr": "Too long",
+    "de": "Too long"
+  },
+  "form_bc_tag_too_long_body": {
+    "es": "Cada etiqueta debe ser más corta.",
+    "en": "Each tag must be shorter.",
+    "it": "Each tag must be shorter.",
+    "pt": "Each tag must be shorter.",
+    "fr": "Each tag must be shorter.",
+    "de": "Each tag must be shorter."
+  },
+  "form_bc_placeholder": {
+    "es": "ej. uñas, color, barbería…",
+    "en": "e.g. nails, color, barber…",
+    "it": "e.g. nails, color, barber…",
+    "pt": "e.g. nails, color, barber…",
+    "fr": "e.g. nails, color, barber…",
+    "de": "e.g. nails, color, barber…"
+  },
+  "form_type_link": {
+    "es": "Enlace",
+    "en": "Link",
+    "it": "Link",
+    "pt": "Link",
+    "fr": "Lien",
+    "de": "Link"
+  },
+  "form_type_email": {
+    "es": "Email",
+    "en": "Email",
+    "it": "Email",
+    "pt": "Email",
+    "fr": "Email",
+    "de": "Email"
+  },
+  "form_type_phone": {
+    "es": "Teléfono",
+    "en": "Phone",
+    "it": "Telefono",
+    "pt": "Telefone",
+    "fr": "Téléphone",
+    "de": "Telefon"
+  },
+  "form_type_text": {
+    "es": "Texto",
+    "en": "Text",
+    "it": "Testo",
+    "pt": "Texto",
+    "fr": "Texte",
+    "de": "Text"
+  },
+  "form_type_document": {
+    "es": "Documento",
+    "en": "Document",
+    "it": "Documento",
+    "pt": "Documento",
+    "fr": "Document",
+    "de": "Dokument"
+  },
+  "form_type_ghost": {
+    "es": "Ghost Link",
+    "en": "Ghost Link",
+    "it": "Ghost Link",
+    "pt": "Ghost Link",
+    "fr": "Ghost Link",
+    "de": "Ghost Link"
+  },
+  "form_cancel": {
+    "es": "Cancelar",
+    "en": "Cancel",
+    "it": "Annulla",
+    "pt": "Cancelar",
+    "fr": "Annuler",
+    "de": "Abbrechen"
+  },
+  "form_retry_lock_message": {
+    "es": "Estamos cuidando la integridad de la comunidad. Por favor, espera un momento antes de intentar de nuevo",
+    "en": "We are protecting community integrity. Please wait a moment before trying again",
+    "it": "We are protecting community integrity. Please wait a moment before trying again",
+    "pt": "We are protecting community integrity. Please wait a moment before trying again",
+    "fr": "We are protecting community integrity. Please wait a moment before trying again",
+    "de": "We are protecting community integrity. Please wait a moment before trying again"
+  },
+  "form_moderation_smile": {
+    "es": "Parece que tu sonrisa no se ve clara. Intenta de nuevo para asegurar tu acceso premium.",
+    "en": "Your smile does not appear clear. Please try again to ensure your premium access.",
+    "it": "Your smile does not appear clear. Please try again to ensure your premium access.",
+    "pt": "Your smile does not appear clear. Please try again to ensure your premium access.",
+    "fr": "Your smile does not appear clear. Please try again to ensure your premium access.",
+    "de": "Your smile does not appear clear. Please try again to ensure your premium access."
+  },
+  "form_vault_new_folder": {
+    "es": "Nueva carpeta",
+    "en": "New folder",
+    "it": "New folder",
+    "pt": "New folder",
+    "fr": "New folder",
+    "de": "New folder"
+  },
+  "form_vault_pick_folder": {
+    "es": "Seleccionar carpeta",
+    "en": "Pick a folder",
+    "it": "Pick a folder",
+    "pt": "Pick a folder",
+    "fr": "Pick a folder",
+    "de": "Pick a folder"
+  },
+  "form_vault_confirm_create": {
+    "es": "Confirmá con CREAR",
+    "en": "Confirm with CREATE",
+    "it": "Confirm with CREATE",
+    "pt": "Confirm with CREATE",
+    "fr": "Confirm with CREATE",
+    "de": "Confirm with CREATE"
+  },
+  "form_vault_pick_other": {
+    "es": "Opcional: elegí otra desde el mismo selector",
+    "en": "Or pick another from the same selector",
+    "it": "Or pick another from the same selector",
+    "pt": "Or pick another from the same selector",
+    "fr": "Or pick another from the same selector",
+    "de": "Or pick another from the same selector"
+  },
+  "form_vault_organize": {
+    "es": "Agrupa tu Bóveda por carpetas",
+    "en": "Organize your Vault into folders",
+    "it": "Organize your Vault into folders",
+    "pt": "Organize your Vault into folders",
+    "fr": "Organize your Vault into folders",
+    "de": "Organize your Vault into folders"
+  },
+  "form_favicon_none_title": {
+    "es": "Sin favicon disponible",
+    "en": "No favicon available",
+    "it": "No favicon available",
+    "pt": "No favicon available",
+    "fr": "No favicon available",
+    "de": "No favicon available"
+  },
+  "form_favicon_none_body": {
+    "es": "No encontramos favicon para este sitio.",
+    "en": "We could not find a favicon for this site.",
+    "it": "We could not find a favicon for this site.",
+    "pt": "We could not find a favicon for this site.",
+    "fr": "We could not find a favicon for this site.",
+    "de": "We could not find a favicon for this site."
+  },
+  "form_open_icon_vault": {
+    "es": "Abrir Cofre de Iconos",
+    "en": "Open Icon Vault",
+    "it": "Open Icon Vault",
+    "pt": "Open Icon Vault",
+    "fr": "Open Icon Vault",
+    "de": "Open Icon Vault"
+  },
+  "form_preview": {
+    "es": "VISTA PREVIA",
+    "en": "PREVIEW",
+    "it": "PREVIEW",
+    "pt": "PREVIEW",
+    "fr": "PREVIEW",
+    "de": "PREVIEW"
+  },
+  "form_no_name": {
+    "es": "Sin nombre",
+    "en": "No name",
+    "it": "No name",
+    "pt": "No name",
+    "fr": "No name",
+    "de": "No name"
+  },
+  "form_favicon_find_web": {
+    "es": "¿Buscar favicon de esta web?",
+    "en": "Find this website favicon?",
+    "it": "Find this website favicon?",
+    "pt": "Find this website favicon?",
+    "fr": "Find this website favicon?",
+    "de": "Find this website favicon?"
+  },
+  "form_favicon_searching": {
+    "es": "Buscando favicon…",
+    "en": "Searching for favicon…",
+    "it": "Searching for favicon…",
+    "pt": "Searching for favicon…",
+    "fr": "Searching for favicon…",
+    "de": "Searching for favicon…"
+  },
+  "form_no_thanks": {
+    "es": "No, gracias",
+    "en": "No, thanks",
+    "it": "No, thanks",
+    "pt": "No, thanks",
+    "fr": "No, thanks",
+    "de": "No, thanks"
+  },
+  "form_find_favicon_now": {
+    "es": "Buscar favicon ahora",
+    "en": "Find favicon now",
+    "it": "Find favicon now",
+    "pt": "Find favicon now",
+    "fr": "Find favicon now",
+    "de": "Find favicon now"
+  },
+  "form_favicon_detected": {
+    "es": "Favicon detectado",
+    "en": "Favicon detected",
+    "it": "Favicon detected",
+    "pt": "Favicon detected",
+    "fr": "Favicon detected",
+    "de": "Favicon detected"
+  },
+  "form_favicon_style_hint": {
+    "es": "Si quieres otro estilo, elige un icono de la galería oficial.",
+    "en": "Want a different style? Pick an icon from the official gallery.",
+    "it": "Want a different style? Pick an icon from the official gallery.",
+    "pt": "Want a different style? Pick an icon from the official gallery.",
+    "fr": "Want a different style? Pick an icon from the official gallery.",
+    "de": "Want a different style? Pick an icon from the official gallery."
+  },
+  "form_iniciando": {
+    "es": "Iniciando...",
+    "en": "Starting...",
+    "it": "Starting...",
+    "pt": "Starting...",
+    "fr": "Starting...",
+    "de": "Starting..."
+  },
+  "form_document_default": {
+    "es": "Documento",
+    "en": "Document",
+    "it": "Document",
+    "pt": "Document",
+    "fr": "Document",
+    "de": "Document"
+  },
+  "form_file_too_large_msg": {
+    "es": "❌ Archivo muy grande ({{mb}} MB).\nMáximo: {{maxMb}} MB",
+    "en": "❌ File too large ({{mb}} MB).\nMax: {{maxMb}} MB",
+    "it": "❌ File too large ({{mb}} MB).\nMax: {{maxMb}} MB",
+    "pt": "❌ File too large ({{mb}} MB).\nMax: {{maxMb}} MB",
+    "fr": "❌ File too large ({{mb}} MB).\nMax: {{maxMb}} MB",
+    "de": "❌ File too large ({{mb}} MB).\nMax: {{maxMb}} MB"
+  },
+  "form_validate_size_error": {
+    "es": "Error al validar tamaño del archivo",
+    "en": "Error validating file size",
+    "it": "Error validating file size",
+    "pt": "Error validating file size",
+    "fr": "Error validating file size",
+    "de": "Error validating file size"
+  },
+  "form_image_too_large_title": {
+    "es": "Imagen demasiado grande",
+    "en": "Image too large",
+    "it": "Image too large",
+    "pt": "Image too large",
+    "fr": "Image too large",
+    "de": "Image too large"
+  },
+  "form_image_too_large_body": {
+    "es": "La imagen es demasiado grande. Intenta usar una foto con menos resolución.",
+    "en": "The image is too large. Try using a photo with lower resolution.",
+    "it": "The image is too large. Try using a photo with lower resolution.",
+    "pt": "The image is too large. Try using a photo with lower resolution.",
+    "fr": "The image is too large. Try using a photo with lower resolution.",
+    "de": "The image is too large. Try using a photo with lower resolution."
+  },
+  "form_pdf_warn_title": {
+    "es": "⚠️ PDF sin optimizar",
+    "en": "⚠️ PDF not optimized",
+    "it": "⚠️ PDF not optimized",
+    "pt": "⚠️ PDF not optimized",
+    "fr": "⚠️ PDF not optimized",
+    "de": "⚠️ PDF not optimized"
+  },
+  "form_pdf_warn_body": {
+    "es": "La optimización de PDF no está disponible. Intenta con un archivo más ligero.",
+    "en": "PDF optimization is unavailable. Try a lighter file.",
+    "it": "PDF optimization is unavailable. Try a lighter file.",
+    "pt": "PDF optimization is unavailable. Try a lighter file.",
+    "fr": "PDF optimization is unavailable. Try a lighter file.",
+    "de": "PDF optimization is unavailable. Try a lighter file."
+  },
+  "form_ios_take_photo": {
+    "es": "Tomar foto",
+    "en": "Take photo",
+    "it": "Take photo",
+    "pt": "Take photo",
+    "fr": "Take photo",
+    "de": "Take photo"
+  },
+  "form_ios_pick_image": {
+    "es": "Elegir imagen",
+    "en": "Choose image",
+    "it": "Choose image",
+    "pt": "Choose image",
+    "fr": "Choose image",
+    "de": "Choose image"
+  },
+  "form_ios_pick_document": {
+    "es": "Elegir documento",
+    "en": "Choose document",
+    "it": "Choose document",
+    "pt": "Choose document",
+    "fr": "Choose document",
+    "de": "Choose document"
+  },
+  "form_perm_denied": {
+    "es": "Permiso denegado",
+    "en": "Permission denied",
+    "it": "Permission denied",
+    "pt": "Permission denied",
+    "fr": "Permission denied",
+    "de": "Permission denied"
+  },
+  "form_photos_needed": {
+    "es": "Se necesita acceso a fotos",
+    "en": "Photo access required",
+    "it": "Photo access required",
+    "pt": "Photo access required",
+    "fr": "Photo access required",
+    "de": "Photo access required"
+  },
+  "form_uploading": {
+    "es": "Subiendo archivo...",
+    "en": "Uploading file...",
+    "it": "Uploading file...",
+    "pt": "Uploading file...",
+    "fr": "Uploading file...",
+    "de": "Uploading file..."
+  },
+  "form_gallery_timeout": {
+    "es": "La galería tardó demasiado en responder. Reintenta.",
+    "en": "Gallery took too long to respond. Please retry.",
+    "it": "Gallery took too long to respond. Please retry.",
+    "pt": "Gallery took too long to respond. Please retry.",
+    "fr": "Gallery took too long to respond. Please retry.",
+    "de": "Gallery took too long to respond. Please retry."
+  },
+  "form_gallery_fail_title": {
+    "es": "No se pudo abrir la galería",
+    "en": "Could not open gallery",
+    "it": "Could not open gallery",
+    "pt": "Could not open gallery",
+    "fr": "Could not open gallery",
+    "de": "Could not open gallery"
+  },
+  "form_gallery_fail_body": {
+    "es": "Intenta nuevamente o elige un archivo desde documentos.",
+    "en": "Try again or choose a file from documents.",
+    "it": "Try again or choose a file from documents.",
+    "pt": "Try again or choose a file from documents.",
+    "fr": "Try again or choose a file from documents.",
+    "de": "Try again or choose a file from documents."
+  },
+  "form_pdf_large_title": {
+    "es": "PDF demasiado pesado",
+    "en": "PDF too large",
+    "it": "PDF too large",
+    "pt": "PDF too large",
+    "fr": "PDF too large",
+    "de": "PDF too large"
+  },
+  "form_pdf_20mb": {
+    "es": "El PDF supera 20 MB. Elige uno más ligero para evitar bloqueos.",
+    "en": "The PDF exceeds 20 MB. Choose a lighter file to avoid freezes.",
+    "it": "The PDF exceeds 20 MB. Choose a lighter file to avoid freezes.",
+    "pt": "The PDF exceeds 20 MB. Choose a lighter file to avoid freezes.",
+    "fr": "The PDF exceeds 20 MB. Choose a lighter file to avoid freezes.",
+    "de": "The PDF exceeds 20 MB. Choose a lighter file to avoid freezes."
+  },
+  "form_pdf_safe_limit": {
+    "es": "El PDF excede el límite seguro incluso tras optimizar. Usa una versión más ligera.",
+    "en": "The PDF exceeds the safe limit even after optimization. Use a lighter version.",
+    "it": "The PDF exceeds the safe limit even after optimization. Use a lighter version.",
+    "pt": "The PDF exceeds the safe limit even after optimization. Use a lighter version.",
+    "fr": "The PDF exceeds the safe limit even after optimization. Use a lighter version.",
+    "de": "The PDF exceeds the safe limit even after optimization. Use a lighter version."
+  },
+  "form_unsupported_title": {
+    "es": "Archivo no soportado",
+    "en": "Unsupported file",
+    "it": "Unsupported file",
+    "pt": "Unsupported file",
+    "fr": "Unsupported file",
+    "de": "Unsupported file"
+  },
+  "form_unsupported_body": {
+    "es": "Este formato no es compatible en esta carga segura. Usa imagen o PDF.",
+    "en": "This format is not supported for secure upload. Use image or PDF.",
+    "it": "This format is not supported for secure upload. Use image or PDF.",
+    "pt": "This format is not supported for secure upload. Use image or PDF.",
+    "fr": "This format is not supported for secure upload. Use image or PDF.",
+    "de": "This format is not supported for secure upload. Use image or PDF."
+  },
+  "form_doc_pick_fail": {
+    "es": "No se pudo seleccionar el documento",
+    "en": "Could not select document",
+    "it": "Could not select document",
+    "pt": "Could not select document",
+    "fr": "Could not select document",
+    "de": "Could not select document"
+  },
+  "form_camera_needed": {
+    "es": "Se necesita acceso a la cámara",
+    "en": "Camera access required",
+    "it": "Camera access required",
+    "pt": "Camera access required",
+    "fr": "Camera access required",
+    "de": "Camera access required"
+  },
+  "form_camera_timeout": {
+    "es": "La cámara tardó demasiado en responder. Reintenta.",
+    "en": "Camera took too long to respond. Please retry.",
+    "it": "Camera took too long to respond. Please retry.",
+    "pt": "Camera took too long to respond. Please retry.",
+    "fr": "Camera took too long to respond. Please retry.",
+    "de": "Camera took too long to respond. Please retry."
+  },
+  "form_camera_fail_title": {
+    "es": "No se pudo abrir la cámara",
+    "en": "Could not open camera",
+    "it": "Could not open camera",
+    "pt": "Could not open camera",
+    "fr": "Could not open camera",
+    "de": "Could not open camera"
+  },
+  "form_camera_fail_body": {
+    "es": "Cierra otras apps de cámara y vuelve a intentar.",
+    "en": "Close other camera apps and try again.",
+    "it": "Close other camera apps and try again.",
+    "pt": "Close other camera apps and try again.",
+    "fr": "Close other camera apps and try again.",
+    "de": "Close other camera apps and try again."
+  },
+  "form_preparing": {
+    "es": "Preparando...",
+    "en": "Preparing...",
+    "it": "Preparing...",
+    "pt": "Preparing...",
+    "fr": "Preparing...",
+    "de": "Preparing..."
+  },
+  "form_sending": {
+    "es": "Enviando...",
+    "en": "Sending...",
+    "it": "Sending...",
+    "pt": "Sending...",
+    "fr": "Sending...",
+    "de": "Sending..."
+  },
+  "form_moderating": {
+    "es": "Moderando...",
+    "en": "Moderating...",
+    "it": "Moderating...",
+    "pt": "Moderating...",
+    "fr": "Moderating...",
+    "de": "Moderating..."
+  },
+  "form_approved": {
+    "es": "Aprobado ✓",
+    "en": "Approved ✓",
+    "it": "Approved ✓",
+    "pt": "Approved ✓",
+    "fr": "Approved ✓",
+    "de": "Approved ✓"
+  },
+  "form_ghost_link_title": {
+    "es": "Ghost-Link",
+    "en": "Ghost-Link",
+    "it": "Ghost-Link",
+    "pt": "Ghost-Link",
+    "fr": "Ghost-Link",
+    "de": "Ghost-Link"
+  },
+  "form_ghost_link_body": {
+    "es": "Card-Social ya incluye un Ghost-Link en tu Bóveda. Edítalo desde el menú del ítem; no puedes crear otro.",
+    "en": "Card-Social already includes one Ghost-Link in your Vault. Edit it from the item menu; you cannot add another.",
+    "it": "Card-Social already includes one Ghost-Link in your Vault. Edit it from the item menu; you cannot add another.",
+    "pt": "Card-Social already includes one Ghost-Link in your Vault. Edit it from the item menu; you cannot add another.",
+    "fr": "Card-Social already includes one Ghost-Link in your Vault. Edit it from the item menu; you cannot add another.",
+    "de": "Card-Social already includes one Ghost-Link in your Vault. Edit it from the item menu; you cannot add another."
+  },
+  "form_err_title": {
+    "es": "❌ Error",
+    "en": "❌ Error",
+    "it": "❌ Error",
+    "pt": "❌ Error",
+    "fr": "❌ Error",
+    "de": "❌ Error"
+  },
+  "form_fill_fields": {
+    "es": "Completa todos los campos",
+    "en": "Fill in all fields",
+    "it": "Fill in all fields",
+    "pt": "Fill in all fields",
+    "fr": "Fill in all fields",
+    "de": "Fill in all fields"
+  },
+  "form_bad_email": {
+    "es": "Introduce un email válido",
+    "en": "Enter a valid email",
+    "it": "Enter a valid email",
+    "pt": "Enter a valid email",
+    "fr": "Enter a valid email",
+    "de": "Enter a valid email"
+  },
+  "form_phone_len": {
+    "es": "Introduce entre {{min}} y {{max}} dígitos (sin prefijo).",
+    "en": "Enter between {{min}} and {{max}} digits (without country code).",
+    "it": "Enter between {{min}} and {{max}} digits (without country code).",
+    "pt": "Enter between {{min}} and {{max}} digits (without country code).",
+    "fr": "Enter between {{min}} and {{max}} digits (without country code).",
+    "de": "Enter between {{min}} and {{max}} digits (without country code)."
+  },
+  "form_bad_url": {
+    "es": "Introduce una URL válida",
+    "en": "Enter a valid URL",
+    "it": "Enter a valid URL",
+    "pt": "Enter a valid URL",
+    "fr": "Enter a valid URL",
+    "de": "Enter a valid URL"
+  },
+  "form_max_words_200": {
+    "es": "Máximo 200 palabras permitidas",
+    "en": "Maximum 200 words allowed",
+    "it": "Maximum 200 words allowed",
+    "pt": "Maximum 200 words allowed",
+    "fr": "Maximum 200 words allowed",
+    "de": "Maximum 200 words allowed"
+  },
+  "form_hardlock_update": {
+    "es": "actualizar un dato del Búnker",
+    "en": "update a Vault item",
+    "it": "update a Vault item",
+    "pt": "update a Vault item",
+    "fr": "update a Vault item",
+    "de": "update a Vault item"
+  },
+  "form_hardlock_create": {
+    "es": "crear un dato en el Búnker",
+    "en": "create a Vault item",
+    "it": "create a Vault item",
+    "pt": "create a Vault item",
+    "fr": "create a Vault item",
+    "de": "create a Vault item"
+  },
+  "form_bad_user": {
+    "es": "No se pudo identificar al usuario activo",
+    "en": "Could not identify active user",
+    "it": "Could not identify active user",
+    "pt": "Could not identify active user",
+    "fr": "Could not identify active user",
+    "de": "Could not identify active user"
+  },
+  "form_dup_title": {
+    "es": "⚠️ Nombre duplicado",
+    "en": "⚠️ Duplicate name",
+    "it": "⚠️ Duplicate name",
+    "pt": "⚠️ Duplicate name",
+    "fr": "⚠️ Duplicate name",
+    "de": "⚠️ Duplicate name"
+  },
+  "form_dup_body": {
+    "es": "Ya existe un dato con ese nombre. Usa un nombre diferente.",
+    "en": "An item with that name already exists. Use a different name.",
+    "it": "An item with that name already exists. Use a different name.",
+    "pt": "An item with that name already exists. Use a different name.",
+    "fr": "An item with that name already exists. Use a different name.",
+    "de": "An item with that name already exists. Use a different name."
+  },
+  "form_upload_partial_title": {
+    "es": "Subida incompleta",
+    "en": "Upload incomplete",
+    "it": "Upload incomplete",
+    "pt": "Upload incomplete",
+    "fr": "Upload incomplete",
+    "de": "Upload incomplete"
+  },
+  "form_upload_partial_body": {
+    "es": "No se obtuvo enlace del archivo. Comprueba que DigitalOcean Spaces esté configurado en el servidor.",
+    "en": "No file URL was returned. Verify DigitalOcean Spaces is configured on the server.",
+    "it": "No file URL was returned. Verify DigitalOcean Spaces is configured on the server.",
+    "pt": "No file URL was returned. Verify DigitalOcean Spaces is configured on the server.",
+    "fr": "No file URL was returned. Verify DigitalOcean Spaces is configured on the server.",
+    "de": "No file URL was returned. Verify DigitalOcean Spaces is configured on the server."
+  },
+  "form_folder_required_title": {
+    "es": "Nombre de carpeta obligatorio",
+    "en": "Folder name required",
+    "it": "Folder name required",
+    "pt": "Folder name required",
+    "fr": "Folder name required",
+    "de": "Folder name required"
+  },
+  "form_folder_required_body": {
+    "es": "Escribí el nombre de la nueva categoría o elegí una existente.",
+    "en": "Enter a new folder name or pick an existing one.",
+    "it": "Enter a new folder name or pick an existing one.",
+    "pt": "Enter a new folder name or pick an existing one.",
+    "fr": "Enter a new folder name or pick an existing one.",
+    "de": "Enter a new folder name or pick an existing one."
+  },
+  "form_name_long_title": {
+    "es": "Nombre muy largo",
+    "en": "Name too long",
+    "it": "Name too long",
+    "pt": "Name too long",
+    "fr": "Name too long",
+    "de": "Name too long"
+  },
+  "form_name_long_body": {
+    "es": "Usa como máximo 64 caracteres.",
+    "en": "Use up to 64 characters.",
+    "it": "Use up to 64 characters.",
+    "pt": "Use up to 64 characters.",
+    "fr": "Use up to 64 characters.",
+    "de": "Use up to 64 characters."
+  },
+  "form_saved_title": {
+    "es": "🛡️ ¡Dato guardado en el Búnker!",
+    "en": "🛡️ Data saved to Vault!",
+    "it": "🛡️ Data saved to Vault!",
+    "pt": "🛡️ Data saved to Vault!",
+    "fr": "🛡️ Data saved to Vault!",
+    "de": "🛡️ Data saved to Vault!"
+  },
+  "form_saved_local": {
+    "es": "✓ Guardado localmente",
+    "en": "✓ Saved locally",
+    "it": "✓ Saved locally",
+    "pt": "✓ Saved locally",
+    "fr": "✓ Saved locally",
+    "de": "✓ Saved locally"
+  },
+  "form_cloud_done_title": {
+    "es": "☁️ Sincronización completada",
+    "en": "☁️ Cloud sync completed",
+    "it": "☁️ Cloud sync completed",
+    "pt": "☁️ Cloud sync completed",
+    "fr": "☁️ Cloud sync completed",
+    "de": "☁️ Cloud sync completed"
+  },
+  "form_cloud_done_sub": {
+    "es": "✓ Dato respaldado en la nube",
+    "en": "✓ Item backed up to cloud",
+    "it": "✓ Item backed up to cloud",
+    "pt": "✓ Item backed up to cloud",
+    "fr": "✓ Item backed up to cloud",
+    "de": "✓ Item backed up to cloud"
+  },
+  "form_content_blocked": {
+    "es": "🚫 Contenido no permitido. Revisa las reglas.",
+    "en": "🚫 Content not allowed. Check the rules.",
+    "it": "🚫 Content not allowed. Check the rules.",
+    "pt": "🚫 Content not allowed. Check the rules.",
+    "fr": "🚫 Content not allowed. Check the rules.",
+    "de": "🚫 Content not allowed. Check the rules."
+  },
+  "form_upload_err": {
+    "es": "Error al subir",
+    "en": "Upload error",
+    "it": "Upload error",
+    "pt": "Upload error",
+    "fr": "Upload error",
+    "de": "Upload error"
+  },
+  "form_save_retry_q": {
+    "es": "No se pudo guardar el dato. ¿Reintentar?",
+    "en": "Could not save data. Retry?",
+    "it": "Could not save data. Retry?",
+    "pt": "Could not save data. Retry?",
+    "fr": "Could not save data. Retry?",
+    "de": "Could not save data. Retry?"
+  },
+  "form_retry": {
+    "es": "Reintentar",
+    "en": "Retry",
+    "it": "Retry",
+    "pt": "Retry",
+    "fr": "Retry",
+    "de": "Retry"
+  },
+  "form_ghost_long_hint": {
+    "es": "Sin número ni enlace: quien reciba tu tarjeta podrá iniciar una llamada privada VoIP (Ghost-Link) desde Card-Social. Elige el icono en la sección ICONO (mismo catálogo Card-Studio).",
+    "en": "No number or link: people who get your card can start a private VoIP call (Ghost-Link) from Card-Social. Pick the icon in the ICON section (same Card-Studio catalog).",
+    "it": "No number or link: people who get your card can start a private VoIP call (Ghost-Link) from Card-Social. Pick the icon in the ICON section (same Card-Studio catalog).",
+    "pt": "No number or link: people who get your card can start a private VoIP call (Ghost-Link) from Card-Social. Pick the icon in the ICON section (same Card-Studio catalog).",
+    "fr": "No number or link: people who get your card can start a private VoIP call (Ghost-Link) from Card-Social. Pick the icon in the ICON section (same Card-Studio catalog).",
+    "de": "No number or link: people who get your card can start a private VoIP call (Ghost-Link) from Card-Social. Pick the icon in the ICON section (same Card-Studio catalog)."
+  },
+  "form_phone_digits_placeholder": {
+    "es": "{{min}}–{{max}} dígitos",
+    "en": "{{min}}–{{max}} digits",
+    "it": "{{min}}–{{max}} digits",
+    "pt": "{{min}}–{{max}} digits",
+    "fr": "{{min}}–{{max}} digits",
+    "de": "{{min}}–{{max}} digits"
+  },
+  "form_plain_write_here": {
+    "es": "Escribe aquí...",
+    "en": "Write here...",
+    "it": "Write here...",
+    "pt": "Write here...",
+    "fr": "Write here...",
+    "de": "Write here..."
+  },
+  "form_words": {
+    "es": "palabras",
+    "en": "words",
+    "it": "words",
+    "pt": "words",
+    "fr": "words",
+    "de": "words"
+  },
+  "form_view_sel_file": {
+    "es": "Ver Archivo Seleccionado",
+    "en": "View Selected File",
+    "it": "View Selected File",
+    "pt": "View Selected File",
+    "fr": "View Selected File",
+    "de": "View Selected File"
+  },
+  "form_view_saved_file": {
+    "es": "Ver Archivo Guardado",
+    "en": "View Saved File",
+    "it": "View Saved File",
+    "pt": "View Saved File",
+    "fr": "View Saved File",
+    "de": "View Saved File"
+  },
+  "form_upload_pdf_or_image": {
+    "es": "Subir PDF o imagen",
+    "en": "Upload PDF or image",
+    "it": "Upload PDF or image",
+    "pt": "Upload PDF or image",
+    "fr": "Upload PDF or image",
+    "de": "Upload PDF or image"
+  },
+  "form_bunker_viewer_hint": {
+    "es": "Se aceptan PDF o imágenes para visor protegido del Búnker.",
+    "en": "PDF or images accepted for Vault protected viewer.",
+    "it": "PDF or images accepted for Vault protected viewer.",
+    "pt": "PDF or images accepted for Vault protected viewer.",
+    "fr": "PDF or images accepted for Vault protected viewer.",
+    "de": "PDF or images accepted for Vault protected viewer."
+  },
+  "form_image_selected": {
+    "es": "Imagen seleccionada",
+    "en": "Selected image",
+    "it": "Selected image",
+    "pt": "Selected image",
+    "fr": "Selected image",
+    "de": "Selected image"
+  },
+  "form_document_selected": {
+    "es": "Documento seleccionado",
+    "en": "Selected document",
+    "it": "Selected document",
+    "pt": "Selected document",
+    "fr": "Selected document",
+    "de": "Selected document"
+  },
+  "form_header_new": {
+    "es": "NUEVA INFORMACIÓN",
+    "en": "NEW INFORMATION",
+    "it": "NEW INFORMATION",
+    "pt": "NEW INFORMATION",
+    "fr": "NEW INFORMATION",
+    "de": "NEW INFORMATION"
+  },
+  "form_header_edit": {
+    "es": "EDITAR INFORMACIÓN",
+    "en": "EDIT INFORMATION",
+    "it": "EDIT INFORMATION",
+    "pt": "EDIT INFORMATION",
+    "fr": "EDIT INFORMATION",
+    "de": "EDIT INFORMATION"
+  },
+  "form_step_type": {
+    "es": "TIPO DE DATO",
+    "en": "DATA TYPE",
+    "it": "DATA TYPE",
+    "pt": "DATA TYPE",
+    "fr": "DATA TYPE",
+    "de": "DATA TYPE"
+  },
+  "form_readonly": {
+    "es": "(No editable)",
+    "en": "(Read-only)",
+    "it": "(Read-only)",
+    "pt": "(Read-only)",
+    "fr": "(Read-only)",
+    "de": "(Read-only)"
+  },
+  "form_type_no_edit_hint": {
+    "es": "Tipo no puede cambiar al editar",
+    "en": "Type cannot change while editing",
+    "it": "Type cannot change while editing",
+    "pt": "Type cannot change while editing",
+    "fr": "Type cannot change while editing",
+    "de": "Type cannot change while editing"
+  },
+  "form_select_type_hint": {
+    "es": "Selecciona el tipo de dato",
+    "en": "Select data type",
+    "it": "Select data type",
+    "pt": "Select data type",
+    "fr": "Select data type",
+    "de": "Select data type"
+  },
+  "form_switch_type": {
+    "es": "¿Cambiar a {{sug}}?",
+    "en": "Switch to {{sug}}?",
+    "it": "Switch to {{sug}}?",
+    "pt": "Switch to {{sug}}?",
+    "fr": "Switch to {{sug}}?",
+    "de": "Switch to {{sug}}?"
+  },
+  "form_cat_section": {
+    "es": "CATEGORÍA",
+    "en": "FOLDER",
+    "it": "FOLDER",
+    "pt": "FOLDER",
+    "fr": "FOLDER",
+    "de": "FOLDER"
+  },
+  "form_pick_folder_a11y": {
+    "es": "Elegir categoría del Búnker",
+    "en": "Pick Vault folder",
+    "it": "Pick Vault folder",
+    "pt": "Pick Vault folder",
+    "fr": "Pick Vault folder",
+    "de": "Pick Vault folder"
+  },
+  "form_change": {
+    "es": "CAMBIAR",
+    "en": "CHANGE",
+    "it": "CHANGE",
+    "pt": "CHANGE",
+    "fr": "CHANGE",
+    "de": "CHANGE"
+  },
+  "form_new_folder_ph": {
+    "es": "Nombre de la nueva carpeta…",
+    "en": "New folder name…",
+    "it": "New folder name…",
+    "pt": "New folder name…",
+    "fr": "New folder name…",
+    "de": "New folder name…"
+  },
+  "form_new_cat_a11y": {
+    "es": "Nombre nueva categoría",
+    "en": "New category name",
+    "it": "New category name",
+    "pt": "New category name",
+    "fr": "New category name",
+    "de": "New category name"
+  },
+  "form_data_name_section": {
+    "es": "NOMBRE DE DATA",
+    "en": "DATA NAME",
+    "it": "DATA NAME",
+    "pt": "DATA NAME",
+    "fr": "DATA NAME",
+    "de": "DATA NAME"
+  },
+  "form_data_name_ex_ph": {
+    "es": "Ej: Mi WhatsApp",
+    "en": "Ex: My WhatsApp",
+    "it": "Ex: My WhatsApp",
+    "pt": "Ex: My WhatsApp",
+    "fr": "Ex: My WhatsApp",
+    "de": "Ex: My WhatsApp"
+  },
+  "form_data_section": {
+    "es": "DATO",
+    "en": "DATA",
+    "it": "DATA",
+    "pt": "DATA",
+    "fr": "DATA",
+    "de": "DATA"
+  },
+  "form_ghost_data_header": {
+    "es": "GHOST LINK",
+    "en": "GHOST LINK",
+    "it": "GHOST LINK",
+    "pt": "GHOST LINK",
+    "fr": "GHOST LINK",
+    "de": "GHOST LINK"
+  },
+  "form_icon_section": {
+    "es": "ICONO",
+    "en": "ICON",
+    "it": "ICON",
+    "pt": "ICON",
+    "fr": "ICON",
+    "de": "ICON"
+  },
+  "form_pick_icon_a11y": {
+    "es": "Elegir icono Card-Studio",
+    "en": "Choose Card-Studio icon",
+    "it": "Choose Card-Studio icon",
+    "pt": "Choose Card-Studio icon",
+    "fr": "Choose Card-Studio icon",
+    "de": "Choose Card-Studio icon"
+  },
+  "form_icon_title": {
+    "es": "Icono",
+    "en": "Icon",
+    "it": "Icon",
+    "pt": "Icon",
+    "fr": "Icon",
+    "de": "Icon"
+  },
+  "form_icon_sub": {
+    "es": "Personalizar representación",
+    "en": "Customize appearance",
+    "it": "Customize appearance",
+    "pt": "Customize appearance",
+    "fr": "Customize appearance",
+    "de": "Customize appearance"
+  },
+  "form_favicon_search_alt": {
+    "es": "Buscando favicon…",
+    "en": "Searching favicon…",
+    "it": "Searching favicon…",
+    "pt": "Searching favicon…",
+    "fr": "Searching favicon…",
+    "de": "Searching favicon…"
+  },
+  "form_saving_btn": {
+    "es": "GUARDANDO...",
+    "en": "SAVING...",
+    "it": "SAVING...",
+    "pt": "SAVING...",
+    "fr": "SAVING...",
+    "de": "SAVING..."
+  },
+  "form_update_btn": {
+    "es": "ACTUALIZAR",
+    "en": "UPDATE",
+    "it": "UPDATE",
+    "pt": "UPDATE",
+    "fr": "UPDATE",
+    "de": "UPDATE"
+  },
+  "form_create_btn": {
+    "es": "CREAR",
+    "en": "CREATE",
+    "it": "CREATE",
+    "pt": "CREATE",
+    "fr": "CREATE",
+    "de": "CREATE"
+  },
+  "form_modal_select_type": {
+    "es": "Selecciona Tipo",
+    "en": "Select Type",
+    "it": "Select Type",
+    "pt": "Select Type",
+    "fr": "Select Type",
+    "de": "Select Type"
+  },
+  "form_ghost_chip_title": {
+    "es": "Ghost Link",
+    "en": "Ghost Link",
+    "it": "Ghost Link",
+    "pt": "Ghost Link",
+    "fr": "Ghost Link",
+    "de": "Ghost Link"
+  },
+  "form_ghost_chip_body": {
+    "es": "Card-Social ya incluye un Ghost Link en tu Bóveda. Edítalo desde el menú del ítem; no puedes crear otro.",
+    "en": "Card-Social already includes one Ghost Link in your Vault. Edit it from the item menu; you cannot add another.",
+    "it": "Card-Social already includes one Ghost Link in your Vault. Edit it from the item menu; you cannot add another.",
+    "pt": "Card-Social already includes one Ghost Link in your Vault. Edit it from the item menu; you cannot add another.",
+    "fr": "Card-Social already includes one Ghost Link in your Vault. Edit it from the item menu; you cannot add another.",
+    "de": "Card-Social already includes one Ghost Link in your Vault. Edit it from the item menu; you cannot add another."
+  },
+  "form_create_folder_row": {
+    "es": "+ Crear nueva categoría",
+    "en": "+ Create new folder",
+    "it": "+ Create new folder",
+    "pt": "+ Create new folder",
+    "fr": "+ Create new folder",
+    "de": "+ Create new folder"
+  },
+  "form_modal_pick_folder": {
+    "es": "Elegí una carpeta",
+    "en": "Choose a folder",
+    "it": "Choose a folder",
+    "pt": "Choose a folder",
+    "fr": "Choose a folder",
+    "de": "Choose a folder"
+  },
+  "form_favicon_modal_title": {
+    "es": "¿Usar este icono?",
+    "en": "Use this icon?",
+    "it": "Use this icon?",
+    "pt": "Use this icon?",
+    "fr": "Use this icon?",
+    "de": "Use this icon?"
+  },
+  "form_favicon_yes": {
+    "es": "SÍ, USAR",
+    "en": "YES, USE",
+    "it": "YES, USE",
+    "pt": "YES, USE",
+    "fr": "YES, USE",
+    "de": "YES, USE"
+  },
+  "form_favicon_no": {
+    "es": "NO, CANCELAR",
+    "en": "NO, CANCEL",
+    "it": "NO, CANCEL",
+    "pt": "NO, CANCEL",
+    "fr": "NO, CANCEL",
+    "de": "NO, CANCEL"
+  },
+  "form_country_title": {
+    "es": "Código de país",
+    "en": "Country code",
+    "it": "Country code",
+    "pt": "Country code",
+    "fr": "Country code",
+    "de": "Country code"
+  },
+  "form_country_top": {
+    "es": "Destacados",
+    "en": "Top",
+    "it": "Top",
+    "pt": "Top",
+    "fr": "Top",
+    "de": "Top"
+  },
+  "form_country_all": {
+    "es": "Todos los países",
+    "en": "All countries",
+    "it": "All countries",
+    "pt": "All countries",
+    "fr": "All countries",
+    "de": "All countries"
+  },
+  "form_country_search_ph": {
+    "es": "Buscar país o prefijo…",
+    "en": "Search country or code…",
+    "it": "Search country or code…",
+    "pt": "Search country or code…",
+    "fr": "Search country or code…",
+    "de": "Search country or code…"
+  },
+  "form_secure_upload_header": {
+    "es": "Carga Segura de Documento",
+    "en": "Secure Document Upload",
+    "it": "Secure Document Upload",
+    "pt": "Secure Document Upload",
+    "fr": "Secure Document Upload",
+    "de": "Secure Document Upload"
+  },
+  "form_take_photo_cap": {
+    "es": "Tomar Foto",
+    "en": "Take Photo",
+    "it": "Take Photo",
+    "pt": "Take Photo",
+    "fr": "Take Photo",
+    "de": "Take Photo"
+  },
+  "form_take_photo_sub": {
+    "es": "Captura directa con cámara",
+    "en": "Direct camera capture",
+    "it": "Direct camera capture",
+    "pt": "Direct camera capture",
+    "fr": "Direct camera capture",
+    "de": "Direct camera capture"
+  },
+  "form_pick_image_cap": {
+    "es": "Elegir imagen",
+    "en": "Choose image",
+    "it": "Choose image",
+    "pt": "Choose image",
+    "fr": "Choose image",
+    "de": "Choose image"
+  },
+  "form_or_conjunction": {
+    "es": "o",
+    "en": "or",
+    "it": "or",
+    "pt": "or",
+    "fr": "or",
+    "de": "or"
+  },
+  "form_pick_doc_cap": {
+    "es": "Elegir documento",
+    "en": "Choose document",
+    "it": "Choose document",
+    "pt": "Choose document",
+    "fr": "Choose document",
+    "de": "Choose document"
+  },
+  "form_pick_doc_sub": {
+    "es": "PDF y archivos visualizables",
+    "en": "PDF and viewable files",
+    "it": "PDF and viewable files",
+    "pt": "PDF and viewable files",
+    "fr": "PDF and viewable files",
+    "de": "PDF and viewable files"
+  },
+  "form_overlay_optimize": {
+    "es": "Optimizando archivo de forma segura...",
+    "en": "Securely optimizing file...",
+    "it": "Securely optimizing file...",
+    "pt": "Securely optimizing file...",
+    "fr": "Securely optimizing file...",
+    "de": "Securely optimizing file..."
+  },
+  "form_overlay_upload": {
+    "es": "Subiendo archivo al escudo de seguridad...",
+    "en": "Uploading file to security shield...",
+    "it": "Uploading file to security shield...",
+    "pt": "Uploading file to security shield...",
+    "fr": "Uploading file to security shield...",
+    "de": "Uploading file to security shield..."
+  },
+  "form_overlay_save": {
+    "es": "Guardando en Bunker seguro...",
+    "en": "Saving to secure Vault...",
+    "it": "Saving to secure Vault...",
+    "pt": "Saving to secure Vault...",
+    "fr": "Saving to secure Vault...",
+    "de": "Saving to secure Vault..."
+  },
+  "form_security_modal_title": {
+    "es": "Exclusividad de Seguridad",
+    "en": "Security Exclusivity",
+    "it": "Security Exclusivity",
+    "pt": "Security Exclusivity",
+    "fr": "Security Exclusivity",
+    "de": "Security Exclusivity"
+  },
+  "form_bc_add_tag": {
+    "es": "Añadir etiqueta",
+    "en": "Add tag",
+    "it": "Add tag",
+    "pt": "Add tag",
+    "fr": "Add tag",
+    "de": "Add tag"
+  },
+  "form_bc_remove": {
+    "es": "Quitar",
+    "en": "Remove",
+    "it": "Remove",
+    "pt": "Remove",
+    "fr": "Remove",
+    "de": "Remove"
+  },
+  "studio_unlock_icon": {
+    "es": "Desbloquear icono",
+    "en": "Unlock icon",
+    "it": "Unlock icon",
+    "pt": "Unlock icon",
+    "fr": "Unlock icon",
+    "de": "Unlock icon"
+  },
+  "studio_buy_icon_body": {
+    "es": "Incluye este icono en tu bóveda por {{price}} Créditos CS.",
+    "en": "Add this icon to your vault for {{price}} CS credits.",
+    "it": "Add this icon to your vault for {{price}} CS credits.",
+    "pt": "Add this icon to your vault for {{price}} CS credits.",
+    "fr": "Add this icon to your vault for {{price}} CS credits.",
+    "de": "Add this icon to your vault for {{price}} CS credits."
+  },
+  "studio_buy": {
+    "es": "Comprar",
+    "en": "Buy",
+    "it": "Compra",
+    "pt": "Comprar",
+    "fr": "Acheter",
+    "de": "Kaufen"
+  },
+  "studio_purchase_failed": {
+    "es": "No se pudo comprar",
+    "en": "Purchase failed",
+    "it": "Purchase failed",
+    "pt": "Purchase failed",
+    "fr": "Purchase failed",
+    "de": "Purchase failed"
+  },
+  "studio_check_cs_balance": {
+    "es": "Revisa tu saldo de Créditos CS.",
+    "en": "Check your CS credit balance.",
+    "it": "Check your CS credit balance.",
+    "pt": "Check your CS credit balance.",
+    "fr": "Check your CS credit balance.",
+    "de": "Check your CS credit balance."
+  },
+  "studio_bundle_unlocked": {
+    "es": "Bundle desbloqueado",
+    "en": "Bundle unlocked",
+    "it": "Bundle unlocked",
+    "pt": "Bundle unlocked",
+    "fr": "Bundle unlocked",
+    "de": "Bundle unlocked"
+  },
+  "studio_bundle_unlocked_body": {
+    "es": "Tus 3 variantes de tema y el pack de iconos ya están disponibles.",
+    "en": "Your 3 theme variants and icon pack are now available.",
+    "it": "Your 3 theme variants and icon pack are now available.",
+    "pt": "Your 3 theme variants and icon pack are now available.",
+    "fr": "Your 3 theme variants and icon pack are now available.",
+    "de": "Your 3 theme variants and icon pack are now available."
+  },
+  "studio_purchase_failed_balance": {
+    "es": "Saldo insuficiente u error de red.",
+    "en": "Insufficient balance or network error.",
+    "it": "Insufficient balance or network error.",
+    "pt": "Insufficient balance or network error.",
+    "fr": "Insufficient balance or network error.",
+    "de": "Insufficient balance or network error."
+  },
+  "studio_delete_icon_title": {
+    "es": "Eliminar icono \"{{label}}\"",
+    "en": "Delete icon \"{{label}}\"",
+    "it": "Delete icon \"{{label}}\"",
+    "pt": "Delete icon \"{{label}}\"",
+    "fr": "Delete icon \"{{label}}\"",
+    "de": "Delete icon \"{{label}}\""
+  },
+  "studio_delete_icon_body": {
+    "es": "Si lo eliminas, los datos del Búnker que usen este ícono quedarán con el ícono por defecto. ¿Deseas continuar?",
+    "en": "If you delete it, Vault items using this icon will revert to the default icon. Continue?",
+    "it": "If you delete it, Vault items using this icon will revert to the default icon. Continue?",
+    "pt": "If you delete it, Vault items using this icon will revert to the default icon. Continue?",
+    "fr": "If you delete it, Vault items using this icon will revert to the default icon. Continue?",
+    "de": "If you delete it, Vault items using this icon will revert to the default icon. Continue?"
+  },
+  "studio_delete": {
+    "es": "Eliminar",
+    "en": "Delete",
+    "it": "Elimina",
+    "pt": "Excluir",
+    "fr": "Supprimer",
+    "de": "Löschen"
+  },
+  "studio_card_studio": {
+    "es": "Card-Studio",
+    "en": "Card-Studio",
+    "it": "Card-Studio",
+    "pt": "Card-Studio",
+    "fr": "Card-Studio",
+    "de": "Card-Studio"
+  },
+  "studio_cs_credits_line": {
+    "es": "Créditos CS: {{balance}}",
+    "en": "CS credits: {{balance}}",
+    "it": "CS credits: {{balance}}",
+    "pt": "CS credits: {{balance}}",
+    "fr": "CS credits: {{balance}}",
+    "de": "CS credits: {{balance}}"
+  },
+  "studio_hint_paid": {
+    "es": "Candado: compra con CS. Mantén presionado (icono desbloqueado) para quitar del Bóveda.",
+    "en": "Lock: buy with CS. Long press (unlocked icon) to remove from Vault.",
+    "it": "Lock: buy with CS. Long press (unlocked icon) to remove from Vault.",
+    "pt": "Lock: buy with CS. Long press (unlocked icon) to remove from Vault.",
+    "fr": "Lock: buy with CS. Long press (unlocked icon) to remove from Vault.",
+    "de": "Lock: buy with CS. Long press (unlocked icon) to remove from Vault."
+  },
+  "studio_hint_free": {
+    "es": "Toca un icono para elegirlo. Mantén presionado para quitarlo de tu Bóveda (si aplica).",
+    "en": "Tap an icon to choose it. Long press to remove from your Vault (if applicable).",
+    "it": "Tap an icon to choose it. Long press to remove from your Vault (if applicable).",
+    "pt": "Tap an icon to choose it. Long press to remove from your Vault (if applicable).",
+    "fr": "Tap an icon to choose it. Long press to remove from your Vault (if applicable).",
+    "de": "Tap an icon to choose it. Long press to remove from your Vault (if applicable)."
+  },
+  "studio_dismiss_bg": {
+    "es": "Cerrar fondo",
+    "en": "Dismiss",
+    "it": "Dismiss",
+    "pt": "Dismiss",
+    "fr": "Dismiss",
+    "de": "Dismiss"
+  },
+  "studio_balance_cs": {
+    "es": "Saldo: {{balance}} CS",
+    "en": "Balance: {{balance}} CS",
+    "it": "Balance: {{balance}} CS",
+    "pt": "Balance: {{balance}} CS",
+    "fr": "Balance: {{balance}} CS",
+    "de": "Balance: {{balance}} CS"
+  },
+  "studio_bundles_subtitle": {
+    "es": "Bundles temáticos: 3 estilos de tarjeta + pack de iconos vinculado.",
+    "en": "Theme bundles: 3 card styles + linked icon pack.",
+    "it": "Theme bundles: 3 card styles + linked icon pack.",
+    "pt": "Theme bundles: 3 card styles + linked icon pack.",
+    "fr": "Theme bundles: 3 card styles + linked icon pack.",
+    "de": "Theme bundles: 3 card styles + linked icon pack."
+  },
+  "studio_owned": {
+    "es": "En tu cuenta",
+    "en": "Owned",
+    "it": "Owned",
+    "pt": "Owned",
+    "fr": "Owned",
+    "de": "Owned"
+  },
+  "studio_close": {
+    "es": "Cerrar",
+    "en": "Close",
+    "it": "Chiudi",
+    "pt": "Fechar",
+    "fr": "Fermer",
+    "de": "Schließen"
+  },
+  "studio_header_links": {
+    "es": "Enlaces",
+    "en": "Links",
+    "it": "Links",
+    "pt": "Links",
+    "fr": "Links",
+    "de": "Links"
+  },
+  "studio_header_phone": {
+    "es": "Teléfono",
+    "en": "Phone",
+    "it": "Phone",
+    "pt": "Phone",
+    "fr": "Phone",
+    "de": "Phone"
+  },
+  "studio_header_ghost": {
+    "es": "Ghost Link",
+    "en": "Ghost Link",
+    "it": "Ghost Link",
+    "pt": "Ghost Link",
+    "fr": "Ghost Link",
+    "de": "Ghost Link"
+  },
+  "studio_header_email": {
+    "es": "Email",
+    "en": "Email",
+    "it": "Email",
+    "pt": "Email",
+    "fr": "Email",
+    "de": "Email"
+  },
+  "studio_header_text": {
+    "es": "Texto",
+    "en": "Text",
+    "it": "Text",
+    "pt": "Text",
+    "fr": "Text",
+    "de": "Text"
+  },
+  "studio_header_document": {
+    "es": "Documento",
+    "en": "Document",
+    "it": "Document",
+    "pt": "Document",
+    "fr": "Document",
+    "de": "Document"
+  },
+  "studio_bundle_meta": {
+    "es": "3 temas + {{n}} iconos · {{price}} CS",
+    "en": "3 themes + {{n}} icons · {{price}} CS",
+    "it": "3 themes + {{n}} icons · {{price}} CS",
+    "pt": "3 themes + {{n}} icons · {{price}} CS",
+    "fr": "3 themes + {{n}} icons · {{price}} CS",
+    "de": "3 themes + {{n}} icons · {{price}} CS"
+  }
+}

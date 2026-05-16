@@ -36,7 +36,8 @@ import {
 import { db } from '@/services/firebaseConfig';
 import { readUserAvatarUrl, readUserFullName } from '@/services/userIdentityFields';
 import { getUserIconVaultMap, type IconVaultEntry } from '@/services/iconVaultService';
-import { trEsEn, useLanguage } from '@/services/language';
+import { useCreationT } from '@/services/creationI18n';
+import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { uploadFileWithModeration } from '@/services/moderationApi';
 import { userFacingAlertMessage } from '@/services/apiUserFacingError';
@@ -302,8 +303,7 @@ export default function CreateBusinessCardScreen() {
   const routeFresh = typeof params.fresh === 'string' ? params.fresh : params.fresh?.[0] || '';
   const safeInsets = useSafeAreaInsets();
   const { language } = useLanguage();
-  /** Estable: si no, el efecto de carga (deps incluían `tr`) se re-ejecutaba cada render, cancelaba el fetch y el `finally` no ponía `loadingExistingCard` en false. */
-  const tr = useCallback((es: string, en: string) => trEsEn(es, en, language), [language]);
+  const tcx = useCreationT();
   const modalFooterBottomPad = useModalFooterBottomPad();
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
@@ -509,13 +509,7 @@ export default function CreateBusinessCardScreen() {
           } catch {
             /* ignore */
           }
-          Alert.alert(
-            tr('Tarjeta no encontrada', 'Card not found'),
-            tr(
-              'Tu tarjeta anterior ya no existe en el servidor. El formulario ha sido limpiado para que puedas crear una nueva.',
-              'Your previous card no longer exists on the server. The form has been cleared so you can create a new one.',
-            ),
-          );
+          Alert.alert(tcx('create_card_not_found'), tcx('create_card_gone_server_body'));
           setLoadingExistingCard(false);
           return;
         }
@@ -564,7 +558,7 @@ export default function CreateBusinessCardScreen() {
     return () => {
       cancelled = true;
     };
-  }, [routeBId, resetBusinessCardFormForNewCreation, router, tr]);
+  }, [routeBId, resetBusinessCardFormForNewCreation, router, tcx]);
 
   const editingBId = routeBId || createdBId;
 
@@ -636,33 +630,26 @@ export default function CreateBusinessCardScreen() {
   };
 
   const openVaultSelectorSortOptions = () => {
-    Alert.alert(
-      tr('Ordenar datos', 'Sort data'),
-      tr('Elige cómo ver tus datos.', 'Choose how to view your data.'),
-      [
-        {
-          text: tr('Recién agregado', 'Recently added'),
-          onPress: () => setVaultSelectorSort('recent'),
-        },
-        {
-          text: tr('Alfabético', 'Alphabetical'),
-          onPress: () => setVaultSelectorSort('alpha'),
-        },
-        {
-          text: tr('Cancelar', 'Cancel'),
-          style: 'cancel',
-        },
-      ],
-    );
+    Alert.alert(tcx('create_sort_data_title'), tcx('create_sort_data_message'), [
+      {
+        text: tcx('create_sort_recent'),
+        onPress: () => setVaultSelectorSort('recent'),
+      },
+      {
+        text: tcx('create_sort_alphabetical'),
+        onPress: () => setVaultSelectorSort('alpha'),
+      },
+      {
+        text: tcx('create_cancel'),
+        style: 'cancel',
+      },
+    ]);
   };
 
   const applyProfileFullName = () => {
     const n = profileFullName.trim();
     if (!n) {
-      Alert.alert(
-        tr('Perfil', 'Profile'),
-        tr('No hay nombre completo en tu perfil. Complétalo en Mi perfil.', 'No full name on your profile. Complete it in My Profile.'),
-      );
+      Alert.alert(tcx('create_profile_title'), tcx('create_profile_missing_full_name'));
       return;
     }
     setBcContactName(n);
@@ -817,11 +804,8 @@ export default function CreateBusinessCardScreen() {
     }, 0);
     Toast.show({
       type: 'info',
-      text1: tr('Formulario vaciado', 'Form cleared'),
-      text2: tr(
-        'Esa tarjeta ya no existe. Completa los datos de una nueva tarjeta.',
-        'That card no longer exists. Enter details for a new business card.',
-      ),
+      text1: tcx('create_form_cleared_title'),
+      text2: tcx('create_form_cleared_body_new'),
       position: 'bottom',
       visibilityTime: 5000,
     });
@@ -830,7 +814,7 @@ export default function CreateBusinessCardScreen() {
     routeBId,
     createdBId,
     router,
-    tr,
+    tcx,
     computeFormSnapshot,
     resetBusinessCardFormForNewCreation,
   ]);
@@ -920,10 +904,7 @@ export default function CreateBusinessCardScreen() {
 
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert(
-          tr('Permiso', 'Permission'),
-          tr('Necesitamos acceso a fotos para elegir el logo.', 'We need photo access to pick a logo.'),
-        );
+        Alert.alert(tcx('create_permission_title'), tcx('create_permission_photos_logo'));
         return;
       }
 
@@ -954,10 +935,7 @@ export default function CreateBusinessCardScreen() {
       setBcLogo(nextUri);
       setBcLogoUrl(null);
     } catch (e: any) {
-      Alert.alert(
-        tr('Error', 'Error'),
-        userFacingAlertMessage(e, language, tr('No se pudo procesar la imagen.', 'Could not process image.')),
-      );
+      Alert.alert(tcx('create_error'), userFacingAlertMessage(e, language, tcx('create_image_process_error')));
     } finally {
       setPickingLogo(false);
     }
@@ -973,10 +951,7 @@ export default function CreateBusinessCardScreen() {
     try {
       const perm = await Location.requestForegroundPermissionsAsync();
       if (perm.status !== Location.PermissionStatus.GRANTED) {
-        Alert.alert(
-          tr('Ubicación', 'Location'),
-          tr('Activa el permiso de ubicación para guardar coordenadas.', 'Enable location permission to save coordinates.'),
-        );
+        Alert.alert(tcx('create_location_title'), tcx('create_location_permission_body'));
         return;
       }
       const pos = await Location.getCurrentPositionAsync({
@@ -1000,10 +975,7 @@ export default function CreateBusinessCardScreen() {
         setBusinessGeoMeta(buildBusinessGeoMeta(null, label));
       }
     } catch (e: any) {
-      Alert.alert(
-        tr('GPS', 'GPS'),
-        userFacingAlertMessage(e, language, tr('No se pudo leer la ubicación.', 'Could not read location.')),
-      );
+      Alert.alert(tcx('create_gps_title'), userFacingAlertMessage(e, language, tcx('create_gps_read_error')));
     } finally {
       setLocationLoading(false);
     }
@@ -1012,10 +984,7 @@ export default function CreateBusinessCardScreen() {
   const searchAddressOnMap = async () => {
     const q = addressSearchQuery.trim();
     if (!q) {
-      Alert.alert(
-        tr('Dirección', 'Address'),
-        tr('Escribe una dirección o lugar para buscar.', 'Type an address or place to search.'),
-      );
+      Alert.alert(tcx('create_address_title'), tcx('create_address_search_hint'));
       return;
     }
     setGeocodingInProgress(true);
@@ -1024,10 +993,7 @@ export default function CreateBusinessCardScreen() {
     try {
       const results = await Location.geocodeAsync(q);
       if (!results?.length) {
-        Alert.alert(
-          tr('Sin resultados', 'No results'),
-          tr('No encontramos ese lugar. Prueba con más detalle (calle, ciudad, país).', 'We could not find that place. Try more detail (street, city, country).'),
-        );
+        Alert.alert(tcx('create_no_results'), tcx('create_geocode_no_place'));
         return;
       }
       setGeocodeCandidates(results);
@@ -1044,14 +1010,7 @@ export default function CreateBusinessCardScreen() {
       );
       setGeocodeLabels(labels);
     } catch (e: any) {
-      Alert.alert(
-        tr('Búsqueda', 'Search'),
-        userFacingAlertMessage(
-          e,
-          language,
-          tr('El geocodificador del dispositivo no pudo resolver la dirección.', 'The device geocoder could not resolve the address.'),
-        ),
-      );
+      Alert.alert(tcx('create_search_title'), userFacingAlertMessage(e, language, tcx('create_geocoder_fail')));
     } finally {
       setGeocodingInProgress(false);
     }
@@ -1114,45 +1073,30 @@ export default function CreateBusinessCardScreen() {
   const handleCreate = async () => {
     const uid = await getActiveUserId();
     if (!uid) {
-      Alert.alert(tr('Sesión', 'Session'), tr('Inicia sesión de nuevo.', 'Please sign in again.'));
+      Alert.alert(tcx('create_session_title'), tcx('create_session_signin_again'));
       return;
     }
     if (!bcName.trim() || !bcContactName.trim()) {
-      Alert.alert(
-        tr('Datos incompletos', 'Missing fields'),
-        tr('Indica el nombre de la tarjeta y el nombre de contacto.', 'Enter the card name and contact name.'),
-      );
+      Alert.alert(tcx('create_missing_fields_title'), tcx('create_missing_fields_body'));
       return;
     }
     if (latitude == null || longitude == null) {
-      Alert.alert(
-        tr('Ubicación requerida', 'Location required'),
-        tr(
-          'Busca una dirección y elige un resultado de la lista, o usa “Mi ubicación actual”.',
-          'Search for an address and pick a result from the list, or use “Use my current location”.',
-        ),
-      );
+      Alert.alert(tcx('create_location_required_title'), tcx('create_location_required_body'));
       return;
     }
     const kw = validateBusinessKeywordList(keywordTags);
     if (!kw.ok) {
       if (kw.reason === 'blocked') {
-        Alert.alert(
-          tr('Palabra no permitida', 'Word not allowed'),
-          tr('Revisa las palabras clave.', 'Please review your keywords.'),
-        );
+        Alert.alert(tcx('create_keyword_blocked_title'), tcx('create_keyword_review'));
       } else if (kw.reason === 'too_many') {
-        Alert.alert(tr('Límite', 'Limit'), tr('Máximo 20 palabras clave.', 'Maximum 20 keywords.'));
+        Alert.alert(tcx('create_limit_title'), tcx('create_keywords_max_20'));
       } else {
-        Alert.alert(tr('Palabras clave', 'Keywords'), tr('Revisa el formato.', 'Check the format.'));
+        Alert.alert(tcx('create_keywords_title'), tcx('create_keywords_format'));
       }
       return;
     }
     if (!businessTermsAccepted) {
-      Alert.alert(
-        tr('Términos', 'Terms'),
-        tr('Debes aceptar los términos y condiciones de la tarjeta de negocio.', 'You must accept the business card terms and conditions.'),
-      );
+      Alert.alert(tcx('create_terms_alert_title'), tcx('create_terms_alert_body'));
       return;
     }
 
@@ -1180,11 +1124,8 @@ export default function CreateBusinessCardScreen() {
           }, 0);
           Toast.show({
             type: 'info',
-            text1: tr('Formulario vaciado', 'Form cleared'),
-            text2: tr(
-              'Esa tarjeta ya no existe. Completa los datos y guarda de nuevo.',
-              'That card no longer exists. Fill the form again and save.',
-            ),
+            text1: tcx('create_form_cleared_title'),
+            text2: tcx('create_form_cleared_body_save'),
             position: 'bottom',
             visibilityTime: 5000,
           });
@@ -1227,8 +1168,8 @@ export default function CreateBusinessCardScreen() {
           themeId: businessThemeId || DEFAULT_BIZ_THEME_ID,
         });
         formBaselineRef.current = computeFormSnapshot();
-        Alert.alert(tr('Listo', 'Done'), tr('Cambios guardados.', 'Changes saved.'), [
-          { text: tr('OK', 'OK'), onPress: goToCardsTab },
+        Alert.alert(tcx('create_done_title'), tcx('create_changes_saved_body'), [
+          { text: tcx('create_ok'), onPress: goToCardsTab },
         ]);
         void refreshCreatedCardMeta();
       } else {
@@ -1297,27 +1238,17 @@ export default function CreateBusinessCardScreen() {
         if (licenseWarning) {
           Toast.show({
             type: 'error',
-            text1: tr('Licencia trial no activada', 'Trial license not activated'),
-            text2: tr(
-              'La tarjeta se guardó pero no aparecerá en el Mercado Social. Activa la licencia desde la pantalla de tu tarjeta.',
-              "Card saved but won't appear in Social Market. Activate the license from your card screen.",
-            ),
+            text1: tcx('create_trial_license_warn_title'),
+            text2: tcx('create_trial_license_warn_body'),
             visibilityTime: 7000,
           });
         }
 
-        Alert.alert(
-          tr('Listo', 'Done'),
-          tr('Tarjeta de negocio creada. Periodo de prueba de 14 días iniciado.', 'Business card created. 14-day trial started.'),
-          [{ text: tr('OK', 'OK'), onPress: goToCardsTab }],
-        );
+        Alert.alert(tcx('create_done_title'), tcx('create_card_created_body'), [{ text: tcx('create_ok'), onPress: goToCardsTab }]);
         void refreshCreatedCardMeta();
       }
     } catch (e: any) {
-      Alert.alert(
-        tr('Error', 'Error'),
-        userFacingAlertMessage(e, language, tr('Inténtalo de nuevo.', 'Please try again.')),
-      );
+      Alert.alert(tcx('create_error'), userFacingAlertMessage(e, language, tcx('create_try_again')));
     } finally {
       setSubmitting(false);
     }
@@ -1339,29 +1270,22 @@ export default function CreateBusinessCardScreen() {
       goToCardsTab();
       return;
     }
-    Alert.alert(
-      tr('Cambios sin guardar', 'Unsaved changes'),
-      tr(
-        'Si sales ahora, perderás lo que modificaste; no se guarda solo. ¿Quieres guardar antes de salir?',
-        'If you leave now, you will lose your edits; nothing is saved automatically. Do you want to save before leaving?',
-      ),
-      [
-        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
-        {
-          text: tr('No guardar', "Don't save"),
-          style: 'destructive',
-          onPress: () => {
-            applyFormSnapshotFromBaselineJson(baseline);
-            goToCardsTab();
-          },
+    Alert.alert(tcx('create_unsaved_title'), tcx('create_unsaved_body'), [
+      { text: tcx('create_cancel'), style: 'cancel' },
+      {
+        text: tcx('create_dont_save'),
+        style: 'destructive',
+        onPress: () => {
+          applyFormSnapshotFromBaselineJson(baseline);
+          goToCardsTab();
         },
-        {
-          text: tr('Guardar', 'Save'),
-          onPress: () => void handleCreateRef.current(),
-        },
-      ],
-    );
-  }, [applyFormSnapshotFromBaselineJson, computeFormSnapshot, goToCardsTab, submitting, tr]);
+      },
+      {
+        text: tcx('create_save'),
+        onPress: () => void handleCreateRef.current(),
+      },
+    ]);
+  }, [applyFormSnapshotFromBaselineJson, computeFormSnapshot, goToCardsTab, submitting, tcx]);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -1389,18 +1313,12 @@ export default function CreateBusinessCardScreen() {
           subscriptionExpiresAt: Number.isFinite(expMs) ? new Date(expMs).toISOString() : null,
         });
       } catch (e) {
-        Alert.alert(
-          tr('Error', 'Error'),
-          userFacingAlertMessage(e, language, tr('Inténtalo de nuevo.', 'Please try again.')),
-        );
+        Alert.alert(tcx('create_error'), userFacingAlertMessage(e, language, tcx('create_try_again')));
         return;
       }
       setSubscriptionStatus('active');
       setLicenseActive(await hasActiveBusinessLicense(uid, createdBId));
-      Alert.alert(
-        tr('Licencia activa', 'License active'),
-        tr('Estado: active. Puedes publicar en Social Market.', 'Status: active. You can publish to Social Market.'),
-      );
+      Alert.alert(tcx('create_license_active_title'), tcx('create_license_active_body'));
     } finally {
       setActivatingLicense(false);
     }
@@ -1418,13 +1336,7 @@ export default function CreateBusinessCardScreen() {
     setSimulatingDull(true);
     try {
       setSubscriptionStatus('dull');
-      Alert.alert(
-        tr('Modo Dull (preview)', 'Dull mode (preview)'),
-        tr(
-          'Vista previa atenuada. No se persiste; al refrescar vuelve al estado real.',
-          'Dimmed preview only. Not persisted; refreshing restores the real state.',
-        ),
-      );
+      Alert.alert(tcx('create_dull_preview_title'), tcx('create_dull_preview_body'));
     } finally {
       setSimulatingDull(false);
     }
@@ -1435,20 +1347,14 @@ export default function CreateBusinessCardScreen() {
     if (!uid || !createdBId) return;
     const licensed = await hasActiveBusinessLicense(uid, createdBId);
     if (!licensed) {
-      Alert.alert(
-        tr('Licencia requerida', 'License required'),
-        tr('Activa la licencia (simulación) antes de publicar.', 'Activate license (simulation) before publishing.'),
-      );
+      Alert.alert(tcx('create_license_required_publishing_title'), tcx('create_license_required_publishing_body'));
       return;
     }
     try {
       await updateBusinessCard(uid, createdBId, { isPublishedToMarket: value });
       setMarketVisible(value);
     } catch (e) {
-      Alert.alert(
-        tr('Error', 'Error'),
-        userFacingAlertMessage(e, language, tr('Inténtalo de nuevo.', 'Please try again.')),
-      );
+      Alert.alert(tcx('create_error'), userFacingAlertMessage(e, language, tcx('create_try_again')));
     }
   };
 
@@ -1462,11 +1368,11 @@ export default function CreateBusinessCardScreen() {
 
   const subscriptionLabel =
     subscriptionStatus === 'trial'
-      ? tr('Prueba (trial)', 'Trial')
+      ? tcx('create_sub_trial')
       : subscriptionStatus === 'active'
-        ? tr('Activa', 'Active')
+        ? tcx('create_sub_active')
         : subscriptionStatus === 'dull'
-          ? tr('Dull (atenuada)', 'Dull (dimmed)')
+          ? tcx('create_sub_dull')
           : '—';
 
   const chestPreview = getCardRowTheme(businessThemeId);
@@ -1482,19 +1388,16 @@ export default function CreateBusinessCardScreen() {
               onPress={tryLeaveBusinessCardScreen}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               accessibilityRole="button"
-              accessibilityLabel={tr('Cerrar', 'Close')}
+              accessibilityLabel={tcx('create_close')}
               disabled={submitting}
               style={[styles.heroCloseBtn, { opacity: submitting ? 0.45 : 1 }]}
             >
               <MaterialCommunityIcons name="close" size={26} color={border} />
             </TouchableOpacity>
           </View>
-          <Text style={[styles.title, { color: text }]}>{tr('Tarjeta de negocio', 'Business card')}</Text>
+          <Text style={[styles.title, { color: text }]}>{tcx('create_business_card_title')}</Text>
           <Text style={[styles.sub, { color: sub }]}>
-            {tr(
-              'Protocolo de arquitectura Zero Trust: correo, teléfono, enlaces y mapa permanecen como datos soberanos en tu Bóveda; aquí solo identidad de negocio, marca, ubicación y palabras clave SEO.',
-              'Zero-Trust Architecture Protocol: email, phone, links, and maps stay sovereign in your Vault—this screen only governs business identity, brand, geo, and SEO keywords.',
-            )}
+            {tcx('create_zero_trust_intro')}
           </Text>
         </View>
 
@@ -1502,13 +1405,13 @@ export default function CreateBusinessCardScreen() {
           <View style={{ alignItems: 'center', marginBottom: 14 }}>
             <ActivityIndicator color={border} />
             <Text style={[styles.subInline, { color: sub, marginTop: 8 }]}>
-              {tr('Cargando tarjeta…', 'Loading card…')}
+              {tcx('create_loading_card')}
             </Text>
           </View>
         ) : null}
 
         <View style={[styles.cardBlock, { backgroundColor: card, borderColor: border }]}>
-          <Text style={[styles.sectionTitle, { color: text }]}>{tr('Vista previa', 'Preview')}</Text>
+          <Text style={[styles.sectionTitle, { color: text }]}>{tcx('create_preview')}</Text>
           <View style={[styles.previewWrap, isDullPreview && styles.previewDullOuter]}>
             <ThemedSharedCardSurface themeId={businessThemeId} borderRadius={14} style={styles.previewSurface}>
               <View style={[styles.previewInner, isDullPreview && styles.previewDullInner]}>
@@ -1532,7 +1435,7 @@ export default function CreateBusinessCardScreen() {
                       ]}
                       numberOfLines={2}
                     >
-                      {bcName.trim() || tr('Nombre de la tarjeta', 'Card name')}
+                      {bcName.trim() || tcx('create_card_name_placeholder')}
                     </Text>
                     <Text
                       style={[
@@ -1545,7 +1448,7 @@ export default function CreateBusinessCardScreen() {
                       ]}
                       numberOfLines={1}
                     >
-                      {bcContactName.trim() || tr('Nombre de contacto', 'Contact name')}
+                      {bcContactName.trim() || tcx('create_contact_name_placeholder')}
                     </Text>
                   </View>
                   <View style={styles.previewQr}>
@@ -1572,33 +1475,33 @@ export default function CreateBusinessCardScreen() {
             </ThemedSharedCardSurface>
             {isDullPreview ? (
               <View style={styles.dullOverlay} pointerEvents="none">
-                <Text style={styles.dullOverlayText}>{tr('Licencia en pausa (Dull)', 'License on hold (Dull)')}</Text>
+                <Text style={styles.dullOverlayText}>{tcx('create_license_paused_dull')}</Text>
               </View>
             ) : null}
           </View>
           {subscriptionStatus ? (
             <Text style={[styles.statusLine, { color: sub }]}>
-              {tr('Estado de suscripción:', 'Subscription status:')} {subscriptionLabel}
+              {tcx('create_subscription_status_label')} {subscriptionLabel}
             </Text>
           ) : null}
         </View>
 
         <View style={[styles.cardBlock, { backgroundColor: card, borderColor: border }]}>
-          <Text style={[styles.label, { color: text }]}>{tr('Nombre de la tarjeta', 'Card name')}</Text>
+          <Text style={[styles.label, { color: text }]}>{tcx('create_card_name_placeholder')}</Text>
           <TextInput
             style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: border }]}
             value={bcName}
             onChangeText={setBcName}
-            placeholder={tr('Mi empresa', 'My company')}
+            placeholder={tcx('create_placeholder_company')}
             placeholderTextColor={sub}
           />
 
-          <Text style={[styles.label, { color: text, marginTop: 12 }]}>{tr('Nombre de contacto', 'Contact name')}</Text>
+          <Text style={[styles.label, { color: text, marginTop: 12 }]}>{tcx('create_contact_name_placeholder')}</Text>
           <TextInput
             style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: border }]}
             value={bcContactName}
             onChangeText={setBcContactName}
-            placeholder={tr('Nombre completo', 'Full name')}
+            placeholder={tcx('create_placeholder_full_name')}
             placeholderTextColor={sub}
           />
           <TouchableOpacity
@@ -1609,21 +1512,18 @@ export default function CreateBusinessCardScreen() {
           >
             <MaterialCommunityIcons name="account-check-outline" size={20} color={profileFullName.trim() ? border : sub} />
             <Text style={[styles.profileNameChipText, { color: profileFullName.trim() ? text : sub }]}>
-              {tr('Usar el mismo nombre de mi perfil', 'Use my profile name')}
+              {tcx('create_use_profile_name')}
             </Text>
           </TouchableOpacity>
           {profileFullName.trim() ? (
             <Text style={[styles.profileNameHint, { color: sub }]} numberOfLines={2}>
-              {tr('Perfil:', 'Profile:')} {profileFullName.trim()}
+              {tcx('create_profile_prefix')} {profileFullName.trim()}
             </Text>
           ) : null}
 
-          <Text style={[styles.label, { color: text, marginTop: 12 }]}>{tr('Logo del negocio', 'Business logo')}</Text>
+          <Text style={[styles.label, { color: text, marginTop: 12 }]}>{tcx('create_business_logo')}</Text>
           <Text style={[styles.subInline, { color: sub }]}>
-            {tr(
-              'Por defecto: tu foto de perfil. Sube una imagen; se recorta a cuadrado. Mismo logo para la tarjeta y el centro del QR (ECL H).',
-              'Default: your profile photo. Upload an image; it is cropped square. Same logo for the card and QR center (ECL H).',
-            )}
+            {tcx('create_logo_help')}
           </Text>
           <View style={styles.logoRow}>
             {displayLogoUri ? (
@@ -1643,27 +1543,24 @@ export default function CreateBusinessCardScreen() {
                   <ActivityIndicator color={text} />
                 ) : (
                   <Text style={[styles.secondaryBtnSmText, { color: text }]}>
-                    {tr('Elegir imagen (cuadrada)', 'Pick image (square)')}
+                    {tcx('create_pick_square_image')}
                   </Text>
                 )}
               </TouchableOpacity>
               {(bcLogo || bcLogoUrl) && (
                 <TouchableOpacity onPress={clearCustomLogo} style={styles.clearLogoBtn}>
-                  <Text style={{ color: sub, fontSize: 13 }}>{tr('Usar solo avatar', 'Use avatar only')}</Text>
+                  <Text style={{ color: sub, fontSize: 13 }}>{tcx('create_use_avatar_only')}</Text>
                 </TouchableOpacity>
               )}
             </View>
           </View>
 
-          <Text style={[styles.label, { color: text, marginTop: 12 }]}>{tr('Ubicación para búsqueda', 'Location for search')}</Text>
+          <Text style={[styles.label, { color: text, marginTop: 12 }]}>{tcx('create_location_search_title')}</Text>
           <Text style={[styles.subInline, { color: sub }]}>
-            {tr(
-              'Escribe una dirección (como en mapas): el dispositivo la convierte en lat/lng (geocodificador del sistema, sin API de pago). En el Mercado solo se usa distancia aproximada, no tu calle.',
-              'Type an address (like in maps): your device turns it into lat/lng (system geocoder, no paid API). The Market only uses approximate distance, not your street.',
-            )}
+            {tcx('create_location_search_help')}
           </Text>
 
-          <Text style={[styles.label, { color: text, marginTop: 6 }]}>{tr('Dirección o lugar', 'Address or place')}</Text>
+          <Text style={[styles.label, { color: text, marginTop: 6 }]}>{tcx('create_address_or_place')}</Text>
           <View style={styles.addressSearchRow}>
             <TextInput
               style={[styles.input, styles.addressInput, { backgroundColor: inputBg, color: text, borderColor: border }]}
@@ -1675,7 +1572,7 @@ export default function CreateBusinessCardScreen() {
                   setGeocodeLabels([]);
                 }
               }}
-              placeholder={tr('Calle, número, ciudad, país…', 'Street, number, city, country…')}
+              placeholder={tcx('create_address_placeholder')}
               placeholderTextColor={sub}
               returnKeyType="search"
               onSubmitEditing={() => void searchAddressOnMap()}
@@ -1696,7 +1593,7 @@ export default function CreateBusinessCardScreen() {
           {geocodeCandidates.length > 0 ? (
             <View style={[styles.geocodeListWrap, { borderColor: border }]}>
               <Text style={[styles.geocodeListTitle, { color: text }]}>
-                {tr('Resultados en el mapa', 'Map results')}
+                {tcx('create_map_results')}
               </Text>
               {geocodeCandidates.map((item, index) => (
                 <TouchableOpacity
@@ -1711,7 +1608,7 @@ export default function CreateBusinessCardScreen() {
                       {geocodeLabels[index] || `${item.latitude.toFixed(5)}, ${item.longitude.toFixed(5)}`}
                     </Text>
                     <Text style={[styles.geocodeSecondary, { color: sub }]}>
-                      {tr('Toca para fijar coordenadas', 'Tap to set coordinates')}
+                      {tcx('create_tap_set_coords')}
                     </Text>
                   </View>
                   <MaterialCommunityIcons name="chevron-right" size={22} color={sub} />
@@ -1720,7 +1617,7 @@ export default function CreateBusinessCardScreen() {
             </View>
           ) : null}
 
-          <Text style={[styles.orDivider, { color: sub }]}>{tr('— o —', '— or —')}</Text>
+          <Text style={[styles.orDivider, { color: sub }]}>{tcx('create_or_divider')}</Text>
 
           <TouchableOpacity
             style={[styles.locBtn, { borderColor: border, backgroundColor: inputBg }]}
@@ -1733,7 +1630,7 @@ export default function CreateBusinessCardScreen() {
               <>
                 <MaterialCommunityIcons name="crosshairs-gps" size={22} color={border} />
                 <Text style={[styles.locBtnText, { color: text }]}>
-                  {tr('Usar mi ubicación actual', 'Use my current location')}
+                  {tcx('create_use_current_location')}
                 </Text>
               </>
             )}
@@ -1742,7 +1639,7 @@ export default function CreateBusinessCardScreen() {
           {latitude != null && longitude != null ? (
             <View style={[styles.resolvedBox, { borderColor: border, backgroundColor: inputBg }]}>
               <Text style={[styles.coords, { color: text }]}>
-                {tr('Lat', 'Lat')}: {latitude.toFixed(5)} · {tr('Lng', 'Lng')}: {longitude.toFixed(5)}
+                {tcx('create_lat')}: {latitude.toFixed(5)} · {tcx('create_lng')}: {longitude.toFixed(5)}
               </Text>
               {resolvedAddressLabel ? (
                 <Text style={[styles.resolvedLabel, { color: sub }]} numberOfLines={4}>
@@ -1754,11 +1651,10 @@ export default function CreateBusinessCardScreen() {
         </View>
 
         <View style={[styles.cardBlock, { backgroundColor: card, borderColor: border }]}>
-          <Text style={[styles.label, { color: text }]}>{tr('Palabras Clave (SEO)', 'Keywords (SEO)')}</Text>
+          <Text style={[styles.label, { color: text }]}>{tcx('create_keywords_seo')}</Text>
           <BusinessCardKeywordTags
             tags={keywordTags}
             onTagsChange={setKeywordTags}
-            tr={tr}
             textColor={text}
             subColor={sub}
             borderColor={border}
@@ -1768,13 +1664,8 @@ export default function CreateBusinessCardScreen() {
         </View>
 
         <View style={[styles.cardBlock, { backgroundColor: card, borderColor: border }]}>
-          <Text style={[styles.label, { color: text }]}>{tr('Datos y tema', 'Data and theme')}</Text>
-          <Text style={[styles.sub, { color: sub, marginBottom: 10 }]}>
-            {tr(
-              'Igual que en Smart Cards: elige ítems de la Bóveda y un tema visual.',
-              'Same as Smart Cards: pick Vault items and a visual theme.',
-            )}
-          </Text>
+          <Text style={[styles.label, { color: text }]}>{tcx('create_data_and_theme')}</Text>
+          <Text style={[styles.sub, { color: sub, marginBottom: 10 }]}>{tcx('create_data_theme_help')}</Text>
           <View style={styles.bizFactoryActionRow}>
             <TouchableOpacity
               style={[styles.bizFactoryChip, { borderColor: border, backgroundColor: inputBg }]}
@@ -1783,7 +1674,7 @@ export default function CreateBusinessCardScreen() {
             >
               <MaterialCommunityIcons name="database-plus-outline" size={18} color={border} />
               <Text style={[styles.bizFactoryChipText, { color: text }]} numberOfLines={1}>
-                {tr('Agregar DATA', 'Add DATA')}
+                {tcx('create_add_data')}
               </Text>
               {selectedVaultLinkIds.size > 0 ? (
                 <View style={styles.vaultChipBadge}>
@@ -1801,29 +1692,25 @@ export default function CreateBusinessCardScreen() {
             >
               <MaterialCommunityIcons name="palette-outline" size={18} color={border} />
               <Text style={[styles.bizFactoryChipText, { color: text }]} numberOfLines={1}>
-                {tr('Agregar TEMAS', 'Add THEMES')}
+                {tcx('create_add_themes')}
               </Text>
             </TouchableOpacity>
           </View>
           <Text style={[styles.themePickedHint, { color: sub }]}>
-            {tr('Tema:', 'Theme:')}{' '}
+            {tcx('create_theme_label')}{' '}
             {getThemeById(businessThemeId)?.name ?? businessThemeId}
           </Text>
           {links.length === 0 ? (
             <Text style={[styles.vaultEmptyHint, { color: sub }]}>
-              {tr('Sin enlaces en la nube. Agrega datos en Bóveda.', 'No cloud links yet. Add data in Vault.')}
+              {tcx('create_no_cloud_links')}
             </Text>
           ) : null}
         </View>
 
         <View style={[styles.cardBlock, { backgroundColor: card, borderColor: border }]}>
-          <Text style={[styles.sectionTitle, { color: text }]}>{tr('Términos y condiciones', 'Terms and conditions')}</Text>
+          <Text style={[styles.sectionTitle, { color: text }]}>{tcx('create_terms_section_title')}</Text>
           <ScrollView style={[styles.termsBox, { borderColor: border }]} nestedScrollEnabled showsVerticalScrollIndicator>
-            <Text style={[styles.termsText, { color: sub }]}>
-              {language === 'en' || language === 'de'
-                ? `By creating a business card you agree not to use Card-Social to promote illegal gambling, explicit sexual content, hate speech, harassment, or deceptive scams. Keywords and visible content must comply with these rules. Card-Social may remove or restrict cards that violate policy. Payment and subscription terms will apply when billing is enabled; until then, trial/active/dull states are tracked for testing.`
-                : `Al crear una tarjeta de negocio te comprometes a no usar Card-Social para promover apuestas ilegales, contenido sexual explícito, discurso de odio, acoso o estafas. Las palabras clave y el contenido visible deben cumplir estas reglas. Card-Social puede retirar o restringir tarjetas que incumplan. Los términos de pago y suscripción aplicarán cuando se active la facturación; hasta entonces, los estados prueba/activa/dull son de seguimiento y pruebas.`}
-            </Text>
+            <Text style={[styles.termsText, { color: sub }]}>{tcx('create_business_terms_body')}</Text>
           </ScrollView>
           <TouchableOpacity
             style={[styles.kycRow, { borderColor: border }]}
@@ -1836,10 +1723,7 @@ export default function CreateBusinessCardScreen() {
               color={border}
             />
             <Text style={[styles.kycText, { color: text }]}>
-              {tr(
-                'He leído y acepto los términos y la política de contenido de la tarjeta de negocio.',
-                'I have read and accept the business card terms and content policy.',
-              )}
+              {tcx('create_terms_accept_checkbox')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -1861,7 +1745,7 @@ export default function CreateBusinessCardScreen() {
               <ActivityIndicator color={shell.emptyCtaText} />
             ) : (
               <Text style={[styles.primaryBtnText, { color: shell.emptyCtaText }]}>
-                {editingBId ? tr('Guardar cambios', 'Save changes') : tr('Crear tarjeta', 'Create card')}
+                {editingBId ? tcx('create_save_changes') : tcx('create_create_card')}
               </Text>
             )}
           </LinearGradient>
@@ -1871,11 +1755,9 @@ export default function CreateBusinessCardScreen() {
           <View style={[styles.cardBlock, { backgroundColor: card, borderColor: border, marginTop: 20 }]}>
             <View style={styles.switchRow}>
               <View style={{ flex: 1, paddingRight: 12 }}>
-                <Text style={[styles.label, { color: text }]}>{tr('Visibilidad en Social Market', 'Social Market visibility')}</Text>
+                <Text style={[styles.label, { color: text }]}>{tcx('create_market_visibility')}</Text>
                 <Text style={[styles.sub, { color: sub, marginTop: 4 }]}>
-                  {licenseActive
-                    ? tr('Licencia anual activa (simulación).', 'Annual license active (simulation).')
-                    : tr('Requiere licencia activa para publicar.', 'Active license required to publish.')}
+                  {licenseActive ? tcx('create_license_sim_active') : tcx('create_license_required_hint')}
                 </Text>
               </View>
               <Switch value={marketVisible} onValueChange={(v) => void onToggleMarket(v)} disabled={!licenseActive} />
@@ -1888,7 +1770,7 @@ export default function CreateBusinessCardScreen() {
                 disabled={activatingLicense}
               >
                 <Text style={[styles.secondaryBtnText, { color: text }]}>
-                  {tr('Simular licencia anual (desarrollo)', 'Simulate annual license (dev)')}
+                  {tcx('create_simulate_license_dev')}
                 </Text>
               </TouchableOpacity>
             ) : null}
@@ -1899,7 +1781,7 @@ export default function CreateBusinessCardScreen() {
               disabled={simulatingDull}
             >
               <Text style={[styles.secondaryBtnText, { color: text }]}>
-                {tr('Simular estado Dull (desarrollo)', 'Simulate Dull state (dev)')}
+                {tcx('create_simulate_dull_dev')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1926,7 +1808,7 @@ export default function CreateBusinessCardScreen() {
         >
           <View style={styles.vaultSelectorHeader}>
             <Text style={[styles.vaultSelectorTitle, { color: text }]}>
-              {tr('Selecciona datos', 'Select data')}
+              {tcx('create_select_vault_data')}
             </Text>
             <View style={styles.vaultSelectorCounterWrap}>
               <Text
@@ -1941,7 +1823,7 @@ export default function CreateBusinessCardScreen() {
             <TouchableOpacity
               onPress={cancelVaultLinkSelector}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              accessibilityLabel={tr('Cerrar', 'Close')}
+              accessibilityLabel={tcx('create_close')}
             >
               <MaterialCommunityIcons name="close" size={22} color={sub} />
             </TouchableOpacity>
@@ -1952,7 +1834,7 @@ export default function CreateBusinessCardScreen() {
               <MaterialCommunityIcons name="magnify" size={18} color={sub} />
               <TextInput
                 style={[styles.vaultSelectorSearchInput, { color: text }]}
-                placeholder={tr('Buscar dato...', 'Search data...')}
+                placeholder={tcx('create_search_vault_placeholder')}
                 placeholderTextColor={sub}
                 value={vaultSelectorQuery}
                 onChangeText={setVaultSelectorQuery}
@@ -1964,7 +1846,7 @@ export default function CreateBusinessCardScreen() {
                 <TouchableOpacity
                   onPress={() => setVaultSelectorQuery('')}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  accessibilityLabel={tr('Limpiar búsqueda', 'Clear search')}
+                  accessibilityLabel={tcx('create_clear_search_a11y')}
                 >
                   <MaterialCommunityIcons name="close-circle" size={17} color={sub} />
                 </TouchableOpacity>
@@ -1977,7 +1859,7 @@ export default function CreateBusinessCardScreen() {
             >
               <MaterialCommunityIcons name="sort" size={17} color={border} />
               <Text style={[styles.vaultSelectorSortText, { color: text }]}>
-                {vaultSelectorSort === 'alpha' ? tr('Alfabético', 'A-Z') : tr('Reciente', 'Recent')}
+                {vaultSelectorSort === 'alpha' ? tcx('create_sort_az') : tcx('create_sort_recent_short')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1994,10 +1876,7 @@ export default function CreateBusinessCardScreen() {
             >
               <MaterialCommunityIcons name="alert-circle-outline" size={14} color="#C44B55" />
               <Text style={styles.vaultLimitBannerText}>
-                {tr(
-                  `Máximo ${MAX_BUSINESS_VAULT_DATA_SLOTS} enlaces de bóveda`,
-                  `Maximum ${MAX_BUSINESS_VAULT_DATA_SLOTS} vault links`,
-                )}
+                {tcx('create_vault_max_links_banner', { maxSlots: MAX_BUSINESS_VAULT_DATA_SLOTS })}
               </Text>
             </View>
           ) : null}
@@ -2006,17 +1885,14 @@ export default function CreateBusinessCardScreen() {
             <View style={styles.vaultSelectorEmpty}>
               <MaterialCommunityIcons name="database-off-outline" size={40} color={sub} />
               <Text style={[styles.vaultSelectorEmptyText, { color: sub }]}>
-                {tr(
-                  'Tu bóveda está vacía.\nAgrega datos primero en Bóveda.',
-                  'Your Vault is empty.\nAdd data from Vault first.',
-                )}
+                {tcx('create_vault_empty_selector')}
               </Text>
             </View>
           ) : filteredVaultLinksForSelector.length === 0 ? (
             <View style={styles.vaultSelectorEmpty}>
               <MaterialCommunityIcons name="database-search-outline" size={40} color={sub} />
               <Text style={[styles.vaultSelectorEmptyText, { color: sub }]}>
-                {tr('No encontramos datos con esa búsqueda.', 'No data matched that search.')}
+                {tcx('create_vault_search_no_match')}
               </Text>
             </View>
           ) : (
@@ -2078,14 +1954,14 @@ export default function CreateBusinessCardScreen() {
               style={[styles.vaultGhostBtn, { backgroundColor: inputBg, borderColor: border }]}
               onPress={cancelVaultLinkSelector}
             >
-              <Text style={[styles.vaultGhostBtnText, { color: text }]}>{tr('Cancelar', 'Cancel')}</Text>
+              <Text style={[styles.vaultGhostBtnText, { color: text }]}>{tcx('create_cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.vaultConfirmBtn, { backgroundColor: border }]}
               onPress={confirmVaultLinkSelector}
             >
               <Text style={styles.vaultConfirmBtnText}>
-                {tr('Confirmar', 'Confirm')} ({tempVaultLinkIds.length})
+                {tcx('create_confirm_with_count', { count: tempVaultLinkIds.length })}
               </Text>
             </TouchableOpacity>
           </View>
@@ -2105,12 +1981,12 @@ export default function CreateBusinessCardScreen() {
             <View style={[styles.themesPopupBox, { backgroundColor: card, borderColor: border }]}>
               <View style={[styles.bizThemeModalHeader, { borderBottomColor: border }]}>
                 <Text style={[styles.vaultSelectorTitle, { color: text, flex: 1 }]}>
-                  {tr('Temas de Tarjeta', 'Card Themes')}
+                  {tcx('create_card_themes_title')}
                 </Text>
                 <TouchableOpacity
                   onPress={() => setThemesPickerVisible(false)}
                   hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                  accessibilityLabel={tr('Cerrar', 'Close')}
+                  accessibilityLabel={tcx('create_close')}
                 >
                   <MaterialCommunityIcons name="close" size={22} color={sub} />
                 </TouchableOpacity>
@@ -2155,11 +2031,8 @@ export default function CreateBusinessCardScreen() {
                               if (!isChestThemeUnlocked(t)) {
                                 Toast.show({
                                   type: 'info',
-                                  text1: tr('Tema bloqueado', 'Theme locked'),
-                                  text2: tr(
-                                    'Desbloquéalo en Locker de Estilos o La Fragua.',
-                                    'Unlock it in Theme Locker or The Forge.',
-                                  ),
+                                  text1: tcx('create_theme_locked_title'),
+                                  text2: tcx('create_theme_locked_body'),
                                   position: 'bottom',
                                   visibilityTime: 2800,
                                 });
@@ -2179,7 +2052,7 @@ export default function CreateBusinessCardScreen() {
                 style={[styles.vaultConfirmBtn, { backgroundColor: border, marginTop: 12 }]}
                 onPress={() => setThemesPickerVisible(false)}
               >
-                <Text style={styles.vaultConfirmBtnText}>{tr('Aceptar', 'Accept')}</Text>
+                <Text style={styles.vaultConfirmBtnText}>{tcx('create_accept')}</Text>
               </TouchableOpacity>
             </View>
           </TouchableWithoutFeedback>
