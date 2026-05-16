@@ -17,6 +17,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { auth } from '@/services/firebaseConfig';
+import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { trEsEn, useLanguage, type AppLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { listMyBusinessCards } from '@/services/businessCardsRepo';
@@ -269,7 +270,10 @@ export default function NfcScreen() {
       setCards(nextCards);
       setMountOptions([...businessOptions, ...smartOptions]);
     } catch (error: any) {
-      Alert.alert(tr('No se pudo cargar NFC', 'Could not load NFC'), error?.message || tr('Intenta nuevamente.', 'Try again.'));
+      Alert.alert(
+        tr('No se pudo cargar NFC', 'Could not load NFC'),
+        userFacingAlertMessage(error, language, tr('Intenta nuevamente.', 'Try again.')),
+      );
     } finally {
       setLoading(false);
     }
@@ -601,7 +605,10 @@ export default function NfcScreen() {
       setNewActivationPin('');
       Alert.alert(tr('Tarjeta vinculada', 'Card linked'), tr('Ahora puedes montar una identidad.', 'Now you can mount an identity.'));
     } catch (error: any) {
-      Alert.alert(tr('No se pudo vincular', 'Could not link'), error?.message || tr('Intenta nuevamente.', 'Try again.'));
+      Alert.alert(
+        tr('No se pudo vincular', 'Could not link'),
+        userFacingAlertMessage(error, language, tr('Intenta nuevamente.', 'Try again.')),
+      );
     } finally {
       setBusyCardId(null);
     }
@@ -641,7 +648,10 @@ export default function NfcScreen() {
       setMountModalCard(null);
       setPendingSmartMount(null);
     } catch (error: any) {
-      Alert.alert(tr('No se pudo montar', 'Could not mount'), error?.message || tr('Intenta nuevamente.', 'Try again.'));
+      Alert.alert(
+        tr('No se pudo montar', 'Could not mount'),
+        userFacingAlertMessage(error, language, tr('Intenta nuevamente.', 'Try again.')),
+      );
     } finally {
       setBusyCardId(null);
     }
@@ -680,7 +690,10 @@ export default function NfcScreen() {
       });
       replaceCard(next);
     } catch (error: any) {
-      Alert.alert(tr('No se pudo actualizar', 'Could not update'), error?.message || tr('Intenta nuevamente.', 'Try again.'));
+      Alert.alert(
+        tr('No se pudo actualizar', 'Could not update'),
+        userFacingAlertMessage(error, language, tr('Intenta nuevamente.', 'Try again.')),
+      );
     } finally {
       setBusyCardId(null);
     }

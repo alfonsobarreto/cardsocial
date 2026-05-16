@@ -2,8 +2,9 @@
 
 import { useCallback } from 'react';
 import { studioTheme } from '@/lib/studioTheme';
+import { machineErrorUserMessage } from '@/lib/userFacingApiMessages';
 
-export default function AppError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function AppError({ error: _error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   const goLogin = useCallback(() => {
     if (typeof window === 'undefined') return;
     window.location.assign(new URL('/login', window.location.origin).href);
@@ -33,7 +34,7 @@ export default function AppError({ error, reset }: { error: Error & { digest?: s
         <p style={{ margin: 0, color: studioTheme.error, fontWeight: 900 }}>Card-Social</p>
         <h1 style={{ margin: '10px 0 8px', fontSize: 22 }}>Something went wrong</h1>
         <p style={{ margin: '0 0 18px', color: studioTheme.textMuted, lineHeight: 1.5 }}>
-          {error?.message || 'The page could not be rendered.'}
+          {machineErrorUserMessage('SERVER_INTERNAL_ERROR', 'en')}
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <button

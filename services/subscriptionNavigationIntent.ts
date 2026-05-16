@@ -1,6 +1,6 @@
 import { DeviceEventEmitter } from 'react-native';
 
-export type SubscriptionScrollSection = 'physical_cards';
+export type SubscriptionScrollSection = 'physical_cards' | 'market_radar';
 
 const SUBSCRIPTION_OPEN_EVENT = 'cs_open_subscription_section';
 
@@ -24,6 +24,17 @@ export function requestSubscriptionPanel(options?: { delayMs?: number }): void {
 /** Abre Suscripción y hace scroll a la zona de tarjetas físicas / NFC. */
 export function requestSubscriptionPhysicalCardsSection(options?: { delayMs?: number }): void {
   const fire = () => emitOpen({ scrollSection: 'physical_cards' });
+  const d = options?.delayMs;
+  if (typeof d === 'number' && d > 0) {
+    setTimeout(fire, d);
+  } else {
+    fire();
+  }
+}
+
+/** Abre Suscripción y hace scroll a la zona Market Radar Pro. */
+export function requestSubscriptionMarketRadarSection(options?: { delayMs?: number }): void {
+  const fire = () => emitOpen({ scrollSection: 'market_radar' });
   const d = options?.delayMs;
   if (typeof d === 'number' && d > 0) {
     setTimeout(fire, d);

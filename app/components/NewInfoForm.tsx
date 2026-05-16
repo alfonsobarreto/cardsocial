@@ -40,6 +40,7 @@ import { GHOST_LINK_VAULT_TYPE, GHOST_LINK_VAULT_VALUE } from '@/constants/ghost
 import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { getUserCreditsBalance } from '@/services/creditsService';
+import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { fetchFaviconFromAzure } from '@/services/faviconApi';
 import { db } from '@/services/firebaseConfig';
 import {
@@ -2240,7 +2241,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       } else {
         Alert.alert(
           tr('Error al subir', 'Upload error'),
-          tr('No se pudo guardar el dato. ¿Reintentar?', 'Could not save data. Retry?'),
+          userFacingAlertMessage(error, language, tr('No se pudo guardar el dato. ¿Reintentar?', 'Could not save data. Retry?')),
           [
             { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
             { text: tr('Reintentar', 'Retry'), onPress: () => handleCreate() },
@@ -2341,7 +2342,12 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             >
               <TouchableOpacity
                 style={[styles.countryCodeButton, { borderWidth: 0, backgroundColor: formTheme.inputBg }]}
-                onPress={() => setCountryModalVisible(true)}
+                onPress={() => {
+                  Keyboard.dismiss();
+                  InteractionManager.runAfterInteractions(() => {
+                    setCountryModalVisible(true);
+                  });
+                }}
               >
                 <Text style={[styles.countryCodeText, { color: formTheme.inputText }]}>{countryCode}</Text>
                 <MaterialCommunityIcons name="chevron-down" color={formTheme.labelGold} size={18} />

@@ -171,7 +171,7 @@ export default function AccountRecoveryScreen({ onClose }: { onClose: () => void
     }
 
     setLoading(true);
-    const result = await initiateAccountRecovery(email);
+    const result = await initiateAccountRecovery(email, language === 'es' ? 'es' : 'en');
     setLoading(false);
 
     if (result.success) {

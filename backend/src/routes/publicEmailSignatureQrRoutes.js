@@ -5,6 +5,7 @@
 
 const QRCode = require('qrcode');
 const sharp = require('sharp');
+const { buildUserFacingJson } = require('../lib/userFacingErrors');
 
 const MAX_PAYLOAD_LEN = 4096;
 const WIDTH_DEFAULT = 256;
@@ -111,22 +112,22 @@ async function handlePublicEmailSignatureQr(req, res) {
   try {
     const rawParam = req.query.url;
     if (rawParam == null || !String(rawParam).trim()) {
-      return res.status(400).json({ error: 'Missing `url` query parameter.' });
+      return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'QR_STUDIO_URL_MISSING'));
     }
 
     let decoded;
     try {
       decoded = decodeURIComponent(String(rawParam).trim());
     } catch {
-      return res.status(400).json({ error: 'Invalid URL encoding.' });
+      return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'QR_STUDIO_URL_ENCODING_INVALID'));
     }
 
     if (decoded.length > MAX_PAYLOAD_LEN) {
-      return res.status(400).json({ error: 'Payload too long.' });
+      return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'QR_STUDIO_PAYLOAD_TOO_LONG'));
     }
 
     if (!isAllowedQrPayload(decoded)) {
-      return res.status(403).json({ error: 'URL scheme or host not allowed for QR encoding.' });
+      return res.status(403).json(buildUserFacingJson(req, 'security_link', 'SECURITY_LINK_REJECTED'));
     }
 
     const format = String(req.query.format || 'png').toLowerCase();
@@ -157,7 +158,7 @@ async function handlePublicEmailSignatureQr(req, res) {
 
     if (format === 'svg') {
       if (decodedLogoUrl) {
-        return res.status(400).json({ error: 'SVG format does not support logoUrl; use format=png.' });
+        return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'QR_STUDIO_SVG_LOGO_UNSUPPORTED'));
       }
       const svg = await QRCode.toString(decoded, {
         type: 'svg',
@@ -169,7 +170,7 @@ async function handlePublicEmailSignatureQr(req, res) {
     }
 
     if (format !== 'png') {
-      return res.status(400).json({ error: 'Unsupported format. Use `png` or `svg`.' });
+      return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'QR_STUDIO_FORMAT_UNSUPPORTED'));
     }
 
     let buffer = await QRCode.toBuffer(decoded, {
@@ -185,9 +186,8 @@ async function handlePublicEmailSignatureQr(req, res) {
     res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400');
     return res.status(200).send(buffer);
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'QR generation failed.';
-    console.error('[GET /api/qr/generate]', e);
-    return res.status(500).json({ error: msg });
+    console.error('[GET /api/qr/generate]', e?.message || e, e?.stack);
+    return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
   }
 }
 

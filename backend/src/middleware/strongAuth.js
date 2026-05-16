@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { buildUserFacingJson } = require('../lib/userFacingErrors');
 
 function getBearerToken(authHeader) {
   if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
@@ -13,10 +14,10 @@ function createGatewayKeyMiddleware({ apiGatewayKey }) {
     const provided = String(req.header('x-api-gateway-key') || '').trim();
     if (!expected) {
       console.error('[gatewayKeyMiddleware] API_GATEWAY_KEY is empty — check Azure Application settings');
-      return res.status(500).json({ ok: false, error: 'Server misconfiguration: API gateway key not set' });
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'GATEWAY_MISCONFIGURED'));
     }
     if (!provided || provided !== expected) {
-      return res.status(401).json({ ok: false, error: 'Missing or invalid API Gateway key' });
+      return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'GATEWAY_KEY_INVALID'));
     }
     return next();
   };
@@ -26,7 +27,7 @@ function createJwtAuthMiddleware({ jwtSecret, jwtIssuer, jwtAudience }) {
   return function jwtAuthMiddleware(req, res, next) {
     const token = getBearerToken(req.header('authorization'));
     if (!token) {
-      return res.status(401).json({ ok: false, error: 'Missing Bearer JWT token' });
+      return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'JWT_TOKEN_MISSING'));
     }
 
     try {
@@ -38,7 +39,7 @@ function createJwtAuthMiddleware({ jwtSecret, jwtIssuer, jwtAudience }) {
       req.auth = decoded;
       return next();
     } catch (error) {
-      return res.status(401).json({ ok: false, error: 'Invalid or expired JWT token' });
+      return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'JWT_TOKEN_INVALID'));
     }
   };
 }
@@ -47,7 +48,7 @@ function createScopeMiddleware(expectedScope) {
   return function scopeMiddleware(req, res, next) {
     const scope = String(req.auth?.scope || '');
     if (scope !== String(expectedScope || '')) {
-      return res.status(403).json({ ok: false, error: 'JWT scope not allowed for this endpoint' });
+      return res.status(403).json(buildUserFacingJson(req, 'auth_forbidden', 'JWT_SCOPE_MISMATCH'));
     }
     return next();
   };

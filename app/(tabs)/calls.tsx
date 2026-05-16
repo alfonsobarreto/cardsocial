@@ -1,6 +1,7 @@
 import { getActiveUserId } from '@/services/authSession';
 import { logBackendNetworkDebug } from '@/services/backendAuth';
 import { requestGhostLinkCallImperative } from '@/services/GhostLinkCallProvider';
+import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import appPalette from '../theme';
@@ -505,7 +506,7 @@ export default function CallsPage() {
         }
         Alert.alert(
           tr('No se pudo cargar Calls', 'Could not load Calls'),
-          error?.message || tr('Intenta de nuevo.', 'Try again.'),
+          userFacingAlertMessage(error, language, tr('Intenta de nuevo.', 'Try again.')),
         );
         setHistory([]);
         setContacts([]);
@@ -570,7 +571,10 @@ export default function CallsPage() {
           logBackendNetworkDebug('CallsPage:loadData(outer)', error, apiBaseLog);
         }
       }
-      Alert.alert(tr('No se pudo cargar Calls', 'Could not load Calls'), error?.message || tr('Intenta de nuevo.', 'Try again.'));
+      Alert.alert(
+        tr('No se pudo cargar Calls', 'Could not load Calls'),
+        userFacingAlertMessage(error, language, tr('Intenta de nuevo.', 'Try again.')),
+      );
     } finally {
       if (!silent) {
         setLoading(false);

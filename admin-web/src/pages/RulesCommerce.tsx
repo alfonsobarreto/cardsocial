@@ -25,7 +25,7 @@ export default function RulesCommerce() {
         const c = await getCommerceAdminConfig();
         if (alive) setConfig(c);
       } catch {
-        if (alive) setToast({ type: 'err', message: 'No se pudo cargar system_config/commerce.' });
+        if (alive) setToast({ type: 'err', message: 'Error al cargar la configuración comercial. Por favor, reintenta.' });
       } finally {
         if (alive) setLoading(false);
       }
@@ -41,7 +41,7 @@ export default function RulesCommerce() {
     setToast(null);
     try {
       await updateCommerceAdminConfig(config, user?.email || 'unknown-admin');
-      setToast({ type: 'ok', message: 'Catálogo publicado en system_config/commerce.' });
+      setToast({ type: 'ok', message: 'Catálogo publicado. Los cambios ya están disponibles para la app.' });
     } catch {
       setToast({ type: 'err', message: 'Error al guardar.' });
     } finally {
@@ -68,10 +68,8 @@ export default function RulesCommerce() {
         <p className="text-sm font-semibold uppercase tracking-[0.25em] text-amber-600">Commerce</p>
         <h1 className="mt-3 text-3xl font-semibold text-slate-950">Monedas CS — packs</h1>
         <p className="mt-3 text-sm leading-6 text-slate-600">
-          Documento{' '}
-          <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">system_config/commerce</code>. La app móvil solo
-          muestra precios publicados aquí. Cada fila necesita <code className="text-xs">productId</code> alineado con
-          RevenueCat.
+          Desde aquí defines los packs de monedas CS que ve la app móvil. Cada fila necesita{' '}
+          <code className="text-xs">productId</code> alineado con RevenueCat.
         </p>
       </section>
 

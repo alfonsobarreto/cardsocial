@@ -69,7 +69,7 @@ export default function Growth() {
 
     try {
       await updateGlobalAnnouncement(announcement);
-      setToast({ type: 'success', message: 'Anuncio global actualizado en system_config/main.' });
+      setToast({ type: 'success', message: 'Anuncio global actualizado correctamente.' });
     } catch (error) {
       console.error('[Growth] Save announcement failed:', error);
       setToast({ type: 'error', message: 'No se pudo guardar el anuncio global.' });
@@ -157,7 +157,7 @@ export default function Growth() {
         <form className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm" onSubmit={handleSaveAnnouncement}>
           <h2 className="text-xl font-semibold text-slate-950">Anuncio Global Activo</h2>
           <p className="mt-1 text-sm text-slate-500">
-            La app móvil puede leer este bloque desde <code>system_config/main</code>.
+            Lo que guardes aquí se refleja en la app móvil para usuarios elegibles.
           </p>
 
           <div className="mt-6 grid gap-4">

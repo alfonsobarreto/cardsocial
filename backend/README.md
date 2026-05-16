@@ -59,8 +59,10 @@ Create a `.env`-style environment in your host with:
 - `GITHUB_OAUTH_CLIENT_ID`
 - `GITHUB_OAUTH_CLIENT_SECRET`
 - `EMAIL_OTP_SECRET`
-- `RESEND_API_KEY` — API key de [Resend](https://resend.com) (correo transaccional: OTP, borrado de cuenta, broadcast, recuperación de usuario).
-- `EMAIL_FROM` — remitente verificado en Resend (debe coincidir con el dashboard).
+- `RESEND_API_KEY` — API key de [Resend](https://resend.com) (correo transaccional: OTP, borrado de cuenta, broadcast, recuperación de usuario, verificación / reset / cambio de correo).
+- `EMAIL_FROM` — remitente por defecto para broadcast (opcional si usas `EMAIL_SENDER_NOTIFICATIONS`).
+- `EMAIL_SENDER_VERIFICATION`, `EMAIL_SENDER_SUPPORT`, `EMAIL_SENDER_NOTIFICATIONS` — remitentes por flujo (ver `backend/.env.example`).
+- `FIREBASE_SERVICE_ACCOUNT_JSON` — requerido para enlaces de acción de Auth (Admin) y sincronización Firestore (p. ej. waitlist).
 - `SMTP_HOST`
 - `SMTP_PORT`
 - `SMTP_SECURE`

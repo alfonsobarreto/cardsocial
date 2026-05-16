@@ -2,6 +2,7 @@ const express = require("express");
 const crypto = require('crypto');
 
 const { env, assertRequiredConfig } = require("./config");
+const { buildUserFacingJson } = require("./lib/userFacingErrors");
 const { createAzureSafetyClient } = require("./services/azureSafety");
 const { createMongoStorage } = require("./services/mongoStorage");
 const { createModerationRoutes } = require("./routes/moderationRoutes");
@@ -21,6 +22,8 @@ const { createAdminRoutes } = require("./routes/adminRoutes");
 const { createAdminSystemStatsHandler } = require("./routes/adminSystemStatsRoutes");
 const { createAdminBudgetHandlers } = require("./routes/adminBudgetRoutes");
 const { createBroadcastRouter } = require("./routes/broadcastRoutes");
+const { createAuthVerificationEmailRouter } = require("./routes/authVerificationEmailRoutes");
+const { EMAIL_SENDERS } = require("./config/emailSenders");
 const { ensureMongoHardening } = require("./security/mongoHardening");
 const {
   createGatewayKeyMiddleware,
@@ -166,7 +169,7 @@ async function bootstrap() {
             subject,
             html: html || `<p>${String(text || '').replace(/</g, '&lt;')}</p>`,
             text: text || '',
-            from: from || env.emailFrom || undefined,
+            from: from || EMAIL_SENDERS.verification,
           });
         },
       }
@@ -207,6 +210,8 @@ const otpHash = (emailLower, code) => {
    * Health / probes: usar `GET /api/health` (JSON), no `/` con texto "ok".
    */
 
+  app.use("/api/auth", createAuthVerificationEmailRouter());
+
   app.post("/api/auth/token", gatewayKeyMiddleware, (req, res) => {
     try {
       const uid = String(req.body?.uid || "").trim();
@@ -220,18 +225,17 @@ const otpHash = (emailLower, code) => {
       }
       if (requestedScope === "admin.system" || requestedScope === "admin.broadcast") {
         if (!adminConsoleUidAllowlist.has(uid)) {
-          return res.status(403).json({
-            ok: false,
-            error:
-              "admin console scope not allowed for this uid (set ADMIN_SYSTEM_STATS_UIDS and/or ADMIN_BROADCAST_UIDS)",
-          });
+          return res.status(403).json(
+            buildUserFacingJson(req, 'admin_restricted', 'ADMIN_CONSOLE_TOKEN_SCOPE_DENIED'),
+          );
         }
       }
 
       const token = issueUploadToken({ uid, scope: requestedScope });
       return res.status(200).json({ ok: true, token });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error("[/api/auth/token]", error?.message || error, error?.stack);
+      return res.status(500).json(buildUserFacingJson(req, "server_error", "SERVER_INTERNAL_ERROR"));
     }
   });
 
@@ -276,7 +280,8 @@ const otpHash = (emailLower, code) => {
 
       return res.status(200).json({ ok: true, accessToken });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error("[/api/auth/github/exchange]", error?.message || error, error?.stack);
+      return res.status(500).json(buildUserFacingJson(req, "server_error", "SERVER_INTERNAL_ERROR"));
     }
   });
 
@@ -311,11 +316,11 @@ const otpHash = (emailLower, code) => {
       });
 
       await otpMailer.sendMail({
-        from: env.emailFrom,
+        from: EMAIL_SENDERS.verification,
         to: emailLower,
         subject: 'Card-Social OTP de verificación',
-        text: `Tu código OTP de Card-Social es ${code}. Expira en 3 minutos.`,
-        html: `<p>Tu código OTP de <strong>Card-Social</strong> es:</p><h2>${code}</h2><p>Expira en 3 minutos.</p>`,
+        text: `Tu código OTP de Card-Social es ${code}. Caduca en 1 minuto. Si no ves el correo en la bandeja principal, revisa Spam; como empresa nueva, algunos filtros retienen el primer mensaje.`,
+        html: `<p>Tu código OTP de <strong>Card-Social</strong> es:</p><h2>${code}</h2><p>Caduca en 1 minuto.</p><p style="font-size:13px;color:#555;">Si no ves este mensaje en la bandeja de entrada, revisa <strong>Spam</strong> o correo no deseado. Como empresa en crecimiento, algunos proveedores filtran con más cautela hasta generar reputación con <strong>cardsocial.me</strong>.</p>`,
       });
 
       return res.status(200).json({
@@ -324,7 +329,8 @@ const otpHash = (emailLower, code) => {
         expiresAt: toSafeIso(expiresAt),
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message || 'email otp send failed' });
+      console.error("[/api/auth/email-otp/send]", error?.message || error, error?.stack);
+      return res.status(500).json(buildUserFacingJson(req, "server_error", "SERVER_INTERNAL_ERROR"));
     }
   });
 
@@ -386,7 +392,8 @@ const otpHash = (emailLower, code) => {
 
       return res.status(200).json({ ok: true, verified: true });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message || 'email otp verify failed' });
+      console.error("[/api/auth/email-otp/verify]", error?.message || error, error?.stack);
+      return res.status(500).json(buildUserFacingJson(req, "server_error", "SERVER_INTERNAL_ERROR"));
     }
   });
 
@@ -405,7 +412,8 @@ const otpHash = (emailLower, code) => {
 
       return res.status(200).json({ ok: true, expired: true });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message || 'email otp expire failed' });
+      console.error("[/api/auth/email-otp/expire]", error?.message || error, error?.stack);
+      return res.status(500).json(buildUserFacingJson(req, "server_error", "SERVER_INTERNAL_ERROR"));
     }
   });
 
@@ -440,7 +448,8 @@ const otpHash = (emailLower, code) => {
         iconUrl,
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message || 'favicon fetch failed' });
+      console.error("[/api/favicon/fetch]", error?.message || error, error?.stack);
+      return res.status(500).json(buildUserFacingJson(req, "server_error", "SERVER_INTERNAL_ERROR"));
     }
   });
 
@@ -680,7 +689,7 @@ const otpHash = (emailLower, code) => {
         ? authHeader.slice(7).trim()
         : '';
       if (!idToken) {
-        return res.status(401).json({ ok: false, error: 'missing_token' });
+        return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'missing_token'));
       }
 
       let decoded;
@@ -688,13 +697,13 @@ const otpHash = (emailLower, code) => {
         decoded = await verifyFirebaseIdToken(idToken);
       } catch (e) {
         console.error('[account/deletion-scheduled-notify] token', e?.message || e);
-        return res.status(401).json({ ok: false, error: 'invalid_token' });
+        return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'invalid_token'));
       }
 
       const uid = String(decoded.uid || '').trim();
       const emailTo = String(decoded.email || '').trim().toLowerCase();
       if (!uid || !emailTo) {
-        return res.status(400).json({ ok: false, error: 'no_email_on_token' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'no_email_on_token'));
       }
 
       const body = req.body || {};
@@ -704,18 +713,18 @@ const otpHash = (emailLower, code) => {
       const firstName = String(body.firstName || '').trim().slice(0, 80);
 
       if (!deadlineIso || Number.isNaN(Date.parse(deadlineIso))) {
-        return res.status(400).json({ ok: false, error: 'invalid_deadline_iso' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'invalid_deadline_iso'));
       }
 
       const fs = getFirestoreOptional();
       if (!fs) {
-        return res.status(503).json({ ok: false, error: 'firestore_admin_unavailable' });
+        return res.status(503).json(buildUserFacingJson(req, 'auth_forbidden', 'firestore_admin_unavailable'));
       }
 
       const userRef = fs.collection('users').doc(uid);
       const snap = await userRef.get();
       if (!snap.exists || !snap.data()?.pendingDeletion) {
-        return res.status(409).json({ ok: false, error: 'not_marked_for_deletion' });
+        return res.status(409).json(buildUserFacingJson(req, 'auth_forbidden', 'not_marked_for_deletion'));
       }
 
       const dd = snap.data().deletionDeadline;
@@ -726,7 +735,7 @@ const otpHash = (emailLower, code) => {
 
       const isoMs = Date.parse(deadlineIso);
       if (!Number.isFinite(deadlineMs) || !Number.isFinite(isoMs) || Math.abs(deadlineMs - isoMs) > 120000) {
-        return res.status(409).json({ ok: false, error: 'deadline_mismatch' });
+        return res.status(409).json(buildUserFacingJson(req, 'auth_forbidden', 'deadline_mismatch'));
       }
 
       const deadlineDate = new Date(deadlineIso);
@@ -742,11 +751,11 @@ const otpHash = (emailLower, code) => {
         locale,
       });
 
-      await sendEmail({ to: emailTo, subject, html, text });
+      await sendEmail({ to: emailTo, subject, html, text, from: EMAIL_SENDERS.verification });
       return res.status(200).json({ ok: true });
     } catch (error) {
       console.error('[account/deletion-scheduled-notify]', error);
-      return res.status(500).json({ ok: false, error: 'send_failed' });
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'send_failed'));
     }
   });
 
@@ -783,6 +792,7 @@ const otpHash = (emailLower, code) => {
             subject: "Tu usuario de Card-Social",
             html: usernameRecoveryTemplate({ username }),
             text: `Tu usuario de Card-Social es @${username}. Si no solicitaste esta ayuda, ignora este correo.`,
+            from: EMAIL_SENDERS.support,
           });
         }
       }
@@ -842,14 +852,9 @@ const otpHash = (emailLower, code) => {
   // RevenueCat webhook routes (no auth middleware - validates API key internally)
   app.use("/api/revenueCat", revenueCatRoutes);
 
-  app.use((err, _req, res, _next) => {
-    res.status(500).json({ ok: false, error: err.message || "Unexpected error" });
-  });
-
-  // Error logging middleware
-  app.use((err, req, res, next) => {
-    console.error('[Error Middleware]', err.stack || err.message || err);
-    res.status(500).json({ ok: false, error: 'Internal Server Error' });
+  app.use((err, req, res, _next) => {
+    console.error("[Express error]", err?.stack || err?.message || err);
+    res.status(500).json(buildUserFacingJson(req, "server_error", "SERVER_INTERNAL_ERROR"));
   });
 
   const { runStorySpacesAssetCleanup } = require("./jobs/storySpacesCleanup");

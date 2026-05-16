@@ -32,50 +32,246 @@ function acceptLanguageIsSpanish(acceptLanguage) {
   return acceptLanguageHeaderIsSpanish(acceptLanguage);
 }
 
+const CARDSOCIAL_SITE = 'https://cardsocial.me';
+/** Igual que `frontend-web/lib/legalContent.ts` → `SUPPORT_MAILTO`. */
+const LEGAL_SUPPORT_EMAIL = 'support@cardsocial.me';
+const SUPPORT_MAILTO =
+  LEGAL_SUPPORT_EMAIL.includes('@') && !LEGAL_SUPPORT_EMAIL.startsWith('[')
+    ? `mailto:${encodeURIComponent(LEGAL_SUPPORT_EMAIL)}?subject=${encodeURIComponent('Card-Social support')}`
+    : '#';
+
+/**
+ * Mismo juego de enlaces que `frontend-web/components/PublicLegalFooter.tsx`.
+ */
+function buildPublicLegalFooterHtml(isEs) {
+  const SITE = CARDSOCIAL_SITE;
+  const privacyHref = isEs ? `${SITE}/legal/privacidad` : `${SITE}/legal/privacy`;
+  const termsHref = isEs ? `${SITE}/legal/terminos` : `${SITE}/legal/terms`;
+  const useHref = isEs ? `${SITE}/legal/uso` : `${SITE}/legal/use`;
+  const aboutHref = `${SITE}/legal/about`;
+  const contactHref = isEs ? `${SITE}/legal/contacto` : `${SITE}/legal/contact`;
+  const mailHref = SUPPORT_MAILTO === '#' ? contactHref : SUPPORT_MAILTO;
+  const L = isEs
+    ? { privacy: 'Privacidad', terms: 'Términos', usage: 'Uso', about: 'Acerca de', contact: 'Contacto', email: 'Correo' }
+    : { privacy: 'Privacy', terms: 'Terms', usage: 'Usage', about: 'About', contact: 'Contact', email: 'Email' };
+  const sep = '<span aria-hidden="true"> · </span>';
+  return `<footer class="legal-foot-inner" aria-label="${isEs ? 'Enlaces legales' : 'Legal links'}">
+    <nav>
+      <a href="${privacyHref}" target="_blank" rel="noopener noreferrer">${L.privacy}</a>${sep}
+      <a href="${termsHref}" target="_blank" rel="noopener noreferrer">${L.terms}</a>${sep}
+      <a href="${useHref}" target="_blank" rel="noopener noreferrer">${L.usage}</a>${sep}
+      <a href="${aboutHref}" target="_blank" rel="noopener noreferrer">${L.about}</a>${sep}
+      <a href="${contactHref}" target="_blank" rel="noopener noreferrer">${L.contact}</a>${sep}
+      <a href="${mailHref}">${L.email}</a>
+    </nav>
+  </footer>`;
+}
+
+/** Estética alineada con `LuxWaitlistLanding` (fondo #050505, acentos #E9C349, Inter). */
+const LANDING_LEGACY_BASE_CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+  :root {
+    --shell-bg: #050505;
+    --shell-mid: #0a0a0a;
+    --gold: #e9c349;
+    --gold-bright: #f6da87;
+    --text: rgba(255,255,255,0.72);
+    --text-soft: rgba(255,255,255,0.48);
+    --border: rgba(255,255,255,0.10);
+  }
+  * { box-sizing: border-box; }
+  body.landing-legacy {
+    margin: 0;
+    min-height: 100vh;
+    font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    color: var(--text);
+    background-color: var(--shell-bg);
+    background-image:
+      radial-gradient(circle at 18% 0%, rgba(233,195,73,0.14), transparent 32%),
+      radial-gradient(circle at 82% 6%, rgba(246,218,135,0.08), transparent 28%),
+      linear-gradient(180deg, #050505 0%, #0a0a0a 45%, #050505 100%);
+  }
+  .landing-grid-bg {
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    opacity: 0.06;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.55) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.55) 1px, transparent 1px);
+    background-size: 72px 72px;
+  }
+  .top-nav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    border-bottom: 1px solid var(--border);
+    background: rgba(5,5,5,0.74);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+  .top-nav-inner {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .brand {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #fff;
+    text-decoration: none;
+  }
+  .brand:hover { color: var(--gold-bright); }
+  .page-inner {
+    position: relative;
+    z-index: 1;
+    max-width: 460px;
+    margin: 0 auto;
+    padding: 20px 18px 40px;
+  }
+  .message-panel {
+    text-align: center;
+    padding: 28px 22px;
+    border-radius: 1.5rem;
+    border: 1px solid rgba(233,195,73,0.32);
+    background: rgba(17,17,17,0.76);
+    box-shadow: 0 0 80px rgba(233,195,73,0.10), 0 24px 60px rgba(0,0,0,0.45);
+    backdrop-filter: blur(12px);
+  }
+  .message-panel h1 {
+    margin: 0 0 12px;
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: #fff;
+  }
+  .message-panel p {
+    margin: 0;
+    line-height: 1.6;
+    font-size: 0.95rem;
+    color: var(--text);
+  }
+  .legal-wrap {
+    margin-top: 28px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .legal-foot-inner {
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 400;
+    line-height: 1.65;
+    color: var(--text-soft);
+  }
+  .legal-foot-inner a {
+    color: rgba(246,218,135,0.92);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .legal-foot-inner a:hover { color: #fff; }
+  .landing-sticky-head {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    border-bottom: 1px solid var(--border);
+    background: rgba(5,5,5,0.74);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+  .landing-sticky-head .sticky-brand-row {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .landing-sticky-head .countdown-banner {
+    text-align: center;
+    padding: 12px 14px;
+    font-weight: 700;
+    font-size: 0.88rem;
+    letter-spacing: 0.02em;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    color: var(--gold-bright);
+    text-shadow: 0 0 24px rgba(233,195,73,0.22);
+    background: linear-gradient(180deg, rgba(233,195,73,0.10), transparent);
+  }
+  .courtesy-wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 460px;
+    margin: 0 auto;
+    padding: 20px 18px 40px;
+  }
+  .courtesy-wrap .card {
+    color: var(--tc);
+    border: 1px solid rgba(233,195,73,0.35);
+    border-radius: 1.5rem;
+    box-shadow: 0 0 80px rgba(233,195,73,0.08), 0 24px 60px rgba(0,0,0,0.45);
+    overflow: hidden;
+    padding: 0;
+    background: linear-gradient(180deg, var(--bg0), var(--bg1), var(--bg2));
+  }
+  .courtesy-wrap .btn-primary {
+    background: linear-gradient(90deg, #f6da87, #e9c349, #a87b1f);
+    color: #0a0a0a;
+    border-radius: 999px;
+    border: none;
+    box-shadow: 0 0 28px rgba(233,195,73,0.28);
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-size: 0.78rem;
+  }
+  .courtesy-wrap .btn-ghost {
+    background: rgba(17,17,17,0.55);
+    color: var(--gold-bright);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 999px;
+    font-weight: 700;
+  }
+`;
+
 function buildExpiredHtml(isEs) {
-  const dt = THEME_TABLE[DEFAULT_THEME_ID];
-  const SITE = 'https://cardsocial.me';
   const title = isEs ? 'Card-Social — Acceso expirado' : 'Card-Social — Access expired';
   const msg = isEs
     ? 'Acceso expirado. Contacta a quien te compartió el enlace para un código nuevo.'
     : 'Access expired. Contact the person who shared this link for a new code.';
-  const footPrivacy = isEs ? 'Privacidad' : 'Privacy';
-  const footTerms = isEs ? 'Términos' : 'Terms';
-  const footUsage = isEs ? 'Uso' : 'Usage';
-  const footSupport = isEs ? 'Soporte' : 'Support';
+  const homeLabel = isEs ? 'Ir a cardsocial.me' : 'Go to cardsocial.me';
   return `<!DOCTYPE html>
 <html lang="${isEs ? 'es' : 'en'}">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <meta name="theme-color" content="${dt.bg[0]}"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <meta name="theme-color" content="#050505"/>
   <title>${title}</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      background: linear-gradient(180deg, ${dt.bg[0]}, ${dt.bg[1]}, ${dt.bg[2]}); color: ${dt.tc}; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      padding: 24px; text-align: center;
-    }
-    p { max-width: 24rem; line-height: 1.5; font-size: 1.05rem; border: 1px solid ${dt.bc}; border-radius: 14px; padding: 22px 18px; }
-    .legal-foot {
-      margin-top: 22px; max-width: 24rem; font-size: 0.65rem; font-weight: 300; line-height: 1.55;
-      color: ${dt.sc}; opacity: 0.85;
-    }
-    .legal-foot a { color: inherit; text-decoration: underline; }
-  </style>
+  <style>${LANDING_LEGACY_BASE_CSS}</style>
 </head>
-<body>
-  <p>${msg}</p>
-  <footer class="legal-foot" aria-label="Legal">
-    <a href="${SITE}/legal/privacidad" target="_blank" rel="noopener noreferrer">${footPrivacy}</a>
-    <span aria-hidden="true"> · </span>
-    <a href="${SITE}/legal/terminos" target="_blank" rel="noopener noreferrer">${footTerms}</a>
-    <span aria-hidden="true"> · </span>
-    <a href="${SITE}/legal/uso" target="_blank" rel="noopener noreferrer">${footUsage}</a>
-    <span aria-hidden="true"> · </span>
-    <a href="mailto:soporte@card-social.com?subject=Soporte%20Card-Social">${footSupport}</a>
-  </footer>
+<body class="landing-legacy">
+  <div class="landing-grid-bg" aria-hidden="true"></div>
+  <header class="top-nav">
+    <div class="top-nav-inner">
+      <a class="brand" href="${CARDSOCIAL_SITE}/">${isEs ? 'Card-Social' : 'Card-Social'}</a>
+      <a class="brand" href="${CARDSOCIAL_SITE}/" style="font-size:0.62rem;letter-spacing:0.12em;opacity:0.75">${homeLabel}</a>
+    </div>
+  </header>
+  <div class="page-inner">
+    <div class="message-panel">
+      <h1><span aria-hidden="true" style="display:block;font-size:1.75rem;margin-bottom:8px">⏱</span>${isEs ? 'Acceso expirado' : 'Access expired'}</h1>
+      <p>${msg}</p>
+      <p style="margin-top:20px">
+        <a href="${CARDSOCIAL_SITE}/" style="display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 28px;border-radius:999px;font-weight:800;font-size:0.78rem;letter-spacing:0.12em;text-transform:uppercase;text-decoration:none;color:#000;background:linear-gradient(90deg,#f6da87,#e9c349,#a87b1f);box-shadow:0 0 28px rgba(233,195,73,0.35)">${homeLabel}</a>
+      </p>
+    </div>
+    <div class="legal-wrap">${buildPublicLegalFooterHtml(isEs)}</div>
+  </div>
 </body>
 </html>`;
 }
@@ -92,7 +288,6 @@ function buildValidCourtesyPageHtml(opts) {
   const apiBase = String(apiPrefix || '').replace(/\/+$/, '');
   const dt = THEME_TABLE[DEFAULT_THEME_ID];
 
-  const SITE = 'https://cardsocial.me';
   const t = {
     title: isEs ? 'Card-Social' : 'Card-Social',
     countdown: isEs ? 'Acceso temporal:' : 'Temporary access:',
@@ -101,10 +296,7 @@ function buildValidCourtesyPageHtml(opts) {
     openApp: isEs ? 'Abrir en la app' : 'Open in app',
     loadErr: isEs ? 'No se pudo cargar la tarjeta.' : 'Could not load the card.',
     expired: isEs ? 'Este acceso ha expirado.' : 'This access has expired.',
-    footPrivacy: isEs ? 'Privacidad' : 'Privacy',
-    footTerms: isEs ? 'Términos' : 'Terms',
-    footUsage: isEs ? 'Uso' : 'Usage',
-    footSupport: isEs ? 'Soporte' : 'Support',
+    homeCta: isEs ? 'Ir a cardsocial.me' : 'Go to cardsocial.me',
   };
 
   const safeToken = JSON.stringify(token);
@@ -122,29 +314,13 @@ function buildValidCourtesyPageHtml(opts) {
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <meta name="theme-color" content="${dt.bg[0]}"/>
+  <meta name="theme-color" content="#050505"/>
   <title>${t.title}</title>
   <style>
+${LANDING_LEGACY_BASE_CSS}
     :root {
       --bg0: ${dt.bg[0]}; --bg1: ${dt.bg[1]}; --bg2: ${dt.bg[2]};
       --bc: ${dt.bc}; --tc: ${dt.tc}; --sc: ${dt.sc}; --ic: ${dt.ic}; --bb: ${dt.bb};
-    }
-    * { box-sizing: border-box; }
-    body { margin: 0; background: linear-gradient(180deg, var(--bg0), var(--bg1), var(--bg2)); color: var(--tc); font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; min-height: 100vh; transition: background 0.4s; }
-    .banner {
-      position: sticky; top: 0; z-index: 10;
-      text-align: center; padding: 12px 14px; font-weight: 700; font-size: 0.95rem;
-      background: linear-gradient(180deg, color-mix(in srgb, var(--bc) 18%, transparent), transparent);
-      border-bottom: 1px solid var(--bc); color: var(--bc);
-      letter-spacing: 0.02em;
-    }
-    .wrap { max-width: 420px; margin: 0 auto; padding: 16px 18px 32px; }
-    .card {
-      border: 3px solid var(--bc);
-      border-radius: 16px;
-      overflow: hidden;
-      padding: 0;
-      background: linear-gradient(180deg, var(--bg0), var(--bg1), var(--bg2));
-      box-shadow: 0 12px 40px rgba(0,0,0,0.35);
     }
     .card-header {
       display: flex; align-items: center; justify-content: center;
@@ -230,29 +406,23 @@ function buildValidCourtesyPageHtml(opts) {
     .slot-lb { font-size: 0.62rem; color: var(--ic); opacity: 0.85; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
     .actions { margin-top: 22px; display: flex; flex-direction: column; gap: 10px; }
     .btn {
-      display: block; width: 100%; padding: 14px 16px; border-radius: 12px; font-weight: 800; font-size: 0.95rem;
-      text-align: center; text-decoration: none; cursor: pointer; border: none;
+      display: block; width: 100%; padding: 14px 16px; min-height: 48px; font-weight: 800; font-size: 0.95rem;
+      text-align: center; text-decoration: none; cursor: pointer;
+      box-sizing: border-box;
     }
-    .btn-primary { background: var(--bc); color: var(--ic); font-weight: 800; }
-    .btn-ghost { background: rgba(255, 255, 255, 0.78); color: var(--ic); border: 2px solid var(--bc); font-weight: 600; }
     .err { text-align: center; padding: 24px; color: #c44; }
-    .legal-foot {
-      margin-top: 18px;
-      text-align: center;
-      font-size: 0.62rem;
-      font-weight: 300;
-      line-height: 1.55;
-      color: var(--sc);
-      opacity: 0.82;
-      padding: 12px 6px 4px;
-      border-top: 1px solid color-mix(in srgb, var(--bc) 22%, transparent);
-    }
-    .legal-foot a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
   </style>
 </head>
-<body>
-  <div class="banner" id="banner">${t.countdown} <span id="cd">--:--:--</span> ${t.remaining}.</div>
-  <div class="wrap">
+<body class="landing-legacy">
+  <div class="landing-grid-bg" aria-hidden="true"></div>
+  <header class="landing-sticky-head">
+    <div class="sticky-brand-row">
+      <a class="brand" href="${CARDSOCIAL_SITE}/">Card-Social</a>
+      <a class="brand" href="${CARDSOCIAL_SITE}/" style="font-size:0.62rem;letter-spacing:0.12em;opacity:0.75">${t.homeCta}</a>
+    </div>
+    <div class="countdown-banner" id="banner">${t.countdown} <span id="cd">--:--:--</span> ${t.remaining}.</div>
+  </header>
+  <div class="courtesy-wrap">
     <div id="root" class="card">
       <p class="err" id="loading">${t.loadErr}</p>
     </div>
@@ -260,15 +430,7 @@ function buildValidCourtesyPageHtml(opts) {
       <button type="button" class="btn btn-primary" id="btn-store">${t.addContacts}</button>
       <a class="btn btn-ghost" id="btn-app" href="#">${t.openApp}</a>
     </div>
-    <footer class="legal-foot" aria-label="Legal">
-      <a href="${SITE}/legal/privacidad" target="_blank" rel="noopener noreferrer">${t.footPrivacy}</a>
-      <span aria-hidden="true"> · </span>
-      <a href="${SITE}/legal/terminos" target="_blank" rel="noopener noreferrer">${t.footTerms}</a>
-      <span aria-hidden="true"> · </span>
-      <a href="${SITE}/legal/uso" target="_blank" rel="noopener noreferrer">${t.footUsage}</a>
-      <span aria-hidden="true"> · </span>
-      <a href="mailto:soporte@card-social.com?subject=Soporte%20Card-Social">${t.footSupport}</a>
-    </footer>
+    <div class="legal-wrap">${buildPublicLegalFooterHtml(isEs)}</div>
   </div>
   <script>
 (function(){
@@ -281,7 +443,7 @@ function buildValidCourtesyPageHtml(opts) {
   var THEMES = ${JSON.stringify(THEME_TABLE)};
   var DEFAULT_TID = ${JSON.stringify(DEFAULT_THEME_ID)};
   var MEDAL_PATHS = ${medalPathsForScript};
-  var HOME_URL = ${JSON.stringify(`${SITE}/`)};
+  var HOME_URL = ${JSON.stringify(`${CARDSOCIAL_SITE}/`)};
   var SOCIAL_MEDAL_ORDER = ['creativo','conector','visionario','conversador','guru'];
   var BUSINESS_MEDAL_ORDER = ['compromiso','servicio','confianza','prestigio','excelencia'];
   function applyTheme(tid) {

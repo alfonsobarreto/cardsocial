@@ -15,6 +15,7 @@ const bcrypt = require('bcryptjs');
 const multer = require('multer');
 
 const { env } = require('../config');
+const { sendUserFacingError, buildUserFacingJson } = require('../lib/userFacingErrors');
 const { normalizeNfcCardId } = require('../lib/nfcCards');
 const {
   createGatewayKeyMiddleware,
@@ -182,7 +183,7 @@ function createAdminRoutes(options = {}) {
     try {
       const authHeader = req.headers.authorization;
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'Missing or invalid authorization header' });
+        return res.status(401).json(buildUserFacingJson(req, 'invalid_body', 'JWT_TOKEN_MISSING'));
       }
 
       const token = authHeader.substring(7);
@@ -196,14 +197,14 @@ function createAdminRoutes(options = {}) {
       );
 
       if (decoded.role !== 'admin') {
-        return res.status(403).json({ error: 'Forbidden: admin role required' });
+        return sendUserFacingError(res, req, 403, 'admin_restricted', 'ADMIN_ROLE_REQUIRED');
       }
 
       req.admin = decoded;
       next();
     } catch (error) {
-      console.error('❌ Token verification error:', error.message);
-      res.status(401).json({ error: 'Invalid or expired token' });
+      console.error('❌ Token verification error:', error);
+      res.status(401).json(buildUserFacingJson(req, 'invalid_body', 'JWT_TOKEN_INVALID'));
     }
   };
 
@@ -216,16 +217,16 @@ function createAdminRoutes(options = {}) {
       const { username, password } = req.body;
 
       if (!username || !password) {
-        return res.status(400).json({ error: 'Username and password required' });
+        return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'REQUIRED_FIELDS_MISSING'));
       }
 
       if (username !== ADMIN_CREDS.username) {
-        return res.status(401).json({ error: 'Invalid credentials' });
+        return res.status(401).json(buildUserFacingJson(req, 'invalid_body', 'ADMIN_INVALID_CREDENTIALS'));
       }
 
       const isValidPassword = await bcrypt.compare(password, ADMIN_CREDS.password_hash);
       if (!isValidPassword) {
-        return res.status(401).json({ error: 'Invalid credentials' });
+        return res.status(401).json(buildUserFacingJson(req, 'invalid_body', 'ADMIN_INVALID_CREDENTIALS'));
       }
 
       const token = jwt.sign(
@@ -250,7 +251,7 @@ function createAdminRoutes(options = {}) {
       });
     } catch (error) {
       console.error('❌ Login route error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -273,14 +274,12 @@ function createAdminRoutes(options = {}) {
         const files = req.files || {};
 
         if (!collection || !name || !rarity) {
-          return res.status(400).json({
-            error: 'Missing required fields: collection, name, rarity',
-          });
+          return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'REQUIRED_FIELDS_MISSING'));
         }
 
         const validCollections = ['skins', 'collectibles', 'wallpapers', 'fonts'];
         if (!validCollections.includes(collection)) {
-          return res.status(400).json({ error: 'Invalid collection type' });
+          return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'ADMIN_INVALID_COLLECTION_TYPE'));
         }
 
         const assetId = `MINT_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -297,7 +296,7 @@ function createAdminRoutes(options = {}) {
         });
       } catch (error) {
         console.error('❌ Mint route error:', error);
-        res.status(500).json({ error: error.message || 'Internal server error' });
+        res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
       }
     },
   );
@@ -307,7 +306,7 @@ function createAdminRoutes(options = {}) {
       const { mint_id, confirm_ready } = req.body;
 
       if (!mint_id || !confirm_ready) {
-        return res.status(400).json({ error: 'mint_id and confirm_ready required' });
+        return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'REQUIRED_FIELDS_MISSING'));
       }
 
       return res.status(200).json({
@@ -319,7 +318,7 @@ function createAdminRoutes(options = {}) {
       });
     } catch (error) {
       console.error('❌ Publish route error:', error);
-      res.status(500).json({ error: error.message || 'Internal server error' });
+      res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -339,7 +338,7 @@ function createAdminRoutes(options = {}) {
       });
     } catch (error) {
       console.error('❌ Stats route error:', error);
-      res.status(500).json({ error: error.message || 'Internal server error' });
+      res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -494,8 +493,8 @@ function createAdminRoutes(options = {}) {
         },
       });
     } catch (error) {
-      console.error('Admin billing-status route error:', error.message || error);
-      return res.status(500).json({ error: error.message || 'Internal server error' });
+      console.error('Admin billing-status route error:', error);
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -513,7 +512,7 @@ function createAdminRoutes(options = {}) {
 
         const adminUid = String(req.auth?.sub || '').trim();
         if (!adminUid) {
-          return res.status(403).json({ ok: false, error: 'Admin access required.' });
+          return sendUserFacingError(res, req, 403, 'admin_restricted', 'ADMIN_ACCESS_REQUIRED');
         }
 
         const nfcCards = await db.collection('nfc_cards')
@@ -524,7 +523,7 @@ function createAdminRoutes(options = {}) {
         return res.status(200).json({ ok: true, nfcCards, cards: nfcCards });
       } catch (error) {
         console.error('[admin/nfc/cards]', error);
-        return res.status(500).json({ ok: false, error: 'Failed to fetch NFC cards inventory.' });
+        return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
       }
     },
   );
@@ -540,10 +539,11 @@ function createAdminRoutes(options = {}) {
     async (req, res) => {
       try {
         const db = req.app.locals.db;
-        const qty = Math.max(1, Math.min(5000, Math.floor(Number(req.body?.quantity) || 0)));
-        if (!qty) {
-          return res.status(400).json({ ok: false, error: 'quantity must be between 1 and 5000' });
+        const rawQty = Number(req.body?.quantity);
+        if (!Number.isFinite(rawQty) || rawQty < 1 || rawQty > 5000) {
+          return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'NFC_BATCH_QUANTITY_INVALID'));
         }
+        const qty = Math.floor(rawQty);
 
         const now = new Date();
         const batchId = `batch_${now.getTime()}_${crypto.randomBytes(4).toString('hex')}`;
@@ -590,7 +590,7 @@ function createAdminRoutes(options = {}) {
         return res.status(201).json({ ok: true, batchId, cards: cardsOut });
       } catch (error) {
         console.error('[admin/nfc/batches]', error);
-        return res.status(500).json({ ok: false, error: 'Failed to provision NFC batch.' });
+        return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
       }
     },
   );
@@ -608,11 +608,11 @@ function createAdminRoutes(options = {}) {
         const db = req.app.locals.db;
         const nfcCardId = normalizeNfcCardId(req.params.nfcCardId);
         if (!nfcCardId) {
-          return res.status(400).json({ ok: false, error: 'Invalid NFC card id.' });
+          return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'NFC_INVALID_CARD_ID'));
         }
         const rawStatus = String(req.body?.status || '').trim();
         if (!['lost', 'blocked'].includes(rawStatus)) {
-          return res.status(400).json({ ok: false, error: 'status must be lost or blocked' });
+          return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'NFC_INVALID_STATUS_TRANSITION'));
         }
 
         const result = await db.collection('nfc_cards').updateOne(
@@ -620,7 +620,7 @@ function createAdminRoutes(options = {}) {
           { $set: { status: rawStatus, updatedAt: new Date() }, $inc: { version: 1 } },
         );
         if (!result.matchedCount) {
-          return res.status(404).json({ ok: false, error: 'NFC card not found.' });
+          return res.status(404).json(buildUserFacingJson(req, 'invalid_body', 'NFC_CARD_NOT_FOUND'));
         }
 
         await db.collection('nfc_card_events').insertOne({
@@ -634,7 +634,7 @@ function createAdminRoutes(options = {}) {
         return res.status(200).json({ ok: true });
       } catch (error) {
         console.error('[admin/nfc/cards/status]', error);
-        return res.status(500).json({ ok: false, error: 'Failed to update NFC card status.' });
+        return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
       }
     },
   );

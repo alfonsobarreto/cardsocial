@@ -13,6 +13,7 @@ const { resolvePublicIdentity } = require('../lib/resolvePublicIdentity');
 const { readSmartCardScName } = require('../lib/smartCardScName');
 const { buildMongoExtendedProfileFields } = require('../lib/extendedUserIdentity');
 const { getFirestoreOptional } = require('../lib/firebaseAdminApp');
+const { buildUserFacingJson } = require('../lib/userFacingErrors');
 
 const BUSINESS_MEDAL_KEYS = ['compromiso', 'servicio', 'confianza', 'prestigio', 'excelencia'];
 const SOCIAL_MEDAL_KEYS = ['creativo', 'conector', 'visionario', 'conversador', 'guru'];
@@ -559,11 +560,8 @@ function createPublicUniversalRoutes({ storage }) {
         card: rewritePublicCardMediaUrls(payload, env.publicVaultFileBaseUrl),
       });
     } catch (error) {
-      const isEs = clientLocaleIsSpanish(req);
-      return res.status(500).json({
-        ok: false,
-        error: isEs ? 'Error del servidor. Intenta de nuevo.' : 'Server error. Please try again.',
-      });
+      console.error('[public/universal-card] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -698,11 +696,8 @@ function createPublicUniversalRoutes({ storage }) {
         ),
       );
     } catch (error) {
-      const isEs = clientLocaleIsSpanish(req);
-      return res.status(500).json({
-        ok: false,
-        error: isEs ? 'Error del servidor. Intenta de nuevo.' : 'Server error. Please try again.',
-      });
+      console.error('[public/business-card-preview] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -861,11 +856,8 @@ function createPublicUniversalRoutes({ storage }) {
         ),
       );
     } catch (error) {
-      const isEs = clientLocaleIsSpanish(req);
-      return res.status(500).json({
-        ok: false,
-        error: isEs ? 'Error del servidor. Intenta de nuevo.' : 'Server error. Please try again.',
-      });
+      console.error('[public/qr-token-preview] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -883,7 +875,7 @@ function createPublicUniversalRoutes({ storage }) {
   router.options('/analytics/track', (_req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept-Language');
     res.setHeader('Access-Control-Max-Age', '86400');
     return res.status(204).end();
   });
@@ -898,12 +890,12 @@ function createPublicUniversalRoutes({ storage }) {
       const ip = publicAnalyticsClientIp(req);
 
       if (!ownerUid || ownerUid.length > 140 || !bId || bId.length > 140 || !eventRaw) {
-        return res.status(400).json({ ok: false, error: 'invalid_body' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'invalid_body'));
       }
 
       let mongoEventType = eventRaw === 'click' ? 'icon_click' : eventRaw === 'view' ? 'view' : '';
       if (!mongoEventType) {
-        return res.status(400).json({ ok: false, error: 'invalid_event_type' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'invalid_event_type'));
       }
 
       const viewWindowMs = 60 * 1000;
@@ -926,12 +918,12 @@ function createPublicUniversalRoutes({ storage }) {
       if (mongoEventType === 'view') {
         const okHit = allowPublicAnalyticsRate(ip, `view:${bId}`, maxViewsPerMin, viewWindowMs);
         if (!okHit) {
-          return res.status(429).json({ ok: false, error: 'rate_limited' });
+          return res.status(429).json(buildUserFacingJson(req, 'auth_forbidden', 'rate_limited'));
         }
       } else if (mongoEventType === 'icon_click') {
         const okHit = allowPublicAnalyticsRate(ip, `click:${bId}`, maxClicksPerMin, clickWindowMs);
         if (!okHit) {
-          return res.status(429).json({ ok: false, error: 'rate_limited' });
+          return res.status(429).json(buildUserFacingJson(req, 'auth_forbidden', 'rate_limited'));
         }
       }
 
@@ -941,7 +933,7 @@ function createPublicUniversalRoutes({ storage }) {
         { projection: { _id: 1 } },
       );
       if (!exists) {
-        return res.status(404).json({ ok: false, error: 'not_found' });
+        return res.status(404).json(buildUserFacingJson(req, 'auth_forbidden', 'not_found'));
       }
 
       const source = sanitizeAnalyticsSegmentKey(req.body?.source || 'public_web');
@@ -975,7 +967,7 @@ function createPublicUniversalRoutes({ storage }) {
 
       return res.status(200).json({ ok: true });
     } catch {
-      return res.status(500).json({ ok: false, error: 'server_error' });
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'server_error'));
     }
   });
 

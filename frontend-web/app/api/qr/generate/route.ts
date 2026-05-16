@@ -2,6 +2,8 @@ import QRCode from 'qrcode';
 import { NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
 
+import { pickLocaleFromHeaders, userFacingMessageForErrorCode } from '@/lib/userFacingApiMessages';
+
 export const runtime = 'nodejs';
 
 const MAX_PAYLOAD_LEN = 4096;
@@ -103,25 +105,37 @@ async function composeBrandedQrPng(qrBuffer: Buffer, outWidth: number, logoAbsol
     .toBuffer();
 }
 
+function jsonError(status: number, errorCode: string, req: NextRequest) {
+  const loc = pickLocaleFromHeaders(req.headers);
+  return NextResponse.json(
+    { error: userFacingMessageForErrorCode(errorCode, loc), errorCode },
+    { status },
+  );
+}
+
 export async function GET(req: NextRequest) {
   const rawParam = req.nextUrl.searchParams.get('url');
   if (rawParam == null || !String(rawParam).trim()) {
-    return NextResponse.json({ error: 'Missing `url` query parameter.' }, { status: 400 });
+    return jsonError(400, 'QR_STUDIO_URL_MISSING', req);
   }
 
   let decoded: string;
   try {
     decoded = decodeURIComponent(rawParam);
   } catch {
-    return NextResponse.json({ error: 'Invalid URL encoding.' }, { status: 400 });
+    return jsonError(400, 'QR_STUDIO_URL_ENCODING_INVALID', req);
   }
 
   if (decoded.length > MAX_PAYLOAD_LEN) {
-    return NextResponse.json({ error: 'Payload too long.' }, { status: 400 });
+    return jsonError(400, 'QR_STUDIO_PAYLOAD_TOO_LONG', req);
   }
 
   if (!isAllowedQrPayload(decoded)) {
-    return NextResponse.json({ error: 'URL scheme or host not allowed for QR encoding.' }, { status: 403 });
+    const loc = pickLocaleFromHeaders(req.headers);
+    return NextResponse.json(
+      { error: userFacingMessageForErrorCode('SECURITY_LINK_REJECTED', loc), errorCode: 'SECURITY_LINK_REJECTED' },
+      { status: 403 },
+    );
   }
 
   const format = (req.nextUrl.searchParams.get('format') || 'png').toLowerCase();
@@ -153,10 +167,7 @@ export async function GET(req: NextRequest) {
   try {
     if (format === 'svg') {
       if (decodedLogoUrl) {
-        return NextResponse.json(
-          { error: 'SVG format does not support logoUrl; use format=png.' },
-          { status: 400 },
-        );
+        return jsonError(400, 'QR_STUDIO_SVG_LOGO_UNSUPPORTED', req);
       }
       const svg = await QRCode.toString(decoded, {
         type: 'svg',
@@ -171,7 +182,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (format !== 'png') {
-      return NextResponse.json({ error: 'Unsupported format. Use `png` or `svg`.' }, { status: 400 });
+      return jsonError(400, 'QR_STUDIO_FORMAT_UNSUPPORTED', req);
     }
 
     let buffer = await QRCode.toBuffer(decoded, {
@@ -190,7 +201,7 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'QR generation failed.';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error('[api/qr/generate]', e);
+    return jsonError(500, 'SERVER_INTERNAL_ERROR', req);
   }
 }

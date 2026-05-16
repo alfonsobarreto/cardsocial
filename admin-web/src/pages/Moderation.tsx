@@ -121,7 +121,7 @@ export default function Moderation() {
       setReports(nextReports);
     } catch (error) {
       console.error('[Moderation] Failed to load reports:', error);
-      setNotice({ type: 'error', message: 'No se pudieron cargar los reportes. Revisa permisos de Firestore.' });
+      setNotice({ type: 'error', message: 'No se pudieron cargar los reportes. Por favor, reintenta.' });
     } finally {
       setLoading(false);
     }
@@ -137,7 +137,7 @@ export default function Moderation() {
       } catch (error) {
         console.error('[Moderation] Failed to load reports:', error);
         if (isMounted) {
-          setNotice({ type: 'error', message: 'No se pudieron cargar los reportes. Revisa permisos de Firestore.' });
+          setNotice({ type: 'error', message: 'No se pudieron cargar los reportes. Por favor, reintenta.' });
         }
       } finally {
         if (isMounted) setLoading(false);

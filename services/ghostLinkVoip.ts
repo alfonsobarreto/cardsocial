@@ -3,6 +3,9 @@ import { resolveExpoPublicApiBaseUrl } from '@/services/expoPublicApiBaseUrl';
 import axios from 'axios';
 import { Alert } from 'react-native';
 
+import { getCurrentI18nAppLanguage } from '@/services/language';
+import { machineErrorUserMessage, type MachineErrorLocale } from '@/services/machineErrorCatalog';
+
 /** Aborta startGhostLinkVoipCall en Expo Go tras informar al usuario (evita doble Alert en el caller). */
 export class GhostLinkExpoGoAbortError extends Error {
   constructor() {
@@ -13,6 +16,25 @@ export class GhostLinkExpoGoAbortError extends Error {
 
 export function isGhostLinkExpoGoAbortError(e: unknown): boolean {
   return e instanceof GhostLinkExpoGoAbortError;
+}
+
+export const GHOST_LINK_VOIP_MINUTES_EXHAUSTED_CODE = 'VOIP_MINUTES_EXHAUSTED' as const;
+
+/** Cupo Ghost-Link (AirTime) agotado según backend (`/voip/ghost-link/start` 403). */
+export class GhostLinkVoipMinutesExhaustedError extends Error {
+  readonly code = GHOST_LINK_VOIP_MINUTES_EXHAUSTED_CODE;
+  constructor(message?: string) {
+    const lang = getCurrentI18nAppLanguage() as MachineErrorLocale;
+    super(message || machineErrorUserMessage(GHOST_LINK_VOIP_MINUTES_EXHAUSTED_CODE, lang));
+    this.name = 'GhostLinkVoipMinutesExhaustedError';
+  }
+}
+
+export function isGhostLinkVoipMinutesExhaustedError(e: unknown): boolean {
+  if (e instanceof GhostLinkVoipMinutesExhaustedError) return true;
+  const any = e as { response?: { status?: number; data?: { errorCode?: string } } } | null;
+  const code = String(any?.response?.data?.errorCode || '').trim();
+  return Number(any?.response?.status) === 403 && code === GHOST_LINK_VOIP_MINUTES_EXHAUSTED_CODE;
 }
 
 function alertGhostLinkExpoGo(): void {
@@ -91,6 +113,35 @@ function parseGhostLinkSharedCard(
 
 export type GhostLinkCallType = 'audio' | 'video';
 
+/** Tope Agora en modo prueba (backend); `null` = sin tope UI para ese lado. */
+export type GhostLinkVoipTrialCap = {
+  callerMinutes: number | null;
+  calleeMinutes: number | null;
+} | null;
+
+function parseGhostLinkTrialCap(raw: unknown): GhostLinkVoipTrialCap {
+  if (raw == null || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const cmRaw = o.callerMinutes;
+  const calRaw = o.calleeMinutes;
+  const callerMinutes = cmRaw == null ? null : Math.floor(Number(cmRaw));
+  const calleeMinutes = calRaw == null ? null : Math.floor(Number(calRaw));
+  const cmOk = callerMinutes == null || (Number.isFinite(callerMinutes) && callerMinutes > 0);
+  const calOk = calleeMinutes == null || (Number.isFinite(calleeMinutes) && calleeMinutes > 0);
+  if (!cmOk || !calOk) return null;
+  return { callerMinutes, calleeMinutes };
+}
+
+/** Minutos de tope Agora en modo prueba para **este** extremo de la llamada. */
+export function localGhostLinkTrialCapMinutes(
+  direction: 'outgoing' | 'incoming',
+  trialCap: GhostLinkVoipTrialCap | undefined,
+): number | null {
+  if (!trialCap) return null;
+  const v = direction === 'outgoing' ? trialCap.callerMinutes : trialCap.calleeMinutes;
+  return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null;
+}
+
 export type GhostLinkCallStartParams = {
   uid: string;
   targetUid: string;
@@ -127,6 +178,8 @@ export type GhostLinkCallStartResult = {
   engine: 'agora' | 'signaling-only';
   /** Presente cuando el backend tiene Agora configurado (AGORA_* en servidor). */
   agora?: GhostLinkAgoraRtc;
+  /** Modo prueba: minutos máx. de sesión Agora por rol (ver `trialCap`). */
+  trialCap: GhostLinkVoipTrialCap;
   callChannel: 'ghost-link-voip';
   callType: GhostLinkCallType;
   card: GhostLinkSharedCard;
@@ -155,6 +208,7 @@ export type GhostLinkIncomingInvite = {
   callChannel: 'ghost-link-voip';
   callType: GhostLinkCallType;
   agora?: GhostLinkAgoraRtc;
+  trialCap: GhostLinkVoipTrialCap;
   card: GhostLinkSharedCard;
   callerDisplay: {
     name: string;
@@ -261,9 +315,9 @@ export async function startGhostLinkVoipCall(
     const code = String(err?.response?.data?.errorCode || '').trim();
     const msg = String(err?.response?.data?.error || '').trim();
     if (status === 403 && code === 'VOIP_MINUTES_EXHAUSTED') {
-      throw new Error(
+      throw new GhostLinkVoipMinutesExhaustedError(
         msg ||
-          'Minutos de llamadas agotados. Los de suscripción se renuevan cada mes; podrás comprar minutos extra cuando abra la tienda.',
+          undefined,
       );
     }
     throw err;
@@ -294,6 +348,7 @@ export async function startGhostLinkVoipCall(
     sessionId: String(response?.data?.sessionId || ''),
     engine,
     agora: parseAgoraRtc(response?.data?.agora),
+    trialCap: parseGhostLinkTrialCap(response?.data?.trialCap),
     callChannel: 'ghost-link-voip',
     callType: respCallType,
     card: cardParsed,
@@ -367,6 +422,7 @@ export async function getIncomingGhostLinkInvite(params: {
       callChannel: 'ghost-link-voip',
       callType: invCallType,
       agora: parseAgoraRtc(invite?.agora),
+      trialCap: parseGhostLinkTrialCap(invite?.trialCap),
       card: cardParsed,
       callerDisplay: {
         name: callerNameIn,

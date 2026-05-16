@@ -1,4 +1,28 @@
 {
+  "3d7c0f17": {
+    "de": "Ablauf: Testmodus",
+    "fr": "Expiration : Mode essai",
+    "it": "Scadenza: Modalità prova",
+    "pt": "Validade: Modo teste"
+  },
+  "c981fac0": {
+    "de": "Unbegrenzter Zugang",
+    "fr": "Accès illimité",
+    "it": "Accesso illimitato",
+    "pt": "Acesso ilimitado"
+  },
+  "3bcd237a": {
+    "de": "Moment mal!",
+    "fr": "Un instant !",
+    "it": "Un momento!",
+    "pt": "Um momento!"
+  },
+  "60920678": {
+    "de": "Hey — das ist deine eigene Karte. Du musst dich nicht selbst scannen; wir haben dich schon in der Datenbank.",
+    "fr": "Hé — cette carte, c'est vous. Pas besoin de vous scanner vous-même ; nous vous avons déjà dans notre base.",
+    "it": "Ehi — quella carta sei tu. Non c'è bisogno di scansionare te stesso; ti abbiamo già in archivio.",
+    "pt": "Ei — esse cartão é você. Não precisa escanear a si mesmo; já temos você na base."
+  },
   "10011de5": {
     "de": "Noch nicht genügend Daten",
     "fr": "Pas encore assez de données",

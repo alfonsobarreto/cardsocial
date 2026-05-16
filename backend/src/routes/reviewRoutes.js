@@ -1,6 +1,7 @@
 // routes/reviewRoutes.js
 const express = require('express');
 const Review = require('../models/review');
+const { buildUserFacingJson } = require('../lib/userFacingErrors');
 
 function createReviewRoutes({ storage }) {
   const router = express.Router();
@@ -10,10 +11,10 @@ function createReviewRoutes({ storage }) {
     try {
       const { bId, userId, stars, comment } = req.body;
       if (!bId || !userId || !stars) {
-        return res.status(400).json({ ok: false, error: 'bId, userId y stars son obligatorios' });
+        return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'REQUIRED_FIELDS_MISSING'));
       }
       if (stars < 1 || stars > 5) {
-        return res.status(400).json({ ok: false, error: 'stars debe estar entre 1 y 5' });
+        return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'REVIEW_STARS_INVALID'));
       }
       const db = await storage.connect();
       const now = new Date();
@@ -27,7 +28,8 @@ function createReviewRoutes({ storage }) {
       );
       return res.status(200).json({ ok: true, review: review.value });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[POST /api/cards/review]', error?.message || error, error?.stack);
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 

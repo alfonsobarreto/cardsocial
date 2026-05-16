@@ -4,6 +4,7 @@
  */
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/services/firebaseConfig';
+import { getRadarTrialEnabledSync } from '@/services/radarTrialEnabledCache';
 
 export type TierKey = 'free' | 'influencer' | 'business';
 
@@ -197,7 +198,19 @@ export async function getTiersConfig(): Promise<TiersConfig | null> {
 
 function normalizeTierKey(value: unknown): TierKey | null {
   const t = String(value ?? '').trim().toLowerCase();
-  if (t === 'free' || t === 'influencer' || t === 'business') return t;
+  if (t === 'free') return 'free';
+  if (t === 'influencer') return 'influencer';
+  if (
+    t === 'business' ||
+    t === 'corporate' ||
+    t === 'pro' ||
+    t === 'premium' ||
+    t === 'card_social_pro' ||
+    t === 'cardsocialpro' ||
+    t === 'negocio'
+  ) {
+    return 'business';
+  }
   return null;
 }
 
@@ -210,9 +223,8 @@ function subscriptionTierActive(data: Record<string, unknown>): boolean {
     }
   }
   const st = String(data.subscriptionStatus ?? '').trim().toLowerCase();
-  if (st === 'active' && data.isPremium === true) {
-    return true;
-  }
+  if (st === 'active' || st === 'active-premium') return true;
+  if (data.isPremium === true) return true;
   return false;
 }
 
@@ -239,6 +251,9 @@ export function effectiveTierKeyFromUserData(data: Record<string, unknown>): Tie
   if (alphaTier) {
     return alphaTier;
   }
+  if (getRadarTrialEnabledSync()) {
+    return 'business';
+  }
   if (!subscriptionTierActive(data)) {
     return 'free';
   }
@@ -246,5 +261,8 @@ export function effectiveTierKeyFromUserData(data: Record<string, unknown>): Tie
   if (t === 'influencer' || t === 'business') {
     return t;
   }
-  return 'free';
+  if (t === 'free') {
+    return 'free';
+  }
+  return 'business';
 }

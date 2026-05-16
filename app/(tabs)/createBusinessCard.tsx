@@ -15,7 +15,12 @@ import {
   getBusinessCard,
   updateBusinessCard,
 } from '@/services/businessCardsRepo';
-import { isDashboardTestingGraceModeEnabled } from '@/services/dashboardTestingGrace';
+import { notifyMyBusinessCardsInventoryChanged } from '@/services/businessCardInventoryEvents';
+import {
+  isDashboardTestingGraceModeEnabled,
+  isDashboardTrialDisplayMode,
+} from '@/services/dashboardTestingGrace';
+import { getRadarTrialEnabledSync } from '@/services/radarTrialEnabledCache';
 import { hasUnlimitedAdminUi } from '@/services/roleService';
 import { getBusinessCardSlotAvailability } from '@/services/businessCardSlotsGate';
 import { resolveBusinessMarketFacets } from '@/services/businessMarketFacets';
@@ -34,6 +39,7 @@ import { getUserIconVaultMap, type IconVaultEntry } from '@/services/iconVaultSe
 import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { uploadFileWithModeration } from '@/services/moderationApi';
+import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { getCardRowTheme, useActiveTheme } from '@/services/useActiveTheme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -449,7 +455,10 @@ export default function CreateBusinessCardScreen() {
           setSubscriptionStatus(st);
         } else if (st === 'expired') {
           let next: SubscriptionUi = 'dull';
-          if (isDashboardTestingGraceModeEnabled() && !(await hasUnlimitedAdminUi(uid))) {
+          if (
+            isDashboardTrialDisplayMode(isDashboardTestingGraceModeEnabled(), getRadarTrialEnabledSync()) &&
+            !(await hasUnlimitedAdminUi(uid))
+          ) {
             next = 'active';
           }
           setSubscriptionStatus(next);
@@ -538,7 +547,10 @@ export default function CreateBusinessCardScreen() {
           setSubscriptionStatus(st);
         } else if (st === 'expired') {
           let next: SubscriptionUi = 'dull';
-          if (isDashboardTestingGraceModeEnabled() && !(await hasUnlimitedAdminUi(uid))) {
+          if (
+            isDashboardTrialDisplayMode(isDashboardTestingGraceModeEnabled(), getRadarTrialEnabledSync()) &&
+            !(await hasUnlimitedAdminUi(uid))
+          ) {
             next = 'active';
           }
           setSubscriptionStatus(next);
@@ -942,7 +954,10 @@ export default function CreateBusinessCardScreen() {
       setBcLogo(nextUri);
       setBcLogoUrl(null);
     } catch (e: any) {
-      Alert.alert(tr('Error', 'Error'), e?.message || tr('No se pudo procesar la imagen.', 'Could not process image.'));
+      Alert.alert(
+        tr('Error', 'Error'),
+        userFacingAlertMessage(e, language, tr('No se pudo procesar la imagen.', 'Could not process image.')),
+      );
     } finally {
       setPickingLogo(false);
     }
@@ -985,7 +1000,10 @@ export default function CreateBusinessCardScreen() {
         setBusinessGeoMeta(buildBusinessGeoMeta(null, label));
       }
     } catch (e: any) {
-      Alert.alert(tr('GPS', 'GPS'), e?.message || tr('No se pudo leer la ubicación.', 'Could not read location.'));
+      Alert.alert(
+        tr('GPS', 'GPS'),
+        userFacingAlertMessage(e, language, tr('No se pudo leer la ubicación.', 'Could not read location.')),
+      );
     } finally {
       setLocationLoading(false);
     }
@@ -1028,8 +1046,11 @@ export default function CreateBusinessCardScreen() {
     } catch (e: any) {
       Alert.alert(
         tr('Búsqueda', 'Search'),
-        e?.message ||
+        userFacingAlertMessage(
+          e,
+          language,
           tr('El geocodificador del dispositivo no pudo resolver la dirección.', 'The device geocoder could not resolve the address.'),
+        ),
       );
     } finally {
       setGeocodingInProgress(false);
@@ -1250,6 +1271,8 @@ export default function CreateBusinessCardScreen() {
             /* non-fatal: the card itself was created */
           }
         }
+
+        notifyMyBusinessCardsInventoryChanged();
 
         setCreatedBId(card.bId);
         setUidState(uid);

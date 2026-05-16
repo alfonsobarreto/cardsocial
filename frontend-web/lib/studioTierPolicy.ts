@@ -186,7 +186,19 @@ export function mergeTiersConfigFromFirestore(raw: unknown): TiersConfig {
 
 function normalizeTierKey(value: unknown): TierKey | null {
   const t = String(value ?? '').trim().toLowerCase();
-  if (t === 'free' || t === 'influencer' || t === 'business') return t;
+  if (t === 'free') return 'free';
+  if (t === 'influencer') return 'influencer';
+  if (
+    t === 'business' ||
+    t === 'corporate' ||
+    t === 'pro' ||
+    t === 'premium' ||
+    t === 'card_social_pro' ||
+    t === 'cardsocialpro' ||
+    t === 'negocio'
+  ) {
+    return 'business';
+  }
   return null;
 }
 
@@ -199,9 +211,8 @@ function subscriptionTierActive(data: Record<string, unknown>): boolean {
     }
   }
   const st = String(data.subscriptionStatus ?? '').trim().toLowerCase();
-  if (st === 'active' && data.isPremium === true) {
-    return true;
-  }
+  if (st === 'active' || st === 'active-premium') return true;
+  if (data.isPremium === true) return true;
   return false;
 }
 
@@ -214,7 +225,10 @@ export function effectiveStudioTierKey(data: Record<string, unknown>): TierKey {
   if (t === 'influencer' || t === 'business') {
     return t;
   }
-  return 'free';
+  if (t === 'free') {
+    return 'free';
+  }
+  return 'business';
 }
 
 /** Solo rol en Firestore; Card Studio web no usa refuerzo por email para «ilimitado». */

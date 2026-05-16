@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAdminApp } from '@/lib/firebaseAdminStudio';
+import { pickLocaleFromHeaders, userFacingMessageForErrorCode } from '@/lib/userFacingApiMessages';
 
 export const runtime = 'nodejs';
 
@@ -54,25 +55,40 @@ async function resolveEmails(username: string): Promise<string[] | null> {
 }
 
 export async function POST(req: Request) {
+  const loc = pickLocaleFromHeaders(req.headers);
   try {
     const body = (await req.json()) as { username?: string };
     const username = String(body?.username || '').trim();
     if (!username || username.length > 80) {
-      return NextResponse.json({ ok: false, error: 'invalid' }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: userFacingMessageForErrorCode('invalid', loc), errorCode: 'invalid' },
+        { status: 400 },
+      );
     }
     if (!getAdminApp()) {
       return NextResponse.json(
-        { ok: false, error: 'unconfigured', message: 'Set FIREBASE_SERVICE_ACCOUNT_JSON on the server, or sign in with your email.' },
+        {
+          ok: false,
+          error: userFacingMessageForErrorCode('unconfigured', loc),
+          errorCode: 'unconfigured',
+          message: 'Set FIREBASE_SERVICE_ACCOUNT_JSON on the server, or sign in with your email.',
+        },
         { status: 503 },
       );
     }
     const emails = await resolveEmails(username);
     if (!emails?.length) {
-      return NextResponse.json({ ok: false, error: 'not_found' }, { status: 404 });
+      return NextResponse.json(
+        { ok: false, error: userFacingMessageForErrorCode('not_found', loc), errorCode: 'not_found' },
+        { status: 404 },
+      );
     }
     return NextResponse.json({ ok: true, emails, email: emails[0] });
   } catch (e) {
     console.error('[resolve-username]', e);
-    return NextResponse.json({ ok: false, error: 'server' }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: userFacingMessageForErrorCode('server', loc), errorCode: 'server' },
+      { status: 500 },
+    );
   }
 }

@@ -19,6 +19,7 @@
 
 const crypto = require('crypto');
 const express = require('express');
+const { sendUserFacingError, buildUserFacingJson } = require('../lib/userFacingErrors');
 const { scheduleBusinessCardEmbeddingSync } = require('../services/cardVectorEmbedding');
 const { syncBusinessCardsOwnedCountForUser } = require('../lib/syncFirestoreUserCounters');
 
@@ -252,7 +253,7 @@ function createBusinessCardsRoutes({ storage }) {
   router.get('/', async (req, res) => {
     try {
       const uid = String(req.auth?.sub || '').trim();
-      if (!uid) return res.status(401).json({ ok: false, error: 'Unauthenticated' });
+      if (!uid) return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
 
       const db = req.app.locals.db || (await storage.connect());
       const cursor = db
@@ -264,7 +265,8 @@ function createBusinessCardsRoutes({ storage }) {
       return res.status(200).json({ ok: true, cards: docs.map(toWireBusinessCard) });
     } catch (error) {
       console.error('[businessCards] GET / failed:', error);
-      return res.status(500).json({ ok: false, error: error.message || 'list failed' });
+      console.error('[business-cards]', error);
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -272,7 +274,7 @@ function createBusinessCardsRoutes({ storage }) {
   router.get('/market-catalog', async (req, res) => {
     try {
       const uid = String(req.auth?.sub || '').trim();
-      if (!uid) return res.status(401).json({ ok: false, error: 'Unauthenticated' });
+      if (!uid) return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
 
       const db = req.app.locals.db || (await storage.connect());
       const docs = await db
@@ -288,7 +290,8 @@ function createBusinessCardsRoutes({ storage }) {
       return res.status(200).json({ ok: true, cards: docs.map(toWireBusinessCard) });
     } catch (error) {
       console.error('[businessCards] GET /market-catalog failed:', error);
-      return res.status(500).json({ ok: false, error: error.message || 'market catalog failed' });
+      console.error('[business-cards/market-catalog]', error);
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -296,20 +299,21 @@ function createBusinessCardsRoutes({ storage }) {
   router.get('/:bId', async (req, res) => {
     try {
       const uid = String(req.auth?.sub || '').trim();
-      if (!uid) return res.status(401).json({ ok: false, error: 'Unauthenticated' });
+      if (!uid) return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
       const bId = trimOrEmpty(req.params.bId);
-      if (!bId) return res.status(400).json({ ok: false, error: 'bId is required' });
+      if (!bId) return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'BUSINESS_BID_REQUIRED'));
 
       const db = req.app.locals.db || (await storage.connect());
       const doc = await db.collection('business_cards').findOne({ bId });
-      if (!doc) return res.status(404).json({ ok: false, error: 'Card not found' });
+      if (!doc) return res.status(404).json(buildUserFacingJson(req, 'invalid_body', 'BUSINESS_CARD_NOT_FOUND'));
       if (doc.ownerUid !== uid) {
-        return res.status(403).json({ ok: false, error: 'Not authorized to read this card' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'NOT_AUTHORIZED_READ_CARD');
       }
       return res.status(200).json({ ok: true, card: toWireBusinessCard(doc) });
     } catch (error) {
       console.error('[businessCards] GET /:bId failed:', error);
-      return res.status(500).json({ ok: false, error: error.message || 'read failed' });
+      console.error('[business-cards/read]', error);
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -317,7 +321,7 @@ function createBusinessCardsRoutes({ storage }) {
   router.post('/', async (req, res) => {
     try {
       const uid = String(req.auth?.sub || '').trim();
-      if (!uid) return res.status(401).json({ ok: false, error: 'Unauthenticated' });
+      if (!uid) return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
 
       const body = req.body || {};
       const bcName = trimOrEmpty(body.bcName);
@@ -327,13 +331,13 @@ function createBusinessCardsRoutes({ storage }) {
       const kycTermsAccepted = toBoolean(body.kycTermsAccepted);
       const businessTermsAccepted = toBoolean(body.businessTermsAccepted);
 
-      if (!bcName) return res.status(400).json({ ok: false, error: 'bcName is required' });
-      if (!bcContactName) return res.status(400).json({ ok: false, error: 'bcContactName is required' });
+      if (!bcName) return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'BUSINESS_BC_NAME_REQUIRED'));
+      if (!bcContactName) return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'BUSINESS_BC_CONTACT_REQUIRED'));
       if (!Number.isFinite(bcLatitude) || !Number.isFinite(bcLongitude)) {
-        return res.status(400).json({ ok: false, error: 'bcLatitude and bcLongitude are required' });
+        return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'BUSINESS_GEO_REQUIRED'));
       }
       if (!businessTermsAccepted) {
-        return res.status(400).json({ ok: false, error: 'businessTermsAccepted must be true' });
+        return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'BUSINESS_TERMS_MUST_ACCEPT'));
       }
 
       const now = new Date();
@@ -409,7 +413,8 @@ function createBusinessCardsRoutes({ storage }) {
       return res.status(201).json({ ok: true, card: toWireBusinessCard(doc) });
     } catch (error) {
       console.error('[businessCards] POST / failed:', error);
-      return res.status(500).json({ ok: false, error: error.message || 'create failed' });
+      console.error('[business-cards/create]', error);
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -417,9 +422,9 @@ function createBusinessCardsRoutes({ storage }) {
   router.patch('/:bId', async (req, res) => {
     try {
       const uid = String(req.auth?.sub || '').trim();
-      if (!uid) return res.status(401).json({ ok: false, error: 'Unauthenticated' });
+      if (!uid) return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
       const bId = trimOrEmpty(req.params.bId);
-      if (!bId) return res.status(400).json({ ok: false, error: 'bId is required' });
+      if (!bId) return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'BUSINESS_BID_REQUIRED'));
 
       const body = req.body || {};
       const set = {};
@@ -433,12 +438,12 @@ function createBusinessCardsRoutes({ storage }) {
       if (body.bcPhysicalAddress !== undefined) set.bcPhysicalAddress = trimOrEmpty(body.bcPhysicalAddress);
       if (body.bcLatitude !== undefined) {
         const n = Number(body.bcLatitude);
-        if (!Number.isFinite(n)) return res.status(400).json({ ok: false, error: 'bcLatitude must be a number' });
+        if (!Number.isFinite(n)) return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'BUSINESS_LATITUDE_INVALID'));
         set.bcLatitude = n;
       }
       if (body.bcLongitude !== undefined) {
         const n = Number(body.bcLongitude);
-        if (!Number.isFinite(n)) return res.status(400).json({ ok: false, error: 'bcLongitude must be a number' });
+        if (!Number.isFinite(n)) return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'BUSINESS_LONGITUDE_INVALID'));
         set.bcLongitude = n;
       }
       if (body.bcLocationSource !== undefined) set.bcLocationSource = normalizeLocationSource(body.bcLocationSource);
@@ -449,7 +454,7 @@ function createBusinessCardsRoutes({ storage }) {
       if (body.bcGeoLabel !== undefined) set.bcGeoLabel = sanitizeGeoText(body.bcGeoLabel, 180);
       if (body.bcLocationUpdatedAt !== undefined) {
         const d = parseOptionalDate(body.bcLocationUpdatedAt);
-        if (!d) return res.status(400).json({ ok: false, error: 'bcLocationUpdatedAt must be an ISO date or null' });
+        if (!d) return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'BUSINESS_LOCATION_DATE_INVALID'));
         set.bcLocationUpdatedAt = d;
       } else if (
         body.bcPhysicalAddress !== undefined ||
@@ -503,14 +508,14 @@ function createBusinessCardsRoutes({ storage }) {
         } else {
           const d = new Date(v);
           if (Number.isNaN(d.getTime())) {
-            return res.status(400).json({ ok: false, error: 'subscriptionExpiresAt must be an ISO date or null' });
+            return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'BUSINESS_SUBSCRIPTION_EXPIRES_INVALID'));
           }
           set.subscriptionExpiresAt = d;
         }
       }
 
       if (Object.keys(set).length === 0) {
-        return res.status(400).json({ ok: false, error: 'No updatable fields provided' });
+        return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'NO_UPDATABLE_FIELDS'));
       }
       set.updatedAt = new Date();
 
@@ -522,13 +527,14 @@ function createBusinessCardsRoutes({ storage }) {
       );
       const doc = result && (result.value || result); // driver-version compat
       if (!doc || !doc.bId) {
-        return res.status(404).json({ ok: false, error: 'Card not found or not authorized' });
+        return res.status(404).json(buildUserFacingJson(req, 'invalid_body', 'BUSINESS_CARD_NOT_FOUND'));
       }
       scheduleBusinessCardEmbeddingSync(db, doc);
       return res.status(200).json({ ok: true, card: toWireBusinessCard(doc) });
     } catch (error) {
       console.error('[businessCards] PATCH /:bId failed:', error);
-      return res.status(500).json({ ok: false, error: error.message || 'update failed' });
+      console.error('[business-cards/update]', error);
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -536,14 +542,14 @@ function createBusinessCardsRoutes({ storage }) {
   router.delete('/:bId', async (req, res) => {
     try {
       const uid = String(req.auth?.sub || '').trim();
-      if (!uid) return res.status(401).json({ ok: false, error: 'Unauthenticated' });
+      if (!uid) return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
       const bId = trimOrEmpty(req.params.bId);
-      if (!bId) return res.status(400).json({ ok: false, error: 'bId is required' });
+      if (!bId) return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'BUSINESS_BID_REQUIRED'));
 
       const db = req.app.locals.db || (await storage.connect());
       const result = await db.collection('business_cards').deleteOne({ bId, ownerUid: uid });
       if (result.deletedCount !== 1) {
-        return res.status(404).json({ ok: false, error: 'Card not found or not authorized' });
+        return res.status(404).json(buildUserFacingJson(req, 'invalid_body', 'BUSINESS_CARD_NOT_FOUND'));
       }
       await cascadeBusinessCardDelete(db, bId);
       try {
@@ -555,7 +561,8 @@ function createBusinessCardsRoutes({ storage }) {
       return res.status(200).json({ ok: true, deleted: true });
     } catch (error) {
       console.error('[businessCards] DELETE /:bId failed:', error);
-      return res.status(500).json({ ok: false, error: error.message || 'delete failed' });
+      console.error('[business-cards/delete]', error);
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 

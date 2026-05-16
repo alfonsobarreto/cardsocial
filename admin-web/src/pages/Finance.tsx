@@ -51,7 +51,7 @@ export default function Finance() {
       setLedger(nextLedger);
     } catch (error) {
       console.error('[Finance] Failed to load:', error);
-      setToast({ type: 'error', message: 'No se pudo cargar Revenue Ops. Revisa permisos/índices de Firestore.' });
+      setToast({ type: 'error', message: 'No se pudieron validar los permisos de finanzas. Por favor, reintenta.' });
     } finally {
       setLoading(false);
     }

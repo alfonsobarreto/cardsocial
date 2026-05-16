@@ -11,6 +11,7 @@ import { getActiveUserId } from '@/services/authSession';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { buildMirrorVaultItemsForContact } from '@/services/buildReceiverPreviewVaultItems';
 import { collectStringsReceivedContact, orderByDeepSearchWithExpandedQuery } from '@/services/deepSearch';
+import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
@@ -845,7 +846,10 @@ function ContactsContent() {
         visibilityTime: 4000,
       });
     } catch (error: any) {
-      Alert.alert(tr('No se pudo eliminar', 'Could not delete'), error?.message || tr('Intenta de nuevo.', 'Try again.'));
+      Alert.alert(
+        tr('No se pudo eliminar', 'Could not delete'),
+        userFacingAlertMessage(error, language, tr('Intenta de nuevo.', 'Try again.')),
+      );
     }
   };
 
@@ -888,7 +892,10 @@ function ContactsContent() {
         visibilityTime: 4500,
       });
     } catch (error: any) {
-      Alert.alert(tr('No se pudo bloquear', 'Could not block'), error?.message || tr('Intenta de nuevo.', 'Try again.'));
+      Alert.alert(
+        tr('No se pudo bloquear', 'Could not block'),
+        userFacingAlertMessage(error, language, tr('Intenta de nuevo.', 'Try again.')),
+      );
     }
   };
 
@@ -960,7 +967,10 @@ function ContactsContent() {
         visibilityTime: 2800,
       });
     } catch (error: any) {
-      Alert.alert(tr('Error', 'Error'), error?.message || tr('Intenta de nuevo.', 'Try again.'));
+      Alert.alert(
+        tr('Error', 'Error'),
+        userFacingAlertMessage(error, language, tr('Intenta de nuevo.', 'Try again.')),
+      );
     }
   };
 
@@ -1736,7 +1746,10 @@ function ContactsContent() {
                     await blockRelationship({ uid: viewerUid, targetUid });
                     setReceptorSubscribers((prev) => prev.filter((r) => r.uid !== targetUid));
                   } catch (e: any) {
-                    Alert.alert(tr('Error', 'Error'), e?.message || tr('No se pudo bloquear.', 'Could not block.'));
+                    Alert.alert(
+                      tr('Error', 'Error'),
+                      userFacingAlertMessage(e, language, tr('No se pudo bloquear.', 'Could not block.')),
+                    );
                   }
                 },
               },

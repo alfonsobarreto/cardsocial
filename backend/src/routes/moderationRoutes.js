@@ -1,6 +1,6 @@
 const express = require("express");
 const multer = require("multer");
-const { formatSpacesEnvMissingError } = require("../config");
+const { buildUserFacingJson } = require("../lib/userFacingErrors");
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -62,7 +62,7 @@ function createModerationRoutes({ azureSafety, storage, limits, middlewares = []
     try {
       const text = String(req.body?.text || "").trim();
       if (!text) {
-        return res.status(400).json({ ok: false, error: "text is required" });
+        return res.status(400).json(buildUserFacingJson(req, "invalid_body", "REQUIRED_FIELDS_MISSING"));
       }
 
       const moderation = await azureSafety.moderateText(text);
@@ -79,7 +79,8 @@ function createModerationRoutes({ azureSafety, storage, limits, middlewares = []
         maxSeverity: moderation.maxSeverity,
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error("[POST /api/moderate/text]", error?.message || error, error?.stack);
+      return res.status(500).json(buildUserFacingJson(req, "server_error", "SERVER_INTERNAL_ERROR"));
     }
   });
 
@@ -87,14 +88,12 @@ function createModerationRoutes({ azureSafety, storage, limits, middlewares = []
     try {
       const file = req.file;
       if (!file) {
-        return res.status(400).json({ ok: false, error: "file is required (multipart field name: file)" });
+        return res.status(400).json(buildUserFacingJson(req, "invalid_body", "REQUIRED_FIELDS_MISSING"));
       }
 
       if (!storage.isSpacesConfigured || !storage.isSpacesConfigured()) {
-        return res.status(503).json({
-          ok: false,
-          error: formatSpacesEnvMissingError(),
-        });
+        console.error("[POST /api/upload] Spaces not configured");
+        return res.status(503).json(buildUserFacingJson(req, "service_unavailable", "SERVER_INTERNAL_ERROR"));
       }
 
       const uid = String(req.body?.uid || "").trim();
@@ -103,7 +102,7 @@ function createModerationRoutes({ azureSafety, storage, limits, middlewares = []
 
       const sizeError = validateSize(file, limits, resolvedMime);
       if (sizeError) {
-        return res.status(400).json({ ok: false, error: sizeError });
+        return res.status(400).json(buildUserFacingJson(req, "invalid_body", "FILE_UPLOAD_SIZE_EXCEEDED"));
       }
       console.log("[POST /api/upload] recibido", {
         label,
@@ -133,11 +132,11 @@ function createModerationRoutes({ azureSafety, storage, limits, middlewares = []
       });
 
       if (moderation.blocked) {
-        return res.status(403).json({
-          ok: false,
-          error: "File blocked by Azure Content Safety",
-          maxSeverity: moderation.maxSeverity,
-        });
+        return res.status(403).json(
+          buildUserFacingJson(req, 'moderation_blocked', 'CONTENT_SAFETY_BLOCKED', {
+            maxSeverity: moderation.maxSeverity,
+          }),
+        );
       }
 
       const { fileId } = await storage.uploadVaultFilePrivate({
@@ -173,7 +172,7 @@ function createModerationRoutes({ azureSafety, storage, limits, middlewares = []
       });
     } catch (error) {
       console.error("[POST /api/upload] error", error?.message || error, error?.stack);
-      return res.status(500).json({ ok: false, error: error.message });
+      return res.status(500).json(buildUserFacingJson(req, "server_error", "SERVER_INTERNAL_ERROR"));
     }
   });
 

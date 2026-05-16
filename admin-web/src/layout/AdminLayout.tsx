@@ -10,7 +10,6 @@ const navItems = [
   { label: 'Identity & Anti-Abuso', to: '/identity-risk' },
   { label: 'B2B & Enterprise', to: '/b2b-enterprise' },
   { label: 'Growth & Afiliados', to: '/growth' },
-  { label: 'Market Radar Pro', to: '/market-radar-pro' },
   { label: 'Rules & Tiers', to: '/rules-tiers' },
   { label: 'Economía CS (bonos)', to: '/rules-cs-economy' },
   { label: 'Monedas CS', to: '/rules-commerce' },

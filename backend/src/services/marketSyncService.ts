@@ -8,7 +8,17 @@
  * - Mostrar skins disponibles en MyCards
  */
 
-import { Db, Collection, Filter } from 'mongodb';
+import { Db, Collection } from 'mongodb';
+
+const SYNC_DOMAIN_MESSAGES = new Set(['not_found']);
+
+function syncLogAndRethrowOrServerInternal(context: string, error: unknown): never {
+  console.error(context, error);
+  if (error instanceof Error && SYNC_DOMAIN_MESSAGES.has(error.message)) {
+    throw error;
+  }
+  throw new Error('SERVER_INTERNAL_ERROR');
+}
 
 interface VaultItem {
   itemId: string; // market_asset unique_id
@@ -79,8 +89,7 @@ export class MarketSyncService {
       console.log(`✅ User vault initialized: ${uid} with ${vaultItems.length} free icons`);
       return true;
     } catch (error) {
-      console.error('❌ Initialize vault error:', error);
-      throw error;
+      syncLogAndRethrowOrServerInternal('❌ Initialize vault error:', error);
     }
   }
 
@@ -93,7 +102,8 @@ export class MarketSyncService {
       // Obtener vault actual del usuario
       const userVault = await this.vaultCollection.findOne({ uid });
       if (!userVault) {
-        throw new Error(`Vault not found for user: ${uid}`);
+        console.warn('❌ syncUserVault: vault missing', { uid });
+        throw new Error('not_found');
       }
 
       // Obtener todos los assets disponibles (published + gratuitos)
@@ -133,8 +143,7 @@ export class MarketSyncService {
       console.log(`✅ Vault synced: ${uid} with ${updatedItems.length} items`);
       return updatedItems;
     } catch (error) {
-      console.error('❌ Sync vault error:', error);
-      throw error;
+      syncLogAndRethrowOrServerInternal('❌ Sync vault error:', error);
     }
   }
 
@@ -146,8 +155,7 @@ export class MarketSyncService {
       const userVault = await this.vaultCollection.findOne({ uid });
       return userVault as UserVault | null;
     } catch (error) {
-      console.error('❌ Get vault error:', error);
-      throw error;
+      syncLogAndRethrowOrServerInternal('❌ Get vault error:', error);
     }
   }
 
@@ -159,7 +167,8 @@ export class MarketSyncService {
     try {
       const asset = await this.marketCollection.findOne({ unique_id: assetId });
       if (!asset) {
-        throw new Error(`Asset not found: ${assetId}`);
+        console.warn('❌ notifyAllUsersNewAsset: asset missing', { assetId });
+        throw new Error('not_found');
       }
 
       // En MVP, solo logueamos. En producción, enviar push notification
@@ -180,8 +189,7 @@ export class MarketSyncService {
 
       return updatedCount;
     } catch (error) {
-      console.error('❌ Notify users error:', error);
-      throw error;
+      syncLogAndRethrowOrServerInternal('❌ Notify users error:', error);
     }
   }
 
@@ -192,7 +200,8 @@ export class MarketSyncService {
     try {
       const userVault = await this.getUserVault(uid);
       if (!userVault) {
-        throw new Error(`Vault not found for user: ${uid}`);
+        console.warn('❌ getAvailableSkins: vault missing', { uid });
+        throw new Error('not_found');
       }
 
       // Filtrar solo skins de la vault del usuario
@@ -214,8 +223,7 @@ export class MarketSyncService {
 
       return skins;
     } catch (error) {
-      console.error('❌ Get available skins error:', error);
-      throw error;
+      syncLogAndRethrowOrServerInternal('❌ Get available skins error:', error);
     }
   }
 
@@ -238,8 +246,7 @@ export class MarketSyncService {
         sync_timestamp: new Date(),
       };
     } catch (error) {
-      console.error('❌ Get sync stats error:', error);
-      throw error;
+      syncLogAndRethrowOrServerInternal('❌ Get sync stats error:', error);
     }
   }
 }

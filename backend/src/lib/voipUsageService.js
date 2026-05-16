@@ -19,10 +19,26 @@ function normalizeTierKey(value) {
   const t = String(value ?? '')
     .trim()
     .toLowerCase();
-  if (t === 'free' || t === 'influencer' || t === 'business') return t;
+  if (t === 'free') return 'free';
+  if (t === 'influencer') return 'influencer';
+  /** Business / Pro / alias usados en RC, CMS o datos legacy */
+  if (
+    t === 'business' ||
+    t === 'corporate' ||
+    t === 'pro' ||
+    t === 'premium' ||
+    t === 'card_social_pro' ||
+    t === 'cardsocialpro' ||
+    t === 'negocio'
+  ) {
+    return 'business';
+  }
   return null;
 }
 
+/**
+ * Misma señal de “suscripción útil” que `limitService.isPremiumUser` (app): no exigir isPremium y active a la vez.
+ */
 function subscriptionTierActive(data) {
   if (!data || typeof data !== 'object') return false;
   const untilRaw = data.premiumUntil ?? data.subscriptionExpiresAt;
@@ -42,17 +58,26 @@ function subscriptionTierActive(data) {
     if (d && !Number.isNaN(d.getTime()) && d.getTime() > Date.now()) return true;
   }
   const st = String(data.subscriptionStatus ?? '').trim().toLowerCase();
-  if (st === 'active' && data.isPremium === true) return true;
-  if (st === 'active-premium' && data.isPremium === true) return true;
+  if (st === 'active' || st === 'active-premium') return true;
+  if (data.isPremium === true) return true;
   return false;
 }
 
-function effectiveTierKeyFromUserData(data) {
-  if (!data || typeof data !== 'object') return 'free';
-  if (!subscriptionTierActive(data)) return 'free';
-  const t = normalizeTierKey(data.tier ?? data.currentTier ?? data.subscriptionTier);
+/**
+ * Tier efectivo para cupo VoIP: alineado con `tiersConfigService` (trial Radar → business;
+ * suscripción activa sin `tier` → business, donde suelen estar los minutos del CMS).
+ */
+async function resolveEffectiveVoipTierKey(merged) {
+  if (await readRadarTrialEnabledFromFirestore()) {
+    return 'business';
+  }
+  if (!subscriptionTierActive(merged)) {
+    return 'free';
+  }
+  const t = normalizeTierKey(merged.tier ?? merged.currentTier ?? merged.subscriptionTier);
   if (t === 'influencer' || t === 'business') return t;
-  return 'free';
+  if (t === 'free') return 'free';
+  return 'business';
 }
 
 function issuerHasAdminOrSuperAdminRole(data) {
@@ -64,12 +89,14 @@ function issuerHasAdminOrSuperAdminRole(data) {
   return r === 'super_admin' || r === 'admin';
 }
 
-/** Suscripción activa con tier Influencer o Business (el emisor paga su propio cupo). */
+/** Suscripción activa con cupo propio (Influencer, Business o Pro sin campo `tier`). */
 function callerHasBillablePaidTier(data) {
   if (!data || typeof data !== 'object') return false;
   if (!subscriptionTierActive(data)) return false;
   const t = normalizeTierKey(data.tier ?? data.currentTier ?? data.subscriptionTier);
-  return t === 'influencer' || t === 'business';
+  if (t === 'free') return false;
+  if (t === 'influencer' || t === 'business') return true;
+  return true;
 }
 
 /** Tier Business activo: puede asumir coste cuando un contacto gratis inicia la llamada. */
@@ -187,6 +214,81 @@ async function readUserMergeFirestoreMongo(storage, uid) {
   return out;
 }
 
+/** `system_config/market_radar.radar_trial_enabled` — cache corta (misma fuente que mint Radar). */
+const RADAR_TRIAL_AGORA_CAP_SEC = 60 * 60;
+const AGORA_SUPERADMIN_MIN_PRIVILEGE_SEC = 24 * 60 * 60;
+
+let radarTrialCache = { at: 0, value: false };
+const RADAR_TRIAL_CACHE_MS = 30_000;
+
+async function readRadarTrialEnabledFromFirestore() {
+  const fs = getFirestoreOptional();
+  if (!fs) return false;
+  const now = Date.now();
+  if (now - radarTrialCache.at < RADAR_TRIAL_CACHE_MS) return radarTrialCache.value;
+  try {
+    const snap = await fs.collection('system_config').doc('market_radar').get();
+    const v = Boolean(snap.exists && snap.data()?.radar_trial_enabled === true);
+    radarTrialCache = { at: now, value: v };
+    return v;
+  } catch {
+    radarTrialCache = { at: now, value: false };
+    return false;
+  }
+}
+
+/** Solo `super_admin` queda exento del tope Agora de 60 min en modo prueba (`admin` sí recibe el tope). */
+function isSuperAdminOnlyRole(data) {
+  if (!data || typeof data !== 'object') return false;
+  const r = String(data.role ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/-/g, '_');
+  return r === 'super_admin';
+}
+
+/**
+ * TTL token/privilegio Agora (`agora-token` v2: segundos desde “ahora”) para Ghost-Link.
+ * Modo prueba ON: 60 min por lado salvo `role === super_admin`.
+ *
+ * @param {*} storage
+ * @param {string} callerUid
+ * @param {string} targetUid
+ * @param {number} ttlSeconds
+ */
+async function computeGhostLinkAgoraExpireDurations(storage, callerUid, targetUid, ttlSeconds) {
+  const baseTtl = Math.max(60, Number(ttlSeconds || 45) + 300);
+  const trial = await readRadarTrialEnabledFromFirestore();
+  if (!trial) {
+    return {
+      callerTokenExpire: baseTtl,
+      callerPrivilegeExpire: baseTtl,
+      calleeTokenExpire: baseTtl,
+      calleePrivilegeExpire: baseTtl,
+      trialCap: null,
+    };
+  }
+  const c = String(callerUid || '').trim();
+  const t = String(targetUid || '').trim();
+  const [caller, callee] = await Promise.all([
+    readUserMergeFirestoreMongo(storage, c),
+    t ? readUserMergeFirestoreMongo(storage, t) : Promise.resolve({}),
+  ]);
+  const callerSuper = isSuperAdminOnlyRole(caller);
+  const calleeSuper = isSuperAdminOnlyRole(callee);
+  const longTtl = Math.max(baseTtl, AGORA_SUPERADMIN_MIN_PRIVILEGE_SEC);
+  return {
+    callerTokenExpire: callerSuper ? longTtl : RADAR_TRIAL_AGORA_CAP_SEC,
+    callerPrivilegeExpire: callerSuper ? longTtl : RADAR_TRIAL_AGORA_CAP_SEC,
+    calleeTokenExpire: calleeSuper ? longTtl : RADAR_TRIAL_AGORA_CAP_SEC,
+    calleePrivilegeExpire: calleeSuper ? longTtl : RADAR_TRIAL_AGORA_CAP_SEC,
+    trialCap: {
+      callerMinutes: callerSuper ? null : 60,
+      calleeMinutes: calleeSuper ? null : 60,
+    },
+  };
+}
+
 /**
  * @param {Record<string, unknown>} merged
  * @param {string} month
@@ -266,7 +368,7 @@ async function checkCallerVoipMinutes(storage, callerUid) {
       },
     };
   }
-  const tier = effectiveTierKeyFromUserData(merged);
+  const tier = await resolveEffectiveVoipTierKey(merged);
   let rawTiers = null;
   if (fs) {
     try {
@@ -353,7 +455,7 @@ async function recordVoipUsageForOutgoingCall(storage, userUid, durationSec) {
   const merged = await readUserMergeFirestoreMongo(storage, uid);
   if (issuerHasAdminOrSuperAdminRole(merged)) return;
   let { used, cycle, purchased } = ensureCycleResetFields(merged, month);
-  const tier = effectiveTierKeyFromUserData(merged);
+  const tier = await resolveEffectiveVoipTierKey(merged);
   let rawTiers = null;
   if (fs) {
     try {
@@ -415,4 +517,5 @@ module.exports = {
   recordVoipUsageForGhostOutgoingLog,
   getVoipMinutesSummary,
   utcMonthKey,
+  computeGhostLinkAgoraExpireDurations,
 };

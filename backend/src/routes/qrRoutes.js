@@ -23,6 +23,7 @@ const { parseAndValidateTemporaryAccess } = require('../lib/temporaryAccessToken
 const { composeIssuerSnapshot } = require('../lib/issuerSnapshot');
 const { resolveIssuerPremiumSaveExperience } = require('../lib/issuerPremiumSaveSignal');
 const { env } = require('../config');
+const { sendUserFacingError, buildUserFacingJson } = require('../lib/userFacingErrors');
 
 function normalizeString(value, fallback = null) {
   const text = String(value ?? '').trim();
@@ -387,6 +388,7 @@ function createQrRoutes({ storage }) {
       ownerNickname: 1,
       ownerPhotoUrl: 1,
       ownerOccupation: 1,
+      scName: 1,
       updatedAt: 1,
     };
     const personal = await db.collection('smart_cards').findOne(
@@ -408,19 +410,21 @@ function createQrRoutes({ storage }) {
       const uid = String(req.params.uid || '').trim();
       const newNickname = String(req.body?.nickname || '').trim();
       if (!uid || !newNickname) {
-        return res.status(400).json({ ok: false, error: 'uid y nickname requeridos' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       // Buscar usuario
       const user = await db.collection('users').findOne({ uid });
       if (!user) {
-        return res.status(404).json({ ok: false, error: 'Usuario no encontrado' });
+        return res.status(404).json(buildUserFacingJson(req, 'auth_forbidden', 'USER_NOT_FOUND'));
       }
       // Validar bloqueo de 30 días
       const now = new Date();
       const lastChange = user.lastUsernameChange ? new Date(user.lastUsernameChange) : null;
       if (lastChange && (now - lastChange) < 30 * 24 * 60 * 60 * 1000) {
         const nextAllowed = new Date(lastChange.getTime() + 30 * 24 * 60 * 60 * 1000);
-        return res.status(403).json({ ok: false, error: 'Solo puedes cambiar tu nombre de usuario cada 30 días', nextAllowed });
+        return res.status(403).json(
+          buildUserFacingJson(req, 'nickname_change_cooldown', 'USERNAME_CHANGE_COOLDOWN', { nextAllowed }),
+        );
       }
       // Validar unicidad
       const lower = newNickname.toLowerCase();
@@ -429,7 +433,7 @@ function createQrRoutes({ storage }) {
         $or: [{ nicknameLower: lower }, { userNickNameLower: lower }],
       });
       if (exists) {
-        return res.status(409).json({ ok: false, error: 'Ese nombre de usuario ya está en uso' });
+        return res.status(409).json(buildUserFacingJson(req, 'auth_forbidden', 'USERNAME_ALREADY_IN_USE'));
       }
       await db.collection('users').updateOne(
         { uid },
@@ -446,7 +450,8 @@ function createQrRoutes({ storage }) {
       );
       return res.status(200).json({ ok: true, nickname: newNickname, lastUsernameChange: now });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -460,22 +465,22 @@ function createQrRoutes({ storage }) {
       const uid = String(req.params.uid || '').trim();
       const raw = req.body?.userAvatarUrl != null ? String(req.body.userAvatarUrl).trim() : '';
       if (!authUid) {
-        return res.status(401).json({ ok: false, error: 'Unauthenticated' });
+        return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
       }
       if (!uid) {
-        return res.status(400).json({ ok: false, error: 'uid is required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid !== uid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'FORBIDDEN');
       }
       if (!raw) {
-        return res.status(400).json({ ok: false, error: 'userAvatarUrl is required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'QR_AVATAR_INVALID'));
       }
       if (!/^https?:\/\//i.test(raw)) {
-        return res.status(400).json({ ok: false, error: 'userAvatarUrl must be an http(s) URL' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'QR_AVATAR_INVALID'));
       }
       if (raw.length > 4096) {
-        return res.status(400).json({ ok: false, error: 'userAvatarUrl too long' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'QR_AVATAR_INVALID'));
       }
 
       const db = await storage.connect();
@@ -500,7 +505,8 @@ function createQrRoutes({ storage }) {
 
       return res.status(200).json({ ok: true, userAvatarUrl: raw });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -681,10 +687,10 @@ function createQrRoutes({ storage }) {
       const token = String(req.body?.token || '').trim();
 
       if (!userUid || !token) {
-        return res.status(400).json({ ok: false, error: 'uid and token are required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'FORBIDDEN');
       }
 
       const db = await storage.connect();
@@ -696,7 +702,8 @@ function createQrRoutes({ storage }) {
 
       return res.status(200).json({ ok: true });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -714,10 +721,10 @@ function createQrRoutes({ storage }) {
         : 'audio';
 
       if (!callerUid || !targetUid || !sourceCardName) {
-        return res.status(400).json({ ok: false, error: 'uid, targetUid y sourceCardName son obligatorios' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== callerUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
 
       const db = await storage.connect();
@@ -725,7 +732,7 @@ function createQrRoutes({ storage }) {
       const relationKey = buildRelationKey(callerUid, targetUid);
       const blocked = await db.collection('blocked_relations').findOne({ relationKey });
       if (blocked) {
-        return res.status(403).json({ ok: false, error: 'Access denied: blocked relationship' });
+        return sendUserFacingError(res, req, 403, 'relationship_blocked', 'RELATIONSHIP_BLOCKED');
       }
 
       if (sourceKey) {
@@ -734,7 +741,7 @@ function createQrRoutes({ storage }) {
           { projection: { silenced: 1, uid: 1 } },
         );
         if (cardDoc?.silenced === true) {
-          return res.status(403).json({ ok: false, error: 'Call blocked: card is muted' });
+          return sendUserFacingError(res, req, 403, 'call_muted', 'CALL_CARD_MUTED');
         }
 
         const issuerForMute = String(cardDoc?.uid || callerUid).trim();
@@ -745,7 +752,7 @@ function createQrRoutes({ storage }) {
           $or: [{ sid: sourceKey }, { bId: sourceKey }],
         });
         if (subscriberMuted) {
-          return res.status(403).json({ ok: false, error: 'Call blocked: card is muted' });
+          return sendUserFacingError(res, req, 403, 'call_muted', 'CALL_CARD_MUTED');
         }
       }
 
@@ -826,9 +833,9 @@ function createQrRoutes({ storage }) {
       const inviteId = crypto.randomBytes(16).toString('hex');
       const expiresAt = new Date(now.getTime() + GHOST_LINK_INVITE_TTL_SECONDS * 1000);
       const agoraChannelName = `gl_${inviteId}`;
-      let agoraInvite = null;
+      let agoraPack = null;
       try {
-        agoraInvite = await buildGhostLinkAgoraInviteWithVoipGate(storage, {
+        agoraPack = await buildGhostLinkAgoraInviteWithVoipGate(storage, {
           callerUid,
           targetUid,
           channelName: agoraChannelName,
@@ -836,14 +843,23 @@ function createQrRoutes({ storage }) {
         });
       } catch (e) {
         if (e && e.code === 'VOIP_MINUTES_EXHAUSTED') {
-          return res.status(403).json({
-            ok: false,
-            error: e.message || 'Minutos de llamadas agotados',
-            errorCode: 'VOIP_MINUTES_EXHAUSTED',
-          });
+          return res.status(403).json(buildUserFacingJson(req, 'voip_minutes_exhausted', 'VOIP_MINUTES_EXHAUSTED'));
         }
         throw e;
       }
+
+      const agoraForMongo = agoraPack
+        ? {
+            appId: agoraPack.appId,
+            channelName: agoraPack.channelName,
+            callerUid: agoraPack.callerUid,
+            calleeUid: agoraPack.calleeUid,
+            callerToken: agoraPack.callerToken,
+            calleeToken: agoraPack.calleeToken,
+          }
+        : null;
+      /** UI + auditoría: tope Agora 60 min en modo prueba (`radar_trial_enabled`), por lado. */
+      const trialCap = agoraPack && agoraPack.trialCap != null ? agoraPack.trialCap : null;
 
       const outSid = sharedCard?.sid != null && String(sharedCard.sid).trim() ? String(sharedCard.sid).trim() : sourceSid;
       const outBId = sharedCard?.bId != null && String(sharedCard.bId).trim() ? String(sharedCard.bId).trim() : sourceBId;
@@ -903,7 +919,8 @@ function createQrRoutes({ storage }) {
             createdAt: now,
             updatedAt: now,
             expiresAt,
-            ...(agoraInvite ? { agora: agoraInvite } : {}),
+            trialCap: trialCap || null,
+            ...(agoraForMongo ? { agora: agoraForMongo } : {}),
           },
         },
         {
@@ -933,7 +950,7 @@ function createQrRoutes({ storage }) {
         ok: true,
         inviteId,
         sessionId,
-        engine: agoraInvite ? 'agora' : 'signaling-only',
+        engine: agoraForMongo ? 'agora' : 'signaling-only',
         callType,
         callChannel: 'ghost-link-voip',
         sourceSid: outSid || null,
@@ -951,19 +968,21 @@ function createQrRoutes({ storage }) {
           nickname: receiver.nickname,
           userAvatarUrl: receiver.userAvatarUrl,
         },
-        ...(agoraInvite
+        ...(agoraForMongo
           ? {
               agora: {
-                appId: agoraInvite.appId,
-                channelName: agoraInvite.channelName,
-                token: agoraInvite.callerToken,
-                uid: agoraInvite.callerUid,
+                appId: agoraForMongo.appId,
+                channelName: agoraForMongo.channelName,
+                token: agoraForMongo.callerToken,
+                uid: agoraForMongo.callerUid,
               },
+              trialCap: trialCap || null,
             }
           : {}),
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -972,10 +991,10 @@ function createQrRoutes({ storage }) {
       const authUid = String(req.auth?.sub || '').trim();
       const userUid = String(req.query?.uid || authUid || '').trim();
       if (!userUid) {
-        return res.status(400).json({ ok: false, error: 'uid is required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
       const summary = await getVoipMinutesSummary(storage, userUid);
       return res.status(200).json({
@@ -989,7 +1008,8 @@ function createQrRoutes({ storage }) {
         totalAvailableMinutes: summary.totalAvailableMinutes,
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -999,10 +1019,10 @@ function createQrRoutes({ storage }) {
       const userUid = String(req.query?.uid || authUid || '').trim();
 
       if (!userUid) {
-        return res.status(400).json({ ok: false, error: 'uid is required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
 
       const db = await storage.connect();
@@ -1033,6 +1053,7 @@ function createQrRoutes({ storage }) {
             expiresAt: 1,
             callType: 1,
             agora: 1,
+            trialCap: 1,
           },
         }
       );
@@ -1106,11 +1127,13 @@ function createQrRoutes({ storage }) {
           createdAt: invite.createdAt ? new Date(invite.createdAt).toISOString() : null,
           updatedAt: invite.updatedAt ? new Date(invite.updatedAt).toISOString() : null,
           expiresAt: invite.expiresAt ? new Date(invite.expiresAt).toISOString() : null,
+          trialCap: invite.trialCap && typeof invite.trialCap === 'object' ? invite.trialCap : null,
           ...(agoraCallee ? { agora: agoraCallee } : {}),
         },
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -1122,10 +1145,10 @@ function createQrRoutes({ storage }) {
       const inviteId = String(req.query?.inviteId || '').trim();
 
       if (!userUid || !inviteId) {
-        return res.status(400).json({ ok: false, error: 'uid e inviteId son requeridos' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
 
       const db = await storage.connect();
@@ -1152,7 +1175,8 @@ function createQrRoutes({ storage }) {
         status: statusRaw || 'unknown',
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -1164,13 +1188,13 @@ function createQrRoutes({ storage }) {
       const action = String(req.body?.action || '').trim().toLowerCase();
 
       if (!userUid || !inviteId || !action) {
-        return res.status(400).json({ ok: false, error: 'uid, inviteId y action son requeridos' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
       if (!['accept', 'reject', 'end'].includes(action)) {
-        return res.status(400).json({ ok: false, error: 'action must be accept|reject|end' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'QR_INVITE_ACTION_INVALID'));
       }
 
       const db = await storage.connect();
@@ -1223,7 +1247,7 @@ function createQrRoutes({ storage }) {
       );
 
       if (!updated) {
-        return res.status(404).json({ ok: false, error: 'Invite not found or already handled' });
+        return res.status(404).json(buildUserFacingJson(req, 'auth_forbidden', 'INVITE_NOT_FOUND_OR_HANDLED'));
       }
 
       return res.status(200).json({
@@ -1233,7 +1257,8 @@ function createQrRoutes({ storage }) {
         status: String(updated.status || nextStatus),
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -1243,10 +1268,10 @@ function createQrRoutes({ storage }) {
       const sid = String(req.body?.sid || '').trim();
 
       if (!uid) {
-        return res.status(400).json({ ok: false, error: 'uid is required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (!sid) {
-        return res.status(400).json({ ok: false, error: 'sid is required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
 
       const now = new Date();
@@ -1275,7 +1300,8 @@ function createQrRoutes({ storage }) {
         expiresAt: expiresAt.toISOString(),
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -1292,16 +1318,16 @@ function createQrRoutes({ storage }) {
       const cardKey = sid || bId;
 
       if (!issuerUid) {
-        return res.status(400).json({ ok: false, error: 'uid is required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (!cardKey) {
-        return res.status(400).json({ ok: false, error: 'sid or bId is required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
 
       const db = await storage.connect();
       const owns = await db.collection('smart_cards').findOne(smartCardKeyQuery(issuerUid, cardKey), { projection: { sid: 1, bId: 1 } });
       if (!owns) {
-        return res.status(404).json({ ok: false, error: 'Card not found for this owner' });
+        return res.status(404).json(buildUserFacingJson(req, 'auth_forbidden', 'CARD_NOT_FOUND_FOR_OWNER'));
       }
 
       const rowSid = owns.sid != null && String(owns.sid).trim() ? String(owns.sid).trim() : null;
@@ -1381,7 +1407,8 @@ function createQrRoutes({ storage }) {
         reused: false,
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   }
 
@@ -1398,16 +1425,10 @@ function createQrRoutes({ storage }) {
       const token = String(req.body?.token || '').trim();
 
       if (!receiverUid) {
-        return res.status(400).json({
-          ok: false,
-          error: isEs ? 'Se requiere receiverUid.' : 'receiverUid is required.',
-        });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (!token) {
-        return res.status(400).json({
-          ok: false,
-          error: isEs ? 'Se requiere token.' : 'token is required.',
-        });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
 
       const db = await storage.connect();
@@ -1415,29 +1436,20 @@ function createQrRoutes({ storage }) {
 
       const validation = await parseAndValidateTemporaryAccess(db, token);
       if (!validation.ok) {
-        return res.status(410).json({
-          ok: false,
-          error: isEs ? 'Acceso expirado o token no válido.' : 'Access expired or invalid token.',
-        });
+        return res.status(410).json(buildUserFacingJson(req, 'auth_forbidden', 'TEMP_ACCESS_EXPIRED'));
       }
 
       const issuerUid = String(validation.uid || '').trim();
       const sid = validation.sid != null && String(validation.sid).trim() ? String(validation.sid).trim() : null;
       const bId = validation.bId != null && String(validation.bId).trim() ? String(validation.bId).trim() : null;
       if (!issuerUid || (!sid && !bId)) {
-        return res.status(400).json({
-          ok: false,
-          error: isEs ? 'Datos del token no válidos.' : 'Invalid token payload.',
-        });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'TOKEN_PAYLOAD_INVALID'));
       }
 
       const relationKey = buildRelationKey(issuerUid, receiverUid);
       const blocked = await db.collection('blocked_relations').findOne({ relationKey });
       if (blocked) {
-        return res.status(403).json({
-          ok: false,
-          error: isEs ? 'Acceso denegado: relación bloqueada.' : 'Access denied: blocked relationship.',
-        });
+        return res.status(403).json(buildUserFacingJson(req, 'relationship_blocked', 'RELATIONSHIP_BLOCKED'));
       }
 
       await db.collection('share_permissions').findOneAndUpdate(
@@ -1477,11 +1489,8 @@ function createQrRoutes({ storage }) {
         issuerPremiumExperience,
       });
     } catch (error) {
-      const isEs = clientLocaleIsSpanish(req);
-      return res.status(500).json({
-        ok: false,
-        error: isEs ? 'Error del servidor. Intenta de nuevo.' : 'Server error. Please try again.',
-      });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -1493,10 +1502,7 @@ function createQrRoutes({ storage }) {
       const isEs = clientLocaleIsSpanish(req);
       const viewerUid = String(req.auth?.sub || '').trim();
       if (!viewerUid) {
-        return res.status(401).json({
-          ok: false,
-          error: isEs ? 'No autorizado.' : 'Unauthorized.',
-        });
+        return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
       }
 
       const db = await storage.connect();
@@ -1524,11 +1530,8 @@ function createQrRoutes({ storage }) {
 
       return res.status(200).json({ ok: true, groups });
     } catch (error) {
-      const isEs = clientLocaleIsSpanish(req);
-      return res.status(500).json({
-        ok: false,
-        error: isEs ? 'Error del servidor. Intenta de nuevo.' : 'Server error. Please try again.',
-      });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -1541,16 +1544,10 @@ function createQrRoutes({ storage }) {
         .trim()
         .slice(0, 60);
       if (!viewerUid) {
-        return res.status(401).json({
-          ok: false,
-          error: isEs ? 'No autorizado.' : 'Unauthorized.',
-        });
+        return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
       }
       if (!groupName) {
-        return res.status(400).json({
-          ok: false,
-          error: isEs ? 'Se requiere groupName.' : 'groupName is required.',
-        });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (DEFAULT_BUNKER_GROUPS.includes(groupName)) {
         return res.status(200).json({ ok: true });
@@ -1573,11 +1570,8 @@ function createQrRoutes({ storage }) {
 
       return res.status(200).json({ ok: true });
     } catch (error) {
-      const isEs = clientLocaleIsSpanish(req);
-      return res.status(500).json({
-        ok: false,
-        error: isEs ? 'Error del servidor. Intenta de nuevo.' : 'Server error. Please try again.',
-      });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -1588,16 +1582,10 @@ function createQrRoutes({ storage }) {
       const token = String(req.body?.token || '').trim();
 
       if (!receiverUid) {
-        return res.status(400).json({
-          ok: false,
-          error: isEs ? 'Se requiere receiverUid.' : 'receiverUid is required.',
-        });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (!token) {
-        return res.status(400).json({
-          ok: false,
-          error: isEs ? 'Se requiere token.' : 'token is required.',
-        });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
 
       const db = await storage.connect();
@@ -1616,29 +1604,18 @@ function createQrRoutes({ storage }) {
         }
       );
       if (!tokenDoc) {
-        return res.status(410).json({
-          ok: false,
-          error: isEs
-            ? 'El token expiró, fue revocado o ya se usó.'
-            : 'Token expired, revoked or already consumed.',
-        });
+        return res.status(410).json(buildUserFacingJson(req, 'auth_forbidden', 'TEMP_ACCESS_EXPIRED'));
       }
 
       const issuerFromToken = String(tokenDoc.uid || '').trim();
       if (!issuerFromToken) {
-        return res.status(400).json({
-          ok: false,
-          error: isEs ? 'Datos del token no válidos.' : 'Token payload is invalid.',
-        });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'TOKEN_PAYLOAD_INVALID'));
       }
 
       const relationKey = buildRelationKey(issuerFromToken, receiverUid);
       const blocked = await db.collection('blocked_relations').findOne({ relationKey });
       if (blocked) {
-        return res.status(403).json({
-          ok: false,
-          error: isEs ? 'Acceso denegado: relación bloqueada.' : 'Access denied: blocked relationship.',
-        });
+        return res.status(403).json(buildUserFacingJson(req, 'relationship_blocked', 'RELATIONSHIP_BLOCKED'));
       }
 
       const consumed = await db.collection('qr_tokens').findOneAndUpdate(
@@ -1662,22 +1639,14 @@ function createQrRoutes({ storage }) {
 
       const qrToken = consumed;
       if (!qrToken) {
-        return res.status(410).json({
-          ok: false,
-          error: isEs
-            ? 'El token expiró, fue revocado o ya se usó.'
-            : 'Token expired, revoked or already consumed.',
-        });
+        return res.status(410).json(buildUserFacingJson(req, 'auth_forbidden', 'TEMP_ACCESS_EXPIRED'));
       }
 
       const issuerUid = String(qrToken.uid || '').trim();
       const sid = qrToken.sid != null && String(qrToken.sid).trim() ? String(qrToken.sid).trim() : null;
       const bId = qrToken.bId != null && String(qrToken.bId).trim() ? String(qrToken.bId).trim() : null;
       if (!issuerUid || (!sid && !bId)) {
-        return res.status(400).json({
-          ok: false,
-          error: isEs ? 'Datos del token no válidos.' : 'Token payload is invalid.',
-        });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'TOKEN_PAYLOAD_INVALID'));
       }
 
       const permissionResult = await db.collection('share_permissions').findOneAndUpdate(
@@ -1722,11 +1691,8 @@ function createQrRoutes({ storage }) {
         issuerPremiumExperience,
       });
     } catch (error) {
-      const isEs = clientLocaleIsSpanish(req);
-      return res.status(500).json({
-        ok: false,
-        error: isEs ? 'Error del servidor. Intenta de nuevo.' : 'Server error. Please try again.',
-      });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -1741,22 +1707,13 @@ function createQrRoutes({ storage }) {
       const bId = String(req.body?.bId || '').trim();
 
       if (!receiverUid) {
-        return res.status(400).json({
-          ok: false,
-          error: isEs ? 'Se requiere receiverUid.' : 'receiverUid is required.',
-        });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (!userUid || !bId) {
-        return res.status(400).json({
-          ok: false,
-          error: isEs ? 'Se requiere uid y bId.' : 'uid and bId are required.',
-        });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (receiverUid === userUid) {
-        return res.status(400).json({
-          ok: false,
-          error: isEs ? 'No puedes agregarte a ti mismo.' : 'You cannot add yourself.',
-        });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'CANNOT_ADD_SELF'));
       }
 
       const db = await storage.connect();
@@ -1765,10 +1722,7 @@ function createQrRoutes({ storage }) {
       const relationKey = buildRelationKey(userUid, receiverUid);
       const blocked = await db.collection('blocked_relations').findOne({ relationKey });
       if (blocked) {
-        return res.status(403).json({
-          ok: false,
-          error: isEs ? 'Acceso denegado: relación bloqueada.' : 'Access denied: blocked relationship.',
-        });
+        return res.status(403).json(buildUserFacingJson(req, 'relationship_blocked', 'RELATIONSHIP_BLOCKED'));
       }
 
       /** Negocios solo en Firestore comparten el mismo QR: el permiso es válido sin fila en `smart_cards`. */
@@ -1813,11 +1767,8 @@ function createQrRoutes({ storage }) {
         issuerPremiumExperience,
       });
     } catch (error) {
-      const isEs = clientLocaleIsSpanish(req);
-      return res.status(500).json({
-        ok: false,
-        error: isEs ? 'Error del servidor. Intenta de nuevo.' : 'Server error. Please try again.',
-      });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -1830,7 +1781,7 @@ function createQrRoutes({ storage }) {
       const userUid = String(req.query?.uid || req.auth?.sub || '').trim();
       const rawIds = String(req.query?.keys || '').trim();
       if (!userUid || !rawIds) {
-        return res.status(400).json({ ok: false, error: 'uid and keys required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       const cardKeys = rawIds.split(',').map((s) => s.trim()).filter(Boolean);
       if (!cardKeys.length) {
@@ -1844,7 +1795,8 @@ function createQrRoutes({ storage }) {
       }
       return res.status(200).json({ ok: true, counts });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -1862,10 +1814,10 @@ function createQrRoutes({ storage }) {
       const yearCursor = Number(req.query?.yearCursor ?? 0) || 0;
 
       if (!userUid || !bId) {
-        return res.status(400).json({ ok: false, error: 'uid and bId required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
 
       const db = await storage.connect();
@@ -1893,23 +1845,25 @@ function createQrRoutes({ storage }) {
         buckets: history.buckets,
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
   router.get('/user/:uid/premium-status', async (req, res) => {
     try {
       const requestedUid = String(req.params?.uid || '').trim();
-      if (!requestedUid) return res.status(400).json({ ok: false, error: 'uid required' });
+      if (!requestedUid) return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       const db = await storage.connect();
       const userDoc = await db.collection('users').findOne({ uid: requestedUid }, { projection: { isPremium: 1, subscriptionExpiresAt: 1, subscriptionStatus: 1 } });
-      if (!userDoc) return res.status(404).json({ ok: false, error: 'User not found' });
+      if (!userDoc) return res.status(404).json(buildUserFacingJson(req, 'auth_forbidden', 'USER_NOT_FOUND'));
       const now = new Date();
       const expiresAt = userDoc.subscriptionExpiresAt ? new Date(userDoc.subscriptionExpiresAt) : null;
       const isPremium = Boolean(userDoc.isPremium) && (!expiresAt || expiresAt > now);
       return res.status(200).json({ ok: true, uid: requestedUid, isPremium, subscriptionStatus: userDoc.subscriptionStatus || 'free', expiresAt: expiresAt ? expiresAt.toISOString() : null });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -1918,10 +1872,10 @@ function createQrRoutes({ storage }) {
       const authUid = String(req.auth?.sub || '').trim();
       const userUid = String(req.query?.uid || authUid || '').trim();
       if (!userUid) {
-        return res.status(400).json({ ok: false, error: 'uid is required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
 
       const db = await storage.connect();
@@ -1977,7 +1931,8 @@ function createQrRoutes({ storage }) {
         }),
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -1989,10 +1944,10 @@ function createQrRoutes({ storage }) {
       const cardType = req.body?.cardType === 'business' ? 'business' : 'smart';
 
       if (!userUid || !cardRef) {
-        return res.status(400).json({ ok: false, error: 'uid and card key (sid or bId) are required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
 
       const now = new Date();
@@ -2077,7 +2032,8 @@ function createQrRoutes({ storage }) {
 
       return res.status(200).json({ ok: true, uid: userUid, sid, bId });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -2088,16 +2044,16 @@ function createQrRoutes({ storage }) {
       const cardRef = String(req.params?.cardRef || '').trim();
 
       if (!userUid || !cardRef) {
-        return res.status(400).json({ ok: false, error: 'uid and card key are required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
 
       const db = await storage.connect();
       const q = smartCardKeyQuery(userUid, cardRef);
       if (!q) {
-        return res.status(400).json({ ok: false, error: 'invalid card key' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'QR_CARD_KEY_INVALID'));
       }
       const deleted = await db.collection('smart_cards').deleteOne(q);
 
@@ -2121,7 +2077,8 @@ function createQrRoutes({ storage }) {
 
       return res.status(200).json({ ok: true, uid: userUid, deleted: Number(deleted?.deletedCount || 0) > 0 });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -2130,10 +2087,10 @@ function createQrRoutes({ storage }) {
       const authUid = String(req.auth?.sub || '').trim();
       const userUid = String(req.query?.uid || authUid || '').trim();
       if (!userUid) {
-        return res.status(400).json({ ok: false, error: 'uid is required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
 
       const db = await storage.connect();
@@ -2498,7 +2455,8 @@ function createQrRoutes({ storage }) {
 
       return res.status(200).json({ ok: true, uid: userUid, count: contacts.length, contacts });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -2510,10 +2468,10 @@ function createQrRoutes({ storage }) {
       const cardKeyScoped = String(req.body?.sid || req.body?.bId || '').trim();
 
       if (!userUid || !targetUid) {
-        return res.status(400).json({ ok: false, error: 'uid and targetUid are required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
 
       const db = await storage.connect();
@@ -2549,7 +2507,8 @@ function createQrRoutes({ storage }) {
         deletedLinks: Number(deleted?.deletedCount || 0),
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -2572,13 +2531,13 @@ function createQrRoutes({ storage }) {
       const cardScope = storyCardScopeFilter(userUid, scopeSid, scopeBId);
 
       if (!userUid) {
-        return res.status(400).json({ ok: false, error: 'uid is required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
       if (!['none', 'normal', 'vip'].includes(incomingState)) {
-        return res.status(400).json({ ok: false, error: 'state must be one of none|normal|vip' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'QR_STORY_STATE_INVALID'));
       }
 
       const db = await storage.connect();
@@ -2687,7 +2646,8 @@ function createQrRoutes({ storage }) {
         paidChannel: incomingState === 'vip' ? paidChannel : null,
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -2702,7 +2662,7 @@ function createQrRoutes({ storage }) {
       const vipDays = Number.isFinite(vipDaysInput) ? Math.max(1, Math.min(30, Math.floor(vipDaysInput))) : STORY_VIP_TTL_DAYS;
 
       if (!userUid) {
-        return res.status(400).json({ ok: false, error: 'uid is required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
 
       const db = await storage.connect();
@@ -2746,7 +2706,8 @@ function createQrRoutes({ storage }) {
         expiresAt: expiresAt.toISOString(),
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -2759,10 +2720,10 @@ function createQrRoutes({ storage }) {
       const cardScope = storyCardScopeFilter(userUid, sidQuery, bIdQuery);
 
       if (!userUid) {
-        return res.status(400).json({ ok: false, error: 'uid is required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
 
       const db = await storage.connect();
@@ -2811,7 +2772,8 @@ function createQrRoutes({ storage }) {
         paidChannel: normalizeString(row.paidChannel, null),
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -2821,10 +2783,10 @@ function createQrRoutes({ storage }) {
       const userUid = String(req.query?.uid || authUid || '').trim();
 
       if (!userUid) {
-        return res.status(400).json({ ok: false, error: 'uid is required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
 
       const db = await storage.connect();
@@ -2849,7 +2811,8 @@ function createQrRoutes({ storage }) {
         },
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -2859,10 +2822,10 @@ function createQrRoutes({ storage }) {
       const userUid = String(req.body?.uid || authUid || '').trim();
 
       if (!userUid) {
-        return res.status(400).json({ ok: false, error: 'uid is required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
 
       const db = await storage.connect();
@@ -2896,7 +2859,8 @@ function createQrRoutes({ storage }) {
 
       return res.status(200).json({ ok: true, uid: userUid });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -2908,20 +2872,20 @@ function createQrRoutes({ storage }) {
     try {
       const authUid = String(req.auth?.sub || '').trim();
       if (!authUid) {
-        return res.status(401).json({ ok: false, error: 'Unauthorized' });
+        return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
       }
 
       const sid = String(req.body?.sid || '').trim();
       const bId = String(req.body?.bId || '').trim();
       const cardKey = sid || bId;
       if (!cardKey || cardKey.length > 160) {
-        return res.status(400).json({ ok: false, error: 'sid or bId is required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
 
       const type = sanitizeAnalyticsSegmentKey(req.body?.type || req.body?.actionType || 'icon_click');
       const allowedTypes = new Set(['view', 'icon_click', 'qr_scan']);
       if (!allowedTypes.has(type)) {
-        return res.status(400).json({ ok: false, error: 'type must be view, icon_click, or qr_scan' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'QR_ANALYTICS_TYPE_INVALID'));
       }
       const subType = sanitizeAnalyticsSegmentKey(req.body?.subType || req.body?.iconType || (type === 'view' ? 'modal_open' : type));
       const iconType = subType;
@@ -2929,7 +2893,7 @@ function createQrRoutes({ storage }) {
 
       const ts = req.body?.timestamp ? new Date(req.body.timestamp) : new Date();
       if (Number.isNaN(ts.getTime())) {
-        return res.status(400).json({ ok: false, error: 'invalid timestamp' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'QR_TIMESTAMP_INVALID'));
       }
 
       const dayKey = ts.toISOString().slice(0, 10);
@@ -2996,7 +2960,8 @@ function createQrRoutes({ storage }) {
 
       return res.status(200).json({ ok: true });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -3007,19 +2972,19 @@ function createQrRoutes({ storage }) {
       const cardRef = String(req.params?.cardRef || '').trim();
 
       if (!userUid) {
-        return res.status(400).json({ ok: false, error: 'uid is required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (!cardRef) {
-        return res.status(400).json({ ok: false, error: 'card key is required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
 
       const db = await storage.connect();
       const owns = await db.collection('smart_cards').findOne(smartCardKeyQuery(userUid, cardRef));
       if (!owns) {
-        return res.status(404).json({ ok: false, error: 'Card not found for this owner' });
+        return res.status(404).json(buildUserFacingJson(req, 'auth_forbidden', 'CARD_NOT_FOUND_FOR_OWNER'));
       }
 
       const minDay = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -3056,7 +3021,8 @@ function createQrRoutes({ storage }) {
         topIcons,
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -3067,19 +3033,19 @@ function createQrRoutes({ storage }) {
       const cardRef = String(req.params?.cardRef || '').trim();
 
       if (!userUid) {
-        return res.status(400).json({ ok: false, error: 'uid is required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (!cardRef) {
-        return res.status(400).json({ ok: false, error: 'card key is required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
 
       const db = await storage.connect();
       const owns = await db.collection('smart_cards').findOne(smartCardKeyQuery(userUid, cardRef));
       if (!owns) {
-        return res.status(404).json({ ok: false, error: 'Card not found for this owner' });
+        return res.status(404).json(buildUserFacingJson(req, 'auth_forbidden', 'CARD_NOT_FOUND_FOR_OWNER'));
       }
 
       const window = analyticsPeriodWindow(req.query?.periodMode, req.query?.periodOffset);
@@ -3134,7 +3100,8 @@ function createQrRoutes({ storage }) {
         topIcons,
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -3145,13 +3112,13 @@ function createQrRoutes({ storage }) {
       const cardRef = String(req.params?.cardRef || '').trim();
 
       if (!userUid) {
-        return res.status(400).json({ ok: false, error: 'uid is required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (!cardRef) {
-        return res.status(400).json({ ok: false, error: 'card key is required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
 
       const db = await storage.connect();
@@ -3219,6 +3186,17 @@ function createQrRoutes({ storage }) {
         let profile = await resolveUserProfileExtended(db, uid);
         const idCard = await fetchPersonalCardIdentityDoc(db, uid);
         profile = enrichSubscriberProfileFromCard(profile, idCard);
+        let displayName = String(profile.fullName || profile.name || '').trim();
+        let displayUsername = String(profile.username || profile.nickname || '')
+          .trim()
+          .replace(/^@+/g, '');
+        if (!displayName && displayUsername) {
+          displayName = displayUsername;
+        }
+        if (!displayName) {
+          /** Sin Mongo ni tarjeta aún: evita filas vacías en la app (avatar «?»). */
+          displayName = `Receptor ·${uid.slice(-6)}`;
+        }
         const mutualIds = mutualNeighborUids(neighborMap, userUid, uid);
         const mutualCount = mutualIds.length;
         const mutualPreviewPhotos = [];
@@ -3233,10 +3211,10 @@ function createQrRoutes({ storage }) {
         const addedDate = addedAtByUid.get(uid);
         subscribers.push({
           uid,
-          fullName: profile.fullName || profile.name,
-          username: profile.username || '',
-          name: profile.fullName || profile.name,
-          nickname: profile.username || '',
+          fullName: displayName,
+          username: displayUsername,
+          name: displayName,
+          nickname: displayUsername,
           userAvatarUrl: profile.userAvatarUrl,
           ownerOccupation: profile.ownerOccupation || null,
           isAmixes: amixesSet.has(uid),
@@ -3259,7 +3237,8 @@ function createQrRoutes({ storage }) {
         subscribers,
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -3271,16 +3250,16 @@ function createQrRoutes({ storage }) {
       const targetUid = String(req.params?.targetUid || req.body?.targetUid || '').trim();
 
       if (!userUid || !cardRef || !targetUid) {
-        return res.status(400).json({ ok: false, error: 'uid, card key and targetUid are required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
 
       const db = await storage.connect();
       const spQ = sharePermQuery(userUid, targetUid, cardRef);
       if (!spQ) {
-        return res.status(400).json({ ok: false, error: 'invalid share key' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'QR_SHARE_KEY_INVALID'));
       }
       const deleted = await db.collection('share_permissions').deleteMany(spQ);
 
@@ -3321,7 +3300,8 @@ function createQrRoutes({ storage }) {
         deletedCount: Number(deleted?.deletedCount || 0),
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -3334,10 +3314,10 @@ function createQrRoutes({ storage }) {
       const muted = req.body?.muted === true;
 
       if (!userUid || !cardRef || !targetUid) {
-        return res.status(400).json({ ok: false, error: 'uid, card key and targetUid are required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid && authUid !== targetUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: caller must be card owner or subscriber' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'CALLER_NOT_OWNER_OR_SUBSCRIBER');
       }
 
       const db = await storage.connect();
@@ -3354,7 +3334,7 @@ function createQrRoutes({ storage }) {
           ],
         });
         if (!permOk) {
-          return res.status(403).json({ ok: false, error: 'Forbidden: no active share for this card' });
+          return sendUserFacingError(res, req, 403, 'auth_forbidden', 'NO_ACTIVE_SHARE');
         }
       }
 
@@ -3397,7 +3377,8 @@ function createQrRoutes({ storage }) {
 
       return res.status(200).json({ ok: true, uid: userUid, targetUid, muted: true });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -3409,16 +3390,16 @@ function createQrRoutes({ storage }) {
       const silenced = req.body?.silenced === true;
 
       if (!userUid || !cardRef) {
-        return res.status(400).json({ ok: false, error: 'uid and card key are required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
 
       const db = await storage.connect();
       const q = smartCardKeyQuery(userUid, cardRef);
       if (!q) {
-        return res.status(400).json({ ok: false, error: 'invalid card key' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'QR_CARD_KEY_INVALID'));
       }
       await db.collection('smart_cards').updateOne(
         q,
@@ -3427,7 +3408,8 @@ function createQrRoutes({ storage }) {
 
       return res.status(200).json({ ok: true, uid: userUid, silenced });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -3438,10 +3420,10 @@ function createQrRoutes({ storage }) {
       const targetUid = String(req.body?.targetUid || '').trim();
 
       if (!userUid || !targetUid) {
-        return res.status(400).json({ ok: false, error: 'uid and targetUid are required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
 
       const db = await storage.connect();
@@ -3484,7 +3466,8 @@ function createQrRoutes({ storage }) {
         deletedLinks: Number(deleted?.deletedCount || 0),
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -3494,10 +3477,10 @@ function createQrRoutes({ storage }) {
       const userUid = String(req.query?.uid || authUid || '').trim();
 
       if (!userUid) {
-        return res.status(400).json({ ok: false, error: 'uid is required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
 
       const db = await storage.connect();
@@ -3543,7 +3526,8 @@ function createQrRoutes({ storage }) {
         blockedUsers,
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -3554,10 +3538,10 @@ function createQrRoutes({ storage }) {
       const targetUid = String(req.params?.targetUid || req.body?.targetUid || '').trim();
 
       if (!userUid || !targetUid) {
-        return res.status(400).json({ ok: false, error: 'uid and targetUid are required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
 
       const db = await storage.connect();
@@ -3571,7 +3555,8 @@ function createQrRoutes({ storage }) {
         unblocked: Number(deleted?.deletedCount || 0) > 0,
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -3589,10 +3574,10 @@ function createQrRoutes({ storage }) {
       const userUid = String(req.query?.uid || authUid || '').trim();
 
       if (!userUid) {
-        return res.status(400).json({ ok: false, error: 'uid is required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
 
       const db = await storage.connect();
@@ -3999,7 +3984,8 @@ function createQrRoutes({ storage }) {
         history,
       });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -4027,16 +4013,16 @@ function createQrRoutes({ storage }) {
         : null;
 
       if (!userUid || !peerUid) {
-        return res.status(400).json({ ok: false, error: 'uid and peerUid are required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
       if (!['incoming', 'outgoing', 'missed'].includes(direction)) {
-        return res.status(400).json({ ok: false, error: 'direction must be incoming|outgoing|missed' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'QR_CALL_DIRECTION_INVALID'));
       }
       if (!['completed', 'missed', 'rejected'].includes(status)) {
-        return res.status(400).json({ ok: false, error: 'status must be completed|missed|rejected' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'QR_CALL_STATUS_INVALID'));
       }
 
       const db = await storage.connect();
@@ -4078,7 +4064,8 @@ function createQrRoutes({ storage }) {
 
       return res.status(201).json({ ok: true, uid: userUid, callId });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -4089,10 +4076,10 @@ function createQrRoutes({ storage }) {
       const callId = String(req.params?.callId || req.body?.callId || '').trim();
 
       if (!userUid || !callId) {
-        return res.status(400).json({ ok: false, error: 'uid and callId are required' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== userUid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid does not match authenticated user' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_DOES_NOT_MATCH_AUTH_USER');
       }
 
       const tags = Array.isArray(req.body?.tags)
@@ -4130,12 +4117,13 @@ function createQrRoutes({ storage }) {
       );
 
       if (!updated) {
-        return res.status(404).json({ ok: false, error: 'Call log not found' });
+        return res.status(404).json(buildUserFacingJson(req, 'auth_forbidden', 'CALL_LOG_NOT_FOUND'));
       }
 
       return res.status(200).json({ ok: true, uid: userUid, callId });
     } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message });
+      console.error('[qrRoutes] 500', error);
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 

@@ -15,11 +15,14 @@ import { db } from '../config/firebase';
 export type MarketRadarConfig = {
   proPriceUsd: number;
   proEquivalentCs: number;
+  /** Prueba global: mismo campo que `radar_trial_enabled` en Firestore. */
+  radarTrialEnabled: boolean;
 };
 
 export const DEFAULT_MARKET_RADAR_CONFIG: MarketRadarConfig = {
   proPriceUsd: 0,
   proEquivalentCs: 0,
+  radarTrialEnabled: false,
 };
 
 const REF = doc(db, 'system_config', 'market_radar');
@@ -33,7 +36,8 @@ export async function getMarketRadarConfig(): Promise<MarketRadarConfig> {
   const d = snap.data() as Record<string, unknown>;
   const proPriceUsd = Math.max(0, Number(d.proPriceUsd) || 0);
   const proEquivalentCs = Math.max(0, Math.floor(Number(d.proEquivalentCs) || 0));
-  return { proPriceUsd, proEquivalentCs };
+  const radarTrialEnabled = d.radar_trial_enabled === true;
+  return { proPriceUsd, proEquivalentCs, radarTrialEnabled };
 }
 
 export async function updateMarketRadarConfig(config: MarketRadarConfig, updatedBy: string): Promise<void> {
@@ -42,6 +46,7 @@ export async function updateMarketRadarConfig(config: MarketRadarConfig, updated
     {
       proPriceUsd: Math.max(0, Number(config.proPriceUsd) || 0),
       proEquivalentCs: Math.max(0, Math.floor(Number(config.proEquivalentCs) || 0)),
+      radar_trial_enabled: config.radarTrialEnabled === true,
       updatedAt: serverTimestamp(),
       updatedBy,
     },
@@ -51,6 +56,7 @@ export async function updateMarketRadarConfig(config: MarketRadarConfig, updated
     snapshot: {
       proPriceUsd: Math.max(0, Number(config.proPriceUsd) || 0),
       proEquivalentCs: Math.max(0, Math.floor(Number(config.proEquivalentCs) || 0)),
+      radarTrialEnabled: config.radarTrialEnabled === true,
     },
     updatedBy,
     timestamp: serverTimestamp(),

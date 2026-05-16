@@ -16,6 +16,7 @@ import {
 import { getThemeById } from '@card-social/constants/themeChest';
 
 import { resolveAdminApp, shouldLogFirebaseAdmin } from '@/lib/firebaseAdminStudio';
+import { pickLocaleFromHeaders, userFacingMessageForErrorCode } from '@/lib/userFacingApiMessages';
 
 export const runtime = 'nodejs';
 
@@ -129,12 +130,13 @@ export async function OPTIONS() {
 
 export async function POST(req: Request) {
   const cors = corsHeaders();
+  const loc = pickLocaleFromHeaders(req.headers);
 
   try {
     const admin = resolveAdminApp();
     if (!admin.ok) {
       return NextResponse.json(
-        { ok: false, error: admin.code },
+        { ok: false, error: userFacingMessageForErrorCode(admin.code, loc), errorCode: admin.code },
         { status: 503, headers: cors },
       );
     }
@@ -143,7 +145,10 @@ export async function POST(req: Request) {
     const match = /^Bearer\s+(.+)$/i.exec(authHeader.trim());
     const idToken = match?.[1]?.trim();
     if (!idToken) {
-      return NextResponse.json({ ok: false, error: 'missing_bearer_token' }, { status: 401, headers: cors });
+      return NextResponse.json(
+        { ok: false, error: userFacingMessageForErrorCode('missing_bearer_token', loc), errorCode: 'missing_bearer_token' },
+        { status: 401, headers: cors },
+      );
     }
 
     let uid: string;
@@ -153,7 +158,14 @@ export async function POST(req: Request) {
       uid = decoded.uid;
       recipientEmail = decoded.email;
     } catch {
-      return NextResponse.json({ ok: false, error: 'invalid_or_expired_id_token' }, { status: 401, headers: cors });
+      return NextResponse.json(
+        {
+          ok: false,
+          error: userFacingMessageForErrorCode('invalid_or_expired_id_token', loc),
+          errorCode: 'invalid_or_expired_id_token',
+        },
+        { status: 401, headers: cors },
+      );
     }
 
     const bodyRaw = await req.json().catch(() => null);
@@ -161,15 +173,32 @@ export async function POST(req: Request) {
     const locale = normalizeEmailSigLocale((bodyRaw as { locale?: string } | null)?.locale);
 
     if (!bId) {
-      return NextResponse.json({ ok: false, error: 'bId_required' }, { status: 400, headers: cors });
+      return NextResponse.json(
+        { ok: false, error: userFacingMessageForErrorCode('bId_required', loc), errorCode: 'bId_required' },
+        { status: 400, headers: cors },
+      );
     }
     if (!recipientEmail?.trim()) {
-      return NextResponse.json({ ok: false, error: 'email_not_available_on_account' }, { status: 422, headers: cors });
+      return NextResponse.json(
+        {
+          ok: false,
+          error: userFacingMessageForErrorCode('email_not_available_on_account', loc),
+          errorCode: 'email_not_available_on_account',
+        },
+        { status: 422, headers: cors },
+      );
     }
 
     const preview = await fetchBusinessPreviewPublic(bId, uid);
     if (!preview) {
-      return NextResponse.json({ ok: false, error: 'card_not_found_or_forbidden' }, { status: 404, headers: cors });
+      return NextResponse.json(
+        {
+          ok: false,
+          error: userFacingMessageForErrorCode('card_not_found_or_forbidden', loc),
+          errorCode: 'card_not_found_or_forbidden',
+        },
+        { status: 404, headers: cors },
+      );
     }
 
     const bcName = String(preview.cardName ?? '').trim() || 'Card-Social';
@@ -218,7 +247,10 @@ export async function POST(req: Request) {
       if (shouldLogFirebaseAdmin()) {
         console.error('[email-signature/send] Resend misconfigured');
       }
-      return NextResponse.json({ ok: false, error: 'email_unconfigured' }, { status: 503, headers: cors });
+      return NextResponse.json(
+        { ok: false, error: userFacingMessageForErrorCode('email_unconfigured', loc), errorCode: 'email_unconfigured' },
+        { status: 503, headers: cors },
+      );
     }
 
     const resend = new Resend(apiKey);
@@ -233,6 +265,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true }, { status: 200, headers: cors });
   } catch (error) {
     console.error('[email-signature/send]', error);
-    return NextResponse.json({ ok: false, error: 'send_failed' }, { status: 502, headers: cors });
+    return NextResponse.json(
+      { ok: false, error: userFacingMessageForErrorCode('send_failed', loc), errorCode: 'send_failed' },
+      { status: 502, headers: cors },
+    );
   }
 }

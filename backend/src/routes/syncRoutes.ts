@@ -10,6 +10,9 @@ import express, { Request, Response } from 'express';
 import MarketSyncService from '../services/marketSyncService.js';
 import { Db } from 'mongodb';
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { buildUserFacingJson } = require('../lib/userFacingErrors.js');
+
 const router = express.Router();
 
 // ═══════════════════════════════════════════════╗
@@ -21,7 +24,7 @@ router.post('/init-vault', async (req: Request, res: Response) => {
     const { uid } = req.body;
 
     if (!uid) {
-      return res.status(400).json({ error: 'UID required' });
+      return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'SYNC_UID_REQUIRED'));
     }
 
     const db = (req as any).db as Db;
@@ -30,7 +33,8 @@ router.post('/init-vault', async (req: Request, res: Response) => {
     const result = await syncService.initializeNewUserVault(uid);
 
     if (!result) {
-      return res.status(500).json({ error: 'Failed to initialize vault' });
+      console.error('❌ Init vault: initializeNewUserVault returned falsy', { uid });
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
 
     res.json({
@@ -40,7 +44,7 @@ router.post('/init-vault', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('❌ Init vault error:', error);
-    res.status(500).json({ error: (error as Error).message });
+    res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
   }
 });
 
@@ -66,7 +70,7 @@ router.post('/vault/:uid', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('❌ Sync vault error:', error);
-    res.status(500).json({ error: (error as Error).message });
+    res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
   }
 });
 
@@ -84,7 +88,7 @@ router.get('/vault/:uid', async (req: Request, res: Response) => {
     const userVault = await syncService.getUserVault(uid);
 
     if (!userVault) {
-      return res.status(404).json({ error: 'Vault not found for user' });
+      return res.status(404).json(buildUserFacingJson(req, 'invalid_body', 'SYNC_VAULT_NOT_FOUND'));
     }
 
     res.json({
@@ -95,7 +99,7 @@ router.get('/vault/:uid', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('❌ Get vault error:', error);
-    res.status(500).json({ error: (error as Error).message });
+    res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
   }
 });
 
@@ -120,7 +124,7 @@ router.get('/skins/:uid', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('❌ Get skins error:', error);
-    res.status(500).json({ error: (error as Error).message });
+    res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
   }
 });
 
@@ -141,7 +145,7 @@ router.get('/stats', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('❌ Get stats error:', error);
-    res.status(500).json({ error: (error as Error).message });
+    res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
   }
 });
 

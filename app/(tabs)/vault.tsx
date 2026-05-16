@@ -266,6 +266,7 @@ const VaultScreen = () => {
     void (async () => {
       const userId = await getActiveUserId();
       if (!userId || cancelled) return;
+      if (cancelled) return;
       unsub = onSnapshot(
         collection(db, 'users', userId, 'links'),
         (snapshot) => {
@@ -299,6 +300,7 @@ const VaultScreen = () => {
     void (async () => {
       const userId = await getActiveUserId();
       if (!userId || cancelled) return;
+      if (cancelled) return;
       unsub = onSnapshot(
         doc(db, 'users', userId),
         (snapshot) => {

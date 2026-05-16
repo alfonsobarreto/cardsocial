@@ -21,6 +21,7 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  InteractionManager,
   Platform,
   ScrollView,
   StyleSheet,
@@ -93,6 +94,7 @@ const Subscription: React.FC<SubscriptionProps> = ({
   const [nfcShipCountry, setNfcShipCountry] = useState('US');
   const scrollRef = useRef<ScrollView>(null);
   const [physicalSectionY, setPhysicalSectionY] = useState(0);
+  const [radarSectionY, setRadarSectionY] = useState(0);
   const [bizPackage, setBizPackage] = useState<BusinessCardPackage | null>(null);
   const [commerceLoading, setCommerceLoading] = useState(true);
   const [commerceCreditPacks, setCommerceCreditPacks] = useState<
@@ -220,6 +222,18 @@ const Subscription: React.FC<SubscriptionProps> = ({
     });
     return () => cancelAnimationFrame(id);
   }, [initialScrollSection, physicalSectionY, onScrollIntentConsumed]);
+
+  useEffect(() => {
+    if (initialScrollSection !== 'market_radar' || radarSectionY <= 0) {
+      return;
+    }
+    const task = InteractionManager.runAfterInteractions(() => {
+      const y = Math.max(0, radarSectionY - 16);
+      scrollRef.current?.scrollTo({ y, animated: true });
+      onScrollIntentConsumed?.();
+    });
+    return () => task.cancel();
+  }, [initialScrollSection, radarSectionY, onScrollIntentConsumed]);
 
   const styles = useMemo(
     () =>
@@ -684,35 +698,40 @@ const Subscription: React.FC<SubscriptionProps> = ({
         </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{tr('Market Radar Pro', 'Market Radar Pro')}</Text>
-        <Text style={styles.sectionHint}>
-          {tr('Mapa ejecutivo de mercado. Importe mostrado debajo.', 'Executive market map. Amount shown below.')}
-        </Text>
-        <View style={styles.tierCard}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.tierName}>{tr('Acceso Pro', 'Pro access')}</Text>
-              <Text style={[styles.tierMeta, { marginTop: 6 }]}>
-                {radarProPriceUsd > 0 || radarProEquivalentCs > 0
-                  ? [
-                      radarProPriceUsd > 0 ? `${fmtUsd(radarProPriceUsd)} USD` : null,
-                      radarProEquivalentCs > 0 ? `${radarProEquivalentCs.toLocaleString()} CS` : null,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')
-                  : tr('Disponible próximamente en la app.', 'Coming soon in the app.')}
-              </Text>
+      <View
+        collapsable={Platform.OS === 'android' ? false : undefined}
+        onLayout={(e) => setRadarSectionY(e.nativeEvent.layout.y)}
+      >
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{tr('Market Radar Pro', 'Market Radar Pro')}</Text>
+          <Text style={styles.sectionHint}>
+            {tr('Mapa ejecutivo de mercado. Importe mostrado debajo.', 'Executive market map. Amount shown below.')}
+          </Text>
+          <View style={styles.tierCard}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.tierName}>{tr('Acceso Pro', 'Pro access')}</Text>
+                <Text style={[styles.tierMeta, { marginTop: 6 }]}>
+                  {radarProPriceUsd > 0 || radarProEquivalentCs > 0
+                    ? [
+                        radarProPriceUsd > 0 ? `${fmtUsd(radarProPriceUsd)} USD` : null,
+                        radarProEquivalentCs > 0 ? `${radarProEquivalentCs.toLocaleString()} CS` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')
+                    : tr('Disponible próximamente en la app.', 'Coming soon in the app.')}
+                </Text>
+              </View>
+              <MaterialCommunityIcons name="radar" size={30} color={shell.ctaAccent} />
             </View>
-            <MaterialCommunityIcons name="radar" size={30} color={shell.ctaAccent} />
+            <LuxCtaButton
+              variant="outline"
+              label={tr('Detalles', 'Details')}
+              onPress={onRadarProInfo}
+              icon="information-outline"
+              style={{ width: '100%', marginTop: 14, minHeight: 48 }}
+            />
           </View>
-          <LuxCtaButton
-            variant="outline"
-            label={tr('Detalles', 'Details')}
-            onPress={onRadarProInfo}
-            icon="information-outline"
-            style={{ width: '100%', marginTop: 14, minHeight: 48 }}
-          />
         </View>
       </View>
 

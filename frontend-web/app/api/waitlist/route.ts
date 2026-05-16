@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+
+import { getAdminApp } from '@/lib/firebaseAdminStudio';
+import { pickLocaleFromHeaders, userFacingMessageForErrorCode } from '@/lib/userFacingApiMessages';
 
 export const runtime = 'nodejs';
 
@@ -62,6 +66,11 @@ function isEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+/** Siempre minúsculas + trim para coincidir con sync waitlist y doc IDs. */
+function normalizeLeadEmail(value: unknown): string {
+  return clean(value, 160).toLowerCase();
+}
+
 function normalizeLocale(raw: unknown): Locale {
   return raw === 'es' ? 'es' : 'en';
 }
@@ -69,6 +78,10 @@ function normalizeLocale(raw: unknown): Locale {
 function normalizeInterest(raw: unknown): Interest | null {
   if (raw === 'personal' || raw === 'business' || raw === 'investor') return raw;
   return null;
+}
+
+function waitlistLeadDocId(emailLower: string): string {
+  return Buffer.from(emailLower.trim().toLowerCase(), 'utf8').toString('base64url');
 }
 
 function adminEmailHtml(lead: Required<Omit<WaitlistPayload, 'company'>>, submittedAt: string): string {
@@ -192,11 +205,15 @@ async function sendWebhook(lead: Required<Omit<WaitlistPayload, 'company'>>, sub
 }
 
 export async function POST(req: Request) {
+  const loc = pickLocaleFromHeaders(req.headers);
   let body: WaitlistPayload;
   try {
     body = (await req.json()) as WaitlistPayload;
   } catch {
-    return NextResponse.json({ ok: false, error: 'bad_json' }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, error: userFacingMessageForErrorCode('bad_json', loc), errorCode: 'bad_json' },
+      { status: 400 },
+    );
   }
 
   if (clean(body.company)) {
@@ -206,14 +223,17 @@ export async function POST(req: Request) {
   const locale = normalizeLocale(body.locale);
   const interest = normalizeInterest(body.interest);
   const fullName = clean(body.fullName, 120);
-  const email = clean(body.email, 160).toLowerCase();
+  const email = normalizeLeadEmail(body.email);
   const phoneCountryCode = clean(body.phoneCountryCode, 12);
   const phoneNational = clean(body.phoneNational, 60);
   const phoneE164 = clean(body.phoneE164, 32);
   const pagePath = clean(body.pagePath, 80) || (locale === 'es' ? '/es' : '/');
 
   if (!fullName || !isEmail(email) || !phoneCountryCode || !phoneNational || !phoneE164 || !interest) {
-    return NextResponse.json({ ok: false, error: 'invalid_payload' }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, error: userFacingMessageForErrorCode('invalid_payload', loc), errorCode: 'invalid_payload' },
+      { status: 400 },
+    );
   }
 
   const apiKey = process.env.RESEND_API_KEY?.trim();
@@ -223,7 +243,10 @@ export async function POST(req: Request) {
     process.env.EXECUTIVE_SUMMARY_URL?.trim() || 'https://cardsocial.me/executive-summary';
 
   if (!apiKey || !from) {
-    return NextResponse.json({ ok: false, error: 'email_unconfigured' }, { status: 503 });
+    return NextResponse.json(
+      { ok: false, error: userFacingMessageForErrorCode('email_unconfigured', loc), errorCode: 'email_unconfigured' },
+      { status: 503 },
+    );
   }
 
   const lead = {
@@ -261,7 +284,37 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error('[waitlist/resend]', error);
-    return NextResponse.json({ ok: false, error: 'email_failed' }, { status: 502 });
+    return NextResponse.json(
+      { ok: false, error: userFacingMessageForErrorCode('email_failed', loc), errorCode: 'email_failed' },
+      { status: 502 },
+    );
+  }
+
+  const adminApp = getAdminApp();
+  if (adminApp) {
+    try {
+      const fs = getFirestore(adminApp);
+      const docId = waitlistLeadDocId(email);
+      await fs.collection('waitlist_leads').doc(docId).set(
+        {
+          email,
+          fullName: lead.fullName,
+          phoneE164: lead.phoneE164,
+          phoneCountryCode: lead.phoneCountryCode,
+          phoneNational: lead.phoneNational,
+          interest: lead.interest,
+          locale: lead.locale,
+          pagePath: lead.pagePath,
+          submittedAt,
+          source: 'landing',
+          confirmed: false,
+          leadCreatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+    } catch (err) {
+      console.error('[waitlist/firestore]', err);
+    }
   }
 
   return NextResponse.json({ ok: true });

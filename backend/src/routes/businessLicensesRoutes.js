@@ -16,6 +16,7 @@
  */
 
 const express = require('express');
+const { sendUserFacingError, buildUserFacingJson } = require('../lib/userFacingErrors');
 
 const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 
@@ -59,10 +60,10 @@ function createBusinessLicensesRoutes({ storage }) {
       const uid = trimOrEmpty(req.body?.uid) || authUid;
       const bId = trimOrEmpty(req.body?.bId);
       if (!uid || !bId) {
-        return res.status(400).json({ ok: false, error: 'uid and bId are required' });
+        return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== uid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid mismatch' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_MISMATCH');
       }
 
       const now = new Date();
@@ -104,7 +105,7 @@ function createBusinessLicensesRoutes({ storage }) {
       return res.status(200).json({ ok: true, license: serialize(license) });
     } catch (error) {
       console.error('[business-card-licenses] upsert error:', error?.message || error);
-      return res.status(500).json({ ok: false, error: error.message });
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -114,7 +115,7 @@ function createBusinessLicensesRoutes({ storage }) {
       const uid = trimOrEmpty(req.query?.uid) || authUid;
       const bId = trimOrEmpty(req.params?.bId);
       if (!uid || !bId) {
-        return res.status(400).json({ ok: false, error: 'uid and bId are required' });
+        return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'REQUIRED_FIELDS_MISSING'));
       }
 
       const db = await storage.connect();
@@ -126,7 +127,7 @@ function createBusinessLicensesRoutes({ storage }) {
       return res.status(200).json({ ok: true, active, license: serialize(doc) });
     } catch (error) {
       console.error('[business-card-licenses] active check error:', error?.message || error);
-      return res.status(500).json({ ok: false, error: error.message });
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -135,10 +136,10 @@ function createBusinessLicensesRoutes({ storage }) {
       const authUid = trimOrEmpty(req.auth?.sub);
       const uid = trimOrEmpty(req.query?.uid) || authUid;
       if (!uid) {
-        return res.status(400).json({ ok: false, error: 'uid is required' });
+        return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'REQUIRED_FIELDS_MISSING'));
       }
       if (authUid && authUid !== uid) {
-        return res.status(403).json({ ok: false, error: 'Forbidden: uid mismatch' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'UID_MISMATCH');
       }
 
       const db = await storage.connect();
@@ -151,7 +152,7 @@ function createBusinessLicensesRoutes({ storage }) {
       return res.status(200).json({ ok: true, licenses: rows.map(serialize) });
     } catch (error) {
       console.error('[business-card-licenses] list error:', error?.message || error);
-      return res.status(500).json({ ok: false, error: error.message });
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 

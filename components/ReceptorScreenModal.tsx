@@ -8,11 +8,12 @@
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import type { CardSubscriberRow } from '@/services/qrApi';
 import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
+import { fetchUserProfilePhotoUrl } from '@/services/userProfilePhoto';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
+  ActivityIndicator,
   Dimensions,
   FlatList,
   Modal,
@@ -85,11 +86,81 @@ function relativeTimeLabel(
   return `${day} ${label}`;
 }
 
-function initialsFrom(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  if (parts.length === 1) return parts[0][0].toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+/** Foto de perfil: URL del API; si viene vacía, `users/{uid}` en Firestore. Sin iniciales. */
+function SubscriberResolvedAvatar({
+  uid,
+  userAvatarUrl,
+  variant,
+  borderColor,
+  surfaceBg,
+  iconMuted,
+}: {
+  uid: string;
+  userAvatarUrl: string | null;
+  variant: 'list' | 'carousel';
+  borderColor: string;
+  surfaceBg: string;
+  iconMuted: string;
+}) {
+  const [uri, setUri] = useState<string | null>(null);
+  const [loadingFs, setLoadingFs] = useState(false);
+
+  useEffect(() => {
+    const raw = String(userAvatarUrl ?? '').trim();
+    const fromApi = raw ? resolveVaultMediaUrlForApp(raw) ?? raw : null;
+    setUri(fromApi);
+    const id = String(uid || '').trim();
+    if (!id || fromApi) {
+      setLoadingFs(false);
+      return;
+    }
+    setLoadingFs(true);
+    let cancelled = false;
+    void (async () => {
+      const url = await fetchUserProfilePhotoUrl(id);
+      if (cancelled) return;
+      if (url) {
+        setUri(resolveVaultMediaUrlForApp(url) ?? url);
+      }
+      setLoadingFs(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [uid, userAvatarUrl]);
+
+  const iconSize = variant === 'list' ? 28 : 24;
+
+  if (uri) {
+    return (
+      <ExpoImage
+        source={{ uri }}
+        style={
+          variant === 'list'
+            ? [s.listAvatar, { borderColor }]
+            : [s.carouselAvatar, { borderColor }]
+        }
+        cachePolicy="memory-disk"
+        key={`${uid}-${uri}`}
+      />
+    );
+  }
+
+  return (
+    <View
+      style={
+        variant === 'list'
+          ? [s.listAvatarFallback, { borderColor, backgroundColor: surfaceBg }]
+          : [s.carouselAvatarFallback, { borderColor, backgroundColor: surfaceBg }]
+      }
+    >
+      {loadingFs ? (
+        <ActivityIndicator size="small" color={iconMuted} />
+      ) : (
+        <MaterialCommunityIcons name="account" size={iconSize} color={iconMuted} />
+      )}
+    </View>
+  );
 }
 
 /** Título: nombre completo canónico desde la API. */
@@ -253,24 +324,17 @@ export default function ReceptorScreenModal({
       const timeLabel = relativeTimeLabel(item.addedAt, tr);
       const primary = subscriberTitle(item);
       const subtitle = subscriberSubtitleLine(item, primary);
-      const profileAvatar = item.userAvatarUrl
-        ? resolveVaultMediaUrlForApp(item.userAvatarUrl) ?? item.userAvatarUrl
-        : null;
 
       const rowContent = (
         <View style={[s.listRow, { backgroundColor: c.rowBg, borderBottomColor: c.rowBorder }, item.muted && { opacity: 0.5 }]}>
-          {profileAvatar ? (
-            <ExpoImage
-              source={{ uri: profileAvatar }}
-              style={[s.listAvatar, { borderColor: c.avatarRing }]}
-              cachePolicy="none"
-              key={`${item.uid}-${profileAvatar}`}
-            />
-          ) : (
-            <View style={[s.listAvatarFallback, { backgroundColor: c.surface, borderColor: c.avatarRing }]}>
-              <Text style={[s.listAvatarInitials, { color: c.muted }]}>{initialsFrom(primary)}</Text>
-            </View>
-          )}
+          <SubscriberResolvedAvatar
+            uid={item.uid}
+            userAvatarUrl={item.userAvatarUrl}
+            variant="list"
+            borderColor={c.avatarRing}
+            surfaceBg={c.surface}
+            iconMuted={c.muted}
+          />
           <View style={s.listTextCol}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Text style={[s.listName, { color: c.text }]} numberOfLines={1}>
@@ -454,30 +518,25 @@ export default function ReceptorScreenModal({
             >
               {recentSubscribers.map((sub) => {
                 const title = subscriberTitle(sub);
-                const parts = title.split(/\s+/).filter(Boolean);
-                const profileAvatar = sub.userAvatarUrl
-                  ? resolveVaultMediaUrlForApp(sub.userAvatarUrl) ?? sub.userAvatarUrl
-                  : null;
+                const nick = String(sub.userNickName || '')
+                  .replace(/^@+/g, '')
+                  .trim();
+                const displayTitle = title || (nick ? `@${nick}` : '');
+                const parts = displayTitle.split(/\s+/).filter(Boolean);
                 return (
                 <View key={`carousel-${sub.uid}`} style={s.carouselItem}>
                   <View style={[s.carouselAvatarRing, { borderColor: c.gold }]}>
-                    {profileAvatar ? (
-                      <ExpoImage
-                        source={{ uri: profileAvatar }}
-                        style={s.carouselAvatar}
-                        cachePolicy="none"
-                        key={`${sub.uid}-${profileAvatar}`}
-                      />
-                    ) : (
-                      <View style={[s.carouselAvatarFallback, { backgroundColor: c.surface }]}>
-                        <Text style={[s.carouselFallbackInitials, { color: c.muted }]}>
-                          {initialsFrom(title)}
-                        </Text>
-                      </View>
-                    )}
+                    <SubscriberResolvedAvatar
+                      uid={sub.uid}
+                      userAvatarUrl={sub.userAvatarUrl}
+                      variant="carousel"
+                      borderColor={c.gold}
+                      surfaceBg={c.surface}
+                      iconMuted={c.muted}
+                    />
                   </View>
                   <Text style={[s.carouselName, { color: c.carouselNameColor }]} numberOfLines={1}>
-                    {parts[0] || title}
+                    {parts[0] || displayTitle || `#${sub.uid.slice(-4)}`}
                     {parts.length > 1 ? ` ${parts[1]?.[0]?.toUpperCase() ?? ''}.` : ''}
                   </Text>
                 </View>
@@ -680,10 +739,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  carouselFallbackInitials: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
   carouselName: {
     fontSize: 11,
     fontWeight: '500',
@@ -732,10 +787,6 @@ const s = StyleSheet.create({
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  listAvatarInitials: {
-    fontSize: 18,
-    fontWeight: '700',
   },
   listTextCol: {
     flex: 1,

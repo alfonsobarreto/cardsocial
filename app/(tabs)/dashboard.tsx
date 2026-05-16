@@ -24,14 +24,14 @@ import { useLegacyPathEngine, LEGACY_REFERRALS_CEILING_UI } from '@/hooks/useLeg
 import { mintMarketRadarEmbedUrl } from '@/services/mintMarketRadarEmbedUrl';
 import { marketRadarMintUserMessage } from '@/services/marketRadarMintMessages';
 import { getMarketRadarRemoteConfig } from '@/services/marketRadarConfigService';
+import { getRadarTrialEnabledSync } from '@/services/radarTrialEnabledCache';
 import { userHasMarketRadarProAccess } from '@/services/marketRadarEntitlement';
-import { requestSubscriptionPanel } from '@/services/subscriptionNavigationIntent';
+import { requestSubscriptionMarketRadarSection, requestSubscriptionPanel } from '@/services/subscriptionNavigationIntent';
 import { requestBusinessCardSignatureEmail } from '@/services/requestBusinessCardSignatureEmail';
 import { resolveExpoPublicApiBaseUrl } from '@/services/expoPublicApiBaseUrl';
 import {
-  effectiveDashboardDaysLeft,
-  effectiveDashboardRenewalDate,
   isDashboardTestingGraceModeEnabled,
+  isDashboardTrialDisplayMode,
 } from '@/services/dashboardTestingGrace';
 import { hasUnlimitedAdminUi } from '@/services/roleService';
 import { effectiveTierKeyFromUserData, type TierKey } from '@/services/tiersConfigService';
@@ -45,7 +45,7 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import appPalette, { type AppShellTheme } from '@/app/theme';
 import type { AppLanguage } from '@/services/language';
-import { intlLocaleTagForAppLanguage, trEsEn, useLanguage } from '@/services/language';
+import { intlLocaleTagForAppLanguage, trEsEn, useLanguage, useTr } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { doc, getDoc } from 'firebase/firestore';
 import { Image as ExpoImage } from 'expo-image';
@@ -481,52 +481,23 @@ function MiniLineChart({
 }
 
 function ExpirationBadge({
+  variant,
   daysLeft,
   renewsAt,
-  unlimited = false,
 }: {
+  variant: 'normal' | 'trial' | 'unlimited';
   daysLeft: number;
   renewsAt: string;
-  unlimited?: boolean;
 }) {
-  const { language } = useLanguage();
-  const tr = useCallback((es: string, en: string) => trEsEn(es, en, language), [language]);
+  const tr = useTr();
   const { resolvedMode: _badgeMode } = useLookMode();
   const badgeIsNight = _badgeMode === 'noche';
   const tone = toneForDays(daysLeft);
-  const colors = unlimited
-    ? {
-        glow: SHELL_ACCENT_GOLD,
-        bg: `${SHELL_ACCENT_GOLD}29`,
-        border: 'rgba(246,218,135,0.58)',
-        // Day mode: pale-cream '#F6DA87' is invisible on light gold-tinted white.
-        // Use dark-bronze for contrast (≥5.5:1 on white).
-        text: badgeIsNight ? '#F6DA87' : '#7A5C10',
-        label: tr('ILIMITADO', 'UNLIMITED'),
-      }
-    : (() => {
-        const t = toneColors(tone);
-        // Day mode: pale pastel text colors designed for dark backgrounds are invisible.
-        const dayText =
-          tone === 'red' ? '#B02818' : tone === 'amber' ? '#8A5C00' : '#1A6B34';
-        return {
-          ...t,
-          text: badgeIsNight ? t.text : dayText,
-          label:
-            tone === 'red'
-              ? tr('CRÍTICO', 'CRITICAL')
-              : tone === 'amber'
-                ? tr('ALERTA', 'ALERT')
-                : tr('OK', 'OK'),
-        };
-      })();
-  // 'Sin caducidad' / 'Renueva:' sub-text — hardcoded white in stylesheet.
-  // Override dynamically for day mode.
-  const expirationSubTextColor = badgeIsNight ? 'rgba(255,255,255,0.82)' : 'rgba(28,28,30,0.65)';
   const pulse = useRef(new Animated.Value(0)).current;
+  const unlimited = variant === 'unlimited';
 
   useEffect(() => {
-    if (unlimited || tone !== 'red') {
+    if (unlimited || variant === 'trial' || tone !== 'red') {
       pulse.setValue(0);
       return;
     }
@@ -538,10 +509,57 @@ function ExpirationBadge({
     );
     loop.start();
     return () => loop.stop();
-  }, [pulse, tone, unlimited]);
+  }, [pulse, tone, unlimited, variant]);
 
   const scale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] });
   const opacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.42, 0.95] });
+
+  if (variant === 'trial') {
+    const text = badgeIsNight ? '#F6DA87' : '#7A5C10';
+    return (
+      <View
+        style={[
+          styles.expirationBadge,
+          {
+            backgroundColor: `${SHELL_ACCENT_GOLD}29`,
+            borderColor: 'rgba(246,218,135,0.58)',
+            shadowColor: SHELL_ACCENT_GOLD,
+          },
+        ]}
+      >
+        <Text style={[styles.expirationStatus, { color: text, fontSize: 12, lineHeight: 16 }]}>
+          {tr('Expiración: Modo Prueba', 'Expiration: Trial mode')}
+        </Text>
+      </View>
+    );
+  }
+
+  const colors =
+    variant === 'unlimited'
+      ? {
+          glow: SHELL_ACCENT_GOLD,
+          bg: `${SHELL_ACCENT_GOLD}29`,
+          border: 'rgba(246,218,135,0.58)',
+          text: badgeIsNight ? '#F6DA87' : '#7A5C10',
+          label: tr('Acceso Ilimitado', 'Unlimited access'),
+        }
+      : (() => {
+          const t = toneColors(tone);
+          const dayText =
+            tone === 'red' ? '#B02818' : tone === 'amber' ? '#8A5C00' : '#1A6B34';
+          return {
+            ...t,
+            text: badgeIsNight ? t.text : dayText,
+            label:
+              tone === 'red'
+                ? tr('CRÍTICO', 'CRITICAL')
+                : tone === 'amber'
+                  ? tr('ALERTA', 'ALERT')
+                  : tr('OK', 'OK'),
+          };
+        })();
+
+  const expirationSubTextColor = badgeIsNight ? 'rgba(255,255,255,0.82)' : 'rgba(28,28,30,0.65)';
 
   return (
     <Animated.View
@@ -922,15 +940,26 @@ export default function DashboardScreen() {
     planTier: 'free',
   });
   const [opsAdmin, setOpsAdmin] = useState(false);
+  const [radarTrialEnabled, setRadarTrialEnabled] = useState(() => getRadarTrialEnabledSync());
   const [marketRadarProOk, setMarketRadarProOk] = useState(false);
   const [marketRadarProPrice, setMarketRadarProPrice] = useState(0);
   const [marketRadarProCs, setMarketRadarProCs] = useState(0);
   const activeCard = cards[activeIndex] ?? cards[0] ?? null;
   const testingGrace = isDashboardTestingGraceModeEnabled();
+  const trialDisplayMode = isDashboardTrialDisplayMode(testingGrace, radarTrialEnabled);
   const rawActiveRenewal = !activeCard ? null : expirationDateFor(activeCard);
-  const activeRenewalDate = effectiveDashboardRenewalDate(rawActiveRenewal, false, testingGrace);
-  const activeDaysLeft = effectiveDashboardDaysLeft(rawActiveRenewal, false, testingGrace);
-  const headerTone = toneColors(toneForDays(activeDaysLeft));
+  const normalDaysLeft = daysUntil(rawActiveRenewal);
+  const headerTone = toneColors(
+    opsAdmin || trialDisplayMode ? 'green' : toneForDays(normalDaysLeft),
+  );
+  const showExpirationBadge = Boolean(activeCard && (opsAdmin || trialDisplayMode || rawActiveRenewal));
+  const expirationBadgeVariant: 'normal' | 'trial' | 'unlimited' = opsAdmin
+    ? 'unlimited'
+    : trialDisplayMode
+      ? 'trial'
+      : 'normal';
+  const expirationBadgeDaysLeft = opsAdmin || trialDisplayMode ? 999 : normalDaysLeft;
+  const expirationBadgeRenewsAt = formatRenewal(rawActiveRenewal, language);
   const activeAnalytics = activeCard ? analyticsByBId[activeCard.bId] : undefined;
   const activeSeo = activeCard ? seoByBId[activeCard.bId] : undefined;
 
@@ -946,6 +975,7 @@ export default function DashboardScreen() {
         setAnalyticsByBId({});
         setSeoByBId({});
         setOpsAdmin(false);
+        setRadarTrialEnabled(getRadarTrialEnabledSync());
         setMarketRadarProOk(false);
         setMarketRadarProPrice(0);
         setMarketRadarProCs(0);
@@ -960,6 +990,7 @@ export default function DashboardScreen() {
       const userData = userSnap?.exists() ? (userSnap.data() as Record<string, unknown>) : null;
       setMarketRadarProPrice(radarCfg.proPriceUsd);
       setMarketRadarProCs(radarCfg.proEquivalentCs);
+      setRadarTrialEnabled(radarCfg.radarTrialEnabled);
       setOpsAdmin(isUnlimitedAdmin);
       setMarketRadarProOk(userHasMarketRadarProAccess(userData, isUnlimitedAdmin));
       setHeaderInfo({
@@ -1115,9 +1146,17 @@ export default function DashboardScreen() {
     try {
       const minted = await mintMarketRadarEmbedUrl(language);
       if (!minted.ok) {
+        const gate403 =
+          minted.issue.httpStatus === 403 &&
+          (minted.issue.code === 'market_radar_pro_required' ||
+            minted.issue.code === 'market_radar_requires_business_card');
+        if (gate403) {
+          requestSubscriptionMarketRadarSection();
+          return;
+        }
         Alert.alert(
           tr('Radar no disponible', 'Radar unavailable'),
-          marketRadarMintUserMessage(minted.issue, tr),
+          marketRadarMintUserMessage(minted.issue),
         );
         return;
       }
@@ -1337,11 +1376,11 @@ export default function DashboardScreen() {
                 {tr('Plan', 'Plan')} {planLabelFromTier(headerInfo.planTier, tr)}
               </Text>
             </View>
-            {activeCard ? (
+            {showExpirationBadge ? (
               <ExpirationBadge
-                daysLeft={activeDaysLeft}
-                renewsAt={formatRenewal(activeRenewalDate, language)}
-                unlimited={false}
+                variant={expirationBadgeVariant}
+                daysLeft={expirationBadgeDaysLeft}
+                renewsAt={expirationBadgeRenewsAt}
               />
             ) : null}
           </LinearGradient>

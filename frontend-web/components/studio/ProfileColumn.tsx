@@ -5,7 +5,6 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential,
   updatePassword,
-  verifyBeforeUpdateEmail,
   type User,
 } from 'firebase/auth';
 import { collection, doc, getCountFromServer, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
@@ -23,6 +22,7 @@ import {
   updateNicknameViaBackend,
 } from '@/lib/studioQrClient';
 import { studioGradients, studioTheme } from '@/lib/studioTheme';
+import { authEmailLanguageFromAppLocale } from '@card-social/services/authEmailLocale';
 import type { StudioLocale } from '@/lib/studioI18n';
 import { studioT } from '@/lib/studioI18n';
 
@@ -251,7 +251,27 @@ export default function ProfileColumn({ locale, profile, onBack, onDeleteAccount
     try {
       const credential = EmailAuthProvider.credential(user.email, emailPw);
       await reauthenticateWithCredential(user, credential);
-      await verifyBeforeUpdateEmail(user, next);
+      const baseUrl = (
+        process.env.NEXT_PUBLIC_MODERATION_API_URL?.trim() ||
+        process.env.NEXT_PUBLIC_API_URL?.trim() ||
+        ''
+      ).replace(/\/+$/, '');
+      if (!baseUrl) throw new Error(t('profile.saveError'));
+      const idToken = await user.getIdToken(true);
+      const mailLocale = authEmailLanguageFromAppLocale(locale);
+      const res = await fetch(`${baseUrl}/api/auth/send-email-change-link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ newEmail: next, locale: mailLocale }),
+      });
+      const payload = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        const err = String(payload.error || '');
+        if (err === 'email_already_in_use') {
+          throw Object.assign(new Error('email_in_use'), { code: 'auth/email-already-in-use' });
+        }
+        throw new Error(err || 'send_failed');
+      }
       await updateDoc(doc(getStudioDb(), 'users', user.uid), {
         pendingEmail: next,
         pendingEmailLower: next,

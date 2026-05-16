@@ -50,4 +50,15 @@ async function verifyFirebaseIdToken(idToken) {
   return a.auth().verifyIdToken(idToken);
 }
 
-module.exports = { getFirestoreOptional, verifyFirebaseIdToken };
+/** @returns {import('firebase-admin').auth.Auth} */
+function getFirebaseAdminAuth() {
+  const a = ensureFirebaseAdminApp();
+  if (!a) {
+    const err = new Error('Firebase Admin is not configured');
+    err.code = 'ADMIN_NOT_CONFIGURED';
+    throw err;
+  }
+  return a.auth();
+}
+
+module.exports = { getFirestoreOptional, verifyFirebaseIdToken, getFirebaseAdminAuth };

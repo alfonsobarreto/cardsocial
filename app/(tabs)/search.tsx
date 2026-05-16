@@ -16,6 +16,7 @@ import { ExportBusinessQR, generatePublicBusinessWebUrl } from '@/services/brand
 import { buildMirrorVaultItemsForContact } from '@/services/buildReceiverPreviewVaultItems';
 import { hasActiveBusinessLicense } from '@/services/businessLicenseService';
 import { myCardsPayloadFromQrPreview } from '@/services/incomingCardPreviewPayload';
+import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { blockRelationship, fetchPublicBusinessCardPreview, listCardSubscribers, listReceivedContacts, type CardSubscriberRow } from '@/services/qrApi';
@@ -780,7 +781,10 @@ export default function SearchScreen() {
 
         Alert.alert(tr('QR Exportado', 'QR Exported'), result.message);
       } catch (error: any) {
-        Alert.alert(tr('Error', 'Error'), error?.message || tr('No fue posible exportar el QR.', 'Could not export QR.'));
+        Alert.alert(
+          tr('Error', 'Error'),
+          userFacingAlertMessage(error, language, tr('No fue posible exportar el QR.', 'Could not export QR.')),
+        );
       }
     };
 
@@ -1544,7 +1548,10 @@ export default function SearchScreen() {
                   await blockRelationship({ uid: viewerUid, targetUid });
                   setReceptorSubscribers((prev) => prev.filter((r) => r.uid !== targetUid));
                 } catch (e: any) {
-                  Alert.alert(tr('Error', 'Error'), e?.message || tr('No se pudo bloquear.', 'Could not block.'));
+                  Alert.alert(
+                    tr('Error', 'Error'),
+                    userFacingAlertMessage(e, language, tr('No se pudo bloquear.', 'Could not block.')),
+                  );
                 }
               },
             },

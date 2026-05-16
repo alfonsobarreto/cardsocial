@@ -9,6 +9,7 @@
 
 const { computeTrafficLight, clampPercent, getThresholds } = require('../lib/budgetTrafficLight');
 const { fetchAutoRevenueSnapshot } = require('../lib/budgetAutoRevenue');
+const { buildUserFacingJson } = require('../lib/userFacingErrors');
 
 const SETTINGS_ID = 'singleton';
 const COL_SETTINGS = 'admin_budget_settings';
@@ -84,10 +85,7 @@ function createAdminBudgetHandlers({ getMongoDb }) {
     const uid = String(req.auth?.sub || '').trim();
     const allowed = parseAdminSystemStatsUidAllowlist();
     if (!uid || !allowed.has(uid)) {
-      res.status(403).json({
-        ok: false,
-        error: 'Unauthorized: JWT sub not listed in ADMIN_SYSTEM_STATS_UIDS',
-      });
+      res.status(403).json(buildUserFacingJson(req, 'admin_restricted', 'ADMIN_SYSTEM_STATS_UID_NOT_ALLOWED'));
       return false;
     }
     return true;
@@ -99,7 +97,7 @@ function createAdminBudgetHandlers({ getMongoDb }) {
 
       const db = typeof getMongoDb === 'function' ? getMongoDb() : null;
       if (!db) {
-        return res.status(500).json({ ok: false, error: 'Database not available' });
+        return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
       }
 
       const now = new Date();
@@ -212,8 +210,8 @@ function createAdminBudgetHandlers({ getMongoDb }) {
 
       return res.status(200).json(payload);
     } catch (e) {
-      console.error('[admin/budget-summary]', e);
-      return res.status(500).json({ ok: false, error: e.message || 'budget-summary failed' });
+      console.error('[admin/budget-summary]', e?.message || e, e?.stack);
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   }
 
@@ -223,7 +221,7 @@ function createAdminBudgetHandlers({ getMongoDb }) {
 
       const db = typeof getMongoDb === 'function' ? getMongoDb() : null;
       if (!db) {
-        return res.status(500).json({ ok: false, error: 'Database not available' });
+        return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
       }
 
       const body = req.body || {};
@@ -239,14 +237,14 @@ function createAdminBudgetHandlers({ getMongoDb }) {
         } else {
           const n = Number(body.reportedMonthlyNetRevenueUsd);
           if (!Number.isFinite(n) || n < 0) {
-            return res.status(400).json({ ok: false, error: 'reportedMonthlyNetRevenueUsd must be >= 0 or null' });
+            return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'ADMIN_BUDGET_REVENUE_INVALID'));
           }
           patch.reportedMonthlyNetRevenueUsd = n;
         }
       }
 
       if (Object.keys(patch).length === 0) {
-        return res.status(400).json({ ok: false, error: 'No valid fields to update' });
+        return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'ADMIN_BUDGET_NO_FIELDS'));
       }
 
       const now = new Date();
@@ -279,8 +277,8 @@ function createAdminBudgetHandlers({ getMongoDb }) {
 
       return res.status(200).json({ ok: true });
     } catch (e) {
-      console.error('[admin/budget-settings]', e);
-      return res.status(500).json({ ok: false, error: e.message || 'budget-settings failed' });
+      console.error('[admin/budget-settings]', e?.message || e, e?.stack);
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   }
 

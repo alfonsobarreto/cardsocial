@@ -1,8 +1,9 @@
 import { COUNTRY_DIAL_REST, COUNTRY_DIAL_TOP, type CountryDialEntry, filterDialEntries } from '@/constants/countryDialCodes';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Modal,
+  Platform,
   SectionList,
   StyleSheet,
   Text,
@@ -56,8 +57,15 @@ export default function CountryDialPickerModal({
   }, [query, topSectionTitle, restSectionTitle]);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
+    <Modal
+      visible={visible}
+      transparent
+      /** Android: "slide" + teclado abierto ha causado congelaciones en algunos equipos; "fade" es más estable. */
+      animationType={Platform.OS === 'android' ? 'fade' : 'slide'}
+      statusBarTranslucent={Platform.OS === 'android'}
+      onRequestClose={onClose}
+    >
+      <View style={styles.overlay} collapsable={false}>
         <View style={[styles.sheet, { backgroundColor: surfaceBg, borderTopColor: border }]}>
           <View style={styles.header}>
             <Text style={[styles.title, { color: textPrimary }]}>{title}</Text>
@@ -100,6 +108,10 @@ export default function CountryDialPickerModal({
             )}
             stickySectionHeadersEnabled={false}
             keyboardShouldPersistTaps="handled"
+            initialNumToRender={24}
+            maxToRenderPerBatch={24}
+            windowSize={5}
+            removeClippedSubviews={Platform.OS === 'ios'}
             ListEmptyComponent={
               <Text style={[styles.empty, { color: textSecondary }]}>—</Text>
             }

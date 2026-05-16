@@ -10,6 +10,7 @@ import {
 } from '@/services/accountDeletionClient';
 import { shareExportedUserProfileJson } from '@/services/exportUserProfileJson';
 import { getActiveUserId } from '@/services/authSession';
+import { subscribeMyBusinessCardsInventoryChanged } from '@/services/businessCardInventoryEvents';
 import { listMyBusinessCards } from '@/services/businessCardsRepo';
 import { auth, db } from '@/services/firebaseConfig';
 import {
@@ -21,10 +22,12 @@ import {
 } from '@/services/userIdentityFields';
 import { resolveProfileAvatarDisplayUri } from '@/services/userProfilePhoto';
 import { requestLocationPermission } from '@/services/geolocationService';
+import { userFacingAlertMessage, userFacingAlertMessageFromHttp } from '@/services/apiUserFacingError';
 import { intlLocaleTagForAppLanguage, trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { listBlockedRelations, unblockRelationship } from '@/services/qrApi';
 import { touchSessionActivityForNonTrusted } from '@/services/sessionInactivity';
+import { syncWaitlistOnAppVerified } from '@/services/syncWaitlistOnAppVerified';
 import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
 import {
     type RelationshipEntry,
@@ -38,6 +41,8 @@ import {
   subscribeSubscriptionPanelOpen,
   type SubscriptionScrollSection,
 } from '@/services/subscriptionNavigationIntent';
+import { subscribeMarketRadarRemoteConfig } from '@/services/marketRadarConfigService';
+import { setRadarTrialEnabledCache } from '@/services/radarTrialEnabledCache';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image as ExpoImage } from 'expo-image';
@@ -54,6 +59,7 @@ import {
     onSnapshot,
     query,
     serverTimestamp,
+    setDoc,
     updateDoc,
     where
 } from 'firebase/firestore';
@@ -72,6 +78,7 @@ import {
     Pressable,
     ScrollView,
     StyleSheet,
+    Switch,
     Text,
     TextInput,
     TouchableOpacity,
@@ -129,8 +136,8 @@ function DashboardTabGlyph({ color, size }: { color?: string; size?: number; str
   return <MaterialCommunityIcons name="chart-line-variant" size={size ?? 24} color={color ?? 'rgba(255,255,255,0.5)'} />;
 }
 
-function shouldShowDashboardTab(hasBusinessCardWithBId: boolean) {
-  return hasBusinessCardWithBId;
+function shouldShowDashboardTab(hasBusinessCardWithBId: boolean, radarTrialEnabled: boolean) {
+  return hasBusinessCardWithBId || radarTrialEnabled;
 }
 
 type EditableProfile = {
@@ -154,6 +161,8 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const [subscriptionScrollSection, setSubscriptionScrollSection] = useState<SubscriptionScrollSection | null>(null);
   const [creditsRefreshTrigger, setCreditsRefreshTrigger] = useState(0);
   const [welcomeBonusApplied, setWelcomeBonusApplied] = useState(false);
+  const [radarTrialRemote, setRadarTrialRemote] = useState(false);
+  const [radarTrialToggling, setRadarTrialToggling] = useState(false);
   const [userIsSuperAdmin, setUserIsSuperAdmin] = useState(false);
   const [userHasBusinessCardWithBId, setUserHasBusinessCardWithBId] = useState(false);
   const [adminPendingReports, setAdminPendingReports] = useState(0);
@@ -179,7 +188,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
   const navigation = useNavigation();
   const shell = palette[resolvedMode === 'noche' ? 'dark' : 'light'];
   const tabInactiveMuted = resolvedMode === 'noche' ? 'rgba(235,235,245,0.42)' : 'rgba(60,60,67,0.42)';
-  const dashboardTabVisible = shouldShowDashboardTab(userHasBusinessCardWithBId);
+  const dashboardTabVisible = shouldShowDashboardTab(userHasBusinessCardWithBId, radarTrialRemote);
   const insets = useSafeAreaInsets();
   /** Android a veces reporta bottom=0 con nav de 3 botones; igualamos aire arriba/abajo del tab bar. */
   const tabBarInnerVerticalPad = 10;
@@ -217,6 +226,9 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
         setUserIsSuperAdmin(false);
         setUserHasBusinessCardWithBId(false);
         return;
+      }
+      if (user.emailVerified) {
+        void user.getIdToken().then((t) => syncWaitlistOnAppVerified(t)).catch(() => null);
       }
       headerAvatarFsUnsubRef.current = onSnapshot(
         doc(db, 'users', user.uid),
@@ -261,10 +273,16 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
     };
   }, [refreshHeaderAvatar]);
 
+  /** Evita escrituras AsyncStorage en cada micro-cambio de navegación (reduce I/O y contienda en el hilo JS). */
+  const lastNavSessionTouchRef = useRef(0);
   useEffect(() => {
     const bumpActivity = () => {
       const u = auth.currentUser?.uid;
-      if (u) void touchSessionActivityForNonTrusted(u);
+      if (!u) return;
+      const now = Date.now();
+      if (now - lastNavSessionTouchRef.current < 45_000) return;
+      lastNavSessionTouchRef.current = now;
+      void touchSessionActivityForNonTrusted(u);
     };
     bumpActivity();
     const unsub = navigation.addListener('state', bumpActivity);
@@ -277,6 +295,36 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
       setActivePanel('subscription');
       setDrawerVisible(true);
     });
+  }, []);
+
+  useEffect(() => {
+    return subscribeMyBusinessCardsInventoryChanged(() => {
+      const u = auth.currentUser;
+      if (!u?.uid) return;
+      void listMyBusinessCards(u.uid)
+        .then((cards) => setUserHasBusinessCardWithBId(cards.some((card) => String(card?.bId || '').trim().length > 0)))
+        .catch(() => undefined);
+    });
+  }, []);
+
+  useEffect(() => {
+    let cfgUnsub: (() => void) | undefined;
+    const authUnsub = onAuthStateChanged(auth, (user) => {
+      cfgUnsub?.();
+      cfgUnsub = undefined;
+      if (!user) {
+        setRadarTrialEnabledCache(false);
+        setRadarTrialRemote(false);
+        return;
+      }
+      cfgUnsub = subscribeMarketRadarRemoteConfig((cfg) => {
+        setRadarTrialRemote(cfg.radarTrialEnabled);
+      });
+    });
+    return () => {
+      cfgUnsub?.();
+      authUnsub();
+    };
   }, []);
 
   const panelTitle = useMemo(() => {
@@ -319,6 +367,28 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
 
     return [];
   }, [activePanel, language]);
+
+  const handleRadarTrialToggle = useCallback(
+    async (next: boolean) => {
+      if (radarTrialToggling) return;
+      try {
+        setRadarTrialToggling(true);
+        await setDoc(
+          doc(db, 'system_config', 'market_radar'),
+          { radar_trial_enabled: next, updatedAt: serverTimestamp() },
+          { merge: true },
+        );
+      } catch (e: any) {
+        Alert.alert(
+          tr('Error', 'Error'),
+          userFacingAlertMessage(e, language, tr('No se pudo actualizar la prueba Radar.', 'Could not update Radar trial.')),
+        );
+      } finally {
+        setRadarTrialToggling(false);
+      }
+    },
+    [radarTrialToggling, tr, language],
+  );
 
   const handleSignOut = async () => {
     try {
@@ -410,7 +480,10 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
               await removeRelEntry(actorUid, entry.uid, entry.status);
               setRelEntries((prev) => prev.filter((e) => e.uid !== entry.uid));
             } catch (err: any) {
-              Alert.alert(tr('Error', 'Error'), err?.message || tr('No se pudo restaurar.', 'Could not restore.'));
+              Alert.alert(
+                tr('Error', 'Error'),
+                userFacingAlertMessage(err, language, tr('No se pudo restaurar.', 'Could not restore.')),
+              );
             }
           },
         },
@@ -525,7 +598,6 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
       setProfileSaving(true);
 
       let nicknameChangeSuccess = true;
-      let backendNicknameError = '';
 
       if (nicknameChanged) {
         // Lógica robusta: llamar al endpoint backend
@@ -541,18 +613,20 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
         if (!response.ok) {
           nicknameChangeSuccess = false;
           const data = await response.json().catch(() => ({}));
-          backendNicknameError = data?.error || tr('No se pudo cambiar el nickname.', 'Could not change nickname.');
+          const fallback = tr('No se pudo cambiar el nickname.', 'Could not change nickname.');
+          const msg = userFacingAlertMessageFromHttp(response.status, data, language, fallback);
+          const errCode = String((data as { errorCode?: string })?.errorCode || '').trim();
+          if (errCode === 'USERNAME_CHANGE_COOLDOWN') {
+            Alert.alert(tr('Cambio bloqueado', 'Change blocked'), msg);
+          } else if (errCode === 'USERNAME_ALREADY_IN_USE') {
+            Alert.alert(tr('Nickname en uso', 'Nickname taken'), msg);
+          } else {
+            Alert.alert(tr('No se pudo cambiar el nickname', 'Could not change nickname'), msg);
+          }
         }
       }
 
       if (nicknameChanged && !nicknameChangeSuccess) {
-        if (backendNicknameError.includes('cooldown')) {
-          Alert.alert(tr('Cambio bloqueado', 'Change blocked'), tr('No puedes cambiar tu nickname todavía. Intenta más tarde.', 'You cannot change your nickname yet. Try later.'));
-        } else if (backendNicknameError.includes('taken')) {
-          Alert.alert(tr('Nickname en uso', 'Nickname taken'), tr('Ese nickname ya pertenece a otro usuario.', 'That nickname belongs to another user.'));
-        } else {
-          Alert.alert(tr('No se pudo cambiar el nickname', 'Could not change nickname'), backendNicknameError);
-        }
         return;
       }
 
@@ -597,7 +671,10 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
       setProfileModalVisible(false);
       Alert.alert(tr('Perfil actualizado', 'Profile updated'), tr('Los cambios se guardaron correctamente.', 'Changes saved successfully.'));
     } catch (error: any) {
-      Alert.alert(tr('No se pudo guardar', 'Could not save'), error?.message || tr('Intenta nuevamente.', 'Try again.'));
+      Alert.alert(
+        tr('No se pudo guardar', 'Could not save'),
+        userFacingAlertMessage(error, language, tr('Intenta nuevamente.', 'Try again.')),
+      );
     } finally {
       setProfileSaving(false);
     }
@@ -613,7 +690,10 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
       await unblockRelationship({ uid, targetUid });
       setBlockedUsers((prev) => prev.filter((row) => row.uid !== targetUid));
     } catch (error: any) {
-      Alert.alert(tr('No se pudo desbloquear', 'Could not unblock'), error?.message || tr('Inténtalo de nuevo.', 'Try again.'));
+      Alert.alert(
+        tr('No se pudo desbloquear', 'Could not unblock'),
+        userFacingAlertMessage(error, language, tr('Inténtalo de nuevo.', 'Try again.')),
+      );
     }
   };
 
@@ -978,6 +1058,35 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                         </View>
                       </View>
                     ) : null}
+                    <View
+                      style={{
+                        marginTop: 12,
+                        paddingTop: 12,
+                        borderTopWidth: StyleSheet.hairlineWidth,
+                        borderTopColor: shell.modalBorder,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <View style={{ flex: 1, paddingRight: 12 }}>
+                        <Text style={{ color: shell.text, fontWeight: '600', fontSize: 14 }}>
+                          {tr('Prueba Radar (global)', 'Radar trial (global)')}
+                        </Text>
+                        <Text style={{ color: shell.textSecondary, fontSize: 12, marginTop: 4 }}>
+                          {tr(
+                            'Tier business y acceso Radar para todos. Studio omite gates Pro y tarjeta negocio.',
+                            'Business tier and Radar access for everyone. Studio skips Pro and business-card gates.',
+                          )}
+                        </Text>
+                      </View>
+                      <Switch
+                        value={radarTrialRemote}
+                        disabled={radarTrialToggling}
+                        onValueChange={(v) => void handleRadarTrialToggle(v)}
+                        trackColor={{ false: shell.modalBorder, true: shell.ctaAccent }}
+                      />
+                    </View>
                   </View>
                 )}
 

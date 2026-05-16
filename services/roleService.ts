@@ -2,7 +2,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/services/firebaseConfig';
 
 /** Email que en registro recibe `super_admin`; refuerzo UI si el doc aún no tiene `role`. */
-const POCHOBS_SUPER_EMAIL = 'pochobs@gmail.com';
+export const POCHOBS_SUPERADMIN_EMAIL = 'pochobs@gmail.com';
 
 export type UserRole = 'user' | 'admin' | 'super_admin';
 
@@ -40,7 +40,7 @@ export async function hasUnlimitedAdminUi(userId: string): Promise<boolean> {
   if (await isSuperAdmin(uid)) return true;
   try {
     const u = auth.currentUser;
-    if (u && u.uid === uid && String(u.email || '').trim().toLowerCase() === POCHOBS_SUPER_EMAIL) {
+    if (u && u.uid === uid && String(u.email || '').trim().toLowerCase() === POCHOBS_SUPERADMIN_EMAIL) {
       return true;
     }
   } catch {

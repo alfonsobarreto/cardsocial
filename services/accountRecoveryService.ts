@@ -3,34 +3,34 @@
  * Permite al usuario recuperar su cuenta si perdió el celular o contraseña
  */
 
-import {
-  sendPasswordResetEmail,
-  verifyPasswordResetCode,
-  confirmPasswordReset,
-} from 'firebase/auth';
+import { verifyPasswordResetCode, confirmPasswordReset } from 'firebase/auth';
 import { auth, db } from '@/services/firebaseConfig';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
 /**
  * Iniciar proceso de recuperación por Email
  */
-export async function initiateAccountRecovery(email: string): Promise<{
+export async function initiateAccountRecovery(
+  email: string,
+  locale: 'es' | 'en' = 'es'
+): Promise<{
   success: boolean;
   message: string;
 }> {
   const genericMessage = 'Si el email coincide con una cuenta, enviaremos un enlace de recuperación.';
+  const baseUrl = getApiBase();
   try {
-    await sendPasswordResetEmail(auth, email);
-
-    return {
-      success: true,
-      message: genericMessage,
-    };
-  } catch (error: any) {
-    return {
-      success: true,
-      message: genericMessage,
-    };
+    if (!baseUrl) {
+      return { success: false, message: 'Servicio de recuperación no configurado.' };
+    }
+    await fetch(`${baseUrl}/api/auth/send-password-reset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim().toLowerCase(), locale }),
+    });
+    return { success: true, message: genericMessage };
+  } catch {
+    return { success: true, message: genericMessage };
   }
 }
 

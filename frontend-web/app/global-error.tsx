@@ -1,6 +1,7 @@
 'use client';
 
-export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+import { machineErrorUserMessage } from '@/lib/userFacingApiMessages';
+export default function GlobalError({ error: _error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <html lang="en">
       <body style={{ margin: 0, background: '#000', color: '#fff', fontFamily: 'system-ui, sans-serif' }}>
@@ -18,7 +19,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
             <p style={{ margin: 0, color: '#FF6B6B', fontWeight: 900 }}>Card-Social</p>
             <h1 style={{ margin: '10px 0 8px', fontSize: 22 }}>Unexpected error</h1>
             <p style={{ margin: '0 0 18px', color: 'rgba(255,255,255,0.62)', lineHeight: 1.5 }}>
-              {error?.message || 'The application could not recover automatically.'}
+              {machineErrorUserMessage('SERVER_INTERNAL_ERROR', 'en')}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <button

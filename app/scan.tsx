@@ -4,7 +4,7 @@ import { savePendingBunkerScan } from '@/services/bunkerPendingScan';
 import { getActiveUserId } from '@/services/authSession';
 import { businessFirestoreDocToMyCardsPayload } from '@/services/adaptBusinessCardMarketPremium';
 import { readBusinessCardIdentityFields } from '@/services/businessCardService';
-import { trEsEn, useLanguage } from '@/services/language';
+import { useLanguage, useTr } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { myCardsPayloadFromQrPreview, myCardsPayloadFromUniversalCard } from '@/services/incomingCardPreviewPayload';
 import {
@@ -38,6 +38,19 @@ import { LinearGradient } from 'expo-linear-gradient';
 import ActivityIndicator from '@/components/BrandedSpinner';
 import palette from './theme';
 
+const SELF_SCAN_TITLE_ES = '¡Un momento!';
+const SELF_SCAN_TITLE_EN = 'Hey there!';
+const SELF_SCAN_OWN_CARD_ES =
+  'Oye — esa tarjeta eres tú. No hace falta escanearte a ti mismo; ya te tenemos en la base de datos.';
+const SELF_SCAN_OWN_CARD_EN =
+  "Hey — that's your own card. No need to scan yourself; we already have you on file.";
+
+function uidsEqual(a: string | null | undefined, b: string | null | undefined): boolean {
+  const x = String(a ?? '').trim();
+  const y = String(b ?? '').trim();
+  return x.length > 0 && x === y;
+}
+
 type ClassificationPayload = {
   token: string;
   issuerUid: string;
@@ -56,7 +69,7 @@ export default function ScanScreen() {
     resumeBId?: string;
   }>();
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const tr = useTr();
   const { resolvedMode } = useLookMode();
   const isDark = resolvedMode === 'noche';
   const shell = palette[isDark ? 'dark' : 'light'];
@@ -176,11 +189,13 @@ export default function ScanScreen() {
   const [universalCard, setUniversalCard] = useState<PublicUniversalCardPayload | null>(null);
   /** QR dinámico (smart): avatar del emisor desde `users/{uid}.userAvatarUrl`, no el snapshot del token. */
   const [issuerProfileAvatarUrl, setIssuerProfileAvatarUrl] = useState<string | null>(null);
+  const [scanCooldownActive, setScanCooldownActive] = useState(false);
   const resumeHandledRef = useRef(false);
+  const scanCooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const canScan = useMemo(() => {
-    return !processing && !scanLocked && !modalVisible;
-  }, [processing, scanLocked, modalVisible]);
+    return !processing && !scanLocked && !modalVisible && !scanCooldownActive;
+  }, [processing, scanLocked, modalVisible, scanCooldownActive]);
 
   const resetScanUi = useCallback(() => {
     setProcessing(false);
@@ -193,6 +208,38 @@ export default function ScanScreen() {
     setUniversalCard(null);
     setIssuerProfileAvatarUrl(null);
   }, []);
+
+  const startScanCooldown = useCallback(() => {
+    if (scanCooldownTimerRef.current) {
+      clearTimeout(scanCooldownTimerRef.current);
+    }
+    setScanCooldownActive(true);
+    scanCooldownTimerRef.current = setTimeout(() => {
+      scanCooldownTimerRef.current = null;
+      setScanCooldownActive(false);
+    }, 3600);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (scanCooldownTimerRef.current) {
+        clearTimeout(scanCooldownTimerRef.current);
+      }
+    };
+  }, []);
+
+  const alertSelfScanOwnCard = useCallback(() => {
+    const okLabel = tr('Aceptar', 'OK');
+    Alert.alert(tr(SELF_SCAN_TITLE_ES, SELF_SCAN_TITLE_EN), tr(SELF_SCAN_OWN_CARD_ES, SELF_SCAN_OWN_CARD_EN), [
+      {
+        text: okLabel,
+        onPress: () => {
+          resetScanUi();
+          startScanCooldown();
+        },
+      },
+    ]);
+  }, [tr, resetScanUi, startScanCooldown]);
 
   const openClassification = useCallback(
     async (token: string) => {
@@ -216,6 +263,12 @@ export default function ScanScreen() {
           return;
         }
         const p = preview.preview;
+        const selfUidDyn = await getActiveUserId();
+        if (selfUidDyn && uidsEqual(p.uid, selfUidDyn)) {
+          alertSelfScanOwnCard();
+          setScanLocked(false);
+          return;
+        }
         setQrPreview(p);
         setClassification({
           token: p.token,
@@ -240,7 +293,7 @@ export default function ScanScreen() {
         setProcessing(false);
       }
     },
-    [tr, language, resetScanUi],
+    [tr, language, resetScanUi, alertSelfScanOwnCard],
   );
 
   const openUniversalClassification = useCallback(
@@ -272,6 +325,12 @@ export default function ScanScreen() {
           return;
         }
         const card = res.card;
+        const selfUidUni = await getActiveUserId();
+        if (selfUidUni && uidsEqual(card.uid, selfUidUni)) {
+          alertSelfScanOwnCard();
+          setScanLocked(false);
+          return;
+        }
         setUniversalCard(card);
         setClassification({
           token: opaqueToken,
@@ -296,7 +355,7 @@ export default function ScanScreen() {
         setProcessing(false);
       }
     },
-    [tr, language, resetScanUi],
+    [tr, language, resetScanUi, alertSelfScanOwnCard],
   );
 
   const openBusinessClassification = useCallback(
@@ -308,6 +367,12 @@ export default function ScanScreen() {
       const locale = language;
       const okLabel = tr('Aceptar', 'OK');
       try {
+        const selfUidBiz = await getActiveUserId();
+        if (selfUidBiz && uidsEqual(issuerUid, selfUidBiz)) {
+          alertSelfScanOwnCard();
+          setScanLocked(false);
+          return;
+        }
         const preview = await fetchPublicBusinessCardPreview({ uid: issuerUid, bId, locale });
         if (!preview.ok) {
           const bSnap = await getDoc(doc(db, 'businessCards', bId));
@@ -368,6 +433,12 @@ export default function ScanScreen() {
           return;
         }
         const p = preview.preview;
+        const selfUidPrev = await getActiveUserId();
+        if (selfUidPrev && uidsEqual(p.uid, selfUidPrev)) {
+          alertSelfScanOwnCard();
+          setScanLocked(false);
+          return;
+        }
         setQrPreview(p);
         setClassification({
           token: '',
@@ -392,7 +463,7 @@ export default function ScanScreen() {
         setProcessing(false);
       }
     },
-    [tr, language, resetScanUi],
+    [tr, language, resetScanUi, alertSelfScanOwnCard],
   );
 
   const handleScanned = async (data: string) => {
@@ -410,8 +481,12 @@ export default function ScanScreen() {
       parsePermanentBusinessQr(normalized) ||
       parseBrandedBusinessQrUrl(normalized);
     if (business) {
-      setScanLocked(true);
       const uid = await getActiveUserId();
+      if (uid && uidsEqual(business.uid, uid)) {
+        alertSelfScanOwnCard();
+        return;
+      }
+      setScanLocked(true);
       setReceiverUid(uid);
       if (!uid) {
         await savePendingBunkerScan({
@@ -497,6 +572,10 @@ export default function ScanScreen() {
       }
       resumeHandledRef.current = true;
       setReceiverUid(uid);
+      if (businessResume && uidsEqual(uid, ri)) {
+        alertSelfScanOwnCard();
+        return;
+      }
       setScanLocked(true);
       if (businessResume) {
         await openBusinessClassification(ri, rb);
@@ -508,6 +587,7 @@ export default function ScanScreen() {
       cancelled = true;
     };
   }, [
+    alertSelfScanOwnCard,
     openBusinessClassification,
     openClassification,
     params.resumeBId,

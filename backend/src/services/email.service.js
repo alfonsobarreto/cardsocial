@@ -1,13 +1,14 @@
 // email.service.js - Envío centralizado vía Resend (https://resend.com/docs/api-reference/emails/send-email)
 const { Resend } = require('resend');
+const { getDefaultNotificationFrom } = require('../config/emailSenders');
 
 const CARD_SOCIAL_PRIMARY_COLOR = '#1EA7FF';
 const CARD_SOCIAL_LOGO_URL = 'https://cardsocial.me/assets/logo-cardsocial.png'; // Cambia por la URL real si es diferente
 const COMPANY_ADDRESS = 'Card-Social, CDMX, México'; // Actualiza si tienes dirección física oficial
 
 const RESEND_API_KEY = String(process.env.RESEND_API_KEY ?? '').trim();
-/** Debe coincidir con un dominio/remitente verificado en Resend. */
-const EMAIL_FROM_DEFAULT = String(process.env.EMAIL_FROM ?? '').trim();
+/** Remitente por defecto (notificaciones / broadcast) si no se pasa `from`. */
+const EMAIL_FROM_DEFAULT = String(process.env.EMAIL_FROM ?? '').trim() || getDefaultNotificationFrom();
 
 let resendSingleton = null;
 function getResendClient() {
@@ -26,8 +27,9 @@ function renderButton(text, url) {
 
 function renderFooter() {
   return `<div style="margin-top:40px;font-size:13px;color:#888;text-align:center;line-height:1.6;">
+    <div style="margin-bottom:10px;">Si no ves este mensaje en la bandeja principal, revisa <strong>Spam</strong> / If you don't see this in your inbox, check <strong>Spam</strong>. Como empresa nueva, algunos filtros son más estrictos con <strong>cardsocial.me</strong> al inicio.</div>
     <div>${COMPANY_ADDRESS}</div>
-    <div>Este es un correo automático, por favor no respondas.</div>
+    <div>Este es un correo automático de Card-Social, por favor no respondas.</div>
   </div>`;
 }
 
@@ -212,7 +214,7 @@ async function sendEmail({ to, subject, html, text, from }) {
 
 /** True si el backend puede enviar correo transaccional. */
 function isEmailSendConfigured() {
-  return Boolean(RESEND_API_KEY && EMAIL_FROM_DEFAULT);
+  return Boolean(RESEND_API_KEY && String(EMAIL_FROM_DEFAULT || '').trim());
 }
 
 module.exports = {

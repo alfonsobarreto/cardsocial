@@ -4,6 +4,7 @@ import { getActiveUserId } from '@/services/authSession';
 import { trEsEn, useLanguage } from '@/services/language';
 import { myCardsPayloadFromUniversalCard } from '@/services/incomingCardPreviewPayload';
 import { fetchPublicUniversalCardByToken, type PublicUniversalCardPayload } from '@/services/qrApi';
+import { fetchUserProfilePhotoUrl, toRenderableImageUri } from '@/services/userProfilePhoto';
 import { buildCanonicalIssuerIdentityFromPublicUniversalCard } from '@/types/canonicalIssuerIdentity';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -23,6 +24,8 @@ export default function UniversalTokenScreen() {
   const [card, setCard] = useState<PublicUniversalCardPayload | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [receiverUid, setReceiverUid] = useState<string | null>(null);
+  /** Paridad con `scan.tsx`: API pública (Mongo) puede ir vacía mientras Firestore ya tiene la foto. */
+  const [issuerProfileAvatarUrl, setIssuerProfileAvatarUrl] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const t = String(token || '').trim();
@@ -61,6 +64,22 @@ export default function UniversalTokenScreen() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    const uid = card ? String(card.uid || '').trim() : '';
+    if (!uid) {
+      setIssuerProfileAvatarUrl(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const url = await fetchUserProfilePhotoUrl(uid);
+      if (!cancelled) setIssuerProfileAvatarUrl(url);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [card?.uid]);
+
   const unknownErr = useMemo(() => tr('Error desconocido.', 'Unknown error.'), [tr]);
 
   const handleSuccess = useCallback(() => {
@@ -68,10 +87,17 @@ export default function UniversalTokenScreen() {
     router.replace('/(tabs)/contacts');
   }, [router]);
 
-  const previewPayload = useMemo(
-    () => (card ? myCardsPayloadFromUniversalCard(card, tr) : null),
-    [card, tr],
-  );
+  const previewPayload = useMemo(() => {
+    if (!card) return null;
+    const base = myCardsPayloadFromUniversalCard(card, tr);
+    const wireRaw = !card.bId ? String(card.ownerPhotoUrl ?? '').trim() : '';
+    const wire =
+      wireRaw ? toRenderableImageUri(wireRaw) || wireRaw : null;
+    return {
+      ...base,
+      avatarUrl: issuerProfileAvatarUrl ?? base.avatarUrl ?? wire,
+    };
+  }, [card, tr, issuerProfileAvatarUrl]);
 
   if (loading) {
     return (

@@ -8,6 +8,7 @@ const express = require("express");
 const crypto = require("crypto");
 const { embedText, embeddingConfigured } = require("../services/cardVectorEmbedding");
 const { searchMarketVectors } = require("../services/marketVectorSearch");
+const { buildUserFacingJson } = require("../lib/userFacingErrors");
 
 const SEO_SYNONYM_GROUPS = [
   { niche: "uñas", words: ["nails", "nail", "uña", "uñas", "unas", "manicura", "manicure", "manicurist", "manicurista"] },
@@ -189,17 +190,14 @@ function createMarketVectorRoutes({ storage }) {
   router.post("/vector-search", express.json(), async (req, res) => {
     try {
       const uid = String(req.auth?.sub || "").trim();
-      if (!uid) return res.status(401).json({ ok: false, error: "Unauthenticated" });
+      if (!uid) return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
 
       if (!embeddingConfigured()) {
-        return res.status(503).json({
-          ok: false,
-          error: "Embeddings not configured (set OPENAI_API_KEY or GEMINI_API_KEY and EMBEDDING_PROVIDER).",
-        });
+        return res.status(503).json(buildUserFacingJson(req, 'auth_forbidden', 'service_unavailable'));
       }
 
       const q = String(req.body?.q ?? req.query?.q ?? "").trim();
-      if (!q) return res.status(400).json({ ok: false, error: "q is required" });
+      if (!q) return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'MARKET_VECTOR_BID_KEYWORD_REQUIRED'));
 
       const limit = Math.min(50, Math.max(1, Number(req.body?.limit) || 20));
       const includeSmart = Boolean(req.body?.includeSmart);
@@ -211,18 +209,18 @@ function createMarketVectorRoutes({ storage }) {
       return res.status(200).json({ ok: true, q, limit, includeSmart, results });
     } catch (error) {
       console.error("[market] vector-search failed:", error);
-      return res.status(500).json({ ok: false, error: error.message || "vector search failed" });
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
   router.post("/searches/track", express.json(), async (req, res) => {
     try {
       const uid = String(req.auth?.sub || "").trim();
-      if (!uid) return res.status(401).json({ ok: false, error: "Unauthenticated" });
+      if (!uid) return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
 
       const q = String(req.body?.q || req.body?.keyword || "").trim().slice(0, 160);
       const keywordRoot = normalizeMarketKeyword(req.body?.keywordRoot || q);
-      if (!keywordRoot) return res.status(400).json({ ok: false, error: "keyword is required" });
+      if (!keywordRoot) return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'MARKET_VECTOR_BID_KEYWORD_REQUIRED'));
 
       const zipcode = normalizeZipcode(req.body?.zipcode);
       const city = displayGeoText(req.body?.city);
@@ -235,7 +233,7 @@ function createMarketVectorRoutes({ storage }) {
         ? req.body.resultBIds.map((id) => String(id || "").trim()).filter(Boolean).slice(0, 80)
         : [];
       const timestamp = req.body?.timestamp ? new Date(req.body.timestamp) : new Date();
-      if (Number.isNaN(timestamp.getTime())) return res.status(400).json({ ok: false, error: "invalid timestamp" });
+      if (Number.isNaN(timestamp.getTime())) return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'QR_TIMESTAMP_INVALID'));
 
       const db = req.app.locals.db || (await storage.connect());
       const doc = {
@@ -261,19 +259,20 @@ function createMarketVectorRoutes({ storage }) {
       return res.status(200).json({ ok: true, keywordRoot, zipcode, searchId: doc._id });
     } catch (error) {
       console.error("[market] searches/track failed:", error);
-      return res.status(500).json({ ok: false, error: error.message || "search track failed" });
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
   router.post("/searches/click", express.json(), async (req, res) => {
     try {
       const uid = String(req.auth?.sub || "").trim();
-      if (!uid) return res.status(401).json({ ok: false, error: "Unauthenticated" });
+      if (!uid) return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
 
       const bId = String(req.body?.bId || "").trim();
       const q = String(req.body?.q || req.body?.keyword || "").trim().slice(0, 160);
       const keywordRoot = normalizeMarketKeyword(req.body?.keywordRoot || q);
-      if (!bId || !keywordRoot) return res.status(400).json({ ok: false, error: "bId and keyword are required" });
+      if (!bId) return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'MARKET_VECTOR_BID_REQUIRED'));
+      if (!keywordRoot) return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'MARKET_VECTOR_BID_KEYWORD_REQUIRED'));
 
       const zipcode = normalizeZipcode(req.body?.zipcode);
       const city = displayGeoText(req.body?.city);
@@ -281,7 +280,7 @@ function createMarketVectorRoutes({ storage }) {
       const country = displayGeoText(req.body?.country);
       const geoLabel = displayGeoText(req.body?.geoLabel);
       const timestamp = req.body?.timestamp ? new Date(req.body.timestamp) : new Date();
-      if (Number.isNaN(timestamp.getTime())) return res.status(400).json({ ok: false, error: "invalid timestamp" });
+      if (Number.isNaN(timestamp.getTime())) return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'QR_TIMESTAMP_INVALID'));
 
       const db = req.app.locals.db || (await storage.connect());
       await db.collection("market_searches").insertOne({
@@ -304,20 +303,20 @@ function createMarketVectorRoutes({ storage }) {
       return res.status(200).json({ ok: true, keywordRoot, zipcode });
     } catch (error) {
       console.error("[market] searches/click failed:", error);
-      return res.status(500).json({ ok: false, error: error.message || "search click failed" });
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
   router.get("/seo/card/:bId/summary", async (req, res) => {
     try {
       const uid = String(req.auth?.sub || "").trim();
-      if (!uid) return res.status(401).json({ ok: false, error: "Unauthenticated" });
+      if (!uid) return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
       const bId = String(req.params?.bId || "").trim();
-      if (!bId) return res.status(400).json({ ok: false, error: "bId is required" });
+      if (!bId) return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'MARKET_VECTOR_BID_REQUIRED'));
 
       const db = req.app.locals.db || (await storage.connect());
       const card = await db.collection("business_cards").findOne({ ownerUid: uid, bId });
-      if (!card) return res.status(404).json({ ok: false, error: "Card not found for this owner" });
+      if (!card) return res.status(404).json(buildUserFacingJson(req, 'invalid_body', 'MARKET_VECTOR_CARD_NOT_FOUND'));
 
       const keywords = cardSeoKeywords(card);
       const rootsByLabel = keywords.map((label) => ({ label, root: normalizeMarketKeyword(label) })).filter((x) => x.root);
@@ -375,17 +374,17 @@ function createMarketVectorRoutes({ storage }) {
       });
     } catch (error) {
       console.error("[market] seo summary failed:", error);
-      return res.status(500).json({ ok: false, error: error.message || "seo summary failed" });
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
   router.get("/seo/heatmap", async (req, res) => {
     try {
       const uid = String(req.auth?.sub || "").trim();
-      if (!uid) return res.status(401).json({ ok: false, error: "Unauthenticated" });
+      if (!uid) return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
 
       const keywordRoot = normalizeMarketKeyword(req.query?.keyword || req.query?.keywordRoot || "");
-      if (!keywordRoot) return res.status(400).json({ ok: false, error: "keyword is required" });
+      if (!keywordRoot) return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'MARKET_VECTOR_BID_KEYWORD_REQUIRED'));
 
       const window = marketPeriodWindow(req.query?.periodMode, req.query?.periodOffset);
       const locationQuery = String(req.query?.locationQuery || "").trim();
@@ -462,7 +461,7 @@ function createMarketVectorRoutes({ storage }) {
       });
     } catch (error) {
       console.error("[market] seo heatmap failed:", error);
-      return res.status(500).json({ ok: false, error: error.message || "seo heatmap failed" });
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 

@@ -4,6 +4,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 
 import { resolveAdminApp, shouldLogFirebaseAdmin } from '@/lib/firebaseAdminStudio';
 import { signStudioEmbedToken } from '@/lib/studioEmbedToken';
+import { pickLocaleFromHeaders, userFacingMessageForErrorCode } from '@/lib/userFacingApiMessages';
 
 export const runtime = 'nodejs';
 
@@ -31,10 +32,35 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Studio locale keys accepted for the embed URL (mirror `studioI18n`). */
+/** Alineado con `services/roleService.ts`: acceso ilimitado al radar sin Pro. */
+const POCHOBS_SUPERADMIN_EMAIL = 'pochobs@gmail.com';
+
+function normalizeFirestoreRole(raw: unknown): string {
+  return String(raw ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/-/g, '_');
+}
+
+/** Superadmin en Firestore o email operativo en el token ID (paridad móvil). */
+function hasMarketRadarUnlimitedAccess(firestoreRole: unknown, idTokenEmail: string): boolean {
+  const role = normalizeFirestoreRole(firestoreRole);
+  if (role === 'super_admin' || role === 'pochobs_admin') return true;
+  if (idTokenEmail === POCHOBS_SUPERADMIN_EMAIL) return true;
+  return false;
+}
+
 function normalizeLang(raw: unknown): string {
   const s = String(raw || 'en').toLowerCase().split('-')[0] ?? 'en';
   return s === 'es' || s === 'en' || s === 'it' || s === 'fr' || s === 'pt' || s === 'de' ? s : 'en';
+}
+
+function userErrorJson(req: Request, status: number, errorCode: string, extra?: Record<string, unknown>) {
+  const loc = pickLocaleFromHeaders(req.headers);
+  return NextResponse.json(
+    { ok: false, error: userFacingMessageForErrorCode(errorCode, loc), errorCode, ...extra },
+    { status },
+  );
 }
 
 function embedSecretIssue(secret: string | undefined): 'embed_secret_missing' | 'embed_secret_too_short' | null {
@@ -99,7 +125,7 @@ export async function POST(req: Request) {
     if (shouldLogFirebaseAdmin()) {
       console.error('[mint-market-radar] 503 embed secret:', secretIssue);
     }
-    return NextResponse.json({ ok: false, error: secretIssue }, { status: 503 });
+    return userErrorJson(req, 503, secretIssue);
   }
   const secret = secretRaw!.trim();
   console.log(`${ts()} [mint-market-radar] PASO 1 OK — secret len=${secret.length} (+${Date.now() - reqStart}ms)`);
@@ -112,10 +138,7 @@ export async function POST(req: Request) {
     if (shouldLogFirebaseAdmin()) {
       console.error('[mint-market-radar] 503', { error: admin.code, detail: admin.detail });
     }
-    return NextResponse.json(
-      { ok: false, error: admin.code, ...(admin.detail ? { detail: admin.detail } : {}) },
-      { status: 503 },
-    );
+    return userErrorJson(req, 503, admin.code);
   }
   console.log(`${ts()} [mint-market-radar] PASO 2 OK — Firebase Admin app listo (+${Date.now() - reqStart}ms)`);
 
@@ -126,13 +149,14 @@ export async function POST(req: Request) {
   const idToken = match?.[1]?.trim();
   if (!idToken) {
     console.error(`${ts()} [mint-market-radar] FALLO PASO 3 — missing_bearer_token (+${Date.now() - reqStart}ms)`);
-    return NextResponse.json({ ok: false, error: 'missing_bearer_token' }, { status: 401 });
+    return userErrorJson(req, 401, 'missing_bearer_token');
   }
   console.log(`${ts()} [mint-market-radar] PASO 3 OK — token len=${idToken.length} (+${Date.now() - reqStart}ms)`);
 
   // ── PASO 4: verifyIdToken (PETICIÓN DE RED A GOOGLE — SOSPECHOSO DEL 504) ──
   console.log(`${ts()} [mint-market-radar] PASO 4: getAuth().verifyIdToken() — llamada de red a Google (+${Date.now() - reqStart}ms)`);
   let uid: string;
+  let idTokenEmail = '';
   try {
     const decoded = await withTimeout(
       getAuth(admin.app).verifyIdToken(idToken),
@@ -140,6 +164,9 @@ export async function POST(req: Request) {
       'getAuth().verifyIdToken()',
     );
     uid = decoded.uid;
+    idTokenEmail = String(decoded.email || '')
+      .trim()
+      .toLowerCase();
     console.log(`${ts()} [mint-market-radar] PASO 4 OK — uid=${uid} (+${Date.now() - reqStart}ms)`);
   } catch (e) {
     const msg = (e as Error)?.message || String(e);
@@ -148,38 +175,39 @@ export async function POST(req: Request) {
       `${ts()} [mint-market-radar] FALLO PASO 4 — ${isTimeout ? '🔴 TIMEOUT (esto es el 504)' : 'error auth'}: ${msg} (+${Date.now() - reqStart}ms)`,
     );
     if (isTimeout) {
-      // Devolver 504 explícito para distinguirlo de un 401 normal
-      return NextResponse.json(
-        { ok: false, error: 'verify_token_timeout', detail: 'Firebase verifyIdToken exceeded timeout. Likely a network issue in Azure reaching Google APIs.' },
-        { status: 504 },
-      );
+      return userErrorJson(req, 504, 'verify_token_timeout');
     }
-    return NextResponse.json({ ok: false, error: 'invalid_or_expired_id_token' }, { status: 401 });
+    return userErrorJson(req, 401, 'invalid_or_expired_id_token');
   }
 
-  // ── PASO 4.5: negocio requerido + Market Radar Pro (precio y flags en Superadmin / users) ──
+  // ── PASO 4.5: negocio requerido + Market Radar Pro (precio y flags en Superadmin / users).
+  //    Si `system_config/market_radar.radar_trial_enabled === true`, se omite este gate (prueba global).
   console.log(`${ts()} [mint-market-radar] PASO 4.5: Market Radar access (+${Date.now() - reqStart}ms)`);
   try {
     const fsdb = getFirestore(admin.app);
-    const userSnap = await fsdb.collection('users').doc(uid).get();
-    const u = userSnap.exists ? userSnap.data() : {};
-    const bc = Number((u as { businessCardsOwnedCount?: unknown }).businessCardsOwnedCount ?? 0);
-    if (!Number.isFinite(bc) || bc < 1) {
-      return NextResponse.json({ ok: false, error: 'market_radar_requires_business_card' }, { status: 403 });
-    }
-    const role = String((u as { role?: unknown }).role || '')
-      .trim()
-      .toLowerCase()
-      .replace(/-/g, '_');
-    const proActive = (u as { marketRadarProActive?: unknown }).marketRadarProActive === true;
-    const exp = (u as { marketRadarProExpiresAt?: { toMillis?: () => number } }).marketRadarProExpiresAt;
-    const proUntilOk = Boolean(exp && typeof exp.toMillis === 'function' && exp.toMillis() > Date.now());
-    if (role !== 'super_admin' && !proActive && !proUntilOk) {
-      return NextResponse.json({ ok: false, error: 'market_radar_pro_required' }, { status: 403 });
+    const radarCfgSnap = await fsdb.collection('system_config').doc('market_radar').get();
+    const radarTrial =
+      radarCfgSnap.exists &&
+      (radarCfgSnap.data() as { radar_trial_enabled?: unknown }).radar_trial_enabled === true;
+
+    if (!radarTrial) {
+      const userSnap = await fsdb.collection('users').doc(uid).get();
+      const u = userSnap.exists ? userSnap.data() : {};
+      const unlimited = hasMarketRadarUnlimitedAccess((u as { role?: unknown }).role, idTokenEmail);
+      const bc = Number((u as { businessCardsOwnedCount?: unknown }).businessCardsOwnedCount ?? 0);
+      if (!unlimited && (!Number.isFinite(bc) || bc < 1)) {
+        return userErrorJson(req, 403, 'market_radar_requires_business_card');
+      }
+      const proActive = (u as { marketRadarProActive?: unknown }).marketRadarProActive === true;
+      const exp = (u as { marketRadarProExpiresAt?: { toMillis?: () => number } }).marketRadarProExpiresAt;
+      const proUntilOk = Boolean(exp && typeof exp.toMillis === 'function' && exp.toMillis() > Date.now());
+      if (!unlimited && !proActive && !proUntilOk) {
+        return userErrorJson(req, 403, 'market_radar_pro_required');
+      }
     }
   } catch (gateErr) {
     console.error(`${ts()} [mint-market-radar] PASO 4.5 gate error`, gateErr);
-    return NextResponse.json({ ok: false, error: 'market_radar_gate_failed' }, { status: 503 });
+    return userErrorJson(req, 503, 'market_radar_gate_failed');
   }
 
   // ── PASO 5: parsear body ───────────────────────────────────────────────────

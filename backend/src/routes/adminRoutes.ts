@@ -13,6 +13,9 @@ import AdminAuthService from '../services/adminAuthService.js';
 import MarketMintService from '../services/marketMintService.js';
 import { Db } from 'mongodb';
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { buildUserFacingJson } = require('../lib/userFacingErrors.js');
+
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
@@ -25,13 +28,13 @@ router.post('/login', async (req: Request, res: Response) => {
     const { username, password } = req.body;
 
     if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password required' });
+      return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'REQUIRED_FIELDS_MISSING'));
     }
 
     const token = await AdminAuthService.login(username, password);
 
     if (!token) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json(buildUserFacingJson(req, 'invalid_body', 'ADMIN_INVALID_CREDENTIALS'));
     }
 
     res.json({
@@ -42,7 +45,7 @@ router.post('/login', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('❌ Login route error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
   }
 });
 
@@ -68,11 +71,11 @@ router.post(
 
       // Validaciones
       if (!collection || !name || !rarity) {
-        return res.status(400).json({ error: 'Missing required fields: collection, name, rarity' });
+        return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'REQUIRED_FIELDS_MISSING'));
       }
 
       if (!['skins', 'collectibles', 'wallpapers', 'fonts'].includes(collection)) {
-        return res.status(400).json({ error: 'Invalid collection type' });
+        return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'ADMIN_INVALID_COLLECTION_TYPE'));
       }
 
       const db = (req as any).db as Db;
@@ -103,7 +106,7 @@ router.post(
       });
     } catch (error) {
       console.error('❌ Mint route error:', error);
-      res.status(500).json({ error: (error as Error).message });
+      res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   }
 );
@@ -118,7 +121,7 @@ router.post('/publish_asset', AdminAuthService.middleware(), async (req: Request
     const { mint_id, confirm_ready } = req.body;
 
     if (!mint_id || !confirm_ready) {
-      return res.status(400).json({ error: 'mint_id and confirm_ready required' });
+      return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'REQUIRED_FIELDS_MISSING'));
     }
 
     const db = (req as any).db as Db;
@@ -133,7 +136,7 @@ router.post('/publish_asset', AdminAuthService.middleware(), async (req: Request
     });
   } catch (error) {
     console.error('❌ Publish route error:', error);
-    res.status(500).json({ error: (error as Error).message });
+    res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
   }
 });
 
@@ -154,7 +157,7 @@ router.get('/stats', AdminAuthService.middleware(), async (req: Request, res: Re
     });
   } catch (error) {
     console.error('❌ Stats route error:', error);
-    res.status(500).json({ error: (error as Error).message });
+    res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
   }
 });
 
@@ -182,7 +185,7 @@ router.get('/assets', AdminAuthService.middleware(), async (req: Request, res: R
     });
   } catch (error) {
     console.error('❌ Assets list route error:', error);
-    res.status(500).json({ error: (error as Error).message });
+    res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
   }
 });
 
@@ -203,7 +206,7 @@ router.get('/preview/:mint_id', AdminAuthService.middleware(), async (req: Reque
     res.send(previewBuffer);
   } catch (error) {
     console.error('❌ Preview route error:', error);
-    res.status(500).json({ error: (error as Error).message });
+    res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
   }
 });
 

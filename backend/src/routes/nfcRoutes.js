@@ -7,6 +7,7 @@
  */
 
 const express = require('express');
+const { buildUserFacingJson } = require('../lib/userFacingErrors');
 const {
   buildFallbackTarget,
   buildMountedTarget,
@@ -38,7 +39,7 @@ function createNfcRoutes({ storage }) {
   router.get('/cards', async (req, res) => {
     try {
       const uid = trimOrEmpty(req.auth?.sub);
-      if (!uid) return res.status(401).json({ ok: false, error: 'Missing auth user.' });
+      if (!uid) return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
       const db = await storage.connect();
       const cards = await db.collection('nfc_cards')
         .find({ ownerUid: uid })
@@ -47,14 +48,14 @@ function createNfcRoutes({ storage }) {
       return res.json({ ok: true, cards: cards.map(toWireNfcCard) });
     } catch (error) {
       console.error('[nfc/cards]', error);
-      return res.status(500).json({ ok: false, error: 'Could not list NFC cards.' });
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
   router.get('/mount-options', async (req, res) => {
     try {
       const uid = trimOrEmpty(req.auth?.sub);
-      if (!uid) return res.status(401).json({ ok: false, error: 'Missing auth user.' });
+      if (!uid) return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
       const db = await storage.connect();
       const business = await db.collection('business_cards')
         .find({ ownerUid: uid }, { projection: { bId: 1, bcName: 1, bcContactName: 1, updatedAt: 1 } })
@@ -90,32 +91,32 @@ function createNfcRoutes({ storage }) {
       return res.json({ ok: true, options });
     } catch (error) {
       console.error('[nfc/mount-options]', error);
-      return res.status(500).json({ ok: false, error: 'Could not list mount options.' });
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
   router.post('/cards/link', async (req, res) => {
     try {
       const uid = trimOrEmpty(req.auth?.sub);
-      if (!uid) return res.status(401).json({ ok: false, error: 'Missing auth user.' });
+      if (!uid) return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
       const nfcCardId = normalizeNfcCardId(req.body?.nfcCardId);
-      if (!nfcCardId) return res.status(400).json({ ok: false, error: 'Invalid NFC card id.' });
+      if (!nfcCardId) return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'NFC_INVALID_CARD_ID'));
       const activationPin = normalizeActivationPin(req.body?.activationPin);
-      if (!activationPin) return res.status(400).json({ ok: false, error: 'Invalid activation PIN.' });
+      if (!activationPin) return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'NFC_INVALID_ACTIVATION_PIN'));
       const label = trimOrEmpty(req.body?.label).slice(0, 120) || 'Tarjeta NFC';
       const material = normalizeMaterial(req.body?.material);
       const db = await storage.connect();
       const now = new Date();
       const existing = await db.collection('nfc_cards').findOne({ nfcCardId });
       if (!existing) {
-        return res.status(404).json({ ok: false, error: 'This NFC card is not provisioned.' });
+        return res.status(404).json(buildUserFacingJson(req, 'auth_forbidden', 'NFC_CARD_NOT_PROVISIONED'));
       }
       if (existing.isClaimed === true || existing.ownerUid) {
-        return res.status(409).json({ ok: false, error: 'This NFC card is already claimed.' });
+        return res.status(409).json(buildUserFacingJson(req, 'auth_forbidden', 'NFC_CARD_ALREADY_CLAIMED'));
       }
       const expectedPin = normalizeActivationPin(existing.activationPin);
       if (!expectedPin || expectedPin !== activationPin) {
-        return res.status(403).json({ ok: false, error: 'Invalid activation PIN.' });
+        return res.status(403).json(buildUserFacingJson(req, 'nfc_activation_pin_invalid', 'NFC_ACTIVATION_PIN_INVALID'));
       }
       const base = {
         ownerUid: uid,
@@ -132,31 +133,31 @@ function createNfcRoutes({ storage }) {
         { $set: base, $unset: { activationPin: '' }, $inc: { version: 1 } },
       );
       if (!claimResult.matchedCount) {
-        return res.status(409).json({ ok: false, error: 'This NFC card was already claimed. Try refreshing.' });
+        return res.status(409).json(buildUserFacingJson(req, 'auth_forbidden', 'NFC_CARD_ALREADY_CLAIMED_REFRESH'));
       }
       await db.collection('nfc_card_events').insertOne(eventRow(nfcCardId, 'linked', uid));
       const doc = await db.collection('nfc_cards').findOne({ nfcCardId, ownerUid: uid });
       return res.status(201).json({ ok: true, card: toWireNfcCard(doc) });
     } catch (error) {
       console.error('[nfc/link]', error);
-      return res.status(500).json({ ok: false, error: 'Could not link NFC card.' });
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
   router.post('/cards/:nfcCardId/mount', async (req, res) => {
     try {
       const uid = trimOrEmpty(req.auth?.sub);
-      if (!uid) return res.status(401).json({ ok: false, error: 'Missing auth user.' });
+      if (!uid) return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
       const nfcCardId = normalizeNfcCardId(req.params.nfcCardId);
-      if (!nfcCardId) return res.status(400).json({ ok: false, error: 'Invalid NFC card id.' });
+      if (!nfcCardId) return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'NFC_INVALID_CARD_ID'));
       const db = await storage.connect();
       const current = await db.collection('nfc_cards').findOne({ nfcCardId, ownerUid: uid });
-      if (!current) return res.status(404).json({ ok: false, error: 'NFC card not found.' });
+      if (!current) return res.status(404).json(buildUserFacingJson(req, 'auth_forbidden', 'NFC_CARD_NOT_FOUND'));
       const mountedTarget = await buildMountedTarget(db, uid, req.body);
-      if (!mountedTarget) return res.status(400).json({ ok: false, error: 'Invalid mount target.' });
+      if (!mountedTarget) return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'NFC_INVALID_MOUNT_TARGET'));
       const fallbackTarget = await buildFallbackTarget(db, uid, req.body);
       if (mountedTarget.isTemporary && !fallbackTarget) {
-        return res.status(400).json({ ok: false, error: 'A fallback is required for temporary SmartCards.' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'NFC_FALLBACK_REQUIRED'));
       }
       const now = new Date();
       await db.collection('nfc_cards').updateOne(
@@ -188,23 +189,23 @@ function createNfcRoutes({ storage }) {
       return res.json({ ok: true, card: toWireNfcCard(doc) });
     } catch (error) {
       console.error('[nfc/mount]', error);
-      return res.status(500).json({ ok: false, error: 'Could not mount NFC target.' });
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
   router.patch('/cards/:nfcCardId/status', async (req, res) => {
     try {
       const uid = trimOrEmpty(req.auth?.sub);
-      if (!uid) return res.status(401).json({ ok: false, error: 'Missing auth user.' });
+      if (!uid) return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
       const nfcCardId = normalizeNfcCardId(req.params.nfcCardId);
-      if (!nfcCardId) return res.status(400).json({ ok: false, error: 'Invalid NFC card id.' });
+      if (!nfcCardId) return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'NFC_INVALID_CARD_ID'));
       const nextStatus = normalizeStatus(req.body?.status, '');
       if (!['active', 'paused', 'lost'].includes(nextStatus)) {
-        return res.status(400).json({ ok: false, error: 'Invalid status transition.' });
+        return res.status(400).json(buildUserFacingJson(req, 'auth_forbidden', 'NFC_INVALID_STATUS_TRANSITION'));
       }
       const db = await storage.connect();
       const current = await db.collection('nfc_cards').findOne({ nfcCardId, ownerUid: uid });
-      if (!current) return res.status(404).json({ ok: false, error: 'NFC card not found.' });
+      if (!current) return res.status(404).json(buildUserFacingJson(req, 'auth_forbidden', 'NFC_CARD_NOT_FOUND'));
       const recoveryContact = nextStatus === 'lost'
         ? sanitizeRecoveryContact(req.body?.recoveryContact) || current.recoveryContact || null
         : current.recoveryContact || null;
@@ -230,7 +231,7 @@ function createNfcRoutes({ storage }) {
       return res.json({ ok: true, card: toWireNfcCard(doc) });
     } catch (error) {
       console.error('[nfc/status]', error);
-      return res.status(500).json({ ok: false, error: 'Could not update NFC status.' });
+      return res.status(500).json(buildUserFacingJson(req, 'auth_forbidden', 'SERVER_INTERNAL_ERROR'));
     }
   });
 

@@ -5,6 +5,8 @@
  * `ADMIN_SYSTEM_STATS_UIDS` del entorno del backend (process.env, sin prefijo VITE).
  */
 
+const { buildUserFacingJson } = require('../lib/userFacingErrors');
+
 function parseAdminSystemStatsUidAllowlist() {
   return new Set(
     String(process.env.ADMIN_SYSTEM_STATS_UIDS || '')
@@ -24,7 +26,7 @@ function createAdminSystemStatsHandler({ getMongoDb }) {
       try {
         const db = typeof getMongoDb === 'function' ? getMongoDb() : null;
         if (!db) {
-          return res.status(500).json({ ok: false, error: 'Database not available' });
+          return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
         }
 
         const now = new Date();
@@ -64,10 +66,7 @@ function createAdminSystemStatsHandler({ getMongoDb }) {
         const allowedUids = parseAdminSystemStatsUidAllowlist();
 
         if (!uid || !allowedUids.has(uid)) {
-          return res.status(403).json({
-            ok: false,
-            error: 'Unauthorized: JWT sub not listed in ADMIN_SYSTEM_STATS_UIDS',
-          });
+          return res.status(403).json(buildUserFacingJson(req, 'admin_restricted', 'ADMIN_SYSTEM_STATS_UID_NOT_ALLOWED'));
         }
 
         return res.status(200).json({
@@ -81,8 +80,8 @@ function createAdminSystemStatsHandler({ getMongoDb }) {
           mongo_users_by_subscription_plan,
         });
       } catch (e) {
-        console.error('[admin/system-stats]', e);
-        return res.status(500).json({ ok: false, error: e.message || 'system-stats failed' });
+        console.error('[admin/system-stats]', e?.message || e, e?.stack);
+        return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
       }
     };
 }

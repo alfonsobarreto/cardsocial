@@ -4,8 +4,18 @@
  * Soporta: Skins, Wallpapers, Fonts, Collectibles
  */
 
-import { MongoClient, Db, Collection } from 'mongodb';
-import { v4 as uuidv4 } from 'uuid';
+import { Db, Collection } from 'mongodb';
+
+/** Códigos en `Error.message` que la capa HTTP puede mapear; nunca incluir `cause.message` ni PII. */
+const MINT_DOMAIN_MESSAGES = new Set(['not_found', 'invalid_payload']);
+
+function mintLogAndRethrowOrServerInternal(context: string, error: unknown): never {
+  console.error(context, error);
+  if (error instanceof Error && MINT_DOMAIN_MESSAGES.has(error.message)) {
+    throw error;
+  }
+  throw new Error('SERVER_INTERNAL_ERROR');
+}
 
 interface Collectible {
   unique_id: string; // [COLLECTION]-[SERIE_###]
@@ -106,8 +116,7 @@ export class MarketMintService {
         files_uploaded: Object.keys(request.files).length,
       };
     } catch (error) {
-      console.error('❌ Mint error:', error);
-      throw new Error(`Failed to mint asset: ${(error as Error).message}`);
+      mintLogAndRethrowOrServerInternal('❌ Mint error:', error);
     }
   }
 
@@ -121,11 +130,11 @@ export class MarketMintService {
       const draft = await this.collection?.findOne({ _id: new (require('mongodb')).ObjectId(mint_id) });
 
       if (!draft) {
-        throw new Error('Asset not found');
+        throw new Error('not_found');
       }
 
       if (draft.status !== 'draft') {
-        throw new Error('Only draft assets can be published');
+        throw new Error('invalid_payload');
       }
 
       // Inicializar colecciones según tipo
@@ -159,8 +168,7 @@ export class MarketMintService {
         available_editions: stock_limit,
       };
     } catch (error) {
-      console.error('❌ Publish error:', error);
-      throw new Error(`Failed to publish asset: ${(error as Error).message}`);
+      mintLogAndRethrowOrServerInternal('❌ Publish error:', error);
     }
   }
 
@@ -173,7 +181,7 @@ export class MarketMintService {
       const asset = await this.collection?.findOne({ _id: new (require('mongodb')).ObjectId(mint_id) });
 
       if (!asset) {
-        throw new Error('Asset not found');
+        throw new Error('not_found');
       }
 
       // Aquí iría la lógica de Canvas/SVG para componer el preview
@@ -183,8 +191,7 @@ export class MarketMintService {
       console.log(`✅ Preview generated: ${asset.unique_id}`);
       return previewBuffer;
     } catch (error) {
-      console.error('❌ Preview generation error:', error);
-      throw new Error(`Failed to generate preview: ${(error as Error).message}`);
+      mintLogAndRethrowOrServerInternal('❌ Preview generation error:', error);
     }
   }
 
@@ -197,8 +204,7 @@ export class MarketMintService {
       const assets = await this.collection?.find(query).toArray();
       return assets || [];
     } catch (error) {
-      console.error('❌ List error:', error);
-      throw new Error(`Failed to list assets: ${(error as Error).message}`);
+      mintLogAndRethrowOrServerInternal('❌ List error:', error);
     }
   }
 
@@ -220,8 +226,7 @@ export class MarketMintService {
 
       return stats;
     } catch (error) {
-      console.error('❌ Stats error:', error);
-      throw new Error(`Failed to get stats: ${(error as Error).message}`);
+      mintLogAndRethrowOrServerInternal('❌ Stats error:', error);
     }
   }
 }

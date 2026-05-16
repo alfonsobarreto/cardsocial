@@ -3,8 +3,11 @@
  * En Expo Go no se carga react-native-agora (evita crash por módulo nativo no enlazado).
  */
 
+import { Platform } from 'react-native';
+
 import { isGhostLinkAgoraNativeAvailable } from '@/services/expoGoAgoraGuard';
 import type { GhostLinkAgoraRtc } from '@/services/ghostLinkVoip';
+import { refreshIosAndroidAudioSessionForVoipRtcRouteChange } from '@/services/voip/voipExpoAvToAgoraAudioBridge';
 
 type AgoraModule = typeof import('react-native-agora');
 type IRtcEngine = import('react-native-agora').IRtcEngine;
@@ -14,6 +17,11 @@ let videoEnabledState = false;
 /** Motor creado solo para `startPreview` (sin `joinChannel`); `joinGhostLinkAgoraSession` reutiliza la misma instancia. */
 let ghostLinkEnginePreviewOnly = false;
 let lastPreviewAppId = '';
+
+/** Última intención UI de altavoz; se re-aplica tras cambios de ruta del sistema (Bluetooth, etc.). */
+let intendedSpeakerphoneOn = false;
+
+let audioRouteSyncTimer: ReturnType<typeof setTimeout> | null = null;
 
 function loadAgoraModule(): AgoraModule | null {
   if (!isGhostLinkAgoraNativeAvailable()) {
@@ -41,6 +49,11 @@ export async function leaveGhostLinkAgoraSession(): Promise<void> {
   videoEnabledState = false;
   ghostLinkEnginePreviewOnly = false;
   lastPreviewAppId = '';
+  intendedSpeakerphoneOn = false;
+  if (audioRouteSyncTimer != null) {
+    clearTimeout(audioRouteSyncTimer);
+    audioRouteSyncTimer = null;
+  }
   if (!e) {
     return;
   }
@@ -81,7 +94,8 @@ export async function startGhostLinkLocalVideoPreview(appId: string): Promise<vo
   const initCode = e.initialize({
     appId: id,
     channelProfile: ChannelProfileType.ChannelProfileCommunication,
-    audioScenario: AudioScenarioType.AudioScenarioChatroom,
+    /** Reunión 1:1 / VoIP: perfil de audio más cercano a comunicación bidireccional con rutas externas (BT). */
+    audioScenario: AudioScenarioType.AudioScenarioMeeting,
   });
   if (initCode !== 0 && __DEV__) {
     console.warn('[Ghost-Link Agora] preview initialize code', initCode);
@@ -156,8 +170,7 @@ export async function joinGhostLinkAgoraSession(creds: GhostLinkAgoraRtc, enable
     const initCode = e.initialize({
       appId: creds.appId,
       channelProfile: ChannelProfileType.ChannelProfileCommunication,
-      /** Chatroom: AEC/NS orientados a voz frecuente; reduce choque con otros usos del audio del sistema. */
-      audioScenario: AudioScenarioType.AudioScenarioChatroom,
+      audioScenario: AudioScenarioType.AudioScenarioMeeting,
     });
     if (initCode !== 0 && __DEV__) {
       console.warn('[Ghost-Link Agora] initialize code', initCode);
@@ -165,13 +178,36 @@ export async function joinGhostLinkAgoraSession(creds: GhostLinkAgoraRtc, enable
   }
 
   try {
-    e.setAudioProfile(AudioProfileType.AudioProfileDefault, AudioScenarioType.AudioScenarioChatroom);
+    e.setAudioProfile(AudioProfileType.AudioProfileDefault, AudioScenarioType.AudioScenarioMeeting);
   } catch {
     /* native opcional */
   }
 
+  try {
+    e.setAudioScenario(AudioScenarioType.AudioScenarioMeeting);
+  } catch {
+    /* p. ej. motor reutilizado desde preview con otro escenario */
+  }
+
   e.enableAudio();
   await new Promise<void>((r) => setTimeout(r, 200));
+
+  /**
+   * Sin altavoz forzado por UI: default hacia auricular deja que BT/HFP tome la ruta cuando existe.
+   * setGhostLinkAgoraSpeaker aplicará default+route cuando el usuario active el altavoz.
+   */
+  try {
+    e.setDefaultAudioRouteToSpeakerphone(false);
+  } catch {
+    /* ignore */
+  }
+  if (Platform.OS === 'android') {
+    try {
+      e.setRouteInCommunicationMode(-1);
+    } catch {
+      /* ignore */
+    }
+  }
 
   if (enableVideo) {
     e.enableVideo();
@@ -216,11 +252,53 @@ export function setGhostLinkAgoraMuted(muted: boolean): void {
 }
 
 export function setGhostLinkAgoraSpeaker(speakerOn: boolean): void {
+  intendedSpeakerphoneOn = speakerOn;
   try {
+    engine?.setDefaultAudioRouteToSpeakerphone(speakerOn);
     engine?.setEnableSpeakerphone(speakerOn);
+    if (Platform.OS === 'android' && engine) {
+      try {
+        engine.setRouteInCommunicationMode(speakerOn ? 3 : -1);
+      } catch {
+        /* ignore */
+      }
+    }
   } catch {
     /* ignore */
   }
+}
+
+/**
+ * Coalesce: tras `onAudioRoutingChanged`, sincroniza expo-av + la intención de altavoz con el motor RTC.
+ */
+export function scheduleGhostLinkAgoraAudioRouteSync(): void {
+  if (audioRouteSyncTimer != null) {
+    clearTimeout(audioRouteSyncTimer);
+  }
+  audioRouteSyncTimer = setTimeout(() => {
+    audioRouteSyncTimer = null;
+    void (async () => {
+      try {
+        await refreshIosAndroidAudioSessionForVoipRtcRouteChange();
+      } catch {
+        /* noop */
+      }
+      try {
+        if (!engine) return;
+        engine.setDefaultAudioRouteToSpeakerphone(intendedSpeakerphoneOn);
+        engine.setEnableSpeakerphone(intendedSpeakerphoneOn);
+        if (Platform.OS === 'android') {
+          try {
+            engine.setRouteInCommunicationMode(intendedSpeakerphoneOn ? 3 : -1);
+          } catch {
+            /* noop */
+          }
+        }
+      } catch {
+        /* noop */
+      }
+    })();
+  }, 120);
 }
 
 export function setGhostLinkAgoraVideo(enabled: boolean): void {

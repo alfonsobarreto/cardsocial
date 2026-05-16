@@ -11,6 +11,7 @@ import {
   minReferralsMetForBenefitNotify,
   type BenefitMilestone,
 } from '@card-social/services/legacyPhysicalBenefitEmailCopy';
+import { pickLocaleFromHeaders, userFacingMessageForErrorCode } from '@/lib/userFacingApiMessages';
 
 export const runtime = 'nodejs';
 
@@ -40,18 +41,25 @@ export async function OPTIONS() {
 
 export async function POST(req: Request) {
   const cors = corsHeaders();
+  const loc = pickLocaleFromHeaders(req.headers);
 
   try {
     const admin = resolveAdminApp();
     if (!admin.ok) {
-      return NextResponse.json({ ok: false, error: admin.code }, { status: 503, headers: cors });
+      return NextResponse.json(
+        { ok: false, error: userFacingMessageForErrorCode(admin.code, loc), errorCode: admin.code },
+        { status: 503, headers: cors },
+      );
     }
 
     const authHeader = req.headers.get('authorization') || '';
     const match = /^Bearer\s+(.+)$/i.exec(authHeader.trim());
     const idToken = match?.[1]?.trim();
     if (!idToken) {
-      return NextResponse.json({ ok: false, error: 'missing_bearer_token' }, { status: 401, headers: cors });
+      return NextResponse.json(
+        { ok: false, error: userFacingMessageForErrorCode('missing_bearer_token', loc), errorCode: 'missing_bearer_token' },
+        { status: 401, headers: cors },
+      );
     }
 
     let uid: string;
@@ -61,17 +69,26 @@ export async function POST(req: Request) {
       uid = decoded.uid;
       recipientEmail = decoded.email;
     } catch {
-      return NextResponse.json({ ok: false, error: 'invalid_or_expired_id_token' }, { status: 401, headers: cors });
+      return NextResponse.json(
+        { ok: false, error: userFacingMessageForErrorCode('invalid_or_expired_id_token', loc), errorCode: 'invalid_or_expired_id_token' },
+        { status: 401, headers: cors },
+      );
     }
 
     const bodyRaw = await req.json().catch(() => null);
     const milestone = String((bodyRaw as { milestone?: string } | null)?.milestone || '').trim() as BenefitMilestone;
     const allowed = new Set<BenefitMilestone>(['pvc_or_higher', 'metal_card']);
     if (!allowed.has(milestone)) {
-      return NextResponse.json({ ok: false, error: 'invalid_milestone' }, { status: 400, headers: cors });
+      return NextResponse.json(
+        { ok: false, error: userFacingMessageForErrorCode('invalid_milestone', loc), errorCode: 'invalid_milestone' },
+        { status: 400, headers: cors },
+      );
     }
     if (!recipientEmail?.trim()) {
-      return NextResponse.json({ ok: false, error: 'email_not_available_on_account' }, { status: 422, headers: cors });
+      return NextResponse.json(
+        { ok: false, error: userFacingMessageForErrorCode('email_not_available_on_account', loc), errorCode: 'email_not_available_on_account' },
+        { status: 422, headers: cors },
+      );
     }
 
     const fs = getFirestore(admin.app);
@@ -89,14 +106,25 @@ export async function POST(req: Request) {
     }
 
     if (count < minimum) {
-      return NextResponse.json({ ok: false, error: 'tier_not_met', count }, { status: 403, headers: cors });
+      return NextResponse.json(
+        {
+          ok: false,
+          error: userFacingMessageForErrorCode('tier_not_met', loc),
+          errorCode: 'tier_not_met',
+          count,
+        },
+        { status: 403, headers: cors },
+      );
     }
 
     const apiKey = process.env.RESEND_API_KEY?.trim();
     const from = process.env.RESEND_FROM_EMAIL?.trim();
     if (!apiKey || !from) {
       if (shouldLogFirebaseAdmin()) console.error('[legacy-path/benefit-notify] Resend misconfigured');
-      return NextResponse.json({ ok: false, error: 'email_unconfigured' }, { status: 503, headers: cors });
+      return NextResponse.json(
+        { ok: false, error: userFacingMessageForErrorCode('email_unconfigured', loc), errorCode: 'email_unconfigured' },
+        { status: 503, headers: cors },
+      );
     }
 
     const name =
@@ -135,6 +163,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true }, { status: 200, headers: cors });
   } catch (error) {
     console.error('[legacy-path/benefit-notify]', error);
-    return NextResponse.json({ ok: false, error: 'send_failed' }, { status: 502, headers: cors });
+    return NextResponse.json(
+      { ok: false, error: userFacingMessageForErrorCode('send_failed', loc), errorCode: 'send_failed' },
+      { status: 502, headers: cors },
+    );
   }
 }

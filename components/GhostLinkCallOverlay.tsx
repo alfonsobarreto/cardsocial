@@ -10,6 +10,7 @@ import React, {
 import {
   Animated,
   Image,
+  Linking,
   Modal,
   Platform,
   StyleSheet,
@@ -28,6 +29,7 @@ import {
   OUTGOING_CALL_EMPTY_LINE,
 } from '@/services/outgoingCallUiMirror';
 import { VoIPCallPhase } from '@/services/voip/VoIPCallPhase';
+import { localGhostLinkTrialCapMinutes } from '@/services/ghostLinkVoip';
 
 /** Tras `sessionId`, congela nombre/foto peer + tarjeta para que re-renders no sustituyan identidad en mitad de llamada. */
 type GhostDisplayIdentity = Pick<GhostCallData, 'peerName' | 'peerNickname' | 'peerPhotoUrl' | 'card'>;
@@ -44,7 +46,8 @@ function GhostDisplayIdentityProvider({ children }: { children: React.ReactNode 
       phase === VoIPCallPhase.Ended ||
       phase === VoIPCallPhase.Rejected ||
       phase === VoIPCallPhase.Error ||
-      phase === VoIPCallPhase.Muted
+      phase === VoIPCallPhase.Muted ||
+      phase === VoIPCallPhase.AirTimeExhausted
     ) {
       setIdentitySnap(null);
       return;
@@ -168,6 +171,71 @@ function formatDuration(sec: number): string {
   const m = Math.floor(sec / 60);
   const s = sec % 60;
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function VoipTrialCapHintBar({
+  capMinutes,
+  elapsedSec,
+  tr,
+  mutedColor,
+}: {
+  capMinutes: number;
+  elapsedSec: number;
+  tr: (es: string, en: string) => string;
+  mutedColor: string;
+}) {
+  const capSec = capMinutes * 60;
+  const remaining = Math.max(0, capSec - elapsedSec);
+  const remainLabel = formatDuration(remaining);
+  return (
+    <Text
+      style={{
+        fontSize: 12,
+        color: mutedColor,
+        marginTop: 6,
+        textAlign: 'center',
+        paddingHorizontal: 16,
+        lineHeight: 18,
+      }}
+    >
+      {tr(
+        `AirTime (sesión): máximo ${capMinutes} min · ~${remainLabel} restantes`,
+        `AirTime (session): ${capMinutes} min max · ~${remainLabel} left`,
+      )}
+    </Text>
+  );
+}
+
+function VoipAudioRouteHintStrip({ videoChrome }: { videoChrome?: boolean }) {
+  const { voipAudioRouteHint, dismissVoipAudioRouteHint } = useGhostLinkCall();
+  const shell = useGhostLinkShell();
+  const tr = useTr();
+  if (!voipAudioRouteHint) return null;
+  const fg = videoChrome ? shell.ghostLinkVideoTopBarText : shell.ghostLinkTextPrimary;
+  const muted = videoChrome ? shell.ghostLinkVideoWaitingText : shell.ghostLinkTextSecondary;
+  return (
+    <View
+      style={[
+        styles.audioRouteHint,
+        {
+          backgroundColor: videoChrome ? shell.ghostLinkVideoControlFrost : shell.typeBadgeBg,
+          borderColor: shell.pillBorder,
+        },
+      ]}
+    >
+      <Text style={[styles.audioRouteHintText, { color: fg }]}>{voipAudioRouteHint}</Text>
+      <View style={styles.audioRouteHintActions}>
+        <TouchableOpacity onPress={() => void Linking.openSettings()} accessibilityRole="button">
+          <Text style={[styles.audioRouteHintAction, { color: shell.tint }]}>
+            {tr('Abrir ajustes', 'Open Settings')}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={dismissVoipAudioRouteHint} accessibilityRole="button">
+          <Text style={[styles.audioRouteHintAction, { color: muted }]}>{tr('Entendido', 'Got it')}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 }
 
 function CallChromeMinimizeButton({ videoChrome }: { videoChrome?: boolean }) {
@@ -531,6 +599,7 @@ function OutgoingView() {
   const statusText = isRinging
     ? tr('Llamando...', 'Calling...')
     : `${tr('En llamada', 'On call')} · ${formatDuration(callDurationSec)}`;
+  const agoraCapMin = localGhostLinkTrialCapMinutes(callData.direction, callData.trialCap);
   const om = outgoingMirrorFromGhostCallData(callData);
   const outgoingSubtitleLine =
     om.subtitleLine === OUTGOING_CALL_EMPTY_LINE ? null : om.subtitleLine;
@@ -544,6 +613,7 @@ function OutgoingView() {
       {showRingingLocalVideoBackdrop ? <RingingLocalVideoBackdrop /> : null}
       <View style={[styles.centered, styles.fullScreenForeground]}>
         <CallChromeMinimizeButton />
+        <VoipAudioRouteHintStrip />
         <View style={styles.logoSlot}>
           <BrandLogoMark />
         </View>
@@ -559,6 +629,14 @@ function OutgoingView() {
           <Text style={[styles.fullNameText, { color: shell.ghostLinkTextSecondary }]}>{outgoingSubtitleLine}</Text>
         ) : null}
         <Text style={[styles.statusText, { color: shell.ghostLinkTextSecondary }]}>{statusText}</Text>
+        {agoraCapMin != null && callData.agora ? (
+          <VoipTrialCapHintBar
+            capMinutes={agoraCapMin}
+            elapsedSec={callDurationSec}
+            tr={tr}
+            mutedColor={shell.ghostLinkTextMuted}
+          />
+        ) : null}
 
         <View style={[styles.controls, styles.controlsWrap]}>
           <ControlButton
@@ -608,6 +686,7 @@ function IncomingView() {
   const statusLabel = isVideo
     ? tr('Videollamada Entrante...', 'Incoming Video Call...')
     : tr('Llamada Entrante...', 'Incoming Call...');
+  const agoraCapMin = localGhostLinkTrialCapMinutes('incoming', callData.trialCap);
   /** Receptor: avatar/nombre del **caller** (peer); badge con nombre de la tarjeta compartida. */
   const face = deriveCallFace(callData);
   const incomingBusiness = callData.card.cardType === 'business';
@@ -633,6 +712,9 @@ function IncomingView() {
           </View>
         )}
         <Text style={[styles.statusText, { color: shell.ghostLinkTextSecondary }]}>{statusLabel}</Text>
+        {agoraCapMin != null && callData.agora ? (
+          <VoipTrialCapHintBar capMinutes={agoraCapMin} elapsedSec={0} tr={tr} mutedColor={shell.ghostLinkTextMuted} />
+        ) : null}
         {incomingBusiness && face.cardLabel ? (
           <CardBadge
             label={`${tr('Desde tu tarjeta', 'From your card')}: ${face.cardLabel}`}
@@ -680,11 +762,13 @@ function ActiveIncomingView() {
   /** Receptor en activa: Smart = `cardName` + caller `userFullName`; Business = badge tarjeta. */
   const face = deriveCallFace(callData);
   const incomingBusiness = callData.card.cardType === 'business';
+  const agoraCapMin = localGhostLinkTrialCapMinutes('incoming', callData.trialCap);
 
   return (
     <>
       <View style={styles.centered}>
         <CallChromeMinimizeButton />
+        <VoipAudioRouteHintStrip />
         <View style={styles.logoSlot}>
           <BrandLogoMark />
         </View>
@@ -703,6 +787,14 @@ function ActiveIncomingView() {
         <Text style={[styles.statusText, { color: shell.ghostLinkTextSecondary }]}>
           {tr('En llamada', 'On call')} · {formatDuration(callDurationSec)}
         </Text>
+        {agoraCapMin != null && callData.agora ? (
+          <VoipTrialCapHintBar
+            capMinutes={agoraCapMin}
+            elapsedSec={callDurationSec}
+            tr={tr}
+            mutedColor={shell.ghostLinkTextMuted}
+          />
+        ) : null}
 
         <View style={[styles.controls, styles.controlsWrap]}>
           <ControlButton
@@ -769,6 +861,8 @@ function ActiveVideoView() {
    */
   const face = deriveCallFace(callData);
 
+  const agoraCapMin = localGhostLinkTrialCapMinutes(callData.direction, callData.trialCap);
+
   const pinchGesture = useMemo(
     () =>
       Gesture.Pinch()
@@ -788,6 +882,9 @@ function ActiveVideoView() {
 
   return (
     <View style={[videoStyles.root, { backgroundColor: shell.ghostLinkVideoStageBg }]}>
+      <View style={videoStyles.audioRouteHintVideoWrap}>
+        <VoipAudioRouteHintStrip videoChrome />
+      </View>
       {/* Remote: solo montar SurfaceView cuando el SDK reporta vídeo activo (evita frame congelado). */}
       {showRemoteSurface ? (
         <RtcSurfaceView style={videoStyles.remoteVideo} canvas={{ uid: remoteUid! }} />
@@ -844,6 +941,14 @@ function ActiveVideoView() {
               ? `${face.subtitle} · ${formatDuration(callDurationSec)}`
               : formatDuration(callDurationSec)}
           </Text>
+          {agoraCapMin != null && callData.agora ? (
+            <Text style={[videoStyles.topTrialCap, { color: shell.ghostLinkVideoTopBarMuted }]}>
+              {tr(
+                `AirTime · ~${formatDuration(Math.max(0, agoraCapMin * 60 - callDurationSec))} máx.`,
+                `AirTime · ~${formatDuration(Math.max(0, agoraCapMin * 60 - callDurationSec))} max.`,
+              )}
+            </Text>
+          ) : null}
         </View>
         <CallChromeMinimizeButton videoChrome />
       </View>
@@ -885,7 +990,7 @@ function ActiveVideoView() {
   );
 }
 
-function EndedView({ reason }: { reason: 'ended' | 'rejected' | 'error' | 'muted' }) {
+function EndedView({ reason }: { reason: 'ended' | 'rejected' | 'error' | 'muted' | 'airtime_exhausted' }) {
   const shell = useGhostLinkShell();
   const tr = useTr();
   const msg =
@@ -893,9 +998,14 @@ function EndedView({ reason }: { reason: 'ended' | 'rejected' | 'error' | 'muted
       ? tr('Llamada rechazada', 'Call declined')
       : reason === 'muted'
         ? tr('Tarjeta silenciada — no se puede llamar', 'Card muted — cannot call')
-        : reason === 'error'
-          ? tr('Error de conexión', 'Connection error')
-          : tr('Llamada finalizada', 'Call ended');
+        : reason === 'airtime_exhausted'
+          ? tr(
+              'Saldo de AirTime agotado. Recarga en tu Dashboard.',
+              'AirTime balance depleted. Top up from your Dashboard.',
+            )
+          : reason === 'error'
+            ? tr('Error de conexión', 'Connection error')
+            : tr('Llamada finalizada', 'Call ended');
 
   return (
     <View style={styles.centered}>
@@ -903,7 +1013,17 @@ function EndedView({ reason }: { reason: 'ended' | 'rejected' | 'error' | 'muted
         <BrandLogoMark />
       </View>
       <MaterialCommunityIcons
-        name={reason === 'rejected' ? 'phone-missed' : reason === 'muted' ? 'volume-off' : reason === 'error' ? 'alert-circle-outline' : 'phone-hangup'}
+        name={
+          reason === 'rejected'
+            ? 'phone-missed'
+            : reason === 'muted'
+              ? 'volume-off'
+              : reason === 'airtime_exhausted'
+                ? 'timer-sand-empty'
+                : reason === 'error'
+                  ? 'alert-circle-outline'
+                  : 'phone-hangup'
+        }
         size={64}
         color={shell.ghostLinkTextMuted}
       />
@@ -926,7 +1046,8 @@ export default function GhostLinkCallOverlay() {
     (!callData &&
       phase !== VoIPCallPhase.Ended &&
       phase !== VoIPCallPhase.Rejected &&
-      phase !== VoIPCallPhase.Error)
+      phase !== VoIPCallPhase.Error &&
+      phase !== VoIPCallPhase.AirTimeExhausted)
   ) {
     return null;
   }
@@ -973,6 +1094,9 @@ export default function GhostLinkCallOverlay() {
       break;
     case VoIPCallPhase.Error:
       content = <EndedView reason="error" />;
+      break;
+    case VoIPCallPhase.AirTimeExhausted:
+      content = <EndedView reason="airtime_exhausted" />;
       break;
     default:
       return null;
@@ -1061,6 +1185,30 @@ const styles = StyleSheet.create({
     maxWidth: '92%',
   },
   badgeText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  audioRouteHint: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 10,
+  },
+  audioRouteHintText: {
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  audioRouteHintActions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 20,
+    marginTop: 8,
+  },
+  audioRouteHintAction: {
     fontSize: 13,
     fontWeight: '600',
   },
@@ -1185,6 +1333,14 @@ const videoStyles = StyleSheet.create({
   root: {
     flex: 1,
   },
+  audioRouteHintVideoWrap: {
+    position: 'absolute',
+    top: 52,
+    left: 12,
+    right: 56,
+    zIndex: 25,
+    alignItems: 'center',
+  },
   remoteVideo: {
     ...StyleSheet.absoluteFillObject,
   },
@@ -1224,6 +1380,10 @@ const videoStyles = StyleSheet.create({
   },
   topStatus: {
     fontSize: 12,
+  },
+  topTrialCap: {
+    fontSize: 11,
+    marginTop: 2,
   },
   bottomBar: {
     position: 'absolute',

@@ -5,7 +5,7 @@
  * que Webpack inyecta en el cliente para `NEXT_PUBLIC_*` — provoca error de hidratación
  * y la página queda en blanco / negro. El correo debe ser el mismo en build y runtime.
  */
-export const LEGAL_SUPPORT_EMAIL = 'soporte@card-social.com';
+export const LEGAL_SUPPORT_EMAIL = 'support@cardsocial.me';
 
 export const SUPPORT_MAILTO =
   LEGAL_SUPPORT_EMAIL.includes('@') && !LEGAL_SUPPORT_EMAIL.startsWith('[')

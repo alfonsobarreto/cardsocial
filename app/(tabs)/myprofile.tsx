@@ -24,6 +24,7 @@ import {
   readUserNickName,
   readUserNickNameLower,
 } from '@/services/userIdentityFields';
+import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import {
@@ -71,6 +72,7 @@ import {
 } from 'react-native';
 import palette from '../theme';
 import { PartnerBadge } from '@/components/PartnerBadge';
+import { VoipAirTimeBadge } from '@/components/VoipAirTimeBadge';
 
 // ─── Photo helpers ─────────────────────────────────────────────────────────────
 const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
@@ -296,7 +298,10 @@ export default function MyProfileScreen() {
         setCreditsBalance(Number(data.creditsBalance ?? 0));
       }
     } catch (e: any) {
-      Alert.alert(tr('Error', 'Error'), e?.message || tr('No se pudo cargar el perfil.', 'Could not load profile.'));
+      Alert.alert(
+        tr('Error', 'Error'),
+        userFacingAlertMessage(e, language, tr('No se pudo cargar el perfil.', 'Could not load profile.')),
+      );
     } finally {
       setLoading(false);
     }
@@ -537,7 +542,10 @@ export default function MyProfileScreen() {
           tr('La imagen no cumple las políticas de contenido de Card-Social.', 'The image does not meet Card-Social content policies.')
         );
       } else {
-        Alert.alert(tr('Error subiendo foto', 'Error uploading photo'), e?.message || tr('Inténtalo de nuevo.', 'Please try again.'));
+        Alert.alert(
+          tr('Error subiendo foto', 'Error uploading photo'),
+          userFacingAlertMessage(e, language, tr('Inténtalo de nuevo.', 'Please try again.')),
+        );
       }
     } finally {
       setUploadingPhoto(false);
@@ -572,7 +580,10 @@ export default function MyProfileScreen() {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(tr('Nombre actualizado', 'Name updated'), tr('Cambios guardados.', 'Changes saved.'));
     } catch (e: any) {
-      Alert.alert(tr('Error', 'Error'), e?.message || tr('Inténtalo de nuevo.', 'Please try again.'));
+      Alert.alert(
+        tr('Error', 'Error'),
+        userFacingAlertMessage(e, language, tr('Inténtalo de nuevo.', 'Please try again.')),
+      );
     } finally {
       setSavingName(false);
     }
@@ -621,14 +632,11 @@ export default function MyProfileScreen() {
 
       if (!resp.ok) {
         const body = await resp.json().catch(() => ({}));
-        const msg: string = (body as any)?.error || '';
-        if (msg.toLowerCase().includes('cooldown')) {
-          Alert.alert(tr('Cooldown activo', 'Cooldown active'), tr('Espera hasta la fecha indicada.', 'Wait until the indicated date.'));
-        } else if (msg.toLowerCase().includes('taken')) {
-          Alert.alert(tr('Nickname en uso', 'Nickname taken'), tr('Ese nickname ya pertenece a otro usuario.', 'That nickname belongs to another user.'));
-        } else {
-          Alert.alert(tr('No se pudo cambiar', 'Could not change'), msg || tr('Inténtalo de nuevo.', 'Please try again.'));
-        }
+        const pseudoErr = { response: { status: resp.status, data: body } };
+        Alert.alert(
+          tr('No se pudo cambiar', 'Could not change'),
+          userFacingAlertMessage(pseudoErr, language, tr('Inténtalo de nuevo.', 'Please try again.')),
+        );
         return;
       }
 
@@ -651,7 +659,10 @@ export default function MyProfileScreen() {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(tr('Nickname actualizado', 'Nickname updated'), tr('Cambios guardados.', 'Changes saved.'));
     } catch (e: any) {
-      Alert.alert(tr('Error', 'Error'), e?.message || tr('Inténtalo de nuevo.', 'Please try again.'));
+      Alert.alert(
+        tr('Error', 'Error'),
+        userFacingAlertMessage(e, language, tr('Inténtalo de nuevo.', 'Please try again.')),
+      );
     } finally {
       setSavingNickname(false);
     }
@@ -669,7 +680,10 @@ export default function MyProfileScreen() {
       try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {}
       Alert.alert(tr('Listo', 'Done'), tr('Bio actualizada.', 'Bio updated.'));
     } catch (e: any) {
-      Alert.alert(tr('Error', 'Error'), e?.message || tr('No se pudo guardar.', 'Could not save.'));
+      Alert.alert(
+        tr('Error', 'Error'),
+        userFacingAlertMessage(e, language, tr('No se pudo guardar.', 'Could not save.')),
+      );
     } finally {
       setSavingBio(false);
     }
@@ -724,7 +738,10 @@ export default function MyProfileScreen() {
       } else if (code === 'auth/requires-recent-login') {
         Alert.alert(tr('Sesión expirada', 'Session expired'), tr('Cierra sesión y vuelve a entrar.', 'Sign out and sign back in.'));
       } else {
-        Alert.alert(tr('No se pudo enviar verificación', 'Could not send verification'), e?.message || tr('Inténtalo de nuevo.', 'Please try again.'));
+        Alert.alert(
+          tr('No se pudo enviar verificación', 'Could not send verification'),
+          userFacingAlertMessage(e, language, tr('Inténtalo de nuevo.', 'Please try again.')),
+        );
       }
     } finally {
       setSavingEmail(false);
@@ -788,7 +805,10 @@ export default function MyProfileScreen() {
       } else if (code === 'auth/requires-recent-login') {
         Alert.alert(tr('Sesión expirada', 'Session expired'), tr('Cierra sesión y vuelve a entrar.', 'Sign out and sign back in.'));
       } else {
-        Alert.alert(tr('Error', 'Error'), e?.message || tr('Inténtalo de nuevo.', 'Please try again.'));
+        Alert.alert(
+          tr('Error', 'Error'),
+          userFacingAlertMessage(e, language, tr('Inténtalo de nuevo.', 'Please try again.')),
+        );
       }
     } finally {
       setSavingPw(false);
@@ -934,6 +954,10 @@ export default function MyProfileScreen() {
               <View style={styles.statItem}>
                 <Text style={[styles.statValue, { color: textPrimary }]}>{creditsBalance}</Text>
                 <Text style={[styles.statLabel, { color: textSecondary }]}>{tr('Créditos CS', 'CS credits')}</Text>
+              </View>
+              <View style={[styles.statDivider, { backgroundColor: border }]} />
+              <View style={[styles.statItem, styles.statItemAirTime]}>
+                <VoipAirTimeBadge userId={profile?.uid ?? ''} layout="profile" />
               </View>
             </View>
 
@@ -1595,12 +1619,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 24,
+    flexWrap: 'wrap',
+    gap: 16,
     paddingVertical: 8,
+    paddingHorizontal: 4,
   },
   statItem: {
     alignItems: 'center',
     gap: 2,
+  },
+  statItemAirTime: {
+    minWidth: 72,
   },
   statValue: {
     fontSize: 20,

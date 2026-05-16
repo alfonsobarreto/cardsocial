@@ -9,7 +9,10 @@ import {
 } from '../services/marketRadarAdminService';
 import { useAuth } from '../auth/useAuth';
 
-export default function MarketRadarProSettings() {
+/**
+ * Bloque de Market Radar dentro de Rules & Tiers (misma pantalla que pricing de planes).
+ */
+export default function MarketRadarProPanel() {
   const { user } = useAuth();
   const [config, setConfig] = useState<MarketRadarConfig>(DEFAULT_MARKET_RADAR_CONFIG);
   const [audit, setAudit] = useState<MarketRadarAuditRow[]>([]);
@@ -46,7 +49,7 @@ export default function MarketRadarProSettings() {
     try {
       await updateMarketRadarConfig(config, user?.email || 'unknown-admin');
       setAudit(await getMarketRadarAuditLogs());
-      setToast({ type: 'ok', message: 'Precio Pro de Market Radar publicado en system_config/market_radar.' });
+      setToast({ type: 'ok', message: 'Configuración de Market Radar guardada correctamente.' });
     } catch {
       setToast({ type: 'err', message: 'Error al guardar.' });
     } finally {
@@ -55,26 +58,39 @@ export default function MarketRadarProSettings() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8">
-      <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+    <section className="space-y-6 rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+      <div>
         <p className="text-sm font-semibold uppercase tracking-[0.25em] text-amber-600">Market Radar</p>
-        <h1 className="mt-3 text-3xl font-semibold text-slate-950">Precio Pro (único)</h1>
-        <p className="mt-3 text-sm leading-6 text-slate-600">
-          Independiente de los Tiers generales. Documento Firestore:{' '}
-          <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">system_config/market_radar</code>. El servidor de
-          Studio (<code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">mint-market-radar</code>) exige al menos
-          una business card y activación Pro vía{' '}
-          <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">marketRadarProActive</code> o{' '}
-          <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">marketRadarProExpiresAt</code> en{' '}
-          <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">users/&#123;uid&#125;</code> (o rol{' '}
-          <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">super_admin</code>).
+        <h2 className="mt-3 text-2xl font-semibold text-slate-950">Precio Pro y prueba global</h2>
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+          La app y el servidor Studio leen precio CS/USD y el interruptor de prueba global. Cuentas con rol de superadmin
+          o la cuenta operativa <span className="font-medium text-slate-800">pochobs@gmail.com</span> tienen acceso
+          ilimitado al radar sin comprar Pro.
         </p>
-      </section>
+      </div>
 
       {loading ? (
-        <div className="rounded-3xl border border-slate-200 bg-white px-8 py-12 text-center text-slate-500">Cargando…</div>
+        <div className="rounded-2xl border border-slate-100 bg-slate-50 px-6 py-10 text-center text-slate-500">
+          Cargando…
+        </div>
       ) : (
-        <form onSubmit={onSubmit} className="space-y-6 rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+        <form onSubmit={onSubmit} className="space-y-6">
+          <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/40 px-4 py-3">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4 rounded border-amber-400 text-amber-600 focus:ring-amber-500"
+              checked={config.radarTrialEnabled}
+              onChange={(ev) => setConfig((prev) => ({ ...prev, radarTrialEnabled: ev.target.checked }))}
+            />
+            <span>
+              <span className="text-sm font-semibold text-slate-900">Prueba global de Market Radar</span>
+              <span className="mt-1 block text-xs text-slate-600">
+                Si está activa, se omiten en servidor las comprobaciones de Pro y tarjeta de negocio para todos los
+                usuarios (útil en lanzamientos controlados).
+              </span>
+            </span>
+          </label>
+
           <label className="block">
             <span className="text-sm font-medium text-slate-800">Precio Market Radar Pro (USD)</span>
             <input
@@ -106,28 +122,30 @@ export default function MarketRadarProSettings() {
             disabled={saving}
             className="rounded-2xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow disabled:opacity-50"
           >
-            {saving ? 'Guardando…' : 'Guardar y publicar'}
+            {saving ? 'Guardando…' : 'Guardar Market Radar'}
           </button>
         </form>
       )}
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-950">Últimos cambios</h2>
+      <div className="border-t border-slate-100 pt-6">
+        <h3 className="text-base font-semibold text-slate-950">Últimos cambios (precio)</h3>
         {audit.length === 0 ? (
-          <p className="mt-4 text-sm text-slate-500">Sin historial aún.</p>
+          <p className="mt-3 text-sm text-slate-500">Sin historial aún.</p>
         ) : (
-          <ul className="mt-4 divide-y divide-slate-100 text-sm">
+          <ul className="mt-3 divide-y divide-slate-100 text-sm">
             {audit.map((row) => (
               <li key={row.id} className="flex justify-between gap-4 py-3">
                 <span className="text-slate-600">
                   ${row.proPriceUsd.toFixed(2)} USD · {row.proEquivalentCs.toLocaleString()} CS · {row.updatedBy}
                 </span>
-                <span className="text-slate-400">{row.timestamp ? row.timestamp.toLocaleString('es') : '—'}</span>
+                <span className="shrink-0 text-slate-400">
+                  {row.timestamp ? row.timestamp.toLocaleString('es') : '—'}
+                </span>
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </div>
 
       {toast ? (
         <div
@@ -139,6 +157,6 @@ export default function MarketRadarProSettings() {
           {toast.message}
         </div>
       ) : null}
-    </div>
+    </section>
   );
 }

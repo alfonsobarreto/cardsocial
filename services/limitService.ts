@@ -19,6 +19,7 @@ import {
   getTiersConfig,
   readClosedAlphaTierOverride,
 } from '@/services/tiersConfigService';
+import { getRadarTrialEnabledSync } from '@/services/radarTrialEnabledCache';
 import { readUserNickNameLower } from '@/services/userIdentityFields';
 
 const PRIVILEGED_NICKNAMES = new Set(['pochobs_admin']);
@@ -38,6 +39,9 @@ export interface LimitValidationResult {
 export async function isPremiumUser(userId: string): Promise<boolean> {
   try {
     if (readClosedAlphaTierOverride()) {
+      return true;
+    }
+    if (getRadarTrialEnabledSync()) {
       return true;
     }
     // Ruta principal: documento directo por UID (patrón estándar del proyecto)

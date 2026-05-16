@@ -9,6 +9,7 @@ import {
   updateTiersConfig,
 } from '../services/rulesService';
 import { useAuth } from '../auth/useAuth';
+import MarketRadarProPanel from './MarketRadarProPanel';
 
 const TIER_META: { key: TierKey; title: string; subtitle: string; accent: string }[] = [
   {
@@ -57,7 +58,7 @@ export default function RulesTiers() {
         if (isMounted) {
           setToast({
             type: 'error',
-            message: 'No se pudo cargar la configuracion. Revisa Firestore y reglas de seguridad.',
+            message: 'Error al cargar la configuración de precios. Por favor, reintenta.',
           });
         }
       } finally {
@@ -111,7 +112,7 @@ export default function RulesTiers() {
     try {
       await updateTiersConfig(config, adminEmail);
       await refreshAuditLogs();
-      setToast({ type: 'success', message: 'Cambios guardados y publicados. La landing puede consumir `system_config/tiers`.' });
+      setToast({ type: 'success', message: 'Cambios guardados y publicados. La app y la landing ya pueden leer los nuevos precios.' });
     } catch (error) {
       console.error('[RulesTiers] Failed to save tiers config:', error);
       setToast({ type: 'error', message: 'No se pudieron guardar los cambios.' });
@@ -133,8 +134,7 @@ export default function RulesTiers() {
         <p className="text-sm font-semibold uppercase tracking-[0.25em] text-amber-600">Headless CMS</p>
         <h1 className="mt-3 text-3xl font-semibold text-slate-950">Pricing &amp; Tiers CMS</h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-          Este documento vive en Firestore: <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">system_config/tiers</code>.
-          La app movil, paywalls y landing publica pueden leer límites, precios y trials desde una sola fuente.
+          La app móvil, paywalls y landing pública leen límites, precios y trials desde esta fuente única.
         </p>
       </section>
 
@@ -332,6 +332,8 @@ export default function RulesTiers() {
               );
             })}
           </div>
+
+          <MarketRadarProPanel />
 
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <div>

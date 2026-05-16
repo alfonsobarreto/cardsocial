@@ -61,11 +61,24 @@ export async function mintMarketRadarEmbedUrl(
     const idToken = await user.getIdToken(true);
     const radarLang = appLanguageToRadarLang(lang);
     const origin = base.replace(/\/+$/, '');
+    const acceptLanguage =
+      lang === 'es'
+        ? 'es-ES,es;q=0.9,en;q=0.8'
+        : lang === 'it'
+          ? 'it-IT,it;q=0.9,en;q=0.8'
+          : lang === 'fr'
+            ? 'fr-FR,fr;q=0.9,en;q=0.8'
+            : lang === 'de'
+              ? 'de-DE,de;q=0.9,en;q=0.8'
+              : lang === 'pt'
+                ? 'pt-BR,pt;q=0.9,en;q=0.8'
+                : 'en-US,en;q=0.9';
     const res = await fetch(`${origin}/api/embed/mint-market-radar`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${idToken}`,
         'Content-Type': 'application/json',
+        'Accept-Language': acceptLanguage,
       },
       /**
        * `publicOrigin` debe coincidir con la base que usa Metro (`EXPO_PUBLIC_STUDIO_WEB_URL`).
@@ -75,7 +88,14 @@ export async function mintMarketRadarEmbedUrl(
       body: JSON.stringify({ lang: radarLang, publicOrigin: origin }),
     });
 
-    let data: { ok?: boolean; url?: string; expiresIn?: number; error?: string; detail?: string };
+    let data: {
+      ok?: boolean;
+      url?: string;
+      expiresIn?: number;
+      error?: string;
+      errorCode?: string;
+      detail?: string;
+    };
     try {
       data = (await res.json()) as typeof data;
     } catch {
@@ -89,9 +109,14 @@ export async function mintMarketRadarEmbedUrl(
       return { ok: true, url: data.url.trim(), expiresIn };
     }
 
-    const code = typeof data.error === 'string' && data.error ? data.error : `http_${res.status}`;
+    const machineCode =
+      typeof data.errorCode === 'string' && data.errorCode.trim()
+        ? data.errorCode.trim()
+        : typeof data.error === 'string' && data.error.trim()
+          ? data.error.trim()
+          : `http_${res.status}`;
     const issue: MintMarketRadarIssue = {
-      code,
+      code: machineCode,
       httpStatus: res.status,
       ...(typeof data.detail === 'string' && data.detail.trim() ? { detail: data.detail.trim() } : {}),
     };

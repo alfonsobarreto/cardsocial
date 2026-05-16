@@ -4,6 +4,9 @@ import { authScreenLook, AUTH_GOLD } from '@/constants/authPremiumLook';
 import { brandCsIconLogoBgTransparent } from '@/constants/brandAssets';
 import { initiateAccountRecovery, requestUsernameRecoveryByPhone } from '@/services/accountRecoveryService';
 import { saveCachedCredentials } from '@/services/credentialVault';
+import { requestVerificationEmailViaBackend } from '@/services/requestVerificationEmail';
+import { syncWaitlistOnAppVerified } from '@/services/syncWaitlistOnAppVerified';
+import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { auth, db } from '@/services/firebaseConfig';
 import { firestoreFirstUserDocByNickLower } from '@/services/userIdentityFields';
 import { trEsEn, useLanguageOptional } from '@/services/language';
@@ -19,7 +22,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import {
   onAuthStateChanged,
-  sendEmailVerification,
   signInWithEmailAndPassword,
   signOut,
   type UserCredential,
@@ -294,6 +296,13 @@ export default function SignInScreen() {
         return;
       }
 
+      try {
+        const idTok = await credential.user.getIdToken();
+        void syncWaitlistOnAppVerified(idTok);
+      } catch {
+        /* non-blocking */
+      }
+
       await setTrustedDeviceSession(credential.user.uid, trustThisDevice);
       await saveCachedCredentials(sessionEmail, normalizedPassword);
 
@@ -324,7 +333,7 @@ export default function SignInScreen() {
     }
     setIsRecoveringPassword(true);
     try {
-      const response = await initiateAccountRecovery(email);
+      const response = await initiateAccountRecovery(email, language === 'es' ? 'es' : 'en');
       setRecoveryMode(null);
       Alert.alert(tr('Revisa tu correo', 'Check your email'), tr(response.message, 'If the email matches an account, we will send a recovery link.'));
     } finally {
@@ -413,10 +422,17 @@ export default function SignInScreen() {
         return;
       }
 
-      await sendEmailVerification(user);
+      const idToken = await user.getIdToken(true);
+      await requestVerificationEmailViaBackend(idToken, language === 'es' ? 'es' : 'en');
       await clearLocalCachesForSignOut(user.uid);
       await signOut(auth).catch(() => null);
-      Alert.alert(tr('Email reenviado', 'Verification resent'), tr('Te enviamos un nuevo enlace de verificacion. Revisa tambien spam/promociones.', 'A new verification link was sent. Check spam/promotions too.'));
+      Alert.alert(
+        tr('Email reenviado', 'Verification resent'),
+        tr(
+          'Te enviamos un nuevo enlace. Revisa la bandeja de entrada y, si no aparece, Spam o correo no deseado; como marca en crecimiento, a veces los filtros retienen el primer mensaje.',
+          'We sent a new link. Check your inbox—and if you do not see it, Spam or Junk; as a growing brand, filters sometimes hold the first message.'
+        )
+      );
     } catch (error) {
       Alert.alert(tr('Reenvio no disponible', 'Resend unavailable'), authSignInUserMessage(error, tr));
     } finally {
@@ -456,10 +472,24 @@ export default function SignInScreen() {
       }
 
       await setTrustedDeviceSession(credential.user.uid, trustThisDevice);
+      if (credential.user.emailVerified) {
+        try {
+          const idTok = await credential.user.getIdToken();
+          void syncWaitlistOnAppVerified(idTok);
+        } catch {
+          /* non-blocking */
+        }
+      }
       router.replace('/(tabs)/cards');
     } catch (error) {
-      const message = error instanceof Error ? error.message : tr('No se pudo iniciar sesion con proveedor.', 'Could not sign in with provider.');
-      Alert.alert(tr('Acceso social no disponible', 'Social sign-in unavailable'), message);
+      Alert.alert(
+        tr('Acceso social no disponible', 'Social sign-in unavailable'),
+        userFacingAlertMessage(
+          error,
+          language,
+          tr('No se pudo iniciar sesion con proveedor.', 'Could not sign in with provider.'),
+        ),
+      );
     } finally {
       setIsSubmitting(false);
     }

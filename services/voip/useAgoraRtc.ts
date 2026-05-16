@@ -13,6 +13,7 @@ import {
   getGhostLinkAgoraEngine,
   joinGhostLinkAgoraSession,
   leaveGhostLinkAgoraSession,
+  scheduleGhostLinkAgoraAudioRouteSync,
   setGhostLinkAgoraCameraZoom,
   setGhostLinkAgoraMuted,
   setGhostLinkAgoraSpeaker,
@@ -51,6 +52,8 @@ export type UseAgoraRtcParams = {
   onRemoteUserOffline?: (remoteUid: number, reason: UserOfflineReasonType) => void;
   onLeaveChannel?: () => void;
   initialSpeakerphoneOn?: boolean;
+  /** iOS/Android: el SDK notifica cambios de ruta (p. ej. AirPods conectados durante la llamada). */
+  onAudioRoutingChanged?: (routing: number, previous: number | null) => void;
 };
 
 export type UseAgoraRtcResult = {
@@ -83,6 +86,7 @@ export function useAgoraRtc(params: UseAgoraRtcParams): UseAgoraRtcResult {
     onRemoteUserOffline,
     onLeaveChannel,
     initialSpeakerphoneOn = false,
+    onAudioRoutingChanged,
   } = params;
 
   const [isMuted, setIsMuted] = useState(false);
@@ -111,10 +115,14 @@ export function useAgoraRtc(params: UseAgoraRtcParams): UseAgoraRtcResult {
   const onLocalJoinedRef = useRef(onLocalRtcJoined);
   const onOfflineRef = useRef(onRemoteUserOffline);
   const onLeaveRef = useRef(onLeaveChannel);
+  const onAudioRoutingRef = useRef(onAudioRoutingChanged);
   onJoinedRef.current = onRemoteUserJoined;
   onLocalJoinedRef.current = onLocalRtcJoined;
   onOfflineRef.current = onRemoteUserOffline;
   onLeaveRef.current = onLeaveChannel;
+  onAudioRoutingRef.current = onAudioRoutingChanged;
+
+  const lastSdkAudioRouteRef = useRef<number | null>(null);
 
   const prevShouldJoinRef = useRef(false);
   useEffect(() => {
@@ -126,6 +134,7 @@ export function useAgoraRtc(params: UseAgoraRtcParams): UseAgoraRtcResult {
     if (!shouldJoin) {
       setRemoteUid(null);
       setIsRemoteVideoEnabled(false);
+      lastSdkAudioRouteRef.current = null;
       localCameraZoomRef.current = 1;
       pinchAnchorZoomRef.current = 1;
       if (getGhostLinkAgoraEngine()) {
@@ -181,6 +190,13 @@ export function useAgoraRtc(params: UseAgoraRtcParams): UseAgoraRtcResult {
       onUserEnableVideo: (_connection, uid, enabled) => {
         if (cancelled || uid !== remoteUidRef.current) return;
         if (!enabled) setIsRemoteVideoEnabled(false);
+      },
+      onAudioRoutingChanged: (routing) => {
+        if (cancelled) return;
+        const prev = lastSdkAudioRouteRef.current;
+        lastSdkAudioRouteRef.current = routing;
+        scheduleGhostLinkAgoraAudioRouteSync();
+        onAudioRoutingRef.current?.(routing, prev);
       },
     };
 

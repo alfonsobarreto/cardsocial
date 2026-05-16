@@ -28,6 +28,7 @@
 
 const crypto = require('crypto');
 const express = require('express');
+const { sendUserFacingError, buildUserFacingJson } = require('../lib/userFacingErrors');
 
 const MAX_VAULT_ITEMS = 12;
 
@@ -191,7 +192,7 @@ function createSmartCardsRoutes({ storage }) {
   router.get('/', async (req, res) => {
     try {
       const uid = String(req.auth?.sub || '').trim();
-      if (!uid) return res.status(401).json({ ok: false, error: 'Unauthenticated' });
+      if (!uid) return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
 
       const db = req.app.locals.db || (await storage.connect());
       const docs = await db
@@ -202,7 +203,8 @@ function createSmartCardsRoutes({ storage }) {
       return res.status(200).json({ ok: true, cards: docs.map(toWireSmartCard) });
     } catch (error) {
       console.error('[smartCards] GET / failed:', error);
-      return res.status(500).json({ ok: false, error: error.message || 'list failed' });
+      console.error('[smart-cards]', error);
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -210,21 +212,22 @@ function createSmartCardsRoutes({ storage }) {
   router.get('/:sid', async (req, res) => {
     try {
       const uid = String(req.auth?.sub || '').trim();
-      if (!uid) return res.status(401).json({ ok: false, error: 'Unauthenticated' });
+      if (!uid) return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
       const sid = trimOrEmpty(req.params.sid);
-      if (!sid) return res.status(400).json({ ok: false, error: 'sid is required' });
+      if (!sid) return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'SMART_CARD_SID_REQUIRED'));
 
       const db = req.app.locals.db || (await storage.connect());
       const doc = await db.collection('smart_cards').findOne({ sid });
-      if (!doc) return res.status(404).json({ ok: false, error: 'Card not found' });
+      if (!doc) return res.status(404).json(buildUserFacingJson(req, 'invalid_body', 'SMART_CARD_NOT_FOUND'));
       const owner = String(doc.ownerUid || doc.uid || '').trim();
       if (owner !== uid) {
-        return res.status(403).json({ ok: false, error: 'Not authorized to read this card' });
+        return sendUserFacingError(res, req, 403, 'auth_forbidden', 'NOT_AUTHORIZED_READ_CARD');
       }
       return res.status(200).json({ ok: true, card: toWireSmartCard(doc) });
     } catch (error) {
       console.error('[smartCards] GET /:sid failed:', error);
-      return res.status(500).json({ ok: false, error: error.message || 'read failed' });
+      console.error('[smart-cards/read]', error);
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -232,7 +235,7 @@ function createSmartCardsRoutes({ storage }) {
   router.post('/', async (req, res) => {
     try {
       const uid = String(req.auth?.sub || '').trim();
-      if (!uid) return res.status(401).json({ ok: false, error: 'Unauthenticated' });
+      if (!uid) return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
 
       const body = req.body || {};
       const now = new Date();
@@ -243,10 +246,7 @@ function createSmartCardsRoutes({ storage }) {
 
       // Block creation until the user has a minimally populated profile.
       if (!identity.userFullName) {
-        return res.status(409).json({
-          ok: false,
-          error: 'User profile is incomplete (missing fullName). Set it before creating a smart card.',
-        });
+        return res.status(409).json(buildUserFacingJson(req, 'invalid_body', 'PROFILE_FULL_NAME_REQUIRED'));
       }
 
       const doc = {
@@ -278,7 +278,8 @@ function createSmartCardsRoutes({ storage }) {
       return res.status(201).json({ ok: true, card: toWireSmartCard(doc) });
     } catch (error) {
       console.error('[smartCards] POST / failed:', error);
-      return res.status(500).json({ ok: false, error: error.message || 'create failed' });
+      console.error('[smart-cards/create]', error);
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -288,9 +289,9 @@ function createSmartCardsRoutes({ storage }) {
   router.patch('/:sid', async (req, res) => {
     try {
       const uid = String(req.auth?.sub || '').trim();
-      if (!uid) return res.status(401).json({ ok: false, error: 'Unauthenticated' });
+      if (!uid) return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
       const sid = trimOrEmpty(req.params.sid);
-      if (!sid) return res.status(400).json({ ok: false, error: 'sid is required' });
+      if (!sid) return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'SMART_CARD_SID_REQUIRED'));
 
       const body = req.body || {};
       const set = {};
@@ -307,7 +308,7 @@ function createSmartCardsRoutes({ storage }) {
       if (body.layout !== undefined) set.layout = normalizeLayout(body.layout);
 
       if (Object.keys(set).length === 0) {
-        return res.status(400).json({ ok: false, error: 'No updatable fields provided' });
+        return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'NO_UPDATABLE_FIELDS'));
       }
       set.updatedAt = new Date();
       set.ownerUid = uid;
@@ -321,12 +322,13 @@ function createSmartCardsRoutes({ storage }) {
       );
       const doc = result && (result.value || result);
       if (!doc || !doc.sid) {
-        return res.status(404).json({ ok: false, error: 'Card not found or not authorized' });
+        return res.status(404).json(buildUserFacingJson(req, 'invalid_body', 'SMART_CARD_NOT_FOUND_OR_FORBIDDEN'));
       }
       return res.status(200).json({ ok: true, card: toWireSmartCard(doc) });
     } catch (error) {
       console.error('[smartCards] PATCH /:sid failed:', error);
-      return res.status(500).json({ ok: false, error: error.message || 'update failed' });
+      console.error('[smart-cards/update]', error);
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -334,9 +336,9 @@ function createSmartCardsRoutes({ storage }) {
   router.delete('/:sid', async (req, res) => {
     try {
       const uid = String(req.auth?.sub || '').trim();
-      if (!uid) return res.status(401).json({ ok: false, error: 'Unauthenticated' });
+      if (!uid) return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
       const sid = trimOrEmpty(req.params.sid);
-      if (!sid) return res.status(400).json({ ok: false, error: 'sid is required' });
+      if (!sid) return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'SMART_CARD_SID_REQUIRED'));
 
       const db = req.app.locals.db || (await storage.connect());
       const result = await db.collection('smart_cards').deleteOne({
@@ -344,13 +346,14 @@ function createSmartCardsRoutes({ storage }) {
         $or: [{ ownerUid: uid }, { uid }],
       });
       if (result.deletedCount !== 1) {
-        return res.status(404).json({ ok: false, error: 'Card not found or not authorized' });
+        return res.status(404).json(buildUserFacingJson(req, 'invalid_body', 'SMART_CARD_NOT_FOUND_OR_FORBIDDEN'));
       }
       await cascadeSmartCardDelete(db, sid);
       return res.status(200).json({ ok: true, deleted: true });
     } catch (error) {
       console.error('[smartCards] DELETE /:sid failed:', error);
-      return res.status(500).json({ ok: false, error: error.message || 'delete failed' });
+      console.error('[smart-cards/delete]', error);
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -361,15 +364,12 @@ function createSmartCardsRoutes({ storage }) {
   router.post('/propagate-identity', async (req, res) => {
     try {
       const uid = String(req.auth?.sub || '').trim();
-      if (!uid) return res.status(401).json({ ok: false, error: 'Unauthenticated' });
+      if (!uid) return res.status(401).json(buildUserFacingJson(req, 'auth_forbidden', 'AUTH_REQUIRED'));
 
       const db = req.app.locals.db || (await storage.connect());
       const identity = await projectUserIdentity(db, uid);
       if (!identity.userFullName) {
-        return res.status(409).json({
-          ok: false,
-          error: 'User profile is incomplete (missing fullName).',
-        });
+        return res.status(409).json(buildUserFacingJson(req, 'invalid_body', 'PROFILE_FULL_NAME_REQUIRED'));
       }
 
       const now = new Date();
@@ -384,7 +384,8 @@ function createSmartCardsRoutes({ storage }) {
       });
     } catch (error) {
       console.error('[smartCards] POST /propagate-identity failed:', error);
-      return res.status(500).json({ ok: false, error: error.message || 'propagate failed' });
+      console.error('[smart-cards/propagate]', error);
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 

@@ -25,12 +25,14 @@ import {
   respondGhostLinkInvite,
   startGhostLinkVoipCall,
   isGhostLinkExpoGoAbortError,
+  isGhostLinkVoipMinutesExhaustedError,
 } from '@/services/ghostLinkVoip';
 import type {
   GhostLinkAgoraRtc,
   GhostLinkCallStartParams,
   GhostLinkCallType,
   GhostLinkSharedCard,
+  GhostLinkVoipTrialCap,
 } from '@/services/ghostLinkVoip';
 import { createCallLog } from '@/services/qrApi';
 import { triggerGhostLinkConnectedFeedback } from '@/services/voip/ghostLinkConnectedFeedback';
@@ -65,6 +67,8 @@ export type GhostCallData = {
   uid: string;
   sourceSid: string | null;
   sourceBId: string | null;
+  /** Tope Agora modo prueba (60 min) por lado; la UI usa `localGhostLinkTrialCapMinutes`. */
+  trialCap?: GhostLinkVoipTrialCap;
 };
 
 type GhostLinkCallContextValue = {
@@ -117,6 +121,12 @@ type GhostLinkCallContextValue = {
   toggleSpeaker: () => void;
   toggleVideo: () => void;
   flipCamera: () => void;
+  /**
+   * Mensaje breve cuando el sistema cambia la ruta de audio (p. ej. Bluetooth desconectado).
+   * null si no hay aviso activo.
+   */
+  voipAudioRouteHint: string | null;
+  dismissVoipAudioRouteHint: () => void;
 };
 
 const GhostLinkCallContext = createContext<GhostLinkCallContextValue | null>(null);
@@ -168,6 +178,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
   /** true tras `runVoipConnectingAudioHandoff`; el join RTC lo hace solo `useAgoraRtc`. */
   const [rtcHandoffComplete, setRtcHandoffComplete] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [voipAudioRouteHint, setVoipAudioRouteHint] = useState<string | null>(null);
 
   const pendingParamsRef = useRef<GhostLinkCallStartParams | null>(null);
   const pollingRef = useRef(true);
@@ -192,6 +203,34 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
   phaseRef.current = phase;
   /** Último `isSpeakerphoneOn` de la UI; `playTone` corre tras awaits y debe leer esto (no el cierre obsoleto). */
   const speakerphoneUiRef = useRef(false);
+
+  const dismissVoipAudioRouteHint = useCallback(() => {
+    setVoipAudioRouteHint(null);
+  }, []);
+
+  const onAudioRoutingForUiRef = useRef<(routing: number, prev: number | null) => void>(() => {});
+  onAudioRoutingForUiRef.current = (routing, prev) => {
+    const userWantsSpeaker = speakerphoneUiRef.current;
+    /** Agora: 3 = altavoz integrado, 5 = Bluetooth. */
+    if (prev === 5 && routing === 3 && !userWantsSpeaker) {
+      setVoipAudioRouteHint(
+        tr(
+          'Tu auricular Bluetooth se desconectó; el audio sigue por el altavoz del teléfono. Activa Bluetooth y vuelve a elegir tus AirPods (o tu dispositivo) en el centro de control si lo prefieres.',
+          'Your Bluetooth headset disconnected; audio is playing through the phone speaker. Turn Bluetooth on and pick your AirPods again from Control Center if you prefer.',
+        ),
+      );
+      return;
+    }
+    if (routing === 5 && prev != null && prev !== 5) {
+      setVoipAudioRouteHint(null);
+    }
+  };
+
+  useEffect(() => {
+    if (phase === VoIPCallPhase.Idle) {
+      setVoipAudioRouteHint(null);
+    }
+  }, [phase]);
 
   const stopTone = useCallback(async () => {
     try {
@@ -222,7 +261,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
         playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
+        staysActiveInBackground: false,
         interruptionModeIOS: 0,
         interruptionModeAndroid: 2,
         shouldDuckAndroid: true,
@@ -293,6 +332,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
             uid: localUid,
             sourceSid: invite.sourceSid,
             sourceBId: invite.sourceBId,
+            trialCap: invite.trialCap,
           });
           if (incomingCallType === 'video') setVideoEnabled(true);
           setPhase(VoIPCallPhase.RingingIncoming);
@@ -591,6 +631,9 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
       void finalizeEndingRef.current('leave_channel');
     },
     initialSpeakerphoneOn: false,
+    onAudioRoutingChanged: (routing, prev) => {
+      onAudioRoutingForUiRef.current(routing, prev);
+    },
   });
 
   speakerphoneUiRef.current = speaker;
@@ -969,6 +1012,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
               sourceSid: started.card.sid ?? null,
               sourceBId: started.card.bId ?? null,
               callType: started.callType,
+              trialCap: started.trialCap,
               card: {
                 ...started.card,
                 /** El backend actual no devuelve los 3 campos Business explícitos: preservar los del caller. */
@@ -995,6 +1039,11 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
     } catch (error: any) {
       if (isGhostLinkExpoGoAbortError(error)) {
         resetCall();
+        return;
+      }
+      if (isGhostLinkVoipMinutesExhaustedError(error)) {
+        setPhase(VoIPCallPhase.AirTimeExhausted);
+        setTimeout(resetCall, 4500);
         return;
       }
       const errMsg = String(error?.response?.data?.error || '').toLowerCase();
@@ -1144,6 +1193,8 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
     toggleSpeaker: toggleSpeakerphone,
     toggleVideo,
     flipCamera,
+    voipAudioRouteHint,
+    dismissVoipAudioRouteHint,
   };
 
   useEffect(() => {

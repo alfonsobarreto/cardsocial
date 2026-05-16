@@ -199,7 +199,7 @@ export default function SettingsScreen() {
 
   const handleSupportPress = async () => {
     try {
-      await Linking.openURL('mailto:soporte@card-social.com?subject=Soporte%20Card-Social');
+      await Linking.openURL('mailto:support@cardsocial.me?subject=Soporte%20Card-Social');
     } catch {
       Alert.alert(
         tr('Error', 'Error'),

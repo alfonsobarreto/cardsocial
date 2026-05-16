@@ -1,8 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { sendPasswordResetEmail } from 'firebase/auth';
-import { getStudioAuth } from '@/lib/studioFirebase';
 import { studioTheme } from '@/lib/studioTheme';
 import type { StudioLocale } from '@/lib/studioI18n';
 import { studioT } from '@/lib/studioI18n';
@@ -68,7 +66,17 @@ export default function StudioLogin({
           setRecoveryMessage(t('recovery.emailRequired'));
           return;
         }
-        await sendPasswordResetEmail(getStudioAuth(), email).catch(() => null);
+        const baseUrl = (process.env.NEXT_PUBLIC_MODERATION_API_URL?.trim() || process.env.NEXT_PUBLIC_API_URL?.trim() || '').replace(/\/+$/, '');
+        if (!baseUrl) {
+          setRecoveryMessage(t('recovery.apiUnavailable'));
+          return;
+        }
+        const loc = locale === 'es' ? 'es' : 'en';
+        await fetch(`${baseUrl}/api/auth/send-password-reset`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, locale: loc }),
+        }).catch(() => null);
         setRecoveryMode(null);
         setRecoveryMessage(t('recovery.passwordSent'));
         setRecoveryEmail('');

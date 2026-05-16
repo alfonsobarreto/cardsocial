@@ -11,6 +11,7 @@ const { createMongoStorage } = require('../services/mongoStorage');
 const { env } = require('../config');
 const { getFirestoreOptional } = require('../lib/firebaseAdminApp');
 const { grantAnnualWelcomeCsIfEligible } = require('../lib/annualSubscriptionWelcomeCs');
+const { buildUserFacingJson } = require('../lib/userFacingErrors');
 
 const storage = createMongoStorage({
   uri: env.mongoUri,
@@ -47,19 +48,13 @@ router.post('/webhook', async (req, res) => {
         'Got:',
         bearerToken ? 'provided' : 'missing',
       );
-      return res.status(401).json({
-        ok: false,
-        error: 'Unauthorized: Invalid RevenueCat API Key',
-      });
+      return res.status(401).json(buildUserFacingJson(req, 'invalid_body', 'REVENUECAT_WEBHOOK_UNAUTHORIZED'));
     }
 
     const { event, appUserId, productId } = extractRcWebhookPayload(req.body);
 
     if (!event || !appUserId) {
-      return res.status(400).json({
-        ok: false,
-        error: 'Missing event or app_user_id',
-      });
+      return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'REVENUECAT_WEBHOOK_PAYLOAD_INVALID'));
     }
 
     console.log(
@@ -179,11 +174,9 @@ router.post('/webhook', async (req, res) => {
     });
   } catch (error) {
     console.error('RevenueCat webhook error:', error);
-    return res.status(500).json({
-      ok: false,
-      error: 'Internal server error processing webhook',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    return res.status(500).json(
+      buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'),
+    );
   }
 });
 
@@ -192,24 +185,18 @@ router.get('/user/:uid/subscription-status', async (req, res) => {
     const { uid } = req.params;
 
     if (!uid) {
-      return res.status(400).json({
-        ok: false,
-        error: 'User ID required',
-      });
+      return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'REVENUECAT_USER_ID_REQUIRED'));
     }
 
     const fs = getFirestoreOptional();
     if (!fs) {
-      return res.status(503).json({ ok: false, error: 'Firestore Admin not configured' });
+      return res.status(503).json(buildUserFacingJson(req, 'service_unavailable', 'FIRESTORE_ADMIN_UNAVAILABLE'));
     }
 
     const userDoc = await fs.collection('users').doc(uid).get();
 
     if (!userDoc.exists) {
-      return res.status(404).json({
-        ok: false,
-        error: 'User not found',
-      });
+      return res.status(404).json(buildUserFacingJson(req, 'invalid_body', 'REVENUECAT_USER_NOT_FOUND'));
     }
 
     const userData = userDoc.data();
@@ -235,10 +222,7 @@ router.get('/user/:uid/subscription-status', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching subscription status:', error);
-    return res.status(500).json({
-      ok: false,
-      error: 'Failed to fetch subscription status',
-    });
+    return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
   }
 });
 

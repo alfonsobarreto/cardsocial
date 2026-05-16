@@ -2,7 +2,9 @@
 
 import { motion, type Variants } from 'framer-motion';
 import { Inter } from 'next/font/google';
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { Suspense, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+
+import { AuthEmailActionBanner } from './AuthEmailActionBanner';
 
 export type LandingLocale = 'en' | 'es';
 type InterestKey = 'personal' | 'business' | 'investor';
@@ -288,7 +290,9 @@ function WaitlistForm({ locale }: { locale: LandingLocale }) {
         body: JSON.stringify({
           locale,
           fullName: String(form.get('fullName') || '').trim(),
-          email: String(form.get('email') || '').trim(),
+          email: String(form.get('email') || '')
+            .trim()
+            .toLowerCase(),
           phoneCountryCode: countryCode,
           phoneNational,
           phoneE164: `${countryCode}${phoneNational.replace(/\D/g, '')}`,
@@ -402,6 +406,9 @@ export default function LuxWaitlistLanding({
       style={{ fontFamily: 'var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
     >
       <main className="relative">
+        <Suspense fallback={null}>
+          <AuthEmailActionBanner locale={locale} />
+        </Suspense>
         <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_18%_0%,rgba(233,195,73,0.16),transparent_30%),radial-gradient(circle_at_84%_10%,rgba(246,218,135,0.10),transparent_28%),linear-gradient(180deg,#050505_0%,#0A0A0A_46%,#050505_100%)]" />
         <div className="pointer-events-none fixed inset-0 -z-10 opacity-[0.07] [background-image:linear-gradient(rgba(255,255,255,.7)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.7)_1px,transparent_1px)] [background-size:72px_72px]" />
 

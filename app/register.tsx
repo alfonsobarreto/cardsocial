@@ -8,6 +8,8 @@ import {
   getNationalDigitBounds,
   sanitizeNationalDigits,
 } from '@/constants/countryDialCodes';
+import { requestVerificationEmailViaBackend } from '@/services/requestVerificationEmail';
+import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { saveCachedCredentials } from '@/services/credentialVault';
 import { createDefaultCards, createDefaultVaultData, initializeUserCredits } from '@/services/creditsService';
 import { trEsEn, useLanguageOptional } from '@/services/language';
@@ -26,13 +28,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, doc, getDocs, limit, query, runTransaction, serverTimestamp, where } from 'firebase/firestore';
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
     Alert,
     Image,
+    InteractionManager,
     Keyboard,
     KeyboardAvoidingView,
     Modal,
@@ -659,8 +662,14 @@ export default function RegisterScreen() {
         tr('Perfecto. Ahora completa el formulario obligatorio (teléfono, fecha, ciudad y demás) para terminar tu alta.', 'Perfect. Now complete the required form (phone, date, city, and more) to finish registration.')
       );
     } catch (error) {
-      const message = error instanceof Error ? error.message : tr('No se pudo iniciar con proveedor.', 'Could not start with provider.');
-      Alert.alert(tr('Registro social no disponible', 'Social sign up unavailable'), message);
+      Alert.alert(
+        tr('Registro social no disponible', 'Social sign up unavailable'),
+        userFacingAlertMessage(
+          error,
+          language,
+          tr('No se pudo iniciar con proveedor.', 'Could not start with provider.'),
+        ),
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -923,13 +932,28 @@ export default function RegisterScreen() {
 
       if (!socialProviderId) {
         if (auth.currentUser) {
-          await sendEmailVerification(auth.currentUser);
+          try {
+            const idToken = await auth.currentUser.getIdToken(true);
+            await requestVerificationEmailViaBackend(idToken, language === 'es' ? 'es' : 'en');
+          } catch (verifyMailErr) {
+            console.warn('Verification email (Resend) failed:', verifyMailErr);
+            Alert.alert(
+              tr('Cuenta creada', 'Account created'),
+              tr(
+                'Tu cuenta está lista, pero no pudimos enviar el correo de verificación. En iniciar sesión usa «Reenviar email de verificación» o escribe a support@cardsocial.me.',
+                'Your account is ready, but we could not send the verification email. On sign in, use “Resend verification email” or write to support@cardsocial.me.',
+              ),
+            );
+          }
         }
         await clearLocalCachesForSignOut(auth.currentUser?.uid ?? uid);
         await signOut(auth);
         Alert.alert(
           tr('Verifica tu correo', 'Verify your email'),
-          tr('Te enviamos un enlace de verificación. Debes confirmarlo antes de poder iniciar sesión.', 'We sent you a verification link. You must confirm it before signing in.')
+          tr(
+            'Te enviamos un enlace de verificación. Revisa la bandeja de entrada y, si no aparece, Spam o correo no deseado. Debes confirmarlo antes de poder iniciar sesión.',
+            'We sent a verification link. Check your inbox—and if you do not see it, your Spam or Junk folder. You must confirm it before you can sign in.'
+          )
         );
         router.replace('/signin' as never);
         return;
@@ -951,8 +975,14 @@ export default function RegisterScreen() {
       if (error instanceof ModerationRejectedError) {
         registerModerationReject();
       } else {
-        const message = error instanceof Error ? error.message : tr('No se pudo completar el registro.', 'Could not complete registration.');
-        Alert.alert(tr('Error de Registro', 'Registration Error'), message);
+        Alert.alert(
+          tr('Error de Registro', 'Registration Error'),
+          userFacingAlertMessage(
+            error,
+            language,
+            tr('No se pudo completar el registro.', 'Could not complete registration.'),
+          ),
+        );
       }
     } finally {
       setUploadModalVisible(false);
@@ -1101,7 +1131,12 @@ export default function RegisterScreen() {
           <View style={styles.phoneRow}>
             <TouchableOpacity
               style={[styles.phoneDialButton, { backgroundColor: look.phoneDialBg, borderColor: look.phoneDialBorder }]}
-              onPress={() => setCountryPickerVisible(true)}
+              onPress={() => {
+                Keyboard.dismiss();
+                InteractionManager.runAfterInteractions(() => {
+                  setCountryPickerVisible(true);
+                });
+              }}
               activeOpacity={0.7}
             >
               <Text style={[styles.phoneDialText, { color: look.phoneDialText }]}>{phoneDialCode}</Text>

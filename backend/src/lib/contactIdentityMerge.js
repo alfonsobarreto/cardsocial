@@ -2,12 +2,12 @@
  * Identidad en contactos / relaciones: si Mongo users/profiles no tiene nombre real,
  * prevalecen los campos guardados en smart_cards (preview del emisor).
  *
- * Avatar en API de contactos: solo `userAvatarUrl` del perfil Mongo (`resolveUserProfileExtended`).
- * No se usa `ownerPhotoUrl` de la tarjeta como sustituto de avatar de persona — evita duplicar
- * semánticas (logo business vs foto perfil). Si falta foto, hay que tenerla en users/profiles.
+ * Para receptores: `userAvatarUrl` viene de Mongo; si falta y la tarjeta **no** es business,
+ * se puede usar `ownerPhotoUrl` de la tarjeta personal como respaldo (evita logo de negocio como cara).
  */
 
 const { isGenericUserLabel, pickFirstNonGeneric } = require('./resolvePublicIdentity');
+const { readSmartCardScName } = require('./smartCardScName');
 
 function isSyntheticMongoUserName(name, uid) {
   const n = String(name || '').trim();
@@ -76,7 +76,8 @@ function mergeContactProfileFromCard(profile, uid, cardDoc) {
 /**
  * Receptores (GET …/subscribers): perfil Mongo + última smart_card del suscriptor.
  * Limpia etiquetas genéricas; si falta nombre, `ownerDisplayName` de su tarjeta (y marca en business).
- * username: Mongo; si falta, `ownerNickname` de la tarjeta. Avatar: solo `userAvatarUrl` Mongo.
+ * Avatar: `userAvatarUrl` Mongo; si falta y la tarjeta personal tiene `ownerPhotoUrl`, se usa como
+ * respaldo (no aplica a `cardType === 'business'` — evita confundir logo con persona).
  * @param {object} profile - resultado de resolveUserProfileExtended
  * @param {object|null} cardDoc - smart_cards (proyección acotada)
  */
@@ -109,7 +110,7 @@ function enrichSubscriberProfileFromCard(profile, cardDoc) {
     fullName = String(profile.displayName || profile.fullName || profile.name || '').trim();
   }
 
-  const userAvatarUrl = String(profile.userAvatarUrl || '').trim() || null;
+  let userAvatarUrl = String(profile.userAvatarUrl || '').trim() || null;
 
   if (!cardDoc) {
     return {
@@ -126,6 +127,19 @@ function enrichSubscriberProfileFromCard(profile, cardDoc) {
 
   if (!username && cardNick) {
     username = String(cardNick).trim().replace(/^@+/g, '');
+  }
+
+  const cardTitle = readSmartCardScName(cardDoc);
+  if (!String(fullName || '').trim() && cardTitle) {
+    fullName = cardTitle;
+  }
+
+  const ctype = String(cardDoc.cardType || '').trim();
+  if (!userAvatarUrl && ctype !== 'business') {
+    const op = String(cardDoc.ownerPhotoUrl || '').trim();
+    if (op) {
+      userAvatarUrl = op;
+    }
   }
 
   return {

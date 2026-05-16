@@ -23,7 +23,7 @@ export default function RulesCsEconomy() {
         const c = await getCsEconomyAdminConfig();
         if (alive) setConfig(c);
       } catch {
-        if (alive) setToast({ type: 'err', message: 'No se pudo cargar system_config/cs_economy.' });
+        if (alive) setToast({ type: 'err', message: 'Error al cargar la economía CS. Por favor, reintenta.' });
       } finally {
         if (alive) setLoading(false);
       }
@@ -39,7 +39,7 @@ export default function RulesCsEconomy() {
     setToast(null);
     try {
       await updateCsEconomyAdminConfig(config, user?.email || 'unknown-admin');
-      setToast({ type: 'ok', message: 'Economía CS publicada en system_config/cs_economy.' });
+      setToast({ type: 'ok', message: 'Economía CS publicada correctamente.' });
     } catch {
       setToast({ type: 'err', message: 'Error al guardar.' });
     } finally {
@@ -65,8 +65,7 @@ export default function RulesCsEconomy() {
         <p className="text-sm font-semibold uppercase tracking-[0.25em] text-amber-600">CS Economy</p>
         <h1 className="mt-3 text-3xl font-semibold text-slate-950">Bonos y precios CS (dos casilleros)</h1>
         <p className="mt-3 text-sm leading-6 text-slate-600">
-          Documento <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">system_config/cs_economy</code>. Bonos
-          (bienvenida, pack estudiantil, cashback tarjeta negocio), precio de icono Studio, y bundle temático Texas
+          Bonos (bienvenida, pack estudiantil, cashback tarjeta negocio), precio de icono Studio y bundle temático Texas
           Longhorns. Par USD + CS donde aplique — la app aplica el monto en CS publicado.
         </p>
       </section>

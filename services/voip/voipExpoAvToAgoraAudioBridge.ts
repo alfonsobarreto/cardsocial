@@ -7,7 +7,9 @@
  * 3) Breve delay para que iOS/Android apliquen categoría / modo comunicación.
  * 4) Recién entonces el llamador debe initialize/joinChannel en Agora.
  *
- * iOS: allowsRecordingIOS + DoNotMix aproxima PlayAndRecord y toma el foco de sesión.
+ * iOS: allowsRecordingIOS + DoNotMix aproxima PlayAndRecord (.voiceChat) y toma el foco de sesión;
+ *    el stack nativo de expo-av incluye opciones que permiten enrutar por Bluetooth HFP cuando
+ *    corresponde (no exponen un flag JS explícito; el modo PlayAndRecord + VoIP es el hook).
  * Android: DoNotMix + playThroughEarpieceAndroid alinea con enfoque comunicación / auricular.
  */
 
@@ -27,6 +29,25 @@ function loadExpoAv(): Promise<typeof import('expo-av') | null> {
       .catch(() => null);
   }
   return expoAvModulePromise;
+}
+
+/** Modo expo-av idéntico en preparación inicial y en refrescos tras cambio de ruta (AirPods, etc.). */
+async function applyExpoAvAudioModeForVoipRtcHandoff(): Promise<void> {
+  const av = await loadExpoAv();
+  if (!av?.Audio) return;
+
+  const { Audio, InterruptionModeIOS, InterruptionModeAndroid } = av;
+
+  await Audio.setAudioModeAsync({
+    allowsRecordingIOS: true,
+    playsInSilentModeIOS: true,
+    staysActiveInBackground: true,
+    interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+    interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+    shouldDuckAndroid: true,
+    /** VoIP por defecto hacia auricular; con BT conectado el sistema suele preferir HFP hasta que el usuario pide altavoz. */
+    playThroughEarpieceAndroid: true,
+  });
 }
 
 /** Solo stop + unload de un Sound concreto (sin tocar AudioMode). */
@@ -55,23 +76,18 @@ export async function unloadExpoAvCallTone(sound: ExpoAvCallTone): Promise<void>
  * - staysActiveInBackground: true → alineado con llamada prolongada (requiere UIBackgroundModes en iOS nativo).
  */
 export async function prepareIosAndroidAudioSessionForVoipRtc(): Promise<void> {
-  const av = await loadExpoAv();
-  if (!av?.Audio) return;
+  await applyExpoAvAudioModeForVoipRtcHandoff();
 
-  const { Audio, InterruptionModeIOS, InterruptionModeAndroid } = av;
+  await new Promise<void>((r) => setTimeout(r, Platform.OS === 'ios' ? 180 : 80));
+}
 
-  await Audio.setAudioModeAsync({
-    allowsRecordingIOS: true,
-    playsInSilentModeIOS: true,
-    staysActiveInBackground: true,
-    interruptionModeIOS: InterruptionModeIOS.DoNotMix,
-    interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
-    shouldDuckAndroid: true,
-    /** VoIP por defecto hacia auricular; el usuario puede pasar a altavoz vía Agora después. */
-    playThroughEarpieceAndroid: true,
-  });
-
-  await new Promise<void>((r) => setTimeout(r, Platform.OS === 'ios' ? 100 : 60));
+/**
+ * Tras `onAudioRoutingChanged` (p. ej. AirPods conectados en mitad de llamada): reaplica el modo expo-av
+ * para que AVAudioSession / AudioManager reevalúen rutas Bluetooth sin quedar en estado intermedio con Agora.
+ */
+export async function refreshIosAndroidAudioSessionForVoipRtcRouteChange(): Promise<void> {
+  await applyExpoAvAudioModeForVoipRtcHandoff();
+  await new Promise<void>((r) => setTimeout(r, Platform.OS === 'ios' ? 90 : 50));
 }
 
 /**

@@ -164,6 +164,7 @@ function RootNavigator() {
 
   useEffect(() => {
     if (isLocked) return;
+    /** 3 min: menos lecturas AsyncStorage / menos presión en JS mientras la app está abierta. */
     const id = setInterval(() => {
       if (AppState.currentState !== 'active') return;
       void (async () => {
@@ -176,7 +177,7 @@ function RootNavigator() {
           /* ignore */
         }
       })();
-    }, 60_000);
+    }, 180_000);
     return () => clearInterval(id);
   }, [isLocked, router]);
 

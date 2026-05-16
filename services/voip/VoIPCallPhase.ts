@@ -11,5 +11,7 @@ export enum VoIPCallPhase {
   Ended = 'ended',
   Rejected = 'rejected',
   Muted = 'muted',
+  /** Sin minutos AirTime / cupo VoIP (backend `VOIP_MINUTES_EXHAUSTED`). */
+  AirTimeExhausted = 'airtime_exhausted',
   Error = 'error',
 }

@@ -6,7 +6,9 @@
  */
 
 const express = require('express');
+const { buildUserFacingJson } = require('../lib/userFacingErrors');
 const { sendEmail, isEmailSendConfigured } = require('../services/email.service');
+const { EMAIL_SENDERS } = require('../config/emailSenders');
 const { sendPushToUser } = require('../lib/pushNotifications');
 const { getFirestoreOptional } = require('../lib/firebaseAdminApp');
 const { resolveBroadcastRecipients, SEGMENTS } = require('../lib/broadcastSegments');
@@ -48,10 +50,7 @@ function createBroadcastRouter({ getMongoDb }) {
       const segment = String(req.body?.segment || '').trim();
       const days = Number(req.body?.days);
       if (!SEGMENTS.includes(segment)) {
-        return res.status(400).json({
-          ok: false,
-          error: `Invalid segment. Use one of: ${SEGMENTS.join(', ')}`,
-        });
+        return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'BROADCAST_INVALID_SEGMENT'));
       }
       const db = getMongoDb();
       const fs = getFirestoreOptional();
@@ -73,10 +72,10 @@ function createBroadcastRouter({ getMongoDb }) {
       });
     } catch (e) {
       if (e.code === 'BAD_SEGMENT') {
-        return res.status(400).json({ ok: false, error: e.message });
+        return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'BROADCAST_INVALID_SEGMENT'));
       }
-      console.error('[broadcast/preview]', e);
-      return res.status(500).json({ ok: false, error: e.message || 'preview failed' });
+      console.error('[broadcast/preview]', e?.message || e, e?.stack);
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 
@@ -89,44 +88,31 @@ function createBroadcastRouter({ getMongoDb }) {
       const ack = String(req.body?.confirmAck || '').trim();
 
       if (!SEGMENTS.includes(segment)) {
-        return res.status(400).json({
-          ok: false,
-          error: `Invalid segment. Use one of: ${SEGMENTS.join(', ')}`,
-        });
+        return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'BROADCAST_INVALID_SEGMENT'));
       }
       if (!['email', 'push', 'both'].includes(channel)) {
-        return res.status(400).json({ ok: false, error: 'channel must be email, push, or both' });
+        return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'BROADCAST_CHANNEL_INVALID'));
       }
       if (ack !== 'BROADCAST_CONFIRM') {
-        return res.status(400).json({
-          ok: false,
-          error: 'confirmAck must be exactly BROADCAST_CONFIRM',
-        });
+        return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'BROADCAST_CONFIRM_ACK_INVALID'));
       }
       if (!messages || typeof messages !== 'object') {
-        return res.status(400).json({ ok: false, error: 'messages object required per language' });
+        return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'BROADCAST_MESSAGES_REQUIRED'));
       }
 
       if (['email', 'both'].includes(channel) && !isEmailSendConfigured()) {
-        return res.status(503).json({
-          ok: false,
-          error:
-            'Email channel requires RESEND_API_KEY and EMAIL_FROM (verified sender in Resend).',
-        });
+        return res.status(503).json(buildUserFacingJson(req, 'invalid_body', 'BROADCAST_EMAIL_NOT_CONFIGURED'));
       }
 
       const baseEn = pickMessage(messages, 'en');
       if (!String(baseEn.body || '').trim()) {
-        return res.status(400).json({ ok: false, error: 'messages.en.body is required (fallback copy)' });
+        return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'BROADCAST_MESSAGES_EN_BODY_REQUIRED'));
       }
       if (
         ['email', 'both'].includes(channel) &&
         !String(baseEn.subject || baseEn.title || '').trim()
       ) {
-        return res.status(400).json({
-          ok: false,
-          error: 'messages.en.subject (or title) required for email channel',
-        });
+        return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'BROADCAST_MESSAGES_EN_SUBJECT_REQUIRED'));
       }
 
       const db = getMongoDb();
@@ -136,10 +122,7 @@ function createBroadcastRouter({ getMongoDb }) {
       });
 
       if (!Number.isFinite(confirmCount) || confirmCount !== recipients.length) {
-        return res.status(400).json({
-          ok: false,
-          error: `confirmRecipientCount must match current audience (${recipients.length}). Run preview again.`,
-        });
+        return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'BROADCAST_AUDIENCE_COUNT_MISMATCH'));
       }
 
       let sentEmail = 0;
@@ -166,6 +149,7 @@ function createBroadcastRouter({ getMongoDb }) {
                 subject: emailSubject,
                 html: bodyToHtml(bodyText),
                 text: bodyText,
+                from: EMAIL_SENDERS.notifications,
               });
               sentEmail += 1;
               await sleep(75);
@@ -201,8 +185,8 @@ function createBroadcastRouter({ getMongoDb }) {
         skippedNoEmail,
       });
     } catch (e) {
-      console.error('[broadcast/send]', e);
-      return res.status(500).json({ ok: false, error: e.message || 'send failed' });
+      console.error('[broadcast/send]', e?.message || e, e?.stack);
+      return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
   });
 

@@ -1,4 +1,4 @@
-﻿import AutoScaleText from '@/components/AutoScaleText';
+import AutoScaleText from '@/components/AutoScaleText';
 import LimitReachedModal from '@/components/LimitReachedModal';
 import { MyCardsPreviewModal, type MyCardsPayload } from '@/components/MyCards';
 import ReceptorScreenModal from '@/components/ReceptorScreenModal';
@@ -37,6 +37,7 @@ import {
     deleteBusinessCard as deleteBusinessCardViaApi,
     updateBusinessCard as updateBusinessCardViaApi,
 } from '@/services/businessCardsRepo';
+import { notifyMyBusinessCardsInventoryChanged } from '@/services/businessCardInventoryEvents';
 import { getBusinessCardSlotAvailability } from '@/services/businessCardSlotsGate';
 import type { BusinessCardDoc, PublicCardSlot } from '@/services/types/cards';
 
@@ -135,6 +136,7 @@ import {
 } from '@/types/canonicalIssuerIdentity';
 import { type CardFontItem, type FontTier } from '@/services/fontLibraryService';
 import { getUserIconVaultMap, type IconVaultEntry } from '@/services/iconVaultService';
+import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { trEsEn, useLanguage } from '@/services/language';
 import { validateCardCreation } from '@/services/limitService';
 import { useLookMode } from '@/services/lookMode';
@@ -1662,7 +1664,10 @@ export default function CardsFactoryScreen() {
         )
       );
     } catch (error: any) {
-      Alert.alert(tr('Error', 'Error'), error?.message || tr('No se pudo cargar receptores.', 'Could not load receptors.'));
+      Alert.alert(
+        tr('Error', 'Error'),
+        userFacingAlertMessage(error, language, tr('No se pudo cargar receptores.', 'Could not load receptors.')),
+      );
       setSubscribers([]);
     } finally {
       setSubscribersLoading(false);
@@ -1695,7 +1700,10 @@ export default function CardsFactoryScreen() {
         )
       );
     } catch (error: any) {
-      Alert.alert(tr('Error', 'Error'), error?.message || tr('No se pudo cargar la lista de suscriptores.', 'Could not load subscribers list.'));
+      Alert.alert(
+        tr('Error', 'Error'),
+        userFacingAlertMessage(error, language, tr('No se pudo cargar la lista de suscriptores.', 'Could not load subscribers list.')),
+      );
       setSubscribers([]);
     } finally {
       setSubscribersLoading(false);
@@ -1732,7 +1740,10 @@ export default function CardsFactoryScreen() {
         )
       );
     } catch (error: any) {
-      Alert.alert(tr('No se pudo eliminar', 'Could not delete'), error?.message || tr('La revocacion fallo.', 'Revocation failed.'));
+      Alert.alert(
+        tr('No se pudo eliminar', 'Could not delete'),
+        userFacingAlertMessage(error, language, tr('La revocacion fallo.', 'Revocation failed.')),
+      );
     }
   };
 
@@ -1760,7 +1771,10 @@ export default function CardsFactoryScreen() {
         );
       }
     } catch (error: any) {
-      Alert.alert(tr('No se pudo bloquear', 'Could not block'), error?.message || tr('El bloqueo no se pudo completar.', 'Block could not be completed.'));
+      Alert.alert(
+        tr('No se pudo bloquear', 'Could not block'),
+        userFacingAlertMessage(error, language, tr('El bloqueo no se pudo completar.', 'Block could not be completed.')),
+      );
     }
   };
 
@@ -1785,7 +1799,10 @@ export default function CardsFactoryScreen() {
         prev.map((row) => (row.uid === targetUid ? { ...row, muted: nextMuted } : row))
       );
     } catch (error: any) {
-      Alert.alert(tr('No se pudo actualizar', 'Could not update'), error?.message || tr('Intenta de nuevo.', 'Try again.'));
+      Alert.alert(
+        tr('No se pudo actualizar', 'Could not update'),
+        userFacingAlertMessage(error, language, tr('Intenta de nuevo.', 'Try again.')),
+      );
     }
   };
 
@@ -1799,7 +1816,10 @@ export default function CardsFactoryScreen() {
         prev.map((c) => (c.sid === card.sid ? { ...c, silenced: next } : c)),
       );
     } catch (e: any) {
-      Alert.alert(tr('Error', 'Error'), e?.message || tr('No se pudo actualizar.', 'Could not update.'));
+      Alert.alert(
+        tr('Error', 'Error'),
+        userFacingAlertMessage(e, language, tr('No se pudo actualizar.', 'Could not update.')),
+      );
     }
   };
 
@@ -1883,7 +1903,7 @@ export default function CardsFactoryScreen() {
             `No se pudo conectar al backend de QR.\n\nChecklist rápido:\n• EXPO_PUBLIC_MODERATION_API_URL con IP LAN (no localhost)\n• Backend activo en puerto 4000\n• Móvil y PC en la misma Wi‑Fi\n• EXPO_PUBLIC_MODERATION_GATEWAY_KEY igual a API_GATEWAY_KEY del backend${androidLanHintEs}`,
             `Could not connect to the QR backend.\n\nQuick checklist:\n• EXPO_PUBLIC_MODERATION_API_URL uses LAN IP (not localhost)\n• Backend is running on port 4000\n• Phone and PC are on the same Wi‑Fi\n• EXPO_PUBLIC_MODERATION_GATEWAY_KEY matches backend API_GATEWAY_KEY${androidLanHintEn}`,
           )
-        : rawMessage || tr('No se pudo emitir el QR.', 'Could not issue QR.');
+        : userFacingAlertMessage(error, language, tr('No se pudo emitir el QR.', 'Could not issue QR.'));
       Alert.alert(tr('Error de QR', 'QR error'), diagnosticMessage);
     } finally {
       setIssuingQr(false);
@@ -2037,9 +2057,12 @@ export default function CardsFactoryScreen() {
         qrWindowMs: visibleWindowMs,
       });
     } catch (error: any) {
-      const msg = String(error?.message || '');
-      if (msg && !msg.includes('cancel')) {
-        Alert.alert(tr('Error de QR web', 'Web QR error'), msg);
+      const raw = String(error?.message || '').toLowerCase();
+      if (!raw.includes('cancel')) {
+        Alert.alert(
+          tr('Error de QR web', 'Web QR error'),
+          userFacingAlertMessage(error, language, tr('No se pudo generar el enlace universal.', 'Could not generate the universal link.')),
+        );
       }
     } finally {
       setIssuingUniversalLink(false);
@@ -2132,10 +2155,9 @@ export default function CardsFactoryScreen() {
       console.log('[QR_FLOW] issueQrForBusiness: QR modal opened');
     } catch (error: any) {
       console.log('[QR_FLOW] issueQrForBusiness: ERROR', String(error?.message || error));
-      const msg = error?.message?.trim();
       Alert.alert(
         tr('Error de QR', 'QR error'),
-        msg ? String(msg) : tr('No se pudo generar el QR.', 'Could not generate the QR code.'),
+        userFacingAlertMessage(error, language, tr('No se pudo generar el QR.', 'Could not generate the QR code.')),
       );
     } finally {
       setIssuingQr(false);
@@ -2177,6 +2199,7 @@ export default function CardsFactoryScreen() {
     });
     try {
       await deleteBusinessCardViaApi(uid, row.bId);
+      notifyMyBusinessCardsInventoryChanged();
     } catch {
       setBusinessCardsFeed(previous);
       Alert.alert(tr('Error', 'Error'), tr('No se pudo eliminar la tarjeta de negocio.', 'Could not delete the business card.'));
@@ -2193,7 +2216,10 @@ export default function CardsFactoryScreen() {
         prev.map((r) => (r.bId === row.bId ? { ...r, silenced: next } : r)),
       );
     } catch (e: any) {
-      Alert.alert(tr('Error', 'Error'), e?.message || tr('No se pudo actualizar.', 'Could not update.'));
+      Alert.alert(
+        tr('Error', 'Error'),
+        userFacingAlertMessage(e, language, tr('No se pudo actualizar.', 'Could not update.')),
+      );
     }
   };
 
