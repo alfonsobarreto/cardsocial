@@ -4,7 +4,7 @@
  * Pausa operaciones de red hasta que vuelva la conectividad.
  */
 
-import { trEsEn, useLanguage } from '@/services/language';
+import { coreT, useAppLanguage } from '@/services/coreI18n';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -21,8 +21,7 @@ export function useNetwork() {
 
 export function NetworkProvider({ children }: { children: React.ReactNode }) {
   const [isConnected, setIsConnected] = useState(true);
-  const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const lang = useAppLanguage();
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
@@ -36,7 +35,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
       {!isConnected && (
         <View style={styles.banner}>
           <Text style={styles.bannerText}>
-            {tr('Sin conexión — Modo offline', 'No connection — Offline mode')}
+            {coreT('misc_network_offline_banner', lang)}
           </Text>
         </View>
       )}

@@ -19,7 +19,8 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { trEsEn, useLanguage } from '@/services/language';
+import { coreTrEsEn } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 
 interface FeatureFlags {
   studentPackEnabled: boolean;
@@ -30,7 +31,7 @@ interface FeatureFlags {
 
 export default function AdminConfigScreen() {
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const tr = (es: string, en: string) => coreTrEsEn(es, en, language);
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);

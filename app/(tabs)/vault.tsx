@@ -11,7 +11,7 @@ import { db } from '@/services/firebaseConfig';
 import { readUserFullName, readUserNickName } from '@/services/userIdentityFields';
 import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
 import { creationT } from '@/services/creationI18n';
-import { coreT, useCoreT, type CoreLocaleKey } from '@/services/coreI18n';
+import { useCoreT, type CoreLocaleKey } from '@/services/coreI18n';
 import { useLanguage } from '@/services/language';
 import { listBusinessLicenses } from '@/services/businessLicenseService';
 import { validateVaultItemCreation } from '@/services/limitService';
@@ -130,9 +130,7 @@ const VaultScreen = () => {
   const [formModalVisible, setFormModalVisible] = useState(false);
   const [formRenderNonce, setFormRenderNonce] = useState(0);
   const [editingData, setEditingData] = useState<Link | undefined>(undefined);
-  const [profileDisplayName, setProfileDisplayName] = useState(() =>
-    coreT('vault_user_display_fallback', language),
-  );
+  const [profileDisplayName, setProfileDisplayName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isUserVerified, setIsUserVerified] = useState(false);
   const [limitReachedVisible, setLimitReachedVisible] = useState(false);
@@ -156,6 +154,9 @@ const VaultScreen = () => {
   /** Ítems nuevos premium: destello dorado ~0,5 s en el grid. */
   const [premiumRevealLinks, setPremiumRevealLinks] = useState<Record<string, true>>({});
   const formSheetTranslateY = useRef(new Animated.Value(0)).current;
+  const headerProfileLabel = profileDisplayName.trim()
+    ? profileDisplayName
+    : t('vault_user_display_fallback');
 
   const closeFormModal = () => {
     formSheetTranslateY.stopAnimation();
@@ -1675,7 +1676,7 @@ const VaultScreen = () => {
       <View style={[styles.header, { backgroundColor: 'transparent', borderBottomColor: vaultTheme.headerDivider }]}>
         <View style={styles.headerCenterBlock}>
           <View style={styles.headerUserRowCentered}>
-            <Text style={[styles.headerSubtitle, { color: vaultTheme.primaryText }]}>{profileDisplayName}</Text>
+            <Text style={[styles.headerSubtitle, { color: vaultTheme.primaryText }]}>{headerProfileLabel}</Text>
             {isUserVerified ? (
               <View
                 style={[

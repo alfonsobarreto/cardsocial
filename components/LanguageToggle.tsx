@@ -1,5 +1,6 @@
-import type { AppLanguage } from '@/services/language';
-import { SUPPORTED_LANGUAGES, useLanguage, useTr } from '@/services/language';
+import type { AppLanguage } from '@/services/coreI18n';
+import { useCoreT } from '@/services/coreI18n';
+import { SUPPORTED_LANGUAGES, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import * as Haptics from 'expo-haptics';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -19,7 +20,7 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function LanguageToggle() {
   const { language, setLanguage } = useLanguage();
-  const tr = useTr();
+  const tcx = useCoreT();
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
   const shell = palette[isNight ? 'dark' : 'light'];
@@ -168,7 +169,7 @@ export default function LanguageToggle() {
 
         <Animated.View style={[styles.toastContainer, { transform: [{ translateY: slideAnim }] }]}>
           <View style={styles.toastHandle} />
-          <Text style={styles.toastTitle}>{tr('Idioma', 'Language')}</Text>
+          <Text style={styles.toastTitle}>{tcx('misc_language_sheet_title')}</Text>
 
           {SUPPORTED_LANGUAGES.map((lang) => {
             const isActive = lang.code === language;

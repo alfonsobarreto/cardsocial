@@ -9,6 +9,30 @@ import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 /** Ocho horas sin actividad (solo si no es dispositivo de confianza). */
 export const SESSION_INACTIVITY_LIMIT_MS = 8 * 60 * 60 * 1000;
 
+/**
+ * Margen por encima del límite antes de declarar expirada la sesión.
+ * Evita cierres erróneos por carreras de unos pocos ms entre touch y lectura periódica.
+ */
+export const SESSION_INACTIVITY_EXPIRY_GRACE_MS = 5_000;
+
+/**
+ * Indica si la sesión debe considerarse expirada por inactividad o anomalía de reloj.
+ *
+ * - `lastActivityMs == null`: estado inválido; quien llama debe hacer `touchSessionActivity` antes
+ *   de interpretar el resultado (véase `enforceInactivitySignOutIfNeeded` / `checkInactivitySignOutWithoutTouch`).
+ * - `nowMs < lastActivityMs` (reloj atrasado): se trata como anomalía → expirado.
+ */
+function isSessionExpiredByInactivity(lastActivityMs: number | null, nowMs: number = Date.now()): boolean {
+  if (lastActivityMs == null) {
+    return true;
+  }
+  const delta = nowMs - lastActivityMs;
+  if (delta < 0) {
+    return true;
+  }
+  return delta > SESSION_INACTIVITY_LIMIT_MS + SESSION_INACTIVITY_EXPIRY_GRACE_MS;
+}
+
 export function firebaseUserMayEnterMainApp(user: User | null): boolean {
   if (!user) return false;
   const usesPassword = user.providerData.some((p) => p.providerId === 'password');
@@ -53,11 +77,6 @@ export async function clearTrustedDeviceSession(uid: string | null | undefined):
   await AsyncStorage.removeItem(trustedDeviceSessionKey(id));
 }
 
-function isSessionExpiredByInactivity(lastActivityMs: number | null, nowMs: number = Date.now()): boolean {
-  if (lastActivityMs == null) return false;
-  return nowMs - lastActivityMs > SESSION_INACTIVITY_LIMIT_MS;
-}
-
 /** Mueve el reloj de inactividad solo si esta sesión no es “dispositivo de confianza”. */
 export async function touchSessionActivityForNonTrusted(uid: string): Promise<void> {
   if (await isTrustedDeviceSession(uid)) return;
@@ -78,6 +97,10 @@ export async function enforceInactivitySignOutIfNeeded(): Promise<'ok' | 'signed
   }
 
   const last = await getSessionLastActivityMs(uid);
+  if (last == null) {
+    await touchSessionActivity(uid);
+    return 'ok';
+  }
 
   if (isSessionExpiredByInactivity(last)) {
     await clearLocalCachesForSignOut(uid);
@@ -91,7 +114,7 @@ export async function enforceInactivitySignOutIfNeeded(): Promise<'ok' | 'signed
   return 'ok';
 }
 
-/** Chequeo periódico en primer plano sin refrescar la marca (p. ej. una sola pantalla abierta 8h). */
+/** Chequeo PERIODICO en primer plano sin refrescar la marca salvo que falte baseline (clave ausente / inválida). */
 export async function checkInactivitySignOutWithoutTouch(): Promise<'ok' | 'signed_out'> {
   const user = auth.currentUser;
   if (!user) return 'ok';
@@ -102,6 +125,10 @@ export async function checkInactivitySignOutWithoutTouch(): Promise<'ok' | 'sign
   }
 
   const last = await getSessionLastActivityMs(uid);
+  if (last == null) {
+    await touchSessionActivity(uid);
+    return 'ok';
+  }
 
   if (isSessionExpiredByInactivity(last)) {
     await clearLocalCachesForSignOut(uid);

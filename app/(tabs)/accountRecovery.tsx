@@ -17,7 +17,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { initiateAccountRecovery, checkRecoveryRequestStatus } from '@/services/accountRecoveryService';
 import { useAuthT } from '@/services/authI18n';
-import { trEsEn, useLanguage } from '@/services/language';
+import { coreTrEsEn } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import palette from '../theme';
 
@@ -25,7 +26,7 @@ type RecoveryStep = 'method-select' | 'email-recovery' | 'ticket-status';
 
 export default function AccountRecoveryScreen({ onClose }: { onClose: () => void }) {
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const tr = (es: string, en: string) => coreTrEsEn(es, en, language);
   const t = useAuthT();
   const { resolvedMode } = useLookMode();
   const isDark = resolvedMode === 'noche';

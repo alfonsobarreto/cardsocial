@@ -4,7 +4,8 @@
  */
 
 import palette from '@/app/theme';
-import { trEsEn, useLanguage } from '@/services/language';
+import { coreTrEsEn } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { fetchVoipMinutesSummary, type VoipMinutesSummaryWire } from '@/services/qrApi';
 import { hasUnlimitedAdminUi } from '@/services/roleService';
@@ -26,7 +27,7 @@ export function VoipAirTimeBadge({
   layout = 'compact',
 }: VoipAirTimeBadgeProps) {
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const tr = (es: string, en: string) => coreTrEsEn(es, en, language);
   const { resolvedMode } = useLookMode();
   const shell = palette[resolvedMode === 'noche' ? 'dark' : 'light'];
 

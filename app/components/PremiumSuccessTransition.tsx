@@ -3,7 +3,8 @@ import { Animated, Modal, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { trEsEn, useLanguage } from '@/services/language';
+import { coreTrEsEn } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 
 type PremiumSuccessTransitionProps = {
   visible: boolean;
@@ -17,7 +18,7 @@ export default function PremiumSuccessTransition({
   durationMs = 1800,
 }: PremiumSuccessTransitionProps) {
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const tr = (es: string, en: string) => coreTrEsEn(es, en, language);
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const burstScale = useRef(new Animated.Value(0.2)).current;
   const burstOpacity = useRef(new Animated.Value(0)).current;

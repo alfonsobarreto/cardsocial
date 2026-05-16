@@ -4,7 +4,8 @@ import { useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/services/firebaseConfig';
-import { trEsEn, useLanguage } from '@/services/language';
+import { coreTrEsEn } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import palette from '../theme';
 
@@ -17,7 +18,7 @@ interface User {
 export default function ProfileScreen() {
   const { id } = useLocalSearchParams();
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const tr = (es: string, en: string) => coreTrEsEn(es, en, language);
   const [userData, setUserData] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const { resolvedMode } = useLookMode();

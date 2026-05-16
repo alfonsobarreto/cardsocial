@@ -4,7 +4,8 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
-import { trEsEn, useLanguage } from '@/services/language';
+import { coreTrEsEn } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 
 type LuxuryModerationModalProps = {
   visible: boolean;
@@ -36,7 +37,7 @@ export default function LuxuryModerationModal({
 }: LuxuryModerationModalProps) {
   const { language } = useLanguage();
   const modalFooterBottomPad = useModalFooterBottomPad();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const tr = (es: string, en: string) => coreTrEsEn(es, en, language);
   const resolvedTitle = title ?? tr('Acceso Premium Protegido', 'Premium Protected Access');
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>

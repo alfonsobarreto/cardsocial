@@ -1,4 +1,5 @@
-import { trEsEn, useLanguage } from '@/services/language';
+import { coreTrEsEn } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -9,7 +10,7 @@ type VerificationBadgeProps = {
 
 export default function VerificationBadge({ compact = false }: VerificationBadgeProps) {
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const tr = (es: string, en: string) => coreTrEsEn(es, en, language);
   return (
     <View style={[styles.badge, compact && styles.badgeCompact]}>
       <MaterialCommunityIcons name="shield-check" size={compact ? 14 : 16} color="#FFFFFF" />

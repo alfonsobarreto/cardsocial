@@ -92,7 +92,7 @@ function useDisplayGhostCallData(): GhostCallData | null {
   return idCtx.mergeDisplay(callData);
 }
 import { isGhostLinkAgoraNativeAvailable } from '@/services/expoGoAgoraGuard';
-import { useTr } from '@/services/language';
+import { useCoreT } from '@/services/coreI18n';
 import { useLookMode } from '@/services/lookMode';
 import palette, { type AppShellTheme } from '@/app/theme';
 import { brandCsIconLogoBgTransparent } from '@/constants/brandAssets';
@@ -176,12 +176,12 @@ function formatDuration(sec: number): string {
 function VoipTrialCapHintBar({
   capMinutes,
   elapsedSec,
-  tr,
+  tcx,
   mutedColor,
 }: {
   capMinutes: number;
   elapsedSec: number;
-  tr: (es: string, en: string) => string;
+  tcx: ReturnType<typeof useCoreT>;
   mutedColor: string;
 }) {
   const capSec = capMinutes * 60;
@@ -198,10 +198,7 @@ function VoipTrialCapHintBar({
         lineHeight: 18,
       }}
     >
-      {tr(
-        `AirTime (sesión): máximo ${capMinutes} min · ~${remainLabel} restantes`,
-        `AirTime (session): ${capMinutes} min max · ~${remainLabel} left`,
-      )}
+      {tcx('ghost_airtime_session', { capMinutes, remain: remainLabel })}
     </Text>
   );
 }
@@ -209,7 +206,7 @@ function VoipTrialCapHintBar({
 function VoipAudioRouteHintStrip({ videoChrome }: { videoChrome?: boolean }) {
   const { voipAudioRouteHint, dismissVoipAudioRouteHint } = useGhostLinkCall();
   const shell = useGhostLinkShell();
-  const tr = useTr();
+  const tcx = useCoreT();
   if (!voipAudioRouteHint) return null;
   const fg = videoChrome ? shell.ghostLinkVideoTopBarText : shell.ghostLinkTextPrimary;
   const muted = videoChrome ? shell.ghostLinkVideoWaitingText : shell.ghostLinkTextSecondary;
@@ -227,11 +224,11 @@ function VoipAudioRouteHintStrip({ videoChrome }: { videoChrome?: boolean }) {
       <View style={styles.audioRouteHintActions}>
         <TouchableOpacity onPress={() => void Linking.openSettings()} accessibilityRole="button">
           <Text style={[styles.audioRouteHintAction, { color: shell.tint }]}>
-            {tr('Abrir ajustes', 'Open Settings')}
+            {tcx('ghost_open_settings')}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={dismissVoipAudioRouteHint} accessibilityRole="button">
-          <Text style={[styles.audioRouteHintAction, { color: muted }]}>{tr('Entendido', 'Got it')}</Text>
+          <Text style={[styles.audioRouteHintAction, { color: muted }]}>{tcx('ghost_got_it')}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -241,7 +238,7 @@ function VoipAudioRouteHintStrip({ videoChrome }: { videoChrome?: boolean }) {
 function CallChromeMinimizeButton({ videoChrome }: { videoChrome?: boolean }) {
   const { minimizeCall } = useGhostLinkCall();
   const shell = useGhostLinkShell();
-  const tr = useTr();
+  const tcx = useCoreT();
   const color = videoChrome ? shell.ghostLinkVideoTopBarText : shell.ghostLinkTextPrimary;
   return (
     <TouchableOpacity
@@ -249,7 +246,7 @@ function CallChromeMinimizeButton({ videoChrome }: { videoChrome?: boolean }) {
       hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
       style={videoChrome ? videoStyles.minimizeTap : styles.minimizeTap}
       accessibilityRole="button"
-      accessibilityLabel={tr('Minimizar llamada', 'Minimize call')}
+      accessibilityLabel={tcx('ghost_a11y_minimize_call')}
     >
       <MaterialCommunityIcons name="chevron-down" size={28} color={color} />
     </TouchableOpacity>
@@ -261,7 +258,7 @@ function FloatingCallBubble() {
   const { maximizeCall, remoteUid, isRemoteVideoEnabled, videoEnabled, callDurationSec } = useGhostLinkCall();
   const callData = useDisplayGhostCallData();
   const shell = useGhostLinkShell();
-  const tr = useTr();
+  const tcx = useCoreT();
 
   if (!callData) return null;
 
@@ -289,7 +286,7 @@ function FloatingCallBubble() {
         }),
       ]}
       accessibilityRole="button"
-      accessibilityLabel={tr('Volver a la llamada', 'Return to call')}
+      accessibilityLabel={tcx('ghost_a11y_return_to_call')}
     >
       <View
         style={[
@@ -530,7 +527,7 @@ function ConfirmView() {
   const { confirmCall, confirmVideoCall, cancelCall } = useGhostLinkCall();
   const callData = useDisplayGhostCallData();
   const shell = useGhostLinkShell();
-  const tr = useTr();
+  const tcx = useCoreT();
 
   if (!callData) return null;
 
@@ -552,7 +549,7 @@ function ConfirmView() {
         <Text style={[styles.fullNameText, { color: shell.ghostLinkTextSecondary }]}>{outgoingSubtitleLine}</Text>
       ) : null}
       <Text style={[styles.subtitleText, { color: shell.ghostLinkTextSecondary }]}>
-        {tr('Privacidad total', 'Total Privacy')}
+        {tcx('ghost_privacy_total')}
       </Text>
       <View style={styles.confirmActions}>
         <TouchableOpacity
@@ -561,7 +558,7 @@ function ConfirmView() {
           activeOpacity={0.85}
         >
           <MaterialCommunityIcons name="phone" size={24} color={shell.emptyCtaText} />
-          <Text style={[styles.confirmBtnText, { color: shell.emptyCtaText }]}>{tr('Llamada de voz', 'Voice Call')}</Text>
+          <Text style={[styles.confirmBtnText, { color: shell.emptyCtaText }]}>{tcx('ghost_voice_call')}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={confirmVideoCall} activeOpacity={0.85} style={styles.confirmBtnTouchable}>
           <LinearGradient
@@ -571,15 +568,15 @@ function ConfirmView() {
             style={styles.confirmBtnGradient}
           >
             <MaterialCommunityIcons name="video" size={24} color={shell.emptyCtaText} />
-            <Text style={[styles.confirmBtnText, { color: shell.emptyCtaText }]}>{tr('FaceCall', 'FaceCall')}</Text>
+            <Text style={[styles.confirmBtnText, { color: shell.emptyCtaText }]}>{tcx('ghost_facecall')}</Text>
           </LinearGradient>
         </TouchableOpacity>
         <TouchableOpacity style={styles.cancelBtn} onPress={cancelCall} activeOpacity={0.8}>
-          <Text style={[styles.cancelBtnText, { color: shell.ghostLinkTextSecondary }]}>{tr('Cancelar', 'Cancel')}</Text>
+          <Text style={[styles.cancelBtnText, { color: shell.ghostLinkTextSecondary }]}>{tcx('common_cancel')}</Text>
         </TouchableOpacity>
       </View>
       <Text style={[styles.footerText, { color: shell.ghostLinkTextMuted }]}>
-        {tr('Enlace exclusivo', 'Exclusive Link')}
+        {tcx('ghost_exclusive_link')}
       </Text>
     </View>
   );
@@ -590,15 +587,15 @@ function OutgoingView() {
     useGhostLinkCall();
   const callData = useDisplayGhostCallData();
   const shell = useGhostLinkShell();
-  const tr = useTr();
+  const tcx = useCoreT();
 
   if (!callData) return null;
 
   const isRinging = phase === VoIPCallPhase.RingingOutgoing;
   const showRingingLocalVideoBackdrop = callData.callType === 'video' && videoEnabled && isRinging;
   const statusText = isRinging
-    ? tr('Llamando...', 'Calling...')
-    : `${tr('En llamada', 'On call')} · ${formatDuration(callDurationSec)}`;
+    ? tcx('ghost_calling')
+    : `${tcx('ghost_on_call')} · ${formatDuration(callDurationSec)}`;
   const agoraCapMin = localGhostLinkTrialCapMinutes(callData.direction, callData.trialCap);
   const om = outgoingMirrorFromGhostCallData(callData);
   const outgoingSubtitleLine =
@@ -633,7 +630,7 @@ function OutgoingView() {
           <VoipTrialCapHintBar
             capMinutes={agoraCapMin}
             elapsedSec={callDurationSec}
-            tr={tr}
+            tcx={tcx}
             mutedColor={shell.ghostLinkTextMuted}
           />
         ) : null}
@@ -641,19 +638,19 @@ function OutgoingView() {
         <View style={[styles.controls, styles.controlsWrap]}>
           <ControlButton
             icon={muted ? 'microphone-off' : 'microphone'}
-            label={tr('Silencio', 'Mute')}
+            label={tcx('ghost_mute')}
             active={muted}
             onPress={toggleMute}
           />
           <ControlButton
             icon={speaker ? 'volume-high' : 'volume-low'}
-            label={tr('Altavoz', 'Speaker')}
+            label={tcx('ghost_speaker')}
             active={speaker}
             onPress={toggleSpeaker}
           />
           <ControlButton
             icon={videoEnabled ? 'video' : 'video-off'}
-            label={tr('Cámara', 'Camera')}
+            label={tcx('ghost_camera')}
             active={videoEnabled}
             onPress={() => void toggleVideo()}
           />
@@ -665,10 +662,10 @@ function OutgoingView() {
           activeOpacity={0.8}
         >
           <MaterialCommunityIcons name="phone-hangup" size={28} color={shell.ghostLinkOnHangup} />
-          <Text style={[styles.endCallText, { color: shell.ghostLinkOnHangup }]}>{tr('Colgar', 'End Call')}</Text>
+          <Text style={[styles.endCallText, { color: shell.ghostLinkOnHangup }]}>{tcx('ghost_end_call')}</Text>
         </TouchableOpacity>
         <Text style={[styles.footerText, { color: shell.ghostLinkTextMuted }]}>
-          {tr('Enlace exclusivo', 'Exclusive Link')}
+          {tcx('ghost_exclusive_link')}
         </Text>
       </View>
     </View>
@@ -679,13 +676,13 @@ function IncomingView() {
   const { acceptIncoming, rejectIncoming } = useGhostLinkCall();
   const callData = useDisplayGhostCallData();
   const shell = useGhostLinkShell();
-  const tr = useTr();
+  const tcx = useCoreT();
   if (!callData) return null;
 
   const isVideo = callData.callType === 'video';
   const statusLabel = isVideo
-    ? tr('Videollamada Entrante...', 'Incoming Video Call...')
-    : tr('Llamada Entrante...', 'Incoming Call...');
+    ? tcx('ghost_incoming_video_call')
+    : tcx('ghost_incoming_call');
   const agoraCapMin = localGhostLinkTrialCapMinutes('incoming', callData.trialCap);
   /** Receptor: avatar/nombre del **caller** (peer); badge con nombre de la tarjeta compartida. */
   const face = deriveCallFace(callData);
@@ -708,16 +705,16 @@ function IncomingView() {
         {isVideo && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
             <MaterialCommunityIcons name="video" size={18} color={shell.tint} />
-            <Text style={{ color: shell.tint, fontSize: 13, fontWeight: '600' }}>{tr('FaceCall', 'FaceCall')}</Text>
+            <Text style={{ color: shell.tint, fontSize: 13, fontWeight: '600' }}>{tcx('ghost_facecall')}</Text>
           </View>
         )}
         <Text style={[styles.statusText, { color: shell.ghostLinkTextSecondary }]}>{statusLabel}</Text>
         {agoraCapMin != null && callData.agora ? (
-          <VoipTrialCapHintBar capMinutes={agoraCapMin} elapsedSec={0} tr={tr} mutedColor={shell.ghostLinkTextMuted} />
+          <VoipTrialCapHintBar capMinutes={agoraCapMin} elapsedSec={0} tcx={tcx} mutedColor={shell.ghostLinkTextMuted} />
         ) : null}
         {incomingBusiness && face.cardLabel ? (
           <CardBadge
-            label={`${tr('Desde tu tarjeta', 'From your card')}: ${face.cardLabel}`}
+            label={`${tcx('ghost_from_your_card')}: ${face.cardLabel}`}
           />
         ) : null}
 
@@ -733,14 +730,14 @@ function IncomingView() {
               color={shell.emptyCtaText}
               style={{ marginRight: 6 }}
             />
-            <Text style={[styles.acceptBtnText, { color: shell.emptyCtaText }]}>{tr('ACEPTAR', 'ACCEPT')}</Text>
+            <Text style={[styles.acceptBtnText, { color: shell.emptyCtaText }]}>{tcx('ghost_accept')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.rejectBtn, { backgroundColor: shell.surface, borderColor: shell.danger }]}
             onPress={rejectIncoming}
             activeOpacity={0.85}
           >
-            <Text style={[styles.rejectBtnText, { color: shell.danger }]}>{tr('RECHAZAR', 'DECLINE')}</Text>
+            <Text style={[styles.rejectBtnText, { color: shell.danger }]}>{tcx('ghost_decline')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -752,7 +749,7 @@ function ActiveIncomingView() {
   const { muted, speaker, videoEnabled, callDurationSec, toggleMute, toggleSpeaker, toggleVideo, flipCamera, endCall } = useGhostLinkCall();
   const callData = useDisplayGhostCallData();
   const shell = useGhostLinkShell();
-  const tr = useTr();
+  const tcx = useCoreT();
   if (!callData) return null;
 
   if (videoEnabled && RtcSurfaceView) {
@@ -781,17 +778,17 @@ function ActiveIncomingView() {
         ) : null}
         {incomingBusiness && face.cardLabel ? (
           <CardBadge
-            label={`${tr('Desde tu tarjeta', 'From your card')}: ${face.cardLabel}`}
+            label={`${tcx('ghost_from_your_card')}: ${face.cardLabel}`}
           />
         ) : null}
         <Text style={[styles.statusText, { color: shell.ghostLinkTextSecondary }]}>
-          {tr('En llamada', 'On call')} · {formatDuration(callDurationSec)}
+          {tcx('ghost_on_call')} · {formatDuration(callDurationSec)}
         </Text>
         {agoraCapMin != null && callData.agora ? (
           <VoipTrialCapHintBar
             capMinutes={agoraCapMin}
             elapsedSec={callDurationSec}
-            tr={tr}
+            tcx={tcx}
             mutedColor={shell.ghostLinkTextMuted}
           />
         ) : null}
@@ -799,19 +796,19 @@ function ActiveIncomingView() {
         <View style={[styles.controls, styles.controlsWrap]}>
           <ControlButton
             icon={muted ? 'microphone-off' : 'microphone'}
-            label={tr('Silencio', 'Mute')}
+            label={tcx('ghost_mute')}
             active={muted}
             onPress={toggleMute}
           />
           <ControlButton
             icon={speaker ? 'volume-high' : 'volume-low'}
-            label={tr('Altavoz', 'Speaker')}
+            label={tcx('ghost_speaker')}
             active={speaker}
             onPress={toggleSpeaker}
           />
           <ControlButton
             icon={videoEnabled ? 'video' : 'video-off'}
-            label={tr('Cámara', 'Camera')}
+            label={tcx('ghost_camera')}
             active={videoEnabled}
             onPress={() => void toggleVideo()}
           />
@@ -823,10 +820,10 @@ function ActiveIncomingView() {
           activeOpacity={0.8}
         >
           <MaterialCommunityIcons name="phone-hangup" size={28} color={shell.ghostLinkOnHangup} />
-          <Text style={[styles.endCallText, { color: shell.ghostLinkOnHangup }]}>{tr('Colgar', 'End Call')}</Text>
+          <Text style={[styles.endCallText, { color: shell.ghostLinkOnHangup }]}>{tcx('ghost_end_call')}</Text>
         </TouchableOpacity>
         <Text style={[styles.footerText, { color: shell.ghostLinkTextMuted }]}>
-          {tr('Enlace exclusivo', 'Exclusive Link')}
+          {tcx('ghost_exclusive_link')}
         </Text>
       </View>
     </>
@@ -851,7 +848,7 @@ function ActiveVideoView() {
   } = useGhostLinkCall();
   const callData = useDisplayGhostCallData();
   const shell = useGhostLinkShell();
-  const tr = useTr();
+  const tcx = useCoreT();
 
   if (!callData || !RtcSurfaceView) return null;
 
@@ -877,8 +874,8 @@ function ActiveVideoView() {
 
   const showRemoteSurface = remoteUid != null && isRemoteVideoEnabled;
   const remotePlaceholderLabel = remoteUid == null
-    ? tr('Esperando video...', 'Waiting for video...')
-    : tr('Cámara apagada', 'Camera off');
+    ? tcx('ghost_waiting_video')
+    : tcx('ghost_camera_off');
 
   return (
     <View style={[videoStyles.root, { backgroundColor: shell.ghostLinkVideoStageBg }]}>
@@ -943,10 +940,9 @@ function ActiveVideoView() {
           </Text>
           {agoraCapMin != null && callData.agora ? (
             <Text style={[videoStyles.topTrialCap, { color: shell.ghostLinkVideoTopBarMuted }]}>
-              {tr(
-                `AirTime · ~${formatDuration(Math.max(0, agoraCapMin * 60 - callDurationSec))} máx.`,
-                `AirTime · ~${formatDuration(Math.max(0, agoraCapMin * 60 - callDurationSec))} max.`,
-              )}
+              {tcx('ghost_airtime_top_bar', {
+                remain: formatDuration(Math.max(0, agoraCapMin * 60 - callDurationSec)),
+              })}
             </Text>
           ) : null}
         </View>
@@ -958,22 +954,22 @@ function ActiveVideoView() {
         <ControlButton
           chrome="onVideo"
           icon={muted ? 'microphone-off' : 'microphone'}
-          label={tr('Silencio', 'Mute')}
+          label={tcx('ghost_mute')}
           active={muted}
           onPress={toggleMute}
         />
         <ControlButton
           chrome="onVideo"
           icon={videoEnabled ? 'video' : 'video-off'}
-          label={tr('Cámara', 'Camera')}
+          label={tcx('ghost_camera')}
           active={videoEnabled}
           onPress={() => void toggleVideo()}
         />
-        <ControlButton chrome="onVideo" icon="camera-flip" label={tr('Voltear', 'Flip')} onPress={flipCamera} />
+        <ControlButton chrome="onVideo" icon="camera-flip" label={tcx('ghost_flip')} onPress={flipCamera} />
         <ControlButton
           chrome="onVideo"
           icon={speaker ? 'volume-high' : 'volume-low'}
-          label={tr('Altavoz', 'Speaker')}
+          label={tcx('ghost_speaker')}
           active={speaker}
           onPress={toggleSpeaker}
         />
@@ -992,20 +988,17 @@ function ActiveVideoView() {
 
 function EndedView({ reason }: { reason: 'ended' | 'rejected' | 'error' | 'muted' | 'airtime_exhausted' }) {
   const shell = useGhostLinkShell();
-  const tr = useTr();
+  const tcx = useCoreT();
   const msg =
     reason === 'rejected'
-      ? tr('Llamada rechazada', 'Call declined')
+      ? tcx('ghost_ended_declined')
       : reason === 'muted'
-        ? tr('Tarjeta silenciada — no se puede llamar', 'Card muted — cannot call')
+        ? tcx('ghost_ended_card_muted')
         : reason === 'airtime_exhausted'
-          ? tr(
-              'Saldo de AirTime agotado. Recarga en tu Dashboard.',
-              'AirTime balance depleted. Top up from your Dashboard.',
-            )
+          ? tcx('ghost_ended_airtime')
           : reason === 'error'
-            ? tr('Error de conexión', 'Connection error')
-            : tr('Llamada finalizada', 'Call ended');
+            ? tcx('ghost_ended_error')
+            : tcx('ghost_ended_default');
 
   return (
     <View style={styles.centered}>

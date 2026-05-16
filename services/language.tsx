@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import i18n from '@/i18n';
 import { dashboardUiLocaleExtra } from '@/services/dashboardUiLocaleExtra';
 import { hashUiPair } from '@/services/uiStringHash';
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 export type AppLanguage = 'en' | 'es' | 'fr' | 'it' | 'pt' | 'de';
 
@@ -99,7 +99,7 @@ export function deviceDefaultLanguage(): AppLanguage {
  * Si existe traducción para `lang`, se usa; si no, `defaultValue` (es o en).
  * Añade entradas en `locales/_generated/{lang}.fragment.json` (p. ej. con `scripts/fill-ui-fragments.mjs`).
  */
-export function trEsEn(es: string, en: string, lang: AppLanguage): string {
+export function translateUiEsEnPair(es: string, en: string, lang: AppLanguage): string {
   const extra = dashboardUiLocaleExtra(es, en, lang);
   if (extra !== null) return extra;
   const key = `ui.x${hashUiPair(es, en)}`;
@@ -185,11 +185,6 @@ export function useLanguage() {
   return context;
 }
 
-export function useTr() {
-  const { language } = useLanguage();
-  return useCallback((es: string, en: string) => trEsEn(es, en, language), [language]);
-}
-
 /** Pantallas de auth o código que puede montar antes del provider; default EN. */
 export function useLanguageOptional(): LanguageContextValue | null {
   return useContext(LanguageContext);
@@ -207,5 +202,5 @@ export function getCurrentI18nAppLanguage(): AppLanguage {
 }
 
 export function trAction(es: string, en: string): string {
-  return trEsEn(es, en, getCurrentI18nAppLanguage());
+  return translateUiEsEnPair(es, en, getCurrentI18nAppLanguage());
 }

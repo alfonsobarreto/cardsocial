@@ -5,7 +5,8 @@
 
 import { VoipAirTimeBadge } from '@/components/VoipAirTimeBadge';
 import { getUserCreditsBalance } from '@/services/creditsService';
-import { trEsEn, useLanguage } from '@/services/language';
+import { coreTrEsEn } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 import { hasUnlimitedAdminUi } from '@/services/roleService';
 import { useLookMode } from '@/services/lookMode';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -20,7 +21,7 @@ interface CreditsIndicatorProps {
 
 export const CreditsIndicator: React.FC<CreditsIndicatorProps> = ({ userId, refreshTrigger }) => {
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const tr = (es: string, en: string) => coreTrEsEn(es, en, language);
   const { resolvedMode } = useLookMode();
   const shell = palette[resolvedMode === 'noche' ? 'dark' : 'light'];
   const colors = useMemo(

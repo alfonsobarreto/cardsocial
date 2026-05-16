@@ -8,7 +8,8 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLookMode } from '@/services/lookMode';
-import { trEsEn, useLanguage } from '@/services/language';
+import { coreTrEsEn } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import palette from '../app/theme';
@@ -27,7 +28,7 @@ export function SwipeHint({
   onDismiss,
 }: SwipeHintProps) {
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const tr = (es: string, en: string) => coreTrEsEn(es, en, language);
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
   const shell = palette[isNight ? 'dark' : 'light'];

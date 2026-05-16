@@ -19,7 +19,7 @@ import {
     stableKeyForCatalogIcon,
 } from '@/services/iconVaultService';
 import { useCreationT } from '@/services/creationI18n';
-import { type AppLanguage, trEsEn, useLanguage } from '@/services/language';
+import { coreTrEsEn, type AppLanguage, useAppLanguage } from '@/services/coreI18n';
 import { useLookMode } from '@/services/lookMode';
 import {
     purchaseThemeBundle,
@@ -354,17 +354,17 @@ const ICON_SECTIONS: IconSection[] = buildIconSections();
 
 const STUDIO_SECTION_TITLE_SEP = ' · ';
 
-/** Pares ES/EN del catálogo → `trEsEn` para los 6 idiomas de la app. */
+/** Pares ES/EN del catálogo → `coreTrEsEn` para los 6 idiomas de la app. */
 function translateStudioSectionTitle(section: IconSection, language: AppLanguage): string {
   const enTitle = section.titleEn ?? section.title;
   if (section.title.includes(STUDIO_SECTION_TITLE_SEP) && enTitle.includes(STUDIO_SECTION_TITLE_SEP)) {
     const esParts = section.title.split(STUDIO_SECTION_TITLE_SEP);
     const enParts = enTitle.split(STUDIO_SECTION_TITLE_SEP);
     if (esParts.length === enParts.length && esParts.length > 1) {
-      return esParts.map((es, i) => trEsEn(es.trim(), enParts[i].trim(), language)).join(STUDIO_SECTION_TITLE_SEP);
+      return esParts.map((es, i) => coreTrEsEn(es.trim(), enParts[i].trim(), language)).join(STUDIO_SECTION_TITLE_SEP);
     }
   }
-  return trEsEn(section.title, enTitle, language);
+  return coreTrEsEn(section.title, enTitle, language);
 }
 
 export const ICON_GALLERY: IconItem[] = ICON_SECTIONS.flatMap((sec) =>
@@ -406,7 +406,7 @@ export default function CardStudioVault({
 }: CardStudioVaultProps) {
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
-  const { language } = useLanguage();
+  const language = useAppLanguage();
   const tcx = useCreationT();
   const modalFooterBottomPad = useModalFooterBottomPad();
   const [storeModalVisible, setStoreModalVisible] = useState(false);
@@ -695,7 +695,7 @@ export default function CardStudioVault({
 
   const handleLongPress = (item: IconItem) => {
     Alert.alert(
-      tcx('studio_delete_icon_title', { label: trEsEn(item.label, item.labelEn, language) }),
+      tcx('studio_delete_icon_title', { label: coreTrEsEn(item.label, item.labelEn, language) }),
       tcx('studio_delete_icon_body'),
       [
         { text: tcx('form_cancel'), style: 'cancel' },
@@ -778,7 +778,7 @@ export default function CardStudioVault({
                 style={!unlocked ? { opacity: 0.55 } : undefined}
               />
               <Text style={[styles.iconLabel, { color: labelColor }]} numberOfLines={1}>
-                {trEsEn(item.label, item.labelEn, language)}
+                {coreTrEsEn(item.label, item.labelEn, language)}
               </Text>
             </>
           );
@@ -850,7 +850,7 @@ export default function CardStudioVault({
         />
         <Text style={[styles.emptyLabel, { color: theme.textSecondary }]}>
           {section.emptyLabel != null
-            ? trEsEn(section.emptyLabel, section.emptyLabelEn ?? section.emptyLabel, language)
+            ? coreTrEsEn(section.emptyLabel, section.emptyLabelEn ?? section.emptyLabel, language)
             : ''}
         </Text>
       </View>
@@ -1053,7 +1053,7 @@ export default function CardStudioVault({
                       >
                         <View style={{ flex: 1 }}>
                           <Text style={[styles.bundleName, { color: theme.textPrimary }]}>
-                            {trEsEn(b.nameEs, b.nameEn, language)}
+                            {coreTrEsEn(b.nameEs, b.nameEn, language)}
                           </Text>
                           <Text style={[styles.bundleMeta, { color: theme.bundleMeta }]}>
                             {tcx('studio_bundle_meta', {

@@ -21,7 +21,8 @@ import {
   type WallpaperTier,
 } from '@/services/wallpaperService';
 import { userFacingAlertMessage } from '@/services/apiUserFacingError';
-import { trEsEn, useLanguage } from '@/services/language';
+import { coreTrEsEn } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 
 type UploadState = {
   fileUri: string | null;
@@ -34,7 +35,7 @@ type UploadState = {
 
 const AdminWallpaperUploader: React.FC = () => {
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const tr = (es: string, en: string) => coreTrEsEn(es, en, language);
   const [state, setState] = useState<UploadState>({
     fileUri: null,
     fileName: '',

@@ -4,7 +4,8 @@ import '@/i18n';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import PremiumDataPanelHost from '@/components/PremiumDataPanelHost';
 import { PendingBunkerRedeemGate } from '@/components/PendingBunkerRedeemGate';
-import { LanguageProvider, trEsEn, useLanguage } from '@/services/language';
+import { coreT, useAppLanguage } from '@/services/coreI18n';
+import { LanguageProvider } from '@/services/language';
 import { LookModeProvider } from '@/services/lookMode';
 import { NetworkProvider } from '@/services/NetworkProvider';
 import { GhostLinkCallProvider } from '@/services/GhostLinkCallProvider';
@@ -15,8 +16,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Stack, useRouter } from 'expo-router';
 import { checkInactivitySignOutWithoutTouch, enforceInactivitySignOutIfNeeded } from '@/services/sessionInactivity';
+import { APP_LOCK_ENABLED_STORAGE_KEY } from '@/services/sessionPolicyKeys';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Toast from 'react-native-toast-message';
@@ -47,7 +49,27 @@ function RootNavigator() {
   const [isLocked, setIsLocked] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const appState = useRef(AppState.currentState);
-  const { language } = useLanguage();
+  const isAuthenticatingBiometrics = useRef(false);
+  const isMounted = useRef(true);
+  const inactivityRedirectChainRef = useRef<Promise<unknown>>(Promise.resolve());
+  const language = useAppLanguage();
+
+  const routerRef = useRef(router);
+  routerRef.current = router;
+
+  /** Encola comprobaciones de inactividad y como máximo una sustitución a /signin por tanda (sin paralelismo). */
+  const enqueueInactivitySignOutReplace = useCallback((probe: () => Promise<'ok' | 'signed_out'>): Promise<void> => {
+    const next = inactivityRedirectChainRef.current
+      .catch(() => {})
+      .then(async () => {
+        const r = await probe();
+        if (r === 'signed_out') {
+          routerRef.current.replace('/signin');
+        }
+      });
+    inactivityRedirectChainRef.current = next;
+    return next;
+  }, [router]);
   const { resolvedMode } = useLookMode();
   const isDark = resolvedMode === 'noche';
   const shell = palette[isDark ? 'dark' : 'light'];
@@ -85,23 +107,18 @@ function RootNavigator() {
       }),
     [shell]
   );
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
-
-  // Función para lanzar biometría
-  const handleBiometricAuth = async () => {
+  const handleBiometricAuth = useCallback(async () => {
     setIsLoading(true);
     try {
+      isAuthenticatingBiometrics.current = true;
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: tr('Búnker Card-Social: Identidad requerida', 'Card-Social Bunker: Identity required'),
-        fallbackLabel: tr('Usar código', 'Use passcode'),
+        promptMessage: coreT('misc_lock_bunker_biometric_prompt', language),
+        fallbackLabel: coreT('misc_lock_use_passcode', language),
       });
       if (result.success) {
         setIsLocked(false);
         try {
-          const r = await enforceInactivitySignOutIfNeeded();
-          if (r === 'signed_out') {
-            router.replace('/signin');
-          }
+          await enqueueInactivitySignOutReplace(() => enforceInactivitySignOutIfNeeded());
         } catch {
           /* ignore */
         }
@@ -111,46 +128,62 @@ function RootNavigator() {
     } catch {
       setIsLocked(true);
     } finally {
-      setIsLoading(false);
+      isAuthenticatingBiometrics.current = false;
+      if (isMounted.current) {
+        setIsLoading(false);
+      }
     }
-  };
+  }, [language, enqueueInactivitySignOutReplace]);
 
-  // Vigilante de AppState
+  const handleBiometricAuthRef = useRef(handleBiometricAuth);
+  handleBiometricAuthRef.current = handleBiometricAuth;
+
   useEffect(() => {
+    isMounted.current = true;
+
     const checkLock = async () => {
-      const enabled = await AsyncStorage.getItem('@app_lock_enabled');
-      if (enabled === 'true') {
-        setIsLocked(true);
-        await handleBiometricAuth();
-      } else {
-        setIsLocked(false);
-        try {
-          const r = await enforceInactivitySignOutIfNeeded();
-          if (r === 'signed_out') {
-            router.replace('/signin');
+      try {
+        const enabled = await AsyncStorage.getItem(APP_LOCK_ENABLED_STORAGE_KEY);
+        if (enabled === 'true') {
+          setIsLocked(true);
+          await handleBiometricAuthRef.current();
+        } else if (enabled == null || enabled === '' || enabled === 'false') {
+          setIsLocked(false);
+          try {
+            await enqueueInactivitySignOutReplace(() => enforceInactivitySignOutIfNeeded());
+          } catch {
+            /* ignore */
           }
-        } catch {
-          /* ignore */
+        } else {
+          setIsLocked(true);
+          await handleBiometricAuthRef.current();
         }
+      } catch {
+        setIsLocked(true);
+        await handleBiometricAuthRef.current();
       }
     };
 
-    // Al montar
-    checkLock();
+    void checkLock();
 
-    // Al cambiar AppState
     const sub = AppState.addEventListener('change', (nextState) => {
       if (
         (appState.current === 'background' || appState.current === 'inactive') &&
         nextState === 'active'
       ) {
-        checkLock();
+        // Si regresamos a 'active' pero estábamos en medio de nuestro propio prompt de biometría, NO ejecutamos checkLock
+        if (!isAuthenticatingBiometrics.current) {
+          void checkLock();
+        }
       }
       appState.current = nextState;
     });
 
-    return () => sub.remove();
-  }, []);
+    return () => {
+      isMounted.current = false;
+      sub.remove();
+    };
+  }, [enqueueInactivitySignOutReplace]);
 
   useEffect(() => {
     initRevenueCatOnce();
@@ -167,26 +200,24 @@ function RootNavigator() {
     /** 3 min: menos lecturas AsyncStorage / menos presión en JS mientras la app está abierta. */
     const id = setInterval(() => {
       if (AppState.currentState !== 'active') return;
+      if (!isMounted.current) return;
       void (async () => {
         try {
-          const r = await checkInactivitySignOutWithoutTouch();
-          if (r === 'signed_out') {
-            router.replace('/signin');
-          }
+          await enqueueInactivitySignOutReplace(() => checkInactivitySignOutWithoutTouch());
         } catch {
           /* ignore */
         }
       })();
     }, 180_000);
     return () => clearInterval(id);
-  }, [isLocked, router]);
+  }, [isLocked, enqueueInactivitySignOutReplace]);
 
   // UI de bloqueo
   if (isLocked) {
     return (
       <LinearGradient colors={[...shell.vipBannerGradient]} style={lockStyles.lockScreen}>
         <Image source={brandCsLogo} style={lockStyles.logo} resizeMode="contain" />
-        <Text style={lockStyles.lockTitle}>{tr('Búnker Card-Social', 'Card-Social Bunker')}</Text>
+        <Text style={lockStyles.lockTitle}>{coreT('misc_lock_bunker_title', language)}</Text>
         <TouchableOpacity
           style={lockStyles.unlockButton}
           onPress={handleBiometricAuth}
@@ -195,7 +226,7 @@ function RootNavigator() {
           {isLoading ? (
             <ActivityIndicator color={shell.fabText} />
           ) : (
-            <Text style={lockStyles.unlockButtonText}>{tr('Desbloquear Búnker', 'Unlock Bunker')}</Text>
+            <Text style={lockStyles.unlockButtonText}>{coreT('misc_lock_unlock_bunker', language)}</Text>
           )}
         </TouchableOpacity>
       </LinearGradient>
@@ -211,7 +242,7 @@ function RootNavigator() {
         <Stack.Screen
           name="signin"
           options={{
-            title: language === 'en' || language === 'de' ? 'Sign In' : 'Iniciar sesion',
+            title: language === 'en' || language === 'de' ? 'Sign In' : 'Iniciar sesión',
             headerStyle: { backgroundColor: '#fff' },
           }}
         />

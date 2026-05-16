@@ -25,9 +25,10 @@ import {
   legacyReferralsRemaining,
   legacyTierUnlocked,
   type LegacyGoalsTierDefinition,
+  type LegacyGoalsTierKey,
 } from '@/services/legacyPathGoalsConfig';
-
-type Tr = (es: string, en: string) => string;
+import type { CoreLocaleKey } from '@/services/coreI18n';
+import { useCoreT } from '@/services/coreI18n';
 
 type LegacyPathGoalsPalette = {
   legacyTitleColor: string;
@@ -38,11 +39,30 @@ type LegacyPathGoalsPalette = {
 };
 
 export type LegacyPathGoalsSectionProps = {
-  tr: Tr;
   referralsCurrent: number;
   referralsCeiling: number;
   palette: LegacyPathGoalsPalette;
 };
+
+function tierLabelKey(k: LegacyGoalsTierKey): CoreLocaleKey {
+  const map: Record<LegacyGoalsTierKey, CoreLocaleKey> = {
+    plata: 'dashboard_legacy_plata_label',
+    oro: 'dashboard_legacy_oro_label',
+    platino: 'dashboard_legacy_platino_label',
+    diamante: 'dashboard_legacy_diamante_label',
+  };
+  return map[k];
+}
+
+function tierBodyKey(k: LegacyGoalsTierKey): CoreLocaleKey {
+  const map: Record<LegacyGoalsTierKey, CoreLocaleKey> = {
+    plata: 'dashboard_legacy_plata_body',
+    oro: 'dashboard_legacy_oro_body',
+    platino: 'dashboard_legacy_platino_body',
+    diamante: 'dashboard_legacy_diamante_body',
+  };
+  return map[k];
+}
 
 const MODAL_BTN_TEXT_ON_GOLD = '#1C1C1E';
 
@@ -54,26 +74,26 @@ function LegacyGoalsPremiumModal(props: {
   unlocked: boolean;
   remainingToUnlock: number;
   referralsCurrent: number;
-  tr: Tr;
   onClose: () => void;
 }) {
-  const { visible, tier, unlocked, remainingToUnlock, referralsCurrent, tr, onClose } = props;
+  const { visible, tier, unlocked, remainingToUnlock, referralsCurrent, onClose } = props;
+  const tcx = useCoreT();
   const insets = useSafeAreaInsets();
   const { height: screenH } = useWindowDimensions();
 
-  const title = tier ? `${tr(tier.labelEs, tier.labelEn)} · ${tier.threshold}` : '';
-  const body = tier ? tr(tier.copy.bodyEsExact, tier.copy.bodyEn) : '';
-  const closeLabel = tr('Entendido', 'Got it');
+  const title = tier ? `${tcx(tierLabelKey(tier.key))} · ${tier.threshold}` : '';
+  const body = tier ? tcx(tierBodyKey(tier.key)) : '';
+  const closeLabel = tcx('dashboard_legacy_modal_got_it');
 
   const footerHint =
     tier == null
       ? ''
       : unlocked
-        ? tr('Nivel activo para tu cuenta.', 'This tier is active for your account.')
-        : tr(
-            `Te faltan ${remainingToUnlock} referidos para desbloquear este nivel. (Actual: ${referralsCurrent})`,
-            `You need ${remainingToUnlock} more referrals to unlock this tier. (Current: ${referralsCurrent})`,
-          );
+        ? tcx('dashboard_legacy_tier_active')
+        : tcx('dashboard_legacy_tier_need_more', {
+            remaining: String(remainingToUnlock),
+            current: String(referralsCurrent),
+          });
 
   return (
     <Modal visible={Boolean(visible && tier)} animationType="fade" transparent onRequestClose={onClose}>
@@ -116,7 +136,8 @@ function LegacyGoalsPremiumModal(props: {
 }
 
 export function LegacyPathGoalsSection(props: LegacyPathGoalsSectionProps) {
-  const { tr, referralsCurrent, referralsCeiling, palette } = props;
+  const { referralsCurrent, referralsCeiling, palette } = props;
+  const tcx = useCoreT();
   const [activeTierKey, setActiveTierKey] = useState<LegacyGoalsTierDefinition['key'] | null>(null);
 
   const progressPct = useMemo(
@@ -135,15 +156,14 @@ export function LegacyPathGoalsSection(props: LegacyPathGoalsSectionProps) {
 
   const closeModal = useCallback(() => setActiveTierKey(null), []);
 
+  const thresholdStr = LEGACY_TIER_THRESHOLDS.join(' · ');
+
   return (
     <>
       <View style={styles.legacyRow}>
         <View style={styles.legacyCopy}>
           <Text style={[styles.legacyHeroTitle, { color: palette.legacyTitleColor }]}>
-            {tr(
-              `Metas en ${LEGACY_TIER_THRESHOLDS.join(' · ')} referidos. Bóveda de Legado en marcha.`,
-              `Milestones at ${LEGACY_TIER_THRESHOLDS.join(' · ')} referrals. Your Legacy vault in motion.`,
-            )}
+            {tcx('dashboard_legacy_hero_title', { thresholds: thresholdStr })}
           </Text>
           <View style={[styles.legacyTrack, { backgroundColor: palette.rankTrackBg }]}>
             <LinearGradient
@@ -154,21 +174,22 @@ export function LegacyPathGoalsSection(props: LegacyPathGoalsSectionProps) {
             />
           </View>
           <Text style={[styles.legacyProgress, { color: palette.legacyBodyColor }]}>
-            {`${referralsCurrent}/${referralsCeiling} ${tr('alcance', 'reach')}`}
+            {`${referralsCurrent}/${referralsCeiling} ${tcx('dashboard_legacy_reach_word')}`}
           </Text>
           <Text style={[styles.legacySubtitle, { color: palette.textMuted }]}>
-            {tr(`Umbrales: ${LEGACY_TIER_THRESHOLDS.join(' · ')}.`, `Tier gates: ${LEGACY_TIER_THRESHOLDS.join(' · ')}.`)}
+            {tcx('dashboard_legacy_tier_gates', { thresholds: thresholdStr })}
           </Text>
         </View>
         <View style={styles.medalRow}>
           {LEGACY_GOALS_TIER_DEFINITIONS.map((tier) => {
             const unlocked = legacyTierUnlocked(referralsCurrent, tier.threshold);
+            const label = tcx(tierLabelKey(tier.key));
             return (
               <Pressable
                 key={tier.key}
                 onPress={() => openTierModal(tier)}
                 accessibilityRole="button"
-                accessibilityLabel={tr(`${tier.labelEs}: detalle`, `${tier.labelEn}: detail`)}
+                accessibilityLabel={tcx('dashboard_legacy_a11y_tier_detail', { label })}
                 style={({ pressed }) => [styles.medalPressable, pressed && styles.medalPressed]}
               >
                 <View style={[styles.medalOrb, unlocked ? styles.medalOrbUnlocked : styles.medalOrbLocked]}>
@@ -181,13 +202,11 @@ export function LegacyPathGoalsSection(props: LegacyPathGoalsSectionProps) {
                     <View style={styles.unlockedGlow} pointerEvents="none" />
                   ) : null}
                 </View>
-                <Text style={[styles.medalLabel, { color: palette.medalLabelColor }]}>
-                  {tr(tier.labelEs, tier.labelEn)}
-                </Text>
+                <Text style={[styles.medalLabel, { color: palette.medalLabelColor }]}>{label}</Text>
                 <Text
                   style={[styles.medalState, unlocked ? styles.medalStateOn : styles.medalStateOff, { opacity: unlocked ? 1 : 0.85 }]}
                 >
-                  {unlocked ? tr('Desbloqueado', 'Unlocked') : tr('Bloqueado', 'Locked')}
+                  {unlocked ? tcx('dashboard_legacy_unlocked') : tcx('dashboard_legacy_locked')}
                 </Text>
                 <Text style={[styles.medalThreshold, { color: palette.textMuted }]}>{tier.threshold}</Text>
               </Pressable>
@@ -202,7 +221,6 @@ export function LegacyPathGoalsSection(props: LegacyPathGoalsSectionProps) {
         unlocked={activeUnlocked}
         remainingToUnlock={activeRemaining}
         referralsCurrent={referralsCurrent}
-        tr={tr}
         onClose={closeModal}
       />
     </>

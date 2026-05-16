@@ -23,10 +23,12 @@ import {
 import { resolveProfileAvatarDisplayUri } from '@/services/userProfilePhoto';
 import { requestLocationPermission } from '@/services/geolocationService';
 import { userFacingAlertMessage, userFacingAlertMessageFromHttp } from '@/services/apiUserFacingError';
-import { intlLocaleTagForAppLanguage, trEsEn, useLanguage } from '@/services/language';
+import { intlLocaleTagForAppLanguage, useLanguage } from '@/services/language';
+import { coreTrEsEn } from '@/services/coreI18n';
 import { useLookMode } from '@/services/lookMode';
 import { listBlockedRelations, unblockRelationship } from '@/services/qrApi';
 import { touchSessionActivityForNonTrusted } from '@/services/sessionInactivity';
+import { APP_LOCK_ENABLED_STORAGE_KEY } from '@/services/sessionPolicyKeys';
 import { syncWaitlistOnAppVerified } from '@/services/syncWaitlistOnAppVerified';
 import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
 import {
@@ -155,7 +157,7 @@ type EditableProfile = {
 export default function TabLayout({ children }: { children: React.ReactNode }) {
   const { mode, resolvedMode, setMode, autoStatusText } = useLookMode();
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const tr = (es: string, en: string) => coreTrEsEn(es, en, language);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [activePanel, setActivePanel] = useState<'menu' | 'profile' | 'terms' | 'policy' | 'about' | 'privacy' | 'subscription' | 'blocked_users'>('menu');
   const [subscriptionScrollSection, setSubscriptionScrollSection] = useState<SubscriptionScrollSection | null>(null);
@@ -395,7 +397,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
       const signingOutUid = auth.currentUser?.uid ?? null;
       // Limpieza de memoria: elimina el flag de bloqueo biométrico y otras claves sensibles
       try {
-        await AsyncStorage.removeItem('@app_lock_enabled');
+        await AsyncStorage.removeItem(APP_LOCK_ENABLED_STORAGE_KEY);
         // Ejemplo: await AsyncStorage.removeItem('OTRA_CLAVE_SENSIBLE');
       } catch {}
       await clearLocalCachesForSignOut(signingOutUid);

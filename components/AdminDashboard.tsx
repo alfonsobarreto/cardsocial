@@ -14,7 +14,8 @@ import { useRouter } from 'expo-router';
 import { getActiveUserId } from '@/services/authSession';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/services/firebaseConfig';
-import { trEsEn, useLanguage } from '@/services/language';
+import { coreTrEsEn } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 
 const { width } = Dimensions.get('window');
 const CARD_W = (width - 48) / 2;
@@ -27,7 +28,7 @@ interface QuickStats {
 
 const AdminDashboard: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const tr = (es: string, en: string) => coreTrEsEn(es, en, language);
   const intlLocale = language === 'pt' ? 'pt-BR' : language;
   const router = useRouter();
   const [loading, setLoading] = useState(true);

@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { hardLockCheck } from '@/services/biometricAuth';
-import { trEsEn, useLanguage } from '@/services/language';
+import { coreTrEsEn } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 
 export default function SecurityDemoScreen() {
   const router = useRouter();
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const tr = (es: string, en: string) => coreTrEsEn(es, en, language);
   const [lastResult, setLastResult] = useState<'pending' | 'allowed' | 'blocked'>('pending');
 
   const handleSecurityTest = async () => {

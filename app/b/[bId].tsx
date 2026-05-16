@@ -1,6 +1,7 @@
 import { getActiveUserId } from '@/services/authSession';
 import { savePendingBunkerScan } from '@/services/bunkerPendingScan';
-import { trEsEn, useLanguage } from '@/services/language';
+import { coreTrEsEn } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
@@ -17,7 +18,7 @@ export default function PublicBusinessDeepLinkScreen() {
   }>();
   const router = useRouter();
   const { language } = useLanguage();
-  const tr = useCallback((es: string, en: string) => trEsEn(es, en, language), [language]);
+  const tr = useCallback((es: string, en: string) => coreTrEsEn(es, en, language), [language]);
 
   const bId = String(Array.isArray(bIdParam) ? bIdParam[0] : bIdParam || '').trim();
   const rawIssuer = uidParam ?? ownerParam;

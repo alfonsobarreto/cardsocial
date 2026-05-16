@@ -16,7 +16,8 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { localeStringForReportDates, trEsEn, useLanguage } from '@/services/language';
+import { localeStringForReportDates, useLanguage } from '@/services/language';
+import { coreTrEsEn } from '@/services/coreI18n';
 
 type FilterTab = 'pending' | 'reviewed' | 'dismissed';
 
@@ -34,7 +35,7 @@ interface Report {
 
 export default function AdminModerationScreen() {
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const tr = (es: string, en: string) => coreTrEsEn(es, en, language);
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<FilterTab>('pending');
   const [reports, setReports] = useState<Report[]>([]);

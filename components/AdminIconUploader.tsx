@@ -17,7 +17,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { uploadIconAsAdmin, getIconCategories } from '@/services/iconLibraryService';
 import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { getActiveUserId } from '@/services/authSession';
-import { trEsEn, useLanguage } from '@/services/language';
+import { coreTrEsEn } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 import { createIconPack, type IconPack } from '@/services/iconPackService';
 
 /**
@@ -67,7 +68,7 @@ const AdminIconUploader: React.FC = () => {
   const [newCategory, setNewCategory] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const tr = (es: string, en: string) => coreTrEsEn(es, en, language);
   const modalFooterBottomPad = useModalFooterBottomPad();
 
   useEffect(() => {

@@ -14,11 +14,12 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getActiveUserId } from '@/services/authSession';
 import { getFontFolderPaths, uploadFontAsAdmin, type FontTier } from '@/services/fontLibraryService';
-import { trEsEn, useLanguage } from '@/services/language';
+import { coreTrEsEn } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 
 const AdminFontUploader: React.FC = () => {
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const tr = (es: string, en: string) => coreTrEsEn(es, en, language);
   const [userId, setUserId] = useState<string | null>(null);
   const [fileUri, setFileUri] = useState<string | null>(null);
   const [fileName, setFileName] = useState('');

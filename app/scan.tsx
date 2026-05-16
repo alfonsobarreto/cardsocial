@@ -5,7 +5,8 @@ import { getActiveUserId } from '@/services/authSession';
 import { businessFirestoreDocToMyCardsPayload } from '@/services/adaptBusinessCardMarketPremium';
 import { readBusinessCardIdentityFields } from '@/services/businessCardService';
 import { userFacingAlertMessage } from '@/services/apiUserFacingError';
-import { useLanguage, useTr } from '@/services/language';
+import { useCoreT } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { myCardsPayloadFromQrPreview, myCardsPayloadFromUniversalCard } from '@/services/incomingCardPreviewPayload';
 import {
@@ -39,13 +40,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import ActivityIndicator from '@/components/BrandedSpinner';
 import palette from './theme';
 
-const SELF_SCAN_TITLE_ES = '¡Un momento!';
-const SELF_SCAN_TITLE_EN = 'Hey there!';
-const SELF_SCAN_OWN_CARD_ES =
-  'Oye — esa tarjeta eres tú. No hace falta escanearte a ti mismo; ya te tenemos en la base de datos.';
-const SELF_SCAN_OWN_CARD_EN =
-  "Hey — that's your own card. No need to scan yourself; we already have you on file.";
-
 function uidsEqual(a: string | null | undefined, b: string | null | undefined): boolean {
   const x = String(a ?? '').trim();
   const y = String(b ?? '').trim();
@@ -70,7 +64,16 @@ export default function ScanScreen() {
     resumeBId?: string;
   }>();
   const { language } = useLanguage();
-  const tr = useTr();
+  const tcx = useCoreT();
+  const trPairForPayload = useCallback(
+    (es: string, en: string) => {
+      if (es === 'Tarjeta Social' && en === 'Social Card') return tcx('label_social_card');
+      if (es === 'Negocio' && en === 'Business') return tcx('label_business');
+      if (es === 'Mercado Social' && en === 'Social Market') return tcx('search_section_market');
+      return tcx('label_social_card');
+    },
+    [tcx],
+  );
   const { resolvedMode } = useLookMode();
   const isDark = resolvedMode === 'noche';
   const shell = palette[isDark ? 'dark' : 'light'];
@@ -230,8 +233,8 @@ export default function ScanScreen() {
   }, []);
 
   const alertSelfScanOwnCard = useCallback(() => {
-    const okLabel = tr('Aceptar', 'OK');
-    Alert.alert(tr(SELF_SCAN_TITLE_ES, SELF_SCAN_TITLE_EN), tr(SELF_SCAN_OWN_CARD_ES, SELF_SCAN_OWN_CARD_EN), [
+    const okLabel = tcx('scan_alert_ok');
+    Alert.alert(tcx('scan_self_scan_title'), tcx('scan_self_scan_own_card_body'), [
       {
         text: okLabel,
         onPress: () => {
@@ -240,7 +243,7 @@ export default function ScanScreen() {
         },
       },
     ]);
-  }, [tr, resetScanUi, startScanCooldown]);
+  }, [tcx, resetScanUi, startScanCooldown]);
 
   const openClassification = useCallback(
     async (token: string) => {
@@ -249,15 +252,13 @@ export default function ScanScreen() {
       setIncomingPreviewOverride(null);
       setProcessing(true);
       const locale = language;
-      const okLabel = tr('Aceptar', 'OK');
+      const okLabel = tcx('scan_alert_ok');
       try {
         const preview = await fetchPublicQrTokenPreview({ token, locale });
         if (!preview.ok) {
           Alert.alert(
-            tr('QR no disponible', 'QR unavailable'),
-            preview.expired
-              ? tr('El token expiró o ya fue usado.', 'The token expired or was already used.')
-              : tr('No se pudo cargar la vista previa.', 'Could not load preview.'),
+            tcx('scan_qr_unavailable_title'),
+            preview.expired ? tcx('scan_token_expired_body') : tcx('scan_preview_load_failed'),
             [{ text: okLabel, onPress: resetScanUi }],
           );
           setScanLocked(false);
@@ -287,14 +288,14 @@ export default function ScanScreen() {
             console.error('[Scan openClassification]', e instanceof Error ? e.message : e);
           }
         }
-        const msg = userFacingAlertMessage(e, language, tr('Error de red.', 'Network error.'));
-        Alert.alert(tr('No se pudo escanear', 'Could not scan'), msg, [{ text: okLabel, onPress: resetScanUi }]);
+        const msg = userFacingAlertMessage(e, language, tcx('scan_network_error'));
+        Alert.alert(tcx('scan_could_not_scan_title'), msg, [{ text: okLabel, onPress: resetScanUi }]);
         setScanLocked(false);
       } finally {
         setProcessing(false);
       }
     },
-    [tr, language, resetScanUi, alertSelfScanOwnCard],
+    [tcx, language, resetScanUi, alertSelfScanOwnCard],
   );
 
   const openUniversalClassification = useCallback(
@@ -307,7 +308,7 @@ export default function ScanScreen() {
       setIncomingScanMode('universal');
       setProcessing(true);
       const locale = language;
-      const okLabel = tr('Aceptar', 'OK');
+      const okLabel = tcx('scan_alert_ok');
       try {
         const res = await fetchPublicUniversalCardByToken({
           token: opaqueToken,
@@ -316,10 +317,8 @@ export default function ScanScreen() {
         });
         if (!res.ok) {
           Alert.alert(
-            tr('QR no disponible', 'QR unavailable'),
-            res.expired
-              ? tr('El enlace expiró o ya no es válido.', 'This link expired or is no longer valid.')
-              : tr('No se pudo cargar la vista previa.', 'Could not load preview.'),
+            tcx('scan_qr_unavailable_title'),
+            res.expired ? tcx('scan_link_expired_body') : tcx('scan_preview_load_failed'),
             [{ text: okLabel, onPress: resetScanUi }],
           );
           setScanLocked(false);
@@ -349,14 +348,14 @@ export default function ScanScreen() {
             console.error('[Scan openUniversalClassification]', e instanceof Error ? e.message : e);
           }
         }
-        const msg = userFacingAlertMessage(e, language, tr('Error de red.', 'Network error.'));
-        Alert.alert(tr('No se pudo escanear', 'Could not scan'), msg, [{ text: okLabel, onPress: resetScanUi }]);
+        const msg = userFacingAlertMessage(e, language, tcx('scan_network_error'));
+        Alert.alert(tcx('scan_could_not_scan_title'), msg, [{ text: okLabel, onPress: resetScanUi }]);
         setScanLocked(false);
       } finally {
         setProcessing(false);
       }
     },
-    [tr, language, resetScanUi, alertSelfScanOwnCard],
+    [tcx, language, resetScanUi, alertSelfScanOwnCard],
   );
 
   const openBusinessClassification = useCallback(
@@ -366,7 +365,7 @@ export default function ScanScreen() {
       setIncomingPreviewOverride(null);
       setProcessing(true);
       const locale = language;
-      const okLabel = tr('Aceptar', 'OK');
+      const okLabel = tcx('scan_alert_ok');
       try {
         const selfUidBiz = await getActiveUserId();
         if (selfUidBiz && uidsEqual(issuerUid, selfUidBiz)) {
@@ -380,7 +379,7 @@ export default function ScanScreen() {
           if (bSnap.exists()) {
             const raw = bSnap.data() as Record<string, unknown>;
             if (String(raw?.uid || '').trim() === issuerUid) {
-              const payload = businessFirestoreDocToMyCardsPayload(raw, bId, tr);
+              const payload = businessFirestoreDocToMyCardsPayload(raw, bId, trPairForPayload);
               setIncomingPreviewOverride(payload);
               const far = new Date();
               far.setFullYear(far.getFullYear() + 10);
@@ -426,8 +425,8 @@ export default function ScanScreen() {
             }
           }
           Alert.alert(
-            tr('QR no disponible', 'QR unavailable'),
-            tr('No se pudo cargar la vista previa.', 'Could not load preview.'),
+            tcx('scan_qr_unavailable_title'),
+            tcx('scan_preview_load_failed'),
             [{ text: okLabel, onPress: resetScanUi }],
           );
           setScanLocked(false);
@@ -457,14 +456,14 @@ export default function ScanScreen() {
             console.error('[Scan openBusinessClassification]', e instanceof Error ? e.message : e);
           }
         }
-        const msg = userFacingAlertMessage(e, language, tr('Error de red.', 'Network error.'));
-        Alert.alert(tr('No se pudo escanear', 'Could not scan'), msg, [{ text: okLabel, onPress: resetScanUi }]);
+        const msg = userFacingAlertMessage(e, language, tcx('scan_network_error'));
+        Alert.alert(tcx('scan_could_not_scan_title'), msg, [{ text: okLabel, onPress: resetScanUi }]);
         setScanLocked(false);
       } finally {
         setProcessing(false);
       }
     },
-    [tr, language, resetScanUi, alertSelfScanOwnCard],
+    [tcx, language, resetScanUi, alertSelfScanOwnCard, trPairForPayload],
   );
 
   const handleScanned = async (data: string) => {
@@ -472,7 +471,7 @@ export default function ScanScreen() {
       return;
     }
 
-    const okLabel = tr('Aceptar', 'OK');
+    const okLabel = tcx('scan_alert_ok');
     const invalidButtons = [{ text: okLabel, onPress: resetScanUi }];
     const normalized = normalizeQrScanPayload(data);
 
@@ -518,8 +517,8 @@ export default function ScanScreen() {
         return;
       }
       Alert.alert(
-        tr('QR inválido', 'Invalid QR'),
-        tr('Este QR no pertenece a Card-Social o está corrupto.', 'This QR does not belong to Card-Social or is corrupted.'),
+        tcx('scan_invalid_qr_title'),
+        tcx('scan_invalid_qr_body'),
         invalidButtons,
       );
       return;
@@ -527,8 +526,8 @@ export default function ScanScreen() {
 
     if (dyn.exp && dyn.exp < Date.now()) {
       Alert.alert(
-        tr('QR expirado', 'QR expired'),
-        tr('Este QR ya expiró. Pide al contacto generar uno nuevo.', 'This QR has expired. Ask your contact to generate a new one.'),
+        tcx('scan_dynamic_qr_expired_title'),
+        tcx('scan_dynamic_qr_expired_body'),
         invalidButtons,
       );
       return;
@@ -626,18 +625,18 @@ export default function ScanScreen() {
       return incomingPreviewOverride;
     }
     if (incomingScanMode === 'universal' && universalCard) {
-      const base = myCardsPayloadFromUniversalCard(universalCard, tr);
+      const base = myCardsPayloadFromUniversalCard(universalCard, trPairForPayload);
       return { ...base, avatarUrl: issuerProfileAvatarUrl ?? base.avatarUrl };
     }
     if (!qrPreview) {
       return null;
     }
-    const base = myCardsPayloadFromQrPreview(qrPreview, tr);
+    const base = myCardsPayloadFromQrPreview(qrPreview, trPairForPayload);
     if (incomingScanMode === 'business_permanent') {
       return { ...base, noAvatarIcon: 'storefront-outline' as const };
     }
     return { ...base, avatarUrl: issuerProfileAvatarUrl ?? base.avatarUrl };
-  }, [incomingPreviewOverride, incomingScanMode, universalCard, qrPreview, tr, issuerProfileAvatarUrl]);
+  }, [incomingPreviewOverride, incomingScanMode, universalCard, qrPreview, trPairForPayload, issuerProfileAvatarUrl]);
 
   /** Android: no montar CameraView hasta granted === true; siempre ofrecer botón explícito si no hay permiso. */
   if (permission?.granted !== true) {
@@ -645,26 +644,21 @@ export default function ScanScreen() {
     return (
       <LinearGradient colors={[...shell.tabShellGradient]} style={styles.centerScreen}>
         {permission == null ? <ActivityIndicator size="large" color={shell.refreshAccent} /> : null}
-        <Text style={styles.title}>{tr('Permiso de cámara requerido', 'Camera permission required')}</Text>
+        <Text style={styles.title}>{tcx('scan_camera_permission_title')}</Text>
         <Text style={styles.subtitle}>
-          {deniedPermanent
-            ? tr(
-                'La cámara está desactivada para Card-Social. Actívala en Ajustes del sistema.',
-                'Camera is turned off for Card-Social. Enable it in system Settings.',
-              )
-            : tr('Necesitamos acceso para escanear tu nueva tarjeta.', 'We need access to scan your new card.')}
+          {deniedPermanent ? tcx('scan_camera_denied_body') : tcx('scan_camera_rationale_body')}
         </Text>
         {deniedPermanent ? (
           <TouchableOpacity style={styles.primaryBtn} onPress={() => void Linking.openSettings()}>
-            <Text style={styles.primaryBtnText}>{tr('Abrir ajustes', 'Open Settings')}</Text>
+            <Text style={styles.primaryBtnText}>{tcx('scan_open_settings')}</Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity style={styles.primaryBtn} onPress={() => void requestPermission()}>
-            <Text style={styles.primaryBtnText}>{tr('Permitir cámara', 'Allow camera')}</Text>
+            <Text style={styles.primaryBtnText}>{tcx('scan_allow_camera')}</Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.back()}>
-          <Text style={styles.secondaryBtnText}>{tr('Volver', 'Back')}</Text>
+          <Text style={styles.secondaryBtnText}>{tcx('scan_back')}</Text>
         </TouchableOpacity>
       </LinearGradient>
     );
@@ -694,8 +688,8 @@ export default function ScanScreen() {
 
       <LinearGradient colors={[...overlayGradient]} style={[styles.overlay, { zIndex: 1, elevation: 8 }]} pointerEvents="box-none">
         <View style={styles.topPanel}>
-          <Text style={styles.overlayTitle}>{tr('Escanear Nueva Tarjeta', 'Scan New Card')}</Text>
-          <Text style={styles.overlaySubtitle}>{tr('Apunta el QR dentro del marco', 'Point the QR within the frame')}</Text>
+          <Text style={styles.overlayTitle}>{tcx('scan_overlay_title')}</Text>
+          <Text style={styles.overlaySubtitle}>{tcx('scan_overlay_subtitle')}</Text>
         </View>
 
         <View style={styles.frameWrap}>
@@ -705,7 +699,7 @@ export default function ScanScreen() {
         <View style={styles.bottomPanel}>
           {processing ? <ActivityIndicator size="small" color={shell.refreshAccent} /> : null}
           <TouchableOpacity style={styles.secondaryBtnGlass} onPress={() => router.back()}>
-            <Text style={styles.secondaryBtnGlassText}>{tr('Cancelar', 'Cancel')}</Text>
+            <Text style={styles.secondaryBtnGlassText}>{tcx('common_cancel')}</Text>
           </TouchableOpacity>
         </View>
       </LinearGradient>

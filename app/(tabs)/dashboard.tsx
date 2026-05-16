@@ -45,8 +45,10 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import appPalette, { type AppShellTheme } from '@/app/theme';
+import type { CoreLocaleKey } from '@/services/coreI18n';
+import { useCoreT } from '@/services/coreI18n';
 import type { AppLanguage } from '@/services/language';
-import { intlLocaleTagForAppLanguage, trEsEn, useLanguage, useTr } from '@/services/language';
+import { intlLocaleTagForAppLanguage, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { doc, getDoc } from 'firebase/firestore';
 import { Image as ExpoImage } from 'expo-image';
@@ -316,18 +318,18 @@ function readDashboardFirstName(data: Record<string, unknown> | null | undefined
   return String(data?.firstName ?? '').trim() || fullName.split(/\s+/)[0] || '';
 }
 
-function planLabelFromTier(tier: TierKey, tr: (es: string, en: string) => string): string {
-  if (tier === 'business') return tr('Business', 'Business');
-  if (tier === 'influencer') return tr('Influencer', 'Influencer');
-  return tr('Free', 'Free');
+function planLabelFromTier(tier: TierKey, tcx: (key: CoreLocaleKey) => string): string {
+  if (tier === 'business') return tcx('label_business');
+  if (tier === 'influencer') return tcx('dashboard_plan_influencer');
+  return tcx('dashboard_plan_free');
 }
 
-function periodTabsTr(tr: (es: string, en: string) => string): Array<{ key: PeriodMode; label: string }> {
+function periodTabsLabels(tcx: (key: CoreLocaleKey) => string): Array<{ key: PeriodMode; label: string }> {
   return [
-    { key: 'day', label: tr('Día', 'Day') },
-    { key: 'week', label: tr('Semana', 'Week') },
-    { key: 'month', label: tr('Mes', 'Month') },
-    { key: 'year', label: tr('Año', 'Year') },
+    { key: 'day', label: tcx('dashboard_period_day') },
+    { key: 'week', label: tcx('dashboard_period_week') },
+    { key: 'month', label: tcx('dashboard_period_month') },
+    { key: 'year', label: tcx('dashboard_period_year') },
   ];
 }
 
@@ -348,14 +350,14 @@ function isoWeekNumber(date: Date) {
   return Math.ceil((((utc.getTime() - yearStart.getTime()) / 86_400_000) + 1) / 7);
 }
 
-function periodTitle(mode: PeriodMode, offset: number, lang: AppLanguage, tr: (es: string, en: string) => string) {
+function periodTitle(mode: PeriodMode, offset: number, lang: AppLanguage, tcx: (key: CoreLocaleKey) => string) {
   const tag = intlLocaleTagForAppLanguage(lang);
   const target = addPeriod(new Date(), mode, offset);
   if (mode === 'day') {
     return target.toLocaleDateString(tag, { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
   }
   if (mode === 'week') {
-    return `${tr('Semana', 'Week')} ${isoWeekNumber(target)} · ${target.getFullYear()}`;
+    return `${tcx('dashboard_period_week')} ${isoWeekNumber(target)} · ${target.getFullYear()}`;
   }
   if (mode === 'month') {
     return target.toLocaleDateString(tag, { month: 'long', year: 'numeric' });
@@ -490,7 +492,7 @@ function ExpirationBadge({
   daysLeft: number;
   renewsAt: string;
 }) {
-  const tr = useTr();
+  const tcx = useCoreT();
   const { resolvedMode: _badgeMode } = useLookMode();
   const badgeIsNight = _badgeMode === 'noche';
   const tone = toneForDays(daysLeft);
@@ -529,7 +531,7 @@ function ExpirationBadge({
         ]}
       >
         <Text style={[styles.expirationStatus, { color: text, fontSize: 12, lineHeight: 16 }]}>
-          {tr('Expiración: Modo Prueba', 'Expiration: Trial mode')}
+          {tcx('dashboard_trial_mode_label')}
         </Text>
       </View>
     );
@@ -542,7 +544,7 @@ function ExpirationBadge({
           bg: `${SHELL_ACCENT_GOLD}29`,
           border: 'rgba(246,218,135,0.58)',
           text: badgeIsNight ? '#F6DA87' : '#7A5C10',
-          label: tr('Acceso Ilimitado', 'Unlimited access'),
+          label: tcx('dashboard_unlimited_access'),
         }
       : (() => {
           const t = toneColors(tone);
@@ -553,10 +555,10 @@ function ExpirationBadge({
             text: badgeIsNight ? t.text : dayText,
             label:
               tone === 'red'
-                ? tr('CRÍTICO', 'CRITICAL')
+                ? tcx('dashboard_exp_critical')
                 : tone === 'amber'
-                  ? tr('ALERTA', 'ALERT')
-                  : tr('OK', 'OK'),
+                  ? tcx('dashboard_exp_alert')
+                  : tcx('dashboard_exp_ok'),
           };
         })();
 
@@ -578,7 +580,7 @@ function ExpirationBadge({
       <View>
         <Text style={[styles.expirationStatus, { color: colors.text }]}>{colors.label}</Text>
         <Text style={[styles.expirationText, { color: expirationSubTextColor }]}>
-          {unlimited ? tr('Sin caducidad', 'No expiration') : `${tr('Renueva:', 'Renews:')} ${renewsAt}`}
+          {unlimited ? tcx('dashboard_no_expiration') : `${tcx('dashboard_renews_prefix')} ${renewsAt}`}
         </Text>
       </View>
     </Animated.View>
@@ -594,7 +596,7 @@ function PremiumMarketToggle({
   disabled: boolean;
   onToggle: (nextValue: boolean) => void;
 }) {
-  const { language } = useLanguage();
+  const tcx = useCoreT();
   const { resolvedMode } = useLookMode();
   const shell = appPalette[resolvedMode === 'noche' ? 'dark' : 'light'];
   const accent = shell.ctaAccent;
@@ -606,7 +608,7 @@ function PremiumMarketToggle({
       disabled={disabled}
       onPress={() => onToggle(!enabled)}
       accessibilityRole="switch"
-      accessibilityLabel={trEsEn('Mercado social', 'Social Market', language)}
+      accessibilityLabel={tcx('search_section_market')}
       accessibilityState={{ checked: enabled, disabled }}
       style={[
         styles.premiumToggleShell,
@@ -645,8 +647,7 @@ function DashboardBusinessCardItem({
   updating: boolean;
   onToggleMarket: (card: DashboardBusinessCard, nextValue: boolean) => void;
 }) {
-  const { language } = useLanguage();
-  const tr = useCallback((es: string, en: string) => trEsEn(es, en, language), [language]);
+  const tcx = useCoreT();
   const chestTheme = getCardRowTheme(item.themeId || undefined);
   const themeMeta = getThemeById(item.themeId || '') ?? getThemeById('obsidian');
   const logoUri = toRenderableImageUri(item.bcLogoUrl || '');
@@ -690,12 +691,12 @@ function DashboardBusinessCardItem({
               {item.bcName}
             </AutoScaleText>
             <Text style={[styles.businessListSubtitle, { color: chestTheme.metaColor }]} numberOfLines={1}>
-              {item.bcContactName.trim() ? item.bcContactName : themeMeta?.name || tr('Tarjeta de negocio', 'Business card')}
+              {item.bcContactName.trim() ? item.bcContactName : themeMeta?.name || tcx('dashboard_business_card_fallback')}
             </Text>
             <View style={styles.businessCardStatsRow}>
               <View style={styles.marketControl}>
                 <Text style={[styles.marketSwitchLabel, { color: chestTheme.metaColor }]}>
-                  {tr('Mercado social', 'Social Market')}
+                  {tcx('search_section_market')}
                 </Text>
                 <PremiumMarketToggle
                   enabled={item.is_visible}
@@ -728,8 +729,8 @@ function MetricPanel({
   chrome: DashboardChrome;
   language: AppLanguage;
 }) {
-  const tr = useCallback((es: string, en: string) => trEsEn(es, en, language), [language]);
-  const periodOptions = useMemo(() => periodTabsTr(tr), [tr]);
+  const tcx = useCoreT();
+  const periodOptions = useMemo(() => periodTabsLabels(tcx), [tcx]);
   const totalViews = Number(analytics?.totalViews || 0);
   const fallbackLabels = labelsForPeriod(periodMode, language);
   const labels = analytics?.labels?.length ? analytics.labels : fallbackLabels;
@@ -738,12 +739,9 @@ function MetricPanel({
   const clickRate =
     totalViews > 0 && topClicks > 0 ? Math.max(1, Math.min(99, Number(analytics?.clickRate || 0) || Math.round((topClicks / totalViews) * 100))) : 0;
   const hasClicks = clickRate > 0;
-  const chartEmptyHint = tr(
-    'Sin actividad reciente. Comparte tu tarjeta para empezar.',
-    'No recent activity. Share your card to start.',
-  );
-  const emptyTitle = tr('Sin actividad reciente', 'No activity yet');
-  const emptySubtitle = tr('Comparte tu tarjeta para empezar a ver métricas reales.', 'Share your card to start seeing metrics.');
+  const chartEmptyHint = tcx('dashboard_chart_empty_hint');
+  const emptyTitle = tcx('dashboard_empty_activity_title');
+  const emptySubtitle = tcx('dashboard_empty_activity_subtitle');
   const periodSwipeResponder = useMemo(
     () =>
       PanResponder.create({
@@ -772,11 +770,11 @@ function MetricPanel({
         {...periodSwipeResponder.panHandlers}
       >
         <View style={styles.panelHeaderRow}>
-          <Text style={[styles.sectionKicker, { color: chrome.textMuted }]}>{tr('Vistas de tarjeta', 'Card views')}</Text>
+          <Text style={[styles.sectionKicker, { color: chrome.textMuted }]}>{tcx('dashboard_metric_card_views')}</Text>
           {totalViews > 0 ? (
             <View style={[styles.clickRateChip, { borderColor: chrome.panelBorder, backgroundColor: chrome.rankTrackBg }]}>
               <Text style={[styles.clickRateChipLabel, { color: chrome.seoMutedLine }]} numberOfLines={2}>
-                {tr('Conversión búsqueda-acción (CTR)', 'Search-to-Action (CTR)')}
+                {tcx('dashboard_metric_ctr')}
               </Text>
               <Text style={[styles.clickRateChipValue, { color: chrome.iconGold }, !hasClicks && styles.clickRateChipValueEmpty]}>
                 {clickRate}%
@@ -817,7 +815,7 @@ function MetricPanel({
             <MaterialCommunityIcons name="chevron-left" size={18} color={chrome.gold} />
           </TouchableOpacity>
           <Text style={[styles.periodTitle, { color: chrome.periodTitleColor }]} numberOfLines={1}>
-            {periodTitle(periodMode, periodOffset, language, tr)}
+            {periodTitle(periodMode, periodOffset, language, tcx)}
           </Text>
           <TouchableOpacity
             style={[styles.periodArrow, periodOffset >= 0 && styles.periodArrowDisabled]}
@@ -913,7 +911,7 @@ export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { language } = useLanguage();
-  const tr = useCallback((es: string, en: string) => trEsEn(es, en, language), [language]);
+  const tcx = useCoreT();
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
   const shell = appPalette[isNight ? 'dark' : 'light'];
@@ -1129,16 +1127,13 @@ export default function DashboardScreen() {
             ]
               .filter(Boolean)
               .join(' · ')
-          : tr('el precio publicado en Suscripción', 'the price listed under Subscription');
+          : tcx('dashboard_radar_price_fallback');
       Alert.alert(
-        tr('Market Radar Pro', 'Market Radar Pro'),
-        tr(
-          `Esta experiencia requiere la suscripción Market Radar Pro (${priceLine}). Puedes activarla desde el menú → Suscripción.`,
-          `This experience requires the Market Radar Pro subscription (${priceLine}). You can activate it from the menu → Subscription.`,
-        ),
+        tcx('dashboard_market_radar_pro_title'),
+        tcx('dashboard_market_radar_pro_body', { priceLine }),
         [
-          { text: tr('Cerrar', 'Close'), style: 'cancel' },
-          { text: tr('Ir a Suscripción', 'Go to Subscription'), onPress: () => requestSubscriptionPanel() },
+          { text: tcx('common_close'), style: 'cancel' },
+          { text: tcx('dashboard_go_subscription'), onPress: () => requestSubscriptionPanel() },
         ],
       );
       return;
@@ -1156,7 +1151,7 @@ export default function DashboardScreen() {
           return;
         }
         Alert.alert(
-          tr('Radar no disponible', 'Radar unavailable'),
+          tcx('dashboard_radar_unavailable'),
           marketRadarMintUserMessage(minted.issue),
         );
         return;
@@ -1169,8 +1164,8 @@ export default function DashboardScreen() {
       }
     } catch (e) {
       Alert.alert(
-        tr('No se pudo abrir el navegador', 'Could not open the browser'),
-        userFacingAlertMessage(e, language, tr('Inténtalo de nuevo.', 'Please try again.')),
+        tcx('dashboard_browser_open_failed'),
+        userFacingAlertMessage(e, language, tcx('common_try_again')),
       );
     } finally {
       setLaunchingRadar(false);
@@ -1179,7 +1174,7 @@ export default function DashboardScreen() {
     studioWebBase,
     launchingRadar,
     language,
-    tr,
+    tcx,
     marketRadarProOk,
     opsAdmin,
     marketRadarProPrice,
@@ -1229,8 +1224,8 @@ export default function DashboardScreen() {
         ),
       );
       Alert.alert(
-        tr('No se pudo actualizar el Mercado Social', 'Could not update Social Market'),
-        userFacingAlertMessage(error, language, tr('Inténtalo de nuevo.', 'Please try again.')),
+        tcx('dashboard_social_market_update_failed'),
+        userFacingAlertMessage(error, language, tcx('common_try_again')),
       );
     } finally {
       setUpdatingBId(null);
@@ -1242,7 +1237,7 @@ export default function DashboardScreen() {
     const themeMeta = getThemeById(activeCard.themeId || '') ?? getThemeById('obsidian');
     const subtitleText = activeCard.bcContactName.trim()
       ? activeCard.bcContactName
-      : themeMeta?.name || tr('Tarjeta de negocio', 'Business card');
+      : themeMeta?.name || tcx('dashboard_business_card_fallback');
     const qrHostBase = getSignatureQrImageBaseUrl();
     const publicUrl = generatePublicBusinessWebUrlForEmailSignature(activeCard.bId, sessionUid);
     let emailLogoNormalize: { siteOrigin: string; apiOrigin: string } | undefined;
@@ -1274,21 +1269,15 @@ export default function DashboardScreen() {
         const richOk = await copyRichEmailSignatureToClipboard(html, plain);
         if (richOk) {
           Alert.alert(
-            tr('Firma copiada', 'Signature copied'),
-            tr(
-              'Lista para pegar en Gmail u Outlook como diseño con formato (no como código fuente). En Gmail: Ajustes → Ver todos los ajustes de correo → Firma.',
-              'Ready to paste into Gmail or Outlook as rich formatted layout (not source code). In Gmail: Settings → See all settings → Signature.',
-            ),
+            tcx('dashboard_signature_copied_title'),
+            tcx('dashboard_signature_copied_body'),
           );
           return;
         }
         await Clipboard.setStringAsync(plain);
         Alert.alert(
-          tr('Solo texto copiado', 'Plain text only'),
-          tr(
-            'Este navegador no permitió HTML enriquecido en el portapapeles. Copiamos solo texto plano; prueba desde Chrome en escritorio desde este mismo Dashboard para pegar la firma con diseño.',
-            'This browser blocked rich HTML on the clipboard. We copied plain text only; try again from Chrome on desktop in this Dashboard to paste a styled signature.',
-          ),
+          tcx('dashboard_plain_text_only_title'),
+          tcx('dashboard_plain_text_only_body'),
         );
         return;
       }
@@ -1300,46 +1289,40 @@ export default function DashboardScreen() {
           locale: language === 'es' ? 'es' : 'en',
         });
         Alert.alert(
-          tr('Revisa tu correo', 'Check your email'),
-          tr(
-            'Te enviamos tu firma. Ábrela en la computadora, selecciona el bloque visual (logo y QR) y cópiala en los ajustes de firma de Gmail u Outlook Web.',
-            'We emailed your signature. Open it on a computer, select the visual block (logo and QR), then paste it into Gmail or Outlook Web signature settings.',
-          ),
+          tcx('dashboard_check_email_title'),
+          tcx('dashboard_check_email_body'),
         );
       } catch (e) {
         const code = String((e as Error)?.message || '');
         if (code === 'email_not_available_on_account') {
           Alert.alert(
-            tr('Correo no disponible', 'Email not linked'),
-            tr(
-              'Tu cuenta de inicio de sesión no tiene un correo asociado. Añade un email a tu cuenta o abre el Dashboard en la web (Chrome) para copiar la firma con formato.',
-              'Your sign-in account has no email address on file. Add an email to your account, or open the Dashboard in a web browser (Chrome) to copy a rich signature.',
-            ),
+            tcx('dashboard_email_not_linked_title'),
+            tcx('dashboard_email_not_linked_body'),
           );
         } else if (code === 'email_unconfigured') {
           Alert.alert(
-            tr('Servicio en pausa', 'Service unavailable'),
-            tr('Envío por correo no está configurado del lado del servidor.', 'Outbound email is not configured on the server.'),
+            tcx('dashboard_email_service_pause_title'),
+            tcx('dashboard_email_service_pause_body'),
           );
         } else if (code === 'card_not_found_or_forbidden') {
           Alert.alert(
-            tr('Tarjeta no disponible', 'Card unavailable'),
-            tr('No pudimos cargar esta tarjeta para enviar la firma. Actualiza o vuelve a intentar.', 'We could not load this card to send the signature. Refresh and try again.'),
+            tcx('dashboard_card_unavailable_title'),
+            tcx('dashboard_card_unavailable_body'),
           );
         } else if (code === 'AUTH_REQUIRED') {
           Alert.alert(
-            tr('Sesión requerida', 'Sign in required'),
-            tr('Inicia sesión de nuevo e inténtalo otra vez.', 'Please sign in again and try once more.'),
+            tcx('dashboard_sign_in_required_title'),
+            tcx('dashboard_sign_in_required_body'),
           );
         } else if (code === 'send_failed' || code.startsWith('http_')) {
           Alert.alert(
-            tr('No se pudo enviar', 'Could not send'),
-            tr('El servidor no pudo completar el envío. Inténtalo más tarde.', 'The server could not complete the send. Please try again later.'),
+            tcx('dashboard_send_failed_title'),
+            tcx('dashboard_send_failed_server_body'),
           );
         } else {
           Alert.alert(
-            tr('No se pudo enviar', 'Could not send'),
-            userFacingAlertMessage(e, language, tr('Inténtalo de nuevo.', 'Please try again.')),
+            tcx('dashboard_send_failed_title'),
+            userFacingAlertMessage(e, language, tcx('common_try_again')),
           );
         }
       } finally {
@@ -1347,13 +1330,13 @@ export default function DashboardScreen() {
       }
     } catch (e) {
       Alert.alert(
-        tr('Algo salió mal', 'Something went wrong'),
-        userFacingAlertMessage(e, language, tr('Inténtalo de nuevo.', 'Please try again.')),
+        tcx('dashboard_something_wrong'),
+        userFacingAlertMessage(e, language, tcx('common_try_again')),
       );
       setSignatureBusy(false);
     }
-  }, [activeCard, sessionUid, tr, signatureBusy, language]);
-  const displayFirstName = headerInfo.firstName.trim() || tr('Usuario', 'User');
+  }, [activeCard, sessionUid, tcx, signatureBusy, language]);
+  const displayFirstName = headerInfo.firstName.trim() || tcx('dashboard_user_fallback');
 
   return (
     <View style={[styles.root, { backgroundColor: shell.backgroundSolid }]}>
@@ -1371,10 +1354,10 @@ export default function DashboardScreen() {
           >
             <View style={styles.headerCopy}>
               <Text style={[styles.hello, { color: chrome.helloColor }]} numberOfLines={1}>
-                {tr('Hola', 'Hello')}, {displayFirstName}
+                {tcx('dashboard_hello')}, {displayFirstName}
               </Text>
               <Text style={[styles.plan, { color: chrome.planColor }]} numberOfLines={1}>
-                {tr('Plan', 'Plan')} {planLabelFromTier(headerInfo.planTier, tr)}
+                {tcx('dashboard_plan_label')} {planLabelFromTier(headerInfo.planTier, tcx)}
               </Text>
             </View>
             {showExpirationBadge ? (
@@ -1391,7 +1374,7 @@ export default function DashboardScreen() {
           <View style={[styles.loadingBox, { borderColor: chrome.loadingBorder, backgroundColor: chrome.loadingBoxBg }]}>
             <ActivityIndicator color={chrome.gold} />
             <Text style={[styles.loadingText, { color: chrome.loadingText }]}>
-              {tr('Cargando tarjetas de negocio…', 'Loading business cards…')}
+              {tcx('dashboard_loading_business_cards')}
             </Text>
           </View>
         ) : cards.length ? (
@@ -1421,13 +1404,10 @@ export default function DashboardScreen() {
           <View style={[styles.emptyDashboardBox, { borderColor: chrome.loadingBorder, backgroundColor: chrome.loadingBoxBg }]}>
             <MaterialCommunityIcons name="chart-line-variant" size={34} color={chrome.gold} />
             <Text style={[styles.emptyTitle, { color: chrome.text }]}>
-              {tr('Analítica sin tarjetas de negocio', 'Analytics has no business cards yet')}
+              {tcx('dashboard_empty_no_business_cards_title')}
             </Text>
             <Text style={[styles.emptyText, { color: chrome.textSecondary }]}>
-              {tr(
-                'Crea una tarjeta de negocio para activar métricas por tarjeta.',
-                'Create a business card to unlock card-level metrics.',
-              )}
+              {tcx('dashboard_empty_no_business_cards_body')}
             </Text>
           </View>
         )}
@@ -1502,8 +1482,8 @@ export default function DashboardScreen() {
               )}
               <Text style={[styles.emailSignatureBtnText, { color: chrome.optimizeCtaText }]} numberOfLines={2}>
                 {Platform.OS === 'web'
-                  ? tr('Copiar firma (Gmail / Outlook)', 'Copy signature (Gmail / Outlook)')
-                  : tr('Enviarme firma por correo', 'Email me my signature')}
+                  ? tcx('dashboard_copy_signature_web')
+                  : tcx('dashboard_email_signature_cta')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1511,7 +1491,7 @@ export default function DashboardScreen() {
 
         <View style={styles.blockTitleRow}>
           <Text style={[styles.blockTitle, { flex: 1, color: chrome.blockTitleColor }]}>
-            {tr('Rendimiento de SEO local y CRO', 'Local SEO & CRO performance')}
+            {tcx('dashboard_seo_block_title')}
           </Text>
           {activeCard ? (
             <TouchableOpacity
@@ -1524,7 +1504,7 @@ export default function DashboardScreen() {
             >
               <MaterialCommunityIcons name="tune-variant" size={15} color={chrome.optimizeCtaIcon} />
               <Text style={[styles.optimizeKeywordsCtaText, { color: chrome.optimizeCtaText }]} numberOfLines={2}>
-                {tr('Ajustar palabras SEO de la tarjeta', 'Adjust the card SEO keywords')}
+                {tcx('dashboard_seo_adjust_keywords')}
               </Text>
             </TouchableOpacity>
           ) : null}
@@ -1542,7 +1522,7 @@ export default function DashboardScreen() {
         ) : null}
 
         <CollapsibleSection
-          title={tr('Tus IconoDatas más tocados', 'Your most tapped IconoDatas')}
+          title={tcx('dashboard_iconodata_section_title')}
           icon="format-list-numbered"
           frameBg={chrome.collapsibleFrameBg}
           borderColor={chrome.collapsibleBorder}
@@ -1577,16 +1557,13 @@ export default function DashboardScreen() {
             ))
           ) : (
             <Text style={[styles.rankEmptyText, { color: chrome.rankEmpty }]}>
-              {tr(
-                'Añade IconoDatas en esta tarjeta para ver qué elementos reciben más toques.',
-                'Add IconoDatas to this card to see what people tap most.',
-              )}
+              {tcx('dashboard_iconodata_empty')}
             </Text>
           )}
         </CollapsibleSection>
 
         <CollapsibleSection
-          title={tr('Inteligencia de mercado SEO', 'SEO market intelligence')}
+          title={tcx('dashboard_seo_intel_title')}
           icon="map-search-outline"
           frameBg={chrome.collapsibleFrameBg}
           borderColor={chrome.collapsibleBorder}
@@ -1599,30 +1576,21 @@ export default function DashboardScreen() {
             <View style={styles.seoHeaderRow}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.opportunityTitle, { color: chrome.opportunityTitle }]}>
-                  {tr('Conversiones desde búsqueda (SEO)', 'Search-driven conversions (SEO)')}
+                  {tcx('dashboard_seo_conversions_title')}
                 </Text>
                 <Text style={[styles.seoScopeText, { color: chrome.seoScopeMuted }]}>
-                  {tr(
-                    'Rendimiento de tus palabras clave en ',
-                    'How your keywords perform in ',
-                  )}
-                  {activeSeo?.locationLabel || tr('zona combinada', 'combined zone')}
+                  {tcx('dashboard_seo_perform_prefix')}
+                  {activeSeo?.locationLabel || tcx('dashboard_seo_combined_zone')}
                 </Text>
               </View>
               <MaterialCommunityIcons name="chart-timeline-variant" size={20} color={chrome.iconGold} />
             </View>
             <Text style={[styles.seoTransparencyText, { color: chrome.seoTransparency }]}>
               {activeSeo?.locationSource === 'explorer'
-                ? tr(
-                    'Modo explorador: estás viendo la demanda en otra zona.',
-                    'Explorer mode: you are viewing demand in another area.',
-                  )
-                : `${tr(
-                    'Fuente: ubicación registrada en esta tarjeta de negocio',
-                    'Source: location saved on this business card',
-                  )}${
+                ? tcx('dashboard_seo_explorer_mode')
+                : `${tcx('dashboard_seo_source_card_location')}${
                     activeSeo?.cardLocationUpdatedAt
-                      ? ` · ${tr('Activa desde', 'Active since')} ${new Date(activeSeo.cardLocationUpdatedAt).toLocaleDateString(intlLocaleTagForAppLanguage(language))}`
+                      ? ` · ${tcx('dashboard_seo_active_since')} ${new Date(activeSeo.cardLocationUpdatedAt).toLocaleDateString(intlLocaleTagForAppLanguage(language))}`
                       : ''
                   }.`}
             </Text>
@@ -1630,7 +1598,7 @@ export default function DashboardScreen() {
               <TextInput
                 value={seoLocationQuery}
                 onChangeText={setSeoLocationQuery}
-                placeholder={tr('Explorar código postal o ciudad', 'Search ZIP or city')}
+                placeholder={tcx('dashboard_seo_explorer_placeholder')}
                 placeholderTextColor={chrome.seoInputPlaceholder}
                 style={[
                   styles.seoExplorerInput,
@@ -1655,10 +1623,7 @@ export default function DashboardScreen() {
             {visibleSeoRows.length ? (
               <View style={styles.seoList}>
                 <Text style={[styles.seoCtrLegend, { color: chrome.seoMutedLine }]}>
-                  {tr(
-                    'Métrica (una sola para todas las filas): conversión de búsqueda a acción — CTR.',
-                    'Metric (same for each row below): search-to-action conversion — CTR.',
-                  )}
+                  {tcx('dashboard_seo_ctr_legend')}
                 </Text>
                 {visibleSeoRows.map((row) => (
                   <View key={`${row.keywordRoot}-${row.keyword}`} style={styles.seoRow}>
@@ -1687,7 +1652,7 @@ export default function DashboardScreen() {
                     onPress={() => setSeoExpanded((prev) => !prev)}
                   >
                     <Text style={[styles.showMoreText, { color: chrome.optimizeCtaIcon }]}>
-                      {seoExpanded ? tr('Mostrar menos', 'Show less') : tr('Mostrar más', 'Show more')}
+                      {seoExpanded ? tcx('dashboard_show_less') : tcx('dashboard_show_more')}
                     </Text>
                     <MaterialCommunityIcons
                       name={seoExpanded ? 'chevron-up' : 'chevron-down'}
@@ -1699,33 +1664,24 @@ export default function DashboardScreen() {
               </View>
             ) : (
               <Text style={[styles.rankEmptyText, { color: chrome.rankEmpty }]}>
-                {tr(
-                  'Añade palabras SEO a esta tarjeta para medir búsquedas del mercado.',
-                  'Add SEO keywords to this card to measure marketplace searches.',
-                )}
+                {tcx('dashboard_seo_add_keywords_empty')}
               </Text>
             )}
             <TouchableOpacity style={[styles.keywordButton, { backgroundColor: chrome.gold }]} activeOpacity={0.82} onPress={() => setShowTopNicheKeyword((prev) => !prev)}>
-              <Text style={[styles.keywordButtonText, { color: chrome.explorerBtnIcon }]}>{tr('Palabra top del nicho', 'Top niche keyword')}</Text>
+              <Text style={[styles.keywordButtonText, { color: chrome.explorerBtnIcon }]}>{tcx('dashboard_top_niche_keyword')}</Text>
             </TouchableOpacity>
             {showTopNicheKeyword ? (
               <View style={[styles.topNicheBox, { borderColor: chrome.collapsibleBorder, backgroundColor: chrome.nicheChipInactiveBg }]}>
                 <Text style={[styles.topNicheLabel, { color: chrome.textSecondary }]}>
-                  {tr('Palabra sugerida', 'Suggested keyword')}
+                  {tcx('dashboard_suggested_keyword')}
                 </Text>
                 <Text style={[styles.topNicheWord, { color: chrome.opportunityTitle }]}>
-                  {activeSeo?.topNicheKeyword || tr('Sin datos suficientes', 'Not enough data yet')}
+                  {activeSeo?.topNicheKeyword || tcx('dashboard_not_enough_data')}
                 </Text>
                 <Text style={[styles.topNicheMeta, { color: chrome.textSecondary }]}>
                   {activeSeo?.topNicheKeyword
-                    ? `${activeSeo.topNicheSearches} ${tr(
-                        'búsquedas en este nicho o zona que aún no están en tu tarjeta.',
-                        'searches in this niche or area that are not on your card yet.',
-                      )}`
-                    : tr(
-                        'Cuando el mercado reúna búsquedas del nicho, verás aquí una palabra que aún no usas.',
-                        'When the marketplace has enough niche searches, a missing keyword will appear here.',
-                      )}
+                    ? `${activeSeo.topNicheSearches} ${tcx('dashboard_niche_searches_suffix')}`
+                    : tcx('dashboard_niche_waiting_body')}
                 </Text>
               </View>
             ) : null}
@@ -1740,13 +1696,13 @@ export default function DashboardScreen() {
               pointerEvents="none"
             />
             <Text style={[styles.executiveRadarEyebrow, { color: chrome.gold }]}>
-              {tr('Centro de inteligencia geo · Búnker', 'Geo Intelligence · Bunker')}
+              {tcx('dashboard_geo_intel_eyebrow')}
             </Text>
             <Text style={[styles.executiveRadarTitle, { color: chrome.text }]}>
-              {tr('Radar de mercado ejecutivo', 'Executive Market Radar')}
+              {tcx('dashboard_executive_radar_title')}
             </Text>
             <Text style={[styles.executiveRadarPeriod, { color: chrome.textMuted }]}>
-              {periodTitle(periodMode, periodOffset, language, tr)}
+              {periodTitle(periodMode, periodOffset, language, tcx)}
             </Text>
 
             {studioWebBase ? (
@@ -1809,13 +1765,10 @@ export default function DashboardScreen() {
                     <LucideMap size={36} color={chrome.iconGold} strokeWidth={1.6} />
                   </View>
                   <Text style={[styles.marketRadarPlaceholderTitle, { color: chrome.text }]}>
-                    {tr('Optimización geográfica', 'Market Radar — Full experience')}
+                    {tcx('dashboard_market_radar_full_title')}
                   </Text>
                   <Text style={[styles.marketRadarPlaceholderSubtitle, { color: chrome.textSecondary }]}>
-                    {tr(
-                      'Para garantizar la máxima precisión y fluidez de los datos de mercado en tiempo real, el Radar se despliega en una interfaz inmersiva de pantalla completa.',
-                      'To deliver maximum accuracy and fluidity for live market intelligence, the Radar runs in a full-screen immersive interface.',
-                    )}
+                    {tcx('dashboard_market_radar_full_subtitle')}
                   </Text>
                 </View>
               </View>
@@ -1829,10 +1782,7 @@ export default function DashboardScreen() {
               >
                 <MaterialCommunityIcons name="radar" size={32} color={chrome.iconGold} />
                 <Text style={[styles.marketRadarMissingText, { color: chrome.textSecondary }]}>
-                  {tr(
-                    'El radar en pantalla completa no está disponible en esta versión. Actualiza la app o inténtalo más tarde.',
-                    'Full-screen radar is not available in this build. Update the app or try again later.',
-                  )}
+                  {tcx('dashboard_radar_unavailable_build')}
                 </Text>
               </View>
             )}
@@ -1848,8 +1798,8 @@ export default function DashboardScreen() {
               accessibilityRole="button"
               accessibilityLabel={
                 radarLaunchBlockedByPro
-                  ? tr('Market Radar Pro requerido', 'Market Radar Pro required')
-                  : tr('Explorar radar en pantalla completa', 'Explore radar in full screen')
+                  ? tcx('dashboard_radar_pro_required_a11y')
+                  : tcx('dashboard_radar_explore_full_a11y')
               }
             >
               <LinearGradient
@@ -1867,11 +1817,8 @@ export default function DashboardScreen() {
                 )}
                 <Text style={styles.launchCommandText} numberOfLines={2}>
                   {radarLaunchBlockedByPro
-                    ? tr(
-                        'Explorar Radar (requiere suscripción Pro)',
-                        'Explore the radar (Pro subscription required)',
-                      )
-                    : tr('Explorar Radar en Pantalla Completa', 'Explore the radar in full screen')}
+                    ? tcx('dashboard_radar_cta_pro_required')
+                    : tcx('dashboard_radar_cta_explore')}
                 </Text>
                 <MaterialCommunityIcons name="arrow-top-right" size={16} color="#1B1205" />
               </LinearGradient>
@@ -1880,24 +1827,15 @@ export default function DashboardScreen() {
             <Text style={[styles.executiveRadarOriginCaption, { color: chrome.textMuted, marginTop: 6 }]} numberOfLines={4}>
               {studioWebBase
                 ? radarLaunchBlockedByPro
-                  ? tr(
-                      'Para abrir el Market Radar necesitas la suscripción Market Radar Pro (precio en Suscripción). Toca el botón para más información o para ir a la tienda.',
-                      'Opening Market Radar requires the Market Radar Pro subscription (pricing under Subscription). Tap the button for details or to open the store.',
-                    )
-                  : tr(
-                      'Mapbox y capas de intención en tu navegador, con la superficie que merecen.',
-                      'Mapbox and intent layers open in your browser at the scale they deserve.',
-                    )
-                : tr(
-                    'El radar en pantalla completa no está disponible en esta versión. Actualiza la app o inténtalo más tarde.',
-                    'Full-screen radar is not available in this build. Update the app or try again later.',
-                  )}
+                  ? tcx('dashboard_radar_footer_pro')
+                  : tcx('dashboard_radar_footer_mapbox')
+                : tcx('dashboard_radar_unavailable_build')}
             </Text>
           </View>
         </CollapsibleSection>
 
         <CollapsibleSection
-          title={tr('El camino Legacy', 'The Legacy path')}
+          title={tcx('dashboard_legacy_path_title')}
           icon="diamond-stone"
           defaultOpen
           frameBg={chrome.collapsibleFrameBg}
@@ -1908,7 +1846,6 @@ export default function DashboardScreen() {
           chevronTint={chrome.iconGold}
         >
           <LegacyPathGoalsSection
-            tr={tr}
             referralsCurrent={legacyLive.referralsCount}
             referralsCeiling={LEGACY_REFERRALS_CEILING_UI}
             palette={{

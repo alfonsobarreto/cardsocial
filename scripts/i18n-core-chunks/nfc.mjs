@@ -249,12 +249,12 @@ export const nfc = {
   nfc_lost: L('Perdida', 'Lost', 'Smarrita', 'Perdida', 'Perdue', 'Verloren'),
   nfc_pause: L('Pausar', 'Pause', 'Metti in pausa', 'Pausar', 'Mettre en pause', 'Pausieren'),
   nfc_footnote_backend: L(
-    'Backend integrado: /api/nfc administra tarjetas y /n/{nfcCardId} resuelve con redirección temporal.',
-    'Backend integrated: /api/nfc manages cards and /n/{nfcCardId} resolves with temporary redirects.',
-    'Backend integrato: /api/nfc gestisce le carte e /n/{nfcCardId} risolve con redirect temporaneo.',
-    'Backend integrado: /api/nfc administra cartões e /n/{nfcCardId} resolve com redirecionamento temporário.',
-    'Backend intégré : /api/nfc gère les cartes et /n/{nfcCardId} résout avec redirection temporaire.',
-    'Backend: /api/nfc verwaltet Karten, /n/{nfcCardId} mit temporärer Weiterleitung.',
+    'Backend integrado: /api/nfc administra tarjetas y la ruta /n/<ID> resuelve con redirección temporal.',
+    'Backend integrated: /api/nfc manages cards and the /n/<ID> path resolves with temporary redirects.',
+    'Backend integrato: /api/nfc gestisce le carte e il percorso /n/<ID> risolve con redirect temporaneo.',
+    'Backend integrado: /api/nfc administra cartões e o caminho /n/<ID> resolve com redirecionamento temporário.',
+    'Backend intégré : /api/nfc gère les cartes et le chemin /n/<ID> résout avec redirection temporaire.',
+    'Backend: /api/nfc verwaltet Karten; der Pfad /n/<ID> leitet temporär weiter.',
   ),
   nfc_modal_link_pin_instructions: L(
     'Pega el ID o la URL /n impresa en la tarjeta y escribe el PIN de activación.',

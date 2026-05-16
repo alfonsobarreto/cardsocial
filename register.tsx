@@ -3,11 +3,12 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'reac
 import { useRouter } from 'expo-router';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '@/services/firebaseConfig';
-import { trEsEn, useLanguage } from '@/services/language';
+import { coreTrEsEn } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 
 export default function RegisterScreen() {
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const tr = (es: string, en: string) => coreTrEsEn(es, en, language);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');

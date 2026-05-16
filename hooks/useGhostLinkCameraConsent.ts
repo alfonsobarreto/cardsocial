@@ -3,6 +3,8 @@ import { Alert } from 'react-native';
 import Toast from 'react-native-toast-message';
 
 import { getActiveUserId } from '@/services/authSession';
+import type { AppLanguage } from '@/services/coreI18n';
+import { coreT } from '@/services/coreI18n';
 import {
   clearGhostLinkCameraSignal,
   watchGhostLinkCameraSignal,
@@ -19,7 +21,7 @@ type Params = {
   callType: GhostLinkCallType;
   videoEnabled: boolean;
   setVideoEnabled: React.Dispatch<React.SetStateAction<boolean>>;
-  tr: (es: string, en: string) => string;
+  lang: AppLanguage;
 };
 
 /**
@@ -32,7 +34,7 @@ export function useGhostLinkCameraConsent({
   callType,
   videoEnabled,
   setVideoEnabled,
-  tr,
+  lang,
 }: Params) {
   const [waitingPeer, setWaitingPeer] = useState(false);
   const promptedRef = useRef<string | null>(null);
@@ -64,14 +66,11 @@ export function useGhostLinkCameraConsent({
           promptedRef.current = key;
 
           Alert.alert(
-            tr('Videollamada', 'Video call'),
-            tr(
-              'Tu contacto quiere activar la cámara. ¿Aceptas?',
-              'Your contact wants to turn on the camera. Do you allow it?',
-            ),
+            coreT('voip_camera_consent_title', lang),
+            coreT('voip_camera_consent_body', lang),
             [
               {
-                text: tr('Denegar', 'Deny'),
+                text: coreT('voip_camera_deny', lang),
                 style: 'cancel',
                 onPress: () => {
                   void (async () => {
@@ -82,18 +81,15 @@ export function useGhostLinkCameraConsent({
                 },
               },
               {
-                text: tr('Aceptar', 'Allow'),
+                text: coreT('voip_camera_allow', lang),
                 onPress: () => {
                   void (async () => {
                     const ok = await ensureVoipPermissions('video');
                     if (!ok) {
                       Toast.show({
                         type: 'info',
-                        text1: tr('Permisos', 'Permissions'),
-                        text2: tr(
-                          'Se necesita permiso de cámara.',
-                          'Camera permission is required.',
-                        ),
+                        text1: coreT('voip_camera_permission_short_title', lang),
+                        text2: coreT('voip_camera_permission_required', lang),
                       });
                       await writeGhostLinkCameraResponse(sid, 'deny');
                       await clearGhostLinkCameraSignal(sid);
@@ -118,11 +114,8 @@ export function useGhostLinkCameraConsent({
           if (req === myUid) {
             Toast.show({
               type: 'info',
-              text1: tr('Cámara', 'Camera'),
-              text2: tr(
-                'El contacto rechazó la videollamada.',
-                'The contact declined video.',
-              ),
+              text1: coreT('voip_camera_peer_declined_title', lang),
+              text2: coreT('voip_camera_peer_declined_body', lang),
             });
           }
           await clearGhostLinkCameraSignal(sid);
@@ -143,7 +136,7 @@ export function useGhostLinkCameraConsent({
     });
 
     return unsub;
-  }, [sessionId, handshakeActive, callType, setVideoEnabled, tr]);
+  }, [sessionId, handshakeActive, callType, setVideoEnabled, lang]);
 
   const toggleVideoWithConsent = useCallback(async () => {
     if (callType === 'video') {
@@ -154,11 +147,8 @@ export function useGhostLinkCameraConsent({
     if (!handshakeActive) {
       Toast.show({
         type: 'info',
-        text1: tr('Llamada', 'Call'),
-        text2: tr(
-          'Espera a que la llamada esté conectada.',
-          'Wait until the call is connected.',
-        ),
+        text1: coreT('voip_camera_wait_connect_title', lang),
+        text2: coreT('voip_camera_wait_connect_body', lang),
       });
       return;
     }
@@ -180,13 +170,10 @@ export function useGhostLinkCameraConsent({
     setWaitingPeer(true);
     Toast.show({
       type: 'info',
-      text1: tr('Videollamada', 'Video'),
-      text2: tr(
-        'Esperando respuesta del contacto…',
-        'Waiting for your contact…',
-      ),
+      text1: coreT('voip_camera_waiting_title', lang),
+      text2: coreT('voip_camera_waiting_body', lang),
     });
-  }, [callType, handshakeActive, sessionId, videoEnabled, setVideoEnabled, tr]);
+  }, [callType, handshakeActive, sessionId, videoEnabled, setVideoEnabled, lang]);
 
   return { toggleVideoWithConsent, videoUpgradeWaiting: waitingPeer };
 }

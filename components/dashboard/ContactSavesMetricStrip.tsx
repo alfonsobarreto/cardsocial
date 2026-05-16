@@ -2,7 +2,7 @@ import {
   CONTACT_SAVE_ANALYTICS_APP,
   CONTACT_SAVE_ANALYTICS_PHONE,
 } from '@/constants/contactSaveAnalyticsKeys';
-import { trEsEn, type AppLanguage } from '@/services/language';
+import { coreT, type AppLanguage } from '@/services/coreI18n';
 import type { CardAnalyticsPeriodSummary } from '@/services/qrApi';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -40,7 +40,6 @@ type Props = {
  * Lee conteos desde `topIcons` (subTypes en contactSaveAnalyticsKeys).
  */
 export function ContactSavesMetricStrip({ analytics, language, isNight }: Props) {
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const appCount = useMemo(
     () => countForSubtype(analytics, CONTACT_SAVE_ANALYTICS_APP),
     [analytics],
@@ -62,10 +61,10 @@ export function ContactSavesMetricStrip({ analytics, language, isNight }: Props)
           <View style={styles.iconBadge}>
             <MaterialCommunityIcons name="card-account-details-star" size={26} color="rgba(255,255,255,0.98)" />
           </View>
-          <Text style={styles.kicker}>{tr('En Card-Social', 'In Card-Social')}</Text>
+          <Text style={styles.kicker}>{coreT('misc_contact_save_kicker_app', language)}</Text>
           <Text style={styles.bigNumber}>{appCount}</Text>
           <Text style={styles.subtitle} numberOfLines={3}>
-            {tr('Te agregaron a su app (Búnker)', 'Added you in the app (Bunker)')}
+            {coreT('misc_contact_save_subtitle_app', language)}
           </Text>
         </LinearGradient>
       </View>
@@ -80,10 +79,10 @@ export function ContactSavesMetricStrip({ analytics, language, isNight }: Props)
           <View style={styles.iconBadge}>
             <MaterialCommunityIcons name="cellphone-arrow-down" size={26} color="rgba(255,255,255,0.98)" />
           </View>
-          <Text style={styles.kicker}>{tr('A su teléfono', 'To their phone')}</Text>
+          <Text style={styles.kicker}>{coreT('misc_contact_save_kicker_phone', language)}</Text>
           <Text style={styles.bigNumber}>{phoneCount}</Text>
           <Text style={styles.subtitle} numberOfLines={3}>
-            {tr('Descargaron tu contacto (.vcf)', 'Downloaded your contact (.vcf)')}
+            {coreT('misc_contact_save_subtitle_phone', language)}
           </Text>
         </LinearGradient>
       </View>

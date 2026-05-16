@@ -45,7 +45,7 @@ import { isGhostLinkAgoraNativeAvailable } from '@/services/expoGoAgoraGuard';
 import { getGhostLinkAgoraEngine, setGhostLinkAgoraSpeaker } from '@/services/ghostLinkAgoraSession';
 import { clearGhostLinkCameraSignal } from '@/services/ghostLinkVoipCameraSignal';
 import { useGhostLinkCameraConsent } from '@/hooks/useGhostLinkCameraConsent';
-import { trEsEn, useLanguage } from '@/services/language';
+import { coreT, useAppLanguage } from '@/services/coreI18n';
 
 /** @deprecated Use `VoIPCallPhase` (enum) en código nuevo. */
 export type GhostCallPhase = VoIPCallPhase;
@@ -168,8 +168,7 @@ export function requestGhostLinkCallImperative(params: Parameters<NonNullable<Im
 }
 
 export function GhostLinkCallProvider({ children }: { children: React.ReactNode }) {
-  const { language } = useLanguage();
-  const tr = useCallback((es: string, en: string) => trEsEn(es, en, language), [language]);
+  const language = useAppLanguage();
 
   const [phase, setPhase] = useState<VoIPCallPhase>(VoIPCallPhase.Idle);
   const [callData, setCallData] = useState<GhostCallData | null>(null);
@@ -213,12 +212,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
     const userWantsSpeaker = speakerphoneUiRef.current;
     /** Agora: 3 = altavoz integrado, 5 = Bluetooth. */
     if (prev === 5 && routing === 3 && !userWantsSpeaker) {
-      setVoipAudioRouteHint(
-        tr(
-          'Tu auricular Bluetooth se desconectó; el audio sigue por el altavoz del teléfono. Activa Bluetooth y vuelve a elegir tus AirPods (o tu dispositivo) en el centro de control si lo prefieres.',
-          'Your Bluetooth headset disconnected; audio is playing through the phone speaker. Turn Bluetooth on and pick your AirPods again from Control Center if you prefer.',
-        ),
-      );
+      setVoipAudioRouteHint(coreT('voip_bluetooth_disconnected_hint', language));
       return;
     }
     if (routing === 5 && prev != null && prev !== 5) {
@@ -981,14 +975,11 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
       if (!permitted) {
         Toast.show({
           type: 'error',
-          text1: tr('Permisos necesarios', 'Permissions required'),
+          text1: coreT('voip_permissions_required_title', language),
           text2:
             outgoingType === 'video'
-              ? tr(
-                  'Activa el micrófono y la cámara para llamar.',
-                  'Enable the microphone and camera to place a call.',
-                )
-              : tr('Activa el micrófono para llamar.', 'Enable the microphone to place a call.'),
+              ? coreT('voip_enable_mic_camera_outgoing', language)
+              : coreT('voip_enable_mic_outgoing', language),
         });
         return;
       }
@@ -1054,7 +1045,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
       }
       setTimeout(resetCall, 3000);
     }
-  }, [resetCall, playTone, stopTone, tr]);
+  }, [resetCall, playTone, stopTone, language]);
 
   const confirmVideoCall = useCallback(async () => {
     if (pendingParamsRef.current) {
@@ -1083,14 +1074,11 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
     if (!permitted) {
       Toast.show({
         type: 'error',
-        text1: tr('Permisos necesarios', 'Permissions required'),
+        text1: coreT('voip_permissions_required_title', language),
         text2:
           acceptType === 'video'
-            ? tr(
-                'Activa el micrófono y la cámara para unirte a la videollamada.',
-                'Enable the microphone and camera to join the video call.',
-              )
-            : tr('Activa el micrófono para contestar.', 'Enable the microphone to answer the call.'),
+            ? coreT('voip_enable_mic_camera_incoming', language)
+            : coreT('voip_enable_mic_incoming', language),
       });
       try {
         await respondGhostLinkInvite({
@@ -1122,7 +1110,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
       setPhase(VoIPCallPhase.Error);
       setTimeout(resetCall, 3000);
     }
-  }, [callData, resetCall, stopTone, tr]);
+  }, [callData, resetCall, stopTone, language]);
 
   // ── Receptor: rechazar ──
   const rejectIncoming = useCallback(async () => {
@@ -1160,7 +1148,7 @@ export function GhostLinkCallProvider({ children }: { children: React.ReactNode 
     callType: callData?.callType ?? 'audio',
     videoEnabled,
     setVideoEnabled,
-    tr,
+    lang: language,
   });
 
   const flipCamera = useCallback(() => {

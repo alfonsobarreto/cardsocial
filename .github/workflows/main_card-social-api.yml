@@ -36,6 +36,9 @@ jobs:
       - name: Phase D — identity anti-patterns
         run: npm run audit:identity
 
+      - name: Core locales (i18n audit)
+        run: npm run audit:locales
+
       - name: TypeScript (app / services)
         run: npx tsc --noEmit
 

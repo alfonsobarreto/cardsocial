@@ -26,7 +26,8 @@ import {
 } from '@/services/userIdentityFields';
 import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { useAuthT } from '@/services/authI18n';
-import { trEsEn, useLanguage } from '@/services/language';
+import { useCoreT } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import {
   computeScheduledDeletionDeadline,
@@ -154,7 +155,7 @@ function formatDate(d: Date) {
 export default function MyProfileScreen() {
   const { language } = useLanguage();
   const t = useAuthT();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const tcx = useCoreT();
   const { resolvedMode } = useLookMode();
   const isDark = resolvedMode === 'noche';
   const router = useRouter();
@@ -301,8 +302,8 @@ export default function MyProfileScreen() {
       }
     } catch (e: any) {
       Alert.alert(
-        tr('Error', 'Error'),
-        userFacingAlertMessage(e, language, tr('No se pudo cargar el perfil.', 'Could not load profile.')),
+        tcx('common_error'),
+        userFacingAlertMessage(e, language, tcx('profile_load_failed')),
       );
     } finally {
       setLoading(false);
@@ -551,11 +552,11 @@ export default function MyProfileScreen() {
     if (!profile) return;
     const next = editName.trim();
     if (!next) {
-      Alert.alert(tr('Nombre requerido', 'Name required'), tr('El nombre no puede estar vacío.', 'Name cannot be empty.'));
+      Alert.alert(tcx('profile_name_required'), tcx('profile_name_empty'));
       return;
     }
     if (next === profile.userFullName) {
-      Alert.alert(tr('Aviso', 'Notice'), tr('No hay cambios.', 'No changes.'));
+      Alert.alert(tcx('profile_notice'), tcx('profile_no_changes'));
       return;
     }
     try {
@@ -571,11 +572,11 @@ export default function MyProfileScreen() {
       });
       setProfile((prev) => prev ? { ...prev, userFullName: next, firstName, lastName } : prev);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(tr('Nombre actualizado', 'Name updated'), tr('Cambios guardados.', 'Changes saved.'));
+      Alert.alert(tcx('profile_name_updated'), tcx('profile_changes_saved'));
     } catch (e: any) {
       Alert.alert(
-        tr('Error', 'Error'),
-        userFacingAlertMessage(e, language, tr('Inténtalo de nuevo.', 'Please try again.')),
+        tcx('common_error'),
+        userFacingAlertMessage(e, language, tcx('common_try_again')),
       );
     } finally {
       setSavingName(false);
@@ -587,17 +588,17 @@ export default function MyProfileScreen() {
     if (!profile) return;
     const next = editNickname.trim();
     if (!next) {
-      Alert.alert(tr('Nickname requerido', 'Nickname required'), tr('Ingresa un nickname.', 'Enter a nickname.'));
+      Alert.alert(tcx('profile_nickname_required'), tcx('profile_nickname_enter'));
       return;
     }
     if (next.toLowerCase() === profile.userNickNameLower) {
-      Alert.alert(tr('Aviso', 'Notice'), tr('No hay cambios.', 'No changes.'));
+      Alert.alert(tcx('profile_notice'), tcx('profile_no_changes'));
       return;
     }
     if (!/^[a-z0-9._-]{3,24}$/i.test(next)) {
       Alert.alert(
-        tr('Nickname inválido', 'Invalid nickname'),
-        tr('Solo letras, números, punto, guion. Entre 3 y 24 caracteres.', 'Letters, numbers, dot, dash only. 3–24 chars.')
+        tcx('profile_nickname_invalid'),
+        tcx('profile_nickname_rules')
       );
       return;
     }
@@ -606,8 +607,8 @@ export default function MyProfileScreen() {
     const unlock = nicknameUnlockDate(profile.lastNicknameChange);
     if (unlock && unlock > new Date()) {
       Alert.alert(
-        tr('Cambio bloqueado', 'Change locked'),
-        tr(`Podrás cambiar tu nickname el ${formatDate(unlock)}.`, `You can change your nickname on ${formatDate(unlock)}.`)
+        tcx('profile_nickname_locked_title'),
+        tcx('profile_nickname_unlock_on', { date: formatDate(unlock) })
       );
       return;
     }
@@ -627,8 +628,8 @@ export default function MyProfileScreen() {
         const body = await resp.json().catch(() => ({}));
         const pseudoErr = { response: { status: resp.status, data: body } };
         Alert.alert(
-          tr('No se pudo cambiar', 'Could not change'),
-          userFacingAlertMessage(pseudoErr, language, tr('Inténtalo de nuevo.', 'Please try again.')),
+          tcx('profile_nickname_change_failed'),
+          userFacingAlertMessage(pseudoErr, language, tcx('common_try_again')),
         );
         return;
       }
@@ -650,11 +651,11 @@ export default function MyProfileScreen() {
           : prev
       );
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(tr('Nickname actualizado', 'Nickname updated'), tr('Cambios guardados.', 'Changes saved.'));
+      Alert.alert(tcx('profile_nickname_updated'), tcx('profile_changes_saved'));
     } catch (e: any) {
       Alert.alert(
-        tr('Error', 'Error'),
-        userFacingAlertMessage(e, language, tr('Inténtalo de nuevo.', 'Please try again.')),
+        tcx('common_error'),
+        userFacingAlertMessage(e, language, tcx('common_try_again')),
       );
     } finally {
       setSavingNickname(false);
@@ -671,11 +672,11 @@ export default function MyProfileScreen() {
       setProfile((prev) => prev ? { ...prev, bio: trimmed } : prev);
       setEditBio(trimmed);
       try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {}
-      Alert.alert(tr('Listo', 'Done'), tr('Bio actualizada.', 'Bio updated.'));
+      Alert.alert(tcx('common_done'), tcx('profile_bio_updated'));
     } catch (e: any) {
       Alert.alert(
-        tr('Error', 'Error'),
-        userFacingAlertMessage(e, language, tr('No se pudo guardar.', 'Could not save.')),
+        tcx('common_error'),
+        userFacingAlertMessage(e, language, tcx('profile_save_failed')),
       );
     } finally {
       setSavingBio(false);
@@ -820,7 +821,7 @@ export default function MyProfileScreen() {
     return (
       <View style={[styles.loadingWrap, { backgroundColor: bg }]}>
         <MaterialCommunityIcons name="account-circle-outline" size={48} color={accent} />
-        <Text style={[styles.loadingText, { color: textSecondary }]}>{tr('Cargando perfil…', 'Loading profile…')}</Text>
+        <Text style={[styles.loadingText, { color: textSecondary }]}>{tcx('profile_loading')}</Text>
       </View>
     );
   }
@@ -841,10 +842,10 @@ export default function MyProfileScreen() {
         <LinearGradient colors={[...shell.tabShellGradient]} style={{ flex: 1 }}>
           {/* Header */}
           <View style={[styles.header, { borderBottomColor: border }]}>
-            <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={tr('Volver', 'Go back')}>
+            <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={tcx('scan_back')}>
               <MaterialCommunityIcons name="arrow-left" size={24} color={accent} />
             </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: textPrimary }]}>{tr('Mi Perfil', 'My Profile')}</Text>
+            <Text style={[styles.headerTitle, { color: textPrimary }]}>{tcx('profile_screen_title')}</Text>
             <View style={{ width: 24 }} />
           </View>
 
@@ -911,7 +912,7 @@ export default function MyProfileScreen() {
                 {profile?.partnerBadgeEligible ? (
                   <PartnerBadge
                     size={22}
-                    accessibilityLabel={tr('Socio oficial verificado', 'Verified official partner')}
+                    accessibilityLabel={tcx('profile_partner_badge_a11y')}
                   />
                 ) : null}
               </View>
@@ -925,7 +926,7 @@ export default function MyProfileScreen() {
                   ]}
                 >
                   <MaterialCommunityIcons name="check-decagram" size={14} color={shell.refreshAccent} />
-                  <Text style={[styles.verifiedText, { color: shell.refreshAccent }]}>{tr('Verificado', 'Verified')}</Text>
+                  <Text style={[styles.verifiedText, { color: shell.refreshAccent }]}>{tcx('vault_verified_label')}</Text>
                 </View>
               )}
             </View>
@@ -934,17 +935,17 @@ export default function MyProfileScreen() {
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
                 <Text style={[styles.statValue, { color: textPrimary }]}>{statsCards}</Text>
-                <Text style={[styles.statLabel, { color: textSecondary }]}>{tr('Tarjetas', 'Cards')}</Text>
+                <Text style={[styles.statLabel, { color: textSecondary }]}>{tcx('profile_stat_cards')}</Text>
               </View>
               <View style={[styles.statDivider, { backgroundColor: border }]} />
               <View style={styles.statItem}>
                 <Text style={[styles.statValue, { color: textPrimary }]}>{statsContacts}</Text>
-                <Text style={[styles.statLabel, { color: textSecondary }]}>{tr('Contactos', 'Contacts')}</Text>
+                <Text style={[styles.statLabel, { color: textSecondary }]}>{tcx('profile_stat_contacts')}</Text>
               </View>
               <View style={[styles.statDivider, { backgroundColor: border }]} />
               <View style={styles.statItem}>
                 <Text style={[styles.statValue, { color: textPrimary }]}>{creditsBalance}</Text>
-                <Text style={[styles.statLabel, { color: textSecondary }]}>{tr('Créditos CS', 'CS credits')}</Text>
+                <Text style={[styles.statLabel, { color: textSecondary }]}>{tcx('profile_stat_credits_cs')}</Text>
               </View>
               <View style={[styles.statDivider, { backgroundColor: border }]} />
               <View style={[styles.statItem, styles.statItemAirTime]}>
@@ -956,14 +957,14 @@ export default function MyProfileScreen() {
             <View style={[styles.card, { backgroundColor: card, borderColor: border }]}>
               <View style={styles.cardHeader}>
                 <MaterialCommunityIcons name="text-short" size={18} color={accent} />
-                <Text style={[styles.cardTitle, { color: textPrimary }]}>{tr('Bio', 'Bio')}</Text>
+                <Text style={[styles.cardTitle, { color: textPrimary }]}>{tcx('profile_bio_title')}</Text>
                 <Text style={[styles.bioCounter, { color: textSecondary }]}>{editBio.length}/150</Text>
               </View>
               <TextInput
                 style={[styles.bioInput, { backgroundColor: inputBg, color: textPrimary, borderColor: border }]}
                 value={editBio}
                 onChangeText={(t) => setEditBio(t.slice(0, 150))}
-                placeholder={tr('Cuéntale al mundo algo sobre ti…', 'Tell the world something about you…')}
+                placeholder={tcx('profile_bio_placeholder')}
                 placeholderTextColor={textSecondary}
                 multiline
                 maxLength={150}
@@ -976,7 +977,7 @@ export default function MyProfileScreen() {
                 disabled={savingBio}
                 activeOpacity={0.82}
               >
-                <Text style={[styles.saveBtnText, { color: shell.emptyCtaText }]}>{savingBio ? tr('Guardando…', 'Saving…') : tr('Guardar bio', 'Save bio')}</Text>
+                <Text style={[styles.saveBtnText, { color: shell.emptyCtaText }]}>{savingBio ? tcx('common_saving') : tcx('profile_save_bio')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -984,13 +985,13 @@ export default function MyProfileScreen() {
             <View style={[styles.card, { backgroundColor: card, borderColor: border }]}>
               <View style={styles.cardHeader}>
                 <MaterialCommunityIcons name="account-edit-outline" size={18} color={accent} />
-                <Text style={[styles.cardTitle, { color: textPrimary }]}>{tr('Nombre completo', 'Full name')}</Text>
+                <Text style={[styles.cardTitle, { color: textPrimary }]}>{tcx('profile_full_name_title')}</Text>
               </View>
               <TextInput
                 style={[styles.input, { backgroundColor: inputBg, color: textPrimary, borderColor: border }]}
                 value={editName}
                 onChangeText={setEditName}
-                placeholder={tr('Tu nombre completo', 'Your full name')}
+                placeholder={tcx('profile_full_name_placeholder')}
                 placeholderTextColor={textSecondary}
                 returnKeyType="done"
                 onSubmitEditing={Keyboard.dismiss}
@@ -1001,7 +1002,7 @@ export default function MyProfileScreen() {
                 disabled={savingName}
                 activeOpacity={0.82}
               >
-                <Text style={[styles.saveBtnText, { color: shell.emptyCtaText }]}>{savingName ? tr('Guardando…', 'Saving…') : tr('Guardar nombre', 'Save name')}</Text>
+                <Text style={[styles.saveBtnText, { color: shell.emptyCtaText }]}>{savingName ? tcx('common_saving') : tcx('profile_save_name')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -1009,7 +1010,7 @@ export default function MyProfileScreen() {
             <View style={[styles.card, { backgroundColor: card, borderColor: border }]}>
               <View style={styles.cardHeader}>
                 <MaterialCommunityIcons name="at" size={18} color={accent} />
-                <Text style={[styles.cardTitle, { color: textPrimary }]}>{tr('Nickname único', 'Unique nickname')}</Text>
+                <Text style={[styles.cardTitle, { color: textPrimary }]}>{tcx('profile_nickname_title')}</Text>
                 {nicknameLocked && (
                   <View
                     style={[
@@ -1018,7 +1019,7 @@ export default function MyProfileScreen() {
                     ]}
                   >
                     <MaterialCommunityIcons name="lock-clock" size={12} color={shell.danger} />
-                    <Text style={[styles.lockChipText, { color: shell.danger }]}>{tr('Bloqueado', 'Locked')}</Text>
+                    <Text style={[styles.lockChipText, { color: shell.danger }]}>{tcx('profile_nickname_locked')}</Text>
                   </View>
                 )}
               </View>
@@ -1026,7 +1027,7 @@ export default function MyProfileScreen() {
                 style={[styles.input, { backgroundColor: inputBg, color: textPrimary, borderColor: border, opacity: nicknameLocked ? 0.5 : 1 }]}
                 value={editNickname}
                 onChangeText={setEditNickname}
-                placeholder={tr('tu_nickname', 'your_nickname')}
+                placeholder={tcx('profile_nickname_placeholder')}
                 placeholderTextColor={textSecondary}
                 autoCapitalize="none"
                 returnKeyType="done"
@@ -1035,11 +1036,11 @@ export default function MyProfileScreen() {
               />
               {nicknameLocked && unlock ? (
                 <Text style={[styles.hintText, { color: shell.danger }]}>
-                  {tr(`Disponible el ${formatDate(unlock)}`, `Available on ${formatDate(unlock)}`)}
+                  {tcx('profile_nickname_available_on', { date: formatDate(unlock) })}
                 </Text>
               ) : (
                 <Text style={[styles.hintText, { color: textSecondary }]}>
-                  {tr(`Cambio permitido cada ${NICKNAME_COOLDOWN_DAYS} días. Solo letras, números, guión, punto.`, `Changes allowed every ${NICKNAME_COOLDOWN_DAYS} days. Letters, numbers, dash, dot only.`)}
+                  {tcx('profile_nickname_cooldown_hint', { days: String(NICKNAME_COOLDOWN_DAYS) })}
                 </Text>
               )}
               <TouchableOpacity
@@ -1048,7 +1049,7 @@ export default function MyProfileScreen() {
                 disabled={savingNickname || nicknameLocked}
                 activeOpacity={0.82}
               >
-                <Text style={[styles.saveBtnText, { color: shell.emptyCtaText }]}>{savingNickname ? tr('Guardando…', 'Saving…') : tr('Guardar nickname', 'Save nickname')}</Text>
+                <Text style={[styles.saveBtnText, { color: shell.emptyCtaText }]}>{savingNickname ? tcx('common_saving') : tcx('profile_save_nickname')}</Text>
               </TouchableOpacity>
             </View>
 

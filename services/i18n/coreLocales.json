@@ -407,6 +407,598 @@
     "fr": "Noter",
     "de": "Bewerten"
   },
+  "ghost_open_settings": {
+    "es": "Abrir ajustes",
+    "en": "Open Settings",
+    "it": "Apri impostazioni",
+    "pt": "Abrir configurações",
+    "fr": "Ouvrir les réglages",
+    "de": "Einstellungen öffnen"
+  },
+  "ghost_got_it": {
+    "es": "Entendido",
+    "en": "Got it",
+    "it": "Ok",
+    "pt": "Entendi",
+    "fr": "Compris",
+    "de": "Verstanden"
+  },
+  "ghost_a11y_minimize_call": {
+    "es": "Minimizar llamada",
+    "en": "Minimize call",
+    "it": "Riduci chiamata",
+    "pt": "Minimizar chamada",
+    "fr": "Réduire l’appel",
+    "de": "Anruf minimieren"
+  },
+  "ghost_a11y_return_to_call": {
+    "es": "Volver a la llamada",
+    "en": "Return to call",
+    "it": "Torna alla chiamada",
+    "pt": "Voltar à chamada",
+    "fr": "Revenir à l’appel",
+    "de": "Zum Anruf zurück"
+  },
+  "ghost_airtime_session": {
+    "es": "AirTime (sesión): máximo {{capMinutes}} min · ~{{remain}} restantes",
+    "en": "AirTime (session): {{capMinutes}} min max · ~{{remain}} left",
+    "it": "AirTime (sessione): max {{capMinutes}} min · ~{{remain}} rimanenti",
+    "pt": "AirTime (sessão): máx. {{capMinutes}} min · ~{{remain}} restantes",
+    "fr": "AirTime (session) : max {{capMinutes}} min · ~{{remain}} restants",
+    "de": "AirTime (Sitzung): max. {{capMinutes}} Min. · ~{{remain}} übrig"
+  },
+  "ghost_airtime_top_bar": {
+    "es": "AirTime · ~{{remain}} máx.",
+    "en": "AirTime · ~{{remain}} max.",
+    "it": "AirTime · ~{{remain}} max",
+    "pt": "AirTime · ~{{remain}} máx.",
+    "fr": "AirTime · ~{{remain}} max.",
+    "de": "AirTime · ~{{remain}} max."
+  },
+  "ghost_privacy_total": {
+    "es": "Privacidad total",
+    "en": "Total Privacy",
+    "it": "Privacy totale",
+    "pt": "Privacidade total",
+    "fr": "Confidentialité totale",
+    "de": "Volle Privatsphäre"
+  },
+  "ghost_voice_call": {
+    "es": "Llamada de voz",
+    "en": "Voice Call",
+    "it": "Chiamata vocale",
+    "pt": "Chamada de voz",
+    "fr": "Appel vocal",
+    "de": "Sprachanruf"
+  },
+  "ghost_facecall": {
+    "es": "FaceCall",
+    "en": "FaceCall",
+    "it": "FaceCall",
+    "pt": "FaceCall",
+    "fr": "FaceCall",
+    "de": "FaceCall"
+  },
+  "ghost_exclusive_link": {
+    "es": "Enlace exclusivo",
+    "en": "Exclusive Link",
+    "it": "Link esclusivo",
+    "pt": "Link exclusivo",
+    "fr": "Lien exclusif",
+    "de": "Exklusiver Link"
+  },
+  "ghost_calling": {
+    "es": "Llamando...",
+    "en": "Calling...",
+    "it": "Chiamata in corso...",
+    "pt": "Chamando...",
+    "fr": "Appel en cours...",
+    "de": "Wird angerufen..."
+  },
+  "ghost_on_call": {
+    "es": "En llamada",
+    "en": "On call",
+    "it": "In chiamata",
+    "pt": "Em chamada",
+    "fr": "En communication",
+    "de": "Im Gespräch"
+  },
+  "ghost_mute": {
+    "es": "Silencio",
+    "en": "Mute",
+    "it": "Silenzia",
+    "pt": "Silenciar",
+    "fr": "Couper le son",
+    "de": "Stumm"
+  },
+  "ghost_speaker": {
+    "es": "Altavoz",
+    "en": "Speaker",
+    "it": "Altoparlante",
+    "pt": "Alto-falante",
+    "fr": "Haut-parleur",
+    "de": "Lautsprecher"
+  },
+  "ghost_camera": {
+    "es": "Cámara",
+    "en": "Camera",
+    "it": "Fotocamera",
+    "pt": "Câmera",
+    "fr": "Caméra",
+    "de": "Kamera"
+  },
+  "ghost_flip": {
+    "es": "Voltear",
+    "en": "Flip",
+    "it": "Ruota",
+    "pt": "Girar",
+    "fr": "Pivoter",
+    "de": "Wechseln"
+  },
+  "ghost_end_call": {
+    "es": "Colgar",
+    "en": "End Call",
+    "it": "Riaggancia",
+    "pt": "Encerrar",
+    "fr": "Raccrocher",
+    "de": "Auflegen"
+  },
+  "ghost_incoming_video_call": {
+    "es": "Videollamada Entrante...",
+    "en": "Incoming Video Call...",
+    "it": "Videochiamata in arrivo...",
+    "pt": "Videochamada recebida...",
+    "fr": "Appel vidéo entrant...",
+    "de": "Eingehender Videoanruf..."
+  },
+  "ghost_incoming_call": {
+    "es": "Llamada Entrante...",
+    "en": "Incoming Call...",
+    "it": "Chiamata in arrivo...",
+    "pt": "Chamada recebida...",
+    "fr": "Appel entrant...",
+    "de": "Eingehender Anruf..."
+  },
+  "ghost_accept": {
+    "es": "ACEPTAR",
+    "en": "ACCEPT",
+    "it": "ACCETTA",
+    "pt": "ACEITAR",
+    "fr": "ACCEPTER",
+    "de": "ANNEHMEN"
+  },
+  "ghost_decline": {
+    "es": "RECHAZAR",
+    "en": "DECLINE",
+    "it": "RIFIUTA",
+    "pt": "RECUSAR",
+    "fr": "REFUSER",
+    "de": "ABLEHNEN"
+  },
+  "ghost_from_your_card": {
+    "es": "Desde tu tarjeta",
+    "en": "From your card",
+    "it": "Dalla tua carta",
+    "pt": "Do seu cartão",
+    "fr": "Depuis votre carte",
+    "de": "Von Ihrer Karte"
+  },
+  "ghost_waiting_video": {
+    "es": "Esperando video...",
+    "en": "Waiting for video...",
+    "it": "In attesa del video...",
+    "pt": "Aguardando vídeo...",
+    "fr": "En attente de la vidéo...",
+    "de": "Warte auf Video..."
+  },
+  "ghost_camera_off": {
+    "es": "Cámara apagada",
+    "en": "Camera off",
+    "it": "Camera spenta",
+    "pt": "Câmera desligada",
+    "fr": "Caméra désactivée",
+    "de": "Kamera aus"
+  },
+  "ghost_ended_declined": {
+    "es": "Llamada rechazada",
+    "en": "Call declined",
+    "it": "Chiamata rifiutata",
+    "pt": "Chamada recusada",
+    "fr": "Appel refusé",
+    "de": "Anruf abgelehnt"
+  },
+  "ghost_ended_card_muted": {
+    "es": "Tarjeta silenciada — no se puede llamar",
+    "en": "Card muted — cannot call",
+    "it": "Carta silenziata — impossibile chiamare",
+    "pt": "Cartão silenciado — não é possível ligar",
+    "fr": "Carte en silence — impossible d’appeler",
+    "de": "Karte stumm — Anruf nicht möglich"
+  },
+  "ghost_ended_airtime": {
+    "es": "Saldo de AirTime agotado. Recarga en tu Dashboard.",
+    "en": "AirTime balance depleted. Top up from your Dashboard.",
+    "it": "Saldo AirTime esaurito. Ricarica dal Dashboard.",
+    "pt": "Saldo de AirTime esgotado. Recarregue no Dashboard.",
+    "fr": "Solde AirTime épuisé. Rechargez depuis votre tableau de bord.",
+    "de": "AirTime-Guthaben aufgebraucht. Im Dashboard aufladen."
+  },
+  "ghost_ended_error": {
+    "es": "Error de conexión",
+    "en": "Connection error",
+    "it": "Errore di connessione",
+    "pt": "Erro de conexão",
+    "fr": "Erreur de connexion",
+    "de": "Verbindungsfehler"
+  },
+  "ghost_ended_default": {
+    "es": "Llamada finalizada",
+    "en": "Call ended",
+    "it": "Chiamata terminata",
+    "pt": "Chamada encerrada",
+    "fr": "Appel terminé",
+    "de": "Anruf beendet"
+  },
+  "dull_pdf_title": {
+    "es": "📄 Documento bloqueado",
+    "en": "📄 Document locked",
+    "it": "📄 Documento bloccato",
+    "pt": "📄 Documento bloqueado",
+    "fr": "📄 Document verrouillé",
+    "de": "📄 Dokument gesperrt"
+  },
+  "dull_pdf_subtitle": {
+    "es": "Dull Mode activo por anualidad pendiente",
+    "en": "Dull Mode: subscription pending",
+    "it": "Dull Mode attivo: abbonamento in sospeso",
+    "pt": "Dull Mode ativo: assinatura pendente",
+    "fr": "Mode Dull actif : abonnement en attente",
+    "de": "Dull Mode: Abo ausstehend"
+  },
+  "dull_pdf_description": {
+    "es": "Activa o renueva la anualidad de la tarjeta para recuperar archivos, diseño completo y funciones visuales.",
+    "en": "Activate or renew your business card subscription to restore files, full design, and visual features.",
+    "it": "Attiva o rinnova l’abbonamento della carta per ripristinare file, design completo e funzioni visive.",
+    "pt": "Ative ou renove a assinatura do cartão para recuperar arquivos, design completo e recursos visuais.",
+    "fr": "Activez ou renouvelez l’abonnement pour restaurer les fichiers, le design complet et les fonctions visuelles.",
+    "de": "Aktivieren oder verlängern Sie Ihr Abo, um Dateien, vollständiges Design und visuelle Funktionen wiederherzustellen."
+  },
+  "dull_extra_title": {
+    "es": "🎯 Tarjeta en Dull Mode",
+    "en": "🎯 Card in Dull Mode",
+    "it": "🎯 Carta in Dull Mode",
+    "pt": "🎯 Cartão em Dull Mode",
+    "fr": "🎯 Carte en mode Dull",
+    "de": "🎯 Karte im Dull Mode"
+  },
+  "dull_extra_subtitle": {
+    "es": "La anualidad de esta tarjeta de negocio expiró",
+    "en": "This business card subscription expired",
+    "it": "L’abbonamento annuale di questa carta business è scaduto",
+    "pt": "A anuidade deste cartão empresarial expirou",
+    "fr": "L’abonnement annuel de cette carte business a expiré",
+    "de": "Das Jahresabo dieser Business-Karte ist abgelaufen"
+  },
+  "dull_extra_description": {
+    "es": "El QR permanente sigue funcionando, pero el estilo queda en escala de grises hasta renovar la anualidad.",
+    "en": "Your permanent QR still works, but the style stays grayscale until you renew.",
+    "it": "Il QR permanente funziona ancora, ma lo stile resta in scala di grigi fino al rinnovo.",
+    "pt": "O QR permanente continua ativo, mas o estilo fica em cinza até renovar.",
+    "fr": "Le QR permanent fonctionne encore, mais le style reste en gris jusqu’au renouvellement.",
+    "de": "Der permanente QR funktioniert weiter, der Stil bleibt grau, bis Sie verlängern."
+  },
+  "dull_feature_title": {
+    "es": "⭐ Función en pausa visual",
+    "en": "⭐ Visual feature paused",
+    "it": "⭐ Funzione visiva in pausa",
+    "pt": "⭐ Recurso visual pausado",
+    "fr": "⭐ Fonction visuelle en pause",
+    "de": "⭐ Visuelle Funktion pausiert"
+  },
+  "dull_feature_subtitle": {
+    "es": "{{name}} depende de anualidad activa",
+    "en": "{{name}} requires an active subscription",
+    "it": "{{name}} richiede un abbonamento attivo",
+    "pt": "{{name}} exige assinatura ativa",
+    "fr": "{{name}} nécessite un abonnement actif",
+    "de": "{{name}} erfordert ein aktives Abo"
+  },
+  "dull_feature_description": {
+    "es": "Renueva la tarjeta de negocio para salir de Dull Mode y restaurar efectos visuales.",
+    "en": "Renew your business card to exit Dull Mode and restore visual effects.",
+    "it": "Rinnova la carta business per uscire dal Dull Mode e ripristinare gli effetti visivi.",
+    "pt": "Renove o cartão empresarial para sair do Dull Mode e restaurar os efeitos visuais.",
+    "fr": "Renouvelez votre carte business pour quitter le mode Dull et restaurer les effets visuels.",
+    "de": "Verlängern Sie Ihre Business-Karte, um den Dull Mode zu beenden und Effekte wiederherzustellen."
+  },
+  "dull_icon_title": {
+    "es": "🎨 Estilo desactivado",
+    "en": "🎨 Style disabled",
+    "it": "🎨 Stile disattivato",
+    "pt": "🎨 Estilo desativado",
+    "fr": "🎨 Style désactivé",
+    "de": "🎨 Stil deaktiviert"
+  },
+  "dull_icon_subtitle": {
+    "es": "{{name}} está en Dull Mode",
+    "en": "{{name}} is in Dull Mode",
+    "it": "{{name}} è in Dull Mode",
+    "pt": "{{name}} está no Dull Mode",
+    "fr": "{{name}} est en mode Dull",
+    "de": "{{name}} ist im Dull Mode"
+  },
+  "dull_icon_description": {
+    "es": "Con anualidad vencida, la tarjeta se muestra minimalista en gris y sin efectos hasta renovar.",
+    "en": "With an expired subscription, the card shows in minimal gray with no effects until you renew.",
+    "it": "Con abbonamento scaduto, la carta appare minimalista in grigio e senza effetti fino al rinnovo.",
+    "pt": "Com assinatura vencida, o cartão fica minimalista em cinza e sem efeitos até renovar.",
+    "fr": "Avec abonnement expiré, la carte apparaît sobre en gris sans effets jusqu’au renouvellement.",
+    "de": "Bei abgelaufenem Abo erscheint die Karte schlicht in Grau ohne Effekte, bis Sie verlängern."
+  },
+  "dull_feature_name_default": {
+    "es": "Esta función",
+    "en": "This feature",
+    "it": "Questa funzione",
+    "pt": "Este recurso",
+    "fr": "Cette fonction",
+    "de": "Diese Funktion"
+  },
+  "dull_icon_name_default": {
+    "es": "Este recurso",
+    "en": "This item",
+    "it": "Questo elemento",
+    "pt": "Este item",
+    "fr": "Cet élément",
+    "de": "Dieses Element"
+  },
+  "dull_renew_subscription": {
+    "es": "Renovar anualidad",
+    "en": "Renew subscription",
+    "it": "Rinnova abbonamento",
+    "pt": "Renovar assinatura",
+    "fr": "Renouveler l’abonnement",
+    "de": "Abonnement verlängern"
+  },
+  "dull_no_thanks": {
+    "es": "No, gracias",
+    "en": "No thanks",
+    "it": "No, grazie",
+    "pt": "Não, obrigado",
+    "fr": "Non merci",
+    "de": "Nein danke"
+  },
+  "dull_footer_permanent_qr": {
+    "es": "QR permanente activo · Estilo completo al renovar",
+    "en": "Permanent QR stays active · Full style when you renew",
+    "it": "QR permanente attivo · Stile completo al rinnovo",
+    "pt": "QR permanente ativo · Estilo completo ao renovar",
+    "fr": "QR permanent actif · Style complet au renouvellement",
+    "de": "Permanenter QR aktiv · Voller Stil nach Verlängerung"
+  },
+  "misc_language_sheet_title": {
+    "es": "Idioma",
+    "en": "Language",
+    "it": "Lingua",
+    "pt": "Idioma",
+    "fr": "Langue",
+    "de": "Sprache"
+  },
+  "misc_network_offline_banner": {
+    "es": "Sin conexión — Modo offline",
+    "en": "No connection — Offline mode",
+    "it": "Nessuna connessione — Modalità offline",
+    "pt": "Sem conexão — Modo offline",
+    "fr": "Pas de connexion — Mode hors ligne",
+    "de": "Keine Verbindung — Offline-Modus"
+  },
+  "misc_lock_bunker_biometric_prompt": {
+    "es": "Búnker Card-Social: Identidad requerida",
+    "en": "Card-Social Bunker: Identity required",
+    "it": "Búnker Card-Social: identità richiesta",
+    "pt": "Búnker Card-Social: identidade necessária",
+    "fr": "Búnker Card-Social : identité requise",
+    "de": "Card-Social-Bunker: Identität erforderlich"
+  },
+  "misc_lock_use_passcode": {
+    "es": "Usar código",
+    "en": "Use passcode",
+    "it": "Usa codice",
+    "pt": "Usar código",
+    "fr": "Utiliser le code",
+    "de": "Code verwenden"
+  },
+  "misc_lock_bunker_title": {
+    "es": "Búnker Card-Social",
+    "en": "Card-Social Bunker",
+    "it": "Búnker Card-Social",
+    "pt": "Búnker Card-Social",
+    "fr": "Búnker Card-Social",
+    "de": "Card-Social-Bunker"
+  },
+  "misc_lock_unlock_bunker": {
+    "es": "Desbloquear Búnker",
+    "en": "Unlock Bunker",
+    "it": "Sblocca Búnker",
+    "pt": "Desbloquear Búnker",
+    "fr": "Déverrouiller le Búnker",
+    "de": "Bunker entsperren"
+  },
+  "misc_contact_save_kicker_app": {
+    "es": "En Card-Social",
+    "en": "In Card-Social",
+    "it": "In Card-Social",
+    "pt": "No Card-Social",
+    "fr": "Dans Card-Social",
+    "de": "In Card-Social"
+  },
+  "misc_contact_save_subtitle_app": {
+    "es": "Te agregaron a su app (Búnker)",
+    "en": "Added you in the app (Bunker)",
+    "it": "Ti hanno aggiunto nell’app (Bunker)",
+    "pt": "Adicionaram você no app (Búnker)",
+    "fr": "Vous ont ajouté dans l’app (Bunker)",
+    "de": "Haben dich in der App (Bunker) hinzugefügt"
+  },
+  "misc_contact_save_kicker_phone": {
+    "es": "A su teléfono",
+    "en": "To their phone",
+    "it": "Sul loro telefono",
+    "pt": "No telefone",
+    "fr": "Sur leur téléphone",
+    "de": "Auf ihr Telefon"
+  },
+  "misc_contact_save_subtitle_phone": {
+    "es": "Descargaron tu contacto (.vcf)",
+    "en": "Downloaded your contact (.vcf)",
+    "it": "Hanno scaricato il tuo contatto (.vcf)",
+    "pt": "Baixaram seu contato (.vcf)",
+    "fr": "Ont téléchargé votre contact (.vcf)",
+    "de": "Haben deinen Kontakt (.vcf) heruntergeladen"
+  },
+  "voip_bluetooth_disconnected_hint": {
+    "es": "Tu auricular Bluetooth se desconectó; el audio sigue por el altavoz del teléfono. Activa Bluetooth y vuelve a elegir tus AirPods (o tu dispositivo) en el centro de control si lo prefieres.",
+    "en": "Your Bluetooth headset disconnected; audio is playing through the phone speaker. Turn Bluetooth on and pick your AirPods again from Control Center if you prefer.",
+    "it": "L’auricolare Bluetooth si è disconnesso; l’audio esce dall’altoparlante. Riattiva Bluetooth e riseleziona AirPods o il dispositivo dal Centro di controllo.",
+    "pt": "O fone Bluetooth desconectou; o áudio sai pelo alto-falante. Ative o Bluetooth e escolha de novo seus AirPods (ou dispositivo) no Centro de Controle.",
+    "fr": "Votre casque Bluetooth s’est déconnecté ; le son sort du haut-parleur. Réactivez le Bluetooth et choisissez à nouveau vos AirPods (ou appareil) dans le centre de contrôle.",
+    "de": "Bluetooth-Headset getrennt; Ton kommt aus dem Lautsprecher. Bluetooth aktivieren und AirPods (oder Gerät) wieder im Kontrollzentrum wählen."
+  },
+  "voip_permissions_required_title": {
+    "es": "Permisos necesarios",
+    "en": "Permissions required",
+    "it": "Permessi necessari",
+    "pt": "Permissões necessárias",
+    "fr": "Autorisations requises",
+    "de": "Berechtigungen erforderlich"
+  },
+  "voip_enable_mic_camera_outgoing": {
+    "es": "Activa el micrófono y la cámara para llamar.",
+    "en": "Enable the microphone and camera to place a call.",
+    "it": "Attiva microfono e fotocamera per chiamare.",
+    "pt": "Ative microfone e câmera para ligar.",
+    "fr": "Activez le micro et la caméra pour appeler.",
+    "de": "Mikrofon und Kamera aktivieren, um anzurufen."
+  },
+  "voip_enable_mic_outgoing": {
+    "es": "Activa el micrófono para llamar.",
+    "en": "Enable the microphone to place a call.",
+    "it": "Attiva il microfono per chiamare.",
+    "pt": "Ative o microfone para ligar.",
+    "fr": "Activez le micro pour appeler.",
+    "de": "Mikrofon aktivieren, um anzurufen."
+  },
+  "voip_enable_mic_camera_incoming": {
+    "es": "Activa el micrófono y la cámara para unirte a la videollamada.",
+    "en": "Enable the microphone and camera to join the video call.",
+    "it": "Attiva microfono e fotocamera per entrare nella videochiamata.",
+    "pt": "Ative microfone e câmera para entrar na videochamada.",
+    "fr": "Activez le micro et la caméra pour rejoindre l’appel vidéo.",
+    "de": "Mikrofon und Kamera aktivieren, um dem Videoanruf beizutreten."
+  },
+  "voip_enable_mic_incoming": {
+    "es": "Activa el micrófono para contestar.",
+    "en": "Enable the microphone to answer the call.",
+    "it": "Attiva il microfono per rispondere.",
+    "pt": "Ative o microfone para atender.",
+    "fr": "Activez le micro pour répondre.",
+    "de": "Mikrofon aktivieren, um anzunehmen."
+  },
+  "voip_camera_consent_title": {
+    "es": "Videollamada",
+    "en": "Video call",
+    "it": "Videochiamata",
+    "pt": "Videochamada",
+    "fr": "Appel vidéo",
+    "de": "Videoanruf"
+  },
+  "voip_camera_consent_body": {
+    "es": "Tu contacto quiere activar la cámara. ¿Aceptas?",
+    "en": "Your contact wants to turn on the camera. Do you allow it?",
+    "it": "Il tuo contatto vuole attivare la fotocamera. Accetti?",
+    "pt": "Seu contato quer ligar a câmera. Você permite?",
+    "fr": "Votre contact veut activer la caméra. Vous autorisez ?",
+    "de": "Dein Kontakt möchte die Kamera einschalten. Erlaubst du das?"
+  },
+  "voip_camera_deny": {
+    "es": "Denegar",
+    "en": "Deny",
+    "it": "Rifiuta",
+    "pt": "Negar",
+    "fr": "Refuser",
+    "de": "Ablehnen"
+  },
+  "voip_camera_allow": {
+    "es": "Aceptar",
+    "en": "Allow",
+    "it": "Consenti",
+    "pt": "Permitir",
+    "fr": "Autoriser",
+    "de": "Zulassen"
+  },
+  "voip_camera_permission_short_title": {
+    "es": "Permisos",
+    "en": "Permissions",
+    "it": "Permessi",
+    "pt": "Permissões",
+    "fr": "Autorisations",
+    "de": "Berechtigungen"
+  },
+  "voip_camera_permission_required": {
+    "es": "Se necesita permiso de cámara.",
+    "en": "Camera permission is required.",
+    "it": "È necessario il permesso della fotocamera.",
+    "pt": "É necessária permissão da câmera.",
+    "fr": "L’autorisation caméra est requise.",
+    "de": "Kamerazugriff ist erforderlich."
+  },
+  "voip_camera_peer_declined_title": {
+    "es": "Cámara",
+    "en": "Camera",
+    "it": "Fotocamera",
+    "pt": "Câmera",
+    "fr": "Caméra",
+    "de": "Kamera"
+  },
+  "voip_camera_peer_declined_body": {
+    "es": "El contacto rechazó la videollamada.",
+    "en": "The contact declined video.",
+    "it": "Il contatto ha rifiutato il video.",
+    "pt": "O contato recusou o vídeo.",
+    "fr": "Votre contact a refusé la vidéo.",
+    "de": "Der Kontakt hat Video abgelehnt."
+  },
+  "voip_camera_wait_connect_title": {
+    "es": "Llamada",
+    "en": "Call",
+    "it": "Chiamata",
+    "pt": "Chamada",
+    "fr": "Appel",
+    "de": "Anruf"
+  },
+  "voip_camera_wait_connect_body": {
+    "es": "Espera a que la llamada esté conectada.",
+    "en": "Wait until the call is connected.",
+    "it": "Attendi che la chiamata sia connessa.",
+    "pt": "Aguarde a chamada conectar.",
+    "fr": "Attendez que l’appel soit connecté.",
+    "de": "Warte, bis der Anruf verbunden ist."
+  },
+  "voip_camera_waiting_title": {
+    "es": "Videollamada",
+    "en": "Video",
+    "it": "Videochiamata",
+    "pt": "Vídeo",
+    "fr": "Vidéo",
+    "de": "Video"
+  },
+  "voip_camera_waiting_body": {
+    "es": "Esperando respuesta del contacto…",
+    "en": "Waiting for your contact…",
+    "it": "In attesa del contatto…",
+    "pt": "Aguardando o contato…",
+    "fr": "En attente de votre contact…",
+    "de": "Warte auf den Kontakt…"
+  },
   "biometric_reason_cards_access": {
     "es": "acceso a Business Cards",
     "en": "access to Business Cards",
@@ -446,6 +1038,46 @@
     "pt": "ver cartão pela busca",
     "fr": "voir la carte depuis la recherche",
     "de": "Karte aus der Suche anzeigen"
+  },
+  "biometric_verify_identity_continue": {
+    "es": "Verifica tu identidad para continuar",
+    "en": "Verify your identity to continue",
+    "it": "Verifica la tua identità per continuare",
+    "pt": "Verifique sua identidade para continuar",
+    "fr": "Vérifiez votre identité pour continuer",
+    "de": "Bestätigen Sie Ihre Identität, um fortzufahren"
+  },
+  "biometric_action_default": {
+    "es": "acceso",
+    "en": "access",
+    "it": "accesso",
+    "pt": "acesso",
+    "fr": "accès",
+    "de": "Zugriff"
+  },
+  "biometric_prompt_authorize_access": {
+    "es": "Autoriza acceso a {{action}} en Card-Social",
+    "en": "Authorize access to {{action}} in Card-Social",
+    "it": "Autorizza accesso a {{action}} in Card-Social",
+    "pt": "Autorize acesso a {{action}} no Card-Social",
+    "fr": "Autorisez l’accès à {{action}} dans Card-Social",
+    "de": "Zugriff auf {{action}} in Card-Social autorisieren"
+  },
+  "biometric_access_denied_title": {
+    "es": "Acceso denegado",
+    "en": "Access denied",
+    "it": "Accesso negato",
+    "pt": "Acesso negado",
+    "fr": "Accès refusé",
+    "de": "Zugriff verweigert"
+  },
+  "biometric_access_denied_body": {
+    "es": "No se pudo verificar tu identidad para {{action}}. Usa Face ID, huella o PIN/contraseña del dispositivo.",
+    "en": "We could not verify your identity for {{action}}. Use Face ID, fingerprint, or your device PIN or password.",
+    "it": "Impossibile verificare la tua identità per {{action}}. Usa Face ID, impronta o PIN/password del dispositivo.",
+    "pt": "Não foi possível verificar sua identidade para {{action}}. Use Face ID, biometria ou PIN/senha do aparelho.",
+    "fr": "Impossible de vérifier votre identité pour {{action}}. Utilisez Face ID, empreinte ou code/PIN.",
+    "de": "Identität für {{action}} nicht bestätigt. Face ID, Fingerabdruck oder Geräte-PIN/-Passwort verwenden."
   },
   "qr_detected": {
     "es": "QR detectado",
@@ -494,6 +1126,174 @@
     "pt": "Copiar",
     "fr": "Copier",
     "de": "Kopieren"
+  },
+  "scan_alert_ok": {
+    "es": "Aceptar",
+    "en": "OK",
+    "it": "OK",
+    "pt": "OK",
+    "fr": "OK",
+    "de": "OK"
+  },
+  "scan_self_scan_title": {
+    "es": "¡Un momento!",
+    "en": "Hey there!",
+    "it": "Un momento!",
+    "pt": "Um momento!",
+    "fr": "Un instant !",
+    "de": "Moment!"
+  },
+  "scan_self_scan_own_card_body": {
+    "es": "Oye — esa tarjeta eres tú. No hace falta escanearte a ti mismo; ya te tenemos en la base de datos.",
+    "en": "Hey — that's your own card. No need to scan yourself; we already have you on file.",
+    "it": "Quella carta sei tu. Non serve scansionarti: ti abbiamo già nei nostri archivi.",
+    "pt": "Esse cartão é você. Não precisa se escanear; já temos você cadastrado.",
+    "fr": "Cette carte, c’est vous. Inutile de vous scanner : nous vous avons déjà.",
+    "de": "Das ist deine eigene Karte. Du musst dich nicht selbst scannen — wir haben dich bereits."
+  },
+  "scan_qr_unavailable_title": {
+    "es": "QR no disponible",
+    "en": "QR unavailable",
+    "it": "QR non disponibile",
+    "pt": "QR indisponível",
+    "fr": "QR indisponible",
+    "de": "QR nicht verfügbar"
+  },
+  "scan_token_expired_body": {
+    "es": "El token expiró o ya fue usado.",
+    "en": "The token expired or was already used.",
+    "it": "Il token è scaduto o è già stato usato.",
+    "pt": "O token expirou ou já foi usado.",
+    "fr": "Le jeton a expiré ou a déjà été utilisé.",
+    "de": "Das Token ist abgelaufen oder wurde bereits verwendet."
+  },
+  "scan_preview_load_failed": {
+    "es": "No se pudo cargar la vista previa.",
+    "en": "Could not load preview.",
+    "it": "Impossibile caricare l’anteprima.",
+    "pt": "Não foi possível carregar a pré-visualização.",
+    "fr": "Impossible de charger l’aperçu.",
+    "de": "Vorschau konnte nicht geladen werden."
+  },
+  "scan_network_error": {
+    "es": "Error de red.",
+    "en": "Network error.",
+    "it": "Errore di rete.",
+    "pt": "Erro de rede.",
+    "fr": "Erreur réseau.",
+    "de": "Netzwerkfehler."
+  },
+  "scan_could_not_scan_title": {
+    "es": "No se pudo escanear",
+    "en": "Could not scan",
+    "it": "Impossibile scansionare",
+    "pt": "Não foi possível escanear",
+    "fr": "Scan impossible",
+    "de": "Scannen nicht möglich"
+  },
+  "scan_link_expired_body": {
+    "es": "El enlace expiró o ya no es válido.",
+    "en": "This link expired or is no longer valid.",
+    "it": "Il link è scaduto o non è più valido.",
+    "pt": "O link expirou ou não é mais válido.",
+    "fr": "Le lien a expiré ou n’est plus valide.",
+    "de": "Der Link ist abgelaufen oder nicht mehr gültig."
+  },
+  "scan_invalid_qr_title": {
+    "es": "QR inválido",
+    "en": "Invalid QR",
+    "it": "QR non valido",
+    "pt": "QR inválido",
+    "fr": "QR invalide",
+    "de": "Ungültiges QR"
+  },
+  "scan_invalid_qr_body": {
+    "es": "Este QR no pertenece a Card-Social o está corrupto.",
+    "en": "This QR does not belong to Card-Social or is corrupted.",
+    "it": "Questo QR non appartiene a Card-Social o è corrotto.",
+    "pt": "Este QR não pertence ao Card-Social ou está corrompido.",
+    "fr": "Ce QR n’appartient pas à Card-Social ou est corrompu.",
+    "de": "Dieses QR gehört nicht zu Card-Social oder ist beschädigt."
+  },
+  "scan_dynamic_qr_expired_title": {
+    "es": "QR expirado",
+    "en": "QR expired",
+    "it": "QR scaduto",
+    "pt": "QR expirado",
+    "fr": "QR expiré",
+    "de": "QR abgelaufen"
+  },
+  "scan_dynamic_qr_expired_body": {
+    "es": "Este QR ya expiró. Pide al contacto generar uno nuevo.",
+    "en": "This QR has expired. Ask your contact to generate a new one.",
+    "it": "Questo QR è scaduto. Chiedi al contatto di generarne uno nuovo.",
+    "pt": "Este QR expirou. Peça ao contato para gerar um novo.",
+    "fr": "Ce QR a expiré. Demandez à votre contact d’en générer un nouveau.",
+    "de": "Dieses QR ist abgelaufen. Bitte deinen Kontakt, ein neues zu erstellen."
+  },
+  "scan_camera_permission_title": {
+    "es": "Permiso de cámara requerido",
+    "en": "Camera permission required",
+    "it": "Autorizzazione fotocamera necessaria",
+    "pt": "Permissão da câmera necessária",
+    "fr": "Autorisation caméra requise",
+    "de": "Kamerazugriff erforderlich"
+  },
+  "scan_camera_denied_body": {
+    "es": "La cámara está desactivada para Card-Social. Actívala en Ajustes del sistema.",
+    "en": "Camera is turned off for Card-Social. Enable it in system Settings.",
+    "it": "La fotocamera è disattivata per Card-Social. Abilitala nelle Impostazioni di sistema.",
+    "pt": "A câmera está desativada para o Card-Social. Ative nas configurações do sistema.",
+    "fr": "La caméra est désactivée pour Card-Social. Activez-la dans les réglages système.",
+    "de": "Die Kamera ist für Card-Social aus. Aktivieren Sie sie in den Systemeinstellungen."
+  },
+  "scan_camera_rationale_body": {
+    "es": "Necesitamos acceso para escanear tu nueva tarjeta.",
+    "en": "We need access to scan your new card.",
+    "it": "Serve l’accesso per scansionare la tua nuova carta.",
+    "pt": "Precisamos de acesso para escanear seu novo cartão.",
+    "fr": "Nous avons besoin d’accéder à la caméra pour scanner votre nouvelle carte.",
+    "de": "Wir brauchen Zugriff, um deine neue Karte zu scannen."
+  },
+  "scan_open_settings": {
+    "es": "Abrir ajustes",
+    "en": "Open Settings",
+    "it": "Apri impostazioni",
+    "pt": "Abrir ajustes",
+    "fr": "Ouvrir les réglages",
+    "de": "Einstellungen öffnen"
+  },
+  "scan_allow_camera": {
+    "es": "Permitir cámara",
+    "en": "Allow camera",
+    "it": "Consenti fotocamera",
+    "pt": "Permitir câmera",
+    "fr": "Autoriser la caméra",
+    "de": "Kamera erlauben"
+  },
+  "scan_back": {
+    "es": "Volver",
+    "en": "Back",
+    "it": "Indietro",
+    "pt": "Voltar",
+    "fr": "Retour",
+    "de": "Zurück"
+  },
+  "scan_overlay_title": {
+    "es": "Escanear Nueva Tarjeta",
+    "en": "Scan New Card",
+    "it": "Scansiona nuova carta",
+    "pt": "Escanear novo cartão",
+    "fr": "Scanner une nouvelle carte",
+    "de": "Neue Karte scannen"
+  },
+  "scan_overlay_subtitle": {
+    "es": "Apunta el QR dentro del marco",
+    "en": "Point the QR within the frame",
+    "it": "Inquadra il QR nel riquadro",
+    "pt": "Aponte o QR dentro da moldura",
+    "fr": "Visez le QR dans le cadre",
+    "de": "Halte den QR im Rahmen"
   },
   "receptor_close_a11y": {
     "es": "Cerrar",
@@ -1888,12 +2688,12 @@
     "de": "Pausieren"
   },
   "nfc_footnote_backend": {
-    "es": "Backend integrado: /api/nfc administra tarjetas y /n/{nfcCardId} resuelve con redirección temporal.",
-    "en": "Backend integrated: /api/nfc manages cards and /n/{nfcCardId} resolves with temporary redirects.",
-    "it": "Backend integrato: /api/nfc gestisce le carte e /n/{nfcCardId} risolve con redirect temporaneo.",
-    "pt": "Backend integrado: /api/nfc administra cartões e /n/{nfcCardId} resolve com redirecionamento temporário.",
-    "fr": "Backend intégré : /api/nfc gère les cartes et /n/{nfcCardId} résout avec redirection temporaire.",
-    "de": "Backend: /api/nfc verwaltet Karten, /n/{nfcCardId} mit temporärer Weiterleitung."
+    "es": "Backend integrado: /api/nfc administra tarjetas y la ruta /n/<ID> resuelve con redirección temporal.",
+    "en": "Backend integrated: /api/nfc manages cards and the /n/<ID> path resolves with temporary redirects.",
+    "it": "Backend integrato: /api/nfc gestisce le carte e il percorso /n/<ID> risolve con redirect temporaneo.",
+    "pt": "Backend integrado: /api/nfc administra cartões e o caminho /n/<ID> resolve com redirecionamento temporário.",
+    "fr": "Backend intégré : /api/nfc gère les cartes et le chemin /n/<ID> résout avec redirection temporaire.",
+    "de": "Backend: /api/nfc verwaltet Karten; der Pfad /n/<ID> leitet temporär weiter."
   },
   "nfc_modal_link_pin_instructions": {
     "es": "Pega el ID o la URL /n impresa en la tarjeta y escribe el PIN de activación.",
@@ -5318,5 +6118,1093 @@
     "pt": "Compartilhar no WhatsApp ou Telegram",
     "fr": "Partager sur WhatsApp ou Telegram",
     "de": "Per WhatsApp oder Telegram teilen"
+  },
+  "profile_load_failed": {
+    "es": "No se pudo cargar el perfil.",
+    "en": "Could not load profile.",
+    "it": "Impossibile caricare il profilo.",
+    "pt": "Não foi possível carregar o perfil.",
+    "fr": "Impossible de charger le profil.",
+    "de": "Profil konnte nicht geladen werden."
+  },
+  "profile_name_required": {
+    "es": "Nombre requerido",
+    "en": "Name required",
+    "it": "Nome richiesto",
+    "pt": "Nome obrigatório",
+    "fr": "Nom requis",
+    "de": "Name erforderlich"
+  },
+  "profile_name_empty": {
+    "es": "El nombre no puede estar vacío.",
+    "en": "Name cannot be empty.",
+    "it": "Il nome non può essere vuoto.",
+    "pt": "O nome não pode ficar vazio.",
+    "fr": "Le nom ne peut pas être vide.",
+    "de": "Der Name darf nicht leer sein."
+  },
+  "profile_notice": {
+    "es": "Aviso",
+    "en": "Notice",
+    "it": "Avviso",
+    "pt": "Aviso",
+    "fr": "Attention",
+    "de": "Hinweis"
+  },
+  "profile_no_changes": {
+    "es": "No hay cambios.",
+    "en": "No changes.",
+    "it": "Nessuna modifica.",
+    "pt": "Sem alterações.",
+    "fr": "Aucun changement.",
+    "de": "Keine Änderungen."
+  },
+  "profile_name_updated": {
+    "es": "Nombre actualizado",
+    "en": "Name updated",
+    "it": "Nome aggiornato",
+    "pt": "Nome atualizado",
+    "fr": "Nom mis à jour",
+    "de": "Name aktualisiert"
+  },
+  "profile_changes_saved": {
+    "es": "Cambios guardados.",
+    "en": "Changes saved.",
+    "it": "Modifiche salvate.",
+    "pt": "Alterações salvas.",
+    "fr": "Modifications enregistrées.",
+    "de": "Änderungen gespeichert."
+  },
+  "profile_nickname_required": {
+    "es": "Nickname requerido",
+    "en": "Nickname required",
+    "it": "Nickname richiesto",
+    "pt": "Apelido obrigatório",
+    "fr": "Pseudo requis",
+    "de": "Nickname erforderlich"
+  },
+  "profile_nickname_enter": {
+    "es": "Ingresa un nickname.",
+    "en": "Enter a nickname.",
+    "it": "Inserisci un nickname.",
+    "pt": "Digite um apelido.",
+    "fr": "Saisissez un pseudo.",
+    "de": "Bitte Nickname eingeben."
+  },
+  "profile_nickname_invalid": {
+    "es": "Nickname inválido",
+    "en": "Invalid nickname",
+    "it": "Nickname non valido",
+    "pt": "Apelido inválido",
+    "fr": "Pseudo invalide",
+    "de": "Ungültiger Nickname"
+  },
+  "profile_nickname_rules": {
+    "es": "Solo letras, números, punto, guion. Entre 3 y 24 caracteres.",
+    "en": "Letters, numbers, dot, dash only. 3–24 chars.",
+    "it": "Solo lettere, numeri, punto, trattino. Da 3 a 24 caratteri.",
+    "pt": "Apenas letras, números, ponto e hífen. Entre 3 e 24 caracteres.",
+    "fr": "Lettres, chiffres, point, tiret uniquement. 3 à 24 caractères.",
+    "de": "Nur Buchstaben, Ziffern, Punkt, Bindestrich. 3–24 Zeichen."
+  },
+  "profile_nickname_locked_title": {
+    "es": "Cambio bloqueado",
+    "en": "Change locked",
+    "it": "Modifica bloccata",
+    "pt": "Alteração bloqueada",
+    "fr": "Changement verrouillé",
+    "de": "Änderung gesperrt"
+  },
+  "profile_nickname_unlock_on": {
+    "es": "Podrás cambiar tu nickname el {{date}}.",
+    "en": "You can change your nickname on {{date}}.",
+    "it": "Potrai cambiare nickname il {{date}}.",
+    "pt": "Você poderá mudar o apelido em {{date}}.",
+    "fr": "Vous pourrez changer de pseudo le {{date}}.",
+    "de": "Du kannst deinen Nickname am {{date}} ändern."
+  },
+  "profile_nickname_available_on": {
+    "es": "Disponible el {{date}}",
+    "en": "Available on {{date}}",
+    "it": "Disponibile il {{date}}",
+    "pt": "Disponível em {{date}}",
+    "fr": "Disponible le {{date}}",
+    "de": "Verfügbar am {{date}}"
+  },
+  "profile_nickname_cooldown_hint": {
+    "es": "Cambio permitido cada {{days}} días. Solo letras, números, guión, punto.",
+    "en": "Changes allowed every {{days}} days. Letters, numbers, dash, dot only.",
+    "it": "Modifica consentita ogni {{days}} giorni. Solo lettere, numeri, trattino e punto.",
+    "pt": "Alteração permitida a cada {{days}} dias. Apenas letras, números, hífen e ponto.",
+    "fr": "Changement autorisé tous les {{days}} jours. Lettres, chiffres, tiret, point uniquement.",
+    "de": "Änderung alle {{days}} Tage erlaubt. Nur Buchstaben, Ziffern, Bindestrich, Punkt."
+  },
+  "profile_nickname_change_failed": {
+    "es": "No se pudo cambiar",
+    "en": "Could not change",
+    "it": "Impossibile modificare",
+    "pt": "Não foi possível alterar",
+    "fr": "Impossible de modifier",
+    "de": "Änderung nicht möglich"
+  },
+  "profile_nickname_updated": {
+    "es": "Nickname actualizado",
+    "en": "Nickname updated",
+    "it": "Nickname aggiornato",
+    "pt": "Apelido atualizado",
+    "fr": "Pseudo mis à jour",
+    "de": "Nickname aktualisiert"
+  },
+  "profile_bio_updated": {
+    "es": "Bio actualizada.",
+    "en": "Bio updated.",
+    "it": "Bio aggiornata.",
+    "pt": "Bio atualizada.",
+    "fr": "Bio mise à jour.",
+    "de": "Bio aktualisiert."
+  },
+  "profile_save_failed": {
+    "es": "No se pudo guardar.",
+    "en": "Could not save.",
+    "it": "Impossibile salvare.",
+    "pt": "Não foi possível salvar.",
+    "fr": "Impossible d’enregistrer.",
+    "de": "Speichern fehlgeschlagen."
+  },
+  "profile_loading": {
+    "es": "Cargando perfil…",
+    "en": "Loading profile…",
+    "it": "Caricamento profilo…",
+    "pt": "Carregando perfil…",
+    "fr": "Chargement du profil…",
+    "de": "Profil wird geladen…"
+  },
+  "profile_screen_title": {
+    "es": "Mi Perfil",
+    "en": "My Profile",
+    "it": "Il mio profilo",
+    "pt": "Meu perfil",
+    "fr": "Mon profil",
+    "de": "Mein Profil"
+  },
+  "profile_partner_badge_a11y": {
+    "es": "Socio oficial verificado",
+    "en": "Verified official partner",
+    "it": "Partner ufficiale verificato",
+    "pt": "Parceiro oficial verificado",
+    "fr": "Partenaire officiel vérifié",
+    "de": "Verifizierter Offizieller Partner"
+  },
+  "profile_stat_cards": {
+    "es": "Tarjetas",
+    "en": "Cards",
+    "it": "Carte",
+    "pt": "Cartas",
+    "fr": "Cartes",
+    "de": "Karten"
+  },
+  "profile_stat_contacts": {
+    "es": "Contactos",
+    "en": "Contacts",
+    "it": "Contatti",
+    "pt": "Contatos",
+    "fr": "Contacts",
+    "de": "Kontakte"
+  },
+  "profile_stat_credits_cs": {
+    "es": "Créditos CS",
+    "en": "CS credits",
+    "it": "Crediti CS",
+    "pt": "Créditos CS",
+    "fr": "Crédits CS",
+    "de": "CS-Credits"
+  },
+  "profile_bio_title": {
+    "es": "Bio",
+    "en": "Bio",
+    "it": "Bio",
+    "pt": "Bio",
+    "fr": "Bio",
+    "de": "Bio"
+  },
+  "profile_bio_placeholder": {
+    "es": "Cuéntale al mundo algo sobre ti…",
+    "en": "Tell the world something about you…",
+    "it": "Racconta qualcosa di te al mondo…",
+    "pt": "Conte ao mundo algo sobre você…",
+    "fr": "Parlez de vous au monde…",
+    "de": "Erzähl der Welt etwas über dich…"
+  },
+  "profile_save_bio": {
+    "es": "Guardar bio",
+    "en": "Save bio",
+    "it": "Salva bio",
+    "pt": "Salvar bio",
+    "fr": "Enregistrer la bio",
+    "de": "Bio speichern"
+  },
+  "profile_full_name_title": {
+    "es": "Nombre completo",
+    "en": "Full name",
+    "it": "Nome completo",
+    "pt": "Nome completo",
+    "fr": "Nom complet",
+    "de": "Vollständiger Name"
+  },
+  "profile_full_name_placeholder": {
+    "es": "Tu nombre completo",
+    "en": "Your full name",
+    "it": "Il tuo nome completo",
+    "pt": "Seu nome completo",
+    "fr": "Votre nom complet",
+    "de": "Dein vollständiger Name"
+  },
+  "profile_save_name": {
+    "es": "Guardar nombre",
+    "en": "Save name",
+    "it": "Salva nome",
+    "pt": "Salvar nome",
+    "fr": "Enregistrer le nom",
+    "de": "Namen speichern"
+  },
+  "profile_nickname_title": {
+    "es": "Nickname único",
+    "en": "Unique nickname",
+    "it": "Nickname unico",
+    "pt": "Apelido único",
+    "fr": "Pseudo unique",
+    "de": "Eindeutiger Nickname"
+  },
+  "profile_nickname_locked": {
+    "es": "Bloqueado",
+    "en": "Locked",
+    "it": "Bloccato",
+    "pt": "Bloqueado",
+    "fr": "Verrouillé",
+    "de": "Gesperrt"
+  },
+  "profile_nickname_placeholder": {
+    "es": "tu_nickname",
+    "en": "your_nickname",
+    "it": "tuo_nickname",
+    "pt": "seu_nickname",
+    "fr": "votre_pseudo",
+    "de": "dein_nickname"
+  },
+  "profile_save_nickname": {
+    "es": "Guardar nickname",
+    "en": "Save nickname",
+    "it": "Salva nickname",
+    "pt": "Salvar apelido",
+    "fr": "Enregistrer le pseudo",
+    "de": "Nickname speichern"
+  },
+  "dashboard_plan_influencer": {
+    "es": "Influencer",
+    "en": "Influencer",
+    "it": "Influencer",
+    "pt": "Influencer",
+    "fr": "Influenceur",
+    "de": "Influencer:in"
+  },
+  "dashboard_plan_free": {
+    "es": "Free",
+    "en": "Free",
+    "it": "Gratis",
+    "pt": "Grátis",
+    "fr": "Gratuit",
+    "de": "Free"
+  },
+  "dashboard_period_day": {
+    "es": "Día",
+    "en": "Day",
+    "it": "Giorno",
+    "pt": "Dia",
+    "fr": "Jour",
+    "de": "Tag"
+  },
+  "dashboard_period_week": {
+    "es": "Semana",
+    "en": "Week",
+    "it": "Settimana",
+    "pt": "Semana",
+    "fr": "Semaine",
+    "de": "Woche"
+  },
+  "dashboard_period_month": {
+    "es": "Mes",
+    "en": "Month",
+    "it": "Mese",
+    "pt": "Mês",
+    "fr": "Mois",
+    "de": "Monat"
+  },
+  "dashboard_period_year": {
+    "es": "Año",
+    "en": "Year",
+    "it": "Anno",
+    "pt": "Ano",
+    "fr": "Année",
+    "de": "Jahr"
+  },
+  "dashboard_trial_mode_label": {
+    "es": "Expiración: Modo Prueba",
+    "en": "Expiration: Trial mode",
+    "it": "Scadenza: modalità prova",
+    "pt": "Expiração: modo trial",
+    "fr": "Expiration : mode d’essai",
+    "de": "Ablauf: Testmodus"
+  },
+  "dashboard_unlimited_access": {
+    "es": "Acceso Ilimitado",
+    "en": "Unlimited access",
+    "it": "Accesso illimitato",
+    "pt": "Acesso ilimitado",
+    "fr": "Accès illimité",
+    "de": "Unbegrenzter Zugang"
+  },
+  "dashboard_exp_critical": {
+    "es": "CRÍTICO",
+    "en": "CRITICAL",
+    "it": "CRITICO",
+    "pt": "CRÍTICO",
+    "fr": "CRITIQUE",
+    "de": "KRITISCH"
+  },
+  "dashboard_exp_alert": {
+    "es": "ALERTA",
+    "en": "ALERT",
+    "it": "ALLERTA",
+    "pt": "ALERTA",
+    "fr": "ALERTE",
+    "de": "ALARM"
+  },
+  "dashboard_exp_ok": {
+    "es": "OK",
+    "en": "OK",
+    "it": "OK",
+    "pt": "OK",
+    "fr": "OK",
+    "de": "OK"
+  },
+  "dashboard_no_expiration": {
+    "es": "Sin caducidad",
+    "en": "No expiration",
+    "it": "Senza scadenza",
+    "pt": "Sem expiração",
+    "fr": "Sans expiration",
+    "de": "Kein Ablauf"
+  },
+  "dashboard_renews_prefix": {
+    "es": "Renueva:",
+    "en": "Renews:",
+    "it": "Rinnovo:",
+    "pt": "Renova:",
+    "fr": "Renouvellement :",
+    "de": "Verlängert:"
+  },
+  "dashboard_business_card_fallback": {
+    "es": "Tarjeta de negocio",
+    "en": "Business card",
+    "it": "Carta business",
+    "pt": "Cartão de negócio",
+    "fr": "Carte pro",
+    "de": "Businesskarte"
+  },
+  "dashboard_chart_empty_hint": {
+    "es": "Sin actividad reciente. Comparte tu tarjeta para empezar.",
+    "en": "No recent activity. Share your card to start.",
+    "it": "Nessuna attività recente. Condividi la carta per iniziare.",
+    "pt": "Sem atividade recente. Compartilhe seu cartão para começar.",
+    "fr": "Pas d’activité récente. Partagez votre carte pour commencer.",
+    "de": "Keine aktuelle Aktivität. Teile deine Karte zum Starten."
+  },
+  "dashboard_empty_activity_title": {
+    "es": "Sin actividad reciente",
+    "en": "No activity yet",
+    "it": "Nessuna attività recente",
+    "pt": "Sem atividade recente",
+    "fr": "Pas d’activité récente",
+    "de": "Noch keine Aktivität"
+  },
+  "dashboard_empty_activity_subtitle": {
+    "es": "Comparte tu tarjeta para empezar a ver métricas reales.",
+    "en": "Share your card to start seeing metrics.",
+    "it": "Condividi la carta per iniziare a vedere metriche reali.",
+    "pt": "Compartilhe seu cartão para ver métricas reais.",
+    "fr": "Partagez votre carte pour voir de vraies métriques.",
+    "de": "Teile deine Karte, um echte Kennzahlen zu sehen."
+  },
+  "dashboard_metric_card_views": {
+    "es": "Vistas de tarjeta",
+    "en": "Card views",
+    "it": "Viste carta",
+    "pt": "Visualizações do cartão",
+    "fr": "Vues de la carte",
+    "de": "Kartenaufrufe"
+  },
+  "dashboard_metric_ctr": {
+    "es": "Conversión búsqueda-acción (CTR)",
+    "en": "Search-to-Action (CTR)",
+    "it": "Conversione ricerca-azione (CTR)",
+    "pt": "Conversão busca-ação (CTR)",
+    "fr": "Conversion recherche-action (CTR)",
+    "de": "Such-zu-Aktion (CTR)"
+  },
+  "dashboard_radar_price_fallback": {
+    "es": "el precio publicado en Suscripción",
+    "en": "the price listed under Subscription",
+    "it": "il prezzo indicato in Abbonamento",
+    "pt": "o preço em Assinatura",
+    "fr": "le prix indiqué sous Abonnement",
+    "de": "den in Abo angegebenen Preis"
+  },
+  "dashboard_market_radar_pro_title": {
+    "es": "Market Radar Pro",
+    "en": "Market Radar Pro",
+    "it": "Market Radar Pro",
+    "pt": "Market Radar Pro",
+    "fr": "Market Radar Pro",
+    "de": "Market Radar Pro"
+  },
+  "dashboard_market_radar_pro_body": {
+    "es": "Esta experiencia requiere la suscripción Market Radar Pro ({{priceLine}}). Puedes activarla desde el menú → Suscripción.",
+    "en": "This experience requires the Market Radar Pro subscription ({{priceLine}}). You can activate it from the menu → Subscription.",
+    "it": "Questa esperienza richiede l’abbonamento Market Radar Pro ({{priceLine}}). Puoi attivarlo dal menu → Abbonamento.",
+    "pt": "Esta experiência exige a assinatura Market Radar Pro ({{priceLine}}). Ative pelo menu → Assinatura.",
+    "fr": "Cette expérience nécessite l’abonnement Market Radar Pro ({{priceLine}}). Activez-le via le menu → Abonnement.",
+    "de": "Dieses Erlebnis erfordert das Market-Radar-Pro-Abo ({{priceLine}}). Aktivieren Sie es über Menü → Abo."
+  },
+  "dashboard_go_subscription": {
+    "es": "Ir a Suscripción",
+    "en": "Go to Subscription",
+    "it": "Vai ad Abbonamento",
+    "pt": "Ir para Assinatura",
+    "fr": "Aller à l’abonnement",
+    "de": "Zum Abo"
+  },
+  "dashboard_radar_unavailable": {
+    "es": "Radar no disponible",
+    "en": "Radar unavailable",
+    "it": "Radar non disponibile",
+    "pt": "Radar indisponível",
+    "fr": "Radar indisponible",
+    "de": "Radar nicht verfügbar"
+  },
+  "dashboard_browser_open_failed": {
+    "es": "No se pudo abrir el navegador",
+    "en": "Could not open the browser",
+    "it": "Impossibile aprire il browser",
+    "pt": "Não foi possível abrir o navegador",
+    "fr": "Impossible d’ouvrir le navigateur",
+    "de": "Browser konnte nicht geöffnet werden"
+  },
+  "dashboard_social_market_update_failed": {
+    "es": "No se pudo actualizar el Mercado Social",
+    "en": "Could not update Social Market",
+    "it": "Impossibile aggiornare il Social Market",
+    "pt": "Não foi possível atualizar o Social Market",
+    "fr": "Impossible de mettre à jour le Social Market",
+    "de": "Social Market konnte nicht aktualisiert werden"
+  },
+  "dashboard_signature_copied_title": {
+    "es": "Firma copiada",
+    "en": "Signature copied",
+    "it": "Firma copiata",
+    "pt": "Assinatura copiada",
+    "fr": "Signature copiée",
+    "de": "Signatur kopiert"
+  },
+  "dashboard_signature_copied_body": {
+    "es": "Lista para pegar en Gmail u Outlook como diseño con formato (no como código fuente). En Gmail: Ajustes → Ver todos los ajustes de correo → Firma.",
+    "en": "Ready to paste into Gmail or Outlook as rich formatted layout (not source code). In Gmail: Settings → See all settings → Signature.",
+    "it": "Pronta da incollare in Gmail o Outlook come layout formattato (non codice sorgente). Gmail: Impostazioni → Vedi tutte le impostazioni → Firma.",
+    "pt": "Pronta para colar no Gmail ou Outlook como layout formatado (não código-fonte). Gmail: Configurações → Ver todas → Assinatura.",
+    "fr": "Prête à coller dans Gmail ou Outlook en mise en forme riche (pas en code source). Gmail : Paramètres → Tous les paramètres → Signature.",
+    "de": "Zum Einfügen in Gmail oder Outlook als formatiertes Layout (nicht Quellcode). Gmail: Einstellungen → Alle Einstellungen → Signatur."
+  },
+  "dashboard_plain_text_only_title": {
+    "es": "Solo texto copiado",
+    "en": "Plain text only",
+    "it": "Solo testo copiato",
+    "pt": "Somente texto copiado",
+    "fr": "Texte brut uniquement",
+    "de": "Nur Klartext kopiert"
+  },
+  "dashboard_plain_text_only_body": {
+    "es": "Este navegador no permitió HTML enriquecido en el portapapeles. Copiamos solo texto plano; prueba desde Chrome en escritorio desde este mismo Dashboard para pegar la firma con diseño.",
+    "en": "This browser blocked rich HTML on the clipboard. We copied plain text only; try again from Chrome on desktop in this Dashboard to paste a styled signature.",
+    "it": "Questo browser ha bloccato l’HTML ricco negli appunti. Abbiamo copiato solo testo semplice; riprova da Chrome su desktop in questa Dashboard.",
+    "pt": "Este navegador bloqueou HTML rico na área de transferência. Copiamos só texto; tente o Chrome no desktop neste Dashboard.",
+    "fr": "Ce navigateur a bloqué le HTML enrichi. Nous n’avons copié que du texte ; réessayez depuis Chrome sur le bureau dans ce tableau de bord.",
+    "de": "Dieser Browser blockierte Rich-HTML. Es wurde nur Klartext kopiert; versuchen Sie es mit Chrome auf dem Desktop in diesem Dashboard."
+  },
+  "dashboard_check_email_title": {
+    "es": "Revisa tu correo",
+    "en": "Check your email",
+    "it": "Controlla la email",
+    "pt": "Veja seu e-mail",
+    "fr": "Vérifiez votre e-mail",
+    "de": "E-Mail prüfen"
+  },
+  "dashboard_check_email_body": {
+    "es": "Te enviamos tu firma. Ábrela en la computadora, selecciona el bloque visual (logo y QR) y cópiala en los ajustes de firma de Gmail u Outlook Web.",
+    "en": "We emailed your signature. Open it on a computer, select the visual block (logo and QR), then paste it into Gmail or Outlook Web signature settings.",
+    "it": "Ti abbiamo inviato la firma. Aprila sul computer, seleziona il blocco visivo (logo e QR) e copiala nelle impostazioni firma di Gmail o Outlook Web.",
+    "pt": "Enviamos sua assinatura. Abra no computador, selecione o bloco visual (logo e QR) e copie nas configurações de assinatura do Gmail ou Outlook Web.",
+    "fr": "Nous vous avons envoyé la signature. Ouvrez-la sur un ordinateur, sélectionnez le bloc visuel (logo et QR), puis collez dans les réglages de signature Gmail ou Outlook Web.",
+    "de": "Wir haben dir die Signatur per E-Mail geschickt. Öffne sie am Computer, wähle den visuellen Block (Logo und QR) und füge ihn in Gmail- oder Outlook-Web-Signaturen ein."
+  },
+  "dashboard_email_not_linked_title": {
+    "es": "Correo no disponible",
+    "en": "Email not linked",
+    "it": "Email non collegata",
+    "pt": "E-mail não vinculado",
+    "fr": "E-mail non relié",
+    "de": "Keine E-Mail verknüpft"
+  },
+  "dashboard_email_not_linked_body": {
+    "es": "Tu cuenta de inicio de sesión no tiene un correo asociado. Añade un email a tu cuenta o abre el Dashboard en la web (Chrome) para copiar la firma con formato.",
+    "en": "Your sign-in account has no email address on file. Add an email to your account, or open the Dashboard in a web browser (Chrome) to copy a rich signature.",
+    "it": "Il tuo account non ha un’email associata. Aggiungi un indirizzo o apri la Dashboard nel browser (Chrome) per copiare una firma formattata.",
+    "pt": "Sua conta não tem e-mail. Adicione um e-mail ou abra o Dashboard no Chrome para copiar a assinatura formatada.",
+    "fr": "Votre compte n’a pas d’e-mail. Ajoutez-en un ou ouvrez le tableau de bord dans Chrome pour copier une signature riche.",
+    "de": "Deinem Konto ist keine E-Mail zugeordnet. Ergänze eine oder öffne das Dashboard im Browser (Chrome) für eine formatierte Signatur."
+  },
+  "dashboard_email_service_pause_title": {
+    "es": "Servicio en pausa",
+    "en": "Service unavailable",
+    "it": "Servizio in pausa",
+    "pt": "Serviço indisponível",
+    "fr": "Service indisponible",
+    "de": "Dienst nicht verfügbar"
+  },
+  "dashboard_email_service_pause_body": {
+    "es": "Envío por correo no está configurado del lado del servidor.",
+    "en": "Outbound email is not configured on the server.",
+    "it": "L’invio email non è configurato sul server.",
+    "pt": "O envio de e-mail não está configurado no servidor.",
+    "fr": "L’envoi d’e-mails n’est pas configuré côté serveur.",
+    "de": "Der E-Mail-Versand ist serverseitig nicht konfiguriert."
+  },
+  "dashboard_card_unavailable_title": {
+    "es": "Tarjeta no disponible",
+    "en": "Card unavailable",
+    "it": "Carta non disponibile",
+    "pt": "Cartão indisponível",
+    "fr": "Carte indisponible",
+    "de": "Karte nicht verfügbar"
+  },
+  "dashboard_card_unavailable_body": {
+    "es": "No pudimos cargar esta tarjeta para enviar la firma. Actualiza o vuelve a intentar.",
+    "en": "We could not load this card to send the signature. Refresh and try again.",
+    "it": "Non abbiamo potuto caricare questa carta per inviare la firma. Aggiorna e riprova.",
+    "pt": "Não foi possível carregar este cartão para enviar a assinatura. Atualize e tente de novo.",
+    "fr": "Impossible de charger cette carte pour envoyer la signature. Actualisez et réessayez.",
+    "de": "Diese Karte konnte für den Signaturversand nicht geladen werden. Aktualisieren und erneut versuchen."
+  },
+  "dashboard_sign_in_required_title": {
+    "es": "Sesión requerida",
+    "en": "Sign in required",
+    "it": "Accesso richiesto",
+    "pt": "Login necessário",
+    "fr": "Connexion requise",
+    "de": "Anmeldung erforderlich"
+  },
+  "dashboard_sign_in_required_body": {
+    "es": "Inicia sesión de nuevo e inténtalo otra vez.",
+    "en": "Please sign in again and try once more.",
+    "it": "Accedi di nuovo e riprova.",
+    "pt": "Faça login novamente e tente outra vez.",
+    "fr": "Reconnectez-vous et réessayez.",
+    "de": "Melde dich erneut an und versuche es noch einmal."
+  },
+  "dashboard_send_failed_title": {
+    "es": "No se pudo enviar",
+    "en": "Could not send",
+    "it": "Impossibile inviare",
+    "pt": "Não foi possível enviar",
+    "fr": "Envoi impossible",
+    "de": "Senden fehlgeschlagen"
+  },
+  "dashboard_send_failed_server_body": {
+    "es": "El servidor no pudo completar el envío. Inténtalo más tarde.",
+    "en": "The server could not complete the send. Please try again later.",
+    "it": "Il server non ha completato l’invio. Riprova più tardi.",
+    "pt": "O servidor não concluiu o envio. Tente mais tarde.",
+    "fr": "Le serveur n’a pas pu terminer l’envoi. Réessayez plus tard.",
+    "de": "Der Server konnte den Versand nicht abschließen. Bitte später erneut versuchen."
+  },
+  "dashboard_something_wrong": {
+    "es": "Algo salió mal",
+    "en": "Something went wrong",
+    "it": "Qualcosa è andato storto",
+    "pt": "Algo deu errado",
+    "fr": "Un problème est survenu",
+    "de": "Etwas ist schiefgelaufen"
+  },
+  "dashboard_hello": {
+    "es": "Hola",
+    "en": "Hello",
+    "it": "Ciao",
+    "pt": "Olá",
+    "fr": "Bonjour",
+    "de": "Hallo"
+  },
+  "dashboard_plan_label": {
+    "es": "Plan",
+    "en": "Plan",
+    "it": "Piano",
+    "pt": "Plano",
+    "fr": "Plan",
+    "de": "Plan"
+  },
+  "dashboard_user_fallback": {
+    "es": "Usuario",
+    "en": "User",
+    "it": "Utente",
+    "pt": "Usuário",
+    "fr": "Utilisateur",
+    "de": "Nutzer:in"
+  },
+  "dashboard_loading_business_cards": {
+    "es": "Cargando tarjetas de negocio…",
+    "en": "Loading business cards…",
+    "it": "Caricamento business card…",
+    "pt": "Carregando cartões de negócio…",
+    "fr": "Chargement des cartes pro…",
+    "de": "Geschäftskarten werden geladen…"
+  },
+  "dashboard_empty_no_business_cards_title": {
+    "es": "Analítica sin tarjetas de negocio",
+    "en": "Analytics has no business cards yet",
+    "it": "Analitiche senza business card",
+    "pt": "Análise sem cartões de negócio",
+    "fr": "Analytique sans carte pro",
+    "de": "Noch keine Geschäftskarten für Analysen"
+  },
+  "dashboard_empty_no_business_cards_body": {
+    "es": "Crea una tarjeta de negocio para activar métricas por tarjeta.",
+    "en": "Create a business card to unlock card-level metrics.",
+    "it": "Crea una business card per attivare metriche per carta.",
+    "pt": "Crie um cartão de negócio para métricas por cartão.",
+    "fr": "Créez une carte pro pour activer les métriques par carte.",
+    "de": "Erstelle eine Geschäftskarte für Kennzahlen pro Karte."
+  },
+  "dashboard_copy_signature_web": {
+    "es": "Copiar firma (Gmail / Outlook)",
+    "en": "Copy signature (Gmail / Outlook)",
+    "it": "Copia firma (Gmail / Outlook)",
+    "pt": "Copiar assinatura (Gmail / Outlook)",
+    "fr": "Copier la signature (Gmail / Outlook)",
+    "de": "Signatur kopieren (Gmail / Outlook)"
+  },
+  "dashboard_email_signature_cta": {
+    "es": "Enviarme firma por correo",
+    "en": "Email me my signature",
+    "it": "Inviami la firma via email",
+    "pt": "Enviar assinatura por e-mail",
+    "fr": "M’envoyer ma signature par e-mail",
+    "de": "Signatur per E-Mail senden"
+  },
+  "dashboard_seo_block_title": {
+    "es": "Rendimiento de SEO local y CRO",
+    "en": "Local SEO & CRO performance",
+    "it": "Prestazioni SEO locale e CRO",
+    "pt": "Desempenho de SEO local e CRO",
+    "fr": "Performance SEO local et CRO",
+    "de": "Lokale SEO- und CRO-Performance"
+  },
+  "dashboard_seo_adjust_keywords": {
+    "es": "Ajustar palabras SEO de la tarjeta",
+    "en": "Adjust the card SEO keywords",
+    "it": "Regola le parole chiave SEO della carta",
+    "pt": "Ajustar palavras-chave SEO do cartão",
+    "fr": "Ajuster les mots-clés SEO de la carte",
+    "de": "SEO-Keywords der Karte anpassen"
+  },
+  "dashboard_iconodata_section_title": {
+    "es": "Tus IconoDatas más tocados",
+    "en": "Your most tapped IconoDatas",
+    "it": "I tuoi IconoData più toccati",
+    "pt": "Seus IconoDatas mais tocados",
+    "fr": "Vos IconoDatas les plus touchés",
+    "de": "Deine am häufigsten angetippten IconoDatas"
+  },
+  "dashboard_iconodata_empty": {
+    "es": "Añade IconoDatas en esta tarjeta para ver qué elementos reciben más toques.",
+    "en": "Add IconoDatas to this card to see what people tap most.",
+    "it": "Aggiungi IconoData a questa carta per vedere cosa viene toccato di più.",
+    "pt": "Adicione IconoDatas neste cartão para ver o que recebe mais toques.",
+    "fr": "Ajoutez des IconoDatas à cette carte pour voir ce qui est le plus touché.",
+    "de": "Füge IconoDatas zu dieser Karte hinzu, um zu sehen, was am meisten angetippt wird."
+  },
+  "dashboard_seo_intel_title": {
+    "es": "Inteligencia de mercado SEO",
+    "en": "SEO market intelligence",
+    "it": "Intelligence di mercato SEO",
+    "pt": "Inteligência de mercado SEO",
+    "fr": "Intelligence marché SEO",
+    "de": "SEO-Marktintelligenz"
+  },
+  "dashboard_seo_conversions_title": {
+    "es": "Conversiones desde búsqueda (SEO)",
+    "en": "Search-driven conversions (SEO)",
+    "it": "Conversioni da ricerca (SEO)",
+    "pt": "Conversões por busca (SEO)",
+    "fr": "Conversions issues de la recherche (SEO)",
+    "de": "Suchgetriebene Konversionen (SEO)"
+  },
+  "dashboard_seo_perform_prefix": {
+    "es": "Rendimiento de tus palabras clave en ",
+    "en": "How your keywords perform in ",
+    "it": "Prestazioni delle tue parole chiave in ",
+    "pt": "Desempenho das suas palavras-chave em ",
+    "fr": "Performance de vos mots-clés dans ",
+    "de": "Leistung deiner Keywords in "
+  },
+  "dashboard_seo_combined_zone": {
+    "es": "zona combinada",
+    "en": "combined zone",
+    "it": "zona combinata",
+    "pt": "zona combinada",
+    "fr": "zone combinée",
+    "de": "kombinierte Zone"
+  },
+  "dashboard_seo_explorer_mode": {
+    "es": "Modo explorador: estás viendo la demanda en otra zona.",
+    "en": "Explorer mode: you are viewing demand in another area.",
+    "it": "Modalità esplorazione: stai vedendo la domanda in un’altra zona.",
+    "pt": "Modo explorador: você vê demanda em outra área.",
+    "fr": "Mode explorateur : vous consultez la demande dans une autre zone.",
+    "de": "Explorer-Modus: Du siehst die Nachfrage in einer anderen Region."
+  },
+  "dashboard_seo_source_card_location": {
+    "es": "Fuente: ubicación registrada en esta tarjeta de negocio",
+    "en": "Source: location saved on this business card",
+    "it": "Fonte: posizione salvata su questa business card",
+    "pt": "Fonte: local salvo neste cartão de negócio",
+    "fr": "Source : position enregistrée sur cette carte pro",
+    "de": "Quelle: in dieser Geschäftskarte gespeicherter Standort"
+  },
+  "dashboard_seo_active_since": {
+    "es": "Activa desde",
+    "en": "Active since",
+    "it": "Attiva da",
+    "pt": "Ativa desde",
+    "fr": "Actif depuis",
+    "de": "Aktiv seit"
+  },
+  "dashboard_seo_explorer_placeholder": {
+    "es": "Explorar código postal o ciudad",
+    "en": "Search ZIP or city",
+    "it": "Cerca CAP o città",
+    "pt": "Buscar CEP ou cidade",
+    "fr": "Rechercher CP ou ville",
+    "de": "PLZ oder Stadt suchen"
+  },
+  "dashboard_seo_ctr_legend": {
+    "es": "Métrica (una sola para todas las filas): conversión de búsqueda a acción — CTR.",
+    "en": "Metric (same for each row below): search-to-action conversion — CTR.",
+    "it": "Metrica (unica per tutte le righe): conversione ricerca-azione — CTR.",
+    "pt": "Métrica (uma para todas as linhas): conversão busca-ação — CTR.",
+    "fr": "Métrique (identique pour chaque ligne) : conversion recherche-action — CTR.",
+    "de": "Metrik (gleich für jede Zeile): Such-zu-Aktion — CTR."
+  },
+  "dashboard_show_less": {
+    "es": "Mostrar menos",
+    "en": "Show less",
+    "it": "Mostra meno",
+    "pt": "Mostrar menos",
+    "fr": "Voir moins",
+    "de": "Weniger anzeigen"
+  },
+  "dashboard_show_more": {
+    "es": "Mostrar más",
+    "en": "Show more",
+    "it": "Mostra altro",
+    "pt": "Mostrar mais",
+    "fr": "Voir plus",
+    "de": "Mehr anzeigen"
+  },
+  "dashboard_seo_add_keywords_empty": {
+    "es": "Añade palabras SEO a esta tarjeta para medir búsquedas del mercado.",
+    "en": "Add SEO keywords to this card to measure marketplace searches.",
+    "it": "Aggiungi parole SEO a questa carta per misurare le ricerche di mercato.",
+    "pt": "Adicione palavras SEO a este cartão para medir buscas de mercado.",
+    "fr": "Ajoutez des mots-clés SEO à cette carte pour mesurer les recherches marché.",
+    "de": "Füge dieser Karte SEO-Begriffe hinzu, um Marktplatz-Suchen zu messen."
+  },
+  "dashboard_top_niche_keyword": {
+    "es": "Palabra top del nicho",
+    "en": "Top niche keyword",
+    "it": "Parola top di nicchia",
+    "pt": "Palavra top do nicho",
+    "fr": "Mot-clé top de niche",
+    "de": "Top-Nischen-Keyword"
+  },
+  "dashboard_suggested_keyword": {
+    "es": "Palabra sugerida",
+    "en": "Suggested keyword",
+    "it": "Parola suggerita",
+    "pt": "Palavra sugerida",
+    "fr": "Mot-clé suggéré",
+    "de": "Vorgeschlagenes Keyword"
+  },
+  "dashboard_not_enough_data": {
+    "es": "Sin datos suficientes",
+    "en": "Not enough data yet",
+    "it": "Dati insufficienti",
+    "pt": "Dados insuficientes",
+    "fr": "Pas assez de données",
+    "de": "Noch zu wenig Daten"
+  },
+  "dashboard_niche_searches_suffix": {
+    "es": "búsquedas en este nicho o zona que aún no están en tu tarjeta.",
+    "en": "searches in this niche or area that are not on your card yet.",
+    "it": "ricerche in questa nicchia o zona non ancora sulla tua carta.",
+    "pt": "buscas neste nicho ou área que ainda não estão no seu cartão.",
+    "fr": "recherches dans cette niche ou zone absentes de votre carte.",
+    "de": "Suchen in dieser Nische oder Region, die noch nicht auf deiner Karte stehen."
+  },
+  "dashboard_niche_waiting_body": {
+    "es": "Cuando el mercado reúna búsquedas del nicho, verás aquí una palabra que aún no usas.",
+    "en": "When the marketplace has enough niche searches, a missing keyword will appear here.",
+    "it": "Quando il mercato avrà abbastanza ricerche di nicchia, vedrai qui una parola mancante.",
+    "pt": "Quando o mercado tiver buscas suficientes, uma palavra ausente aparecerá aqui.",
+    "fr": "Quand le marché aura assez de recherches de niche, un mot manquant apparaîtra ici.",
+    "de": "Wenn der Marktplatz genug Nischen-Suchen hat, erscheint hier ein fehlendes Keyword."
+  },
+  "dashboard_geo_intel_eyebrow": {
+    "es": "Centro de inteligencia geo · Búnker",
+    "en": "Geo Intelligence · Bunker",
+    "it": "Centro intelligence geo · Bunker",
+    "pt": "Centro de inteligência geo · Bunker",
+    "fr": "Centre d’intelligence géo · Bunker",
+    "de": "Geo-Intelligence · Bunker"
+  },
+  "dashboard_executive_radar_title": {
+    "es": "Radar de mercado ejecutivo",
+    "en": "Executive Market Radar",
+    "it": "Radar di mercato executive",
+    "pt": "Radar de mercado executivo",
+    "fr": "Radar marché exécutif",
+    "de": "Executive Market Radar"
+  },
+  "dashboard_market_radar_full_title": {
+    "es": "Optimización geográfica",
+    "en": "Market Radar — Full experience",
+    "it": "Ottimizzazione geografica",
+    "pt": "Otimização geográfica",
+    "fr": "Optimisation géographique",
+    "de": "Geografische Optimierung"
+  },
+  "dashboard_market_radar_full_subtitle": {
+    "es": "Para garantizar la máxima precisión y fluidez de los datos de mercado en tiempo real, el Radar se despliega en una interfaz inmersiva de pantalla completa.",
+    "en": "To deliver maximum accuracy and fluidity for live market intelligence, the Radar runs in a full-screen immersive interface.",
+    "it": "Per massima precisione e fluidità dell’intelligence di mercato in tempo reale, il Radar è a schermo intero immersivo.",
+    "pt": "Para máxima precisão dos dados em tempo real, o Radar abre em tela cheia imersiva.",
+    "fr": "Pour une précision et une fluidité maximales du marché en direct, le Radar s’ouvre en plein écran immersif.",
+    "de": "Für höchste Genauigkeit und flüssige Marktdaten in Echtzeit läuft der Radar in einer immersiven Vollbild-Oberfläche."
+  },
+  "dashboard_radar_unavailable_build": {
+    "es": "El radar en pantalla completa no está disponible en esta versión. Actualiza la app o inténtalo más tarde.",
+    "en": "Full-screen radar is not available in this build. Update the app or try again later.",
+    "it": "Il radar a schermo intero non è disponibile in questa build. Aggiorna l’app o riprova.",
+    "pt": "O radar em tela cheia não está nesta versão. Atualize o app ou tente depois.",
+    "fr": "Le radar plein écran n’est pas disponible dans cette version. Mettez à jour ou réessayez.",
+    "de": "Vollbild-Radar in diesem Build nicht verfügbar. App aktualisieren oder später erneut versuchen."
+  },
+  "dashboard_radar_pro_required_a11y": {
+    "es": "Market Radar Pro requerido",
+    "en": "Market Radar Pro required",
+    "it": "Market Radar Pro richiesto",
+    "pt": "Market Radar Pro necessário",
+    "fr": "Market Radar Pro requis",
+    "de": "Market Radar Pro erforderlich"
+  },
+  "dashboard_radar_explore_full_a11y": {
+    "es": "Explorar radar en pantalla completa",
+    "en": "Explore radar in full screen",
+    "it": "Esplora il radar a schermo intero",
+    "pt": "Explorar radar em tela cheia",
+    "fr": "Explorer le radar en plein écran",
+    "de": "Radar im Vollbild erkunden"
+  },
+  "dashboard_radar_cta_pro_required": {
+    "es": "Explorar Radar (requiere suscripción Pro)",
+    "en": "Explore the radar (Pro subscription required)",
+    "it": "Esplora Radar (serve abbonamento Pro)",
+    "pt": "Explorar Radar (assinatura Pro)",
+    "fr": "Explorer le radar (abonnement Pro requis)",
+    "de": "Radar erkunden (Pro-Abo erforderlich)"
+  },
+  "dashboard_radar_cta_explore": {
+    "es": "Explorar Radar en Pantalla Completa",
+    "en": "Explore the radar in full screen",
+    "it": "Esplora Radar a schermo intero",
+    "pt": "Explorar Radar em Tela Cheia",
+    "fr": "Explorer le radar en plein écran",
+    "de": "Radar im Vollbild erkunden"
+  },
+  "dashboard_radar_footer_pro": {
+    "es": "Para abrir el Market Radar necesitas la suscripción Market Radar Pro (precio en Suscripción). Toca el botón para más información o para ir a la tienda.",
+    "en": "Opening Market Radar requires the Market Radar Pro subscription (pricing under Subscription). Tap the button for details or to open the store.",
+    "it": "Per aprire Market Radar serve l’abbonamento Pro (prezzi in Abbonamento). Tocca il pulsante per dettagli o store.",
+    "pt": "Para abrir o Market Radar é preciso o Pro (preços em Assinatura). Toque no botão para detalhes ou loja.",
+    "fr": "Ouvrir Market Radar nécessite l’abonnement Pro (tarifs dans Abonnement). Touchez le bouton pour le store.",
+    "de": "Market Radar erfordert das Pro-Abo (Preise unter Abo). Tippe auf den Button für Details oder Store."
+  },
+  "dashboard_radar_footer_mapbox": {
+    "es": "Mapbox y capas de intención en tu navegador, con la superficie que merecen.",
+    "en": "Mapbox and intent layers open in your browser at the scale they deserve.",
+    "it": "Mapbox e layer di intento nel browser, alla scala che meritano.",
+    "pt": "Mapbox e camadas de intenção no navegador, no tamanho certo.",
+    "fr": "Mapbox et couches d’intention dans le navigateur, à la bonne échelle.",
+    "de": "Mapbox und Intent-Layer im Browser – in der passenden Größe."
+  },
+  "dashboard_legacy_path_title": {
+    "es": "El camino Legacy",
+    "en": "The Legacy path",
+    "it": "Il percorso Legacy",
+    "pt": "O caminho Legacy",
+    "fr": "Le parcours Legacy",
+    "de": "Der Legacy-Pfad"
+  },
+  "dashboard_legacy_hero_title": {
+    "es": "Metas en {{thresholds}} referidos. Bóveda de Legado en marcha.",
+    "en": "Milestones at {{thresholds}} referrals. Your Legacy vault in motion.",
+    "it": "Obiettivi a {{thresholds}} referral. La tua Legacy vault è in movimento.",
+    "pt": "Metas em {{thresholds}} indicações. Seu cofre Legacy em movimento.",
+    "fr": "Objectifs à {{thresholds}} parrainages. Votre coffre Legacy est en marche.",
+    "de": "Meilensteine bei {{thresholds}} Empfehlungen. Dein Legacy-Tresor läuft."
+  },
+  "dashboard_legacy_reach_word": {
+    "es": "alcance",
+    "en": "reach",
+    "it": "portata",
+    "pt": "alcance",
+    "fr": "portée",
+    "de": "Reichweite"
+  },
+  "dashboard_legacy_tier_gates": {
+    "es": "Umbrales: {{thresholds}}.",
+    "en": "Tier gates: {{thresholds}}.",
+    "it": "Soglie: {{thresholds}}.",
+    "pt": "Limites: {{thresholds}}.",
+    "fr": "Seuils : {{thresholds}}.",
+    "de": "Schwellen: {{thresholds}}."
+  },
+  "dashboard_legacy_unlocked": {
+    "es": "Desbloqueado",
+    "en": "Unlocked",
+    "it": "Sbloccato",
+    "pt": "Desbloqueado",
+    "fr": "Débloqué",
+    "de": "Freigeschaltet"
+  },
+  "dashboard_legacy_locked": {
+    "es": "Bloqueado",
+    "en": "Locked",
+    "it": "Bloccato",
+    "pt": "Bloqueado",
+    "fr": "Verrouillé",
+    "de": "Gesperrt"
+  },
+  "dashboard_legacy_modal_got_it": {
+    "es": "Entendido",
+    "en": "Got it",
+    "it": "Capito",
+    "pt": "Entendi",
+    "fr": "Compris",
+    "de": "Alles klar"
+  },
+  "dashboard_legacy_tier_active": {
+    "es": "Nivel activo para tu cuenta.",
+    "en": "This tier is active for your account.",
+    "it": "Livello attivo per il tuo account.",
+    "pt": "Nível ativo para sua conta.",
+    "fr": "Ce palier est actif pour votre compte.",
+    "de": "Diese Stufe ist für dein Konto aktiv."
+  },
+  "dashboard_legacy_tier_need_more": {
+    "es": "Te faltan {{remaining}} referidos para desbloquear este nivel. (Actual: {{current}})",
+    "en": "You need {{remaining}} more referrals to unlock this tier. (Current: {{current}})",
+    "it": "Ti servono altri {{remaining}} referral per sbloccare questo livello. (Attuale: {{current}})",
+    "pt": "Faltam {{remaining}} indicações para desbloquear este nível. (Atual: {{current}})",
+    "fr": "Il vous manque {{remaining}} parrainages pour débloquer ce palier. (Actuel : {{current}})",
+    "de": "Dir fehlen noch {{remaining}} Empfehlungen für diese Stufe. (Aktuell: {{current}})"
+  },
+  "dashboard_legacy_a11y_tier_detail": {
+    "es": "{{label}}: detalle",
+    "en": "{{label}}: detail",
+    "it": "{{label}}: dettaglio",
+    "pt": "{{label}}: detalhe",
+    "fr": "{{label}} : détail",
+    "de": "{{label}}: Details"
+  },
+  "dashboard_legacy_plata_label": {
+    "es": "Plata",
+    "en": "Silver",
+    "it": "Argento",
+    "pt": "Prata",
+    "fr": "Argent",
+    "de": "Silber"
+  },
+  "dashboard_legacy_plata_body": {
+    "es": "¡Eres Socio Oficial! Has alcanzado 500 referidos. Obtienes la Insignia de Verificación Azul y 1 Mes Business Card Gratis.",
+    "en": "You're an Official Partner! You've reached 500 referrals. You earn the Blue Verification Badge and 1 free month of Business Card.",
+    "it": "Sei Partner ufficiale! Hai raggiunto 500 referral. Ottieni il badge di verifica blu e 1 mese gratis di Business Card.",
+    "pt": "Você é parceiro oficial! 500 indicações. Badge azul e 1 mês grátis de Business Card.",
+    "fr": "Partenaire officiel ! 500 parrainages. Badge bleu et 1 mois gratuit de Business Card.",
+    "de": "Offizieller Partner! 500 Empfehlungen. Blaues Verifizierungs-Badge und 1 Gratismonat Business Card."
+  },
+  "dashboard_legacy_oro_label": {
+    "es": "Oro",
+    "en": "Gold",
+    "it": "Oro",
+    "pt": "Ouro",
+    "fr": "Or",
+    "de": "Gold"
+  },
+  "dashboard_legacy_oro_body": {
+    "es": "¡NFC PVC en Camino! Al llegar a 750, mantienes tu Business Card Gratis y recibes una tarjeta física de PVC con envío gratuito.",
+    "en": "PVC NFC on the way! At 750 referrals you keep your free Business Card and receive a physical PVC card with free shipping.",
+    "it": "NFC PVC in arrivo! A 750 referral mantieni la Business Card gratis e ricevi una carta PVC fisica con spedizione gratuita.",
+    "pt": "NFC PVC a caminho! Em 750 indicações você mantém o Business Card grátis e ganha cartão PVC com frete grátis.",
+    "fr": "NFC PVC en route ! À 750 parrainages vous gardez la carte pro gratuite + carte PVC physique avec livraison.",
+    "de": "NFC-PVC unterwegs! Bei 750 Empfehlungen behältst du die Gratis-Business-Card und erhältst eine physische PVC-Karte inkl. Versand."
+  },
+  "dashboard_legacy_platino_label": {
+    "es": "Platino",
+    "en": "Platinum",
+    "it": "Platino",
+    "pt": "Platina",
+    "fr": "Platine",
+    "de": "Platin"
+  },
+  "dashboard_legacy_platino_body": {
+    "es": "¡Estatus de Metal! Con 1000 referidos obtienes la tarjeta de Metal Premium grabada en láser y otro mes Business de cortesía.",
+    "en": "Metal status! With 1000 referrals you get the Premium laser‑engraved metal card plus another complimentary Business month.",
+    "it": "Status metallo! Con 1000 referral ottieni la carta metallica premium incisa al laser e un altro mese Business omaggio.",
+    "pt": "Status metal! Com 1000 indicações você recebe o cartão metálico premium a laser e mais um mês Business cortesia.",
+    "fr": "Statut métal ! À 1000 parrainages : carte métal premium gravée laser + un mois Business offert.",
+    "de": "Metal-Status! Bei 1000 Empfehlungen: Premium-Metallkarte lasergraviert + weiterer Business-Monat gratis."
+  },
+  "dashboard_legacy_diamante_label": {
+    "es": "Diamante",
+    "en": "Diamond",
+    "it": "Diamante",
+    "pt": "Diamante",
+    "fr": "Diamant",
+    "de": "Diamant"
+  },
+  "dashboard_legacy_diamante_body": {
+    "es": "¡Dominio Total! Al llegar a 1500 referidos desbloqueas El Radar (Keywords + Mapa de Calor) para ser líder en tu rubro.",
+    "en": "Total domination! At 1500 referrals you unlock The Radar (Keywords + Heat Map) to lead your niche.",
+    "it": "Dominio totale! A 1500 referral sblocchi Il Radar (parole chiave + mappa di calore) per comandare la tua nicchia.",
+    "pt": "Domínio total! Com 1500 indicações você desbloqueia O Radar (keywords + mapa de calor).",
+    "fr": "Domination totale ! À 1500 parrainages vous débloquez Le Radar (mots-clés + carte de chaleur).",
+    "de": "Totale Dominanz! Bei 1500 Empfehlungen schaltest du The Radar (Keywords + Heatmap) frei."
   }
 }

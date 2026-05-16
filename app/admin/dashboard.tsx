@@ -6,7 +6,8 @@ import { getActiveUserId } from '@/services/authSession';
 import AdminDashboard from '@/components/AdminDashboard';
 import { validateAdminAccess, getAdminPremiumStatus } from '@/services/adminAuthGuard';
 import { LinearGradient } from 'expo-linear-gradient';
-import { trEsEn, useLanguage } from '@/services/language';
+import { coreTrEsEn } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 
 /**
  * Admin Dashboard (Protected Route)
@@ -23,7 +24,7 @@ import { trEsEn, useLanguage } from '@/services/language';
 
 export default function AdminDashboardScreen() {
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const tr = (es: string, en: string) => coreTrEsEn(es, en, language);
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);

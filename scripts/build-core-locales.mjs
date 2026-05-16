@@ -9,8 +9,12 @@ import { biometric } from './i18n-core-chunks/biometric.mjs';
 import { calls } from './i18n-core-chunks/calls.mjs';
 import { cards } from './i18n-core-chunks/cards.mjs';
 import { common } from './i18n-core-chunks/common.mjs';
+import { components } from './i18n-core-chunks/components.mjs';
 import { contacts } from './i18n-core-chunks/contacts.mjs';
 import { nfc } from './i18n-core-chunks/nfc.mjs';
+import { profile } from './i18n-core-chunks/profile.mjs';
+import { dashboard } from './i18n-core-chunks/dashboard.mjs';
+import { misc } from './i18n-core-chunks/misc.mjs';
 import { qr } from './i18n-core-chunks/qr.mjs';
 import { receptor } from './i18n-core-chunks/receptor.mjs';
 import { search } from './i18n-core-chunks/search.mjs';
@@ -23,6 +27,8 @@ const out = path.join(__dirname, '..', 'services', 'i18n', 'coreLocales.json');
 
 const dict = {
   ...common,
+  ...components,
+  ...misc,
   ...biometric,
   ...qr,
   ...receptor,
@@ -34,6 +40,8 @@ const dict = {
   ...search,
   ...cards,
   ...subscription,
+  ...profile,
+  ...dashboard,
 };
 
 const keys = Object.keys(dict);

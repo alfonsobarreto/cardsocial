@@ -17,6 +17,7 @@ import React, { useMemo } from 'react';
 import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth } from '../services/firebaseConfig';
+import { APP_LOCK_ENABLED_STORAGE_KEY } from '../services/sessionPolicyKeys';
 import palette from './theme';
 
 export default function SettingsScreen() {
@@ -95,7 +96,7 @@ export default function SettingsScreen() {
   React.useEffect(() => {
     const loadAppLock = async () => {
       try {
-        const value = await AsyncStorage.getItem('APP_LOCK_ENABLED');
+        const value = await AsyncStorage.getItem(APP_LOCK_ENABLED_STORAGE_KEY);
         setAppLockEnabled(value === 'true');
       } catch {
         setAppLockEnabled(false);
@@ -177,7 +178,7 @@ export default function SettingsScreen() {
       }
     }
     try {
-      await AsyncStorage.setItem('APP_LOCK_ENABLED', value ? 'true' : 'false');
+      await AsyncStorage.setItem(APP_LOCK_ENABLED_STORAGE_KEY, value ? 'true' : 'false');
       setAppLockEnabled(value);
       if (!value) {
         Alert.alert(

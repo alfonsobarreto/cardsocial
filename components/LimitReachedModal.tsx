@@ -12,7 +12,8 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ConfettiAnimation, ConfettiAnimationRef } from '@/components/ConfettiAnimation';
-import { trEsEn, useLanguage, intlLocaleTagForAppLanguage } from '@/services/language';
+import { useLanguage, intlLocaleTagForAppLanguage } from '@/services/language';
+import { coreTrEsEn } from '@/services/coreI18n';
 import { getCsEconomyConfig } from '@/services/csEconomyConfigService';
 import { getTiersConfig } from '@/services/tiersConfigService';
 
@@ -34,7 +35,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
   onUpgradePress,
 }) => {
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const tr = (es: string, en: string) => coreTrEsEn(es, en, language);
   const modalFooterBottomPad = useModalFooterBottomPad();
   const confettiRef = useRef<ConfettiAnimationRef>(null);
   const [welcomeBonusCs, setWelcomeBonusCs] = useState(0);

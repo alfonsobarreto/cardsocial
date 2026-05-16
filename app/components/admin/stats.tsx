@@ -17,7 +17,8 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { trEsEn, useLanguage } from '@/services/language';
+import { coreTrEsEn } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 
 type StatsTab = 'users' | 'coins' | 'students' | 'costs';
 type CoinsPeriod = 'month' | 'year' | 'all';
@@ -45,7 +46,7 @@ interface StudentStats {
 
 export default function AdminStatsScreen() {
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const tr = (es: string, en: string) => coreTrEsEn(es, en, language);
   const intlLocale = language === 'pt' ? 'pt-BR' : language;
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<StatsTab>('users');

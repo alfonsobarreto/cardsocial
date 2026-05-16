@@ -3,7 +3,8 @@ import {
     type PremiumDataPanelPayload,
     subscribePremiumDataPanel,
 } from '@/services/premiumDataPanelController';
-import { trEsEn, useLanguage } from '@/services/language';
+import { coreTrEsEn } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 import { splitSovereignText } from '@/utils/sovereignTextSplit';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -35,7 +36,7 @@ export default function PremiumDataPanelHost() {
   const insets = useSafeAreaInsets();
   const { language } = useLanguage();
   const tr = useCallback(
-    (es: string, en: string) => trEsEn(es, en, language),
+    (es: string, en: string) => coreTrEsEn(es, en, language),
     [language],
   );
   const [payload, setPayload] = useState<PremiumDataPanelPayload | null>(null);
