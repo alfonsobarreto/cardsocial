@@ -3,6 +3,8 @@
  */
 export type StudioVaultLink = {
   id: string;
+  /** Dueño del documento en Firestore (copiado en claro cuando aplica). */
+  uid?: string;
   title: string;
   type: string;
   value: string;
@@ -14,4 +16,9 @@ export type StudioVaultLink = {
   updatedAt?: string;
   vaultMimeType?: string;
   iconVaultId?: string;
+  category?: string;
+  /** Presente solo en Firestore cuando hay cifrado de campo activo. */
+  securePayload?: string;
+  secureIv?: string;
+  vaultCipherVersion?: number;
 };

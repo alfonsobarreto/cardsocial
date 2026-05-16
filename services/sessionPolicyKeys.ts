@@ -1,6 +1,9 @@
-/** Claves AsyncStorage — centralizadas para evitar imports circulares. */
+/** Claves persistencia — centralizadas para evitar imports circulares. */
 
-/** Candado biométrico de app (misma clave que `app/settings.tsx`). */
+/**
+ * Candado biométrico (misma cadena en toda la app).
+ * En iOS/Android el valor vive en Keychain/Keystore vía `appLockSecureStorage`; en web, AsyncStorage.
+ */
 export const APP_LOCK_ENABLED_STORAGE_KEY = 'APP_LOCK_ENABLED';
 
 export function sessionLastActivityKey(uid: string): string {

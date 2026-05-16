@@ -43,6 +43,8 @@ type Props = {
   onOpenIconSelector: () => void;
   onDirtyChange: (dirty: boolean) => void;
   onSaveSuccess: () => void;
+  /** Clave AES-256 en memoria (sessionStorage) cuando el usuario desbloqueó la bóveda en este tab. */
+  vaultEncryptionKey: Uint8Array | null;
 };
 
 function wordCount(s: string): number {
@@ -74,6 +76,7 @@ export default function FormColumn({
   onOpenIconSelector,
   onDirtyChange,
   onSaveSuccess,
+  vaultEncryptionKey,
 }: Props) {
   const t = useCallback(
     (k: string, vars?: Record<string, string | number>) => studioT(locale, k, vars),
@@ -218,7 +221,7 @@ export default function FormColumn({
       };
       setBusy(true);
       try {
-        await saveVaultLink(userId, pl);
+        await saveVaultLink(userId, pl, vaultEncryptionKey);
         try {
           await syncStudioVaultLinkToMongoCards(userId, pl);
         } catch (err) {
@@ -324,7 +327,7 @@ export default function FormColumn({
 
     setBusy(true);
     try {
-      await saveVaultLink(userId, pl);
+      await saveVaultLink(userId, pl, vaultEncryptionKey);
       try {
         await syncStudioVaultLinkToMongoCards(userId, pl);
       } catch (err) {

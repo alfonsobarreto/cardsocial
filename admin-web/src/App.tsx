@@ -8,6 +8,7 @@ import Growth from './pages/Growth';
 import IdentityRisk from './pages/IdentityRisk';
 import Login from './pages/Login';
 import BroadcastShell from './pages/BroadcastShell';
+import Broadcasts from './pages/Broadcasts';
 import Campaigns from './pages/Campaigns';
 import Moderation from './pages/Moderation';
 import NfcOps from './pages/NfcOps';
@@ -35,6 +36,7 @@ function App() {
           <Route path="rules-commerce" element={<RulesCommerce />} />
           <Route path="rules-cs-economy" element={<RulesCsEconomy />} />
           <Route path="communication" element={<BroadcastShell />} />
+          <Route path="megafono" element={<Broadcasts />} />
           <Route path="campanas-vip" element={<Campaigns />} />
           <Route path="studio" element={<Studio />} />
           <Route path="finance" element={<Finance />} />

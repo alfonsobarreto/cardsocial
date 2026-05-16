@@ -143,6 +143,86 @@
     "fr": "Dismissed",
     "de": "Dismissed"
   },
+  "admin_mod_status_resolved_approved": {
+    "es": "Resuelto · fundado",
+    "en": "Resolved · upheld",
+    "it": "Risolto · fondato",
+    "pt": "Resolvido · fundamentado",
+    "fr": "Résolu · fondé",
+    "de": "Gelöst · begründet"
+  },
+  "admin_mod_status_resolved_rejected": {
+    "es": "Resuelto · infundado",
+    "en": "Resolved · rejected",
+    "it": "Risolto · infondato",
+    "pt": "Resolvido · improcedente",
+    "fr": "Résolu · non fondé",
+    "de": "Gelöst · abgewiesen"
+  },
+  "admin_mod_tab_pending": {
+    "es": "Pendientes",
+    "en": "Pending",
+    "it": "In sospeso",
+    "pt": "Pendentes",
+    "fr": "En attente",
+    "de": "Ausstehend"
+  },
+  "admin_mod_tab_history": {
+    "es": "Historial",
+    "en": "History",
+    "it": "Cronologia",
+    "pt": "Histórico",
+    "fr": "Historique",
+    "de": "Verlauf"
+  },
+  "admin_mod_btn_approve_close": {
+    "es": "Cerrar como fundado",
+    "en": "Close as upheld",
+    "it": "Chiudi come fondato",
+    "pt": "Encerrar como fundamentado",
+    "fr": "Clôturer comme fondé",
+    "de": "Als begründet schließen"
+  },
+  "admin_mod_btn_reject_close": {
+    "es": "Cerrar como infundado",
+    "en": "Close as rejected",
+    "it": "Chiudi come infondato",
+    "pt": "Encerrar como improcedente",
+    "fr": "Clôturer comme non fondé",
+    "de": "Als unbegründet schließen"
+  },
+  "admin_mod_delete_link_resolve": {
+    "es": "Eliminar tarjeta e infracción",
+    "en": "Remove card and violation",
+    "it": "Elimina carta e violazione",
+    "pt": "Eliminar cartão e infração",
+    "fr": "Supprimer carte et infraction",
+    "de": "Karte und Verstoß entfernen"
+  },
+  "admin_mod_notice_already_resolved": {
+    "es": "Este reporte ya estaba resuelto; no se aplicaron cambios duplicados.",
+    "en": "This report was already resolved; no duplicate changes were applied.",
+    "it": "Questa segnalazione era già risolta; nessuna modifica duplicata.",
+    "pt": "Este relatório já estava resolvido; nenhuma alteração duplicada.",
+    "fr": "Ce signalement était déjà résolu; aucune modification en double.",
+    "de": "Diese Meldung war bereits erledigt; keine doppelten Änderungen."
+  },
+  "admin_mod_success_resolve_delete": {
+    "es": "Tarjeta eliminada, reporte cerrado y notificación enviada.",
+    "en": "Card removed, report closed, and notification dispatched.",
+    "it": "Carta rimossa, segnalazione chiusa e notifica inviata.",
+    "pt": "Cartão removido, relatório encerrado e notificação enviada.",
+    "fr": "Carte supprimée, signalement clôturé et notification envoyée.",
+    "de": "Karte entfernt, Meldung geschlossen und Benachrichtigung gesendet."
+  },
+  "admin_moderation_decrypt_btn": {
+    "es": "Descifrar Evidencia de Abuso",
+    "en": "Decrypt Abuse Evidence",
+    "de": "Missbrauchsbeweise entschlüsseln",
+    "fr": "Déchiffrer la preuve d'abus",
+    "it": "Decripta prove di abuso",
+    "pt": "Decifrar evidência de abuso"
+  },
   "admin_mod_table_helper": {
     "es": "La tabla enlaza cada reporte con la ficha del usuario reportado para mostrar nombre y correo.",
     "en": "The table links each report to the reported user’s profile to show name and email.",
@@ -266,10 +346,346 @@
   "admin_idrisk_default_reason": {
     "es": "Prevención proactiva de abuso",
     "en": "Proactive abuse prevention",
-    "it": "Proactive abuse prevention",
-    "pt": "Proactive abuse prevention",
-    "fr": "Proactive abuse prevention",
-    "de": "Proactive abuse prevention"
+    "it": "Prevenzione proattiva degli abusi",
+    "pt": "Prevenção proativa de abuso",
+    "fr": "Prévention proactive des abus",
+    "de": "Proaktive Missbrauchsprävention"
+  },
+  "admin_idrisk_eyebrow": {
+    "es": "Riesgo de identidad y verificación",
+    "en": "Identity risk & verification",
+    "it": "Rischio identità e verifica",
+    "pt": "Risco de identidade e verificação",
+    "fr": "Risque d’identité et vérification",
+    "de": "Identitätsrisiko und Verifizierung"
+  },
+  "admin_idrisk_title": {
+    "es": "Identidad y antiabuso",
+    "en": "Identity & anti-abuse",
+    "it": "Identità e anti-abuso",
+    "pt": "Identidade e antiabuso",
+    "fr": "Identité et anti-abus",
+    "de": "Identität und Anti-Missbrauch"
+  },
+  "admin_idrisk_lead": {
+    "es": "Otorga el sello oficial a cuentas confiables y administra la lista negra global para prevenir registros abusivos o evasión de bloqueos.",
+    "en": "Grant the official seal to trusted accounts and manage the global blocklist to prevent abusive sign-ups or ban evasion.",
+    "it": "Concedi il sigillo ufficiale agli account attendibili e gestisci la blocklist globale per impedire registrazioni abusive o elusioni del ban.",
+    "pt": "Conceda o selo oficial a contas confiáveis e gerencie a lista bloqueada global para impedir cadastros abusivos ou evasão de banimento.",
+    "fr": "Accordez le sceau officiel aux comptes de confiance et gérez la liste noire globale pour prévenir les inscriptions abusives ou le contournement des bans.",
+    "de": "Vergeben Sie das offizielle Siegel für vertrauenswürdige Konten und verwalten Sie die globale Sperrliste, um missbräuchliche Registrierungen oder Umgehungen von Sperren zu verhindern."
+  },
+  "admin_idrisk_tab_verify_label": {
+    "es": "Verificación de cuentas",
+    "en": "Account verification",
+    "it": "Verifica account",
+    "pt": "Verificação de contas",
+    "fr": "Vérification des comptes",
+    "de": "Kontoverifizierung"
+  },
+  "admin_idrisk_tab_verify_desc": {
+    "es": "Insignia azul para perfiles confiables",
+    "en": "Blue badge for trusted profiles",
+    "it": "Badge blu per profili attendibili",
+    "pt": "Selo azul para perfis confiáveis",
+    "fr": "Badge bleu pour profils de confiance",
+    "de": "Blaues Badge für vertrauenswürdige Profile"
+  },
+  "admin_idrisk_tab_blacklist_label": {
+    "es": "Lista negra (blocklist)",
+    "en": "Blocklist",
+    "it": "Blocklist",
+    "pt": "Lista de bloqueio",
+    "fr": "Liste de blocage",
+    "de": "Sperrliste"
+  },
+  "admin_idrisk_tab_blacklist_desc": {
+    "es": "Colección global banned_identities",
+    "en": "Global banned_identities",
+    "it": "banned_identities globale",
+    "pt": "banned_identities global",
+    "fr": "banned_identities globale",
+    "de": "Globale banned_identities"
+  },
+  "admin_idrisk_search_title": {
+    "es": "Buscar cuenta",
+    "en": "Find account",
+    "it": "Cerca account",
+    "pt": "Buscar conta",
+    "fr": "Rechercher un compte",
+    "de": "Konto suchen"
+  },
+  "admin_idrisk_search_helper": {
+    "es": "Busca por correo o UID para revisar el estado de verificación.",
+    "en": "Search by email or UID to review verification status.",
+    "it": "Cerca per email o UID per controllare lo stato di verifica.",
+    "pt": "Busque por e-mail ou UID para revisar o status de verificação.",
+    "fr": "Recherchez par e-mail ou UID pour consulter l’état de vérification.",
+    "de": "Suche per E-Mail oder UID, um den Verifizierungsstatus zu prüfen."
+  },
+  "admin_idrisk_search_placeholder": {
+    "es": "correo@dominio.com o UID",
+    "en": "email@domain.com or UID",
+    "it": "email@dominio.com o UID",
+    "pt": "email@dominio.com ou UID",
+    "fr": "email@domaine.com ou UID",
+    "de": "E-Mail@domain.tld oder UID"
+  },
+  "admin_idrisk_search_loading": {
+    "es": "Buscando…",
+    "en": "Searching…",
+    "it": "Ricerca…",
+    "pt": "Buscando…",
+    "fr": "Recherche…",
+    "de": "Suche läuft…"
+  },
+  "admin_idrisk_search_submit": {
+    "es": "Buscar",
+    "en": "Search",
+    "it": "Cerca",
+    "pt": "Buscar",
+    "fr": "Rechercher",
+    "de": "Suchen"
+  },
+  "admin_idrisk_empty_search": {
+    "es": "Busca una cuenta para gestionar su insignia azul.",
+    "en": "Search for an account to manage its blue badge.",
+    "it": "Cerca un account per gestire il badge blu.",
+    "pt": "Busque uma conta para gerenciar o selo azul.",
+    "fr": "Recherchez un compte pour gérer son badge bleu.",
+    "de": "Suchen Sie ein Konto, um das blaue Badge zu verwalten."
+  },
+  "admin_idrisk_account_label": {
+    "es": "Cuenta",
+    "en": "Account",
+    "it": "Account",
+    "pt": "Conta",
+    "fr": "Compte",
+    "de": "Konto"
+  },
+  "admin_idrisk_email_unavailable_short": {
+    "es": "Correo no disponible",
+    "en": "Email not available",
+    "it": "Email non disponibile",
+    "pt": "E-mail indisponível",
+    "fr": "E-mail indisponible",
+    "de": "E-Mail nicht verfügbar"
+  },
+  "admin_idrisk_badge_verified": {
+    "es": "Verificado (insignia azul)",
+    "en": "Verified (blue badge)",
+    "it": "Verificato (badge blu)",
+    "pt": "Verificado (selo azul)",
+    "fr": "Vérifié (badge bleu)",
+    "de": "Verifiziert (blaues Badge)"
+  },
+  "admin_idrisk_badge_unverified": {
+    "es": "No verificado",
+    "en": "Not verified",
+    "it": "Non verificato",
+    "pt": "Não verificado",
+    "fr": "Non vérifié",
+    "de": "Nicht verifiziert"
+  },
+  "admin_idrisk_phone_label": {
+    "es": "Teléfono",
+    "en": "Phone",
+    "it": "Telefono",
+    "pt": "Telefone",
+    "fr": "Téléphone",
+    "de": "Telefon"
+  },
+  "admin_idrisk_phone_none": {
+    "es": "No registrado",
+    "en": "Not on file",
+    "it": "Non registrato",
+    "pt": "Não registrado",
+    "fr": "Non enregistré",
+    "de": "Nicht hinterlegt"
+  },
+  "admin_idrisk_verified_at_label": {
+    "es": "Verificado el",
+    "en": "Verified on",
+    "it": "Verificato il",
+    "pt": "Verificado em",
+    "fr": "Vérifié le",
+    "de": "Verifiziert am"
+  },
+  "admin_idrisk_btn_verify_loading": {
+    "es": "Otorgando…",
+    "en": "Granting…",
+    "it": "Concessione…",
+    "pt": "Concedendo…",
+    "fr": "Attribution…",
+    "de": "Wird gewährt…"
+  },
+  "admin_idrisk_btn_verify": {
+    "es": "Otorgar verificación (insignia azul)",
+    "en": "Grant verification (blue badge)",
+    "it": "Concedi verifica (badge blu)",
+    "pt": "Conceder verificação (selo azul)",
+    "fr": "Accorder la vérification (badge bleu)",
+    "de": "Verifizierung gewähren (blaues Badge)"
+  },
+  "admin_idrisk_btn_revoke_loading": {
+    "es": "Revocando…",
+    "en": "Revoking…",
+    "it": "Revoca…",
+    "pt": "Revogando…",
+    "fr": "Révocation…",
+    "de": "Wird widerrufen…"
+  },
+  "admin_idrisk_btn_revoke": {
+    "es": "Revocar verificación",
+    "en": "Revoke verification",
+    "it": "Revoca verifica",
+    "pt": "Revogar verificação",
+    "fr": "Révoquer la vérification",
+    "de": "Verifizierung widerrufen"
+  },
+  "admin_idrisk_blacklist_form_title": {
+    "es": "Agregar a la lista negra proactiva",
+    "en": "Add to proactive blocklist",
+    "it": "Aggiungi alla blocklist proattiva",
+    "pt": "Adicionar à lista de bloqueio proativa",
+    "fr": "Ajouter à la liste de blocage proactive",
+    "de": "Zur proaktiven Sperrliste hinzufügen"
+  },
+  "admin_idrisk_blacklist_form_helper": {
+    "es": "Crea un registro en banned_identities para que el backend lo rechace en el futuro.",
+    "en": "Create a banned_identities record so the backend can reject it later.",
+    "it": "Crea un documento banned_identities così il backend potrà rifiutarlo in futuro.",
+    "pt": "Crie um registro banned_identities para o backend rejeitar depois.",
+    "fr": "Créez une entrée banned_identities afin que le backend la rejette ensuite.",
+    "de": "Legen Sie einen banned_identities-Eintrag an, damit das Backend ihn später ablehnen kann."
+  },
+  "admin_idrisk_blacklist_email_ph": {
+    "es": "Correo a bloquear",
+    "en": "Email to block",
+    "it": "Email da bloccare",
+    "pt": "E-mail a bloquear",
+    "fr": "E-mail à bloquer",
+    "de": "Zu sperrende E-Mail"
+  },
+  "admin_idrisk_blacklist_reason_ph": {
+    "es": "Motivo",
+    "en": "Reason",
+    "it": "Motivo",
+    "pt": "Motivo",
+    "fr": "Motif",
+    "de": "Grund"
+  },
+  "admin_idrisk_blacklist_submit_loading": {
+    "es": "Guardando…",
+    "en": "Saving…",
+    "it": "Salvataggio…",
+    "pt": "Salvando…",
+    "fr": "Enregistrement…",
+    "de": "Speichern…"
+  },
+  "admin_idrisk_blacklist_submit": {
+    "es": "Agregar",
+    "en": "Add",
+    "it": "Aggiungi",
+    "pt": "Adicionar",
+    "fr": "Ajouter",
+    "de": "Hinzufügen"
+  },
+  "admin_idrisk_table_title": {
+    "es": "banned_identities",
+    "en": "banned_identities",
+    "it": "banned_identities",
+    "pt": "banned_identities",
+    "fr": "banned_identities",
+    "de": "banned_identities"
+  },
+  "admin_idrisk_table_refresh": {
+    "es": "Refrescar",
+    "en": "Refresh",
+    "it": "Aggiorna",
+    "pt": "Atualizar",
+    "fr": "Actualiser",
+    "de": "Aktualisieren"
+  },
+  "admin_idrisk_table_loading": {
+    "es": "Cargando lista negra…",
+    "en": "Loading blocklist…",
+    "it": "Caricamento blocklist…",
+    "pt": "Carregando lista…",
+    "fr": "Chargement de la liste…",
+    "de": "Sperrliste wird geladen…"
+  },
+  "admin_idrisk_table_empty": {
+    "es": "No hay identidades bloqueadas.",
+    "en": "No blocked identities.",
+    "it": "Nessuna identità bloccata.",
+    "pt": "Nenhuma identidade bloqueada.",
+    "fr": "Aucune identité bloquée.",
+    "de": "Keine gesperrten Identitäten."
+  },
+  "admin_idrisk_col_email": {
+    "es": "Correo",
+    "en": "Email",
+    "it": "Email",
+    "pt": "E-mail",
+    "fr": "E-mail",
+    "de": "E-Mail"
+  },
+  "admin_idrisk_col_phone": {
+    "es": "Teléfono",
+    "en": "Phone",
+    "it": "Telefono",
+    "pt": "Telefone",
+    "fr": "Téléphone",
+    "de": "Telefon"
+  },
+  "admin_idrisk_col_date": {
+    "es": "Fecha",
+    "en": "Date",
+    "it": "Data",
+    "pt": "Data",
+    "fr": "Date",
+    "de": "Datum"
+  },
+  "admin_idrisk_col_admin": {
+    "es": "Admin",
+    "en": "Admin",
+    "it": "Admin",
+    "pt": "Admin",
+    "fr": "Admin",
+    "de": "Admin"
+  },
+  "admin_idrisk_col_reason": {
+    "es": "Motivo",
+    "en": "Reason",
+    "it": "Motivo",
+    "pt": "Motivo",
+    "fr": "Motif",
+    "de": "Grund"
+  },
+  "admin_idrisk_col_action": {
+    "es": "Acción",
+    "en": "Action",
+    "it": "Azione",
+    "pt": "Ação",
+    "fr": "Action",
+    "de": "Aktion"
+  },
+  "admin_idrisk_remove_loading": {
+    "es": "Quitando…",
+    "en": "Removing…",
+    "it": "Rimozione…",
+    "pt": "Removendo…",
+    "fr": "Suppression…",
+    "de": "Wird entfernt…"
+  },
+  "admin_idrisk_remove": {
+    "es": "Quitar de la lista",
+    "en": "Remove from list",
+    "it": "Rimuovi dalla lista",
+    "pt": "Remover da lista",
+    "fr": "Retirer de la liste",
+    "de": "Von der Liste entfernen"
   },
   "admin_commerce_load_fail": {
     "es": "Error al cargar la configuración comercial. Por favor, reintenta.",
@@ -1750,5 +2166,181 @@
     "pt": "Week from {{date}}",
     "fr": "Week from {{date}}",
     "de": "Week from {{date}}"
+  },
+  "admin_megaphone_eyebrow": {
+    "es": "Comunicación · In-app",
+    "en": "Communications · In-app",
+    "it": "Comunicazioni · In-app",
+    "pt": "Comunicação · No app",
+    "fr": "Communication · In-app",
+    "de": "Kommunikation · In-App"
+  },
+  "admin_megaphone_title": {
+    "es": "Megáfono global",
+    "en": "Global megaphone",
+    "it": "Megafono globale",
+    "pt": "Megafone global",
+    "fr": "Mégaphone global",
+    "de": "Globales Megafon"
+  },
+  "admin_megaphone_lead": {
+    "es": "Publica anuncios para todos los usuarios sin fan-out: un documento en Firestore por campaña. El texto en la app se resuelve por templateId e idioma del usuario.",
+    "en": "Publish announcements to all users without fan-out: one Firestore document per campaign. In-app copy resolves from templateId and the user's language.",
+    "it": "Pubblica annunci a tutti senza fan-out: un documento Firestore per campagna. Il testo in-app segue templateId e lingua.",
+    "pt": "Publique avisos a todos sem fan-out: um documento por campanha. O texto no app usa templateId e idioma.",
+    "fr": "Diffusez des annonces à tous sans fan-out : un document par campagne. Le texte suit le templateId et la langue.",
+    "de": "Ankündigungen ohne Fan-out: ein Firestore-Dokument pro Kampagne. Text per templateId und Sprache."
+  },
+  "admin_megaphone_compose_title": {
+    "es": "Nuevo anuncio",
+    "en": "New announcement",
+    "it": "Nuovo annuncio",
+    "pt": "Novo aviso",
+    "fr": "Nouvelle annonce",
+    "de": "Neue Ankündigung"
+  },
+  "admin_megaphone_compose_hint": {
+    "es": "Elige la plantilla (traducción en la app móvil) y, si aplica, una fecha de caducidad.",
+    "en": "Pick the template (translated in the mobile app) and an optional expiry.",
+    "it": "Scegli il template (traduci in app) e una scadenza opzionale.",
+    "pt": "Escolha o modelo (traduzido no app) e expiração opcional.",
+    "fr": "Choisissez le modèle (traduit dans l'app) et une expiration optionnelle.",
+    "de": "Vorlage wählen (in der App übersetzt) und optional Ablaufdatum."
+  },
+  "admin_megaphone_field_template": {
+    "es": "Plantilla (templateId)",
+    "en": "Template (templateId)",
+    "it": "Template (templateId)",
+    "pt": "Modelo (templateId)",
+    "fr": "Modèle (templateId)",
+    "de": "Vorlage (templateId)"
+  },
+  "admin_megaphone_field_expires": {
+    "es": "Expira el (opcional)",
+    "en": "Expires at (optional)",
+    "it": "Scade il (opzionale)",
+    "pt": "Expira em (opcional)",
+    "fr": "Expire le (optionnel)",
+    "de": "Läuft ab am (optional)"
+  },
+  "admin_megaphone_expires_optional": {
+    "es": "Si lo dejas vacío, el anuncio sigue activo hasta que lo desactives manualmente.",
+    "en": "If empty, the announcement stays active until you deactivate it.",
+    "it": "Se vuoto, resta attivo finché non lo disattivi.",
+    "pt": "Se vazio, permanece ativo até você desativar.",
+    "fr": "Si vide, reste actif jusqu'à désactivation manuelle.",
+    "de": "Leer = aktiv, bis Sie es deaktivieren."
+  },
+  "admin_megaphone_publish": {
+    "es": "Publicar anuncio",
+    "en": "Publish announcement",
+    "it": "Pubblica annuncio",
+    "pt": "Publicar aviso",
+    "fr": "Publier l'annonce",
+    "de": "Ankündigung veröffentlichen"
+  },
+  "admin_megaphone_list_title": {
+    "es": "Campañas recientes",
+    "en": "Recent campaigns",
+    "it": "Campagne recenti",
+    "pt": "Campanhas recentes",
+    "fr": "Campagnes récentes",
+    "de": "Letzte Kampagnen"
+  },
+  "admin_megaphone_list_hint": {
+    "es": "Desactiva una campaña para dejar de mostrarla en las apps.",
+    "en": "Deactivate to stop showing it in apps.",
+    "it": "Disattiva per nasconderla nelle app.",
+    "pt": "Desative para ocultar nos apps.",
+    "fr": "Désactiver pour masquer dans les apps.",
+    "de": "Deaktivieren, um in den Apps auszublenden."
+  },
+  "admin_megaphone_empty": {
+    "es": "No hay anuncios todavía.",
+    "en": "No announcements yet.",
+    "it": "Nessun annuncio.",
+    "pt": "Nenhum aviso ainda.",
+    "fr": "Aucune annonce.",
+    "de": "Noch keine Ankündigungen."
+  },
+  "admin_megaphone_created": {
+    "es": "Creado",
+    "en": "Created",
+    "it": "Creato",
+    "pt": "Criado",
+    "fr": "Créé",
+    "de": "Erstellt"
+  },
+  "admin_megaphone_expires": {
+    "es": "Expira",
+    "en": "Expires",
+    "it": "Scadenza",
+    "pt": "Expira",
+    "fr": "Expire",
+    "de": "Läuft ab"
+  },
+  "admin_megaphone_status_active": {
+    "es": "Activo",
+    "en": "Active",
+    "it": "Attivo",
+    "pt": "Ativo",
+    "fr": "Actif",
+    "de": "Aktiv"
+  },
+  "admin_megaphone_status_inactive": {
+    "es": "Inactivo",
+    "en": "Inactive",
+    "it": "Inattivo",
+    "pt": "Inativo",
+    "fr": "Inactif",
+    "de": "Inaktiv"
+  },
+  "admin_megaphone_deactivate": {
+    "es": "Desactivar",
+    "en": "Deactivate",
+    "it": "Disattiva",
+    "pt": "Desativar",
+    "fr": "Désactiver",
+    "de": "Deaktivieren"
+  },
+  "admin_megaphone_loading": {
+    "es": "Cargando sesión…",
+    "en": "Loading session…",
+    "it": "Caricamento sessione…",
+    "pt": "Carregando sessão…",
+    "fr": "Chargement de la session…",
+    "de": "Sitzung wird geladen…"
+  },
+  "admin_megaphone_err_load": {
+    "es": "No se pudieron cargar los anuncios.",
+    "en": "Could not load announcements.",
+    "it": "Impossibile caricare gli annunci.",
+    "pt": "Não foi possível carregar os avisos.",
+    "fr": "Impossible de charger les annonces.",
+    "de": "Ankündigungen konnten nicht geladen werden."
+  },
+  "admin_megaphone_err_date": {
+    "es": "Fecha de expiración no válida.",
+    "en": "Invalid expiry date.",
+    "it": "Data di scadenza non valida.",
+    "pt": "Data de expiração inválida.",
+    "fr": "Date d'expiration invalide.",
+    "de": "Ungültiges Ablaufdatum."
+  },
+  "admin_megaphone_err_publish": {
+    "es": "No se pudo publicar el anuncio.",
+    "en": "Could not publish the announcement.",
+    "it": "Impossibile pubblicare l'annuncio.",
+    "pt": "Não foi possível publicar o aviso.",
+    "fr": "Impossible de publier l'annonce.",
+    "de": "Ankündigung konnte nicht veröffentlicht werden."
+  },
+  "admin_megaphone_err_deactivate": {
+    "es": "No se pudo desactivar.",
+    "en": "Could not deactivate.",
+    "it": "Impossibile disattivare.",
+    "pt": "Não foi possível desativar.",
+    "fr": "Impossible de désactiver.",
+    "de": "Deaktivieren fehlgeschlagen."
   }
 }

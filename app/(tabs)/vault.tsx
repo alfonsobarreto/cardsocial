@@ -10,6 +10,12 @@ import { getSearchableStringsFromVaultLikeItem, orderByDeepSearchWithExpandedQue
 import { db } from '@/services/firebaseConfig';
 import { readUserFullName, readUserNickName } from '@/services/userIdentityFields';
 import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
+import {
+  decodeVaultFirestoreQueryDocs,
+  encodeVaultLink,
+  type VaultLinkLogical,
+} from '@/services/vaultFirestoreCodec';
+import { getVaultE2eDerivedKey, unlockVaultE2eWithPassphrase } from '@/services/vaultE2eSession';
 import { creationT } from '@/services/creationI18n';
 import { useCoreT, type CoreLocaleKey } from '@/services/coreI18n';
 import { useLanguage } from '@/services/language';
@@ -82,6 +88,7 @@ try {
 
 interface Link {
   id: string;
+  uid?: string;
   title: string;
   type: string;
   value: string;
@@ -153,6 +160,8 @@ const VaultScreen = () => {
   );
   /** Ítems nuevos premium: destello dorado ~0,5 s en el grid. */
   const [premiumRevealLinks, setPremiumRevealLinks] = useState<Record<string, true>>({});
+  const [vaultE2ePassphraseDraft, setVaultE2ePassphraseDraft] = useState('');
+  const [vaultE2eSessionActive, setVaultE2eSessionActive] = useState(false);
   const formSheetTranslateY = useRef(new Animated.Value(0)).current;
   const headerProfileLabel = profileDisplayName.trim()
     ? profileDisplayName
@@ -227,10 +236,9 @@ const VaultScreen = () => {
     // Esto permite que borrados hechos desde Studio Web eliminen también el caché local.
     try {
       const cloudSnapshot = await getDocs(collection(db, 'users', userId, 'links'));
-      const cloudItems = cloudSnapshot.docs.map((itemDoc) => ({
-        id: itemDoc.id,
-        ...itemDoc.data(),
-      })) as Link[];
+      const cloudItems = (await decodeVaultFirestoreQueryDocs(cloudSnapshot.docs, () =>
+        getVaultE2eDerivedKey(userId),
+      )) as Link[];
 
       const authoritative = sortLinks((await mergeBuiltinGhostLinkIntoVault(userId, cloudItems)) as Link[]);
       const cloudJson = JSON.stringify(authoritative);
@@ -276,10 +284,9 @@ const VaultScreen = () => {
         collection(db, 'users', userId, 'links'),
         (snapshot) => {
           void (async () => {
-            const cloudItems = snapshot.docs.map((itemDoc) => ({
-              id: itemDoc.id,
-              ...itemDoc.data(),
-            })) as Link[];
+            const cloudItems = (await decodeVaultFirestoreQueryDocs(snapshot.docs, () =>
+              getVaultE2eDerivedKey(userId),
+            )) as Link[];
             const authoritative = sortLinks((await mergeBuiltinGhostLinkIntoVault(userId, cloudItems)) as Link[]);
             await AsyncStorage.setItem(vaultStorageKey(userId), JSON.stringify(authoritative));
             if (!cancelled) {
@@ -356,6 +363,13 @@ const VaultScreen = () => {
             void preloadMagneticVaultClosureSound();
             void preloadAirEvaporationDeleteSound();
             void (async () => {
+              const uid = await getActiveUserId();
+              if (uid) {
+                const ek = await getVaultE2eDerivedKey(uid);
+                setVaultE2eSessionActive(!!ek);
+              } else {
+                setVaultE2eSessionActive(false);
+              }
               await evaluateDullMode();
               loadVaultData();
               loadProfileMeta();
@@ -514,7 +528,9 @@ const VaultScreen = () => {
 
         const updatedItem = updated.find((item) => item.id === link.id);
         if (updatedItem) {
-          await setDoc(doc(db, 'users', userId, 'links', link.id), updatedItem);
+          const key = await getVaultE2eDerivedKey(userId);
+          const encoded = await encodeVaultLink({ ...updatedItem, uid: userId } as VaultLinkLogical, key);
+          await setDoc(doc(db, 'users', userId, 'links', link.id), encoded, { merge: true });
           await syncVaultUpdateAcrossCards(userId, updatedItem);
         }
       }
@@ -536,6 +552,25 @@ const VaultScreen = () => {
         visibilityTime: 3000,
         autoHide: true,
       });
+    }
+  };
+
+  const onVaultE2eUnlock = async () => {
+    try {
+      const uid = await getActiveUserId();
+      if (!uid) return;
+      const pass = vaultE2ePassphraseDraft.trim();
+      if (!pass) {
+        Alert.alert(t('common_error'), t('vault_e2e_passphrase_required'));
+        return;
+      }
+      await unlockVaultE2eWithPassphrase(uid, pass);
+      setVaultE2ePassphraseDraft('');
+      setVaultE2eSessionActive(true);
+      await loadVaultData();
+    } catch (e) {
+      console.warn('vault e2e unlock', e);
+      Alert.alert(t('common_error'), t('vault_e2e_unlock_failed'));
     }
   };
 
@@ -1701,6 +1736,52 @@ const VaultScreen = () => {
           {/* No mostrar barra de progreso para admin pochobs */}
         </View>
       </View>
+
+      {isVaultUnlocked ? (
+        <View style={{ paddingHorizontal: 12, paddingBottom: 10, gap: 6 }}>
+          <Text style={{ fontSize: 12, color: vaultTheme.secondaryText }}>{t('vault_e2e_hint')}</Text>
+          {vaultE2eSessionActive ? (
+            <Text style={{ fontSize: 12, color: vaultTheme.counterAccent, fontWeight: '600' }}>
+              {t('vault_e2e_unlocked')}
+            </Text>
+          ) : (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <TextInput
+                value={vaultE2ePassphraseDraft}
+                onChangeText={setVaultE2ePassphraseDraft}
+                placeholder={t('vault_e2e_passphrase_placeholder')}
+                placeholderTextColor={vaultTheme.searchPlaceholder}
+                secureTextEntry
+                style={{
+                  flex: 1,
+                  borderWidth: StyleSheet.hairlineWidth,
+                  borderColor: vaultTheme.searchBorder,
+                  borderRadius: 10,
+                  paddingHorizontal: 10,
+                  paddingVertical: Platform.OS === 'ios' ? 10 : 8,
+                  color: vaultTheme.primaryText,
+                  backgroundColor: vaultTheme.searchBg,
+                }}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <TouchableOpacity
+                onPress={() => {
+                  void onVaultE2eUnlock();
+                }}
+                style={{
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                  borderRadius: 10,
+                  backgroundColor: vaultTheme.ctaAccent,
+                }}
+              >
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>{t('vault_e2e_unlock')}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      ) : null}
 
       {/* Search bar (#5) */}
       {links.length > 0 ? (

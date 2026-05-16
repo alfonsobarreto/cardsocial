@@ -6,6 +6,7 @@ import { useAdminT } from '../i18n/useAdminT';
 const navItems = [
   { label: 'Dashboard', to: '/' },
   { label: 'Communication Hub', to: '/communication' },
+  { label: 'Megáfono in-app', to: '/megafono' },
   { label: 'Estadisticas', to: '/estadisticas' },
   { label: 'Moderacion', to: '/moderacion' },
   { label: 'Legal & Compliance', to: '/compliance' },

@@ -9,7 +9,7 @@
 
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { getActiveUserId } from '@/services/authSession';
-import { db } from '@/services/firebaseConfig';
+import { db, storage } from '@/services/firebaseConfig';
 import { readUserFullName, readUserNickName } from '@/services/userIdentityFields';
 import { coreTrEsEn } from '@/services/coreI18n';
 import { useLanguage } from '@/services/language';
@@ -22,13 +22,18 @@ import {
     SOCIAL_MEDALS,
     submitMedalVote,
 } from '@/services/medalService';
+import { fetchModerationPublicKeyX25519 } from '@/services/moderationIdentityConfig';
+import { sealModerationEvidence } from '@/services/moderationReportEvidenceCrypto';
 import { premiumTheme as PT } from '@/styles/_premiumTheme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { addDoc, collection, doc, getDoc, serverTimestamp } from 'firebase/firestore';
+import * as ImagePicker from 'expo-image-picker';
+import { addDoc, collection, doc, getDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Animated,
+  ActivityIndicator,
+  Image,
+  Animated,
     BackHandler,
     Keyboard,
     KeyboardAvoidingView,
@@ -92,6 +97,7 @@ export function MedalRatingModal({
   const [loadingData, setLoadingData] = useState(false);
   const [votingKey, setVotingKey] = useState<MedalKey | null>(null);
   const [reportText, setReportText] = useState('');
+  const [evidenceImageUri, setEvidenceImageUri] = useState<string | null>(null);
   const [sending, setSending]     = useState(false);
   const [ownerProfileName, setOwnerProfileName] = useState<string>('');
 
@@ -101,6 +107,7 @@ export function MedalRatingModal({
   useEffect(() => {
     if (!visible || !sidOrBId) return;
     setReportText('');
+    setEvidenceImageUri(null);
     void (async () => {
       setLoadingData(true);
       try {
@@ -133,6 +140,7 @@ export function MedalRatingModal({
   // â”€â”€ cerrar â”€â”€
   const handleClose = useCallback(() => {
     setReportText('');
+    setEvidenceImageUri(null);
     onClose();
   }, [onClose]);
 
@@ -156,23 +164,124 @@ export function MedalRatingModal({
     [myUid, votingKey, sidOrBId, tr],
   );
 
+  const pickEvidenceScreenshot = useCallback(async () => {
+    if (sending) return;
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Toast.show({
+          type: 'error',
+          text1: tr('Permiso de galería denegado.', 'Photo library permission denied.'),
+          visibilityTime: 2500,
+        });
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.85,
+      });
+      if (result.canceled || !result.assets?.[0]?.uri) return;
+      setEvidenceImageUri(result.assets[0].uri);
+    } catch {
+      Toast.show({
+        type: 'error',
+        text1: tr('No se pudo abrir la galería.', 'Could not open the photo library.'),
+        visibilityTime: 2000,
+      });
+    }
+  }, [sending, tr]);
+
   // â”€â”€ enviar reporte incÃ³gnito â”€â”€
   const handleSendReport = useCallback(async () => {
     const text = reportText.trim();
-    if (!text || sending) return;
+    const hasImage = Boolean(evidenceImageUri);
+    if ((!text && !hasImage) || sending) return;
+    const uid = await getActiveUserId();
+    if (!uid) {
+      Toast.show({ type: 'error', text1: tr('Inicia sesión para reportar.', 'Sign in to report.'), visibilityTime: 2000 });
+      return;
+    }
     setSending(true);
     try {
+      let evidenceImageUrl: string | undefined;
+      if (hasImage && evidenceImageUri) {
+        const response = await fetch(evidenceImageUri);
+        const blob = await response.blob();
+        if (blob.size > 5 * 1024 * 1024) {
+          Toast.show({
+            type: 'error',
+            text1: tr('La imagen supera 5 MB.', 'Image exceeds 5 MB.'),
+            visibilityTime: 2500,
+          });
+          return;
+        }
+        let mime = blob.type && /^image\//i.test(blob.type) ? blob.type : 'image/jpeg';
+        const imageId =
+          typeof globalThis.crypto?.randomUUID === 'function'
+            ? globalThis.crypto.randomUUID()
+            : `${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+        const fileRef = storageRef(storage, `vault_evidences/${imageId}`);
+        await uploadBytes(fileRef, blob, {
+          contentType: mime,
+          customMetadata: { uploadedBy: uid },
+        });
+        evidenceImageUrl = await getDownloadURL(fileRef);
+      }
+
+      const detailsForFirestore =
+        text || (hasImage ? tr('[Evidencia visual adjunta]', '[Screenshot evidence attached]') : '');
+
+      const ownerLabel = (ownerProfileName || cardOwnerName || '').trim();
+      const evidencePlain = {
+        v: 1 as const,
+        cardType,
+        targetCardId: sidOrBId,
+        reportedUserId: issuerUid,
+        reporterUserId: uid,
+        reporterSummary: text,
+        cardOwnerLabel: ownerLabel || undefined,
+        observedAtIso: new Date().toISOString(),
+        ...(evidenceImageUrl ? { evidenceImageUrl } : {}),
+      };
+      const evidencePlainJson = JSON.stringify(evidencePlain);
+
+      let evidenceStatus: 'present' | 'missing' = 'missing';
+      let evidenceCiphertext = '';
+      let evidenceIv = '';
+      let evidenceEphemPub = '';
+      try {
+        const modPk = await fetchModerationPublicKeyX25519();
+        if (modPk) {
+          const sealed = sealModerationEvidence(modPk, evidencePlainJson);
+          evidenceCiphertext = sealed.evidenceCiphertext;
+          evidenceIv = sealed.evidenceIv;
+          evidenceEphemPub = sealed.evidenceEphemPub;
+          evidenceStatus = 'present';
+        }
+      } catch {
+        evidenceStatus = 'missing';
+      }
+
+      const expiresAt = Timestamp.fromMillis(Date.now() + 36 * 60 * 60 * 1000);
+
       await addDoc(collection(db, 'reports'), {
         type: 'card',
         status: 'pending',
         targetCardId: sidOrBId,
         reportedUserId: issuerUid,
-        reporterUserId: myUid || null,
+        reporterUserId: uid,
         reason: cardType === 'smart' ? 'smart_card_report' : 'business_card_report',
-        details: text,
+        details: detailsForFirestore,
         anonymous: true,
         source: 'medal_rating_modal',
         createdAt: serverTimestamp(),
+        evidenceStatus,
+        evidenceCiphertext,
+        evidenceIv,
+        evidenceEphemPub,
+        evidenceVersion: 1,
+        expiresAt,
       });
       Toast.show({
         type: 'success',
@@ -181,22 +290,33 @@ export function MedalRatingModal({
         visibilityTime: 2500,
       });
       setReportText('');
+      setEvidenceImageUri(null);
     } catch {
       Toast.show({ type: 'error', text1: tr('Error al enviar', 'Send error'), visibilityTime: 2000 });
     } finally {
       setSending(false);
     }
-  }, [reportText, sending, cardType, sidOrBId, issuerUid, tr]);
+  }, [
+    reportText,
+    evidenceImageUri,
+    sending,
+    cardType,
+    sidOrBId,
+    issuerUid,
+    tr,
+    ownerProfileName,
+    cardOwnerName,
+  ]);
 
   // â”€â”€ confirmar â”€â”€
   const handleConfirm = useCallback(async () => {
     if (sending) return;
-    if (reportText.trim().length > 0) {
+    if (reportText.trim().length > 0 || evidenceImageUri) {
       await handleSendReport();
     } else {
       handleClose();
     }
-  }, [sending, reportText, handleSendReport, handleClose]);
+  }, [sending, reportText, evidenceImageUri, handleSendReport, handleClose]);
 
   // â”€â”€ colores â”€â”€
   const accent      = P.accent;
@@ -374,6 +494,37 @@ export function MedalRatingModal({
                       returnKeyType="done"
                       blurOnSubmit
                     />
+                    <TouchableOpacity
+                      style={[
+                        styles.evidenceAttachBtn,
+                        { borderColor, opacity: sending ? 0.55 : 1 },
+                      ]}
+                      onPress={() => void pickEvidenceScreenshot()}
+                      disabled={sending}
+                      activeOpacity={0.85}
+                    >
+                      <MaterialCommunityIcons name="image-plus" size={20} color={accent} />
+                      <Text style={[styles.evidenceAttachLabel, { color: accent }]}>
+                        {tr(
+                          'Adjuntar captura de pantalla (opcional)',
+                          'Attach screenshot (optional)',
+                        )}
+                      </Text>
+                    </TouchableOpacity>
+                    {evidenceImageUri ? (
+                      <View style={styles.evidencePreviewRow}>
+                        <Image source={{ uri: evidenceImageUri }} style={styles.evidenceThumb} />
+                        <TouchableOpacity
+                          onPress={() => !sending && setEvidenceImageUri(null)}
+                          disabled={sending}
+                          style={styles.evidenceRemoveBtn}
+                        >
+                          <Text style={[styles.evidenceRemoveLabel, { color: mutedColor }]}>
+                            {tr('Quitar imagen', 'Remove image')}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : null}
                   </View>
                 </ScrollView>
               )}
@@ -547,6 +698,39 @@ const styles = StyleSheet.create({
     minHeight: 80,
     textAlignVertical: 'top',
     lineHeight: 20,
+  },
+  evidenceAttachBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  evidenceAttachLabel: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  evidencePreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  evidenceThumb: {
+    width: 72,
+    height: 72,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+  },
+  evidenceRemoveBtn: {
+    flex: 1,
+    paddingVertical: 8,
+  },
+  evidenceRemoveLabel: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   confirmBtn: {
     marginHorizontal: 16,

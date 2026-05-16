@@ -19,6 +19,11 @@ import {
 import { studioTheme } from '@/lib/studioTheme';
 import { assignStudioLoginPage, setStudioAuthCookie } from '@/lib/studioAuthClient';
 import {
+  clearStudioVaultE2eKey,
+  readStudioVaultE2eKey,
+  unlockStudioVaultE2eWithPassphrase,
+} from '@/lib/studioVaultE2eSession';
+import {
   DEFAULT_TIERS_CONFIG,
   effectiveStudioTierKey,
   isStudioSuperAdminFirestoreRole,
@@ -66,6 +71,8 @@ export default function StudioShell() {
   const [dirtyPrompt, setDirtyPrompt] = useState(false);
   const [editingLink, setEditingLink] = useState<StudioVaultLink | undefined>(undefined);
   const [formIconMci, setFormIconMci] = useState('link-variant');
+  const [vaultE2eKey, setVaultE2eKey] = useState<Uint8Array | null>(null);
+  const [vaultCryptoPass, setVaultCryptoPass] = useState('');
 
   const t = useCallback((k: string, vars?: Record<string, string | number>) => studioT(locale, k, vars), [locale]);
 
@@ -187,6 +194,14 @@ export default function StudioShell() {
   }, [links, user]);
 
   useEffect(() => {
+    if (!user || typeof window === 'undefined') {
+      setVaultE2eKey(null);
+      return;
+    }
+    setVaultE2eKey(readStudioVaultE2eKey(user.uid));
+  }, [user]);
+
+  useEffect(() => {
     if (!user) {
       setLinks([]);
       setProfile(null);
@@ -194,8 +209,8 @@ export default function StudioShell() {
       setStudioTierKey('free');
       return;
     }
-    return subscribeVaultLinks(user.uid, setLinks);
-  }, [user]);
+    return subscribeVaultLinks(user.uid, async () => vaultE2eKey, setLinks);
+  }, [user, vaultE2eKey]);
 
   useEffect(() => {
     if (!user) return;
@@ -325,6 +340,10 @@ export default function StudioShell() {
     // en Firebase, StudioLoginShell te devuelve a /studio y se produce ERR_TOO_MANY_REDIRECTS.
     void (async () => {
       try {
+        const cu = getStudioAuth().currentUser;
+        if (cu) {
+          clearStudioVaultE2eKey(cu.uid);
+        }
         await signOut(getStudioAuth());
       } catch {
         /* aun sin red: forzar ida a login */
@@ -405,6 +424,7 @@ export default function StudioShell() {
     if (!second) return;
     setDeletingAccount(true);
     try {
+      clearStudioVaultE2eKey(user.uid);
       await updateDoc(doc(getStudioDb(), 'users', user.uid), {
         pendingDeletion: true,
         deletionRequestedAt: now,
@@ -623,18 +643,95 @@ export default function StudioShell() {
               onBack={openVault}
             />
           ) : (
-            <VaultColumn
-              locale={locale}
-              searchQuery={vaultSearch}
-              onSearchChange={setVaultSearch}
-              links={links}
-              onSelectLink={openExistingIconData}
-              onAddClick={openNewIconData}
-              userId={user.uid}
-              profile={profile}
-              vaultUnlimited={vaultUnlimited}
-              vaultItemMax={vaultIconDataMax}
-            />
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                flex: 1,
+                minHeight: 0,
+                minWidth: 0,
+                alignItems: 'stretch',
+              }}
+            >
+              <div
+                style={{
+                  padding: '8px 10px',
+                  borderBottom: `1px solid ${studioTheme.border}`,
+                  flexShrink: 0,
+                  background: studioTheme.surface,
+                }}
+              >
+                <div style={{ fontSize: 11, color: studioTheme.textMuted, marginBottom: 6 }}>
+                  {t('vault.crypto.banner')}
+                </div>
+                {vaultE2eKey ? (
+                  <div style={{ fontSize: 11, color: studioTheme.gold }}>{t('vault.crypto.unlocked')}</div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <input
+                      type="password"
+                      value={vaultCryptoPass}
+                      onChange={(e) => setVaultCryptoPass(e.target.value)}
+                      placeholder={t('vault.crypto.pass')}
+                      autoComplete="off"
+                      style={{
+                        flex: '1 1 160px',
+                        minWidth: 120,
+                        padding: '6px 8px',
+                        borderRadius: 6,
+                        border: `1px solid ${studioTheme.border}`,
+                        background: studioTheme.bg,
+                        color: studioTheme.goldLight,
+                        fontSize: 13,
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void (async () => {
+                          const p = vaultCryptoPass.trim();
+                          if (!p) return;
+                          try {
+                            await unlockStudioVaultE2eWithPassphrase(user.uid, p);
+                            setVaultCryptoPass('');
+                            setVaultE2eKey(readStudioVaultE2eKey(user.uid));
+                          } catch {
+                            /* clave / PBKDF2: silenciar en UI mínima; ampliar con toast si hace falta */
+                          }
+                        })();
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 6,
+                        border: 'none',
+                        background: studioTheme.gold,
+                        color: studioTheme.bg,
+                        cursor: 'pointer',
+                        fontWeight: 700,
+                        fontSize: 12,
+                      }}
+                    >
+                      {t('vault.crypto.unlock')}
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                <VaultColumn
+                  locale={locale}
+                  searchQuery={vaultSearch}
+                  onSearchChange={setVaultSearch}
+                  links={links}
+                  onSelectLink={openExistingIconData}
+                  onAddClick={openNewIconData}
+                  userId={user.uid}
+                  profile={profile}
+                  vaultUnlimited={vaultUnlimited}
+                  vaultItemMax={vaultIconDataMax}
+                  vaultEncryptionKey={vaultE2eKey}
+                />
+              </div>
+            </div>
           )}
           {formOpen ? (
             <FormColumn
@@ -659,6 +756,7 @@ export default function StudioShell() {
                 params.delete('icons');
                 replaceBunkerUrl(params, '/studio/bunker');
               }}
+              vaultEncryptionKey={vaultE2eKey}
             />
           ) : null}
           {formOpen && iconOpen ? (

@@ -1,4 +1,5 @@
 import { ConfettiAnimation, ConfettiAnimationRef } from '@/components/ConfettiAnimation';
+import { NotificationBell } from '@/components/NotificationBell';
 import { brandCsIconLogo } from '@/constants/brandAssets';
 import { CreditsIndicator } from '@/components/CreditsIndicator';
 import LanguageToggle from '@/components/LanguageToggle';
@@ -28,7 +29,7 @@ import { coreTrEsEn } from '@/services/coreI18n';
 import { useLookMode } from '@/services/lookMode';
 import { listBlockedRelations, unblockRelationship } from '@/services/qrApi';
 import { touchSessionActivityForNonTrusted } from '@/services/sessionInactivity';
-import { APP_LOCK_ENABLED_STORAGE_KEY } from '@/services/sessionPolicyKeys';
+import { removeAppLockEnabled } from '@/services/appLockSecureStorage';
 import { syncWaitlistOnAppVerified } from '@/services/syncWaitlistOnAppVerified';
 import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
 import {
@@ -397,7 +398,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
       const signingOutUid = auth.currentUser?.uid ?? null;
       // Limpieza de memoria: elimina el flag de bloqueo biométrico y otras claves sensibles
       try {
-        await AsyncStorage.removeItem(APP_LOCK_ENABLED_STORAGE_KEY);
+        await removeAppLockEnabled();
         // Ejemplo: await AsyncStorage.removeItem('OTRA_CLAVE_SENSIBLE');
       } catch {}
       await clearLocalCachesForSignOut(signingOutUid);
@@ -873,15 +874,17 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                   </View>
                 </View>
                 <View style={[styles.headerBarEdge, styles.headerBarEdgeEnd]}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      setDrawerVisible(false);
-                      router.push('/(tabs)/myprofile' as any);
-                    }}
-                    style={styles.headerIconHit}
-                    accessibilityLabel={tr('Mi perfil', 'My profile')}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
+                  <View style={styles.headerBarEndCluster}>
+                    <NotificationBell accent={shell.ctaAccent} />
+                    <TouchableOpacity
+                      onPress={() => {
+                        setDrawerVisible(false);
+                        router.push('/(tabs)/myprofile' as any);
+                      }}
+                      style={styles.headerIconHit}
+                      accessibilityLabel={tr('Mi perfil', 'My profile')}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
                     {headerAvatarUrl ? (
                       <ExpoImage
                         source={{ uri: headerAvatarUrl }}
@@ -895,6 +898,7 @@ export default function TabLayout({ children }: { children: React.ReactNode }) {
                       <MaterialCommunityIcons name="account-circle-outline" size={36} color={shell.ctaAccent} />
                     )}
                   </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             </View>
@@ -1652,6 +1656,11 @@ const styles = StyleSheet.create({
   },
   headerBarEdgeEnd: {
     justifyContent: 'flex-end',
+  },
+  headerBarEndCluster: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   headerBrandCenter: {
     flex: 1,

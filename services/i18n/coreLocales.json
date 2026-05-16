@@ -1823,6 +1823,54 @@
     "fr": "modifier les données du Bunker",
     "de": "Búnker-Daten bearbeiten"
   },
+  "vault_e2e_hint": {
+    "es": "Frase de la bóveda: descifra título y contenido cifrados en la nube (la misma que uses al guardar con cifrado).",
+    "en": "Vault passphrase: decrypts title and content stored encrypted in the cloud (use the same passphrase when saving with encryption).",
+    "it": "Passphrase del caveau: decifra titolo e contenuto cifrati nel cloud.",
+    "pt": "Frase da bóveda: descriptografa título e conteúdo na nuvem.",
+    "fr": "Phrase du coffre : déchiffre le titre et le contenu chiffrés dans le cloud.",
+    "de": "Tresor-Passphrase: entschlüsselt Titel und Inhalt in der Cloud."
+  },
+  "vault_e2e_passphrase_placeholder": {
+    "es": "Frase de la bóveda",
+    "en": "Vault passphrase",
+    "it": "Passphrase del caveau",
+    "pt": "Frase da bóveda",
+    "fr": "Phrase du coffre",
+    "de": "Tresor-Passphrase"
+  },
+  "vault_e2e_unlock": {
+    "es": "Desbloquear",
+    "en": "Unlock",
+    "it": "Sblocca",
+    "pt": "Desbloquear",
+    "fr": "Déverrouiller",
+    "de": "Entsperren"
+  },
+  "vault_e2e_unlocked": {
+    "es": "Cifrado de bóveda activo en esta sesión.",
+    "en": "Vault encryption unlocked for this session.",
+    "it": "Crittografia caveau attiva per questa sessione.",
+    "pt": "Criptografia da bóveda ativa nesta sessão.",
+    "fr": "Chiffrement du coffre actif pour cette session.",
+    "de": "Tresor-Verschlüsselung für diese Sitzung aktiv."
+  },
+  "vault_e2e_passphrase_required": {
+    "es": "Introduce la frase de la bóveda.",
+    "en": "Enter your vault passphrase.",
+    "it": "Inserisci la passphrase del caveau.",
+    "pt": "Digite a frase da bóveda.",
+    "fr": "Saisissez la phrase du coffre.",
+    "de": "Bitte Tresor-Passphrase eingeben."
+  },
+  "vault_e2e_unlock_failed": {
+    "es": "No se pudo activar el descifrado. Comprueba la frase.",
+    "en": "Could not unlock decryption. Check your passphrase.",
+    "it": "Impossibile sbloccare la decrittografia. Controlla la passphrase.",
+    "pt": "Não foi possível desbloquear. Verifique a frase.",
+    "fr": "Échec du déchiffrement. Vérifiez la phrase.",
+    "de": "Entschlüsselung fehlgeschlagen. Passphrase prüfen."
+  },
   "vault_badge_link": {
     "es": "Enlace",
     "en": "Link",
@@ -7206,5 +7254,133 @@
     "pt": "Domínio total! Com 1500 indicações você desbloqueia O Radar (keywords + mapa de calor).",
     "fr": "Domination totale ! À 1500 parrainages vous débloquez Le Radar (mots-clés + carte de chaleur).",
     "de": "Totale Dominanz! Bei 1500 Empfehlungen schaltest du The Radar (Keywords + Heatmap) frei."
+  },
+  "notif_hub_title": {
+    "es": "Notificaciones",
+    "en": "Notifications",
+    "it": "Notifiche",
+    "pt": "Notificações",
+    "fr": "Notifications",
+    "de": "Benachrichtigungen"
+  },
+  "notif_hub_empty": {
+    "es": "No tienes notificaciones. Te avisaremos aquí cuando haya novedades importantes.",
+    "en": "You have no notifications. We’ll post important updates here.",
+    "it": "Non hai notifiche. Ti avviseremo qui in caso di aggiornamenti importanti.",
+    "pt": "Não há notificações. Avisaremos aqui quando houver novidades importantes.",
+    "fr": "Aucune notification. Les informations importantes apparaîtront ici.",
+    "de": "Keine Benachrichtigungen. Wichtige Neuigkeiten erscheinen hier."
+  },
+  "notif_hub_global_pill": {
+    "es": "ANUNCIO GLOBAL",
+    "en": "GLOBAL",
+    "it": "GLOBALE",
+    "pt": "GLOBAL",
+    "fr": "GLOBAL",
+    "de": "GLOBAL"
+  },
+  "notif_tpl_MOD_REPORT_APPROVED_title": {
+    "es": "Reporte atendido",
+    "en": "Report resolved",
+    "it": "Segnalazione gestita",
+    "pt": "Denúncia atendida",
+    "fr": "Signalement traité",
+    "de": "Meldung bearbeitet"
+  },
+  "notif_tpl_MOD_REPORT_APPROVED_body": {
+    "es": "Gracias por tu reporte. Tras la revisión moderadora hemos tomado medidas conforme a nuestras normas. Tu colaboración ayuda a mantener la comunidad segura y profesional.",
+    "en": "Thank you for your report. After moderator review we took action in line with our policies. Your help keeps the community safe and professional.",
+    "it": "Grazie per la segnalazione. Dopo la moderazione abbiamo agito in linea con le regole. Il tuo contributo mantiene la community sicura e professionale.",
+    "pt": "Obrigado pela denúncia. Após análise da moderação, adotamos medidas conforme nossas normas. Sua ajuda mantém a comunidade segura e profissional.",
+    "fr": "Merci pour votre signalement. Après modération, nous avons pris des mesures conformément à nos règles. Votre collaboration protège la communauté.",
+    "de": "Vielen Dank für Ihre Meldung. Nach Prüfung durch die Moderation haben wir gemäß unseren Richtlinien gehandelt. Ihr Beitrag hält die Community sicher und professionell."
+  },
+  "notif_tpl_MOD_REPORT_REJECTED_title": {
+    "es": "Reporte cerrado",
+    "en": "Report closed",
+    "it": "Segnalazione chiusa",
+    "pt": "Denúncia encerrada",
+    "fr": "Signalement clos",
+    "de": "Meldung geschlossen"
+  },
+  "notif_tpl_MOD_REPORT_REJECTED_body": {
+    "es": "Gracias por tu reporte. Tras revisar la evidencia disponible, no aplicamos medidas adicionales en este caso. Si detectas otra conducta que incumpla las normas, puedes volver a informarnos.",
+    "en": "Thank you for your report. After reviewing the available evidence we did not apply further action in this case. If you see other policy violations, you can report again.",
+    "it": "Grazie per la segnalazione. Dopo aver esaminato le prove disponibili non abbiamo applicato ulteriori provvedimenti in questo caso. Puoi segnalarci altre violazioni se necessario.",
+    "pt": "Obrigado pela denúncia. Após analisar as evidências disponíveis, não aplicamos medidas adicionais neste caso. Se notar outras infrações, envie um novo relatório.",
+    "fr": "Merci pour votre signalement. Après examen des éléments disponibles, aucune mesure supplémentaire n’a été prise dans ce cas. Vous pouvez signaler d’autres manquements si besoin.",
+    "de": "Vielen Dank für Ihre Meldung. Nach Prüfung der vorliegenden Hinweise haben wir in diesem Fall keine weiteren Maßnahmen ergriffen. Bei weiteren Verstößen können Sie erneut melden."
+  },
+  "notif_tpl_SYS_WELCOME_MISSING_CARD_title": {
+    "es": "Crea tu primera tarjeta",
+    "en": "Create your first card",
+    "it": "Crea la tua prima scheda",
+    "pt": "Crie seu primeiro cartão",
+    "fr": "Créez votre première carte",
+    "de": "Erstellen Sie Ihre erste Karte"
+  },
+  "notif_tpl_SYS_WELCOME_MISSING_CARD_body": {
+    "es": "Aún no tienes una tarjeta en tu bóveda. Crea una para compartir tu perfil profesional con clientes y contactos.",
+    "en": "You don’t have a card in your vault yet. Create one to share your professional profile with clients and contacts.",
+    "it": "Non hai ancora una scheda nel tuo archivio. Creane una per condividere il tuo profilo professionale.",
+    "pt": "Você ainda não tem um cartão na sua cofre. Crie um para compartilhar seu perfil profissional.",
+    "fr": "Vous n’avez pas encore de carte dans votre coffre. Créez-en une pour partager votre profil professionnel.",
+    "de": "Sie haben noch keine Karte in Ihrem Tresor. Erstellen Sie eine, um Ihr Profil zu teilen."
+  },
+  "notif_tpl_SYS_ACCOUNT_EXPIRING_title": {
+    "es": "Tu cuenta requiere atención",
+    "en": "Your account needs attention",
+    "it": "Il tuo account richiede attenzione",
+    "pt": "Sua conta precisa de atenção",
+    "fr": "Votre compte nécessite une action",
+    "de": "Ihr Konto erfordert Aufmerksamkeit"
+  },
+  "notif_tpl_SYS_ACCOUNT_EXPIRING_body": {
+    "es": "Quedan {{days}} días antes de que tu cuenta pierda beneficios o caduque. Abre la app para revisar suscripción, renovación o datos de facturación.",
+    "en": "{{days}} days remain before your account may lose benefits or expire. Open the app to review subscription, renewal, or billing.",
+    "it": "Restano {{days}} giorni prima che il tuo account possa perdere vantaggi o scadere. Apri l’app per abbonamento, rinnovo o fatturazione.",
+    "pt": "Faltam {{days}} dias antes que sua conta perca benefícios ou expire. Abra o app para assinatura, renovação ou faturamento.",
+    "fr": "Il reste {{days}} jours avant que votre compte ne perde des avantages ou n’expire. Ouvrez l’app pour l’abonnement, le renouvellement ou la facturation.",
+    "de": "Noch {{days}} Tage, bevor Ihr Konto Vorteile verlieren oder ablaufen könnte. Öffnen Sie die App für Abo, Verlängerung oder Abrechnung."
+  },
+  "notif_tpl_SYS_ACCOUNT_EXPIRING_body_general": {
+    "es": "Tu cuenta está próxima a perder beneficios o a caducar. Abre la app para revisar suscripción, renovación o datos de facturación.",
+    "en": "Your account may soon lose benefits or expire. Open the app to check subscription, renewal, or billing.",
+    "it": "Il tuo account potrebbe presto perdere vantaggi o scadere. Apri l’app per abbonamento, rinnovo o fatturazione.",
+    "pt": "Sua conta pode perder benefícios ou expirar em breve. Abra o app para revisar assinatura, renovação ou faturamento.",
+    "fr": "Votre compte risque bientôt de perdre des avantages ou d’expirer. Ouvrez l’app pour l’abonnement ou la facturation.",
+    "de": "Ihr Konto könnte bald Vorteile verlieren oder ablaufen. Öffnen Sie die App für Abo oder Abrechnung."
+  },
+  "notif_tpl_SYS_GLOBAL_MAINTENANCE_title": {
+    "es": "Mantenimiento programado",
+    "en": "Scheduled maintenance",
+    "it": "Manutenzione programmata",
+    "pt": "Manutenção programada",
+    "fr": "Maintenance planifiée",
+    "de": "Geplante Wartung"
+  },
+  "notif_tpl_SYS_GLOBAL_MAINTENANCE_body": {
+    "es": "Realizaremos mejoras en la plataforma. Puede haber cortes breves. Gracias por tu paciencia.",
+    "en": "We’re improving the platform. There may be brief interruptions. Thank you for your patience.",
+    "it": "Stiamo migliorando la piattaforma. Possibili brevi interruzioni. Grazie per la pazienza.",
+    "pt": "Estamos melhorando a plataforma. Pode haver interrupções breves. Obrigado pela paciência.",
+    "fr": "Nous améliorons la plateforme. De courtes interruptions sont possibles. Merci de votre patience.",
+    "de": "Wir verbessern die Plattform. Kurze Unterbrechungen sind möglich. Vielen Dank für Ihre Geduld."
+  },
+  "notif_tpl_SYS_GLOBAL_PROMO_title": {
+    "es": "Oferta y novedades",
+    "en": "Offer & news",
+    "it": "Offerte e novità",
+    "pt": "Oferta e novidades",
+    "fr": "Offre et nouveautés",
+    "de": "Angebot & Neuigkeiten"
+  },
+  "notif_tpl_SYS_GLOBAL_PROMO_body": {
+    "es": "Descubre ventajas y recursos exclusivos para miembros activos de Card-Social.",
+    "en": "Discover perks and resources for active Card-Social members.",
+    "it": "Scopri vantaggi e risorse per i membri attivi di Card-Social.",
+    "pt": "Descubra benefícios e recursos para membros ativos da Card-Social.",
+    "fr": "Découvrez des avantages et ressources pour les membres actifs de Card-Social.",
+    "de": "Entdecken Sie Vorteile und Ressourcen für aktive Card-Social-Mitglieder."
   }
 }

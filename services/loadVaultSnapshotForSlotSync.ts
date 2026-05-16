@@ -3,6 +3,8 @@ import { db } from '@/services/firebaseConfig';
 import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
 import { getUserIconVaultMap, type IconVaultEntry } from '@/services/iconVaultService';
 import { migrateVaultIconsForStorage, type VaultLinkSnapshotItem } from '@/services/vaultPublicCardSlots';
+import { decodeVaultLink } from '@/services/vaultFirestoreCodec';
+import { getVaultE2eDerivedKey } from '@/services/vaultE2eSession';
 import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -63,6 +65,12 @@ export async function loadVaultSnapshotForSlotSync(uid: string): Promise<{
   }
 
   const byId = new Map<string, unknown>();
+  let aesKey: Uint8Array | null = null;
+  try {
+    aesKey = await getVaultE2eDerivedKey(uid);
+  } catch {
+    aesKey = null;
+  }
   for (const it of itemsMigrated) {
     const id = String((it as { id?: string })?.id || '').trim();
     if (id) {
@@ -76,7 +84,8 @@ export async function loadVaultSnapshotForSlotSync(uid: string): Promise<{
       if (!id) {
         continue;
       }
-      const cloudRow: Record<string, unknown> = { id: itemDoc.id, ...itemDoc.data() };
+      const rawRow: Record<string, unknown> = { id: itemDoc.id, ...itemDoc.data() };
+      const cloudRow = (await decodeVaultLink(id, rawRow, aesKey)) as unknown as Record<string, unknown>;
       const existing = byId.get(id);
       if (!existing) {
         byId.set(id, cloudRow);
@@ -92,10 +101,13 @@ export async function loadVaultSnapshotForSlotSync(uid: string): Promise<{
   if (itemsMigrated.length === 0) {
     try {
       const cloudSnapshot = await getDocs(collection(db, 'users', uid, 'links'));
-      const cloudItems = cloudSnapshot.docs.map((itemDoc) => ({
-        id: itemDoc.id,
-        ...itemDoc.data(),
-      }));
+      const cloudItems = await Promise.all(
+        cloudSnapshot.docs.map(async (itemDoc) => {
+          const id = String(itemDoc.id || '').trim();
+          const raw = { id: itemDoc.id, ...itemDoc.data() } as Record<string, unknown>;
+          return (await decodeVaultLink(id, raw, aesKey)) as unknown;
+        }),
+      );
       itemsMigrated = migrateVaultIconsForStorage(cloudItems as unknown[]);
       await AsyncStorage.setItem(vaultStorageKey(uid), JSON.stringify(itemsMigrated));
     } catch {

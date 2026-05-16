@@ -40,10 +40,96 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Owner-only access for all user-scoped subcollections
-    match /users/{uid}/{document=**} {
+    // Links de bóveda: el superadmin puede borrar tarjetas confirmadas por moderación.
+    match /users/{uid}/links/{linkId} {
+      allow read: if isOwner(uid) || isSuperAdmin();
+      allow create, update: if isOwner(uid);
+      allow delete: if isOwner(uid) || isSuperAdmin();
+    }
+
+    // Notificaciones oficiales: super_admin crea cierres MOD_*; el dueño puede crear SYS_* (sistema in-app); lectura/actualización solo dueño.
+    match /users/{uid}/notifications/{notificationId} {
+      allow read: if isOwner(uid);
+      allow create: if request.resource.data.read == false
+        && (
+          (
+            isSuperAdmin()
+            && request.resource.data.templateId in ['MOD_REPORT_APPROVED', 'MOD_REPORT_REJECTED']
+            && request.resource.data.reportId is string
+            && request.resource.data.reportSourceCollection in ['reports', 'userReports']
+          )
+          || (
+            isOwner(uid)
+            && request.resource.data.templateId in ['SYS_WELCOME_MISSING_CARD', 'SYS_ACCOUNT_EXPIRING']
+          )
+        );
+      allow update: if isOwner(uid);
+      allow delete: if isOwner(uid);
+    }
+
+    // Bóveda e iconos: dueño o moderación (panel admin) solo lectura.
+    match /users/{uid}/icon_vault/{itemId} {
       allow read: if isOwner(uid) || isSuperAdmin();
       allow write: if isOwner(uid);
+    }
+
+    match /users/{uid}/vault/{itemId} {
+      allow read: if isOwner(uid) || isSuperAdmin();
+      allow write: if isOwner(uid);
+    }
+
+    // Owner-only access for all user-scoped subcollections
+    match /users/{uid}/{document=**} {
+      allow read: if isOwner(uid);
+      allow write: if isOwner(uid);
+    }
+
+    // Identidad X25519 para compartir llaves de tarjeta: lectura a cualquier usuario autenticado;
+    // solo el dueño escribe (documento bajo users/{uid}/crypto/…).
+    match /users/{uid}/crypto/sharing_identity {
+      allow read: if isSignedIn();
+      allow write: if isOwner(uid);
+    }
+
+    // Estado de notificaciones in-app por usuario (megáfono leído): solo el dueño escribe readBroadcastIds.
+    match /users/{uid}/status/notifications_state {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['readBroadcastIds'])
+        && request.resource.data.readBroadcastIds is list
+        && request.resource.data.readBroadcastIds.size() <= 2000;
+      allow delete: if false;
+    }
+
+    // Estado de cuenta por moderación (super_admin): auditoría separada del doc raíz `users/{uid}`.
+    match /users/{uid}/status/{docId} {
+      allow read: if isOwner(uid) || isSuperAdmin();
+      allow write: if isSuperAdmin();
+    }
+
+    // Cabina de sobres cifrados: el remitente crea; remitente o destinatario lee.
+    // `envelope` contiene ephemPub, salt, iv, ciphertext (AES-GCM); Firestore no ve el plaintext.
+    match /shared_vault_keys/{keyId} {
+      allow read: if isSignedIn()
+        && (
+          resource.data.toUid == request.auth.uid
+          || resource.data.fromUid == request.auth.uid
+        );
+
+      allow create: if isSignedIn()
+        && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.toUid is string
+        && request.resource.data.toUid != request.auth.uid
+        && request.resource.data.scheme == 'x25519-hkdf-aesgcm-v1'
+        && request.resource.data.envelope is map
+        && request.resource.data.envelope.v == 1
+        && request.resource.data.envelope.scheme == 'x25519-hkdf-aesgcm-v1'
+        && request.resource.data.envelope.ephemPubB64 is string
+        && request.resource.data.envelope.saltB64 is string
+        && request.resource.data.envelope.ivB64 is string
+        && request.resource.data.envelope.ctB64 is string;
+
+      allow update, delete: if false;
     }
 
     // Unique-key registry (nickname/email/phone) used by transactional registration.
@@ -168,6 +254,74 @@ service cloud.firestore {
     match /system_config/{docId} {
       allow read: if docId in ['tiers', 'commerce', 'market_radar', 'cs_economy'] || isSignedIn();
       allow create, update, delete: if isSuperAdmin();
+    }
+
+    // Denuncias: creación autenticada con sobre de evidencia o estado explícito; lectura solo super_admin (evidence* no filtrable por campo).
+    function validReportExpiresAt() {
+      return request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.time + duration.value(34, 'h')
+        && request.resource.data.expiresAt < request.time + duration.value(38, 'h');
+    }
+
+    function validReportEvidenceShape() {
+      return request.resource.data.evidenceVersion == 1
+        && request.resource.data.evidenceStatus in ['present', 'missing', 'invalid']
+        && request.resource.data.evidenceCiphertext is string
+        && request.resource.data.evidenceIv is string
+        && request.resource.data.evidenceEphemPub is string
+        && (
+          request.resource.data.evidenceStatus != 'present'
+          || (
+            request.resource.data.evidenceCiphertext.size() > 32
+            && request.resource.data.evidenceIv.size() > 0
+            && request.resource.data.evidenceEphemPub.size() > 0
+          )
+        );
+    }
+
+    match /reports/{reportId} {
+      allow read: if isSuperAdmin();
+
+      allow create: if isSignedIn()
+        && request.resource.data.reporterUserId == request.auth.uid
+        && validReportExpiresAt()
+        && validReportEvidenceShape()
+        && request.resource.data.type is string
+        && request.resource.data.status == 'pending'
+        && request.resource.data.targetCardId is string
+        && request.resource.data.reportedUserId is string
+        && request.resource.data.reason is string
+        && request.resource.data.details is string
+        && request.resource.data.anonymous == true
+        && request.resource.data.source == 'medal_rating_modal';
+
+      allow update, delete: if isSuperAdmin();
+    }
+
+    match /userReports/{reportId} {
+      allow read: if isSuperAdmin();
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+    match /reports/{reportId}/auditLog/{eventId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /userReports/{reportId}/auditLog/{eventId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /banned_identities/{uid} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    // Megáfono global in-app: un documento por anuncio; lectura a usuarios logueados; escritura solo super_admin.
+    match /system_broadcasts/{broadcastId} {
+      allow read: if isSignedIn();
+      allow create: if isSuperAdmin()
+        && request.resource.data.templateId is string
+        && request.resource.data.isActive is bool;
+      allow update, delete: if isSuperAdmin();
     }
 
     // Default deny for any non-explicit collection.

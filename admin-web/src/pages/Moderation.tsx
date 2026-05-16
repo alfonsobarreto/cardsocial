@@ -6,16 +6,21 @@ import {
   type ModerationVaultItem,
   type ReportStatus,
   type UserInvestigation,
+  ReportAlreadyResolvedError,
+  approveReportAction,
   banReportedUser,
-  dismissReport,
+  decryptModerationReportEvidence,
+  deleteVaultLinkAndApproveReport,
   hardBanReportedUser,
   investigateUser,
   listReports,
-  markReportReviewed,
+  rejectReportAction,
   warnReportedUser,
 } from '../services/moderationService';
 
 type Notice = { type: 'success' | 'error'; message: string };
+
+type ModerationTab = 'pending' | 'history';
 
 function formatDate(value: ModerationReport['createdAt']) {
   if (!value) return 'N/A';
@@ -40,14 +45,59 @@ function shortId(value?: string) {
   return value.length > 18 ? `${value.slice(0, 16)}...` : value;
 }
 
+/** Evidencia descifrada: texto del reporte + imagen opcional (URL en JSON). */
+function DecryptedEvidencePanel({ raw }: { raw: string }) {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const o = parsed as Record<string, unknown>;
+      const summary = typeof o.reporterSummary === 'string' ? o.reporterSummary : '';
+      const imageUrlRaw = typeof o.evidenceImageUrl === 'string' ? o.evidenceImageUrl.trim() : '';
+      const safeImageUrl = /^https:\/\//i.test(imageUrlRaw) ? imageUrlRaw : '';
+      return (
+        <div className="space-y-3">
+          {summary ? (
+            <p className="whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-800">
+              {summary}
+            </p>
+          ) : null}
+          {safeImageUrl ? (
+            <a href={safeImageUrl} target="_blank" rel="noreferrer" className="block">
+              <img
+                src={safeImageUrl}
+                alt="Evidencia visual del reporte"
+                className="max-h-[480px] w-auto max-w-full rounded-lg border border-slate-200 object-contain"
+              />
+            </a>
+          ) : null}
+          <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+            {JSON.stringify(parsed, null, 2)}
+          </pre>
+        </div>
+      );
+    }
+  } catch {
+    /* JSON legado o no parseable */
+  }
+  return (
+    <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-800">
+      {raw}
+    </pre>
+  );
+}
+
 function statusBadge(status: ReportStatus, t: (key: string) => string) {
   const classes: Record<ReportStatus, string> = {
     pending: 'bg-amber-100 text-amber-800 ring-amber-200',
-    reviewed: 'bg-emerald-100 text-emerald-800 ring-emerald-200',
-    dismissed: 'bg-slate-100 text-slate-700 ring-slate-200',
+    resolved_approved: 'bg-emerald-100 text-emerald-900 ring-emerald-300',
+    resolved_rejected: 'bg-slate-200 text-slate-800 ring-slate-300',
   };
   const label =
-    status === 'pending' ? t('admin_mod_status_pending') : status === 'reviewed' ? t('admin_mod_status_reviewed') : t('admin_mod_status_dismissed');
+    status === 'pending'
+      ? t('admin_mod_status_pending')
+      : status === 'resolved_approved'
+        ? t('admin_mod_status_resolved_approved')
+        : t('admin_mod_status_resolved_rejected');
 
   return (
     <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${classes[status]}`}>
@@ -56,7 +106,19 @@ function statusBadge(status: ReportStatus, t: (key: string) => string) {
   );
 }
 
-function VaultSection({ title, items }: { title: string; items: ModerationVaultItem[] }) {
+function VaultSection({
+  title,
+  items,
+  onDeleteLink,
+  deleteBusyId,
+  deleteLinkLabel = 'Eliminar tarjeta (vault)',
+}: {
+  title: string;
+  items: ModerationVaultItem[];
+  onDeleteLink?: (linkId: string) => void;
+  deleteBusyId?: string;
+  deleteLinkLabel?: string;
+}) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white">
       <div className="border-b border-slate-200 px-4 py-3">
@@ -72,23 +134,44 @@ function VaultSection({ title, items }: { title: string; items: ModerationVaultI
             <article key={`${item.source}:${item.id}`} className="space-y-2 px-4 py-4">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-semibold text-slate-900">{item.title}</span>
+                {item.isE2eOpaque ? (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900 ring-1 ring-amber-200">
+                    E2E / zero-knowledge
+                  </span>
+                ) : null}
                 {item.type && (
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
                     {item.type}
                   </span>
                 )}
               </div>
-              {item.value && <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">{item.value}</p>}
-              {item.url && (
+              {item.isE2eOpaque ? (
+                <p className="text-xs font-medium leading-5 text-amber-900">
+                  Contenido cifrado de extremo a extremo: la carga útil no es legible para administración (sin llave
+                  maestra ni descifrado).
+                </p>
+              ) : null}
+              {item.value && !item.isE2eOpaque ? <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">{item.value}</p> : null}
+              {item.url && !item.isE2eOpaque ? (
                 <a className="block break-all text-sm font-medium text-blue-700 hover:underline" href={item.url} target="_blank" rel="noreferrer">
                   {item.url}
                 </a>
-              )}
-              {item.imageUrl && (
+              ) : null}
+              {item.imageUrl && !item.isE2eOpaque ? (
                 <a href={item.imageUrl} target="_blank" rel="noreferrer">
                   <img src={item.imageUrl} alt={item.title} className="mt-2 h-24 w-24 rounded-xl border border-slate-200 object-cover" />
                 </a>
-              )}
+              ) : null}
+              {onDeleteLink ? (
+                <button
+                  type="button"
+                  className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-800 hover:bg-red-100 disabled:opacity-50"
+                  disabled={Boolean(deleteBusyId)}
+                  onClick={() => onDeleteLink(item.id)}
+                >
+                  {deleteBusyId === item.id ? 'Borrando…' : deleteLinkLabel}
+                </button>
+              ) : null}
             </article>
           ))}
         </div>
@@ -103,14 +186,13 @@ export default function Moderation() {
   const filters = useMemo(
     () =>
       [
-        { key: 'pending' as const, label: t('admin_mod_filter_pending') },
-        { key: 'reviewed' as const, label: t('admin_mod_filter_reviewed') },
-        { key: 'dismissed' as const, label: t('admin_mod_filter_dismissed') },
+        { key: 'pending' as const, label: t('admin_mod_tab_pending') },
+        { key: 'history' as const, label: t('admin_mod_tab_history') },
       ] as const,
     [t],
   );
   const [reports, setReports] = useState<ModerationReport[]>([]);
-  const [activeFilter, setActiveFilter] = useState<ReportStatus>('pending');
+  const [activeTab, setActiveTab] = useState<ModerationTab>('pending');
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState('');
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -118,8 +200,13 @@ export default function Moderation() {
   const [investigation, setInvestigation] = useState<UserInvestigation | null>(null);
   const [investigationLoading, setInvestigationLoading] = useState(false);
   const [moderationReason, setModerationReason] = useState('');
+  const [moderationPrivateKeyB64, setModerationPrivateKeyB64] = useState('');
+  const [decryptedEvidence, setDecryptedEvidence] = useState<string | null>(null);
+  const [evidenceDecryptError, setEvidenceDecryptError] = useState<string | null>(null);
+  const [linkDeleteBusyId, setLinkDeleteBusyId] = useState('');
 
   const adminEmail = user?.email || 'unknown-admin';
+  const adminUid = user?.uid || '';
 
   async function refreshReports() {
     try {
@@ -157,16 +244,21 @@ export default function Moderation() {
     };
   }, [t]);
 
-  const filteredReports = useMemo(
-    () => reports.filter((report) => report.status === activeFilter),
-    [activeFilter, reports],
-  );
+  const filteredReports = useMemo(() => {
+    if (activeTab === 'history') {
+      return reports.filter(
+        (r) => r.status === 'resolved_approved' || r.status === 'resolved_rejected',
+      );
+    }
+    return reports.filter((r) => r.status === 'pending');
+  }, [activeTab, reports]);
 
   const counters = useMemo(
     () => ({
-      pending: reports.filter((report) => report.status === 'pending').length,
-      reviewed: reports.filter((report) => report.status === 'reviewed').length,
-      dismissed: reports.filter((report) => report.status === 'dismissed').length,
+      pending: reports.filter((r) => r.status === 'pending').length,
+      history: reports.filter(
+        (r) => r.status === 'resolved_approved' || r.status === 'resolved_rejected',
+      ).length,
     }),
     [reports],
   );
@@ -180,7 +272,11 @@ export default function Moderation() {
       setNotice({ type: 'success', message: successMessage });
     } catch (error) {
       console.error('[Moderation] Action failed:', error);
-      setNotice({ type: 'error', message: t('admin_err_action_general') });
+      if (error instanceof ReportAlreadyResolvedError) {
+        setNotice({ type: 'error', message: t('admin_mod_notice_already_resolved') });
+      } else {
+        setNotice({ type: 'error', message: t('admin_err_action_general') });
+      }
     } finally {
       setActionLoading('');
     }
@@ -194,6 +290,9 @@ export default function Moderation() {
 
     setInvestigationReport(report);
     setModerationReason(report.reason || '');
+    setModerationPrivateKeyB64('');
+    setDecryptedEvidence(null);
+    setEvidenceDecryptError(null);
     setInvestigation(null);
     setInvestigationLoading(true);
     setNotice(null);
@@ -213,6 +312,69 @@ export default function Moderation() {
     setInvestigationReport(null);
     setInvestigation(null);
     setModerationReason('');
+    setModerationPrivateKeyB64('');
+    setDecryptedEvidence(null);
+    setEvidenceDecryptError(null);
+  };
+
+  const handleDecryptEvidence = () => {
+    if (!investigationReport) return;
+    setEvidenceDecryptError(null);
+    try {
+      const plain = decryptModerationReportEvidence(moderationPrivateKeyB64, investigationReport);
+      setDecryptedEvidence(plain);
+    } catch (error) {
+      setDecryptedEvidence(null);
+      setEvidenceDecryptError(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const handleDeleteVaultLink = (linkId: string) => {
+    if (!investigationReport?.reportedUserId || !adminUid) {
+      setNotice({ type: 'error', message: t('admin_err_action_general') });
+      return;
+    }
+    const ok =
+      typeof globalThis !== 'undefined' && 'confirm' in globalThis
+        ? globalThis.confirm(
+            'Confirma eliminación de la tarjeta en vault, cierre del reporte y notificación al denunciante. ¿Continuar?',
+          )
+        : true;
+    if (!ok) return;
+
+    const reason = requireReason();
+    if (!reason) return;
+
+    void (async () => {
+      try {
+        setLinkDeleteBusyId(linkId);
+        setNotice(null);
+        await deleteVaultLinkAndApproveReport(
+          investigationReport.reportedUserId!,
+          linkId,
+          investigationReport,
+          adminUid,
+          adminEmail,
+          reason,
+        );
+        const nextReports = await listReports();
+        setReports(nextReports);
+        const updated = nextReports.find((r) => r.id === investigationReport.id);
+        if (updated) setInvestigationReport(updated);
+        const data = await investigateUser(investigationReport.reportedUserId!);
+        setInvestigation(data);
+        setNotice({ type: 'success', message: t('admin_mod_success_resolve_delete') });
+      } catch (error) {
+        console.error('[Moderation] delete link atomic failed:', error);
+        if (error instanceof ReportAlreadyResolvedError) {
+          setNotice({ type: 'error', message: t('admin_mod_notice_already_resolved') });
+        } else {
+          setNotice({ type: 'error', message: t('admin_err_action_general') });
+        }
+      } finally {
+        setLinkDeleteBusyId('');
+      }
+    })();
   };
 
   const requireReason = () => {
@@ -225,38 +387,60 @@ export default function Moderation() {
   };
 
   const handleWarning = () => {
-    if (!investigationReport) return;
+    if (!investigationReport || !adminUid) return;
     const reason = requireReason();
     if (!reason) return;
 
     void performAction(
       `warning:${investigationReport.id}`,
       t('admin_mod_success_warning'),
-      () => warnReportedUser(investigationReport, adminEmail, reason),
+      () => warnReportedUser(investigationReport, adminUid, adminEmail, reason),
     ).then(closeInvestigation);
   };
 
   const handleSoftBan = () => {
-    if (!investigationReport) return;
+    if (!investigationReport || !adminUid) return;
     const reason = requireReason();
     if (!reason) return;
 
     void performAction(
       `ban:${investigationReport.id}`,
       t('admin_mod_success_soft_ban'),
-      () => banReportedUser(investigationReport, adminEmail, reason),
+      () => banReportedUser(investigationReport, adminUid, adminEmail, reason),
     ).then(closeInvestigation);
   };
 
   const handleHardBan = () => {
-    if (!investigationReport) return;
+    if (!investigationReport || !adminUid) return;
     const reason = requireReason();
     if (!reason) return;
 
     void performAction(
       `hard-ban:${investigationReport.id}`,
       t('admin_mod_success_hard_ban'),
-      () => hardBanReportedUser(investigationReport, adminEmail, reason),
+      () => hardBanReportedUser(investigationReport, adminUid, adminEmail, reason),
+    ).then(closeInvestigation);
+  };
+
+  const handleApproveClose = () => {
+    if (!investigationReport || !adminUid) return;
+    const reason = requireReason();
+    if (!reason) return;
+    void performAction(
+      `approve:${investigationReport.id}`,
+      t('admin_mod_success_reviewed'),
+      () => approveReportAction(investigationReport, adminUid, adminEmail, reason),
+    ).then(closeInvestigation);
+  };
+
+  const handleRejectClose = () => {
+    if (!investigationReport || !adminUid) return;
+    const reason = requireReason();
+    if (!reason) return;
+    void performAction(
+      `reject:${investigationReport.id}`,
+      t('admin_mod_success_dismissed'),
+      () => rejectReportAction(investigationReport, adminUid, adminEmail, reason),
     ).then(closeInvestigation);
   };
 
@@ -268,7 +452,8 @@ export default function Moderation() {
             <p className="text-sm font-semibold uppercase tracking-[0.25em] text-amber-600">Trust & Safety</p>
             <h1 className="mt-3 text-3xl font-semibold text-slate-950">Moderacion empresarial</h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-              Investiga el Vault público del usuario, revisa links activos y aplica una escala de penalizaciones auditada.
+              Lista reportes, revisa metadatos de cuenta y aplica advertencias o suspensiones auditadas. Los ítems de
+              bóveda con cifrado E2E se muestran en modo ciego: sin plaintext ni ciphertext para el equipo.
             </p>
           </div>
 
@@ -296,18 +481,18 @@ export default function Moderation() {
         </div>
       )}
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-2">
         {filters.map((filter) => (
           <button
             key={filter.key}
             className={[
               'rounded-2xl border p-5 text-left shadow-sm transition',
-              activeFilter === filter.key
+              activeTab === filter.key
                 ? 'border-amber-300 bg-amber-50 ring-2 ring-amber-100'
                 : 'border-slate-200 bg-white hover:border-slate-300',
             ].join(' ')}
             type="button"
-            onClick={() => setActiveFilter(filter.key)}
+            onClick={() => setActiveTab(filter.key)}
           >
             <p className="text-sm font-medium text-slate-500">{filter.label}</p>
             <p className="mt-3 text-3xl font-semibold text-slate-950">{counters[filter.key]}</p>
@@ -317,7 +502,9 @@ export default function Moderation() {
 
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-6 py-5">
-          <h2 className="text-lg font-semibold text-slate-950">Reportes {activeFilter}</h2>
+          <h2 className="text-lg font-semibold text-slate-950">
+            {activeTab === 'pending' ? t('admin_mod_tab_pending') : t('admin_mod_tab_history')}
+          </h2>
           <p className="mt-1 text-sm text-slate-500">
             {t('admin_mod_table_helper')}
           </p>
@@ -351,6 +538,11 @@ export default function Moderation() {
                     <td className="max-w-sm px-6 py-5">
                       <div className="font-medium text-slate-900">{report.reason}</div>
                       {report.details && <div className="mt-1 text-xs leading-5 text-slate-500">{report.details}</div>}
+                      {report.evidenceStatus === 'missing' ? (
+                        <div className="mt-2 rounded-lg border border-red-400 bg-red-50 px-3 py-2 text-xs font-bold text-red-800">
+                          Reporte Sin Evidencia Criptográfica / Posible Sabotaje
+                        </div>
+                      ) : null}
                     </td>
                     <td className="px-6 py-5">
                       <div className="font-semibold text-slate-900">
@@ -375,35 +567,7 @@ export default function Moderation() {
                           disabled={Boolean(actionLoading) || !report.reportedUserId}
                           onClick={() => void openInvestigation(report)}
                         >
-                          Investigar
-                        </button>
-                        <button
-                          className="rounded-lg border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50"
-                          type="button"
-                          disabled={Boolean(actionLoading)}
-                          onClick={() =>
-                            void performAction(
-                              `reviewed:${report.id}`,
-                              t('admin_mod_success_reviewed'),
-                              () => markReportReviewed(report.id, adminEmail, report.sourceCollection),
-                            )
-                          }
-                        >
-                          Revisado
-                        </button>
-                        <button
-                          className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
-                          type="button"
-                          disabled={Boolean(actionLoading)}
-                          onClick={() =>
-                            void performAction(
-                              `dismiss:${report.id}`,
-                              t('admin_mod_success_dismissed'),
-                              () => dismissReport(report.id, adminEmail, report.sourceCollection),
-                            )
-                          }
-                        >
-                          Desestimar
+                          {activeTab === 'history' ? 'Ver detalle' : 'Investigar'}
                         </button>
                       </div>
                     </td>
@@ -421,7 +585,7 @@ export default function Moderation() {
             <header className="border-b border-slate-200 bg-white px-6 py-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.25em] text-red-600">Modo Rayos X</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.25em] text-red-600">Moderación · vista ciega</p>
                   <h2 className="mt-2 text-2xl font-semibold text-slate-950">
                     {investigation?.profile?.displayName || shortId(investigationReport.reportedUserId)}
                   </h2>
@@ -461,14 +625,101 @@ export default function Moderation() {
                           {investigationReport.details}
                         </p>
                       )}
+                      {investigationReport.evidenceStatus === 'missing' ? (
+                        <div className="mt-3 rounded-xl border-2 border-red-500 bg-red-50 px-4 py-3 text-sm font-bold text-red-800">
+                          Reporte Sin Evidencia Criptográfica / Posible Sabotaje
+                        </div>
+                      ) : null}
+                      {investigationReport.evidenceStatus === 'present' ? (
+                        <div className="mt-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <p className="text-xs font-medium text-slate-600">
+                            Descifrado local en RAM: pega la clave privada X25519 de moderación (Base64). No se persiste en
+                            disco.
+                          </p>
+                          <input
+                            type="password"
+                            autoComplete="off"
+                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                            placeholder="Clave privada de moderación (Base64)"
+                            value={moderationPrivateKeyB64}
+                            onChange={(e) => setModerationPrivateKeyB64(e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                            onClick={handleDecryptEvidence}
+                          >
+                            {t('admin_moderation_decrypt_btn')}
+                          </button>
+                          {evidenceDecryptError ? (
+                            <p className="text-sm font-medium text-red-600">{evidenceDecryptError}</p>
+                          ) : null}
+                          {decryptedEvidence ? <DecryptedEvidencePanel raw={decryptedEvidence} /> : null}
+                        </div>
+                      ) : null}
                     </section>
 
-                    <VaultSection title="users/{uid}/links" items={investigation?.links ?? []} />
+                    <VaultSection
+                      title="users/{uid}/links"
+                      items={investigation?.links ?? []}
+                      onDeleteLink={investigationReport.status === 'pending' ? handleDeleteVaultLink : undefined}
+                      deleteBusyId={linkDeleteBusyId}
+                      deleteLinkLabel={t('admin_mod_delete_link_resolve')}
+                    />
                     <VaultSection title="users/{uid}/icon_vault" items={investigation?.iconVault ?? []} />
                     <VaultSection title="users/{uid}/vault" items={investigation?.vault ?? []} />
                   </div>
 
                   <div className="space-y-5">
+                    {investigationReport.status !== 'pending' ? (
+                      <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-700">
+                        Este reporte ya está cerrado (
+                        {investigationReport.status === 'resolved_approved'
+                          ? t('admin_mod_status_resolved_approved')
+                          : t('admin_mod_status_resolved_rejected')}
+                        ). Vista de solo lectura.
+                      </section>
+                    ) : null}
+
+                    {investigationReport.status === 'pending' ? (
+                      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+                        <label className="block">
+                          <span className="text-sm font-medium text-slate-700">Motivo obligatorio (auditoría)</span>
+                          <textarea
+                            className="mt-2 min-h-24 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-amber-400 focus:bg-white focus:ring-4 focus:ring-amber-100"
+                            value={moderationReason}
+                            onChange={(event) => setModerationReason(event.target.value)}
+                            placeholder=""
+                          />
+                        </label>
+                      </section>
+                    ) : null}
+
+                    {investigationReport.status === 'pending' ? (
+                      <section className="rounded-2xl border border-emerald-200 bg-white p-5">
+                        <h3 className="font-semibold text-slate-950">Resolución del reporte</h3>
+                        <p className="mt-2 text-xs text-slate-600">Cierra el caso o elimina la tarjeta desde la columna izquierda.</p>
+                        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                          <button
+                            type="button"
+                            disabled={Boolean(actionLoading) || !adminUid}
+                            className="flex-1 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900 hover:bg-emerald-100 disabled:opacity-50"
+                            onClick={handleApproveClose}
+                          >
+                            {t('admin_mod_btn_approve_close')}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={Boolean(actionLoading) || !adminUid}
+                            className="flex-1 rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-100 disabled:opacity-50"
+                            onClick={handleRejectClose}
+                          >
+                            {t('admin_mod_btn_reject_close')}
+                          </button>
+                        </div>
+                      </section>
+                    ) : null}
+
                     <section className="rounded-2xl border border-slate-200 bg-white p-5">
                       <h3 className="font-semibold text-slate-950">Identidad</h3>
                       <dl className="mt-4 space-y-3 text-sm">
@@ -491,21 +742,15 @@ export default function Moderation() {
                       </dl>
                     </section>
 
+                    {investigationReport.status === 'pending' ? (
                     <section className="rounded-2xl border border-red-200 bg-white p-5">
                       <h3 className="font-semibold text-slate-950">Escala de castigos</h3>
-                      <label className="mt-4 block">
-                        <span className="text-sm font-medium text-slate-700">Motivo obligatorio</span>
-                        <textarea
-                          className="mt-2 min-h-28 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-red-400 focus:bg-white focus:ring-4 focus:ring-red-100"
-                          value={moderationReason}
-                          onChange={(event) => setModerationReason(event.target.value)}
-                        />
-                      </label>
+                      <p className="mt-2 text-xs text-slate-600">Usa el mismo motivo de auditoría indicado arriba.</p>
 
                       <div className="mt-5 space-y-3">
                         <button
                           type="button"
-                          disabled={Boolean(actionLoading)}
+                          disabled={Boolean(actionLoading) || !adminUid}
                           className="w-full rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-60"
                           onClick={handleWarning}
                         >
@@ -513,7 +758,7 @@ export default function Moderation() {
                         </button>
                         <button
                           type="button"
-                          disabled={Boolean(actionLoading)}
+                          disabled={Boolean(actionLoading) || !adminUid}
                           className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60"
                           onClick={handleSoftBan}
                         >
@@ -521,7 +766,7 @@ export default function Moderation() {
                         </button>
                         <button
                           type="button"
-                          disabled={Boolean(actionLoading)}
+                          disabled={Boolean(actionLoading) || !adminUid}
                           className="w-full rounded-xl bg-red-700 px-4 py-3 text-sm font-black tracking-wide text-white hover:bg-red-800 disabled:opacity-60"
                           onClick={handleHardBan}
                         >
@@ -529,6 +774,7 @@ export default function Moderation() {
                         </button>
                       </div>
                     </section>
+                    ) : null}
                   </div>
                 </div>
               )}

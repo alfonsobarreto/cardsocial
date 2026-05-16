@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@mdi/js": "^7.4.47",
+    "@noble/ciphers": "^2.2.0",
+    "@noble/hashes": "^2.2.0",
     "@revenuecat/purchases-js": "^1.38.0",
     "firebase": "^11.10.0",
     "firebase-admin": "^12.7.0",

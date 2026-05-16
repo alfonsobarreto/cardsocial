@@ -1,6 +1,29 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
+  /**
+   * Capa defensiva para Studio/Bóveda web (reduce superficie XSS frente a exfiltración vía scripts de terceros).
+   * `unsafe-inline` / `unsafe-eval` se mantienen por compatibilidad con el bundle de Next.js en este proyecto.
+   */
+  async headers() {
+    const studioCsp = [
+      "default-src 'self'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://www.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com wss://*.googleapis.com",
+    ].join('; ');
+    return [
+      {
+        source: '/studio/:path*',
+        headers: [{ key: 'Content-Security-Policy', value: studioCsp }],
+      },
+    ];
+  },
   /** Permite importar `services/mirrorVaultItemOpenPlan.ts` desde la raíz del monorepo. */
   experimental: {
     externalDir: true,

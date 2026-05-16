@@ -26,6 +26,8 @@ type Props = {
   vaultItemMax: number;
   /** Solo `super_admin` en Firestore: texto «ilimitado» y sin tope en UI. */
   vaultUnlimited?: boolean;
+  /** Clave de cifrado de bóveda (sessionStorage) para re-escrituras completas p. ej. favorito con doc ausente. */
+  vaultEncryptionKey: Uint8Array | null;
 };
 
 function searchableBlob(l: StudioVaultLink): string {
@@ -76,6 +78,7 @@ export default function VaultColumn({
   profile,
   vaultItemMax,
   vaultUnlimited = false,
+  vaultEncryptionKey,
 }: Props) {
   const t = useCallback((k: string, vars?: Record<string, string | number>) => studioT(locale, k, vars), [locale]);
   const q = searchQuery.trim().toLowerCase();
@@ -134,7 +137,7 @@ export default function VaultColumn({
     closeMenu();
     setBusy(link.id);
     try {
-      await toggleStudioVaultFavorite(userId, link, !link.isFavorite);
+      await toggleStudioVaultFavorite(userId, link, !link.isFavorite, vaultEncryptionKey);
     } catch (e) {
       console.warn(e);
       window.alert(t('vault.err.favorite'));

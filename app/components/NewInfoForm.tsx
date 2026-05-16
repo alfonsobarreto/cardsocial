@@ -63,6 +63,11 @@ import {
   mergeVaultCategoriesFromFirestore,
   vaultCategorySectionTitle,
 } from '@/services/vaultCategoriesService';
+import { getVaultE2eDerivedKey } from '@/services/vaultE2eSession';
+import {
+  encodeVaultLink,
+  type VaultLinkLogical,
+} from '@/services/vaultFirestoreCodec';
 import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
 import { premiumTheme } from '@/styles/_premiumTheme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -159,6 +164,7 @@ const defaultGhostLinkIconStable = (() => {
 
 interface Link {
   id: string;
+  uid?: string;
   title: string;
   type: string;
   value: string;
@@ -2089,6 +2095,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       }
       const dataPayload = {
         id: uniqueId,
+        uid: userId,
         title: dataName.trim(),
         type: dataType,
         value: finalValue,
@@ -2151,8 +2158,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           try {
             console.log('[Vault] handleCreate: Background cloud sync start');
             const cloudDocRef = doc(db, 'users', userId, 'links', uniqueId!);
+            const aesKey = await getVaultE2eDerivedKey(userId);
+            const encoded = await encodeVaultLink(dataPayload as VaultLinkLogical, aesKey);
             await withTimeout(
-              setDoc(cloudDocRef, dataPayload),
+              setDoc(cloudDocRef, encoded),
               CLOUD_SYNC_TIMEOUT_MS,
               'Cloud sync timeout'
             );

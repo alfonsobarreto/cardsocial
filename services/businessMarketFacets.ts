@@ -17,6 +17,8 @@ import {
   buildBusinessMarketFacetsFromVaultItems,
   type VaultRowForMarketFacet,
 } from '@/services/businessMarketFacetsFromSnapshot';
+import { decodeVaultLink } from '@/services/vaultFirestoreCodec';
+import { getVaultE2eDerivedKey } from '@/services/vaultE2eSession';
 import { doc, getDoc } from 'firebase/firestore';
 
 import type { MarketFacet } from './types/cards';
@@ -35,6 +37,13 @@ export async function resolveBusinessMarketFacets(
   const unique = [...new Set(linkIds.filter(Boolean))].slice(0, MAX_FACETS);
   if (!unique.length) return [];
 
+  let aesKey: Uint8Array | null = null;
+  try {
+    aesKey = await getVaultE2eDerivedKey(uid);
+  } catch {
+    aesKey = null;
+  }
+
   const rows = await Promise.all(
     unique.map(async (linkId): Promise<VaultRowForMarketFacet | null> => {
       try {
@@ -43,15 +52,16 @@ export async function resolveBusinessMarketFacets(
           PER_LINK_TIMEOUT_MS,
         );
         if (!snap || !snap.exists()) return null;
-        const d = snap.data() as Record<string, unknown>;
+        const d0 = snap.data() as Record<string, unknown>;
+        const logical = await decodeVaultLink(linkId, { id: linkId, ...d0 }, aesKey);
         return {
           id: linkId,
-          title: d.title != null ? String(d.title) : undefined,
-          type: d.type != null ? String(d.type) : undefined,
-          value: d.value != null ? String(d.value) : undefined,
-          iconName: d.iconName != null ? String(d.iconName) : undefined,
-          icon: d.icon != null ? String(d.icon) : undefined,
-          label: d.label != null ? String(d.label) : undefined,
+          title: logical.title != null ? String(logical.title) : undefined,
+          type: logical.type != null ? String(logical.type) : undefined,
+          value: logical.value != null ? String(logical.value) : undefined,
+          iconName: logical.iconName != null ? String(logical.iconName) : undefined,
+          icon: logical.icon != null ? String(logical.icon) : undefined,
+          label: d0.label != null ? String(d0.label) : undefined,
         };
       } catch {
         return null;

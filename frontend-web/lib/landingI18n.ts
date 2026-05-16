@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import type { Metadata } from 'next';
 
 import executiveChrome from '@/locales/executiveChrome.json';
@@ -29,16 +28,6 @@ export function landingT(locale: LandingLocale, key: string, vars?: Record<strin
     }
   }
   return s;
-}
-
-export function useLandingT(locale: LandingLocale) {
-  return useMemo(
-    () => ({
-      copy: getLandingCopy(locale),
-      t: (key: string, vars?: Record<string, string | number>) => landingT(locale, key, vars),
-    }),
-    [locale],
-  );
 }
 
 export function landingPageMetadata(locale: LandingLocale): Metadata {

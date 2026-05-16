@@ -12,11 +12,10 @@ import { GhostLinkCallProvider } from '@/services/GhostLinkCallProvider';
 import GhostLinkCallOverlay from '@/components/GhostLinkCallOverlay';
 import { registerPushToken } from '@/services/pushRegistration';
 import { initRevenueCatOnce } from '@/services/revenueCatInit';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Stack, useRouter } from 'expo-router';
 import { checkInactivitySignOutWithoutTouch, enforceInactivitySignOutIfNeeded } from '@/services/sessionInactivity';
-import { APP_LOCK_ENABLED_STORAGE_KEY } from '@/services/sessionPolicyKeys';
+import { getAppLockEnabledRaw } from '@/services/appLockSecureStorage';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -48,6 +47,8 @@ function RootNavigator() {
   const router = useRouter();
   const [isLocked, setIsLocked] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  /** Oculta la UI en app switcher / transiciones del sistema (inactive/background). */
+  const [privacyOverlayVisible, setPrivacyOverlayVisible] = useState(false);
   const appState = useRef(AppState.currentState);
   const isAuthenticatingBiometrics = useRef(false);
   const isMounted = useRef(true);
@@ -107,6 +108,17 @@ function RootNavigator() {
       }),
     [shell]
   );
+  const privacyOverlayStyle = useMemo(
+    () => [
+      StyleSheet.absoluteFill,
+      {
+        backgroundColor: shell.backgroundSolid,
+        zIndex: 1_000_000,
+      },
+    ],
+    [shell.backgroundSolid]
+  );
+
   const handleBiometricAuth = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -143,7 +155,7 @@ function RootNavigator() {
 
     const checkLock = async () => {
       try {
-        const enabled = await AsyncStorage.getItem(APP_LOCK_ENABLED_STORAGE_KEY);
+        const enabled = await getAppLockEnabledRaw();
         if (enabled === 'true') {
           setIsLocked(true);
           await handleBiometricAuthRef.current();
@@ -167,6 +179,12 @@ function RootNavigator() {
     void checkLock();
 
     const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'background' || nextState === 'inactive') {
+        setPrivacyOverlayVisible(true);
+      } else if (nextState === 'active') {
+        setPrivacyOverlayVisible(false);
+      }
+
       if (
         (appState.current === 'background' || appState.current === 'inactive') &&
         nextState === 'active'
@@ -212,29 +230,23 @@ function RootNavigator() {
     return () => clearInterval(id);
   }, [isLocked, enqueueInactivitySignOutReplace]);
 
-  // UI de bloqueo
-  if (isLocked) {
-    return (
-      <LinearGradient colors={[...shell.vipBannerGradient]} style={lockStyles.lockScreen}>
-        <Image source={brandCsLogo} style={lockStyles.logo} resizeMode="contain" />
-        <Text style={lockStyles.lockTitle}>{coreT('misc_lock_bunker_title', language)}</Text>
-        <TouchableOpacity
-          style={lockStyles.unlockButton}
-          onPress={handleBiometricAuth}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color={shell.fabText} />
-          ) : (
-            <Text style={lockStyles.unlockButtonText}>{coreT('misc_lock_unlock_bunker', language)}</Text>
-          )}
-        </TouchableOpacity>
-      </LinearGradient>
-    );
-  }
-
-  // UI normal (gestos: raíz en RootLayout → GestureHandlerRootView)
-  return (
+  const mainContent = isLocked ? (
+    <LinearGradient colors={[...shell.vipBannerGradient]} style={lockStyles.lockScreen}>
+      <Image source={brandCsLogo} style={lockStyles.logo} resizeMode="contain" />
+      <Text style={lockStyles.lockTitle}>{coreT('misc_lock_bunker_title', language)}</Text>
+      <TouchableOpacity
+        style={lockStyles.unlockButton}
+        onPress={handleBiometricAuth}
+        disabled={isLoading}
+      >
+        {isLoading ? (
+          <ActivityIndicator color={shell.fabText} />
+        ) : (
+          <Text style={lockStyles.unlockButtonText}>{coreT('misc_lock_unlock_bunker', language)}</Text>
+        )}
+      </TouchableOpacity>
+    </LinearGradient>
+  ) : (
     <GhostLinkCallProvider>
       <Stack>
         {/* Forzamos a que la primera pantalla sea el Index (Bienvenida) */}
@@ -257,6 +269,7 @@ function RootNavigator() {
         <Stack.Screen name="nfc" options={{ headerShown: false }} />
         <Stack.Screen name="vault_store" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ headerShown: false }} />
+        <Stack.Screen name="notifications" options={{ headerShown: false }} />
         <Stack.Screen name="u" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
@@ -266,4 +279,19 @@ function RootNavigator() {
       <Toast />
     </GhostLinkCallProvider>
   );
+
+  return (
+    <View style={styles.rootShell}>
+      {mainContent}
+      {privacyOverlayVisible ? (
+        <View style={privacyOverlayStyle} pointerEvents="none" />
+      ) : null}
+    </View>
+  );
 }
+
+const styles = StyleSheet.create({
+  rootShell: {
+    flex: 1,
+  },
+});

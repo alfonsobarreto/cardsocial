@@ -15,6 +15,9 @@ export const SESSION_INACTIVITY_LIMIT_MS = 8 * 60 * 60 * 1000;
  */
 export const SESSION_INACTIVITY_EXPIRY_GRACE_MS = 5_000;
 
+/** Serializa escrituras de última actividad para evitar condiciones de carrera en AsyncStorage. */
+let touchActivityWriteChain: Promise<void> = Promise.resolve();
+
 /**
  * Indica si la sesión debe considerarse expirada por inactividad o anomalía de reloj.
  *
@@ -48,7 +51,11 @@ export async function getSessionLastActivityMs(uid: string): Promise<number | nu
 }
 
 export async function touchSessionActivity(uid: string): Promise<void> {
-  await AsyncStorage.setItem(sessionLastActivityKey(uid), String(Date.now()));
+  const op = touchActivityWriteChain.catch(() => {}).then(() =>
+    AsyncStorage.setItem(sessionLastActivityKey(uid), String(Date.now())),
+  );
+  touchActivityWriteChain = op.catch(() => {});
+  await op;
 }
 
 export async function clearSessionActivity(uid: string | null | undefined): Promise<void> {

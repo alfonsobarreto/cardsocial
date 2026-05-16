@@ -10,13 +10,62 @@
 const path = require('path');
 const fs = require('fs');
 
-const qrNfcPath = path.join(__dirname, '../../../services/i18n/machineErrorQrNfc.json');
-/** @type {Record<string, Record<'es'|'en'|'it'|'fr'|'de'|'pt', string>>} */
-const QR_NFC_LOCALIZED = JSON.parse(fs.readFileSync(qrNfcPath, 'utf8'));
+/**
+ * Resolución robusta: el despliegue (p. ej. Azure wwwroot) a veces no incluye `services/i18n`
+ * junto a `backend/`. Varias rutas candidatas + fallback `{}` evitan crash fatal (ENOENT → 503).
+ */
+function resolveExistingPath(label, relativeFromLib, cwdRelative) {
+  const candidates = [
+    path.join(__dirname, relativeFromLib),
+    path.join(process.cwd(), cwdRelative),
+    path.join(process.cwd(), '..', cwdRelative),
+  ];
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) return p;
+    } catch {
+      /* ignore */
+    }
+  }
+  console.warn(`[userFacingErrors] ${label}: no file found in candidates, using empty catalog`);
+  return candidates[0];
+}
 
-const successQrNfcPath = path.join(__dirname, '../../../services/i18n/machineSuccessQrNfc.json');
+/**
+ * @param {string} absPath
+ * @param {string} label
+ * @returns {Record<string, Record<string, string>>}
+ */
+function readLocalizedJsonSafe(absPath, label) {
+  try {
+    if (!fs.existsSync(absPath)) {
+      console.warn(`[userFacingErrors] ${label} missing at ${absPath} — using {}`);
+      return {};
+    }
+    const txt = fs.readFileSync(absPath, 'utf8');
+    const parsed = JSON.parse(txt);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (err) {
+    console.error(`[userFacingErrors] ${label} read/parse failed (${absPath}):`, err && err.message ? err.message : err);
+    return {};
+  }
+}
+
+const qrNfcPath = resolveExistingPath(
+  'machineErrorQrNfc.json',
+  '../../../services/i18n/machineErrorQrNfc.json',
+  'services/i18n/machineErrorQrNfc.json',
+);
 /** @type {Record<string, Record<'es'|'en'|'it'|'fr'|'de'|'pt', string>>} */
-const SUCCESS_QR_NFC_LOCALIZED = JSON.parse(fs.readFileSync(successQrNfcPath, 'utf8'));
+const QR_NFC_LOCALIZED = readLocalizedJsonSafe(qrNfcPath, 'machineErrorQrNfc');
+
+const successQrNfcPath = resolveExistingPath(
+  'machineSuccessQrNfc.json',
+  '../../../services/i18n/machineSuccessQrNfc.json',
+  'services/i18n/machineSuccessQrNfc.json',
+);
+/** @type {Record<string, Record<'es'|'en'|'it'|'fr'|'de'|'pt', string>>} */
+const SUCCESS_QR_NFC_LOCALIZED = readLocalizedJsonSafe(successQrNfcPath, 'machineSuccessQrNfc');
 
 /** @type {Record<'A'|'B'|'C'|'D'|'E'|'F', Record<'es'|'en'|'it'|'fr'|'de'|'pt', string>>} */
 const MACHINE_ERROR_BLOCKS = {

@@ -1,9 +1,20 @@
+/**
+ * Bóveda Studio ↔ app: mismos documentos `users/{uid}/links/*` que el cliente móvil.
+ * Campos sensibles title, value, category, vaultMimeType van a `securePayload` (AES-GCM-256) con clave de sesión;
+ * metadatos (type, icon*, iconVaultId, favorito, fechas, uid) permanecen en claro.
+ * cuando el navegador tiene sesión de clave derivada por passphrase (ver `studioVaultE2eSession.ts`).
+ */
 import {
   BUILTIN_GHOST_LINK_ITEM_ID,
   GHOST_LINK_VAULT_TYPE,
   GHOST_LINK_VAULT_VALUE,
   isGhostLinkVaultType,
 } from '@card-social/constants/ghostLinkVault';
+import {
+  decodeVaultLink,
+  encodeVaultLink,
+  type VaultLinkLogical,
+} from '@card-social/services/vaultFirestoreCodec';
 import {
   collection,
   deleteDoc,
@@ -67,24 +78,34 @@ export async function persistBuiltinGhostIfMissing(uid: string): Promise<void> {
   }
 }
 
-export function subscribeVaultLinks(uid: string, onData: (items: StudioVaultLink[]) => void): Unsubscribe {
+export function subscribeVaultLinks(
+  uid: string,
+  getVaultAesKey: () => Promise<Uint8Array | null>,
+  onData: (items: StudioVaultLink[]) => void,
+): Unsubscribe {
   const db = getStudioDb();
   const col = collection(db, 'users', uid, 'links');
   return onSnapshot(
     col,
     (snap) => {
-      const raw = snap.docs.map((d) => {
-        const data = d.data() as Record<string, unknown>;
-        return {
-          id: d.id,
-          ...data,
-        } as StudioVaultLink;
-      });
-      const merged = mergeBuiltinGhostPlaceholders(raw);
-      if (merged.length > 0 && !raw.some((x) => isGhostLinkVaultType(x?.type))) {
-        void persistBuiltinGhostIfMissing(uid);
-      }
-      onData(sortVault(merged));
+      void (async () => {
+        try {
+          const key = await getVaultAesKey();
+          const raw: StudioVaultLink[] = [];
+          for (const d of snap.docs) {
+            const decoded = await decodeVaultLink(d.id, d.data() as Record<string, unknown>, key);
+            raw.push(decoded as StudioVaultLink);
+          }
+          const merged = mergeBuiltinGhostPlaceholders(raw);
+          if (merged.length > 0 && !raw.some((x) => isGhostLinkVaultType(x?.type))) {
+            void persistBuiltinGhostIfMissing(uid);
+          }
+          onData(sortVault(merged));
+        } catch (e) {
+          console.error('[studio vault]', e);
+          onData([]);
+        }
+      })();
     },
     (err) => {
       console.error('[studio vault]', err);
@@ -93,9 +114,14 @@ export function subscribeVaultLinks(uid: string, onData: (items: StudioVaultLink
   );
 }
 
-export async function saveVaultLink(uid: string, payload: StudioVaultLink): Promise<void> {
+export async function saveVaultLink(
+  uid: string,
+  payload: StudioVaultLink,
+  vaultAesKey: Uint8Array | null,
+): Promise<void> {
   const db = getStudioDb();
-  await setDoc(doc(db, 'users', uid, 'links', payload.id), { ...payload } as Record<string, unknown>, { merge: true });
+  const encoded = await encodeVaultLink({ ...payload, uid } as VaultLinkLogical, vaultAesKey);
+  await setDoc(doc(db, 'users', uid, 'links', payload.id), encoded, { merge: true });
 }
 
 export function newStudioItemId(): string {
@@ -111,7 +137,12 @@ export async function deleteStudioVaultLink(uid: string, linkId: string): Promis
   await syncStudioVaultDeleteAcrossFirestoreCards(uid, linkId);
 }
 
-export async function toggleStudioVaultFavorite(uid: string, link: StudioVaultLink, nextFavorite: boolean): Promise<void> {
+export async function toggleStudioVaultFavorite(
+  uid: string,
+  link: StudioVaultLink,
+  nextFavorite: boolean,
+  vaultAesKey: Uint8Array | null,
+): Promise<void> {
   const db = getStudioDb();
   const now = new Date().toISOString();
   const ref = doc(db, 'users', uid, 'links', link.id);
@@ -119,7 +150,8 @@ export async function toggleStudioVaultFavorite(uid: string, link: StudioVaultLi
   try {
     await updateDoc(ref, { isFavorite: nextFavorite, updatedAt: now } as DocumentData);
   } catch {
-    await setDoc(ref, next as DocumentData, { merge: true });
+    const encoded = await encodeVaultLink({ ...next, uid } as VaultLinkLogical, vaultAesKey);
+    await setDoc(ref, encoded as DocumentData, { merge: true });
   }
   await syncStudioVaultUpdateAcrossFirestoreCards(uid, next);
 }
