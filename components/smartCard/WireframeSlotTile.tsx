@@ -1,4 +1,5 @@
 import type { CardTheme as ChestCardTheme } from '@/constants/themeChest';
+import { useCoreT } from '@/services/coreI18n';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -66,7 +67,6 @@ export type WireframeSlotTileProps = {
   ui: { size: number };
   editable: boolean;
   chestTheme: ChestCardTheme;
-  tr: (es: string, en: string) => string;
   renderMiniIcon: (item: WireframeVaultItem | null | undefined, size: number, glyphColor?: string) => React.ReactNode;
   onEditableOpenPicker: (index: number) => void;
   onDataPress: (item: WireframeVaultItem) => void;
@@ -79,13 +79,13 @@ export function WireframeSlotTile({
   ui,
   editable,
   chestTheme,
-  tr,
   renderMiniIcon,
   onEditableOpenPicker,
   onDataPress,
   onMirrorLongPress,
   onRemoveSlotItem,
 }: WireframeSlotTileProps) {
+  const t = useCoreT();
   const hasItem = Boolean(slot.item);
   const bubbleSize = Math.max(26, Math.floor(ui.size));
   const editableGlyphSize = Math.round(bubbleSize * 0.9);
@@ -111,7 +111,7 @@ export function WireframeSlotTile({
       .toLowerCase()
       .includes('voip');
     const mirrorGlyphSize = Math.round(bubbleSize * 0.9);
-    const compactLabel = compactSlotLabel(slot.item ? String(slot.item.title || '') : tr('Agregar', 'Add'));
+    const compactLabel = compactSlotLabel(slot.item ? String(slot.item.title || '') : t('wireframe_add'));
 
     return (
       <View
@@ -213,7 +213,7 @@ export function WireframeSlotTile({
         numberOfLines={3}
         ellipsizeMode="tail"
       >
-        {compactSlotLabel(slot.item ? String(slot.item.title || '') : tr('Agregar', 'Add'))}
+        {compactSlotLabel(slot.item ? String(slot.item.title || '') : t('wireframe_add'))}
       </Text>
 
       {hasItem && onRemoveSlotItem ? (
@@ -221,7 +221,7 @@ export function WireframeSlotTile({
           style={slotStyles.slotMinusBtn}
           onPress={() => onRemoveSlotItem(slot.index)}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          accessibilityLabel={tr('Quitar dato', 'Remove item')}
+          accessibilityLabel={t('wireframe_remove_item')}
         >
           <MaterialCommunityIcons name="minus" size={11} color="#FFFFFF" />
         </TouchableOpacity>
@@ -230,7 +230,7 @@ export function WireframeSlotTile({
         style={slotStyles.slotPlusBtn}
         onPress={() => onEditableOpenPicker(slot.index)}
         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-        accessibilityLabel={tr('Agregar dato', 'Add item')}
+        accessibilityLabel={t('wireframe_add_item')}
       >
         <MaterialCommunityIcons name="plus" size={11} color="#FFFFFF" />
       </TouchableOpacity>

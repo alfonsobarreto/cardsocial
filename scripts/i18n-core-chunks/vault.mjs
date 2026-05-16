@@ -1,0 +1,41 @@
+import { L } from './_util.mjs';
+
+export const vault = {
+  vault_share_dialog_title: L('Guardar archivo de Card-Social', 'Save Card-Social file', 'Salva file Card-Social', 'Salvar arquivo Card-Social', 'Enregistrer le fichier Card-Social', 'Card-Social-Datei speichern'),
+  vault_toast_download_title: L('📥 Descarga lista', '📥 Download ready', '📥 Download pronto', '📥 Download pronto', '📥 Téléchargement prêt', '📥 Download fertig'),
+  vault_toast_download_body: L(
+    'Archivo preparado en tu dispositivo',
+    'File ready on your device',
+    'File pronto sul dispositivo',
+    'Arquivo pronto no dispositivo',
+    'Fichier prêt sur votre appareil',
+    'Datei auf Ihrem Gerät bereit',
+  ),
+  vault_toast_download_fail: L('❌ No se pudo descargar', '❌ Download failed', '❌ Download non riuscito', '❌ Falha no download', '❌ Échec du téléchargement', '❌ Download fehlgeschlagen'),
+  vault_save_long_title: L('Guardar archivo', 'Save file', 'Salva file', 'Salvar arquivo', 'Enregistrer le fichier', 'Datei speichern'),
+  vault_save_long_body: L(
+    'Mantén la privacidad: el archivo se exportará desde el visor seguro.',
+    'Keep privacy: the file will be exported from the secure viewer.',
+    'Rispetta la privacy: il file sarà esportato dal visualizzatore sicuro.',
+    'Privacidade: o arquivo será exportado do visualizador seguro.',
+    'Respectez la vie privée : export depuis la visionneuse sécurisée.',
+    'Datenschutz: Die Datei wird aus der sicheren Ansicht exportiert.',
+  ),
+  vault_save_action: L('Guardar', 'Save', 'Salva', 'Salvar', 'Enregistrer', 'Speichern'),
+  vault_copied: L('Copiado', 'Copied', 'Copiato', 'Copiado', 'Copié', 'Kopiert'),
+  vault_no_qr: L('Sin código detectado', 'No code detected', 'Nessun codice rilevato', 'Nenhum código detectado', 'Aucun code détecté', 'Kein Code erkannt'),
+  vault_no_qr_body: L('No se encontró un QR en esta imagen.', 'No QR was found in this image.', 'Nessun QR in questa immagine.', 'Nenhum QR nesta imagem.', 'Aucun QR dans cette image.', 'Kein QR in diesem Bild.'),
+  vault_no_qr_analyze: L('No se pudo analizar la imagen.', 'Could not analyze the image.', 'Impossibile analizzare l’immagine.', 'Não foi possível analisar a imagem.', "Impossible d'analyser l'image.", 'Bild konnte nicht analysiert werden.'),
+  vault_analyzing: L('Analizando imagen…', 'Analyzing image…', 'Analisi immagine…', 'Analisando imagem…', 'Analyse de l’image…', 'Bild wird analysiert…'),
+  vault_doc_image_a11y: L('Documento imagen', 'Document image', 'Immagine documento', 'Imagem do documento', 'Image du document', 'Dokumentbild'),
+  vault_pdf_load_fail: L('No se pudo cargar el PDF en el visor.', 'Could not load the PDF in the viewer.', 'Impossibile caricare il PDF nel visualizzatore.', 'Não foi possível carregar o PDF.', 'Impossible de charger le PDF.', 'PDF konnte nicht geladen werden.'),
+  vault_pdf_expo_go: L(
+    'La previsualizacion PDF no esta disponible en Expo Go. Usa un development build para verla.',
+    'PDF preview is not available in Expo Go. Use a development build to view it.',
+    'Anteprima PDF non disponibile in Expo Go. Usa un development build.',
+    'Pré-visualização PDF indisponível no Expo Go. Use um development build.',
+    'Aperçu PDF indispor. sur Expo Go. Utilisez un development build.',
+    'PDF-Vorschau in Expo Go nicht verfügbar. Nutzen Sie einen Development Build.',
+  ),
+  vault_preview_fail: L('No se pudo previsualizar este archivo.', 'Could not preview this file.', 'Impossibile visualizzare il file.', 'Não foi possível pré-visualizar.', 'Impossible de prévisualiser ce fichier.', 'Datei konnte nicht angezeigt werden.'),
+};

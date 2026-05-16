@@ -15,6 +15,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadIconAsAdmin, getIconCategories } from '@/services/iconLibraryService';
+import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { getActiveUserId } from '@/services/authSession';
 import { trEsEn, useLanguage } from '@/services/language';
 import { createIconPack, type IconPack } from '@/services/iconPackService';
@@ -213,12 +214,15 @@ const AdminIconUploader: React.FC = () => {
           dropSection: state.dropSection,
         });
       } else {
-        Alert.alert(tr('Error', 'Error'), result.error || tr('Error al subir el icono', 'Error uploading icon'));
+        Alert.alert(
+          tr('Error', 'Error'),
+          tr('Error al subir el icono', 'Error uploading icon'),
+        );
       }
     } catch (error) {
       Alert.alert(
         tr('Error', 'Error'),
-        error instanceof Error ? error.message : tr('Error desconocido', 'Unknown error'),
+        userFacingAlertMessage(error, language, tr('Error desconocido', 'Unknown error')),
       );
     } finally {
       setState((prev) => ({ ...prev, loading: false }));

@@ -6,6 +6,8 @@
  */
 
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
+import { useCoreT } from '@/services/coreI18n';
+import { intlLocaleTagForAppLanguage, useLanguage, type AppLanguage } from '@/services/language';
 import type { CardSubscriberRow } from '@/services/qrApi';
 import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
 import { fetchUserProfilePhotoUrl } from '@/services/userProfilePhoto';
@@ -45,7 +47,8 @@ export type ReceptorScreenModalProps = {
   totalCount: number;
   loading: boolean;
   isDark: boolean;
-  tr: (es: string, en: string) => string;
+  /** @deprecated Usa useCoreT; prop ignorada. */
+  tr?: (es: string, en: string) => string;
   /** Owner context: actions on own card's subscribers */
   onRevoke?: (targetUid: string, name: string) => void;
   onMute?: (targetUid: string, currentlyMuted: boolean, name: string) => void;
@@ -64,7 +67,8 @@ const CAROUSEL_AVATAR_SIZE = 52;
 
 function relativeTimeLabel(
   isoDate: string | null | undefined,
-  tr: (es: string, en: string) => string,
+  lang: AppLanguage,
+  t: (key: import('@/services/coreI18n').CoreLocaleKey, vars?: Record<string, string | number>) => string,
 ): string {
   if (!isoDate) return '';
   const d = new Date(isoDate);
@@ -74,16 +78,11 @@ function relativeTimeLabel(
   const diffMs = now.getTime() - d.getTime();
   const diffDays = Math.floor(diffMs / 86_400_000);
 
-  if (diffDays <= 0) return tr('Hoy', 'Today');
-  if (diffDays === 1) return tr('Ayer', 'Yesterday');
-  if (diffDays < 7) return `${diffDays} ${tr('días', 'days')}`;
+  if (diffDays <= 0) return t('core_rel_today');
+  if (diffDays === 1) return t('core_rel_yesterday');
+  if (diffDays < 7) return t('core_rel_days', { count: diffDays });
 
-  const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-  const monthsEn = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const mIdx = d.getMonth();
-  const day = d.getDate();
-  const label = tr(months[mIdx], monthsEn[mIdx]);
-  return `${day} ${label}`;
+  return d.toLocaleDateString(intlLocaleTagForAppLanguage(lang), { day: 'numeric', month: 'short' });
 }
 
 /** Foto de perfil: URL del API; si viene vacía, `users/{uid}` en Firestore. Sin iniciales. */
@@ -269,12 +268,13 @@ export default function ReceptorScreenModal({
   totalCount,
   loading,
   isDark,
-  tr,
   onRevoke,
   onMute,
   onBlock,
   onBlockExternal,
 }: ReceptorScreenModalProps) {
+  const t = useCoreT();
+  const { language } = useLanguage();
   const modalFooterBottomPad = useModalFooterBottomPad();
   const [sortMode, setSortMode] = useState<SortMode>('date');
   const c = useMemo(() => getColors(isDark), [isDark]);
@@ -321,7 +321,7 @@ export default function ReceptorScreenModal({
 
   const renderListRow = useCallback(
     ({ item }: { item: CardSubscriberRow }) => {
-      const timeLabel = relativeTimeLabel(item.addedAt, tr);
+      const timeLabel = relativeTimeLabel(item.addedAt, language, t);
       const primary = subscriberTitle(item);
       const subtitle = subscriberSubtitleLine(item, primary);
 
@@ -370,7 +370,7 @@ export default function ReceptorScreenModal({
             >
               <MaterialCommunityIcons name={item.muted ? 'volume-high' : 'volume-off'} size={18} color="#fff" />
               <Text style={s.swipeBtnText}>
-                {item.muted ? tr('Activar', 'Unmute') : tr('Silenciar', 'Mute')}
+                {item.muted ? t('common_unmute') : t('common_mute')}
               </Text>
             </TouchableOpacity>
           )}
@@ -383,7 +383,7 @@ export default function ReceptorScreenModal({
               }}
             >
               <MaterialCommunityIcons name="cancel" size={18} color="#fff" />
-              <Text style={s.swipeBtnText}>{tr('Bloquear', 'Block')}</Text>
+              <Text style={s.swipeBtnText}>{t('common_block')}</Text>
             </TouchableOpacity>
           )}
           {onBlockExternal && (
@@ -395,7 +395,7 @@ export default function ReceptorScreenModal({
               }}
             >
               <MaterialCommunityIcons name="cancel" size={18} color="#fff" />
-              <Text style={s.swipeBtnText}>{tr('Bloquear', 'Block')}</Text>
+              <Text style={s.swipeBtnText}>{t('common_block')}</Text>
             </TouchableOpacity>
           )}
           {onRevoke && (
@@ -407,7 +407,7 @@ export default function ReceptorScreenModal({
               }}
             >
               <MaterialCommunityIcons name="trash-can-outline" size={18} color="#fff" />
-              <Text style={s.swipeBtnText}>{tr('Eliminar', 'Remove')}</Text>
+              <Text style={s.swipeBtnText}>{t('common_remove')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -419,7 +419,7 @@ export default function ReceptorScreenModal({
         </SwipeableRow>
       );
     },
-    [c, tr, hasOwnerActions, hasExternalAction, onRevoke, onMute, onBlock, onBlockExternal, closeAllSwipes],
+    [c, t, language, hasOwnerActions, hasExternalAction, onRevoke, onMute, onBlock, onBlockExternal, closeAllSwipes],
   );
 
   const keyExtractor = useCallback((item: CardSubscriberRow) => item.uid, []);
@@ -469,7 +469,7 @@ export default function ReceptorScreenModal({
             onPress={onClose}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityRole="button"
-            accessibilityLabel={tr('Cerrar', 'Close')}
+            accessibilityLabel={t('receptor_close_a11y')}
           >
             <MaterialCommunityIcons name="close" size={20} color={c.closeIcon} />
           </TouchableOpacity>
@@ -477,7 +477,7 @@ export default function ReceptorScreenModal({
 
         {/* ── Title ─────────────────────────────────────────────── */}
         <Text style={[s.screenTitle, { color: c.text }]}>
-          {tr('Mis Receptores', 'My Receptors')}
+          {t('receptor_title')}
         </Text>
 
         {/* ── Stats Card ────────────────────────────────────────── */}
@@ -490,7 +490,7 @@ export default function ReceptorScreenModal({
           <View style={s.statsLeft}>
             <Text style={[s.statsNumber, { color: c.gold }]}>{totalCount}</Text>
             <Text style={[s.statsLabel, { color: c.textSecondary }]}>
-              {tr('Total de Receptores', 'Total Receptors')}
+              {t('receptor_total_label')}
             </Text>
           </View>
           <View style={[s.statsDivider, { backgroundColor: c.border }]} />
@@ -500,7 +500,7 @@ export default function ReceptorScreenModal({
               <MaterialCommunityIcons name="arrow-top-right" size={14} color={c.gold} />
             </View>
             <Text style={[s.statsLabel, { color: c.textSecondary }]}>
-              {tr('Nuevos (Hoy)', 'New (Today)')}
+              {t('receptor_new_today')}
             </Text>
           </View>
         </View>
@@ -509,7 +509,7 @@ export default function ReceptorScreenModal({
         {recentSubscribers.length > 0 ? (
           <View style={s.carouselSection}>
             <Text style={[s.sectionTitle, { color: c.text }]}>
-              {tr('Nuevos Receptores', 'New Receptors')}
+              {t('receptor_new_carousel')}
             </Text>
             <ScrollView
               horizontal
@@ -550,15 +550,15 @@ export default function ReceptorScreenModal({
         <View style={s.connectionsHeader}>
           <Text style={[s.sectionTitle, { color: c.text, flex: 1 }]}>
             {sortMode === 'alpha'
-              ? tr('Todas las Conexiones (A-Z)', 'All Connections (A-Z)')
-              : tr('Todas las Conexiones', 'All Connections')}
+              ? t('receptor_connections_az')
+              : t('receptor_connections')}
           </Text>
           <TouchableOpacity
             style={[s.filterBtn, { backgroundColor: c.filterBg, borderColor: c.filterBorder }]}
             onPress={toggleSort}
           >
             <Text style={[s.filterBtnText, { color: c.filterText }]}>
-              {tr('Filtrar', 'Filter')}
+              {t('receptor_filter')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -567,14 +567,14 @@ export default function ReceptorScreenModal({
         {loading ? (
           <View style={s.loadingWrap}>
             <Text style={[s.loadingText, { color: c.textSecondary }]}>
-              {tr('Cargando...', 'Loading...')}
+              {t('receptor_loading')}
             </Text>
           </View>
         ) : sorted.length === 0 ? (
           <View style={s.emptyWrap}>
             <MaterialCommunityIcons name="account-group-outline" size={48} color={c.muted} />
             <Text style={[s.emptyText, { color: c.textSecondary }]}>
-              {tr('Aún no hay personas con acceso a esta tarjeta.', 'No one has access to this card yet.')}
+              {t('receptor_empty')}
             </Text>
           </View>
         ) : (

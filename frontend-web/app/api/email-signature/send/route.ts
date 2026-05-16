@@ -17,40 +17,9 @@ import { getThemeById } from '@card-social/constants/themeChest';
 
 import { resolveAdminApp, shouldLogFirebaseAdmin } from '@/lib/firebaseAdminStudio';
 import { pickLocaleFromHeaders, userFacingMessageForErrorCode } from '@/lib/userFacingApiMessages';
+import { emailT, normalizeEmailLocaleFromBodyOrHeaders, type EmailLocale } from '@card-social/services/emailI18n';
 
 export const runtime = 'nodejs';
-
-type EmailSigLocale = 'es' | 'en';
-
-const EMAIL_SIGNATURE_I18N: Record<
-  EmailSigLocale,
-  { subject: string; wrapHeadline: string; wrapP1: string; wrapP2: string; textPreamble: string }
-> = {
-  es: {
-    subject: 'Tu nueva firma corporativa',
-    wrapHeadline: 'Tu nueva firma corporativa',
-    wrapP1:
-      'Abre este correo en tu computadora. Selecciona la firma de abajo (solo el recuadro con logo y QR) y cópiala. Evita seleccionar la descripción textual — solo bloqueamos la tabla de la marca.',
-    wrapP2:
-      'Pégala después en Gmail o Outlook Web: Configuración → Firma. En la app de correo móvil suele tratarse mejor el pegado cuando la firma llega así desde escritorio.',
-    textPreamble:
-      'Instrucciones: abre en tu computadora, copia el bloque de firma desde el HTML del correo, y pégala en Gmail/Outlook.',
-  },
-  en: {
-    subject: 'Your new corporate signature',
-    wrapHeadline: 'Your new corporate signature',
-    wrapP1:
-      'Open this email on your desktop. Select the signature block below (the card with logo and QR code) and copy it. Prefer selecting only the branded table.',
-    wrapP2:
-      'Paste it into Gmail or Outlook Web: Settings → Signature. Mail apps on phones often behave better once the signature came from desktop email.',
-    textPreamble:
-      'Instructions: open on desktop, copy the branded signature block from this email HTML, paste into Gmail/Outlook.',
-  },
-};
-
-function normalizeEmailSigLocale(raw: string | undefined | null): EmailSigLocale {
-  return String(raw || '').toLowerCase() === 'es' ? 'es' : 'en';
-}
 
 function corsHeaders(): Record<string, string> {
   return {
@@ -101,13 +70,12 @@ async function fetchBusinessPreviewPublic(bId: string, uid: string): Promise<Rec
   }
 }
 
-function wrapCorporateSignatureEmail(signatureHtmlFragment: string, locale: EmailSigLocale): string {
-  const copy = EMAIL_SIGNATURE_I18N[locale];
-  const lang = locale === 'es' ? 'es' : 'en';
+function wrapCorporateSignatureEmail(signatureHtmlFragment: string, locale: EmailLocale): string {
+  const lang = locale;
 
-  const headline = escapeHtmlForEmail(copy.wrapHeadline);
-  const p1 = escapeHtmlForEmail(copy.wrapP1);
-  const p2 = escapeHtmlForEmail(copy.wrapP2);
+  const headline = escapeHtmlForEmail(emailT(locale, 'email_sig_wrap_headline'));
+  const p1 = escapeHtmlForEmail(emailT(locale, 'email_sig_wrap_p1'));
+  const p2 = escapeHtmlForEmail(emailT(locale, 'email_sig_wrap_p2'));
 
   return `<!DOCTYPE html>
 <html lang="${lang}">
@@ -170,7 +138,11 @@ export async function POST(req: Request) {
 
     const bodyRaw = await req.json().catch(() => null);
     const bId = String((bodyRaw as { bId?: string } | null)?.bId || '').trim();
-    const locale = normalizeEmailSigLocale((bodyRaw as { locale?: string } | null)?.locale);
+    const locale = normalizeEmailLocaleFromBodyOrHeaders(
+      (bodyRaw as { locale?: string } | null)?.locale,
+      req.headers,
+      pickLocaleFromHeaders,
+    );
 
     if (!bId) {
       return NextResponse.json(
@@ -208,7 +180,7 @@ export async function POST(req: Request) {
     const subtitle =
       bcContactRaw ||
       (themeMetaName != null ? String(themeMetaName).trim() : '') ||
-      (locale === 'es' ? 'Tarjeta de negocio' : 'Business card');
+      emailT(locale, 'email_sig_fallback_subtitle');
 
     const publicCardSite = sitePublicBase();
     const apiOrigin = internalApiPublicBase();
@@ -222,8 +194,6 @@ export async function POST(req: Request) {
       apiOrigin,
     });
 
-    const i18n = EMAIL_SIGNATURE_I18N[locale];
-
     const signatureHtml = buildBusinessCardEmailSignatureHtml({
       webBaseUrl: qrBase,
       publicCardUrl,
@@ -232,6 +202,7 @@ export async function POST(req: Request) {
       logoUrl,
       themeId,
       emailLogoNormalize: { siteOrigin: publicCardSite, apiOrigin },
+      qrImageAlt: emailT(locale, 'email_sig_qr_alt'),
     });
 
     const plainCompanion = buildBusinessCardEmailSignaturePlainText({
@@ -257,8 +228,8 @@ export async function POST(req: Request) {
     await resend.emails.send({
       from,
       to: recipientEmail.trim(),
-      subject: i18n.subject,
-      text: `${i18n.textPreamble}\n\n${plainCompanion}`,
+      subject: emailT(locale, 'email_sig_subject'),
+      text: `${emailT(locale, 'email_sig_text_preamble')}\n\n${plainCompanion}`,
       html: wrapCorporateSignatureEmail(signatureHtml, locale),
     });
 

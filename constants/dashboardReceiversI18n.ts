@@ -20,6 +20,7 @@ export type DashboardReceiversStrings = {
   loading: string;
   emptyChart: string;
   peopleAdded: string;
+  loadHistoryError: string;
 };
 
 const STRINGS: Record<AppLanguage, DashboardReceiversStrings> = {
@@ -43,6 +44,7 @@ const STRINGS: Record<AppLanguage, DashboardReceiversStrings> = {
     loading: 'Cargando…',
     emptyChart: 'Sin nuevas altas en este periodo. ¡Comparte tu QR!',
     peopleAdded: 'altas',
+    loadHistoryError: 'No pudimos cargar el historial. Inténtalo de nuevo.',
   },
   en: {
     metricTitle: 'Your network is growing',
@@ -64,6 +66,7 @@ const STRINGS: Record<AppLanguage, DashboardReceiversStrings> = {
     loading: 'Loading…',
     emptyChart: 'No new adds in this range yet. Share your QR!',
     peopleAdded: 'adds',
+    loadHistoryError: 'Could not load history. Please try again.',
   },
   fr: {
     metricTitle: 'Votre réseau grandit',
@@ -85,6 +88,7 @@ const STRINGS: Record<AppLanguage, DashboardReceiversStrings> = {
     loading: 'Chargement…',
     emptyChart: 'Pas de nouveaux ajouts sur cette période. Partagez votre QR !',
     peopleAdded: 'ajouts',
+    loadHistoryError: 'Impossible de charger l’historique. Réessayez.',
   },
   it: {
     metricTitle: 'La tua rete cresce',
@@ -106,6 +110,7 @@ const STRINGS: Record<AppLanguage, DashboardReceiversStrings> = {
     loading: 'Caricamento…',
     emptyChart: 'Nessun nuovo salvataggio in questo periodo. Condividi il QR!',
     peopleAdded: 'aggiunte',
+    loadHistoryError: 'Impossibile caricare la cronologia. Riprova.',
   },
   pt: {
     metricTitle: 'Sua rede cresce',
@@ -127,6 +132,7 @@ const STRINGS: Record<AppLanguage, DashboardReceiversStrings> = {
     loading: 'Carregando…',
     emptyChart: 'Sem novas entradas neste período. Compartilhe seu QR!',
     peopleAdded: 'entradas',
+    loadHistoryError: 'Não foi possível carregar o histórico. Tente novamente.',
   },
   de: {
     metricTitle: 'Ihr Netzwerk wächst',
@@ -148,6 +154,7 @@ const STRINGS: Record<AppLanguage, DashboardReceiversStrings> = {
     loading: 'Laden…',
     emptyChart: 'Keine neuen Speicherungen in diesem Zeitraum. Teilen Sie Ihren QR-Code!',
     peopleAdded: 'Neue',
+    loadHistoryError: 'Verlauf konnte nicht geladen werden. Bitte erneut versuchen.',
   },
 };
 

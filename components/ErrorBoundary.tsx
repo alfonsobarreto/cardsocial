@@ -42,7 +42,7 @@ export default class ErrorBoundary extends Component<Props, State> {
           <Text style={styles.title}>{trAction('Algo salió mal', 'Something went wrong')}</Text>
           <Text style={styles.subtitle}>{trAction('Vuelve a intentarlo.', 'Please try again.')}</Text>
           <Text style={styles.detail} numberOfLines={4}>
-            {this.state.error?.message || trAction('Error desconocido', 'Unknown error')}
+            {trAction('Puede deberse a un fallo temporal. Si continúa, reinicia la aplicación.', 'This may be a temporary issue. If it keeps happening, restart the app.')}
           </Text>
           <TouchableOpacity style={styles.retryBtn} onPress={this.handleRetry} activeOpacity={0.8}>
             <Text style={styles.retryText}>{trAction('Reintentar', 'Try again')}</Text>

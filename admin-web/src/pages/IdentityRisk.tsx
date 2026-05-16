@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import { useAuth } from '../auth/useAuth';
+import { useAdminT } from '../i18n/useAdminT';
 import {
   type BannedIdentity,
   type RiskUser,
@@ -32,13 +33,14 @@ function formatDate(value: unknown) {
 }
 
 export default function IdentityRisk() {
+  const { t } = useAdminT();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('verification');
   const [search, setSearch] = useState('');
   const [riskUser, setRiskUser] = useState<RiskUser | null>(null);
   const [blacklist, setBlacklist] = useState<BannedIdentity[]>([]);
   const [blacklistEmail, setBlacklistEmail] = useState('');
-  const [blacklistReason, setBlacklistReason] = useState('Proactive abuse prevention');
+  const [blacklistReason, setBlacklistReason] = useState(() => t('admin_idrisk_default_reason'));
   const [loading, setLoading] = useState(false);
   const [blacklistLoading, setBlacklistLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState('');
@@ -52,7 +54,7 @@ export default function IdentityRisk() {
       setBlacklist(await getBannedIdentities());
     } catch (error) {
       console.error('[IdentityRisk] Failed to load blacklist:', error);
-      setToast({ type: 'error', message: 'No se pudo cargar banned_identities.' });
+      setToast({ type: 'error', message: t('admin_idrisk_load_blacklist_fail') });
     } finally {
       setBlacklistLoading(false);
     }
@@ -71,13 +73,13 @@ export default function IdentityRisk() {
     try {
       const result = await findRiskUser(search);
       if (!result) {
-        setToast({ type: 'error', message: 'No se encontró usuario con ese email o UID.' });
+        setToast({ type: 'error', message: t('admin_idrisk_user_not_found') });
         return;
       }
       setRiskUser(result);
     } catch (error) {
       console.error('[IdentityRisk] Search failed:', error);
-      setToast({ type: 'error', message: 'No se pudo buscar el usuario.' });
+      setToast({ type: 'error', message: t('admin_idrisk_search_fail') });
     } finally {
       setLoading(false);
     }
@@ -93,11 +95,11 @@ export default function IdentityRisk() {
       setRiskUser({ ...riskUser, isVerified, verifiedAt: isVerified ? new Date() : null });
       setToast({
         type: 'success',
-        message: isVerified ? 'Blue Badge otorgado.' : 'Verificación revocada.',
+        message: isVerified ? t('admin_idrisk_verify_granted') : t('admin_idrisk_verify_revoked'),
       });
     } catch (error) {
       console.error('[IdentityRisk] Verification update failed:', error);
-      setToast({ type: 'error', message: 'No se pudo actualizar la verificación.' });
+      setToast({ type: 'error', message: t('admin_idrisk_verify_fail') });
     } finally {
       setActionLoading('');
     }
@@ -115,12 +117,12 @@ export default function IdentityRisk() {
         createdBy: adminEmail,
       });
       setBlacklistEmail('');
-      setBlacklistReason('Proactive abuse prevention');
+      setBlacklistReason(t('admin_idrisk_default_reason'));
       await refreshBlacklist();
-      setToast({ type: 'success', message: 'Identidad agregada a lista negra.' });
+      setToast({ type: 'success', message: t('admin_idrisk_blacklist_add_ok') });
     } catch (error) {
       console.error('[IdentityRisk] Add blacklist failed:', error);
-      setToast({ type: 'error', message: 'No se pudo agregar a lista negra.' });
+      setToast({ type: 'error', message: t('admin_idrisk_blacklist_add_fail') });
     } finally {
       setActionLoading('');
     }
@@ -133,10 +135,10 @@ export default function IdentityRisk() {
     try {
       await removeBannedIdentity(entry.id);
       await refreshBlacklist();
-      setToast({ type: 'success', message: 'Identidad retirada de lista negra.' });
+      setToast({ type: 'success', message: t('admin_idrisk_blacklist_remove_ok') });
     } catch (error) {
       console.error('[IdentityRisk] Remove blacklist failed:', error);
-      setToast({ type: 'error', message: 'No se pudo retirar de lista negra.' });
+      setToast({ type: 'error', message: t('admin_idrisk_blacklist_remove_fail') });
     } finally {
       setActionLoading('');
     }

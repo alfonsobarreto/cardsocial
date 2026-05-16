@@ -23,10 +23,11 @@ import {
   type StatisticsGrowthResult,
 } from '../services/statsService';
 import { type SystemStatsResponse, fetchSystemStats } from '../services/systemStatsService';
+import { useAdminT } from '../i18n/useAdminT';
 
 type SystemStatsFetchResult =
   | { ok: true; m: SystemStatsResponse }
-  | { ok: false; err: string };
+  | { ok: false };
 
 function formatInt(n: number): string {
   return n.toLocaleString('es-ES');
@@ -76,10 +77,11 @@ function KpiCard({
 }
 
 export default function Statistics() {
+  const { t } = useAdminT();
   const { user, loading: authLoading } = useAuth();
   const [data, setData] = useState<StatisticsGrowthResult | null>(null);
   const [systemStats, setSystemStats] = useState<SystemStatsResponse | null>(null);
-  const [systemStatsError, setSystemStatsError] = useState<string | null>(null);
+  const [systemStatsIssue, setSystemStatsIssue] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -88,31 +90,32 @@ export default function Statistics() {
     try {
       setLoading(true);
       setLoadError(null);
-      setSystemStatsError(null);
+      setSystemStatsIssue(false);
       const [growth, mongoResult] = await Promise.all([
         getStatisticsGrowth(),
         fetchSystemStats(user)
           .then((m): SystemStatsFetchResult => ({ ok: true, m }))
-          .catch((e): SystemStatsFetchResult => ({
-            ok: false,
-            err: (e as Error).message,
-          })),
+          .catch((e): SystemStatsFetchResult => {
+            console.error('[Statistics] fetchSystemStats', e);
+            return { ok: false };
+          }),
       ]);
       setData(growth);
       if (mongoResult.ok === false) {
         setSystemStats(null);
-        setSystemStatsError(mongoResult.err);
+        setSystemStatsIssue(true);
       } else {
         setSystemStats(mongoResult.m);
       }
     } catch (e) {
-      setLoadError((e as Error).message);
+      console.error('[Statistics] refresh', e);
+      setLoadError(t('admin_stats_err_growth'));
       setData(null);
       setSystemStats(null);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, t]);
 
   useEffect(() => {
     if (user && isSuperAdminUser(user)) {
@@ -179,18 +182,14 @@ export default function Statistics() {
 
       {loadError ? (
         <section className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-800">
-          <strong>Error:</strong> {loadError}
+          <strong>{t('admin_stats_err_growth')}</strong>
         </section>
       ) : null}
 
-      {systemStatsError ? (
+      {systemStatsIssue ? (
         <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950">
-          <p className="font-semibold">Mongo / system-stats</p>
-          <p className="mt-1">
-            {systemStatsError}. Verifica <code className="rounded bg-white px-1">VITE_BACKEND_API_URL</code>,{' '}
-            <code className="rounded bg-white px-1">VITE_MODERATION_GATEWAY_KEY</code> y en el backend{' '}
-            <code className="rounded bg-white px-1">ADMIN_SYSTEM_STATS_UIDS</code> (tu Firebase uid).
-          </p>
+          <p className="font-semibold">{t('admin_stats_mongo_failed')}</p>
+          <p className="mt-1">{t('admin_stats_mongo_hint')}</p>
         </section>
       ) : null}
 

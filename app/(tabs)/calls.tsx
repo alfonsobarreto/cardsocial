@@ -2,7 +2,9 @@ import { getActiveUserId } from '@/services/authSession';
 import { logBackendNetworkDebug } from '@/services/backendAuth';
 import { requestGhostLinkCallImperative } from '@/services/GhostLinkCallProvider';
 import { userFacingAlertMessage } from '@/services/apiUserFacingError';
-import { trEsEn, useLanguage } from '@/services/language';
+import { useCoreT } from '@/services/coreI18n';
+import type { CoreLocaleKey } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import appPalette from '../theme';
 import {
@@ -74,15 +76,17 @@ function isCallsHistoryBusinessRow(item: CallHistoryRow): boolean {
   return item.cardType === 'business' || item.displayCardIsBusiness === true;
 }
 
-function callsHistoryLogLine(item: CallHistoryRow, tr: (es: string, en: string) => string): string {
+type CoreT = (key: CoreLocaleKey, vars?: Record<string, string | number>) => string;
+
+function callsHistoryLogLine(item: CallHistoryRow, t: CoreT): string {
   const durStr = formatCallDuration(item.durationSec);
   const clockStr = formatTime24FromIso(item.createdAt);
   const dirLabel =
     item.direction === 'outgoing'
-      ? tr('Saliente', 'Outgoing')
+      ? t('calls_kind_outgoing')
       : item.direction === 'missed'
-        ? tr('Perdida', 'Missed')
-        : tr('Entrante', 'Incoming');
+        ? t('calls_kind_missed')
+        : t('calls_kind_incoming');
   return [dirLabel, clockStr, durStr].filter(Boolean).join(' · ');
 }
 
@@ -98,7 +102,7 @@ function callsHistoryNonEmptyUrl(s: string | null | undefined): string | null {
 function callsHistoryOutgoingRowUi(
   item: CallHistoryRow,
   contact: ContactRow | undefined,
-  tr: (es: string, en: string) => string,
+  t: CoreT,
 ): {
   avatarPrimary: string | null;
   avatarFallback: string | null;
@@ -107,13 +111,13 @@ function callsHistoryOutgoingRowUi(
   subtitleLine: string;
   logLine: string;
 } {
-  const logLine = callsHistoryLogLine(item, tr);
+  const logLine = callsHistoryLogLine(item, t);
   const om = outgoingMirrorFromCallHistoryOutgoing(item, contact);
   return {
     avatarPrimary: om.ringUrl,
     avatarFallback: null,
     titleBold: om.titleBold,
-    kindBadge: om.isBusiness ? tr('Negocio', 'Business') : tr('Smart Card', 'Smart Card'),
+    kindBadge: om.isBusiness ? t('calls_badge_business') : t('calls_badge_smart'),
     subtitleLine: om.subtitleLine,
     logLine,
   };
@@ -127,7 +131,7 @@ function callsHistoryOutgoingRowUi(
 function callsHistoryIncomingRowUi(
   item: CallHistoryRow,
   contact: ContactRow | undefined,
-  tr: (es: string, en: string) => string,
+  t: CoreT,
 ): {
   avatarPrimary: string | null;
   avatarFallback: string | null;
@@ -136,7 +140,7 @@ function callsHistoryIncomingRowUi(
   subtitleLine: string;
   logLine: string;
 } {
-  const logLine = callsHistoryLogLine(item, tr);
+  const logLine = callsHistoryLogLine(item, t);
   const snap = item.issuerSnapshot;
 
   if (isCallsHistoryBusinessRow(item)) {
@@ -159,7 +163,7 @@ function callsHistoryIncomingRowUi(
       avatarPrimary,
       avatarFallback: null,
       titleBold,
-      kindBadge: tr('Negocio', 'Business'),
+      kindBadge: t('calls_badge_business'),
       subtitleLine,
       logLine,
     };
@@ -185,7 +189,7 @@ function callsHistoryIncomingRowUi(
     avatarPrimary,
     avatarFallback: null,
     titleBold,
-    kindBadge: tr('Smart Card', 'Smart Card'),
+    kindBadge: t('calls_badge_smart'),
     subtitleLine,
     logLine,
   };
@@ -194,7 +198,7 @@ function callsHistoryIncomingRowUi(
 function callsHistoryRowUi(
   item: CallHistoryRow,
   contact: ContactRow | undefined,
-  tr: (es: string, en: string) => string,
+  t: CoreT,
 ): {
   avatarPrimary: string | null;
   avatarFallback: string | null;
@@ -204,14 +208,14 @@ function callsHistoryRowUi(
   logLine: string;
 } {
   if (item.direction === 'outgoing') {
-    return callsHistoryOutgoingRowUi(item, contact, tr);
+    return callsHistoryOutgoingRowUi(item, contact, t);
   }
-  return callsHistoryIncomingRowUi(item, contact, tr);
+  return callsHistoryIncomingRowUi(item, contact, t);
 }
 
 export default function CallsPage() {
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const t = useCoreT();
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
   const shell = appPalette[isNight ? 'dark' : 'light'];
@@ -505,8 +509,8 @@ export default function CallsPage() {
           }
         }
         Alert.alert(
-          tr('No se pudo cargar Calls', 'Could not load Calls'),
-          userFacingAlertMessage(error, language, tr('Intenta de nuevo.', 'Try again.')),
+          t('calls_load_error_title'),
+          userFacingAlertMessage(error, language, t('common_try_again')),
         );
         setHistory([]);
         setContacts([]);
@@ -572,8 +576,8 @@ export default function CallsPage() {
         }
       }
       Alert.alert(
-        tr('No se pudo cargar Calls', 'Could not load Calls'),
-        userFacingAlertMessage(error, language, tr('Intenta de nuevo.', 'Try again.')),
+        t('calls_load_error_title'),
+        userFacingAlertMessage(error, language, t('common_try_again')),
       );
     } finally {
       if (!silent) {
@@ -588,7 +592,7 @@ export default function CallsPage() {
 
   const renderRow = ({ item }: { item: CallHistoryRow }) => {
     const contact = contactByUid.get(item.peerUid);
-    const ui = callsHistoryRowUi(item, contact, tr);
+    const ui = callsHistoryRowUi(item, contact, t);
     const avatarUri =
       toRenderableImageUri(ui.avatarPrimary) ?? toRenderableImageUri(ui.avatarFallback ?? null);
     const ringExtra =
@@ -613,7 +617,7 @@ export default function CallsPage() {
       (item.scName != null && String(item.scName).trim() ? String(item.scName).trim() : '') ||
       (item.cardName != null && String(item.cardName).trim() ? String(item.cardName).trim() : '') ||
       item.sourceCardName ||
-      tr('Tarjeta Social', 'Social Card');
+      t('calls_fallback_card');
     const smartPeerFull = (item.peerFullName || '').trim() || undefined;
     const bizCardContact = (item.bcContactName || '').trim() || null;
     const contactBcForRow =
@@ -644,7 +648,7 @@ export default function CallsPage() {
       targetUid: item.peerUid,
       sourceSid: item.sourceSid,
       sourceBId: item.sourceBId,
-      sourceCardName: item.sourceCardName || tr('Tarjeta Social', 'Social Card'),
+      sourceCardName: item.sourceCardName || t('calls_fallback_card'),
       cardPhoto: biz
         ? incomingLikeRow
           ? bizLogo ?? callsHistoryNonEmptyUrl(snap?.bcLogoUrl ?? undefined) ?? null
@@ -655,7 +659,7 @@ export default function CallsPage() {
           null,
       cardType: biz ? ('business' as const) : ('personal' as const),
       peerName: biz
-        ? (displayIsBusiness && displayTitle ? displayTitle : bizTitle || item.displayCardName || tr('Negocio', 'Business'))
+        ? (displayIsBusiness && displayTitle ? displayTitle : bizTitle || item.displayCardName || t('label_business'))
         : (!displayIsBusiness && displayTitle ? displayTitle : smartCardTitle),
       peerFullName: biz
         ? (displaySubtitle || undefined)
@@ -739,7 +743,7 @@ export default function CallsPage() {
               </Text>
               {ui.kindBadge ? <Text style={styles.cardKindLabel}>{ui.kindBadge}</Text> : null}
               {item.callType === 'video' ? (
-                <Text style={styles.videoKindLabel}>{` · ${tr('Vídeo', 'Video')}`}</Text>
+                <Text style={styles.videoKindLabel}>{` · ${t('calls_video_suffix')}`}</Text>
               ) : null}
             </View>
           </View>
@@ -764,7 +768,7 @@ export default function CallsPage() {
                 callType: 'video',
               });
             }}
-            accessibilityLabel={tr('Videollamada', 'Video call')}
+            accessibilityLabel={t('calls_a11y_video')}
           >
             <MaterialCommunityIcons name="video" size={16} color="#fff" />
           </TouchableOpacity>
@@ -776,7 +780,7 @@ export default function CallsPage() {
                 callType: 'audio',
               });
             }}
-            accessibilityLabel={tr('Llamada de voz', 'Voice call')}
+            accessibilityLabel={t('calls_a11y_voice')}
           >
             <MaterialCommunityIcons name="phone" size={18} color="#fff" />
           </TouchableOpacity>
@@ -786,7 +790,7 @@ export default function CallsPage() {
   };
 
   const selectedContact = selectedCall ? contactByUid.get(selectedCall.peerUid) || null : null;
-  const detailUi = selectedCall ? callsHistoryRowUi(selectedCall, selectedContact || undefined, tr) : null;
+  const detailUi = selectedCall ? callsHistoryRowUi(selectedCall, selectedContact || undefined, t) : null;
   const detailAvatarUri =
     detailUi != null
       ? toRenderableImageUri(detailUi.avatarPrimary) ?? toRenderableImageUri(detailUi.avatarFallback ?? null)
@@ -795,7 +799,7 @@ export default function CallsPage() {
   return (
     <LinearGradient colors={[...shell.callsShellGradient]} style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={styles.title}>{tr('Llamadas', 'Calls')}</Text>
+        <Text style={styles.title}>{t('calls_title')}</Text>
       </View>
 
       {loading ? (
@@ -820,7 +824,7 @@ export default function CallsPage() {
               colors={[shell.refreshAccent]}
             />
           }
-          ListEmptyComponent={<Text style={styles.emptyText}>{tr('Aun no hay llamadas registradas.', 'No calls registered yet.')}</Text>}
+          ListEmptyComponent={<Text style={styles.emptyText}>{t('calls_empty')}</Text>}
         />
       )}
 
@@ -828,7 +832,7 @@ export default function CallsPage() {
         <View style={styles.modalOverlay}>
           <BlurView intensity={70} tint={isNight ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
           <View style={styles.detailCard}>
-            <TouchableOpacity style={styles.closeBtn} onPress={() => setDetailVisible(false)} accessibilityLabel={tr('Cerrar', 'Close')}>
+            <TouchableOpacity style={styles.closeBtn} onPress={() => setDetailVisible(false)} accessibilityLabel={t('calls_close_a11y')}>
               <MaterialCommunityIcons name="close" size={20} color={shell.iconColor} />
             </TouchableOpacity>
 

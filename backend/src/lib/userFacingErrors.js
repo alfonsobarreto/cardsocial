@@ -14,6 +14,10 @@ const qrNfcPath = path.join(__dirname, '../../../services/i18n/machineErrorQrNfc
 /** @type {Record<string, Record<'es'|'en'|'it'|'fr'|'de'|'pt', string>>} */
 const QR_NFC_LOCALIZED = JSON.parse(fs.readFileSync(qrNfcPath, 'utf8'));
 
+const successQrNfcPath = path.join(__dirname, '../../../services/i18n/machineSuccessQrNfc.json');
+/** @type {Record<string, Record<'es'|'en'|'it'|'fr'|'de'|'pt', string>>} */
+const SUCCESS_QR_NFC_LOCALIZED = JSON.parse(fs.readFileSync(successQrNfcPath, 'utf8'));
+
 /** @type {Record<'A'|'B'|'C'|'D'|'E'|'F', Record<'es'|'en'|'it'|'fr'|'de'|'pt', string>>} */
 const MACHINE_ERROR_BLOCKS = {
   A: {
@@ -334,6 +338,31 @@ function buildUserFacingJson(req, messageKey, errorCode, extraFields) {
 }
 
 /**
+ * @param {import('express').Request | { headers?: Record<string, string | string[] | undefined> }} req
+ * @param {string} successCode
+ * @param {Record<string, unknown>} [extraFields]
+ */
+function buildUserFacingSuccessJson(req, successCode, extraFields) {
+  const locale = pickLocale(req);
+  const codeRaw = normalizeMachineCode(successCode);
+  const row = SUCCESS_QR_NFC_LOCALIZED[codeRaw];
+  const human = row ? (row[locale] || row.en) : codeRaw;
+
+  /** @type {Record<string, unknown>} */
+  const out = {
+    ok: true,
+    message: human,
+    successCode: codeRaw,
+  };
+  if (extraFields && typeof extraFields === 'object') {
+    for (const [k, v] of Object.entries(extraFields)) {
+      if (v !== undefined) out[k] = v;
+    }
+  }
+  return out;
+}
+
+/**
  * @param {import('express').Response} res
  * @param {import('express').Request} req
  * @param {number} status
@@ -353,5 +382,6 @@ module.exports = {
   messageText,
   messageForMachineOrLegacy,
   buildUserFacingJson,
+  buildUserFacingSuccessJson,
   sendUserFacingError,
 };

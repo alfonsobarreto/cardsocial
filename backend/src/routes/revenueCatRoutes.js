@@ -11,7 +11,7 @@ const { createMongoStorage } = require('../services/mongoStorage');
 const { env } = require('../config');
 const { getFirestoreOptional } = require('../lib/firebaseAdminApp');
 const { grantAnnualWelcomeCsIfEligible } = require('../lib/annualSubscriptionWelcomeCs');
-const { buildUserFacingJson } = require('../lib/userFacingErrors');
+const { buildUserFacingJson, buildUserFacingSuccessJson } = require('../lib/userFacingErrors');
 
 const storage = createMongoStorage({
   uri: env.mongoUri,
@@ -121,13 +121,13 @@ router.post('/webhook', async (req, res) => {
         { upsert: true },
       );
 
-      return res.status(200).json({
-        ok: true,
-        message: 'Premium activated',
-        userId: appUserId,
-        isPremium: true,
-        subscriptionExpiresAt: event.expiration_date,
-      });
+      return res.status(200).json(
+        buildUserFacingSuccessJson(req, 'PREMIUM_ACTIVATED', {
+          userId: appUserId,
+          isPremium: true,
+          subscriptionExpiresAt: event.expiration_date,
+        }),
+      );
     }
 
     if (event.type === 'CANCELLATION') {
@@ -160,18 +160,19 @@ router.post('/webhook', async (req, res) => {
         },
       );
 
-      return res.status(200).json({
-        ok: true,
-        message: 'Premium cancelled - Dull Mode activated',
-        userId: appUserId,
-        isPremium: false,
-      });
+      return res.status(200).json(
+        buildUserFacingSuccessJson(req, 'PREMIUM_DEACTIVATED', {
+          userId: appUserId,
+          isPremium: false,
+        }),
+      );
     }
 
-    return res.status(200).json({
-      ok: true,
-      message: `Event type ${event.type} processed`,
-    });
+    return res.status(200).json(
+      buildUserFacingSuccessJson(req, 'EVENT_PROCESSED', {
+        eventType: event.type,
+      }),
+    );
   } catch (error) {
     console.error('RevenueCat webhook error:', error);
     return res.status(500).json(

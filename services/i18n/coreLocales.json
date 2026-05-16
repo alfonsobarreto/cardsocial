@@ -1,0 +1,2826 @@
+{
+  "common_error": {
+    "es": "Error",
+    "en": "Error",
+    "it": "Errore",
+    "pt": "Erro",
+    "fr": "Erreur",
+    "de": "Fehler"
+  },
+  "common_not_authenticated": {
+    "es": "No autenticado",
+    "en": "Not authenticated",
+    "it": "Non autenticato",
+    "pt": "Não autenticado",
+    "fr": "Non authentifié",
+    "de": "Nicht angemeldet"
+  },
+  "common_auth_required": {
+    "es": "Confirmar tu identidad",
+    "en": "Confirm your identity",
+    "it": "Conferma la tua identità",
+    "pt": "Confirme sua identidade",
+    "fr": "Confirmez votre identité",
+    "de": "Bestätigen Sie Ihre Identität"
+  },
+  "common_ok": {
+    "es": "OK",
+    "en": "OK",
+    "it": "OK",
+    "pt": "OK",
+    "fr": "OK",
+    "de": "OK"
+  },
+  "common_group_label": {
+    "es": "Grupo",
+    "en": "Group",
+    "it": "Gruppo",
+    "pt": "Grupo",
+    "fr": "Groupe",
+    "de": "Gruppe"
+  },
+  "common_cancel": {
+    "es": "Cancelar",
+    "en": "Cancel",
+    "it": "Annulla",
+    "pt": "Cancelar",
+    "fr": "Annuler",
+    "de": "Abbrechen"
+  },
+  "common_accept": {
+    "es": "Aceptar",
+    "en": "Accept",
+    "it": "Accetta",
+    "pt": "Aceitar",
+    "fr": "Accepter",
+    "de": "Akzeptieren"
+  },
+  "common_close": {
+    "es": "Cerrar",
+    "en": "Close",
+    "it": "Chiudi",
+    "pt": "Fechar",
+    "fr": "Fermer",
+    "de": "Schließen"
+  },
+  "common_delete": {
+    "es": "Eliminar",
+    "en": "Delete",
+    "it": "Elimina",
+    "pt": "Excluir",
+    "fr": "Supprimer",
+    "de": "Löschen"
+  },
+  "common_edit": {
+    "es": "Editar",
+    "en": "Edit",
+    "it": "Modifica",
+    "pt": "Editar",
+    "fr": "Modifier",
+    "de": "Bearbeiten"
+  },
+  "common_block": {
+    "es": "Bloquear",
+    "en": "Block",
+    "it": "Blocca",
+    "pt": "Bloquear",
+    "fr": "Bloquer",
+    "de": "Blockieren"
+  },
+  "common_try_again": {
+    "es": "Intenta de nuevo.",
+    "en": "Try again.",
+    "it": "Riprova.",
+    "pt": "Tente novamente.",
+    "fr": "Réessayez.",
+    "de": "Erneut versuchen."
+  },
+  "common_no_content": {
+    "es": "Sin contenido",
+    "en": "No content",
+    "it": "Nessun contenuto",
+    "pt": "Sem conteúdo",
+    "fr": "Aucun contenu",
+    "de": "Kein Inhalt"
+  },
+  "common_data_label": {
+    "es": "Dato",
+    "en": "Data",
+    "it": "Dato",
+    "pt": "Dado",
+    "fr": "Donnée",
+    "de": "Daten"
+  },
+  "common_loading": {
+    "es": "Cargando…",
+    "en": "Loading…",
+    "it": "Caricamento…",
+    "pt": "Carregando…",
+    "fr": "Chargement…",
+    "de": "Wird geladen…"
+  },
+  "common_save": {
+    "es": "Guardar",
+    "en": "Save",
+    "it": "Salva",
+    "pt": "Salvar",
+    "fr": "Enregistrer",
+    "de": "Speichern"
+  },
+  "common_saving": {
+    "es": "Guardando…",
+    "en": "Saving…",
+    "it": "Salvataggio…",
+    "pt": "Salvando…",
+    "fr": "Enregistrement…",
+    "de": "Wird gespeichert…"
+  },
+  "common_confirm": {
+    "es": "Confirmar",
+    "en": "Confirm",
+    "it": "Conferma",
+    "pt": "Confirmar",
+    "fr": "Confirmer",
+    "de": "Bestätigen"
+  },
+  "common_remove": {
+    "es": "Eliminar",
+    "en": "Remove",
+    "it": "Rimuovi",
+    "pt": "Remover",
+    "fr": "Retirer",
+    "de": "Entfernen"
+  },
+  "common_back": {
+    "es": "Atrás",
+    "en": "Back",
+    "it": "Indietro",
+    "pt": "Voltar",
+    "fr": "Retour",
+    "de": "Zurück"
+  },
+  "common_forward": {
+    "es": "Adelante",
+    "en": "Forward",
+    "it": "Avanti",
+    "pt": "Avançar",
+    "fr": "Avancer",
+    "de": "Vor"
+  },
+  "common_move": {
+    "es": "Mover",
+    "en": "Move",
+    "it": "Sposta",
+    "pt": "Mover",
+    "fr": "Déplacer",
+    "de": "Verschieben"
+  },
+  "common_mute": {
+    "es": "Silenciar",
+    "en": "Mute",
+    "it": "Silenzia",
+    "pt": "Silenciar",
+    "fr": "Couper le son",
+    "de": "Stummschalten"
+  },
+  "common_unmute": {
+    "es": "Activar",
+    "en": "Unmute",
+    "it": "Riattiva",
+    "pt": "Reativar",
+    "fr": "Réactiver",
+    "de": "Lautschalten"
+  },
+  "common_silence": {
+    "es": "Silenciar",
+    "en": "Silence",
+    "it": "Silenzia",
+    "pt": "Silenciar",
+    "fr": "Silence",
+    "de": "Stummschalten"
+  },
+  "common_not_available": {
+    "es": "No disponible",
+    "en": "Not available",
+    "it": "Non disponibile",
+    "pt": "Indisponível",
+    "fr": "Indisponible",
+    "de": "Nicht verfügbar"
+  },
+  "common_clear": {
+    "es": "Limpiar",
+    "en": "Clear",
+    "it": "Cancella",
+    "pt": "Limpar",
+    "fr": "Effacer",
+    "de": "Leeren"
+  },
+  "common_done": {
+    "es": "Listo",
+    "en": "Done",
+    "it": "Fatto",
+    "pt": "Concluído",
+    "fr": "OK",
+    "de": "Fertig"
+  },
+  "common_statistics": {
+    "es": "Estadísticas",
+    "en": "Statistics",
+    "it": "Statistiche",
+    "pt": "Estatísticas",
+    "fr": "Statistiques",
+    "de": "Statistik"
+  },
+  "common_download": {
+    "es": "Descargar",
+    "en": "Download",
+    "it": "Scarica",
+    "pt": "Baixar",
+    "fr": "Télécharger",
+    "de": "Herunterladen"
+  },
+  "common_phone": {
+    "es": "Teléfono",
+    "en": "Phone",
+    "it": "Telefono",
+    "pt": "Telefone",
+    "fr": "Téléphone",
+    "de": "Telefon"
+  },
+  "common_card": {
+    "es": "Tarjeta",
+    "en": "Card",
+    "it": "Carta",
+    "pt": "Cartão",
+    "fr": "Carte",
+    "de": "Karte"
+  },
+  "common_contact": {
+    "es": "Contacto",
+    "en": "Contact",
+    "it": "Contatto",
+    "pt": "Contato",
+    "fr": "Contact",
+    "de": "Kontakt"
+  },
+  "core_word_business": {
+    "es": "negocio",
+    "en": "business",
+    "it": "business",
+    "pt": "negócio",
+    "fr": "entreprise",
+    "de": "Business"
+  },
+  "label_business": {
+    "es": "Negocio",
+    "en": "Business",
+    "it": "Attività",
+    "pt": "Negócio",
+    "fr": "Entreprise",
+    "de": "Business"
+  },
+  "label_social_card": {
+    "es": "Tarjeta Social",
+    "en": "Social Card",
+    "it": "Social Card",
+    "pt": "Cartão social",
+    "fr": "Carte sociale",
+    "de": "Social Card"
+  },
+  "label_this_contact": {
+    "es": "este contacto",
+    "en": "this contact",
+    "it": "questo contatto",
+    "pt": "este contato",
+    "fr": "ce contact",
+    "de": "dieser Kontakt"
+  },
+  "label_new_card": {
+    "es": "Nueva Tarjeta",
+    "en": "New Card",
+    "it": "Nuova carta",
+    "pt": "Novo cartão",
+    "fr": "Nouvelle carte",
+    "de": "Neue Karte"
+  },
+  "label_smart_card": {
+    "es": "Smart Card",
+    "en": "Smart Card",
+    "it": "Smart Card",
+    "pt": "Smart Card",
+    "fr": "Smart Card",
+    "de": "Smart Card"
+  },
+  "label_full_name": {
+    "es": "Nombre Completo",
+    "en": "Full Name",
+    "it": "Nome completo",
+    "pt": "Nome completo",
+    "fr": "Nom complet",
+    "de": "Vollständiger Name"
+  },
+  "label_my_business": {
+    "es": "Mi Negocio",
+    "en": "My Business",
+    "it": "La mia attività",
+    "pt": "Meu negócio",
+    "fr": "Mon entreprise",
+    "de": "Mein Business"
+  },
+  "label_my_card": {
+    "es": "Mi Tarjeta",
+    "en": "My Card",
+    "it": "La mia carta",
+    "pt": "Meu cartão",
+    "fr": "Ma carte",
+    "de": "Meine Karte"
+  },
+  "core_em_dash": {
+    "es": "—",
+    "en": "—",
+    "it": "—",
+    "pt": "—",
+    "fr": "—",
+    "de": "—"
+  },
+  "core_rel_today": {
+    "es": "Hoy",
+    "en": "Today",
+    "it": "Oggi",
+    "pt": "Hoje",
+    "fr": "Aujourd'hui",
+    "de": "Heute"
+  },
+  "core_rel_yesterday": {
+    "es": "Ayer",
+    "en": "Yesterday",
+    "it": "Ieri",
+    "pt": "Ontem",
+    "fr": "Hier",
+    "de": "Gestern"
+  },
+  "core_rel_days": {
+    "es": "{{count}} días",
+    "en": "{{count}} days",
+    "it": "{{count}} giorni",
+    "pt": "{{count}} dias",
+    "fr": "{{count}} jours",
+    "de": "{{count}} Tage"
+  },
+  "wireframe_add": {
+    "es": "Agregar",
+    "en": "Add",
+    "it": "Aggiungi",
+    "pt": "Adicionar",
+    "fr": "Ajouter",
+    "de": "Hinzufügen"
+  },
+  "wireframe_remove_item": {
+    "es": "Quitar dato",
+    "en": "Remove item",
+    "it": "Rimuovi dato",
+    "pt": "Remover item",
+    "fr": "Retirer l’élément",
+    "de": "Eintrag entfernen"
+  },
+  "wireframe_add_item": {
+    "es": "Agregar dato",
+    "en": "Add item",
+    "it": "Aggiungi dato",
+    "pt": "Adicionar item",
+    "fr": "Ajouter une donnée",
+    "de": "Eintrag hinzufügen"
+  },
+  "wireframe_no_ratings": {
+    "es": "Sin calificaciones",
+    "en": "No ratings yet",
+    "it": "Nessuna valutazione",
+    "pt": "Sem avaliações",
+    "fr": "Pas encore de notes",
+    "de": "Noch keine Bewertungen"
+  },
+  "wireframe_rate_a11y": {
+    "es": "Calificar",
+    "en": "Rate",
+    "it": "Valuta",
+    "pt": "Avaliar",
+    "fr": "Noter",
+    "de": "Bewerten"
+  },
+  "biometric_reason_cards_access": {
+    "es": "acceso a Business Cards",
+    "en": "access to Business Cards",
+    "it": "accesso a Business Cards",
+    "pt": "acesso a Business Cards",
+    "fr": "accès à Business Cards",
+    "de": "Zugriff auf Business Cards"
+  },
+  "biometric_reason_cards_qr_share": {
+    "es": "generar QR y compartir tu tarjeta",
+    "en": "generate QR and share your card",
+    "it": "generare QR e condividere la tua carta",
+    "pt": "gerar QR e compartilhar seu cartão",
+    "fr": "générer un QR et partager votre carte",
+    "de": "QR erstellen und Karte teilen"
+  },
+  "biometric_reason_cards_qr_24h": {
+    "es": "generar QR 24 Hr",
+    "en": "generate QR 24h",
+    "it": "generare QR 24 ore",
+    "pt": "gerar QR 24 h",
+    "fr": "générer un QR 24 h",
+    "de": "24h-QR erstellen"
+  },
+  "biometric_reason_contacts_detail": {
+    "es": "ver detalles del contacto",
+    "en": "view contact details",
+    "it": "vedere i dettagli del contatto",
+    "pt": "ver detalhes do contato",
+    "fr": "voir les détails du contact",
+    "de": "Kontaktdetails anzeigen"
+  },
+  "biometric_reason_search_card_view": {
+    "es": "ver tarjeta desde búsqueda",
+    "en": "view card from search",
+    "it": "vedere la carta dalla ricerca",
+    "pt": "ver cartão pela busca",
+    "fr": "voir la carte depuis la recherche",
+    "de": "Karte aus der Suche anzeigen"
+  },
+  "qr_detected": {
+    "es": "QR detectado",
+    "en": "QR detected",
+    "it": "QR rilevato",
+    "pt": "QR detectado",
+    "fr": "QR détecté",
+    "de": "QR erkannt"
+  },
+  "qr_could_not_open": {
+    "es": "No se pudo abrir",
+    "en": "Could not open",
+    "it": "Impossibile aprire",
+    "pt": "Não foi possível abrir",
+    "fr": "Impossible d'ouvrir",
+    "de": "Konnte nicht geöffnet werden"
+  },
+  "qr_could_not_copy": {
+    "es": "No se pudo copiar",
+    "en": "Could not copy",
+    "it": "Impossibile copiare",
+    "pt": "Não foi possível copiar",
+    "fr": "Copie impossible",
+    "de": "Kopieren nicht möglich"
+  },
+  "qr_cancel": {
+    "es": "Cancelar",
+    "en": "Cancel",
+    "it": "Annulla",
+    "pt": "Cancelar",
+    "fr": "Annuler",
+    "de": "Abbrechen"
+  },
+  "qr_open_link": {
+    "es": "Abrir enlace",
+    "en": "Open link",
+    "it": "Apri link",
+    "pt": "Abrir link",
+    "fr": "Ouvrir le lien",
+    "de": "Link öffnen"
+  },
+  "qr_copy": {
+    "es": "Copiar",
+    "en": "Copy",
+    "it": "Copia",
+    "pt": "Copiar",
+    "fr": "Copier",
+    "de": "Kopieren"
+  },
+  "receptor_close_a11y": {
+    "es": "Cerrar",
+    "en": "Close",
+    "it": "Chiudi",
+    "pt": "Fechar",
+    "fr": "Fermer",
+    "de": "Schließen"
+  },
+  "receptor_title": {
+    "es": "Mis Receptores",
+    "en": "My Receptors",
+    "it": "I miei destinatari",
+    "pt": "Meus receptores",
+    "fr": "Mes destinataires",
+    "de": "Meine Empfänger"
+  },
+  "receptor_total_label": {
+    "es": "Total de Receptores",
+    "en": "Total Receptors",
+    "it": "Destinatari totali",
+    "pt": "Total de receptores",
+    "fr": "Total des destinataires",
+    "de": "Empfänger gesamt"
+  },
+  "receptor_new_today": {
+    "es": "Nuevos (Hoy)",
+    "en": "New (Today)",
+    "it": "Nuovi (oggi)",
+    "pt": "Novos (hoje)",
+    "fr": "Nouveaux (aujourd’hui)",
+    "de": "Neu (heute)"
+  },
+  "receptor_new_carousel": {
+    "es": "Nuevos Receptores",
+    "en": "New Receptors",
+    "it": "Nuovi destinatari",
+    "pt": "Novos receptores",
+    "fr": "Nouveaux destinataires",
+    "de": "Neue Empfänger"
+  },
+  "receptor_connections_az": {
+    "es": "Todas las Conexiones (A-Z)",
+    "en": "All Connections (A-Z)",
+    "it": "Tutte le connessioni (A-Z)",
+    "pt": "Todas as conexões (A-Z)",
+    "fr": "Toutes les connexions (A-Z)",
+    "de": "Alle Verbindungen (A-Z)"
+  },
+  "receptor_connections": {
+    "es": "Todas las Conexiones",
+    "en": "All Connections",
+    "it": "Tutte le connessioni",
+    "pt": "Todas as conexões",
+    "fr": "Toutes les connexions",
+    "de": "Alle Verbindungen"
+  },
+  "receptor_filter": {
+    "es": "Filtrar",
+    "en": "Filter",
+    "it": "Filtra",
+    "pt": "Filtrar",
+    "fr": "Filtrer",
+    "de": "Filtern"
+  },
+  "receptor_loading": {
+    "es": "Cargando...",
+    "en": "Loading...",
+    "it": "Caricamento...",
+    "pt": "Carregando...",
+    "fr": "Chargement...",
+    "de": "Wird geladen..."
+  },
+  "receptor_empty": {
+    "es": "Aún no hay personas con acceso a esta tarjeta.",
+    "en": "No one has access to this card yet.",
+    "it": "Nessuno ha ancora accesso a questa carta.",
+    "pt": "Ainda não há pessoas com acesso a este cartão.",
+    "fr": "Personne n'a encore accès à cette carte.",
+    "de": "Niemand hat noch Zugriff auf diese Karte."
+  },
+  "receptor_swipe_unmute": {
+    "es": "Activar",
+    "en": "Unmute",
+    "it": "Riattiva",
+    "pt": "Reativar",
+    "fr": "Réactiver",
+    "de": "Lautschalten"
+  },
+  "receptor_swipe_mute": {
+    "es": "Silenciar",
+    "en": "Mute",
+    "it": "Silenzia",
+    "pt": "Silenciar",
+    "fr": "Couper le son",
+    "de": "Stummschalten"
+  },
+  "receptor_swipe_block": {
+    "es": "Bloquear",
+    "en": "Block",
+    "it": "Blocca",
+    "pt": "Bloquear",
+    "fr": "Bloquer",
+    "de": "Blockieren"
+  },
+  "receptor_swipe_remove": {
+    "es": "Eliminar",
+    "en": "Remove",
+    "it": "Rimuovi",
+    "pt": "Remover",
+    "fr": "Retirer",
+    "de": "Entfernen"
+  },
+  "vault_share_dialog_title": {
+    "es": "Guardar archivo de Card-Social",
+    "en": "Save Card-Social file",
+    "it": "Salva file Card-Social",
+    "pt": "Salvar arquivo Card-Social",
+    "fr": "Enregistrer le fichier Card-Social",
+    "de": "Card-Social-Datei speichern"
+  },
+  "vault_toast_download_title": {
+    "es": "📥 Descarga lista",
+    "en": "📥 Download ready",
+    "it": "📥 Download pronto",
+    "pt": "📥 Download pronto",
+    "fr": "📥 Téléchargement prêt",
+    "de": "📥 Download fertig"
+  },
+  "vault_toast_download_body": {
+    "es": "Archivo preparado en tu dispositivo",
+    "en": "File ready on your device",
+    "it": "File pronto sul dispositivo",
+    "pt": "Arquivo pronto no dispositivo",
+    "fr": "Fichier prêt sur votre appareil",
+    "de": "Datei auf Ihrem Gerät bereit"
+  },
+  "vault_toast_download_fail": {
+    "es": "❌ No se pudo descargar",
+    "en": "❌ Download failed",
+    "it": "❌ Download non riuscito",
+    "pt": "❌ Falha no download",
+    "fr": "❌ Échec du téléchargement",
+    "de": "❌ Download fehlgeschlagen"
+  },
+  "vault_save_long_title": {
+    "es": "Guardar archivo",
+    "en": "Save file",
+    "it": "Salva file",
+    "pt": "Salvar arquivo",
+    "fr": "Enregistrer le fichier",
+    "de": "Datei speichern"
+  },
+  "vault_save_long_body": {
+    "es": "Mantén la privacidad: el archivo se exportará desde el visor seguro.",
+    "en": "Keep privacy: the file will be exported from the secure viewer.",
+    "it": "Rispetta la privacy: il file sarà esportato dal visualizzatore sicuro.",
+    "pt": "Privacidade: o arquivo será exportado do visualizador seguro.",
+    "fr": "Respectez la vie privée : export depuis la visionneuse sécurisée.",
+    "de": "Datenschutz: Die Datei wird aus der sicheren Ansicht exportiert."
+  },
+  "vault_save_action": {
+    "es": "Guardar",
+    "en": "Save",
+    "it": "Salva",
+    "pt": "Salvar",
+    "fr": "Enregistrer",
+    "de": "Speichern"
+  },
+  "vault_copied": {
+    "es": "Copiado",
+    "en": "Copied",
+    "it": "Copiato",
+    "pt": "Copiado",
+    "fr": "Copié",
+    "de": "Kopiert"
+  },
+  "vault_no_qr": {
+    "es": "Sin código detectado",
+    "en": "No code detected",
+    "it": "Nessun codice rilevato",
+    "pt": "Nenhum código detectado",
+    "fr": "Aucun code détecté",
+    "de": "Kein Code erkannt"
+  },
+  "vault_no_qr_body": {
+    "es": "No se encontró un QR en esta imagen.",
+    "en": "No QR was found in this image.",
+    "it": "Nessun QR in questa immagine.",
+    "pt": "Nenhum QR nesta imagem.",
+    "fr": "Aucun QR dans cette image.",
+    "de": "Kein QR in diesem Bild."
+  },
+  "vault_no_qr_analyze": {
+    "es": "No se pudo analizar la imagen.",
+    "en": "Could not analyze the image.",
+    "it": "Impossibile analizzare l’immagine.",
+    "pt": "Não foi possível analisar a imagem.",
+    "fr": "Impossible d'analyser l'image.",
+    "de": "Bild konnte nicht analysiert werden."
+  },
+  "vault_analyzing": {
+    "es": "Analizando imagen…",
+    "en": "Analyzing image…",
+    "it": "Analisi immagine…",
+    "pt": "Analisando imagem…",
+    "fr": "Analyse de l’image…",
+    "de": "Bild wird analysiert…"
+  },
+  "vault_doc_image_a11y": {
+    "es": "Documento imagen",
+    "en": "Document image",
+    "it": "Immagine documento",
+    "pt": "Imagem do documento",
+    "fr": "Image du document",
+    "de": "Dokumentbild"
+  },
+  "vault_pdf_load_fail": {
+    "es": "No se pudo cargar el PDF en el visor.",
+    "en": "Could not load the PDF in the viewer.",
+    "it": "Impossibile caricare il PDF nel visualizzatore.",
+    "pt": "Não foi possível carregar o PDF.",
+    "fr": "Impossible de charger le PDF.",
+    "de": "PDF konnte nicht geladen werden."
+  },
+  "vault_pdf_expo_go": {
+    "es": "La previsualizacion PDF no esta disponible en Expo Go. Usa un development build para verla.",
+    "en": "PDF preview is not available in Expo Go. Use a development build to view it.",
+    "it": "Anteprima PDF non disponibile in Expo Go. Usa un development build.",
+    "pt": "Pré-visualização PDF indisponível no Expo Go. Use um development build.",
+    "fr": "Aperçu PDF indispor. sur Expo Go. Utilisez un development build.",
+    "de": "PDF-Vorschau in Expo Go nicht verfügbar. Nutzen Sie einen Development Build."
+  },
+  "vault_preview_fail": {
+    "es": "No se pudo previsualizar este archivo.",
+    "en": "Could not preview this file.",
+    "it": "Impossibile visualizzare il file.",
+    "pt": "Não foi possível pré-visualizar.",
+    "fr": "Impossible de prévisualiser ce fichier.",
+    "de": "Datei konnte nicht angezeigt werden."
+  },
+  "calls_kind_outgoing": {
+    "es": "Saliente",
+    "en": "Outgoing",
+    "it": "In uscita",
+    "pt": "Saída",
+    "fr": "Sortant",
+    "de": "Ausgehend"
+  },
+  "calls_kind_missed": {
+    "es": "Perdida",
+    "en": "Missed",
+    "it": "Persa",
+    "pt": "Perdida",
+    "fr": "Manqué",
+    "de": "Verpasst"
+  },
+  "calls_kind_incoming": {
+    "es": "Entrante",
+    "en": "Incoming",
+    "it": "In entrata",
+    "pt": "Entrada",
+    "fr": "Entrant",
+    "de": "Eingehend"
+  },
+  "calls_badge_business": {
+    "es": "Negocio",
+    "en": "Business",
+    "it": "Attività",
+    "pt": "Negócio",
+    "fr": "Entreprise",
+    "de": "Business"
+  },
+  "calls_badge_smart": {
+    "es": "Smart Card",
+    "en": "Smart Card",
+    "it": "Smart Card",
+    "pt": "Smart Card",
+    "fr": "Smart Card",
+    "de": "Smart Card"
+  },
+  "calls_load_error_title": {
+    "es": "No se pudo cargar Calls",
+    "en": "Could not load Calls",
+    "it": "Impossibile caricare Calls",
+    "pt": "Não foi possível carregar Calls",
+    "fr": "Impossible de charger Appels",
+    "de": "Anrufe konnten nicht geladen werden"
+  },
+  "calls_fallback_card": {
+    "es": "Tarjeta Social",
+    "en": "Social Card",
+    "it": "Social Card",
+    "pt": "Cartão social",
+    "fr": "Carte sociale",
+    "de": "Social Card"
+  },
+  "calls_video_suffix": {
+    "es": "Vídeo",
+    "en": "Video",
+    "it": "Video",
+    "pt": "Vídeo",
+    "fr": "Vidéo",
+    "de": "Video"
+  },
+  "calls_a11y_video": {
+    "es": "Videollamada",
+    "en": "Video call",
+    "it": "Videochiamata",
+    "pt": "Videchamada",
+    "fr": "Appel vidéo",
+    "de": "Videoanruf"
+  },
+  "calls_a11y_voice": {
+    "es": "Llamada de voz",
+    "en": "Voice call",
+    "it": "Chiamata vocale",
+    "pt": "Chamada de voz",
+    "fr": "Appel vocal",
+    "de": "Sprachanruf"
+  },
+  "calls_title": {
+    "es": "Llamadas",
+    "en": "Calls",
+    "it": "Chiamate",
+    "pt": "Chamadas",
+    "fr": "Appels",
+    "de": "Anrufe"
+  },
+  "calls_empty": {
+    "es": "Aun no hay llamadas registradas.",
+    "en": "No calls registered yet.",
+    "it": "Nessuna chiamata ancora.",
+    "pt": "Ainda não há chamadas.",
+    "fr": "Aucun appel pour le moment.",
+    "de": "Noch keine Anrufe."
+  },
+  "calls_close_a11y": {
+    "es": "Cerrar",
+    "en": "Close",
+    "it": "Chiudi",
+    "pt": "Fechar",
+    "fr": "Fermer",
+    "de": "Schließen"
+  },
+  "contacts_fallback_peer": {
+    "es": "contacto",
+    "en": "contact",
+    "it": "contatto",
+    "pt": "contato",
+    "fr": "contact",
+    "de": "Kontakt"
+  },
+  "contacts_card_removed_title": {
+    "es": "Tarjeta quitada",
+    "en": "Card removed",
+    "it": "Carta rimossa",
+    "pt": "Cartão removido",
+    "fr": "Carte retirée",
+    "de": "Karte entfernt"
+  },
+  "contacts_card_removed_body": {
+    "es": "Esta tarjeta ya no está en tu lista. Puedes volver a agregarla con un QR.",
+    "en": "This card is no longer in your list. You can add it again with a QR code.",
+    "it": "Questa carta non è più nella lista. Puoi riaggiungerla con un QR.",
+    "pt": "Este cartão não está mais na lista. Adicione novamente com um QR.",
+    "fr": "Cette carte n’est plus dans votre liste. Réajoutez-la avec un QR.",
+    "de": "Diese Karte ist nicht mehr in Ihrer Liste. Fügen Sie sie wieder per QR hinzu."
+  },
+  "contacts_delete_failed": {
+    "es": "No se pudo eliminar",
+    "en": "Could not delete",
+    "it": "Impossibile eliminare",
+    "pt": "Não foi possível excluir",
+    "fr": "Suppression impossible",
+    "de": "Löschen nicht möglich"
+  },
+  "contacts_remove_card_title": {
+    "es": "Quitar tarjeta recibida",
+    "en": "Remove received card",
+    "it": "Rimuovi carta ricevuta",
+    "pt": "Remover cartão recebido",
+    "fr": "Retirer la carte reçue",
+    "de": "Erhaltene Karte entfernen"
+  },
+  "contacts_remove_card_body": {
+    "es": "Esta tarjeta dejará de aparecer en tu lista. Si la persona te compartió otras tarjetas, esas se mantienen.",
+    "en": "This card will disappear from your list. If they shared other cards with you, those stay.",
+    "it": "Questa carta sparirà dalla lista. Altre carte condivise restano.",
+    "pt": "Este cartão sumirá da lista. Outros cartões compartilhados permanecem.",
+    "fr": "Cette carte disparaîtra. Les autres cartes partagées restent.",
+    "de": "Diese Karte verschwindet aus der Liste. Andere geteilte Karten bleiben."
+  },
+  "contacts_user_blocked_title": {
+    "es": "Usuario bloqueado",
+    "en": "User blocked",
+    "it": "Utente bloccato",
+    "pt": "Usuário bloqueado",
+    "fr": "Utilisateur bloqué",
+    "de": "Nutzer blockiert"
+  },
+  "contacts_user_blocked_body": {
+    "es": "Ya no podrá interactuar contigo en la app hasta que lo desbloquees desde ajustes de relaciones.",
+    "en": "They can no longer interact with you in the app until you unblock them in relationship settings.",
+    "it": "Non potrà più interagire finché non sblocchi dalle impostazioni relazioni.",
+    "pt": "Não poderá mais interagir até você desbloquear nas configurações.",
+    "fr": "Plus d’interaction tant que vous ne débloquez pas dans les réglages.",
+    "de": "Keine Interaktion mehr, bis Sie in den Beziehungs-Einstellungen entblocken."
+  },
+  "contacts_block_failed": {
+    "es": "No se pudo bloquear",
+    "en": "Could not block",
+    "it": "Impossibile bloccare",
+    "pt": "Não foi possível bloquear",
+    "fr": "Blocage impossible",
+    "de": "Blockieren nicht möglich"
+  },
+  "contacts_block_title": {
+    "es": "Bloquear contacto",
+    "en": "Block contact",
+    "it": "Blocca contatto",
+    "pt": "Bloquear contato",
+    "fr": "Bloquer le contact",
+    "de": "Kontakt blockieren"
+  },
+  "contacts_block_body": {
+    "es": "Esta persona dejará de aparecer en contactos y no podrá compartir ni comunicarse contigo por la app. Puedes desbloquearla más tarde en la lista de bloqueados.",
+    "en": "They will no longer appear in contacts and cannot share or reach you through the app. You can unblock them later from blocked users.",
+    "it": "Non apparirà più nei contatti e non potrà contattarti. Potrai sbloccare più tardi.",
+    "pt": "Não aparecerá mais nos contatos nem poderá falar com você. Desbloqueie depois na lista.",
+    "fr": "Disparaît des contacts et ne peut plus vous joindre. Débloquez plus tard.",
+    "de": "Erscheint nicht mehr in Kontakten und kann Sie nicht erreichen. Später entblocken."
+  },
+  "contacts_mute_impossible_title": {
+    "es": "No se puede silenciar",
+    "en": "Cannot mute",
+    "it": "Impossibile silenziare",
+    "pt": "Não é possível silenciar",
+    "fr": "Impossible de couper le son",
+    "de": "Stummschalten nicht möglich"
+  },
+  "contacts_mute_impossible_body": {
+    "es": "No hay una tarjeta vinculada a este contacto.",
+    "en": "There is no card linked to this contact.",
+    "it": "Nessuna carta collegata a questo contatto.",
+    "pt": "Nenhum cartão vinculado a este contato.",
+    "fr": "Aucune carte liée à ce contact.",
+    "de": "Keine Karte mit diesem Kontakt verknüpft."
+  },
+  "contacts_channel_muted": {
+    "es": "Canal silenciado",
+    "en": "Channel muted",
+    "it": "Canale silenziato",
+    "pt": "Canal silenciado",
+    "fr": "Canal coupé",
+    "de": "Kanal stumm"
+  },
+  "contacts_channel_active": {
+    "es": "Canal activo",
+    "en": "Channel unmuted",
+    "it": "Canale attivo",
+    "pt": "Canal ativo",
+    "fr": "Canal actif",
+    "de": "Kanal aktiv"
+  },
+  "contacts_mute_detail_on": {
+    "es": "No recibirás actualizaciones de esta tarjeta hasta que reactives el canal.",
+    "en": "You will not receive updates from this card until you unmute the channel.",
+    "it": "Nessun aggiornamento finché non riattivi il canale.",
+    "pt": "Sem atualizações até reativar o canal.",
+    "fr": "Pas de mises à jour tant que le canal est muet.",
+    "de": "Keine Updates, bis der Kanal wieder aktiv ist."
+  },
+  "contacts_mute_detail_off": {
+    "es": "Volverás a recibir actualizaciones de esta tarjeta.",
+    "en": "You will receive updates from this card again.",
+    "it": "Tornerai a ricevere aggiornamenti da questa carta.",
+    "pt": "Você voltará a receber atualizações deste cartão.",
+    "fr": "Vous recevrez à nouveau les mises à jour de cette carte.",
+    "de": "Sie erhalten wieder Updates von dieser Karte."
+  },
+  "contacts_title": {
+    "es": "Mis Contactos",
+    "en": "My Contacts",
+    "it": "I miei contatti",
+    "pt": "Meus contatos",
+    "fr": "Mes contacts",
+    "de": "Meine Kontakte"
+  },
+  "contacts_sort": {
+    "es": "Orden",
+    "en": "Sort",
+    "it": "Ordina",
+    "pt": "Ordenar",
+    "fr": "Tri",
+    "de": "Sortierung"
+  },
+  "contacts_filter_active": {
+    "es": "Filtro activo:",
+    "en": "Active filter:",
+    "it": "Filtro attivo:",
+    "pt": "Filtro ativo:",
+    "fr": "Filtre actif :",
+    "de": "Aktiver Filter:"
+  },
+  "contacts_filter_name": {
+    "es": "Nombre",
+    "en": "Name",
+    "it": "Nome",
+    "pt": "Nome",
+    "fr": "Nom",
+    "de": "Name"
+  },
+  "contacts_filter_card_name": {
+    "es": "Nombre tarjeta",
+    "en": "Card name",
+    "it": "Nome carta",
+    "pt": "Nome do cartão",
+    "fr": "Nom de la carte",
+    "de": "Kartenname"
+  },
+  "contacts_filter_date": {
+    "es": "Fecha",
+    "en": "Date",
+    "it": "Data",
+    "pt": "Data",
+    "fr": "Date",
+    "de": "Datum"
+  },
+  "contacts_filter_groups": {
+    "es": "Grupos",
+    "en": "Groups",
+    "it": "Gruppi",
+    "pt": "Grupos",
+    "fr": "Groupes",
+    "de": "Gruppen"
+  },
+  "contacts_empty_title": {
+    "es": "Sin contactos aún",
+    "en": "No contacts yet",
+    "it": "Ancora nessun contatto",
+    "pt": "Ainda sem contatos",
+    "fr": "Pas encore de contacts",
+    "de": "Noch keine Kontakte"
+  },
+  "contacts_empty_subtitle": {
+    "es": "Escanea un QR o acepta invitaciones para ver contactos aquí.",
+    "en": "Scan a QR or accept invites to see contacts here.",
+    "it": "Scansiona un QR o accetta inviti per vedere i contatti qui.",
+    "pt": "Escaneie um QR ou aceite convites para ver contatos aqui.",
+    "fr": "Scannez un QR ou acceptez les invitations pour voir vos contacts ici.",
+    "de": "Scannen Sie ein QR oder nehmen Sie Einladungen an, um Kontakte zu sehen."
+  },
+  "contacts_no_matches": {
+    "es": "Sin coincidencias",
+    "en": "No matches",
+    "it": "Nessuna corrispondenza",
+    "pt": "Sem resultados",
+    "fr": "Aucun résultat",
+    "de": "Keine Treffer"
+  },
+  "contacts_no_matches_sub": {
+    "es": "Prueba con otras palabras o sinónimos. También puedes revisar tu conexión.",
+    "en": "Try different words or synonyms. You can also check your connection.",
+    "it": "Prova altre parole o sinonimi. Controlla anche la connessione.",
+    "pt": "Tente outras palavras ou sinônimos. Verifique sua conexão.",
+    "fr": "Essayez d’autres mots ou synonymes. Vérifiez aussi votre connexion.",
+    "de": "Andere Wörter oder Synonyme versuchen. Prüfen Sie auch Ihre Verbindung."
+  },
+  "contacts_unmute": {
+    "es": "Dejar de silenciar",
+    "en": "Unmute",
+    "it": "Riattiva audio",
+    "pt": "Reativar som",
+    "fr": "Réactiver le son",
+    "de": "Lautschalten"
+  },
+  "contacts_mute": {
+    "es": "Silenciar",
+    "en": "Mute",
+    "it": "Silenzia",
+    "pt": "Silenciar",
+    "fr": "Couper le son",
+    "de": "Stummschalten"
+  },
+  "contacts_blocked_a11y": {
+    "es": "Canal silenciado",
+    "en": "Channel muted",
+    "it": "Canale silenziato",
+    "pt": "Canal silenciado",
+    "fr": "Canal coupé",
+    "de": "Kanal stumm"
+  },
+  "contacts_muted_label": {
+    "es": "Silenciado",
+    "en": "Muted",
+    "it": "Silenziato",
+    "pt": "Silenciado",
+    "fr": "Muet",
+    "de": "Stumm"
+  },
+  "contacts_search_placeholder": {
+    "es": "Buscar nombre, tarjeta, grupo o datos compartidos (no teléfonos)",
+    "en": "Search name, card, group, or shared data (not phone numbers)",
+    "it": "Cerca nome, carta, gruppo o dati condivisi (non numeri)",
+    "pt": "Buscar nome, cartão, grupo ou dados compartilhados (não telefones)",
+    "fr": "Recherchez nom, carte, groupe ou données partagées (pas les numéros)",
+    "de": "Name, Karte, Gruppe oder geteilte Daten suchen (keine Telefonnummern)"
+  },
+  "contacts_clear_search_a11y": {
+    "es": "Limpiar búsqueda",
+    "en": "Clear search",
+    "it": "Cancella ricerca",
+    "pt": "Limpar busca",
+    "fr": "Effacer la recherche",
+    "de": "Suche leeren"
+  },
+  "contacts_sort_title": {
+    "es": "Ordenar contactos",
+    "en": "Sort contacts",
+    "it": "Ordina contatti",
+    "pt": "Ordenar contatos",
+    "fr": "Trier les contacts",
+    "de": "Kontakte sortieren"
+  },
+  "contacts_sort_name": {
+    "es": "Nombre (A-Z, favoritos arriba)",
+    "en": "Name (A-Z, favorites first)",
+    "it": "Nome (A-Z, preferiti in alto)",
+    "pt": "Nome (A-Z, favoritos no topo)",
+    "fr": "Nom (A-Z, favoris en haut)",
+    "de": "Name (A-Z, Favoriten zuerst)"
+  },
+  "contacts_sort_card": {
+    "es": "Nombre de Tarjeta",
+    "en": "Card Name",
+    "it": "Nome carta",
+    "pt": "Nome do cartão",
+    "fr": "Nom de la carte",
+    "de": "Kartenname"
+  },
+  "contacts_sort_date": {
+    "es": "Fecha de agregado",
+    "en": "Date Added",
+    "it": "Data aggiunta",
+    "pt": "Data adicionada",
+    "fr": "Date d’ajout",
+    "de": "Hinzugefügt am"
+  },
+  "contacts_sort_groups": {
+    "es": "Grupos",
+    "en": "Groups",
+    "it": "Gruppi",
+    "pt": "Grupos",
+    "fr": "Groupes",
+    "de": "Gruppen"
+  },
+  "contacts_sheet_contact": {
+    "es": "Contacto",
+    "en": "Contact",
+    "it": "Contatto",
+    "pt": "Contato",
+    "fr": "Contact",
+    "de": "Kontakt"
+  },
+  "contacts_favorite_a11y": {
+    "es": "Favorito / quitar favorito",
+    "en": "Favorite / unfavorite",
+    "it": "Preferito / rimuovi",
+    "pt": "Favorito / remover",
+    "fr": "Favori / retirer",
+    "de": "Favorit / entfernen"
+  },
+  "contacts_move_group": {
+    "es": "Mover a grupo",
+    "en": "Move to group",
+    "it": "Sposta in gruppo",
+    "pt": "Mover para grupo",
+    "fr": "Déplacer vers le groupe",
+    "de": "In Gruppe verschieben"
+  },
+  "contacts_select_group": {
+    "es": "Selecciona grupo",
+    "en": "Select group",
+    "it": "Seleziona gruppo",
+    "pt": "Selecione o grupo",
+    "fr": "Choisir le groupe",
+    "de": "Gruppe wählen"
+  },
+  "contacts_block_user_title": {
+    "es": "Bloquear usuario",
+    "en": "Block user",
+    "it": "Blocca utente",
+    "pt": "Bloquear usuário",
+    "fr": "Bloquer l’utilisateur",
+    "de": "Nutzer blockieren"
+  },
+  "contacts_block_user_body": {
+    "es": "¿Bloquear a {{name}}? No podrá agregarte a ninguna tarjeta ni contactarte.",
+    "en": "Block {{name}}? They won’t be able to add you to any card or contact you.",
+    "it": "Bloccare {{name}}? Non potrà aggiungerti o contattarti.",
+    "pt": "Bloquear {{name}}? Não poderá adicionar você nem falar com você.",
+    "fr": "Bloquer {{name}} ? Ne pourra pas vous ajouter ni vous contacter.",
+    "de": "{{name}} blockieren? Kann Sie nicht zu Karten hinzufügen oder kontaktieren."
+  },
+  "contacts_block_failed_msg": {
+    "es": "No se pudo bloquear.",
+    "en": "Could not block.",
+    "it": "Impossibile bloccare.",
+    "pt": "Não foi possível bloquear.",
+    "fr": "Blocage impossible.",
+    "de": "Blockieren nicht möglich."
+  },
+  "contacts_placeholder_new_group": {
+    "es": "Crear nuevo grupo",
+    "en": "Create new group",
+    "it": "Crea nuovo gruppo",
+    "pt": "Criar novo grupo",
+    "fr": "Créer un groupe",
+    "de": "Neue Gruppe erstellen"
+  },
+  "search_keywords_required": {
+    "es": "Ingresa palabras clave para buscar",
+    "en": "Enter keywords to search",
+    "it": "Inserisci parole chiave per cercare",
+    "pt": "Digite palavras-chave para buscar",
+    "fr": "Saisissez des mots-clés pour rechercher",
+    "de": "Suchbegriffe eingeben"
+  },
+  "search_placeholder": {
+    "es": "Nails, Hair, Cosmetología…",
+    "en": "Nails, hair, cosmetology…",
+    "it": "Unghie, capelli, cosmetologia…",
+    "pt": "Unhas, cabelo, cosmética…",
+    "fr": "Ongles, cheveux, cosmétologie…",
+    "de": "Nails, Haare, Kosmetik…"
+  },
+  "search_clear_a11y": {
+    "es": "Limpiar búsqueda",
+    "en": "Clear search",
+    "it": "Cancella ricerca",
+    "pt": "Limpar busca",
+    "fr": "Effacer la recherche",
+    "de": "Suche leeren"
+  },
+  "search_market_a11y": {
+    "es": "Buscar en el mercado",
+    "en": "Search the market",
+    "it": "Cerca nel mercato",
+    "pt": "Buscar no mercado",
+    "fr": "Rechercher sur le marché",
+    "de": "Im Markt suchen"
+  },
+  "search_go": {
+    "es": "IR",
+    "en": "GO",
+    "it": "VAI",
+    "pt": "IR",
+    "fr": "OK",
+    "de": "LOS"
+  },
+  "search_section_contacts": {
+    "es": "Conocidos primero (Contactos)",
+    "en": "Contacts first",
+    "it": "Conosciuti prima",
+    "pt": "Conhecidos primeiro",
+    "fr": "Contacts d’abord",
+    "de": "Kontakte zuerst"
+  },
+  "search_section_market": {
+    "es": "Mercado Social",
+    "en": "Social Market",
+    "it": "Mercato sociale",
+    "pt": "Mercado social",
+    "fr": "Marché social",
+    "de": "Social Market"
+  },
+  "search_failed_title": {
+    "es": "No se pudo completar la búsqueda",
+    "en": "Search could not finish",
+    "it": "Ricerca non completata",
+    "pt": "Busca não concluída",
+    "fr": "Recherche impossible",
+    "de": "Suche nicht abgeschlossen"
+  },
+  "search_failed_body": {
+    "es": "Revisa tu conexión a internet e inténtalo de nuevo. Si el fallo continúa, prueba más tarde.",
+    "en": "Check your internet connection and try again. If it keeps failing, try again later.",
+    "it": "Controlla la connessione e riprova. Se persiste, riprova più tardi.",
+    "pt": "Verifique a internet e tente de novo. Se persistir, tente mais tarde.",
+    "fr": "Vérifiez la connexion et réessayez. Si ça échoue, réessayez plus tard.",
+    "de": "Internet prüfen und erneut versuchen. Bei anhaltendem Fehler später erneut."
+  },
+  "search_market_title": {
+    "es": "Mercado Social",
+    "en": "Social Market",
+    "it": "Mercato sociale",
+    "pt": "Mercado social",
+    "fr": "Marché social",
+    "de": "Social Market"
+  },
+  "search_filter_active": {
+    "es": "Filtro activo:",
+    "en": "Active filter:",
+    "it": "Filtro attivo:",
+    "pt": "Filtro ativo:",
+    "fr": "Filtre actif :",
+    "de": "Aktiver Filter:"
+  },
+  "search_sort_distance": {
+    "es": "Distancia",
+    "en": "Distance",
+    "it": "Distanza",
+    "pt": "Distância",
+    "fr": "Distance",
+    "de": "Entfernung"
+  },
+  "search_sort_rating": {
+    "es": "Valoración",
+    "en": "Rating",
+    "it": "Valutazione",
+    "pt": "Avaliação",
+    "fr": "Note",
+    "de": "Bewertung"
+  },
+  "search_sort_a11y": {
+    "es": "Ordenar resultados",
+    "en": "Sort results",
+    "it": "Ordina risultati",
+    "pt": "Ordenar resultados",
+    "fr": "Trier les résultats",
+    "de": "Ergebnisse sortieren"
+  },
+  "search_sort_btn": {
+    "es": "Ordenar",
+    "en": "Sort",
+    "it": "Ordina",
+    "pt": "Ordenar",
+    "fr": "Trier",
+    "de": "Sortieren"
+  },
+  "search_results_plural": {
+    "es": "resultados",
+    "en": "results",
+    "it": "risultati",
+    "pt": "resultados",
+    "fr": "résultats",
+    "de": "Ergebnisse"
+  },
+  "search_results_singular": {
+    "es": "resultado",
+    "en": "result",
+    "it": "risultato",
+    "pt": "resultado",
+    "fr": "résultat",
+    "de": "Ergebnis"
+  },
+  "search_qr_export_title": {
+    "es": "QR Exportado",
+    "en": "QR Exported",
+    "it": "QR esportato",
+    "pt": "QR exportado",
+    "fr": "QR exporté",
+    "de": "QR exportiert"
+  },
+  "search_qr_export_success": {
+    "es": "El archivo QR se generó y se abrió el menú para compartir o guardar.",
+    "en": "The QR file was generated and the share/save menu was opened.",
+    "it": "Il file QR è stato generato e si è aperto il menu per condividere o salvare.",
+    "pt": "O arquivo QR foi gerado e o menu para compartilhar ou salvar foi aberto.",
+    "fr": "Le fichier QR a été généré et le menu pour partager ou enregistrer s’est ouvert.",
+    "de": "Die QR-Datei wurde erzeugt und das Menü zum Teilen oder Speichern wurde geöffnet."
+  },
+  "search_export_fail_title": {
+    "es": "Error",
+    "en": "Error",
+    "it": "Errore",
+    "pt": "Erro",
+    "fr": "Erreur",
+    "de": "Fehler"
+  },
+  "search_export_fail": {
+    "es": "No fue posible exportar el QR.",
+    "en": "Could not export QR.",
+    "it": "Impossibile esportare il QR.",
+    "pt": "Não foi possível exportar o QR.",
+    "fr": "Export QR impossible.",
+    "de": "QR-Export fehlgeschlagen."
+  },
+  "search_contact_avatar_a11y": {
+    "es": "Avatar del contacto",
+    "en": "Contact avatar",
+    "it": "Avatar contatto",
+    "pt": "Avatar do contato",
+    "fr": "Avatar du contact",
+    "de": "Kontakt-Avatar"
+  },
+  "search_load_card_fail": {
+    "es": "No se pudo cargar la tarjeta.",
+    "en": "Could not load the card.",
+    "it": "Impossibile caricare la carta.",
+    "pt": "Não foi possível carregar o cartão.",
+    "fr": "Impossible de charger la carte.",
+    "de": "Karte konnte nicht geladen werden."
+  },
+  "search_phone_unavailable_title": {
+    "es": "Dato no disponible",
+    "en": "Not available",
+    "it": "Dato non disponibile",
+    "pt": "Dado indisponível",
+    "fr": "Donnée indisponible",
+    "de": "Nicht verfügbar"
+  },
+  "search_phone_unavailable_body": {
+    "es": "Este negocio no publicó teléfono.",
+    "en": "This business has no phone listed.",
+    "it": "Questa attività non ha pubblicato il telefono.",
+    "pt": "Este negócio não publicou telefone.",
+    "fr": "Cette entreprise n’a pas indiqué de téléphone.",
+    "de": "Dieses Unternehmen hat keine Telefonnummer veröffentlicht."
+  },
+  "search_whatsapp_unavailable": {
+    "es": "Sin número para WhatsApp.",
+    "en": "No number for WhatsApp.",
+    "it": "Nessun numero per WhatsApp.",
+    "pt": "Sem número para WhatsApp.",
+    "fr": "Aucun numéro pour WhatsApp.",
+    "de": "Keine Nummer für WhatsApp."
+  },
+  "search_logo_a11y": {
+    "es": "Logo del negocio",
+    "en": "Business logo",
+    "it": "Logo attività",
+    "pt": "Logo do negócio",
+    "fr": "Logo entreprise",
+    "de": "Firmenlogo"
+  },
+  "search_no_matches": {
+    "es": "Sin coincidencias",
+    "en": "No matches",
+    "it": "Nessuna corrispondenza",
+    "pt": "Sem resultados",
+    "fr": "Aucun résultat",
+    "de": "Keine Treffer"
+  },
+  "search_no_matches_sub": {
+    "es": "Prueba con otras palabras o sinónimos. También puedes revisar tu conexión.",
+    "en": "Try different words or synonyms. You can also check your connection.",
+    "it": "Prova altre parole o sinonimi. Controlla anche la connessione.",
+    "pt": "Tente outras palavras ou sinônimos. Verifique sua conexão.",
+    "fr": "Essayez d’autres mots ou synonymes. Vérifiez aussi votre connexion.",
+    "de": "Andere Wörter oder Synonyme versuchen. Prüfen Sie auch Ihre Verbindung."
+  },
+  "search_empty_title": {
+    "es": "Busca algo…",
+    "en": "Search for something…",
+    "it": "Cerca qualcosa…",
+    "pt": "Busque algo…",
+    "fr": "Recherchez quelque chose…",
+    "de": "Etwas suchen…"
+  },
+  "search_empty_sub": {
+    "es": "Tus tarjetas recibidas y el Mercado Social",
+    "en": "Your received cards and the Social Market",
+    "it": "Le tue carte ricevute e il Mercato sociale",
+    "pt": "Seus cartões recebidos e o Mercado social",
+    "fr": "Vos cartes reçues et le marché social",
+    "de": "Ihre erhaltenen Karten und der Social Market"
+  },
+  "search_sort_market_title": {
+    "es": "Ordenar Mercado",
+    "en": "Sort market",
+    "it": "Ordina mercato",
+    "pt": "Ordenar mercado",
+    "fr": "Trier le marché",
+    "de": "Markt sortieren"
+  },
+  "search_block_title": {
+    "es": "Bloquear usuario",
+    "en": "Block user",
+    "it": "Blocca utente",
+    "pt": "Bloquear usuário",
+    "fr": "Bloquer l’utilisateur",
+    "de": "Nutzer blockieren"
+  },
+  "search_block_body": {
+    "es": "¿Bloquear a {{name}}? No podrá agregarte a ninguna tarjeta ni contactarte.",
+    "en": "Block {{name}}? They won’t be able to add you to any card or contact you.",
+    "it": "Bloccare {{name}}? Non potrà aggiungerti o contattarti.",
+    "pt": "Bloquear {{name}}? Não poderá adicionar você nem falar com você.",
+    "fr": "Bloquer {{name}} ? Ne pourra pas vous ajouter ni vous contacter.",
+    "de": "{{name}} blockieren? Kann Sie nicht zu Karten hinzufügen oder kontaktieren."
+  },
+  "search_block_failed": {
+    "es": "No se pudo bloquear.",
+    "en": "Could not block.",
+    "it": "Impossibile bloccare.",
+    "pt": "Não foi possível bloquear.",
+    "fr": "Blocage impossible.",
+    "de": "Blockieren nicht möglich."
+  },
+  "search_distance_lt_100m": {
+    "es": "Menos de 100 m",
+    "en": "< 100 m",
+    "it": "< 100 m",
+    "pt": "< 100 m",
+    "fr": "< 100 m",
+    "de": "< 100 m"
+  },
+  "search_distance_km_suffix": {
+    "es": "km",
+    "en": "km",
+    "it": "km",
+    "pt": "km",
+    "fr": "km",
+    "de": "km"
+  },
+  "search_distance_lt_1mi": {
+    "es": "<1 mi",
+    "en": "<1 mi",
+    "it": "<1 mi",
+    "pt": "<1 mi",
+    "fr": "<1 mi",
+    "de": "<1 mi"
+  },
+  "search_distance_mi_suffix": {
+    "es": "mi.",
+    "en": "mi.",
+    "it": "mi.",
+    "pt": "mi.",
+    "fr": "mi.",
+    "de": "mi."
+  },
+  "cards_sync_failed_title": {
+    "es": "Sync fallida",
+    "en": "Sync failed",
+    "it": "Sincronizzazione fallita",
+    "pt": "Falha na sinc.",
+    "fr": "Échec synchro",
+    "de": "Sync fehlgeschlagen"
+  },
+  "cards_sync_failed_body": {
+    "es": "No se pudieron guardar {{count}} tarjeta(s) en el servidor",
+    "en": "Could not save {{count}} card(s) on the server",
+    "it": "Impossibile salvare {{count}} carta/e sul server",
+    "pt": "Não foi possível salvar {{count}} cartão(ões) no servidor",
+    "fr": "Impossible d’enregistrer {{count}} carte(s) sur le serveur",
+    "de": "{{count}} Karte(n) konnten nicht auf dem Server gespeichert werden"
+  },
+  "cards_sync_error_title": {
+    "es": "Error al sincronizar tarjetas",
+    "en": "Failed to sync cards",
+    "it": "Errore sincronizzazione carte",
+    "pt": "Erro ao sincronizar cartões",
+    "fr": "Échec synchro des cartes",
+    "de": "Karten konnten nicht synchronisiert werden"
+  },
+  "cards_session_validate_error": {
+    "es": "No se pudo validar tu sesión.",
+    "en": "Could not validate your session.",
+    "it": "Impossibile validare la sessione.",
+    "pt": "Não foi possível validar a sessão.",
+    "fr": "Impossible de valider la session.",
+    "de": "Sitzung konnte nicht validiert werden."
+  },
+  "cards_availability_validate_error": {
+    "es": "No se pudo validar disponibilidad.",
+    "en": "Could not validate availability.",
+    "it": "Impossibile validare la disponibilità.",
+    "pt": "Não foi possível validar disponibilidade.",
+    "fr": "Impossible de valider la disponibilité.",
+    "de": "Verfügbarkeit konnte nicht geprüft werden."
+  },
+  "cards_name_required_title": {
+    "es": "Nombre requerido",
+    "en": "Name required",
+    "it": "Nome richiesto",
+    "pt": "Nome obrigatório",
+    "fr": "Nom requis",
+    "de": "Name erforderlich"
+  },
+  "cards_name_required_body": {
+    "es": "Dale un nombre a tu Smart Card.",
+    "en": "Give your Smart Card a name.",
+    "it": "Dai un nome alla tua Smart Card.",
+    "pt": "Dê um nome à sua Smart Card.",
+    "fr": "Donnez un nom à votre Smart Card.",
+    "de": "Geben Sie Ihrer Smart Card einen Namen."
+  },
+  "cards_duplicate_name_title": {
+    "es": "Nombre duplicado",
+    "en": "Duplicate name",
+    "it": "Nome duplicato",
+    "pt": "Nome duplicado",
+    "fr": "Nom en double",
+    "de": "Doppelter Name"
+  },
+  "cards_duplicate_name_body": {
+    "es": "Ya tienes una tarjeta con ese nombre. Usa un nombre distinto.",
+    "en": "You already have a card with that name. Use a different name.",
+    "it": "Hai già una carta con questo nome. Usa un altro nome.",
+    "pt": "Você já tem um cartão com esse nome. Use outro nome.",
+    "fr": "Vous avez déjà une carte avec ce nom. Utilisez un autre nom.",
+    "de": "Sie haben bereits eine Karte mit diesem Namen. Wählen Sie einen anderen Namen."
+  },
+  "cards_no_data_title": {
+    "es": "Sin datos",
+    "en": "No data",
+    "it": "Nessun dato",
+    "pt": "Sem dados",
+    "fr": "Aucune donnée",
+    "de": "Keine Daten"
+  },
+  "cards_no_data_body": {
+    "es": "Selecciona al menos un dato del Vault para tu tarjeta.",
+    "en": "Select at least one Vault item for your card.",
+    "it": "Seleziona almeno un dato del Vault per la carta.",
+    "pt": "Selecione pelo menos um item do Vault para o cartão.",
+    "fr": "Sélectionnez au moins un élément du Vault pour votre carte.",
+    "de": "Wählen Sie mindestens einen Vault-Eintrag für Ihre Karte."
+  },
+  "cards_toast_updated_title": {
+    "es": "Cambio exitoso",
+    "en": "Change saved",
+    "it": "Modifica salvata",
+    "pt": "Alteração salva",
+    "fr": "Modification enreg.",
+    "de": "Änderung gespeichert"
+  },
+  "cards_toast_updated_body": {
+    "es": "La tarjeta se actualizo correctamente.",
+    "en": "The card was updated successfully.",
+    "it": "La carta è stata aggiornata correttamente.",
+    "pt": "O cartão foi atualizado com sucesso.",
+    "fr": "La carte a été mise à jour.",
+    "de": "Die Karte wurde aktualisiert."
+  },
+  "cards_toast_saved_body": {
+    "es": "La tarjeta se guardo correctamente.",
+    "en": "The card was saved successfully.",
+    "it": "La carta è stata salvata correttamente.",
+    "pt": "O cartão foi salvo com sucesso.",
+    "fr": "La carte a été enregistrée.",
+    "de": "Die Karte wurde gespeichert."
+  },
+  "cards_sort_data_title": {
+    "es": "Ordenar datos",
+    "en": "Sort data",
+    "it": "Ordina dati",
+    "pt": "Ordenar dados",
+    "fr": "Trier les données",
+    "de": "Daten sortieren"
+  },
+  "cards_sort_data_message": {
+    "es": "Elige cómo ver tus datos.",
+    "en": "Choose how to view your data.",
+    "it": "Scegli come vedere i dati.",
+    "pt": "Escolha como ver seus dados.",
+    "fr": "Choisissez l’affichage des données.",
+    "de": "Wählen Sie die Datenansicht."
+  },
+  "cards_sort_recent": {
+    "es": "Recién agregado",
+    "en": "Recently added",
+    "it": "Aggiunti di recente",
+    "pt": "Adicionados recentemente",
+    "fr": "Récemment ajouté",
+    "de": "Zuletzt hinzugefügt"
+  },
+  "cards_sort_alpha": {
+    "es": "Alfabético",
+    "en": "Alphabetical",
+    "it": "Alfabetico",
+    "pt": "Alfabético",
+    "fr": "Alphabétique",
+    "de": "Alphabetisch"
+  },
+  "cards_manage_icon_title": {
+    "es": "Gestionar icono",
+    "en": "Manage icon",
+    "it": "Gestisci icona",
+    "pt": "Gerenciar ícone",
+    "fr": "Gérer l’icône",
+    "de": "Symbol verwalten"
+  },
+  "cards_manage_icon_message": {
+    "es": "Elige la acción para este dato de la tarjeta.",
+    "en": "Choose an action for this card item.",
+    "it": "Scegli un’azione per questo dato della carta.",
+    "pt": "Escolha uma ação para este item do cartão.",
+    "fr": "Choisissez une action pour cet élément.",
+    "de": "Wählen Sie eine Aktion für dieses Kartenfeld."
+  },
+  "cards_move_icon_title": {
+    "es": "Mover icono",
+    "en": "Move icon",
+    "it": "Sposta icona",
+    "pt": "Mover ícone",
+    "fr": "Déplacer l’icône",
+    "de": "Symbol verschieben"
+  },
+  "cards_move_icon_message": {
+    "es": "Selecciona la dirección de movimiento.",
+    "en": "Choose a direction to move.",
+    "it": "Scegli la direzione.",
+    "pt": "Escolha a direção.",
+    "fr": "Choisissez une direction.",
+    "de": "Richtung wählen."
+  },
+  "cards_add_new_data": {
+    "es": "Agregar nuevo dato",
+    "en": "Add new data",
+    "it": "Aggiungi nuovo dato",
+    "pt": "Adicionar novo dado",
+    "fr": "Ajouter une donnée",
+    "de": "Neue Daten hinzufügen"
+  },
+  "cards_load_receptors_error": {
+    "es": "No se pudo cargar receptores.",
+    "en": "Could not load receptors.",
+    "it": "Impossibile caricare i destinatari.",
+    "pt": "Não foi possível carregar receptores.",
+    "fr": "Chargement des destinataires impossible.",
+    "de": "Empfänger konnten nicht geladen werden."
+  },
+  "cards_load_subscribers_error": {
+    "es": "No se pudo cargar la lista de suscriptores.",
+    "en": "Could not load subscribers list.",
+    "it": "Impossibile caricare gli iscritti.",
+    "pt": "Não foi possível carregar inscritos.",
+    "fr": "Chargement de la liste impossible.",
+    "de": "Abonnentenliste konnte nicht geladen werden."
+  },
+  "cards_delete_failed_title": {
+    "es": "No se pudo eliminar",
+    "en": "Could not delete",
+    "it": "Impossibile eliminare",
+    "pt": "Não foi possível excluir",
+    "fr": "Suppression impossible",
+    "de": "Löschen nicht möglich"
+  },
+  "cards_revoke_failed": {
+    "es": "La revocacion fallo.",
+    "en": "Revocation failed.",
+    "it": "Revoca non riuscita.",
+    "pt": "Revogação falhou.",
+    "fr": "Révocation échouée.",
+    "de": "Widerruf fehlgeschlagen."
+  },
+  "cards_block_failed_title": {
+    "es": "No se pudo bloquear",
+    "en": "Could not block",
+    "it": "Impossibile bloccare",
+    "pt": "Não foi possível bloquear",
+    "fr": "Blocage impossible",
+    "de": "Blockieren nicht möglich"
+  },
+  "cards_block_failed_body": {
+    "es": "El bloqueo no se pudo completar.",
+    "en": "Block could not be completed.",
+    "it": "Blocco non completato.",
+    "pt": "Bloqueio não concluído.",
+    "fr": "Blocage incomplet.",
+    "de": "Block konnte nicht abgeschlossen werden."
+  },
+  "cards_update_failed_title": {
+    "es": "No se pudo actualizar",
+    "en": "Could not update",
+    "it": "Impossibile aggiornare",
+    "pt": "Não foi possível atualizar",
+    "fr": "Mise à jour impossible",
+    "de": "Aktualisierung fehlgeschlagen"
+  },
+  "cards_update_failed_generic": {
+    "es": "No se pudo actualizar.",
+    "en": "Could not update.",
+    "it": "Impossibile aggiornare.",
+    "pt": "Não foi possível atualizar.",
+    "fr": "Mise à jour impossible.",
+    "de": "Aktualisierung fehlgeschlagen."
+  },
+  "cards_qr_session_issue": {
+    "es": "No se pudo obtener tu sesión para emitir el QR.",
+    "en": "Could not get your session to issue the QR.",
+    "it": "Impossibile ottenere la sessione per emettere il QR.",
+    "pt": "Não foi possível obter a sessão para emitir o QR.",
+    "fr": "Impossible d’obtenir la session pour le QR.",
+    "de": "Keine Sitzung zum Ausstellen des QR."
+  },
+  "cards_qr_network_diag": {
+    "es": "No se pudo conectar al backend de QR.\n\nChecklist rápido:\n• EXPO_PUBLIC_MODERATION_API_URL con IP LAN (no localhost)\n• Backend activo en puerto 4000\n• Móvil y PC en la misma Wi‑Fi\n• EXPO_PUBLIC_MODERATION_GATEWAY_KEY igual a API_GATEWAY_KEY del backend{{androidHint}}",
+    "en": "Could not connect to the QR backend.\n\nQuick checklist:\n• EXPO_PUBLIC_MODERATION_API_URL uses LAN IP (not localhost)\n• Backend is running on port 4000\n• Phone and PC are on the same Wi‑Fi\n• EXPO_PUBLIC_MODERATION_GATEWAY_KEY matches backend API_GATEWAY_KEY{{androidHint}}",
+    "it": "Impossibile connettersi al backend QR.\n\nChecklist:\n• EXPO_PUBLIC_MODERATION_API_URL su IP LAN (non localhost)\n• Backend sulla porta 4000\n• Telefono e PC sulla stessa Wi‑Fi\n• EXPO_PUBLIC_MODERATION_GATEWAY_KEY = API_GATEWAY_KEY del backend{{androidHint}}",
+    "pt": "Falha ao conectar ao backend de QR.\n\nChecklist:\n• EXPO_PUBLIC_MODERATION_API_URL com IP LAN (não localhost)\n• Backend na porta 4000\n• Celular e PC na mesma Wi‑Fi\n• EXPO_PUBLIC_MODERATION_GATEWAY_KEY = API_GATEWAY_KEY{{androidHint}}",
+    "fr": "Connexion au backend QR impossible.\n\nChecklist :\n• EXPO_PUBLIC_MODERATION_API_URL en IP LAN (pas localhost)\n• Backend sur le port 4000\n• Téléphone et PC sur le même Wi‑Fi\n• EXPO_PUBLIC_MODERATION_GATEWAY_KEY = API_GATEWAY_KEY{{androidHint}}",
+    "de": "Verbindung zum QR-Backend fehlgeschlagen.\n\nKurz-Checkliste:\n• EXPO_PUBLIC_MODERATION_API_URL mit LAN-IP (nicht localhost)\n• Backend auf Port 4000\n• Telefon und PC im selben WLAN\n• EXPO_PUBLIC_MODERATION_GATEWAY_KEY = API_GATEWAY_KEY im Backend{{androidHint}}"
+  },
+  "cards_qr_network_diag_android": {
+    "es": "\n• Android: HTTP en la LAN requiere `android.usesCleartextTraffic: true` en app.json y volver a generar el dev client.",
+    "en": "\n• Android: HTTP over LAN needs `android.usesCleartextTraffic: true` in app.json and a rebuilt dev client.",
+    "it": "\n• Android: HTTP sulla LAN richiede `android.usesCleartextTraffic: true` in app.json e rebuild del dev client.",
+    "pt": "\n• Android: HTTP na LAN exige `android.usesCleartextTraffic: true` no app.json e rebuild do dev client.",
+    "fr": "\n• Android : HTTP sur LAN nécessite `android.usesCleartextTraffic: true` dans app.json et rebuild du client.",
+    "de": "\n• Android: HTTP im LAN erfordert `android.usesCleartextTraffic: true` in app.json und neuen Dev-Client."
+  },
+  "cards_qr_error_title": {
+    "es": "Error de QR",
+    "en": "QR error",
+    "it": "Errore QR",
+    "pt": "Erro de QR",
+    "fr": "Erreur QR",
+    "de": "QR-Fehler"
+  },
+  "cards_qr_issue_failed": {
+    "es": "No se pudo emitir el QR.",
+    "en": "Could not issue QR.",
+    "it": "Impossibile emettere il QR.",
+    "pt": "Não foi possível emitir o QR.",
+    "fr": "Émission du QR impossible.",
+    "de": "QR konnte nicht ausgestellt werden."
+  },
+  "cards_not_signed_in": {
+    "es": "Sin sesión",
+    "en": "Not signed in",
+    "it": "Non autenticato",
+    "pt": "Não conectado",
+    "fr": "Non connecté",
+    "de": "Nicht angemeldet"
+  },
+  "cards_create_qr_title": {
+    "es": "Crear QR",
+    "en": "Create QR",
+    "it": "Crea QR",
+    "pt": "Criar QR",
+    "fr": "Créer un QR",
+    "de": "QR erstellen"
+  },
+  "cards_create_qr_smart_prompt": {
+    "es": "¿Deseas generar el QR de la tarjeta \"{{name}}\"?",
+    "en": "Do you want to generate the QR for card \"{{name}}\"?",
+    "it": "Vuoi generare il QR per la carta \"{{name}}\"?",
+    "pt": "Gerar o QR do cartão \"{{name}}\"?",
+    "fr": "Générer le QR pour la carte « {{name}} » ?",
+    "de": "QR für die Karte „{{name}}“ erzeugen?"
+  },
+  "cards_create_qr_business_prompt": {
+    "es": "¿Deseas mostrar el QR permanente de \"{{name}}\"?",
+    "en": "Do you want to show the permanent QR for \"{{name}}\"?",
+    "it": "Vuoi mostrare il QR permanente di \"{{name}}\"?",
+    "pt": "Mostrar o QR permanente de \"{{name}}\"?",
+    "fr": "Afficher le QR permanent pour « {{name}} » ?",
+    "de": "Permanenten QR für „{{name}}“ anzeigen?"
+  },
+  "cards_session_missing": {
+    "es": "No se pudo obtener tu sesión.",
+    "en": "Could not get your session.",
+    "it": "Impossibile ottenere la sessione.",
+    "pt": "Não foi possível obter a sessão.",
+    "fr": "Impossible d’obtenir la session.",
+    "de": "Sitzung nicht verfügbar."
+  },
+  "cards_public_sync_title": {
+    "es": "No se sincronizaron los datos públicos",
+    "en": "Public data did not sync",
+    "it": "Dati pubblici non sincronizzati",
+    "pt": "Dados públicos não sincronizados",
+    "fr": "Données publiques non synchro.",
+    "de": "Öffentliche Daten nicht synchron."
+  },
+  "cards_public_sync_body": {
+    "es": "Comprueba conexión, abre Bóveda y vuelve a intentar QR24h.",
+    "en": "Check connection, open Vault, then try QR24h again.",
+    "it": "Controlla la connessione, apri Vault e riprova QR24h.",
+    "pt": "Verifique a conexão, abra o Vault e tente QR24h de novo.",
+    "fr": "Vérifiez la connexion, ouvrez le Coffre, puis réessayez le QR24h.",
+    "de": "Verbindung prüfen, Tresor öffnen, dann QR24h erneut."
+  },
+  "cards_partial_sync_title": {
+    "es": "Sincronización parcial",
+    "en": "Partial sync",
+    "it": "Sincronizzazione parziale",
+    "pt": "Sincronização parcial",
+    "fr": "Synchro partielle",
+    "de": "Teilsynchronisation"
+  },
+  "cards_partial_sync_body": {
+    "es": "Se enviaron {{slotN}} de {{needN}} datos a la web. El resto no está en Bóveda local ni en la nube.",
+    "en": "Sent {{slotN}} of {{needN}} items to the web. The rest are missing locally and in the cloud.",
+    "it": "Inviati {{slotN}} su {{needN}} dati al web. Il resto manca in locale e nel cloud.",
+    "pt": "Enviados {{slotN}} de {{needN}} itens à web. O resto falta localmente e na nuvem.",
+    "fr": "{{slotN}} sur {{needN}} éléments envoyés au web. Le reste manque localement et dans le cloud.",
+    "de": "{{slotN}} von {{needN}} Elementen an die Webansicht gesendet. Der Rest fehlt lokal und in der Cloud."
+  },
+  "cards_no_server_link": {
+    "es": "No se recibió el enlace del servidor.",
+    "en": "No link received from server.",
+    "it": "Nessun link dal server.",
+    "pt": "Link não recebido do servidor.",
+    "fr": "Aucun lien du serveur.",
+    "de": "Kein Link vom Server."
+  },
+  "cards_web_qr_error_title": {
+    "es": "Error de QR web",
+    "en": "Web QR error",
+    "it": "Errore QR web",
+    "pt": "Erro de QR web",
+    "fr": "Erreur QR Web",
+    "de": "Web-QR-Fehler"
+  },
+  "cards_universal_link_failed": {
+    "es": "No se pudo generar el enlace universal.",
+    "en": "Could not generate the universal link.",
+    "it": "Impossibile generare il link universale.",
+    "pt": "Não foi possível gerar o link universal.",
+    "fr": "Impossible de générer le lien universel.",
+    "de": "Universallink konnte nicht erzeugt werden."
+  },
+  "cards_qr_generate_failed": {
+    "es": "No se pudo generar el QR.",
+    "en": "Could not generate the QR code.",
+    "it": "Impossibile generare il QR.",
+    "pt": "Não foi possível gerar o QR.",
+    "fr": "Impossible de générer le QR.",
+    "de": "QR konnte nicht erzeugt werden."
+  },
+  "cards_delete_business_failed": {
+    "es": "No se pudo eliminar la tarjeta de negocio.",
+    "en": "Could not delete the business card.",
+    "it": "Impossibile eliminare la carta business.",
+    "pt": "Não foi possível excluir o cartão de negócio.",
+    "fr": "Impossible de supprimer la carte entreprise.",
+    "de": "Business-Karte konnte nicht gelöscht werden."
+  },
+  "cards_model_updated_title": {
+    "es": "Modelo actualizado",
+    "en": "Model updated",
+    "it": "Modello aggiornato",
+    "pt": "Modelo atualizado",
+    "fr": "Modèle à jour",
+    "de": "Modell aktualisiert"
+  },
+  "cards_model_updated_body": {
+    "es": "No existe suscripción global. Si quieres funciones de negocio, activa anualidad por cada Tarjeta de Negocio en Crear tarjeta de negocio.",
+    "en": "There is no global subscription. For business features, activate the yearly plan per business card in Create business card.",
+    "it": "Non esiste un abbonamento globale. Per il business, attiva il piano annuale per ogni carta in Crea carta business.",
+    "pt": "Não há assinatura global. Para negócios, ative o plano anual por cartão em Criar cartão de negócio.",
+    "fr": "Pas d’abonnement global. Pour le business, activez l’offre annuelle par carte dans Créer une carte pro.",
+    "de": "Kein globales Abo. Für Business-Funktionen Jahresplan pro Business-Karte aktivieren."
+  },
+  "cards_purchase_failed": {
+    "es": "No se pudo completar la compra.",
+    "en": "Purchase could not be completed.",
+    "it": "Acquisto non completato.",
+    "pt": "Compra não concluída.",
+    "fr": "Achat incomplet.",
+    "de": "Kauf konnte nicht abgeschlossen werden."
+  },
+  "cards_reorder_title": {
+    "es": "Ordenar tarjetas",
+    "en": "Reorder cards",
+    "it": "Riordina carte",
+    "pt": "Reordenar cartões",
+    "fr": "Réorganiser les cartes",
+    "de": "Karten sortieren"
+  },
+  "cards_reorder_need_clear_search": {
+    "es": "Sal de la búsqueda para poder reordenar la lista.",
+    "en": "Clear search to reorder the list.",
+    "it": "Esci dalla ricerca per riordinare.",
+    "pt": "Saia da busca para reordenar.",
+    "fr": "Quittez la recherche pour réorganiser.",
+    "de": "Suche leeren, um zu sortieren."
+  },
+  "cards_reorder_need_portrait": {
+    "es": "Gira el teléfono a vertical para reordenar.",
+    "en": "Rotate your phone to portrait to reorder.",
+    "it": "Ruota il telefono in verticale per riordinar.",
+    "pt": "Gire o telefone para retrato para reordenar.",
+    "fr": "Passez en portrait pour réorganiser.",
+    "de": "Drehen Sie das Handy ins Hochformat zum Sortieren."
+  },
+  "cards_open_native_failed_title": {
+    "es": "No se pudo abrir",
+    "en": "Could not open",
+    "it": "Impossibile aprire",
+    "pt": "Não foi possível abrir",
+    "fr": "Ouverture impossible",
+    "de": "Öffnen nicht möglich"
+  },
+  "cards_open_native_failed_body": {
+    "es": "El dispositivo no pudo abrir este dato en app nativa.",
+    "en": "Device could not open this data in native app.",
+    "it": "Il dispositivo non ha potuto aprire questo dato in app nativa.",
+    "pt": "O dispositivo não abriu este dado no app nativo.",
+    "fr": "L’appareil n’a pas pu ouvrir ces données.",
+    "de": "Gerät konnte diese Daten nicht nativ öffnen."
+  },
+  "cards_ghost_only_voip": {
+    "es": "Ghost-Link solo funciona dentro de Card-Social (llamada VoIP).",
+    "en": "Ghost-Link only works inside Card-Social (VoIP call).",
+    "it": "Ghost-Link funziona solo in Card-Social (chiamata VoIP).",
+    "pt": "Ghost-Link só funciona no Card-Social (VoIP).",
+    "fr": "Ghost-Link fonctionne uniquement dans Card-Social (appel VoIP).",
+    "de": "Ghost-Link funktioniert nur in Card-Social (VoIP-Anruf)."
+  },
+  "cards_no_browser_route": {
+    "es": "Este dato no tiene ruta de navegador directa.",
+    "en": "This data has no direct browser route.",
+    "it": "Questo dato non ha un percorso browser diretto.",
+    "pt": "Este dado não tem rota direta no navegador.",
+    "fr": "Ces données n’ont pas d’URL navigateur directe.",
+    "de": "Kein direkter Browser-Pfad für diese Daten."
+  },
+  "cards_browser_open_failed": {
+    "es": "No se pudo abrir en navegador.",
+    "en": "Could not open in browser.",
+    "it": "Impossibile aprire nel browser.",
+    "pt": "Não foi possível abrir no navegador.",
+    "fr": "Ouverture navigateur impossible.",
+    "de": "Browser konnte nicht geöffnet werden."
+  },
+  "cards_edit_card_a11y": {
+    "es": "Editar tarjeta",
+    "en": "Edit card",
+    "it": "Modifica carta",
+    "pt": "Editar cartão",
+    "fr": "Modifier la carte",
+    "de": "Karte bearbeiten"
+  },
+  "cards_silence_card_title": {
+    "es": "Silenciar tarjeta",
+    "en": "Silence card",
+    "it": "Silenzia carta",
+    "pt": "Silenciar cartão",
+    "fr": "Couper la carte",
+    "de": "Karte stummschalten"
+  },
+  "cards_silence_card_message": {
+    "es": "Nadie podrá llamarte desde esta tarjeta mientras esté silenciada.",
+    "en": "No one will be able to call you from this card while silenced.",
+    "it": "Nessuno potrà chiamarti da questa carta mentre è silenziata.",
+    "pt": "Ninguém poderá ligar deste cartão enquanto estiver silenciado.",
+    "fr": "Personne ne pourra vous appeler depuis cette carte tant qu’elle est muette.",
+    "de": "Niemand kann Sie von dieser Karte anrufen, solange sie stumm ist."
+  },
+  "cards_unmute_card_a11y": {
+    "es": "Reactivar tarjeta",
+    "en": "Unmute card",
+    "it": "Riattiva carta",
+    "pt": "Reativar cartão",
+    "fr": "Réactiver la carte",
+    "de": "Karte aktivieren"
+  },
+  "cards_people_with_card_a11y": {
+    "es": "Personas con tu tarjeta",
+    "en": "People with your card",
+    "it": "Persone con la tua carta",
+    "pt": "Pessoas com seu cartão",
+    "fr": "Personnes avec votre carte",
+    "de": "Personen mit Ihrer Karte"
+  },
+  "cards_biometric_gate_title": {
+    "es": "Acceso biométrico requerido",
+    "en": "Biometric access required",
+    "it": "Richiesto biométrico",
+    "pt": "Biometria necessária",
+    "fr": "Accès biométrique requis",
+    "de": "Biometrie erforderlich"
+  },
+  "cards_biometric_gate_body": {
+    "es": "Autoriza Face ID o Touch ID para entrar a Mis tarjetas.",
+    "en": "Authorize Face ID or Touch ID to open My Cards.",
+    "it": "Autorizza Face ID o Touch ID per aprire Le mie carte.",
+    "pt": "Autorize Face ID ou Touch ID para abrir Minhas cartas.",
+    "fr": "Autorisez Face ID ou Touch ID pour ouvrir Mes cartes.",
+    "de": "Face ID oder Touch ID erlauben, um Meine Karten zu öffnen."
+  },
+  "cards_unlock": {
+    "es": "Desbloquear",
+    "en": "Unlock",
+    "it": "Sblocca",
+    "pt": "Desbloquear",
+    "fr": "Déverrouiller",
+    "de": "Entsperren"
+  },
+  "cards_header_title": {
+    "es": "Mis Tarjetas",
+    "en": "My Cards",
+    "it": "Le mie carte",
+    "pt": "Minhas cartas",
+    "fr": "Mes cartes",
+    "de": "Meine Karten"
+  },
+  "cards_header_loading_limits": {
+    "es": "Cargando límites…",
+    "en": "Loading limits…",
+    "it": "Caricamento limiti…",
+    "pt": "Carregando limites…",
+    "fr": "Chargement des limites…",
+    "de": "Laden der Limits…"
+  },
+  "cards_header_slots_template": {
+    "es": "{{smartCur}}/{{smartMax}} Smart · {{bizUsed}}/{{bizMax}} {{bizWord}}",
+    "en": "{{smartCur}}/{{smartMax}} Smart · {{bizUsed}}/{{bizMax}} {{bizWord}}",
+    "it": "{{smartCur}}/{{smartMax}} Smart · {{bizUsed}}/{{bizMax}} {{bizWord}}",
+    "pt": "{{smartCur}}/{{smartMax}} Smart · {{bizUsed}}/{{bizMax}} {{bizWord}}",
+    "fr": "{{smartCur}}/{{smartMax}} Smart · {{bizUsed}}/{{bizMax}} {{bizWord}}",
+    "de": "{{smartCur}}/{{smartMax}} Smart · {{bizUsed}}/{{bizMax}} {{bizWord}}"
+  },
+  "cards_create_business_a11y": {
+    "es": "Crear Business Card",
+    "en": "Create Business Card",
+    "it": "Crea Business Card",
+    "pt": "Criar Business Card",
+    "fr": "Créer une Business Card",
+    "de": "Business Card erstellen"
+  },
+  "cards_business_cta_title": {
+    "es": "Tarjeta de Negocio",
+    "en": "Business Card",
+    "it": "Carta business",
+    "pt": "Cartão de negócio",
+    "fr": "Carte pro",
+    "de": "Business-Karte"
+  },
+  "cards_reorder_banner": {
+    "es": "Mantén pulsado y arrastra. Listo guarda el orden.",
+    "en": "Hold and drag to reorder. Done saves the order.",
+    "it": "Tieni premuto e trascina. Fatto salva l’ordine.",
+    "pt": "Segure e arraste. Concluir salva a ordem.",
+    "fr": "Appui long et glisser. OK enregistre l’ordre.",
+    "de": "Halten und ziehen. Fertig speichert die Reihenfolge."
+  },
+  "cards_reorder_cancel_a11y": {
+    "es": "Cancelar orden",
+    "en": "Cancel reorder",
+    "it": "Annulla riordino",
+    "pt": "Cancelar reordenação",
+    "fr": "Annuler le réordonnancement",
+    "de": "Sortierung abbrechen"
+  },
+  "cards_reorder_save_a11y": {
+    "es": "Guardar orden",
+    "en": "Save order",
+    "it": "Salva ordine",
+    "pt": "Salvar ordem",
+    "fr": "Enregistrer l’ordre",
+    "de": "Reihenfolge speichern"
+  },
+  "cards_empty_no_matches": {
+    "es": "Sin coincidencias",
+    "en": "No matches",
+    "it": "Nessuna corrispondenza",
+    "pt": "Sem resultados",
+    "fr": "Aucun résultat",
+    "de": "Keine Treffer"
+  },
+  "cards_empty_no_matches_hint": {
+    "es": "Prueba con otras palabras o sinónimos. También puedes revisar tu conexión.",
+    "en": "Try different words or synonyms. You can also check your connection.",
+    "it": "Prova altre parole o sinonimi. Controlla anche la connessione.",
+    "pt": "Tente outras palavras ou sinônimos. Verifique sua conexão.",
+    "fr": "Essayez d’autres mots ou synonymes. Vérifiez aussi votre connexion.",
+    "de": "Andere Wörter oder Synonyme versuchen. Prüfen Sie auch Ihre Verbindung."
+  },
+  "cards_empty_no_cards": {
+    "es": "Sin tarjetas todavía",
+    "en": "No cards yet",
+    "it": "Ancora nessuna carta",
+    "pt": "Ainda sem cartões",
+    "fr": "Pas encore de cartes",
+    "de": "Noch keine Karten"
+  },
+  "cards_empty_no_cards_hint": {
+    "es": "Crea una Smart Card con datos del Vault o una Tarjeta de negocio con el botón de lujo.",
+    "en": "Create a Smart Card with Vault data or a Business card with the luxury button.",
+    "it": "Crea una Smart Card con dati Vault o una business col pulsante premium.",
+    "pt": "Crie uma Smart Card com dados do Vault ou um cartão de negócio pelo botão premium.",
+    "fr": "Créez une Smart Card avec le Vault ou une carte pro avec le bouton luxe.",
+    "de": "Smart Card mit Vault-Daten oder Business-Karte über den Premium-Button erstellen."
+  },
+  "cards_search_placeholder": {
+    "es": "Buscar nombre o datos enlazados (títulos, enlaces, texto…)",
+    "en": "Search name or linked data (titles, links, text…)",
+    "it": "Cerca nome o dati collegati (titoli, link, testo…)",
+    "pt": "Buscar nome ou dados vinculados (títulos, links, texto…)",
+    "fr": "Recherchez le nom ou les données liées (titres, liens, texte…)",
+    "de": "Name oder verknüpfte Daten suchen (Titel, Links, Text…)"
+  },
+  "cards_create_fab": {
+    "es": "Crear",
+    "en": "Create",
+    "it": "Crea",
+    "pt": "Criar",
+    "fr": "Créer",
+    "de": "Erstellen"
+  },
+  "cards_factory_edit_title": {
+    "es": "Editar Smart Card",
+    "en": "Edit Smart Card",
+    "it": "Modifica Smart Card",
+    "pt": "Editar Smart Card",
+    "fr": "Modifier Smart Card",
+    "de": "Smart Card bearbeiten"
+  },
+  "cards_factory_new_title": {
+    "es": "Nueva Smart Card",
+    "en": "New Smart Card",
+    "it": "Nuova Smart Card",
+    "pt": "Nova Smart Card",
+    "fr": "Nouvelle Smart Card",
+    "de": "Neue Smart Card"
+  },
+  "cards_field_card_name": {
+    "es": "Nombre de Tarjeta",
+    "en": "Card Name",
+    "it": "Nome carta",
+    "pt": "Nome do cartão",
+    "fr": "Nom de la carte",
+    "de": "Kartenname"
+  },
+  "cards_add_data_btn": {
+    "es": "Agregar DATA",
+    "en": "Add DATA",
+    "it": "Aggiungi DATI",
+    "pt": "Adicionar DADOS",
+    "fr": "Ajouter DONNÉES",
+    "de": "DATEN hinzufügen"
+  },
+  "cards_add_themes_btn": {
+    "es": "Agregar TEMAS",
+    "en": "Add THEMES",
+    "it": "Aggiungi TEMI",
+    "pt": "Adicionar TEMAS",
+    "fr": "Ajouter THÈMES",
+    "de": "THEMEN hinzufügen"
+  },
+  "cards_factory_preview_empty": {
+    "es": "Agrega DATA para ver tu tarjeta aquí",
+    "en": "Add DATA to see your card here",
+    "it": "Aggiungi DATI per vedere la carta",
+    "pt": "Adicione DADOS para ver o cartão",
+    "fr": "Ajoutez des DONNÉES pour voir la carte",
+    "de": "DATEN hinzufügen, um die Karte zu sehen"
+  },
+  "cards_selector_title": {
+    "es": "Selecciona datos",
+    "en": "Select data",
+    "it": "Seleziona dati",
+    "pt": "Selecionar dados",
+    "fr": "Sélectionnez les données",
+    "de": "Daten wählen"
+  },
+  "cards_selector_search_ph": {
+    "es": "Buscar dato...",
+    "en": "Search data...",
+    "it": "Cerca dato...",
+    "pt": "Buscar dado...",
+    "fr": "Rechercher une donnée...",
+    "de": "Daten suchen..."
+  },
+  "cards_selector_clear_search": {
+    "es": "Limpiar búsqueda",
+    "en": "Clear search",
+    "it": "Cancella ricerca",
+    "pt": "Limpar busca",
+    "fr": "Effacer la recherche",
+    "de": "Suche leeren"
+  },
+  "cards_selector_sort_alpha_label": {
+    "es": "Alfabético",
+    "en": "A-Z",
+    "it": "A-Z",
+    "pt": "A-Z",
+    "fr": "A-Z",
+    "de": "A-Z"
+  },
+  "cards_selector_sort_recent_label": {
+    "es": "Reciente",
+    "en": "Recent",
+    "it": "Recenti",
+    "pt": "Recentes",
+    "fr": "Récent",
+    "de": "Neu"
+  },
+  "cards_selector_max_icons": {
+    "es": "Máximo {{max}} iconos por tarjeta",
+    "en": "Maximum {{max}} icons per card",
+    "it": "Massimo {{max}} icone per carta",
+    "pt": "Máximo de {{max}} ícones por cartão",
+    "fr": "Maximum {{max}} icônes par carte",
+    "de": "Maximal {{max}} Symbole pro Karte"
+  },
+  "cards_selector_vault_empty": {
+    "es": "Tu Vault está vacío.\nAgrega datos primero desde Bóveda.",
+    "en": "Your Vault is empty.\nAdd data from Vault first.",
+    "it": "Il Vault è vuoto.\nAggiungi dati dal Vault.",
+    "pt": "Seu Vault está vazio.\nAdicione dados no Vault.",
+    "fr": "Votre Coffre est vide.\nAjoutez des données.",
+    "de": "Ihr Vault ist leer.\nFügen Sie zuerst Daten hinzu."
+  },
+  "cards_selector_no_search_hits": {
+    "es": "No encontramos datos con esa búsqueda.",
+    "en": "No data matched that search.",
+    "it": "Nessun dato trovato.",
+    "pt": "Nenhum dado encontrado.",
+    "fr": "Aucune donnée trouvée.",
+    "de": "Keine Daten für diese Suche."
+  },
+  "cards_selector_collectible": {
+    "es": "Consigue tu coleccionable",
+    "en": "Get your collectible",
+    "it": "Ottieni il collectible",
+    "pt": "Ganhe seu colecionável",
+    "fr": "Obtenez votre collectible",
+    "de": "Sammelobjekt erhalten"
+  },
+  "cards_selector_confirm_count": {
+    "es": "Confirmar ({{count}})",
+    "en": "Confirm ({{count}})",
+    "it": "Conferma ({{count}})",
+    "pt": "Confirmar ({{count}})",
+    "fr": "Confirmer ({{count}})",
+    "de": "Bestätigen ({{count}})"
+  },
+  "cards_themes_title": {
+    "es": "Temas de Tarjeta",
+    "en": "Card Themes",
+    "it": "Temi carta",
+    "pt": "Temas do cartão",
+    "fr": "Thèmes de carte",
+    "de": "Kartenthemen"
+  },
+  "cards_theme_locked_title": {
+    "es": "Tema bloqueado",
+    "en": "Theme locked",
+    "it": "Tema bloccato",
+    "pt": "Tema bloqueado",
+    "fr": "Thème verrouillé",
+    "de": "Thema gesperrt"
+  },
+  "cards_theme_locked_body": {
+    "es": "Desbloquéalo en Locker de Estilos o La Fragua.",
+    "en": "Unlock it in Theme Locker or The Forge.",
+    "it": "Sbloccalo nel Theme Locker o nella Forgia.",
+    "pt": "Desbloqueie no Theme Locker ou na Forja.",
+    "fr": "Déverrouillez-le dans le casier à thèmes ou la Forge.",
+    "de": "Schalten Sie es im Theme Locker oder in der Schmiede frei."
+  },
+  "cards_slot_picker_title": {
+    "es": "Elegir dato para el slot",
+    "en": "Choose data for the slot",
+    "it": "Scegli dato per lo slot",
+    "pt": "Escolha o dado do slot",
+    "fr": "Choisir la donnée pour l’emplacement",
+    "de": "Daten für Slot wählen"
+  },
+  "cards_slot_label": {
+    "es": "Slot",
+    "en": "Slot",
+    "it": "Slot",
+    "pt": "Slot",
+    "fr": "Emplacement",
+    "de": "Slot"
+  },
+  "cards_data_popover_item": {
+    "es": "Dato",
+    "en": "Item",
+    "it": "Dato",
+    "pt": "Dado",
+    "fr": "Élément",
+    "de": "Eintrag"
+  },
+  "cards_data_popover_vault": {
+    "es": "Bóveda",
+    "en": "Vault",
+    "it": "Vault",
+    "pt": "Vault",
+    "fr": "Coffre",
+    "de": "Vault"
+  },
+  "cards_data_popover_ghost_voip": {
+    "es": "Ghost-Link: llamada VoIP privada desde la app. No usa número visible.",
+    "en": "Ghost-Link: private VoIP call from the app. No visible phone number.",
+    "it": "Ghost-Link: chiamata VoIP privata dall’app. Nessun numero visibile.",
+    "pt": "Ghost-Link: chamada VoIP privada pelo app. Sem número visível.",
+    "fr": "Ghost-Link : appel VoIP privé depuis l’app. Pas de numéro visible.",
+    "de": "Ghost-Link: privater VoIP-Anruf aus der App. Keine sichtbare Nummer."
+  },
+  "cards_data_popover_ghost_generic": {
+    "es": "Valor protegido por Ghost-Link: solo acceso enrutado.",
+    "en": "Ghost-Link protected value: routed access only.",
+    "it": "Valore protetto Ghost-Link: solo accesso instradato.",
+    "pt": "Valor protegido por Ghost-Link: acesso roteado.",
+    "fr": "Valeur protégée Ghost-Link : accès routé uniquement.",
+    "de": "Ghost-Link-geschützter Wert: nur gerouteter Zugriff."
+  },
+  "cards_certificate_title": {
+    "es": "Certificado de autenticidad",
+    "en": "Certificate of authenticity",
+    "it": "Certificato di autenticità",
+    "pt": "Certificado de autenticidade",
+    "fr": "Certificat d’authenticité",
+    "de": "Echtheitszertifikat"
+  },
+  "cards_asset_id": {
+    "es": "ID del activo",
+    "en": "Asset ID",
+    "it": "ID asset",
+    "pt": "ID do ativo",
+    "fr": "ID d’actif",
+    "de": "Asset-ID"
+  },
+  "cards_open_in_app": {
+    "es": "Abrir en app",
+    "en": "Open in app",
+    "it": "Apri in app",
+    "pt": "Abrir no app",
+    "fr": "Ouvrir dans l’app",
+    "de": "In App öffnen"
+  },
+  "cards_view_browser": {
+    "es": "Ver en navegador",
+    "en": "View in browser",
+    "it": "Vedi nel browser",
+    "pt": "Ver no navegador",
+    "fr": "Voir dans le navigateur",
+    "de": "Im Browser ansehen"
+  },
+  "cards_rotate_hint": {
+    "es": "Gira tu celular para ver\nla vista horizontal",
+    "en": "Rotate your phone to see\nthe horizontal view",
+    "it": "Ruota il telefono per la\nvista orizzontale",
+    "pt": "Gire o celular para ver\na vista horizontal",
+    "fr": "Tournez le téléphone pour\nla vue horizontale",
+    "de": "Drehen Sie das Handy für\ndie Queransicht"
+  },
+  "receptor_revoke_title": {
+    "es": "Eliminar receptor",
+    "en": "Remove receptor",
+    "it": "Rimuovi destinatario",
+    "pt": "Remover receptor",
+    "fr": "Retirer le destinataire",
+    "de": "Empfänger entfernen"
+  },
+  "receptor_revoke_body": {
+    "es": "¿Eliminar a {{name}} de esta tarjeta? Tu tarjeta desaparecerá de sus contactos.",
+    "en": "Remove {{name}} from this card? Your card will disappear from their contacts.",
+    "it": "Rimuovere {{name}} da questa carta? La carta sparirà dai loro contatti.",
+    "pt": "Remover {{name}} deste cartão? Seu cartão some dos contatos deles.",
+    "fr": "Retirer {{name}} de cette carte ? Elle disparaîtra de leurs contacts.",
+    "de": "{{name}} von dieser Karte entfernen? Ihre Karte verschwindet aus deren Kontakten."
+  },
+  "receptor_mute_title": {
+    "es": "Silenciar receptor",
+    "en": "Mute receptor",
+    "it": "Silenzia destinatario",
+    "pt": "Silenciar receptor",
+    "fr": "Couper le destinataire",
+    "de": "Empfänger stummschalten"
+  },
+  "receptor_mute_body": {
+    "es": "¿Silenciar a {{name}}? No podrá llamarte desde esta tarjeta. No sabrá que está silenciado/a.",
+    "en": "Mute {{name}}? They won’t be able to call you from this card. They won’t know they’re muted.",
+    "it": "Silenziare {{name}}? Non potrà chiamarti da questa carta. Non saprà di essere silenziato.",
+    "pt": "Silenciar {{name}}? Não poderá ligar deste cartão. Não saberá que está silenciado.",
+    "fr": "Couper {{name}} ? Ne pourra pas vous appeler depuis cette carte. Ne saura pas qu’il/elle est muet(te).",
+    "de": "{{name}} stummschalten? Kann Sie von dieser Karte nicht anrufen. Weiß nicht, dass er/sie stumm ist."
+  },
+  "alert_block_subscriber_title": {
+    "es": "Bloquear usuario",
+    "en": "Block user",
+    "it": "Blocca utente",
+    "pt": "Bloquear usuário",
+    "fr": "Bloquer l’utilisateur",
+    "de": "Nutzer blockieren"
+  },
+  "alert_block_subscriber_body": {
+    "es": "¿Bloquear a {{name}}? Se eliminará de tus contactos y tarjetas. No podrá agregarte.",
+    "en": "Block {{name}}? They will be removed from your contacts and cards. They won’t be able to add you.",
+    "it": "Bloccare {{name}}? Verrà rimosso da contatti e carte. Non potrà aggiungerti.",
+    "pt": "Bloquear {{name}}? Será removido dos seus contatos e cartões. Não poderá adicionar você.",
+    "fr": "Bloquer {{name}} ? Retiré de vos contacts et cartes. Ne pourra pas vous ajouter.",
+    "de": "{{name}} blockieren? Wird aus Kontakten und Karten entfernt. Kann Sie nicht hinzufügen."
+  },
+  "cards_qr_title_smart": {
+    "es": "Smart Card",
+    "en": "Smart Card",
+    "it": "Smart Card",
+    "pt": "Smart Card",
+    "fr": "Smart Card",
+    "de": "Smart Card"
+  },
+  "cards_toast_link_copied_title": {
+    "es": "Enlace copiado",
+    "en": "Link copied",
+    "it": "Link copiato",
+    "pt": "Link copiado",
+    "fr": "Lien copié",
+    "de": "Link kopiert"
+  },
+  "cards_toast_link_copied_body": {
+    "es": "Pégalo donde quieras compartirlo.",
+    "en": "Paste it wherever you want to share.",
+    "it": "Incolla dove vuoi condividere.",
+    "pt": "Cole onde quiser compartilhar.",
+    "fr": "Collez où vous voulez partager.",
+    "de": "Zum Teilen einfügen."
+  },
+  "cards_qr_copy_link_a11y": {
+    "es": "Copiar enlace",
+    "en": "Copy link",
+    "it": "Copia link",
+    "pt": "Copiar link",
+    "fr": "Copier le lien",
+    "de": "Link kopieren"
+  },
+  "cards_qr_permanent_sub": {
+    "es": "QR permanente (no caduca)",
+    "en": "Permanent QR (does not expire)",
+    "it": "QR permanente (non scade)",
+    "pt": "QR permanente (não expira)",
+    "fr": "QR permanent (sans expiration)",
+    "de": "Permanentes QR (läuft nicht ab)"
+  },
+  "cards_qr_web_sub": {
+    "es": "Enlace web · válido 24 h (aprox.)",
+    "en": "Web link · valid ~24 h",
+    "it": "Link web · valido ~24 h",
+    "pt": "Link web · válido ~24 h",
+    "fr": "Lien web · valide ~24 h",
+    "de": "Weblink · gültig ~24 h"
+  },
+  "cards_qr_dynamic_sub": {
+    "es": "QR dinámico · válido 2 minutos",
+    "en": "Dynamic QR · valid 2 minutes",
+    "it": "QR dinamico · valido 2 minuti",
+    "pt": "QR dinâmico · válido 2 minutos",
+    "fr": "QR dynamique · valide 2 minutes",
+    "de": "Dynamisches QR · 2 Minuten gültig"
+  },
+  "cards_qr_expired": {
+    "es": "Expirado",
+    "en": "Expired",
+    "it": "Scaduto",
+    "pt": "Expirado",
+    "fr": "Expiré",
+    "de": "Abgelaufen"
+  },
+  "cards_qr_regenerate": {
+    "es": "Generar nuevo QR",
+    "en": "Generate new QR",
+    "it": "Genera nuovo QR",
+    "pt": "Gerar novo QR",
+    "fr": "Générer un nouveau QR",
+    "de": "Neues QR erzeugen"
+  },
+  "cards_toast_web_link_copied": {
+    "es": "Enlace web copiado",
+    "en": "Web link copied",
+    "it": "Link web copiato",
+    "pt": "Link web copiado",
+    "fr": "Lien web copié",
+    "de": "Weblink kopiert"
+  },
+  "cards_toast_paste_web": {
+    "es": "Pégalo en web o e-mail.",
+    "en": "Paste on web or email.",
+    "it": "Incolla su web o email.",
+    "pt": "Cole na web ou no e-mail.",
+    "fr": "Collez sur le web ou par e-mail.",
+    "de": "Im Web oder per E-Mail einfügen."
+  },
+  "cards_qr_copy_web_btn": {
+    "es": "Copiar enlace web",
+    "en": "Copy web link",
+    "it": "Copia link web",
+    "pt": "Copiar link web",
+    "fr": "Copier le lien web",
+    "de": "Weblink kopieren"
+  },
+  "cards_qr_download_btn": {
+    "es": "Descargar QR",
+    "en": "Download QR",
+    "it": "Scarica QR",
+    "pt": "Baixar QR",
+    "fr": "Télécharger le QR",
+    "de": "QR herunterladen"
+  },
+  "cards_qr_generic_title": {
+    "es": "QR",
+    "en": "QR",
+    "it": "QR",
+    "pt": "QR",
+    "fr": "QR",
+    "de": "QR"
+  },
+  "cards_qr_new_short": {
+    "es": "Nuevo QR",
+    "en": "New QR",
+    "it": "Nuovo QR",
+    "pt": "Novo QR",
+    "fr": "Nouveau QR",
+    "de": "Neues QR"
+  },
+  "cards_qr_24h_label": {
+    "es": "QR 24 Hr",
+    "en": "QR 24h",
+    "it": "QR 24h",
+    "pt": "QR 24h",
+    "fr": "QR 24h",
+    "de": "QR 24h"
+  },
+  "cards_qr_generating": {
+    "es": "Generando…",
+    "en": "Generating…",
+    "it": "Generazione…",
+    "pt": "Gerando…",
+    "fr": "Génération…",
+    "de": "Wird erzeugt…"
+  },
+  "cards_stats_views_90d": {
+    "es": "Visualizaciones totales (90 días)",
+    "en": "Total views (90 days)",
+    "it": "Visualizzazioni totali (90 giorni)",
+    "pt": "Visualizações totais (90 dias)",
+    "fr": "Vues totales (90 jours)",
+    "de": "Gesamtansichten (90 Tage)"
+  },
+  "cards_stats_icons_used": {
+    "es": "Tus iconos más usados",
+    "en": "Your most-used icons",
+    "it": "Icone più usate",
+    "pt": "Ícones mais usados",
+    "fr": "Icônes les plus utilisées",
+    "de": "Meistgenutzte Symbole"
+  },
+  "cards_stats_empty": {
+    "es": "Aún no hay datos. Comparte tu tarjeta o espera interacciones.",
+    "en": "No data yet. Share your card or wait for interactions.",
+    "it": "Ancora nessun dato. Condividi la carta o attendi interazioni.",
+    "pt": "Ainda sem dados. Compartilhe ou aguarde interações.",
+    "fr": "Pas encore de données. Partagez votre carte ou attendez.",
+    "de": "Noch keine Daten. Teilen Sie Ihre Karte oder warten Sie."
+  },
+  "cards_hold_drag_move": {
+    "es": "Mantén y arrastra para mover",
+    "en": "Hold and drag to move",
+    "it": "Tieni e trascina per spostare",
+    "pt": "Segure e arraste para mover",
+    "fr": "Maintenir et glisser pour déplacer",
+    "de": "Halten und zum Verschieben ziehen"
+  },
+  "cards_remove_fav_a11y": {
+    "es": "Quitar de favoritos",
+    "en": "Remove from favorites",
+    "it": "Rimuovi dai preferiti",
+    "pt": "Remover dos favoritos",
+    "fr": "Retirer des favoris",
+    "de": "Aus Favoriten entfernen"
+  },
+  "cards_mark_fav_a11y": {
+    "es": "Marcar favorito",
+    "en": "Mark as favorite",
+    "it": "Segna come preferito",
+    "pt": "Marcar favorito",
+    "fr": "Marquer comme favori",
+    "de": "Als Favorit markieren"
+  },
+  "cards_delete_card_a11y": {
+    "es": "Eliminar tarjeta",
+    "en": "Delete card",
+    "it": "Elimina carta",
+    "pt": "Excluir cartão",
+    "fr": "Supprimer la carte",
+    "de": "Karte löschen"
+  },
+  "cards_unfavorite_short": {
+    "es": "Quitar favorito",
+    "en": "Unfavorite",
+    "it": "Rimuovi preferito",
+    "pt": "Remover favorito",
+    "fr": "Retirer le favori",
+    "de": "Favorit entfernen"
+  },
+  "cards_favorite_short": {
+    "es": "Marcar favorito",
+    "en": "Favorite",
+    "it": "Preferito",
+    "pt": "Favorito",
+    "fr": "Favori",
+    "de": "Favorit"
+  },
+  "cards_remove_fav_label": {
+    "es": "Quitar favorito",
+    "en": "Unfavorite",
+    "it": "Rimuovi preferito",
+    "pt": "Remover favorito",
+    "fr": "Retirer le favori",
+    "de": "Favorit entfernen"
+  },
+  "cards_favorite_label": {
+    "es": "Marcar favorito",
+    "en": "Favorite",
+    "it": "Preferito",
+    "pt": "Favorito",
+    "fr": "Favori",
+    "de": "Favorit"
+  },
+  "bunker_added_title": {
+    "es": "Agregado",
+    "en": "Added",
+    "it": "Aggiunto",
+    "pt": "Adicionado",
+    "fr": "Ajouté",
+    "de": "Hinzugefügt"
+  },
+  "bunker_card_added_body": {
+    "es": "La tarjeta fue agregada a tu Búnker.",
+    "en": "The card was added to your Bunker.",
+    "it": "La carta è stata aggiunta al tuo Bunker.",
+    "pt": "O cartão foi adicionado ao seu Búnker.",
+    "fr": "La carte a été ajoutée à votre Bunker.",
+    "de": "Die Karte wurde Ihrem Bunker hinzugefügt."
+  },
+  "bunker_add_failed_title": {
+    "es": "No se pudo agregar",
+    "en": "Could not add",
+    "it": "Impossibile aggiungere",
+    "pt": "Não foi possível adicionar",
+    "fr": "Ajout impossible",
+    "de": "Hinzufügen nicht möglich"
+  },
+  "bunker_contact_added_body": {
+    "es": "El contacto ha sido agregado a tu Búnker.",
+    "en": "The contact has been added to your Bunker.",
+    "it": "Il contatto è stato aggiunto al tuo Bunker.",
+    "pt": "O contato foi adicionado ao seu Búnker.",
+    "fr": "Le contact a été ajouté à votre Bunker.",
+    "de": "Der Kontakt wurde Ihrem Bunker hinzugefügt."
+  },
+  "bunker_change_group_a11y": {
+    "es": "Cambiar grupo del Búnker",
+    "en": "Change Bunker group",
+    "it": "Cambia gruppo del Bunker",
+    "pt": "Alterar grupo do Búnker",
+    "fr": "Changer le groupe du Bunker",
+    "de": "Bunker-Gruppe ändern"
+  },
+  "bunker_group_sheet_title": {
+    "es": "Grupo en el Búnker",
+    "en": "Bunker group",
+    "it": "Gruppo nel Bunker",
+    "pt": "Grupo no Búnker",
+    "fr": "Groupe dans le Bunker",
+    "de": "Gruppe im Bunker"
+  },
+  "bunker_group_name_placeholder": {
+    "es": "Nombre del grupo",
+    "en": "Group name",
+    "it": "Nome gruppo",
+    "pt": "Nome do grupo",
+    "fr": "Nom du groupe",
+    "de": "Gruppenname"
+  },
+  "bunker_add_new_group": {
+    "es": "Agregar nuevo grupo",
+    "en": "Add new group",
+    "it": "Aggiungi nuovo gruppo",
+    "pt": "Adicionar novo grupo",
+    "fr": "Ajouter un groupe",
+    "de": "Neue Gruppe hinzufügen"
+  },
+  "bunker_choose_group_a11y": {
+    "es": "Elegir grupo del Búnker",
+    "en": "Choose Bunker group",
+    "it": "Scegli gruppo del Bunker",
+    "pt": "Escolher grupo do Búnker",
+    "fr": "Choisir le groupe du Bunker",
+    "de": "Bunker-Gruppe wählen"
+  },
+  "bunker_change_group": {
+    "es": "Cambiar Grupo",
+    "en": "Change Group",
+    "it": "Cambia gruppo",
+    "pt": "Alterar grupo",
+    "fr": "Changer de groupe",
+    "de": "Gruppe wechseln"
+  },
+  "card_invalid": {
+    "es": "Tarjeta inválida",
+    "en": "Invalid card",
+    "it": "Carta non valida",
+    "pt": "Cartão inválido",
+    "fr": "Carte invalide",
+    "de": "Ungültige Karte"
+  },
+  "group_random": {
+    "es": "Aleatorio",
+    "en": "Random",
+    "it": "Casuale",
+    "pt": "Aleatório",
+    "fr": "Aléatoire",
+    "de": "Zufällig"
+  },
+  "group_family": {
+    "es": "Familia",
+    "en": "Family",
+    "it": "Famiglia",
+    "pt": "Família",
+    "fr": "Famille",
+    "de": "Familie"
+  },
+  "group_social": {
+    "es": "Social",
+    "en": "Social",
+    "it": "Social",
+    "pt": "Social",
+    "fr": "Social",
+    "de": "Social"
+  },
+  "group_work": {
+    "es": "Trabajo",
+    "en": "Work",
+    "it": "Lavoro",
+    "pt": "Trabalho",
+    "fr": "Travail",
+    "de": "Arbeit"
+  }
+}

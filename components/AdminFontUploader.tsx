@@ -77,7 +77,7 @@ const AdminFontUploader: React.FC = () => {
       });
 
       if (!res.success) {
-        Alert.alert(tr('Error', 'Error'), res.error || tr('No se pudo subir la fuente.', 'Could not upload the font.'));
+        Alert.alert(tr('Error', 'Error'), tr('No se pudo subir la fuente.', 'Could not upload the font.'));
         return;
       }
 

@@ -39,6 +39,13 @@ function toMiles(raw: number, source: MarketDistanceSource): number {
   return raw;
 }
 
+export type MarketDistanceLabels = {
+  lt100m: string;
+  km: string;
+  lt1mi: string;
+  mi: string;
+};
+
 /**
  * Etiqueta de distancia para listas del Mercado Social.
  * - Fuente actual: `distanceMiles` en millas.
@@ -46,7 +53,7 @@ function toMiles(raw: number, source: MarketDistanceSource): number {
  */
 export function formatMarketDistanceLabel(
   raw: number,
-  tr: (es: string, en: string) => string,
+  labels: MarketDistanceLabels,
   prefersMetric: boolean,
   source: MarketDistanceSource = 'miles',
 ): string {
@@ -56,15 +63,15 @@ export function formatMarketDistanceLabel(
   if (prefersMetric) {
     const km = miles * KM_PER_STATUTE_MILE;
     if (km > 0 && km < 0.05) {
-      return tr('Menos de 100 m', '< 100 m');
+      return labels.lt100m;
     }
     const r = Math.round(km * 10) / 10;
-    return `${r.toFixed(1)} ${tr('km', 'km')}`;
+    return `${r.toFixed(1)} ${labels.km}`;
   }
 
   if (miles < 1) {
-    return tr('<1 mi', '<1 mi');
+    return labels.lt1mi;
   }
   const r = Math.round(miles * 10) / 10;
-  return `${r.toFixed(1)} ${tr('mi.', 'mi.')}`;
+  return `${r.toFixed(1)} ${labels.mi}`;
 }

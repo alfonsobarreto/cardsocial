@@ -4,6 +4,7 @@ import { savePendingBunkerScan } from '@/services/bunkerPendingScan';
 import { getActiveUserId } from '@/services/authSession';
 import { businessFirestoreDocToMyCardsPayload } from '@/services/adaptBusinessCardMarketPremium';
 import { readBusinessCardIdentityFields } from '@/services/businessCardService';
+import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { useLanguage, useTr } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { myCardsPayloadFromQrPreview, myCardsPayloadFromUniversalCard } from '@/services/incomingCardPreviewPayload';
@@ -286,7 +287,7 @@ export default function ScanScreen() {
             console.error('[Scan openClassification]', e instanceof Error ? e.message : e);
           }
         }
-        const msg = e instanceof Error ? e.message : tr('Error de red.', 'Network error.');
+        const msg = userFacingAlertMessage(e, language, tr('Error de red.', 'Network error.'));
         Alert.alert(tr('No se pudo escanear', 'Could not scan'), msg, [{ text: okLabel, onPress: resetScanUi }]);
         setScanLocked(false);
       } finally {
@@ -348,7 +349,7 @@ export default function ScanScreen() {
             console.error('[Scan openUniversalClassification]', e instanceof Error ? e.message : e);
           }
         }
-        const msg = e instanceof Error ? e.message : tr('Error de red.', 'Network error.');
+        const msg = userFacingAlertMessage(e, language, tr('Error de red.', 'Network error.'));
         Alert.alert(tr('No se pudo escanear', 'Could not scan'), msg, [{ text: okLabel, onPress: resetScanUi }]);
         setScanLocked(false);
       } finally {
@@ -456,7 +457,7 @@ export default function ScanScreen() {
             console.error('[Scan openBusinessClassification]', e instanceof Error ? e.message : e);
           }
         }
-        const msg = e instanceof Error ? e.message : tr('Error de red.', 'Network error.');
+        const msg = userFacingAlertMessage(e, language, tr('Error de red.', 'Network error.'));
         Alert.alert(tr('No se pudo escanear', 'Could not scan'), msg, [{ text: okLabel, onPress: resetScanUi }]);
         setScanLocked(false);
       } finally {

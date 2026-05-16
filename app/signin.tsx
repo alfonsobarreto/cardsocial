@@ -9,7 +9,8 @@ import { syncWaitlistOnAppVerified } from '@/services/syncWaitlistOnAppVerified'
 import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { auth, db } from '@/services/firebaseConfig';
 import { firestoreFirstUserDocByNickLower } from '@/services/userIdentityFields';
-import { trEsEn, useLanguageOptional } from '@/services/language';
+import { useLanguageOptional } from '@/services/language';
+import { useAuthT, type AuthLocaleKey } from '@/services/authI18n';
 import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, SocialProviderId } from '@/services/socialAuth';
 import { useLookMode } from '@/services/lookMode';
 import {
@@ -60,32 +61,32 @@ function signInEmailsFromFirestoreUser(data: Record<string, unknown>): string[] 
   return out;
 }
 
-function authSignInUserMessage(error: unknown, tr: (es: string, en: string) => string): string {
+function authSignInUserMessage(error: unknown, t: (k: AuthLocaleKey) => string): string {
   const code = String((error as { code?: string })?.code || '');
   if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') {
-    return tr('Usuario o contraseña incorrectos.', 'Incorrect username or password.');
+    return t('signin_err_wrong_password');
   }
   if (code === 'auth/user-disabled') {
-    return tr('Esta cuenta no está disponible.', 'This account is not available.');
+    return t('signin_err_user_disabled');
   }
   if (code === 'auth/too-many-requests') {
-    return tr('Demasiados intentos. Espera unos minutos e inténtalo de nuevo.', 'Too many attempts. Wait a few minutes and try again.');
+    return t('signin_err_too_many_requests');
   }
   if (code === 'auth/network-request-failed') {
-    return tr('Sin conexión. Revisa tu red e inténtalo de nuevo.', 'No connection. Check your network and try again.');
+    return t('signin_err_network');
   }
   const msg = error instanceof Error ? error.message : '';
   if (/auth\/|Firebase/i.test(msg)) {
-    return tr('No se pudo iniciar sesion. Inténtalo de nuevo.', 'Could not sign in. Please try again.');
+    return t('signin_err_firebase_generic');
   }
-  return msg || tr('No se pudo iniciar sesion.', 'Could not sign in.');
+  return msg || t('signin_err_generic');
 }
 
 export default function SignInScreen() {
   const router = useRouter();
   const langCtx = useLanguageOptional();
   const language = langCtx?.language ?? 'en';
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const t = useAuthT();
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
   const look = useMemo(() => authScreenLook(isNight), [isNight]);
@@ -113,10 +114,7 @@ export default function SignInScreen() {
     return () => unsub();
   }, [router]);
 
-  const welcomeTitle = useMemo(
-    () => tr('Card-Social, donde tus datos son solo tuyos', 'Card-Social, your data stays yours'),
-    [language]
-  );
+  const welcomeTitle = useMemo(() => t('signin_welcome_title'), [language, t]);
 
   const resolveSignInEmailCandidates = async (rawUsername: string): Promise<string[] | null> => {
     const trimmed = rawUsername.trim();
@@ -167,20 +165,20 @@ export default function SignInScreen() {
     const normalizedPassword = password;
 
     if (!normalizedPassword) {
-      Alert.alert(tr('Falta contrasena', 'Password required'), tr('Ingresa tu contrasena para continuar.', 'Enter your password to continue.'));
+      Alert.alert(t('signin_alert_password_required_title'), t('signin_alert_password_required_body'));
       return;
     }
 
     setIsSubmitting(true);
     try {
       if (!normalizedUsername) {
-        Alert.alert(tr('Falta usuario', 'Username required'), tr('Ingresa tu usuario para iniciar sesion.', 'Enter your username to sign in.'));
+        Alert.alert(t('signin_alert_username_required_title'), t('signin_alert_username_required_body'));
         return;
       }
 
       const candidates = await resolveSignInEmailCandidates(normalizedUsername);
       if (!candidates?.length) {
-        Alert.alert(tr('Usuario no encontrado', 'Username not found'), tr('No encontramos una cuenta con ese usuario.', 'We could not find an account with that username.'));
+        Alert.alert(t('signin_alert_user_not_found_title'), t('signin_alert_user_not_found_body'));
         return;
       }
 
@@ -197,13 +195,13 @@ export default function SignInScreen() {
           const tryNext =
             (code === 'auth/invalid-credential' || code === 'auth/wrong-password') && i < candidates.length - 1;
           if (!tryNext) {
-            Alert.alert(tr('Error de acceso', 'Access error'), authSignInUserMessage(e, tr));
+            Alert.alert(t('signin_alert_access_error_title'), authSignInUserMessage(e, t));
             return;
           }
         }
       }
       if (!credential) {
-        Alert.alert(tr('Error de acceso', 'Access error'), authSignInUserMessage(lastError, tr));
+        Alert.alert(t('signin_alert_access_error_title'), authSignInUserMessage(lastError, t));
         return;
       }
 
@@ -252,14 +250,14 @@ export default function SignInScreen() {
                 deletionDeadline: null,
               });
               Alert.alert(
-                tr('Cuenta restaurada', 'Account restored'),
-                tr('Tu cuenta fue restaurada exitosamente. ¡Bienvenido de nuevo!', 'Your account has been successfully restored. Welcome back!')
+                t('signin_alert_account_restored_title'),
+                t('signin_alert_account_restored_body')
               );
             } else {
               // El periodo de gracia expiró, bloquear acceso
               Alert.alert(
-                tr('Cuenta eliminada', 'Account deleted'),
-                tr('El periodo de restauración expiró. Tu cuenta ha sido eliminada permanentemente.', 'The restoration period has expired. Your account has been permanently deleted.')
+                t('signin_alert_account_deleted_title'),
+                t('signin_alert_account_deleted_body')
               );
               await clearLocalCachesForSignOut(auth.currentUser?.uid ?? null);
               await signOut(auth);
@@ -287,11 +285,8 @@ export default function SignInScreen() {
       if (!credential.user.emailVerified) {
         setPendingVerificationEmail(sessionEmail);
         Alert.alert(
-          tr('Verificacion pendiente', 'Verification pending'),
-          tr(
-            'Revisa tu correo y confirma el enlace de verificacion antes de iniciar sesion. Si no lo recibiste, usa el boton para reenviarlo.',
-            'Check your inbox and confirm your verification link before signing in. If you did not receive it, use the resend button.'
-          )
+          t('signin_alert_verification_pending_title'),
+          t('signin_alert_verification_pending_body')
         );
         return;
       }
@@ -308,7 +303,7 @@ export default function SignInScreen() {
 
       router.replace('/(tabs)/cards');
     } catch (error) {
-      Alert.alert(tr('Error de acceso', 'Access error'), authSignInUserMessage(error, tr));
+      Alert.alert(t('signin_alert_access_error_title'), authSignInUserMessage(error, t));
     } finally {
       setIsSubmitting(false);
     }
@@ -328,14 +323,17 @@ export default function SignInScreen() {
   const submitForgotPassword = async () => {
     const email = recoveryEmail.trim().toLowerCase();
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      Alert.alert(tr('Email requerido', 'Email required'), tr('Escribe el email completo de tu cuenta.', 'Enter your full account email.'));
+      Alert.alert(t('signin_alert_email_required_title'), t('signin_alert_email_required_body'));
       return;
     }
     setIsRecoveringPassword(true);
     try {
       const response = await initiateAccountRecovery(email, language === 'es' ? 'es' : 'en');
       setRecoveryMode(null);
-      Alert.alert(tr('Revisa tu correo', 'Check your email'), tr(response.message, 'If the email matches an account, we will send a recovery link.'));
+      Alert.alert(
+        t('signin_alert_check_email_title'),
+        response.success ? t('signin_recovery_email_fallback') : t('signin_recovery_service_unavailable'),
+      );
     } finally {
       setIsRecoveringPassword(false);
     }
@@ -349,14 +347,17 @@ export default function SignInScreen() {
   const submitForgotUsername = async () => {
     const phone = recoveryPhone.trim();
     if (phone.replace(/[^\d]/g, '').length < 8) {
-      Alert.alert(tr('Telefono requerido', 'Phone required'), tr('Escribe el numero de celular completo de tu cuenta.', 'Enter the full phone number on your account.'));
+      Alert.alert(t('signin_alert_phone_required_title'), t('signin_alert_phone_required_body'));
       return;
     }
     setIsRecoveringUsername(true);
     try {
       const response = await requestUsernameRecoveryByPhone(phone);
       setRecoveryMode(null);
-      Alert.alert(tr('Revisa tu correo', 'Check your email'), tr(response.message, 'If we find an account with that phone, we will send the username to the registered email.'));
+      Alert.alert(
+        t('signin_alert_check_email_title'),
+        response.success ? t('signin_recovery_phone_fallback') : t('signin_recovery_service_unavailable'),
+      );
     } finally {
       setIsRecoveringUsername(false);
     }
@@ -372,7 +373,7 @@ export default function SignInScreen() {
       : (await resolveSignInEmailCandidates(normalizedUsername)) || [];
 
     if (!candidates.length) {
-      Alert.alert(tr('Usuario requerido', 'Username required'), tr('Escribe tu usuario para reenviar verificacion.', 'Enter your username to resend verification.'));
+      Alert.alert(t('signin_alert_username_resend_title'), t('signin_alert_username_resend_body'));
       return;
     }
 
@@ -383,7 +384,7 @@ export default function SignInScreen() {
       const alreadyMatches = authEmail && candidates.includes(authEmail);
       if (!alreadyMatches) {
         if (!normalizedPassword) {
-          Alert.alert(tr('Contrasena requerida', 'Password required'), tr('Ingresa tu contrasena para reenviar el email de verificacion.', 'Enter your password to resend verification email.'));
+          Alert.alert(t('signin_alert_password_resend_title'), t('signin_alert_password_resend_body'));
           return;
         }
         let credential: UserCredential | null = null;
@@ -398,26 +399,26 @@ export default function SignInScreen() {
             const tryNext =
               (code === 'auth/invalid-credential' || code === 'auth/wrong-password') && i < candidates.length - 1;
             if (!tryNext) {
-              Alert.alert(tr('Reenvio no disponible', 'Resend unavailable'), authSignInUserMessage(e, tr));
+              Alert.alert(t('signin_alert_resend_unavailable_title'), authSignInUserMessage(e, t));
               return;
             }
           }
         }
         if (!credential) {
-          Alert.alert(tr('Reenvio no disponible', 'Resend unavailable'), authSignInUserMessage(lastErr, tr));
+          Alert.alert(t('signin_alert_resend_unavailable_title'), authSignInUserMessage(lastErr, t));
           return;
         }
         user = credential.user;
       }
 
       if (!user) {
-        Alert.alert(tr('Reenvio no disponible', 'Resend unavailable'), tr('Sesion no disponible.', 'Session unavailable.'));
+        Alert.alert(t('signin_alert_resend_unavailable_title'), t('signin_alert_session_unavailable_body'));
         return;
       }
 
       await user.reload().catch(() => null);
       if (user.emailVerified) {
-        Alert.alert(tr('Cuenta verificada', 'Account verified'), tr('Tu correo ya esta verificado. Ya puedes iniciar sesion.', 'Your email is already verified. You can now sign in.'));
+        Alert.alert(t('signin_alert_account_verified_title'), t('signin_alert_account_verified_body'));
         setPendingVerificationEmail('');
         return;
       }
@@ -427,14 +428,11 @@ export default function SignInScreen() {
       await clearLocalCachesForSignOut(user.uid);
       await signOut(auth).catch(() => null);
       Alert.alert(
-        tr('Email reenviado', 'Verification resent'),
-        tr(
-          'Te enviamos un nuevo enlace. Revisa la bandeja de entrada y, si no aparece, Spam o correo no deseado; como marca en crecimiento, a veces los filtros retienen el primer mensaje.',
-          'We sent a new link. Check your inbox—and if you do not see it, Spam or Junk; as a growing brand, filters sometimes hold the first message.'
-        )
+        t('signin_alert_verification_resent_title'),
+        t('signin_alert_verification_resent_body')
       );
     } catch (error) {
-      Alert.alert(tr('Reenvio no disponible', 'Resend unavailable'), authSignInUserMessage(error, tr));
+      Alert.alert(t('signin_alert_resend_unavailable_title'), authSignInUserMessage(error, t));
     } finally {
       setIsResendingVerification(false);
     }
@@ -447,12 +445,10 @@ export default function SignInScreen() {
       const resolvedEmail = getEmailFromCredential(credential);
 
       if (!resolvedEmail) {
+        const providerName = getProviderLabel(providerId);
         Alert.alert(
-          tr('Email requerido', 'Email required'),
-          tr(
-            `Tu cuenta de ${getProviderLabel(providerId)} no devolvio email. Usa otro metodo.`,
-            `Your ${getProviderLabel(providerId)} account did not provide an email. Use another method.`
-          )
+          t('signin_alert_email_required_title'),
+          t('signin_alert_social_no_email_body', { provider: providerName })
         );
         return;
       }
@@ -483,11 +479,11 @@ export default function SignInScreen() {
       router.replace('/(tabs)/cards');
     } catch (error) {
       Alert.alert(
-        tr('Acceso social no disponible', 'Social sign-in unavailable'),
+        t('signin_alert_social_unavailable_title'),
         userFacingAlertMessage(
           error,
           language,
-          tr('No se pudo iniciar sesion con proveedor.', 'Could not sign in with provider.'),
+          t('signin_alert_social_unavailable_fallback'),
         ),
       );
     } finally {
@@ -518,17 +514,17 @@ export default function SignInScreen() {
               <Image source={brandCsIconLogoBgTransparent} style={styles.heroLogo} resizeMode="contain" />
             </View>
             <Text style={[styles.title, { color: look.title }]}>{welcomeTitle}</Text>
-            <Text style={[styles.subtitle, { color: look.subtitle }]}>{tr('Inicia como prefieras, pero siempre con control total de tu identidad.', 'Sign in your way, always with full control of your identity.')}</Text>
+            <Text style={[styles.subtitle, { color: look.subtitle }]}>{t('signin_subtitle')}</Text>
 
             {/* Social login buttons hidden for MVP - only native username/password enabled */}
 
-            <Text style={[styles.socialTitle, { color: look.socialTitle }]}>{tr('Inicia con usuario y contrasena', 'Sign in with username and password')}</Text>
+            <Text style={[styles.socialTitle, { color: look.socialTitle }]}>{t('signin_section_password')}</Text>
 
             <View style={[styles.inputWrap, { backgroundColor: look.inputWrapBg, borderColor: look.inputWrapBorder }]}>
               <User size={16} color={look.iconColor} />
               <TextInput
                 style={[styles.input, { color: look.inputText }]}
-                placeholder={tr('Usuario', 'Username')}
+                placeholder={t('signin_placeholder_username')}
                 placeholderTextColor={look.placeholderColor}
                 keyboardType="default"
                 autoCapitalize="none"
@@ -544,7 +540,7 @@ export default function SignInScreen() {
               <Lock size={16} color={look.iconColor} />
               <TextInput
                 style={[styles.input, { color: look.inputText }]}
-                placeholder={tr('Contrasena', 'Password')}
+                placeholder={t('signin_placeholder_password')}
                 placeholderTextColor={look.placeholderColor}
                 secureTextEntry={!showPassword}
                 autoComplete="off"
@@ -573,18 +569,15 @@ export default function SignInScreen() {
                 {trustThisDevice ? <Check size={16} color={look.primaryBtnText} strokeWidth={3} /> : null}
               </View>
               <View style={styles.trustTextCol}>
-                <Text style={[styles.trustTitle, { color: look.title }]}>{tr('Confío en este dispositivo', 'I trust this device')}</Text>
+                <Text style={[styles.trustTitle, { color: look.title }]}>{t('signin_trust_title')}</Text>
                 <Text style={[styles.trustHint, { color: look.subtitle }]}>
-                  {tr(
-                    'Si no lo activas, cerramos sesion tras 8 horas sin uso en este equipo (estilo banca).',
-                    'If off, we sign you out after 8 hours of inactivity on this device.',
-                  )}
+                  {t('signin_trust_hint')}
                 </Text>
               </View>
             </TouchableOpacity>
 
             <TouchableOpacity style={[styles.primaryButton, { backgroundColor: look.primaryBtnBg }]} onPress={handleSignIn} disabled={isSubmitting}>
-              <Text style={[styles.primaryButtonText, { color: look.primaryBtnText }]}>{tr('Iniciar sesion', 'Sign In')}</Text>
+              <Text style={[styles.primaryButtonText, { color: look.primaryBtnText }]}>{t('signin_cta')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -597,7 +590,7 @@ export default function SignInScreen() {
               {isRecoveringPassword ? (
                 <ActivityIndicator size="small" color={look.spinnerColor} />
               ) : (
-                <Text style={[styles.secondaryLink, { color: look.secondaryLink }]}>{tr('Olvide mi contrasena', 'Forgot my password')}</Text>
+                <Text style={[styles.secondaryLink, { color: look.secondaryLink }]}>{t('signin_forgot_password')}</Text>
               )}
             </TouchableOpacity>
 
@@ -609,7 +602,7 @@ export default function SignInScreen() {
               {isRecoveringUsername ? (
                 <ActivityIndicator size="small" color={look.spinnerColor} />
               ) : (
-                <Text style={[styles.secondaryLink, { color: look.secondaryLink }]}>{tr('Olvide mi usuario', 'Forgot my username')}</Text>
+                <Text style={[styles.secondaryLink, { color: look.secondaryLink }]}>{t('signin_forgot_username')}</Text>
               )}
             </TouchableOpacity>
 
@@ -624,13 +617,13 @@ export default function SignInScreen() {
                 {isResendingVerification ? (
                   <ActivityIndicator size="small" color={look.spinnerColor} />
                 ) : (
-                  <Text style={[styles.secondaryLink, { color: look.secondaryLink }]}>{tr('Reenviar email de verificacion', 'Resend verification email')}</Text>
+                  <Text style={[styles.secondaryLink, { color: look.secondaryLink }]}>{t('signin_resend_verification')}</Text>
                 )}
               </TouchableOpacity>
             ) : null}
 
             <TouchableOpacity onPress={() => router.push('/register')} style={styles.footerLinkWrap}>
-              <Text style={[styles.footerLink, { color: look.footerLink }]}>{tr('No tengo cuenta / Sign up', "Don't have an account? Sign up")}</Text>
+              <Text style={[styles.footerLink, { color: look.footerLink }]}>{t('signin_footer_signup')}</Text>
             </TouchableOpacity>
           </ScrollView>
         </LinearGradient>
@@ -650,7 +643,7 @@ export default function SignInScreen() {
               >
                 <ActivityIndicator size={120} color={look.spinnerColor} />
               </AuthSpinnerWell>
-              <Text style={[styles.submitOverlayText, { color: look.submitText }]}>{tr('Validando acceso seguro...', 'Validating secure access...')}</Text>
+              <Text style={[styles.submitOverlayText, { color: look.submitText }]}>{t('signin_modal_validating')}</Text>
             </View>
           </View>
         </Modal>
@@ -666,31 +659,22 @@ export default function SignInScreen() {
               <View style={[styles.recoveryCard, { backgroundColor: look.recoveryCardBg, borderColor: look.recoveryCardBorder }]}>
                 <Text style={[styles.recoveryTitle, { color: look.recoveryTitle }]}>
                   {recoveryMode === 'password'
-                    ? tr('Recuperar contrasena', 'Recover password')
-                    : tr('Recuperar usuario', 'Recover username')}
+                    ? t('signin_recovery_title_password')
+                    : t('signin_recovery_title_username')}
                 </Text>
                 <Text style={[styles.recoveryBody, { color: look.recoveryBody }]}>
                   {recoveryMode === 'password'
                     ? maskedRecoveryEmail
-                      ? tr(
-                          `Escribe completo el email de tu cuenta (${maskedRecoveryEmail}) para enviarte el enlace de recuperacion.`,
-                          `Enter your full account email (${maskedRecoveryEmail}) to receive the recovery link.`,
-                        )
-                      : tr(
-                          'Escribe completo el email de tu cuenta para enviarte el enlace de recuperacion.',
-                          'Enter your full account email to receive the recovery link.',
-                        )
-                    : tr(
-                        'Escribe el numero de celular de tu cuenta. Si coincide, enviaremos tu usuario al email registrado.',
-                        'Enter the phone number on your account. If it matches, we will send your username to the registered email.',
-                      )}
+                      ? t('signin_recovery_body_password_masked', { masked: maskedRecoveryEmail })
+                      : t('signin_recovery_body_password')
+                    : t('signin_recovery_body_username')}
                 </Text>
                 <View style={[styles.recoveryInputWrap, { backgroundColor: look.recoveryInputWrapBg, borderColor: look.recoveryInputWrapBorder }]}>
                   <TextInput
                     style={[styles.recoveryInput, { color: look.recoveryInputText }]}
                     value={recoveryMode === 'password' ? recoveryEmail : recoveryPhone}
                     onChangeText={recoveryMode === 'password' ? setRecoveryEmail : setRecoveryPhone}
-                    placeholder={recoveryMode === 'password' ? 'name@example.com' : '+1 555 000 0000'}
+                    placeholder={recoveryMode === 'password' ? t('signin_recovery_placeholder_email') : t('signin_recovery_placeholder_phone')}
                     placeholderTextColor={look.placeholderColor}
                     keyboardType={recoveryMode === 'password' ? 'email-address' : 'phone-pad'}
                     autoCapitalize="none"
@@ -707,12 +691,12 @@ export default function SignInScreen() {
                 >
                   <Text style={[styles.primaryButtonText, { color: look.primaryBtnText }]}>
                     {isRecoveringPassword || isRecoveringUsername
-                      ? tr('Enviando...', 'Sending...')
-                      : tr('Continuar', 'Continue')}
+                      ? t('common_sending')
+                      : t('common_continue')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.secondaryLinkWrap} onPress={() => setRecoveryMode(null)}>
-                  <Text style={[styles.secondaryLink, { color: look.secondaryLink }]}>{tr('Cancelar', 'Cancel')}</Text>
+                  <Text style={[styles.secondaryLink, { color: look.secondaryLink }]}>{t('common_cancel')}</Text>
                 </TouchableOpacity>
               </View>
             </View>

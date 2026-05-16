@@ -112,7 +112,7 @@ export function BusinessReceiversMetricBlock({
       setSumInRange(out.sumInRange);
       setBuckets(out.buckets);
     } catch (e) {
-      setError(e instanceof Error ? e.message : '—');
+      setError(s.loadHistoryError);
       setBuckets([]);
     } finally {
       setLoading(false);

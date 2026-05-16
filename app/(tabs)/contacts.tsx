@@ -12,7 +12,8 @@ import { hardLockCheck } from '@/services/biometricAuth';
 import { buildMirrorVaultItemsForContact } from '@/services/buildReceiverPreviewVaultItems';
 import { collectStringsReceivedContact, orderByDeepSearchWithExpandedQuery } from '@/services/deepSearch';
 import { userFacingAlertMessage } from '@/services/apiUserFacingError';
-import { trEsEn, useLanguage } from '@/services/language';
+import { useCoreT } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
 import {
@@ -188,11 +189,11 @@ export default function ContactsPage() {
 function ContactsContent() {
   const router = useRouter();
   const { language } = useLanguage();
+  const t = useCoreT();
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
   const shell = appPalette[isNight ? 'dark' : 'light'];
   const styles = useMemo(() => makeContactsStyles(shell), [shell]);
-  const tr = useCallback((es: string, en: string) => trEsEn(es, en, language), [language]);
   const modalFooterBottomPad = useModalFooterBottomPad();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [metaMap, setMetaMap] = useState<Record<string, ContactMeta>>({});
@@ -519,7 +520,7 @@ function ContactsContent() {
       : (() => {
           const person = String(c.userFullName || '').trim();
           const occ = String(c.ownerOccupation || '').trim();
-          return (cardNm || person || occ || tr('Tarjeta Social', 'Social Card')).trim();
+          return (cardNm || person || occ || t('label_social_card')).trim();
         })();
     return {
       cardName: cardTitle,
@@ -533,7 +534,7 @@ function ContactsContent() {
       enableParallax: Boolean(c.enableParallax),
       slots: mirrorPreviewSlots,
     };
-  }, [selectedContact, mirrorPreviewSlots, tr]);
+  }, [selectedContact, mirrorPreviewSlots, t]);
 
   const allGroups = useMemo(() => {
     const dynamic = Object.values(metaMap)
@@ -837,33 +838,27 @@ function ContactsContent() {
       await runAirEvaporationDeleteFeedback();
       Toast.show({
         type: 'info',
-        text1: tr('Tarjeta quitada', 'Card removed'),
-        text2: tr(
-          'Esta tarjeta ya no está en tu lista. Puedes volver a agregarla con un QR.',
-          'This card is no longer in your list. You can add it again with a QR code.',
-        ),
+        text1: t('contacts_card_removed_title'),
+        text2: t('contacts_card_removed_body'),
         position: 'bottom',
         visibilityTime: 4000,
       });
     } catch (error: any) {
       Alert.alert(
-        tr('No se pudo eliminar', 'Could not delete'),
-        userFacingAlertMessage(error, language, tr('Intenta de nuevo.', 'Try again.')),
+        t('contacts_delete_failed'),
+        userFacingAlertMessage(error, language, t('common_try_again')),
       );
     }
   };
 
   const promptDeleteContact = (contact: Contact) => {
     Alert.alert(
-      tr('Quitar tarjeta recibida', 'Remove received card'),
-      tr(
-        'Esta tarjeta dejará de aparecer en tu lista. Si la persona te compartió otras tarjetas, esas se mantienen.',
-        'This card will disappear from your list. If they shared other cards with you, those stay.',
-      ),
+      t('contacts_remove_card_title'),
+      t('contacts_remove_card_body'),
       [
-        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+        { text: t('common_cancel'), style: 'cancel' },
         {
-          text: tr('Eliminar', 'Delete'),
+          text: t('common_delete'),
           style: 'destructive',
           onPress: () => {
             void handleDeleteContact(contact);
@@ -883,33 +878,27 @@ function ContactsContent() {
       await purgeAllReceivedFromIssuerInUi(uid);
       Toast.show({
         type: 'info',
-        text1: tr('Usuario bloqueado', 'User blocked'),
-        text2: tr(
-          'Ya no podrá interactuar contigo en la app hasta que lo desbloquees desde ajustes de relaciones.',
-          'They can no longer interact with you in the app until you unblock them in relationship settings.',
-        ),
+        text1: t('contacts_user_blocked_title'),
+        text2: t('contacts_user_blocked_body'),
         position: 'bottom',
         visibilityTime: 4500,
       });
     } catch (error: any) {
       Alert.alert(
-        tr('No se pudo bloquear', 'Could not block'),
-        userFacingAlertMessage(error, language, tr('Intenta de nuevo.', 'Try again.')),
+        t('contacts_block_failed'),
+        userFacingAlertMessage(error, language, t('common_try_again')),
       );
     }
   };
 
   const promptBlockContact = (uid: string) => {
     Alert.alert(
-      tr('Bloquear contacto', 'Block contact'),
-      tr(
-        'Esta persona dejará de aparecer en contactos y no podrá compartir ni comunicarse contigo por la app. Puedes desbloquearla más tarde en la lista de bloqueados.',
-        'They will no longer appear in contacts and cannot share or reach you through the app. You can unblock them later from blocked users.',
-      ),
+      t('contacts_block_title'),
+      t('contacts_block_body'),
       [
-        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+        { text: t('common_cancel'), style: 'cancel' },
         {
-          text: tr('Bloquear', 'Block'),
+          text: t('common_block'),
           style: 'destructive',
           onPress: () => {
             void handleBlockContact(uid);
@@ -929,8 +918,8 @@ function ContactsContent() {
       (contact.sid != null && String(contact.sid).trim() ? String(contact.sid).trim() : '');
     if (!cardRef) {
       Alert.alert(
-        tr('No se puede silenciar', 'Cannot mute'),
-        tr('No hay una tarjeta vinculada a este contacto.', 'There is no card linked to this contact.'),
+        t('contacts_mute_impossible_title'),
+        t('contacts_mute_impossible_body'),
       );
       return;
     }
@@ -953,30 +942,24 @@ function ContactsContent() {
       });
       Toast.show({
         type: 'success',
-        text1: nextMuted ? tr('Canal silenciado', 'Channel muted') : tr('Canal activo', 'Channel unmuted'),
+        text1: nextMuted ? t('contacts_channel_muted') : t('contacts_channel_active'),
         text2: nextMuted
-          ? tr(
-              'No recibirás actualizaciones de esta tarjeta hasta que reactives el canal.',
-              'You will not receive updates from this card until you unmute the channel.',
-            )
-          : tr(
-              'Volverás a recibir actualizaciones de esta tarjeta.',
-              'You will receive updates from this card again.',
-            ),
+          ? t('contacts_mute_detail_on')
+          : t('contacts_mute_detail_off'),
         position: 'bottom',
         visibilityTime: 2800,
       });
     } catch (error: any) {
       Alert.alert(
-        tr('Error', 'Error'),
-        userFacingAlertMessage(error, language, tr('Intenta de nuevo.', 'Try again.')),
+        t('common_error'),
+        userFacingAlertMessage(error, language, t('common_try_again')),
       );
     }
   };
 
   const openFloatingCard = async (contact: Contact) => {
     // Hard Lock: Require biometric before viewing contact details
-    const authenticated = await hardLockCheck('ver detalles del contacto');
+    const authenticated = await hardLockCheck(t('biometric_reason_contacts_detail'));
     if (!authenticated) {
       return; // User cancelled or auth failed
     }
@@ -1019,24 +1002,24 @@ function ContactsContent() {
     <LinearGradient colors={[...shell.tabShellGradient]} style={styles.container}>
       {/* Header with title and Sort button */}
       <View style={styles.headerBar}>
-        <Text style={[styles.headerTitle, { color: shell.textPrimary }]}>{tr('Mis Contactos', 'My Contacts')}</Text>
+        <Text style={[styles.headerTitle, { color: shell.textPrimary }]}>{t('contacts_title')}</Text>
         <TouchableOpacity
           style={[styles.sortBtn, { backgroundColor: shell.utilBtnBg, borderColor: shell.utilBtnBorder }]} onPress={() => setSortVisible(true)} activeOpacity={0.86}>
-          <Text style={[styles.sortBtnText, { color: shell.textPrimary }]}>{tr('Orden', 'Sort')}</Text>
+          <Text style={[styles.sortBtnText, { color: shell.textPrimary }]}>{t('contacts_sort')}</Text>
         </TouchableOpacity>
       </View>
 
       {/* Active sort pill */}
       <View style={styles.activeSortPillWrap}>
         <Text style={[styles.activeSortPill, { color: shell.textPrimary, backgroundColor: shell.filterPillBg }]}>
-          {tr('Filtro activo:', 'Active filter:')}{' '}
+          {t('contacts_filter_active')}{' '}
           {sortMode === 'name'
-            ? tr('Nombre', 'Name')
+            ? t('contacts_filter_name')
             : sortMode === 'card'
-              ? tr('Nombre tarjeta', 'Card name')
+              ? t('contacts_filter_card_name')
               : sortMode === 'date'
-                ? tr('Fecha', 'Date')
-                : tr('Grupos', 'Groups')}
+                ? t('contacts_filter_date')
+                : t('contacts_filter_groups')}
         </Text>
       </View>
 
@@ -1076,25 +1059,19 @@ function ContactsContent() {
                 {contacts.length === 0 && !searchValue.trim() ? (
                   <>
                     <Text style={[styles.emptyListTitle, { color: shell.textPrimary }]}>
-                      {tr('Sin contactos aún', 'No contacts yet')}
+                      {t('contacts_empty_title')}
                     </Text>
                     <Text style={[styles.emptyListSubtitle, { color: shell.textSecondary }]}>
-                      {tr(
-                        'Escanea un QR o acepta invitaciones para ver contactos aquí.',
-                        'Scan a QR or accept invites to see contacts here.',
-                      )}
+                      {t('contacts_empty_subtitle')}
                     </Text>
                   </>
                 ) : (
                   <>
                     <Text style={[styles.emptyListTitle, { color: shell.textPrimary }]}>
-                      {tr('Sin coincidencias', 'No matches')}
+                      {t('contacts_no_matches')}
                     </Text>
                     <Text style={[styles.emptyListSubtitle, { color: shell.textSecondary }]}>
-                      {tr(
-                        'Prueba con otras palabras o sinónimos. También puedes revisar tu conexión.',
-                        'Try different words or synonyms. You can also check your connection.',
-                      )}
+                      {t('contacts_no_matches_sub')}
                     </Text>
                   </>
                 )}
@@ -1157,7 +1134,7 @@ function ContactsContent() {
                             }}
                             accessibilityRole="button"
                             accessibilityLabel={
-                              row.channelMuted ? tr('Dejar de silenciar', 'Unmute') : tr('Silenciar', 'Mute')
+                              row.channelMuted ? t('contacts_unmute') : t('contacts_mute')
                             }
                           >
                             <MaterialCommunityIcons name={row.channelMuted ? 'volume-high' : 'volume-off'} size={20} color="#FFFFFF" />
@@ -1169,7 +1146,7 @@ function ContactsContent() {
                               promptBlockContact(row.uid);
                             }}
                             accessibilityRole="button"
-                            accessibilityLabel={tr('Bloquear', 'Block')}
+                            accessibilityLabel={t('common_block')}
                           >
                             <MaterialCommunityIcons name="cancel" size={20} color="#FFFFFF" />
                           </TouchableOpacity>
@@ -1180,7 +1157,7 @@ function ContactsContent() {
                               promptDeleteContact(row);
                             }}
                             accessibilityRole="button"
-                            accessibilityLabel={tr('Eliminar', 'Delete')}
+                            accessibilityLabel={t('common_delete')}
                           >
                             <MaterialCommunityIcons name="trash-can-outline" size={20} color="#FFFFFF" />
                           </TouchableOpacity>
@@ -1218,11 +1195,11 @@ function ContactsContent() {
                               styles.channelMutedBadge,
                               { backgroundColor: 'rgba(255,255,255,0.82)', borderColor: chest.borderColor },
                             ]}
-                            accessibilityLabel={tr('Canal silenciado', 'Channel muted')}
+                            accessibilityLabel={t('contacts_blocked_a11y')}
                           >
                             <MaterialCommunityIcons name="volume-off" size={12} color={chest.titleColor} />
                             <Text style={[styles.channelMutedBadgeText, { color: chest.metaColor }]}>
-                              {tr('Silenciado', 'Muted')}
+                              {t('contacts_muted_label')}
                             </Text>
                           </View>
                         ) : null}
@@ -1429,10 +1406,7 @@ function ContactsContent() {
           <MaterialCommunityIcons name="magnify" size={17} color={shell.iconColor} />
           <TextInput
             style={[styles.searchInput, { color: shell.searchText }]}
-            placeholder={tr(
-              'Buscar nombre, tarjeta, grupo o datos compartidos (no teléfonos)',
-              'Search name, card, group, or shared data (not phone numbers)'
-            )}
+            placeholder={t('contacts_search_placeholder')}
             placeholderTextColor={shell.searchPlaceholder}
             value={searchValue}
             onChangeText={setSearchValue}
@@ -1448,7 +1422,7 @@ function ContactsContent() {
                 setSearchValue('');
               }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel={tr('Limpiar búsqueda', 'Clear search')}
+              accessibilityLabel={t('contacts_clear_search_a11y')}
             >
               <MaterialCommunityIcons name="close-circle" size={18} color={shell.searchPlaceholder} />
             </TouchableOpacity>
@@ -1460,13 +1434,13 @@ function ContactsContent() {
         <Pressable style={[styles.modalOverlay, { backgroundColor: shell.overlayScrim }]} onPress={() => setSortVisible(false)}>
           <Pressable style={[styles.sortModalCard, { backgroundColor: shell.modalBg, borderColor: shell.modalBorder, paddingBottom: modalFooterBottomPad }]}>
             <Text style={[styles.sortModalTitle, { color: shell.textPrimary }]}>
-              {tr('Ordenar contactos', 'Sort contacts')}
+              {t('contacts_sort_title')}
             </Text>
             {[
-              { key: 'name', label: tr('Nombre (A-Z, favoritos arriba)', 'Name (A-Z, favorites first)') },
-              { key: 'card', label: tr('Nombre de Tarjeta', 'Card Name') },
-              { key: 'date', label: tr('Fecha de agregado', 'Date Added') },
-              { key: 'groups', label: tr('Grupos', 'Groups') }].map((option) => (
+              { key: 'name', label: t('contacts_sort_name') },
+              { key: 'card', label: t('contacts_sort_card') },
+              { key: 'date', label: t('contacts_sort_date') },
+              { key: 'groups', label: t('contacts_sort_groups') }].map((option) => (
               <TouchableOpacity
                 key={option.key}
                 style={[
@@ -1506,8 +1480,8 @@ function ContactsContent() {
               {longPressContact?.cardType === 'business'
                 ? String(longPressContact.bcName || '').trim() ||
                   longPressContact.cardName ||
-                  tr('Contacto', 'Contact')
-                : longPressContact?.userFullName || tr('Contacto', 'Contact')}
+                  t('contacts_sheet_contact')
+                : longPressContact?.userFullName || t('contacts_sheet_contact')}
             </Text>
             {longPressContact?.cardType === 'business' ? (
               longPressContact.bcContactName ? (
@@ -1549,7 +1523,7 @@ function ContactsContent() {
                 color={shell.iconColor}
               />
               <Text style={[styles.actionText, { color: shell.textSecondary }]}>
-                {tr('Favorito / quitar favorito', 'Favorite / unfavorite')}
+                {t('contacts_favorite_a11y')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -1562,7 +1536,7 @@ function ContactsContent() {
             >
               <MaterialCommunityIcons name="folder-move-outline" size={18} color={shell.iconColor} />
               <Text style={[styles.actionText, { color: shell.textSecondary }]}>
-                {tr('Mover a grupo', 'Move to group')}
+                {t('contacts_move_group')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -1579,7 +1553,7 @@ function ContactsContent() {
               }}
             >
               <MaterialCommunityIcons name="trash-can-outline" size={18} color={shell.iconColor} />
-              <Text style={[styles.actionText, { color: shell.textSecondary }]}>{tr('Eliminar', 'Delete')}</Text>
+              <Text style={[styles.actionText, { color: shell.textSecondary }]}>{t('common_delete')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionRowDanger, { backgroundColor: shell.danger, borderColor: shell.danger }]}
@@ -1595,7 +1569,7 @@ function ContactsContent() {
               }}
             >
               <MaterialCommunityIcons name="cancel" size={18} color={shell.fabText} />
-              <Text style={[styles.actionTextDanger, { color: shell.fabText }]}>{tr('Bloquear', 'Block')}</Text>
+              <Text style={[styles.actionTextDanger, { color: shell.fabText }]}>{t('common_block')}</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>
@@ -1605,7 +1579,7 @@ function ContactsContent() {
         <View style={[styles.modalOverlay, { backgroundColor: shell.overlayScrim }]}>
           <View style={[styles.groupPickerCard, { backgroundColor: shell.modalBg, borderColor: shell.border, paddingBottom: modalFooterBottomPad }]}>
             <Text style={[styles.sortModalTitle, { color: shell.textPrimary }]}>
-              {tr('Selecciona grupo', 'Select group')}
+              {t('contacts_select_group')}
             </Text>
             {allGroups.map((groupName) => (
               <View key={groupName} style={styles.groupRowWrap}>
@@ -1642,7 +1616,7 @@ function ContactsContent() {
             <View style={styles.newGroupWrap}>
               <TextInput
                 style={[styles.newGroupInput, { backgroundColor: shell.modalRowBg, borderColor: shell.modalRowBorder, color: shell.searchText }]}
-                placeholder="Crear nuevo grupo"
+                placeholder={t('contacts_placeholder_new_group')}
                 placeholderTextColor={shell.searchPlaceholder}
                 value={newGroupName}
                 onChangeText={setNewGroupName}
@@ -1726,18 +1700,14 @@ function ContactsContent() {
         totalCount={receptorContact?.holdersCount ?? receptorSubscribers.length}
         loading={receptorLoading}
         isDark={isNight}
-        tr={tr}
         onBlockExternal={(targetUid, name) => {
           Alert.alert(
-            tr('Bloquear usuario', 'Block user'),
-            tr(
-              `¿Bloquear a ${name}? No podrá agregarte a ninguna tarjeta ni contactarte.`,
-              `Block ${name}? They won't be able to add you to any card or contact you.`,
-            ),
+            t('contacts_block_user_title'),
+            t('contacts_block_user_body', { name }),
             [
-              { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+              { text: t('common_cancel'), style: 'cancel' },
               {
-                text: tr('Bloquear', 'Block'),
+                text: t('common_block'),
                 style: 'destructive',
                 onPress: async () => {
                   try {
@@ -1747,8 +1717,8 @@ function ContactsContent() {
                     setReceptorSubscribers((prev) => prev.filter((r) => r.uid !== targetUid));
                   } catch (e: any) {
                     Alert.alert(
-                      tr('Error', 'Error'),
-                      userFacingAlertMessage(e, language, tr('No se pudo bloquear.', 'Could not block.')),
+                      t('common_error'),
+                      userFacingAlertMessage(e, language, t('contacts_block_failed_msg')),
                     );
                   }
                 },

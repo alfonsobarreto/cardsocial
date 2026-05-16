@@ -621,7 +621,10 @@ export default function NfcScreen() {
       return;
     }
     await Linking.openURL(url).catch(() => {
-      Alert.alert(tr('No se pudo abrir', 'Could not open'), url);
+      Alert.alert(
+        tr('No se pudo abrir', 'Could not open'),
+        tr('No se pudo abrir el enlace.', 'Could not open the link.'),
+      );
     });
   };
 

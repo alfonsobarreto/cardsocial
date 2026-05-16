@@ -1316,7 +1316,7 @@ export default function CreateBusinessCardScreen() {
     } catch (e: any) {
       Alert.alert(
         tr('Error', 'Error'),
-        (e as Error)?.message?.trim() ? String((e as Error).message) : tr('Inténtalo de nuevo.', 'Please try again.'),
+        userFacingAlertMessage(e, language, tr('Inténtalo de nuevo.', 'Please try again.')),
       );
     } finally {
       setSubmitting(false);
@@ -1389,10 +1389,9 @@ export default function CreateBusinessCardScreen() {
           subscriptionExpiresAt: Number.isFinite(expMs) ? new Date(expMs).toISOString() : null,
         });
       } catch (e) {
-        const msg = (e as Error)?.message?.trim();
         Alert.alert(
           tr('Error', 'Error'),
-          msg ? String(msg) : tr('Inténtalo de nuevo.', 'Please try again.'),
+          userFacingAlertMessage(e, language, tr('Inténtalo de nuevo.', 'Please try again.')),
         );
         return;
       }
@@ -1446,10 +1445,9 @@ export default function CreateBusinessCardScreen() {
       await updateBusinessCard(uid, createdBId, { isPublishedToMarket: value });
       setMarketVisible(value);
     } catch (e) {
-      const msg = (e as Error)?.message?.trim();
       Alert.alert(
         tr('Error', 'Error'),
-        msg ? String(msg) : tr('Inténtalo de nuevo.', 'Please try again.'),
+        userFacingAlertMessage(e, language, tr('Inténtalo de nuevo.', 'Please try again.')),
       );
     }
   };

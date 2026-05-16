@@ -23,6 +23,7 @@ import {
 } from '@/constants/themeChest';
 import { getActiveUserId } from '@/services/authSession';
 import { trackCardAction } from '@/services/analyticsService';
+import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import {
     mirrorNotifyPublicBizIconClick,
     mirrorNotifyPublicBizView,
@@ -31,7 +32,8 @@ import type { MirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems'
 import { CONTACT_META_STORAGE_KEY, seedMetaForIncomingCard } from '@/services/bunkerContactMetaSeed';
 import { runBunkerContactTieredSaveFeedback } from '@/services/bunkerContactTieredSaveFeedback';
 import { viewerQualifiesVaultFerrariSensory } from '@/services/vaultSensoryTierGate';
-import { toApiLocale, trEsEn, useLanguage } from '@/services/language';
+import { useCoreT, type CoreLocaleKey } from '@/services/coreI18n';
+import { toApiLocale, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { CONTACT_SAVE_ANALYTICS_APP } from '@/constants/contactSaveAnalyticsKeys';
 import {
@@ -71,6 +73,18 @@ import {
 } from 'react-native';
 
 const INCOMING_BASE_GROUPS = ['Random', 'Family', 'Social', 'Work'];
+
+/** Presets use EN storage keys; UI labels via `group_*` in coreLocales. Custom groups pass through. */
+function formatBunkerGroupForUi(
+  groupName: string,
+  t: (key: CoreLocaleKey, vars?: Record<string, string | number>) => string,
+): string {
+  const raw = String(groupName || '').trim();
+  if (!raw) return raw;
+  const presetKey = `group_${raw.toLowerCase()}` as CoreLocaleKey;
+  const translated = t(presetKey);
+  return translated === presetKey ? raw : translated;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Payload: contrato de datos que cada pantalla construye             */
@@ -167,7 +181,7 @@ export function MyCardsPreviewModal({
   const isDark = resolvedMode === 'noche';
   const shell = appPalette[isDark ? 'dark' : 'light'];
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const t = useCoreT();
   const { height: screenHeight } = useWindowDimensions();
 
   const parallaxX = useRef(new Animated.Value(0)).current;
@@ -389,7 +403,7 @@ export function MyCardsPreviewModal({
     setReceiverAddBusy(true);
     try {
       const uid = await getActiveUserId();
-      if (!uid) throw new Error(tr('No autenticado', 'Not authenticated'));
+      if (!uid) throw new Error(t('common_not_authenticated'));
       const share = await grantBusinessShareFromQr({
         receiverUid: uid,
         uid: ghostTargetUid,
@@ -413,17 +427,19 @@ export function MyCardsPreviewModal({
         await trackBunkerGroupUsage({ viewerUid: uid, groupName: receiverGroup, locale: toApiLocale(language) });
       } catch { /* non-blocking */ }
       Alert.alert(
-        tr('Agregado', 'Added'),
-        tr('La tarjeta fue agregada a tu Búnker.', 'The card was added to your Bunker.'),
+        t('bunker_added_title'),
+        t('bunker_card_added_body'),
       );
       handleClose();
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : tr('Intenta de nuevo.', 'Try again.');
-      Alert.alert(tr('No se pudo agregar', 'Could not add'), msg);
+      Alert.alert(
+        t('bunker_add_failed_title'),
+        userFacingAlertMessage(e, language, t('common_try_again')),
+      );
     } finally {
       setReceiverAddBusy(false);
     }
-  }, [variant, ghostTargetUid, sourceBId, receiverGroup, language, payload, tr, handleClose]);
+  }, [variant, ghostTargetUid, sourceBId, receiverGroup, language, payload, t, handleClose]);
 
   useEffect(() => {
     if (variant !== 'incoming' || !visible) return;
@@ -490,13 +506,15 @@ export function MyCardsPreviewModal({
       }
       handleClose();
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : tr('Intenta de nuevo.', 'Try again.');
-      Alert.alert(tr('Error', 'Error'), msg);
+      Alert.alert(
+        t('common_error'),
+        userFacingAlertMessage(e, language, t('common_try_again')),
+      );
     } finally {
       if (variant === 'incoming') setIncomingBusy(false);
       else setReceiverAddBusy(false);
     }
-  }, [variant, incomingRedeem, ghostTargetUid, sourceSid, sourceBId, incomingGroup, receiverGroup, language, payload, tr, handleClose]);
+  }, [variant, incomingRedeem, ghostTargetUid, sourceSid, sourceBId, incomingGroup, receiverGroup, language, payload, t, handleClose]);
 
   const handleAddNewGroup = useCallback(async (target: 'incoming' | 'receiver') => {
     const trimmed = newGroupInput.trim();
@@ -542,7 +560,7 @@ export function MyCardsPreviewModal({
         issuerPremiumExperience = out.issuerPremiumExperience;
       } else if (mode === 'business_permanent') {
         const bizId = String(bId || '').trim();
-        if (!bizId) throw new Error(tr('Tarjeta inválida', 'Invalid card'));
+        if (!bizId) throw new Error(t('card_invalid'));
         const out = await grantBusinessShareFromQr({
           receiverUid,
           uid: issuerUid,
@@ -609,21 +627,22 @@ export function MyCardsPreviewModal({
       }
       if (mode === 'business_permanent') {
         Alert.alert(
-          tr('Agregado', 'Added'),
-          tr('El contacto ha sido agregado a tu Búnker.', 'The contact has been added to your Bunker.'),
-          [{ text: tr('OK', 'OK') }],
+          t('bunker_added_title'),
+          t('bunker_contact_added_body'),
+          [{ text: t('common_ok') }],
         );
       }
       onSuccess();
       handleClose();
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : tr('Intenta de nuevo.', 'Try again.');
-      const ok = tr('Aceptar', 'OK');
-      Alert.alert(tr('No se pudo agregar', 'Could not add'), msg, [{ text: ok }]);
+      const ok = t('common_accept');
+      Alert.alert(t('bunker_add_failed_title'), userFacingAlertMessage(e, language, t('common_try_again')), [
+        { text: ok },
+      ]);
     } finally {
       setIncomingBusy(false);
     }
-  }, [incomingRedeem, variant, incomingGroup, language, payload, tr, handleClose]);
+  }, [incomingRedeem, variant, incomingGroup, language, payload, t, handleClose]);
 
   const openDocumentViewer = useCallback((item: MirrorVaultItem) => {
     setViewerItem(item);
@@ -666,16 +685,16 @@ export function MyCardsPreviewModal({
         })();
       }
       await openVaultPreviewItem(item as unknown as MirrorVaultItem, {
-        tr,
+        t,
         openDocumentViewer: (it) => {
           openDocumentViewer(it as MirrorVaultItem);
         },
         ghostTargetUid: ghostTargetUid ?? null,
         sourceCardName:
-          sourceCardName || payload?.cardName || tr('Tarjeta Social', 'Social Card'),
+          sourceCardName || payload?.cardName || t('label_social_card'),
         sourceSid: sourceSid ?? null,
         sourceBId: sourceBId ?? null,
-        peerDisplayName: peerDisplayName || tr('contacto', 'contact'),
+        peerDisplayName: peerDisplayName || t('contacts_fallback_peer'),
         peerFullName,
         peerNickname,
         bcLogoUrl:
@@ -693,7 +712,7 @@ export function MyCardsPreviewModal({
       });
     },
     [
-      tr,
+      t,
       openDocumentViewer,
       ghostTargetUid,
       sourceCardName,
@@ -727,11 +746,10 @@ export function MyCardsPreviewModal({
   const renderSlotContent = useMemo(
     () =>
       createPreviewWireframeSlotRenderer({
-        tr,
         onDataPress: (it) => void handleSlotPress(it as WireframeVaultItem),
         iconVaultById: payload?.iconVaultById,
       }),
-    [handleSlotPress, tr, payload?.iconVaultById, previewSlotsResolvedKey],
+    [handleSlotPress, payload?.iconVaultById, previewSlotsResolvedKey],
   );
 
   const footerColors =
@@ -768,11 +786,11 @@ export function MyCardsPreviewModal({
           onPress={() => !incomingBusy && setGroupSheetOpen(true)}
           disabled={incomingBusy}
           accessibilityRole="button"
-          accessibilityLabel={tr('Cambiar grupo del Búnker', 'Change Bunker group')}
+          accessibilityLabel={t('bunker_change_group_a11y')}
         >
           <MaterialCommunityIcons name="folder-outline" size={16} color={accent} />
           <Text style={[incomingStyles.groupChipText, { color: accent }]} numberOfLines={1}>
-            {tr('Grupo', 'Group')}: {incomingGroup}
+            {t('common_group_label')}: {formatBunkerGroupForUi(incomingGroup, t)}
           </Text>
           <MaterialCommunityIcons name="chevron-down" size={18} color={accent} />
         </TouchableOpacity>
@@ -799,7 +817,7 @@ export function MyCardsPreviewModal({
               onPress={(e) => e.stopPropagation()}
             >
               <Text style={[incomingStyles.sheetTitle, { color: shell.textPrimary }]}>
-                {tr('Grupo en el Búnker', 'Bunker group')}
+                {t('bunker_group_sheet_title')}
               </Text>
               {isAddingIncomingGroup ? (
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -809,7 +827,7 @@ export function MyCardsPreviewModal({
                         incomingStyles.inlineAddInput,
                         { color: shell.textPrimary, borderColor: shell.border, backgroundColor: shell.surfaceMuted },
                       ]}
-                      placeholder={tr('Nombre del grupo', 'Group name')}
+                      placeholder={t('bunker_group_name_placeholder')}
                       placeholderTextColor={shell.textSecondary}
                       value={newGroupInput}
                       onChangeText={setNewGroupInput}
@@ -823,14 +841,14 @@ export function MyCardsPreviewModal({
                         style={incomingStyles.inlineAddCancel}
                         onPress={() => { setIsAddingIncomingGroup(false); setNewGroupInput(''); }}
                       >
-                        <Text style={{ color: shell.textSecondary, fontWeight: '600' }}>{tr('Cancelar', 'Cancel')}</Text>
+                        <Text style={{ color: shell.textSecondary, fontWeight: '600' }}>{t('common_cancel')}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={[incomingStyles.inlineAddSave, { backgroundColor: newGroupInput.trim() ? accent : `${accent}55` }]}
                         onPress={() => void handleAddNewGroup('incoming')}
                         disabled={!newGroupInput.trim()}
                       >
-                        <Text style={{ color: '#fff', fontWeight: '700' }}>{tr('Guardar', 'Save')}</Text>
+                        <Text style={{ color: '#fff', fontWeight: '700' }}>{t('common_save')}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -847,7 +865,9 @@ export function MyCardsPreviewModal({
                           setGroupSheetOpen(false);
                         }}
                       >
-                        <Text style={[incomingStyles.sheetRowText, { color: shell.textPrimary }]}>{g}</Text>
+                        <Text style={[incomingStyles.sheetRowText, { color: shell.textPrimary }]}>
+                          {formatBunkerGroupForUi(g, t)}
+                        </Text>
                         {incomingGroup === g ? (
                           <MaterialCommunityIcons name="check" size={20} color={accent} />
                         ) : null}
@@ -860,14 +880,14 @@ export function MyCardsPreviewModal({
                   >
                     <MaterialCommunityIcons name="plus-circle-outline" size={18} color={accent} />
                     <Text style={[incomingStyles.sheetAddNewText, { color: accent }]}>
-                      {tr('Agregar nuevo grupo', 'Add new group')}
+                      {t('bunker_add_new_group')}
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[incomingStyles.sheetDone, { borderColor: shell.border }]}
                     onPress={() => setGroupSheetOpen(false)}
                   >
-                    <Text style={{ color: shell.textPrimary, fontWeight: '600' }}>{tr('Listo', 'Done')}</Text>
+                    <Text style={{ color: shell.textPrimary, fontWeight: '600' }}>{t('common_done')}</Text>
                   </TouchableOpacity>
                 </>
               )}
@@ -885,11 +905,11 @@ export function MyCardsPreviewModal({
           onPress={() => !receiverAddBusy && setReceiverGroupSheetOpen(true)}
           disabled={receiverAddBusy}
           accessibilityRole="button"
-          accessibilityLabel={tr('Elegir grupo del Búnker', 'Choose Bunker group')}
+          accessibilityLabel={t('bunker_choose_group_a11y')}
         >
           <MaterialCommunityIcons name="folder-outline" size={16} color={accent} />
           <Text style={[incomingStyles.groupChipText, { color: accent }]} numberOfLines={1}>
-            {tr('Grupo', 'Group')}: {receiverGroup}
+            {t('common_group_label')}: {formatBunkerGroupForUi(receiverGroup, t)}
           </Text>
           <MaterialCommunityIcons name="chevron-down" size={18} color={accent} />
         </TouchableOpacity>
@@ -916,7 +936,7 @@ export function MyCardsPreviewModal({
               onPress={(e) => e.stopPropagation()}
             >
               <Text style={[incomingStyles.sheetTitle, { color: shell.textPrimary }]}>
-                {tr('Grupo en el Búnker', 'Bunker group')}
+                {t('bunker_group_sheet_title')}
               </Text>
               {isAddingReceiverGroup ? (
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -926,7 +946,7 @@ export function MyCardsPreviewModal({
                         incomingStyles.inlineAddInput,
                         { color: shell.textPrimary, borderColor: shell.border, backgroundColor: shell.surfaceMuted },
                       ]}
-                      placeholder={tr('Nombre del grupo', 'Group name')}
+                      placeholder={t('bunker_group_name_placeholder')}
                       placeholderTextColor={shell.textSecondary}
                       value={newGroupInput}
                       onChangeText={setNewGroupInput}
@@ -940,14 +960,14 @@ export function MyCardsPreviewModal({
                         style={incomingStyles.inlineAddCancel}
                         onPress={() => { setIsAddingReceiverGroup(false); setNewGroupInput(''); }}
                       >
-                        <Text style={{ color: shell.textSecondary, fontWeight: '600' }}>{tr('Cancelar', 'Cancel')}</Text>
+                        <Text style={{ color: shell.textSecondary, fontWeight: '600' }}>{t('common_cancel')}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={[incomingStyles.inlineAddSave, { backgroundColor: newGroupInput.trim() ? accent : `${accent}55` }]}
                         onPress={() => void handleAddNewGroup('receiver')}
                         disabled={!newGroupInput.trim()}
                       >
-                        <Text style={{ color: '#fff', fontWeight: '700' }}>{tr('Guardar', 'Save')}</Text>
+                        <Text style={{ color: '#fff', fontWeight: '700' }}>{t('common_save')}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -964,7 +984,9 @@ export function MyCardsPreviewModal({
                           setReceiverGroupSheetOpen(false);
                         }}
                       >
-                        <Text style={[incomingStyles.sheetRowText, { color: shell.textPrimary }]}>{g}</Text>
+                        <Text style={[incomingStyles.sheetRowText, { color: shell.textPrimary }]}>
+                          {formatBunkerGroupForUi(g, t)}
+                        </Text>
                         {receiverGroup === g ? (
                           <MaterialCommunityIcons name="check" size={20} color={accent} />
                         ) : null}
@@ -977,14 +999,14 @@ export function MyCardsPreviewModal({
                   >
                     <MaterialCommunityIcons name="plus-circle-outline" size={18} color={accent} />
                     <Text style={[incomingStyles.sheetAddNewText, { color: accent }]}>
-                      {tr('Agregar nuevo grupo', 'Add new group')}
+                      {t('bunker_add_new_group')}
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[incomingStyles.sheetDone, { borderColor: shell.border }]}
                     onPress={() => setReceiverGroupSheetOpen(false)}
                   >
-                    <Text style={{ color: shell.textPrimary, fontWeight: '600' }}>{tr('Listo', 'Done')}</Text>
+                    <Text style={{ color: shell.textPrimary, fontWeight: '600' }}>{t('common_done')}</Text>
                   </TouchableOpacity>
                 </>
               )}
@@ -1011,10 +1033,10 @@ export function MyCardsPreviewModal({
         footer={{
           variant: footerVariant,
           closeLabel:
-            variant === 'issuer' ? tr('Cerrar', 'Close') : tr('Cancelar', 'Cancel'),
+            variant === 'issuer' ? t('common_close') : t('common_cancel'),
           editLabel:
             variant === 'issuer'
-              ? tr('Editar tarjeta', 'Edit card')
+              ? t('cards_edit_card_a11y')
               : undefined,
           onClose: handleClose,
           onEditCard: variant === 'issuer' ? onEditCard : undefined,
@@ -1022,10 +1044,10 @@ export function MyCardsPreviewModal({
           acceptLabel:
             variant === 'incoming'
               ? (alreadyInBunker
-                  ? tr('Cambiar Grupo', 'Change Group')
+                  ? t('bunker_change_group')
                   : (incomingRedeem?.mode === 'business_permanent'
-                      ? tr('Agregar', 'Add')
-                      : tr('Aceptar', 'Accept')))
+                      ? t('wireframe_add')
+                      : t('common_accept')))
               : undefined,
           onAccept:
             variant === 'incoming'
@@ -1036,7 +1058,7 @@ export function MyCardsPreviewModal({
           // Caso 3: ya en contactos → Cambiar Grupo | Social Market nuevo → Agregar
           addLabel:
             variant === 'receiver' && ghostTargetUid
-              ? (alreadyInBunker ? tr('Cambiar Grupo', 'Change Group') : tr('Agregar', 'Add'))
+              ? (alreadyInBunker ? t('bunker_change_group') : t('wireframe_add'))
               : undefined,
           onAdd:
             variant === 'receiver' && ghostTargetUid
@@ -1069,7 +1091,6 @@ export function MyCardsPreviewModal({
               parallaxX={parallaxX}
               parallaxY={parallaxY}
               renderSlotContent={renderSlotContent}
-              tr={tr}
               mirrorStatsCapsuleScale={mirrorScale}
               medalPills={medalPills}
               onRate={canRate ? () => setMedalModalVisible(true) : undefined}
@@ -1100,7 +1121,6 @@ export function MyCardsPreviewModal({
             setViewerVisible(false);
             setViewerItem(null);
           }}
-          tr={tr}
           fallbackMutedColor={shell.textSecondary}
         />
       ) : null}

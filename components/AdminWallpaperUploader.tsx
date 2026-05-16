@@ -20,6 +20,7 @@ import {
   type WallpaperOrientation,
   type WallpaperTier,
 } from '@/services/wallpaperService';
+import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { trEsEn, useLanguage } from '@/services/language';
 
 type UploadState = {
@@ -104,7 +105,7 @@ const AdminWallpaperUploader: React.FC = () => {
       if (!result.success) {
         Alert.alert(
           tr('Error al subir', 'Upload error'),
-          result.error || tr('No se pudo subir el wallpaper.', 'Could not upload the wallpaper.'),
+          tr('No se pudo subir el wallpaper.', 'Could not upload the wallpaper.'),
         );
         return;
       }
@@ -127,10 +128,10 @@ const AdminWallpaperUploader: React.FC = () => {
         fileName: '',
         loading: false,
       }));
-    } catch (error: any) {
+    } catch (error: unknown) {
       Alert.alert(
         tr('Error', 'Error'),
-        error?.message || tr('No se pudo subir el wallpaper.', 'Could not upload the wallpaper.'),
+        userFacingAlertMessage(error, language, tr('No se pudo subir el wallpaper.', 'Could not upload the wallpaper.')),
       );
       setState((prev) => ({ ...prev, loading: false }));
       return;

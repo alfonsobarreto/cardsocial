@@ -189,8 +189,8 @@ export default function RedeemScreen() {
       } else {
         setLoading(false);
       }
-    } catch (err: any) {
-      setError(err.message || tr('No se pudo canjear el código. Intenta de nuevo.', 'Could not redeem the code. Try again.'));
+    } catch {
+      setError(tr('No se pudo canjear el código. Intenta de nuevo.', 'Could not redeem the code. Try again.'));
       setLoading(false);
     }
   };

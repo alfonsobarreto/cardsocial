@@ -9,7 +9,7 @@
 
 const { computeTrafficLight, clampPercent, getThresholds } = require('../lib/budgetTrafficLight');
 const { fetchAutoRevenueSnapshot } = require('../lib/budgetAutoRevenue');
-const { buildUserFacingJson } = require('../lib/userFacingErrors');
+const { buildUserFacingJson, buildUserFacingSuccessJson } = require('../lib/userFacingErrors');
 
 const SETTINGS_ID = 'singleton';
 const COL_SETTINGS = 'admin_budget_settings';
@@ -208,6 +208,10 @@ function createAdminBudgetHandlers({ getMongoDb }) {
         }),
       );
 
+      const okFace = buildUserFacingSuccessJson(req, 'STATUS_OK', {});
+      payload.successCode = okFace.successCode;
+      payload.message = okFace.message;
+
       return res.status(200).json(payload);
     } catch (e) {
       console.error('[admin/budget-summary]', e?.message || e, e?.stack);
@@ -275,7 +279,7 @@ function createAdminBudgetHandlers({ getMongoDb }) {
         }),
       );
 
-      return res.status(200).json({ ok: true });
+      return res.status(200).json(buildUserFacingSuccessJson(req, 'STATUS_OK', { saved: true }));
     } catch (e) {
       console.error('[admin/budget-settings]', e?.message || e, e?.stack);
       return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));

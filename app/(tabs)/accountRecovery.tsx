@@ -16,6 +16,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { initiateAccountRecovery, checkRecoveryRequestStatus } from '@/services/accountRecoveryService';
+import { useAuthT } from '@/services/authI18n';
 import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import palette from '../theme';
@@ -25,6 +26,7 @@ type RecoveryStep = 'method-select' | 'email-recovery' | 'ticket-status';
 export default function AccountRecoveryScreen({ onClose }: { onClose: () => void }) {
   const { language } = useLanguage();
   const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const t = useAuthT();
   const { resolvedMode } = useLookMode();
   const isDark = resolvedMode === 'noche';
   const shell = palette[isDark ? 'dark' : 'light'];
@@ -175,10 +177,10 @@ export default function AccountRecoveryScreen({ onClose }: { onClose: () => void
     setLoading(false);
 
     if (result.success) {
-      Alert.alert(tr('Éxito', 'Success'), result.message);
+      Alert.alert(t('signin_alert_check_email_title'), t('signin_recovery_email_fallback'));
       setTimeout(() => onClose(), 2000);
     } else {
-      Alert.alert(tr('Error', 'Error'), result.message);
+      Alert.alert(tr('Error', 'Error'), t('signin_recovery_service_unavailable'));
     }
   };
 
@@ -192,7 +194,17 @@ export default function AccountRecoveryScreen({ onClose }: { onClose: () => void
     const result = await checkRecoveryRequestStatus(ticketId);
     setLoading(false);
 
-    setStatusInfo(result.message);
+    const statusInfoText =
+      result.status === 'not_found'
+        ? t('signin_recovery_ticket_not_found')
+        : result.status === 'pending'
+          ? t('signin_recovery_ticket_pending')
+          : result.status === 'verified'
+            ? t('signin_recovery_ticket_verified')
+            : result.status === 'rejected'
+              ? t('signin_recovery_ticket_rejected')
+              : t('signin_recovery_ticket_status_error');
+    setStatusInfo(statusInfoText);
   };
 
   const accent = shell.ctaAccent;

@@ -71,7 +71,6 @@ export async function POST(req: Request) {
           ok: false,
           error: userFacingMessageForErrorCode('unconfigured', loc),
           errorCode: 'unconfigured',
-          message: 'Set FIREBASE_SERVICE_ACCOUNT_JSON on the server, or sign in with your email.',
         },
         { status: 503 },
       );

@@ -3,8 +3,10 @@ import DashboardBudgetTrafficLight from '../components/DashboardBudgetTrafficLig
 import { useAuth } from '../auth/useAuth';
 import { isSuperAdminUser } from '../auth/adminAuthGuard';
 import { getDashboardStats, type DashboardStats } from '../services/dashboardService';
+import { useAdminT } from '../i18n/useAdminT';
 
 export default function Dashboard() {
+  const { t } = useAdminT();
   const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,17 +49,17 @@ export default function Dashboard() {
       {
         label: 'Usuarios',
         value: loading ? 'Cargando...' : (stats?.usersCount.toLocaleString() ?? '--'),
-        hint: 'Total en Firestore users',
+        hint: t('admin_dashboard_users_hint'),
       },
       {
         label: 'Reportes',
         value: loading ? 'Cargando...' : (stats?.reportsCount.toLocaleString() ?? '--'),
-        hint: 'Total en Firestore reports',
+        hint: t('admin_dashboard_reports_hint'),
       },
-      { label: 'Campanas VIP', value: '--', hint: 'Influencers y Businesses' },
-      { label: 'NFC activas', value: '--', hint: 'Inventario fisico' },
+      { label: 'Campanas VIP', value: '--', hint: t('admin_dashboard_vip_hint') },
+      { label: 'NFC activas', value: '--', hint: t('admin_dashboard_nfc_hint') },
     ],
-    [loading, stats],
+    [loading, stats, t],
   );
 
   return (
@@ -95,8 +97,7 @@ export default function Dashboard() {
 
       {loadError && (
         <section className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
-          No se pudieron cargar las estadisticas de Firestore. Revisa reglas temporales,
-          permisos del usuario o configuracion de Firebase.
+          {t('admin_dashboard_stats_error')}
         </section>
       )}
 

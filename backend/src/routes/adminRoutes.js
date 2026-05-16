@@ -15,7 +15,7 @@ const bcrypt = require('bcryptjs');
 const multer = require('multer');
 
 const { env } = require('../config');
-const { sendUserFacingError, buildUserFacingJson } = require('../lib/userFacingErrors');
+const { sendUserFacingError, buildUserFacingJson, buildUserFacingSuccessJson } = require('../lib/userFacingErrors');
 const { normalizeNfcCardId } = require('../lib/nfcCards');
 const {
   createGatewayKeyMiddleware,
@@ -284,16 +284,17 @@ function createAdminRoutes(options = {}) {
 
         const assetId = `MINT_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-        return res.status(201).json({
-          success: true,
-          unique_id: assetId,
-          collection,
-          name,
-          rarity,
-          status: 'draft',
-          created_at: new Date().toISOString(),
-          message: `Asset created in draft: ${assetId}`,
-        });
+        return res.status(201).json(
+          buildUserFacingSuccessJson(req, 'ASSET_DRAFT_CREATED', {
+            success: true,
+            unique_id: assetId,
+            collection,
+            name,
+            rarity,
+            status: 'draft',
+            created_at: new Date().toISOString(),
+          }),
+        );
       } catch (error) {
         console.error('❌ Mint route error:', error);
         res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
@@ -309,13 +310,14 @@ function createAdminRoutes(options = {}) {
         return res.status(400).json(buildUserFacingJson(req, 'invalid_body', 'REQUIRED_FIELDS_MISSING'));
       }
 
-      return res.status(200).json({
-        success: true,
-        unique_id: mint_id,
-        status: 'published',
-        published_at: new Date().toISOString(),
-        message: `Asset published: ${mint_id}`,
-      });
+      return res.status(200).json(
+        buildUserFacingSuccessJson(req, 'ASSET_PUBLISHED', {
+          success: true,
+          unique_id: mint_id,
+          status: 'published',
+          published_at: new Date().toISOString(),
+        }),
+      );
     } catch (error) {
       console.error('❌ Publish route error:', error);
       res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));

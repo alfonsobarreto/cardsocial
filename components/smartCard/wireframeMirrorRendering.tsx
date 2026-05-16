@@ -101,7 +101,6 @@ export function renderWireframeMirrorMiniIcon(
 }
 
 export type ReceiverWireframeSlotHandlers = {
-  tr: (es: string, en: string) => string;
   onDataPress: (item: WireframeVaultItem) => void | Promise<void>;
   onMirrorLongPress?: (slot: WireframeEditSlot) => void;
   iconVaultById?: IconVaultLookup;
@@ -119,7 +118,6 @@ export function createReceiverWireframeSlotRenderer(h: ReceiverWireframeSlotHand
       ui={ui}
       editable={false}
       chestTheme={chestTheme}
-      tr={h.tr}
       renderMiniIcon={(item, size, gc) => renderWireframeMirrorMiniIcon(item, size, gc, h.iconVaultById)}
       onEditableOpenPicker={() => {}}
       onDataPress={(it) => void h.onDataPress(it as WireframeVaultItem)}

@@ -1,6 +1,8 @@
 import type { User } from 'firebase/auth';
 import { useCallback, useEffect, useState } from 'react';
 
+import { useAdminT } from '../i18n/useAdminT';
+
 import {
   fetchBudgetSummary,
   putBudgetSettings,
@@ -8,13 +10,13 @@ import {
   type TrafficLightStatus,
 } from '../services/budgetService';
 
-function lightStyles(status: TrafficLightStatus) {
+function lightStyles(status: TrafficLightStatus, t: (key: string) => string) {
   if (status === 'green') {
     return {
       ring: 'ring-emerald-400/80',
       bg: 'bg-emerald-50',
       dot: 'bg-emerald-500',
-      label: 'VERDE — puede planificarse retención de pago',
+      label: t('admin_budget_light_green'),
     };
   }
   if (status === 'yellow') {
@@ -22,18 +24,19 @@ function lightStyles(status: TrafficLightStatus) {
       ring: 'ring-amber-400/80',
       bg: 'bg-amber-50',
       dot: 'bg-amber-500',
-      label: 'AMARILLO — cautela',
+      label: t('admin_budget_light_yellow'),
     };
   }
   return {
     ring: 'ring-red-400/80',
     bg: 'bg-red-50',
     dot: 'bg-red-500',
-    label: 'ROJO — no invertir en Push/SMS todavía',
+    label: t('admin_budget_light_red'),
   };
 }
 
 export default function DashboardBudgetTrafficLight({ user }: { user: User }) {
+  const { t } = useAdminT();
   const [data, setData] = useState<BudgetSummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,25 +54,26 @@ export default function DashboardBudgetTrafficLight({ user }: { user: User }) {
       setPctDraft(String(d.retentionBudgetPercent));
       setRevenueDraft(d.monthlyNetRevenueUsd != null ? String(d.monthlyNetRevenueUsd) : '');
     } catch (e) {
-      setError((e as Error).message);
+      console.error('[DashboardBudgetTrafficLight] load', e);
+      setError(t('admin_budget_err_load'));
       setData(null);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, t]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   const status: TrafficLightStatus = data?.trafficLight.status ?? 'red';
-  const ls = lightStyles(status);
+  const ls = lightStyles(status, t);
   const channelsOn = Boolean(data?.channelsUnlocked);
 
   async function handleSaveSettings() {
     const pct = Number.parseFloat(pctDraft.replace(',', '.'));
     if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
-      setError('% de budget debe estar entre 0 y 100.');
+      setError(t('admin_budget_pct_invalid'));
       return;
     }
     let revenueVal: number | null = null;
@@ -77,7 +81,7 @@ export default function DashboardBudgetTrafficLight({ user }: { user: User }) {
     if (revTrim !== '') {
       const r = Number.parseFloat(revTrim.replace(',', '.'));
       if (!Number.isFinite(r) || r < 0) {
-        setError('Revenue mensual debe ser un número ≥ 0 o vacío.');
+        setError(t('admin_budget_revenue_invalid'));
         return;
       }
       revenueVal = r;
@@ -91,12 +95,10 @@ export default function DashboardBudgetTrafficLight({ user }: { user: User }) {
         retentionBudgetPercent: pct,
         reportedMonthlyNetRevenueUsd: revenueVal,
       });
-      setSaveOk('Guardado. Entrada auditada en servidor (sin coste de terceros).');
-      await load();
+      setSaveOk(t('admin_budget_save_ok'));
     } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setSaving(false);
+      console.error('[DashboardBudgetTrafficLight] save', e);
+      setError(t('admin_budget_err_save'));
     }
   }
 
@@ -107,29 +109,22 @@ export default function DashboardBudgetTrafficLight({ user }: { user: User }) {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
-            Semáforo financiero · retención
+            {t('admin_budget_eyebrow')}
           </p>
-          <h2 className="mt-2 text-xl font-semibold text-slate-950">¿Tiene sentido invertir en Push/SMS?</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">
-            Herramienta interna: MAU desde Mongo; ingreso neto puede ser <strong>declarado por ti</strong>, leído desde
-            variables de entorno del API, o —si el backend tiene{' '}
-            <code className="rounded bg-slate-100 px-1">STRIPE_SECRET_KEY</code> /{' '}
-            <code className="rounded bg-slate-100 px-1">REVENUECAT_*</code>
-            — agregado automático con reglas conservadoras. Los botones de canal siguen siendo stubs; solo se habilitan
-            en VERDE como señal de gobierno.
-          </p>
+          <h2 className="mt-2 text-xl font-semibold text-slate-950">{t('admin_budget_heading')}</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">{t('admin_budget_intro')}</p>
         </div>
         <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 shadow-sm">
           <span className={`inline-flex h-4 w-4 shrink-0 rounded-full ${ls.dot}`} aria-hidden />
           <div>
-            <p className="text-xs font-medium uppercase text-slate-500">Estado</p>
+            <p className="text-xs font-medium uppercase text-slate-500">{t('admin_budget_status_label')}</p>
             <p className="text-sm font-semibold text-slate-900">{ls.label}</p>
           </div>
         </div>
       </div>
 
       {loading ? (
-        <p className="mt-6 text-sm text-slate-600">Cargando métricas…</p>
+        <p className="mt-6 text-sm text-slate-600">{t('admin_budget_loading')}</p>
       ) : error ? (
         <p className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</p>
       ) : data ? (

@@ -21,6 +21,7 @@ import { listMyBusinessCards, updateBusinessCard } from '@/services/businessCard
 import { fetchBusinessCardHolderCounts } from '@/services/qrApi';
 import { auth, db } from '@/services/firebaseConfig';
 import { useLegacyPathEngine, LEGACY_REFERRALS_CEILING_UI } from '@/hooks/useLegacyPathEngine';
+import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { mintMarketRadarEmbedUrl } from '@/services/mintMarketRadarEmbedUrl';
 import { marketRadarMintUserMessage } from '@/services/marketRadarMintMessages';
 import { getMarketRadarRemoteConfig } from '@/services/marketRadarConfigService';
@@ -1169,7 +1170,7 @@ export default function DashboardScreen() {
     } catch (e) {
       Alert.alert(
         tr('No se pudo abrir el navegador', 'Could not open the browser'),
-        (e as Error)?.message ?? '',
+        userFacingAlertMessage(e, language, tr('Inténtalo de nuevo.', 'Please try again.')),
       );
     } finally {
       setLaunchingRadar(false);
@@ -1229,7 +1230,7 @@ export default function DashboardScreen() {
       );
       Alert.alert(
         tr('No se pudo actualizar el Mercado Social', 'Could not update Social Market'),
-        (error as Error)?.message || tr('Inténtalo de nuevo.', 'Please try again.'),
+        userFacingAlertMessage(error, language, tr('Inténtalo de nuevo.', 'Please try again.')),
       );
     } finally {
       setUpdatingBId(null);
@@ -1338,7 +1339,7 @@ export default function DashboardScreen() {
         } else {
           Alert.alert(
             tr('No se pudo enviar', 'Could not send'),
-            (e as Error)?.message || tr('Inténtalo de nuevo.', 'Please try again.'),
+            userFacingAlertMessage(e, language, tr('Inténtalo de nuevo.', 'Please try again.')),
           );
         }
       } finally {
@@ -1347,7 +1348,7 @@ export default function DashboardScreen() {
     } catch (e) {
       Alert.alert(
         tr('Algo salió mal', 'Something went wrong'),
-        (e as Error)?.message || tr('Inténtalo de nuevo.', 'Please try again.'),
+        userFacingAlertMessage(e, language, tr('Inténtalo de nuevo.', 'Please try again.')),
       );
       setSignatureBusy(false);
     }

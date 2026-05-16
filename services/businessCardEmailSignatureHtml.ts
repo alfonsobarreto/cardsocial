@@ -110,6 +110,8 @@ export function buildBusinessCardEmailSignatureHtml(
   p: BusinessCardEmailSignatureParams & {
     /** Normalizar logo vault a HTTPS en apiOrigin (p. ej. envío Resend / firma.html). */
     emailLogoNormalize?: { siteOrigin: string; apiOrigin: string };
+    /** Texto alternativo del QR (correo / accesibilidad). */
+    qrImageAlt?: string;
   },
 ): string {
   const chest = getCardRowTheme(p.themeId);
@@ -120,6 +122,7 @@ export function buildBusinessCardEmailSignatureHtml(
   const sub = escapeHtmlForEmail((p.subtitle || '').trim().replace(/\s+/g, ' '));
   const linkText = escapeHtmlForEmail(String(p.publicCardUrl || '').trim());
   const linkHref = escapeHtmlForEmail(String(p.publicCardUrl || '').trim());
+  const qrAlt = escapeHtmlForEmail(String(p.qrImageAlt ?? 'QR').trim() || 'QR');
 
   const rawLogo = String(p.logoUrl || '').trim();
   const normalizedLogo =
@@ -154,7 +157,7 @@ ${
 </td>
 <td valign="middle" align="center" style="padding:12px 14px 12px 6px;width:72px;">
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;border-radius:6px;background-color:#FFFFFF;padding:2px;line-height:0;">
-<tr><td style="padding:0;margin:0;"><img src="${qrSrc}" alt="QR" width="64" height="64" style="display:block;width:64px;height:64px;border:0;margin:0;" /></td></tr></table>
+<tr><td style="padding:0;margin:0;"><img src="${qrSrc}" alt="${qrAlt}" width="64" height="64" style="display:block;width:64px;height:64px;border:0;margin:0;" /></td></tr></table>
 </td>
 </tr>
 </table>`;

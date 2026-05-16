@@ -17,7 +17,9 @@ import { buildMirrorVaultItemsForContact } from '@/services/buildReceiverPreview
 import { hasActiveBusinessLicense } from '@/services/businessLicenseService';
 import { myCardsPayloadFromQrPreview } from '@/services/incomingCardPreviewPayload';
 import { userFacingAlertMessage } from '@/services/apiUserFacingError';
-import { trEsEn, useLanguage } from '@/services/language';
+import { useCoreT } from '@/services/coreI18n';
+import type { CoreLocaleKey } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { blockRelationship, fetchPublicBusinessCardPreview, listCardSubscribers, listReceivedContacts, type CardSubscriberRow } from '@/services/qrApi';
 import {
@@ -102,13 +104,13 @@ function isMarketReceivedContactBusiness(row: BusinessCardSearchResult): boolean
 const SocialMarketSearchBar = React.memo(function SocialMarketSearchBar({
   loading,
   shell,
-  tr,
+  t,
   onSubmitQuery,
   onClearResults,
 }: {
   loading: boolean;
   shell: AppShellTheme;
-  tr: (es: string, en: string) => string;
+  t: (key: CoreLocaleKey, vars?: Record<string, string | number>) => string;
   onSubmitQuery: (trimmed: string) => void;
   onClearResults: () => void;
 }) {
@@ -117,11 +119,11 @@ const SocialMarketSearchBar = React.memo(function SocialMarketSearchBar({
   const submit = useCallback(() => {
     const q = localSearchText.trim();
     if (!q) {
-      Alert.alert(tr('Error', 'Error'), tr('Ingresa palabras clave para buscar', 'Enter keywords to search'));
+      Alert.alert(t('common_error'), t('search_keywords_required'));
       return;
     }
     onSubmitQuery(q);
-  }, [localSearchText, onSubmitQuery, tr]);
+  }, [localSearchText, onSubmitQuery, t]);
 
   const clear = useCallback(() => {
     setLocalSearchText('');
@@ -134,7 +136,7 @@ const SocialMarketSearchBar = React.memo(function SocialMarketSearchBar({
       <MaterialCommunityIcons name="magnify" size={22} color={shell.textSecondary} style={styles.searchRowIcon} />
       <TextInput
         style={[styles.searchInputMinimal, { color: shell.textPrimary }]}
-        placeholder={tr('Nails, Hair, Cosmetología…', 'Nails, hair, cosmetology…')}
+        placeholder={t('search_placeholder')}
         value={localSearchText}
         onChangeText={setLocalSearchText}
         onSubmitEditing={submit}
@@ -146,7 +148,7 @@ const SocialMarketSearchBar = React.memo(function SocialMarketSearchBar({
         <TouchableOpacity
           onPress={clear}
           hitSlop={12}
-          accessibilityLabel={tr('Limpiar búsqueda', 'Clear search')}
+          accessibilityLabel={t('search_clear_a11y')}
         >
           <MaterialCommunityIcons name="close-circle-outline" size={22} color={shell.textMuted} />
         </TouchableOpacity>
@@ -156,9 +158,9 @@ const SocialMarketSearchBar = React.memo(function SocialMarketSearchBar({
         onPress={submit}
         disabled={loading}
         accessibilityRole="button"
-        accessibilityLabel={tr('Buscar en el mercado', 'Search the market')}
+        accessibilityLabel={t('search_market_a11y')}
       >
-        <Text style={[styles.goButtonText, { color: shell.btnPrimaryText }]}>{tr('IR', 'GO')}</Text>
+        <Text style={[styles.goButtonText, { color: shell.btnPrimaryText }]}>{t('search_go')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -169,7 +171,7 @@ export default function SearchScreen() {
   const isDark = resolvedMode === 'noche';
   const shell = appPalette[isDark ? 'dark' : 'light'];
   const { language } = useLanguage();
-  const tr = useCallback((es: string, en: string) => trEsEn(es, en, language), [language]);
+  const t = useCoreT();
   const locales = Localization.useLocales();
   const prefersMetricDistance = useMemo(() => devicePrefersMetricDistance(locales), [locales]);
   const modalFooterBottomPad = useModalFooterBottomPad();
@@ -290,8 +292,8 @@ export default function SearchScreen() {
       ? String(d.card.bcContactName || occ || '').trim()
       : nickRaw.startsWith('@') ? nickRaw : `@${nickRaw}`;
     const cardNameLine = isBusiness
-      ? String(d.card.bcName || d.receivedContactCardName || '').trim() || tr('Negocio', 'Business')
-      : (cardNm || person || occ || tr('Tarjeta Social', 'Social Card')).trim();
+      ? String(d.card.bcName || d.receivedContactCardName || '').trim() || t('label_business')
+      : (cardNm || person || occ || t('label_social_card')).trim();
     const logoUrl = String(d.card.bcLogoUrl || '').trim();
     const avatarUrl = isBusiness
       ? (logoUrl ? logoUrl : null)
@@ -310,7 +312,7 @@ export default function SearchScreen() {
       slots: searchMirrorPreviewSlots,
       ...(isBusiness ? { noAvatarIcon: 'storefront-outline' as const } : {}),
     };
-  }, [receivedCardDetail, searchMirrorPreviewSlots, tr]);
+  }, [receivedCardDetail, searchMirrorPreviewSlots, t]);
 
   const marketPremiumPayload = useMemo<MyCardsPayload | null>(() => {
     if (!marketCardDetail || !marketFetchedPayload) return null;
@@ -446,18 +448,18 @@ export default function SearchScreen() {
     const sections: { title: string; data: BusinessCardSearchResult[] }[] = [];
     if (displaySectionContacts.length) {
       sections.push({
-        title: tr('Conocidos primero (Contactos)', 'Contacts first'),
+        title: t('search_section_contacts'),
         data: displaySectionContacts,
       });
     }
     if (displaySectionBusinesses.length) {
       sections.push({
-        title: tr('Mercado Social', 'Social Market'),
+        title: t('search_section_market'),
         data: displaySectionBusinesses,
       });
     }
     return sections;
-  }, [displaySectionContacts, displaySectionBusinesses, language]);
+  }, [displaySectionContacts, displaySectionBusinesses, t]);
 
   const loadReceivedContactsForMarket = useCallback(async (): Promise<ReceivedContactForMarketSearch[]> => {
     const empty: ReceivedContactForMarketSearch[] = [];
@@ -584,18 +586,15 @@ export default function SearchScreen() {
       } catch (error) {
         console.error('Error searching:', error);
         Alert.alert(
-          tr('No se pudo completar la búsqueda', 'Search could not finish'),
-          tr(
-            'Revisa tu conexión a internet e inténtalo de nuevo. Si el fallo continúa, prueba más tarde.',
-            'Check your internet connection and try again. If it keeps failing, try again later.',
-          ),
+          t('search_failed_title'),
+          t('search_failed_body'),
         );
       } finally {
         Keyboard.dismiss();
         setLoading(false);
       }
     },
-    [loadReceivedContactsForMarket, tr],
+    [loadReceivedContactsForMarket, t],
   );
 
   const onSubmitMarketQuery = useCallback(
@@ -695,13 +694,13 @@ export default function SearchScreen() {
   const marketListHeader = (
     <View style={[styles.headerBlock, { backgroundColor: shell.background, borderBottomColor: shell.border }]}>
       <Text style={[styles.heroTitle, { color: shell.textPrimary }]} adjustsFontSizeToFit numberOfLines={2}>
-        {tr('Mercado Social', 'Social Market')}
+        {t('search_market_title')}
       </Text>
 
       <SocialMarketSearchBar
         loading={loading}
         shell={shell}
-        tr={tr}
+        t={t}
         onSubmitQuery={onSubmitMarketQuery}
         onClearResults={onClearMarketSearch}
       />
@@ -719,8 +718,8 @@ export default function SearchScreen() {
             ]}
             numberOfLines={2}
           >
-            {tr('Filtro activo:', 'Active filter:')}{' '}
-            {marketSortMode === 'distance' ? tr('Distancia', 'Distance') : tr('Valoración', 'Rating')}
+            {t('search_filter_active')}{' '}
+            {marketSortMode === 'distance' ? t('search_sort_distance') : t('search_sort_rating')}
           </Text>
         </View>
         <TouchableOpacity
@@ -735,10 +734,10 @@ export default function SearchScreen() {
           onPress={() => setMarketSortModalVisible(true)}
           activeOpacity={0.86}
           accessibilityRole="button"
-          accessibilityLabel={tr('Ordenar resultados', 'Sort results')}
+          accessibilityLabel={t('search_sort_a11y')}
         >
           <Text style={[styles.marketSortBtnText, { color: shell.textPrimary }]}>
-            {tr('Ordenar', 'Sort')}
+            {t('search_sort_btn')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -747,7 +746,7 @@ export default function SearchScreen() {
         <View style={styles.resultHeader}>
           <Text style={[styles.resultTitle, { color: shell.textPrimary }]}>
             {allMarketRows.length}{' '}
-            {allMarketRows.length !== 1 ? tr('resultados', 'results') : tr('resultado', 'result')}
+            {allMarketRows.length !== 1 ? t('search_results_plural') : t('search_results_singular')}
           </Text>
         </View>
       ) : null}
@@ -779,18 +778,32 @@ export default function SearchScreen() {
           format: 'png',
         });
 
-        Alert.alert(tr('QR Exportado', 'QR Exported'), result.message);
+        if (!result.success) {
+          Alert.alert(t('search_export_fail_title'), t('search_export_fail'));
+          return;
+        }
+        Alert.alert(t('search_qr_export_title'), t('search_qr_export_success'));
       } catch (error: any) {
         Alert.alert(
-          tr('Error', 'Error'),
-          userFacingAlertMessage(error, language, tr('No fue posible exportar el QR.', 'Could not export QR.')),
+          t('common_error'),
+          userFacingAlertMessage(error, language, t('search_export_fail')),
         );
       }
     };
 
     const distanceLabel =
       showMiles && milesOk
-        ? formatMarketDistanceLabel(dm, tr, prefersMetricDistance, 'miles')
+        ? formatMarketDistanceLabel(
+            dm,
+            {
+              lt100m: t('search_distance_lt_100m'),
+              km: t('search_distance_km_suffix'),
+              lt1mi: t('search_distance_lt_1mi'),
+              mi: t('search_distance_mi_suffix'),
+            },
+            prefersMetricDistance,
+            'miles',
+          )
         : '';
 
     if (!isMarketBusiness) {
@@ -809,7 +822,7 @@ export default function SearchScreen() {
 
       const openCardBody = () => {
         void (async () => {
-          const ok = await hardLockCheck('ver tarjeta desde busqueda');
+          const ok = await hardLockCheck(t('biometric_reason_search_card_view'));
           if (!ok) {
             return;
           }
@@ -840,7 +853,7 @@ export default function SearchScreen() {
           >
             <View style={styles.marketReceivedPressable}>
               <View style={styles.marketReceivedMainRow}>
-                <View accessibilityRole="image" accessibilityLabel={tr('Avatar del contacto', 'Contact avatar')}>
+                <View accessibilityRole="image" accessibilityLabel={t('search_contact_avatar_a11y')}>
                   <View style={[styles.searchAvatarRing, ringStyle]}>
                     {receivedIsBiz ? (
                       bizListLogo ? (
@@ -1027,7 +1040,7 @@ export default function SearchScreen() {
 
     const openMarketCardBody = () => {
       void (async () => {
-        const ok = await hardLockCheck('ver tarjeta desde busqueda');
+        const ok = await hardLockCheck(t('biometric_reason_search_card_view'));
         if (!ok) {
           return;
         }
@@ -1054,30 +1067,30 @@ export default function SearchScreen() {
           });
           if (!res.ok) {
             Alert.alert(
-              tr('Error', 'Error'),
-              tr('No se pudo cargar la tarjeta.', 'Could not load the card.')
+              t('common_error'),
+              t('search_load_card_fail')
             );
             return;
           }
-          const realPayload = myCardsPayloadFromQrPreview(res.preview, tr);
+          const realPayload = myCardsPayloadFromQrPreview(res.preview, (_es, _en) => t('label_social_card'));
           /** Regla business: logo de tarjeta; si el preview no trae `ownerPhotoUrl`, usa el del catálogo. */
           const businessLogo = String(res.preview.ownerPhotoUrl || card.bcLogoUrl || '').trim() || null;
           realPayload.avatarUrl = businessLogo;
           realPayload.noAvatarIcon = 'storefront-outline';
-          realPayload.cardName = realPayload.cardName || String(card.bcName || '').trim() || tr('Negocio', 'Business');
+          realPayload.cardName = realPayload.cardName || String(card.bcName || '').trim() || t('label_business');
           if (!realPayload.subtitle) {
             realPayload.subtitle =
               String(card.bcContactName || '').trim().slice(0, 60) ||
               String(card.businessDescription || '').trim().slice(0, 120) ||
-              tr('Mercado Social', 'Social Market');
+              t('search_market_title');
           }
           realPayload.noAvatarIcon = 'storefront-outline';
           setMarketFetchedPayload(realPayload);
           setMarketCardDetail(item);
         } catch {
           Alert.alert(
-            tr('Error', 'Error'),
-            tr('No se pudo cargar la tarjeta.', 'Could not load the card.')
+            t('common_error'),
+            t('search_load_card_fail')
           );
         }
       })();
@@ -1086,12 +1099,12 @@ export default function SearchScreen() {
     const runMarketPhone = () => {
       const phone = String(card.ownerPhone || '').trim();
       if (!phone) {
-        Alert.alert(tr('Dato no disponible', 'Not available'), tr('Este negocio no publicó teléfono.', 'This business has no phone listed.'));
+        Alert.alert(t('search_phone_unavailable_title'), t('search_phone_unavailable_body'));
         return;
       }
       runSearchFacetQuickAction({
         type: 'teléfono',
-        label: tr('Teléfono', 'Phone'),
+        label: t('common_phone'),
         value: phone,
         issuerUid: card.uid,
         issuerCardName: card.bcName,
@@ -1110,7 +1123,7 @@ export default function SearchScreen() {
     const runMarketWhatsapp = () => {
       const phone = String(card.ownerPhone || '').trim();
       if (!phone) {
-        Alert.alert(tr('Dato no disponible', 'Not available'), tr('Sin número para WhatsApp.', 'No number for WhatsApp.'));
+        Alert.alert(t('search_phone_unavailable_title'), t('search_whatsapp_unavailable'));
         return;
       }
       const digits = phone.replace(/\D/g, '');
@@ -1146,7 +1159,7 @@ export default function SearchScreen() {
               {/* Logo (square) */}
               <View
                 accessibilityRole="image"
-                accessibilityLabel={tr('Logo del negocio', 'Business logo')}
+                accessibilityLabel={t('search_logo_a11y')}
                 pointerEvents="none"
               >
                 <View style={[styles.searchAvatarRing, marketLogoRingStyle]}>
@@ -1331,25 +1344,19 @@ export default function SearchScreen() {
               {submittedQuery.trim().length > 0 ? (
                 <>
                   <Text style={[styles.emptyTitle, { color: shell.textPrimary }]}>
-                    {tr('Sin coincidencias', 'No matches')}
+                    {t('search_no_matches')}
                   </Text>
                   <Text style={[styles.emptySubtitle, { color: shell.textSecondary }]}>
-                    {tr(
-                      'Prueba con otras palabras o sinónimos. También puedes revisar tu conexión.',
-                      'Try different words or synonyms. You can also check your connection.',
-                    )}
+                    {t('search_no_matches_sub')}
                   </Text>
                 </>
               ) : (
                 <>
                   <Text style={[styles.emptyTitle, { color: shell.textPrimary }]}>
-                    {tr('Busca algo…', 'Search for something…')}
+                    {t('search_empty_title')}
                   </Text>
                   <Text style={[styles.emptySubtitle, { color: shell.textSecondary }]}>
-                    {tr(
-                      'Tus tarjetas recibidas y el Mercado Social',
-                      'Your received cards and the Social Market',
-                    )}
+                    {t('search_empty_sub')}
                   </Text>
                 </>
               )}
@@ -1380,7 +1387,7 @@ export default function SearchScreen() {
         }
         peerDisplayName={
           receivedCardDetail && isMarketReceivedContactBusiness(receivedCardDetail)
-            ? String(receivedCardDetail.card.bcName || '').trim() || tr('Negocio', 'Business')
+            ? String(receivedCardDetail.card.bcName || '').trim() || t('label_business')
             : String(receivedCardDetail?.receivedIssuerNickname || '').trim() ||
               receivedCardDetail?.card?.bcName ||
               undefined
@@ -1412,7 +1419,7 @@ export default function SearchScreen() {
         sourceCardName={marketCardDetail?.card.bcName}
         peerDisplayName={
           String(marketCardDetail?.card.bcName || '').trim() ||
-          tr('Negocio', 'Business')
+          t('label_business')
         }
         peerFullName={
           String(marketCardDetail?.card.bcContactName || '').trim() || undefined
@@ -1446,12 +1453,12 @@ export default function SearchScreen() {
             onPress={() => {}}
           >
             <Text style={[styles.marketSortModalTitle, { color: shell.textPrimary }]}>
-              {tr('Ordenar Mercado', 'Sort market')}
+              {t('search_sort_market_title')}
             </Text>
             {(
               [
-                { key: 'distance' as const, label: tr('Distancia', 'Distance') },
-                { key: 'rating' as const, label: tr('Valoración', 'Rating') },
+                { key: 'distance' as const, label: t('search_sort_distance') },
+                { key: 'rating' as const, label: t('search_sort_rating') },
               ] as const
             ).map((option) => (
               <TouchableOpacity
@@ -1505,12 +1512,12 @@ export default function SearchScreen() {
         owner={(() => {
           const it = receptorItem;
           if (!it) {
-            return { displayName: tr('Tarjeta', 'Card'), occupation: '', userAvatarUrl: null as string | null };
+            return { displayName: t('common_card'), occupation: '', userAvatarUrl: null as string | null };
           }
           const isRecBiz = isMarketReceivedContactBusiness(it);
           if (it.rowSource === 'social_market' || isRecBiz) {
             return {
-              displayName: String(it.card.bcName || '').trim() || tr('Tarjeta', 'Card'),
+              displayName: String(it.card.bcName || '').trim() || t('common_card'),
               occupation:
                 String(it.card.bcContactName || '').trim() || String(it.receivedContactCardName || '').trim() || '',
               userAvatarUrl: null,
@@ -1518,7 +1525,7 @@ export default function SearchScreen() {
             };
           }
           return {
-            displayName: it.card.bcName || tr('Tarjeta', 'Card'),
+            displayName: it.card.bcName || t('common_card'),
             occupation: it.receivedContactCardName || '',
             userAvatarUrl: it.receivedIssuerUserAvatarUrl ?? null,
             brandLogoUrl: null,
@@ -1528,18 +1535,14 @@ export default function SearchScreen() {
       totalCount={receptorItem?.receivedHoldersCount ?? receptorSubscribers.length}
       loading={receptorLoading}
       isDark={isDark}
-      tr={tr}
       onBlockExternal={(targetUid, name) => {
         Alert.alert(
-          tr('Bloquear usuario', 'Block user'),
-          tr(
-            `¿Bloquear a ${name}? No podrá agregarte a ninguna tarjeta ni contactarte.`,
-            `Block ${name}? They won't be able to add you to any card or contact you.`,
-          ),
+          t('search_block_title'),
+          t('search_block_body', { name }),
           [
-            { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+            { text: t('common_cancel'), style: 'cancel' },
             {
-              text: tr('Bloquear', 'Block'),
+              text: t('common_block'),
               style: 'destructive',
               onPress: async () => {
                 try {
@@ -1549,8 +1552,8 @@ export default function SearchScreen() {
                   setReceptorSubscribers((prev) => prev.filter((r) => r.uid !== targetUid));
                 } catch (e: any) {
                   Alert.alert(
-                    tr('Error', 'Error'),
-                    userFacingAlertMessage(e, language, tr('No se pudo bloquear.', 'Could not block.')),
+                    t('common_error'),
+                    userFacingAlertMessage(e, language, t('search_block_failed')),
                   );
                 }
               },

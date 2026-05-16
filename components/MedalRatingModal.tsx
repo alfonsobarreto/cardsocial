@@ -167,7 +167,7 @@ export function MedalRatingModal({
         targetCardId: sidOrBId,
         reportedUserId: issuerUid,
         reporterUserId: myUid || null,
-        reason: cardType === 'smart' ? 'Reporte de Smart Card' : 'Reporte de Business Card',
+        reason: cardType === 'smart' ? 'smart_card_report' : 'business_card_report',
         details: text,
         anonymous: true,
         source: 'medal_rating_modal',

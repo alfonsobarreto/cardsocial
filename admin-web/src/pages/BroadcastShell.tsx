@@ -13,11 +13,13 @@ import {
   broadcastSend,
   formatSimulationLine,
 } from '../services/broadcastService';
+import { useAdminT } from '../i18n/useAdminT';
 
 const emptyMessages = (): BroadcastMessagesPayload =>
   Object.fromEntries(BROADCAST_LANGS.map((lang) => [lang, { subject: '', body: '' }])) as BroadcastMessagesPayload;
 
 export default function BroadcastShell() {
+  const { t } = useAdminT();
   const { user, loading: authLoading } = useAuth();
   const defaultSegment =
     BROADCAST_SEGMENT_OPTIONS.find((s) => s.value === 'new_users_week')?.value ??
@@ -62,16 +64,17 @@ export default function BroadcastShell() {
       setSample(p.sample);
       setFirestoreOn(p.firestoreEnabled);
     } catch (e) {
+      console.error('[BroadcastShell] runPreview', e);
       setPreviewCount(null);
       setPreviewWithEmail(null);
       setHistogram(null);
       setSample(null);
       setFirestoreOn(null);
-      setError((e as Error).message);
+      setError(t('admin_broadcast_err_general'));
     } finally {
       setBusy(false);
     }
-  }, [days, segment, user]);
+  }, [days, segment, user, t]);
 
   const applyMondayWelcome = useCallback(async () => {
     if (!user) return;
@@ -94,16 +97,17 @@ export default function BroadcastShell() {
       setSample(p.sample);
       setFirestoreOn(p.firestoreEnabled);
     } catch (e) {
+      console.error('[BroadcastShell] applyMondayWelcome', e);
       setPreviewCount(null);
       setPreviewWithEmail(null);
       setHistogram(null);
       setSample(null);
       setFirestoreOn(null);
-      setError((e as Error).message);
+      setError(t('admin_broadcast_err_general'));
     } finally {
       setBusy(false);
     }
-  }, [user]);
+  }, [user, t]);
 
   const applyRenewal7Alerts = useCallback(async () => {
     if (!user) return;
@@ -126,16 +130,17 @@ export default function BroadcastShell() {
       setSample(p.sample);
       setFirestoreOn(p.firestoreEnabled);
     } catch (e) {
+      console.error('[BroadcastShell] applyRenewal7Alerts', e);
       setPreviewCount(null);
       setPreviewWithEmail(null);
       setHistogram(null);
       setSample(null);
       setFirestoreOn(null);
-      setError((e as Error).message);
+      setError(t('admin_broadcast_err_general'));
     } finally {
       setBusy(false);
     }
-  }, [user]);
+  }, [user, t]);
 
   const updateLang = useCallback((lang: string, field: 'subject' | 'body', value: string) => {
     setMessages((prev) => ({
@@ -158,16 +163,23 @@ export default function BroadcastShell() {
         ...(segment === 'new_users' ? { days } : {}),
       });
       setSendResult(
-        `Enviado · audiencia ${res.audience} · email OK ${res.sentEmail} · email fallidos ${res.failedEmail} · push intentos ${res.sentPush} · sin email ${res.skippedNoEmail}`,
+        t('admin_broadcast_send_summary', {
+          audience: String(res.audience),
+          sentEmail: String(res.sentEmail),
+          failedEmail: String(res.failedEmail),
+          sentPush: String(res.sentPush),
+          skippedNoEmail: String(res.skippedNoEmail),
+        }),
       );
       setConfirmOpen(false);
       setConfirmTyped('');
     } catch (e) {
-      setError((e as Error).message);
+      console.error('[BroadcastShell] runSend', e);
+      setError(t('admin_broadcast_err_general'));
     } finally {
       setBusy(false);
     }
-  }, [channel, days, messages, previewCount, segment, user]);
+  }, [channel, days, messages, previewCount, segment, user, t]);
 
   const simulationText = useMemo(
     () => formatSimulationLine(previewCount ?? 0, histogram),

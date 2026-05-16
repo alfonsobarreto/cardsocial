@@ -21,7 +21,8 @@ import * as Sharing from 'expo-sharing';
 import Toast from 'react-native-toast-message';
 import type { MirrorVaultItem } from '@/services/buildReceiverPreviewVaultItems';
 import { resolveVaultMediaUrlForApp } from '@/services/resolveVaultMediaUrl';
-import { presentDetectedQrAlert, scanQrFromImageUri } from '@/services/vaultImageQrScan';
+import { presentDetectedQrFromT, scanQrFromImageUri } from '@/services/vaultImageQrScan';
+import { useCoreT, type CoreLocaleKey } from '@/services/coreI18n';
 import { isVaultDocumentImage, isVaultDocumentPdf } from '@/services/vaultMimeGuards';
 
 let PdfComponent: any = null;
@@ -118,13 +119,13 @@ type Props = {
   visible: boolean;
   item: MirrorVaultItem | null;
   onClose: () => void;
-  tr: (es: string, en: string) => string;
   fallbackMutedColor: string;
 };
 
-export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackMutedColor }: Props) {
+export function VaultDocumentViewerModal({ visible, item, onClose, fallbackMutedColor }: Props) {
+  const t = useCoreT();
   const [downloading, setDownloading] = useState(false);
-  const [pdfLoadError, setPdfLoadError] = useState<string | null>(null);
+  const [pdfLoadFailed, setPdfLoadFailed] = useState(false);
   const [qrAnalyzing, setQrAnalyzing] = useState(false);
   const qrScanGenRef = useRef(0);
   const { width: winW, height: winH } = useWindowDimensions();
@@ -146,13 +147,12 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
     return { width: winW, height: h };
   }, [winW, winH, topBarReserve]);
 
-  const onPdfError = useCallback((err: unknown) => {
-    const msg = err != null ? String((err as Error)?.message || err) : '';
-    setPdfLoadError(msg || 'load failed');
+  const onPdfError = useCallback(() => {
+    setPdfLoadFailed(true);
   }, []);
 
   useEffect(() => {
-    setPdfLoadError(null);
+    setPdfLoadFailed(false);
   }, [displayUri]);
 
   useEffect(() => {
@@ -181,14 +181,14 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
       if (canShare) {
         await Sharing.shareAsync(targetUri, {
           mimeType: shareMime,
-          dialogTitle: tr('Guardar archivo de Card-Social', 'Save Card-Social file'),
+          dialogTitle: t('vault_share_dialog_title'),
         });
       }
 
       Toast.show({
         type: 'success',
-        text1: tr('📥 Descarga lista', '📥 Download ready'),
-        text2: tr('Archivo preparado en tu dispositivo', 'File ready on your device'),
+        text1: t('vault_toast_download_title'),
+        text2: t('vault_toast_download_body'),
         position: 'bottom',
         visibilityTime: 3000,
         autoHide: true,
@@ -196,7 +196,7 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
     } catch {
       Toast.show({
         type: 'error',
-        text1: tr('❌ No se pudo descargar', '❌ Download failed'),
+        text1: t('vault_toast_download_fail'),
         position: 'bottom',
         visibilityTime: 3000,
         autoHide: true,
@@ -209,14 +209,11 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
   const handleLongPressPdf = () => {
     if (!item) return;
     Alert.alert(
-      tr('Guardar archivo', 'Save file'),
-      tr(
-        'Mantén la privacidad: el archivo se exportará desde el visor seguro.',
-        'Keep privacy: the file will be exported from the secure viewer.',
-      ),
+      t('vault_save_long_title'),
+      t('vault_save_long_body'),
       [
-        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
-        { text: tr('Guardar', 'Save'), onPress: () => void handleDownload() },
+        { text: t('qr_cancel'), style: 'cancel' },
+        { text: t('vault_save_action'), onPress: () => void handleDownload() },
       ],
     );
   };
@@ -243,10 +240,10 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
         } catch {
           /* noop */
         }
-        presentDetectedQrAlert(payload, tr, () => {
+        presentDetectedQrFromT(payload, (k) => t(k as CoreLocaleKey), () => {
           Toast.show({
             type: 'success',
-            text1: tr('Copiado', 'Copied'),
+            text1: t('vault_copied'),
             position: 'bottom',
             visibilityTime: 1800,
             autoHide: true,
@@ -260,8 +257,8 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
         }
         Toast.show({
           type: 'info',
-          text1: tr('Sin código detectado', 'No code detected'),
-          text2: tr('No se encontró un QR en esta imagen.', 'No QR was found in this image.'),
+          text1: t('vault_no_qr'),
+          text2: t('vault_no_qr_body'),
           position: 'bottom',
           visibilityTime: 2200,
           autoHide: true,
@@ -271,8 +268,8 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
       if (session === qrScanGenRef.current) {
         Toast.show({
           type: 'info',
-          text1: tr('Sin código detectado', 'No code detected'),
-          text2: tr('No se pudo analizar la imagen.', 'Could not analyze the image.'),
+          text1: t('vault_no_qr'),
+          text2: t('vault_no_qr_analyze'),
           position: 'bottom',
           visibilityTime: 2200,
           autoHide: true,
@@ -283,7 +280,7 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
         setQrAnalyzing(false);
       }
     }
-  }, [displayUri, item, tr]);
+  }, [displayUri, item, t]);
 
   const showPdf =
     Boolean(item) &&
@@ -306,7 +303,7 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
           <View style={styles.qrScanOverlay} pointerEvents="auto">
             <ActivityIndicator size="large" color="#F2CA50" />
             <Text style={styles.qrScanLabel}>
-              {tr('Analizando imagen…', 'Analyzing image…')}
+              {t('vault_analyzing')}
             </Text>
           </View>
         ) : null}
@@ -317,7 +314,7 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
             ) : (
               <MaterialCommunityIcons name="download" color="#0A2540" size={18} />
             )}
-            <Text style={styles.viewerDownloadText}>{tr('Descargar', 'Download')}</Text>
+            <Text style={styles.viewerDownloadText}>{t('common_download')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.viewerCloseButton} onPress={onClose}>
@@ -345,20 +342,17 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
                     contentFit="contain"
                     cachePolicy="disk"
                     transition={200}
-                    accessibilityLabel={tr('Documento imagen', 'Document image')}
+                    accessibilityLabel={t('vault_doc_image_a11y')}
                   />
                 </ScrollView>
               </TouchableWithoutFeedback>
             ) : showPdf ? (
               PdfComponent ? (
-                pdfLoadError ? (
+                pdfLoadFailed ? (
                   <View style={[styles.viewerFallback, { minHeight: pdfSize.height }]}>
                     <MaterialCommunityIcons name="file-pdf-box" color="#C5A065" size={54} />
                     <Text style={[styles.viewerFallbackText, { color: fallbackMutedColor }]}>
-                      {tr('No se pudo cargar el PDF en el visor.', 'Could not load the PDF in the viewer.')}
-                    </Text>
-                    <Text style={[styles.viewerFallbackText, { color: fallbackMutedColor, fontSize: 11, opacity: 0.85 }]}>
-                      {pdfLoadError}
+                      {t('vault_pdf_load_fail')}
                     </Text>
                   </View>
                 ) : (
@@ -371,7 +365,7 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
                         maxScale={3}
                         trustAllCerts
                         onError={onPdfError}
-                        onLoadComplete={() => setPdfLoadError(null)}
+                        onLoadComplete={() => setPdfLoadFailed(false)}
                       />
                     </View>
                   </TouchableWithoutFeedback>
@@ -380,10 +374,7 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
                 <View style={[styles.viewerFallback, { minHeight: pdfSize.height }]}>
                   <MaterialCommunityIcons name="file-pdf-box" color="#C5A065" size={54} />
                   <Text style={[styles.viewerFallbackText, { color: fallbackMutedColor }]}>
-                    {tr(
-                      'La previsualizacion PDF no esta disponible en Expo Go. Usa un development build para verla.',
-                      'PDF preview is not available in Expo Go. Use a development build to view it.',
-                    )}
+                    {t('vault_pdf_expo_go')}
                   </Text>
                 </View>
               )
@@ -391,7 +382,7 @@ export function VaultDocumentViewerModal({ visible, item, onClose, tr, fallbackM
               <View style={styles.viewerFallback}>
                 <MaterialCommunityIcons name="file-alert-outline" color="#C5A065" size={54} />
                 <Text style={[styles.viewerFallbackText, { color: fallbackMutedColor }]}>
-                  {tr('No se pudo previsualizar este archivo.', 'Could not preview this file.')}
+                  {t('vault_preview_fail')}
                 </Text>
               </View>
             )

@@ -4,10 +4,11 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 
 import { getAdminApp } from '@/lib/firebaseAdminStudio';
 import { pickLocaleFromHeaders, userFacingMessageForErrorCode } from '@/lib/userFacingApiMessages';
+import { emailT, type EmailLocale } from '@card-social/services/emailI18n';
 
 export const runtime = 'nodejs';
 
-type Locale = 'en' | 'es';
+type Locale = EmailLocale;
 type Interest = 'personal' | 'business' | 'investor';
 
 type WaitlistPayload = {
@@ -21,32 +22,6 @@ type WaitlistPayload = {
   interestLabel?: string;
   pagePath?: string;
   company?: string;
-};
-
-const interestLabels: Record<Locale, Record<Interest, string>> = {
-  en: {
-    personal: 'Secure my personal card',
-    business: 'I am a Business Owner',
-    investor: 'I am an Investor',
-  },
-  es: {
-    personal: 'Asegurar mi tarjeta personal',
-    business: 'Soy dueño de negocio',
-    investor: 'Soy inversionista',
-  },
-};
-
-const notifySubjects: Record<Locale, Record<Interest, string>> = {
-  en: {
-    personal: 'New personal card lead for Card-Social',
-    business: 'New business owner lead for Card-Social',
-    investor: 'You have a new investor lead for Card-Social',
-  },
-  es: {
-    personal: 'Nuevo usuario interesado en su tarjeta personal',
-    business: 'Nuevo dueño de negocio interesado en Card-Social',
-    investor: 'Tienes un inversionista interesado en Card-Social',
-  },
 };
 
 function clean(value: unknown, max = 500): string {
@@ -72,7 +47,10 @@ function normalizeLeadEmail(value: unknown): string {
 }
 
 function normalizeLocale(raw: unknown): Locale {
-  return raw === 'es' ? 'es' : 'en';
+  if (raw === 'es' || raw === 'en' || raw === 'it' || raw === 'fr' || raw === 'de' || raw === 'pt') {
+    return raw;
+  }
+  return 'en';
 }
 
 function normalizeInterest(raw: unknown): Interest | null {
@@ -84,110 +62,118 @@ function waitlistLeadDocId(emailLower: string): string {
   return Buffer.from(emailLower.trim().toLowerCase(), 'utf8').toString('base64url');
 }
 
-function adminEmailHtml(lead: Required<Omit<WaitlistPayload, 'company'>>, submittedAt: string): string {
-  const localeName = lead.locale === 'es' ? 'Español' : 'English';
+/**
+ * Idioma del correo al equipo interno. `WAITLIST_ADMIN_EMAIL_LOCALE` = es | en | it | pt | fr | de (por defecto `es`).
+ */
+function waitlistAdminNotifyLocale(): Locale {
+  const r = process.env.WAITLIST_ADMIN_EMAIL_LOCALE?.trim().toLowerCase();
+  if (r === 'es' || r === 'en' || r === 'it' || r === 'pt' || r === 'fr' || r === 'de') return r;
+  return 'es';
+}
+
+function notifySubject(interest: Interest, locale: Locale): string {
+  return emailT(locale, `waitlist_notify_subject_${interest}`);
+}
+
+function interestLabelForLocale(interest: Interest, locale: Locale): string {
+  return emailT(locale, `waitlist_interest_label_${interest}`);
+}
+
+function leadLocaleDisplayForAdmin(leadLocale: Locale, adminLocale: Locale): string {
+  return emailT(adminLocale, `waitlist_lead_lang_${leadLocale}`);
+}
+
+function adminEmailHtml(
+  lead: Required<Omit<WaitlistPayload, 'company'>>,
+  submittedAt: string,
+  adminLoc: Locale,
+): string {
+  const headline = notifySubject(lead.interest, adminLoc);
+  const intro = emailT(adminLoc, 'waitlist_admin_intro');
+  const interestLine = interestLabelForLocale(lead.interest, adminLoc);
+  const langLine = leadLocaleDisplayForAdmin(lead.locale, adminLoc);
+  const ln = (k: string, v: string) =>
+    `<li><strong>${escapeHtml(emailT(adminLoc, k))}:</strong> ${v}</li>`;
   return `
     <div style="font-family:Arial,sans-serif;color:#111;line-height:1.5">
-      <h2>${escapeHtml(notifySubjects[lead.locale][lead.interest])}</h2>
-      <p>Tienes un nuevo lead desde la landing de Card-Social.</p>
+      <h2>${escapeHtml(headline)}</h2>
+      <p>${escapeHtml(intro)}</p>
       <ul>
-        <li><strong>Nombre:</strong> ${escapeHtml(lead.fullName)}</li>
-        <li><strong>Email:</strong> ${escapeHtml(lead.email)}</li>
-        <li><strong>Teléfono/WhatsApp:</strong> ${escapeHtml(lead.phoneE164)} (${escapeHtml(lead.phoneCountryCode)} ${escapeHtml(lead.phoneNational)})</li>
-        <li><strong>Interés:</strong> ${escapeHtml(lead.interestLabel)}</li>
-        <li><strong>Idioma:</strong> ${localeName}</li>
-        <li><strong>Página:</strong> ${escapeHtml(lead.pagePath)}</li>
-        <li><strong>Fecha:</strong> ${escapeHtml(submittedAt)}</li>
+        ${ln('waitlist_admin_label_name', escapeHtml(lead.fullName))}
+        ${ln('waitlist_admin_label_email', escapeHtml(lead.email))}
+        ${ln(
+          'waitlist_admin_label_phone',
+          `${escapeHtml(lead.phoneE164)} (${escapeHtml(lead.phoneCountryCode)} ${escapeHtml(lead.phoneNational)})`,
+        )}
+        ${ln('waitlist_admin_label_interest', escapeHtml(interestLine))}
+        ${ln('waitlist_admin_label_language', escapeHtml(langLine))}
+        ${ln('waitlist_admin_label_page', escapeHtml(lead.pagePath))}
+        ${ln('waitlist_admin_label_date', escapeHtml(submittedAt))}
       </ul>
     </div>
   `;
 }
 
-function adminEmailText(lead: Required<Omit<WaitlistPayload, 'company'>>, submittedAt: string): string {
+function adminEmailText(
+  lead: Required<Omit<WaitlistPayload, 'company'>>,
+  submittedAt: string,
+  adminLoc: Locale,
+): string {
+  const l = (key: string) => emailT(adminLoc, key);
+  const headline = notifySubject(lead.interest, adminLoc);
+  const interestLine = interestLabelForLocale(lead.interest, adminLoc);
+  const langLine = leadLocaleDisplayForAdmin(lead.locale, adminLoc);
   return [
-    notifySubjects[lead.locale][lead.interest],
+    headline,
     '',
-    'Tienes un nuevo lead desde la landing de Card-Social.',
-    `Nombre: ${lead.fullName}`,
-    `Email: ${lead.email}`,
-    `Telefono/WhatsApp: ${lead.phoneE164} (${lead.phoneCountryCode} ${lead.phoneNational})`,
-    `Interes: ${lead.interestLabel}`,
-    `Idioma: ${lead.locale === 'es' ? 'Español' : 'English'}`,
-    `Pagina: ${lead.pagePath}`,
-    `Fecha: ${submittedAt}`,
+    emailT(adminLoc, 'waitlist_admin_intro'),
+    `${l('waitlist_admin_label_name')}: ${lead.fullName}`,
+    `${l('waitlist_admin_label_email')}: ${lead.email}`,
+    `${l('waitlist_admin_label_phone')}: ${lead.phoneE164} (${lead.phoneCountryCode} ${lead.phoneNational})`,
+    `${l('waitlist_admin_label_interest')}: ${interestLine}`,
+    `${l('waitlist_admin_label_language')}: ${langLine}`,
+    `${l('waitlist_admin_label_page')}: ${lead.pagePath}`,
+    `${l('waitlist_admin_label_date')}: ${submittedAt}`,
   ].join('\n');
 }
 
 function autoReplySubject(locale: Locale, interest: Interest): string {
   if (interest === 'investor') {
-    return locale === 'es'
-      ? 'Card-Social: acceso al resumen ejecutivo'
-      : 'Card-Social: access to the executive summary';
+    return emailT(locale, 'waitlist_autoreply_subject_investor');
   }
-  return locale === 'es'
-    ? 'Bienvenido a la Beta privada de Card-Social'
-    : 'Welcome to the Card-Social private beta';
+  return emailT(locale, 'waitlist_autoreply_subject_beta');
 }
 
 function autoReplyHtml(locale: Locale, interest: Interest, executiveSummaryUrl: string): string {
   if (interest === 'investor') {
-    if (locale === 'es') {
-      return `
-        <div style="font-family:Arial,sans-serif;color:#111;line-height:1.6">
-          <h2>Gracias por tu interés en Card-Social.</h2>
-          <p>Recibimos tu solicitud como inversionista. Nuestro equipo revisará tu información y te contactará con los próximos pasos.</p>
-          <p><a href="${escapeHtml(executiveSummaryUrl)}">Descarga nuestro Resumen Ejecutivo aquí</a></p>
-          <p>Card-Social está construyendo una infraestructura de identidad, privacidad e inteligencia local para la nueva economía de networking.</p>
-        </div>
-      `;
-    }
     return `
       <div style="font-family:Arial,sans-serif;color:#111;line-height:1.6">
-        <h2>Thank you for your interest in Card-Social.</h2>
-        <p>We received your investor request. Our team will review your information and follow up with next steps.</p>
-        <p><a href="${escapeHtml(executiveSummaryUrl)}">Download our Executive Summary here</a></p>
-        <p>Card-Social is building identity, privacy, and local intelligence infrastructure for the new networking economy.</p>
-      </div>
-    `;
-  }
-
-  if (locale === 'es') {
-    return `
-      <div style="font-family:Arial,sans-serif;color:#111;line-height:1.6">
-        <h2>Bienvenido a Card-Social.</h2>
-        <p>Recibimos tu solicitud para la Beta privada. Estás en la lista para acceder a una nueva forma de proteger tu identidad, compartir tarjetas dinámicas y entrar al Social Market.</p>
-        <p>Te contactaremos pronto con los próximos pasos.</p>
+        <h2>${escapeHtml(emailT(locale, 'waitlist_autoreply_investor_h2'))}</h2>
+        <p>${escapeHtml(emailT(locale, 'waitlist_autoreply_investor_p1'))}</p>
+        <p><a href="${escapeHtml(executiveSummaryUrl)}">${escapeHtml(emailT(locale, 'waitlist_autoreply_investor_link_text'))}</a></p>
+        <p>${escapeHtml(emailT(locale, 'waitlist_autoreply_investor_p2'))}</p>
       </div>
     `;
   }
   return `
     <div style="font-family:Arial,sans-serif;color:#111;line-height:1.6">
-      <h2>Welcome to Card-Social.</h2>
-      <p>We received your private beta request. You are on the list to access a new way to protect your identity, share dynamic cards, and enter the Social Market.</p>
-      <p>We will follow up soon with next steps.</p>
+      <h2>${escapeHtml(emailT(locale, 'waitlist_autoreply_beta_h2'))}</h2>
+      <p>${escapeHtml(emailT(locale, 'waitlist_autoreply_beta_p1'))}</p>
+      <p>${escapeHtml(emailT(locale, 'waitlist_autoreply_beta_p2'))}</p>
     </div>
   `;
 }
 
 function autoReplyText(locale: Locale, interest: Interest, executiveSummaryUrl: string): string {
   if (interest === 'investor') {
-    return locale === 'es'
-      ? [
-          'Gracias por tu interés en Card-Social.',
-          'Recibimos tu solicitud como inversionista. Nuestro equipo revisará tu información y te contactará con los próximos pasos.',
-          `Descarga nuestro Resumen Ejecutivo aquí: ${executiveSummaryUrl}`,
-          'Card-Social está construyendo una infraestructura de identidad, privacidad e inteligencia local para la nueva economía de networking.',
-        ].join('\n\n')
-      : [
-          'Thank you for your interest in Card-Social.',
-          'We received your investor request. Our team will review your information and follow up with next steps.',
-          `Download our Executive Summary here: ${executiveSummaryUrl}`,
-          'Card-Social is building identity, privacy, and local intelligence infrastructure for the new networking economy.',
-        ].join('\n\n');
+    return [
+      emailT(locale, 'waitlist_autoreply_investor_h2'),
+      emailT(locale, 'waitlist_autoreply_investor_p1'),
+      `${emailT(locale, 'waitlist_autoreply_investor_link_text')}: ${executiveSummaryUrl}`,
+      emailT(locale, 'waitlist_autoreply_investor_p2'),
+    ].join('\n\n');
   }
-  return locale === 'es'
-    ? 'Bienvenido a Card-Social.\n\nRecibimos tu solicitud para la Beta privada. Te contactaremos pronto con los próximos pasos.'
-    : 'Welcome to Card-Social.\n\nWe received your private beta request. We will follow up soon with next steps.';
+  return [emailT(locale, 'waitlist_autoreply_beta_h2'), '', emailT(locale, 'waitlist_autoreply_beta_p1'), '', emailT(locale, 'waitlist_autoreply_beta_p2')].join('\n');
 }
 
 async function sendWebhook(lead: Required<Omit<WaitlistPayload, 'company'>>, submittedAt: string) {
@@ -249,6 +235,8 @@ export async function POST(req: Request) {
     );
   }
 
+  const adminLoc = waitlistAdminNotifyLocale();
+
   const lead = {
     locale,
     fullName,
@@ -257,7 +245,7 @@ export async function POST(req: Request) {
     phoneNational,
     phoneE164,
     interest,
-    interestLabel: interestLabels[locale][interest],
+    interestLabel: interestLabelForLocale(interest, locale),
     pagePath,
   };
   const submittedAt = new Date().toISOString();
@@ -270,9 +258,9 @@ export async function POST(req: Request) {
       from,
       to: notifyTo,
       replyTo: email,
-      subject: notifySubjects[locale][interest],
-      text: adminEmailText(lead, submittedAt),
-      html: adminEmailHtml(lead, submittedAt),
+      subject: notifySubject(interest, adminLoc),
+      text: adminEmailText(lead, submittedAt, adminLoc),
+      html: adminEmailHtml(lead, submittedAt, adminLoc),
     });
 
     await resend.emails.send({

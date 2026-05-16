@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useAuth } from '../auth/useAuth';
+import { useAdminT } from '../i18n/useAdminT';
 import {
   type VipCampaign,
   type VipCampaignType,
@@ -49,6 +50,7 @@ function giftStatusStyles(status: QRGift['status']) {
 }
 
 export default function Campaigns() {
+  const { t } = useAdminT();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<CampaignTab>('tiers');
   const [campaigns, setCampaigns] = useState<VipCampaign[]>([]);
@@ -193,7 +195,7 @@ export default function Campaigns() {
       console.error('[Campaigns] Create coin gift failed:', error);
       setToast({
         type: 'error',
-        message: error instanceof Error ? error.message : 'No se pudo crear el regalo de CS Coins.',
+        message: t('admin_campaigns_err_create_gift'),
       });
     } finally {
       setSubmitting(false);

@@ -1,0 +1,2082 @@
+{
+  "common_cancel": {
+    "es": "Cancelar",
+    "en": "Cancel",
+    "it": "Annulla",
+    "pt": "Cancelar",
+    "fr": "Annuler",
+    "de": "Abbrechen"
+  },
+  "common_error": {
+    "es": "Error",
+    "en": "Error",
+    "it": "Errore",
+    "pt": "Erro",
+    "fr": "Erreur",
+    "de": "Fehler"
+  },
+  "common_ok": {
+    "es": "Entendido",
+    "en": "OK",
+    "it": "OK",
+    "pt": "OK",
+    "fr": "OK",
+    "de": "OK"
+  },
+  "common_continue": {
+    "es": "Continuar",
+    "en": "Continue",
+    "it": "Continua",
+    "pt": "Continuar",
+    "fr": "Continuer",
+    "de": "Weiter"
+  },
+  "common_sending": {
+    "es": "Enviando…",
+    "en": "Sending…",
+    "it": "Invio in corso…",
+    "pt": "Enviando…",
+    "fr": "Envoi en cours…",
+    "de": "Wird gesendet…"
+  },
+  "common_accept": {
+    "es": "Aceptar",
+    "en": "Accept",
+    "it": "Accetta",
+    "pt": "Aceitar",
+    "fr": "Accepter",
+    "de": "Akzeptieren"
+  },
+  "signin_welcome_title": {
+    "es": "Card-Social, donde tus datos son solo tuyos",
+    "en": "Card-Social, your data stays yours",
+    "it": "Card-Social, i tuoi dati restano tuoi",
+    "pt": "Card-Social, seus dados continuam seus",
+    "fr": "Card-Social, vos données vous appartiennent",
+    "de": "Card-Social – Ihre Daten gehören Ihnen"
+  },
+  "signin_subtitle": {
+    "es": "Inicia como prefieras, pero siempre con control total de tu identidad.",
+    "en": "Sign in your way, always with full control of your identity.",
+    "it": "Accedi come preferisci, sempre con il pieno controllo della tua identità.",
+    "pt": "Entre do seu jeito, sempre com controle total da sua identidade.",
+    "fr": "Connectez-vous comme vous voulez, en gardant le contrôle total de votre identité.",
+    "de": "Melden Sie sich an, wie Sie möchten – mit voller Kontrolle über Ihre Identität."
+  },
+  "signin_section_password": {
+    "es": "Inicia con usuario y contraseña",
+    "en": "Sign in with username and password",
+    "it": "Accedi con nome utente e password",
+    "pt": "Entrar com usuário e senha",
+    "fr": "Connexion avec identifiant et mot de passe",
+    "de": "Mit Benutzername und Passwort anmelden"
+  },
+  "signin_placeholder_username": {
+    "es": "Usuario",
+    "en": "Username",
+    "it": "Nome utente",
+    "pt": "Usuário",
+    "fr": "Identifiant",
+    "de": "Benutzername"
+  },
+  "signin_placeholder_password": {
+    "es": "Contraseña",
+    "en": "Password",
+    "it": "Password",
+    "pt": "Senha",
+    "fr": "Mot de passe",
+    "de": "Passwort"
+  },
+  "signin_trust_title": {
+    "es": "Confío en este dispositivo",
+    "en": "I trust this device",
+    "it": "Mi fido di questo dispositivo",
+    "pt": "Confio neste dispositivo",
+    "fr": "Je fais confiance à cet appareil",
+    "de": "Ich vertraue diesem Gerät"
+  },
+  "signin_trust_hint": {
+    "es": "Si no lo activas, cerramos sesión tras 8 horas sin uso en este equipo (estilo banca).",
+    "en": "If off, we sign you out after 8 hours of inactivity on this device.",
+    "it": "Se disattivato, usciamo dopo 8 ore di inattività su questo dispositivo.",
+    "pt": "Se desativado, encerramos a sessão após 8 horas sem uso neste aparelho.",
+    "fr": "Si désactivé, déconnexion après 8 h d’inactivité sur cet appareil.",
+    "de": "Wenn aus, erfolgt die Abmeldung nach 8 Stunden Inaktivität auf diesem Gerät."
+  },
+  "signin_cta": {
+    "es": "Iniciar sesión",
+    "en": "Sign In",
+    "it": "Accedi",
+    "pt": "Entrar",
+    "fr": "Se connecter",
+    "de": "Anmelden"
+  },
+  "signin_forgot_password": {
+    "es": "Olvidé mi contraseña",
+    "en": "Forgot my password",
+    "it": "Ho dimenticato la password",
+    "pt": "Esqueci minha senha",
+    "fr": "Mot de passe oublié",
+    "de": "Passwort vergessen"
+  },
+  "signin_forgot_username": {
+    "es": "Olvidé mi usuario",
+    "en": "Forgot my username",
+    "it": "Ho dimenticato il nome utente",
+    "pt": "Esqueci meu usuário",
+    "fr": "Identifiant oublié",
+    "de": "Benutzername vergessen"
+  },
+  "signin_resend_verification": {
+    "es": "Reenviar correo de verificación",
+    "en": "Resend verification email",
+    "it": "Invia di nuovo l’email di verifica",
+    "pt": "Reenviar e-mail de verificação",
+    "fr": "Renvoyer l’e-mail de vérification",
+    "de": "Bestätigungs-E-Mail erneut senden"
+  },
+  "signin_footer_signup": {
+    "es": "¿No tienes cuenta? Regístrate",
+    "en": "Don't have an account? Sign up",
+    "it": "Non hai un account? Registrati",
+    "pt": "Não tem conta? Cadastre-se",
+    "fr": "Pas de compte ? Inscrivez-vous",
+    "de": "Noch kein Konto? Registrieren"
+  },
+  "signin_modal_validating": {
+    "es": "Validando acceso seguro…",
+    "en": "Validating secure access…",
+    "it": "Verifica accesso sicuro in corso…",
+    "pt": "Validando acesso seguro…",
+    "fr": "Vérification de l’accès sécurisé…",
+    "de": "Sichere Anmeldung wird geprüft…"
+  },
+  "signin_alert_password_required_title": {
+    "es": "Contraseña obligatoria",
+    "en": "Password required",
+    "it": "Password obbligatoria",
+    "pt": "Senha obrigatória",
+    "fr": "Mot de passe requis",
+    "de": "Passwort erforderlich"
+  },
+  "signin_alert_password_required_body": {
+    "es": "Ingresa tu contraseña para continuar.",
+    "en": "Enter your password to continue.",
+    "it": "Inserisci la password per continuare.",
+    "pt": "Digite sua senha para continuar.",
+    "fr": "Saisissez votre mot de passe pour continuer.",
+    "de": "Geben Sie Ihr Passwort ein, um fortzufahren."
+  },
+  "signin_alert_username_required_title": {
+    "es": "Usuario obligatorio",
+    "en": "Username required",
+    "it": "Nome utente obbligatorio",
+    "pt": "Usuário obrigatório",
+    "fr": "Identifiant requis",
+    "de": "Benutzername erforderlich"
+  },
+  "signin_alert_username_required_body": {
+    "es": "Ingresa tu usuario para iniciar sesión.",
+    "en": "Enter your username to sign in.",
+    "it": "Inserisci il nome utente per accedere.",
+    "pt": "Digite seu usuário para entrar.",
+    "fr": "Saisissez votre identifiant pour vous connecter.",
+    "de": "Geben Sie Ihren Benutzernamen ein."
+  },
+  "signin_alert_user_not_found_title": {
+    "es": "Usuario no encontrado",
+    "en": "Username not found",
+    "it": "Utente non trovato",
+    "pt": "Usuário não encontrado",
+    "fr": "Utilisateur introuvable",
+    "de": "Benutzer nicht gefunden"
+  },
+  "signin_alert_user_not_found_body": {
+    "es": "No encontramos una cuenta con ese usuario.",
+    "en": "We could not find an account with that username.",
+    "it": "Non abbiamo trovato un account con quel nome utente.",
+    "pt": "Não encontramos uma conta com esse usuário.",
+    "fr": "Aucun compte trouvé avec cet identifiant.",
+    "de": "Wir finden kein Konto mit diesem Benutzernamen."
+  },
+  "signin_alert_access_error_title": {
+    "es": "Error de acceso",
+    "en": "Access error",
+    "it": "Errore di accesso",
+    "pt": "Erro de acesso",
+    "fr": "Erreur d’accès",
+    "de": "Anmeldefehler"
+  },
+  "signin_err_wrong_password": {
+    "es": "Usuario o contraseña incorrectos.",
+    "en": "Incorrect username or password.",
+    "it": "Nome utente o password non corretti.",
+    "pt": "Usuário ou senha incorretos.",
+    "fr": "Identifiant ou mot de passe incorrect.",
+    "de": "Benutzername oder Passwort falsch."
+  },
+  "signin_err_user_disabled": {
+    "es": "Esta cuenta no está disponible.",
+    "en": "This account is not available.",
+    "it": "Questo account non è disponibile.",
+    "pt": "Esta conta não está disponível.",
+    "fr": "Ce compte n’est pas disponible.",
+    "de": "Dieses Konto ist nicht verfügbar."
+  },
+  "signin_err_too_many_requests": {
+    "es": "Demasiados intentos. Espera unos minutos e inténtalo de nuevo.",
+    "en": "Too many attempts. Wait a few minutes and try again.",
+    "it": "Troppi tentativi. Attendi qualche minuto e riprova.",
+    "pt": "Muitas tentativas. Aguarde alguns minutos e tente de novo.",
+    "fr": "Trop de tentatives. Attendez quelques minutes puis réessayez.",
+    "de": "Zu viele Versuche. Warten Sie einige Minuten und versuchen Sie es erneut."
+  },
+  "signin_err_network": {
+    "es": "Sin conexión. Revisa tu red e inténtalo de nuevo.",
+    "en": "No connection. Check your network and try again.",
+    "it": "Nessuna connessione. Controlla la rete e riprova.",
+    "pt": "Sem conexão. Verifique a rede e tente novamente.",
+    "fr": "Pas de connexion. Vérifiez votre réseau et réessayez.",
+    "de": "Keine Verbindung. Prüfen Sie Ihr Netzwerk und versuchen Sie es erneut."
+  },
+  "signin_err_firebase_generic": {
+    "es": "No se pudo iniciar sesión. Inténtalo de nuevo.",
+    "en": "Could not sign in. Please try again.",
+    "it": "Impossibile accedere. Riprova.",
+    "pt": "Não foi possível entrar. Tente novamente.",
+    "fr": "Connexion impossible. Réessayez.",
+    "de": "Anmeldung fehlgeschlagen. Bitte erneut versuchen."
+  },
+  "signin_err_generic": {
+    "es": "No se pudo iniciar sesión.",
+    "en": "Could not sign in.",
+    "it": "Impossibile accedere.",
+    "pt": "Não foi possível entrar.",
+    "fr": "Connexion impossible.",
+    "de": "Anmeldung nicht möglich."
+  },
+  "signin_alert_account_restored_title": {
+    "es": "Cuenta restaurada",
+    "en": "Account restored",
+    "it": "Account ripristinato",
+    "pt": "Conta restaurada",
+    "fr": "Compte restauré",
+    "de": "Konto wiederhergestellt"
+  },
+  "signin_alert_account_restored_body": {
+    "es": "Tu cuenta fue restaurada exitosamente. ¡Bienvenido de nuevo!",
+    "en": "Your account has been successfully restored. Welcome back!",
+    "it": "Il tuo account è stato ripristinato. Bentornato!",
+    "pt": "Sua conta foi restaurada com sucesso. Bem-vindo de volta!",
+    "fr": "Votre compte a été restauré. Bon retour !",
+    "de": "Ihr Konto wurde wiederhergestellt. Willkommen zurück!"
+  },
+  "signin_alert_account_deleted_title": {
+    "es": "Cuenta eliminada",
+    "en": "Account deleted",
+    "it": "Account eliminato",
+    "pt": "Conta excluída",
+    "fr": "Compte supprimé",
+    "de": "Konto gelöscht"
+  },
+  "signin_alert_account_deleted_body": {
+    "es": "El periodo de restauración expiró. Tu cuenta ha sido eliminada permanentemente.",
+    "en": "The restoration period has expired. Your account has been permanently deleted.",
+    "it": "Il periodo di ripristino è scaduto. L’account è stato eliminato definitivamente.",
+    "pt": "O prazo de restauração expirou. Sua conta foi excluída permanentemente.",
+    "fr": "La période de restauration est expirée. Votre compte a été supprimé définitivement.",
+    "de": "Die Wiederherstellungsfrist ist abgelaufen. Ihr Konto wurde dauerhaft gelöscht."
+  },
+  "signin_alert_verification_pending_title": {
+    "es": "Verificación pendiente",
+    "en": "Verification pending",
+    "it": "Verifica in sospeso",
+    "pt": "Verificação pendente",
+    "fr": "Vérification en attente",
+    "de": "Bestätigung ausstehend"
+  },
+  "signin_alert_verification_pending_body": {
+    "es": "Revisa tu correo y confirma el enlace de verificación antes de iniciar sesión. Si no lo recibiste, usa el botón para reenviarlo.",
+    "en": "Check your inbox and confirm your verification link before signing in. If you did not receive it, use the resend button.",
+    "it": "Controlla l’email e conferma il link di verifica prima di accedere. Se non lo hai ricevuto, usa il pulsante per reinviarlo.",
+    "pt": "Verifique seu e-mail e confirme o link de verificação antes de entrar. Se não recebeu, use o botão de reenvio.",
+    "fr": "Consultez vos e-mails et confirmez le lien de vérification avant connexion. Sinon, utilisez le bouton de renvoi.",
+    "de": "Prüfen Sie Ihre E-Mails und bestätigen Sie den Link vor der Anmeldung. Falls nicht angekommen, nutzen Sie „Erneut senden“."
+  },
+  "signin_alert_email_required_title": {
+    "es": "Correo obligatorio",
+    "en": "Email required",
+    "it": "Email obbligatoria",
+    "pt": "E-mail obrigatório",
+    "fr": "E-mail requis",
+    "de": "E-Mail erforderlich"
+  },
+  "signin_alert_email_required_body": {
+    "es": "Escribe el correo completo de tu cuenta.",
+    "en": "Enter your full account email.",
+    "it": "Inserisci l’email completa del tuo account.",
+    "pt": "Digite o e-mail completo da sua conta.",
+    "fr": "Saisissez l’e-mail complet de votre compte.",
+    "de": "Geben Sie die vollständige E-Mail Ihres Kontos ein."
+  },
+  "signin_alert_check_email_title": {
+    "es": "Revisa tu correo",
+    "en": "Check your email",
+    "it": "Controlla l’email",
+    "pt": "Verifique seu e-mail",
+    "fr": "Vérifiez vos e-mails",
+    "de": "Prüfen Sie Ihre E-Mails"
+  },
+  "signin_recovery_email_fallback": {
+    "es": "Si el correo coincide con una cuenta, enviaremos un enlace de recuperación.",
+    "en": "If the email matches an account, we will send a recovery link.",
+    "it": "Se l’email corrisponde a un account, invieremo un link di recupero.",
+    "pt": "Se o e-mail corresponder a uma conta, enviaremos um link de recuperação.",
+    "fr": "Si l’e-mail correspond à un compte, nous enverrons un lien de récupération.",
+    "de": "Wenn die E-Mail zu einem Konto passt, senden wir einen Wiederherstellungslink."
+  },
+  "signin_recovery_service_unavailable": {
+    "es": "El servicio de recuperación no está disponible.",
+    "en": "The recovery service is not available.",
+    "it": "Il servizio di recupero non è disponibile.",
+    "pt": "O serviço de recuperação não está disponível.",
+    "fr": "Le service de récupération n’est pas disponible.",
+    "de": "Der Wiederherstellungsdienst ist nicht verfügbar."
+  },
+  "signin_recovery_ticket_not_found": {
+    "es": "No encontramos ese ticket.",
+    "en": "We could not find that ticket.",
+    "it": "Non abbiamo trovato quel ticket.",
+    "pt": "Não encontramos esse ticket.",
+    "fr": "Nous n’avons pas trouvé ce ticket.",
+    "de": "Wir konnten dieses Ticket nicht finden."
+  },
+  "signin_recovery_ticket_pending": {
+    "es": "Tu solicitud está en revisión. Te avisaremos por correo cuando termine.",
+    "en": "Your request is under review. We’ll email you when it’s done.",
+    "it": "La tua richiesta è in revisione. Ti avviseremo via email al termine.",
+    "pt": "Sua solicitação está em análise. Avisaremos por e-mail quando concluirmos.",
+    "fr": "Votre demande est en cours d’examen. Nous vous préviendrons par e-mail une fois terminé.",
+    "de": "Ihre Anfrage wird geprüft. Wir benachrichtigen Sie per E-Mail, sobald sie abgeschlossen ist."
+  },
+  "signin_recovery_ticket_verified": {
+    "es": "Verificado. Recibirás instrucciones para restablecer tu contraseña en tu correo.",
+    "en": "Verified. You’ll receive password reset instructions by email.",
+    "it": "Verificato. Riceverai via email le istruzioni per reimpostare la password.",
+    "pt": "Verificado. Você receberá por e-mail as instruções para redefinir a senha.",
+    "fr": "Vérifié. Vous recevrez par e-mail les instructions de réinitialisation du mot de passe.",
+    "de": "Bestätigt. Sie erhalten Anweisungen zum Zurücksetzen des Passworts per E-Mail."
+  },
+  "signin_recovery_ticket_rejected": {
+    "es": "Tu solicitud no pudo aprobarse. Contacta a soporte si necesitas ayuda.",
+    "en": "Your request could not be approved. Contact support if you need help.",
+    "it": "La tua richiesta non è stata approvata. Contatta il supporto se serve aiuto.",
+    "pt": "Sua solicitação não pôde ser aprovada. Entre em contato com o suporte se precisar de ajuda.",
+    "fr": "Votre demande n’a pas pu être approuvée. Contactez l’assistance si besoin.",
+    "de": "Ihre Anfrage konnte nicht genehmigt werden. Wenden Sie sich bei Bedarf an den Support."
+  },
+  "signin_recovery_ticket_status_error": {
+    "es": "No pudimos consultar el estado. Intenta de nuevo.",
+    "en": "We couldn’t check the status. Please try again.",
+    "it": "Non abbiamo potuto controllare lo stato. Riprova.",
+    "pt": "Não foi possível consultar o status. Tente novamente.",
+    "fr": "Impossible de vérifier le statut. Réessayez.",
+    "de": "Der Status konnte nicht abgerufen werden. Bitte erneut versuchen."
+  },
+  "signin_alert_phone_required_title": {
+    "es": "Teléfono obligatorio",
+    "en": "Phone required",
+    "it": "Telefono obbligatorio",
+    "pt": "Telefone obrigatório",
+    "fr": "Téléphone requis",
+    "de": "Telefon erforderlich"
+  },
+  "signin_alert_phone_required_body": {
+    "es": "Escribe el número de móvil completo de tu cuenta.",
+    "en": "Enter the full phone number on your account.",
+    "it": "Inserisci il numero di cellulare completo del tuo account.",
+    "pt": "Digite o número completo do celular da sua conta.",
+    "fr": "Saisissez le numéro de mobile complet associé à votre compte.",
+    "de": "Geben Sie die vollständige Handynummer Ihres Kontos ein."
+  },
+  "signin_recovery_phone_fallback": {
+    "es": "Si encontramos una cuenta con ese teléfono, enviaremos el usuario al correo registrado.",
+    "en": "If we find an account with that phone, we will send the username to the registered email.",
+    "it": "Se troviamo un account con quel numero, invieremo il nome utente all’email registrata.",
+    "pt": "Se encontrarmos uma conta com esse telefone, enviaremos o usuário ao e-mail cadastrado.",
+    "fr": "Si nous trouvons un compte avec ce numéro, nous enverrons l’identifiant à l’e-mail enregistré.",
+    "de": "Wir senden den Benutzernamen an die hinterlegte E-Mail, sofern ein Konto existiert."
+  },
+  "signin_alert_username_resend_title": {
+    "es": "Usuario obligatorio",
+    "en": "Username required",
+    "it": "Nome utente obbligatorio",
+    "pt": "Usuário obrigatório",
+    "fr": "Identifiant requis",
+    "de": "Benutzername erforderlich"
+  },
+  "signin_alert_username_resend_body": {
+    "es": "Escribe tu usuario para reenviar la verificación.",
+    "en": "Enter your username to resend verification.",
+    "it": "Inserisci il nome utente per reinviare la verifica.",
+    "pt": "Digite seu usuário para reenviar a verificação.",
+    "fr": "Saisissez votre identifiant pour renvoyer la vérification.",
+    "de": "Geben Sie Ihren Benutzernamen ein, um die Bestätigung erneut zu senden."
+  },
+  "signin_alert_password_resend_title": {
+    "es": "Contraseña obligatoria",
+    "en": "Password required",
+    "it": "Password obbligatoria",
+    "pt": "Senha obrigatória",
+    "fr": "Mot de passe requis",
+    "de": "Passwort erforderlich"
+  },
+  "signin_alert_password_resend_body": {
+    "es": "Ingresa tu contraseña para reenviar el correo de verificación.",
+    "en": "Enter your password to resend verification email.",
+    "it": "Inserisci la password per reinviare l’email di verifica.",
+    "pt": "Digite sua senha para reenviar o e-mail de verificação.",
+    "fr": "Saisissez votre mot de passe pour renvoyer l’e-mail de vérification.",
+    "de": "Geben Sie Ihr Passwort ein, um die Bestätigungs-E-Mail erneut zu senden."
+  },
+  "signin_alert_resend_unavailable_title": {
+    "es": "Reenvío no disponible",
+    "en": "Resend unavailable",
+    "it": "Reinvio non disponibile",
+    "pt": "Reenvio indisponível",
+    "fr": "Renvoi indisponible",
+    "de": "Erneutes Senden nicht möglich"
+  },
+  "signin_alert_session_unavailable_body": {
+    "es": "Sesión no disponible.",
+    "en": "Session unavailable.",
+    "it": "Sessione non disponibile.",
+    "pt": "Sessão indisponível.",
+    "fr": "Session indisponible.",
+    "de": "Sitzung nicht verfügbar."
+  },
+  "signin_alert_account_verified_title": {
+    "es": "Cuenta verificada",
+    "en": "Account verified",
+    "it": "Account verificato",
+    "pt": "Conta verificada",
+    "fr": "Compte vérifié",
+    "de": "Konto verifiziert"
+  },
+  "signin_alert_account_verified_body": {
+    "es": "Tu correo ya está verificado. Ya puedes iniciar sesión.",
+    "en": "Your email is already verified. You can now sign in.",
+    "it": "La tua email è già verificata. Puoi accedere.",
+    "pt": "Seu e-mail já está verificado. Você já pode entrar.",
+    "fr": "Votre e-mail est déjà vérifié. Vous pouvez vous connecter.",
+    "de": "Ihre E-Mail ist bereits bestätigt. Sie können sich anmelden."
+  },
+  "signin_alert_verification_resent_title": {
+    "es": "Correo reenviado",
+    "en": "Verification resent",
+    "it": "Email reinviata",
+    "pt": "E-mail reenviado",
+    "fr": "E-mail renvoyé",
+    "de": "E-Mail erneut gesendet"
+  },
+  "signin_alert_verification_resent_body": {
+    "es": "Te enviamos un nuevo enlace. Revisa la bandeja de entrada y, si no aparece, spam o correo no deseado; como marca en crecimiento, a veces los filtros retienen el primer mensaje.",
+    "en": "We sent a new link. Check your inbox—and if you do not see it, Spam or Junk; as a growing brand, filters sometimes hold the first message.",
+    "it": "Ti abbiamo inviato un nuovo link. Controlla la posta in arrivo e, se non lo vedi, spam/posta indesiderata: a volte i filtri trattengono il primo messaggio.",
+    "pt": "Enviamos um novo link. Verifique a caixa de entrada e, se não aparecer, spam ou lixo eletrônico; filtros às vezes retêm a primeira mensagem.",
+    "fr": "Nous avons envoyé un nouveau lien. Vérifiez la boîte de réception, puis courrier indésirable ; les filtres peuvent bloquer le premier message.",
+    "de": "Wir haben einen neuen Link gesendet. Prüfen Sie den Posteingang und ggf. Spam – Filter halten manchmal die erste Nachricht zurück."
+  },
+  "signin_alert_social_no_email_body": {
+    "es": "Tu cuenta de {{provider}} no devolvió correo. Usa otro método.",
+    "en": "Your {{provider}} account did not provide an email. Use another method.",
+    "it": "Il tuo account {{provider}} non ha fornito un’email. Usa un altro metodo.",
+    "pt": "Sua conta {{provider}} não retornou e-mail. Use outro método.",
+    "fr": "Votre compte {{provider}} n’a pas fourni d’e-mail. Utilisez une autre méthode.",
+    "de": "Ihr {{provider}}-Konto lieferte keine E-Mail. Verwenden Sie eine andere Methode."
+  },
+  "signin_alert_social_unavailable_title": {
+    "es": "Acceso social no disponible",
+    "en": "Social sign-in unavailable",
+    "it": "Accesso social non disponibile",
+    "pt": "Login social indisponível",
+    "fr": "Connexion sociale indisponible",
+    "de": "Social-Anmeldung nicht verfügbar"
+  },
+  "signin_alert_social_unavailable_fallback": {
+    "es": "No se pudo iniciar sesión con el proveedor.",
+    "en": "Could not sign in with provider.",
+    "it": "Impossibile accedere con il provider.",
+    "pt": "Não foi possível entrar com o provedor.",
+    "fr": "Connexion impossible avec le fournisseur.",
+    "de": "Anmeldung beim Anbieter fehlgeschlagen."
+  },
+  "signin_recovery_title_password": {
+    "es": "Recuperar contraseña",
+    "en": "Recover password",
+    "it": "Recupera password",
+    "pt": "Recuperar senha",
+    "fr": "Récupérer le mot de passe",
+    "de": "Passwort zurücksetzen"
+  },
+  "signin_recovery_title_username": {
+    "es": "Recuperar usuario",
+    "en": "Recover username",
+    "it": "Recupera nome utente",
+    "pt": "Recuperar usuário",
+    "fr": "Récupérer l’identifiant",
+    "de": "Benutzername zurücksetzen"
+  },
+  "signin_recovery_body_password_masked": {
+    "es": "Escribe completo el correo de tu cuenta ({{masked}}) para enviarte el enlace de recuperación.",
+    "en": "Enter your full account email ({{masked}}) to receive the recovery link.",
+    "it": "Inserisci l’email completa del tuo account ({{masked}}) per ricevere il link di recupero.",
+    "pt": "Digite o e-mail completo da sua conta ({{masked}}) para receber o link de recuperação.",
+    "fr": "Saisissez l’e-mail complète de votre compte ({{masked}}) pour recevoir le lien.",
+    "de": "Geben Sie Ihre vollständige Konto-E-Mail ({{masked}}) ein, um den Link zu erhalten."
+  },
+  "signin_recovery_body_password": {
+    "es": "Escribe completo el correo de tu cuenta para enviarte el enlace de recuperación.",
+    "en": "Enter your full account email to receive the recovery link.",
+    "it": "Inserisci l’email completa del tuo account per ricevere il link di recupero.",
+    "pt": "Digite o e-mail completo da sua conta para receber o link de recuperação.",
+    "fr": "Saisissez l’e-mail complète de votre compte pour recevoir le lien.",
+    "de": "Geben Sie Ihre vollständige Konto-E-Mail ein, um den Link zu erhalten."
+  },
+  "signin_recovery_body_username": {
+    "es": "Escribe el número de móvil de tu cuenta. Si coincide, enviaremos tu usuario al correo registrado.",
+    "en": "Enter the phone number on your account. If it matches, we will send your username to the registered email.",
+    "it": "Inserisci il numero di cellulare del tuo account. Se corrisponde, invieremo il nome utente all’email registrata.",
+    "pt": "Digite o celular da sua conta. Se bater, enviaremos seu usuário ao e-mail cadastrado.",
+    "fr": "Saisissez le mobile de votre compte. S’il correspond, nous enverrons l’identifiant à l’e-mail enregistré.",
+    "de": "Geben Sie die Handynummer Ihres Kontos ein. Bei Übereinstimmung senden wir den Benutzernamen per E-Mail."
+  },
+  "signin_recovery_placeholder_email": {
+    "es": "nombre@ejemplo.com",
+    "en": "name@example.com",
+    "it": "nome@esempio.com",
+    "pt": "nome@exemplo.com",
+    "fr": "nom@exemple.com",
+    "de": "name@beispiel.de"
+  },
+  "signin_recovery_placeholder_phone": {
+    "es": "+1 555 000 0000",
+    "en": "+1 555 000 0000",
+    "it": "+1 555 000 0000",
+    "pt": "+1 555 000 0000",
+    "fr": "+1 555 000 0000",
+    "de": "+1 555 000 0000"
+  },
+  "register_retry_lock_message": {
+    "es": "Estamos cuidando la integridad de la comunidad. Por favor, espera un momento antes de intentar de nuevo.",
+    "en": "We are protecting community integrity. Please wait a moment before trying again.",
+    "it": "Stiamo proteggendo l’integrità della community. Attendi un momento prima di riprovare.",
+    "pt": "Estamos protegendo a integridade da comunidade. Aguarde um momento antes de tentar de novo.",
+    "fr": "Nous protégeons l’intégrité de la communauté. Veuillez patienter avant de réessayer.",
+    "de": "Wir schützen die Integrität der Community. Bitte kurz warten und erneut versuchen."
+  },
+  "register_moderation_reject_message": {
+    "es": "La imagen no cumple las políticas de la comunidad. Prueba con otra foto.",
+    "en": "This image does not meet community policies. Try another photo.",
+    "it": "L’immagine non rispetta le policy della community. Prova un’altra foto.",
+    "pt": "A imagem não atende às políticas da comunidade. Tente outra foto.",
+    "fr": "L’image ne respecte pas les règles de la communauté. Essayez une autre photo.",
+    "de": "Das Bild entspricht nicht den Community-Richtlinien. Wählen Sie ein anderes Foto."
+  },
+  "register_moderation_modal_title": {
+    "es": "Exclusividad de seguridad",
+    "en": "Security exclusivity",
+    "it": "Esclusività di sicurezza",
+    "pt": "Exclusividade de segurança",
+    "fr": "Exclusivité de sécurité",
+    "de": "Sicherheits-Exklusivität"
+  },
+  "register_upload_starting": {
+    "es": "Iniciando…",
+    "en": "Starting…",
+    "it": "Avvio…",
+    "pt": "Iniciando…",
+    "fr": "Démarrage…",
+    "de": "Wird gestartet…"
+  },
+  "register_upload_shield_sending": {
+    "es": "Enviando al escudo de seguridad…",
+    "en": "Sending to the security shield…",
+    "it": "Invio allo scudo di sicurezza…",
+    "pt": "Enviando ao escudo de segurança…",
+    "fr": "Envoi vers le bouclier de sécurité…",
+    "de": "Wird an den Sicherheitsschild gesendet…"
+  },
+  "register_upload_optimizing": {
+    "es": "Optimizando imagen…",
+    "en": "Optimizing image…",
+    "it": "Ottimizzazione immagine…",
+    "pt": "Otimizando imagem…",
+    "fr": "Optimisation de l’image…",
+    "de": "Bild wird optimiert…"
+  },
+  "register_upload_shield_fallback": {
+    "es": "Escudo de seguridad no disponible. Continuando en modo respaldo…",
+    "en": "Security shield unavailable. Continuing in fallback mode…",
+    "it": "Scudo di sicurezza non disponibile. Continuo in modalità di ripiego…",
+    "pt": "Escudo de segurança indisponível. Continuando em modo alternativo…",
+    "fr": "Bouclier de sécurité indisponible. Poursuite en mode secours…",
+    "de": "Sicherheitsschild nicht verfügbar. Fortsetzung im Fallback-Modus…"
+  },
+  "register_upload_moderating_azure": {
+    "es": "Moderando en Azure Content Safety…",
+    "en": "Moderating with Azure Content Safety…",
+    "it": "Moderazione con Azure Content Safety…",
+    "pt": "Moderando com Azure Content Safety…",
+    "fr": "Modération avec Azure Content Safety…",
+    "de": "Moderation mit Azure Content Safety…"
+  },
+  "register_upload_content_approved": {
+    "es": "Contenido aprobado. Continuando…",
+    "en": "Content approved. Continuing…",
+    "it": "Contenuto approvato. Continuo…",
+    "pt": "Conteúdo aprovado. Continuando…",
+    "fr": "Contenu approuvé. Poursuite…",
+    "de": "Inhalt freigegeben. Fortfahren…"
+  },
+  "register_upload_validating_photo": {
+    "es": "Validando foto de perfil…",
+    "en": "Validating profile photo…",
+    "it": "Verifica foto profilo…",
+    "pt": "Validando foto de perfil…",
+    "fr": "Validation de la photo de profil…",
+    "de": "Profilfoto wird geprüft…"
+  },
+  "register_alert_invalid_date_title": {
+    "es": "Fecha no válida",
+    "en": "Invalid date",
+    "it": "Data non valida",
+    "pt": "Data inválida",
+    "fr": "Date invalide",
+    "de": "Ungültiges Datum"
+  },
+  "register_alert_invalid_date_select": {
+    "es": "Selecciona una fecha válida.",
+    "en": "Please select a valid date.",
+    "it": "Seleziona una data valida.",
+    "pt": "Selecione uma data válida.",
+    "fr": "Sélectionnez une date valide.",
+    "de": "Bitte wählen Sie ein gültiges Datum."
+  },
+  "register_alert_permission_denied": {
+    "es": "Permiso denegado",
+    "en": "Permission denied",
+    "it": "Permesso negato",
+    "pt": "Permissão negada",
+    "fr": "Permission refusée",
+    "de": "Berechtigung verweigert"
+  },
+  "register_alert_gallery_needed": {
+    "es": "Se necesita acceso a la galería para elegir una foto.",
+    "en": "Gallery access is required to choose a photo.",
+    "it": "È necessario l’accesso alla galleria per scegliere una foto.",
+    "pt": "É necessário acesso à galeria para escolher uma foto.",
+    "fr": "L’accès à la photothèque est requis pour choisir une photo.",
+    "de": "Galeriezugriff ist erforderlich, um ein Foto auszuwählen."
+  },
+  "register_alert_camera_needed": {
+    "es": "Se necesita acceso a la cámara para tomar tu foto.",
+    "en": "Camera access is required to take your photo.",
+    "it": "È necessario l’accesso alla fotocamera per scattare la foto.",
+    "pt": "É necessário acesso à câmera para tirar sua foto.",
+    "fr": "L’accès à la caméra est requis pour prendre votre photo.",
+    "de": "Kamerazugriff ist erforderlich, um ein Foto aufzunehmen."
+  },
+  "register_err_nickname_in_use": {
+    "es": "El alias ya está en uso.",
+    "en": "This nickname is already in use.",
+    "it": "Questo nickname è già in uso.",
+    "pt": "Este apelido já está em uso.",
+    "fr": "Ce pseudo est déjà utilisé.",
+    "de": "Dieser Aliasname wird bereits verwendet."
+  },
+  "register_err_email_in_use": {
+    "es": "El correo ya está en uso.",
+    "en": "This email is already in use.",
+    "it": "Questa email è già in uso.",
+    "pt": "Este e-mail já está em uso.",
+    "fr": "Cet e-mail est déjà utilisé.",
+    "de": "Diese E-Mail wird bereits verwendet."
+  },
+  "register_err_phone_in_use": {
+    "es": "El teléfono ya está en uso.",
+    "en": "This phone number is already in use.",
+    "it": "Questo numero è già in uso.",
+    "pt": "Este telefone já está em uso.",
+    "fr": "Ce numéro est déjà utilisé.",
+    "de": "Diese Telefonnummer wird bereits verwendet."
+  },
+  "register_alert_social_no_email_title": {
+    "es": "Correo obligatorio",
+    "en": "Email required",
+    "it": "Email obbligatoria",
+    "pt": "E-mail obrigatório",
+    "fr": "E-mail requis",
+    "de": "E-Mail erforderlich"
+  },
+  "register_alert_social_no_email_body": {
+    "es": "No se detectó correo desde {{provider}}.",
+    "en": "No email was detected from {{provider}}.",
+    "it": "Nessuna email rilevata da {{provider}}.",
+    "pt": "Nenhum e-mail detectado de {{provider}}.",
+    "fr": "Aucun e-mail détecté depuis {{provider}}.",
+    "de": "Keine E-Mail von {{provider}} erkannt."
+  },
+  "register_alert_account_exists_title": {
+    "es": "Cuenta ya existente",
+    "en": "Account already exists",
+    "it": "Account già esistente",
+    "pt": "Conta já existente",
+    "fr": "Compte déjà existant",
+    "de": "Konto existiert bereits"
+  },
+  "register_alert_account_exists_body": {
+    "es": "Ese correo ya está ligado a otra identidad de Card-Social. Inicia sesión en lugar de crear otra cuenta.",
+    "en": "That email is already linked to another Card-Social identity. Sign in instead of creating another account.",
+    "it": "Questa email è già collegata a un’altra identità Card-Social. Accedi invece di creare un altro account.",
+    "pt": "Esse e-mail já está vinculado a outra identidade Card-Social. Entre em vez de criar outra conta.",
+    "fr": "Cet e-mail est déjà lié à une autre identité Card-Social. Connectez-vous plutôt que de créer un compte.",
+    "de": "Diese E-Mail ist bereits mit einer anderen Card-Social-Identität verknüpft. Melden Sie sich an statt ein neues Konto zu erstellen."
+  },
+  "register_alert_provider_connected_title": {
+    "es": "{{provider}} conectado",
+    "en": "{{provider}} connected",
+    "it": "{{provider}} connesso",
+    "pt": "{{provider}} conectado",
+    "fr": "{{provider}} connecté",
+    "de": "{{provider}} verbunden"
+  },
+  "register_alert_provider_connected_body": {
+    "es": "Perfecto. Ahora completa el formulario obligatorio (teléfono, fecha, ciudad y demás) para terminar tu alta.",
+    "en": "Perfect. Now complete the required form (phone, date, city, and more) to finish registration.",
+    "it": "Perfetto. Completa ora il modulo obbligatorio (telefono, data, città, ecc.) per finire la registrazione.",
+    "pt": "Perfeito. Agora complete o formulário obrigatório (telefone, data, cidade etc.) para concluir o cadastro.",
+    "fr": "Parfait. Complétez maintenant le formulaire requis (téléphone, date, ville, etc.) pour terminer l’inscription.",
+    "de": "Gut. Füllen Sie jetzt das Pflichtformular aus (Telefon, Datum, Zeit usw.), um die Registrierung abzuschließen."
+  },
+  "register_alert_social_signup_fail_title": {
+    "es": "Registro social no disponible",
+    "en": "Social sign up unavailable",
+    "it": "Registrazione social non disponibile",
+    "pt": "Cadastro social indisponível",
+    "fr": "Inscription sociale indisponible",
+    "de": "Social-Registrierung nicht verfügbar"
+  },
+  "register_alert_social_signup_fallback": {
+    "es": "No se pudo iniciar con el proveedor.",
+    "en": "Could not start with provider.",
+    "it": "Impossibile avviare con il provider.",
+    "pt": "Não foi possível iniciar com o provedor.",
+    "fr": "Impossible de démarrer avec le fournisseur.",
+    "de": "Start mit Anbieter fehlgeschlagen."
+  },
+  "register_alert_incomplete_title": {
+    "es": "Campos incompletos",
+    "en": "Incomplete fields",
+    "it": "Campi incompleti",
+    "pt": "Campos incompletos",
+    "fr": "Champs incomplets",
+    "de": "Unvollständige Felder"
+  },
+  "register_alert_incomplete_all": {
+    "es": "Completa todos los campos incluyendo tu foto de perfil.",
+    "en": "Complete all fields including your profile photo.",
+    "it": "Compila tutti i campi inclusa la foto profilo.",
+    "pt": "Preencha todos os campos, incluindo a foto de perfil.",
+    "fr": "Remplissez tous les champs, y compris la photo de profil.",
+    "de": "Füllen Sie alle Felder inklusive Profilfoto aus."
+  },
+  "register_alert_incomplete_password": {
+    "es": "Ingresa una contraseña para crear tu cuenta con correo.",
+    "en": "Enter a password to create your account with email.",
+    "it": "Inserisci una password per creare l’account con email.",
+    "pt": "Digite uma senha para criar sua conta com e-mail.",
+    "fr": "Saisissez un mot de passe pour créer avec l’e-mail.",
+    "de": "Geben Sie ein Passwort ein, um das Konto per E-Mail anzulegen."
+  },
+  "register_alert_birth_format": {
+    "es": "Usa el formato MM-DD-AAAA para la fecha de nacimiento.",
+    "en": "Use MM-DD-YYYY format for birth date.",
+    "it": "Usa il formato MM-GG-AAAA per la data di nascita.",
+    "pt": "Use o formato MM-DD-AAAA para a data de nascimento.",
+    "fr": "Utilisez le format MM-JJ-AAAA pour la date de naissance.",
+    "de": "Geburtsdatum bitte als MM-TT-JJJJ angeben."
+  },
+  "register_alert_age_restriction_title": {
+    "es": "Registro restringido",
+    "en": "Registration restricted",
+    "it": "Registrazione limitata",
+    "pt": "Cadastro restrito",
+    "fr": "Inscription restreinte",
+    "de": "Registrierung eingeschränkt"
+  },
+  "register_alert_age_restriction_body": {
+    "es": "Debes ser mayor de 18 años para crear una cuenta.",
+    "en": "You must be at least 18 years old to create an account.",
+    "it": "Devi avere almeno 18 anni per creare un account.",
+    "pt": "Você deve ter pelo menos 18 anos para criar uma conta.",
+    "fr": "Vous devez avoir au moins 18 ans pour créer un compte.",
+    "de": "Sie müssen mindestens 18 Jahre alt sein."
+  },
+  "register_alert_weak_password_title": {
+    "es": "Contraseña débil",
+    "en": "Weak password",
+    "it": "Password debole",
+    "pt": "Senha fraca",
+    "fr": "Mot de passe trop faible",
+    "de": "Schwaches Passwort"
+  },
+  "register_alert_weak_password_body": {
+    "es": "La contraseña debe tener mínimo 8 caracteres.",
+    "en": "Password must be at least 8 characters long.",
+    "it": "La password deve avere almeno 8 caratteri.",
+    "pt": "A senha deve ter pelo menos 8 caracteres.",
+    "fr": "Le mot de passe doit contenir au moins 8 caractères.",
+    "de": "Das Passwort muss mindestens 8 Zeichen haben."
+  },
+  "register_alert_nickname_unavailable_title": {
+    "es": "Alias no disponible",
+    "en": "Nickname unavailable",
+    "it": "Nickname non disponibile",
+    "pt": "Apelido indisponível",
+    "fr": "Pseudo indisponible",
+    "de": "Alias nicht verfügbar"
+  },
+  "register_alert_nickname_unavailable_body": {
+    "es": "Necesitas un alias disponible para continuar.",
+    "en": "You need an available nickname to continue.",
+    "it": "Serve un nickname disponibile per continuare.",
+    "pt": "Você precisa de um apelido disponível para continuar.",
+    "fr": "Un pseudo disponible est requis pour continuer.",
+    "de": "Sie benötigen einen freien Aliasnamen."
+  },
+  "register_alert_email_unavailable_title": {
+    "es": "Correo no disponible",
+    "en": "Email unavailable",
+    "it": "Email non disponibile",
+    "pt": "E-mail indisponível",
+    "fr": "E-mail indisponible",
+    "de": "E-Mail nicht verfügbar"
+  },
+  "register_alert_email_unavailable_body": {
+    "es": "Necesitas un correo disponible para continuar.",
+    "en": "You need an available email to continue.",
+    "it": "Serve un’email disponibile per continuare.",
+    "pt": "Você precisa de um e-mail disponível para continuer.",
+    "fr": "Un e-mail disponible est requis pour continuer.",
+    "de": "Sie benötigen eine freie E-Mail-Adresse."
+  },
+  "register_alert_phone_unavailable_title": {
+    "es": "Teléfono no disponible",
+    "en": "Phone unavailable",
+    "it": "Telefono non disponibile",
+    "pt": "Telefone indisponível",
+    "fr": "Téléphone indisponible",
+    "de": "Telefon nicht verfügbar"
+  },
+  "register_alert_phone_unavailable_body": {
+    "es": "Necesitas un número disponible para continuar.",
+    "en": "You need an available phone number to continue.",
+    "it": "Serve un numero disponibile per continuare.",
+    "pt": "Você precisa de um número disponível para continuar.",
+    "fr": "Un numéro disponible est requis pour continuer.",
+    "de": "Sie benötigen eine freie Telefonnummer."
+  },
+  "register_alert_legal_required_title": {
+    "es": "Confirmación requerida",
+    "en": "Confirmation required",
+    "it": "Conferma richiesta",
+    "pt": "Confirmação necessária",
+    "fr": "Confirmation requise",
+    "de": "Bestätigung erforderlich"
+  },
+  "register_alert_legal_required_body": {
+    "es": "Debes aceptar términos y privacidad para crear tu cuenta.",
+    "en": "You must accept Terms and Privacy to create your account.",
+    "it": "Devi accettare termini e privacy per creare l’account.",
+    "pt": "Você deve aceitar os termos e a privacidade para criar a conta.",
+    "fr": "Vous devez accepter les conditions et la confidentialité.",
+    "de": "Sie müssen die AGB und Datenschutz akzeptieren."
+  },
+  "register_alert_created_verify_failed_title": {
+    "es": "Cuenta creada",
+    "en": "Account created",
+    "it": "Account creato",
+    "pt": "Conta criada",
+    "fr": "Compte créé",
+    "de": "Konto erstellt"
+  },
+  "register_alert_created_verify_failed_body": {
+    "es": "Tu cuenta está lista, pero no pudimos enviar el correo de verificación. Al iniciar sesión usa «Reenviar correo de verificación» o escribe a support@cardsocial.me.",
+    "en": "Your account is ready, but we could not send the verification email. On sign in, use “Resend verification email” or write to support@cardsocial.me.",
+    "it": "Il tuo account è pronto, ma non abbiamo potuto inviare l’email di verifica. All’accesso usa “Invia di nuovo” o scrivi a support@cardsocial.me.",
+    "pt": "Sua conta está pronta, mas não enviamos o e-mail de verificação. Ao entrar, use “Reenviar verificação” ou escreva para support@cardsocial.me.",
+    "fr": "Votre compte est prêt, mais l’e-mail de vérification n’a pas été envoyé. À la connexion, utilisez « Renvoyer » ou écrivez à support@cardsocial.me.",
+    "de": "Ihr Konto ist bereit, aber die Bestätigungs-E-Mail konnte nicht gesendet werden. Beim Anmelden „Erneut senden“ nutzen oder support@cardsocial.me schreiben."
+  },
+  "register_alert_verify_email_title": {
+    "es": "Verifica tu correo",
+    "en": "Verify your email",
+    "it": "Verifica l’email",
+    "pt": "Verifique seu e-mail",
+    "fr": "Vérifiez votre e-mail",
+    "de": "E-Mail bestätigen"
+  },
+  "register_alert_verify_email_body": {
+    "es": "Te enviamos un enlace de verificación. Revisa la bandeja de entrada y, si no aparece, spam o correo no deseado. Debes confirmarlo antes de poder iniciar sesión.",
+    "en": "We sent a verification link. Check your inbox—and if you do not see it, your Spam or Junk folder. You must confirm it before you can sign in.",
+    "it": "Ti abbiamo inviato un link di verifica. Controlla posta in arrivo e spam. Devi confermarlo prima di accedere.",
+    "pt": "Enviamos um link de verificação. Verifique a caixa de entrada e o spam. Confirme antes de entrar.",
+    "fr": "Nous avons envoyé un lien de vérification. Vérifiez courrier indésirable. Confirmation requise avant connexion.",
+    "de": "Wir haben einen Bestätigungslink gesendet. Prüfen Sie Posteingang/Spam. Bestätigung vor Anmeldung erforderlich."
+  },
+  "register_alert_student_pack_title": {
+    "es": "Student Pack activado",
+    "en": "Student Pack activated",
+    "it": "Student Pack attivato",
+    "pt": "Student Pack ativado",
+    "fr": "Student Pack activé",
+    "de": "Student Pack aktiviert"
+  },
+  "register_alert_student_pack_body": {
+    "es": "Se acreditaron {{amount}} CS por elegibilidad estudiantil.",
+    "en": "{{amount}} CS were credited for student eligibility.",
+    "it": "Sono stati accreditati {{amount}} CS per idoneità studentesca.",
+    "pt": "Foram creditados {{amount}} CS por elegibilidade estudantil.",
+    "fr": "{{amount}} CS ont été crédités (éligibilité étudiante).",
+    "de": "{{amount}} CS wurden für Studierenden-Bonus gutgeschrieben."
+  },
+  "register_alert_registration_error_title": {
+    "es": "Error de registro",
+    "en": "Registration Error",
+    "it": "Errore di registrazione",
+    "pt": "Erro no cadastro",
+    "fr": "Erreur d’inscription",
+    "de": "Registrierungsfehler"
+  },
+  "register_alert_registration_error_fallback": {
+    "es": "No se pudo completar el registro.",
+    "en": "Could not complete registration.",
+    "it": "Impossibile completare la registrazione.",
+    "pt": "Não foi possível concluir o cadastro.",
+    "fr": "Impossible de terminer l’inscription.",
+    "de": "Registrierung konnte nicht abgeschlossen werden."
+  },
+  "register_title": {
+    "es": "Crea tu identidad",
+    "en": "Create your Identity",
+    "it": "Crea la tua identità",
+    "pt": "Crie sua identidade",
+    "fr": "Créez votre identité",
+    "de": "Erstellen Sie Ihre Identität"
+  },
+  "register_social_state_a": {
+    "es": "Registro conectado con",
+    "en": "Sign up connected with",
+    "it": "Registrazione collegata a",
+    "pt": "Cadastro conectado com",
+    "fr": "Inscription liée à",
+    "de": "Registrierung verbunden mit"
+  },
+  "register_social_state_b": {
+    "es": "Debes completar el resto de campos obligatorios.",
+    "en": "Complete the remaining required fields.",
+    "it": "Devi completare i campi obbligatori restanti.",
+    "pt": "Complete os campos obrigatórios restantes.",
+    "fr": "Complétez les champs obligatoires restants.",
+    "de": "Füllen Sie die übrigen Pflichtfelder aus."
+  },
+  "register_label_profile_photo": {
+    "es": "Foto de perfil",
+    "en": "Profile photo",
+    "it": "Foto profilo",
+    "pt": "Foto de perfil",
+    "fr": "Photo de profil",
+    "de": "Profilfoto"
+  },
+  "register_helper_profile_photo": {
+    "es": "Añade una foto clara para que tu red te reconozca.",
+    "en": "Add a clear photo so your network can recognize you.",
+    "it": "Aggiungi una foto chiara così la tua rete ti riconosce.",
+    "pt": "Adicione uma foto nítida para sua rede reconhecê-lo.",
+    "fr": "Ajoutez une photo nette pour que votre réseau vous reconnaisse.",
+    "de": "Fügen Sie ein klares Foto hinzu, damit Sie erkannt werden."
+  },
+  "register_photo_open_camera": {
+    "es": "Abrir cámara",
+    "en": "Open camera",
+    "it": "Apri fotocamera",
+    "pt": "Abrir câmera",
+    "fr": "Ouvrir l’appareil photo",
+    "de": "Kamera öffnen"
+  },
+  "register_photo_choose_image": {
+    "es": "Elegir imagen",
+    "en": "Choose image",
+    "it": "Scegli immagine",
+    "pt": "Escolher imagem",
+    "fr": "Choisir une image",
+    "de": "Bild wählen"
+  },
+  "register_label_first_name": {
+    "es": "Nombre",
+    "en": "First Name",
+    "it": "Nome",
+    "pt": "Nome",
+    "fr": "Prénom",
+    "de": "Vorname"
+  },
+  "register_placeholder_first_name": {
+    "es": "Ej.: Carlos",
+    "en": "Ex.: John",
+    "it": "Es.: Marco",
+    "pt": "Ex.: João",
+    "fr": "Ex. : Jean",
+    "de": "z. B. Max"
+  },
+  "register_label_last_name": {
+    "es": "Apellido",
+    "en": "Last Name",
+    "it": "Cognome",
+    "pt": "Sobrenome",
+    "fr": "Nom",
+    "de": "Nachname"
+  },
+  "register_placeholder_last_name": {
+    "es": "Ej.: Ramírez",
+    "en": "Ex.: Carter",
+    "it": "Es.: Rossi",
+    "pt": "Ex.: Silva",
+    "fr": "Ex. : Dupont",
+    "de": "z. B. Müller"
+  },
+  "register_label_nickname": {
+    "es": "Alias (único)",
+    "en": "Nickname (Unique)",
+    "it": "Nickname (unico)",
+    "pt": "Apelido (único)",
+    "fr": "Pseudo (unique)",
+    "de": "Alias (einzigartig)"
+  },
+  "register_placeholder_nickname": {
+    "es": "Ej.: carlos.ramirez",
+    "en": "Ex.: john.carter",
+    "it": "Es.: marco.rossi",
+    "pt": "Ex.: joao.silva",
+    "fr": "Ex. : jean.dupont",
+    "de": "z. B. max.mueller"
+  },
+  "register_nick_available": {
+    "es": "Alias disponible",
+    "en": "Nickname available",
+    "it": "Nickname disponibile",
+    "pt": "Apelido disponível",
+    "fr": "Pseudo disponible",
+    "de": "Alias verfügbar"
+  },
+  "register_nick_checking": {
+    "es": "Validando alias…",
+    "en": "Checking nickname…",
+    "it": "Verifica nickname…",
+    "pt": "Validando apelido…",
+    "fr": "Vérification du pseudo…",
+    "de": "Alias wird geprüft…"
+  },
+  "register_nick_taken": {
+    "es": "El alias ya existe",
+    "en": "This nickname already exists",
+    "it": "Questo nickname esiste già",
+    "pt": "Este apelido já existe",
+    "fr": "Ce pseudo existe déjà",
+    "de": "Dieser Alias existiert bereits"
+  },
+  "register_nick_invalid": {
+    "es": "Alias no válido (3–24; letras, números, . _ -)",
+    "en": "Invalid nickname (3–24; letters, numbers, . _ -)",
+    "it": "Nickname non valido (3–24; lettere, numeri, . _ -)",
+    "pt": "Apelido inválido (3–24; letras, números, . _ -)",
+    "fr": "Pseudo invalide (3–24 ; lettres, chiffres, . _ -)",
+    "de": "Ungültiger Alias (3–24; Buchstaben, Ziffern, . _ -)"
+  },
+  "register_nick_hint": {
+    "es": "Ingresa un alias para validar disponibilidad.",
+    "en": "Enter a nickname to check availability.",
+    "it": "Inserisci un nickname per verificare la disponibilità.",
+    "pt": "Digite um apelido para validar disponibilidade.",
+    "fr": "Saisissez un pseudo pour vérifier la disponibilité.",
+    "de": "Geben Sie einen Alias zur Prüfung ein."
+  },
+  "register_label_email": {
+    "es": "Correo (único)",
+    "en": "Email (Unique)",
+    "it": "Email (unico)",
+    "pt": "E-mail (único)",
+    "fr": "E-mail (unique)",
+    "de": "E-Mail (einzigartig)"
+  },
+  "register_placeholder_email": {
+    "es": "correo@ejemplo.com",
+    "en": "email@example.com",
+    "it": "email@esempio.com",
+    "pt": "email@exemplo.com",
+    "fr": "email@exemple.com",
+    "de": "email@beispiel.de"
+  },
+  "register_email_available": {
+    "es": "Correo disponible",
+    "en": "Email available",
+    "it": "Email disponibile",
+    "pt": "E-mail disponível",
+    "fr": "E-mail disponible",
+    "de": "E-Mail verfügbar"
+  },
+  "register_email_checking": {
+    "es": "Validando correo…",
+    "en": "Checking email…",
+    "it": "Verifica email…",
+    "pt": "Validando e-mail…",
+    "fr": "Vérification de l’e-mail…",
+    "de": "E-Mail wird geprüft…"
+  },
+  "register_email_taken": {
+    "es": "El correo ya existe",
+    "en": "This email already exists",
+    "it": "Questa email esiste già",
+    "pt": "Este e-mail já existe",
+    "fr": "Cet e-mail existe déjà",
+    "de": "Diese E-Mail existiert bereits"
+  },
+  "register_email_invalid": {
+    "es": "Correo no válido",
+    "en": "Invalid email format",
+    "it": "Email non valida",
+    "pt": "Formato de e-mail inválido",
+    "fr": "Format d’e-mail invalide",
+    "de": "Ungültiges E-Mail-Format"
+  },
+  "register_email_hint": {
+    "es": "Ingresa un correo para validar disponibilidad.",
+    "en": "Enter an email to check availability.",
+    "it": "Inserisci un’email per verificare la disponibilità.",
+    "pt": "Digite um e-mail para validar disponibilidade.",
+    "fr": "Saisissez un e-mail pour vérifier la disponibilité.",
+    "de": "Geben Sie eine E-Mail zur Prüfung ein."
+  },
+  "register_label_phone": {
+    "es": "Teléfono (único)",
+    "en": "Phone (Unique)",
+    "it": "Telefono (unico)",
+    "pt": "Telefone (único)",
+    "fr": "Téléphone (unique)",
+    "de": "Telefon (einzigartig)"
+  },
+  "register_phone_digits_range": {
+    "es": "{{min}}–{{max}} dígitos",
+    "en": "{{min}}–{{max}} digits",
+    "it": "{{min}}–{{max}} cifre",
+    "pt": "{{min}}–{{max}} dígitos",
+    "fr": "{{min}}–{{max}} chiffres",
+    "de": "{{min}}–{{max}} Ziffern"
+  },
+  "register_phone_available": {
+    "es": "Número disponible",
+    "en": "Phone number available",
+    "it": "Numero disponibile",
+    "pt": "Número disponível",
+    "fr": "Numéro disponible",
+    "de": "Nummer verfügbar"
+  },
+  "register_phone_checking": {
+    "es": "Validando número…",
+    "en": "Checking phone number…",
+    "it": "Verifica numero…",
+    "pt": "Validando número…",
+    "fr": "Vérification du numéro…",
+    "de": "Nummer wird geprüft…"
+  },
+  "register_phone_taken": {
+    "es": "El número ya existe",
+    "en": "This phone number already exists",
+    "it": "Questo numero esiste già",
+    "pt": "Este número já existe",
+    "fr": "Ce numéro existe déjà",
+    "de": "Diese Nummer existiert bereits"
+  },
+  "register_phone_invalid_prefix": {
+    "es": "Número no válido para el prefijo elegido.",
+    "en": "Invalid phone number for the selected country code.",
+    "it": "Numero non valido per il prefisso scelto.",
+    "pt": "Número inválido para o prefixo selecionado.",
+    "fr": "Numéro invalide pour l’indicatif choisi.",
+    "de": "Ungültige Nummer für die gewählte Vorwahl."
+  },
+  "register_phone_hint": {
+    "es": "Ingresa tu número para validar disponibilidad.",
+    "en": "Enter your phone number to check availability.",
+    "it": "Inserisci il numero per verificare la disponibilità.",
+    "pt": "Digite seu número para validar disponibilidade.",
+    "fr": "Saisissez votre numéro pour vérifier la disponibilité.",
+    "de": "Geben Sie Ihre Nummer zur Prüfung ein."
+  },
+  "register_label_birth": {
+    "es": "Fecha de nacimiento",
+    "en": "Birth Date",
+    "it": "Data di nascita",
+    "pt": "Data de nascimento",
+    "fr": "Date de naissance",
+    "de": "Geburtsdatum"
+  },
+  "register_placeholder_birth": {
+    "es": "MM-DD-AAAA",
+    "en": "MM-DD-YYYY",
+    "it": "MM-GG-AAAA",
+    "pt": "MM-DD-AAAA",
+    "fr": "MM-JJ-AAAA",
+    "de": "MM-TT-JJJJ"
+  },
+  "register_label_city": {
+    "es": "Ciudad",
+    "en": "City",
+    "it": "Città",
+    "pt": "Cidade",
+    "fr": "Ville",
+    "de": "Ort"
+  },
+  "register_placeholder_city": {
+    "es": "Ej.: Houston",
+    "en": "Ex.: Houston",
+    "it": "Es.: Milano",
+    "pt": "Ex.: São Paulo",
+    "fr": "Ex. : Lyon",
+    "de": "z. B. Hamburg"
+  },
+  "register_label_state": {
+    "es": "Estado / provincia",
+    "en": "State",
+    "it": "Stato / provincia",
+    "pt": "Estado",
+    "fr": "État / région",
+    "de": "Bundesland"
+  },
+  "register_placeholder_state": {
+    "es": "Ej.: Texas",
+    "en": "Ex.: Texas",
+    "it": "Es.: Lombardia",
+    "pt": "Ex.: SP",
+    "fr": "Ex. : Île-de-France",
+    "de": "z. B. Bayern"
+  },
+  "register_label_country": {
+    "es": "País",
+    "en": "Country",
+    "it": "Paese",
+    "pt": "País",
+    "fr": "Pays",
+    "de": "Land"
+  },
+  "register_placeholder_country": {
+    "es": "Ej.: Estados Unidos",
+    "en": "Ex.: United States",
+    "it": "Es.: Italia",
+    "pt": "Ex.: Brasil",
+    "fr": "Ex. : France",
+    "de": "z. B. Deutschland"
+  },
+  "register_autofill_location": {
+    "es": "Autocompletar ubicación",
+    "en": "Autofill location",
+    "it": "Compila posizione",
+    "pt": "Preencher localização",
+    "fr": "Remplir la localisation",
+    "de": "Standort ausfüllen"
+  },
+  "register_label_timezone": {
+    "es": "Zona horaria detectada",
+    "en": "Detected timezone",
+    "it": "Fuso rilevato",
+    "pt": "Fuso detectado",
+    "fr": "Fuseau détecté",
+    "de": "Erkannte Zeitzone"
+  },
+  "register_label_password": {
+    "es": "Contraseña",
+    "en": "Password",
+    "it": "Password",
+    "pt": "Senha",
+    "fr": "Mot de passe",
+    "de": "Passwort"
+  },
+  "register_placeholder_password": {
+    "es": "Mínimo 8 caracteres",
+    "en": "Minimum 8 characters",
+    "it": "Minimo 8 caratteri",
+    "pt": "Mínimo de 8 caracteres",
+    "fr": "Au moins 8 caractères",
+    "de": "Mind. 8 Zeichen"
+  },
+  "register_a11y_hide_password": {
+    "es": "Ocultar contraseña",
+    "en": "Hide password",
+    "it": "Nascondi password",
+    "pt": "Ocultar senha",
+    "fr": "Masquer le mot de passe",
+    "de": "Passwort ausblenden"
+  },
+  "register_a11y_show_password": {
+    "es": "Mostrar contraseña",
+    "en": "Show password",
+    "it": "Mostra password",
+    "pt": "Mostrar senha",
+    "fr": "Afficher le mot de passe",
+    "de": "Passwort anzeigen"
+  },
+  "register_cta_confirm": {
+    "es": "CONFIRMAR REGISTRO",
+    "en": "CONFIRM SIGN UP",
+    "it": "CONFERMA REGISTRAZIONE",
+    "pt": "CONFIRMAR CADASTRO",
+    "fr": "CONFIRMER L’INSCRIPTION",
+    "de": "REGISTRIERUNG BESTÄTIGEN"
+  },
+  "register_legal_checkbox": {
+    "es": "Acepto términos y condiciones + política de privacidad.",
+    "en": "I accept Terms and Conditions + Privacy Policy.",
+    "it": "Accetto termini e condizioni + informativa sulla privacy.",
+    "pt": "Aceito os termos e a política de privacidade.",
+    "fr": "J’accepte les conditions et la politique de confidentialité.",
+    "de": "Ich akzeptiere die AGB und die Datenschutzerklärung."
+  },
+  "register_go_back": {
+    "es": "Volver atrás",
+    "en": "Go back",
+    "it": "Indietro",
+    "pt": "Voltar",
+    "fr": "Retour",
+    "de": "Zurück"
+  },
+  "register_android_photo_title": {
+    "es": "Confirmar foto de perfil",
+    "en": "Confirm profile photo",
+    "it": "Conferma foto profilo",
+    "pt": "Confirmar foto de perfil",
+    "fr": "Confirmer la photo de profil",
+    "de": "Profilfoto bestätigen"
+  },
+  "register_android_photo_hint": {
+    "es": "Revisa la imagen. Cancelar descarta y puedes elegir otra.",
+    "en": "Review the image. Cancel discards it so you can pick another.",
+    "it": "Controlla l’immagine. Annulla per sceglierne un’altra.",
+    "pt": "Revise a imagem. Cancelar descarta para escolher outra.",
+    "fr": "Vérifiez l’image. Annuler pour en choisir une autre.",
+    "de": "Bild prüfen. Abbrechen verwirft die Auswahl."
+  },
+  "register_country_picker_title": {
+    "es": "Código de país",
+    "en": "Country code",
+    "it": "Prefisso paese",
+    "pt": "Código do país",
+    "fr": "Indicatif pays",
+    "de": "Ländercode"
+  },
+  "register_country_picker_top": {
+    "es": "Destacados",
+    "en": "Top",
+    "it": "In evidenza",
+    "pt": "Destaques",
+    "fr": "Sélection",
+    "de": "Top"
+  },
+  "register_country_picker_all": {
+    "es": "Todos los países",
+    "en": "All countries",
+    "it": "Tutti i paesi",
+    "pt": "Todos os países",
+    "fr": "Tous les pays",
+    "de": "Alle Länder"
+  },
+  "register_country_picker_search": {
+    "es": "Buscar país o prefijo…",
+    "en": "Search country or code…",
+    "it": "Cerca paese o prefisso…",
+    "pt": "Buscar país ou código…",
+    "fr": "Pays ou indicatif…",
+    "de": "Land oder Vorwahl suchen…"
+  },
+  "register_birth_modal_title": {
+    "es": "Selecciona fecha de nacimiento",
+    "en": "Select birth date",
+    "it": "Seleziona data di nascita",
+    "pt": "Selecione a data de nascimento",
+    "fr": "Sélectionnez la date de naissance",
+    "de": "Geburtsdatum wählen"
+  },
+  "register_birth_modal_hint": {
+    "es": "Orden EE. UU.: mes – día – año",
+    "en": "US order: Month - Day - Year",
+    "it": "Ordine USA: mese – giorno – anno",
+    "pt": "Ordem EUA: mês – dia – ano",
+    "fr": "Ordre US : mois – jour – année",
+    "de": "US-Reihenfolge: Monat – Tag – Jahr"
+  },
+  "register_birth_year": {
+    "es": "Año",
+    "en": "Year",
+    "it": "Anno",
+    "pt": "Ano",
+    "fr": "Année",
+    "de": "Jahr"
+  },
+  "register_birth_month": {
+    "es": "Mes",
+    "en": "Month",
+    "it": "Mese",
+    "pt": "Mês",
+    "fr": "Mois",
+    "de": "Monat"
+  },
+  "register_birth_day": {
+    "es": "Día",
+    "en": "Day",
+    "it": "Giorno",
+    "pt": "Dia",
+    "fr": "Jour",
+    "de": "Tag"
+  },
+  "register_confirm": {
+    "es": "Confirmar",
+    "en": "Confirm",
+    "it": "Conferma",
+    "pt": "Confirmar",
+    "fr": "Confirmer",
+    "de": "Bestätigen"
+  },
+  "profile_sec_load_error_fallback": {
+    "es": "No se pudo cargar el perfil.",
+    "en": "Could not load profile.",
+    "it": "Impossibile caricare il profilo.",
+    "pt": "Não foi possível carregar o perfil.",
+    "fr": "Impossible de charger le profil.",
+    "de": "Profil konnte nicht geladen werden."
+  },
+  "profile_sec_delete_confirm_title": {
+    "es": "Confirmar eliminación",
+    "en": "Confirm Delete",
+    "it": "Conferma eliminazione",
+    "pt": "Confirmar exclusão",
+    "fr": "Confirmer la suppression",
+    "de": "Löschen bestätigen"
+  },
+  "profile_sec_delete_confirm_body": {
+    "es": "Tu cuenta entrará en hibernación 30 días y luego se eliminará por completo si no vuelves a iniciar sesión. ¿Continuar?",
+    "en": "Your account will hibernate for 30 days, then be fully deleted if you do not sign in again. Continue?",
+    "it": "Il tuo account andrà in ibernazione per 30 giorni, poi sarà eliminato se non accedi di nuovo. Continuare?",
+    "pt": "Sua conta hibernará por 30 dias e será excluída se você não entrar de novo. Continuar?",
+    "fr": "Votre compte sera en sommeil 30 jours puis supprimé si vous ne vous reconnectez pas. Continuer ?",
+    "de": "Ihr Konto ruht 30 Tage und wird gelöscht, wenn Sie sich nicht wieder anmelden. Fortfahren?"
+  },
+  "profile_sec_delete_step2_title": {
+    "es": "Confirmar eliminación",
+    "en": "Confirm deletion",
+    "it": "Conferma eliminazione",
+    "pt": "Confirmar exclusão",
+    "fr": "Confirmer la suppression",
+    "de": "Löschen bestätigen"
+  },
+  "profile_sec_delete_step2_body": {
+    "es": "Fecha límite de borrado definitivo: {{date}}. Puedes restaurar todo iniciando sesión antes de esa fecha.",
+    "en": "Final deletion date: {{date}}. You can restore everything by signing in before that date.",
+    "it": "Data di eliminazione definitiva: {{date}}. Puoi ripristinare tutto accedendo prima di quella data.",
+    "pt": "Data limite de exclusão: {{date}}. Você pode restaurar tudo entrando antes dessa data.",
+    "fr": "Date de suppression définitive : {{date}}. Vous pouvez tout restaurer en vous reconnectant avant.",
+    "de": "Endgültiges Löschdatum: {{date}}. Wiederherstellen durch Anmeldung davor möglich."
+  },
+  "profile_sec_delete_marked_title": {
+    "es": "Cuenta marcada para eliminación",
+    "en": "Account marked for deletion",
+    "it": "Account segnato per eliminazione",
+    "pt": "Conta marcada para exclusão",
+    "fr": "Compte marqué pour suppression",
+    "de": "Konto zur Löschung vorgemerkt"
+  },
+  "profile_sec_delete_marked_body": {
+    "es": "Hibernación activa hasta el {{date}}. Revisa tu correo. Tras salir, pulsa «Entendido».",
+    "en": "Hibernation active until {{date}}. Check your email. Tap OK to sign out.",
+    "it": "Ibernazione attiva fino al {{date}}. Controlla l’email. Tocca OK per uscire.",
+    "pt": "Hibernação ativa até {{date}}. Verifique o e-mail. Toque OK para sair.",
+    "fr": "Sommeil actif jusqu’au {{date}}. Vérifiez vos e-mails. Appuyez sur OK pour vous déconnecter.",
+    "de": "Ruhezustand bis {{date}}. E-Mail prüfen. OK zum Abmelden."
+  },
+  "profile_sec_delete_error": {
+    "es": "No se pudo marcar la cuenta para eliminación.",
+    "en": "Could not mark account for deletion.",
+    "it": "Impossibile segnare l’account per l’eliminazione.",
+    "pt": "Não foi possível marcar a conta para exclusão.",
+    "fr": "Impossible de marquer le compte pour suppression.",
+    "de": "Konto konnte nicht zur Löschung markiert werden."
+  },
+  "profile_sec_yes_continue": {
+    "es": "Sí, continuar",
+    "en": "Yes, continue",
+    "it": "Sì, continua",
+    "pt": "Sim, continuar",
+    "fr": "Oui, continuer",
+    "de": "Ja, weiter"
+  },
+  "profile_sec_yes_delete": {
+    "es": "Sí, eliminar cuenta",
+    "en": "Yes, delete account",
+    "it": "Sì, elimina account",
+    "pt": "Sim, excluir conta",
+    "fr": "Oui, supprimer le compte",
+    "de": "Ja, Konto löschen"
+  },
+  "profile_sec_change_photo_title": {
+    "es": "Cambiar foto",
+    "en": "Change photo",
+    "it": "Cambia foto",
+    "pt": "Alterar foto",
+    "fr": "Changer la photo",
+    "de": "Foto ändern"
+  },
+  "profile_sec_gallery": {
+    "es": "Galería",
+    "en": "Gallery",
+    "it": "Galleria",
+    "pt": "Galeria",
+    "fr": "Galerie",
+    "de": "Galerie"
+  },
+  "profile_sec_camera_selfie": {
+    "es": "Cámara (selfie)",
+    "en": "Camera (selfie)",
+    "it": "Fotocamera (selfie)",
+    "pt": "Câmera (selfie)",
+    "fr": "Caméra (selfie)",
+    "de": "Kamera (Selfie)"
+  },
+  "profile_sec_camera": {
+    "es": "Cámara",
+    "en": "Camera",
+    "it": "Fotocamera",
+    "pt": "Câmera",
+    "fr": "Caméra",
+    "de": "Kamera"
+  },
+  "profile_sec_permission_title": {
+    "es": "Permiso requerido",
+    "en": "Permission required",
+    "it": "Permesso richiesto",
+    "pt": "Permissão necessária",
+    "fr": "Permission requise",
+    "de": "Berechtigung erforderlich"
+  },
+  "profile_sec_permission_photos": {
+    "es": "Activa el acceso a fotos en Ajustes.",
+    "en": "Enable photo access in Settings.",
+    "it": "Abilita l’accesso alle foto nelle Impostazioni.",
+    "pt": "Ative o acesso às fotos em Ajustes.",
+    "fr": "Activez l’accès aux photos dans Réglages.",
+    "de": "Fotozugriff in den Einstellungen erlauben."
+  },
+  "profile_sec_permission_camera": {
+    "es": "Activa el acceso a la cámara en Ajustes.",
+    "en": "Enable camera access in Settings.",
+    "it": "Abilita l’accesso alla fotocamera nelle Impostazioni.",
+    "pt": "Ative o acesso à câmera em Ajustes.",
+    "fr": "Activez l’accès à la caméra dans Réglages.",
+    "de": "Kamerazugriff in den Einstellungen erlauben."
+  },
+  "profile_sec_photo_updated_title": {
+    "es": "Foto actualizada",
+    "en": "Photo updated",
+    "it": "Foto aggiornata",
+    "pt": "Foto atualizada",
+    "fr": "Photo mise à jour",
+    "de": "Foto aktualisiert"
+  },
+  "profile_sec_photo_updated_body": {
+    "es": "Tu foto de perfil se guardó correctamente.",
+    "en": "Your profile photo was saved successfully.",
+    "it": "La foto profilo è stata salvata.",
+    "pt": "Sua foto de perfil foi salva.",
+    "fr": "Votre photo de profil a été enregistrée.",
+    "de": "Profilfoto wurde gespeichert."
+  },
+  "profile_sec_photo_pending_title": {
+    "es": "Foto subida; pendiente de publicar",
+    "en": "Photo uploaded with pending publish",
+    "it": "Foto caricata; pubblicazione in sospeso",
+    "pt": "Foto enviada; publicação pendente",
+    "fr": "Photo téléchargée ; publication en attente",
+    "de": "Foto hochgeladen; Veröffentlichung ausstehend"
+  },
+  "profile_sec_photo_pending_body": {
+    "es": "Se guardó tu archivo, pero aún no hay URL pública para mostrarlo en la app.",
+    "en": "Your file was stored, but no public URL is available yet for in-app display.",
+    "it": "Il file è stato salvato, ma non c’è ancora un URL pubblico nell’app.",
+    "pt": "O arquivo foi salvo, mas ainda sem URL pública no app.",
+    "fr": "Fichier stocké, mais pas encore d’URL publique dans l’app.",
+    "de": "Datei gespeichert, aber noch keine öffentliche URL in der App."
+  },
+  "profile_sec_photo_rejected_title": {
+    "es": "Foto rechazada",
+    "en": "Photo rejected",
+    "it": "Foto rifiutata",
+    "pt": "Foto rejeitada",
+    "fr": "Photo refusée",
+    "de": "Foto abgelehnt"
+  },
+  "profile_sec_photo_rejected_body": {
+    "es": "La imagen no cumple las políticas de contenido de Card-Social.",
+    "en": "The image does not meet Card-Social content policies.",
+    "it": "L’immagine non rispetta le policy di contenuto di Card-Social.",
+    "pt": "A imagem não atende às políticas de conteúdo da Card-Social.",
+    "fr": "L’image ne respecte pas les règles Card-Social.",
+    "de": "Das Bild entspricht nicht den Card-Social-Inhaltsrichtlinien."
+  },
+  "profile_sec_photo_upload_error_title": {
+    "es": "Error al subir la foto",
+    "en": "Error uploading photo",
+    "it": "Errore nel caricamento foto",
+    "pt": "Erro ao enviar foto",
+    "fr": "Erreur d’envoi de la photo",
+    "de": "Fehler beim Hochladen"
+  },
+  "profile_sec_try_again": {
+    "es": "Inténtalo de nuevo.",
+    "en": "Please try again.",
+    "it": "Riprova.",
+    "pt": "Tente novamente.",
+    "fr": "Réessayez.",
+    "de": "Bitte erneut versuchen."
+  },
+  "profile_sec_email_title": {
+    "es": "Correo electrónico",
+    "en": "Email",
+    "it": "Email",
+    "pt": "E-mail",
+    "fr": "E-mail",
+    "de": "E-Mail"
+  },
+  "profile_sec_social_badge": {
+    "es": "Social",
+    "en": "Social",
+    "it": "Social",
+    "pt": "Social",
+    "fr": "Social",
+    "de": "Social"
+  },
+  "profile_sec_not_available": {
+    "es": "No disponible",
+    "en": "Not available",
+    "it": "Non disponibile",
+    "pt": "Indisponível",
+    "fr": "Non disponible",
+    "de": "Nicht verfügbar"
+  },
+  "profile_sec_email_hint_password": {
+    "es": "El cambio requiere tu contraseña y confirmar un enlace enviado al nuevo correo.",
+    "en": "Changing email requires your password and confirming a link sent to the new email.",
+    "it": "Cambiare email? Servono password e conferma del link inviato al nuovo indirizzo.",
+    "pt": "A troca exige sua senha e confirmar o link enviado ao novo e-mail.",
+    "fr": "Changement d’e-mail : mot de passe et lien de confirmation requis.",
+    "de": "E-Mail-Änderung erfordert Passwort und Bestätigungslink."
+  },
+  "profile_sec_email_hint_social": {
+    "es": "Tu correo se gestiona desde tu proveedor social.",
+    "en": "Your email is managed by your social provider.",
+    "it": "L’email è gestita dal provider social.",
+    "pt": "Seu e-mail é gerenciado pelo provedor social.",
+    "fr": "Votre e-mail est gérée par votre fournisseur social.",
+    "de": "E-Mail wird vom Social-Login-Anbieter verwaltet."
+  },
+  "profile_sec_new_email": {
+    "es": "Nuevo correo",
+    "en": "New email",
+    "it": "Nuova email",
+    "pt": "Novo e-mail",
+    "fr": "Nouvel e-mail",
+    "de": "Neue E-Mail"
+  },
+  "profile_sec_current_password": {
+    "es": "Contraseña actual",
+    "en": "Current password",
+    "it": "Password attuale",
+    "pt": "Senha atual",
+    "fr": "Mot de passe actuel",
+    "de": "Aktuelles Passwort"
+  },
+  "profile_sec_a11y_toggle_password": {
+    "es": "Mostrar u ocultar contraseña",
+    "en": "Toggle password visibility",
+    "it": "Mostra/nascondi password",
+    "pt": "Alternar visibilidade da senha",
+    "fr": "Afficher/masquer le mot de passe",
+    "de": "Passwort ein-/ausblenden"
+  },
+  "profile_sec_sending": {
+    "es": "Enviando…",
+    "en": "Sending…",
+    "it": "Invio…",
+    "pt": "Enviando…",
+    "fr": "Envoi…",
+    "de": "Wird gesendet…"
+  },
+  "profile_sec_send_verification": {
+    "es": "Enviar verificación",
+    "en": "Send verification",
+    "it": "Invia verifica",
+    "pt": "Enviar verificação",
+    "fr": "Envoyer la vérificación",
+    "de": "Bestätigung senden"
+  },
+  "profile_sec_phone_title": {
+    "es": "Teléfono",
+    "en": "Phone",
+    "it": "Telefono",
+    "pt": "Telefone",
+    "fr": "Téléphone",
+    "de": "Telefon"
+  },
+  "profile_sec_readonly": {
+    "es": "Solo lectura",
+    "en": "Read only",
+    "it": "Sola lettura",
+    "pt": "Somente leitura",
+    "fr": "Lecture seule",
+    "de": "Nur Lesen"
+  },
+  "profile_sec_phone_ticket_hint": {
+    "es": "Para cambiar tu teléfono abre un ticket. Se resuelve en máximo 3 días hábiles.",
+    "en": "To change your phone, open a ticket. It is resolved within 3 business days.",
+    "it": "Per cambiare numero apri un ticket. Risolto entro 3 giorni lavorativi.",
+    "pt": "Para mudar o telefone, abra um chamado. Resolvido em até 3 dias úteis.",
+    "fr": "Pour changer de numéro, ouvrez un ticket. Résolu sous 3 jours ouvrés.",
+    "de": "Telefonänderung per Ticket, Bearbeitung in bis zu 3 Werktagen."
+  },
+  "profile_sec_open_ticket": {
+    "es": "Abrir ticket",
+    "en": "Open ticket",
+    "it": "Apri ticket",
+    "pt": "Abrir chamado",
+    "fr": "Ouvrir un ticket",
+    "de": "Ticket öffnen"
+  },
+  "profile_sec_ticket_fallback_body": {
+    "es": "Escríbenos a support@cardsocial.me. Los cambios de teléfono se resuelven en máximo 3 días hábiles.",
+    "en": "Email us at support@cardsocial.me. Phone change requests are resolved within 3 business days.",
+    "it": "Scrivi a support@cardsocial.me. Cambio numero entro 3 giorni lavorativi.",
+    "pt": "Escreva para support@cardsocial.me. Prazo de até 3 dias úteis.",
+    "fr": "Écrivez à support@cardsocial.me. Délai : 3 jours ouvrés.",
+    "de": "Schreiben Sie an support@cardsocial.me. Bearbeitung in bis zu 3 Werktagen."
+  },
+  "profile_sec_change_password_section": {
+    "es": "Cambiar contraseña",
+    "en": "Change password",
+    "it": "Cambia password",
+    "pt": "Alterar senha",
+    "fr": "Changer le mot de passe",
+    "de": "Passwort ändern"
+  },
+  "profile_sec_new_password": {
+    "es": "Nueva contraseña",
+    "en": "New password",
+    "it": "Nuova password",
+    "pt": "Nova senha",
+    "fr": "Nouveau mot de passe",
+    "de": "Neues Passwort"
+  },
+  "profile_sec_confirm_password": {
+    "es": "Confirmar nueva contraseña",
+    "en": "Confirm new password",
+    "it": "Conferma nuova password",
+    "pt": "Confirmar nova senha",
+    "fr": "Confirmer le mot de passe",
+    "de": "Neues Passwort bestätigen"
+  },
+  "profile_sec_password_hint": {
+    "es": "Mínimo 8 caracteres. Usa letras, números y símbolos.",
+    "en": "At least 8 characters. Use a mix of letters, numbers and symbols.",
+    "it": "Minimo 8 caratteri. Lettere, numeri e simboli.",
+    "pt": "Mínimo de 8 caracteres. Letras, números e símbolos.",
+    "fr": "Au moins 8 caractères. Lettres, chiffres et symboles.",
+    "de": "Mind. 8 Zeichen. Buchstaben, Ziffern und Symbole."
+  },
+  "profile_sec_changing": {
+    "es": "Cambiando…",
+    "en": "Changing…",
+    "it": "Modifica…",
+    "pt": "Alterando…",
+    "fr": "Modification…",
+    "de": "Wird geändert…"
+  },
+  "profile_sec_social_account_title": {
+    "es": "Cuenta social",
+    "en": "Social account",
+    "it": "Account social",
+    "pt": "Conta social",
+    "fr": "Compte social",
+    "de": "Social-Konto"
+  },
+  "profile_sec_social_account_body": {
+    "es": "Tu cuenta usa {{provider}}. La contraseña se gestiona desde ese proveedor.",
+    "en": "Your account uses {{provider}}. Password is managed by that provider.",
+    "it": "Il tuo account usa {{provider}}. La password è gestita dal provider.",
+    "pt": "Sua conta usa {{provider}}. A senha é gerenciada por esse provedor.",
+    "fr": "Votre compte utilise {{provider}}. Mot de passe géré par ce fournisseur.",
+    "de": "Ihr Konto nutzt {{provider}}. Passwort beim Anbieter."
+  },
+  "profile_sec_social_provider_fallback": {
+    "es": "un proveedor social",
+    "en": "a social provider",
+    "it": "un provider social",
+    "pt": "um provedor social",
+    "fr": "un fournisseur social",
+    "de": "einen Social-Anbieter"
+  },
+  "profile_sec_danger_zone": {
+    "es": "Zona de peligro",
+    "en": "Danger Zone",
+    "it": "Zona pericolo",
+    "pt": "Zona de perigo",
+    "fr": "Zone de danger",
+    "de": "Gefahrenbereich"
+  },
+  "profile_sec_delete_account": {
+    "es": "Eliminar cuenta",
+    "en": "Delete Account",
+    "it": "Elimina account",
+    "pt": "Excluir conta",
+    "fr": "Supprimer le compte",
+    "de": "Konto löschen"
+  },
+  "profile_sec_preview_title": {
+    "es": "Vista previa",
+    "en": "Preview",
+    "it": "Anteprima",
+    "pt": "Pré-visualização",
+    "fr": "Aperçu",
+    "de": "Vorschau"
+  },
+  "profile_sec_preview_question": {
+    "es": "¿Quieres usar esta foto de perfil?",
+    "en": "Use this as your profile photo?",
+    "it": "Vuoi usare questa foto profilo?",
+    "pt": "Usar esta foto de perfil?",
+    "fr": "Utiliser cette photo de profil ?",
+    "de": "Dieses Profilfoto verwenden?"
+  },
+  "profile_sec_verify_new_email_title": {
+    "es": "Verifica tu nuevo correo",
+    "en": "Verify your new email",
+    "it": "Verifica il nuovo email",
+    "pt": "Verifique seu novo e-mail",
+    "fr": "Vérifiez votre nouvel e-mail",
+    "de": "Neue E-Mail bestätigen"
+  },
+  "profile_sec_verify_new_email_body": {
+    "es": "Te enviamos un enlace al nuevo correo. El cambio se aplicará cuando confirmes ese enlace.",
+    "en": "We sent a link to the new email. The change will apply after you confirm that link.",
+    "it": "Ti abbiamo inviato un link al nuovo indirizzo. Il cambio si applica dopo la conferma.",
+    "pt": "Enviamos um link para o novo e-mail. A alteração vale após confirmar.",
+    "fr": "Un lien a été envoyé au nouvel e-mail. Changement après confirmation.",
+    "de": "Link an neue E-Mail gesendet. Änderung nach Bestätigung wirksam."
+  },
+  "profile_sec_wrong_password_title": {
+    "es": "Contraseña incorrecta",
+    "en": "Wrong password",
+    "it": "Password errata",
+    "pt": "Senha incorreta",
+    "fr": "Mot de passe incorrect",
+    "de": "Falsches Passwort"
+  },
+  "profile_sec_wrong_password_body": {
+    "es": "La contraseña actual es incorrecta.",
+    "en": "Current password is incorrect.",
+    "it": "La password attuale non è corretta.",
+    "pt": "A senha atual está incorreta.",
+    "fr": "Le mot de passe actuel est incorrect.",
+    "de": "Das aktuelle Passwort ist falsch."
+  },
+  "profile_sec_email_in_use_title": {
+    "es": "Correo en uso",
+    "en": "Email in use",
+    "it": "Email già in uso",
+    "pt": "E-mail em uso",
+    "fr": "E-mail déjà utilisé",
+    "de": "E-Mail bereits verwendet"
+  },
+  "profile_sec_email_in_use_body": {
+    "es": "Ese correo ya pertenece a otra cuenta.",
+    "en": "That email already belongs to another account.",
+    "it": "Questa email appartiene già a un altro account.",
+    "pt": "Este e-mail já pertence a outra conta.",
+    "fr": "Cet e-mail appartient déjà à un autre compte.",
+    "de": "Diese E-Mail gehört bereits zu einem anderen Konto."
+  },
+  "profile_sec_session_expired_title": {
+    "es": "Sesión expirada",
+    "en": "Session expired",
+    "it": "Sessione scaduta",
+    "pt": "Sessão expirada",
+    "fr": "Session expirée",
+    "de": "Sitzung abgelaufen"
+  },
+  "profile_sec_session_expired_body": {
+    "es": "Cierra sesión y vuelve a entrar.",
+    "en": "Sign out and sign back in.",
+    "it": "Esci e accedi di nuovo.",
+    "pt": "Saia e entre novamente.",
+    "fr": "Déconnectez-vous puis reconnectez-vous.",
+    "de": "Abmelden und erneut anmelden."
+  },
+  "profile_sec_verify_send_fail_title": {
+    "es": "No se pudo enviar la verificación",
+    "en": "Could not send verification",
+    "it": "Impossibile inviare la verifica",
+    "pt": "Não foi possível enviar a verificação",
+    "fr": "Envoi de la vérification impossible",
+    "de": "Bestätigung konnte nicht gesendet werden"
+  },
+  "profile_sec_password_fields_required_title": {
+    "es": "Campos requeridos",
+    "en": "Required fields",
+    "it": "Campi obbligatori",
+    "pt": "Campos obrigatórios",
+    "fr": "Champs requis",
+    "de": "Pflichtfelder"
+  },
+  "profile_sec_password_fields_required_body": {
+    "es": "Completa todos los campos de contraseña.",
+    "en": "Fill all password fields.",
+    "it": "Compila tutti i campi password.",
+    "pt": "Preencha todos os campos de senha.",
+    "fr": "Remplissez tous les champs du mot de passe.",
+    "de": "Alle Passwortfelder ausfüllen."
+  },
+  "profile_sec_password_short_title": {
+    "es": "Contraseña corta",
+    "en": "Password too short",
+    "it": "Password troppo corta",
+    "pt": "Senha curta",
+    "fr": "Mot de passe trop court",
+    "de": "Passwort zu kurz"
+  },
+  "profile_sec_password_short_body": {
+    "es": "Mínimo 8 caracteres.",
+    "en": "At least 8 characters.",
+    "it": "Almeno 8 caratteri.",
+    "pt": "Mínimo de 8 caracteres.",
+    "fr": "Au moins 8 caractères.",
+    "de": "Mind. 8 Zeichen."
+  },
+  "profile_sec_password_mismatch_title": {
+    "es": "No coincide",
+    "en": "Mismatch",
+    "it": "Non corrisponde",
+    "pt": "Não confere",
+    "fr": "Ne correspond pas",
+    "de": "Stimmt nicht überein"
+  },
+  "profile_sec_password_mismatch_body": {
+    "es": "Las contraseñas nuevas no coinciden.",
+    "en": "New passwords do not match.",
+    "it": "Le nuove password non coincidono.",
+    "pt": "As novas senhas não coincidem.",
+    "fr": "Les nouveaux mots de passe ne correspondent pas.",
+    "de": "Die neuen Passwörter stimmen nicht überein."
+  },
+  "profile_sec_password_changed_title": {
+    "es": "Contraseña cambiada",
+    "en": "Password changed",
+    "it": "Password cambiata",
+    "pt": "Senha alterada",
+    "fr": "Mot de passe modifié",
+    "de": "Passwort geändert"
+  },
+  "profile_sec_password_changed_body": {
+    "es": "Tu contraseña se actualizó correctamente.",
+    "en": "Your password was updated successfully.",
+    "it": "La password è stata aggiornata.",
+    "pt": "Sua senha foi atualizada.",
+    "fr": "Votre mot de passe a été mis à jour.",
+    "de": "Passwort wurde erfolgreich aktualisiert."
+  },
+  "profile_sec_invalid_email_title": {
+    "es": "Correo no válido",
+    "en": "Invalid email",
+    "it": "Email non valida",
+    "pt": "E-mail inválido",
+    "fr": "E-mail invalide",
+    "de": "Ungültige E-Mail"
+  },
+  "profile_sec_invalid_email_body": {
+    "es": "Escribe un correo válido.",
+    "en": "Enter a valid email.",
+    "it": "Inserisci un’email valida.",
+    "pt": "Digite um e-mail válido.",
+    "fr": "Saisissez un e-mail valide.",
+    "de": "Geben Sie eine gültige E-Mail ein."
+  },
+  "profile_sec_notice_title": {
+    "es": "Aviso",
+    "en": "Notice",
+    "it": "Avviso",
+    "pt": "Aviso",
+    "fr": "Remarque",
+    "de": "Hinweis"
+  },
+  "profile_sec_no_changes": {
+    "es": "No hay cambios.",
+    "en": "No changes.",
+    "it": "Nessuna modifica.",
+    "pt": "Sem alterações.",
+    "fr": "Aucun changement.",
+    "de": "Keine Änderungen."
+  },
+  "profile_sec_email_unchanged": {
+    "es": "Ese ya es tu correo actual.",
+    "en": "That is already your current email.",
+    "it": "Questa è già la tua email.",
+    "pt": "Este já é o seu e-mail atual.",
+    "fr": "C’est déjà votre e-mail actuel.",
+    "de": "Das ist bereits Ihre aktuelle E-Mail."
+  },
+  "profile_sec_password_required_email_title": {
+    "es": "Contraseña requerida",
+    "en": "Password required",
+    "it": "Password richiesta",
+    "pt": "Senha necessária",
+    "fr": "Mot de passe requis",
+    "de": "Passwort erforderlich"
+  },
+  "profile_sec_password_required_email_body": {
+    "es": "Escribe tu contraseña actual para confirmar.",
+    "en": "Enter your current password to confirm.",
+    "it": "Inserisci la password attuale per confermare.",
+    "pt": "Digite sua senha atual para confirmar.",
+    "fr": "Saisissez votre mot de passe actuel pour confirmer.",
+    "de": "Geben Sie Ihr aktuelles Passwort zur Bestätigung ein."
+  },
+  "profile_sec_mail_subject": {
+    "es": "Cambio de teléfono – Card-Social",
+    "en": "Phone change – Card-Social",
+    "it": "Cambio numero – Card-Social",
+    "pt": "Alteração de telefone – Card-Social",
+    "fr": "Changement de téléphone – Card-Social",
+    "de": "Telefonänderung – Card-Social"
+  },
+  "profile_sec_mail_body": {
+    "es": "Hola soporte Card-Social,\n\nSolicito cambiar el teléfono de mi cuenta.\n\nUID: {{uid}}\nCorreo: {{email}}\nTeléfono actual: {{phone}}\n\nEntiendo que el ticket se resuelve en máximo 3 días hábiles.\n",
+    "en": "Hello Card-Social support,\n\nI would like to change the phone number on my account.\n\nUID: {{uid}}\nEmail: {{email}}\nCurrent phone: {{phone}}\n\nI understand the ticket is resolved within 3 business days.\n",
+    "it": "Ciao supporto Card-Social,\n\nVorrei cambiare il numero di telefono del mio account.\n\nUID: {{uid}}\nEmail: {{email}}\nTelefono attuale: {{phone}}\n\nCapisco che il ticket viene risolto entro 3 giorni lavorativi.\n",
+    "pt": "Olá suporte Card-Social,\n\nGostaria de alterar o telefone da minha conta.\n\nUID: {{uid}}\nE-mail: {{email}}\nTelefone atual: {{phone}}\n\nEntendo que o chamado é resolvido em até 3 dias úteis.\n",
+    "fr": "Bonjour support Card-Social,\n\nJe souhaite modifier le numéro de téléphone de mon compte.\n\nUID : {{uid}}\nE-mail : {{email}}\nTéléphone actuel : {{phone}}\n\nJe comprends que le délai de traitement est de 3 jours ouvrés.\n",
+    "de": "Hallo Card-Social-Support,\n\nich möchte die Telefonnummer meines Kontos ändern.\n\nUID: {{uid}}\nE-Mail: {{email}}\nAktuelle Telefonnr.: {{phone}}\n\nIch verstehe, dass das Ticket innerhalb von 3 Werktagen bearbeitet wird.\n"
+  }
+}

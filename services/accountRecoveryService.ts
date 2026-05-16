@@ -181,7 +181,7 @@ export async function initiateDocumentVerification(params: {
 export async function checkRecoveryRequestStatus(
   ticketId: string
 ): Promise<{
-  status: 'pending' | 'verified' | 'rejected';
+  status: 'pending' | 'verified' | 'rejected' | 'not_found' | 'error';
   message: string;
 }> {
   try {
@@ -190,7 +190,7 @@ export async function checkRecoveryRequestStatus(
 
     if (!docSnap.exists()) {
       return {
-        status: 'rejected',
+        status: 'not_found',
         message: 'Ticket no encontrado.',
       };
     }
@@ -203,7 +203,7 @@ export async function checkRecoveryRequestStatus(
     };
   } catch (error: any) {
     return {
-      status: 'rejected',
+      status: 'error',
       message: error.message || 'Error consultando estado.',
     };
   }

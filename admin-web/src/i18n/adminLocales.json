@@ -1,0 +1,390 @@
+{
+  "admin_err_save_general": {
+    "es": "No se pudo guardar. Reintenta o contacta a soporte interno si continúa.",
+    "en": "Could not save. Try again or contact internal support if it persists."
+  },
+  "admin_err_load_general": {
+    "es": "No se pudo cargar la información. Reintenta en unos segundos.",
+    "en": "Could not load the data. Please try again in a moment."
+  },
+  "admin_err_action_general": {
+    "es": "No se pudo completar la acción. Reintenta.",
+    "en": "The action could not be completed. Please try again."
+  },
+  "admin_mod_notice_load_fail": {
+    "es": "No se pudieron cargar los reportes. Por favor, reintenta.",
+    "en": "Reports could not be loaded. Please try again."
+  },
+  "admin_mod_notice_missing_reported_user": {
+    "es": "Este reporte no incluye al usuario señalado; no se puede abrir la investigación.",
+    "en": "This report does not include the flagged user; investigation cannot be opened."
+  },
+  "admin_mod_notice_xray_fail": {
+    "es": "No se pudo abrir el modo de investigación detallada.",
+    "en": "Detailed investigation mode could not be opened."
+  },
+  "admin_mod_notice_reason_required": {
+    "es": "El motivo de moderación es obligatorio.",
+    "en": "A moderation reason is required."
+  },
+  "admin_mod_success_warning": {
+    "es": "Advertencia registrada y reporte auditado.",
+    "en": "Warning logged and report audited."
+  },
+  "admin_mod_success_soft_ban": {
+    "es": "Usuario suspendido y reporte auditado.",
+    "en": "User suspended and report audited."
+  },
+  "admin_mod_success_hard_ban": {
+    "es": "Bloqueo definitivo aplicado y cuenta añadida a la lista negra global.",
+    "en": "Permanent ban applied and account added to the global blocklist."
+  },
+  "admin_mod_success_reviewed": {
+    "es": "Reporte marcado como revisado.",
+    "en": "Report marked as reviewed."
+  },
+  "admin_mod_success_dismissed": {
+    "es": "Reporte desestimado correctamente.",
+    "en": "Report dismissed successfully."
+  },
+  "admin_mod_filter_pending": {
+    "es": "Pendientes",
+    "en": "Pending"
+  },
+  "admin_mod_filter_reviewed": {
+    "es": "Revisados",
+    "en": "Reviewed"
+  },
+  "admin_mod_filter_dismissed": {
+    "es": "Desestimados",
+    "en": "Dismissed"
+  },
+  "admin_mod_status_pending": {
+    "es": "Pendiente",
+    "en": "Pending"
+  },
+  "admin_mod_status_reviewed": {
+    "es": "Revisado",
+    "en": "Reviewed"
+  },
+  "admin_mod_status_dismissed": {
+    "es": "Desestimado",
+    "en": "Dismissed"
+  },
+  "admin_mod_table_helper": {
+    "es": "La tabla enlaza cada reporte con la ficha del usuario reportado para mostrar nombre y correo.",
+    "en": "The table links each report to the reported user’s profile to show name and email."
+  },
+  "admin_mod_email_unavailable": {
+    "es": "Correo no disponible",
+    "en": "Email unavailable"
+  },
+  "admin_mod_label_reported_user": {
+    "es": "Usuario en el reporte",
+    "en": "Reported user"
+  },
+  "admin_mod_label_submitter": {
+    "es": "Quien reporta",
+    "en": "Reporter"
+  },
+  "admin_mod_label_account_id": {
+    "es": "Identificador de cuenta",
+    "en": "Account ID"
+  },
+  "admin_idrisk_load_blacklist_fail": {
+    "es": "No se pudo cargar la lista negra de identidades.",
+    "en": "Could not load the identity blocklist."
+  },
+  "admin_idrisk_user_not_found": {
+    "es": "No se encontró un usuario con ese correo o identificador.",
+    "en": "No user was found with that email or identifier."
+  },
+  "admin_idrisk_search_fail": {
+    "es": "No se pudo buscar el usuario.",
+    "en": "User search failed."
+  },
+  "admin_idrisk_verify_granted": {
+    "es": "Verificación oficial concedida.",
+    "en": "Official verification granted."
+  },
+  "admin_idrisk_verify_revoked": {
+    "es": "Verificación revocada.",
+    "en": "Verification revoked."
+  },
+  "admin_idrisk_verify_fail": {
+    "es": "No se pudo actualizar la verificación.",
+    "en": "Verification could not be updated."
+  },
+  "admin_idrisk_blacklist_add_ok": {
+    "es": "Identidad agregada a la lista negra.",
+    "en": "Identity added to the blocklist."
+  },
+  "admin_idrisk_blacklist_add_fail": {
+    "es": "No se pudo agregar a la lista negra.",
+    "en": "Could not add to the blocklist."
+  },
+  "admin_idrisk_blacklist_remove_ok": {
+    "es": "Identidad retirada de la lista negra.",
+    "en": "Identity removed from the blocklist."
+  },
+  "admin_idrisk_blacklist_remove_fail": {
+    "es": "No se pudo retirar de la lista negra.",
+    "en": "Could not remove from the blocklist."
+  },
+  "admin_idrisk_default_reason": {
+    "es": "Prevención proactiva de abuso",
+    "en": "Proactive abuse prevention"
+  },
+  "admin_commerce_load_fail": {
+    "es": "Error al cargar la configuración comercial. Por favor, reintenta.",
+    "en": "Could not load commerce settings. Please try again."
+  },
+  "admin_commerce_save_ok": {
+    "es": "Catálogo publicado. Los cambios ya están disponibles para la app.",
+    "en": "Catalog published. Changes are now available in the app."
+  },
+  "admin_commerce_save_fail": {
+    "es": "No se pudo publicar el catálogo.",
+    "en": "Could not publish the catalog."
+  },
+  "admin_studio_pack_png_svg_only": {
+    "es": "Solo se permiten archivos .png o .svg para este pack.",
+    "en": "Only .png or .svg files are allowed for this pack."
+  },
+  "admin_studio_pack_name_required": {
+    "es": "Indica el nombre del pack.",
+    "en": "Enter the pack name."
+  },
+  "admin_studio_pack_files_count": {
+    "es": "Añade entre 1 y 24 archivos.",
+    "en": "Add between 1 and 24 files."
+  },
+  "admin_studio_pack_saved": {
+    "es": "Pack «{{name}}» guardado en el catálogo ({{count}} íconos en almacenamiento).",
+    "en": "Pack “{{name}}” saved to the catalog ({{count}} icons in storage)."
+  },
+  "admin_studio_sync_fail": {
+    "es": "No se pudieron sincronizar los recursos del estudio.",
+    "en": "Studio assets could not be synchronized."
+  },
+  "admin_studio_ref_image_required": {
+    "es": "Sube una imagen de referencia para el paso 1.",
+    "en": "Upload a reference image for step 1."
+  },
+  "admin_studio_analyzing_brand": {
+    "es": "Analizando logotipo y extrayendo colores…",
+    "en": "Analyzing logo and extracting colors…"
+  },
+  "admin_studio_brand_analyze_fail": {
+    "es": "No se pudo analizar la marca.",
+    "en": "Brand analysis failed."
+  },
+  "admin_studio_context_required": {
+    "es": "Indica el contexto de marca o los elementos a generar antes de continuar.",
+    "en": "Enter brand context or items to generate before continuing."
+  },
+  "admin_studio_generating_prompts": {
+    "es": "Generando indicaciones para los íconos…",
+    "en": "Generating icon prompts…"
+  },
+  "admin_studio_icons_gen_fail": {
+    "es": "No se pudieron generar los íconos con la IA.",
+    "en": "Icons could not be generated with AI."
+  },
+  "admin_studio_icon_name_required": {
+    "es": "Falta el nombre del ícono.",
+    "en": "Icon name is missing."
+  },
+  "admin_studio_icon_folder_required": {
+    "es": "Indica una carpeta para el ícono.",
+    "en": "Specify a folder for the icon."
+  },
+  "admin_studio_icon_select_or_upload": {
+    "es": "Selecciona un ícono generado o sube uno propio antes de publicar.",
+    "en": "Select a generated icon or upload your own before publishing."
+  },
+  "admin_studio_icon_published": {
+    "es": "Ícono «{{name}}» publicado en la tienda.",
+    "en": "Icon “{{name}}” published to the store."
+  },
+  "admin_studio_icon_publish_fail": {
+    "es": "No se pudo publicar el ícono.",
+    "en": "The icon could not be published."
+  },
+  "admin_studio_skin_forge_fail": {
+    "es": "No se pudo generar el tema con la IA.",
+    "en": "The theme could not be generated with AI."
+  },
+  "admin_studio_skin_logo_required": {
+    "es": "Sube un logotipo o referencia para analizar la marca.",
+    "en": "Upload a logo or reference to analyze the brand."
+  },
+  "admin_studio_skin_brand_analyze_fail": {
+    "es": "No se pudo analizar la marca del tema.",
+    "en": "Brand analysis for the theme failed."
+  },
+  "admin_studio_skin_analyzing": {
+    "es": "Extrayendo paleta y contexto del logotipo…",
+    "en": "Extracting palette and context from the logo…"
+  },
+  "admin_studio_skin_name_required": {
+    "es": "Indica el nombre del tema visual.",
+    "en": "Enter the visual theme name."
+  },
+  "admin_studio_skin_wallpaper_required": {
+    "es": "Sube un archivo de fondo de pantalla para publicarlo.",
+    "en": "Upload a wallpaper file to publish it."
+  },
+  "admin_studio_skin_pack_required": {
+    "es": "Selecciona un pack de íconos del catálogo.",
+    "en": "Select an icon pack from the catalog."
+  },
+  "admin_studio_skin_saved": {
+    "es": "Tema guardado y publicado en el catálogo de apariencias.",
+    "en": "Theme saved and published to the appearance catalog."
+  },
+  "admin_studio_skin_save_fail": {
+    "es": "No se pudo guardar el tema.",
+    "en": "The theme could not be saved."
+  },
+  "admin_studio_btn_save_pack_catalog": {
+    "es": "Guardar pack en el catálogo",
+    "en": "Save pack to catalog"
+  },
+  "admin_studio_panel_pack_title": {
+    "es": "Pack de íconos del catálogo",
+    "en": "Catalog icon pack"
+  },
+  "admin_studio_panel_pack_eyebrow": {
+    "es": "Catálogo · packs de íconos",
+    "en": "Catalog · icon packs"
+  },
+  "admin_studio_panel_pack_empty": {
+    "es": "Aún no hay packs en el catálogo. Crea uno en la pestaña Icon Packs.",
+    "en": "There are no packs in the catalog yet. Create one in the Icon Packs tab."
+  },
+  "admin_studio_panel_assembly_title": {
+    "es": "Ensamblaje",
+    "en": "Assembly"
+  },
+  "admin_studio_panel_assembly_eyebrow": {
+    "es": "Publicar en catálogo",
+    "en": "Publish to catalog"
+  },
+  "admin_studio_panel_assembly_desc": {
+    "es": "Publica el tema con fondo en almacenamiento y referencia al pack de íconos elegido.",
+    "en": "Publish the theme with storage-hosted wallpaper and the selected icon pack."
+  },
+  "admin_budget_err_load": {
+    "es": "No se pudieron cargar las métricas del semáforo.",
+    "en": "Traffic-light metrics could not be loaded."
+  },
+  "admin_budget_err_save": {
+    "es": "No se pudieron guardar los parámetros.",
+    "en": "Settings could not be saved."
+  },
+  "admin_budget_pct_invalid": {
+    "es": "El porcentaje de presupuesto debe estar entre 0 y 100.",
+    "en": "Budget percentage must be between 0 and 100."
+  },
+  "admin_budget_revenue_invalid": {
+    "es": "El ingreso mensual debe ser un número ≥ 0 o dejarse vacío.",
+    "en": "Monthly revenue must be a number ≥ 0 or left empty."
+  },
+  "admin_budget_save_ok": {
+    "es": "Guardado. Cambio registrado en el servidor.",
+    "en": "Saved. Change recorded on the server."
+  },
+  "admin_budget_light_green": {
+    "es": "VERDE — se puede planificar retención de pago",
+    "en": "GREEN — paid retention can be planned"
+  },
+  "admin_budget_light_yellow": {
+    "es": "AMARILLO — proceder con cautela",
+    "en": "YELLOW — proceed with caution"
+  },
+  "admin_budget_light_red": {
+    "es": "ROJO — aún no invertir en Push/SMS",
+    "en": "RED — do not invest in push/SMS yet"
+  },
+  "admin_budget_eyebrow": {
+    "es": "Semáforo financiero · retención",
+    "en": "Financial traffic light · retention"
+  },
+  "admin_budget_heading": {
+    "es": "¿Tiene sentido invertir en Push/SMS?",
+    "en": "Does it make sense to invest in push/SMS?"
+  },
+  "admin_budget_intro": {
+    "es": "Herramienta interna: usuarios activos desde el almacén analítico; el ingreso neto puede declararse manualmente, leerse de la configuración del API o estimarse si el backend tiene integraciones de facturación activas. Los canales solo se habilitan con semáforo verde como señal de gobierno.",
+    "en": "Internal tool: active users from the analytics store; net revenue can be entered manually, read from API configuration, or estimated when billing integrations are active. Channels unlock only on green as a governance signal."
+  },
+  "admin_budget_loading": {
+    "es": "Cargando métricas…",
+    "en": "Loading metrics…"
+  },
+  "admin_budget_status_label": {
+    "es": "Estado",
+    "en": "Status"
+  },
+  "admin_broadcast_send_summary": {
+    "es": "Enviado · audiencia {{audience}} · correo OK {{sentEmail}} · correo fallido {{failedEmail}} · intentos push {{sentPush}} · sin correo {{skippedNoEmail}}",
+    "en": "Sent · audience {{audience}} · email OK {{sentEmail}} · email failed {{failedEmail}} · push attempts {{sentPush}} · no email {{skippedNoEmail}}"
+  },
+  "admin_broadcast_err_general": {
+    "es": "No se pudo completar la operación. Reintenta.",
+    "en": "The operation could not be completed. Try again."
+  },
+  "admin_stats_err_growth": {
+    "es": "No se pudieron cargar las métricas de crecimiento.",
+    "en": "Growth metrics could not be loaded."
+  },
+  "admin_stats_mongo_hint": {
+    "es": "Comprueba la URL del API, la clave del gateway y que tu cuenta esté autorizada para estadísticas del sistema.",
+    "en": "Check the API URL, gateway key, and that your account is authorized for system statistics."
+  },
+  "admin_dashboard_stats_error": {
+    "es": "No se pudieron cargar las estadísticas del panel. Revisa permisos de tu cuenta o la configuración.",
+    "en": "Dashboard statistics could not be loaded. Check your account permissions or configuration."
+  },
+  "admin_dashboard_users_hint": {
+    "es": "Total de cuentas de usuario",
+    "en": "Total user accounts"
+  },
+  "admin_dashboard_reports_hint": {
+    "es": "Total de reportes de moderación",
+    "en": "Total moderation reports"
+  },
+  "admin_dashboard_vip_hint": {
+    "es": "Campañas para perfiles influyentes y negocios",
+    "en": "Campaigns for creator and business profiles"
+  },
+  "admin_dashboard_nfc_hint": {
+    "es": "Inventario físico de tarjetas NFC",
+    "en": "Physical NFC card inventory"
+  },
+  "admin_stats_mongo_failed": {
+    "es": "No se pudieron cargar las estadísticas extendidas del sistema.",
+    "en": "Extended system statistics could not be loaded."
+  },
+  "admin_rules_tiers_load_fail": {
+    "es": "Error al cargar la configuración de precios. Por favor, reintenta.",
+    "en": "Could not load pricing settings. Please try again."
+  },
+  "admin_rules_tiers_save_ok": {
+    "es": "Cambios guardados y publicados. La app y la landing ya pueden leer los nuevos precios.",
+    "en": "Changes saved and published. The app and landing can read the new prices."
+  },
+  "admin_rules_tiers_save_fail": {
+    "es": "No se pudieron guardar los cambios.",
+    "en": "Changes could not be saved."
+  },
+  "admin_rules_tiers_shipping_storage_note": {
+    "es": "Estos precios se guardan en la configuración central de precios (add-ons de envío).",
+    "en": "These prices are stored in the central pricing configuration (shipping add-ons)."
+  },
+  "admin_campaigns_err_create_gift": {
+    "es": "No se pudo crear el regalo de monedas.",
+    "en": "The coin gift could not be created."
+  }
+}

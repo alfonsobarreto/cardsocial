@@ -40,6 +40,7 @@ import {
   refreshCardSocialProActive,
   syncRevenueCatWithFirebaseUid,
 } from '@/services/revenueCatProSubscription';
+import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import type { SubscriptionScrollSection } from '@/services/subscriptionNavigationIntent';
 import {
   NFC_PHYSICAL_CARD_SHIPPING_COUNTRY_CODES,
@@ -484,8 +485,10 @@ const Subscription: React.FC<SubscriptionProps> = ({
             tr('Monedas CS para gastar en tienda.', 'CS Coins to spend in the store.'),
         );
       } else {
-        const msg = String(result.message || '').trim();
-        Alert.alert(tr('Error', 'Error'), msg || tr('No se pudo completar la compra.', 'Could not complete the purchase.'));
+        Alert.alert(
+          tr('Error', 'Error'),
+          tr('No se pudo completar la compra.', 'Could not complete the purchase.'),
+        );
       }
     } catch (error) {
       console.error('Business card purchase error:', error);
@@ -528,9 +531,16 @@ const Subscription: React.FC<SubscriptionProps> = ({
         );
       }
     } catch (error) {
-      const { cancelled, message } = formatRevenueCatPurchaseError(error);
-      if (!cancelled && message) {
-        Alert.alert(tr('Error', 'Error'), message);
+      const { cancelled } = formatRevenueCatPurchaseError(error);
+      if (!cancelled) {
+        Alert.alert(
+          tr('Error', 'Error'),
+          userFacingAlertMessage(
+            error,
+            language,
+            tr('No se pudo completar la operación.', 'Could not complete the operation.'),
+          ),
+        );
       }
     } finally {
       setProActionLoading(false);
@@ -548,9 +558,16 @@ const Subscription: React.FC<SubscriptionProps> = ({
       const active = await refreshCardSocialProActive();
       setProActive(active);
     } catch (error) {
-      const { cancelled, message } = formatRevenueCatPurchaseError(error);
-      if (!cancelled && message) {
-        Alert.alert(tr('Error', 'Error'), message);
+      const { cancelled } = formatRevenueCatPurchaseError(error);
+      if (!cancelled) {
+        Alert.alert(
+          tr('Error', 'Error'),
+          userFacingAlertMessage(
+            error,
+            language,
+            tr('No se pudo abrir el centro de suscripciones.', 'Could not open subscription management.'),
+          ),
+        );
       }
     } finally {
       setProActionLoading(false);

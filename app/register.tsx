@@ -12,7 +12,8 @@ import { requestVerificationEmailViaBackend } from '@/services/requestVerificati
 import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { saveCachedCredentials } from '@/services/credentialVault';
 import { createDefaultCards, createDefaultVaultData, initializeUserCredits } from '@/services/creditsService';
-import { trEsEn, useLanguageOptional } from '@/services/language';
+import { useLanguageOptional } from '@/services/language';
+import { useAuthT, type AuthLocaleKey } from '@/services/authI18n';
 import { useLookMode } from '@/services/lookMode';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, SocialProviderId } from '@/services/socialAuth';
@@ -102,7 +103,7 @@ async function optimizePhotoForUpload(uri: string): Promise<string> {
 export default function RegisterScreen() {
   const langCtx = useLanguageOptional();
   const language = langCtx?.language ?? 'en';
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const t = useAuthT();
   const modalFooterBottomPad = useModalFooterBottomPad();
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
@@ -132,7 +133,7 @@ export default function RegisterScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadStageLabel, setUploadStageLabel] = useState('Iniciando...');
+  const [uploadStageKey, setUploadStageKey] = useState<AuthLocaleKey>('register_upload_starting');
   const [moderationAlertVisible, setModerationAlertVisible] = useState(false);
   const [moderationAlertMessage, setModerationAlertMessage] = useState('');
   const [rejectionAttempts, setRejectionAttempts] = useState(0);
@@ -157,11 +158,7 @@ export default function RegisterScreen() {
     return String(single || '').trim();
   }, [signupParams.invite]);
   const timezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', []);
-  const retryLockMessage =
-    tr(
-      'Estamos cuidando la integridad de la comunidad. Por favor, espera un momento antes de intentar de nuevo',
-      'We are protecting community integrity. Please wait a moment before trying again.'
-    );
+  const retryLockMessage = t('register_retry_lock_message');
 
   const pad2 = (value: number) => String(value).padStart(2, '0');
 
@@ -216,7 +213,7 @@ export default function RegisterScreen() {
       candidate.getMonth() !== pickerMonth - 1 ||
       candidate.getDate() !== pickerDay
     ) {
-      Alert.alert(tr('Fecha inválida', 'Invalid date'), tr('Selecciona una fecha válida.', 'Please select a valid date.'));
+      Alert.alert(t('register_alert_invalid_date_title'), t('register_alert_invalid_date_select'));
       return;
     }
 
@@ -427,10 +424,7 @@ export default function RegisterScreen() {
 
     setRejectionAttempts(attempts);
     setModerationAlertMessage(
-      tr(
-        'La imagen no cumple las políticas de la comunidad. Intenta con otra foto.',
-        'This image does not meet community policies. Try another photo.',
-      ),
+      t('register_moderation_reject_message'),
     );
     setModerationAlertVisible(true);
   };
@@ -473,8 +467,8 @@ export default function RegisterScreen() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permission.status !== 'granted') {
       Alert.alert(
-        tr('Permiso denegado', 'Permission denied'),
-        tr('Se necesita acceso a la galería para elegir una foto.', 'Gallery access is required to choose a photo.')
+        t('register_alert_permission_denied'),
+        t('register_alert_gallery_needed')
       );
       return;
     }
@@ -500,8 +494,8 @@ export default function RegisterScreen() {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (permission.status !== 'granted') {
       Alert.alert(
-        tr('Permiso denegado', 'Permission denied'),
-        tr('Se necesita acceso a la cámara para tomar tu foto.', 'Camera access is required to take your photo.')
+        t('register_alert_permission_denied'),
+        t('register_alert_camera_needed')
       );
       return;
     }
@@ -554,13 +548,13 @@ export default function RegisterScreen() {
     mimeType: string
   ) => {
     setUploadProgress(0.15);
-    setUploadStageLabel('Enviando al escudo de seguridad...');
+    setUploadStageKey('register_upload_shield_sending');
     setUploadModalVisible(true);
 
     // Comprimir si es imagen y excede 2 MB (misma lógica que NewInfoForm/Vault)
     let activeUri = fileUri;
     if (mimeType.startsWith('image/')) {
-      setUploadStageLabel('Optimizando imagen...');
+      setUploadStageKey('register_upload_optimizing');
       activeUri = await optimizePhotoForUpload(fileUri);
     }
 
@@ -584,7 +578,7 @@ export default function RegisterScreen() {
 
       if (allowModerationBypass && moderationServiceUnavailable) {
         setUploadProgress(1);
-        setUploadStageLabel('Escudo de seguridad no disponible. Continuando en modo respaldo...');
+        setUploadStageKey('register_upload_shield_fallback');
         return { fileId: `bypass-${label}-${Date.now()}`, publicUrl: null, mimeType: null };
       }
 
@@ -592,9 +586,9 @@ export default function RegisterScreen() {
     }
 
     setUploadProgress(0.75);
-    setUploadStageLabel('Moderando en Azure Content Safety...');
+    setUploadStageKey('register_upload_moderating_azure');
     setUploadProgress(1);
-    setUploadStageLabel('Contenido aprobado. Continuando...');
+    setUploadStageKey('register_upload_content_approved');
 
     return { fileId: result.fileId, publicUrl: result.publicUrl, mimeType: result.mimeType };
   };
@@ -614,13 +608,13 @@ export default function RegisterScreen() {
     ]);
 
     if (nickDoc && nickDoc.id !== ignoreUid) {
-      throw new Error(tr('El nickname ya esta en uso.', 'This nickname is already in use.'));
+      throw new Error(t('register_err_nickname_in_use'));
     }
     if (!emailSnap.empty && emailSnap.docs[0].id !== ignoreUid) {
-      throw new Error(tr('El email ya esta en uso.', 'This email is already in use.'));
+      throw new Error(t('register_err_email_in_use'));
     }
     if (!phoneSnap.empty && phoneSnap.docs[0].id !== ignoreUid) {
-      throw new Error(tr('El telefono ya esta en uso.', 'This phone number is already in use.'));
+      throw new Error(t('register_err_phone_in_use'));
     }
   };
 
@@ -634,8 +628,8 @@ export default function RegisterScreen() {
         await clearLocalCachesForSignOut(credential.user.uid);
         await signOut(auth);
         Alert.alert(
-          tr('Email requerido', 'Email required'),
-          tr(`No se detectó email desde ${getProviderLabel(providerId)}.`, `No email was detected from ${getProviderLabel(providerId)}.`)
+          t('register_alert_social_no_email_title'),
+          t('register_alert_social_no_email_body', { provider: getProviderLabel(providerId) })
         );
         return;
       }
@@ -649,8 +643,8 @@ export default function RegisterScreen() {
         await clearLocalCachesForSignOut(credential.user.uid);
         await signOut(auth);
         Alert.alert(
-          tr('Cuenta ya existente', 'Account already exists'),
-          tr('Ese email ya está ligado a otra identidad de Card-Social. Inicia sesión en lugar de crear otra cuenta.', 'That email is already linked to another Card-Social identity. Sign in instead of creating another account.')
+          t('register_alert_account_exists_title'),
+          t('register_alert_account_exists_body')
         );
         return;
       }
@@ -658,16 +652,16 @@ export default function RegisterScreen() {
       setEmail(providerEmail);
       setSocialProviderId(providerId);
       Alert.alert(
-        tr(`${getProviderLabel(providerId)} conectado`, `${getProviderLabel(providerId)} connected`),
-        tr('Perfecto. Ahora completa el formulario obligatorio (teléfono, fecha, ciudad y demás) para terminar tu alta.', 'Perfect. Now complete the required form (phone, date, city, and more) to finish registration.')
+        t('register_alert_provider_connected_title', { provider: getProviderLabel(providerId) }),
+        t('register_alert_provider_connected_body')
       );
     } catch (error) {
       Alert.alert(
-        tr('Registro social no disponible', 'Social sign up unavailable'),
+        t('register_alert_social_signup_fail_title'),
         userFacingAlertMessage(
           error,
           language,
-          tr('No se pudo iniciar con proveedor.', 'Could not start with provider.'),
+          t('register_alert_social_signup_fallback'),
         ),
       );
     } finally {
@@ -719,63 +713,63 @@ export default function RegisterScreen() {
       !photoUri
     ) {
       Alert.alert(
-        tr('Campos incompletos', 'Incomplete fields'),
-        tr('Completa todos los campos incluyendo tu foto de perfil.', 'Complete all fields including your profile photo.')
+        t('register_alert_incomplete_title'),
+        t('register_alert_incomplete_all')
       );
       return;
     }
 
     if (!socialProviderId && !password) {
       Alert.alert(
-        tr('Campos incompletos', 'Incomplete fields'),
-        tr('Ingresa una contraseña para crear tu cuenta con email.', 'Enter a password to create your account with email.')
+        t('register_alert_incomplete_title'),
+        t('register_alert_incomplete_password')
       );
       return;
     }
 
     if (!parsedBirthDate) {
       Alert.alert(
-        tr('Fecha inválida', 'Invalid date'),
-        tr('Usa formato MM-DD-YYYY para la fecha de nacimiento.', 'Use MM-DD-YYYY format for birth date.')
+        t('register_alert_invalid_date_title'),
+        t('register_alert_birth_format')
       );
       return;
     }
 
     if (getAge(parsedBirthDate) < 18) {
       Alert.alert(
-        tr('Registro restringido', 'Registration restricted'),
-        tr('Debes ser mayor de 18 años para crear cuenta.', 'You must be at least 18 years old to create an account.')
+        t('register_alert_age_restriction_title'),
+        t('register_alert_age_restriction_body')
       );
       return;
     }
 
     if (!socialProviderId && password.length < 8) {
       Alert.alert(
-        tr('Contraseña insegura', 'Weak password'),
-        tr('La contraseña debe tener mínimo 8 caracteres.', 'Password must be at least 8 characters long.')
+        t('register_alert_weak_password_title'),
+        t('register_alert_weak_password_body')
       );
       return;
     }
 
     if (nicknameStatus !== 'available') {
-      Alert.alert(tr('Nickname no disponible', 'Nickname unavailable'), tr('Necesitas un nickname disponible para continuar.', 'You need an available nickname to continue.'));
+      Alert.alert(t('register_alert_nickname_unavailable_title'), t('register_alert_nickname_unavailable_body'));
       return;
     }
 
     if (emailStatus !== 'available') {
-      Alert.alert(tr('Email no disponible', 'Email unavailable'), tr('Necesitas un email disponible para continuar.', 'You need an available email to continue.'));
+      Alert.alert(t('register_alert_email_unavailable_title'), t('register_alert_email_unavailable_body'));
       return;
     }
 
     if (phoneStatus !== 'available') {
-      Alert.alert(tr('Telefono no disponible', 'Phone unavailable'), tr('Necesitas un numero disponible para continuar.', 'You need an available phone number to continue.'));
+      Alert.alert(t('register_alert_phone_unavailable_title'), t('register_alert_phone_unavailable_body'));
       return;
     }
 
     if (!acceptedLegal) {
       Alert.alert(
-        tr('Confirmación requerida', 'Confirmation required'),
-        tr('Debes aceptar Términos y Privacidad para crear tu cuenta.', 'You must accept Terms and Privacy to create your account.')
+        t('register_alert_legal_required_title'),
+        t('register_alert_legal_required_body')
       );
       return;
     }
@@ -783,13 +777,13 @@ export default function RegisterScreen() {
     setIsSubmitting(true);
     setUploadModalVisible(false);
     setUploadProgress(0);
-    setUploadStageLabel('Iniciando...');
+    setUploadStageKey('register_upload_starting');
     try {
       await checkUniqueness(nicknameLower, emailLower, phoneNormalized, auth.currentUser?.uid);
 
       const onboardingOwner = `onboarding-${nicknameLower || Date.now()}`;
 
-      setUploadStageLabel('Validando foto de perfil...');
+      setUploadStageKey('register_upload_validating_photo');
       const { fileId: moderatedPhotoFileId, publicUrl: moderatedPhotoPublicUrl } = await uploadWithSafety(
         photoUri,
         'profile-photo',
@@ -835,12 +829,12 @@ export default function RegisterScreen() {
           const keyHolderUid = keyDoc.data()?.uid;
           if (keyHolderUid && keyHolderUid !== uid) {
             if (fieldLabel === 'nickname') {
-              throw new Error(tr('El nickname ya esta en uso.', 'This nickname is already in use.'));
+              throw new Error(t('register_err_nickname_in_use'));
             }
             if (fieldLabel === 'email') {
-              throw new Error(tr('El email ya esta en uso.', 'This email is already in use.'));
+              throw new Error(t('register_err_email_in_use'));
             }
-            throw new Error(tr('El telefono ya esta en uso.', 'This phone number is already in use.'));
+            throw new Error(t('register_err_phone_in_use'));
           }
         };
 
@@ -938,22 +932,16 @@ export default function RegisterScreen() {
           } catch (verifyMailErr) {
             console.warn('Verification email (Resend) failed:', verifyMailErr);
             Alert.alert(
-              tr('Cuenta creada', 'Account created'),
-              tr(
-                'Tu cuenta está lista, pero no pudimos enviar el correo de verificación. En iniciar sesión usa «Reenviar email de verificación» o escribe a support@cardsocial.me.',
-                'Your account is ready, but we could not send the verification email. On sign in, use “Resend verification email” or write to support@cardsocial.me.',
-              ),
+              t('register_alert_created_verify_failed_title'),
+              t('register_alert_created_verify_failed_body'),
             );
           }
         }
         await clearLocalCachesForSignOut(auth.currentUser?.uid ?? uid);
         await signOut(auth);
         Alert.alert(
-          tr('Verifica tu correo', 'Verify your email'),
-          tr(
-            'Te enviamos un enlace de verificación. Revisa la bandeja de entrada y, si no aparece, Spam o correo no deseado. Debes confirmarlo antes de poder iniciar sesión.',
-            'We sent a verification link. Check your inbox—and if you do not see it, your Spam or Junk folder. You must confirm it before you can sign in.'
-          )
+          t('register_alert_verify_email_title'),
+          t('register_alert_verify_email_body')
         );
         router.replace('/signin' as never);
         return;
@@ -961,11 +949,8 @@ export default function RegisterScreen() {
 
       if (studentPackResult.granted) {
         Alert.alert(
-          tr('Student Pack activado', 'Student Pack activated'),
-          tr(
-            `Se acreditaron ${studentPackResult.bonusAmount} CS por elegibilidad estudiantil.`,
-            `${studentPackResult.bonusAmount} CS were credited for student eligibility.`
-          )
+          t('register_alert_student_pack_title'),
+          t('register_alert_student_pack_body', { amount: studentPackResult.bonusAmount })
         );
       }
 
@@ -976,11 +961,11 @@ export default function RegisterScreen() {
         registerModerationReject();
       } else {
         Alert.alert(
-          tr('Error de Registro', 'Registration Error'),
+          t('register_alert_registration_error_title'),
           userFacingAlertMessage(
             error,
             language,
-            tr('No se pudo completar el registro.', 'Could not complete registration.'),
+            t('register_alert_registration_error_fallback'),
           ),
         );
       }
@@ -1010,23 +995,23 @@ export default function RegisterScreen() {
             bounces={false}
             overScrollMode="never"
           >
-          <Text style={[styles.title, { color: look.title }]}>{tr('Crea tu Identidad', 'Create your Identity')}</Text>
+          <Text style={[styles.title, { color: look.title }]}>{t('register_title')}</Text>
 
           {/* Social login buttons hidden for MVP - only native registration enabled */}
           {socialProviderId ? (
             <Text style={[styles.socialStateText, { color: look.socialState }]}>
-              {tr('Registro conectado con', 'Sign up connected with')} {getProviderLabel(socialProviderId)}. {tr('Debes completar el resto de campos obligatorios.', 'Complete the remaining required fields.')}
+              {t('register_social_state_a')} {getProviderLabel(socialProviderId)}. {t('register_social_state_b')}
             </Text>
           ) : null}
 
-          <Text style={[styles.label, { color: look.label }]}>{tr('Foto de Perfil', 'Profile photo')}</Text>
-          <Text style={[styles.helperText, { color: look.helper }]}>{tr('Añade una foto clara para que tu red te reconozca.', 'Add a clear photo so your network can recognize you.')}</Text>
+          <Text style={[styles.label, { color: look.label }]}>{t('register_label_profile_photo')}</Text>
+          <Text style={[styles.helperText, { color: look.helper }]}>{t('register_helper_profile_photo')}</Text>
           <View style={styles.photoRow}>
             <TouchableOpacity style={[styles.photoButton, { backgroundColor: look.photoBtnBg, borderColor: look.photoBtnBorder }]} onPress={requestCameraPhoto}>
-              <Text style={[styles.photoButtonText, { color: look.photoBtnText }]}>{tr('Abrir cámara', 'Open camera')}</Text>
+              <Text style={[styles.photoButtonText, { color: look.photoBtnText }]}>{t('register_photo_open_camera')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.photoButton, { backgroundColor: look.photoBtnBg, borderColor: look.photoBtnBorder }]} onPress={requestGalleryPhoto}>
-              <Text style={[styles.photoButtonText, { color: look.photoBtnText }]}>{tr('Elegir imagen', 'Choose image')}</Text>
+              <Text style={[styles.photoButtonText, { color: look.photoBtnText }]}>{t('register_photo_choose_image')}</Text>
             </TouchableOpacity>
           </View>
           {photoUri ? <Image source={{ uri: photoUri }} style={[styles.photoPreview, { borderColor: look.photoBtnBorder }]} /> : null}
@@ -1048,28 +1033,28 @@ export default function RegisterScreen() {
             onClose={() => setCropperVisible(false)}
           />
 
-          <Text style={[styles.label, { color: look.label }]}>{tr('Nombre', 'First Name')}</Text>
+          <Text style={[styles.label, { color: look.label }]}>{t('register_label_first_name')}</Text>
           <TextInput
             style={[styles.input, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
-            placeholder={tr('Ej: Carlos', 'Ex: John')}
+            placeholder={t('register_placeholder_first_name')}
             placeholderTextColor={look.placeholderColor}
             value={firstName}
             onChangeText={setFirstName}
           />
 
-          <Text style={[styles.label, { color: look.label }]}>{tr('Apellido', 'Last Name')}</Text>
+          <Text style={[styles.label, { color: look.label }]}>{t('register_label_last_name')}</Text>
           <TextInput
             style={[styles.input, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
-            placeholder={tr('Ej: Ramírez', 'Ex: Carter')}
+            placeholder={t('register_placeholder_last_name')}
             placeholderTextColor={look.placeholderColor}
             value={lastName}
             onChangeText={setLastName}
           />
 
-          <Text style={[styles.label, { color: look.label }]}>{tr('NickName (Unico)', 'Nickname (Unique)')}</Text>
+          <Text style={[styles.label, { color: look.label }]}>{t('register_label_nickname')}</Text>
           <TextInput
             style={[styles.input, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
-            placeholder={tr('Ej: carlos.ramirez', 'Ex: john.carter')}
+            placeholder={t('register_placeholder_nickname')}
             placeholderTextColor={look.placeholderColor}
             autoCapitalize="none"
             value={nickname}
@@ -1084,20 +1069,20 @@ export default function RegisterScreen() {
             ]}
           >
             {nicknameStatus === 'available'
-              ? tr('Nickname disponible', 'Nickname available')
+              ? t('register_nick_available')
               : nicknameStatus === 'checking'
-                ? tr('Validando nickname...', 'Checking nickname...')
+                ? t('register_nick_checking')
                 : nicknameStatus === 'taken'
-                  ? tr('Nickname ya existe', 'This nickname already exists')
+                  ? t('register_nick_taken')
                   : nicknameStatus === 'invalid'
-                    ? tr('Nickname invalido (3-24, letras/numeros/._-)', 'Invalid nickname (3-24, letters/numbers/._-)')
-                    : tr('Ingresa un nickname para validar disponibilidad', 'Enter a nickname to check availability')}
+                    ? t('register_nick_invalid')
+                    : t('register_nick_hint')}
           </Text>
 
-          <Text style={[styles.label, { color: look.label }]}>{tr('Email (Unico)', 'Email (Unique)')}</Text>
+          <Text style={[styles.label, { color: look.label }]}>{t('register_label_email')}</Text>
           <TextInput
             style={[styles.input, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
-            placeholder={tr('correo@ejemplo.com', 'email@example.com')}
+            placeholder={t('register_placeholder_email')}
             placeholderTextColor={look.placeholderColor}
             keyboardType="email-address"
             autoCapitalize="none"
@@ -1117,17 +1102,17 @@ export default function RegisterScreen() {
             ]}
           >
             {emailStatus === 'available'
-              ? tr('Email disponible', 'Email available')
+              ? t('register_email_available')
               : emailStatus === 'checking'
-                ? tr('Validando email...', 'Checking email...')
+                ? t('register_email_checking')
                 : emailStatus === 'taken'
-                  ? tr('Email ya existe', 'This email already exists')
+                  ? t('register_email_taken')
                   : emailStatus === 'invalid'
-                    ? tr('Email invalido', 'Invalid email format')
-                    : tr('Ingresa un email para validar disponibilidad', 'Enter an email to check availability')}
+                    ? t('register_email_invalid')
+                    : t('register_email_hint')}
           </Text>
 
-          <Text style={[styles.label, { color: look.label }]}>{tr('Telefono (Unico)', 'Phone (Unique)')}</Text>
+          <Text style={[styles.label, { color: look.label }]}>{t('register_label_phone')}</Text>
           <View style={styles.phoneRow}>
             <TouchableOpacity
               style={[styles.phoneDialButton, { backgroundColor: look.phoneDialBg, borderColor: look.phoneDialBorder }]}
@@ -1146,7 +1131,7 @@ export default function RegisterScreen() {
               style={[styles.input, styles.phoneNationalInput, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
               placeholder={(() => {
                 const { min, max } = getNationalDigitBounds(phoneDialCode);
-                return tr(`${min}–${max} dígitos`, `${min}–${max} digits`);
+                return t('register_phone_digits_range', { min, max });
               })()}
               placeholderTextColor={look.placeholderColor}
               keyboardType="phone-pad"
@@ -1169,24 +1154,21 @@ export default function RegisterScreen() {
             ]}
           >
             {phoneStatus === 'available'
-              ? tr('Numero disponible', 'Phone number available')
+              ? t('register_phone_available')
               : phoneStatus === 'checking'
-                ? tr('Validando numero...', 'Checking phone number...')
+                ? t('register_phone_checking')
                 : phoneStatus === 'taken'
-                  ? tr('Numero ya existe', 'This phone number already exists')
+                  ? t('register_phone_taken')
                   : phoneStatus === 'invalid'
-                    ? tr(
-                        'Numero invalido para el prefijo elegido.',
-                        'Invalid phone number for the selected country code.',
-                      )
-                    : tr('Ingresa tu numero para validar disponibilidad', 'Enter your phone number to check availability')}
+                    ? t('register_phone_invalid_prefix')
+                    : t('register_phone_hint')}
           </Text>
 
-          <Text style={[styles.label, { color: look.label }]}>{tr('Fecha de Nacimiento', 'Birth Date')}</Text>
+          <Text style={[styles.label, { color: look.label }]}>{t('register_label_birth')}</Text>
           <View style={styles.dateInputRow}>
             <TextInput
               style={[styles.input, styles.dateInput, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
-              placeholder="MM-DD-YYYY"
+              placeholder={t('register_placeholder_birth')}
               placeholderTextColor={look.placeholderColor}
               keyboardType="number-pad"
               maxLength={10}
@@ -1198,28 +1180,28 @@ export default function RegisterScreen() {
             </TouchableOpacity>
           </View>
 
-          <Text style={[styles.label, { color: look.label }]}>{tr('Ciudad', 'City')}</Text>
+          <Text style={[styles.label, { color: look.label }]}>{t('register_label_city')}</Text>
           <TextInput
             style={[styles.input, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
-            placeholder={tr('Ej: Houston', 'Ex: Houston')}
+            placeholder={t('register_placeholder_city')}
             placeholderTextColor={look.placeholderColor}
             value={city}
             onChangeText={setCity}
           />
 
-          <Text style={[styles.label, { color: look.label }]}>{tr('Estado', 'State')}</Text>
+          <Text style={[styles.label, { color: look.label }]}>{t('register_label_state')}</Text>
           <TextInput
             style={[styles.input, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
-            placeholder={tr('Ej: Texas', 'Ex: Texas')}
+            placeholder={t('register_placeholder_state')}
             placeholderTextColor={look.placeholderColor}
             value={stateRegion}
             onChangeText={setStateRegion}
           />
 
-          <Text style={[styles.label, { color: look.label }]}>{tr('Pais', 'Country')}</Text>
+          <Text style={[styles.label, { color: look.label }]}>{t('register_label_country')}</Text>
           <TextInput
             style={[styles.input, { backgroundColor: look.inputBg, borderColor: look.inputBorder, borderWidth: 1, color: look.inputText }]}
-            placeholder={tr('Ej: Estados Unidos', 'Ex: United States')}
+            placeholder={t('register_placeholder_country')}
             placeholderTextColor={look.placeholderColor}
             value={country}
             onChangeText={setCountry}
@@ -1231,20 +1213,20 @@ export default function RegisterScreen() {
                 <ActivityIndicator size="small" color={look.spinnerColor} />
               </AuthSpinnerWell>
             ) : (
-              <Text style={[styles.geoButtonText, { color: look.geoBtnText }]}>{tr('Autocompletar ubicacion', 'Autofill location')}</Text>
+              <Text style={[styles.geoButtonText, { color: look.geoBtnText }]}>{t('register_autofill_location')}</Text>
             )}
           </TouchableOpacity>
 
-          <Text style={[styles.label, { color: look.label }]}>{tr('Horario detectado', 'Detected timezone')}</Text>
+          <Text style={[styles.label, { color: look.label }]}>{t('register_label_timezone')}</Text>
           <Text style={[styles.readOnlyValue, { backgroundColor: look.readOnlyBg, borderColor: look.readOnlyBorder, color: look.readOnlyText }]}>{timezone}</Text>
 
           {!socialProviderId ? (
             <>
-              <Text style={[styles.label, { color: look.label }]}>{tr('Contrasena', 'Password')}</Text>
+              <Text style={[styles.label, { color: look.label }]}>{t('register_label_password')}</Text>
               <View style={[styles.passwordRow, { backgroundColor: look.passwordRowBg, borderColor: look.passwordRowBorder, borderWidth: 1 }]}>
                 <TextInput
                   style={[styles.passwordInput, { color: look.inputText }]}
-                  placeholder={tr('Minimo 8 caracteres', 'Minimum 8 characters')}
+                  placeholder={t('register_placeholder_password')}
                   placeholderTextColor={look.placeholderColor}
                   secureTextEntry={!passwordVisible}
                   autoComplete="off"
@@ -1259,8 +1241,8 @@ export default function RegisterScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={
                     passwordVisible
-                      ? tr('Ocultar contrasena', 'Hide password')
-                      : tr('Mostrar contrasena', 'Show password')
+                      ? t('register_a11y_hide_password')
+                      : t('register_a11y_show_password')
                   }
                   hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 >
@@ -1288,7 +1270,7 @@ export default function RegisterScreen() {
                 <ActivityIndicator color={look.spinnerColor} />
               </AuthSpinnerWell>
             ) : (
-              <Text style={[styles.registerButtonText, { color: look.registerBtnText }]}>{tr('CONFIRMAR REGISTRO', 'CONFIRM SIGN UP')}</Text>
+              <Text style={[styles.registerButtonText, { color: look.registerBtnText }]}>{t('register_cta_confirm')}</Text>
             )}
           </TouchableOpacity>
 
@@ -1302,11 +1284,11 @@ export default function RegisterScreen() {
             >
               {acceptedLegal ? <Text style={styles.legalCheckmark}>✓</Text> : null}
             </View>
-            <Text style={[styles.legalText, { color: look.legalText }]}>{tr('Acepto Terminos y Condiciones + Politica de Privacidad', 'I accept Terms and Conditions + Privacy Policy')}</Text>
+            <Text style={[styles.legalText, { color: look.legalText }]}>{t('register_legal_checkbox')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
-            <Text style={{ color: look.secondaryLink, opacity: 0.75 }}>{tr('Volver atras', 'Go back')}</Text>
+            <Text style={{ color: look.secondaryLink, opacity: 0.75 }}>{t('register_go_back')}</Text>
           </TouchableOpacity>
           </ScrollView>
         </LinearGradient>
@@ -1326,7 +1308,7 @@ export default function RegisterScreen() {
               >
                 <ActivityIndicator size={140} color={look.spinnerColor} />
               </AuthSpinnerWell>
-              <Text style={[styles.uploadLabel, { color: look.progressLabel }]}>{uploadStageLabel}</Text>
+              <Text style={[styles.uploadLabel, { color: look.progressLabel }]}>{t(uploadStageKey)}</Text>
             </View>
           </View>
         </Modal>
@@ -1340,13 +1322,10 @@ export default function RegisterScreen() {
           <View style={styles.androidPhotoConfirmOverlay}>
             <View style={styles.androidPhotoConfirmCard}>
               <Text style={styles.androidPhotoConfirmTitle}>
-                {tr('Confirmar foto de perfil', 'Confirm profile photo')}
+                {t('register_android_photo_title')}
               </Text>
               <Text style={styles.androidPhotoConfirmHint}>
-                {tr(
-                  'Revisa la imagen. Cancelar descarta y puedes elegir otra.',
-                  'Review the image. Cancel discards it so you can pick another.',
-                )}
+                {t('register_android_photo_hint')}
               </Text>
               {androidPhotoPending ? (
                 <Image
@@ -1361,7 +1340,7 @@ export default function RegisterScreen() {
                   onPress={cancelAndroidPhotoPending}
                 >
                   <Text style={styles.androidPhotoConfirmButtonSecondaryText}>
-                    {tr('Cancelar', 'Cancel')}
+                    {t('common_cancel')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -1369,7 +1348,7 @@ export default function RegisterScreen() {
                   onPress={() => void confirmAndroidPhotoPending()}
                 >
                   <Text style={styles.androidPhotoConfirmButtonPrimaryText}>
-                    {tr('Aceptar', 'Accept')}
+                    {t('common_accept')}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -1379,7 +1358,7 @@ export default function RegisterScreen() {
 
         <LuxuryModerationModal
           visible={moderationAlertVisible}
-          title="Exclusividad de Seguridad"
+          title={t('register_moderation_modal_title')}
           message={moderationAlertMessage}
           onClose={() => setModerationAlertVisible(false)}
           onRetry={() => setModerationAlertVisible(false)}
@@ -1404,10 +1383,10 @@ export default function RegisterScreen() {
             setPhoneDialCode(entry.code);
             setPhoneNational((prev) => sanitizeNationalDigits(prev).slice(0, entry.maxDigits));
           }}
-          title={tr('Código de país', 'Country code')}
-          topSectionTitle={tr('Destacados', 'Top')}
-          restSectionTitle={tr('Todos los países', 'All countries')}
-          searchPlaceholder={tr('Buscar país o prefijo…', 'Search country or code…')}
+          title={t('register_country_picker_title')}
+          topSectionTitle={t('register_country_picker_top')}
+          restSectionTitle={t('register_country_picker_all')}
+          searchPlaceholder={t('register_country_picker_search')}
           surfaceBg={look.countryPickerSurface}
           textPrimary={look.countryPickerTextPrimary}
           textSecondary="#8E8E93"
@@ -1424,15 +1403,15 @@ export default function RegisterScreen() {
           <View style={styles.dateModalOverlay}>
             <View style={styles.dateModalCard}>
               <View style={styles.dateModalAccent} />
-              <Text style={styles.dateModalTitle}>{tr('Selecciona fecha de nacimiento', 'Select birth date')}</Text>
-              <Text style={styles.dateModalHint}>{tr('Orden USA: Mes - Dia - Año', 'US order: Month - Day - Year')}</Text>
+              <Text style={styles.dateModalTitle}>{t('register_birth_modal_title')}</Text>
+              <Text style={styles.dateModalHint}>{t('register_birth_modal_hint')}</Text>
               <View style={styles.dateSelectedBadge}>
                 <Text style={styles.dateSelectedBadgeText}>{formatBirthDateUs(pickerMonth, pickerDay, pickerYear)}</Text>
               </View>
 
               <View style={styles.datePickerRow}>
                 <View style={[styles.datePickerColumn, styles.datePickerYearColumn]}>
-                  <Text style={styles.datePickerLabel}>{tr('Año', 'Year')}</Text>
+                  <Text style={styles.datePickerLabel}>{t('register_birth_year')}</Text>
                   <Picker
                     style={styles.datePickerNative}
                     itemStyle={styles.datePickerItem}
@@ -1446,7 +1425,7 @@ export default function RegisterScreen() {
                 </View>
 
                 <View style={[styles.datePickerColumn, styles.datePickerCompactColumn]}>
-                  <Text style={styles.datePickerLabel}>{tr('Mes', 'Month')}</Text>
+                  <Text style={styles.datePickerLabel}>{t('register_birth_month')}</Text>
                   <Picker
                     style={styles.datePickerNative}
                     itemStyle={styles.datePickerItem}
@@ -1460,7 +1439,7 @@ export default function RegisterScreen() {
                 </View>
 
                 <View style={[styles.datePickerColumn, styles.datePickerCompactColumn]}>
-                  <Text style={styles.datePickerLabel}>{tr('Dia', 'Day')}</Text>
+                  <Text style={styles.datePickerLabel}>{t('register_birth_day')}</Text>
                   <Picker
                     style={styles.datePickerNative}
                     itemStyle={styles.datePickerItem}
@@ -1476,10 +1455,10 @@ export default function RegisterScreen() {
 
               <View style={[styles.dateModalActions, { paddingBottom: modalFooterBottomPad }]}>
                 <TouchableOpacity style={styles.dateModalButtonGhost} onPress={() => setBirthPickerVisible(false)}>
-                  <Text style={styles.dateModalButtonGhostText}>{tr('Cancelar', 'Cancel')}</Text>
+                  <Text style={styles.dateModalButtonGhostText}>{t('common_cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.dateModalButtonPrimary} onPress={confirmBirthPicker}>
-                  <Text style={styles.dateModalButtonPrimaryText}>{tr('Confirmar', 'Confirm')}</Text>
+                  <Text style={styles.dateModalButtonPrimaryText}>{t('register_confirm')}</Text>
                 </TouchableOpacity>
               </View>
             </View>

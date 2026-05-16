@@ -9,6 +9,7 @@ import {
 import { brandCsIconLogo } from '@/constants/brandAssets';
 import type { CardTheme as ChestCardTheme } from '@/constants/themeChest';
 import { resolvePillForegroundColor } from '@/services/pillForegroundColor';
+import { useCoreT } from '@/services/coreI18n';
 import { getWallpaperResizeMode } from '@/services/wallpaperService';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
@@ -62,7 +63,6 @@ export type IsolatedWireframeCardProps = {
     editable: boolean,
     chestTheme: ChestCardTheme,
   ) => React.ReactNode;
-  tr: (es: string, en: string) => string;
   /** Solo modo espejo (modal): escala 0–1 de la cápsula de rating (estrellas + texto + paddings). Ej. 0.8 = 4/5. */
   mirrorStatsCapsuleScale?: number;
   /**
@@ -75,6 +75,7 @@ export type IsolatedWireframeCardProps = {
 };
 
 export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
+  const t = useCoreT();
   const {
     layout,
     slots,
@@ -90,7 +91,6 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
     parallaxX,
     parallaxY,
     renderSlotContent,
-    tr,
     mirrorStatsCapsuleScale,
     medalPills,
     onRate,
@@ -178,7 +178,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
             {/* Pills de medallas */}
             {visiblePills.length === 0 ? (
               <Text style={{ color: extraStyle.color, fontSize: captionSize, fontWeight: '300' }}>
-                {tr('Sin calificaciones', 'No ratings yet')}
+                {t('wireframe_no_ratings')}
               </Text>
             ) : (
               visiblePills.map((p) => (
@@ -223,7 +223,7 @@ export function IsolatedWireframeCard(props: IsolatedWireframeCardProps) {
                 }}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 accessibilityRole="button"
-                accessibilityLabel={tr('Calificar', 'Rate')}
+                accessibilityLabel={t('wireframe_rate_a11y')}
               >
                 <Text style={{ color: mirrorPlusFg, fontSize: Math.max(14, Math.round(captionSize * 1.2)), fontWeight: '700', lineHeight: Math.max(16, Math.round(captionSize * 1.4)) }}>+</Text>
               </TouchableOpacity>

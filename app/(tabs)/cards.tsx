@@ -137,7 +137,8 @@ import {
 import { type CardFontItem, type FontTier } from '@/services/fontLibraryService';
 import { getUserIconVaultMap, type IconVaultEntry } from '@/services/iconVaultService';
 import { userFacingAlertMessage } from '@/services/apiUserFacingError';
-import { trEsEn, useLanguage } from '@/services/language';
+import { useCoreT } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 import { validateCardCreation } from '@/services/limitService';
 import { useLookMode } from '@/services/lookMode';
 import { buildExpandedMarketQuery } from '@/services/marketSearchSynonyms';
@@ -484,7 +485,7 @@ export default function CardsFactoryScreen() {
   const cardsTheme = palette[isDark ? 'dark' : 'light'];
   const router = useRouter();
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const t = useCoreT();
   const [vaultItems, setVaultItems] = useState<VaultItem[]>([]);
   const [iconVaultById, setIconVaultById] = useState<Record<string, IconVaultEntry>>({});
   const [smartCards, setSmartCards] = useState<SmartCard[]>([]);
@@ -680,7 +681,7 @@ export default function CardsFactoryScreen() {
   useFocusEffect(
     React.useCallback(() => {
       const verifyAccess = async () => {
-        const authenticated = await hardLockCheck(tr('acceso a Business Cards', 'access to Business Cards'));
+        const authenticated = await hardLockCheck(t('biometric_reason_cards_access'));
         setIsCardsUnlocked(authenticated);
         if (!authenticated) {
           setSessionUid(null);
@@ -1127,11 +1128,8 @@ export default function CardsFactoryScreen() {
       if (failures.length > 0) {
         Toast.show({
           type: 'error',
-          text1: tr('Sync fallida', 'Sync failed'),
-          text2: tr(
-            `No se pudieron guardar ${failures.length} tarjeta(s) en el servidor`,
-            `Could not save ${failures.length} card(s) on the server`,
-          ),
+          text1: t('cards_sync_failed_title'),
+          text2: t('cards_sync_failed_body', { count: failures.length }),
           visibilityTime: 5000,
         });
       }
@@ -1139,8 +1137,8 @@ export default function CardsFactoryScreen() {
       console.log('[Card] persistCards: ERROR global', e);
       Toast.show({
         type: 'error',
-        text1: tr('Error al sincronizar tarjetas', 'Failed to sync cards'),
-        text2: String((e as { message?: string })?.message || e),
+        text1: t('cards_sync_error_title'),
+        text2: t('common_try_again'),
         visibilityTime: 5000,
       });
     }
@@ -1210,7 +1208,7 @@ export default function CardsFactoryScreen() {
     try {
       const userId = await getActiveUserId();
       if (!userId) {
-        Alert.alert(tr('Error', 'Error'), tr('No se pudo validar tu sesión.', 'Could not validate your session.'));
+        Alert.alert(t('common_error'), t('cards_session_validate_error'));
         return;
       }
 
@@ -1229,7 +1227,7 @@ export default function CardsFactoryScreen() {
       setFactoryVisible(true);
     } catch (error) {
       console.error('Error validating card creation:', error);
-      Alert.alert(tr('Error', 'Error'), tr('No se pudo validar disponibilidad.', 'Could not validate availability.'));
+      Alert.alert(t('common_error'), t('cards_availability_validate_error'));
     }
   };
 
@@ -1309,7 +1307,7 @@ export default function CardsFactoryScreen() {
     if (isSaving) return;
 
     if (!cardName.trim()) {
-      Alert.alert(tr('Nombre requerido', 'Name required'), tr('Dale un nombre a tu Smart Card.', 'Give your Smart Card a name.'));
+      Alert.alert(t('cards_name_required_title'), t('cards_name_required_body'));
       return;
     }
 
@@ -1323,8 +1321,8 @@ export default function CardsFactoryScreen() {
 
     if (duplicatedName) {
       Alert.alert(
-        tr('Nombre duplicado', 'Duplicate name'),
-        tr('Ya tienes una tarjeta con ese nombre. Usa un nombre distinto.', 'You already have a card with that name. Use a different name.')
+        t('cards_duplicate_name_title'),
+        t('cards_duplicate_name_body')
       );
       return;
     }
@@ -1334,7 +1332,7 @@ export default function CardsFactoryScreen() {
       .slice(0, MAX_CARD_SLOTS);
 
     if (normalizedItemIds.length === 0) {
-      Alert.alert(tr('Sin datos', 'No data'), tr('Selecciona al menos un dato del Vault para tu tarjeta.', 'Select at least one Vault item for your card.'));
+      Alert.alert(t('cards_no_data_title'), t('cards_no_data_body'));
       return;
     }
 
@@ -1370,8 +1368,8 @@ export default function CardsFactoryScreen() {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Toast.show({
           type: 'success',
-          text1: tr('Cambio exitoso', 'Change saved'),
-          text2: tr('La tarjeta se actualizo correctamente.', 'The card was updated successfully.'),
+          text1: t('cards_toast_updated_title'),
+          text2: t('cards_toast_updated_body'),
           position: 'bottom',
           visibilityTime: 2200,
         });
@@ -1413,8 +1411,8 @@ export default function CardsFactoryScreen() {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Toast.show({
         type: 'success',
-        text1: tr('Cambio exitoso', 'Change saved'),
-        text2: tr('La tarjeta se guardo correctamente.', 'The card was saved successfully.'),
+        text1: t('cards_toast_updated_title'),
+        text2: t('cards_toast_saved_body'),
         position: 'bottom',
         visibilityTime: 2200,
       });
@@ -1532,19 +1530,19 @@ export default function CardsFactoryScreen() {
 
   const openDataSelectorSortOptions = () => {
     Alert.alert(
-      tr('Ordenar datos', 'Sort data'),
-      tr('Elige cómo ver tus datos.', 'Choose how to view your data.'),
+      t('cards_sort_data_title'),
+      t('cards_sort_data_message'),
       [
         {
-          text: tr('Recién agregado', 'Recently added'),
+          text: t('cards_sort_recent'),
           onPress: () => setDataSelectorSort('recent'),
         },
         {
-          text: tr('Alfabético', 'Alphabetical'),
+          text: t('cards_sort_alpha'),
           onPress: () => setDataSelectorSort('alpha'),
         },
         {
-          text: tr('Cancelar', 'Cancel'),
+          text: t('common_cancel'),
           style: 'cancel',
         },
       ],
@@ -1612,31 +1610,31 @@ export default function CardsFactoryScreen() {
     };
 
     Alert.alert(
-      tr('Gestionar icono', 'Manage icon'),
-      tr('Elige la acción para este dato de la tarjeta.', 'Choose an action for this card item.'),
+      t('cards_manage_icon_title'),
+      t('cards_manage_icon_message'),
       [
-        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
-        { text: tr('Editar', 'Edit'), onPress: onEdit },
+        { text: t('common_cancel'), style: 'cancel' },
+        { text: t('common_edit'), onPress: onEdit },
         {
-          text: tr('Mover', 'Move'),
+          text: t('common_move'),
           onPress: () => {
             Alert.alert(
-              tr('Mover icono', 'Move icon'),
-              tr('Selecciona la dirección de movimiento.', 'Choose a direction to move.'),
+              t('cards_move_icon_title'),
+              t('cards_move_icon_message'),
               [
-                { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
-                { text: tr('Atrás', 'Back'), onPress: () => { void onMoveBack(); } },
-                { text: tr('Adelante', 'Forward'), onPress: () => { void onMoveForward(); } },
+                { text: t('common_cancel'), style: 'cancel' },
+                { text: t('common_back'), onPress: () => { void onMoveBack(); } },
+                { text: t('common_forward'), onPress: () => { void onMoveForward(); } },
               ],
             );
           },
         },
         {
-          text: tr('Agregar nuevo dato', 'Add new data'),
+          text: t('cards_add_new_data'),
           onPress: () => openAddDataFlowFromPreview(card),
         },
         {
-          text: tr('Eliminar', 'Delete'),
+          text: t('common_delete'),
           style: 'destructive',
           onPress: () => { void onDelete(); },
         },
@@ -1665,8 +1663,8 @@ export default function CardsFactoryScreen() {
       );
     } catch (error: any) {
       Alert.alert(
-        tr('Error', 'Error'),
-        userFacingAlertMessage(error, language, tr('No se pudo cargar receptores.', 'Could not load receptors.')),
+        t('common_error'),
+        userFacingAlertMessage(error, language, t('cards_load_receptors_error')),
       );
       setSubscribers([]);
     } finally {
@@ -1701,8 +1699,8 @@ export default function CardsFactoryScreen() {
       );
     } catch (error: any) {
       Alert.alert(
-        tr('Error', 'Error'),
-        userFacingAlertMessage(error, language, tr('No se pudo cargar la lista de suscriptores.', 'Could not load subscribers list.')),
+        t('common_error'),
+        userFacingAlertMessage(error, language, t('cards_load_subscribers_error')),
       );
       setSubscribers([]);
     } finally {
@@ -1741,8 +1739,8 @@ export default function CardsFactoryScreen() {
       );
     } catch (error: any) {
       Alert.alert(
-        tr('No se pudo eliminar', 'Could not delete'),
-        userFacingAlertMessage(error, language, tr('La revocacion fallo.', 'Revocation failed.')),
+        t('cards_delete_failed_title'),
+        userFacingAlertMessage(error, language, t('cards_revoke_failed')),
       );
     }
   };
@@ -1772,8 +1770,8 @@ export default function CardsFactoryScreen() {
       }
     } catch (error: any) {
       Alert.alert(
-        tr('No se pudo bloquear', 'Could not block'),
-        userFacingAlertMessage(error, language, tr('El bloqueo no se pudo completar.', 'Block could not be completed.')),
+        t('cards_block_failed_title'),
+        userFacingAlertMessage(error, language, t('cards_block_failed_body')),
       );
     }
   };
@@ -1800,8 +1798,8 @@ export default function CardsFactoryScreen() {
       );
     } catch (error: any) {
       Alert.alert(
-        tr('No se pudo actualizar', 'Could not update'),
-        userFacingAlertMessage(error, language, tr('Intenta de nuevo.', 'Try again.')),
+        t('cards_update_failed_title'),
+        userFacingAlertMessage(error, language, t('common_try_again')),
       );
     }
   };
@@ -1817,15 +1815,15 @@ export default function CardsFactoryScreen() {
       );
     } catch (e: any) {
       Alert.alert(
-        tr('Error', 'Error'),
-        userFacingAlertMessage(e, language, tr('No se pudo actualizar.', 'Could not update.')),
+        t('common_error'),
+        userFacingAlertMessage(e, language, t('cards_update_failed_generic')),
       );
     }
   };
 
   const issueQrForCard = async (card: SmartCard, options?: { forceNew?: boolean }) => {
     try {
-      const authenticated = await hardLockCheck(tr('generar QR y compartir tu tarjeta', 'generate QR and share your card'));
+      const authenticated = await hardLockCheck(t('biometric_reason_cards_qr_share'));
       if (!authenticated) {
         return;
       }
@@ -1850,7 +1848,7 @@ export default function CardsFactoryScreen() {
 
       const uid = await getActiveUserId();
       if (!uid) {
-        throw new Error(tr('No se pudo obtener tu sesión para emitir el QR.', 'Could not get your session to issue the QR.'));
+        throw new Error(t('cards_qr_session_issue'));
       }
 
       // Sincroniza smart_cards (themeId + publicCardSlots) antes de emitir el token,
@@ -1890,21 +1888,11 @@ export default function CardsFactoryScreen() {
         /network error/i.test(rawMessage) ||
         /failed to fetch/i.test(rawMessage) ||
         /timeout/i.test(rawMessage);
-      const androidLanHintEs =
-        Platform.OS === 'android'
-          ? '\n• Android: HTTP en la LAN requiere `android.usesCleartextTraffic: true` en app.json y volver a generar el dev client.'
-          : '';
-      const androidLanHintEn =
-        Platform.OS === 'android'
-          ? '\n• Android: HTTP over LAN needs `android.usesCleartextTraffic: true` in app.json and a rebuilt dev client.'
-          : '';
+      const androidHint = Platform.OS === 'android' ? t('cards_qr_network_diag_android') : '';
       const diagnosticMessage = likelyNetworkError
-        ? tr(
-            `No se pudo conectar al backend de QR.\n\nChecklist rápido:\n• EXPO_PUBLIC_MODERATION_API_URL con IP LAN (no localhost)\n• Backend activo en puerto 4000\n• Móvil y PC en la misma Wi‑Fi\n• EXPO_PUBLIC_MODERATION_GATEWAY_KEY igual a API_GATEWAY_KEY del backend${androidLanHintEs}`,
-            `Could not connect to the QR backend.\n\nQuick checklist:\n• EXPO_PUBLIC_MODERATION_API_URL uses LAN IP (not localhost)\n• Backend is running on port 4000\n• Phone and PC are on the same Wi‑Fi\n• EXPO_PUBLIC_MODERATION_GATEWAY_KEY matches backend API_GATEWAY_KEY${androidLanHintEn}`,
-          )
-        : userFacingAlertMessage(error, language, tr('No se pudo emitir el QR.', 'Could not issue QR.'));
-      Alert.alert(tr('Error de QR', 'QR error'), diagnosticMessage);
+        ? t('cards_qr_network_diag', { androidHint })
+        : userFacingAlertMessage(error, language, t('cards_qr_issue_failed'));
+      Alert.alert(t('cards_qr_error_title'), diagnosticMessage);
     } finally {
       setIssuingQr(false);
     }
@@ -1919,7 +1907,7 @@ export default function CardsFactoryScreen() {
       try {
         const uid = await getActiveUserId();
         if (!uid) {
-          throw new Error(tr('Sin sesión', 'Not signed in'));
+          throw new Error(t('cards_not_signed_in'));
         }
         const sum = await getCardAnalyticsSummary({ uid: uid, cardRef: card.sid });
         setCardStatsData({ totalViews: sum.totalViews, topIcons: sum.topIcons });
@@ -1936,15 +1924,12 @@ export default function CardsFactoryScreen() {
       return;
     }
     Alert.alert(
-      tr('Crear QR', 'Create QR'),
-      tr(
-        `¿Deseas generar el QR de la tarjeta "${card.scName}"?`,
-        `Do you want to generate the QR for card "${card.scName}"?`
-      ),
+      t('cards_create_qr_title'),
+      t('cards_create_qr_smart_prompt', { name: card.scName }),
       [
-        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+        { text: t('common_cancel'), style: 'cancel' },
         {
-          text: tr('Aceptar', 'Accept'),
+          text: t('common_accept'),
           onPress: () => {
             void issueQrForCard(card, options);
           },
@@ -1979,10 +1964,10 @@ export default function CardsFactoryScreen() {
     }
 
     try {
-      const authenticated = await hardLockCheck(tr('generar QR 24 Hr', 'generate QR 24h'));
+      const authenticated = await hardLockCheck(t('biometric_reason_cards_qr_24h'));
       if (!authenticated) return;
       const uid = await getActiveUserId();
-      if (!uid) throw new Error(tr('No se pudo obtener tu sesión.', 'Could not get your session.'));
+      if (!uid) throw new Error(t('cards_session_missing'));
 
       const cached = await readUniversal24hQrCache(uid, card.sid);
       if (cached) {
@@ -2014,28 +1999,22 @@ export default function CardsFactoryScreen() {
       if (needN > 0 && slotN === 0) {
         Toast.show({
           type: 'error',
-          text1: tr('No se sincronizaron los datos públicos', 'Public data did not sync'),
-          text2: tr(
-            'Comprueba conexión, abre Bóveda y vuelve a intentar QR24h.',
-            'Check connection, open Vault, then try QR24h again.',
-          ),
+          text1: t('cards_public_sync_title'),
+          text2: t('cards_public_sync_body'),
         });
         return;
       }
       if (needN > 0 && slotN > 0 && slotN < needN) {
         Toast.show({
           type: 'info',
-          text1: tr('Sincronización parcial', 'Partial sync'),
-          text2: tr(
-            `Se enviaron ${slotN} de ${needN} datos a la web. El resto no está en Bóveda local ni en la nube.`,
-            `Sent ${slotN} of ${needN} items to the web. The rest are missing locally and in the cloud.`,
-          ),
+          text1: t('cards_partial_sync_title'),
+          text2: t('cards_partial_sync_body', { slotN, needN }),
         });
       }
       await upsertSmartCardInDb({ uid: uid, card: cardPayload });
       const result = await issueTemporaryUniversalAccess({ uid: uid, sid: card.sid });
       const url = result.universalUrl;
-      if (!url) throw new Error(tr('No se recibió el enlace del servidor.', 'No link received from server.'));
+      if (!url) throw new Error(t('cards_no_server_link'));
       const parsedExpiresAt = Date.parse(String(result.expiresAt || ''));
       const ttlMs = Math.max(1, Number(result.ttlSec || 86400)) * 1000;
       const nextExpiresAt = Number.isFinite(parsedExpiresAt)
@@ -2060,8 +2039,8 @@ export default function CardsFactoryScreen() {
       const raw = String(error?.message || '').toLowerCase();
       if (!raw.includes('cancel')) {
         Alert.alert(
-          tr('Error de QR web', 'Web QR error'),
-          userFacingAlertMessage(error, language, tr('No se pudo generar el enlace universal.', 'Could not generate the universal link.')),
+          t('cards_web_qr_error_title'),
+          userFacingAlertMessage(error, language, t('cards_universal_link_failed')),
         );
       }
     } finally {
@@ -2076,7 +2055,7 @@ export default function CardsFactoryScreen() {
     console.log('[QR_FLOW] issueQrForBusiness: START', { bId: row.bId, bcName: row.bcName });
     setIssuingQr(true);
     try {
-      const authenticated = await hardLockCheck(tr('generar QR y compartir tu tarjeta', 'generate QR and share your card'));
+      const authenticated = await hardLockCheck(t('biometric_reason_cards_qr_share'));
       console.log('[QR_FLOW] hardLockCheck →', authenticated);
       if (!authenticated) {
         return;
@@ -2085,7 +2064,7 @@ export default function CardsFactoryScreen() {
       const uid = await getActiveUserId();
       console.log('[QR_FLOW] getActiveUserId →', uid);
       if (!uid) {
-        throw new Error(tr('No se pudo obtener tu sesión.', 'Could not get your session.'));
+        throw new Error(t('cards_session_missing'));
       }
 
       // Sync a smart_cards (espejo legacy) es best-effort y ACOTADO EN TIEMPO.
@@ -2156,8 +2135,8 @@ export default function CardsFactoryScreen() {
     } catch (error: any) {
       console.log('[QR_FLOW] issueQrForBusiness: ERROR', String(error?.message || error));
       Alert.alert(
-        tr('Error de QR', 'QR error'),
-        userFacingAlertMessage(error, language, tr('No se pudo generar el QR.', 'Could not generate the QR code.')),
+        t('cards_qr_error_title'),
+        userFacingAlertMessage(error, language, t('cards_qr_generate_failed')),
       );
     } finally {
       setIssuingQr(false);
@@ -2170,15 +2149,12 @@ export default function CardsFactoryScreen() {
       return;
     }
     Alert.alert(
-      tr('Crear QR', 'Create QR'),
-      tr(
-        `¿Deseas mostrar el QR permanente de "${row.bcName}"?`,
-        `Do you want to show the permanent QR for "${row.bcName}"?`,
-      ),
+      t('cards_create_qr_title'),
+      t('cards_create_qr_business_prompt', { name: row.bcName }),
       [
-        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+        { text: t('common_cancel'), style: 'cancel' },
         {
-          text: tr('Aceptar', 'Accept'),
+          text: t('common_accept'),
           onPress: () => {
             void issueQrForBusiness(row);
           },
@@ -2202,7 +2178,7 @@ export default function CardsFactoryScreen() {
       notifyMyBusinessCardsInventoryChanged();
     } catch {
       setBusinessCardsFeed(previous);
-      Alert.alert(tr('Error', 'Error'), tr('No se pudo eliminar la tarjeta de negocio.', 'Could not delete the business card.'));
+      Alert.alert(t('common_error'), t('cards_delete_business_failed'));
     }
   };
 
@@ -2217,8 +2193,8 @@ export default function CardsFactoryScreen() {
       );
     } catch (e: any) {
       Alert.alert(
-        tr('Error', 'Error'),
-        userFacingAlertMessage(e, language, tr('No se pudo actualizar.', 'Could not update.')),
+        t('common_error'),
+        userFacingAlertMessage(e, language, t('cards_update_failed_generic')),
       );
     }
   };
@@ -2452,15 +2428,12 @@ export default function CardsFactoryScreen() {
     try {
       setLimitReachedVisible(false);
       Alert.alert(
-        tr('Modelo actualizado', 'Model updated'),
-        tr(
-          'No existe suscripción global. Si quieres funciones de negocio, activa anualidad por cada Tarjeta de Negocio en Crear tarjeta de negocio.',
-          'There is no global subscription. For business features, activate the yearly plan per business card in Create business card.',
-        ),
+        t('cards_model_updated_title'),
+        t('cards_model_updated_body'),
       );
     } catch (error) {
       console.error('Error upgrading:', error);
-      Alert.alert(tr('Error', 'Error'), tr('No se pudo completar la compra.', 'Purchase could not be completed.'));
+      Alert.alert(t('common_error'), t('cards_purchase_failed'));
     }
   };
 
@@ -2468,7 +2441,7 @@ export default function CardsFactoryScreen() {
     const src = effectiveIssuerPreviewSmartCard;
     if (!src) return null;
     return {
-      cardName: (src.scName || cardName || tr('Nueva Tarjeta', 'New Card')).trim(),
+      cardName: (src.scName || cardName || t('label_new_card')).trim(),
       subtitle: `@${(issuerIdentity.userNickName || 'user').toLowerCase()}`,
       avatarUrl: issuerIdentity.userAvatarUrl,
       themeId: src.themeId || '',
@@ -2632,15 +2605,15 @@ export default function CardsFactoryScreen() {
     enterCardsReorderRef.current = () => {
       if (cardSearchQuery.trim()) {
         Alert.alert(
-          tr('Ordenar tarjetas', 'Reorder cards'),
-          tr('Sal de la búsqueda para poder reordenar la lista.', 'Clear search to reorder the list.'),
+          t('cards_reorder_title'),
+          t('cards_reorder_need_clear_search'),
         );
         return;
       }
       if (isLandscape) {
         Alert.alert(
-          tr('Ordenar tarjetas', 'Reorder cards'),
-          tr('Gira el teléfono a vertical para reordenar.', 'Rotate your phone to portrait to reorder.'),
+          t('cards_reorder_title'),
+          t('cards_reorder_need_portrait'),
         );
         return;
       }
@@ -2648,7 +2621,7 @@ export default function CardsFactoryScreen() {
       setReorderDraftData([...filteredFeed]);
       setCardsReorderMode(true);
     };
-  }, [filteredFeed, cardSearchQuery, isLandscape, tr]);
+  }, [filteredFeed, cardSearchQuery, isLandscape, t]);
 
   useEffect(() => {
     if (!isCardsUnlocked) {
@@ -2775,15 +2748,15 @@ export default function CardsFactoryScreen() {
       const bizLogo = String(previewBusiness.bcLogoUrl || '').trim() || null;
       const bizName = String(previewBusiness.bcName || '').trim() || null;
       const bizContact = String(previewBusiness.bcContactName || '').trim() || null;
-      const displayForPeer = bizName || bizContact || tr('Negocio', 'Business');
+      const displayForPeer = bizName || bizContact || t('label_business');
       await openVaultPreviewItem(item, {
-        tr,
+        t,
         openDocumentViewer: (it) => {
           openDocumentViewer(it as VaultItem);
         },
         ghostTargetUid: issuerUid,
         sourceCardName: String(
-          previewBusiness.bcName || activeScName || cardName || tr('Tarjeta Social', 'Social Card'),
+          previewBusiness.bcName || activeScName || cardName || t('label_social_card'),
         ),
         sourceSid: null,
         sourceBId: String(previewBusiness.bId || '').trim() || null,
@@ -2816,15 +2789,15 @@ export default function CardsFactoryScreen() {
       setIssuerIdentity((prev) => ({ ...prev, voipCanonicalFullName: voipName }));
     }
     await openVaultPreviewItem(item, {
-      tr,
+      t,
       openDocumentViewer: (it) => {
         openDocumentViewer(it as VaultItem);
       },
       ghostTargetUid: issuerUid,
-      sourceCardName: activeScName ?? cardName ?? tr('Tarjeta Social', 'Social Card'),
+      sourceCardName: activeScName ?? cardName ?? t('label_social_card'),
       sourceSid: String(previewCard?.sid ?? selectedCard?.sid ?? '').trim() || null,
       sourceBId: null,
-      peerDisplayName: voipName || tr('este contacto', 'this contact'),
+      peerDisplayName: voipName || t('label_this_contact'),
       peerFullName: voipName || undefined,
       peerNickname: issuerIdentity.userNickName || undefined,
       bcLogoUrl: null,
@@ -2865,15 +2838,15 @@ export default function CardsFactoryScreen() {
         const bizLogo = String(previewBusiness.bcLogoUrl || '').trim() || null;
         const bizName = String(previewBusiness.bcName || '').trim() || null;
         const bizContact = String(previewBusiness.bcContactName || '').trim() || null;
-        const displayForPeer = bizName || bizContact || tr('Negocio', 'Business');
+        const displayForPeer = bizName || bizContact || t('label_business');
         await openVaultPreviewItem(item, {
-          tr,
+          t,
           openDocumentViewer: (it) => {
             openDocumentViewer(it as VaultItem);
           },
           ghostTargetUid: issuerUid,
           sourceCardName: String(
-            previewBusiness.bcName || activeScName || cardName || tr('Tarjeta Social', 'Social Card'),
+            previewBusiness.bcName || activeScName || cardName || t('label_social_card'),
           ),
           sourceSid: null,
           sourceBId: String(previewBusiness.bId || '').trim() || null,
@@ -2906,15 +2879,15 @@ export default function CardsFactoryScreen() {
         setIssuerIdentity((prev) => ({ ...prev, voipCanonicalFullName: voipName }));
       }
       await openVaultPreviewItem(item, {
-        tr,
+        t,
         openDocumentViewer: (it) => {
           openDocumentViewer(it as VaultItem);
         },
         ghostTargetUid: issuerUid,
-        sourceCardName: activeScName ?? cardName ?? tr('Tarjeta Social', 'Social Card'),
+        sourceCardName: activeScName ?? cardName ?? t('label_social_card'),
         sourceSid: String(previewCard?.sid ?? selectedCard?.sid ?? '').trim() || null,
         sourceBId: null,
-        peerDisplayName: voipName || tr('este contacto', 'this contact'),
+        peerDisplayName: voipName || t('label_this_contact'),
         peerFullName: voipName || undefined,
         peerNickname: issuerIdentity.userNickName || undefined,
         bcLogoUrl: null,
@@ -2927,7 +2900,7 @@ export default function CardsFactoryScreen() {
         cardType: 'personal',
       });
     } catch {
-      Alert.alert(tr('No se pudo abrir', 'Could not open'), tr('El dispositivo no pudo abrir este dato en app nativa.', 'Device could not open this data in native app.'));
+      Alert.alert(t('cards_open_native_failed_title'), t('cards_open_native_failed_body'));
     }
   };
 
@@ -2938,8 +2911,8 @@ export default function CardsFactoryScreen() {
     try {
       if (isGhostLinkVaultType(item.type)) {
         Alert.alert(
-          tr('No disponible', 'Not available'),
-          tr('Ghost-Link solo funciona dentro de Card-Social (llamada VoIP).', 'Ghost-Link only works inside Card-Social (VoIP call).'),
+          t('common_not_available'),
+          t('cards_ghost_only_voip'),
         );
         return;
       }
@@ -2955,9 +2928,9 @@ export default function CardsFactoryScreen() {
         openDocumentViewer(item);
         return;
       }
-      Alert.alert(tr('No disponible', 'Not available'), tr('Este dato no tiene ruta de navegador directa.', 'This data has no direct browser route.'));
+      Alert.alert(t('common_not_available'), t('cards_no_browser_route'));
     } catch {
-      Alert.alert(tr('Error', 'Error'), tr('No se pudo abrir en navegador.', 'Could not open in browser.'));
+      Alert.alert(t('common_error'), t('cards_browser_open_failed'));
     }
   };
 
@@ -2998,7 +2971,7 @@ export default function CardsFactoryScreen() {
           </View>
         )}
         <AutoScaleText style={compact ? styles.wireNameSm : styles.wireName}>
-          {(selectedCard?.scName || previewCard?.scName || cardName || tr('Nueva Tarjeta', 'New Card')).trim()}
+          {(selectedCard?.scName || previewCard?.scName || cardName || t('label_new_card')).trim()}
         </AutoScaleText>
         <AutoScaleText style={compact ? styles.wireNickSm : styles.wireNick}>@{(issuerIdentity.userNickName || 'user').toLowerCase()}</AutoScaleText>
         <View style={styles.wireStatsRowInline}>
@@ -3017,7 +2990,6 @@ export default function CardsFactoryScreen() {
       ui={ui}
       editable={editable}
       chestTheme={chestTheme}
-      tr={tr}
       renderMiniIcon={renderVaultMiniIcon}
       onEditableOpenPicker={(index) => openSlotPicker(index)}
       onDataPress={(item) => void openDataPopover(item as VaultItem)}
@@ -3046,7 +3018,7 @@ export default function CardsFactoryScreen() {
   }) => {
     const { layout, slots, editable, theme, wallpaperUrl, wireIdentity, mirrorStatsCapsuleScale, medalPills } = params;
     const wId = wireIdentity;
-    const dispName = wId?.cardTitle ?? (selectedCard?.scName || previewCard?.scName || cardName || tr('Nueva Tarjeta', 'New Card')).trim();
+    const dispName = wId?.cardTitle ?? (selectedCard?.scName || previewCard?.scName || cardName || t('label_new_card')).trim();
     const dispSub = wId ? wId.subtitle : `@${(issuerIdentity.userNickName || 'user').toLowerCase()}`;
     const dispAvatar = wId ? wId.avatarUri : issuerIdentity.userAvatarUrl;
     const dispHolders = wId ? wId.holdersCount : (selectedCard?.holdersCount ?? previewCard?.holdersCount ?? 0);
@@ -3068,7 +3040,6 @@ export default function CardsFactoryScreen() {
         parallaxX={parallaxX}
         parallaxY={parallaxY}
         renderSlotContent={renderSlotContent}
-        tr={tr}
         mirrorStatsCapsuleScale={mirrorStatsCapsuleScale}
         medalPills={medalPills}
       />
@@ -3119,10 +3090,10 @@ export default function CardsFactoryScreen() {
                 closeBusinessRowSwipe();
                 router.push({ pathname: '/(tabs)/createBusinessCard', params: { bId: row.bId } } as any);
               }}
-              accessibilityLabel={tr('Editar tarjeta', 'Edit card')}
+              accessibilityLabel={t('cards_edit_card_a11y')}
             >
               <MaterialCommunityIcons name="pencil" size={16} color="#FFFFFF" />
-              <Text style={styles.swipeActionText}>{tr('Editar', 'Edit')}</Text>
+              <Text style={styles.swipeActionText}>{t('common_edit')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.swipeActionBtn, { backgroundColor: row.silenced ? '#34C759' : '#FF9500' }]}
@@ -3132,22 +3103,19 @@ export default function CardsFactoryScreen() {
                   void toggleBusinessCardSilence(row);
                 } else {
                   Alert.alert(
-                    tr('Silenciar tarjeta', 'Silence card'),
-                    tr(
-                      'Nadie podrá llamarte desde esta tarjeta mientras esté silenciada.',
-                      'No one will be able to call you from this card while silenced.',
-                    ),
+                    t('cards_silence_card_title'),
+                    t('cards_silence_card_message'),
                     [
-                      { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
-                      { text: tr('Silenciar', 'Silence'), onPress: () => void toggleBusinessCardSilence(row) },
+                      { text: t('common_cancel'), style: 'cancel' },
+                      { text: t('common_silence'), onPress: () => void toggleBusinessCardSilence(row) },
                     ],
                   );
                 }
               }}
-              accessibilityLabel={row.silenced ? tr('Reactivar tarjeta', 'Unmute card') : tr('Silenciar tarjeta', 'Silence card')}
+              accessibilityLabel={row.silenced ? t('cards_unmute_card_a11y') : t('cards_silence_card_title')}
             >
               <MaterialCommunityIcons name={row.silenced ? 'volume-high' : 'volume-off'} size={16} color="#FFFFFF" />
-              <Text style={styles.swipeActionText}>{row.silenced ? tr('Activar', 'Unmute') : tr('Silenciar', 'Silence')}</Text>
+              <Text style={styles.swipeActionText}>{row.silenced ? t('common_unmute') : t('common_silence')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.subscriberSwipeRevokeBg }]}
@@ -3157,13 +3125,13 @@ export default function CardsFactoryScreen() {
               }}
               accessibilityLabel={
                 row.isFavorite
-                  ? tr('Quitar de favoritos', 'Remove from favorites')
-                  : tr('Marcar favorito', 'Mark as favorite')
+                  ? t('cards_remove_fav_a11y')
+                  : t('cards_mark_fav_a11y')
               }
             >
               <MaterialCommunityIcons name={row.isFavorite ? 'heart' : 'heart-outline'} size={16} color="#FFFFFF" />
               <Text style={[styles.swipeActionText, styles.swipeFavoriteSwipeLabel]} numberOfLines={2}>
-                {row.isFavorite ? tr('Quitar favorito', 'Unfavorite') : tr('Marcar favorito', 'Favorite')}
+                {row.isFavorite ? t('cards_unfavorite_short') : t('cards_favorite_short')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -3172,10 +3140,10 @@ export default function CardsFactoryScreen() {
                 closeBusinessRowSwipe();
                 void deleteBusinessCardEntry(row);
               }}
-              accessibilityLabel={tr('Eliminar tarjeta', 'Delete card')}
+              accessibilityLabel={t('cards_delete_card_a11y')}
             >
               <MaterialCommunityIcons name="trash-can-outline" size={16} color="#FFFFFF" />
-              <Text style={styles.swipeActionText}>{tr('Eliminar', 'Delete')}</Text>
+              <Text style={styles.swipeActionText}>{t('common_delete')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -3239,7 +3207,7 @@ export default function CardsFactoryScreen() {
                         { borderColor: chestTheme.borderColor, backgroundColor: 'rgba(255,255,255,0.72)' },
                       ]}
                       accessibilityRole="text"
-                      accessibilityLabel={tr('Personas con tu tarjeta', 'People with your card')}
+                      accessibilityLabel={t('cards_people_with_card_a11y')}
                       onPress={() => { void openBusinessSubscribersModal(row); }}
                     >
                       <MaterialCommunityIcons name="account-group-outline" size={13} color={metricPillFg} />
@@ -3278,7 +3246,7 @@ export default function CardsFactoryScreen() {
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             accessibilityRole="button"
             accessibilityLabel={
-              row.isFavorite ? tr('Quitar de favoritos', 'Remove from favorites') : tr('Marcar favorito', 'Mark as favorite')
+              row.isFavorite ? t('cards_remove_fav_a11y') : t('cards_mark_fav_a11y')
             }
           >
             <MaterialCommunityIcons
@@ -3333,10 +3301,10 @@ export default function CardsFactoryScreen() {
                 closeSmartCardRowSwipe();
                 openEditFactory(item);
               }}
-              accessibilityLabel={tr('Editar tarjeta', 'Edit card')}
+              accessibilityLabel={t('cards_edit_card_a11y')}
             >
               <MaterialCommunityIcons name="pencil" size={16} color="#FFFFFF" />
-              <Text style={styles.swipeActionText}>{tr('Editar', 'Edit')}</Text>
+              <Text style={styles.swipeActionText}>{t('common_edit')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.swipeActionBtn, { backgroundColor: item.silenced ? '#34C759' : '#FF9500' }]}
@@ -3346,22 +3314,19 @@ export default function CardsFactoryScreen() {
                   void toggleCardSilence(item);
                 } else {
                   Alert.alert(
-                    tr('Silenciar tarjeta', 'Silence card'),
-                    tr(
-                      'Nadie podrá llamarte desde esta tarjeta mientras esté silenciada.',
-                      'No one will be able to call you from this card while silenced.',
-                    ),
+                    t('cards_silence_card_title'),
+                    t('cards_silence_card_message'),
                     [
-                      { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
-                      { text: tr('Silenciar', 'Silence'), onPress: () => void toggleCardSilence(item) },
+                      { text: t('common_cancel'), style: 'cancel' },
+                      { text: t('common_silence'), onPress: () => void toggleCardSilence(item) },
                     ],
                   );
                 }
               }}
-              accessibilityLabel={item.silenced ? tr('Reactivar tarjeta', 'Unmute card') : tr('Silenciar tarjeta', 'Silence card')}
+              accessibilityLabel={item.silenced ? t('cards_unmute_card_a11y') : t('cards_silence_card_title')}
             >
               <MaterialCommunityIcons name={item.silenced ? 'volume-high' : 'volume-off'} size={16} color="#FFFFFF" />
-              <Text style={styles.swipeActionText}>{item.silenced ? tr('Activar', 'Unmute') : tr('Silenciar', 'Silence')}</Text>
+              <Text style={styles.swipeActionText}>{item.silenced ? t('common_unmute') : t('common_silence')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.swipeActionBtn, { backgroundColor: cardsTheme.subscriberSwipeRevokeBg }]}
@@ -3371,13 +3336,13 @@ export default function CardsFactoryScreen() {
               }}
               accessibilityLabel={
                 item.isFavorite
-                  ? tr('Quitar de favoritos', 'Remove from favorites')
-                  : tr('Marcar favorito', 'Mark as favorite')
+                  ? t('cards_remove_fav_a11y')
+                  : t('cards_mark_fav_a11y')
               }
             >
               <MaterialCommunityIcons name={item.isFavorite ? 'star' : 'star-outline'} size={16} color="#FFFFFF" />
               <Text style={[styles.swipeActionText, styles.swipeFavoriteSwipeLabel]} numberOfLines={2}>
-                {item.isFavorite ? tr('Quitar favorito', 'Unfavorite') : tr('Marcar favorito', 'Favorite')}
+                {item.isFavorite ? t('cards_unfavorite_short') : t('cards_favorite_short')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -3386,10 +3351,10 @@ export default function CardsFactoryScreen() {
                 closeSmartCardRowSwipe();
                 deleteCard(item);
               }}
-              accessibilityLabel={tr('Eliminar tarjeta', 'Delete card')}
+              accessibilityLabel={t('cards_delete_card_a11y')}
             >
               <MaterialCommunityIcons name="trash-can-outline" size={16} color="#FFFFFF" />
-              <Text style={styles.swipeActionText}>{tr('Eliminar', 'Delete')}</Text>
+              <Text style={styles.swipeActionText}>{t('common_delete')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -3465,7 +3430,7 @@ export default function CardsFactoryScreen() {
             }}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             accessibilityRole="button"
-            accessibilityLabel={tr('Estadísticas', 'Statistics')}
+            accessibilityLabel={t('common_statistics')}
           >
             <MaterialCommunityIcons name="chart-line-variant" size={17} color="rgba(233,195,73,0.95)" />
           </TouchableOpacity>
@@ -3477,7 +3442,7 @@ export default function CardsFactoryScreen() {
             }}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             accessibilityRole="button"
-            accessibilityLabel={item.isFavorite ? tr('Quitar de favoritos', 'Remove from favorites') : tr('Marcar favorito', 'Mark as favorite')}
+            accessibilityLabel={item.isFavorite ? t('cards_remove_fav_a11y') : t('cards_mark_fav_a11y')}
           >
             <MaterialCommunityIcons
               name={item.isFavorite ? 'heart' : 'heart-outline'}
@@ -3510,7 +3475,7 @@ export default function CardsFactoryScreen() {
             delayLongPress={180}
             activeOpacity={0.95}
             style={[styles.swipeWrap, isLandscape && styles.swipeWrapLandscape]}
-            accessibilityLabel={tr('Mantén y arrastra para mover', 'Hold and drag to move')}
+            accessibilityLabel={t('cards_hold_drag_move')}
           >
             <View
               style={[
@@ -3626,7 +3591,7 @@ export default function CardsFactoryScreen() {
           delayLongPress={180}
           activeOpacity={0.95}
           style={[styles.swipeWrap, isLandscape && styles.swipeWrapLandscape]}
-          accessibilityLabel={tr('Mantén y arrastra para mover', 'Hold and drag to move')}
+          accessibilityLabel={t('cards_hold_drag_move')}
         >
           <View
             style={[
@@ -3702,15 +3667,15 @@ export default function CardsFactoryScreen() {
         <View style={styles.emptyWrap}>
           <MaterialCommunityIcons name="shield-lock-outline" size={56} color={cardsTheme.icon} />
           <Text style={[styles.emptyTitle, { color: cardsTheme.text }]}>
-            {tr('Acceso biométrico requerido', 'Biometric access required')}
+            {t('cards_biometric_gate_title')}
           </Text>
           <Text style={[styles.emptyText, { color: cardsTheme.modalSubtitle }]}>
-            {tr('Autoriza Face ID o Touch ID para entrar a Mis tarjetas.', 'Authorize Face ID or Touch ID to open My Cards.')}
+            {t('cards_biometric_gate_body')}
           </Text>
           <TouchableOpacity
             style={[styles.firstQrBtn, { backgroundColor: cardsTheme.btnPrimary }]}
             onPress={async () => {
-              const authenticated = await hardLockCheck(tr('acceso a Business Cards', 'access to Business Cards'));
+              const authenticated = await hardLockCheck(t('biometric_reason_cards_access'));
               setIsCardsUnlocked(authenticated);
               if (authenticated) {
                 const uid = await getActiveUserId();
@@ -3722,7 +3687,7 @@ export default function CardsFactoryScreen() {
             }}
           >
             <MaterialCommunityIcons name="fingerprint" size={18} color={cardsTheme.btnPrimaryText} />
-            <Text style={[styles.firstQrBtnText, { color: cardsTheme.btnPrimaryText }]}>{tr('Desbloquear', 'Unlock')}</Text>
+            <Text style={[styles.firstQrBtnText, { color: cardsTheme.btnPrimaryText }]}>{t('cards_unlock')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -3736,11 +3701,11 @@ export default function CardsFactoryScreen() {
     <View style={[styles.container, { backgroundColor: cardsTheme.backgroundSolid }]}>
       <View style={[styles.headerRow, { borderBottomColor: cardsTheme.divider }]}> 
         <View>
-          <Text style={[styles.headerTitle, { color: cardsTheme.text }]}>{tr('Mis Tarjetas', 'My Cards')}</Text>
+          <Text style={[styles.headerTitle, { color: cardsTheme.text }]}>{t('cards_header_title')}</Text>
           <Text style={[styles.headerSubtitle, { color: cardsTheme.sectionLabel }]}>
             {cardSlotCaps
-              ? `${cardSlotCaps.smartCurrent}/${cardSlotCaps.smartMax} Smart · ${cardSlotCaps.businessUsed}/${cardSlotCaps.businessMax} ${tr('negocio', 'business')}`
-              : tr('Cargando límites…', 'Loading limits…')}
+              ? `${cardSlotCaps.smartCurrent}/${cardSlotCaps.smartMax} Smart · ${cardSlotCaps.businessUsed}/${cardSlotCaps.businessMax} ${t('core_word_business')}`
+              : t('cards_header_loading_limits')}
           </Text>
         </View>
         <View style={styles.headerActionsRow}>
@@ -3766,7 +3731,7 @@ export default function CardsFactoryScreen() {
             disabled={businessSlotBlocked}
             style={[styles.businessCtaWrap, businessSlotBlocked ? { opacity: 0.5 } : null]}
             accessibilityRole="button"
-            accessibilityLabel={tr('Crear Business Card', 'Create Business Card')}
+            accessibilityLabel={t('cards_create_business_a11y')}
           >
             <LinearGradient
               colors={[...cardsTheme.vipBannerGradient]}
@@ -3778,7 +3743,7 @@ export default function CardsFactoryScreen() {
                 <MaterialCommunityIcons name="diamond-stone" size={14} color={cardsTheme.vipBannerDiamondIcon} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.businessCtaTitle}>{tr('Tarjeta de Negocio', 'Business Card')}</Text>
+                <Text style={styles.businessCtaTitle}>{t('cards_business_cta_title')}</Text>
               </View>
               <MaterialCommunityIcons name="chevron-right" size={16} color={cardsTheme.vipBannerChevron} />
             </LinearGradient>
@@ -3792,26 +3757,23 @@ export default function CardsFactoryScreen() {
             style={[styles.cardsReorderBanner, { backgroundColor: cardsTheme.surfaceMuted, borderBottomColor: cardsTheme.divider }]}
           >
             <Text style={[styles.cardsReorderBannerText, { color: cardsTheme.text }]}>
-              {tr(
-                'Mantén pulsado y arrastra. Listo guarda el orden.',
-                'Hold and drag to reorder. Done saves the order.',
-              )}
+              {t('cards_reorder_banner')}
             </Text>
             <TouchableOpacity
               style={[styles.reorderBannerBtn, { backgroundColor: cardsTheme.inputBg }]}
               onPress={cancelCardsReorder}
               accessibilityRole="button"
-              accessibilityLabel={tr('Cancelar orden', 'Cancel reorder')}
+              accessibilityLabel={t('cards_reorder_cancel_a11y')}
             >
-              <Text style={[styles.reorderBannerBtnText, { color: cardsTheme.text }]}>{tr('Cancelar', 'Cancel')}</Text>
+              <Text style={[styles.reorderBannerBtnText, { color: cardsTheme.text }]}>{t('common_cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.reorderBannerBtn, { backgroundColor: cardsTheme.btnPrimary }]}
               onPress={() => void commitCardsReorder()}
               accessibilityRole="button"
-              accessibilityLabel={tr('Guardar orden', 'Save order')}
+              accessibilityLabel={t('cards_reorder_save_a11y')}
             >
-              <Text style={[styles.reorderBannerBtnText, { color: cardsTheme.btnPrimaryText }]}>{tr('Listo', 'Done')}</Text>
+              <Text style={[styles.reorderBannerBtnText, { color: cardsTheme.btnPrimaryText }]}>{t('common_done')}</Text>
             </TouchableOpacity>
           </View>
           <DraggableFlatList
@@ -3877,23 +3839,17 @@ export default function CardsFactoryScreen() {
             cardSearchQuery.trim().length > 0 ? (
               <View style={styles.emptyWrap}>
                 <MaterialCommunityIcons name="magnify" size={52} color={cardsTheme.sectionLabel} />
-                <Text style={[styles.emptyTitle, { color: cardsTheme.text }]}>{tr('Sin coincidencias', 'No matches')}</Text>
+                <Text style={[styles.emptyTitle, { color: cardsTheme.text }]}>{t('cards_empty_no_matches')}</Text>
                 <Text style={[styles.emptyText, { color: cardsTheme.modalSubtitle }]}>
-                  {tr(
-                    'Prueba con otras palabras o sinónimos. También puedes revisar tu conexión.',
-                    'Try different words or synonyms. You can also check your connection.',
-                  )}
+                  {t('cards_empty_no_matches_hint')}
                 </Text>
               </View>
             ) : (
               <View style={styles.emptyWrap}>
                 <MaterialCommunityIcons name="credit-card-plus-outline" size={52} color={cardsTheme.icon} />
-                <Text style={[styles.emptyTitle, { color: cardsTheme.text }]}>{tr('Sin tarjetas todavía', 'No cards yet')}</Text>
+                <Text style={[styles.emptyTitle, { color: cardsTheme.text }]}>{t('cards_empty_no_cards')}</Text>
                 <Text style={[styles.emptyText, { color: cardsTheme.modalSubtitle }]}>
-                  {tr(
-                    'Crea una Smart Card con datos del Vault o una Tarjeta de negocio con el botón de lujo.',
-                    'Create a Smart Card with Vault data or a Business card with the luxury button.',
-                  )}
+                  {t('cards_empty_no_cards_hint')}
                 </Text>
               </View>
             )
@@ -3914,10 +3870,7 @@ export default function CardsFactoryScreen() {
           <MaterialCommunityIcons name="magnify" size={18} color={cardsTheme.sectionLabel} />
           <TextInput
             style={[styles.cardSearchInput, { color: cardsTheme.inputText }]}
-            placeholder={tr(
-              'Buscar nombre o datos enlazados (títulos, enlaces, texto…)',
-              'Search name or linked data (titles, links, text…)'
-            )}
+            placeholder={t('cards_search_placeholder')}
             placeholderTextColor={cardsTheme.sectionLabel}
             value={cardSearchQuery}
             onChangeText={setCardSearchQuery}
@@ -3932,7 +3885,7 @@ export default function CardsFactoryScreen() {
                 Keyboard.dismiss();
                 setCardSearchQuery('');
               }}
-              accessibilityLabel={tr('Limpiar', 'Clear')}
+              accessibilityLabel={t('common_clear')}
             >
               <MaterialCommunityIcons name="close-circle" size={16} color={cardsTheme.sectionLabel} />
             </TouchableOpacity>
@@ -3950,7 +3903,7 @@ export default function CardsFactoryScreen() {
         disabled={cardsReorderMode || smartSlotBlocked}
       >
         <MaterialCommunityIcons name="plus" size={20} color={cardsTheme.fabText} />
-        <Text style={[styles.createFabText, { color: cardsTheme.fabText }]}>{tr('Crear', 'Create')}</Text>
+        <Text style={[styles.createFabText, { color: cardsTheme.fabText }]}>{t('cards_create_fab')}</Text>
       </TouchableOpacity>
 
       <Modal
@@ -3976,12 +3929,12 @@ export default function CardsFactoryScreen() {
                   {/* Header */}
                   <View style={styles.factoryHeaderRow}>
                     <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle, marginBottom: 0 }]}>
-                      {selectedCard ? tr('Editar Smart Card', 'Edit Smart Card') : tr('Nueva Smart Card', 'New Smart Card')}
+                      {selectedCard ? t('cards_factory_edit_title') : t('cards_factory_new_title')}
                     </Text>
                     <TouchableOpacity
                       onPress={closeFactoryModalAndSync}
                       hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                      accessibilityLabel={tr('Cerrar', 'Close')}
+                      accessibilityLabel={t('common_close')}
                     >
                       <MaterialCommunityIcons name="close" size={22} color={cardsTheme.sectionLabel} />
                     </TouchableOpacity>
@@ -3998,7 +3951,7 @@ export default function CardsFactoryScreen() {
                     )}
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.identityFullName, { color: cardsTheme.text }]} numberOfLines={1}>
-                        {issuerIdentity.userFullName || tr('Nombre Completo', 'Full Name')}
+                        {issuerIdentity.userFullName || t('label_full_name')}
                       </Text>
                       <Text style={[styles.identityHandle, { color: cardsTheme.sectionLabel }]} numberOfLines={1}>
                         @{String(issuerIdentity.userNickName || 'user').toLowerCase().replace(/\s+/g, '')}
@@ -4006,12 +3959,12 @@ export default function CardsFactoryScreen() {
                     </View>
                   </View>
 
-                  <Text style={[styles.factoryFieldLabel, { color: cardsTheme.sectionLabel }]}>{tr('Nombre de Tarjeta', 'Card Name')}</Text>
+                  <Text style={[styles.factoryFieldLabel, { color: cardsTheme.sectionLabel }]}>{t('cards_field_card_name')}</Text>
 
                   {/* Card name input */}
                   <TextInput
                     style={[styles.input, { backgroundColor: cardsTheme.inputBg, color: cardsTheme.inputText, borderColor: cardsTheme.modalBorder }]}
-                    placeholder={tr('Nombre de Tarjeta', 'Card Name')}
+                    placeholder={t('cards_field_card_name')}
                     placeholderTextColor={cardsTheme.sectionLabel}
                     value={cardName}
                     onChangeText={setCardName}
@@ -4027,7 +3980,7 @@ export default function CardsFactoryScreen() {
                       activeOpacity={0.82}
                     >
                       <MaterialCommunityIcons name="database-plus-outline" size={18} color={cardsTheme.icon} />
-                      <Text style={[styles.factoryActionBtnText, { color: cardsTheme.text }]}>{tr('Agregar DATA', 'Add DATA')}</Text>
+                      <Text style={[styles.factoryActionBtnText, { color: cardsTheme.text }]}>{t('cards_add_data_btn')}</Text>
                       {factoryResolvedDataCount > 0 && (
                         <View style={styles.factoryActionBadge}>
                           <Text style={styles.factoryActionBadgeText}>{factoryResolvedDataCount}</Text>
@@ -4049,7 +4002,7 @@ export default function CardsFactoryScreen() {
                       activeOpacity={0.82}
                     >
                       <MaterialCommunityIcons name="palette-outline" size={18} color={cardsTheme.icon} />
-                      <Text style={[styles.factoryActionBtnText, { color: cardsTheme.text }]}>{tr('Agregar TEMAS', 'Add THEMES')}</Text>
+                      <Text style={[styles.factoryActionBtnText, { color: cardsTheme.text }]}>{t('cards_add_themes_btn')}</Text>
                     </TouchableOpacity>
                   </View>
 
@@ -4077,7 +4030,7 @@ export default function CardsFactoryScreen() {
                             <View style={styles.factoryPreviewEmpty}>
                               <MaterialCommunityIcons name="card-plus-outline" size={38} color={isDark ? 'rgba(235,235,245,0.32)' : 'rgba(28,28,30,0.18)'} />
                               <Text style={[styles.factoryPreviewEmptyText, { color: cardsTheme.sectionLabel }]}>
-                                {tr('Agrega DATA para ver tu tarjeta aquí', 'Add DATA to see your card here')}
+                                {t('cards_factory_preview_empty')}
                               </Text>
                             </View>
                           ) : (
@@ -4131,10 +4084,10 @@ export default function CardsFactoryScreen() {
                       style={[styles.ghostBtn, { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder }]}
                       onPress={closeFactoryModalAndSync}
                     >
-                      <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>{tr('Cancelar', 'Cancel')}</Text>
+                      <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>{t('common_cancel')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary, opacity: isSaving ? 0.5 : 1 }]} onPress={handleSaveCard} disabled={isSaving}>
-                      <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>{isSaving ? tr('Guardando…', 'Saving…') : tr('Guardar', 'Save')}</Text>
+                      <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>{isSaving ? t('common_saving') : t('common_save')}</Text>
                     </TouchableOpacity>
                   </View>
 
@@ -4165,14 +4118,14 @@ export default function CardsFactoryScreen() {
             {/* Header */}
             <View style={styles.dataSelectorHeader}>
               <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle, marginBottom: 0, fontSize: 17 }]}>
-                {tr('Selecciona datos', 'Select data')}
+                {t('cards_selector_title')}
               </Text>
               <View style={styles.dataSelectorCounterWrap}>
                 <Text style={[styles.dataSelectorCounter, { color: tempSelectedIds.length >= MAX_CARD_SLOTS ? cardsTheme.danger : cardsTheme.icon }]}>
                   {tempSelectedIds.length} / {MAX_CARD_SLOTS}
                 </Text>
               </View>
-              <TouchableOpacity onPress={cancelDataSelector} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={tr('Cerrar', 'Close')}>
+              <TouchableOpacity onPress={cancelDataSelector} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={t('common_close')}>
                 <MaterialCommunityIcons name="close" size={20} color={cardsTheme.sectionLabel} />
               </TouchableOpacity>
             </View>
@@ -4187,7 +4140,7 @@ export default function CardsFactoryScreen() {
                 <MaterialCommunityIcons name="magnify" size={18} color={cardsTheme.sectionLabel} />
                 <TextInput
                   style={[styles.dataSelectorSearchInput, { color: cardsTheme.inputText }]}
-                  placeholder={tr('Buscar dato...', 'Search data...')}
+                  placeholder={t('cards_selector_search_ph')}
                   placeholderTextColor={cardsTheme.sectionLabel}
                   value={dataSelectorQuery}
                   onChangeText={setDataSelectorQuery}
@@ -4199,7 +4152,7 @@ export default function CardsFactoryScreen() {
                   <TouchableOpacity
                     onPress={() => setDataSelectorQuery('')}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    accessibilityLabel={tr('Limpiar búsqueda', 'Clear search')}
+                    accessibilityLabel={t('cards_selector_clear_search')}
                   >
                     <MaterialCommunityIcons name="close-circle" size={17} color={cardsTheme.sectionLabel} />
                   </TouchableOpacity>
@@ -4212,7 +4165,7 @@ export default function CardsFactoryScreen() {
               >
                 <MaterialCommunityIcons name="sort" size={17} color={cardsTheme.icon} />
                 <Text style={[styles.dataSelectorSortText, { color: cardsTheme.text }]}>
-                  {dataSelectorSort === 'alpha' ? tr('Alfabético', 'A-Z') : tr('Reciente', 'Recent')}
+                  {dataSelectorSort === 'alpha' ? t('cards_selector_sort_alpha_label') : t('cards_selector_sort_recent_label')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -4229,7 +4182,7 @@ export default function CardsFactoryScreen() {
                 ]}
               >
                 <MaterialCommunityIcons name="alert-circle-outline" size={14} color={cardsTheme.danger} />
-                <Text style={styles.dataSelectorLimitText}>{tr(`Máximo ${MAX_CARD_SLOTS} iconos por tarjeta`, `Maximum ${MAX_CARD_SLOTS} icons per card`)}</Text>
+                <Text style={styles.dataSelectorLimitText}>{t('cards_selector_max_icons', { max: MAX_CARD_SLOTS })}</Text>
               </View>
             )}
 
@@ -4238,14 +4191,14 @@ export default function CardsFactoryScreen() {
               <View style={styles.dataSelectorEmpty}>
                 <MaterialCommunityIcons name="database-off-outline" size={40} color={cardsTheme.sectionLabel} />
                 <Text style={[styles.dataSelectorEmpty, { color: cardsTheme.sectionLabel }]}> 
-                  {tr('Tu Vault está vacío.\nAgrega datos primero desde Bóveda.', 'Your Vault is empty.\nAdd data from Vault first.')}
+                  {t('cards_selector_vault_empty')}
                 </Text>
               </View>
             ) : filteredVaultItemsForSelector.length === 0 ? (
               <View style={styles.dataSelectorEmpty}>
                 <MaterialCommunityIcons name="database-search-outline" size={40} color={cardsTheme.sectionLabel} />
                 <Text style={[styles.dataSelectorEmpty, { color: cardsTheme.sectionLabel }]}>
-                  {tr('No encontramos datos con esa búsqueda.', 'No data matched that search.')}
+                  {t('cards_selector_no_search_hits')}
                 </Text>
               </View>
             ) : (
@@ -4308,7 +4261,7 @@ export default function CardsFactoryScreen() {
             {/* Floating upsell */}
             <TouchableOpacity style={styles.dataSelectorUpsellBtn} activeOpacity={0.85}>
               <MaterialCommunityIcons name="star-circle-outline" size={15} color={cardsTheme.modalTitle} />
-              <Text style={styles.dataSelectorUpsellText}>{tr('Consigue tu coleccionable', 'Get your collectible')}</Text>
+              <Text style={styles.dataSelectorUpsellText}>{t('cards_selector_collectible')}</Text>
             </TouchableOpacity>
 
             {/* Footer */}
@@ -4317,14 +4270,14 @@ export default function CardsFactoryScreen() {
                 style={[styles.ghostBtn, { backgroundColor: cardsTheme.btnGhost, borderColor: cardsTheme.modalBorder }]}
                 onPress={cancelDataSelector}
               >
-                <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>{tr('Cancelar', 'Cancel')}</Text>
+                <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>{t('common_cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary }]}
                 onPress={confirmDataSelector}
               >
                 <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>
-                  {tr('Confirmar', 'Confirm')} ({tempSelectedIds.length})
+                  {t('common_confirm')} ({tempSelectedIds.length})
                 </Text>
               </TouchableOpacity>
             </View>
@@ -4347,7 +4300,7 @@ export default function CardsFactoryScreen() {
 
                 <View style={styles.factoryHeaderRow}>
                   <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle, marginBottom: 0 }]}>
-                    {tr('Temas de Tarjeta', 'Card Themes')}
+                    {t('cards_themes_title')}
                   </Text>
                   <TouchableOpacity
                     onPress={closeThemesPickerModal}
@@ -4388,28 +4341,25 @@ export default function CardsFactoryScreen() {
                           />
                         </View>
                         <View style={[styles.themesLockerTierGrid, { gap: THEME_LOCKER_TILE_GAP }]}>
-                          {tierThemes.map((t) => (
+                          {tierThemes.map((theme) => (
                             <ThemeLockerThemeTile
-                              key={t.id}
-                              theme={t}
-                              isActive={themeId === t.id}
-                              isUnlocked={isChestThemeUnlocked(t)}
+                              key={theme.id}
+                              theme={theme}
+                              isActive={themeId === theme.id}
+                              isUnlocked={isChestThemeUnlocked(theme)}
                               tileWidth={themesModalTileWidth}
                               onPress={() => {
-                                if (!isChestThemeUnlocked(t)) {
+                                if (!isChestThemeUnlocked(theme)) {
                                   Toast.show({
                                     type: 'info',
-                                    text1: tr('Tema bloqueado', 'Theme locked'),
-                                    text2: tr(
-                                      'Desbloquéalo en Locker de Estilos o La Fragua.',
-                                      'Unlock it in Theme Locker or The Forge.',
-                                    ),
+                                    text1: t('cards_theme_locked_title'),
+                                    text2: t('cards_theme_locked_body'),
                                     position: 'bottom',
                                     visibilityTime: 2800,
                                   });
                                   return;
                                 }
-                                setThemeId(t.id);
+                                setThemeId(theme.id);
                                 void Haptics.selectionAsync();
                               }}
                             />
@@ -4424,7 +4374,7 @@ export default function CardsFactoryScreen() {
                   style={[styles.saveBtn, { backgroundColor: cardsTheme.btnPrimary, marginTop: 12, marginBottom: modalFooterBottomPad }]}
                   onPress={closeThemesPickerModal}
                 >
-                  <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>{tr('Aceptar', 'Accept')}</Text>
+                  <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>{t('common_accept')}</Text>
                 </TouchableOpacity>
 
               </View>
@@ -4457,9 +4407,9 @@ export default function CardsFactoryScreen() {
         }
         sourceSid={previewCard?.sid ?? null}
         sourceBId={null}
-        sourceCardName={previewCard?.scName ?? cardName ?? tr('Tarjeta Social', 'Social Card')}
+        sourceCardName={previewCard?.scName ?? cardName ?? t('label_social_card')}
         peerDisplayName={
-          issuerIdentity.voipCanonicalFullName || issuerIdentity.userFullName || tr('este contacto', 'this contact')
+          issuerIdentity.voipCanonicalFullName || issuerIdentity.userFullName || t('label_this_contact')
         }
         peerFullName={issuerIdentity.voipCanonicalFullName || undefined}
         peerNickname={issuerIdentity.userNickName || undefined}
@@ -4496,9 +4446,9 @@ export default function CardsFactoryScreen() {
         }
         sourceSid={null}
         sourceBId={previewBusiness?.bId ?? null}
-        sourceCardName={previewBusiness?.bcName ?? tr('Negocio', 'Business')}
+        sourceCardName={previewBusiness?.bcName ?? t('label_business')}
         peerDisplayName={
-          issuerIdentity.voipCanonicalFullName || issuerIdentity.userFullName || tr('este contacto', 'this contact')
+          issuerIdentity.voipCanonicalFullName || issuerIdentity.userFullName || t('label_this_contact')
         }
         peerFullName={issuerIdentity.voipCanonicalFullName || undefined}
         peerNickname={issuerIdentity.userNickName || undefined}
@@ -4519,10 +4469,10 @@ export default function CardsFactoryScreen() {
         <View style={[styles.modalOverlay, { backgroundColor: cardsTheme.modalOverlay }]}> 
           <View style={[styles.slotPickerCard, { backgroundColor: cardsTheme.modalBg, borderColor: cardsTheme.modalBorder }]}> 
             <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle }]}>
-              {tr('Elegir dato para el slot', 'Choose data for the slot')}
+              {t('cards_slot_picker_title')}
             </Text>
             <Text style={[styles.slotPickerSubtitle, { color: cardsTheme.modalSubtitle }]}> 
-              {tr('Slot', 'Slot')} #{activeSlotIndex !== null ? activeSlotIndex + 1 : '-'}
+              {t('cards_slot_label')} #{activeSlotIndex !== null ? activeSlotIndex + 1 : '-'}
             </Text>
 
             <FlatList
@@ -4547,7 +4497,7 @@ export default function CardsFactoryScreen() {
                 setActiveSlotIndex(null);
               }}
             >
-              <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>{tr('Cerrar', 'Close')}</Text>
+              <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>{t('common_close')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -4569,31 +4519,28 @@ export default function CardsFactoryScreen() {
               <View style={styles.previewIconBubble}>{renderVaultMiniIcon(focusedDataItem as VaultItem, 24)}</View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.dataPopoverTitle, { color: cardsTheme.modalTitle }]}>
-                  {focusedDataItem?.title || tr('Dato', 'Item')}
+                  {focusedDataItem?.title || t('cards_data_popover_item')}
                 </Text>
                 <Text style={[styles.dataPopoverType, { color: cardsTheme.sectionLabel }]}>
-                  {focusedDataItem?.type || tr('Bóveda', 'Vault')}
+                  {focusedDataItem?.type || t('cards_data_popover_vault')}
                 </Text>
               </View>
             </View>
 
             <Text style={[styles.dataPopoverHint, { color: cardsTheme.sectionLabel }]}>
               {focusedDataItem && isGhostLinkVaultType(focusedDataItem.type)
-                ? tr(
-                    'Ghost-Link: llamada VoIP privada desde la app. No usa número visible.',
-                    'Ghost-Link: private VoIP call from the app. No visible phone number.',
-                  )
-                : tr('Valor protegido por Ghost-Link: solo acceso enrutado.', 'Ghost-Link protected value: routed access only.')}
+                ? t('cards_data_popover_ghost_voip')
+                : t('cards_data_popover_ghost_generic')}
             </Text>
 
             {focusedCertificate ? (
               <View style={styles.authCertBox}>
                 <Text style={styles.authCertTitle}>
-                  {tr('Certificado de autenticidad', 'Certificate of authenticity')}
+                  {t('cards_certificate_title')}
                 </Text>
                 <Text style={styles.authCertText}>{focusedCertificate.value}</Text>
                 <Text style={styles.authCertToken}>
-                  {tr('ID del activo', 'Asset ID')}: {focusedCertificate.assetToken || 'N/A'}
+                  {t('cards_asset_id')}: {focusedCertificate.assetToken || 'N/A'}
                 </Text>
               </View>
             ) : null}
@@ -4606,7 +4553,7 @@ export default function CardsFactoryScreen() {
                 }}
               >
                 <Text style={[styles.ghostBtnText, { color: cardsTheme.btnGhostText }]}>
-                  {tr('Abrir en app', 'Open in app')}
+                  {t('cards_open_in_app')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -4616,7 +4563,7 @@ export default function CardsFactoryScreen() {
                 }}
               >
                 <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>
-                  {tr('Ver en navegador', 'View in browser')}
+                  {t('cards_view_browser')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -4629,7 +4576,7 @@ export default function CardsFactoryScreen() {
                 setFocusedCertificate(null);
               }}
             >
-              <Text style={[styles.popoverCloseText, { color: cardsTheme.btnGhostText }]}>{tr('Cerrar', 'Close')}</Text>
+              <Text style={[styles.popoverCloseText, { color: cardsTheme.btnGhostText }]}>{t('common_close')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -4650,7 +4597,7 @@ export default function CardsFactoryScreen() {
             >
               <MaterialCommunityIcons name="cellphone" size={80} color="#FFFFFF" />
             </Animated.View>
-            <Text style={styles.rotateHintText}>{tr('Gira tu celular para ver\nla vista horizontal', 'Rotate your phone to see\nthe horizontal view')}</Text>
+            <Text style={styles.rotateHintText}>{t('cards_rotate_hint')}</Text>
           </View>
         </TouchableWithoutFeedback>
       </Modal>
@@ -4665,8 +4612,8 @@ export default function CardsFactoryScreen() {
         }}
         owner={{
                    displayName: subscribersBusinessRow
-            ? (subscribersBusinessRow.bcName || tr('Mi Negocio', 'My Business'))
-            : (issuerIdentity.userFullName || tr('Mi Tarjeta', 'My Card')),
+            ? (subscribersBusinessRow.bcName || t('label_my_business'))
+            : (issuerIdentity.userFullName || t('label_my_card')),
           occupation: subscribersBusinessRow
             ? (subscribersBusinessRow.bcContactName || '')
             : (() => {
@@ -4692,17 +4639,13 @@ export default function CardsFactoryScreen() {
         }
         loading={subscribersLoading}
         isDark={isDark}
-        tr={tr}
         onRevoke={(targetUid, name) => {
           Alert.alert(
-            tr('Eliminar receptor', 'Remove receptor'),
-            tr(
-              `¿Eliminar a ${name} de esta tarjeta? Tu tarjeta desaparecerá de sus contactos.`,
-              `Remove ${name} from this card? Your card will disappear from their contacts.`,
-            ),
+            t('receptor_revoke_title'),
+            t('receptor_revoke_body', { name }),
             [
-              { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
-              { text: tr('Eliminar', 'Remove'), style: 'destructive', onPress: () => void handleRevokeSubscriber(targetUid) },
+              { text: t('common_cancel'), style: 'cancel' },
+              { text: t('common_remove'), style: 'destructive', onPress: () => void handleRevokeSubscriber(targetUid) },
             ],
           );
         }}
@@ -4711,28 +4654,22 @@ export default function CardsFactoryScreen() {
             void handleMuteSubscriber(targetUid, false);
           } else {
             Alert.alert(
-              tr('Silenciar receptor', 'Mute receptor'),
-              tr(
-                `¿Silenciar a ${name}? No podrá llamarte desde esta tarjeta. No sabrá que está silenciado/a.`,
-                `Mute ${name}? They won't be able to call you from this card. They won't know they're muted.`,
-              ),
+              t('receptor_mute_title'),
+              t('receptor_mute_body', { name }),
               [
-                { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
-                { text: tr('Silenciar', 'Mute'), onPress: () => void handleMuteSubscriber(targetUid, true) },
+                { text: t('common_cancel'), style: 'cancel' },
+                { text: t('common_mute'), onPress: () => void handleMuteSubscriber(targetUid, true) },
               ],
             );
           }
         }}
         onBlock={(targetUid, name) => {
           Alert.alert(
-            tr('Bloquear usuario', 'Block user'),
-            tr(
-              `¿Bloquear a ${name}? Se eliminará de tus contactos y tarjetas. No podrá agregarte.`,
-              `Block ${name}? They will be removed from your contacts and cards. They won't be able to add you.`,
-            ),
+            t('alert_block_subscriber_title'),
+            t('alert_block_subscriber_body', { name }),
             [
-              { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
-              { text: tr('Bloquear', 'Block'), style: 'destructive', onPress: () => void handleBlockSubscriber(targetUid) },
+              { text: t('common_cancel'), style: 'cancel' },
+              { text: t('common_block'), style: 'destructive', onPress: () => void handleBlockSubscriber(targetUid) },
             ],
           );
         }}
@@ -4747,7 +4684,6 @@ export default function CardsFactoryScreen() {
             setViewerItem(null);
             requestAnimationFrame(() => restoreFactoryAfterAuxModal());
           }}
-          tr={tr}
           fallbackMutedColor={cardsTheme.sectionLabel}
         />
       ) : null}
@@ -4785,7 +4721,7 @@ export default function CardsFactoryScreen() {
                     style={[styles.factoryTitle, styles.qrModalTitleText, { color: cardsTheme.modalTitle }]}
                     numberOfLines={2}
                   >
-                    {selectedCard?.scName || tr('Smart Card', 'Smart Card')}
+                    {selectedCard?.scName || t('cards_qr_title_smart')}
                   </Text>
                   <TouchableOpacity
                     onPress={async () => {
@@ -4793,19 +4729,19 @@ export default function CardsFactoryScreen() {
                         await Clipboard.setStringAsync(qrUniversalWebUrl);
                         Toast.show({
                           type: 'success',
-                          text1: tr('Enlace copiado', 'Link copied'),
-                          text2: tr('Pégalo donde quieras compartirlo.', 'Paste it wherever you want to share.'),
+                          text1: t('cards_toast_link_copied_title'),
+                          text2: t('cards_toast_link_copied_body'),
                         });
                       } catch {
                         Toast.show({
                           type: 'error',
-                          text1: tr('No se pudo copiar', 'Could not copy'),
+                          text1: t('qr_could_not_copy'),
                         });
                       }
                     }}
                     hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
                     accessibilityRole="button"
-                    accessibilityLabel={tr('Copiar enlace', 'Copy link')}
+                    accessibilityLabel={t('cards_qr_copy_link_a11y')}
                   >
                     <MaterialCommunityIcons name="content-copy" size={22} color={cardsTheme.tint} />
                   </TouchableOpacity>
@@ -4814,22 +4750,22 @@ export default function CardsFactoryScreen() {
                 <Text style={[styles.factoryTitle, { color: cardsTheme.modalTitle }]}>
                   {qrBusinessContext
                     ? qrBusinessContext.bcName
-                    : selectedCard?.scName || tr('Smart Card', 'Smart Card')}
+                    : selectedCard?.scName || t('cards_qr_title_smart')}
                 </Text>
               )}
               <Text style={[styles.qrSubtitle, { color: cardsTheme.modalSubtitle }]}>
                 {qrBusinessContext
-                  ? tr('QR permanente (no caduca)', 'Permanent QR (does not expire)')
+                  ? t('cards_qr_permanent_sub')
                   : qrUniversalWebUrl
-                    ? tr('Enlace web · válido 24 h (aprox.)', 'Web link · valid ~24 h')
-                    : tr('QR dinámico · válido 2 minutos', 'Dynamic QR · valid 2 minutes')}
+                    ? t('cards_qr_web_sub')
+                    : t('cards_qr_dynamic_sub')}
               </Text>
 
               {qrBusinessContext ? null : (
                 <View style={styles.countdownWrap}>
                   <Text style={[styles.countdownText, { color: cardsTheme.text }]}>
                     {remainingSec <= 0
-                      ? tr('Expirado', 'Expired')
+                      ? t('cards_qr_expired')
                       : remainingSec >= 3600
                         ? `${Math.floor(remainingSec / 3600)}h ${Math.floor((remainingSec % 3600) / 60)}m`
                         : remainingSec >= 60
@@ -4876,7 +4812,7 @@ export default function CardsFactoryScreen() {
                         >
                           <MaterialCommunityIcons name="refresh" size={16} color={cardsTheme.btnPrimaryText} />
                           <Text style={[styles.refreshOverlayBtnText, { color: cardsTheme.btnPrimaryText }]}>
-                            {tr('Generar nuevo QR', 'Generate new QR')}
+                            {t('cards_qr_regenerate')}
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -4904,11 +4840,11 @@ export default function CardsFactoryScreen() {
                           await Clipboard.setStringAsync(link);
                           Toast.show({
                             type: 'success',
-                            text1: tr('Enlace web copiado', 'Web link copied'),
-                            text2: tr('Pégalo en web o e-mail.', 'Paste on web or email.'),
+                            text1: t('cards_toast_web_link_copied'),
+                            text2: t('cards_toast_paste_web'),
                           });
                         } catch {
-                          Toast.show({ type: 'error', text1: tr('No se pudo copiar', 'Could not copy') });
+                          Toast.show({ type: 'error', text1: t('qr_could_not_copy') });
                         }
                       }}
                     >
@@ -4920,7 +4856,7 @@ export default function CardsFactoryScreen() {
                           ]}
                           numberOfLines={2}
                         >
-                          {tr('Copiar enlace web', 'Copy web link')}
+                          {t('cards_qr_copy_web_btn')}
                         </Text>
                       )}
                     </Pressable>
@@ -4944,8 +4880,8 @@ export default function CardsFactoryScreen() {
                             format: 'png',
                           });
                           Alert.alert(
-                            tr('QR', 'QR'),
-                            result.message || (result.success ? tr('Listo', 'Done') : tr('Error', 'Error')),
+                            t('cards_qr_generic_title'),
+                            result.success ? t('common_done') : t('common_error'),
                           );
                         };
                         const svg = permanentBusinessQrSvgRef.current;
@@ -4958,10 +4894,7 @@ export default function CardsFactoryScreen() {
                                   qrBusinessContext.bcName,
                                 );
                                 if (result.success) {
-                                  Alert.alert(
-                                    tr('QR', 'QR'),
-                                    result.message || tr('Listo', 'Done'),
-                                  );
+                                  Alert.alert(t('cards_qr_generic_title'), t('common_done'));
                                 } else {
                                   await runSvgVectorFallback();
                                 }
@@ -4985,7 +4918,7 @@ export default function CardsFactoryScreen() {
                           ]}
                           numberOfLines={2}
                         >
-                          {tr('Descargar QR', 'Download QR')}
+                          {t('cards_qr_download_btn')}
                         </Text>
                       )}
                     </Pressable>
@@ -4997,7 +4930,7 @@ export default function CardsFactoryScreen() {
                       setQrBusinessContext(null);
                     }}
                   >
-                    <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>{tr('Cerrar', 'Close')}</Text>
+                    <Text style={[styles.saveBtnText, { color: cardsTheme.btnPrimaryText }]}>{t('common_close')}</Text>
                   </TouchableOpacity>
                 </>
               ) : (
@@ -5025,7 +4958,7 @@ export default function CardsFactoryScreen() {
                           { color: pressed ? cardsTheme.btnPrimaryText : cardsTheme.btnGhostText },
                         ]}
                       >
-                        {tr('Nuevo QR', 'New QR')}
+                        {t('cards_qr_new_short')}
                       </Text>
                     )}
                   </Pressable>
@@ -5066,7 +4999,7 @@ export default function CardsFactoryScreen() {
                           },
                         ]}
                       >
-                        {issuingUniversalLink ? tr('Generando…', 'Generating…') : tr('QR 24 Hr', 'QR 24h')}
+                        {issuingUniversalLink ? t('cards_qr_generating') : t('cards_qr_24h_label')}
                       </Text>
                     )}
                   </Pressable>
@@ -5090,7 +5023,7 @@ export default function CardsFactoryScreen() {
                           { color: pressed ? cardsTheme.btnPrimaryText : cardsTheme.btnGhostText },
                         ]}
                       >
-                        {tr('Cerrar', 'Close')}
+                        {t('common_close')}
                       </Text>
                     )}
                   </Pressable>
@@ -5125,7 +5058,7 @@ export default function CardsFactoryScreen() {
           >
             <View style={styles.cardStatsHeaderRow}>
               <Text style={[styles.cardStatsTitle, { color: cardsTheme.modalTitle }]}>
-                {tr('Estadísticas', 'Statistics')}
+                {t('common_statistics')}
               </Text>
               <TouchableOpacity
                 onPress={() => {
@@ -5133,7 +5066,7 @@ export default function CardsFactoryScreen() {
                   setCardStatsTarget(null);
                 }}
                 hitSlop={12}
-                accessibilityLabel={tr('Cerrar', 'Close')}
+                accessibilityLabel={t('common_close')}
               >
                 <MaterialCommunityIcons name="close" size={22} color={cardsTheme.sectionLabel} />
               </TouchableOpacity>
@@ -5146,17 +5079,17 @@ export default function CardsFactoryScreen() {
             ) : (
               <>
                 <Text style={[styles.cardStatsSectionLabel, { color: cardsTheme.sectionLabel }]}>
-                  {tr('Visualizaciones totales (90 días)', 'Total views (90 days)')}
+                  {t('cards_stats_views_90d')}
                 </Text>
                 <Text style={[styles.cardStatsBigNumber, { color: cardsTheme.ctaAccent }]}>
                   {cardStatsData?.totalViews ?? 0}
                 </Text>
                 <Text style={[styles.cardStatsSectionLabel, { color: cardsTheme.sectionLabel, marginTop: 16 }]}>
-                  {tr('Tus iconos más usados', 'Your most-used icons')}
+                  {t('cards_stats_icons_used')}
                 </Text>
                 {(cardStatsData?.topIcons || []).length === 0 ? (
                   <Text style={[styles.cardStatsEmpty, { color: cardsTheme.modalSubtitle }]}>
-                    {tr('Aún no hay datos. Comparte tu tarjeta o espera interacciones.', 'No data yet. Share your card or wait for interactions.')}
+                    {t('cards_stats_empty')}
                   </Text>
                 ) : (
                   <View style={styles.cardStatsIconList}>

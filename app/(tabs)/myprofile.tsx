@@ -25,6 +25,7 @@ import {
   readUserNickNameLower,
 } from '@/services/userIdentityFields';
 import { userFacingAlertMessage } from '@/services/apiUserFacingError';
+import { useAuthT } from '@/services/authI18n';
 import { trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import {
@@ -152,6 +153,7 @@ function formatDate(d: Date) {
 
 export default function MyProfileScreen() {
   const { language } = useLanguage();
+  const t = useAuthT();
   const tr = (es: string, en: string) => trEsEn(es, en, language);
   const { resolvedMode } = useLookMode();
   const isDark = resolvedMode === 'noche';
@@ -309,15 +311,12 @@ export default function MyProfileScreen() {
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      tr('Confirmar Eliminación', 'Confirm Delete'),
-      tr(
-        'Tu cuenta entrará en hibernación 30 días y luego se eliminará por completo si no vuelves a iniciar sesión. ¿Continuar?',
-        'Your account will hibernate for 30 days, then be fully deleted if you do not sign in again. Continue?',
-      ),
+      t('profile_sec_delete_confirm_title'),
+      t('profile_sec_delete_confirm_body'),
       [
-        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+        { text: t('common_cancel'), style: 'cancel' },
         {
-          text: tr('Sí, continuar', 'Yes, continue'),
+          text: t('profile_sec_yes_continue'),
           style: 'destructive',
           onPress: () => {
             const u = auth.currentUser;
@@ -325,15 +324,12 @@ export default function MyProfileScreen() {
             const scheduledDeadline = computeScheduledDeletionDeadline();
             const deadlineStr = formatDeletionDeadlineDisplay(scheduledDeadline, language);
             Alert.alert(
-              tr('Confirmar eliminación', 'Confirm deletion'),
-              tr(
-                `Fecha límite de borrado definitivo: ${deadlineStr}. Puedes restaurar todo iniciando sesión antes de esa fecha.`,
-                `Final deletion date: ${deadlineStr}. You can restore everything by signing in before that date.`,
-              ),
+              t('profile_sec_delete_step2_title'),
+              t('profile_sec_delete_step2_body', { date: deadlineStr }),
               [
-                { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+                { text: t('common_cancel'), style: 'cancel' },
                 {
-                  text: tr('Sí, eliminar cuenta', 'Yes, delete account'),
+                  text: t('profile_sec_yes_delete'),
                   style: 'destructive',
                   onPress: () => {
                     void (async () => {
@@ -346,14 +342,11 @@ export default function MyProfileScreen() {
                           deadlineDate: scheduledDeadline,
                         });
                         Alert.alert(
-                          tr('Cuenta marcada para eliminación', 'Account marked for deletion'),
-                          tr(
-                            `Hibernación activa hasta el ${deadlineStr}. Revisa tu correo. Tras salir, usa “Entendido”.`,
-                            `Hibernation active until ${deadlineStr}. Check your email. Tap OK to sign out.`,
-                          ),
+                          t('profile_sec_delete_marked_title'),
+                          t('profile_sec_delete_marked_body', { date: deadlineStr }),
                           [
                             {
-                              text: tr('Entendido', 'OK'),
+                              text: t('common_ok'),
                               onPress: () => {
                                 void (async () => {
                                   await clearLocalCachesForSignOut(uid);
@@ -366,8 +359,8 @@ export default function MyProfileScreen() {
                         );
                       } catch (e) {
                         Alert.alert(
-                          tr('Error', 'Error'),
-                          tr('No se pudo marcar la cuenta para eliminación.', 'Could not mark account for deletion.'),
+                          t('common_error'),
+                          t('profile_sec_delete_error'),
                         );
                       }
                     })();
@@ -387,9 +380,9 @@ export default function MyProfileScreen() {
       ActionSheetIOS.showActionSheetWithOptions(
         {
           options: [
-            tr('Cancelar', 'Cancel'),
-            tr('Galería', 'Gallery'),
-            tr('Cámara (selfie)', 'Camera (selfie)'),
+            t('common_cancel'),
+            t('profile_sec_gallery'),
+            t('profile_sec_camera_selfie'),
           ],
           cancelButtonIndex: 0,
         },
@@ -400,12 +393,12 @@ export default function MyProfileScreen() {
       );
     } else {
       Alert.alert(
-        tr('Cambiar foto', 'Change photo'),
+        t('profile_sec_change_photo_title'),
         '',
         [
-          { text: tr('Galería', 'Gallery'), onPress: pickFromGallery },
-          { text: tr('Cámara', 'Camera'), onPress: pickFromCamera },
-          { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+          { text: t('profile_sec_gallery'), onPress: pickFromGallery },
+          { text: t('profile_sec_camera'), onPress: pickFromCamera },
+          { text: t('common_cancel'), style: 'cancel' },
         ]
       );
     }
@@ -414,7 +407,7 @@ export default function MyProfileScreen() {
   const pickFromGallery = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert(tr('Permiso requerido', 'Permission required'), tr('Activa acceso a fotos en Configuración.', 'Enable photo access in Settings.'));
+      Alert.alert(t('profile_sec_permission_title'), t('profile_sec_permission_photos'));
       return;
     }
     if (Platform.OS === 'android') {
@@ -442,7 +435,7 @@ export default function MyProfileScreen() {
   const pickFromCamera = async () => {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert(tr('Permiso requerido', 'Permission required'), tr('Activa acceso a la cámara en Configuración.', 'Enable camera access in Settings.'));
+      Alert.alert(t('profile_sec_permission_title'), t('profile_sec_permission_camera'));
       return;
     }
     if (Platform.OS === 'android') {
@@ -527,24 +520,24 @@ export default function MyProfileScreen() {
       setLocalPhotoUri(null);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (newPhotoUrl) {
-        Alert.alert(tr('Foto actualizada', 'Photo updated'), tr('Tu foto de perfil fue guardada correctamente.', 'Your profile photo was saved successfully.'));
+        Alert.alert(t('profile_sec_photo_updated_title'), t('profile_sec_photo_updated_body'));
       } else {
         Alert.alert(
-          tr('Foto subida con pendiente', 'Photo uploaded with pending publish'),
-          tr('Se guardo tu archivo, pero aun no hay URL publica para mostrarlo en la app.', 'Your file was stored, but no public URL is available yet for in-app display.')
+          t('profile_sec_photo_pending_title'),
+          t('profile_sec_photo_pending_body'),
         );
       }
     } catch (e: any) {
       setLocalPhotoUri(null);
       if (e instanceof ModerationRejectedError) {
         Alert.alert(
-          tr('Foto rechazada', 'Photo rejected'),
-          tr('La imagen no cumple las políticas de contenido de Card-Social.', 'The image does not meet Card-Social content policies.')
+          t('profile_sec_photo_rejected_title'),
+          t('profile_sec_photo_rejected_body'),
         );
       } else {
         Alert.alert(
-          tr('Error subiendo foto', 'Error uploading photo'),
-          userFacingAlertMessage(e, language, tr('Inténtalo de nuevo.', 'Please try again.')),
+          t('profile_sec_photo_upload_error_title'),
+          userFacingAlertMessage(e, language, t('profile_sec_try_again')),
         );
       }
     } finally {
@@ -696,15 +689,15 @@ export default function MyProfileScreen() {
     const next = newEmail.trim().toLowerCase();
     const current = String(user.email || profile.email || '').trim().toLowerCase();
     if (!next || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next)) {
-      Alert.alert(tr('Email inválido', 'Invalid email'), tr('Escribe un email válido.', 'Enter a valid email.'));
+      Alert.alert(t('profile_sec_invalid_email_title'), t('profile_sec_invalid_email_body'));
       return;
     }
     if (next === current) {
-      Alert.alert(tr('Aviso', 'Notice'), tr('Ese ya es tu email actual.', 'That is already your current email.'));
+      Alert.alert(t('profile_sec_notice_title'), t('profile_sec_email_unchanged'));
       return;
     }
     if (!emailPw) {
-      Alert.alert(tr('Contraseña requerida', 'Password required'), tr('Escribe tu contraseña actual para confirmar.', 'Enter your current password to confirm.'));
+      Alert.alert(t('profile_sec_password_required_email_title'), t('profile_sec_password_required_email_body'));
       return;
     }
     try {
@@ -723,24 +716,21 @@ export default function MyProfileScreen() {
       setEmailPw('');
       setEmailSection(false);
       Alert.alert(
-        tr('Verifica tu nuevo email', 'Verify your new email'),
-        tr(
-          'Te enviamos un enlace al nuevo correo. El cambio se aplicará cuando confirmes ese enlace.',
-          'We sent a link to the new email. The change will apply after you confirm that link.',
-        ),
+        t('profile_sec_verify_new_email_title'),
+        t('profile_sec_verify_new_email_body'),
       );
     } catch (e: any) {
       const code = String(e?.code || '');
       if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
-        Alert.alert(tr('Contraseña incorrecta', 'Wrong password'), tr('La contraseña actual es incorrecta.', 'Current password is incorrect.'));
+        Alert.alert(t('profile_sec_wrong_password_title'), t('profile_sec_wrong_password_body'));
       } else if (code === 'auth/email-already-in-use') {
-        Alert.alert(tr('Email en uso', 'Email in use'), tr('Ese email ya pertenece a otra cuenta.', 'That email already belongs to another account.'));
+        Alert.alert(t('profile_sec_email_in_use_title'), t('profile_sec_email_in_use_body'));
       } else if (code === 'auth/requires-recent-login') {
-        Alert.alert(tr('Sesión expirada', 'Session expired'), tr('Cierra sesión y vuelve a entrar.', 'Sign out and sign back in.'));
+        Alert.alert(t('profile_sec_session_expired_title'), t('profile_sec_session_expired_body'));
       } else {
         Alert.alert(
-          tr('No se pudo enviar verificación', 'Could not send verification'),
-          userFacingAlertMessage(e, language, tr('Inténtalo de nuevo.', 'Please try again.')),
+          t('profile_sec_verify_send_fail_title'),
+          userFacingAlertMessage(e, language, t('profile_sec_try_again')),
         );
       }
     } finally {
@@ -749,9 +739,13 @@ export default function MyProfileScreen() {
   };
 
   const openPhoneSupportTicket = async () => {
-    const subject = encodeURIComponent('Cambio de teléfono - Card-Social');
+    const subject = encodeURIComponent(t('profile_sec_mail_subject'));
     const body = encodeURIComponent(
-      `Hola soporte Card-Social,\n\nQuiero solicitar cambio de teléfono en mi cuenta.\n\nUID: ${profile?.uid || ''}\nEmail: ${profile?.email || ''}\nTeléfono actual: ${profile?.phone || ''}\n\nEntiendo que el ticket se resuelve en máximo 3 días hábiles.\n`,
+      t('profile_sec_mail_body', {
+        uid: profile?.uid || '',
+        email: profile?.email || '',
+        phone: profile?.phone || '',
+      }),
     );
     const url = `mailto:support@cardsocial.me?subject=${subject}&body=${body}`;
     try {
@@ -760,11 +754,8 @@ export default function MyProfileScreen() {
       await Linking.openURL(url);
     } catch {
       Alert.alert(
-        tr('Abrir ticket', 'Open ticket'),
-        tr(
-          'Escríbenos a support@cardsocial.me. Los cambios de teléfono se resuelven en máximo 3 días hábiles.',
-          'Email us at support@cardsocial.me. Phone change requests are resolved within 3 business days.',
-        ),
+        t('profile_sec_open_ticket'),
+        t('profile_sec_ticket_fallback_body'),
       );
     }
   };
@@ -775,15 +766,15 @@ export default function MyProfileScreen() {
     if (!user || !user.email) return;
 
     if (!currentPw || !newPw || !confirmPw) {
-      Alert.alert(tr('Campos requeridos', 'Required fields'), tr('Completa todos los campos de contraseña.', 'Fill all password fields.'));
+      Alert.alert(t('profile_sec_password_fields_required_title'), t('profile_sec_password_fields_required_body'));
       return;
     }
     if (newPw.length < 8) {
-      Alert.alert(tr('Contraseña corta', 'Password too short'), tr('Mínimo 8 caracteres.', 'At least 8 characters.'));
+      Alert.alert(t('profile_sec_password_short_title'), t('profile_sec_password_short_body'));
       return;
     }
     if (newPw !== confirmPw) {
-      Alert.alert(tr('No coincide', 'Mismatch'), tr('Las contraseñas nuevas no coinciden.', 'New passwords do not match.'));
+      Alert.alert(t('profile_sec_password_mismatch_title'), t('profile_sec_password_mismatch_body'));
       return;
     }
 
@@ -797,17 +788,17 @@ export default function MyProfileScreen() {
       setConfirmPw('');
       setPwSection(false);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(tr('Contraseña cambiada', 'Password changed'), tr('Tu contraseña fue actualizada correctamente.', 'Your password was updated successfully.'));
+      Alert.alert(t('profile_sec_password_changed_title'), t('profile_sec_password_changed_body'));
     } catch (e: any) {
       const code: string = e?.code || '';
       if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
-        Alert.alert(tr('Contraseña incorrecta', 'Wrong password'), tr('La contraseña actual es incorrecta.', 'Current password is incorrect.'));
+        Alert.alert(t('profile_sec_wrong_password_title'), t('profile_sec_wrong_password_body'));
       } else if (code === 'auth/requires-recent-login') {
-        Alert.alert(tr('Sesión expirada', 'Session expired'), tr('Cierra sesión y vuelve a entrar.', 'Sign out and sign back in.'));
+        Alert.alert(t('profile_sec_session_expired_title'), t('profile_sec_session_expired_body'));
       } else {
         Alert.alert(
-          tr('Error', 'Error'),
-          userFacingAlertMessage(e, language, tr('Inténtalo de nuevo.', 'Please try again.')),
+          t('common_error'),
+          userFacingAlertMessage(e, language, t('profile_sec_try_again')),
         );
       }
     } finally {
@@ -1071,7 +1062,7 @@ export default function MyProfileScreen() {
                 activeOpacity={0.8}
               >
                 <MaterialCommunityIcons name="email-outline" size={18} color={accent} />
-                <Text style={[styles.cardTitle, { color: textPrimary }]}>{tr('Correo electrónico', 'Email')}</Text>
+                <Text style={[styles.cardTitle, { color: textPrimary }]}>{t('profile_sec_email_title')}</Text>
                 {isPasswordUser ? (
                   <MaterialCommunityIcons
                     name={emailSection ? 'chevron-up' : 'chevron-down'}
@@ -1082,21 +1073,21 @@ export default function MyProfileScreen() {
                 ) : (
                   <View style={[styles.roChip, { backgroundColor: shell.gridCardBg, borderColor: border }]}>
                     <MaterialCommunityIcons name="lock-outline" size={11} color={textSecondary} />
-                    <Text style={[styles.roChipText, { color: textSecondary }]}>{tr('Social', 'Social')}</Text>
+                    <Text style={[styles.roChipText, { color: textSecondary }]}>{t('profile_sec_social_badge')}</Text>
                   </View>
                 )}
               </TouchableOpacity>
               <View style={[styles.readonlyField, { backgroundColor: inputBg, borderColor: border }]}>
-                <Text style={[styles.readonlyText, { color: textSecondary }]}>{profile?.email || tr('No disponible', 'Not available')}</Text>
+                <Text style={[styles.readonlyText, { color: textSecondary }]}>{profile?.email || t('profile_sec_not_available')}</Text>
               </View>
               <Text style={[styles.hintText, { color: textSecondary }]}>
                 {isPasswordUser
-                  ? tr('El cambio requiere tu contraseña y confirmar un enlace enviado al nuevo email.', 'Changing email requires your password and confirming a link sent to the new email.')
-                  : tr('Tu email se gestiona desde tu proveedor social.', 'Your email is managed by your social provider.')}
+                  ? t('profile_sec_email_hint_password')
+                  : t('profile_sec_email_hint_social')}
               </Text>
               {isPasswordUser && emailSection && (
                 <View style={styles.pwForm}>
-                  <Text style={[styles.inputLabel, { color: textSecondary }]}>{tr('Nuevo email', 'New email')}</Text>
+                  <Text style={[styles.inputLabel, { color: textSecondary }]}>{t('profile_sec_new_email')}</Text>
                   <TextInput
                     style={[styles.input, { backgroundColor: inputBg, color: textPrimary, borderColor: border }]}
                     value={newEmail}
@@ -1107,7 +1098,7 @@ export default function MyProfileScreen() {
                     autoCapitalize="none"
                     autoCorrect={false}
                   />
-                  <Text style={[styles.inputLabel, { color: textSecondary }]}>{tr('Contraseña actual', 'Current password')}</Text>
+                  <Text style={[styles.inputLabel, { color: textSecondary }]}>{t('profile_sec_current_password')}</Text>
                   <View style={[styles.pwInputWrap, { backgroundColor: inputBg, borderColor: border }]}>
                     <TextInput
                       style={[styles.pwInput, { color: textPrimary }]}
@@ -1117,7 +1108,7 @@ export default function MyProfileScreen() {
                       placeholder="••••••••"
                       placeholderTextColor={textSecondary}
                     />
-                    <TouchableOpacity onPress={() => setShowEmailPw((s) => !s)} accessibilityLabel={tr('Mostrar contraseña', 'Toggle password visibility')}>
+                    <TouchableOpacity onPress={() => setShowEmailPw((s) => !s)} accessibilityLabel={t('profile_sec_a11y_toggle_password')}>
                       <MaterialCommunityIcons name={showEmailPw ? 'eye-off-outline' : 'eye-outline'} size={18} color={textSecondary} />
                     </TouchableOpacity>
                   </View>
@@ -1129,7 +1120,7 @@ export default function MyProfileScreen() {
                   >
                     <MaterialCommunityIcons name="email-check-outline" size={16} color={shell.emptyCtaText} />
                     <Text style={[styles.saveBtnText, { color: shell.emptyCtaText }]}>
-                      {savingEmail ? tr('Enviando…', 'Sending…') : tr('Enviar verificación', 'Send verification')}
+                      {savingEmail ? t('profile_sec_sending') : t('profile_sec_send_verification')}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -1140,17 +1131,17 @@ export default function MyProfileScreen() {
             <View style={[styles.card, { backgroundColor: card, borderColor: border }]}>
               <View style={styles.cardHeader}>
                 <MaterialCommunityIcons name="phone-outline" size={18} color={accent} />
-                <Text style={[styles.cardTitle, { color: textPrimary }]}>{tr('Teléfono', 'Phone')}</Text>
+                <Text style={[styles.cardTitle, { color: textPrimary }]}>{t('profile_sec_phone_title')}</Text>
                 <View style={[styles.roChip, { backgroundColor: shell.gridCardBg, borderColor: border }]}>
                   <MaterialCommunityIcons name="lock-outline" size={11} color={textSecondary} />
-                  <Text style={[styles.roChipText, { color: textSecondary }]}>{tr('Solo lectura', 'Read only')}</Text>
+                  <Text style={[styles.roChipText, { color: textSecondary }]}>{t('profile_sec_readonly')}</Text>
                 </View>
               </View>
               <View style={[styles.readonlyField, { backgroundColor: inputBg, borderColor: border }]}>
-                <Text style={[styles.readonlyText, { color: textSecondary }]}>{profile?.phone || tr('No disponible', 'Not available')}</Text>
+                <Text style={[styles.readonlyText, { color: textSecondary }]}>{profile?.phone || t('profile_sec_not_available')}</Text>
               </View>
               <Text style={[styles.hintText, { color: textSecondary }]}>
-                {tr('Para cambiar tu teléfono abre un ticket. Se resuelve en máximo 3 días hábiles.', 'To change your phone, open a ticket. It is resolved within 3 business days.')}
+                {t('profile_sec_phone_ticket_hint')}
               </Text>
               <TouchableOpacity
                 style={[styles.saveBtn, { backgroundColor: accent }]}
@@ -1158,7 +1149,7 @@ export default function MyProfileScreen() {
                 activeOpacity={0.82}
               >
                 <MaterialCommunityIcons name="lifebuoy" size={16} color={shell.emptyCtaText} />
-                <Text style={[styles.saveBtnText, { color: shell.emptyCtaText }]}>{tr('Abrir ticket', 'Open ticket')}</Text>
+                <Text style={[styles.saveBtnText, { color: shell.emptyCtaText }]}>{t('profile_sec_open_ticket')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -1174,7 +1165,7 @@ export default function MyProfileScreen() {
                   activeOpacity={0.8}
                 >
                   <MaterialCommunityIcons name="lock-reset" size={18} color={accent} />
-                  <Text style={[styles.cardTitle, { color: textPrimary }]}>{tr('Cambiar contraseña', 'Change password')}</Text>
+                  <Text style={[styles.cardTitle, { color: textPrimary }]}>{t('profile_sec_change_password_section')}</Text>
                   <MaterialCommunityIcons
                     name={pwSection ? 'chevron-up' : 'chevron-down'}
                     size={18}
@@ -1185,7 +1176,7 @@ export default function MyProfileScreen() {
 
                 {pwSection && (
                   <View style={styles.pwForm}>
-                    <Text style={[styles.inputLabel, { color: textSecondary }]}>{tr('Contraseña actual', 'Current password')}</Text>
+                    <Text style={[styles.inputLabel, { color: textSecondary }]}>{t('profile_sec_current_password')}</Text>
                     <View style={[styles.pwInputWrap, { backgroundColor: inputBg, borderColor: border }]}>
                       <TextInput
                         style={[styles.pwInput, { color: textPrimary }]}
@@ -1195,12 +1186,12 @@ export default function MyProfileScreen() {
                         placeholder="••••••••"
                         placeholderTextColor={textSecondary}
                       />
-                      <TouchableOpacity onPress={() => setShowCurrentPw((s) => !s)} accessibilityLabel={tr('Mostrar contraseña', 'Toggle password visibility')}>
+                      <TouchableOpacity onPress={() => setShowCurrentPw((s) => !s)} accessibilityLabel={t('profile_sec_a11y_toggle_password')}>
                         <MaterialCommunityIcons name={showCurrentPw ? 'eye-off-outline' : 'eye-outline'} size={18} color={textSecondary} />
                       </TouchableOpacity>
                     </View>
 
-                    <Text style={[styles.inputLabel, { color: textSecondary }]}>{tr('Nueva contraseña', 'New password')}</Text>
+                    <Text style={[styles.inputLabel, { color: textSecondary }]}>{t('profile_sec_new_password')}</Text>
                     <View style={[styles.pwInputWrap, { backgroundColor: inputBg, borderColor: border }]}>
                       <TextInput
                         style={[styles.pwInput, { color: textPrimary }]}
@@ -1210,12 +1201,12 @@ export default function MyProfileScreen() {
                         placeholder="••••••••"
                         placeholderTextColor={textSecondary}
                       />
-                      <TouchableOpacity onPress={() => setShowNewPw((s) => !s)} accessibilityLabel={tr('Mostrar contraseña', 'Toggle password visibility')}>
+                      <TouchableOpacity onPress={() => setShowNewPw((s) => !s)} accessibilityLabel={t('profile_sec_a11y_toggle_password')}>
                         <MaterialCommunityIcons name={showNewPw ? 'eye-off-outline' : 'eye-outline'} size={18} color={textSecondary} />
                       </TouchableOpacity>
                     </View>
 
-                    <Text style={[styles.inputLabel, { color: textSecondary }]}>{tr('Confirmar nueva contraseña', 'Confirm new password')}</Text>
+                    <Text style={[styles.inputLabel, { color: textSecondary }]}>{t('profile_sec_confirm_password')}</Text>
                     <View style={[styles.pwInputWrap, { backgroundColor: inputBg, borderColor: border }]}>
                       <TextInput
                         style={[styles.pwInput, { color: textPrimary }]}
@@ -1225,13 +1216,13 @@ export default function MyProfileScreen() {
                         placeholder="••••••••"
                         placeholderTextColor={textSecondary}
                       />
-                      <TouchableOpacity onPress={() => setShowConfirmPw((s) => !s)} accessibilityLabel={tr('Mostrar contraseña', 'Toggle password visibility')}>
+                      <TouchableOpacity onPress={() => setShowConfirmPw((s) => !s)} accessibilityLabel={t('profile_sec_a11y_toggle_password')}>
                         <MaterialCommunityIcons name={showConfirmPw ? 'eye-off-outline' : 'eye-outline'} size={18} color={textSecondary} />
                       </TouchableOpacity>
                     </View>
 
                     <Text style={[styles.hintText, { color: textSecondary }]}>
-                      {tr('Mínimo 8 caracteres. Usa una combinación de letras, números y símbolos.', 'At least 8 characters. Use a mix of letters, numbers and symbols.')}
+                      {t('profile_sec_password_hint')}
                     </Text>
 
                     <TouchableOpacity
@@ -1241,7 +1232,7 @@ export default function MyProfileScreen() {
                       activeOpacity={0.82}
                     >
                       <MaterialCommunityIcons name="lock-check-outline" size={16} color={shell.emptyCtaText} />
-                      <Text style={[styles.saveBtnText, { color: shell.emptyCtaText }]}>{savingPw ? tr('Cambiando…', 'Changing…') : tr('Cambiar contraseña', 'Change password')}</Text>
+                      <Text style={[styles.saveBtnText, { color: shell.emptyCtaText }]}>{savingPw ? t('profile_sec_changing') : t('profile_sec_change_password_section')}</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -1253,13 +1244,12 @@ export default function MyProfileScreen() {
               <View style={[styles.card, { backgroundColor: card, borderColor: border }]}>
                 <View style={styles.cardHeader}>
                   <MaterialCommunityIcons name="google" size={18} color={accent} />
-                  <Text style={[styles.cardTitle, { color: textPrimary }]}>{tr('Cuenta social', 'Social account')}</Text>
+                  <Text style={[styles.cardTitle, { color: textPrimary }]}>{t('profile_sec_social_account_title')}</Text>
                 </View>
                 <Text style={[styles.hintText, { color: textSecondary }]}>
-                  {tr(
-                    `Tu cuenta usa ${profile?.authProvider || 'un proveedor social'}. La contraseña se gestiona desde ese proveedor.`,
-                    `Your account uses ${profile?.authProvider || 'a social provider'}. Password is managed by that provider.`
-                  )}
+                  {t('profile_sec_social_account_body', {
+                    provider: profile?.authProvider || t('profile_sec_social_provider_fallback'),
+                  })}
                 </Text>
               </View>
             )}
@@ -1275,7 +1265,7 @@ export default function MyProfileScreen() {
               }}
             >
               <Text style={{ color: shell.danger, fontWeight: 'bold', marginBottom: 10, fontSize: 15 }}>
-                {tr('Zona de Peligro', 'Danger Zone')}
+                {t('profile_sec_danger_zone')}
               </Text>
               <TouchableOpacity
                 style={{
@@ -1293,7 +1283,7 @@ export default function MyProfileScreen() {
               >
                 <MaterialCommunityIcons name="delete" size={18} color={shell.fabText} />
                 <Text style={{ color: shell.fabText, fontWeight: 'bold', fontSize: 15 }}>
-                  {tr('Eliminar Cuenta', 'Delete Account')}
+                  {t('profile_sec_delete_account')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1312,10 +1302,10 @@ export default function MyProfileScreen() {
         <View style={[styles.photoPreviewBackdrop, { backgroundColor: shell.overlayScrim }]}>
           <View style={[styles.photoPreviewCard, { backgroundColor: card, borderColor: border }]}>
             <Text style={[styles.photoPreviewTitle, { color: textPrimary }]}>
-              {tr('Vista previa', 'Preview')}
+              {t('profile_sec_preview_title')}
             </Text>
             <Text style={[styles.photoPreviewSubtitle, { color: textSecondary }]}>
-              {tr('¿Quieres usar esta foto de perfil?', 'Use this as your profile photo?')}
+              {t('profile_sec_preview_question')}
             </Text>
             {androidPhotoPreviewUri ? (
               <ExpoImage
@@ -1333,7 +1323,7 @@ export default function MyProfileScreen() {
                 activeOpacity={0.85}
               >
                 <Text style={[styles.photoPreviewBtnSecondaryText, { color: textSecondary }]}>
-                  {tr('Cancelar', 'Cancel')}
+                  {t('common_cancel')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -1343,7 +1333,7 @@ export default function MyProfileScreen() {
                 activeOpacity={0.85}
               >
                 <Text style={[styles.photoPreviewBtnPrimaryText, { color: shell.emptyCtaText }]}>
-                  {tr('Aceptar', 'Accept')}
+                  {t('common_accept')}
                 </Text>
               </TouchableOpacity>
             </View>

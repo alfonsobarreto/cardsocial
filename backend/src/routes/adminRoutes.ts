@@ -14,7 +14,7 @@ import MarketMintService from '../services/marketMintService.js';
 import { Db } from 'mongodb';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { buildUserFacingJson } = require('../lib/userFacingErrors.js');
+const { buildUserFacingJson, buildUserFacingSuccessJson } = require('../lib/userFacingErrors.js');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
@@ -99,11 +99,12 @@ router.post(
 
       const result = await mintService.mintAsset(mintRequest);
 
-      res.json({
-        success: true,
-        ...result,
-        message: `Asset created in draft: ${result.unique_id}`,
-      });
+      res.json(
+        buildUserFacingSuccessJson(req, 'ASSET_DRAFT_CREATED', {
+          success: true,
+          ...result,
+        }),
+      );
     } catch (error) {
       console.error('❌ Mint route error:', error);
       res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
@@ -129,11 +130,12 @@ router.post('/publish_asset', AdminAuthService.middleware(), async (req: Request
 
     const result = await mintService.publishAsset(mint_id);
 
-    res.json({
-      success: true,
-      ...result,
-      message: `Asset published: ${result.unique_id}`,
-    });
+    res.json(
+      buildUserFacingSuccessJson(req, 'ASSET_PUBLISHED', {
+        success: true,
+        ...result,
+      }),
+    );
   } catch (error) {
     console.error('❌ Publish route error:', error);
     res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
@@ -215,11 +217,13 @@ router.get('/preview/:mint_id', AdminAuthService.middleware(), async (req: Reque
 // Health check del admin panel (sin JWT requerido)
 // ═══════════════════════════════════════════════╝
 router.get('/health', (req: Request, res: Response) => {
-  res.json({
-    status: 'ok',
-    service: 'card-social-admin-api',
-    timestamp: new Date().toISOString(),
-  });
+  res.json(
+    buildUserFacingSuccessJson(req, 'STATUS_OK', {
+      status: 'ok',
+      service: 'card-social-admin-api',
+      timestamp: new Date().toISOString(),
+    }),
+  );
 });
 
 export default router;

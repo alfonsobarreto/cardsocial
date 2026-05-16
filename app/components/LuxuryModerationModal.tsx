@@ -26,7 +26,7 @@ const formatCountdown = (totalSec: number) => {
 
 export default function LuxuryModerationModal({
   visible,
-  title = 'Acceso Premium Protegido',
+  title,
   message,
   onClose,
   onRetry,
@@ -37,6 +37,7 @@ export default function LuxuryModerationModal({
   const { language } = useLanguage();
   const modalFooterBottomPad = useModalFooterBottomPad();
   const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const resolvedTitle = title ?? tr('Acceso Premium Protegido', 'Premium Protected Access');
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
@@ -52,7 +53,7 @@ export default function LuxuryModerationModal({
                 <MaterialCommunityIcons name="shield-crown" size={30} color="#E9C349" />
               </View>
 
-              <Text style={styles.title}>{tr(title, title)}</Text>
+              <Text style={styles.title}>{resolvedTitle}</Text>
               <Text style={styles.message}>{message}</Text>
 
               {retryLocked ? (

@@ -46,6 +46,7 @@ import {
   useState,
 } from 'react';
 import { useAuth } from '../auth/useAuth';
+import { useAdminT } from '../i18n/useAdminT';
 import {
   analyzeBrandReference,
   generateAIWallpaper,
@@ -1224,6 +1225,8 @@ function AiIconPanel({
   );
 }
 
+type ToastState = { kind: 'success' | 'error'; message: string };
+
 function IconPacksBulkPanel({
   currentUser,
   onToast,
@@ -1233,6 +1236,7 @@ function IconPacksBulkPanel({
   onToast: (toast: ToastState) => void;
   onSaved: () => void;
 }) {
+  const { t } = useAdminT();
   const [files, setFiles] = useState<File[]>([]);
   const [objectUrls, setObjectUrls] = useState<string[]>([]);
   const [packName, setPackName] = useState('');
@@ -1252,11 +1256,11 @@ function IconPacksBulkPanel({
     if (!list?.length) return;
     const next = Array.from(list).filter((f) => /\.(png|svg)$/i.test(f.name));
     if (!next.length) {
-      onToast({ kind: 'error', message: 'Solo .png o .svg para este pack.' });
+      onToast({ kind: 'error', message: t('admin_studio_pack_png_svg_only') });
       return;
     }
     setFiles((prev) => [...prev, ...next].slice(0, 24));
-  }, [onToast]);
+  }, [onToast, t]);
 
   const removeAt = useCallback((index: number) => {
     setFiles((prev) => prev.filter((_, i) => i !== index));
@@ -1265,11 +1269,11 @@ function IconPacksBulkPanel({
   const handleSave = useCallback(async () => {
     const name = packName.trim();
     if (!name) {
-      onToast({ kind: 'error', message: 'Indica el nombre del pack.' });
+      onToast({ kind: 'error', message: t('admin_studio_pack_name_required') });
       return;
     }
     if (files.length < 1) {
-      onToast({ kind: 'error', message: 'Arrastra entre 1 y 24 archivos.' });
+      onToast({ kind: 'error', message: t('admin_studio_pack_files_count') });
       return;
     }
     setSaving(true);
@@ -1286,14 +1290,18 @@ function IconPacksBulkPanel({
       });
       setFiles([]);
       setPackName('');
-      onToast({ kind: 'success', message: `Pack "${name}" guardado en icon_packs con ${icons.length} URLs Spaces.` });
+      onToast({
+        kind: 'success',
+        message: t('admin_studio_pack_saved', { name, count: String(icons.length) }),
+      });
       onSaved();
     } catch (error) {
-      onToast({ kind: 'error', message: error instanceof Error ? error.message : 'Error guardando el pack.' });
+      console.error('[IconPacksBulkPanel]', error);
+      onToast({ kind: 'error', message: t('admin_err_save_general') });
     } finally {
       setSaving(false);
     }
-  }, [files, packName, priceUsd, priceCs, currentUser, onToast, onSaved]);
+  }, [files, packName, priceUsd, priceCs, currentUser, onToast, onSaved, t]);
 
   return (
     <div className="space-y-5">
@@ -1396,7 +1404,7 @@ function IconPacksBulkPanel({
           className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 px-6 py-4 text-sm font-black uppercase tracking-[0.18em] text-white shadow-xl shadow-fuchsia-500/25 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Rocket className="h-5 w-5" />}
-          Guardar pack en Firestore
+          {t('admin_studio_btn_save_pack_catalog')}
         </button>
       </PanelCard>
     </div>
@@ -1412,6 +1420,7 @@ function AiSkinPanel({
   onGenerateSkinAi,
   onForgeSkinPersist,
   skinForgeSaving,
+  t,
 }: {
   state: ForgeState;
   dispatch: React.Dispatch<ForgeAction>;
@@ -1421,6 +1430,7 @@ function AiSkinPanel({
   onGenerateSkinAi: () => void;
   onForgeSkinPersist: () => void;
   skinForgeSaving: boolean;
+  t: (key: string, vars?: Record<string, string | number>) => string;
 }) {
   const skinLogoInputRef = useRef<HTMLInputElement>(null);
   const wallpaperInputRef = useRef<HTMLInputElement>(null);
@@ -1649,7 +1659,7 @@ function AiSkinPanel({
         </div>
       </PanelCard>
 
-      <PanelCard title="Icon Pack del catálogo" eyebrow="Firestore · icon_packs" icon={Layers}>
+      <PanelCard title={t('admin_studio_panel_pack_title')} eyebrow={t('admin_studio_panel_pack_eyebrow')} icon={Layers}>
         <FieldLabel>Elegir pack (creado en pestaña Icon Packs)</FieldLabel>
         <select
           value={sk.selectedIconPackId}
@@ -1664,9 +1674,7 @@ function AiSkinPanel({
           ))}
         </select>
         {forgePacks.length === 0 ? (
-          <p className="mt-3 text-xs text-amber-200/80">
-            Aún no hay packs en<code className="mx-1 rounded bg-white/10 px-1">icon_packs</code>. Crea uno en la pestaña Icon Packs.
-          </p>
+          <p className="mt-3 text-xs text-amber-200/80">{t('admin_studio_panel_pack_empty')}</p>
         ) : null}
       </PanelCard>
 
@@ -1759,7 +1767,7 @@ function AiSkinPanel({
         </div>
       </PanelCard>
 
-      <PanelCard title="Ensamblaje" eyebrow="Persistir en Firestore" icon={Rocket}>
+      <PanelCard title={t('admin_studio_panel_assembly_title')} eyebrow={t('admin_studio_panel_assembly_eyebrow')} icon={Rocket}>
         <button
           type="button"
           onClick={onForgeSkinPersist}
@@ -1769,9 +1777,7 @@ function AiSkinPanel({
           {skinForgeSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
           Forjar Skin
         </button>
-        <p className="mt-3 text-center text-[11px] font-semibold text-slate-500">
-          Guarda en<code className="mx-1 rounded bg-white/10 px-1">skins</code> con wallpaper en Spaces y referencia al pack.
-        </p>
+        <p className="mt-3 text-center text-[11px] font-semibold text-slate-500">{t('admin_studio_panel_assembly_desc')}</p>
       </PanelCard>
 
       <PanelCard title="Wallpaper preview" eyebrow="Mock Render" icon={ImageIcon}>
@@ -2045,9 +2051,8 @@ function LivePreview({
   );
 }
 
-type ToastState = { kind: 'success' | 'error'; message: string };
-
 export default function Studio() {
+  const { t } = useAdminT();
   const { user } = useAuth();
   const [state, dispatch] = useReducer(forgeReducer, initialState);
   const [fonts, setFonts] = useState<StudioFont[]>([]);
@@ -2079,11 +2084,11 @@ export default function Studio() {
       setForgeSkins(nextForgeSkins);
     } catch (error) {
       console.error(error);
-      setToast({ kind: 'error', message: 'No se pudieron sincronizar los assets de La Forja.' });
+      setToast({ kind: 'error', message: t('admin_studio_sync_fail') });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void refresh();
@@ -2130,12 +2135,12 @@ export default function Studio() {
     const data = state.icons.referenceBase64.trim();
     const mime = state.icons.referenceMime.trim() || 'image/png';
     if (!data) {
-      setToast({ kind: 'error', message: 'Sube una imagen de referencia para el paso 1.' });
+      setToast({ kind: 'error', message: t('admin_studio_ref_image_required') });
       return;
     }
     dispatch({
       type: 'ICON_PATCH',
-      patch: { analyzingBrand: true, analyzingMessage: 'Analizando logo y extrayendo colores con Gemini...' },
+      patch: { analyzingBrand: true, analyzingMessage: t('admin_studio_analyzing_brand') },
     });
     try {
       const result = await analyzeBrandReference(data, mime);
@@ -2154,21 +2159,21 @@ export default function Studio() {
       dispatch({ type: 'ICON_PATCH', patch: { analyzingBrand: false, analyzingMessage: '' } });
       setToast({
         kind: 'error',
-        message: error instanceof Error ? error.message : 'No se pudo analizar la marca.',
+        message: t('admin_studio_brand_analyze_fail'),
       });
     }
-  }, [state.icons.referenceBase64, state.icons.referenceMime]);
+  }, [state.icons.referenceBase64, state.icons.referenceMime, t]);
 
   const handleGenerateIcons = useCallback(async () => {
     if (!state.icons.brandContext.trim() && !state.icons.iconItems.trim()) {
       setToast({
         kind: 'error',
-        message: 'Indica el contexto de marca o los elementos a dibujar antes de generar.',
+        message: t('admin_studio_context_required'),
       });
       return;
     }
 
-    dispatch({ type: 'ICON_PATCH', patch: { generating: true, generatingMessage: 'Gemini: generando prompts...' } });
+    dispatch({ type: 'ICON_PATCH', patch: { generating: true, generatingMessage: t('admin_studio_generating_prompts') } });
     try {
       const pack = await generateAIIconsBatch({
         context: state.icons.brandContext,
@@ -2204,7 +2209,7 @@ export default function Studio() {
       });
     } catch (error) {
       dispatch({ type: 'ICON_PATCH', patch: { generating: false, generatingMessage: '' } });
-      setToast({ kind: 'error', message: error instanceof Error ? error.message : 'Error generando iconos con la AI.' });
+      setToast({ kind: 'error', message: t('admin_studio_icons_gen_fail') });
     }
   }, [
     state.icons.brandContext,
@@ -2215,6 +2220,7 @@ export default function Studio() {
     state.icons.colorPrimary,
     state.icons.colorSecondary,
     state.icons.colorBackground,
+    t,
   ]);
 
   const handleUploadIconFile = useCallback((file: File | null) => {
@@ -2230,13 +2236,13 @@ export default function Studio() {
     const ic = state.icons;
     const name = ic.name.trim();
     if (!name) {
-      setToast({ kind: 'error', message: 'Falta el nombre del icono.' });
+      setToast({ kind: 'error', message: t('admin_studio_icon_name_required') });
       return;
     }
 
     const folder = ic.folder === NEW_FOLDER_VALUE ? ic.newFolder.trim() : ic.folder;
     if (!folder) {
-      setToast({ kind: 'error', message: 'Especifica una carpeta para el icono.' });
+      setToast({ kind: 'error', message: t('admin_studio_icon_folder_required') });
       return;
     }
 
@@ -2246,7 +2252,7 @@ export default function Studio() {
     } else {
       const candidate = ic.candidates.find((entry) => entry.id === ic.selectedId);
       if (!candidate?.imageUrl) {
-        setToast({ kind: 'error', message: 'Selecciona un icono o sube uno propio antes de publicar.' });
+        setToast({ kind: 'error', message: t('admin_studio_icon_select_or_upload') });
         return;
       }
       source = { kind: 'url', url: candidate.imageUrl };
@@ -2266,13 +2272,14 @@ export default function Studio() {
         createdByEmail: user?.email,
       });
       dispatch({ type: 'ICON_PATCH', patch: { publishing: false, folder, newFolder: '' } });
-      setToast({ kind: 'success', message: `Icono "${name}" publicado en la tienda.` });
+      setToast({ kind: 'success', message: t('admin_studio_icon_published', { name }) });
       void refresh();
     } catch (error) {
+      console.error('[Studio] publish icon', error);
       dispatch({ type: 'ICON_PATCH', patch: { publishing: false } });
-      setToast({ kind: 'error', message: error instanceof Error ? error.message : 'Error al publicar el icono.' });
+      setToast({ kind: 'error', message: t('admin_studio_icon_publish_fail') });
     }
-  }, [state.icons, refresh, user]);
+  }, [state.icons, refresh, user, t]);
 
   const handleGenerateSkinAi = useCallback(async () => {
     dispatch({ type: 'SKIN_PATCH', patch: { generating: true } });
@@ -2283,21 +2290,22 @@ export default function Studio() {
       ]);
       dispatch({ type: 'APPLY_THEME_LOGIC', logic, wallpaperUrl });
     } catch (error) {
+      console.error('[Studio] generate skin AI', error);
       dispatch({ type: 'SKIN_PATCH', patch: { generating: false } });
-      setToast({ kind: 'error', message: error instanceof Error ? error.message : 'Error forjando el skin con Gemini.' });
+      setToast({ kind: 'error', message: t('admin_studio_skin_forge_fail') });
     }
-  }, [state.skin.prompt]);
+  }, [state.skin.prompt, t]);
 
   const handleAnalyzeSkinBrand = useCallback(async () => {
     const data = state.skin.skinLogoBase64.trim();
     const mime = state.skin.skinLogoMime.trim() || 'image/png';
     if (!data) {
-      setToast({ kind: 'error', message: 'Sube un logo o referencia para analizar la marca.' });
+      setToast({ kind: 'error', message: t('admin_studio_skin_logo_required') });
       return;
     }
     dispatch({
       type: 'SKIN_PATCH',
-      patch: { analyzingBrand: true, analyzingMessage: 'Gemini Vision: extrayendo paleta y contexto...' },
+      patch: { analyzingBrand: true, analyzingMessage: t('admin_studio_skin_analyzing') },
     });
     try {
       const result = await analyzeBrandReference(data, mime);
@@ -2316,23 +2324,23 @@ export default function Studio() {
       dispatch({ type: 'SKIN_PATCH', patch: { analyzingBrand: false, analyzingMessage: '' } });
       setToast({
         kind: 'error',
-        message: error instanceof Error ? error.message : 'No se pudo analizar la marca del skin.',
+        message: t('admin_studio_skin_brand_analyze_fail'),
       });
     }
-  }, [state.skin.prompt, state.skin.skinLogoBase64, state.skin.skinLogoMime]);
+  }, [state.skin.prompt, state.skin.skinLogoBase64, state.skin.skinLogoMime, t]);
 
   const handleForgeSkinPersist = useCallback(async () => {
     const sk = state.skin;
     if (!sk.name.trim()) {
-      setToast({ kind: 'error', message: 'Indica el nombre del skin.' });
+      setToast({ kind: 'error', message: t('admin_studio_skin_name_required') });
       return;
     }
     if (!sk.wallpaperFile) {
-      setToast({ kind: 'error', message: 'Sube un archivo de wallpaper para enviarlo a Spaces.' });
+      setToast({ kind: 'error', message: t('admin_studio_skin_wallpaper_required') });
       return;
     }
     if (!sk.selectedIconPackId) {
-      setToast({ kind: 'error', message: 'Selecciona un Icon Pack del catálogo (icon_packs).' });
+      setToast({ kind: 'error', message: t('admin_studio_skin_pack_required') });
       return;
     }
     setSkinForgeSaving(true);
@@ -2364,17 +2372,18 @@ export default function Studio() {
           wallpaperCss,
         },
       });
-      setToast({ kind: 'success', message: 'Skin forjado: documento guardado en la colección skins.' });
+      setToast({ kind: 'success', message: t('admin_studio_skin_saved') });
       void refresh();
     } catch (error) {
+      console.error('[Studio] forge skin', error);
       setToast({
         kind: 'error',
-        message: error instanceof Error ? error.message : 'No se pudo guardar el skin.',
+        message: t('admin_studio_skin_save_fail'),
       });
     } finally {
       setSkinForgeSaving(false);
     }
-  }, [state.skin, refresh, user]);
+  }, [state.skin, refresh, user, t]);
 
   const tabs: Array<{ id: ForgeTab; label: string; icon: ComponentType<{ className?: string }> }> = [
     { id: 'icons', label: 'Iconos AI', icon: Wand },
@@ -2450,7 +2459,7 @@ export default function Studio() {
           {state.tab === 'packs' ? (
             <IconPacksBulkPanel
               currentUser={user ? { uid: user.uid, email: user.email } : null}
-              onToast={(t) => setToast(t)}
+              onToast={(toastMsg) => setToast(toastMsg)}
               onSaved={() => void refresh()}
             />
           ) : null}
@@ -2464,6 +2473,7 @@ export default function Studio() {
               onGenerateSkinAi={handleGenerateSkinAi}
               onForgeSkinPersist={handleForgeSkinPersist}
               skinForgeSaving={skinForgeSaving}
+              t={t}
             />
           ) : null}
           {state.tab === 'layout' ? <LayoutPanel state={state} dispatch={dispatch} /> : null}

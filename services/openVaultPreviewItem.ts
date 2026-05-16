@@ -7,8 +7,10 @@ import type { IssuerSnapshotPayload } from '@/services/qrApi';
 
 export { ensureWebUrl } from '@/services/mirrorVaultItemOpenPlan';
 
+import type { CoreLocaleKey } from '@/services/coreI18n';
+
 export type OpenVaultPreviewItemDeps = {
-  tr: (es: string, en: string) => string;
+  t: (key: CoreLocaleKey, vars?: Record<string, string | number>) => string;
   openDocumentViewer: (item: MirrorVaultItem) => void | Promise<void>;
   /**
    * Ghost-Link: UID del titular de la tarjeta (quien recibe la llamada VoIP).
@@ -139,8 +141,8 @@ export async function openVaultPreviewItem(item: MirrorVaultItem, deps: OpenVaul
       return;
     case 'raw':
       await ActionController.ActionRaw({
-        value: plan.value || deps.tr('Sin contenido', 'No content'),
-        title: plan.title || deps.tr('Dato', 'Data'),
+        value: plan.value || deps.t('common_no_content'),
+        title: plan.title || deps.t('common_data_label'),
       });
       return;
   }

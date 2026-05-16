@@ -11,7 +11,7 @@ import MarketSyncService from '../services/marketSyncService.js';
 import { Db } from 'mongodb';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { buildUserFacingJson } = require('../lib/userFacingErrors.js');
+const { buildUserFacingJson, buildUserFacingSuccessJson } = require('../lib/userFacingErrors.js');
 
 const router = express.Router();
 
@@ -37,11 +37,13 @@ router.post('/init-vault', async (req: Request, res: Response) => {
       return res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));
     }
 
-    res.json({
-      success: true,
-      message: `Vault initialized for user ${uid}`,
-      free_icons_loaded: true,
-    });
+    res.json(
+        buildUserFacingSuccessJson(req, 'VAULT_INITIALIZED', {
+          success: true,
+          uid,
+          free_icons_loaded: true,
+        }),
+    );
   } catch (error) {
     console.error('❌ Init vault error:', error);
     res.status(500).json(buildUserFacingJson(req, 'server_error', 'SERVER_INTERNAL_ERROR'));

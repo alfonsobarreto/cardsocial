@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/useAuth';
+import { useAdminT } from '../i18n/useAdminT';
 import {
   type ModerationReport,
   type ModerationVaultItem,
@@ -15,12 +16,6 @@ import {
 } from '../services/moderationService';
 
 type Notice = { type: 'success' | 'error'; message: string };
-
-const filters: { key: ReportStatus; label: string }[] = [
-  { key: 'pending', label: 'Pending' },
-  { key: 'reviewed', label: 'Reviewed' },
-  { key: 'dismissed', label: 'Dismissed' },
-];
 
 function formatDate(value: ModerationReport['createdAt']) {
   if (!value) return 'N/A';
@@ -45,16 +40,18 @@ function shortId(value?: string) {
   return value.length > 18 ? `${value.slice(0, 16)}...` : value;
 }
 
-function statusBadge(status: ReportStatus) {
+function statusBadge(status: ReportStatus, t: (key: string) => string) {
   const classes: Record<ReportStatus, string> = {
     pending: 'bg-amber-100 text-amber-800 ring-amber-200',
     reviewed: 'bg-emerald-100 text-emerald-800 ring-emerald-200',
     dismissed: 'bg-slate-100 text-slate-700 ring-slate-200',
   };
+  const label =
+    status === 'pending' ? t('admin_mod_status_pending') : status === 'reviewed' ? t('admin_mod_status_reviewed') : t('admin_mod_status_dismissed');
 
   return (
     <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${classes[status]}`}>
-      {status}
+      {label}
     </span>
   );
 }
@@ -101,7 +98,17 @@ function VaultSection({ title, items }: { title: string; items: ModerationVaultI
 }
 
 export default function Moderation() {
+  const { t } = useAdminT();
   const { user } = useAuth();
+  const filters = useMemo(
+    () =>
+      [
+        { key: 'pending' as const, label: t('admin_mod_filter_pending') },
+        { key: 'reviewed' as const, label: t('admin_mod_filter_reviewed') },
+        { key: 'dismissed' as const, label: t('admin_mod_filter_dismissed') },
+      ] as const,
+    [t],
+  );
   const [reports, setReports] = useState<ModerationReport[]>([]);
   const [activeFilter, setActiveFilter] = useState<ReportStatus>('pending');
   const [loading, setLoading] = useState(true);
@@ -121,7 +128,7 @@ export default function Moderation() {
       setReports(nextReports);
     } catch (error) {
       console.error('[Moderation] Failed to load reports:', error);
-      setNotice({ type: 'error', message: 'No se pudieron cargar los reportes. Por favor, reintenta.' });
+      setNotice({ type: 'error', message: t('admin_mod_notice_load_fail') });
     } finally {
       setLoading(false);
     }
@@ -137,7 +144,7 @@ export default function Moderation() {
       } catch (error) {
         console.error('[Moderation] Failed to load reports:', error);
         if (isMounted) {
-          setNotice({ type: 'error', message: 'No se pudieron cargar los reportes. Por favor, reintenta.' });
+          setNotice({ type: 'error', message: t('admin_mod_notice_load_fail') });
         }
       } finally {
         if (isMounted) setLoading(false);
@@ -148,7 +155,7 @@ export default function Moderation() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [t]);
 
   const filteredReports = useMemo(
     () => reports.filter((report) => report.status === activeFilter),
@@ -173,7 +180,7 @@ export default function Moderation() {
       setNotice({ type: 'success', message: successMessage });
     } catch (error) {
       console.error('[Moderation] Action failed:', error);
-      setNotice({ type: 'error', message: 'No se pudo completar la accion.' });
+      setNotice({ type: 'error', message: t('admin_err_action_general') });
     } finally {
       setActionLoading('');
     }
@@ -181,7 +188,7 @@ export default function Moderation() {
 
   const openInvestigation = async (report: ModerationReport) => {
     if (!report.reportedUserId) {
-      setNotice({ type: 'error', message: 'Este reporte no incluye reportedUserId.' });
+      setNotice({ type: 'error', message: t('admin_mod_notice_missing_reported_user') });
       return;
     }
 
@@ -196,7 +203,7 @@ export default function Moderation() {
       setInvestigation(data);
     } catch (error) {
       console.error('[Moderation] Investigation failed:', error);
-      setNotice({ type: 'error', message: 'No se pudo abrir Modo Rayos X.' });
+      setNotice({ type: 'error', message: t('admin_mod_notice_xray_fail') });
     } finally {
       setInvestigationLoading(false);
     }
@@ -211,7 +218,7 @@ export default function Moderation() {
   const requireReason = () => {
     const reason = moderationReason.trim();
     if (!reason) {
-      setNotice({ type: 'error', message: 'El motivo de moderacion es obligatorio.' });
+      setNotice({ type: 'error', message: t('admin_mod_notice_reason_required') });
       return null;
     }
     return reason;
@@ -224,7 +231,7 @@ export default function Moderation() {
 
     void performAction(
       `warning:${investigationReport.id}`,
-      'Advertencia registrada y reporte auditado.',
+      t('admin_mod_success_warning'),
       () => warnReportedUser(investigationReport, adminEmail, reason),
     ).then(closeInvestigation);
   };
@@ -236,7 +243,7 @@ export default function Moderation() {
 
     void performAction(
       `ban:${investigationReport.id}`,
-      'Usuario suspendido y reporte auditado.',
+      t('admin_mod_success_soft_ban'),
       () => banReportedUser(investigationReport, adminEmail, reason),
     ).then(closeInvestigation);
   };
@@ -248,7 +255,7 @@ export default function Moderation() {
 
     void performAction(
       `hard-ban:${investigationReport.id}`,
-      'Hard ban aplicado y identidad agregada a banned_identities.',
+      t('admin_mod_success_hard_ban'),
       () => hardBanReportedUser(investigationReport, adminEmail, reason),
     ).then(closeInvestigation);
   };
@@ -312,7 +319,7 @@ export default function Moderation() {
         <div className="border-b border-slate-200 px-6 py-5">
           <h2 className="text-lg font-semibold text-slate-950">Reportes {activeFilter}</h2>
           <p className="mt-1 text-sm text-slate-500">
-            La tabla cruza UID con `users` para mostrar nombre/email del reportado.
+            {t('admin_mod_table_helper')}
           </p>
         </div>
 
@@ -340,7 +347,7 @@ export default function Moderation() {
                       <div className="font-semibold capitalize text-slate-900">{report.type}</div>
                       <div className="mt-1 text-xs text-slate-500">{shortId(report.id)}</div>
                     </td>
-                    <td className="px-6 py-5">{statusBadge(report.status)}</td>
+                    <td className="px-6 py-5">{statusBadge(report.status, t)}</td>
                     <td className="max-w-sm px-6 py-5">
                       <div className="font-medium text-slate-900">{report.reason}</div>
                       {report.details && <div className="mt-1 text-xs leading-5 text-slate-500">{report.details}</div>}
@@ -349,9 +356,15 @@ export default function Moderation() {
                       <div className="font-semibold text-slate-900">
                         {report.reportedUser?.displayName || shortId(report.reportedUserId)}
                       </div>
-                      <div className="mt-1 text-xs text-slate-600">{report.reportedUser?.email || 'Email no disponible'}</div>
-                      <div className="mt-1 text-xs text-slate-400">UID: {shortId(report.reportedUserId)}</div>
-                      <div className="mt-1 text-xs text-slate-400">Reporter: {shortId(report.reporterUserId)}</div>
+                      <div className="mt-1 text-xs text-slate-600">
+                        {report.reportedUser?.email || t('admin_mod_email_unavailable')}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-400">
+                        {t('admin_mod_label_reported_user')}: {shortId(report.reportedUserId)}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-400">
+                        {t('admin_mod_label_submitter')}: {shortId(report.reporterUserId)}
+                      </div>
                     </td>
                     <td className="px-6 py-5 text-slate-600">{formatDate(report.createdAt)}</td>
                     <td className="px-6 py-5">
@@ -371,7 +384,7 @@ export default function Moderation() {
                           onClick={() =>
                             void performAction(
                               `reviewed:${report.id}`,
-                              'Reporte marcado como revisado.',
+                              t('admin_mod_success_reviewed'),
                               () => markReportReviewed(report.id, adminEmail, report.sourceCollection),
                             )
                           }
@@ -385,7 +398,7 @@ export default function Moderation() {
                           onClick={() =>
                             void performAction(
                               `dismiss:${report.id}`,
-                              'Reporte desestimado correctamente.',
+                              t('admin_mod_success_dismissed'),
                               () => dismissReport(report.id, adminEmail, report.sourceCollection),
                             )
                           }
@@ -413,7 +426,8 @@ export default function Moderation() {
                     {investigation?.profile?.displayName || shortId(investigationReport.reportedUserId)}
                   </h2>
                   <p className="mt-1 text-sm text-slate-500">
-                    {investigation?.profile?.email || 'Email no disponible'} · UID {shortId(investigationReport.reportedUserId)}
+                    {investigation?.profile?.email || t('admin_mod_email_unavailable')} ·{' '}
+                    {t('admin_mod_label_account_id')} {shortId(investigationReport.reportedUserId)}
                   </p>
                 </div>
                 <button

@@ -9,6 +9,7 @@ import {
   updateTiersConfig,
 } from '../services/rulesService';
 import { useAuth } from '../auth/useAuth';
+import { useAdminT } from '../i18n/useAdminT';
 import MarketRadarProPanel from './MarketRadarProPanel';
 
 const TIER_META: { key: TierKey; title: string; subtitle: string; accent: string }[] = [
@@ -35,6 +36,7 @@ const TIER_META: { key: TierKey; title: string; subtitle: string; accent: string
 type Toast = { type: 'success' | 'error'; message: string };
 
 export default function RulesTiers() {
+  const { t } = useAdminT();
   const { user } = useAuth();
   const [config, setConfig] = useState<TiersConfig>(DEFAULT_TIERS_CONFIG);
   const [auditLogs, setAuditLogs] = useState<PricingAuditLog[]>([]);
@@ -58,7 +60,7 @@ export default function RulesTiers() {
         if (isMounted) {
           setToast({
             type: 'error',
-            message: 'Error al cargar la configuración de precios. Por favor, reintenta.',
+            message: t('admin_rules_tiers_load_fail'),
           });
         }
       } finally {
@@ -73,7 +75,7 @@ export default function RulesTiers() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!toast || toast.type !== 'success') return;
@@ -112,10 +114,10 @@ export default function RulesTiers() {
     try {
       await updateTiersConfig(config, adminEmail);
       await refreshAuditLogs();
-      setToast({ type: 'success', message: 'Cambios guardados y publicados. La app y la landing ya pueden leer los nuevos precios.' });
+      setToast({ type: 'success', message: t('admin_rules_tiers_save_ok') });
     } catch (error) {
       console.error('[RulesTiers] Failed to save tiers config:', error);
-      setToast({ type: 'error', message: 'No se pudieron guardar los cambios.' });
+      setToast({ type: 'error', message: t('admin_rules_tiers_save_fail') });
     } finally {
       setSaving(false);
     }
@@ -421,9 +423,7 @@ export default function RulesTiers() {
               <p className="mt-2 text-sm text-slate-500">
                 Par USD + CS por zona (Regla de los dos casilleros). La app muestra ambos montos publicados.
               </p>
-              <p className="mt-1 font-mono text-xs text-slate-400">
-                Firestore: addOns.shipping*Usd y addOns.shipping*Cs
-              </p>
+              <p className="mt-1 text-xs text-slate-500">{t('admin_rules_tiers_shipping_storage_note')}</p>
               <div className="mt-4 grid gap-4 md:grid-cols-6">
                 <label className="block md:col-span-3">
                   <span className="text-sm font-medium text-slate-700">US domestic — USD</span>

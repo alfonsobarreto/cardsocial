@@ -6,12 +6,14 @@ import {
   updateCommerceAdminConfig,
 } from '../services/commerceAdminService';
 import { useAuth } from '../auth/useAuth';
+import { useAdminT } from '../i18n/useAdminT';
 
 function emptyRow(): CommerceCreditPackRow {
   return { id: `pack_${Date.now()}`, productId: '', priceUsd: 0, equivalentCs: 0, popular: false };
 }
 
 export default function RulesCommerce() {
+  const { t } = useAdminT();
   const { user } = useAuth();
   const [config, setConfig] = useState<CommerceAdminConfig>({ creditPacks: [] });
   const [loading, setLoading] = useState(true);
@@ -25,7 +27,7 @@ export default function RulesCommerce() {
         const c = await getCommerceAdminConfig();
         if (alive) setConfig(c);
       } catch {
-        if (alive) setToast({ type: 'err', message: 'Error al cargar la configuración comercial. Por favor, reintenta.' });
+        if (alive) setToast({ type: 'err', message: t('admin_commerce_load_fail') });
       } finally {
         if (alive) setLoading(false);
       }
@@ -33,7 +35,7 @@ export default function RulesCommerce() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [t]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -41,9 +43,9 @@ export default function RulesCommerce() {
     setToast(null);
     try {
       await updateCommerceAdminConfig(config, user?.email || 'unknown-admin');
-      setToast({ type: 'ok', message: 'Catálogo publicado. Los cambios ya están disponibles para la app.' });
+      setToast({ type: 'ok', message: t('admin_commerce_save_ok') });
     } catch {
-      setToast({ type: 'err', message: 'Error al guardar.' });
+      setToast({ type: 'err', message: t('admin_commerce_save_fail') });
     } finally {
       setSaving(false);
     }

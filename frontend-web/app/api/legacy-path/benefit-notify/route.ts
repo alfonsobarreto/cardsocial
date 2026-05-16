@@ -6,12 +6,13 @@ import { Resend } from 'resend';
 
 import { resolveAdminApp, shouldLogFirebaseAdmin } from '@/lib/firebaseAdminStudio';
 import {
-  LEGACY_PHYSICAL_BENEFIT_SUBJECT_ES,
-  buildLegacyBenefitPlainTextEs,
+  buildLegacyBenefitPlainText,
+  legacyBenefitSubject,
   minReferralsMetForBenefitNotify,
   type BenefitMilestone,
 } from '@card-social/services/legacyPhysicalBenefitEmailCopy';
 import { pickLocaleFromHeaders, userFacingMessageForErrorCode } from '@/lib/userFacingApiMessages';
+import { machineSuccessUserMessage } from '@card-social/services/machineSuccessCatalog';
 
 export const runtime = 'nodejs';
 
@@ -102,7 +103,14 @@ export async function POST(req: Request) {
     const already =
       milestone === 'pvc_or_higher' ? Boolean(sent.pvcOrHigher) : Boolean(sent.metal);
     if (already) {
-      return NextResponse.json({ ok: true, skipped: 'already_sent' }, { status: 200, headers: cors });
+      return NextResponse.json(
+        {
+          ok: true,
+          successCode: 'ALREADY_SENT',
+          message: machineSuccessUserMessage('ALREADY_SENT', loc),
+        },
+        { status: 200, headers: cors },
+      );
     }
 
     if (count < minimum) {
@@ -134,13 +142,14 @@ export async function POST(req: Request) {
           ? String(data.nickname).trim()
           : 'Card‑Social Maker';
 
-    const plain = buildLegacyBenefitPlainTextEs(name, milestone, count);
+    const emailLocale = loc;
+    const plain = buildLegacyBenefitPlainText(emailLocale, name, milestone, count);
 
     const resend = new Resend(apiKey);
     await resend.emails.send({
       from,
       to: recipientEmail.trim(),
-      subject: LEGACY_PHYSICAL_BENEFIT_SUBJECT_ES,
+      subject: legacyBenefitSubject(emailLocale),
       text: plain,
       html: `<p style="font-family:Segoe UI,Roboto,sans-serif;font-size:16px;line-height:1.55;">${plain.replace(/\n/g, '<br />')}</p>`,
     });

@@ -17,6 +17,8 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import QRCode from 'react-native-qrcode-svg';
+import { useCoreT } from '@/services/coreI18n';
+import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { hardLockCheck } from '@/services/biometricAuth';
 import { trEsEn, useLanguage } from '@/services/language';
 import { generateQRGift } from '@/services/qrGiftService';
@@ -37,6 +39,7 @@ interface MintQRGeneratorProps {
  */
 const MintQRGenerator: React.FC<MintQRGeneratorProps> = ({ onClose, pochobsUid }) => {
   const { language } = useLanguage();
+  const t = useCoreT();
   const tr = (es: string, en: string) => trEsEn(es, en, language);
   const [creditsAmount, setCreditsAmount] = useState('500');
   const [monthsAmount, setMonthsAmount] = useState('1');
@@ -96,7 +99,7 @@ const MintQRGenerator: React.FC<MintQRGeneratorProps> = ({ onClose, pochobsUid }
       setLoading(true);
 
       // 1. FaceID Hard Lock - Validación biométrica OBLIGATORIA
-      const biometricValid = await hardLockCheck(pochobsUid);
+      const biometricValid = await hardLockCheck(t('common_auth_required'));
       if (!biometricValid) {
         Alert.alert(
           tr('❌ Acceso denegado', '❌ Access denied'),
@@ -125,10 +128,10 @@ const MintQRGenerator: React.FC<MintQRGeneratorProps> = ({ onClose, pochobsUid }
           `Code: ${qrGift.id}\nTotal: ${parseInt(creditsAmount) * parseInt(maxPeople)} CS`,
         ),
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       Alert.alert(
         tr('Error', 'Error'),
-        error?.message || tr('No se pudo generar el código', 'Could not generate the code'),
+        userFacingAlertMessage(error, language, tr('No se pudo generar el código', 'Could not generate the code')),
       );
       console.error('Generate QR error:', error);
     } finally {
