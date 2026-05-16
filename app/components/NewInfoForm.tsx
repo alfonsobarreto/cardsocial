@@ -48,7 +48,9 @@ import {
     getOwnedIconVaultKeySet,
     stableKeyForCatalogIcon,
 } from '@/services/iconVaultService';
-import { trEsEn, useLanguage } from '@/services/language';
+import { useCreationT } from '@/services/creationI18n';
+import { useCoreT } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { ModerationRejectedError, uploadFileWithModeration } from '@/services/moderationApi';
 import { newEntityId } from '@/services/newEntityId';
@@ -136,7 +138,7 @@ const CLOUD_SYNC_TIMEOUT_MS = 120000;
 
 type DataType = 'Enlaces' | 'Teléfono' | 'Ghost-Link' | 'Email' | 'Texto Plain' | 'Documento';
 
-/** Solo key + icono; las etiquetas van con `tr()` para pt/fr/it vía fragmentos i18n. */
+/** Solo key + icono; etiquetas vía `creationLocales` (6 idiomas). */
 const DATA_TYPE_OPTION_DEFS: Array<{
   key: DataType;
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
@@ -198,30 +200,30 @@ const PICKER_STALE_LOCK_MS = 120000;
 const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingData?: Link }) => {
   const { resolvedMode } = useLookMode();
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
-  /** Literales `tr('es','en')` para que `npm run i18n:extract` genere `ui.x*` en fragmentos (pt/fr/it). */
+  const tcx = useCreationT();
+  const corex = useCoreT();
   const dataTypeOptions = useMemo(
     () =>
       DATA_TYPE_OPTION_DEFS.map((o) => {
         let label: string;
         switch (o.key) {
           case 'Enlaces':
-            label = tr('Enlace', 'Link');
+            label = tcx('form_type_link');
             break;
           case 'Email':
-            label = tr('Email', 'Email');
+            label = tcx('form_type_email');
             break;
           case 'Teléfono':
-            label = tr('Teléfono', 'Phone');
+            label = tcx('form_type_phone');
             break;
           case 'Texto Plain':
-            label = tr('Texto', 'Text');
+            label = tcx('form_type_text');
             break;
           case 'Documento':
-            label = tr('Documento', 'Document');
+            label = tcx('form_type_document');
             break;
           case 'Ghost-Link':
-            label = tr('Ghost Link', 'Ghost Link');
+            label = tcx('form_type_ghost');
             break;
           default: {
             const _exhaustive: never = o.key;
@@ -231,7 +233,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         }
         return { ...o, label };
       }),
-    [tr, language],
+    [tcx],
   );
   /** Ejemplos de URL en inputs: no usan fragmentos i18n (evita ~6 claves ui.* por idioma). ES vs resto en inglés. */
   const socialUrlPlaceholder = (esExample: string, enExample: string) =>
@@ -357,10 +359,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   // Tracks the last saved link id so background favicon updates can patch it silently
   const savedLinkIdRef = useRef<string | null>(null);
   const savedUserIdRef = useRef<string | null>(null);
-  const retryLockMessage = tr(
-    'Estamos cuidando la integridad de la comunidad. Por favor, espera un momento antes de intentar de nuevo',
-    'We are protecting community integrity. Please wait a moment before trying again'
-  );
+  const retryLockMessage = tcx('form_retry_lock_message');
   const isRetryLocked = retryLockedUntil !== null && retryLockedUntil > Date.now();
 
   const logAssetAudit = (stage: string, payload: Record<string, any>) => {
@@ -462,10 +461,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     }
 
     setRejectionAttempts(attempts);
-    setModerationAlertMessage(tr(
-      'Parece que tu sonrisa no se ve clara. Intenta de nuevo para asegurar tu acceso premium.',
-      'Your smile does not appear clear. Please try again to ensure your premium access.'
-    ));
+    setModerationAlertMessage(tcx('form_moderation_smile'));
     setModerationAlertVisible(true);
   };
 
@@ -567,28 +563,23 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   const vaultCategoryPrimaryLabel = useMemo(() => {
     if (creatingNewVaultCategory) {
       const d = newVaultCategoryDraft.trim();
-      return d ? d : tr('Nueva carpeta', 'New folder');
+      return d ? d : tcx('form_vault_new_folder');
     }
     const sel = selectedVaultCategoryCanon.trim();
     if (!sel) {
-      return tr('Seleccionar carpeta', 'Pick a folder');
+      return tcx('form_vault_pick_folder');
     }
     return vaultCategorySectionTitle(sel, language);
-  }, [
-    creatingNewVaultCategory,
-    newVaultCategoryDraft,
-    selectedVaultCategoryCanon,
-    language,
-  ]);
+  }, [creatingNewVaultCategory, newVaultCategoryDraft, selectedVaultCategoryCanon, language, tcx]);
 
   const vaultCategorySecondaryLabel = useMemo(() => {
     if (creatingNewVaultCategory) {
       return newVaultCategoryDraft.trim()
-        ? tr('Confirmá con CREAR', 'Confirm with CREATE')
-        : tr('Opcional: elegí otra desde el mismo selector', 'Or pick another from the same selector');
+        ? tcx('form_vault_confirm_create')
+        : tcx('form_vault_pick_other');
     }
-    return tr('Agrupa tu Bóveda por carpetas', 'Organize your Vault into folders');
-  }, [creatingNewVaultCategory, newVaultCategoryDraft, language]);
+    return tcx('form_vault_organize');
+  }, [creatingNewVaultCategory, newVaultCategoryDraft, tcx]);
 
   const vaultCategoryLayoutAnimateSkipRef = useRef(true);
   useEffect(() => {
@@ -702,20 +693,13 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       if (!fetchedIcon) {
         setFaviconLoading(false);
         setFaviconUrl('');
-        Alert.alert(
-          tr('Sin favicon disponible', 'No favicon available'),
-          tr(
-            'No encontramos favicon para este sitio.',
-            'We could not find a favicon for this site.'
-          ),
-          [
-            { text: 'OK', style: 'cancel' },
-            {
-              text: tr('Abrir Cofre de Iconos', 'Open Icon Vault'),
-              onPress: () => setIconModalVisible(true),
-            },
-          ]
-        );
+        Alert.alert(tcx('form_favicon_none_title'), tcx('form_favicon_none_body'), [
+          { text: tcx('create_ok'), style: 'cancel' },
+          {
+            text: tcx('form_open_icon_vault'),
+            onPress: () => setIconModalVisible(true),
+          },
+        ]);
         return;
       }
 
@@ -806,7 +790,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             ]}
           >
             <Text style={[styles.linkPreviewSectionLabel, { color: formTheme.labelGold }]}>
-              {tr('VISTA PREVIA', 'PREVIEW')}
+              {tcx('form_preview')}
             </Text>
             <View style={styles.linkPreviewRow}>
               <LinearGradient
@@ -834,7 +818,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               </LinearGradient>
               <View style={styles.linkPreviewTextCol}>
                 <Text style={[styles.linkPreviewTitle, { color: formTheme.textPrimary }]} numberOfLines={1}>
-                  {dataName.trim() || tr('Sin nombre', 'No name')}
+                  {dataName.trim() || tcx('form_no_name')}
                 </Text>
                 <Text style={[styles.linkPreviewUrl, { color: formTheme.textSecondary }]} numberOfLines={1}>
                   {dataValue.trim() || getLinkPlaceholder()}
@@ -848,7 +832,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       {dataType === 'Enlaces' && !!linkFaviconDomain && (
         <View style={styles.faviconPromptCard}>
           <Text style={styles.faviconPromptTitle}>
-            {tr('¿Buscar favicon de esta web?', 'Find this website favicon?')}
+            {tcx('form_favicon_find_web')}
           </Text>
           <Text style={styles.faviconPromptSubtitle}>
             {linkFaviconDomain}
@@ -857,7 +841,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             <View style={styles.faviconPromptLoading}>
               <BrandedSpinner size={36} color="#E9C349" />
               <Text style={[styles.faviconPromptLoadingText, { color: formTheme.textSecondary }]}>
-                {tr('Buscando favicon…', 'Searching for favicon…')}
+                {tcx('form_favicon_searching')}
               </Text>
             </View>
           ) : (
@@ -872,7 +856,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                   }
                 }}
               >
-                <Text style={styles.faviconPromptGhostBtnText}>{tr('No, gracias', 'No, thanks')}</Text>
+                <Text style={styles.faviconPromptGhostBtnText}>{tcx('form_no_thanks')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.faviconPromptBtn, styles.faviconPromptPrimaryBtn]}
@@ -880,7 +864,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                   void runFaviconLookup();
                 }}
               >
-                <Text style={styles.faviconPromptPrimaryBtnText}>{tr('Buscar favicon ahora', 'Find favicon now')}</Text>
+                <Text style={styles.faviconPromptPrimaryBtnText}>{tcx('form_find_favicon_now')}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -899,9 +883,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             ]}
           >
             <Image source={{ uri: faviconUrl }} style={styles.faviconImg} />
-            <Text style={[styles.faviconLabel, { color: formTheme.labelGold }]}>{tr('Favicon detectado', 'Favicon detected')}</Text>
+            <Text style={[styles.faviconLabel, { color: formTheme.labelGold }]}>{tcx('form_favicon_detected')}</Text>
           </View>
-          <Text style={[styles.wordCount, { color: formTheme.textSecondary }]}>{tr('Si quieres otro estilo, elige un icono de la galería oficial.', 'Want a different style? Pick an icon from the official gallery.')}</Text>
+          <Text style={[styles.wordCount, { color: formTheme.textSecondary }]}>{tcx('form_favicon_style_hint')}</Text>
         </View>
       )}
     </View>
@@ -974,7 +958,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setUploadModalVisible(false);
     setIsUploading(false);
     setUploadProgress(0);
-    setUploadStageLabel(tr('Iniciando...', 'Starting...'));
+    setUploadStageLabel(tcx('form_iniciando'));
     setIsCompressing(false);
     setModerationAlertVisible(false);
     setModerationAlertMessage('');
@@ -1023,7 +1007,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setDataValue(pendingAsset.uri);
     if (!dataName.trim()) {
       const baseName = pendingAsset.name.replace(/\.[^/.]+$/, '');
-      setDataName(baseName || tr('Documento', 'Document'));
+      setDataName(baseName || tcx('form_document_default'));
     }
     setAssetPreviewVisible(false);
     setPendingAsset(null);
@@ -1034,7 +1018,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     setDataValue('');
     documentUploadMetaRef.current = null;
     setUploadProgress(0);
-    setUploadStageLabel(tr('Iniciando...', 'Starting...'));
+    setUploadStageLabel(tcx('form_iniciando'));
     setIsUploading(false);
     setAssetPreviewVisible(false);
     setPendingAsset(null);
@@ -1057,17 +1041,17 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       if (fileSizeInBytes > maxSize) {
         return {
           valid: false,
-          message: tr(
-            `❌ Archivo muy grande (${(fileSizeInBytes / (1024 * 1024)).toFixed(2)} MB).\nMáximo: ${maxSizeInMB} MB`,
-            `❌ File too large (${(fileSizeInBytes / (1024 * 1024)).toFixed(2)} MB).\nMax: ${maxSizeInMB} MB`
-          ),
+          message: tcx('form_file_too_large_msg', {
+            mb: (fileSizeInBytes / (1024 * 1024)).toFixed(2),
+            maxMb: String(maxSizeInMB),
+          }),
         };
       }
 
       return { valid: true };
     } catch (error) {
       console.error('Error validating file size:', error);
-      return { valid: false, message: tr('Error al validar tamaño del archivo', 'Error validating file size') };
+      return { valid: false, message: tcx('form_validate_size_error') };
     }
   };
 
@@ -1098,13 +1082,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
   };
 
   const alertVaultImageTooLarge = () => {
-    Alert.alert(
-      tr('Imagen demasiado grande', 'Image too large'),
-      tr(
-        'La imagen es demasiado grande. Intenta usar una foto con menos resolución.',
-        'The image is too large. Try using a photo with lower resolution.',
-      ),
-    );
+    Alert.alert(tcx('form_image_too_large_title'), tcx('form_image_too_large_body'));
   };
 
   /** Redimensiona borde largo ≤2000px, JPEG 0.8, y re-comprime hasta caber en maxBytes (p. ej. 5MB). */
@@ -1194,8 +1172,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       if (currentSize > maxBytes) {
         Toast.show({
           type: 'info',
-          text1: tr('⚠️ PDF sin optimizar', '⚠️ PDF not optimized'),
-          text2: tr('La optimización de PDF no está disponible. Intenta con un archivo más ligero.', 'PDF optimization is unavailable. Try a lighter file.'),
+          text1: tcx('form_pdf_warn_title'),
+          text2: tcx('form_pdf_warn_body'),
           position: 'bottom',
           visibilityTime: 4000,
           autoHide: true,
@@ -1286,10 +1264,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       ActionSheetIOS.showActionSheetWithOptions(
         {
           options: [
-            tr('Cancelar', 'Cancel'),
-            tr('Tomar foto', 'Take photo'),
-            tr('Elegir imagen', 'Choose image'),
-            tr('Elegir documento', 'Choose document'),
+            tcx('form_cancel'),
+            tcx('form_ios_take_photo'),
+            tcx('form_ios_pick_image'),
+            tcx('form_ios_pick_document'),
           ],
           cancelButtonIndex: 0,
         },
@@ -1385,13 +1363,13 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       logPickerTrace('PICK_PHOTOS_PERMISSION_RESULT', { status });
       if (status !== 'granted') {
-        Alert.alert(tr('Permiso denegado', 'Permission denied'), tr('Se necesita acceso a fotos', 'Photo access required'));
+        Alert.alert(tcx('form_perm_denied'), tcx('form_photos_needed'));
         return;
       }
       logPickerTrace('PICK_PHOTOS_SHEET_CLOSED_WAITING_FRAME');
       await waitForModalCloseFrame();
       Toast.show({
-        text1: tr('Subiendo archivo...', 'Uploading file...'),
+        text1: tcx('form_uploading'),
         type: 'info',
         position: 'bottom',
         visibilityTime: 4000,
@@ -1407,7 +1385,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         allowsEditing: false,
         quality: 0.8,
         }),
-        tr('La galería tardó demasiado en responder. Reintenta.', 'Gallery took too long to respond. Please retry.')
+        tcx('form_gallery_timeout')
       );
       logPickerTrace('PICK_PHOTOS_LIBRARY_RESULT', {
         canceled: result.canceled,
@@ -1455,8 +1433,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         code: String((error as any)?.code || ''),
       });
       Alert.alert(
-        tr('No se pudo abrir la galería', 'Could not open gallery'),
-        tr('Intenta nuevamente o elige un archivo desde documentos.', 'Try again or choose a file from documents.')
+        tcx('form_gallery_fail_title'),
+        tcx('form_gallery_fail_body')
       );
     } finally {
       stopPickerGuard('pick_photos');
@@ -1527,8 +1505,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       } else if (isPdfAsset(file.uri, file.mimeType)) {
         if (incomingSize > MAX_DOCUMENT_SIZE) {
           Alert.alert(
-            tr('PDF demasiado pesado', 'PDF too large'),
-            tr('El PDF supera 20 MB. Elige uno más ligero para evitar bloqueos.', 'The PDF exceeds 20 MB. Choose a lighter file to avoid freezes.')
+            tcx('form_pdf_large_title'),
+            tcx('form_pdf_20mb')
           );
           return;
         }
@@ -1540,8 +1518,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
         if (finalSize > MAX_DOCUMENT_SIZE) {
           Alert.alert(
-            tr('PDF demasiado pesado', 'PDF too large'),
-            tr('El PDF excede el límite seguro incluso tras optimizar. Usa una versión más ligera.', 'The PDF exceeds the safe limit even after optimization. Use a lighter version.')
+            tcx('form_pdf_large_title'),
+            tcx('form_pdf_safe_limit')
           );
           return;
         }
@@ -1550,8 +1528,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           const validation = await validateFileSize(file.uri);
           if (!validation.valid) {
             Alert.alert(
-              tr('Archivo no soportado', 'Unsupported file'),
-              tr('Este formato no es compatible en esta carga segura. Usa imagen o PDF.', 'This format is not supported for secure upload. Use image or PDF.')
+              tcx('form_unsupported_title'),
+              tcx('form_unsupported_body')
             );
             return;
           }
@@ -1587,7 +1565,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         message: String((error as any)?.message || ''),
         code: String((error as any)?.code || ''),
       });
-      Alert.alert(tr('Error', 'Error'), tr('No se pudo seleccionar el documento', 'Could not select document'));
+      Alert.alert(corex('common_error'), tcx('form_doc_pick_fail'));
     } finally {
       stopPickerGuard('pick_document');
       isPickingRef.current = false;
@@ -1610,13 +1588,13 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       logPickerTrace('PICK_CAMERA_PERMISSION_RESULT', { status });
       if (status !== 'granted') {
-        Alert.alert(tr('Permiso denegado', 'Permission denied'), tr('Se necesita acceso a la cámara', 'Camera access required'));
+        Alert.alert(tcx('form_perm_denied'), tcx('form_camera_needed'));
         return;
       }
       logPickerTrace('PICK_CAMERA_SHEET_CLOSED_WAITING_FRAME');
       await waitForModalCloseFrame();
       Toast.show({
-        text1: tr('Subiendo archivo...', 'Uploading file...'),
+        text1: tcx('form_uploading'),
         type: 'info',
         position: 'bottom',
         visibilityTime: 4000,
@@ -1632,7 +1610,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         allowsEditing: false,
         quality: 0.8,
         }),
-        tr('La cámara tardó demasiado en responder. Reintenta.', 'Camera took too long to respond. Please retry.')
+        tcx('form_camera_timeout')
       );
       logPickerTrace('PICK_CAMERA_RESULT', {
         canceled: result.canceled,
@@ -1679,8 +1657,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         code: String((error as any)?.code || ''),
       });
       Alert.alert(
-        tr('No se pudo abrir la cámara', 'Could not open camera'),
-        tr('Cierra otras apps de cámara y vuelve a intentar.', 'Close other camera apps and try again.')
+        tcx('form_camera_fail_title'),
+        tcx('form_camera_fail_body')
       );
     } finally {
       stopPickerGuard('pick_camera');
@@ -1864,11 +1842,11 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         (meta?.mimeType && meta.mimeType.trim()) || inferMimeType(fileUri) || 'application/octet-stream';
 
       setUploadProgress(0);
-      setUploadStageLabel(tr('Preparando...', 'Preparing...'));
+      setUploadStageLabel(tcx('form_preparing'));
       setIsUploading(true);
       setUploadModalVisible(true);
       setUploadProgress(0.2);
-      setUploadStageLabel(tr('Enviando...', 'Sending...'));
+      setUploadStageLabel(tcx('form_sending'));
 
       const fileInfo = await FileSystem.getInfoAsync(fileUri, { size: true } as any).catch(() => null);
       logAssetAudit('UPLOAD_ATTEMPT', {
@@ -1889,9 +1867,9 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       });
 
       setUploadProgress(0.8);
-      setUploadStageLabel(tr('Moderando...', 'Moderating...'));
+      setUploadStageLabel(tcx('form_moderating'));
       setUploadProgress(1);
-      setUploadStageLabel(tr('Aprobado ✓', 'Approved ✓'));
+      setUploadStageLabel(tcx('form_approved'));
 
       documentUploadMetaRef.current = null;
 
@@ -1925,22 +1903,16 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
     console.log('[Vault] handleCreate: INICIO');
     console.log('[Vault] handleCreate: Antes de Validaciones Iniciales');
     if (dataType === GHOST_LINK_VAULT_TYPE && !editingData?.id) {
-      Alert.alert(
-        tr('Ghost-Link', 'Ghost-Link'),
-        tr(
-          'Card-Social ya incluye un Ghost-Link en tu Bóveda. Edítalo desde el menú del ítem; no puedes crear otro.',
-          'Card-Social already includes one Ghost-Link in your Vault. Edit it from the item menu; you cannot add another.',
-        ),
-      );
+      Alert.alert(tcx('form_ghost_link_title'), tcx('form_ghost_link_body'));
       return;
     }
     if (!dataName.trim() || (!dataValue.trim() && dataType !== GHOST_LINK_VAULT_TYPE)) {
-      Alert.alert(tr('❌ Error', '❌ Error'), tr('Completa todos los campos', 'Fill in all fields'));
+      Alert.alert(tcx('form_err_title'), tcx('form_fill_fields'));
       return;
     }
     // #16 Format validation per type
     if (dataType === 'Email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dataValue.trim())) {
-      Alert.alert(tr('❌ Error', '❌ Error'), tr('Introduce un email válido', 'Enter a valid email'));
+      Alert.alert(tcx('form_err_title'), tcx('form_bad_email'));
       return;
     }
     if (dataType === 'Teléfono') {
@@ -1948,11 +1920,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       const { min, max } = getNationalDigitBounds(countryCode);
       if (n.length < min || n.length > max) {
         Alert.alert(
-          tr('❌ Error', '❌ Error'),
-          tr(
-            `Introduce entre ${min} y ${max} dígitos (sin prefijo).`,
-            `Enter between ${min} and ${max} digits (without country code).`,
-          ),
+          tcx('form_err_title'),
+          tcx('form_phone_len', { min, max }),
         );
         return;
       }
@@ -1961,21 +1930,21 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       let testUrl = dataValue.trim();
       if (!/^https?:\/\//i.test(testUrl)) testUrl = 'https://' + testUrl;
       if (!/^https?:\/\/[^\s]+\.[^\s]+/.test(testUrl)) {
-        Alert.alert(tr('❌ Error', '❌ Error'), tr('Introduce una URL válida', 'Enter a valid URL'));
+        Alert.alert(tcx('form_err_title'), tcx('form_bad_url'));
         return;
       }
     }
     if (dataType === 'Texto Plain') {
       const wordCount = dataValue.split(/\s+/).filter(w => w).length;
       if (wordCount > 200) {
-        Alert.alert(tr('❌ Error', '❌ Error'), tr('Máximo 200 palabras permitidas', 'Maximum 200 words allowed'));
+        Alert.alert(tcx('form_err_title'), tcx('form_max_words_200'));
         return;
       }
     }
     console.log('[Vault] handleCreate: Después de Validaciones Iniciales');
     console.log('[Vault] handleCreate: Antes de Chequeo de Bloqueos/Biométrico');
     const biometricOk = await hardLockCheck(
-      editingData?.id ? tr('actualizar un dato del Búnker', 'update a Vault item') : tr('crear un dato en el Búnker', 'create a Vault item'),
+      editingData?.id ? tcx('form_hardlock_update') : tcx('form_hardlock_create'),
     );
     if (!biometricOk) {
       console.log('[Vault] handleCreate: hardLockCheck falló');
@@ -1995,7 +1964,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       const userId = await getActiveUserId();
       console.log('[Vault] handleCreate: Después de getActiveUserId', userId);
       if (!userId) {
-        Alert.alert(tr('❌ Error', '❌ Error'), tr('No se pudo identificar al usuario activo', 'Could not identify active user'));
+        Alert.alert(tcx('form_err_title'), tcx('form_bad_user'));
         return;
       }
       console.log('[Vault] handleCreate: Antes de AsyncStorage.getItem');
@@ -2017,10 +1986,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         return !sameId && title === normalizedTitle;
       });
       if (duplicateByTitle) {
-        Alert.alert(
-          tr('⚠️ Nombre duplicado', '⚠️ Duplicate name'),
-          tr('Ya existe un dato con ese nombre. Usa un nombre diferente.', 'An item with that name already exists. Use a different name.'),
-        );
+        Alert.alert(tcx('form_dup_title'), tcx('form_dup_body'));
         return;
       }
       const catalogPick = selectedIcon === 'favicon' ? undefined : galleryItemByStableOrLegacy(selectedIcon);
@@ -2068,13 +2034,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         );
         const resolvedUrl = String(filePublicUrl || '').trim();
         if (!resolvedUrl) {
-          Alert.alert(
-            tr('Subida incompleta', 'Upload incomplete'),
-            tr(
-              'No se obtuvo enlace del archivo. Comprueba que DigitalOcean Spaces esté configurado en el servidor.',
-              'No file URL was returned. Verify DigitalOcean Spaces is configured on the server.',
-            ),
-          );
+          Alert.alert(tcx('form_upload_partial_title'), tcx('form_upload_partial_body'));
           return;
         }
         finalValue = resolvedUrl;
@@ -2090,20 +2050,11 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       if (creatingNewVaultCategory) {
         vaultCategoryCanon = newVaultCategoryDraft.trim();
         if (!vaultCategoryCanon) {
-          Alert.alert(
-            tr('Nombre de carpeta obligatorio', 'Folder name required'),
-            tr(
-              'Escribí el nombre de la nueva categoría o elegí una existente.',
-              'Enter a new folder name or pick an existing one.',
-            ),
-          );
+          Alert.alert(tcx('form_folder_required_title'), tcx('form_folder_required_body'));
           return;
         }
         if (vaultCategoryCanon.length > 64) {
-          Alert.alert(
-            tr('Nombre muy largo', 'Name too long'),
-            tr('Usa como máximo 64 caracteres.', 'Use up to 64 characters.'),
-          );
+          Alert.alert(tcx('form_name_long_title'), tcx('form_name_long_body'));
           return;
         }
       } else {
@@ -2187,8 +2138,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       })();
       Toast.show({
         type: 'success',
-        text1: tr('🛡️ ¡Dato guardado en el Búnker!', '🛡️ Data saved to Vault!'),
-        text2: tr('✓ Guardado localmente', '✓ Saved locally'),
+        text1: tcx('form_saved_title'),
+        text2: tcx('form_saved_local'),
         position: 'bottom',
         visibilityTime: 3000,
         autoHide: true,
@@ -2213,8 +2164,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             }
             Toast.show({
               type: 'success',
-              text1: tr('☁️ Sincronización completada', '☁️ Cloud sync completed'),
-              text2: tr('✓ Dato respaldado en la nube', '✓ Item backed up to cloud'),
+              text1: tcx('form_cloud_done_title'),
+              text2: tcx('form_cloud_done_sub'),
               position: 'bottom',
               visibilityTime: 2200,
               autoHide: true,
@@ -2232,7 +2183,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       if (error instanceof ModerationRejectedError) {
         Toast.show({
           type: 'error',
-          text1: tr('🚫 Contenido no permitido. Revisa las reglas.', '🚫 Content not allowed. Check the rules.'),
+          text1: tcx('form_content_blocked'),
           position: 'bottom',
           visibilityTime: 3000,
           autoHide: true,
@@ -2240,11 +2191,11 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         registerModerationReject();
       } else {
         Alert.alert(
-          tr('Error al subir', 'Upload error'),
-          userFacingAlertMessage(error, language, tr('No se pudo guardar el dato. ¿Reintentar?', 'Could not save data. Retry?')),
+          tcx('form_upload_err'),
+          userFacingAlertMessage(error, language, tcx('form_save_retry_q')),
           [
-            { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
-            { text: tr('Reintentar', 'Retry'), onPress: () => handleCreate() },
+            { text: tcx('form_cancel'), style: 'cancel' },
+            { text: tcx('form_retry'), onPress: () => handleCreate() },
           ]
         );
       }
@@ -2324,10 +2275,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       case 'Ghost-Link':
         return (
           <Text style={[styles.hint, { color: formTheme.textSecondary, marginBottom: 4 }]}>
-            {tr(
-              'Sin número ni enlace: quien reciba tu tarjeta podrá iniciar una llamada privada VoIP (Ghost-Link) desde Card-Social. Elige el icono en la sección ICONO (mismo catálogo Card-Studio).',
-              'No number or link: people who get your card can start a private VoIP call (Ghost-Link) from Card-Social. Pick the icon in the ICON section (same Card-Studio catalog).',
-            )}
+            {tcx('form_ghost_long_hint')}
           </Text>
         );
       case 'Teléfono': {
@@ -2361,7 +2309,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             >
               <TextInput
                 style={[styles.input, { flex: 1, backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderWidth: 0 }]}
-                placeholder={tr(`${natMin}–${natMax} dígitos`, `${natMin}–${natMax} digits`)}
+                placeholder={tcx('form_phone_digits_placeholder', { min: natMin, max: natMax })}
                 placeholderTextColor={formTheme.inputPlaceholder}
                 value={dataValue}
                 onChangeText={(t) => setDataValue(sanitizeNationalDigits(t).slice(0, natMax))}
@@ -2471,7 +2419,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                       ...(Platform.OS === 'android' ? { includeFontPadding: false } : null),
                     },
                   ]}
-                  placeholder={tr('Escribe aquí...', 'Write here...')}
+                  placeholder={tcx('form_plain_write_here')}
                   placeholderTextColor={formTheme.inputPlaceholder}
                   value={dataValue}
                   onChangeText={(text) => {
@@ -2486,7 +2434,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               </View>
             </LinearGradient>
             <Text style={[styles.wordCount, dataValue.split(/\s+/).filter((w) => w).length > 190 && { color: '#E53935' }]}>
-              {dataValue.split(/\s+/).filter((w) => w).length} / 200 {tr('palabras', 'words')}
+              {dataValue.split(/\s+/).filter((w) => w).length} / 200 {tcx('form_words')}
             </Text>
           </View>
         );
@@ -2529,20 +2477,20 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               />
               <Text style={[styles.documentText, { color: formTheme.textPrimary }]}>
                 {pendingAsset?.uri
-                  ? tr('Ver Archivo Seleccionado', 'View Selected File')
+                  ? tcx('form_view_sel_file')
                   : dataValue
-                  ? tr('Ver Archivo Guardado', 'View Saved File')
-                  : tr('Subir PDF o imagen', 'Upload PDF or image')}
+                  ? tcx('form_view_saved_file')
+                  : tcx('form_upload_pdf_or_image')}
               </Text>
               </TouchableOpacity>
             </LinearGradient>
-            <Text style={[styles.wordCount, { color: formTheme.textSecondary }]}>{tr('Se aceptan PDF o imágenes para visor protegido del Búnker.', 'PDF or images accepted for Vault protected viewer.')}</Text>
+            <Text style={[styles.wordCount, { color: formTheme.textSecondary }]}>{tcx('form_bunker_viewer_hint')}</Text>
             
             {/* PREVIEW del documento/imagen seleccionado */}
             {dataValue && (
               <View style={[styles.previewContainer, { backgroundColor: formTheme.inputBg }]}>
                 <Text style={[styles.previewLabel, { color: formTheme.labelGold }]}>
-                  {tr('VISTA PREVIA', 'PREVIEW')}
+                  {tcx('form_preview')}
                 </Text>
                 {isImageFile(dataValue) || isImageFile(dataName) ? (
                   <View style={styles.imagePreview}>
@@ -2552,14 +2500,14 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                       onError={() => console.log('Error loading image')}
                     />
                     <Text style={[styles.previewFileName, { color: formTheme.textPrimary }]} numberOfLines={1}>
-                      {dataName || tr('Imagen seleccionada', 'Selected image')}
+                      {dataName || tcx('form_image_selected')}
                     </Text>
                   </View>
                 ) : (
                   <View style={styles.documentPreview}>
                     <MaterialCommunityIcons name={getDocumentIcon(dataValue) as any} color={formTheme.textPrimary} size={48} />
                     <Text style={[styles.previewFileName, { color: formTheme.textPrimary }]} numberOfLines={1}>
-                      {dataName || tr('Documento seleccionado', 'Selected document')}
+                      {dataName || tcx('form_document_selected')}
                     </Text>
                   </View>
                 )}
@@ -2586,7 +2534,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           </View>
           <View style={styles.titleDragZone}>
             <Text style={[styles.titleMain, { color: formTheme.titleColor }]}>
-              {editingData?.id ? tr('EDITAR INFORMACIÓN', 'EDIT INFORMATION') : tr('NUEVA INFORMACIÓN', 'NEW INFORMATION')}
+              {editingData?.id ? tcx('form_header_edit') : tcx('form_header_new')}
             </Text>
           </View>
           <TouchableOpacity 
@@ -2618,7 +2566,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           {/* TIPO DE DATA */}
           <View style={styles.section}>
             <Text style={[styles.stepLabel, { color: formTheme.labelGold }]}>
-              {tr('TIPO DE DATO', 'DATA TYPE')} {editingData?.id && tr('(No editable)', '(Read-only)')}
+              {tcx('form_step_type')} {editingData?.id && tcx('form_readonly')}
             </Text>
             <View style={styles.typeChipGrid}>
               {dataTypeOptions.map((option) => {
@@ -2627,13 +2575,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 const onSelectType = () => {
                   if (disabledChip) return;
                   if (option.key === GHOST_LINK_VAULT_TYPE) {
-                    Alert.alert(
-                      tr('Ghost Link', 'Ghost Link'),
-                      tr(
-                        'Card-Social ya incluye un Ghost Link en tu Bóveda. Edítalo desde el menú del ítem; no puedes crear otro.',
-                        'Card-Social already includes one Ghost Link in your Vault. Edit it from the item menu; you cannot add another.',
-                      ),
-                    );
+                    Alert.alert(tcx('form_ghost_chip_title'), tcx('form_ghost_chip_body'));
                     return;
                   }
                   setDataType(option.key);
@@ -2700,7 +2642,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               })}
             </View>
             <Text style={[styles.hint, { color: formTheme.textSecondary }]}>
-              {editingData?.id ? tr('Tipo no puede cambiar al editar', 'Type cannot change while editing') : tr('Selecciona el tipo de dato', 'Select data type')}
+              {editingData?.id ? tcx('form_type_no_edit_hint') : tcx('form_select_type_hint')}
             </Text>
             {autoTypeSuggestion && !editingData?.id && (
               <TouchableOpacity
@@ -2725,7 +2667,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                   {(() => {
                     const sug =
                       dataTypeOptions.find((o) => o.key === autoTypeSuggestion)?.label ?? String(autoTypeSuggestion);
-                    return tr(`¿Cambiar a ${sug}?`, `Switch to ${sug}?`);
+                    return tcx('form_switch_type', { sug });
                   })()}
                 </Text>
                 <TouchableOpacity onPress={() => setAutoTypeSuggestion(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -2737,7 +2679,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
           {/* CATEGORÍA / CARPETA (Bóveda) */}
           <View style={styles.section}>
-            <Text style={[styles.stepLabel, { color: formTheme.labelGold }]}>{tr('CATEGORÍA', 'FOLDER')}</Text>
+            <Text style={[styles.stepLabel, { color: formTheme.labelGold }]}>{tcx('form_cat_section')}</Text>
             <TouchableOpacity
               style={[
                 styles.iconLuxuryRow,
@@ -2761,7 +2703,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 setVaultCategoryModalVisible(true);
               }}
               activeOpacity={0.88}
-              accessibilityLabel={tr('Elegir categoría del Búnker', 'Pick Vault folder')}
+              accessibilityLabel={tcx('form_pick_folder_a11y')}
               accessibilityHint={vaultCategorySecondaryLabel}
             >
               <LinearGradient
@@ -2786,7 +2728,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                   {vaultCategorySecondaryLabel}
                 </Text>
               </View>
-              <Text style={[styles.iconLuxuryCta, { color: formTheme.labelGold }]}>{tr('CAMBIAR', 'CHANGE')}</Text>
+              <Text style={[styles.iconLuxuryCta, { color: formTheme.labelGold }]}>{tcx('form_change')}</Text>
             </TouchableOpacity>
 
             {creatingNewVaultCategory ? (
@@ -2801,13 +2743,13 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                     styles.input,
                     { backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderWidth: 0 },
                   ]}
-                  placeholder={tr('Nombre de la nueva carpeta…', 'New folder name…')}
+                  placeholder={tcx('form_new_folder_ph')}
                   placeholderTextColor={formTheme.inputPlaceholder}
                   value={newVaultCategoryDraft}
                   onChangeText={setNewVaultCategoryDraft}
                   maxLength={64}
                   editable={!isSaving}
-                  accessibilityLabel={tr('Nombre nueva categoría', 'New category name')}
+                  accessibilityLabel={tcx('form_new_cat_a11y')}
                 />
               </LinearGradient>
             ) : null}
@@ -2815,7 +2757,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
           {/* NOMBRE DE DATA */}
           <View style={styles.section}>
-            <Text style={[styles.stepLabel, { color: formTheme.labelGold }]}>{tr('NOMBRE DE DATA', 'DATA NAME')}</Text>
+            <Text style={[styles.stepLabel, { color: formTheme.labelGold }]}>{tcx('form_data_name_section')}</Text>
               <LinearGradient
                 colors={formTheme.gradientColors}
                 start={{ x: 0, y: 0 }}
@@ -2824,7 +2766,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               >
                 <TextInput
                   style={[styles.input, { backgroundColor: formTheme.inputBg, color: formTheme.inputText, borderWidth: 0 }]}
-              placeholder={tr('Ej: Mi WhatsApp', 'Ex: My WhatsApp')}
+              placeholder={tcx('form_data_name_ex_ph')}
               placeholderTextColor={formTheme.inputPlaceholder}
               value={dataName}
               onChangeText={setDataName}
@@ -2835,13 +2777,13 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           {/* DATA */}
           <View style={styles.section}>
             <Text style={[styles.stepLabel, { color: formTheme.labelGold }]}>
-              {dataType === GHOST_LINK_VAULT_TYPE ? tr('GHOST LINK', 'GHOST LINK') : tr('DATO', 'DATA')}
+              {dataType === GHOST_LINK_VAULT_TYPE ? tcx('form_ghost_data_header') : tcx('form_data_section')}
             </Text>
             {renderDataField()}
           </View>
 
           <View style={styles.section}>
-            <Text style={[styles.stepLabel, { color: formTheme.labelGold, marginBottom: 10 }]}>{tr('ICONO', 'ICON')}</Text>
+            <Text style={[styles.stepLabel, { color: formTheme.labelGold, marginBottom: 10 }]}>{tcx('form_icon_section')}</Text>
             <TouchableOpacity
               style={[
                 styles.iconLuxuryRow,
@@ -2862,7 +2804,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               ]}
               onPress={() => setIconModalVisible(true)}
               activeOpacity={0.88}
-              accessibilityLabel={tr('Elegir icono Card-Studio', 'Choose Card-Studio icon')}
+              accessibilityLabel={tcx('form_pick_icon_a11y')}
             >
               {faviconLoading && dataType === 'Enlaces' ? (
                 <View style={styles.iconLuxuryThumb}>
@@ -2902,17 +2844,17 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 </View>
               )}
               <View style={styles.iconLuxuryTextCol}>
-                <Text style={[styles.iconLuxuryTitle, { color: formTheme.textPrimary }]}>{tr('Icono', 'Icon')}</Text>
+                <Text style={[styles.iconLuxuryTitle, { color: formTheme.textPrimary }]}>{tcx('form_icon_title')}</Text>
                 <Text style={[styles.iconLuxurySubtitle, { color: formTheme.textSecondary }]}>
-                  {tr('Personalizar representación', 'Customize appearance')}
+                  {tcx('form_icon_sub')}
                 </Text>
                 {faviconLoading && dataType === 'Enlaces' ? (
                   <Text style={[styles.iconLuxurySubtitle, { color: formTheme.labelGold, marginTop: 4 }]}>
-                    {tr('Buscando favicon…', 'Searching favicon…')}
+                    {tcx('form_favicon_search_alt')}
                   </Text>
                 ) : null}
               </View>
-              <Text style={[styles.iconLuxuryCta, { color: formTheme.labelGold }]}>{tr('CAMBIAR', 'CHANGE')}</Text>
+              <Text style={[styles.iconLuxuryCta, { color: formTheme.labelGold }]}>{tcx('form_change')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -2932,13 +2874,13 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             >
               {isSaving ? (
                 <Text style={[styles.createButtonText, { color: formTheme.onLuxuryCta }]}>
-                  {tr('GUARDANDO...', 'SAVING...')}
+                  {tcx('form_saving_btn')}
                 </Text>
               ) : (
                 <>
                   <MaterialCommunityIcons name="check-circle" color={formTheme.onLuxuryCta} size={24} />
                   <Text style={[styles.createButtonText, { color: formTheme.onLuxuryCta }]}>
-                    {editingData?.id ? tr('ACTUALIZAR', 'UPDATE') : tr('CREAR', 'CREATE')}
+                    {editingData?.id ? tcx('form_update_btn') : tcx('form_create_btn')}
                   </Text>
                 </>
               )}
@@ -2957,7 +2899,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, { backgroundColor: formTheme.surfaceBg, borderTopColor: formTheme.border }]}>
               <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: formTheme.textPrimary }]}>{tr('Selecciona Tipo', 'Select Type')}</Text>
+                <Text style={[styles.modalTitle, { color: formTheme.textPrimary }]}>{tcx('form_modal_select_type')}</Text>
                 <TouchableOpacity onPress={() => setTypeModalVisible(false)}>
                   <MaterialCommunityIcons name="close" color={formTheme.labelGold} size={24} />
                 </TouchableOpacity>
@@ -2988,13 +2930,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                     ]}
                     onPress={() => {
                       if (!editingData?.id && item === GHOST_LINK_VAULT_TYPE) {
-                        Alert.alert(
-                          tr('Ghost Link', 'Ghost Link'),
-                          tr(
-                            'Card-Social ya incluye un Ghost Link en tu Bóveda. Edítalo desde el menú del ítem; no puedes crear otro.',
-                            'Card-Social already includes one Ghost Link in your Vault. Edit it from the item menu; you cannot add another.',
-                          ),
-                        );
+                        Alert.alert(tcx('form_ghost_chip_title'), tcx('form_ghost_chip_body'));
                         setTypeModalVisible(false);
                         return;
                       }
@@ -3044,7 +2980,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 </View>
                 <View style={styles.modalHeader}>
                   <Text style={[styles.modalTitle, { color: formTheme.textPrimary }]}>
-                    {tr('Elegí una carpeta', 'Choose a folder')}
+                    {tcx('form_modal_pick_folder')}
                   </Text>
                   <TouchableOpacity
                     onPress={() => setVaultCategoryModalVisible(false)}
@@ -3068,7 +3004,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                   renderItem={({ item }) => {
                     const isRowCreate = item === VAULT_CATEGORY_CREATE_NEW;
                     const label = isRowCreate
-                      ? tr('+ Crear nueva categoría', '+ Create new folder')
+                      ? tcx('form_create_folder_row')
                       : vaultCategorySectionTitle(item, language);
                     const canonSelected =
                       !creatingNewVaultCategory &&
@@ -3165,7 +3101,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             <View style={styles.faviconPopupOverlay}>
               <TouchableWithoutFeedback onPress={() => {}}>
                 <View style={styles.faviconPopupCard}>
-                  <Text style={styles.faviconPopupTitle}>{tr('¿Usar este icono?', 'Use this icon?')}</Text>
+                  <Text style={styles.faviconPopupTitle}>{tcx('form_favicon_modal_title')}</Text>
                   <View style={styles.faviconPopupPreviewBox}>
                     {faviconLoading ? (
                       <BrandedSpinner size={44} color="#E9C349" />
@@ -3183,7 +3119,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                         closeFaviconSuggestion();
                       }}
                     >
-                      <Text style={styles.faviconConfirmButtonText}>{tr('SÍ, USAR', 'YES, USE')}</Text>
+                      <Text style={styles.faviconConfirmButtonText}>{tcx('form_favicon_yes')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.faviconPopupButton, styles.faviconCancelButton, styles.faviconPopupButtonSpacing]}
@@ -3191,7 +3127,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                         closeFaviconSuggestion();
                       }}
                     >
-                      <Text style={styles.faviconCancelButtonText}>{tr('NO, CANCELAR', 'NO, CANCEL')}</Text>
+                      <Text style={styles.faviconCancelButtonText}>{tcx('form_favicon_no')}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -3207,10 +3143,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
             setCountryCode(entry.code);
             setDataValue((prev) => sanitizeNationalDigits(prev).slice(0, entry.maxDigits));
           }}
-          title={tr('Código de país', 'Country code')}
-          topSectionTitle={tr('Destacados', 'Top')}
-          restSectionTitle={tr('Todos los países', 'All countries')}
-          searchPlaceholder={tr('Buscar país o prefijo…', 'Search country or code…')}
+          title={tcx('form_country_title')}
+          topSectionTitle={tcx('form_country_top')}
+          restSectionTitle={tcx('form_country_all')}
+          searchPlaceholder={tcx('form_country_search_ph')}
           surfaceBg={formTheme.surfaceBg}
           textPrimary={formTheme.textPrimary}
           textSecondary={formTheme.textSecondary}
@@ -3254,7 +3190,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 <View style={styles.bottomSheetDragHandle} />
               </View>
               <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: formTheme.textPrimary }]}>{tr('Carga Segura de Documento', 'Secure Document Upload')}</Text>
+                <Text style={[styles.modalTitle, { color: formTheme.textPrimary }]}>{tcx('form_secure_upload_header')}</Text>
                 <TouchableOpacity onPress={closeFileTypeModal}>
                   <MaterialCommunityIcons name="close" color={formTheme.textPrimary} size={24} />
                 </TouchableOpacity>
@@ -3273,8 +3209,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 disabled={isCompressing || isPicking}
               >
                 <MaterialCommunityIcons name="camera" color={formTheme.textPrimary} size={30} />
-                <Text style={[styles.fileTypeText, { color: formTheme.textPrimary }]}>{tr('Tomar Foto', 'Take Photo')}</Text>
-                <Text style={[styles.fileTypeSubText, { color: formTheme.textSecondary }]}>{tr('Captura directa con cámara', 'Direct camera capture')}</Text>
+                <Text style={[styles.fileTypeText, { color: formTheme.textPrimary }]}>{tcx('form_take_photo_cap')}</Text>
+                <Text style={[styles.fileTypeSubText, { color: formTheme.textSecondary }]}>{tcx('form_take_photo_sub')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.fileTypeOption, { backgroundColor: formTheme.inputBg, borderColor: formTheme.border }]}
@@ -3282,8 +3218,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 disabled={isCompressing || isPicking}
               >
                 <MaterialCommunityIcons name="image-multiple" color={formTheme.textPrimary} size={30} />
-                <Text style={[styles.fileTypeText, { color: formTheme.textPrimary }]}>{tr('Elegir imagen', 'Choose image')}</Text>
-                <Text style={[styles.fileTypeSubText, { color: formTheme.textSecondary }]}>JPG, PNG {tr('o', 'or')} HEIC</Text>
+                <Text style={[styles.fileTypeText, { color: formTheme.textPrimary }]}>{tcx('form_ios_pick_image')}</Text>
+                <Text style={[styles.fileTypeSubText, { color: formTheme.textSecondary }]}>JPG, PNG {tcx('form_or_conjunction')} HEIC</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.fileTypeOption, { backgroundColor: formTheme.inputBg, borderColor: formTheme.border }]}
@@ -3291,8 +3227,8 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                 disabled={isCompressing || isPicking}
               >
                 <MaterialCommunityIcons name="file-document-outline" color={formTheme.textPrimary} size={30} />
-                <Text style={[styles.fileTypeText, { color: formTheme.textPrimary }]}>{tr('Elegir documento', 'Choose document')}</Text>
-                <Text style={[styles.fileTypeSubText, { color: formTheme.textSecondary }]}>{tr('PDF y archivos visualizables', 'PDF and viewable files')}</Text>
+                <Text style={[styles.fileTypeText, { color: formTheme.textPrimary }]}>{tcx('form_ios_pick_document')}</Text>
+                <Text style={[styles.fileTypeSubText, { color: formTheme.textSecondary }]}>{tcx('form_pick_doc_sub')}</Text>
               </TouchableOpacity>
               </ScrollView>
             </View>
@@ -3315,10 +3251,10 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
               <BrandedSpinner size={56} color="#E9C349" />
               <Text style={[styles.compressText, { color: formTheme.textPrimary }]}>
                 {isCompressing
-                  ? tr('Optimizando archivo de forma segura...', 'Securely optimizing file...')
+                  ? tcx('form_overlay_optimize')
                   : isUploading
-                    ? tr('Subiendo archivo al escudo de seguridad...', 'Uploading file to security shield...')
-                    : tr('Guardando en Bunker seguro...', 'Saving to secure Vault...')}
+                    ? tcx('form_overlay_upload')
+                    : tcx('form_overlay_save')}
               </Text>
               {!isSaving && (
                 <TouchableOpacity
@@ -3329,7 +3265,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
                     setUploadModalVisible(false);
                   }}
                 >
-                  <Text style={{ color: '#E9C349', fontWeight: '700', fontSize: 14 }}>{tr('Cancelar', 'Cancel')}</Text>
+                  <Text style={{ color: '#E9C349', fontWeight: '700', fontSize: 14 }}>{tcx('form_cancel')}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -3349,7 +3285,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
 
         <LuxuryModerationModal
           visible={moderationAlertVisible}
-          title={tr('Exclusividad de Seguridad', 'Security Exclusivity')}
+          title={tcx('form_security_modal_title')}
           message={moderationAlertMessage}
           onClose={() => setModerationAlertVisible(false)}
           onRetry={() => setModerationAlertVisible(false)}

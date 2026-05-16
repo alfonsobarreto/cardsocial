@@ -4,13 +4,16 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
 import { AuthProvider } from './auth/AuthContext.tsx'
+import { AdminLocaleProvider } from './i18n/AdminLocaleProvider'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
+      <AdminLocaleProvider>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </AdminLocaleProvider>
     </BrowserRouter>
   </StrictMode>,
 )

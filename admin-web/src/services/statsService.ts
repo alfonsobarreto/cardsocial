@@ -5,6 +5,7 @@
  * - Tarjetas Smart: collectionGroup `users/{uid}/cards`
  * - Business cards: colección top-level `businessCards` (puede estar vacía si el tráfico es solo Mongo)
  * - Medallas (actividad): `medals/{id}/votes/{userId}.votedAt` (últimos 30 días)
+ * Errores y notas devuelven claves admin_*; la UI traduce con useAdminT.
  */
 
 import {
@@ -35,10 +36,16 @@ export type WeeklyPoint = {
   count: number;
 };
 
+/** Referencia a catálogo adminLocales (traducción en UI). */
+export type AdminCatalogRef = { key: string; vars?: Record<string, string> };
+
 export type PieSlice = {
-  name: string;
+  nameKey: string;
+  nameVars?: Record<string, string>;
   value: number;
 };
+
+export const ADMIN_COUNTRY_UNSPECIFIED = '__ADMIN_COUNTRY_UNSPECIFIED__';
 
 export type CountryRankRow = {
   rank: number;
@@ -62,12 +69,12 @@ export type StatisticsGrowthResult = {
     topCountries: CountryRankRow[];
     usersScanned: number;
   };
-  productNotes: string[];
+  productNotes: AdminCatalogRef[];
   usersDaily: DailyPoint[];
   usersWeekly: WeeklyPoint[];
   businessCardsDaily: DailyPoint[];
   businessCardsWeekly: WeeklyPoint[];
-  errors: string[];
+  errors: AdminCatalogRef[];
 };
 
 const DEFAULT_USER_LOOKBACK_DAYS = 120;
@@ -106,9 +113,9 @@ function startOfUtcDay(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
 
-function formatDayLabel(ymd: string): string {
+function formatDayLabel(ymd: string, localeTag: string): string {
   const [y, m, d] = ymd.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('es-ES', {
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(localeTag, {
     day: 'numeric',
     month: 'short',
   });
@@ -143,7 +150,11 @@ function getLastNWeekMondayKeys(n: number): string[] {
   return keys;
 }
 
-function bucketDailyCounts(timestampsMs: number[], numDays: number): DailyPoint[] {
+function bucketDailyCounts(
+  timestampsMs: number[],
+  numDays: number,
+  localeTag: string,
+): DailyPoint[] {
   const end = startOfUtcDay(new Date());
   const counts = new Map<string, number>();
   for (let i = 0; i < numDays; i++) {
@@ -161,12 +172,16 @@ function bucketDailyCounts(timestampsMs: number[], numDays: number): DailyPoint[
   }
   return Array.from(counts.entries()).map(([key, count]) => ({
     key,
-    label: formatDayLabel(key),
+    label: formatDayLabel(key, localeTag),
     count,
   }));
 }
 
-function bucketWeeklyCounts(timestampsMs: number[], weekStartKeys: string[]): WeeklyPoint[] {
+function bucketWeeklyCounts(
+  timestampsMs: number[],
+  weekStartKeys: string[],
+  localeTag: string,
+): WeeklyPoint[] {
   const counts = new Map<string, number>(weekStartKeys.map((k) => [k, 0]));
   for (const ms of timestampsMs) {
     const key = mondayUtcYmdFromMs(ms);
@@ -176,7 +191,7 @@ function bucketWeeklyCounts(timestampsMs: number[], weekStartKeys: string[]): We
   }
   return weekStartKeys.map((key) => ({
     key,
-    label: new Date(`${key}T12:00:00.000Z`).toLocaleDateString('es-ES', {
+    label: new Date(`${key}T12:00:00.000Z`).toLocaleDateString(localeTag, {
       day: 'numeric',
       month: 'short',
     }),
@@ -227,26 +242,31 @@ async function countSmartCardsTotal(): Promise<number> {
 }
 
 async function countMedalVotesSince(since: Date): Promise<number> {
-  const q = query(
-    collectionGroup(db, 'votes'),
-    where('votedAt', '>=', Timestamp.fromDate(since)),
-  );
+  const q = query(collectionGroup(db, 'votes'), where('votedAt', '>=', Timestamp.fromDate(since)));
   const snap = await getCountFromServer(q);
   return snap.data().count;
 }
 
-function normalizeLanguageLabel(raw: unknown): string {
+type LangAggSpec = { mapKey: string; nameKey: string; nameVars?: Record<string, string> };
+
+function languageAggSpec(raw: unknown): LangAggSpec {
   const s = String(raw ?? '').trim();
-  if (!s) return 'Desconocido';
+  if (!s) return { mapKey: 'admin_stats_lang_unknown', nameKey: 'admin_stats_lang_unknown' };
   const lower = s.toLowerCase();
-  if (lower === 'es' || lower.startsWith('es-')) return 'Español';
-  if (lower === 'en' || lower.startsWith('en-')) return 'English';
-  return s.length > 28 ? `${s.slice(0, 25)}…` : s;
+  if (lower === 'es' || lower.startsWith('es-')) {
+    return { mapKey: 'admin_stats_lang_spanish', nameKey: 'admin_stats_lang_spanish' };
+  }
+  if (lower === 'en' || lower.startsWith('en-')) {
+    return { mapKey: 'admin_stats_lang_english', nameKey: 'admin_stats_lang_english' };
+  }
+  const label = s.length > 28 ? `${s.slice(0, 25)}…` : s;
+  const mapKey = `admin_stats_lang_custom:${label}`;
+  return { mapKey, nameKey: 'admin_stats_lang_custom', nameVars: { label } };
 }
 
-function normalizeCountryLabel(raw: unknown): string {
+function normalizeCountryStored(raw: unknown): string {
   const s = String(raw ?? '').trim();
-  return s || 'Sin especificar';
+  return s || ADMIN_COUNTRY_UNSPECIFIED;
 }
 
 async function loadUserSegmentation(): Promise<{
@@ -254,7 +274,7 @@ async function loadUserSegmentation(): Promise<{
   topCountries: CountryRankRow[];
   usersScanned: number;
 }> {
-  const languageCounts = new Map<string, number>();
+  const languageCounts = new Map<string, { nameKey: string; nameVars?: Record<string, string>; value: number }>();
   const countryCounts = new Map<string, number>();
   let scanned = 0;
   let lastDoc: QueryDocumentSnapshot | undefined;
@@ -271,9 +291,17 @@ async function loadUserSegmentation(): Promise<{
     for (const d of snap.docs) {
       scanned++;
       const data = d.data();
-      const lang = normalizeLanguageLabel(data.language ?? data.appLanguage ?? data.locale);
-      languageCounts.set(lang, (languageCounts.get(lang) || 0) + 1);
-      const c = normalizeCountryLabel(data.country);
+      const spec = languageAggSpec(data.language ?? data.appLanguage ?? data.locale);
+      const cur = languageCounts.get(spec.mapKey);
+      if (cur) cur.value += 1;
+      else {
+        languageCounts.set(spec.mapKey, {
+          nameKey: spec.nameKey,
+          nameVars: spec.nameVars,
+          value: 1,
+        });
+      }
+      const c = normalizeCountryStored(data.country);
       countryCounts.set(c, (countryCounts.get(c) || 0) + 1);
     }
 
@@ -281,9 +309,11 @@ async function loadUserSegmentation(): Promise<{
     if (snap.size < USER_SEG_PAGE_SIZE) break;
   }
 
-  const languageByLabel: PieSlice[] = Array.from(languageCounts.entries())
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value);
+  const languageByLabel: PieSlice[] = Array.from(languageCounts.values())
+    .sort((a, b) => b.value - a.value)
+    .map(({ nameKey, nameVars, value }) =>
+      nameVars ? { nameKey, nameVars, value } : { nameKey, value },
+    );
 
   const topCountries: CountryRankRow[] = Array.from(countryCounts.entries())
     .sort((a, b) => b[1] - a[1])
@@ -297,18 +327,24 @@ function countInRange(timestampsMs: number[], sinceMs: number): number {
   return timestampsMs.filter((ms) => ms >= sinceMs).length;
 }
 
+function errMessage(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
 export async function getStatisticsGrowth(options?: {
   userLookbackDays?: number;
   chartDailyDays?: number;
   chartWeeklyWeeks?: number;
+  /** BCP 47, p. ej. es-ES — ejes de fechas en gráficos. */
+  chartLocaleTag?: string;
 }): Promise<StatisticsGrowthResult> {
   const userLookbackDays = options?.userLookbackDays ?? DEFAULT_USER_LOOKBACK_DAYS;
   const chartDailyDays = options?.chartDailyDays ?? CHART_DAILY_DAYS;
   const chartWeeklyWeeks = options?.chartWeeklyWeeks ?? CHART_WEEKLY_WEEKS;
-  const errors: string[] = [];
-  const productNotes: string[] = [
-    'Conteo Business Cards en Firestore (`businessCards`) puede ser menor que Mongo (`business_cards`). Usa el bloque Mongo del dashboard para la cifra autoritativa.',
-  ];
+  const chartLocaleTag = options?.chartLocaleTag ?? 'es-ES';
+
+  const errors: AdminCatalogRef[] = [];
+  const productNotes: AdminCatalogRef[] = [{ key: 'admin_stats_note_bc_firestore_vs_mongo' }];
 
   const since = new Date();
   since.setUTCDate(since.getUTCDate() - userLookbackDays);
@@ -330,31 +366,30 @@ export async function getStatisticsGrowth(options?: {
   let medalVotesLast30d = 0;
 
   const overviewP = getOverviewCounts().catch((e) => {
-    errors.push(`Resumen: ${(e as Error).message}`);
+    errors.push({ key: 'admin_stats_err_summary', vars: { message: errMessage(e) } });
     return { usersTotal: 0, businessCardsTotal: 0 };
   });
   const userTsP = collectCreatedTimestamps('users', since).catch((e) => {
-    errors.push(`Usuarios (serie): ${(e as Error).message}`);
+    errors.push({ key: 'admin_stats_err_users_series', vars: { message: errMessage(e) } });
     return [] as number[];
   });
   const cardTsP = collectCreatedTimestamps('businessCards', since).catch((e) => {
-    errors.push(
-      `Business cards Firestore: ${(e as Error).message}. Si solo usas Mongo, este gráfico puede quedar vacío.`,
-    );
+    errors.push({
+      key: 'admin_stats_err_bc_firestore',
+      vars: { message: errMessage(e) },
+    });
     return [] as number[];
   });
   const segmentationP = loadUserSegmentation().catch((e) => {
-    errors.push(`Segmentación (usuarios): ${(e as Error).message}`);
+    errors.push({ key: 'admin_stats_err_segmentation', vars: { message: errMessage(e) } });
     return { languageByLabel: [] as PieSlice[], topCountries: [] as CountryRankRow[], usersScanned: 0 };
   });
   const smartP = countSmartCardsTotal().catch((e) => {
-    errors.push(`Tarjetas Smart (collectionGroup cards): ${(e as Error).message}`);
+    errors.push({ key: 'admin_stats_err_smart_cards', vars: { message: errMessage(e) } });
     return 0;
   });
   const medalP = countMedalVotesSince(medalSince).catch((e) => {
-    errors.push(
-      `Votos de medallas (30 d): ${(e as Error).message}. Comprueba índice collectionGroup en \`votes.votedAt\`.`,
-    );
+    errors.push({ key: 'admin_stats_err_medal_votes', vars: { message: errMessage(e) } });
     return 0;
   });
 
@@ -389,10 +424,10 @@ export async function getStatisticsGrowth(options?: {
     },
     segmentation,
     productNotes,
-    usersDaily: bucketDailyCounts(userTs, chartDailyDays),
-    usersWeekly: bucketWeeklyCounts(userTs, weekKeys),
-    businessCardsDaily: bucketDailyCounts(cardTs, chartDailyDays),
-    businessCardsWeekly: bucketWeeklyCounts(cardTs, weekKeys),
+    usersDaily: bucketDailyCounts(userTs, chartDailyDays, chartLocaleTag),
+    usersWeekly: bucketWeeklyCounts(userTs, weekKeys, chartLocaleTag),
+    businessCardsDaily: bucketDailyCounts(cardTs, chartDailyDays, chartLocaleTag),
+    businessCardsWeekly: bucketWeeklyCounts(cardTs, weekKeys, chartLocaleTag),
     errors,
   };
 }

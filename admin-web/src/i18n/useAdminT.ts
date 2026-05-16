@@ -1,23 +1,21 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 
 import adminLocales from './adminLocales.json';
+import { type AdminLocale, useAdminLocale } from './AdminLocaleProvider';
 
-export type AdminLocale = 'es' | 'en';
+export type { AdminLocale } from './AdminLocaleProvider';
 
 type CatalogRow = Record<AdminLocale, string>;
 const catalog = adminLocales as Record<string, CatalogRow>;
 
-/** Idioma del navegador del empleado: español vs inglés, resto → EN. */
-export function detectAdminLocale(): AdminLocale {
-  if (typeof navigator === 'undefined') return 'en';
-  const lang = navigator.language?.toLowerCase() ?? '';
-  return lang.startsWith('es') ? 'es' : 'en';
-}
-
-export function adminT(locale: AdminLocale, key: string, vars?: Record<string, string | number>): string {
+export function adminT(
+  locale: AdminLocale,
+  key: string,
+  vars?: Record<string, string | number>,
+): string {
   const row = catalog[key];
   if (!row) return key;
-  let s = row[locale] ?? row.en;
+  let s = row[locale] ?? row.en ?? row.es;
   if (vars) {
     for (const [k, v] of Object.entries(vars)) {
       s = s.split(`{{${k}}}`).join(String(v));
@@ -26,9 +24,12 @@ export function adminT(locale: AdminLocale, key: string, vars?: Record<string, s
   return s;
 }
 
-/** Resuelve textos del panel admin según el idioma del navegador. */
-export function useAdminT(): { t: (key: string, vars?: Record<string, string | number>) => string; locale: AdminLocale } {
-  const locale = useMemo(() => detectAdminLocale(), []);
+/** Resuelve textos del panel admin según el idioma elegido (persistente, ES por defecto). */
+export function useAdminT(): {
+  t: (key: string, vars?: Record<string, string | number>) => string;
+  locale: AdminLocale;
+} {
+  const { locale } = useAdminLocale();
   const t = useCallback(
     (key: string, vars?: Record<string, string | number>) => adminT(locale, key, vars),
     [locale],

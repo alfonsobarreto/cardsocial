@@ -16,6 +16,14 @@ import {
 } from '@/lib/studioI18n';
 import { studioTheme } from '@/lib/studioTheme';
 
+function EmbedSuspenseFallback() {
+  return (
+    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: studioTheme.bg, color: studioTheme.gold }}>
+      {studioT('en', 'embed.radarSyncing')}
+    </div>
+  );
+}
+
 type HandshakePhase = 'busy' | 'ready' | 'error';
 
 /**
@@ -23,13 +31,7 @@ type HandshakePhase = 'busy' | 'ready' | 'error';
  */
 export default function EmbedMarketRadarPage() {
   return (
-    <Suspense
-      fallback={
-        <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: studioTheme.bg, color: studioTheme.gold }}>
-          Connecting your embedded session...
-        </div>
-      }
-    >
+    <Suspense fallback={<EmbedSuspenseFallback />}>
       <EmbedMarketRadarContent />
     </Suspense>
   );

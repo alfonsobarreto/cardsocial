@@ -18,7 +18,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { auth } from '@/services/firebaseConfig';
 import { userFacingAlertMessage } from '@/services/apiUserFacingError';
-import { trEsEn, useLanguage, type AppLanguage } from '@/services/language';
+import { useCoreT, type CoreLocaleKey } from '@/services/coreI18n';
+import { useLanguage, type AppLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { listMyBusinessCards } from '@/services/businessCardsRepo';
 import { listSmartCardsFromDb } from '@/services/qrApi';
@@ -34,32 +35,33 @@ import palette from './theme';
 
 type MaterialIconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
+type CoreT = (key: CoreLocaleKey, vars?: Record<string, string | number>) => string;
+
 function statusMeta(status: NfcCardStatus): {
-  labelEs: string;
-  labelEn: string;
+  labelKey: CoreLocaleKey;
   tone: 'good' | 'muted' | 'warn' | 'danger';
   icon: MaterialIconName;
 } {
   if (status === 'active') {
-    return { labelEs: 'Activa', labelEn: 'Active', tone: 'good', icon: 'check-circle-outline' };
+    return { labelKey: 'nfc_status_active', tone: 'good', icon: 'check-circle-outline' };
   }
   if (status === 'paused') {
-    return { labelEs: 'Pausada', labelEn: 'Paused', tone: 'muted', icon: 'pause-circle-outline' };
+    return { labelKey: 'nfc_status_paused', tone: 'muted', icon: 'pause-circle-outline' };
   }
   if (status === 'lost') {
-    return { labelEs: 'Perdida', labelEn: 'Lost', tone: 'warn', icon: 'shield-alert-outline' };
+    return { labelKey: 'nfc_status_lost', tone: 'warn', icon: 'shield-alert-outline' };
   }
   if (status === 'blocked') {
-    return { labelEs: 'Bloqueada', labelEn: 'Blocked', tone: 'danger', icon: 'lock-alert-outline' };
+    return { labelKey: 'nfc_status_blocked', tone: 'danger', icon: 'lock-alert-outline' };
   }
-  return { labelEs: 'Sin vincular', labelEn: 'Unclaimed', tone: 'muted', icon: 'link-off' };
+  return { labelKey: 'nfc_status_unclaimed', tone: 'muted', icon: 'link-off' };
 }
 
-function materialLabel(material: NfcCardDoc['material'], tr: (es: string, en: string) => string): string {
-  if (material === 'metal') return tr('Metal', 'Metal');
-  if (material === 'wood') return tr('Madera', 'Wood');
-  if (material === 'plastic_matte') return tr('Plástico mate', 'Matte plastic');
-  return tr('Material no definido', 'Unknown material');
+function materialLabel(material: NfcCardDoc['material'], t: CoreT): string {
+  if (material === 'metal') return t('nfc_material_metal');
+  if (material === 'wood') return t('nfc_material_wood');
+  if (material === 'plastic_matte') return t('nfc_material_plastic_matte');
+  return t('nfc_material_unknown');
 }
 
 function formatIsoForUi(value: string | null | undefined): string | null {
@@ -69,128 +71,26 @@ function formatIsoForUi(value: string | null | undefined): string | null {
   return d.toLocaleString();
 }
 
-/** Tabla NFC explícita: alemán va por `trEsEn` + `de.fragment` (mismo patrón que EN). */
-type NfcExtraLanguage = 'fr' | 'it' | 'pt';
 
-const NFC_TRANSLATIONS: Record<string, Record<NfcExtraLanguage, string>> = {
-  Activa: { fr: 'Active', it: 'Attiva', pt: 'Ativa' },
-  Pausada: { fr: 'En pause', it: 'In pausa', pt: 'Pausada' },
-  Perdida: { fr: 'Perdue', it: 'Smarrita', pt: 'Perdida' },
-  Bloqueada: { fr: 'Bloquée', it: 'Bloccata', pt: 'Bloqueada' },
-  'Sin vincular': { fr: 'Non liée', it: 'Non collegata', pt: 'Não vinculada' },
-  Metal: { fr: 'Métal', it: 'Metallo', pt: 'Metal' },
-  Madera: { fr: 'Bois', it: 'Legno', pt: 'Madeira' },
-  'Plástico mate': { fr: 'Plastique mat', it: 'Plastica opaca', pt: 'Plástico fosco' },
-  'Material no definido': { fr: 'Matériau non défini', it: 'Materiale non definito', pt: 'Material não definido' },
-  Permanente: { fr: 'Permanent', it: 'Permanente', pt: 'Permanente' },
-  'Temporal - 24h': { fr: 'Temporaire - 24 h', it: 'Temporanea - 24 h', pt: 'Temporário - 24h' },
-  pendiente: { fr: 'en attente', it: 'in attesa', pt: 'pendente' },
-  'mismo destino': { fr: 'même destination', it: 'stessa destinazione', pt: 'mesmo destino' },
-  'No se pudo cargar NFC': { fr: 'Impossible de charger NFC', it: 'Impossibile caricare NFC', pt: 'Não foi possível carregar NFC' },
-  'Intenta nuevamente.': { fr: 'Réessaie.', it: 'Riprova.', pt: 'Tente novamente.' },
-  'ID requerido': { fr: 'ID requis', it: 'ID richiesto', pt: 'ID obrigatório' },
-  'Escanea o escribe el identificador NFC.': { fr: "Scanne ou saisis l'identifiant NFC.", it: "Scansiona o digita l'identificativo NFC.", pt: 'Escaneie ou digite o identificador NFC.' },
-  'PIN requerido': { fr: 'PIN requis', it: 'PIN richiesto', pt: 'PIN obrigatório' },
-  'Escribe el PIN de activación impreso con tu tarjeta.': { fr: "Saisis le PIN d'activation imprimé avec ta carte.", it: 'Inserisci il PIN di attivazione stampato con la tua carta.', pt: 'Digite o PIN de ativação impresso com o seu cartão.' },
-  'Tarjeta vinculada': { fr: 'Carte liée', it: 'Carta collegata', pt: 'Cartão vinculado' },
-  'Ahora puedes montar una identidad.': { fr: 'Tu peux maintenant monter une identité.', it: "Ora puoi montare un'identità.", pt: 'Agora você pode montar uma identidade.' },
-  'No se pudo vincular': { fr: 'Impossible de lier', it: 'Impossibile collegare', pt: 'Não foi possível vincular' },
-  'Sin destino': { fr: 'Aucune destination', it: 'Nessuna destinazione', pt: 'Sem destino' },
-  'Esta tarjeta aún no tiene identidad montada.': { fr: "Cette carte n'a pas encore d'identité montée.", it: "Questa carta non ha ancora un'identità montata.", pt: 'Este cartão ainda não tem uma identidade montada.' },
-  'No se pudo abrir': { fr: "Impossible d'ouvrir", it: 'Impossibile aprire', pt: 'Não foi possível abrir' },
-  'Fallback requerido': { fr: 'Fallback requis', it: 'Fallback richiesto', pt: 'Fallback obrigatório' },
-  'Crea o selecciona una BusinessCard permanente antes de montar una SmartCard 24 h.': { fr: 'Crée ou sélectionne une BusinessCard permanente avant de monter une SmartCard 24 h.', it: 'Crea o seleziona una BusinessCard permanente prima di montare una SmartCard 24 h.', pt: 'Crie ou selecione uma BusinessCard permanente antes de montar uma SmartCard 24h.' },
-  'Crea una BusinessCard permanente antes de montar una SmartCard 24 h.': { fr: 'Crée une BusinessCard permanente avant de monter une SmartCard 24 h.', it: 'Crea una BusinessCard permanente prima di montare una SmartCard 24 h.', pt: 'Crie uma BusinessCard permanente antes de montar uma SmartCard 24h.' },
-  'No se pudo montar': { fr: 'Impossible de monter', it: 'Impossibile montare', pt: 'Não foi possível montar' },
-  'No se pudo actualizar': { fr: 'Impossible de mettre à jour', it: 'Impossibile aggiornare', pt: 'Não foi possível atualizar' },
-  Volver: { fr: 'Retour', it: 'Indietro', pt: 'Voltar' },
-  'Menú NFC': { fr: 'Menu NFC', it: 'Menu NFC', pt: 'Menu NFC' },
-  'Hardware inteligente': { fr: 'Matériel intelligent', it: 'Hardware intelligente', pt: 'Hardware inteligente' },
-  'Vincula tarjetas físicas y monta la identidad que deben abrir ahora mismo. La tarjeta conserva un enlace fijo; Card-Social cambia el destino.': { fr: "Lie des cartes physiques et monte l'identité qu'elles doivent ouvrir maintenant. La carte garde un lien fixe; Card-Social change la destination.", it: "Collega carte fisiche e monta l'identità che devono aprire in questo momento. La carta mantiene un link fisso; Card-Social cambia la destinazione.", pt: 'Vincule cartões físicos e monte a identidade que eles devem abrir agora. O cartão mantém um link fixo; o Card-Social muda o destino.' },
-  'Vincular nueva NFC': { fr: 'Lier une nouvelle NFC', it: 'Collega nuova NFC', pt: 'Vincular novo NFC' },
-  'Escanea el QR o ingresa el ID de la tarjeta junto con su PIN de activación.': { fr: "Scanne le QR ou saisis l'ID de la carte avec son PIN d'activation.", it: "Scansiona il QR o inserisci l'ID della carta insieme al PIN di attivazione.", pt: 'Escaneie o QR ou digite o ID do cartão junto com o PIN de ativação.' },
-  'Vincular tarjeta física': { fr: 'Lier une carte physique', it: 'Collega carta fisica', pt: 'Vincular cartão físico' },
-  'Cargando tarjetas NFC...': { fr: 'Chargement des cartes NFC...', it: 'Caricamento carte NFC...', pt: 'Carregando cartões NFC...' },
-  'No hay tarjetas vinculadas': { fr: 'Aucune carte liée', it: 'Nessuna carta collegata', pt: 'Nenhum cartão vinculado' },
-  'Vincula la primera tarjeta física usando el ID impreso o el QR de manufactura.': { fr: "Lie la première carte physique avec l'ID imprimé ou le QR de fabrication.", it: "Collega la prima carta fisica usando l'ID stampato o il QR di produzione.", pt: 'Vincule o primeiro cartão físico usando o ID impresso ou o QR de fabricação.' },
-  'Montado ahora': { fr: 'Monté maintenant', it: 'Montato ora', pt: 'Montado agora' },
-  'Página de recuperación segura': { fr: 'Page de récupération sécurisée', it: 'Pagina di recupero sicura', pt: 'Página de recuperação segura' },
-  'Pendiente de confirmación del servidor.': { fr: 'En attente de confirmation du serveur.', it: 'In attesa di conferma del server.', pt: 'Aguardando confirmação do servidor.' },
-  Montar: { fr: 'Monter', it: 'Monta', pt: 'Montar' },
-  Probar: { fr: 'Tester', it: 'Prova', pt: 'Testar' },
-  Activar: { fr: 'Activer', it: 'Attiva', pt: 'Ativar' },
-  Pausar: { fr: 'Mettre en pause', it: 'Metti in pausa', pt: 'Pausar' },
-  'Backend integrado: /api/nfc administra tarjetas y /n/{nfcCardId} resuelve con redirección temporal.': { fr: 'Backend intégré: /api/nfc gère les cartes et /n/{nfcCardId} résout avec une redirection temporaire.', it: 'Backend integrato: /api/nfc gestisce le carte e /n/{nfcCardId} risolve con reindirizzamento temporaneo.', pt: 'Backend integrado: /api/nfc administra cartões e /n/{nfcCardId} resolve com redirecionamento temporário.' },
-  'Pega el ID o la URL /n impresa en la tarjeta y escribe el PIN de activación.': { fr: "Colle l'ID ou l'URL /n imprimée sur la carte et saisis le PIN d'activation.", it: "Incolla l'ID o l'URL /n stampata sulla carta e inserisci il PIN di attivazione.", pt: 'Cole o ID ou a URL /n impressa no cartão e digite o PIN de ativação.' },
-  'PIN de activación': { fr: "PIN d'activation", it: 'PIN di attivazione', pt: 'PIN de ativação' },
-  'Tarjeta 1': { fr: 'Carte 1', it: 'Carta 1', pt: 'Cartão 1' },
-  'Vinculando...': { fr: 'Liaison...', it: 'Collegamento...', pt: 'Vinculando...' },
-  Vincular: { fr: 'Lier', it: 'Collega', pt: 'Vincular' },
-  Cancelar: { fr: 'Annuler', it: 'Annulla', pt: 'Cancelar' },
-  'Montar identidad': { fr: "Monter l'identité", it: "Monta identità", pt: 'Montar identidade' },
-  'BusinessCards aparecen primero. Las SmartCards generan URL temporal de 24 h y requieren fallback.': { fr: "Les BusinessCards apparaissent d'abord. Les SmartCards génèrent une URL temporaire de 24 h et exigent un fallback.", it: 'Le BusinessCards appaiono per prime. Le SmartCards generano un URL temporaneo di 24 h e richiedono un fallback.', pt: 'As BusinessCards aparecem primeiro. As SmartCards geram URL temporária de 24h e exigem fallback.' },
-  'No hay tarjetas disponibles para montar.': { fr: 'Aucune carte disponible à monter.', it: 'Nessuna carta disponibile da montare.', pt: 'Nenhum cartão disponível para montar.' },
-  'BusinessCards permanentes': { fr: 'BusinessCards permanentes', it: 'BusinessCards permanenti', pt: 'BusinessCards permanentes' },
-  'SmartCards temporales': { fr: 'SmartCards temporaires', it: 'SmartCards temporanee', pt: 'SmartCards temporários' },
-  'Temporal - 24h · requiere fallback permanente': { fr: 'Temporaire - 24 h · fallback permanent requis', it: 'Temporanea - 24 h · fallback permanente richiesto', pt: 'Temporário - 24h · exige fallback permanente' },
-  'Elegir fallback': { fr: 'Choisir le fallback', it: 'Scegli fallback', pt: 'Escolher fallback' },
-  'Fallback permanente': { fr: 'Fallback permanent', it: 'Fallback permanente', pt: 'Fallback permanente' },
-};
-
-function trNfc(es: string, en: string, lang: AppLanguage): string {
-  if (lang === 'fr' || lang === 'it' || lang === 'pt') {
-    return NFC_TRANSLATIONS[es]?.[lang] || trEsEn(es, en, lang);
-  }
-  return trEsEn(es, en, lang);
+function nfcRecoveryRouteText(label: string, t: CoreT): string {
+  return t('nfc_recovery_route', { label });
 }
 
-function nfcRecoveryRouteText(label: string, lang: AppLanguage): string {
-  if (lang === 'es') return `Canal elegido: ${label}. No se expone el perfil completo.`;
-  if (lang === 'fr') return `Canal choisi: ${label}. Le profil complet n'est pas exposé.`;
-  if (lang === 'it') return `Canale scelto: ${label}. Il profilo completo non viene esposto.`;
-  if (lang === 'pt') return `Canal escolhido: ${label}. O perfil completo não é exposto.`;
-  return `Selected channel: ${label}. Full profile is not exposed.`;
+function nfcTemporaryTargetText(expiresAt: string | null | undefined, fallbackName: string, t: CoreT): string {
+  const expires = formatIsoForUi(expiresAt) ?? t('nfc_expiration_pending');
+  return t('nfc_temp_route', { expires, fallback: fallbackName });
 }
 
-function nfcTemporaryTargetText(expiresAt: string | null | undefined, fallbackName: string, lang: AppLanguage): string {
-  const expires = expiresAt || (lang === 'es' ? 'Expiración pendiente' : lang === 'fr' ? 'Expiration en attente' : lang === 'it' ? 'Scadenza in attesa' : lang === 'pt' ? 'Expiração pendente' : 'Expiration pending');
-  if (lang === 'es') return `${expires}. Fallback obligatorio: ${fallbackName}.`;
-  if (lang === 'fr') return `${expires}. Fallback obligatoire: ${fallbackName}.`;
-  if (lang === 'it') return `${expires}. Fallback obbligatorio: ${fallbackName}.`;
-  if (lang === 'pt') return `${expires}. Fallback obrigatório: ${fallbackName}.`;
-  return `${expires}. Required fallback: ${fallbackName}.`;
+function nfcPermanentTargetText(fallbackName: string, t: CoreT): string {
+  return t('nfc_perm_route', { fallback: fallbackName });
 }
 
-function nfcPermanentTargetText(fallbackName: string, lang: AppLanguage): string {
-  if (lang === 'es') return `Destino permanente. Fallback: ${fallbackName}.`;
-  if (lang === 'fr') return `Destination permanente. Fallback: ${fallbackName}.`;
-  if (lang === 'it') return `Destinazione permanente. Fallback: ${fallbackName}.`;
-  if (lang === 'pt') return `Destino permanente. Fallback: ${fallbackName}.`;
-  return `Permanent destination. Fallback: ${fallbackName}.`;
+function nfcServerConfirmedText(value: string, t: CoreT): string {
+  return t('nfc_server_confirmed', { value });
 }
 
-function nfcServerConfirmedText(value: string, lang: AppLanguage): string {
-  if (lang === 'es') return `Confirmado por servidor: ${value}`;
-  if (lang === 'fr') return `Confirmé par le serveur: ${value}`;
-  if (lang === 'it') return `Confermato dal server: ${value}`;
-  if (lang === 'pt') return `Confirmado pelo servidor: ${value}`;
-  return `Server confirmed: ${value}`;
-}
-
-function nfcLastScanText(value: string, lang: AppLanguage): string {
-  if (lang === 'es') return `Último escaneo: ${value}`;
-  if (lang === 'fr') return `Dernier scan: ${value}`;
-  if (lang === 'it') return `Ultima scansione: ${value}`;
-  if (lang === 'pt') return `Último escaneamento: ${value}`;
-  return `Last scan: ${value}`;
-}
-
-function nfcSmartFallbackPrompt(name: string, lang: AppLanguage): string {
-  if (lang === 'es') return `La SmartCard "${name}" expira en 24 h. Elige una BusinessCard permanente para cuando venza.`;
-  if (lang === 'fr') return `La SmartCard "${name}" expire dans 24 h. Choisis une BusinessCard permanente pour son expiration.`;
-  if (lang === 'it') return `La SmartCard "${name}" scade tra 24 h. Scegli una BusinessCard permanente per quando scadrà.`;
-  if (lang === 'pt') return `A SmartCard "${name}" expira em 24h. Escolha uma BusinessCard permanente para quando vencer.`;
-  return `The SmartCard "${name}" expires in 24h. Choose a permanent BusinessCard for when it expires.`;
+function nfcLastScanText(value: string, t: CoreT): string {
+  return t('nfc_last_scan_fmt', { value });
 }
 
 export default function NfcScreen() {
@@ -203,7 +103,7 @@ export default function NfcScreen() {
   const headerOnBannerMuted = 'rgba(255,255,255,0.78)';
   const headerBackButtonBg = 'rgba(255,255,255,0.14)';
   const headerBackButtonBorder = 'rgba(255,255,255,0.18)';
-  const tr = useCallback((es: string, en: string) => trNfc(es, en, language), [language]);
+  const t = useCoreT();
   const [cards, setCards] = useState<NfcCardDoc[]>([]);
   const [mountOptions, setMountOptions] = useState<NfcMountOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -213,7 +113,7 @@ export default function NfcScreen() {
   const [pendingSmartMount, setPendingSmartMount] = useState<{ card: NfcCardDoc; option: NfcMountOption } | null>(null);
   const [newNfcId, setNewNfcId] = useState('');
   const [newActivationPin, setNewActivationPin] = useState('');
-  const [newNfcLabel, setNewNfcLabel] = useState('Tarjeta 1');
+  const [newNfcLabel, setNewNfcLabel] = useState('');
 
   const uid = auth.currentUser?.uid || '';
 
@@ -253,7 +153,7 @@ export default function NfcScreen() {
         type: 'businessCard',
         id: card.bId,
         displayName: card.bcName || 'Business Card',
-        subtitle: card.bcContactName || tr('Permanente', 'Permanent'),
+        subtitle: card.bcContactName || t('nfc_permanent'),
         isTemporary: false,
         expiresInLabel: null,
       }));
@@ -263,7 +163,7 @@ export default function NfcScreen() {
           type: 'smartCard',
           id: String(card.sid || ''),
           displayName: card.scName || card.ownerDisplayName || card.sid || 'SmartCard',
-          subtitle: tr('Temporal - 24h', 'Temporary - 24h'),
+          subtitle: t('nfc_temporal_24h'),
           isTemporary: true,
           expiresInLabel: '24h',
         }));
@@ -271,13 +171,13 @@ export default function NfcScreen() {
       setMountOptions([...businessOptions, ...smartOptions]);
     } catch (error: any) {
       Alert.alert(
-        tr('No se pudo cargar NFC', 'Could not load NFC'),
-        userFacingAlertMessage(error, language, tr('Intenta nuevamente.', 'Try again.')),
+        t('nfc_load_fail_title'),
+        userFacingAlertMessage(error, language, t('common_try_again')),
       );
     } finally {
       setLoading(false);
     }
-  }, [tr, uid]);
+  }, [t, uid, language]);
 
   useEffect(() => {
     void loadNfc();
@@ -583,12 +483,12 @@ export default function NfcScreen() {
     if (!uid) return;
     const nfcCardId = newNfcId.trim();
     if (!nfcCardId) {
-      Alert.alert(tr('ID requerido', 'ID required'), tr('Escanea o escribe el identificador NFC.', 'Scan or type the NFC identifier.'));
+      Alert.alert(t('nfc_id_required_title'), t('nfc_id_required_body'));
       return;
     }
     const activationPin = newActivationPin.trim().toUpperCase();
     if (!/^[A-Z0-9]{4,12}$/.test(activationPin)) {
-      Alert.alert(tr('PIN requerido', 'PIN required'), tr('Escribe el PIN de activación impreso con tu tarjeta.', 'Enter the activation PIN printed with your card.'));
+      Alert.alert(t('nfc_pin_required_title'), t('nfc_pin_required_body'));
       return;
     }
     try {
@@ -596,18 +496,18 @@ export default function NfcScreen() {
       const card = await linkNfcCard(uid, {
         nfcCardId,
         activationPin,
-        label: newNfcLabel.trim() || 'Tarjeta NFC',
+        label: newNfcLabel.trim() || t('nfc_default_link_label'),
         material: 'unknown',
       });
       replaceCard(card);
       setLinkModalOpen(false);
       setNewNfcId('');
       setNewActivationPin('');
-      Alert.alert(tr('Tarjeta vinculada', 'Card linked'), tr('Ahora puedes montar una identidad.', 'Now you can mount an identity.'));
+      Alert.alert(t('nfc_linked_title'), t('nfc_linked_body'));
     } catch (error: any) {
       Alert.alert(
-        tr('No se pudo vincular', 'Could not link'),
-        userFacingAlertMessage(error, language, tr('Intenta nuevamente.', 'Try again.')),
+        t('nfc_link_fail_title'),
+        userFacingAlertMessage(error, language, t('common_try_again')),
       );
     } finally {
       setBusyCardId(null);
@@ -617,13 +517,13 @@ export default function NfcScreen() {
   const openMountedUrl = async (card: NfcCardDoc) => {
     const url = card.status === 'lost' ? `https://cardsocial.me/n/${encodeURIComponent(card.nfcCardId)}` : card.mountedTarget?.publicUrl;
     if (!url) {
-      Alert.alert(tr('Sin destino', 'No destination'), tr('Esta tarjeta aún no tiene identidad montada.', 'This card has no mounted identity yet.'));
+      Alert.alert(t('nfc_no_dest_title'), t('nfc_no_dest_body'));
       return;
     }
     await Linking.openURL(url).catch(() => {
       Alert.alert(
-        tr('No se pudo abrir', 'Could not open'),
-        tr('No se pudo abrir el enlace.', 'Could not open the link.'),
+        t('nfc_open_fail_title'),
+        t('nfc_open_link_fail'),
       );
     });
   };
@@ -632,8 +532,8 @@ export default function NfcScreen() {
     if (!uid) return;
     if (fallback.type !== 'businessCard') {
       Alert.alert(
-        tr('Fallback requerido', 'Fallback required'),
-        tr('Crea o selecciona una BusinessCard permanente antes de montar una SmartCard 24 h.', 'Create or select a permanent BusinessCard before mounting a 24h SmartCard.'),
+        t('nfc_fallback_required_title'),
+        t('nfc_fallback_smart_long'),
       );
       return;
     }
@@ -652,8 +552,8 @@ export default function NfcScreen() {
       setPendingSmartMount(null);
     } catch (error: any) {
       Alert.alert(
-        tr('No se pudo montar', 'Could not mount'),
-        userFacingAlertMessage(error, language, tr('Intenta nuevamente.', 'Try again.')),
+        t('nfc_mount_fail_title'),
+        userFacingAlertMessage(error, language, t('common_try_again')),
       );
     } finally {
       setBusyCardId(null);
@@ -664,8 +564,8 @@ export default function NfcScreen() {
     if (option.isTemporary) {
       if (businessMountOptions.length === 0) {
         Alert.alert(
-          tr('Fallback requerido', 'Fallback required'),
-          tr('Crea una BusinessCard permanente antes de montar una SmartCard 24 h.', 'Create a permanent BusinessCard before mounting a 24h SmartCard.'),
+          t('nfc_fallback_required_title'),
+          t('nfc_fallback_smart_short'),
         );
         return;
       }
@@ -694,8 +594,8 @@ export default function NfcScreen() {
       replaceCard(next);
     } catch (error: any) {
       Alert.alert(
-        tr('No se pudo actualizar', 'Could not update'),
-        userFacingAlertMessage(error, language, tr('Intenta nuevamente.', 'Try again.')),
+        t('nfc_update_fail_title'),
+        userFacingAlertMessage(error, language, t('common_try_again')),
       );
     } finally {
       setBusyCardId(null);
@@ -715,33 +615,27 @@ export default function NfcScreen() {
             style={styles.backButton}
             onPress={() => router.back()}
             accessibilityRole="button"
-            accessibilityLabel={tr('Volver', 'Back')}
+            accessibilityLabel={t('common_back')}
           >
             <MaterialCommunityIcons name="chevron-left" size={24} color={headerOnBanner} />
           </TouchableOpacity>
           <View style={styles.headerCopy}>
-            <Text style={styles.eyebrow}>{tr('Menú NFC', 'NFC Menu')}</Text>
-            <Text style={styles.title}>{tr('Hardware inteligente', 'Smart hardware')}</Text>
+            <Text style={styles.eyebrow}>{t('nfc_menu_eyebrow')}</Text>
+            <Text style={styles.title}>{t('nfc_menu_title')}</Text>
           </View>
         </View>
         <Text style={styles.subtitle}>
-          {tr(
-            'Vincula tarjetas físicas y monta la identidad que deben abrir ahora mismo. La tarjeta conserva un enlace fijo; Card-Social cambia el destino.',
-            'Link physical cards and mount the identity they should open right now. The card keeps one fixed link; Card-Social changes the destination.',
-          )}
+          {t('nfc_menu_subtitle')}
         </Text>
       </LinearGradient>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.body}>
         <View style={styles.physicalUpsell}>
           <Text style={styles.physicalUpsellTitle}>
-            {tr('Compra tarjetas físicas NFC', 'Buy NFC physical cards')}
+            {t('nfc_buy_cards_title')}
           </Text>
           <Text style={styles.physicalUpsellText}>
-            {tr(
-              'Abre Suscripción en el menú para ver precios de PVC y metal, slots extra y la licencia de negocio.',
-              'Open Subscription from the menu to see PVC and metal pricing, extra slots, and the business license.',
-            )}
+            {t('nfc_buy_cards_body')}
           </Text>
           <TouchableOpacity
             style={styles.physicalUpsellBtn}
@@ -750,42 +644,39 @@ export default function NfcScreen() {
               requestSubscriptionPhysicalCardsSection({ delayMs: 380 });
             }}
             accessibilityRole="button"
-            accessibilityLabel={tr('Ir a comprar tarjetas físicas', 'Shop physical cards')}
+            accessibilityLabel={t('nfc_shop_cards_cta')}
           >
             <Text style={styles.physicalUpsellBtnText}>
-              {tr('Ir a comprar tarjetas físicas', 'Shop physical cards')}
+              {t('nfc_shop_cards_cta')}
             </Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.heroCard}>
-          <Text style={styles.heroTitle}>{tr('Vincular nueva NFC', 'Link new NFC')}</Text>
+          <Text style={styles.heroTitle}>{t('nfc_link_new_title')}</Text>
           <Text style={styles.heroText}>
-            {tr(
-                'Escanea el QR o ingresa el ID de la tarjeta junto con su PIN de activación.',
-                'Scan the QR or enter the card ID together with its activation PIN.',
-            )}
+            {t('nfc_link_new_sub')}
           </Text>
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => setLinkModalOpen(true)} accessibilityRole="button">
+          <TouchableOpacity style={styles.primaryBtn} onPress={() => {
+          setNewNfcLabel(t('nfc_placeholder_card_label'));
+          setLinkModalOpen(true);
+        }} accessibilityRole="button">
             <MaterialCommunityIcons name="qrcode-scan" size={18} color={shell.emptyCtaText} />
-            <Text style={styles.primaryBtnText}>{tr('Vincular tarjeta física', 'Link physical card')}</Text>
+            <Text style={styles.primaryBtnText}>{t('nfc_link_physical_cta')}</Text>
           </TouchableOpacity>
         </View>
 
         {loading ? (
           <View style={styles.emptyBox}>
             <ActivityIndicator color={shell.ctaAccent} />
-            <Text style={styles.heroText}>{tr('Cargando tarjetas NFC...', 'Loading NFC cards...')}</Text>
+            <Text style={styles.heroText}>{t('nfc_loading_cards')}</Text>
           </View>
         ) : cards.length === 0 ? (
           <View style={styles.emptyBox}>
             <MaterialCommunityIcons name="contactless-payment-circle-outline" size={42} color={shell.ctaAccent} />
-            <Text style={styles.heroTitle}>{tr('No hay tarjetas vinculadas', 'No linked cards')}</Text>
+            <Text style={styles.heroTitle}>{t('nfc_no_cards_title')}</Text>
             <Text style={[styles.heroText, { textAlign: 'center' }]}>
-              {tr(
-                'Vincula la primera tarjeta física usando el ID impreso o el QR de manufactura.',
-                'Link the first physical card using the printed ID or manufacturing QR.',
-              )}
+              {t('nfc_no_cards_sub')}
             </Text>
           </View>
         ) : null}
@@ -803,37 +694,37 @@ export default function NfcScreen() {
                 <View style={styles.cardIdentity}>
                   <Text style={styles.cardTitle}>{card.label}</Text>
                   <Text style={styles.cardMeta}>
-                    {materialLabel(card.material, tr)} · /n/{card.nfcCardId}
+                    {materialLabel(card.material, t)} · /n/{card.nfcCardId}
                   </Text>
                 </View>
                 <View style={[styles.statusPill, { backgroundColor: tone.bg, borderColor: tone.border }]}>
                   <MaterialCommunityIcons name={meta.icon} size={13} color={tone.fg} />
-                  <Text style={[styles.statusText, { color: tone.fg }]}>{tr(meta.labelEs, meta.labelEn)}</Text>
+                  <Text style={[styles.statusText, { color: tone.fg }]}>{t(meta.labelKey)}</Text>
                 </View>
               </View>
 
               <View style={styles.routeBox}>
-                <Text style={styles.label}>{tr('Montado ahora', 'Mounted now')}</Text>
+                <Text style={styles.label}>{t('nfc_mounted_now')}</Text>
                 <Text style={styles.routeTitle}>
                   {card.status === 'lost'
-                    ? tr('Página de recuperación segura', 'Secure recovery page')
-                    : card.mountedTarget?.displayName || tr('Sin destino', 'No destination')}
+                    ? t('nfc_recovery_page')
+                    : card.mountedTarget?.displayName || t('nfc_no_dest_title')}
                 </Text>
                 <Text style={styles.routeText}>
                   {card.status === 'lost'
-                    ? nfcRecoveryRouteText(card.recoveryContact?.label || tr('pendiente', 'pending'), language)
+                    ? nfcRecoveryRouteText(card.recoveryContact?.label || t('nfc_pending'), t)
                     : card.mountedTarget?.isTemporary
-                      ? nfcTemporaryTargetText(card.mountedTarget.expiresAt, card.fallbackTarget?.displayName || tr('pendiente', 'pending'), language)
-                      : nfcPermanentTargetText(card.fallbackTarget?.displayName || tr('mismo destino', 'same destination'), language)}
+                      ? nfcTemporaryTargetText(card.mountedTarget.expiresAt, card.fallbackTarget?.displayName || t('nfc_pending'), t)
+                      : nfcPermanentTargetText(card.fallbackTarget?.displayName || t('nfc_same_destination'), t)}
                 </Text>
                 <Text style={styles.routeText}>
                   {formatIsoForUi(card.lastConfirmedAt)
-                    ? nfcServerConfirmedText(formatIsoForUi(card.lastConfirmedAt) || '', language)
-                    : tr('Pendiente de confirmación del servidor.', 'Pending server confirmation.')}
+                    ? nfcServerConfirmedText(formatIsoForUi(card.lastConfirmedAt) || '', t)
+                    : t('nfc_server_pending')}
                 </Text>
                 {formatIsoForUi(card.lastResolvedAt) ? (
                   <Text style={styles.routeText}>
-                    {nfcLastScanText(formatIsoForUi(card.lastResolvedAt) || '', language)}
+                    {nfcLastScanText(formatIsoForUi(card.lastResolvedAt) || '', t)}
                   </Text>
                 ) : null}
               </View>
@@ -841,11 +732,11 @@ export default function NfcScreen() {
               <View style={styles.actions}>
                 <TouchableOpacity style={styles.secondaryBtn} onPress={() => setMountModalCard(card)} accessibilityRole="button" disabled={busy}>
                   <MaterialCommunityIcons name="swap-horizontal" size={16} color={shell.ctaAccent} />
-                  <Text style={styles.secondaryBtnText}>{tr('Montar', 'Mount')}</Text>
+                  <Text style={styles.secondaryBtnText}>{t('nfc_btn_mount')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.secondaryBtn} onPress={() => openMountedUrl(card)} accessibilityRole="button">
                   <MaterialCommunityIcons name="open-in-new" size={16} color={shell.ctaAccent} />
-                  <Text style={styles.secondaryBtnText}>{tr('Probar', 'Test')}</Text>
+                  <Text style={styles.secondaryBtnText}>{t('nfc_btn_test')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.secondaryBtn}
@@ -854,7 +745,7 @@ export default function NfcScreen() {
                   disabled={busy}
                 >
                   <MaterialCommunityIcons name="shield-alert-outline" size={16} color={shell.ctaAccent} />
-                  <Text style={styles.secondaryBtnText}>{card.status === 'lost' ? tr('Activar', 'Activate') : tr('Perdida', 'Lost')}</Text>
+                  <Text style={styles.secondaryBtnText}>{card.status === 'lost' ? t('nfc_activate') : t('nfc_lost')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.secondaryBtn}
@@ -863,7 +754,7 @@ export default function NfcScreen() {
                   disabled={busy}
                 >
                   <MaterialCommunityIcons name={card.status === 'paused' ? 'play-circle-outline' : 'pause-circle-outline'} size={16} color={shell.ctaAccent} />
-                  <Text style={styles.secondaryBtnText}>{card.status === 'paused' ? tr('Activar', 'Activate') : tr('Pausar', 'Pause')}</Text>
+                  <Text style={styles.secondaryBtnText}>{card.status === 'paused' ? t('nfc_activate') : t('nfc_pause')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -871,19 +762,16 @@ export default function NfcScreen() {
         })}
 
         <Text style={styles.footnote}>
-          {tr(
-            'Backend integrado: /api/nfc administra tarjetas y /n/{nfcCardId} resuelve con redirección temporal.',
-            'Backend integrated: /api/nfc manages cards and /n/{nfcCardId} resolves with temporary redirects.',
-          )}
+          {t('nfc_footnote_backend')}
         </Text>
       </ScrollView>
 
       <Modal visible={linkModalOpen} transparent animationType="slide" onRequestClose={() => setLinkModalOpen(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{tr('Vincular tarjeta física', 'Link physical card')}</Text>
+            <Text style={styles.modalTitle}>{t('nfc_link_physical_cta')}</Text>
             <Text style={styles.heroText}>
-              {tr('Pega el ID o la URL /n impresa en la tarjeta y escribe el PIN de activación.', 'Paste the ID or /n URL printed on the card and enter the activation PIN.')}
+              {t('nfc_modal_link_pin_instructions')}
             </Text>
             <TextInput
               style={styles.input}
@@ -897,7 +785,7 @@ export default function NfcScreen() {
               style={styles.input}
               value={newActivationPin}
               onChangeText={(v) => setNewActivationPin(v.toUpperCase())}
-              placeholder={tr('PIN de activación', 'Activation PIN')}
+              placeholder={t('nfc_placeholder_pin')}
               placeholderTextColor={shell.textMuted}
               autoCapitalize="characters"
               maxLength={12}
@@ -906,16 +794,16 @@ export default function NfcScreen() {
               style={styles.input}
               value={newNfcLabel}
               onChangeText={setNewNfcLabel}
-              placeholder={tr('Tarjeta 1', 'Card 1')}
+              placeholder={t('nfc_placeholder_card_label')}
               placeholderTextColor={shell.textMuted}
             />
             <TouchableOpacity style={styles.primaryBtn} onPress={submitLinkCard} disabled={busyCardId === '__link__'}>
               <Text style={styles.primaryBtnText}>
-                {busyCardId === '__link__' ? tr('Vinculando...', 'Linking...') : tr('Vincular', 'Link')}
+                {busyCardId === '__link__' ? t('nfc_linking') : t('nfc_link_verb')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.secondaryBtn} onPress={() => setLinkModalOpen(false)}>
-              <Text style={styles.secondaryBtnText}>{tr('Cancelar', 'Cancel')}</Text>
+              <Text style={styles.secondaryBtnText}>{t('common_cancel')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -924,19 +812,19 @@ export default function NfcScreen() {
       <Modal visible={Boolean(mountModalCard)} transparent animationType="slide" onRequestClose={() => setMountModalCard(null)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{tr('Montar identidad', 'Mount identity')}</Text>
+            <Text style={styles.modalTitle}>{t('nfc_mount_modal_title')}</Text>
             <Text style={styles.heroText}>
-              {tr('BusinessCards aparecen primero. Las SmartCards generan URL temporal de 24 h y requieren fallback.', 'BusinessCards appear first. SmartCards generate a 24h temporary URL and require fallback.')}
+              {t('nfc_mount_modal_sub')}
             </Text>
             <ScrollView style={{ marginTop: 6 }}>
               {mountOptions.length === 0 ? (
                 <Text style={[styles.heroText, { marginTop: 14 }]}>
-                  {tr('No hay tarjetas disponibles para montar.', 'No cards available to mount.')}
+                  {t('nfc_no_mount_options')}
                 </Text>
               ) : (
                 <>
                   {businessMountOptions.length > 0 ? (
-                    <Text style={[styles.label, { marginTop: 10 }]}>{tr('BusinessCards permanentes', 'Permanent BusinessCards')}</Text>
+                    <Text style={[styles.label, { marginTop: 10 }]}>{t('nfc_bc_permanent_header')}</Text>
                   ) : null}
                   {businessMountOptions.map((option) => (
                     <TouchableOpacity
@@ -948,14 +836,14 @@ export default function NfcScreen() {
                       <MaterialCommunityIcons name="briefcase-outline" size={22} color={shell.ctaAccent} />
                       <View style={styles.optionTextCol}>
                         <Text style={styles.routeTitle}>{option.displayName}</Text>
-                        <Text style={styles.routeText}>{option.subtitle || tr('Permanente', 'Permanent')}</Text>
+                        <Text style={styles.routeText}>{option.subtitle || t('nfc_permanent')}</Text>
                       </View>
                       <MaterialCommunityIcons name="chevron-right" size={20} color={shell.textSecondary} />
                     </TouchableOpacity>
                   ))}
 
                   {smartMountOptions.length > 0 ? (
-                    <Text style={[styles.label, { marginTop: 14 }]}>{tr('SmartCards temporales', 'Temporary SmartCards')}</Text>
+                    <Text style={[styles.label, { marginTop: 14 }]}>{t('nfc_smart_temp_header')}</Text>
                   ) : null}
                   {smartMountOptions.map((option) => (
                     <TouchableOpacity
@@ -968,7 +856,7 @@ export default function NfcScreen() {
                       <View style={styles.optionTextCol}>
                         <Text style={styles.routeTitle}>{option.displayName}</Text>
                         <Text style={styles.routeText}>
-                          {tr('Temporal - 24h · requiere fallback permanente', 'Temporary - 24h · permanent fallback required')}
+                          {t('nfc_temp_fallback_line')}
                         </Text>
                       </View>
                       <MaterialCommunityIcons name="chevron-right" size={20} color={shell.textSecondary} />
@@ -978,7 +866,7 @@ export default function NfcScreen() {
               )}
             </ScrollView>
             <TouchableOpacity style={styles.secondaryBtn} onPress={() => setMountModalCard(null)}>
-              <Text style={styles.secondaryBtnText}>{tr('Cancelar', 'Cancel')}</Text>
+              <Text style={styles.secondaryBtnText}>{t('common_cancel')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -992,10 +880,10 @@ export default function NfcScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{tr('Elegir fallback', 'Choose fallback')}</Text>
+            <Text style={styles.modalTitle}>{t('nfc_choose_fallback_title')}</Text>
             <Text style={styles.heroText}>
               {pendingSmartMount
-                ? nfcSmartFallbackPrompt(pendingSmartMount.option.displayName, language)
+                ? t('nfc_smart_fallback_prompt', { name: pendingSmartMount.option.displayName })
                 : null}
             </Text>
             <ScrollView style={{ marginTop: 6 }}>
@@ -1009,14 +897,14 @@ export default function NfcScreen() {
                   <MaterialCommunityIcons name="shield-check-outline" size={22} color={shell.ctaAccent} />
                   <View style={styles.optionTextCol}>
                     <Text style={styles.routeTitle}>{fallback.displayName}</Text>
-                    <Text style={styles.routeText}>{tr('Fallback permanente', 'Permanent fallback')}</Text>
+                    <Text style={styles.routeText}>{t('nfc_fallback_permanent_sub')}</Text>
                   </View>
                   <MaterialCommunityIcons name="check" size={20} color={shell.textSecondary} />
                 </TouchableOpacity>
               ))}
             </ScrollView>
             <TouchableOpacity style={styles.secondaryBtn} onPress={() => setPendingSmartMount(null)}>
-              <Text style={styles.secondaryBtnText}>{tr('Cancelar', 'Cancel')}</Text>
+              <Text style={styles.secondaryBtnText}>{t('common_cancel')}</Text>
             </TouchableOpacity>
           </View>
         </View>

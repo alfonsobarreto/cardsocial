@@ -8,7 +8,8 @@ import {
   type BusinessCardPackage,
 } from '@/services/businessCardPaywallService';
 import { getCommerceConfig } from '@/services/commerceConfigService';
-import { intlLocaleTagForAppLanguage, useLanguage, useTr } from '@/services/language';
+import { useCoreT } from '@/services/coreI18n';
+import { intlLocaleTagForAppLanguage, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import { getMarketRadarRemoteConfig } from '@/services/marketRadarConfigService';
 import { getTiersConfig, type TierKey, type TiersConfig } from '@/services/tiersConfigService';
@@ -68,7 +69,7 @@ const Subscription: React.FC<SubscriptionProps> = ({
   initialScrollSection = null,
   onScrollIntentConsumed,
 }) => {
-  const tr = useTr();
+  const t = useCoreT();
   const { language } = useLanguage();
   const { resolvedMode } = useLookMode();
   const shell = palette[resolvedMode === 'noche' ? 'dark' : 'light'];
@@ -409,42 +410,39 @@ const Subscription: React.FC<SubscriptionProps> = ({
   );
 
   const tierLabel = (key: TierKey) => {
-    if (key === 'free') return tr('Gratis', 'Free');
-    if (key === 'influencer') return tr('Influencer', 'Influencer');
-    return tr('Business', 'Business');
+    if (key === 'free') return t('sub_tier_free');
+    if (key === 'influencer') return t('sub_tier_influencer');
+    return t('sub_tier_business');
   };
 
-  const tierSummary = (key: TierKey, t: TiersConfig) => {
-    const lim = t[key];
+  const tierSummary = (key: TierKey, tiersCfg: TiersConfig) => {
+    const lim = tiersCfg[key];
     const bits = [
       `${lim.iconDataLimit} IconData · ${lim.smartCardsLimit} Smart`,
-      `${lim.businessCardsLimit} ${tr('negocio', 'business')}`,
-      `${lim.voipMinutesIncluded} ${tr('min/mes', 'min/mo')}${lim.premiumThemes ? ' · ' + tr('Temas+', 'Themes+') : ''}`,
+      `${lim.businessCardsLimit} ${t('core_word_business')}`,
+      `${lim.voipMinutesIncluded} ${t('sub_min_per_month')}${lim.premiumThemes ? ' · ' + t('sub_themes_plus') : ''}`,
     ];
     return bits.join('\n');
   };
 
   const onRadarProInfo = useCallback(() => {
-    Alert.alert(
-      tr('Market Radar Pro', 'Market Radar Pro'),
-      tr(
-        'El acceso completo se confirma al abrir el radar desde la app.',
-        'Full access is confirmed when you open the radar from the app.',
-      ),
-    );
-  }, [tr]);
+    Alert.alert(t('sub_market_radar_pro_title'), t('sub_radar_full_access_body'));
+  }, [t]);
 
   const onTierCta = (key: TierKey) => {
     if (key === 'free') {
-      Alert.alert(tr('Plan Gratis', 'Free plan'), tr('Ya incluido con tu cuenta.', 'Already included with your account.'));
+      Alert.alert(t('sub_free_plan_title'), t('sub_free_plan_body'));
       return;
     }
     Alert.alert(
-      tr('Ascenso de plan', 'Upgrade plan'),
-      tr(
-        `${fmtUsd(tiers?.[key].monthlyPriceUsd ?? 0)} / mes · ${(tiers?.[key].monthlyEquivalentCs ?? 0).toLocaleString()} CS · ${fmtUsd(tiers?.[key].annualPriceUsd ?? 0)} / año · ${(tiers?.[key].annualEquivalentCs ?? 0).toLocaleString()} CS. Prueba: ${tiers?.[key].freeTrialDays ?? 0} días. La compra se completa en la tienda de la app.`,
-        `${fmtUsd(tiers?.[key].monthlyPriceUsd ?? 0)} / mo · ${(tiers?.[key].monthlyEquivalentCs ?? 0).toLocaleString()} CS · ${fmtUsd(tiers?.[key].annualPriceUsd ?? 0)} / yr · ${(tiers?.[key].annualEquivalentCs ?? 0).toLocaleString()} CS. Trial: ${tiers?.[key].freeTrialDays ?? 0} days. Purchase completes in your app’s store.`,
-      ),
+      t('sub_upgrade_plan_title'),
+      t('sub_tier_pricing_detail', {
+        monthlyUsd: fmtUsd(tiers?.[key].monthlyPriceUsd ?? 0),
+        monthlyCs: (tiers?.[key].monthlyEquivalentCs ?? 0).toLocaleString(),
+        annualUsd: fmtUsd(tiers?.[key].annualPriceUsd ?? 0),
+        annualCs: (tiers?.[key].annualEquivalentCs ?? 0).toLocaleString(),
+        trialDays: tiers?.[key].freeTrialDays ?? 0,
+      }),
     );
   };
 
@@ -453,14 +451,11 @@ const Subscription: React.FC<SubscriptionProps> = ({
       setSubscribingPack(pack.id);
       const purchaseResult = await Purchases.purchaseProduct(pack.productId);
       if (purchaseResult.customerInfo.entitlements.active[pack.productId]) {
-        Alert.alert(
-          '✅ ' + tr('¡Éxito!', 'Success!'),
-          tr('Se acreditaron', 'You received') + ` ${pack.credits} CS ` + tr('a tu cuenta', 'to your account'),
-        );
+        Alert.alert(t('sub_credit_pack_success_title'), t('sub_credit_pack_success_body', { credits: pack.credits }));
       }
     } catch (error: any) {
       if (!error.userCancelled) {
-        Alert.alert(tr('Error', 'Error'), tr('No se pudo procesar la compra', 'Could not process purchase'));
+        Alert.alert(t('common_error'), t('sub_purchase_process_failed'));
         console.error('Purchase error:', error);
       }
     } finally {
@@ -470,7 +465,7 @@ const Subscription: React.FC<SubscriptionProps> = ({
 
   const handleUpgradeBusinessCard = async () => {
     if (!userId) {
-      Alert.alert(tr('Sesión', 'Session'), tr('Inicia sesión para continuar.', 'Sign in to continue.'));
+      Alert.alert(t('sub_session_title'), t('sub_sign_in_to_continue'));
       return;
     }
     try {
@@ -479,20 +474,15 @@ const Subscription: React.FC<SubscriptionProps> = ({
       const result = await purchaseBusinessCard(platform, false, `business_annual_${Date.now()}`, userId);
       if (result.success) {
         Alert.alert(
-          '✅ ' + tr('¡Tarjeta de Negocio Activada!', 'Business Card Activated!'),
-          tr('Tu licencia anual quedó activa. Recibiste', 'Your annual license is now active. You received') +
-            ` ${String(result.cashbackCredits ?? 0)} ` +
-            tr('Monedas CS para gastar en tienda.', 'CS Coins to spend in the store.'),
+          t('sub_biz_card_activated_title'),
+          t('sub_biz_card_activated_body', { credits: String(result.cashbackCredits ?? 0) }),
         );
       } else {
-        Alert.alert(
-          tr('Error', 'Error'),
-          tr('No se pudo completar la compra.', 'Could not complete the purchase.'),
-        );
+        Alert.alert(t('common_error'), t('cards_purchase_failed'));
       }
     } catch (error) {
       console.error('Business card purchase error:', error);
-      Alert.alert(tr('Error', 'Error'), tr('No se pudo procesar la compra', 'Could not process purchase'));
+      Alert.alert(t('common_error'), t('sub_purchase_process_failed'));
     } finally {
       setUpgradeLoading(false);
     }
@@ -503,19 +493,16 @@ const Subscription: React.FC<SubscriptionProps> = ({
       await Purchases.restorePurchases();
       const active = await refreshCardSocialProActive();
       setProActive(active);
-      Alert.alert(
-        '✅ ' + tr('Restaurado', 'Restored'),
-        tr('Se han restaurado tus compras anteriores', 'Your previous purchases have been restored'),
-      );
+      Alert.alert(t('sub_restore_success_title'), t('sub_restore_success_body'));
     } catch (error) {
       console.error('Restore purchases error:', error);
-      Alert.alert(tr('Error', 'Error'), tr('No se pudieron restaurar las compras', 'Could not restore purchases'));
+      Alert.alert(t('common_error'), t('sub_restore_failed'));
     }
   };
 
   const runProPaywall = async (mode: 'ifNeeded' | 'always') => {
     if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
-      Alert.alert(tr('No disponible', 'Not available'), tr('Compras in-app solo en iOS/Android.', 'In-app purchases on iOS/Android only.'));
+      Alert.alert(t('common_not_available'), t('sub_iap_native_only_body'));
       return;
     }
     try {
@@ -525,21 +512,14 @@ const Subscription: React.FC<SubscriptionProps> = ({
       const active = await refreshCardSocialProActive();
       setProActive(active);
       if (paywallResultIndicatesUnlock(result)) {
-        Alert.alert(
-          tr('Card-Social Pro', 'Card-Social Pro'),
-          tr('Suscripción actualizada. ¡Gracias!', 'Subscription updated. Thank you!'),
-        );
+        Alert.alert(t('sub_pro_title'), t('sub_pro_updated_body'));
       }
     } catch (error) {
       const { cancelled } = formatRevenueCatPurchaseError(error);
       if (!cancelled) {
         Alert.alert(
-          tr('Error', 'Error'),
-          userFacingAlertMessage(
-            error,
-            language,
-            tr('No se pudo completar la operación.', 'Could not complete the operation.'),
-          ),
+          t('common_error'),
+          userFacingAlertMessage(error, language, t('sub_operation_failed')),
         );
       }
     } finally {
@@ -549,7 +529,7 @@ const Subscription: React.FC<SubscriptionProps> = ({
 
   const runCustomerCenter = async () => {
     if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
-      Alert.alert(tr('No disponible', 'Not available'), tr('Solo en app iOS/Android.', 'iOS/Android app only.'));
+      Alert.alert(t('common_not_available'), t('sub_native_app_only_body'));
       return;
     }
     try {
@@ -561,12 +541,8 @@ const Subscription: React.FC<SubscriptionProps> = ({
       const { cancelled } = formatRevenueCatPurchaseError(error);
       if (!cancelled) {
         Alert.alert(
-          tr('Error', 'Error'),
-          userFacingAlertMessage(
-            error,
-            language,
-            tr('No se pudo abrir el centro de suscripciones.', 'Could not open subscription management.'),
-          ),
+          t('common_error'),
+          userFacingAlertMessage(error, language, t('sub_subscription_center_failed')),
         );
       }
     } finally {
@@ -584,7 +560,7 @@ const Subscription: React.FC<SubscriptionProps> = ({
   const nfcCountryPickerLabel = useCallback(
     (code: string) => {
       if (code === 'ZZ') {
-        return tr('Otros países (internacional)', 'Other countries (international)');
+        return t('sub_other_countries_intl');
       }
       try {
         return new Intl.DisplayNames([intlLocale], { type: 'region' }).of(code) ?? code;
@@ -592,7 +568,7 @@ const Subscription: React.FC<SubscriptionProps> = ({
         return code;
       }
     },
-    [intlLocale, tr],
+    [intlLocale, t],
   );
 
   const nfcCheckout = useMemo(() => {
@@ -616,15 +592,19 @@ const Subscription: React.FC<SubscriptionProps> = ({
   const confirmNfcPhysicalTotal = useCallback(() => {
     if (!nfcCheckout) return;
     Alert.alert(
-      tr('Resumen para pago', 'Payment summary'),
+      t('sub_payment_summary_title'),
       [
-        `${tr('Precio de la tarjeta', 'Card price')}: ${fmtUsd(nfcCheckout.cardUsd)}`,
-        `${tr('Shipping & Handling', 'Shipping & Handling')}: ${fmtUsd(nfcCheckout.shipUsd)}`,
-        `${tr('Total final', 'Total')}: ${fmtUsd(nfcCheckout.totalUsd)}`,
-        `${tr('Equivalente en créditos CS', 'CS credits equivalent')}: ${nfcCheckout.cardCs.toLocaleString()} + ${nfcCheckout.shipCs.toLocaleString()} = ${nfcCheckout.totalCs.toLocaleString()} CS`,
+        `${t('sub_card_price')}: ${fmtUsd(nfcCheckout.cardUsd)}`,
+        `${t('sub_shipping_handling')}: ${fmtUsd(nfcCheckout.shipUsd)}`,
+        `${t('sub_total')}: ${fmtUsd(nfcCheckout.totalUsd)}`,
+        `${t('sub_cs_credits_equivalent')}: ${t('sub_nfc_cs_equivalent_line', {
+          cardCs: nfcCheckout.cardCs.toLocaleString(),
+          shipCs: nfcCheckout.shipCs.toLocaleString(),
+          totalCs: nfcCheckout.totalCs.toLocaleString(),
+        })}`,
       ].join('\n'),
     );
-  }, [fmtUsd, nfcCheckout, tr]);
+  }, [fmtUsd, nfcCheckout, t]);
 
   return (
     <ScrollView
@@ -642,27 +622,20 @@ const Subscription: React.FC<SubscriptionProps> = ({
               onPress={onClose}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               accessibilityRole="button"
-              accessibilityLabel={tr('Cerrar', 'Close')}
+              accessibilityLabel={t('common_close')}
             >
               <MaterialCommunityIcons name="close" size={24} color={shell.fabText} />
             </TouchableOpacity>
           </View>
         ) : null}
         <MaterialCommunityIcons name="storefront-outline" size={30} color={shell.ctaAccent} />
-        <Text style={styles.headerTitle}>{tr('Planes y membresía', 'Plans & membership')}</Text>
-        <Text style={styles.headerSubtitle}>
-          {tr(
-            'Pagos seguros con tu cuenta de App Store o Google Play.',
-            'Secure billing with your App Store or Google Play account.',
-          )}
-        </Text>
+        <Text style={styles.headerTitle}>{t('sub_plans_header_title')}</Text>
+        <Text style={styles.headerSubtitle}>{t('sub_plans_header_subtitle')}</Text>
       </LinearGradient>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{tr('Card-Social Pro', 'Card-Social Pro')}</Text>
-        <Text style={styles.sectionHint}>
-          {tr('Membresía integral. Elige tu plan dentro de la app.', 'All-in membership. Choose your plan inside the app.')}
-        </Text>
+        <Text style={styles.sectionTitle}>{t('sub_pro_title')}</Text>
+        <Text style={styles.sectionHint}>{t('sub_pro_section_hint')}</Text>
         <View style={[styles.tierCard, proActive && styles.tierCardHighlight]}>
           {proLoading ? (
             <View style={styles.loadingRow}>
@@ -670,19 +643,13 @@ const Subscription: React.FC<SubscriptionProps> = ({
             </View>
           ) : (
             <>
-              <Text style={styles.tierName}>{proActive ? tr('Pro activo', 'Pro active') : tr('Pro inactivo', 'Pro inactive')}</Text>
+              <Text style={styles.tierName}>{proActive ? t('sub_pro_active') : t('sub_pro_inactive')}</Text>
               <Text style={styles.tierMeta}>
-                {userId
-                  ? tr('Compras enlazadas a tu cuenta.', 'Purchases linked to your account.')
-                  : tr('Inicia sesión para sincronizar compras.', 'Sign in to sync purchases.')}
+                {userId ? t('sub_purchases_linked') : t('sub_sign_in_sync_purchases')}
               </Text>
               <View style={{ marginTop: 16, gap: 12 }}>
                 <LuxCtaButton
-                  label={
-                    proActionLoading
-                      ? tr('Abriendo…', 'Opening…')
-                      : tr('Mejorar suscripción', 'Upgrade subscription')
-                  }
+                  label={proActionLoading ? t('sub_opening') : t('sub_upgrade_subscription')}
                   onPress={() => void runProPaywall('ifNeeded')}
                   icon="crown-outline"
                   disabled={proActionLoading}
@@ -691,7 +658,7 @@ const Subscription: React.FC<SubscriptionProps> = ({
                 />
                 <LuxCtaButton
                   variant="outline"
-                  label={proActionLoading ? tr('Abriendo…', 'Opening…') : tr('Ver planes', 'View plans')}
+                  label={proActionLoading ? t('sub_opening') : t('sub_view_plans')}
                   onPress={() => void runProPaywall('always')}
                   icon="cart-outline"
                   disabled={proActionLoading}
@@ -704,7 +671,7 @@ const Subscription: React.FC<SubscriptionProps> = ({
                   disabled={proActionLoading}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.nfcBtnText}>{tr('Centro de suscripciones', 'Subscription management')}</Text>
+                  <Text style={styles.nfcBtnText}>{t('sub_subscription_center_btn')}</Text>
                 </TouchableOpacity>
               </View>
               {__DEV__ && offeringDebugLines.length > 0 ? (
@@ -720,14 +687,12 @@ const Subscription: React.FC<SubscriptionProps> = ({
         onLayout={(e) => setRadarSectionY(e.nativeEvent.layout.y)}
       >
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{tr('Market Radar Pro', 'Market Radar Pro')}</Text>
-          <Text style={styles.sectionHint}>
-            {tr('Mapa ejecutivo de mercado. Importe mostrado debajo.', 'Executive market map. Amount shown below.')}
-          </Text>
+          <Text style={styles.sectionTitle}>{t('sub_market_radar_pro_title')}</Text>
+          <Text style={styles.sectionHint}>{t('sub_radar_section_hint')}</Text>
           <View style={styles.tierCard}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.tierName}>{tr('Acceso Pro', 'Pro access')}</Text>
+                <Text style={styles.tierName}>{t('sub_pro_access')}</Text>
                 <Text style={[styles.tierMeta, { marginTop: 6 }]}>
                   {radarProPriceUsd > 0 || radarProEquivalentCs > 0
                     ? [
@@ -736,14 +701,14 @@ const Subscription: React.FC<SubscriptionProps> = ({
                       ]
                         .filter(Boolean)
                         .join(' · ')
-                    : tr('Disponible próximamente en la app.', 'Coming soon in the app.')}
+                    : t('sub_coming_soon_app')}
                 </Text>
               </View>
               <MaterialCommunityIcons name="radar" size={30} color={shell.ctaAccent} />
             </View>
             <LuxCtaButton
               variant="outline"
-              label={tr('Detalles', 'Details')}
+              label={t('sub_details_btn')}
               onPress={onRadarProInfo}
               icon="information-outline"
               style={{ width: '100%', marginTop: 14, minHeight: 48 }}
@@ -753,22 +718,15 @@ const Subscription: React.FC<SubscriptionProps> = ({
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{tr('Suscripciones', 'Subscriptions')}</Text>
-        <Text style={styles.sectionHint}>
-          {tr('Límites y tarifas de referencia.', 'Reference limits and rates.')}
-        </Text>
+        <Text style={styles.sectionTitle}>{t('sub_subscriptions_section_title')}</Text>
+        <Text style={styles.sectionHint}>{t('sub_subscriptions_section_hint')}</Text>
         {tiersLoading ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={shell.ctaAccent} />
           </View>
         ) : !cfg ? (
           <View style={styles.emptyCallout}>
-            <Text style={styles.tierMeta}>
-              {tr(
-                'Las tarifas de membresía no están disponibles en este momento. Inténtalo más tarde.',
-                'Membership rates are not available right now. Please try again later.',
-              )}
-            </Text>
+            <Text style={styles.tierMeta}>{t('sub_rates_unavailable')}</Text>
           </View>
         ) : (
           (['free', 'influencer', 'business'] as TierKey[]).map((key) => (
@@ -777,24 +735,24 @@ const Subscription: React.FC<SubscriptionProps> = ({
               <Text style={styles.tierPrice}>
                 {key === 'free'
                   ? fmtUsd(0)
-                  : `${fmtUsd(cfg[key].monthlyPriceUsd)} ${tr('/ mes', '/ month')}`}
+                  : `${fmtUsd(cfg[key].monthlyPriceUsd)} ${t('sub_per_month')}`}
                 {key !== 'free' && cfg[key].monthlyEquivalentCs > 0
                   ? ` · ${cfg[key].monthlyEquivalentCs.toLocaleString()} CS`
                   : ''}
                 {key !== 'free'
-                  ? ` · ${fmtUsd(cfg[key].annualPriceUsd)} ${tr('/ año', '/ yr')}`
+                  ? ` · ${fmtUsd(cfg[key].annualPriceUsd)} ${t('sub_per_year')}`
                   : ''}
                 {key !== 'free' && cfg[key].annualEquivalentCs > 0
                   ? ` · ${cfg[key].annualEquivalentCs.toLocaleString()} CS`
                   : ''}
                 {cfg[key].freeTrialDays > 0
-                  ? ` · ${cfg[key].freeTrialDays} ${tr('días prueba', 'day trial')}`
+                  ? ` · ${cfg[key].freeTrialDays} ${t('sub_trial_days_suffix')}`
                   : ''}
               </Text>
               <Text style={styles.tierMeta}>{tierSummary(key, cfg)}</Text>
               <TouchableOpacity style={styles.tierCta} onPress={() => onTierCta(key)} activeOpacity={0.85}>
                 <Text style={styles.tierCtaText}>
-                  {key === 'free' ? tr('Incluido', 'Included') : tr('Cómo obtenerlo', 'How to get it')}
+                  {key === 'free' ? t('sub_included') : t('sub_how_to_get')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -804,19 +762,14 @@ const Subscription: React.FC<SubscriptionProps> = ({
 
       <View onLayout={(e) => setPhysicalSectionY(e.nativeEvent.layout.y)}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{tr('Tarjetas de negocio y NFC', 'Business cards & NFC')}</Text>
-        <Text style={styles.sectionHint}>
-          {tr(
-            'Complementos y envío. Licencia anual a través de la tienda de la app.',
-            'Add-ons and shipping. Annual license through your app’s store.',
-          )}
-        </Text>
+          <Text style={styles.sectionTitle}>{t('sub_business_nfc_section_title')}</Text>
+        <Text style={styles.sectionHint}>{t('sub_business_nfc_section_hint')}</Text>
         {cfg ? (
           <>
             <View style={styles.addonRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.addonTitle}>{tr('Tarjeta de negocio adicional', 'Extra business card slot')}</Text>
-                <Text style={styles.addonNote}>{tr('Por cada tarjeta adicional.', 'Per additional card.')}</Text>
+                <Text style={styles.addonTitle}>{t('sub_addon_extra_business_card')}</Text>
+                <Text style={styles.addonNote}>{t('sub_addon_per_extra_card')}</Text>
               </View>
               <Text style={styles.addonPrice}>
                 {fmtUsd(cfg.addOns.singleBusinessCardExtraUsd)}
@@ -827,8 +780,8 @@ const Subscription: React.FC<SubscriptionProps> = ({
             </View>
             <View style={styles.addonRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.addonTitle}>{tr('NFC PVC (tarjeta física)', 'NFC PVC (physical card)')}</Text>
-                <Text style={styles.addonNote}>{tr('Inventario / ops.', 'Inventory / ops.')}</Text>
+                <Text style={styles.addonTitle}>{t('sub_addon_nfc_pvc')}</Text>
+                <Text style={styles.addonNote}>{t('sub_addon_inventory_ops')}</Text>
               </View>
               <Text style={styles.addonPrice}>
                 {fmtUsd(cfg.addOns.physicalPvcCardUsd)}
@@ -837,8 +790,8 @@ const Subscription: React.FC<SubscriptionProps> = ({
             </View>
             <View style={styles.addonRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.addonTitle}>{tr('NFC metal (tarjeta física)', 'NFC metal (physical card)')}</Text>
-                <Text style={styles.addonNote}>{tr('Stock vía soporte.', 'Stock via support.')}</Text>
+                <Text style={styles.addonTitle}>{t('sub_addon_nfc_metal')}</Text>
+                <Text style={styles.addonNote}>{t('sub_addon_stock_support')}</Text>
               </View>
               <Text style={styles.addonPrice}>
                 {fmtUsd(cfg.addOns.physicalMetalCardUsd)}
@@ -850,11 +803,9 @@ const Subscription: React.FC<SubscriptionProps> = ({
 
         {cfg && nfcCheckout ? (
           <View style={styles.physicalNfcBox}>
-            <Text style={styles.physicalNfcTitle}>
-              {tr('Compra tarjeta física NFC — total estimado', 'NFC physical card — estimated total')}
-            </Text>
+            <Text style={styles.physicalNfcTitle}>{t('sub_nfc_physical_title')}</Text>
             <Text style={[styles.sectionHint, { marginBottom: 12 }]}>
-              {tr('Material y país de envío. Envío según zona publicada.', 'Material and ship-to country. Shipping per published zone.')}
+              {t('sub_nfc_physical_hint')}
             </Text>
             <View style={styles.chipRow}>
               <TouchableOpacity
@@ -872,11 +823,11 @@ const Subscription: React.FC<SubscriptionProps> = ({
                 accessibilityState={{ selected: nfcMaterial === 'metal' }}
               >
                 <Text style={[styles.materialChipText, nfcMaterial === 'metal' && styles.materialChipTextActive]}>
-                  {tr('Metal', 'Metal')}
+                  {t('nfc_material_metal')}
                 </Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.countryLabel}>{tr('País de envío', 'Ship-to country')}</Text>
+            <Text style={styles.countryLabel}>{t('sub_ship_to_country')}</Text>
             <View style={styles.countryPickerWrap}>
               <Picker
                 selectedValue={nfcShipCountry}
@@ -892,20 +843,20 @@ const Subscription: React.FC<SubscriptionProps> = ({
             </View>
             <View style={styles.breakdownBox}>
               <View style={styles.breakdownLine}>
-                <Text style={styles.breakdownLabel}>{tr('Precio de la tarjeta', 'Card price')}</Text>
+                <Text style={styles.breakdownLabel}>{t('sub_card_price')}</Text>
                 <Text style={styles.breakdownValue}>{fmtUsd(nfcCheckout.cardUsd)}</Text>
               </View>
               <View style={styles.breakdownLine}>
-                <Text style={styles.breakdownLabel}>{tr('Shipping & Handling', 'Shipping & Handling')}</Text>
+                <Text style={styles.breakdownLabel}>{t('sub_shipping_handling')}</Text>
                 <Text style={styles.breakdownValue}>{fmtUsd(nfcCheckout.shipUsd)}</Text>
               </View>
               <View style={[styles.breakdownLine, styles.breakdownTotalLine]}>
-                <Text style={styles.breakdownTotalLabel}>{tr('Total final', 'Total')}</Text>
+                <Text style={styles.breakdownTotalLabel}>{t('sub_total')}</Text>
                 <Text style={styles.breakdownTotalValue}>{fmtUsd(nfcCheckout.totalUsd)}</Text>
               </View>
               {(nfcCheckout.cardCs > 0 || nfcCheckout.shipCs > 0) && (
                 <View style={[styles.breakdownLine, { marginTop: 6 }]}>
-                  <Text style={styles.breakdownLabel}>{tr('Equivalente CS', 'CS equivalent')}</Text>
+                  <Text style={styles.breakdownLabel}>{t('sub_equivalent_cs_short')}</Text>
                   <Text style={styles.breakdownValue}>
                     {nfcCheckout.totalCs.toLocaleString()} CS
                   </Text>
@@ -914,7 +865,7 @@ const Subscription: React.FC<SubscriptionProps> = ({
             </View>
             <LuxCtaButton
               variant="outline"
-              label={tr('Confirmar total', 'Confirm total')}
+              label={t('sub_confirm_total')}
               onPress={confirmNfcPhysicalTotal}
               icon="receipt"
               style={{ width: '100%', marginTop: 8, minHeight: 48 }}
@@ -923,7 +874,7 @@ const Subscription: React.FC<SubscriptionProps> = ({
         ) : null}
 
         <TouchableOpacity style={styles.nfcBtn} onPress={() => router.push('/nfc' as never)} activeOpacity={0.85}>
-          <Text style={styles.nfcBtnText}>{tr('Operaciones NFC en la app', 'NFC operations in the app')}</Text>
+          <Text style={styles.nfcBtnText}>{t('sub_nfc_operations_link')}</Text>
         </TouchableOpacity>
 
         <LinearGradient colors={[...shell.vipBannerGradient]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.businessBlock}>
@@ -931,16 +882,16 @@ const Subscription: React.FC<SubscriptionProps> = ({
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <MaterialCommunityIcons name="briefcase-check" size={26} color={shell.ctaAccent} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.businessTitle}>{tr('Licencia anual — Tarjeta de negocio', 'Annual license — Business card')}</Text>
+                <Text style={styles.businessTitle}>{t('sub_annual_license_title')}</Text>
                 <Text style={styles.businessSub}>
                   {bizPackage
-                    ? `${fmtUsd(bizPackage.priceUsd)} ${tr('/ año · tienda de la app', '/ yr · app store')}`
-                    : tr('Tarifa anual no disponible por ahora.', 'Annual rate not available yet.')}
+                    ? `${fmtUsd(bizPackage.priceUsd)} ${t('sub_per_year_app_store')}`
+                    : t('sub_annual_rate_unavailable')}
                 </Text>
               </View>
             </View>
             <LuxCtaButton
-              label={upgradeLoading ? tr('Comprando...', 'Purchasing...') : tr('Activar licencia anual', 'Activate annual license')}
+              label={upgradeLoading ? t('sub_purchasing') : t('sub_activate_annual_license')}
               onPress={handleUpgradeBusinessCard}
               disabled={upgradeLoading || loading || !userId || !bizPackage}
               loading={upgradeLoading}
@@ -953,43 +904,23 @@ const Subscription: React.FC<SubscriptionProps> = ({
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{tr('Monedas CS', 'CS coins')}</Text>
-        <Text style={styles.sectionHint}>
-          {tr(
-            'Paquetes de créditos CS en dólares y monedas Card-Social.',
-            'CS credit bundles in dollars and Card-Social coins.',
-          )}
-        </Text>
+        <Text style={styles.sectionTitle}>{t('sub_cs_coins_section_title')}</Text>
+        <Text style={styles.sectionHint}>{t('sub_cs_coins_section_hint')}</Text>
         {commerceLoading ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={shell.ctaAccent} />
           </View>
         ) : commerceIssue === 'no_document' ? (
           <View style={styles.emptyCallout}>
-            <Text style={styles.tierMeta}>
-              {tr(
-                'El catálogo de monedas no está disponible todavía.',
-                'The coin catalog is not available yet.',
-              )}
-            </Text>
+            <Text style={styles.tierMeta}>{t('sub_catalog_unavailable')}</Text>
           </View>
         ) : commerceIssue === 'read_error' ? (
           <View style={styles.emptyCallout}>
-            <Text style={styles.tierMeta}>
-              {tr(
-                'No pudimos cargar el catálogo. Revisa tu conexión e inténtalo de nuevo.',
-                'We could not load the catalog. Check your connection and try again.',
-              )}
-            </Text>
+            <Text style={styles.tierMeta}>{t('sub_catalog_load_error')}</Text>
           </View>
         ) : commerceCreditPacks.length === 0 ? (
           <View style={styles.emptyCallout}>
-            <Text style={styles.tierMeta}>
-              {tr(
-                'No hay paquetes disponibles en este momento.',
-                'No bundles are available at the moment.',
-              )}
-            </Text>
+            <Text style={styles.tierMeta}>{t('sub_no_bundles')}</Text>
           </View>
         ) : (
           <View style={styles.packGrid}>
@@ -997,14 +928,14 @@ const Subscription: React.FC<SubscriptionProps> = ({
               <View key={pack.id} style={[styles.packCard, pack.popular && styles.packPopular]}>
                 {pack.popular ? (
                   <Text style={{ fontSize: 10, fontWeight: '800', color: shell.ctaAccent, marginBottom: 4, letterSpacing: 0.6 }}>
-                    POPULAR
+                    {t('sub_popular_badge')}
                   </Text>
                 ) : null}
                 <Text style={styles.packCredits}>{pack.credits}</Text>
-                <Text style={styles.packLabel}>{tr('Créditos', 'Credits')}</Text>
+                <Text style={styles.packLabel}>{t('sub_credits_label')}</Text>
                 <Text style={styles.packPrice}>{fmtUsd(pack.priceUsd)}</Text>
                 <LuxCtaButton
-                  label={subscribingPack === pack.id ? tr('Comprando...', 'Purchasing...') : tr('Comprar', 'Buy')}
+                  label={subscribingPack === pack.id ? t('sub_purchasing') : t('sub_buy')}
                   onPress={() => void handleBuyCreditPack(pack)}
                   disabled={subscribingPack !== null}
                   loading={subscribingPack === pack.id}
@@ -1018,23 +949,15 @@ const Subscription: React.FC<SubscriptionProps> = ({
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.legalTitle}>{tr('Términos comerciales', 'Commercial terms')}</Text>
+        <Text style={styles.legalTitle}>{t('sub_commercial_terms_title')}</Text>
         <Text style={styles.legalText}>
-          •{' '}
-          {tr(
-            'Los importes mostrados pueden diferir del cargo final en App Store o Google Play.',
-            'Amounts shown may differ from your final charge in the App Store or Google Play.',
-          )}
-          {'\n'}• {tr('Al comprar, aceptas los Términos y Condiciones.', 'By purchasing, you accept the Terms & Conditions.')}
-          {'\n'}•{' '}
-          {tr(
-            'Puedes restaurar compras según las políticas de App Store o Google Play.',
-            'You can restore purchases according to App Store or Google Play policies.',
-          )}
+          • {t('sub_terms_amounts_may_differ')}
+          {'\n'}• {t('sub_terms_accept_tac')}
+          {'\n'}• {t('sub_terms_restore_policy')}
         </Text>
         <TouchableOpacity style={styles.restoreBtn} onPress={handleRestorePurchases}>
           <MaterialCommunityIcons name="history" size={18} color={shell.emptyCtaText} />
-          <Text style={styles.restoreTxt}>{tr('Restaurar compras', 'Restore purchases')}</Text>
+          <Text style={styles.restoreTxt}>{t('sub_restore_purchases')}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

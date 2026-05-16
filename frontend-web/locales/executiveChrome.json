@@ -1,0 +1,32 @@
+{
+  "en": {
+    "drop_asset_here": "DROP ASSET HERE",
+    "asset_path_label": "frontend-web/public/legal/executive-summary/",
+    "segments_lead": "The product is meticulously stratified to serve distinct networking needs and information distribution:",
+    "established_heading_sr": "Established businesses (Business Tier)",
+    "established_badge": "Established Businesses",
+    "strategic_flow_lead": "Strategic flow inside the Card-Social data vault:",
+    "footer_registered": "Card-Social®",
+    "blueprint_motor_prefix": "Module",
+    "flow_what_it_is": "What it is",
+    "flow_how_it_works": "How it works",
+    "flow_strategic_value": "Strategic value",
+    "flow_revenue_model": "Revenue model",
+    "nav_brand": "Card-Social"
+  },
+  "es": {
+    "drop_asset_here": "COLOCA EL ASSET AQUÍ",
+    "asset_path_label": "frontend-web/public/legal/executive-summary/",
+    "segments_lead": "El producto está estratificado meticulosamente para atender distintas necesidades de networking y distribución de información:",
+    "established_heading_sr": "Negocios establecidos (Business Tier)",
+    "established_badge": "Negocios Establecidos",
+    "strategic_flow_lead": "Flujo estratégico dentro del bunker de datos Card-Social:",
+    "footer_registered": "Card-Social®",
+    "blueprint_motor_prefix": "Motor",
+    "flow_what_it_is": "Qué es",
+    "flow_how_it_works": "Cómo funciona",
+    "flow_strategic_value": "Valor estratégico",
+    "flow_revenue_model": "Modelo de ingreso",
+    "nav_brand": "Card-Social"
+  }
+}

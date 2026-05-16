@@ -7,7 +7,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 // expo-notifications is imported lazily below to avoid a crash on Android (Expo Go)
 // where the module calls addPushTokenListener at module-load time.
 import { shareExportedUserProfileJson } from '@/services/exportUserProfileJson';
-import { trEsEn, useLanguage } from '@/services/language';
+import { useCoreT } from '@/services/coreI18n';
 import { useLookMode } from '@/services/lookMode';
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
@@ -23,9 +23,8 @@ export default function SettingsScreen() {
   const { resolvedMode } = useLookMode();
   const isDark = resolvedMode === 'noche';
   const shell = palette[isDark ? 'dark' : 'light'];
-  const { language } = useLanguage();
+  const t = useCoreT();
   const insets = useSafeAreaInsets();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const router = useRouter();
 
   const styles = useMemo(
@@ -122,11 +121,8 @@ export default function SettingsScreen() {
     const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
     if (isExpoGo) {
       Alert.alert(
-        tr('No disponible', 'Not available'),
-        tr(
-          'Las notificaciones push requieren un development build. No están disponibles en Expo Go.',
-          'Push notifications require a development build. They are not available in Expo Go.',
-        ),
+        t('common_not_available'),
+        t('settings_expo_push_body'),
       );
       return;
     }
@@ -138,20 +134,20 @@ export default function SettingsScreen() {
       } else {
         setIsNotificationsEnabled(false);
         Alert.alert(
-          tr('Permiso requerido', 'Permission required'),
-          tr('Debes habilitar las notificaciones en la configuración de tu dispositivo.', 'Enable notifications in your device settings.'),
+          t('settings_permission_required'),
+          t('settings_notifications_denied_body'),
         );
       }
     } else {
       Alert.alert(
-        tr('Desactivar notificaciones', 'Turn off notifications'),
-        tr('Para desactivar las notificaciones, abre Ajustes del dispositivo.', 'To turn off notifications, open your device Settings.'),
+        t('settings_notifications_disable_title'),
+        t('settings_notifications_disable_body'),
         [
           {
-            text: tr('Ir a Configuración', 'Open Settings'),
+            text: t('settings_open_device_settings'),
             onPress: () => Linking.openSettings(),
           },
-          { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+          { text: t('common_cancel'), style: 'cancel' },
         ],
       );
     }
@@ -163,19 +159,19 @@ export default function SettingsScreen() {
       const isEnrolled = await LocalAuthentication.isEnrolledAsync();
       if (!hasHardware || !isEnrolled) {
         Alert.alert(
-          tr('No disponible', 'Not available'),
-          tr('Tu dispositivo no soporta autenticación biométrica.', 'Your device does not support biometric authentication.'),
+          t('common_not_available'),
+          t('settings_biometric_unavailable_body'),
         );
         return;
       }
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: tr('Autentica para activar el bloqueo de app', 'Authenticate to enable app lock'),
-        fallbackLabel: tr('Usar código', 'Use passcode'),
+        promptMessage: t('settings_app_lock_prompt'),
+        fallbackLabel: t('settings_use_passcode'),
       });
       if (!result.success) {
         Alert.alert(
-          tr('Error', 'Error'),
-          tr('No se pudo activar el bloqueo de app.', 'Could not enable app lock.'),
+          t('common_error'),
+          t('settings_app_lock_enable_fail'),
         );
         return;
       }
@@ -185,14 +181,14 @@ export default function SettingsScreen() {
       setAppLockEnabled(value);
       if (!value) {
         Alert.alert(
-          tr('Desactivado', 'Disabled'),
-          tr('El bloqueo de app ha sido desactivado.', 'App lock has been turned off.'),
+          t('settings_app_lock_disabled_title'),
+          t('settings_app_lock_disabled_body'),
         );
       }
     } catch {
       Alert.alert(
-        tr('Error', 'Error'),
-        tr('No se pudo guardar la configuración.', 'Could not save settings.'),
+        t('common_error'),
+        t('settings_save_fail'),
       );
     }
   };
@@ -202,23 +198,20 @@ export default function SettingsScreen() {
       await Linking.openURL('mailto:support@cardsocial.me?subject=Soporte%20Card-Social');
     } catch {
       Alert.alert(
-        tr('Error', 'Error'),
-        tr('No se encontró una aplicación de correo instalada en este dispositivo.', 'No email app was found on this device.'),
+        t('common_error'),
+        t('settings_mail_app_missing'),
       );
     }
   };
 
   const handleClearCache = () => {
     Alert.alert(
-      tr('¿Limpiar caché?', 'Clear Cache?'),
-      tr(
-        'Esto borrará todos los datos locales, preferencias e imágenes cacheadas, y cerrará tu sesión.',
-        'This will erase all local data, preferences and cached images, and sign you out.',
-      ),
+      t('settings_clear_cache_title'),
+      t('settings_clear_cache_body'),
       [
-        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+        { text: t('common_cancel'), style: 'cancel' },
         {
-          text: tr('Limpiar y salir', 'Clear & Sign out'),
+          text: t('settings_clear_and_signout'),
           style: 'destructive',
           onPress: async () => {
             setIsClearingCache(true);
@@ -250,11 +243,11 @@ export default function SettingsScreen() {
             try {
               await clearLocalCachesForSignOut(uid);
               await signOut(auth);
-            } catch (e: any) {
+            } catch (e: unknown) {
               console.error('Sign out error:', e);
               Alert.alert(
-                tr('Error', 'Error'),
-                tr('No se pudo cerrar la sesión. Intenta de nuevo.', 'Could not sign out. Try again.'),
+                t('common_error'),
+                t('settings_sign_out_fail'),
               );
             } finally {
               setIsClearingCache(false);
@@ -269,11 +262,11 @@ export default function SettingsScreen() {
   const handleExportData = async () => {
     setIsExporting(true);
     try {
-      await shareExportedUserProfileJson(tr('Tus datos de Card-Social', 'Your Card-Social data'));
+      await shareExportedUserProfileJson(t('settings_export_subject'));
     } catch {
       Alert.alert(
-        tr('Error', 'Error'),
-        tr('No se pudieron exportar los datos.', 'Could not export data.'),
+        t('common_error'),
+        t('settings_export_fail'),
       );
     } finally {
       setIsExporting(false);
@@ -281,16 +274,13 @@ export default function SettingsScreen() {
   };
 
   const handleActiveSessions = () => {
-    const marca = Device.brand || tr('Desconocida', 'Unknown');
-    const modelo = Device.modelName || tr('Desconocido', 'Unknown');
-    const sistema = Device.osName || tr('Desconocido', 'Unknown');
+    const marca = Device.brand || t('settings_device_unknown_brand');
+    const modelo = Device.modelName || t('settings_device_unknown_model');
+    const sistema = Device.osName || t('settings_device_unknown_model');
     Alert.alert(
-      tr('Sesión actual', 'Current session'),
-      tr(
-        `Estás conectado de forma segura en este dispositivo:\n\nMarca: ${marca}\nModelo: ${modelo}\nSistema: ${sistema}\n\nPor seguridad, si necesitas desconectar otros dispositivos, te recomendamos cambiar tu contraseña.`,
-        `You are securely signed in on this device:\n\nBrand: ${marca}\nModel: ${modelo}\nOS: ${sistema}\n\nFor your security, to disconnect other devices we recommend changing your password.`,
-      ),
-      [{ text: tr('Entendido', 'OK') }],
+      t('settings_session_title'),
+      t('settings_session_body', { brand: marca, model: modelo, os: sistema }),
+      [{ text: t('settings_understood') }],
     );
   };
 
@@ -299,6 +289,9 @@ export default function SettingsScreen() {
   const switchOffThumb = shell.textMuted;
   const switchTrackOn = shell.typeBadgeBg;
   const switchTrackOff = shell.surfaceMuted;
+
+  const appVersion =
+    Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '1.0.0';
 
   return (
     <View style={{ flex: 1, backgroundColor: shell.backgroundSolid }}>
@@ -327,19 +320,19 @@ export default function SettingsScreen() {
           }}
           onPress={() => router.back()}
           accessibilityRole="button"
-          accessibilityLabel={tr('Volver', 'Back')}
+          accessibilityLabel={t('common_back')}
         >
           <MaterialCommunityIcons name="chevron-left" size={24} color={shell.ctaPrimary} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: 18, fontWeight: '700', color: shell.textPrimary, marginLeft: 12 }}>
-          {tr('Configuración', 'Settings')}
+          {t('settings_header_title')}
         </Text>
       </View>
       <ScrollView contentContainerStyle={styles.container}>
-      <Section title={tr('Seguridad y privacidad', 'Security & privacy')}>
+      <Section title={t('settings_section_security')}>
         <View style={styles.item}>
           <MaterialCommunityIcons name="lock-outline" size={20} color={iconTint} />
-          <Text style={styles.itemText}>{tr('Bloqueo de app', 'App lock')}</Text>
+          <Text style={styles.itemText}>{t('settings_app_lock_label')}</Text>
           {isLoadingAppLock ? (
             <ActivityIndicator size="small" color={iconTint} style={{ marginLeft: 12 }} />
           ) : (
@@ -353,14 +346,14 @@ export default function SettingsScreen() {
         </View>
         <TouchableOpacity style={styles.item} onPress={handleActiveSessions}>
           <MaterialCommunityIcons name="account-multiple-outline" size={20} color={iconTint} />
-          <Text style={styles.itemText}>{tr('Sesiones activas', 'Active sessions')}</Text>
+          <Text style={styles.itemText}>{t('settings_active_sessions')}</Text>
         </TouchableOpacity>
       </Section>
 
-      <Section title={tr('Preferencias', 'Preferences')}>
+      <Section title={t('settings_section_prefs')}>
         <View style={styles.item}>
           <MaterialCommunityIcons name="bell-outline" size={20} color={iconTint} />
-          <Text style={styles.itemText}>{tr('Notificaciones', 'Notifications')}</Text>
+          <Text style={styles.itemText}>{t('settings_notifications_label')}</Text>
           <Switch
             value={isNotificationsEnabled}
             onValueChange={toggleNotifications}
@@ -370,16 +363,16 @@ export default function SettingsScreen() {
         </View>
       </Section>
 
-      <Section title={tr('Datos', 'Data')}>
+      <Section title={t('settings_section_data')}>
         <TouchableOpacity style={styles.item} onPress={handleExportData} disabled={isExporting}>
           <MaterialCommunityIcons name="export-variant" size={20} color={iconTint} />
           {isExporting ? (
             <>
               <ActivityIndicator size="small" color={iconTint} style={{ marginLeft: 12, marginRight: 6 }} />
-              <Text style={styles.itemText}>{tr('Recopilando datos…', 'Collecting data…')}</Text>
+              <Text style={styles.itemText}>{t('settings_collecting_data')}</Text>
             </>
           ) : (
-            <Text style={styles.itemText}>{tr('Exportar mi información', 'Export my data')}</Text>
+            <Text style={styles.itemText}>{t('settings_export_label')}</Text>
           )}
         </TouchableOpacity>
         <TouchableOpacity style={styles.item} onPress={handleClearCache} disabled={isClearingCache}>
@@ -387,23 +380,23 @@ export default function SettingsScreen() {
           {isClearingCache ? (
             <>
               <ActivityIndicator size="small" color={iconTint} style={{ marginLeft: 12, marginRight: 6 }} />
-              <Text style={styles.itemText}>{tr('Limpiando…', 'Clearing…')}</Text>
+              <Text style={styles.itemText}>{t('settings_clearing')}</Text>
             </>
           ) : (
-            <Text style={styles.itemText}>{tr('Limpiar caché', 'Clear cache')}</Text>
+            <Text style={styles.itemText}>{t('settings_clear_cache_label')}</Text>
           )}
         </TouchableOpacity>
       </Section>
 
-      <Section title={tr('Soporte y legal', 'Support & legal')}>
+      <Section title={t('settings_section_support')}>
         <TouchableOpacity style={styles.item} onPress={handleSupportPress}>
           <MaterialCommunityIcons name="lifebuoy" size={20} color={iconTint} />
-          <Text style={styles.itemText}>{tr('Soporte', 'Support')}</Text>
+          <Text style={styles.itemText}>{t('settings_support_label')}</Text>
         </TouchableOpacity>
       </Section>
 
       <View style={styles.versionBox}>
-        <Text style={styles.versionText}>{tr('Versión 1.0.0', 'Version 1.0.0')}</Text>
+        <Text style={styles.versionText}>{t('settings_version_label', { version: appVersion })}</Text>
       </View>
     </ScrollView>
     </View>

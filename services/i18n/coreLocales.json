@@ -15,14 +15,6 @@
     "fr": "Non authentifié",
     "de": "Nicht angemeldet"
   },
-  "common_auth_required": {
-    "es": "Confirmar tu identidad",
-    "en": "Confirm your identity",
-    "it": "Conferma la tua identità",
-    "pt": "Confirme sua identidade",
-    "fr": "Confirmez votre identité",
-    "de": "Bestätigen Sie Ihre Identität"
-  },
   "common_ok": {
     "es": "OK",
     "en": "OK",
@@ -206,6 +198,14 @@
     "pt": "Indisponível",
     "fr": "Indisponible",
     "de": "Nicht verfügbar"
+  },
+  "common_auth_required": {
+    "es": "Autentícate para acuñar monedas",
+    "en": "Authenticate to mint coins",
+    "it": "Autenticati per coniare monete",
+    "pt": "Autentique-se para cunhar moedas",
+    "fr": "Authentifiez-vous pour frapper des pièces",
+    "de": "Authentifizieren Sie sich zum Prägen"
   },
   "common_clear": {
     "es": "Limpiar",
@@ -615,6 +615,14 @@
     "fr": "Enregistrer le fichier Card-Social",
     "de": "Card-Social-Datei speichern"
   },
+  "vault_viewer_download_dialog_title": {
+    "es": "Descargar archivo del Búnker",
+    "en": "Download Bunker file",
+    "it": "Scarica file dalla Bóveda",
+    "pt": "Baixar arquivo da Bóveda",
+    "fr": "Télécharger le fichier du coffre",
+    "de": "Búnker-Datei herunterladen"
+  },
   "vault_toast_download_title": {
     "es": "📥 Descarga lista",
     "en": "📥 Download ready",
@@ -734,6 +742,1326 @@
     "pt": "Não foi possível pré-visualizar.",
     "fr": "Impossible de prévisualiser ce fichier.",
     "de": "Datei konnte nicht angezeigt werden."
+  },
+  "vault_user_display_fallback": {
+    "es": "Usuario",
+    "en": "User",
+    "it": "Utente",
+    "pt": "Usuário",
+    "fr": "Utilisateur",
+    "de": "Nutzer"
+  },
+  "vault_offline_toast_title": {
+    "es": "Sin conexión — mostrando datos locales",
+    "en": "Offline — showing local data",
+    "it": "Offline — dati locali",
+    "pt": "Offline — dados locais",
+    "fr": "Hors ligne — données locales",
+    "de": "Offline — lokale Daten"
+  },
+  "vault_offline_toast_sub": {
+    "es": "Los cambios se sincronizarán al reconectar",
+    "en": "Changes will sync when back online",
+    "it": "Le modifiche si sincronizzeranno quando torni online",
+    "pt": "As alterações sincronizarão ao reconectar",
+    "fr": "Les changements se synchroniseront à la reconnexion",
+    "de": "Änderungen werden synchronisiert, sobald Sie wieder online sind"
+  },
+  "vault_biometric_access_vault": {
+    "es": "acceso a tu Bóveda de datos",
+    "en": "access to your Vault",
+    "it": "accesso alla tua Bóveda dati",
+    "pt": "acesso à sua Bóveda de dados",
+    "fr": "accès à votre coffre de données",
+    "de": "Zugriff auf Ihren Tresor"
+  },
+  "vault_ghost_delete_title": {
+    "es": "Protegido",
+    "en": "Protected",
+    "it": "Protetto",
+    "pt": "Protegido",
+    "fr": "Protégé",
+    "de": "Geschützt"
+  },
+  "vault_ghost_delete_body": {
+    "es": "Ghost-Link es un servicio base de Card-Social: no se puede eliminar. Puedes editar el título y el icono.",
+    "en": "Ghost-Link is a core Card-Social service: it cannot be deleted. You can edit the title and icon.",
+    "it": "Ghost-Link è un servizio Card-Social: non può essere eliminato. Puoi modificare titolo e icona.",
+    "pt": "Ghost-Link é um serviço Card-Social: não pode ser excluído. Você pode editar título e ícone.",
+    "fr": "Ghost-Link est un service Card-Social : suppression impossible. Modifiez le titre et l’icône.",
+    "de": "Ghost-Link ist ein Kernservice von Card-Social und kann nicht gelöscht werden. Titel und Symbol sind editierbar."
+  },
+  "vault_biometric_delete_bunker": {
+    "es": "eliminar datos del Búnker",
+    "en": "delete Bunker data",
+    "it": "eliminare i dati del Búnker",
+    "pt": "excluir dados do Búnker",
+    "fr": "supprimer les données du Bunker",
+    "de": "Búnker-Daten löschen"
+  },
+  "vault_delete_toast_title": {
+    "es": "🗑️ Eliminado del Búnker",
+    "en": "🗑️ Removed from Vault",
+    "it": "🗑️ Rimosso dalla Bóveda",
+    "pt": "🗑️ Removido da Bóveda",
+    "fr": "🗑️ Retiré du coffre",
+    "de": "🗑️ Aus dem Tresor entfernt"
+  },
+  "vault_delete_synced_sub": {
+    "es": "{{title}} sincronizado",
+    "en": "{{title}} synced",
+    "it": "{{title}} sincronizzato",
+    "pt": "{{title}} sincronizado",
+    "fr": "{{title}} synchronisé",
+    "de": "{{title}} synchronisiert"
+  },
+  "vault_delete_local_sub": {
+    "es": "{{title}} eliminado localmente",
+    "en": "{{title}} removed locally",
+    "it": "{{title}} eliminato localmente",
+    "pt": "{{title}} removido localmente",
+    "fr": "{{title}} supprimé localement",
+    "de": "{{title}} lokal entfernt"
+  },
+  "vault_delete_fail_toast": {
+    "es": "❌ No se pudo eliminar",
+    "en": "❌ Could not delete",
+    "it": "❌ Impossibile eliminare",
+    "pt": "❌ Não foi possível excluir",
+    "fr": "❌ Suppression impossible",
+    "de": "❌ Löschen fehlgeschlagen"
+  },
+  "vault_biometric_toggle_favorite": {
+    "es": "marcar favorito en el Búnker",
+    "en": "toggle Bunker favorite",
+    "it": "segnare preferito nel Búnker",
+    "pt": "marcar favorito no Búnker",
+    "fr": "favori du Bunker",
+    "de": "Búnker-Favorit umschalten"
+  },
+  "vault_favorite_added": {
+    "es": "⭐ Agregado a favoritos",
+    "en": "⭐ Added to favorites",
+    "it": "⭐ Aggiunto ai preferiti",
+    "pt": "⭐ Adicionado aos favoritos",
+    "fr": "⭐ Ajouté aux favoris",
+    "de": "⭐ Zu Favoriten hinzugefügt"
+  },
+  "vault_favorite_removed": {
+    "es": "Favorito eliminado",
+    "en": "Removed from favorites",
+    "it": "Rimosso dai preferiti",
+    "pt": "Removido dos favoritos",
+    "fr": "Retiré des favoris",
+    "de": "Aus Favoriten entfernt"
+  },
+  "vault_favorite_update_fail": {
+    "es": "❌ No se pudo actualizar favorito",
+    "en": "❌ Could not update favorite",
+    "it": "❌ Impossibile aggiornare il preferito",
+    "pt": "❌ Não foi possível atualizar o favorito",
+    "fr": "❌ Favoris non mis à jour",
+    "de": "❌ Favorit konnte nicht aktualisiert werden"
+  },
+  "vault_open_link_fail": {
+    "es": "No se pudo abrir el enlace.",
+    "en": "Could not open the link.",
+    "it": "Impossibile aprire il link.",
+    "pt": "Não foi possível abrir o link.",
+    "fr": "Impossible d’ouvrir le lien.",
+    "de": "Link konnte nicht geöffnet werden."
+  },
+  "vault_email_invalid_title": {
+    "es": "Correo inválido",
+    "en": "Invalid email",
+    "it": "Email non valido",
+    "pt": "E-mail inválido",
+    "fr": "E-mail invalide",
+    "de": "Ungültige E-Mail"
+  },
+  "vault_email_invalid_body": {
+    "es": "No hay un correo válido para abrir.",
+    "en": "No valid email to open.",
+    "it": "Nessuna email valida da aprire.",
+    "pt": "Não há e-mail válido para abrir.",
+    "fr": "Aucun e-mail valide à ouvrir.",
+    "de": "Keine gültige E-Mail zum Öffnen."
+  },
+  "vault_mail_chooser_title": {
+    "es": "Selecciona app de correo",
+    "en": "Choose email app",
+    "it": "Scegli app email",
+    "pt": "Escolha o app de e-mail",
+    "fr": "Choisir l’app de messagerie",
+    "de": "E-Mail-App wählen"
+  },
+  "vault_mail_chooser_body": {
+    "es": "Elige desde qué app quieres enviar este correo.",
+    "en": "Choose which app you want to use to send this email.",
+    "it": "Scegli con quale app inviare questa email.",
+    "pt": "Escolha qual app usar para enviar este e-mail.",
+    "fr": "Choisissez l’application pour envoyer cet e-mail.",
+    "de": "Wählen Sie die App zum Senden dieser E-Mail."
+  },
+  "vault_mail_app_unavailable_title": {
+    "es": "App no disponible",
+    "en": "App not available",
+    "it": "App non disponibile",
+    "pt": "App indisponível",
+    "fr": "Application indisponible",
+    "de": "App nicht verfügbar"
+  },
+  "vault_mail_app_unavailable_body": {
+    "es": "No hay una app de correo disponible en este dispositivo.",
+    "en": "No email app is available on this device.",
+    "it": "Nessuna app email su questo dispositivo.",
+    "pt": "Nenhum app de e-mail neste dispositivo.",
+    "fr": "Aucune app mail sur cet appareil.",
+    "de": "Keine E-Mail-App auf diesem Gerät."
+  },
+  "vault_sovereign_text_title": {
+    "es": "Texto",
+    "en": "Text",
+    "it": "Testo",
+    "pt": "Texto",
+    "fr": "Texte",
+    "de": "Text"
+  },
+  "vault_pdf_opening_toast": {
+    "es": "Abriendo PDF…",
+    "en": "Opening PDF…",
+    "it": "Apertura PDF…",
+    "pt": "Abrindo PDF…",
+    "fr": "Ouverture du PDF…",
+    "de": "PDF wird geöffnet…"
+  },
+  "vault_pdf_downloading_view": {
+    "es": "Descargando para visualización",
+    "en": "Downloading for viewing",
+    "it": "Download per la visualizzazione",
+    "pt": "Baixando para visualização",
+    "fr": "Téléchargement pour affichage",
+    "de": "Wird zum Anzeigen heruntergeladen"
+  },
+  "vault_download_filename_doc": {
+    "es": "documento",
+    "en": "document",
+    "it": "documento",
+    "pt": "documento",
+    "fr": "document",
+    "de": "dokument"
+  },
+  "vault_download_filename_file": {
+    "es": "archivo",
+    "en": "file",
+    "it": "file",
+    "pt": "arquivo",
+    "fr": "fichier",
+    "de": "Datei"
+  },
+  "vault_pdf_document_title": {
+    "es": "Documento PDF",
+    "en": "PDF document",
+    "it": "Documento PDF",
+    "pt": "Documento PDF",
+    "fr": "Document PDF",
+    "de": "PDF-Dokument"
+  },
+  "vault_pdf_open_fail_toast": {
+    "es": "No se pudo abrir el PDF.",
+    "en": "Could not open the PDF.",
+    "it": "Impossibile aprire il PDF.",
+    "pt": "Não foi possível abrir o PDF.",
+    "fr": "Impossible d’ouvrir le PDF.",
+    "de": "PDF konnte nicht geöffnet werden."
+  },
+  "vault_biometric_open_doc_viewer": {
+    "es": "abrir el visor de documentos del Búnker",
+    "en": "open the Bunker document viewer",
+    "it": "aprire il visualizzatore documenti del Búnker",
+    "pt": "abrir o visualizador de documentos do Búnker",
+    "fr": "ouvrir le lecteur de documents du Bunker",
+    "de": "den Búnker-Dokumentbetrachter öffnen"
+  },
+  "vault_ghost_item_body": {
+    "es": "Este ítem activa una llamada VoIP privada cuando alguien lo usa en tu tarjeta compartida. No guarda número en el Búnker.",
+    "en": "This item starts a private VoIP call when someone uses it on your shared card. It does not store a phone number in the Vault.",
+    "it": "Questo elemento avvia una chiamata VoIP privata quando qualcuno lo usa sulla tua carta condivisa. Non salva numeri nel Búnker.",
+    "pt": "Este item inicia uma chamada VoIP privada quando alguém usa no seu cartão. Não guarda número no Búnker.",
+    "fr": "Cet élément lance un appel VoIP privé depuis votre carte. Aucun numéro stocké dans le coffre.",
+    "de": "Dieses Element startet einen privaten VoIP-Anruf von Ihrer Karte. Speichert keine Nummer im Tresor."
+  },
+  "vault_warn_error_title": {
+    "es": "⚠️ Error",
+    "en": "⚠️ Error",
+    "it": "⚠️ Errore",
+    "pt": "⚠️ Erro",
+    "fr": "⚠️ Erreur",
+    "de": "⚠️ Fehler"
+  },
+  "vault_empty_field_body": {
+    "es": "El dato está vacío",
+    "en": "The data is empty",
+    "it": "Il dato è vuoto",
+    "pt": "O dado está vazio",
+    "fr": "La donnée est vide",
+    "de": "Datenfeld ist leer"
+  },
+  "vault_action_fail": {
+    "es": "No se pudo ejecutar la acción",
+    "en": "Could not execute the action",
+    "it": "Impossibile eseguire l’azione",
+    "pt": "Não foi possível executar a ação",
+    "fr": "Action impossible",
+    "de": "Aktion konnte nicht ausgeführt werden"
+  },
+  "vault_biometric_edit_bunker": {
+    "es": "editar datos del Búnker",
+    "en": "edit Bunker data",
+    "it": "modificare i dati del Búnker",
+    "pt": "editar dados do Búnker",
+    "fr": "modifier les données du Bunker",
+    "de": "Búnker-Daten bearbeiten"
+  },
+  "vault_badge_link": {
+    "es": "Enlace",
+    "en": "Link",
+    "it": "Collegamento",
+    "pt": "Link",
+    "fr": "Lien",
+    "de": "Link"
+  },
+  "vault_badge_email": {
+    "es": "Email",
+    "en": "Email",
+    "it": "Email",
+    "pt": "E-mail",
+    "fr": "E-mail",
+    "de": "E-Mail"
+  },
+  "vault_badge_phone": {
+    "es": "Teléfono",
+    "en": "Phone",
+    "it": "Telefono",
+    "pt": "Telefone",
+    "fr": "Téléphone",
+    "de": "Telefon"
+  },
+  "vault_badge_text": {
+    "es": "Texto",
+    "en": "Text",
+    "it": "Testo",
+    "pt": "Texto",
+    "fr": "Texte",
+    "de": "Text"
+  },
+  "vault_badge_doc": {
+    "es": "Doc",
+    "en": "Doc",
+    "it": "Doc",
+    "pt": "Doc",
+    "fr": "Doc",
+    "de": "Dok."
+  },
+  "vault_badge_ghost": {
+    "es": "Ghost-Link",
+    "en": "Ghost-Link",
+    "it": "Ghost-Link",
+    "pt": "Ghost-Link",
+    "fr": "Ghost-Link",
+    "de": "Ghost-Link"
+  },
+  "vault_user_unknown": {
+    "es": "No se pudo identificar al usuario",
+    "en": "Could not identify user",
+    "it": "Impossibile identificare l’utente",
+    "pt": "Não foi possível identificar o usuário",
+    "fr": "Impossible d’identifier l’utilisateur",
+    "de": "Benutzer konnte nicht identifiziert werden"
+  },
+  "vault_empty_title": {
+    "es": "Tu Búnker está listo",
+    "en": "Your Vault is ready",
+    "it": "La tua Bóveda è pronta",
+    "pt": "Sua Bóveda está pronta",
+    "fr": "Votre coffre est prêt",
+    "de": "Ihr Tresor ist bereit"
+  },
+  "vault_empty_subtitle": {
+    "es": "Agrega tus datos: redes sociales, teléfonos, emails, documentos...",
+    "en": "Add your data: social links, phones, emails, documents...",
+    "it": "Aggiungi i tuoi dati: social, telefoni, email, documenti...",
+    "pt": "Adicione seus dados: redes, telefones, e-mails, documentos...",
+    "fr": "Ajoutez vos données : réseaux, téléphones, e-mails, documents...",
+    "de": "Fügen Sie Daten hinzu: Social, Telefone, E-Mails, Dokumente …"
+  },
+  "vault_empty_cta": {
+    "es": "Agregar primer dato",
+    "en": "Add first item",
+    "it": "Aggiungi primo dato",
+    "pt": "Adicionar primeiro dato",
+    "fr": "Ajouter un premier élément",
+    "de": "Ersten Eintrag hinzufügen"
+  },
+  "vault_verified_label": {
+    "es": "Verificado",
+    "en": "Verified",
+    "it": "Verificato",
+    "pt": "Verificado",
+    "fr": "Vérifié",
+    "de": "Verifiziert"
+  },
+  "vault_search_placeholder": {
+    "es": "Buscar en todo el dato (título, tipo, enlace, valor…)",
+    "en": "Search all fields (title, type, link, value…)",
+    "it": "Cerca in tutti i campi (titolo, tipo, link, valore…)",
+    "pt": "Buscar em todos os campos (título, tipo, link, valor…)",
+    "fr": "Rechercher (titre, type, lien, valeur…)",
+    "de": "Alle Felder durchsuchen (Titel, Typ, Link, Wert …)"
+  },
+  "vault_counter_fmt": {
+    "es": "{{current}} / {{max}}",
+    "en": "{{current}} / {{max}}",
+    "it": "{{current}} / {{max}}",
+    "pt": "{{current}} / {{max}}",
+    "fr": "{{current}} / {{max}}",
+    "de": "{{current}} / {{max}}"
+  },
+  "vault_pdf_use_download_hint": {
+    "es": "Abre el PDF con el botón Descargar.",
+    "en": "Open the PDF using the Download button.",
+    "it": "Apri il PDF con il pulsante Scarica.",
+    "pt": "Abra o PDF com o botão Baixar.",
+    "fr": "Ouvrez le PDF avec le bouton Télécharger.",
+    "de": "Öffnen Sie das PDF mit der Schaltfläche „Herunterladen“."
+  },
+  "vault_context_favorite": {
+    "es": "Favorito",
+    "en": "Favorite",
+    "it": "Preferito",
+    "pt": "Favorito",
+    "fr": "Favori",
+    "de": "Favorit"
+  },
+  "vault_confirm_delete_title": {
+    "es": "⚠️ Confirmar",
+    "en": "⚠️ Confirm",
+    "it": "⚠️ Conferma",
+    "pt": "⚠️ Confirmar",
+    "fr": "⚠️ Confirmer",
+    "de": "⚠️ Bestätigen"
+  },
+  "vault_confirm_delete_body": {
+    "es": "¿Eliminar \"{{title}}\"?",
+    "en": "Delete \"{{title}}\"?",
+    "it": "Eliminare \"{{title}}\"?",
+    "pt": "Excluir \"{{title}}\"?",
+    "fr": "Supprimer « {{title}} » ?",
+    "de": "„{{title}}“ löschen?"
+  },
+  "vault_editing_context_title": {
+    "es": "Edición del Búnker",
+    "en": "Vault Editing",
+    "it": "Modifica Búnker",
+    "pt": "Edição da Bóveda",
+    "fr": "Édition du Bunker",
+    "de": "Búnker bearbeiten"
+  },
+  "settings_expo_push_body": {
+    "es": "Las notificaciones push requieren un development build. No están disponibles en Expo Go.",
+    "en": "Push notifications require a development build. They are not available in Expo Go.",
+    "it": "Le notifiche push richiedono un development build. Non sono disponibili in Expo Go.",
+    "pt": "Notificações push exigem um development build. Não estão disponíveis no Expo Go.",
+    "fr": "Les notifications push nécessitent un development build. Elles ne sont pas disponibles dans Expo Go.",
+    "de": "Push-Benachrichtigungen erfordern einen Development Build. In Expo Go nicht verfügbar."
+  },
+  "settings_permission_required": {
+    "es": "Permiso requerido",
+    "en": "Permission required",
+    "it": "Permesso richiesto",
+    "pt": "Permissão necessária",
+    "fr": "Autorisation requise",
+    "de": "Berechtigung erforderlich"
+  },
+  "settings_understood": {
+    "es": "Entendido",
+    "en": "OK",
+    "it": "OK",
+    "pt": "Entendi",
+    "fr": "OK",
+    "de": "Verstanden"
+  },
+  "settings_notifications_denied_body": {
+    "es": "Debes habilitar las notificaciones en la configuración de tu dispositivo.",
+    "en": "Enable notifications in your device settings.",
+    "it": "Abilita le notificazioni nelle impostazioni del dispositivo.",
+    "pt": "Ative as notificações nas configurações do dispositivo.",
+    "fr": "Activez les notifications dans les réglages de l’appareil.",
+    "de": "Aktivieren Sie Benachrichtigungen in den Geräteeinstellungen."
+  },
+  "settings_notifications_disable_title": {
+    "es": "Desactivar notificaciones",
+    "en": "Turn off notifications",
+    "it": "Disattiva notifiche",
+    "pt": "Desativar notificações",
+    "fr": "Désactiver les notifications",
+    "de": "Benachrichtigungen deaktivieren"
+  },
+  "settings_notifications_disable_body": {
+    "es": "Para desactivar las notificaciones, abre Ajustes del dispositivo.",
+    "en": "To turn off notifications, open your device Settings.",
+    "it": "Per disattivare le notifiche, apri le Impostazioni del dispositivo.",
+    "pt": "Para desativar as notificações, abra os Ajustes do dispositivo.",
+    "fr": "Pour désactiver les notifications, ouvrez les réglages de l’appareil.",
+    "de": "Um Benachrichtigungen auszuschalten, öffnen Sie die Geräteeinstellungen."
+  },
+  "settings_open_device_settings": {
+    "es": "Ir a Configuración",
+    "en": "Open Settings",
+    "it": "Apri Impostazioni",
+    "pt": "Abrir configurações",
+    "fr": "Ouvrir les réglages",
+    "de": "Einstellungen öffnen"
+  },
+  "settings_biometric_unavailable_body": {
+    "es": "Tu dispositivo no soporta autenticación biométrica.",
+    "en": "Your device does not support biometric authentication.",
+    "it": "Il tuo dispositivo non supporta l’autenticazione biometrica.",
+    "pt": "Seu dispositivo não suporta autenticação biométrica.",
+    "fr": "Votre appareil ne prend pas en charge l’authentification biométrique.",
+    "de": "Ihr Gerät unterstützt keine biometrische Authentifizierung."
+  },
+  "settings_app_lock_prompt": {
+    "es": "Autentica para activar el bloqueo de app",
+    "en": "Authenticate to enable app lock",
+    "it": "Autenticati per attivare il blocco app",
+    "pt": "Autentique-se para ativar o bloqueio do app",
+    "fr": "Authentifiez-vous pour activer le verrouillage de l’app",
+    "de": "Authentifizieren Sie sich, um die App-Sperre zu aktivieren"
+  },
+  "settings_use_passcode": {
+    "es": "Usar código",
+    "en": "Use passcode",
+    "it": "Usa codice",
+    "pt": "Usar código",
+    "fr": "Utiliser le code",
+    "de": "Code verwenden"
+  },
+  "settings_app_lock_enable_fail": {
+    "es": "No se pudo activar el bloqueo de app.",
+    "en": "Could not enable app lock.",
+    "it": "Impossibile attivare il blocco app.",
+    "pt": "Não foi possível ativar o bloqueio do app.",
+    "fr": "Impossible d’activer le verrouillage de l’app.",
+    "de": "App-Sperre konnte nicht aktiviert werden."
+  },
+  "settings_app_lock_disabled_title": {
+    "es": "Desactivado",
+    "en": "Disabled",
+    "it": "Disattivato",
+    "pt": "Desativado",
+    "fr": "Désactivé",
+    "de": "Deaktiviert"
+  },
+  "settings_app_lock_disabled_body": {
+    "es": "El bloqueo de app ha sido desactivado.",
+    "en": "App lock has been turned off.",
+    "it": "Il blocco app è stato disattivato.",
+    "pt": "O bloqueio do app foi desativado.",
+    "fr": "Le verrouillage de l’app a été désactivé.",
+    "de": "Die App-Sperre wurde deaktiviert."
+  },
+  "settings_save_fail": {
+    "es": "No se pudo guardar la configuración.",
+    "en": "Could not save settings.",
+    "it": "Impossibile salvare le impostazioni.",
+    "pt": "Não foi possível salvar as configurações.",
+    "fr": "Impossible d’enregistrer les réglages.",
+    "de": "Einstellungen konnten nicht gespeichert werden."
+  },
+  "settings_mail_app_missing": {
+    "es": "No se encontró una aplicación de correo instalada en este dispositivo.",
+    "en": "No email app was found on this device.",
+    "it": "Nessuna app email trovata su questo dispositivo.",
+    "pt": "Nenhum app de e-mail encontrado neste dispositivo.",
+    "fr": "Aucune app de messagerie sur cet appareil.",
+    "de": "Keine E-Mail-App auf diesem Gerät gefunden."
+  },
+  "settings_clear_cache_title": {
+    "es": "¿Limpiar caché?",
+    "en": "Clear cache?",
+    "it": "Svuotare la cache?",
+    "pt": "Limpar cache?",
+    "fr": "Vider le cache ?",
+    "de": "Cache leeren?"
+  },
+  "settings_clear_cache_body": {
+    "es": "Esto borrará todos los datos locales, preferencias e imágenes cacheadas, y cerrará tu sesión.",
+    "en": "This will erase all local data, preferences and cached images, and sign you out.",
+    "it": "Eliminerà dati locali, preferenze e cache immagini e chiuderà la sessione.",
+    "pt": "Isso apagará dados locais, preferências e cache de imagens e encerrará sua sessão.",
+    "fr": "Cela effacera les données locales, préférences et images en cache et vous déconnectera.",
+    "de": "Dadurch werden lokale Daten, Einstellungen und Bild-Cache gelöscht und Sie abgemeldet."
+  },
+  "settings_clear_and_signout": {
+    "es": "Limpiar y salir",
+    "en": "Clear & sign out",
+    "it": "Svuota ed esci",
+    "pt": "Limpar e sair",
+    "fr": "Vider et se déconnecter",
+    "de": "Leeren und abmelden"
+  },
+  "settings_sign_out_fail": {
+    "es": "No se pudo cerrar la sesión. Intenta de nuevo.",
+    "en": "Could not sign out. Try again.",
+    "it": "Impossibile uscire. Riprova.",
+    "pt": "Não foi possível sair. Tente de novo.",
+    "fr": "Déconnexion impossible. Réessayez.",
+    "de": "Abmeldung fehlgeschlagen. Bitte erneut versuchen."
+  },
+  "settings_export_subject": {
+    "es": "Tus datos de Card-Social",
+    "en": "Your Card-Social data",
+    "it": "I tuoi dati Card-Social",
+    "pt": "Seus dados Card-Social",
+    "fr": "Vos données Card-Social",
+    "de": "Ihre Card-Social-Daten"
+  },
+  "settings_export_fail": {
+    "es": "No se pudieron exportar los datos.",
+    "en": "Could not export data.",
+    "it": "Impossibile esportare i dati.",
+    "pt": "Não foi possível exportar os dados.",
+    "fr": "Export des données impossible.",
+    "de": "Daten konnten nicht exportiert werden."
+  },
+  "settings_device_unknown_brand": {
+    "es": "Desconocida",
+    "en": "Unknown",
+    "it": "Sconosciuto",
+    "pt": "Desconhecida",
+    "fr": "Inconnu",
+    "de": "Unbekannt"
+  },
+  "settings_device_unknown_model": {
+    "es": "Desconocido",
+    "en": "Unknown",
+    "it": "Sconosciuto",
+    "pt": "Desconhecido",
+    "fr": "Inconnu",
+    "de": "Unbekannt"
+  },
+  "settings_session_title": {
+    "es": "Sesión actual",
+    "en": "Current session",
+    "it": "Sessione attuale",
+    "pt": "Sessão atual",
+    "fr": "Session actuelle",
+    "de": "Aktuelle Sitzung"
+  },
+  "settings_session_body": {
+    "es": "Estás conectado de forma segura en este dispositivo:\n\nMarca: {{brand}}\nModelo: {{model}}\nSistema: {{os}}\n\nPor seguridad, si necesitas desconectar otros dispositivos, te recomendamos cambiar tu contraseña.",
+    "en": "You are securely signed in on this device:\n\nBrand: {{brand}}\nModel: {{model}}\nOS: {{os}}\n\nFor your security, to disconnect other devices we recommend changing your password.",
+    "it": "Accesso sicuro su questo dispositivo:\n\nMarca: {{brand}}\nModello: {{model}}\nSistema: {{os}}\n\nPer sicurezza, per disconnettere altri dispositivi consigliamo di cambiare la password.",
+    "pt": "Conectado com segurança neste dispositivo:\n\nMarca: {{brand}}\nModelo: {{model}}\nSistema: {{os}}\n\nPara desconectar outros dispositivos, recomendamos alterar sua senha.",
+    "fr": "Connexion sécurisée sur cet appareil :\n\nMarque : {{brand}}\nModèle : {{model}}\nSystème : {{os}}\n\nPour déconnecter d’autres appareils, changez votre mot de passe.",
+    "de": "Sie sind auf diesem Gerät angemeldet:\n\nMarke: {{brand}}\nModell: {{model}}\nSystem: {{os}}\n\nZum Abmelden anderer Geräte empfehlen wir ein neues Passwort."
+  },
+  "settings_header_title": {
+    "es": "Configuración",
+    "en": "Settings",
+    "it": "Impostazioni",
+    "pt": "Configurações",
+    "fr": "Paramètres",
+    "de": "Einstellungen"
+  },
+  "settings_section_security": {
+    "es": "Seguridad y privacidad",
+    "en": "Security & privacy",
+    "it": "Sicurezza e privacy",
+    "pt": "Segurança e privacidade",
+    "fr": "Sécurité et confidentialité",
+    "de": "Sicherheit & Datenschutz"
+  },
+  "settings_app_lock_label": {
+    "es": "Bloqueo de app",
+    "en": "App lock",
+    "it": "Blocco app",
+    "pt": "Bloqueio do app",
+    "fr": "Verrouillage de l’app",
+    "de": "App-Sperre"
+  },
+  "settings_active_sessions": {
+    "es": "Sesiones activas",
+    "en": "Active sessions",
+    "it": "Sessioni attive",
+    "pt": "Sessões ativas",
+    "fr": "Sessions actives",
+    "de": "Aktive Sitzungen"
+  },
+  "settings_section_prefs": {
+    "es": "Preferencias",
+    "en": "Preferences",
+    "it": "Preferenze",
+    "pt": "Preferências",
+    "fr": "Préférences",
+    "de": "Einstellungen"
+  },
+  "settings_notifications_label": {
+    "es": "Notificaciones",
+    "en": "Notifications",
+    "it": "Notifiche",
+    "pt": "Notificações",
+    "fr": "Notifications",
+    "de": "Benachrichtigungen"
+  },
+  "settings_section_data": {
+    "es": "Datos",
+    "en": "Data",
+    "it": "Dati",
+    "pt": "Dados",
+    "fr": "Données",
+    "de": "Daten"
+  },
+  "settings_collecting_data": {
+    "es": "Recopilando datos…",
+    "en": "Collecting data…",
+    "it": "Raccolta dati…",
+    "pt": "Coletando dados…",
+    "fr": "Collecte des données…",
+    "de": "Daten werden gesammelt…"
+  },
+  "settings_export_label": {
+    "es": "Exportar mi información",
+    "en": "Export my data",
+    "it": "Esporta le mie informazioni",
+    "pt": "Exportar minhas informações",
+    "fr": "Exporter mes informations",
+    "de": "Meine Daten exportieren"
+  },
+  "settings_clearing": {
+    "es": "Limpiando…",
+    "en": "Clearing…",
+    "it": "Svuotamento…",
+    "pt": "Limpando…",
+    "fr": "Effacement…",
+    "de": "Wird geleert…"
+  },
+  "settings_clear_cache_label": {
+    "es": "Limpiar caché",
+    "en": "Clear cache",
+    "it": "Svuota cache",
+    "pt": "Limpar cache",
+    "fr": "Vider le cache",
+    "de": "Cache leeren"
+  },
+  "settings_section_support": {
+    "es": "Soporte y legal",
+    "en": "Support & legal",
+    "it": "Assistenza e note legali",
+    "pt": "Suporte e legal",
+    "fr": "Support et mentions légales",
+    "de": "Support & Rechtliches"
+  },
+  "settings_support_label": {
+    "es": "Soporte",
+    "en": "Support",
+    "it": "Assistenza",
+    "pt": "Suporte",
+    "fr": "Support",
+    "de": "Support"
+  },
+  "settings_version_label": {
+    "es": "Versión {{version}}",
+    "en": "Version {{version}}",
+    "it": "Versione {{version}}",
+    "pt": "Versão {{version}}",
+    "fr": "Version {{version}}",
+    "de": "Version {{version}}"
+  },
+  "nfc_status_active": {
+    "es": "Activa",
+    "en": "Active",
+    "it": "Attiva",
+    "pt": "Ativa",
+    "fr": "Active",
+    "de": "Aktiv"
+  },
+  "nfc_status_paused": {
+    "es": "Pausada",
+    "en": "Paused",
+    "it": "In pausa",
+    "pt": "Pausada",
+    "fr": "En pause",
+    "de": "Pausiert"
+  },
+  "nfc_status_lost": {
+    "es": "Perdida",
+    "en": "Lost",
+    "it": "Smarrita",
+    "pt": "Perdida",
+    "fr": "Perdue",
+    "de": "Verloren"
+  },
+  "nfc_status_blocked": {
+    "es": "Bloqueada",
+    "en": "Blocked",
+    "it": "Bloccata",
+    "pt": "Bloqueada",
+    "fr": "Bloquée",
+    "de": "Gesperrt"
+  },
+  "nfc_status_unclaimed": {
+    "es": "Sin vincular",
+    "en": "Unclaimed",
+    "it": "Non collegata",
+    "pt": "Não vinculada",
+    "fr": "Non liée",
+    "de": "Nicht verknüpft"
+  },
+  "nfc_material_metal": {
+    "es": "Metal",
+    "en": "Metal",
+    "it": "Metallo",
+    "pt": "Metal",
+    "fr": "Métal",
+    "de": "Metall"
+  },
+  "nfc_material_wood": {
+    "es": "Madera",
+    "en": "Wood",
+    "it": "Legno",
+    "pt": "Madeira",
+    "fr": "Bois",
+    "de": "Holz"
+  },
+  "nfc_material_plastic_matte": {
+    "es": "Plástico mate",
+    "en": "Matte plastic",
+    "it": "Plastica opaca",
+    "pt": "Plástico fosco",
+    "fr": "Plastique mat",
+    "de": "Mattes Plastik"
+  },
+  "nfc_material_unknown": {
+    "es": "Material no definido",
+    "en": "Unknown material",
+    "it": "Materiale non definito",
+    "pt": "Material não definido",
+    "fr": "Matériau non défini",
+    "de": "Material unbekannt"
+  },
+  "nfc_permanent": {
+    "es": "Permanente",
+    "en": "Permanent",
+    "it": "Permanente",
+    "pt": "Permanente",
+    "fr": "Permanent",
+    "de": "Dauerhaft"
+  },
+  "nfc_temporal_24h": {
+    "es": "Temporal - 24h",
+    "en": "Temporary - 24h",
+    "it": "Temporanea - 24h",
+    "pt": "Temporário - 24h",
+    "fr": "Temporaire - 24 h",
+    "de": "Temporär - 24h"
+  },
+  "nfc_load_fail_title": {
+    "es": "No se pudo cargar NFC",
+    "en": "Could not load NFC",
+    "it": "Impossibile caricare NFC",
+    "pt": "Não foi possível carregar NFC",
+    "fr": "Impossible de charger NFC",
+    "de": "NFC konnte nicht geladen werden"
+  },
+  "nfc_try_again": {
+    "es": "Intenta nuevamente.",
+    "en": "Try again.",
+    "it": "Riprova.",
+    "pt": "Tente novamente.",
+    "fr": "Réessayez.",
+    "de": "Bitte erneut versuchen."
+  },
+  "nfc_id_required_title": {
+    "es": "ID requerido",
+    "en": "ID required",
+    "it": "ID richiesto",
+    "pt": "ID obrigatório",
+    "fr": "ID requis",
+    "de": "ID erforderlich"
+  },
+  "nfc_id_required_body": {
+    "es": "Escanea o escribe el identificador NFC.",
+    "en": "Scan or type the NFC identifier.",
+    "it": "Scansiona o digita l’identificativo NFC.",
+    "pt": "Escaneie ou digite o identificador NFC.",
+    "fr": "Scannez ou saisissez l’identifiant NFC.",
+    "de": "Scannen oder eingeben Sie die NFC-Kennung."
+  },
+  "nfc_pin_required_title": {
+    "es": "PIN requerido",
+    "en": "PIN required",
+    "it": "PIN richiesto",
+    "pt": "PIN obrigatório",
+    "fr": "PIN requis",
+    "de": "PIN erforderlich"
+  },
+  "nfc_pin_required_body": {
+    "es": "Escribe el PIN de activación impreso con tu tarjeta.",
+    "en": "Enter the activation PIN printed with your card.",
+    "it": "Inserisci il PIN di attivazione stampato sulla carta.",
+    "pt": "Digite o PIN de ativação impresso no cartão.",
+    "fr": "Saisissez le PIN d’activation imprimé sur votre carte.",
+    "de": "Geben Sie den aufgedruckten Aktivierungs-PIN ein."
+  },
+  "nfc_linked_title": {
+    "es": "Tarjeta vinculada",
+    "en": "Card linked",
+    "it": "Carta collegata",
+    "pt": "Cartão vinculado",
+    "fr": "Carte liée",
+    "de": "Karte verknüpft"
+  },
+  "nfc_linked_body": {
+    "es": "Ahora puedes montar una identidad.",
+    "en": "Now you can mount an identity.",
+    "it": "Ora puoi montare un’identità.",
+    "pt": "Agora você pode montar uma identidade.",
+    "fr": "Vous pouvez maintenant monter une identité.",
+    "de": "Sie können jetzt eine Identität zuweisen."
+  },
+  "nfc_link_fail_title": {
+    "es": "No se pudo vincular",
+    "en": "Could not link",
+    "it": "Impossibile collegare",
+    "pt": "Não foi possível vincular",
+    "fr": "Impossible de lier",
+    "de": "Verknüpfung fehlgeschlagen"
+  },
+  "nfc_no_dest_title": {
+    "es": "Sin destino",
+    "en": "No destination",
+    "it": "Nessuna destinazione",
+    "pt": "Sem destino",
+    "fr": "Aucune destination",
+    "de": "Kein Ziel"
+  },
+  "nfc_no_dest_body": {
+    "es": "Esta tarjeta aún no tiene identidad montada.",
+    "en": "This card has no mounted identity yet.",
+    "it": "Questa carta non ha ancora un’identità montata.",
+    "pt": "Este cartão ainda não tem identidade montada.",
+    "fr": "Cette carte n’a pas encore d’identité montée.",
+    "de": "Für diese Karte ist noch keine Identität gesetzt."
+  },
+  "nfc_open_fail_title": {
+    "es": "No se pudo abrir",
+    "en": "Could not open",
+    "it": "Impossibile aprire",
+    "pt": "Não foi possível abrir",
+    "fr": "Impossible d’ouvrir",
+    "de": "Öffnen fehlgeschlagen"
+  },
+  "nfc_open_link_fail": {
+    "es": "No se pudo abrir el enlace.",
+    "en": "Could not open the link.",
+    "it": "Impossibile aprire il link.",
+    "pt": "Não foi possível abrir o link.",
+    "fr": "Impossible d’ouvrir le lien.",
+    "de": "Link konnte nicht geöffnet werden."
+  },
+  "nfc_fallback_required_title": {
+    "es": "Fallback requerido",
+    "en": "Fallback required",
+    "it": "Fallback richiesto",
+    "pt": "Fallback obrigatório",
+    "fr": "Fallback requis",
+    "de": "Fallback erforderlich"
+  },
+  "nfc_fallback_smart_long": {
+    "es": "Crea o selecciona una BusinessCard permanente antes de montar una SmartCard 24 h.",
+    "en": "Create or select a permanent BusinessCard before mounting a 24h SmartCard.",
+    "it": "Crea o seleziona una BusinessCard permanente prima di montare una SmartCard 24 h.",
+    "pt": "Crie ou selecione uma BusinessCard permanente antes de montar uma SmartCard 24h.",
+    "fr": "Créez ou sélectionnez une BusinessCard permanente avant une SmartCard 24 h.",
+    "de": "Erstellen oder wählen Sie eine dauerhafte BusinessCard vor einer 24h-SmartCard."
+  },
+  "nfc_fallback_smart_short": {
+    "es": "Crea una BusinessCard permanente antes de montar una SmartCard 24 h.",
+    "en": "Create a permanent BusinessCard before mounting a 24h SmartCard.",
+    "it": "Crea una BusinessCard permanente prima di montare una SmartCard 24 h.",
+    "pt": "Crie uma BusinessCard permanente antes de montar uma SmartCard 24h.",
+    "fr": "Créez une BusinessCard permanente avant une SmartCard 24 h.",
+    "de": "Erstellen Sie eine dauerhafte BusinessCard vor einer 24h-SmartCard."
+  },
+  "nfc_mount_fail_title": {
+    "es": "No se pudo montar",
+    "en": "Could not mount",
+    "it": "Impossibile montare",
+    "pt": "Não foi possível montar",
+    "fr": "Impossible de monter",
+    "de": "Zuweisen fehlgeschlagen"
+  },
+  "nfc_update_fail_title": {
+    "es": "No se pudo actualizar",
+    "en": "Could not update",
+    "it": "Impossibile aggiornare",
+    "pt": "Não foi possível atualizar",
+    "fr": "Impossible de mettre à jour",
+    "de": "Aktualisierung fehlgeschlagen"
+  },
+  "nfc_menu_eyebrow": {
+    "es": "Menú NFC",
+    "en": "NFC Menu",
+    "it": "Menu NFC",
+    "pt": "Menu NFC",
+    "fr": "Menu NFC",
+    "de": "NFC-Menü"
+  },
+  "nfc_menu_title": {
+    "es": "Hardware inteligente",
+    "en": "Smart hardware",
+    "it": "Hardware intelligente",
+    "pt": "Hardware inteligente",
+    "fr": "Matériel intelligent",
+    "de": "Smart-Hardware"
+  },
+  "nfc_menu_subtitle": {
+    "es": "Vincula tarjetas físicas y monta la identidad que deben abrir ahora mismo. La tarjeta conserva un enlace fijo; Card-Social cambia el destino.",
+    "en": "Link physical cards and mount the identity they should open right now. The card keeps one fixed link; Card-Social changes the destination.",
+    "it": "Collega carte fisiche e monta l’identità che devono aprire ora. La carta mantiene un link fisso; Card-Social cambia la destinazione.",
+    "pt": "Vincule cartões físicos e monte a identidade que devem abrir agora. O cartão mantém um link fixo; o Card-Social muda o destino.",
+    "fr": "Liez des cartes physiques et montez l’identité à ouvrir. La carte garde un lien fixe; Card-Social change la destination.",
+    "de": "Verknüpfen Sie physische Karten und weisen Sie die aktuelle Identität zu. Die Karte behält einen festen Link; Card-Social ändert das Ziel."
+  },
+  "nfc_buy_cards_title": {
+    "es": "Compra tarjetas físicas NFC",
+    "en": "Buy NFC physical cards",
+    "it": "Acquista carte fisiche NFC",
+    "pt": "Comprar cartões físicos NFC",
+    "fr": "Acheter des cartes NFC physiques",
+    "de": "NFC-Physikkarten kaufen"
+  },
+  "nfc_buy_cards_body": {
+    "es": "Abre Suscripción en el menú para ver precios de PVC y metal, slots extra y la licencia de negocio.",
+    "en": "Open Subscription from the menu to see PVC and metal pricing, extra slots, and the business license.",
+    "it": "Apri Abbonamento dal menu per prezzi PVC e metallo, slot extra e licenza business.",
+    "pt": "Abra Assinatura no menu para ver preços de PVC e metal, slots extras e licença business.",
+    "fr": "Ouvrez Abonnement dans le menu pour les tarifs PVC et métal, emplacements et licence pro.",
+    "de": "Öffnen Sie „Abonnement“ im Menü für PVC-/Metallpreise, Extra-Slots und Business-Lizenz."
+  },
+  "nfc_shop_cards_cta": {
+    "es": "Ir a comprar tarjetas físicas",
+    "en": "Shop physical cards",
+    "it": "Acquista carte fisiche",
+    "pt": "Ir comprar cartões físicos",
+    "fr": "Acheter des cartes",
+    "de": "Physikkarten kaufen"
+  },
+  "nfc_link_new_title": {
+    "es": "Vincular nueva NFC",
+    "en": "Link new NFC",
+    "it": "Collega nuova NFC",
+    "pt": "Vincular novo NFC",
+    "fr": "Lier une nouvelle NFC",
+    "de": "Neue NFC verknüpfen"
+  },
+  "nfc_link_new_sub": {
+    "es": "Escanea el QR o ingresa el ID de la tarjeta junto con su PIN de activación.",
+    "en": "Scan the QR or enter the card ID together with its activation PIN.",
+    "it": "Scansiona il QR o inserisci l’ID della carta con il PIN di attivazione.",
+    "pt": "Escaneie o QR ou digite o ID do cartão com o PIN de ativação.",
+    "fr": "Scannez le QR ou saisissez l’ID de la carte et son PIN.",
+    "de": "QR scannen oder Karten-ID mit Aktivierungs-PIN eingeben."
+  },
+  "nfc_link_physical_cta": {
+    "es": "Vincular tarjeta física",
+    "en": "Link physical card",
+    "it": "Collega carta fisica",
+    "pt": "Vincular cartão físico",
+    "fr": "Lier une carte physique",
+    "de": "Physische Karte verknüpfen"
+  },
+  "nfc_loading_cards": {
+    "es": "Cargando tarjetas NFC...",
+    "en": "Loading NFC cards...",
+    "it": "Caricamento carte NFC...",
+    "pt": "Carregando cartões NFC...",
+    "fr": "Chargement des cartes NFC…",
+    "de": "NFC-Karten werden geladen…"
+  },
+  "nfc_no_cards_title": {
+    "es": "No hay tarjetas vinculadas",
+    "en": "No linked cards",
+    "it": "Nessuna carta collegata",
+    "pt": "Nenhum cartão vinculado",
+    "fr": "Aucune carte liée",
+    "de": "Keine verknüpften Karten"
+  },
+  "nfc_no_cards_sub": {
+    "es": "Vincula la primera tarjeta física usando el ID impreso o el QR de manufactura.",
+    "en": "Link the first physical card using the printed ID or manufacturing QR.",
+    "it": "Collega la prima carta fisica con ID stampato o QR di fabbrica.",
+    "pt": "Vincule o primeiro cartão físico com o ID impresso ou QR de fabricação.",
+    "fr": "Liez la première carte avec l’ID imprimé ou le QR fabricant.",
+    "de": "Verknüpfen Sie die erste Karte per aufgedruckter ID oder Hersteller-QR."
+  },
+  "nfc_mounted_now": {
+    "es": "Montado ahora",
+    "en": "Mounted now",
+    "it": "Montato ora",
+    "pt": "Montado agora",
+    "fr": "Monté maintenant",
+    "de": "Jetzt zugewiesen"
+  },
+  "nfc_recovery_page": {
+    "es": "Página de recuperación segura",
+    "en": "Secure recovery page",
+    "it": "Pagina di recupero sicura",
+    "pt": "Página de recuperação segura",
+    "fr": "Page de récupération sécurisée",
+    "de": "Sichere Wiederherstellungsseite"
+  },
+  "nfc_pending": {
+    "es": "pendiente",
+    "en": "pending",
+    "it": "in attesa",
+    "pt": "pendente",
+    "fr": "en attente",
+    "de": "ausstehend"
+  },
+  "nfc_same_destination": {
+    "es": "mismo destino",
+    "en": "same destination",
+    "it": "stessa destinazione",
+    "pt": "mesmo destino",
+    "fr": "même destination",
+    "de": "gleiches Ziel"
+  },
+  "nfc_server_pending": {
+    "es": "Pendiente de confirmación del servidor.",
+    "en": "Pending server confirmation.",
+    "it": "In attesa di conferma del server.",
+    "pt": "Aguardando confirmação do servidor.",
+    "fr": "En attente de confirmation du serveur.",
+    "de": "Warten auf Serverbestätigung."
+  },
+  "nfc_btn_mount": {
+    "es": "Montar",
+    "en": "Mount",
+    "it": "Monta",
+    "pt": "Montar",
+    "fr": "Monter",
+    "de": "Zuweisen"
+  },
+  "nfc_btn_test": {
+    "es": "Probar",
+    "en": "Test",
+    "it": "Prova",
+    "pt": "Testar",
+    "fr": "Tester",
+    "de": "Testen"
+  },
+  "nfc_activate": {
+    "es": "Activar",
+    "en": "Activate",
+    "it": "Attiva",
+    "pt": "Ativar",
+    "fr": "Activer",
+    "de": "Aktivieren"
+  },
+  "nfc_lost": {
+    "es": "Perdida",
+    "en": "Lost",
+    "it": "Smarrita",
+    "pt": "Perdida",
+    "fr": "Perdue",
+    "de": "Verloren"
+  },
+  "nfc_pause": {
+    "es": "Pausar",
+    "en": "Pause",
+    "it": "Metti in pausa",
+    "pt": "Pausar",
+    "fr": "Mettre en pause",
+    "de": "Pausieren"
+  },
+  "nfc_footnote_backend": {
+    "es": "Backend integrado: /api/nfc administra tarjetas y /n/{nfcCardId} resuelve con redirección temporal.",
+    "en": "Backend integrated: /api/nfc manages cards and /n/{nfcCardId} resolves with temporary redirects.",
+    "it": "Backend integrato: /api/nfc gestisce le carte e /n/{nfcCardId} risolve con redirect temporaneo.",
+    "pt": "Backend integrado: /api/nfc administra cartões e /n/{nfcCardId} resolve com redirecionamento temporário.",
+    "fr": "Backend intégré : /api/nfc gère les cartes et /n/{nfcCardId} résout avec redirection temporaire.",
+    "de": "Backend: /api/nfc verwaltet Karten, /n/{nfcCardId} mit temporärer Weiterleitung."
+  },
+  "nfc_modal_link_pin_instructions": {
+    "es": "Pega el ID o la URL /n impresa en la tarjeta y escribe el PIN de activación.",
+    "en": "Paste the ID or /n URL printed on the card and enter the activation PIN.",
+    "it": "Incolla l’ID o l’URL /n stampata sulla carta e inserisci il PIN di attivazione.",
+    "pt": "Cole o ID ou a URL /n impressa no cartão e digite o PIN de ativação.",
+    "fr": "Collez l’ID ou l’URL /n sur la carte et saisissez le PIN.",
+    "de": "ID oder /n-URL von der Karte einfügen und Aktivierungs-PIN eingeben."
+  },
+  "nfc_placeholder_pin": {
+    "es": "PIN de activación",
+    "en": "Activation PIN",
+    "it": "PIN di attivazione",
+    "pt": "PIN de ativação",
+    "fr": "PIN d’activation",
+    "de": "Aktivierungs-PIN"
+  },
+  "nfc_placeholder_card_label": {
+    "es": "Tarjeta 1",
+    "en": "Card 1",
+    "it": "Carta 1",
+    "pt": "Cartão 1",
+    "fr": "Carte 1",
+    "de": "Karte 1"
+  },
+  "nfc_default_link_label": {
+    "es": "Tarjeta NFC",
+    "en": "NFC card",
+    "it": "Carta NFC",
+    "pt": "Cartão NFC",
+    "fr": "Carte NFC",
+    "de": "NFC-Karte"
+  },
+  "nfc_linking": {
+    "es": "Vinculando...",
+    "en": "Linking...",
+    "it": "Collegamento...",
+    "pt": "Vinculando...",
+    "fr": "Liaison…",
+    "de": "Wird verknüpft…"
+  },
+  "nfc_link_verb": {
+    "es": "Vincular",
+    "en": "Link",
+    "it": "Collega",
+    "pt": "Vincular",
+    "fr": "Lier",
+    "de": "Verknüpfen"
+  },
+  "nfc_mount_modal_title": {
+    "es": "Montar identidad",
+    "en": "Mount identity",
+    "it": "Monta identità",
+    "pt": "Montar identidade",
+    "fr": "Monter l'identité",
+    "de": "Identität zuweisen"
+  },
+  "nfc_mount_modal_sub": {
+    "es": "BusinessCards aparecen primero. Las SmartCards generan URL temporal de 24 h y requieren fallback.",
+    "en": "BusinessCards appear first. SmartCards generate a 24h temporary URL and require fallback.",
+    "it": "Le BusinessCards compaiono per prime. Le SmartCards generano URL temporaneo 24 h e richiedono fallback.",
+    "pt": "As BusinessCards aparecem primeiro. As SmartCards geram URL temporária de 24h e exigem fallback.",
+    "fr": "Les BusinessCards d’abord. Les SmartCards créent une URL 24 h et exigent un fallback.",
+    "de": "BusinessCards stehen zuerst. SmartCards erzeugen eine 24h-URL und brauchen ein Fallback."
+  },
+  "nfc_no_mount_options": {
+    "es": "No hay tarjetas disponibles para montar.",
+    "en": "No cards available to mount.",
+    "it": "Nessuna carta disponibile da montare.",
+    "pt": "Nenhum cartão disponível para montar.",
+    "fr": "Aucune carte disponible à monter.",
+    "de": "Keine Karten zum Zuweisen."
+  },
+  "nfc_bc_permanent_header": {
+    "es": "BusinessCards permanentes",
+    "en": "Permanent BusinessCards",
+    "it": "BusinessCards permanenti",
+    "pt": "BusinessCards permanentes",
+    "fr": "BusinessCards permanentes",
+    "de": "Dauerhafte BusinessCards"
+  },
+  "nfc_smart_temp_header": {
+    "es": "SmartCards temporales",
+    "en": "Temporary SmartCards",
+    "it": "SmartCards temporanee",
+    "pt": "SmartCards temporários",
+    "fr": "SmartCards temporaires",
+    "de": "Temporäre SmartCards"
+  },
+  "nfc_temp_fallback_line": {
+    "es": "Temporal - 24h · requiere fallback permanente",
+    "en": "Temporary - 24h · permanent fallback required",
+    "it": "Temporanea - 24 h · fallback permanente richiesto",
+    "pt": "Temporário - 24h · exige fallback permanente",
+    "fr": "Temporaire - 24 h · fallback permanent requis",
+    "de": "Temporär - 24h · dauerhaftes Fallback nötig"
+  },
+  "nfc_choose_fallback_title": {
+    "es": "Elegir fallback",
+    "en": "Choose fallback",
+    "it": "Scegli fallback",
+    "pt": "Escolher fallback",
+    "fr": "Choisir le fallback",
+    "de": "Fallback wählen"
+  },
+  "nfc_fallback_permanent_sub": {
+    "es": "Fallback permanente",
+    "en": "Permanent fallback",
+    "it": "Fallback permanente",
+    "pt": "Fallback permanente",
+    "fr": "Fallback permanent",
+    "de": "Dauerhaftes Fallback"
+  },
+  "nfc_expiration_pending": {
+    "es": "Expiración pendiente",
+    "en": "Expiration pending",
+    "it": "Scadenza in attesa",
+    "pt": "Expiração pendente",
+    "fr": "Expiration en attente",
+    "de": "Ablauf ausstehend"
+  },
+  "nfc_recovery_route": {
+    "es": "Canal elegido: {{label}}. No se expone el perfil completo.",
+    "en": "Selected channel: {{label}}. Full profile is not exposed.",
+    "it": "Canale scelto: {{label}}. Il profilo completo non viene esposto.",
+    "pt": "Canal escolhido: {{label}}. O perfil completo não é exposto.",
+    "fr": "Canal choisi : {{label}}. Le profil complet n’est pas exposé.",
+    "de": "Gewählter Kanal: {{label}}. Vollständiges Profil wird nicht angezeigt."
+  },
+  "nfc_temp_route": {
+    "es": "{{expires}}. Fallback obligatorio: {{fallback}}.",
+    "en": "{{expires}}. Required fallback: {{fallback}}.",
+    "it": "{{expires}}. Fallback obbligatorio: {{fallback}}.",
+    "pt": "{{expires}}. Fallback obrigatório: {{fallback}}.",
+    "fr": "{{expires}}. Fallback obligatoire : {{fallback}}.",
+    "de": "{{expires}}. Erforderliches Fallback: {{fallback}}."
+  },
+  "nfc_perm_route": {
+    "es": "Destino permanente. Fallback: {{fallback}}.",
+    "en": "Permanent destination. Fallback: {{fallback}}.",
+    "it": "Destinazione permanente. Fallback: {{fallback}}.",
+    "pt": "Destino permanente. Fallback: {{fallback}}.",
+    "fr": "Destination permanente. Fallback : {{fallback}}.",
+    "de": "Dauerziel. Fallback: {{fallback}}."
+  },
+  "nfc_server_confirmed": {
+    "es": "Confirmado por servidor: {{value}}",
+    "en": "Server confirmed: {{value}}",
+    "it": "Confermato dal server: {{value}}",
+    "pt": "Confirmado pelo servidor: {{value}}",
+    "fr": "Confirmé par le serveur : {{value}}",
+    "de": "Serverbestätigung: {{value}}"
+  },
+  "nfc_last_scan_fmt": {
+    "es": "Último escaneo: {{value}}",
+    "en": "Last scan: {{value}}",
+    "it": "Ultima scansione: {{value}}",
+    "pt": "Último escaneamento: {{value}}",
+    "fr": "Dernier scan : {{value}}",
+    "de": "Letzter Scan: {{value}}"
+  },
+  "nfc_smart_fallback_prompt": {
+    "es": "La SmartCard \"{{name}}\" expira en 24 h. Elige una BusinessCard permanente para cuando venza.",
+    "en": "The SmartCard \"{{name}}\" expires in 24h. Choose a permanent BusinessCard for when it expires.",
+    "it": "La SmartCard \"{{name}}\" scade tra 24 h. Scegli una BusinessCard permanente per quando scadrà.",
+    "pt": "A SmartCard \"{{name}}\" expira em 24h. Escolha uma BusinessCard permanente para quando vencer.",
+    "fr": "La SmartCard « {{name}} » expire dans 24 h. Choisissez une BusinessCard permanente.",
+    "de": "Die SmartCard „{{name}}“ läuft in 24h ab. Wählen Sie eine dauerhafte BusinessCard."
   },
   "calls_kind_outgoing": {
     "es": "Saliente",
@@ -1360,12 +2688,12 @@
     "de": "QR exportiert"
   },
   "search_qr_export_success": {
-    "es": "El archivo QR se generó y se abrió el menú para compartir o guardar.",
-    "en": "The QR file was generated and the share/save menu was opened.",
-    "it": "Il file QR è stato generato e si è aperto il menu per condividere o salvare.",
-    "pt": "O arquivo QR foi gerado e o menu para compartilhar ou salvar foi aberto.",
-    "fr": "Le fichier QR a été généré et le menu pour partager ou enregistrer s’est ouvert.",
-    "de": "Die QR-Datei wurde erzeugt und das Menü zum Teilen oder Speichern wurde geöffnet."
+    "es": "El código QR se guardó correctamente.",
+    "en": "The QR code was saved successfully.",
+    "it": "Il codice QR è stato salvato.",
+    "pt": "O código QR foi salvo com sucesso.",
+    "fr": "Le code QR a été enregistré.",
+    "de": "Der QR-Code wurde gespeichert."
   },
   "search_export_fail_title": {
     "es": "Error",
@@ -2822,5 +4150,1173 @@
     "pt": "Trabalho",
     "fr": "Travail",
     "de": "Arbeit"
+  },
+  "sub_tier_free": {
+    "es": "Gratis",
+    "en": "Free",
+    "it": "Gratuito",
+    "pt": "Grátis",
+    "fr": "Gratuit",
+    "de": "Kostenlos"
+  },
+  "sub_tier_influencer": {
+    "es": "Influencer",
+    "en": "Influencer",
+    "it": "Influencer",
+    "pt": "Influencer",
+    "fr": "Influenceur",
+    "de": "Influencer"
+  },
+  "sub_tier_business": {
+    "es": "Business",
+    "en": "Business",
+    "it": "Business",
+    "pt": "Business",
+    "fr": "Business",
+    "de": "Business"
+  },
+  "sub_min_per_month": {
+    "es": "min/mes",
+    "en": "min/mo",
+    "it": "min/mese",
+    "pt": "min/mês",
+    "fr": "min/mois",
+    "de": "Min./Mon."
+  },
+  "sub_themes_plus": {
+    "es": "Temas+",
+    "en": "Themes+",
+    "it": "Temi+",
+    "pt": "Temas+",
+    "fr": "Thèmes+",
+    "de": "Themes+"
+  },
+  "sub_market_radar_pro_title": {
+    "es": "Market Radar Pro",
+    "en": "Market Radar Pro",
+    "it": "Market Radar Pro",
+    "pt": "Market Radar Pro",
+    "fr": "Market Radar Pro",
+    "de": "Market Radar Pro"
+  },
+  "sub_radar_full_access_body": {
+    "es": "El acceso completo se confirma al abrir el radar desde la app.",
+    "en": "Full access is confirmed when you open the radar from the app.",
+    "it": "L'accesso completo si conferma aprendo il radar dall'app.",
+    "pt": "O acesso completo é confirmado ao abrir o radar no app.",
+    "fr": "L’accès complet est confirmé en ouvrant le radar depuis l’app.",
+    "de": "Voller Zugriff bestätigt sich beim Öffnen des Radars in der App."
+  },
+  "sub_free_plan_title": {
+    "es": "Plan Gratis",
+    "en": "Free plan",
+    "it": "Piano gratuito",
+    "pt": "Plano grátis",
+    "fr": "Forfait gratuit",
+    "de": "Kostenloser Plan"
+  },
+  "sub_free_plan_body": {
+    "es": "Ya incluido con tu cuenta.",
+    "en": "Already included with your account.",
+    "it": "Già incluso nel tuo account.",
+    "pt": "Já incluído na sua conta.",
+    "fr": "Déjà inclus avec votre compte.",
+    "de": "Bereits in Ihrem Konto enthalten."
+  },
+  "sub_upgrade_plan_title": {
+    "es": "Ascenso de plan",
+    "en": "Upgrade plan",
+    "it": "Passa al piano superiore",
+    "pt": "Upgrade de plano",
+    "fr": "Changer de formule",
+    "de": "Plan-Upgrade"
+  },
+  "sub_tier_pricing_detail": {
+    "es": "{{monthlyUsd}} / mes · {{monthlyCs}} CS · {{annualUsd}} / año · {{annualCs}} CS. Prueba: {{trialDays}} días. La compra se completa en la tienda de la app.",
+    "en": "{{monthlyUsd}} / mo · {{monthlyCs}} CS · {{annualUsd}} / yr · {{annualCs}} CS. Trial: {{trialDays}} days. Purchase completes in your app’s store.",
+    "it": "{{monthlyUsd}} / mese · {{monthlyCs}} CS · {{annualUsd}} / anno · {{annualCs}} CS. Prova: {{trialDays}} giorni. L’acquisto si completa nello store dell’app.",
+    "pt": "{{monthlyUsd}} / mês · {{monthlyCs}} CS · {{annualUsd}} / ano · {{annualCs}} CS. Teste: {{trialDays}} dias. A compra é concluída na loja do app.",
+    "fr": "{{monthlyUsd}} / mois · {{monthlyCs}} CS · {{annualUsd}} / an · {{annualCs}} CS. Essai : {{trialDays}} jours. L’achat se finalise dans la boutique de l’app.",
+    "de": "{{monthlyUsd}} / Monat · {{monthlyCs}} CS · {{annualUsd}} / Jahr · {{annualCs}} CS. Test: {{trialDays}} Tage. Kauf wird im App-Store abgeschlossen."
+  },
+  "sub_credit_pack_success_title": {
+    "es": "✅ ¡Éxito!",
+    "en": "✅ Success!",
+    "it": "✅ Successo!",
+    "pt": "✅ Sucesso!",
+    "fr": "✅ Succès !",
+    "de": "✅ Geschafft!"
+  },
+  "sub_credit_pack_success_body": {
+    "es": "Se acreditaron {{credits}} CS en tu cuenta.",
+    "en": "You received {{credits}} CS in your account.",
+    "it": "Sono stati accreditati {{credits}} CS sul tuo account.",
+    "pt": "{{credits}} CS foram creditados na sua conta.",
+    "fr": "{{credits}} CS ont été crédités sur votre compte.",
+    "de": "{{credits}} CS wurden Ihrem Konto gutgeschrieben."
+  },
+  "sub_purchase_process_failed": {
+    "es": "No se pudo procesar la compra",
+    "en": "Could not process purchase",
+    "it": "Impossibile elaborare l’acquisto",
+    "pt": "Não foi possível processar a compra",
+    "fr": "Impossible de traiter l’achat",
+    "de": "Kauf konnte nicht verarbeitet werden"
+  },
+  "sub_session_title": {
+    "es": "Sesión",
+    "en": "Session",
+    "it": "Sessione",
+    "pt": "Sessão",
+    "fr": "Session",
+    "de": "Sitzung"
+  },
+  "sub_sign_in_to_continue": {
+    "es": "Inicia sesión para continuar.",
+    "en": "Sign in to continue.",
+    "it": "Accedi per continuare.",
+    "pt": "Entre para continuar.",
+    "fr": "Connectez-vous pour continuer.",
+    "de": "Melden Sie sich an, um fortzufahren."
+  },
+  "sub_biz_card_activated_title": {
+    "es": "✅ ¡Tarjeta de Negocio Activada!",
+    "en": "✅ Business Card Activated!",
+    "it": "✅ Business Card attivata!",
+    "pt": "✅ Cartão de negócio ativado!",
+    "fr": "✅ Carte pro activée !",
+    "de": "✅ Business-Karte aktiviert!"
+  },
+  "sub_biz_card_activated_body": {
+    "es": "Tu licencia anual quedó activa. Recibiste {{credits}} monedas CS para gastar en tienda.",
+    "en": "Your annual license is now active. You received {{credits}} CS coins to spend in the store.",
+    "it": "La tua licenza annuale è attiva. Hai ricevuto {{credits}} monete CS da spendere nel negozio.",
+    "pt": "Sua licença anual está ativa. Você recebeu {{credits}} moedas CS para gastar na loja.",
+    "fr": "Votre licence annuelle est active. Vous avez reçu {{credits}} pièces CS à dépenser dans la boutique.",
+    "de": "Ihre Jahreslizenz ist aktiv. Sie haben {{credits}} CS-Münzen zum Einkaufen erhalten."
+  },
+  "sub_restore_success_title": {
+    "es": "✅ Restaurado",
+    "en": "✅ Restored",
+    "it": "✅ Ripristinato",
+    "pt": "✅ Restaurado",
+    "fr": "✅ Restauré",
+    "de": "✅ Wiederhergestellt"
+  },
+  "sub_restore_success_body": {
+    "es": "Se han restaurado tus compras anteriores",
+    "en": "Your previous purchases have been restored",
+    "it": "I tuoi acquisti precedenti sono stati ripristinati",
+    "pt": "Suas compras anteriores foram restauradas",
+    "fr": "Vos achats précédents ont été restaurés",
+    "de": "Ihre früheren Käufe wurden wiederhergestellt"
+  },
+  "sub_restore_failed": {
+    "es": "No se pudieron restaurar las compras",
+    "en": "Could not restore purchases",
+    "it": "Impossibile ripristinare gli acquisti",
+    "pt": "Não foi possível restaurar as compras",
+    "fr": "Impossible de restaurer les achats",
+    "de": "Käufe konnten nicht wiederhergestellt werden"
+  },
+  "sub_iap_native_only_body": {
+    "es": "Compras in-app solo en iOS/Android.",
+    "en": "In-app purchases on iOS/Android only.",
+    "it": "Acquisti in-app solo su iOS/Android.",
+    "pt": "Compras no app apenas em iOS/Android.",
+    "fr": "Achats intégrés sur iOS/Android uniquement.",
+    "de": "In-App-Käufe nur unter iOS/Android."
+  },
+  "sub_pro_title": {
+    "es": "Card-Social Pro",
+    "en": "Card-Social Pro",
+    "it": "Card-Social Pro",
+    "pt": "Card-Social Pro",
+    "fr": "Card-Social Pro",
+    "de": "Card-Social Pro"
+  },
+  "sub_pro_updated_body": {
+    "es": "Suscripción actualizada. ¡Gracias!",
+    "en": "Subscription updated. Thank you!",
+    "it": "Abbonamento aggiornato. Grazie!",
+    "pt": "Assinatura atualizada. Obrigado!",
+    "fr": "Abonnement mis à jour. Merci !",
+    "de": "Abonnement aktualisiert. Danke!"
+  },
+  "sub_operation_failed": {
+    "es": "No se pudo completar la operación.",
+    "en": "Could not complete the operation.",
+    "it": "Impossibile completare l’operazione.",
+    "pt": "Não foi possível concluir a operação.",
+    "fr": "Impossible de terminer l’opération.",
+    "de": "Vorgang konnte nicht abgeschlossen werden."
+  },
+  "sub_native_app_only_body": {
+    "es": "Solo en app iOS/Android.",
+    "en": "iOS/Android app only.",
+    "it": "Solo app iOS/Android.",
+    "pt": "Somente no app iOS/Android.",
+    "fr": "Application iOS/Android uniquement.",
+    "de": "Nur iOS/Android-App."
+  },
+  "sub_subscription_center_failed": {
+    "es": "No se pudo abrir el centro de suscripciones.",
+    "en": "Could not open subscription management.",
+    "it": "Impossibile aprire la gestione abbonamento.",
+    "pt": "Não foi possível abrir o gerenciamento de assinaturas.",
+    "fr": "Impossible d’ouvrir la gestion de l’abonnement.",
+    "de": "Aboverwaltung konnte nicht geöffnet werden."
+  },
+  "sub_other_countries_intl": {
+    "es": "Otros países (internacional)",
+    "en": "Other countries (international)",
+    "it": "Altri paesi (internazionale)",
+    "pt": "Outros países (internacional)",
+    "fr": "Autres pays (international)",
+    "de": "Sonstige Länder (international)"
+  },
+  "sub_payment_summary_title": {
+    "es": "Resumen para pago",
+    "en": "Payment summary",
+    "it": "Riepilogo pagamento",
+    "pt": "Resumo para pagamento",
+    "fr": "Récapitulatif de paiement",
+    "de": "Zahlungsübersicht"
+  },
+  "sub_card_price": {
+    "es": "Precio de la tarjeta",
+    "en": "Card price",
+    "it": "Prezzo carta",
+    "pt": "Preço do cartão",
+    "fr": "Prix de la carte",
+    "de": "Kartenpreis"
+  },
+  "sub_shipping_handling": {
+    "es": "Shipping & Handling",
+    "en": "Shipping & Handling",
+    "it": "Spedizione e gestione",
+    "pt": "Frete e manuseio",
+    "fr": "Frais d’expédition",
+    "de": "Versand & Bearbeitung"
+  },
+  "sub_total": {
+    "es": "Total final",
+    "en": "Total",
+    "it": "Totale",
+    "pt": "Total",
+    "fr": "Total",
+    "de": "Gesamt"
+  },
+  "sub_cs_credits_equivalent": {
+    "es": "Equivalente en créditos CS",
+    "en": "CS credits equivalent",
+    "it": "Equivalente in crediti CS",
+    "pt": "Equivalente em créditos CS",
+    "fr": "Équivalent en crédits CS",
+    "de": "CS-Guthaben-Äquivalent"
+  },
+  "sub_nfc_cs_equivalent_line": {
+    "es": "{{cardCs}} + {{shipCs}} = {{totalCs}} CS",
+    "en": "{{cardCs}} + {{shipCs}} = {{totalCs}} CS",
+    "it": "{{cardCs}} + {{shipCs}} = {{totalCs}} CS",
+    "pt": "{{cardCs}} + {{shipCs}} = {{totalCs}} CS",
+    "fr": "{{cardCs}} + {{shipCs}} = {{totalCs}} CS",
+    "de": "{{cardCs}} + {{shipCs}} = {{totalCs}} CS"
+  },
+  "sub_plans_header_title": {
+    "es": "Planes y membresía",
+    "en": "Plans & membership",
+    "it": "Piani e abbonamento",
+    "pt": "Planos e assinatura",
+    "fr": "Offres et abonnement",
+    "de": "Pläne & Mitgliedschaft"
+  },
+  "sub_plans_header_subtitle": {
+    "es": "Pagos seguros con tu cuenta de App Store o Google Play.",
+    "en": "Secure billing with your App Store or Google Play account.",
+    "it": "Pagamenti sicuri con il tuo account App Store o Google Play.",
+    "pt": "Pagamentos seguros com sua conta App Store ou Google Play.",
+    "fr": "Paiement sécurisé via App Store ou Google Play.",
+    "de": "Sichere Abrechnung über App Store oder Google Play."
+  },
+  "sub_pro_section_hint": {
+    "es": "Membresía integral. Elige tu plan dentro de la app.",
+    "en": "All-in membership. Choose your plan inside the app.",
+    "it": "Abbonamento completo. Scegli il piano nell’app.",
+    "pt": "Assinatura completa. Escolha o plano no app.",
+    "fr": "Abonnement tout-en-un. Choisissez votre formule dans l’app.",
+    "de": "Volles Paket. Wählen Sie Ihren Plan in der App."
+  },
+  "sub_pro_active": {
+    "es": "Pro activo",
+    "en": "Pro active",
+    "it": "Pro attivo",
+    "pt": "Pro ativo",
+    "fr": "Pro actif",
+    "de": "Pro aktiv"
+  },
+  "sub_pro_inactive": {
+    "es": "Pro inactivo",
+    "en": "Pro inactive",
+    "it": "Pro non attivo",
+    "pt": "Pro inativo",
+    "fr": "Pro inactif",
+    "de": "Pro inaktiv"
+  },
+  "sub_purchases_linked": {
+    "es": "Compras enlazadas a tu cuenta.",
+    "en": "Purchases linked to your account.",
+    "it": "Acquisti collegati al tuo account.",
+    "pt": "Compras vinculadas à sua conta.",
+    "fr": "Achats liés à votre compte.",
+    "de": "Käufe mit Ihrem Konto verknüpft."
+  },
+  "sub_sign_in_sync_purchases": {
+    "es": "Inicia sesión para sincronizar compras.",
+    "en": "Sign in to sync purchases.",
+    "it": "Accedi per sincronizzare gli acquisti.",
+    "pt": "Entre para sincronizar compras.",
+    "fr": "Connectez-vous pour synchroniser les achats.",
+    "de": "Melden Sie sich an, um Käufe zu synchronisieren."
+  },
+  "sub_opening": {
+    "es": "Abriendo…",
+    "en": "Opening…",
+    "it": "Apertura…",
+    "pt": "Abrindo…",
+    "fr": "Ouverture…",
+    "de": "Wird geöffnet…"
+  },
+  "sub_upgrade_subscription": {
+    "es": "Mejorar suscripción",
+    "en": "Upgrade subscription",
+    "it": "Aggiorna abbonamento",
+    "pt": "Melhorar assinatura",
+    "fr": "Améliorer l’abonnement",
+    "de": "Abonnement upgraden"
+  },
+  "sub_view_plans": {
+    "es": "Ver planes",
+    "en": "View plans",
+    "it": "Vedi piani",
+    "pt": "Ver planos",
+    "fr": "Voir les formules",
+    "de": "Pläne anzeigen"
+  },
+  "sub_subscription_center_btn": {
+    "es": "Centro de suscripciones",
+    "en": "Subscription management",
+    "it": "Gestione abbonamento",
+    "pt": "Gerenciamento de assinaturas",
+    "fr": "Gestion de l’abonnement",
+    "de": "Aboverwaltung"
+  },
+  "sub_radar_section_hint": {
+    "es": "Mapa ejecutivo de mercado. Importe mostrado debajo.",
+    "en": "Executive market map. Amount shown below.",
+    "it": "Mappa esecutiva del mercato. Importo sotto.",
+    "pt": "Mapa executivo de mercado. Valor abaixo.",
+    "fr": "Carte marché exécutive. Montant ci-dessous.",
+    "de": "Executive-Marktkarte. Betrag unten."
+  },
+  "sub_pro_access": {
+    "es": "Acceso Pro",
+    "en": "Pro access",
+    "it": "Accesso Pro",
+    "pt": "Acesso Pro",
+    "fr": "Accès Pro",
+    "de": "Pro-Zugang"
+  },
+  "sub_coming_soon_app": {
+    "es": "Disponible próximamente en la app.",
+    "en": "Coming soon in the app.",
+    "it": "Disponibile a breve nell’app.",
+    "pt": "Em breve no app.",
+    "fr": "Bientôt dans l’app.",
+    "de": "Demnächst in der App."
+  },
+  "sub_details_btn": {
+    "es": "Detalles",
+    "en": "Details",
+    "it": "Dettagli",
+    "pt": "Detalhes",
+    "fr": "Détails",
+    "de": "Details"
+  },
+  "sub_subscriptions_section_title": {
+    "es": "Suscripciones",
+    "en": "Subscriptions",
+    "it": "Abbonamenti",
+    "pt": "Assinaturas",
+    "fr": "Abonnements",
+    "de": "Abonnements"
+  },
+  "sub_subscriptions_section_hint": {
+    "es": "Límites y tarifas de referencia.",
+    "en": "Reference limits and rates.",
+    "it": "Limiti e tariffe di riferimento.",
+    "pt": "Limites e tarifas de referência.",
+    "fr": "Limites et tarifs indicatifs.",
+    "de": "Referenzlimits und Preise."
+  },
+  "sub_rates_unavailable": {
+    "es": "Las tarifas de membresía no están disponibles en este momento. Inténtalo más tarde.",
+    "en": "Membership rates are not available right now. Please try again later.",
+    "it": "Le tariffe di abbonamento non sono disponibili. Riprova più tardi.",
+    "pt": "As tarifas de assinatura não estão disponíveis. Tente mais tarde.",
+    "fr": "Les tarifs d’abonnement ne sont pas disponibles. Réessayez plus tard.",
+    "de": "Mitgliedschaftspreise derzeit nicht verfügbar. Bitte später erneut."
+  },
+  "sub_per_month": {
+    "es": "/ mes",
+    "en": "/ month",
+    "it": "/ mese",
+    "pt": "/ mês",
+    "fr": "/ mois",
+    "de": "/ Monat"
+  },
+  "sub_per_year": {
+    "es": "/ año",
+    "en": "/ yr",
+    "it": "/ anno",
+    "pt": "/ ano",
+    "fr": "/ an",
+    "de": "/ Jahr"
+  },
+  "sub_trial_days_suffix": {
+    "es": "días prueba",
+    "en": "day trial",
+    "it": "giorni di prova",
+    "pt": "dias de teste",
+    "fr": "jours d’essai",
+    "de": "Tage Test"
+  },
+  "sub_included": {
+    "es": "Incluido",
+    "en": "Included",
+    "it": "Incluso",
+    "pt": "Incluído",
+    "fr": "Inclus",
+    "de": "Inklusive"
+  },
+  "sub_how_to_get": {
+    "es": "Cómo obtenerlo",
+    "en": "How to get it",
+    "it": "Come ottenerlo",
+    "pt": "Como obter",
+    "fr": "Comment l’obtenir",
+    "de": "So erhalten Sie es"
+  },
+  "sub_business_nfc_section_title": {
+    "es": "Tarjetas de negocio y NFC",
+    "en": "Business cards & NFC",
+    "it": "Business card e NFC",
+    "pt": "Cartões de negócio e NFC",
+    "fr": "Cartes pro et NFC",
+    "de": "Business-Karten & NFC"
+  },
+  "sub_business_nfc_section_hint": {
+    "es": "Complementos y envío. Licencia anual a través de la tienda de la app.",
+    "en": "Add-ons and shipping. Annual license through your app’s store.",
+    "it": "Extra e spedizione. Licenza annuale tramite lo store dell’app.",
+    "pt": "Extras e envio. Licença anual pela loja do app.",
+    "fr": "Options et livraison. Licence annuelle via la boutique de l’app.",
+    "de": "Add-ons und Versand. Jahreslizenz über den App-Store."
+  },
+  "sub_addon_extra_business_card": {
+    "es": "Tarjeta de negocio adicional",
+    "en": "Extra business card slot",
+    "it": "Business card aggiuntiva",
+    "pt": "Cartão de negócio extra",
+    "fr": "Emplacement carte pro suppl.",
+    "de": "Zusätzlicher Business-Slot"
+  },
+  "sub_addon_per_extra_card": {
+    "es": "Por cada tarjeta adicional.",
+    "en": "Per additional card.",
+    "it": "Per ogni carta aggiuntiva.",
+    "pt": "Por cada cartão adicional.",
+    "fr": "Par carte supplémentaire.",
+    "de": "Pro zusätzliche Karte."
+  },
+  "sub_addon_nfc_pvc": {
+    "es": "NFC PVC (tarjeta física)",
+    "en": "NFC PVC (physical card)",
+    "it": "NFC PVC (carta fisica)",
+    "pt": "NFC PVC (cartão físico)",
+    "fr": "NFC PVC (carte physique)",
+    "de": "NFC PVC (Physikkarte)"
+  },
+  "sub_addon_inventory_ops": {
+    "es": "Inventario / ops.",
+    "en": "Inventory / ops.",
+    "it": "Magazzino / ops.",
+    "pt": "Inventário / ops.",
+    "fr": "Stock / ops.",
+    "de": "Bestand / Ops."
+  },
+  "sub_addon_nfc_metal": {
+    "es": "NFC metal (tarjeta física)",
+    "en": "NFC metal (physical card)",
+    "it": "NFC metallo (carta fisica)",
+    "pt": "NFC metal (cartão físico)",
+    "fr": "NFC métal (carte physique)",
+    "de": "NFC Metall (Physikkarte)"
+  },
+  "sub_addon_stock_support": {
+    "es": "Stock vía soporte.",
+    "en": "Stock via support.",
+    "it": "Stock tramite supporto.",
+    "pt": "Estoque via suporte.",
+    "fr": "Stock via support.",
+    "de": "Bestand über Support."
+  },
+  "sub_nfc_physical_title": {
+    "es": "Compra tarjeta física NFC — total estimado",
+    "en": "NFC physical card — estimated total",
+    "it": "Acquisto carta NFC — totale stimato",
+    "pt": "Compra cartão físico NFC — total estimado",
+    "fr": "Achat carte NFC — total estimé",
+    "de": "NFC-Physikkarte — geschätzte Summe"
+  },
+  "sub_nfc_physical_hint": {
+    "es": "Material y país de envío. Envío según zona publicada.",
+    "en": "Material and ship-to country. Shipping per published zone.",
+    "it": "Materiale e paese di spedizione. Spedizione secondo zona.",
+    "pt": "Material e país de envio. Frete conforme zona publicada.",
+    "fr": "Matériau et pays d’expédition. Selon la zone publiée.",
+    "de": "Material und Lieferland. Versand je Zone."
+  },
+  "sub_ship_to_country": {
+    "es": "País de envío",
+    "en": "Ship-to country",
+    "it": "Paese di spedizione",
+    "pt": "País de envio",
+    "fr": "Pays de livraison",
+    "de": "Lieferland"
+  },
+  "sub_equivalent_cs_short": {
+    "es": "Equivalente CS",
+    "en": "CS equivalent",
+    "it": "Equiv. CS",
+    "pt": "Equivalente CS",
+    "fr": "Équiv. CS",
+    "de": "CS-Äquivalent"
+  },
+  "sub_confirm_total": {
+    "es": "Confirmar total",
+    "en": "Confirm total",
+    "it": "Conferma totale",
+    "pt": "Confirmar total",
+    "fr": "Confirmer le total",
+    "de": "Summe bestätigen"
+  },
+  "sub_nfc_operations_link": {
+    "es": "Operaciones NFC en la app",
+    "en": "NFC operations in the app",
+    "it": "Operazioni NFC nell’app",
+    "pt": "Operações NFC no app",
+    "fr": "Opérations NFC dans l’app",
+    "de": "NFC-Funktionen in der App"
+  },
+  "sub_annual_license_title": {
+    "es": "Licencia anual — Tarjeta de negocio",
+    "en": "Annual license — Business card",
+    "it": "Licenza annuale — Business card",
+    "pt": "Licença anual — Cartão de negócio",
+    "fr": "Licence annuelle — Carte pro",
+    "de": "Jahreslizenz — Business-Karte"
+  },
+  "sub_per_year_app_store": {
+    "es": "/ año · tienda de la app",
+    "en": "/ yr · app store",
+    "it": "/ anno · store dell’app",
+    "pt": "/ ano · loja do app",
+    "fr": "/ an · boutique app",
+    "de": "/ Jahr · App-Store"
+  },
+  "sub_annual_rate_unavailable": {
+    "es": "Tarifa anual no disponible por ahora.",
+    "en": "Annual rate not available yet.",
+    "it": "Tariffa annuale non ancora disponibile.",
+    "pt": "Tarifa anual ainda indisponível.",
+    "fr": "Tarif annuel pas encore disponible.",
+    "de": "Jahrespreis noch nicht verfügbar."
+  },
+  "sub_purchasing": {
+    "es": "Comprando...",
+    "en": "Purchasing...",
+    "it": "Acquisto...",
+    "pt": "Comprando...",
+    "fr": "Achat…",
+    "de": "Kauf…"
+  },
+  "sub_activate_annual_license": {
+    "es": "Activar licencia anual",
+    "en": "Activate annual license",
+    "it": "Attiva licenza annuale",
+    "pt": "Ativar licença anual",
+    "fr": "Activer la licence annuelle",
+    "de": "Jahreslizenz aktivieren"
+  },
+  "sub_cs_coins_section_title": {
+    "es": "Monedas CS",
+    "en": "CS coins",
+    "it": "Monete CS",
+    "pt": "Moedas CS",
+    "fr": "Pièces CS",
+    "de": "CS-Münzen"
+  },
+  "sub_cs_coins_section_hint": {
+    "es": "Paquetes de créditos CS en dólares y monedas Card-Social.",
+    "en": "CS credit bundles in dollars and Card-Social coins.",
+    "it": "Pacchetti crediti CS in dollari e monete Card-Social.",
+    "pt": "Pacotes de créditos CS em dólares e moedas Card-Social.",
+    "fr": "Lots de crédits CS en dollars et pièces Card-Social.",
+    "de": "CS-Guthabenpakete in Dollar und Card-Social-Münzen."
+  },
+  "sub_catalog_unavailable": {
+    "es": "El catálogo de monedas no está disponible todavía.",
+    "en": "The coin catalog is not available yet.",
+    "it": "Il catalogo monete non è ancora disponibile.",
+    "pt": "O catálogo de moedas ainda não está disponível.",
+    "fr": "Le catalogue de pièces n’est pas encore disponible.",
+    "de": "Der Münzkatalog ist noch nicht verfügbar."
+  },
+  "sub_catalog_load_error": {
+    "es": "No pudimos cargar el catálogo. Revisa tu conexión e inténtalo de nuevo.",
+    "en": "We could not load the catalog. Check your connection and try again.",
+    "it": "Impossibile caricare il catalogo. Controlla la connessione.",
+    "pt": "Não foi possível carregar o catálogo. Verifique a conexão.",
+    "fr": "Impossible de charger le catalogue. Vérifiez la connexion.",
+    "de": "Katalog konnte nicht geladen werden. Verbindung prüfen."
+  },
+  "sub_no_bundles": {
+    "es": "No hay paquetes disponibles en este momento.",
+    "en": "No bundles are available at the moment.",
+    "it": "Nessun pacchetto disponibile al momento.",
+    "pt": "Nenhum pacote disponível no momento.",
+    "fr": "Aucun lot disponible pour le moment.",
+    "de": "Derzeit keine Pakete verfügbar."
+  },
+  "sub_credits_label": {
+    "es": "Créditos",
+    "en": "Credits",
+    "it": "Crediti",
+    "pt": "Créditos",
+    "fr": "Crédits",
+    "de": "Credits"
+  },
+  "sub_buy": {
+    "es": "Comprar",
+    "en": "Buy",
+    "it": "Compra",
+    "pt": "Comprar",
+    "fr": "Acheter",
+    "de": "Kaufen"
+  },
+  "sub_commercial_terms_title": {
+    "es": "Términos comerciales",
+    "en": "Commercial terms",
+    "it": "Termini commerciali",
+    "pt": "Termos comerciais",
+    "fr": "Conditions commerciales",
+    "de": "Geschäftsbedingungen"
+  },
+  "sub_terms_amounts_may_differ": {
+    "es": "Los importes mostrados pueden diferir del cargo final en App Store o Google Play.",
+    "en": "Amounts shown may differ from your final charge in the App Store or Google Play.",
+    "it": "Gli importi possono differire dall’addebito finale su App Store o Google Play.",
+    "pt": "Os valores podem diferir da cobrança final na App Store ou Google Play.",
+    "fr": "Les montants peuvent différer du prélèvement final sur App Store ou Google Play.",
+    "de": "Beträge können von der finalen Abbuchung im App Store oder Google Play abweichen."
+  },
+  "sub_terms_accept_tac": {
+    "es": "Al comprar, aceptas los Términos y Condiciones.",
+    "en": "By purchasing, you accept the Terms & Conditions.",
+    "it": "Acquistando accetti Termini e condizioni.",
+    "pt": "Ao comprar, você aceita os Termos e Condições.",
+    "fr": "En achetant, vous acceptez les conditions générales.",
+    "de": "Mit dem Kauf akzeptieren Sie die AGB."
+  },
+  "sub_terms_restore_policy": {
+    "es": "Puedes restaurar compras según las políticas de App Store o Google Play.",
+    "en": "You can restore purchases according to App Store or Google Play policies.",
+    "it": "Puoi ripristinare gli acquisti secondo le policy di App Store o Google Play.",
+    "pt": "Você pode restaurar compras conforme as políticas da App Store ou Google Play.",
+    "fr": "Restauration des achats selon les règles App Store ou Google Play.",
+    "de": "Käufe können gemäß App Store- oder Google-Play-Richtlinien wiederhergestellt werden."
+  },
+  "sub_restore_purchases": {
+    "es": "Restaurar compras",
+    "en": "Restore purchases",
+    "it": "Ripristina acquisti",
+    "pt": "Restaurar compras",
+    "fr": "Restaurer les achats",
+    "de": "Käufe wiederherstellen"
+  },
+  "sub_popular_badge": {
+    "es": "POPULAR",
+    "en": "POPULAR",
+    "it": "POPOLARE",
+    "pt": "POPULAR",
+    "fr": "POPULAIRE",
+    "de": "BELIEBT"
+  },
+  "redeem_user_unknown": {
+    "es": "No se pudo identificar tu usuario. Por favor, inicia sesión.",
+    "en": "Could not identify your user. Please sign in.",
+    "it": "Impossibile identificare l’utente. Accedi.",
+    "pt": "Não foi possível identificar seu usuário. Entre.",
+    "fr": "Impossible d’identifier l’utilisateur. Connectez-vous.",
+    "de": "Benutzer konnte nicht identifiziert werden. Bitte anmelden."
+  },
+  "redeem_invalid_code": {
+    "es": "Código de regalo inválido",
+    "en": "Invalid gift code",
+    "it": "Codice regalo non valido",
+    "pt": "Código de presente inválido",
+    "fr": "Code cadeau invalide",
+    "de": "Ungültiger Geschenkcode"
+  },
+  "redeem_congrats_title": {
+    "es": "¡Felicidades!",
+    "en": "Congratulations!",
+    "it": "Congratulazioni!",
+    "pt": "Parabéns!",
+    "fr": "Félicitations !",
+    "de": "Glückwunsch!"
+  },
+  "redeem_vip_upgrade_body": {
+    "es": "¡Felicidades! Has sido ascendido al nivel {{tier}} por {{days}} días.",
+    "en": "Congratulations! You have been upgraded to {{tier}} for {{days}} days.",
+    "it": "Congratulazioni! Sei stato promosso al livello {{tier}} per {{days}} giorni.",
+    "pt": "Parabéns! Você foi promovido ao nível {{tier}} por {{days}} dias.",
+    "fr": "Félicitations ! Vous passez au niveau {{tier}} pour {{days}} jours.",
+    "de": "Herzlichen Glückwunsch! Sie wurden für {{days}} Tage auf {{tier}} hochgestuft."
+  },
+  "redeem_code_failed": {
+    "es": "No se pudo canjear el código. Intenta de nuevo.",
+    "en": "Could not redeem the code. Try again.",
+    "it": "Impossibile riscattare il codice. Riprova.",
+    "pt": "Não foi possível resgatar o código. Tente de novo.",
+    "fr": "Impossible d’échanger le code. Réessayez.",
+    "de": "Code konnte nicht eingelöst werden. Bitte erneut."
+  },
+  "redeem_validating": {
+    "es": "Validando regalo...",
+    "en": "Validating gift...",
+    "it": "Validazione regalo...",
+    "pt": "Validando presente...",
+    "fr": "Validation du cadeau…",
+    "de": "Geschenk wird geprüft…"
+  },
+  "redeem_error_title": {
+    "es": "❌ No se pudo canjear",
+    "en": "❌ Could not redeem",
+    "it": "❌ Riscatto non riuscito",
+    "pt": "❌ Não foi possível resgatar",
+    "fr": "❌ Échange impossible",
+    "de": "❌ Einlösung fehlgeschlagen"
+  },
+  "redeem_gift_success_title": {
+    "es": "🎉 ¡Regalo Canjeado!",
+    "en": "🎉 Gift Redeemed!",
+    "it": "🎉 Regalo riscattato!",
+    "pt": "🎉 Presente resgatado!",
+    "fr": "🎉 Cadeau utilisé !",
+    "de": "🎉 Geschenk eingelöst!"
+  },
+  "redeem_credits_label": {
+    "es": "Créditos",
+    "en": "Credits",
+    "it": "Crediti",
+    "pt": "Créditos",
+    "fr": "Crédits",
+    "de": "Credits"
+  },
+  "redeem_months_premium_label": {
+    "es": "Mes(es) Premium",
+    "en": "Month(s) Premium",
+    "it": "Mese(i) Premium",
+    "pt": "Mês(es) Premium",
+    "fr": "Mois Premium",
+    "de": "Monat(e) Premium"
+  },
+  "redeem_gift_body_one_month": {
+    "es": "¡Pochobs te ha regalado {{credits}} CS y 1 mes de Premium!",
+    "en": "Pochobs have gifted you {{credits}} CS and 1 month of Premium!",
+    "it": "Pochobs ti ha regalato {{credits}} CS e 1 mese di Premium!",
+    "pt": "A Pochobs presenteou você com {{credits}} CS e 1 mês Premium!",
+    "fr": "Pochobs vous offre {{credits}} CS et 1 mois Premium !",
+    "de": "Pochobs schenkt dir {{credits}} CS und 1 Monat Premium!"
+  },
+  "redeem_gift_body_n_months": {
+    "es": "¡Pochobs te ha regalado {{credits}} CS y {{months}} meses de Premium!",
+    "en": "Pochobs have gifted you {{credits}} CS and {{months}} months of Premium!",
+    "it": "Pochobs ti ha regalato {{credits}} CS e {{months}} mesi di Premium!",
+    "pt": "A Pochobs presenteou você com {{credits}} CS e {{months}} meses Premium!",
+    "fr": "Pochobs vous offre {{credits}} CS et {{months}} mois Premium !",
+    "de": "Pochobs schenkt dir {{credits}} CS und {{months}} Monate Premium!"
+  },
+  "redeem_thanks_community": {
+    "es": "Gracias por ser parte de la comunidad Card-Social 💙",
+    "en": "Thank you for being part of the Card-Social community 💙",
+    "it": "Grazie per far parte della community Card-Social 💙",
+    "pt": "Obrigado por fazer parte da comunidade Card-Social 💙",
+    "fr": "Merci de faire partie de la communauté Card-Social 💙",
+    "de": "Danke, dass du Teil der Card-Social-Community bist 💙"
+  },
+  "redeem_closing_seconds": {
+    "es": "Cerrando en 3 segundos...",
+    "en": "Closing in 3 seconds...",
+    "it": "Chiusura tra 3 secondi…",
+    "pt": "Fechando em 3 segundos…",
+    "fr": "Fermeture dans 3 secondes…",
+    "de": "Schließt in 3 Sekunden…"
+  },
+  "redeem_vip_screen_title": {
+    "es": "🎉 ¡Ascenso VIP!",
+    "en": "🎉 VIP Upgrade!",
+    "it": "🎉 Upgrade VIP!",
+    "pt": "🎉 Upgrade VIP!",
+    "fr": "🎉 Passage VIP !",
+    "de": "🎉 VIP-Upgrade!"
+  },
+  "redeem_new_tier": {
+    "es": "Nuevo nivel",
+    "en": "New tier",
+    "it": "Nuovo livello",
+    "pt": "Novo nível",
+    "fr": "Nouveau niveau",
+    "de": "Neues Level"
+  },
+  "redeem_days_label": {
+    "es": "Días",
+    "en": "Days",
+    "it": "Giorni",
+    "pt": "Dias",
+    "fr": "Jours",
+    "de": "Tage"
+  },
+  "redeem_benefit_active": {
+    "es": "Tu beneficio ya está activo en Card-Social.",
+    "en": "Your benefit is now active in Card-Social.",
+    "it": "Il tuo beneficio è attivo su Card-Social.",
+    "pt": "Seu benefício já está ativo no Card-Social.",
+    "fr": "Votre avantage est actif sur Card-Social.",
+    "de": "Dein Vorteil ist jetzt bei Card-Social aktiv."
+  },
+  "mint_invalid_credits": {
+    "es": "Ingresa una cantidad válida de créditos",
+    "en": "Enter a valid credits amount",
+    "it": "Inserisci un importo crediti valido",
+    "pt": "Digite uma quantidade válida de créditos",
+    "fr": "Saisissez un montant de crédits valide",
+    "de": "Geben Sie einen gültigen Credit-Betrag ein"
+  },
+  "mint_max_months_gift": {
+    "es": "Máximo 3 meses de Premium por regalo",
+    "en": "Max 3 months of Premium per gift",
+    "it": "Massimo 3 mesi Premium per regalo",
+    "pt": "No máximo 3 meses Premium por presente",
+    "fr": "Maximum 3 mois Premium par cadeau",
+    "de": "Max. 3 Monate Premium pro Geschenk"
+  },
+  "mint_max_people": {
+    "es": "Máximo 500 personas por código",
+    "en": "Max 500 people per code",
+    "it": "Massimo 500 persone per codice",
+    "pt": "No máximo 500 pessoas por código",
+    "fr": "500 personnes max. par code",
+    "de": "Max. 500 Personen pro Code"
+  },
+  "mint_max_validity_days": {
+    "es": "Máximo 90 días de validez",
+    "en": "Max 90 days of validity",
+    "it": "Massimo 90 giorni di validità",
+    "pt": "No máximo 90 dias de validade",
+    "fr": "90 jours de validité max.",
+    "de": "Max. 90 Tage Gültigkeit"
+  },
+  "mint_access_denied_title": {
+    "es": "❌ Acceso denegado",
+    "en": "❌ Access denied",
+    "it": "❌ Accesso negato",
+    "pt": "❌ Acesso negado",
+    "fr": "❌ Accès refusé",
+    "de": "❌ Zugriff verweigert"
+  },
+  "mint_face_only_body": {
+    "es": "Solo tu cara puede acuñar monedas. Intenta de nuevo.",
+    "en": "Only your face can mint coins. Try again.",
+    "it": "Solo il tuo viso può coniare monete. Riprova.",
+    "pt": "Apenas seu rosto pode cunhar moedas. Tente de novo.",
+    "fr": "Seul votre visage peut frapper des pièces. Réessayez.",
+    "de": "Nur Ihr Gesicht kann Münzen prägen. Erneut versuchen."
+  },
+  "mint_qr_generated_title": {
+    "es": "✅ ¡QR generado!",
+    "en": "✅ QR generated!",
+    "it": "✅ QR generato!",
+    "pt": "✅ QR gerado!",
+    "fr": "✅ QR généré !",
+    "de": "✅ QR erstellt!"
+  },
+  "mint_qr_generated_body": {
+    "es": "Código: {{code}}\nTotal invertido: {{totalCs}} CS",
+    "en": "Code: {{code}}\nTotal: {{totalCs}} CS",
+    "it": "Codice: {{code}}\nTotale: {{totalCs}} CS",
+    "pt": "Código: {{code}}\nTotal: {{totalCs}} CS",
+    "fr": "Code : {{code}}\nTotal : {{totalCs}} CS",
+    "de": "Code: {{code}}\nGesamt: {{totalCs}} CS"
+  },
+  "mint_generate_failed": {
+    "es": "No se pudo generar el código",
+    "en": "Could not generate the code",
+    "it": "Impossibile generare il codice",
+    "pt": "Não foi possível gerar o código",
+    "fr": "Impossible de générer le code",
+    "de": "Code konnte nicht erstellt werden"
+  },
+  "mint_share_dialog_title": {
+    "es": "Comparte tu QR de regalo",
+    "en": "Share your gift QR",
+    "it": "Condividi il QR regalo",
+    "pt": "Compartilhe seu QR de presente",
+    "fr": "Partagez votre QR cadeau",
+    "de": "Geschenk-QR teilen"
+  },
+  "mint_share_title": {
+    "es": "QR de regalo exclusivo",
+    "en": "Exclusive gift QR",
+    "it": "QR regalo esclusivo",
+    "pt": "QR de presente exclusivo",
+    "fr": "QR cadeau exclusif",
+    "de": "Exklusives Geschenk-QR"
+  },
+  "mint_share_message": {
+    "es": "¡Pochobs te regala créditos! Escanea este código en Card-Social",
+    "en": "Pochobs is gifting you credits! Scan this code in Card-Social",
+    "it": "Pochobs ti regala crediti! Scansiona in Card-Social",
+    "pt": "A Pochobs presenteia você com créditos! Escaneie no Card-Social",
+    "fr": "Pochobs vous offre des crédits ! Scannez dans Card-Social",
+    "de": "Pochobs schenkt dir Credits! In Card-Social scannen"
+  },
+  "mint_downloaded_title": {
+    "es": "✅ Descargado",
+    "en": "✅ Downloaded",
+    "it": "✅ Scaricato",
+    "pt": "✅ Baixado",
+    "fr": "✅ Téléchargé",
+    "de": "✅ Heruntergeladen"
+  },
+  "mint_qr_saved_as": {
+    "es": "QR guardado como: {{fileName}}",
+    "en": "QR saved as: {{fileName}}",
+    "it": "QR salvato come: {{fileName}}",
+    "pt": "QR salvo como: {{fileName}}",
+    "fr": "QR enregistré sous : {{fileName}}",
+    "de": "QR gespeichert als: {{fileName}}"
+  },
+  "mint_download_fail": {
+    "es": "No se pudo descargar el QR",
+    "en": "Could not download the QR",
+    "it": "Impossibile scaricare il QR",
+    "pt": "Não foi possível baixar o QR",
+    "fr": "Impossible de télécharger le QR",
+    "de": "QR konnte nicht heruntergeladen werden"
+  },
+  "mint_export_fail": {
+    "es": "No se pudo exportar el QR",
+    "en": "Could not export the QR",
+    "it": "Impossibile esportare il QR",
+    "pt": "Não foi possível exportar o QR",
+    "fr": "Impossible d’exporter le QR",
+    "de": "QR konnte nicht exportiert werden"
+  },
+  "mint_header_title": {
+    "es": "Acuñador de monedas (Mint)",
+    "en": "Coin Minter (Mint)",
+    "it": "Coniatore di monete (Mint)",
+    "pt": "Cunhador de moedas (Mint)",
+    "fr": "Frappe de pièces (Mint)",
+    "de": "Münzprägung (Mint)"
+  },
+  "mint_header_subtitle": {
+    "es": "Regala CS y Premium al instante",
+    "en": "Gift CS and Premium instantly",
+    "it": "Regala CS e Premium all’istante",
+    "pt": "Presenteie CS e Premium na hora",
+    "fr": "Offrez CS et Premium instantanément",
+    "de": "Verschenken Sie CS und Premium sofort"
+  },
+  "mint_credits_per_person": {
+    "es": "Créditos por persona",
+    "en": "Credits per person",
+    "it": "Crediti per persona",
+    "pt": "Créditos por pessoa",
+    "fr": "Crédits par personne",
+    "de": "Credits pro Person"
+  },
+  "mint_credits_hint": {
+    "es": "Cada usuario recibirá esta cantidad de CS",
+    "en": "Each user will receive this many CS",
+    "it": "Ogni utente riceverà questi CS",
+    "pt": "Cada usuário receberá esta quantidade de CS",
+    "fr": "Chaque utilisateur recevra ces crédits CS",
+    "de": "Jeder Nutzer erhält diese CS"
+  },
+  "mint_months_premium": {
+    "es": "Meses de Premium",
+    "en": "Months of Premium",
+    "it": "Mesi Premium",
+    "pt": "Meses Premium",
+    "fr": "Mois Premium",
+    "de": "Monate Premium"
+  },
+  "mint_max_months_austerity": {
+    "es": "Máximo 3 meses (regla de austeridad)",
+    "en": "Max 3 months (austerity rule)",
+    "it": "Massimo 3 mesi (regola austerity)",
+    "pt": "No máximo 3 meses (regra de austeridade)",
+    "fr": "3 mois max. (règle d’austérité)",
+    "de": "Max. 3 Monate (Sparkurs)"
+  },
+  "mint_num_people_label": {
+    "es": "Cantidad de personas",
+    "en": "Number of people",
+    "it": "Numero di persone",
+    "pt": "Quantidade de pessoas",
+    "fr": "Nombre de personnes",
+    "de": "Anzahl Personen"
+  },
+  "mint_validity_days_label": {
+    "es": "Validez (días)",
+    "en": "Validity (days)",
+    "it": "Validità (giorni)",
+    "pt": "Validade (dias)",
+    "fr": "Validité (jours)",
+    "de": "Gültigkeit (Tage)"
+  },
+  "mint_max_90_days": {
+    "es": "Máximo 90 días",
+    "en": "Max 90 days",
+    "it": "Massimo 90 giorni",
+    "pt": "No máximo 90 dias",
+    "fr": "90 jours max.",
+    "de": "Max. 90 Tage"
+  },
+  "mint_total_credits_label": {
+    "es": "Total de créditos:",
+    "en": "Total credits:",
+    "it": "Totale crediti:",
+    "pt": "Total de créditos:",
+    "fr": "Total crédits :",
+    "de": "Credits gesamt:"
+  },
+  "mint_people_colon": {
+    "es": "Personas:",
+    "en": "People:",
+    "it": "Persone:",
+    "pt": "Pessoas:",
+    "fr": "Personnes :",
+    "de": "Personen:"
+  },
+  "mint_valid_for_label": {
+    "es": "Válido por:",
+    "en": "Valid for:",
+    "it": "Valido per:",
+    "pt": "Válido por:",
+    "fr": "Valable :",
+    "de": "Gültig:"
+  },
+  "mint_days": {
+    "es": "días",
+    "en": "days",
+    "it": "giorni",
+    "pt": "dias",
+    "fr": "jours",
+    "de": "Tage"
+  },
+  "mint_validating_biometric": {
+    "es": "Validando biometría…",
+    "en": "Validating biometrics…",
+    "it": "Biometria in corso…",
+    "pt": "Validando biometria…",
+    "fr": "Biométrie…",
+    "de": "Biometrie wird geprüft…"
+  },
+  "mint_generate_button": {
+    "es": "Generar QR de regalo",
+    "en": "Generate gift QR",
+    "it": "Genera QR regalo",
+    "pt": "Gerar QR de presente",
+    "fr": "Générer le QR cadeau",
+    "de": "Geschenk-QR erzeugen"
+  },
+  "mint_face_key_warning": {
+    "es": "⚠️ Tu cara es la llave. Face ID validará antes de acuñar.",
+    "en": "⚠️ Your face is the key. Face ID will verify before minting.",
+    "it": "⚠️ Il tuo viso è la chiave. Face ID verifica prima della coniazione.",
+    "pt": "⚠️ Seu rosto é a chave. Face ID validará antes de cunhar.",
+    "fr": "⚠️ Votre visage est la clé. Face ID vérifie avant la frappe.",
+    "de": "⚠️ Ihr Gesicht ist der Schlüssel. Face ID prüft vor dem Prägen."
+  },
+  "mint_security_title": {
+    "es": "Seguridad máxima",
+    "en": "Maximum security",
+    "it": "Sicurezza massima",
+    "pt": "Segurança máxima",
+    "fr": "Sécurité maximale",
+    "de": "Maximale Sicherheit"
+  },
+  "mint_security_body": {
+    "es": "Solo tú (Pochobs) puedes generar QRs. Cada código es único, caducable y auditable.",
+    "en": "Only you (Pochobs) can generate QRs. Each code is unique, expirable, and auditable.",
+    "it": "Solo tu (Pochobs) puoi generare QR. Ogni codice è unico, scadibile e tracciabile.",
+    "pt": "Só você (Pochobs) pode gerar QRs. Cada código é único, expirável e auditável.",
+    "fr": "Seul vous (Pochobs) pouvez générer des QR. Chaque code est unique, expirable et auditable.",
+    "de": "Nur Sie (Pochobs) können QRs erzeugen. Jeder Code ist einzigartig, ablaufend und nachvollziehbar."
+  },
+  "mint_modal_title": {
+    "es": "🎁 QR de regalo generado",
+    "en": "🎁 Gift QR generated",
+    "it": "🎁 QR regalo creato",
+    "pt": "🎁 QR de presente gerado",
+    "fr": "🎁 QR cadeau généré",
+    "de": "🎁 Geschenk-QR erstellt"
+  },
+  "mint_scan_or_share": {
+    "es": "Escanea o comparte este código",
+    "en": "Scan or share this code",
+    "it": "Scansiona o condividi il codice",
+    "pt": "Escaneie ou compartilhe este código",
+    "fr": "Scannez ou partagez ce code",
+    "de": "Code scannen oder teilen"
+  },
+  "mint_download_png": {
+    "es": "Descargar PNG",
+    "en": "Download PNG",
+    "it": "Scarica PNG",
+    "pt": "Baixar PNG",
+    "fr": "Télécharger PNG",
+    "de": "PNG herunterladen"
+  },
+  "mint_for_pdf": {
+    "es": "Para PDF",
+    "en": "For PDF",
+    "it": "Per PDF",
+    "pt": "Para PDF",
+    "fr": "Pour PDF",
+    "de": "Für PDF"
+  },
+  "mint_share_whatsapp_telegram": {
+    "es": "Compartir a WhatsApp o Telegram",
+    "en": "Share to WhatsApp or Telegram",
+    "it": "Condividi su WhatsApp o Telegram",
+    "pt": "Compartilhar no WhatsApp ou Telegram",
+    "fr": "Partager sur WhatsApp ou Telegram",
+    "de": "Per WhatsApp oder Telegram teilen"
   }
 }

@@ -3,22 +3,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
-type LandingLocaleProp = 'en' | 'es';
+import { getLandingCopy, type LandingLocale } from '@/lib/landingI18n';
 
 type BannerKind = 'verify' | 'reset' | null;
-
-const messages: Record<LandingLocaleProp, { verify: string; reset: string; close: string }> = {
-  es: {
-    verify: '¡Cuenta verificada con éxito! Ya puedes regresar a la aplicación de Card-Social.',
-    reset: 'Tu contraseña ha sido restablecida. Inicia sesión en la app.',
-    close: 'Cerrar',
-  },
-  en: {
-    verify: 'Your account is verified! You can return to the Card-Social app.',
-    reset: 'Your password has been reset. Sign in from the app.',
-    close: 'Dismiss',
-  },
-};
 
 function detectBannerKind(from: string | null): BannerKind {
   if (!from) return null;
@@ -27,7 +14,7 @@ function detectBannerKind(from: string | null): BannerKind {
   return null;
 }
 
-export function AuthEmailActionBanner({ locale }: { locale: LandingLocaleProp }) {
+export function AuthEmailActionBanner({ locale }: { locale: LandingLocale }) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
@@ -59,8 +46,8 @@ export function AuthEmailActionBanner({ locale }: { locale: LandingLocaleProp })
 
   if (!open || !kind) return null;
 
-  const t = messages[locale];
-  const text = kind === 'verify' ? t.verify : t.reset;
+  const copy = getLandingCopy(locale);
+  const text = kind === 'verify' ? copy.authBannerVerify : copy.authBannerReset;
 
   return (
     <div
@@ -74,7 +61,7 @@ export function AuthEmailActionBanner({ locale }: { locale: LandingLocaleProp })
           onClick={close}
           className="shrink-0 rounded-full border border-[#E9C349]/45 bg-[#E9C349]/12 px-4 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-[#F6DA87] transition hover:bg-[#E9C349]/22"
         >
-          {t.close}
+          {copy.authBannerClose}
         </button>
       </div>
     </div>

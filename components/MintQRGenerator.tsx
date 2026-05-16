@@ -20,7 +20,7 @@ import QRCode from 'react-native-qrcode-svg';
 import { useCoreT } from '@/services/coreI18n';
 import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { hardLockCheck } from '@/services/biometricAuth';
-import { trEsEn, useLanguage } from '@/services/language';
+import { useLanguage } from '@/services/language';
 import { generateQRGift } from '@/services/qrGiftService';
 import GoldenRingButton from './GoldenRingButton';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -40,7 +40,6 @@ interface MintQRGeneratorProps {
 const MintQRGenerator: React.FC<MintQRGeneratorProps> = ({ onClose, pochobsUid }) => {
   const { language } = useLanguage();
   const t = useCoreT();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
   const [creditsAmount, setCreditsAmount] = useState('500');
   const [monthsAmount, setMonthsAmount] = useState('1');
   const [maxPeople, setMaxPeople] = useState('100');
@@ -61,31 +60,22 @@ const MintQRGenerator: React.FC<MintQRGeneratorProps> = ({ onClose, pochobsUid }
     const days = parseInt(expiresInDays);
 
     if (!credits || credits <= 0) {
-      Alert.alert(tr('Error', 'Error'), tr('Ingresa una cantidad válida de créditos', 'Enter a valid credits amount'));
+      Alert.alert(t('common_error'), t('mint_invalid_credits'));
       return false;
     }
 
     if (!months || months <= 0 || months > 3) {
-      Alert.alert(
-        tr('Error', 'Error'),
-        tr('Máximo 3 meses de Premium por regalo', 'Max 3 months of Premium per gift'),
-      );
+      Alert.alert(t('common_error'), t('mint_max_months_gift'));
       return false;
     }
 
     if (!people || people <= 0 || people > 500) {
-      Alert.alert(
-        tr('Error', 'Error'),
-        tr('Máximo 500 personas por código', 'Max 500 people per code'),
-      );
+      Alert.alert(t('common_error'), t('mint_max_people'));
       return false;
     }
 
     if (!days || days <= 0 || days > 90) {
-      Alert.alert(
-        tr('Error', 'Error'),
-        tr('Máximo 90 días de validez', 'Max 90 days of validity'),
-      );
+      Alert.alert(t('common_error'), t('mint_max_validity_days'));
       return false;
     }
 
@@ -101,10 +91,7 @@ const MintQRGenerator: React.FC<MintQRGeneratorProps> = ({ onClose, pochobsUid }
       // 1. FaceID Hard Lock - Validación biométrica OBLIGATORIA
       const biometricValid = await hardLockCheck(t('common_auth_required'));
       if (!biometricValid) {
-        Alert.alert(
-          tr('❌ Acceso denegado', '❌ Access denied'),
-          tr('Solo tu cara puede acuñar monedas. Intenta de nuevo.', 'Only your face can mint coins. Try again.'),
-        );
+        Alert.alert(t('mint_access_denied_title'), t('mint_face_only_body'));
         setLoading(false);
         return;
       }
@@ -121,18 +108,13 @@ const MintQRGenerator: React.FC<MintQRGeneratorProps> = ({ onClose, pochobsUid }
       setGeneratedQR(qrGift.id);
       setQRModalVisible(true);
 
+      const totalCsMinted = parseInt(creditsAmount) * parseInt(maxPeople);
       Alert.alert(
-        tr('✅ ¡QR generado!', '✅ QR generated!'),
-        tr(
-          `Código: ${qrGift.id}\nTotal invertido: ${parseInt(creditsAmount) * parseInt(maxPeople)} CS`,
-          `Code: ${qrGift.id}\nTotal: ${parseInt(creditsAmount) * parseInt(maxPeople)} CS`,
-        ),
+        t('mint_qr_generated_title'),
+        t('mint_qr_generated_body', { code: qrGift.id, totalCs: totalCsMinted }),
       );
     } catch (error: unknown) {
-      Alert.alert(
-        tr('Error', 'Error'),
-        userFacingAlertMessage(error, language, tr('No se pudo generar el código', 'Could not generate the code')),
-      );
+      Alert.alert(t('common_error'), userFacingAlertMessage(error, language, t('mint_generate_failed')));
       console.error('Generate QR error:', error);
     } finally {
       setLoading(false);
@@ -161,33 +143,27 @@ const MintQRGenerator: React.FC<MintQRGeneratorProps> = ({ onClose, pochobsUid }
           if (Platform.OS === 'ios') {
             await Sharing.shareAsync(filePath, {
               mimeType: 'image/png',
-              dialogTitle: tr('Comparte tu QR de regalo', 'Share your gift QR'),
+              dialogTitle: t('mint_share_dialog_title'),
             });
           } else {
             await Share.share({
               url: `file://${filePath}`,
-              title: tr('QR de regalo exclusivo', 'Exclusive gift QR'),
-              message: tr(
-                '¡Pochobs te regala créditos! Escanea este código en Card-Social',
-                'Pochobs is gifting you credits! Scan this code in Card-Social',
-              ),
+              title: t('mint_share_title'),
+              message: t('mint_share_message'),
             });
           }
 
-          Alert.alert(
-            tr('✅ Descargado', '✅ Downloaded'),
-            tr(`QR guardado como: ${fileName}`, `QR saved as: ${fileName}`),
-          );
+          Alert.alert(t('mint_downloaded_title'), t('mint_qr_saved_as', { fileName }));
         } catch (error) {
           console.error('Download error:', error);
-          Alert.alert(tr('Error', 'Error'), tr('No se pudo descargar el QR', 'Could not download the QR'));
+          Alert.alert(t('common_error'), t('mint_download_fail'));
         } finally {
           setDownloading(false);
         }
       });
     } catch (error) {
       console.error('QR export error:', error);
-      Alert.alert(tr('Error', 'Error'), tr('No se pudo exportar el QR', 'Could not export the QR'));
+      Alert.alert(t('common_error'), t('mint_export_fail'));
       setDownloading(false);
     }
   };
@@ -201,16 +177,14 @@ const MintQRGenerator: React.FC<MintQRGeneratorProps> = ({ onClose, pochobsUid }
       {/* HEADER */}
       <LinearGradient colors={['#0A2540', '#1A3D5C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
         <MaterialCommunityIcons name="crown" size={32} color="#C5A065" />
-        <Text style={styles.headerTitle}>{tr('Acuñador de monedas (Mint)', 'Coin Minter (Mint)')}</Text>
-        <Text style={styles.headerSubtitle}>
-          {tr('Regala CS y Premium al instante', 'Gift CS and Premium instantly')}
-        </Text>
+        <Text style={styles.headerTitle}>{t('mint_header_title')}</Text>
+        <Text style={styles.headerSubtitle}>{t('mint_header_subtitle')}</Text>
       </LinearGradient>
 
       {/* FORM SECTION */}
       <View style={styles.formSection}>
         <View style={styles.formGroup}>
-          <Text style={styles.label}>{tr('Créditos por persona', 'Credits per person')}</Text>
+          <Text style={styles.label}>{t('mint_credits_per_person')}</Text>
           <TextInput
             style={styles.input}
             placeholder="500"
@@ -220,12 +194,12 @@ const MintQRGenerator: React.FC<MintQRGeneratorProps> = ({ onClose, pochobsUid }
             placeholderTextColor="#999"
           />
           <Text style={styles.hint}>
-            {tr('Cada usuario recibirá esta cantidad de CS', 'Each user will receive this many CS')}
+            {t('mint_credits_hint')}
           </Text>
         </View>
 
         <View style={styles.formGroup}>
-          <Text style={styles.label}>{tr('Meses de Premium', 'Months of Premium')}</Text>
+          <Text style={styles.label}>{t('mint_months_premium')}</Text>
           <View style={styles.monthsSelector}>
             {[1, 2, 3].map((month) => (
               <TouchableOpacity
@@ -248,12 +222,12 @@ const MintQRGenerator: React.FC<MintQRGeneratorProps> = ({ onClose, pochobsUid }
             ))}
           </View>
           <Text style={styles.hint}>
-            {tr('Máximo 3 meses (regla de austeridad)', 'Max 3 months (austerity rule)')}
+            {t('mint_max_months_austerity')}
           </Text>
         </View>
 
         <View style={styles.formGroup}>
-          <Text style={styles.label}>{tr('Cantidad de personas', 'Number of people')}</Text>
+          <Text style={styles.label}>{t('mint_num_people_label')}</Text>
           <TextInput
             style={styles.input}
             placeholder="100"
@@ -263,12 +237,12 @@ const MintQRGenerator: React.FC<MintQRGeneratorProps> = ({ onClose, pochobsUid }
             placeholderTextColor="#999"
           />
           <Text style={styles.hint}>
-            {tr('Máximo 500 personas por código', 'Max 500 people per code')}
+            {t('mint_max_people')}
           </Text>
         </View>
 
         <View style={styles.formGroup}>
-          <Text style={styles.label}>{tr('Validez (días)', 'Validity (days)')}</Text>
+          <Text style={styles.label}>{t('mint_validity_days_label')}</Text>
           <View style={styles.expirySelector}>
             {[7, 30, 90].map((day) => (
               <TouchableOpacity
@@ -290,25 +264,25 @@ const MintQRGenerator: React.FC<MintQRGeneratorProps> = ({ onClose, pochobsUid }
               </TouchableOpacity>
             ))}
           </View>
-          <Text style={styles.hint}>{tr('Máximo 90 días', 'Max 90 days')}</Text>
+          <Text style={styles.hint}>{t('mint_max_90_days')}</Text>
         </View>
 
         {/* ESTIMATE */}
         <LinearGradient colors={['#E8EAED', '#F5F5F5']} style={styles.estimateBox}>
           <View style={styles.estimateRow}>
-            <Text style={styles.estimateLabel}>{tr('Total de créditos:', 'Total credits:')}</Text>
+            <Text style={styles.estimateLabel}>{t('mint_total_credits_label')}</Text>
             <Text style={styles.estimateValue}>
               {(parseInt(creditsAmount || '0') * parseInt(maxPeople || '0')).toLocaleString()} CS
             </Text>
           </View>
           <View style={styles.estimateRow}>
-            <Text style={styles.estimateLabel}>{tr('Personas:', 'People:')}</Text>
+            <Text style={styles.estimateLabel}>{t('mint_people_colon')}</Text>
             <Text style={styles.estimateValue}>{maxPeople}</Text>
           </View>
           <View style={styles.estimateRow}>
-            <Text style={styles.estimateLabel}>{tr('Válido por:', 'Valid for:')}</Text>
+            <Text style={styles.estimateLabel}>{t('mint_valid_for_label')}</Text>
             <Text style={styles.estimateValue}>
-              {expiresInDays} {tr('días', 'days')}
+              {expiresInDays} {t('mint_days')}
             </Text>
           </View>
         </LinearGradient>
@@ -317,7 +291,7 @@ const MintQRGenerator: React.FC<MintQRGeneratorProps> = ({ onClose, pochobsUid }
       {/* GENERATE BUTTON */}
       <View style={styles.buttonContainer}>
         <GoldenRingButton
-          label={loading ? tr('Validando biometría…', 'Validating biometrics…') : tr('Generar QR de regalo', 'Generate gift QR')}
+          label={loading ? t('mint_validating_biometric') : t('mint_generate_button')}
           onPress={handleGenerateQR}
           icon={loading ? 'loading' : 'qrcode'}
           disabled={loading}
@@ -325,10 +299,7 @@ const MintQRGenerator: React.FC<MintQRGeneratorProps> = ({ onClose, pochobsUid }
           style={{ width: '100%' }}
         />
         <Text style={styles.warningText}>
-          {tr(
-            '⚠️ Tu cara es la llave. Face ID validará antes de acuñar.',
-            '⚠️ Your face is the key. Face ID will verify before minting.',
-          )}
+          {t('mint_face_key_warning')}
         </Text>
       </View>
 
@@ -336,13 +307,8 @@ const MintQRGenerator: React.FC<MintQRGeneratorProps> = ({ onClose, pochobsUid }
       <View style={styles.securityBox}>
         <MaterialCommunityIcons name="shield-lock" size={20} color="#2ECC71" />
         <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={styles.securityTitle}>{tr('Seguridad máxima', 'Maximum security')}</Text>
-          <Text style={styles.securityText}>
-            {tr(
-              'Solo tú (Pochobs) puedes generar QRs. Cada código es único, caducable y auditable.',
-              'Only you (Pochobs) can generate QRs. Each code is unique, expirable, and auditable.',
-            )}
-          </Text>
+          <Text style={styles.securityTitle}>{t('mint_security_title')}</Text>
+          <Text style={styles.securityText}>{t('mint_security_body')}</Text>
         </View>
       </View>
 
@@ -355,7 +321,7 @@ const MintQRGenerator: React.FC<MintQRGeneratorProps> = ({ onClose, pochobsUid }
             </TouchableOpacity>
 
             <Text style={styles.modalTitle}>
-              {tr('🎁 QR de regalo generado', '🎁 Gift QR generated')}
+              {t('mint_modal_title')}
             </Text>
 
             {generatedQR && (
@@ -380,7 +346,7 @@ const MintQRGenerator: React.FC<MintQRGeneratorProps> = ({ onClose, pochobsUid }
 
                 <Text style={styles.qrCodeText}>{generatedQR}</Text>
                 <Text style={styles.qrLabel}>
-                  {tr('Escanea o comparte este código', 'Scan or share this code')}
+                  {t('mint_scan_or_share')}
                 </Text>
               </View>
             )}
@@ -397,7 +363,7 @@ const MintQRGenerator: React.FC<MintQRGeneratorProps> = ({ onClose, pochobsUid }
                 ) : (
                   <>
                     <MaterialCommunityIcons name="image-multiple" size={18} color="#0A2540" />
-                    <Text style={styles.downloadBtnText}>{tr('Descargar PNG', 'Download PNG')}</Text>
+                    <Text style={styles.downloadBtnText}>{t('mint_download_png')}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -412,7 +378,7 @@ const MintQRGenerator: React.FC<MintQRGeneratorProps> = ({ onClose, pochobsUid }
                 ) : (
                   <>
                     <MaterialCommunityIcons name="file-pdf-box" size={18} color="#0A2540" />
-                    <Text style={styles.downloadBtnText}>{tr('Para PDF', 'For PDF')}</Text>
+                    <Text style={styles.downloadBtnText}>{t('mint_for_pdf')}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -421,7 +387,7 @@ const MintQRGenerator: React.FC<MintQRGeneratorProps> = ({ onClose, pochobsUid }
             <TouchableOpacity style={styles.shareBtn}>
               <MaterialCommunityIcons name="share-variant" size={18} color="#FFF" />
               <Text style={styles.shareBtnText}>
-                {tr('Compartir a WhatsApp o Telegram', 'Share to WhatsApp or Telegram')}
+                {t('mint_share_whatsapp_telegram')}
               </Text>
             </TouchableOpacity>
 
@@ -432,7 +398,7 @@ const MintQRGenerator: React.FC<MintQRGeneratorProps> = ({ onClose, pochobsUid }
                 setGeneratedQR(null);
               }}
             >
-              <Text style={styles.closeBtnText}>{tr('Cerrar', 'Close')}</Text>
+              <Text style={styles.closeBtnText}>{t('common_close')}</Text>
             </TouchableOpacity>
           </View>
         </View>

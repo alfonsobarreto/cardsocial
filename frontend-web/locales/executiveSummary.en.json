@@ -1,0 +1,275 @@
+{
+  "sections": [
+    {
+      "kind": "narrative",
+      "num": 1,
+      "eyebrow": "Value Proposition",
+      "title": "Value Proposition",
+      "image": "hero",
+      "bullets": [
+        "Card-Social redefines contact management and data communication, evolving the static concept of traditional cards into a dynamic, secure ecosystem.",
+        "Dynamic evolution (“You change, your card changes”): Removes contact-data obsolescence. As users advance professionally or personally (e.g., transitioning from university to a corporate career), their card updates instantly. Every contact keeps access to the latest version of the information the user chooses to share—enabling lifelong connections.",
+        "\"The Vault\" (data vault): A centralized, highly secure storage system where users keep emails, phones, and social links. Data is visually masked through “IconoDatas” at sharing time, protecting raw information until the recipient interacts with it.",
+        "Smart Cards (secure, controlled interaction): Built for in-person contact. Each card can group up to 12 IconoDatas. The competitive edge is privacy: a temporary QR code that expires in two minutes—information is delivered only to the person in front of you, deterring improper data harvesting.",
+        "Business Cards (expansive commercial presence): Built for scale. A permanent QR suited for flyers, stickers, and signage—with logos, invisible map locations, up to 20 niche keywords, and editable contact name or tagline—while protecting the holder’s face and personal identity.",
+        "Corporate sync (shared vaults): A hierarchy where an entire team uses a unified token. Company information (promotions, catalogs, PDFs, policies) lives in a non-public corporate vault so every sales rep shares the latest, authorized information."
+      ]
+    },
+    {
+      "kind": "segments",
+      "num": 2,
+      "eyebrow": "Customer Segments",
+      "title": "Customer Segments",
+      "bullets": [
+        "Casual user (Free Tier): Individuals without a commercial promotion focus—social, academic, and work circles organized with fluid sharing of basic profiles without sacrificing privacy or cluttering contacts.",
+        "Entrepreneur / Creator (Influencer Tier): Growing professionals and creators promoting a niche, product, or service—needs digital presence metrics and scalable subscriber/customer acquisition.",
+        "Enterprise (Corporate Tier): Large organizations (e.g., master-planned developers such as Ciudad Maderas) with broad sales teams or departments needing hierarchical communications (HR, leadership)."
+      ],
+      "establishedExamples": [
+        {
+          "sector": "Restaurant sector",
+          "text": "One card for dine-in menus and table payments, another for the bar, a third for catering, and a fourth for special events."
+        },
+        {
+          "sector": "Real estate sector",
+          "text": "Differentiated cards for open houses, property models, customer service, and aggressive marketing campaigns."
+        }
+      ]
+    },
+    {
+      "kind": "tiers",
+      "num": 3,
+      "eyebrow": "Revenue Streams",
+      "title": "Revenue Streams · Tier Structure",
+      "tiers": [
+        { "name": "Free Tier", "detail": "1 user · 8 IconoDatas · 5 Smart Cards · 0 Business Cards." },
+        { "name": "Influencer Tier", "detail": "1 user · 10 IconoDatas · 10 Smart Cards · 1 Business Card." },
+        { "name": "Business Tier", "detail": "3 users · 50 IconoDatas · 10 Smart Cards · 5 Business Cards." },
+        {
+          "name": "Corporate Tier",
+          "detail": "Direct B2B sales · multiple users on one token · corporate vaults with tiered permissions and institutional rollout."
+        }
+      ]
+    },
+    {
+      "kind": "simpleLists",
+      "num": 4,
+      "eyebrow": "Channels",
+      "title": "Channels",
+      "image": "businessCardPrint",
+      "groups": [
+        {
+          "subtitle": "",
+          "items": [
+            "In-person interaction via short-lived on-screen QR scans (Smart Cards).",
+            "Printed touchpoints—stickers, menus, signage—with permanent QR (Business Cards).",
+            "Digital distribution of links and profiles on social media.",
+            "Direct enterprise sales for the corporate ecosystem."
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "simpleLists",
+      "num": 5,
+      "eyebrow": "Relationships",
+      "title": "Customer Relationships",
+      "groups": [
+        {
+          "subtitle": "",
+          "items": [
+            "Trust and strict privacy: Users fully control who, how, and when personal or business data is accessed.",
+            "Transitional support: The platform earns long-term loyalty by adapting to life stages or pivots—users never lose the network they built."
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "simpleLists",
+      "num": 6,
+      "eyebrow": "Operations",
+      "title": "Key Activities",
+      "groups": [
+        {
+          "subtitle": "",
+          "items": [
+            "Cryptographic maintenance and security for The Vault and personal data.",
+            "Dynamic QR generation with precise latency (two-minute expiry).",
+            "Server architecture for keyword search and invisible geolocation.",
+            "Hierarchical access control for corporate accounts."
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "simpleLists",
+      "num": 7,
+      "eyebrow": "Advantage",
+      "title": "Key Resources",
+      "image": "vaultUi",
+      "groups": [
+        {
+          "subtitle": "",
+          "items": [
+            "Technology for individual and shared vaults (access tokens).",
+            "IconoData segmentation and privacy algorithms.",
+            "UI platform for agile card and data assignment."
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "simpleLists",
+      "num": 8,
+      "eyebrow": "Partnerships",
+      "title": "Key Partnerships",
+      "groups": [
+        {
+          "subtitle": "",
+          "items": [
+            "Enterprise sales leadership integrating the Corporate Tier.",
+            "Marketing agencies and event organizers driving early Influencer and Business adoption."
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "simpleLists",
+      "num": 9,
+      "eyebrow": "Economics",
+      "title": "Cost Structure",
+      "groups": [
+        {
+          "subtitle": "",
+          "items": [
+            "High-security databases and cloud hosting.",
+            "Continuous web and mobile application development.",
+            "Operational costs for encryption and hierarchical token infrastructure."
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "strategicFlows",
+      "num": 10,
+      "eyebrow": "Hardware",
+      "title": "Premium NFC Cards",
+      "imageBetween": "nfcPremium",
+      "flows": [
+        {
+          "queEs": "A premium physical card shipped to the user’s address, linked to the account with a security code.",
+          "comoFunciona": "The user taps NFC on the recipient’s phone and data transfers instantly. Inside the app, the NFC menu picks—live—which digital card (personal, business, influencer) is shared on tap.",
+          "valorEstrategico": [
+            "Unmatched tactile and visual prestige in face-to-face meetings.",
+            "Removes all friction from sharing information."
+          ],
+          "modeloIngreso": "Direct hardware sale (one-time purchase) plus shipping."
+        }
+      ]
+    },
+    {
+      "kind": "strategicFlows",
+      "num": 11,
+      "eyebrow": "Privacy",
+      "title": "Integrated VoIP System",
+      "flows": [
+        {
+          "queEs": "App-to-app voice calls, represented by a dedicated generic IconoData for this feature.",
+          "comoFunciona": "Place and receive calls with new contacts without ever exposing the real phone number.",
+          "valorEstrategico": [
+            "Ultimate privacy shield—personal numbers never land in third-party databases.",
+            "Communications stay inside the Card-Social ecosystem."
+          ],
+          "modeloIngreso": "High-value retention driver that makes paid subscriptions more attractive."
+        }
+      ]
+    },
+    {
+      "kind": "strategicFlows",
+      "num": 12,
+      "eyebrow": "Discovery",
+      "title": "Social Market",
+      "imageBetween": "socialMarket",
+      "flows": [
+        {
+          "queEs": "A hyper-local search engine at the root of the app connecting needs with services—without relying on social algorithms or paid ads.",
+          "comoFunciona": "Uses the 20 JSON keywords on Business Cards plus invisible GPS within a 25-mile radius. Golden rule: when searching for a service (e.g., “barber”), the user’s network is scanned first—friends or family offering that service appear first, then local proximity results.",
+          "valorEstrategico": [
+            "Supports circular, community-driven economies.",
+            "Works for remote or nomadic work—update location and Social Market recalibrates the radius.",
+            "Lowers customer acquisition cost for small businesses."
+          ],
+          "modeloIngreso": "Core Business Tier hook—businesses pay not only for data organization but for visibility in this local search engine."
+        }
+      ]
+    },
+    {
+      "kind": "strategicFlows",
+      "num": 13,
+      "eyebrow": "Virtual assets",
+      "title": "Card-Studio · Skins",
+      "imageBetween": "cardStudio",
+      "flows": [
+        {
+          "queEs": "In-app virtual store dedicated to the visual customization of cards.",
+          "comoFunciona": "Purchase icon packs, color palettes, design styles, and visual themes (skins) to change profile appearance.",
+          "valorEstrategico": [
+            "Meets the psychological need for differentiation (personal and corporate branding).",
+            "Keeps the product visually fresh without redesigning core code."
+          ],
+          "modeloIngreso": "Microtransactions (in-app purchases)—scalable revenue beyond monthly subscription."
+        }
+      ]
+    }
+  ],
+  "strategicBlocks": [
+    {
+      "num": 14,
+      "eyebrow": "Zero-party data",
+      "title": "Market Radar (heatmap)",
+      "image": "marketRadar",
+      "queEs": "A premium geographic visualization and predictive intelligence tool based on local demand.",
+      "comoFunciona": "The system collects anonymous Social Market searches and turns them into a dynamic heatmap. Businesses enter keywords and see which zip codes—inside their 25-mile radius—generate those searches.",
+      "valorBullets": [
+        "Moves the platform from contact manager to market-intelligence product.",
+        "Points marketing, sales, and physical expansion toward real-time demand—reducing financial guesswork."
+      ],
+      "modeloIngreso": "Premium upsell—paid add-on to Business Tier, high B2B margin for exclusive market data."
+    },
+    {
+      "num": 15,
+      "eyebrow": "Business intelligence",
+      "title": "Executive dashboard · Lost sales",
+      "image": "dashboard",
+      "queEs": "Analytics console for Business Card users to measure profile performance in the local market.",
+      "comoFunciona": "Captures interaction metrics—profile traffic, conversion (who saved the card), and local SEO positioning signals.",
+      "valorBullets": [
+        "Makes subscription ROI tangible with reach data.",
+        "Introduces “lost sales” alerts when nearby consumers searched the user’s niche but the Business Card missed due to keyword gaps."
+      ],
+      "modeloIngreso": "Ongoing incentive to optimize profiles and stay subscribed."
+    },
+    {
+      "num": 16,
+      "eyebrow": "High corporate value",
+      "title": "B2B sync · Ciudad Maderas case study",
+      "queEs": "Hierarchical infrastructure syncing sales teams, agencies, or franchises under one controlling entity.",
+      "comoFunciona": "Shared Enterprise vaults: a central admin uploads corporate assets. Example: at Ciudad Maderas, update plans, catalogs, or budgets for Aura, Alba, Nova, Stella, and Lucero models in the central vault—in seconds every advisor’s Smart and Business Cards receive the new version.",
+      "valorBullets": [
+        "Fully homologated corporate information—no stale collateral or pricing in the field.",
+        "Digital asset control with access revocation without losing hard-won customers when someone leaves."
+      ],
+      "modeloIngreso": "Enterprise SaaS contracts—higher volume and long-term retention."
+    }
+  ],
+  "imageHints": {
+    "hero": { "filename": "hero-cardsocial-bunker.webp", "caption": "Primary brand visual / lux bunker" },
+    "vaultUi": { "filename": "vault-real-ui.webp", "caption": "Real The Vault screenshot" },
+    "nfcPremium": { "filename": "nfc-premium-card.webp", "caption": "Premium physical NFC card" },
+    "businessCardPrint": { "filename": "business-card-print.webp", "caption": "Permanent printed QR / signage" },
+    "socialMarket": { "filename": "social-market-ui.webp", "caption": "Social Market in-app" },
+    "cardStudio": { "filename": "card-studio-skins.webp", "caption": "Card-Studio skins / store" },
+    "marketRadar": { "filename": "market-radar-heatmap.webp", "caption": "Market Radar heatmap" },
+    "dashboard": { "filename": "executive-dashboard.webp", "caption": "Executive dashboard" }
+  }
+}

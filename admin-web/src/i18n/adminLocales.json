@@ -1,390 +1,1754 @@
 {
   "admin_err_save_general": {
     "es": "No se pudo guardar. Reintenta o contacta a soporte interno si continúa.",
-    "en": "Could not save. Try again or contact internal support if it persists."
+    "en": "Could not save. Try again or contact internal support if it persists.",
+    "it": "Could not save. Try again or contact internal support if it persists.",
+    "pt": "Could not save. Try again or contact internal support if it persists.",
+    "fr": "Could not save. Try again or contact internal support if it persists.",
+    "de": "Could not save. Try again or contact internal support if it persists."
   },
   "admin_err_load_general": {
     "es": "No se pudo cargar la información. Reintenta en unos segundos.",
-    "en": "Could not load the data. Please try again in a moment."
+    "en": "Could not load the data. Please try again in a moment.",
+    "it": "Could not load the data. Please try again in a moment.",
+    "pt": "Could not load the data. Please try again in a moment.",
+    "fr": "Could not load the data. Please try again in a moment.",
+    "de": "Could not load the data. Please try again in a moment."
   },
   "admin_err_action_general": {
     "es": "No se pudo completar la acción. Reintenta.",
-    "en": "The action could not be completed. Please try again."
+    "en": "The action could not be completed. Please try again.",
+    "it": "The action could not be completed. Please try again.",
+    "pt": "The action could not be completed. Please try again.",
+    "fr": "The action could not be completed. Please try again.",
+    "de": "The action could not be completed. Please try again."
   },
   "admin_mod_notice_load_fail": {
     "es": "No se pudieron cargar los reportes. Por favor, reintenta.",
-    "en": "Reports could not be loaded. Please try again."
+    "en": "Reports could not be loaded. Please try again.",
+    "it": "Reports could not be loaded. Please try again.",
+    "pt": "Reports could not be loaded. Please try again.",
+    "fr": "Reports could not be loaded. Please try again.",
+    "de": "Reports could not be loaded. Please try again."
   },
   "admin_mod_notice_missing_reported_user": {
     "es": "Este reporte no incluye al usuario señalado; no se puede abrir la investigación.",
-    "en": "This report does not include the flagged user; investigation cannot be opened."
+    "en": "This report does not include the flagged user; investigation cannot be opened.",
+    "it": "This report does not include the flagged user; investigation cannot be opened.",
+    "pt": "This report does not include the flagged user; investigation cannot be opened.",
+    "fr": "This report does not include the flagged user; investigation cannot be opened.",
+    "de": "This report does not include the flagged user; investigation cannot be opened."
   },
   "admin_mod_notice_xray_fail": {
     "es": "No se pudo abrir el modo de investigación detallada.",
-    "en": "Detailed investigation mode could not be opened."
+    "en": "Detailed investigation mode could not be opened.",
+    "it": "Detailed investigation mode could not be opened.",
+    "pt": "Detailed investigation mode could not be opened.",
+    "fr": "Detailed investigation mode could not be opened.",
+    "de": "Detailed investigation mode could not be opened."
   },
   "admin_mod_notice_reason_required": {
     "es": "El motivo de moderación es obligatorio.",
-    "en": "A moderation reason is required."
+    "en": "A moderation reason is required.",
+    "it": "A moderation reason is required.",
+    "pt": "A moderation reason is required.",
+    "fr": "A moderation reason is required.",
+    "de": "A moderation reason is required."
   },
   "admin_mod_success_warning": {
     "es": "Advertencia registrada y reporte auditado.",
-    "en": "Warning logged and report audited."
+    "en": "Warning logged and report audited.",
+    "it": "Warning logged and report audited.",
+    "pt": "Warning logged and report audited.",
+    "fr": "Warning logged and report audited.",
+    "de": "Warning logged and report audited."
   },
   "admin_mod_success_soft_ban": {
     "es": "Usuario suspendido y reporte auditado.",
-    "en": "User suspended and report audited."
+    "en": "User suspended and report audited.",
+    "it": "User suspended and report audited.",
+    "pt": "User suspended and report audited.",
+    "fr": "User suspended and report audited.",
+    "de": "User suspended and report audited."
   },
   "admin_mod_success_hard_ban": {
     "es": "Bloqueo definitivo aplicado y cuenta añadida a la lista negra global.",
-    "en": "Permanent ban applied and account added to the global blocklist."
+    "en": "Permanent ban applied and account added to the global blocklist.",
+    "it": "Permanent ban applied and account added to the global blocklist.",
+    "pt": "Permanent ban applied and account added to the global blocklist.",
+    "fr": "Permanent ban applied and account added to the global blocklist.",
+    "de": "Permanent ban applied and account added to the global blocklist."
   },
   "admin_mod_success_reviewed": {
     "es": "Reporte marcado como revisado.",
-    "en": "Report marked as reviewed."
+    "en": "Report marked as reviewed.",
+    "it": "Report marked as reviewed.",
+    "pt": "Report marked as reviewed.",
+    "fr": "Report marked as reviewed.",
+    "de": "Report marked as reviewed."
   },
   "admin_mod_success_dismissed": {
     "es": "Reporte desestimado correctamente.",
-    "en": "Report dismissed successfully."
+    "en": "Report dismissed successfully.",
+    "it": "Report dismissed successfully.",
+    "pt": "Report dismissed successfully.",
+    "fr": "Report dismissed successfully.",
+    "de": "Report dismissed successfully."
   },
   "admin_mod_filter_pending": {
     "es": "Pendientes",
-    "en": "Pending"
+    "en": "Pending",
+    "it": "Pending",
+    "pt": "Pending",
+    "fr": "Pending",
+    "de": "Pending"
   },
   "admin_mod_filter_reviewed": {
     "es": "Revisados",
-    "en": "Reviewed"
+    "en": "Reviewed",
+    "it": "Reviewed",
+    "pt": "Reviewed",
+    "fr": "Reviewed",
+    "de": "Reviewed"
   },
   "admin_mod_filter_dismissed": {
     "es": "Desestimados",
-    "en": "Dismissed"
+    "en": "Dismissed",
+    "it": "Dismissed",
+    "pt": "Dismissed",
+    "fr": "Dismissed",
+    "de": "Dismissed"
   },
   "admin_mod_status_pending": {
     "es": "Pendiente",
-    "en": "Pending"
+    "en": "Pending",
+    "it": "Pending",
+    "pt": "Pending",
+    "fr": "Pending",
+    "de": "Pending"
   },
   "admin_mod_status_reviewed": {
     "es": "Revisado",
-    "en": "Reviewed"
+    "en": "Reviewed",
+    "it": "Reviewed",
+    "pt": "Reviewed",
+    "fr": "Reviewed",
+    "de": "Reviewed"
   },
   "admin_mod_status_dismissed": {
     "es": "Desestimado",
-    "en": "Dismissed"
+    "en": "Dismissed",
+    "it": "Dismissed",
+    "pt": "Dismissed",
+    "fr": "Dismissed",
+    "de": "Dismissed"
   },
   "admin_mod_table_helper": {
     "es": "La tabla enlaza cada reporte con la ficha del usuario reportado para mostrar nombre y correo.",
-    "en": "The table links each report to the reported user’s profile to show name and email."
+    "en": "The table links each report to the reported user’s profile to show name and email.",
+    "it": "The table links each report to the reported user’s profile to show name and email.",
+    "pt": "The table links each report to the reported user’s profile to show name and email.",
+    "fr": "The table links each report to the reported user’s profile to show name and email.",
+    "de": "The table links each report to the reported user’s profile to show name and email."
   },
   "admin_mod_email_unavailable": {
     "es": "Correo no disponible",
-    "en": "Email unavailable"
+    "en": "Email unavailable",
+    "it": "Email unavailable",
+    "pt": "Email unavailable",
+    "fr": "Email unavailable",
+    "de": "Email unavailable"
   },
   "admin_mod_label_reported_user": {
     "es": "Usuario en el reporte",
-    "en": "Reported user"
+    "en": "Reported user",
+    "it": "Reported user",
+    "pt": "Reported user",
+    "fr": "Reported user",
+    "de": "Reported user"
   },
   "admin_mod_label_submitter": {
     "es": "Quien reporta",
-    "en": "Reporter"
+    "en": "Reporter",
+    "it": "Reporter",
+    "pt": "Reporter",
+    "fr": "Reporter",
+    "de": "Reporter"
   },
   "admin_mod_label_account_id": {
     "es": "Identificador de cuenta",
-    "en": "Account ID"
+    "en": "Account ID",
+    "it": "Account ID",
+    "pt": "Account ID",
+    "fr": "Account ID",
+    "de": "Account ID"
   },
   "admin_idrisk_load_blacklist_fail": {
     "es": "No se pudo cargar la lista negra de identidades.",
-    "en": "Could not load the identity blocklist."
+    "en": "Could not load the identity blocklist.",
+    "it": "Could not load the identity blocklist.",
+    "pt": "Could not load the identity blocklist.",
+    "fr": "Could not load the identity blocklist.",
+    "de": "Could not load the identity blocklist."
   },
   "admin_idrisk_user_not_found": {
     "es": "No se encontró un usuario con ese correo o identificador.",
-    "en": "No user was found with that email or identifier."
+    "en": "No user was found with that email or identifier.",
+    "it": "No user was found with that email or identifier.",
+    "pt": "No user was found with that email or identifier.",
+    "fr": "No user was found with that email or identifier.",
+    "de": "No user was found with that email or identifier."
   },
   "admin_idrisk_search_fail": {
     "es": "No se pudo buscar el usuario.",
-    "en": "User search failed."
+    "en": "User search failed.",
+    "it": "User search failed.",
+    "pt": "User search failed.",
+    "fr": "User search failed.",
+    "de": "User search failed."
   },
   "admin_idrisk_verify_granted": {
     "es": "Verificación oficial concedida.",
-    "en": "Official verification granted."
+    "en": "Official verification granted.",
+    "it": "Official verification granted.",
+    "pt": "Official verification granted.",
+    "fr": "Official verification granted.",
+    "de": "Official verification granted."
   },
   "admin_idrisk_verify_revoked": {
     "es": "Verificación revocada.",
-    "en": "Verification revoked."
+    "en": "Verification revoked.",
+    "it": "Verification revoked.",
+    "pt": "Verification revoked.",
+    "fr": "Verification revoked.",
+    "de": "Verification revoked."
   },
   "admin_idrisk_verify_fail": {
     "es": "No se pudo actualizar la verificación.",
-    "en": "Verification could not be updated."
+    "en": "Verification could not be updated.",
+    "it": "Verification could not be updated.",
+    "pt": "Verification could not be updated.",
+    "fr": "Verification could not be updated.",
+    "de": "Verification could not be updated."
   },
   "admin_idrisk_blacklist_add_ok": {
     "es": "Identidad agregada a la lista negra.",
-    "en": "Identity added to the blocklist."
+    "en": "Identity added to the blocklist.",
+    "it": "Identity added to the blocklist.",
+    "pt": "Identity added to the blocklist.",
+    "fr": "Identity added to the blocklist.",
+    "de": "Identity added to the blocklist."
   },
   "admin_idrisk_blacklist_add_fail": {
     "es": "No se pudo agregar a la lista negra.",
-    "en": "Could not add to the blocklist."
+    "en": "Could not add to the blocklist.",
+    "it": "Could not add to the blocklist.",
+    "pt": "Could not add to the blocklist.",
+    "fr": "Could not add to the blocklist.",
+    "de": "Could not add to the blocklist."
   },
   "admin_idrisk_blacklist_remove_ok": {
     "es": "Identidad retirada de la lista negra.",
-    "en": "Identity removed from the blocklist."
+    "en": "Identity removed from the blocklist.",
+    "it": "Identity removed from the blocklist.",
+    "pt": "Identity removed from the blocklist.",
+    "fr": "Identity removed from the blocklist.",
+    "de": "Identity removed from the blocklist."
   },
   "admin_idrisk_blacklist_remove_fail": {
     "es": "No se pudo retirar de la lista negra.",
-    "en": "Could not remove from the blocklist."
+    "en": "Could not remove from the blocklist.",
+    "it": "Could not remove from the blocklist.",
+    "pt": "Could not remove from the blocklist.",
+    "fr": "Could not remove from the blocklist.",
+    "de": "Could not remove from the blocklist."
   },
   "admin_idrisk_default_reason": {
     "es": "Prevención proactiva de abuso",
-    "en": "Proactive abuse prevention"
+    "en": "Proactive abuse prevention",
+    "it": "Proactive abuse prevention",
+    "pt": "Proactive abuse prevention",
+    "fr": "Proactive abuse prevention",
+    "de": "Proactive abuse prevention"
   },
   "admin_commerce_load_fail": {
     "es": "Error al cargar la configuración comercial. Por favor, reintenta.",
-    "en": "Could not load commerce settings. Please try again."
+    "en": "Could not load commerce settings. Please try again.",
+    "it": "Could not load commerce settings. Please try again.",
+    "pt": "Could not load commerce settings. Please try again.",
+    "fr": "Could not load commerce settings. Please try again.",
+    "de": "Could not load commerce settings. Please try again."
   },
   "admin_commerce_save_ok": {
     "es": "Catálogo publicado. Los cambios ya están disponibles para la app.",
-    "en": "Catalog published. Changes are now available in the app."
+    "en": "Catalog published. Changes are now available in the app.",
+    "it": "Catalog published. Changes are now available in the app.",
+    "pt": "Catalog published. Changes are now available in the app.",
+    "fr": "Catalog published. Changes are now available in the app.",
+    "de": "Catalog published. Changes are now available in the app."
   },
   "admin_commerce_save_fail": {
     "es": "No se pudo publicar el catálogo.",
-    "en": "Could not publish the catalog."
+    "en": "Could not publish the catalog.",
+    "it": "Could not publish the catalog.",
+    "pt": "Could not publish the catalog.",
+    "fr": "Could not publish the catalog.",
+    "de": "Could not publish the catalog."
   },
   "admin_studio_pack_png_svg_only": {
     "es": "Solo se permiten archivos .png o .svg para este pack.",
-    "en": "Only .png or .svg files are allowed for this pack."
+    "en": "Only .png or .svg files are allowed for this pack.",
+    "it": "Only .png or .svg files are allowed for this pack.",
+    "pt": "Only .png or .svg files are allowed for this pack.",
+    "fr": "Only .png or .svg files are allowed for this pack.",
+    "de": "Only .png or .svg files are allowed for this pack."
   },
   "admin_studio_pack_name_required": {
     "es": "Indica el nombre del pack.",
-    "en": "Enter the pack name."
+    "en": "Enter the pack name.",
+    "it": "Enter the pack name.",
+    "pt": "Enter the pack name.",
+    "fr": "Enter the pack name.",
+    "de": "Enter the pack name."
   },
   "admin_studio_pack_files_count": {
     "es": "Añade entre 1 y 24 archivos.",
-    "en": "Add between 1 and 24 files."
+    "en": "Add between 1 and 24 files.",
+    "it": "Add between 1 and 24 files.",
+    "pt": "Add between 1 and 24 files.",
+    "fr": "Add between 1 and 24 files.",
+    "de": "Add between 1 and 24 files."
   },
   "admin_studio_pack_saved": {
     "es": "Pack «{{name}}» guardado en el catálogo ({{count}} íconos en almacenamiento).",
-    "en": "Pack “{{name}}” saved to the catalog ({{count}} icons in storage)."
+    "en": "Pack “{{name}}” saved to the catalog ({{count}} icons in storage).",
+    "it": "Pack “{{name}}” saved to the catalog ({{count}} icons in storage).",
+    "pt": "Pack “{{name}}” saved to the catalog ({{count}} icons in storage).",
+    "fr": "Pack “{{name}}” saved to the catalog ({{count}} icons in storage).",
+    "de": "Pack “{{name}}” saved to the catalog ({{count}} icons in storage)."
   },
   "admin_studio_sync_fail": {
     "es": "No se pudieron sincronizar los recursos del estudio.",
-    "en": "Studio assets could not be synchronized."
+    "en": "Studio assets could not be synchronized.",
+    "it": "Studio assets could not be synchronized.",
+    "pt": "Studio assets could not be synchronized.",
+    "fr": "Studio assets could not be synchronized.",
+    "de": "Studio assets could not be synchronized."
   },
   "admin_studio_ref_image_required": {
     "es": "Sube una imagen de referencia para el paso 1.",
-    "en": "Upload a reference image for step 1."
+    "en": "Upload a reference image for step 1.",
+    "it": "Upload a reference image for step 1.",
+    "pt": "Upload a reference image for step 1.",
+    "fr": "Upload a reference image for step 1.",
+    "de": "Upload a reference image for step 1."
   },
   "admin_studio_analyzing_brand": {
     "es": "Analizando logotipo y extrayendo colores…",
-    "en": "Analyzing logo and extracting colors…"
+    "en": "Analyzing logo and extracting colors…",
+    "it": "Analyzing logo and extracting colors…",
+    "pt": "Analyzing logo and extracting colors…",
+    "fr": "Analyzing logo and extracting colors…",
+    "de": "Analyzing logo and extracting colors…"
   },
   "admin_studio_brand_analyze_fail": {
     "es": "No se pudo analizar la marca.",
-    "en": "Brand analysis failed."
+    "en": "Brand analysis failed.",
+    "it": "Brand analysis failed.",
+    "pt": "Brand analysis failed.",
+    "fr": "Brand analysis failed.",
+    "de": "Brand analysis failed."
   },
   "admin_studio_context_required": {
     "es": "Indica el contexto de marca o los elementos a generar antes de continuar.",
-    "en": "Enter brand context or items to generate before continuing."
+    "en": "Enter brand context or items to generate before continuing.",
+    "it": "Enter brand context or items to generate before continuing.",
+    "pt": "Enter brand context or items to generate before continuing.",
+    "fr": "Enter brand context or items to generate before continuing.",
+    "de": "Enter brand context or items to generate before continuing."
   },
   "admin_studio_generating_prompts": {
     "es": "Generando indicaciones para los íconos…",
-    "en": "Generating icon prompts…"
+    "en": "Generating icon prompts…",
+    "it": "Generating icon prompts…",
+    "pt": "Generating icon prompts…",
+    "fr": "Generating icon prompts…",
+    "de": "Generating icon prompts…"
   },
   "admin_studio_icons_gen_fail": {
     "es": "No se pudieron generar los íconos con la IA.",
-    "en": "Icons could not be generated with AI."
+    "en": "Icons could not be generated with AI.",
+    "it": "Icons could not be generated with AI.",
+    "pt": "Icons could not be generated with AI.",
+    "fr": "Icons could not be generated with AI.",
+    "de": "Icons could not be generated with AI."
   },
   "admin_studio_icon_name_required": {
     "es": "Falta el nombre del ícono.",
-    "en": "Icon name is missing."
+    "en": "Icon name is missing.",
+    "it": "Icon name is missing.",
+    "pt": "Icon name is missing.",
+    "fr": "Icon name is missing.",
+    "de": "Icon name is missing."
   },
   "admin_studio_icon_folder_required": {
     "es": "Indica una carpeta para el ícono.",
-    "en": "Specify a folder for the icon."
+    "en": "Specify a folder for the icon.",
+    "it": "Specify a folder for the icon.",
+    "pt": "Specify a folder for the icon.",
+    "fr": "Specify a folder for the icon.",
+    "de": "Specify a folder for the icon."
   },
   "admin_studio_icon_select_or_upload": {
     "es": "Selecciona un ícono generado o sube uno propio antes de publicar.",
-    "en": "Select a generated icon or upload your own before publishing."
+    "en": "Select a generated icon or upload your own before publishing.",
+    "it": "Select a generated icon or upload your own before publishing.",
+    "pt": "Select a generated icon or upload your own before publishing.",
+    "fr": "Select a generated icon or upload your own before publishing.",
+    "de": "Select a generated icon or upload your own before publishing."
   },
   "admin_studio_icon_published": {
     "es": "Ícono «{{name}}» publicado en la tienda.",
-    "en": "Icon “{{name}}” published to the store."
+    "en": "Icon “{{name}}” published to the store.",
+    "it": "Icon “{{name}}” published to the store.",
+    "pt": "Icon “{{name}}” published to the store.",
+    "fr": "Icon “{{name}}” published to the store.",
+    "de": "Icon “{{name}}” published to the store."
   },
   "admin_studio_icon_publish_fail": {
     "es": "No se pudo publicar el ícono.",
-    "en": "The icon could not be published."
+    "en": "The icon could not be published.",
+    "it": "The icon could not be published.",
+    "pt": "The icon could not be published.",
+    "fr": "The icon could not be published.",
+    "de": "The icon could not be published."
   },
   "admin_studio_skin_forge_fail": {
     "es": "No se pudo generar el tema con la IA.",
-    "en": "The theme could not be generated with AI."
+    "en": "The theme could not be generated with AI.",
+    "it": "The theme could not be generated with AI.",
+    "pt": "The theme could not be generated with AI.",
+    "fr": "The theme could not be generated with AI.",
+    "de": "The theme could not be generated with AI."
   },
   "admin_studio_skin_logo_required": {
     "es": "Sube un logotipo o referencia para analizar la marca.",
-    "en": "Upload a logo or reference to analyze the brand."
+    "en": "Upload a logo or reference to analyze the brand.",
+    "it": "Upload a logo or reference to analyze the brand.",
+    "pt": "Upload a logo or reference to analyze the brand.",
+    "fr": "Upload a logo or reference to analyze the brand.",
+    "de": "Upload a logo or reference to analyze the brand."
   },
   "admin_studio_skin_brand_analyze_fail": {
     "es": "No se pudo analizar la marca del tema.",
-    "en": "Brand analysis for the theme failed."
+    "en": "Brand analysis for the theme failed.",
+    "it": "Brand analysis for the theme failed.",
+    "pt": "Brand analysis for the theme failed.",
+    "fr": "Brand analysis for the theme failed.",
+    "de": "Brand analysis for the theme failed."
   },
   "admin_studio_skin_analyzing": {
     "es": "Extrayendo paleta y contexto del logotipo…",
-    "en": "Extracting palette and context from the logo…"
+    "en": "Extracting palette and context from the logo…",
+    "it": "Extracting palette and context from the logo…",
+    "pt": "Extracting palette and context from the logo…",
+    "fr": "Extracting palette and context from the logo…",
+    "de": "Extracting palette and context from the logo…"
   },
   "admin_studio_skin_name_required": {
     "es": "Indica el nombre del tema visual.",
-    "en": "Enter the visual theme name."
+    "en": "Enter the visual theme name.",
+    "it": "Enter the visual theme name.",
+    "pt": "Enter the visual theme name.",
+    "fr": "Enter the visual theme name.",
+    "de": "Enter the visual theme name."
   },
   "admin_studio_skin_wallpaper_required": {
     "es": "Sube un archivo de fondo de pantalla para publicarlo.",
-    "en": "Upload a wallpaper file to publish it."
+    "en": "Upload a wallpaper file to publish it.",
+    "it": "Upload a wallpaper file to publish it.",
+    "pt": "Upload a wallpaper file to publish it.",
+    "fr": "Upload a wallpaper file to publish it.",
+    "de": "Upload a wallpaper file to publish it."
   },
   "admin_studio_skin_pack_required": {
     "es": "Selecciona un pack de íconos del catálogo.",
-    "en": "Select an icon pack from the catalog."
+    "en": "Select an icon pack from the catalog.",
+    "it": "Select an icon pack from the catalog.",
+    "pt": "Select an icon pack from the catalog.",
+    "fr": "Select an icon pack from the catalog.",
+    "de": "Select an icon pack from the catalog."
   },
   "admin_studio_skin_saved": {
     "es": "Tema guardado y publicado en el catálogo de apariencias.",
-    "en": "Theme saved and published to the appearance catalog."
+    "en": "Theme saved and published to the appearance catalog.",
+    "it": "Theme saved and published to the appearance catalog.",
+    "pt": "Theme saved and published to the appearance catalog.",
+    "fr": "Theme saved and published to the appearance catalog.",
+    "de": "Theme saved and published to the appearance catalog."
   },
   "admin_studio_skin_save_fail": {
     "es": "No se pudo guardar el tema.",
-    "en": "The theme could not be saved."
+    "en": "The theme could not be saved.",
+    "it": "The theme could not be saved.",
+    "pt": "The theme could not be saved.",
+    "fr": "The theme could not be saved.",
+    "de": "The theme could not be saved."
   },
   "admin_studio_btn_save_pack_catalog": {
     "es": "Guardar pack en el catálogo",
-    "en": "Save pack to catalog"
+    "en": "Save pack to catalog",
+    "it": "Save pack to catalog",
+    "pt": "Save pack to catalog",
+    "fr": "Save pack to catalog",
+    "de": "Save pack to catalog"
   },
   "admin_studio_panel_pack_title": {
     "es": "Pack de íconos del catálogo",
-    "en": "Catalog icon pack"
+    "en": "Catalog icon pack",
+    "it": "Catalog icon pack",
+    "pt": "Catalog icon pack",
+    "fr": "Catalog icon pack",
+    "de": "Catalog icon pack"
   },
   "admin_studio_panel_pack_eyebrow": {
     "es": "Catálogo · packs de íconos",
-    "en": "Catalog · icon packs"
+    "en": "Catalog · icon packs",
+    "it": "Catalog · icon packs",
+    "pt": "Catalog · icon packs",
+    "fr": "Catalog · icon packs",
+    "de": "Catalog · icon packs"
   },
   "admin_studio_panel_pack_empty": {
     "es": "Aún no hay packs en el catálogo. Crea uno en la pestaña Icon Packs.",
-    "en": "There are no packs in the catalog yet. Create one in the Icon Packs tab."
+    "en": "There are no packs in the catalog yet. Create one in the Icon Packs tab.",
+    "it": "There are no packs in the catalog yet. Create one in the Icon Packs tab.",
+    "pt": "There are no packs in the catalog yet. Create one in the Icon Packs tab.",
+    "fr": "There are no packs in the catalog yet. Create one in the Icon Packs tab.",
+    "de": "There are no packs in the catalog yet. Create one in the Icon Packs tab."
   },
   "admin_studio_panel_assembly_title": {
     "es": "Ensamblaje",
-    "en": "Assembly"
+    "en": "Assembly",
+    "it": "Assembly",
+    "pt": "Assembly",
+    "fr": "Assembly",
+    "de": "Assembly"
   },
   "admin_studio_panel_assembly_eyebrow": {
     "es": "Publicar en catálogo",
-    "en": "Publish to catalog"
+    "en": "Publish to catalog",
+    "it": "Publish to catalog",
+    "pt": "Publish to catalog",
+    "fr": "Publish to catalog",
+    "de": "Publish to catalog"
   },
   "admin_studio_panel_assembly_desc": {
     "es": "Publica el tema con fondo en almacenamiento y referencia al pack de íconos elegido.",
-    "en": "Publish the theme with storage-hosted wallpaper and the selected icon pack."
+    "en": "Publish the theme with storage-hosted wallpaper and the selected icon pack.",
+    "it": "Publish the theme with storage-hosted wallpaper and the selected icon pack.",
+    "pt": "Publish the theme with storage-hosted wallpaper and the selected icon pack.",
+    "fr": "Publish the theme with storage-hosted wallpaper and the selected icon pack.",
+    "de": "Publish the theme with storage-hosted wallpaper and the selected icon pack."
   },
   "admin_budget_err_load": {
     "es": "No se pudieron cargar las métricas del semáforo.",
-    "en": "Traffic-light metrics could not be loaded."
+    "en": "Traffic-light metrics could not be loaded.",
+    "it": "Traffic-light metrics could not be loaded.",
+    "pt": "Traffic-light metrics could not be loaded.",
+    "fr": "Traffic-light metrics could not be loaded.",
+    "de": "Traffic-light metrics could not be loaded."
   },
   "admin_budget_err_save": {
     "es": "No se pudieron guardar los parámetros.",
-    "en": "Settings could not be saved."
+    "en": "Settings could not be saved.",
+    "it": "Settings could not be saved.",
+    "pt": "Settings could not be saved.",
+    "fr": "Settings could not be saved.",
+    "de": "Settings could not be saved."
   },
   "admin_budget_pct_invalid": {
     "es": "El porcentaje de presupuesto debe estar entre 0 y 100.",
-    "en": "Budget percentage must be between 0 and 100."
+    "en": "Budget percentage must be between 0 and 100.",
+    "it": "Budget percentage must be between 0 and 100.",
+    "pt": "Budget percentage must be between 0 and 100.",
+    "fr": "Budget percentage must be between 0 and 100.",
+    "de": "Budget percentage must be between 0 and 100."
   },
   "admin_budget_revenue_invalid": {
     "es": "El ingreso mensual debe ser un número ≥ 0 o dejarse vacío.",
-    "en": "Monthly revenue must be a number ≥ 0 or left empty."
+    "en": "Monthly revenue must be a number ≥ 0 or left empty.",
+    "it": "Monthly revenue must be a number ≥ 0 or left empty.",
+    "pt": "Monthly revenue must be a number ≥ 0 or left empty.",
+    "fr": "Monthly revenue must be a number ≥ 0 or left empty.",
+    "de": "Monthly revenue must be a number ≥ 0 or left empty."
   },
   "admin_budget_save_ok": {
     "es": "Guardado. Cambio registrado en el servidor.",
-    "en": "Saved. Change recorded on the server."
+    "en": "Saved. Change recorded on the server.",
+    "it": "Saved. Change recorded on the server.",
+    "pt": "Saved. Change recorded on the server.",
+    "fr": "Saved. Change recorded on the server.",
+    "de": "Saved. Change recorded on the server."
   },
   "admin_budget_light_green": {
     "es": "VERDE — se puede planificar retención de pago",
-    "en": "GREEN — paid retention can be planned"
+    "en": "GREEN — paid retention can be planned",
+    "it": "GREEN — paid retention can be planned",
+    "pt": "GREEN — paid retention can be planned",
+    "fr": "GREEN — paid retention can be planned",
+    "de": "GREEN — paid retention can be planned"
   },
   "admin_budget_light_yellow": {
     "es": "AMARILLO — proceder con cautela",
-    "en": "YELLOW — proceed with caution"
+    "en": "YELLOW — proceed with caution",
+    "it": "YELLOW — proceed with caution",
+    "pt": "YELLOW — proceed with caution",
+    "fr": "YELLOW — proceed with caution",
+    "de": "YELLOW — proceed with caution"
   },
   "admin_budget_light_red": {
     "es": "ROJO — aún no invertir en Push/SMS",
-    "en": "RED — do not invest in push/SMS yet"
+    "en": "RED — do not invest in push/SMS yet",
+    "it": "RED — do not invest in push/SMS yet",
+    "pt": "RED — do not invest in push/SMS yet",
+    "fr": "RED — do not invest in push/SMS yet",
+    "de": "RED — do not invest in push/SMS yet"
   },
   "admin_budget_eyebrow": {
     "es": "Semáforo financiero · retención",
-    "en": "Financial traffic light · retention"
+    "en": "Financial traffic light · retention",
+    "it": "Financial traffic light · retention",
+    "pt": "Financial traffic light · retention",
+    "fr": "Financial traffic light · retention",
+    "de": "Financial traffic light · retention"
   },
   "admin_budget_heading": {
     "es": "¿Tiene sentido invertir en Push/SMS?",
-    "en": "Does it make sense to invest in push/SMS?"
+    "en": "Does it make sense to invest in push/SMS?",
+    "it": "Does it make sense to invest in push/SMS?",
+    "pt": "Does it make sense to invest in push/SMS?",
+    "fr": "Does it make sense to invest in push/SMS?",
+    "de": "Does it make sense to invest in push/SMS?"
   },
   "admin_budget_intro": {
     "es": "Herramienta interna: usuarios activos desde el almacén analítico; el ingreso neto puede declararse manualmente, leerse de la configuración del API o estimarse si el backend tiene integraciones de facturación activas. Los canales solo se habilitan con semáforo verde como señal de gobierno.",
-    "en": "Internal tool: active users from the analytics store; net revenue can be entered manually, read from API configuration, or estimated when billing integrations are active. Channels unlock only on green as a governance signal."
+    "en": "Internal tool: active users from the analytics store; net revenue can be entered manually, read from API configuration, or estimated when billing integrations are active. Channels unlock only on green as a governance signal.",
+    "it": "Internal tool: active users from the analytics store; net revenue can be entered manually, read from API configuration, or estimated when billing integrations are active. Channels unlock only on green as a governance signal.",
+    "pt": "Internal tool: active users from the analytics store; net revenue can be entered manually, read from API configuration, or estimated when billing integrations are active. Channels unlock only on green as a governance signal.",
+    "fr": "Internal tool: active users from the analytics store; net revenue can be entered manually, read from API configuration, or estimated when billing integrations are active. Channels unlock only on green as a governance signal.",
+    "de": "Internal tool: active users from the analytics store; net revenue can be entered manually, read from API configuration, or estimated when billing integrations are active. Channels unlock only on green as a governance signal."
   },
   "admin_budget_loading": {
     "es": "Cargando métricas…",
-    "en": "Loading metrics…"
+    "en": "Loading metrics…",
+    "it": "Loading metrics…",
+    "pt": "Loading metrics…",
+    "fr": "Loading metrics…",
+    "de": "Loading metrics…"
   },
   "admin_budget_status_label": {
     "es": "Estado",
-    "en": "Status"
+    "en": "Status",
+    "it": "Status",
+    "pt": "Status",
+    "fr": "Status",
+    "de": "Status"
   },
   "admin_broadcast_send_summary": {
     "es": "Enviado · audiencia {{audience}} · correo OK {{sentEmail}} · correo fallido {{failedEmail}} · intentos push {{sentPush}} · sin correo {{skippedNoEmail}}",
-    "en": "Sent · audience {{audience}} · email OK {{sentEmail}} · email failed {{failedEmail}} · push attempts {{sentPush}} · no email {{skippedNoEmail}}"
+    "en": "Sent · audience {{audience}} · email OK {{sentEmail}} · email failed {{failedEmail}} · push attempts {{sentPush}} · no email {{skippedNoEmail}}",
+    "it": "Sent · audience {{audience}} · email OK {{sentEmail}} · email failed {{failedEmail}} · push attempts {{sentPush}} · no email {{skippedNoEmail}}",
+    "pt": "Sent · audience {{audience}} · email OK {{sentEmail}} · email failed {{failedEmail}} · push attempts {{sentPush}} · no email {{skippedNoEmail}}",
+    "fr": "Sent · audience {{audience}} · email OK {{sentEmail}} · email failed {{failedEmail}} · push attempts {{sentPush}} · no email {{skippedNoEmail}}",
+    "de": "Sent · audience {{audience}} · email OK {{sentEmail}} · email failed {{failedEmail}} · push attempts {{sentPush}} · no email {{skippedNoEmail}}"
   },
   "admin_broadcast_err_general": {
     "es": "No se pudo completar la operación. Reintenta.",
-    "en": "The operation could not be completed. Try again."
+    "en": "The operation could not be completed. Try again.",
+    "it": "The operation could not be completed. Try again.",
+    "pt": "The operation could not be completed. Try again.",
+    "fr": "The operation could not be completed. Try again.",
+    "de": "The operation could not be completed. Try again."
   },
   "admin_stats_err_growth": {
     "es": "No se pudieron cargar las métricas de crecimiento.",
-    "en": "Growth metrics could not be loaded."
+    "en": "Growth metrics could not be loaded.",
+    "it": "Growth metrics could not be loaded.",
+    "pt": "Growth metrics could not be loaded.",
+    "fr": "Growth metrics could not be loaded.",
+    "de": "Growth metrics could not be loaded."
   },
   "admin_stats_mongo_hint": {
     "es": "Comprueba la URL del API, la clave del gateway y que tu cuenta esté autorizada para estadísticas del sistema.",
-    "en": "Check the API URL, gateway key, and that your account is authorized for system statistics."
+    "en": "Check the API URL, gateway key, and that your account is authorized for system statistics.",
+    "it": "Check the API URL, gateway key, and that your account is authorized for system statistics.",
+    "pt": "Check the API URL, gateway key, and that your account is authorized for system statistics.",
+    "fr": "Check the API URL, gateway key, and that your account is authorized for system statistics.",
+    "de": "Check the API URL, gateway key, and that your account is authorized for system statistics."
   },
   "admin_dashboard_stats_error": {
     "es": "No se pudieron cargar las estadísticas del panel. Revisa permisos de tu cuenta o la configuración.",
-    "en": "Dashboard statistics could not be loaded. Check your account permissions or configuration."
+    "en": "Dashboard statistics could not be loaded. Check your account permissions or configuration.",
+    "it": "Dashboard statistics could not be loaded. Check your account permissions or configuration.",
+    "pt": "Dashboard statistics could not be loaded. Check your account permissions or configuration.",
+    "fr": "Dashboard statistics could not be loaded. Check your account permissions or configuration.",
+    "de": "Dashboard statistics could not be loaded. Check your account permissions or configuration."
   },
   "admin_dashboard_users_hint": {
     "es": "Total de cuentas de usuario",
-    "en": "Total user accounts"
+    "en": "Total user accounts",
+    "it": "Total user accounts",
+    "pt": "Total user accounts",
+    "fr": "Total user accounts",
+    "de": "Total user accounts"
   },
   "admin_dashboard_reports_hint": {
     "es": "Total de reportes de moderación",
-    "en": "Total moderation reports"
+    "en": "Total moderation reports",
+    "it": "Total moderation reports",
+    "pt": "Total moderation reports",
+    "fr": "Total moderation reports",
+    "de": "Total moderation reports"
   },
   "admin_dashboard_vip_hint": {
     "es": "Campañas para perfiles influyentes y negocios",
-    "en": "Campaigns for creator and business profiles"
+    "en": "Campaigns for creator and business profiles",
+    "it": "Campaigns for creator and business profiles",
+    "pt": "Campaigns for creator and business profiles",
+    "fr": "Campaigns for creator and business profiles",
+    "de": "Campaigns for creator and business profiles"
   },
   "admin_dashboard_nfc_hint": {
     "es": "Inventario físico de tarjetas NFC",
-    "en": "Physical NFC card inventory"
+    "en": "Physical NFC card inventory",
+    "it": "Physical NFC card inventory",
+    "pt": "Physical NFC card inventory",
+    "fr": "Physical NFC card inventory",
+    "de": "Physical NFC card inventory"
   },
   "admin_stats_mongo_failed": {
     "es": "No se pudieron cargar las estadísticas extendidas del sistema.",
-    "en": "Extended system statistics could not be loaded."
+    "en": "Extended system statistics could not be loaded.",
+    "it": "Extended system statistics could not be loaded.",
+    "pt": "Extended system statistics could not be loaded.",
+    "fr": "Extended system statistics could not be loaded.",
+    "de": "Extended system statistics could not be loaded."
   },
   "admin_rules_tiers_load_fail": {
     "es": "Error al cargar la configuración de precios. Por favor, reintenta.",
-    "en": "Could not load pricing settings. Please try again."
+    "en": "Could not load pricing settings. Please try again.",
+    "it": "Could not load pricing settings. Please try again.",
+    "pt": "Could not load pricing settings. Please try again.",
+    "fr": "Could not load pricing settings. Please try again.",
+    "de": "Could not load pricing settings. Please try again."
   },
   "admin_rules_tiers_save_ok": {
     "es": "Cambios guardados y publicados. La app y la landing ya pueden leer los nuevos precios.",
-    "en": "Changes saved and published. The app and landing can read the new prices."
+    "en": "Changes saved and published. The app and landing can read the new prices.",
+    "it": "Changes saved and published. The app and landing can read the new prices.",
+    "pt": "Changes saved and published. The app and landing can read the new prices.",
+    "fr": "Changes saved and published. The app and landing can read the new prices.",
+    "de": "Changes saved and published. The app and landing can read the new prices."
   },
   "admin_rules_tiers_save_fail": {
     "es": "No se pudieron guardar los cambios.",
-    "en": "Changes could not be saved."
+    "en": "Changes could not be saved.",
+    "it": "Changes could not be saved.",
+    "pt": "Changes could not be saved.",
+    "fr": "Changes could not be saved.",
+    "de": "Changes could not be saved."
   },
   "admin_rules_tiers_shipping_storage_note": {
     "es": "Estos precios se guardan en la configuración central de precios (add-ons de envío).",
-    "en": "These prices are stored in the central pricing configuration (shipping add-ons)."
+    "en": "These prices are stored in the central pricing configuration (shipping add-ons).",
+    "it": "These prices are stored in the central pricing configuration (shipping add-ons).",
+    "pt": "These prices are stored in the central pricing configuration (shipping add-ons).",
+    "fr": "These prices are stored in the central pricing configuration (shipping add-ons).",
+    "de": "These prices are stored in the central pricing configuration (shipping add-ons)."
   },
   "admin_campaigns_err_create_gift": {
     "es": "No se pudo crear el regalo de monedas.",
-    "en": "The coin gift could not be created."
+    "en": "The coin gift could not be created.",
+    "it": "The coin gift could not be created.",
+    "pt": "The coin gift could not be created.",
+    "fr": "The coin gift could not be created.",
+    "de": "The coin gift could not be created."
+  },
+  "admin_finance_na": {
+    "es": "N/D",
+    "en": "N/A",
+    "it": "N/A",
+    "pt": "N/A",
+    "fr": "N/A",
+    "de": "N/A"
+  },
+  "admin_finance_err_permissions": {
+    "es": "No se pudieron validar los permisos de finanzas. Por favor, reintenta.",
+    "en": "Finance permissions could not be validated. Please try again.",
+    "it": "Finance permissions could not be validated. Please try again.",
+    "pt": "Finance permissions could not be validated. Please try again.",
+    "fr": "Finance permissions could not be validated. Please try again.",
+    "de": "Finance permissions could not be validated. Please try again."
+  },
+  "admin_finance_eyebrow_revenue_ops": {
+    "es": "Revenue Ops",
+    "en": "Revenue Ops",
+    "it": "Revenue Ops",
+    "pt": "Revenue Ops",
+    "fr": "Revenue Ops",
+    "de": "Revenue Ops"
+  },
+  "admin_finance_title": {
+    "es": "Finanzas & Revenue",
+    "en": "Finance & Revenue",
+    "it": "Finance & Revenue",
+    "pt": "Finance & Revenue",
+    "fr": "Finance & Revenue",
+    "de": "Finance & Revenue"
+  },
+  "admin_finance_subtitle": {
+    "es": "Vista CFO para suscripciones activas y auditoría del pasivo de CS Coins.",
+    "en": "CFO view of active subscriptions and CS Coins liability audit.",
+    "it": "CFO view of active subscriptions and CS Coins liability audit.",
+    "pt": "CFO view of active subscriptions and CS Coins liability audit.",
+    "fr": "CFO view of active subscriptions and CS Coins liability audit.",
+    "de": "CFO view of active subscriptions and CS Coins liability audit."
+  },
+  "admin_finance_refresh": {
+    "es": "Refrescar",
+    "en": "Refresh",
+    "it": "Refresh",
+    "pt": "Refresh",
+    "fr": "Refresh",
+    "de": "Refresh"
+  },
+  "admin_finance_tab_subscriptions": {
+    "es": "Suscripciones (Ingresos)",
+    "en": "Subscriptions (Revenue)",
+    "it": "Subscriptions (Revenue)",
+    "pt": "Subscriptions (Revenue)",
+    "fr": "Subscriptions (Revenue)",
+    "de": "Subscriptions (Revenue)"
+  },
+  "admin_finance_tab_subscriptions_desc": {
+    "es": "Dinero real y estado premium",
+    "en": "Real money and premium state",
+    "it": "Real money and premium state",
+    "pt": "Real money and premium state",
+    "fr": "Real money and premium state",
+    "de": "Real money and premium state"
+  },
+  "admin_finance_tab_cs_bank": {
+    "es": "Banco Central CS",
+    "en": "CS Central Bank",
+    "it": "CS Central Bank",
+    "pt": "CS Central Bank",
+    "fr": "CS Central Bank",
+    "de": "CS Central Bank"
+  },
+  "admin_finance_tab_cs_bank_desc": {
+    "es": "Moneda virtual y pasivo",
+    "en": "Virtual currency and liability",
+    "it": "Virtual currency and liability",
+    "pt": "Virtual currency and liability",
+    "fr": "Virtual currency and liability",
+    "de": "Virtual currency and liability"
+  },
+  "admin_finance_loading": {
+    "es": "Cargando módulo financiero…",
+    "en": "Loading finance module…",
+    "it": "Loading finance module…",
+    "pt": "Loading finance module…",
+    "fr": "Loading finance module…",
+    "de": "Loading finance module…"
+  },
+  "admin_finance_kpi_active_subs": {
+    "es": "Suscripciones activas",
+    "en": "Active subscriptions",
+    "it": "Active subscriptions",
+    "pt": "Active subscriptions",
+    "fr": "Active subscriptions",
+    "de": "Active subscriptions"
+  },
+  "admin_finance_kpi_mrr": {
+    "es": "MRR estimado",
+    "en": "Estimated MRR",
+    "it": "Estimated MRR",
+    "pt": "Estimated MRR",
+    "fr": "Estimated MRR",
+    "de": "Estimated MRR"
+  },
+  "admin_finance_kpi_arr": {
+    "es": "ARR estimado",
+    "en": "Estimated ARR",
+    "it": "Estimated ARR",
+    "pt": "Estimated ARR",
+    "fr": "Estimated ARR",
+    "de": "Estimated ARR"
+  },
+  "admin_finance_placeholder_amount": {
+    "es": "—",
+    "en": "—",
+    "it": "—",
+    "pt": "—",
+    "fr": "—",
+    "de": "—"
+  },
+  "admin_finance_table_title_active": {
+    "es": "Usuarios con subscriptionStatus active",
+    "en": "Users with active subscriptionStatus",
+    "it": "Users with active subscriptionStatus",
+    "pt": "Users with active subscriptionStatus",
+    "fr": "Users with active subscriptionStatus",
+    "de": "Users with active subscriptionStatus"
+  },
+  "admin_finance_empty_subs": {
+    "es": "No hay suscripciones activas.",
+    "en": "No active subscriptions.",
+    "it": "No active subscriptions.",
+    "pt": "No active subscriptions.",
+    "fr": "No active subscriptions.",
+    "de": "No active subscriptions."
+  },
+  "admin_finance_th_email": {
+    "es": "Email",
+    "en": "Email",
+    "it": "Email",
+    "pt": "Email",
+    "fr": "Email",
+    "de": "Email"
+  },
+  "admin_finance_th_tier": {
+    "es": "Tier actual",
+    "en": "Current tier",
+    "it": "Current tier",
+    "pt": "Current tier",
+    "fr": "Current tier",
+    "de": "Current tier"
+  },
+  "admin_finance_th_expires": {
+    "es": "Expira",
+    "en": "Expires",
+    "it": "Expires",
+    "pt": "Expires",
+    "fr": "Expires",
+    "de": "Expires"
+  },
+  "admin_finance_cs_ledger_title": {
+    "es": "Últimos movimientos del Banco Central CS",
+    "en": "Latest CS Central Bank movements",
+    "it": "Latest CS Central Bank movements",
+    "pt": "Latest CS Central Bank movements",
+    "fr": "Latest CS Central Bank movements",
+    "de": "Latest CS Central Bank movements"
+  },
+  "admin_finance_cs_ledger_hint": {
+    "es": "Combina admin_audit y redemption_logs para ver emisión/canje de CS Coins.",
+    "en": "Combines admin_audit and redemption_logs to view CS Coins issue/redemption.",
+    "it": "Combines admin_audit and redemption_logs to view CS Coins issue/redemption.",
+    "pt": "Combines admin_audit and redemption_logs to view CS Coins issue/redemption.",
+    "fr": "Combines admin_audit and redemption_logs to view CS Coins issue/redemption.",
+    "de": "Combines admin_audit and redemption_logs to view CS Coins issue/redemption."
+  },
+  "admin_finance_empty_ledger": {
+    "es": "No hay movimientos registrados.",
+    "en": "No movements recorded.",
+    "it": "No movements recorded.",
+    "pt": "No movements recorded.",
+    "fr": "No movements recorded.",
+    "de": "No movements recorded."
+  },
+  "admin_finance_th_date": {
+    "es": "Fecha",
+    "en": "Date",
+    "it": "Date",
+    "pt": "Date",
+    "fr": "Date",
+    "de": "Date"
+  },
+  "admin_finance_th_action": {
+    "es": "Acción",
+    "en": "Action",
+    "it": "Action",
+    "pt": "Action",
+    "fr": "Action",
+    "de": "Action"
+  },
+  "admin_finance_th_amount_cs": {
+    "es": "Monto CS Coins",
+    "en": "CS Coins amount",
+    "it": "CS Coins amount",
+    "pt": "CS Coins amount",
+    "fr": "CS Coins amount",
+    "de": "CS Coins amount"
+  },
+  "admin_finance_th_actor": {
+    "es": "Usuario/Admin",
+    "en": "User/Admin",
+    "it": "User/Admin",
+    "pt": "User/Admin",
+    "fr": "User/Admin",
+    "de": "User/Admin"
+  },
+  "admin_finance_suffix_cs": {
+    "es": " CS",
+    "en": " CS",
+    "it": " CS",
+    "pt": " CS",
+    "fr": " CS",
+    "de": " CS"
+  },
+  "admin_login_err_access_denied": {
+    "es": "Acceso denegado. No tienes permisos de Super Administrador.",
+    "en": "Access denied. You do not have Super Administrator permissions.",
+    "it": "Access denied. You do not have Super Administrator permissions.",
+    "pt": "Access denied. You do not have Super Administrator permissions.",
+    "fr": "Access denied. You do not have Super Administrator permissions.",
+    "de": "Access denied. You do not have Super Administrator permissions."
+  },
+  "admin_login_err_bad_credentials": {
+    "es": "No se pudo iniciar sesión. Revisa el email y la contraseña.",
+    "en": "Could not sign in. Check your email and password.",
+    "it": "Could not sign in. Check your email and password.",
+    "pt": "Could not sign in. Check your email and password.",
+    "fr": "Could not sign in. Check your email and password.",
+    "de": "Could not sign in. Check your email and password."
+  },
+  "admin_login_brand_eyebrow": {
+    "es": "Card-Social",
+    "en": "Card-Social",
+    "it": "Card-Social",
+    "pt": "Card-Social",
+    "fr": "Card-Social",
+    "de": "Card-Social"
+  },
+  "admin_login_hero_title": {
+    "es": "Centro de comando SuperAdmin",
+    "en": "SuperAdmin command center",
+    "it": "SuperAdmin command center",
+    "pt": "SuperAdmin command center",
+    "fr": "SuperAdmin command center",
+    "de": "SuperAdmin command center"
+  },
+  "admin_login_hero_subtitle": {
+    "es": "Control operativo para moderación, reglas, campañas VIP, Studio, finanzas y NFC.",
+    "en": "Operational control for moderation, rules, VIP campaigns, Studio, finance, and NFC.",
+    "it": "Operational control for moderation, rules, VIP campaigns, Studio, finance, and NFC.",
+    "pt": "Operational control for moderation, rules, VIP campaigns, Studio, finance, and NFC.",
+    "fr": "Operational control for moderation, rules, VIP campaigns, Studio, finance, and NFC.",
+    "de": "Operational control for moderation, rules, VIP campaigns, Studio, finance, and NFC."
+  },
+  "admin_login_hero_notice": {
+    "es": "Acceso restringido. Este panel se conecta a Firebase Auth y estará protegido por roles de SuperAdmin antes de activar módulos sensibles.",
+    "en": "Restricted access. This panel uses Firebase Auth and will be protected by SuperAdmin roles before sensitive modules activate.",
+    "it": "Restricted access. This panel uses Firebase Auth and will be protected by SuperAdmin roles before sensitive modules activate.",
+    "pt": "Restricted access. This panel uses Firebase Auth and will be protected by SuperAdmin roles before sensitive modules activate.",
+    "fr": "Restricted access. This panel uses Firebase Auth and will be protected by SuperAdmin roles before sensitive modules activate.",
+    "de": "Restricted access. This panel uses Firebase Auth and will be protected by SuperAdmin roles before sensitive modules activate."
+  },
+  "admin_login_form_eyebrow": {
+    "es": "The Mint",
+    "en": "The Mint",
+    "it": "The Mint",
+    "pt": "The Mint",
+    "fr": "The Mint",
+    "de": "The Mint"
+  },
+  "admin_login_form_title": {
+    "es": "Iniciar sesión",
+    "en": "Sign in",
+    "it": "Sign in",
+    "pt": "Sign in",
+    "fr": "Sign in",
+    "de": "Sign in"
+  },
+  "admin_login_form_hint": {
+    "es": "Usa una cuenta autorizada en Firebase para entrar al Admin Web.",
+    "en": "Use an authorized Firebase account to access Admin Web.",
+    "it": "Use an authorized Firebase account to access Admin Web.",
+    "pt": "Use an authorized Firebase account to access Admin Web.",
+    "fr": "Use an authorized Firebase account to access Admin Web.",
+    "de": "Use an authorized Firebase account to access Admin Web."
+  },
+  "admin_login_label_email": {
+    "es": "Email",
+    "en": "Email",
+    "it": "Email",
+    "pt": "Email",
+    "fr": "Email",
+    "de": "Email"
+  },
+  "admin_login_label_password": {
+    "es": "Contraseña",
+    "en": "Password",
+    "it": "Password",
+    "pt": "Password",
+    "fr": "Password",
+    "de": "Password"
+  },
+  "admin_login_submit_loading": {
+    "es": "Entrando…",
+    "en": "Signing in…",
+    "it": "Signing in…",
+    "pt": "Signing in…",
+    "fr": "Signing in…",
+    "de": "Signing in…"
+  },
+  "admin_login_submit": {
+    "es": "Entrar al SuperAdmin",
+    "en": "Enter SuperAdmin",
+    "it": "Enter SuperAdmin",
+    "pt": "Enter SuperAdmin",
+    "fr": "Enter SuperAdmin",
+    "de": "Enter SuperAdmin"
+  },
+  "admin_lang_toggle_label": {
+    "es": "Idioma",
+    "en": "Language",
+    "it": "Language",
+    "pt": "Language",
+    "fr": "Language",
+    "de": "Language"
+  },
+  "admin_lang_es": {
+    "es": "Español",
+    "en": "Spanish",
+    "it": "Spanish",
+    "pt": "Spanish",
+    "fr": "Spanish",
+    "de": "Spanish"
+  },
+  "admin_lang_en": {
+    "es": "Inglés",
+    "en": "English",
+    "it": "English",
+    "pt": "English",
+    "fr": "English",
+    "de": "English"
+  },
+  "admin_lang_it": {
+    "es": "Italiano",
+    "en": "Italian",
+    "it": "Italian",
+    "pt": "Italian",
+    "fr": "Italian",
+    "de": "Italian"
+  },
+  "admin_lang_pt": {
+    "es": "Portugués",
+    "en": "Portuguese",
+    "it": "Portuguese",
+    "pt": "Portuguese",
+    "fr": "Portuguese",
+    "de": "Portuguese"
+  },
+  "admin_lang_fr": {
+    "es": "Francés",
+    "en": "French",
+    "it": "French",
+    "pt": "French",
+    "fr": "French",
+    "de": "French"
+  },
+  "admin_lang_de": {
+    "es": "Alemán",
+    "en": "German",
+    "it": "German",
+    "pt": "German",
+    "fr": "German",
+    "de": "German"
+  },
+  "admin_layout_session": {
+    "es": "Sesión activa",
+    "en": "Active session",
+    "it": "Active session",
+    "pt": "Active session",
+    "fr": "Active session",
+    "de": "Active session"
+  },
+  "admin_layout_logout": {
+    "es": "Cerrar sesión",
+    "en": "Sign out",
+    "it": "Sign out",
+    "pt": "Sign out",
+    "fr": "Sign out",
+    "de": "Sign out"
+  },
+  "admin_layout_header_eyebrow": {
+    "es": "Admin Core",
+    "en": "Admin Core",
+    "it": "Admin Core",
+    "pt": "Admin Core",
+    "fr": "Admin Core",
+    "de": "Admin Core"
+  },
+  "admin_layout_header_title": {
+    "es": "Operaciones Card-Social",
+    "en": "Card-Social Operations",
+    "it": "Card-Social Operations",
+    "pt": "Card-Social Operations",
+    "fr": "Card-Social Operations",
+    "de": "Card-Social Operations"
+  },
+  "admin_stats_err_summary": {
+    "es": "Resumen: {{message}}",
+    "en": "Overview: {{message}}",
+    "it": "Overview: {{message}}",
+    "pt": "Overview: {{message}}",
+    "fr": "Overview: {{message}}",
+    "de": "Overview: {{message}}"
+  },
+  "admin_stats_err_users_series": {
+    "es": "Usuarios (serie): {{message}}",
+    "en": "Users (series): {{message}}",
+    "it": "Users (series): {{message}}",
+    "pt": "Users (series): {{message}}",
+    "fr": "Users (series): {{message}}",
+    "de": "Users (series): {{message}}"
+  },
+  "admin_stats_err_bc_firestore": {
+    "es": "Business cards (Firestore): {{message}}. Si solo usas Mongo, este gráfico puede quedar vacío.",
+    "en": "Business cards (Firestore): {{message}}. If you only use Mongo, this chart may be empty.",
+    "it": "Business cards (Firestore): {{message}}. If you only use Mongo, this chart may be empty.",
+    "pt": "Business cards (Firestore): {{message}}. If you only use Mongo, this chart may be empty.",
+    "fr": "Business cards (Firestore): {{message}}. If you only use Mongo, this chart may be empty.",
+    "de": "Business cards (Firestore): {{message}}. If you only use Mongo, this chart may be empty."
+  },
+  "admin_stats_err_segmentation": {
+    "es": "Segmentación (usuarios): {{message}}",
+    "en": "User segmentation: {{message}}",
+    "it": "User segmentation: {{message}}",
+    "pt": "User segmentation: {{message}}",
+    "fr": "User segmentation: {{message}}",
+    "de": "User segmentation: {{message}}"
+  },
+  "admin_stats_err_smart_cards": {
+    "es": "Tarjetas Smart (collectionGroup cards): {{message}}",
+    "en": "Smart cards (collectionGroup cards): {{message}}",
+    "it": "Smart cards (collectionGroup cards): {{message}}",
+    "pt": "Smart cards (collectionGroup cards): {{message}}",
+    "fr": "Smart cards (collectionGroup cards): {{message}}",
+    "de": "Smart cards (collectionGroup cards): {{message}}"
+  },
+  "admin_stats_err_medal_votes": {
+    "es": "Votos de medallas (30 d): {{message}}. Comprueba índice collectionGroup en votes.votedAt.",
+    "en": "Medal votes (30 d): {{message}}. Check the collectionGroup index on votes.votedAt.",
+    "it": "Medal votes (30 d): {{message}}. Check the collectionGroup index on votes.votedAt.",
+    "pt": "Medal votes (30 d): {{message}}. Check the collectionGroup index on votes.votedAt.",
+    "fr": "Medal votes (30 d): {{message}}. Check the collectionGroup index on votes.votedAt.",
+    "de": "Medal votes (30 d): {{message}}. Check the collectionGroup index on votes.votedAt."
+  },
+  "admin_stats_note_bc_firestore_vs_mongo": {
+    "es": "Conteo Business Cards en Firestore (businessCards) puede ser menor que Mongo (business_cards). Usa el bloque Mongo del dashboard para la cifra autoritativa.",
+    "en": "Firestore businessCards count may be lower than Mongo (business_cards). Use the Mongo block on the dashboard for the authoritative figure.",
+    "it": "Firestore businessCards count may be lower than Mongo (business_cards). Use the Mongo block on the dashboard for the authoritative figure.",
+    "pt": "Firestore businessCards count may be lower than Mongo (business_cards). Use the Mongo block on the dashboard for the authoritative figure.",
+    "fr": "Firestore businessCards count may be lower than Mongo (business_cards). Use the Mongo block on the dashboard for the authoritative figure.",
+    "de": "Firestore businessCards count may be lower than Mongo (business_cards). Use the Mongo block on the dashboard for the authoritative figure."
+  },
+  "admin_stats_lang_unknown": {
+    "es": "Desconocido",
+    "en": "Unknown",
+    "it": "Unknown",
+    "pt": "Unknown",
+    "fr": "Unknown",
+    "de": "Unknown"
+  },
+  "admin_stats_lang_spanish": {
+    "es": "Español",
+    "en": "Spanish",
+    "it": "Spanish",
+    "pt": "Spanish",
+    "fr": "Spanish",
+    "de": "Spanish"
+  },
+  "admin_stats_lang_english": {
+    "es": "Inglés",
+    "en": "English",
+    "it": "English",
+    "pt": "English",
+    "fr": "English",
+    "de": "English"
+  },
+  "admin_stats_lang_custom": {
+    "es": "{{label}}",
+    "en": "{{label}}",
+    "it": "{{label}}",
+    "pt": "{{label}}",
+    "fr": "{{label}}",
+    "de": "{{label}}"
+  },
+  "admin_stats_country_unspecified": {
+    "es": "Sin especificar",
+    "en": "Unspecified",
+    "it": "Unspecified",
+    "pt": "Unspecified",
+    "fr": "Unspecified",
+    "de": "Unspecified"
+  },
+  "admin_stats_pie_other": {
+    "es": "Otros ({{count}})",
+    "en": "Other ({{count}})",
+    "it": "Other ({{count}})",
+    "pt": "Other ({{count}})",
+    "fr": "Other ({{count}})",
+    "de": "Other ({{count}})"
+  },
+  "admin_stats_tooltip_users_plural": {
+    "es": "Usuarios",
+    "en": "Users",
+    "it": "Users",
+    "pt": "Users",
+    "fr": "Users",
+    "de": "Users"
+  },
+  "admin_stats_growth_eyebrow": {
+    "es": "Growth · Estadísticas",
+    "en": "Growth · Statistics",
+    "it": "Growth · Statistics",
+    "pt": "Growth · Statistics",
+    "fr": "Growth · Statistics",
+    "de": "Growth · Statistics"
+  },
+  "admin_stats_growth_title": {
+    "es": "Dashboard de crecimiento y producto",
+    "en": "Growth & product dashboard",
+    "it": "Growth & product dashboard",
+    "pt": "Growth & product dashboard",
+    "fr": "Growth & product dashboard",
+    "de": "Growth & product dashboard"
+  },
+  "admin_stats_growth_intro": {
+    "es": "Serie temporal por createdAt. Segmentación sobre todos los documentos en Firestore users. Fase 2: negocio y licencias desde Mongo vía GET /api/admin/system-stats (gateway + JWT admin.system). Idioma en perfil: language / appLanguage.",
+    "en": "Time series by createdAt. Segmentation across all documents in Firestore users. Phase 2: business and licenses from Mongo via GET /api/admin/system-stats (gateway + JWT admin.system). Profile language: language / appLanguage.",
+    "it": "Time series by createdAt. Segmentation across all documents in Firestore users. Phase 2: business and licenses from Mongo via GET /api/admin/system-stats (gateway + JWT admin.system). Profile language: language / appLanguage.",
+    "pt": "Time series by createdAt. Segmentation across all documents in Firestore users. Phase 2: business and licenses from Mongo via GET /api/admin/system-stats (gateway + JWT admin.system). Profile language: language / appLanguage.",
+    "fr": "Time series by createdAt. Segmentation across all documents in Firestore users. Phase 2: business and licenses from Mongo via GET /api/admin/system-stats (gateway + JWT admin.system). Profile language: language / appLanguage.",
+    "de": "Time series by createdAt. Segmentation across all documents in Firestore users. Phase 2: business and licenses from Mongo via GET /api/admin/system-stats (gateway + JWT admin.system). Profile language: language / appLanguage."
+  },
+  "admin_stats_refresh": {
+    "es": "Refrescar",
+    "en": "Refresh",
+    "it": "Refresh",
+    "pt": "Refresh",
+    "fr": "Refresh",
+    "de": "Refresh"
+  },
+  "admin_stats_refresh_loading": {
+    "es": "Actualizando…",
+    "en": "Updating…",
+    "it": "Updating…",
+    "pt": "Updating…",
+    "fr": "Updating…",
+    "de": "Updating…"
+  },
+  "admin_stats_warnings_title": {
+    "es": "Avisos",
+    "en": "Notices",
+    "it": "Notices",
+    "pt": "Notices",
+    "fr": "Notices",
+    "de": "Notices"
+  },
+  "admin_stats_loading_metrics": {
+    "es": "Cargando métricas…",
+    "en": "Loading metrics…",
+    "it": "Loading metrics…",
+    "pt": "Loading metrics…",
+    "fr": "Loading metrics…",
+    "de": "Loading metrics…"
+  },
+  "admin_stats_loading_session": {
+    "es": "Cargando sesión…",
+    "en": "Loading session…",
+    "it": "Loading session…",
+    "pt": "Loading session…",
+    "fr": "Loading session…",
+    "de": "Loading session…"
+  },
+  "admin_stats_kpi_section": {
+    "es": "KPIs principales",
+    "en": "Primary KPIs",
+    "it": "Primary KPIs",
+    "pt": "Primary KPIs",
+    "fr": "Primary KPIs",
+    "de": "Primary KPIs"
+  },
+  "admin_stats_kpi_total_users": {
+    "es": "Total usuarios",
+    "en": "Total users",
+    "it": "Total users",
+    "pt": "Total users",
+    "fr": "Total users",
+    "de": "Total users"
+  },
+  "admin_stats_kpi_total_users_sub": {
+    "es": "Firestore · colección users",
+    "en": "Firestore · users collection",
+    "it": "Firestore · users collection",
+    "pt": "Firestore · users collection",
+    "fr": "Firestore · users collection",
+    "de": "Firestore · users collection"
+  },
+  "admin_stats_kpi_new_today": {
+    "es": "Nuevos hoy (UTC)",
+    "en": "New today (UTC)",
+    "it": "New today (UTC)",
+    "pt": "New today (UTC)",
+    "fr": "New today (UTC)",
+    "de": "New today (UTC)"
+  },
+  "admin_stats_kpi_new_today_sub": {
+    "es": "Altas desde medianoche UTC · ventana de series en lookback",
+    "en": "Signups since UTC midnight · series lookback window",
+    "it": "Signups since UTC midnight · series lookback window",
+    "pt": "Signups since UTC midnight · series lookback window",
+    "fr": "Signups since UTC midnight · series lookback window",
+    "de": "Signups since UTC midnight · series lookback window"
+  },
+  "admin_stats_kpi_licenses": {
+    "es": "Licencias business activas",
+    "en": "Active business licenses",
+    "it": "Active business licenses",
+    "pt": "Active business licenses",
+    "fr": "Active business licenses",
+    "de": "Active business licenses"
+  },
+  "admin_stats_kpi_licenses_sub": {
+    "es": "Mongo · vencen en 7 d: {{exp7}} · generado {{generated}}",
+    "en": "Mongo · expiring in 7 d: {{exp7}} · generated {{generated}}",
+    "it": "Mongo · expiring in 7 d: {{exp7}} · generated {{generated}}",
+    "pt": "Mongo · expiring in 7 d: {{exp7}} · generated {{generated}}",
+    "fr": "Mongo · expiring in 7 d: {{exp7}} · generated {{generated}}",
+    "de": "Mongo · expiring in 7 d: {{exp7}} · generated {{generated}}"
+  },
+  "admin_stats_kpi_licenses_requires_api": {
+    "es": "Requiere API system-stats y ADMIN_SYSTEM_STATS_UIDS en backend.",
+    "en": "Requires system-stats API and ADMIN_SYSTEM_STATS_UIDS in the backend.",
+    "it": "Requires system-stats API and ADMIN_SYSTEM_STATS_UIDS in the backend.",
+    "pt": "Requires system-stats API and ADMIN_SYSTEM_STATS_UIDS in the backend.",
+    "fr": "Requires system-stats API and ADMIN_SYSTEM_STATS_UIDS in the backend.",
+    "de": "Requires system-stats API and ADMIN_SYSTEM_STATS_UIDS in the backend."
+  },
+  "admin_stats_product_section": {
+    "es": "Producto",
+    "en": "Product",
+    "it": "Product",
+    "pt": "Product",
+    "fr": "Product",
+    "de": "Product"
+  },
+  "admin_stats_kpi_bc_mongo": {
+    "es": "Business cards (Mongo)",
+    "en": "Business cards (Mongo)",
+    "it": "Business cards (Mongo)",
+    "pt": "Business cards (Mongo)",
+    "fr": "Business cards (Mongo)",
+    "de": "Business cards (Mongo)"
+  },
+  "admin_stats_kpi_bc_mongo_sub": {
+    "es": "Colección business_cards · fuente autoritativa",
+    "en": "business_cards collection · authoritative source",
+    "it": "business_cards collection · authoritative source",
+    "pt": "business_cards collection · authoritative source",
+    "fr": "business_cards collection · authoritative source",
+    "de": "business_cards collection · authoritative source"
+  },
+  "admin_stats_kpi_smart_fs": {
+    "es": "Tarjetas Smart (Firestore)",
+    "en": "Smart cards (Firestore)",
+    "it": "Smart cards (Firestore)",
+    "pt": "Smart cards (Firestore)",
+    "fr": "Smart cards (Firestore)",
+    "de": "Smart cards (Firestore)"
+  },
+  "admin_stats_kpi_smart_fs_sub": {
+    "es": "collectionGroup users/···/cards",
+    "en": "collectionGroup users/···/cards",
+    "it": "collectionGroup users/···/cards",
+    "pt": "collectionGroup users/···/cards",
+    "fr": "collectionGroup users/···/cards",
+    "de": "collectionGroup users/···/cards"
+  },
+  "admin_stats_kpi_bc_fs": {
+    "es": "Business cards (Firestore)",
+    "en": "Business cards (Firestore)",
+    "it": "Business cards (Firestore)",
+    "pt": "Business cards (Firestore)",
+    "fr": "Business cards (Firestore)",
+    "de": "Business cards (Firestore)"
+  },
+  "admin_stats_kpi_bc_fs_sub": {
+    "es": "Top-level businessCards · espejo / legado",
+    "en": "Top-level businessCards · mirror / legacy",
+    "it": "Top-level businessCards · mirror / legacy",
+    "pt": "Top-level businessCards · mirror / legacy",
+    "fr": "Top-level businessCards · mirror / legacy",
+    "de": "Top-level businessCards · mirror / legacy"
+  },
+  "admin_stats_kpi_medals": {
+    "es": "Medallas otorgadas (30 d)",
+    "en": "Medals awarded (30 d)",
+    "it": "Medals awarded (30 d)",
+    "pt": "Medals awarded (30 d)",
+    "fr": "Medals awarded (30 d)",
+    "de": "Medals awarded (30 d)"
+  },
+  "admin_stats_kpi_medals_sub": {
+    "es": "Docs en medals/···/votes con votedAt en ventana",
+    "en": "medals/···/votes docs with votedAt in window",
+    "it": "medals/···/votes docs with votedAt in window",
+    "pt": "medals/···/votes docs with votedAt in window",
+    "fr": "medals/···/votes docs with votedAt in window",
+    "de": "medals/···/votes docs with votedAt in window"
+  },
+  "admin_stats_tiers_section_title": {
+    "es": "Tiers · usuarios Mongo por subscriptionPlan",
+    "en": "Tiers · Mongo users by subscriptionPlan",
+    "it": "Tiers · Mongo users by subscriptionPlan",
+    "pt": "Tiers · Mongo users by subscriptionPlan",
+    "fr": "Tiers · Mongo users by subscriptionPlan",
+    "de": "Tiers · Mongo users by subscriptionPlan"
+  },
+  "admin_stats_tiers_section_hint": {
+    "es": "Sincronización con la colección users en Mongo. La política de precios/límites activa del producto sigue en Firestore system_config/tiers.",
+    "en": "Synced with the users collection in Mongo. Active pricing/limits policy remains in Firestore system_config/tiers.",
+    "it": "Synced with the users collection in Mongo. Active pricing/limits policy remains in Firestore system_config/tiers.",
+    "pt": "Synced with the users collection in Mongo. Active pricing/limits policy remains in Firestore system_config/tiers.",
+    "fr": "Synced with the users collection in Mongo. Active pricing/limits policy remains in Firestore system_config/tiers.",
+    "de": "Synced with the users collection in Mongo. Active pricing/limits policy remains in Firestore system_config/tiers."
+  },
+  "admin_stats_th_plan": {
+    "es": "Plan",
+    "en": "Plan",
+    "it": "Plan",
+    "pt": "Plan",
+    "fr": "Plan",
+    "de": "Plan"
+  },
+  "admin_stats_th_users": {
+    "es": "Usuarios",
+    "en": "Users",
+    "it": "Users",
+    "pt": "Users",
+    "fr": "Users",
+    "de": "Users"
+  },
+  "admin_stats_tiers_empty": {
+    "es": "Sin documentos o el agregado devolvió vacío.",
+    "en": "No documents or aggregation returned empty.",
+    "it": "No documents or aggregation returned empty.",
+    "pt": "No documents or aggregation returned empty.",
+    "fr": "No documents or aggregation returned empty.",
+    "de": "No documents or aggregation returned empty."
+  },
+  "admin_stats_lang_chart_title": {
+    "es": "Idioma (perfil)",
+    "en": "Language (profile)",
+    "it": "Language (profile)",
+    "pt": "Language (profile)",
+    "fr": "Language (profile)",
+    "de": "Language (profile)"
+  },
+  "admin_stats_users_scanned": {
+    "es": "Usuarios escaneados: {{count}}",
+    "en": "Users scanned: {{count}}",
+    "it": "Users scanned: {{count}}",
+    "pt": "Users scanned: {{count}}",
+    "fr": "Users scanned: {{count}}",
+    "de": "Users scanned: {{count}}"
+  },
+  "admin_stats_lang_empty": {
+    "es": "Sin datos de idioma",
+    "en": "No language data",
+    "it": "No language data",
+    "pt": "No language data",
+    "fr": "No language data",
+    "de": "No language data"
+  },
+  "admin_stats_top_countries_title": {
+    "es": "Top 5 países",
+    "en": "Top 5 countries",
+    "it": "Top 5 countries",
+    "pt": "Top 5 countries",
+    "fr": "Top 5 countries",
+    "de": "Top 5 countries"
+  },
+  "admin_stats_top_countries_hint": {
+    "es": "Campo country en users",
+    "en": "users.country field",
+    "it": "users.country field",
+    "pt": "users.country field",
+    "fr": "users.country field",
+    "de": "users.country field"
+  },
+  "admin_stats_country_empty": {
+    "es": "Sin datos de país",
+    "en": "No country data",
+    "it": "No country data",
+    "pt": "No country data",
+    "fr": "No country data",
+    "de": "No country data"
+  },
+  "admin_stats_mini_new_24h": {
+    "es": "Nuevos (24 h)",
+    "en": "New (24 h)",
+    "it": "New (24 h)",
+    "pt": "New (24 h)",
+    "fr": "New (24 h)",
+    "de": "New (24 h)"
+  },
+  "admin_stats_mini_new_24h_sub": {
+    "es": "Ventana móvil",
+    "en": "Rolling window",
+    "it": "Rolling window",
+    "pt": "Rolling window",
+    "fr": "Rolling window",
+    "de": "Rolling window"
+  },
+  "admin_stats_mini_new_7d": {
+    "es": "Nuevos (7 d)",
+    "en": "New (7 d)",
+    "it": "New (7 d)",
+    "pt": "New (7 d)",
+    "fr": "New (7 d)",
+    "de": "New (7 d)"
+  },
+  "admin_stats_mini_new_7d_sub": {
+    "es": "Lookback parcial",
+    "en": "Partial lookback",
+    "it": "Partial lookback",
+    "pt": "Partial lookback",
+    "fr": "Partial lookback",
+    "de": "Partial lookback"
+  },
+  "admin_stats_mini_bc_7d": {
+    "es": "BC nuevas (7 d, FS)",
+    "en": "New BC (7 d, FS)",
+    "it": "New BC (7 d, FS)",
+    "pt": "New BC (7 d, FS)",
+    "fr": "New BC (7 d, FS)",
+    "de": "New BC (7 d, FS)"
+  },
+  "admin_stats_mini_bc_7d_sub": {
+    "es": "businessCards",
+    "en": "businessCards",
+    "it": "businessCards",
+    "pt": "businessCards",
+    "fr": "businessCards",
+    "de": "businessCards"
+  },
+  "admin_stats_mini_series_label": {
+    "es": "Usuarios (serie)",
+    "en": "Users (series)",
+    "it": "Users (series)",
+    "pt": "Users (series)",
+    "fr": "Users (series)",
+    "de": "Users (series)"
+  },
+  "admin_stats_mini_series_value": {
+    "es": "30 d",
+    "en": "30 d",
+    "it": "30 d",
+    "pt": "30 d",
+    "fr": "30 d",
+    "de": "30 d"
+  },
+  "admin_stats_mini_series_sub": {
+    "es": "Misma ventana que gráfico diario",
+    "en": "Same window as daily chart",
+    "it": "Same window as daily chart",
+    "pt": "Same window as daily chart",
+    "fr": "Same window as daily chart",
+    "de": "Same window as daily chart"
+  },
+  "admin_stats_chart_users_daily_title": {
+    "es": "Usuarios — nuevas altas por día",
+    "en": "Users — new signups per day",
+    "it": "Users — new signups per day",
+    "pt": "Users — new signups per day",
+    "fr": "Users — new signups per day",
+    "de": "Users — new signups per day"
+  },
+  "admin_stats_chart_users_daily_sub": {
+    "es": "Últimos 30 días (UTC)",
+    "en": "Last 30 days (UTC)",
+    "it": "Last 30 days (UTC)",
+    "pt": "Last 30 days (UTC)",
+    "fr": "Last 30 days (UTC)",
+    "de": "Last 30 days (UTC)"
+  },
+  "admin_stats_chart_users_weekly_title": {
+    "es": "Usuarios — nuevas altas por semana",
+    "en": "Users — new signups per week",
+    "it": "Users — new signups per week",
+    "pt": "Users — new signups per week",
+    "fr": "Users — new signups per week",
+    "de": "Users — new signups per week"
+  },
+  "admin_stats_chart_users_weekly_sub": {
+    "es": "Semanas en lunes UTC — últimas 12",
+    "en": "Weeks on UTC Monday — last 12",
+    "it": "Weeks on UTC Monday — last 12",
+    "pt": "Weeks on UTC Monday — last 12",
+    "fr": "Weeks on UTC Monday — last 12",
+    "de": "Weeks on UTC Monday — last 12"
+  },
+  "admin_stats_chart_bc_daily_title": {
+    "es": "Tarjetas de negocio (Firestore) — por día",
+    "en": "Business cards (Firestore) — per day",
+    "it": "Business cards (Firestore) — per day",
+    "pt": "Business cards (Firestore) — per day",
+    "fr": "Business cards (Firestore) — per day",
+    "de": "Business cards (Firestore) — per day"
+  },
+  "admin_stats_chart_bc_daily_sub": {
+    "es": "Nuevos documentos últimos 30 d · últimos 7 d: {{last7}}",
+    "en": "New documents last 30 d · last 7 d: {{last7}}",
+    "it": "New documents last 30 d · last 7 d: {{last7}}",
+    "pt": "New documents last 30 d · last 7 d: {{last7}}",
+    "fr": "New documents last 30 d · last 7 d: {{last7}}",
+    "de": "New documents last 30 d · last 7 d: {{last7}}"
+  },
+  "admin_stats_chart_bc_weekly_title": {
+    "es": "Tarjetas de negocio (Firestore) — por semana",
+    "en": "Business cards (Firestore) — per week",
+    "it": "Business cards (Firestore) — per week",
+    "pt": "Business cards (Firestore) — per week",
+    "fr": "Business cards (Firestore) — per week",
+    "de": "Business cards (Firestore) — per week"
+  },
+  "admin_stats_chart_bc_weekly_sub": {
+    "es": "Últimas 12 semanas (lunes UTC)",
+    "en": "Last 12 weeks (UTC Monday)",
+    "it": "Last 12 weeks (UTC Monday)",
+    "pt": "Last 12 weeks (UTC Monday)",
+    "fr": "Last 12 weeks (UTC Monday)",
+    "de": "Last 12 weeks (UTC Monday)"
+  },
+  "admin_stats_series_new_users": {
+    "es": "Nuevos usuarios",
+    "en": "New users",
+    "it": "New users",
+    "pt": "New users",
+    "fr": "New users",
+    "de": "New users"
+  },
+  "admin_stats_series_new_cards": {
+    "es": "Nuevas tarjetas",
+    "en": "New cards",
+    "it": "New cards",
+    "pt": "New cards",
+    "fr": "New cards",
+    "de": "New cards"
+  },
+  "admin_stats_week_from": {
+    "es": "Semana desde {{date}}",
+    "en": "Week from {{date}}",
+    "it": "Week from {{date}}",
+    "pt": "Week from {{date}}",
+    "fr": "Week from {{date}}",
+    "de": "Week from {{date}}"
   }
 }

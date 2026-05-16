@@ -18,19 +18,20 @@ import { Navigate } from 'react-router-dom';
 import { isSuperAdminUser } from '../auth/adminAuthGuard';
 import { useAuth } from '../auth/useAuth';
 import {
+  ADMIN_COUNTRY_UNSPECIFIED,
   getStatisticsGrowth,
   type PieSlice,
   type StatisticsGrowthResult,
 } from '../services/statsService';
 import { type SystemStatsResponse, fetchSystemStats } from '../services/systemStatsService';
+import { adminLocaleToBcp47 } from '../i18n/AdminLocaleProvider';
 import { useAdminT } from '../i18n/useAdminT';
+import { AdminLanguageToggle } from '../components/AdminLanguageToggle';
 
-type SystemStatsFetchResult =
-  | { ok: true; m: SystemStatsResponse }
-  | { ok: false };
+type SystemStatsFetchResult = { ok: true; m: SystemStatsResponse } | { ok: false };
 
-function formatInt(n: number): string {
-  return n.toLocaleString('es-ES');
+function formatInt(n: number, localeTag: string): string {
+  return n.toLocaleString(localeTag);
 }
 
 const PIE_COLORS = [
@@ -77,7 +78,8 @@ function KpiCard({
 }
 
 export default function Statistics() {
-  const { t } = useAdminT();
+  const { t, locale } = useAdminT();
+  const localeTag = adminLocaleToBcp47(locale);
   const { user, loading: authLoading } = useAuth();
   const [data, setData] = useState<StatisticsGrowthResult | null>(null);
   const [systemStats, setSystemStats] = useState<SystemStatsResponse | null>(null);
@@ -87,12 +89,13 @@ export default function Statistics() {
 
   const refresh = useCallback(async () => {
     if (!user) return;
+    const chartLocaleTag = adminLocaleToBcp47(locale);
     try {
       setLoading(true);
       setLoadError(null);
       setSystemStatsIssue(false);
       const [growth, mongoResult] = await Promise.all([
-        getStatisticsGrowth(),
+        getStatisticsGrowth({ chartLocaleTag }),
         fetchSystemStats(user)
           .then((m): SystemStatsFetchResult => ({ ok: true, m }))
           .catch((e): SystemStatsFetchResult => {
@@ -115,7 +118,7 @@ export default function Statistics() {
     } finally {
       setLoading(false);
     }
-  }, [user, t]);
+  }, [user, t, locale]);
 
   useEffect(() => {
     if (user && isSuperAdminUser(user)) {
@@ -123,7 +126,7 @@ export default function Statistics() {
     }
   }, [refresh, user]);
 
-  const pieData = useMemo(() => {
+  const pieSlices = useMemo(() => {
     const slices: PieSlice[] = data?.segmentation.languageByLabel ?? [];
     if (!slices.length) return [];
     const otherThreshold = 12;
@@ -131,13 +134,20 @@ export default function Statistics() {
     const head = slices.slice(0, otherThreshold - 1);
     const tail = slices.slice(otherThreshold - 1);
     const otherSum = tail.reduce((a, s) => a + s.value, 0);
-    return [...head, { name: `Otros (${tail.length})`, value: otherSum }];
+    return [...head, { nameKey: 'admin_stats_pie_other', nameVars: { count: String(tail.length) }, value: otherSum }];
   }, [data?.segmentation.languageByLabel]);
+
+  const pieDataForChart = useMemo(() => {
+    return pieSlices.map((s) => ({
+      ...s,
+      name: t(s.nameKey, s.nameVars),
+    }));
+  }, [pieSlices, t]);
 
   if (authLoading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center rounded-2xl border border-slate-200 bg-white">
-        <p className="text-sm text-slate-500">Cargando sesión…</p>
+        <p className="text-sm text-slate-500">{t('admin_stats_loading_session')}</p>
       </div>
     );
   }
@@ -151,32 +161,21 @@ export default function Statistics() {
       <section className="rounded-3xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/80 p-8 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.25em] text-amber-700">
-              Growth · Estadísticas
-            </p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-              Dashboard de crecimiento y producto
-            </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-              Serie temporal por <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">createdAt</code>.
-              Segmentación sobre{' '}
-              <strong className="font-medium text-slate-800">todos los documentos</strong> en Firestore{' '}
-              <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">users</code>.{' '}
-              <strong className="font-medium text-slate-800">Fase 2:</strong> negocio y licencias desde Mongo vía{' '}
-              <code className="rounded bg-slate-100 px-1.5 text-xs">GET /api/admin/system-stats</code> (gateway + JWT{' '}
-              <code className="rounded bg-slate-100 px-1">admin.system</code>).
-              Idioma en perfil: <code className="rounded bg-slate-100 px-1">language</code> /{' '}
-              <code className="rounded bg-slate-100 px-1">appLanguage</code>.
-            </p>
+            <p className="text-sm font-semibold uppercase tracking-[0.25em] text-amber-700">{t('admin_stats_growth_eyebrow')}</p>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">{t('admin_stats_growth_title')}</h1>
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">{t('admin_stats_growth_intro')}</p>
           </div>
-          <button
-            type="button"
-            className="shrink-0 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-            onClick={() => void refresh()}
-            disabled={loading}
-          >
-            {loading ? 'Actualizando…' : 'Refrescar'}
-          </button>
+          <div className="flex shrink-0 flex-wrap items-center gap-3">
+            <AdminLanguageToggle />
+            <button
+              type="button"
+              className="shrink-0 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+              onClick={() => void refresh()}
+              disabled={loading}
+            >
+              {loading ? t('admin_stats_refresh_loading') : t('admin_stats_refresh')}
+            </button>
+          </div>
         </div>
       </section>
 
@@ -195,10 +194,10 @@ export default function Statistics() {
 
       {data?.errors.length ? (
         <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950">
-          <p className="font-semibold">Avisos</p>
+          <p className="font-semibold">{t('admin_stats_warnings_title')}</p>
           <ul className="mt-2 list-inside list-disc space-y-1">
-            {data.errors.map((msg, i) => (
-              <li key={i}>{msg}</li>
+            {data.errors.map((err, i) => (
+              <li key={i}>{t(err.key, err.vars)}</li>
             ))}
           </ul>
         </section>
@@ -206,34 +205,35 @@ export default function Statistics() {
 
       {loading && !data ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-slate-500">
-          Cargando métricas…
+          {t('admin_stats_loading_metrics')}
         </div>
       ) : data ? (
         <>
           <section>
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500">
-              KPIs principales
-            </h2>
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500">{t('admin_stats_kpi_section')}</h2>
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               <KpiCard
-                title="Total usuarios"
-                value={formatInt(data.overview.usersTotal)}
-                subtitle="Firestore · colección users"
+                title={t('admin_stats_kpi_total_users')}
+                value={formatInt(data.overview.usersTotal, localeTag)}
+                subtitle={t('admin_stats_kpi_total_users_sub')}
                 accent="amber"
               />
               <KpiCard
-                title="Nuevos hoy (UTC)"
-                value={formatInt(data.overview.newUsersTodayUtc)}
-                subtitle="Altas desde medianoche UTC · ventana de series en lookback"
+                title={t('admin_stats_kpi_new_today')}
+                value={formatInt(data.overview.newUsersTodayUtc, localeTag)}
+                subtitle={t('admin_stats_kpi_new_today_sub')}
                 accent="slate"
               />
               <KpiCard
-                title="Licencias business activas"
-                value={systemStats ? formatInt(systemStats.licenses.active) : '—'}
+                title={t('admin_stats_kpi_licenses')}
+                value={systemStats ? formatInt(systemStats.licenses.active, localeTag) : '—'}
                 subtitle={
                   systemStats
-                    ? `Mongo · vencen en 7 d: ${formatInt(systemStats.licenses.expiring_next_7d)} · generado ${new Date(systemStats.generatedAt).toLocaleString('es-ES')}`
-                    : 'Requiere API system-stats y ADMIN_SYSTEM_STATS_UIDS en backend.'
+                    ? t('admin_stats_kpi_licenses_sub', {
+                        exp7: formatInt(systemStats.licenses.expiring_next_7d, localeTag),
+                        generated: new Date(systemStats.generatedAt).toLocaleString(localeTag),
+                      })
+                    : t('admin_stats_kpi_licenses_requires_api')
                 }
                 accent="violet"
               />
@@ -241,39 +241,37 @@ export default function Statistics() {
           </section>
 
           <section>
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500">
-              Producto
-            </h2>
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500">{t('admin_stats_product_section')}</h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4">
               <KpiCard
-                title="Business cards (Mongo)"
-                value={systemStats ? formatInt(systemStats.business_cards_total) : '—'}
-                subtitle="Colección business_cards · fuente autoritativa"
+                title={t('admin_stats_kpi_bc_mongo')}
+                value={systemStats ? formatInt(systemStats.business_cards_total, localeTag) : '—'}
+                subtitle={t('admin_stats_kpi_bc_mongo_sub')}
                 accent="slate"
               />
               <KpiCard
-                title="Tarjetas Smart (Firestore)"
-                value={formatInt(data.overview.smartCardsTotal)}
-                subtitle="collectionGroup users/···/cards"
+                title={t('admin_stats_kpi_smart_fs')}
+                value={formatInt(data.overview.smartCardsTotal, localeTag)}
+                subtitle={t('admin_stats_kpi_smart_fs_sub')}
                 accent="emerald"
               />
               <KpiCard
-                title="Business cards (Firestore)"
-                value={formatInt(data.overview.businessCardsTotal)}
-                subtitle="Top-level businessCards · espejo / legado"
+                title={t('admin_stats_kpi_bc_fs')}
+                value={formatInt(data.overview.businessCardsTotal, localeTag)}
+                subtitle={t('admin_stats_kpi_bc_fs_sub')}
                 accent="slate"
               />
               <KpiCard
-                title="Medallas otorgadas (30 d)"
-                value={formatInt(data.overview.medalVotesLast30d)}
-                subtitle="Docs en medals/···/votes con votedAt en ventana"
+                title={t('admin_stats_kpi_medals')}
+                value={formatInt(data.overview.medalVotesLast30d, localeTag)}
+                subtitle={t('admin_stats_kpi_medals_sub')}
                 accent="amber"
               />
             </div>
             {data.productNotes.length ? (
               <ul className="mt-3 list-inside list-disc text-xs text-slate-500">
                 {data.productNotes.map((n, i) => (
-                  <li key={i}>{n}</li>
+                  <li key={i}>{t(n.key, n.vars)}</li>
                 ))}
               </ul>
             ) : null}
@@ -281,20 +279,14 @@ export default function Statistics() {
 
           {systemStats ? (
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-950">
-                Tiers · usuarios Mongo por <code className="text-sm">subscriptionPlan</code>
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Sincronización con la colección <code className="rounded bg-slate-100 px-1">users</code> en Mongo.
-                La política de precios/límites activa del producto sigue en Firestore{' '}
-                <code className="rounded bg-slate-100 px-1">system_config/tiers</code>.
-              </p>
+              <h2 className="text-lg font-semibold text-slate-950">{t('admin_stats_tiers_section_title')}</h2>
+              <p className="mt-1 text-sm text-slate-500">{t('admin_stats_tiers_section_hint')}</p>
               <div className="mt-4 overflow-x-auto">
                 <table className="w-full min-w-[320px] text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
-                      <th className="py-2 pr-4 font-medium">Plan</th>
-                      <th className="py-2 font-medium">Usuarios</th>
+                      <th className="py-2 pr-4 font-medium">{t('admin_stats_th_plan')}</th>
+                      <th className="py-2 font-medium">{t('admin_stats_th_users')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -302,13 +294,13 @@ export default function Statistics() {
                       systemStats.mongo_users_by_subscription_plan.map((row) => (
                         <tr key={row.subscriptionPlan} className="border-b border-slate-100 last:border-0">
                           <td className="py-3 pr-4 font-medium text-slate-800">{row.subscriptionPlan}</td>
-                          <td className="py-3 tabular-nums text-slate-600">{formatInt(row.count)}</td>
+                          <td className="py-3 tabular-nums text-slate-600">{formatInt(row.count, localeTag)}</td>
                         </tr>
                       ))
                     ) : (
                       <tr>
                         <td colSpan={2} className="py-4 text-slate-400">
-                          Sin documentos o el agregado devolvió vacío.
+                          {t('admin_stats_tiers_empty')}
                         </td>
                       </tr>
                     )}
@@ -320,16 +312,16 @@ export default function Statistics() {
 
           <section className="grid gap-6 lg:grid-cols-2">
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-950">Idioma (perfil)</h2>
+              <h2 className="text-lg font-semibold text-slate-950">{t('admin_stats_lang_chart_title')}</h2>
               <p className="mt-1 text-sm text-slate-500">
-                Usuarios escaneados: {formatInt(data.segmentation.usersScanned)}
+                {t('admin_stats_users_scanned', { count: formatInt(data.segmentation.usersScanned, localeTag) })}
               </p>
               <div className="mt-4 h-72 min-h-0 w-full">
-                {pieData.length ? (
+                {pieDataForChart.length ? (
                   <ResponsiveContainer width="100%" height="100%" minHeight={1}>
                     <PieChart>
                       <Pie
-                        data={pieData}
+                        data={pieDataForChart}
                         dataKey="value"
                         nameKey="name"
                         cx="50%"
@@ -338,14 +330,14 @@ export default function Statistics() {
                         outerRadius={96}
                         paddingAngle={2}
                       >
-                        {pieData.map((_, i) => (
+                        {pieDataForChart.map((_, i) => (
                           <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} stroke="#fff" strokeWidth={1} />
                         ))}
                       </Pie>
                       <Tooltip
                         formatter={(value) => [
-                          formatInt(typeof value === 'number' ? value : Number(value) || 0),
-                          'Usuarios',
+                          formatInt(typeof value === 'number' ? value : Number(value) || 0, localeTag),
+                          t('admin_stats_tooltip_users_plural'),
                         ]}
                         contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0' }}
                       />
@@ -358,15 +350,15 @@ export default function Statistics() {
                   </ResponsiveContainer>
                 ) : (
                   <div className="flex h-full items-center justify-center text-sm text-slate-400">
-                    Sin datos de idioma
+                    {t('admin_stats_lang_empty')}
                   </div>
                 )}
               </div>
             </div>
 
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-950">Top 5 países</h2>
-              <p className="mt-1 text-sm text-slate-500">Campo country en users</p>
+              <h2 className="text-lg font-semibold text-slate-950">{t('admin_stats_top_countries_title')}</h2>
+              <p className="mt-1 text-sm text-slate-500">{t('admin_stats_top_countries_hint')}</p>
               <ol className="mt-6 space-y-4">
                 {data.segmentation.topCountries.length ? (
                   data.segmentation.topCountries.map((row) => (
@@ -378,38 +370,50 @@ export default function Statistics() {
                         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
                           {row.rank}
                         </span>
-                        <span className="font-medium text-slate-800">{row.country}</span>
+                        <span className="font-medium text-slate-800">
+                          {row.country === ADMIN_COUNTRY_UNSPECIFIED ? t('admin_stats_country_unspecified') : row.country}
+                        </span>
                       </div>
                       <span className="tabular-nums text-sm font-semibold text-slate-600">
-                        {formatInt(row.count)}
+                        {formatInt(row.count, localeTag)}
                       </span>
                     </li>
                   ))
                 ) : (
-                  <li className="text-sm text-slate-400">Sin datos de país</li>
+                  <li className="text-sm text-slate-400">{t('admin_stats_country_empty')}</li>
                 )}
               </ol>
             </div>
           </section>
 
           <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              ['Nuevos (24 h)', formatInt(data.overview.newUsersLast24h), 'Ventana móvil'],
-              ['Nuevos (7 d)', formatInt(data.overview.newUsersLast7d), 'Lookback parcial'],
-              ['BC nuevas (7 d, FS)', formatInt(data.overview.newBusinessCardsLast7d), 'businessCards'],
-              ['Usuarios (serie)', '30 d', 'Misma ventana que gráfico diario'],
-            ].map(([a, b, c]) => (
-              <article key={String(a)} className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{a}</p>
-                <p className="mt-2 text-xl font-semibold text-slate-900">{b}</p>
-                <p className="mt-1 text-xs text-slate-500">{c}</p>
-              </article>
-            ))}
+            <article className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{t('admin_stats_mini_new_24h')}</p>
+              <p className="mt-2 text-xl font-semibold text-slate-900">{formatInt(data.overview.newUsersLast24h, localeTag)}</p>
+              <p className="mt-1 text-xs text-slate-500">{t('admin_stats_mini_new_24h_sub')}</p>
+            </article>
+            <article className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{t('admin_stats_mini_new_7d')}</p>
+              <p className="mt-2 text-xl font-semibold text-slate-900">{formatInt(data.overview.newUsersLast7d, localeTag)}</p>
+              <p className="mt-1 text-xs text-slate-500">{t('admin_stats_mini_new_7d_sub')}</p>
+            </article>
+            <article className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{t('admin_stats_mini_bc_7d')}</p>
+              <p className="mt-2 text-xl font-semibold text-slate-900">
+                {formatInt(data.overview.newBusinessCardsLast7d, localeTag)}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">{t('admin_stats_mini_bc_7d_sub')}</p>
+            </article>
+            <article className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{t('admin_stats_mini_series_label')}</p>
+              <p className="mt-2 text-xl font-semibold text-slate-900">{t('admin_stats_mini_series_value')}</p>
+              <p className="mt-1 text-xs text-slate-500">{t('admin_stats_mini_series_sub')}</p>
+            </article>
           </section>
 
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-950">Usuarios — nuevas altas por día</h2>
-            <p className="mt-1 text-sm text-slate-500">Últimos 30 días (UTC)</p>
+            <h2 className="text-lg font-semibold text-slate-950">{t('admin_stats_chart_users_daily_title')}</h2>
+            <p className="mt-1 text-sm text-slate-500">{t('admin_stats_chart_users_daily_sub')}</p>
             <div className="mt-6 h-80 min-h-0 w-full">
               <ResponsiveContainer width="100%" height="100%" minHeight={1}>
                 <AreaChart data={data.usersDaily} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -431,7 +435,7 @@ export default function Statistics() {
                   <Area
                     type="monotone"
                     dataKey="count"
-                    name="Nuevos usuarios"
+                    name={t('admin_stats_series_new_users')}
                     stroke="#d97706"
                     strokeWidth={2}
                     fill="url(#fillUsers)"
@@ -442,8 +446,8 @@ export default function Statistics() {
           </section>
 
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-950">Usuarios — nuevas altas por semana</h2>
-            <p className="mt-1 text-sm text-slate-500">Semanas en lunes UTC — últimas 12</p>
+            <h2 className="text-lg font-semibold text-slate-950">{t('admin_stats_chart_users_weekly_title')}</h2>
+            <p className="mt-1 text-sm text-slate-500">{t('admin_stats_chart_users_weekly_sub')}</p>
             <div className="mt-6 h-80 min-h-0 w-full">
               <ResponsiveContainer width="100%" height="100%" minHeight={1}>
                 <BarChart data={data.usersWeekly} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -453,20 +457,26 @@ export default function Statistics() {
                   <Tooltip
                     contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0' }}
                     labelFormatter={(_, payload) =>
-                      payload?.[0]?.payload?.key ? `Semana desde ${String(payload[0].payload.key)}` : ''
+                      payload?.[0]?.payload?.key
+                        ? t('admin_stats_week_from', { date: String(payload[0].payload.key) })
+                        : ''
                     }
                   />
-                  <Bar dataKey="count" name="Nuevos usuarios" fill="#0f172a" radius={[6, 6, 0, 0]} />
+                  <Bar
+                    dataKey="count"
+                    name={t('admin_stats_series_new_users')}
+                    fill="#0f172a"
+                    radius={[6, 6, 0, 0]}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </section>
 
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-950">Tarjetas de negocio (Firestore) — por día</h2>
+            <h2 className="text-lg font-semibold text-slate-950">{t('admin_stats_chart_bc_daily_title')}</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Nuevos documentos últimos 30 d · últimos 7 d:{' '}
-              <strong>{formatInt(data.overview.newBusinessCardsLast7d)}</strong>
+              {t('admin_stats_chart_bc_daily_sub', { last7: formatInt(data.overview.newBusinessCardsLast7d, localeTag) })}
             </p>
             <div className="mt-6 h-72 min-h-0 w-full">
               <ResponsiveContainer width="100%" height="100%" minHeight={1}>
@@ -489,7 +499,7 @@ export default function Statistics() {
                   <Area
                     type="monotone"
                     dataKey="count"
-                    name="Nuevas tarjetas"
+                    name={t('admin_stats_series_new_cards')}
                     stroke="#059669"
                     strokeWidth={2}
                     fill="url(#fillBc)"
@@ -500,8 +510,8 @@ export default function Statistics() {
           </section>
 
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-950">Tarjetas de negocio (Firestore) — por semana</h2>
-            <p className="mt-1 text-sm text-slate-500">Últimas 12 semanas (lunes UTC)</p>
+            <h2 className="text-lg font-semibold text-slate-950">{t('admin_stats_chart_bc_weekly_title')}</h2>
+            <p className="mt-1 text-sm text-slate-500">{t('admin_stats_chart_bc_weekly_sub')}</p>
             <div className="mt-6 h-72 min-h-0 w-full">
               <ResponsiveContainer width="100%" height="100%" minHeight={1}>
                 <BarChart data={data.businessCardsWeekly} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -511,10 +521,17 @@ export default function Statistics() {
                   <Tooltip
                     contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0' }}
                     labelFormatter={(_, payload) =>
-                      payload?.[0]?.payload?.key ? `Semana desde ${String(payload[0].payload.key)}` : ''
+                      payload?.[0]?.payload?.key
+                        ? t('admin_stats_week_from', { date: String(payload[0].payload.key) })
+                        : ''
                     }
                   />
-                  <Bar dataKey="count" name="Nuevas tarjetas" fill="#047857" radius={[6, 6, 0, 0]} />
+                  <Bar
+                    dataKey="count"
+                    name={t('admin_stats_series_new_cards')}
+                    fill="#047857"
+                    radius={[6, 6, 0, 0]}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>

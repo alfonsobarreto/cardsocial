@@ -7,7 +7,7 @@ import { getActiveUserId } from '@/services/authSession';
 import { redeemQRGift } from '@/services/qrGiftService';
 import { redeemVipCampaign, type VipCampaignRedeemResult } from '@/services/vipCampaignService';
 import { ConfettiAnimation } from '../components/ConfettiAnimation';
-import { trEsEn, useLanguage } from '@/services/language';
+import { useCoreT } from '@/services/coreI18n';
 import { useLookMode } from '@/services/lookMode';
 import palette from './theme';
 
@@ -18,8 +18,7 @@ interface ConfettiRef {
 export default function RedeemScreen() {
   const router = useRouter();
   const { code, campaignCode } = useLocalSearchParams();
-  const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const t = useCoreT();
   const { resolvedMode } = useLookMode();
   const isDark = resolvedMode === 'noche';
   const shell = palette[isDark ? 'dark' : 'light'];
@@ -133,7 +132,7 @@ export default function RedeemScreen() {
 
       const userId = await getActiveUserId();
       if (!userId) {
-        setError(tr('No se pudo identificar tu usuario. Por favor, inicia sesión.', 'Could not identify your user. Please sign in.'));
+        setError(t('redeem_user_unknown'));
         setLoading(false);
         return;
       }
@@ -142,24 +141,21 @@ export default function RedeemScreen() {
       const vipCampaignCode = typeof campaignCode === 'string' ? campaignCode : '';
 
       if (!giftCode && !vipCampaignCode) {
-        setError(tr('Código de regalo inválido', 'Invalid gift code'));
+        setError(t('redeem_invalid_code'));
         setLoading(false);
         return;
       }
 
       if (vipCampaignCode) {
         const result = await redeemVipCampaign(vipCampaignCode, userId);
-        const tierLabel = result.grantedTier === 'business' ? 'Business' : 'Influencer';
+        const tierLabel = result.grantedTier === 'business' ? t('sub_tier_business') : t('sub_tier_influencer');
         setCampaignReward(result);
         setSuccess(true);
         setLoading(false);
 
         Alert.alert(
-          tr('¡Felicidades!', 'Congratulations!'),
-          tr(
-            `¡Felicidades! Has sido ascendido al nivel ${tierLabel} por ${result.durationDays} días.`,
-            `Congratulations! You have been upgraded to ${tierLabel} for ${result.durationDays} days.`,
-          ),
+          t('redeem_congrats_title'),
+          t('redeem_vip_upgrade_body', { tier: tierLabel, days: result.durationDays }),
         );
 
         if (confettiRef.current) {
@@ -190,7 +186,7 @@ export default function RedeemScreen() {
         setLoading(false);
       }
     } catch {
-      setError(tr('No se pudo canjear el código. Intenta de nuevo.', 'Could not redeem the code. Try again.'));
+      setError(t('redeem_code_failed'));
       setLoading(false);
     }
   };
@@ -200,7 +196,7 @@ export default function RedeemScreen() {
       <LinearGradient colors={shell.vipBannerGradient} style={styles.container}>
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color={shell.ctaAccent} />
-          <Text style={styles.loadingText}>{tr('Validando regalo...', 'Validating gift...')}</Text>
+          <Text style={styles.loadingText}>{t('redeem_validating')}</Text>
         </View>
       </LinearGradient>
     );
@@ -211,7 +207,7 @@ export default function RedeemScreen() {
       <LinearGradient colors={shell.vipBannerGradient} style={styles.container}>
         <View style={styles.centerContent}>
           <MaterialCommunityIcons name="alert-circle" size={60} color={shell.danger} />
-          <Text style={styles.errorTitle}>{tr('❌ No se pudo canjear', '❌ Could not redeem')}</Text>
+          <Text style={styles.errorTitle}>{t('redeem_error_title')}</Text>
           <Text style={styles.errorText}>{error}</Text>
         </View>
       </LinearGradient>
@@ -226,13 +222,13 @@ export default function RedeemScreen() {
         <View style={styles.centerContent}>
           <MaterialCommunityIcons name="gift" size={80} color={shell.ctaAccent} />
 
-          <Text style={styles.successTitle}>{tr('🎉 ¡Regalo Canjeado!', '🎉 Gift Redeemed!')}</Text>
+          <Text style={styles.successTitle}>{t('redeem_gift_success_title')}</Text>
 
           <View style={styles.rewardBox}>
             <View style={styles.rewardItem}>
               <MaterialCommunityIcons name="cash" size={24} color={shell.ctaAccent} />
               <Text style={styles.rewardValue}>{rewardDetails.credits}</Text>
-              <Text style={styles.rewardLabel}>{tr('Créditos', 'Credits')}</Text>
+              <Text style={styles.rewardLabel}>{t('redeem_credits_label')}</Text>
             </View>
 
             <View style={styles.divider} />
@@ -240,26 +236,28 @@ export default function RedeemScreen() {
             <View style={styles.rewardItem}>
               <MaterialCommunityIcons name="crown" size={24} color={shell.ctaAccent} />
               <Text style={styles.rewardValue}>{rewardDetails.months}</Text>
-              <Text style={styles.rewardLabel}>{tr('Mes(es) Premium', 'Month(s) Premium')}</Text>
+              <Text style={styles.rewardLabel}>{t('redeem_months_premium_label')}</Text>
             </View>
           </View>
 
           <Text style={styles.successMessage}>
-            {tr(`¡Pochobs te ha regalado ${rewardDetails.credits} CS y ${rewardDetails.months} mes${rewardDetails.months > 1 ? 'es' : ''} de Premium!`, `Pochobs have gifted you ${rewardDetails.credits} CS and ${rewardDetails.months} month${rewardDetails.months > 1 ? 's' : ''} of Premium!`)}
+            {rewardDetails.months > 1
+              ? t('redeem_gift_body_n_months', { credits: rewardDetails.credits, months: rewardDetails.months })
+              : t('redeem_gift_body_one_month', { credits: rewardDetails.credits })}
           </Text>
 
           <Text style={styles.thankYouText}>
-            {tr('Gracias por ser parte de la comunidad Card-Social 💙', 'Thank you for being part of the Card-Social community 💙')}
+            {t('redeem_thanks_community')}
           </Text>
 
-          <Text style={styles.autoCloseText}>{tr('Cerrando en 3 segundos...', 'Closing in 3 seconds...')}</Text>
+          <Text style={styles.autoCloseText}>{t('redeem_closing_seconds')}</Text>
         </View>
       </LinearGradient>
     );
   }
 
   if (success && campaignReward) {
-    const tierLabel = campaignReward.grantedTier === 'business' ? 'Business' : 'Influencer';
+    const tierLabel = campaignReward.grantedTier === 'business' ? t('sub_tier_business') : t('sub_tier_influencer');
     return (
       <LinearGradient colors={shell.vipBannerGradient} style={styles.container}>
         <ConfettiAnimation ref={confettiRef} />
@@ -267,13 +265,13 @@ export default function RedeemScreen() {
         <View style={styles.centerContent}>
           <MaterialCommunityIcons name="crown" size={86} color={shell.ctaAccent} />
 
-          <Text style={styles.successTitle}>{tr('🎉 ¡Ascenso VIP!', '🎉 VIP Upgrade!')}</Text>
+          <Text style={styles.successTitle}>{t('redeem_vip_screen_title')}</Text>
 
           <View style={styles.rewardBox}>
             <View style={styles.rewardItem}>
               <MaterialCommunityIcons name="star-circle" size={28} color={shell.ctaAccent} />
               <Text style={styles.rewardValue}>{tierLabel}</Text>
-              <Text style={styles.rewardLabel}>{tr('Nuevo nivel', 'New tier')}</Text>
+              <Text style={styles.rewardLabel}>{t('redeem_new_tier')}</Text>
             </View>
 
             <View style={styles.divider} />
@@ -281,22 +279,19 @@ export default function RedeemScreen() {
             <View style={styles.rewardItem}>
               <MaterialCommunityIcons name="calendar-check" size={28} color={shell.ctaAccent} />
               <Text style={styles.rewardValue}>{campaignReward.durationDays}</Text>
-              <Text style={styles.rewardLabel}>{tr('Días', 'Days')}</Text>
+              <Text style={styles.rewardLabel}>{t('redeem_days_label')}</Text>
             </View>
           </View>
 
           <Text style={styles.successMessage}>
-            {tr(
-              `¡Felicidades! Has sido ascendido al nivel ${tierLabel} por ${campaignReward.durationDays} días.`,
-              `Congratulations! You have been upgraded to ${tierLabel} for ${campaignReward.durationDays} days.`,
-            )}
+            {t('redeem_vip_upgrade_body', { tier: tierLabel, days: campaignReward.durationDays })}
           </Text>
 
           <Text style={styles.thankYouText}>
-            {tr('Tu beneficio ya está activo en Card-Social.', 'Your benefit is now active in Card-Social.')}
+            {t('redeem_benefit_active')}
           </Text>
 
-          <Text style={styles.autoCloseText}>{tr('Cerrando en 3 segundos...', 'Closing in 3 seconds...')}</Text>
+          <Text style={styles.autoCloseText}>{t('redeem_closing_seconds')}</Text>
         </View>
       </LinearGradient>
     );

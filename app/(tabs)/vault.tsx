@@ -11,7 +11,8 @@ import { db } from '@/services/firebaseConfig';
 import { readUserFullName, readUserNickName } from '@/services/userIdentityFields';
 import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstrap';
 import { creationT } from '@/services/creationI18n';
-import { trEsEn, useLanguage } from '@/services/language';
+import { coreT, useCoreT, type CoreLocaleKey } from '@/services/coreI18n';
+import { useLanguage } from '@/services/language';
 import { listBusinessLicenses } from '@/services/businessLicenseService';
 import { validateVaultItemCreation } from '@/services/limitService';
 import { useLookMode } from '@/services/lookMode';
@@ -34,7 +35,7 @@ import { VAULT_LINK_SAVED_EVENT, type VaultLinkSavedPayload } from '@/services/v
 import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
 import { buildLinkOpenCandidates, ensureWebUrl } from '@/services/mirrorVaultItemOpenPlan';
 import { isClassicPhoneVaultType } from '@/services/vaultItemTypeGuards';
-import { presentDetectedQrAlert, scanQrFromImageUri } from '@/services/vaultImageQrScan';
+import { presentDetectedQrFromT, scanQrFromImageUri } from '@/services/vaultImageQrScan';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
@@ -121,7 +122,7 @@ const VaultScreen = () => {
   const router = useRouter();
   const { language } = useLanguage();
   const { resolvedMode } = useLookMode();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const t = useCoreT();
   const isNight = resolvedMode === 'noche';
   const vaultTheme = appPalette[isNight ? 'dark' : 'light'];
   const [links, setLinks] = useState<Link[]>([]);
@@ -129,7 +130,9 @@ const VaultScreen = () => {
   const [formModalVisible, setFormModalVisible] = useState(false);
   const [formRenderNonce, setFormRenderNonce] = useState(0);
   const [editingData, setEditingData] = useState<Link | undefined>(undefined);
-  const [profileDisplayName, setProfileDisplayName] = useState(() => tr('Usuario', 'User'));
+  const [profileDisplayName, setProfileDisplayName] = useState(() =>
+    coreT('vault_user_display_fallback', language),
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [isUserVerified, setIsUserVerified] = useState(false);
   const [limitReachedVisible, setLimitReachedVisible] = useState(false);
@@ -239,8 +242,8 @@ const VaultScreen = () => {
       console.warn('Cloud read failed, keeping cached data:', cloudError);
       Toast.show({
         type: 'error',
-        text1: tr('Sin conexión — mostrando datos locales', 'Offline — showing local data'),
-        text2: tr('Los cambios se sincronizarán al reconectar', 'Changes will sync when back online'),
+        text1: t('vault_offline_toast_title'),
+        text2: t('vault_offline_toast_sub'),
         position: 'bottom',
         visibilityTime: 3000,
         autoHide: true,
@@ -345,7 +348,7 @@ const VaultScreen = () => {
   useFocusEffect(
     React.useCallback(() => {
       const verifyAccess = async () => {
-        const authenticated = await hardLockCheck(tr('acceso a tu Bóveda de datos', 'access to your Vault'));
+        const authenticated = await hardLockCheck(t('vault_biometric_access_vault'));
         setIsVaultUnlocked(authenticated);
         if (authenticated) {
           InteractionManager.runAfterInteractions(() => {
@@ -360,7 +363,7 @@ const VaultScreen = () => {
         }
       };
       verifyAccess();
-    }, [])
+    }, [t]),
   );
 
   const evaluateDullMode = async (): Promise<boolean> => {
@@ -406,7 +409,7 @@ const VaultScreen = () => {
       }
 
       let displayName = readUserFullName(userData);
-      const defaultName = tr('Usuario', 'User');
+      const defaultName = t('vault_user_display_fallback');
       if (displayName === 'Usuario' || displayName === 'User' || displayName === defaultName) {
         displayName =
           readUserNickName(userData) || String(userData.firstName || '').trim() || defaultName;
@@ -424,15 +427,12 @@ const VaultScreen = () => {
     try {
       if (isGhostLinkVaultDeletionProtected(link.type) || link.vaultProtected) {
         Alert.alert(
-          tr('Protegido', 'Protected'),
-          tr(
-            'Ghost-Link es un servicio base de Card-Social: no se puede eliminar. Puedes editar el título y el icono.',
-            'Ghost-Link is a core Card-Social service: it cannot be deleted. You can edit the title and icon.',
-          ),
+          t('vault_ghost_delete_title'),
+          t('vault_ghost_delete_body'),
         );
         return;
       }
-      const biometricOk = await hardLockCheck(tr('eliminar datos del Búnker', 'delete Bunker data'));
+      const biometricOk = await hardLockCheck(t('vault_biometric_delete_bunker'));
       if (!biometricOk) {
         return;
       }
@@ -456,10 +456,10 @@ const VaultScreen = () => {
 
       Toast.show({
         type: 'success',
-        text1: tr('🗑️ Eliminado del Búnker', '🗑️ Removed from Vault'),
+        text1: t('vault_delete_toast_title'),
         text2: cloudOk
-          ? tr(`"${link.title}" sincronizado`, `"${link.title}" synced`)
-          : tr(`"${link.title}" eliminado localmente`, `"${link.title}" removed locally`),
+          ? t('vault_delete_synced_sub', { title: link.title })
+          : t('vault_delete_local_sub', { title: link.title }),
         position: 'bottom',
         visibilityTime: 3000,
         autoHide: true,
@@ -468,7 +468,7 @@ const VaultScreen = () => {
       console.error('Error deleting link:', error);
       Toast.show({
         type: 'error',
-        text1: tr('❌ No se pudo eliminar', '❌ Could not delete'),
+        text1: t('vault_delete_fail_toast'),
         position: 'bottom',
         visibilityTime: 3000,
         autoHide: true,
@@ -479,7 +479,7 @@ const VaultScreen = () => {
   // Toggle favorito
   const toggleFavorite = async (link: Link) => {
     try {
-      const biometricOk = await hardLockCheck(tr('marcar favorito en el Búnker', 'toggle Bunker favorite'));
+      const biometricOk = await hardLockCheck(t('vault_biometric_toggle_favorite'));
       if (!biometricOk) {
         return;
       }
@@ -520,9 +520,7 @@ const VaultScreen = () => {
 
       Toast.show({
         type: 'success',
-        text1: nextFavorite
-          ? tr('⭐ Agregado a favoritos', '⭐ Added to favorites')
-          : tr('Favorito eliminado', 'Removed from favorites'),
+        text1: nextFavorite ? t('vault_favorite_added') : t('vault_favorite_removed'),
         text2: link.title,
         position: 'bottom',
         visibilityTime: 2000,
@@ -532,7 +530,7 @@ const VaultScreen = () => {
       console.error('Error updating favorite:', error);
       Toast.show({
         type: 'error',
-        text1: tr('❌ No se pudo actualizar favorito', '❌ Could not update favorite'),
+        text1: t('vault_favorite_update_fail'),
         position: 'bottom',
         visibilityTime: 3000,
         autoHide: true,
@@ -590,8 +588,8 @@ const VaultScreen = () => {
     } catch {
       Toast.show({
         type: 'error',
-        text1: tr('❌ Error', '❌ Error'),
-        text2: tr('No se pudo abrir el enlace.', 'Could not open the link.'),
+        text1: t('vault_warn_error_title'),
+        text2: t('vault_open_link_fail'),
         position: 'bottom',
         visibilityTime: 3000,
         autoHide: true,
@@ -602,7 +600,7 @@ const VaultScreen = () => {
   const openNativeEmailComposer = async (email: string) => {
     const normalizedEmail = String(email || '').trim();
     if (!normalizedEmail) {
-      Alert.alert(tr('Correo inválido', 'Invalid email'), tr('No hay un correo válido para abrir.', 'No valid email to open.'));
+      Alert.alert(t('vault_email_invalid_title'), t('vault_email_invalid_body'));
       return;
     }
 
@@ -627,8 +625,8 @@ const VaultScreen = () => {
 
     if (Platform.OS === 'ios') {
       Alert.alert(
-        tr('Selecciona app de correo', 'Choose email app'),
-        tr('Elige desde qué app quieres enviar este correo.', 'Choose which app you want to use to send this email.'),
+        t('vault_mail_chooser_title'),
+        t('vault_mail_chooser_body'),
         [
           {
             text: 'Mail',
@@ -655,7 +653,7 @@ const VaultScreen = () => {
             },
           },
           {
-            text: tr('Cancelar', 'Cancel'),
+            text: t('common_cancel'),
             style: 'cancel',
           },
         ]
@@ -665,7 +663,7 @@ const VaultScreen = () => {
 
     const opened = await tryOpen(gmailTarget, outlookTarget, mailtoTarget);
     if (!opened) {
-      Alert.alert(tr('App no disponible', 'App not available'), tr('No hay una app de correo disponible en este dispositivo.', 'No email app is available on this device.'));
+      Alert.alert(t('vault_mail_app_unavailable_title'), t('vault_mail_app_unavailable_body'));
     }
   };
 
@@ -674,12 +672,12 @@ const VaultScreen = () => {
     triggerSuccessHaptic();
     presentPremiumDataPanel({
       presentation: 'sovereign-text',
-      title: link.title || tr('Texto', 'Text'),
+      title: link.title || t('vault_sovereign_text_title'),
       body: text || '—',
       icon: 'text-box-outline',
       copyText: text,
       actions: [
-        { label: tr('Cerrar', 'Close'), variant: 'secondary', onPress: dismissPremiumDataPanel },
+        { label: t('common_close'), variant: 'secondary', onPress: dismissPremiumDataPanel },
       ],
     });
   };
@@ -689,13 +687,13 @@ const VaultScreen = () => {
     try {
       Toast.show({
         type: 'info',
-        text1: tr('Abriendo PDF…', 'Opening PDF…'),
-        text2: tr('Descargando para visualización', 'Downloading for viewing'),
+        text1: t('vault_pdf_opening_toast'),
+        text2: t('vault_pdf_downloading_view'),
         position: 'bottom',
         visibilityTime: 2000,
         autoHide: true,
       });
-      const safeName = `${link.title || tr('documento', 'document')}-${Date.now()}`.replace(/[^a-zA-Z0-9-_]/g, '_');
+      const safeName = `${link.title || t('vault_download_filename_doc')}-${Date.now()}`.replace(/[^a-zA-Z0-9-_]/g, '_');
       const targetUri = `${FileSystem.cacheDirectory}${safeName}.pdf`;
       const fileUrl = resolveVaultMediaUrlForApp(link.value) ?? link.value;
       await FileSystem.downloadAsync(fileUrl, targetUri);
@@ -704,7 +702,7 @@ const VaultScreen = () => {
         await Sharing.shareAsync(targetUri, {
           mimeType: 'application/pdf',
           UTI: 'com.adobe.pdf',
-          dialogTitle: link.title || tr('Documento PDF', 'PDF document'),
+          dialogTitle: link.title || t('vault_pdf_document_title'),
         });
       } else {
         // Fallback: abrir URL directamente en el browser
@@ -714,8 +712,8 @@ const VaultScreen = () => {
     } catch {
       Toast.show({
         type: 'error',
-        text1: tr('Error', 'Error'),
-        text2: tr('No se pudo abrir el PDF.', 'Could not open the PDF.'),
+        text1: t('common_error'),
+        text2: t('vault_pdf_open_fail_toast'),
         position: 'bottom',
         visibilityTime: 3000,
         autoHide: true,
@@ -725,7 +723,7 @@ const VaultScreen = () => {
 
   const openDocumentViewer = async (link: Link) => {
     const biometricOk = await hardLockCheck(
-      tr('abrir el visor de documentos del Búnker', 'open the Bunker document viewer'),
+      t('vault_biometric_open_doc_viewer'),
     );
     if (!biometricOk) {
       return;
@@ -765,10 +763,10 @@ const VaultScreen = () => {
         } catch {
           /* noop */
         }
-        presentDetectedQrAlert(payload, tr, () => {
+        presentDetectedQrFromT(payload, (k) => t(k as CoreLocaleKey), () => {
           Toast.show({
             type: 'success',
-            text1: tr('Copiado', 'Copied'),
+            text1: t('vault_copied'),
             position: 'bottom',
             visibilityTime: 1800,
             autoHide: true,
@@ -782,8 +780,8 @@ const VaultScreen = () => {
         }
         Toast.show({
           type: 'info',
-          text1: tr('Sin código detectado', 'No code detected'),
-          text2: tr('No se encontró un QR en esta imagen.', 'No QR was found in this image.'),
+          text1: t('vault_no_qr'),
+          text2: t('vault_no_qr_body'),
           position: 'bottom',
           visibilityTime: 2200,
           autoHide: true,
@@ -793,8 +791,8 @@ const VaultScreen = () => {
       if (session === viewerQrScanGenRef.current) {
         Toast.show({
           type: 'info',
-          text1: tr('Sin código detectado', 'No code detected'),
-          text2: tr('No se pudo analizar la imagen.', 'Could not analyze the image.'),
+          text1: t('vault_no_qr'),
+          text2: t('vault_no_qr_analyze'),
           position: 'bottom',
           visibilityTime: 2200,
           autoHide: true,
@@ -805,7 +803,7 @@ const VaultScreen = () => {
         setViewerQrAnalyzing(false);
       }
     }
-  }, [tr, viewerItem]);
+  }, [t, viewerItem]);
 
   const handleDownloadFromViewer = async () => {
     if (!viewerItem?.value) {
@@ -814,7 +812,7 @@ const VaultScreen = () => {
 
     try {
       setIsDownloadingViewerFile(true);
-      const fileNameSafe = `${viewerItem.title || tr('archivo', 'file')}-${Date.now()}`.replace(/[^a-zA-Z0-9-_]/g, '_');
+      const fileNameSafe = `${viewerItem.title || t('vault_download_filename_file')}-${Date.now()}`.replace(/[^a-zA-Z0-9-_]/g, '_');
       const extension = isVaultDocumentPdf(viewerItem.value, viewerItem.vaultMimeType) ? 'pdf' : 'jpg';
       const targetUri = `${FileSystem.cacheDirectory}${fileNameSafe}.${extension}`;
 
@@ -827,14 +825,14 @@ const VaultScreen = () => {
           mimeType: isVaultDocumentPdf(viewerItem.value, viewerItem.vaultMimeType)
             ? 'application/pdf'
             : 'image/jpeg',
-          dialogTitle: tr('Descargar archivo del Búnker', 'Download Bunker file'),
+          dialogTitle: t('vault_viewer_download_dialog_title'),
         });
       }
 
       Toast.show({
         type: 'success',
-        text1: tr('📥 Descarga lista', '📥 Download ready'),
-        text2: tr('Archivo preparado en tu dispositivo', 'File ready on your device'),
+        text1: t('vault_toast_download_title'),
+        text2: t('vault_toast_download_body'),
         position: 'bottom',
         visibilityTime: 3000,
         autoHide: true,
@@ -843,7 +841,7 @@ const VaultScreen = () => {
       console.error('Download from viewer failed:', error);
       Toast.show({
         type: 'error',
-        text1: tr('❌ No se pudo descargar', '❌ Download failed'),
+        text1: t('vault_toast_download_fail'),
         position: 'bottom',
         visibilityTime: 3000,
         autoHide: true,
@@ -860,17 +858,14 @@ const VaultScreen = () => {
 
       if (isGhostLinkVaultType(link.type)) {
         Alert.alert(
-          tr('Ghost-Link', 'Ghost-Link'),
-          tr(
-            'Este ítem activa una llamada VoIP privada cuando alguien lo usa en tu tarjeta compartida. No guarda número en el Búnker.',
-            'This item starts a private VoIP call when someone uses it on your shared card. It does not store a phone number in the Vault.',
-          ),
+          t('vault_badge_ghost'),
+          t('vault_ghost_item_body'),
         );
         return;
       }
 
       if (!rawValue) {
-        Alert.alert(tr('⚠️ Error', '⚠️ Error'), tr('El dato está vacío', 'The data is empty'));
+        Alert.alert(t('vault_warn_error_title'), t('vault_empty_field_body'));
         return;
       }
 
@@ -904,7 +899,7 @@ const VaultScreen = () => {
       openSovereignTextPanel(link);
     } catch (error) {
       console.error('Error running action:', error);
-      Alert.alert(tr('❌ Error', '❌ Error'), tr('No se pudo ejecutar la acción', 'Could not execute the action'));
+      Alert.alert(t('vault_warn_error_title'), t('vault_action_fail'));
     }
   };
 
@@ -1052,7 +1047,7 @@ const VaultScreen = () => {
       return;
     }
 
-    const biometricOk = await hardLockCheck(tr('editar datos del Búnker', 'edit Bunker data'));
+    const biometricOk = await hardLockCheck(t('vault_biometric_edit_bunker'));
     if (!biometricOk) {
       return;
     }
@@ -1063,14 +1058,14 @@ const VaultScreen = () => {
     setFormModalVisible(true);
   };
 
-  const TYPE_BADGE_MAP: Record<string, { icon: string; label: string; labelEn: string }> = {
-    'enlaces': { icon: 'link-variant', label: 'Enlace', labelEn: 'Link' },
-    'email': { icon: 'email-outline', label: 'Email', labelEn: 'Email' },
-    'teléfono': { icon: 'phone-lock', label: 'Teléfono', labelEn: 'Phone' },
-    'telefono': { icon: 'phone-lock', label: 'Teléfono', labelEn: 'Phone' },
-    'texto plain': { icon: 'text-short', label: 'Texto', labelEn: 'Text' },
-    'documento': { icon: 'file-document-outline', label: 'Doc', labelEn: 'Doc' },
-    'ghost-link': { icon: 'phone-in-talk', label: 'Ghost-Link', labelEn: 'Ghost-Link' },
+  const TYPE_BADGE_MAP: Record<string, { icon: string; labelKey: CoreLocaleKey }> = {
+    'enlaces': { icon: 'link-variant', labelKey: 'vault_badge_link' },
+    'email': { icon: 'email-outline', labelKey: 'vault_badge_email' },
+    'teléfono': { icon: 'phone-lock', labelKey: 'vault_badge_phone' },
+    'telefono': { icon: 'phone-lock', labelKey: 'vault_badge_phone' },
+    'texto plain': { icon: 'text-short', labelKey: 'vault_badge_text' },
+    'documento': { icon: 'file-document-outline', labelKey: 'vault_badge_doc' },
+    'ghost-link': { icon: 'phone-in-talk', labelKey: 'vault_badge_ghost' },
   };
 
   const filteredLinks = useMemo(() => {
@@ -1538,7 +1533,7 @@ const VaultScreen = () => {
             onLongPress={() => handleIconLongPress(item)}
             delayLongPress={450}
             activeOpacity={0.75}
-            accessibilityLabel={`${item.title}, ${badge?.label || item.type}`}
+            accessibilityLabel={`${item.title}, ${badge ? t(badge.labelKey) : item.type}`}
           >
             <View style={[
               styles.iconBox,
@@ -1564,7 +1559,7 @@ const VaultScreen = () => {
             {badge ? (
               <View style={[styles.typeBadge, { backgroundColor: vaultTheme.typeBadgeBg }]}>
                 <MaterialCommunityIcons name={badge.icon as any} size={9} color={vaultTheme.typeBadgeText} />
-                <Text style={[styles.typeBadgeText, { color: vaultTheme.typeBadgeText }]}>{tr(badge.label, badge.labelEn)}</Text>
+                <Text style={[styles.typeBadgeText, { color: vaultTheme.typeBadgeText }]}>{t(badge.labelKey)}</Text>
               </View>
             ) : null}
           </TouchableOpacity>
@@ -1597,7 +1592,7 @@ const VaultScreen = () => {
 
       const userId = await getActiveUserId();
       if (!userId) {
-        Alert.alert(tr('❌ Error', '❌ Error'), tr('No se pudo identificar al usuario', 'Could not identify user'));
+        Alert.alert(t('vault_warn_error_title'), t('vault_user_unknown'));
         return;
       }
 
@@ -1628,7 +1623,7 @@ const VaultScreen = () => {
       setLimitReachedVisible(false);
     } catch (error) {
       console.error('Error triggering purchase flow:', error);
-      Alert.alert(tr('Error', 'Error'), tr('No se pudo completar la compra', 'Purchase could not be completed'));
+      Alert.alert(t('common_error'), t('cards_purchase_failed'));
     }
   };
 
@@ -1636,13 +1631,10 @@ const VaultScreen = () => {
     <View style={styles.emptyContainer}>
       <MaterialCommunityIcons name="safe" color={vaultTheme.ctaAccent} size={72} />
       <Text style={[styles.emptyTitle, { color: vaultTheme.primaryText }]}>
-        {tr('Tu Búnker está listo', 'Your Vault is ready')}
+        {t('vault_empty_title')}
       </Text>
       <Text style={[styles.emptySubtitle, { color: vaultTheme.secondaryText }]}>
-        {tr(
-          'Agrega tus datos: redes sociales, teléfonos, emails, documentos...',
-          'Add your data: social links, phones, emails, documents...'
-        )}
+        {t('vault_empty_subtitle')}
       </Text>
       <TouchableOpacity
         style={[styles.emptyCtaButton, { backgroundColor: vaultTheme.emptyCtaBg, shadowColor: vaultTheme.emptyCtaBg }]}
@@ -1651,7 +1643,7 @@ const VaultScreen = () => {
       >
         <MaterialCommunityIcons name="plus" color={vaultTheme.emptyCtaText} size={22} />
         <Text style={[styles.emptyCtaText, { color: vaultTheme.emptyCtaText }]}>
-          {tr('Agregar primer dato', 'Add first item')}
+          {t('vault_empty_cta')}
         </Text>
       </TouchableOpacity>
     </View>
@@ -1666,13 +1658,10 @@ const VaultScreen = () => {
         <Pressable onPress={Keyboard.dismiss} style={styles.emptyContainer}>
           <MaterialCommunityIcons name="magnify" color={vaultTheme.searchPlaceholder} size={64} />
           <Text style={[styles.emptyTitle, { color: vaultTheme.primaryText }]}>
-            {tr('Sin coincidencias', 'No matches')}
+            {t('search_no_matches')}
           </Text>
           <Text style={[styles.emptySubtitle, { color: vaultTheme.secondaryText }]}>
-            {tr(
-              'Prueba con otras palabras o sinónimos. También puedes revisar tu conexión.',
-              'Try different words or synonyms. You can also check your connection.',
-            )}
+            {t('search_no_matches_sub')}
           </Text>
         </Pressable>
       );
@@ -1695,7 +1684,7 @@ const VaultScreen = () => {
                 ]}
               >
                 <MaterialCommunityIcons name="check-decagram" size={14} color={vaultTheme.refreshAccent} />
-                <Text style={{ color: vaultTheme.refreshAccent, fontSize: 12, fontWeight: '700' }}>{tr('Verificado', 'Verified')}</Text>
+                <Text style={{ color: vaultTheme.refreshAccent, fontSize: 12, fontWeight: '700' }}>{t('vault_verified_label')}</Text>
               </View>
             ) : null}
           </View>
@@ -1705,7 +1694,7 @@ const VaultScreen = () => {
             adjustsFontSizeToFit
             minimumFontScale={0.62}
           >
-            {tr(`${links.length} / ${limitMaxItems}`, `${links.length} / ${limitMaxItems}`)}
+            {t('vault_counter_fmt', { current: links.length, max: limitMaxItems })}
           </Text>
           {/* Barra de progreso: oculta para usuarios 50 */}
           {/* No mostrar barra de progreso para admin pochobs */}
@@ -1719,10 +1708,7 @@ const VaultScreen = () => {
             <MaterialCommunityIcons name="magnify" size={18} color={vaultTheme.searchPlaceholder} />
             <TextInput
               style={[styles.searchInput, { color: vaultTheme.searchText }]}
-              placeholder={tr(
-                'Buscar en todo el dato (título, tipo, enlace, valor…)',
-                'Search all fields (title, type, link, value…)'
-              )}
+              placeholder={t('vault_search_placeholder')}
               placeholderTextColor={vaultTheme.searchPlaceholder}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -1738,7 +1724,7 @@ const VaultScreen = () => {
                   setSearchQuery('');
                 }}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                accessibilityLabel={tr('Limpiar búsqueda', 'Clear search')}
+                accessibilityLabel={t('search_clear_a11y')}
               >
                 <MaterialCommunityIcons name="close-circle" size={16} color={vaultTheme.searchPlaceholder} />
               </TouchableOpacity>
@@ -1832,7 +1818,7 @@ const VaultScreen = () => {
             <View style={styles.viewerQrScanOverlay} pointerEvents="auto">
               <ActivityIndicator size="large" color={vaultTheme.ctaAccent} />
               <Text style={styles.viewerQrScanLabel}>
-                {tr('Analizando imagen…', 'Analyzing image…')}
+                {t('vault_analyzing')}
               </Text>
             </View>
           ) : null}
@@ -1848,7 +1834,7 @@ const VaultScreen = () => {
                 <MaterialCommunityIcons name="download" color={vaultTheme.viewerIconTint} size={18} />
               )}
               <Text style={[styles.viewerDownloadText, { color: vaultTheme.viewerDownloadLabel }]}>
-                {tr('Descargar', 'Download')}
+                {t('common_download')}
               </Text>
             </TouchableOpacity>
 
@@ -1882,7 +1868,7 @@ const VaultScreen = () => {
                       contentFit="contain"
                       cachePolicy="disk"
                       transition={200}
-                      accessibilityLabel={tr('Documento imagen', 'Document image')}
+                      accessibilityLabel={t('vault_doc_image_a11y')}
                     />
                   </ScrollView>
                 </TouchableWithoutFeedback>
@@ -1890,13 +1876,13 @@ const VaultScreen = () => {
                 <View style={styles.viewerFallback}>
                   <MaterialCommunityIcons name="file-pdf-box" color={vaultTheme.ctaAccent} size={54} />
                   <Text style={[styles.viewerFallbackText, { color: vaultTheme.viewerFallbackText }]}>
-                    {tr('Abre el PDF con el botón Descargar.', 'Open the PDF using the Download button.')}
+                    {t('vault_pdf_use_download_hint')}
                   </Text>
                 </View>
               ) : (
                 <View style={styles.viewerFallback}>
                   <MaterialCommunityIcons name="file-alert-outline" color={vaultTheme.ctaAccent} size={54} />
-                  <Text style={[styles.viewerFallbackText, { color: vaultTheme.viewerFallbackText }]}>{tr('No se pudo previsualizar este archivo.', 'Could not preview this file.')}</Text>
+                  <Text style={[styles.viewerFallbackText, { color: vaultTheme.viewerFallbackText }]}>{t('vault_preview_fail')}</Text>
                 </View>
               )
             ) : null}
@@ -1909,7 +1895,7 @@ const VaultScreen = () => {
         onClose={() => setDullModeLockVisible(false)}
         onRequestPremium={() => setDullModeLockVisible(false)}
         lockType="feature"
-        itemName={tr('Edición del Búnker', 'Vault Editing')}
+        itemName={t('vault_editing_context_title')}
       />
 
       <Modal
@@ -1931,7 +1917,7 @@ const VaultScreen = () => {
                   }}
                 >
                   <MaterialCommunityIcons name="star" color={vaultTheme.ctaAccent} size={18} />
-                  <Text style={[styles.contextMenuActionText, { color: vaultTheme.contextMenuText }]}>{tr('Favorito', 'Favorite')}</Text>
+                  <Text style={[styles.contextMenuActionText, { color: vaultTheme.contextMenuText }]}>{t('vault_context_favorite')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -1939,7 +1925,7 @@ const VaultScreen = () => {
                   onPress={openEditFromContextMenu}
                 >
                   <MaterialCommunityIcons name="pencil" color={vaultTheme.refreshAccent} size={18} />
-                  <Text style={[styles.contextMenuActionText, { color: vaultTheme.contextMenuText }]}>{tr('Editar', 'Edit')}</Text>
+                  <Text style={[styles.contextMenuActionText, { color: vaultTheme.contextMenuText }]}>{t('common_edit')}</Text>
                 </TouchableOpacity>
 
                 {contextMenuItem &&
@@ -1951,12 +1937,12 @@ const VaultScreen = () => {
                       if (!contextMenuItem) return;
                       setContextMenuVisible(false);
                       Alert.alert(
-                        tr('⚠️ Confirmar', '⚠️ Confirm'),
-                        tr(`¿Eliminar "${contextMenuItem.title}"?`, `Delete "${contextMenuItem.title}"?`),
+                        t('vault_confirm_delete_title'),
+                        t('vault_confirm_delete_body', { title: contextMenuItem.title }),
                         [
-                          { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+                          { text: t('common_cancel'), style: 'cancel' },
                           {
-                            text: tr('Eliminar', 'Delete'),
+                            text: t('common_delete'),
                             style: 'destructive',
                             onPress: () => deleteLink(contextMenuItem),
                           },
@@ -1965,7 +1951,7 @@ const VaultScreen = () => {
                     }}
                   >
                     <MaterialCommunityIcons name="trash-can" color={vaultTheme.danger} size={18} />
-                    <Text style={[styles.contextMenuActionText, styles.contextDeleteText]}>{tr('Eliminar', 'Delete')}</Text>
+                    <Text style={[styles.contextMenuActionText, styles.contextDeleteText]}>{t('common_delete')}</Text>
                   </TouchableOpacity>
                 ) : null}
               </View>

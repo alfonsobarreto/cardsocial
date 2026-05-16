@@ -18,7 +18,8 @@ import {
     purchaseStudioIconUnlock,
     stableKeyForCatalogIcon,
 } from '@/services/iconVaultService';
-import { trEsEn, useLanguage } from '@/services/language';
+import { useCreationT } from '@/services/creationI18n';
+import { type AppLanguage, trEsEn, useLanguage } from '@/services/language';
 import { useLookMode } from '@/services/lookMode';
 import {
     purchaseThemeBundle,
@@ -353,17 +354,17 @@ const ICON_SECTIONS: IconSection[] = buildIconSections();
 
 const STUDIO_SECTION_TITLE_SEP = ' · ';
 
-/** Pares ES/EN del catálogo → `tr()` para pt/fr/it (antes solo EN fuera de ES). */
-function translateStudioSectionTitle(section: IconSection, tr: (es: string, en: string) => string): string {
+/** Pares ES/EN del catálogo → `trEsEn` para los 6 idiomas de la app. */
+function translateStudioSectionTitle(section: IconSection, language: AppLanguage): string {
   const enTitle = section.titleEn ?? section.title;
   if (section.title.includes(STUDIO_SECTION_TITLE_SEP) && enTitle.includes(STUDIO_SECTION_TITLE_SEP)) {
     const esParts = section.title.split(STUDIO_SECTION_TITLE_SEP);
     const enParts = enTitle.split(STUDIO_SECTION_TITLE_SEP);
     if (esParts.length === enParts.length && esParts.length > 1) {
-      return esParts.map((es, i) => tr(es.trim(), enParts[i].trim())).join(STUDIO_SECTION_TITLE_SEP);
+      return esParts.map((es, i) => trEsEn(es.trim(), enParts[i].trim(), language)).join(STUDIO_SECTION_TITLE_SEP);
     }
   }
-  return tr(section.title, enTitle);
+  return trEsEn(section.title, enTitle, language);
 }
 
 export const ICON_GALLERY: IconItem[] = ICON_SECTIONS.flatMap((sec) =>
@@ -406,7 +407,7 @@ export default function CardStudioVault({
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
   const { language } = useLanguage();
-  const tr = (es: string, en: string) => trEsEn(es, en, language);
+  const tcx = useCreationT();
   const modalFooterBottomPad = useModalFooterBottomPad();
   const [storeModalVisible, setStoreModalVisible] = useState(false);
   const [cmsIconCreditCs, setCmsIconCreditCs] = useState(0);
@@ -470,24 +471,23 @@ export default function CardStudioVault({
   const catalogSections = ICON_SECTIONS;
 
   const studioHeaderSuffix = useMemo(() => {
-    const t = (es: string, en: string) => trEsEn(es, en, language);
     switch (dataType) {
       case 'Enlaces':
-        return t('Enlaces', 'Links');
+        return tcx('studio_header_links');
       case 'Teléfono':
-        return t('Teléfono', 'Phone');
+        return tcx('studio_header_phone');
       case 'Ghost-Link':
-        return t('Ghost Link', 'Ghost Link');
+        return tcx('studio_header_ghost');
       case 'Email':
-        return t('Email', 'Email');
+        return tcx('studio_header_email');
       case 'Texto Plain':
-        return t('Texto', 'Text');
+        return tcx('studio_header_text');
       case 'Documento':
-        return t('Documento', 'Document');
+        return tcx('studio_header_document');
       default:
         return String(dataType);
     }
-  }, [dataType, language]);
+  }, [dataType, tcx]);
 
   const recentItemsResolved = useMemo(() => {
     return recentIconIds
@@ -599,15 +599,12 @@ export default function CardStudioVault({
       const uid = await getActiveUserId();
       if (!uid) return;
       Alert.alert(
-        tr('Desbloquear icono', 'Unlock icon'),
-        tr(
-          `Incluye este icono en tu bóveda por ${effectiveIconCreditPrice} Créditos CS.`,
-          `Add this icon to your vault for ${effectiveIconCreditPrice} CS credits.`,
-        ),
+        tcx('studio_unlock_icon'),
+        tcx('studio_buy_icon_body', { price: effectiveIconCreditPrice }),
         [
-          { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+          { text: tcx('form_cancel'), style: 'cancel' },
           {
-            text: tr('Comprar', 'Buy'),
+            text: tcx('studio_buy'),
             onPress: () => {
               void (async () => {
                 const ok = await purchaseStudioIconUnlock(
@@ -624,10 +621,7 @@ export default function CardStudioVault({
                   onEconomyUpdated?.();
                   handleSelectCatalogItem(item);
                 } else {
-                  Alert.alert(
-                    tr('No se pudo comprar', 'Purchase failed'),
-                    tr('Revisa tu saldo de Créditos CS.', 'Check your CS credit balance.'),
-                  );
+                  Alert.alert(tcx('studio_purchase_failed'), tcx('studio_check_cs_balance'));
                 }
               })();
             },
@@ -655,18 +649,9 @@ export default function CardStudioVault({
         if (ok) {
           setBundleOwnedFlags((p) => ({ ...p, [bundleId]: true }));
           onEconomyUpdated?.();
-          Alert.alert(
-            tr('Bundle desbloqueado', 'Bundle unlocked'),
-            tr(
-              'Tus 3 variantes de tema y el pack de iconos ya están disponibles.',
-              'Your 3 theme variants and icon pack are now available.',
-            ),
-          );
+          Alert.alert(tcx('studio_bundle_unlocked'), tcx('studio_bundle_unlocked_body'));
         } else {
-          Alert.alert(
-            tr('No se pudo comprar', 'Purchase failed'),
-            tr('Saldo insuficiente u error de red.', 'Insufficient balance or network error.'),
-          );
+          Alert.alert(tcx('studio_purchase_failed'), tcx('studio_purchase_failed_balance'));
         }
       } finally {
         setBundlePurchasingId(null);
@@ -710,15 +695,12 @@ export default function CardStudioVault({
 
   const handleLongPress = (item: IconItem) => {
     Alert.alert(
-      tr(`Eliminar icono "${item.label}"`, `Delete icon "${item.labelEn}"`),
-      tr(
-        'Si lo eliminas, los datos del B\u00fanker que usen este \u00edcono quedar\u00e1n con el \u00edcono por defecto. \u00bfDeseas continuar?',
-        'If you delete it, Vault items using this icon will revert to the default icon. Continue?'
-      ),
+      tcx('studio_delete_icon_title', { label: trEsEn(item.label, item.labelEn, language) }),
+      tcx('studio_delete_icon_body'),
       [
-        { text: tr('Cancelar', 'Cancel'), style: 'cancel' },
+        { text: tcx('form_cancel'), style: 'cancel' },
         {
-          text: tr('Eliminar', 'Delete'),
+          text: tcx('studio_delete'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -754,7 +736,7 @@ export default function CardStudioVault({
       ]}
     >
       <Text style={[styles.sectionTitle, { color: theme.labelGold }]}>
-        {translateStudioSectionTitle(section, tr)}
+        {translateStudioSectionTitle(section, language)}
       </Text>
       {section.isPremium && (
         <View style={[styles.premiumBadge, { backgroundColor: theme.premiumBadgeBg }]}>
@@ -796,7 +778,7 @@ export default function CardStudioVault({
                 style={!unlocked ? { opacity: 0.55 } : undefined}
               />
               <Text style={[styles.iconLabel, { color: labelColor }]} numberOfLines={1}>
-                {tr(item.label, item.labelEn)}
+                {trEsEn(item.label, item.labelEn, language)}
               </Text>
             </>
           );
@@ -868,7 +850,7 @@ export default function CardStudioVault({
         />
         <Text style={[styles.emptyLabel, { color: theme.textSecondary }]}>
           {section.emptyLabel != null
-            ? tr(section.emptyLabel, section.emptyLabelEn ?? section.emptyLabel)
+            ? trEsEn(section.emptyLabel, section.emptyLabelEn ?? section.emptyLabel, language)
             : ''}
         </Text>
       </View>
@@ -889,7 +871,7 @@ export default function CardStudioVault({
         style={styles.storeButtonGradient}
       >
         <MaterialCommunityIcons name="store" color={theme.selectedText} size={22} />
-        <Text style={[styles.storeButtonText, { color: theme.selectedText }]}>{tr('Card-Studio', 'Card-Studio')}</Text>
+        <Text style={[styles.storeButtonText, { color: theme.selectedText }]}>{tcx('studio_card_studio')}</Text>
         <MaterialCommunityIcons name="chevron-right" color={theme.selectedText} size={20} />
       </LinearGradient>
     </TouchableOpacity>
@@ -935,11 +917,11 @@ export default function CardStudioVault({
                 <View style={styles.header}>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.title, { color: theme.titleColor }]}>
-                      {tr('Card-Studio', 'Card-Studio')} — {studioHeaderSuffix}
+                      {tcx('studio_card_studio')} — {studioHeaderSuffix}
                     </Text>
                     {STUDIO_CATALOG_VECTOR_ICONS_PAID ? (
                       <Text style={[styles.creditsLine, { color: theme.textSecondary }]}>
-                        {tr(`Créditos CS: ${creditsBalance}`, `CS credits: ${creditsBalance}`)}
+                        {tcx('studio_cs_credits_line', { balance: creditsBalance })}
                       </Text>
                     ) : null}
                   </View>
@@ -952,15 +934,7 @@ export default function CardStudioVault({
                 </View>
 
                 <Text style={[styles.hint, { color: theme.textSecondary }]}>
-                  {STUDIO_CATALOG_VECTOR_ICONS_PAID
-                    ? tr(
-                        'Candado: compra con CS. Mantén presionado (icono desbloqueado) para quitar del Bóveda.',
-                        'Lock: buy with CS. Long press (unlocked icon) to remove from Vault.',
-                      )
-                    : tr(
-                        'Toca un icono para elegirlo. Mantén presionado para quitarlo de tu Bóveda (si aplica).',
-                        'Tap an icon to choose it. Long press to remove from your Vault (if applicable).',
-                      )}
+                  {STUDIO_CATALOG_VECTOR_ICONS_PAID ? tcx('studio_hint_paid') : tcx('studio_hint_free')}
                 </Text>
 
                 {/* SectionList categorizado */}
@@ -1030,7 +1004,7 @@ export default function CardStudioVault({
         <View style={styles.storeOverlay}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={tr('Cerrar fondo', 'Dismiss')}
+            accessibilityLabel={tcx('studio_dismiss_bg')}
             style={StyleSheet.absoluteFillObject}
             onPress={() => setStoreModalVisible(false)}
           />
@@ -1047,15 +1021,12 @@ export default function CardStudioVault({
             ]}
           >
                 <MaterialCommunityIcons name="store" color={theme.labelGold} size={48} />
-                <Text style={[styles.storeTitle, { color: theme.labelGold }]}>{tr('Card-Studio', 'Card-Studio')}</Text>
+                <Text style={[styles.storeTitle, { color: theme.labelGold }]}>{tcx('studio_card_studio')}</Text>
                 <Text style={[styles.storeSubtitle, { marginBottom: 8, color: theme.textPrimary }]}>
-                  {tr(`Saldo: ${creditsBalance} CS`, `Balance: ${creditsBalance} CS`)}
+                  {tcx('studio_balance_cs', { balance: creditsBalance })}
                 </Text>
                 <Text style={[styles.storeSubtitle, { color: theme.storeSubtitle }]}>
-                  {tr(
-                    'Bundles temáticos: 3 estilos de tarjeta + pack de iconos vinculado.',
-                    'Theme bundles: 3 card styles + linked icon pack.',
-                  )}
+                  {tcx('studio_bundles_subtitle')}
                 </Text>
                 <ScrollView
                   style={{
@@ -1082,17 +1053,17 @@ export default function CardStudioVault({
                       >
                         <View style={{ flex: 1 }}>
                           <Text style={[styles.bundleName, { color: theme.textPrimary }]}>
-                            {tr(b.nameEs, b.nameEn)}
+                            {trEsEn(b.nameEs, b.nameEn, language)}
                           </Text>
                           <Text style={[styles.bundleMeta, { color: theme.bundleMeta }]}>
-                            {tr(
-                              `3 temas + ${b.iconSeeds.length} iconos · ${bundleCreditPrices[b.id] ?? 0} CS`,
-                              `3 themes + ${b.iconSeeds.length} icons · ${bundleCreditPrices[b.id] ?? 0} CS`,
-                            )}
+                            {tcx('studio_bundle_meta', {
+                              n: b.iconSeeds.length,
+                              price: bundleCreditPrices[b.id] ?? 0,
+                            })}
                           </Text>
                         </View>
                         {owned ? (
-                          <Text style={styles.bundleOwned}>{tr('En tu cuenta', 'Owned')}</Text>
+                          <Text style={styles.bundleOwned}>{tcx('studio_owned')}</Text>
                         ) : (
                           <TouchableOpacity
                             style={styles.bundleBuyBtn}
@@ -1102,7 +1073,7 @@ export default function CardStudioVault({
                             {busy ? (
                               <ActivityIndicator color="#0A1A2F" size="small" />
                             ) : (
-                              <Text style={styles.bundleBuyText}>{tr('Comprar', 'Buy')}</Text>
+                              <Text style={styles.bundleBuyText}>{tcx('studio_buy')}</Text>
                             )}
                           </TouchableOpacity>
                         )}
@@ -1114,7 +1085,7 @@ export default function CardStudioVault({
                   style={styles.storeCloseBtn}
                   onPress={() => setStoreModalVisible(false)}
                 >
-                  <Text style={styles.storeCloseBtnText}>{tr('Cerrar', 'Close')}</Text>
+                  <Text style={styles.storeCloseBtnText}>{tcx('studio_close')}</Text>
                 </TouchableOpacity>
               </View>
         </View>

@@ -8,13 +8,12 @@ import InvestorMetrics, { getInvestorTocItems } from './InvestorMetrics';
 import copy, { type ExecLocale } from './investorCopy';
 import { investorDemoHref, investorPitchDeckHref, pitchDeckOpensInNewTab } from './investorUrls';
 import {
-  EXECUTIVE_IMAGE_HINTS,
-  executiveStrategicBlocks,
-  executiveSummarySections,
+  getExecutiveSummaryBundle,
   type ExecutiveImageKey,
   type Section,
   type StrategicFlow,
 } from './executiveSummaryContent';
+import { execChromeT } from '@/lib/landingI18n';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -96,32 +95,33 @@ function ExecThesisBand({ locale }: { locale: ExecLocale }) {
   );
 }
 
-function imageSrc(key: ExecutiveImageKey): string {
-  const f = EXECUTIVE_IMAGE_HINTS[key].filename;
-  return `/legal/executive-summary/${f}`;
+function imageSrc(filename: string): string {
+  return `/legal/executive-summary/${filename}`;
 }
 
 function ExecutiveFigure({
   assetKey,
   aspectClass = 'aspect-[16/10]',
+  locale,
 }: {
   assetKey: ExecutiveImageKey;
   aspectClass?: string;
+  locale: ExecLocale;
 }) {
-  const hint = EXECUTIVE_IMAGE_HINTS[assetKey];
+  const bundle = getExecutiveSummaryBundle(locale);
+  const hint = bundle.imageHints[assetKey];
   const imgRef = useRef<HTMLImageElement | null>(null);
   const [loadedOk, setLoadedOk] = useState(false);
   const [broken, setBroken] = useState(false);
   const showPlaceholder = broken || !loadedOk;
 
-  /** Imágenes en caché suelen tener `complete` antes de registrar `onLoad`; sin esto el placeholder queda fijo para siempre. */
   useLayoutEffect(() => {
     const el = imgRef.current;
     if (el?.complete && el.naturalWidth > 0) {
       setBroken(false);
       setLoadedOk(true);
     }
-  }, [assetKey]);
+  }, [assetKey, locale]);
 
   return (
     <figure className={`group relative mx-auto mt-10 w-full max-w-5xl overflow-hidden rounded-[2rem] border border-[#E9C349]/30 bg-[#0A0A0A]/80 shadow-[0_0_70px_rgba(233,195,73,0.12)] ${aspectClass}`}>
@@ -130,10 +130,10 @@ function ExecutiveFigure({
         className={`absolute inset-0 z-[1] flex flex-col items-center justify-center gap-4 bg-[linear-gradient(145deg,#0d0d0d_0%,#050505_48%,#111111_100%)] p-10 text-center transition-opacity duration-500 ${showPlaceholder ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
       >
         <div className="rounded-full border border-dashed border-[#E9C349]/55 px-6 py-2 font-mono text-[11px] tracking-wider text-[#F6DA87]/80">
-          DROP ASSET HERE
+          {execChromeT(locale, 'drop_asset_here')}
         </div>
         <p className="max-w-lg text-sm leading-relaxed text-white/45">
-          <span className="block font-mono text-xs text-[#E9C349]/85">frontend-web/public/legal/executive-summary/</span>
+          <span className="block font-mono text-xs text-[#E9C349]/85">{execChromeT(locale, 'asset_path_label')}</span>
           <span className="mt-2 block font-bold text-white/70">{hint.filename}</span>
           <span className="mt-2 block italic text-white/40">{hint.caption}</span>
         </p>
@@ -141,7 +141,7 @@ function ExecutiveFigure({
       {/* eslint-disable-next-line @next/next/no-img-element -- archivos opcionales en `public`; no queremos coupling al build */}
       <img
         ref={imgRef}
-        src={imageSrc(assetKey)}
+        src={imageSrc(hint.filename)}
         alt={hint.caption}
         decoding="async"
         className={`absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-500 ${showPlaceholder ? 'opacity-0' : 'opacity-100'}`}
@@ -173,22 +173,22 @@ function SectionHeader({ num, eyebrow, title }: { num: number; eyebrow: string; 
   );
 }
 
-function FlowCard({ flow }: { flow: StrategicFlow }) {
+function FlowCard({ flow, locale }: { flow: StrategicFlow; locale: ExecLocale }) {
   return (
     <div className="grid gap-6 rounded-[1.85rem] border border-white/[0.08] bg-[#111111]/60 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl sm:p-8">
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#F6DA87]/75">Qué es</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#F6DA87]/75">{execChromeT(locale, 'flow_what_it_is')}</p>
           <p className="mt-3 text-sm leading-7 text-white/68">{flow.queEs}</p>
         </div>
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#F6DA87]/75">Cómo funciona</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#F6DA87]/75">{execChromeT(locale, 'flow_how_it_works')}</p>
           <p className="mt-3 text-sm leading-7 text-white/68">{flow.comoFunciona}</p>
         </div>
       </div>
       <div className="h-px w-full bg-gradient-to-r from-transparent via-[#E9C349]/28 to-transparent" />
       <div>
-        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#F6DA87]/75">Valor estratégico</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#F6DA87]/75">{execChromeT(locale, 'flow_strategic_value')}</p>
         <ul className="mt-4 grid gap-3 text-sm leading-7 text-white/66">
           {flow.valorEstrategico.map((line, i) => (
             <li key={i} className="flex gap-3">
@@ -199,14 +199,14 @@ function FlowCard({ flow }: { flow: StrategicFlow }) {
         </ul>
       </div>
       <div className="rounded-2xl border border-[#E9C349]/25 bg-[#E9C349]/06 p-5">
-        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#F6DA87]/75">Modelo de ingreso</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#F6DA87]/75">{execChromeT(locale, 'flow_revenue_model')}</p>
         <p className="mt-3 text-sm font-semibold leading-7 text-white/74">{flow.modeloIngreso}</p>
       </div>
     </div>
   );
 }
 
-function renderSection(s: Section) {
+function renderSection(s: Section, locale: ExecLocale) {
   const id = `s${s.num}`;
 
   switch (s.kind) {
@@ -215,7 +215,7 @@ function renderSection(s: Section) {
         <Reveal key={s.num}>
           <section id={id} className="scroll-mt-36">
             <SectionHeader num={s.num} eyebrow={s.eyebrow} title={s.title} />
-            {s.image ? <ExecutiveFigure assetKey={s.image} /> : null}
+            {s.image ? <ExecutiveFigure assetKey={s.image} locale={locale} /> : null}
             <div className="mt-12 space-y-8">
               {s.bullets.map((bullet, idx) =>
                 idx === 0 ? (
@@ -237,9 +237,7 @@ function renderSection(s: Section) {
         <Reveal key={s.num}>
           <section id={id} className="scroll-mt-36">
             <SectionHeader num={s.num} eyebrow={s.eyebrow} title={s.title} />
-            <p className="-mt-2 max-w-3xl text-sm leading-7 text-white/48">
-              El producto está estratificado meticulosamente para atender distintas necesidades de networking y distribución de información:
-            </p>
+            <p className="-mt-2 max-w-3xl text-sm leading-7 text-white/48">{execChromeT(locale, 'segments_lead')}</p>
             <ul className="mt-10 grid gap-5">
               {s.bullets.map((bullet, idx) => (
                 <motion.li
@@ -255,11 +253,11 @@ function renderSection(s: Section) {
               ))}
             </ul>
             <div className="mt-10 grid gap-5 lg:grid-cols-2">
-              <h3 className="sr-only">Negocios establecidos (Business Tier)</h3>
+              <h3 className="sr-only">{execChromeT(locale, 'established_heading_sr')}</h3>
               {s.establishedExamples.map((ex) => (
                 <article key={ex.sector} className="rounded-[1.65rem] border border-white/[0.1] bg-[#111]/70 p-7 backdrop-blur-2xl">
                   <div className="mb-5 inline-flex rounded-full border border-[#F6DA87]/30 bg-[#E9C349]/09 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.22em] text-[#F6DA87]">
-                    Negocios Establecidos
+                    {execChromeT(locale, 'established_badge')}
                   </div>
                   <h4 className="text-xl font-black tracking-tight text-white">{ex.sector}</h4>
                   <p className="mt-4 text-sm leading-7 text-white/62">{ex.text}</p>
@@ -323,7 +321,7 @@ function renderSection(s: Section) {
               </div>
               {s.image ? (
                 <div className="lg:sticky lg:top-44">
-                  <ExecutiveFigure assetKey={s.image} aspectClass="aspect-[4/3] min-h-[14rem]" />
+                  <ExecutiveFigure assetKey={s.image} aspectClass="aspect-[4/3] min-h-[14rem]" locale={locale} />
                 </div>
               ) : null}
             </div>
@@ -337,15 +335,13 @@ function renderSection(s: Section) {
             <SectionHeader num={s.num} eyebrow={s.eyebrow} title={s.title} />
             {s.imageBetween ? (
               <>
-                <p className="max-w-prose text-sm leading-7 text-white/48">
-                  Flujo estratégico dentro del bunker de datos Card-Social:
-                </p>
-                <ExecutiveFigure assetKey={s.imageBetween} />
+                <p className="max-w-prose text-sm leading-7 text-white/48">{execChromeT(locale, 'strategic_flow_lead')}</p>
+                <ExecutiveFigure assetKey={s.imageBetween} locale={locale} />
               </>
             ) : null}
             <div className="mt-12 grid gap-8">
               {s.flows.map((flow, fi) => (
-                <FlowCard key={fi} flow={flow} />
+                <FlowCard key={fi} flow={flow} locale={locale} />
               ))}
             </div>
           </section>
@@ -366,6 +362,8 @@ export default function ExecutiveSummaryLanding() {
   const [locale, setLocale] = useState<ExecLocale>('es');
   const [tocOpen, setTocOpen] = useState(false);
   const c = copy[locale];
+  const execBundle = getExecutiveSummaryBundle(locale);
+  const { sections: executiveSummarySections, strategicBlocks: executiveStrategicBlocks } = execBundle;
 
   const toc = [
     { id: 'exec-thesis-cta', label: c.execThesisTocLabel },
@@ -394,12 +392,11 @@ export default function ExecutiveSummaryLanding() {
     if (typeof window !== 'undefined') window.localStorage.setItem(STORAGE_TOC_OPEN, next ? '1' : '0');
   }
 
-  /* Labels that are always in Spanish (BMC content was authored in ES) */
-  const blockQueEs     = locale === 'es' ? 'Qué es'           : 'What it is';
-  const blockComo      = locale === 'es' ? 'Cómo funciona'    : 'How it works';
-  const blockValor     = locale === 'es' ? 'Valor estratégico': 'Strategic value';
-  const blockModelo    = locale === 'es' ? 'Modelo de ingreso': 'Revenue model';
-  const motorLabel     = locale === 'es' ? 'Motor'            : 'Module';
+  const motorLabel = execChromeT(locale, 'blueprint_motor_prefix');
+  const blockQueEs = execChromeT(locale, 'flow_what_it_is');
+  const blockComo = execChromeT(locale, 'flow_how_it_works');
+  const blockValor = execChromeT(locale, 'flow_strategic_value');
+  const blockModelo = execChromeT(locale, 'flow_revenue_model');
 
   return (
     <div
@@ -413,7 +410,7 @@ export default function ExecutiveSummaryLanding() {
       <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/[0.08] bg-[#050505]/80 backdrop-blur-2xl">
         <div className="mx-auto flex h-[4.05rem] max-w-[1480px] items-center justify-between px-6 sm:px-10">
           <a href="/" className="text-xs font-black uppercase tracking-[0.32em] text-white transition hover:text-[#F6DA87]">
-            Card-Social
+            {execChromeT(locale, 'nav_brand')}
           </a>
           <div className="flex items-center gap-3">
             <span className="hidden rounded-full border border-[#E9C349]/35 bg-[#E9C349]/09 px-4 py-1.5 font-mono text-[10px] tracking-widest text-[#F6DA87]/90 sm:inline">
@@ -560,13 +557,13 @@ export default function ExecutiveSummaryLanding() {
           </Reveal>
         </div>
 
-        <div className="grid gap-[7.5rem]">{executiveSummarySections.map(renderSection)}</div>
+        <div className="grid gap-[7.5rem]">{executiveSummarySections.map((sec) => renderSection(sec, locale))}</div>
 
         <motion.div variants={stagger} initial="hidden" whileInView="visible" viewport={{ once: true }} className="mt-36 grid gap-[9rem]">
           {executiveStrategicBlocks.map((block) => (
             <motion.section key={block.num} variants={reveal} id={`s${block.num}`} className="scroll-mt-36">
               <SectionHeader num={block.num} eyebrow={block.eyebrow} title={block.title} />
-              {block.image ? <ExecutiveFigure assetKey={block.image} /> : null}
+              {block.image ? <ExecutiveFigure assetKey={block.image} locale={locale} /> : null}
               <div className="mt-14 grid gap-6 lg:grid-cols-[1fr,1fr]">
                 <div className="rounded-[1.85rem] border border-white/[0.08] bg-[#111111]/72 p-7 backdrop-blur-2xl sm:p-8">
                   <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#F6DA87]/75">{blockQueEs}</p>
@@ -601,10 +598,10 @@ export default function ExecutiveSummaryLanding() {
 
         <Reveal>
           <footer className="mt-44 border-t border-white/[0.08] pt-16 text-center text-sm text-white/38">
-            <p className="font-bold text-white/55">Card-Social®</p>
+            <p className="font-bold text-white/55">{execChromeT(locale, 'footer_registered')}</p>
             <p className="mt-4 max-w-xl mx-auto">
               {c.footerBody}{' '}
-              <span className="font-mono text-[#E9C349]/85">frontend-web/public/legal/executive-summary/</span>.
+              <span className="font-mono text-[#E9C349]/85">{execChromeT(locale, 'asset_path_label')}</span>.
             </p>
             <div className="mt-12 flex justify-center gap-6 text-xs uppercase tracking-[0.2em]">
               <a href="/legal/terms" className="text-[#F6DA87]/85 hover:underline">{c.footerLegal}</a>

@@ -5,8 +5,9 @@ import { Inter } from 'next/font/google';
 import { Suspense, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 
 import { AuthEmailActionBanner } from './AuthEmailActionBanner';
+import { getLandingCopy, type LandingLocale } from '@/lib/landingI18n';
 
-export type LandingLocale = 'en' | 'es';
+export type { LandingLocale };
 type InterestKey = 'personal' | 'business' | 'investor';
 
 const inter = Inter({
@@ -23,216 +24,6 @@ const reveal: Variants = {
 const stagger: Variants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.12 } },
-};
-
-const countries = [
-  { code: '+1', label: 'US/CA +1' },
-  { code: '+52', label: 'MX +52' },
-  { code: '+57', label: 'CO +57' },
-  { code: '+58', label: 'VE +58' },
-  { code: '+51', label: 'PE +51' },
-  { code: '+56', label: 'CL +56' },
-  { code: '+54', label: 'AR +54' },
-  { code: '+34', label: 'ES +34' },
-  { code: '+39', label: 'IT +39' },
-  { code: '+33', label: 'FR +33' },
-  { code: '+351', label: 'PT +351' },
-  { code: '+44', label: 'UK +44' },
-];
-
-const copy = {
-  en: {
-    navCta: 'Join Waitlist',
-    switchTo: 'ES',
-    switchHref: '/es',
-    heroPretitle: 'THE EVOLUTION OF NETWORKING & LOCAL INTELLIGENCE.',
-    heroTitle: 'Your Identity Protected. Your Market Dominated.',
-    heroSubtitle:
-      'More than a digital business card. Card-Social is a data-governance ecosystem. Secure your privacy in an encrypted vault, control what you share, and discover exactly where the demand for your business is in real-time. You evolve, your card evolves.',
-    heroButton: 'Join the Private Waitlist',
-    vaultKicker: 'The Vault',
-    vaultTitle: "The Vault: Your Data Doesn't Float on the Internet.",
-    vaultText:
-      'Stop giving away your raw information. Your data lives in a highly secure, centralized Vault. When you share a profile, your information is visually masked behind "IconoDatas".',
-    iconoDatas: [
-      ['URLs & Links', 'Social media and websites with auto-fetched icons.', 'LINK'],
-      ['Emails', 'Direct, secure inbox routing.', 'MAIL'],
-      ['Phones', 'Global country codes for direct dialing.', 'CALL'],
-      ['Texts & Documents', 'Upload portfolios, menus, PDFs, and custom statements.', 'DOC'],
-      [
-        'The Ghost Link (VoIP)',
-        'Our crown jewel. Make and receive calls directly through the app without ever exposing your real phone number. Total privacy.',
-        'GHOST',
-      ],
-    ],
-    privateCallKicker: 'Private Call',
-    privateCallTitle: 'Never Give Your Number Away Again.',
-    privateCallText:
-      "Protect your ultimate boundary. With Card-Social's integrated Private Call (VoIP), you make and receive calls directly through the app. Whether you are dealing with a new client or a local vendor, communicate flawlessly without ever exposing your real phone number.",
-    incomingClient: 'Incoming Client',
-    protectedNumber: 'Number protected by Ghost Link',
-    decline: 'Decline',
-    answer: 'Answer',
-    architectureKicker: 'Dynamic Card System',
-    architectureTitle: 'Visually Stunning. Functionally Effective.',
-    cardArchitecture: [
-      ['Smart Cards.', 'Max security, 2-minute expiring QR codes for face-to-face sharing.', 'Security'],
-      ['Business Cards.', 'Permanent QR codes, SEO keywords, and GPS location to rank in your local area.', 'Discovery'],
-      [
-        'CardStudio.',
-        'Stand out from the crowd. Access our premium virtual store to purchase custom icon packs, luxury color palettes, and exclusive visual Themes (Skins). Your digital presence should look exactly as premium as the services you offer.',
-        'Luxury UI',
-      ],
-    ],
-    privacyTitle: 'You Save the Card, Not the User.',
-    privacyText:
-      "In traditional apps, you save a person's entire profile. In Card-Social, you only retain what was specifically shared with you. A user might have 20 different cards for 20 different businesses, but your contact list only holds the specific, curated card they handed you. Absolute segmentation. Zero clutter.",
-    marketKicker: 'Social Market Ecosystem',
-    marketTitle: 'From Penthouses to Neighborhood Kitchens.',
-    marketText:
-      'The Social Market is a 25-mile local search engine powered by your Business Cards. It creates micro-economies where local demand meets instant supply.',
-    useCases: [
-      [
-        'The Real Estate Developer.',
-        'Dominate the housing market. Use the Market Radar to see exactly which zip codes are searching for "Property Investments" and position your agency directly in front of high-net-worth buyers.',
-        'RE',
-      ],
-      [
-        'The Neighborhood Creator.',
-        'Create a market out of thin air. Cook great food? Set up a "Home-Cooked Meals" Business Card. Offer lawn mowing or dog walking? Instantly become visible to hundreds of neighbors in your immediate radius, eliminating client acquisition costs.',
-        'NC',
-      ],
-    ],
-    tiersKicker: 'Growth Tiers',
-    tiersTitle: 'Scale Your Network.',
-    tiers: [
-      ['Free', 'For the casual user. Secure your Vault, create Smart Cards, and keep your social and academic circles organized.'],
-      ['Influencer', 'For creators and growing professionals. Unlock more data capacity and your first Business Card to start capturing an audience.'],
-      [
-        'Business',
-        'For established professionals and local businesses. Multiple Business Cards for different services, advanced analytics, and full entry into the Social Market.',
-      ],
-    ],
-    dashboardKicker: 'Business Intelligence',
-    dashboardTitle: 'The Executive Dashboard.',
-    dashboardText:
-      'Every Business Card comes with baseline analytics. Track your card\'s conversions, visitor traffic, and most importantly, discover "Lost Sales"-instances where locals searched for your specific niche, but your card wasn\'t fully optimized to catch them.',
-    radarTitle: 'Premium Add-On: The Market Radar',
-    radarText:
-      'Take it a step further. For a small additional fee, unlock the city-wide Heatmap. Type in any keyword-like "bathroom cleaning" or "real estate"-and see a visual heatmap of exactly where the demand is in a 25-mile radius. Discover new market gaps before your competitors even know they exist.',
-    formKicker: 'Private Beta',
-    formTitle: 'Be the First to Dominate.',
-    formSubtitle: 'We are opening limited spots for our Beta phase. Secure your place in the Social Market or request our Investor Deck.',
-    fullName: 'Full Name',
-    email: 'Email Address',
-    phone: 'Phone/WhatsApp',
-    interest: 'What is your primary interest?',
-    submit: 'Request Early Access',
-    sending: 'Sending...',
-    success: 'Request received. Check your inbox.',
-    error: 'We could not send your request. Please try again.',
-    interests: {
-      personal: 'Secure my personal card',
-      business: 'I am a Business Owner',
-      investor: 'I am an Investor',
-    } satisfies Record<InterestKey, string>,
-  },
-  es: {
-    navCta: 'Unirme',
-    switchTo: 'EN',
-    switchHref: '/',
-    heroPretitle: 'LA EVOLUCIÓN DEL NETWORKING Y LA INTELIGENCIA LOCAL.',
-    heroTitle: 'Tu Identidad Protegida. Tu Mercado Dominado.',
-    heroSubtitle:
-      'Más que una tarjeta de presentación digital. Card-Social es un ecosistema de gobernanza de datos. Protege tu privacidad en una bóveda cifrada, controla qué compartes y descubre exactamente dónde está la demanda de tu negocio en tiempo real. Tú evolucionas, tu tarjeta evoluciona.',
-    heroButton: 'Únete a la Lista de Espera Privada',
-    vaultKicker: 'The Vault',
-    vaultTitle: 'The Vault: tus datos no flotan en internet.',
-    vaultText:
-      'Deja de regalar tu información cruda. Tus datos viven en una bóveda centralizada y altamente segura. Cuando compartes un perfil, tu información queda visualmente protegida detrás de "IconoDatas".',
-    iconoDatas: [
-      ['URLs & Links', 'Redes sociales y sitios web con iconos detectados automáticamente.', 'LINK'],
-      ['Emails', 'Enrutamiento directo y seguro hacia tu inbox.', 'MAIL'],
-      ['Phones', 'Códigos de país globales para marcado directo.', 'CALL'],
-      ['Texts & Documents', 'Sube portafolios, menús, PDFs y declaraciones personalizadas.', 'DOC'],
-      [
-        'The Ghost Link (VoIP)',
-        'Nuestra joya principal. Haz y recibe llamadas directamente desde la app sin exponer jamás tu número real. Privacidad total.',
-        'GHOST',
-      ],
-    ],
-    privateCallKicker: 'Private Call',
-    privateCallTitle: 'No vuelvas a regalar tu número.',
-    privateCallText:
-      'Protege tu frontera más importante. Con Private Call (VoIP) integrado en Card-Social, haces y recibes llamadas directamente desde la app. Ya sea con un cliente nuevo o un proveedor local, comunícate sin fricción sin exponer jamás tu número real.',
-    incomingClient: 'Cliente entrante',
-    protectedNumber: 'Número protegido por Ghost Link',
-    decline: 'Rechazar',
-    answer: 'Responder',
-    architectureKicker: 'Sistema de Tarjetas Dinámicas',
-    architectureTitle: 'Visualmente impresionante. Funcionalmente efectivo.',
-    cardArchitecture: [
-      ['Smart Cards.', 'Máxima seguridad, códigos QR que expiran en 2 minutos para compartir cara a cara.', 'Seguridad'],
-      ['Business Cards.', 'QR permanentes, keywords SEO y ubicación GPS para posicionarte en tu área local.', 'Descubrimiento'],
-      [
-        'CardStudio.',
-        'Destaca entre la multitud. Accede a nuestra tienda virtual premium para comprar packs de iconos personalizados, paletas de lujo y Themes (Skins) exclusivos. Tu presencia digital debe verse tan premium como los servicios que ofreces.',
-        'Luxury UI',
-      ],
-    ],
-    privacyTitle: 'Guardas la tarjeta, no el usuario.',
-    privacyText:
-      'En las apps tradicionales, guardas el perfil completo de una persona. En Card-Social, solo retienes lo que esa persona compartió específicamente contigo. Un usuario puede tener 20 tarjetas distintas para 20 negocios distintos, pero tu lista de contactos solo conserva la tarjeta específica y curada que te entregó. Segmentación absoluta. Cero ruido.',
-    marketKicker: 'Ecosistema Social Market',
-    marketTitle: 'De penthouses a cocinas de barrio.',
-    marketText:
-      'El Social Market es un motor de búsqueda local de 25 millas impulsado por tus Business Cards. Crea microeconomías donde la demanda local se encuentra con oferta instantánea.',
-    useCases: [
-      [
-        'El desarrollador inmobiliario.',
-        'Domina el mercado de vivienda. Usa Market Radar para ver exactamente qué códigos postales buscan "Property Investments" y posiciona tu agencia frente a compradores de alto poder adquisitivo.',
-        'RE',
-      ],
-      [
-        'El creador de barrio.',
-        'Crea un mercado desde cero. ¿Cocinas increíble? Crea una Business Card de "Home-Cooked Meals". ¿Ofreces jardinería o paseo de perros? Hazte visible al instante para cientos de vecinos en tu radio inmediato, eliminando costos de adquisición.',
-        'NC',
-      ],
-    ],
-    tiersKicker: 'Niveles de Crecimiento',
-    tiersTitle: 'Escala tu red.',
-    tiers: [
-      ['Free', 'Para el usuario casual. Protege tu Vault, crea Smart Cards y mantén organizados tus círculos sociales y académicos.'],
-      ['Influencer', 'Para creadores y profesionales en crecimiento. Desbloquea más capacidad de datos y tu primera Business Card para empezar a capturar audiencia.'],
-      [
-        'Business',
-        'Para profesionales establecidos y negocios locales. Varias Business Cards para diferentes servicios, analítica avanzada y entrada completa al Social Market.',
-      ],
-    ],
-    dashboardKicker: 'Inteligencia de Negocio',
-    dashboardTitle: 'El Dashboard Ejecutivo.',
-    dashboardText:
-      'Cada Business Card incluye analítica base. Rastrea conversiones, tráfico de visitantes y, lo más importante, descubre "Ventas Perdidas": momentos donde personas locales buscaron tu nicho específico, pero tu tarjeta no estaba completamente optimizada para capturarlas.',
-    radarTitle: 'Premium Add-On: The Market Radar',
-    radarText:
-      'Llévalo más lejos. Por una pequeña tarifa adicional, desbloquea el Heatmap de la ciudad. Escribe cualquier keyword, como "bathroom cleaning" o "real estate", y mira un mapa visual de exactamente dónde está la demanda en un radio de 25 millas. Descubre brechas de mercado antes de que tus competidores sepan que existen.',
-    formKicker: 'Beta Privada',
-    formTitle: 'Sé de los primeros en dominar.',
-    formSubtitle: 'Estamos abriendo cupos limitados para nuestra fase Beta. Asegura tu lugar en el Social Market o solicita nuestro Deck de inversión.',
-    fullName: 'Nombre completo',
-    email: 'Correo electrónico',
-    phone: 'Teléfono/WhatsApp',
-    interest: '¿Cuál es tu interés principal?',
-    submit: 'Solicitar Acceso Temprano',
-    sending: 'Enviando...',
-    success: 'Solicitud recibida. Revisa tu correo.',
-    error: 'No pudimos enviar tu solicitud. Intenta de nuevo.',
-    interests: {
-      personal: 'Asegurar mi tarjeta personal',
-      business: 'Soy dueño de negocio',
-      investor: 'Soy inversionista',
-    } satisfies Record<InterestKey, string>,
-  },
 };
 
 function Reveal({ children, className = '' }: { children: ReactNode; className?: string }) {
@@ -261,7 +52,7 @@ function rememberLocaleChoice(locale: LandingLocale) {
 }
 
 function WaitlistForm({ locale }: { locale: LandingLocale }) {
-  const c = copy[locale];
+  const c = getLandingCopy(locale);
   const [countryCode, setCountryCode] = useState(locale === 'es' ? '+1' : '+1');
   const [interest, setInterest] = useState<InterestKey | ''>('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
@@ -312,7 +103,7 @@ function WaitlistForm({ locale }: { locale: LandingLocale }) {
   }
 
   return (
-    <form className="grid gap-4" aria-label={locale === 'es' ? 'Formulario de lista de espera privada' : 'Private waitlist form'} onSubmit={onSubmit}>
+    <form className="grid gap-4" aria-label={c.waitlistFormAriaLabel} onSubmit={onSubmit}>
       <input name="company" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
       <label className="grid gap-2">
         <span className="text-xs font-black uppercase tracking-[0.2em] text-white/55">{c.fullName}</span>
@@ -343,7 +134,7 @@ function WaitlistForm({ locale }: { locale: LandingLocale }) {
             onChange={(event) => setCountryCode(event.target.value)}
             className="min-h-14 rounded-2xl border border-white/10 bg-[#050505]/70 px-4 text-white outline-none transition focus:border-[#E9C349]/70 focus:ring-4 focus:ring-[#E9C349]/10"
           >
-            {countries.map((country) => (
+            {c.countries.map((country) => (
               <option key={country.code} value={country.code}>
                 {country.label}
               </option>
@@ -397,7 +188,7 @@ export default function LuxWaitlistLanding({
   locale?: LandingLocale;
   autoDetectLocale?: boolean;
 }) {
-  const c = copy[locale];
+  const c = getLandingCopy(locale);
   useSpanishAutoRedirect(autoDetectLocale);
 
   return (
@@ -414,8 +205,8 @@ export default function LuxWaitlistLanding({
 
         <nav className="fixed left-0 right-0 top-0 z-40 border-b border-white/10 bg-[#050505]/72 backdrop-blur-2xl">
           <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 sm:px-8 lg:px-10">
-            <a href={locale === 'es' ? '/es' : '/'} className="text-sm font-black uppercase tracking-[0.28em] text-white">
-              Card-Social
+            <a href={c.homeHref} className="text-sm font-black uppercase tracking-[0.28em] text-white">
+              {c.brandName}
             </a>
             <div className="flex items-center gap-3">
               <a href="#waitlist" className="hidden rounded-full border border-[#E9C349]/35 bg-[#E9C349]/10 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#F6DA87] sm:inline-flex">
@@ -423,7 +214,7 @@ export default function LuxWaitlistLanding({
               </a>
               <a
                 href={c.switchHref}
-                onClick={() => rememberLocaleChoice(c.switchTo === 'ES' ? 'es' : 'en')}
+                onClick={() => rememberLocaleChoice(c.switchHref === '/es' ? 'es' : 'en')}
                 className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white/72 transition hover:border-[#E9C349]/45 hover:text-[#F6DA87]"
               >
                 {c.switchTo}
@@ -458,7 +249,7 @@ export default function LuxWaitlistLanding({
               <iframe
                 className="absolute inset-0 h-full w-full"
                 src="https://www.youtube-nocookie.com/embed/JHe60TQuCGc?start=26&rel=0&modestbranding=1"
-                title="Card-Social app walkthrough"
+                title={c.walkthroughIframeTitle}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 referrerPolicy="strict-origin-when-cross-origin"
                 allowFullScreen
@@ -512,7 +303,7 @@ export default function LuxWaitlistLanding({
                       <div className="text-center">
                         <p className="text-xs font-black uppercase tracking-[0.26em] text-[#F6DA87]">{c.privateCallKicker}</p>
                         <div className="mx-auto mt-8 grid h-28 w-28 place-items-center rounded-full border border-[#E9C349]/45 bg-[#E9C349]/12 text-4xl shadow-[0_0_52px_rgba(233,195,73,0.26)]">
-                          GC
+                          {c.phoneMockInitials}
                         </div>
                         <h3 className="mt-7 text-2xl font-black tracking-[-0.04em] text-white">{c.incomingClient}</h3>
                         <p className="mt-2 text-sm text-white/44">{c.protectedNumber}</p>
@@ -568,7 +359,7 @@ export default function LuxWaitlistLanding({
         <section className="mx-auto w-full max-w-5xl px-6 py-24 text-center sm:px-8 lg:px-10">
           <Reveal>
             <div className="mx-auto mb-8 grid h-16 w-16 place-items-center rounded-full border border-[#E9C349]/40 bg-[#E9C349]/12 text-lg font-black text-[#F6DA87] shadow-[0_0_42px_rgba(233,195,73,0.24)]">
-              CS
+              {c.privacySectionBadge}
             </div>
             <h2 className="text-4xl font-black tracking-[-0.055em] text-white sm:text-5xl">{c.privacyTitle}</h2>
             <p className="mx-auto mt-6 max-w-3xl text-base leading-8 text-white/62">{c.privacyText}</p>
@@ -623,7 +414,9 @@ export default function LuxWaitlistLanding({
                     : 'border-white/10 bg-[#111111]/72 shadow-[0_24px_80px_rgba(0,0,0,0.34)]'
                 }`}
               >
-                <p className="text-xs font-black uppercase tracking-[0.28em] text-[#F6DA87]">Tier {index + 1}</p>
+                <p className="text-xs font-black uppercase tracking-[0.28em] text-[#F6DA87]">
+                  {c.tierLabelPrefix} {index + 1}
+                </p>
                 <h3 className="mt-5 text-3xl font-black tracking-[-0.055em] text-white">{name}.</h3>
                 <p className="mt-5 text-sm leading-7 text-white/62">{text}</p>
               </motion.article>

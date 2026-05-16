@@ -1,5 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import { AdminLanguageToggle } from '../components/AdminLanguageToggle';
 import { useAuth } from '../auth/useAuth';
+import { useAdminT } from '../i18n/useAdminT';
 
 const navItems = [
   { label: 'Dashboard', to: '/' },
@@ -20,6 +22,7 @@ const navItems = [
 ];
 
 export default function AdminLayout() {
+  const { t } = useAdminT();
   const { logout, user } = useAuth();
 
   return (
@@ -51,28 +54,31 @@ export default function AdminLayout() {
         </nav>
 
         <div className="border-t border-white/10 px-6 py-5">
-          <p className="truncate text-xs text-slate-400">Sesion activa</p>
+          <p className="truncate text-xs text-slate-400">{t('admin_layout_session')}</p>
           <p className="mt-1 truncate text-sm font-medium text-slate-100">{user?.email}</p>
         </div>
       </aside>
 
       <div className="lg:pl-72">
         <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 px-5 py-4 shadow-sm backdrop-blur">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.25em] text-amber-600">
-                Admin Core
+                {t('admin_layout_header_eyebrow')}
               </p>
-              <h2 className="text-lg font-semibold text-slate-950">Card-Social Operations</h2>
+              <h2 className="text-lg font-semibold text-slate-950">{t('admin_layout_header_title')}</h2>
             </div>
 
-            <button
-              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
-              type="button"
-              onClick={() => void logout()}
-            >
-              Cerrar Sesion
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <AdminLanguageToggle />
+              <button
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                type="button"
+                onClick={() => void logout()}
+              >
+                {t('admin_layout_logout')}
+              </button>
+            </div>
           </div>
         </header>
 

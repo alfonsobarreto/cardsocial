@@ -10,9 +10,12 @@ import { calls } from './i18n-core-chunks/calls.mjs';
 import { cards } from './i18n-core-chunks/cards.mjs';
 import { common } from './i18n-core-chunks/common.mjs';
 import { contacts } from './i18n-core-chunks/contacts.mjs';
+import { nfc } from './i18n-core-chunks/nfc.mjs';
 import { qr } from './i18n-core-chunks/qr.mjs';
 import { receptor } from './i18n-core-chunks/receptor.mjs';
 import { search } from './i18n-core-chunks/search.mjs';
+import { settings } from './i18n-core-chunks/settings.mjs';
+import { subscription } from './i18n-core-chunks/subscription.mjs';
 import { vault } from './i18n-core-chunks/vault.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -24,10 +27,13 @@ const dict = {
   ...qr,
   ...receptor,
   ...vault,
+  ...settings,
+  ...nfc,
   ...calls,
   ...contacts,
   ...search,
   ...cards,
+  ...subscription,
 };
 
 const keys = Object.keys(dict);
