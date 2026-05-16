@@ -1,3 +1,8 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
@@ -37,6 +42,16 @@ const nextConfig = {
     if (dev) {
       config.cache = { type: 'memory' };
     }
+    /**
+     * Fuentes bajo `../services/` (externalDir) resuelven `node_modules` subiendo desde el directorio
+     * del archivo. En CI solo se instala `frontend-web/node_modules`; el padre del monorepo no tiene
+     * dependencias, por lo que fallaba `@noble/hashes/*`. Priorizamos siempre las deps del propio paquete web.
+     */
+    const localNodeModules = path.resolve(__dirname, 'node_modules');
+    const prevModules = config.resolve.modules;
+    config.resolve.modules = Array.isArray(prevModules)
+      ? [localNodeModules, ...prevModules]
+      : [localNodeModules, 'node_modules'];
     return config;
   },
   images: {
