@@ -1,13 +1,9 @@
 import { ADMIN_LOCALE_ORDER, type AdminLocale, useAdminLocale } from '../i18n/AdminLocaleProvider';
 import { useAdminT } from '../i18n/useAdminT';
 
-const LANG_OPT_KEYS: Record<AdminLocale, string> = {
-  es: 'admin_lang_es',
-  en: 'admin_lang_en',
-  it: 'admin_lang_it',
-  pt: 'admin_lang_pt',
-  fr: 'admin_lang_fr',
-  de: 'admin_lang_de',
+const LANG_LABELS: Record<AdminLocale, string> = {
+  es: 'Español',
+  en: 'English',
 };
 
 export function AdminLanguageToggle({ className = '' }: { className?: string }) {
@@ -24,7 +20,7 @@ export function AdminLanguageToggle({ className = '' }: { className?: string }) 
       >
         {ADMIN_LOCALE_ORDER.map((l) => (
           <option key={l} value={l}>
-            {t(LANG_OPT_KEYS[l])}
+            {LANG_LABELS[l]}
           </option>
         ))}
       </select>

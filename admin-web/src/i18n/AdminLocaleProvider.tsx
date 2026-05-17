@@ -7,16 +7,16 @@ import {
   type ReactNode,
 } from 'react';
 
-export type AdminLocale = 'es' | 'en' | 'it' | 'pt' | 'fr' | 'de';
+export type AdminLocale = 'es' | 'en';
 
 const STORAGE_KEY = 'admin_locale';
 
-export const ADMIN_LOCALE_ORDER: AdminLocale[] = ['es', 'en', 'it', 'pt', 'fr', 'de'];
+export const ADMIN_LOCALE_ORDER: AdminLocale[] = ['es', 'en'];
 
 function parseStored(): AdminLocale {
   try {
     const s = localStorage.getItem(STORAGE_KEY);
-    if (s && ADMIN_LOCALE_ORDER.includes(s as AdminLocale)) return s as AdminLocale;
+    if (s === 'en' || s === 'es') return s;
   } catch {
     /* ignore */
   }
@@ -64,13 +64,5 @@ export function useAdminLocale(): AdminLocaleCtx {
 
 /** BCP 47 tag for Intl formatters (dates, numbers). */
 export function adminLocaleToBcp47(locale: AdminLocale): string {
-  const m: Record<AdminLocale, string> = {
-    es: 'es-ES',
-    en: 'en-US',
-    it: 'it-IT',
-    pt: 'pt-BR',
-    fr: 'fr-FR',
-    de: 'de-DE',
-  };
-  return m[locale];
+  return locale === 'es' ? 'es-ES' : 'en-US';
 }

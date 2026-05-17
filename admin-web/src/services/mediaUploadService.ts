@@ -31,3 +31,22 @@ export async function uploadAdminMedia(firebaseUser: User, file: File): Promise<
   }
   return json;
 }
+
+export async function deleteAdminMedia(firebaseUser: User, filename: string): Promise<void> {
+  const { base, key, token } = await adminBearer(firebaseUser, 'admin.system');
+  const q = new URLSearchParams({ filename });
+  const res = await fetch(`${base}/api/admin/media?${q.toString()}`, {
+    method: 'DELETE',
+    headers: {
+      'x-api-gateway-key': key,
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    throw new Error(await readErrBody(res));
+  }
+  const json = (await res.json()) as { ok?: boolean };
+  if (!json?.ok) {
+    throw new Error('Invalid delete response');
+  }
+}

@@ -1,5 +1,7 @@
 /**
- * Admin media upload — POST /api/admin/media/upload
+ * Admin media upload & delete.
+ * - POST /api/admin/media/upload — multipart file
+ * - DELETE /api/admin/media?filename=... — remove file from uploads dir (disk)
  * Auth: x-api-gateway-key + JWT (scope admin.system), same as system-stats.
  * Stores files under backend/public/uploads and serves them at GET /uploads/:file
  */
@@ -19,6 +21,15 @@ function extForMime(mime) {
 
 function getAdminMediaUploadsDir() {
   return path.join(__dirname, '..', '..', 'public', 'uploads');
+}
+
+/** Solo basenames generados por multer (timestamp_uuid.ext); evita path traversal. */
+function isSafeAdminMediaBasename(name) {
+  if (typeof name !== 'string' || name.length === 0 || name.length > 200) return false;
+  if (name !== path.basename(name)) return false;
+  if (/[\\/]|\.\./.test(name)) return false;
+  const uuidLike = '([0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})';
+  return new RegExp(`^\\d{10,}_${uuidLike}\\.(png|jpg)$`, 'i').test(name);
 }
 
 function resolvePublicBaseUrl(req) {
@@ -97,6 +108,42 @@ function createAdminMediaRouter(options = {}) {
         mime: req.file.mimetype,
         path: publicPath,
       });
+    });
+  });
+
+  /**
+   * DELETE /api/admin/media?filename=...
+   * Body JSON alternativo: { "filename": "..." } (si el cliente envía Content-Type application/json).
+   */
+  router.delete('/', express.json(), (req, res) => {
+    const raw =
+      typeof req.query?.filename === 'string'
+        ? req.query.filename
+        : typeof req.body?.filename === 'string'
+          ? req.body.filename
+          : '';
+    const filename = path.basename(String(raw).trim());
+
+    if (!isSafeAdminMediaBasename(filename)) {
+      return res.status(400).json({ ok: false, error: 'INVALID_FILENAME' });
+    }
+
+    const absolute = path.join(uploadDir, filename);
+    const resolvedDir = path.resolve(uploadDir);
+    const resolvedFile = path.resolve(absolute);
+    if (!resolvedFile.startsWith(resolvedDir + path.sep) && resolvedFile !== resolvedDir) {
+      return res.status(400).json({ ok: false, error: 'INVALID_PATH' });
+    }
+
+    fs.unlink(resolvedFile, (err) => {
+      if (err) {
+        if (err.code === 'ENOENT') {
+          return res.status(404).json({ ok: false, error: 'NOT_FOUND' });
+        }
+        console.error('[admin/media/delete]', err);
+        return res.status(500).json({ ok: false, error: 'DELETE_FAILED' });
+      }
+      return res.status(200).json({ ok: true });
     });
   });
 

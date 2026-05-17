@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } fro
 
 import { useAuth } from '../auth/useAuth';
 import { useAdminT } from '../i18n/useAdminT';
-import { uploadAdminMedia } from '../services/mediaUploadService';
+import { deleteAdminMedia, uploadAdminMedia } from '../services/mediaUploadService';
 
 type SessionItem = {
   id: string;
@@ -26,6 +26,7 @@ export default function MediaManager() {
   const [uploading, setUploading] = useState(false);
   const [notice, setNotice] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const pushNotice = useCallback((type: 'ok' | 'err', text: string) => {
@@ -119,6 +120,24 @@ export default function MediaManager() {
     }
   };
 
+  const removeFromSession = useCallback(
+    async (item: SessionItem) => {
+      if (!user) return;
+      setRemovingId(item.id);
+      try {
+        await deleteAdminMedia(user, item.filename);
+        setItems((prev) => prev.filter((x) => x.id !== item.id));
+        pushNotice('ok', t('admin_media_deleted'));
+      } catch (e) {
+        console.error('[MediaManager] delete', e);
+        pushNotice('err', t('admin_media_delete_fail'));
+      } finally {
+        setRemovingId(null);
+      }
+    },
+    [user, t, pushNotice],
+  );
+
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <div>
@@ -197,9 +216,19 @@ export default function MediaManager() {
             {items.map((it) => (
               <li
                 key={it.id}
-                className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+                className="relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
               >
-                <div className="aspect-video bg-slate-100">
+                <div className="relative aspect-video bg-slate-100">
+                  <button
+                    type="button"
+                    className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-slate-900/75 text-lg font-light leading-none text-white shadow-md transition hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-1"
+                    aria-label={t('admin_media_remove')}
+                    title={t('admin_media_remove')}
+                    disabled={uploading || removingId === it.id}
+                    onClick={() => void removeFromSession(it)}
+                  >
+                    ×
+                  </button>
                   <img
                     src={it.thumbUrl}
                     alt=""
