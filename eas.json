@@ -12,12 +12,18 @@
       "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_STUDIO_WEB_URL": "https://cardsocial.me",
+        "EXPO_PUBLIC_MARKET_RADAR_WEB_ORIGIN": "https://cardsocial.me"
+      }
     },
     "alpha-testflight": {
       "extends": "production",
       "env": {
-        "EXPO_PUBLIC_CLOSED_ALPHA_FULL_TIER": "business"
+        "EXPO_PUBLIC_CLOSED_ALPHA_FULL_TIER": "business",
+        "EXPO_PUBLIC_STUDIO_WEB_URL": "https://cardsocial.me",
+        "EXPO_PUBLIC_MARKET_RADAR_WEB_ORIGIN": "https://cardsocial.me"
       }
     }
   },

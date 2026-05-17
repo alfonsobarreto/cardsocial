@@ -32,6 +32,29 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const BRAND_MARK = 'Card-Social';
 
+/** Ilustraciones servidas por el API (admin / uploads). */
+const ONBOARDING_IMAGE = {
+  slide0:
+    'https://card-social-api.azurewebsites.net/uploads/1779051178684_63397578-4725-4bf7-8516-29761efd4113.jpg',
+  vault:
+    'https://card-social-api.azurewebsites.net/uploads/1779050603239_3f44c3d5-d3f1-4f7e-870b-1c353929282f.png',
+  /** Smart Card — pantalla My Cards / Create. */
+  cardHub:
+    'https://card-social-api.azurewebsites.net/uploads/1779050662335_bcb107ae-1154-4fd7-ae76-69ac65f0497f.png',
+  businessCard:
+    'https://card-social-api.azurewebsites.net/uploads/1779050691451_1d87dedc-fb50-43ca-bccd-2b1021bae221.png',
+  qrScanner:
+    'https://card-social-api.azurewebsites.net/uploads/1779053106666_2bc771e3-f4a3-4593-b4f3-0b8c9470f75e.jpg',
+  socialMarket:
+    'https://card-social-api.azurewebsites.net/uploads/1779050714619_c2edde5d-74dd-4337-83b2-b6362a14d439.png',
+  skinForge:
+    'https://card-social-api.azurewebsites.net/uploads/1779053059148_5df9cfbd-b64f-4e2a-9ef0-863bdfe2cd25.jpg',
+  localMarket:
+    'https://card-social-api.azurewebsites.net/uploads/1779053141606_d8095987-9c93-44b5-92ab-0fffe6df2c78.jpg',
+  slideLast:
+    'https://card-social-api.azurewebsites.net/uploads/1779051306659_c8b70169-61aa-403c-82e6-27e6eb067d92.jpg',
+} as const;
+
 /** Paleta hero landing (oscuro + acento oro). */
 const L = {
   bg: '#000000',
@@ -55,63 +78,62 @@ type SlideDef = {
 const SLIDES: SlideDef[] = [
   {
     id: 'welcome',
-    imageUri: 'https://via.placeholder.com/800x500/0a0a0a/E9C349?text=Card-Social',
+    imageUri: ONBOARDING_IMAGE.slide0,
     titleKey: 'onboarding_slide_0_title',
     bodyKey: 'onboarding_slide_0_body',
     variant: 'welcome',
   },
   {
     id: 'vault',
-    imageUri: 'https://via.placeholder.com/800x500/121212/E9C349?text=Boveda',
+    imageUri: ONBOARDING_IMAGE.vault,
     titleKey: 'onboarding_slide_1_title',
     bodyKey: 'onboarding_slide_1_body',
     variant: 'standard',
   },
   {
     id: 'icondatas',
-    imageUri: 'https://via.placeholder.com/800x500/1a1520/E9C349?text=Icondatas',
+    imageUri: ONBOARDING_IMAGE.cardHub,
     titleKey: 'onboarding_slide_2_title',
     bodyKey: 'onboarding_slide_2_body',
     variant: 'standard',
   },
   {
     id: 'cards',
-    imageUri: 'https://via.placeholder.com/800x500/221018/E9C349?text=QR+24h',
+    imageUri: ONBOARDING_IMAGE.qrScanner,
     titleKey: 'onboarding_slide_3_title',
     bodyKey: 'onboarding_slide_3_body',
     variant: 'standard',
   },
   {
     id: 'business',
-    imageUri: 'https://via.placeholder.com/800x500/0f1628/E9C349?text=Business+Card',
-    titleKey: 'onboarding_slide_4_title',
+    imageUri: ONBOARDING_IMAGE.businessCard,
     bodyKey: 'onboarding_slide_4_body',
     variant: 'standard',
   },
   {
     id: 'market',
-    imageUri: 'https://via.placeholder.com/800x500/18140e/E9C349?text=Market',
+    imageUri: ONBOARDING_IMAGE.socialMarket,
     titleKey: 'onboarding_slide_5_title',
     bodyKey: 'onboarding_slide_5_body',
     variant: 'standard',
   },
   {
     id: 'identity',
-    imageUri: 'https://via.placeholder.com/800x500/0d1f16/E9C349?text=Identity',
+    imageUri: ONBOARDING_IMAGE.skinForge,
     titleKey: 'onboarding_slide_6_title',
     bodyKey: 'onboarding_slide_6_body',
     variant: 'standard',
   },
   {
     id: 'demand',
-    imageUri: 'https://via.placeholder.com/800x500/201808/E9C349?text=Demand',
+    imageUri: ONBOARDING_IMAGE.localMarket,
     titleKey: 'onboarding_slide_7_title',
     bodyKey: 'onboarding_slide_7_body',
     variant: 'standard',
   },
   {
     id: 'arsenal',
-    imageUri: 'https://via.placeholder.com/800x500/100810/E9C349?text=Features',
+    imageUri: ONBOARDING_IMAGE.slideLast,
     titleKey: 'onboarding_slide_8_title',
     bodyKey: 'onboarding_slide_8_body',
     variant: 'standard',

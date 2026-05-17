@@ -56,8 +56,20 @@ export default function Index() {
         setTarget('signin');
         return;
       }
-      const dest = await resolvePostAuthDestination(user.uid);
-      void ensureOnboardingTourNotification(user.uid).catch((e) =>
+      const active = auth.currentUser;
+      if (!active || active.uid !== user.uid) {
+        setTarget('signin');
+        return;
+      }
+      try {
+        await active.getIdToken();
+      } catch (e) {
+        console.warn('[index] getIdToken before Firestore:', e);
+        setTarget('signin');
+        return;
+      }
+      const dest = await resolvePostAuthDestination(active.uid);
+      void ensureOnboardingTourNotification(active.uid).catch((e) =>
         console.warn('[index] ensureOnboardingTourNotification', e),
       );
       setTarget(dest === 'main' ? 'main' : 'onboarding');

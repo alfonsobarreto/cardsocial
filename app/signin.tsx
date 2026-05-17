@@ -8,7 +8,7 @@ import { requestVerificationEmailViaBackend } from '@/services/requestVerificati
 import { syncWaitlistOnAppVerified } from '@/services/syncWaitlistOnAppVerified';
 import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { auth, db } from '@/services/firebaseConfig';
-import { firestoreFirstUserDocByNickLower } from '@/services/userIdentityFields';
+import { resolveEmailCandidatesForSignIn } from '@/services/studioAuthPublicApi';
 import { useLanguageOptional } from '@/services/language';
 import { useAuthT, type AuthLocaleKey } from '@/services/authI18n';
 import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, SocialProviderId } from '@/services/socialAuth';
@@ -27,7 +27,7 @@ import {
   signOut,
   type UserCredential,
 } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs, limit, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
+import { doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { Check, Eye, EyeOff, Lock, User } from 'lucide-react-native';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -47,19 +47,6 @@ import {
 } from 'react-native';
 
 const EMAIL_LIKE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function signInEmailsFromFirestoreUser(data: Record<string, unknown>): string[] {
-  const primary = String(data.emailLower || data.email || '')
-    .trim()
-    .toLowerCase();
-  const pending = String(data.pendingEmailLower || data.pendingEmail || '')
-    .trim()
-    .toLowerCase();
-  const out: string[] = [];
-  if (primary) out.push(primary);
-  if (pending && pending !== primary) out.push(pending);
-  return out;
-}
 
 function authSignInUserMessage(error: unknown, t: (k: AuthLocaleKey) => string): string {
   const code = String((error as { code?: string })?.code || '');
@@ -116,39 +103,6 @@ export default function SignInScreen() {
 
   const welcomeTitle = useMemo(() => t('signin_welcome_title'), [language, t]);
 
-  const resolveSignInEmailCandidates = async (rawUsername: string): Promise<string[] | null> => {
-    const trimmed = rawUsername.trim();
-    const normalizedUsername = trimmed.toLowerCase();
-    if (!normalizedUsername) {
-      return null;
-    }
-    if (normalizedUsername.includes('@')) {
-      if (!EMAIL_LIKE.test(normalizedUsername)) return null;
-      return [normalizedUsername];
-    }
-
-    const usersRef = collection(db, 'users');
-    const byLowerDoc = await firestoreFirstUserDocByNickLower(db, normalizedUsername);
-    if (byLowerDoc) {
-      const emails = signInEmailsFromFirestoreUser(byLowerDoc.data() as Record<string, unknown>);
-      return emails.length ? emails : null;
-    }
-
-    const byNickname = await getDocs(query(usersRef, where('nickname', '==', trimmed), limit(1)));
-    if (!byNickname.empty) {
-      const emails = signInEmailsFromFirestoreUser(byNickname.docs[0].data() as Record<string, unknown>);
-      return emails.length ? emails : null;
-    }
-
-    const byUserNick = await getDocs(query(usersRef, where('userNickName', '==', trimmed), limit(1)));
-    if (!byUserNick.empty) {
-      const emails = signInEmailsFromFirestoreUser(byUserNick.docs[0].data() as Record<string, unknown>);
-      return emails.length ? emails : null;
-    }
-
-    return null;
-  };
-
   const maskEmail = (email: string) => {
     const [localRaw, domainRaw] = email.split('@');
     const local = localRaw || '';
@@ -176,7 +130,7 @@ export default function SignInScreen() {
         return;
       }
 
-      const candidates = await resolveSignInEmailCandidates(normalizedUsername);
+      const candidates = await resolveEmailCandidatesForSignIn(normalizedUsername);
       if (!candidates?.length) {
         Alert.alert(t('signin_alert_user_not_found_title'), t('signin_alert_user_not_found_body'));
         return;
@@ -314,7 +268,7 @@ export default function SignInScreen() {
     setRecoveryEmail('');
     setMaskedRecoveryEmail('');
     if (normalizedUsername) {
-      const list = await resolveSignInEmailCandidates(normalizedUsername).catch(() => null);
+      const list = await resolveEmailCandidatesForSignIn(normalizedUsername).catch(() => null);
       if (list?.length) setMaskedRecoveryEmail(maskEmail(list[0]));
     }
     setRecoveryMode('password');
@@ -370,7 +324,7 @@ export default function SignInScreen() {
     const fromPending = pendingVerificationEmail.trim().toLowerCase();
     const candidates = fromPending && EMAIL_LIKE.test(fromPending)
       ? [fromPending]
-      : (await resolveSignInEmailCandidates(normalizedUsername)) || [];
+      : (await resolveEmailCandidatesForSignIn(normalizedUsername)) || [];
 
     if (!candidates.length) {
       Alert.alert(t('signin_alert_username_resend_title'), t('signin_alert_username_resend_body'));

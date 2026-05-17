@@ -10,6 +10,7 @@
  *    NSAllowsArbitraryLoadsInWebContent (see app.json). Rebuild the dev client after Info.plist changes.
  *
  * Prod: set to your deployed Studio origin (https), e.g. `https://studio.cardsocial.me`.
+ * La misma base sirve para `/api/studio/resolve-username` y `/api/studio/signup-availability` (login/registro).
  *
  * Optional override: `EXPO_PUBLIC_MARKET_RADAR_WEB_ORIGIN` (same shape, takes precedence).
  */

@@ -19,6 +19,7 @@ import { ModerationRejectedError, uploadFileWithModeration } from '@/services/mo
 import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, SocialProviderId } from '@/services/socialAuth';
 import { grantStudentPackCreditsIfEligible } from '@/services/studentPackService';
 import { upsertSuccessfulReferralAttribution } from '@/services/referralsFirestoreService';
+import { fetchSignupFieldAvailability } from '@/services/studioAuthPublicApi';
 import { firestoreFirstUserDocByNickLower, firestoreUserAvatarUrlWrite } from '@/services/userIdentityFields';
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { Picker } from '@react-native-picker/picker';
@@ -297,7 +298,6 @@ export default function RegisterScreen() {
 
   useEffect(() => {
     const nicknameTrimmed = nickname.trim();
-    const nicknameLower = nicknameTrimmed.toLowerCase();
 
     if (!nicknameTrimmed) {
       setNicknameStatus('idle');
@@ -313,14 +313,15 @@ export default function RegisterScreen() {
     const timeout = setTimeout(() => {
       void (async () => {
         try {
-          const found = await firestoreFirstUserDocByNickLower(db, nicknameLower);
-          const currentUid = auth.currentUser?.uid;
-          if (!found) {
-            setNicknameStatus('available');
+          const map = await fetchSignupFieldAvailability({
+            nickname: nicknameTrimmed,
+            ignoreUid: auth.currentUser?.uid,
+          });
+          if (!map?.nickname) {
+            setNicknameStatus('idle');
             return;
           }
-
-          setNicknameStatus(found.id === currentUid ? 'available' : 'taken');
+          setNicknameStatus(map.nickname === 'taken' ? 'taken' : 'available');
         } catch {
           setNicknameStatus('idle');
         }
@@ -348,16 +349,15 @@ export default function RegisterScreen() {
     const timeout = setTimeout(() => {
       void (async () => {
         try {
-          const usersRef = collection(db, 'users');
-          const snapshot = await getDocs(query(usersRef, where('emailLower', '==', emailLower), limit(1)));
-          const currentUid = auth.currentUser?.uid;
-          if (snapshot.empty) {
-            setEmailStatus('available');
+          const map = await fetchSignupFieldAvailability({
+            emailLower,
+            ignoreUid: auth.currentUser?.uid,
+          });
+          if (!map?.email) {
+            setEmailStatus('idle');
             return;
           }
-
-          const found = snapshot.docs[0];
-          setEmailStatus(found.id === currentUid ? 'available' : 'taken');
+          setEmailStatus(map.email === 'taken' ? 'taken' : 'available');
         } catch {
           setEmailStatus('idle');
         }
@@ -386,16 +386,15 @@ export default function RegisterScreen() {
     const timeout = setTimeout(() => {
       void (async () => {
         try {
-          const usersRef = collection(db, 'users');
-          const snapshot = await getDocs(query(usersRef, where('phoneNormalized', '==', phoneNormalized), limit(1)));
-          const currentUid = auth.currentUser?.uid;
-          if (snapshot.empty) {
-            setPhoneStatus('available');
+          const map = await fetchSignupFieldAvailability({
+            phoneNormalized,
+            ignoreUid: auth.currentUser?.uid,
+          });
+          if (!map?.phone) {
+            setPhoneStatus('idle');
             return;
           }
-
-          const found = snapshot.docs[0];
-          setPhoneStatus(found.id === currentUid ? 'available' : 'taken');
+          setPhoneStatus(map.phone === 'taken' ? 'taken' : 'available');
         } catch {
           setPhoneStatus('idle');
         }
@@ -594,13 +593,36 @@ export default function RegisterScreen() {
   };
 
   const checkUniqueness = async (
-    nicknameLower: string,
+    normalizedNicknameForCheck: string,
     emailLower: string,
     phoneNormalized: string,
     ignoreUid?: string
   ) => {
-    const usersRef = collection(db, 'users');
+    const fromApi = await fetchSignupFieldAvailability({
+      nickname: normalizedNicknameForCheck,
+      emailLower,
+      phoneNormalized,
+      ignoreUid,
+    });
+    if (
+      fromApi?.nickname &&
+      fromApi?.email &&
+      fromApi?.phone
+    ) {
+      if (fromApi.nickname === 'taken') {
+        throw new Error(t('register_err_nickname_in_use'));
+      }
+      if (fromApi.email === 'taken') {
+        throw new Error(t('register_err_email_in_use'));
+      }
+      if (fromApi.phone === 'taken') {
+        throw new Error(t('register_err_phone_in_use'));
+      }
+      return;
+    }
 
+    const usersRef = collection(db, 'users');
+    const nicknameLower = normalizedNicknameForCheck.toLowerCase();
     const [nickDoc, emailSnap, phoneSnap] = await Promise.all([
       firestoreFirstUserDocByNickLower(db, nicknameLower),
       getDocs(query(usersRef, where('emailLower', '==', emailLower), limit(1))),
@@ -634,12 +656,27 @@ export default function RegisterScreen() {
         return;
       }
 
-      const usersRef = collection(db, 'users');
-      const existingByEmail = await getDocs(
-        query(usersRef, where('emailLower', '==', providerEmail), limit(1))
-      );
+      const emailLowerProbe = providerEmail.trim().toLowerCase();
+      const map = await fetchSignupFieldAvailability({
+        emailLower: emailLowerProbe,
+        ignoreUid: credential.user.uid,
+      });
 
-      if (!existingByEmail.empty && existingByEmail.docs[0].id !== credential.user.uid) {
+      let takenByOther = map?.email === 'taken';
+      if (!takenByOther && map?.email == null) {
+        try {
+          const usersRef = collection(db, 'users');
+          const existingByEmail = await getDocs(
+            query(usersRef, where('emailLower', '==', emailLowerProbe), limit(1))
+          );
+          takenByOther =
+            !existingByEmail.empty && existingByEmail.docs[0].id !== credential.user.uid;
+        } catch {
+          /* Firestore puede denegar; en producción el Studio API cubre la comprobación. */
+        }
+      }
+
+      if (takenByOther) {
         await clearLocalCachesForSignOut(credential.user.uid);
         await signOut(auth);
         Alert.alert(
@@ -779,7 +816,7 @@ export default function RegisterScreen() {
     setUploadProgress(0);
     setUploadStageKey('register_upload_starting');
     try {
-      await checkUniqueness(nicknameLower, emailLower, phoneNormalized, auth.currentUser?.uid);
+      await checkUniqueness(normalizedNickname, emailLower, phoneNormalized, auth.currentUser?.uid);
 
       const onboardingOwner = `onboarding-${nicknameLower || Date.now()}`;
 

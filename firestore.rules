@@ -67,6 +67,18 @@ service cloud.firestore {
       allow delete: if isOwner(uid);
     }
 
+    // Onboarding / tour in-app: flags y notas bajo rutas explícitas (dueño). Complementa el
+    // match recursivo general; algunos clientes disparan lecturas justo tras login.
+    match /users/{uid}/private_app_state/{document=**} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // Dueño: lectura/escritura en subcolección notifications (incl. queries y batch).
+    // super_admin crea MOD_* vía la regla granular anterior cuando auth.uid != uid (no es dueño del doc).
+    match /users/{uid}/notifications/{document=**} {
+      allow read, write: if isOwner(uid);
+    }
+
     // Bóveda e iconos: dueño o moderación (panel admin) solo lectura.
     match /users/{uid}/icon_vault/{itemId} {
       allow read: if isOwner(uid) || isSuperAdmin();

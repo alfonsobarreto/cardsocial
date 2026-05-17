@@ -1,0 +1,242 @@
+/**
+ * Llamadas HTTP al Studio (frontend-web) para flujos de auth que no pueden leer `users` en Firestore
+ * sin ser el dueño (reglas de producción). Requiere `EXPO_PUBLIC_STUDIO_WEB_URL` o
+ * `EXPO_PUBLIC_MARKET_RADAR_WEB_ORIGIN` apuntando al mismo origen que sirve `/api/studio/*`.
+ */
+import { collection, getDocs, limit, query, where } from 'firebase/firestore';
+
+import { auth, db } from '@/services/firebaseConfig';
+import marketRadarStudioBaseFromEnv from '@/services/marketRadarStudioBaseFromEnv';
+import { firestoreFirstUserDocByNickLower } from '@/services/userIdentityFields';
+
+export const SIGN_IN_EMAIL_LIKE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function signInEmailsFromFirestoreUser(data: Record<string, unknown>): string[] {
+  const primary = String(data.emailLower || data.email || '')
+    .trim()
+    .toLowerCase();
+  const pending = String(data.pendingEmailLower || data.pendingEmail || '')
+    .trim()
+    .toLowerCase();
+  const out: string[] = [];
+  if (primary) out.push(primary);
+  if (pending && pending !== primary) out.push(pending);
+  return out.filter((e) => SIGN_IN_EMAIL_LIKE.test(e));
+}
+
+async function resolveEmailCandidatesFromFirestoreClient(
+  rawUsername: string,
+): Promise<string[] | null> {
+  const trimmed = rawUsername.trim();
+  const normalizedUsername = trimmed.toLowerCase();
+  if (!normalizedUsername) {
+    return null;
+  }
+
+  const byLowerDoc = await firestoreFirstUserDocByNickLower(db, normalizedUsername);
+  if (byLowerDoc) {
+    const emails = signInEmailsFromFirestoreUser(byLowerDoc.data() as Record<string, unknown>);
+    return emails.length ? emails : null;
+  }
+
+  const usersRef = collection(db, 'users');
+  const byNickname = await getDocs(query(usersRef, where('nickname', '==', trimmed), limit(1)));
+  if (!byNickname.empty) {
+    const emails = signInEmailsFromFirestoreUser(byNickname.docs[0].data() as Record<string, unknown>);
+    return emails.length ? emails : null;
+  }
+
+  const byUserNick = await getDocs(query(usersRef, where('userNickName', '==', trimmed), limit(1)));
+  if (!byUserNick.empty) {
+    const emails = signInEmailsFromFirestoreUser(byUserNick.docs[0].data() as Record<string, unknown>);
+    return emails.length ? emails : null;
+  }
+
+  return null;
+}
+
+function parseEmailsFromResolveUsernameJson(j: unknown): string[] {
+  if (typeof j !== 'object' || j === null) return [];
+  const rec = j as { emails?: unknown; email?: string };
+  const out: string[] = [];
+  if (Array.isArray(rec.emails)) {
+    for (const e of rec.emails) {
+      const s = String(e || '')
+        .trim()
+        .toLowerCase();
+      if (SIGN_IN_EMAIL_LIKE.test(s)) out.push(s);
+    }
+  }
+  const single = String(rec.email || '')
+    .trim()
+    .toLowerCase();
+  if (single && SIGN_IN_EMAIL_LIKE.test(single)) out.push(single);
+  return [...new Set(out)];
+}
+
+/**
+ * Resuelve nick (o email) → emails candidatos para Firebase Auth email/password.
+ */
+export async function resolveEmailCandidatesForSignIn(rawUsername: string): Promise<string[] | null> {
+  const t = rawUsername.trim();
+  if (!t) {
+    return null;
+  }
+  if (t.includes('@')) {
+    const lower = t.toLowerCase();
+    if (!SIGN_IN_EMAIL_LIKE.test(lower)) return null;
+    return [lower];
+  }
+
+  const base = marketRadarStudioBaseFromEnv();
+  if (base) {
+    try {
+      const r = await fetch(`${base}/api/studio/resolve-username`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ username: t }),
+      });
+      const j: unknown = await r.json().catch(() => null);
+      if (r.ok && j && typeof j === 'object' && (j as { ok?: boolean }).ok === true) {
+        const list = parseEmailsFromResolveUsernameJson(j);
+        if (list.length) return list;
+      }
+      if (r.status === 404) {
+        return null;
+      }
+    } catch (e) {
+      console.warn('[studioAuthPublicApi] resolve-username HTTP failed', e);
+    }
+  }
+
+  try {
+    return await resolveEmailCandidatesFromFirestoreClient(t);
+  } catch (e) {
+    console.warn('[studioAuthPublicApi] resolve username Firestore fallback failed', e);
+    return null;
+  }
+}
+
+export type SignupFieldKey = 'nickname' | 'email' | 'phone';
+
+export type SignupFieldAvailabilityMap = Partial<Record<SignupFieldKey, 'available' | 'taken'>>;
+
+async function fetchSignupAvailabilityFirestoreFallback(params: {
+  nickname?: string;
+  emailLower?: string;
+  phoneNormalized?: string;
+  ignoreUid?: string;
+}): Promise<SignupFieldAvailabilityMap | null> {
+  const usersRef = collection(db, 'users');
+  const ignore = String(params.ignoreUid || '').trim();
+  const out: SignupFieldAvailabilityMap = {};
+
+  if (params.nickname != null && String(params.nickname).trim()) {
+    const nick = String(params.nickname).trim();
+    const nickLower = nick.toLowerCase();
+    let taken = false;
+    try {
+      const nickDoc = await firestoreFirstUserDocByNickLower(db, nickLower);
+      if (nickDoc && (!ignore || nickDoc.id !== ignore)) {
+        taken = true;
+      }
+      if (!taken) {
+        const byNick = await getDocs(query(usersRef, where('nickname', '==', nick), limit(1)));
+        if (!byNick.empty && (!ignore || byNick.docs[0].id !== ignore)) {
+          taken = true;
+        }
+      }
+      if (!taken) {
+        const byUserNick = await getDocs(query(usersRef, where('userNickName', '==', nick), limit(1)));
+        if (!byUserNick.empty && (!ignore || byUserNick.docs[0].id !== ignore)) {
+          taken = true;
+        }
+      }
+    } catch {
+      return null;
+    }
+    out.nickname = taken ? 'taken' : 'available';
+  }
+
+  if (params.emailLower != null && String(params.emailLower).trim()) {
+    const emailLower = String(params.emailLower).trim().toLowerCase();
+    try {
+      const snap = await getDocs(query(usersRef, where('emailLower', '==', emailLower), limit(1)));
+      const hit = !snap.empty && (!ignore || snap.docs[0].id !== ignore);
+      out.email = hit ? 'taken' : 'available';
+    } catch {
+      return null;
+    }
+  }
+
+  if (params.phoneNormalized != null && String(params.phoneNormalized).trim()) {
+    const phoneNormalized = String(params.phoneNormalized).trim();
+    try {
+      const snap = await getDocs(query(usersRef, where('phoneNormalized', '==', phoneNormalized), limit(1)));
+      const hit = !snap.empty && (!ignore || snap.docs[0].id !== ignore);
+      out.phone = hit ? 'taken' : 'available';
+    } catch {
+      return null;
+    }
+  }
+
+  return Object.keys(out).length ? out : null;
+}
+
+/**
+ * Disponibilidad de nick / email / teléfono para registro (uno o varios campos).
+ */
+export async function fetchSignupFieldAvailability(params: {
+  nickname?: string;
+  emailLower?: string;
+  phoneNormalized?: string;
+  ignoreUid?: string;
+}): Promise<SignupFieldAvailabilityMap | null> {
+  const hasAny =
+    (params.nickname != null && String(params.nickname).trim() !== '') ||
+    (params.emailLower != null && String(params.emailLower).trim() !== '') ||
+    (params.phoneNormalized != null && String(params.phoneNormalized).trim() !== '');
+
+  if (!hasAny) {
+    return null;
+  }
+
+  const base = marketRadarStudioBaseFromEnv();
+  if (base) {
+    try {
+      const uid = auth.currentUser?.uid;
+      const r = await fetch(`${base}/api/studio/signup-availability`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          nickname: params.nickname,
+          emailLower: params.emailLower,
+          phoneNormalized: params.phoneNormalized,
+          ignoreUid: params.ignoreUid ?? uid,
+        }),
+      });
+      const j: unknown = await r.json().catch(() => null);
+      if (r.ok && j && typeof j === 'object' && (j as { ok?: boolean }).ok === true) {
+        const rec = j as {
+          nickname?: 'available' | 'taken';
+          email?: 'available' | 'taken';
+          phone?: 'available' | 'taken';
+        };
+        const out: SignupFieldAvailabilityMap = {};
+        if (rec.nickname === 'available' || rec.nickname === 'taken') out.nickname = rec.nickname;
+        if (rec.email === 'available' || rec.email === 'taken') out.email = rec.email;
+        if (rec.phone === 'available' || rec.phone === 'taken') out.phone = rec.phone;
+        if (Object.keys(out).length) return out;
+      }
+    } catch (e) {
+      console.warn('[studioAuthPublicApi] signup-availability HTTP failed', e);
+    }
+  }
+
+  return fetchSignupAvailabilityFirestoreFallback({
+    nickname: params.nickname,
+    emailLower: params.emailLower,
+    phoneNormalized: params.phoneNormalized,
+    ignoreUid: params.ignoreUid ?? auth.currentUser?.uid,
+  });
+}
