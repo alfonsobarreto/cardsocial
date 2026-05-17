@@ -2342,5 +2342,117 @@
     "pt": "Não foi possível desativar.",
     "fr": "Impossible de désactiver.",
     "de": "Deaktivieren fehlgeschlagen."
+  },
+  "admin_nav_media_manager": {
+    "es": "Gestor de Medios",
+    "en": "Media Manager",
+    "it": "Gestione media",
+    "pt": "Gestor de multimédia",
+    "fr": "Gestionnaire de médias",
+    "de": "Medienverwaltung"
+  },
+  "admin_media_title": {
+    "es": "Gestor de medios",
+    "en": "Media manager",
+    "it": "Gestione media",
+    "pt": "Gestor de multimédia",
+    "fr": "Gestionnaire de médias",
+    "de": "Medienverwaltung"
+  },
+  "admin_media_subtitle": {
+    "es": "Sube imágenes PNG o JPEG para onboarding y recursos estáticos. Las URLs son absolutas y servidas por este API.",
+    "en": "Upload PNG or JPEG images for onboarding and static assets. URLs are absolute and served by this API.",
+    "it": "Carica immagini PNG o JPEG per onboarding e asset statici. Gli URL sono assoluti e serviti da questa API.",
+    "pt": "Carregue imagens PNG ou JPEG para onboarding e recursos estáticos. Os URLs são absolutos e servidos por esta API.",
+    "fr": "Téléversez des images PNG ou JPEG pour l’onboarding et les ressources statiques. Les URL sont absolues et servies par cette API.",
+    "de": "Laden Sie PNG- oder JPEG-Bilder für Onboarding und statische Assets hoch. Die URLs sind absolut und werden von dieser API ausgeliefert."
+  },
+  "admin_media_drop_hint": {
+    "es": "Arrastra y suelta una imagen aquí, o haz clic para elegir archivo",
+    "en": "Drag and drop an image here, or click to choose a file",
+    "it": "Trascina un’immagine qui o clicca per scegliere un file",
+    "pt": "Arraste uma imagem para aqui ou clique para escolher um ficheiro",
+    "fr": "Glissez-déposez une image ici ou cliquez pour choisir un fichier",
+    "de": "Ziehen Sie ein Bild hierher oder klicken Sie, um eine Datei zu wählen"
+  },
+  "admin_media_click_choose": {
+    "es": "Elegir archivo",
+    "en": "Choose file",
+    "it": "Scegli file",
+    "pt": "Escolher ficheiro",
+    "fr": "Choisir un fichier",
+    "de": "Datei wählen"
+  },
+  "admin_media_paste_hint": {
+    "es": "También puedes pegar capturas con Ctrl+V (Cmd+V en Mac) estando en esta página.",
+    "en": "You can also paste screenshots with Ctrl+V (Cmd+V on Mac) while on this page.",
+    "it": "Puoi anche incollare screenshot con Ctrl+V (Cmd+V su Mac) in questa pagina.",
+    "pt": "Também pode colar capturas com Ctrl+V (Cmd+V no Mac) nesta página.",
+    "fr": "Vous pouvez aussi coller des captures avec Ctrl+V (Cmd+V sur Mac) sur cette page.",
+    "de": "Sie können auch Screenshots mit Strg+V (Cmd+V auf dem Mac) auf dieser Seite einfügen."
+  },
+  "admin_media_uploading": {
+    "es": "Subiendo…",
+    "en": "Uploading…",
+    "it": "Caricamento…",
+    "pt": "A enviar…",
+    "fr": "Téléversement…",
+    "de": "Wird hochgeladen…"
+  },
+  "admin_media_copy_url": {
+    "es": "Copiar URL",
+    "en": "Copy URL",
+    "it": "Copia URL",
+    "pt": "Copiar URL",
+    "fr": "Copier l’URL",
+    "de": "URL kopieren"
+  },
+  "admin_media_copied": {
+    "es": "URL copiada",
+    "en": "URL copied",
+    "it": "URL copiato",
+    "pt": "URL copiada",
+    "fr": "URL copiée",
+    "de": "URL kopiert"
+  },
+  "admin_media_err_type": {
+    "es": "Solo se permiten PNG o JPEG.",
+    "en": "Only PNG or JPEG are allowed.",
+    "it": "Sono ammessi solo PNG o JPEG.",
+    "pt": "Apenas PNG ou JPEG são permitidos.",
+    "fr": "Seuls PNG et JPEG sont autorisés.",
+    "de": "Nur PNG oder JPEG sind erlaubt."
+  },
+  "admin_media_err_network": {
+    "es": "Error al subir. Comprueba la conexión y permisos.",
+    "en": "Upload failed. Check connection and permissions.",
+    "it": "Caricamento non riuscito. Controlla connessione e permessi.",
+    "pt": "Falha ao enviar. Verifique a ligação e as permissões.",
+    "fr": "Échec du téléversement. Vérifiez la connexion et les droits.",
+    "de": "Upload fehlgeschlagen. Verbindung und Berechtigungen prüfen."
+  },
+  "admin_media_session_grid": {
+    "es": "Archivos en esta sesión",
+    "en": "Files in this session",
+    "it": "File in questa sessione",
+    "pt": "Ficheiros nesta sessão",
+    "fr": "Fichiers de cette session",
+    "de": "Dateien in dieser Sitzung"
+  },
+  "admin_media_empty_session": {
+    "es": "Aún no hay subidas en esta sesión.",
+    "en": "No uploads in this session yet.",
+    "it": "Nessun caricamento in questa sessione.",
+    "pt": "Ainda não há envios nesta sessão.",
+    "fr": "Aucun téléversement dans cette session pour l’instant.",
+    "de": "In dieser Sitzung noch keine Uploads."
+  },
+  "admin_media_clipboard_denied": {
+    "es": "No se pudo copiar al portapapeles (permiso del navegador).",
+    "en": "Could not copy to clipboard (browser permission).",
+    "it": "Impossibile copiare negli appunti (permesso del browser).",
+    "pt": "Não foi possível copiar para a área de transferência (permissão do navegador).",
+    "fr": "Impossible de copier dans le presse-papiers (permission du navigateur).",
+    "de": "Zwischenablage nicht verfügbar (Browserberechtigung)."
   }
 }

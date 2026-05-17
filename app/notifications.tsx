@@ -1,12 +1,14 @@
 import { resolveNotificationCopyKeys } from '@/services/inAppNotificationCopy';
 import { auth, db } from '@/services/firebaseConfig';
 import { useCoreT } from '@/services/coreI18n';
+import { SYS_ONBOARDING_TOUR_TEMPLATE_ID } from '@/services/onboardingTourNotification';
 import { useLookMode } from '@/services/lookMode';
 import palette from './theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   arrayUnion,
   collection,
+  deleteDoc,
   doc,
   limit,
   onSnapshot,
@@ -18,15 +20,17 @@ import {
 } from 'firebase/firestore';
 import { useRouter } from 'expo-router';
 import { onAuthStateChanged } from 'firebase/auth';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const GOLD_DOT = '#C9A227';
@@ -214,7 +218,7 @@ export default function NotificationsScreen() {
     );
   }, [personalRows, broadcastDocs, readBroadcastSet]);
 
-  const onToggleRow = async (row: NotificationHubRow) => {
+  const onToggleRow = useCallback(async (row: NotificationHubRow) => {
     const key = row.kind === 'broadcast' ? `b:${row.id}` : `p:${row.id}`;
     setExpandedId((prev) => (prev === key ? null : key));
 
@@ -242,7 +246,61 @@ export default function NotificationsScreen() {
     } catch (e) {
       console.warn('[notifications] mark broadcast read', e);
     }
-  };
+  }, [uid]);
+
+  const swipeMarkPersonalRead = useCallback(
+    async (row: PersonalHubRow) => {
+      if (!uid || row.read) return;
+      try {
+        await updateDoc(doc(db, 'users', uid, 'notifications', row.id), { read: true });
+        setPersonalRows((prev) => prev.map((x) => (x.id === row.id ? { ...x, read: true } : x)));
+      } catch (e) {
+        console.warn('[notifications] swipe mark read', e);
+      }
+    },
+    [uid],
+  );
+
+  const deletePersonalDoc = useCallback(
+    async (row: PersonalHubRow) => {
+      if (!uid) return;
+      try {
+        await deleteDoc(doc(db, 'users', uid, 'notifications', row.id));
+      } catch (e) {
+        console.warn('[notifications] delete personal', e);
+      }
+    },
+    [uid],
+  );
+
+  const confirmDeletePersonal = useCallback(
+    (row: PersonalHubRow) => {
+      Alert.alert(t('alert_delete_confirm_title'), t('alert_delete_confirm_message'), [
+        { text: t('common_cancel'), style: 'cancel' },
+        { text: t('common_ok'), style: 'destructive', onPress: () => void deletePersonalDoc(row) },
+      ]);
+    },
+    [t, deletePersonalDoc],
+  );
+
+  const onHubItemPress = useCallback(
+    async (item: NotificationHubRow) => {
+      if (item.kind === 'personal' && item.templateId === SYS_ONBOARDING_TOUR_TEMPLATE_ID) {
+        if (uid && !item.read) {
+          try {
+            await updateDoc(doc(db, 'users', uid, 'notifications', item.id), { read: true });
+            setPersonalRows((prev) => prev.map((x) => (x.id === item.id ? { ...x, read: true } : x)));
+          } catch (e) {
+            console.warn('[notifications] mark tour read', e);
+          }
+        }
+        router.push('/onboarding' as any);
+        return;
+      }
+      void onToggleRow(item);
+    },
+    [uid, router, onToggleRow],
+  );
 
   const stylesMemo = useMemo(
     () =>
@@ -296,6 +354,34 @@ export default function NotificationsScreen() {
         globalPillText: { fontSize: 10, fontWeight: '800', color: GOLD_DOT, letterSpacing: 0.4 },
         empty: { textAlign: 'center', marginTop: 48, paddingHorizontal: 24, color: shell.textSecondary, fontSize: 15 },
         center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+        swipeActions: {
+          flexDirection: 'row',
+          height: '100%',
+          overflow: 'hidden',
+          borderTopRightRadius: 14,
+          borderBottomRightRadius: 14,
+        },
+        swipeBtn: {
+          width: 80,
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingHorizontal: 6,
+        },
+        swipeRead: {
+          backgroundColor: isNight ? 'rgba(201, 162, 39, 0.28)' : 'rgba(201, 162, 39, 0.22)',
+        },
+        swipeDelete: {
+          backgroundColor: isNight ? 'rgba(200, 72, 72, 0.45)' : 'rgba(190, 60, 60, 0.9)',
+        },
+        swipeBtnText: {
+          fontSize: 11,
+          fontWeight: '800',
+          color: GOLD_DOT,
+          textAlign: 'center',
+        },
+        swipeBtnTextLight: {
+          color: '#FFFFFF',
+        },
       }),
     [shell, isNight],
   );
@@ -363,10 +449,10 @@ export default function NotificationsScreen() {
 
             const isUnread = !item.read;
 
-            return (
+            const cardEl = (
               <Pressable
                 style={[stylesMemo.card, isUnread && stylesMemo.cardUnread]}
-                onPress={() => void onToggleRow(item)}
+                onPress={() => void onHubItemPress(item)}
               >
                 {item.kind === 'broadcast' ? (
                   <View style={stylesMemo.globalPill}>
@@ -382,6 +468,41 @@ export default function NotificationsScreen() {
                 </View>
                 {expanded ? <Text style={stylesMemo.body}>{bodyResolved}</Text> : null}
               </Pressable>
+            );
+
+            if (item.kind !== 'personal') {
+              return cardEl;
+            }
+
+            return (
+              <Swipeable
+                overshootRight={false}
+                friction={2}
+                renderRightActions={() => (
+                  <View style={stylesMemo.swipeActions}>
+                    <Pressable
+                      style={[stylesMemo.swipeBtn, stylesMemo.swipeRead]}
+                      onPress={() => void swipeMarkPersonalRead(item)}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('notif_swipe_mark_read')}
+                    >
+                      <Text style={stylesMemo.swipeBtnText}>{t('notif_swipe_mark_read')}</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[stylesMemo.swipeBtn, stylesMemo.swipeDelete]}
+                      onPress={() => confirmDeletePersonal(item)}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('notif_swipe_delete')}
+                    >
+                      <Text style={[stylesMemo.swipeBtnText, stylesMemo.swipeBtnTextLight]}>
+                        {t('notif_swipe_delete')}
+                      </Text>
+                    </Pressable>
+                  </View>
+                )}
+              >
+                {cardEl}
+              </Swipeable>
             );
           }}
         />

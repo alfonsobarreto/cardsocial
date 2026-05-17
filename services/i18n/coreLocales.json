@@ -7279,6 +7279,38 @@
     "fr": "GLOBAL",
     "de": "GLOBAL"
   },
+  "alert_delete_confirm_title": {
+    "es": "¿Eliminar notificación?",
+    "en": "Delete notification?",
+    "it": "Eliminare la notifica?",
+    "pt": "Excluir notificação?",
+    "fr": "Supprimer la notification ?",
+    "de": "Benachrichtigung löschen?"
+  },
+  "alert_delete_confirm_message": {
+    "es": "Esta acción no se puede deshacer.",
+    "en": "This action cannot be undone.",
+    "it": "Questa azione non può essere annullata.",
+    "pt": "Esta ação não pode ser desfeita.",
+    "fr": "Cette action est irréversible.",
+    "de": "Dies kann nicht rückgängig gemacht werden."
+  },
+  "notif_swipe_mark_read": {
+    "es": "Leído",
+    "en": "Read",
+    "it": "Letto",
+    "pt": "Lido",
+    "fr": "Lu",
+    "de": "Gelesen"
+  },
+  "notif_swipe_delete": {
+    "es": "Eliminar",
+    "en": "Delete",
+    "it": "Elimina",
+    "pt": "Excluir",
+    "fr": "Supprimer",
+    "de": "Löschen"
+  },
   "notif_tpl_MOD_REPORT_APPROVED_title": {
     "es": "Reporte atendido",
     "en": "Report resolved",
@@ -7326,6 +7358,22 @@
     "pt": "Você ainda não tem um cartão na sua cofre. Crie um para compartilhar seu perfil profissional.",
     "fr": "Vous n’avez pas encore de carte dans votre coffre. Créez-en une pour partager votre profil professionnel.",
     "de": "Sie haben noch keine Karte in Ihrem Tresor. Erstellen Sie eine, um Ihr Profil zu teilen."
+  },
+  "notif_tpl_SYS_ONBOARDING_TOUR_title": {
+    "es": "Tour de Card-Social",
+    "en": "Card-Social tour",
+    "it": "Tour di Card-Social",
+    "pt": "Tour do Card-Social",
+    "fr": "Parcours Card-Social",
+    "de": "Card-Social-Tour"
+  },
+  "notif_tpl_SYS_ONBOARDING_TOUR_body": {
+    "es": "Repasa en cualquier momento las funciones clave de la app: bóveda, tarjetas, mercado local y más. Toca para abrir el tour.",
+    "en": "Review the app’s key features anytime: vault, cards, local market, and more. Tap to open the tour.",
+    "it": "Rivedi quando vuoi le funzioni principali: vault, schede, mercato locale e altro. Tocca per aprire il tour.",
+    "pt": "Revise os recursos principais quando quiser: cofre, cartões, mercado local e mais. Toque para abrir o tour.",
+    "fr": "Retrouvez à tout moment les fonctions clés : coffre, cartes, marché local, etc. Touchez pour ouvrir le parcours.",
+    "de": "Sehen Sie sich jederzeit die wichtigsten Funktionen an: Tresor, Karten, lokaler Markt und mehr. Tippen Sie für die Tour."
   },
   "notif_tpl_SYS_ACCOUNT_EXPIRING_title": {
     "es": "Tu cuenta requiere atención",
@@ -7382,5 +7430,189 @@
     "pt": "Descubra benefícios e recursos para membros ativos da Card-Social.",
     "fr": "Découvrez des avantages et ressources pour les membres actifs de Card-Social.",
     "de": "Entdecken Sie Vorteile und Ressourcen für aktive Card-Social-Mitglieder."
+  },
+  "onboarding_slide_0_title": {
+    "es": "Bienvenido a Card-Social",
+    "en": "Welcome to Card-Social",
+    "it": "Welcome to Card-Social",
+    "pt": "Welcome to Card-Social",
+    "fr": "Welcome to Card-Social",
+    "de": "Welcome to Card-Social"
+  },
+  "onboarding_slide_0_body": {
+    "es": "LA EVOLUCIÓN DEL NETWORKING Y LA INTELIGENCIA LOCAL.\n\nMás que una tarjeta de presentación digital. Card-Social es un ecosistema de gobernanza de datos. Protege tu privacidad en una bóveda cifrada, controla qué compartes y descubre exactamente dónde está la demanda de tu negocio en tiempo real.",
+    "en": "THE EVOLUTION OF NETWORKING AND LOCAL INTELLIGENCE.\n\nMore than a digital business card. Card-Social is a data-governance ecosystem. Protect your privacy in an encrypted vault, control what you share, and see exactly where demand for your business is—in real time.",
+    "it": "THE EVOLUTION OF NETWORKING AND LOCAL INTELLIGENCE.\n\nMore than a digital business card. Card-Social is a data-governance ecosystem. Protect your privacy in an encrypted vault, control what you share, and see exactly where demand for your business is—in real time.",
+    "pt": "THE EVOLUTION OF NETWORKING AND LOCAL INTELLIGENCE.\n\nMore than a digital business card. Card-Social is a data-governance ecosystem. Protect your privacy in an encrypted vault, control what you share, and see exactly where demand for your business is—in real time.",
+    "fr": "THE EVOLUTION OF NETWORKING AND LOCAL INTELLIGENCE.\n\nMore than a digital business card. Card-Social is a data-governance ecosystem. Protect your privacy in an encrypted vault, control what you share, and see exactly where demand for your business is—in real time.",
+    "de": "THE EVOLUTION OF NETWORKING AND LOCAL INTELLIGENCE.\n\nMore than a digital business card. Card-Social is a data-governance ecosystem. Protect your privacy in an encrypted vault, control what you share, and see exactly where demand for your business is—in real time."
+  },
+  "onboarding_slide_1_title": {
+    "es": "Tu Bóveda, Tu Control",
+    "en": "Your Vault, Your Control",
+    "it": "Your Vault, Your Control",
+    "pt": "Your Vault, Your Control",
+    "fr": "Your Vault, Your Control",
+    "de": "Your Vault, Your Control"
+  },
+  "onboarding_slide_1_body": {
+    "es": "AHORA QUE YA SABES QUIÉNES SOMOS, TE PRESENTAMOS LA BÓVEDA.\n\nRecupera tu soberanía digital. No compartes tus datos; compartes accesos enmascarados donde tú decides quién tiene la llave.\n\nProtege tu información creando tu primer Icondata:\n1. Elige qué guardar: Enlace, Texto, Email, Teléfono, Foto o PDF.\n2. Ingresa la data: Escribe el texto, sube un archivo o abre la cámara.\n3. Personaliza: Escoge un ícono de nuestra galería o extrae el favicon exacto de cualquier sitio web.\n4. Guarda y toca el ícono para ver la magia en acción.",
+    "en": "NOW THAT YOU KNOW WHO WE ARE, HERE IS THE VAULT.\n\nReclaim your digital sovereignty. You don't share your raw data—you share masked access, and you decide who holds the key.\n\nProtect your information by creating your first Icondata:\n1. Choose what to save: Link, Text, Email, Phone, Photo, or PDF.\n2. Enter the data: Type the text, upload a file, or open the camera.\n3. Personalize: Pick an icon from our gallery or extract the exact favicon from any website.\n4. Save and tap the icon to see the magic in action.",
+    "it": "NOW THAT YOU KNOW WHO WE ARE, HERE IS THE VAULT.\n\nReclaim your digital sovereignty. You don't share your raw data—you share masked access, and you decide who holds the key.\n\nProtect your information by creating your first Icondata:\n1. Choose what to save: Link, Text, Email, Phone, Photo, or PDF.\n2. Enter the data: Type the text, upload a file, or open the camera.\n3. Personalize: Pick an icon from our gallery or extract the exact favicon from any website.\n4. Save and tap the icon to see the magic in action.",
+    "pt": "NOW THAT YOU KNOW WHO WE ARE, HERE IS THE VAULT.\n\nReclaim your digital sovereignty. You don't share your raw data—you share masked access, and you decide who holds the key.\n\nProtect your information by creating your first Icondata:\n1. Choose what to save: Link, Text, Email, Phone, Photo, or PDF.\n2. Enter the data: Type the text, upload a file, or open the camera.\n3. Personalize: Pick an icon from our gallery or extract the exact favicon from any website.\n4. Save and tap the icon to see the magic in action.",
+    "fr": "NOW THAT YOU KNOW WHO WE ARE, HERE IS THE VAULT.\n\nReclaim your digital sovereignty. You don't share your raw data—you share masked access, and you decide who holds the key.\n\nProtect your information by creating your first Icondata:\n1. Choose what to save: Link, Text, Email, Phone, Photo, or PDF.\n2. Enter the data: Type the text, upload a file, or open the camera.\n3. Personalize: Pick an icon from our gallery or extract the exact favicon from any website.\n4. Save and tap the icon to see the magic in action.",
+    "de": "NOW THAT YOU KNOW WHO WE ARE, HERE IS THE VAULT.\n\nReclaim your digital sovereignty. You don't share your raw data—you share masked access, and you decide who holds the key.\n\nProtect your information by creating your first Icondata:\n1. Choose what to save: Link, Text, Email, Phone, Photo, or PDF.\n2. Enter the data: Type the text, upload a file, or open the camera.\n3. Personalize: Pick an icon from our gallery or extract the exact favicon from any website.\n4. Save and tap the icon to see the magic in action."
+  },
+  "onboarding_slide_2_title": {
+    "es": "Tu Identidad Dinámica",
+    "en": "Your Dynamic Identity",
+    "it": "Your Dynamic Identity",
+    "pt": "Your Dynamic Identity",
+    "fr": "Your Dynamic Identity",
+    "de": "Your Dynamic Identity"
+  },
+  "onboarding_slide_2_body": {
+    "es": "UNA VIDA, MÚLTIPLES FACETAS.\n\nCrea perfiles únicos para cada versión de ti. Tu tarjeta se comparte mediante un QR seguro que caduca en 2 minutos (o 24 horas para eventos). Tu nombre y foto son inamovibles para blindar tu identidad.\n\nToca el botón (+) para crear tu primera Smart Card:\n1. Nombra tu personalidad.\n2. Abre tu Bóveda y selecciona hasta 12 Icondatas.\n3. Abre el Locker y elige un Theme para darle color a tu tarjeta.",
+    "en": "ONE LIFE, MANY FACETS.\n\nCreate unique profiles for each version of you. Your card is shared via a secure QR that expires in 2 minutes (or 24 hours for events). Your name and photo are fixed to protect your identity.\n\nTap the (+) button to create your first Smart Card:\n1. Name your persona.\n2. Open your Vault and select up to 12 Icondatas.\n3. Open the Locker and pick a Theme to give your card its look.",
+    "it": "ONE LIFE, MANY FACETS.\n\nCreate unique profiles for each version of you. Your card is shared via a secure QR that expires in 2 minutes (or 24 hours for events). Your name and photo are fixed to protect your identity.\n\nTap the (+) button to create your first Smart Card:\n1. Name your persona.\n2. Open your Vault and select up to 12 Icondatas.\n3. Open the Locker and pick a Theme to give your card its look.",
+    "pt": "ONE LIFE, MANY FACETS.\n\nCreate unique profiles for each version of you. Your card is shared via a secure QR that expires in 2 minutes (or 24 hours for events). Your name and photo are fixed to protect your identity.\n\nTap the (+) button to create your first Smart Card:\n1. Name your persona.\n2. Open your Vault and select up to 12 Icondatas.\n3. Open the Locker and pick a Theme to give your card its look.",
+    "fr": "ONE LIFE, MANY FACETS.\n\nCreate unique profiles for each version of you. Your card is shared via a secure QR that expires in 2 minutes (or 24 hours for events). Your name and photo are fixed to protect your identity.\n\nTap the (+) button to create your first Smart Card:\n1. Name your persona.\n2. Open your Vault and select up to 12 Icondatas.\n3. Open the Locker and pick a Theme to give your card its look.",
+    "de": "ONE LIFE, MANY FACETS.\n\nCreate unique profiles for each version of you. Your card is shared via a secure QR that expires in 2 minutes (or 24 hours for events). Your name and photo are fixed to protect your identity.\n\nTap the (+) button to create your first Smart Card:\n1. Name your persona.\n2. Open your Vault and select up to 12 Icondatas.\n3. Open the Locker and pick a Theme to give your card its look."
+  },
+  "onboarding_slide_3_title": {
+    "es": "Conexión y Control Temporal",
+    "en": "Connection and Temporal Control",
+    "it": "Conexión y Control Temporal",
+    "pt": "Conexión y Control Temporal",
+    "fr": "Conexión y Control Temporal",
+    "de": "Conexión y Control Temporal"
+  },
+  "onboarding_slide_3_body": {
+    "es": "EL ESCÁNER Y EL PODER DEL TIEMPO.\n\nDesliza a la derecha y acepta para abrir tu código QR de 2 minutos por defecto. Conectividad instantánea sin rastro permanente.\n\n¿Necesitas mayor alcance? Activa el 24HrQR:\n1. Genera un temporizador de 24 horas.\n2. Copia la URL única generada automáticamente.\n3. Compártela por mensaje, grupos o a tu discreción.\n\nDespreocúpate: el acceso se destruye por completo al cumplir el tiempo o puedes eliminarlo manualmente en el momento que decidas.",
+    "en": "THE SCANNER AND THE POWER OF TIME.\n\nSwipe right and accept to open your 2-minute QR code by default. Instant connectivity without a permanent trail.\n\nNeed more reach? Turn on 24HrQR:\n1. Generate a 24-hour timer.\n2. Copy the unique URL generated automatically.\n3. Share it by message, groups, or at your discretion.\n\nRest easy: access is fully destroyed when time runs out, or you can delete it manually whenever you decide.",
+    "it": "EL ESCÁNER Y EL PODER DEL TIEMPO.\n\nDesliza a la derecha y acepta para abrir tu código QR de 2 minutos por defecto. Conectividad instantánea sin rastro permanente.\n\n¿Necesitas mayor alcance? Activa el 24HrQR:\n1. Genera un temporizador de 24 horas.\n2. Copia la URL única generada automáticamente.\n3. Compártela por mensaje, grupos o a tu discreción.\n\nDespreocúpate: el acceso se destruye por completo al cumplir el tiempo o puedes eliminarlo manualmente en el momento que decidas.",
+    "pt": "EL ESCÁNER Y EL PODER DEL TIEMPO.\n\nDesliza a la derecha y acepta para abrir tu código QR de 2 minutos por defecto. Conectividad instantánea sin rastro permanente.\n\n¿Necesitas mayor alcance? Activa el 24HrQR:\n1. Genera un temporizador de 24 horas.\n2. Copia la URL única generada automáticamente.\n3. Compártela por mensaje, grupos o a tu discreción.\n\nDespreocúpate: el acceso se destruye por completo al cumplir el tiempo o puedes eliminarlo manualmente en el momento que decidas.",
+    "fr": "EL ESCÁNER Y EL PODER DEL TIEMPO.\n\nDesliza a la derecha y acepta para abrir tu código QR de 2 minutos por defecto. Conectividad instantánea sin rastro permanente.\n\n¿Necesitas mayor alcance? Activa el 24HrQR:\n1. Genera un temporizador de 24 horas.\n2. Copia la URL única generada automáticamente.\n3. Compártela por mensaje, grupos o a tu discreción.\n\nDespreocúpate: el acceso se destruye por completo al cumplir el tiempo o puedes eliminarlo manualmente en el momento que decidas.",
+    "de": "EL ESCÁNER Y EL PODER DEL TIEMPO.\n\nDesliza a la derecha y acepta para abrir tu código QR de 2 minutos por defecto. Conectividad instantánea sin rastro permanente.\n\n¿Necesitas mayor alcance? Activa el 24HrQR:\n1. Genera un temporizador de 24 horas.\n2. Copia la URL única generada automáticamente.\n3. Compártela por mensaje, grupos o a tu discreción.\n\nDespreocúpate: el acceso se destruye por completo al cumplir el tiempo o puedes eliminarlo manualmente en el momento que decidas."
+  },
+  "onboarding_slide_4_title": {
+    "es": "Expansión Comercial",
+    "en": "Commercial Expansion",
+    "it": "Commercial Expansion",
+    "pt": "Commercial Expansion",
+    "fr": "Commercial Expansion",
+    "de": "Commercial Expansion"
+  },
+  "onboarding_slide_4_body": {
+    "es": "VISIBILIDAD ABSOLUTA PARA TU MARCA.\n\nA diferencia de la Smart Card, la Business Card pone a tu negocio como protagonista. Está diseñada para ser encontrada y escalar sin límites.\n\nDomina tu nicho en 4 pilares:\n1. Identidad Corporativa: Usa tu logotipo, avatar y nombre comercial.\n2. QR Permanente: Un código definitivo, ideal para imprimir y viralizar.\n3. Geolocalización Dinámica: Coloca tu tarjeta digital exactamente donde está tu demanda, sin importar dónde vivas.\n4. SEO Letal: Configura 20 palabras clave para liderar las búsquedas en el Socialmarket.",
+    "en": "ABSOLUTE VISIBILITY FOR YOUR BRAND.\n\nUnlike the Smart Card, the Business Card puts your business center stage. It is built to be discovered and to scale without limits.\n\nOwn your niche across four pillars:\n1. Corporate identity: Use your logo, avatar, and trade name.\n2. Permanent QR: A definitive code—ideal to print and share widely.\n3. Dynamic geolocation: Place your digital card exactly where demand is, no matter where you live.\n4. Sharp SEO: Configure 20 keywords to lead searches in the Socialmarket.",
+    "it": "ABSOLUTE VISIBILITY FOR YOUR BRAND.\n\nUnlike the Smart Card, the Business Card puts your business center stage. It is built to be discovered and to scale without limits.\n\nOwn your niche across four pillars:\n1. Corporate identity: Use your logo, avatar, and trade name.\n2. Permanent QR: A definitive code—ideal to print and share widely.\n3. Dynamic geolocation: Place your digital card exactly where demand is, no matter where you live.\n4. Sharp SEO: Configure 20 keywords to lead searches in the Socialmarket.",
+    "pt": "ABSOLUTE VISIBILITY FOR YOUR BRAND.\n\nUnlike the Smart Card, the Business Card puts your business center stage. It is built to be discovered and to scale without limits.\n\nOwn your niche across four pillars:\n1. Corporate identity: Use your logo, avatar, and trade name.\n2. Permanent QR: A definitive code—ideal to print and share widely.\n3. Dynamic geolocation: Place your digital card exactly where demand is, no matter where you live.\n4. Sharp SEO: Configure 20 keywords to lead searches in the Socialmarket.",
+    "fr": "ABSOLUTE VISIBILITY FOR YOUR BRAND.\n\nUnlike the Smart Card, the Business Card puts your business center stage. It is built to be discovered and to scale without limits.\n\nOwn your niche across four pillars:\n1. Corporate identity: Use your logo, avatar, and trade name.\n2. Permanent QR: A definitive code—ideal to print and share widely.\n3. Dynamic geolocation: Place your digital card exactly where demand is, no matter where you live.\n4. Sharp SEO: Configure 20 keywords to lead searches in the Socialmarket.",
+    "de": "ABSOLUTE VISIBILITY FOR YOUR BRAND.\n\nUnlike the Smart Card, the Business Card puts your business center stage. It is built to be discovered and to scale without limits.\n\nOwn your niche across four pillars:\n1. Corporate identity: Use your logo, avatar, and trade name.\n2. Permanent QR: A definitive code—ideal to print and share widely.\n3. Dynamic geolocation: Place your digital card exactly where demand is, no matter where you live.\n4. Sharp SEO: Configure 20 keywords to lead searches in the Socialmarket."
+  },
+  "onboarding_slide_5_title": {
+    "es": "El Socialmarket",
+    "en": "El Socialmarket",
+    "it": "El Socialmarket",
+    "pt": "El Socialmarket",
+    "fr": "El Socialmarket",
+    "de": "El Socialmarket"
+  },
+  "onboarding_slide_5_body": {
+    "es": "EL DINERO DEL BARRIO SE QUEDA EN EL BARRIO.\n\nDeja de pagar comisiones abusivas a corporaciones. Encuentra al mecánico de confianza, la cosmetóloga de tu zona o comida casera sin intermediarios. Ahorra tiempo y gasolina apoyando a tus vecinos.\n\nNuestro algoritmo prioriza tu círculo de confianza:\n1. Contactos primero: Tus amigos y familiares lideran tu lista.\n2. Radar inteligente: Búsqueda exacta a {{distance}} a la redonda.",
+    "en": "EL DINERO DEL BARRIO SE QUEDA EN EL BARRIO.\n\nDeja de pagar comisiones abusivas a corporaciones. Encuentra al mecánico de confianza, la cosmetóloga de tu zona o comida casera sin intermediarios. Ahorra tiempo y gasolina apoyando a tus vecinos.\n\nNuestro algoritmo prioriza tu círculo de confianza:\n1. Contactos primero: Tus amigos y familiares lideran tu lista.\n2. Radar inteligente: Búsqueda exacta a {{distance}} a la redonda.",
+    "it": "EL DINERO DEL BARRIO SE QUEDA EN EL BARRIO.\n\nDeja de pagar comisiones abusivas a corporaciones. Encuentra al mecánico de confianza, la cosmetóloga de tu zona o comida casera sin intermediarios. Ahorra tiempo y gasolina apoyando a tus vecinos.\n\nNuestro algoritmo prioriza tu círculo de confianza:\n1. Contactos primero: Tus amigos y familiares lideran tu lista.\n2. Radar inteligente: Búsqueda exacta a {{distance}} a la redonda.",
+    "pt": "EL DINERO DEL BARRIO SE QUEDA EN EL BARRIO.\n\nDeja de pagar comisiones abusivas a corporaciones. Encuentra al mecánico de confianza, la cosmetóloga de tu zona o comida casera sin intermediarios. Ahorra tiempo y gasolina apoyando a tus vecinos.\n\nNuestro algoritmo prioriza tu círculo de confianza:\n1. Contactos primero: Tus amigos y familiares lideran tu lista.\n2. Radar inteligente: Búsqueda exacta a {{distance}} a la redonda.",
+    "fr": "EL DINERO DEL BARRIO SE QUEDA EN EL BARRIO.\n\nDeja de pagar comisiones abusivas a corporaciones. Encuentra al mecánico de confianza, la cosmetóloga de tu zona o comida casera sin intermediarios. Ahorra tiempo y gasolina apoyando a tus vecinos.\n\nNuestro algoritmo prioriza tu círculo de confianza:\n1. Contactos primero: Tus amigos y familiares lideran tu lista.\n2. Radar inteligente: Búsqueda exacta a {{distance}} a la redonda.",
+    "de": "EL DINERO DEL BARRIO SE QUEDA EN EL BARRIO.\n\nDeja de pagar comisiones abusivas a corporaciones. Encuentra al mecánico de confianza, la cosmetóloga de tu zona o comida casera sin intermediarios. Ahorra tiempo y gasolina apoyando a tus vecinos.\n\nNuestro algoritmo prioriza tu círculo de confianza:\n1. Contactos primero: Tus amigos y familiares lideran tu lista.\n2. Radar inteligente: Búsqueda exacta a {{distance}} a la redonda."
+  },
+  "onboarding_slide_6_title": {
+    "es": "Tu Personalidad Sin Límites",
+    "en": "Your Personality Without Limits",
+    "it": "Your Personality Without Limits",
+    "pt": "Your Personality Without Limits",
+    "fr": "Your Personality Without Limits",
+    "de": "Your Personality Without Limits"
+  },
+  "onboarding_slide_6_body": {
+    "es": "SÉ CREATIVO, CONFIGURA TU ENTORNO.\n\nEsta no es una aplicación rígida; es tu lienzo de soberanía digital. Modifica tu estética en tiempo real y experimenta una conectividad sin precedentes.\n\nRompe el molde con tus herramientas avanzadas:\n1. Forja de Skins: Intercambia wallpapers, paletas de colores y estilos visuales únicos.\n2. Bóveda de Iconos: Diseña colecciones de impacto que reflejen tu verdadera marca.\n3. Conectividad Ghost-Link: Prueba nuestro sistema VoIP efímero. Activa transmisiones de audio a video con consentimiento cifrado, sin dejar rastro de metadatos.",
+    "en": "BE CREATIVE, SHAPE YOUR ENVIRONMENT.\n\nThis isn’t a rigid app—it’s your canvas for digital sovereignty. Change your look in real time and experience connectivity like never before.\n\nBreak the mold with your advanced tools:\n1. Skin Forge: Swap wallpapers, color palettes, and unique visual styles.\n2. Icon Vault: Build striking collections that reflect your true brand.\n3. Ghost-Link connectivity: Try our ephemeral VoIP. Enable audio-to-video streams with encrypted consent, leaving no metadata trail.",
+    "it": "BE CREATIVE, SHAPE YOUR ENVIRONMENT.\n\nThis isn’t a rigid app—it’s your canvas for digital sovereignty. Change your look in real time and experience connectivity like never before.\n\nBreak the mold with your advanced tools:\n1. Skin Forge: Swap wallpapers, color palettes, and unique visual styles.\n2. Icon Vault: Build striking collections that reflect your true brand.\n3. Ghost-Link connectivity: Try our ephemeral VoIP. Enable audio-to-video streams with encrypted consent, leaving no metadata trail.",
+    "pt": "BE CREATIVE, SHAPE YOUR ENVIRONMENT.\n\nThis isn’t a rigid app—it’s your canvas for digital sovereignty. Change your look in real time and experience connectivity like never before.\n\nBreak the mold with your advanced tools:\n1. Skin Forge: Swap wallpapers, color palettes, and unique visual styles.\n2. Icon Vault: Build striking collections that reflect your true brand.\n3. Ghost-Link connectivity: Try our ephemeral VoIP. Enable audio-to-video streams with encrypted consent, leaving no metadata trail.",
+    "fr": "BE CREATIVE, SHAPE YOUR ENVIRONMENT.\n\nThis isn’t a rigid app—it’s your canvas for digital sovereignty. Change your look in real time and experience connectivity like never before.\n\nBreak the mold with your advanced tools:\n1. Skin Forge: Swap wallpapers, color palettes, and unique visual styles.\n2. Icon Vault: Build striking collections that reflect your true brand.\n3. Ghost-Link connectivity: Try our ephemeral VoIP. Enable audio-to-video streams with encrypted consent, leaving no metadata trail.",
+    "de": "BE CREATIVE, SHAPE YOUR ENVIRONMENT.\n\nThis isn’t a rigid app—it’s your canvas for digital sovereignty. Change your look in real time and experience connectivity like never before.\n\nBreak the mold with your advanced tools:\n1. Skin Forge: Swap wallpapers, color palettes, and unique visual styles.\n2. Icon Vault: Build striking collections that reflect your true brand.\n3. Ghost-Link connectivity: Try our ephemeral VoIP. Enable audio-to-video streams with encrypted consent, leaving no metadata trail."
+  },
+  "onboarding_slide_7_title": {
+    "es": "La Nueva Era Empieza Aquí",
+    "en": "The New Era Starts Here",
+    "it": "The New Era Starts Here",
+    "pt": "The New Era Starts Here",
+    "fr": "The New Era Starts Here",
+    "de": "The New Era Starts Here"
+  },
+  "onboarding_slide_7_body": {
+    "es": "MOLDEA EL MERCADO A TU ANTOJO.\n\nNo te adaptes al sistema, haz que el sistema trabaje para ti. Diseña menús inteligentes adaptados a las necesidades exactas de tus clientes y muéstraselos tal cual lo requieran.\n\nEl control es tuyo, el impacto es local:\n1. Crea mercados nuevos desde cero y lidera la demanda de tu barrio.\n2. Disfruta de tu creatividad sin candados, sin intermediarios y sin límites corporativos.\n\nBienvenido a Card-Social. Disfruta tu aplicación.",
+    "en": "MOLD THE MARKET YOUR WAY.\n\nDon’t adapt to the system—make the system work for you. Design smart menus tailored to your customers’ exact needs and show them exactly as required.\n\nThe control is yours, the impact is local:\n1. Build new markets from scratch and lead demand in your neighborhood.\n2. Enjoy your creativity without locks, middlemen, or corporate limits.\n\nWelcome to Card-Social. Enjoy your app.",
+    "it": "MOLD THE MARKET YOUR WAY.\n\nDon’t adapt to the system—make the system work for you. Design smart menus tailored to your customers’ exact needs and show them exactly as required.\n\nThe control is yours, the impact is local:\n1. Build new markets from scratch and lead demand in your neighborhood.\n2. Enjoy your creativity without locks, middlemen, or corporate limits.\n\nWelcome to Card-Social. Enjoy your app.",
+    "pt": "MOLD THE MARKET YOUR WAY.\n\nDon’t adapt to the system—make the system work for you. Design smart menus tailored to your customers’ exact needs and show them exactly as required.\n\nThe control is yours, the impact is local:\n1. Build new markets from scratch and lead demand in your neighborhood.\n2. Enjoy your creativity without locks, middlemen, or corporate limits.\n\nWelcome to Card-Social. Enjoy your app.",
+    "fr": "MOLD THE MARKET YOUR WAY.\n\nDon’t adapt to the system—make the system work for you. Design smart menus tailored to your customers’ exact needs and show them exactly as required.\n\nThe control is yours, the impact is local:\n1. Build new markets from scratch and lead demand in your neighborhood.\n2. Enjoy your creativity without locks, middlemen, or corporate limits.\n\nWelcome to Card-Social. Enjoy your app.",
+    "de": "MOLD THE MARKET YOUR WAY.\n\nDon’t adapt to the system—make the system work for you. Design smart menus tailored to your customers’ exact needs and show them exactly as required.\n\nThe control is yours, the impact is local:\n1. Build new markets from scratch and lead demand in your neighborhood.\n2. Enjoy your creativity without locks, middlemen, or corporate limits.\n\nWelcome to Card-Social. Enjoy your app."
+  },
+  "onboarding_slide_8_title": {
+    "es": "La Nueva Era Digital",
+    "en": "The New Digital Era",
+    "it": "The New Digital Era",
+    "pt": "The New Digital Era",
+    "fr": "The New Digital Era",
+    "de": "The New Digital Era"
+  },
+  "onboarding_slide_8_body": {
+    "es": "BIENVENIDO A LA EXPERIENCIA DEFINITIVA.\n\nDisfruta de estas funciones exclusivas diseñadas para elevar tu presencia digital al siguiente nivel.\n\nUn universo de posibilidades te espera:\n• Radar Hiperlocal: Encuentra amigos y negocios a {{distance}} a la redonda.\n• Studio & Forge: Diseña tarjetas y cambia iconos con libertad absoluta.\n• Dual Mode: Estética impecable tanto en Modo Día como en Modo Noche.\n• VoIP Segura: Minutos Airtime para llamadas que respetan tu privacidad.\n• Sync Pro: Tus contactos de siempre, ahora más inteligentes que nunca.\n• Métricas Vivas: Entiende las necesidades de tus clientes con el Dashboard.\n\nEl límite es tu imaginación. ¡A darle con todo!",
+    "en": "WELCOME TO THE ULTIMATE EXPERIENCE.\n\nEnjoy these exclusive features designed to take your digital presence to the next level.\n\nA universe of possibilities awaits you:\n• Hyperlocal Radar: Find friends and businesses within {{distance}}.\n• Studio & Forge: Design cards and change icons with total freedom.\n• Dual Mode: Flawless aesthetics in both Day Mode and Night Mode.\n• Secure VoIP: Airtime minutes for calls that respect your privacy.\n• Sync Pro: Your longstanding contacts, now smarter than ever.\n• Live Metrics: Understand your customers’ needs with the Dashboard.\n\nThe only limit is your imagination. Give it everything you’ve got!",
+    "it": "WELCOME TO THE ULTIMATE EXPERIENCE.\n\nEnjoy these exclusive features designed to take your digital presence to the next level.\n\nA universe of possibilities awaits you:\n• Hyperlocal Radar: Find friends and businesses within {{distance}}.\n• Studio & Forge: Design cards and change icons with total freedom.\n• Dual Mode: Flawless aesthetics in both Day Mode and Night Mode.\n• Secure VoIP: Airtime minutes for calls that respect your privacy.\n• Sync Pro: Your longstanding contacts, now smarter than ever.\n• Live Metrics: Understand your customers’ needs with the Dashboard.\n\nThe only limit is your imagination. Give it everything you’ve got!",
+    "pt": "WELCOME TO THE ULTIMATE EXPERIENCE.\n\nEnjoy these exclusive features designed to take your digital presence to the next level.\n\nA universe of possibilities awaits you:\n• Hyperlocal Radar: Find friends and businesses within {{distance}}.\n• Studio & Forge: Design cards and change icons with total freedom.\n• Dual Mode: Flawless aesthetics in both Day Mode and Night Mode.\n• Secure VoIP: Airtime minutes for calls that respect your privacy.\n• Sync Pro: Your longstanding contacts, now smarter than ever.\n• Live Metrics: Understand your customers’ needs with the Dashboard.\n\nThe only limit is your imagination. Give it everything you’ve got!",
+    "fr": "WELCOME TO THE ULTIMATE EXPERIENCE.\n\nEnjoy these exclusive features designed to take your digital presence to the next level.\n\nA universe of possibilities awaits you:\n• Hyperlocal Radar: Find friends and businesses within {{distance}}.\n• Studio & Forge: Design cards and change icons with total freedom.\n• Dual Mode: Flawless aesthetics in both Day Mode and Night Mode.\n• Secure VoIP: Airtime minutes for calls that respect your privacy.\n• Sync Pro: Your longstanding contacts, now smarter than ever.\n• Live Metrics: Understand your customers’ needs with the Dashboard.\n\nThe only limit is your imagination. Give it everything you’ve got!",
+    "de": "WELCOME TO THE ULTIMATE EXPERIENCE.\n\nEnjoy these exclusive features designed to take your digital presence to the next level.\n\nA universe of possibilities awaits you:\n• Hyperlocal Radar: Find friends and businesses within {{distance}}.\n• Studio & Forge: Design cards and change icons with total freedom.\n• Dual Mode: Flawless aesthetics in both Day Mode and Night Mode.\n• Secure VoIP: Airtime minutes for calls that respect your privacy.\n• Sync Pro: Your longstanding contacts, now smarter than ever.\n• Live Metrics: Understand your customers’ needs with the Dashboard.\n\nThe only limit is your imagination. Give it everything you’ve got!"
+  },
+  "onboarding_cta_skip": {
+    "es": "Saltar",
+    "en": "Skip",
+    "it": "Salta",
+    "pt": "Pular",
+    "fr": "Passer",
+    "de": "Überspringen"
+  },
+  "onboarding_cta_remind_later": {
+    "es": "Recordar más tarde",
+    "en": "Remind me later",
+    "it": "Ricordamelo dopo",
+    "pt": "Lembrar mais tarde",
+    "fr": "Me rappeler plus tard",
+    "de": "Später erinnern"
+  },
+  "onboarding_a11y_close": {
+    "es": "Cerrar introducción",
+    "en": "Close onboarding",
+    "it": "Close onboarding",
+    "pt": "Close onboarding",
+    "fr": "Close onboarding",
+    "de": "Close onboarding"
+  },
+  "onboarding_cta_next": {
+    "es": "Siguiente",
+    "en": "Next",
+    "it": "Avanti",
+    "pt": "Seguinte",
+    "fr": "Suivant",
+    "de": "Weiter"
+  },
+  "onboarding_cta_start": {
+    "es": "Comenzar",
+    "en": "Get started",
+    "it": "Inizia",
+    "pt": "Começar",
+    "fr": "Commencer",
+    "de": "Loslegen"
   }
 }

@@ -60,7 +60,7 @@ service cloud.firestore {
           )
           || (
             isOwner(uid)
-            && request.resource.data.templateId in ['SYS_WELCOME_MISSING_CARD', 'SYS_ACCOUNT_EXPIRING']
+            && request.resource.data.templateId in ['SYS_WELCOME_MISSING_CARD', 'SYS_ACCOUNT_EXPIRING', 'SYS_ONBOARDING_TOUR']
           )
         );
       allow update: if isOwner(uid);

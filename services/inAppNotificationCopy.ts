@@ -6,7 +6,8 @@ export type InAppNotificationTemplateId =
   | 'SYS_WELCOME_MISSING_CARD'
   | 'SYS_ACCOUNT_EXPIRING'
   | 'SYS_GLOBAL_MAINTENANCE'
-  | 'SYS_GLOBAL_PROMO';
+  | 'SYS_GLOBAL_PROMO'
+  | 'SYS_ONBOARDING_TOUR';
 
 const TITLE_BODY_MAP: Record<InAppNotificationTemplateId, { title: CoreLocaleKey; body: CoreLocaleKey }> = {
   MOD_REPORT_APPROVED: {
@@ -32,6 +33,10 @@ const TITLE_BODY_MAP: Record<InAppNotificationTemplateId, { title: CoreLocaleKey
   SYS_GLOBAL_PROMO: {
     title: 'notif_tpl_SYS_GLOBAL_PROMO_title',
     body: 'notif_tpl_SYS_GLOBAL_PROMO_body',
+  },
+  SYS_ONBOARDING_TOUR: {
+    title: 'notif_tpl_SYS_ONBOARDING_TOUR_title',
+    body: 'notif_tpl_SYS_ONBOARDING_TOUR_body',
   },
 };
 

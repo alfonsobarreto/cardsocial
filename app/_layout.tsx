@@ -263,6 +263,14 @@ function RootNavigator() {
           options={{ title: language === 'en' || language === 'de' ? 'Sign Up' : 'Registro' }}
         />
         <Stack.Screen
+          name="onboarding"
+          options={{
+            headerShown: false,
+            gestureEnabled: false,
+            animation: 'fade',
+          }}
+        />
+        <Stack.Screen
           name="scan"
           options={{ title: language === 'en' || language === 'de' ? 'Scan Card' : 'Escanear Tarjeta', headerShown: false }}
         />

@@ -1,12 +1,41 @@
-import { useGlobalSearchParams, Redirect } from 'expo-router';
+import { CURRENT_ONBOARDING_VERSION } from '@/constants/onboarding';
+import { auth, db } from '@/services/firebaseConfig';
+import { ensureOnboardingTourNotification } from '@/services/onboardingTourNotification';
+import { readOnboardingDoneFromStorage, writeOnboardingDoneToStorage } from '@/services/onboardingStorage';
+import type { FirestoreUserAppFields } from '@/types/firestoreUserDoc';
+import { useGlobalSearchParams, Redirect, type Href } from 'expo-router';
 import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
-import { auth } from '@/services/firebaseConfig';
 import { enforceInactivitySignOutIfNeeded, firebaseUserMayEnterMainApp } from '@/services/sessionInactivity';
 
-type GateTarget = 'loading' | 'signin' | 'main';
+type GateTarget = 'loading' | 'signin' | 'main' | 'onboarding';
+
+/**
+ * Onboarding híbrido: solo se salta el carrusel si hay finalización explícita
+ * (AsyncStorage tras "Comenzar" o onboardingVersion en Firestore).
+ * "Recordar más tarde" no escribe flags; el siguiente arranque en frío vuelve a /onboarding.
+ */
+async function resolvePostAuthDestination(userId: string): Promise<'main' | 'onboarding'> {
+  if (await readOnboardingDoneFromStorage()) {
+    return 'main';
+  }
+  try {
+    const snap = await getDoc(doc(db, 'users', userId));
+    const raw = snap.data() as FirestoreUserAppFields | undefined;
+    const v = raw?.onboardingVersion;
+    const num = typeof v === 'number' ? v : Number(v);
+    if (Number.isFinite(num) && num >= CURRENT_ONBOARDING_VERSION) {
+      await writeOnboardingDoneToStorage();
+      return 'main';
+    }
+  } catch (e) {
+    console.warn('[index] onboarding gate Firestore:', e);
+  }
+  return 'onboarding';
+}
 
 export default function Index() {
   const { code, campaignCode } = useGlobalSearchParams();
@@ -27,7 +56,11 @@ export default function Index() {
         setTarget('signin');
         return;
       }
-      setTarget('main');
+      const dest = await resolvePostAuthDestination(user.uid);
+      void ensureOnboardingTourNotification(user.uid).catch((e) =>
+        console.warn('[index] ensureOnboardingTourNotification', e),
+      );
+      setTarget(dest === 'main' ? 'main' : 'onboarding');
     });
     return () => unsub();
   }, []);
@@ -50,6 +83,10 @@ export default function Index() {
 
   if (target === 'main') {
     return <Redirect href="/(tabs)/cards" />;
+  }
+
+  if (target === 'onboarding') {
+    return <Redirect href={'/onboarding' as Href} />;
   }
 
   return <Redirect href="/signin" />;

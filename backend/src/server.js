@@ -19,6 +19,7 @@ const { createNfcPublicRoutes } = require("./routes/nfcPublicRoutes");
 const { attachPublicEmailSignatureQrRoute } = require("./routes/publicEmailSignatureQrRoutes");
 const revenueCatRoutes = require("./routes/revenueCatRoutes");
 const { createAdminRoutes } = require("./routes/adminRoutes");
+const { createAdminMediaRouter, getAdminMediaUploadsDir } = require("./routes/adminMediaRoutes");
 const { createAdminSystemStatsHandler } = require("./routes/adminSystemStatsRoutes");
 const { createAdminBudgetHandlers } = require("./routes/adminBudgetRoutes");
 const { createBroadcastRouter } = require("./routes/broadcastRoutes");
@@ -54,9 +55,24 @@ async function bootstrap() {
   await ensureMongoHardening(db);
 
   const app = express();
+  app.set("trust proxy", 1);
   /** Debe ir antes de express.json y de las rutas para que OPTIONS (preflight) reciba cabeceras CORS. */
   app.use(createAdminWebCorsMiddleware());
   app.use(express.json({ limit: "2mb" }));
+  const fsEarly = require("fs");
+  const adminPublicUploadsDir = getAdminMediaUploadsDir();
+  try {
+    fsEarly.mkdirSync(adminPublicUploadsDir, { recursive: true });
+  } catch (e) {
+    console.warn("[media] Could not mkdir uploads:", e?.message || e);
+  }
+  app.use(
+    "/uploads",
+    express.static(adminPublicUploadsDir, {
+      maxAge: "7d",
+      fallthrough: true,
+    }),
+  );
   app.locals.db = db;
 
   // Universal Links verification files (iOS AASA + Android assetlinks)
@@ -492,6 +508,14 @@ const otpHash = (emailLower, code) => {
     jwtAuthMiddleware,
     adminBroadcastScopeMiddleware,
     broadcastRouter,
+  );
+
+  app.use(
+    "/api/admin/media",
+    gatewayKeyMiddleware,
+    jwtAuthMiddleware,
+    adminSystemScopeMiddleware,
+    createAdminMediaRouter({ uploadDir: adminPublicUploadsDir }),
   );
 
   // Admin Routes (Marketing, Asset Minting, Stats)

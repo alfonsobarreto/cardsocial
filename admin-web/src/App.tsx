@@ -6,6 +6,7 @@ import Enterprise from './pages/Enterprise';
 import Finance from './pages/Finance';
 import Growth from './pages/Growth';
 import IdentityRisk from './pages/IdentityRisk';
+import MediaManager from './pages/MediaManager';
 import Login from './pages/Login';
 import BroadcastShell from './pages/BroadcastShell';
 import Broadcasts from './pages/Broadcasts';
@@ -38,6 +39,7 @@ function App() {
           <Route path="communication" element={<BroadcastShell />} />
           <Route path="megafono" element={<Broadcasts />} />
           <Route path="campanas-vip" element={<Campaigns />} />
+          <Route path="medios" element={<MediaManager />} />
           <Route path="studio" element={<Studio />} />
           <Route path="finance" element={<Finance />} />
           <Route path="nfc-ops" element={<NfcOps />} />

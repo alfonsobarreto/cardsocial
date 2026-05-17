@@ -1,31 +1,35 @@
+import { useMemo } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { AdminLanguageToggle } from '../components/AdminLanguageToggle';
 import { useAuth } from '../auth/useAuth';
 import { useAdminT } from '../i18n/useAdminT';
 
-const navItems = [
-  { label: 'Dashboard', to: '/' },
-  { label: 'Communication Hub', to: '/communication' },
-  { label: 'Megáfono in-app', to: '/megafono' },
-  { label: 'Estadisticas', to: '/estadisticas' },
-  { label: 'Moderacion', to: '/moderacion' },
-  { label: 'Legal & Compliance', to: '/compliance' },
-  { label: 'Identity & Anti-Abuso', to: '/identity-risk' },
-  { label: 'B2B & Enterprise', to: '/b2b-enterprise' },
-  { label: 'Growth & Afiliados', to: '/growth' },
-  { label: 'Rules & Tiers', to: '/rules-tiers' },
-  { label: 'Economía CS (bonos)', to: '/rules-cs-economy' },
-  { label: 'Monedas CS', to: '/rules-commerce' },
-  { label: 'Campanas VIP', to: '/campanas-vip' },
-  { label: 'Studio', to: '/studio' },
-  { label: 'Finanzas & Revenue', to: '/finance' },
-  { label: 'NFC Ops', to: '/nfc-ops' },
-];
-
 export default function AdminLayout() {
   const { t } = useAdminT();
   const { logout, user } = useAuth();
 
+  const navItems = useMemo(
+    () => [
+      { label: 'Dashboard', to: '/' },
+      { label: 'Communication Hub', to: '/communication' },
+      { label: 'Megáfono in-app', to: '/megafono' },
+      { label: 'Estadisticas', to: '/estadisticas' },
+      { label: 'Moderacion', to: '/moderacion' },
+      { label: 'Legal & Compliance', to: '/compliance' },
+      { label: 'Identity & Anti-Abuso', to: '/identity-risk' },
+      { label: 'B2B & Enterprise', to: '/b2b-enterprise' },
+      { label: 'Growth & Afiliados', to: '/growth' },
+      { label: 'Rules & Tiers', to: '/rules-tiers' },
+      { label: 'Economía CS (bonos)', to: '/rules-cs-economy' },
+      { label: 'Monedas CS', to: '/rules-commerce' },
+      { label: 'Campanas VIP', to: '/campanas-vip' },
+      { label: t('admin_nav_media_manager'), to: '/medios' },
+      { label: 'Studio', to: '/studio' },
+      { label: 'Finanzas & Revenue', to: '/finance' },
+      { label: 'NFC Ops', to: '/nfc-ops' },
+    ],
+    [t],
+  );
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950">
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-72 flex-col border-r border-white/10 bg-slate-950 text-white lg:flex">

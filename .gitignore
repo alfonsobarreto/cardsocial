@@ -71,3 +71,7 @@ moderate-request.json
 
 #frontend-web
 firebase-admin.json
+
+# hosted admin media (uploaded binaries)
+backend/public/uploads/*
+!backend/public/uploads/.gitkeep
