@@ -43,19 +43,7 @@ service firebase.storage {
       allow write: if request.auth != null;
     }
 
-    // Evidencia visual de denuncias (móvil): el denunciante sube; lectura SDK para super_admin
-    // o para el mismo uploader (customMetadata.uploadedBy) para poder generar getDownloadURL.
-    // Las URLs con token de descarga siguen siendo capaces de mostrarse en moderación vía JSON cifrado.
-    match /vault_evidences/{imageId} {
-      allow create: if request.auth != null
-        && request.resource.size < 5 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*')
-        && request.resource.metadata['uploadedby'] == request.auth.uid;
-      allow read: if request.auth != null && request.auth.token.role == 'super_admin';
-      allow read: if request.auth != null
-        && resource.metadata['uploadedby'] == request.auth.uid;
-    }
-
+    // Denuncias: la evidencia visual va en Firestore (JSON cifrado, Base64). Sin vault_evidences en Storage.
     // Deny everything else
     match /{allPaths=**} {
       allow read, write: if false;

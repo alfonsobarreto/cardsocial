@@ -9,7 +9,7 @@
 
 import { useModalFooterBottomPad } from '@/hooks/useModalFooterBottomPad';
 import { getActiveUserId } from '@/services/authSession';
-import { db, storage } from '@/services/firebaseConfig';
+import { db } from '@/services/firebaseConfig';
 import { readUserFullName, readUserNickName } from '@/services/userIdentityFields';
 import { coreTrEsEn } from '@/services/coreI18n';
 import { useLanguage } from '@/services/language';
@@ -28,7 +28,6 @@ import { premiumTheme as PT } from '@/styles/_premiumTheme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { addDoc, collection, doc, getDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -82,6 +81,7 @@ export function MedalRatingModal({
   onCountsChanged,
   useNativeModalOnAndroid = true,
 }: MedalRatingModalProps) {
+  const maxEvidenceDataUriChars = 280_000;
   const { language } = useLanguage();
   const { resolvedMode } = useLookMode();
   const isDark = resolvedMode === 'noche';
@@ -97,7 +97,7 @@ export function MedalRatingModal({
   const [loadingData, setLoadingData] = useState(false);
   const [votingKey, setVotingKey] = useState<MedalKey | null>(null);
   const [reportText, setReportText] = useState('');
-  const [evidenceImageUri, setEvidenceImageUri] = useState<string | null>(null);
+  const [evidenceImageDataUri, setEvidenceImageDataUri] = useState<string | null>(null);
   const [sending, setSending]     = useState(false);
   const [ownerProfileName, setOwnerProfileName] = useState<string>('');
 
@@ -107,7 +107,7 @@ export function MedalRatingModal({
   useEffect(() => {
     if (!visible || !sidOrBId) return;
     setReportText('');
-    setEvidenceImageUri(null);
+    setEvidenceImageDataUri(null);
     void (async () => {
       setLoadingData(true);
       try {
@@ -140,7 +140,7 @@ export function MedalRatingModal({
   // â”€â”€ cerrar â”€â”€
   const handleClose = useCallback(() => {
     setReportText('');
-    setEvidenceImageUri(null);
+    setEvidenceImageDataUri(null);
     onClose();
   }, [onClose]);
 
@@ -178,11 +178,35 @@ export function MedalRatingModal({
       }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: false,
-        quality: 0.85,
+        allowsEditing: true,
+        quality: 0.3,
+        base64: true,
       });
-      if (result.canceled || !result.assets?.[0]?.uri) return;
-      setEvidenceImageUri(result.assets[0].uri);
+      if (result.canceled) return;
+      const asset = result.assets?.[0];
+      if (!asset?.base64) {
+        Toast.show({
+          type: 'error',
+          text1: tr('No se pudo leer la imagen.', 'Could not read the image.'),
+          visibilityTime: 2500,
+        });
+        return;
+      }
+      const mime =
+        asset.mimeType && /^image\//i.test(asset.mimeType) ? asset.mimeType : 'image/jpeg';
+      const dataUri = `data:${mime};base64,${asset.base64}`;
+      if (dataUri.length > maxEvidenceDataUriChars) {
+        Toast.show({
+          type: 'error',
+          text1: tr(
+            'La imagen sigue siendo demasiado grande. Recorta más o elige otra.',
+            'Image is still too large after compression. Crop more or pick another.',
+          ),
+          visibilityTime: 3000,
+        });
+        return;
+      }
+      setEvidenceImageDataUri(dataUri);
     } catch {
       Toast.show({
         type: 'error',
@@ -190,12 +214,12 @@ export function MedalRatingModal({
         visibilityTime: 2000,
       });
     }
-  }, [sending, tr]);
+  }, [sending, tr, maxEvidenceDataUriChars]);
 
   // â”€â”€ enviar reporte incÃ³gnito â”€â”€
   const handleSendReport = useCallback(async () => {
     const text = reportText.trim();
-    const hasImage = Boolean(evidenceImageUri);
+    const hasImage = Boolean(evidenceImageDataUri);
     if ((!text && !hasImage) || sending) return;
     const uid = await getActiveUserId();
     if (!uid) {
@@ -204,29 +228,22 @@ export function MedalRatingModal({
     }
     setSending(true);
     try {
-      let evidenceImageUrl: string | undefined;
-      if (hasImage && evidenceImageUri) {
-        const response = await fetch(evidenceImageUri);
-        const blob = await response.blob();
-        if (blob.size > 5 * 1024 * 1024) {
+      let evidenceImageBase64: string | undefined;
+      if (hasImage && evidenceImageDataUri) {
+        if (evidenceImageDataUri.length > maxEvidenceDataUriChars) {
           Toast.show({
             type: 'error',
-            text1: tr('La imagen supera 5 MB.', 'Image exceeds 5 MB.'),
-            visibilityTime: 2500,
+            text1: tr(
+              'La evidencia es demasiado grande para guardarla. Elige otra imagen.',
+              'Evidence is too large to store. Choose another image.',
+            ),
+            visibilityTime: 3000,
           });
           return;
         }
-        let mime = blob.type && /^image\//i.test(blob.type) ? blob.type : 'image/jpeg';
-        const imageId =
-          typeof globalThis.crypto?.randomUUID === 'function'
-            ? globalThis.crypto.randomUUID()
-            : `${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
-        const fileRef = storageRef(storage, `vault_evidences/${imageId}`);
-        await uploadBytes(fileRef, blob, {
-          contentType: mime,
-          customMetadata: { uploadedBy: uid },
-        });
-        evidenceImageUrl = await getDownloadURL(fileRef);
+        evidenceImageBase64 = evidenceImageDataUri.startsWith('data:')
+          ? evidenceImageDataUri
+          : `data:image/jpeg;base64,${evidenceImageDataUri}`;
       }
 
       const detailsForFirestore =
@@ -242,7 +259,7 @@ export function MedalRatingModal({
         reporterSummary: text,
         cardOwnerLabel: ownerLabel || undefined,
         observedAtIso: new Date().toISOString(),
-        ...(evidenceImageUrl ? { evidenceImageUrl } : {}),
+        ...(evidenceImageBase64 ? { evidenceImageBase64 } : {}),
       };
       const evidencePlainJson = JSON.stringify(evidencePlain);
 
@@ -290,7 +307,7 @@ export function MedalRatingModal({
         visibilityTime: 2500,
       });
       setReportText('');
-      setEvidenceImageUri(null);
+      setEvidenceImageDataUri(null);
     } catch {
       Toast.show({ type: 'error', text1: tr('Error al enviar', 'Send error'), visibilityTime: 2000 });
     } finally {
@@ -298,7 +315,7 @@ export function MedalRatingModal({
     }
   }, [
     reportText,
-    evidenceImageUri,
+    evidenceImageDataUri,
     sending,
     cardType,
     sidOrBId,
@@ -306,17 +323,18 @@ export function MedalRatingModal({
     tr,
     ownerProfileName,
     cardOwnerName,
+    maxEvidenceDataUriChars,
   ]);
 
   // â”€â”€ confirmar â”€â”€
   const handleConfirm = useCallback(async () => {
     if (sending) return;
-    if (reportText.trim().length > 0 || evidenceImageUri) {
+    if (reportText.trim().length > 0 || evidenceImageDataUri) {
       await handleSendReport();
     } else {
       handleClose();
     }
-  }, [sending, reportText, evidenceImageUri, handleSendReport, handleClose]);
+  }, [sending, reportText, evidenceImageDataUri, handleSendReport, handleClose]);
 
   // â”€â”€ colores â”€â”€
   const accent      = P.accent;
@@ -511,11 +529,11 @@ export function MedalRatingModal({
                         )}
                       </Text>
                     </TouchableOpacity>
-                    {evidenceImageUri ? (
+                    {evidenceImageDataUri ? (
                       <View style={styles.evidencePreviewRow}>
-                        <Image source={{ uri: evidenceImageUri }} style={styles.evidenceThumb} />
+                        <Image source={{ uri: evidenceImageDataUri }} style={styles.evidenceThumb} />
                         <TouchableOpacity
-                          onPress={() => !sending && setEvidenceImageUri(null)}
+                          onPress={() => !sending && setEvidenceImageDataUri(null)}
                           disabled={sending}
                           style={styles.evidenceRemoveBtn}
                         >

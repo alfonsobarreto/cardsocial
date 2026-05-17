@@ -13,6 +13,7 @@
     "@noble/ciphers": "^2.2.0",
     "@noble/hashes": "^2.2.0",
     "@revenuecat/purchases-js": "^1.38.0",
+    "buffer": "^6.0.3",
     "firebase": "^11.10.0",
     "firebase-admin": "^12.7.0",
     "framer-motion": "^12.38.0",

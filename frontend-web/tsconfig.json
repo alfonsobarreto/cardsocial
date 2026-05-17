@@ -16,7 +16,10 @@
     "plugins": [{ "name": "next" }],
     "paths": {
       "@/*": ["./*"],
-      "@card-social/*": ["../*"]
+      "@card-social/*": ["../*"],
+      "@noble/ciphers/*": ["./node_modules/@noble/ciphers/*"],
+      "@noble/hashes/*": ["./node_modules/@noble/hashes/*"],
+      "buffer": ["./node_modules/buffer"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

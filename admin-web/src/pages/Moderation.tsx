@@ -45,15 +45,31 @@ function shortId(value?: string) {
   return value.length > 18 ? `${value.slice(0, 16)}...` : value;
 }
 
-/** Evidencia descifrada: texto del reporte + imagen opcional (URL en JSON). */
+/** Evidencia descifrada: texto del reporte + imagen opcional (Base64 en JSON o URL legada). */
 function DecryptedEvidencePanel({ raw }: { raw: string }) {
   try {
     const parsed: unknown = JSON.parse(raw);
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
       const o = parsed as Record<string, unknown>;
       const summary = typeof o.reporterSummary === 'string' ? o.reporterSummary : '';
+      const b64Raw =
+        typeof o.evidenceImageBase64 === 'string' ? o.evidenceImageBase64.trim() : '';
+      const imageSrcFromB64 = b64Raw
+        ? b64Raw.startsWith('data:')
+          ? b64Raw
+          : `data:image/jpeg;base64,${b64Raw}`
+        : '';
       const imageUrlRaw = typeof o.evidenceImageUrl === 'string' ? o.evidenceImageUrl.trim() : '';
-      const safeImageUrl = /^https:\/\//i.test(imageUrlRaw) ? imageUrlRaw : '';
+      const safeHttpsUrl = /^https:\/\//i.test(imageUrlRaw) ? imageUrlRaw : '';
+      const imageSrc = imageSrcFromB64 || safeHttpsUrl;
+      const isExternalHttps = Boolean(safeHttpsUrl && !imageSrcFromB64);
+      const forAudit = { ...o };
+      if (
+        typeof forAudit.evidenceImageBase64 === 'string' &&
+        forAudit.evidenceImageBase64.length > 120
+      ) {
+        forAudit.evidenceImageBase64 = `[${forAudit.evidenceImageBase64.length} chars]`;
+      }
       return (
         <div className="space-y-3">
           {summary ? (
@@ -61,17 +77,25 @@ function DecryptedEvidencePanel({ raw }: { raw: string }) {
               {summary}
             </p>
           ) : null}
-          {safeImageUrl ? (
-            <a href={safeImageUrl} target="_blank" rel="noreferrer" className="block">
+          {imageSrc ? (
+            isExternalHttps ? (
+              <a href={imageSrc} target="_blank" rel="noreferrer" className="block">
+                <img
+                  src={imageSrc}
+                  alt="Evidencia visual del reporte"
+                  className="max-h-[480px] w-auto max-w-full rounded-lg border border-slate-200 object-contain"
+                />
+              </a>
+            ) : (
               <img
-                src={safeImageUrl}
+                src={imageSrc}
                 alt="Evidencia visual del reporte"
                 className="max-h-[480px] w-auto max-w-full rounded-lg border border-slate-200 object-contain"
               />
-            </a>
+            )
           ) : null}
           <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
-            {JSON.stringify(parsed, null, 2)}
+            {JSON.stringify(forAudit, null, 2)}
           </pre>
         </div>
       );
