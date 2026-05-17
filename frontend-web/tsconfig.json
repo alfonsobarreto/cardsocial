@@ -19,7 +19,9 @@
       "@card-social/*": ["../*"],
       "@noble/ciphers/*": ["./node_modules/@noble/ciphers/*"],
       "@noble/hashes/*": ["./node_modules/@noble/hashes/*"],
-      "buffer": ["./node_modules/buffer"]
+      "buffer": ["./node_modules/buffer"],
+      "firebase": ["./node_modules/firebase"],
+      "firebase/*": ["./node_modules/firebase/*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
