@@ -107,6 +107,7 @@ const SLIDES: SlideDef[] = [
   {
     id: 'business',
     imageUri: ONBOARDING_IMAGE.businessCard,
+    titleKey: 'onboarding_slide_4_title',
     bodyKey: 'onboarding_slide_4_body',
     variant: 'standard',
   },
