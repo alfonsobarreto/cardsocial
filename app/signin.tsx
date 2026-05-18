@@ -21,15 +21,10 @@ import { resolveEmailCandidatesForSignIn } from '@/services/studioAuthPublicApi'
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  signOut,
-  type UserCredential,
-} from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut, type UserCredential } from 'firebase/auth';
 import { doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { Check, Eye, EyeOff, Lock, User } from 'lucide-react-native';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
     Alert,
     Image,
@@ -91,16 +86,6 @@ export default function SignInScreen() {
   const [maskedRecoveryEmail, setMaskedRecoveryEmail] = useState('');
   const [trustThisDevice, setTrustThisDevice] = useState(false);
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      if (!user || !firebaseUserMayEnterMainApp(user)) return;
-      const r = await enforceInactivitySignOutIfNeeded();
-      if (r === 'signed_out') return;
-      router.replace('/');
-    });
-    return () => unsub();
-  }, [router]);
-
   const welcomeTitle = useMemo(() => t('signin_welcome_title'), [language, t]);
 
   const maskEmail = (email: string) => {
@@ -126,12 +111,14 @@ export default function SignInScreen() {
     setIsSubmitting(true);
     try {
       if (!normalizedUsername) {
+        setIsSubmitting(false);
         Alert.alert(t('signin_alert_username_required_title'), t('signin_alert_username_required_body'));
         return;
       }
 
       const candidates = await resolveEmailCandidatesForSignIn(normalizedUsername);
       if (!candidates?.length) {
+        setIsSubmitting(false);
         Alert.alert(t('signin_alert_user_not_found_title'), t('signin_alert_user_not_found_body'));
         return;
       }
@@ -149,12 +136,14 @@ export default function SignInScreen() {
           const tryNext =
             (code === 'auth/invalid-credential' || code === 'auth/wrong-password') && i < candidates.length - 1;
           if (!tryNext) {
+            setIsSubmitting(false);
             Alert.alert(t('signin_alert_access_error_title'), authSignInUserMessage(e, t));
             return;
           }
         }
       }
       if (!credential) {
+        setIsSubmitting(false);
         Alert.alert(t('signin_alert_access_error_title'), authSignInUserMessage(lastError, t));
         return;
       }
@@ -209,13 +198,13 @@ export default function SignInScreen() {
               );
             } else {
               // El periodo de gracia expiró, bloquear acceso
+              setIsSubmitting(false);
               Alert.alert(
                 t('signin_alert_account_deleted_title'),
-                t('signin_alert_account_deleted_body')
+                t('signin_alert_account_deleted_body'),
               );
               await clearLocalCachesForSignOut(auth.currentUser?.uid ?? null);
               await signOut(auth);
-              setIsSubmitting(false);
               return;
             }
           }
@@ -238,9 +227,10 @@ export default function SignInScreen() {
 
       if (!firebaseUserMayEnterMainApp(credential.user)) {
         setPendingVerificationEmail(sessionEmail);
+        setIsSubmitting(false);
         Alert.alert(
           t('signin_alert_verification_pending_title'),
-          t('signin_alert_verification_pending_body')
+          t('signin_alert_verification_pending_body'),
         );
         return;
       }
@@ -255,11 +245,12 @@ export default function SignInScreen() {
       await setTrustedDeviceSession(credential.user.uid, trustThisDevice);
       await saveCachedCredentials(sessionEmail, normalizedPassword);
 
-      router.replace('/');
-    } catch (error) {
-      Alert.alert(t('signin_alert_access_error_title'), authSignInUserMessage(error, t));
-    } finally {
       setIsSubmitting(false);
+      router.replace('/');
+      return;
+    } catch (error) {
+      setIsSubmitting(false);
+      Alert.alert(t('signin_alert_access_error_title'), authSignInUserMessage(error, t));
     }
   };
 
@@ -774,29 +765,6 @@ const styles = StyleSheet.create({
     color: '#4A4A4A',
     textAlign: 'center',
     fontWeight: '600',
-  },
-  socialGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  socialButton: {
-    minWidth: '31%',
-    minHeight: 44,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#DCE9F2',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  socialText: {
-    color: '#0A2540',
-    fontWeight: '700',
-    fontSize: 13,
   },
   footerLinkWrap: {
     marginTop: 18,

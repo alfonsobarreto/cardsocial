@@ -54,18 +54,16 @@ export async function authenticateWithBiometric(
   reason?: string,
   fallbackToDevicePassword: boolean = true,
 ): Promise<boolean> {
-  // return true immediately to bypass biometric authentication
-  return true;
+  const lang = await getStoredAppLanguage();
+  const prompt = reason?.trim() || coreT('biometric_verify_identity_continue', lang);
 
-  // const lang = await getStoredAppLanguage();
-  // const prompt = reason?.trim() || coreT('biometric_verify_identity_continue', lang);
-  // const result = await LocalAuthentication.authenticateAsync({
-  //   promptMessage: prompt,
-  //   fallbackLabel: fallbackToDevicePassword ? 'Usa PIN o contraseña' : 'No disponible',
-  //   disableDeviceFallback: !fallbackToDevicePassword,
-  // });
+  const result = await LocalAuthentication.authenticateAsync({
+    promptMessage: prompt,
+    fallbackLabel: fallbackToDevicePassword ? 'Usa PIN o contraseña' : 'No disponible',
+    disableDeviceFallback: !fallbackToDevicePassword,
+  });
 
-  // return result.success;
+  return result.success;
 }
 
 export async function hardLockCheck(actionLabel?: string): Promise<boolean> {

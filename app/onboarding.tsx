@@ -234,6 +234,8 @@ export default function OnboardingScreen() {
         onboardingVersion: CURRENT_ONBOARDING_VERSION,
       });
       await writeOnboardingDoneToStorage();
+      // Apagar el indicador de carga antes de la redirección (evita choque visual / pantalla en blanco).
+      setFinishing(false);
       router.replace('/(tabs)/cards');
     } catch (e) {
       console.warn('[onboarding] finish failed', e);

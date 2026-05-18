@@ -976,6 +976,8 @@ export default function RegisterScreen() {
         }
         await clearLocalCachesForSignOut(auth.currentUser?.uid ?? uid);
         await signOut(auth);
+        setUploadModalVisible(false);
+        setIsSubmitting(false);
         Alert.alert(
           t('register_alert_verify_email_title'),
           t('register_alert_verify_email_body')
@@ -992,8 +994,13 @@ export default function RegisterScreen() {
       }
 
       setSuccessTransitionVisible(true);
+      setUploadModalVisible(false);
+      setIsSubmitting(false);
     } catch (error) {
       console.error('Error Firebase:', error);
+      setUploadModalVisible(false);
+      setIsSubmitting(false);
+
       if (error instanceof ModerationRejectedError) {
         registerModerationReject();
       } else {
@@ -1006,9 +1013,6 @@ export default function RegisterScreen() {
           ),
         );
       }
-    } finally {
-      setUploadModalVisible(false);
-      setIsSubmitting(false);
     }
   };
 
@@ -1409,7 +1413,7 @@ export default function RegisterScreen() {
           durationMs={1800}
           onDone={() => {
             setSuccessTransitionVisible(false);
-            router.replace('/(tabs)/vault');
+            router.replace('/');
           }}
         />
 
@@ -1681,57 +1685,6 @@ const styles = StyleSheet.create({
   },
   validationError: {
     color: '#C0392B',
-  },
-  otpCard: {
-    width: '100%',
-    backgroundColor: 'rgba(255,255,255,0.68)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#7BC2EC',
-    padding: 12,
-    marginBottom: 14,
-  },
-  otpTitle: {
-    color: '#0A2540',
-    fontWeight: '700',
-    fontSize: 13,
-    marginBottom: 8,
-  },
-  otpSendBtn: {
-    backgroundColor: '#0A2540',
-    borderRadius: 10,
-    minHeight: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  otpSendBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  otpTimer: {
-    color: '#0A2540',
-    fontWeight: '700',
-    fontSize: 12,
-    marginBottom: 10,
-  },
-  otpTimerWarn: {
-    color: '#C0392B',
-  },
-  otpVerifyBtn: {
-    marginTop: 2,
-    backgroundColor: '#1E88E5',
-    borderRadius: 10,
-    minHeight: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  otpVerifyBtnOk: {
-    backgroundColor: '#1F9D55',
-  },
-  otpVerifyBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
   },
   input: {
     width: '100%',

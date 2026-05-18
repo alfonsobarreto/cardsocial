@@ -20,9 +20,10 @@ export async function trackCardAction(
   actionType: CardAnalyticsActionType,
   metadata: Record<string, unknown> = {},
 ): Promise<void> {
-  const uid = await getActiveUserId();
+  const rawUid = await getActiveUserId();
+  const uid = rawUid?.trim() || 'anonymous_guest';
   const cleanCardId = String(cardId || '').trim();
-  if (!uid || !cleanCardId) return;
+  if (!cleanCardId) return;
 
   await trackCardAnalyticsAction({
     uid,
@@ -39,12 +40,12 @@ export async function getCardAnalyticsForPeriod(params: {
   periodOffset: number;
 }): Promise<CardAnalyticsPeriodSummary | undefined> {
   const uid = await getActiveUserId();
-  const cardRef = String(params.cardId || '').trim();
-  if (!uid || !cardRef) return undefined;
+  const cardId = String(params.cardId || '').trim();
+  if (!uid || !cardId) return undefined;
 
   return getCardAnalyticsPeriodSummary({
     uid,
-    cardRef,
+    cardRef: cardId,
     periodMode: params.periodMode,
     periodOffset: params.periodOffset,
   });
@@ -62,9 +63,9 @@ export async function trackMarketplaceSearch(params: {
   longitude?: number | null;
   resultBIds?: string[];
 }): Promise<void> {
-  const uid = await getActiveUserId();
+  const uid = (await getActiveUserId())?.trim() || 'anonymous_guest';
   const q = String(params.q || '').trim();
-  if (!uid || !q) return;
+  if (!q) return;
   await trackMarketSearch({ uid, ...params, q });
 }
 
@@ -78,10 +79,10 @@ export async function trackMarketplaceCardClick(params: {
   country?: string | null;
   geoLabel?: string | null;
 }): Promise<void> {
-  const uid = await getActiveUserId();
+  const uid = (await getActiveUserId())?.trim() || 'anonymous_guest';
   const bId = String(params.bId || '').trim();
   const q = String(params.q || '').trim();
-  if (!uid || !bId || !q) return;
+  if (!bId || !q) return;
   await trackMarketSearchCardClick({ uid, ...params, bId, q });
 }
 

@@ -14,10 +14,8 @@ export function trackCardAnalyticsFireAndForget(params: {
     return;
   }
   void (async () => {
-    const uid = await getActiveUserId();
-    if (!uid) {
-      return;
-    }
+    const rawUid = await getActiveUserId();
+    const uid = rawUid?.trim() || 'anonymous_guest';
     try {
       await trackCardAnalyticsEvent({
         uid,

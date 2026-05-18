@@ -49,12 +49,7 @@ export function getApiGatewayKey(): string {
     process.env.EXPO_PUBLIC_MODERATION_GATEWAY_KEY?.trim() ||
     process.env.EXPO_PUBLIC_API_GATEWAY_KEY?.trim() ||
     process.env.EXPO_PUBLIC_GATEWAY_KEY?.trim();
-  if (!key) {
-    throw new Error(
-      'Missing gateway key. Set EXPO_PUBLIC_MODERATION_GATEWAY_KEY (or EXPO_PUBLIC_API_GATEWAY_KEY) in your Expo environment and restart Expo with -c.',
-    );
-  }
-  return key;
+  return key || '';
 }
 
 export function mapBackendNetworkError(error: unknown, baseUrl: string): Error {
@@ -100,7 +95,7 @@ export async function getScopedJwtToken(
       { uid, scope },
       {
         headers: { 'x-api-gateway-key': gatewayKey },
-        timeout: 15000,
+        timeout: 25000,
       },
     );
   } catch (error) {
