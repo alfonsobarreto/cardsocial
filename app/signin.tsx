@@ -96,7 +96,7 @@ export default function SignInScreen() {
       if (!user || !firebaseUserMayEnterMainApp(user)) return;
       const r = await enforceInactivitySignOutIfNeeded();
       if (r === 'signed_out') return;
-      router.replace('/(tabs)/cards');
+      router.replace('/');
     });
     return () => unsub();
   }, [router]);
@@ -255,7 +255,7 @@ export default function SignInScreen() {
       await setTrustedDeviceSession(credential.user.uid, trustThisDevice);
       await saveCachedCredentials(sessionEmail, normalizedPassword);
 
-      router.replace('/(tabs)/cards');
+      router.replace('/');
     } catch (error) {
       Alert.alert(t('signin_alert_access_error_title'), authSignInUserMessage(error, t));
     } finally {
@@ -430,7 +430,7 @@ export default function SignInScreen() {
           /* non-blocking */
         }
       }
-      router.replace('/(tabs)/cards');
+      router.replace('/');
     } catch (error) {
       Alert.alert(
         t('signin_alert_social_unavailable_title'),
