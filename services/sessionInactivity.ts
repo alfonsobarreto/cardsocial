@@ -36,10 +36,46 @@ function isSessionExpiredByInactivity(lastActivityMs: number | null, nowMs: numb
   return delta > SESSION_INACTIVITY_LIMIT_MS + SESSION_INACTIVITY_EXPIRY_GRACE_MS;
 }
 
+/** Correos que omiten la pantalla de “verifica tu correo” (cuentas operativas / prueba). */
+const EMAIL_VERIFICATION_BYPASS_EMAILS_LOWER = new Set<string>([
+  'pochobs@gmail.com',
+]);
+
+/** Dominios organización / pruebas (p. ej. cuentas @cardsocial.me). */
+const EMAIL_VERIFICATION_BYPASS_DOMAIN_SUFFIXES = ['@cardsocial.me', '@cardsocial.app'];
+
+function parseCommaList(raw: string | undefined): string[] {
+  return String(raw || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function isPasswordEmailVerificationBypassed(user: User): boolean {
+  const email = String(user.email || '').trim().toLowerCase();
+  if (email) {
+    if (EMAIL_VERIFICATION_BYPASS_EMAILS_LOWER.has(email)) return true;
+    for (const suffix of EMAIL_VERIFICATION_BYPASS_DOMAIN_SUFFIXES) {
+      if (email.endsWith(suffix)) return true;
+    }
+    for (const extra of parseCommaList(process.env.EXPO_PUBLIC_AUTH_EMAIL_VERIFY_BYPASS_EMAILS)) {
+      if (email === extra.toLowerCase()) return true;
+    }
+  }
+  const uid = user.uid;
+  for (const id of parseCommaList(process.env.EXPO_PUBLIC_AUTH_EMAIL_VERIFY_BYPASS_UIDS)) {
+    if (uid === id) return true;
+  }
+  return false;
+}
+
 export function firebaseUserMayEnterMainApp(user: User | null): boolean {
   if (!user) return false;
   const usesPassword = user.providerData.some((p) => p.providerId === 'password');
-  if (usesPassword && !user.emailVerified) return false;
+  if (usesPassword && !user.emailVerified) {
+    if (isPasswordEmailVerificationBypassed(user)) return true;
+    return false;
+  }
   return true;
 }
 

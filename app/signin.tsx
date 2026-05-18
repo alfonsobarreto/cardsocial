@@ -8,7 +8,6 @@ import { requestVerificationEmailViaBackend } from '@/services/requestVerificati
 import { syncWaitlistOnAppVerified } from '@/services/syncWaitlistOnAppVerified';
 import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { auth, db } from '@/services/firebaseConfig';
-import { resolveEmailCandidatesForSignIn } from '@/services/studioAuthPublicApi';
 import { useLanguageOptional } from '@/services/language';
 import { useAuthT, type AuthLocaleKey } from '@/services/authI18n';
 import { getEmailFromCredential, getProviderLabel, signInWithSocialProvider, SocialProviderId } from '@/services/socialAuth';
@@ -18,6 +17,7 @@ import {
   firebaseUserMayEnterMainApp,
   setTrustedDeviceSession,
 } from '@/services/sessionInactivity';
+import { resolveEmailCandidatesForSignIn } from '@/services/studioAuthPublicApi';
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -236,7 +236,7 @@ export default function SignInScreen() {
         /* ignore language sync */
       }
 
-      if (!credential.user.emailVerified) {
+      if (!firebaseUserMayEnterMainApp(credential.user)) {
         setPendingVerificationEmail(sessionEmail);
         Alert.alert(
           t('signin_alert_verification_pending_title'),

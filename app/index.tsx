@@ -64,12 +64,17 @@ export default function Index() {
       try {
         await active.getIdToken();
       } catch (e) {
-        console.warn('[index] getIdToken before Firestore:', e);
+        console.warn(
+          '[AUTH GATE] Token fetch failed, proceeding with local currentUser state as fallback.',
+          e,
+        );
+      }
+      if (!auth.currentUser || auth.currentUser.uid !== user.uid) {
         setTarget('signin');
         return;
       }
-      const dest = await resolvePostAuthDestination(active.uid);
-      void ensureOnboardingTourNotification(active.uid).catch((e) =>
+      const dest = await resolvePostAuthDestination(auth.currentUser.uid);
+      void ensureOnboardingTourNotification(auth.currentUser.uid).catch((e) =>
         console.warn('[index] ensureOnboardingTourNotification', e),
       );
       setTarget(dest === 'main' ? 'main' : 'onboarding');

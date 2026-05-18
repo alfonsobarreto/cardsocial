@@ -1,7 +1,6 @@
 /**
- * Llamadas HTTP al Studio (frontend-web) para flujos de auth que no pueden leer `users` en Firestore
- * sin ser el dueño (reglas de producción). Requiere `EXPO_PUBLIC_STUDIO_WEB_URL` o
- * `EXPO_PUBLIC_MARKET_RADAR_WEB_ORIGIN` apuntando al mismo origen que sirve `/api/studio/*`.
+ * Resolución de nick para login: solo vía HTTP (Admin SDK en cardsocial.me u origen Expo).
+ * No se consulta Firestore cliente (reglas bloquean); evita errores de permisos en UI.
  */
 import { collection, getDocs, limit, query, where } from 'firebase/firestore';
 
@@ -11,48 +10,10 @@ import { firestoreFirstUserDocByNickLower } from '@/services/userIdentityFields'
 
 export const SIGN_IN_EMAIL_LIKE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function signInEmailsFromFirestoreUser(data: Record<string, unknown>): string[] {
-  const primary = String(data.emailLower || data.email || '')
-    .trim()
-    .toLowerCase();
-  const pending = String(data.pendingEmailLower || data.pendingEmail || '')
-    .trim()
-    .toLowerCase();
-  const out: string[] = [];
-  if (primary) out.push(primary);
-  if (pending && pending !== primary) out.push(pending);
-  return out.filter((e) => SIGN_IN_EMAIL_LIKE.test(e));
-}
+const PRIMARY_STUDIO_PUBLIC_ORIGIN = 'https://cardsocial.me';
 
-async function resolveEmailCandidatesFromFirestoreClient(
-  rawUsername: string,
-): Promise<string[] | null> {
-  const trimmed = rawUsername.trim();
-  const normalizedUsername = trimmed.toLowerCase();
-  if (!normalizedUsername) {
-    return null;
-  }
-
-  const byLowerDoc = await firestoreFirstUserDocByNickLower(db, normalizedUsername);
-  if (byLowerDoc) {
-    const emails = signInEmailsFromFirestoreUser(byLowerDoc.data() as Record<string, unknown>);
-    return emails.length ? emails : null;
-  }
-
-  const usersRef = collection(db, 'users');
-  const byNickname = await getDocs(query(usersRef, where('nickname', '==', trimmed), limit(1)));
-  if (!byNickname.empty) {
-    const emails = signInEmailsFromFirestoreUser(byNickname.docs[0].data() as Record<string, unknown>);
-    return emails.length ? emails : null;
-  }
-
-  const byUserNick = await getDocs(query(usersRef, where('userNickName', '==', trimmed), limit(1)));
-  if (!byUserNick.empty) {
-    const emails = signInEmailsFromFirestoreUser(byUserNick.docs[0].data() as Record<string, unknown>);
-    return emails.length ? emails : null;
-  }
-
-  return null;
+function normalizeOrigin(base: string): string {
+  return base.trim().replace(/\/+$/, '');
 }
 
 function parseEmailsFromResolveUsernameJson(j: unknown): string[] {
@@ -74,6 +35,39 @@ function parseEmailsFromResolveUsernameJson(j: unknown): string[] {
   return [...new Set(out)];
 }
 
+async function resolveUsernameViaHttp(username: string, origin: string): Promise<string[] | null> {
+  const base = normalizeOrigin(origin);
+  const r = await fetch(`${base}/api/studio/resolve-username`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ username }),
+  });
+  const j: unknown = await r.json().catch(() => null);
+  if (r.ok && j && typeof j === 'object' && (j as { ok?: boolean }).ok === true) {
+    const list = parseEmailsFromResolveUsernameJson(j);
+    if (list.length) return list;
+  }
+  if (r.status === 404) {
+    return null;
+  }
+  return null;
+}
+
+function collectResolveUsernameOrigins(): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const push = (raw: string | null | undefined) => {
+    if (!raw) return;
+    const n = normalizeOrigin(raw);
+    if (!n || seen.has(n)) return;
+    seen.add(n);
+    out.push(n);
+  };
+  push(PRIMARY_STUDIO_PUBLIC_ORIGIN);
+  push(marketRadarStudioBaseFromEnv() ?? '');
+  return out;
+}
+
 /**
  * Resuelve nick (o email) → emails candidatos para Firebase Auth email/password.
  */
@@ -88,33 +82,16 @@ export async function resolveEmailCandidatesForSignIn(rawUsername: string): Prom
     return [lower];
   }
 
-  const base = marketRadarStudioBaseFromEnv();
-  if (base) {
+  for (const origin of collectResolveUsernameOrigins()) {
     try {
-      const r = await fetch(`${base}/api/studio/resolve-username`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ username: t }),
-      });
-      const j: unknown = await r.json().catch(() => null);
-      if (r.ok && j && typeof j === 'object' && (j as { ok?: boolean }).ok === true) {
-        const list = parseEmailsFromResolveUsernameJson(j);
-        if (list.length) return list;
-      }
-      if (r.status === 404) {
-        return null;
-      }
+      const list = await resolveUsernameViaHttp(t, origin);
+      if (list?.length) return list;
     } catch (e) {
-      console.warn('[studioAuthPublicApi] resolve-username HTTP failed', e);
+      console.warn('[studioAuthPublicApi] resolve-username HTTP failed', origin, e);
     }
   }
 
-  try {
-    return await resolveEmailCandidatesFromFirestoreClient(t);
-  } catch (e) {
-    console.warn('[studioAuthPublicApi] resolve username Firestore fallback failed', e);
-    return null;
-  }
+  return null;
 }
 
 export type SignupFieldKey = 'nickname' | 'email' | 'phone';
@@ -183,6 +160,10 @@ async function fetchSignupAvailabilityFirestoreFallback(params: {
   return Object.keys(out).length ? out : null;
 }
 
+function collectSignupAvailabilityOrigins(): string[] {
+  return collectResolveUsernameOrigins();
+}
+
 /**
  * Disponibilidad de nick / email / teléfono para registro (uno o varios campos).
  */
@@ -201,8 +182,7 @@ export async function fetchSignupFieldAvailability(params: {
     return null;
   }
 
-  const base = marketRadarStudioBaseFromEnv();
-  if (base) {
+  for (const base of collectSignupAvailabilityOrigins()) {
     try {
       const uid = auth.currentUser?.uid;
       const r = await fetch(`${base}/api/studio/signup-availability`, {
@@ -229,7 +209,7 @@ export async function fetchSignupFieldAvailability(params: {
         if (Object.keys(out).length) return out;
       }
     } catch (e) {
-      console.warn('[studioAuthPublicApi] signup-availability HTTP failed', e);
+      console.warn('[studioAuthPublicApi] signup-availability HTTP failed', base, e);
     }
   }
 
