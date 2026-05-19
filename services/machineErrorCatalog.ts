@@ -80,6 +80,15 @@ export const MACHINE_ERROR_EXTRA: Record<string, Record<MachineErrorLocale, stri
     fr: 'Le PIN d’activation est incorrect. Vérifiez-le et réessayez.',
     de: 'Die Aktivierungs-PIN ist falsch. Bitte prüfen und erneut versuchen.',
   },
+  /** Registro / Auth: cuenta Firebase ya existe con ese correo — mensaje específico (no bloque E genérico). */
+  register_email_already_in_use: {
+    es: 'Ese correo ya tiene una cuenta. Inicia sesión o usa recuperar contraseña. No es posible duplicar usuarios.',
+    en: 'That email already has an account. Sign in or use password recovery — duplicate registrations are not allowed.',
+    it: 'Questa email ha già un account. Accedi o usa il recupero password: non sono ammessi duplicati.',
+    pt: 'Esse e-mail já possui uma conta. Entre ou use recuperação de senha — não permitimos usuários duplicados.',
+    fr: 'Cet e-mail possède déjà un compte. Connectez-vous ou utilisez la récupération du mot de passe — pas de doublon.',
+    de: 'Diese E-Mail ist bereits registriert. Bitte anmelden oder Passwort zurücksetzen — keine doppelten Konten.',
+  },
   relationship_blocked: {
     es: 'No puedes realizar esta acción con este contacto por restricciones de privacidad o bloqueo.',
     en: 'You cannot take this action with this contact due to privacy or blocking restrictions.',
@@ -207,6 +216,7 @@ export const MACHINE_ERROR_CODE_TO_BLOCK: Record<string, 'A' | 'B' | 'C' | 'D' |
 const MACHINE_ERROR_CODE_TO_EXTRA_KEY: Partial<Record<string, keyof typeof MACHINE_ERROR_EXTRA>> = {
   RELATIONSHIP_BLOCKED: 'relationship_blocked',
   NFC_ACTIVATION_PIN_INVALID: 'nfc_activation_pin_invalid',
+  email_already_in_use: 'register_email_already_in_use',
 };
 
 function normalizeMachineErrorCode(raw: string | undefined | null): string {

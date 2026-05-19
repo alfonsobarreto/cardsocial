@@ -4,7 +4,6 @@ import { mergeBuiltinGhostLinkIntoVault } from '@/services/ghostLinkVaultBootstr
 import { getUserIconVaultMap, type IconVaultEntry } from '@/services/iconVaultService';
 import { migrateVaultIconsForStorage, type VaultLinkSnapshotItem } from '@/services/vaultPublicCardSlots';
 import { decodeVaultLink } from '@/services/vaultFirestoreCodec';
-import { getVaultE2eDerivedKey } from '@/services/vaultE2eSession';
 import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -65,12 +64,6 @@ export async function loadVaultSnapshotForSlotSync(uid: string): Promise<{
   }
 
   const byId = new Map<string, unknown>();
-  let aesKey: Uint8Array | null = null;
-  try {
-    aesKey = await getVaultE2eDerivedKey(uid);
-  } catch {
-    aesKey = null;
-  }
   for (const it of itemsMigrated) {
     const id = String((it as { id?: string })?.id || '').trim();
     if (id) {
@@ -85,7 +78,7 @@ export async function loadVaultSnapshotForSlotSync(uid: string): Promise<{
         continue;
       }
       const rawRow: Record<string, unknown> = { id: itemDoc.id, ...itemDoc.data() };
-      const cloudRow = (await decodeVaultLink(id, rawRow, aesKey)) as unknown as Record<string, unknown>;
+      const cloudRow = (await decodeVaultLink(id, rawRow, null)) as unknown as Record<string, unknown>;
       const existing = byId.get(id);
       if (!existing) {
         byId.set(id, cloudRow);

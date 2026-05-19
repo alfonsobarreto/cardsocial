@@ -17,13 +17,13 @@ import {
   firebaseUserMayEnterMainApp,
   setTrustedDeviceSession,
 } from '@/services/sessionInactivity';
-import { resolveEmailCandidatesForSignIn } from '@/services/studioAuthPublicApi';
+import { resolveEmailCandidatesForSignIn, SIGN_IN_EMAIL_LIKE } from '@/services/studioAuthPublicApi';
 import { clearLocalCachesForSignOut } from '@/services/userScopedStorage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { signInWithEmailAndPassword, signOut, type UserCredential } from 'firebase/auth';
 import { doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { Check, Eye, EyeOff, Lock, User } from 'lucide-react-native';
+import { Check, Eye, EyeOff, Lock, Mail, User } from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
 import {
     Alert,
@@ -71,6 +71,7 @@ export default function SignInScreen() {
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
   const look = useMemo(() => authScreenLook(isNight), [isNight]);
+  const [identifierMode, setIdentifierMode] = useState<'username' | 'email'>('username');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -98,8 +99,18 @@ export default function SignInScreen() {
     return `${first}${'*'.repeat(Math.max(4, local.length - 2))}${last}@${'*'.repeat(Math.max(5, domainParts.join('.').length))}${tld ? `.${tld}` : ''}`;
   };
 
+  const resolveSignInEmails = async (rawTrimmed: string): Promise<string[]> => {
+    if (identifierMode === 'email') {
+      const lower = rawTrimmed.toLowerCase();
+      if (!SIGN_IN_EMAIL_LIKE.test(lower)) return [];
+      return [lower];
+    }
+    const list = await resolveEmailCandidatesForSignIn(rawTrimmed);
+    return list?.length ? list : [];
+  };
+
   const handleSignIn = async () => {
-    const normalizedUsername = username.trim();
+    const normalizedIdentifier = username.trim();
     const normalizedPassword = password;
 
     if (!normalizedPassword) {
@@ -109,16 +120,29 @@ export default function SignInScreen() {
 
     setIsSubmitting(true);
     try {
-      if (!normalizedUsername) {
+      if (!normalizedIdentifier) {
         setIsSubmitting(false);
         Alert.alert(t('signin_alert_username_required_title'), t('signin_alert_username_required_body'));
         return;
       }
 
-      const candidates = await resolveEmailCandidatesForSignIn(normalizedUsername);
+      if (identifierMode === 'email' && !SIGN_IN_EMAIL_LIKE.test(normalizedIdentifier.toLowerCase())) {
+        setIsSubmitting(false);
+        Alert.alert(t('signin_alert_access_error_title'), t('signin_alert_email_invalid'));
+        return;
+      }
+
+      const candidates = await resolveSignInEmails(normalizedIdentifier);
       if (!candidates?.length) {
         setIsSubmitting(false);
-        Alert.alert(t('signin_alert_user_not_found_title'), t('signin_alert_user_not_found_body'));
+        Alert.alert(
+          identifierMode === 'email'
+            ? t('signin_alert_access_error_title')
+            : t('signin_alert_user_not_found_title'),
+          identifierMode === 'email'
+            ? t('signin_alert_email_invalid')
+            : t('signin_alert_user_not_found_body'),
+        );
         return;
       }
 
@@ -254,12 +278,16 @@ export default function SignInScreen() {
   };
 
   const handleForgotPassword = async () => {
-    const normalizedUsername = username.trim();
+    const normalizedIdentifier = username.trim();
     setRecoveryEmail('');
     setMaskedRecoveryEmail('');
-    if (normalizedUsername) {
-      const list = await resolveEmailCandidatesForSignIn(normalizedUsername).catch(() => null);
-      if (list?.length) setMaskedRecoveryEmail(maskEmail(list[0]));
+    if (normalizedIdentifier) {
+      if (identifierMode === 'email' && SIGN_IN_EMAIL_LIKE.test(normalizedIdentifier.toLowerCase())) {
+        setMaskedRecoveryEmail(maskEmail(normalizedIdentifier.toLowerCase()));
+      } else if (identifierMode === 'username') {
+        const list = await resolveEmailCandidatesForSignIn(normalizedIdentifier).catch(() => null);
+        if (list?.length) setMaskedRecoveryEmail(maskEmail(list[0]));
+      }
     }
     setRecoveryMode('password');
   };
@@ -308,16 +336,26 @@ export default function SignInScreen() {
   };
 
   const handleResendVerificationEmail = async () => {
-    const normalizedUsername = username.trim();
+    const normalizedIdentifier = username.trim();
     const normalizedPassword = password;
 
     const fromPending = pendingVerificationEmail.trim().toLowerCase();
-    const candidates = fromPending && EMAIL_LIKE.test(fromPending)
-      ? [fromPending]
-      : (await resolveEmailCandidatesForSignIn(normalizedUsername)) || [];
+    const candidates =
+      fromPending && EMAIL_LIKE.test(fromPending)
+        ? [fromPending]
+        : identifierMode === 'email' &&
+            normalizedIdentifier &&
+            SIGN_IN_EMAIL_LIKE.test(normalizedIdentifier.toLowerCase())
+          ? [normalizedIdentifier.trim().toLowerCase()]
+          : ((await resolveSignInEmails(normalizedIdentifier)) || []);
 
     if (!candidates.length) {
-      Alert.alert(t('signin_alert_username_resend_title'), t('signin_alert_username_resend_body'));
+      Alert.alert(
+        identifierMode === 'email'
+          ? t('signin_alert_access_error_title')
+          : t('signin_alert_username_resend_title'),
+        identifierMode === 'email' ? t('signin_alert_email_invalid') : t('signin_alert_username_resend_body'),
+      );
       return;
     }
 
@@ -465,16 +503,49 @@ export default function SignInScreen() {
 
             <Text style={[styles.socialTitle, { color: look.socialTitle }]}>{t('signin_section_password')}</Text>
 
+            <View style={styles.modeRow}>
+              <TouchableOpacity
+                style={[
+                  styles.modeChip,
+                  { borderColor: look.inputWrapBorder, backgroundColor: look.inputWrapBg },
+                  identifierMode === 'username' && { borderColor: look.primaryBtnBg, backgroundColor: 'rgba(251,208,122,0.18)' },
+                ]}
+                onPress={() => {
+                  setIdentifierMode('username');
+                }}
+              >
+                <User size={15} color={look.iconColor} />
+                <Text style={[styles.modeChipText, { color: identifierMode === 'username' ? look.primaryBtnBg : look.inputText }]}>
+                  {t('signin_mode_username')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modeChip,
+                  { borderColor: look.inputWrapBorder, backgroundColor: look.inputWrapBg },
+                  identifierMode === 'email' && { borderColor: look.primaryBtnBg, backgroundColor: 'rgba(251,208,122,0.18)' },
+                ]}
+                onPress={() => {
+                  setIdentifierMode('email');
+                }}
+              >
+                <Mail size={15} color={look.iconColor} />
+                <Text style={[styles.modeChipText, { color: identifierMode === 'email' ? look.primaryBtnBg : look.inputText }]}>
+                  {t('signin_mode_email')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
             <View style={[styles.inputWrap, { backgroundColor: look.inputWrapBg, borderColor: look.inputWrapBorder }]}>
-              <User size={16} color={look.iconColor} />
+              {identifierMode === 'email' ? <Mail size={16} color={look.iconColor} /> : <User size={16} color={look.iconColor} />}
               <TextInput
                 style={[styles.input, { color: look.inputText }]}
-                placeholder={t('signin_placeholder_username')}
+                placeholder={identifierMode === 'email' ? t('signin_placeholder_email') : t('signin_placeholder_username')}
                 placeholderTextColor={look.placeholderColor}
-                keyboardType="default"
+                keyboardType={identifierMode === 'email' ? 'email-address' : 'default'}
                 autoCapitalize="none"
                 autoComplete="off"
-                textContentType="none"
+                textContentType={identifierMode === 'email' ? 'emailAddress' : 'username'}
                 importantForAutofill="no"
                 value={username}
                 onChangeText={setUsername}
@@ -771,6 +842,29 @@ const styles = StyleSheet.create({
     color: '#4A4A4A',
     textAlign: 'center',
     fontWeight: '600',
+  },
+  modeRow: {
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'center',
+    marginBottom: 12,
+    marginTop: -2,
+    flexWrap: 'wrap',
+  },
+  modeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    minWidth: 116,
+    justifyContent: 'center',
+  },
+  modeChipText: {
+    fontSize: 13,
+    fontWeight: '800',
   },
   footerLinkWrap: {
     marginTop: 18,

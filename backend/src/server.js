@@ -228,6 +228,60 @@ const otpHash = (emailLower, code) => {
 
   app.use("/api/auth", createAuthVerificationEmailRouter());
 
+  /**
+   * Fallback app → mismo Mongo que moderation: resuelve @nick o fragmento tipo email → email(es) Firebase Auth.
+   * Útil si `/api/studio/resolve-username` no está alcanzable desde producción móvil.
+   */
+  app.post("/api/auth/resolve-sign-in-email", gatewayKeyMiddleware, async (req, res) => {
+    try {
+      const rawIn = String(req.body?.username || req.body?.query || "").trim();
+      const raw = rawIn.replace(/^@+/u, "").trim();
+      if (!raw) {
+        return res.status(400).json({ ok: false, error: "username_or_email_required" });
+      }
+
+      const EMAIL_LIKE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
+      const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+      const lookupPrimaryEmailFromUserDoc = async (filter) => {
+        const user = await db.collection("users").findOne(filter, {
+          projection: { emailLower: 1, email: 1 },
+        });
+        if (!user) return null;
+        const em = String(user.emailLower || user.email || "")
+          .trim()
+          .toLowerCase();
+        if (!EMAIL_LIKE.test(em)) {
+          return null;
+        }
+        return em;
+      };
+
+      let email = null;
+
+      if (raw.includes("@")) {
+        const lower = raw.toLowerCase();
+        email = await lookupPrimaryEmailFromUserDoc({
+          $or: [{ emailLower: lower }, { email: new RegExp(`^${escapeRe(lower)}$`, "iu") }],
+        });
+      } else {
+        const nickRe = new RegExp(`^${escapeRe(raw.replace(/^@+/u, ""))}$`, "iu");
+        email = await lookupPrimaryEmailFromUserDoc({
+          $or: [{ userNickName: nickRe }, { nickname: nickRe }],
+        });
+      }
+
+      if (!email) {
+        return res.status(404).json({ ok: false, error: "not_found" });
+      }
+
+      return res.status(200).json({ ok: true, emails: [email], email });
+    } catch (error) {
+      console.error("[/api/auth/resolve-sign-in-email]", error?.message || error, error?.stack);
+      return res.status(500).json(buildUserFacingJson(req, "server_error", "SERVER_INTERNAL_ERROR"));
+    }
+  });
+
   app.post("/api/auth/token", gatewayKeyMiddleware, (req, res) => {
     try {
       const uid = String(req.body?.uid || "").trim();
@@ -881,22 +935,11 @@ const otpHash = (emailLower, code) => {
     res.status(500).json(buildUserFacingJson(req, "server_error", "SERVER_INTERNAL_ERROR"));
   });
 
-  const { runStorySpacesAssetCleanup } = require("./jobs/storySpacesCleanup");
-  const STORY_SPACES_CLEANUP_MS = 24 * 60 * 60 * 1000;
-
   const PORT = env.port;
   app.listen(PORT, '0.0.0.0', () => {
     console.log(
       `Moderation backend listening on 0.0.0.0:${PORT} (LAN: http://<tu-ip>:${PORT})`
     );
-    void runStorySpacesAssetCleanup(storage).catch((e) =>
-      console.warn("[storySpacesCleanup] initial:", e?.message || e)
-    );
-    setInterval(() => {
-      void runStorySpacesAssetCleanup(storage).catch((e) =>
-        console.warn("[storySpacesCleanup] interval:", e?.message || e)
-      );
-    }, STORY_SPACES_CLEANUP_MS);
   });
 }
 

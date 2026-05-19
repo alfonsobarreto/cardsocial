@@ -46,7 +46,6 @@ type ContactRow = {
   bcContactName?: string | null;
   holdersCount: number;
   ratingAvg: number;
-  storyState: 'none' | 'normal' | 'vip';
   cardType?: 'business' | 'smart';
 };
 
@@ -543,7 +542,6 @@ export default function CallsPage() {
                   : null,
               holdersCount: row.holdersCount,
               ratingAvg: row.ratingAvg,
-              storyState: row.storyState,
               cardType: row.cardType === 'business' ? 'business' : row.cardType === 'smart' ? 'smart' : undefined,
             };
           }),
@@ -595,10 +593,11 @@ export default function CallsPage() {
     const ui = callsHistoryRowUi(item, contact, t);
     const avatarUri =
       toRenderableImageUri(ui.avatarPrimary) ?? toRenderableImageUri(ui.avatarFallback ?? null);
+    /** Indicador de presencia para filas del histórico Ghost-Link VOIP (`voipLogPresence`; API legacy `storyState`). No es Stories sociales. */
     const ringExtra =
-      item.storyState === 'vip'
+      item.voipLogPresence === 'vip'
         ? { borderWidth: 2.2 as const, borderColor: shell.ctaAccent }
-        : item.storyState === 'normal'
+        : item.voipLogPresence === 'normal'
           ? { borderWidth: 2 as const, borderColor: shell.success }
           : styles.avatarRingNone;
     const biz = isCallsHistoryBusinessRow(item);

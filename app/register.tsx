@@ -2,6 +2,7 @@ import ActivityIndicator from '@/components/BrandedSpinner';
 import { AuthSpinnerWell } from '@/components/AuthSpinnerWell';
 import CountryDialPickerModal from '@/components/CountryDialPickerModal';
 import { registerFormLook } from '@/constants/authPremiumLook';
+import { LEGAL_CONSENT_BUNDLE_VERSION } from '@/constants/legalConsent';
 import { FREE_TIER_POLICY } from '@/constants/freeTierPolicy';
 import {
   buildE164,
@@ -53,6 +54,7 @@ import {
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { auth, db } from '../services/firebaseConfig';
 import CircularPhotoCropper from './components/CircularPhotoCropper';
+import LegalSignupReviewModal from './components/LegalSignupReviewModal';
 import LuxuryModerationModal from './components/LuxuryModerationModal';
 import PremiumSuccessTransition from './components/PremiumSuccessTransition';
 
@@ -129,6 +131,26 @@ export default function RegisterScreen() {
   const { resolvedMode } = useLookMode();
   const isNight = resolvedMode === 'noche';
   const look = useMemo(() => registerFormLook(isNight), [isNight]);
+  const legalModalPalette = useMemo(
+    () => ({
+      modalBg: isNight ? '#161618' : 'rgba(255,255,255,0.99)',
+      overlay: 'rgba(0,0,0,0.55)',
+      titleColor: look.label,
+      bodyMuted: look.validationMuted,
+      bodyText: look.legalText,
+      chipBg: look.legalCheckboxBg,
+      chipBgActive: look.legalCheckedBg,
+      chipBorder: look.legalBorder,
+      chipText: look.helper,
+      chipTextActive: look.registerBtnText,
+      primaryBtnBg: look.registerBtnBg,
+      primaryBtnText: look.registerBtnText,
+      secondaryText: look.helper,
+      confirmRowBg: look.readOnlyBg,
+      confirmBorder: look.legalBorder,
+    }),
+    [isNight, look],
+  );
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [nickname, setNickname] = useState('');
@@ -163,6 +185,7 @@ export default function RegisterScreen() {
   const [successTransitionVisible, setSuccessTransitionVisible] = useState(false);
   const [socialProviderId, setSocialProviderId] = useState<SocialProviderId | null>(null);
   const [acceptedLegal, setAcceptedLegal] = useState(false);
+  const [legalReviewOpen, setLegalReviewOpen] = useState(false);
   const [presidentialSecurity, setPresidentialSecurity] = useState(false);
   const [nicknameStatus, setNicknameStatus] = useState<AvailabilityUiStatus>('idle');
   const [emailStatus, setEmailStatus] = useState<AvailabilityUiStatus>('idle');
@@ -1079,6 +1102,13 @@ export default function RegisterScreen() {
             authProvider: socialProviderId || 'password',
             role: userRole,
             creditsBalance,
+            ...(acceptedLegal && {
+              termsAcceptedAt: serverTimestamp(),
+              tosAcceptedAt: serverTimestamp(),
+              privacyAcceptedAt: serverTimestamp(),
+              acceptableUseAcceptedAt: serverTimestamp(),
+              legalConsentBundleVersion: LEGAL_CONSENT_BUNDLE_VERSION,
+            }),
             subscriptionPlan: isPochobs ? 'premium-infinite' : 'free',
             subscriptionStatus: 'active',
             subscriptionStartedAt: serverTimestamp(),
@@ -1655,8 +1685,13 @@ export default function RegisterScreen() {
               fieldErrors.legal ? { borderWidth: 1, borderColor: REGISTER_FIELD_ERROR_BORDER, borderRadius: 10, padding: 8 } : null,
             ]}
             onPress={() => {
-              setAcceptedLegal((prev) => !prev);
+              if (acceptedLegal) {
+                setAcceptedLegal(false);
+                clearFieldError('legal');
+                return;
+              }
               clearFieldError('legal');
+              setLegalReviewOpen(true);
             }}
             activeOpacity={0.85}
           >
@@ -1672,7 +1707,11 @@ export default function RegisterScreen() {
             <Text style={[styles.legalText, { color: look.legalText }]}>{t('register_legal_checkbox')}</Text>
           </TouchableOpacity>
           {fieldErrors.legal ? (
-            <Text style={[styles.fieldErrorText, { color: REGISTER_FIELD_ERROR_TEXT }]}>{fieldErrors.legal}</Text>
+            <Text style={[styles.fieldErrorText, { color: REGISTER_FIELD_ERROR_TEXT }]}>
+              {fieldErrors.legal}
+              {' \u2014 '}
+              {t('register_legal_unchecked_hint')}
+            </Text>
           ) : null}
 
           <TouchableOpacity
@@ -1793,6 +1832,19 @@ export default function RegisterScreen() {
           retryLocked={isRetryLocked}
           retryCountdownSec={retryCountdownSec}
           lockMessage={retryLockMessage}
+        />
+
+        <LegalSignupReviewModal
+          visible={legalReviewOpen}
+          palette={legalModalPalette}
+          language={language}
+          t={t}
+          onClose={() => setLegalReviewOpen(false)}
+          onConfirm={() => {
+            setAcceptedLegal(true);
+            clearFieldError('legal');
+            setLegalReviewOpen(false);
+          }}
         />
 
         <PremiumSuccessTransition

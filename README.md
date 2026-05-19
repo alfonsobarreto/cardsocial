@@ -95,8 +95,7 @@ npx expo start
 
 - `backend/README.md` — moderación, uploads, variables de entorno del backend.
 - `backend/DEPLOY_DETERMINISTIC_AZURE.md` — despliegue Azure del API.
-- `funcionalidades.md` — MVP + **tab Mis Tarjetas** y resumen Stories (actualizado abril 2026).
-- `docs/INFRA_ESTADO_STORIES_VOIP.md` — Stories (metadatos vs media), Spaces/GridFS, Firebase en app, Agora Ghost-Link y activación.
+- `funcionalidades.md` — MVP + tab Mis Tarjetas (historial abril 2026).
 - `admin.md` — panel The Mint (`super_admin`, módulos, Firestore).
 - `businesscard.md` — contrato Business Card (v1 freeze).
 - `ICON_STORE_SETUP.md`, `ICON_LIBRARY_SETUP.md` — tienda / librería de iconos.

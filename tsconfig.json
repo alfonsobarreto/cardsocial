@@ -12,6 +12,7 @@
     }
   },
   "include": [
+    "frontend-web/lib/legalContent.ts",
     "app/**/*.ts",
     "app/**/*.tsx",
     "components/**/*.ts",

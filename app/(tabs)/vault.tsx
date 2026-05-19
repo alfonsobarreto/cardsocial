@@ -1,11 +1,9 @@
 import DullModeLock from '@/components/DullModeLock';
 import LimitReachedModal from '@/components/LimitReachedModal';
 import VaultPremiumEntryGlow from '@/components/VaultPremiumEntryGlow';
-import VerificationBadge from '@/components/VerificationBadge';
 import { isGhostLinkVaultDeletionProtected, isGhostLinkVaultType } from '@/constants/ghostLinkVault';
 import { ActionController } from '@/services/ActionController';
 import { getActiveUserId } from '@/services/authSession';
-import { hardLockCheck } from '@/services/biometricAuth';
 import { getSearchableStringsFromVaultLikeItem, orderByDeepSearchWithExpandedQuery } from '@/services/deepSearch';
 import { db } from '@/services/firebaseConfig';
 import { readUserFullName, readUserNickName } from '@/services/userIdentityFields';
@@ -14,8 +12,8 @@ import {
   decodeVaultFirestoreQueryDocs,
   encodeVaultLink,
   type VaultLinkLogical,
+  vaultAppEncryptionKeyNever,
 } from '@/services/vaultFirestoreCodec';
-import { getVaultE2eDerivedKey, unlockVaultE2eWithPassphrase } from '@/services/vaultE2eSession';
 import { creationT } from '@/services/creationI18n';
 import { useCoreT, type CoreLocaleKey } from '@/services/coreI18n';
 import { useLanguage } from '@/services/language';
@@ -38,6 +36,7 @@ import {
 import { preloadMagneticVaultClosureSound } from '@/services/magneticVaultSaveFeedback';
 import { syncVaultDeletionToMongoCards } from '@/services/syncVaultLinkToMongoCards';
 import { VAULT_LINK_SAVED_EVENT, type VaultLinkSavedPayload } from '@/services/vaultLinkSavedBus';
+import { mergeLocalAndCloudVaultItems } from '@/services/vaultLocalCloudMerge';
 import { readVaultJsonWithLegacyMigration, vaultStorageKey } from '@/services/userScopedStorage';
 import { buildLinkOpenCandidates, ensureWebUrl } from '@/services/mirrorVaultItemOpenPlan';
 import { isClassicPhoneVaultType } from '@/services/vaultItemTypeGuards';
@@ -139,11 +138,9 @@ const VaultScreen = () => {
   const [editingData, setEditingData] = useState<Link | undefined>(undefined);
   const [profileDisplayName, setProfileDisplayName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [isUserVerified, setIsUserVerified] = useState(false);
   const [limitReachedVisible, setLimitReachedVisible] = useState(false);
   const [limitItemCount, setLimitItemCount] = useState(0);
   const [limitMaxItems, setLimitMaxItems] = useState<number>(0);
-  const [isVaultUnlocked] = useState(true);
   const [isDullMode, setIsDullMode] = useState(false);
   const [dullModeLockVisible, setDullModeLockVisible] = useState(false);
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -160,8 +157,6 @@ const VaultScreen = () => {
   );
   /** Ítems nuevos premium: destello dorado ~0,5 s en el grid. */
   const [premiumRevealLinks, setPremiumRevealLinks] = useState<Record<string, true>>({});
-  const [vaultE2ePassphraseDraft, setVaultE2ePassphraseDraft] = useState('');
-  const [vaultE2eSessionActive, setVaultE2eSessionActive] = useState(false);
   const formSheetTranslateY = useRef(new Animated.Value(0)).current;
   const headerProfileLabel = profileDisplayName.trim()
     ? profileDisplayName
@@ -221,11 +216,13 @@ const VaultScreen = () => {
 
     // 1. Lectura optimista: mostrar cache local inmediatamente (cero latencia)
     let cachedJsonForCompare = '';
+    let cachedNormalized: Link[] = [];
     let withBuiltinLocal: Link[] = [];
     try {
       const raw = await readVaultJsonWithLegacyMigration(userId);
       const cached = raw ? (JSON.parse(raw) as Link[]) : [];
-      withBuiltinLocal = (await mergeBuiltinGhostLinkIntoVault(userId, cached)) as Link[];
+      cachedNormalized = Array.isArray(cached) ? cached : [];
+      withBuiltinLocal = (await mergeBuiltinGhostLinkIntoVault(userId, cachedNormalized)) as Link[];
       cachedJsonForCompare = JSON.stringify(withBuiltinLocal);
       if (withBuiltinLocal.length > 0) {
         setLinks(sortLinks(withBuiltinLocal));
@@ -236,11 +233,13 @@ const VaultScreen = () => {
     // Esto permite que borrados hechos desde Studio Web eliminen también el caché local.
     try {
       const cloudSnapshot = await getDocs(collection(db, 'users', userId, 'links'));
-      const cloudItems = (await decodeVaultFirestoreQueryDocs(cloudSnapshot.docs, () =>
-        getVaultE2eDerivedKey(userId),
+      const cloudItems = (await decodeVaultFirestoreQueryDocs(
+        cloudSnapshot.docs,
+        vaultAppEncryptionKeyNever,
       )) as Link[];
 
-      const authoritative = sortLinks((await mergeBuiltinGhostLinkIntoVault(userId, cloudItems)) as Link[]);
+      const merged = mergeLocalAndCloudVaultItems(cachedNormalized, cloudItems) as Link[];
+      const authoritative = sortLinks((await mergeBuiltinGhostLinkIntoVault(userId, merged)) as Link[]);
       const cloudJson = JSON.stringify(authoritative);
       if (cloudJson !== cachedJsonForCompare) {
         await AsyncStorage.setItem(vaultStorageKey(userId), cloudJson);
@@ -284,10 +283,22 @@ const VaultScreen = () => {
         collection(db, 'users', userId, 'links'),
         (snapshot) => {
           void (async () => {
-            const cloudItems = (await decodeVaultFirestoreQueryDocs(snapshot.docs, () =>
-              getVaultE2eDerivedKey(userId),
+            let cachedNormalizedSnap: Link[] = [];
+            try {
+              const raw = await AsyncStorage.getItem(vaultStorageKey(userId));
+              const parsed = raw ? (JSON.parse(raw) as unknown) : null;
+              if (Array.isArray(parsed)) {
+                cachedNormalizedSnap = parsed as Link[];
+              }
+            } catch {
+              cachedNormalizedSnap = [];
+            }
+            const cloudItems = (await decodeVaultFirestoreQueryDocs(
+              snapshot.docs,
+              vaultAppEncryptionKeyNever,
             )) as Link[];
-            const authoritative = sortLinks((await mergeBuiltinGhostLinkIntoVault(userId, cloudItems)) as Link[]);
+            const merged = mergeLocalAndCloudVaultItems(cachedNormalizedSnap, cloudItems) as Link[];
+            const authoritative = sortLinks((await mergeBuiltinGhostLinkIntoVault(userId, merged)) as Link[]);
             await AsyncStorage.setItem(vaultStorageKey(userId), JSON.stringify(authoritative));
             if (!cancelled) {
               setLinks(authoritative);
@@ -360,13 +371,6 @@ const VaultScreen = () => {
           void preloadMagneticVaultClosureSound();
           void preloadAirEvaporationDeleteSound();
           void (async () => {
-            const uid = await getActiveUserId();
-            if (uid) {
-              const ek = await getVaultE2eDerivedKey(uid);
-              setVaultE2eSessionActive(!!ek);
-            } else {
-              setVaultE2eSessionActive(false);
-            }
             await evaluateDullMode();
             loadVaultData();
             loadProfileMeta();
@@ -425,9 +429,7 @@ const VaultScreen = () => {
         displayName =
           readUserNickName(userData) || String(userData.firstName || '').trim() || defaultName;
       }
-      const verified = userData.verificationStatus === 'verified' || Boolean(userData.verificationSelfieFileId);
       setProfileDisplayName(displayName);
-      setIsUserVerified(verified);
     } catch (error) {
       console.warn('Could not load profile meta:', error);
     }
@@ -443,11 +445,6 @@ const VaultScreen = () => {
         );
         return;
       }
-      const biometricOk = await hardLockCheck(t('vault_biometric_delete_bunker'));
-      if (!biometricOk) {
-        return;
-      }
-
       const updated = links.filter((item) => item.id !== link.id);
       await saveVaultData(updated);
       await runAirEvaporationDeleteFeedback();
@@ -490,11 +487,6 @@ const VaultScreen = () => {
   // Toggle favorito
   const toggleFavorite = async (link: Link) => {
     try {
-      const biometricOk = await hardLockCheck(t('vault_biometric_toggle_favorite'));
-      if (!biometricOk) {
-        return;
-      }
-
       const nextFavorite = !link.isFavorite;
       const updated = links.map((item) =>
         item.id === link.id ? { ...item, isFavorite: nextFavorite } : item
@@ -524,8 +516,7 @@ const VaultScreen = () => {
 
         const updatedItem = updated.find((item) => item.id === link.id);
         if (updatedItem) {
-          const key = await getVaultE2eDerivedKey(userId);
-          const encoded = await encodeVaultLink({ ...updatedItem, uid: userId } as VaultLinkLogical, key);
+          const encoded = await encodeVaultLink({ ...updatedItem, uid: userId } as VaultLinkLogical, null);
           await setDoc(doc(db, 'users', userId, 'links', link.id), encoded, { merge: true });
           await syncVaultUpdateAcrossCards(userId, updatedItem);
         }
@@ -548,25 +539,6 @@ const VaultScreen = () => {
         visibilityTime: 3000,
         autoHide: true,
       });
-    }
-  };
-
-  const onVaultE2eUnlock = async () => {
-    try {
-      const uid = await getActiveUserId();
-      if (!uid) return;
-      const pass = vaultE2ePassphraseDraft.trim();
-      if (!pass) {
-        Alert.alert(t('common_error'), t('vault_e2e_passphrase_required'));
-        return;
-      }
-      await unlockVaultE2eWithPassphrase(uid, pass);
-      setVaultE2ePassphraseDraft('');
-      setVaultE2eSessionActive(true);
-      await loadVaultData();
-    } catch (e) {
-      console.warn('vault e2e unlock', e);
-      Alert.alert(t('common_error'), t('vault_e2e_unlock_failed'));
     }
   };
 
@@ -754,13 +726,6 @@ const VaultScreen = () => {
   };
 
   const openDocumentViewer = async (link: Link) => {
-    const biometricOk = await hardLockCheck(
-      t('vault_biometric_open_doc_viewer'),
-    );
-    if (!biometricOk) {
-      return;
-    }
-
     if (isVaultDocumentPdf(link.value, link.vaultMimeType)) {
       // PDFs: visor nativo del sistema vía expo-sharing (funciona en Expo Go y builds).
       await openPdfWithSystemViewer(link);
@@ -1079,11 +1044,6 @@ const VaultScreen = () => {
       return;
     }
 
-    const biometricOk = await hardLockCheck(t('vault_biometric_edit_bunker'));
-    if (!biometricOk) {
-      return;
-    }
-
     setContextMenuVisible(false);
     setEditingData(contextMenuItem);
     setFormRenderNonce((prev) => prev + 1);
@@ -1213,9 +1173,6 @@ const VaultScreen = () => {
           alignItems: 'center',
           justifyContent: 'center',
           gap: 10,
-        },
-        headerVerificationWrap: {
-          transform: [{ scale: 1.24 }],
         },
         formOverlay: {
           flex: 1,
@@ -1708,17 +1665,6 @@ const VaultScreen = () => {
         <View style={styles.headerCenterBlock}>
           <View style={styles.headerUserRowCentered}>
             <Text style={[styles.headerSubtitle, { color: vaultTheme.primaryText }]}>{headerProfileLabel}</Text>
-            {isUserVerified ? (
-              <View
-                style={[
-                  styles.headerVerificationWrap,
-                  { backgroundColor: 'rgba(30,167,255,0.12)', borderColor: vaultTheme.refreshAccent, borderWidth: 1, borderRadius: 999, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, gap: 4 },
-                ]}
-              >
-                <MaterialCommunityIcons name="check-decagram" size={14} color={vaultTheme.refreshAccent} />
-                <Text style={{ color: vaultTheme.refreshAccent, fontSize: 12, fontWeight: '700' }}>{t('vault_verified_label')}</Text>
-              </View>
-            ) : null}
           </View>
           <Text
             style={[styles.vaultCounterLabel, { color: vaultTheme.counterAccent }]}
@@ -1733,53 +1679,6 @@ const VaultScreen = () => {
         </View>
       </View>
 
-      {isVaultUnlocked ? (
-        <View style={{ paddingHorizontal: 12, paddingBottom: 10, gap: 6 }}>
-          <Text style={{ fontSize: 12, color: vaultTheme.secondaryText }}>{t('vault_e2e_hint')}</Text>
-          {vaultE2eSessionActive ? (
-            <Text style={{ fontSize: 12, color: vaultTheme.counterAccent, fontWeight: '600' }}>
-              {t('vault_e2e_unlocked')}
-            </Text>
-          ) : (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <TextInput
-                value={vaultE2ePassphraseDraft}
-                onChangeText={setVaultE2ePassphraseDraft}
-                placeholder={t('vault_e2e_passphrase_placeholder')}
-                placeholderTextColor={vaultTheme.searchPlaceholder}
-                secureTextEntry
-                style={{
-                  flex: 1,
-                  borderWidth: StyleSheet.hairlineWidth,
-                  borderColor: vaultTheme.searchBorder,
-                  borderRadius: 10,
-                  paddingHorizontal: 10,
-                  paddingVertical: Platform.OS === 'ios' ? 10 : 8,
-                  color: vaultTheme.primaryText,
-                  backgroundColor: vaultTheme.searchBg,
-                }}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              <TouchableOpacity
-                onPress={() => {
-                  void onVaultE2eUnlock();
-                }}
-                style={{
-                  paddingHorizontal: 14,
-                  paddingVertical: 10,
-                  borderRadius: 10,
-                  backgroundColor: vaultTheme.ctaAccent,
-                }}
-              >
-                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>{t('vault_e2e_unlock')}</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      ) : null}
-
-      {/* Search bar (#5) */}
       {links.length > 0 ? (
         <View style={[styles.searchRow, { backgroundColor: vaultTheme.backgroundSolid }]}>
           <View style={[styles.searchInputWrap, { backgroundColor: vaultTheme.searchBg, borderColor: vaultTheme.searchBorder }]}>

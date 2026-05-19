@@ -18,7 +18,6 @@ import {
   type VaultRowForMarketFacet,
 } from '@/services/businessMarketFacetsFromSnapshot';
 import { decodeVaultLink } from '@/services/vaultFirestoreCodec';
-import { getVaultE2eDerivedKey } from '@/services/vaultE2eSession';
 import { doc, getDoc } from 'firebase/firestore';
 
 import type { MarketFacet } from './types/cards';
@@ -37,13 +36,6 @@ export async function resolveBusinessMarketFacets(
   const unique = [...new Set(linkIds.filter(Boolean))].slice(0, MAX_FACETS);
   if (!unique.length) return [];
 
-  let aesKey: Uint8Array | null = null;
-  try {
-    aesKey = await getVaultE2eDerivedKey(uid);
-  } catch {
-    aesKey = null;
-  }
-
   const rows = await Promise.all(
     unique.map(async (linkId): Promise<VaultRowForMarketFacet | null> => {
       try {
@@ -53,7 +45,7 @@ export async function resolveBusinessMarketFacets(
         );
         if (!snap || !snap.exists()) return null;
         const d0 = snap.data() as Record<string, unknown>;
-        const logical = await decodeVaultLink(linkId, { id: linkId, ...d0 }, aesKey);
+        const logical = await decodeVaultLink(linkId, { id: linkId, ...d0 }, null);
         return {
           id: linkId,
           title: logical.title != null ? String(logical.title) : undefined,

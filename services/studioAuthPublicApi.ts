@@ -5,6 +5,7 @@
 import { collection, getDocs, limit, query, where } from 'firebase/firestore';
 
 import { auth, db } from '@/services/firebaseConfig';
+import { resolveExpoPublicApiBaseUrl } from '@/services/expoPublicApiBaseUrl';
 import marketRadarStudioBaseFromEnv from '@/services/marketRadarStudioBaseFromEnv';
 import { firestoreFirstUserDocByNickLower } from '@/services/userIdentityFields';
 
@@ -33,6 +34,51 @@ function parseEmailsFromResolveUsernameJson(j: unknown): string[] {
     .toLowerCase();
   if (single && SIGN_IN_EMAIL_LIKE.test(single)) out.push(single);
   return [...new Set(out)];
+}
+
+function resolveModerationGatewayKey(): string | null {
+  const key =
+    process.env.EXPO_PUBLIC_MODERATION_GATEWAY_KEY?.trim() ||
+    process.env.EXPO_PUBLIC_API_GATEWAY_KEY?.trim() ||
+    process.env.EXPO_PUBLIC_GATEWAY_KEY?.trim();
+  return key || null;
+}
+
+async function resolveSignInEmailsViaModerationMongo(rawUsername: string): Promise<string[] | null> {
+  const gatewayKey = resolveModerationGatewayKey();
+  let baseUrl: string;
+  try {
+    baseUrl = resolveExpoPublicApiBaseUrl();
+  } catch {
+    return null;
+  }
+  if (!gatewayKey || !baseUrl) {
+    return null;
+  }
+  const base = normalizeOrigin(baseUrl);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  try {
+    const r = await fetch(`${base}/api/auth/resolve-sign-in-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'x-api-gateway-key': gatewayKey,
+      },
+      body: JSON.stringify({ username: rawUsername }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    const j: unknown = await r.json().catch(() => null);
+    if (r.ok && j && typeof j === 'object' && (j as { ok?: boolean }).ok === true) {
+      return parseEmailsFromResolveUsernameJson(j);
+    }
+    return null;
+  } catch {
+    clearTimeout(timeoutId);
+    return null;
+  }
 }
 
 async function resolveUsernameViaHttp(username: string, origin: string): Promise<string[] | null> {
@@ -98,6 +144,18 @@ export async function resolveEmailCandidatesForSignIn(rawUsername: string): Prom
     } catch (e) {
       console.warn('[studioAuthPublicApi] resolve-username HTTP failed', origin, e);
     }
+  }
+
+  /**
+   * Último recurso (producción móvil): Mongo del backend moderation con gateway key.
+   */
+  try {
+    const viaMongo = await resolveSignInEmailsViaModerationMongo(t);
+    if (viaMongo?.length) {
+      return viaMongo;
+    }
+  } catch (e) {
+    console.warn('[studioAuthPublicApi] resolve-sign-in-email gateway failed', e);
   }
 
   return null;

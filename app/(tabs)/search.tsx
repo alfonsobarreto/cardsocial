@@ -11,7 +11,6 @@ import { ThemedSharedCardSurface } from '@/components/ThemedSharedCardSurface';
 import { MEDIA_PLACEHOLDER } from '@/constants/mediaPlaceholders';
 import { getActiveUserId } from '@/services/authSession';
 import { trackMarketplaceCardClick, trackMarketplaceSearch } from '@/services/analyticsService';
-import { hardLockCheck } from '@/services/biometricAuth';
 import { ExportBusinessQR, generatePublicBusinessWebUrl } from '@/services/brandedQrService';
 import { buildMirrorVaultItemsForContact } from '@/services/buildReceiverPreviewVaultItems';
 import { hasActiveBusinessLicense } from '@/services/businessLicenseService';
@@ -509,9 +508,6 @@ export default function SearchScreen() {
         wallpaperPriceCredits: c.wallpaperPriceCredits,
         enableParallax: c.enableParallax,
         itemIds: c.itemIds,
-        cardUpdatedAt: c.cardUpdatedAt,
-        storyState: c.storyState ?? 'none',
-        channelMuted: Boolean(c.channelMuted),
         publicCardSlots: Array.isArray(c.publicCardSlots) ? c.publicCardSlots : [],
         ownerOccupation: c.ownerOccupation ?? null,
         bcContactName: c.bcContactName ?? null,
@@ -821,14 +817,8 @@ export default function SearchScreen() {
       const cardTitle = String(item.receivedContactCardName || '').trim() || item.card.bcName;
 
       const openCardBody = () => {
-        void (async () => {
-          const ok = await hardLockCheck(t('biometric_reason_search_card_view'));
-          if (!ok) {
-            return;
-          }
-          savedSearchScrollYRef.current = searchScrollYRef.current;
-          setReceivedCardDetail(item);
-        })();
+        savedSearchScrollYRef.current = searchScrollYRef.current;
+        setReceivedCardDetail(item);
       };
 
       const ringStyle = {
@@ -1040,10 +1030,6 @@ export default function SearchScreen() {
 
     const openMarketCardBody = () => {
       void (async () => {
-        const ok = await hardLockCheck(t('biometric_reason_search_card_view'));
-        if (!ok) {
-          return;
-        }
         savedSearchScrollYRef.current = searchScrollYRef.current;
         const searchCtx = lastMarketSearchRef.current;
         if (searchCtx?.q) {

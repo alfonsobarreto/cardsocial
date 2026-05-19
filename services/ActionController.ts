@@ -1,7 +1,6 @@
 // ActionController.ts
 // Controlador central para acciones de iconos Card-Social
 import { getActiveUserId } from '@/services/authSession';
-import { hardLockCheck } from '@/services/biometricAuth';
 import { requestGhostLinkCallImperative } from '@/services/GhostLinkCallProvider';
 import {
     dismissPremiumDataPanel,
@@ -316,12 +315,6 @@ export const ActionController = {
       return;
     }
 
-    const authenticated = await hardLockCheck('iniciar llamada Ghost-Link');
-    if (!authenticated) {
-      return;
-    }
-
-    const resolvedPeerPhoto = peerPhotoUrl?.trim() ? peerPhotoUrl : null;
     const resolvedCardPhoto = cardPhoto?.trim() ? cardPhoto : null;
     const biz = cardType === 'business';
 

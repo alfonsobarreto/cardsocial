@@ -258,3 +258,8 @@ export async function decodeVaultFirestoreQueryDocs(
     docs.map((d) => decodeVaultLink(d.id, d.data() as Record<string, unknown>, key)),
   );
 }
+
+/** App Expo: siempre datos en claro en Firestore (sin passphrase E2E). Studio Web sigue usando su propia clave. */
+export function vaultAppEncryptionKeyNever(): Promise<Uint8Array | null> {
+  return Promise.resolve(null);
+}

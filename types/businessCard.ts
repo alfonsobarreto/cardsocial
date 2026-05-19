@@ -66,12 +66,7 @@ export interface BusinessCard {
   publishedAt?: Date;
   lastUpdated: Date;
   createdAt: Date;
-  
-  // Legacy Firestore / market: flags opcionales (la app ya no muestra UI de “historias VIP”).
-  hasActiveStory?: boolean;
-  storyExpiresAt?: Date;
-  isPremiumStory?: boolean; // histórico: promoción pagada
-  
+
   // Metadata
   viewCount: number;
   searchRankScore: number; // Algoritmo interno de relevancia

@@ -64,12 +64,28 @@
     "de": "Melden Sie sich an, wie Sie möchten – mit voller Kontrolle über Ihre Identität."
   },
   "signin_section_password": {
-    "es": "Inicia con usuario y contraseña",
-    "en": "Sign in with username and password",
-    "it": "Accedi con nome utente e password",
-    "pt": "Entrar com usuário e senha",
-    "fr": "Connexion avec identifiant et mot de passe",
-    "de": "Mit Benutzername und Passwort anmelden"
+    "es": "Inicia sesión — elige una forma",
+    "en": "Sign in — choose one method",
+    "it": "Accedi — scegli un metodo",
+    "pt": "Entrar — escolha um método",
+    "fr": "Connexion — choisissez une méthode",
+    "de": "Anmeldung — eine Methode wählen"
+  },
+  "signin_mode_username": {
+    "es": "Usuario",
+    "en": "Username",
+    "it": "Utente",
+    "pt": "Usuário",
+    "fr": "Identifiant",
+    "de": "Benutzername"
+  },
+  "signin_mode_email": {
+    "es": "Correo",
+    "en": "Email",
+    "it": "Email",
+    "pt": "E-mail",
+    "fr": "E-mail",
+    "de": "E-Mail"
   },
   "signin_placeholder_username": {
     "es": "Usuario",
@@ -87,6 +103,14 @@
     "fr": "Mot de passe",
     "de": "Passwort"
   },
+  "signin_placeholder_email": {
+    "es": "Correo registrado",
+    "en": "Registered email address",
+    "it": "Email registrata",
+    "pt": "E-mail cadastrado",
+    "fr": "E-mail du compte",
+    "de": "Registrierte E-Mail"
+  },
   "signin_trust_title": {
     "es": "Confío en este dispositivo",
     "en": "I trust this device",
@@ -94,6 +118,14 @@
     "pt": "Confio neste dispositivo",
     "fr": "Je fais confiance à cet appareil",
     "de": "Ich vertraue diesem Gerät"
+  },
+  "signin_alert_email_invalid": {
+    "es": "Introduce un correo válido o cambia el modo «Usuario».",
+    "en": "Enter a valid email or switch to Username mode.",
+    "it": "Inserisci un'email valida o usa la modalità «Utente».",
+    "pt": "Use um e-mail válido ou mude para o modo «Usuário».",
+    "fr": "Saisissez un e-mail valide ou passez en mode «Identifiant».",
+    "de": "Geben Sie eine gültige E-Mail ein oder wählen Sie den Benutzername-Modus."
   },
   "signin_trust_hint": {
     "es": "Si no lo activas, cerramos sesión tras 8 horas sin uso en este equipo (estilo banca).",
@@ -1560,12 +1592,76 @@
     "de": "REGISTRIERUNG BESTÄTIGEN"
   },
   "register_legal_checkbox": {
-    "es": "Acepto términos y condiciones + política de privacidad.",
-    "en": "I accept Terms and Conditions + Privacy Policy.",
-    "it": "Accetto termini e condizioni + informativa sulla privacy.",
-    "pt": "Aceito os termos e a política de privacidade.",
-    "fr": "J’accepte les conditions et la politique de confidentialité.",
-    "de": "Ich akzeptiere die AGB und die Datenschutzerklärung."
+    "es": "Documentos legales aceptados (tocar aquí)",
+    "en": "Legal documents accepted (tap here)",
+    "it": "Documenti legali accettati (toccare qui)",
+    "pt": "Documentos legais aceitos (toque aqui)",
+    "fr": "Documents légaux acceptés (appuyer ici)",
+    "de": "Rechtstexte akzeptiert (hier antippen)"
+  },
+  "register_legal_unchecked_hint": {
+    "es": "Abre la ventana anterior y marca el acuerdo tras leer Términos, Privacidad y Uso dentro de la app.",
+    "en": "Open that sheet and acknowledge after reading Terms, Privacy, and Acceptable Use in-app.",
+    "it": "Apri quella schermata e conferma dopo aver letto Termini, Privacy e Uso nell'app.",
+    "pt": "Abra a janela e confirme após ler Termos, Privacidade e Uso no app.",
+    "fr": "Ouvrez la feuille et confirmez après lecture des conditions, vie privée et usage.",
+    "de": "Öffnen Sie die Ansicht und bestätigen Sie nach dem Lesen der Texte."
+  },
+  "register_legal_modal_title": {
+    "es": "Documentación legal obligatoria",
+    "en": "Required legal information",
+    "it": "Documentazione legale obbligatoria",
+    "pt": "Informação legal obrigatória",
+    "fr": "Documents légaux obligatoires",
+    "de": "Pflichtrechtsinformationen"
+  },
+  "register_legal_bundle_version_hint": {
+    "es": "Versión registada si aceptas: {{version}} (trazabilidad con cardsocial.me).",
+    "en": "Recorded version when you accept: {{version}} (audit trail with cardsocial.me).",
+    "it": "Versione registrata in caso di accettazione: {{version}} (audit con cardsocial.me).",
+    "pt": "Versão registada ao aceitar: {{version}} (auditoria com cardsocial.me).",
+    "fr": "Version enregistrée à l'acceptation : {{version}} (audit cardsocial.me).",
+    "de": "Version bei Annahme: {{version}} (Nachweis mit cardsocial.me)."
+  },
+  "register_legal_tab_terms": {
+    "es": "Términos",
+    "en": "Terms",
+    "it": "Termini",
+    "pt": "Termos",
+    "fr": "Conditions",
+    "de": "AGB"
+  },
+  "register_legal_tab_privacy": {
+    "es": "Privacidad",
+    "en": "Privacy",
+    "it": "Privacy",
+    "pt": "Privacidade",
+    "fr": "Confidentialité",
+    "de": "Datenschutz"
+  },
+  "register_legal_tab_usage": {
+    "es": "Uso",
+    "en": "Use",
+    "it": "Uso",
+    "pt": "Uso",
+    "fr": "Usage",
+    "de": "Nutzung"
+  },
+  "register_legal_confirm_row": {
+    "es": "He revisado esta información dentro de Card-Social y acepto Términos, Privacidad y Política de uso/mod.",
+    "en": "I reviewed this inside Card-Social and accept Terms, Privacy, and the acceptable‑use/mod policy.",
+    "it": "Ho letto nell'app Card-Social e accetto Termini, Privacy e uso/mod.",
+    "pt": "Revisei no app e aceito Termos, Privacidade e uso/mod.",
+    "fr": "J'ai lu dans l'application et j'accepte conditions, vie privée et usage/modération.",
+    "de": "Ich habe in der App gelesen und akzeptiere AGB, Datenschutz und Nutzung/Moderation."
+  },
+  "register_legal_cta_accept": {
+    "es": "ACEPTO — ACTIVAR CASILLA DE REGISTRO",
+    "en": "I ACCEPT — MARK SIGN‑UP READY",
+    "it": "ACCETTO — ABILITO LA REGISTRAZIONE",
+    "pt": "ACEITO — LIBERAR CADASTRO",
+    "fr": "J'ACCEPTE — VALIDER LA CASE",
+    "de": "AKZEPTIEREN — BESTÄTIGUNG SETZEN"
   },
   "register_presidential_security_label": {
     "es": "Activar Seguridad presidencial (protege la app con Face ID, huella o PIN del dispositivo).",

@@ -37,7 +37,6 @@ import {
 } from '@/constants/countryDialCodes';
 import { GHOST_LINK_VAULT_TYPE, GHOST_LINK_VAULT_VALUE } from '@/constants/ghostLinkVault';
 import { getActiveUserId } from '@/services/authSession';
-import { hardLockCheck } from '@/services/biometricAuth';
 import { getUserCreditsBalance } from '@/services/creditsService';
 import { userFacingAlertMessage } from '@/services/apiUserFacingError';
 import { fetchFaviconFromAzure } from '@/services/faviconApi';
@@ -62,7 +61,6 @@ import {
   mergeVaultCategoriesFromFirestore,
   vaultCategorySectionTitle,
 } from '@/services/vaultCategoriesService';
-import { getVaultE2eDerivedKey } from '@/services/vaultE2eSession';
 import {
   encodeVaultLink,
   type VaultLinkLogical,
@@ -1948,21 +1946,12 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
       }
     }
     console.log('[Vault] handleCreate: Después de Validaciones Iniciales');
-    console.log('[Vault] handleCreate: Antes de Chequeo de Bloqueos/Biométrico');
-    const biometricOk = await hardLockCheck(
-      editingData?.id ? tcx('form_hardlock_update') : tcx('form_hardlock_create'),
-    );
-    if (!biometricOk) {
-      console.log('[Vault] handleCreate: hardLockCheck falló');
-      return;
-    }
     if (isRetryLocked) {
       setModerationAlertMessage(retryLockMessage);
       setModerationAlertVisible(true);
       console.log('[Vault] handleCreate: isRetryLocked');
       return;
     }
-    console.log('[Vault] handleCreate: Después de Chequeo de Bloqueos/Biométrico');
     const saveSessionToken = closeGenerationRef.current;
     setIsSaving(true);
     try {
@@ -2144,8 +2133,7 @@ const NewInfoForm = ({ onClose, editingData }: { onClose?: () => void; editingDa
         try {
           console.log('[Vault] handleCreate: Cloud sync start (await before close)');
           const cloudDocRef = doc(db, 'users', userId, 'links', uniqueId!);
-          const aesKey = await getVaultE2eDerivedKey(userId);
-          const encoded = await encodeVaultLink(dataPayload as VaultLinkLogical, aesKey);
+          const encoded = await encodeVaultLink(dataPayload as VaultLinkLogical, null);
           await withTimeout(
             setDoc(cloudDocRef, encoded),
             CLOUD_SYNC_TIMEOUT_MS,

@@ -92,7 +92,7 @@ type Contact = {
   holdersCount: number;
   /** Conexiones en común en el grafo de compartidos (solo número, sin listas). */
   mutualContactsCount?: number;
-  /** El receptor silenció historias de esta tarjeta. */
+  /** El receptor silenció notificaciones de esta tarjeta. */
   channelMuted?: boolean;
   themeId?: string;
   layout?: 'vertical' | 'horizontal';
@@ -108,9 +108,6 @@ type Contact = {
   enableParallax?: boolean;
   itemIds?: string[];
   cardUpdatedAt?: string | null;
-  addedAt: string | null;
-  storyState?: 'none' | 'normal' | 'vip';
-  searchFacets?: Array<{ type: string; label: string; value: string }>;
   /** Slots del emisor (icon URL / iconName) para el wireframe espejo del receptor. */
   publicCardSlots?: PublicCardSlotPayload[];
   /** 'business' para BusinessCard corporativa; 'smart' para tarjeta personal. */
@@ -127,7 +124,6 @@ type Contact = {
     group: string;
     isFavorite: boolean;
     firstSeenAt: string;
-    storyState: 'none' | 'normal' | 'vip';
   };
 };
 
@@ -138,9 +134,6 @@ type ContactListRow = ContactRow | HeaderRow;
 type ContactMeta = {
   group: string;
   isFavorite: boolean;
-  firstSeenAt: string;
-  storyState?: 'none' | 'normal' | 'vip';
-  icons?: Icon[]; // Add icons property to support icon search
   /** Legacy: ya no pisa `themeId` del API en lista (evita tema congelado al actualizar la tarjeta). */
   scanThemeId?: string;
   /** Avatar visto al aceptar (preview); solo si el API no devolvió userAvatarUrl. */
@@ -436,17 +429,13 @@ function ContactsContent() {
           mergedMeta[linkKey] = legacy
             ? {
                 ...legacy,
-                storyState: row.storyState || legacy.storyState || 'none',
                 firstSeenAt: row.addedAt || legacy.firstSeenAt || nowIso,
               }
             : {
                 group: GROUP_DEFAULT,
                 isFavorite: false,
                 firstSeenAt: row.addedAt || nowIso,
-                storyState: row.storyState || 'none',
               };
-        } else if (!mergedMeta[linkKey].storyState) {
-          mergedMeta[linkKey].storyState = row.storyState || 'none';
         }
       }
 
@@ -1010,12 +999,6 @@ function ContactsContent() {
   };
 
   const openFloatingCard = async (contact: Contact) => {
-    // Hard Lock: Require biometric before viewing contact details
-    const authenticated = await hardLockCheck(t('biometric_reason_contacts_detail'));
-    if (!authenticated) {
-      return; // User cancelled or auth failed
-    }
-
     setSelectedContact(contact);
     setFloatingVisible(true);
   };

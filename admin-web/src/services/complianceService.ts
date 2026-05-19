@@ -16,10 +16,13 @@ export type ComplianceUser = {
   email: string;
   displayName: string;
   phoneNumber: string;
+  nickname?: string;
   createdAt?: unknown;
   tosAcceptedAt?: unknown;
   privacyAcceptedAt?: unknown;
   termsAcceptedAt?: unknown;
+  acceptableUseAcceptedAt?: unknown;
+  legalConsentBundleVersion?: string;
   isDeleted?: boolean;
   raw: Record<string, unknown>;
 };
@@ -34,38 +37,65 @@ function pickString(data: Record<string, unknown>, keys: string[]) {
 }
 
 function normalizeUser(uid: string, data: Record<string, unknown>): ComplianceUser {
+  const nickname = pickString(data, ['userNickName', 'nickname']);
   return {
     uid,
-    email: pickString(data, ['email', 'userEmail']),
-    displayName:
-      pickString(data, ['displayName', 'fullName', 'userFullName', 'name', 'userName', 'nickname']) || uid,
-    phoneNumber: pickString(data, ['phoneNumber', 'phone', 'mobile']),
+    email: pickString(data, ['emailLower', 'email', 'userEmail']),
+    displayName: pickString(data, ['userFullName', 'fullName', 'displayName', 'name']) || nickname || uid,
+    phoneNumber: pickString(data, ['phoneNumber', 'phone', 'phoneNormalized', 'mobile']),
+    nickname: nickname || undefined,
     createdAt: data.createdAt,
     tosAcceptedAt: data.tosAcceptedAt,
     privacyAcceptedAt: data.privacyAcceptedAt,
     termsAcceptedAt: data.termsAcceptedAt,
+    acceptableUseAcceptedAt: data.acceptableUseAcceptedAt,
+    legalConsentBundleVersion:
+      typeof data.legalConsentBundleVersion === 'string' ? data.legalConsentBundleVersion.trim() || undefined : undefined,
     isDeleted: Boolean(data.isDeleted),
     raw: data,
   };
 }
 
 export async function findComplianceUser(search: string): Promise<ComplianceUser | null> {
-  const term = search.trim();
-  if (!term) return null;
+  const termRaw = search.trim();
+  if (!termRaw) return null;
 
-  if (!term.includes('@')) {
-    const snap = await getDoc(doc(db, 'users', term));
-    return snap.exists() ? normalizeUser(snap.id, snap.data() as Record<string, unknown>) : null;
+  const term = termRaw.replace(/^@+/, '');
+  const lower = term.toLowerCase();
+
+  if (lower.includes('@')) {
+    const exactEmail = lower;
+    const candidates = [
+      query(collection(db, 'users'), where('email', '==', exactEmail), limit(1)),
+      query(collection(db, 'users'), where('emailLower', '==', exactEmail), limit(1)),
+      query(collection(db, 'users'), where('userEmail', '==', exactEmail), limit(1)),
+    ];
+
+    for (const candidate of candidates) {
+      const snapshot = await getDocs(candidate);
+      if (!snapshot.empty) {
+        const match = snapshot.docs[0];
+        return normalizeUser(match.id, match.data() as Record<string, unknown>);
+      }
+    }
+
+    return null;
   }
 
-  const exactEmail = term.toLowerCase();
-  const candidates = [
-    query(collection(db, 'users'), where('email', '==', exactEmail), limit(1)),
-    query(collection(db, 'users'), where('userEmail', '==', exactEmail), limit(1)),
+  /** Posible UID de Firebase (nick nunca llega a 20+, pero evitamos colisión rara comprobando documento primero). */
+  const uidLike = /^[A-Za-z0-9]{20,}$/.test(termRaw) && termRaw.length <= 128;
+  if (uidLike) {
+    const uidSnap = await getDoc(doc(db, 'users', termRaw));
+    if (uidSnap.exists()) return normalizeUser(uidSnap.id, uidSnap.data() as Record<string, unknown>);
+  }
+
+  const nicknameQueries = [
+    query(collection(db, 'users'), where('nicknameLower', '==', lower), limit(1)),
+    query(collection(db, 'users'), where('userNickNameLower', '==', lower), limit(1)),
   ];
 
-  for (const candidate of candidates) {
-    const snapshot = await getDocs(candidate);
+  for (const q of nicknameQueries) {
+    const snapshot = await getDocs(q);
     if (!snapshot.empty) {
       const match = snapshot.docs[0];
       return normalizeUser(match.id, match.data() as Record<string, unknown>);

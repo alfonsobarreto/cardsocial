@@ -47,10 +47,6 @@ export type ReceivedContactForMarketSearch = {
   wallpaperTier?: 'free' | 'premium' | null;
   wallpaperPriceCredits?: number;
   enableParallax?: boolean;
-  itemIds?: string[];
-  cardUpdatedAt?: string | null;
-  storyState?: 'none' | 'normal' | 'vip';
-  channelMuted?: boolean;
   publicCardSlots?: PublicCardSlotPayload[];
   ownerOccupation?: string | null;
   bcContactName?: string | null;

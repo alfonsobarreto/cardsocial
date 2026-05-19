@@ -1,5 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { clearVaultE2eDerivedKey } from '@/services/vaultE2eSession';
 
 import { sessionLastActivityKey, trustedDeviceSessionKey } from '@/services/sessionPolicyKeys';
 
@@ -140,11 +139,6 @@ export async function clearLocalCachesForSignOut(uid: string | null): Promise<vo
       sessionLastActivityKey(uid),
       trustedDeviceSessionKey(uid),
     );
-    try {
-      await clearVaultE2eDerivedKey(uid);
-    } catch {
-      /* SecureStore may be unavailable in some test contexts */
-    }
   }
   await AsyncStorage.multiRemove(keys);
 }

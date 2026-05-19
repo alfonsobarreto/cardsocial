@@ -10,7 +10,6 @@ type BunkerMetaRow = {
   group: string;
   isFavorite: boolean;
   firstSeenAt: string;
-  storyState?: string;
   scanThemeId?: string;
   /** Foto vista al aceptar (preview QR / Firestore); respaldo si el API aún no trae userAvatarUrl. */
   seedAvatarUrl?: string;
@@ -66,7 +65,6 @@ export async function seedMetaForIncomingCard(params: {
     group,
     isFavorite: Boolean(prev?.isFavorite),
     firstSeenAt: prev?.firstSeenAt || nowIso,
-    storyState: prev?.storyState || 'none',
     ...(nextTheme ? { scanThemeId: nextTheme } : {}),
     ...(nextSeed ? { seedAvatarUrl: nextSeed } : {}),
   };

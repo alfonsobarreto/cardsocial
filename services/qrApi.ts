@@ -240,7 +240,8 @@ export type PublicUniversalCardPayload = {
   holdersCount?: number;
   ratingAvg?: number;
   totalRatings?: number;
-  storyState: 'none' | 'normal' | 'vip';
+  /** Opcional — campo legacy que aún puede llegar en el JSON público (no relacionado con el log VOIP). */
+  storyState?: 'none' | 'normal' | 'vip';
   slots: PublicUniversalCardSlot[];
   expiresAt: string;
   /** Emisor con Legacy ≥ Silver (API pública / Firestore `users.legacyTier`). */
@@ -1238,7 +1239,6 @@ export type ReceivedContactRow = {
   cardName: string;
   holdersCount: number;
   addedAt: string | null;
-  storyState: 'none' | 'normal' | 'vip';
   searchFacets: CardSearchFacetPayload[];
   mutualContactsCount: number;
   totalRatings: number;
@@ -1341,7 +1341,6 @@ export async function listReceivedContacts(params: { uid: string }): Promise<{
           cardName: String(row?.cardName || 'Tarjeta Social'),
           holdersCount: Number(row?.holdersCount || 0),
           addedAt: row?.addedAt ? String(row.addedAt) : null,
-          storyState: row?.storyState === 'vip' ? 'vip' : row?.storyState === 'normal' ? 'normal' : 'none',
           searchFacets: facetRows.map((f: any) => ({
             type: String(f?.type || ''),
             label: String(f?.label || ''),
@@ -1380,6 +1379,9 @@ export async function listReceivedContacts(params: { uid: string }): Promise<{
   }
 }
 
+/** Presencia/indicador de fila en el log VOIP (`calls/history`). El JSON legacy usa `storyState`. */
+export type VoipCallHistoryPresence = 'none' | 'normal' | 'vip';
+
 export type CallHistoryRow = {
   callId: string;
   peerUid: string;
@@ -1407,7 +1409,11 @@ export type CallHistoryRow = {
   sourceBId: string | null;
   callChannel: 'ghost-link-voip';
   callType: 'audio' | 'video';
-  storyState: 'none' | 'normal' | 'vip';
+  /**
+   * Estado visual para el histórico de llamadas Ghost-Link (anillo/lista).
+   * En el servidor a veces llega como `storyState`; **no** es Instagram Stories ni feed social.
+   */
+  voipLogPresence: VoipCallHistoryPresence;
   direction: 'incoming' | 'outgoing' | 'missed';
   status: 'completed' | 'missed' | 'rejected';
   durationSec: number;
@@ -1508,6 +1514,19 @@ export async function listCallsHistory(params: { uid: string }): Promise<{ count
         : null;
     const scName = row?.scName != null && String(row.scName).trim() ? String(row.scName).trim() : null;
     const cardName = row?.cardName != null && String(row.cardName).trim() ? String(row.cardName).trim() : null;
+    /** JSON legacy VOIP suele llamarse `storyState`; toleramos `voipLogPresence`. */
+    const rawVoipPresence =
+      row?.voipLogPresence != null && String(row.voipLogPresence).trim()
+        ? String(row.voipLogPresence).trim()
+        : row?.storyState != null && String(row.storyState).trim()
+          ? String(row.storyState).trim()
+          : '';
+    const voipLogPresence: VoipCallHistoryPresence =
+      rawVoipPresence === 'vip'
+        ? 'vip'
+        : rawVoipPresence === 'normal'
+          ? 'normal'
+          : 'none';
     return {
       callId: String(row?.callId || ''),
       peerUid: String(row?.peerUid || ''),
@@ -1530,7 +1549,7 @@ export async function listCallsHistory(params: { uid: string }): Promise<{ count
       sourceBId: row?.sourceBId != null && String(row.sourceBId).trim() ? String(row.sourceBId) : null,
       callChannel: 'ghost-link-voip' as const,
       callType: row?.callType === 'video' ? 'video' : 'audio' as const,
-      storyState: row?.storyState === 'vip' ? 'vip' : row?.storyState === 'normal' ? 'normal' : 'none',
+      voipLogPresence,
       direction: row?.direction === 'outgoing' ? 'outgoing' : row?.direction === 'missed' ? 'missed' : 'incoming',
       status: row?.status === 'missed' ? 'missed' : row?.status === 'rejected' ? 'rejected' : 'completed',
       durationSec: Number(row?.durationSec || 0),

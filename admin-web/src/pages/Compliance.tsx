@@ -49,6 +49,32 @@ function ConsentRow({ label, value }: { label: string; value: unknown }) {
   );
 }
 
+function ConsentMetaRow({
+  label,
+  valueText,
+}: {
+  label: string;
+  valueText: string;
+}) {
+  const has = Boolean(valueText && valueText !== 'No registrado');
+  return (
+    <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+      <div>
+        <p className="text-sm font-semibold text-slate-900">{label}</p>
+        <p className="mt-1 text-xs font-mono text-slate-600">{valueText}</p>
+      </div>
+      <span
+        className={[
+          'rounded-full px-2.5 py-1 text-xs font-semibold',
+          has ? 'bg-sky-100 text-sky-800' : 'bg-amber-100 text-amber-800',
+        ].join(' ')}
+      >
+        {has ? 'Auditado' : 'Pendiente'}
+      </span>
+    </div>
+  );
+}
+
 export default function Compliance() {
   const { user } = useAuth();
   const [search, setSearch] = useState('');
@@ -71,7 +97,11 @@ export default function Compliance() {
     try {
       const result = await findComplianceUser(search);
       if (!result) {
-        setToast({ type: 'error', message: 'No se encontró un usuario con ese email o UID.' });
+        setToast({
+          type: 'error',
+          message:
+            'No se encontró un usuario con ese correo, UID o nombre de usuario. Prueba también sin @.',
+        });
         return;
       }
       setFoundUser(result);
@@ -144,7 +174,7 @@ export default function Compliance() {
             className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar por email o UID"
+            placeholder="Correo, UID de Firebase o usuario (nick)"
             required
           />
           <button
@@ -193,24 +223,38 @@ export default function Compliance() {
                 </span>
               </div>
 
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
+              <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Usuario (nick)</p>
+                  <p className="mt-1 text-sm font-medium text-slate-900">
+                    {foundUser.nickname || 'No registrado'}
+                  </p>
+                </div>
                 <div className="rounded-2xl bg-slate-50 p-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Teléfono</p>
                   <p className="mt-1 text-sm font-medium text-slate-900">{foundUser.phoneNumber || 'No registrado'}</p>
                 </div>
                 <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Registro</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Registro cuenta</p>
                   <p className="mt-1 text-sm font-medium text-slate-900">{formatDate(foundUser.createdAt)}</p>
                 </div>
               </div>
             </section>
 
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-xl font-semibold text-slate-950">Estado de consentimientos</h2>
+              <h2 className="text-xl font-semibold text-slate-950">Consentimientos (registro)</h2>
+              <p className="mt-2 text-xs text-slate-500">
+                Trazabilidad para moderación/bloqueos: marca de tiempo de aceptación y versión del paquete legal
+                registrada en alta.
+              </p>
               <div className="mt-5 grid gap-3">
                 <ConsentRow label="Terms of Service" value={foundUser.tosAcceptedAt || foundUser.termsAcceptedAt} />
                 <ConsentRow label="Privacy Policy" value={foundUser.privacyAcceptedAt} />
-                <ConsentRow label="Fecha de registro" value={foundUser.createdAt} />
+                <ConsentRow label="Política de uso / moderación" value={foundUser.acceptableUseAcceptedAt} />
+                <ConsentMetaRow
+                  label="Versión legal aceptada (bundle)"
+                  valueText={foundUser.legalConsentBundleVersion || 'No registrado'}
+                />
               </div>
             </section>
           </div>

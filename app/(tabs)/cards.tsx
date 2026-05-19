@@ -543,7 +543,6 @@ export default function CardsFactoryScreen() {
   const [limitReachedVisible, setLimitReachedVisible] = useState(false);
   const [limitCardCount, setLimitCardCount] = useState(0);
   const [limitMaxCards, setLimitMaxCards] = useState(5);
-  const [isCardsUnlocked, setIsCardsUnlocked] = useState(true);
   const [dataSelectorVisible, setDataSelectorVisible] = useState(false);
   const [dataSelectorLimitReached, setDataSelectorLimitReached] = useState(false);
   const [tempSelectedIds, setTempSelectedIds] = useState<string[]>([]);
@@ -1959,6 +1958,10 @@ export default function CardsFactoryScreen() {
       qrActiveSid === card.sid && qrExpiresAt > Date.now() && Boolean(qrUniversalWebUrl);
 
     if (universalStillValid) {
+      const authenticated = await hardLockCheck(t('biometric_reason_cards_qr_24h'));
+      if (!authenticated) {
+        return;
+      }
       setQrBusinessContext(null);
       setSelectedCard(card);
       setQrVisible(true);
@@ -2644,9 +2647,6 @@ export default function CardsFactoryScreen() {
   }, [filteredFeed, cardSearchQuery, isLandscape, t]);
 
   useEffect(() => {
-    if (!isCardsUnlocked) {
-      return;
-    }
     let cancelled = false;
     void (async () => {
       const uid = await getActiveUserId();
@@ -2665,7 +2665,7 @@ export default function CardsFactoryScreen() {
     return () => {
       cancelled = true;
     };
-  }, [isCardsUnlocked]);
+  }, []);
 
   const commitCardsReorder = useCallback(async () => {
     const keys = reorderDraftData.map(cardsFeedItemKey);
@@ -3681,40 +3681,6 @@ export default function CardsFactoryScreen() {
     );
   };
 
-  if (!isCardsUnlocked) {
-    return (
-      <View style={[styles.container, { backgroundColor: cardsTheme.backgroundSolid }]}>
-        <View style={styles.emptyWrap}>
-          <MaterialCommunityIcons name="shield-lock-outline" size={56} color={cardsTheme.icon} />
-          <Text style={[styles.emptyTitle, { color: cardsTheme.text }]}>
-            {t('cards_biometric_gate_title')}
-          </Text>
-          <Text style={[styles.emptyText, { color: cardsTheme.modalSubtitle }]}>
-            {t('cards_biometric_gate_body')}
-          </Text>
-          <TouchableOpacity
-            style={[styles.firstQrBtn, { backgroundColor: cardsTheme.btnPrimary }]}
-            onPress={async () => {
-              const authenticated = await hardLockCheck(t('biometric_reason_cards_access'));
-              setIsCardsUnlocked(authenticated);
-              if (authenticated) {
-                const uid = await getActiveUserId();
-                setSessionUid(uid ?? null);
-                loadVaultItems();
-                loadSmartCards();
-                void loadBusinessCardsFeed();
-              }
-            }}
-          >
-            <MaterialCommunityIcons name="fingerprint" size={18} color={cardsTheme.btnPrimaryText} />
-            <Text style={[styles.firstQrBtnText, { color: cardsTheme.btnPrimaryText }]}>{t('cards_unlock')}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  const businessSlotBlocked = Boolean(cardSlotCaps && cardSlotCaps.businessUsed >= cardSlotCaps.businessMax);
   const smartSlotBlocked = Boolean(cardSlotCaps && cardSlotCaps.smartCurrent >= cardSlotCaps.smartMax);
 
   return (
