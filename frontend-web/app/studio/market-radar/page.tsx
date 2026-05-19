@@ -109,7 +109,7 @@ function MarketRadarPageInner() {
           </div>
           <div style={{ fontWeight: 900, fontSize: 13, color: studioTheme.gold }}>{studioT(locale, 'studio.brand')}</div>
         </div>
-        <StudioLocaleDropdown locale={locale} onChange={setLocaleChip} label={studioT(locale, 'studio.localeMenu')} />
+        <StudioLocaleDropdown locale={locale} onChange={setLocaleChip} label={studioT(locale, 'studio.localeMenu')} variant="header" />
       </header>
 
       <main style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 16 }}>

@@ -244,6 +244,8 @@ const EN: Record<string, string> = {
   'marketRadar.tooltipNicheScoped': 'Active cohort: {niche}',
   'marketRadar.tooltipIntentFilter': 'Intent keyword: "{q}"',
   'marketRadar.noToken': 'The map is not available in this environment. Try again later.',
+  'marketRadar.noTokenHint':
+    'This page needs a Mapbox token in the build: set NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN for the website host and redeploy (see frontend-web/.env.example).',
 
   /** Native WebView `/embed/market-radar` (session via custom token, no HTML login gate) */
   'embed.radarSyncing': 'Connecting your embedded session…',
@@ -499,6 +501,8 @@ const ES: Record<string, string> = {
   'marketRadar.tooltipNicheScoped': 'Cohort activo: {niche}',
   'marketRadar.tooltipIntentFilter': 'Keyword de intención: «{q}»',
   'marketRadar.noToken': 'El mapa no está disponible en este entorno. Inténtalo más tarde.',
+  'marketRadar.noTokenHint':
+    'Hace falta un token de Mapbox en el despliegue: define NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN en el hosting y vuelve a publicar (véase frontend-web/.env.example).',
 
   'embed.radarSyncing': 'Conectando la sesión embebida…',
   'embed.radarHandshakeFailed': 'No se pudo abrir el Market Radar incrustado.',
@@ -762,6 +766,8 @@ const DE: Record<string, string> = {
   'marketRadar.tooltipNicheScoped': 'Aktive Kohorte: {niche}',
   'marketRadar.tooltipIntentFilter': 'Intent-Keyword: „{q}"',
   'marketRadar.noToken': 'Die Karte ist in dieser Umgebung nicht verfügbar. Bitte später erneut versuchen.',
+  'marketRadar.noTokenHint':
+    'Für die Web-Karte wird NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN beim Hosting gesetzt und neu deployed (siehe frontend-web/.env.example).',
   'embed.radarSyncing': 'Eingebettete Sitzung wird verbunden…',
   'embed.radarHandshakeFailed': 'Eingebetteter Market Radar konnte nicht geöffnet werden.',
   'embed.radarHandshakeHint':

@@ -108,6 +108,16 @@ export default function MarketRadar({ t }) {
 
   const token = typeof window !== 'undefined' ? readMapboxToken() : '';
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (readMapboxToken()) return;
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(
+        '[MarketRadar] Map disabled: missing NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN. Add it to frontend-web/.env.local and restart dev, or set it on your host for production.',
+      );
+    }
+  }, []);
+
   const aggregatorRef = useRef(null);
   if (aggregatorRef.current === null) {
     aggregatorRef.current = new MarketTrendAggregator();
@@ -731,7 +741,22 @@ export default function MarketRadar({ t }) {
               zIndex: 5,
             }}
           >
-            {t('marketRadar.noToken')}
+            <div>
+              <div>{t('marketRadar.noToken')}</div>
+              <div
+                style={{
+                  marginTop: 12,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: studioTheme.textMuted,
+                  maxWidth: 400,
+                  marginLeft: 'auto',
+                  marginRight: 'auto',
+                }}
+              >
+                {t('marketRadar.noTokenHint')}
+              </div>
+            </div>
           </div>
         ) : null}
         <div

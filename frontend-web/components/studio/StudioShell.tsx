@@ -32,11 +32,11 @@ import {
   type TiersConfig,
 } from '@/lib/studioTierPolicy';
 import { readStudioUserAvatarUrl, readStudioUserFullName, readStudioUserNickName } from '@/lib/studioUserIdentityFields';
-import Link from 'next/link';
 import FormColumn from '@/components/studio/FormColumn';
 import IconSelectorColumn from '@/components/studio/IconSelectorColumn';
 import ProfileColumn, { type StudioProfile } from '@/components/studio/ProfileColumn';
 import VaultColumn from '@/components/studio/VaultColumn';
+import { StudioLocaleDropdown } from '@/components/studio/StudioLocaleDropdown';
 
 function iconMciFromLink(l: StudioVaultLink | undefined, fallback: string): string {
   if (!l) return fallback;
@@ -548,53 +548,7 @@ export default function StudioShell() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Link
-            href={`/studio/market-radar?lang=${locale}`}
-            style={{
-              background: 'none',
-              border: `1px solid ${studioTheme.border}`,
-              color: studioTheme.gold,
-              padding: '6px 11px',
-              borderRadius: 8,
-              fontSize: 11,
-              fontWeight: 800,
-              letterSpacing: 0.35,
-              textDecoration: 'none',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {t('marketRadar.nav')}
-          </Link>
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 0,
-              borderRadius: 8,
-              overflow: 'hidden',
-              border: `1px solid ${studioTheme.border}`,
-            }}
-          >
-            {(['es', 'en', 'it', 'fr', 'pt'] as const).map((l) => (
-              <button
-                key={l}
-                type="button"
-                onClick={() => setLocaleAndStore(l)}
-                style={{
-                  padding: '6px 10px',
-                  border: 'none',
-                  borderRight: l !== 'pt' ? `1px solid ${studioTheme.border}` : undefined,
-                  cursor: 'pointer',
-                  background: locale === l ? studioTheme.gold : 'transparent',
-                  color: locale === l ? studioTheme.bg : studioTheme.textMuted,
-                  fontSize: 11,
-                  fontWeight: 700,
-                }}
-              >
-                {t(`lang.${l}`)}
-              </button>
-            ))}
-          </div>
+          <StudioLocaleDropdown locale={locale} onChange={setLocaleAndStore} label={t('studio.localeMenu')} variant="header" />
           <button
             type="button"
             onClick={onSignOut}
